@@ -110,7 +110,6 @@ const EveryFabricInner: React.FC = () => {
   const isSessionMeshActive = showAgentMesh && meshScopeParam !== 'company'
   const isAnyOverlayShown =
     showSettings || showScheduled || showAgentMesh || showTraceExplorer || showEnterpriseWorkforce
-
   return (
     <div className="gba:flex gba:h-full gba:min-h-full gba:w-full gba:min-w-0">
       <Sidebar

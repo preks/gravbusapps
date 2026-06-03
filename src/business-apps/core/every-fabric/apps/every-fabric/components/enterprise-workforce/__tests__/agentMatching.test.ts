@@ -1,25 +1,13 @@
-import type { FabricAgent } from '../../agents/agentTypes'
-import { rankAgents, scoreAgent, tokenize } from '../agentMatching'
+import { rankAgents, scoreAgent, tokenize, type RankableAgent } from '../agentMatching'
 
-function makeAgent(overrides: Partial<FabricAgent>): FabricAgent {
+function makeAgent(overrides: Partial<RankableAgent>): RankableAgent {
   return {
     id: overrides.id ?? 'a',
     name: overrides.name ?? 'agent',
     description: overrides.description ?? '',
-    agent_type: 'expert',
     specialty: overrides.specialty ?? null,
     domain: overrides.domain ?? null,
-    avatar: null,
-    color: '#000',
-    is_public: true,
-    tags: overrides.tags ?? [],
-    tools_count: 0,
-    knowledge_sources_count: 0,
-    skill_ids: [],
-    skills_count: 0,
-    source: 'prompt_odm',
-    status: 'active',
-    created_at: null
+    tags: overrides.tags ?? []
   }
 }
 
@@ -56,7 +44,7 @@ describe('scoreAgent', () => {
 })
 
 describe('rankAgents', () => {
-  const agents = [
+  const agents: RankableAgent[] = [
     makeAgent({ id: '1', name: 'translate_text', description: 'translate any text to a language' }),
     makeAgent({ id: '2', name: 'shorten_text', description: 'summarise long text' }),
     makeAgent({
@@ -86,5 +74,14 @@ describe('rankAgents', () => {
 
   it('returns an empty list when nothing matches', () => {
     expect(rankAgents(agents, 'cook dinner for guests')).toEqual([])
+  })
+
+  it('preserves extra fields on the input type so callers can attach metadata', () => {
+    interface AgentWithMeta extends RankableAgent {
+      meta: { hired: boolean }
+    }
+    const agents: AgentWithMeta[] = [{ ...makeAgent({ id: '1', name: 'translate' }), meta: { hired: true } }]
+    const results = rankAgents(agents, 'translate')
+    expect(results[0].agent.meta.hired).toBe(true)
   })
 })

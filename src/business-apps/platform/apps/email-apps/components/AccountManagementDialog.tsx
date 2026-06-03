@@ -25,7 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from '@newwork/nw-design-system'
-import { Mail, RefreshCw, Trash2, Plus, Calendar, MessageSquare } from 'lucide-react'
+import { Mail, RefreshCw, Trash2, Plus, Calendar, MessageSquare, Forward } from 'lucide-react'
 import { MicrosoftOAuthService } from '../services/MicrosoftOAuthService'
 import { GoogleOAuthService } from '../services/GoogleOAuthService'
 import { OAuthConfigError } from '../services/OAuthConfigError'
@@ -66,6 +66,10 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
   const { t } = useTranslation(translations)
   const [deletingAccountId, setDeletingAccountId] = useState<string | null>(null)
   const [reconnectingAccountId, setReconnectingAccountId] = useState<string | null>(null)
+  const [forwardingSavingId, setForwardingSavingId] = useState<string | null>(null)
+  // Optimistic per-account override so the switch flips instantly on click,
+  // before the PATCH + refetch round-trip resolves. Keyed by account id.
+  const [forwardingOverrides, setForwardingOverrides] = useState<Record<string, boolean>>({})
 
   const handleToggleThreadView = () => {
     onToggleThreadView?.()
@@ -147,6 +151,35 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
   }
 
   const supportsCalendar = (provider: string) => provider === 'microsoft' || provider === 'google'
+
+  // Owner consent for Workforce forwarding is persisted on the account
+  // (forwardingEnabled), unlike the localStorage-only calendar toggle, so
+  // document-service can gate inbound forwarding on it server-side.
+  const isForwardingEnabled = (account: EmailAccount): boolean => {
+    const override = forwardingOverrides[account.id]
+    return override !== undefined ? override : account.forwardingEnabled === true
+  }
+
+  const handleToggleForwarding = async (account: EmailAccount) => {
+    const next = !isForwardingEnabled(account)
+    // Flip immediately for responsive UI; revert if the PATCH fails.
+    setForwardingOverrides(prev => ({ ...prev, [account.id]: next }))
+    setForwardingSavingId(account.id)
+    try {
+      await EmailApiService.updateAccount(account.id, { forwardingEnabled: next })
+      toast.success(
+        next
+          ? t('account-mgmt-toast-forwarding-enabled', { name: account.displayName })
+          : t('account-mgmt-toast-forwarding-disabled', { name: account.displayName })
+      )
+      onAccountsChanged()
+    } catch (err) {
+      setForwardingOverrides(prev => ({ ...prev, [account.id]: !next }))
+      toast.error(err instanceof Error ? err.message : t('account-mgmt-toast-forwarding-failed'))
+    } finally {
+      setForwardingSavingId(null)
+    }
+  }
 
   return (
     <>
@@ -271,6 +304,25 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
                         checked={isCalendarEnabled(account.id)}
                         onCheckedChange={() => handleToggleCalendar(account)}
                         data-testid={`${testId}-calendar-${account.id}`}
+                      />
+                    </div>
+                  )}
+
+                  {/* Workforce inbound-email forwarding (owner opt-in) */}
+                  {account.status === 'active' && (
+                    <div className="gba:flex gba:items-center gba:justify-between gba:mt-3 gba:pt-3 gba:border-t">
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <Forward className="gba:w-4 gba:h-4 gba:text-info" />
+                        <span className="gba:text-sm gba:text-foreground">{t('account-mgmt-forwarding')}</span>
+                        <span className="gba:text-xs gba:text-muted-foreground">
+                          {t('account-mgmt-forwarding-desc')}
+                        </span>
+                      </div>
+                      <Switch
+                        checked={isForwardingEnabled(account)}
+                        disabled={forwardingSavingId === account.id}
+                        onCheckedChange={() => void handleToggleForwarding(account)}
+                        data-testid={`${testId}-forwarding-${account.id}`}
                       />
                     </div>
                   )}

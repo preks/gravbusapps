@@ -1,19 +1,17 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@newwork/nw-design-system'
 import {
   ArrowLeftIcon,
-  ArrowSquareOutIcon,
   LightbulbIcon,
   MagnifyingGlassIcon,
   PlusIcon,
-  ShieldCheckIcon,
   SpinnerGapIcon,
   WrenchIcon,
   XIcon
 } from '@phosphor-icons/react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { getSourceDisplay } from './agentSourceUtils'
-import { AddPoliciesModal, buildPolicyDetailUrl, type PickedPolicy } from './AddPoliciesModal'
+import { AgentPoliciesEditor } from './AgentPoliciesEditor'
 import type { FabricAgent } from './agentTypes'
 
 interface SkillOption {
@@ -55,25 +53,6 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
 
   // Tools state (read-only, from detail endpoint)
   const [tools, setTools] = useState<string[]>([])
-
-  // Policies state — per-agent intranet policy allow-list. The picker
-  // lives in AddPoliciesModal; the backend reconciles the full set on
-  // every save (see PUT /agents/registry/{id}/policies).
-  const [policies, setPolicies] = useState<Array<{ policy_id: string; title: string }>>([])
-  const [excludedPolicyIds, setExcludedPolicyIds] = useState<Set<string>>(new Set())
-  const [policiesLoading, setPoliciesLoading] = useState(true)
-  const [policiesError, setPoliciesError] = useState<string | null>(null)
-  // True when the agent's backing ODM supports per-agent policy_refs
-  // (currently only PromptODM). For AutonomousAgentODM the backend
-  // returns supported=false and we hide the entire section since
-  // those agents only honour workspace-level default policies.
-  const [policiesSupported, setPoliciesSupported] = useState(true)
-  // IDs of policies that are already covered by the workspace default
-  // baseline — used to show a "Default" badge so users understand
-  // attaching them here is redundant (the runtime deduplicates anyway).
-  const [workspacePolicies, setWorkspacePolicies] = useState<Array<{ policy_id: string; title: string }>>([])
-  const [workspaceDefaultIds, setWorkspaceDefaultIds] = useState<Set<string>>(new Set())
-  const [addPoliciesModalOpen, setAddPoliciesModalOpen] = useState(false)
 
   // Details state
   const [detailsName, setDetailsName] = useState(agent.name)
@@ -122,23 +101,6 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
       setSelectedSkillIds(new Set(agentSkills.skills.map(s => s.skill_id)))
     }
 
-    const applyPoliciesResult = (
-      result: PromiseSettledResult<Awaited<ReturnType<typeof client.getAgentPolicies>>>,
-      workspaceResult: PromiseSettledResult<Awaited<ReturnType<typeof client.getWorkspacePolicies>>>
-    ) => {
-      if (result.status !== 'fulfilled') {
-        setPoliciesError(result.reason instanceof Error ? result.reason.message : 'Failed to load policies')
-        return
-      }
-      setPolicies(result.value.policies ?? [])
-      setExcludedPolicyIds(new Set(result.value.excluded_policy_refs ?? []))
-      setPoliciesSupported(result.value.supported !== false)
-      if (workspaceResult.status === 'fulfilled') {
-        setWorkspacePolicies(workspaceResult.value.policies ?? [])
-        setWorkspaceDefaultIds(new Set((workspaceResult.value.policies ?? []).map(p => p.policy_id)))
-      }
-    }
-
     const applyDetailsResult = (result: PromiseSettledResult<Awaited<ReturnType<typeof client.getAgentDetail>>>) => {
       if (result.status !== 'fulfilled') {
         setDetailsError(result.reason instanceof Error ? result.reason.message : 'Failed to load agent details')
@@ -160,25 +122,19 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
     const load = async () => {
       setSkillsLoading(true)
       setSkillsError(null)
-      setPoliciesLoading(true)
-      setPoliciesError(null)
       setDetailsLoading(true)
       setDetailsError(null)
-      const [skillsResult, policiesResult, workspaceResult, detailResult] = await Promise.allSettled([
+      const [skillsResult, detailResult] = await Promise.allSettled([
         Promise.all([
           client.getAgentSkills(agent.id),
           client.get<SkillOption[]>('/admin/skills/').catch(() => [] as SkillOption[]),
           client.get<Array<Omit<SkillOption, 'status' | 'is_active'>>>('/skills/manifest').catch(() => [])
         ]),
-        client.getAgentPolicies(agent.id),
-        client.getWorkspacePolicies().catch(() => ({ workspace_id: null, workspace_name: null, policies: [] })),
         client.getAgentDetail(agent.id)
       ])
       if (cancelled) return
       applySkillsResult(skillsResult)
       setSkillsLoading(false)
-      applyPoliciesResult(policiesResult, workspaceResult)
-      setPoliciesLoading(false)
       applyDetailsResult(detailResult)
       setDetailsLoading(false)
     }
@@ -217,97 +173,6 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
       setSkillsError(err instanceof Error ? err.message : 'Failed to persist skills')
     })
   }
-
-  // Persist the full policy allow-list. The PUT endpoint expects the
-  // canonical set (not a delta), so we always send the post-mutation
-  // ids and roll back optimistic state on failure.
-  const persistPolicies = useCallback(
-    async (
-      nextPolicies: Array<{ policy_id: string; title: string }>,
-      nextExcluded: string[],
-      previousPolicies: Array<{ policy_id: string; title: string }>,
-      previousExcluded: Set<string>
-    ) => {
-      setPolicies(nextPolicies)
-      setExcludedPolicyIds(new Set(nextExcluded))
-      setPoliciesError(null)
-      try {
-        await client.setAgentPolicies(
-          agent.id,
-          nextPolicies.map(p => p.policy_id),
-          nextExcluded
-        )
-      } catch (err) {
-        setPolicies(previousPolicies)
-        setExcludedPolicyIds(previousExcluded)
-        setPoliciesError(err instanceof Error ? err.message : 'Failed to persist policies')
-      }
-    },
-    [agent.id, client]
-  )
-
-  // The modal returns the full desired set (already-attached + newly
-  // ticked) using its own `{ id, title }` shape. We only treat it as
-  // additive: removals happen through the X button on each chip, which
-  // keeps existing titles intact even if the user hasn't paginated to
-  // the page that holds them.
-  const handleApplyPolicies = useCallback(
-    (picked: PickedPolicy[]) => {
-      const nextPolicies = [...policies]
-      const nextExcluded = new Set(excludedPolicyIds)
-      const explicitSeen = new Set(policies.map(p => p.policy_id))
-
-      let changed = false
-      for (const p of picked) {
-        if (workspaceDefaultIds.has(p.id)) {
-          if (nextExcluded.has(p.id)) {
-            nextExcluded.delete(p.id)
-            changed = true
-          }
-        } else {
-          if (!explicitSeen.has(p.id)) {
-            nextPolicies.push({ policy_id: p.id, title: p.title })
-            explicitSeen.add(p.id)
-            changed = true
-          }
-        }
-      }
-      setAddPoliciesModalOpen(false)
-      if (changed) {
-        persistPolicies(nextPolicies, Array.from(nextExcluded), policies, excludedPolicyIds).catch(() => {})
-      }
-    },
-    [persistPolicies, policies, excludedPolicyIds, workspaceDefaultIds]
-  )
-
-  const handleRemovePolicy = useCallback(
-    (policyId: string, isDefault?: boolean) => {
-      if (isDefault) {
-        const nextExcluded = new Set(excludedPolicyIds)
-        nextExcluded.add(policyId)
-        persistPolicies(policies, Array.from(nextExcluded), policies, excludedPolicyIds).catch(() => {})
-      } else {
-        const nextPolicies = policies.filter(p => p.policy_id !== policyId)
-        persistPolicies(nextPolicies, Array.from(excludedPolicyIds), policies, excludedPolicyIds).catch(() => {})
-      }
-    },
-    [persistPolicies, policies, excludedPolicyIds]
-  )
-
-  const effectivePolicies = useMemo(() => {
-    const list: Array<{ policy_id: string; title: string; isDefault: boolean }> = []
-    for (const wp of workspacePolicies) {
-      if (!excludedPolicyIds.has(wp.policy_id)) {
-        list.push({ ...wp, isDefault: true })
-      }
-    }
-    for (const p of policies) {
-      if (!workspaceDefaultIds.has(p.policy_id)) {
-        list.push({ ...p, isDefault: false })
-      }
-    }
-    return list
-  }, [workspacePolicies, excludedPolicyIds, policies, workspaceDefaultIds])
 
   const handleSaveDetails = async () => {
     setDetailsSaving(true)
@@ -503,88 +368,9 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
           </section>
 
           {/* Policies Section (agent-level intranet policy allow-list).
-              Only rendered when the agent's ODM supports policy_refs —
-              autonomous agents fall back to workspace defaults. */}
-          {policiesSupported && (
-            <section data-testid="agent-config-policies">
-              <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
-                <h2 className="gba:text-base gba:font-semibold gba:text-foreground">Policies</h2>
-              </div>
-              <p className="gba:text-xs gba:text-muted-foreground gba:mb-4">
-                Workspace default policies are inherited automatically. You can remove them for this specific agent if
-                they are not relevant.
-              </p>
-
-              {policiesError && (
-                <div className="gba:rounded-lg gba:border gba:border-destructive/30 gba:bg-destructive/5 gba:p-3 gba:text-sm gba:text-destructive gba:mb-3">
-                  {policiesError}
-                </div>
-              )}
-
-              {policiesLoading ? (
-                <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
-                  <SpinnerGapIcon className="gba:h-6 gba:w-6 gba:animate-spin gba:text-muted-foreground" />
-                </div>
-              ) : (
-                <div className="gba:space-y-3">
-                  {effectivePolicies.length === 0 ? (
-                    <p className="gba:text-sm gba:text-muted-foreground gba:py-2">No policies attached.</p>
-                  ) : (
-                    <div className="gba:space-y-2">
-                      {effectivePolicies.map(policy => (
-                        <div
-                          key={policy.policy_id}
-                          className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:rounded-lg gba:border gba:border-border gba:bg-muted/30 gba:px-3 gba:py-2"
-                          data-testid={`config-policy-${policy.policy_id}`}
-                        >
-                          <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
-                            <ShieldCheckIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:shrink-0" />
-                            <a
-                              href={buildPolicyDetailUrl(policy.policy_id)}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="gba:text-sm gba:text-foreground gba:hover:underline gba:truncate gba:inline-flex gba:items-center gba:gap-1"
-                              title={policy.title}
-                            >
-                              <span className="gba:truncate">{policy.title || policy.policy_id}</span>
-                              <ArrowSquareOutIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
-                            </a>
-                            {policy.isDefault && (
-                              <span
-                                className="gba:flex-shrink-0 gba:rounded-full gba:bg-primary/10 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-primary"
-                                title="Inherited from Workspace Defaults"
-                              >
-                                Workspace Default
-                              </span>
-                            )}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleRemovePolicy(policy.policy_id, policy.isDefault)}
-                            className="gba:inline-flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:rounded gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors gba:shrink-0"
-                            data-testid={`config-policy-remove-${policy.policy_id}`}
-                            aria-label={policy.isDefault ? 'Exclude default policy' : 'Remove policy'}
-                          >
-                            <XIcon className="gba:h-3.5 gba:w-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setAddPoliciesModalOpen(true)}
-                    data-testid="config-policy-add-button"
-                  >
-                    <PlusIcon className="gba:mr-1.5 gba:h-3.5 gba:w-3.5" />
-                    Add Policy
-                  </Button>
-                </div>
-              )}
-            </section>
-          )}
+              Self-managed by AgentPoliciesEditor; renders nothing when the
+              agent's ODM does not support per-agent policy_refs. */}
+          <AgentPoliciesEditor agentId={agent.id} accessToken={accessToken} />
 
           {/* Tools Section (read-only) */}
           <section data-testid="agent-config-tools">
@@ -677,18 +463,6 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
           </section>
         </div>
       </div>
-
-      {addPoliciesModalOpen && policiesSupported && (
-        <AddPoliciesModal
-          open={addPoliciesModalOpen}
-          accessToken={accessToken}
-          alreadySelected={policies.map(p => p.policy_id)}
-          workspaceDefaultIds={workspaceDefaultIds}
-          excludedPolicyIds={excludedPolicyIds}
-          onClose={() => setAddPoliciesModalOpen(false)}
-          onAdd={handleApplyPolicies}
-        />
-      )}
     </div>
   )
 }

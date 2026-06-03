@@ -128,6 +128,17 @@ export const CardTitle = ({ children, ...props }: any) => <div {...props}>{child
 export const CardDescription = ({ children, ...props }: any) => <div {...props}>{children}</div>
 export const CardContent = ({ children, ...props }: any) => <div {...props}>{children}</div>
 
+// Chart primitives — render children so recharts trees mount under jsdom.
+export const ChartContainer = ({ children, className, ...props }: any) => (
+  <div className={className} {...props}>
+    {children}
+  </div>
+)
+export const ChartTooltip = ({ children, ...props }: any) => <div {...props}>{children}</div>
+export const ChartTooltipContent = ({ children, ...props }: any) => <div {...props}>{children}</div>
+export const ChartLegend = ({ children, ...props }: any) => <div {...props}>{children}</div>
+export const ChartLegendContent = ({ children, ...props }: any) => <div {...props}>{children}</div>
+
 export const Dialog = ({ children, open = true }: any) => (open ? <div>{children}</div> : null)
 export const DialogContent = ({ children, ...props }: any) => <div {...props}>{children}</div>
 export const DialogHeader = ({ children, ...props }: any) => <div {...props}>{children}</div>

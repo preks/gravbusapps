@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import {
   CaretDownIcon,
@@ -139,14 +139,33 @@ const plainTextToHtml = (text: string): string => {
   return paragraphs || '<p></p>'
 }
 
-function RecipientChipInput({
+const COMPOSE_FIELD_LABEL_CLASS = 'gba:text-[11px] gba:text-muted-foreground gba:w-10 gba:shrink-0 gba:text-right'
+
+function ComposeFieldRow({
   label,
+  children,
+  multiline = false
+}: {
+  readonly label: string
+  readonly children: ReactNode
+  readonly multiline?: boolean
+}) {
+  return (
+    <div className={`gba:flex gba:gap-2 ${multiline ? 'gba:items-start' : 'gba:items-center'}`}>
+      <span className={`${COMPOSE_FIELD_LABEL_CLASS} ${multiline ? 'gba:pt-2' : ''}`}>{label}</span>
+      <div className="gba:flex-1 gba:min-w-0">{children}</div>
+    </div>
+  )
+}
+
+function RecipientChipInput({
+  fieldLabel,
   value,
   onChange,
   accessToken,
   readOnly
 }: {
-  readonly label: string
+  readonly fieldLabel: string
   readonly value: ComposeEmailRecipient[]
   readonly onChange: (next: ComposeEmailRecipient[]) => void
   readonly accessToken?: string
@@ -221,68 +240,73 @@ function RecipientChipInput({
 
   if (readOnly) {
     return (
-      <div className="gba:flex gba:items-start gba:gap-2 gba:border gba:border-transparent gba:rounded-lg gba:bg-muted/25 gba:px-2 gba:py-1.5 gba:min-h-[38px]">
-        <span className="gba:text-[12px] gba:font-semibold gba:text-muted-foreground gba:pt-1 gba:w-8 gba:shrink-0">
-          {label}
-        </span>
-        <div className="gba:flex gba:flex-wrap gba:gap-1.5 gba:flex-1 gba:text-[13px] gba:text-muted-foreground">
-          {value.length === 0 ? (
-            <span className="gba:italic">—</span>
-          ) : (
-            <span className="gba:text-[13px]">
-              {value.map(r => (r.name ? `${r.name} <${r.address}>` : r.address)).join(', ')}
+      <div
+        className="gba:flex gba:min-h-9 gba:items-center gba:flex-wrap gba:gap-1.5 gba:rounded-lg gba:border gba:border-transparent gba:bg-muted/25 gba:px-2.5 gba:py-1 gba:text-[13px] gba:text-muted-foreground"
+        aria-label={fieldLabel}
+      >
+        {value.length === 0 ? (
+          <span className="gba:italic">—</span>
+        ) : (
+          value.map(r => (
+            <span key={r.address} className="gba:truncate">
+              {r.name ? `${r.name} <${r.address}>` : r.address}
             </span>
-          )}
-        </div>
+          ))
+        )}
       </div>
     )
   }
 
   return (
     <div ref={wrapperRef} className="gba:relative gba:w-full">
-      <div className="gba:flex gba:items-start gba:gap-2 gba:border gba:border-input gba:rounded-lg gba:bg-background gba:px-2 gba:py-1.5 gba:min-h-[38px] gba:flex-wrap">
-        <span className="gba:text-[12px] gba:font-semibold gba:text-muted-foreground gba:pt-1.5 gba:w-8 gba:shrink-0">
-          {label}
-        </span>
-        <div className="gba:flex gba:flex-wrap gba:gap-1.5 gba:flex-1 gba:min-w-0">
-          {value.map((r, i) => (
+      <div
+        className="gba:flex gba:min-h-9 gba:items-center gba:flex-wrap gba:gap-1.5 gba:rounded-lg gba:border gba:border-input gba:bg-background gba:px-2.5 gba:py-1"
+        role="group"
+        aria-label={fieldLabel}
+      >
+        {value.map((r, i) => {
+          const chipLabel = r.name || r.address
+          const chipTitle = r.name ? `${r.name} <${r.address}>` : r.address
+          return (
             <span
               key={`${r.address}-${i}`}
-              className="gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:bg-primary/10 gba:text-primary gba:text-[12px] gba:px-2 gba:py-0.5"
+              className="gba:inline-flex gba:max-w-full gba:items-center gba:gap-1 gba:rounded-md gba:bg-muted gba:text-foreground gba:text-[12px] gba:px-2 gba:py-0.5"
             >
-              <span className="gba:max-w-[220px] gba:truncate">{r.name ? `${r.name} <${r.address}>` : r.address}</span>
+              <span className="gba:max-w-[200px] gba:truncate" title={chipTitle}>
+                {chipLabel}
+              </span>
               <button
                 type="button"
-                className="gba:rounded-full gba:hover:bg-primary/20 gba:p-0.5"
+                className="gba:rounded-sm gba:text-muted-foreground gba:hover:bg-muted-foreground/10 gba:p-0.5"
                 onClick={() => removeRecipient(i)}
                 aria-label={`Remove ${r.address}`}
               >
                 <XIcon className="gba:h-3 gba:w-3" />
               </button>
             </span>
-          ))}
-          <input
-            type="text"
-            className="gba:flex-1 gba:min-w-[160px] gba:bg-transparent gba:outline-none gba:border-0 gba:text-[13px] gba:py-1 gba:px-1"
-            placeholder={value.length === 0 ? 'Type a name or email…' : ''}
-            value={query}
-            onChange={e => {
-              setQuery(e.target.value)
-              setIsOpen(true)
-            }}
-            onFocus={() => setIsOpen(true)}
-            onKeyDown={e => {
-              if (e.key === 'Enter' || e.key === ',' || e.key === 'Tab') {
-                if (query.trim()) {
-                  e.preventDefault()
-                  commitRawEmail()
-                }
-              } else if (e.key === 'Backspace' && !query && value.length > 0) {
-                removeRecipient(value.length - 1)
+          )
+        })}
+        <input
+          type="text"
+          className="gba:h-7 gba:min-w-[120px] gba:flex-1 gba:border-0 gba:bg-transparent gba:px-0 gba:text-[13px] gba:outline-none"
+          placeholder={value.length === 0 ? 'Type a name or email…' : ''}
+          value={query}
+          onChange={e => {
+            setQuery(e.target.value)
+            setIsOpen(true)
+          }}
+          onFocus={() => setIsOpen(true)}
+          onKeyDown={e => {
+            if (e.key === 'Enter' || e.key === ',' || e.key === 'Tab') {
+              if (query.trim()) {
+                e.preventDefault()
+                commitRawEmail()
               }
-            }}
-          />
-        </div>
+            } else if (e.key === 'Backspace' && !query && value.length > 0) {
+              removeRecipient(value.length - 1)
+            }
+          }}
+        />
       </div>
 
       {isOpen &&
@@ -366,7 +390,7 @@ function AccountPicker({
       <select
         value={selectedId ?? ''}
         onChange={e => onChange(e.target.value)}
-        className="gba:appearance-none gba:w-full gba:text-[12px] gba:border gba:border-input gba:rounded-md gba:bg-background gba:pl-2 gba:pr-7 gba:py-1.5"
+        className="gba:h-9 gba:w-full gba:appearance-none gba:rounded-lg gba:border gba:border-input gba:bg-background gba:pl-2.5 gba:pr-8 gba:text-[13px]"
       >
         {accounts.map(a => (
           <option key={a.id} value={a.id}>
@@ -374,7 +398,7 @@ function AccountPicker({
           </option>
         ))}
       </select>
-      <CaretDownIcon className="gba:absolute gba:right-2 gba:top-1/2 gba:-translate-y-1/2 gba:h-3 gba:w-3 gba:text-muted-foreground gba:pointer-events-none" />
+      <CaretDownIcon className="gba:pointer-events-none gba:absolute gba:right-2.5 gba:top-1/2 gba:h-3.5 gba:w-3.5 gba:-translate-y-1/2 gba:text-muted-foreground" />
     </div>
   )
 }
@@ -584,55 +608,58 @@ export function EmailComposerBubble({
 
         {showDetailPanel && (
           <>
-            <div className="gba:p-3 gba:space-y-2">
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <span className="gba:text-[11px] gba:text-muted-foreground gba:w-16 gba:shrink-0">From</span>
-                <div className="gba:flex-1 gba:min-w-0">
-                  {accountsError ? (
-                    <div className="gba:text-[11px] gba:text-destructive">Failed to load accounts: {accountsError}</div>
-                  ) : (
-                    <AccountPicker
-                      accounts={accounts}
-                      selectedId={accountId}
-                      onChange={id => setAccountId(id)}
-                      loading={accountsLoading}
-                      readOnly={readOnly}
-                    />
-                  )}
-                </div>
-              </div>
+            <div className="gba:space-y-2 gba:p-3">
+              <ComposeFieldRow label="From">
+                {accountsError ? (
+                  <div className="gba:text-[11px] gba:text-destructive">Failed to load accounts: {accountsError}</div>
+                ) : (
+                  <AccountPicker
+                    accounts={accounts}
+                    selectedId={accountId}
+                    onChange={id => setAccountId(id)}
+                    loading={accountsLoading}
+                    readOnly={readOnly}
+                  />
+                )}
+              </ComposeFieldRow>
 
-              <RecipientChipInput
-                label="To"
-                value={to}
-                onChange={setTo}
-                accessToken={accessToken}
-                readOnly={readOnly}
-              />
+              <ComposeFieldRow label="To" multiline>
+                <RecipientChipInput
+                  fieldLabel="To"
+                  value={to}
+                  onChange={setTo}
+                  accessToken={accessToken}
+                  readOnly={readOnly}
+                />
+              </ComposeFieldRow>
 
               {showCc ? (
                 <>
-                  <RecipientChipInput
-                    label="Cc"
-                    value={cc}
-                    onChange={setCc}
-                    accessToken={accessToken}
-                    readOnly={readOnly}
-                  />
-                  <RecipientChipInput
-                    label="Bcc"
-                    value={bcc}
-                    onChange={setBcc}
-                    accessToken={accessToken}
-                    readOnly={readOnly}
-                  />
+                  <ComposeFieldRow label="Cc" multiline>
+                    <RecipientChipInput
+                      fieldLabel="Cc"
+                      value={cc}
+                      onChange={setCc}
+                      accessToken={accessToken}
+                      readOnly={readOnly}
+                    />
+                  </ComposeFieldRow>
+                  <ComposeFieldRow label="Bcc" multiline>
+                    <RecipientChipInput
+                      fieldLabel="Bcc"
+                      value={bcc}
+                      onChange={setBcc}
+                      accessToken={accessToken}
+                      readOnly={readOnly}
+                    />
+                  </ComposeFieldRow>
                 </>
               ) : (
                 !readOnly && (
                   <button
                     type="button"
                     onClick={() => setShowCc(true)}
-                    className="gba:text-[11px] gba:text-muted-foreground gba:hover:text-foreground gba:underline gba:underline-offset-2"
+                    className="gba:ml-12 gba:text-[11px] gba:text-muted-foreground gba:underline gba:underline-offset-2 gba:hover:text-foreground"
                   >
                     Add Cc / Bcc
                   </button>

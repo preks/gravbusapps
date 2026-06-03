@@ -1,132 +1,249 @@
-// Enterprise Workforce — top-level overview of the AI workforce.
+// Workforce Agents overview screen.
 //
-// Discovery surface where operators can browse, search and activate
-// agents. Two browsing modes:
+// Replaces the previous "enterprise-agent discovery" view. This screen is
+// now focused on Workforce Agents (AutonomousAgentODM records with the
+// "workforce" surface). Two browsing modes:
 //
-//   1. Default browse mode — hero + KPIs + (collapsed) AI trigger +
-//      slim filter row + tile grid.
-//   2. AI find-me-an-agent mode — when the user submits a task
-//      description in the expanded composer, the grid switches to
-//      ranked matches with match-confidence badges.
+//   1. Default browse mode - hero + KPIs + (collapsed) AI trigger +
+//      All / Active / Paused filter + employee card grid.
+//   2. AI find-me-an-agent mode - when the user submits a task
+//      description in the expanded composer, the grid switches to ranked
+//      Workforce Agent matches.
 //
-// The KPI strip in the hero already gives the user an at-a-glance
-// overview of how many agents are active; the "Active" filter chip in
-// the filter row narrows the grid to those.
+// Detailed agent configuration lives in the dedicated
+// WorkforceAgentConfigView; clicking Configure on a tile navigates into
+// it and back via the Workforce header.
 
 import { Button } from '@newwork/nw-design-system'
-import { ArrowLeftIcon, SparkleIcon, SpinnerGapIcon, UsersThreeIcon } from '@phosphor-icons/react'
-import { useMemo, useState } from 'react'
+import { ArchiveIcon, ArrowLeftIcon, SparkleIcon, SpinnerGapIcon, UsersThreeIcon } from '@phosphor-icons/react'
+import React, { useCallback, useMemo, useState } from 'react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
-import { AgentConfigView } from '../agents/AgentConfigView'
-import { CreateAgentModal } from '../agents/CreateAgentModal'
-import type { FabricAgent } from '../agents/agentTypes'
-import type { ActiveSessionSnapshot } from '../../types/activeSession'
+import { ArchivedAgentsPanel } from './ArchivedAgentsPanel'
+import { ConfirmActionModal } from './ConfirmActionModal'
+import { HireOptionsDialog } from './HireOptionsDialog'
+import { HireWorkforceAgentModal, type HireWorkforceAgentFormState } from './HireWorkforceAgentModal'
+import { AgentMarketplaceModal } from './marketplace/AgentMarketplaceModal'
+import type { MarketplaceAgentTemplate } from './marketplace/marketplaceAgents'
+import { LiveCommandCenter } from './command-center/LiveCommandCenter'
+import { RunDetailScreen } from './run-detail/RunDetailScreen'
+import { ValueScoreboard } from './value/ValueScoreboard'
+import { WorkforceInsightsRow } from './WorkforceInsightsRow'
 import { WorkforceAIComposer } from './WorkforceAIComposer'
-import { WorkforceAgentTile, type WorkforceTileStatus } from './WorkforceAgentTile'
+import { WorkforceAgentDetailScreen } from './WorkforceAgentDetailScreen'
 import { WorkforceFilters } from './WorkforceFilters'
 import { WorkforceHero } from './WorkforceHero'
-import { rankAgents } from './agentMatching'
-import { useWorkforceData, type WorkforceFilter } from './useWorkforceData'
+import { rankAgents, type RankableAgent } from './agentMatching'
+import { useArchivedWorkforceAgents } from './useArchivedWorkforceAgents'
+import { useWorkforceData, type WorkforceAgentSummary, type WorkforceFilter } from './useWorkforceData'
+import { useWorkforceLiveActivity } from './useWorkforceLiveActivity'
+import { useWorkforceUrlState } from './useWorkforceUrlState'
+import { WorkforceDeck, type DeckMatchInfo } from './deck/WorkforceDeck'
+import type { WorkforceAgent } from './workforceTypes'
+
+type WorkforceView = 'active' | 'archived'
+
+// Hire flow steps: closed → chooser → (marketplace) → create. The marketplace
+// path stores the chosen template so the create dialog opens prefilled.
+type HireFlow = 'closed' | 'chooser' | 'marketplace' | 'create'
 
 interface EnterpriseWorkforceScreenProps {
   accessToken: string
-  activeSessions: ActiveSessionSnapshot[]
   onBack: () => void
-}
-
-function resolveTileStatus(agent: FabricAgent): WorkforceTileStatus {
-  if (agent.source === 'builtin_subagent') return 'builtin'
-  if (agent.status === 'archived') return 'archived'
-  if (agent.status === 'active') return 'active'
-  return 'inactive'
 }
 
 /** Maximum number of ranked agents to show when an AI query is active. */
 const MAX_AI_MATCHES = 9
 
-export const EnterpriseWorkforceScreen: React.FC<EnterpriseWorkforceScreenProps> = ({
-  accessToken,
-  activeSessions,
-  onBack
-}) => {
+function templateToFormState(template: MarketplaceAgentTemplate): Partial<HireWorkforceAgentFormState> {
+  const { createInput } = template
+  return {
+    displayName: template.displayName,
+    role: createInput.role ?? template.role,
+    department: createInput.department ?? template.department,
+    description: createInput.description ?? template.tagline,
+    instructions: createInput.instructions ?? '',
+    autonomyLevel: createInput.autonomy_level ?? 'approval_required'
+  }
+}
+
+function toRankable(summary: WorkforceAgentSummary): RankableAgent & { __summary: WorkforceAgentSummary } {
+  const { agent } = summary
+  const profile = agent.workforce_profile
+  return {
+    id: agent.agent_id,
+    name: `${agent.display_name || agent.name} ${profile.role}`.trim(),
+    specialty: profile.role || agent.domain,
+    domain: agent.domain,
+    description: `${agent.description} ${profile.instructions}`.trim(),
+    tags: [...agent.tags, profile.role, profile.department ?? ''].filter(Boolean),
+    __summary: summary
+  }
+}
+
+export const EnterpriseWorkforceScreen: React.FC<EnterpriseWorkforceScreenProps> = ({ accessToken, onBack }) => {
   const client = usePromptManagerClient(accessToken)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<WorkforceFilter>('all')
   const [aiQuery, setAiQuery] = useState<string | null>(null)
-  const [configuringAgent, setConfiguringAgent] = useState<FabricAgent | null>(null)
-  const [createOpen, setCreateOpen] = useState(false)
+  const [hireFlow, setHireFlow] = useState<HireFlow>('closed')
+  const [hireTemplate, setHireTemplate] = useState<MarketplaceAgentTemplate | null>(null)
+  const {
+    agentId: urlAgentId,
+    tab: urlTab,
+    runId: urlRunId,
+    setAgent: setUrlAgent,
+    setTab: setUrlTab,
+    setRun: setUrlRun,
+    updateUrl
+  } = useWorkforceUrlState()
+  const [view, setView] = useState<WorkforceView>('active')
+  const [pendingArchive, setPendingArchive] = useState<WorkforceAgent | null>(null)
+  const [archiveError, setArchiveError] = useState<string | null>(null)
 
   const {
     isLoading,
     error,
     counts,
     filtered,
+    agents,
     refetch,
     activate,
+    pause,
     archive,
     activatingAgentId,
-    archivingAgentId,
-    activeAgents,
-    archivedAgents,
-    builtinAgents
+    pausingAgentId,
+    archivingAgentId
   } = useWorkforceData({ accessToken, filter, search })
 
-  const liveCount = useMemo(() => activeSessions.length, [activeSessions.length])
+  const {
+    agents: archivedAgents,
+    isLoading: archivedLoading,
+    isRestoring: archivedRestoring,
+    error: archivedError,
+    refetch: refetchArchived,
+    restore: restoreArchived
+  } = useArchivedWorkforceAgents({ accessToken, enabled: view === 'archived' })
+
+  // Live "who is working now" activity, streamed for the whole workforce.
+  // Only active while browsing the active list and not in AI-matching mode.
+  const liveActivity = useWorkforceLiveActivity(accessToken, '', view === 'active' && !urlAgentId)
 
   const aiResults = useMemo(() => {
     if (!aiQuery) return []
-    const builtinAsAgents = builtinAgents.map(b => ({
-      id: b.id,
-      name: b.name,
-      description: b.description,
-      agent_type: 'builtin',
-      specialty: b.categories[0] ?? null,
-      domain: b.categories[0] ?? null,
-      avatar: null,
-      color: '#f59e0b',
-      is_public: true,
-      tags: b.categories,
-      tools_count: 0,
-      knowledge_sources_count: 0,
-      skill_ids: [],
-      skills_count: 0,
-      source: b.source ?? 'builtin_subagent',
-      status: 'active',
-      created_at: null
-    }))
-    const pool: FabricAgent[] = [...activeAgents, ...builtinAsAgents, ...archivedAgents]
-    return rankAgents(pool, aiQuery).slice(0, MAX_AI_MATCHES)
-  }, [aiQuery, activeAgents, archivedAgents, builtinAgents])
+    const rankablePool = agents.map(toRankable)
+    return rankAgents(rankablePool, aiQuery).slice(0, MAX_AI_MATCHES)
+  }, [aiQuery, agents])
 
   const isAIMatching = aiQuery !== null
 
-  const handleSkillsSaved = (agentId: string, updatedSkillIds: string[]) => {
-    setConfiguringAgent(prev =>
-      prev && prev.id === agentId ? { ...prev, skill_ids: updatedSkillIds, skills_count: updatedSkillIds.length } : prev
-    )
+  // Ordered summaries the deck renders: ranked AI matches when a query is
+  // active, otherwise the filtered active/paused list.
+  const aiSummaries = useMemo(() => aiResults.map(match => match.agent.__summary), [aiResults])
+  const aiMatchById = useMemo(() => {
+    const map: Record<string, DeckMatchInfo> = {}
+    aiResults.forEach((match, index) => {
+      map[match.agent.__summary.agent.agent_id] = { rank: index + 1, confidence: match.confidence }
+    })
+    return map
+  }, [aiResults])
+
+  const deckSummaries = isAIMatching ? aiSummaries : filtered
+
+  // Stable id -> display name lookup for the live strip + per-agent charts.
+  const nameById = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const summary of agents) {
+      map[summary.agent.agent_id] = summary.agent.display_name || summary.agent.name
+    }
+    return map
+  }, [agents])
+
+  const handleConfigure = (agent: WorkforceAgent) => {
+    setUrlAgent(agent.agent_id)
+  }
+
+  const handleConfigBack = () => {
+    setUrlAgent(null)
     void refetch()
   }
 
-  const handleAgentUpdated = (agentId: string, updates: { name: string; description: string; tags: string[] }) => {
-    setConfiguringAgent(prev =>
-      prev && prev.id === agentId
-        ? { ...prev, name: updates.name, description: updates.description, tags: updates.tags }
-        : prev
-    )
+  const handleHireSuccess = () => {
     void refetch()
   }
 
-  if (configuringAgent) {
+  const openHireChooser = useCallback(() => {
+    setHireTemplate(null)
+    setHireFlow('chooser')
+  }, [])
+
+  const closeHireFlow = useCallback(() => {
+    setHireFlow('closed')
+    setHireTemplate(null)
+  }, [])
+
+  const handleHireFromMarketplace = useCallback((template: MarketplaceAgentTemplate) => {
+    setHireTemplate(template)
+    setHireFlow('create')
+  }, [])
+
+  // Two-step archive: requesting opens the confirm modal; only ``confirm``
+  // actually hits the backend. Keeps the destructive call gated and lets
+  // the user back out without state mutations.
+  const requestArchive = useCallback(async (agent: WorkforceAgent) => {
+    setArchiveError(null)
+    setPendingArchive(agent)
+  }, [])
+
+  const cancelArchive = useCallback(() => {
+    if (archivingAgentId) return
+    setPendingArchive(null)
+    setArchiveError(null)
+  }, [archivingAgentId])
+
+  const confirmArchive = useCallback(async () => {
+    if (!pendingArchive) return
+    setArchiveError(null)
+    try {
+      await archive(pendingArchive)
+      setPendingArchive(null)
+    } catch (err) {
+      setArchiveError(err instanceof Error ? err.message : 'Failed to archive agent.')
+    }
+  }, [archive, pendingArchive])
+
+  const handleRestore = useCallback(
+    async (agent: WorkforceAgent) => {
+      try {
+        await restoreArchived(agent)
+        // Refresh the active list so the restored (paused) agent reappears
+        // without the user having to switch view manually.
+        void refetch()
+      } catch {
+        // useArchivedWorkforceAgents already captured the error
+      }
+    },
+    [refetch, restoreArchived]
+  )
+
+  // A selected run takes over the whole screen (deep-linked via `?runId=`).
+  // Back clears the run id, returning to the agent context (or overview).
+  if (urlRunId) {
     return (
-      <div className="gba:flex gba:flex-col gba:h-full gba:bg-background">
-        <AgentConfigView
-          agent={configuringAgent}
-          accessToken={accessToken}
-          onBack={() => setConfiguringAgent(null)}
-          onSkillsSaved={handleSkillsSaved}
-          onAgentUpdated={handleAgentUpdated}
-        />
-      </div>
+      <RunDetailScreen runId={urlRunId} accessToken={accessToken} nameById={nameById} onBack={() => setUrlRun(null)} />
+    )
+  }
+
+  if (urlAgentId) {
+    return (
+      <WorkforceAgentDetailScreen
+        accessToken={accessToken}
+        agentId={urlAgentId}
+        tab={urlTab}
+        runId={urlRunId}
+        onBack={handleConfigBack}
+        onChangeTab={setUrlTab}
+        onSelectRun={setUrlRun}
+      />
     )
   }
 
@@ -143,175 +260,212 @@ export const EnterpriseWorkforceScreen: React.FC<EnterpriseWorkforceScreenProps>
           >
             <ArrowLeftIcon className="gba:h-5 gba:w-5" />
           </button>
-          <span className="gba:text-sm gba:font-medium gba:text-muted-foreground">Enterprise Workforce</span>
+          <span className="gba:text-sm gba:font-medium gba:text-muted-foreground">Agent Workforce</span>
+          <div className="gba:ml-auto gba:inline-flex gba:rounded-md gba:border gba:border-border gba:bg-background gba:p-0.5">
+            <button
+              type="button"
+              onClick={() => setView('active')}
+              className={`gba:inline-flex gba:items-center gba:gap-1.5 gba:rounded gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:transition-colors ${
+                view === 'active'
+                  ? 'gba:bg-muted gba:text-foreground'
+                  : 'gba:text-muted-foreground gba:hover:text-foreground'
+              }`}
+              data-testid="workforce-view-active"
+            >
+              Active
+            </button>
+            <button
+              type="button"
+              onClick={() => setView('archived')}
+              className={`gba:inline-flex gba:items-center gba:gap-1.5 gba:rounded gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:transition-colors ${
+                view === 'archived'
+                  ? 'gba:bg-muted gba:text-foreground'
+                  : 'gba:text-muted-foreground gba:hover:text-foreground'
+              }`}
+              data-testid="workforce-view-archived"
+            >
+              <ArchiveIcon className="gba:h-3.5 gba:w-3.5" />
+              Archived
+            </button>
+          </div>
         </div>
       </div>
 
       <div className="gba:flex-1 gba:overflow-y-auto">
         <div className="gba:mx-auto gba:flex gba:max-w-7xl gba:flex-col gba:gap-6 gba:px-6 gba:py-8 gba:lg:px-10">
-          <WorkforceHero counts={counts} liveCount={liveCount} onHireAgent={() => setCreateOpen(true)} />
-
-          <div className="gba:flex gba:flex-col gba:gap-3">
-            <WorkforceAIComposer activeQuery={aiQuery} onSubmit={setAiQuery} onClear={() => setAiQuery(null)} />
-
-            {!isAIMatching && (
-              <WorkforceFilters
-                search={search}
-                onSearchChange={setSearch}
-                filter={filter}
-                onFilterChange={setFilter}
+          {view === 'active' ? (
+            <>
+              <WorkforceHero
                 counts={counts}
+                onHireAgent={openHireChooser}
+                workingNow={liveActivity.workingAgentIds.size}
               />
-            )}
-          </div>
 
-          {error && (
-            <div
-              className="gba:flex gba:items-center gba:justify-between gba:rounded-xl gba:border gba:border-destructive/30 gba:bg-destructive/5 gba:px-4 gba:py-3 gba:text-sm gba:text-destructive"
-              role="alert"
-            >
-              <span>{error}</span>
-              <Button variant="link" size="sm" onClick={() => void refetch()}>
-                Retry
-              </Button>
-            </div>
-          )}
+              {!isAIMatching && <ValueScoreboard accessToken={accessToken} />}
 
-          {isLoading ? (
-            <div
-              className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-3 gba:py-24"
-              data-testid="workforce-loading"
-            >
-              <SpinnerGapIcon className="gba:h-7 gba:w-7 gba:animate-spin gba:text-muted-foreground" />
-              <p className="gba:text-sm gba:text-muted-foreground">Loading your workforce…</p>
-            </div>
-          ) : isAIMatching ? (
-            <AIMatchResults
-              query={aiQuery ?? ''}
-              results={aiResults}
-              activeAgentIds={activeAgents.map(a => a.id)}
-              activatingAgentId={activatingAgentId}
-              archivingAgentId={archivingAgentId}
-              onActivate={activate}
-              onArchive={archive}
-              onConfigure={setConfiguringAgent}
-            />
-          ) : filtered.length === 0 ? (
-            <EmptyState hasAgents={counts.total > 0} search={search} onHireAgent={() => setCreateOpen(true)} />
-          ) : (
-            <div className="gba:grid gba:grid-cols-1 gba:gap-3 gba:md:grid-cols-2 gba:xl:grid-cols-3">
-              {filtered.map(agent => {
-                const status = resolveTileStatus(agent)
-                return (
-                  <WorkforceAgentTile
-                    key={`${status}-${agent.id}`}
-                    agent={agent}
-                    status={status}
-                    isActivating={activatingAgentId === agent.id}
-                    isArchiving={archivingAgentId === agent.id}
-                    onActivate={activate}
-                    onArchive={archive}
-                    onConfigure={
-                      status === 'active' && activeAgents.some(a => a.id === agent.id) ? setConfiguringAgent : undefined
-                    }
+              {!isAIMatching && (
+                <LiveCommandCenter
+                  feed={liveActivity.feed}
+                  overview={liveActivity.overview}
+                  completedToday={liveActivity.completedToday}
+                  throughputBuckets={liveActivity.throughputBuckets}
+                  isConnected={liveActivity.isConnected}
+                  nameById={nameById}
+                  onOpenRun={(agentId, runId) => updateUrl({ agentId, tab: 'runs', runId })}
+                />
+              )}
+
+              {!isAIMatching && <WorkforceInsightsRow accessToken={accessToken} nameById={nameById} />}
+
+              <div className="gba:flex gba:flex-col gba:gap-3">
+                <WorkforceAIComposer activeQuery={aiQuery} onSubmit={setAiQuery} onClear={() => setAiQuery(null)} />
+
+                {!isAIMatching && (
+                  <WorkforceFilters
+                    search={search}
+                    onSearchChange={setSearch}
+                    filter={filter}
+                    onFilterChange={setFilter}
+                    counts={counts}
                   />
-                )
-              })}
-            </div>
+                )}
+              </div>
+
+              {error && (
+                <div
+                  className="gba:flex gba:items-center gba:justify-between gba:rounded-xl gba:border gba:border-destructive/30 gba:bg-destructive/5 gba:px-4 gba:py-3 gba:text-sm gba:text-destructive"
+                  role="alert"
+                  data-testid="workforce-error"
+                >
+                  <span>{error}</span>
+                  <Button variant="link" size="sm" onClick={() => void refetch()}>
+                    Retry
+                  </Button>
+                </div>
+              )}
+
+              {isLoading ? (
+                <div
+                  className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-3 gba:py-24"
+                  data-testid="workforce-loading"
+                >
+                  <SpinnerGapIcon className="gba:h-7 gba:w-7 gba:animate-spin gba:text-muted-foreground" />
+                  <p className="gba:text-sm gba:text-muted-foreground">Loading your workforce…</p>
+                </div>
+              ) : isAIMatching && aiSummaries.length === 0 ? (
+                <AINoResults />
+              ) : !isAIMatching && filtered.length === 0 ? (
+                <EmptyState hasAgents={counts.total > 0} search={search} onHire={openHireChooser} />
+              ) : (
+                <WorkforceDeck
+                  summaries={deckSummaries}
+                  isAgentWorking={liveActivity.isAgentWorking}
+                  currentActivityForAgent={agentId => liveActivity.activeRunForAgent(agentId)?.current_activity}
+                  matchById={isAIMatching ? aiMatchById : undefined}
+                  aiQuery={aiQuery ?? undefined}
+                  activatingAgentId={activatingAgentId}
+                  pausingAgentId={pausingAgentId}
+                  archivingAgentId={archivingAgentId}
+                  onActivate={activate}
+                  onPause={pause}
+                  onArchive={requestArchive}
+                  onConfigure={handleConfigure}
+                />
+              )}
+            </>
+          ) : (
+            <ArchivedAgentsPanel
+              agents={archivedAgents}
+              isLoading={archivedLoading}
+              isRestoring={archivedRestoring}
+              errorMessage={archivedError}
+              onRefresh={() => void refetchArchived()}
+              onRestore={handleRestore}
+            />
           )}
         </div>
       </div>
 
-      {createOpen && (
-        <CreateAgentModal
-          open={createOpen}
+      <HireOptionsDialog
+        open={hireFlow === 'chooser'}
+        onClose={closeHireFlow}
+        onChooseMarketplace={() => setHireFlow('marketplace')}
+        onChooseCreate={() => {
+          setHireTemplate(null)
+          setHireFlow('create')
+        }}
+      />
+
+      <AgentMarketplaceModal
+        open={hireFlow === 'marketplace'}
+        onClose={closeHireFlow}
+        onHire={handleHireFromMarketplace}
+      />
+
+      {hireFlow === 'create' && (
+        <HireWorkforceAgentModal
+          open
           client={client}
-          accessToken={accessToken}
-          onClose={() => setCreateOpen(false)}
-          onCreated={refetch}
+          onClose={closeHireFlow}
+          onCreated={handleHireSuccess}
+          initialValues={hireTemplate ? templateToFormState(hireTemplate) : undefined}
+          tags={hireTemplate?.createInput.tags}
+          title={hireTemplate ? `Hire ${hireTemplate.displayName}` : undefined}
+          subtitle={
+            hireTemplate ? 'Review and confirm. You can fine-tune triggers, skills and budget after hiring.' : undefined
+          }
         />
       )}
-    </div>
-  )
-}
 
-interface AIMatchResultsProps {
-  query: string
-  results: ReturnType<typeof rankAgents>
-  activeAgentIds: string[]
-  activatingAgentId: string | null
-  archivingAgentId: string | null
-  onActivate: (agent: FabricAgent) => Promise<void>
-  onArchive: (agent: FabricAgent) => Promise<void>
-  onConfigure: (agent: FabricAgent) => void
-}
-
-const AIMatchResults: React.FC<AIMatchResultsProps> = ({
-  query,
-  results,
-  activeAgentIds,
-  activatingAgentId,
-  archivingAgentId,
-  onActivate,
-  onArchive,
-  onConfigure
-}) => {
-  if (results.length === 0) {
-    return (
-      <div
-        className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-3 gba:rounded-2xl gba:border gba:border-dashed gba:border-border gba:bg-card/50 gba:py-16 gba:text-center"
-        data-testid="workforce-ai-no-results"
-      >
-        <div className="gba:flex gba:h-10 gba:w-10 gba:items-center gba:justify-center gba:rounded-lg gba:bg-muted/40">
-          <SparkleIcon className="gba:h-5 gba:w-5 gba:text-muted-foreground" />
-        </div>
-        <p className="gba:text-sm gba:font-medium gba:text-foreground">No agent matches that task yet</p>
-        <p className="gba:max-w-md gba:text-xs gba:text-muted-foreground">
-          Try rephrasing or describe the task in different words.
-        </p>
-      </div>
-    )
-  }
-
-  return (
-    <div data-testid="workforce-ai-results">
-      <div className="gba:mb-3 gba:flex gba:items-center gba:gap-1.5">
-        <SparkleIcon className="gba:h-3.5 gba:w-3.5 gba:text-foreground" weight="fill" />
-        <p className="gba:text-xs gba:text-muted-foreground">
-          Best matches for <span className="gba:font-medium gba:text-foreground">“{query}”</span>
-        </p>
-      </div>
-      <div className="gba:grid gba:grid-cols-1 gba:gap-3 gba:md:grid-cols-2 gba:xl:grid-cols-3">
-        {results.map((match, index) => {
-          const agent = match.agent
-          const status = resolveTileStatus(agent)
-          return (
-            <WorkforceAgentTile
-              key={`ai-${agent.id}`}
-              agent={agent}
-              status={status}
-              matchConfidence={match.confidence}
-              matchRank={index + 1}
-              isActivating={activatingAgentId === agent.id}
-              isArchiving={archivingAgentId === agent.id}
-              onActivate={onActivate}
-              onArchive={onArchive}
-              onConfigure={status === 'active' && activeAgentIds.includes(agent.id) ? onConfigure : undefined}
-            />
+      <ConfirmActionModal
+        open={pendingArchive !== null}
+        title="Archive this workforce agent?"
+        description={
+          pendingArchive ? (
+            <>
+              <strong className="gba:font-semibold gba:text-foreground">
+                {pendingArchive.display_name || pendingArchive.name}
+              </strong>{' '}
+              will be paused and hidden from the workforce. Triggers stop firing immediately. You can restore the agent
+              from the Archived view at any time.
+            </>
+          ) : (
+            ''
           )
-        })}
-      </div>
+        }
+        confirmLabel="Archive agent"
+        isBusy={archivingAgentId !== null}
+        errorMessage={archiveError}
+        onCancel={cancelArchive}
+        onConfirm={confirmArchive}
+        testIdPrefix="workforce-archive-confirm"
+      />
     </div>
   )
 }
+
+const AINoResults: React.FC = () => (
+  <div
+    className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-3 gba:rounded-2xl gba:border gba:border-dashed gba:border-border gba:bg-card/50 gba:py-16 gba:text-center"
+    data-testid="workforce-ai-no-results"
+  >
+    <div className="gba:flex gba:h-10 gba:w-10 gba:items-center gba:justify-center gba:rounded-lg gba:bg-muted/40">
+      <SparkleIcon className="gba:h-5 gba:w-5 gba:text-muted-foreground" />
+    </div>
+    <p className="gba:text-sm gba:font-medium gba:text-foreground">No workforce agent matches that task yet</p>
+    <p className="gba:max-w-md gba:text-xs gba:text-muted-foreground">
+      Try rephrasing, or hire a new specialist for this work.
+    </p>
+  </div>
+)
 
 interface EmptyStateProps {
   hasAgents: boolean
   search: string
-  onHireAgent: () => void
+  onHire: () => void
 }
 
-const EmptyState: React.FC<EmptyStateProps> = ({ hasAgents, search, onHireAgent }) => {
+const EmptyState: React.FC<EmptyStateProps> = ({ hasAgents, search, onHire }) => {
   if (search) {
     return (
       <div
@@ -321,7 +475,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({ hasAgents, search, onHireAgent 
         <div className="gba:flex gba:h-10 gba:w-10 gba:items-center gba:justify-center gba:rounded-lg gba:bg-muted/40">
           <UsersThreeIcon className="gba:h-5 gba:w-5 gba:text-muted-foreground" />
         </div>
-        <p className="gba:text-sm gba:font-medium gba:text-foreground">No agents match your search</p>
+        <p className="gba:text-sm gba:font-medium gba:text-foreground">No workforce agents match your search</p>
         <p className="gba:text-xs gba:text-muted-foreground">Try a different keyword or clear the filter.</p>
       </div>
     )
@@ -339,10 +493,11 @@ const EmptyState: React.FC<EmptyStateProps> = ({ hasAgents, search, onHireAgent 
         <div>
           <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">Build your AI workforce</h3>
           <p className="gba:mt-1 gba:text-sm gba:text-muted-foreground gba:max-w-md">
-            Hire your first specialist to start orchestrating work.
+            Hire your first specialist - they will react to your triggers, follow your policies, and escalate when they
+            need a human.
           </p>
         </div>
-        <Button onClick={onHireAgent} data-testid="workforce-empty-cta">
+        <Button onClick={onHire} data-testid="workforce-empty-cta">
           Hire your first agent
         </Button>
       </div>

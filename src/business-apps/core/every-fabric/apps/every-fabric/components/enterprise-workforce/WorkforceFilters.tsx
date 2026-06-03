@@ -1,9 +1,11 @@
-// Slim filter row for the Enterprise Workforce screen.
+// Slim filter row for the Workforce Agents screen.
 //
-// Search input on the left, segmented status filter on the right. Both
-// stay low-key visually so the agent grid is the focal point.
+// Search input on the left, segmented status filter on the right
+// (All / Active / Paused). Both stay low-key visually so the agent
+// grid is the focal point.
 
 import { MagnifyingGlassIcon } from '@phosphor-icons/react'
+import React from 'react'
 import type { WorkforceFilter, WorkforceCounts } from './useWorkforceData'
 
 interface WorkforceFiltersProps {
@@ -30,8 +32,7 @@ export const WorkforceFilters: React.FC<WorkforceFiltersProps> = ({
   const options: FilterOption[] = [
     { key: 'all', label: 'All', count: counts.total },
     { key: 'active', label: 'Active', count: counts.active },
-    { key: 'builtin', label: 'Built-in', count: counts.builtin },
-    { key: 'archived', label: 'Archived', count: counts.archived }
+    { key: 'paused', label: 'Paused', count: counts.paused }
   ]
 
   return (
@@ -40,7 +41,7 @@ export const WorkforceFilters: React.FC<WorkforceFiltersProps> = ({
         <MagnifyingGlassIcon className="gba:absolute gba:left-2.5 gba:top-1/2 gba:-translate-y-1/2 gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
         <input
           type="text"
-          placeholder="Search agents…"
+          placeholder="Search by name, role, department…"
           value={search}
           onChange={e => onSearchChange(e.target.value)}
           className="gba:h-9 gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-card gba:pl-8 gba:pr-3 gba:text-sm gba:text-foreground gba:placeholder-muted-foreground gba:outline-none gba:focus:border-foreground/30"
@@ -50,7 +51,7 @@ export const WorkforceFilters: React.FC<WorkforceFiltersProps> = ({
 
       <div
         role="tablist"
-        aria-label="Filter agents"
+        aria-label="Filter workforce agents"
         className="gba:inline-flex gba:items-center gba:gap-0.5 gba:rounded-lg gba:border gba:border-border gba:bg-card gba:p-0.5"
       >
         {options.map(option => {

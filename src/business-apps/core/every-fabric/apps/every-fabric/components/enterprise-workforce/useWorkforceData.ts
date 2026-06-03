@@ -1,167 +1,195 @@
-// Data hook for the Enterprise Workforce overview screen.
+// Data hook for the Workforce Agents overview screen.
 //
-// Combines three sources from the prompt-manager backend into a single,
-// memoised view-model:
-//   - active agents (`/agents/registry`)
-//   - archived agents (`/agents/registry?status=archived`)
-//   - built-in sub-agents (`/agents/builtins`) — task-matched specialists
-//     activated automatically by the orchestrator
+// Fetches workforce-surface agents from prompt-manager's `/workforce/agents`
+// endpoint (active + paused) and per-agent triggers, then layers Phase 6
+// credit metrics on top via useWorkforceWorkspaceMetrics. The KPI roll-ups
+// (creditsThisWeek, runsToday, per-tile credits) come from a single
+// `/workforce/metrics` request rather than N+1 per-agent run fetches.
 //
-// Exposes filtered slices + counts that the screen drives off of, plus
-// activate / archive mutations that locally reconcile state without a
-// full refetch (the same pattern AgentsScreen uses).
+// We intentionally keep the recent-runs panel on its own hook
+// (useWorkforceRuns) because its data is detail-level, not aggregated.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { AgentRegistryEntry } from '@/business-apps/platform/apps/agent-mesh/types/agentMesh'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
-import type { BuiltinSubagent, FabricAgent } from '../agents/agentTypes'
+import { buildWorkforceDemoSummaries, readOrbitDemoCount } from './workforceDemoAgents'
+import { useWorkforceWorkspaceMetrics } from './useWorkforceMetrics'
+import {
+  emptyMetricsTotals,
+  normalizeWorkforceAgent,
+  type WorkforceAgent,
+  type WorkforceMetricsTotals,
+  type WorkforceMetricsWindow,
+  type WorkforceTrigger
+} from './workforceTypes'
 
-export type WorkforceFilter = 'all' | 'active' | 'inactive' | 'builtin' | 'archived'
+export type WorkforceFilter = 'all' | 'active' | 'paused'
 
 export interface WorkforceCounts {
   active: number
-  archived: number
-  builtin: number
+  paused: number
   total: number
+  activeTriggers: number
+  creditsThisWeek: number
+  runsToday: number
+}
+
+export interface WorkforceAgentSummary {
+  agent: WorkforceAgent
+  triggerCount: number
+  activeTriggerCount: number
+  metrics: WorkforceMetricsTotals
+  creditsThisWeek: number
+  runsThisWeek: number
+  lastCompletedAt: string | null
 }
 
 export interface WorkforceData {
   isLoading: boolean
   error: string | null
-  activeAgents: FabricAgent[]
-  archivedAgents: FabricAgent[]
-  builtinAgents: BuiltinSubagent[]
+  agents: WorkforceAgentSummary[]
+  filtered: WorkforceAgentSummary[]
   counts: WorkforceCounts
-  filtered: FabricAgent[]
   refetch: () => Promise<void>
-  activate: (agent: FabricAgent) => Promise<void>
-  archive: (agent: FabricAgent) => Promise<void>
+  activate: (agent: WorkforceAgent) => Promise<void>
+  pause: (agent: WorkforceAgent) => Promise<void>
+  archive: (agent: WorkforceAgent) => Promise<void>
   activatingAgentId: string | null
+  pausingAgentId: string | null
   archivingAgentId: string | null
-}
-
-function mapRegistryEntryToFabricAgent(entry: AgentRegistryEntry, statusFallback: 'active' | 'archived'): FabricAgent {
-  return {
-    id: entry.id,
-    name: entry.name,
-    description: entry.description,
-    agent_type: entry.agent_type,
-    specialty: entry.specialty,
-    domain: ((entry as Record<string, unknown>).domain as string | null) ?? entry.specialty,
-    avatar: entry.avatar,
-    color: entry.color,
-    is_public: entry.is_public,
-    tags: entry.tags ?? [],
-    tools_count: entry.tools_count ?? 0,
-    knowledge_sources_count: entry.knowledge_sources_count ?? 0,
-    skill_ids: entry.skill_ids ?? [],
-    skills_count: entry.skills_count ?? 0,
-    source: entry.source ?? 'prompt_odm',
-    status: entry.status ?? statusFallback,
-    created_at: entry.created_at
-  }
-}
-
-function builtinAsFabricAgent(b: BuiltinSubagent): FabricAgent {
-  return {
-    id: b.id,
-    name: b.name,
-    description: b.description,
-    agent_type: 'builtin',
-    specialty: b.categories[0] ?? null,
-    domain: b.categories[0] ?? null,
-    avatar: null,
-    color: '#f59e0b',
-    is_public: true,
-    tags: b.categories,
-    tools_count: 0,
-    knowledge_sources_count: 0,
-    skill_ids: [],
-    skills_count: 0,
-    source: b.source ?? 'builtin_subagent',
-    status: 'active',
-    created_at: null
-  }
-}
-
-function matchesQuery(agent: FabricAgent, query: string): boolean {
-  if (!query) return true
-  const q = query.toLowerCase()
-  return (
-    agent.name.toLowerCase().includes(q) ||
-    agent.description.toLowerCase().includes(q) ||
-    (agent.specialty ?? '').toLowerCase().includes(q) ||
-    agent.tags.some(t => t.toLowerCase().includes(q))
-  )
 }
 
 interface UseWorkforceDataOptions {
   accessToken: string
   filter: WorkforceFilter
   search: string
+  workspaceId?: string | null
+  metricsWindow?: WorkforceMetricsWindow
 }
 
-export function useWorkforceData({ accessToken, filter, search }: UseWorkforceDataOptions): WorkforceData {
+function matchesQuery(summary: WorkforceAgentSummary, query: string): boolean {
+  if (!query) return true
+  const q = query.toLowerCase()
+  const { agent } = summary
+  const profile = agent.workforce_profile
+  return (
+    agent.name.toLowerCase().includes(q) ||
+    agent.display_name.toLowerCase().includes(q) ||
+    agent.description.toLowerCase().includes(q) ||
+    agent.domain.toLowerCase().includes(q) ||
+    profile.role.toLowerCase().includes(q) ||
+    (profile.department ?? '').toLowerCase().includes(q) ||
+    agent.tags.some(t => t.toLowerCase().includes(q))
+  )
+}
+
+interface AgentTriggers {
+  agent: WorkforceAgent
+  triggers: WorkforceTrigger[]
+}
+
+export function useWorkforceData({
+  accessToken,
+  filter,
+  search,
+  workspaceId,
+  metricsWindow = 'week'
+}: UseWorkforceDataOptions): WorkforceData {
   const client = usePromptManagerClient(accessToken)
 
-  const [activeAgents, setActiveAgents] = useState<FabricAgent[]>([])
-  const [archivedAgents, setArchivedAgents] = useState<FabricAgent[]>([])
-  const [builtinAgents, setBuiltinAgents] = useState<BuiltinSubagent[]>([])
+  const [agentTriggers, setAgentTriggers] = useState<AgentTriggers[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activatingAgentId, setActivatingAgentId] = useState<string | null>(null)
+  const [pausingAgentId, setPausingAgentId] = useState<string | null>(null)
   const [archivingAgentId, setArchivingAgentId] = useState<string | null>(null)
+
+  const metrics = useWorkforceWorkspaceMetrics({
+    accessToken,
+    workspaceId,
+    window: metricsWindow
+  })
 
   const refetch = useCallback(async () => {
     setIsLoading(true)
     setError(null)
     try {
-      const [entries, builtinEntries, archivedEntries] = await Promise.all([
-        client.getAgentRegistry({ limit: 200 }),
-        client.getBuiltinSubagents().catch(() => [] as BuiltinSubagent[]),
-        client.getAgentRegistry({ limit: 200, status: 'archived' }).catch(() => [] as AgentRegistryEntry[])
+      const [activePage, pausedPage] = await Promise.all([
+        client.listWorkforceAgents({ status: 'active', limit: 100 }),
+        client.listWorkforceAgents({ status: 'paused', limit: 100 })
       ])
-      setActiveAgents(entries.map(e => mapRegistryEntryToFabricAgent(e, 'active')))
-      setArchivedAgents(archivedEntries.map(e => mapRegistryEntryToFabricAgent(e, 'archived')))
-      setBuiltinAgents(builtinEntries)
+      const allAgents = [...activePage.data, ...pausedPage.data].map(normalizeWorkforceAgent)
+
+      // Triggers per agent still need a per-agent fetch (they are not part
+      // of the credit ledger). The N+1 here is bounded by the agent count,
+      // which we expect to stay in the low tens, and the requests run in
+      // parallel. Failures collapse to empty arrays.
+      const rows = await Promise.all(
+        allAgents.map(async agent => {
+          const triggers = await client.listWorkforceTriggers(agent.agent_id).catch(() => [] as WorkforceTrigger[])
+          return { agent, triggers }
+        })
+      )
+      setAgentTriggers(rows)
+      await metrics.refetch()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load workforce')
     } finally {
       setIsLoading(false)
     }
-  }, [client])
+    // metrics.refetch identity changes when workspaceId/window change.
+  }, [client, metrics.refetch])
 
   useEffect(() => {
     void refetch()
   }, [refetch])
 
+  const updateAgentInPlace = useCallback((agentId: string, updater: (agent: WorkforceAgent) => WorkforceAgent) => {
+    setAgentTriggers(prev =>
+      prev.map(row => (row.agent.agent_id === agentId ? { ...row, agent: updater(row.agent) } : row))
+    )
+  }, [])
+
   const activate = useCallback(
-    async (agent: FabricAgent) => {
-      setActivatingAgentId(agent.id)
+    async (agent: WorkforceAgent) => {
+      setActivatingAgentId(agent.agent_id)
       setError(null)
       try {
-        await client.activateAgent(agent.id)
-        setArchivedAgents(prev => prev.filter(a => a.id !== agent.id))
-        setActiveAgents(prev => (prev.some(a => a.id === agent.id) ? prev : [...prev, { ...agent, status: 'active' }]))
+        const updated = normalizeWorkforceAgent(await client.activateWorkforceAgent(agent.agent_id))
+        updateAgentInPlace(agent.agent_id, () => updated)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to activate agent')
       } finally {
         setActivatingAgentId(null)
       }
     },
-    [client]
+    [client, updateAgentInPlace]
+  )
+
+  const pause = useCallback(
+    async (agent: WorkforceAgent) => {
+      setPausingAgentId(agent.agent_id)
+      setError(null)
+      try {
+        const updated = normalizeWorkforceAgent(await client.pauseWorkforceAgent(agent.agent_id))
+        updateAgentInPlace(agent.agent_id, () => updated)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to pause agent')
+      } finally {
+        setPausingAgentId(null)
+      }
+    },
+    [client, updateAgentInPlace]
   )
 
   const archive = useCallback(
-    async (agent: FabricAgent) => {
-      setArchivingAgentId(agent.id)
+    async (agent: WorkforceAgent) => {
+      setArchivingAgentId(agent.agent_id)
       setError(null)
       try {
-        await client.archiveAgent(agent.id)
-        setActiveAgents(prev => prev.filter(a => a.id !== agent.id))
-        setArchivedAgents(prev =>
-          prev.some(a => a.id === agent.id) ? prev : [...prev, { ...agent, status: 'archived' }]
-        )
+        await client.archiveWorkforceAgent(agent.agent_id)
+        // Archiving drops the workforce surface, so the agent is no longer
+        // a Workforce Agent — remove it from the local list immediately.
+        setAgentTriggers(prev => prev.filter(row => row.agent.agent_id !== agent.agent_id))
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to archive agent')
       } finally {
@@ -171,50 +199,84 @@ export function useWorkforceData({ accessToken, filter, search }: UseWorkforceDa
     [client]
   )
 
-  const counts: WorkforceCounts = useMemo(
-    () => ({
-      active: activeAgents.length,
-      archived: archivedAgents.length,
-      builtin: builtinAgents.length,
-      total: activeAgents.length + archivedAgents.length + builtinAgents.length
-    }),
-    [activeAgents.length, archivedAgents.length, builtinAgents.length]
+  const breakdownByAgent = useMemo(() => {
+    const index = new Map<string, { totals: WorkforceMetricsTotals; lastCompletedAt: string | null }>()
+    for (const row of metrics.metrics?.by_agent ?? []) {
+      if (!row.agent_id) continue
+      index.set(row.agent_id, {
+        totals: row.totals,
+        lastCompletedAt: row.last_completed_at ?? null
+      })
+    }
+    return index
+  }, [metrics.metrics])
+
+  const agents: WorkforceAgentSummary[] = useMemo(() => {
+    return agentTriggers.map(row => {
+      const slice = breakdownByAgent.get(row.agent.agent_id)
+      const totals = slice?.totals ?? emptyMetricsTotals()
+      return {
+        agent: row.agent,
+        triggerCount: row.triggers.length,
+        activeTriggerCount: row.triggers.filter(t => t.enabled).length,
+        metrics: totals,
+        creditsThisWeek: totals.total_credits,
+        runsThisWeek: totals.runs,
+        lastCompletedAt: slice?.lastCompletedAt ?? null
+      }
+    })
+  }, [agentTriggers, breakdownByAgent])
+
+  // Dev-only preview seed (opt-in via `?orbitDemo=N`); no-op in production.
+  const demoSummaries = useMemo(() => buildWorkforceDemoSummaries(readOrbitDemoCount()), [])
+  const allAgents = useMemo(
+    () => (demoSummaries.length > 0 ? [...agents, ...demoSummaries] : agents),
+    [agents, demoSummaries]
   )
 
-  const filtered: FabricAgent[] = useMemo(() => {
-    const builtinAsAgents = builtinAgents.map(builtinAsFabricAgent)
-    let pool: FabricAgent[]
-    switch (filter) {
-      case 'active':
-        pool = activeAgents
-        break
-      case 'inactive':
-      case 'archived':
-        pool = archivedAgents
-        break
-      case 'builtin':
-        pool = builtinAsAgents
-        break
-      case 'all':
-      default:
-        pool = [...activeAgents, ...builtinAsAgents, ...archivedAgents]
-        break
+  const counts: WorkforceCounts = useMemo(() => {
+    const active = allAgents.filter(s => s.agent.status === 'active').length
+    const paused = allAgents.filter(s => s.agent.status === 'paused').length
+    const activeTriggers = allAgents.reduce((acc, s) => acc + s.activeTriggerCount, 0)
+    const workspaceTotals = metrics.metrics?.totals
+    const creditsThisWeek =
+      demoSummaries.length === 0 && workspaceTotals
+        ? workspaceTotals.total_credits
+        : allAgents.reduce((acc, s) => acc + s.creditsThisWeek, 0)
+    const runsToday = metrics.metrics?.runs_today ?? 0
+    return {
+      active,
+      paused,
+      total: allAgents.length,
+      activeTriggers,
+      creditsThisWeek,
+      runsToday
     }
-    return pool.filter(a => matchesQuery(a, search.trim()))
-  }, [filter, search, activeAgents, archivedAgents, builtinAgents])
+  }, [allAgents, demoSummaries.length, metrics.metrics])
+
+  const filtered: WorkforceAgentSummary[] = useMemo(() => {
+    const trimmed = search.trim()
+    return allAgents.filter(summary => {
+      if (filter === 'active' && summary.agent.status !== 'active') return false
+      if (filter === 'paused' && summary.agent.status !== 'paused') return false
+      return matchesQuery(summary, trimmed)
+    })
+  }, [filter, search, allAgents])
+
+  const combinedError = error ?? metrics.error
 
   return {
-    isLoading,
-    error,
-    activeAgents,
-    archivedAgents,
-    builtinAgents,
-    counts,
+    isLoading: isLoading || metrics.isLoading,
+    error: combinedError,
+    agents: allAgents,
     filtered,
+    counts,
     refetch,
     activate,
+    pause,
     archive,
     activatingAgentId,
+    pausingAgentId,
     archivingAgentId
   }
 }

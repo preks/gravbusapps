@@ -41,6 +41,9 @@ export default {
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
     // Design system mock
     '^@newwork/nw-design-system$': '<rootDir>/src/__mocks__/@newwork/nw-design-system.tsx',
+    // ESM-only markdown libs (not transformed; we only need the rendered text).
+    '^react-markdown$': '<rootDir>/src/__mocks__/react-markdown.tsx',
+    '^remark-gfm$': '<rootDir>/src/__mocks__/remark-gfm.js',
     // Path alias (must come last to not interfere with other patterns)
     '^@/(.*)$': '<rootDir>/src/$1'
   },

@@ -24,6 +24,8 @@ export interface EmailAccount {
   createdAt: string
   /** Whether calendar sync is enabled for this account */
   calendarSyncEnabled?: boolean
+  /** Owner opt-in: forward inbound INBOX mail to Workforce inbound-email */
+  forwardingEnabled?: boolean
 }
 
 /** Well-known folder types */
@@ -196,6 +198,7 @@ export interface CreateEmailAccountRequest {
   oauthProviderConfig?: OAuthProviderConfig
   signature?: string
   isDefault?: boolean
+  forwardingEnabled?: boolean
 }
 
 /** Attachment to send with an email (base64-encoded) */

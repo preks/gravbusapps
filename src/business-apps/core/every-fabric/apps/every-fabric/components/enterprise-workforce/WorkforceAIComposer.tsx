@@ -6,7 +6,7 @@
 // the query up to the screen, which switches into match mode.
 
 import { ArrowRightIcon, SparkleIcon, XIcon } from '@phosphor-icons/react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 interface WorkforceAIComposerProps {
   activeQuery: string | null
@@ -15,10 +15,10 @@ interface WorkforceAIComposerProps {
 }
 
 const SAMPLE_PROMPTS = [
-  'Summarise a long board meeting transcript',
-  'Translate marketing copy into German',
-  'Analyse a customer support ticket',
-  'Draft a new company policy'
+  'Answer inbound insurance claim emails',
+  'Triage support tickets against our policies',
+  'Qualify new leads with our ICP rules',
+  'Reconcile expense reports for finance'
 ]
 
 export const WorkforceAIComposer: React.FC<WorkforceAIComposerProps> = ({ activeQuery, onSubmit, onClear }) => {
@@ -61,7 +61,9 @@ export const WorkforceAIComposer: React.FC<WorkforceAIComposerProps> = ({ active
         data-testid="workforce-ai-trigger"
       >
         <SparkleIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:group-hover:text-foreground" />
-        <span className="gba:flex-1 gba:text-sm gba:text-muted-foreground">Find the right agent for the job</span>
+        <span className="gba:flex-1 gba:text-sm gba:text-muted-foreground">
+          Find the right workforce agent for the job
+        </span>
         <span className="gba:hidden gba:rounded-md gba:border gba:border-border gba:bg-background gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-muted-foreground gba:sm:inline">
           AI
         </span>
@@ -77,7 +79,7 @@ export const WorkforceAIComposer: React.FC<WorkforceAIComposerProps> = ({ active
       <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
         <div className="gba:flex gba:items-center gba:gap-2">
           <SparkleIcon className="gba:h-4 gba:w-4 gba:text-foreground" weight="fill" />
-          <p className="gba:text-sm gba:font-medium gba:text-foreground">Find the right agent for the job</p>
+          <p className="gba:text-sm gba:font-medium gba:text-foreground">Find the right workforce agent for the job</p>
         </div>
         <button
           type="button"
@@ -105,7 +107,7 @@ export const WorkforceAIComposer: React.FC<WorkforceAIComposerProps> = ({ active
           onKeyDown={e => {
             if (e.key === 'Escape') handleCollapse()
           }}
-          placeholder="Describe a task… e.g. translate a contract into Spanish"
+          placeholder="Describe the work… e.g. answer inbound claim emails"
           className="gba:h-10 gba:w-full gba:flex-1 gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:text-sm gba:text-foreground gba:placeholder-muted-foreground gba:outline-none gba:focus:border-foreground/30"
           data-testid="workforce-ai-input"
         />

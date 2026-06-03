@@ -18,6 +18,27 @@ import type {
   SessionMessage,
   SessionCommEvent
 } from '@/business-apps/platform/apps/agent-mesh/types/agentMesh'
+import type {
+  WorkforceActiveOverview,
+  WorkforceAuditPage,
+  WorkforceAgent,
+  WorkforceAgentCreateInput,
+  WorkforceAgentMetrics,
+  WorkforceAgentMetricsSummary,
+  WorkforceAgentPage,
+  WorkforceAgentStatus,
+  WorkforceAgentUpdateInput,
+  WorkforceLedgerPage,
+  WorkforceMetricsWindow,
+  WorkforceRun,
+  WorkforceRunCreateInput,
+  WorkforceRunListParams,
+  WorkforceRunPage,
+  WorkforceTrigger,
+  WorkforceTriggerCreateInput,
+  WorkforceTriggerUpdateInput,
+  WorkforceWorkspaceMetrics
+} from '@/business-apps/core/every-fabric/apps/every-fabric/components/enterprise-workforce/workforceTypes'
 
 // --- Types (minimal, aligned with prompt-manager.openapi.json) ---
 export interface Paging {
@@ -1757,6 +1778,178 @@ export class PromptManagerClient extends RestClient {
     return this.post<ScheduledDispatch>(`/scheduled-dispatches/${encodeURIComponent(dispatchId)}/retry`, {})
   }
 
+  // --- Workforce Agents ---
+  //
+  // A Workforce Agent is an existing AutonomousAgentODM record marked with
+  // surfaces=["workforce"] and a workforce_profile sub-doc. The same agent
+  // identity, skills, and policies are reused from the Enterprise surface;
+  // only Workforce-only concerns (autonomy, triggers, runs view) live here.
+
+  async listWorkforceAgents(params?: {
+    status?: Exclude<WorkforceAgentStatus, 'archived'>
+    limit?: number
+    offset?: number
+  }): Promise<WorkforceAgentPage> {
+    return this.get<WorkforceAgentPage>('/workforce/agents', {
+      params: params as Record<string, string>
+    })
+  }
+
+  async createWorkforceAgent(body: WorkforceAgentCreateInput): Promise<WorkforceAgent> {
+    return this.post<WorkforceAgent>('/workforce/agents', body)
+  }
+
+  async getWorkforceAgent(agentId: string): Promise<WorkforceAgent> {
+    return this.get<WorkforceAgent>(`/workforce/agents/${encodeURIComponent(agentId)}`)
+  }
+
+  async updateWorkforceAgent(agentId: string, body: WorkforceAgentUpdateInput): Promise<WorkforceAgent> {
+    return this.patch<WorkforceAgent>(`/workforce/agents/${encodeURIComponent(agentId)}`, body)
+  }
+
+  async activateWorkforceAgent(agentId: string): Promise<WorkforceAgent> {
+    return this.post<WorkforceAgent>(`/workforce/agents/${encodeURIComponent(agentId)}/activate`, {})
+  }
+
+  async pauseWorkforceAgent(agentId: string): Promise<WorkforceAgent> {
+    return this.post<WorkforceAgent>(`/workforce/agents/${encodeURIComponent(agentId)}/pause`, {})
+  }
+
+  // Soft-deletes the agent. Backend marks ``archived_at`` on the
+  // workforce profile and pauses the agent, but keeps the underlying
+  // AutonomousAgentODM record intact and recoverable via
+  // ``restoreWorkforceAgent``. Chat / Agent Mesh usage is unaffected.
+  async archiveWorkforceAgent(agentId: string): Promise<WorkforceAgent> {
+    return this.post<WorkforceAgent>(`/workforce/agents/${encodeURIComponent(agentId)}/archive`, {})
+  }
+
+  // Reverses ``archiveWorkforceAgent``. The agent comes back paused so
+  // the operator must explicitly re-activate it.
+  async restoreWorkforceAgent(agentId: string): Promise<WorkforceAgent> {
+    return this.post<WorkforceAgent>(`/workforce/agents/${encodeURIComponent(agentId)}/restore`, {})
+  }
+
+  async listWorkforceTriggers(agentId: string): Promise<WorkforceTrigger[]> {
+    return this.get<WorkforceTrigger[]>(`/workforce/agents/${encodeURIComponent(agentId)}/triggers`)
+  }
+
+  async createWorkforceTrigger(agentId: string, body: WorkforceTriggerCreateInput): Promise<WorkforceTrigger> {
+    return this.post<WorkforceTrigger>(`/workforce/agents/${encodeURIComponent(agentId)}/triggers`, body)
+  }
+
+  async updateWorkforceTrigger(triggerId: string, body: WorkforceTriggerUpdateInput): Promise<WorkforceTrigger> {
+    return this.patch<WorkforceTrigger>(`/workforce/triggers/${encodeURIComponent(triggerId)}`, body)
+  }
+
+  async deleteWorkforceTrigger(triggerId: string): Promise<void> {
+    await this.delete<void>(`/workforce/triggers/${encodeURIComponent(triggerId)}`)
+  }
+
+  // Runs are DeepAgentSession records filtered by workforce_agent_id;
+  // the response uses session_id as the canonical run identifier.
+  //
+  // Phase A extends the optional params with source/since/until/q so the
+  // Runs and Inbox tabs can scope and search server-side instead of
+  // pulling everything to the browser.
+  async listWorkforceRuns(agentId: string, params?: WorkforceRunListParams): Promise<WorkforceRunPage> {
+    return this.get<WorkforceRunPage>(`/workforce/agents/${encodeURIComponent(agentId)}/runs`, {
+      params: this.normalizeRunListParams(params)
+    })
+  }
+
+  // Convert `undefined`s to dropped keys (Axios serialises `undefined` as
+  // empty strings) and coerce numbers/dates so all callers get a stable
+  // shape regardless of how they typed the inputs.
+  private normalizeRunListParams(params?: WorkforceRunListParams): Record<string, string> | undefined {
+    if (!params) return undefined
+    const out: Record<string, string> = {}
+    if (params.status) out.status = params.status
+    if (params.source) out.source = params.source
+    if (params.since) out.since = params.since
+    if (params.until) out.until = params.until
+    if (params.q) out.q = params.q
+    if (typeof params.limit === 'number') out.limit = String(params.limit)
+    if (typeof params.offset === 'number') out.offset = String(params.offset)
+    return Object.keys(out).length > 0 ? out : undefined
+  }
+
+  async getWorkforceRun(sessionId: string): Promise<WorkforceRun> {
+    return this.get<WorkforceRun>(`/workforce/runs/${encodeURIComponent(sessionId)}`)
+  }
+
+  // Snapshot of every live (non-terminal) workforce run, optionally scoped to
+  // a workspace. Used for the "who is working now" overview strip and as the
+  // initial state / fallback for the active-runs SSE.
+  async listActiveWorkforceRuns(workspaceId = '', limit = 100): Promise<WorkforceActiveOverview> {
+    const params: Record<string, string> = { limit: String(limit) }
+    if (workspaceId) params.workspaceId = workspaceId
+    return this.get<WorkforceActiveOverview>('/workforce/active', { params })
+  }
+
+  // Immutable audit trail (who / when / why) for a run, read from the generic
+  // deep_agent_audit_log. Powers the run backtrace's audit timeline view.
+  async getWorkforceRunAudit(sessionId: string, limit = 200): Promise<WorkforceAuditPage> {
+    return this.get<WorkforceAuditPage>(`/workforce/runs/${encodeURIComponent(sessionId)}/audit`, {
+      params: { limit: String(limit) }
+    })
+  }
+
+  // Fires a manual run on behalf of the operator. The backend creates a
+  // DeepAgentSession attributed to the agent and launches it in the
+  // background; the response is the initial "running" run record.
+  async startWorkforceRun(agentId: string, body: WorkforceRunCreateInput): Promise<WorkforceRun> {
+    return this.post<WorkforceRun>(`/workforce/agents/${encodeURIComponent(agentId)}/runs`, body)
+  }
+
+  /** Debug/testing: fire an inbound_email trigger from a normalized email payload. */
+  async dispatchWorkforceInboundEmail(body: WorkforceInboundEmailPayload): Promise<WorkforceInboundDispatchResponse> {
+    return this.post<WorkforceInboundDispatchResponse>('/workforce/inbound-email', body)
+  }
+
+  // --- Workforce Agents: credit metrics (Phase 6) ---
+  //
+  // Metrics aggregate immutable rows in the WorkforceCreditLedger collection,
+  // which is written when a workforce-attributed DeepAgentSession reaches a
+  // terminal state. The frontend uses these endpoints instead of N+1 per-agent
+  // run fetches for KPIs.
+
+  async getWorkforceAgentMetrics(
+    agentId: string,
+    window: WorkforceMetricsWindow = 'week'
+  ): Promise<WorkforceAgentMetrics> {
+    return this.get<WorkforceAgentMetrics>(`/workforce/agents/${encodeURIComponent(agentId)}/metrics`, {
+      params: { window }
+    })
+  }
+
+  // Phase A: bundled today / week / month + per-source breakdown for the
+  // per-agent Overview tab. Saves three or four parallel metrics calls.
+  async getWorkforceAgentMetricsSummary(agentId: string): Promise<WorkforceAgentMetricsSummary> {
+    return this.get<WorkforceAgentMetricsSummary>(`/workforce/agents/${encodeURIComponent(agentId)}/metrics/summary`)
+  }
+
+  // ``slaTargetMs`` lets the client define the SLA target (a product/UX
+  // decision); the backend measures attainment against it in the business
+  // block. Omitted/0 means "no SLA target" and attainment stays 0.
+  async getWorkforceWorkspaceMetrics(
+    workspaceId: string,
+    window: WorkforceMetricsWindow = 'week',
+    slaTargetMs = 0
+  ): Promise<WorkforceWorkspaceMetrics> {
+    const params: Record<string, string> = { workspaceId, window }
+    if (slaTargetMs > 0) params.slaTargetMs = String(slaTargetMs)
+    return this.get<WorkforceWorkspaceMetrics>('/workforce/metrics', { params })
+  }
+
+  async listWorkforceLedger(
+    agentId: string,
+    params?: { limit?: number; offset?: number }
+  ): Promise<WorkforceLedgerPage> {
+    return this.get<WorkforceLedgerPage>(`/workforce/agents/${encodeURIComponent(agentId)}/ledger`, {
+      params: params as Record<string, string>
+    })
+  }
+
   /** Fire a scheduled dispatch immediately without waiting for its scheduled time.
    *  Recurring schedules keep their next occurrence unchanged. */
   async runScheduledDispatchNow(dispatchId: string): Promise<ScheduledDispatch> {
@@ -1787,6 +1980,21 @@ export class PromptManagerClient extends RestClient {
   async deleteScheduledTaskTemplate(templateId: string): Promise<void> {
     await this.delete<void>(`/scheduled-task-templates/${encodeURIComponent(templateId)}`)
   }
+}
+
+export interface WorkforceInboundEmailPayload {
+  to: string
+  from: string
+  subject: string
+  body: string
+  message_id?: string | null
+}
+
+export interface WorkforceInboundDispatchResponse {
+  session_id: string | null
+  trigger_id: string
+  accepted: boolean
+  reason?: string | null
 }
 
 export const promptManagerClient = new PromptManagerClient()
