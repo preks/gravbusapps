@@ -41,6 +41,8 @@ const InlineAccountCreateForm: React.FC<InlineAccountCreateFormProps> = ({
   const avatarFileRef = useRef<{ file: File; thumbnail: string } | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
+  const [isConfirming, setIsConfirming] = useState(false)
+  const confirmLockRef = useRef(false)
 
   const {
     schema,
@@ -65,6 +67,11 @@ const InlineAccountCreateForm: React.FC<InlineAccountCreateFormProps> = ({
 
   const handleSubmit = useCallback(
     async (data: any) => {
+      if (confirmLockRef.current) {
+        return
+      }
+      confirmLockRef.current = true
+      setIsConfirming(true)
       setUploadError(null)
 
       let payload = { ...data }
@@ -90,17 +97,24 @@ const InlineAccountCreateForm: React.FC<InlineAccountCreateFormProps> = ({
           console.error('Failed to upload account avatar:', err)
           setUploadError(t('avatar-upload-error'))
           setIsUploading(false)
+          confirmLockRef.current = false
+          setIsConfirming(false)
           return
         } finally {
           setIsUploading(false)
         }
       }
 
-      onConfirm({
-        __draftId: draftId || uuidv4(),
-        __isDraft: true,
-        account: payload
-      })
+      try {
+        onConfirm({
+          __draftId: draftId || uuidv4(),
+          __isDraft: true,
+          account: payload
+        })
+      } finally {
+        confirmLockRef.current = false
+        setIsConfirming(false)
+      }
     },
     [draftId, fileClient, fileConfig, onConfirm, t]
   )
@@ -121,7 +135,12 @@ const InlineAccountCreateForm: React.FC<InlineAccountCreateFormProps> = ({
             // parent form's onSubmit would fire and validate against its own (empty)
             // required fields. See also: InlineContactCreateForm.tsx.
             e.stopPropagation()
-            form.handleSubmit(handleSubmit)(e)
+            void form.handleSubmit(handleSubmit, errors => {
+              const firstKey = Object.keys(errors)[0]
+              if (firstKey) {
+                form.setFocus(firstKey as 'name')
+              }
+            })(e)
           }}
           className="gba:flex gba:flex-col gba:w-full"
           data-testid={`${dataTestId}-form`}
@@ -150,14 +169,14 @@ const InlineAccountCreateForm: React.FC<InlineAccountCreateFormProps> = ({
               variant="outline"
               onClick={onCancel}
               data-testid={`${dataTestId}-cancel`}
-              disabled={isUploading || form.formState.isSubmitting}
+              disabled={isUploading || isConfirming || form.formState.isSubmitting}
             >
               {t('cancel')}
             </Button>
             <Button
               type="submit"
               data-testid={`${dataTestId}-submit`}
-              disabled={isUploading || form.formState.isSubmitting}
+              disabled={isUploading || isConfirming || form.formState.isSubmitting}
             >
               {draftId ? t('save-draft') : t('add-draft')}
             </Button>

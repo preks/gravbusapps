@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react'
+import { useQuickAddSubmitGuard } from '@/common/components/common-relations/record-sections/utils/quickAddSubmitGuard'
 import {
   Button,
   TimelineLayout,
@@ -265,6 +266,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
 
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [showQuickAdd, setShowQuickAdd] = useState(false)
+  const { isSubmitting: isQuickAddSubmitting, runGuarded: runQuickAddGuarded } = useQuickAddSubmitGuard()
   const [assigneePrefill, setAssigneePrefill] = useState<
     Array<{
       id: string
@@ -622,35 +624,41 @@ const TaskSection: React.FC<TaskSectionProps> = ({
             >
               {({ executeAction, isProcessing }) => {
                 const handleQuickAddSubmit = async (data: any) => {
-                  const task: Partial<BaseTask> & Record<string, any> = {
-                    name: data.task.title,
-                    description: data.task.description,
-                    taskTypeRef: isApprovalTaskSection ? data.taskTypeRef || approvalTaskTypeRef : data.taskTypeRef,
-                    taskPriorityRef: data.taskPriorityRef,
-                    taskStatusRef: defaultTaskStatusRef,
-                    taskTiming: data.taskTiming || 'DEADLINE',
-                    dueDate: data.deadline || undefined,
-                    taskAssignees: (data.assignedEmployeeIds || []).map((id: string) => ({
-                      assignedEmployeeId: id
-                    })),
-                    _creatorEmployee: userInfo?.id ? { userId: userInfo.id } : undefined,
-                    creatorUserId: userInfo?.id,
-                    _pendingFiles: data._pendingFiles && data._pendingFiles.length > 0 ? data._pendingFiles : undefined,
-                    ...(leadId && { leadId }),
-                    ...(accountId && { accountId }),
-                    ...(contactId && { contactId }),
-                    ...(opportunityId && { opportunityId }),
-                    ...(investmentId && { investmentId })
+                  if (isProcessing || isQuickAddSubmitting) {
+                    return
                   }
-                  let toBuild: Record<string, any> = task
-                  if (preSubmit && task._pendingFiles?.length) {
-                    toBuild = await preSubmit(task)
-                  }
-                  const payload = buildTaskPayload ? buildTaskPayload(toBuild) : toBuild
-                  if (payload && '_pendingFiles' in payload) {
-                    delete payload._pendingFiles
-                  }
-                  await executeAction(payload)
+                  await runQuickAddGuarded(async () => {
+                    const task: Partial<BaseTask> & Record<string, any> = {
+                      name: data.task.title,
+                      description: data.task.description,
+                      taskTypeRef: isApprovalTaskSection ? data.taskTypeRef || approvalTaskTypeRef : data.taskTypeRef,
+                      taskPriorityRef: data.taskPriorityRef,
+                      taskStatusRef: defaultTaskStatusRef,
+                      taskTiming: data.taskTiming || 'DEADLINE',
+                      dueDate: data.deadline || undefined,
+                      taskAssignees: (data.assignedEmployeeIds || []).map((id: string) => ({
+                        assignedEmployeeId: id
+                      })),
+                      _creatorEmployee: userInfo?.id ? { userId: userInfo.id } : undefined,
+                      creatorUserId: userInfo?.id,
+                      _pendingFiles:
+                        data._pendingFiles && data._pendingFiles.length > 0 ? data._pendingFiles : undefined,
+                      ...(leadId && { leadId }),
+                      ...(accountId && { accountId }),
+                      ...(contactId && { contactId }),
+                      ...(opportunityId && { opportunityId }),
+                      ...(investmentId && { investmentId })
+                    }
+                    let toBuild: Record<string, any> = task
+                    if (preSubmit && task._pendingFiles?.length) {
+                      toBuild = await preSubmit(task)
+                    }
+                    const payload = buildTaskPayload ? buildTaskPayload(toBuild) : toBuild
+                    if (payload && '_pendingFiles' in payload) {
+                      delete payload._pendingFiles
+                    }
+                    await executeAction(payload)
+                  })
                 }
                 return (
                   <TaskInput
@@ -663,6 +671,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
                     onLoadMore={loadMore}
                     onSubmit={handleQuickAddSubmit}
                     isProcessing={isProcessing}
+                    isSubmitting={isQuickAddSubmitting}
                     showQuickAdd={showQuickAdd}
                     onShowQuickAddChange={setShowQuickAdd}
                     typeCatalog={typeCatalog}

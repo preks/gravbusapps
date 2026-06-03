@@ -18,7 +18,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useCustomerAccount } from '@/common/data/customer/hooks/useCustomerAccount'
 import { AiActions } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { useAccountAiSummary } from './hooks/useAccountAiSummary'
-import { OpportunityView } from './views/opportunity-view/OpportunityView'
+import { OpportunityView } from '@/business-apps/crm/core/apps/customer-relations/views/opportunity-view'
 import { DocumentView } from './views/document-view/DocumentView'
 import { HomeView } from './views/home-view/HomeView'
 import { getEmailChannel, getPhoneChannel } from '@/common/data/common/utils/communicationChannelHelpers'
@@ -201,7 +201,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
           icon: <TargetIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
-              <OpportunityView accountId={accountId} context={props} />
+              <OpportunityView {...props} accountId={accountId} />
             </div>
           )
         },

@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react'
+import { useQuickAddSubmitGuard } from '@/common/components/common-relations/record-sections/utils/quickAddSubmitGuard'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Spinner, TimelineLayout, Button, Alert, EmptyState, useTranslation } from '@newwork/nw-design-system'
 import { PhoneIcon, EnvelopeIcon, CalendarBlankIcon, UserIcon, PlusIcon } from '@phosphor-icons/react'
@@ -6,7 +7,6 @@ import dayjs from 'dayjs'
 import { AppActionProvider } from '@/components/app-action-provider/AppActionProvider'
 import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { toISOFormat } from '@/common/utils/dateFormatter'
 import translations from './_i18n'
 import { handleDocumentClick as handleDocumentClickUtil } from '@/common/utils/documentClickHandler'
 import { getDocumentIcon } from '@/common/utils/documentIconUtils'
@@ -25,7 +25,17 @@ import { AppAction } from '@/components/app-action'
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
+import { ActivityAssociationFields } from '@/common/components/common-relations/activity-association'
+import type { ActivityAssociationVariant } from '@/common/components/common-relations/activity-association/types'
+import {
+  buildAssociationEntityOptions,
+  getQuickActivityDefaultValues,
+  mapQuickActivityFormToPayload,
+  quickActivitySchema,
+  resolveActivityAssociationVariant,
+  seedQuickActivityPrimaryEntity,
+  type QuickActivityFormValues
+} from './activityQuickAddFormUtils'
 
 export type ActivityDocument = {
   id: string
@@ -86,6 +96,11 @@ export interface ActivitySectionProps extends BusinessAppContextProps {
   getRelatedRecordUrl?: (kind: ActivityRelatedEntityKind, id: string) => string | undefined
   /** Optional pre-submit handler (e.g. uploads _pendingFiles and returns data with documents). When set, called before buildActivityPayload/executeAction. */
   preSubmit?: (data: Record<string, any>) => Promise<Record<string, any>>
+  /**
+   * When set, renders optional secondary account/contact/investment pickers in quick add (same as full activity form).
+   * Inferred from `buildActivityPayload` when omitted (customer vs investment builders).
+   */
+  activityAssociationVariant?: ActivityAssociationVariant
 }
 
 // Standard React component that can be used with SectionWrapper
@@ -109,11 +124,28 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
     leadId,
     investmentId,
     showAllRelatedEntityChips,
-    getRelatedRecordUrl
+    getRelatedRecordUrl,
+    activityAssociationVariant: activityAssociationVariantProp
   } = props
+
+  const recordEntityContext = useMemo(
+    () => ({ accountId, contactId, opportunityId, leadId, investmentId }),
+    [accountId, contactId, opportunityId, leadId, investmentId]
+  )
+
+  const activityAssociationVariant = useMemo(
+    () => resolveActivityAssociationVariant(activityAssociationVariantProp, buildActivityPayload),
+    [activityAssociationVariantProp, buildActivityPayload]
+  )
+
+  const associationEntityOptions = useMemo(
+    () => buildAssociationEntityOptions(recordEntityContext),
+    [recordEntityContext]
+  )
 
   const { t } = useTranslation(translations)
   const [showQuickAdd, setShowQuickAdd] = useState(false)
+  const { isSubmitting: isQuickAddSubmitting, runGuarded: runQuickAddGuarded } = useQuickAddSubmitGuard()
   const [ownerPrefill, setOwnerPrefill] = useState<
     Array<{
       id: string
@@ -183,38 +215,38 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
     return Array.from(map.values())
   }, [ownerPrefill, employees])
 
-  // Form schema for quick add
-  const quickActivitySchema = z.object({
-    details: z.object({
-      title: z.string().trim().min(1, 'Title is required'),
-      description: z.string().optional()
-    }),
-    activityTypeRef: z.string().trim().min(1, 'Activity type is required'),
-    occurredAt: z.string().trim().min(1, 'Date & time is required'),
-    ownerEmployeeId: z.string().trim().min(1, 'Owner is required'),
-    _pendingFiles: z.array(z.any()).optional()
-  })
+  const defaultOwnerId = props.userInfo?.employeeDetails?.employeeId || ''
 
-  const form = useForm({
+  const form = useForm<QuickActivityFormValues>({
     resolver: zodResolver(quickActivitySchema),
-    defaultValues: {
-      details: { title: '', description: '' },
-      activityTypeRef: '',
-      occurredAt: new Date().toISOString().slice(0, 16),
-      ownerEmployeeId: props.userInfo?.employeeDetails?.employeeId || '',
-      _pendingFiles: [] as File[]
-    }
+    defaultValues: getQuickActivityDefaultValues(defaultOwnerId, recordEntityContext)
   })
 
-  // Reset datetime field when showQuickAdd opens
-  useEffect(() => {
-    if (showQuickAdd) {
-      form.setValue('occurredAt', new Date().toISOString().slice(0, 16))
-      if (props.userInfo?.employeeDetails?.employeeId) {
-        form.setValue('ownerEmployeeId', props.userInfo.employeeDetails.employeeId)
-      }
+  const associationFields = useMemo(() => {
+    if (!activityAssociationVariant) {
+      return null
     }
-  }, [showQuickAdd, form, props.userInfo])
+    return (
+      <ActivityAssociationFields
+        variant={activityAssociationVariant}
+        accessToken={accessToken}
+        entitySearchOptions={associationEntityOptions}
+        data-testid="activity-quick-add-associations"
+      />
+    )
+  }, [activityAssociationVariant, accessToken, associationEntityOptions])
+
+  // Reset datetime and seed primary entity when quick add opens
+  useEffect(() => {
+    if (!showQuickAdd) {
+      return
+    }
+    form.setValue('occurredAt', new Date().toISOString().slice(0, 16))
+    if (props.userInfo?.employeeDetails?.employeeId) {
+      form.setValue('ownerEmployeeId', props.userInfo.employeeDetails.employeeId)
+    }
+    seedQuickActivityPrimaryEntity(form, recordEntityContext)
+  }, [showQuickAdd, form, props.userInfo, recordEntityContext])
 
   // Process activities - map from Activity to ActivityItem
   const processedActivities = useMemo(() => {
@@ -433,13 +465,7 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
             externalContextData={activitySectionActionProps.externalContextData}
             prefixDataTestId={activitySectionActionProps.prefixDataTestId}
             onSuccess={() => {
-              form.reset({
-                details: { title: '', description: '' },
-                activityTypeRef: '',
-                occurredAt: new Date().toISOString().slice(0, 16),
-                ownerEmployeeId: props.userInfo?.employeeDetails?.employeeId || '',
-                _pendingFiles: [] as File[]
-              })
+              form.reset(getQuickActivityDefaultValues(defaultOwnerId, recordEntityContext))
               setShowQuickAdd(false)
             }}
             onError={(error: Error) => {
@@ -448,40 +474,26 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
             transformData={
               buildActivityPayload
                 ? (data: any) => data
-                : (data: any) =>
-                    ({
-                      title: data.details.title,
-                      description: data.details.description,
-                      activityTypeRef: data.activityTypeRef,
-                      occurredAt: toISOFormat(data.occurredAt) || new Date().toISOString(),
-                      ownerEmployeeId: data.ownerEmployeeId
-                    }) as Record<string, unknown>
+                : (data: any) => mapQuickActivityFormToPayload(data, recordEntityContext)
             }
           >
             {({ executeAction, isProcessing }) => {
-              const handleSubmit = async (data: any) => {
-                const mapped = {
-                  title: data.details.title,
-                  description: data.details.description,
-                  activityTypeRef: data.activityTypeRef,
-                  occurredAt: toISOFormat(data.occurredAt) || new Date().toISOString(),
-                  ownerEmployeeId: data.ownerEmployeeId,
-                  _pendingFiles: data._pendingFiles && data._pendingFiles.length > 0 ? data._pendingFiles : undefined,
-                  ...(leadId && { leadId }),
-                  ...(accountId && { accountId }),
-                  ...(contactId && { contactId }),
-                  ...(opportunityId && { opportunityId }),
-                  ...(investmentId && { investmentId })
+              const handleSubmit = async (data: QuickActivityFormValues) => {
+                if (isProcessing || isQuickAddSubmitting) {
+                  return
                 }
-                let toBuild: Record<string, any> = mapped
-                if (props.preSubmit && mapped._pendingFiles?.length) {
-                  toBuild = await props.preSubmit(mapped)
-                }
-                const payload = buildActivityPayload ? buildActivityPayload(toBuild) : toBuild
-                if (payload && '_pendingFiles' in payload) {
-                  delete payload._pendingFiles
-                }
-                await executeAction(payload)
+                await runQuickAddGuarded(async () => {
+                  const mapped = mapQuickActivityFormToPayload(data, recordEntityContext)
+                  let toBuild: Record<string, any> = mapped
+                  if (props.preSubmit && mapped._pendingFiles?.length) {
+                    toBuild = await props.preSubmit(mapped)
+                  }
+                  const payload = buildActivityPayload ? buildActivityPayload(toBuild) : toBuild
+                  if (payload && '_pendingFiles' in payload) {
+                    delete payload._pendingFiles
+                  }
+                  await executeAction(payload)
+                })
               }
               return (
                 <ActivityInput
@@ -494,10 +506,12 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
                   onEmployeeLoadMore={loadMore}
                   onSubmit={handleSubmit}
                   isProcessing={isProcessing}
+                  isSubmitting={isQuickAddSubmitting}
                   showQuickAdd={showQuickAdd}
                   onShowQuickAddChange={setShowQuickAdd}
                   activityTypeCatalog={activityTypeCatalog}
                   schema={quickActivitySchema}
+                  associationFields={associationFields}
                 />
               )
             }}

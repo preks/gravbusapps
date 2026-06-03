@@ -47,6 +47,7 @@ interface TaskInputProps {
   onLoadMore: () => void
   onSubmit: (data: any) => void
   isProcessing: boolean
+  isSubmitting?: boolean
   showQuickAdd: boolean
   onShowQuickAddChange: (show: boolean) => void
   /** Catalog identifier for task type (e.g. from customerCatalogs.TASK_TYPE or investmentCatalogs.TASK_TYPE). */
@@ -86,6 +87,7 @@ export const TaskInput: React.FC<TaskInputProps> = ({
   onLoadMore,
   onSubmit,
   isProcessing,
+  isSubmitting = false,
   showQuickAdd,
   onShowQuickAddChange,
   typeCatalog = DEFAULT_TASK_TYPE_CATALOG,
@@ -96,6 +98,7 @@ export const TaskInput: React.FC<TaskInputProps> = ({
   schema
 }) => {
   const { t } = useTranslation(translations)
+  const isBusy = isProcessing || isSubmitting
   if (!showQuickAdd) {
     return (
       <Button
@@ -122,7 +125,22 @@ export const TaskInput: React.FC<TaskInputProps> = ({
       </button>
 
       <Form {...form} schema={schema}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="gba:space-y-2">
+        <form
+          onSubmit={form.handleSubmit(onSubmit, errors => {
+            if (errors.task && typeof errors.task === 'object') {
+              const taskKey = Object.keys(errors.task)[0]
+              if (taskKey) {
+                form.setFocus(`task.${taskKey}` as 'task.title')
+                return
+              }
+            }
+            const firstKey = Object.keys(errors)[0]
+            if (firstKey) {
+              form.setFocus(firstKey as 'taskTypeRef')
+            }
+          })}
+          className="gba:space-y-2"
+        >
           {/* Type first (hidden in Approval tab) */}
           {!hideTypeSelection && (
             <FormField
@@ -258,7 +276,7 @@ export const TaskInput: React.FC<TaskInputProps> = ({
                         type="datetime-local"
                         value={field.value}
                         onChange={field.onChange}
-                        disabled={isProcessing}
+                        disabled={isBusy}
                         data-testid="task-quick-add-deadline"
                         className="gba:w-full gba:max-w-full gba:min-w-0"
                       />
@@ -288,7 +306,7 @@ export const TaskInput: React.FC<TaskInputProps> = ({
                     <Input
                       {...field}
                       placeholder={t('tasks-quickAddPlaceholder')}
-                      disabled={isProcessing}
+                      disabled={isBusy}
                       data-testid="task-quick-add-title"
                       className="gba:rounded-none gba:border-0 gba:border-b gba:border-border gba:shadow-none gba:focus-visible:gba:ring-0 gba:focus-visible:gba:ring-offset-0"
                     />
@@ -301,7 +319,7 @@ export const TaskInput: React.FC<TaskInputProps> = ({
                     <Textarea
                       {...field}
                       placeholder={t('tasks-descriptionPlaceholder')}
-                      disabled={isProcessing}
+                      disabled={isBusy}
                       data-testid="task-quick-add-description"
                       rows={5}
                       className="gba:min-h-24 gba:rounded-none gba:border-0 gba:shadow-none gba:text-xs gba:resize-y gba:text-muted-foreground gba:focus-visible:gba:ring-0 gba:focus-visible:gba:ring-offset-0"
@@ -351,11 +369,11 @@ export const TaskInput: React.FC<TaskInputProps> = ({
             <Button
               type="submit"
               variant="default"
-              disabled={isProcessing}
+              disabled={isBusy}
               className="gba:w-full gba:gap-2"
               data-testid="task-quick-add-submit"
             >
-              {isProcessing ? (
+              {isBusy ? (
                 <span className="gba:inline-flex gba:items-center gba:gap-2">
                   <Spinner size="sm" />
                   {t('common-creating')}

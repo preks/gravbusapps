@@ -16,6 +16,7 @@ import { FileInfo } from '@/common/types/FileTypes'
 import type { Note } from '@/common/data/relations/types/noteTypes'
 import translations from './_i18n'
 import { NoteInput } from './NoteInput'
+import { useQuickAddSubmitGuard } from '@/common/components/common-relations/record-sections/utils/quickAddSubmitGuard'
 
 const quickNoteSchema = z.object({
   details: z.object({
@@ -90,6 +91,7 @@ const NoteSection: React.FC<NoteSectionProps> = props => {
     quickAddTriggerLabel
   } = props
   const [showQuickAdd, setShowQuickAdd] = useState(false)
+  const { isSubmitting: isQuickAddSubmitting, runGuarded: runQuickAddGuarded } = useQuickAddSubmitGuard()
 
   const defaultReminderDate = new Date().toISOString().slice(0, 16)
   const form = useForm({
@@ -193,28 +195,34 @@ const NoteSection: React.FC<NoteSectionProps> = props => {
                 schema={quickNoteSchema}
                 quickAddTriggerLabel={quickAddTriggerLabel}
                 onSubmit={async (data: any) => {
-                  const flat = {
-                    title: data.details.title,
-                    text: data.details.text,
-                    reminderDate: data.reminderDate || undefined,
-                    _pendingFiles: data._pendingFiles?.length ? data._pendingFiles : undefined,
-                    ...(leadId && { leadId }),
-                    ...(accountId && { accountId }),
-                    ...(contactId && { contactId }),
-                    ...(opportunityId && { opportunityId }),
-                    ...(investmentId && { investmentId })
+                  if (isProcessing || isQuickAddSubmitting) {
+                    return
                   }
-                  let toBuild: Record<string, any> = flat
-                  if (props.preSubmit) {
-                    toBuild = await props.preSubmit(flat)
-                  }
-                  const payload = buildNotePayload ? buildNotePayload(toBuild) : toBuild
-                  if (payload && '_pendingFiles' in payload) {
-                    delete payload._pendingFiles
-                  }
-                  await executeAction(payload)
+                  await runQuickAddGuarded(async () => {
+                    const flat = {
+                      title: data.details.title,
+                      text: data.details.text,
+                      reminderDate: data.reminderDate || undefined,
+                      _pendingFiles: data._pendingFiles?.length ? data._pendingFiles : undefined,
+                      ...(leadId && { leadId }),
+                      ...(accountId && { accountId }),
+                      ...(contactId && { contactId }),
+                      ...(opportunityId && { opportunityId }),
+                      ...(investmentId && { investmentId })
+                    }
+                    let toBuild: Record<string, any> = flat
+                    if (props.preSubmit) {
+                      toBuild = await props.preSubmit(flat)
+                    }
+                    const payload = buildNotePayload ? buildNotePayload(toBuild) : toBuild
+                    if (payload && '_pendingFiles' in payload) {
+                      delete payload._pendingFiles
+                    }
+                    await executeAction(payload)
+                  })
                 }}
                 isProcessing={isProcessing}
+                isSubmitting={isQuickAddSubmitting}
                 showQuickAdd={showQuickAdd}
                 onShowQuickAddChange={setShowQuickAdd}
               />

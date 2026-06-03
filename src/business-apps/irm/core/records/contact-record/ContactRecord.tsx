@@ -12,7 +12,7 @@ import { getContactFullName } from './utils'
 import { useContactAiSummary } from './hooks/useContactAiSummary'
 import { useInvestmentContact } from '@/common/data/investment/hooks/useInvestmentContact'
 import { HomeView } from './views/home-view/HomeView'
-import { OpportunityView } from './views/opportunity-view/OpportunityView'
+import { OpportunityView } from '@/business-apps/irm/core/apps/investment-relations/views/opportunity-view'
 import { DocumentView } from './views/document-view/DocumentView'
 import { getEmailChannel, getPhoneChannel } from '@/common/data/common/utils/communicationChannelHelpers'
 
@@ -202,7 +202,7 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
           icon: <TargetIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
-              <OpportunityView contactId={contactId} {...props} />
+              <OpportunityView {...props} contactId={contactId} />
             </div>
           )
         },

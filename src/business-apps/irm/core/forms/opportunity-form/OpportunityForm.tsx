@@ -47,6 +47,15 @@ import {
 } from '@newwork/nw-design-system'
 import { useInvestmentAccountsList } from '@/common/data/investment/hooks/useInvestmentAccounts'
 import { useInvestmentContactsList } from '@/common/data/investment/hooks/useInvestmentContacts'
+import { useInvestmentAccount } from '@/common/data/investment/hooks/useInvestmentAccount'
+import { useInvestmentContact } from '@/common/data/investment/hooks/useInvestmentContact'
+import {
+  applyOpportunityAssociationDefaultsToForm,
+  buildContextOpportunityAccounts,
+  buildContextOpportunityContacts,
+  getCreateModeOpportunityAssociationDefaults,
+  getOpportunityFormContextIds
+} from '@/common/components/common-relations/form-layouts/opportunity-layout/utils/opportunityRecordContextPrefill'
 import { useInvestment } from '@/common/data/investment/hooks/useInvestment.new'
 import { useInvestments } from '@/common/data/investment/hooks/useInvestments.new'
 import { mapInvestmentToInvestmentOpportunityValues } from '@/common/data/investment/utils/investmentToOpportunityMapper'
@@ -109,6 +118,9 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
   const opportunityId =
     additionalData?.opportunityId || additionalData?.psi_taskPayload?.psi_initialParameters?.opportunityId
 
+  const contextIds = useMemo(() => getOpportunityFormContextIds(additionalData), [additionalData])
+  const isCreateMode = !opportunityId
+
   // Extract investmentId from additionalData (for divestment cases)
   const investmentId =
     additionalData?.investmentId || additionalData?.psi_taskPayload?.psi_initialParameters?.investmentId
@@ -118,6 +130,34 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
 
   // Fetch opportunity data using declarative hook
   const { opportunity, loading, error } = useInvestmentOpportunity(accessToken || '', opportunityId)
+
+  const { account: contextAccount } = useInvestmentAccount(
+    accessToken || '',
+    isCreateMode ? (contextIds.accountId ?? undefined) : undefined
+  )
+  const { contact: contextContact } = useInvestmentContact(
+    accessToken || '',
+    isCreateMode ? (contextIds.contactId ?? undefined) : undefined
+  )
+
+  const createAssociationDefaults = useMemo(
+    () => (isCreateMode ? getCreateModeOpportunityAssociationDefaults(contextIds) : {}),
+    [isCreateMode, contextIds]
+  )
+
+  const layoutOpportunityAccounts = useMemo(() => {
+    if (!isCreateMode) {
+      return opportunity?.opportunityAccounts
+    }
+    return buildContextOpportunityAccounts(contextIds.accountId, contextAccount)
+  }, [isCreateMode, opportunity?.opportunityAccounts, contextIds.accountId, contextAccount])
+
+  const layoutOpportunityContacts = useMemo(() => {
+    if (!isCreateMode) {
+      return opportunity?.opportunityContacts
+    }
+    return buildContextOpportunityContacts(contextIds.contactId, contextContact)
+  }, [isCreateMode, opportunity?.opportunityContacts, contextIds.contactId, contextContact])
 
   // Fetch investment data if investmentId is provided (for divestment cases) - using declarative hook
   const { investment, loading: investmentLoading } = useInvestment(accessToken || '', investmentId)
@@ -137,12 +177,20 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
   const form = useForm({
     defaultValues: {
       ...mapToFormValues(opportunity || {}, investmentOpportunitySchema),
+      ...createAssociationDefaults,
       ...(dealType && { dealType }),
       ...(investmentId && !opportunity?.id && { investmentId })
     } as InvestmentOpportunityFormValues,
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   }) as any
+
+  useEffect(() => {
+    if (!isCreateMode) {
+      return
+    }
+    applyOpportunityAssociationDefaultsToForm(form, contextIds)
+  }, [isCreateMode, contextIds, contextAccount?.id, contextContact?.id, form])
 
   // Watch investmentTypeId from form (HEAD approach - working)
   const watchedInvestmentTypeId = form.watch('investmentTypeId')
@@ -706,9 +754,9 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
           businessAppContext={{ accessToken, userInfo, additionalData }}
           ownerEmployee={opportunity?.ownerEmployee}
           entityId={opportunity?.id || opportunityId}
-          opportunityAccounts={opportunity?.opportunityAccounts}
+          opportunityAccounts={layoutOpportunityAccounts}
           useAccounts={useAccounts}
-          opportunityContacts={opportunity?.opportunityContacts}
+          opportunityContacts={layoutOpportunityContacts}
           useContacts={useContacts}
           pipelineCatalogIdentifier={OPPORTUNITY_PIPELINE}
           stageCatalogIdentifier={OPPORTUNITY_PIPELINE_STAGE}

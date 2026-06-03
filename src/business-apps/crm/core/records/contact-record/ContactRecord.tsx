@@ -24,7 +24,7 @@ import { APPROVAL_TASK_TYPE_REF } from '@/common/data/customer/constants/custome
 import { AiActions } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { useContactAiSummary } from './hooks/useContactAiSummary'
 import { HomeView } from './views/home-view/HomeView'
-import { OpportunityView } from './views/opportunity-view/OpportunityView'
+import { OpportunityView } from '@/business-apps/crm/core/apps/customer-relations/views/opportunity-view'
 import { DocumentView } from './views/document-view/DocumentView'
 import { getEmailChannel, getPhoneChannel } from '@/common/data/common/utils/communicationChannelHelpers'
 import ComplianceSection from '@/common/components/common-relations/record-sections/compliance-section/ComplianceSection'
@@ -343,7 +343,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
           icon: <TargetIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
-              <OpportunityView contactId={contactId} {...props} />
+              <OpportunityView {...props} contactId={contactId} />
             </div>
           )
         },

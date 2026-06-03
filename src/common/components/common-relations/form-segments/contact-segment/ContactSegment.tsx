@@ -210,7 +210,7 @@ const ContactItem: React.FC<{
           aria-label={`Remove ${contactData.name}`}
           disabled={disabled}
         >
-          <XIcon className="gba:w-4 gba:h-4 gba:text-destructive" />
+          <XIcon className="gba:w-4 gba:h-4 gba:text-destructive gba:stroke-destructive" />
         </Button>
       </div>
     </div>

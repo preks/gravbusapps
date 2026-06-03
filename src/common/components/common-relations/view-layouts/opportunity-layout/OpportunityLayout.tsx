@@ -161,6 +161,12 @@ export interface OpportunityLayoutProps<TOpportunity extends { id: string } = an
   config: OpportunityViewConfig<TOpportunity, TQueryVariables>
   dataTestId?: string
   initialFilters?: Record<string, any>
+  /**
+   * Applied to list/export queries only (not shown as filter chips). Pair with `hideFilters`
+   * on record tabs so users cannot clear account/contact scope from the filter UI.
+   */
+  scopedQueryFilters?: Record<string, any>
+  /** When true, the list filter bar is hidden (use on record opportunity tabs). */
   hideFilters?: boolean
   customPrimaryAction?: React.ReactNode
   extendVisibleColumns?: string[] // Additional columns to add to base columns
@@ -519,6 +525,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     config,
     dataTestId = 'opportunity-view',
     initialFilters = {},
+    scopedQueryFilters = {},
     hideFilters = false,
     customPrimaryAction,
     extendVisibleColumns = [],
@@ -641,8 +648,18 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
   // List Query Variables
   const listQueryVariables = useMemo(() => {
     const baseVars = config.buildQueryVariables({ pagination, searchTerm, selectedFilters, sorting })
-    return applyCurrencyToVars(baseVars, selectedCurrency, availableCurrencies)
-  }, [pagination, searchTerm, selectedFilters, sorting, selectedCurrency, availableCurrencies, config])
+    const withScope = { ...baseVars, ...scopedQueryFilters }
+    return applyCurrencyToVars(withScope, selectedCurrency, availableCurrencies)
+  }, [
+    pagination,
+    searchTerm,
+    selectedFilters,
+    sorting,
+    selectedCurrency,
+    availableCurrencies,
+    config,
+    scopedQueryFilters
+  ])
 
   // Export
   const { isExporting, handleExportCsv, handleExportExcel } = useOpportunityExport({

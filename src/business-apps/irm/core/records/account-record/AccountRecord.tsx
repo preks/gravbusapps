@@ -22,7 +22,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { AiActions } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { useAccountAiSummary } from './hooks/useAccountAiSummary'
 import { useGenerateAIBooklet } from './hooks/useGenerateAIBooklet'
-import { OpportunityView } from './views/opportunity-view/OpportunityView'
+import { OpportunityView } from '@/business-apps/irm/core/apps/investment-relations/views/opportunity-view'
 import { DocumentView } from './views/document-view/DocumentView'
 import { HomeView } from './views/home-view/HomeView'
 import { getEmailChannel, getPhoneChannel } from '@/common/data/common/utils/communicationChannelHelpers'
@@ -235,7 +235,7 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
           icon: <TargetIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
-              <OpportunityView accountId={accountId} context={props} />
+              <OpportunityView {...props} accountId={accountId} />
             </div>
           )
         },
