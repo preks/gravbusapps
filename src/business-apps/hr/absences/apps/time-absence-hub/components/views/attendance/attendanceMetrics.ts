@@ -9,6 +9,8 @@ import { toMinutes, type AttendanceDateRange } from './attendanceUtils'
 
 const WORK_ABSENCE_GROUP_ID = 'AbsenceGroup:v1:WORK'
 
+const todayDateKey = (): string => new Date().toISOString().slice(0, 10)
+
 export interface AttendanceAbsenceTypeOption {
   id: string
   name: string
@@ -43,6 +45,8 @@ interface WeeklyWorkingHours {
 }
 
 const toDateKey = (date: Date): string => date.toISOString().slice(0, 10)
+
+const isCompletedDay = (dateIso: string, today = todayDateKey()): boolean => dateIso < today
 
 export const eachDateInRange = (dateRange: AttendanceDateRange): string[] => {
   const dates: string[] = []
@@ -186,7 +190,10 @@ export const computeAttendanceEmployeeMetrics = ({
   dateRange: AttendanceDateRange | null
   absenceTypes: AttendanceAbsenceTypeOption[]
 }): AttendanceEmployeeMetrics => {
-  const employeeAttendance = attendance.filter(row => row.employeeId === employee.id)
+  const today = todayDateKey()
+  const employeeAttendance = attendance.filter(
+    row => row.employeeId === employee.id && isCompletedDay(row.attendanceDate, today)
+  )
   const employeeAbsences = absences.filter(row => row.employeeId === employee.id)
   const employeeHolidays = new Set(holidays.filter(row => row.employeeId === employee.id).map(row => row.date))
   const absenceTypeById = buildAbsenceTypeMap(absenceTypes)
@@ -205,6 +212,10 @@ export const computeAttendanceEmployeeMetrics = ({
   if (dateRange) {
     const workingHours = getWorkingHours(employee)
     eachDateInRange(dateRange).forEach(date => {
+      if (!isCompletedDay(date, today)) {
+        return
+      }
+
       const plannedForDay = getPlannedMinutesForDate(date, workingHours)
       if (plannedForDay === 0 || employeeHolidays.has(date)) {
         return

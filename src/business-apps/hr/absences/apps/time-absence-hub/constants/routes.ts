@@ -1,8 +1,8 @@
 export const HUB_VIEWS = [
   'dashboard',
   'absences',
-  'attendance',
   'entitlements',
+  'attendance',
   'insights',
   'absence-details',
   'entitlements-details'
