@@ -82,9 +82,9 @@
     ]
   },
   ".debug/forms/debug-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 77425,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 77430,
     "top": [
       {
         "kind": "bucket",
@@ -322,9 +322,9 @@
     ]
   },
   "ai/apps/document-reviewer": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 439816,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 439821,
     "top": [
       {
         "kind": "bucket",
@@ -567,9 +567,9 @@
     ]
   },
   "ai/apps/scheduled-tasks": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 430323,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 430328,
     "top": [
       {
         "kind": "bucket",
@@ -812,9 +812,9 @@
     ]
   },
   "ai/forms/scheduled-task-result": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 198577,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 198582,
     "top": [
       {
         "kind": "bucket",
@@ -1111,9 +1111,9 @@
     ]
   },
   "common/apps/case-management": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 420007,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 420012,
     "top": [
       {
         "kind": "bucket",
@@ -1405,9 +1405,9 @@
     ]
   },
   "core/content/apps/content-manager": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 421736,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 421741,
     "top": [
       {
         "kind": "bucket",
@@ -1704,9 +1704,9 @@
     ]
   },
   "core/content/apps/content-portal": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 379320,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 379325,
     "top": [
       {
         "kind": "bucket",
@@ -2026,9 +2026,9 @@
     ]
   },
   "core/content/apps/content-settings": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 477594,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 477599,
     "top": [
       {
         "kind": "bucket",
@@ -2284,9 +2284,9 @@
     ]
   },
   "core/content/forms/glossary-entry-request-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 122525,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 122530,
     "top": [
       {
         "kind": "bucket",
@@ -2583,9 +2583,9 @@
     ]
   },
   "core/content/forms/glossary-entry-task-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 147784,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 147789,
     "top": [
       {
         "kind": "bucket",
@@ -2892,9 +2892,9 @@
     ]
   },
   "core/content/popups/content-document-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 217451,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 217456,
     "top": [
       {
         "kind": "bucket",
@@ -3168,9 +3168,9 @@
     ]
   },
   "core/content/popups/content-entry-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 105013,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 105018,
     "top": [
       {
         "kind": "bucket",
@@ -3426,9 +3426,9 @@
     ]
   },
   "core/content/popups/content-group-change-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 123175,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 123180,
     "top": [
       {
         "kind": "bucket",
@@ -3707,9 +3707,9 @@
     ]
   },
   "core/content/records/content-record": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 384306,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 384311,
     "top": [
       {
         "kind": "bucket",
@@ -4034,9 +4034,9 @@
     ]
   },
   "core/content/windows/content-entry-window": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 369893,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 369898,
     "top": [
       {
         "kind": "bucket",
@@ -4627,9 +4627,9 @@
     ]
   },
   "core/create/apps/ai-builder-admin": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 174232,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 174237,
     "top": [
       {
         "kind": "bucket",
@@ -4921,9 +4921,9 @@
     ]
   },
   "core/create/apps/ai-builder-metrics-dashboard": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 122819,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 122824,
     "top": [
       {
         "kind": "bucket",
@@ -5161,9 +5161,9 @@
     ]
   },
   "core/create/apps/ai-orchestrator": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 594533,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 594538,
     "top": [
       {
         "kind": "bucket",
@@ -5473,9 +5473,9 @@
     ]
   },
   "core/create/apps/create-workspace": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 116958,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 116963,
     "top": [
       {
         "kind": "bucket",
@@ -5718,9 +5718,9 @@
     ]
   },
   "core/create/apps/custom-data-manager": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 291792,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 291797,
     "top": [
       {
         "kind": "bucket",
@@ -6030,9 +6030,9 @@
     ]
   },
   "core/create/apps/flow-creator": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1187154,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1187159,
     "top": [
       {
         "kind": "bucket",
@@ -6357,9 +6357,9 @@
     ]
   },
   "core/create/apps/function-manager": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 539006,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 539011,
     "top": [
       {
         "kind": "bucket",
@@ -6669,9 +6669,9 @@
     ]
   },
   "core/create/apps/newwork-connect": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 211705,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 211710,
     "top": [
       {
         "kind": "bucket",
@@ -6937,9 +6937,9 @@
     ]
   },
   "core/create/apps/prompt-manager": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 550621,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 550626,
     "top": [
       {
         "kind": "bucket",
@@ -7231,9 +7231,9 @@
     ]
   },
   "core/create/apps/resource-preview-demo": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 297699,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 297704,
     "top": [
       {
         "kind": "bucket",
@@ -7530,9 +7530,9 @@
     ]
   },
   "core/create/debug/apps/generated-resource-urls-debug": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 136251,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 136256,
     "top": [
       {
         "kind": "bucket",
@@ -7788,9 +7788,9 @@
     ]
   },
   "core/documents/apps/document-creator": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 124832,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 124837,
     "top": [
       {
         "kind": "bucket",
@@ -8033,9 +8033,9 @@
     ]
   },
   "core/every/apps/every-api": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 99873,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 99878,
     "top": [
       {
         "kind": "bucket",
@@ -8278,9 +8278,9 @@
     ]
   },
   "core/every/apps/every-box": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 2079007,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 2079012,
     "top": [
       {
         "kind": "bucket",
@@ -8625,9 +8625,9 @@
     ]
   },
   "core/manage/apps/branding": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 443115,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 443120,
     "top": [
       {
         "kind": "bucket",
@@ -8870,9 +8870,9 @@
     ]
   },
   "core/manage/apps/catalog-manager": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 217957,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 217962,
     "top": [
       {
         "kind": "bucket",
@@ -9151,9 +9151,9 @@
     ]
   },
   "core/manage/apps/resource-manager": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 612845,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 612850,
     "top": [
       {
         "kind": "bucket",
@@ -9458,9 +9458,9 @@
     ]
   },
   "core/manage/apps/user-manager": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 532124,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 532129,
     "top": [
       {
         "kind": "bucket",
@@ -9703,9 +9703,9 @@
     ]
   },
   "core/office/apps/documents": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1800681,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1800686,
     "top": [
       {
         "kind": "bucket",
@@ -10020,9 +10020,9 @@
     ]
   },
   "core/office/apps/drive": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 866278,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 866283,
     "top": [
       {
         "kind": "bucket",
@@ -10319,9 +10319,9 @@
     ]
   },
   "core/office/apps/emails": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 480384,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 480389,
     "top": [
       {
         "kind": "bucket",
@@ -10631,9 +10631,9 @@
     ]
   },
   "core/office/apps/notes": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 664115,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 664120,
     "top": [
       {
         "kind": "bucket",
@@ -10912,9 +10912,9 @@
     ]
   },
   "core/office/apps/office-canvas": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 279478,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 279483,
     "top": [
       {
         "kind": "bucket",
@@ -11175,9 +11175,9 @@
     ]
   },
   "core/office/apps/office-launcher": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 297314,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 297319,
     "top": [
       {
         "kind": "bucket",
@@ -11438,9 +11438,9 @@
     ]
   },
   "core/office/apps/office-settings": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 147381,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 147386,
     "top": [
       {
         "kind": "bucket",
@@ -11683,9 +11683,9 @@
     ]
   },
   "core/office/apps/slides": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1669176,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1669181,
     "top": [
       {
         "kind": "bucket",
@@ -12000,9 +12000,9 @@
     ]
   },
   "core/office/apps/spaces": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1418904,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1418909,
     "top": [
       {
         "kind": "bucket",
@@ -12317,9 +12317,9 @@
     ]
   },
   "core/office/apps/spreadsheets": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1977678,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1977683,
     "top": [
       {
         "kind": "bucket",
@@ -12634,9 +12634,9 @@
     ]
   },
   "crm/campaigns/apps/campaign-management": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 462644,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 462649,
     "top": [
       {
         "kind": "bucket",
@@ -12951,9 +12951,9 @@
     ]
   },
   "crm/campaigns/forms/campaign-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 193323,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 193328,
     "top": [
       {
         "kind": "bucket",
@@ -13232,9 +13232,9 @@
     ]
   },
   "crm/campaigns/popups/sales-campaign-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 102004,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 102009,
     "top": [
       {
         "kind": "bucket",
@@ -13490,9 +13490,9 @@
     ]
   },
   "crm/campaigns/records/campaign-record": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 484623,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 484628,
     "top": [
       {
         "kind": "bucket",
@@ -13802,9 +13802,9 @@
     ]
   },
   "crm/core/apps/customer-launcher": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 130072,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 130077,
     "top": [
       {
         "kind": "bucket",
@@ -14060,9 +14060,9 @@
     ]
   },
   "crm/core/apps/customer-relations": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1591535,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1591540,
     "top": [
       {
         "kind": "bucket",
@@ -14387,9 +14387,9 @@
     ]
   },
   "crm/core/apps/customer-settings": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 803050,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 803055,
     "top": [
       {
         "kind": "bucket",
@@ -14704,9 +14704,9 @@
     ]
   },
   "crm/core/apps/data-import": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 661187,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 661192,
     "top": [
       {
         "kind": "bucket",
@@ -14998,9 +14998,9 @@
     ]
   },
   "crm/core/forms/account-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 485464,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 485469,
     "top": [
       {
         "kind": "bucket",
@@ -15320,9 +15320,9 @@
     ]
   },
   "crm/core/forms/activity-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 427065,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 427070,
     "top": [
       {
         "kind": "bucket",
@@ -15642,9 +15642,9 @@
     ]
   },
   "crm/core/forms/complete-customer-task-approve": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 164972,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 164977,
     "top": [
       {
         "kind": "bucket",
@@ -15918,9 +15918,9 @@
     ]
   },
   "crm/core/forms/complete-customer-task-complete": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 164974,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 164979,
     "top": [
       {
         "kind": "bucket",
@@ -16194,9 +16194,9 @@
     ]
   },
   "crm/core/forms/contact-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 482993,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 482998,
     "top": [
       {
         "kind": "bucket",
@@ -16516,9 +16516,9 @@
     ]
   },
   "crm/core/forms/lead-convert-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 514228,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 514233,
     "top": [
       {
         "kind": "bucket",
@@ -16838,9 +16838,9 @@
     ]
   },
   "crm/core/forms/lead-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 307523,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 307528,
     "top": [
       {
         "kind": "bucket",
@@ -17155,9 +17155,9 @@
     ]
   },
   "crm/core/forms/note-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 311886,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 311891,
     "top": [
       {
         "kind": "bucket",
@@ -17467,9 +17467,9 @@
     ]
   },
   "crm/core/forms/opportunity-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 331042,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 331047,
     "top": [
       {
         "kind": "bucket",
@@ -17784,9 +17784,9 @@
     ]
   },
   "crm/core/forms/task-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 334120,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 334125,
     "top": [
       {
         "kind": "bucket",
@@ -18101,9 +18101,9 @@
     ]
   },
   "crm/core/popups/account-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 143185,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 143190,
     "top": [
       {
         "kind": "bucket",
@@ -18377,9 +18377,9 @@
     ]
   },
   "crm/core/popups/activity-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 99956,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 99961,
     "top": [
       {
         "kind": "bucket",
@@ -18635,9 +18635,9 @@
     ]
   },
   "crm/core/popups/contact-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 162916,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 162921,
     "top": [
       {
         "kind": "bucket",
@@ -18911,9 +18911,9 @@
     ]
   },
   "crm/core/popups/document-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 101518,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 101523,
     "top": [
       {
         "kind": "bucket",
@@ -19182,9 +19182,9 @@
     ]
   },
   "crm/core/popups/document-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 228011,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 228016,
     "top": [
       {
         "kind": "bucket",
@@ -19481,9 +19481,9 @@
     ]
   },
   "crm/core/popups/lead-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 162538,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 162543,
     "top": [
       {
         "kind": "bucket",
@@ -19757,9 +19757,9 @@
     ]
   },
   "crm/core/popups/lead-status-change-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 158577,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 158582,
     "top": [
       {
         "kind": "bucket",
@@ -20028,9 +20028,9 @@
     ]
   },
   "crm/core/popups/note-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 99924,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 99929,
     "top": [
       {
         "kind": "bucket",
@@ -20286,9 +20286,9 @@
     ]
   },
   "crm/core/popups/opportunity-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 166615,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 166620,
     "top": [
       {
         "kind": "bucket",
@@ -20562,9 +20562,9 @@
     ]
   },
   "crm/core/popups/opportunity-status-update-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 139963,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 139968,
     "top": [
       {
         "kind": "bucket",
@@ -20833,9 +20833,9 @@
     ]
   },
   "crm/core/popups/stage-condition-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 83206,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 83211,
     "top": [
       {
         "kind": "bucket",
@@ -21078,9 +21078,9 @@
     ]
   },
   "crm/core/popups/stage-transition-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 91846,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 91851,
     "top": [
       {
         "kind": "bucket",
@@ -21323,9 +21323,9 @@
     ]
   },
   "crm/core/popups/task-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 101417,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 101422,
     "top": [
       {
         "kind": "bucket",
@@ -21581,9 +21581,9 @@
     ]
   },
   "crm/core/records/account-record": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1203560,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1203565,
     "top": [
       {
         "kind": "bucket",
@@ -21918,9 +21918,9 @@
     ]
   },
   "crm/core/records/contact-record": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1208006,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1208011,
     "top": [
       {
         "kind": "bucket",
@@ -22255,9 +22255,9 @@
     ]
   },
   "crm/core/records/lead-record": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1031934,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1031939,
     "top": [
       {
         "kind": "bucket",
@@ -22597,9 +22597,9 @@
     ]
   },
   "crm/core/records/opportunity-record": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1057726,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1057731,
     "top": [
       {
         "kind": "bucket",
@@ -22934,9 +22934,9 @@
     ]
   },
   "crm/performance/apps/ceo-hub": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 125393,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 125398,
     "top": [
       {
         "kind": "bucket",
@@ -23179,9 +23179,9 @@
     ]
   },
   "crm/performance/apps/sales-activity-360": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 858708,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 858713,
     "top": [
       {
         "kind": "bucket",
@@ -23491,9 +23491,9 @@
     ]
   },
   "crm/performance/apps/sales-performance": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1317752,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1317757,
     "top": [
       {
         "kind": "bucket",
@@ -23813,9 +23813,9 @@
     ]
   },
   "crm/performance/apps/sales-team-performance": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1075334,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1075339,
     "top": [
       {
         "kind": "bucket",
@@ -24130,9 +24130,9 @@
     ]
   },
   "every/apps/every-box": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 2078928,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 2078933,
     "top": [
       {
         "kind": "bucket",
@@ -24477,9 +24477,9 @@
     ]
   },
   "fin/expenses/apps/backoffice-expenses": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1207786,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1207791,
     "top": [
       {
         "kind": "bucket",
@@ -24794,9 +24794,9 @@
     ]
   },
   "fin/expenses/apps/calculation-debugger": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 253826,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 253831,
     "top": [
       {
         "kind": "bucket",
@@ -25057,9 +25057,9 @@
     ]
   },
   "fin/expenses/apps/expense-plan-record": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 150199,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 150204,
     "top": [
       {
         "kind": "bucket",
@@ -25341,9 +25341,9 @@
     ]
   },
   "fin/expenses/apps/expense-request-record": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 286698,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 286703,
     "top": [
       {
         "kind": "bucket",
@@ -25648,9 +25648,9 @@
     ]
   },
   "fin/expenses/apps/expense-settings": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1008786,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1008791,
     "top": [
       {
         "kind": "bucket",
@@ -25965,9 +25965,9 @@
     ]
   },
   "fin/expenses/apps/expense-settings/forms/allowance-code-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 93611,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 93616,
     "top": [
       {
         "kind": "bucket",
@@ -26210,9 +26210,9 @@
     ]
   },
   "fin/expenses/apps/expense-settings/forms/allowance-region-rule-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 140744,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 140749,
     "top": [
       {
         "kind": "bucket",
@@ -26455,9 +26455,9 @@
     ]
   },
   "fin/expenses/apps/expense-settings/forms/assignment-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 189716,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 189721,
     "top": [
       {
         "kind": "bucket",
@@ -26700,9 +26700,9 @@
     ]
   },
   "fin/expenses/apps/expense-settings/forms/calculation-rule-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 154428,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 154433,
     "top": [
       {
         "kind": "bucket",
@@ -26945,9 +26945,9 @@
     ]
   },
   "fin/expenses/apps/expense-settings/forms/custom-field-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 93305,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 93310,
     "top": [
       {
         "kind": "bucket",
@@ -27190,9 +27190,9 @@
     ]
   },
   "fin/expenses/apps/expense-settings/forms/deduction-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 94948,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 94953,
     "top": [
       {
         "kind": "bucket",
@@ -27435,9 +27435,9 @@
     ]
   },
   "fin/expenses/apps/expense-settings/forms/general-expense-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 151369,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 151374,
     "top": [
       {
         "kind": "bucket",
@@ -27680,9 +27680,9 @@
     ]
   },
   "fin/expenses/apps/expense-settings/forms/mileage-rule-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 154656,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 154661,
     "top": [
       {
         "kind": "bucket",
@@ -27925,9 +27925,9 @@
     ]
   },
   "fin/expenses/apps/expense-settings/forms/travel-region-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 90301,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 90306,
     "top": [
       {
         "kind": "bucket",
@@ -28178,9 +28178,9 @@
     ]
   },
   "fin/expenses/apps/expense-settings/forms/travel-region-rule-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 174133,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 174138,
     "top": [
       {
         "kind": "bucket",
@@ -28423,9 +28423,9 @@
     ]
   },
   "fin/expenses/apps/expense-settings/forms/travel-region-set-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 91809,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 91814,
     "top": [
       {
         "kind": "bucket",
@@ -28663,9 +28663,9 @@
     ]
   },
   "fin/expenses/apps/expenses-launcher": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 160539,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 160544,
     "top": [
       {
         "kind": "bucket",
@@ -28926,9 +28926,9 @@
     ]
   },
   "fin/expenses/apps/manager-expenses": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 2814225,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 2814230,
     "top": [
       {
         "kind": "bucket",
@@ -29273,9 +29273,9 @@
     ]
   },
   "fin/expenses/apps/personal-expenses": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 2494915,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 2494920,
     "top": [
       {
         "kind": "bucket",
@@ -29595,9 +29595,9 @@
     ]
   },
   "fin/expenses/apps/travel-region-set-test": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 99397,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 99402,
     "top": [
       {
         "kind": "bucket",
@@ -29853,9 +29853,9 @@
     ]
   },
   "fin/expenses/apps/unallocated-expense-items": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 792009,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 792014,
     "top": [
       {
         "kind": "bucket",
@@ -30379,9 +30379,9 @@
     ]
   },
   "fin/expenses/forms/advance-payment-approval": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 181615,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 181620,
     "top": [
       {
         "kind": "bucket",
@@ -30642,9 +30642,9 @@
     ]
   },
   "fin/expenses/forms/approve-expense-plan": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 212550,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 212555,
     "top": [
       {
         "kind": "bucket",
@@ -30918,9 +30918,9 @@
     ]
   },
   "fin/expenses/forms/approve-expense-request": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 237141,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 237146,
     "top": [
       {
         "kind": "bucket",
@@ -31194,9 +31194,9 @@
     ]
   },
   "fin/expenses/forms/confirm-transfer-adv-payment": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 190606,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 190611,
     "top": [
       {
         "kind": "bucket",
@@ -31457,9 +31457,9 @@
     ]
   },
   "fin/expenses/forms/create-calculation-rule": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 150732,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 150737,
     "top": [
       {
         "kind": "bucket",
@@ -31702,9 +31702,9 @@
     ]
   },
   "fin/expenses/forms/discard-expense-items": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 99905,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 99910,
     "top": [
       {
         "kind": "bucket",
@@ -31965,9 +31965,9 @@
     ]
   },
   "fin/expenses/forms/expense-item": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 187786,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 187791,
     "top": [
       {
         "kind": "bucket",
@@ -32210,9 +32210,9 @@
     ]
   },
   "fin/expenses/forms/expense-plan": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 126445,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 126450,
     "top": [
       {
         "kind": "bucket",
@@ -32455,9 +32455,9 @@
     ]
   },
   "fin/expenses/forms/expense-plan-invalid": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 96135,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 96140,
     "top": [
       {
         "kind": "bucket",
@@ -32700,9 +32700,9 @@
     ]
   },
   "fin/expenses/forms/expense-plan-item": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 114310,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 114315,
     "top": [
       {
         "kind": "bucket",
@@ -32945,9 +32945,9 @@
     ]
   },
   "fin/expenses/forms/expense-plan-wizard": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 276556,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 276561,
     "top": [
       {
         "kind": "bucket",
@@ -33190,9 +33190,9 @@
     ]
   },
   "fin/expenses/forms/expense-request": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 142432,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 142437,
     "top": [
       {
         "kind": "bucket",
@@ -33435,9 +33435,9 @@
     ]
   },
   "fin/expenses/forms/expense-request-invalid": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 96179,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 96184,
     "top": [
       {
         "kind": "bucket",
@@ -33680,9 +33680,9 @@
     ]
   },
   "fin/expenses/forms/expense-request-wizard": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 362198,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 362203,
     "top": [
       {
         "kind": "bucket",
@@ -33925,9 +33925,9 @@
     ]
   },
   "fin/expenses/forms/pay-transfer-adv-payment": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 182525,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 182530,
     "top": [
       {
         "kind": "bucket",
@@ -34188,9 +34188,9 @@
     ]
   },
   "fin/expenses/forms/request-advance-payment": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 105598,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 105603,
     "top": [
       {
         "kind": "bucket",
@@ -34714,9 +34714,9 @@
     ]
   },
   "flow/apps/flow-hub": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 131393,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 131398,
     "top": [
       {
         "kind": "bucket",
@@ -34959,9 +34959,9 @@
     ]
   },
   "flow/apps/guardian": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 320201,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 320206,
     "top": [
       {
         "kind": "bucket",
@@ -35276,9 +35276,9 @@
     ]
   },
   "flow/apps/inbox": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 399031,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 399036,
     "top": [
       {
         "kind": "bucket",
@@ -35593,9 +35593,9 @@
     ]
   },
   "flow/apps/launcher": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 240324,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 240329,
     "top": [
       {
         "kind": "bucket",
@@ -35910,9 +35910,9 @@
     ]
   },
   "flow/apps/success": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 510604,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 510609,
     "top": [
       {
         "kind": "bucket",
@@ -36227,9 +36227,9 @@
     ]
   },
   "flow/apps/template-manager": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 225469,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 225474,
     "top": [
       {
         "kind": "bucket",
@@ -36472,9 +36472,9 @@
     ]
   },
   "hr/absence/apps/AbsenceSetup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 822743,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 822748,
     "top": [
       {
         "kind": "bucket",
@@ -36743,9 +36743,9 @@
     ]
   },
   "hr/absence/apps/absence-setup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 822745,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 822750,
     "top": [
       {
         "kind": "bucket",
@@ -37326,9 +37326,9 @@
     ]
   },
   "hr/absences/apps/manager-absences": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 613051,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 613056,
     "top": [
       {
         "kind": "bucket",
@@ -37638,9 +37638,9 @@
     ]
   },
   "hr/absences/apps/personal-absences": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 683736,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 683442,
     "top": [
       {
         "kind": "bucket",
@@ -37663,8 +37663,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 296836,
-        "gzip": 76707,
+        "rendered": 296302,
+        "gzip": 76576,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/employee-record/components/tabs/components/AbsenceCalendar.tsx",
@@ -38195,9 +38195,9 @@
     ]
   },
   "hr/absences/forms/acknowledge-employee-sick-leave-HR": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 179699,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 179704,
     "top": [
       {
         "kind": "bucket",
@@ -38458,9 +38458,9 @@
     ]
   },
   "hr/absences/forms/acknowledge-employee-sick-leave-manager": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 179734,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 179739,
     "top": [
       {
         "kind": "bucket",
@@ -38721,9 +38721,9 @@
     ]
   },
   "hr/absences/forms/acknowledge-employee-special-leave": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 182926,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 182931,
     "top": [
       {
         "kind": "bucket",
@@ -38984,9 +38984,9 @@
     ]
   },
   "hr/absences/forms/acknowledge-employee-vacation": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 185226,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 185231,
     "top": [
       {
         "kind": "bucket",
@@ -39247,9 +39247,9 @@
     ]
   },
   "hr/absences/forms/approve-employee-special-leave": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 188495,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 188500,
     "top": [
       {
         "kind": "bucket",
@@ -39510,9 +39510,9 @@
     ]
   },
   "hr/absences/forms/approve-employee-vacation": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 249558,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 249563,
     "top": [
       {
         "kind": "bucket",
@@ -39773,9 +39773,9 @@
     ]
   },
   "hr/absences/forms/approve-employee-work-leave": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 188095,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 188100,
     "top": [
       {
         "kind": "bucket",
@@ -40036,9 +40036,9 @@
     ]
   },
   "hr/common/apps/team-members-report": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 629827,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 629832,
     "top": [
       {
         "kind": "bucket",
@@ -40294,9 +40294,9 @@
     ]
   },
   "hr/core/apps/assets": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 817686,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 817691,
     "top": [
       {
         "kind": "bucket",
@@ -40606,9 +40606,9 @@
     ]
   },
   "hr/core/apps/employee-directory": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 609012,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 609017,
     "top": [
       {
         "kind": "bucket",
@@ -40928,15 +40928,15 @@
     ]
   },
   "hr/core/apps/employee-record": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1492649,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1492820,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 1366517,
-        "gzip": 331403,
+        "rendered": 1367960,
+        "gzip": 331238,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/employee-record/components/tabs/PerformanceTab.tsx",
@@ -41250,9 +41250,9 @@
     ]
   },
   "hr/core/apps/hr-launcher": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 88818,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 88823,
     "top": [
       {
         "kind": "bucket",
@@ -41495,9 +41495,9 @@
     ]
   },
   "hr/core/apps/hr-settings": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 88412,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 88417,
     "top": [
       {
         "kind": "bucket",
@@ -41753,9 +41753,9 @@
     ]
   },
   "hr/core/apps/human-resources": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 2447060,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 2447065,
     "top": [
       {
         "kind": "bucket",
@@ -42075,9 +42075,9 @@
     ]
   },
   "hr/core/apps/manager-dashboard": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 501124,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 501129,
     "top": [
       {
         "kind": "bucket",
@@ -42387,15 +42387,15 @@
     ]
   },
   "hr/core/apps/my-development": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 484450,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 484621,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 455874,
-        "gzip": 107340,
+        "rendered": 457321,
+        "gzip": 107176,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/employee-record/components/tabs/PerformanceTab.tsx",
@@ -42699,9 +42699,9 @@
     ]
   },
   "hr/core/apps/my-team-time": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 566017,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 566022,
     "top": [
       {
         "kind": "bucket",
@@ -42944,9 +42944,9 @@
     ]
   },
   "hr/core/apps/my-time": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 633937,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 633643,
     "top": [
       {
         "kind": "bucket",
@@ -42969,8 +42969,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 269122,
-        "gzip": 67719,
+        "rendered": 268588,
+        "gzip": 67588,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/employee-record/components/tabs/components/AbsenceCalendar.tsx",
@@ -43261,9 +43261,9 @@
     ]
   },
   "hr/core/apps/office-usage": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 142351,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 142356,
     "top": [
       {
         "kind": "bucket",
@@ -43506,9 +43506,9 @@
     ]
   },
   "hr/core/apps/performance-evaluation": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 579209,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 579214,
     "top": [
       {
         "kind": "bucket",
@@ -43800,9 +43800,9 @@
     ]
   },
   "hr/core/apps/performance-tracking": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 463314,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 463319,
     "top": [
       {
         "kind": "bucket",
@@ -44071,9 +44071,9 @@
     ]
   },
   "hr/core/apps/project-analytics": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 163787,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 163792,
     "top": [
       {
         "kind": "bucket",
@@ -44628,15 +44628,15 @@
     ]
   },
   "hr/core/forms/add-skill": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 373227,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 345621,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 236425,
-        "gzip": 58807,
+        "rendered": 235664,
+        "gzip": 58631,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/employee-record/_i18n/ro-RO.ftl?raw",
@@ -44653,18 +44653,18 @@
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
-        "rendered": 165937,
-        "gzip": 51296,
+        "rendered": 125516,
+        "gzip": 40169,
         "leaves": [
           {
             "name": "node_modules/@newwork/nw-design-system/dist/components/combobox/Combobox.js",
-            "rendered": 13396,
+            "rendered": 13412,
             "gzip": 3637
           },
           {
-            "name": "node_modules/@newwork/nw-design-system/dist/components/date-input/DateInput.js",
-            "rendered": 12644,
-            "gzip": 3300
+            "name": "node_modules/@newwork/nw-design-system/dist/components/select/Select.js",
+            "rendered": 8715,
+            "gzip": 2258
           }
         ]
       },
@@ -44708,12 +44708,12 @@
         "kind": "bucket",
         "name": "(src)/components/share-entity",
         "rendered": 15733,
-        "gzip": 3724,
+        "gzip": 3725,
         "leaves": [
           {
             "name": "src/components/share-entity/ShareEntityDialog.tsx",
             "rendered": 15733,
-            "gzip": 3724
+            "gzip": 3725
           }
         ]
       },
@@ -44788,12 +44788,12 @@
         "kind": "bucket",
         "name": "(src)/components/debounced-input",
         "rendered": 1508,
-        "gzip": 621,
+        "gzip": 620,
         "leaves": [
           {
             "name": "src/components/debounced-input/DebouncedInput.tsx",
             "rendered": 1508,
-            "gzip": 621
+            "gzip": 620
           }
         ]
       },
@@ -44935,9 +44935,9 @@
     ]
   },
   "hr/core/forms/additional-properties": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 108047,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 108052,
     "top": [
       {
         "kind": "bucket",
@@ -45224,9 +45224,9 @@
     ]
   },
   "hr/core/forms/adjust-employee-salary": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 248109,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 248114,
     "top": [
       {
         "kind": "bucket",
@@ -45518,9 +45518,9 @@
     ]
   },
   "hr/core/forms/adjust-employee-salary-review": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 183651,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 183656,
     "top": [
       {
         "kind": "bucket",
@@ -45807,9 +45807,9 @@
     ]
   },
   "hr/core/forms/allocate-asset": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 171036,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 171041,
     "top": [
       {
         "kind": "bucket",
@@ -46096,9 +46096,9 @@
     ]
   },
   "hr/core/forms/allocate-asset-review": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 245596,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 245601,
     "top": [
       {
         "kind": "bucket",
@@ -46385,9 +46385,9 @@
     ]
   },
   "hr/core/forms/approve-attendance-correction": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 150894,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 150899,
     "top": [
       {
         "kind": "bucket",
@@ -46648,9 +46648,9 @@
     ]
   },
   "hr/core/forms/change-bank-account": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 279027,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 279032,
     "top": [
       {
         "kind": "bucket",
@@ -46937,9 +46937,9 @@
     ]
   },
   "hr/core/forms/change-bank-account-review": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 232811,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 232816,
     "top": [
       {
         "kind": "bucket",
@@ -47200,9 +47200,9 @@
     ]
   },
   "hr/core/forms/change-communication": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 273150,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 273155,
     "top": [
       {
         "kind": "bucket",
@@ -47507,9 +47507,9 @@
     ]
   },
   "hr/core/forms/change-employee-address": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 518312,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 518317,
     "top": [
       {
         "kind": "bucket",
@@ -47824,9 +47824,9 @@
     ]
   },
   "hr/core/forms/change-employee-address-review": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 233188,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 233193,
     "top": [
       {
         "kind": "bucket",
@@ -48087,9 +48087,9 @@
     ]
   },
   "hr/core/forms/change-external-id": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 105002,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 105007,
     "top": [
       {
         "kind": "bucket",
@@ -48376,9 +48376,9 @@
     ]
   },
   "hr/core/forms/change-personal-data": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 378001,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 378006,
     "top": [
       {
         "kind": "bucket",
@@ -48665,9 +48665,9 @@
     ]
   },
   "hr/core/forms/change-personal-data-review": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 232727,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 232732,
     "top": [
       {
         "kind": "bucket",
@@ -48928,9 +48928,9 @@
     ]
   },
   "hr/core/forms/change-profile-picture": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 200901,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 200906,
     "top": [
       {
         "kind": "bucket",
@@ -49235,9 +49235,9 @@
     ]
   },
   "hr/core/forms/change-relationship": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 355566,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 355571,
     "top": [
       {
         "kind": "bucket",
@@ -49524,9 +49524,9 @@
     ]
   },
   "hr/core/forms/change-relationship-review": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 231514,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 231519,
     "top": [
       {
         "kind": "bucket",
@@ -49787,9 +49787,9 @@
     ]
   },
   "hr/core/forms/change-tax-details": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 222341,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 222346,
     "top": [
       {
         "kind": "bucket",
@@ -50076,9 +50076,9 @@
     ]
   },
   "hr/core/forms/change-working-hours": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 270354,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 270359,
     "top": [
       {
         "kind": "bucket",
@@ -50365,9 +50365,9 @@
     ]
   },
   "hr/core/forms/create-employee-note": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 108890,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 108895,
     "top": [
       {
         "kind": "bucket",
@@ -50654,9 +50654,9 @@
     ]
   },
   "hr/core/forms/create-new-absence": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 239976,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 239981,
     "top": [
       {
         "kind": "bucket",
@@ -50943,9 +50943,9 @@
     ]
   },
   "hr/core/forms/create-request-correction": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 214834,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 214839,
     "top": [
       {
         "kind": "bucket",
@@ -51232,9 +51232,9 @@
     ]
   },
   "hr/core/forms/deactivate-employee-benefit": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 206145,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 206150,
     "top": [
       {
         "kind": "bucket",
@@ -51521,9 +51521,9 @@
     ]
   },
   "hr/core/forms/deactivate-employee-benefit-review": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 180672,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 180677,
     "top": [
       {
         "kind": "bucket",
@@ -51810,9 +51810,9 @@
     ]
   },
   "hr/core/forms/employee": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 235966,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 235971,
     "top": [
       {
         "kind": "bucket",
@@ -52068,9 +52068,9 @@
     ]
   },
   "hr/core/forms/employee-termination": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 137164,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 137169,
     "top": [
       {
         "kind": "bucket",
@@ -52357,9 +52357,9 @@
     ]
   },
   "hr/core/forms/equipment-registration": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 174866,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 174871,
     "top": [
       {
         "kind": "bucket",
@@ -52646,9 +52646,9 @@
     ]
   },
   "hr/core/forms/feedback-approval-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 155552,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 155557,
     "top": [
       {
         "kind": "bucket",
@@ -52904,9 +52904,9 @@
     ]
   },
   "hr/core/forms/feedback-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 141383,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 141388,
     "top": [
       {
         "kind": "bucket",
@@ -53193,9 +53193,9 @@
     ]
   },
   "hr/core/forms/feedback-request-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 186570,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 186575,
     "top": [
       {
         "kind": "bucket",
@@ -53456,9 +53456,9 @@
     ]
   },
   "hr/core/forms/grant-employee-bonus": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 214405,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 214410,
     "top": [
       {
         "kind": "bucket",
@@ -53745,9 +53745,9 @@
     ]
   },
   "hr/core/forms/grant-employee-bonus-review": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 176103,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 176108,
     "top": [
       {
         "kind": "bucket",
@@ -54034,9 +54034,9 @@
     ]
   },
   "hr/core/forms/job-position": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 134607,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 134612,
     "top": [
       {
         "kind": "bucket",
@@ -54328,9 +54328,9 @@
     ]
   },
   "hr/core/forms/performance-evaluation-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 160187,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 160192,
     "top": [
       {
         "kind": "bucket",
@@ -54617,9 +54617,9 @@
     ]
   },
   "hr/core/forms/performance-evaluation-peer-approve": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 134876,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 134881,
     "top": [
       {
         "kind": "bucket",
@@ -54906,9 +54906,9 @@
     ]
   },
   "hr/core/forms/performance-evaluation-peer-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 95807,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 95812,
     "top": [
       {
         "kind": "bucket",
@@ -55177,9 +55177,9 @@
     ]
   },
   "hr/core/forms/performance-goal-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 147029,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 147034,
     "top": [
       {
         "kind": "bucket",
@@ -55466,9 +55466,9 @@
     ]
   },
   "hr/core/forms/position-termination": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 85198,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 85203,
     "top": [
       {
         "kind": "bucket",
@@ -55711,9 +55711,9 @@
     ]
   },
   "hr/core/forms/request-employee-benefit": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 269570,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 269575,
     "top": [
       {
         "kind": "bucket",
@@ -56000,9 +56000,9 @@
     ]
   },
   "hr/core/forms/request-employee-benefit-review": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 185528,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 185533,
     "top": [
       {
         "kind": "bucket",
@@ -56289,9 +56289,9 @@
     ]
   },
   "hr/core/forms/retire-asset": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 195705,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 195710,
     "top": [
       {
         "kind": "bucket",
@@ -56596,9 +56596,9 @@
     ]
   },
   "hr/core/forms/return-asset": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 126962,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 126967,
     "top": [
       {
         "kind": "bucket",
@@ -56885,9 +56885,9 @@
     ]
   },
   "hr/core/forms/update-employee-entitlements": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 220508,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 220513,
     "top": [
       {
         "kind": "bucket",
@@ -57174,9 +57174,9 @@
     ]
   },
   "hr/core/forms/update-working-conditions": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 217711,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 217716,
     "top": [
       {
         "kind": "bucket",
@@ -57463,9 +57463,9 @@
     ]
   },
   "hr/core/forms/upload-document": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 260868,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 260873,
     "top": [
       {
         "kind": "bucket",
@@ -57757,9 +57757,9 @@
     ]
   },
   "hr/payroll/apps/payroll-preparation": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 655553,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 655558,
     "top": [
       {
         "kind": "bucket",
@@ -58043,9 +58043,9 @@
     ]
   },
   "hr/recruiting/apps/recruiting-manager": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1319352,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1319357,
     "top": [
       {
         "kind": "bucket",
@@ -58365,9 +58365,9 @@
     ]
   },
   "hr/recruiting/apps/recruiting-portal": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 191191,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 191196,
     "top": [
       {
         "kind": "bucket",
@@ -58651,9 +58651,9 @@
     ]
   },
   "hr/recruiting/forms/job-application-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 253695,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 253700,
     "top": [
       {
         "kind": "bucket",
@@ -58968,9 +58968,9 @@
     ]
   },
   "hr/recruiting/forms/job-candidate-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 305018,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 305023,
     "top": [
       {
         "kind": "bucket",
@@ -59285,9 +59285,9 @@
     ]
   },
   "hr/recruiting/forms/job-interview-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 206963,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 206968,
     "top": [
       {
         "kind": "bucket",
@@ -59587,9 +59587,9 @@
     ]
   },
   "hr/recruiting/forms/job-offer-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 184397,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 184402,
     "top": [
       {
         "kind": "bucket",
@@ -59881,9 +59881,9 @@
     ]
   },
   "hr/recruiting/forms/job-posting-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 245875,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 245880,
     "top": [
       {
         "kind": "bucket",
@@ -60193,9 +60193,9 @@
     ]
   },
   "hr/recruiting/forms/job-request-approve-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 114325,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 114330,
     "top": [
       {
         "kind": "bucket",
@@ -60451,9 +60451,9 @@
     ]
   },
   "hr/recruiting/forms/job-request-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 253506,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 253511,
     "top": [
       {
         "kind": "bucket",
@@ -60773,9 +60773,9 @@
     ]
   },
   "hr/recruiting/forms/job-request-review-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 107945,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 107950,
     "top": [
       {
         "kind": "bucket",
@@ -61031,9 +61031,9 @@
     ]
   },
   "hr/recruiting/forms/job-request-submit-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 278042,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 278047,
     "top": [
       {
         "kind": "bucket",
@@ -61353,9 +61353,9 @@
     ]
   },
   "hr/recruiting/popups/job-application-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 109486,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 109491,
     "top": [
       {
         "kind": "bucket",
@@ -61629,9 +61629,9 @@
     ]
   },
   "hr/recruiting/popups/job-application-feedback-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 99437,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 99442,
     "top": [
       {
         "kind": "bucket",
@@ -61905,9 +61905,9 @@
     ]
   },
   "hr/recruiting/popups/job-candidate-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 116665,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 116670,
     "top": [
       {
         "kind": "bucket",
@@ -62181,9 +62181,9 @@
     ]
   },
   "hr/recruiting/popups/job-candidate-document-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 99327,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 99332,
     "top": [
       {
         "kind": "bucket",
@@ -62457,9 +62457,9 @@
     ]
   },
   "hr/recruiting/popups/job-interview-cancel-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 116978,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 116983,
     "top": [
       {
         "kind": "bucket",
@@ -62733,9 +62733,9 @@
     ]
   },
   "hr/recruiting/popups/job-interview-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 102960,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 102965,
     "top": [
       {
         "kind": "bucket",
@@ -63009,9 +63009,9 @@
     ]
   },
   "hr/recruiting/popups/job-offer-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 101516,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 101521,
     "top": [
       {
         "kind": "bucket",
@@ -63285,9 +63285,9 @@
     ]
   },
   "hr/recruiting/popups/job-posting-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 115069,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 115074,
     "top": [
       {
         "kind": "bucket",
@@ -63561,9 +63561,9 @@
     ]
   },
   "hr/recruiting/popups/job-posting-publication-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 99438,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 99443,
     "top": [
       {
         "kind": "bucket",
@@ -63837,9 +63837,9 @@
     ]
   },
   "hr/recruiting/popups/job-request-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 119461,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 119466,
     "top": [
       {
         "kind": "bucket",
@@ -64113,9 +64113,9 @@
     ]
   },
   "hr/recruiting/records/job-application-record": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 426460,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 426465,
     "top": [
       {
         "kind": "bucket",
@@ -64412,9 +64412,9 @@
     ]
   },
   "hr/recruiting/records/job-candidate-record": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 444299,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 444304,
     "top": [
       {
         "kind": "bucket",
@@ -64711,9 +64711,9 @@
     ]
   },
   "hr/recruiting/records/job-posting-record": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 429384,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 429389,
     "top": [
       {
         "kind": "bucket",
@@ -65337,9 +65337,9 @@
     ]
   },
   "hr/salaries/apps/employee-salary-detail": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 122196,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 122201,
     "top": [
       {
         "kind": "bucket",
@@ -65605,9 +65605,9 @@
     ]
   },
   "hr/salaries/apps/salary-administration": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 144175,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 144180,
     "top": [
       {
         "kind": "bucket",
@@ -65899,9 +65899,9 @@
     ]
   },
   "hr/salaries/forms/compensation-component-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 77794,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 77799,
     "top": [
       {
         "kind": "bucket",
@@ -66139,9 +66139,9 @@
     ]
   },
   "hr/salaries/forms/salary-adjustment-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 77754,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 77759,
     "top": [
       {
         "kind": "bucket",
@@ -66379,9 +66379,9 @@
     ]
   },
   "irm/core/apps/data-import": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 720079,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 720084,
     "top": [
       {
         "kind": "bucket",
@@ -66673,9 +66673,9 @@
     ]
   },
   "irm/core/apps/investment-launcher": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 225901,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 225906,
     "top": [
       {
         "kind": "bucket",
@@ -66931,9 +66931,9 @@
     ]
   },
   "irm/core/apps/investment-relations": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1459956,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1459961,
     "top": [
       {
         "kind": "bucket",
@@ -67258,9 +67258,9 @@
     ]
   },
   "irm/core/apps/investment-settings": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 849947,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 849952,
     "top": [
       {
         "kind": "bucket",
@@ -67575,9 +67575,9 @@
     ]
   },
   "irm/core/forms/account-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 481478,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 481483,
     "top": [
       {
         "kind": "bucket",
@@ -67897,9 +67897,9 @@
     ]
   },
   "irm/core/forms/activity-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 426332,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 426337,
     "top": [
       {
         "kind": "bucket",
@@ -68219,9 +68219,9 @@
     ]
   },
   "irm/core/forms/complete-investment-task-approve": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 164976,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 164981,
     "top": [
       {
         "kind": "bucket",
@@ -68495,9 +68495,9 @@
     ]
   },
   "irm/core/forms/complete-investment-task-complete": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 164978,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 164983,
     "top": [
       {
         "kind": "bucket",
@@ -68771,9 +68771,9 @@
     ]
   },
   "irm/core/forms/contact-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 490069,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 490074,
     "top": [
       {
         "kind": "bucket",
@@ -69103,9 +69103,9 @@
     ]
   },
   "irm/core/forms/document-upload-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 233139,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 233144,
     "top": [
       {
         "kind": "bucket",
@@ -69425,9 +69425,9 @@
     ]
   },
   "irm/core/forms/lead-convert-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 558949,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 558954,
     "top": [
       {
         "kind": "bucket",
@@ -69752,9 +69752,9 @@
     ]
   },
   "irm/core/forms/lead-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 376707,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 376712,
     "top": [
       {
         "kind": "bucket",
@@ -70074,9 +70074,9 @@
     ]
   },
   "irm/core/forms/note-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 312245,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 312250,
     "top": [
       {
         "kind": "bucket",
@@ -70386,9 +70386,9 @@
     ]
   },
   "irm/core/forms/opportunity-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 423233,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 423238,
     "top": [
       {
         "kind": "bucket",
@@ -70713,9 +70713,9 @@
     ]
   },
   "irm/core/forms/task-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 335308,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 335313,
     "top": [
       {
         "kind": "bucket",
@@ -71030,9 +71030,9 @@
     ]
   },
   "irm/core/popups/account-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 162939,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 162944,
     "top": [
       {
         "kind": "bucket",
@@ -71306,9 +71306,9 @@
     ]
   },
   "irm/core/popups/activity-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 99982,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 99987,
     "top": [
       {
         "kind": "bucket",
@@ -71564,9 +71564,9 @@
     ]
   },
   "irm/core/popups/contact-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 160744,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 160749,
     "top": [
       {
         "kind": "bucket",
@@ -71840,9 +71840,9 @@
     ]
   },
   "irm/core/popups/document-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 101591,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 101596,
     "top": [
       {
         "kind": "bucket",
@@ -72111,9 +72111,9 @@
     ]
   },
   "irm/core/popups/document-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 228814,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 228819,
     "top": [
       {
         "kind": "bucket",
@@ -72410,9 +72410,9 @@
     ]
   },
   "irm/core/popups/generate-nda": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 131337,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 131342,
     "top": [
       {
         "kind": "bucket",
@@ -72686,9 +72686,9 @@
     ]
   },
   "irm/core/popups/investment-lead-status-change-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 157313,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 157318,
     "top": [
       {
         "kind": "bucket",
@@ -72957,9 +72957,9 @@
     ]
   },
   "irm/core/popups/lead-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 161223,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 161228,
     "top": [
       {
         "kind": "bucket",
@@ -73233,9 +73233,9 @@
     ]
   },
   "irm/core/popups/note-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 147111,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 147116,
     "top": [
       {
         "kind": "bucket",
@@ -73491,9 +73491,9 @@
     ]
   },
   "irm/core/popups/opportunity-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 169087,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 169092,
     "top": [
       {
         "kind": "bucket",
@@ -73767,9 +73767,9 @@
     ]
   },
   "irm/core/popups/opportunity-status-update-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 139989,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 139994,
     "top": [
       {
         "kind": "bucket",
@@ -74038,9 +74038,9 @@
     ]
   },
   "irm/core/popups/rejection-reason-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 182004,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 182009,
     "top": [
       {
         "kind": "bucket",
@@ -74309,9 +74309,9 @@
     ]
   },
   "irm/core/popups/stage-condition-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 140136,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 140141,
     "top": [
       {
         "kind": "bucket",
@@ -74554,9 +74554,9 @@
     ]
   },
   "irm/core/popups/stage-transition-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 153958,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 153963,
     "top": [
       {
         "kind": "bucket",
@@ -74799,9 +74799,9 @@
     ]
   },
   "irm/core/popups/task-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 101493,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 101498,
     "top": [
       {
         "kind": "bucket",
@@ -75057,9 +75057,9 @@
     ]
   },
   "irm/core/records/account-record": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1235917,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1235922,
     "top": [
       {
         "kind": "bucket",
@@ -75399,9 +75399,9 @@
     ]
   },
   "irm/core/records/contact-record": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1232787,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1232792,
     "top": [
       {
         "kind": "bucket",
@@ -75741,9 +75741,9 @@
     ]
   },
   "irm/core/records/lead-record": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1041535,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1041540,
     "top": [
       {
         "kind": "bucket",
@@ -76088,9 +76088,9 @@
     ]
   },
   "irm/core/records/opportunity-record": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1096329,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1096334,
     "top": [
       {
         "kind": "bucket",
@@ -76430,9 +76430,9 @@
     ]
   },
   "irm/investments/apps/investment-management": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1147637,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1147642,
     "top": [
       {
         "kind": "bucket",
@@ -76752,9 +76752,9 @@
     ]
   },
   "irm/investments/apps/investment-portal": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 558827,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 558832,
     "top": [
       {
         "kind": "bucket",
@@ -77089,9 +77089,9 @@
     ]
   },
   "irm/investments/forms/equity-investment-round-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 257155,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 257160,
     "top": [
       {
         "kind": "bucket",
@@ -77365,9 +77365,9 @@
     ]
   },
   "irm/investments/forms/investment-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 403014,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 403019,
     "top": [
       {
         "kind": "bucket",
@@ -77697,9 +77697,9 @@
     ]
   },
   "irm/investments/forms/investment-report-approve-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 107221,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 107226,
     "top": [
       {
         "kind": "bucket",
@@ -77955,9 +77955,9 @@
     ]
   },
   "irm/investments/forms/investment-report-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 415341,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 415346,
     "top": [
       {
         "kind": "bucket",
@@ -78287,9 +78287,9 @@
     ]
   },
   "irm/investments/popups/equity-investment-round-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 81413,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 81418,
     "top": [
       {
         "kind": "bucket",
@@ -78527,9 +78527,9 @@
     ]
   },
   "irm/investments/popups/investment-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 101664,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 101669,
     "top": [
       {
         "kind": "bucket",
@@ -78785,9 +78785,9 @@
     ]
   },
   "irm/investments/popups/investment-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 315058,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 315063,
     "top": [
       {
         "kind": "bucket",
@@ -79094,9 +79094,9 @@
     ]
   },
   "irm/investments/popups/investment-report-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 102208,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 102213,
     "top": [
       {
         "kind": "bucket",
@@ -79352,9 +79352,9 @@
     ]
   },
   "irm/investments/popups/investment-shareholder-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 177619,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 177624,
     "top": [
       {
         "kind": "bucket",
@@ -79620,9 +79620,9 @@
     ]
   },
   "irm/investments/records/investment-record": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1452589,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1452594,
     "top": [
       {
         "kind": "bucket",
@@ -79967,9 +79967,9 @@
     ]
   },
   "mdm/apps/compensation-data": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 235353,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 235358,
     "top": [
       {
         "kind": "bucket",
@@ -80269,9 +80269,9 @@
     ]
   },
   "mdm/apps/employment-data": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 210266,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 210271,
     "top": [
       {
         "kind": "bucket",
@@ -80576,9 +80576,9 @@
     ]
   },
   "mdm/apps/job-structure-data": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 309294,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 309299,
     "top": [
       {
         "kind": "bucket",
@@ -80888,9 +80888,9 @@
     ]
   },
   "mdm/apps/organizational-data": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 671943,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 671948,
     "top": [
       {
         "kind": "bucket",
@@ -81230,9 +81230,9 @@
     ]
   },
   "mdm/apps/project-allocation": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 246084,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 246089,
     "top": [
       {
         "kind": "bucket",
@@ -81542,9 +81542,9 @@
     ]
   },
   "mdm/apps/project-setup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 266520,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 266525,
     "top": [
       {
         "kind": "bucket",
@@ -81859,9 +81859,9 @@
     ]
   },
   "mdm/apps/time-attendance": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 387772,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 387777,
     "top": [
       {
         "kind": "bucket",
@@ -82171,9 +82171,9 @@
     ]
   },
   "mdm/forms/capability-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 118389,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 118394,
     "top": [
       {
         "kind": "bucket",
@@ -82429,9 +82429,9 @@
     ]
   },
   "mdm/forms/career-band-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 79216,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 79221,
     "top": [
       {
         "kind": "bucket",
@@ -82669,9 +82669,9 @@
     ]
   },
   "mdm/forms/company-document-upload-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 221237,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 221242,
     "top": [
       {
         "kind": "bucket",
@@ -82932,9 +82932,9 @@
     ]
   },
   "mdm/forms/company-folder-create-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 91565,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 91570,
     "top": [
       {
         "kind": "bucket",
@@ -83177,9 +83177,9 @@
     ]
   },
   "mdm/forms/company-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 275860,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 275865,
     "top": [
       {
         "kind": "bucket",
@@ -83563,9 +83563,9 @@
     ]
   },
   "mdm/forms/contract-type-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 109398,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 109403,
     "top": [
       {
         "kind": "bucket",
@@ -83839,9 +83839,9 @@
     ]
   },
   "mdm/forms/cost-center-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 119337,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 119342,
     "top": [
       {
         "kind": "bucket",
@@ -84097,9 +84097,9 @@
     ]
   },
   "mdm/forms/department-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 96928,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 96933,
     "top": [
       {
         "kind": "bucket",
@@ -84355,9 +84355,9 @@
     ]
   },
   "mdm/forms/employee-allocation-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 98248,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 98253,
     "top": [
       {
         "kind": "bucket",
@@ -84613,9 +84613,9 @@
     ]
   },
   "mdm/forms/employment-type-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 101745,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 101750,
     "top": [
       {
         "kind": "bucket",
@@ -84889,9 +84889,9 @@
     ]
   },
   "mdm/forms/job-family-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 98918,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 98923,
     "top": [
       {
         "kind": "bucket",
@@ -85165,9 +85165,9 @@
     ]
   },
   "mdm/forms/job-function-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 119211,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 119216,
     "top": [
       {
         "kind": "bucket",
@@ -85428,9 +85428,9 @@
     ]
   },
   "mdm/forms/job-level-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 99978,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 99983,
     "top": [
       {
         "kind": "bucket",
@@ -85967,9 +85967,9 @@
     ]
   },
   "mdm/forms/job-profile-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 194527,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 194532,
     "top": [
       {
         "kind": "bucket",
@@ -86279,9 +86279,9 @@
     ]
   },
   "mdm/forms/pay-grade-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 94574,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 94579,
     "top": [
       {
         "kind": "bucket",
@@ -86537,9 +86537,9 @@
     ]
   },
   "mdm/forms/project-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 160785,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 160790,
     "top": [
       {
         "kind": "bucket",
@@ -86818,9 +86818,9 @@
     ]
   },
   "mdm/forms/site-location-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 316706,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 316711,
     "top": [
       {
         "kind": "bucket",
@@ -87135,9 +87135,9 @@
     ]
   },
   "mdm/forms/team-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 96420,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 96425,
     "top": [
       {
         "kind": "bucket",
@@ -87393,9 +87393,9 @@
     ]
   },
   "mdm/records/company-record": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 561500,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 561505,
     "top": [
       {
         "kind": "bucket",
@@ -87710,9 +87710,9 @@
     ]
   },
   "platform/apps/agent-mesh": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 264757,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 264762,
     "top": [
       {
         "kind": "bucket",
@@ -87986,9 +87986,9 @@
     ]
   },
   "platform/apps/board-apps": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1289904,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1289909,
     "top": [
       {
         "kind": "bucket",
@@ -88303,9 +88303,9 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1952165,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1952170,
     "top": [
       {
         "kind": "bucket",
@@ -88561,9 +88561,9 @@
     ]
   },
   "platform/apps/chat": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 3967337,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 3967342,
     "top": [
       {
         "kind": "bucket",
@@ -88888,9 +88888,9 @@
     ]
   },
   "platform/apps/chat-pure": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 3596249,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 3596254,
     "top": [
       {
         "kind": "bucket",
@@ -89215,9 +89215,9 @@
     ]
   },
   "platform/apps/data-seeder": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 423958,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 423963,
     "top": [
       {
         "kind": "bucket",
@@ -89455,9 +89455,9 @@
     ]
   },
   "platform/apps/debugger": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 440054,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 440059,
     "top": [
       {
         "kind": "bucket",
@@ -89705,9 +89705,9 @@
     ]
   },
   "platform/apps/desk": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 297215,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 297220,
     "top": [
       {
         "kind": "bucket",
@@ -89968,9 +89968,9 @@
     ]
   },
   "platform/apps/email-apps": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 480389,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 480394,
     "top": [
       {
         "kind": "bucket",
@@ -90280,9 +90280,9 @@
     ]
   },
   "platform/apps/email-provider-settings": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 147320,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 147325,
     "top": [
       {
         "kind": "bucket",
@@ -90525,9 +90525,9 @@
     ]
   },
   "platform/apps/every-ai": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1191231,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1191236,
     "top": [
       {
         "kind": "bucket",
@@ -90852,9 +90852,9 @@
     ]
   },
   "platform/apps/every-office": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 297231,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 297236,
     "top": [
       {
         "kind": "bucket",
@@ -91115,9 +91115,9 @@
     ]
   },
   "platform/apps/flowbot-evals-dashboard": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 127609,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 127614,
     "top": [
       {
         "kind": "bucket",
@@ -91360,9 +91360,9 @@
     ]
   },
   "platform/apps/launcher-manager": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 468874,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 468879,
     "top": [
       {
         "kind": "bucket",
@@ -91641,9 +91641,9 @@
     ]
   },
   "platform/apps/newwork-business-apps": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 105010,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 105015,
     "top": [
       {
         "kind": "bucket",
@@ -91886,9 +91886,9 @@
     ]
   },
   "platform/apps/newwork-every": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 115533,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 115538,
     "top": [
       {
         "kind": "bucket",
@@ -92131,9 +92131,9 @@
     ]
   },
   "platform/apps/newwork-main": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 109750,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 109755,
     "top": [
       {
         "kind": "bucket",
@@ -92376,9 +92376,9 @@
     ]
   },
   "platform/apps/nexus": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 279385,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 279390,
     "top": [
       {
         "kind": "bucket",
@@ -92639,9 +92639,9 @@
     ]
   },
   "platform/apps/note-apps": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 664121,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 664126,
     "top": [
       {
         "kind": "bucket",
@@ -93183,9 +93183,9 @@
     ]
   },
   "platform/apps/personal-agents": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 91055,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 91060,
     "top": [
       {
         "kind": "bucket",
@@ -93423,9 +93423,9 @@
     ]
   },
   "platform/apps/shared": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 322597,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 322602,
     "top": [
       {
         "kind": "bucket",
@@ -93699,9 +93699,9 @@
     ]
   },
   "platform/apps/slide-apps": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1669175,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1669180,
     "top": [
       {
         "kind": "bucket",
@@ -94016,9 +94016,9 @@
     ]
   },
   "platform/apps/spaces": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1418827,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1418832,
     "top": [
       {
         "kind": "bucket",
@@ -94333,9 +94333,9 @@
     ]
   },
   "platform/dataset-addon/apps/query-executor": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 114577,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 114582,
     "top": [
       {
         "kind": "bucket",
@@ -94609,9 +94609,9 @@
     ]
   },
   "platform/dataset-addon/apps/query-manager": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 123255,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 123260,
     "top": [
       {
         "kind": "bucket",
@@ -94885,9 +94885,9 @@
     ]
   },
   "platform/debug/apps/content-debug": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 94302,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 94307,
     "top": [
       {
         "kind": "bucket",
@@ -95125,9 +95125,9 @@
     ]
   },
   "platform/debug/apps/customers-debug": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 186394,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 186399,
     "top": [
       {
         "kind": "bucket",
@@ -95365,9 +95365,9 @@
     ]
   },
   "platform/debug/apps/investments-debug": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 220744,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 220749,
     "top": [
       {
         "kind": "bucket",
@@ -95605,9 +95605,9 @@
     ]
   },
   "platform/design-system/apps/demo": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 572508,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 572513,
     "top": [
       {
         "kind": "bucket",
@@ -95863,9 +95863,9 @@
     ]
   },
   "sales-demo/bom/apps/bom-detail-view": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 100229,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 100234,
     "top": [
       {
         "kind": "bucket",
@@ -96108,9 +96108,9 @@
     ]
   },
   "sales-demo/bom/apps/bom-management-overview": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 147692,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 147697,
     "top": [
       {
         "kind": "bucket",
@@ -96397,9 +96397,9 @@
     ]
   },
   "sales-demo/core/apps/sales-launcher": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 124401,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 124406,
     "top": [
       {
         "kind": "bucket",
@@ -96655,9 +96655,9 @@
     ]
   },
   "sales-demo/core/apps/service-launcher": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 118070,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 118075,
     "top": [
       {
         "kind": "bucket",
@@ -96908,9 +96908,9 @@
     ]
   },
   "sales-demo/product/apps/product-detail-view": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 110551,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 110556,
     "top": [
       {
         "kind": "bucket",
@@ -97153,9 +97153,9 @@
     ]
   },
   "sales-demo/product/apps/product-management-overview": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 140648,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 140653,
     "top": [
       {
         "kind": "bucket",
@@ -97429,9 +97429,9 @@
     ]
   },
   "sales-demo/product/forms/product-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 85447,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 85452,
     "top": [
       {
         "kind": "bucket",
@@ -97674,9 +97674,9 @@
     ]
   },
   "sales-demo/sales-order/apps/sales-order-details": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 121939,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 121944,
     "top": [
       {
         "kind": "bucket",
@@ -97932,9 +97932,9 @@
     ]
   },
   "sales-demo/sales-order/apps/sales-order-overview": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 207268,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 207273,
     "top": [
       {
         "kind": "bucket",
@@ -98234,9 +98234,9 @@
     ]
   },
   "sales-demo/sales-order/apps/sales-performance-report": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 106601,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 106606,
     "top": [
       {
         "kind": "bucket",
@@ -98492,9 +98492,9 @@
     ]
   },
   "sales-demo/sales-order/forms/sales-order-creation-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 113845,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 113850,
     "top": [
       {
         "kind": "bucket",
@@ -98755,9 +98755,9 @@
     ]
   },
   "ser/apps/service-cases": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 421286,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 421291,
     "top": [
       {
         "kind": "bucket",
@@ -99049,9 +99049,9 @@
     ]
   },
   "ser/apps/service-desk": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 926378,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 926383,
     "top": [
       {
         "kind": "bucket",
@@ -99371,9 +99371,9 @@
     ]
   },
   "ser/apps/service-portal": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 769293,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 769298,
     "top": [
       {
         "kind": "bucket",
@@ -99683,9 +99683,9 @@
     ]
   },
   "ser/apps/warranty-service": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 554685,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 554690,
     "top": [
       {
         "kind": "bucket",
@@ -100547,9 +100547,9 @@
     ]
   },
   "core/every-fabric/apps/every-fabric": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1987950,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1987955,
     "top": [
       {
         "kind": "bucket",
@@ -100884,9 +100884,9 @@
     ]
   },
   "platform/apps/spreadsheet-apps": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1977609,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1977614,
     "top": [
       {
         "kind": "bucket",
@@ -101201,9 +101201,9 @@
     ]
   },
   "core/office/apps/whiteboards": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1393806,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1393811,
     "top": [
       {
         "kind": "bucket",
@@ -101543,9 +101543,9 @@
     ]
   },
   "core/create/apps/screen-builder": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 305286,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 305291,
     "top": [
       {
         "kind": "bucket",
@@ -101837,9 +101837,9 @@
     ]
   },
   "platform/apps/customer-home": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1377380,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1377086,
     "top": [
       {
         "kind": "bucket",
@@ -101952,8 +101952,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 90927,
-        "gzip": 25178,
+        "rendered": 90393,
+        "gzip": 25047,
         "leaves": [
           {
             "name": "src/business-apps/hr/absences/apps/personal-absences/hooks/usePersonalAbsencesData.ts",
@@ -101962,8 +101962,8 @@
           },
           {
             "name": "src/business-apps/hr/core/apps/employee-record/hooks/useEmployeeData.ts",
-            "rendered": 10826,
-            "gzip": 2461
+            "rendered": 10292,
+            "gzip": 2330
           }
         ]
       },
@@ -102174,9 +102174,9 @@
     ]
   },
   "platform/apps/setup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 209473,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 209478,
     "top": [
       {
         "kind": "bucket",
@@ -102419,9 +102419,9 @@
     ]
   },
   "platform/apps/setup-add-employees": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 154148,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 154153,
     "top": [
       {
         "kind": "bucket",
@@ -102664,9 +102664,9 @@
     ]
   },
   "crm/core/popups/document-folder-upload-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 110490,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 110495,
     "top": [
       {
         "kind": "bucket",
@@ -102953,9 +102953,9 @@
     ]
   },
   "irm/core/popups/document-folder-upload-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 111009,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 111014,
     "top": [
       {
         "kind": "bucket",
@@ -103242,9 +103242,9 @@
     ]
   },
   "hr/core/forms/approve-skill-assignment": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 150736,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 150741,
     "top": [
       {
         "kind": "bucket",
@@ -103505,9 +103505,9 @@
     ]
   },
   "hr/core/forms/approve-create-skill": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 142788,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 142793,
     "top": [
       {
         "kind": "bucket",
@@ -103768,9 +103768,9 @@
     ]
   },
   "mdm/forms/geo-zone-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 101200,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 101205,
     "top": [
       {
         "kind": "bucket",
@@ -104031,9 +104031,9 @@
     ]
   },
   "platform/apps/people": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 419600,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 419605,
     "top": [
       {
         "kind": "bucket",
@@ -104294,9 +104294,9 @@
     ]
   },
   "hr/absences/apps/time-absence-hub": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 1007615,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 1007620,
     "top": [
       {
         "kind": "bucket",
@@ -104611,9 +104611,9 @@
     ]
   },
   "hr/absences/forms/cancel-employee-vacation": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 170459,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 170464,
     "top": [
       {
         "kind": "bucket",
@@ -104874,9 +104874,9 @@
     ]
   },
   "irm/core/apps/company-management": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 757320,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 757325,
     "top": [
       {
         "kind": "bucket",
@@ -105186,9 +105186,9 @@
     ]
   },
   "irm/core/forms/company-form": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 331947,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 331952,
     "top": [
       {
         "kind": "bucket",
@@ -105508,9 +105508,9 @@
     ]
   },
   "irm/core/popups/company-group-association-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 160822,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 160827,
     "top": [
       {
         "kind": "bucket",
@@ -105789,9 +105789,9 @@
     ]
   },
   "irm/core/popups/company-group-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 128440,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 128445,
     "top": [
       {
         "kind": "bucket",
@@ -106070,9 +106070,9 @@
     ]
   },
   "irm/core/popups/company-ownership-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 160502,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 160507,
     "top": [
       {
         "kind": "bucket",
@@ -106673,9 +106673,9 @@
     ]
   },
   "hr/core/apps/workforce-management": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 859480,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 859485,
     "top": [
       {
         "kind": "bucket",
@@ -107005,9 +107005,9 @@
     ]
   },
   "irm/core/popups/company-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 119635,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 119640,
     "top": [
       {
         "kind": "bucket",
@@ -107263,9 +107263,9 @@
     ]
   },
   "irm/core/popups/company-group-delete-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 118775,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 118780,
     "top": [
       {
         "kind": "bucket",
@@ -107858,9 +107858,9 @@
     ]
   },
   "hr/core/apps/onboarding-cases": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 334691,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 334696,
     "top": [
       {
         "kind": "bucket",
@@ -108170,9 +108170,9 @@
     ]
   },
   "hr/core/apps/data-import": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 630135,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 630140,
     "top": [
       {
         "kind": "bucket",
@@ -108446,9 +108446,9 @@
     ]
   },
   "flow/apps/detail": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 248174,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 248179,
     "top": [
       {
         "kind": "bucket",
@@ -108758,9 +108758,9 @@
     ]
   },
   "hr/core/apps/hr-admin-cockpit": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 894365,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 894370,
     "top": [
       {
         "kind": "bucket",
@@ -109075,9 +109075,9 @@
     ]
   },
   "hr/core/apps/monthly-compensation-changes": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 683091,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 683096,
     "top": [
       {
         "kind": "bucket",
@@ -109333,9 +109333,9 @@
     ]
   },
   "core/manage/apps/global-search-manager": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 448400,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 448405,
     "top": [
       {
         "kind": "bucket",
@@ -109578,9 +109578,9 @@
     ]
   },
   "core/use/apps/global-search": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 154081,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 154086,
     "top": [
       {
         "kind": "bucket",
@@ -109846,9 +109846,9 @@
     ]
   },
   "hr/core/apps/skill-management": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 594263,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 594212,
     "top": [
       {
         "kind": "bucket",
@@ -109871,8 +109871,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 126018,
-        "gzip": 33111,
+        "rendered": 125940,
+        "gzip": 33084,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/skill-management/components/SkillDirectoryTab.tsx",
@@ -110163,9 +110163,9 @@
     ]
   },
   "hr/compensation/apps/manager-planning": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 898990,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 898995,
     "top": [
       {
         "kind": "bucket",
@@ -110457,9 +110457,9 @@
     ]
   },
   "hr/compensation/apps/planning": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 922435,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 922440,
     "top": [
       {
         "kind": "bucket",
@@ -110751,9 +110751,9 @@
     ]
   },
   "hr/compensation/apps/transparency": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 751693,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 751698,
     "top": [
       {
         "kind": "bucket",
@@ -111103,9 +111103,9 @@
     ]
   },
   "irm/core/records/company-record": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 361664,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 361669,
     "top": [
       {
         "kind": "bucket",
@@ -111425,9 +111425,9 @@
     ]
   },
   "hr/core/apps/benefits-maintenance": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 768049,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 768054,
     "top": [
       {
         "kind": "bucket",
@@ -111683,9 +111683,9 @@
     ]
   },
   "crm/core/popups/contact-compliance-update-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 268167,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 268172,
     "top": [
       {
         "kind": "bucket",
@@ -111977,9 +111977,9 @@
     ]
   },
   "crm/core/popups/lead-compliance-update-popup": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 267770,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 267775,
     "top": [
       {
         "kind": "bucket",
@@ -112271,9 +112271,9 @@
     ]
   },
   "core/use/apps/notifications": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 119738,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 119743,
     "top": [
       {
         "kind": "bucket",
@@ -112534,9 +112534,9 @@
     ]
   },
   "core/use/apps/user-menu": {
-    "bitbucketBuildNumber": 12869,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12869/",
-    "chunkJsBytes": 106581,
+    "bitbucketBuildNumber": 12868,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12868/",
+    "chunkJsBytes": 106586,
     "top": [
       {
         "kind": "bucket",
@@ -112829,7 +112829,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-03T08:13:40.804Z",
+    "generatedAt": "2026-06-03T08:23:20.375Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
