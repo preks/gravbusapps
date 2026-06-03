@@ -145,7 +145,7 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({ accessToken }) => {
       if (formatToolDisplayName(tool.display_name, tool.canonical_name).toLowerCase().includes(q)) return true
       if ((tool.description ?? '').toLowerCase().includes(q)) return true
       if (formatCategoryLabel(tool.category).toLowerCase().includes(q)) return true
-      if (formatToolSourceLabel(tool.source).toLowerCase().includes(q)) return true
+      if ((tool.execution_backend || formatToolSourceLabel(tool.source)).toLowerCase().includes(q)) return true
       if ((tool.tags ?? []).some(tag => tag.toLowerCase().includes(q))) return true
       return false
     })
@@ -387,7 +387,7 @@ const ToolsTabSection: React.FC<ToolsTabSectionProps> = ({
     <div className="gba:grid gba:gap-3">
       {entries.map(tool => {
         const capabilities = readProviderCapabilities(tool.capabilities)
-        const sourceLabel = formatToolSourceLabel(tool.source)
+        const sourceLabel = tool.execution_backend || formatToolSourceLabel(tool.source)
         const isDisabled = tool.disabled === true
         const isToggling = togglingName === tool.canonical_name
         const isHighlighted = highlightRef === tool.tool_ref

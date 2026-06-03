@@ -95,7 +95,7 @@ describe('ToolsTab enable/disable', () => {
         tool_ref: 'flowbot.saveCrmNote',
         canonical_name: 'saveCrmNote',
         display_name: 'Save CRM note',
-        category: 'flowbot_actions',
+        category: 'crm',
         related_tools: [
           {
             tool_ref: 'flowbot.read_entity_by_id',
@@ -116,7 +116,7 @@ describe('ToolsTab enable/disable', () => {
 
     render(<ToolsTab accessToken="token" />)
 
-    fireEvent.click(await screen.findByTestId('tools-tab-category-pill-flowbot_actions'))
+    fireEvent.click(await screen.findByTestId('tools-tab-category-pill-crm'))
     expect(screen.queryByTestId('tools-tab-row-flowbot.read_entity_by_id')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByTestId('tool-companion-open-flowbot.read_entity_by_id'))

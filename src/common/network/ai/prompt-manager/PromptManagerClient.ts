@@ -156,6 +156,12 @@ export interface CanonicalProviderToolEntry {
    */
   tags?: string[]
   /**
+   * User-visible backend label for where the tool actually runs. Prefer this
+   * over the raw provider source in UI badges because many prompt_manager
+   * wrappers delegate to Functions, Documents, Knowledge, or Flow services.
+   */
+  execution_backend?: string | null
+  /**
    * True when this tool's canonical name is on the service-global disabled
    * list. Disabled tools remain in the picker (block-only UX) but are
    * stripped from both the Deep Agent and Expert/PromptODM runtimes.

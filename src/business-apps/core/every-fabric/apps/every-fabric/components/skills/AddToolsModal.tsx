@@ -121,7 +121,7 @@ const canonicalToToolOption = (entry: CanonicalProviderToolEntry): ToolOption =>
     displayName: formatToolDisplayName(entry.display_name, entry.canonical_name),
     description: entry.description,
     source: entry.source,
-    sourceLabel: formatToolSourceLabel(entry.source),
+    sourceLabel: entry.execution_backend || formatToolSourceLabel(entry.source),
     categoryId,
     categoryLabel: formatCategoryLabel(entry.category),
     tags: Array.isArray(entry.tags) ? entry.tags : [],
@@ -245,6 +245,17 @@ export const AddToolsModal: React.FC<AddToolsModalProps> = ({ open, onClose, acc
     setLocalSelected(prev => {
       const next = new Set(prev)
       for (const ref of refs) next.add(ref)
+      return next
+    })
+  }, [])
+
+  const setSectionSelection = useCallback((refs: string[], select: boolean) => {
+    setLocalSelected(prev => {
+      const next = new Set(prev)
+      for (const ref of refs) {
+        if (select) next.add(ref)
+        else next.delete(ref)
+      }
       return next
     })
   }, [])
@@ -384,6 +395,7 @@ export const AddToolsModal: React.FC<AddToolsModalProps> = ({ open, onClose, acc
                     selected={localSelected}
                     onToggle={toggleItem}
                     onPreview={setPreviewTool}
+                    onSetSectionSelection={setSectionSelection}
                   />
                 ))}
               </div>
@@ -427,6 +439,7 @@ interface ToolPickerSectionProps {
   selected: Set<string>
   onToggle: (toolRef: string) => void
   onPreview: (tool: ToolOption) => void
+  onSetSectionSelection: (refs: string[], select: boolean) => void
 }
 
 const ToolPickerSection: React.FC<ToolPickerSectionProps> = ({
@@ -435,26 +448,50 @@ const ToolPickerSection: React.FC<ToolPickerSectionProps> = ({
   items,
   selected,
   onToggle,
-  onPreview
-}) => (
-  <section className="gba:mb-4" data-testid={`add-tools-modal-section-${sectionId}`}>
-    <h4 className="gba:sticky gba:top-0 gba:z-[1] gba:bg-background gba:py-1 gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground gba:border-b gba:border-border/50">
-      {label}
-      <span className="gba:ml-1.5 gba:font-normal gba:normal-case gba:text-muted-foreground/70">({items.length})</span>
-    </h4>
-    <ul className="gba:space-y-1 gba:py-1">
-      {items.map(tool => (
-        <ToolPickerRow
-          key={tool.id}
-          tool={tool}
-          checked={selected.has(tool.ref)}
-          onToggle={onToggle}
-          onPreview={onPreview}
-        />
-      ))}
-    </ul>
-  </section>
-)
+  onPreview,
+  onSetSectionSelection
+}) => {
+  const sectionRefs = items.map(tool => tool.ref)
+  const selectedInSection = items.filter(tool => selected.has(tool.ref)).length
+  const allSelected = items.length > 0 && selectedInSection === items.length
+
+  return (
+    <section className="gba:mb-4" data-testid={`add-tools-modal-section-${sectionId}`}>
+      <div className="gba:sticky gba:top-0 gba:z-[1] gba:flex gba:items-center gba:justify-between gba:gap-2 gba:bg-background gba:py-1 gba:border-b gba:border-border/50">
+        <h4 className="gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground gba:min-w-0">
+          {label}
+          <span className="gba:ml-1.5 gba:font-normal gba:normal-case gba:text-muted-foreground/70">
+            ({items.length})
+          </span>
+        </h4>
+        {items.length > 0 && (
+          <button
+            type="button"
+            className="gba:shrink-0 gba:text-[11px] gba:font-medium gba:text-primary gba:hover:underline"
+            onClick={event => {
+              event.stopPropagation()
+              onSetSectionSelection(sectionRefs, !allSelected)
+            }}
+            data-testid={`add-tools-modal-section-select-all-${sectionId}`}
+          >
+            {allSelected ? 'Deselect all' : 'Select all'}
+          </button>
+        )}
+      </div>
+      <ul className="gba:space-y-1 gba:py-1">
+        {items.map(tool => (
+          <ToolPickerRow
+            key={tool.id}
+            tool={tool}
+            checked={selected.has(tool.ref)}
+            onToggle={onToggle}
+            onPreview={onPreview}
+          />
+        ))}
+      </ul>
+    </section>
+  )
+}
 
 interface ToolPickerRowProps {
   tool: ToolOption
