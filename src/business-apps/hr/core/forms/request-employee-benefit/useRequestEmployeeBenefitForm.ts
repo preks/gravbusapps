@@ -67,6 +67,21 @@ export const useRequestEmployeeBenefitForm = ({
   const [justification, setJustification] = useState('')
   const [period, setPeriod] = useState<string>('')
 
+  const defaultProvider = useMemo(() => {
+    const fromModal = selectedBenefit?.providerRef
+    const providerIds = benefitProviders.map(p => p.id)
+    const fromAvailable = selectedBenefit?.availableProviders?.map(p => p.id) ?? []
+    const validIds = new Set([...providerIds, ...fromAvailable])
+
+    if (fromModal && validIds.has(fromModal)) {
+      return fromModal
+    }
+
+    return benefitProviders[0]?.id ?? selectedBenefit?.availableProviders?.[0]?.id ?? ''
+  }, [benefitProviders, selectedBenefit])
+
+  const selectedProvider = provider || defaultProvider
+
   // Initialize start date on mount
   useEffect(() => {
     if (!startDate) {
@@ -74,28 +89,16 @@ export const useRequestEmployeeBenefitForm = ({
     }
   }, [startDate])
 
-  // Initialize provider: prefer selection from modal (selectedBenefit.providerRef), then first from benefitProviders or availableProviders
+  // Keep local state in sync so the select never renders empty when provider options exist.
   useEffect(() => {
-    const fromModal = selectedBenefit?.providerRef
-    const providerIds = benefitProviders.map(p => p.id)
-    const fromAvailable = selectedBenefit?.availableProviders?.map(p => p.id) ?? []
-    const validIds = new Set([...providerIds, ...fromAvailable])
-
-    if (fromModal && validIds.has(fromModal)) {
-      setProvider(fromModal)
-      return
+    if (!provider && defaultProvider) {
+      setProvider(defaultProvider)
     }
-    if (!provider) {
-      if (benefitProviders.length > 0) {
-        setProvider(benefitProviders[0].id)
-      } else if (selectedBenefit?.availableProviders && selectedBenefit.availableProviders.length > 0) {
-        setProvider(selectedBenefit.availableProviders[0].id)
-      }
-    }
-  }, [benefitProviders, selectedBenefit])
+  }, [defaultProvider, provider])
 
   const {
     includedValueDisplay,
+    shouldAppendFallbackCurrency,
     resolvedPeriodDisplay,
     derivedAmountNumber,
     employeeYearlyContribution,
@@ -103,8 +106,8 @@ export const useRequestEmployeeBenefitForm = ({
   } = useMemo(() => computeDerivedValues(selectedBenefit), [selectedBenefit])
 
   const includedDisplayWithCurrency = useMemo(
-    () => composeValueWithCurrency(includedValueDisplay, countryCurrency.currencyCode),
-    [includedValueDisplay, countryCurrency.currencyCode]
+    () => composeValueWithCurrency(includedValueDisplay, countryCurrency.currencyCode, shouldAppendFallbackCurrency),
+    [includedValueDisplay, countryCurrency.currencyCode, shouldAppendFallbackCurrency]
   )
 
   // Translate the period when it changes
@@ -148,7 +151,7 @@ export const useRequestEmployeeBenefitForm = ({
       buildBenefitSubmitPayload({
         employeeId,
         selectedBenefit,
-        provider,
+        provider: selectedProvider,
         derivedAmountNumber,
         resolvedPeriodDisplay,
         countryCurrencyRef: countryCurrency.currencyRef,
@@ -161,7 +164,7 @@ export const useRequestEmployeeBenefitForm = ({
     [
       employeeId,
       selectedBenefit,
-      provider,
+      selectedProvider,
       derivedAmountNumber,
       resolvedPeriodDisplay,
       countryCurrency.currencyRef,
@@ -179,7 +182,7 @@ export const useRequestEmployeeBenefitForm = ({
     benefitProviders,
     countryCurrency,
     employeeId,
-    provider,
+    provider: selectedProvider,
     setProvider,
     startDate,
     setStartDate,

@@ -34,7 +34,7 @@ import {
 import CardTabHeaderComponent from '../../../generic-components/card'
 import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import CompanyForm from '@/business-apps/irm/core/forms/company-form/CompanyForm'
+import CompanyForm from '@/business-apps/mdm/forms/company-form/CompanyForm'
 import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton'
 import { extractCurrencyCode } from '@/common/utils/numberFormatter'
 import { CompanyAddress, Director, Company } from '../../types'
@@ -578,7 +578,7 @@ const CompaniesTab: React.FC<CompaniesTabProps> = context => {
   if (error) {
     return (
       <div className="gba:p-6 gba:text-center">
-        <Alert className="gba:w-full gba:!flex gba:justify-between gba:!items-center" variant="destructive">
+        <Alert className="gba:w-full gba:flex! gba:justify-between gba:items-center!" variant="destructive">
           <AlertTitle className="gba:flex gba:items-center gba:justify-center gba:gap-2">
             <XCircleIcon className="h-4 w-4" />
             Error Loading Companies

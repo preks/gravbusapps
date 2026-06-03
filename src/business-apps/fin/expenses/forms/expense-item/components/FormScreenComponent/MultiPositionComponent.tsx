@@ -1,11 +1,11 @@
 import React from 'react'
 import { Button } from '@newwork/gravity-ui-catalog'
 import { Card } from 'antd'
+import type { FormInstance } from 'antd'
 import { ExpensePosition, ExpenseGroup, ExpenseType, CostCenter, CustomField } from '../../types'
-import { useExpenseItem } from '../../context/ExpenseItemContext'
 import { ICONS } from '@/business-apps/fin/expenses/utils/icons'
 import { PositionFormFields } from './shared/PositionFormFields'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useExpenseItemTranslation } from '../../useExpenseItemTranslation'
 
 interface MultiPositionComponentProps {
   positions: ExpensePosition[]
@@ -18,6 +18,9 @@ interface MultiPositionComponentProps {
   handleExpenseTypeChange: (value: string, positionIndex: number) => Promise<void>
   handleRemovePosition: (positionId: string) => void
   lastPositionCardRef?: React.LegacyRef<HTMLDivElement>
+  form: FormInstance
+  isProcessingFiles: boolean
+  hasLinkedExpenseRequest: boolean
 }
 
 export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
@@ -30,9 +33,12 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
   handleExpenseGroupChange,
   handleExpenseTypeChange,
   handleRemovePosition,
-  lastPositionCardRef
+  lastPositionCardRef,
+  form,
+  isProcessingFiles,
+  hasLinkedExpenseRequest
 }) => {
-  const { isProcessingFiles, form, hasLinkedExpenseRequest } = useExpenseItem()
+  const { t } = useExpenseItemTranslation()
 
   return (
     <div data-testid="multi-position-container">
@@ -40,8 +46,8 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
         const isLastPosition = index === positions.length - 1
         const card = (
           <Card
-            key={index}
-            title={`Position ${index + 1}`}
+            key={position.id}
+            title={t('expense-item-position-title', { number: index + 1 })}
             className="gba:mb-4 gba:border-[3px] gba:border-border"
             data-testid={`position-card-${index}`}
             extra={
@@ -51,14 +57,13 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
                   onClick={() => handleRemovePosition(position.id)}
                   className="gba:text-destructive gba:hover:text-destructive gba:hover:bg-destructive/10"
                   disabled={isProcessingFiles}
+                  aria-label={t('expense-item-delete-position')}
                   data-testid={`delete-position-button-${index}`}
                 >
                   <img
                     src={ICONS.DELETE}
-                    alt={getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:create_expense_type_item.delete_position',
-                      'Delete Position'
-                    )}
+                    alt=""
+                    role="presentation"
                     width="16"
                     height="16"
                     data-testid="delete-position-icon"
@@ -88,7 +93,7 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
         )
         return isLastPosition && lastPositionCardRef ? (
           <div
-            key={index}
+            key={position.id}
             ref={lastPositionCardRef}
             tabIndex={0}
             className="gba:outline-none"

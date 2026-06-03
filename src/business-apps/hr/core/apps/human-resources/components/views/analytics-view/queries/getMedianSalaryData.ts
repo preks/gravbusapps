@@ -13,28 +13,15 @@ export const getMedianSalaryData = `
         employee: {
           isDeleted: { _eq: false, _isNull: false }
         },
-        # Ensure salary is available (greater than 0)
-        annualGrossSalary: { _gt: 0 }
+        isDeleted: { _eq: false }
       }
+      orderBy: [{ employeeId: ASC }, { activeFrom: DESC }, { createdAt: DESC }]
     ) {
       id
+      employeeId
+      activeFrom
+      activeTo
       annualGrossSalary
-    }
-    
-    # Get count to verify data availability
-    EmployeeWorkingConditionAggregate(
-      where: {
-        # Only include non-deleted employees
-        employee: {
-          isDeleted: { _eq: false, _isNull: false }
-        },
-        # Ensure salary is available (greater than 0)
-        annualGrossSalary: { _gt: 0 }
-      }
-    ) {
-      aggregate {
-        count
-      }
     }
   }
 `

@@ -78,9 +78,17 @@ back_to_areas = Zurück zu Bereichen
 # Empty states
 no_more_articles = Keine weiteren Artikel
 no_intranet_found = Keine Intranet-Inhalte gefunden
+no_intranet_found_description = Füge Nachrichten, Wissensbeiträge oder Fragen hinzu, um das Portal zu füllen.
 no_news_found = Keine Nachrichten gefunden
+no_news_found_description = Veröffentliche die erste Nachricht, um zu starten.
 no_knowledge_found = Keine Wissensbeiträge gefunden
+no_knowledge_found_description = Erstelle den ersten Wissensbeitrag, um zu starten.
 no_policies_found = Keine Richtlinien gefunden
+no_policies_found_description = Erstelle die erste Richtlinie, um zu starten.
+no_search_results = Keine Suchergebnisse
+no_search_results_description = Versuche einen anderen Suchbegriff oder prüfe die Schreibweise.
+no_filter_results = Keine passenden Ergebnisse
+no_filter_results_description = Passe die Filter an, um weitere Inhalte zu sehen.
 
 # Policy table columns
 policies_col_title = Titel
@@ -89,6 +97,7 @@ policies_col_status = Status
 policies_col_updated = Zuletzt aktualisiert
 no_documents_found = Keine Dokumente gefunden
 no_questions_found = Noch keine Fragen. Sei der Erste!
+no_questions_found_description = Stelle die erste Frage, um eine Diskussion zu starten.
 
 # Question details
 votes = Stimmen
@@ -135,6 +144,7 @@ glossary-published = Veröffentlicht
 glossary-draft = Entwurf
 glossary-results-count = { $count } Ergebnisse
 glossary-empty = Keine Begriffe gefunden. Füge den ersten Begriff hinzu.
+glossary-empty-description = Füge Glossarbegriffe hinzu, um eine gemeinsame Sprache aufzubauen.
 glossary-no-definition = Noch keine Definition.
 glossary-needs-definition = Definition fehlt
 glossary-definition-needed = Dieser Begriff wurde angefragt, aber noch nicht definiert. Klicke auf "Bearbeiten", um eine Definition hinzuzufügen!

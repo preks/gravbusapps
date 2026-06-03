@@ -127,6 +127,7 @@ config-rework = Reluare
 start-trigger-type = Tip declanșator
 start-trigger-manual = Formular manual
 start-trigger-webhook = Webhook
+start-trigger-email = Email
 start-trigger-event = Eveniment
 start-trigger-schedule = Programare
 

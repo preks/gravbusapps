@@ -1,24 +1,14 @@
 import { FILES_ENGINE_ENDPOINT } from '@/business-apps/fin/expenses/utils/constants'
 import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+
+type ExpenseItemT = (key: string) => string
 
 /**
  * Parse uploaded files and send them to the invoice extraction API
- * @param files Array of files to upload
- * @param accessToken Access token for API authorization
- * @param aiGroupsAndTypes Expense type definitions for AI processing
- * @param t Translation function
- * @returns API response or null if error
  */
-export const parseFileUpload = async (files: File[], accessToken: string, aiGroupsAndTypes: any[]) => {
+export const parseFileUpload = async (files: File[], accessToken: string, aiGroupsAndTypes: any[], t: ExpenseItemT) => {
   if (!files || files.length === 0) {
-    showToast(
-      getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_type_item.document_upload_error_missing_files',
-        'No valid files to upload'
-      ),
-      'error'
-    )
+    showToast(t('expense-item-error-missing-files'), 'error')
     return null
   }
 
@@ -41,26 +31,14 @@ export const parseFileUpload = async (files: File[], accessToken: string, aiGrou
     })
 
     if (!response.ok) {
-      showToast(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:create_expense_type_item.process_error_receipt_processing',
-          'Error processing receipt data'
-        ),
-        'error'
-      )
+      showToast(t('expense-item-error-receipt-processing'), 'error')
       return null
     }
 
     const data = await response.json()
     return data
   } catch {
-    showToast(
-      getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_type_item.process_error_receipt_processing',
-        'Error processing receipt data'
-      ),
-      'error'
-    )
+    showToast(t('expense-item-error-receipt-processing'), 'error')
     return null
   }
 }

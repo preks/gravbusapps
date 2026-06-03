@@ -55,21 +55,20 @@ describe('reconcileQueuedDraftCellsForCreatedRows', () => {
         [{ rowId: 'client_row_1', columnName: 'ColumnA', value: 'queued' }],
         [{ _id: 'client_row_1', _rowUuid: 'row-1', ColumnA: 'fresh' }],
         new Map([['client_row_1', 'row-1']])
-      )
+      ).queuedCells
     ).toEqual([{ rowId: 'row-1', columnName: 'ColumnA', value: 'queued' }])
   })
 
-  it('preserves queued cells even when value equals the freshly created row baseline (Fix F)', () => {
-    // Pre-Fix-F behaviour dropped these as redundant, silently swallowing legitimate user writes
-    // such as "type 0 into a numeric column whose default is 0". Post-Fix F we always replay so
-    // audit / collab logs see the explicit edit.
-    expect(
-      reconcileQueuedDraftCellsForCreatedRows(
-        [{ rowId: 'client_row_1', columnName: 'ColumnA', value: 'fresh' }],
-        [{ _id: 'client_row_1', _rowUuid: 'row-1', ColumnA: 'fresh' }],
-        new Map([['client_row_1', 'row-1']])
-      )
-    ).toEqual([{ rowId: 'row-1', columnName: 'ColumnA', value: 'fresh' }])
+  it('drops queued cells when add_rows already transmitted the same value for that column', () => {
+    const result = reconcileQueuedDraftCellsForCreatedRows(
+      [{ rowId: 'client_row_1', columnName: 'ColumnA', value: { v: 'fresh', t: 1 } }],
+      [{ _id: 'client_row_1', _rowUuid: 'row-1', ColumnA: 'fresh' }],
+      new Map([['client_row_1', 'row-1']]),
+      new Map([['client_row_1', { ColumnA: 'fresh' }]])
+    )
+
+    expect(result.queuedCells).toEqual([])
+    expect(result.droppedCellKeys).toEqual(['row-1\u0000ColumnA'])
   })
 
   it('leaves non-created-row queued cells untouched', () => {
@@ -78,7 +77,32 @@ describe('reconcileQueuedDraftCellsForCreatedRows', () => {
         [{ rowId: 'other-client-row', columnName: 'ColumnA', value: 'queued' }],
         [{ _id: 'client_row_1', _rowUuid: 'row-1', ColumnA: 'fresh' }],
         new Map([['client_row_1', 'row-1']])
-      )
+      ).queuedCells
     ).toEqual([{ rowId: 'other-client-row', columnName: 'ColumnA', value: 'queued' }])
+  })
+
+  it('keeps queued cells when add_rows carried a different value', () => {
+    const result = reconcileQueuedDraftCellsForCreatedRows(
+      [{ rowId: 'client_row_1', columnName: 'ColumnA', value: 'fresh' }],
+      [{ _id: 'client_row_1', _rowUuid: 'row-1', ColumnA: 'old' }],
+      new Map([['client_row_1', 'row-1']]),
+      new Map([['client_row_1', { ColumnA: 'old' }]])
+    )
+
+    expect(result.queuedCells).toEqual([{ rowId: 'row-1', columnName: 'ColumnA', value: 'fresh' }])
+    expect(result.droppedCellKeys).toEqual([])
+    expect(result.retainedCellKeys).toEqual(['row-1\u0000ColumnA'])
+  })
+
+  it('keeps queued cells when add_rows never carried that column (Fix F default-value case)', () => {
+    const result = reconcileQueuedDraftCellsForCreatedRows(
+      [{ rowId: 'client_row_1', columnName: 'ColumnA', value: 0 }],
+      [{ _id: 'client_row_1', _rowUuid: 'row-1', ColumnA: 0 }],
+      new Map([['client_row_1', 'row-1']]),
+      new Map([['client_row_1', { ColumnB: 'other-value' }]])
+    )
+
+    expect(result.queuedCells).toEqual([{ rowId: 'row-1', columnName: 'ColumnA', value: 0 }])
+    expect(result.droppedCellKeys).toEqual([])
   })
 })

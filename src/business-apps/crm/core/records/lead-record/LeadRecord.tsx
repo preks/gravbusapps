@@ -428,6 +428,26 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
                     component: ComplianceSection,
                     props: {
                       entity: leadData,
+                      accessToken: props.accessToken,
+                      actionButtonConfig: {
+                        type: 'AppAction',
+                        config: {
+                          contextsArray: [FlowContextName.leadUpdateComplianceData],
+                          externalContextData: { leadId },
+                          prefixDataTestId: 'lead-compliance-update',
+                          emptyStateBehavior: 'enable',
+                          deferMainContextRequestsUntilClick: true,
+                          variant: 'custom',
+                          children: (
+                            <Button data-testid="lead-compliance-update-button" variant="default" size="sm">
+                              {getTranslationFromI18nKeyAndLabel(
+                                'crm.compliance.updateAction',
+                                'Update Compliance Data'
+                              )}
+                            </Button>
+                          )
+                        }
+                      },
                       'data-testid': 'lead-compliance-section'
                     }
                   }

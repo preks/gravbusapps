@@ -39,6 +39,7 @@ const buildOptions = () => {
       incrementConflictCount: jest.fn(),
       recoverFromVersionConflict: jest.fn(async () => true),
       scheduleSnapshotCheckpointFromPersistence: jest.fn(),
+      onLocalBatchCommitted: jest.fn(),
       emitTraceEvent: jest.fn()
     },
     getActiveSheetVersionValue: () => activeSheetVersion
@@ -78,6 +79,7 @@ describe('createSpreadsheetMutationBatchSubmitter', () => {
     )
     expect(options.rememberRecentLocalBatchId).toHaveBeenCalledWith('set_range_generated', 'tab-1')
     expect(options.rememberKnownSheetVersion).toHaveBeenCalledWith('sheet-1', 7)
+    expect(options.onLocalBatchCommitted).toHaveBeenCalledWith('sheet-1', 7)
     expect(options.rememberSheetVersion).toHaveBeenCalledWith('sheet-1', 7)
     expect(options.rememberLocalCommittedVersion).toHaveBeenCalledWith(7)
     expect(options.applyMutationToSession).toHaveBeenCalledWith(
@@ -93,12 +95,40 @@ describe('createSpreadsheetMutationBatchSubmitter', () => {
     expect(getActiveSheetVersionValue()).toBe(7)
   })
 
-  it('quick-retries active-sheet conflicts using the server version before full recovery', async () => {
-    const { options, getActiveSheetVersionValue } = buildOptions()
-    const applyOperationBatchSpy = jest
-      .spyOn(SpreadsheetApiService, 'applyOperationBatch')
-      .mockRejectedValueOnce(new SpreadsheetApiRequestError('Conflict', 409, { currentVersion: 12 }))
-      .mockResolvedValueOnce(buildResponse(13))
+  it('skips legacy local session and baseline callbacks when unified committed-batch apply handles the response', async () => {
+    const { options } = buildOptions()
+    ;(options as { applyLocalCommittedBatch?: jest.Mock }).applyLocalCommittedBatch = jest.fn(() => true)
+    jest.spyOn(SpreadsheetApiService, 'applyOperationBatch').mockResolvedValue(buildResponse(7))
+    const submitBatch = createSpreadsheetMutationBatchSubmitter(options)
+
+    await expect(
+      submitBatch({
+        sheetId: 'sheet-1',
+        operations: [{ operationId: 'op-1', type: 'set_range', data: { cells: [] } }],
+        batchIdPrefix: 'set_range'
+      })
+    ).resolves.toEqual(buildResponse(7))
+
+    expect((options as { applyLocalCommittedBatch?: jest.Mock }).applyLocalCommittedBatch).toHaveBeenCalledWith({
+      sheetId: 'sheet-1',
+      operations: [{ operationId: 'op-1', type: 'set_range', data: { cells: [] } }],
+      response: buildResponse(7),
+      batchId: 'set_range_generated',
+      traceId: 'set_range_generated',
+      baseVersion: 5
+    })
+    expect(options.applyMutationToSession).not.toHaveBeenCalled()
+    expect(options.applyResponseRowsToLocalBaseline).not.toHaveBeenCalled()
+  })
+
+  it('surfaces a 409 structural_conflict without any quick-retry or recoverFromVersionConflict (Tier 1 cutover)', async () => {
+    const { options } = buildOptions()
+    const applyOperationBatchSpy = jest.spyOn(SpreadsheetApiService, 'applyOperationBatch').mockRejectedValue(
+      new SpreadsheetApiRequestError('Concurrent structural change detected', 409, {
+        reason: 'structural_conflict',
+        currentVersion: 12
+      })
+    )
     const submitBatch = createSpreadsheetMutationBatchSubmitter(options)
 
     await expect(
@@ -107,22 +137,39 @@ describe('createSpreadsheetMutationBatchSubmitter', () => {
         operations: [{ operationId: 'op-1', type: 'delete_rows', data: { rowIds: ['row-1'] } }],
         batchIdPrefix: 'delete_rows'
       })
-    ).resolves.toEqual(buildResponse(13))
+    ).rejects.toThrow('Concurrent structural change detected')
 
-    expect(applyOperationBatchSpy).toHaveBeenNthCalledWith(
-      2,
-      'app-1',
-      'sheet-1',
-      expect.objectContaining({
-        baseVersion: 12,
-        batchId: 'delete_rows_cv_retry_generated'
-      }),
-      undefined
-    )
-    expect(options.rememberKnownSheetVersion).toHaveBeenCalledWith('sheet-1', 12)
-    expect(options.scheduleSnapshotCheckpointFromPersistence).toHaveBeenCalled()
+    // Single wire attempt — no quick-retry, no full-retry-after-restore.
+    expect(applyOperationBatchSpy).toHaveBeenCalledTimes(1)
     expect(options.recoverFromVersionConflict).not.toHaveBeenCalled()
-    expect(getActiveSheetVersionValue()).toBe(13)
+    expect(options.scheduleSnapshotCheckpointFromPersistence).not.toHaveBeenCalled()
+    // But the server version IS remembered so the caller can refetch from a
+    // known-good baseline.
+    expect(options.rememberKnownSheetVersion).toHaveBeenCalledWith('sheet-1', 12)
+    expect(options.setActiveSheetVersion).toHaveBeenCalledWith(12)
+  })
+
+  it('surfaces a 409 version_too_stale without any retry (Tier 1 cutover)', async () => {
+    const { options } = buildOptions()
+    const applyOperationBatchSpy = jest.spyOn(SpreadsheetApiService, 'applyOperationBatch').mockRejectedValue(
+      new SpreadsheetApiRequestError('Client baseVersion is too far behind current version', 409, {
+        reason: 'version_too_stale',
+        currentVersion: 20000,
+        expectedVersion: 1
+      })
+    )
+    const submitBatch = createSpreadsheetMutationBatchSubmitter(options)
+
+    await expect(
+      submitBatch({
+        sheetId: 'sheet-1',
+        operations: [{ operationId: 'op-1', type: 'set_cell', data: { rowId: 'r', columnName: 'A', value: 'x' } }],
+        batchIdPrefix: 'set_cell'
+      })
+    ).rejects.toThrow('Client baseVersion is too far behind current version')
+
+    expect(applyOperationBatchSpy).toHaveBeenCalledTimes(1)
+    expect(options.recoverFromVersionConflict).not.toHaveBeenCalled()
   })
 
   it('applies normalizeTargetSheetId before calling applyOperationBatch', async () => {
@@ -187,10 +234,20 @@ describe('createSpreadsheetMutationBatchSubmitter', () => {
       .mockResolvedValue(buildResponse(7))
     const submitBatch = createSpreadsheetMutationBatchSubmitter(options)
 
+    // The pre-submit row-id gate blocks `rowRef.clientHandle` payloads that lack a
+    // same-batch `add_rows` materializing that client row id (otherwise the BE
+    // rejects with `unknown_client_row_handle` and the cell value is lost). The
+    // realistic production flow groups them; mirror that here so we can still
+    // assert the `rowId` → `rowRef.clientHandle` normalization.
     await expect(
       submitBatch({
         sheetId: 'sheet-1',
         operations: [
+          {
+            operationId: 'add-rows-1',
+            type: 'add_rows',
+            data: { rows: [{ _clientRowId: 'client_row_1', _gridRowIndex: 1, ColumnA: 'draft' }] }
+          },
           {
             operationId: 'op-1',
             type: 'set_range',
@@ -206,6 +263,11 @@ describe('createSpreadsheetMutationBatchSubmitter', () => {
       'sheet-1',
       expect.objectContaining({
         operations: [
+          {
+            operationId: 'add-rows-1',
+            type: 'add_rows',
+            data: { rows: [{ _clientRowId: 'client_row_1', _gridRowIndex: 1, ColumnA: 'draft' }] }
+          },
           {
             operationId: 'op-1',
             type: 'set_range',
@@ -258,10 +320,18 @@ describe('createSpreadsheetMutationBatchSubmitter', () => {
       .mockResolvedValueOnce(buildResponse(9))
     const submitBatch = createSpreadsheetMutationBatchSubmitter(options)
 
+    // Pair `set_cell` with a same-batch `add_rows` so the clientHandle passes the
+    // pre-submit row-id gate; the retry-on-unknown-handle behavior under test is
+    // unrelated to that gate.
     await expect(
       submitBatch({
         sheetId: 'sheet-1',
         operations: [
+          {
+            operationId: 'add-rows-1',
+            type: 'add_rows',
+            data: { rows: [{ _clientRowId: 'client_row_1', _gridRowIndex: 1, ColumnA: 'draft' }] }
+          },
           {
             operationId: 'op-1',
             type: 'set_cell',
@@ -286,6 +356,38 @@ describe('createSpreadsheetMutationBatchSubmitter', () => {
       }),
       { keepalive: true }
     )
+  })
+
+  it('does not retry explicitly non-retryable 409 batch conflicts such as row_position_conflict', async () => {
+    const { options } = buildOptions()
+    const applyOperationBatchSpy = jest.spyOn(SpreadsheetApiService, 'applyOperationBatch').mockRejectedValue(
+      new SpreadsheetApiRequestError('Cannot materialize row at occupied grid position 7', 409, {
+        message: 'Cannot materialize row at occupied grid position 7',
+        code: 'row_position_conflict',
+        requestedGridRowIndex: 7,
+        retryable: false
+      })
+    )
+    const submitBatch = createSpreadsheetMutationBatchSubmitter(options)
+
+    await expect(
+      submitBatch({
+        sheetId: 'sheet-1',
+        operations: [
+          {
+            operationId: 'op-1',
+            type: 'add_rows',
+            data: {
+              rows: [{ _clientRowId: 'client-row-7', _gridRowIndex: 7 }]
+            }
+          }
+        ],
+        batchIdPrefix: 'add_rows'
+      })
+    ).rejects.toThrow('Cannot materialize row at occupied grid position 7')
+
+    expect(applyOperationBatchSpy).toHaveBeenCalledTimes(1)
+    expect(options.recoverFromVersionConflict).not.toHaveBeenCalled()
   })
 
   it('does not convert UUID-like unresolved row ids into client handles', async () => {

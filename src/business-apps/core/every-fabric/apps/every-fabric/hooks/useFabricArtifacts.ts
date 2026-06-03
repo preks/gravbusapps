@@ -6,6 +6,19 @@ import { isUserFacingArtifactPath } from '../utils/artifactFilters'
 import { isFlowBotFabricRuntime } from '../utils/fabricRuntime'
 import { useEnterpriseAgentClient } from './useEnterpriseAgentClient'
 
+const artifactBasenameKey = (value: string) =>
+  value.replace(/^\/+/, '').split('/').filter(Boolean).pop()?.toLowerCase() ?? value.replace(/^\/+/, '').toLowerCase()
+
+const artifactMatchesId = (artifact: ArtifactFile, id: string): boolean => {
+  const normalizedId = id.replace(/^\/+/, '')
+  const idBasename = artifactBasenameKey(normalizedId)
+  const fields = [artifact.artifactKey, artifact.path, artifact.name].filter(Boolean) as string[]
+  return fields.some(field => {
+    const normalizedField = field.replace(/^\/+/, '')
+    return field === id || normalizedField === normalizedId || artifactBasenameKey(normalizedField) === idBasename
+  })
+}
+
 /**
  * Manages the artifact list for a session.
  *
@@ -72,7 +85,8 @@ export const useFabricArtifacts = (
         created_at: ev.timestamp,
         modified_at: ev.timestamp,
         rendererType: resolveRendererType(ev.mime_type, ev.name),
-        downloadUrl: client.getArtifactUrl(sessionId, ev.path || ev.name)
+        downloadUrl: client.getArtifactUrl(sessionId, ev.path || ev.name),
+        source_metadata: { step_id: ev.step_id }
       }))
   }, [events, sessionId, client])
 
@@ -112,13 +126,51 @@ export const useFabricArtifacts = (
       }
     }
 
-    return [...mergedByKey.values()].sort((a, b) => a.created_at.localeCompare(b.created_at))
+    const merged = [...mergedByKey.values()]
+    const hasProviderChart = merged.some(
+      artifact =>
+        artifact.rendererType === 'chart' &&
+        typeof (artifact.source_metadata as { step_id?: unknown } | undefined)?.step_id === 'string' &&
+        String((artifact.source_metadata as { step_id?: string }).step_id).startsWith('provider-artifact-')
+    )
+    const visible = hasProviderChart
+      ? merged.filter(artifact => {
+          const stepId = (artifact.source_metadata as { step_id?: unknown } | undefined)?.step_id
+          const isProvider = typeof stepId === 'string' && stepId.startsWith('provider-artifact-')
+          const isSseUnknownOrJson =
+            typeof stepId === 'string' &&
+            !isProvider &&
+            (artifact.rendererType === 'unknown' ||
+              artifact.rendererType === 'code' ||
+              artifact.path.toLowerCase().endsWith('.json'))
+          return !isSseUnknownOrJson
+        })
+      : merged
+
+    return visible.sort((a, b) => a.created_at.localeCompare(b.created_at))
   }, [restArtifacts, sseArtifacts])
 
-  const activeArtifact = useMemo(
-    () => artifacts.find(a => a.artifactKey === activeArtifactId || a.name === activeArtifactId) ?? null,
-    [artifacts, activeArtifactId]
-  )
+  const activeArtifact = useMemo((): ArtifactFile | null => {
+    if (!activeArtifactId || !sessionId) return null
+    const found = artifacts.find(a => artifactMatchesId(a, activeArtifactId))
+    if (found) return found
+    if (!isUserFacingArtifactPath(activeArtifactId)) return null
+    const path = activeArtifactId.replace(/^\/+/, '')
+    const name = path.split('/').filter(Boolean).pop() ?? path
+    const now = new Date().toISOString()
+    return {
+      sessionId,
+      artifactKey: path,
+      name,
+      path,
+      mime_type: '',
+      size: 0,
+      created_at: now,
+      modified_at: now,
+      rendererType: resolveRendererType('', path),
+      downloadUrl: client.getArtifactUrl(sessionId, path)
+    }
+  }, [artifacts, activeArtifactId, sessionId, client])
 
   return {
     artifacts,

@@ -22,6 +22,11 @@
 # - primary: gravity only
 # - secondary: demo only
 #
+# Weekly SMS smoke (schedule via Bitbucket UI on custom pipeline `sms-smoke-weekly`):
+# - Release gate (fail): SETUP/FETCH/FATAL, E1 dev dup keys, E2 dev lottery, E3 full-catalog RC blobs.
+# - Warn only: E1 prod dup keys, W1–W10 (drift, legacy, orphans, etc.).
+# - Requires dev + prod1 SMS OAuth; prod2 optional; RC Azure (AZURE_*_PROD) for E3.
+#
 # Resource URL sync (production only):
 # - Resource URL sync is a separate manual step after production publish
 # - Publish always creates `published-screens.txt` artifact with successfully promoted screens
@@ -306,6 +311,25 @@ pipelines:
           trigger: manual
 
   custom:
+    sms-smoke-weekly:
+      - step:
+          name: SMS smoke (dev + prod1 + prod2)
+          runs-on:
+            - 'self.hosted'
+            - 'do.global.runner.size1'
+          size: 1x
+          clone:
+            enabled: true
+            depth: 1
+          caches:
+            - npm
+          script:
+            - bash scripts/ci-install-dependencies.sh
+            - node scripts/smoke-screen-management.js
+          artifacts:
+            - sms-smoke-report.json
+            - sms-smoke-summary.md
+
     # Weekly Snyk Code scan + Claude auto-fix (schedule via Bitbucket UI)
     weekly-snyk-code-fix:
       - step:

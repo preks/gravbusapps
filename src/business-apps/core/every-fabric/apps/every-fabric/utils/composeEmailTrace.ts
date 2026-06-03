@@ -9,17 +9,60 @@ export interface ComposeEmailOutcomePayload {
   error?: string
 }
 
+/**
+ * Strip the backend's `<!--__envelope__:{json}-->\n` prefix that
+ * `ToolResultEnvelope.to_tool_output` prepends to every action-card payload,
+ * so the inner JSON can be parsed. Matches the Python regex in
+ * prompt-manager/src/agents/deep/tools/result_envelope.py.
+ */
+const stripEnvelopeMarker = (raw: string): string => raw.replace(/^<!--__envelope__:.*?-->\n?/s, '').trim()
+
+interface ActionCardEmailPayload {
+  ui?: { kind?: string }
+  card?: {
+    title?: string
+    status?: { code?: string; label?: string; variant?: string }
+  }
+  refs?: { message_id?: string; subject?: string }
+}
+
+/** Map action_card `status.code` to the legacy compose_email status string. */
+const ACTION_CARD_STATUS_MAP: Record<string, string> = {
+  COMPLETED: 'sent',
+  PENDING: 'drafted',
+  FAILED: 'error',
+  CANCELLED: 'cancelled'
+}
+
+const fromActionCard = (obj: ActionCardEmailPayload): ComposeEmailOutcomePayload | null => {
+  if (obj.ui?.kind !== 'action_card') return null
+  const code = obj.card?.status?.code
+  if (!code) return null
+  const status = ACTION_CARD_STATUS_MAP[code] ?? code.toLowerCase()
+  return {
+    status,
+    message_id: obj.refs?.message_id || null,
+    subject: obj.card?.title ?? obj.refs?.subject
+  }
+}
+
 export function parseComposeEmailToolResult(result: unknown): ComposeEmailOutcomePayload | null {
   if (!result) return null
   let obj: unknown = result
   if (typeof result === 'string') {
+    const cleaned = stripEnvelopeMarker(result)
+    if (!cleaned) return null
     try {
-      obj = JSON.parse(result)
+      obj = JSON.parse(cleaned)
     } catch {
       return null
     }
   }
   if (!obj || typeof obj !== 'object') return null
+  // New shape: action_card envelope. Normalise to the legacy outcome payload.
+  const fromCard = fromActionCard(obj as ActionCardEmailPayload)
+  if (fromCard) return fromCard
+  // Legacy / live shape: flat `{status, message_id, subject, to, error}`.
   const r = obj as ComposeEmailOutcomePayload
   if (typeof r.status !== 'string') return null
   return r

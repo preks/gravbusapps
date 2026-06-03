@@ -8,6 +8,7 @@ import { DashboardView, FormView, KanbanView } from '../views'
 import { TableView } from '../views/TableView'
 import type { UniverSheetGridInitLifecycleEvent } from '../components/UniverSheetGrid.types'
 import type { SpreadsheetRowSlotIdentityRegistry } from '../utils/spreadsheetRowSlotIdentity'
+import type { SpreadsheetRowMaterializationReadiness } from './spreadsheetRowMaterializationReadiness'
 import translations from '../_i18n'
 
 type ViewerRow = Record<string, unknown>
@@ -32,7 +33,15 @@ export interface UseSpreadsheetMainViewRendererParams {
   tableUniverSnapshot: Record<string, unknown> | null | undefined
   tableSnapshotSeed: number | string
   authoritativeDataSyncToken: number | string
+  authoritativePaintCellsRef?: MutableRefObject<import('../core').SpreadsheetBulkRemoteCellItem[] | null>
+  authoritativePaintMetaRef?: MutableRefObject<import('../core').SpreadsheetBulkRemoteApplyMeta | null>
   workbookInstanceKey: string
+  pendingLocalMutationCellsRef: MutableRefObject<Set<string>>
+  spreadsheetIntentJournalRef?: MutableRefObject<import('../core/spreadsheetIntentJournal').SpreadsheetIntentJournal>
+  versionCausalOwnershipRef?: MutableRefObject<
+    import('../core/spreadsheetVersionCausalOwnership').SpreadsheetVersionCausalOwnershipRegistry
+  >
+  resolveKnownSheetVersion?: (sheetId: string) => number
   spreadsheetColumnsForGrid: SpreadsheetColumn[]
   testId: string
   onNativeSheetStructureIntent: (intent: unknown) => void
@@ -56,9 +65,13 @@ export interface UseSpreadsheetMainViewRendererParams {
   onStyleBatchOp: (styleData: any) => void
   onMutationBatchOp?: (data: SpreadsheetUnifiedMutationBatchPayload) => void | Promise<void>
   flushUnmaterializedRowsBeforePersistRef: MutableRefObject<((sheetId: string) => Promise<void>) | null>
+  flushPendingCellChangesRef: MutableRefObject<(() => Promise<void>) | null>
+  flushDeferredDirtyCellsRef: MutableRefObject<(() => Promise<void>) | null>
   getPersistSheetRowsSnapshot: (sheetId: string) => ViewerRow[]
+  getPersistedBaselineRowsSnapshot: (sheetId: string) => ViewerRow[] | null
   isBackendRowUuid: (value: string) => boolean
   rowSlotIdentityRegistryRef: MutableRefObject<SpreadsheetRowSlotIdentityRegistry | null>
+  rowMaterializationReadinessRef: MutableRefObject<SpreadsheetRowMaterializationReadiness | null>
   columnStructureStateRef: MutableRefObject<{
     healthy: boolean
     pendingInsertedRange: { startIndex: number; endIndex: number; columnNames: string[] } | null
@@ -100,7 +113,13 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
     tableUniverSnapshot,
     tableSnapshotSeed,
     authoritativeDataSyncToken,
+    authoritativePaintCellsRef,
+    authoritativePaintMetaRef,
     workbookInstanceKey,
+    pendingLocalMutationCellsRef,
+    spreadsheetIntentJournalRef,
+    versionCausalOwnershipRef,
+    resolveKnownSheetVersion,
     spreadsheetColumnsForGrid,
     testId,
     onNativeSheetStructureIntent,
@@ -124,9 +143,13 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
     onStyleBatchOp,
     onMutationBatchOp,
     flushUnmaterializedRowsBeforePersistRef,
+    flushPendingCellChangesRef,
+    flushDeferredDirtyCellsRef,
     getPersistSheetRowsSnapshot,
+    getPersistedBaselineRowsSnapshot,
     isBackendRowUuid,
     rowSlotIdentityRegistryRef,
+    rowMaterializationReadinessRef,
     columnStructureStateRef,
     onCursorEmit,
     getCanonicalSheetId,
@@ -177,7 +200,13 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
           initialSnapshot={preferUniverNativeSheetTabs ? tableUniverSnapshot : initialSnapshot}
           snapshotSeed={(preferUniverNativeSheetTabs ? tableSnapshotSeed : initialSnapshotSeed) as any}
           authoritativeDataSyncToken={authoritativeDataSyncToken as any}
+          authoritativePaintCellsRef={authoritativePaintCellsRef}
+          authoritativePaintMetaRef={authoritativePaintMetaRef}
           workbookInstanceKey={workbookInstanceKey as any}
+          pendingLocalMutationCellsRef={pendingLocalMutationCellsRef}
+          spreadsheetIntentJournalRef={spreadsheetIntentJournalRef}
+          versionCausalOwnershipRef={versionCausalOwnershipRef}
+          resolveKnownSheetVersion={resolveKnownSheetVersion}
           multiSheetWorkbookMode={preferUniverNativeSheetTabs}
           apiFirstSheetStructure={preferUniverNativeSheetTabs}
           workbookSnapshotSyncing={isBootstrapWorkbookEnriching}
@@ -206,9 +235,13 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
           onStyleBatchOp={onStyleBatchOp}
           onMutationBatchOp={onMutationBatchOp}
           flushUnmaterializedRowsBeforePersistRef={flushUnmaterializedRowsBeforePersistRef}
+          flushPendingCellChangesRef={flushPendingCellChangesRef}
+          flushDeferredDirtyCellsRef={flushDeferredDirtyCellsRef}
           getPersistSheetRowsSnapshot={getPersistSheetRowsSnapshot}
+          getPersistedBaselineRowsSnapshot={getPersistedBaselineRowsSnapshot}
           isBackendRowUuid={isBackendRowUuid}
           rowSlotIdentityRegistryRef={rowSlotIdentityRegistryRef}
+          rowMaterializationReadinessRef={rowMaterializationReadinessRef}
           columnStructureStateRef={columnStructureStateRef}
           onCursorEmit={onCursorEmit}
           getCanonicalSheetId={getCanonicalSheetId}
@@ -279,6 +312,7 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
     onCellChange,
     onCellsChange,
     onColumnAdd,
+    pendingLocalMutationCellsRef,
     onColumnsDelete,
     onColumnsInsert,
     onRowsInsert,
@@ -294,9 +328,12 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
     onStyleBatchOp,
     onMutationBatchOp,
     flushUnmaterializedRowsBeforePersistRef,
+    flushPendingCellChangesRef,
+    flushDeferredDirtyCellsRef,
     getPersistSheetRowsSnapshot,
     isBackendRowUuid,
     rowSlotIdentityRegistryRef,
+    rowMaterializationReadinessRef,
     onUniverSheetInserted,
     onUniverSheetRemoved,
     onUniverSheetRenamed,

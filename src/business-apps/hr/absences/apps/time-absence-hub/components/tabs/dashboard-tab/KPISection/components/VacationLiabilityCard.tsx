@@ -23,15 +23,27 @@ export const VacationLiabilityCard: React.FC<VacationLiabilityCardProps> = ({ en
   const averageRemainingPerEmployee =
     entitlements.totalActiveEmployees > 0 ? entitlements.totalVacationLiability / entitlements.totalActiveEmployees : 0
 
-  const hasCostData = entitlements.estimatedCostPerDay > 0
+  const multipleCurrenciesMessage = getTranslationFromI18nKeyAndLabel(
+    'lowcoder:time_absence_hub.dashboard.multiple_currencies_cannot_sum',
+    'Multiple currencies, cannot sum.'
+  )
 
-  const financialImpactLabel = hasCostData
-    ? formatCurrency(entitlements.totalLiabilityEstimate, entitlements.currencyCode)
-    : getTranslationFromI18nKeyAndLabel('lowcoder:common.no_data', 'No data')
+  const hasCostData = !entitlements.hasMultipleCurrencies && entitlements.estimatedCostPerDay > 0
+  const noDataLabel = getTranslationFromI18nKeyAndLabel('lowcoder:common.no_data', 'No data')
 
-  const estimatedCostPerDayLabel = hasCostData
-    ? formatCurrency(entitlements.estimatedCostPerDay, entitlements.currencyCode)
-    : getTranslationFromI18nKeyAndLabel('lowcoder:common.no_data', 'No data')
+  let financialImpactLabel = noDataLabel
+  if (entitlements.hasMultipleCurrencies) {
+    financialImpactLabel = multipleCurrenciesMessage
+  } else if (hasCostData) {
+    financialImpactLabel = formatCurrency(entitlements.totalLiabilityEstimate, entitlements.currencyCode)
+  }
+
+  let estimatedCostPerDayLabel = noDataLabel
+  if (entitlements.hasMultipleCurrencies) {
+    estimatedCostPerDayLabel = multipleCurrenciesMessage
+  } else if (hasCostData) {
+    estimatedCostPerDayLabel = formatCurrency(entitlements.estimatedCostPerDay, entitlements.currencyCode)
+  }
   const remainingShare =
     entitlements.totalVacationEntitlement > 0
       ? Math.min((entitlements.totalVacationLiability / entitlements.totalVacationEntitlement) * 100, 100)
@@ -41,15 +53,18 @@ export const VacationLiabilityCard: React.FC<VacationLiabilityCardProps> = ({ en
     'lowcoder:time_absence_hub.dashboard.liability_exposure',
     'Liability Exposure'
   )
-  const liabilityDescription = hasCostData
-    ? getTranslationFromI18nKeyAndLabel(
-        'lowcoder:time_absence_hub.dashboard.liability_financial_hint',
-        `${financialImpactLabel} estimated financial impact`
-      )
-    : getTranslationFromI18nKeyAndLabel(
-        'lowcoder:time_absence_hub.dashboard.liability_financial_hint_missing',
-        'Financial impact is currently unavailable'
-      )
+  let liabilityDescription = getTranslationFromI18nKeyAndLabel(
+    'lowcoder:time_absence_hub.dashboard.liability_financial_hint_missing',
+    'Financial impact is currently unavailable'
+  )
+  if (entitlements.hasMultipleCurrencies) {
+    liabilityDescription = multipleCurrenciesMessage
+  } else if (hasCostData) {
+    liabilityDescription = getTranslationFromI18nKeyAndLabel(
+      'lowcoder:time_absence_hub.dashboard.liability_financial_hint',
+      `${financialImpactLabel} estimated financial impact`
+    )
+  }
 
   return (
     <Card
@@ -117,7 +132,7 @@ export const VacationLiabilityCard: React.FC<VacationLiabilityCardProps> = ({ en
           <div className="gba:mt-auto gba:space-y-3">
             <Progress value={remainingShare} className="gba:h-2" />
 
-            <div className="gba:grid gba:grid-cols-3 gba:gap-3">
+            <div className="gba:grid gba:grid-cols-2 gba:gap-3">
               <LiabilityLegendItem
                 dotClassName="gba:bg-warning"
                 label={getTranslationFromI18nKeyAndLabel(
@@ -133,14 +148,6 @@ export const VacationLiabilityCard: React.FC<VacationLiabilityCardProps> = ({ en
                   'Total Active Employees'
                 )}
                 value={String(entitlements.totalActiveEmployees)}
-              />
-              <LiabilityLegendItem
-                dotClassName="gba:bg-destructive"
-                label={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:absence_management_hub_backoffice.total_liability_estimate',
-                  'Total Liability Estimate'
-                )}
-                value={financialImpactLabel}
               />
             </div>
           </div>

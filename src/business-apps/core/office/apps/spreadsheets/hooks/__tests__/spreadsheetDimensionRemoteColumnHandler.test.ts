@@ -88,4 +88,51 @@ describe('handleSpreadsheetRemoteColumnUpdate', () => {
     expect(baselineColWidthsRef.current.get(0)).toBe(120)
     expect(applyRemoteDimensions).toHaveBeenCalled()
   })
+
+  it('applies multiple remote column adds from one columns payload', () => {
+    const appSheetsRef = {
+      current: [
+        sheetWithColumns('s1', [
+          { id: 'a', name: 'a', label: 'A', type: 'text', order: 0 },
+          { id: 'b', name: 'b', label: 'B', type: 'text', order: 1 }
+        ])
+      ]
+    }
+    const applyLocalAppUpdate = jest.fn(updater => {
+      const next = updater({
+        id: 'app',
+        name: 'App',
+        sheets: appSheetsRef.current,
+        settings: {},
+        views: []
+      } as import('../../types').SpreadsheetApp)
+      appSheetsRef.current = next.sheets
+    })
+    const onLocalAppUpdate = applyLocalAppUpdate
+
+    handleSpreadsheetRemoteColumnUpdate(
+      {
+        sheetId: 's1',
+        columns: [
+          { id: 'a', name: 'a', label: 'A', type: 'text', order: 0 },
+          { id: 'b', name: 'b', label: 'B', type: 'text', order: 1 },
+          { id: 'c', name: 'c', label: 'C', type: 'text', order: 2 },
+          { id: 'd', name: 'd', label: 'D', type: 'text', order: 3 }
+        ]
+      },
+      {
+        activeSheetId: 's1',
+        pendingColumnWidthOverrides: {},
+        appSheetsRef,
+        applyLocalAppUpdate,
+        onLocalAppUpdate,
+        spreadsheetGridRef: { current: null },
+        recentLocalColumnResizeRef: { current: new Map() },
+        baselineColWidthsRef: { current: new Map() }
+      }
+    )
+
+    expect(appSheetsRef.current[0]?.columns).toHaveLength(4)
+    expect(appSheetsRef.current[0]?.columns.map(column => column.id)).toEqual(['a', 'b', 'c', 'd'])
+  })
 })

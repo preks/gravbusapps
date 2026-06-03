@@ -3,6 +3,7 @@ import { useFormContext } from 'react-hook-form'
 import { AiButton, Spinner, toast } from '@newwork/nw-design-system'
 import { Sparkles } from 'lucide-react'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { toISOFormat } from '@/common/utils/dateFormatter'
 import { useAccountAiEnrich, type AccountAiEnrichResponse } from './useAccountAiEnrich'
 
 const PREFIX = 'AccountAiEnrich'
@@ -129,7 +130,10 @@ const AccountAiEnrichButton: React.FC<AccountAiEnrichButtonProps> = ({
       setIfNotDirty('name', fields.name)
       setIfNotDirty('website', fields.website)
       setIfNotDirty('description', fields.description)
-      setIfNotDirty('foundationDate', fields.foundationDate)
+      // foundationDate must be a full ISO string (the manual DateInput uses
+      // outputFormat="iso"); normalising here keeps the submit payload in
+      // the shape the backend marshaller expects.
+      setIfNotDirty('foundationDate', toISOFormat(fields.foundationDate))
       setIfNotDirty('companySizeRef', fields.companySizeRef)
       setIfNotDirty('industryClassRef', fields.industryClassRef)
       setIfNotDirty('accountAnnualRevenueBandRef', fields.accountAnnualRevenueBandRef)

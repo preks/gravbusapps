@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { getMedianSalaryData } from '../queries/getMedianSalaryData'
+import { selectReportingWorkingConditionsByEmployee } from '../utils/workingConditionSelection'
 
 /**
  * GraphQL response type for median salary query
@@ -8,13 +9,11 @@ import { getMedianSalaryData } from '../queries/getMedianSalaryData'
 interface MedianSalaryResponse {
   EmployeeWorkingCondition: Array<{
     id: string
-    annualGrossSalary: number
+    employeeId: string
+    activeFrom: string | null
+    activeTo: string | null
+    annualGrossSalary: number | null
   }>
-  EmployeeWorkingConditionAggregate: {
-    aggregate: {
-      count: number
-    }
-  }
 }
 
 /**
@@ -74,12 +73,14 @@ export const useMedianSalary = (accessToken: string) => {
       const response = await graphQLClient.request<MedianSalaryResponse>(getMedianSalaryData)
 
       // Validate response structure
-      if (!response || !response.EmployeeWorkingCondition || !response.EmployeeWorkingConditionAggregate) {
+      if (!response || !response.EmployeeWorkingCondition) {
         throw new Error('[useMedianSalary] Invalid response structure from GraphQL API')
       }
 
-      const employeeData = response.EmployeeWorkingCondition
-      const totalCount = response.EmployeeWorkingConditionAggregate.aggregate.count
+      const employeeData = selectReportingWorkingConditionsByEmployee(response.EmployeeWorkingCondition).filter(
+        employee => Number(employee.annualGrossSalary) > 0
+      )
+      const totalCount = employeeData.length
 
       if (totalCount === 0) {
         console.warn('[useMedianSalary] No employee data found with the current query filters')

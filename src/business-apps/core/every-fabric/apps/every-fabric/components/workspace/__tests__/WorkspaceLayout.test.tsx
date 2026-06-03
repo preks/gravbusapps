@@ -53,12 +53,10 @@ jest.mock('../WorkspaceConnectorIndicator', () => ({
   WorkspaceConnectorIndicator: () => null
 }))
 
-jest.mock('../WorkspaceStreamingIsland', () => ({
-  WorkspaceStreamingIsland: () => null
-}))
-
 jest.mock('../../landing/FabricInput', () => ({
-  FabricInput: () => <div data-testid="fabric-input" />
+  FabricInput: (props: { devModeEnabled?: boolean }) => (
+    <div data-testid="fabric-input" data-dev-mode={props.devModeEnabled ? 'true' : 'false'} />
+  )
 }))
 
 jest.mock('../../connectors/ConnectorPickerSheet', () => ({
@@ -132,6 +130,16 @@ describe('WorkspaceLayout right panel', () => {
       hydrateActiveIds: jest.fn(),
       isLoading: false
     })
+  })
+
+  it('passes devModeEnabled to FabricInput', () => {
+    render(<WorkspaceLayout devModeEnabled />)
+    expect(screen.getByTestId('fabric-input')).toHaveAttribute('data-dev-mode', 'true')
+  })
+
+  it('hides dev surfaces in composer when dev mode is off', () => {
+    render(<WorkspaceLayout devModeEnabled={false} />)
+    expect(screen.getByTestId('fabric-input')).toHaveAttribute('data-dev-mode', 'false')
   })
 
   it('opens the panel by default on wide viewports', () => {

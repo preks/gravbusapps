@@ -1,4 +1,4 @@
-import { useEffect, useRef, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react'
 import {
   acquireSessionStream,
   getSessionStreamState,
@@ -20,12 +20,23 @@ const EMPTY_STATE: SessionStreamEntry = {
  * React-adapter around {@link acquireSessionStream}. Maintains a single
  * connection per session across mounts, with the registry's grace-period
  * keep-alive so navigating away and back doesn't reconnect.
+ *
+ * When `streamSuppressed` is true (REST-terminal session), no live SSE
+ * connection is opened — the UI renders from `session.trace` only.
  */
-export const useSessionStreamEntry = (sessionId: string | null, accessToken: string): SessionStreamEntry => {
+export const useSessionStreamEntry = (
+  sessionId: string | null,
+  accessToken: string,
+  streamSuppressed = false
+): SessionStreamEntry => {
   const releaseRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
-    if (!sessionId || !accessToken) return
+    if (!sessionId || !accessToken || streamSuppressed) {
+      releaseRef.current?.()
+      releaseRef.current = null
+      return
+    }
     if (isFlowBotFabricRuntime()) {
       ensureSessionStreamEntry(sessionId, accessToken)
       return
@@ -36,16 +47,20 @@ export const useSessionStreamEntry = (sessionId: string | null, accessToken: str
       release()
       releaseRef.current = null
     }
-  }, [sessionId, accessToken])
+  }, [sessionId, accessToken, streamSuppressed])
 
-  const subscribe = (listener: () => void) => {
-    if (!sessionId) return () => {}
-    return subscribeSessionStream(sessionId, listener)
-  }
-  const getSnapshot = () => {
-    if (!sessionId) return EMPTY_STATE
+  const subscribe = useCallback(
+    (listener: () => void) => {
+      if (!sessionId || streamSuppressed) return () => {}
+      return subscribeSessionStream(sessionId, listener)
+    },
+    [sessionId, streamSuppressed]
+  )
+
+  const getSnapshot = useCallback((): SessionStreamEntry => {
+    if (!sessionId || streamSuppressed) return EMPTY_STATE
     return getSessionStreamState(sessionId) ?? EMPTY_STATE
-  }
+  }, [sessionId, streamSuppressed])
 
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 }

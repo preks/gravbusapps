@@ -29,6 +29,7 @@ import {
 import { FileText, Sparkles, Workflow } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
+import { FlowLaunchSheet } from '@/business-apps/flow/apps/launcher/components/FlowLaunchSheet'
 import translations from './_i18n'
 import { FlowStudioCanvas } from './components/canvas/FlowStudioCanvas'
 import { FlowStudioChatPanel } from './components/FlowStudioChatPanel'
@@ -40,8 +41,11 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import type { DesignerMode } from './types/studioTypes'
 import { MockDataProvider } from '@/business-apps/flow/providers'
 import { useFlowStudioClient } from './hooks/useFlowStudioClient'
+import { validateFlow } from './hooks/useFlowValidation'
+import { studioGraphToTemplate, templateToStudioGraph } from './utils/templateConverter'
 import { FlowStudioCreateView } from './views/FlowStudioCreateView'
 import { FlowStudioListView } from './views/FlowStudioListView'
+import type { FlowTemplate } from '@/common/network/flows/FlowTemplateClient'
 
 const FLOW_ID_PARAM = 'flowId'
 const DRAFT_ID_PARAM = 'draftId'
@@ -52,6 +56,34 @@ const LIST_VIEW_FLOWS = 'flows'
 const FLOW_HEADER_MAX_TAG_PILLS = 4
 const FLOW_HEADER_PRIORITY_TAG_KEYS = ['app', 'serviceCategory', 'digitalWorkplaceCategory'] as const
 type ListSubView = typeof LIST_VIEW_CREATE | typeof LIST_VIEW_FLOWS
+
+function getExportFileName(name: string): string {
+  const safeName = String(name || 'flow')
+    .trim()
+    .replace(/[^a-z0-9-_]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase()
+  return `${safeName || 'flow'}.flow.json`
+}
+
+function getImportedTemplate(value: unknown): FlowTemplate {
+  const raw = value && typeof value === 'object' ? (value as Record<string, unknown>) : null
+  const template = raw && raw.template && typeof raw.template === 'object' ? raw.template : raw
+  if (!template || typeof template !== 'object') {
+    throw new Error('Invalid flow export')
+  }
+  const candidate = template as FlowTemplate
+  if (!String(candidate.name || '').trim() || !Array.isArray((candidate as any).steps)) {
+    throw new Error('Invalid flow template')
+  }
+  return candidate
+}
+
+function getImportedDraftName(name: string): string {
+  const baseName = String(name || UNTITLED_FLOW_NAME).trim() || UNTITLED_FLOW_NAME
+  const timestamp = new Date().toISOString().slice(0, 19).replace('T', ' ').replace(/:/g, '-')
+  return `${baseName} (import ${timestamp})`
+}
 
 function getTemplateTagLabel(tagKey: string): string {
   if (tagKey === 'app') return 'App'
@@ -201,6 +233,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
   const resetStore = useFlowStudioStore(s => s.resetStore)
   const selectNode = useFlowStudioStore(s => s.selectNode)
   const selectEdge = useFlowStudioStore(s => s.selectEdge)
+  const loadTemplateIntoStore = useFlowStudioStore(s => s.loadTemplate)
 
   const { saveFlow, loadFlow, loadDraft, isLoading } = useFlowStudioClient(accessToken)
   const urlFlowIdOnMount = getFlowIdFromUrl()
@@ -219,6 +252,9 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
   const [saveNameError, setSaveNameError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [showValidationIssues, setShowValidationIssues] = useState(false)
+  const [testSheetOpen, setTestSheetOpen] = useState(false)
+  const [testTemplateDefinition, setTestTemplateDefinition] = useState<any | null>(null)
+  const importFileInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     if (view !== 'list') return
@@ -339,6 +375,100 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
     setSaveNameDialogOpen(true)
   }, [executeSave, getSaveErrorMessage, templateName, view])
 
+  const requestTestFlow = useCallback(() => {
+    if (view !== 'designer') return
+
+    setShowValidationIssues(true)
+    setSaveError(null)
+
+    const state = useFlowStudioStore.getState()
+    const validationErrors = validateFlow(state.nodes, state.edges).filter(issue => issue.severity === 'error')
+    if (validationErrors.length > 0) {
+      setSaveError(
+        `Validation failed: ${validationErrors
+          .slice(0, 3)
+          .map(issue => issue.message)
+          .join('; ')}${validationErrors.length > 3 ? '...' : ''}`
+      )
+      return
+    }
+
+    const template = studioGraphToTemplate(
+      state.nodes,
+      state.edges,
+      state.templateName,
+      state.templateDescription,
+      { ...(state.templateTags ?? {}), execution: 'test' } as any,
+      state.templateVersion
+    )
+
+    setTestTemplateDefinition(template)
+    setTestSheetOpen(true)
+  }, [view])
+
+  const exportFlow = useCallback(() => {
+    if (view !== 'designer') return
+    setSaveError(null)
+
+    const state = useFlowStudioStore.getState()
+    const template = studioGraphToTemplate(
+      state.nodes,
+      state.edges,
+      state.templateName,
+      state.templateDescription,
+      state.templateTags,
+      state.templateVersion,
+      state.templateId
+    )
+    const exportPayload = {
+      format: 'newwork-flow-template',
+      formatVersion: 1,
+      exportedAt: new Date().toISOString(),
+      template
+    }
+    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = getExportFileName(template.name)
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }, [view])
+
+  const importFlow = useCallback(() => {
+    importFileInputRef.current?.click()
+  }, [])
+
+  const handleImportFileChange = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0]
+      event.target.value = ''
+      if (!file) return
+
+      try {
+        const parsed = JSON.parse(await file.text())
+        const template = getImportedTemplate(parsed)
+        const importedName = getImportedDraftName(template.name)
+        const graph = templateToStudioGraph(template)
+        loadTemplateIntoStore(undefined, graph.nodes, graph.edges, {
+          name: importedName,
+          description: template.description,
+          version: template.version || 1,
+          tags: template.tags
+        })
+        useFlowStudioStore.setState({ isDirty: true, templateId: undefined })
+        updateUrlWithFlowId(FLOW_ID_NEW, true)
+        setDesignerInitialPrompt('')
+        setShowValidationIssues(false)
+        setSaveError(null)
+        setView('designer')
+      } catch {
+        setSaveError(t('studio-import-failed'))
+      }
+    },
+    [loadTemplateIntoStore, t]
+  )
+
   useEffect(() => {
     setShowValidationIssues(false)
   }, [edges, nodes])
@@ -450,7 +580,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
                 type="text"
                 value={templateName}
                 onChange={event => setTemplateMetadata({ name: event.target.value })}
-                className="gba:w-full gba:max-w-2xl gba:text-xl gba:sm:text-3xl gba:font-semibold gba:bg-transparent gba:border-none gba:outline-none gba:p-0 gba:leading-tight gba:text-white placeholder:gba:text-white/50"
+                className="gba:w-[min(72vw,72rem)] gba:max-w-none gba:text-xl gba:sm:text-3xl gba:font-semibold gba:bg-transparent gba:border-none gba:outline-none gba:p-0 gba:leading-tight gba:text-white placeholder:gba:text-white/50"
                 placeholder={t('app-title')}
                 aria-label={t('app-title')}
                 data-testid={`${testId}-name-input`}
@@ -527,6 +657,9 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
                 mode={mode}
                 onModeChange={handleModeChange}
                 onSave={requestSave}
+                onTestFlow={requestTestFlow}
+                onImportFlow={importFlow}
+                onExportFlow={exportFlow}
                 showValidationIssues={showValidationIssues}
                 data-testid={`${testId}-canvas`}
               />
@@ -579,6 +712,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
               <FlowStudioListView
                 accessToken={accessToken}
                 onCreateFlow={createNewFlow}
+                onImportFlow={importFlow}
                 onOpenTemplate={openTemplateFromList}
                 data-testid={`${testId}-list`}
               />
@@ -606,6 +740,28 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
           data-testid={`${testId}-labels-dialog`}
         />
       )}
+
+      <FlowLaunchSheet
+        open={testSheetOpen}
+        onOpenChange={setTestSheetOpen}
+        accessToken={accessToken}
+        userInfo={userInfo}
+        templateId={null}
+        templateDefinition={testTemplateDefinition}
+        mode="test"
+        data-testid={`${testId}-test-flow-sheet`}
+      />
+
+      <input
+        ref={importFileInputRef}
+        type="file"
+        accept="application/json,.json,.flow.json"
+        className="gba:hidden"
+        onChange={event => {
+          void handleImportFileChange(event)
+        }}
+        data-testid={`${testId}-import-file-input`}
+      />
 
       <Dialog
         open={saveNameDialogOpen}

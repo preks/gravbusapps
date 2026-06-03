@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import type { ConversationTurn, AgentTurn } from '../types/models'
+import type { WebSearchMode } from '../hooks/useFlowBot'
 import { UnifiedAIMessageRenderer } from './UnifiedAIMessageRenderer'
 import { UnifiedUserMessage } from './UnifiedUserMessage'
 import { UserInfoProps } from '@/common/BusinessAppContext'
@@ -7,7 +8,12 @@ import { UserInfoProps } from '@/common/BusinessAppContext'
 interface ConversationRendererProps {
   turns: ConversationTurn[]
   accessToken: string
-  sendMessage?: (userInputText: string, files: File[], isThinking?: boolean, isSearching?: boolean) => Promise<void>
+  sendMessage?: (
+    userInputText: string,
+    files: File[],
+    isThinking?: boolean,
+    webSearchMode?: WebSearchMode
+  ) => Promise<void>
   editMessage?: (turnIndex: number, newText: string) => Promise<void>
   userInfo?: UserInfoProps
   pictureThumbnail: string | null
@@ -57,7 +63,7 @@ export const ConversationRenderer: React.FC<ConversationRendererProps> = ({
         await editMessage(savedIndex, newText)
       } else if (sendMessage) {
         // Fallback to sending new message if editMessage is not available
-        await sendMessage(newText, [], false, false)
+        await sendMessage(newText, [], false, 'off')
       }
     } catch (error) {
       console.error('Failed to save edit:', error)

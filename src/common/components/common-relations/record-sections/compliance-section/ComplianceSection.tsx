@@ -2,6 +2,7 @@ import React from 'react'
 import { EmptyState } from '@newwork/nw-design-system'
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import type { ActionButtonConfig } from '../section-card/SectionCard'
 import { createGetPages } from '../utils'
 
 export interface ComplianceData {
@@ -19,6 +20,8 @@ interface ComplianceSectionProps {
   entity?: ComplianceData | null
   entities?: ComplianceData[]
   className?: string
+  accessToken?: string
+  actionButtonConfig?: ActionButtonConfig | null
   'data-testid'?: string
 }
 
@@ -156,5 +159,10 @@ const ComplianceSection: React.FC<ComplianceSectionProps> = ({ entity, entities,
   (props: ComplianceSectionProps) => props.entity || undefined
 )
 ;(ComplianceSection as any).renderPage = (pageData: ComplianceData) => <ComplianceDetails entity={pageData} />
+;(ComplianceSection as any).getActionButtonConfig = (
+  _pageData: ComplianceData | null,
+  _pageIndex: number,
+  props: ComplianceSectionProps
+) => props.actionButtonConfig || null
 
 export default ComplianceSection

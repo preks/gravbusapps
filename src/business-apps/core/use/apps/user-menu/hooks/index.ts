@@ -1,0 +1,1 @@
+export { useUserMenuAvatarUrl } from './useUserMenuAvatarUrl'

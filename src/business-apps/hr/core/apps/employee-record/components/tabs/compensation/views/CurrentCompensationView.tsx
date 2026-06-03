@@ -5,6 +5,7 @@ import { Card, CardContent, Button } from '@newwork/nw-design-system'
 import { CompensationData } from '../types/compensationTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import TotalRewardsCard from '../components/current/TotalRewardsCard'
+import PayTransparencyCard from '../components/current/PayTransparencyCard'
 import BenefitsPerksSection from '../components/current/BenefitsPerksSection'
 import CompensationKPICards from '../components/current/CompensationKPICards'
 import { ScopePermissionCheckResult } from '@/common/hooks/useScopePermissionCheck'
@@ -21,6 +22,7 @@ interface CurrentCompensationViewProps extends BusinessAppContextProps {
   // Computed permission props (passed from parent to avoid re-calculating)
   canManageCompensation: boolean
   permissionsLoading: boolean
+  hasHrBackoffice: boolean
 }
 
 /**
@@ -40,7 +42,8 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
   locale,
   employeeRecordHrBackoffice,
   canManageCompensation,
-  permissionsLoading
+  permissionsLoading,
+  hasHrBackoffice
 }) => {
   // Both salary adjustment and bonus granting use the same permission logic
   // Hide actions during permission loading to avoid flickering UI
@@ -117,6 +120,8 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
 
       {/* Total Rewards 360° View */}
       <TotalRewardsCard t={t} compensationData={compensationData} loading={loading} locale={locale} />
+
+      {hasHrBackoffice && <PayTransparencyCard t={t} employeeId={employeeId} accessToken={accessToken} />}
 
       {/* Benefits & Perks Section */}
       <BenefitsPerksSection

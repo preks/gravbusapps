@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
-import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import { ComposedChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { BusinessAppContextProps } from '../../../../../../../../../common/BusinessAppContext'
 import { DashboardData } from '../../../../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -9,11 +9,6 @@ import { LegendMarker } from '../shared/LegendMarker'
 interface OptimizedAbsenceTrendsProps extends BusinessAppContextProps {
   dashboardData: DashboardData
   onMonthClick?: (month: string, year?: number) => void
-}
-
-const colorPalette = {
-  column: 'var(--nw-info)',
-  totalLine: 'var(--nw-foreground)'
 }
 
 interface AbsenceTrendsLegendContentProps {
@@ -29,15 +24,6 @@ const AbsenceTrendsLegendContent: React.FC<AbsenceTrendsLegendContentProps> = ({
         <span className="gba:text-sm">{type}</span>
       </div>
     ))}
-    <div className="gba:flex gba:items-center gba:gap-2">
-      <LegendMarker color={colorPalette.totalLine} />
-      <span className="gba:text-sm">
-        {getTranslationFromI18nKeyAndLabel(
-          'lowcoder:absence_management_hub_backoffice.trend_line_avg_requests',
-          'Trend Line (avg requests per employee)'
-        )}
-      </span>
-    </div>
   </div>
 )
 
@@ -93,7 +79,7 @@ export const ServerBackedTooltip: React.FC<any> = ({
   const monthData = payload[0].payload
   const serverAgg = monthAggMap?.[String(label)] || null
   const totalForMonth = serverAgg?.totalRequests ?? monthData.total ?? 0
-  const avgReqPerEmp = serverAgg?.avgRequestsPerEmployee ?? monthData.trendLine ?? 0
+  const avgReqPerEmp = serverAgg?.avgRequestsPerEmployee ?? monthData.avgRequestsPerEmployee ?? 0
   const avgDaysPerReq = serverAgg?.avgDaysPerRequest ?? monthData.avgDurationPerRequest ?? 0
   const distinctEmployees = serverAgg?.distinctEmployees ?? monthData.uniqueEmployees ?? 0
 
@@ -205,18 +191,11 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({ dashboa
       return chartItem
     })
 
-    const trendData = chartItems.map(item => {
-      const avgPerEmployee = item.avgRequestsPerEmployee ?? 0
-
-      return {
-        ...item,
-        trendLine: avgPerEmployee,
-        avgDurationPerRequest: item.avgDurationPerRequest ?? 0,
-        uniqueEmployees: item.uniqueEmployees ?? 0
-      }
-    })
-
-    return trendData
+    return chartItems.map(item => ({
+      ...item,
+      avgDurationPerRequest: item.avgDurationPerRequest ?? 0,
+      uniqueEmployees: item.uniqueEmployees ?? 0
+    }))
   }, [monthlyData, monthAggMap])
 
   const { totalAbsenceRequests, totalAbsenceDays, averagePerMonth } = useMemo(() => {
@@ -241,7 +220,6 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({ dashboa
       key =>
         key !== 'month' &&
         key !== 'total' &&
-        key !== 'trendLine' &&
         key !== 'uniqueEmployees' &&
         key !== 'avgRequestsPerEmployee' &&
         key !== 'avgDurationPerRequest' &&
@@ -393,16 +371,6 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({ dashboa
               {absenceTypes.map((type: string) => (
                 <Bar key={type} dataKey={type} stackId="types" fill={getTypeColor(type)} name={type} />
               ))}
-
-              <Line
-                type="monotone"
-                dataKey="trendLine"
-                stroke={colorPalette.totalLine}
-                strokeWidth={3}
-                dot={{ fill: colorPalette.totalLine, strokeWidth: 2, r: 4 }}
-                name="Trend Line (avg requests per employee)"
-                connectNulls={false}
-              />
             </ComposedChart>
           </ResponsiveContainer>
         </div>

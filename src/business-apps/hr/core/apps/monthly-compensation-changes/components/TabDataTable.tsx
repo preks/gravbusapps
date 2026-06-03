@@ -27,7 +27,8 @@ export function TabDataTable<TData>({
         error={error}
         enableSorting
         enablePagination
-        rowsPerPage={15}
+        rowsPerPage={10}
+        rowsPerPageOptions={[10, 20, 50, 100]}
         density="compact"
         emptyMessage={emptyMessage}
         onRowClick={onRowClick}

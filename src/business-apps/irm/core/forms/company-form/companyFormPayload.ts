@@ -1,19 +1,21 @@
-import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
 import { buildInvestmentCompanyPayload } from '@/common/data/investment/types/investmentCompanyTypes'
-import {
-  investmentCompanyExecutiveFormFields,
-  investmentCompanyGroupAssociationFormFields,
-  investmentCompanyOwnershipFormFields
-} from '@/common/data/investment/types/investmentCompanyAssociationTypes'
 import type { CompanyFormData } from './companyFormTypes'
 
 type InvestmentCompanyMutationPayload = Record<string, unknown> & {
   investmentCompanyExecutives?: unknown[]
+  executives?: unknown[]
   investmentCompanyGroupAssociation?: unknown[]
+  investmentCompanyGroupAssociations?: unknown[]
+  groupAssociations?: unknown[]
   investmentCompanyOwnership?: unknown[]
-  picture?: Record<string, string>
+  investmentCompanyOwnerships?: unknown[]
+  ownerships?: unknown[]
+  picture?: string
   pictureThumbnail?: string
 }
+
+type RelationPayload = Record<string, unknown>
+const isDefined = <T>(value: T | null): value is T => value !== null
 
 export const buildCompanySubmitPayload = async (
   data: CompanyFormData,
@@ -37,69 +39,105 @@ export const buildCompanySubmitPayload = async (
   const executives =
     data.executives
       ?.map(executive => {
-        const executivePayload = buildPayload(
-          {
-            id: executive.id,
-            version: executive.version,
-            investmentCompanyId: data.id,
-            employeeId: executive.sourceType === 'employee' ? executive.employeeId : undefined,
-            investmentContactId:
-              executive.sourceType === 'investmentContact' ? executive.investmentContactId : undefined,
-            executiveTypeRef: executive.executiveTypeRef
-          },
-          investmentCompanyExecutiveFormFields
-        )
-        return executivePayload.employee || executivePayload.investmentContact ? executivePayload : null
+        const employeeId = executive.sourceType === 'employee' ? executive.employeeId : undefined
+        const investmentContactId =
+          executive.sourceType === 'investmentContact' ? executive.investmentContactId : undefined
+
+        if (!employeeId && !investmentContactId) {
+          return null
+        }
+
+        return {
+          id: executive.id,
+          version: executive.version,
+          investmentCompanyId: data.id,
+          investmentCompany: data.id,
+          employeeId,
+          employee: employeeId,
+          investmentContactId,
+          investmentContact: investmentContactId,
+          executiveTypeRef: executive.executiveTypeRef
+        } satisfies RelationPayload
       })
-      .filter(Boolean) || []
+      .filter(isDefined) || []
 
   if (data.executives !== undefined) {
     investmentCompany.investmentCompanyExecutives = executives
+    investmentCompany.executives = executives.map(executive => ({
+      id: executive.id,
+      version: executive.version,
+      investmentCompany: executive.investmentCompany,
+      investmentContact: executive.investmentContact,
+      employee: executive.employee,
+      executiveTypeRef: executive.executiveTypeRef
+    }))
   }
 
   if (data.investmentCompanyGroupId) {
-    investmentCompany.investmentCompanyGroupAssociation = [
-      buildPayload(
-        {
-          id: data.investmentCompanyGroupAssociationId,
-          version: data.investmentCompanyGroupAssociationVersion,
-          investmentCompanyId: data.id,
-          investmentCompanyGroupId: data.investmentCompanyGroupId
-        },
-        investmentCompanyGroupAssociationFormFields
-      )
+    const groupAssociations: RelationPayload[] = [
+      {
+        id: data.investmentCompanyGroupAssociationId,
+        version: data.investmentCompanyGroupAssociationVersion,
+        investmentCompanyId: data.id,
+        investmentCompany: data.id,
+        investmentCompanyGroupId: data.investmentCompanyGroupId,
+        investmentCompanyGroup: data.investmentCompanyGroupId
+      }
     ]
+    investmentCompany.investmentCompanyGroupAssociation = groupAssociations
+    investmentCompany.investmentCompanyGroupAssociations = groupAssociations
+    investmentCompany.groupAssociations = groupAssociations
   }
 
   const ownerships =
     data.ownerships
-      ?.map(ownership =>
-        buildPayload(
-          {
-            id: ownership.id,
-            version: ownership.version,
-            investmentCompanyId: data.id,
-            ownerInvestmentCompanyId: ownership.ownerInvestmentCompanyId,
-            percentage: ownership.percentage
-          },
-          investmentCompanyOwnershipFormFields
-        )
-      )
-      .filter(ownership => ownership.ownerInvestmentCompany && ownership.percentage !== undefined) || []
+      ?.map(ownership => {
+        const ownerInvestmentCompanyId = ownership.ownerInvestmentCompanyId
+        if (!ownerInvestmentCompanyId || ownership.percentage === undefined) {
+          return null
+        }
+
+        return {
+          id: ownership.id,
+          version: ownership.version,
+          investmentCompanyId: data.id,
+          investmentCompany: data.id,
+          ownerInvestmentCompanyId,
+          ownerInvestmentCompany: ownerInvestmentCompanyId,
+          percentage: ownership.percentage
+        } satisfies RelationPayload
+      })
+      .filter(isDefined) || []
 
   if (data.ownerships !== undefined) {
     investmentCompany.investmentCompanyOwnership = ownerships
+    investmentCompany.investmentCompanyOwnerships = ownerships
+    investmentCompany.ownerships = ownerships.map(ownership => ({
+      id: ownership.id,
+      version: ownership.version,
+      investmentCompany: ownership.investmentCompany,
+      ownerInvestmentCompany: ownership.ownerInvestmentCompany,
+      percentage: ownership.percentage
+    }))
   }
 
   if (pictureFile) {
-    investmentCompany.picture = { additionalProp1: await readFile(pictureFile) }
+    investmentCompany.picture = await readFile(pictureFile)
   } else if (data.pictureModified && !picturePreview) {
-    investmentCompany.picture = {}
+    investmentCompany.picture = ''
     investmentCompany.pictureThumbnail = ''
   }
 
+  const investmentCompanyExecutives = data.executives === undefined ? undefined : executives
+  const investmentCompanyOwnerships = data.ownerships === undefined ? undefined : ownerships
+
   return {
-    investmentCompanies: [investmentCompany],
+    investmentCompany,
+    investmentCompanyExecutives,
+    investmentCompanyOwnerships,
+    investmentCompanyGroupAssociations: data.investmentCompanyGroupId
+      ? investmentCompany.investmentCompanyGroupAssociations
+      : undefined,
     changeMode: data.id ? 'UPDATE' : 'INSERT'
   }
 }

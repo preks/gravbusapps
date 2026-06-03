@@ -78,9 +78,17 @@ back_to_areas = Înapoi la Zone
 # Empty states
 no_more_articles = Nu mai sunt articole
 no_intranet_found = Nu s-au găsit conținuturi Intranet
+no_intranet_found_description = Adaugă știri, articole de cunoștințe sau întrebări pentru a popula portalul.
 no_news_found = Nu s-au găsit știri
+no_news_found_description = Publică prima știre pentru a începe.
 no_knowledge_found = Nu s-au găsit articole de cunoștințe
+no_knowledge_found_description = Creează primul articol de cunoștințe pentru a începe.
 no_policies_found = Nu s-au găsit politici
+no_policies_found_description = Creează prima politică pentru a începe.
+no_search_results = Nu s-au găsit rezultate
+no_search_results_description = Încearcă un alt termen de căutare sau verifică ortografia.
+no_filter_results = Nu există rezultate potrivite
+no_filter_results_description = Ajustează filtrele pentru a vedea mai mult conținut.
 
 # Policy table columns
 policies_col_title = Titlu
@@ -89,6 +97,7 @@ policies_col_status = Status
 policies_col_updated = Ultima actualizare
 no_documents_found = Nu s-au găsit documente
 no_questions_found = Încă nu există întrebări. Fii primul!
+no_questions_found_description = Pune prima întrebare pentru a începe o discuție.
 
 # Question details
 votes = voturi
@@ -125,3 +134,7 @@ my-content = Conținutul Meu
 show-my-content-description = Vizualizați toate intrările de conținut pe care le-ați creat
 no-my-content-found = Nu ați creat încă niciun conținut.
 other = Altele
+
+# Glossary
+glossary-empty = Nu s-au găsit termeni. Adaugă primul termen pentru a începe.
+glossary-empty-description = Adaugă termeni în glosar pentru a construi un vocabular comun.

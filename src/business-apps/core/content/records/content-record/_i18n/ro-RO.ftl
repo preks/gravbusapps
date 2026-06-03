@@ -188,20 +188,9 @@ policy_flows_count = { $count } { $count ->
 policy_flows_empty = Încă nu există Flow Templates conectate. Generează unul pentru a operaționaliza această politică.
 policy_flows_outdated = Învechit
 
-policy_flows_generate_ai = Generează cu AI
-policy_flows_open_creator = Deschide Flow Creator
-policy_flows_generating = Se generează...
-policy_flows_generate_success = Flux creat
-policy_flows_generate_error = Nu s-a putut genera fluxul
-policy_flows_generate_missing_policy = Lipsește conținutul politicii
-policy_flows_generated_name_prefix = Flux de politică
-policy_flows_generated_description = Flux generat pe baza unei politici
+policy_flows_generate_missing_policy = Politica nu este disponibilă
 policy_flows_review_updates = Revizuiește actualizările
 policy_flows_generate_update = Generează actualizare (draft)
-policy_flows_generating_update = Se generează actualizarea...
-policy_flows_update_draft_suffix = Draft actualizare
-policy_flows_update_success = Draft de actualizare creat
-policy_flows_update_error = Nu s-a putut genera draftul de actualizare
 
 # Policy insights
 policy_insights_loading = Se încarcă semnalele...
@@ -266,24 +255,6 @@ policy_workflows_empty = Nu au fost pornite fluxuri de lucru pentru aceasta poli
 policy_workflows_no_user = Autentificati-va pentru a vedea fluxurile de lucru.
 policy_workflows_type_approval = Aprobare
 policy_workflows_type_acknowledgement = Confirmare
-
-policy_generate_flow_dialog_title = Se genereaza fluxul
-policy_generate_flow_choose_title = Genereaza flux
-policy_generate_flow_choose_desc = Exista deja fluxuri asociate. Doriti sa actualizati unul existent sau sa creati unul nou?
-policy_generate_flow_update_version = Actualizeaza la versiune noua (in prezent v{ $version })
-policy_generate_flow_create_new = Creeaza flux nou
-policy_generate_flow_create_new_desc = Genereaza un flux nou din aceasta politica
-policy_generate_flow_updated = Flux actualizat
-policy_generate_flow_phase_loading = Se verifica fluxurile asociate...
-policy_generate_flow_phase_analyzing = Se analizeaza continutul politicii...
-policy_generate_flow_phase_generating = IA construieste fluxul de lucru...
-policy_generate_flow_phase_saving = Se salveaza fluxul...
-policy_generate_flow_phase_done = Flux pregatit
-policy_generate_flow_phase_error = Generarea a esuat
-policy_generate_flow_patience = Poate dura un moment
-policy_generate_flow_open_creator = Deschide in Flow Creator
-policy_generate_flow_close = Inchide
-retry = Reincearca
 
 policy_metric_linked_flow = Flux
 policy_metric_linked_flows = Fluxuri

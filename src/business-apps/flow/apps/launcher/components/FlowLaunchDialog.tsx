@@ -73,6 +73,8 @@ const getTriggerBadgeVariant = (
       return 'success'
     case FlowTriggerType.WEBHOOK:
       return 'info'
+    case FlowTriggerType.EMAIL:
+      return 'info'
     case FlowTriggerType.SCHEDULE:
       return 'warning'
     case FlowTriggerType.EVENT:
@@ -88,6 +90,8 @@ const getTriggerLabel = (triggerType: FlowTriggerType): string => {
       return 'Manual'
     case FlowTriggerType.WEBHOOK:
       return 'Webhook'
+    case FlowTriggerType.EMAIL:
+      return 'Email'
     case FlowTriggerType.EVENT:
       return 'Event'
     case FlowTriggerType.SCHEDULE:

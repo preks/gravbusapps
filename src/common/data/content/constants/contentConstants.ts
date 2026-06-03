@@ -49,7 +49,8 @@ export const CONTENT_GROUP_VALUES: ContentGroup[] = [
   ContentGroup.KNOWLEDGE,
   ContentGroup.GLOSSARY,
   ContentGroup.QUESTION,
-  ContentGroup.DOCUMENT,
+  // TODO: EVALUATE DOCUMENT GROUP
+  // ContentGroup.DOCUMENT,
   ContentGroup.POLICY
 ]
 

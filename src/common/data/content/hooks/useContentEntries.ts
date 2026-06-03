@@ -3,27 +3,25 @@
  * Fetch multiple content entries with filtering and pagination
  */
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import type { EntityListQueryResult } from '@/common/data/common/types/queryTypes'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type { ContentEntry } from '../types/contentEntryTypes'
-import { buildContentEntriesVariables, type ContentEntryQueryParams } from '../queries/contentQueries'
-import { buildContentEntryFields, type ContentEntryQueryOptions } from '../queries/contentEntryQueryBuilder'
+import {
+  buildContentEntriesRequestQuery,
+  buildContentEntriesVariables,
+  contentEntryQueryKeys,
+  createContentEntriesQueryMeta,
+  mapContentEntriesResponse,
+  type ContentEntriesData,
+  type ContentEntriesResponse,
+  type ContentEntriesQueryMeta,
+  type ContentEntryQueryParams
+} from '../queries/contentQueries'
+import type { ContentEntryQueryOptions } from '../queries/contentEntryQueryBuilder'
 
-interface UseContentEntriesResult {
+export interface UseContentEntriesResult extends EntityListQueryResult<ContentEntry, ContentEntriesQueryMeta> {
   entries: ContentEntry[]
-  isLoading: boolean
-  isRefetching: boolean
-  error: Error | null
   totalCount: number
-  refetch: () => Promise<void>
-}
-
-interface ContentEntriesResponse {
-  ContentEntry: ContentEntry[]
-  ContentEntryAggregate: {
-    aggregate: {
-      count: number
-    }
-  }
 }
 
 /**
@@ -32,87 +30,101 @@ interface ContentEntriesResponse {
 export const useContentEntries = (
   params: ContentEntryQueryParams = {},
   accessToken?: string,
-  options?: ContentEntryQueryOptions
+  options?: ContentEntryQueryOptions,
+  customQueryMeta?: Record<string, unknown>
 ): UseContentEntriesResult => {
-  const [entries, setEntries] = useState<ContentEntry[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [isRefetching, setIsRefetching] = useState(false)
-  const [error, setError] = useState<Error | null>(null)
-  const [totalCount, setTotalCount] = useState(0)
-  const hasLoadedOnce = useRef(false)
-
   const graphqlClient = useGraphQLClient(accessToken)
+  const queryKey = useMemo(() => contentEntryQueryKeys.list(params, options), [params, options])
+  const queryKeyString = useMemo(() => JSON.stringify(queryKey), [queryKey])
+  const customQueryMetaKey = useMemo(() => JSON.stringify(customQueryMeta ?? null), [customQueryMeta])
 
-  const paramsKey = useMemo(() => JSON.stringify(params), [params])
+  const [data, setData] = useState<ContentEntriesData | undefined>(undefined)
+  const [error, setError] = useState<Error | null>(null)
+  const [isFetching, setIsFetching] = useState(false)
+  const [isFetched, setIsFetched] = useState(false)
 
-  const fetchEntries = useCallback(
-    async (silent = false) => {
-      if (hasLoadedOnce.current && !silent) {
-        setIsRefetching(true)
-      } else if (!hasLoadedOnce.current) {
-        setIsLoading(true)
+  const requestSequenceRef = useRef(0)
+  const dataRef = useRef<ContentEntriesData | undefined>(undefined)
+  const customQueryMetaRef = useRef<Record<string, unknown> | undefined>(customQueryMeta)
+  dataRef.current = data
+  customQueryMetaRef.current = customQueryMeta
+
+  const fetchEntries = useCallback(async () => {
+    const requestSequence = ++requestSequenceRef.current
+
+    setError(null)
+    setIsFetching(true)
+
+    try {
+      const query = buildContentEntriesRequestQuery(options)
+      const variables = buildContentEntriesVariables(params)
+      const response = await graphqlClient.request<ContentEntriesResponse>(query, variables)
+      const nextData = mapContentEntriesResponse(response, params, options, customQueryMetaRef.current)
+
+      if (requestSequence !== requestSequenceRef.current) {
+        return
       }
-      setError(null)
 
-      try {
-        const fields = buildContentEntryFields(options || { config: 'list' })
-
-        const query = `
-          query getContentEntries(
-            $where: ContentEntryBoolExp
-            $orderBy: [ContentEntryOrderBy!]
-            $limit: Int
-            $offset: Int
-          ) {
-            ContentEntry(
-              where: $where
-              orderBy: $orderBy
-              limit: $limit
-              offset: $offset
-            ) {
-              ${fields}
-            }
-            ContentEntryAggregate(where: $where) {
-              aggregate {
-                count
-              }
-            }
-          }
-        `
-
-        const variables = buildContentEntriesVariables(params)
-        const response = await graphqlClient.request<ContentEntriesResponse>(query, variables)
-
-        if (response.ContentEntry) {
-          setEntries(response.ContentEntry)
-          setTotalCount(response.ContentEntryAggregate?.aggregate?.count || response.ContentEntry.length)
-        } else {
-          setEntries([])
-          setTotalCount(0)
-        }
-
-        hasLoadedOnce.current = true
-      } catch (err) {
-        const errorObj = err instanceof Error ? err : new Error('Failed to fetch content entries')
-        setError(errorObj)
-      } finally {
-        setIsLoading(false)
-        setIsRefetching(false)
+      setData(nextData)
+      setIsFetched(true)
+    } catch (err) {
+      if (requestSequence !== requestSequenceRef.current) {
+        return
       }
-    },
-    [paramsKey, accessToken, graphqlClient, options]
-  )
+
+      const errorObject = err instanceof Error ? err : new Error('Failed to fetch content entries')
+      setError(errorObject)
+      setIsFetched(true)
+    } finally {
+      if (requestSequence === requestSequenceRef.current) {
+        setIsFetching(false)
+      }
+    }
+  }, [graphqlClient, params, options])
 
   useEffect(() => {
     fetchEntries()
-  }, [fetchEntries, paramsKey])
+  }, [fetchEntries, queryKeyString])
+
+  useEffect(() => {
+    if (!dataRef.current || dataRef.current.queryMeta.queryKeyString !== queryKeyString || isFetching) {
+      return
+    }
+
+    setData(previousData => {
+      if (!previousData || previousData.queryMeta.queryKeyString !== queryKeyString) {
+        return previousData
+      }
+
+      const previousCustomMetaKey = JSON.stringify(previousData.queryMeta.custom ?? null)
+      if (previousCustomMetaKey === customQueryMetaKey) {
+        return previousData
+      }
+
+      return {
+        ...previousData,
+        queryMeta: {
+          ...createContentEntriesQueryMeta(params, options, customQueryMeta),
+          queryKey: previousData.queryMeta.queryKey,
+          queryKeyString: previousData.queryMeta.queryKeyString
+        }
+      }
+    })
+  }, [customQueryMeta, customQueryMetaKey, isFetching, options, params, queryKeyString])
+
+  const hasData = data !== undefined
+  const isPlaceholderData = Boolean(isFetching && hasData && data?.queryMeta.queryKeyString !== queryKeyString)
 
   return {
-    entries,
-    isLoading,
-    isRefetching,
+    data,
+    entries: data?.entities ?? [],
+    totalCount: data?.totalCount ?? 0,
     error,
-    totalCount,
-    refetch: () => fetchEntries(true)
+    isLoading: isFetching && !hasData,
+    isFetching,
+    isRefetching: isFetching && hasData,
+    isFetched,
+    isPlaceholderData,
+    refetch: fetchEntries
   }
 }

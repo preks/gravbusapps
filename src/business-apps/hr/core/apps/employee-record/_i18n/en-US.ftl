@@ -59,6 +59,12 @@ rewards-stock-options = Stock Options
 rewards-loading = Loading total rewards...
 rewards-no-data = No compensation data available
 rewards-package-description = Your total rewards package includes base salary, bonuses, benefits, and stock options
+rewards-pay-transparency-download-failed = Failed to download pay transparency report. Please try again.
+
+# Pay Transparency
+pay-transparency-title = Pay transparency
+pay-transparency-description = Right-to-information report and metrics
+pay-transparency-download-hint = Request the pay transparency report below.
 
 # Benefits & Perks
 benefits-catalog-title = Benefits Catalog
@@ -631,7 +637,61 @@ performance-status-behind-target = Behind Target
 performance-status-at-risk = At Risk
 performance-status-achieved = Achieved
 performance-status-not-achieved = Not Achieved
+performance-status-completed = Completed
 performance-error-load = Failed to load performance data
+performance-kpi-total-goals = Total goals
+performance-kpi-selected-cycle = In selected cycle
+performance-kpi-on-track = On track
+performance-kpi-healthy-progress = Healthy progress
+performance-kpi-at-risk = At risk
+performance-kpi-watch-closely = Watch closely
+performance-kpi-behind-target = Behind target
+performance-kpi-needs-attention = Needs attention
+performance-kpi-achieved = Achieved
+performance-kpi-completed-goals = Completed goals
+performance-search-placeholder = Search goals
+performance-filter-clear = Clear
+performance-filter-all-status = All status
+performance-filter-all-types = All types
+performance-type-percentage = Percentage
+performance-type-numeric = Numeric
+performance-type-milestone = Milestone
+performance-sort-due-date = Due date
+performance-sort-status = Status
+performance-sort-updated-recently = Updated recently
+performance-empty-description = There are no records to display in this dataset.
+performance-due-label = Due { $date }
+performance-delete-goal-aria = Delete goal
+performance-out-of-cycle-goals = Out-of-cycle goals
+performance-fix-dates-to-edit = Fix dates to edit
+performance-mark-completed = Mark Completed
+performance-outside-cycle-warning = This goal is outside the selected cycle and cannot be edited until dates are corrected.
+performance-update-progress = Update Progress
+performance-target = Target
+performance-current = Current
+performance-details-notes = Details / Notes
+performance-completed-placeholder = This goal is completed and can no longer be modified.
+performance-notes-placeholder = Describe what you accomplished or any blockers...
+performance-comment-required = Please add a comment before saving this update.
+performance-save-update = Save Update
+performance-editing-disabled-tooltip = Currently disabled
+performance-burnup-chart = Burnup Chart
+performance-chart-ideal = Ideal
+performance-chart-actual = Actual
+performance-chart-today = Today
+performance-update-history = Update History
+performance-history-progress = Progress → { $progress }%
+performance-history-completed = Completed: { $milestones }
+performance-history-reopened = Reopened: { $milestones }
+performance-complete-dialog-title = Mark as Completed?
+performance-complete-dialog-description = You will no longer be able to modify this goal's progress.
+performance-confirm = Confirm
+performance-select-goal-title = Select a goal to view details
+performance-select-goal-description = Click on any goal from the list to see progress, chart, and update history.
+performance-delete-goal-title = Delete Goal?
+performance-delete-goal-description = Are you sure you want to delete "{ $title }"? This action cannot be undone.
+performance-delete = Delete
+performance-goal-marked-completed-comment = Goal marked as completed
 
 # Performance Evaluation Tab
 performance-evaluation-title = Performance Evaluation
@@ -973,12 +1033,13 @@ change-personal-data-pending-ok = OK
 
 # Change Address - Loading
 change-address-loading-form = Loading address form...
+change-address-type-primary = Primary
+change-address-type-secondary = Secondary
+change-address-type-add-address = Add address
 
 # Change Relationship - Congratulations modal
-relationship-form-success-title = Congratulations!
-relationship-form-success-child-message-line1 = Congratulations on your growing family.
-relationship-form-success-child-message-line2 = Thank you for sharing this wonderful life update and keeping your information up to date.
-relationship-form-success-marriage-message = Congratulations on your wedding and thank you for updating your details
+relationship-form-success-title = Update received
+relationship-form-success-loading-message = Generating...
 relationship-form-success-ok = OK
 
 # Change Working Hours

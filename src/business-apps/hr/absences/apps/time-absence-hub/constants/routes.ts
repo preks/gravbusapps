@@ -43,6 +43,8 @@ export const TIME_SCOPES = ['current-year', 'quarter', 'month', 'everything', 'c
 export type TimeScope = (typeof TIME_SCOPES)[number]
 
 export const DEFAULT_TIME_SCOPE: TimeScope = 'current-year'
+export const EVERYTHING_DATE_FROM = '1950-01-01'
+export const EVERYTHING_DATE_TO = '2999-12-31'
 export const LEGAL_ENTITY_NOT_DEFINED_FILTER_ID = 'LEGAL_ENTITY_NOT_DEFINED'
 
 export const isTimeScope = (value: string | null | undefined): value is TimeScope =>

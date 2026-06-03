@@ -99,4 +99,16 @@ describe('spreadsheetRowMaterializationReadiness', () => {
       unresolved: []
     })
   })
+
+  it('exposes recorded materialized values by backend row id after resolve', () => {
+    const readiness = createSpreadsheetRowMaterializationReadiness()
+
+    readiness.recordMaterializedValues('sheet-1', 'client_row_1', { ColumnA: 5, ColumnB: 'seeded' })
+    readiness.resolve('sheet-1', 'client_row_1', 'backend-row-1')
+
+    expect(readiness.getMaterializedValuesByBackendRowId('sheet-1', 'backend-row-1')).toEqual({
+      ColumnA: 5,
+      ColumnB: 'seeded'
+    })
+  })
 })

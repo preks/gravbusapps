@@ -1,5 +1,4 @@
 import type { FC } from 'react'
-import { WifiHighIcon, WifiXIcon } from '@phosphor-icons/react'
 import type { FabricTaskNode } from '../../types/fabric'
 import { FabricProgressTaskRow } from './fabricProgressShared'
 import { PanelCard } from './PanelCard'
@@ -22,7 +21,6 @@ interface PlanCardProps {
   completedCount: number
   totalCount: number
   progressPercent: number
-  isConnected: boolean
   isStreaming: boolean
   /**
    * When true, the card starts collapsed. We keep the same UX as legacy
@@ -35,14 +33,13 @@ interface PlanCardProps {
 /**
  * Plan panel — strictly the agent's todo list (from `write_todos` /
  * `update_todos` / `terminal.todos`). Hidden by the parent when there is
- * no plan yet; tool chronology lives in the Activity panel.
+ * no plan yet; tool chronology lives in the Session timeline panel.
  */
 export const PlanCard: FC<PlanCardProps> = ({
   nodes,
   completedCount,
   totalCount,
   progressPercent,
-  isConnected,
   isStreaming,
   defaultCollapsed = false
 }) => {
@@ -50,24 +47,10 @@ export const PlanCard: FC<PlanCardProps> = ({
   const displayPercent = isStreaming && totalCount > 0 && completedCount >= totalCount ? 96 : progressPercent
   const planLabel = rightPanelPlanLabel({ totalCount, isStreaming, hasActiveWork, completedCount })
 
-  const connectionBadge = (
-    <div className="gba:flex gba:items-center gba:gap-1">
-      {isConnected ? (
-        <>
-          <WifiHighIcon className="gba:h-3 gba:w-3 gba:text-green-500" />
-          <span className="gba:text-[11px] gba:text-green-600 gba:font-medium">Live</span>
-        </>
-      ) : (
-        <WifiXIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground/40" />
-      )}
-    </div>
-  )
-
   return (
     <PanelCard
       title="Plan"
       summary={totalCount > 0 ? `${planLabel} · ${displayPercent}%` : 'Waiting to start'}
-      extra={connectionBadge}
       defaultOpen={!defaultCollapsed}
     >
       <div className="gba:max-h-120 gba:min-h-0 gba:overflow-y-auto gba:overscroll-contain">

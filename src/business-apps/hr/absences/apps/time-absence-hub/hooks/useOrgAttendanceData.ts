@@ -1,21 +1,29 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
-import { GET_TEAM_ATTENDANCE_FOR_RANGE } from '@/business-apps/hr/core/apps/my-team-time/queries/queries'
+import {
+  GET_TEAM_ABSENCE_NET_FOR_RANGE,
+  GET_TEAM_ATTENDANCE_FOR_RANGE
+} from '@/business-apps/hr/core/apps/my-team-time/queries/queries'
 import { fetchTeamHolidayData, getActiveLocale } from '@/business-apps/hr/core/apps/my-team-time/utils/teamTimeDomain'
 import {
-  AbsenceCalendarDay,
-  AttendanceRow,
-  FilteredEmployee,
   GET_FILTERED_EMPLOYEE_IDS,
-  PublicHolidayDay
+  type AbsenceNetDay,
+  type AbsenceCalendarDay,
+  type AttendanceRow,
+  type FilteredEmployee,
+  type PublicHolidayDay
 } from '../queries/OrgAttendanceQueries'
 import { GET_TEAM_CALENDAR_DAYS } from '../queries/CalendarViewQueries'
 import { HubGlobalFilters } from './useHubGlobalFilters'
 import { LEGAL_ENTITY_NOT_DEFINED_FILTER_ID } from '../constants/routes'
+import { clampDateRangeToPast } from '../components/views/attendance/attendanceUtils'
 
 const EMPLOYEE_ID_BATCH_SIZE = 200
 const ATTENDANCE_DATA_LOADER_VERSION = 3
+
+const isUuid = (value: string): boolean =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
 
 const chunk = <T>(items: T[], size: number): T[][] => {
   if (size <= 0 || items.length === 0) {
@@ -61,11 +69,16 @@ export const buildEmployeeWhereForHubFilters = (
   if (employeePositionConditions.length > 0) {
     conditions.push({ employeePosition: { _and: employeePositionConditions } })
   }
-  if (filters.employeeQuery) {
-    const like = `%${filters.employeeQuery}%`
-    conditions.push({
-      _or: [{ firstName: { _ilike: like } }, { lastName: { _ilike: like } }, { displayName: { _ilike: like } }]
-    })
+  const employeeQuery = filters.employeeQuery.trim()
+  if (employeeQuery) {
+    if (isUuid(employeeQuery)) {
+      conditions.push({ id: { _eq: employeeQuery } })
+    } else {
+      const like = `%${employeeQuery}%`
+      conditions.push({
+        _or: [{ firstName: { _ilike: like } }, { lastName: { _ilike: like } }, { displayName: { _ilike: like } }]
+      })
+    }
   }
 
   return { _and: conditions }
@@ -86,25 +99,6 @@ const mapHolidayData = (holidayData: Awaited<ReturnType<typeof fetchTeamHolidayD
   return rows
 }
 
-const filterEmployeesWithPeriodActivity = (
-  employees: FilteredEmployee[],
-  attendance: AttendanceRow[],
-  absences: AbsenceCalendarDay[],
-  holidays: PublicHolidayDay[]
-): FilteredEmployee[] => {
-  const activeEmployeeIds = new Set<string>()
-
-  attendance.forEach(row => activeEmployeeIds.add(row.employeeId))
-  absences.forEach(row => activeEmployeeIds.add(row.employeeId))
-  holidays.forEach(row => activeEmployeeIds.add(row.employeeId))
-
-  if (activeEmployeeIds.size === 0) {
-    return []
-  }
-
-  return employees.filter(employee => activeEmployeeIds.has(employee.id))
-}
-
 export interface UseOrgAttendanceDataParams {
   accessToken: string
   filters: HubGlobalFilters
@@ -117,6 +111,8 @@ export interface UseOrgAttendanceDataReturn {
   attendance: AttendanceRow[]
   absences: AbsenceCalendarDay[]
   holidays: PublicHolidayDay[]
+  absenceNet: AbsenceNetDay[]
+  dateRange: { dateFrom: string; dateTo: string } | null
   isLoading: boolean
   error: string | null
 }
@@ -126,6 +122,8 @@ const EMPTY: UseOrgAttendanceDataReturn = {
   attendance: [],
   absences: [],
   holidays: [],
+  absenceNet: [],
+  dateRange: null,
   isLoading: false,
   error: null
 }
@@ -138,6 +136,7 @@ export const useOrgAttendanceData = ({
 }: UseOrgAttendanceDataParams): UseOrgAttendanceDataReturn => {
   const [state, setState] = useState<UseOrgAttendanceDataReturn>({ ...EMPTY })
   const graphqlClient = useGraphQLClient(accessToken)
+  const attendanceDateRange = useMemo(() => clampDateRangeToPast(derivedDateRange), [derivedDateRange])
 
   const filterKey = useMemo(
     () =>
@@ -148,17 +147,22 @@ export const useOrgAttendanceData = ({
         le: filters.legalEntityIds,
         m: filters.managerIds,
         q: filters.employeeQuery,
-        t: filters.absenceTypeIds,
-        s: filters.statusIds,
-        from: derivedDateRange?.dateFrom,
-        to: derivedDateRange?.dateTo
+        from: attendanceDateRange?.dateFrom,
+        to: attendanceDateRange?.dateTo
       }),
-    [filters, derivedDateRange]
+    [
+      filters.departmentIds,
+      filters.locationIds,
+      filters.legalEntityIds,
+      filters.managerIds,
+      filters.employeeQuery,
+      attendanceDateRange
+    ]
   )
 
   useEffect(() => {
     const structureId = getCurrentActiveStructureId()
-    if (!accessToken || !structureId || !derivedDateRange) {
+    if (!accessToken || !structureId || !attendanceDateRange) {
       setState({ ...EMPTY })
       return
     }
@@ -191,8 +195,8 @@ export const useOrgAttendanceData = ({
           idBatches.map(batch =>
             graphqlClient.request<{ EmployeeAttendance: AttendanceRow[] }>(GET_TEAM_ATTENDANCE_FOR_RANGE, {
               employeeIds: batch,
-              dateFrom: derivedDateRange.dateFrom,
-              dateTo: derivedDateRange.dateTo
+              dateFrom: attendanceDateRange.dateFrom,
+              dateTo: attendanceDateRange.dateTo
             })
           )
         )
@@ -202,8 +206,20 @@ export const useOrgAttendanceData = ({
             ? idBatches.map(batch =>
                 graphqlClient.request<{ EmployeeAbsenceCalendarView: AbsenceCalendarDay[] }>(GET_TEAM_CALENDAR_DAYS, {
                   employeeIds: batch,
-                  from: derivedDateRange.dateFrom,
-                  to: derivedDateRange.dateTo
+                  from: attendanceDateRange.dateFrom,
+                  to: attendanceDateRange.dateTo
+                })
+              )
+            : []
+        )
+
+        const absenceNetBatches = await Promise.all(
+          includeOverlays
+            ? idBatches.map(batch =>
+                graphqlClient.request<{ DailyAbsenceNetView: AbsenceNetDay[] }>(GET_TEAM_ABSENCE_NET_FOR_RANGE, {
+                  employeeIds: batch,
+                  from: attendanceDateRange.dateFrom,
+                  to: attendanceDateRange.dateTo
                 })
               )
             : []
@@ -213,8 +229,8 @@ export const useOrgAttendanceData = ({
           ? await fetchTeamHolidayData(
               graphqlClient,
               employeeIds,
-              derivedDateRange.dateFrom,
-              derivedDateRange.dateTo,
+              attendanceDateRange.dateFrom,
+              attendanceDateRange.dateTo,
               getActiveLocale()
             )
           : null
@@ -225,21 +241,16 @@ export const useOrgAttendanceData = ({
 
         const attendance = attendanceBatches.flatMap(batch => batch.EmployeeAttendance ?? [])
         const absences = absenceBatches.flatMap(batch => batch.EmployeeAbsenceCalendarView ?? [])
-        const filteredAbsences = absences.filter(row => {
-          const status = String(row?.status ?? '')
-          const typeRef = String(row?.typeRef ?? '')
-          const matchesStatus = filters.statusIds.length === 0 || filters.statusIds.includes(status)
-          const matchesType = filters.absenceTypeIds.length === 0 || filters.absenceTypeIds.includes(typeRef)
-          return matchesStatus && matchesType
-        })
+        const absenceNet = absenceNetBatches.flatMap(batch => batch.DailyAbsenceNetView ?? [])
         const holidays = holidayData ? mapHolidayData(holidayData) : []
-        const visibleEmployees = filterEmployeesWithPeriodActivity(employees, attendance, filteredAbsences, holidays)
 
         setState({
-          employees: visibleEmployees,
+          employees,
           attendance,
-          absences: filteredAbsences,
+          absences,
           holidays,
+          absenceNet,
+          dateRange: attendanceDateRange,
           isLoading: false,
           error: null
         })
@@ -257,7 +268,7 @@ export const useOrgAttendanceData = ({
     return () => {
       cancelled = true
     }
-  }, [accessToken, graphqlClient, filterKey, includeOverlays])
+  }, [accessToken, graphqlClient, filterKey, includeOverlays, attendanceDateRange])
 
   return state
 }

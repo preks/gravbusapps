@@ -1,9 +1,9 @@
 # Opportunity Import View Translations (Romanian - Romania)
 
 # Page Header
-opportunity-page-title = Import Opportunity cu mapare AI
-opportunity-page-description = Încărcați un fișier CSV sau Excel, lăsați AI să analizeze și să mapeze câmpurile, apoi convertiți în formatul Opportunity
+opportunity-page-title = Importă oportunități
+opportunity-page-description = Încărcați un fișier tabelar și vă ajutăm să potriviți coloanele cu câmpurile corecte pentru oportunități. Verificați sugestiile, apoi importați oportunitățile.
 
 # Entity Type Labels
-opportunity-entity-type = opportunities
-opportunity-entity-type-singular = opportunity
+opportunity-entity-type = oportunități
+opportunity-entity-type-singular = oportunitate

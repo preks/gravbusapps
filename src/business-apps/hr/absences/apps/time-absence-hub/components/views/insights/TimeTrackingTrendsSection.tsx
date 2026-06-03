@@ -51,7 +51,23 @@ const MetricCard: React.FC<MetricCardProps> = ({ title, value, description }) =>
 )
 
 export const TimeTrackingTrendsSection: React.FC<TimeTrackingTrendsSectionProps> = ({ attendanceData }) => {
-  const buckets = useMemo(() => aggregateAttendanceByWeek(attendanceData.attendance), [attendanceData.attendance])
+  const buckets = useMemo(
+    () =>
+      aggregateAttendanceByWeek({
+        attendance: attendanceData.attendance,
+        employees: attendanceData.employees,
+        dateRange: attendanceData.dateRange,
+        holidays: attendanceData.holidays,
+        absenceNet: attendanceData.absenceNet
+      }),
+    [
+      attendanceData.absenceNet,
+      attendanceData.attendance,
+      attendanceData.dateRange,
+      attendanceData.employees,
+      attendanceData.holidays
+    ]
+  )
 
   const totals = useMemo(() => {
     const acc = buckets.reduce(

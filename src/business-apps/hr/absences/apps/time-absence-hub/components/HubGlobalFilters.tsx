@@ -3,6 +3,7 @@ import {
   Button,
   Combobox,
   ComboboxOption,
+  DateInput,
   Select,
   SelectContent,
   SelectItem,
@@ -66,6 +67,7 @@ interface HubGlobalFiltersProps {
   onManagersChange: (ids: string[]) => void
   onEmployeeQueryChange: (query: string) => void
   onReset: () => void
+  showAbsenceTypeFilter?: boolean
 }
 
 export const HubGlobalFilters: React.FC<HubGlobalFiltersProps> = ({
@@ -81,14 +83,17 @@ export const HubGlobalFilters: React.FC<HubGlobalFiltersProps> = ({
   onAbsenceTypesChange,
   onManagersChange,
   onEmployeeQueryChange,
-  onReset
+  onReset,
+  showAbsenceTypeFilter = true
 }) => {
   const [draftFilters, setDraftFilters] = useState(filters)
+  const [departmentQuery, setDepartmentQuery] = useState('')
   const [managerQuery, setManagerQuery] = useState('')
 
   useEffect(() => {
     if (open) {
       setDraftFilters(filters)
+      setDepartmentQuery('')
       setManagerQuery('')
     }
   }, [filters, open])
@@ -99,6 +104,14 @@ export const HubGlobalFilters: React.FC<HubGlobalFiltersProps> = ({
     () => options.departments.map(item => ({ value: item.id, label: item.name })),
     [options.departments]
   )
+  const filteredDepartmentOptions = useMemo<ComboboxOption[]>(() => {
+    const query = departmentQuery.trim().toLowerCase()
+    if (!query) {
+      return departmentOptions
+    }
+
+    return departmentOptions.filter(option => getOptionLabelText(option).toLowerCase().includes(query))
+  }, [departmentOptions, departmentQuery])
   const locationOptions = useMemo<ComboboxOption[]>(
     () => options.locations.map(item => ({ value: item.id, label: item.name })),
     [options.locations]
@@ -132,7 +145,7 @@ export const HubGlobalFilters: React.FC<HubGlobalFiltersProps> = ({
       options.employees.map(employee => {
         const label =
           employee.displayName || `${employee.firstName ?? ''} ${employee.lastName ?? ''}`.trim() || employee.id
-        return { value: label, label }
+        return { value: employee.id, label }
       }),
     [options.employees]
   )
@@ -142,7 +155,9 @@ export const HubGlobalFilters: React.FC<HubGlobalFiltersProps> = ({
       return employeeOptions
     }
 
-    return employeeOptions.filter(option => getOptionLabelText(option).toLowerCase().includes(query))
+    return employeeOptions.filter(
+      option => option.value === draftFilters.employeeQuery || getOptionLabelText(option).toLowerCase().includes(query)
+    )
   }, [draftFilters.employeeQuery, employeeOptions])
 
   const updateDraft = (next: Partial<HubGlobalFiltersState>) => {
@@ -150,7 +165,8 @@ export const HubGlobalFilters: React.FC<HubGlobalFiltersProps> = ({
   }
 
   const applyFilters = () => {
-    onEmployeeQueryChange(draftFilters.employeeQuery)
+    const selectedEmployee = employeeOptions.find(option => option.label === draftFilters.employeeQuery)
+    onEmployeeQueryChange(selectedEmployee?.value ?? draftFilters.employeeQuery)
     onTimeScopeChange(draftFilters.timeScope)
     if (draftFilters.timeScope === 'custom') {
       onDateRangeChange(draftFilters.dateFrom, draftFilters.dateTo)
@@ -178,10 +194,15 @@ export const HubGlobalFilters: React.FC<HubGlobalFiltersProps> = ({
         <SheetHeader className="gba:border-b gba:p-4">
           <SheetTitle>{tt('filters.drawer_title', 'Filter Time & Absence Hub')}</SheetTitle>
           <SheetDescription>
-            {tt(
-              'filters.drawer_description',
-              'Narrow hub data by time, organization, absence type, manager, and employee.'
-            )}
+            {showAbsenceTypeFilter
+              ? tt(
+                  'filters.drawer_description',
+                  'Narrow hub data by time, organization, absence type, manager, and employee.'
+                )
+              : tt(
+                  'filters.drawer_description_without_absence_type',
+                  'Narrow hub data by time, organization, manager, and employee.'
+                )}
           </SheetDescription>
         </SheetHeader>
 
@@ -230,9 +251,10 @@ export const HubGlobalFilters: React.FC<HubGlobalFiltersProps> = ({
           <DrawerField label={tt('filters.department_label', 'Department')}>
             <Combobox
               mode="multiple"
-              options={departmentOptions}
+              options={filteredDepartmentOptions}
               value={draftFilters.departmentIds}
               onValueChange={departmentIds => updateDraft({ departmentIds })}
+              onSearch={setDepartmentQuery}
               placeholder={tt('filters.department_placeholder', 'All departments')}
               searchPlaceholder={tt('filters.department_search', 'Search departments...')}
               emptyText={tt('filters.no_options', 'No options')}
@@ -269,19 +291,21 @@ export const HubGlobalFilters: React.FC<HubGlobalFiltersProps> = ({
             />
           </DrawerField>
 
-          <DrawerField label={tt('filters.absence_type_label', 'Absence type')}>
-            <Combobox
-              mode="multiple"
-              options={absenceTypeOptions}
-              value={draftFilters.absenceTypeIds}
-              onValueChange={absenceTypeIds => updateDraft({ absenceTypeIds })}
-              placeholder={tt('filters.absence_type_placeholder', 'All absence types')}
-              searchPlaceholder={tt('filters.absence_type_search', 'Search absence types...')}
-              emptyText={tt('filters.no_options', 'No options')}
-              disabled={options.isLoading || absenceTypeOptions.length === 0}
-              data-testid="time-absence-hub-absence-type-select"
-            />
-          </DrawerField>
+          {showAbsenceTypeFilter && (
+            <DrawerField label={tt('filters.absence_type_label', 'Absence type')}>
+              <Combobox
+                mode="multiple"
+                options={absenceTypeOptions}
+                value={draftFilters.absenceTypeIds}
+                onValueChange={absenceTypeIds => updateDraft({ absenceTypeIds })}
+                placeholder={tt('filters.absence_type_placeholder', 'All absence types')}
+                searchPlaceholder={tt('filters.absence_type_search', 'Search absence types...')}
+                emptyText={tt('filters.no_options', 'No options')}
+                disabled={options.isLoading || absenceTypeOptions.length === 0}
+                data-testid="time-absence-hub-absence-type-select"
+              />
+            </DrawerField>
+          )}
 
           <DrawerField label={tt('filters.manager_label', 'Manager')}>
             <Combobox
@@ -343,25 +367,29 @@ interface CustomDateRangePickerProps {
   onDateRangeChange: (from?: string, to?: string) => void
 }
 
-const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({ dateFrom, dateTo, onDateRangeChange }) => (
-  <DrawerField label={tt('filters.custom_date_range_label', 'Custom date range')}>
-    <div className="gba:grid gba:grid-cols-2 gba:gap-2">
-      <input
-        type="date"
-        value={dateFrom ?? ''}
-        onChange={event => onDateRangeChange(event.target.value || undefined, dateTo)}
-        className="gba:rounded gba:border gba:border-border gba:bg-background gba:px-2 gba:py-1 gba:text-sm"
-        data-testid="time-absence-hub-date-from"
+const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({ dateFrom, dateTo, onDateRangeChange }) => {
+  const handleChange = (value: string | [string | null, string | null] | null) => {
+    if (Array.isArray(value)) {
+      onDateRangeChange(value[0] ?? undefined, value[1] ?? undefined)
+      return
+    }
+
+    onDateRangeChange(undefined, undefined)
+  }
+
+  return (
+    <DrawerField label={tt('filters.custom_date_range_label', 'Custom date range')}>
+      <DateInput
+        mode="range"
+        value={[dateFrom ?? null, dateTo ?? null]}
+        onChange={handleChange}
+        placeholder={tt('filters.custom_date_range_from_placeholder', 'From')}
+        placeholderEnd={tt('filters.custom_date_range_to_placeholder', 'To')}
+        showClearButton
+        data-testid="time-absence-hub-date-range"
       />
-      <input
-        type="date"
-        value={dateTo ?? ''}
-        onChange={event => onDateRangeChange(dateFrom, event.target.value || undefined)}
-        className="gba:rounded gba:border gba:border-border gba:bg-background gba:px-2 gba:py-1 gba:text-sm"
-        data-testid="time-absence-hub-date-to"
-      />
-    </div>
-  </DrawerField>
-)
+    </DrawerField>
+  )
+}
 
 export default HubGlobalFilters

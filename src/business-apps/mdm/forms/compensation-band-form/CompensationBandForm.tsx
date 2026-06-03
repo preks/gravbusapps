@@ -1,4 +1,4 @@
-import { useCurrencyCatalogOptions } from '@/business-apps/hr/compensation-planning/apps/compensation-planning/hooks/useCurrencyCatalogOptions.ts'
+import { useCurrencyCatalogOptions } from '@/business-apps/hr/compensation/apps/planning/hooks/useCurrencyCatalogOptions.ts'
 import { SetStateAction, Dispatch, useMemo, ReactNode, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext.ts'
 import { FormWrapperModal } from '@/components/form-wrapper'

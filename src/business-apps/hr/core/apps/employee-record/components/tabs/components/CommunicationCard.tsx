@@ -67,8 +67,8 @@ const CommunicationCard: React.FC<CommunicationCardProps> = ({
   }
 
   const buildLabel = (comm: (typeof communications)[0]) => {
-    const channelName = comm.channel?.value || comm.channel?.code || ''
-    const typeName = comm.type?.value || ''
+    const channelName = comm.channel?.translations?.[0]?.value || comm.channel?.value || comm.channel?.code || ''
+    const typeName = comm.type?.translations?.[0]?.value || comm.type?.value || ''
     return typeName ? `${channelName} (${typeName})` : channelName
   }
 

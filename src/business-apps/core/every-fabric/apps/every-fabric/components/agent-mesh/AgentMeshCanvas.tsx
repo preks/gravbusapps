@@ -1,12 +1,31 @@
-import { useCallback, useMemo, useState } from 'react'
-import { SlidersHorizontalIcon } from '@phosphor-icons/react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { CubeIcon, SlidersHorizontalIcon, SquareIcon } from '@phosphor-icons/react'
 import type { MeshEdge, MeshNode, TraceModel } from '../../utils/traceModel'
 import type { AggregateNode } from '../../utils/meshAggregateModel'
 import { ALL_LAYERS, type MeshLayerKey, MESH_LAYERS } from './meshLayers'
+import { Mesh3DGraph } from './Mesh3DGraph'
 import { MeshEdgeDetailModal } from './MeshEdgeDetailModal'
 import { MeshGraph } from './MeshGraph'
 import { MeshLayersToggle } from './MeshLayersToggle'
 import { MeshNodeDetailPopover } from './MeshNodeDetailPopover'
+import { MeshSearch } from './MeshSearch'
+import type { MeshLiveActivityState } from './liveMeshActivity'
+
+// Direct import (not React.lazy) — the remote-component-loader used to mount
+// screens does not resolve split chunks, see `components/artifacts/renderers/index.ts`.
+
+type MeshViewMode = '2d' | '3d'
+const VIEW_MODE_STORAGE_KEY = 'every-fabric.mesh.viewMode'
+
+function readInitialViewMode(): MeshViewMode {
+  if (typeof window === 'undefined') return '2d'
+  try {
+    const stored = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY)
+    return stored === '3d' ? '3d' : '2d'
+  } catch {
+    return '2d'
+  }
+}
 
 interface AgentMeshCanvasProps {
   model: TraceModel
@@ -15,6 +34,8 @@ interface AgentMeshCanvasProps {
   isLive: boolean
   /** Edge-to-edge mode: no border / rounded corners, used inside fullscreen. */
   dense?: boolean
+  liveActivity?: MeshLiveActivityState
+  showLiveHud?: boolean
   onDrillToUser?: (userId: string) => void
   onDrillToSession?: (sessionId: string) => void
 }
@@ -25,6 +46,8 @@ export const AgentMeshCanvas: React.FC<AgentMeshCanvasProps> = ({
   durationMs,
   isLive,
   dense = false,
+  liveActivity,
+  showLiveHud = false,
   onDrillToUser,
   onDrillToSession
 }) => {
@@ -34,6 +57,20 @@ export const AgentMeshCanvas: React.FC<AgentMeshCanvasProps> = ({
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<MeshViewMode>(() => readInitialViewMode())
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode)
+    } catch {
+      // Storage may be blocked (private mode, embedded contexts); fall back silently.
+    }
+  }, [viewMode])
+
+  const toggleViewMode = useCallback(() => {
+    setViewMode(prev => (prev === '3d' ? '2d' : '3d'))
+  }, [])
 
   const toggleLayer = useCallback((layer: MeshLayerKey) => {
     setActiveLayers(prev => {
@@ -132,36 +169,100 @@ export const AgentMeshCanvas: React.FC<AgentMeshCanvasProps> = ({
 
   const wrapperClass = dense ? 'gba:relative gba:h-full gba:w-full gba:min-h-0' : 'gba:relative gba:min-h-[360px]'
 
+  const fallback2D = (
+    <MeshGraph
+      model={model}
+      activeLayers={activeLayers}
+      positionMs={positionMs}
+      durationMs={isLive ? 0 : durationMs}
+      selectedNodeId={selectedNodeId}
+      showEdgeLabels={showEdgeLabels}
+      hoveredNodeId={hoveredNodeId}
+      nodeActivityById={liveActivity?.nodeActivityById}
+      edgeActivityById={liveActivity?.edgeActivityById}
+      dense={dense}
+      onSelectNode={setSelectedNodeId}
+      onSelectEdge={handleSelectEdge}
+      onHoverNode={setHoveredNodeId}
+      onPaneClick={handleCloseEdge}
+    />
+  )
+
   return (
     <div className={wrapperClass}>
-      <MeshGraph
-        model={model}
-        activeLayers={activeLayers}
-        positionMs={positionMs}
-        durationMs={isLive ? 0 : durationMs}
-        selectedNodeId={selectedNodeId}
-        showEdgeLabels={showEdgeLabels}
-        hoveredNodeId={hoveredNodeId}
-        dense={dense}
-        onSelectNode={setSelectedNodeId}
-        onSelectEdge={handleSelectEdge}
-        onHoverNode={setHoveredNodeId}
-        onPaneClick={handleCloseEdge}
-      />
+      {viewMode === '3d' ? (
+        <Mesh3DGraph
+          model={model}
+          activeLayers={activeLayers}
+          positionMs={positionMs}
+          durationMs={isLive ? 0 : durationMs}
+          selectedNodeId={selectedNodeId}
+          hoveredNodeId={hoveredNodeId}
+          nodeActivityById={liveActivity?.nodeActivityById}
+          edgeActivityById={liveActivity?.edgeActivityById}
+          dense={dense}
+          onSelectNode={setSelectedNodeId}
+          onSelectEdge={handleSelectEdge}
+          onHoverNode={setHoveredNodeId}
+          onPaneClick={handleCloseEdge}
+          fallback={fallback2D}
+        />
+      ) : (
+        fallback2D
+      )}
       <div className="gba:absolute gba:top-3 gba:right-3 gba:z-10 gba:flex gba:flex-col gba:items-end gba:gap-2">
-        <button
-          type="button"
-          onClick={() => setShowLayersPanel(prev => !prev)}
-          aria-label="Toggle layers panel"
-          className={`gba:inline-flex gba:h-8 gba:w-8 gba:items-center gba:justify-center gba:rounded-lg gba:border gba:border-border/60 gba:shadow-sm gba:transition-colors ${
-            showLayersPanel
-              ? 'gba:bg-primary gba:text-primary-foreground'
-              : 'gba:bg-card/95 gba:backdrop-blur gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60'
-          }`}
-          data-testid="mesh-layers-toggle-btn"
-        >
-          <SlidersHorizontalIcon className="gba:h-4 gba:w-4" weight="bold" />
-        </button>
+        <div className="gba:flex gba:items-center gba:gap-2">
+          {showLiveHud && liveActivity && liveActivity.summary.liveSessions > 0 && (
+            <div
+              className="gba:inline-flex gba:h-8 gba:items-center gba:gap-2 gba:rounded-lg gba:border gba:border-primary/30 gba:bg-primary/10 gba:px-2.5 gba:text-[12px] gba:font-medium gba:text-primary gba:shadow-sm gba:backdrop-blur"
+              title="Live activity currently visible in this mesh"
+              data-testid="mesh-live-hud"
+            >
+              <span className="gba:relative gba:flex gba:h-2 gba:w-2">
+                <span className="gba:absolute gba:inline-flex gba:h-full gba:w-full gba:animate-ping gba:rounded-full gba:bg-primary gba:opacity-60" />
+                <span className="gba:relative gba:inline-flex gba:h-2 gba:w-2 gba:rounded-full gba:bg-primary" />
+              </span>
+              <span>{liveActivity.summary.liveSessions} live</span>
+              <span className="gba:text-primary/60">·</span>
+              <span>{liveActivity.summary.activeAgents} agents</span>
+              <span className="gba:text-primary/60">·</span>
+              <span>{liveActivity.summary.activeTools + liveActivity.summary.activeSkills} tools</span>
+            </div>
+          )}
+          <MeshSearch nodes={model.nodes} onSelectNode={setSelectedNodeId} />
+          <button
+            type="button"
+            onClick={toggleViewMode}
+            aria-label={viewMode === '3d' ? 'Switch to 2D view' : 'Switch to 3D view'}
+            aria-pressed={viewMode === '3d'}
+            title={viewMode === '3d' ? 'Switch to 2D view' : 'Switch to 3D view'}
+            className={`gba:inline-flex gba:h-8 gba:w-8 gba:items-center gba:justify-center gba:rounded-lg gba:border gba:border-border/60 gba:shadow-sm gba:transition-colors ${
+              viewMode === '3d'
+                ? 'gba:bg-primary gba:text-primary-foreground'
+                : 'gba:bg-card/95 gba:backdrop-blur gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60'
+            }`}
+            data-testid="mesh-view-mode-toggle"
+          >
+            {viewMode === '3d' ? (
+              <CubeIcon className="gba:h-4 gba:w-4" weight="bold" />
+            ) : (
+              <SquareIcon className="gba:h-4 gba:w-4" weight="bold" />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowLayersPanel(prev => !prev)}
+            aria-label="Toggle layers panel"
+            className={`gba:inline-flex gba:h-8 gba:w-8 gba:items-center gba:justify-center gba:rounded-lg gba:border gba:border-border/60 gba:shadow-sm gba:transition-colors ${
+              showLayersPanel
+                ? 'gba:bg-primary gba:text-primary-foreground'
+                : 'gba:bg-card/95 gba:backdrop-blur gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60'
+            }`}
+            data-testid="mesh-layers-toggle-btn"
+          >
+            <SlidersHorizontalIcon className="gba:h-4 gba:w-4" weight="bold" />
+          </button>
+        </div>
         {showLayersPanel && (
           <MeshLayersToggle
             activeLayers={activeLayers}

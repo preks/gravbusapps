@@ -4,7 +4,11 @@ import type { SpreadsheetColumn } from '../types'
 import type { ConversionContext } from '../utils/univerAdapter'
 import type { SpreadsheetStableRowTarget } from '../utils/spreadsheetRowSlotIdentity'
 import type { SheetCellMatrix, SheetRangeShape } from './cellMatrixUtils'
+import { isStyleOnlySheetMutationCommand } from './snapshotTriggerUtils'
+import { isStyleOnlyCellMatrix } from './univerGridWorkbookMutationModule'
+import { getCommandKind } from './univerCommandClassification'
 import { getSpreadsheetRowAtUniverGridIndex } from './univerGridAuthoritativeHelpers'
+import type { SpreadsheetAutofillApplyType } from './univerAutofillIntent'
 
 const UNIVER_INLINE_STYLE_KEYS = [
   'bl',
@@ -28,6 +32,7 @@ const UNIVER_INLINE_STYLE_KEYS = [
 const UNIVER_INLINE_STYLE_KEY_SET = new Set<string>(UNIVER_INLINE_STYLE_KEYS as readonly string[])
 const UNIVER_FORMATTING_KEYS = ['s', ...UNIVER_INLINE_STYLE_KEYS] as const
 const VALUE_KEYS = ['v', 'f', 'm', 'ct'] as const
+const PERSISTABLE_VALUE_KEYS = ['v', 'f', 'm', 'ct', 't'] as const
 
 export type SpreadsheetLocalMutationIntent =
   | 'edit'
@@ -36,6 +41,100 @@ export type SpreadsheetLocalMutationIntent =
   | 'clearFormat'
   | 'formatOnly'
   | 'autofill'
+
+export function resolveSpreadsheetLocalMutationIntent(params: {
+  hasPersistableMutation: boolean
+  allowValueCarryingStylePayloads: boolean
+  commandId: string
+  mergedCellValue: SheetCellMatrix
+  replaceRangeStyleIntent: boolean
+  pasteIntoNewRows: boolean
+  autofillApplyType?: SpreadsheetAutofillApplyType | null
+}): SpreadsheetLocalMutationIntent {
+  if (params.replaceRangeStyleIntent || params.pasteIntoNewRows) {
+    return 'pasteReplace'
+  }
+  if (params.autofillApplyType === 'ONLY_FORMAT') {
+    return 'formatOnly'
+  }
+  if (
+    params.autofillApplyType === 'COPY' ||
+    params.autofillApplyType === 'SERIES' ||
+    params.autofillApplyType === 'NO_FORMAT'
+  ) {
+    return 'autofill'
+  }
+  if (
+    !params.hasPersistableMutation &&
+    (params.allowValueCarryingStylePayloads ||
+      isStyleOnlySheetMutationCommand(params.commandId) ||
+      isStyleOnlyCellMatrix(params.mergedCellValue))
+  ) {
+    return 'formatOnly'
+  }
+  return 'edit'
+}
+
+/**
+ * Univer toolbar formatting (bold, etc.) emits SheetValueChanged matrices where every
+ * touched cell carries both `v` and `s`. Incidental value writes must not be persisted
+ * alongside the real `set_style` op or values appear to "switch" on some cells.
+ */
+export function stripIncidentalValueWritesFromStyleMutation(params: {
+  cells: SpreadsheetMutationPlannedCell[]
+  intent: SpreadsheetLocalMutationIntent
+  replaceRangeStyleIntent: boolean
+  source: string
+  mutatedCellCount: number
+  /** Paste / edits that mint new logical rows must keep value writes for add_rows + set_range. */
+  createsNewRows?: boolean
+  /** Drag-fill / refill must emit both set_range (values) and set_style when applicable. */
+  autofillApplyType?: SpreadsheetAutofillApplyType | null
+}): SpreadsheetMutationPlannedCell[] {
+  if (
+    params.replaceRangeStyleIntent ||
+    params.source === 'sheet-edit-ended' ||
+    params.createsNewRows ||
+    params.intent === 'autofill'
+  ) {
+    return params.cells
+  }
+  const valueCells = params.cells.filter(cell => cell.valueAction === 'set' || cell.valueAction === 'clear')
+  if (valueCells.length === 0) {
+    return params.cells
+  }
+  const shouldStrip =
+    params.intent === 'formatOnly' ||
+    (params.mutatedCellCount > 1 &&
+      valueCells.every(cell => cell.stylePatch != null) &&
+      params.cells.some(cell => cell.valueAction === 'none' && cell.stylePatch != null))
+  if (!shouldStrip) {
+    return params.cells
+  }
+  return params.cells.map(cell => {
+    if ((cell.valueAction === 'set' || cell.valueAction === 'clear') && cell.stylePatch != null) {
+      return { ...cell, valueAction: 'none' as const, value: undefined }
+    }
+    return cell
+  })
+}
+
+/** Apply autofill dropdown semantics after incidental-value stripping. */
+export function applyAutofillMutationCellPolicy(params: {
+  cells: SpreadsheetMutationPlannedCell[]
+  intent: SpreadsheetLocalMutationIntent
+  replaceRangeStyleIntent: boolean
+  source: string
+  mutatedCellCount: number
+  createsNewRows?: boolean
+  autofillApplyType?: SpreadsheetAutofillApplyType | null
+}): SpreadsheetMutationPlannedCell[] {
+  const stripped = stripIncidentalValueWritesFromStyleMutation(params)
+  if (params.autofillApplyType !== 'NO_FORMAT') {
+    return stripped
+  }
+  return stripped.map(cell => (cell.stylePatch != null ? { ...cell, stylePatch: undefined } : cell))
+}
 
 export interface SpreadsheetPlannedMutationDiagnostics {
   targetCellCount: number
@@ -70,10 +169,35 @@ export interface BuildAuthoritativeMutationEnvelopeParams {
   mergedCellValue: SheetCellMatrix
   workbookSnapshot: Record<string, unknown> | null
   allowValueCarryingStylePayloads?: boolean
+  autofillApplyType?: SpreadsheetAutofillApplyType | null
   replaceRangeStyleIntent?: boolean
   shouldSuppress?: (rowIndex: number, colIndex: number, value: unknown) => boolean
   resolveStableRowTarget?: (rowIndex: number) => SpreadsheetStableRowTarget | null
   resolveStableColumnName?: (columnIndex: number) => string | null
+  /**
+   * No-clear-without-local-edit guard. Returns true when the local user actually edited this
+   * grid cell recently. Used to block the planner from emitting `valueAction='clear'` when the
+   * session model has a value (e.g. from a remote `set_range`) but the Univer grid is stale
+   * (e.g. remote paint failed or was overwritten by structural churn). Without this guard,
+   * `flushDeferredDirtyCells` and similar reconciliation passes can wipe peer data.
+   */
+  wasRecentlyLocallyMutated?: (globalRowIndex: number, globalColIndex: number) => boolean
+  /**
+   * Authoritative echo signature for the cell (from `lastSyncedGridCellSignaturesRef`).
+   * Used together with `wasRecentlyLocallyMutated` to detect "session has authoritative value,
+   * grid reads blank, user did not touch" -> skip clear emission.
+   */
+  getAuthoritativeSignatureForCell?: (globalRowIndex: number, globalColIndex: number) => string | undefined
+  /**
+   * Defaults to true for direct user edits. Deferred replays can be produced by remote bulk-paint
+   * churn after the user typed nearby, so they opt out unless the original command was clear-like.
+   */
+  allowRecentlyLocalBlankClear?: boolean
+  /**
+   * When true, emit value clears even when the cell is not locally owned (Delete / Clear contents).
+   * Automated reconcile sources must leave this false.
+   */
+  userInitiatedValueClear?: boolean
   /** Univer command id from SheetValueChanged / CommandExecuted (empty when omitted). */
   mutationCommandId?: string
   /**
@@ -83,6 +207,49 @@ export interface BuildAuthoritativeMutationEnvelopeParams {
    * Pass `undefined` to fall back to `workbookSnapshot.mergeData`.
    */
   liveMergeRanges?: SheetRangeShape[]
+  /**
+   * When this returns false, value writes still emit even if optimistic session rows already
+   * match the grid (row exists locally but has no backend UUID yet — common during row
+   * materialization).
+   */
+  isRowPersistedAtGridIndex?: (globalRowIndex: number) => boolean
+  /**
+   * Persisted baseline signature for a grid coordinate. `undefined` means the backend-acknowledged
+   * state for this cell is unknown; `'blank'` means the backend knows the cell is blank.
+   */
+  getPersistedSignatureForCell?: (globalRowIndex: number, globalColIndex: number) => string | undefined
+}
+
+function shouldEmitValueWriteForPlanner(
+  globalRowIndex: number,
+  globalColIndex: number,
+  currentSignature: string,
+  nextSignature: string,
+  isRowPersistedAtGridIndex?: (globalRowIndex: number) => boolean,
+  getPersistedSignatureForCell?: (globalRowIndex: number, globalColIndex: number) => string | undefined,
+  wasRecentlyLocallyMutated?: (globalRowIndex: number, globalColIndex: number) => boolean
+): boolean {
+  if (nextSignature !== 'blank' && wasRecentlyLocallyMutated?.(globalRowIndex, globalColIndex)) {
+    return true
+  }
+  const persistedSignature = getPersistedSignatureForCell?.(globalRowIndex, globalColIndex)
+  if (typeof persistedSignature === 'string') {
+    return persistedSignature !== nextSignature
+  }
+  const rowPersisted = isRowPersistedAtGridIndex?.(globalRowIndex) ?? true
+  if (rowPersisted) {
+    // Backend row identity alone is not enough to prove that this specific cell value
+    // was acknowledged. If the persisted baseline for the coordinate is unknown, keep
+    // non-blank writes so optimistic session state does not suppress real persistence.
+    if (nextSignature === 'blank') {
+      return currentSignature !== 'blank'
+    }
+    return true
+  }
+  if (nextSignature === 'blank') {
+    return currentSignature !== 'blank'
+  }
+  return true
 }
 
 function isClearLikeMutationCommandId(commandId: string | undefined): boolean {
@@ -102,6 +269,57 @@ function isClearLikeMutationCommandId(commandId: string | undefined): boolean {
     normalized.includes('cut-paste') ||
     normalized.includes('cutpaste')
   )
+}
+
+function isSparseNullLikePersistableCandidate(
+  candidateValue: unknown,
+  candidateObj: Record<string, unknown> | null
+): boolean {
+  if (candidateValue === null) return true
+  return candidateObj !== null && Object.prototype.hasOwnProperty.call(candidateObj, 'v') && candidateObj.v === null
+}
+
+function isAutofillLikeMutationIntent(
+  intent: SpreadsheetLocalMutationIntent,
+  autofillApplyType?: SpreadsheetAutofillApplyType | null
+): boolean {
+  if (intent === 'autofill') return true
+  return (
+    autofillApplyType === 'COPY' ||
+    autofillApplyType === 'SERIES' ||
+    autofillApplyType === 'ONLY_FORMAT' ||
+    autofillApplyType === 'NO_FORMAT'
+  )
+}
+
+/**
+ * Univer drag-fill / autofill often emits sparse `{ v: null }` cells for coordinates that
+ * still hold values (especially when only formatting changed on part of the selection).
+ * Treat those as noise — not as user-initiated clears.
+ */
+function shouldSkipSparseNullOverNonBlankClear(params: {
+  ambiguousSparseNullNoiseGateActive: boolean
+  intent: SpreadsheetLocalMutationIntent
+  autofillApplyType?: SpreadsheetAutofillApplyType | null
+  mutationCommandId?: string
+  candidateValue: unknown
+  candidateObj: Record<string, unknown> | null
+  nextSignature: string
+  currentSignature: string
+}): boolean {
+  if (params.nextSignature !== 'blank' || params.currentSignature === 'blank') {
+    return false
+  }
+  if (!isSparseNullLikePersistableCandidate(params.candidateValue, params.candidateObj)) {
+    return false
+  }
+  if (params.ambiguousSparseNullNoiseGateActive) {
+    return true
+  }
+  if (isAutofillLikeMutationIntent(params.intent, params.autofillApplyType)) {
+    return !isClearLikeMutationCommandId(params.mutationCommandId)
+  }
+  return false
 }
 
 function isPersistableCellDataMutationValue(value: unknown): boolean {
@@ -160,6 +378,65 @@ function normalizeValueForEchoSignature(value: unknown): unknown {
   return value
 }
 
+export function normalizeValueForPersistence(value: unknown): unknown {
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    return trimmed.startsWith('=') ? { f: trimmed } : value
+  }
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value
+
+  const obj = value as Record<string, unknown>
+  if (typeof obj.f === 'string') {
+    let didNormalize = false
+    const normalized: Record<string, unknown> = {}
+    for (const key of PERSISTABLE_VALUE_KEYS) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        normalized[key] = obj[key]
+      }
+    }
+    const trimmed = obj.f.trim()
+    normalized.f = trimmed.startsWith('=') ? trimmed : `=${trimmed}`
+    didNormalize = didNormalize || normalized.f !== obj.f
+    if (Object.prototype.hasOwnProperty.call(obj, 'v') && typeof obj.v === 'number' && !Number.isFinite(obj.v)) {
+      normalized.v = null
+      didNormalize = true
+    }
+    if (Object.prototype.hasOwnProperty.call(obj, 'm') && typeof obj.m === 'number' && !Number.isFinite(obj.m)) {
+      normalized.m = null
+      didNormalize = true
+    }
+    return didNormalize ? normalized : normalized
+  }
+
+  if (Object.prototype.hasOwnProperty.call(obj, 't') || Object.prototype.hasOwnProperty.call(obj, 'ct')) {
+    const normalized: Record<string, unknown> = {}
+    for (const key of PERSISTABLE_VALUE_KEYS) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        normalized[key] = obj[key]
+      }
+    }
+    if (typeof normalized.v === 'number' && !Number.isFinite(normalized.v)) {
+      normalized.v = null
+    }
+    if (typeof normalized.m === 'number' && !Number.isFinite(normalized.m)) {
+      normalized.m = null
+    }
+    return normalized
+  }
+
+  if (Object.prototype.hasOwnProperty.call(obj, 'v')) {
+    return typeof obj.v === 'number' && !Number.isFinite(obj.v) ? null : obj.v
+  }
+  if (Object.prototype.hasOwnProperty.call(obj, 'm')) {
+    return typeof obj.m === 'number' && !Number.isFinite(obj.m) ? null : obj.m
+  }
+
+  return value
+}
+
 function toEchoSignature(value: unknown): string {
   const normalized = normalizeValueForEchoSignature(value)
   if (normalized === undefined) return 'u:'
@@ -181,6 +458,29 @@ function normalizeBlankLikeEchoSignature(signature: string | undefined): string 
 
 function isUniverFormattingKey(key: string): boolean {
   return key === 's' || UNIVER_INLINE_STYLE_KEY_SET.has(key)
+}
+
+/**
+ * Univer sometimes carries a partial style blob on `s` as an object (e.g. fill color)
+ * instead of a workbook style-id string. Flatten those keys onto the cell before building
+ * a wire `stylePatch` so batch `set_style` uses `set.bg`, not `set.s = { bg: … }`.
+ */
+function expandInlineStyleObjectOnCell(cell: Record<string, unknown>): Record<string, unknown> {
+  const expanded = { ...cell }
+  const rawStyleRef = expanded.s
+  if (!rawStyleRef || typeof rawStyleRef !== 'object' || Array.isArray(rawStyleRef)) {
+    return expanded
+  }
+  for (const [key, value] of Object.entries(rawStyleRef as Record<string, unknown>)) {
+    if (key === 's' || !isUniverFormattingKey(key)) continue
+    if (value == null) {
+      delete expanded[key]
+    } else {
+      expanded[key] = value
+    }
+  }
+  delete expanded.s
+  return expanded
 }
 
 /**
@@ -215,8 +515,10 @@ function buildStylePatchFromUniverCell(
   if (intent === 'replaceRange') {
     for (const key of UNIVER_FORMATTING_KEYS) unset.add(key)
   }
-  if (univerCell && typeof univerCell === 'object') {
-    for (const [key, value] of Object.entries(univerCell)) {
+  const sourceCell =
+    univerCell && typeof univerCell === 'object' ? expandInlineStyleObjectOnCell(univerCell) : undefined
+  if (sourceCell && typeof sourceCell === 'object') {
+    for (const [key, value] of Object.entries(sourceCell)) {
       if (!isUniverFormattingKey(key)) continue
       if (value == null) {
         unset.add(key)
@@ -243,6 +545,51 @@ function buildStylePatchFromUniverCell(
 }
 
 export { buildStylePatchFromUniverCell }
+
+function resolveAllowStyleWithValuePayloads(params: {
+  allowValueCarryingStylePayloads: boolean
+  replaceRangeStyleIntent: boolean
+  intent: SpreadsheetLocalMutationIntent
+  autofillApplyType?: SpreadsheetAutofillApplyType | null
+  mutationCommandId?: string
+}): boolean {
+  if (params.allowValueCarryingStylePayloads || params.replaceRangeStyleIntent) {
+    return true
+  }
+  if (
+    params.autofillApplyType === 'COPY' ||
+    params.autofillApplyType === 'SERIES' ||
+    params.autofillApplyType === 'ONLY_FORMAT'
+  ) {
+    return true
+  }
+  if (params.intent === 'pasteReplace') {
+    return true
+  }
+  return getCommandKind(String(params.mutationCommandId ?? '')) === 'styleOnly'
+}
+
+function shouldPersistStylePayload(params: {
+  replaceRangeStyleIntent: boolean
+  allowStyleWithValuePayloads: boolean
+  mutationCommandId?: string
+}): boolean {
+  if (params.replaceRangeStyleIntent || params.allowStyleWithValuePayloads) return true
+  return getCommandKind(String(params.mutationCommandId ?? '')) === 'styleOnly'
+}
+
+function isUnsetOnlyStylePatch(stylePatch: SpreadsheetStylePatch): boolean {
+  const hasSet = Boolean(stylePatch.set && Object.keys(stylePatch.set).length > 0)
+  return !hasSet && Array.isArray(stylePatch.unset) && stylePatch.unset.length > 0
+}
+
+function shouldKeepUnsetOnlyStylePatch(params: {
+  replaceRangeStyleIntent: boolean
+  mutationCommandId?: string
+}): boolean {
+  if (params.replaceRangeStyleIntent) return true
+  return getCommandKind(String(params.mutationCommandId ?? '')) === 'styleOnly'
+}
 
 function countCellMatrixEntries(cellValue: SheetCellMatrix | undefined): number {
   if (!cellValue) return 0
@@ -299,16 +646,18 @@ function buildTargetCells(params: {
   }
 
   if (out.size === 0) {
-    const source = worksheetCellValue ?? mergedCellValue
-    for (const rowKey of Object.keys(source)) {
-      const rowIndex = Number(rowKey)
-      if (Number.isNaN(rowIndex)) continue
-      const rowCells = source[rowIndex]
-      if (!rowCells || typeof rowCells !== 'object') continue
-      for (const colKey of Object.keys(rowCells)) {
-        const colIndex = Number(colKey)
-        if (Number.isNaN(colIndex)) continue
-        push(rowIndex, colIndex, false)
+    const source = mergedCellValue ?? worksheetCellValue
+    if (source) {
+      for (const rowKey of Object.keys(source)) {
+        const rowIndex = Number(rowKey)
+        if (Number.isNaN(rowIndex)) continue
+        const rowCells = source[rowIndex]
+        if (!rowCells || typeof rowCells !== 'object') continue
+        for (const colKey of Object.keys(rowCells)) {
+          const colIndex = Number(colKey)
+          if (Number.isNaN(colIndex)) continue
+          push(rowIndex, colIndex, false)
+        }
       }
     }
   }
@@ -416,7 +765,15 @@ function applyNonBlankWorksheetFallback(params: {
   shouldSuppress?: (rowIndex: number, colIndex: number, value: unknown) => boolean
   resolveStableRowTarget?: (rowIndex: number) => SpreadsheetStableRowTarget | null
   resolveStableColumnName?: (columnIndex: number) => string | null
+  /** See {@link BuildAuthoritativeMutationEnvelopeParams.wasRecentlyLocallyMutated}. */
+  wasRecentlyLocallyMutated?: (globalRowIndex: number, globalColIndex: number) => boolean
+  /** See {@link BuildAuthoritativeMutationEnvelopeParams.getAuthoritativeSignatureForCell}. */
+  getAuthoritativeSignatureForCell?: (globalRowIndex: number, globalColIndex: number) => string | undefined
+  isRowPersistedAtGridIndex?: (globalRowIndex: number) => boolean
+  getPersistedSignatureForCell?: (globalRowIndex: number, globalColIndex: number) => string | undefined
   styleIntent: SpreadsheetStylePatchIntent
+  shouldPersistStylePayload: boolean
+  keepUnsetOnlyStylePatch: boolean
   mergeCoveredCellKeys: Set<string>
   /**
    * 1c invariant: once a cell key is intentionally classified as skipped for safety in the
@@ -441,9 +798,14 @@ function applyNonBlankWorksheetFallback(params: {
     shouldSuppress,
     resolveStableRowTarget,
     resolveStableColumnName,
+    wasRecentlyLocallyMutated,
     styleIntent,
+    shouldPersistStylePayload,
+    keepUnsetOnlyStylePatch,
     mergeCoveredCellKeys,
-    intentionallySkippedKeys
+    intentionallySkippedKeys,
+    isRowPersistedAtGridIndex,
+    getPersistedSignatureForCell
   } = params
 
   const matrices: SheetCellMatrix[] = []
@@ -504,7 +866,7 @@ function applyNonBlankWorksheetFallback(params: {
           continue
         }
 
-        const normalizedValue = normalizeValueForEchoSignature(candidateValue)
+        const normalizedValue = normalizeValueForPersistence(candidateValue)
         const nextSignature = normalizeBlankLikeEchoSignature(toEchoSignature(normalizedValue))
         if (nextSignature === 'blank') {
           continue
@@ -515,7 +877,17 @@ function applyNonBlankWorksheetFallback(params: {
         const currentValue =
           currentColumn && currentRow ? readSpreadsheetRowCellValue(currentRow, currentColumn) : undefined
         const currentSignature = normalizeBlankLikeEchoSignature(toEchoSignature(currentValue))
-        if (currentSignature === nextSignature) {
+        if (
+          !shouldEmitValueWriteForPlanner(
+            globalRowIndex,
+            globalColIndex,
+            currentSignature,
+            nextSignature,
+            isRowPersistedAtGridIndex,
+            getPersistedSignatureForCell,
+            wasRecentlyLocallyMutated
+          )
+        ) {
           continue
         }
 
@@ -552,7 +924,9 @@ function applyNonBlankWorksheetFallback(params: {
             replaceRangeStyleIntent ? 'replaceInlineWithStyleRef' : 'preserveUnspecifiedInline'
           )
           if (stylePatch) {
-            existing.stylePatch = stylePatch
+            if (!isUnsetOnlyStylePatch(stylePatch) || (shouldPersistStylePayload && keepUnsetOnlyStylePatch)) {
+              existing.stylePatch = stylePatch
+            }
             const styleId =
               stylePatch.set &&
               typeof stylePatch.set === 'object' &&
@@ -578,6 +952,7 @@ export function buildAuthoritativeMutationEnvelope(
   const {
     sheetId,
     traceId,
+    intent,
     currentData,
     contextColumns,
     ctx,
@@ -587,13 +962,28 @@ export function buildAuthoritativeMutationEnvelope(
     mergedCellValue,
     workbookSnapshot,
     allowValueCarryingStylePayloads = false,
+    autofillApplyType,
     replaceRangeStyleIntent = false,
     shouldSuppress,
     resolveStableRowTarget,
     resolveStableColumnName,
+    wasRecentlyLocallyMutated,
+    getAuthoritativeSignatureForCell,
+    allowRecentlyLocalBlankClear = true,
+    userInitiatedValueClear = false,
     mutationCommandId,
-    liveMergeRanges
+    liveMergeRanges,
+    isRowPersistedAtGridIndex,
+    getPersistedSignatureForCell
   } = params
+
+  const allowStyleWithValuePayloads = resolveAllowStyleWithValuePayloads({
+    allowValueCarryingStylePayloads,
+    replaceRangeStyleIntent,
+    intent,
+    autofillApplyType,
+    mutationCommandId
+  })
 
   const targetCells = buildTargetCells({
     explicitPayloadAbsoluteCellValue,
@@ -618,6 +1008,15 @@ export function buildAuthoritativeMutationEnvelope(
   const visibleColumns = contextColumns.filter(column => column.isVisible !== false)
   const plannedCells = new Map<string, SpreadsheetMutationPlannedCell>()
   const styleIntent: SpreadsheetStylePatchIntent = replaceRangeStyleIntent ? 'replaceRange' : 'normal'
+  const persistStylePayload = shouldPersistStylePayload({
+    replaceRangeStyleIntent,
+    allowStyleWithValuePayloads,
+    mutationCommandId
+  })
+  const keepUnsetOnlyStylePatch = shouldKeepUnsetOnlyStylePatch({
+    replaceRangeStyleIntent,
+    mutationCommandId
+  })
   const mergeCoveredCellKeys = buildMergeCoveredCellSet(workbookSnapshot, sheetId, liveMergeRanges)
   // 1c: primary-loop intentional-skip decisions. Fallback must honor these so unsafe writes
   // (ambiguous sparse-null clears, suppressed cells, merge slaves) cannot be resurrected by
@@ -660,7 +1059,7 @@ export function buildAuthoritativeMutationEnvelope(
       } as SpreadsheetMutationPlannedCell)
 
     if (!isMergeCoveredSlave && isPersistableCellDataMutationValue(candidateValue)) {
-      const normalizedValue = normalizeValueForEchoSignature(candidateValue)
+      const normalizedValue = normalizeValueForPersistence(candidateValue)
       const currentRow = getSpreadsheetRowAtUniverGridIndex(currentData, globalRowIndex)
       const currentColumn = visibleColumns[globalColIndex]
       const currentValue =
@@ -672,18 +1071,45 @@ export function buildAuthoritativeMutationEnvelope(
         candidateValue && typeof candidateValue === 'object' && !Array.isArray(candidateValue)
           ? (candidateValue as Record<string, unknown>)
           : null
-      const ambiguousSparseNullClear =
-        ambiguousSparseNullNoiseGateActive &&
-        candidateObj !== null &&
-        Object.prototype.hasOwnProperty.call(candidateObj, 'v') &&
-        candidateObj.v === null &&
-        nextSignature === 'blank' &&
-        currentSignature !== 'blank'
+      const sparseNullOverNonBlankClear = shouldSkipSparseNullOverNonBlankClear({
+        ambiguousSparseNullNoiseGateActive,
+        intent,
+        autofillApplyType,
+        mutationCommandId,
+        candidateValue,
+        candidateObj,
+        nextSignature,
+        currentSignature
+      })
 
-      if (ambiguousSparseNullClear) {
+      const wouldClear = nextSignature === 'blank' && currentSignature !== 'blank'
+      const noClearWithoutLocalEditSkip = (() => {
+        if (!wouldClear) return false
+        if (replaceRangeStyleIntent) return false
+        if (userInitiatedValueClear) return false
+        const userTouched =
+          allowRecentlyLocalBlankClear && (wasRecentlyLocallyMutated?.(globalRowIndex, globalColIndex) ?? true)
+        if (userTouched) return false
+        const authoritativeSig = getAuthoritativeSignatureForCell?.(globalRowIndex, globalColIndex)
+        const authoritativeIsNonBlank =
+          typeof authoritativeSig === 'string' && normalizeBlankLikeEchoSignature(authoritativeSig) !== 'blank'
+        return authoritativeIsNonBlank
+      })()
+
+      if (sparseNullOverNonBlankClear || noClearWithoutLocalEditSkip) {
         // 1c: classify this key as intentionally skipped so the fallback cannot resurrect it.
         intentionallySkippedKeys.add(key)
-      } else if (currentSignature !== nextSignature) {
+      } else if (
+        shouldEmitValueWriteForPlanner(
+          globalRowIndex,
+          globalColIndex,
+          currentSignature,
+          nextSignature,
+          isRowPersistedAtGridIndex,
+          getPersistedSignatureForCell,
+          wasRecentlyLocallyMutated
+        )
+      ) {
         existing.valueAction = nextSignature === 'blank' ? 'clear' : 'set'
         existing.value = normalizedValue
       }
@@ -696,7 +1122,7 @@ export function buildAuthoritativeMutationEnvelope(
         | Record<string, unknown>
         | undefined)
     const shouldIncludeStyle =
-      (replaceRangeStyleIntent || isCollabWireCellMutationValue(styleCell, allowValueCarryingStylePayloads)) &&
+      (replaceRangeStyleIntent || isCollabWireCellMutationValue(styleCell, allowStyleWithValuePayloads)) &&
       !(existing.valueAction === 'clear' && !replaceRangeStyleIntent)
     if (shouldIncludeStyle) {
       // 3d: same logic as the fallback site — for partial style payloads sourced from the
@@ -707,7 +1133,9 @@ export function buildAuthoritativeMutationEnvelope(
         replaceRangeStyleIntent ? 'replaceInlineWithStyleRef' : 'preserveUnspecifiedInline'
       )
       if (stylePatch) {
-        existing.stylePatch = stylePatch
+        if (!isUnsetOnlyStylePatch(stylePatch) || (persistStylePayload && keepUnsetOnlyStylePatch)) {
+          existing.stylePatch = stylePatch
+        }
         const styleId =
           stylePatch.set &&
           typeof stylePatch.set === 'object' &&
@@ -726,24 +1154,32 @@ export function buildAuthoritativeMutationEnvelope(
     }
   }
 
-  applyNonBlankWorksheetFallback({
-    plannedCells,
-    worksheetCellValue,
-    mergedCellValue,
-    explicitPayloadAbsoluteCellValue,
-    ctx,
-    currentData,
-    visibleColumns,
-    stylesRoot,
-    replaceRangeStyleIntent,
-    allowValueCarryingStylePayloads,
-    shouldSuppress,
-    resolveStableRowTarget,
-    resolveStableColumnName,
-    styleIntent,
-    mergeCoveredCellKeys,
-    intentionallySkippedKeys
-  })
+  if (getCommandKind(String(mutationCommandId ?? '')) !== 'styleOnly') {
+    applyNonBlankWorksheetFallback({
+      plannedCells,
+      worksheetCellValue,
+      mergedCellValue,
+      explicitPayloadAbsoluteCellValue,
+      ctx,
+      currentData,
+      visibleColumns,
+      stylesRoot,
+      replaceRangeStyleIntent,
+      allowValueCarryingStylePayloads: allowStyleWithValuePayloads,
+      shouldSuppress,
+      resolveStableRowTarget,
+      resolveStableColumnName,
+      wasRecentlyLocallyMutated,
+      getAuthoritativeSignatureForCell,
+      isRowPersistedAtGridIndex,
+      getPersistedSignatureForCell,
+      styleIntent,
+      shouldPersistStylePayload: persistStylePayload,
+      keepUnsetOnlyStylePatch,
+      mergeCoveredCellKeys,
+      intentionallySkippedKeys
+    })
+  }
 
   const cells = Array.from(plannedCells.values()).map(cell => ({
     ...cell,

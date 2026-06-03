@@ -1,3 +1,9 @@
+import {
+  getSheetCoverageVersion,
+  getSnapshotCoversVersions,
+  type SpreadsheetSnapshotCoversVersions
+} from './spreadsheetSnapshotCoverage'
+
 /**
  * When `localStorage` contains this key set to `'1'`, Univer workbook snapshot cache
  * reads and writes are skipped (bootstrap goes remote/rows-only; checkpoints do not persist to cache).
@@ -20,6 +26,7 @@ interface SnapshotIndexEntry {
   savedAt: number
   expiresAt: number
   sizeBytes: number
+  coversVersions?: SpreadsheetSnapshotCoversVersions
 }
 
 interface SnapshotAppIndex {
@@ -31,6 +38,7 @@ export interface SnapshotCacheReadResult {
   snapshot: Record<string, unknown>
   version: number
   savedAt: number
+  coversVersions: SpreadsheetSnapshotCoversVersions
   source: 'localStorage'
 }
 
@@ -101,7 +109,17 @@ function loadAppIndex(appId: string): SnapshotAppIndex {
   if (!index || !Array.isArray(index.entries)) {
     return { latestVersion: 0, entries: [] }
   }
-  return index
+  return {
+    latestVersion: Number(index.latestVersion ?? 0),
+    entries: index.entries.map(entry => ({
+      ...entry,
+      version: Number(entry.version ?? 0),
+      savedAt: Number(entry.savedAt ?? 0),
+      expiresAt: Number(entry.expiresAt ?? 0),
+      sizeBytes: Number(entry.sizeBytes ?? 0),
+      coversVersions: entry.coversVersions && typeof entry.coversVersions === 'object' ? entry.coversVersions : {}
+    }))
+  }
 }
 
 function saveAppIndex(appId: string, index: SnapshotAppIndex): void {
@@ -216,40 +234,67 @@ export function readLatestUniverSnapshot(appId: string, minVersion = 0): Snapsho
     snapshot: parsed,
     version: candidate.version,
     savedAt: candidate.savedAt,
+    coversVersions:
+      candidate.coversVersions && Object.keys(candidate.coversVersions).length > 0
+        ? candidate.coversVersions
+        : getSnapshotCoversVersions(parsed),
     source: 'localStorage'
   }
 }
 
 function readSnapshotEntry(
   entry: SnapshotIndexEntry
-): Pick<SnapshotCacheReadResult, 'snapshot' | 'version' | 'savedAt'> | null {
+): Pick<SnapshotCacheReadResult, 'snapshot' | 'version' | 'savedAt' | 'coversVersions'> | null {
   const parsed = parseJsonObject<Record<string, unknown>>(window.localStorage.getItem(entry.key))
   if (!parsed || typeof parsed !== 'object') return null
-  return { snapshot: parsed, version: entry.version, savedAt: entry.savedAt }
+  return {
+    snapshot: parsed,
+    version: entry.version,
+    savedAt: entry.savedAt,
+    coversVersions:
+      entry.coversVersions && Object.keys(entry.coversVersions).length > 0
+        ? entry.coversVersions
+        : getSnapshotCoversVersions(parsed)
+  }
 }
 
 /**
  * Picks a cached Univer workbook for bootstrap.
- * Prefer entries with snapshot version &gt;= canonical sheet `minVersion`.
- * When none qualify, fall back to the newest lagging entry (formatting / emergency overlay only).
- * Never replaces a qualifying primary entry with an older-version lag entry based on `savedAt` alone.
+ * Only watermarked snapshots are eligible. Legacy pre-watermark cache entries are discarded so
+ * bootstrap never trusts an ambiguous checkpoint and then replays from the wrong baseline.
  */
-export function readUniverSnapshotCacheForBootstrap(appId: string, minVersion: number): SnapshotCacheReadResult | null {
+export function readUniverSnapshotCacheForBootstrap(
+  appId: string,
+  sheetId: string,
+  minVersion: number
+): SnapshotCacheReadResult | null {
   if (!isStorageAvailable() || isUniverWorkbookCacheDisabledByFlag()) return null
   const nowMs = Date.now()
   const index = loadAppIndex(appId)
   const valid = index.entries.filter(e => e.expiresAt > nowMs)
   if (valid.length === 0) return null
 
-  const primaryEntry = valid
-    .filter(e => e.version >= minVersion)
-    .sort((a, b) => b.version - a.version || b.savedAt - a.savedAt)[0]
-  const lagEntry = valid
-    .filter(e => e.version <= minVersion)
-    .sort((a, b) => b.savedAt - a.savedAt || b.version - a.version)[0]
+  const hydrated = valid
+    .map(entry => readSnapshotEntry(entry))
+    .filter(
+      (entry): entry is Pick<SnapshotCacheReadResult, 'snapshot' | 'version' | 'savedAt' | 'coversVersions'> =>
+        entry != null
+    )
+  const watermarked = hydrated.filter(entry => Object.prototype.hasOwnProperty.call(entry.coversVersions, sheetId))
+  if (watermarked.length === 0) return null
 
-  const primary = primaryEntry ? readSnapshotEntry(primaryEntry) : null
-  const lag = lagEntry ? readSnapshotEntry(lagEntry) : null
+  const byCoverageThenRecency = (
+    a: Pick<SnapshotCacheReadResult, 'version' | 'savedAt' | 'coversVersions'>,
+    b: Pick<SnapshotCacheReadResult, 'version' | 'savedAt' | 'coversVersions'>
+  ): number =>
+    getSheetCoverageVersion(b.coversVersions, sheetId) - getSheetCoverageVersion(a.coversVersions, sheetId) ||
+    b.savedAt - a.savedAt ||
+    b.version - a.version
+
+  const primary = watermarked
+    .filter(entry => getSheetCoverageVersion(entry.coversVersions, sheetId) >= minVersion)
+    .sort(byCoverageThenRecency)[0]
+  const lag = [...watermarked].sort(byCoverageThenRecency)[0]
 
   if (primary) {
     return { ...primary, source: 'localStorage' }
@@ -261,9 +306,12 @@ export function readUniverSnapshotCacheForBootstrap(appId: string, minVersion: n
 }
 
 /** All non-expired cached workbooks for an app (newest `savedAt` first), for formatting fallback on bootstrap. */
-export function listValidUniverSnapshotCacheEntries(
-  appId: string
-): Array<{ version: number; savedAt: number; snapshot: Record<string, unknown> }> {
+export function listValidUniverSnapshotCacheEntries(appId: string): Array<{
+  version: number
+  savedAt: number
+  snapshot: Record<string, unknown>
+  coversVersions: SpreadsheetSnapshotCoversVersions
+}> {
   if (!isStorageAvailable() || isUniverWorkbookCacheDisabledByFlag()) return []
   const nowMs = Date.now()
   const index = loadAppIndex(appId)
@@ -273,9 +321,26 @@ export function listValidUniverSnapshotCacheEntries(
     .map(entry => {
       const parsed = parseJsonObject<Record<string, unknown>>(window.localStorage.getItem(entry.key))
       if (!parsed || typeof parsed !== 'object') return null
-      return { version: entry.version, savedAt: entry.savedAt, snapshot: parsed }
+      return {
+        version: entry.version,
+        savedAt: entry.savedAt,
+        snapshot: parsed,
+        coversVersions:
+          entry.coversVersions && Object.keys(entry.coversVersions).length > 0
+            ? entry.coversVersions
+            : getSnapshotCoversVersions(parsed)
+      }
     })
-    .filter((row): row is { version: number; savedAt: number; snapshot: Record<string, unknown> } => row != null)
+    .filter(
+      (
+        row
+      ): row is {
+        version: number
+        savedAt: number
+        snapshot: Record<string, unknown>
+        coversVersions: SpreadsheetSnapshotCoversVersions
+      } => row != null
+    )
 }
 
 export function writeUniverSnapshotCache(
@@ -312,6 +377,7 @@ export function writeUniverSnapshotCache(
   const maxEntriesPerApp = options?.maxEntriesPerApp ?? DEFAULT_MAX_ENTRIES_PER_APP
   const nowMs = Date.now()
   const snapshotKey = getSnapshotKey(appId, version)
+  const coversVersions = getSnapshotCoversVersions(snapshot)
   let evictedKeys = 0
 
   const persist = () => {
@@ -323,7 +389,8 @@ export function writeUniverSnapshotCache(
         key: snapshotKey,
         savedAt: nowMs,
         expiresAt: nowMs + ttlMs,
-        sizeBytes
+        sizeBytes,
+        coversVersions
       },
       ...index.entries.filter(entry => entry.version !== version && entry.expiresAt > nowMs)
     ]

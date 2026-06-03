@@ -4,8 +4,6 @@ export const WORKSPACE_CHAT_RAIL_CLASS =
 export const WORKSPACE_CHAT_GUTTER_CLASS = 'gba:px-4 sm:gba:px-6 lg:gba:px-8'
 
 export const WORKSPACE_COMPOSER_OFFSET_CLASS = 'gba:pb-[9.75rem] sm:gba:pb-[11.5rem] lg:gba:pb-[12.5rem]'
-/** Fixed bottom stack includes streaming island + composer while agent runs */
-export const WORKSPACE_COMPOSER_STREAMING_ISLAND_OFFSET_CLASS = 'gba:pb-[20rem] sm:gba:pb-[22rem] lg:gba:pb-[23rem]'
 export const WORKSPACE_COMPOSER_WITH_FOLLOWUPS_OFFSET_CLASS = 'gba:pb-[22rem] sm:gba:pb-[24rem] lg:gba:pb-[26rem]'
 
 /** Bottom scroll sentinel: keeps scrollIntoView from stopping under the fixed composer-only stack */
@@ -15,10 +13,6 @@ export const WORKSPACE_END_SENTINEL_SCROLL_MARGIN_DEFAULT_CLASS =
 /** Bottom scroll sentinel: clears fixed composer + suggested follow-ups card */
 export const WORKSPACE_END_SENTINEL_SCROLL_MARGIN_WITH_FOLLOWUPS_CLASS =
   'gba:scroll-mb-[19rem] sm:gba:scroll-mb-[21rem] lg:gba:scroll-mb-[23rem]'
-
-/** Bottom scroll sentinel: clears composer + streaming island */
-export const WORKSPACE_END_SENTINEL_SCROLL_MARGIN_STREAMING_ISLAND_CLASS =
-  'gba:scroll-mb-[17rem] sm:gba:scroll-mb-[19rem] lg:gba:scroll-mb-[20rem]'
 
 // Sits above the right-panel header (overlay mode starts at `top-24`, desktop at `top-36`)
 // so the panel-toggle button never collides with the panel chrome.

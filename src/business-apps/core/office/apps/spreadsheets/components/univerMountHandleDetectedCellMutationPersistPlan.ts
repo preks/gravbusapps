@@ -1,16 +1,30 @@
 import { createSpreadsheetTraceId } from '../services/spreadsheetDiagnostics'
-import { buildAuthoritativeMutationEnvelope, type SpreadsheetLocalMutationIntent } from './univerMutationPlanner'
-import { isStyleOnlySheetMutationCommand } from './snapshotTriggerUtils'
+import {
+  buildAuthoritativeMutationEnvelope,
+  resolveSpreadsheetLocalMutationIntent,
+  applyAutofillMutationCellPolicy,
+  type SpreadsheetLocalMutationIntent
+} from './univerMutationPlanner'
+import { autofillApplyTypeKeepsValueWrites, clearSpreadsheetAutofillIntent } from './univerAutofillIntent'
 import { debugMutationTrace } from './univerGridDebug'
-import { remoteEchoKey, toEchoSignature } from './univerGridAuthoritativeHelpers'
-import { SELECTION_RECONCILE_LOCAL_EDIT_SUPPRESSION_MS } from './univerGridUniverConstants'
+import { resolveBackendRowUuidPredicateFromGridProps } from './univerBackendRowUuidPredicate'
+import { remoteEchoKey, toEchoSignature, getSpreadsheetRowAtUniverGridIndex } from './univerGridAuthoritativeHelpers'
+import { resolveBackendRowIdForViewerRow } from '../utils/spreadsheetRowIdentity'
+import { readSpreadsheetRowCellValue } from '../core'
+import {
+  spreadsheetPendingLocalMutationCoordinateCellKey,
+  spreadsheetPendingLocalMutationSemanticCellKey
+} from '../utils/spreadsheetPendingMaterializationCells'
 import {
   buildUnifiedPlannerMutationSignature,
   countCellMatrixEntries,
   isPersistableCellDataMutationValue,
   isRegionReplaceStyleCollaborationCommand,
+  normalizeBlankLikeEchoSignature,
   summarizeCellMatrixForDebug
 } from './univerGridWorkbookMutationModule'
+import { buildSpreadsheetLocalCellPaintGuard, isGridCellLocallyOwned } from '../utils/spreadsheetLocalCellPaintGuard'
+import { getCommandKind } from './univerCommandClassification'
 import type {
   DetectedCellMutationReady,
   PersistEmitInput,
@@ -26,11 +40,11 @@ export function runDetectedCellMutationPersistPlanPhase(
     callbacksRef,
     contextRef,
     lastCellValueMutationAtRef,
-    recentLocallyMutatedGridCellsRef,
     lastSyncedGridCellSignaturesRef,
     recentLocalMutationSignaturesRef,
     getWorkbookSnapshotRef,
-    pendingFormattingPasteIntentRef
+    pendingFormattingPasteIntentRef,
+    pendingAutofillIntentRef
   } = deps
 
   const {
@@ -49,10 +63,9 @@ export function runDetectedCellMutationPersistPlanPhase(
     rowIdentityStructuralMismatch,
     columnIdentityStructureHealthy,
     columnIdentityStructuralMismatch,
-    rowOffset,
-    colOffset,
     hadPasteIntentForSheet,
     hadPasteFormattingIntentForSheet,
+    autofillApplyType,
     disableMixedValueStylePayloads,
     preserveUndefinedAsNull,
     explicitPayloadAbsoluteCellValue,
@@ -69,24 +82,102 @@ export function runDetectedCellMutationPersistPlanPhase(
   const { onDataChange: onDataChangeCb } = callbacksRef.current
 
   const pendingNewRowsCtx = pendingNewRowsUpdate?.nextContext ?? ctxBefore
+  const pendingNewRowCount = pendingNewRowsUpdate
+    ? Math.max(0, pendingNewRowsUpdate.nextData.length - currentData.length)
+    : 0
+  const createsNewRows = pendingNewRowCount > 0
 
   const mutatedCellCount = countCellMatrixEntries(cellValue)
-  const allowValueCarryingStylePayloads = !disableMixedValueStylePayloads && mutatedCellCount > 1
+  const allowValueCarryingStylePayloads = false
   const hasPersistableMutation = Object.values(cellValue).some(rowCells => {
     if (!rowCells || typeof rowCells !== 'object') return false
     return Object.values(rowCells).some(cell => isPersistableCellDataMutationValue(cell))
   })
   const replaceRangeStyleIntent =
     hadPasteFormattingIntentForSheet || isRegionReplaceStyleCollaborationCommand(commandId)
+  const pasteIntoNewRows =
+    createsNewRows &&
+    hasPersistableMutation &&
+    source === 'sheet-value-changed' &&
+    (hadPasteIntentForSheet || hadPasteFormattingIntentForSheet)
+  const autofillIntoNewRows =
+    createsNewRows &&
+    hasPersistableMutation &&
+    source === 'sheet-value-changed' &&
+    autofillApplyType != null &&
+    autofillApplyTypeKeepsValueWrites(autofillApplyType)
 
   const mutationTraceId = createSpreadsheetTraceId('grid_mutation')
 
-  const authoritativeIntent: SpreadsheetLocalMutationIntent = replaceRangeStyleIntent
-    ? 'pasteReplace'
-    : !hasPersistableMutation &&
-        (allowValueCarryingStylePayloads || isStyleOnlySheetMutationCommand(String(commandId ?? '')))
-      ? 'formatOnly'
-      : 'edit'
+  const authoritativeIntent: SpreadsheetLocalMutationIntent = resolveSpreadsheetLocalMutationIntent({
+    hasPersistableMutation,
+    allowValueCarryingStylePayloads,
+    commandId: String(commandId ?? ''),
+    mergedCellValue: cellValue,
+    replaceRangeStyleIntent,
+    pasteIntoNewRows,
+    autofillApplyType
+  })
+
+  const localCellPaintGuard = buildSpreadsheetLocalCellPaintGuard({
+    sheetId: targetSheetId,
+    rows: currentData,
+    columns: contextColumns,
+    versionCausalOwnershipRef: deps.propsRef.current.versionCausalOwnershipRef,
+    pendingLocalMutationCellsRef: deps.propsRef.current.pendingLocalMutationCellsRef,
+    resolveKnownSheetVersion: deps.propsRef.current.resolveKnownSheetVersion
+  })
+  const wasRecentlyLocallyMutated = (globalRowIndex: number, globalColIndex: number): boolean =>
+    isGridCellLocallyOwned(localCellPaintGuard, globalRowIndex, globalColIndex)
+
+  const getAuthoritativeSignatureForCell = (globalRowIndex: number, globalColIndex: number): string | undefined => {
+    return lastSyncedGridCellSignaturesRef.current.get(remoteEchoKey(globalRowIndex, globalColIndex))
+  }
+
+  const isReadOnlyReconcileSource = source === 'selection-reconcile' || source === 'deferred-reconcile'
+  const userInitiatedValueClear =
+    !isReadOnlyReconcileSource && (getCommandKind(commandId) === 'clearLike' || Boolean(preserveUndefinedAsNull))
+  // Read-only reconcile confirms grid vs session; it never persists. Skipping
+  // `getWorkbookSnapshot()` avoids Univer `save()` + structured-clone of the
+  // entire workbook per deferred cell (the dominant CPU cost under collab).
+  // `deferred-replay` also skips snapshot capture for the same perf reason but still persists.
+  const skipWorkbookSnapshotForPlanner = isReadOnlyReconcileSource || source === 'deferred-replay'
+  const workbookSnapshotForPlanner = skipWorkbookSnapshotForPlanner
+    ? null
+    : (getWorkbookSnapshotRef.current?.() ?? null)
+
+  const isUuidForRowPersist = resolveBackendRowUuidPredicateFromGridProps(deps.propsRef)
+  const isRowPersistedAtGridIndex = (globalRowIndex: number): boolean => {
+    const row = getSpreadsheetRowAtUniverGridIndex(currentData, globalRowIndex)
+    if (!row) return false
+    return Boolean(resolveBackendRowIdForViewerRow(row, isUuidForRowPersist))
+  }
+  const persistedBaselineRows = deps.getPersistedBaselineRowsSnapshot?.(targetSheetId) ?? null
+  const persistedBaselineVisibleColumns = contextColumns.filter(column => column.isVisible !== false)
+  const getPersistedSignatureForCell = (globalRowIndex: number, globalColIndex: number): string | undefined => {
+    if (!persistedBaselineRows) return undefined
+    const baselineRow = getSpreadsheetRowAtUniverGridIndex(persistedBaselineRows, globalRowIndex)
+    const baselineColumn = persistedBaselineVisibleColumns[globalColIndex]
+    if (!baselineRow || !baselineColumn) return undefined
+    return normalizeBlankLikeEchoSignature(toEchoSignature(readSpreadsheetRowCellValue(baselineRow, baselineColumn)))
+  }
+  const isCellStillPendingLocalAck = (
+    rowIndex: number,
+    colIndex: number,
+    rowId: string,
+    columnName: string,
+    nextSignature: string
+  ): boolean => {
+    const pendingLocalMutationCells = deps.propsRef.current.pendingLocalMutationCellsRef?.current
+    if (!pendingLocalMutationCells) return false
+    const coordinateKey = spreadsheetPendingLocalMutationCoordinateCellKey(targetSheetId, rowIndex, colIndex)
+    const semanticKey = spreadsheetPendingLocalMutationSemanticCellKey(targetSheetId, rowId, columnName)
+    if (!pendingLocalMutationCells.has(coordinateKey) && !pendingLocalMutationCells.has(semanticKey)) {
+      return false
+    }
+    const persistedSignature = getPersistedSignatureForCell(rowIndex, colIndex)
+    return typeof persistedSignature !== 'string' || persistedSignature !== nextSignature
+  }
 
   const authoritativeEnvelope = buildAuthoritativeMutationEnvelope({
     sheetId: targetSheetId,
@@ -97,20 +188,72 @@ export function runDetectedCellMutationPersistPlanPhase(
     ctx: pendingNewRowsCtx,
     resolveStableRowTarget,
     resolveStableColumnName,
+    wasRecentlyLocallyMutated,
+    getAuthoritativeSignatureForCell,
+    isRowPersistedAtGridIndex,
+    getPersistedSignatureForCell,
     ranges,
     explicitPayloadAbsoluteCellValue,
     worksheetCellValue,
     mergedCellValue: cellValue,
-    workbookSnapshot: getWorkbookSnapshotRef.current?.() ?? null,
+    workbookSnapshot: workbookSnapshotForPlanner,
     allowValueCarryingStylePayloads,
-    replaceRangeStyleIntent,
+    autofillApplyType,
+    replaceRangeStyleIntent: replaceRangeStyleIntent || pasteIntoNewRows || autofillIntoNewRows,
     shouldSuppress,
+    allowRecentlyLocalBlankClear: source !== 'deferred-replay' || preserveUndefinedAsNull,
+    userInitiatedValueClear,
     mutationCommandId: commandId ?? '',
     liveMergeRanges: liveMergeRanges ?? undefined
   })
 
-  const plannedCellsFiltered =
-    authoritativeEnvelope.plan?.cells.filter(cell => cell.valueAction !== 'none' || cell.stylePatch != null) ?? []
+  let plannedCellsFiltered = applyAutofillMutationCellPolicy({
+    cells:
+      authoritativeEnvelope.plan?.cells.filter(cell => cell.valueAction !== 'none' || cell.stylePatch != null) ?? [],
+    intent: authoritativeIntent,
+    replaceRangeStyleIntent: replaceRangeStyleIntent || pasteIntoNewRows || autofillIntoNewRows,
+    source,
+    mutatedCellCount,
+    createsNewRows,
+    autofillApplyType
+  })
+
+  if (source === 'deferred-replay') {
+    plannedCellsFiltered = plannedCellsFiltered.flatMap(cell => {
+      if (cell.valueAction === 'none') return [cell]
+      const nextSig =
+        cell.valueAction === 'clear' ? 'blank' : normalizeBlankLikeEchoSignature(toEchoSignature(cell.value))
+      if (isCellStillPendingLocalAck(cell.rowIndex, cell.colIndex, cell.rowId, cell.columnName, nextSig)) {
+        return [cell]
+      }
+      const authoritativeSig = getAuthoritativeSignatureForCell(cell.rowIndex, cell.colIndex)
+      if (typeof authoritativeSig !== 'string') return [cell]
+      if (normalizeBlankLikeEchoSignature(authoritativeSig) !== nextSig) return [cell]
+      if (cell.stylePatch) {
+        return [{ ...cell, valueAction: 'none' }]
+      }
+      return []
+    })
+  }
+
+  const strippedValueWriteCount =
+    (authoritativeEnvelope.plan?.cells.filter(cell => cell.valueAction === 'set' || cell.valueAction === 'clear')
+      .length ?? 0) -
+    plannedCellsFiltered.filter(cell => cell.valueAction === 'set' || cell.valueAction === 'clear').length
+  if (strippedValueWriteCount > 0) {
+    callbacksRef.current.onDiagnosticsTraceEvent?.({
+      source: 'client',
+      stage: 'grid_mutation_incidental_value_writes_stripped',
+      traceId: mutationTraceId,
+      payload: {
+        targetSheetId,
+        commandId: commandId ?? null,
+        intent: authoritativeIntent,
+        strippedValueWriteCount,
+        mutatedCellCount
+      }
+    })
+  }
 
   debugMutationTrace('resolved', {
     source,
@@ -133,6 +276,7 @@ export function runDetectedCellMutationPersistPlanPhase(
       disableMixedValueStylePayloads,
       allowValueCarryingStylePayloads,
       hasPersistableMutation,
+      hasStyleOnlyMutation: authoritativeIntent === 'formatOnly',
       replaceRangeStyleIntent,
       mutatedCellCount,
       plannedCellCount: plannedCellsFiltered.length,
@@ -153,8 +297,54 @@ export function runDetectedCellMutationPersistPlanPhase(
   })
 
   if (plannedCellsFiltered.length === 0) {
+    if (
+      hasPersistableMutation &&
+      mutatedCellCount > 0 &&
+      source !== 'selection-reconcile' &&
+      source !== 'deferred-reconcile'
+    ) {
+      const intentJournal = deps.propsRef.current.spreadsheetIntentJournalRef?.current
+      const ownershipRegistry = deps.propsRef.current.versionCausalOwnershipRef?.current
+      const baseVersion = deps.propsRef.current.resolveKnownSheetVersion?.(targetSheetId) ?? 0
+      const stagedCells =
+        authoritativeEnvelope.plan?.cells.filter(cell => cell.valueAction === 'set' || cell.valueAction === 'clear') ??
+        []
+      if (intentJournal && stagedCells.length > 0) {
+        for (const cell of stagedCells) {
+          if (!cell.columnName) continue
+          const logicalRowHandle = cell.rowId || `row@${cell.rowIndex}`
+          intentJournal.captureIntent({
+            sheetId: targetSheetId,
+            logicalRowHandle,
+            columnName: cell.columnName,
+            value: cell.value,
+            baseVersion
+          })
+          ownershipRegistry?.registerIntent({
+            sheetId: targetSheetId,
+            logicalRowHandle,
+            columnName: cell.columnName,
+            baseVersion
+          })
+        }
+        callbacksRef.current.onDiagnosticsTraceEvent?.({
+          source: 'client',
+          stage: 'grid_mutation_intent_staged',
+          traceId: mutationTraceId,
+          payload: {
+            targetSheetId,
+            stagedIntentCount: stagedCells.length,
+            baseVersion
+          }
+        })
+        return { kind: 'return', value: true }
+      }
+    }
     if (hadPasteIntentForSheet && source === 'sheet-value-changed') {
       pendingFormattingPasteIntentRef.current = null
+    }
+    if (autofillApplyType != null && source === 'sheet-value-changed') {
+      clearSpreadsheetAutofillIntent(pendingAutofillIntentRef, targetSheetId)
     }
     return { kind: 'return', value: false }
   }
@@ -177,7 +367,7 @@ export function runDetectedCellMutationPersistPlanPhase(
     }
   }
 
-  const shouldDedupeLocalEmit = source !== 'selection-reconcile'
+  const shouldDedupeLocalEmit = !isReadOnlyReconcileSource
   if (shouldDedupeLocalEmit && recentLocalMutationSignaturesRef.current.has(unifiedSignature)) {
     callbacksRef.current.onDiagnosticsTraceEvent?.({
       source: 'client',
@@ -231,23 +421,6 @@ export function runDetectedCellMutationPersistPlanPhase(
     }
   })
 
-  if (source !== 'selection-reconcile') {
-    for (const rowKey of Object.keys(cellValue)) {
-      const rowIndex = Number(rowKey)
-      if (Number.isNaN(rowIndex)) continue
-      const rowCells = cellValue[rowIndex]
-      if (!rowCells || typeof rowCells !== 'object') continue
-      for (const colKey of Object.keys(rowCells)) {
-        const colIndex = Number(colKey)
-        if (Number.isNaN(colIndex)) continue
-        recentLocallyMutatedGridCellsRef.current.set(
-          remoteEchoKey(rowIndex + rowOffset, colIndex + colOffset),
-          now + SELECTION_RECONCILE_LOCAL_EDIT_SUPPRESSION_MS
-        )
-      }
-    }
-  }
-
   // 2c: only the planner writes the echo signature ledger when it owns the context. When the
   // host owns context (contextOwnedByHost === true), the host is the authoritative writer.
   if (!contextOwnedByHost && emittedChangedCells.length > 0) {
@@ -259,7 +432,7 @@ export function runDetectedCellMutationPersistPlanPhase(
     }
   }
 
-  const hasValueCells = emittedChangedCells.length > 0
+  const hasValueCells = emittedChangedCells.length > 0 || createsNewRows
   if (pendingNewRowsUpdate && onDataChangeCb && hasValueCells) {
     onDataChangeCb(pendingNewRowsUpdate.nextData, targetSheetId)
     // 2c: same contract — only overwrite contextRef when the planner owns it.
@@ -311,8 +484,9 @@ export function runDetectedCellMutationPersistPlanPhase(
     planStyles: authoritativeEnvelope.plan?.styles,
     hadPasteIntentForSheet,
     hadPasteFormattingIntentForSheet,
+    autofillApplyType,
     commandId,
-    materializeRowsBeforeEmit: Boolean(pendingNewRowsUpdate && hasValueCells)
+    materializeRowsBeforeEmit: Boolean(pendingNewRowsUpdate && createsNewRows)
   }
 
   return { kind: 'emit', emit }

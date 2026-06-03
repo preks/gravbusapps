@@ -1,15 +1,29 @@
 import { DashboardData } from '../types'
 import { groupAbsencesByDepartment, groupAbsencesByMonth, calculateVacationMetrics } from './index'
 import { calculateWorkingDays as calculateVacationWorkingDays } from '@/business-apps/hr/absences/utils/vacationCalculations'
+import { safeCurrencyExtraction } from '@/common/utils/numberFormatter'
+
+type CatalogCurrency = {
+  id?: string | null
+  code?: string | null
+  value?: string | null
+}
 
 type SalaryRow = {
   employeeId?: string
   annualGrossSalary?: number | null
   monthlyGrossSalary?: number | null
   hourlyGrossSalary?: number | null
-  currency?: {
-    code?: string | null
-    value?: string | null
+  currencyRef?: string | null
+  currency?: CatalogCurrency | null
+}
+
+type EmployeePositionRow = {
+  employee?: { id?: string | null } | null
+  companyId?: string | null
+  company?: {
+    currencyRef?: string | null
+    currency?: CatalogCurrency | null
   } | null
 }
 
@@ -17,6 +31,7 @@ type FinancialImpactMetrics = {
   estimatedCostPerDay: number
   totalLiabilityEstimate: number
   currencyCode: string
+  hasMultipleCurrencies: boolean
 }
 
 // Mirrors the snapshot rows returned by EntitlementUsageSnapshotView. Same shape used by My Absences.
@@ -40,6 +55,7 @@ type SnapshotVacationMetrics = {
 }
 
 const DEFAULT_WORKING_DAYS_PER_YEAR = 260
+const ACTIVE_ABSENCE_STATUSES = new Set(['APPROVED', 'PENDING'])
 
 const toNumber = (value: number | string | null | undefined): number => {
   if (value === null || value === undefined) {
@@ -185,21 +201,174 @@ const getWorkingDaysPerYear = (): number => {
   return workingDays > 0 ? workingDays : DEFAULT_WORKING_DAYS_PER_YEAR
 }
 
-const resolveCurrencyCode = (codes: string[]): string => {
-  if (codes.length === 0) {
-    return 'EUR'
+const buildLatestSalaryByEmployee = (salaryRows: SalaryRow[]): Map<string, SalaryRow> => {
+  const latestSalaryByEmployee = new Map<string, SalaryRow>()
+  salaryRows.forEach(row => {
+    const employeeId = String(row?.employeeId ?? '')
+    if (!employeeId || latestSalaryByEmployee.has(employeeId)) {
+      return
+    }
+    latestSalaryByEmployee.set(employeeId, row)
+  })
+  return latestSalaryByEmployee
+}
+
+const resolveCatalogCurrencyCode = (currency?: CatalogCurrency | null, currencyRef?: string | null): string | null => {
+  const fromCatalog = safeCurrencyExtraction(currency)
+  if (fromCatalog) {
+    return fromCatalog
   }
 
-  const frequencyByCode = new Map<string, number>()
-  codes.forEach(code => {
-    frequencyByCode.set(code, (frequencyByCode.get(code) || 0) + 1)
+  const fromRef = safeCurrencyExtraction(currencyRef)
+  if (fromRef) {
+    return fromRef
+  }
+
+  if (currency?.id) {
+    return safeCurrencyExtraction(currency.id)
+  }
+
+  return null
+}
+
+const resolveSalaryCurrencyCode = (salaryRow: SalaryRow): string | null =>
+  resolveCatalogCurrencyCode(salaryRow.currency, salaryRow.currencyRef)
+
+const buildEmployeeCompanyCurrencyByEmployeeId = (employeePositions: EmployeePositionRow[]): Map<string, string> => {
+  const companyCurrencyByEmployeeId = new Map<string, string>()
+
+  employeePositions.forEach(position => {
+    const employeeId = String(position?.employee?.id ?? '')
+    if (!employeeId || companyCurrencyByEmployeeId.has(employeeId)) {
+      return
+    }
+
+    const companyCurrency = resolveCatalogCurrencyCode(position.company?.currency, position.company?.currencyRef)
+    if (companyCurrency) {
+      companyCurrencyByEmployeeId.set(employeeId, companyCurrency)
+    }
   })
 
-  return (
-    Array.from(frequencyByCode.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] ||
-    codes.find(code => code.trim().length > 0) ||
-    'EUR'
+  return companyCurrencyByEmployeeId
+}
+
+const collectScopedCurrencyCodes = (
+  liabilityEmployeeIds: Set<string>,
+  latestSalaryByEmployee: Map<string, SalaryRow>,
+  employeeCompanyCurrencyByEmployeeId: Map<string, string>
+): Set<string> => {
+  const currencyCodes = new Set<string>()
+
+  liabilityEmployeeIds.forEach(employeeId => {
+    const salaryRow = latestSalaryByEmployee.get(employeeId)
+    if (salaryRow && getAnnualSalaryAmount(salaryRow) > 0) {
+      const salaryCurrency = resolveSalaryCurrencyCode(salaryRow)
+      if (salaryCurrency) {
+        currencyCodes.add(salaryCurrency)
+        return
+      }
+    }
+
+    const companyCurrency = employeeCompanyCurrencyByEmployeeId.get(employeeId)
+    if (companyCurrency) {
+      currencyCodes.add(companyCurrency)
+    }
+  })
+
+  return currencyCodes
+}
+
+const buildFinancialImpactInputs = (
+  remainingByEmployee: Map<string, number>,
+  latestSalaryByEmployee: Map<string, SalaryRow>
+): {
+  employeesWithSalary: Array<{ remainingDays: number; salaryRow: SalaryRow }>
+} => {
+  const employeesWithSalary: Array<{ remainingDays: number; salaryRow: SalaryRow }> = []
+
+  remainingByEmployee.forEach((remainingDays, employeeId) => {
+    const salaryRow = latestSalaryByEmployee.get(employeeId)
+    if (!salaryRow) {
+      return
+    }
+
+    if (getAnnualSalaryAmount(salaryRow) <= 0) {
+      return
+    }
+
+    employeesWithSalary.push({ remainingDays, salaryRow })
+  })
+
+  return { employeesWithSalary }
+}
+
+const calculateFinancialImpactMetrics = (
+  remainingByEmployee: Map<string, number>,
+  salaryRows: SalaryRow[],
+  employeeCompanyCurrencyByEmployeeId: Map<string, string>
+): FinancialImpactMetrics => {
+  const emptyMetrics: FinancialImpactMetrics = {
+    estimatedCostPerDay: 0,
+    totalLiabilityEstimate: 0,
+    currencyCode: 'EUR',
+    hasMultipleCurrencies: false
+  }
+
+  if (remainingByEmployee.size === 0 || salaryRows.length === 0) {
+    return emptyMetrics
+  }
+
+  const liabilityEmployeeIds = new Set(remainingByEmployee.keys())
+  const relevantSalaryRows = salaryRows.filter(row => {
+    const employeeId = String(row?.employeeId ?? '')
+    return employeeId.length > 0 && liabilityEmployeeIds.has(employeeId)
+  })
+
+  if (relevantSalaryRows.length === 0) {
+    return emptyMetrics
+  }
+
+  const latestSalaryByEmployee = buildLatestSalaryByEmployee(relevantSalaryRows)
+  const scopedCurrencyCodes = collectScopedCurrencyCodes(
+    liabilityEmployeeIds,
+    latestSalaryByEmployee,
+    employeeCompanyCurrencyByEmployeeId
   )
+
+  if (scopedCurrencyCodes.size > 1) {
+    return {
+      estimatedCostPerDay: 0,
+      totalLiabilityEstimate: 0,
+      currencyCode: '',
+      hasMultipleCurrencies: true
+    }
+  }
+
+  const { employeesWithSalary } = buildFinancialImpactInputs(remainingByEmployee, latestSalaryByEmployee)
+
+  if (employeesWithSalary.length === 0) {
+    return emptyMetrics
+  }
+
+  const workingDaysPerYear = getWorkingDaysPerYear()
+  let totalCostPerDay = 0
+  let totalLiabilityEstimate = 0
+
+  employeesWithSalary.forEach(({ remainingDays, salaryRow }) => {
+    const annualSalary = getAnnualSalaryAmount(salaryRow)
+    const dailyCost = annualSalary / workingDaysPerYear
+    totalCostPerDay += dailyCost
+    totalLiabilityEstimate += dailyCost * remainingDays
+  })
+
+  const currencyCode = scopedCurrencyCodes.size === 1 ? Array.from(scopedCurrencyCodes)[0] : 'EUR'
+
+  return {
+    estimatedCostPerDay: Math.round((totalCostPerDay / employeesWithSalary.length) * 100) / 100,
+    totalLiabilityEstimate: Math.round(totalLiabilityEstimate * 100) / 100,
+    currencyCode,
+    hasMultipleCurrencies: false
+  }
 }
 
 const buildRemainingByEmployeeFromEntitlements = (
@@ -225,128 +394,60 @@ const buildRemainingByEmployeeFromEntitlements = (
   return remainingByEmployee
 }
 
-const calculateFinancialImpactMetrics = (
-  remainingByEmployee: Map<string, number>,
-  salaryRows: SalaryRow[]
-): FinancialImpactMetrics => {
-  if (remainingByEmployee.size === 0 || salaryRows.length === 0) {
-    return {
-      estimatedCostPerDay: 0,
-      totalLiabilityEstimate: 0,
-      currencyCode: 'EUR'
-    }
-  }
-
-  const latestSalaryByEmployee = new Map<string, SalaryRow>()
-  salaryRows.forEach(row => {
-    const employeeId = String(row?.employeeId ?? '')
-    if (!employeeId || latestSalaryByEmployee.has(employeeId)) {
-      return
-    }
-    latestSalaryByEmployee.set(employeeId, row)
-  })
-
-  if (latestSalaryByEmployee.size === 0) {
-    return {
-      estimatedCostPerDay: 0,
-      totalLiabilityEstimate: 0,
-      currencyCode: 'EUR'
-    }
-  }
-
-  const workingDaysPerYear = getWorkingDaysPerYear()
-  let totalCostPerDay = 0
-  let salaryCount = 0
-  let totalLiabilityEstimate = 0
-  const usedCurrencyCodes: string[] = []
-
-  remainingByEmployee.forEach((remainingDays, employeeId) => {
-    const salaryRow = latestSalaryByEmployee.get(employeeId)
-    if (!salaryRow) {
-      return
-    }
-
-    const annualSalary = getAnnualSalaryAmount(salaryRow)
-    if (annualSalary <= 0) {
-      return
-    }
-
-    const dailyCost = annualSalary / workingDaysPerYear
-    totalCostPerDay += dailyCost
-    salaryCount += 1
-    totalLiabilityEstimate += dailyCost * remainingDays
-
-    const currencyCode = salaryRow.currency?.code || null
-    if (currencyCode) {
-      usedCurrencyCodes.push(currencyCode)
-    }
-  })
-
-  if (salaryCount === 0) {
-    return {
-      estimatedCostPerDay: 0,
-      totalLiabilityEstimate: 0,
-      currencyCode: 'EUR'
-    }
-  }
-
-  return {
-    estimatedCostPerDay: Math.round((totalCostPerDay / salaryCount) * 100) / 100,
-    totalLiabilityEstimate: Math.round(totalLiabilityEstimate * 100) / 100,
-    currencyCode: resolveCurrencyCode(usedCurrencyCodes)
-  }
-}
-
 export const processCompleteServerSideAggregations = (
   aggregationResult: any,
   absenceGroups: Record<string, string>,
-  timeFilter: string
+  timeFilter: string,
+  hasPopulationFilter = false
 ): DashboardData => {
   const approvedCount = aggregationResult.approvedAbsences?.aggregate?.count || 0
   const pendingCount = aggregationResult.pendingAbsences?.aggregate?.count || 0
   const rejectedCount = aggregationResult.rejectedAbsences?.aggregate?.count || 0
   const cancelledCount = aggregationResult.cancelledAbsences?.aggregate?.count || 0
 
-  const totalAbsencesCount = aggregationResult.totalAbsences?.aggregate?.count || 0
+  const allAbsencesCount = aggregationResult.totalAbsences?.aggregate?.count || 0
+  const activeAbsencesCount = aggregationResult.activeAbsences?.aggregate?.count ?? approvedCount + pendingCount
 
   const statusBreakdown = [
     {
       status: 'APPROVED',
       count: approvedCount,
       totalDays: aggregationResult.approvedAbsences?.aggregate?.sum?.effectiveDays || 0,
-      percentage: totalAbsencesCount > 0 ? Math.round((approvedCount / totalAbsencesCount) * 100) : 0
+      percentage: allAbsencesCount > 0 ? Math.round((approvedCount / allAbsencesCount) * 100) : 0
     },
     {
       status: 'PENDING',
       count: pendingCount,
       totalDays: aggregationResult.pendingAbsences?.aggregate?.sum?.effectiveDays || 0,
-      percentage: totalAbsencesCount > 0 ? Math.round((pendingCount / totalAbsencesCount) * 100) : 0
+      percentage: allAbsencesCount > 0 ? Math.round((pendingCount / allAbsencesCount) * 100) : 0
     },
     {
       status: 'REJECTED',
       count: rejectedCount,
       totalDays: aggregationResult.rejectedAbsences?.aggregate?.sum?.effectiveDays || 0,
-      percentage: totalAbsencesCount > 0 ? Math.round((rejectedCount / totalAbsencesCount) * 100) : 0
+      percentage: allAbsencesCount > 0 ? Math.round((rejectedCount / allAbsencesCount) * 100) : 0
     },
     {
       status: 'CANCELLED',
       count: cancelledCount,
       totalDays: aggregationResult.cancelledAbsences?.aggregate?.sum?.effectiveDays || 0,
-      percentage: totalAbsencesCount > 0 ? Math.round((cancelledCount / totalAbsencesCount) * 100) : 0
+      percentage: allAbsencesCount > 0 ? Math.round((cancelledCount / allAbsencesCount) * 100) : 0
     }
   ]
 
   const rawEntitlements = Array.isArray(aggregationResult?.EmployeeAbsenceEntitlement)
     ? aggregationResult.EmployeeAbsenceEntitlement
     : []
-  const filteredEmployees = Array.isArray(aggregationResult?.filteredEmployees)
-    ? aggregationResult.filteredEmployees
+  const scopedEmployeePositions = Array.isArray(aggregationResult?.scopedEmployeePositions)
+    ? aggregationResult.scopedEmployeePositions
     : []
-  const allowedEmployeeIds = new Set<string>(
-    filteredEmployees
-      .map((row: any) => row?.employee?.id)
-      .filter((id: unknown): id is string => typeof id === 'string' && id.length > 0)
-  )
+  const allowedEmployeeIds = hasPopulationFilter
+    ? new Set<string>(
+        scopedEmployeePositions
+          .map((row: EmployeePositionRow) => String(row?.employee?.id ?? ''))
+          .filter((id: string) => id.length > 0)
+      )
+    : new Set<string>()
   const scopedEntitlements =
     allowedEmployeeIds.size > 0
       ? rawEntitlements.filter((row: any) => {
@@ -382,15 +483,20 @@ export const processCompleteServerSideAggregations = (
   const vacationMetrics = snapshotVacationMetrics ?? fallbackVacationMetrics
 
   const salaryRows = Array.isArray(aggregationResult?.currentSalaries) ? aggregationResult.currentSalaries : []
+  const employeeCompanyCurrencyByEmployeeId = buildEmployeeCompanyCurrencyByEmployeeId(scopedEmployeePositions)
   const remainingByEmployee =
     scopedSnapshotRows.length > 0
       ? buildRemainingByEmployeeFromSnapshot(scopedSnapshotRows)
       : buildRemainingByEmployeeFromEntitlements(scopedEntitlements, allowedEmployeeIds)
-  const financialImpactMetrics = calculateFinancialImpactMetrics(remainingByEmployee, salaryRows)
+  const financialImpactMetrics = calculateFinancialImpactMetrics(
+    remainingByEmployee,
+    salaryRows,
+    employeeCompanyCurrencyByEmployeeId
+  )
 
-  const averageDuration = Math.round((aggregationResult.totalAbsences?.aggregate?.avg?.effectiveDays || 0) * 100) / 100
+  const averageDuration = Math.round((aggregationResult.activeAbsences?.aggregate?.avg?.effectiveDays || 0) * 100) / 100
 
-  const approvalRate = totalAbsencesCount > 0 ? Math.round((approvedCount / totalAbsencesCount) * 100) : 0
+  const approvalRate = activeAbsencesCount > 0 ? Math.round((approvedCount / activeAbsencesCount) * 100) : 0
 
   const rawAbsences = aggregationResult?.employeeAbsences || []
   const getAbsenceGroupName = (type: any, absenceGroups: Record<string, string>): string => {
@@ -417,8 +523,9 @@ export const processCompleteServerSideAggregations = (
     }
   })
 
-  const departmentStatistics = groupAbsencesByDepartment(enhancedAbsences)
-  const monthlyTrends = groupAbsencesByMonth(enhancedAbsences, timeFilter)
+  const activeEnhancedAbsences = enhancedAbsences.filter((absence: any) => ACTIVE_ABSENCE_STATUSES.has(absence.status))
+  const departmentStatistics = groupAbsencesByDepartment(activeEnhancedAbsences)
+  const monthlyTrends = groupAbsencesByMonth(activeEnhancedAbsences, timeFilter)
 
   const typeBreakdown = Object.entries(
     rawAbsences.reduce((acc: any, absence: any) => {
@@ -445,7 +552,7 @@ export const processCompleteServerSideAggregations = (
   }))
 
   const result: DashboardData = {
-    totalAbsences: totalAbsencesCount,
+    totalAbsences: activeAbsencesCount,
     pendingAbsences: pendingCount,
     approvedAbsences: approvedCount,
     rejectedAbsences: rejectedCount,
@@ -470,7 +577,8 @@ export const processCompleteServerSideAggregations = (
       totalVacationEntitlement: vacationMetrics.totalVacationEntitlement || 0,
       estimatedCostPerDay: financialImpactMetrics.estimatedCostPerDay,
       totalLiabilityEstimate: financialImpactMetrics.totalLiabilityEstimate,
-      currencyCode: financialImpactMetrics.currencyCode
+      currencyCode: financialImpactMetrics.currencyCode,
+      hasMultipleCurrencies: financialImpactMetrics.hasMultipleCurrencies
     },
 
     isLoading: false,

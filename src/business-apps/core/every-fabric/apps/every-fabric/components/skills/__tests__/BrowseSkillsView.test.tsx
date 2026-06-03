@@ -33,6 +33,25 @@ describe('BrowseSkillsView', () => {
     mockListSkillFiles.mockReset()
   })
 
+  it('shows draft and published version badges on skill cards', async () => {
+    mockGetSkillsManifest.mockResolvedValue({
+      skills: [
+        {
+          skill_id: 'skl_a',
+          name: 'Alpha',
+          description: 'Do alpha',
+          version: 3,
+          published_version: 2
+        }
+      ]
+    })
+
+    render(<BrowseSkillsView accessToken="token" />)
+    await waitFor(() => expect(screen.getByTestId('browse-skills-version-skl_a')).toBeInTheDocument())
+    expect(screen.getByTestId('browse-skills-version-skl_a')).toHaveTextContent('pub v2')
+    expect(screen.getByTestId('browse-skills-version-skl_a')).toHaveTextContent('draft v3')
+  })
+
   it('fetches the manifest on mount and renders every saved skill', async () => {
     mockGetSkillsManifest.mockResolvedValue({
       skills: [

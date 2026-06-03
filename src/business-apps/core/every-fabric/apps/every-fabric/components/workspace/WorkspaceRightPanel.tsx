@@ -1,9 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  ArrowsClockwiseIcon,
-  BrainIcon,
   CheckCircleIcon,
-  DatabaseIcon,
   DownloadSimpleIcon,
   FileCodeIcon,
   FileDocIcon,
@@ -13,35 +10,38 @@ import {
   NoteIcon,
   PresentationIcon,
   ShareNetworkIcon,
-  SparkleIcon,
   SpinnerGapIcon,
-  WrenchIcon,
   XCircleIcon
 } from '@phosphor-icons/react'
 import type { ArtifactPreview } from '../../hooks/useArtifactPreview'
 import type { CaseState } from '../../hooks/useFabricCases'
 import type { DecisionItem } from '../../hooks/useFabricDecisions'
-import { useFabricDelegation, computeDelegationStats } from '../../hooks/useFabricDelegation'
-import type { ActivityEvent, AgentStreamEvent, WorkspaceDocument } from '../../types/enterpriseAgent'
+import type { ActivityEvent, WorkspaceDocument } from '../../types/enterpriseAgent'
 import type { ArtifactFile, FabricSubAgent, FabricTaskNode } from '../../types/fabric'
-import { parseIsoTimestamp, toolCategoryColor } from '../../utils/renderUtils'
 import { CasePanel } from './CasePanel'
-import { CollaborationPanel } from './collaboration/CollaborationPanel'
-import { DecisionsCard } from './DecisionsCard'
 import { LivePreviewCard } from './LivePreviewCard'
 import { PanelCard } from './PanelCard'
 import { PlanCard } from './PlanCard'
+import { SessionTimelineCard } from './SessionTimelineCard'
+import { parseIsoTimestamp } from '../../utils/renderUtils'
 import { PROMPT_MANAGER_API_URL } from '@/common/utils/serviceResolver'
+import { resolveEntityLink } from '@/business-apps/platform/apps/every-ai/components/links/EntityLink'
 
-function activityTimestampSortValue(timestamp: string): number {
-  const date = parseIsoTimestamp(timestamp)
-  return date ? date.getTime() : 0
+/**
+ * Resolve `document://<uuid>` (and other entity-protocol URIs) into a real
+ * `/platform/...` URL so `<a target="_blank">` can actually open it in a new
+ * tab. Raw entity-protocol hrefs are unhandled by the browser, which is why
+ * earlier they appeared "broken" or got intercepted by the SPA.
+ */
+const resolveDocHref = (url: string): string => {
+  const isEntityProtocol = /^\w+:\/\//.test(url) && !/^https?:\/\//i.test(url)
+  if (!isEntityProtocol) return url
+  return resolveEntityLink(url)?.url ?? url
 }
 
 function formatActivityTimestamp(timestamp: string): string {
   const date = parseIsoTimestamp(timestamp)
   if (!date) return ''
-
   return date.toLocaleString([], {
     month: 'short',
     day: 'numeric',
@@ -92,7 +92,7 @@ const WorkspaceDocumentsCard: React.FC<{ docs: WorkspaceDocument[]; defaultColla
       {docs.map(doc => (
         <a
           key={doc.id}
-          href={doc.url}
+          href={resolveDocHref(doc.url)}
           target="_blank"
           rel="noopener noreferrer"
           className="gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-2.5 gba:hover:bg-muted/30 gba:transition-colors gba:no-underline"
@@ -331,109 +331,9 @@ const EnterpriseExpertsCard: React.FC<{
   )
 }
 
-// ─── Activity card ────────────────────────────────────────────────────────────
-
-const EVENT_ICON: Record<ActivityEvent['type'], React.ReactNode> = {
-  tool_call: <WrenchIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />,
-  tool_result: <ArrowsClockwiseIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />,
-  reflection: <BrainIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />,
-  subagent_spawn: <ShareNetworkIcon className="gba:h-3.5 gba:w-3.5 gba:text-sky-600" />,
-  memory_access: <DatabaseIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
-}
-
-const normalizeActivityText = (value?: string) => (value ?? '').trim().replace(/\s+/g, ' ').toLowerCase()
-const isLikelyTaskText = (value?: string) => {
-  const compact = (value ?? '').trim()
-  if (!compact) return false
-  return compact.length > 42 || compact.split(/\s+/).length > 5
-}
-
-const isSkillLoadActivity = (event: ActivityEvent): boolean =>
-  event.type === 'tool_call' && event.toolName === 'skill_load' && !!event.skillId
-
-const activityRowIcon = (event: ActivityEvent): React.ReactNode => {
-  if (isSkillLoadActivity(event)) {
-    return <SparkleIcon className="gba:h-3.5 gba:w-3.5 gba:text-amber-500" weight="duotone" />
-  }
-  return EVENT_ICON[event.type]
-}
-
-const getActivityBorderClass = (isSubagent: boolean, isSkillLoad: boolean): string => {
-  if (isSubagent) return 'gba:border-l-2 gba:border-sky-400/60'
-  if (isSkillLoad) return 'gba:border-l-2 gba:border-amber-400/60'
-  return ''
-}
-
-const ActivityCard: React.FC<{ events: ActivityEvent[] }> = ({ events }) => {
-  const sortedEvents = useMemo(
-    () => [...events].sort((a, b) => activityTimestampSortValue(b.timestamp) - activityTimestampSortValue(a.timestamp)),
-    [events]
-  )
-
-  const latestSummary = sortedEvents[0]?.summary
-  const activitySummary = latestSummary ? `Latest: ${latestSummary}` : undefined
-
-  return (
-    <PanelCard title="Activity" badge={events.length} summary={activitySummary} defaultOpen={false}>
-      <div className="gba:max-h-120 gba:min-h-0 gba:overflow-y-auto gba:overscroll-contain gba:py-1">
-        {sortedEvents.map(event => {
-          const isSubagent = event.type === 'subagent_spawn'
-          const isSkillLoad = isSkillLoadActivity(event)
-          const showAgentBadge =
-            isSubagent &&
-            !!event.agent &&
-            !isLikelyTaskText(event.agent) &&
-            normalizeActivityText(event.agent) !== normalizeActivityText(event.summary)
-          const timestampLabel = formatActivityTimestamp(event.timestamp)
-          return (
-            <div
-              key={event.id}
-              className={`gba:flex gba:items-start gba:gap-2.5 gba:px-4 gba:py-2 gba:hover:bg-muted/20 gba:transition-colors ${getActivityBorderClass(
-                isSubagent,
-                isSkillLoad
-              )}`}
-              data-testid={`fabric-activity-${event.id}`}
-            >
-              <div className="gba:shrink-0 gba:mt-0.5">{activityRowIcon(event)}</div>
-              <div className="gba:flex-1 gba:min-w-0">
-                {isSkillLoad ? (
-                  <span className="gba:mb-0.5 gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:border gba:border-amber-500/20 gba:bg-amber-500/10 gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-semibold gba:text-amber-700 dark:gba:text-amber-300">
-                    <SparkleIcon className="gba:h-3 gba:w-3" weight="duotone" />
-                    Skill: {event.skillName ?? event.skillId}
-                  </span>
-                ) : (
-                  event.toolName && (
-                    <span
-                      className={`gba:inline-flex gba:items-center gba:px-1.5 gba:py-0.5 gba:rounded gba:text-[11px] gba:font-mono gba:font-semibold gba:mb-0.5 ${toolCategoryColor(event.toolName)}`}
-                    >
-                      {event.toolName}
-                    </span>
-                  )
-                )}
-                {showAgentBadge && (
-                  <span className="gba:mb-0.5 gba:inline-flex gba:items-center gba:rounded-full gba:bg-sky-100 gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-semibold gba:text-sky-700 dark:gba:bg-sky-950/40 dark:gba:text-sky-300">
-                    {event.agent}
-                  </span>
-                )}
-                <p className="gba:text-xs gba:text-foreground gba:leading-snug">{event.summary}</p>
-                {(timestampLabel || event.durationMs !== undefined) && (
-                  <p className="gba:mt-1 gba:text-[10px] gba:leading-4 gba:text-muted-foreground/38">
-                    {timestampLabel}
-                    {timestampLabel && event.durationMs !== undefined ? ' · ' : ''}
-                    {event.durationMs !== undefined ? `${(event.durationMs / 1000).toFixed(2)}s` : ''}
-                  </p>
-                )}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </PanelCard>
-  )
-}
-
 interface DiagnosticsBundle {
   schema_version?: string
+  generated_at?: string
   session?: {
     session_id?: string
     status?: string
@@ -684,6 +584,36 @@ function analyzeStateFromResponse(body: AnalyzeResponse): AnalyzeState {
   }
 }
 
+/** Poll interval while a turn is in-flight so the dev panel stays current. */
+const DEBUG_TRACE_POLL_MS = 5000
+
+async function fetchDebugTrace(sessionId: string, accessToken: string): Promise<Record<string, unknown>> {
+  const base = PROMPT_MANAGER_API_URL.replace(/\/$/, '')
+  const response = await fetch(`${base}/deep-agent/sessions/${encodeURIComponent(sessionId)}/debug-trace`, {
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined
+  })
+  if (!response.ok) {
+    throw new Error(`Debug trace failed: ${response.status}`)
+  }
+  return response.json()
+}
+
+function buildDebugContextClipboardPayload(sessionId: string, diagnostics: DiagnosticsBundle) {
+  const session = diagnostics.session || {}
+  const summary = diagnostics.summary || {}
+  return {
+    session_id: sessionId,
+    generated_at: diagnostics.generated_at,
+    session,
+    summary,
+    slow_phases: diagnostics.slow_phases || [],
+    failed_tools: diagnostics.failed_tools || [],
+    repeated_tools: diagnostics.repeated_tools || [],
+    warnings: diagnostics.warnings || [],
+    langsmith: diagnostics.langsmith || {}
+  }
+}
+
 async function fetchSessionAnalysis(
   sessionId: string,
   accessToken: string,
@@ -750,7 +680,9 @@ const DiagnosticsSummary: React.FC<{
   sessionId: string
   diagnostics: DiagnosticsBundle
   accessToken: string
-}> = ({ sessionId, diagnostics, accessToken }) => {
+  /** Re-fetch diagnostics from the server (e.g. before copy) so stale in-flight snapshots are not shared. */
+  refreshDiagnostics?: () => Promise<DiagnosticsBundle | null>
+}> = ({ sessionId, diagnostics, accessToken, refreshDiagnostics }) => {
   const session = diagnostics.session || {}
   const summary = diagnostics.summary || {}
   const slowPhases = diagnostics.slow_phases || []
@@ -782,20 +714,16 @@ const DiagnosticsSummary: React.FC<{
       e.preventDefault()
       e.stopPropagation()
     }
-    const text = JSON.stringify(
-      {
-        session_id: sessionId,
-        session,
-        summary,
-        slow_phases: slowPhases,
-        failed_tools: failedTools,
-        repeated_tools: repeatedTools,
-        warnings,
-        langsmith
-      },
-      null,
-      2
-    )
+    let bundle = diagnostics
+    if (refreshDiagnostics) {
+      try {
+        const fresh = await refreshDiagnostics()
+        if (fresh) bundle = fresh
+      } catch (err) {
+        console.warn('[every-fabric] refresh diagnostics before copy failed', err)
+      }
+    }
+    const text = JSON.stringify(buildDebugContextClipboardPayload(sessionId, bundle), null, 2)
 
     const result = await copyTextToClipboard(text)
     setCopyState(result)
@@ -939,24 +867,66 @@ const DiagnosticsSummary: React.FC<{
   )
 }
 
-const DebugTraceCard: React.FC<{ sessionId: string; accessToken: string }> = ({ sessionId, accessToken }) => {
+const DebugTraceCard: React.FC<{
+  sessionId: string
+  accessToken: string
+  isStreaming: boolean
+}> = ({ sessionId, accessToken, isStreaming }) => {
   const [trace, setTrace] = useState<Record<string, any> | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const [filter, setFilter] = useState<'all' | 'decisions' | 'tools' | 'hitl' | 'errors' | 'artifacts'>('all')
+  const wasStreamingRef = useRef(isStreaming)
+
+  const loadTrace = useCallback(
+    async (opts: { quiet?: boolean } = {}) => {
+      if (!sessionId) return null
+      if (!opts.quiet) setIsRefreshing(true)
+      try {
+        const next = await fetchDebugTrace(sessionId, accessToken)
+        setTrace(next)
+        setError(null)
+        return next
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
+        if (!opts.quiet) setError(message)
+        throw err
+      } finally {
+        if (!opts.quiet) setIsRefreshing(false)
+      }
+    },
+    [sessionId, accessToken]
+  )
+
+  const refreshDiagnostics = useCallback(async (): Promise<DiagnosticsBundle | null> => {
+    const next = await loadTrace({ quiet: true })
+    const diagnostics = next?.diagnostics
+    return diagnostics && typeof diagnostics === 'object' ? (diagnostics as DiagnosticsBundle) : null
+  }, [loadTrace])
 
   useEffect(() => {
     if (!sessionId) return
-    const base = PROMPT_MANAGER_API_URL.replace(/\/$/, '')
-    fetch(`${base}/deep-agent/sessions/${encodeURIComponent(sessionId)}/debug-trace`, {
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined
-    })
-      .then(async response => {
-        if (!response.ok) throw new Error(`Debug trace failed: ${response.status}`)
-        return response.json()
-      })
-      .then(setTrace)
-      .catch(err => setError(err instanceof Error ? err.message : String(err)))
-  }, [sessionId, accessToken])
+    loadTrace().catch(() => undefined)
+  }, [sessionId, loadTrace])
+
+  // The card mounts when the workspace opens and fetches immediately — often
+  // while the turn is still running (status=running, ~2 trace events). Re-pull
+  // when streaming ends and poll while active so copy/export sees completion.
+  useEffect(() => {
+    const wasStreaming = wasStreamingRef.current
+    wasStreamingRef.current = isStreaming
+    if (wasStreaming && !isStreaming && sessionId) {
+      loadTrace({ quiet: true }).catch(() => undefined)
+    }
+  }, [isStreaming, sessionId, loadTrace])
+
+  useEffect(() => {
+    if (!sessionId || !isStreaming) return
+    const timer = globalThis.setInterval(() => {
+      loadTrace({ quiet: true }).catch(() => undefined)
+    }, DEBUG_TRACE_POLL_MS)
+    return () => globalThis.clearInterval(timer)
+  }, [sessionId, isStreaming, loadTrace])
 
   if (!sessionId) return null
 
@@ -986,9 +956,16 @@ const DebugTraceCard: React.FC<{ sessionId: string; accessToken: string }> = ({ 
     return true
   })
 
-  const exportTrace = () => {
-    if (!trace) return
-    const blob = new Blob([JSON.stringify(trace, null, 2)], { type: 'application/json' })
+  const exportTrace = async () => {
+    let payload = trace
+    try {
+      const fresh = await loadTrace({ quiet: true })
+      if (fresh) payload = fresh
+    } catch {
+      if (!payload) return
+    }
+    if (!payload) return
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
     anchor.href = url
@@ -1030,6 +1007,14 @@ const DebugTraceCard: React.FC<{ sessionId: string; accessToken: string }> = ({ 
             ))}
             <button
               type="button"
+              onClick={() => loadTrace().catch(() => undefined)}
+              disabled={isRefreshing}
+              className="gba:rounded-full gba:border gba:border-border gba:px-2 gba:py-0.5 gba:text-[11px] gba:text-foreground gba:disabled:opacity-50"
+            >
+              {isRefreshing ? 'Refreshing…' : 'Refresh'}
+            </button>
+            <button
+              type="button"
               onClick={exportTrace}
               className="gba:ml-auto gba:rounded-full gba:border gba:border-border gba:px-2 gba:py-0.5 gba:text-[11px] gba:text-foreground"
             >
@@ -1038,7 +1023,12 @@ const DebugTraceCard: React.FC<{ sessionId: string; accessToken: string }> = ({ 
           </div>
         )}
         {trace?.diagnostics && (
-          <DiagnosticsSummary sessionId={sessionId} diagnostics={trace.diagnostics} accessToken={accessToken} />
+          <DiagnosticsSummary
+            sessionId={sessionId}
+            diagnostics={trace.diagnostics}
+            accessToken={accessToken}
+            refreshDiagnostics={refreshDiagnostics}
+          />
         )}
         {trace?.known_observability_gap && (
           <p className="gba:rounded-md gba:bg-amber-50 gba:px-3 gba:py-2 gba:text-[11px] gba:text-amber-800">
@@ -1166,12 +1156,11 @@ interface WorkspaceRightPanelProps {
   totalCount: number
   progressPercent: number
   activityEvents: ActivityEvent[]
-  agentStreamEvents: AgentStreamEvent[]
   decisions: DecisionItem[]
   cases: CaseState[]
   artifacts: ArtifactFile[]
   workspaceDocs?: WorkspaceDocument[]
-  isConnected: boolean
+  devModeEnabled?: boolean
   isStreaming: boolean
   latestPreview?: ArtifactPreview | null
   accessToken?: string
@@ -1191,12 +1180,11 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
   totalCount,
   progressPercent,
   activityEvents,
-  agentStreamEvents,
   decisions,
   cases,
   artifacts,
   workspaceDocs,
-  isConnected,
+  devModeEnabled = false,
   isStreaming,
   latestPreview,
   accessToken = '',
@@ -1205,8 +1193,7 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
   isPreviewMaximized = false,
   onTogglePreviewMaximized
 }) => {
-  const delegation = useFabricDelegation(agentStreamEvents, { sessionId, accessToken, isStreaming })
-  const delegationStats = useMemo(() => computeDelegationStats(delegation.flatNodes), [delegation.flatNodes])
+  const showTimeline = decisions.length > 0 || activityEvents.length > 0
   const showPreview =
     !!latestPreview &&
     (latestPreview.status === 'generating' ||
@@ -1234,7 +1221,18 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
         </div>
       )}
 
-      {cases.length > 0 && <CasePanel cases={cases} accessToken={accessToken} defaultCollapsed={false} />}
+      {cases.length > 0 && (
+        <CasePanel
+          cases={cases}
+          accessToken={accessToken}
+          /* Collapse the Case Panel automatically when a live preview is up
+             (e.g. the recommendation-letter PDF rendered in Phase 4a) so the
+             operator can read the document and the compose-email bubble
+             side-by-side without scrolling past the case rows. Re-opens when
+             the preview clears. */
+          defaultCollapsed={showPreview}
+        />
+      )}
 
       {hasPlan && (
         <PlanCard
@@ -1242,28 +1240,25 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
           completedCount={completedCount}
           totalCount={totalCount}
           progressPercent={progressPercent}
-          isConnected={isConnected}
           isStreaming={isStreaming}
           defaultCollapsed={collapseSecondaryPanels}
         />
       )}
 
-      {decisions.length > 0 && <DecisionsCard decisions={decisions} defaultCollapsed={collapseSecondaryPanels} />}
-
-      {delegation.hasMultipleAgents ? (
-        <CollaborationPanel
-          root={delegation.rootNode}
-          stats={delegationStats}
-          defaultCollapsed={collapseSecondaryPanels}
-        />
-      ) : (
-        <EnterpriseExpertsCard
-          nodes={taskNodes}
-          events={activityEvents}
-          isStreaming={isStreaming}
+      {showTimeline && (
+        <SessionTimelineCard
+          decisions={decisions}
+          activityEvents={activityEvents}
           defaultCollapsed={collapseSecondaryPanels}
         />
       )}
+
+      <EnterpriseExpertsCard
+        nodes={taskNodes}
+        events={activityEvents}
+        isStreaming={isStreaming}
+        defaultCollapsed={collapseSecondaryPanels}
+      />
 
       {artifacts.length > 0 && <ArtifactsCard artifacts={artifacts} defaultCollapsed={collapseSecondaryPanels} />}
 
@@ -1271,9 +1266,9 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
         <WorkspaceDocumentsCard docs={workspaceDocs} defaultCollapsed={collapseSecondaryPanels} />
       )}
 
-      {activityEvents.length > 0 && <ActivityCard events={activityEvents} />}
-
-      {sessionId && <DebugTraceCard sessionId={sessionId} accessToken={accessToken} />}
+      {devModeEnabled && sessionId && (
+        <DebugTraceCard sessionId={sessionId} accessToken={accessToken} isStreaming={isStreaming} />
+      )}
     </div>
   )
 }

@@ -1,23 +1,23 @@
 import type { SpreadsheetColumn } from '../types'
-import { applyMoveCellRangeTransform } from '../utils/applyMoveCellRangeTransform'
+import { isSpreadsheetStoredCellClearValue, normalizeCellValueForBatchPersistence } from './spreadsheetBatchBuilders'
+import { applyMoveCellRangeWirePayloadToViewerRows } from '../utils/spreadsheetMoveCellRangeGrid'
 import { mergeInsertedRowsAtIndex } from '../utils/spreadsheetInsertRowsAt'
 import {
   applyDeleteRowSlotsTransform,
   applyInsertRowSlotsTransform,
   applyMoveRowSlotsTransform
 } from '../utils/spreadsheetRowSlotTransforms'
-import {
-  getClientRowIdentity,
-  getViewerRowIdentityCandidates,
-  rowMatchesRemoteId
-} from '../utils/spreadsheetRowIdentity'
-import { getKnownCellValueCount } from './spreadsheetSnapshotWorkbookUtils'
+import { getCanonicalRowId, getClientRowIdentity, rowMatchesRemoteId } from '../utils/spreadsheetRowIdentity'
+import { getFiniteNonNegativeGridRowIndex, getViewerRowVisualIndex } from '../utils/spreadsheetPeerRowHydration'
+import { mergeDuplicateRowsPreferIncoming } from '../utils/spreadsheetViewerRows'
 import type { SpreadsheetViewerRow } from './SpreadsheetSession'
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 const resolveColumnAliasInfo = (
   columnKey: string,
   columns?: SpreadsheetColumn[]
-): { targetColumnName: string; normalizedAliases: Set<string> } => {
+): { targetColumnName: string; normalizedAliases: Set<string>; targetColumn?: SpreadsheetColumn } => {
   const targetColumn = columns?.find(
     column => column.id === columnKey || column.name === columnKey || column.label === columnKey
   )
@@ -27,7 +27,8 @@ const resolveColumnAliasInfo = (
     .map(value => value.toLowerCase())
   return {
     targetColumnName: targetColumn?.name ?? String(columnKey),
-    normalizedAliases: new Set(aliases)
+    normalizedAliases: new Set(aliases),
+    targetColumn
   }
 }
 
@@ -45,29 +46,57 @@ const stripEquivalentColumnKeysFromRow = (
   return { nextRow, targetColumnName }
 }
 
+const getDurableRowIdentity = (row: SpreadsheetViewerRow): string => {
+  const explicit = row._rowUuid ?? row.UUID ?? row.uuid
+  if (typeof explicit === 'string' && explicit) return explicit
+  const canonical = getCanonicalRowId(row)
+  return UUID_RE.test(canonical) ? canonical : ''
+}
+
+const getMergeableGridRowIndex = (row: SpreadsheetViewerRow): number | undefined =>
+  getDurableRowIdentity(row) ? getFiniteNonNegativeGridRowIndex(row) : undefined
+
 const mergeDuplicateClientRows = (rows: SpreadsheetViewerRow[]): SpreadsheetViewerRow[] => {
   const mergedByClientId = new Map<string, SpreadsheetViewerRow>()
+  const mergedByDurableId = new Map<string, SpreadsheetViewerRow>()
+  const mergedByGridRowIndex = new Map<number, SpreadsheetViewerRow>()
   const output: SpreadsheetViewerRow[] = []
+
+  const remember = (row: SpreadsheetViewerRow): void => {
+    const clientRowId = getClientRowIdentity(row)
+    if (clientRowId) mergedByClientId.set(clientRowId, row)
+    const durableId = getDurableRowIdentity(row)
+    if (durableId) mergedByDurableId.set(durableId, row)
+    const gridRowIndex = getMergeableGridRowIndex(row)
+    if (gridRowIndex !== undefined) mergedByGridRowIndex.set(gridRowIndex, row)
+  }
+
   for (const row of rows) {
     const clientRowId = getClientRowIdentity(row)
-    if (!clientRowId) {
-      output.push(row)
-      continue
-    }
-    const existing = mergedByClientId.get(clientRowId)
+    const durableId = getDurableRowIdentity(row)
+    const gridRowIndex = getMergeableGridRowIndex(row)
+    const existing =
+      (durableId ? mergedByDurableId.get(durableId) : undefined) ??
+      (gridRowIndex !== undefined ? mergedByGridRowIndex.get(gridRowIndex) : undefined) ??
+      (clientRowId ? mergedByClientId.get(clientRowId) : undefined)
+
     if (!existing) {
-      mergedByClientId.set(clientRowId, row)
+      remember(row)
       output.push(row)
       continue
     }
-    const existingCount = getKnownCellValueCount(existing)
-    const nextCount = getKnownCellValueCount(row)
-    const merged = nextCount >= existingCount ? { ...existing, ...row } : { ...row, ...existing }
+
+    const merged = mergeDuplicateRowsPreferIncoming(existing, row)
     const existingIndex = output.indexOf(existing)
     if (existingIndex >= 0) {
       output[existingIndex] = merged
     }
-    mergedByClientId.set(clientRowId, merged)
+    remember(merged)
+    const existingClientRowId = getClientRowIdentity(existing)
+    if (existingClientRowId) mergedByClientId.set(existingClientRowId, merged)
+    if (clientRowId) mergedByClientId.set(clientRowId, merged)
+    if (durableId) mergedByDurableId.set(durableId, merged)
+    if (gridRowIndex !== undefined) mergedByGridRowIndex.set(gridRowIndex, merged)
   }
   return output
 }
@@ -129,17 +158,21 @@ const applySetCellDelta = (
   const rowId = String(payload.rowId || '')
   const columnName = String(payload.columnName || payload.column || '')
   const value = payload.value
+  if (isSpreadsheetStoredCellClearValue(value)) {
+    return applyClearCellDelta(rows, payload, columns)
+  }
+  const { targetColumnName, targetColumn } = resolveColumnAliasInfo(columnName, columns)
+  const normalizedValue = normalizeCellValueForBatchPersistence(value, targetColumn)
   let matched = false
   const nextRows = rows.map(row => {
     if (!rowMatchesRemoteId(row, rowId)) return row
     matched = true
-    const { nextRow, targetColumnName } = stripEquivalentColumnKeysFromRow(row, columnName, columns)
-    nextRow[targetColumnName] = value
+    const { nextRow } = stripEquivalentColumnKeysFromRow(row, columnName, columns)
+    nextRow[targetColumnName] = normalizedValue
     return nextRow
   })
   if (!rowId || !columnName || matched) return nextRows
-  const { targetColumnName } = resolveColumnAliasInfo(columnName, columns)
-  return [...nextRows, { _id: rowId, _rowUuid: rowId, [targetColumnName]: value }]
+  return [...nextRows, { _id: rowId, _rowUuid: rowId, [targetColumnName]: normalizedValue }]
 }
 
 const applySetRangeDelta = (
@@ -148,45 +181,17 @@ const applySetRangeDelta = (
   columns?: SpreadsheetColumn[]
 ): SpreadsheetViewerRow[] => {
   const cells = Array.isArray(payload.cells) ? (payload.cells as Array<Record<string, unknown>>) : []
-  const updatesByRowId = new Map<string, Record<string, unknown>>()
+  let nextRows = rows
   for (const cell of cells) {
     const rowId = String(cell.rowId || '')
     const columnName = String(cell.columnName || cell.column || '')
     if (!rowId || !columnName) continue
-    const updates = updatesByRowId.get(rowId) ?? {}
-    const { targetColumnName } = resolveColumnAliasInfo(columnName, columns)
-    updates[targetColumnName] = Object.prototype.hasOwnProperty.call(cell, 'value') ? cell.value : null
-    updatesByRowId.set(rowId, updates)
-  }
-
-  const matchedRowIds = new Set<string>()
-  const nextRows = rows.map(row => {
-    const updates = getViewerRowIdentityCandidates(row)
-      .map(candidate => ({ candidate, updates: updatesByRowId.get(candidate) }))
-      .find((candidate): candidate is { candidate: string; updates: Record<string, unknown> } =>
-        Boolean(candidate.updates)
-      )
-    if (!updates) return row
-    matchedRowIds.add(updates.candidate)
-    let nextRow: SpreadsheetViewerRow = { ...row }
-    for (const [columnName, value] of Object.entries(updates.updates)) {
-      const cleared = stripEquivalentColumnKeysFromRow(nextRow, columnName, columns)
-      nextRow = cleared.nextRow
-      nextRow[cleared.targetColumnName] = value
+    if (!Object.prototype.hasOwnProperty.call(cell, 'value') || isSpreadsheetStoredCellClearValue(cell.value)) {
+      nextRows = applyClearCellDelta(nextRows, cell, columns)
+      continue
     }
-    return nextRow
-  })
-
-  for (const [rowId, updates] of updatesByRowId) {
-    if (matchedRowIds.has(rowId)) continue
-    let materializedRow: SpreadsheetViewerRow = { _id: rowId, _rowUuid: rowId }
-    for (const [columnName, value] of Object.entries(updates)) {
-      const { targetColumnName } = resolveColumnAliasInfo(columnName, columns)
-      materializedRow = { ...materializedRow, [targetColumnName]: value }
-    }
-    nextRows.push(materializedRow)
+    nextRows = applySetCellDelta(nextRows, { rowId, columnName, value: cell.value }, columns)
   }
-
   return nextRows
 }
 
@@ -201,6 +206,106 @@ const applyClearCellDelta = (
     if (!rowMatchesRemoteId(row, rowId)) return row
     return stripEquivalentColumnKeysFromRow(row, columnName, columns).nextRow
   })
+}
+
+type ClearAllRange = {
+  startRow: number
+  endRow: number
+  startColumn: number
+  endColumn: number
+}
+
+const numberOrNull = (value: unknown): number | null => {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric) || numeric < 0) return null
+  return Math.trunc(numeric)
+}
+
+const normalizeClearAllRanges = (payload: Record<string, unknown>): ClearAllRange[] => {
+  const rawRanges = Array.isArray(payload.ranges) ? payload.ranges : []
+  const normalized: ClearAllRange[] = []
+  for (const candidate of rawRanges) {
+    if (!candidate || typeof candidate !== 'object') continue
+    const record = candidate as Record<string, unknown>
+    const startRow = numberOrNull(record.startRow)
+    const endRow = numberOrNull(record.endRow)
+    const startColumn = numberOrNull(record.startColumn)
+    const endColumn = numberOrNull(record.endColumn)
+    if (startRow == null || endRow == null || startColumn == null || endColumn == null) continue
+    if (endRow < startRow || endColumn < startColumn) continue
+    normalized.push({ startRow, endRow, startColumn, endColumn })
+  }
+  return normalized
+}
+
+const findRowIndexAtGridRowIndex = (rows: SpreadsheetViewerRow[], gridRowIndex: number): number | undefined => {
+  for (let index = 0; index < rows.length; index += 1) {
+    if (getViewerRowVisualIndex(rows[index], index) === gridRowIndex) {
+      return index
+    }
+  }
+  return undefined
+}
+
+/** Clear covered cell values for merge_ranges (anchor cell keeps its value; matches server). */
+export const applyMergeRangesDelta = (
+  rows: SpreadsheetViewerRow[],
+  payload: Record<string, unknown>,
+  columns?: SpreadsheetColumn[]
+): SpreadsheetViewerRow[] => {
+  const ranges = normalizeClearAllRanges(payload)
+  if (ranges.length === 0) return rows
+
+  const visibleColumns = (columns ?? []).filter(column => column.isVisible !== false)
+  if (visibleColumns.length === 0) return rows
+
+  const nextRows = rows.map(row => ({ ...row }))
+  for (const range of ranges) {
+    const maxCol = Math.min(range.endColumn, visibleColumns.length - 1)
+    for (let gridRowIndex = range.startRow; gridRowIndex <= range.endRow; gridRowIndex += 1) {
+      const rowIndex = findRowIndexAtGridRowIndex(nextRows, gridRowIndex)
+      if (rowIndex == null) continue
+      let nextRow = nextRows[rowIndex]
+      for (let colIndex = range.startColumn; colIndex <= maxCol; colIndex += 1) {
+        if (gridRowIndex === range.startRow && colIndex === range.startColumn) continue
+        const column = visibleColumns[colIndex]
+        if (!column?.name) continue
+        nextRow = stripEquivalentColumnKeysFromRow(nextRow, column.name, columns).nextRow
+      }
+      nextRows[rowIndex] = nextRow
+    }
+  }
+  return nextRows
+}
+
+/** Wipe viewer-row column values for every cell inside clear_all ranges (matches server projection). */
+export const applyClearAllDelta = (
+  rows: SpreadsheetViewerRow[],
+  payload: Record<string, unknown>,
+  columns?: SpreadsheetColumn[]
+): SpreadsheetViewerRow[] => {
+  const ranges = normalizeClearAllRanges(payload)
+  if (ranges.length === 0) return rows
+
+  const visibleColumns = (columns ?? []).filter(column => column.isVisible !== false)
+  if (visibleColumns.length === 0) return rows
+
+  const nextRows = rows.map(row => ({ ...row }))
+  for (const range of ranges) {
+    const maxCol = Math.min(range.endColumn, visibleColumns.length - 1)
+    for (let gridRowIndex = range.startRow; gridRowIndex <= range.endRow; gridRowIndex += 1) {
+      const rowIndex = findRowIndexAtGridRowIndex(nextRows, gridRowIndex)
+      if (rowIndex == null) continue
+      let nextRow = nextRows[rowIndex]
+      for (let colIndex = range.startColumn; colIndex <= maxCol; colIndex += 1) {
+        const column = visibleColumns[colIndex]
+        if (!column?.name) continue
+        nextRow = stripEquivalentColumnKeysFromRow(nextRow, column.name, columns).nextRow
+      }
+      nextRows[rowIndex] = nextRow
+    }
+  }
+  return nextRows
 }
 
 const applyDeleteRowsDelta = (
@@ -227,6 +332,12 @@ const applySingleDeltaChange = (
       return applySetRangeDelta(rows, payload, columns)
     case 'clear_cell':
       return applyClearCellDelta(rows, payload, columns)
+    case 'clear_all':
+      return applyClearAllDelta(rows, payload, columns)
+    case 'merge_ranges':
+      return applyMergeRangesDelta(rows, payload, columns)
+    case 'unmerge_ranges':
+      return rows
     case 'add_rows':
       return replaceClientRowsWithCreatedRows(rows, mapAddedRowsFromDeltaResult(result))
     case 'insert_rows_at': {
@@ -269,29 +380,34 @@ const applySingleDeltaChange = (
         Number.isFinite(destinationGridRowIndex) ? destinationGridRowIndex : 0
       )
     }
-    case 'move_cell_range': {
-      const fromRange = payload.fromRange as Record<string, unknown> | undefined
-      const toRange = payload.toRange as Record<string, unknown> | undefined
-      if (!fromRange || !toRange || !columns) return rows
-      const visibleColumns = columns.filter(column => column.isVisible !== false)
-      const columnNamesByGridIndex = visibleColumns.map(column =>
-        typeof column?.name === 'string' ? column.name : null
+    case 'column_delete': {
+      const columnId = String(payload.columnId ?? '')
+      if (!columnId) return rows
+      const column = columns?.find(entry => entry.id === columnId)
+      const keysToStrip = new Set(
+        [columnId, column?.name, column?.id, column?.label]
+          .map(value => (value == null ? '' : String(value).trim()))
+          .filter(Boolean)
+          .map(value => value.toLowerCase())
       )
-      return applyMoveCellRangeTransform({
-        rows,
-        columnNamesByGridIndex,
-        fromRange: {
-          startRow: Number(fromRange.startRow ?? 0),
-          endRow: Number(fromRange.endRow ?? 0),
-          startColumn: Number(fromRange.startColumn ?? 0),
-          endColumn: Number(fromRange.endColumn ?? 0)
-        },
-        toRange: {
-          startRow: Number(toRange.startRow ?? 0),
-          endRow: Number(toRange.endRow ?? 0),
-          startColumn: Number(toRange.startColumn ?? 0),
-          endColumn: Number(toRange.endColumn ?? 0)
+      if (keysToStrip.size === 0) return rows
+      return rows.map(row => {
+        const nextRow: SpreadsheetViewerRow = { ...row }
+        for (const key of Object.keys(nextRow)) {
+          if (keysToStrip.has(key.toLowerCase())) {
+            delete nextRow[key]
+          }
         }
+        return nextRow
+      })
+    }
+    case 'move_cell_range': {
+      if (!columns) return rows
+      return applyMoveCellRangeWirePayloadToViewerRows({
+        rows,
+        columns,
+        fromRange: payload.fromRange,
+        toRange: payload.toRange
       })
     }
     default:

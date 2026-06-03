@@ -14,6 +14,7 @@ import {
 } from '@phosphor-icons/react'
 import { useFileUploadManager, MaxNumberOfFilesError, MaxTotalSizeError } from '../hooks/useFileUploadManager'
 import { useFileDragDrop } from '../hooks/useFileDragDrop'
+import type { WebSearchMode } from '../hooks/useFlowBot'
 import { VoiceModeButton } from './voice/VoiceModeButton'
 import { useEntityMentions, type EntityReference } from '@/common/hooks/useEntityMentions'
 import { EntityMentionPopover } from '@/common/components/entity-mentions'
@@ -22,9 +23,9 @@ import { DocumentApiService } from '@/business-apps/core/office/apps/documents/s
 // Detect if running on a mobile device with camera capabilities
 function useIsMobileWithCamera(): boolean {
   return useMemo(() => {
-    if (typeof window === 'undefined' || typeof navigator === 'undefined') return false
+    if (typeof globalThis.window === 'undefined' || typeof navigator === 'undefined') return false
     // Check for touch capability
-    const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+    const hasTouch = 'ontouchstart' in globalThis.window || navigator.maxTouchPoints > 0
     // Check user agent for mobile
     const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i
     const isMobileUA = mobileRegex.test(navigator.userAgent)
@@ -63,7 +64,13 @@ interface MentionPayload {
 }
 
 interface ChatInputProps {
-  onSend: (text: string, files: File[], isThinking: boolean, isSearching: boolean, mentions?: MentionPayload[]) => void
+  onSend: (
+    text: string,
+    files: File[],
+    isThinking: boolean,
+    webSearchMode: WebSearchMode,
+    mentions?: MentionPayload[]
+  ) => void
   onClear: () => void
   disabled?: boolean
   className?: string
@@ -151,6 +158,20 @@ function StandardMenuOption({
   )
 }
 
+const WEB_SEARCH_MODE_ORDER: WebSearchMode[] = ['off', 'on']
+const WEB_SEARCH_MODE_STORAGE_KEY = 'everyai_web_search_mode'
+
+function getNextWebSearchMode(mode: WebSearchMode): WebSearchMode {
+  const currentIndex = WEB_SEARCH_MODE_ORDER.indexOf(mode)
+  return WEB_SEARCH_MODE_ORDER[(currentIndex + 1) % WEB_SEARCH_MODE_ORDER.length]
+}
+
+function readStoredWebSearchMode(): WebSearchMode {
+  if (typeof globalThis.window === 'undefined') return 'off'
+  const stored = globalThis.window.localStorage.getItem(WEB_SEARCH_MODE_STORAGE_KEY)
+  return stored === 'on' ? 'on' : 'off'
+}
+
 export const ChatInput: React.FC<ChatInputProps> = ({
   onSend,
   onClear,
@@ -187,7 +208,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const effectivePlaceholder = placeholder ?? t('chat-input-placeholder')
 
   const [value, setValue] = useState('')
-  const [isSearching, setIsSearching] = useState(false)
+  const [webSearchMode, setWebSearchMode] = useState<WebSearchMode>(() => readStoredWebSearchMode())
+  const isWebSearchEnabled = webSearchMode === 'on'
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0)
   const { files, uploadFile, removeFile, clearFiles } = useFileUploadManager()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -196,6 +218,23 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const contentEditableRef = useRef<HTMLDivElement>(null)
   const isTypingInContentEditableRef = useRef(false)
   const isMobileWithCamera = useIsMobileWithCamera()
+
+  useEffect(() => {
+    try {
+      globalThis.window.localStorage.setItem(WEB_SEARCH_MODE_STORAGE_KEY, webSearchMode)
+    } catch {}
+  }, [webSearchMode])
+
+  useEffect(() => {
+    const handleWebSearchModeChange = (event: Event) => {
+      const detail = (event as CustomEvent<{ mode?: WebSearchMode }>).detail
+      if (detail?.mode === 'on' || detail?.mode === 'off') {
+        setWebSearchMode(detail.mode)
+      }
+    }
+    globalThis.window.addEventListener('flowbot:web-search-mode-change', handleWebSearchModeChange)
+    return () => globalThis.window.removeEventListener('flowbot:web-search-mode-change', handleWebSearchModeChange)
+  }, [])
 
   // Document search for @mentions
   const searchDocuments = useCallback(
@@ -246,14 +285,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       trimmed,
       files.map(f => f.file),
       false,
-      isSearching,
+      webSearchMode,
       mentionPayloads.length > 0 ? mentionPayloads : undefined
     )
     setValue('')
     clearFiles()
-    setIsSearching(false)
     clearMentions()
-  }, [value, files, onSend, clearFiles, disabled, isSearching, clearMentions, selectedEntities])
+  }, [value, files, onSend, clearFiles, disabled, webSearchMode, clearMentions, selectedEntities])
 
   const pickFiles = useCallback(
     (list: FileList | null) => {
@@ -577,15 +615,27 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   // Blue color theme for animations (matching the EveryAI hero)
   const goldRgb = '59, 130, 246' // Royal blue
   const goldSecondary = 'rgb(96, 165, 250)' // Light blue
-  const handsFreeStatusLabel = isListening
-    ? 'Listening'
-    : isSpeaking
-      ? 'Speaking'
-      : isVoiceLoading
-        ? 'Thinking'
-        : voiceError
-          ? 'Error'
-          : 'Ready'
+  let handsFreeStatusLabel = 'Ready'
+  if (isListening) {
+    handsFreeStatusLabel = 'Listening'
+  } else if (isSpeaking) {
+    handsFreeStatusLabel = 'Speaking'
+  } else if (isVoiceLoading) {
+    handsFreeStatusLabel = 'Thinking'
+  } else if (voiceError) {
+    handsFreeStatusLabel = 'Error'
+  }
+
+  let handsFreeStatusTextClass = darkMode ? 'gba:text-white/70' : 'gba:text-muted-foreground'
+  if (isListening) {
+    handsFreeStatusTextClass = 'gba:text-success'
+  } else if (isSpeaking) {
+    handsFreeStatusTextClass = 'gba:text-info'
+  } else if (isVoiceLoading) {
+    handsFreeStatusTextClass = 'gba:text-primary'
+  } else if (voiceError) {
+    handsFreeStatusTextClass = 'gba:text-destructive'
+  }
 
   return (
     <>
@@ -700,10 +750,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                           text,
                           files.map(f => f.file),
                           false,
-                          isSearching
+                          webSearchMode
                         )
                         clearFiles()
-                        setIsSearching(false)
                         clearMentions()
                       }}
                       data-testid={`suggestion-${idx}`}
@@ -816,7 +865,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                       className="gba:relative gba:h-10 gba:w-10 gba:rounded-full gba:transition-all gba:duration-300 gba:flex-shrink-0 gba:border-0"
                       style={{
                         background:
-                          isSearching || files.length > 0
+                          isWebSearchEnabled || files.length > 0
                             ? `linear-gradient(135deg, rgb(${goldRgb}), ${goldSecondary})`
                             : pageSkillsEnabled
                               ? darkMode
@@ -826,7 +875,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                                 ? 'rgba(255,255,255,0.1)'
                                 : 'rgba(0,0,0,0.04)',
                         color:
-                          isSearching || files.length > 0
+                          isWebSearchEnabled || files.length > 0
                             ? 'white'
                             : pageSkillsEnabled
                               ? 'hsl(var(--primary))'
@@ -834,7 +883,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                                 ? 'rgba(255,255,255,0.7)'
                                 : '#666',
                         boxShadow:
-                          isSearching || files.length > 0
+                          isWebSearchEnabled || files.length > 0
                             ? `0 2px 12px rgba(${goldRgb}, 0.3)`
                             : pageSkillsEnabled
                               ? '0 0 0 2px hsl(var(--primary) / 0.35)'
@@ -969,18 +1018,23 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
                       {/* Web Search Toggle */}
                       <button
-                        onClick={() => setIsSearching(!isSearching)}
-                        className={`gba:group/option gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2.5 gba:rounded-xl gba:text-sm gba:transition-all gba:duration-200 gba:w-full gba:text-left ${darkMode && !isSearching ? 'gba:text-white/90 hover:gba:bg-white/10' : ''}`}
+                        onClick={() => setWebSearchMode(mode => getNextWebSearchMode(mode))}
+                        title={t('chat-menu-web-search-tooltip')}
+                        className={`gba:group/option gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2.5 gba:rounded-xl gba:text-sm gba:transition-all gba:duration-200 gba:w-full gba:text-left ${darkMode && !isWebSearchEnabled ? 'gba:text-white/90 hover:gba:bg-white/10' : ''}`}
                         style={{
-                          background: isSearching ? 'var(--nw-success)1A' : 'transparent',
-                          color: isSearching ? 'var(--nw-success)' : darkMode ? undefined : 'var(--nw-foreground)'
+                          background: isWebSearchEnabled ? 'var(--nw-success)1A' : 'transparent',
+                          color: isWebSearchEnabled
+                            ? 'var(--nw-success)'
+                            : darkMode
+                              ? undefined
+                              : 'var(--nw-foreground)'
                         }}
                         disabled={disabled}
                       >
                         <div
                           className="gba:flex-shrink-0 gba:h-8 gba:w-8 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:transition-all"
                           style={{
-                            background: isSearching
+                            background: isWebSearchEnabled
                               ? 'rgb(34, 197, 94)'
                               : darkMode
                                 ? 'rgba(96, 165, 250, 0.2)'
@@ -990,21 +1044,19 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                           <GlobeIcon
                             className="gba:h-4 gba:w-4"
                             style={{
-                              color: isSearching
+                              color: isWebSearchEnabled
                                 ? 'var(--nw-success-foreground)'
                                 : darkMode
                                   ? 'rgb(147, 197, 253)'
                                   : `rgb(${goldRgb})`
                             }}
-                            weight={isSearching ? 'fill' : 'bold'}
+                            weight={isWebSearchEnabled ? 'fill' : 'bold'}
                           />
                         </div>
                         <span className="gba:font-medium">{t('chat-menu-web-search')}</span>
-                        {isSearching && (
-                          <span className="gba:ml-auto gba:text-xs gba:bg-success gba:text-success-foreground gba:px-2 gba:py-1 gba:rounded-full gba:font-semibold">
-                            {t('chat-menu-web-search-on')}
-                          </span>
-                        )}
+                        <span className="gba:ml-auto gba:text-xs gba:bg-success gba:text-success-foreground gba:px-2 gba:py-1 gba:rounded-full gba:font-semibold">
+                          {t(`chat-menu-web-search-${webSearchMode}`)}
+                        </span>
                       </button>
 
                       {/* Page Skills Toggle */}
@@ -1146,9 +1198,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                       >
                         Hands-free mode
                       </span>
-                      <span
-                        className={`gba:text-xs gba:font-semibold ${isListening ? 'gba:text-success' : isSpeaking ? 'gba:text-info' : isVoiceLoading ? 'gba:text-primary' : voiceError ? 'gba:text-destructive' : darkMode ? 'gba:text-white/70' : 'gba:text-muted-foreground'}`}
-                      >
+                      <span className={`gba:text-xs gba:font-semibold ${handsFreeStatusTextClass}`}>
                         {handsFreeStatusLabel}
                       </span>
                     </div>

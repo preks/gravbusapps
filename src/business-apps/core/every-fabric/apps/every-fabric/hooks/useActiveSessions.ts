@@ -9,8 +9,10 @@ import type {
   ActiveStreamSessionRemovedEvent,
   ActiveStreamStatusChangedEvent
 } from '../types/activeSession'
+import type { HitlRequestedEvent } from '../types/enterpriseAgent'
 import { useEnterpriseAgentClient } from './useEnterpriseAgentClient'
 import { isFlowBotFabricRuntime } from '../utils/fabricRuntime'
+import { connectPromptManagerSse, type PromptManagerSseConnection } from '../utils/promptManagerSse'
 
 const INITIAL_BACKOFF_MS = 1_000
 const MAX_BACKOFF_MS = 15_000
@@ -183,12 +185,12 @@ function applySessionEvent(map: SessionMap, event: ActiveStreamSessionEvent): Se
   }
 
   if (event.type === 'hitl_requested') {
+    const { request } = event as ActiveStreamSessionEvent & HitlRequestedEvent
     return applyWaitingForHuman(map, sid, existing, {
       ...event,
       status: 'waiting_for_human',
-      human_question: event.request?.description || event.request?.title || null,
-      structured_input_request:
-        event.request?.payload && typeof event.request.payload === 'object' ? event.request.payload : null
+      human_question: request?.description || request?.title || null,
+      structured_input_request: request?.payload && typeof request.payload === 'object' ? request.payload : null
     })
   }
 
@@ -335,7 +337,7 @@ export const useActiveSessions = (accessToken: string): UseActiveSessionsResult 
     }
 
     let disposed = false
-    let source: EventSource | null = null
+    let source: PromptManagerSseConnection | null = null
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null
     let fallbackTimer: ReturnType<typeof setInterval> | null = null
     let backoffMs = INITIAL_BACKOFF_MS
@@ -358,7 +360,7 @@ export const useActiveSessions = (accessToken: string): UseActiveSessionsResult 
 
     const closeSource = () => {
       if (source) {
-        source.close()
+        source.abort()
         source = null
       }
       if (!disposed) setIsLive(false)
@@ -402,41 +404,45 @@ export const useActiveSessions = (accessToken: string): UseActiveSessionsResult 
       }
     }
 
+    const handleStreamError = () => {
+      closeSource()
+      if (disposed) return
+      consecutiveFailures += 1
+      if (consecutiveFailures >= SSE_FAILURE_THRESHOLD) startFallbackPolling()
+      scheduleReconnect()
+    }
+
+    const handleStreamClose = () => {
+      closeSource()
+      if (disposed) return
+      // Multiplexed stream may end when the server hits its wait window;
+      // reconnect without counting it as a hard failure.
+      scheduleReconnect()
+    }
+
     const connect = () => {
       if (disposed) return
       const token = accessTokenRef.current
       if (!token) return
 
-      const url = clientRef.current.buildActiveSessionsStreamUrl(token)
-      try {
-        source = new EventSource(url)
-      } catch {
-        consecutiveFailures += 1
-        if (consecutiveFailures >= SSE_FAILURE_THRESHOLD) startFallbackPolling()
-        scheduleReconnect()
-        return
-      }
-
-      source.onopen = () => {
-        if (disposed) return
-        consecutiveFailures = 0
-        backoffMs = INITIAL_BACKOFF_MS
-        stopFallbackPolling()
-        setIsLive(true)
-      }
-
-      source.onmessage = e => {
-        if (disposed) return
-        handleMessage(e.data)
-      }
-
-      source.onerror = () => {
-        closeSource()
-        if (disposed) return
-        consecutiveFailures += 1
-        if (consecutiveFailures >= SSE_FAILURE_THRESHOLD) startFallbackPolling()
-        scheduleReconnect()
-      }
+      const url = clientRef.current.buildActiveSessionsStreamUrl()
+      source = connectPromptManagerSse({
+        url,
+        accessToken: token,
+        onOpen: () => {
+          if (disposed) return
+          consecutiveFailures = 0
+          backoffMs = INITIAL_BACKOFF_MS
+          stopFallbackPolling()
+          setIsLive(true)
+        },
+        onMessage: raw => {
+          if (disposed) return
+          handleMessage(raw)
+        },
+        onError: handleStreamError,
+        onClose: handleStreamClose
+      })
     }
 
     void hydrateFromRest()

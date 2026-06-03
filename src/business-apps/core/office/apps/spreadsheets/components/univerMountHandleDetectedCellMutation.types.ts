@@ -8,7 +8,13 @@ import type { UniverWorkbookBootstrapMountContext } from './univerWorkbookBootst
 import type { UniverGridController } from './useUniverGridController'
 
 export type HandleDetectedCellMutationArgs = {
-  source: 'sheet-value-changed' | 'command-executed' | 'selection-reconcile' | 'sheet-edit-ended'
+  source:
+    | 'sheet-value-changed'
+    | 'command-executed'
+    | 'selection-reconcile'
+    | 'sheet-edit-ended'
+    | 'deferred-reconcile'
+    | 'deferred-replay'
   commandId?: string
   payloadCellValue: SheetCellMatrix | undefined
   ranges: SheetRangeShape[]
@@ -24,15 +30,21 @@ export type UniverMountHandleDetectedCellMutationDeps = Pick<
   | 'contextRef'
   | 'recentlyDuplicatedWorksheetIdsRef'
   | 'remoteEchoSuppressionRef'
-  | 'recentLocallyMutatedGridCellsRef'
   | 'lastSyncedGridCellSignaturesRef'
   | 'lastCellValueMutationAtRef'
   | 'newRowClientIdByIndexRef'
   | 'recentLocalMutationSignaturesRef'
   | 'pendingFormattingPasteIntentRef'
+  | 'pendingAutofillIntentRef'
+  | 'mergeGestureSuppressBySheetRef'
 > &
   Pick<UniverWorkbookBootstrapMountContext, 'getWorkbookSnapshotRef'> & {
     peekPasteFormattingReplaceIntent: (sheetId: string) => boolean
+    peekAutofillApplyType: (
+      sheetId: string,
+      ranges?: SheetRangeShape[],
+      consume?: boolean
+    ) => import('./univerAutofillIntent').SpreadsheetAutofillApplyType | null
     /**
      * Ensures `add_rows` completes before unified cell/style HTTP batch when new rows use `client_*` ids.
      *
@@ -45,6 +57,8 @@ export type UniverMountHandleDetectedCellMutationDeps = Pick<
     flushUnmaterializedRowsBeforePersist?: (targetSheetId: string, finalize?: () => Promise<void>) => Promise<void>
     /** Authoritative row snapshot after flush (session); used to remap `client_*` → server UUIDs in batch ops. */
     getPersistSheetRowsSnapshot?: (targetSheetId: string) => Record<string, unknown>[]
+    /** Rows last acknowledged by successful HTTP batches; used for cell-level ack checks. */
+    getPersistedBaselineRowsSnapshot?: (targetSheetId: string) => Record<string, unknown>[] | null
     /**
      * 2a: Predicate slots live on {@link UniverMountHandleDetectedCellMutationDeps.propsRef}
      * (`isBackendRowUuid`, deprecated `isUuidForRowRemap`). Call sites use
@@ -101,6 +115,7 @@ export type DetectedCellMutationReady = {
   colOffset: number
   hadPasteIntentForSheet: boolean
   hadPasteFormattingIntentForSheet: boolean
+  autofillApplyType: import('./univerAutofillIntent').SpreadsheetAutofillApplyType | null
   disableMixedValueStylePayloads: boolean
   preserveUndefinedAsNull: boolean
   explicitPayloadAbsoluteCellValue: SheetCellMatrix | undefined
@@ -142,6 +157,7 @@ export type PersistEmitInput = {
   planStyles: SpreadsheetMutationPlan['styles']
   hadPasteIntentForSheet: boolean
   hadPasteFormattingIntentForSheet: boolean
+  autofillApplyType: import('./univerAutofillIntent').SpreadsheetAutofillApplyType | null
   commandId: string | undefined
   /** True when new rows were merged into sheet data this tick and value cells will be persisted. */
   materializeRowsBeforeEmit: boolean

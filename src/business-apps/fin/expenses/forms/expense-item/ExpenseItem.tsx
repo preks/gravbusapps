@@ -8,8 +8,8 @@ import FormScreenComponent from './components/FormScreenComponent'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ICONS } from '../../utils/icons'
 import { FORM_STEPS } from './constants/constants'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { showToast } from '../../utils/notificationUtils'
+import { useExpenseItemTranslation } from './useExpenseItemTranslation'
 
 const { Title } = Typography
 
@@ -44,6 +44,7 @@ const ExpenseItemContent: React.FC<{ onClose?: (shouldRefetch?: boolean) => void
       currencies,
       isEditMode
     } = useExpenseItem()
+    const { t } = useExpenseItemTranslation()
 
     // Modified handleCancel to use onClose callback if provided
     // Do NOT refetch when cancelling to preserve selected items in the wizard
@@ -68,13 +69,7 @@ const ExpenseItemContent: React.FC<{ onClose?: (shouldRefetch?: boolean) => void
         // Currency validation errors are already toasted by the context - don't show duplicate
         const isCurrencyError = error?.message?.toLowerCase()?.includes('currency')
         if (!isCurrencyError) {
-          showToast(
-            getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_summary_request.no_expense_items',
-              'No expense items created'
-            ),
-            'error'
-          )
+          showToast(t('expense-item-no-items-created'), 'error')
         }
         throw error
       }
@@ -106,10 +101,7 @@ const ExpenseItemContent: React.FC<{ onClose?: (shouldRefetch?: boolean) => void
               >
                 <img
                   src={ICONS.BACK_ARROW}
-                  alt={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.back_btn',
-                    'Back'
-                  )}
+                  alt={t('expense-item-back')}
                   style={{ width: '24px', height: '24px' }}
                   width="24"
                   height="24"
@@ -127,15 +119,7 @@ const ExpenseItemContent: React.FC<{ onClose?: (shouldRefetch?: boolean) => void
               className="gba:mb-0 gba:m-0 gba:font-primary gba:pointer-events-auto"
               data-testid="expense-item-header-title"
             >
-              {isEditMode
-                ? getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_type_item.header_container_title_edit',
-                    'Edit Item | Expense'
-                  )
-                : getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_type_item.header_container_title_new',
-                    'New Item | Expense'
-                  )}
+              {isEditMode ? t('expense-item-header-edit') : t('expense-item-header-new')}
             </Title>
           </div>
         </div>

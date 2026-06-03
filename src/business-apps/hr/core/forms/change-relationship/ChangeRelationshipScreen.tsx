@@ -21,37 +21,13 @@ import dayjs from 'dayjs'
 import translations from '../../apps/employee-record/_i18n'
 
 import { useRelationshipTypes } from './hooks/useRelationshipTypes'
-import { CongratulationsModal, type CongratulationsModalVariant } from './CongratulationsModal'
+import { CongratulationsModal } from './CongratulationsModal'
 import { PhoneInput } from './components/PhoneInput'
 import { useEmployeeDocumentSync } from '../document-sync/useEmployeeDocumentSync'
 import { EmployeeDocumentUploadField } from '../document-sync/EmployeeDocumentUploadField'
+import { useRelationshipCongratulationsMessage } from './hooks/useRelationshipCongratulationsMessage'
 
 const prefixDataTestId = 'ChangeRelationshipScreen'
-
-function getCongratulationsVariant(
-  relationshipTypeId: string,
-  relationshipTypeCodeById: Record<string, string>,
-  relationshipTypeLabelById: Record<string, string>
-): CongratulationsModalVariant | null {
-  const relationshipTypeText = [
-    relationshipTypeId,
-    relationshipTypeCodeById[relationshipTypeId],
-    relationshipTypeLabelById[relationshipTypeId]
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase()
-
-  if (relationshipTypeText.includes('marriage') || relationshipTypeText.includes('mariage')) {
-    return 'marriage'
-  }
-
-  if (relationshipTypeText.includes('child')) {
-    return 'child'
-  }
-
-  return null
-}
 
 function toValidEmployeeDocumentId(value: unknown): string {
   if (typeof value !== 'string') {
@@ -100,9 +76,9 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
   )
   const isEditMode = Boolean(initialPayload?.relationship?.id)
   const [successOpen, setSuccessOpen] = useState(false)
-  const [congratulationsVariant, setCongratulationsVariant] = useState<CongratulationsModalVariant>('child')
   const preSubmitResolverRef = useRef<((payload: any) => void) | null>(null)
   const pendingPayloadRef = useRef<any>(null)
+  const relationshipCongratulationsMessage = useRelationshipCongratulationsMessage(accessToken)
 
   const isValid = useMemo(() => {
     const requiredOk = relationshipTypeId && firstName.trim() && lastName.trim()
@@ -381,18 +357,23 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       }
     }
 
-    // Only show congratulations modal when adding a new Child or Marriage relationship
-    const congratsVariant = getCongratulationsVariant(
-      relationshipTypeId,
-      relationshipTypeCodeById,
-      relationshipTypeLabelById
-    )
-    const shouldShowCongrats = !isEditMode && congratsVariant != null
+    // Show congratulations modal for every newly added relationship type.
+    const shouldShowCongrats = !isEditMode && Boolean(relationshipTypeId)
 
     if (shouldShowCongrats) {
+      relationshipCongratulationsMessage.clear()
+      void relationshipCongratulationsMessage.generateMessage({
+        birthDate,
+        companyName: employee?.companyName || '',
+        personName: `${firstName.trim()} ${lastName.trim()}`.trim(),
+        relationshipType:
+          relationshipTypeLabelById[relationshipTypeId] ||
+          relationshipTypeCodeById[relationshipTypeId] ||
+          relationshipTypeId
+      })
+
       // Show Congratulations modal first and resolve payload after user confirms
       pendingPayloadRef.current = relationshipChange
-      setCongratulationsVariant(congratsVariant)
       setSuccessOpen(true)
       return new Promise(resolve => {
         preSubmitResolverRef.current = resolve
@@ -641,15 +622,16 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       {/* Success modal */}
       <CongratulationsModal
         open={successOpen}
-        variant={congratulationsVariant}
         onConfirm={() => {
           const resolver = preSubmitResolverRef.current
           const payload = pendingPayloadRef.current || {}
           preSubmitResolverRef.current = null
           pendingPayloadRef.current = null
           setSuccessOpen(false)
+          relationshipCongratulationsMessage.clear()
           if (resolver) resolver(payload)
         }}
+        generatedMessage={relationshipCongratulationsMessage.message}
         dataTestId="flw_changeRelationship_successModal"
         confirmButtonTestId="flw_changeRelationship_successClose"
       />

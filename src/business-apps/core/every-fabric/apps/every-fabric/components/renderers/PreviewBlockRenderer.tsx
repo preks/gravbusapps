@@ -9,6 +9,7 @@ import {
 } from '@phosphor-icons/react'
 import type { PreviewBlock, PreviewItem, PreviewItemStatus } from '../../types/enterpriseAgent'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
+import { normalizePreviewMarkdown } from './normalizePreviewMarkdown'
 
 interface PreviewBlockRendererProps {
   preview: PreviewBlock
@@ -143,13 +144,17 @@ const KeyValueRows: FC<{ items: PreviewItem[] }> = ({ items }) => (
   </dl>
 )
 
+const PreviewMarkdown: FC<{ markdown: string }> = ({ markdown }) => (
+  <MarkdownWithChipsRenderer content={normalizePreviewMarkdown(markdown)} variant="enterprise" />
+)
+
 const RendererBody: FC<{ preview: PreviewBlock }> = ({ preview }) => {
   const items = preview.items ?? []
   const hasItems = items.length > 0
 
   if (preview.kind === 'markdown') {
     if (!preview.markdown) return null
-    return <MarkdownWithChipsRenderer content={preview.markdown} variant="enterprise" />
+    return <PreviewMarkdown markdown={preview.markdown} />
   }
 
   return (
@@ -158,8 +163,8 @@ const RendererBody: FC<{ preview: PreviewBlock }> = ({ preview }) => {
       {hasItems && preview.kind === 'checklist' && <ChecklistRows items={items} />}
       {hasItems && preview.kind === 'key_values' && <KeyValueRows items={items} />}
       {preview.markdown && (
-        <div className="gba:mt-3">
-          <MarkdownWithChipsRenderer content={preview.markdown} variant="enterprise" />
+        <div className="gba:mt-3 gba:border-t gba:border-border/50 gba:pt-3 gba:space-y-1">
+          <PreviewMarkdown markdown={preview.markdown} />
         </div>
       )}
     </>

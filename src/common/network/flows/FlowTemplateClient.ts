@@ -41,9 +41,35 @@ export enum AssignmentMode {
 export enum FlowTriggerType {
   MANUAL_FORM = 'MANUAL_FORM',
   WEBHOOK = 'WEBHOOK',
+  EMAIL = 'EMAIL',
   EVENT = 'EVENT',
   SCHEDULE = 'SCHEDULE',
   API_SCHEMA = 'API_SCHEMA'
+}
+
+/**
+ * v1 EMAIL trigger filter shape — mirrors the backend
+ * `EmailTriggerConfigDto`/`EmailTriggerFilterDto` in custom-flow-engine.
+ */
+export const EMAIL_TRIGGER_FILTER_FIELDS = ['accountEmail', 'from.address', 'subject', 'hasAttachments'] as const
+export type EmailTriggerFilterField = (typeof EMAIL_TRIGGER_FILTER_FIELDS)[number]
+
+export const EMAIL_TRIGGER_FILTER_OPS = ['eq', 'in', 'contains', 'startsWith', 'endsWith', 'regex'] as const
+export type EmailTriggerFilterOp = (typeof EMAIL_TRIGGER_FILTER_OPS)[number]
+
+export interface EmailTriggerFilterRule {
+  field: EmailTriggerFilterField
+  op: EmailTriggerFilterOp
+  value: string | boolean | string[]
+}
+
+export interface EmailTriggerFilter {
+  match: 'all' | 'any'
+  rules: EmailTriggerFilterRule[]
+}
+
+export interface EmailTriggerConfig {
+  filter?: EmailTriggerFilter
 }
 
 export interface FlowTrigger {
@@ -494,6 +520,7 @@ export class FlowTemplateClient extends RestClient {
       runtimeAssignments?: any
       inputValues?: any
       runtimeParameters?: any
+      validateWithConductor?: boolean
     }
   ): Promise<{
     workflowId: string
@@ -513,12 +540,30 @@ export class FlowTemplateClient extends RestClient {
     templateDefinition: Omit<FlowTemplate, 'id'>
     initiatorId: string
     stepAssignments?: any
+    inputValues?: any
+    runtimeParameters?: any
+    context?: any
+    testOptions?: {
+      agentResponses?: Record<string, unknown>
+      agentResponseModes?: Record<string, 'REAL_WITH_TEST_FALLBACK' | 'TEST_RESPONSE' | 'REAL_ONLY'>
+      userTaskResponses?: Record<string, unknown>
+      expectedBranches?: Record<string, string>
+    }
+    validateWithConductor?: boolean
   }): Promise<{
     workflowId: string
     workflowName: string
     version: number
     tags?: any
     isDynamic: true
+    validationWarnings?: string[]
+    testRun?: {
+      enabled: boolean
+      status: string
+      completedTasks: Array<{ taskId: string; stepReference?: string; stepTitle?: string }>
+      timedOut: boolean
+      warnings: string[]
+    }
     executionInput: any
   }> {
     const response = await this.post<ApiResponse<any>>(`/execute-dynamic`, params)

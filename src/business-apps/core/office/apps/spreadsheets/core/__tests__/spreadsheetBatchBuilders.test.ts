@@ -2,9 +2,23 @@ import {
   buildCellPersistenceOperations,
   buildOperationsFromMutationPlan,
   normalizeCellValueForBatchPersistence,
+  normalizeUniverCellForRowPersistence,
   SPREADSHEET_MAX_SET_RANGE_CELLS_PER_OPERATION,
   SPREADSHEET_MAX_SET_STYLE_CELLS_PER_OPERATION
 } from '../spreadsheetBatchBuilders'
+import type { SpreadsheetColumn } from '../../types'
+
+const numericColumn: SpreadsheetColumn = {
+  id: 'amount',
+  name: 'amount',
+  label: 'Amount',
+  type: 'number',
+  isVisible: true,
+  isEditable: true,
+  isRequired: false,
+  isUnique: false,
+  order: 0
+}
 
 describe('spreadsheetBatchBuilders', () => {
   it('normalizes formula strings into batch persistence payloads', () => {
@@ -18,14 +32,143 @@ describe('spreadsheetBatchBuilders', () => {
     })
   })
 
-  it('builds a set_range op when clear cells should collapse into the batch payload', () => {
+  it('strips inline Univer formatting from row persistence payloads', () => {
+    expect(normalizeUniverCellForRowPersistence({ v: 1, s: 'x', ff: 'Arial', fs: 12 })).toEqual({ v: 1 })
+    expect(normalizeUniverCellForRowPersistence({ s: 'style-only' })).toBeUndefined()
+  })
+
+  it('preserves typed metadata and coerces numeric strings for numeric columns', () => {
+    expect(normalizeCellValueForBatchPersistence('42', numericColumn)).toBe(42)
+    expect(normalizeUniverCellForRowPersistence({ v: '42', t: 2, s: 'style-1' }, numericColumn)).toEqual({
+      v: 42,
+      t: 2
+    })
+  })
+
+  it('coerces numeric-column set_range payloads before persistence', () => {
+    const operations = buildOperationsFromMutationPlan({
+      plan: {
+        sheetId: 'sheet-1',
+        cells: [
+          {
+            rowId: 'row-1',
+            columnName: 'amount',
+            rowIndex: 0,
+            colIndex: 0,
+            valueAction: 'set',
+            value: { v: '42', t: 2 }
+          }
+        ]
+      },
+      columns: [numericColumn],
+      createOperationId: prefix => `${prefix}-1`
+    })
+
+    expect(operations).toEqual([
+      {
+        operationId: 'set_range-1',
+        type: 'set_range',
+        data: {
+          cells: [{ rowId: 'row-1', columnName: 'amount', value: { v: 42, t: 2 }, row: 0, col: 0 }]
+        }
+      }
+    ])
+  })
+
+  it('assigns distinct grid coordinates for multiple columns in the same row', () => {
+    const operations = buildOperationsFromMutationPlan({
+      plan: {
+        sheetId: 'sheet-1',
+        cells: [
+          {
+            rowId: 'row-1',
+            columnName: 'column_6',
+            rowIndex: 242,
+            colIndex: 2,
+            cellRef: 'C243',
+            valueAction: 'set',
+            value: 7
+          },
+          {
+            rowId: 'row-1',
+            columnName: 'column_12',
+            rowIndex: 242,
+            colIndex: 3,
+            cellRef: 'D243',
+            valueAction: 'set',
+            value: 8
+          },
+          {
+            rowId: 'row-1',
+            columnName: 'column_19',
+            rowIndex: 242,
+            colIndex: 4,
+            cellRef: 'E243',
+            valueAction: 'set',
+            value: 9
+          }
+        ]
+      },
+      createOperationId: prefix => `${prefix}-1`
+    })
+
+    const setRange = operations.find(operation => operation.type === 'set_range')
+    expect(setRange?.data.cells).toEqual([
+      { rowId: 'row-1', columnName: 'column_6', value: 7, row: 242, col: 2, cellRef: 'C243' },
+      { rowId: 'row-1', columnName: 'column_12', value: 8, row: 242, col: 3, cellRef: 'D243' },
+      { rowId: 'row-1', columnName: 'column_19', value: 9, row: 242, col: 4, cellRef: 'E243' }
+    ])
+  })
+
+  it('merges clears into set_range with null values and grid coordinates', () => {
+    const operations = buildOperationsFromMutationPlan({
+      plan: {
+        sheetId: 'sheet-1',
+        cells: [
+          {
+            rowId: 'row-1',
+            columnName: 'column_17',
+            rowIndex: 30,
+            colIndex: 6,
+            cellRef: 'G31',
+            valueAction: 'set',
+            value: 1
+          },
+          {
+            rowId: 'row-2',
+            columnName: 'column_18',
+            rowIndex: 32,
+            colIndex: 7,
+            cellRef: 'H33',
+            valueAction: 'clear'
+          }
+        ]
+      },
+      createOperationId: prefix => `${prefix}-1`
+    })
+
+    expect(operations).toEqual([
+      {
+        operationId: 'set_range-1',
+        type: 'set_range',
+        data: {
+          cells: [
+            { rowId: 'row-1', columnName: 'column_17', value: 1, row: 30, col: 6, cellRef: 'G31' },
+            { rowId: 'row-2', columnName: 'column_18', value: null, row: 32, col: 7, cellRef: 'H33' }
+          ]
+        }
+      }
+    ])
+    expect(operations.some(operation => operation.type === 'clear_cell')).toBe(false)
+  })
+
+  it('builds a single set_range op for mixed sets and clears', () => {
     const createOperationId = jest.fn().mockReturnValueOnce('set-range-1')
 
     const operations = buildCellPersistenceOperations({
       setUpdatesByBackendRowId: new Map([['row-1', { ColumnA: 'value' }]]),
       clearCells: [{ rowId: 'row-2', columnName: 'ColumnB' }],
-      createOperationId,
-      maxIndividualClearCellOps: 0
+      createOperationId
     })
 
     expect(operations).toEqual([
@@ -38,44 +181,6 @@ describe('spreadsheetBatchBuilders', () => {
             { rowId: 'row-2', columnName: 'ColumnB', value: null }
           ]
         }
-      }
-    ])
-  })
-
-  it('builds individual clear_cell ops when the clear threshold is not exceeded', () => {
-    const createOperationId = jest
-      .fn()
-      .mockReturnValueOnce('set-range-1')
-      .mockReturnValueOnce('clear-cell-1')
-      .mockReturnValueOnce('clear-cell-2')
-
-    const operations = buildCellPersistenceOperations({
-      setUpdatesByBackendRowId: new Map([['row-1', { ColumnA: '=SUM(A1:A2)' }]]),
-      clearCells: [
-        { rowId: 'row-2', columnName: 'ColumnB' },
-        { rowId: 'row-3', columnName: 'ColumnC' }
-      ],
-      createOperationId,
-      maxIndividualClearCellOps: 10
-    })
-
-    expect(operations).toEqual([
-      {
-        operationId: 'set-range-1',
-        type: 'set_range',
-        data: {
-          cells: [{ rowId: 'row-1', columnName: 'ColumnA', value: { f: '=SUM(A1:A2)' } }]
-        }
-      },
-      {
-        operationId: 'clear-cell-1',
-        type: 'clear_cell',
-        data: { rowId: 'row-2', columnName: 'ColumnB' }
-      },
-      {
-        operationId: 'clear-cell-2',
-        type: 'clear_cell',
-        data: { rowId: 'row-3', columnName: 'ColumnC' }
       }
     ])
   })
@@ -101,8 +206,7 @@ describe('spreadsheetBatchBuilders', () => {
           stylePatch: { set: { s: index % 2 === 0 ? 'style-a' : 'style-b' } }
         }))
       },
-      createOperationId: prefix => `${prefix}-${++sequence}`,
-      maxIndividualClearCellOps: 100
+      createOperationId: prefix => `${prefix}-${++sequence}`
     })
 
     expect(operations[0]?.type).toBe('set_range')
@@ -138,8 +242,7 @@ describe('spreadsheetBatchBuilders', () => {
           value: index
         }))
       },
-      createOperationId: prefix => `${prefix}-${++sequence}`,
-      maxIndividualClearCellOps: 100
+      createOperationId: prefix => `${prefix}-${++sequence}`
     })
     const setRangeOps = operations.filter(operation => operation.type === 'set_range')
     expect(setRangeOps.length).toBe(Math.ceil(cellCount / SPREADSHEET_MAX_SET_RANGE_CELLS_PER_OPERATION))
@@ -170,8 +273,7 @@ describe('spreadsheetBatchBuilders', () => {
           }
         ]
       },
-      createOperationId: prefix => `${prefix}-1`,
-      maxIndividualClearCellOps: 10
+      createOperationId: prefix => `${prefix}-1`
     })
 
     expect(operations).toEqual([
@@ -183,7 +285,9 @@ describe('spreadsheetBatchBuilders', () => {
             {
               rowRef: { kind: 'clientHandle', clientRowId: 'client-row-1' },
               columnName: 'ColumnA',
-              value: 'draft'
+              value: 'draft',
+              row: 1,
+              col: 0
             }
           ]
         }

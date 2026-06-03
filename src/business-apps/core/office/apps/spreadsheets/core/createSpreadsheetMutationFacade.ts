@@ -356,13 +356,13 @@ export const createSpreadsheetMutationFacade = (
       sheetId,
       operations: [
         {
-          operationId: createSpreadsheetMutationOperationId('clear_cell'),
-          type: 'clear_cell',
-          data: { rowId, columnName }
+          operationId: createSpreadsheetMutationOperationId('set_range'),
+          type: 'set_range',
+          data: { cells: [{ rowId, columnName, value: null }] }
         }
       ],
-      batchIdPrefix: 'clear_cell',
-      traceMeta: buildTraceMeta(undefined, 'clear_cell')
+      batchIdPrefix: 'set_range',
+      traceMeta: buildTraceMeta(undefined, 'set_range')
     })
   },
 

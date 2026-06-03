@@ -4,6 +4,7 @@ import type { SpreadsheetSession } from '../core'
 import { SpreadsheetApiService } from '../services/SpreadsheetApiService'
 import type { CollaborationOperation } from '../services/SpreadsheetCollaborationManager'
 import type { SpreadsheetSheet } from '../types'
+import type { SpreadsheetSnapshotCoversVersions } from '../utils/spreadsheetSnapshotCoverage'
 
 export interface UseSpreadsheetSheetVersionModelParams {
   appId: string
@@ -25,6 +26,7 @@ export interface UseSpreadsheetSheetVersionModelParams {
 export function useSpreadsheetSheetVersionModel(params: UseSpreadsheetSheetVersionModelParams) {
   const sheetVersionRef = useRef<number>(0)
   const workbookSnapshotVersionRef = useRef<number>(0)
+  const workbookSnapshotCoversVersionsRef = useRef<SpreadsheetSnapshotCoversVersions>({})
   const sheetVersionsRef = useRef<Map<string, number>>(new Map())
   const sheetVersionSyncSheetIdRef = useRef<string>('')
   const knownSheetVersionsRef = useRef<Map<string, { version: number; fetchedAt: number }>>(new Map())
@@ -83,8 +85,10 @@ export function useSpreadsheetSheetVersionModel(params: UseSpreadsheetSheetVersi
 
   const rememberKnownSheetVersion = useCallback((targetSheetId: string, version: number | undefined) => {
     if (typeof version !== 'number' || !Number.isFinite(version) || version < 0) return
+    const normalizedVersion = Math.trunc(version)
+    const previous = knownSheetVersionsRef.current.get(targetSheetId)?.version ?? 0
     knownSheetVersionsRef.current.set(targetSheetId, {
-      version: Math.trunc(version),
+      version: Math.max(previous, normalizedVersion),
       fetchedAt: Date.now()
     })
   }, [])
@@ -132,10 +136,10 @@ export function useSpreadsheetSheetVersionModel(params: UseSpreadsheetSheetVersi
           const sheet = await SpreadsheetApiService.getSheet(params.appId, targetSheetId)
           const fetchedVersion = Number(sheet?.version ?? knownVersion)
           if (!Number.isFinite(fetchedVersion)) return knownVersion
-          const nextVersion = Math.trunc(fetchedVersion)
-          rememberKnownSheetVersion(targetSheetId, nextVersion)
-          rememberSheetVersion(targetSheetId, nextVersion)
-          return nextVersion
+          const monotonicVersion = Math.max(knownVersion, Math.trunc(fetchedVersion))
+          rememberKnownSheetVersion(targetSheetId, monotonicVersion)
+          rememberSheetVersion(targetSheetId, monotonicVersion)
+          return monotonicVersion
         } catch {
           return knownVersion
         } finally {
@@ -195,53 +199,61 @@ export function useSpreadsheetSheetVersionModel(params: UseSpreadsheetSheetVersi
     recentLocalBatchIdsRef.current = next
   }, [])
 
-  const shouldIgnoreRecentlyCommittedOperation = useCallback((operation: CollaborationOperation): boolean => {
-    const nestedOperation = operation.operation as { version?: unknown } | undefined
-    const operationType = typeof operation.operation?.type === 'string' ? operation.operation.type : ''
-    const operationData = operation.operation?.data as { batchId?: unknown; tabId?: unknown } | undefined
-    const batchIdRaw = typeof operationData?.batchId === 'string' ? operationData.batchId.trim() : ''
-    const wireTabIdRaw = typeof operationData?.tabId === 'string' ? operationData.tabId.trim() : ''
-    const isBroadcastOnly = operation.operation?.broadcastOnly === true
-    if (operationType === 'batch_operations' && batchIdRaw) {
-      const now = Date.now()
-      const nextBatches = new Map(recentLocalBatchIdsRef.current)
-      for (const [candidateBatchId, entry] of nextBatches) {
-        if (entry.expiresAt <= now) nextBatches.delete(candidateBatchId)
-      }
-      recentLocalBatchIdsRef.current = nextBatches
-      const stored = nextBatches.get(batchIdRaw)
-      if (stored) {
-        const tabMismatch = Boolean(wireTabIdRaw && stored.tabId && wireTabIdRaw !== stored.tabId)
-        if (!tabMismatch) {
-          return true
-        }
-      }
-    }
-    if (isBroadcastOnly || operationType === 'cells_changed') {
-      return false
-    }
-    const version =
-      typeof operation.version === 'number'
-        ? Math.trunc(operation.version)
-        : typeof nestedOperation?.version === 'number'
-          ? Math.trunc(nestedOperation.version)
-          : null
-    if (version == null || !Number.isFinite(version) || version < 0) {
-      return false
-    }
-
+  const isRecentLocalBatchId = useCallback((batchId: string | undefined, tabId?: string | undefined): boolean => {
+    const batchIdRaw = typeof batchId === 'string' ? batchId.trim() : ''
+    if (!batchIdRaw) return false
+    const wireTabIdRaw = typeof tabId === 'string' ? tabId.trim() : ''
     const now = Date.now()
-    const next = new Map(recentLocalCommittedVersionsRef.current)
-    for (const [candidateVersion, candidateExpiresAt] of next) {
-      if (candidateExpiresAt <= now) next.delete(candidateVersion)
+    const nextBatches = new Map(recentLocalBatchIdsRef.current)
+    for (const [candidateBatchId, entry] of nextBatches) {
+      if (entry.expiresAt <= now) nextBatches.delete(candidateBatchId)
     }
-    recentLocalCommittedVersionsRef.current = next
-    return next.has(version)
+    recentLocalBatchIdsRef.current = nextBatches
+    const stored = nextBatches.get(batchIdRaw)
+    if (!stored) return false
+    const tabMismatch = Boolean(wireTabIdRaw && stored.tabId && wireTabIdRaw !== stored.tabId)
+    return !tabMismatch
   }, [])
+
+  const shouldIgnoreRecentlyCommittedOperation = useCallback(
+    (operation: CollaborationOperation): boolean => {
+      const nestedOperation = operation.operation as { version?: unknown } | undefined
+      const operationType = typeof operation.operation?.type === 'string' ? operation.operation.type : ''
+      const operationData = operation.operation?.data as { batchId?: unknown; tabId?: unknown } | undefined
+      const batchIdRaw = typeof operationData?.batchId === 'string' ? operationData.batchId.trim() : ''
+      const wireTabIdRaw = typeof operationData?.tabId === 'string' ? operationData.tabId.trim() : ''
+      const isBroadcastOnly = operation.operation?.broadcastOnly === true
+      if (operationType === 'batch_operations' && batchIdRaw && isRecentLocalBatchId(batchIdRaw, wireTabIdRaw)) {
+        return true
+      }
+      if (isBroadcastOnly || operationType === 'cells_changed') {
+        return false
+      }
+      const version =
+        typeof operation.version === 'number'
+          ? Math.trunc(operation.version)
+          : typeof nestedOperation?.version === 'number'
+            ? Math.trunc(nestedOperation.version)
+            : null
+      if (version == null || !Number.isFinite(version) || version < 0) {
+        return false
+      }
+
+      const now = Date.now()
+      const next = new Map(recentLocalCommittedVersionsRef.current)
+      for (const [candidateVersion, candidateExpiresAt] of next) {
+        if (candidateExpiresAt <= now) next.delete(candidateVersion)
+      }
+      recentLocalCommittedVersionsRef.current = next
+      return next.has(version)
+    },
+    [isRecentLocalBatchId]
+  )
 
   return {
     sheetVersionRef,
     workbookSnapshotVersionRef,
+    workbookSnapshotCoversVersionsRef,
     knownSheetVersionsRef,
     rememberSheetVersion,
     resolveKnownSheetVersion,
@@ -251,6 +263,7 @@ export function useSpreadsheetSheetVersionModel(params: UseSpreadsheetSheetVersi
     refreshBaseVersionBeforeWrite,
     rememberLocalCommittedVersion,
     rememberRecentLocalBatchId,
+    isRecentLocalBatchId,
     shouldIgnoreRecentlyCommittedOperation
   }
 }

@@ -109,10 +109,10 @@ const ConfirmTransferAdvPaymentContent: React.FC<ConfirmTransferAdvPaymentProps>
   }, [extractedPaymentId, additionalData])
 
   useEffect(() => {
-    if (extractedPaymentId) {
+    if (extractedPaymentId && accessToken?.trim()) {
       fetchPaymentData()
     }
-  }, [extractedPaymentId])
+  }, [extractedPaymentId, accessToken])
 
   const fetchPaymentData = async () => {
     if (!extractedPaymentId) {

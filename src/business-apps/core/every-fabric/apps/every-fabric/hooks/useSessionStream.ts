@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import type { ChatMessage } from '../types/enterpriseAgent'
 import { deriveMessagesFromEvents } from '../utils/messageUtils'
 import { useSessionStreamEntry } from './useSessionStreamEntry'
+import { invalidateDeepAgentSessionEtagCache } from './useEnterpriseAgentClient'
 import { resetSessionStream } from './sessionStreamRegistry'
 import { isFlowBotFabricRuntime } from '../utils/fabricRuntime'
 
@@ -16,8 +17,13 @@ import { isFlowBotFabricRuntime } from '../utils/fabricRuntime'
  * registry entry's buffer and force it to reconnect — equivalent to the old
  * hook's behaviour on new turn.
  */
-export const useSessionStream = (sessionId: string | null, accessToken: string, streamVersion = 0) => {
-  const { events, isConnected } = useSessionStreamEntry(sessionId, accessToken)
+export const useSessionStream = (
+  sessionId: string | null,
+  accessToken: string,
+  streamVersion = 0,
+  streamSuppressed = false
+) => {
+  const { events, isConnected } = useSessionStreamEntry(sessionId, accessToken, streamSuppressed)
   const lastResetKeyRef = useRef<string | null>(null)
 
   useEffect(() => {
@@ -36,6 +42,7 @@ export const useSessionStream = (sessionId: string | null, accessToken: string, 
     lastResetKeyRef.current = resetKey
     const [prevSessionId] = previousKey.split(':')
     if (prevSessionId === sessionId) {
+      invalidateDeepAgentSessionEtagCache(sessionId)
       resetSessionStream(sessionId, !isFlowBotFabricRuntime())
     }
   }, [sessionId, streamVersion])

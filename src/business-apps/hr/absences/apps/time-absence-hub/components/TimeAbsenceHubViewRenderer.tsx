@@ -54,6 +54,7 @@ const renderHubView = (
           derivedDateRange={globalFilters.derivedDateRange}
           filterOptions={filterOptions}
           onGlobalFiltersChange={globalFilters.setFilters}
+          filterAction={filterAction}
         />
       )
     case 'attendance':
@@ -62,8 +63,9 @@ const renderHubView = (
           {...baseProps}
           globalFilters={globalFilters.filters}
           derivedDateRange={globalFilters.derivedDateRange}
-          filterOptions={filterOptions}
+          absenceTypes={filterOptions.absenceTypes}
           onGlobalFiltersChange={globalFilters.setFilters}
+          filterAction={filterAction}
         />
       )
     case 'entitlements':
@@ -72,8 +74,8 @@ const renderHubView = (
           {...baseProps}
           globalFilters={globalFilters.filters}
           derivedDateRange={globalFilters.derivedDateRange}
-          filterOptions={filterOptions}
           onGlobalFiltersChange={globalFilters.setFilters}
+          filterAction={filterAction}
         />
       )
     case 'insights':
@@ -101,6 +103,26 @@ export const TimeAbsenceHubViewRenderer: React.FC<TimeAbsenceHubViewRendererProp
 }) => {
   const context: BusinessAppContextProps = { accessToken, userInfo }
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
+  const openFilterDrawer = () => setFilterDrawerOpen(true)
+
+  const hubFilterDrawer = (
+    <HubGlobalFilters
+      open={filterDrawerOpen}
+      onOpenChange={setFilterDrawerOpen}
+      filters={globalFilters.filters}
+      options={filterOptions}
+      onTimeScopeChange={globalFilters.setTimeScope}
+      onDateRangeChange={globalFilters.setDateRange}
+      onDepartmentsChange={globalFilters.setDepartmentIds}
+      onLocationsChange={globalFilters.setLocationIds}
+      onLegalEntitiesChange={globalFilters.setLegalEntityIds}
+      onAbsenceTypesChange={globalFilters.setAbsenceTypeIds}
+      onManagersChange={globalFilters.setManagerIds}
+      onEmployeeQueryChange={globalFilters.setEmployeeQuery}
+      onReset={globalFilters.resetFilters}
+      showAbsenceTypeFilter={navigation.currentView !== 'attendance'}
+    />
+  )
 
   const filterAction = (
     <Button
@@ -108,7 +130,7 @@ export const TimeAbsenceHubViewRenderer: React.FC<TimeAbsenceHubViewRendererProp
       size="sm"
       className="gba:h-8 gba:gap-2 gba:px-3"
       aria-label={getTranslationFromI18nKeyAndLabel('lowcoder:time_absence_hub.filters.open', 'Open filters')}
-      onClick={() => setFilterDrawerOpen(true)}
+      onClick={openFilterDrawer}
       data-testid="time-absence-hub-open-filters"
     >
       <FunnelIcon size={16} />
@@ -144,10 +166,14 @@ export const TimeAbsenceHubViewRenderer: React.FC<TimeAbsenceHubViewRendererProp
   if (navigation.currentView === 'entitlements-details') {
     return (
       <div data-testid="time-absence-hub-container">
+        {hubFilterDrawer}
         <EntitlementsDetails
           accessToken={accessToken}
           userInfo={userInfo}
           timeFilter={globalFilters.legacyTimeFilter}
+          globalFilters={globalFilters.filters}
+          derivedDateRange={globalFilters.derivedDateRange}
+          onOpenGlobalFilters={openFilterDrawer}
           onNavigateBack={navigation.handleNavigateBackToDashboard}
         />
       </div>
@@ -175,21 +201,7 @@ export const TimeAbsenceHubViewRenderer: React.FC<TimeAbsenceHubViewRendererProp
         className="gba:min-h-screen"
       >
         <div className="gba:flex gba:flex-col gba:gap-4 gba:p-6">
-          <HubGlobalFilters
-            open={filterDrawerOpen}
-            onOpenChange={setFilterDrawerOpen}
-            filters={globalFilters.filters}
-            options={filterOptions}
-            onTimeScopeChange={globalFilters.setTimeScope}
-            onDateRangeChange={globalFilters.setDateRange}
-            onDepartmentsChange={globalFilters.setDepartmentIds}
-            onLocationsChange={globalFilters.setLocationIds}
-            onLegalEntitiesChange={globalFilters.setLegalEntityIds}
-            onAbsenceTypesChange={globalFilters.setAbsenceTypeIds}
-            onManagersChange={globalFilters.setManagerIds}
-            onEmployeeQueryChange={globalFilters.setEmployeeQuery}
-            onReset={globalFilters.resetFilters}
-          />
+          {hubFilterDrawer}
           {renderHubView(
             navigation.currentView,
             context,

@@ -1,10 +1,9 @@
 import * as React from 'react'
 import { StreamingMarkdown } from '@/common/components/markdown/StreamingMarkdown'
 import type { EnterprisePresentationMode, PlanItem } from '../../types/enterpriseAgent'
-import { ElegantStatusIndicator } from './ElegantStatusIndicator'
 import { AgentThinkingStream } from './AgentThinkingStream'
 import { AgentPlanReveal } from './AgentPlanReveal'
-import { StreamingPreviewBubble } from './StreamingPreviewBubble'
+import { AgentActivityTimeline } from './AgentActivityTimeline'
 import { useAnimatedGreeting } from './useAnimatedGreeting'
 
 interface StreamingAnswerBubbleProps {
@@ -79,7 +78,7 @@ const StreamingAnswerContent: React.FC<StreamingAnswerContentProps> = ({
   // The plan card only renders when the agent has actually produced a
   // checklist; the static template ack ("Working on this. I'll draw on …")
   // is no longer surfaced as a primary block — the activity ticker
-  // (StreamingPreviewBubble) and ElegantStatusIndicator carry that signal.
+  // AgentActivityTimeline carries that signal.
   const hasPlanContent = Boolean(planItems && planItems.length > 0)
   // Once the final answer is clearly streaming, collapse the plan reveal
   // card to a thin recap line so the user's eyes land on the actual answer.
@@ -101,8 +100,13 @@ const StreamingAnswerContent: React.FC<StreamingAnswerContentProps> = ({
         </div>
       ) : null}
       {thinkingContent ? <AgentThinkingStream thinkingText={thinkingContent} isStreaming={isStreaming} /> : null}
-      {isStreaming ? <ElegantStatusIndicator statusText={statusMessage || 'Processing your request...'} /> : null}
-      <StreamingPreviewBubble activityLines={activityLines} isStreaming={isStreaming} />
+      {isStreaming ? (
+        <AgentActivityTimeline
+          activityLines={activityLines}
+          currentStatus={statusMessage || 'Processing your request...'}
+          isStreaming={isStreaming}
+        />
+      ) : null}
       {hasPlanContent ? <AgentPlanReveal items={planItems ?? []} isCollapsing={isPlanCollapsing} /> : null}
       {responseContent ? (
         <div className={responseSpacingClass}>

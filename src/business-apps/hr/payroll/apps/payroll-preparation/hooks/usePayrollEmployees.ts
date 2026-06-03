@@ -56,6 +56,8 @@ interface RawEmployeePosition {
       employmentType: { id: string; value: string; translations?: Array<{ value: string }> } | null
       hireDate: string | null
       exitDate: string | null
+      activeFrom: string | null
+      activeTo: string | null
       region: { id: string; value: string; parentEntry?: { code?: string } } | null
       updatedAt: string | null
       updatedBy: string | null
@@ -231,6 +233,90 @@ function resolvePayrollRelevant(contractObjectValue: unknown): boolean | null {
   }
 
   return raw === true || raw === 'true'
+}
+
+type RawWorkingCondition = RawEmployeePosition['employee']['workingCondition'][number]
+
+interface PayrollWorkingConditionDisplayContext {
+  hasMultiplePayrollConditions: boolean
+  isFirstPayrollCondition: boolean
+}
+
+function toStartOfDayTimestamp(value: string | null | undefined): number | null {
+  if (!value) {
+    return null
+  }
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return null
+  }
+
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+}
+
+function getPayrollMonthRange(payrollMonth: number, payrollYear: number): { periodStart: number; periodEnd: number } {
+  return {
+    periodStart: new Date(payrollYear, payrollMonth - 1, 1).getTime(),
+    periodEnd: new Date(payrollYear, payrollMonth, 0).getTime()
+  }
+}
+
+function hasWorkingConditionPeriod(workingCondition: RawWorkingCondition): boolean {
+  return Boolean(workingCondition.activeFrom || workingCondition.activeTo)
+}
+
+function overlapsPayrollMonth(
+  workingCondition: RawWorkingCondition,
+  payrollMonth: number,
+  payrollYear: number
+): boolean {
+  const { periodStart, periodEnd } = getPayrollMonthRange(payrollMonth, payrollYear)
+  const activeFrom = toStartOfDayTimestamp(workingCondition.activeFrom) ?? Number.NEGATIVE_INFINITY
+  const activeTo = toStartOfDayTimestamp(workingCondition.activeTo) ?? Number.POSITIVE_INFINITY
+
+  return activeFrom <= periodEnd && activeTo >= periodStart
+}
+
+function getPayrollDisplayWorkingConditions(
+  workingConditions: RawWorkingCondition[],
+  payrollMonth: number,
+  payrollYear: number
+): Array<RawWorkingCondition | undefined> {
+  if (workingConditions.length === 0) {
+    return [undefined]
+  }
+
+  const overlappingConditions = workingConditions.filter(condition =>
+    hasWorkingConditionPeriod(condition) ? overlapsPayrollMonth(condition, payrollMonth, payrollYear) : false
+  )
+  const hasDatedConditions = workingConditions.some(hasWorkingConditionPeriod)
+
+  const selectedConditions =
+    overlappingConditions.length > 0 || hasDatedConditions ? overlappingConditions : workingConditions
+
+  return selectedConditions.filter(condition => resolvePayrollRelevant(condition.contractType?.objectValue) !== false)
+}
+
+function resolvePayrollDisplayDates(
+  pos: RawEmployeePosition,
+  wc: RawWorkingCondition | undefined,
+  displayContext: PayrollWorkingConditionDisplayContext
+): { hireDate: string | null; terminationDate: string | null } {
+  const actualHireDate = wc?.hireDate || pos.hireDate
+  const actualTerminationDate = wc?.exitDate || pos.exitDate
+
+  if (!displayContext.hasMultiplePayrollConditions || !wc) {
+    return {
+      hireDate: actualHireDate,
+      terminationDate: actualTerminationDate
+    }
+  }
+
+  return {
+    hireDate: displayContext.isFirstPayrollCondition ? actualHireDate : wc.activeFrom || actualHireDate,
+    terminationDate: wc.activeTo || null
+  }
 }
 
 function computeLeaveMetrics(absences: RawAbsence[], weeklyHours: number | null | undefined): LeaveMetrics {
@@ -415,6 +501,7 @@ function resolveVariablePayStatus(bonuses: RawBonus[]): PayrollEmployee['variabl
 
 function buildPayrollChanges(
   employeeId: string,
+  changeIdPrefix: string,
   salaries: RawSalary[],
   hireDate: string | null | undefined,
   rawExitDate: string | null | undefined,
@@ -429,7 +516,7 @@ function buildPayrollChanges(
     const parsedHireDate = new Date(hireDate)
     if (parsedHireDate >= periodStart && parsedHireDate <= periodEnd) {
       changes.push({
-        id: `chg-hire-${employeeId}`,
+        id: `chg-hire-${changeIdPrefix}`,
         employeeId,
         changeType: 'new_hire',
         fieldName: 'Hire Date',
@@ -445,7 +532,7 @@ function buildPayrollChanges(
     const parsedExitDate = new Date(rawExitDate)
     if (parsedExitDate >= periodStart && parsedExitDate <= periodEnd) {
       changes.push({
-        id: `chg-term-${employeeId}`,
+        id: `chg-term-${changeIdPrefix}`,
         employeeId,
         changeType: 'termination',
         fieldName: 'Exit Date',
@@ -468,7 +555,7 @@ function buildPayrollChanges(
 
     const previousSalary = salaries[index + 1] || null
     changes.push({
-      id: `chg-sal-${employeeId}-${salary.id}`,
+      id: `chg-sal-${changeIdPrefix}-${salary.id}`,
       employeeId,
       changeType: 'salary_change',
       fieldName: 'Monthly Gross Salary',
@@ -568,6 +655,8 @@ async function fetchEmployeeDatasets(
 
 function buildPayrollEmployee(
   pos: RawEmployeePosition,
+  wc: RawWorkingCondition | undefined,
+  displayContext: PayrollWorkingConditionDisplayContext,
   salaryMap: Map<string, RawSalary[]>,
   absenceMap: Map<string, RawAbsence[]>,
   attendanceMap: Map<string, RawAttendance[]>,
@@ -578,7 +667,6 @@ function buildPayrollEmployee(
   translateIssue: IssueTranslator
 ): PayrollEmployee {
   const emp = pos.employee
-  const wc = emp.workingCondition?.[0]
   const wh = emp.workingHours?.[0]
   const bank = emp.bankAccounts?.[0]
   const tax = emp.taxDetails?.[0]
@@ -594,17 +682,26 @@ function buildPayrollEmployee(
   const employmentTypeLabel = wc?.employmentType?.translations?.[0]?.value || wc?.employmentType?.value || ''
   const payrollRelevant = resolvePayrollRelevant(wc?.contractType?.objectValue)
 
-  const rawExitDate = wc?.exitDate || pos.exitDate
-  const employmentStatus = resolveEmploymentStatus(rawExitDate, payrollMonth, payrollYear)
+  const actualTerminationDate = wc?.exitDate || pos.exitDate
+  const { hireDate, terminationDate } = resolvePayrollDisplayDates(pos, wc, displayContext)
+  const employmentStatus = resolveEmploymentStatus(actualTerminationDate, payrollMonth, payrollYear)
 
   const totalVariablePay = bonuses.reduce((sum, b) => sum + (b.amount || 0), 0)
   const bonusCurrency = bonuses[0]?.currency?.code || null
   const variablePayStatus = resolveVariablePayStatus(bonuses)
-  const hireDate = wc?.hireDate || pos.hireDate
-  const changes = buildPayrollChanges(emp.id, salaries, hireDate, rawExitDate, payrollMonth, payrollYear)
+  const payrollEmployeeId = `${pos.id}-${wc?.id || 'missing-working-condition'}`
+  const changes = buildPayrollChanges(
+    emp.id,
+    payrollEmployeeId,
+    salaries,
+    hireDate,
+    actualTerminationDate,
+    payrollMonth,
+    payrollYear
+  )
 
   const payrollEmp: PayrollEmployee = {
-    id: pos.id,
+    id: payrollEmployeeId,
     employeeId: emp.id,
     code: emp.code || '',
     firstName: pos.firstName || '',
@@ -616,8 +713,8 @@ function buildPayrollEmployee(
     legalEntityId: pos.companyId,
     legalEntityName: pos.company?.name || '',
     employmentStatus,
-    hireDate: wc?.hireDate || pos.hireDate,
-    terminationDate: rawExitDate,
+    hireDate,
+    terminationDate,
     department: pos.organizationalUnit?.name || '',
     costCenter: pos.costCenter?.name || '',
     workLocation: pos.siteLocation?.name || '',
@@ -725,21 +822,31 @@ export function usePayrollEmployees(
 
       const allEmployees = positions
         .filter(p => p.employee?.id)
-        .map(pos =>
-          buildPayrollEmployee(
-            pos,
-            salaryMap,
-            absenceMap,
-            attendanceMap,
-            bonusMap,
-            effectiveCountry,
-            month,
-            year,
-            translateIssue
-          )
-        )
+        .flatMap(pos => {
+          const workingConditions = getPayrollDisplayWorkingConditions(pos.employee.workingCondition || [], month, year)
+          const hasMultiplePayrollConditions = workingConditions.length > 1
 
-      const payrollEmployees = allEmployees.filter(e => e.payrollRelevant !== false)
+          return workingConditions.map((workingCondition, index) =>
+            buildPayrollEmployee(
+              pos,
+              workingCondition,
+              {
+                hasMultiplePayrollConditions,
+                isFirstPayrollCondition: index === 0
+              },
+              salaryMap,
+              absenceMap,
+              attendanceMap,
+              bonusMap,
+              effectiveCountry,
+              month,
+              year,
+              translateIssue
+            )
+          )
+        })
+
+      const payrollEmployees = allEmployees
 
       setEmployees(payrollEmployees)
     } catch (err) {

@@ -11,6 +11,13 @@ export interface BaseEntityLinkChipProps {
   onClick?: (e: React.MouseEvent) => void
   /** When true, same-URL navigations still refresh (e.g. Flow Studio workflow already open). */
   forceReload?: boolean
+  /**
+   * When true, the chip opens the resolved URL in a new browser tab
+   * (`target="_blank"`) instead of doing an in-app SPA navigation. Used by
+   * the every-fabric chat surface so workspace document / PDF chips in the
+   * agent reply never replace the current chat session.
+   */
+  newTab?: boolean
 }
 
 /**
@@ -25,7 +32,8 @@ export const BaseEntityLinkChip: React.FC<BaseEntityLinkChipProps> = ({
   showBorder = false,
   className = '',
   onClick,
-  forceReload = false
+  forceReload = false,
+  newTab = false
 }) => {
   const variantStyles = {
     default: 'gba:bg-muted hover:gba:bg-accent',
@@ -54,15 +62,24 @@ export const BaseEntityLinkChip: React.FC<BaseEntityLinkChipProps> = ({
   const handleClick = (e: React.MouseEvent) => {
     if (onClick) {
       onClick(e)
-    } else {
-      e.preventDefault()
-      navigateTo(url, forceReload ? { forceReload: true } : undefined)
+      return
     }
+    // When newTab is set, let the browser handle the click natively via the
+    // anchor's target="_blank" — no preventDefault, no SPA navigation. This
+    // keeps cmd/ctrl/middle-click behaviour consistent and means the current
+    // chat session is never replaced.
+    if (newTab) {
+      return
+    }
+    e.preventDefault()
+    navigateTo(url, forceReload ? { forceReload: true } : undefined)
   }
 
   return (
     <a
       href={url}
+      target={newTab ? '_blank' : undefined}
+      rel={newTab ? 'noopener noreferrer' : undefined}
       className={`gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-0.5 gba:rounded-full gba:text-sm gba:cursor-pointer gba:transition-colors ${variantStyles[variant]} ${borderClass} ${variantTextColors[variant]} ${className}`}
       onClick={handleClick}
     >

@@ -1,5 +1,14 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
-import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Skeleton } from '@newwork/nw-design-system'
+import {
+  useTranslation,
+  Button,
+  Alert,
+  AlertTitle,
+  AlertDescription,
+  EmptyState,
+  Skeleton
+} from '@newwork/nw-design-system'
+import { ArticleIcon, FunnelIcon, MagnifyingGlassIcon } from '@phosphor-icons/react'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
 import { ContentRole, ContentGroup } from '@/common/data/content/constants/contentConstants'
 import ContentCard from '../../components/cards/ContentCard'
@@ -92,7 +101,16 @@ const NewsView: React.FC<NewsViewProps> = ({
   const { entries: featuredEntries, refetch: refetchFeatured } = useContentEntries(featuredQueryParams, accessToken)
 
   // Main content entries - affected by search
-  const { entries: fetchedEntries, totalCount, isLoading, error, refetch } = useContentEntries(queryParams, accessToken)
+  const {
+    data: queryData,
+    entries: fetchedEntries,
+    totalCount,
+    isLoading,
+    isPlaceholderData,
+    isFetched,
+    error,
+    refetch
+  } = useContentEntries(queryParams, accessToken)
 
   // Accumulate entries for infinite scroll
   // Track the query key to detect when search/category changes (which should reset)
@@ -105,12 +123,15 @@ const NewsView: React.FC<NewsViewProps> = ({
     if (queryKey !== lastQueryKeyRef.current) {
       lastQueryKeyRef.current = queryKey
       setOffset(0)
-      setAllLoadedEntries([])
     }
   }, [queryKey])
 
   // Accumulate entries based on offset
   useEffect(() => {
+    if (isPlaceholderData || !queryData) {
+      return
+    }
+
     if (offset === 0) {
       // First page - replace all entries
       setAllLoadedEntries(fetchedEntries)
@@ -122,7 +143,7 @@ const NewsView: React.FC<NewsViewProps> = ({
         return [...prev, ...newEntries]
       })
     }
-  }, [fetchedEntries, offset])
+  }, [fetchedEntries, isPlaceholderData, offset, queryData])
 
   // Listen for process completion to refresh data
   useProcessCompletion({
@@ -134,14 +155,39 @@ const NewsView: React.FC<NewsViewProps> = ({
   })
 
   // Use accumulated entries
-  const data = allLoadedEntries
+  const data = allLoadedEntries.length > 0 ? allLoadedEntries : fetchedEntries
   const featuredData = featuredEntries
   const featuredArticles = useMemo(() => featuredData.slice(0, 2), [featuredData])
   const otherArticles = useMemo(() => data, [data])
+  const visibleEmptyStateConfig = useMemo(() => {
+    const displayedSearchQuery = queryData?.queryMeta.params.search ?? ''
+    const displayedContentTypeId = queryData?.queryMeta.params.contentTypeId ?? null
 
-  // Keep loading state until we have data on initial load
-  const isInitialLoad = offset === 0 && allLoadedEntries.length === 0
-  const showLoading = isLoading || isInitialLoad
+    if (displayedSearchQuery) {
+      return {
+        type: 'search' as const,
+        title: t('no_search_results'),
+        description: t('no_search_results_description'),
+        icon: MagnifyingGlassIcon
+      }
+    }
+
+    if (displayedContentTypeId) {
+      return {
+        type: 'filtered' as const,
+        title: t('no_filter_results'),
+        description: t('no_filter_results_description'),
+        icon: FunnelIcon
+      }
+    }
+
+    return {
+      type: 'no-data' as const,
+      title: t('no_news_found'),
+      description: t('no_news_found_description'),
+      icon: ArticleIcon
+    }
+  }, [queryData, t])
 
   const hasMore = allLoadedEntries.length > 0 && allLoadedEntries.length < totalCount
 
@@ -179,22 +225,22 @@ const NewsView: React.FC<NewsViewProps> = ({
       setOffset(prev => prev + PAGE_SIZE)
     },
     hasMore,
-    isLoading: showLoading
+    isLoading
   })
 
   const handleSearch = (query: string) => {
+    setOffset(0)
     setSearchQuery(query)
-    // Offset will be reset by the queryKey effect
   }
 
   const handleCategoryClick = (label: string) => {
+    setOffset(0)
     if (label === ALL_TAG) {
       setSelectedContentTypeId(null)
     } else {
       const selectedType = contentTypeOptions.find(option => option.label === label)
       setSelectedContentTypeId(selectedType?.id || null)
     }
-    // Offset will be reset by the queryKey effect
   }
 
   if (error) {
@@ -242,6 +288,7 @@ const NewsView: React.FC<NewsViewProps> = ({
             <div className="gba:flex gba:gap-2 gba:items-center">
               <SearchInput onSearch={handleSearch} placeholder={t('search_news')} className="gba:w-[300px]" />
               <AppAction
+                variant="create-primary"
                 contexts={[
                   {
                     context: FlowContextName.contentEntryCreate,
@@ -249,11 +296,9 @@ const NewsView: React.FC<NewsViewProps> = ({
                   }
                 ]}
                 accessToken={accessToken}
-                emptyState="enable"
-                lazyLoad
                 data-testid="news-view-create-button"
               >
-                <Button>{t('publish_news')}</Button>
+                {t('publish_news')}
               </AppAction>
             </div>
           </div>
@@ -307,7 +352,7 @@ const NewsView: React.FC<NewsViewProps> = ({
         </div>
 
         <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:mb-6">
-          {showLoading ? (
+          {isLoading ? (
             <ContentCardSkeleton variant="horizontal" count={5} />
           ) : (
             otherArticles.map((item, index) => {
@@ -342,10 +387,19 @@ const NewsView: React.FC<NewsViewProps> = ({
           </div>
         )}
 
-        {!showLoading && offset === 0 && data.length === 0 && fetchedEntries.length === 0 && (
-          <div className="gba:text-center gba:py-12">
-            <p className="gba:text-muted-foreground">{t('no_news_found')}</p>
-          </div>
+        {isFetched && !isLoading && offset === 0 && data.length === 0 && (
+          <EmptyState
+            type={visibleEmptyStateConfig.type}
+            config={{
+              configs: {
+                [visibleEmptyStateConfig.type]: {
+                  ...visibleEmptyStateConfig,
+                  size: 'md'
+                }
+              }
+            }}
+            data-testid="news-view-empty"
+          />
         )}
       </div>
     </div>

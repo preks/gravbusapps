@@ -97,10 +97,10 @@ query GetSkillCategories {
 
 export const GET_SKILL_CATEGORY_SKILLS = `
 query GetSkillCategorySkills {
-  skillCategorySkills: SkillCategorySkill(
+  skillCategorySkills: Skill(
     where: { isDeleted: { _eq: false } }
   ) {
-    skillId
+    id
     skillCategoryId
     skillCategory {
       id

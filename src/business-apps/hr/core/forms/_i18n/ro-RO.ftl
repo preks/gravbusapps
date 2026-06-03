@@ -89,6 +89,22 @@ assign-salary-review-notes = Note
 action-select-placeholder = Vă rugăm să selectați
 action-enter-placeholder = Vă rugăm să introduceți
 
+# Upload Document Form
+upload-document-title = Încărcare document
+upload-document-upload-document = Încărcare document
+upload-document-document-name = Nume document
+upload-document-document-name-required = Numele documentului este obligatoriu
+upload-document-document-name-placeholder = ex., Contract de muncă, Carte de identitate, CV
+upload-document-document-group = Grup de documente
+upload-document-select-document-group = Selectare grup de documente
+upload-document-document-type = Tip document
+upload-document-select-document-type = Selectați tipul documentului
+upload-document-expiry-date = Data expirării
+upload-document-description = Descriere
+upload-document-ai-detecting = Se detectează grupul și tipul documentului...
+upload-document-ai-suggestion = Sugestie AI: Grup = { $group }, Tip = { $type }
+upload-document-ai-apply = Aplică sugestia
+
 # Grant Employee Bonus Form - Romanian Translations
 
 # Form Title

@@ -8,6 +8,13 @@ type EmployeePictureResponse = {
   } | null
 }
 
+type EmployeePictureByUserIdResponse = {
+  Employee: Array<{
+    pictureThumbnail: string | null
+    picture: string | null
+  }>
+}
+
 const toDataUrl = (raw: string): string => {
   if (!raw) return raw
   if (raw.startsWith('data:')) return raw
@@ -17,13 +24,49 @@ const toDataUrl = (raw: string): string => {
   return `data:image/*;base64,${raw}`
 }
 
-export function useCurrentUserPicture(employeeId: string | undefined, accessToken: string) {
+function resolveThumbnail(pictureThumbnail: string | null, picture: string | null): string | null {
+  let thumbnail = pictureThumbnail
+
+  if (!thumbnail && picture) {
+    try {
+      JSON.parse(picture)
+      thumbnail = null
+    } catch {
+      thumbnail = picture
+    }
+  }
+
+  return thumbnail ? toDataUrl(thumbnail) : null
+}
+
+const GET_EMPLOYEE_PICTURE = `
+  query GetEmployeePicture($id: uuid!) {
+    EmployeeByPk(id: $id) {
+      pictureThumbnail
+      picture
+    }
+  }
+`
+
+const GET_EMPLOYEE_PICTURE_BY_USER_ID = `
+  query GetEmployeePictureByUserId($userId: String!) {
+    Employee(
+      where: { userId: { _eq: $userId }, isDeleted: { _eq: false } }
+      limit: 1
+    ) {
+      pictureThumbnail
+      picture
+    }
+  }
+`
+
+export function useCurrentUserPicture(employeeId: string | undefined, accessToken: string, userId?: string) {
   const [pictureThumbnail, setPictureThumbnail] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const graphqlClient = useGraphQLClient(accessToken)
 
   useEffect(() => {
-    if (!employeeId || !accessToken) {
+    if (!accessToken || (!employeeId && !userId)) {
       setPictureThumbnail(null)
       return
     }
@@ -31,45 +74,31 @@ export function useCurrentUserPicture(employeeId: string | undefined, accessToke
     const fetchPicture = async () => {
       setIsLoading(true)
       try {
-        const query = `
-          query GetEmployeePicture($id: uuid!) {
-            EmployeeByPk(id: $id) {
-              pictureThumbnail
-              picture
-            }
-          }
-        `
-        const result = await graphqlClient.request<EmployeePictureResponse>(query, {
-          id: employeeId
-        })
-
-        const employee = result.EmployeeByPk
-        if (!employee) {
-          setPictureThumbnail(null)
+        if (employeeId) {
+          const result = await graphqlClient.request<EmployeePictureResponse>(GET_EMPLOYEE_PICTURE, {
+            id: employeeId
+          })
+          setPictureThumbnail(
+            resolveThumbnail(result.EmployeeByPk?.pictureThumbnail ?? null, result.EmployeeByPk?.picture ?? null)
+          )
           return
         }
 
-        let thumbnail = employee.pictureThumbnail
-
-        if (!thumbnail && employee.picture) {
-          try {
-            JSON.parse(employee.picture)
-            thumbnail = null
-          } catch {
-            thumbnail = employee.picture
-          }
-        }
-
-        setPictureThumbnail(thumbnail ? toDataUrl(thumbnail) : null)
+        const result = await graphqlClient.request<EmployeePictureByUserIdResponse>(GET_EMPLOYEE_PICTURE_BY_USER_ID, {
+          userId
+        })
+        const employee = result.Employee?.[0]
+        setPictureThumbnail(employee ? resolveThumbnail(employee.pictureThumbnail, employee.picture) : null)
       } catch (error) {
         console.error('[useCurrentUserPicture] Failed to fetch user picture:', error)
+        setPictureThumbnail(null)
       } finally {
         setIsLoading(false)
       }
     }
 
     fetchPicture()
-  }, [employeeId, accessToken, graphqlClient])
+  }, [employeeId, userId, accessToken, graphqlClient])
 
   return { pictureThumbnail, isLoading }
 }

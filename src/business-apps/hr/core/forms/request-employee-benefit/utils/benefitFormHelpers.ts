@@ -5,6 +5,7 @@ type TranslateFn = (key: string, params?: any) => string
 
 export interface DerivedValues {
   includedValueDisplay: string
+  shouldAppendFallbackCurrency: boolean
   resolvedPeriodDisplay: string
   derivedAmountNumber?: number
   employeeYearlyContribution?: number
@@ -37,6 +38,7 @@ export const computeDerivedValues = (selectedBenefit: BenefitCatalogItem | null)
   if (!objectValue) {
     return {
       includedValueDisplay: '-',
+      shouldAppendFallbackCurrency: false,
       resolvedPeriodDisplay: '',
       derivedAmountNumber: undefined,
       employeeYearlyContribution: undefined,
@@ -44,8 +46,11 @@ export const computeDerivedValues = (selectedBenefit: BenefitCatalogItem | null)
     }
   }
 
+  const displayValue = extractDisplayValue(objectValue)
+
   return {
-    includedValueDisplay: extractDisplayValue(objectValue),
+    includedValueDisplay: displayValue.value,
+    shouldAppendFallbackCurrency: displayValue.shouldAppendFallbackCurrency,
     resolvedPeriodDisplay: extractPeriod(objectValue),
     derivedAmountNumber: extractAmount(objectValue),
     employeeYearlyContribution: extractYearlyContribution(objectValue),
@@ -63,13 +68,35 @@ function parseBenefitObjectValue(rawValue: unknown): BenefitObjectValue | null {
   }
 }
 
-function extractDisplayValue(ov: BenefitObjectValue): string {
-  const amount = ov.displayValue ?? ov.value ?? ov.amount ?? ov.yearlyAmount ?? ov.monthlyAmount
-  if (amount == null) return '-'
-
+function getExplicitUnitOrCurrency(ov: BenefitObjectValue): string {
   const unit = ov.unit ?? ov.currency ?? ov.currencyCode ?? ov.unitLabel
-  const unitSuffix = unit ? ` ${unit}` : ''
-  return `${amount}${unitSuffix}`
+  return unit == null ? '' : String(unit).trim()
+}
+
+function formatRawValueWithUnit(value: string | number, unit: string): string {
+  const valueDisplay = String(value)
+  return unit ? `${valueDisplay} ${unit}` : valueDisplay
+}
+
+function extractDisplayValue(ov: BenefitObjectValue): { value: string; shouldAppendFallbackCurrency: boolean } {
+  if (ov.displayValue != null) {
+    return {
+      value: String(ov.displayValue),
+      shouldAppendFallbackCurrency: false
+    }
+  }
+
+  const rawValue = ov.value ?? ov.amount ?? ov.yearlyAmount ?? ov.monthlyAmount
+  if (rawValue == null) {
+    return { value: '-', shouldAppendFallbackCurrency: false }
+  }
+
+  const explicitUnit = getExplicitUnitOrCurrency(ov)
+
+  return {
+    value: formatRawValueWithUnit(rawValue, explicitUnit),
+    shouldAppendFallbackCurrency: explicitUnit.length === 0
+  }
 }
 
 function extractPeriod(ov: BenefitObjectValue): string {
@@ -104,12 +131,14 @@ function extractMonthlyContribution(ov: BenefitObjectValue): number | undefined 
   return Number.isFinite(parsed) ? parsed : undefined
 }
 
-export const composeValueWithCurrency = (base: string, currencyCode: string): string => {
+export const composeValueWithCurrency = (
+  base: string,
+  currencyCode: string,
+  shouldAppendFallbackCurrency = true
+): string => {
   if (!base || base === '-') return '-'
-  if (currencyCode && currencyCode.trim() !== '') {
-    const upper = base.toUpperCase()
-    const hasAlready = upper.endsWith(` ${currencyCode}`) || upper.includes(` ${currencyCode} `)
-    return hasAlready ? base : `${base} ${currencyCode}`
+  if (shouldAppendFallbackCurrency && currencyCode.trim() !== '') {
+    return `${base} ${currencyCode.trim()}`
   }
   // If no currency code, just return the base value without currency
   return base

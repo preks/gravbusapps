@@ -19,6 +19,7 @@ import { transformOpportunity } from './utils/transformOpportunity'
 import { sanitizeInvestment } from './utils/sanitizeInvestment'
 import { buildInvestmentPayload } from '@/common/data/investment/types/investmentTypes.new'
 import GroupSelectSegment from './segments/InvestmentGroupSegment'
+import { resolveInvestmentGroupLaunchContext } from './segments/investmentGroupLaunchContext'
 import { Badge, useTranslation } from '@newwork/nw-design-system'
 import { SwapIcon } from '@phosphor-icons/react'
 import translations from './_i18n'
@@ -54,6 +55,8 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
   )
 
   const isUpdate = Boolean(investmentId)
+
+  const groupLaunch = useMemo(() => resolveInvestmentGroupLaunchContext(additionalData), [additionalData])
 
   // Load investment types hook (needed for both create and update mode to display hierarchy)
   const {
@@ -448,7 +451,7 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
     return (
       <CatalogSelect.Provider accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} form={form}>
         <GroupSelectSegment
-          {...businessAppContext}
+          groupLaunch={groupLaunch}
           onGroupSelect={handleGroupSelect}
           skipAutoDetection={skipAutoDetection}
           getTypesByLevel={getTypesByLevel}

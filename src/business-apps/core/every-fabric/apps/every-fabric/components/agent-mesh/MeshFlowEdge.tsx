@@ -23,6 +23,8 @@ export interface MeshFlowEdgeData {
   label?: string
   /** Relative offset (ms) from the session start — used for replay filtering. */
   offsetMs: number
+  /** Shared selector active flag (includes live aggregate activity). */
+  isActive: boolean
   /** True after the matching completion event arrived. */
   isResolved: boolean
   /** True when the closing event reported a failure. */
@@ -46,6 +48,8 @@ export interface MeshFlowEdgeData {
   bubbleTotal: number
   /** True when a hover-highlight is active and this edge is NOT part of the highlighted set. */
   isDimmed: boolean
+  liveCount: number
+  activityHeat: number
   onSelect: () => void
 }
 
@@ -96,6 +100,7 @@ const MeshFlowEdgeBase = ({ id, data }: EdgeProps<MeshFlowEdgeData>) => {
   const safeData: MeshFlowEdgeData = data ?? {
     kind: 'delegation',
     offsetMs: 0,
+    isActive: false,
     isResolved: false,
     isFailed: false,
     hasDetail: false,
@@ -105,12 +110,14 @@ const MeshFlowEdgeBase = ({ id, data }: EdgeProps<MeshFlowEdgeData>) => {
     bubbleIndex: 0,
     bubbleTotal: 1,
     isDimmed: false,
+    liveCount: 0,
+    activityHeat: 0,
     onSelect: () => {}
   }
 
   const cutoffMs = positionMs + 1
   const isUpcoming = !isLive && safeData.offsetMs > cutoffMs
-  const isActive = !isLive && !isUpcoming && safeData.offsetMs >= positionMs - ACTIVE_WINDOW_MS
+  const isActive = safeData.isActive || (!isLive && !isUpcoming && safeData.offsetMs >= positionMs - ACTIVE_WINDOW_MS)
 
   // We compute the path *centre-to-centre*, then trim each end by the visual
   // radius of the corresponding circle. This bypasses React Flow's handle
@@ -141,19 +148,20 @@ const MeshFlowEdgeBase = ({ id, data }: EdgeProps<MeshFlowEdgeData>) => {
   const labelX = sx + (tx - sx) * t
   const labelY = sy + (ty - sy) * t
 
-  const showMovingDot = !safeData.isResolved && !safeData.isFailed && !isUpcoming
+  const showMovingDot = (!safeData.isResolved || safeData.liveCount > 0) && !safeData.isFailed && !isUpcoming
+  const movingDotCount = showMovingDot ? Math.min(3, Math.max(1, safeData.liveCount)) : 0
   const showBubble = safeData.showBubble && safeData.hasDetail && !isUpcoming
 
   return (
     <>
       <BaseEdge id={id} path={edgePath} className={`${strokeClassFor(safeData, isUpcoming, isActive)} gba:fill-none`} />
-      {showMovingDot && (
-        <circle r={3.5} className={dotColorClass(safeData)} opacity={0.9}>
-          <animateMotion dur="2.4s" repeatCount="indefinite" rotate="auto">
+      {Array.from({ length: movingDotCount }).map((_, i) => (
+        <circle key={i} r={3.5} className={dotColorClass(safeData)} opacity={0.65 + safeData.activityHeat * 0.3}>
+          <animateMotion dur="2.4s" begin={`${i * 0.55}s`} repeatCount="indefinite" rotate="auto">
             <mpath href={`#${id}`} />
           </animateMotion>
         </circle>
-      )}
+      ))}
       {showBubble && (
         <EdgeLabelRenderer>
           {/*

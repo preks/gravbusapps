@@ -1,4 +1,9 @@
-import { getCanonicalRowId, rowMatchesRemoteId } from './spreadsheetRowIdentity'
+import {
+  getCanonicalRowId,
+  getViewerRowIdentityCandidates,
+  rowMatchesRemoteId,
+  type ViewerRow
+} from './spreadsheetRowIdentity'
 
 /**
  * Finite, non-negative `_gridRowIndex` from a row when present — omit from API payloads when `undefined`.
@@ -66,6 +71,44 @@ export function findViewerRowVisualIndex(
     }
   }
 
+  return null
+}
+
+/**
+ * Build a `(identityCandidate) -> visualRowIndex` lookup from a row array in one pass.
+ *
+ * Used by hot paths that previously called {@link findViewerRowVisualIndex} per target row,
+ * which is O(rows × targets). With this map the per-target lookup is O(1) at the cost of one
+ * O(rows × candidates) prepass. The first identity to claim a slot wins so reading back via
+ * any of a row's later-added candidates still resolves to the same visual index.
+ */
+export function buildViewerRowVisualIndexByIdentity(rows: Record<string, unknown>[]): Map<string, number> {
+  const map = new Map<string, number>()
+  for (let index = 0; index < rows.length; index += 1) {
+    const row = rows[index]
+    if (!row || typeof row !== 'object') continue
+    const visualIndex = getViewerRowVisualIndex(row, index)
+    for (const candidate of getViewerRowIdentityCandidates(row as ViewerRow)) {
+      if (!map.has(candidate)) map.set(candidate, visualIndex)
+    }
+  }
+  return map
+}
+
+/**
+ * O(1) lookup of a row's visual index using a prebuilt identity map (see
+ * {@link buildViewerRowVisualIndexByIdentity}). Falls back to `null` when none of the row's
+ * identity candidates are present in the map; callers should then re-run the linear
+ * {@link findViewerRowVisualIndex} as a last resort.
+ */
+export function lookupViewerRowVisualIndex(
+  index: Map<string, number>,
+  targetRow: Record<string, unknown>
+): number | null {
+  for (const candidate of getViewerRowIdentityCandidates(targetRow as ViewerRow)) {
+    const hit = index.get(candidate)
+    if (hit !== undefined) return hit
+  }
   return null
 }
 

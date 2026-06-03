@@ -1,7 +1,6 @@
 import type { ActiveSessionSnapshot } from '../../types/activeSession'
 import { SidebarActiveItem } from './SidebarActiveItem'
 import { SidebarSectionHeader } from './SidebarSectionHeader'
-import { SIDEBAR_LIST_MAX_HEIGHT_CLASS } from './sidebarLayout.constants'
 import { useSidebarSectionCollapsedState } from './useSidebarSectionCollapsedState'
 
 interface SidebarActiveSectionProps {
@@ -46,10 +45,7 @@ export const SidebarActiveSection: React.FC<SidebarActiveSectionProps> = ({
         collapsible={{ isCollapsed, onToggle: toggleCollapsed, controlsId: PANEL_ID }}
       />
       {showList && (
-        <ul
-          id={PANEL_ID}
-          className={`gba:px-1.5 gba:pb-1 gba:space-y-0.5 ${SIDEBAR_LIST_MAX_HEIGHT_CLASS} gba:overflow-y-auto gba:overscroll-contain`}
-        >
+        <ul id={PANEL_ID} className="gba:px-1.5 gba:pb-1 gba:space-y-0.5">
           {sessions.map(session => (
             <li key={session.session_id}>
               <SidebarActiveItem

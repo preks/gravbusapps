@@ -109,8 +109,11 @@ export interface TripScreenProps extends BusinessAppContextProps {
 
 export interface LocationFormLabels {
   inputFieldLabel?: string
+  inputFieldPlaceholder?: string
   dateFieldLabel?: string
+  dateFieldPlaceholder?: string
   timeFieldLabel?: string
+  timeFieldPlaceholder?: string
 }
 
 /**

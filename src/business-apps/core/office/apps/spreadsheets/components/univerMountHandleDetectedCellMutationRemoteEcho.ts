@@ -4,7 +4,8 @@ import {
   normalizeBlankLikeEchoSignature,
   normalizeSelectionReconcileSignature
 } from './univerGridWorkbookMutationModule'
-import type { UniverMountHandleDetectedCellMutationDeps } from './univerMountHandleDetectedCellMutation.types'
+import type { SpreadsheetLocalCellPaintGuardContext } from '../utils/spreadsheetLocalCellPaintGuard'
+import { isGridCellLocallyOwned } from '../utils/spreadsheetLocalCellPaintGuard'
 
 export function buildShouldSuppressRemoteEcho(
   deps: Pick<UniverMountHandleDetectedCellMutationDeps, 'remoteEchoSuppressionRef'>,
@@ -48,14 +49,12 @@ export function cellMatrixHasAnyNonSuppressedCell(
   return false
 }
 
-export function selectionReconcileAllCellsRecentlyLocal(
-  deps: Pick<UniverMountHandleDetectedCellMutationDeps, 'recentLocallyMutatedGridCellsRef'>,
+export function selectionReconcileAllCellsLocallyOwned(
+  paintGuard: SpreadsheetLocalCellPaintGuardContext,
   cellValue: SheetCellMatrix,
-  now: number,
   rowOffset: number,
   colOffset: number
 ): boolean {
-  const { recentLocallyMutatedGridCellsRef } = deps
   for (const rowKey of Object.keys(cellValue)) {
     const rowIndex = Number(rowKey)
     if (Number.isNaN(rowIndex)) continue
@@ -64,9 +63,7 @@ export function selectionReconcileAllCellsRecentlyLocal(
     for (const colKey of Object.keys(rowCells)) {
       const colIndex = Number(colKey)
       if (Number.isNaN(colIndex)) continue
-      const key = remoteEchoKey(rowIndex + rowOffset, colIndex + colOffset)
-      const expiresAt = recentLocallyMutatedGridCellsRef.current.get(key) ?? 0
-      if (expiresAt <= now) {
+      if (!isGridCellLocallyOwned(paintGuard, rowIndex + rowOffset, colIndex + colOffset)) {
         return false
       }
     }

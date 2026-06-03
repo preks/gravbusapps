@@ -142,7 +142,9 @@ export const GET_REGION_COUNTRY_ID = /*sql*/ `
 `
 
 /**
- * BenefitType catalog entries filtered by parent country (Country catalog entry id)
+ * BenefitType catalog entries filtered by country.
+ * Matches via parentEntryId (legacy) or additionalValue1 (new: stores country ref
+ * while legalEntityId moves into objectValue).
  */
 export const GET_BENEFIT_TYPES_FOR_COUNTRY_WITH_TRANSLATIONS = /*sql*/ `
   query GetBenefitTypesForCountry($catalogIdentifier: String!, $catalogVersion: String!, $countryId: String!) {
@@ -150,7 +152,10 @@ export const GET_BENEFIT_TYPES_FOR_COUNTRY_WITH_TRANSLATIONS = /*sql*/ `
       where: {
         catalog: { identifier: { _eq: $catalogIdentifier }, version: { _eq: $catalogVersion } }
         isDeleted: { _eq: false }
-        parentEntryId: { _eq: $countryId }
+        _or: [
+          { parentEntryId: { _eq: $countryId } }
+          { additionalValue1: { _eq: $countryId } }
+        ]
       }
       orderBy: { displayOrder: ASC }
       limit: 100

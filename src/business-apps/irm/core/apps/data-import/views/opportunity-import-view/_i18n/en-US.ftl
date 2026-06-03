@@ -1,8 +1,8 @@
 # Opportunity Import View - English
 
 # Page Header
-opportunity-page-title = Opportunity Import with AI Mapping
-opportunity-page-description = Upload a CSV or Excel file, let AI analyze and map the fields, then convert to Opportunity format
+opportunity-page-title = Import Opportunities
+opportunity-page-description = Upload a spreadsheet and we'll help match your columns to the right opportunity fields. Review the suggestions, then import your opportunities.
 
 # Entity Type
 opportunity-entity-type = opportunities

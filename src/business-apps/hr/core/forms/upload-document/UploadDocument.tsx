@@ -10,11 +10,11 @@ import {
   Textarea,
   Combobox,
   Button,
-  Input
+  Input,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import type { UploadFile } from 'antd'
@@ -23,6 +23,7 @@ import { useUploadDocumentLookups } from './queries/UploadDocumentQueries'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { useDocumentClassification } from '@/common/hooks/useDocumentClassification'
 import { EmployeeDocumentUploadField } from '../document-sync/EmployeeDocumentUploadField'
+import translations from '../_i18n'
 
 // Extracted submit logic for re-use and testing
 export async function submitUploadDocument(
@@ -104,6 +105,7 @@ interface UploadDocumentValues {
 const DATA_TEST_ID_PREFIX = 'UploadDocumentForm'
 
 const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
+  const { t } = useTranslation(translations)
   const { prefixDataTestId } = context as any
   const dataTestId = useMemo(() => formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX), [prefixDataTestId])
   const APP_FORM_TID = 'upload-document-form'
@@ -123,10 +125,7 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
   const [pendingTypeValue, setPendingTypeValue] = useState<string | null>(null)
   const initialDefaultsRef = useRef(form.getValues())
 
-  const title = useMemo(
-    () => getTranslationFromI18nKeyAndLabel('lowcoder:upload_document_form.title', 'Upload Document'),
-    []
-  )
+  const title = t('upload-document-title')
 
   const isSubmitDisabled = useMemo(() => {
     const hasValidationErrors = Object.keys((form.formState as any)?.errors ?? {}).length > 0
@@ -300,8 +299,8 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
         formData={initialDefaultsRef.current}
         submitEventType="pse_submit"
         cancelEventType="pse_abort"
-        submitButtonText={getTranslationFromI18nKeyAndLabel('crm:common.submit', 'Submit')}
-        cancelButtonText={getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}
+        submitButtonText={t('action-submit')}
+        cancelButtonText={t('action-cancel')}
         submitButtonTestId="flw_documentModule_btnSave"
         cancelButtonTestId="flw_documentModule_btnCancel"
         isSubmitDisabled={isSubmitDisabled}
@@ -330,10 +329,7 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
           <div>
             <EmployeeDocumentUploadField
               name="uploadDocumentFile"
-              label={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:upload_document_form.upload_document',
-                'Upload Document'
-              )}
+              label={t('upload-document-upload-document')}
               isLoading={false}
               initialFiles={[]}
               onFilesChange={(files: any[]) => {
@@ -349,18 +345,16 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
             {selectedFile && (
               <div className="gba:mt-2 gba:text-sm gba:text-muted-foreground" data-testid="upload-document-ai-status">
                 {aiLoading && (
-                  <span data-testid="upload-document-ai-status-loading">
-                    {getTranslationFromI18nKeyAndLabel('document.ai.detecting', 'Detecting document group and type…')}
-                  </span>
+                  <span data-testid="upload-document-ai-status-loading">{t('upload-document-ai-detecting')}</span>
                 )}
                 {!aiLoading && aiError && <span data-testid="upload-document-ai-status-error">{aiError}</span>}
                 {!aiLoading && !aiError && aiSuggestion && (
                   <div className="gba:flex gba:flex-col gba:gap-1" data-testid="upload-document-ai-status-suggestion">
                     <span>
-                      {getTranslationFromI18nKeyAndLabel(
-                        'document.ai.suggestion',
-                        `AI suggestion: Group = ${aiSuggestion.group || '—'}, Type = ${aiSuggestion.type || '—'}`
-                      )}
+                      {t('upload-document-ai-suggestion', {
+                        group: aiSuggestion.group || '-',
+                        type: aiSuggestion.type || '-'
+                      })}
                     </span>
                     <div className="gba:flex gba:gap-2">
                       <Button
@@ -370,7 +364,7 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
                         onClick={handleApplyAiSuggestion}
                         data-testid="upload-document-ai-apply-button"
                       >
-                        {getTranslationFromI18nKeyAndLabel('document.ai.apply', 'Apply suggestion')}
+                        {t('upload-document-ai-apply')}
                       </Button>
                     </div>
                   </div>
@@ -384,24 +378,17 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
             control={form.control as any}
             name="documentName"
             rules={{
-              required: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:upload_document_form.document_name_required',
-                'Document name is required'
-              )
+              required: t('upload-document-document-name-required')
             }}
             render={({ field }) => (
               <FormItem>
                 <FormLabel>
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:upload_document_form.document_name', 'Document Name')}{' '}
-                  <span className="gba:text-destructive">*</span>
+                  {t('upload-document-document-name')} <span className="gba:text-destructive">*</span>
                 </FormLabel>
                 <FormControl>
                   <Input
                     className="gba:w-full"
-                    placeholder={getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:upload_document_form.document_name_placeholder',
-                      'e.g., Employment Contract, ID Card, Resume'
-                    )}
+                    placeholder={t('upload-document-document-name-placeholder')}
                     data-testid="flw_documentModule_fld_documentName"
                     {...field}
                   />
@@ -417,9 +404,7 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
             name="documentGroupId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:upload_document_form.document_group', 'Document Group')}
-                </FormLabel>
+                <FormLabel>{t('upload-document-document-group')}</FormLabel>
                 <FormControl>
                   <Combobox
                     className="gba:w-full"
@@ -429,10 +414,7 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
                       field.onChange(v)
                       form.setValue('documentTypeId', null as any, { shouldValidate: true } as any)
                     }}
-                    placeholder={getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:upload_document_form.select_document_group',
-                      'Select Document Group'
-                    )}
+                    placeholder={t('upload-document-select-document-group')}
                     data-testid="flw_documentModule_fld_documentGroup"
                   />
                 </FormControl>
@@ -447,19 +429,14 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
             name="documentTypeId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:upload_document_form.document_type', 'Document Type')}
-                </FormLabel>
+                <FormLabel>{t('upload-document-document-type')}</FormLabel>
                 <FormControl>
                   <Combobox
                     className="gba:w-full"
                     options={(filteredTypes || []).map(t => ({ value: t.id, label: t.label }))}
                     value={field.value || ''}
                     onValueChange={v => field.onChange(v)}
-                    placeholder={getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:upload_document_form.select_document_type',
-                      'Select Document Type'
-                    )}
+                    placeholder={t('upload-document-select-document-type')}
                     data-testid="flw_documentModule_fld_documentType"
                     disabled={!selectedGroupId}
                   />
@@ -475,9 +452,7 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
             name="expiryDate"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:upload_document_form.expiry_date', 'Expiry Date')}
-                </FormLabel>
+                <FormLabel>{t('upload-document-expiry-date')}</FormLabel>
                 <FormControl>
                   <div data-testid="flw_uploadDocument_fld_expiryDate">
                     <DateInput
@@ -502,9 +477,7 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
             name="description"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:upload_document_form.description', 'Description')}
-                </FormLabel>
+                <FormLabel>{t('upload-document-description')}</FormLabel>
                 <FormControl>
                   <Textarea
                     rows={3}

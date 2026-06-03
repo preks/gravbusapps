@@ -3,6 +3,13 @@ import { UNIVER_NATIVE_SHEET_STRUCTURE_COMMANDS } from '../utils/nativeSheetStru
 import { proposeDuplicateSheetDisplayName } from '../utils/workbookStructureFormatting'
 import { isFormattingOverwritingPasteCommand } from './univerGridWorkbookMutationModule'
 import {
+  markSpreadsheetAutofillIntent,
+  resolveAutofillApplyTypeFromCommandParams,
+  resolveAutofillCommandRangesFromParams,
+  UNIVER_AUTOFILL_COMMAND_ID,
+  UNIVER_REFILL_COMMAND_ID
+} from './univerAutofillIntent'
+import {
   ensureInsertSheetPayloadHasUuid,
   generateUniverSheetUuid,
   rewriteWorksheetIdReferencesInParams,
@@ -12,7 +19,12 @@ import type { FormattingPasteIntentSource, UniverGridController } from './useUni
 
 export type RegisterUniverMountBeforeCommandSheetStructureDeps = Pick<
   UniverGridController,
-  'rewrittenWorksheetIdsRef' | 'propsRef' | 'callbacksRef' | 'readOnlyRef' | 'recentSheetMutationIdsRef'
+  | 'rewrittenWorksheetIdsRef'
+  | 'propsRef'
+  | 'callbacksRef'
+  | 'readOnlyRef'
+  | 'recentSheetMutationIdsRef'
+  | 'pendingAutofillIntentRef'
 > & {
   univerAPI: ReturnType<typeof createUniver>['univerAPI']
   insertSheetSourceIds: Map<string, string>
@@ -39,6 +51,7 @@ export function registerUniverMountBeforeCommandSheetStructure(
     callbacksRef,
     readOnlyRef,
     recentSheetMutationIdsRef,
+    pendingAutofillIntentRef,
     insertSheetSourceIds,
     latestNativeSheetCopySourceIdRef,
     markFormattingPasteIntent,
@@ -79,6 +92,21 @@ export function registerUniverMountBeforeCommandSheetStructure(
   ).addEvent?.(beforeCommandEventKey, event => {
     const commandId = String(event?.id ?? '').toLowerCase()
     rewriteWorksheetIdReferencesInParams(rewrittenWorksheetIdsRef, event?.params)
+    if (commandId === UNIVER_AUTOFILL_COMMAND_ID || commandId === UNIVER_REFILL_COMMAND_ID) {
+      const params = event?.params as { subUnitId?: string; sheetId?: string } | undefined
+      const autofillSheetId =
+        (typeof params?.subUnitId === 'string' && params.subUnitId) ||
+        (typeof params?.sheetId === 'string' && params.sheetId) ||
+        getActiveWorksheetIdFromUniver() ||
+        propsRef.current.sheet.id
+      const { sourceRanges, targetRanges } = resolveAutofillCommandRangesFromParams(event?.params)
+      markSpreadsheetAutofillIntent(
+        pendingAutofillIntentRef,
+        autofillSheetId,
+        resolveAutofillApplyTypeFromCommandParams(event?.params),
+        { sourceRanges, targetRanges }
+      )
+    }
     if (isFormattingOverwritingPasteCommand(commandId)) {
       markFormattingPasteIntent('command')
     }

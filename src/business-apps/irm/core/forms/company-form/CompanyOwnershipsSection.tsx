@@ -3,6 +3,7 @@ import {
   Combobox,
   FormControl,
   FormField,
+  FormFieldGroup,
   FormItem,
   FormLabel,
   FormMessage,
@@ -35,58 +36,60 @@ export function CompanyOwnershipsSection({
     <FormSection title={t('ownerships-section')} value="company-ownerships">
       <div className="gba:space-y-4">
         {fields.map((item, index) => (
-          <div key={item.id} className="gba:p-3 gba:border gba:rounded-md gba:space-y-3">
-            <FormField
-              name={`ownerships.${index}.ownerInvestmentCompanyId`}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('owner-company-label')}</FormLabel>
-                  <FormControl>
-                    <Combobox
-                      value={field.value || ''}
-                      onValueChange={value => field.onChange(value || undefined)}
-                      options={ownerCompanyOptions}
-                      onSearch={onOwnerCompanySearch}
-                      loading={ownerCompaniesLoading}
-                      placeholder={t('owner-company-placeholder')}
-                      searchPlaceholder={t('owner-company-search-placeholder')}
-                      emptyText={t('owner-company-empty')}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              name={`ownerships.${index}.percentage`}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('ownership-percentage-label')}</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={100}
-                      step={0.01}
-                      value={field.value ?? ''}
-                      onChange={event => {
-                        const value = event.target.value
-                        field.onChange(value === '' ? undefined : Number(value))
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Button type="button" variant="outline" onClick={() => remove(index)}>
+          <div key={item.id} className="gba:space-y-4">
+            <FormFieldGroup className="gba:grid gba:grid-cols-2 gba:gap-4">
+              <FormField
+                name={`ownerships.${index}.ownerInvestmentCompanyId`}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('owner-company-label')}</FormLabel>
+                    <FormControl>
+                      <Combobox
+                        value={field.value || ''}
+                        onValueChange={value => field.onChange(value || undefined)}
+                        options={ownerCompanyOptions}
+                        onSearch={onOwnerCompanySearch}
+                        loading={ownerCompaniesLoading}
+                        placeholder={t('owner-company-placeholder')}
+                        searchPlaceholder={t('owner-company-search-placeholder')}
+                        emptyText={t('owner-company-empty')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                name={`ownerships.${index}.percentage`}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('ownership-percentage-label')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={0.01}
+                        value={field.value ?? ''}
+                        onChange={event => {
+                          const value = event.target.value
+                          field.onChange(value === '' ? undefined : Number(value))
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </FormFieldGroup>
+            <Button type="button" size="sm" variant="outline" onClick={() => remove(index)}>
               <TrashIcon className="gba:w-4 gba:h-4 gba:mr-2" />
               {t('remove-ownership-button')}
             </Button>
           </div>
         ))}
 
-        <Button type="button" variant="outline" onClick={() => append(createEmptyOwnership())}>
+        <Button type="button" size="sm" variant="outline" onClick={() => append(createEmptyOwnership())}>
           <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
           {t('add-ownership-button')}
         </Button>

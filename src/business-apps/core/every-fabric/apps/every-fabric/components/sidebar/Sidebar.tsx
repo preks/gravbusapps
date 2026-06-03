@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { GraphIcon, ListMagnifyingGlassIcon } from '@phosphor-icons/react'
+import { BuildingsIcon, GraphIcon, ListMagnifyingGlassIcon, UsersThreeIcon } from '@phosphor-icons/react'
 import type { UserInfoProps } from '@/common/BusinessAppContext'
 import type { ActiveSessionSnapshot } from '../../types/activeSession'
 import type { FabricSessionSummary } from '../../types/fabric'
@@ -10,11 +10,13 @@ import { SidebarNavItem } from './SidebarNavItem'
 import { SidebarNewChatButton } from './SidebarNewChatButton'
 import { SidebarRecentsSection } from './SidebarRecentsSection'
 import { SidebarSearchBar } from './SidebarSearchBar'
+import { SidebarSectionLabel } from './SidebarSectionLabel'
 import {
   SIDEBAR_COLLAPSED_WIDTH_CLASS,
   SIDEBAR_EXPANDED_WIDTH_CLASS,
   SIDEBAR_ISLAND_OFFSET_CLASS,
   SIDEBAR_ISLAND_SHELL_CLASS,
+  SIDEBAR_SESSIONS_SCROLL_REGION_CLASS,
   SIDEBAR_WIDTH_TRANSITION_CLASS
 } from './sidebarLayout.constants'
 import { SidebarFilterBar } from './SidebarFilterBar'
@@ -37,9 +39,11 @@ export interface SidebarProps {
   historySessions: FabricSessionSummary[]
 
   userInfo?: UserInfoProps
+  accessToken?: string
   /**
-   * If false, the "New session" CTA is hidden — used on the landing screen
-   * where the composer already fulfils that role.
+   * If false, the "New session" CTA is hidden on the landing screen where the
+   * composer already fulfils that role. Shown when a session is open or an
+   * overlay (settings, scheduled, etc.) replaces the landing composer.
    */
   showNewSessionCta?: boolean
   onNewSession: () => void
@@ -48,22 +52,37 @@ export interface SidebarProps {
   onStopSession: (id: string) => void
   onOpenSettings: () => void
   onOpenScheduled: () => void
-  onOpenAgentMesh: () => void
-  isAgentMeshActive?: boolean
+
+  /**
+   * Company-wide destinations under the "Workspace" header. These are
+   * always shown and are not bound to any session.
+   */
+  onOpenEnterpriseWorkforce: () => void
+  isEnterpriseWorkforceActive?: boolean
+  onOpenCompanyMesh: () => void
+  isCompanyMeshActive?: boolean
+
+  /**
+   * Session-scoped destinations under the "Active session" header. These
+   * only appear when an active session is selected.
+   */
+  onOpenSessionMesh: () => void
+  isSessionMeshActive?: boolean
   onOpenTraceExplorer: () => void
   isTraceExplorerActive?: boolean
+  /** When false, hides Trace Explorer nav item. */
+  devModeEnabled?: boolean
 }
 
 /**
  * Collapsible left "island" sidebar — visible on both the landing screen and
- * the workspace. Renders:
+ * the workspace. Renders three logical groups:
  *
- *   Header (brand + collapse toggle)
- *   New chat button
- *   Search
- *   Active sessions (live, with spinner + current activity)
- *   Recents (grouped by Today / Yesterday / Earlier)
- *   Footer (avatar + name + settings)
+ *   WORKSPACE          → company-wide destinations (Enterprise Workforce,
+ *                        Company Mesh) — always visible.
+ *   ACTIVE SESSION     → session-scoped destinations (Session Mesh, Trace
+ *                        Explorer) — only when a session is open.
+ *   SESSIONS           → new chat + search + Live + Recents.
  */
 export const Sidebar: React.FC<SidebarProps> = ({
   isCollapsed,
@@ -73,6 +92,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeSessions,
   historySessions,
   userInfo,
+  accessToken = '',
   showNewSessionCta = true,
   onNewSession,
   onSelectSession,
@@ -80,10 +100,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onStopSession,
   onOpenSettings,
   onOpenScheduled,
-  onOpenAgentMesh,
-  isAgentMeshActive = false,
+  onOpenEnterpriseWorkforce,
+  isEnterpriseWorkforceActive = false,
+  onOpenCompanyMesh,
+  isCompanyMeshActive = false,
+  onOpenSessionMesh,
+  isSessionMeshActive = false,
   onOpenTraceExplorer,
-  isTraceExplorerActive = false
+  isTraceExplorerActive = false,
+  devModeEnabled = false
 }) => {
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<Set<RecentsStatusFilter> | null>(null)
@@ -100,6 +125,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }, [recents, query, statusFilter])
 
   const widthClass = isCollapsed ? SIDEBAR_COLLAPSED_WIDTH_CLASS : SIDEBAR_EXPANDED_WIDTH_CLASS
+  const hasActiveSession = Boolean(activeSessionId)
 
   return (
     <aside
@@ -114,29 +140,54 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <SidebarHeader isCollapsed={isCollapsed} onToggleCollapsed={onToggleCollapsed} />
         {showNewSessionCta && <SidebarNewChatButton isCollapsed={isCollapsed} onClick={onNewSession} />}
 
-        {/*
-         * Top-of-rail navigation. Currently only Agent Mesh — additional
-         * primary destinations (Trace Explorer, Library, …) plug in here as
-         * sibling `SidebarNavItem`s without changing the surrounding layout.
-         */}
+        {/* WORKSPACE — always visible, never bound to a session. */}
+        <SidebarSectionLabel label="Workspace" isCollapsed={isCollapsed} testId="sidebar-section-workspace" />
         <SidebarNavItem
-          icon={GraphIcon}
-          label="Agent Mesh"
+          icon={UsersThreeIcon}
+          label="Enterprise Workforce"
           badge="NEW"
-          isActive={isAgentMeshActive}
+          isActive={isEnterpriseWorkforceActive}
           isCollapsed={isCollapsed}
-          onClick={onOpenAgentMesh}
-          testId="sidebar-nav-agent-mesh"
+          onClick={onOpenEnterpriseWorkforce}
+          testId="sidebar-nav-enterprise-workforce"
         />
         <SidebarNavItem
-          icon={ListMagnifyingGlassIcon}
-          label="Trace Explorer"
-          badge="NEW"
-          isActive={isTraceExplorerActive}
+          icon={BuildingsIcon}
+          label="Company Mesh"
+          isActive={isCompanyMeshActive}
           isCollapsed={isCollapsed}
-          onClick={onOpenTraceExplorer}
-          testId="sidebar-nav-trace-explorer"
+          onClick={onOpenCompanyMesh}
+          testId="sidebar-nav-company-mesh"
         />
+
+        {/* ACTIVE SESSION — only when a session is selected. */}
+        {hasActiveSession && (
+          <>
+            <SidebarSectionLabel
+              label="Active session"
+              isCollapsed={isCollapsed}
+              testId="sidebar-section-active-session"
+            />
+            <SidebarNavItem
+              icon={GraphIcon}
+              label="Session Mesh"
+              isActive={isSessionMeshActive}
+              isCollapsed={isCollapsed}
+              onClick={onOpenSessionMesh}
+              testId="sidebar-nav-agent-mesh"
+            />
+            {devModeEnabled && (
+              <SidebarNavItem
+                icon={ListMagnifyingGlassIcon}
+                label="Trace Explorer"
+                isActive={isTraceExplorerActive}
+                isCollapsed={isCollapsed}
+                onClick={onOpenTraceExplorer}
+                testId="sidebar-nav-trace-explorer"
+              />
+            )}
+          </>
+        )}
 
         <div className="gba:mx-3 gba:my-1.5 gba:border-t gba:border-border/40" />
 
@@ -144,7 +195,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {!isCollapsed && <SidebarFilterBar activeFilters={statusFilter} onChange={setStatusFilter} />}
 
         {!isCollapsed && (
-          <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:overscroll-contain gba:pb-1">
+          <div className={SIDEBAR_SESSIONS_SCROLL_REGION_CLASS}>
             <SidebarActiveSection
               sessions={filteredActive}
               activeSessionId={activeSessionId}
@@ -168,6 +219,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <SidebarFooter
           isCollapsed={isCollapsed}
           userInfo={userInfo}
+          accessToken={accessToken}
           onOpenSettings={onOpenSettings}
           onOpenScheduled={onOpenScheduled}
         />

@@ -513,6 +513,7 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
           pagination={contextsPagination}
           onPaginationChange={setContextsPagination}
           loadMore={loadMoreContexts}
+          refetch={refetchContexts}
           hasMore={hasMoreContexts}
           contextDialogOpen={contextDialogOpen}
           setContextDialogOpen={setContextDialogOpen}

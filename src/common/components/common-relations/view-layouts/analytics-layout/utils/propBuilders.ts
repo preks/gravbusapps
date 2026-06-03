@@ -7,6 +7,10 @@
 import type React from 'react'
 import type { TimeFilter } from './analyticsViewHelpers'
 import type { AccountsStaticData as HookAccountsStaticData } from '../hooks/useGenericAccountsStaticData'
+import type { LeadsTabKpiLabels } from '../leads/LeadsTabLayout'
+import type { AccountsTabKpiLabels } from '../accounts/AccountsTabLayout'
+import type { OpportunitiesTabKpiLabels } from '../opportunities/OpportunitiesTabLayout'
+import type { ContactsTabKpiLabels } from '../contacts/ContactsTabLayout'
 
 // ============================================================================
 // OVERVIEW TAB BUILDER
@@ -151,6 +155,7 @@ export interface LeadsStaticData {
 export interface LeadsBuilderConfig {
   title: string
   moduleColor?: string
+  kpiLabels?: LeadsTabKpiLabels
 }
 
 export interface LeadsBuilderData {
@@ -202,7 +207,9 @@ export function buildLeadsProps(data: LeadsBuilderData, config: LeadsBuilderConf
       employeeName: o.employeeName,
       leadCount: o.leadCount,
       conversionRate: o.conversionRate || 0
-    }))
+    })),
+
+    ...(config.kpiLabels && { kpiLabels: config.kpiLabels })
   }
 }
 
@@ -215,6 +222,7 @@ export type AccountsStaticData = HookAccountsStaticData
 
 export interface AccountsBuilderConfig {
   title: string
+  kpiLabels?: AccountsTabKpiLabels
 }
 
 export interface AccountsBuilderData {
@@ -263,7 +271,9 @@ export function buildAccountsProps(data: AccountsBuilderData, config: AccountsBu
     // Currency filter
     ...(data.accountsCurrency && { selectedCurrency: data.accountsCurrency }),
     ...(data.onAccountsCurrencyChange && { onCurrencyChange: data.onAccountsCurrencyChange }),
-    ...(data.availableCurrencies && { availableCurrencies: data.availableCurrencies })
+    ...(data.availableCurrencies && { availableCurrencies: data.availableCurrencies }),
+
+    ...(config.kpiLabels && { kpiLabels: config.kpiLabels })
   }
 }
 
@@ -293,6 +303,7 @@ export interface OpportunitiesBuilderConfig {
   title: string
   showTopDeals?: boolean
   useTrendData?: boolean // If true, use oppTrendData param; if false, calculate from static data
+  kpiLabels?: OpportunitiesTabKpiLabels
 }
 
 export interface OpportunitiesBuilderData {
@@ -449,7 +460,9 @@ export function buildOpportunitiesProps(data: OpportunitiesBuilderData, config: 
     ...(data.onKpiCurrencyChange && { onKpiCurrencyChange: data.onKpiCurrencyChange }),
     ...(data.topDealsCurrency && { topDealsCurrency: data.topDealsCurrency }),
     ...(data.onTopDealsCurrencyChange && { onTopDealsCurrencyChange: data.onTopDealsCurrencyChange }),
-    ...(data.availableCurrencies && { availableCurrencies: data.availableCurrencies })
+    ...(data.availableCurrencies && { availableCurrencies: data.availableCurrencies }),
+
+    ...(config.kpiLabels && { kpiLabels: config.kpiLabels })
   }
 }
 
@@ -468,6 +481,7 @@ export interface ContactsStaticData {
 export interface ContactsBuilderConfig {
   title: string
   module: 'crm' | 'irm'
+  kpiLabels?: ContactsTabKpiLabels
 }
 
 export interface ContactsBuilderData {
@@ -535,6 +549,8 @@ export function buildContactsProps(data: ContactsBuilderData, config: ContactsBu
     ...(data.renderContactLifecycleDrillDown !== undefined && {
       renderLifecycleDrillDown: data.renderContactLifecycleDrillDown
     }),
+
+    ...(config.kpiLabels && { kpiLabels: config.kpiLabels }),
 
     // Average contacts per account
     avgPerAccount:

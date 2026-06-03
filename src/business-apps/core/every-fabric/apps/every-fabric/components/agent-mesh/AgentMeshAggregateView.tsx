@@ -6,19 +6,30 @@ import { useAgentMeshScope } from '../../hooks/useAgentMeshScope'
 import { useMeshTelemetry } from '../../hooks/useMeshTelemetry'
 import { AgentMeshCanvas } from './AgentMeshCanvas'
 import { AggregateOverviewPanel } from './AggregateOverviewPanel'
+import type { ActiveSessionSnapshot } from '../../types/activeSession'
+import { buildLiveMeshActivity, buildModelLiveActivity } from './liveMeshActivity'
 
 interface AgentMeshAggregateViewProps {
   scope: Exclude<MeshScope, 'session'>
   userId?: string
+  activeSessions?: readonly ActiveSessionSnapshot[]
 }
 
-export const AgentMeshAggregateView: React.FC<AgentMeshAggregateViewProps> = ({ scope, userId }) => {
+export const AgentMeshAggregateView: React.FC<AgentMeshAggregateViewProps> = ({ scope, userId, activeSessions }) => {
   const { model, isLoading, error, stats, sessions, userNameMap, sessionTitleMap } = useAgentMeshAggregateData(
     scope,
     userId
   )
   const { pushSnapshot, isFullscreen } = useAgentMeshScope()
   const { emit, hashIdentifier } = useMeshTelemetry()
+  const liveActivity = useMemo(() => {
+    const activeFeedActivity = buildLiveMeshActivity(activeSessions)
+    // If an active-session feed was provided, trust it. An empty or stale feed
+    // means no live activity right now; falling back to aggregate model status
+    // would resurrect old stuck "running" sessions and make the company mesh
+    // pulse even when nothing is currently happening.
+    return activeSessions ? activeFeedActivity : buildModelLiveActivity(model)
+  }, [activeSessions, model])
 
   // Map sessionId → userId so Company→Session drills can insert a User breadcrumb.
   const sessionUserMap = useMemo(() => {
@@ -113,6 +124,8 @@ export const AgentMeshAggregateView: React.FC<AgentMeshAggregateViewProps> = ({ 
         positionMs={0}
         durationMs={0}
         isLive={true}
+        liveActivity={liveActivity}
+        showLiveHud
         dense
         onDrillToUser={scope === 'company' ? handleCanvasDrillUser : undefined}
         onDrillToSession={handleCanvasDrillSession}
@@ -128,6 +141,8 @@ export const AgentMeshAggregateView: React.FC<AgentMeshAggregateViewProps> = ({ 
           positionMs={0}
           durationMs={0}
           isLive={true}
+          liveActivity={liveActivity}
+          showLiveHud
           onDrillToUser={scope === 'company' ? handleCanvasDrillUser : undefined}
           onDrillToSession={handleCanvasDrillSession}
         />

@@ -3,6 +3,9 @@ import {
   cellMatricesDisagreeForRanges,
   detectClearAllRangesFromCellMatrix,
   detectClearFormatRangesFromCellMatrix,
+  mapPayloadCellMatrixToAbsoluteCoordinates,
+  mergeExplicitMutationCellsIntoDerived,
+  resolveMergeCoordinateMode,
   mergeCellMatrices,
   normalizeCellMatrix
 } from '../cellMatrixUtils'
@@ -138,6 +141,118 @@ describe('cellMatrixUtils', () => {
       0: {
         5: { v: 'Worksheet value' }
       }
+    })
+  })
+
+  it('overlays explicit sheet-value-changed payload cells onto derived worksheet reads', () => {
+    expect(
+      mergeExplicitMutationCellsIntoDerived(
+        {
+          4: {
+            2: { v: 'worksheet-string', s: 'style-a' }
+          }
+        },
+        {
+          0: {
+            0: { v: 42, t: 2 }
+          }
+        },
+        [{ startRow: 4, endRow: 4, startColumn: 2, endColumn: 2 }],
+        'relative'
+      )
+    ).toEqual({
+      4: {
+        2: { v: 42, t: 2, s: 'style-a' }
+      }
+    })
+  })
+
+  it('resolveMergeCoordinateMode treats sparse absolute cells outside anchor range as absolute', () => {
+    expect(
+      resolveMergeCoordinateMode(
+        {
+          1: { 4: { bg: { rgb: '#a4cafe' } } },
+          2: { 4: { bg: { rgb: '#a4cafe' } } },
+          3: { 4: { bg: { rgb: '#a4cafe' } } }
+        },
+        [{ startRow: 1, endRow: 1, startColumn: 4, endColumn: 4 }],
+        'auto'
+      )
+    ).toBe('absolute')
+  })
+
+  it('resolveMergeCoordinateMode treats range-relative payload as relative when envelope fits', () => {
+    expect(
+      resolveMergeCoordinateMode(
+        {
+          0: { 0: { bg: { rgb: '#a4cafe' } } },
+          1: { 0: { bg: { rgb: '#a4cafe' } } },
+          2: { 0: { bg: { rgb: '#a4cafe' } } }
+        },
+        [{ startRow: 1, endRow: 3, startColumn: 4, endColumn: 4 }],
+        'auto'
+      )
+    ).toBe('relative')
+  })
+
+  it('maps multi-range relative payloads using each range origin', () => {
+    const stylePatch = { bg: { rgb: '#fde8e8' } }
+    expect(
+      mapPayloadCellMatrixToAbsoluteCoordinates(
+        {
+          0: { 0: stylePatch },
+          1: { 0: stylePatch },
+          2: { 0: stylePatch }
+        },
+        [
+          { startRow: 26, endRow: 28, startColumn: 4, endColumn: 4 },
+          { startRow: 52, endRow: 54, startColumn: 4, endColumn: 4 }
+        ],
+        'relative'
+      )
+    ).toEqual({
+      26: { 4: stylePatch },
+      27: { 4: stylePatch },
+      28: { 4: stylePatch }
+    })
+  })
+
+  it('does not double-offset absolute E-column style cells when mode is auto', () => {
+    const stylePatch = { bg: { rgb: '#a4cafe' } }
+    expect(
+      mapPayloadCellMatrixToAbsoluteCoordinates(
+        {
+          1: { 4: stylePatch },
+          2: { 4: stylePatch },
+          3: { 4: stylePatch }
+        },
+        [{ startRow: 1, endRow: 1, startColumn: 4, endColumn: 4 }],
+        'auto'
+      )
+    ).toEqual({
+      1: { 4: stylePatch },
+      2: { 4: stylePatch },
+      3: { 4: stylePatch }
+    })
+  })
+
+  it('does not offset absolute style payload when coordinate mode is auto (anchor-only range)', () => {
+    const stylePatch = { s: 'style-bg' }
+    expect(
+      mergeExplicitMutationCellsIntoDerived(
+        undefined,
+        {
+          1: { 4: stylePatch },
+          2: { 4: stylePatch },
+          3: { 4: stylePatch }
+        },
+        [{ startRow: 1, endRow: 1, startColumn: 4, endColumn: 4 }],
+        'auto'
+      )
+    ).toEqual({
+      1: { 4: stylePatch },
+      2: { 4: stylePatch },
+      3: { 4: stylePatch }
     })
   })
 

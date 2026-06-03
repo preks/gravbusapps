@@ -1,9 +1,15 @@
 import { act, renderHook } from '@testing-library/react'
 
+import { SpreadsheetIntentJournal } from '../../core/spreadsheetIntentJournal'
+import { SpreadsheetVersionCausalOwnershipRegistry } from '../../core/spreadsheetVersionCausalOwnership'
+import {
+  protectSpreadsheetPendingLocalMutationCells,
+  spreadsheetPendingLocalMutationSemanticCellKey
+} from '../../utils/spreadsheetPendingMaterializationCells'
 import { useSpreadsheetGridStructuralMutations } from '../useSpreadsheetGridStructuralMutations'
 
 describe('useSpreadsheetGridStructuralMutations', () => {
-  it('submits move_row_slots when rows are moved structurally', async () => {
+  it('persists move_row_slots without full snapshot reload or grid resync', async () => {
     const initialRows = [
       { _id: 'row-1', _rowUuid: 'row-1', _gridRowIndex: 1, name: 'A' },
       { _id: 'row-2', _rowUuid: 'row-2', _gridRowIndex: 2, name: 'B' }
@@ -51,7 +57,7 @@ describe('useSpreadsheetGridStructuralMutations', () => {
         latestUniverDataRef: { current: null },
         lastProcessedLengthRef: { current: 0 },
         buildAddRowPayloadsFromUniverRows: jest.fn(),
-        buildPersistedRowIdMapFromBatchRows: jest.fn(),
+        buildPersistedRowIdMapFromInsertRowSlotsResult: jest.fn(() => new Map()),
         mapPersistedRowsToViewerRows: jest.fn(),
         createNativeSpreadsheetClientRowId: jest.fn(() => 'client-row-1'),
         logRowIdentityDiagnostics: jest.fn(),
@@ -97,13 +103,13 @@ describe('useSpreadsheetGridStructuralMutations', () => {
         expect.objectContaining({ _id: 'row-2', _gridRowIndex: 1 }),
         expect.objectContaining({ _id: 'row-1', _gridRowIndex: 2 })
       ],
-      expect.objectContaining({ persisted: true, syncGrid: true, version: 7 })
+      expect.objectContaining({ persisted: true, syncGrid: false, version: 7 })
     )
     expect(syncGridConversionContext).toHaveBeenCalled()
-    expect(scheduleStructuralSnapshotReload).toHaveBeenCalledWith('sheet-1')
+    expect(scheduleStructuralSnapshotReload).not.toHaveBeenCalled()
   })
 
-  it('reloads structural snapshot after insert_row_slots succeeds', async () => {
+  it('persists insert_row_slots without full snapshot reload or grid resync', async () => {
     const initialRows = [
       { _id: 'row-1', _rowUuid: 'row-1', _gridRowIndex: 1, name: 'A' },
       { _id: 'row-2', _rowUuid: 'row-2', _gridRowIndex: 2, name: 'B' }
@@ -113,7 +119,32 @@ describe('useSpreadsheetGridStructuralMutations', () => {
       newVersion: 8,
       operationResults: [{ type: 'insert_row_slots', result: { rows: [] } }]
     })
+    const syncSheetRowsIntoLocalState = jest.fn()
     const scheduleStructuralSnapshotReload = jest.fn()
+    const bindBackendRowId = jest.fn()
+    const resolveMany = jest.fn()
+    const spreadsheetIntentJournalRef = { current: new SpreadsheetIntentJournal() }
+    const versionCausalOwnershipRef = { current: new SpreadsheetVersionCausalOwnershipRegistry() }
+    const pendingLocalMutationCellsRef = { current: new Set<string>() }
+    spreadsheetIntentJournalRef.current.captureIntent({
+      sheetId: 'sheet-1',
+      logicalRowHandle: 'client-row-1',
+      columnName: 'name',
+      value: 'A',
+      baseVersion: 3
+    })
+    versionCausalOwnershipRef.current.registerIntent({
+      sheetId: 'sheet-1',
+      logicalRowHandle: 'client-row-1',
+      columnName: 'name',
+      baseVersion: 3
+    })
+    protectSpreadsheetPendingLocalMutationCells(pendingLocalMutationCellsRef, [
+      {
+        key: spreadsheetPendingLocalMutationSemanticCellKey('sheet-1', 'client-row-1', 'name'),
+        ownerId: 'plan:client-row-1:name'
+      }
+    ])
 
     const { result } = renderHook(() =>
       useSpreadsheetGridStructuralMutations({
@@ -129,14 +160,17 @@ describe('useSpreadsheetGridStructuralMutations', () => {
         rowSlotIdentityRegistry: {
           markUnhealthy: jest.fn(),
           markHealthy: jest.fn(),
-          bindBackendRowId: jest.fn(),
+          bindBackendRowId,
           syncRows: jest.fn()
         },
         rowMaterializationReadiness: {
           registerPending: jest.fn(),
-          resolveMany: jest.fn(),
+          resolveMany,
           reject: jest.fn()
         },
+        spreadsheetIntentJournalRef,
+        versionCausalOwnershipRef,
+        pendingLocalMutationCellsRef,
         activeSheetColumns: [],
         spreadsheetColumnsForGrid: [],
         spreadsheetGridRef: {
@@ -145,12 +179,12 @@ describe('useSpreadsheetGridStructuralMutations', () => {
         getActiveSessionRows: () => initialRows,
         getKnownRowsForSheet: () => [],
         commitLocalSheetData: jest.fn(),
-        syncSheetRowsIntoLocalState: jest.fn(),
+        syncSheetRowsIntoLocalState,
         pendingUniverRowsBySheetRef: { current: new Map() },
         latestUniverDataRef: { current: null },
         lastProcessedLengthRef: { current: 0 },
-        buildAddRowPayloadsFromUniverRows: jest.fn(() => []),
-        buildPersistedRowIdMapFromBatchRows: jest.fn(() => new Map()),
+        buildAddRowPayloadsFromUniverRows: jest.fn(() => [{ _clientRowId: 'client-row-1', name: 'A' }]),
+        buildPersistedRowIdMapFromInsertRowSlotsResult: jest.fn(() => new Map([['client-row-1', 'backend-row-1']])),
         mapPersistedRowsToViewerRows: jest.fn(() => []),
         createNativeSpreadsheetClientRowId: jest.fn(() => 'client-row-1'),
         logRowIdentityDiagnostics: jest.fn(),
@@ -183,7 +217,27 @@ describe('useSpreadsheetGridStructuralMutations', () => {
     })
 
     expect(insertRowSlots).toHaveBeenCalled()
-    expect(scheduleStructuralSnapshotReload).toHaveBeenCalledWith('sheet-1')
+    expect(resolveMany).toHaveBeenCalledWith('sheet-1', new Map([['client-row-1', 'backend-row-1']]))
+    expect(bindBackendRowId).toHaveBeenCalledWith('sheet-1', 'client-row-1', 'backend-row-1')
+    expect(spreadsheetIntentJournalRef.current.listIntents('sheet-1')).toEqual([
+      expect.objectContaining({ logicalRowHandle: 'backend-row-1' })
+    ])
+    expect(
+      pendingLocalMutationCellsRef.current.has(
+        spreadsheetPendingLocalMutationSemanticCellKey('sheet-1', 'client-row-1', 'name')
+      )
+    ).toBe(false)
+    expect(
+      pendingLocalMutationCellsRef.current.has(
+        spreadsheetPendingLocalMutationSemanticCellKey('sheet-1', 'backend-row-1', 'name')
+      )
+    ).toBe(true)
+    expect(syncSheetRowsIntoLocalState).toHaveBeenCalledWith(
+      'sheet-1',
+      expect.any(Array),
+      expect.objectContaining({ persisted: true, syncGrid: false, version: 8 })
+    )
+    expect(scheduleStructuralSnapshotReload).not.toHaveBeenCalled()
   })
 
   it('persists move_cell_range without full snapshot reload or grid resync', async () => {
@@ -236,7 +290,7 @@ describe('useSpreadsheetGridStructuralMutations', () => {
         latestUniverDataRef: { current: null },
         lastProcessedLengthRef: { current: 0 },
         buildAddRowPayloadsFromUniverRows: jest.fn(),
-        buildPersistedRowIdMapFromBatchRows: jest.fn(),
+        buildPersistedRowIdMapFromInsertRowSlotsResult: jest.fn(() => new Map()),
         mapPersistedRowsToViewerRows: jest.fn(),
         createNativeSpreadsheetClientRowId: jest.fn(() => 'client-row-1'),
         logRowIdentityDiagnostics: jest.fn(),

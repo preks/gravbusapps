@@ -193,15 +193,15 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
       },
       {
         label: t('employment-label-employment-start-date'),
-        value: workingCondition?.activeFrom ? dayjs(workingCondition.activeFrom).format('MMM D, YYYY') : ''
+        value: workingCondition?.activeFrom ? formatDate(workingCondition.activeFrom, 'date.medium') || '' : ''
       },
       {
         label: t('employment-label-employment-end-date'),
-        value: workingCondition?.activeTo ? dayjs(workingCondition.activeTo).format('MMM D, YYYY') : ''
+        value: workingCondition?.activeTo ? formatDate(workingCondition.activeTo, 'date.medium') || '' : ''
       },
       {
         label: t('employment-label-hire-date'),
-        value: workingCondition?.hireDate ? dayjs(workingCondition.hireDate).format('MMM D, YYYY') : ''
+        value: workingCondition?.hireDate ? formatDate(workingCondition.hireDate, 'date.medium') || '' : ''
       },
       {
         label: t('employment-label-contract-type'),
@@ -209,11 +209,11 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
       },
       {
         label: t('employment-label-probation-end-date'),
-        value: workingCondition?.probationEnd ? dayjs(workingCondition.probationEnd).format('MMM D, YYYY') : ''
+        value: workingCondition?.probationEnd ? formatDate(workingCondition.probationEnd, 'date.medium') || '' : ''
       },
       {
         label: t('employment-label-remote'),
-        value: workingCondition?.remote?.value || ''
+        value: getCatalogValue(workingCondition?.remote) || ''
       },
       {
         label: t('employment-label-region'),
@@ -295,7 +295,8 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
       },
       {
         label: t('details-label-iban'),
-        value: primaryBankAccount?.iban || ''
+        value: primaryBankAccount?.iban || '',
+        fullWidth: true
       }
     ]
   }
@@ -411,15 +412,21 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
   }
 
   // Helper function to render data items in a grid with 3 columns
-  const renderDataItems = (data: Array<{ label: string; value: string; sectionKey?: string }>) => (
+  const renderDataItems = (data: Array<{ label: string; value: string; sectionKey?: string; fullWidth?: boolean }>) => (
     <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-3 gba:mt-2">
       {data.map(item => {
         const displayValue = item.sectionKey ? getMaskedValue(item.value, item.sectionKey) : item.value || '-'
+        const containerClassName = `gba:flex gba:flex-col gba:py-1 gba:px-2 gba:hover:bg-muted gba:rounded-md gba:transition-colors gba:min-w-0 ${
+          item.fullWidth ? 'gba:md:col-span-3' : ''
+        }`
+        const valueClassName = `gba:font-medium gba:text-sm gba:text-foreground gba:block ${
+          item.fullWidth ? 'gba:break-all' : 'gba:truncate'
+        }`
 
         return (
           <div
             key={`${item.label}-${item.value}`}
-            className="gba:flex gba:flex-col gba:py-1 gba:px-2 gba:hover:bg-muted gba:rounded-md gba:transition-colors gba:min-w-0"
+            className={containerClassName}
             data-testid={`employment-item-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
           >
             <span
@@ -428,10 +435,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
             >
               {item.label}
             </span>
-            <span
-              className="gba:font-medium gba:text-sm gba:text-foreground gba:truncate gba:block"
-              title={displayValue}
-            >
+            <span className={valueClassName} title={item.fullWidth ? undefined : displayValue}>
               {displayValue}
             </span>
           </div>

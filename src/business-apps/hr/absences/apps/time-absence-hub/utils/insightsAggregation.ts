@@ -5,7 +5,15 @@
  * `useOrgAttendanceData` so they can be safely memoized at the call site.
  */
 
-import { AbsenceCalendarDay, AttendanceRow, FilteredEmployee } from '../queries/OrgAttendanceQueries'
+import {
+  AbsenceCalendarDay,
+  AbsenceNetDay,
+  AttendanceRow,
+  FilteredEmployee,
+  PublicHolidayDay
+} from '../queries/OrgAttendanceQueries'
+import { eachDateInRange } from '../components/views/attendance/attendanceMetrics'
+import { toMinutes, type AttendanceDateRange } from '../components/views/attendance/attendanceUtils'
 
 export interface WeeklyAttendanceBucket {
   weekKey: string
@@ -39,11 +47,6 @@ export interface DailyPresenceBucket {
   presenceRate: number
 }
 
-const toFiniteMinutes = (minutes?: number | null): number =>
-  typeof minutes === 'number' && Number.isFinite(minutes) ? minutes : 0
-
-const minutesToHours = (minutes?: number | null): number => Math.round((toFiniteMinutes(minutes) / 60) * 10) / 10
-
 const isoDate = (raw: string): Date => new Date(`${raw}T00:00:00Z`)
 
 const startOfIsoWeekUtc = (date: Date): Date => {
@@ -58,22 +61,172 @@ const startOfIsoWeekUtc = (date: Date): Date => {
 const formatWeekKey = (date: Date): string => date.toISOString().slice(0, 10)
 
 const formatWeekLabel = (date: Date): string => {
+  const year = date.getUTCFullYear()
+  const firstThursday = new Date(Date.UTC(year, 0, 4))
+  const firstWeekStart = startOfIsoWeekUtc(firstThursday)
+  const diffDays = Math.floor((date.getTime() - firstWeekStart.getTime()) / 86400000)
+  const week = Math.floor(diffDays / 7) + 1
+  return `CW ${String(week).padStart(2, '0')}`
+}
+
+const formatDayLabel = (date: Date): string => {
   const month = date.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' })
   return `${month} ${date.getUTCDate()}`
 }
 
-const isMissingLog = (row: AttendanceRow): boolean => (row.plannedTime ?? 0) > 0 && !row.startTime && !row.endTime
+interface WeeklyWorkingHours {
+  mondayHours: number
+  tuesdayHours: number
+  wednesdayHours: number
+  thursdayHours: number
+  fridayHours: number
+  saturdayHours: number
+  sundayHours: number
+}
 
-export const aggregateAttendanceByWeek = (rows: AttendanceRow[]): WeeklyAttendanceBucket[] => {
-  if (rows.length === 0) {
-    return []
+export interface InsightsAggregationInput {
+  attendance: AttendanceRow[]
+  employees: FilteredEmployee[]
+  dateRange: AttendanceDateRange | null
+  holidays?: PublicHolidayDay[]
+  absenceNet?: AbsenceNetDay[]
+}
+
+interface EmployeeDayMetrics {
+  employee: FilteredEmployee
+  dayKey: string
+  workedMinutes: number
+  plannedMinutes: number
+  manualCorrections: number
+  missingLog: boolean
+  present: boolean
+}
+
+const round1 = (value: number): number => Math.round(value * 10) / 10
+
+const getWorkingHours = (employee: FilteredEmployee): WeeklyWorkingHours | undefined => {
+  const workingHours = employee.workingHours?.[0]
+  if (!workingHours) {
+    return undefined
   }
-  const buckets = new Map<string, WeeklyAttendanceBucket>()
+
+  return {
+    mondayHours: workingHours.mondayHours ?? 0,
+    tuesdayHours: workingHours.tuesdayHours ?? 0,
+    wednesdayHours: workingHours.wednesdayHours ?? 0,
+    thursdayHours: workingHours.thursdayHours ?? 0,
+    fridayHours: workingHours.fridayHours ?? 0,
+    saturdayHours: workingHours.saturdayHours ?? 0,
+    sundayHours: workingHours.sundayHours ?? 0
+  }
+}
+
+const getPlannedMinutesForDate = (dateIso: string, workingHours?: WeeklyWorkingHours): number => {
+  if (!workingHours) {
+    return 0
+  }
+
+  const day = new Date(`${dateIso}T00:00:00.000Z`).getUTCDay()
+  const hoursByDay = [
+    workingHours.sundayHours,
+    workingHours.mondayHours,
+    workingHours.tuesdayHours,
+    workingHours.wednesdayHours,
+    workingHours.thursdayHours,
+    workingHours.fridayHours,
+    workingHours.saturdayHours
+  ]
+
+  return Math.max(0, Math.round((hoursByDay[day] ?? 0) * 60))
+}
+
+const buildAttendanceByEmployeeAndDay = (rows: AttendanceRow[]): Map<string, Map<string, AttendanceRow[]>> => {
+  const result = new Map<string, Map<string, AttendanceRow[]>>()
   rows.forEach(row => {
-    if (!row.attendanceDate) {
+    if (!row.employeeId || !row.attendanceDate) {
       return
     }
-    const weekStart = startOfIsoWeekUtc(isoDate(row.attendanceDate))
+    const employeeMap = result.get(row.employeeId) ?? new Map<string, AttendanceRow[]>()
+    const dayRows = employeeMap.get(row.attendanceDate) ?? []
+    dayRows.push(row)
+    employeeMap.set(row.attendanceDate, dayRows)
+    result.set(row.employeeId, employeeMap)
+  })
+  return result
+}
+
+const buildHolidayDatesByEmployee = (holidays: PublicHolidayDay[] = []): Map<string, Set<string>> => {
+  const result = new Map<string, Set<string>>()
+  holidays.forEach(holiday => {
+    const dates = result.get(holiday.employeeId) ?? new Set<string>()
+    dates.add(holiday.date)
+    result.set(holiday.employeeId, dates)
+  })
+  return result
+}
+
+const buildAbsenceFractionByEmployeeAndDay = (absenceNet: AbsenceNetDay[] = []): Map<string, Map<string, number>> => {
+  const result = new Map<string, Map<string, number>>()
+  absenceNet.forEach(row => {
+    const employeeMap = result.get(row.employeeId) ?? new Map<string, number>()
+    employeeMap.set(row.dayDate, Math.min(Math.max(Number(row.netConsumed ?? 1), 0), 1))
+    result.set(row.employeeId, employeeMap)
+  })
+  return result
+}
+
+const buildEmployeeDayMetrics = ({
+  attendance,
+  employees,
+  dateRange,
+  holidays = [],
+  absenceNet = []
+}: InsightsAggregationInput): EmployeeDayMetrics[] => {
+  if (!dateRange || employees.length === 0) {
+    return []
+  }
+
+  const dates = eachDateInRange(dateRange)
+  const attendanceByEmployeeAndDay = buildAttendanceByEmployeeAndDay(attendance)
+  const holidaysByEmployee = buildHolidayDatesByEmployee(holidays)
+  const absenceFractionByEmployeeAndDay = buildAbsenceFractionByEmployeeAndDay(absenceNet)
+
+  return employees.flatMap(employee => {
+    const workingHours = getWorkingHours(employee)
+    const attendanceByDay = attendanceByEmployeeAndDay.get(employee.id) ?? new Map<string, AttendanceRow[]>()
+    const holidayDates = holidaysByEmployee.get(employee.id) ?? new Set<string>()
+    const absenceFractionByDay = absenceFractionByEmployeeAndDay.get(employee.id) ?? new Map<string, number>()
+
+    return dates.map(dayKey => {
+      const dayAttendance = attendanceByDay.get(dayKey) ?? []
+      const plannedForDay = holidayDates.has(dayKey) ? 0 : getPlannedMinutesForDate(dayKey, workingHours)
+      const absenceFraction = absenceFractionByDay.get(dayKey) ?? 0
+      const plannedMinutes = Math.round(plannedForDay * (1 - absenceFraction))
+      const workedMinutes = dayAttendance.reduce((acc, row) => acc + toMinutes(row.effectiveTime), 0)
+      const hasLoggedTime = dayAttendance.some(row => row.startTime || row.endTime || toMinutes(row.effectiveTime) > 0)
+
+      return {
+        employee,
+        dayKey,
+        workedMinutes,
+        plannedMinutes,
+        manualCorrections: dayAttendance.filter(row => Boolean(row.manualOverride)).length,
+        missingLog: plannedMinutes > 0 && !hasLoggedTime,
+        present: hasLoggedTime
+      }
+    })
+  })
+}
+
+export const aggregateAttendanceByWeek = (input: InsightsAggregationInput): WeeklyAttendanceBucket[] => {
+  const dayMetrics = buildEmployeeDayMetrics(input)
+  if (dayMetrics.length === 0) {
+    return []
+  }
+
+  const buckets = new Map<string, WeeklyAttendanceBucket>()
+  dayMetrics.forEach(day => {
+    const weekStart = startOfIsoWeekUtc(isoDate(day.dayKey))
     const key = formatWeekKey(weekStart)
     const existing =
       buckets.get(key) ??
@@ -87,23 +240,30 @@ export const aggregateAttendanceByWeek = (rows: AttendanceRow[]): WeeklyAttendan
         missingLogs: 0,
         manualCorrections: 0
       } satisfies WeeklyAttendanceBucket)
-    existing.workedHours += minutesToHours(row.effectiveTime)
-    existing.plannedHours += minutesToHours(row.plannedTime)
-    const diffMinutes = toFiniteMinutes(row.differenceTime)
+    existing.workedHours += day.workedMinutes / 60
+    existing.plannedHours += day.plannedMinutes / 60
+    const diffMinutes = day.workedMinutes - day.plannedMinutes
     if (diffMinutes > 0) {
-      existing.overtimeHours += minutesToHours(diffMinutes)
+      existing.overtimeHours += diffMinutes / 60
     } else if (diffMinutes < 0) {
-      existing.deficitHours += minutesToHours(Math.abs(diffMinutes))
+      existing.deficitHours += Math.abs(diffMinutes) / 60
     }
-    if (isMissingLog(row)) {
+    if (day.missingLog) {
       existing.missingLogs += 1
     }
-    if (row.manualOverride) {
-      existing.manualCorrections += 1
-    }
+    existing.manualCorrections += day.manualCorrections
     buckets.set(key, existing)
   })
-  return Array.from(buckets.values()).sort((a, b) => a.weekKey.localeCompare(b.weekKey))
+
+  return Array.from(buckets.values())
+    .map(bucket => ({
+      ...bucket,
+      workedHours: round1(bucket.workedHours),
+      plannedHours: round1(bucket.plannedHours),
+      overtimeHours: round1(bucket.overtimeHours),
+      deficitHours: round1(bucket.deficitHours)
+    }))
+    .sort((a, b) => a.weekKey.localeCompare(b.weekKey))
 }
 
 export type EmployeeDimension = 'department' | 'location' | 'legalEntity'
@@ -122,10 +282,11 @@ const resolveDimension = (employee: FilteredEmployee, dimension: EmployeeDimensi
 }
 
 export const aggregateByDimension = (
-  rows: AttendanceRow[],
-  employees: FilteredEmployee[],
+  input: InsightsAggregationInput,
   dimension: EmployeeDimension
 ): DimensionBreakdown[] => {
+  const { employees } = input
+  const dayMetrics = buildEmployeeDayMetrics(input)
   const employeeIndex = new Map<string, FilteredEmployee>()
   employees.forEach(employee => employeeIndex.set(employee.id, employee))
 
@@ -139,8 +300,8 @@ export const aggregateByDimension = (
 
   const buckets = new Map<string, DimensionBreakdown>()
 
-  rows.forEach(row => {
-    const employee = employeeIndex.get(row.employeeId)
+  dayMetrics.forEach(day => {
+    const employee = employeeIndex.get(day.employee.id)
     if (!employee) {
       return
     }
@@ -160,54 +321,59 @@ export const aggregateByDimension = (
         achievementPct: 0
       } satisfies DimensionBreakdown)
 
-    existing.workedHours += minutesToHours(row.effectiveTime)
-    existing.plannedHours += minutesToHours(row.plannedTime)
-    const diffMinutes = toFiniteMinutes(row.differenceTime)
+    existing.workedHours += day.workedMinutes / 60
+    existing.plannedHours += day.plannedMinutes / 60
+    const diffMinutes = day.workedMinutes - day.plannedMinutes
     if (diffMinutes > 0) {
-      existing.overtimeHours += minutesToHours(diffMinutes)
+      existing.overtimeHours += diffMinutes / 60
     } else if (diffMinutes < 0) {
-      existing.deficitHours += minutesToHours(Math.abs(diffMinutes))
+      existing.deficitHours += Math.abs(diffMinutes) / 60
     }
-    if (isMissingLog(row)) {
+    if (day.missingLog) {
       existing.missingLogs += 1
     }
-    if (row.manualOverride) {
-      existing.manualCorrections += 1
-    }
+    existing.manualCorrections += day.manualCorrections
     buckets.set(key, existing)
   })
 
   return Array.from(buckets.values())
     .map(entry => ({
       ...entry,
+      workedHours: round1(entry.workedHours),
+      plannedHours: round1(entry.plannedHours),
+      overtimeHours: round1(entry.overtimeHours),
+      deficitHours: round1(entry.deficitHours),
       achievementPct: entry.plannedHours > 0 ? Math.round((entry.workedHours / entry.plannedHours) * 1000) / 10 : 0
     }))
     .sort((a, b) => b.workedHours - a.workedHours)
 }
 
-export const computeDailyPresence = (rows: AttendanceRow[], populationSize: number): DailyPresenceBucket[] => {
-  if (rows.length === 0 || populationSize === 0) {
+export const computeDailyPresence = (input: InsightsAggregationInput): DailyPresenceBucket[] => {
+  const dayMetrics = buildEmployeeDayMetrics(input)
+  if (!input.dateRange || input.employees.length === 0 || dayMetrics.length === 0) {
     return []
   }
+
   const presentByDay = new Map<string, Set<string>>()
-  rows.forEach(row => {
-    if (!row.attendanceDate) {
-      return
+  dayMetrics.forEach(day => {
+    const set = presentByDay.get(day.dayKey) ?? new Set<string>()
+    if (day.present) {
+      set.add(day.employee.id)
     }
-    const set = presentByDay.get(row.attendanceDate) ?? new Set<string>()
-    if ((row.effectiveTime ?? 0) > 0 || row.startTime) {
-      set.add(row.employeeId)
-    }
-    presentByDay.set(row.attendanceDate, set)
+    presentByDay.set(day.dayKey, set)
   })
-  return Array.from(presentByDay.entries())
-    .map(([dayKey, employeesSet]) => ({
-      dayKey,
-      dayLabel: formatWeekLabel(isoDate(dayKey)),
-      presentEmployees: employeesSet.size,
-      populationSize,
-      presenceRate: Math.round((employeesSet.size / populationSize) * 1000) / 10
-    }))
+
+  return eachDateInRange(input.dateRange)
+    .map(dayKey => {
+      const employeesSet = presentByDay.get(dayKey) ?? new Set<string>()
+      return {
+        dayKey,
+        dayLabel: formatDayLabel(isoDate(dayKey)),
+        presentEmployees: employeesSet.size,
+        populationSize: input.employees.length,
+        presenceRate: Math.round((employeesSet.size / input.employees.length) * 1000) / 10
+      }
+    })
     .sort((a, b) => a.dayKey.localeCompare(b.dayKey))
 }
 

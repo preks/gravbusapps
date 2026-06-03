@@ -6,12 +6,16 @@ import {
   type SpreadsheetKnownRowIdFieldRemap
 } from './spreadsheetUnifiedBatchSubmitUtils'
 import {
+  buildUiToBackendRowIdMap,
   createSpreadsheetRowRefFromRowId,
   createBackendRowRef,
+  getViewerRowIdentityCandidates,
   isSpreadsheetClientRowRef,
   resolveSpreadsheetRowRef,
-  toRowIdString
+  toRowIdString,
+  type ViewerRow
 } from './spreadsheetRowIdentity'
+import type { SpreadsheetRowSlotIdentityRegistry } from './spreadsheetRowSlotIdentity'
 
 export interface SpreadsheetBatchOperationRowRemapResult {
   operations: SpreadsheetBatchOperation[]
@@ -19,6 +23,40 @@ export interface SpreadsheetBatchOperationRowRemapResult {
   unresolvedTemporaryRowIdMatches: SpreadsheetKnownRowIdFieldMatch[]
   mapSize: number
   availableRemapKeys: string[]
+}
+
+/**
+ * Session rows plus slot-registry bindings from a just-finished `insert_row_slots`
+ * (session snapshot can lag behind readiness / registry by one frame).
+ */
+export function buildUiToBackendRowIdMapForPersist(params: {
+  sheetId: string
+  rows: ViewerRow[]
+  isUuid: (value: string) => boolean
+  rowSlotIdentityRegistry?: SpreadsheetRowSlotIdentityRegistry | null
+  readinessResolvedByClientRowId?: Map<string, string>
+}): Map<string, string> {
+  const map = buildUiToBackendRowIdMap(params.rows, params.isUuid)
+  params.readinessResolvedByClientRowId?.forEach((backendRowId, clientRowId) => {
+    if (clientRowId && backendRowId) {
+      map.set(clientRowId, backendRowId)
+    }
+  })
+  const slotState = params.rowSlotIdentityRegistry?.getState(params.sheetId)
+  if (!slotState) {
+    return map
+  }
+  slotState.slots.forEach(target => {
+    if (!target.backendRowId) return
+    getViewerRowIdentityCandidates({
+      _id: target.rowId,
+      _clientRowId: target.clientRowId,
+      _rowUuid: target.backendRowId
+    }).forEach(candidateId => {
+      map.set(candidateId, target.backendRowId!)
+    })
+  })
+  return map
 }
 
 /**

@@ -3,11 +3,20 @@ import type { SpreadsheetColumn } from '../types'
 import type { SpreadsheetViewerRow } from './SpreadsheetSession'
 
 import type {
+  AuthoritativeGridReapplyTarget,
   AuthoritativeGridRegion,
-  ForceAuthoritativeGridReapplyOptions
+  ForceAuthoritativeGridReapplyOptions,
+  PendingLocalFilterPolicy
 } from '../utils/spreadsheetAuthoritativeRegion'
+import type { SpreadsheetRemoteTransactionPlan } from './spreadsheetRemoteTransaction'
+import type { UniverRemoteTransactionRunResult } from './univerRemoteTransactionRunner'
 
-export type { AuthoritativeGridRegion, ForceAuthoritativeGridReapplyOptions }
+export type {
+  AuthoritativeGridReapplyTarget,
+  AuthoritativeGridRegion,
+  ForceAuthoritativeGridReapplyOptions,
+  PendingLocalFilterPolicy
+}
 
 export interface SpreadsheetStylePatch {
   /** Style keys to set/overwrite on the receiver cell. */
@@ -110,6 +119,7 @@ export interface SpreadsheetFeatureOperation {
 }
 
 export type SpreadsheetUnifiedMutationBatchOperationType =
+  | 'add_rows'
   | 'set_range'
   | 'clear_cell'
   | 'set_style'
@@ -143,6 +153,7 @@ export interface SpreadsheetRemoteDimensionsPayload {
 export interface SpreadsheetRemoteCellUpdateOptions {
   useSenderA1Row?: boolean
   targetSheetId?: string
+  skipRemoteEchoRegistration?: boolean
   stylePatch?: SpreadsheetStylePatch | null
   univerCell?: Record<string, unknown> | null
   univerStyles?: Record<string, unknown> | null
@@ -173,11 +184,18 @@ export interface SpreadsheetBulkRemoteApplyMeta {
   batchId?: string | null
   operationType?: string | null
   /**
+   * Skip registering remote-echo suppression for bulk paints that re-project
+   * viewer data already visible in the grid.
+   */
+  skipRemoteEchoRegistration?: boolean
+  /**
    * Invoked once after this bulk apply finishes (including serial fallback and early exits).
    * Used to chain dependent grid work (e.g. apply `set_style` after paste `set_range` values).
    */
   onApplyComplete?: () => void
 }
+
+export type SpreadsheetSessionDiffProjectionMode = 'allow' | 'skip'
 
 export interface SpreadsheetRemoteClearFormatRangePayload {
   sheetId: string
@@ -198,6 +216,9 @@ export interface SpreadsheetReplayDelta {
   operationType: string
   payload: Record<string, unknown>
   result?: Record<string, unknown>
+  operationId?: string
+  operationLogId?: string
+  baseVersion?: number
   appliedVersion: number
 }
 
@@ -220,15 +241,30 @@ export interface SpreadsheetCollaborationCallbacks {
   getSheetVersion?: (sheetId: string) => number
   getLocalSheetData: () => SpreadsheetViewerRow[]
   getSheetData?: (sheetId: string) => SpreadsheetViewerRow[]
+  /** Live Univer workbook snapshot for committed-batch feature-matrix planning (Step 3). */
+  getWorkbookSnapshot?: () => Record<string, unknown> | null
   getBackendRowIdForUiRowId: (uiRowId: string, univerRow?: number) => string | undefined
   commitLocalSheetData: (
     data: SpreadsheetViewerRow[],
-    options?: { persisted?: boolean; syncGrid?: boolean; publishParent?: boolean }
+    options?: {
+      persisted?: boolean
+      syncGrid?: boolean
+      sessionDiffProjectionMode?: SpreadsheetSessionDiffProjectionMode
+      publishParent?: boolean
+      authoritativeGridRegion?: AuthoritativeGridReapplyTarget
+      authoritativeApplyMeta?: SpreadsheetBulkRemoteApplyMeta | null
+    }
   ) => void
   commitSheetData?: (
     sheetId: string,
     data: SpreadsheetViewerRow[],
-    options?: { persisted?: boolean; syncGrid?: boolean }
+    options?: {
+      persisted?: boolean
+      syncGrid?: boolean
+      sessionDiffProjectionMode?: SpreadsheetSessionDiffProjectionMode
+      authoritativeGridRegion?: AuthoritativeGridReapplyTarget
+      authoritativeApplyMeta?: SpreadsheetBulkRemoteApplyMeta | null
+    }
   ) => void
   applyRemoteCellUpdate: (
     rowIndex: number,
@@ -265,9 +301,12 @@ export interface SpreadsheetCollaborationCallbacks {
     meta?: SpreadsheetBulkRemoteApplyMeta
   ) => void
   applyRemoteDimensions?: (payload: SpreadsheetRemoteDimensionsPayload) => void
+  runRemoteTransaction?: (
+    plan: Extract<SpreadsheetRemoteTransactionPlan, { ok: true }>
+  ) => UniverRemoteTransactionRunResult
   forceGridReapply?: (
     sheetId: string,
-    region?: AuthoritativeGridRegion | null,
+    region?: AuthoritativeGridReapplyTarget,
     options?: ForceAuthoritativeGridReapplyOptions
   ) => void
   onVersionUpdate: (version: number) => void
@@ -282,6 +321,29 @@ export interface SpreadsheetCollaborationCallbacks {
   scheduleSheetVersionRefreshFromApi: () => void
   scheduleRemoteStructuralResync: (sheetId?: string, options?: { immediate?: boolean }) => void
   onRemoteColumnUpdate?: (data: Record<string, unknown>) => void
+  applyRemoteColumnReorder?: (params: {
+    sheetId: string
+    previousColumns: SpreadsheetColumn[]
+    nextColumns: SpreadsheetColumn[]
+  }) => boolean
+  applyRemoteRowSlotsMove?: (params: {
+    sheetId: string
+    sourceStartGridRowIndex: number
+    count: number
+    destinationGridRowIndex: number
+  }) => boolean
+  applyRemoteInsertRowSlots?: (params: { sheetId: string; startGridRowIndex: number; count: number }) => boolean
+  applyRemoteDeleteRowSlots?: (params: { sheetId: string; startGridRowIndex: number; count: number }) => boolean
+  applyRemoteInsertColumnSlots?: (params: { sheetId: string; startGridColumnIndex: number; count: number }) => boolean
+  applyRemoteDeleteColumnSlots?: (params: { sheetId: string; startGridColumnIndex: number; count: number }) => boolean
+  applyRemoteMoveCellRange?: (params: {
+    sheetId: string
+    fromRange: { startRow: number; endRow: number; startColumn: number; endColumn: number }
+    toRange: { startRow: number; endRow: number; startColumn: number; endColumn: number }
+  }) => boolean
+  isRecentLocalBatchId?: (batchId: string | undefined, tabId?: string | undefined) => boolean
+  /** True while local/remote sheet queue work is still settling; used to defer version-related snapshot reloads. */
+  isSheetPersistenceBusy?: (sheetId: string) => boolean
   fetchChangesSince?: (sheetId: string, sinceVersion: number) => Promise<SpreadsheetReplayResponse>
   isCollabDiagEnabled?: () => boolean
   onCollabDiagnostic?: (event: string, meta?: Record<string, number | string | boolean | undefined>) => void

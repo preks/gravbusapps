@@ -14,7 +14,59 @@ interface NewSkillItem {
 interface ApproveCreateSkillProps extends BusinessAppContextProps {
   onClose?: () => void
 }
-export const ApproveCreateSkill: React.FC<ApproveCreateSkillProps> = ({ additionalData, onClose, accessToken }) => {
+
+const temporaryDisabled = true
+const temporaryDisabledMessage =
+  'This approval form is temporarily disabled because the skill functionality is currently being adjusted.'
+
+function ApproveCreateSkillTemporaryDisabled({
+  additionalData,
+  onClose,
+  accessToken
+}: Readonly<ApproveCreateSkillProps>) {
+  const { t } = useTranslation(approveCreateSkillTranslations)
+  const taskPayload = additionalData?.psi_taskPayload || {}
+  const processMetadata = additionalData?.psi_processMetadata || {}
+  const taskTitle = processMetadata?.referenceTaskName ?? t('approve-create-skill-title')
+  const creatorName = taskPayload?.creatorName ?? processMetadata?.creatorName
+  const creatorUserId: string | undefined = processMetadata?.creatorUserId
+  const isEveryBoxContext = !!onClose
+
+  const handleClose = () => {
+    if (onClose) {
+      onClose()
+    } else {
+      dispatchProcessContinueEvent('pse_abort', { event: 'pse_abort' })
+    }
+  }
+
+  return (
+    <TaskFormLayout
+      data-testid="approve-create-skill-container"
+      header={
+        <TaskDetailHeader
+          title={taskTitle}
+          showEmployeeInfo
+          creatorName={creatorName}
+          userId={creatorUserId}
+          accessToken={accessToken}
+          onClose={isEveryBoxContext ? handleClose : undefined}
+        />
+      }
+      contentClassName="gba:space-y-4"
+    >
+      <div
+        className="gba:flex gba:items-start gba:gap-3 gba:rounded-md gba:border gba:border-border gba:bg-card/50 gba:px-4 gba:py-3"
+        data-testid="create-skill-temporary-disabled"
+      >
+        <InfoIcon size={16} className="gba:mt-0.5 gba:shrink-0 gba:text-muted-foreground" />
+        <p className="gba:text-sm gba:text-muted-foreground">{temporaryDisabledMessage}</p>
+      </div>
+    </TaskFormLayout>
+  )
+}
+
+const ApproveCreateSkillContent: React.FC<ApproveCreateSkillProps> = ({ additionalData, onClose, accessToken }) => {
   const { t } = useTranslation(approveCreateSkillTranslations)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [decisionAction, setDecisionAction] = useState<'approved' | 'rejected' | null>(null)
@@ -199,4 +251,13 @@ export const ApproveCreateSkill: React.FC<ApproveCreateSkillProps> = ({ addition
     </TaskFormLayout>
   )
 }
+
+export const ApproveCreateSkill: React.FC<ApproveCreateSkillProps> = props => {
+  if (temporaryDisabled) {
+    return <ApproveCreateSkillTemporaryDisabled {...props} />
+  }
+
+  return <ApproveCreateSkillContent {...props} />
+}
+
 export default ApproveCreateSkill

@@ -12,6 +12,9 @@ const toStartIso = (date: string): string => `${date}T00:00:00.000Z`
 
 const toEndIso = (date: string): string => `${date}T23:59:59.999Z`
 
+const isUuid = (value: string): boolean =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+
 const getResolvedDateFilters = (timeFilter: string, dateRange?: DashboardDateRange) => {
   if (dateRange?.dateFrom && dateRange?.dateTo) {
     return {
@@ -62,10 +65,14 @@ const buildEmployeeFilterClauses = (filters?: HubGlobalFilters): string[] => {
     clauses.push(`{ employeePosition: { _and: [${employeePositionClauses.join(', ')}] } }`)
   }
   if (filters.employeeQuery) {
-    const like = quote(`%${filters.employeeQuery}%`)
-    clauses.push(
-      `{ _or: [{ firstName: { _ilike: ${like} } }, { lastName: { _ilike: ${like} } }, { displayName: { _ilike: ${like} } }] }`
-    )
+    if (isUuid(filters.employeeQuery)) {
+      clauses.push(`{ id: { _eq: ${quote(filters.employeeQuery)} } }`)
+    } else {
+      const like = quote(`%${filters.employeeQuery}%`)
+      clauses.push(
+        `{ _or: [{ firstName: { _ilike: ${like} } }, { lastName: { _ilike: ${like} } }, { displayName: { _ilike: ${like} } }] }`
+      )
+    }
   }
   return clauses
 }
@@ -105,6 +112,17 @@ const buildEmployeePositionWhere = (filters?: HubGlobalFilters): string => {
   return `{ _and: [${clauses.join(', ')}] }`
 }
 
+const hasEmployeeFilters = (filters?: HubGlobalFilters): boolean => {
+  if (!filters) return false
+  return (
+    filters.departmentIds.length > 0 ||
+    filters.locationIds.length > 0 ||
+    filters.legalEntityIds.length > 0 ||
+    filters.managerIds.length > 0 ||
+    !!filters.employeeQuery
+  )
+}
+
 const buildBaseWhere = (startIso: string, endIso: string, filters?: HubGlobalFilters): string => `{
   _and: [
     { isDeleted: { _eq: false } },
@@ -113,6 +131,13 @@ const buildBaseWhere = (startIso: string, endIso: string, filters?: HubGlobalFil
     ${buildEmployeeAbsenceFilterClauses(filters)
       .map(clause => `, ${clause}`)
       .join('')}
+  ]
+}`
+
+const buildActiveAbsenceWhere = (baseWhere: string): string => `{
+  _and: [
+    ${baseWhere},
+    { status: { _nin: ["REJECTED", "CANCELLED"] } }
   ]
 }`
 
@@ -128,11 +153,20 @@ export const getKPIAggregationsQuery = (
   }
 
   const baseWhere = buildBaseWhere(dateFilters.startDate, dateFilters.endDate, filters)
+  const activeAbsenceWhere = buildActiveAbsenceWhere(baseWhere)
 
   return `
   query GetKPIAggregations {
 
     totalAbsences: EmployeeAbsenceAggregate(where: ${baseWhere}) {
+      aggregate {
+        count
+        sum { effectiveDays }
+        avg { effectiveDays }
+      }
+    }
+
+    activeAbsences: EmployeeAbsenceAggregate(where: ${activeAbsenceWhere}) {
       aggregate {
         count
         sum { effectiveDays }
@@ -313,6 +347,35 @@ export const getHybridDataQuery = (timeFilter: string, filters?: HubGlobalFilter
   }`
 }
 
+export const GET_CURRENT_SALARIES_BY_EMPLOYEE_IDS = `
+  query GetCurrentSalariesByEmployeeIds($employeeIds: [uuid!]!, $today: date!) {
+    currentSalaries: EmployeeSalary(
+      where: {
+        employeeId: { _in: $employeeIds }
+        isDeleted: { _eq: false }
+        requestStatus: { _eq: "APPROVED_SALARY_ADJUSTMENT" }
+        startDate: { _lte: $today }
+      },
+      orderBy: [{ employeeId: ASC }, { startDate: DESC_NULLS_LAST }, { createdAt: DESC }],
+      limit: 2000
+    ) {
+      id
+      employeeId
+      annualGrossSalary
+      monthlyGrossSalary
+      hourlyGrossSalary
+      startDate
+      endDate
+      currencyRef
+      currency {
+        id
+        code
+        value
+      }
+    }
+  }
+`
+
 export const getCompleteAggregationsQuery = (
   timeFilter: string,
   vacationGroupId: string | null = null,
@@ -326,6 +389,7 @@ export const getCompleteAggregationsQuery = (
   }
 
   const baseWhere = buildBaseWhere(dateFilters.startDate, dateFilters.endDate, filters)
+  const activeAbsenceWhere = buildActiveAbsenceWhere(baseWhere)
 
   const currentYear = new Date().getFullYear()
   const currentYearStart = `${currentYear}-01-01`
@@ -338,9 +402,9 @@ export const getCompleteAggregationsQuery = (
   const entitlementFilterClauses = buildEmployeeNestedFilterClauses(filters)
     .map(clause => `, ${clause}`)
     .join('')
-  const salaryFilterClauses = buildEmployeeNestedFilterClauses(filters)
-    .map(clause => `, ${clause}`)
-    .join('')
+  // Salary scoping happens client-side via the liability employee set. Filtering on the
+  // server by name was unreliable (ILIKE on display names misses casing/accents/extra
+  // spaces), so we fetch all active salaries for employees with a position.
   const salaryWhereCondition = `where: {
     _and: [
       { isDeleted: { _eq: false } },
@@ -358,7 +422,6 @@ export const getCompleteAggregationsQuery = (
         ]
       },
       { employee: { employeePosition: { id: { _isNull: false } } } }
-      ${salaryFilterClauses}
     ]
   }`
   if (vacationGroupId) {
@@ -384,6 +447,14 @@ export const getCompleteAggregationsQuery = (
   query GetCompleteAggregations {
     
     totalAbsences: EmployeeAbsenceAggregate(where: ${baseWhere}) {
+      aggregate {
+        count
+        sum { effectiveDays }
+        avg { effectiveDays }
+      }
+    }
+
+    activeAbsences: EmployeeAbsenceAggregate(where: ${activeAbsenceWhere}) {
       aggregate {
         count
         sum { effectiveDays }
@@ -477,6 +548,33 @@ export const getCompleteAggregationsQuery = (
       }
     }
 
+    ${
+      hasEmployeeFilters(filters)
+        ? `
+    filteredEmployees: EmployeePosition(where: ${buildEmployeePositionWhere(filters)}, limit: 5000) {
+      employee {
+        id
+      }
+    }
+    `
+        : ''
+    }
+
+    scopedEmployeePositions: EmployeePosition(where: ${buildEmployeePositionWhere(filters)}, limit: 5000) {
+      employee {
+        id
+      }
+      companyId
+      company {
+        currencyRef
+        currency {
+          id
+          code
+          value
+        }
+      }
+    }
+
     currentSalaries: EmployeeSalary(${salaryWhereCondition}, orderBy: [{ employeeId: ASC }, { startDate: DESC_NULLS_LAST }, { createdAt: DESC }], limit: 5000) {
       id
       employeeId
@@ -485,7 +583,9 @@ export const getCompleteAggregationsQuery = (
       hourlyGrossSalary
       startDate
       endDate
+      currencyRef
       currency {
+        id
         code
         value
       }

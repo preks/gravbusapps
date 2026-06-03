@@ -1,7 +1,8 @@
 import type { SpreadsheetColumn } from '../types'
+import { isSpreadsheetStoredCellClearValue } from '../core/spreadsheetBatchBuilders'
 import type { SpreadsheetBatchOperation, SpreadsheetBatchOperationResponse } from '../services/SpreadsheetApiService'
 import { mergeInsertedRowsAtIndex } from './spreadsheetInsertRowsAt'
-import { applyMoveCellRangeTransform } from './applyMoveCellRangeTransform'
+import { applyMoveCellRangeWirePayloadToViewerRows } from './spreadsheetMoveCellRangeGrid'
 import {
   applyDeleteRowSlotsTransform,
   applyInsertRowSlotsTransform,
@@ -16,6 +17,10 @@ import {
   stripEquivalentColumnKeysFromRow,
   type ViewerRow
 } from './spreadsheetRowIdentity'
+import { getFiniteNonNegativeGridRowIndex } from './spreadsheetPeerRowHydration'
+import { applyClearAllDelta } from '../core/spreadsheetSessionDeltaApply'
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 const resolvePayloadRowIdentity = (payload: Record<string, unknown>): string => {
   const rowId = String(payload.rowId || '')
@@ -32,6 +37,9 @@ const applySetCellDelta = (
   const rowId = resolvePayloadRowIdentity(payload)
   const columnName = String(payload.columnName || payload.column || '')
   const value = payload.value
+  if (isSpreadsheetStoredCellClearValue(value)) {
+    return applyClearCellDelta(rows, payload, columns)
+  }
   return rows.map(row => {
     if (!rowMatchesRemoteId(row, rowId)) return row
     const cleared = stripEquivalentColumnKeysFromRow(row, columnName, columns)
@@ -53,8 +61,8 @@ const applySetRangeDelta = (
     const rowId = resolvePayloadRowIdentity(cell)
     const columnName = String(cell.columnName || cell.column || '')
     if (!rowId || !columnName) continue
-    if (!Object.prototype.hasOwnProperty.call(cell, 'value')) {
-      nextRows = applyClearCellDelta(nextRows, { rowId, columnName }, columns)
+    if (!Object.prototype.hasOwnProperty.call(cell, 'value') || isSpreadsheetStoredCellClearValue(cell.value)) {
+      nextRows = applyClearCellDelta(nextRows, cell, columns)
       continue
     }
     nextRows = applySetCellDelta(nextRows, { rowId, columnName, value: cell.value }, columns)
@@ -96,26 +104,42 @@ const mapAddedRowsFromDeltaResult = (result: Record<string, unknown>): ViewerRow
 }
 
 const replaceClientRowsWithCreatedRows = (existingRows: ViewerRow[], createdRows: ViewerRow[]): ViewerRow[] => {
+  const getDurableRowIdentity = (row: ViewerRow): string => {
+    const explicit = row._rowUuid ?? row.UUID ?? row.uuid
+    if (typeof explicit === 'string' && explicit) return explicit
+    const canonical = getCanonicalRowId(row)
+    return UUID_RE.test(canonical) ? canonical : ''
+  }
+  const getMergeableGridRowIndex = (row: ViewerRow): number | undefined =>
+    getDurableRowIdentity(row) ? getFiniteNonNegativeGridRowIndex(row) : undefined
   const createdRowByClientId = new Map<string, ViewerRow>()
+  const createdRowByDurableId = new Map<string, ViewerRow>()
+  const createdRowByGridRowIndex = new Map<number, ViewerRow>()
   createdRows.forEach(row => {
     const clientRowId = getClientRowIdentity(row) || getCanonicalRowId(row)
-    if (!clientRowId) return
-    createdRowByClientId.set(clientRowId, row)
+    if (clientRowId) createdRowByClientId.set(clientRowId, row)
+    const durableId = getDurableRowIdentity(row)
+    if (durableId) createdRowByDurableId.set(durableId, row)
+    const gridRowIndex = getMergeableGridRowIndex(row)
+    if (gridRowIndex !== undefined) createdRowByGridRowIndex.set(gridRowIndex, row)
   })
 
-  const replacedClientRowIds = new Set<string>()
+  const replacedCreatedRows = new Set<ViewerRow>()
   const nextRows = existingRows.map(row => {
     const clientRowId = getClientRowIdentity(row) || getCanonicalRowId(row)
-    if (!clientRowId) return row
-    const createdRow = createdRowByClientId.get(clientRowId)
+    const durableId = getDurableRowIdentity(row)
+    const gridRowIndex = getMergeableGridRowIndex(row)
+    const createdRow =
+      (durableId ? createdRowByDurableId.get(durableId) : undefined) ??
+      (gridRowIndex !== undefined ? createdRowByGridRowIndex.get(gridRowIndex) : undefined) ??
+      (clientRowId ? createdRowByClientId.get(clientRowId) : undefined)
     if (!createdRow) return row
-    replacedClientRowIds.add(clientRowId)
-    return createdRow
+    replacedCreatedRows.add(createdRow)
+    return { ...row, ...createdRow }
   })
 
   createdRows.forEach(row => {
-    const clientRowId = getClientRowIdentity(row) || getCanonicalRowId(row)
-    if (clientRowId && replacedClientRowIds.has(clientRowId)) return
+    if (replacedCreatedRows.has(row)) return
     nextRows.push(row)
   })
 
@@ -158,6 +182,9 @@ export const applyAuthoritativeBatchResponseToRows = (
         break
       case 'clear_cell':
         nextRows = applyClearCellDelta(nextRows, payload, columns)
+        break
+      case 'clear_all':
+        nextRows = applyClearAllDelta(nextRows, payload, columns)
         break
       case 'add_rows':
         nextRows = replaceClientRowsWithCreatedRows(
@@ -213,28 +240,12 @@ export const applyAuthoritativeBatchResponseToRows = (
         break
       }
       case 'move_cell_range': {
-        const fromRange = payload.fromRange as Record<string, unknown> | undefined
-        const toRange = payload.toRange as Record<string, unknown> | undefined
-        if (fromRange && toRange && columns) {
-          const visibleColumns = columns.filter(column => column.isVisible !== false)
-          const columnNamesByGridIndex = visibleColumns.map(column =>
-            typeof column?.name === 'string' ? column.name : null
-          )
-          nextRows = applyMoveCellRangeTransform({
+        if (columns) {
+          nextRows = applyMoveCellRangeWirePayloadToViewerRows({
             rows: nextRows,
-            columnNamesByGridIndex,
-            fromRange: {
-              startRow: Number(fromRange.startRow ?? 0),
-              endRow: Number(fromRange.endRow ?? 0),
-              startColumn: Number(fromRange.startColumn ?? 0),
-              endColumn: Number(fromRange.endColumn ?? 0)
-            },
-            toRange: {
-              startRow: Number(toRange.startRow ?? 0),
-              endRow: Number(toRange.endRow ?? 0),
-              startColumn: Number(toRange.startColumn ?? 0),
-              endColumn: Number(toRange.endColumn ?? 0)
-            }
+            columns,
+            fromRange: payload.fromRange,
+            toRange: payload.toRange
           })
         }
         break

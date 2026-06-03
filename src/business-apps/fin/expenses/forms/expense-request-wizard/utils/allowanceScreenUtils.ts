@@ -1,7 +1,6 @@
 import { SCREEN_NAMES_ENUM } from '../constants/constants'
 import dayjs from 'dayjs'
 import { noAllowanceItemsFunction } from './itemsScreenUtils'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   applyEffectiveCostCenterToRows,
   resolveInheritedOrSelectedCostCenterId,
@@ -161,15 +160,15 @@ export const createAllowanceScreenLogObject = (
 /**
  * Helper function to get the day name from an ISO date string
  */
-export const getDayName = (isoDate: string): string => {
+export const getDayName = (isoDate: string, t: (key: string) => string): string => {
   const days = [
-    getTranslationFromI18nKeyAndLabel('lowcoder:weekdays.sunday', 'Sunday'),
-    getTranslationFromI18nKeyAndLabel('lowcoder:weekdays.monday', 'Monday'),
-    getTranslationFromI18nKeyAndLabel('lowcoder:weekdays.tuesday', 'Tuesday'),
-    getTranslationFromI18nKeyAndLabel('lowcoder:weekdays.wednesday', 'Wednesday'),
-    getTranslationFromI18nKeyAndLabel('lowcoder:weekdays.thursday', 'Thursday'),
-    getTranslationFromI18nKeyAndLabel('lowcoder:weekdays.friday', 'Friday'),
-    getTranslationFromI18nKeyAndLabel('lowcoder:weekdays.saturday', 'Saturday')
+    t('wizard-weekday-sunday'),
+    t('wizard-weekday-monday'),
+    t('wizard-weekday-tuesday'),
+    t('wizard-weekday-wednesday'),
+    t('wizard-weekday-thursday'),
+    t('wizard-weekday-friday'),
+    t('wizard-weekday-saturday')
   ]
   return days[new Date(isoDate).getDay()]
 }

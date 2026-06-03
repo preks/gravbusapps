@@ -1,6 +1,20 @@
-import { deriveCellMatrixFromPayloadCoordinates, deriveCellMatrixFromRanges } from '../univerWorksheetCellRead'
+import {
+  deriveCellMatrixFromPayloadCoordinates,
+  deriveCellMatrixFromRanges,
+  readWorksheetCellValue
+} from '../univerWorksheetCellRead'
 
 describe('univerWorksheetCellRead', () => {
+  it('prefers typed cell data over display strings on persistence reads', () => {
+    const getRange = jest.fn(() => ({
+      getCellData: () => ({ v: 42, t: 2 }),
+      getValue: () => '42'
+    }))
+
+    expect(readWorksheetCellValue({ getRange }, 0, 0)).toBe(42)
+    expect(readWorksheetCellValue({ getRange }, 0, 0, true)).toEqual({ v: 42, t: 2 })
+  })
+
   it('reads a synthetic 50k sparse payload by coordinates without expanding the declared range', () => {
     const payloadCellValue: Record<number, Record<number, unknown>> = Object.fromEntries(
       Array.from({ length: 50000 }, (_, row) => [row, { 0: { v: `A${row + 1}` } }])

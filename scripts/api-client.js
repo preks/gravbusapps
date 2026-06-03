@@ -258,8 +258,11 @@ function buildNativeProdScreenSyncBody(devScreen, buildVersion) {
  * @returns {Promise<Array>}
  */
 async function fetchAllScreensPaginated(apiEndpoint = null, oauthConfig = {}, options = {}) {
-  const { builderType = null, logLabel = builderType ? `${builderType} screens` : 'screens (all builder types)' } =
-    options
+  const {
+    builderType = null,
+    logLabel = builderType ? `${builderType} screens` : 'screens (all builder types)',
+    quiet = false
+  } = options
   const oauthClient = new OAuthClient(oauthConfig)
   const accessToken = await oauthClient.getAccessToken()
   const screenManagementApi = apiEndpoint || process.env.NEXT_PUBLIC_SCREEN_MANAGEMENT_SERVICE_API
@@ -269,7 +272,9 @@ async function fetchAllScreensPaginated(apiEndpoint = null, oauthConfig = {}, op
   const limit = 100
   let hasMore = true
 
-  console.log(`Fetching all ${logLabel}...`)
+  if (!quiet) {
+    console.log(`Fetching all ${logLabel}...`)
+  }
 
   while (hasMore) {
     try {
@@ -313,7 +318,9 @@ async function fetchAllScreensPaginated(apiEndpoint = null, oauthConfig = {}, op
     }
   }
 
-  console.log(`Successfully fetched ${allScreens.length} total ${logLabel}`)
+  if (!quiet) {
+    console.log(`Successfully fetched ${allScreens.length} total ${logLabel}`)
+  }
   return allScreens
 }
 
@@ -1100,6 +1107,7 @@ async function syncScreenFromDevToProd(devScreen, prodScreenManagementApi, prodO
 
 export {
   OAuthClient,
+  fetchAllScreensPaginated,
   getResourceUrlByPath,
   addAppResourceUrl,
   addCustomResourceUrl,

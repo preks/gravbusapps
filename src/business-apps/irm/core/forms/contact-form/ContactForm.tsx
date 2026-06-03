@@ -21,6 +21,7 @@ import { APP_NAME, FILE_ENTITY, FILE_CONTEXT } from '@/common/data/investment/co
 import { COMPANY_SIZE, ANNUAL_REVENUE, ACCOUNT_PRIORITY } from '@/common/data/investment/constants/investmentCatalogs'
 import { ErrorAlert } from '@/components/error-alert'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { ContactAiEnrichButton } from '@/common/components/common-relations/form-segments/contact-ai-enrich'
 import { PlatformUserField } from './components'
 
 export const investmentContactSchema = contactSchema.extend({
@@ -143,6 +144,7 @@ export const ContactForm: React.FC<ContactFormProps> = ({ accessToken, userInfo,
         submitButtonText={contact?.id ? 'Update Contact' : 'Create Contact'}
         isSubmitDisabled={loading}
       >
+        <ContactAiEnrichButton accessToken={accessToken} entityKind="investment_contact" isEditMode={!!contact?.id} />
         <ContactLayout
           businessAppContext={{ accessToken, userInfo, additionalData }}
           accountContacts={contact?.accountContacts}

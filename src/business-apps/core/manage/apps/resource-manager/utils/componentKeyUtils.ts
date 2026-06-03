@@ -170,18 +170,36 @@ export const kebabToNormal = (str: string): string => {
 export const normalToKebab = (str: string): string => {
   const result = str.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-')
 
-  // Trim leading and trailing dashes without unbounded quantifiers
-  return result.replace(/^-/, '').replace(/-$/, '')
+  return trimEdgeChars(result, DASH_ONLY)
+}
+
+const DASH_ONLY = new Set(['-'])
+const DASH_AND_UNDERSCORE = new Set(['-', '_'])
+
+/** Linear-time trim; avoids regex quantifiers flagged for ReDoS on edge patterns. */
+function trimEdgeChars(value: string, chars: ReadonlySet<string>): string {
+  let start = 0
+  let end = value.length
+
+  while (start < end && chars.has(value[start] ?? '')) {
+    start += 1
+  }
+  while (end > start && chars.has(value[end - 1] ?? '')) {
+    end -= 1
+  }
+
+  return value.slice(start, end)
 }
 
 /**
- * Suffix after `sys_`: preserve casing; non-alphanumeric runs → single underscore (legacy system-key shape).
+ * Suffix after `sys_`: preserve casing, hyphens, and underscores (e.g. `user-menu`, `global-search`).
+ * Only other separator runs (spaces, etc.) collapse to a single hyphen.
  */
 export const normalizeSystemScreenKeySuffix = (str: string): string => {
   const trimmed = String(str).trim()
   if (!trimmed) return ''
-  const result = trimmed.replaceAll(/[^a-zA-Z0-9]+/g, '_')
-  return result.replace(/^_+/, '').replace(/_+$/, '')
+  const result = trimmed.replaceAll(/[^a-zA-Z0-9_-]+/g, '-')
+  return trimEdgeChars(result, DASH_AND_UNDERSCORE)
 }
 
 /**
@@ -192,7 +210,7 @@ export const normalizeScreenKeySuffixPreserveCase = (str: string): string => {
   const trimmed = String(str).trim()
   if (!trimmed) return ''
   const result = trimmed.replaceAll(/[^a-zA-Z0-9]+/g, '-')
-  return result.replace(/^-+/, '').replace(/-+$/, '')
+  return trimEdgeChars(result, DASH_ONLY)
 }
 
 /**

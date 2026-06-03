@@ -10,6 +10,8 @@ interface UseScheduledDispatchesResult {
   refresh: () => void
   /** Cancel a pending dispatch by id. Returns true on success. */
   cancel: (dispatchId: string) => Promise<boolean>
+  /** Permanently delete a dispatch by id (any status). Returns true on success. */
+  remove: (dispatchId: string) => Promise<boolean>
   update: (
     dispatchId: string,
     body: {
@@ -22,6 +24,8 @@ interface UseScheduledDispatchesResult {
     }
   ) => Promise<boolean>
   retry: (dispatchId: string) => Promise<boolean>
+  /** Fire a dispatch immediately; recurring schedules keep their next run. Returns true on success. */
+  runNow: (dispatchId: string) => Promise<boolean>
   /** Current status filter applied */
   statusFilter: DispatchStatus | 'all'
   setStatusFilter: (f: DispatchStatus | 'all') => void
@@ -82,6 +86,20 @@ export const useScheduledDispatches = (accessToken: string): UseScheduledDispatc
     [client, refresh]
   )
 
+  const remove = useCallback(
+    async (dispatchId: string): Promise<boolean> => {
+      try {
+        await client.deleteScheduledDispatch(dispatchId)
+        refresh()
+        return true
+      } catch (err) {
+        console.error('[useScheduledDispatches] delete failed:', err)
+        return false
+      }
+    },
+    [client, refresh]
+  )
+
   const update = useCallback(
     async (
       dispatchId: string,
@@ -120,5 +138,19 @@ export const useScheduledDispatches = (accessToken: string): UseScheduledDispatc
     [client, refresh]
   )
 
-  return { dispatches, isLoading, error, refresh, cancel, update, retry, statusFilter, setStatusFilter }
+  const runNow = useCallback(
+    async (dispatchId: string): Promise<boolean> => {
+      try {
+        await client.runScheduledDispatchNow(dispatchId)
+        refresh()
+        return true
+      } catch (err) {
+        console.error('[useScheduledDispatches] run-now failed:', err)
+        return false
+      }
+    },
+    [client, refresh]
+  )
+
+  return { dispatches, isLoading, error, refresh, cancel, remove, update, retry, runNow, statusFilter, setStatusFilter }
 }

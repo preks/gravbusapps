@@ -2,6 +2,7 @@ import React from 'react'
 import { act, renderHook } from '@testing-library/react'
 
 import type { SpreadsheetSession } from '../../core'
+import { SpreadsheetApiService } from '../../services/SpreadsheetApiService'
 import type { CollaborationOperation } from '../../services/SpreadsheetCollaborationManager'
 import type { SpreadsheetSheet } from '../../types'
 import { useSpreadsheetSheetVersionModel } from '../useSpreadsheetSheetVersionModel'
@@ -174,5 +175,61 @@ describe('useSpreadsheetSheetVersionModel', () => {
     })
 
     expect(result.current.resolveKnownSheetVersion('sheet-a')).toBe(600)
+  })
+
+  it('never downgrades known sheet version on refreshBaseVersionBeforeWrite', async () => {
+    const spreadsheetSessionRef = { current: null as SpreadsheetSession | null }
+    const activeSheetIdRef = { current: 'sheet-a' }
+    const appSheetsRef = { current: [createMinimalSheet('sheet-a', 5)] }
+    jest.spyOn(SpreadsheetApiService, 'getSheet').mockResolvedValue({ version: 8 } as never)
+
+    const { result } = renderHook(() =>
+      useSpreadsheetSheetVersionModel({
+        appId: 'app-1',
+        spreadsheetSessionRef,
+        activeSheetIdRef,
+        appSheetsRef,
+        sheets: appSheetsRef.current,
+        activeSheetId: 'sheet-a',
+        activeSheetVersion: 5
+      })
+    )
+
+    act(() => {
+      result.current.rememberKnownSheetVersion('sheet-a', 20)
+    })
+
+    let refreshed = 0
+    await act(async () => {
+      refreshed = await result.current.refreshBaseVersionBeforeWrite('sheet-a', 5)
+    })
+
+    expect(refreshed).toBe(20)
+    expect(result.current.resolveKnownSheetVersion('sheet-a')).toBe(20)
+  })
+
+  it('keeps rememberKnownSheetVersion monotonic when a lower version is reported', () => {
+    const spreadsheetSessionRef = { current: null as SpreadsheetSession | null }
+    const activeSheetIdRef = { current: 'sheet-a' }
+    const appSheetsRef = { current: [createMinimalSheet('sheet-a', 5)] }
+
+    const { result } = renderHook(() =>
+      useSpreadsheetSheetVersionModel({
+        appId: 'app-1',
+        spreadsheetSessionRef,
+        activeSheetIdRef,
+        appSheetsRef,
+        sheets: appSheetsRef.current,
+        activeSheetId: 'sheet-a',
+        activeSheetVersion: 5
+      })
+    )
+
+    act(() => {
+      result.current.rememberKnownSheetVersion('sheet-a', 15)
+      result.current.rememberKnownSheetVersion('sheet-a', 12)
+    })
+
+    expect(result.current.resolveKnownSheetVersion('sheet-a')).toBe(15)
   })
 })

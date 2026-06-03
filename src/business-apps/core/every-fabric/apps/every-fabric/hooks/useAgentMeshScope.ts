@@ -79,7 +79,12 @@ function readSavedStack(): MeshNavSnapshot[] | null {
 
 function buildInitialSnapshot(activeSessionId: string | null): MeshNavSnapshot {
   const url = readUrl()
-  const scope: MeshScope = url.scope === 'session' && !activeSessionId ? 'me' : url.scope
+  // When the URL implies `session` scope but no session is open, fall back
+  // to `company` so the sidebar entry-point ("Company Mesh") and any deep
+  // links land on a meaningful view rather than an empty session screen.
+  // The old fallback was `me`, which felt arbitrary and undermined the new
+  // sidebar IA that explicitly separates company-wide vs session destinations.
+  const scope: MeshScope = url.scope === 'session' && !activeSessionId ? 'company' : url.scope
   return {
     scope,
     userId: scope === 'user' ? url.userId : undefined,

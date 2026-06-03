@@ -8,6 +8,7 @@ import type {
   AgentSubagentCompletedEvent,
   AgentSubagentSpawnedEvent,
   AgentTerminalEvent,
+  AgentTurnSnapshotEvent,
   ChatMessage,
   ChatMessageType,
   DeepAgentSession,
@@ -37,10 +38,13 @@ export const FABRIC_LIVE_PLAN_MESSAGE_ID = 'fabric-live-plan'
 // avoid any pathological backtracking / DoS risk on very large strings.
 const SUMMARIZE_MAX_INPUT_CHARS = 4000
 
+const PSEUDO_TOOL_CALL_RE = /\b(?:function|enterprise)_[a-z][a-z0-9_]*\s*\([^)]*\)/gi
+
 const summarizeExpertOutput = (output: unknown, maxChars = 120): string | undefined => {
   if (typeof output !== 'string') return undefined
   const bounded = output.length > SUMMARIZE_MAX_INPUT_CHARS ? output.slice(0, SUMMARIZE_MAX_INPUT_CHARS) : output
   const stripped = bounded
+    .replace(PSEUDO_TOOL_CALL_RE, '')
     .replace(/<\/?(?:br|p|div|li|tr)\b[^>]{0,200}>/gi, ' ') // block-ish tags -> space
     .replace(/<[^>]{1,200}>/g, '') // remaining tags -> nothing
     .replace(/&nbsp;/gi, ' ')
@@ -254,6 +258,7 @@ type DelegationStatus = 'running' | 'done' | 'failed'
 interface ExpertCallContent {
   agentId: string
   task: string
+  description?: string
   status: DelegationStatus
   durationMs?: number
   outputPreview?: string
@@ -284,6 +289,7 @@ const mergeExpertCallContent = (existing: ExpertCallContent, incoming: ExpertCal
   return {
     agentId: existing.agentId,
     task: existing.task,
+    description: existing.description ?? incoming.description,
     status: richer.status,
     durationMs: richer.durationMs ?? existing.durationMs ?? incoming.durationMs,
     outputPreview: richer.outputPreview ?? existing.outputPreview ?? incoming.outputPreview
@@ -298,11 +304,12 @@ const mergeExpertCallContent = (existing: ExpertCallContent, incoming: ExpertCal
  * (`resolveActivityDelegationStatus`): if the stream is no longer live,
  * treat remaining in-flight delegations / tool calls as finished.
  */
+const isCompletedTurnEvent = (e: AgentStreamEvent): e is AgentTerminalEvent | AgentTurnSnapshotEvent =>
+  (e.type === 'terminal' || e.type === 'turn_snapshot') &&
+  (e.status === 'completed' || e.status === 'failed' || e.status === 'cancelled')
+
 const finalizeRunningMessagesOnTerminal = (events: AgentStreamEvent[], messages: ChatMessage[]): void => {
-  const terminal = events.find(
-    (e): e is AgentTerminalEvent =>
-      e.type === 'terminal' && (e.status === 'completed' || e.status === 'failed' || e.status === 'cancelled')
-  )
+  const terminal = events.find(isCompletedTurnEvent)
   if (!terminal) return
 
   const resolved: DelegationStatus = terminal.status === 'failed' ? 'failed' : 'done'
@@ -335,7 +342,10 @@ function terminalCompletedToChatMessage(
         .map(s => ({ step: s.name ?? 'Tool call', tool: s.name, outcome: s.status ?? 'done' }))
     : undefined
   const turnArtifacts = previouslyShownArtifactKeys
-    ? (event.artifacts ?? []).filter(a => !previouslyShownArtifactKeys.has(`${a.path}:${a.size ?? 0}`))
+    ? (event.artifacts ?? []).filter(a => {
+        const key = a.path || a.name
+        return key ? !previouslyShownArtifactKeys.has(key) : true
+      })
     : (event.artifacts ?? [])
   const hasArtifacts = turnArtifacts.length > 0
   const hasWorkspaceDocs = !!event.workspace_documents && event.workspace_documents.length > 0
@@ -458,10 +468,7 @@ function appendLivePlanIfNeeded(sortedEvents: AgentStreamEvent[], messages: Chat
     return
   }
   const planTimestamp = resolveLatestPlanTimestamp(sortedEvents)
-  const terminalClosed = sortedEvents.some(
-    (e): e is AgentTerminalEvent =>
-      e.type === 'terminal' && (e.status === 'completed' || e.status === 'failed' || e.status === 'cancelled')
-  )
+  const terminalClosed = sortedEvents.some(isCompletedTurnEvent)
   messages.push({
     id: FABRIC_LIVE_PLAN_MESSAGE_ID,
     type: 'plan',
@@ -525,6 +532,7 @@ export function eventToMessage(
         content: {
           agentId: agentName,
           task: event.task_summary ?? agentName,
+          description: event.agent_description,
           status: toolCallMessageStatus(completed),
           durationMs: completed?.duration_ms,
           outputPreview: summarizeExpertOutput(completed?.output)
@@ -542,6 +550,7 @@ export function eventToMessage(
         content: {
           agentId: agentName,
           task: event.task_summary ?? agentName,
+          description: event.agent_description,
           status: toolCallMessageStatus(completed),
           durationMs: completed?.duration_ms,
           outputPreview: summarizeExpertOutput(completed?.output)
@@ -600,7 +609,12 @@ export function eventToMessage(
     }
 
     case 'terminal':
-      return terminalEventToChatMessage(event, stepCompletions, previouslyShownArtifactKeys)
+    case 'turn_snapshot':
+      return terminalEventToChatMessage(
+        { ...event, type: 'terminal' } as AgentTerminalEvent,
+        stepCompletions,
+        previouslyShownArtifactKeys
+      )
 
     case 'error':
       return {
@@ -624,9 +638,14 @@ export function eventToMessage(
 }
 
 function trackShownArtifacts(event: AgentStreamEvent, shownKeys: Set<string>): void {
-  if (event.type === 'terminal' && event.status === 'completed' && event.artifacts) {
+  if (
+    (event.type === 'terminal' || event.type === 'turn_snapshot') &&
+    event.status === 'completed' &&
+    event.artifacts
+  ) {
     for (const a of event.artifacts) {
-      if (a.path) shownKeys.add(`${a.path}:${a.size ?? 0}`)
+      const key = a.path || a.name
+      if (key) shownKeys.add(key)
     }
   }
 }
@@ -676,7 +695,11 @@ export function deriveMessagesFromEvents(events: AgentStreamEvent[]): ChatMessag
   const shownArtifactKeys = new Set<string>()
 
   for (const event of sortedEvents) {
-    if (event.type === 'terminal' && event.status === 'waiting_for_human' && hasExplicitHitlEvent) {
+    if (
+      (event.type === 'terminal' || event.type === 'turn_snapshot') &&
+      event.status === 'waiting_for_human' &&
+      hasExplicitHitlEvent
+    ) {
       continue
     }
     const message = eventToMessage(event, stepCompletions, shownArtifactKeys)
@@ -844,7 +867,12 @@ function sessionAttachmentsToRefs(
   attachments?: Array<SessionAttachment | MessageAttachmentRef>
 ): MessageAttachmentRef[] | undefined {
   if (!attachments || attachments.length === 0) return undefined
-  return attachments.map(a => ({
+  // Filter out attachments produced by agent tools (e.g. PDF exports). Those
+  // belong to the composer / deliverable cards and must not be rendered as
+  // "user-attached" chips on the initial user_input bubble.
+  const userAttachments = attachments.filter(a => (a as SessionAttachment).origin !== 'agent_generated')
+  if (userAttachments.length === 0) return undefined
+  return userAttachments.map(a => ({
     id: a.id,
     name: a.name,
     mime_type: a.mime_type,

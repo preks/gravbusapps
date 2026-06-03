@@ -240,6 +240,21 @@ const renderMarkdownLink = (
     return <span>{children || ''}</span>
   }
 
+  if (href.startsWith('/')) {
+    return (
+      <a
+        href={href}
+        className="gba:text-primary gba:underline hover:gba:opacity-80"
+        target="_blank"
+        rel="noopener noreferrer"
+        data-testid="markdown-platform-link"
+        {...props}
+      >
+        {children}
+      </a>
+    )
+  }
+
   if (href.startsWith('http://') || href.startsWith('https://')) {
     if (renderHttpLinksAsChips) {
       return (

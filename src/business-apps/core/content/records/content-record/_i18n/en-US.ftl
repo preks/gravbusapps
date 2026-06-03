@@ -188,20 +188,9 @@ policy_flows_count = { $count } { $count ->
 policy_flows_empty = No linked Flow Templates yet. Generate one to operationalize this policy.
 policy_flows_outdated = Outdated
 
-policy_flows_generate_ai = Generate with AI
-policy_flows_open_creator = Open Flow Creator
-policy_flows_generating = Generating...
-policy_flows_generate_success = Flow created
-policy_flows_generate_error = Failed to generate Flow
-policy_flows_generate_missing_policy = Policy content is missing
-policy_flows_generated_name_prefix = Policy Flow
-policy_flows_generated_description = Generated Flow derived from a policy
+policy_flows_generate_missing_policy = Policy is not available
 policy_flows_review_updates = Review updates
 policy_flows_generate_update = Generate draft update
-policy_flows_generating_update = Generating update...
-policy_flows_update_draft_suffix = Update draft
-policy_flows_update_success = Draft update created
-policy_flows_update_error = Failed to generate draft update
 
 # Policy insights
 policy_insights_loading = Loading signals...
@@ -266,24 +255,6 @@ policy_workflows_empty = No workflows have been started for this policy yet.
 policy_workflows_no_user = Sign in to view policy workflows.
 policy_workflows_type_approval = Approval
 policy_workflows_type_acknowledgement = Acknowledgement
-
-policy_generate_flow_dialog_title = Generating Flow
-policy_generate_flow_choose_title = Generate Flow
-policy_generate_flow_choose_desc = You already have linked Flows. Would you like to update an existing one or create a new Flow?
-policy_generate_flow_update_version = Update to new version (currently v{ $version })
-policy_generate_flow_create_new = Create new Flow
-policy_generate_flow_create_new_desc = Generate a fresh Flow from this policy
-policy_generate_flow_updated = Flow updated
-policy_generate_flow_phase_loading = Checking linked Flows...
-policy_generate_flow_phase_analyzing = Analyzing policy content...
-policy_generate_flow_phase_generating = AI is building the workflow...
-policy_generate_flow_phase_saving = Saving Flow...
-policy_generate_flow_phase_done = Flow ready
-policy_generate_flow_phase_error = Generation failed
-policy_generate_flow_patience = This may take a moment
-policy_generate_flow_open_creator = Open in Flow Creator
-policy_generate_flow_close = Close
-retry = Retry
 
 policy_metric_linked_flow = Flow
 policy_metric_linked_flows = Flows

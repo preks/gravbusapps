@@ -1,5 +1,7 @@
 import type { SpreadsheetBatchOperation } from '../services/SpreadsheetApiService'
 import type { SpreadsheetStylePatch } from './SpreadsheetCollaborationContract'
+import type { SpreadsheetColumn } from '../types'
+import { isNumericColumn } from '../utils/analyticsEngine'
 import type { SpreadsheetRowRef } from '../utils/spreadsheetRowIdentity'
 
 export const SPREADSHEET_MAX_SET_STYLE_CELLS_PER_OPERATION = 2000
@@ -12,13 +14,22 @@ export interface SpreadsheetCellUpdate {
   rowRef?: SpreadsheetRowRef
   columnName: string
   value: unknown
+  rowIndex?: number
+  colIndex?: number
+  cellRef?: string
 }
 
 export interface SpreadsheetCellClear {
   rowId: string
   rowRef?: SpreadsheetRowRef
   columnName: string
+  rowIndex?: number
+  colIndex?: number
+  cellRef?: string
 }
+
+/** `set_range` cells with these values clear the column key (same semantics as legacy `clear_cell`). */
+export const isSpreadsheetStoredCellClearValue = (value: unknown): boolean => value === null || value === undefined
 
 export interface SpreadsheetMutationPlannedCell {
   rowId: string
@@ -50,6 +61,16 @@ export interface SpreadsheetMutationPlan {
   clearFormatRanges?: SpreadsheetMutationPlanRange[]
 }
 
+export const buildSetUpdateIdentityKey = (rowId: string, columnName: string, rowRef?: SpreadsheetRowRef): string => {
+  const rowIdentityKey =
+    rowRef?.kind === 'clientHandle'
+      ? `client:${rowRef.clientRowId}`
+      : rowRef?.kind === 'backendUuid'
+        ? `backend-ref:${rowRef.rowUuid}`
+        : `row:${rowId}`
+  return `${rowIdentityKey}:col:${columnName}`
+}
+
 export const flattenUpdatesToCells = (
   updatesByIdentity: Map<string, { rowId: string; rowRef?: SpreadsheetRowRef; updates: Record<string, unknown> }>
 ): SpreadsheetCellUpdate[] =>
@@ -62,10 +83,18 @@ export const flattenUpdatesToCells = (
     }))
   )
 
-export const normalizeCellValueForBatchPersistence = (value: unknown): unknown => {
+const coerceNumericValueForColumn = (value: unknown, column?: SpreadsheetColumn): unknown => {
+  if (!column || !isNumericColumn(column) || typeof value !== 'string') return value
+  const trimmed = value.trim()
+  if (!trimmed || trimmed.startsWith('=')) return value
+  const numericValue = Number(trimmed)
+  return Number.isFinite(numericValue) ? numericValue : value
+}
+
+export const normalizeCellValueForBatchPersistence = (value: unknown, column?: SpreadsheetColumn): unknown => {
   if (typeof value === 'string') {
     const trimmed = value.trim()
-    return trimmed.startsWith('=') ? { f: trimmed } : value
+    return trimmed.startsWith('=') ? { f: trimmed } : coerceNumericValueForColumn(value, column)
   }
   if (!value || typeof value !== 'object' || Array.isArray(value)) return value
   const obj = value as Record<string, unknown>
@@ -73,7 +102,30 @@ export const normalizeCellValueForBatchPersistence = (value: unknown): unknown =
     const trimmed = obj.f.trim()
     return { ...obj, f: trimmed.startsWith('=') ? trimmed : `=${trimmed}` }
   }
-  return value
+  if (!Object.prototype.hasOwnProperty.call(obj, 'v')) return value
+  const coercedValue = coerceNumericValueForColumn(obj.v, column)
+  if (coercedValue === obj.v) return value
+  return { ...obj, v: coercedValue }
+}
+
+/** Strip Univer inline formatting from row-model / add_rows payloads; keep value keys only. */
+export const normalizeUniverCellForRowPersistence = (
+  cell: unknown,
+  column?: SpreadsheetColumn
+): unknown | undefined => {
+  if (cell === undefined) return undefined
+  if (cell === null) return null
+  if (typeof cell === 'string' || typeof cell === 'number' || typeof cell === 'boolean') {
+    return normalizeCellValueForBatchPersistence(cell, column)
+  }
+  if (!cell || typeof cell !== 'object' || Array.isArray(cell)) return undefined
+  const obj = cell as Record<string, unknown>
+  if (!('v' in obj || 'f' in obj || 'm' in obj || 'ct' in obj || 't' in obj)) return undefined
+  const picked: Record<string, unknown> = {}
+  for (const key of ['v', 'f', 'm', 'ct', 't'] as const) {
+    if (key in obj) picked[key] = obj[key]
+  }
+  return normalizeCellValueForBatchPersistence(picked, column)
 }
 
 export const buildCellPersistenceOperations = ({
@@ -81,31 +133,36 @@ export const buildCellPersistenceOperations = ({
   setUpdatesByBackendRowId,
   clearCells,
   createOperationId,
-  maxIndividualClearCellOps
+  columnsByName
 }: {
   setUpdatesByIdentity?: Map<string, { rowId: string; rowRef?: SpreadsheetRowRef; updates: Record<string, unknown> }>
   setUpdatesByBackendRowId?: Map<string, Record<string, unknown>>
   clearCells: SpreadsheetCellClear[]
   createOperationId: (prefix: string) => string
-  maxIndividualClearCellOps: number
+  columnsByName?: Map<string, SpreadsheetColumn>
 }): SpreadsheetBatchOperation[] => {
   const normalizedUpdatesByIdentity =
     setUpdatesByIdentity ??
     new Map(
       Array.from(setUpdatesByBackendRowId?.entries() ?? []).map(([rowId, updates]) => [rowId, { rowId, updates }])
     )
-  const setCellsToPersist = flattenUpdatesToCells(normalizedUpdatesByIdentity).map(cell => ({
-    ...cell,
-    value: normalizeCellValueForBatchPersistence(cell.value)
-  }))
-  const shouldCollapseClearCellsIntoSetRange = clearCells.length > maxIndividualClearCellOps
-  const collapsedClearCells = shouldCollapseClearCellsIntoSetRange
-    ? clearCells.map(cell => ({
-        ...cell,
-        value: null as unknown
-      }))
-    : []
-  const setRangeCells = [...setCellsToPersist, ...collapsedClearCells]
+  const setCellsToPersist = flattenUpdatesToCells(normalizedUpdatesByIdentity).map(cell => {
+    const source = normalizedUpdatesByIdentity.get(buildSetUpdateIdentityKey(cell.rowId, cell.columnName, cell.rowRef))
+    return {
+      ...cell,
+      value: normalizeCellValueForBatchPersistence(cell.value, columnsByName?.get(cell.columnName)),
+      rowIndex: source?.rowIndex,
+      colIndex: source?.colIndex,
+      cellRef: source?.cellRef
+    }
+  })
+  const setRangeCells = [
+    ...setCellsToPersist,
+    ...clearCells.map(cell => ({
+      ...cell,
+      value: null as unknown
+    }))
+  ]
   const operations: SpreadsheetBatchOperation[] = []
   if (setRangeCells.length > 0) {
     for (const cellChunk of chunkArray(setRangeCells, SPREADSHEET_MAX_SET_RANGE_CELLS_PER_OPERATION)) {
@@ -117,24 +174,14 @@ export const buildCellPersistenceOperations = ({
             ...(cell.rowRef?.kind === 'clientHandle' ? { rowRef: cell.rowRef } : { rowId: cell.rowId }),
             ...(cell.rowRef?.kind === 'backendUuid' ? { rowRef: cell.rowRef } : {}),
             columnName: cell.columnName,
-            value: cell.value
+            value: cell.value,
+            ...(cell.rowIndex != null && Number.isFinite(cell.rowIndex) ? { row: cell.rowIndex } : {}),
+            ...(cell.colIndex != null && Number.isFinite(cell.colIndex) ? { col: cell.colIndex } : {}),
+            ...(cell.cellRef ? { cellRef: cell.cellRef } : {})
           }))
         }
       })
     }
-  }
-  if (!shouldCollapseClearCellsIntoSetRange) {
-    operations.push(
-      ...clearCells.map(cell => ({
-        operationId: createOperationId('clear_cell'),
-        type: 'clear_cell' as const,
-        data: {
-          ...(cell.rowRef?.kind === 'clientHandle' ? { rowRef: cell.rowRef } : { rowId: cell.rowId }),
-          ...(cell.rowRef?.kind === 'backendUuid' ? { rowRef: cell.rowRef } : {}),
-          columnName: cell.columnName
-        }
-      }))
-    )
   }
   return operations
 }
@@ -168,13 +215,14 @@ const pickStylesForStyleCells = (
 export const buildOperationsFromMutationPlan = ({
   plan,
   createOperationId,
-  maxIndividualClearCellOps
+  columns
 }: {
   plan: SpreadsheetMutationPlan
   createOperationId: (prefix: string) => string
-  maxIndividualClearCellOps: number
+  columns?: SpreadsheetColumn[]
 }): SpreadsheetBatchOperation[] => {
   const operations: SpreadsheetBatchOperation[] = []
+  const columnsByName = new Map((columns ?? []).map(column => [column.name, column] as const))
 
   if (plan.clearAllRanges && plan.clearAllRanges.length > 0) {
     operations.push({
@@ -199,27 +247,42 @@ export const buildOperationsFromMutationPlan = ({
 
   const setUpdatesByIdentity = new Map<
     string,
-    { rowId: string; rowRef?: SpreadsheetRowRef; updates: Record<string, unknown> }
+    {
+      rowId: string
+      rowRef?: SpreadsheetRowRef
+      updates: Record<string, unknown>
+      rowIndex?: number
+      colIndex?: number
+      cellRef?: string
+    }
   >()
   const clearCells: SpreadsheetCellClear[] = []
   const styleCells: Array<{ row: number; col: number; cellRef?: string; stylePatch: SpreadsheetStylePatch }> = []
 
   for (const cell of plan.cells) {
-    const identityKey =
-      cell.rowRef?.kind === 'clientHandle'
-        ? `client:${cell.rowRef.clientRowId}`
-        : cell.rowRef?.kind === 'backendUuid'
-          ? `backend-ref:${cell.rowRef.rowUuid}`
-          : `row:${cell.rowId}`
+    const identityKey = buildSetUpdateIdentityKey(cell.rowId, cell.columnName, cell.rowRef)
     if (cell.valueAction === 'set') {
-      const entry = setUpdatesByIdentity.get(identityKey) ?? { rowId: cell.rowId, rowRef: cell.rowRef, updates: {} }
-      entry.updates[cell.columnName] = normalizeCellValueForBatchPersistence(cell.value)
+      const entry = setUpdatesByIdentity.get(identityKey) ?? {
+        rowId: cell.rowId,
+        rowRef: cell.rowRef,
+        updates: {},
+        rowIndex: cell.rowIndex,
+        colIndex: cell.colIndex,
+        cellRef: cell.cellRef
+      }
+      entry.updates[cell.columnName] = normalizeCellValueForBatchPersistence(
+        cell.value,
+        columnsByName.get(cell.columnName)
+      )
       setUpdatesByIdentity.set(identityKey, entry)
     } else if (cell.valueAction === 'clear') {
       clearCells.push({
         rowId: cell.rowId,
         rowRef: cell.rowRef,
-        columnName: cell.columnName
+        columnName: cell.columnName,
+        rowIndex: cell.rowIndex,
+        colIndex: cell.colIndex,
+        cellRef: cell.cellRef
       })
     }
     if (cell.stylePatch) {
@@ -237,7 +300,7 @@ export const buildOperationsFromMutationPlan = ({
       setUpdatesByIdentity,
       clearCells,
       createOperationId,
-      maxIndividualClearCellOps
+      columnsByName
     })
   )
 

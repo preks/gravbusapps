@@ -10,7 +10,7 @@ export const GET_COMMUNICATION_LOOKUPS = `
       firstName
       lastName
       pictureThumbnail
-      communication {
+      communication(where: { isDeleted: { _eq: false } }) {
         id
         version
         channelRef
@@ -28,6 +28,7 @@ export const GET_COMMUNICATION_LOOKUPS = `
     commType: CatalogEntry(where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "CommunicationType" } }, isDeleted: { _eq: false } }) {
       id
       value
+      displayOrder
       translations(where: { localeCode: { _eq: $activeUserLocale } }) {
         localeCode
         value
@@ -38,6 +39,7 @@ export const GET_COMMUNICATION_LOOKUPS = `
       id
       value
       objectValue
+      displayOrder
       translations(where: { localeCode: { _eq: $activeUserLocale } }) {
         localeCode
         value
@@ -71,6 +73,51 @@ export interface EmployeeCommunicationRecord {
   value?: string
 }
 
+/**
+ * Map a CatalogEntry GraphQL row to a {@link CatalogOption} used by the dropdowns.
+ * Exported for unit-testing.
+ */
+export function mapCatalogEntry(entry: {
+  id: string
+  value?: string
+  displayOrder?: number | string | null
+  translations?: Array<{ value?: string }>
+}): CatalogOption & { displayOrder: number } {
+  const raw = entry.displayOrder
+  const displayOrder =
+    typeof raw === 'number' ? raw : typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : Number.POSITIVE_INFINITY
+  return {
+    id: entry.id,
+    value: entry.value || '',
+    label: entry.translations?.[0]?.value || entry.value || '',
+    displayOrder: Number.isFinite(displayOrder) ? displayOrder : Number.POSITIVE_INFINITY
+  }
+}
+
+/**
+ * Map and order a list of CatalogEntry rows by their `displayOrder` field so that
+ * dropdown options show in the order defined by the catalog maintainer (1, 2, 3, …).
+ * Ties fall back to the localized label for a stable, predictable order.
+ * Exported for unit-testing.
+ */
+export function mapAndSortCatalogEntries(
+  entries: Array<{
+    id: string
+    value?: string
+    displayOrder?: number | string | null
+    translations?: Array<{ value?: string }>
+  }> | null | undefined
+): CatalogOption[] {
+  if (!entries) return []
+  return [...entries]
+    .map(mapCatalogEntry)
+    .sort((a, b) => {
+      if (a.displayOrder !== b.displayOrder) return a.displayOrder - b.displayOrder
+      return (a.label || '').localeCompare(b.label || '')
+    })
+    .map(({ id, value, label }) => ({ id, value, label }))
+}
+
 export const useCommunicationLookups = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
   const [channels, setChannels] = useState<CatalogOption[]>([])
@@ -99,20 +146,11 @@ export const useCommunicationLookups = (context: BusinessAppContextProps) => {
         activeUserLocale: locale || 'en-US'
       })
 
-      const mapEntries = (entries: any[] | undefined): CatalogOption[] => {
-        if (!entries) return []
-        return entries.map(e => ({
-          id: e.id,
-          value: e.value,
-          label: e.translations?.[0]?.value || e.value
-        }))
-      }
-
       const hrChannels = res?.commChannel?.filter(
         (e: any) => e.objectValue && typeof e.objectValue === 'object' && e.objectValue.hr === true
       )
-      setChannels(mapEntries(hrChannels))
-      setTypes(mapEntries(res?.commType))
+      setChannels(mapAndSortCatalogEntries(hrChannels))
+      setTypes(mapAndSortCatalogEntries(res?.commType))
       setCommunications(Array.isArray(res?.EmployeeByPk?.communication) ? res.EmployeeByPk.communication : [])
       setEmployee({
         firstName: res?.EmployeeByPk?.firstName,

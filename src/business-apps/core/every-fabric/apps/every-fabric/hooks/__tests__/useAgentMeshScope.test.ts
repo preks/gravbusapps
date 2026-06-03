@@ -39,10 +39,10 @@ describe('useAgentMeshScope', () => {
       expect(result.current.canGoBack).toBe(false)
     })
 
-    it('falls back to me when URL says session but no active session', () => {
+    it('falls back to company when URL says session but no active session', () => {
       setUrl('?meshScope=session')
       const { result } = renderScopeHook()
-      expect(result.current.scope).toBe('me')
+      expect(result.current.scope).toBe('company')
     })
 
     it('reads meshScope and userId from URL', () => {

@@ -29,6 +29,63 @@ export {
   sheetDeltaRequiresFullSnapshot
 } from './spreadsheetCollaborationSync'
 export {
+  SPREADSHEET_COMMITTED_DELTA_PAYLOAD_SCHEMA_VERSION,
+  buildCommittedBatchDedupeKey,
+  getSpreadsheetDeltaReplayMode,
+  normalizeCommittedBatchEnvelope,
+  replayDeltasAsCommittedBatches,
+  validateCommittedBatchForLiveApply,
+  type SpreadsheetCommittedBatchEnvelope,
+  type SpreadsheetCommittedBatchValidationResult,
+  type SpreadsheetCommittedOperation,
+  type SpreadsheetDeltaReplayMode
+} from './spreadsheetCommittedDeltaContract'
+export {
+  SpreadsheetIntentJournal,
+  type SpreadsheetCellIntentRecord,
+  type SpreadsheetIntentJournalState
+} from './spreadsheetIntentJournal'
+export { releaseSpreadsheetMutationOwnershipFromResponse } from './spreadsheetMutationOwnershipRelease'
+export {
+  SpreadsheetVersionCausalOwnershipRegistry,
+  type SpreadsheetLiveRemoteApplyVersionScope,
+  type SpreadsheetVersionCausalCellRecord,
+  type SpreadsheetVersionCausalOwnershipState
+} from './spreadsheetVersionCausalOwnership'
+export {
+  DEPRECATED_WS_STRUCTURAL_RELAY_OP_TYPES,
+  isDeprecatedWsStructuralRelayOperation,
+  isLegacyWsRelayOperation,
+  LEGACY_WS_RELAY_OP_TYPES,
+  resolveWireOperationAppliedVersion,
+  synthesizeCommittedBatchFromWireOperation
+} from './spreadsheetLegacyWireRelay'
+export {
+  validateCommittedBatchFeatureSupport,
+  type SpreadsheetDeltaFeatureSupportResult
+} from './spreadsheetDeltaFeatureMatrix'
+export { planCommittedBatchDirtyRegions, type SpreadsheetDeltaDirtyRegion } from './spreadsheetDeltaRegionPlanner'
+export {
+  projectCommittedBatchToSpreadsheetSession,
+  type SpreadsheetSessionProjectionPatch
+} from './spreadsheetDeltaProjector'
+export {
+  planCommittedSpreadsheetRemoteTransaction,
+  type SpreadsheetRemoteTransactionPlan
+} from './spreadsheetRemoteTransaction'
+export {
+  UniverRemoteTransactionRunner,
+  type UniverRemoteTransactionRunnerCallbacks,
+  type UniverRemoteTransactionRunResult
+} from './univerRemoteTransactionRunner'
+export {
+  SpreadsheetSnapshotFallbackController,
+  isVersionRelatedSnapshotFallbackReason,
+  type SpreadsheetSnapshotFallbackReason,
+  type SpreadsheetSnapshotFallbackRequest,
+  type SpreadsheetSnapshotFallbackSchedule
+} from './spreadsheetSnapshotFallbackController'
+export {
   applyRemoteFetchedSheetDelta,
   replayRemoteDeltaThroughCollaborationManager,
   type ApplyRemoteFetchedSheetDeltaParams,
@@ -91,7 +148,9 @@ export {
   buildOperationsFromMutationPlan,
   buildCellPersistenceOperations,
   flattenUpdatesToCells,
-  normalizeCellValueForBatchPersistence
+  isSpreadsheetStoredCellClearValue,
+  normalizeCellValueForBatchPersistence,
+  normalizeUniverCellForRowPersistence
 } from './spreadsheetBatchBuilders'
 export { createSpreadsheetMutationOperationId } from './spreadsheetMutationOperationId'
 export { createSpreadsheetMutationBatchSubmitter } from './createSpreadsheetMutationBatchSubmitter'

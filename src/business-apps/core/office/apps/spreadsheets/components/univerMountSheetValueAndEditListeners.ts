@@ -1,3 +1,4 @@
+import type { MutableRefObject } from 'react'
 import { createUniver } from '@univerjs/presets'
 import {
   computeOccupiedBoundingRange,
@@ -10,6 +11,11 @@ import {
   type SheetRangeShape
 } from './cellMatrixUtils'
 import {
+  buildShouldSuppressRemoteEcho,
+  cellMatrixHasAnyNonSuppressedCell
+} from './univerMountHandleDetectedCellMutationRemoteEcho'
+import type { RemoteEchoSuppressionEntry } from './univerGridInternalTypes'
+import {
   isClearLikeMutationCommand,
   isCurrentFacadeWorksheet,
   isImplicitClearLikeSetRangeMutation
@@ -20,9 +26,35 @@ import {
   setCommandClassificationTelemetryEmitter
 } from './univerCommandClassification'
 import { deriveCellMatrixFromRanges } from '../utils/univerWorksheetCellRead'
+import {
+  buildSpreadsheetLocalCellPaintGuard,
+  protectDeferredLocalUserMutationCells
+} from '../utils/spreadsheetLocalCellPaintGuard'
+import type { HandleDetectedCellMutationArgs } from './univerMountHandleDetectedCellMutation.types'
+import type { MutationEmitTailCoordinator } from './univerMutationEmitTailCoordinator'
 import type { UniverGridController } from './useUniverGridController'
 
 export const EMIT_LITERAL_FALLBACK_KEY = '__active_worksheet__'
+
+async function awaitDetectedCellMutationResult(result: boolean | Promise<boolean> | undefined): Promise<boolean> {
+  if (result != null && typeof (result as Promise<boolean>).then === 'function') {
+    return (result as Promise<boolean>).catch(() => false)
+  }
+  return Boolean(result)
+}
+
+export async function runDetectedCellMutationThroughCoordinator(
+  coordinator: MutationEmitTailCoordinator,
+  tailKey: string,
+  handleDetectedCellMutation: RegisterUniverMountSheetValueAndEditListenersDeps['handleDetectedCellMutation'],
+  args: HandleDetectedCellMutationArgs
+): Promise<boolean> {
+  let handled = false
+  await coordinator.enqueue(tailKey, async () => {
+    handled = await awaitDetectedCellMutationResult(handleDetectedCellMutation(args))
+  })
+  return handled
+}
 
 /**
  * 1e: Resolve a stable logical worksheet key for emit serialization in this priority order:
@@ -52,30 +84,242 @@ export function resolveEmitSerializationKey(
   return { key: EMIT_LITERAL_FALLBACK_KEY, usedLiteralFallback: true }
 }
 
+export type DeferredDirtyCellOrigin = 'local_user'
+
+export type DeferredDirtyCell = {
+  row: number
+  col: number
+  worksheetId: string | null
+  /** Set when the user typed during remote apply guard; survives bulk region clear. */
+  origin?: DeferredDirtyCellOrigin
+  /** Sparse cell matrix captured at defer time so replay is not lost to later remote paint. */
+  deferredPayload?: SheetCellMatrix
+  /** Original mutation command, preserved so clear-like deferred edits keep their intent. */
+  commandId?: string
+}
+
+type DeferredDirtyCellOptions = {
+  origin?: DeferredDirtyCellOrigin
+  commandId?: string
+}
+
+export function isRemoteApplyGuardActive(
+  isApplyingRemoteUpdateRef: MutableRefObject<boolean>,
+  collabPersistedBulkApplyDepthRef: MutableRefObject<number>
+): boolean {
+  return isApplyingRemoteUpdateRef.current || collabPersistedBulkApplyDepthRef.current > 0
+}
+
+export const DEFERRED_LOCAL_CELL_FLUSH_POLL_MS = 100
+/**
+ * Poll interval while a remote apply guard is held (catch-up bulk drain etc.). Slower than the
+ * `DEFERRED_LOCAL_CELL_FLUSH_POLL_MS` baseline so we don't churn the timer thread during long
+ * one-shot drains. The first post-guard tick still arrives within `DEFERRED_LOCAL_CELL_FLUSH_POLL_MS`
+ * once the guard clears (we drop back to the baseline interval on each iteration).
+ */
+export const DEFERRED_LOCAL_CELL_FLUSH_POLL_MS_GUARD_ACTIVE = 500
+/**
+ * Force-reconcile deferred local edits even if remote apply guard is still held (main-thread
+ * starvation safety valve). Raised from the prior 8s so a realistic catch-up / authoritative
+ * re-sync backlog drain (which can run ~30–45s for ~2k cells) finishes naturally instead of
+ * having `flushDeferredDirtyCells` fire `reconcileSingleCell` over many cells mid-drain
+ * (observed as a ~1.8s `poll` hitch in production traces).
+ */
+export const DEFERRED_LOCAL_CELL_FORCE_FLUSH_MS = 60_000
+
+export function markDeferredDirtyCellsFromCellMatrix(
+  deferredDirtyCells: Map<string, DeferredDirtyCell>,
+  cellValue: SheetCellMatrix,
+  worksheetId: string | null,
+  fallbackWorksheetId: string | null
+): void {
+  const sheetKey = worksheetId ?? fallbackWorksheetId ?? EMIT_LITERAL_FALLBACK_KEY
+  for (const rowKey of Object.keys(cellValue)) {
+    const row = Number(rowKey)
+    if (Number.isNaN(row)) continue
+    const rowCells = cellValue[row]
+    if (!rowCells || typeof rowCells !== 'object') continue
+    for (const colKey of Object.keys(rowCells)) {
+      const col = Number(colKey)
+      if (Number.isNaN(col)) continue
+      deferredDirtyCells.set(`${sheetKey}:${row}:${col}`, {
+        row,
+        col,
+        worksheetId: worksheetId ?? fallbackWorksheetId
+      })
+    }
+  }
+}
+
+/**
+ * Queue cells for post-remote-apply reconciliation. Only non-echo cells are
+ * queued — remote peer writes that match `remoteEchoSuppressionRef` must not
+ * be reconciled (that path runs `getWorkbookSnapshot` / full workbook clone
+ * per cell). When the mutation carries a sparse `cellValue` matrix, only
+ * those coordinates are queued; we no longer expand the full `ranges`
+ * rectangle (dense `setValues` used to mark every cell in the bbox).
+ */
+export function markDeferredDirtyCellsFromMutation(
+  deferredDirtyCells: Map<string, DeferredDirtyCell>,
+  ranges: SheetRangeShape[],
+  cellValue: SheetCellMatrix,
+  worksheetId: string | null,
+  fallbackWorksheetId: string | null,
+  remoteEchoSuppressionRef?: MutableRefObject<Map<string, RemoteEchoSuppressionEntry>>,
+  options?: DeferredDirtyCellOptions
+): void {
+  const matrixRowKeys = Object.keys(cellValue)
+  if (matrixRowKeys.length > 0) {
+    const now = Date.now()
+    const shouldSuppress = remoteEchoSuppressionRef
+      ? buildShouldSuppressRemoteEcho({ remoteEchoSuppressionRef }, now)
+      : () => false
+    const sheetKey = worksheetId ?? fallbackWorksheetId ?? EMIT_LITERAL_FALLBACK_KEY
+    for (const rowKey of matrixRowKeys) {
+      const row = Number(rowKey)
+      if (Number.isNaN(row)) continue
+      const rowCells = cellValue[row]
+      if (!rowCells || typeof rowCells !== 'object') continue
+      for (const colKey of Object.keys(rowCells)) {
+        const col = Number(colKey)
+        if (Number.isNaN(col)) continue
+        const cell = rowCells[col]
+        if (remoteEchoSuppressionRef && shouldSuppress(row, col, cell)) {
+          continue
+        }
+        deferredDirtyCells.set(`${sheetKey}:${row}:${col}`, {
+          row,
+          col,
+          worksheetId: worksheetId ?? fallbackWorksheetId,
+          origin: options?.origin,
+          commandId: options?.commandId,
+          deferredPayload: { [row]: { [col]: cell } }
+        })
+      }
+    }
+    return
+  }
+  if (ranges.length > 0) {
+    markDeferredDirtyCellsFromRanges(deferredDirtyCells, ranges, worksheetId, fallbackWorksheetId, options)
+  }
+}
+
+export function markDeferredDirtyCellsFromRanges(
+  deferredDirtyCells: Map<string, DeferredDirtyCell>,
+  ranges: SheetRangeShape[],
+  worksheetId: string | null,
+  fallbackWorksheetId: string | null,
+  options?: DeferredDirtyCellOptions
+): void {
+  const sheetKey = worksheetId ?? fallbackWorksheetId ?? EMIT_LITERAL_FALLBACK_KEY
+  for (const range of ranges) {
+    for (let row = range.startRow; row <= range.endRow; row += 1) {
+      for (let col = range.startColumn; col <= range.endColumn; col += 1) {
+        deferredDirtyCells.set(`${sheetKey}:${row}:${col}`, {
+          row,
+          col,
+          worksheetId: worksheetId ?? fallbackWorksheetId,
+          origin: options?.origin,
+          commandId: options?.commandId
+        })
+      }
+    }
+  }
+}
+
+export function shouldScheduleDeferredLocalCellFlush(
+  guardActive: boolean,
+  deferredFirstMarkedAt: number | null,
+  now: number,
+  forceFlushMs = DEFERRED_LOCAL_CELL_FORCE_FLUSH_MS
+): boolean {
+  if (!guardActive) return true
+  if (deferredFirstMarkedAt == null) return false
+  return now - deferredFirstMarkedAt >= forceFlushMs
+}
+
+/**
+ * Drop deferred-dirty-cell entries that fall inside a region a remote bulk apply just painted.
+ * Remote-echo deferrals in the painted bbox are dropped so post-guard flush does not fan out
+ * expensive per-cell work over coordinates the bulk already applied.
+ *
+ * Entries tagged `origin: 'local_user'` are preserved even inside the bbox — the user may be
+ * typing in the same column/region while a peer bulk apply runs.
+ */
+export function clearDeferredDirtyCellsInRegion(
+  deferredDirtyCells: Map<string, DeferredDirtyCell>,
+  worksheetId: string | null,
+  region: { minRow: number; maxRow: number; minCol: number; maxCol: number }
+): number {
+  if (deferredDirtyCells.size === 0) return 0
+  if (
+    !Number.isFinite(region.minRow) ||
+    !Number.isFinite(region.maxRow) ||
+    !Number.isFinite(region.minCol) ||
+    !Number.isFinite(region.maxCol) ||
+    region.maxRow < region.minRow ||
+    region.maxCol < region.minCol
+  ) {
+    return 0
+  }
+  const sheetKey = worksheetId ?? EMIT_LITERAL_FALLBACK_KEY
+  let cleared = 0
+  for (const [key, cell] of deferredDirtyCells) {
+    const cellSheetKey = cell.worksheetId ?? EMIT_LITERAL_FALLBACK_KEY
+    if (cellSheetKey !== sheetKey) continue
+    if (cell.row < region.minRow || cell.row > region.maxRow || cell.col < region.minCol || cell.col > region.maxCol) {
+      continue
+    }
+    if (cell.origin === 'local_user') {
+      continue
+    }
+    deferredDirtyCells.delete(key)
+    cleared += 1
+  }
+  return cleared
+}
+
+export function shouldDropRemoteEchoDuringApplyGuard(
+  cellValue: SheetCellMatrix,
+  remoteEchoSuppressionRef: MutableRefObject<Map<string, RemoteEchoSuppressionEntry>>,
+  now = Date.now()
+): boolean {
+  const shouldSuppress = buildShouldSuppressRemoteEcho({ remoteEchoSuppressionRef }, now)
+  return !cellMatrixHasAnyNonSuppressedCell(cellValue, shouldSuppress, 0, 0)
+}
+
 export type RegisterUniverMountSheetValueAndEditListenersDeps = Pick<
   UniverGridController,
-  'readOnlyRef' | 'isApplyingRemoteUpdateRef' | 'collabPersistedBulkApplyDepthRef' | 'univerAPIRef' | 'callbacksRef'
+  | 'readOnlyRef'
+  | 'isApplyingRemoteUpdateRef'
+  | 'collabPersistedBulkApplyDepthRef'
+  | 'remoteEchoSuppressionRef'
+  | 'univerAPIRef'
+  | 'callbacksRef'
+  | 'propsRef'
 > & {
   univerAPI: ReturnType<typeof createUniver>['univerAPI']
-  handleDetectedCellMutation: (args: {
-    source: 'sheet-value-changed' | 'command-executed' | 'selection-reconcile' | 'sheet-edit-ended'
-    commandId?: string
-    payloadCellValue: SheetCellMatrix | undefined
-    ranges: SheetRangeShape[]
-    worksheetId?: string | null
-    preserveUndefinedAsNull?: boolean
-  }) => boolean | Promise<boolean>
-  reconcileSingleCell: (
-    row: number | undefined,
-    col: number | undefined,
-    source: 'selection-reconcile' | 'sheet-edit-ended',
-    worksheetId?: string | null
-  ) => void
+  handleDetectedCellMutation: (args: HandleDetectedCellMutationArgs) => boolean | Promise<boolean>
+  mutationEmitTailCoordinator: MutationEmitTailCoordinator
+  /** Persist-capable replay for user edits deferred during remote apply guard. */
+  replayDeferredSingleCell: (cell: DeferredDirtyCell) => void | Promise<void>
 }
 
 export type RegisterUniverMountSheetValueAndEditListenersHandles = {
   valueChangeDisposable: { dispose(): void } | undefined
   sheetEditEndedDisposable: { dispose(): void } | undefined
+  /** Awaitable flush of deferred user edits (replay + pending cell journal). */
+  flushDeferredDirtyCells: () => Promise<void>
+  /**
+   * Drop deferred reconcile entries that fall inside the region a remote bulk apply just
+   * painted. The bulk-apply hot path calls this once per `finishBulkApplyOnce` so the
+   * post-guard `flushDeferredDirtyCells` doesn't fan out per-cell replay over coordinates
+   * that already match what the bulk wrote (except `local_user` deferrals).
+   */
+  clearDeferredDirtyCellsInRegion: (
+    worksheetId: string | null,
+    region: { minRow: number; maxRow: number; minCol: number; maxCol: number }
+  ) => number
 }
 
 export function registerUniverMountSheetValueAndEditListeners(
@@ -86,20 +330,90 @@ export function registerUniverMountSheetValueAndEditListeners(
     readOnlyRef,
     isApplyingRemoteUpdateRef,
     collabPersistedBulkApplyDepthRef,
+    remoteEchoSuppressionRef,
     univerAPIRef,
     callbacksRef,
+    propsRef,
     handleDetectedCellMutation,
-    reconcileSingleCell
+    mutationEmitTailCoordinator,
+    replayDeferredSingleCell
   } = deps
 
-  /**
-   * Per-worksheet promise tail. Serializes calls to handleDetectedCellMutation so the post-flush
-   * remap+submit region inside emit dispatch never races with another concurrent emit on the same
-   * sheet. Without this, on a slow network, N parallel SheetValueChanged events can land all N
-   * emits at the post-flush snapshot read simultaneously and lose cells whose row hasn't been
-   * materialized in the snapshot they happened to read.
-   */
-  const emitTailByWorksheetId = new Map<string, Promise<void>>()
+  const deferredDirtyCells = new Map<string, DeferredDirtyCell>()
+  let deferredFirstMarkedAt: number | null = null
+  let deferredFlushTimer: ReturnType<typeof setTimeout> | null = null
+
+  const guardDeferredLocalUserCells = (cellValue: SheetCellMatrix): void => {
+    const pr = propsRef.current
+    const targetSheetId = pr.getCanonicalSheetId?.(pr.sheet.id) ?? pr.sheet.id
+    const sheetContext =
+      pr.multiSheetWorkbookMode && typeof pr.getSheetContext === 'function' ? pr.getSheetContext(targetSheetId) : null
+    const rows = sheetContext?.data ?? pr.data
+    const columns = sheetContext?.columns ?? pr.columns
+    const paintGuard = buildSpreadsheetLocalCellPaintGuard({
+      sheetId: targetSheetId,
+      rows,
+      columns,
+      versionCausalOwnershipRef: pr.versionCausalOwnershipRef,
+      pendingLocalMutationCellsRef: pr.pendingLocalMutationCellsRef,
+      resolveKnownSheetVersion: pr.resolveKnownSheetVersion
+    })
+    const cells: Array<{ globalRowIndex: number; globalColIndex: number }> = []
+    for (const rowKey of Object.keys(cellValue)) {
+      const row = Number(rowKey)
+      if (Number.isNaN(row)) continue
+      const rowCells = cellValue[row]
+      if (!rowCells || typeof rowCells !== 'object') continue
+      for (const colKey of Object.keys(rowCells)) {
+        const col = Number(colKey)
+        if (Number.isNaN(col)) continue
+        cells.push({ globalRowIndex: row, globalColIndex: col })
+      }
+    }
+    protectDeferredLocalUserMutationCells(paintGuard, cells)
+  }
+
+  const flushDeferredDirtyCells = async (): Promise<void> => {
+    if (deferredDirtyCells.size === 0) {
+      deferredFirstMarkedAt = null
+      await propsRef.current.flushPendingCellChangesRef?.current?.()
+      return
+    }
+    const cells = Array.from(deferredDirtyCells.values())
+    deferredDirtyCells.clear()
+    deferredFirstMarkedAt = null
+    await Promise.all(cells.map(cell => Promise.resolve(replayDeferredSingleCell(cell)).catch(() => undefined)))
+    await propsRef.current.flushPendingCellChangesRef?.current?.()
+  }
+
+  const scheduleDeferredFlushWhenGuardClears = (): void => {
+    if (deferredFirstMarkedAt == null) {
+      deferredFirstMarkedAt = Date.now()
+    }
+    if (deferredFlushTimer != null) return
+
+    const poll = (): void => {
+      deferredFlushTimer = null
+      if (deferredDirtyCells.size === 0) {
+        deferredFirstMarkedAt = null
+        return
+      }
+      const guardActive = isRemoteApplyGuardActive(isApplyingRemoteUpdateRef, collabPersistedBulkApplyDepthRef)
+      if (shouldScheduleDeferredLocalCellFlush(guardActive, deferredFirstMarkedAt, Date.now())) {
+        void flushDeferredDirtyCells().catch(() => undefined)
+        return
+      }
+      // Back off polling while the remote apply guard is still held to avoid timer churn during
+      // long catch-up backlog drains. The first iteration after the guard clears immediately
+      // drops back to the baseline interval.
+      deferredFlushTimer = globalThis.setTimeout(
+        poll,
+        guardActive ? DEFERRED_LOCAL_CELL_FLUSH_POLL_MS_GUARD_ACTIVE : DEFERRED_LOCAL_CELL_FLUSH_POLL_MS
+      )
+    }
+
+    deferredFlushTimer = globalThis.setTimeout(poll, DEFERRED_LOCAL_CELL_FLUSH_POLL_MS)
+  }
 
   // 3a/3e: route command-classification mismatch + unknown telemetry through the host's
   // diagnostics callback so we can spot ids missing from the registry during the one-release
@@ -142,10 +456,6 @@ export function registerUniverMountSheetValueAndEditListeners(
     univerAPI as { addEvent?(event: string, cb: (p: unknown) => void): { dispose(): void } }
   ).addEvent?.(eventKey, (rawParams: unknown) => {
     if (readOnlyRef.current) {
-      return
-    }
-    // Avoid re-entry while remote apply writes into Univer (prevents echo / duplicate persist).
-    if (isApplyingRemoteUpdateRef.current || collabPersistedBulkApplyDepthRef.current > 0) {
       return
     }
     const params = rawParams as {
@@ -238,6 +548,27 @@ export function registerUniverMountSheetValueAndEditListeners(
       return
     }
 
+    if (isRemoteApplyGuardActive(isApplyingRemoteUpdateRef, collabPersistedBulkApplyDepthRef)) {
+      if (shouldDropRemoteEchoDuringApplyGuard(cellValue, remoteEchoSuppressionRef)) {
+        return
+      }
+      const treatDeferredMutationAsLocalUser = !isApplyingRemoteUpdateRef.current
+      markDeferredDirtyCellsFromMutation(
+        deferredDirtyCells,
+        mutationRanges,
+        cellValue,
+        worksheetId,
+        activeWorksheetIdAtEventTime,
+        remoteEchoSuppressionRef,
+        { origin: treatDeferredMutationAsLocalUser ? 'local_user' : undefined, commandId }
+      )
+      if (treatDeferredMutationAsLocalUser) {
+        guardDeferredLocalUserCells(cellValue)
+      }
+      scheduleDeferredFlushWhenGuardClears()
+      return
+    }
+
     const activeWorksheetIdAtHandlingTime = (() => {
       const wb = univerAPIRef.current?.getActiveWorkbook()
       const aw = wb?.getActiveSheet() as { getSheetId?: () => string } | undefined
@@ -250,28 +581,14 @@ export function registerUniverMountSheetValueAndEditListeners(
       activeWorksheetIdAtHandlingTime
     )
     if (usedLiteralFallback) reportLiteralFallback(commandId)
-    const previous = emitTailByWorksheetId.get(tailKey) ?? Promise.resolve()
-    const next = previous
-      .catch(() => undefined)
-      .then(async () => {
-        const result = handleDetectedCellMutation({
-          source: 'sheet-value-changed',
-          commandId,
-          payloadCellValue: cellValue,
-          ranges: mutationRanges,
-          worksheetId,
-          preserveUndefinedAsNull
-        })
-        if (result && typeof (result as Promise<boolean>).then === 'function') {
-          await (result as Promise<boolean>).catch(() => undefined)
-        }
-      })
-    emitTailByWorksheetId.set(tailKey, next)
-    void next.finally(() => {
-      if (emitTailByWorksheetId.get(tailKey) === next) {
-        emitTailByWorksheetId.delete(tailKey)
-      }
-    })
+    void runDetectedCellMutationThroughCoordinator(mutationEmitTailCoordinator, tailKey, handleDetectedCellMutation, {
+      source: 'sheet-value-changed',
+      commandId,
+      payloadCellValue: cellValue,
+      ranges: mutationRanges,
+      worksheetId,
+      preserveUndefinedAsNull
+    }).catch(() => undefined)
   })
 
   const sheetEditEndedEventKey =
@@ -296,8 +613,79 @@ export function registerUniverMountSheetValueAndEditListeners(
     const range = params?.range
     const row = cell?.actualRow ?? cell?.row ?? params?.row ?? params?.startRow ?? range?.startRow
     const col = cell?.actualColumn ?? cell?.col ?? params?.col ?? params?.startColumn ?? range?.startColumn
-    reconcileSingleCell(row, col, 'sheet-edit-ended', params?.subUnitId ?? params?.sheetId ?? null)
+    const worksheetId = params?.subUnitId ?? params?.sheetId ?? null
+    if (typeof row !== 'number' || typeof col !== 'number') {
+      void flushDeferredDirtyCells().catch(() => undefined)
+      return
+    }
+
+    const workbook = univerAPIRef.current?.getActiveWorkbook()
+    const activeWorksheet = workbook?.getActiveSheet()
+    const activeWorksheetIdAtEventTime =
+      typeof (activeWorksheet as { getSheetId?: () => string } | undefined)?.getSheetId === 'function'
+        ? (activeWorksheet as { getSheetId: () => string }).getSheetId()
+        : null
+    const activeWorksheetIdAtHandlingTime = (() => {
+      const wb = univerAPIRef.current?.getActiveWorkbook()
+      const aw = wb?.getActiveSheet() as { getSheetId?: () => string } | undefined
+      return typeof aw?.getSheetId === 'function' ? aw.getSheetId() : null
+    })()
+    const { key: tailKey, usedLiteralFallback } = resolveEmitSerializationKey(
+      worksheetId,
+      worksheetId,
+      activeWorksheetIdAtEventTime,
+      activeWorksheetIdAtHandlingTime
+    )
+    if (usedLiteralFallback) reportLiteralFallback('sheet-edit-ended')
+
+    void (async () => {
+      callbacksRef.current.onDiagnosticsTraceEvent?.({
+        source: 'client',
+        stage: 'grid_sheet_edit_ended_commit_started',
+        payload: {
+          worksheetId,
+          row,
+          col,
+          tailKey
+        }
+      })
+      const handled = await runDetectedCellMutationThroughCoordinator(
+        mutationEmitTailCoordinator,
+        tailKey,
+        handleDetectedCellMutation,
+        {
+          source: 'sheet-edit-ended',
+          payloadCellValue: undefined,
+          ranges: [
+            {
+              startRow: row,
+              endRow: row,
+              startColumn: col,
+              endColumn: col
+            }
+          ],
+          worksheetId
+        }
+      )
+      callbacksRef.current.onDiagnosticsTraceEvent?.({
+        source: 'client',
+        stage: handled ? 'grid_sheet_edit_ended_commit_finished' : 'grid_sheet_edit_ended_commit_noop',
+        payload: {
+          worksheetId,
+          row,
+          col,
+          handled
+        }
+      })
+      await flushDeferredDirtyCells()
+    })().catch(() => undefined)
   })
 
-  return { valueChangeDisposable, sheetEditEndedDisposable }
+  return {
+    valueChangeDisposable,
+    sheetEditEndedDisposable,
+    flushDeferredDirtyCells,
+    clearDeferredDirtyCellsInRegion: (worksheetId, region) =>
+      clearDeferredDirtyCellsInRegion(deferredDirtyCells, worksheetId, region)
+  }
 }

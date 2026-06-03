@@ -26,6 +26,12 @@ import {
 } from './univerGridWorkbookMutationModule'
 import { isUnsupportedSnapshotOnlyCollaborationCommand } from './snapshotTriggerUtils'
 import type { UniverGridController } from './useUniverGridController'
+import { registerMergeGestureSuppress } from '../utils/spreadsheetMergeGestureSuppress'
+import {
+  cutPasteCollabSuppressionDurationMs,
+  isNativeCutPasteCommand,
+  resolveCutPasteCellRangeMove
+} from '../utils/spreadsheetCutPasteMove'
 
 type CommandParams =
   | {
@@ -68,6 +74,9 @@ type ColumnFeatureRefs = Pick<
   | 'callbacksRef'
   | 'lastFeatureEmitAtBySignatureRef'
   | 'pendingFreezeClearEmitTimeoutBySheetRef'
+  | 'pendingCutCellRangeRef'
+  | 'cutPasteCollabSuppressUntilMsRef'
+  | 'mergeGestureSuppressBySheetRef'
 >
 
 function resolveVisibilityCommandRanges(params: CommandParams, axis: 'row' | 'column') {
@@ -117,7 +126,9 @@ export function handleCommandExecutedColumnInsertsAndFeatureOps(
     propsRef,
     callbacksRef,
     lastFeatureEmitAtBySignatureRef,
-    pendingFreezeClearEmitTimeoutBySheetRef
+    pendingFreezeClearEmitTimeoutBySheetRef,
+    pendingCutCellRangeRef,
+    cutPasteCollabSuppressUntilMsRef
   } = refs
   const { t, commandId, params } = args
 
@@ -320,6 +331,48 @@ export function handleCommandExecutedColumnInsertsAndFeatureOps(
     }
   } else if (
     (t === UNIVER_COMMAND_TYPE_MUTATION || t === UNIVER_COMMAND_TYPE_COMMAND) &&
+    isNativeCutPasteCommand(commandId)
+  ) {
+    const targetSheetId =
+      (typeof params?.subUnitId === 'string' && params.subUnitId) ||
+      (typeof params?.sheetId === 'string' && params.sheetId) ||
+      propsRef.current.sheet.id
+    const workbook = univerAPIRef.current?.getActiveWorkbook?.()
+    const move = resolveCutPasteCellRangeMove({
+      commandParams: (params ?? {}) as Parameters<typeof resolveCutPasteCellRangeMove>[0]['commandParams'],
+      pendingCut: pendingCutCellRangeRef.current,
+      activeSheetId: targetSheetId,
+      workbook
+    })
+    const hasOnCellRangeMove = typeof callbacksRef.current.onCellRangeMove === 'function'
+    callbacksRef.current.onDiagnosticsTraceEvent?.({
+      source: 'client',
+      stage: 'grid_cut_paste_native_command',
+      severity: move && hasOnCellRangeMove ? 'info' : 'warning',
+      sheetId: propsRef.current.sheet.id,
+      payload: {
+        commandId,
+        commandType: t,
+        hasOnCellRangeMove,
+        hasMove: Boolean(move),
+        fromRange: move?.fromRange,
+        toRange: move?.toRange
+      }
+    })
+    if (move && hasOnCellRangeMove) {
+      const dedupKey = `${targetSheetId}|move_cell_range|${move.fromRange.startRow},${move.fromRange.endRow},${move.fromRange.startColumn},${move.fromRange.endColumn}->${move.toRange.startRow},${move.toRange.endRow},${move.toRange.startColumn},${move.toRange.endColumn}`
+      const emitNow = Date.now()
+      const lastEmitAt = lastFeatureEmitAtBySignatureRef.current.get(dedupKey) ?? 0
+      const shouldEmit = emitNow - lastEmitAt >= 1000
+      if (shouldEmit) {
+        lastFeatureEmitAtBySignatureRef.current.set(dedupKey, emitNow)
+        callbacksRef.current.onCellRangeMove?.(move.fromRange, move.toRange)
+        cutPasteCollabSuppressUntilMsRef.current = emitNow + cutPasteCollabSuppressionDurationMs()
+        pendingCutCellRangeRef.current = null
+      }
+    }
+  } else if (
+    (t === UNIVER_COMMAND_TYPE_MUTATION || t === UNIVER_COMMAND_TYPE_COMMAND) &&
     isNativeCellRangeMoveCommand(commandId)
   ) {
     const move = getCellRangeMoveMutation((params ?? {}) as Parameters<typeof getCellRangeMoveMutation>[0])
@@ -504,6 +557,9 @@ export function handleCommandExecutedColumnInsertsAndFeatureOps(
           params as { ranges?: unknown[]; range?: unknown | unknown[] } | undefined
         )
   if (featureOperationType === 'visibility_update' && ranges.length === 0) return
+  if (featureOperationType === 'merge_ranges' && ranges.length > 0) {
+    registerMergeGestureSuppress(refs.mergeGestureSuppressBySheetRef, targetSheetId, ranges)
+  }
   const traceId = createSpreadsheetTraceId(`grid_${featureOperationType}`)
   const dedupKey = `${targetSheetId}|${featureOperationType}|${JSON.stringify(paramsClone ?? ranges)}`
   const emitNow = Date.now()

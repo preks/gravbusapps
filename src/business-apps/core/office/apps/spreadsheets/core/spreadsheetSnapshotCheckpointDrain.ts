@@ -25,9 +25,29 @@ export interface CreateSnapshotCheckpointDrainSchedulerParams {
 export function createSnapshotCheckpointDrainScheduler(
   params: CreateSnapshotCheckpointDrainSchedulerParams
 ): () => Promise<void> {
+  let delayedRetryHandle: ReturnType<typeof setTimeout> | null = null
+
+  const scheduleDelayedDrain = (): void => {
+    if (delayedRetryHandle != null) {
+      clearTimeout(delayedRetryHandle)
+    }
+    const pendingEntries = Array.from(params.pendingSnapshotCheckpointBySheetRef.current.values())
+    if (pendingEntries.length === 0) return
+    const earliestRequestedAt = Math.min(...pendingEntries.map(entry => entry.requestedAt))
+    const delayMs = Math.max(0, earliestRequestedAt - Date.now())
+    delayedRetryHandle = globalThis.setTimeout(() => {
+      delayedRetryHandle = null
+      void scheduleDrain()
+    }, delayMs)
+  }
+
   const scheduleDrain = (): Promise<void> => {
     if (params.snapshotCheckpointDrainScheduledRef.current) {
       return params.snapshotCheckpointDrainPromiseRef.current ?? Promise.resolve()
+    }
+    if (delayedRetryHandle != null) {
+      clearTimeout(delayedRetryHandle)
+      delayedRetryHandle = null
     }
 
     params.snapshotCheckpointDrainScheduledRef.current = true
@@ -36,10 +56,17 @@ export function createSnapshotCheckpointDrainScheduler(
         params.sheetPersist.beginPersist()
         try {
           while (params.pendingSnapshotCheckpointBySheetRef.current.size > 0) {
-            const pendingSheetIds = Array.from(params.pendingSnapshotCheckpointBySheetRef.current.keys())
-            params.pendingSnapshotCheckpointBySheetRef.current.clear()
+            const readySheetIds = Array.from(params.pendingSnapshotCheckpointBySheetRef.current.entries())
+              .filter(([, entry]) => entry.requestedAt <= Date.now())
+              .map(([sheetId]) => sheetId)
+            if (readySheetIds.length === 0) {
+              break
+            }
+            readySheetIds.forEach(sheetId => {
+              params.pendingSnapshotCheckpointBySheetRef.current.delete(sheetId)
+            })
 
-            for (const targetSheetId of pendingSheetIds) {
+            for (const targetSheetId of readySheetIds) {
               await params.persistSnapshotCheckpointForSheet(targetSheetId)
             }
           }
@@ -51,7 +78,7 @@ export function createSnapshotCheckpointDrainScheduler(
         params.snapshotCheckpointDrainScheduledRef.current = false
         params.snapshotCheckpointDrainPromiseRef.current = null
         if (params.pendingSnapshotCheckpointBySheetRef.current.size > 0) {
-          void scheduleDrain()
+          scheduleDelayedDrain()
         }
       }) as Promise<void>
 

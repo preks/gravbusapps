@@ -28,7 +28,9 @@ import { useEnterpriseAgentClient } from '../hooks/useEnterpriseAgentClient'
 import { useModelOptions } from '../hooks/useModelOptions'
 import { useSessionUrlState } from '../hooks/useSessionUrlState'
 import { setFabricLogContext, clearFabricLogContext } from '../utils/diagnosticLogger'
+import { resolveSessionTraceEvents } from '../hooks/agent-session/resolveSessionTraceEvents'
 import { deriveActivityFromEvents } from '../utils/messageUtils'
+import { currentTurnTrace } from '../utils/currentTurnTrace'
 
 // ─── Context shape ─────────────────────────────────────────────────────────────
 
@@ -429,9 +431,26 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
     retrySessionLoad: _retrySessionLoad
   } = useAgentSession(activeSessionId, accessToken, bootstrapSession)
 
-  // Keep session list in sync with live session state
+  // Keep session list in sync with live session state (skip identical REST payloads).
+  const sessionListSyncRef = useRef<{ sessionId: string; status: string; updatedAt: string } | null>(null)
   useEffect(() => {
-    if (session) updateSession(session)
+    if (!session) return
+    const syncKey = {
+      sessionId: session.session_id,
+      status: session.status,
+      updatedAt: session.updated_at ?? session.created_at ?? ''
+    }
+    const prev = sessionListSyncRef.current
+    if (
+      prev &&
+      prev.sessionId === syncKey.sessionId &&
+      prev.status === syncKey.status &&
+      prev.updatedAt === syncKey.updatedAt
+    ) {
+      return
+    }
+    sessionListSyncRef.current = syncKey
+    updateSession(session)
   }, [session, updateSession])
 
   // Sync session connector IDs from loaded session (for page refreshes / session switching)
@@ -451,14 +470,17 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
   const { artifacts, workspaceDocs, activeArtifactId, activeArtifact, setActiveArtifactId, refreshArtifacts } =
     useFabricArtifacts(activeSessionId, events, accessToken, session)
 
+  // Live SSE when connected; REST trace when stream is suppressed (completed sessions).
+  const traceEvents = useMemo(() => resolveSessionTraceEvents(events, session?.trace), [events, session?.trace])
+
   // Activity events for the chronological feed (tools + delegations)
-  const activityEvents = useMemo(() => deriveActivityFromEvents(events), [events])
+  const activityEvents = useMemo(() => deriveActivityFromEvents(traceEvents), [traceEvents])
 
   // Decisions panel — discrete agent branch points (skill, reflection, HITL, …)
-  const decisions = useFabricDecisions(events)
+  const decisions = useFabricDecisions(traceEvents)
 
   // Skills — parsed from `skill_load` tool calls and `skill_loaded` events.
-  const { activeSkill: fabricActiveSkill, loadedSkills, skillIdByStepId } = useFabricSkills(events)
+  const { activeSkill: fabricActiveSkill, loadedSkills, skillIdByStepId } = useFabricSkills(traceEvents)
 
   // Cases — generic, event-only "multi-step business operation" state
   // derived from case_panel_open/update/close tool outputs and from
@@ -467,11 +489,12 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
   // useFabricCases merges REST trace + live SSE just like useFabricPlan.
   const { cases, hasCases, activeCase } = useFabricCases(session, events)
 
-  // Merge SSE events with session trace for completed sessions (trace has preview events too)
+  // Merge SSE events with session trace; scope previews to the current user turn only.
   const previewSourceEvents = useMemo((): AgentStreamEvent[] => {
-    if (events.length > 0) return events
-    return (session?.trace ?? []) as AgentStreamEvent[]
-  }, [events, session?.trace])
+    if (!activeSessionId) return []
+    const source = traceEvents.length > 0 ? traceEvents : events
+    return currentTurnTrace(source)
+  }, [activeSessionId, traceEvents, events])
 
   // Live artifact previews from SSE or session trace events
   const { previews: artifactPreviews, latestPreview, hasActivePreview } = useArtifactPreview(previewSourceEvents)

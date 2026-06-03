@@ -43,7 +43,7 @@ export interface SpreadsheetKnownRowIdFieldRemap {
 
 type KnownRowIdVisitor = (match: SpreadsheetKnownRowIdFieldMatch) => void
 
-function visitKnownRowIdFields(operations: SpreadsheetBatchOperation[], visitor: KnownRowIdVisitor): void {
+function visitKnownRowIdFields(operations: readonly SpreadsheetBatchOperation[], visitor: KnownRowIdVisitor): void {
   operations.forEach((op, operationIndex) => {
     const operationId = String(op.operationId ?? '')
     if (op.type === 'set_range' && Array.isArray(op.data?.cells)) {
@@ -128,7 +128,7 @@ function visitKnownRowIdFields(operations: SpreadsheetBatchOperation[], visitor:
 }
 
 export function collectKnownRowIdFieldMatches(
-  operations: SpreadsheetBatchOperation[]
+  operations: readonly SpreadsheetBatchOperation[]
 ): SpreadsheetKnownRowIdFieldMatch[] {
   const matches: SpreadsheetKnownRowIdFieldMatch[] = []
   visitKnownRowIdFields(operations, match => {
@@ -139,15 +139,45 @@ export function collectKnownRowIdFieldMatches(
   return matches
 }
 
+/**
+ * Collect `client_*` ids materialized by `add_rows` ops in the same batch.
+ * A `set_range` whose `rowRef.clientHandle.clientRowId` matches one of these
+ * is safe to ship: the BE applies `add_rows` before the dependent cell write
+ * within the batch. Outside that case, a clientHandle must be held by the
+ * readiness gate until an `add_rows` for it has been acknowledged — sending
+ * it raw guarantees `unknown_client_row_handle`.
+ */
+function collectClientRowIdsMaterializedByBatch(operations: readonly SpreadsheetBatchOperation[]): Set<string> {
+  const ids = new Set<string>()
+  for (const op of operations) {
+    if (op.type !== 'add_rows') continue
+    const rows = (op.data as { rows?: unknown })?.rows
+    if (!Array.isArray(rows)) continue
+    for (const row of rows) {
+      if (!row || typeof row !== 'object') continue
+      const clientRowId = (row as { _clientRowId?: unknown })._clientRowId
+      if (typeof clientRowId === 'string' && clientRowId) {
+        ids.add(clientRowId)
+      }
+    }
+  }
+  return ids
+}
+
 export function detectTemporaryRowIdsInKnownRowIdFields(
-  operations: SpreadsheetBatchOperation[],
+  operations: readonly SpreadsheetBatchOperation[],
   isTemporaryRowId: (value: string) => boolean = isSpreadsheetTemporaryClientRowId
 ): SpreadsheetKnownRowIdFieldMatch[] {
   const matches: SpreadsheetKnownRowIdFieldMatch[] = []
+  const selfMaterializedClientRowIds = collectClientRowIdsMaterializedByBatch(operations)
   visitKnownRowIdFields(operations, match => {
-    if (match.rowId !== '' && isTemporaryRowId(match.rowId)) {
-      matches.push(match)
+    if (match.rowId === '' || !isTemporaryRowId(match.rowId)) {
+      return
     }
+    if (match.referenceKind === 'rowRef' && selfMaterializedClientRowIds.has(match.rowId)) {
+      return
+    }
+    matches.push(match)
   })
   return matches
 }

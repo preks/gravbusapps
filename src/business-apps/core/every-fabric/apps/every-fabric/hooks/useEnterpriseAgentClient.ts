@@ -9,7 +9,8 @@ import type {
   ReasoningEffort,
   SessionAttachment,
   SessionConfig,
-  StartSessionResponse
+  StartSessionResponse,
+  AgentSkillBinding
 } from '../types/enterpriseAgent'
 import type { ArtifactFile } from '../types/fabric'
 import { resolveRendererType } from '../types/fabric'
@@ -29,6 +30,11 @@ interface SessionCacheEntry {
  */
 const SESSION_ETAG_CACHE = new Map<string, SessionCacheEntry>()
 
+/** Drop cached GET session payload so the next fetch cannot 304 a pre-turn trace. */
+export const invalidateDeepAgentSessionEtagCache = (sessionId: string): void => {
+  SESSION_ETAG_CACHE.delete(sessionId)
+}
+
 const resolvePromptManagerBase = (): string =>
   PROMPT_MANAGER_API_URL.endsWith('/') ? PROMPT_MANAGER_API_URL.slice(0, -1) : PROMPT_MANAGER_API_URL
 
@@ -36,7 +42,7 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
   const client = usePromptManagerClient(accessToken)
 
   const startSession = useCallback(
-    (
+    async (
       task: string,
       config?: SessionConfig,
       activeExternalConnectionIds?: string[],
@@ -44,7 +50,7 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       fallbackSkillId?: string
     ) => {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
-      const selectedSkillIds = [
+      const explicitSkillIds = [
         activeEnterpriseSkillId,
         fallbackSkillId,
         config?.selectedEnterpriseSkill?.skill_id
@@ -52,6 +58,38 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       const selectedToolRefs = Array.from(new Set(config?.selectedEnterpriseSkill?.tool_refs ?? []))
       const selectedExpertId = config?.selectedAgent?.id
       const selectedExpertIds = selectedExpertId ? [selectedExpertId] : undefined
+
+      const bindingsBySkill = new Map<string, AgentSkillBinding>()
+      if (selectedExpertId) {
+        try {
+          const agentSkills = await client.getAgentSkills(selectedExpertId)
+          const assignedRows = agentSkills.skill_bindings?.length ? agentSkills.skill_bindings : agentSkills.skills
+          for (const row of assignedRows ?? []) {
+            if (!row.skill_id || row.enabled === false) continue
+            bindingsBySkill.set(row.skill_id, {
+              skill_id: row.skill_id,
+              follow_latest: row.follow_latest !== false,
+              version: row.follow_latest === false ? (row.version ?? null) : null,
+              enabled: true
+            })
+          }
+        } catch {
+          // Session creation should still work if the registry binding lookup is temporarily unavailable.
+        }
+      }
+
+      for (const skill_id of explicitSkillIds) {
+        if (bindingsBySkill.has(skill_id)) continue
+        bindingsBySkill.set(skill_id, {
+          skill_id,
+          follow_latest: true,
+          version: null,
+          enabled: true
+        })
+      }
+
+      const skill_bindings = bindingsBySkill.size > 0 ? Array.from(bindingsBySkill.values()) : undefined
+      const selectedSkillIds = skill_bindings?.map(binding => binding.skill_id) ?? []
       return client.post<StartSessionResponse>('/deep-agent/sessions', {
         task,
         config,
@@ -60,6 +98,7 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
         active_external_connection_ids: activeExternalConnectionIds,
         expert_ids: selectedExpertIds,
         skill_ids: selectedSkillIds,
+        skill_bindings,
         tool_refs: selectedToolRefs
       })
     },
@@ -72,7 +111,10 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
   )
 
   const getSession = useCallback(
-    async (sessionId: string): Promise<DeepAgentSession> => {
+    async (sessionId: string, options?: { bypassCache?: boolean }): Promise<DeepAgentSession> => {
+      if (options?.bypassCache) {
+        SESSION_ETAG_CACHE.delete(sessionId)
+      }
       const cached = SESSION_ETAG_CACHE.get(sessionId)
       const base = resolvePromptManagerBase()
       const headers: Record<string, string> = {
@@ -210,13 +252,13 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
   )
 
   /**
-   * Absolute SSE URL for the multiplexed active-sessions stream. Browsers can't
-   * send custom headers on EventSource, so the JWT travels as a query param
-   * (backend supports this — see `handlers.py:/sessions/active/stream`).
+   * Absolute SSE URL for the multiplexed active-sessions stream.
+   * Auth is sent via `Authorization: Bearer` in `connectPromptManagerSse` (fetch),
+   * not as a query param — Kong on dev redirects unauthenticated `?token=` SSE to Keycloak.
    */
-  const buildActiveSessionsStreamUrl = useCallback((token: string): string => {
+  const buildActiveSessionsStreamUrl = useCallback((): string => {
     const base = PROMPT_MANAGER_API_URL.endsWith('/') ? PROMPT_MANAGER_API_URL.slice(0, -1) : PROMPT_MANAGER_API_URL
-    return `${base}/deep-agent/sessions/active/stream?token=${encodeURIComponent(token)}`
+    return `${base}/deep-agent/sessions/active/stream`
   }, [])
 
   const getMemory = useCallback(
@@ -249,6 +291,9 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
         category?: string | null
         tags?: string[]
         tool_refs?: string[]
+        version?: number
+        published_version?: number | null
+        current_version?: number
       }>
     >('/skills/manifest')
     return rows.map(row => ({
@@ -257,7 +302,7 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       name: row.name,
       category: row.category ?? 'General',
       description: row.description,
-      version: '1',
+      version: String(row.version ?? row.published_version ?? 1),
       is_active: true,
       publisher: 'Every Fabric',
       install_count: 0,
@@ -336,6 +381,8 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
             status: string
             is_active: boolean
             file_count: number
+            version?: number
+            published_version?: number | null
             tool_refs?: string[]
           }[]
         >('/admin/skills/')
@@ -350,6 +397,9 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
             tags?: string[]
             tool_refs?: string[]
             has_files?: boolean
+            version?: number
+            published_version?: number | null
+            current_version?: number
           }[]
         >('/skills/manifest')
         .catch(() => [])
@@ -366,6 +416,9 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
         file_count: number
         has_files?: boolean
         tools?: string[]
+        version?: number
+        published_version?: number | null
+        current_version?: number
         source?: 'admin' | 'runtime_manifest'
       }
     >()
@@ -383,7 +436,10 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       if (existing) {
         merged.set(skill.skill_id, {
           ...existing,
-          tools: Array.from(new Set([...(existing.tools ?? []), ...(skill.tool_refs ?? [])]))
+          tools: Array.from(new Set([...(existing.tools ?? []), ...(skill.tool_refs ?? [])])),
+          version: existing.version ?? skill.current_version ?? skill.version,
+          published_version: skill.published_version ?? existing.published_version,
+          current_version: existing.current_version ?? existing.version ?? skill.current_version ?? skill.version
         })
       } else {
         merged.set(skill.skill_id, {
@@ -395,6 +451,9 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
           file_count: 0,
           has_files: skill.has_files,
           tools: skill.tool_refs ?? [],
+          version: skill.version,
+          published_version: skill.published_version,
+          current_version: skill.current_version,
           source: 'runtime_manifest'
         })
       }
@@ -420,23 +479,45 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
 
   const saveSkillRaw = useCallback(
     (skillId: string, content: string) =>
-      client.patch<{ skill_id: string; name: string; description: string; content: string }>(
-        `/admin/skills/${enc(skillId)}`,
-        { content }
-      ),
+      client.patch<import('../types/enterpriseAgent').AdminSkill>(`/admin/skills/${enc(skillId)}`, { content }),
     [client]
   )
 
   const getSkill = useCallback(
+    (skillId: string) => client.get<import('../types/enterpriseAgent').AdminSkill>(`/admin/skills/${enc(skillId)}`),
+    [client]
+  )
+
+  const listSkillVersions = useCallback(
     (skillId: string) =>
-      client.get<{
-        skill_id: string
-        name: string
-        description: string
-        content: string
-        status: string
-        tool_refs?: string[]
-      }>(`/admin/skills/${enc(skillId)}`),
+      client.get<import('../types/enterpriseAgent').SkillVersionSummary[]>(`/admin/skills/${enc(skillId)}/versions`),
+    [client]
+  )
+
+  const getSkillVersion = useCallback(
+    (skillId: string, version: number) =>
+      client.get<import('../types/enterpriseAgent').SkillVersionDetail>(
+        `/admin/skills/${enc(skillId)}/versions/${version}`
+      ),
+    [client]
+  )
+
+  const publishSkillVersion = useCallback(
+    (skillId: string, version: number) =>
+      client.post<import('../types/enterpriseAgent').AdminSkill>(
+        `/admin/skills/${enc(skillId)}/versions/${version}/publish`,
+        {}
+      ),
+    [client]
+  )
+
+  const restoreSkillVersion = useCallback(
+    (skillId: string, version: number, note?: string) =>
+      client.post<import('../types/enterpriseAgent').AdminSkill>(
+        `/admin/skills/${enc(skillId)}/versions/${version}/restore`,
+        {},
+        note ? { params: { note } } : undefined
+      ),
     [client]
   )
 
@@ -593,6 +674,10 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       listArchivedSkills,
       enableSkill,
       disableSkill,
+      listSkillVersions,
+      getSkillVersion,
+      publishSkillVersion,
+      restoreSkillVersion,
       uploadSessionAttachment,
       listSessionAttachments,
       deleteSessionAttachment,
@@ -625,6 +710,10 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       uploadSkillFile,
       saveSkillRaw,
       getSkill,
+      listSkillVersions,
+      getSkillVersion,
+      publishSkillVersion,
+      restoreSkillVersion,
       deleteSkill,
       uploadSkillFiles,
       listSkillFiles,
@@ -636,6 +725,10 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       listArchivedSkills,
       enableSkill,
       disableSkill,
+      listSkillVersions,
+      getSkillVersion,
+      publishSkillVersion,
+      restoreSkillVersion,
       uploadSessionAttachment,
       listSessionAttachments,
       deleteSessionAttachment,

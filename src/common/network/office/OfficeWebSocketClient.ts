@@ -79,7 +79,13 @@ function resolveSocketOptions(options: OfficeWebSocketOptions, defaultPath: stri
 
 function resolveSocketTarget(url: string): { socketUrl: string; socketPath: string } {
   const resolvedUrl = new URL(url)
-  const servicePath = trimTrailingSlash(resolvedUrl.pathname)
+  let servicePath = trimTrailingSlash(resolvedUrl.pathname)
+
+  // Defensive: if the configured URL already ends with `/socket.io`, drop it so we
+  // do not produce a doubled `/socket.io/socket.io` path when we append it below.
+  if (servicePath.endsWith('/socket.io')) {
+    servicePath = servicePath.slice(0, -'/socket.io'.length)
+  }
 
   return {
     socketUrl: `${resolvedUrl.origin}/collaboration`,

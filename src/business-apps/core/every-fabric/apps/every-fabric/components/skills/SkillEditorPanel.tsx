@@ -10,6 +10,8 @@ import {
   removeToolFromSkillDraft
 } from '../renderers/skillDraftUtils'
 import { inferTargetDir, formatFileSize } from './skillFileUtils'
+import { SkillVersionHistory } from './SkillVersionHistory'
+import type { AdminSkill } from '../../types/enterpriseAgent'
 
 export interface SkillEditorPanelProps {
   accessToken: string
@@ -43,6 +45,11 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
   const [saving, setSaving] = useState(false)
   const [deletingFilePath, setDeletingFilePath] = useState<string | null>(null)
   const [addToolsModalOpen, setAddToolsModalOpen] = useState(false)
+  const [skillHead, setSkillHead] = useState<Pick<AdminSkill, 'version' | 'published_version' | 'is_active'> | null>(
+    null
+  )
+  const [versionHistoryKey, setVersionHistoryKey] = useState(0)
+  const [previewingVersion, setPreviewingVersion] = useState<number | null>(null)
   const addFilesRef = useRef<HTMLInputElement>(null)
 
   const attachedTools = useMemo(() => getToolsFromSkillDraft(content), [content])
@@ -112,6 +119,12 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
         }
         setContent(initialContent)
         setSavedContent(initialContent)
+        setSkillHead({
+          version: doc.version,
+          published_version: doc.published_version,
+          is_active: doc.is_active ?? false
+        })
+        setPreviewingVersion(null)
         setFiles(fileList)
       })
       .catch(() => {
@@ -133,7 +146,15 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
     try {
       const doc = await client.saveSkillRaw(skillId, content)
       setSavedContent(doc.content)
-      showToast?.(`Skill "${skillId}" updated`, 'success')
+      setContent(doc.content)
+      setSkillHead({
+        version: doc.version,
+        published_version: doc.published_version,
+        is_active: doc.is_active ?? false
+      })
+      setPreviewingVersion(null)
+      setVersionHistoryKey(k => k + 1)
+      showToast?.(`Skill "${skillId}" saved as v${doc.version}`, 'success')
       onSaved?.({ skill_id: doc.skill_id, name: doc.name, description: doc.description })
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
@@ -145,7 +166,33 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
 
   const handleRevert = useCallback(() => {
     setContent(savedContent)
+    setPreviewingVersion(null)
   }, [savedContent])
+
+  const handlePublishCurrent = useCallback(async () => {
+    if (!skillId || !skillHead) return
+    if (content !== savedContent) {
+      showToast?.('Save the current draft before publishing.', 'error')
+      return
+    }
+    setSaving(true)
+    try {
+      const doc = await client.publishSkillVersion(skillId, skillHead.version)
+      setSkillHead({
+        version: doc.version,
+        published_version: doc.published_version,
+        is_active: doc.is_active ?? true
+      })
+      setVersionHistoryKey(k => k + 1)
+      showToast?.(`Published v${doc.published_version ?? doc.version}`, 'success')
+      onSaved?.({ skill_id: doc.skill_id, name: doc.name, description: doc.description })
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      showToast?.(`Publish failed: ${msg}`, 'error')
+    } finally {
+      setSaving(false)
+    }
+  }, [skillId, skillHead, content, savedContent, client, onSaved, showToast])
 
   const handleDeleteFile = useCallback(
     async (path: string) => {
@@ -206,6 +253,15 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
           <h2 className="gba:text-sm gba:font-semibold gba:text-foreground gba:truncate">
             Edit <code className="gba:font-mono gba:text-sm">{skillId}</code>
           </h2>
+          {skillHead && (
+            <span
+              className="gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:border gba:border-border gba:bg-muted/40 gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-muted-foreground"
+              data-testid="skill-editor-version-badge"
+            >
+              draft v{skillHead.version}
+              {skillHead.published_version != null ? ` · pub v${skillHead.published_version}` : ' · unpublished'}
+            </span>
+          )}
           {isDirty && (
             <span
               className="gba:inline-flex gba:items-center gba:rounded-full gba:border gba:border-primary/30 gba:bg-primary/10 gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-primary"
@@ -386,6 +442,54 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
                 </div>
               )}
             </div>
+
+            <SkillVersionHistory
+              accessToken={accessToken}
+              skillId={skillId}
+              head={skillHead}
+              refreshKey={versionHistoryKey}
+              publishDisabled={isDirty}
+              publishDisabledReason="Save the current draft before publishing a version."
+              showToast={showToast}
+              onPreviewVersion={(version, historical) => {
+                setPreviewingVersion(version)
+                setContent(historical)
+              }}
+              onRestored={() => {
+                setPreviewingVersion(null)
+                setVersionHistoryKey(k => k + 1)
+                if (skillId) {
+                  void client.getSkill(skillId).then(doc => {
+                    setContent(doc.content)
+                    setSavedContent(doc.content)
+                    setSkillHead({
+                      version: doc.version,
+                      published_version: doc.published_version,
+                      is_active: doc.is_active ?? false
+                    })
+                  })
+                }
+                onSaved?.({ skill_id: skillId })
+              }}
+              onPublished={() => {
+                setVersionHistoryKey(k => k + 1)
+                if (skillId) {
+                  void client.getSkill(skillId).then(doc => {
+                    setSkillHead({
+                      version: doc.version,
+                      published_version: doc.published_version,
+                      is_active: doc.is_active ?? false
+                    })
+                  })
+                }
+                onSaved?.({ skill_id: skillId })
+              }}
+            />
+            {previewingVersion != null && (
+              <p className="gba:text-[11px] gba:text-amber-700" data-testid="skill-editor-preview-banner">
+                Previewing historical v{previewingVersion}. Save is disabled until you restore or revert.
+              </p>
+            )}
           </>
         )}
       </div>
@@ -400,14 +504,26 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
         >
           Revert
         </button>
+        {skillHead && (
+          <button
+            type="button"
+            className="gba:px-3 gba:py-1.5 gba:rounded-md gba:border gba:border-primary/40 gba:text-xs gba:text-primary gba:hover:bg-primary/10 gba:disabled:opacity-50"
+            disabled={saving || loading || previewingVersion != null || isDirty}
+            title={isDirty ? 'Save the current draft before publishing.' : undefined}
+            onClick={() => void handlePublishCurrent()}
+            data-testid="skill-editor-publish"
+          >
+            Publish v{skillHead.version}
+          </button>
+        )}
         <button
           type="button"
           className="gba:px-3 gba:py-1.5 gba:rounded-md gba:bg-primary gba:text-primary-foreground gba:text-xs gba:hover:bg-primary/90 gba:transition-colors gba:disabled:opacity-50"
-          disabled={saving || loading || !isDirty}
+          disabled={saving || loading || !isDirty || previewingVersion != null}
           onClick={() => void handleSave()}
           data-testid="skill-editor-save"
         >
-          {saving ? 'Saving…' : 'Save'}
+          {saving ? 'Saving…' : 'Save draft'}
         </button>
       </div>
 

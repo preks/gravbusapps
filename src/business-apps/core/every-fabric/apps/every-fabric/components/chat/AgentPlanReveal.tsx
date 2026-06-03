@@ -115,7 +115,7 @@ export const AgentPlanReveal: React.FC<AgentPlanRevealProps> = ({ items, isColla
   // to render at the top of this card. It was visually heavy, route-static,
   // and duplicated information the live activity ticker now surfaces in
   // real time. We deliberately do NOT render ackText here anymore — the
-  // ticker (StreamingPreviewBubble) and ElegantStatusIndicator handle that
+  // AgentActivityTimeline handles that
   // surface. Only render this card when the agent has produced an actual
   // checklist of plan items.
   if (total === 0) return null

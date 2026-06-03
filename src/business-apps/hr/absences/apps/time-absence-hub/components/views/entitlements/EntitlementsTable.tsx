@@ -1,7 +1,6 @@
 import React from 'react'
 import { Badge } from '@newwork/nw-design-system'
 import type { ActionOption } from '@newwork/nw-design-system'
-import { UserIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { statusVariant } from '@/business-apps/hr/absences/apps/personal-absences/utils/statusUtils'
 import {
@@ -9,9 +8,15 @@ import {
   EntitlementsOverviewSortOrder
 } from '../../../hooks/useEntitlementsOverviewData'
 import { OrgEntitlementRow } from '../../../queries/OrgEntitlementQueries'
-import { formatEntitlementNumber, getEntitlementEmployeeName, isEntitlementExpiringSoon } from './entitlementUtils'
+import {
+  formatEntitlementNumber,
+  getEntitlementEmployeeName,
+  getEntitlementRemaining,
+  isEntitlementExpiringSoon
+} from './entitlementUtils'
 import { HubDataTable, type HubDataTableColumn } from '../shared/HubDataTable'
 import { HubRowActionMenu } from '../shared/HubRowActionMenu'
+import { HubEmployeeCell } from '../shared/HubEmployeeCell'
 
 const tt = (key: string, fallback: string) =>
   getTranslationFromI18nKeyAndLabel(`lowcoder:time_absence_hub.entitlements.${key}`, fallback)
@@ -88,26 +93,23 @@ const getColumns = (
   {
     key: 'employee',
     header: tt('column_employee', 'Employee'),
-    sortableField: 'employeeName',
     widthClassName: 'gba:w-32',
     headerClassName: 'gba:px-3',
     cellClassName: 'gba:px-2 gba:py-3',
     renderCell: row => {
       const employeeName = getEntitlementEmployeeName(row, tt('unknown_employee', 'Unknown employee'))
       return (
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <UserIcon size={16} className="gba:text-muted-foreground" />
-          <span className="gba:block gba:truncate gba:text-sm gba:font-medium gba:text-foreground" title={employeeName}>
-            {employeeName}
-          </span>
-        </div>
+        <HubEmployeeCell
+          name={employeeName}
+          pictureThumbnail={row.employee?.pictureThumbnail}
+          subtitle={row.employee?.employeePosition?.organizationalUnit?.name}
+        />
       )
     }
   },
   {
     key: 'department',
     header: tt('column_department', 'Department'),
-    sortableField: 'departmentName',
     widthClassName: 'gba:w-32',
     headerClassName: 'gba:px-3',
     cellClassName: 'gba:px-2 gba:py-3 gba:text-sm',
@@ -123,7 +125,6 @@ const getColumns = (
   {
     key: 'location',
     header: tt('column_location', 'Location'),
-    sortableField: 'locationName',
     widthClassName: 'gba:w-24',
     headerClassName: 'gba:px-2',
     cellClassName: 'gba:px-2 gba:py-3 gba:text-sm',
@@ -139,7 +140,6 @@ const getColumns = (
   {
     key: 'type',
     header: tt('column_type', 'Type'),
-    sortableField: 'typeName',
     widthClassName: 'gba:w-20',
     headerClassName: 'gba:px-2',
     cellClassName: 'gba:px-2 gba:py-3 gba:text-sm',
@@ -181,16 +181,17 @@ const getColumns = (
   },
   {
     key: 'available',
-    header: tt('column_available', 'Available'),
+    header: tt('column_remaining', 'Remaining'),
     sortableField: 'available',
     widthClassName: 'gba:w-20',
     headerClassName: 'gba:px-2',
     cellClassName: 'gba:px-1 gba:py-3 gba:text-right gba:text-sm',
     renderCell: row => {
-      const isNegative = (row.available ?? 0) < 0
+      const remaining = getEntitlementRemaining(row)
+      const isNegative = (remaining ?? 0) < 0
       return (
         <span className={isNegative ? 'gba:text-destructive gba:font-medium' : ''}>
-          {formatEntitlementNumber(row.available)}
+          {formatEntitlementNumber(remaining)}
         </span>
       )
     }
@@ -215,7 +216,7 @@ const getColumns = (
     headerClassName: 'gba:px-2',
     cellClassName: 'gba:px-2 gba:py-3',
     renderCell: row => {
-      const isNegative = (row.available ?? 0) < 0
+      const isNegative = (getEntitlementRemaining(row) ?? 0) < 0
       const expired = Boolean(row.validTo && row.validTo < todayIso)
       const expiring = isEntitlementExpiringSoon(row.validTo, todayIso)
       return (

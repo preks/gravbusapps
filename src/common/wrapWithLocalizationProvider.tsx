@@ -3,6 +3,12 @@ import { LocalizationProvider, SupportedLocale } from '@newwork/nw-design-system
 import { BusinessAppContextProps } from './BusinessAppContext'
 import { getCurrentActiveUserLocale } from './utils/windowUtils'
 
+const BrowserTranslateGuard: React.FC<React.PropsWithChildren> = ({ children }) => (
+  <div translate="no" className="notranslate" style={{ display: 'contents' }}>
+    {children}
+  </div>
+)
+
 /**
  * Higher-order component that wraps a component with LocalizationProvider
  * @param Component Component to wrap
@@ -16,7 +22,9 @@ export function wrapWithLocalizationProvider<P extends BusinessAppContextProps>(
 
     return (
       <LocalizationProvider locale={locale}>
-        <Component {...props} />
+        <BrowserTranslateGuard>
+          <Component {...props} />
+        </BrowserTranslateGuard>
       </LocalizationProvider>
     )
   }

@@ -5,6 +5,38 @@
 import React from 'react'
 
 export const LocalizationProvider = ({ children }: any) => <div>{children}</div>
+
+let mockLocale = 'en-US'
+const mockLocaleListeners = new Set<() => void>()
+
+const subscribeMockLocale = (onStoreChange: () => void) => {
+  mockLocaleListeners.add(onStoreChange)
+  return () => {
+    mockLocaleListeners.delete(onStoreChange)
+  }
+}
+
+const getMockLocaleSnapshot = () => mockLocale
+
+export const useLocale = () => {
+  const locale = React.useSyncExternalStore(subscribeMockLocale, getMockLocaleSnapshot, getMockLocaleSnapshot)
+
+  return {
+    locale,
+    setLocale: (nextLocale: string) => {
+      mockLocale = nextLocale
+      mockLocaleListeners.forEach(listener => listener())
+    },
+    dateFnsLocale: undefined,
+    dateTimeFormat: new Intl.DateTimeFormat(locale)
+  }
+}
+
+export const resetMockLocale = () => {
+  mockLocale = 'en-US'
+  mockLocaleListeners.forEach(listener => listener())
+}
+
 const mockTranslate = (key: string) => key
 export const useTranslation = () => ({
   t: mockTranslate
@@ -70,11 +102,19 @@ export const Select = ({ children, value, onValueChange, ...props }: any) => {
 }
 
 export const DateInput = (props: any) => <input type="date" {...props} />
-export const Button = ({ children, onClick, disabled, type = 'button', ...props }: any) => (
-  <button type={type} onClick={onClick} disabled={disabled} {...props}>
-    {children}
-  </button>
-)
+export const Button = ({ children, onClick, disabled, type = 'button', asChild, ...props }: any) => {
+  if (asChild && React.isValidElement(children)) {
+    return React.cloneElement(children, { ...props, ...children.props })
+  }
+
+  return (
+    <button type={type} onClick={onClick} disabled={disabled} {...props}>
+      {children}
+    </button>
+  )
+}
+
+export const Separator = (props: any) => <hr {...props} />
 export const Label = ({ children, ...props }: any) => <label {...props}>{children}</label>
 export const Badge = ({ children, ...props }: any) => <span {...props}>{children}</span>
 
@@ -164,6 +204,7 @@ export default {
   Input,
   Textarea,
   Button,
+  Separator,
   Select,
   SelectTrigger,
   SelectValue,

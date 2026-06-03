@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react'
 import { Badge, toast } from '@newwork/nw-design-system'
 import { DownloadSimpleIcon, FileTextIcon, PresentationIcon } from '@phosphor-icons/react'
-import EntityLink from '@/business-apps/platform/apps/every-ai/components/links/EntityLink'
+import { resolveEntityLink } from '@/business-apps/platform/apps/every-ai/components/links/EntityLink'
 import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
 
 /** ui.kind sentinel emitted by tools that opt into deliverable_card rendering. */
@@ -79,7 +79,7 @@ const DOC_TYPE_LABEL: Record<string, string> = {
 export const WorkspaceDocumentCard: React.FC<{
   doc: WorkspaceDocumentDeliverable
   accessToken?: string
-}> = ({ doc, accessToken }) => {
+}> = ({ doc }) => {
   const Icon = DOC_TYPE_ICON[doc.type ?? 'document'] ?? FileTextIcon
   const label = DOC_TYPE_LABEL[doc.type ?? 'document'] ?? 'Document'
   const href = doc.primaryAction.href
@@ -100,18 +100,10 @@ export const WorkspaceDocumentCard: React.FC<{
     </>
   )
   const isEntityProtocol = /^\w+:\/\//.test(href) && !/^https?:\/\//i.test(href)
-  if (isEntityProtocol) {
-    return (
-      <EntityLink href={href} accessToken={accessToken ?? ''}>
-        <div className={cardClassName} data-testid={`workspace-doc-card-${doc.id}`}>
-          {body}
-        </div>
-      </EntityLink>
-    )
-  }
+  const resolvedHref = isEntityProtocol ? (resolveEntityLink(href)?.url ?? href) : href
   return (
     <a
-      href={href}
+      href={resolvedHref}
       target="_blank"
       rel="noopener noreferrer"
       className={cardClassName}

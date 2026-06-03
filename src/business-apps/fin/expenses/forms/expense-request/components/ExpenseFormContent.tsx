@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react'
 import { Form } from 'antd'
 import { InputField, SelectField, TextAreaField, CheckboxGroup } from '@newwork/gravity-ui-catalog'
-import { getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getCatalogValue } from '@/common/utils/windowUtils'
+import { useExpenseRequestCreationTranslation } from '../../expense-request-creation/useExpenseRequestCreationTranslation'
 import { TITLE_MAX_LENGTH, COMMENT_TEXTAREA_ROWS, REQUEST_TYPES } from '../constants/constants'
 interface ExpenseFormContentProps {
   form: any
@@ -29,6 +30,7 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
   setSelectedCostCenter,
   expenseCatalogueData = {}
 }) => {
+  const { t } = useExpenseRequestCreationTranslation()
   const transportationMeans = expenseCatalogueData?.expenseTransportationMeans || []
 
   /**
@@ -83,31 +85,19 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
               rules={[
                 {
                   required: true,
-                  message: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_request.expense_request_container.current_title_custom_rule',
-                    'Please enter a title'
-                  )
+                  message: t('current-title-custom-rule')
                 },
                 {
                   max: TITLE_MAX_LENGTH,
-                  message: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_request.maximum_characters_title_error_message',
-                    'Maximum limit reached: The title can be up to 50 characters only.'
-                  )
+                  message: t('maximum-characters-title-error-message')
                 }
               ]}
               style={{ marginBottom: 0 }}
             >
               <InputField
-                label={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_request_list.expense_plan_table.title',
-                  'Title'
-                )}
+                label={t('form-title-label')}
                 name="title"
-                placeholder={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:create_expense_request.expense_request_container.current_title_placeholder',
-                  'Enter Title'
-                )}
+                placeholder={t('current-title-placeholder')}
                 onChange={(field: any) => form.setFieldsValue({ title: field.value })}
                 required={true}
                 data-testid={`${testIdPrefix}-title-input`}
@@ -124,10 +114,7 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
               rules={[
                 {
                   required: true,
-                  message: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_request.expense_request_container.current_cost_center_custom_rule',
-                    'Please select a cost center'
-                  )
+                  message: t('current-cost-center-custom-rule')
                 }
               ]}
               style={{ marginBottom: 0 }}
@@ -146,14 +133,8 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
                   form.setFieldsValue({ costCenter: value.value })
                   setSelectedCostCenter?.(value.value as string)
                 }}
-                label={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:create_expense_request.expense_request_container.current_cost_center_label',
-                  'Cost Center'
-                )}
-                placeholder={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:create_expense_request.expense_request_container.current_cost_center_placeholder',
-                  'Select Cost Center'
-                )}
+                label={t('current-cost-center-label')}
+                placeholder={t('current-cost-center-placeholder')}
                 value={selectedCostCenter || undefined}
                 required={true}
               />
@@ -176,14 +157,8 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
                   })) || []
                 }
                 onChange={(value: any) => form.setFieldsValue({ project: value.value })}
-                label={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:add_allowance_info_request.select_project',
-                  'Project'
-                )}
-                placeholder={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:add_allowance_info_request.select_project_placeholder',
-                  'Select Project'
-                )}
+                label={t('select-project')}
+                placeholder={t('select-project-placeholder')}
               />
             </Form.Item>
           </div>
@@ -196,14 +171,8 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
               <TextAreaField
                 name="comment"
                 data-testid={`${testIdPrefix}-comment-textarea`}
-                label={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:initiate_expense_plan.create_expense_plan.comment_text_area',
-                  'Comment'
-                )}
-                placeholder={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:initiate_expense_plan.create_expense_plan.comment_text_area_enter',
-                  'Enter Comment'
-                )}
+                label={t('comment-text-area')}
+                placeholder={t('comment-text-area-enter')}
                 onChange={(field: any) => form.setFieldsValue({ comment: field.value })}
                 rows={COMMENT_TEXTAREA_ROWS}
               />
@@ -219,10 +188,7 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
                 name="transportationMeans"
                 label={
                   <div style={{ paddingBottom: '15px', fontWeight: 500, fontStyle: 'normal', fontSize: '14px' }}>
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:create_expense_request.expense_request_container.transportation_checkbox',
-                      'Means of Transportation'
-                    )}
+                    {t('transportation-checkbox')}
                   </div>
                 }
                 style={{ marginBottom: 0 }}

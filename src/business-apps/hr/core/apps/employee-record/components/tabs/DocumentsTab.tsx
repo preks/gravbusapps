@@ -31,7 +31,7 @@ import { useFileClient } from '@/common/network/files/useFileClient'
 import { employeeDocumentsQuery, documentTypeCatalogQuery } from '../../queries/documentQueries'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { formatDate as formatLocaleDate, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
 import { AppAction } from '@/components/app-action/AppAction'
 import { EmployeeDocumentClient } from '../../services/employeeDocumentApi'
@@ -409,8 +409,8 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
           doc.documentGroup?.toLowerCase().includes(query) ||
           doc.description?.toLowerCase().includes(query) ||
           doc.createdBy?.toLowerCase().includes(query) ||
-          (doc.uploadDate && dayjs(doc.uploadDate).format('MMM D, YYYY').toLowerCase().includes(query)) ||
-          (doc.validTo && dayjs(doc.validTo).format('MMM D, YYYY').toLowerCase().includes(query))
+          (doc.uploadDate && formatDate(doc.uploadDate).toLowerCase().includes(query)) ||
+          (doc.validTo && formatDate(doc.validTo).toLowerCase().includes(query))
         )
       } else {
         switch (searchField) {
@@ -425,9 +425,9 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
           case 'createdBy':
             return doc.createdBy?.toLowerCase().includes(query)
           case 'uploadDate':
-            return doc.uploadDate && dayjs(doc.uploadDate).format('MMM D, YYYY').toLowerCase().includes(query)
+            return doc.uploadDate && formatDate(doc.uploadDate).toLowerCase().includes(query)
           case 'validTo':
-            return doc.validTo && dayjs(doc.validTo).format('MMM D, YYYY').toLowerCase().includes(query)
+            return doc.validTo && formatDate(doc.validTo).toLowerCase().includes(query)
           default:
             return false
         }
@@ -570,7 +570,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
   }
 
   const formatDate = (dateString: string): string => {
-    return dayjs(dateString).format('MMM D, YYYY')
+    return formatLocaleDate(dateString, 'date.medium') ?? dayjs(dateString).format('MMM D, YYYY')
   }
 
   const getDocumentTypeIcon = (document: Document) => {
@@ -1121,9 +1121,9 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
                         </div>
                         <div className="gba:mt-1 gba:text-sm">
                           {currentDocument?.createdAt
-                            ? dayjs(currentDocument.createdAt).format('MMM D, YYYY')
+                            ? formatDate(currentDocument.createdAt)
                             : currentDocument?.uploadDate
-                              ? dayjs(currentDocument.uploadDate).format('MMM D, YYYY')
+                              ? formatDate(currentDocument.uploadDate)
                               : t('documents-detail-na')}
                         </div>
                       </div>
@@ -1146,7 +1146,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
                             <span
                               className={`gba:px-2 gba:py-1 gba:rounded-full gba:text-xs ${currentDocument.validTo < dayjs().format('YYYY-MM-DD') ? 'gba:bg-warning-secondary gba:text-warning' : 'gba:bg-success-secondary gba:text-success-secondary-foreground'}`}
                             >
-                              {dayjs(currentDocument.validTo).format('MMM D, YYYY')}
+                              {formatDate(currentDocument.validTo)}
                             </span>
                           ) : (
                             t('documents-detail-na')

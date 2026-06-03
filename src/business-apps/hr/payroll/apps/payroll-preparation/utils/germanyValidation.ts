@@ -69,7 +69,11 @@ export function runGermanyValidation(employee: PayrollEmployee, translate: Issue
     )
   }
 
-  if (employee.terminationDate && employee.readinessStatus !== 'excluded') {
+  if (
+    employee.employmentStatus === 'terminated' &&
+    employee.terminationDate &&
+    employee.readinessStatus !== 'excluded'
+  ) {
     issues.push(
       createIssue(
         employee.employeeId,

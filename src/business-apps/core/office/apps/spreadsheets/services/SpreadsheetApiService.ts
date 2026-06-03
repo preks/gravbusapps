@@ -26,6 +26,7 @@ import {
 } from '@/business-apps/platform/apps/shared/utils/spreadsheetServiceUrl'
 import { normalizeSpreadsheetColumnsForDisplay } from '../utils/normalizeSpreadsheetColumnsForDisplay'
 import type { SpreadsheetRowRef } from '../utils/spreadsheetRowIdentity'
+import type { SpreadsheetDirtyRegion } from '../utils/spreadsheetDirtyRegions'
 import type {
   SpreadsheetTraceEvent,
   SpreadsheetTraceEventInput,
@@ -63,6 +64,42 @@ export class SpreadsheetApiRequestError extends Error {
     this.status = status
     this.details = details
   }
+}
+
+const getSpreadsheetBatchErrorPayloadRecord = (details: unknown): Record<string, unknown> | undefined => {
+  if (!details || typeof details !== 'object') return undefined
+  const record = details as Record<string, unknown>
+  if (typeof record.code === 'string' || typeof record.retryable === 'boolean') {
+    return record
+  }
+  if (record.message && typeof record.message === 'object') {
+    return getSpreadsheetBatchErrorPayloadRecord(record.message)
+  }
+  return undefined
+}
+
+/** Structured batch error payload from operations/batch failures (Nest exception body). */
+export function getSpreadsheetBatchErrorPayload(details: unknown): Record<string, unknown> | undefined {
+  return getSpreadsheetBatchErrorPayloadRecord(details)
+}
+
+export function getSpreadsheetBatchErrorCode(details: unknown): string | undefined {
+  const payload = getSpreadsheetBatchErrorPayload(details)
+  const code = payload?.code
+  return typeof code === 'string' ? code : undefined
+}
+
+export function isSpreadsheetBatchErrorExplicitlyNonRetryable(details: unknown): boolean {
+  const payload = getSpreadsheetBatchErrorPayload(details)
+  return payload?.retryable === false
+}
+
+export function getSpreadsheetBatchRequestedGridRowIndex(details: unknown): number | undefined {
+  const payload = getSpreadsheetBatchErrorPayload(details)
+  const raw = payload?.requestedGridRowIndex
+  if (typeof raw === 'number' && Number.isFinite(raw)) return Math.trunc(raw)
+  if (typeof raw === 'string' && /^\d+$/.test(raw)) return Number(raw)
+  return undefined
 }
 
 /** Server sheet version from operations/batch 409 (Nest ConflictException body). */
@@ -246,6 +283,7 @@ export interface SpreadsheetBatchOperation {
 export interface SpreadsheetBatchRowMapping {
   clientRowId: string
   rowUuid: string
+  gridRowIndex?: number
 }
 
 export interface SpreadsheetBatchOperationResponse {
@@ -259,9 +297,40 @@ export interface SpreadsheetBatchOperationResponse {
     operationId: string
     type: SpreadsheetBatchOperation['type']
     result: Record<string, unknown>
+    dirtyRegions?: SpreadsheetDirtyRegion[]
   }>
+  dirtyRegions?: SpreadsheetDirtyRegion[]
   idempotentReplay: boolean
   rowMappings?: SpreadsheetBatchRowMapping[]
+  gridRowIndexByRowUuid?: Record<string, number>
+  removedRowUuids?: string[]
+  committedBatch?: Record<string, unknown> | null
+  /**
+   * Tier 1 per-op resolution (per-(rowId, columnName) backend conflict
+   * resolution). One entry per submitted operation, in submission order.
+   *
+   * - `accepted` ops were applied at `newVersion`.
+   * - `rejected_conflict` ops were skipped because another writer changed the
+   *   same cell field between the client's `baseVersion` and the server's
+   *   current version. The client should paint each `serverState` entry
+   *   into the local session (last-writer-wins convergence).
+   *
+   * Older backends (pre-Tier-1) omit this field; clients should treat
+   * `undefined` as "everything accepted, no painting needed".
+   */
+  results?: Array<
+    | { operationId: string; status: 'accepted' }
+    | {
+        operationId: string
+        status: 'rejected_conflict'
+        serverState: Array<{
+          rowId: string
+          columnName: string
+          field: 'value'
+          value: unknown
+        }>
+      }
+  >
 }
 
 export interface SpreadsheetBatchRowCellInput {
@@ -941,6 +1010,7 @@ export const SpreadsheetApiService = {
       baseVersion: number
       operations: SpreadsheetBatchOperation[]
       batchId?: string
+      clientMutationId?: string
       traceSessionId?: string
       traceId?: string
       sessionId?: string
@@ -1208,9 +1278,10 @@ export const SpreadsheetApiService = {
     version: number
     updatedAt: string | null
     snapshot: Record<string, unknown> | null
+    coversVersions: Record<string, number>
   }> {
     if (supportsUniverSnapshotEndpoint === false) {
-      return { appId, version: 0, updatedAt: null, snapshot: null }
+      return { appId, version: 0, updatedAt: null, snapshot: null, coversVersions: {} }
     }
 
     try {
@@ -1219,14 +1290,22 @@ export const SpreadsheetApiService = {
         version: number
         updatedAt: string | null
         snapshot: Record<string, unknown> | null
+        coversVersions?: Record<string, number>
       }>(SPREADSHEET_CORE_API_URL, spreadsheetEndpoint(`/${appId}/univer-snapshot`))
       supportsUniverSnapshotEndpoint = true
-      return { appId, version: response.version, updatedAt: response.updatedAt, snapshot: response.snapshot }
+      return {
+        appId,
+        version: response.version,
+        updatedAt: response.updatedAt,
+        snapshot: response.snapshot,
+        coversVersions:
+          response.coversVersions && typeof response.coversVersions === 'object' ? response.coversVersions : {}
+      }
     } catch (error) {
       if (error instanceof SpreadsheetApiRequestError && (error.status === 404 || error.status === 501)) {
         supportsUniverSnapshotEndpoint = false
         console.warn('[SpreadsheetApiService] univer-snapshot endpoint unavailable; using row-data-only initialization')
-        return { appId, version: 0, updatedAt: null, snapshot: null }
+        return { appId, version: 0, updatedAt: null, snapshot: null, coversVersions: {} }
       }
       throw error
     }

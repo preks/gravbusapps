@@ -1,6 +1,7 @@
 import React from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Avatar, AvatarFallback, AvatarImage } from '@newwork/nw-design-system'
+import { Avatar, AvatarFallback, AvatarImage, Button } from '@newwork/nw-design-system'
+import { Download } from 'lucide-react'
 import type { FlowTemplate } from '@/common/network/flows/FlowTemplateClient'
 import type { UserInfo } from '@/business-apps/platform/apps/spaces/hooks/useSpaceUserLookup'
 
@@ -38,8 +39,9 @@ export function createFlowStudioListColumns(params: {
   getCreatorInfo: (userId: string) => UserInfo | undefined
   getAppCode: (row: FlowTemplateRow) => string
   showCreatorColumn: boolean
+  onExportTemplate?: (templateId: string) => void
 }): ColumnDef<FlowTemplateRow>[] {
-  const { t, appLabelByCode, getCreatorInfo, getAppCode, showCreatorColumn } = params
+  const { t, appLabelByCode, getCreatorInfo, getAppCode, showCreatorColumn, onExportTemplate } = params
 
   const base: ColumnDef<FlowTemplateRow>[] = [
     {
@@ -104,6 +106,38 @@ export function createFlowStudioListColumns(params: {
       )
     }
   ]
+
+  if (onExportTemplate) {
+    base.push({
+      id: 'actions',
+      header: '',
+      size: 44,
+      minSize: 44,
+      maxSize: 44,
+      meta: { align: 'right' },
+      cell: ({ row }) => {
+        const templateId = String(row.original.templateId || row.original.id || '').trim()
+        return (
+          <div className="gba:flex gba:justify-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              onClick={event => {
+                event.stopPropagation()
+                if (templateId) onExportTemplate(templateId)
+              }}
+              disabled={!templateId}
+              data-testid={`flow-template-export-${templateId || row.index}`}
+            >
+              <Download className="gba:h-4 gba:w-4" />
+              <span className="gba:sr-only">{t('studio-export-flow')}</span>
+            </Button>
+          </div>
+        )
+      }
+    })
+  }
 
   if (!showCreatorColumn) return base
 

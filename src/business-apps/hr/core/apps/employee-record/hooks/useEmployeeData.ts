@@ -3,6 +3,19 @@ import { useGraphqlClient } from '../../../../../../common/network/graphql/useGr
 import { getCurrentActiveUserLocale } from '../../../../../../common/utils/windowUtils'
 import { getTranslatedValue } from '../utils/formatters'
 
+export enum EmployeeSkillStatus {
+  UNKNOWN_EMPLOYEE_SKILL_STATUS = 'UNKNOWN_EMPLOYEE_SKILL_STATUS',
+  PENDING_EMPLOYEE_SKILL_STATUS = 'PENDING_EMPLOYEE_SKILL_STATUS',
+  APPROVED_EMPLOYEE_SKILL_STATUS = 'APPROVED_EMPLOYEE_SKILL_STATUS',
+  REJECTED_EMPLOYEE_SKILL_STATUS = 'REJECTED_EMPLOYEE_SKILL_STATUS'
+}
+
+const VISIBLE_EMPLOYEE_SKILL_STATUSES: EmployeeSkillStatus[] = [
+  EmployeeSkillStatus.UNKNOWN_EMPLOYEE_SKILL_STATUS,
+  EmployeeSkillStatus.PENDING_EMPLOYEE_SKILL_STATUS,
+  EmployeeSkillStatus.APPROVED_EMPLOYEE_SKILL_STATUS
+]
+
 /**
  * GraphQL query to fetch employee data including:
  * - Personal information
@@ -12,7 +25,13 @@ import { getTranslatedValue } from '../utils/formatters'
  * - Performance goals
  */
 export const GET_EMPLOYEE_DATA = /*sql*/ `
- query GetEmployeeData($employeeId: uuid!, $structureId: uuid, $hasStructureId: Boolean!, $activeUserLocale: String!) {
+ query GetEmployeeData(
+   $employeeId: uuid!
+   $structureId: uuid
+   $hasStructureId: Boolean!
+   $activeUserLocale: String!
+   $employeeSkillStatuses: [String!]!
+ ) {
  Catalog(where: {identifier: {_eq: "AcademicTitle"}}) {
     id
     catalogEntries(where: {isDeleted: {_eq: false}}) {
@@ -115,7 +134,12 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
       pictureThumbnail
       userId
       additionalProperties
-      skills(where: {isDeleted: {_eq: false}}) {
+      skills(
+        where: {
+          isDeleted: {_eq: false}
+          employeeSkillStatus: {_in: $employeeSkillStatuses}
+        }
+      ) {
         id
         level
         isDeleted
@@ -193,6 +217,9 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         type {
           id
           value
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            value
+          }
         }
         firstName
         lastName
@@ -200,7 +227,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         phoneNumber
         email
       }
-      communication {
+      communication(where: { isDeleted: { _eq: false } }) {
         id
         version
         channelRef
@@ -208,12 +235,18 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         purpose
         type {
           value
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            value
+          }
         }
         channel {
           value
           code
           additionalValue1
           objectValue
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            value
+          }
         }
       }
       workingCondition(
@@ -229,14 +262,26 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         contractType {
           value
           id
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            localeCode
+            value
+          }
         }
         employmentType {
           value
           id
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            localeCode
+            value
+          }
         }
         region {
           value
           id
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            localeCode
+            value
+          }
           parentEntry {
             code
           }
@@ -244,6 +289,10 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         remote {
           id
           value
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            localeCode
+            value
+          }
         }
         hireDate
         vacationDays
@@ -399,7 +448,8 @@ export const useEmployeeData = (
         employeeId,
         structureId: structureId ?? '',
         hasStructureId: !!structureId,
-        activeUserLocale: getCurrentActiveUserLocale()
+        activeUserLocale: getCurrentActiveUserLocale(),
+        employeeSkillStatuses: VISIBLE_EMPLOYEE_SKILL_STATUSES
       }
       const result = await client.request<EmployeeData>(GET_EMPLOYEE_DATA, variables)
       setData(result)
@@ -419,7 +469,8 @@ export const useEmployeeData = (
         employeeId,
         structureId: structureId ?? '',
         hasStructureId: !!structureId,
-        activeUserLocale: getCurrentActiveUserLocale()
+        activeUserLocale: getCurrentActiveUserLocale(),
+        employeeSkillStatuses: VISIBLE_EMPLOYEE_SKILL_STATUSES
       }
       const result = await client.request<EmployeeData>(GET_EMPLOYEE_DATA, variables)
       setData(result)
@@ -501,13 +552,6 @@ export interface EmployeeData {
   EmployeeFeedback: EmployeeFeedback[]
   EmployeeAbsenceEntitlement: EmployeeAbsenceEntitlement[]
   EmployeePerformanceGoal: EmployeePerformanceGoal[]
-}
-
-export enum EmployeeSkillStatus {
-  UNKNOWN_SKILL_STATUS = 'UNKNOWN_SKILL_STATUS',
-  PENDING_SKILL_STATUS = 'PENDING_SKILL_STATUS',
-  APPROVED_SKILL_STATUS = 'APPROVED_SKILL_STATUS',
-  REJECTED_SKILL_STATUS = 'REJECTED_SKILL_STATUS'
 }
 
 interface EmployeeSkill {
@@ -714,12 +758,18 @@ interface Communication {
   purpose: string
   type: {
     value: string
+    translations?: {
+      value: string
+    }[]
   }
   channel: {
     value: string
     code: string
     additionalValue1: string
     objectValue?: Record<string, unknown> | null
+    translations?: {
+      value: string
+    }[]
   }
 }
 

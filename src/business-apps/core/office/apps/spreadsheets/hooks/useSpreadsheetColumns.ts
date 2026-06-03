@@ -40,6 +40,7 @@ export interface UseSpreadsheetColumnsProps {
    * no longer a WS P2P fallback — the server is the single broadcaster.
    */
   emitColumnBatchOperation?: (op: SpreadsheetBatchOperation) => void
+  emitColumnBatchOperations?: (ops: SpreadsheetBatchOperation[]) => void
 }
 
 export interface SpreadsheetColumnsState {
@@ -157,7 +158,8 @@ export function useSpreadsheetColumns({
   commitOptimisticActiveSheetRows,
   handleCellChangeRef,
   onAppUpdate,
-  emitColumnBatchOperation
+  emitColumnBatchOperation,
+  emitColumnBatchOperations
 }: UseSpreadsheetColumnsProps): SpreadsheetColumnsState {
   const readCanonicalActiveRows = (): Record<string, unknown>[] =>
     canonicalActiveSheetRowsSourceRef?.current() ?? localSheetDataRef.current
@@ -174,6 +176,10 @@ export function useSpreadsheetColumns({
   useEffect(() => {
     emitColumnBatchOperationRef.current = emitColumnBatchOperation
   }, [emitColumnBatchOperation])
+  const emitColumnBatchOperationsRef = useRef(emitColumnBatchOperations)
+  useEffect(() => {
+    emitColumnBatchOperationsRef.current = emitColumnBatchOperations
+  }, [emitColumnBatchOperations])
   const appRef = useRef(app)
   useEffect(() => {
     appRef.current = app
@@ -266,6 +272,18 @@ export function useSpreadsheetColumns({
     },
     []
   )
+
+  const dispatchColumnBatchOps = useCallback((operations: SpreadsheetBatchOperation[]): void => {
+    if (operations.length === 0) return
+    const emitMany = emitColumnBatchOperationsRef.current
+    if (emitMany) {
+      emitMany(operations)
+      return
+    }
+    const emit = emitColumnBatchOperationRef.current
+    if (!emit) return
+    operations.forEach(operation => emit(operation))
+  }, [])
 
   // Inline editing state
   const [editingColumnId, setEditingColumnIdState] = useState<string | null>(null)
@@ -392,7 +410,11 @@ export function useSpreadsheetColumns({
       const currentColumns = latestColumnsRef.current
       if (!activeSheet || currentColumns.length <= 1) return
 
-      const columnToDelete = currentColumns.find(col => col.id === columnId)
+      const sortedColumns = [...currentColumns].sort((a, b) => a.order - b.order)
+      const columnToDelete = sortedColumns.find(col => col.id === columnId)
+      const visibleDeleteIndex = sortedColumns
+        .filter(col => col.isVisible !== false)
+        .findIndex(col => col.id === columnId)
 
       // Remove the deleted column and assign clean sequential orders
       const updatedColumns = currentColumns
@@ -414,7 +436,11 @@ export function useSpreadsheetColumns({
       hasPendingColumnChanges.current = true
 
       applyColumnsLocal(updatedColumns, 'handleDeleteColumn', { data: updatedData })
-      dispatchColumnBatchOp('column_delete', { sheetId: activeSheet.id, columnId })
+      dispatchColumnBatchOp('column_delete', {
+        sheetId: activeSheet.id,
+        columnId,
+        ...(visibleDeleteIndex >= 0 ? { visibleDeleteIndex, deleteCount: 1 } : {})
+      })
     },
     [
       activeSheet,
@@ -591,12 +617,23 @@ export function useSpreadsheetColumns({
       hasPendingColumnChanges.current = true
 
       applyColumnsLocal(allColumns, 'handleColumnsInsert')
-      newColumns.forEach(col => {
-        dispatchColumnBatchOp('column_add', { sheetId: activeSheet.id, column: col })
-      })
+      const visibleInsertIndex = sortedColumns
+        .slice(0, fullInsertAt)
+        .filter(column => column.isVisible !== false).length
+      dispatchColumnBatchOps(
+        newColumns.map((col, index) => ({
+          operationId: createColumnOperationId('column_add'),
+          type: 'column_add',
+          data: {
+            sheetId: activeSheet.id,
+            column: col,
+            ...(index === 0 ? { visibleInsertIndex, insertCount: count } : {})
+          }
+        }))
+      )
       return allColumns
     },
-    [activeSheet, applyColumnsLocal, dispatchColumnBatchOp]
+    [activeSheet, applyColumnsLocal, dispatchColumnBatchOps]
   )
 
   // Delete columns handler (from FortuneSheet context menu: delete column)
@@ -641,16 +678,26 @@ export function useSpreadsheetColumns({
       hasPendingColumnChanges.current = true
 
       applyColumnsLocal(remainingColumns, 'handleColumnsDelete', { data: updatedData })
-      deletedColumns.forEach(col => {
-        dispatchColumnBatchOp('column_delete', { sheetId: activeSheet.id, columnId: col.id })
-      })
+      const visibleDeleteIndex = startIndex
+      const deleteCount = deletedColumns.length
+      dispatchColumnBatchOps(
+        deletedColumns.map((col, index) => ({
+          operationId: createColumnOperationId('column_delete'),
+          type: 'column_delete',
+          data: {
+            sheetId: activeSheet.id,
+            columnId: col.id,
+            ...(index === 0 ? { visibleDeleteIndex, deleteCount } : {})
+          }
+        }))
+      )
       return { columns: remainingColumns, data: updatedData }
     },
     [
       activeSheet,
       applyColumnsLocal,
       commitOptimisticActiveSheetRows,
-      dispatchColumnBatchOp,
+      dispatchColumnBatchOps,
       canonicalActiveSheetRowsSourceRef,
       localSheetDataRef
     ]

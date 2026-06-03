@@ -60,6 +60,8 @@ export interface SkillBinding {
   approval_policy?: ApprovalPolicy
   priority?: number
   enabled?: boolean
+  version?: number | null
+  follow_latest?: boolean
 }
 
 export interface ProviderToolCatalogItem {
@@ -83,17 +85,34 @@ export interface ProviderToolCatalogItem {
 }
 
 /**
- * Stage 1 v2 provider-tool entry. Returned from
- * GET /api/v2/provider-tools, which collapses the active flowbot +
- * functions surface into a single response keyed by canonical name.
+ * Unified v2 provider-tool entry. Returned from
+ * GET /api/v2/provider-tools, which collapses every picker-attachable
+ * provider surface into a single response keyed by canonical name —
+ * flowbot, functions, prompt_manager (native Deep Agent tools), mcp
+ * (Connect MCP), and the skill-attachable subset of platform builtins.
  *
- * Persistence rule: skill yaml continues to store ``tool_ref`` in
- * Stage 1 — ``canonical_name`` is the LLM-facing display name only.
+ * Persistence rule: skill yaml continues to store ``tool_ref`` —
+ * ``canonical_name`` is the LLM-facing display name only.
  */
 export interface CanonicalProviderToolEntry {
   tool_ref: string
   canonical_name: string
-  source: 'flowbot' | 'functions'
+  /**
+   * Human-facing UI label, free of source-history prefixes (``newwork_``,
+   * ``function_``, …). Render this as the primary text in the picker and
+   * keep ``tool_ref`` as the small technical badge. Distinct from
+   * ``canonical_name`` (the LLM function-call name). May be empty on
+   * responses from an older backend — callers should fall back to
+   * ``canonical_name``.
+   */
+  display_name?: string
+  /**
+   * Provider source. Stage 2 broadens this to every provider the picker
+   * can attach to a skill: ``flowbot`` and ``functions`` plus
+   * ``prompt_manager`` (native Deep Agent tools), ``mcp`` (Connect MCP),
+   * and ``builtin`` (skill-attachable platform builtins).
+   */
+  source: 'flowbot' | 'functions' | 'prompt_manager' | 'mcp' | 'builtin'
   description: string
   input_schema: Record<string, unknown>
   output_schema: Record<string, unknown>
@@ -101,6 +120,66 @@ export interface CanonicalProviderToolEntry {
   shadowed_by: string | null
   /** False when entry is a static stub because live catalog was unreachable */
   catalog_available: boolean
+  /**
+   * Primary category bucket from the existing ``CATEGORY_TO_TOOL_NAMES``
+   * taxonomy (HR, CRM, web, charts, mcp, etc.). The picker UI groups
+   * tools by this field so users see the same buckets the runtime
+   * selector uses.
+   */
+  category?: string | null
+  /**
+   * Free-form labels carried from each provider — capability tags for
+   * flowbot/functions/mcp/builtin, manifest verbs+entities+business_domain
+   * for native ``prompt_manager.*`` entries. Used to widen substring search
+   * beyond just name/description without adding a separate index.
+   */
+  tags?: string[]
+  /**
+   * True when this tool's canonical name is on the service-global disabled
+   * list. Disabled tools remain in the picker (block-only UX) but are
+   * stripped from both the Deep Agent and Expert/PromptODM runtimes.
+   * May be absent on responses from an older backend.
+   */
+  disabled?: boolean
+  /**
+   * Companion tools this tool usually needs first (e.g. a write flow that
+   * links to a parent entity lists the search/read tools that resolve the
+   * parent id). Empty/absent for tools with no dependencies. The picker
+   * surfaces these as a non-modal "also add" hint with a link to each
+   * companion's detail.
+   */
+  related_tools?: RelatedToolRef[]
+}
+
+/** One companion-tool association attached to a provider tool entry. */
+export interface RelatedToolRef {
+  /** Provider-qualified ref of the companion tool (e.g. ``flowbot.run_internal_search``). */
+  tool_ref: string
+  /** Why it relates: a catalog-value lookup or a parent-entity lookup. */
+  relation: 'catalog_lookup' | 'entity_lookup'
+  /** How strongly it is needed for THIS tool. */
+  necessity: 'required' | 'conditional' | 'recommended'
+  /** Human-readable explanation shown in the hint. */
+  reason: string
+  /** Schema fields this companion helps resolve. */
+  for_fields: string[]
+}
+
+/** One flow's companion bindings with provenance, for the Tools-page editor. */
+export interface FlowBindingEntry {
+  flow_name: string
+  tool_ref: string
+  /** Rows currently in force (generated base + overrides). */
+  effective: RelatedToolRef[]
+  /** Schema-derived base rows, for "reset to generated". */
+  generated: RelatedToolRef[]
+  /** Which layer supplies the effective rows: 'persisted' | 'code' | null (base). */
+  source: 'persisted' | 'code' | null
+}
+
+/** Service-global set of disabled (blocked) canonical tool names. */
+export interface ToolAvailabilityResponse {
+  disabled_tool_names: string[]
 }
 
 export interface DeepAgentDebugTrace {
@@ -829,6 +908,39 @@ export class PromptManagerClient extends RestClient {
     })
   }
 
+  /** Read the service-global set of disabled (blocked) canonical tool names. */
+  async getToolAvailability(): Promise<ToolAvailabilityResponse> {
+    return this.get<ToolAvailabilityResponse>('/../v2/tool-availability')
+  }
+
+  /**
+   * Enable or disable one tool globally by canonical name. Disabled tools
+   * stay visible in pickers but are stripped from both runtimes.
+   */
+  async setToolAvailability(canonicalName: string, disabled: boolean): Promise<ToolAvailabilityResponse> {
+    return this.put<ToolAvailabilityResponse>('/../v2/tool-availability', {
+      canonical_name: canonicalName,
+      disabled
+    })
+  }
+
+  /**
+   * Read the per-flow companion bindings for the Tools-page editor. Returns
+   * the effective rows (generated base + overrides), the generated base (for
+   * "reset"), and which layer is in force per flow.
+   */
+  async getFlowBindings(): Promise<FlowBindingEntry[]> {
+    return this.get<FlowBindingEntry[]>('/../v2/flow-bindings')
+  }
+
+  /**
+   * Persist (``rows``) or clear (``rows: null``) a UI override for one flow's
+   * companion bindings. Clearing reverts to the generated base.
+   */
+  async updateFlowBinding(flowName: string, rows: RelatedToolRef[] | null): Promise<FlowBindingEntry> {
+    return this.put<FlowBindingEntry>(`/../v2/flow-bindings/${encodeURIComponent(flowName)}`, { rows })
+  }
+
   async invokeEnterpriseTool(toolRef: string, payload: Record<string, unknown>): Promise<Record<string, unknown>> {
     return this.post<Record<string, unknown>>('/enterprise-ai/tools/invoke', {
       tool_ref: toolRef,
@@ -1233,16 +1345,41 @@ export class PromptManagerClient extends RestClient {
   async getAgentSkills(agentId: string): Promise<{
     agent_id: string
     source: string
-    skills: Array<{ skill_id: string; name: string; description: string; status: string }>
+    skills: Array<{
+      skill_id: string
+      name: string
+      description: string
+      status: string
+      version?: number | null
+      follow_latest?: boolean
+      published_version?: number | null
+      current_version?: number
+      enabled?: boolean
+    }>
+    skill_bindings?: Array<{
+      skill_id: string
+      name: string
+      description: string
+      status: string
+      version?: number | null
+      follow_latest?: boolean
+      published_version?: number | null
+      current_version?: number
+      enabled?: boolean
+    }>
   }> {
     return this.get(`/agents/registry/${encodeURIComponent(agentId)}/skills`)
   }
 
   async setAgentSkills(
     agentId: string,
-    skillIds: string[]
-  ): Promise<{ agent_id: string; skill_ids: string[]; count: number }> {
-    return this.put(`/agents/registry/${encodeURIComponent(agentId)}/skills`, { skill_ids: skillIds })
+    skillIdsOrBindings: string[] | SkillBinding[]
+  ): Promise<{ agent_id: string; skill_ids: string[]; skill_bindings?: SkillBinding[]; count: number }> {
+    const payload =
+      Array.isArray(skillIdsOrBindings) && skillIdsOrBindings.length > 0 && typeof skillIdsOrBindings[0] === 'object'
+        ? { skill_bindings: skillIdsOrBindings as SkillBinding[] }
+        : { skill_ids: skillIdsOrBindings as string[] }
+    return this.put(`/agents/registry/${encodeURIComponent(agentId)}/skills`, payload)
   }
 
   /**
@@ -1592,6 +1729,16 @@ export class PromptManagerClient extends RestClient {
     await this.delete<void>(`/scheduled-dispatches/${encodeURIComponent(dispatchId)}`)
   }
 
+  /**
+   * Permanently delete a scheduled dispatch regardless of status.
+   * Used to remove finished (fired/cancelled/failed) tasks from the list.
+   */
+  async deleteScheduledDispatch(dispatchId: string): Promise<void> {
+    await this.delete<void>(`/scheduled-dispatches/${encodeURIComponent(dispatchId)}`, {
+      params: { hard: true }
+    })
+  }
+
   async updateScheduledDispatch(
     dispatchId: string,
     body: {
@@ -1608,6 +1755,37 @@ export class PromptManagerClient extends RestClient {
 
   async retryScheduledDispatch(dispatchId: string): Promise<ScheduledDispatch> {
     return this.post<ScheduledDispatch>(`/scheduled-dispatches/${encodeURIComponent(dispatchId)}/retry`, {})
+  }
+
+  /** Fire a scheduled dispatch immediately without waiting for its scheduled time.
+   *  Recurring schedules keep their next occurrence unchanged. */
+  async runScheduledDispatchNow(dispatchId: string): Promise<ScheduledDispatch> {
+    return this.post<ScheduledDispatch>(`/scheduled-dispatches/${encodeURIComponent(dispatchId)}/run-now`, {})
+  }
+
+  // --- Scheduled Task Templates ---
+
+  /** List built-in (system) templates plus the current user's own templates. */
+  async getScheduledTaskTemplates(): Promise<ScheduledTaskTemplate[]> {
+    return this.get<ScheduledTaskTemplate[]>('/scheduled-task-templates')
+  }
+
+  /** Create a personal template the current user can reuse later. */
+  async createScheduledTaskTemplate(body: {
+    title: string
+    task: string
+    description?: string
+    icon?: string
+    defaultFrequency?: ScheduledTaskFrequency
+    defaultTime?: string
+    defaultWeekday?: number | null
+  }): Promise<ScheduledTaskTemplate> {
+    return this.post<ScheduledTaskTemplate>('/scheduled-task-templates', body)
+  }
+
+  /** Delete a personal template. System templates cannot be deleted (403). */
+  async deleteScheduledTaskTemplate(templateId: string): Promise<void> {
+    await this.delete<void>(`/scheduled-task-templates/${encodeURIComponent(templateId)}`)
   }
 }
 
@@ -1642,4 +1820,25 @@ export interface ScheduledDispatch {
 export interface ScheduledDispatchPage {
   data: ScheduledDispatch[]
   total: number
+}
+
+export type ScheduledTaskFrequency = 'daily' | 'weekly' | 'monthly'
+
+export interface ScheduledTaskTemplate {
+  templateId: string
+  title: string
+  description: string
+  /** Icon key mapped to a Phosphor icon in the UI. */
+  icon: string
+  /** Agent task prompt run on each recurrence. */
+  task: string
+  defaultFrequency: ScheduledTaskFrequency
+  /** HH:MM (24h), interpreted in the user's local timezone. */
+  defaultTime: string
+  /** 0=Mon .. 6=Sun, used for weekly defaults. */
+  defaultWeekday?: number | null
+  kind: 'agent_session' | 'task_notification'
+  /** True for built-in templates (shown to everyone, not deletable). */
+  isSystem: boolean
+  sortOrder: number
 }

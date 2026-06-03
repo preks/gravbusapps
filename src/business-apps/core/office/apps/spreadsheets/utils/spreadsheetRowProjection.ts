@@ -1,5 +1,5 @@
 import type { ViewerRow } from './spreadsheetRowIdentity'
-import { getClientRowIdentity } from './spreadsheetRowIdentity'
+import { getClientRowIdentity, rowMatchesRemoteId } from './spreadsheetRowIdentity'
 import { getViewerRowVisualIndex, sortRowsByCanonicalVisualOrder } from './spreadsheetPeerRowHydration'
 
 export interface SpreadsheetResolvedVisibleRowIndex {
@@ -22,6 +22,19 @@ export interface SpreadsheetRowProjectionModel {
   isIdentityProjection: boolean
   resolveVisibleRowIndex: (visibleRowIndex: number) => SpreadsheetResolvedVisibleRowIndex
   resolveVirtualSlot: (virtualSlot: number) => SpreadsheetResolvedVirtualSlot
+}
+
+/** Single identity-aware lookup: row UUID / client id → Univer visual slot (`_gridRowIndex`). */
+export function resolveViewerRowIndexForRemoteId(rows: ViewerRow[], remoteRowId: string): number | undefined {
+  if (!remoteRowId) return undefined
+  const canonicalRows = sortRowsByCanonicalVisualOrder(rows)
+  for (let index = 0; index < canonicalRows.length; index += 1) {
+    const row = canonicalRows[index]
+    if (rowMatchesRemoteId(row, remoteRowId)) {
+      return getViewerRowVisualIndex(row, index)
+    }
+  }
+  return undefined
 }
 
 export function createIdentityRowProjectionModel(rows: ViewerRow[]): SpreadsheetRowProjectionModel {

@@ -77,16 +77,19 @@ export const WorkflowDisplay: React.FC<WorkflowDisplayProps> = ({
       draftId: workflowId
     })}#manage`
 
+    // Prefer backend-provided link (draft handoff, special routes, etc.)
     if (link) {
       const normalizedLink = link.trim()
+      // Draft handoff: the link contains `draftId` so it can be copy/pasted across browsers.
       const isDraftLink = normalizedLink.includes('/flow/draft') || normalizedLink.includes('draftId=')
       const isFlowStudioLink = normalizedLink.includes('/platform/create/flow-studio')
-
       if (isDraftLink) {
         navigateTo(normalizedLink, { forceReload: true })
         return
       }
 
+      // Older workflow-draft payloads may still carry a `flowId` Flow Studio
+      // URL even though the entity actually represents an unsaved draft.
       if (isDraft && isFlowStudioLink) {
         navigateTo(draftUrl, { forceReload: true })
         return

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type { ContentType } from '../types/contentTypes'
-import { buildContentTypesQuery } from '../queries/contentQueries'
+import { buildContentTypesQuery, buildContentTypesVariables } from '../queries/contentQueries'
 
 interface UseContentTypeOptionsResult {
   options: ContentType[]
@@ -28,8 +28,9 @@ export const useContentTypeOptions = (
       setIsLoading(true)
       setError(null)
       try {
-        const query = buildContentTypesQuery(contentGroup)
-        const response = await graphqlClient.request<{ ContentType: ContentType[] }>(query)
+        const query = buildContentTypesQuery()
+        const variables = buildContentTypesVariables(contentGroup)
+        const response = await graphqlClient.request<{ ContentType: ContentType[] }>(query, variables)
         if (!cancelled) {
           setOptions(
             (response.ContentType || []).map(contentType => ({

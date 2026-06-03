@@ -2,11 +2,11 @@
  * SessionStreamRegistry
  *
  * A small singleton registry of live per-session SSE streams. Each entry
- * owns exactly one `EventSource` and accumulates dedup'd, batched events so
+ * owns exactly one fetch-based SSE connection and accumulates dedup'd, batched events so
  * that `useAgentSession` / `useSessionStream` can read without owning the
  * connection themselves.
  *
- * Why a registry instead of per-hook EventSource?
+ * Why a registry instead of per-hook SSE connections?
  *
  * 1. **Grace-period keep-alive**: when the user switches from session A to B,
  *    A's connection stays open for `GRACE_MS`. If they switch back within the
@@ -24,6 +24,7 @@
 
 import { PROMPT_MANAGER_API_URL } from '@/common/utils/serviceResolver'
 import type { AgentStreamEvent } from '../types/enterpriseAgent'
+import { connectPromptManagerSse, type PromptManagerSseConnection } from '../utils/promptManagerSse'
 
 export interface SessionStreamEntry {
   events: AgentStreamEvent[]
@@ -37,13 +38,15 @@ const INITIAL_BACKOFF_MS = 1_000
 const MAX_BACKOFF_MS = 10_000
 const GRACE_MS = 20_000
 const MAX_STREAMS = 4
+/** Stop reconnecting after this many consecutive closes with zero events (orphan / dead stream). */
+const MAX_EMPTY_CLOSE_STREAK = 3
 
 type Listener = () => void
 
 interface InternalEntry {
   sessionId: string
   accessToken: string
-  source: EventSource | null
+  source: PromptManagerSseConnection | null
   state: SessionStreamEntry
   seenEventKeys: Set<string>
   reconnectTimer: ReturnType<typeof setTimeout> | null
@@ -59,16 +62,19 @@ interface InternalEntry {
 const entries = new Map<string, InternalEntry>()
 let graceSweepTimer: ReturnType<typeof setInterval> | null = null
 
+const isStreamEndEvent = (event: AgentStreamEvent): boolean =>
+  event.type === 'terminal' || event.type === 'turn_snapshot'
+
 const dedupeKey = (event: AgentStreamEvent): string => {
   if ('event_id' in event && event.event_id) return String(event.event_id)
   if ('seq' in event && typeof event.seq === 'number') return `seq:${event.seq}`
   return JSON.stringify(event)
 }
 
-const buildStreamUrl = (sessionId: string, accessToken: string, sinceSeq: number): string => {
+const buildStreamUrl = (sessionId: string, sinceSeq: number): string => {
   const base = PROMPT_MANAGER_API_URL.endsWith('/') ? PROMPT_MANAGER_API_URL.slice(0, -1) : PROMPT_MANAGER_API_URL
-  const sinceParam = sinceSeq > 0 ? `&since_seq=${sinceSeq}` : ''
-  return `${base}/deep-agent/sessions/${sessionId}/stream?token=${encodeURIComponent(accessToken)}${sinceParam}`
+  const sinceParam = sinceSeq > 0 ? `?since_seq=${sinceSeq}` : ''
+  return `${base}/deep-agent/sessions/${sessionId}/stream${sinceParam}`
 }
 
 const notify = (entry: InternalEntry) => {
@@ -77,7 +83,7 @@ const notify = (entry: InternalEntry) => {
 
 const closeSource = (entry: InternalEntry) => {
   if (entry.source) {
-    entry.source.close()
+    entry.source.abort()
     entry.source = null
   }
   if (entry.state.isConnected) {
@@ -132,29 +138,12 @@ const connect = (entry: InternalEntry) => {
   if (entry.state.terminalReached) return
   if (entry.source) return
 
-  const url = buildStreamUrl(entry.sessionId, entry.accessToken, entry.state.lastSeq)
-  let source: EventSource
-  try {
-    source = new EventSource(url)
-  } catch {
-    entry.state = { ...entry.state, errorCount: entry.state.errorCount + 1 }
-    notify(entry)
-    scheduleReconnect(entry)
-    return
-  }
-  entry.source = source
+  const url = buildStreamUrl(entry.sessionId, entry.state.lastSeq)
 
-  source.onopen = () => {
-    if (entry.disposed) return
-    entry.reconnectDelayMs = INITIAL_BACKOFF_MS
-    entry.state = { ...entry.state, isConnected: true }
-    notify(entry)
-  }
-
-  source.onmessage = (e: MessageEvent) => {
+  const handleMessage = (raw: string) => {
     if (entry.disposed) return
     try {
-      const event = JSON.parse(e.data) as AgentStreamEvent
+      const event = JSON.parse(raw) as AgentStreamEvent
       const key = dedupeKey(event)
       if (entry.seenEventKeys.has(key)) return
       entry.seenEventKeys.add(key)
@@ -164,11 +153,12 @@ const connect = (entry: InternalEntry) => {
         lastSeq = event.seq
       }
 
-      const terminalReached = event.type === 'terminal'
+      const terminalReached = isStreamEndEvent(event)
       entry.state = {
         ...entry.state,
         events: [...entry.state.events, event],
         lastSeq,
+        errorCount: 0,
         terminalReached: entry.state.terminalReached || terminalReached
       }
       notify(entry)
@@ -181,13 +171,38 @@ const connect = (entry: InternalEntry) => {
     }
   }
 
-  source.onerror = () => {
-    closeSource(entry)
-    if (entry.disposed || entry.state.terminalReached) return
-    entry.state = { ...entry.state, errorCount: entry.state.errorCount + 1 }
-    notify(entry)
-    scheduleReconnect(entry)
-  }
+  entry.source = connectPromptManagerSse({
+    url,
+    accessToken: entry.accessToken,
+    onOpen: () => {
+      if (entry.disposed) return
+      entry.reconnectDelayMs = INITIAL_BACKOFF_MS
+      entry.state = { ...entry.state, isConnected: true }
+      notify(entry)
+    },
+    onMessage: handleMessage,
+    onError: () => {
+      closeSource(entry)
+      if (entry.disposed || entry.state.terminalReached) return
+      entry.state = { ...entry.state, errorCount: entry.state.errorCount + 1 }
+      notify(entry)
+      scheduleReconnect(entry)
+    },
+    onClose: () => {
+      // Server closed the stream (timeout or terminal). Reconnect only while
+      // the session is still active; terminal turns set terminalReached above.
+      closeSource(entry)
+      const emptyClose = entry.state.events.length === 0
+      const nextStreak = emptyClose ? entry.state.errorCount + 1 : 0
+      entry.state = { ...entry.state, errorCount: nextStreak }
+      if (entry.disposed || entry.state.terminalReached) return
+      if (emptyClose && nextStreak >= MAX_EMPTY_CLOSE_STREAK) {
+        entry.state = { ...entry.state, terminalReached: true }
+        return
+      }
+      scheduleReconnect(entry)
+    }
+  })
 }
 
 const scheduleReconnect = (entry: InternalEntry) => {
@@ -248,7 +263,7 @@ export const appendSessionStreamEvents = (
     if ('seq' in event && typeof event.seq === 'number' && event.seq > lastSeq) {
       lastSeq = event.seq
     }
-    if (event.type === 'terminal') {
+    if (isStreamEndEvent(event)) {
       terminalReached = true
     }
   }
@@ -308,15 +323,37 @@ export const acquireSessionStream = (
  * one from the current `lastSeq`. Used when the FE knows a new turn has been
  * posted and wants to force the server to replay fresh events.
  */
+/** REST says the session is done — stop SSE reconnect churn for this id. */
+export const markSessionStreamRestTerminal = (sessionId: string): void => {
+  const entry = entries.get(sessionId)
+  if (!entry) return
+  entry.state = { ...entry.state, terminalReached: true }
+  if (entry.reconnectTimer) {
+    clearTimeout(entry.reconnectTimer)
+    entry.reconnectTimer = null
+  }
+  closeSource(entry)
+  notify(entry)
+}
+
+/** Align SSE `since_seq` with the authoritative REST trace (e.g. before a new turn). */
+export const advanceSessionStreamCursor = (sessionId: string, lastSeq: number): void => {
+  const entry = entries.get(sessionId)
+  if (!entry || lastSeq <= entry.state.lastSeq) return
+  entry.state = { ...entry.state, lastSeq }
+}
+
 export const resetSessionStream = (sessionId: string, reconnect = true): void => {
   const entry = entries.get(sessionId)
   if (!entry) return
-  // Clear the event buffer on the assumption that the caller will re-read the
-  // authoritative trace from REST; we only need the SSE to pick up from here.
+  // Clear the in-memory event buffer (REST trace is authoritative for completed
+  // turns) but keep lastSeq so reconnect uses ?since_seq= and does not replay
+  // prior-turn terminal events that confuse isAgentRunning / isStreaming.
+  const lastSeq = entry.state.lastSeq
   entry.state = {
     events: [],
     isConnected: false,
-    lastSeq: 0,
+    lastSeq,
     terminalReached: false,
     errorCount: 0
   }

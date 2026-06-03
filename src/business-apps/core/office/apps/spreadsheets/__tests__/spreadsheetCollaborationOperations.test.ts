@@ -4,6 +4,7 @@
  */
 
 import { createUniverConversionContext, overlaySparseRowIndexMappings } from '../utils/univerAdapter'
+import { applyRemoteColumnUpdate } from '../utils/spreadsheetViewerRows'
 import type { SpreadsheetColumn } from '../types/spreadsheet'
 
 // --- Operation format contract (authoritative batch receiver) ---
@@ -25,27 +26,6 @@ interface SpreadsheetBatchReceiveFormat {
     operations: SpreadsheetBatchOperation[]
   }
   version: number
-}
-
-function applyRemoteColumnUpdate(
-  columns: SpreadsheetColumn[],
-  payload: {
-    columnId?: string
-    columnPatch?: Partial<SpreadsheetColumn>
-    label?: string
-    columns?: SpreadsheetColumn[]
-  }
-): SpreadsheetColumn[] | null {
-  if (Array.isArray(payload.columns) && payload.columns.length > 0) {
-    return payload.columns
-  }
-  if (!payload.columnId) return null
-  const nextPatch: Partial<SpreadsheetColumn> = { ...(payload.columnPatch ?? {}) }
-  if (typeof payload.label === 'string' && payload.label.trim()) {
-    nextPatch.label = payload.label.trim()
-  }
-  if (Object.keys(nextPatch).length === 0) return null
-  return columns.map(column => (column.id === payload.columnId ? { ...column, ...nextPatch } : column))
 }
 
 function rowMatchesRemoteId(row: Record<string, unknown>, remoteRowId: string): boolean {
@@ -424,6 +404,24 @@ describe('spreadsheetCollaborationOperations', () => {
           order: 1
         }
       ])
+    })
+
+    it('merges a remote column_add payload into the column model', () => {
+      const next = applyRemoteColumnUpdate(mockColumns, {
+        column: {
+          id: 'col-c',
+          name: 'ColumnC',
+          label: 'Column C',
+          type: 'text',
+          isVisible: true,
+          isEditable: true,
+          isRequired: false,
+          isUnique: false,
+          order: 1
+        }
+      })
+
+      expect(next?.map(column => column.id)).toEqual(['col-a', 'col-c', 'col-b'])
     })
 
     it('accepts a full columns array replacement when provided', () => {

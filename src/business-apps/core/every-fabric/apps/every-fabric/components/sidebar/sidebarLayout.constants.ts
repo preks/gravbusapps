@@ -39,8 +39,8 @@ export const SIDEBAR_SECTION_LABEL_CLASS =
   'gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-[0.08em] gba:text-muted-foreground'
 
 /**
- * Max height for the Active + Recents scroll regions. Tuned so ~4 rows are
- * visible at once — the rest scroll inside the section. Keeps vertical space
- * free for future sidebar entries (pinned agents, shortcuts, etc.).
+ * Live + Recents scroll region: grows with leftover sidebar height (`flex-1`)
+ * and scrolls as one list (no per-section max-height cap).
  */
-export const SIDEBAR_LIST_MAX_HEIGHT_CLASS = 'gba:max-h-[13.5rem]'
+export const SIDEBAR_SESSIONS_SCROLL_REGION_CLASS =
+  'gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:overscroll-contain gba:pb-1'

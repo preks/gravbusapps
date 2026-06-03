@@ -31,6 +31,8 @@ const DOCUMENT_REALTIME_EDIT_INTENT_PATTERN =
   /\b(edit|rewrite|revise|improve|fix|update|rephrase|shorten|expand|draft|polish|refine)\b/i
 const DOCUMENT_UUID_PATTERN = /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i
 
+export type WebSearchMode = 'off' | 'on'
+
 type PrechatCacheEntry = {
   suggestions: string[]
   createdAt: number
@@ -1603,7 +1605,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
       userInputText: string,
       files: File[],
       isThinking: boolean = false,
-      isSearching: boolean = false,
+      webSearchMode: WebSearchMode = 'off',
       additionInfo?: string,
       skills?: string[],
       mentions?: Array<{ id: string; type: string; display: string }>,
@@ -1617,6 +1619,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
       // Using 'let' because backend may assign a new session ID for new chats
       let requestSessionId = sessionIdRef.current ?? state.sessionId ?? ''
       console.log('[FlowBot][sendMessage] Starting request for session:', requestSessionId || '(new session)')
+      let flowbotEndpoint: string | undefined
 
       try {
         inFlightRef.current = true
@@ -1660,8 +1663,9 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         form.append('session_id', effectiveSessionId || '')
         form.append('user_input_text', userInputText)
         form.append('model_kind', FLOWBOT_MODEL_KIND_DEFAULT)
-        form.append('use_web_search_tool', (isSearching ?? false).toString())
+        form.append('use_web_search_tool', (webSearchMode === 'on').toString())
         form.append('hands_free_mode', handsFreeMode.toString())
+        form.append('web_search_mode', webSearchMode)
         // Append when explicitly provided (including empty string) so callers can
         // force inclusion of the multipart field for document-edit flows.
         if (additionInfo !== undefined) {
@@ -1689,7 +1693,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
           currentPagePayload: currentPagePayload as RealtimeDocumentContext,
           hasFiles: files.length > 0,
           isThinking,
-          isSearching
+          isSearching: webSearchMode === 'on'
         })
         const useRealtimeDocumentEdit = typeof realtimeDocumentId === 'string' && realtimeDocumentId.length > 0
         if (useRealtimeDocumentEdit) {
@@ -1700,6 +1704,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         const url = useRealtimeDocumentEdit
           ? `${baseUrl}/flowbot/api/agent/v2/document/live-edit`
           : `${baseUrl}/flowbot/api/agent/v2/chat`
+        flowbotEndpoint = url
 
         // Create abort controller for this request
         abortControllerRef.current = new AbortController()
@@ -1910,7 +1915,13 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         }
         console.error('[FlowBot][sendMessage] Error sending message for session:', requestSessionId, error)
 
-        appendOutputItemToLastAgentTurn({ type: 'error' })
+        appendOutputItemToLastAgentTurn({
+          type: 'error',
+          text: 'Something went wrong while processing your request. You can report this so we can investigate.',
+          session_id: requestSessionId || sessionIdRef.current || state.sessionId || undefined,
+          flowbot_endpoint: flowbotEndpoint,
+          error_message: error instanceof Error ? error.message : String(error)
+        })
       } finally {
         console.log('[FlowBot][sendMessage] Request completed for session:', requestSessionId || '(new)')
         pruneEphemeralOutputsFromLastAgentTurn()
@@ -2254,7 +2265,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
       await new Promise(resolve => setTimeout(resolve, 0))
 
       // Add new message (resend)
-      await sendMessage(newText, [], false, false)
+      await sendMessage(newText, [], false, 'off')
     },
     [state.conversation.length, sendMessage]
   )

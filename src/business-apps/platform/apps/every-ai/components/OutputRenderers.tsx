@@ -21,10 +21,13 @@ import type {
   DocumentStreamCompleteOutput,
   DocumentStreamErrorOutput,
   DocumentStreamStartOutput,
+  ErrorOutput,
   ReasoningStepOutput,
-  ReasoningStepKind
+  ReasoningStepKind,
+  WebSearchPermissionRequestOutput
 } from '../types/models'
 import DynamicFormDisplay from './DynamicFormDisplay'
+import ClarificationFormDisplay from './ClarificationFormDisplay'
 // Standardized entity card
 import GenericEntityDisplay from './entities/GenericEntityDisplay'
 import WorkflowDisplay from './entities/WorkflowDisplay'
@@ -242,8 +245,56 @@ export const LoadingDisplay: React.FC<{ onCancel?: () => void }> = ({ onCancel }
   )
 }
 
+type ErrorDisplayProps = {
+  item: ErrorOutput
+  accessToken: string
+  sessionId?: string
+}
+
 // Premium Error Display
-export const ErrorDisplay: React.FC<{ text?: string }> = ({ text }) => {
+export const ErrorDisplay: React.FC<ErrorDisplayProps> = ({ item, accessToken, sessionId }) => {
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false)
+  const [userDescription, setUserDescription] = useState(item.user_description ?? '')
+  const [reportStatus, setReportStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle')
+  const [reportId, setReportId] = useState<string | null>(null)
+  const text = item.text || "I'm having trouble with that request. Please try rephrasing or try again in a moment."
+
+  const handleReportBug = async () => {
+    setReportStatus('sending')
+    try {
+      const baseUrl = resolveFlowbotBaseUrl()
+      const response = await fetch(`${baseUrl}/flowbot/api/agent/bug-report`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({
+          session_id: item.session_id || sessionId,
+          run_id: item.run_id,
+          message_id: item.message_id,
+          source: 'every-ai',
+          assistant: 'Every',
+          frontend_url: typeof globalThis.window !== 'undefined' ? globalThis.window.location.href : undefined,
+          flowbot_endpoint: item.flowbot_endpoint,
+          error_message: item.error_message || item.text,
+          user_description: userDescription.trim() || undefined,
+          user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
+          timestamp_client: new Date().toISOString()
+        })
+      })
+      if (!response.ok) {
+        throw new Error(`${response.status} ${response.statusText}`)
+      }
+      const payload = (await response.json()) as { report_id?: string }
+      setReportId(payload.report_id ?? null)
+      setReportStatus('success')
+    } catch (error) {
+      console.error('[EveryAI] Failed to report Flowbot bug:', error)
+      setReportStatus('error')
+    }
+  }
+
   return (
     <Card
       className="gba:bg-gradient-to-br gba:from-destructive-secondary gba:to-destructive-secondary/50 gba:border-2 gba:border-destructive/30 gba:shadow-lg"
@@ -261,11 +312,46 @@ export const ErrorDisplay: React.FC<{ text?: string }> = ({ text }) => {
               />
             </svg>
           </div>
-          <div>
+          <div className="gba:flex-1">
             <p className="gba:text-sm gba:font-semibold gba:text-destructive gba:mb-1">Unable to Process</p>
-            <p className="gba:text-sm gba:text-foreground">
-              {text || "I'm having trouble with that request. Please try rephrasing or try again in a moment."}
-            </p>
+            <p className="gba:text-sm gba:text-foreground">{text}</p>
+            {isFeedbackOpen && (
+              <textarea
+                className="gba:mt-3 gba:w-full gba:min-h-20 gba:rounded-md gba:border gba:border-border gba:bg-background gba:p-2 gba:text-sm gba:text-foreground"
+                data-testid="flowbot-error-feedback-input"
+                placeholder="What were you trying to do?"
+                value={userDescription}
+                onChange={event => setUserDescription(event.target.value)}
+              />
+            )}
+            <div className="gba:mt-4 gba:flex gba:flex-wrap gba:items-center gba:gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsFeedbackOpen(prev => !prev)}
+                disabled={reportStatus === 'sending' || reportStatus === 'success'}
+                data-testid="flowbot-error-add-feedback-button"
+              >
+                {isFeedbackOpen ? 'Hide feedback' : 'Add feedback'}
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleReportBug}
+                disabled={reportStatus === 'sending' || reportStatus === 'success'}
+                data-testid="flowbot-error-report-button"
+              >
+                {reportStatus === 'sending' ? 'Reporting...' : 'Report bug'}
+              </Button>
+            </div>
+            {reportStatus === 'success' && (
+              <p className="gba:mt-3 gba:text-sm gba:text-muted-foreground">
+                Thanks, this issue was reported.{reportId ? ` Reference: ${reportId}` : ''}
+              </p>
+            )}
+            {reportStatus === 'error' && (
+              <p className="gba:mt-3 gba:text-sm gba:text-destructive">Could not send report. Please try again.</p>
+            )}
           </div>
         </div>
       </CardContent>
@@ -442,10 +528,10 @@ export const ScatterGraphDisplay: React.FC<{ data: ScatterGraphData }> = ({ data
   // Helper to resolve CSS variables for SVG (client-side only)
   const resolveCssVar = (cssVar: string, fallback: string): string => {
     if (!cssVar.startsWith('var(')) return cssVar
-    if (typeof window === 'undefined' || typeof document === 'undefined') return fallback
+    if (typeof globalThis.window === 'undefined' || typeof document === 'undefined') return fallback
 
     const varName = cssVar.substring(4, cssVar.length - 1).trim()
-    const resolved = window.getComputedStyle(document.documentElement).getPropertyValue(varName).trim()
+    const resolved = globalThis.window.getComputedStyle(document.documentElement).getPropertyValue(varName).trim()
     return resolved || fallback
   }
 
@@ -625,6 +711,12 @@ export const ScatterGraphDisplay: React.FC<{ data: ScatterGraphData }> = ({ data
             {data.series.map((series, seriesIdx) => {
               const color = getColor(series.color)
               const points = series.data.map(p => ({ x: scaleX(p.x), y: scaleY(p.y) }))
+              let strokeDasharray = 'none'
+              if (series.lineStyle === 'dashed') {
+                strokeDasharray = '5,5'
+              } else if (series.lineStyle === 'dotted') {
+                strokeDasharray = '2,2'
+              }
 
               return (
                 <g key={`series-${seriesIdx}`}>
@@ -635,9 +727,7 @@ export const ScatterGraphDisplay: React.FC<{ data: ScatterGraphData }> = ({ data
                       fill="none"
                       stroke={color}
                       strokeWidth="2"
-                      strokeDasharray={
-                        series.lineStyle === 'dashed' ? '5,5' : series.lineStyle === 'dotted' ? '2,2' : 'none'
-                      }
+                      strokeDasharray={strokeDasharray}
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       opacity={0.8}
@@ -1402,6 +1492,82 @@ function computeGroupDuration(steps: ReasoningStepOutput[]): string | null {
   return formatReasoningDuration(Math.min(...starts), Math.max(...ends))
 }
 
+const WebSearchPermissionRequestDisplay: React.FC<{
+  data: WebSearchPermissionRequestOutput
+  accessToken: string
+  sessionId?: string
+}> = ({ data, accessToken, sessionId }) => {
+  const { t } = useTranslation(translations)
+  const [status, setStatus] = useState<'idle' | 'submitting' | 'allowed' | 'denied' | 'error'>('idle')
+
+  const submitDecision = async (decision: 'allow' | 'deny') => {
+    if (!sessionId || !accessToken || status !== 'idle') return
+    setStatus('submitting')
+    try {
+      const form = new FormData()
+      form.append('session_id', sessionId)
+      form.append('request_id', data.request_id)
+      form.append('decision', decision)
+      const baseUrl = resolveFlowbotBaseUrl()
+      const response = await fetch(`${baseUrl}/flowbot/api/agent/v2/chat/web-search-permission`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: form
+      })
+      if (!response.ok) throw new Error(`${response.status} ${response.statusText}`)
+      if (decision === 'allow') {
+        globalThis.window.dispatchEvent(new CustomEvent('flowbot:web-search-mode-change', { detail: { mode: 'on' } }))
+        setStatus('allowed')
+      } else {
+        setStatus('denied')
+      }
+    } catch (error) {
+      console.error('[EveryAI] Failed to resolve web-search permission', error)
+      setStatus('error')
+    }
+  }
+
+  const disabled = status !== 'idle' || !sessionId || !accessToken
+  let statusText: string | null = null
+  if (status === 'allowed') {
+    statusText = t('web-search-permission-enabled')
+  } else if (status === 'denied') {
+    statusText = t('web-search-permission-declined')
+  } else if (status === 'error') {
+    statusText = t('web-search-permission-error')
+  }
+
+  return (
+    <Card className="gba:border gba:border-border/70 gba:bg-card/80 gba:shadow-sm" data-testid="web-search-permission">
+      <CardHeader className="gba:pb-2">
+        <CardTitle className="gba:text-base">{data.title || t('web-search-permission-title')}</CardTitle>
+      </CardHeader>
+      <CardContent className="gba:space-y-3">
+        <p className="gba:text-sm gba:text-muted-foreground">{data.message || t('web-search-permission-message')}</p>
+        {data.reason && (
+          <p className="gba:text-xs gba:text-muted-foreground">
+            <span className="gba:font-medium">{t('web-search-permission-reason-label')}</span> {data.reason}
+          </p>
+        )}
+        {statusText ? (
+          <p className="gba:text-sm gba:font-medium">{statusText}</p>
+        ) : (
+          <div className="gba:flex gba:flex-wrap gba:gap-2">
+            <Button size="sm" onClick={() => submitDecision('allow')} disabled={disabled}>
+              {t('web-search-permission-enable')}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => submitDecision('deny')} disabled={disabled}>
+              {t('web-search-permission-continue')}
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 // Output Item Renderer
 export const OutputItemRenderer: React.FC<{
   item: OutputItem
@@ -1446,6 +1612,8 @@ export const OutputItemRenderer: React.FC<{
     case 'text_delta':
       // Deltas are folded into a streaming `answer` bubble by the hook.
       return null
+    case 'web_search_permission_request':
+      return <WebSearchPermissionRequestDisplay data={item} accessToken={accessToken} sessionId={sessionId} />
     case 'narration_attach':
       // Pure dispatch event: the hook moves the streaming bubble's text
       // into the matching reasoning step's `narration`. Nothing to render.
@@ -1456,6 +1624,11 @@ export const OutputItemRenderer: React.FC<{
       // UnifiedAIMessageRenderer (pinned above the answer). Nothing to do
       // when they appear inline in the output stream.
       return null
+    case 'clarification_request':
+      // Inline clarification form. The submit handler posts back to
+      // /v2/chat with a JSON `user_input_text` payload that the supervisor
+      // recognises and resumes the suspended LangGraph thread with.
+      return <ClarificationFormDisplay data={item} sendMessage={sendMessage} isAgentGenerating={isAgentGenerating} />
     case 'document_stream_start':
       return <DocumentStreamStartDisplay data={item} />
     case 'document_stream_chunk':
@@ -1467,7 +1640,7 @@ export const OutputItemRenderer: React.FC<{
     case 'loading':
       return <LoadingDisplay onCancel={onCancelGeneration} />
     case 'error':
-      return <ErrorDisplay text={item.text} />
+      return <ErrorDisplay item={item} accessToken={accessToken} sessionId={sessionId} />
     case 'flow_proposal':
       if (!item.flow_schema) {
         return (

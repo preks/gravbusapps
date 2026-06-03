@@ -247,6 +247,7 @@ const CompensationTab: React.FC<CompensationTabProps> = ({
               locale={currentLocale}
               employeeRecordHrBackoffice={employeeRecordHrBackoffice}
               canManageCompensation={compensationPermissions.canManageCompensation}
+              hasHrBackoffice={employeeRecordAllHrBackoffice.hasPermission}
               permissionsLoading={
                 permissionsLoading || employeeRecordAllHrBackoffice.loading || employeeGrowthPermission.loading
               }

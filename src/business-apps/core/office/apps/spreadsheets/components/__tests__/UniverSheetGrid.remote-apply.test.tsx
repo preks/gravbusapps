@@ -5,6 +5,7 @@ import type { UniverSheetGridHandle } from '../UniverSheetGrid.types'
 import {
   executeCommandMock,
   eventHandlers,
+  gridTestMockState,
   lastCancelFreezeMock,
   lastRangeSetValueMock,
   lastSetFreezeMock,
@@ -64,7 +65,43 @@ describe('UniverSheetGrid remote apply', () => {
     expect(lastRangeSetValueMock).toHaveBeenCalled()
   })
 
-  it('applyRemoteCellUpdatesBulk uses serial path for a single-cell batch', async () => {
+  it('applyRemoteCellUpdate clears stale text format metadata on numeric overwrite', async () => {
+    const ref = React.createRef<UniverSheetGridHandle>()
+    gridTestMockState.worksheetCellDataByCoord = new Map([['0:0', { v: 'old', s: 'style-1', ct: { fa: '@' }, t: 1 }]])
+    render(
+      <TestUniverSheetGrid
+        ref={ref}
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly
+        onCellChange={jest.fn()}
+        onDataChange={jest.fn()}
+      />
+    )
+    await waitFor(() => expect(ref.current?.applyRemoteCellUpdate).toBeDefined())
+    lastRangeSetValueMock?.mockClear()
+    await act(async () => {
+      ref.current?.applyRemoteCellUpdate?.(0, 0, 42)
+      await Promise.resolve()
+    })
+    expect(lastRangeSetValueMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        v: 42,
+        s: 'style-1',
+        ct: null
+      })
+    )
+    const lastCall = lastRangeSetValueMock?.mock.calls.at(-1)?.[0] as Record<string, unknown>
+    expect(lastCall).not.toHaveProperty('t')
+  })
+
+  it('applyRemoteCellUpdatesBulk routes a single-cell batch through the deferred bulk path', async () => {
+    // With `SPREADSHEET_BULK_MIN_CELLS_FOR_FAST_PATH = 1` the previous serial
+    // bypass for `items.length < 2` was removed. Single-cell broadcasts now
+    // take the same `queueMicrotask` + chunked-rAF path as larger batches.
+    // The test waits for the rAF chunk to fire (instead of relying on the
+    // immediate synchronous `setValue`) and asserts the cell still lands.
     const ref = React.createRef<UniverSheetGridHandle>()
     render(
       <TestUniverSheetGrid
@@ -83,10 +120,10 @@ describe('UniverSheetGrid remote apply', () => {
       ref.current?.applyRemoteCellUpdatesBulk?.([{ rowIndex: 0, colIndex: 0, value: 'A', rowId: 'row-1' }], {
         onApplyComplete: jest.fn()
       })
-      await Promise.resolve()
-      await Promise.resolve()
     })
-    expect(lastRangeSetValueMock?.mock.calls.length).toBeGreaterThanOrEqual(1)
+    await waitFor(() => {
+      expect(lastRangeSetValueMock?.mock.calls.length ?? 0).toBeGreaterThanOrEqual(1)
+    })
   })
 
   it('applyRemoteClearAllRange dispatches set-range-values mutation', async () => {
@@ -182,6 +219,47 @@ describe('UniverSheetGrid remote apply', () => {
         unitId: expect.anything(),
         subUnitId: expect.anything(),
         ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 1 }]
+      })
+    )
+  })
+
+  it('applyRemoteSpreadsheetFeatureOperation maps recorded column hide mutations to command replay', async () => {
+    const ref = React.createRef<UniverSheetGridHandle>()
+    render(
+      <TestUniverSheetGrid
+        ref={ref}
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly
+        onCellChange={jest.fn()}
+        onDataChange={jest.fn()}
+      />
+    )
+    await waitFor(() => expect(ref.current?.applyRemoteSpreadsheetFeatureOperation).toBeDefined())
+    await waitFor(() => expect(executeCommandMock).toBeDefined())
+    executeCommandMock?.mockClear()
+
+    act(() => {
+      ref.current?.applyRemoteSpreadsheetFeatureOperation?.({
+        type: 'visibility_update',
+        data: {
+          sheetId: 'sheet-1',
+          commandId: 'sheet.mutation.set-col-hidden',
+          axis: 'column',
+          hidden: true,
+          ranges: [{ start: 3, end: 3 }],
+          params: {
+            ranges: [{ startRow: 0, startColumn: 3, endRow: 1027, endColumn: 3 }]
+          }
+        }
+      })
+    })
+
+    expect(executeCommandMock).toHaveBeenCalledWith(
+      'sheet.command.set-col-hidden',
+      expect.objectContaining({
+        ranges: [{ startRow: 0, startColumn: 3, endRow: 1027, endColumn: 3 }]
       })
     )
   })

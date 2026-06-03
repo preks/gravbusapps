@@ -1,13 +1,12 @@
 import React, { useState, useCallback, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { DataDisplay, DataTable, Button } from '@newwork/nw-design-system'
+import { DataDisplay, DataTable } from '@newwork/nw-design-system'
 import { useContentData } from './hooks/useContentData'
 import { createContentColumns, createContentSortableColumns } from './config/contentColumns'
 import { contentFilterConfigAll, contentFilterConfigSpecific } from './config/contentFilters'
 import { ContentDetailSheet } from './components/ContentDetailSheet'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { PlusIcon } from '@phosphor-icons/react'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useContentFilterGroups } from '@/common/data/content/hooks/useContentFilterGroups'
@@ -146,14 +145,15 @@ const ContentManager: React.FC<ContentManagerProps> = context => {
               subtitle: 'Policies'
             }
           },
-          {
-            id: 'document',
-            label: 'Documents',
-            metadata: {
-              count: documentContent.total,
-              subtitle: 'Document library'
-            }
-          },
+          // TODO: EVALUATE DOCUMENT GROUP
+          // {
+          //   id: 'document',
+          //   label: 'Documents',
+          //   metadata: {
+          //     count: documentContent.total,
+          //     subtitle: 'Document library'
+          //   }
+          // },
           {
             id: 'question',
             label: 'Questions',
@@ -168,20 +168,16 @@ const ContentManager: React.FC<ContentManagerProps> = context => {
         // Primary action - Add Content
         primaryAction={
           <AppAction
+            variant="create-primary"
             contexts={[
               {
                 context: FlowContextName.contentEntryCreate,
-                contextData: {}
+                contextData: activeContentGroup ? { contentGroup: activeContentGroup } : {}
               }
             ]}
             accessToken={accessToken || ''}
-            emptyState="hide"
-            lazyLoad={false}
           >
-            <Button variant="default">
-              <PlusIcon className="gba:w-4 gba:h-4" />
-              Add Content
-            </Button>
+            Add Content
           </AppAction>
         }
         // Search

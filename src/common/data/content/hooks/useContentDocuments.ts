@@ -4,7 +4,7 @@
  */
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { buildContentDocumentsQuery } from '../queries/contentQueries'
+import { buildContentDocumentsQuery, buildContentDocumentsVariables } from '../queries/contentQueries'
 import type { ContentDocument } from '../types/contentDocumentTypes'
 import type { ContentDocumentQueryParams } from '../queries/contentQueries'
 
@@ -44,8 +44,9 @@ export const useContentDocuments = (
     setError(null)
 
     try {
-      const query = buildContentDocumentsQuery(params)
-      const response = await graphqlClient.request<ContentDocumentsResponse>(query)
+      const query = buildContentDocumentsQuery()
+      const variables = buildContentDocumentsVariables(params)
+      const response = await graphqlClient.request<ContentDocumentsResponse>(query, variables)
 
       if (response.ContentDocument) {
         setDocuments(response.ContentDocument)
@@ -61,7 +62,7 @@ export const useContentDocuments = (
     } finally {
       setIsLoading(false)
     }
-  }, [params, accessToken])
+  }, [params, graphqlClient])
 
   useEffect(() => {
     fetchDocuments()

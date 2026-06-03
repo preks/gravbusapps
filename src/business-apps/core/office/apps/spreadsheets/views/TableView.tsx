@@ -24,6 +24,7 @@ import type { SpreadsheetStylePatch, SpreadsheetUnifiedMutationBatchPayload } fr
 import type { SpreadsheetTraceEventInput } from '../services/spreadsheetDiagnostics'
 import type { NativeSheetStructureIntent } from '../utils/nativeSheetStructureIntent'
 import type { SpreadsheetRowSlotIdentityRegistry } from '../utils/spreadsheetRowSlotIdentity'
+import type { SpreadsheetRowMaterializationReadiness } from '../hooks/spreadsheetRowMaterializationReadiness'
 
 export interface TableViewProps {
   sheet: SpreadsheetSheet
@@ -31,8 +32,18 @@ export interface TableViewProps {
   initialSnapshot?: Record<string, unknown> | null
   snapshotSeed?: string
   authoritativeDataSyncToken?: number
+  authoritativePaintCellsRef?: MutableRefObject<import('../core').SpreadsheetBulkRemoteCellItem[] | null>
+  authoritativePaintMetaRef?: MutableRefObject<import('../core').SpreadsheetBulkRemoteApplyMeta | null>
   workbookInstanceKey: string
   multiSheetWorkbookMode?: boolean
+  pendingLocalMutationCellsRef?: MutableRefObject<Set<string>>
+  spreadsheetIntentJournalRef?: MutableRefObject<
+    import('../core/spreadsheetIntentJournal').SpreadsheetIntentJournal | null
+  >
+  versionCausalOwnershipRef?: MutableRefObject<
+    import('../core/spreadsheetVersionCausalOwnership').SpreadsheetVersionCausalOwnershipRegistry | null
+  >
+  resolveKnownSheetVersion?: (sheetId: string) => number
   apiFirstSheetStructure?: boolean
   /** Background reconcile of remote workbook snapshot after cache-first bootstrap. */
   workbookSnapshotSyncing?: boolean
@@ -107,12 +118,16 @@ export interface TableViewProps {
   /** Unified mutation batch emitter for value + style changes from a single local mutation wave. */
   onMutationBatchOp?: (data: SpreadsheetUnifiedMutationBatchPayload) => void | Promise<void>
   flushUnmaterializedRowsBeforePersistRef?: MutableRefObject<((sheetId: string) => Promise<void>) | null>
+  flushPendingCellChangesRef?: MutableRefObject<(() => Promise<void>) | null>
+  flushDeferredDirtyCellsRef?: MutableRefObject<(() => Promise<void>) | null>
   getPersistSheetRowsSnapshot?: (sheetId: string) => Record<string, unknown>[]
+  getPersistedBaselineRowsSnapshot?: (sheetId: string) => Record<string, unknown>[] | null
   /** Preferred: host predicate for persisted backend row ids (UUIDs). */
   isBackendRowUuid?: (value: string) => boolean
   /** @deprecated Use {@link isBackendRowUuid}. */
   isUuidForRowRemap?: (value: string) => boolean
   rowSlotIdentityRegistryRef?: MutableRefObject<SpreadsheetRowSlotIdentityRegistry | null>
+  rowMaterializationReadinessRef?: MutableRefObject<SpreadsheetRowMaterializationReadiness | null>
   columnStructureStateRef?: MutableRefObject<{
     healthy: boolean
     pendingInsertedRange: { startIndex: number; endIndex: number; columnNames: string[] } | null
@@ -136,8 +151,14 @@ export const TableView = memo<TableViewProps>(function TableView({
   initialSnapshot,
   snapshotSeed,
   authoritativeDataSyncToken,
+  authoritativePaintCellsRef,
+  authoritativePaintMetaRef,
   workbookInstanceKey,
   multiSheetWorkbookMode,
+  pendingLocalMutationCellsRef,
+  spreadsheetIntentJournalRef,
+  versionCausalOwnershipRef,
+  resolveKnownSheetVersion,
   apiFirstSheetStructure,
   workbookSnapshotSyncing = false,
   workbookSnapshotSyncFailed = false,
@@ -148,14 +169,8 @@ export const TableView = memo<TableViewProps>(function TableView({
   onUniverSheetRenamed,
   onUniverSheetVisibilityChanged,
   getSheetContext,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  columns,
   spreadsheetColumns,
   testId,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onAddRow,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  showAddRow,
   onCellChange,
   onCellsChange,
   onDiagnosticsTraceEvent,
@@ -178,10 +193,14 @@ export const TableView = memo<TableViewProps>(function TableView({
   onStyleBatchOp,
   onMutationBatchOp,
   flushUnmaterializedRowsBeforePersistRef,
+  flushPendingCellChangesRef,
+  flushDeferredDirtyCellsRef,
   getPersistSheetRowsSnapshot,
+  getPersistedBaselineRowsSnapshot,
   isBackendRowUuid,
   isUuidForRowRemap,
   rowSlotIdentityRegistryRef,
+  rowMaterializationReadinessRef,
   columnStructureStateRef,
   onCursorEmit,
   getCanonicalSheetId,
@@ -428,8 +447,14 @@ export const TableView = memo<TableViewProps>(function TableView({
           initialSnapshot={initialSnapshot}
           snapshotSeed={snapshotSeed}
           authoritativeDataSyncToken={authoritativeDataSyncToken}
+          authoritativePaintCellsRef={authoritativePaintCellsRef}
+          authoritativePaintMetaRef={authoritativePaintMetaRef}
           workbookInstanceKey={workbookInstanceKey}
           multiSheetWorkbookMode={multiSheetWorkbookMode}
+          pendingLocalMutationCellsRef={pendingLocalMutationCellsRef}
+          spreadsheetIntentJournalRef={spreadsheetIntentJournalRef}
+          versionCausalOwnershipRef={versionCausalOwnershipRef}
+          resolveKnownSheetVersion={resolveKnownSheetVersion}
           apiFirstSheetStructure={apiFirstSheetStructure}
           onNativeSheetStructureIntent={onNativeSheetStructureIntent}
           onActiveWorksheetChange={onActiveWorksheetChange}
@@ -462,10 +487,14 @@ export const TableView = memo<TableViewProps>(function TableView({
           onStyleBatchOp={onStyleBatchOp}
           onMutationBatchOp={onMutationBatchOp}
           flushUnmaterializedRowsBeforePersistRef={flushUnmaterializedRowsBeforePersistRef}
+          flushPendingCellChangesRef={flushPendingCellChangesRef}
+          flushDeferredDirtyCellsRef={flushDeferredDirtyCellsRef}
           getPersistSheetRowsSnapshot={getPersistSheetRowsSnapshot}
+          getPersistedBaselineRowsSnapshot={getPersistedBaselineRowsSnapshot}
           isBackendRowUuid={isBackendRowUuid ?? isUuidForRowRemap}
           isUuidForRowRemap={isUuidForRowRemap}
           rowSlotIdentityRegistryRef={rowSlotIdentityRegistryRef}
+          rowMaterializationReadinessRef={rowMaterializationReadinessRef}
           columnStructureStateRef={columnStructureStateRef}
           onCursorEmit={onCursorEmit}
           getCanonicalSheetId={getCanonicalSheetId}

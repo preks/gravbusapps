@@ -6,13 +6,13 @@ import type { User } from '@/common/network/users/types'
 import type { UserInfoProps } from '@/common/BusinessAppContext'
 
 const GET_USER_PROFILE = `
-query getUserProfile($userId: String!, $structureId: uuid) {
+query getUserProfile($userId: String!) {
   Employee(
     where: {
-      employeePosition: { structureId: { _eq: $structureId } }
       userId: { _eq: $userId }
       isDeleted: { _eq: false }
     }
+    limit: 1
   ) {
     pictureThumbnail
     picture
@@ -20,6 +20,9 @@ query getUserProfile($userId: String!, $structureId: uuid) {
     firstName
     lastName
     employeePosition {
+      jobPosition {
+        name
+      }
       organizationalUnit {
         name
       }
@@ -48,6 +51,9 @@ type EmployeePosition = {
     userId: string
   }
   organizationalUnit?: {
+    name: string
+  }
+  jobPosition?: {
     name: string
   }
 }
@@ -123,6 +129,7 @@ function mapUserAndEmployeeToUserInfo(
 
   const supervisor = employee?.employeePosition?.supervisor
   const orgUnit = employee?.employeePosition?.organizationalUnit
+  const jobPositionName = employee?.employeePosition?.jobPosition?.name
 
   const employeeId = employee?.id ?? user?.employeeId ?? basic?.employeeDetails.employeeId ?? ''
   const firstName = employee?.firstName ?? user?.givenName ?? basic?.employeeDetails.firstName ?? basic?.givenName ?? ''
@@ -140,6 +147,7 @@ function mapUserAndEmployeeToUserInfo(
       firstName,
       lastName,
       pictureThumbnail: employee?.pictureThumbnail,
+      jobTitle: jobPositionName,
       supervisor: {
         id: supervisor?.id ?? basic?.employeeDetails.supervisor.id ?? '',
         firstName: supervisor?.firstName ?? basic?.employeeDetails.supervisor.firstName ?? '',
@@ -187,8 +195,7 @@ export function useUserProfileFromKeycloak(
       try {
         const [employeeData, userProfile] = await Promise.all([
           client.request<UserProfileResponse>(GET_USER_PROFILE, {
-            userId,
-            structureId: null
+            userId
           }),
           userClient.getUserById(userId)
         ])

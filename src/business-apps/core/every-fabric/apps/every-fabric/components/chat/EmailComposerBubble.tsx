@@ -429,6 +429,10 @@ export function EmailComposerBubble({
   }, [doneAction])
 
   useEffect(() => {
+    if (traceOutcome) setCompactCollapsed(true)
+  }, [traceOutcome])
+
+  useEffect(() => {
     let cancelled = false
     const loadAccounts = async () => {
       if (!accessToken) {
@@ -483,18 +487,26 @@ export function EmailComposerBubble({
       }
       setError(null)
       setSubmitting(action)
+      // Always send cc / bcc / attachments — even when the operator removed
+      // every chip and the list is now empty. Sending ``undefined`` strips the
+      // field from the JSON payload, and the backend then falls back to the
+      // agent's original draft defaults, silently re-injecting the recipient
+      // (or attachment) the operator just removed. The backend
+      // ``_resolve_recipients`` helper treats *present-but-empty* as
+      // "operator explicitly cleared" and *absent* as "use the draft" — so
+      // we must always include the key.
       const submission: ComposeEmailSubmission = {
         form_id: 'compose_email',
         action,
         to,
-        cc: cc.length > 0 ? cc : undefined,
-        bcc: bcc.length > 0 ? bcc : undefined,
+        cc,
+        bcc,
         subject,
         htmlBody: plainTextToHtml(body),
         textBody: body,
         signature: signature || undefined,
         accountId: accountId ?? undefined,
-        attachments: attachments.length > 0 ? attachments : undefined
+        attachments
       }
       setDoneAction(action)
       onSubmit(submission)

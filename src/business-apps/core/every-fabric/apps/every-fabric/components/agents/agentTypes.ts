@@ -15,6 +15,8 @@ export interface FabricAgent {
   knowledge_sources_count: number
   skill_ids?: string[]
   skills_count?: number
+  /** Tool refs attached to each of the agent's skills, keyed by skill_id. */
+  skill_tools_by_id?: Record<string, string[]>
   source: string
   categories?: string[]
   status?: string

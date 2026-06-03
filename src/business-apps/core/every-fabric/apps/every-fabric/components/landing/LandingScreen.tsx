@@ -8,6 +8,7 @@ import { FabricInput } from './FabricInput'
 
 interface LandingScreenProps {
   accessToken: string
+  devModeEnabled?: boolean
   onStartSession: (
     task: string,
     config: SessionConfig,
@@ -38,7 +39,11 @@ const GlowStyle: React.FC = () => (
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export const LandingScreen: React.FC<LandingScreenProps> = ({ accessToken, onStartSession }) => {
+export const LandingScreen: React.FC<LandingScreenProps> = ({
+  accessToken,
+  onStartSession,
+  devModeEnabled = false
+}) => {
   const {
     userInfo,
     sessionAttachments,
@@ -118,6 +123,7 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ accessToken, onSta
                 selectedEffort={selectedReasoningEffort}
                 onModelChange={setModelSelection}
                 isLoadingModels={isLoadingModels}
+                devModeEnabled={devModeEnabled}
                 autoFocus
               />
             </div>

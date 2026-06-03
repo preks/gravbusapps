@@ -1,4 +1,4 @@
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useExpenseItemTranslation } from './useExpenseItemTranslation'
 import { useFlowClient } from '@/common/network/flows/useFlowClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { showToast } from '../../utils/notificationUtils'
@@ -11,6 +11,7 @@ import { formatDateWithTimezone } from './utils/dateUtils'
  */
 export const useEmployeeRuleQuery = (contextProps: Pick<BusinessAppContextProps, 'accessToken'>) => {
   const flowClient = useFlowClient(contextProps)
+  const { t } = useExpenseItemTranslation()
 
   /**
    * Fetch employee rule data
@@ -25,13 +26,7 @@ export const useEmployeeRuleQuery = (contextProps: Pick<BusinessAppContextProps,
 
       return await flowClient.getResource(path)
     } catch {
-      showToast(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:create_expense_type_item.process_error_data_fetch',
-          'Error fetching data'
-        ),
-        'error'
-      )
+      showToast(t('expense-item-error-data-fetch'), 'error')
       return null
     }
   }
@@ -43,7 +38,12 @@ export const useEmployeeRuleQuery = (contextProps: Pick<BusinessAppContextProps,
  * Legacy function for fetching employee rule data
  * @deprecated Use useEmployeeRuleQuery hook instead
  */
-export const fetchEmployeeRule = async (employeeId: string, date: string, accessToken: string) => {
+export const fetchEmployeeRule = async (
+  employeeId: string,
+  date: string,
+  accessToken: string,
+  t?: (key: string) => string
+) => {
   try {
     // Import flowClient directly for non-hook usage
     const { flowClient } = await import('@/common/network/flows/FlowClient')
@@ -57,13 +57,7 @@ export const fetchEmployeeRule = async (employeeId: string, date: string, access
 
     return await flowClient.getResource(path)
   } catch {
-    showToast(
-      getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_type_item.process_error_data_fetch',
-        'Error fetching data'
-      ),
-      'error'
-    )
+    showToast(t ? t('expense-item-error-data-fetch') : 'Error fetching data', 'error')
     return null
   }
 }

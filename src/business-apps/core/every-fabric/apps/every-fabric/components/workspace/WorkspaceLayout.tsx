@@ -9,7 +9,6 @@ import { ConversationPanel } from './ConversationPanel'
 import { WorkspaceRightPanel } from './WorkspaceRightPanel'
 import { WorkspaceSkillIndicator } from './WorkspaceSkillIndicator'
 import { WorkspaceConnectorIndicator } from './WorkspaceConnectorIndicator'
-import { WorkspaceStreamingIsland } from './WorkspaceStreamingIsland'
 import { FabricInput } from '../landing/FabricInput'
 import { useFabricConnectors } from '../../hooks/useFabricConnectors'
 import {
@@ -72,6 +71,8 @@ function resolveArtifactLabel(artifactType: ArtifactPreview['artifactType']): st
       return 'note'
     case 'pdf':
       return 'PDF'
+    case 'html':
+      return 'HTML dashboard'
     default:
       return 'chart'
   }
@@ -96,11 +97,14 @@ const parseFollowUps = (message: ChatMessage | undefined): string[] => {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export const WorkspaceLayout: React.FC = () => {
+interface WorkspaceLayoutProps {
+  devModeEnabled?: boolean
+}
+
+export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({ devModeEnabled = false }) => {
   const {
     session,
     messages,
-    events,
     streamingGreeting,
     streamingContent,
     streamingThinking,
@@ -110,17 +114,16 @@ export const WorkspaceLayout: React.FC = () => {
     agentActivityLines,
     accessToken,
     isStreaming,
-    isConnected,
     isWaitingForInput,
     taskNodes,
     hasPlan,
     completedCount,
     totalCount,
     progressPercent,
-    currentTodoText,
     activityEvents,
     decisions,
     activeSkill,
+    fabricActiveSkill,
     cases,
     sessionConnectorIds,
     artifacts,
@@ -181,9 +184,10 @@ export const WorkspaceLayout: React.FC = () => {
   // The active connector IDs for the composer: prefer the hook's state (which
   // may reflect user toggles within this workspace session) once hydrated;
   // fall back to the raw session IDs if the hook hasn't loaded yet.
+  const fallbackConnectorIds = useMemo(() => new Set(sessionConnectorIds), [sessionConnectorIds])
   const composerActiveConnectorIds = useMemo(
-    () => (hookActiveConnectionIds.size > 0 ? hookActiveConnectionIds : new Set(sessionConnectorIds)),
-    [hookActiveConnectionIds, sessionConnectorIds]
+    () => (hookActiveConnectionIds.size > 0 ? hookActiveConnectionIds : fallbackConnectorIds),
+    [hookActiveConnectionIds, fallbackConnectorIds]
   )
 
   // When a live canvas preview kicks off, surface it automatically — even if the
@@ -238,13 +242,7 @@ export const WorkspaceLayout: React.FC = () => {
   )
   const suggestedFollowUps = useMemo(() => parseFollowUps(latestFinalAnswer), [latestFinalAnswer])
 
-  // Phase 4 UX: live_status (ephemeral pill text) wins over the persisted
-  // status headline, which in turn wins over the planner's current task text.
   const statusHeadline = liveStatusHeadline ?? statusHeadlineRaw
-  const streamingStatusHeadline = useMemo(() => {
-    if (statusHeadline) return statusHeadline
-    return currentTodoText ?? null
-  }, [statusHeadline, currentTodoText])
   useEffect(() => {
     if (latestFinalAnswer?.id !== dismissedFollowUpMessageId) {
       setDismissedFollowUpMessageId(null)
@@ -283,6 +281,19 @@ export const WorkspaceLayout: React.FC = () => {
 
   if (!session) return null
 
+  const workspaceSkillIndicator = fabricActiveSkill
+    ? {
+        skill_id: fabricActiveSkill.skillId,
+        name: fabricActiveSkill.skillName,
+        category: fabricActiveSkill.category ?? '',
+        description: fabricActiveSkill.description ?? '',
+        was_auto_detected: fabricActiveSkill.wasAutoDetected ?? false,
+        version: fabricActiveSkill.version,
+        published_version: fabricActiveSkill.publishedVersion,
+        current_version: fabricActiveSkill.currentVersion
+      }
+    : activeSkill
+
   const handleComposerSubmit = (task: string, config: SessionConfig) => {
     // If the user changed the model since the session started, persist it.
     // The context's setModelSelection already triggers the backend PATCH, so
@@ -318,7 +329,7 @@ export const WorkspaceLayout: React.FC = () => {
           <div
             className={`gba:absolute gba:left-3 sm:gba:left-6 lg:gba:left-8 ${WORKSPACE_TOP_CONTROLS_OFFSET_CLASS} gba:z-50 gba:flex gba:items-center gba:gap-3 gba:pointer-events-auto`}
           >
-            <WorkspaceSkillIndicator skill={activeSkill} />
+            <WorkspaceSkillIndicator skill={workspaceSkillIndicator} />
             <WorkspaceConnectorIndicator connectors={sessionConnectors} />
           </div>
 
@@ -388,20 +399,6 @@ export const WorkspaceLayout: React.FC = () => {
                   </div>
                 )}
 
-                {isStreaming && (
-                  <WorkspaceStreamingIsland
-                    sessionId={session.session_id}
-                    messages={messages}
-                    statusHeadline={streamingStatusHeadline}
-                    activityLines={agentActivityLines}
-                    completedCount={completedCount}
-                    totalCount={totalCount}
-                    progressPercent={progressPercent}
-                    isConnected={isConnected}
-                    isStreaming={isStreaming}
-                  />
-                )}
-
                 {canReopenClarification && (
                   <div className="gba:pointer-events-auto">
                     <button
@@ -441,6 +438,7 @@ export const WorkspaceLayout: React.FC = () => {
                     selectedEffort={selectedReasoningEffort}
                     onModelChange={setModelSelection}
                     isLoadingModels={isLoadingModels}
+                    devModeEnabled={devModeEnabled}
                   />
                 </div>
               </div>
@@ -461,12 +459,11 @@ export const WorkspaceLayout: React.FC = () => {
               totalCount={totalCount}
               progressPercent={progressPercent}
               activityEvents={activityEvents}
-              agentStreamEvents={events}
               decisions={decisions}
               cases={cases}
               artifacts={artifacts}
               workspaceDocs={workspaceDocs}
-              isConnected={isConnected}
+              devModeEnabled={devModeEnabled}
               isStreaming={isStreaming}
               latestPreview={latestPreview}
               accessToken={accessToken}
@@ -490,7 +487,6 @@ export const WorkspaceLayout: React.FC = () => {
           isStreaming={isStreaming}
           isWaitingForInput={isWaitingForInput}
           hasFixedFollowUps={showSuggestedFollowUps}
-          hasStreamingIsland={isStreaming}
           chatOffsetClass={chatOffsetClass}
           onReply={reply}
           onViewArtifact={setActiveArtifactId}

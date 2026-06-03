@@ -1,15 +1,19 @@
 import {
   appendPendingSnapshotClearCoordinates,
   buildAddRowPayloadsFromUniverRows,
+  buildCreatedRowsFromBatch,
+  buildPersistedRowIdMapFromInsertRowSlotsResult,
   collectSnapshotClearCoordinates,
   collectSnapshotValueWriteCoordinates,
   isUuidString,
   mergeDuplicateClientRows,
+  overlaySnapshotIfRowsMismatch,
   partitionCellUpdatesByBackendRowId,
   removePendingSnapshotClearCoordinates,
   snapshotCellCoordinateKey
 } from '../spreadsheetViewerRows'
 import type { SpreadsheetPendingCellChange as CellChange } from '../../core'
+import type { SpreadsheetColumn } from '../../types'
 
 describe('spreadsheetViewerRows', () => {
   describe('isUuidString', () => {
@@ -21,8 +25,77 @@ describe('spreadsheetViewerRows', () => {
     })
   })
 
+  describe('buildPersistedRowIdMapFromInsertRowSlotsResult', () => {
+    it('merges rowMappings, result rows, and fallback client ids', () => {
+      const map = buildPersistedRowIdMapFromInsertRowSlotsResult(
+        {
+          rows: [{ id: 'backend-1', data: { _clientRowId: 'client-1', _gridRowIndex: 2 } }],
+          rowMappings: [{ clientRowId: 'client-2', rowUuid: 'backend-2' }]
+        },
+        {
+          fallbackClientRowIdsInOrder: ['client-1', 'client-2', 'client-3'],
+          rowMappings: [{ clientRowId: 'client-3', rowUuid: 'backend-3' }]
+        }
+      )
+
+      expect(map.get('client-1')).toBe('backend-1')
+      expect(map.get('client-2')).toBe('backend-2')
+      expect(map.get('client-3')).toBe('backend-3')
+    })
+  })
+
+  describe('buildCreatedRowsFromBatch', () => {
+    it('connects client row ids to backend rows via batch rowMappings', () => {
+      const { createdRows, persistedIdByClientRowId } = buildCreatedRowsFromBatch(
+        [{ _clientRowId: 'client-row-7', _gridRowIndex: 7, ColumnA: 'draft' }],
+        [{ id: 'backend-row-7', data: { _gridRowIndex: 7, ColumnA: 'occupied' } }],
+        new Map(),
+        { rowMappings: [{ clientRowId: 'client-row-7', rowUuid: 'backend-row-7' }] }
+      )
+
+      expect(persistedIdByClientRowId.get('client-row-7')).toBe('backend-row-7')
+      expect(createdRows[0]).toEqual(
+        expect.objectContaining({
+          _clientRowId: 'client-row-7',
+          _rowUuid: 'backend-row-7',
+          _id: 'backend-row-7'
+        })
+      )
+    })
+
+    it('preserves adopted peer cell values returned by add_rows batch response', () => {
+      const { createdRows } = buildCreatedRowsFromBatch(
+        [{ _clientRowId: 'client-row-7', _gridRowIndex: 7, column_f: { v: 'second client' } }],
+        [
+          {
+            id: 'backend-row-7',
+            data: {
+              _clientRowId: 'client-row-7',
+              _gridRowIndex: 7,
+              column_d: { v: 'first client' },
+              column_f: { v: 'second client' }
+            }
+          }
+        ],
+        new Map(),
+        { rowMappings: [{ clientRowId: 'client-row-7', rowUuid: 'backend-row-7' }] }
+      )
+
+      expect(createdRows[0]).toEqual(
+        expect.objectContaining({
+          _id: 'backend-row-7',
+          _rowUuid: 'backend-row-7',
+          _clientRowId: 'client-row-7',
+          _gridRowIndex: 7,
+          column_d: { v: 'first client' },
+          column_f: { v: 'second client' }
+        })
+      )
+    })
+  })
+
   describe('mergeDuplicateClientRows', () => {
-    it('merges rows with same client identity keeping richer values', () => {
+    it('merges rows with same client identity preferring later incoming fields', () => {
       const a = { _id: 'c1', foo: 1, _clientRowId: 'c1' }
       const b = { _id: 'c1', foo: 2, bar: 3, _clientRowId: 'c1' }
       const merged = mergeDuplicateClientRows([a, b] as Record<string, unknown>[])
@@ -32,6 +105,38 @@ describe('spreadsheetViewerRows', () => {
     it('keeps rows without client id', () => {
       const rows = [{ x: 1 }, { x: 2 }]
       expect(mergeDuplicateClientRows(rows)).toHaveLength(2)
+    })
+
+    it('merges adopted concurrent rows by backend uuid and grid slot', () => {
+      const rowUuid = '02790541-7184-4356-84f3-4eed34510be6'
+      const localRow = {
+        _id: 'client_first',
+        _rowUuid: rowUuid,
+        _clientRowId: 'client_first',
+        _gridRowIndex: 253,
+        column_d: { v: 'lllll' }
+      }
+      const adoptedRow = {
+        _id: 'client_second',
+        _rowUuid: rowUuid,
+        _clientRowId: 'client_second',
+        _gridRowIndex: 253,
+        column_d: { v: 'lllll' },
+        column_f: { v: 'lllooo' }
+      }
+
+      const merged = mergeDuplicateClientRows([localRow, adoptedRow] as Record<string, unknown>[])
+
+      expect(merged).toHaveLength(1)
+      expect(merged[0]).toEqual(
+        expect.objectContaining({
+          _rowUuid: rowUuid,
+          _clientRowId: 'client_second',
+          _gridRowIndex: 253,
+          column_d: { v: 'lllll' },
+          column_f: { v: 'lllooo' }
+        })
+      )
     })
   })
 
@@ -99,6 +204,33 @@ describe('spreadsheetViewerRows', () => {
       ])
     })
 
+    it('omits inline Univer style blobs from add_rows column payloads', () => {
+      const payloads = buildAddRowPayloadsFromUniverRows(
+        [
+          {
+            _clientRowId: 'client_row_9',
+            _gridRowIndex: 9,
+            column_a: { v: 1, s: 'style-1', ff: 'Arial', fs: 12 }
+          }
+        ],
+        [
+          {
+            id: 'col-a',
+            name: 'column_a',
+            label: 'A',
+            type: 'text',
+            isVisible: true,
+            isEditable: true,
+            isRequired: false,
+            isUnique: false,
+            order: 0
+          }
+        ]
+      )
+
+      expect(payloads[0]?.column_a).toEqual({ v: 1 })
+    })
+
     it('omits _clientRowId when the row already has only backend identity', () => {
       const payloads = buildAddRowPayloadsFromUniverRows(
         [
@@ -157,6 +289,34 @@ describe('spreadsheetViewerRows', () => {
       const removed = removePendingSnapshotClearCoordinates(pending, 's1', [{ row: 1, col: 2 }])
       expect(removed).toBe(1)
       expect(pending.has('s1')).toBe(false)
+    })
+  })
+
+  describe('overlaySnapshotIfRowsMismatch', () => {
+    it('rebuilds values from authoritative viewer rows and preserves snapshot formatting', () => {
+      const sheetId = 'sheet-1'
+      const columns = [
+        { id: 'c0', name: 'alpha', label: 'alpha', type: 'text', order: 0, isVisible: true }
+      ] as SpreadsheetColumn[]
+      const viewerRows = [{ alpha: 'from-server' }]
+      const snapshot: Record<string, unknown> = {
+        id: 'wb',
+        styles: { styleRed: { bg: { rgb: '#ff0000' } } },
+        sheetOrder: [sheetId],
+        sheets: {
+          [sheetId]: {
+            id: sheetId,
+            name: 'S',
+            cellData: { 0: { 0: { v: 'stale', s: 'styleRed' } } }
+          }
+        }
+      }
+      const merged = overlaySnapshotIfRowsMismatch(snapshot, sheetId, viewerRows, columns)
+      const cell = (
+        merged?.sheets as Record<string, { cellData: Record<number, Record<number, { v?: string; s?: string }>> }>
+      )[sheetId].cellData[0][0]
+      expect(cell.v).toBe('from-server')
+      expect(cell.s).toBe('styleRed')
     })
   })
 })

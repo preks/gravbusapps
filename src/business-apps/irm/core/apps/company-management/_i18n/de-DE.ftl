@@ -8,6 +8,7 @@ currency-column = Waehrung
 created-column = Erstellt
 empty-companies = Keine Investmentgesellschaften gefunden
 create-company-button = Gesellschaft erstellen
+create-group-button = Gruppe erstellen
 page-title = Gesellschaftsverwaltung
 page-description = Investmentgesellschaften, Rechtstraegerdaten, Geschaeftsfuehrung und Dokumente verwalten
 companies-tab = Gesellschaften

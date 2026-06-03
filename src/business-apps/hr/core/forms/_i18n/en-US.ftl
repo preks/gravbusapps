@@ -92,6 +92,22 @@ assign-salary-review-notes = Notes
 action-select-placeholder = Please Select
 action-enter-placeholder = Please Enter
 
+# Upload Document Form
+upload-document-title = Upload Document
+upload-document-upload-document = Upload Document
+upload-document-document-name = Document Name
+upload-document-document-name-required = Document name is required
+upload-document-document-name-placeholder = e.g., Employment Contract, ID Card, Resume
+upload-document-document-group = Document Group
+upload-document-select-document-group = Select Document Group
+upload-document-document-type = Document Type
+upload-document-select-document-type = Select Document Type
+upload-document-expiry-date = Expiry Date
+upload-document-description = Description
+upload-document-ai-detecting = Detecting document group and type...
+upload-document-ai-suggestion = AI suggestion: Group = { $group }, Type = { $type }
+upload-document-ai-apply = Apply suggestion
+
 # Grant Employee Bonus Form - English Translations
 
 # Form Title

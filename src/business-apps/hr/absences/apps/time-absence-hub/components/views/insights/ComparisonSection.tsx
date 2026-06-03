@@ -123,9 +123,24 @@ export const ComparisonSection: React.FC<ComparisonSectionProps> = ({ attendance
     () =>
       dimensions.map(dimension => ({
         dimension,
-        data: aggregateByDimension(attendanceData.attendance, attendanceData.employees, dimension)
+        data: aggregateByDimension(
+          {
+            attendance: attendanceData.attendance,
+            employees: attendanceData.employees,
+            dateRange: attendanceData.dateRange,
+            holidays: attendanceData.holidays,
+            absenceNet: attendanceData.absenceNet
+          },
+          dimension
+        )
       })),
-    [attendanceData.attendance, attendanceData.employees]
+    [
+      attendanceData.absenceNet,
+      attendanceData.attendance,
+      attendanceData.dateRange,
+      attendanceData.employees,
+      attendanceData.holidays
+    ]
   )
 
   return (

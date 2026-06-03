@@ -32,6 +32,10 @@ interface ApproveSkillAssignmentProps extends BusinessAppContextProps {
   onClose?: () => void
 }
 
+const temporaryDisabled = true
+const temporaryDisabledMessage =
+  'This approval form is temporarily disabled because the skill functionality is currently being adjusted.'
+
 function getChangeBadge(change: SkillChange, t: (key: string) => string) {
   switch (change.type) {
     case 'new':
@@ -177,7 +181,55 @@ async function deleteEmployeeDocument(accessToken: string, document: SkillChange
   }
 }
 
-export const ApproveSkillAssignment: React.FC<ApproveSkillAssignmentProps> = ({
+function ApproveSkillAssignmentTemporaryDisabled({
+  additionalData,
+  onClose,
+  accessToken
+}: Readonly<ApproveSkillAssignmentProps>) {
+  const { t } = useTranslation(approveSkillAssignmentTranslations)
+  const taskPayload = additionalData?.psi_taskPayload || {}
+  const processMetadata = additionalData?.psi_processMetadata || {}
+  const taskTitle = (processMetadata?.referenceTaskName as string | undefined) ?? t('approve-skill-assignment-title')
+  const creatorName =
+    (taskPayload?.creatorName as string | undefined) ?? (processMetadata?.creatorName as string | undefined)
+  const creatorUserId = processMetadata?.creatorUserId as string | undefined
+  const isEveryBoxContext = !!onClose
+
+  const handleClose = () => {
+    if (onClose) {
+      onClose()
+    } else {
+      dispatchProcessContinueEvent('pse_abort', { event: 'pse_abort' })
+    }
+  }
+
+  return (
+    <TaskFormLayout
+      data-testid="approve-skill-assignment-container"
+      header={
+        <TaskDetailHeader
+          title={taskTitle}
+          showEmployeeInfo
+          creatorName={creatorName}
+          userId={creatorUserId}
+          accessToken={accessToken}
+          onClose={isEveryBoxContext ? handleClose : undefined}
+        />
+      }
+      contentClassName="gba:space-y-4"
+    >
+      <div
+        className="gba:flex gba:items-start gba:gap-3 gba:rounded-md gba:border gba:border-border gba:bg-card/50 gba:px-4 gba:py-3"
+        data-testid="skill-assignment-temporary-disabled"
+      >
+        <InfoIcon size={16} className="gba:mt-0.5 gba:shrink-0 gba:text-muted-foreground" />
+        <p className="gba:text-sm gba:text-muted-foreground">{temporaryDisabledMessage}</p>
+      </div>
+    </TaskFormLayout>
+  )
+}
+
+const ApproveSkillAssignmentContent: React.FC<ApproveSkillAssignmentProps> = ({
   additionalData,
   onClose,
   accessToken
@@ -474,6 +526,14 @@ export const ApproveSkillAssignment: React.FC<ApproveSkillAssignmentProps> = ({
       />
     </TaskFormLayout>
   )
+}
+
+export const ApproveSkillAssignment: React.FC<ApproveSkillAssignmentProps> = props => {
+  if (temporaryDisabled) {
+    return <ApproveSkillAssignmentTemporaryDisabled {...props} />
+  }
+
+  return <ApproveSkillAssignmentContent {...props} />
 }
 
 export default ApproveSkillAssignment

@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useMemo, useState, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import { useFlowBot } from './hooks/useFlowBot'
+import { useFlowBot, type WebSearchMode } from './hooks/useFlowBot'
 import { useVoiceInput } from './hooks/useVoiceInput'
 import { useVoiceInputHybrid } from './hooks/useVoiceInputHybrid'
 import { useVoiceSynthesis } from './hooks/useVoiceSynthesis'
@@ -91,6 +91,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
   const {
     conversation,
     isLoading,
+    isGenerating,
     sendMessage,
     editMessage,
     clearConversation,
@@ -499,7 +500,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
               // Exit form mode so TTS is allowed to speak the response
               voiceForm.setActiveForm(null)
               voiceForm.clearPendingFormSummary()
-              sendMessage(cleanText, [], false, false, undefined, undefined, undefined, true)
+              sendMessage(cleanText, [], false, 'off', undefined, undefined, undefined, true)
               voiceInput.resetTranscript()
               return
             }
@@ -510,7 +511,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
         }
 
         // No active form - send as regular chat message
-        sendMessage(cleanText, [], false, false, undefined, undefined, undefined, true)
+        sendMessage(cleanText, [], false, 'off', undefined, undefined, undefined, true)
         voiceInput.resetTranscript()
       }
     },
@@ -527,11 +528,11 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     const lastTurn = conversation[conversation.length - 1]
     const hasLoadingOutput = lastTurn?.side === 'agent' && lastTurn.outputs?.some(o => o.type === 'loading')
 
-    if (isLoading && !hasLoadingOutput) {
+    if (isGenerating && !hasLoadingOutput) {
       return [...conversation, { side: 'agent' as const, outputs: [{ type: 'loading' as const }] }]
     }
     return conversation
-  }, [conversation, isLoading])
+  }, [conversation, isGenerating])
 
   const renderConversation = useMemo(() => {
     if (!isSpeechMode) {
@@ -607,87 +608,147 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
 
   // Track if we've already processed a prompt from sessionStorage to avoid duplicates
   const promptProcessedRef = useRef<string | null>(null)
-  const lastCheckTimeRef = useRef<number>(0)
+  const lastInitialPayloadAtRef = useRef<number>(0)
+  const pendingInitialPromptRef = useRef<{
+    prompt: string
+    additionInfo?: string
+    skills?: string[]
+    requiresNewSession: boolean
+  } | null>(null)
 
-  // Check for initial prompt when Every AI component is ready
-  // This handles: component mount, conversation becomes empty, or sidebar opens
-  const checkAndSendInitialPrompt = useCallback(() => {
-    // Throttle checks to avoid excessive sessionStorage reads
-    const now = Date.now()
-    if (now - lastCheckTimeRef.current < 200) {
+  const clearStoredInitialPrompt = useCallback(() => {
+    window.__everyAIInitialPayload = undefined
+    sessionStorage.removeItem('everyAIInitialPrompt')
+    sessionStorage.removeItem('everyAIInitialAdditionInfo')
+    sessionStorage.removeItem('everyAIInitialSkills')
+    sessionStorage.removeItem('everyAINewSession')
+  }, [])
+
+  const readInitialPromptPayload = useCallback(() => {
+    const memoryPayload = window.__everyAIInitialPayload
+    const prompt = memoryPayload?.prompt ?? sessionStorage.getItem('everyAIInitialPrompt')
+    if (!prompt) {
+      return null
+    }
+
+    const payloadCreatedAt = memoryPayload?.createdAt ?? Date.now()
+    if (payloadCreatedAt <= lastInitialPayloadAtRef.current) {
+      return null
+    }
+
+    const additionInfo =
+      memoryPayload?.additionInfo ?? sessionStorage.getItem('everyAIInitialAdditionInfo') ?? undefined
+    const skills =
+      memoryPayload?.skills ??
+      (() => {
+        try {
+          const rawSkills = sessionStorage.getItem('everyAIInitialSkills')
+          if (!rawSkills) return undefined
+          const parsedSkills = JSON.parse(rawSkills)
+          return Array.isArray(parsedSkills) ? parsedSkills : undefined
+        } catch {
+          return undefined
+        }
+      })()
+    const requiresNewSession =
+      memoryPayload?.newSession === true || sessionStorage.getItem('everyAINewSession') === 'true'
+
+    return {
+      prompt,
+      additionInfo: additionInfo ?? undefined,
+      skills,
+      requiresNewSession,
+      payloadCreatedAt
+    }
+  }, [])
+
+  const flushPendingInitialPrompt = useCallback(() => {
+    if (isLoading || conversation.length > 0) {
       return
     }
-    lastCheckTimeRef.current = now
 
-    if (isLoading) {
-      return // Don't check while loading
+    const pending = pendingInitialPromptRef.current
+    if (!pending || pending.prompt === promptProcessedRef.current) {
+      return
     }
 
+    pendingInitialPromptRef.current = null
+    promptProcessedRef.current = pending.prompt
+    clearStoredInitialPrompt()
+
+    setTimeout(() => {
+      sendMessage(pending.prompt, [], false, 'off', pending.additionInfo, pending.skills, undefined, false)
+    }, 100)
+  }, [clearStoredInitialPrompt, conversation.length, isLoading, sendMessage])
+
+  const ingestOpenEveryAIPayload = useCallback(() => {
     try {
-      const memoryPayload = window.__everyAIInitialPayload
-      const initialPrompt = memoryPayload?.prompt ?? sessionStorage.getItem('everyAIInitialPrompt')
-      const initialAdditionInfo = memoryPayload?.additionInfo ?? sessionStorage.getItem('everyAIInitialAdditionInfo')
-      const initialSkills =
-        memoryPayload?.skills ??
-        (() => {
-          try {
-            const rawSkills = sessionStorage.getItem('everyAIInitialSkills')
-            if (!rawSkills) return undefined
-            const parsedSkills = JSON.parse(rawSkills)
-            return Array.isArray(parsedSkills) ? parsedSkills : undefined
-          } catch {
-            return undefined
-          }
-        })()
-
-      if (initialPrompt && initialPrompt !== promptProcessedRef.current) {
-        promptProcessedRef.current = initialPrompt
-        window.__everyAIInitialPayload = undefined
-        sessionStorage.removeItem('everyAIInitialPrompt')
-        sessionStorage.removeItem('everyAIInitialAdditionInfo')
-        sessionStorage.removeItem('everyAIInitialSkills')
-        setTimeout(() => {
-          // Pass through exactly as resolved so empty string can still force
-          // `addition_info` multipart field inclusion.
-          sendMessage(
-            initialPrompt,
-            [],
-            false,
-            false,
-            initialAdditionInfo ?? undefined,
-            initialSkills,
-            undefined,
-            false
-          )
-        }, 300)
+      const payload = readInitialPromptPayload()
+      if (!payload) {
+        return false
       }
-    } catch (error) {
-      console.warn('Failed to read Every AI initial prompt:', error)
-    }
-  }, [isLoading, sendMessage])
 
-  // Check for prompt when component is ready and conversation is empty
+      lastInitialPayloadAtRef.current = payload.payloadCreatedAt
+      pendingInitialPromptRef.current = {
+        prompt: payload.prompt,
+        additionInfo: payload.additionInfo,
+        skills: payload.skills,
+        requiresNewSession: payload.requiresNewSession
+      }
+      promptProcessedRef.current = null
+
+      if (payload.requiresNewSession) {
+        clearConversation()
+        return true
+      }
+
+      flushPendingInitialPrompt()
+      return true
+    } catch (error) {
+      console.warn('[EveryAI] Failed to ingest initial prompt payload:', error)
+      return false
+    }
+  }, [clearConversation, flushPendingInitialPrompt, readInitialPromptPayload])
+
   useEffect(() => {
     if (!isLoading && conversation.length === 0) {
-      checkAndSendInitialPrompt()
+      flushPendingInitialPrompt()
     }
-  }, [isLoading, conversation.length, checkAndSendInitialPrompt])
+  }, [conversation.length, flushPendingInitialPrompt, isLoading])
 
-  // Listen for custom event when sidebar opens (handles case when component is already mounted)
   useEffect(() => {
-    const handleSidebarOpen = () => {
-      promptProcessedRef.current = null
-      setTimeout(() => {
-        checkAndSendInitialPrompt()
-      }, 500)
+    const handleOpenEveryAIRequest = () => {
+      ingestOpenEveryAIPayload()
     }
 
-    // Listen for when Every AI sidebar becomes active
-    window.addEventListener('everyAISidebarOpened', handleSidebarOpen)
-    return () => {
-      window.removeEventListener('everyAISidebarOpened', handleSidebarOpen)
+    const handleNewSessionRequest = () => {
+      promptProcessedRef.current = null
+      clearConversation()
     }
-  }, [checkAndSendInitialPrompt])
+
+    const handleMessageEvent = (event: Event) => {
+      const messageEvent = event as MessageEvent
+      if (messageEvent.data?.type === 'OPEN_EVERY_AI') {
+        handleOpenEveryAIRequest()
+      }
+    }
+
+    window.addEventListener('openEveryAI', handleOpenEveryAIRequest)
+    window.addEventListener('everyAISidebarOpened', handleOpenEveryAIRequest)
+    window.addEventListener('everyAIStartNewSession', handleNewSessionRequest)
+    window.addEventListener('message', handleMessageEvent)
+
+    if (!isLoading && conversation.length === 0) {
+      ingestOpenEveryAIPayload()
+    }
+
+    return () => {
+      window.removeEventListener('openEveryAI', handleOpenEveryAIRequest)
+      window.removeEventListener('everyAISidebarOpened', handleOpenEveryAIRequest)
+      window.removeEventListener('everyAIStartNewSession', handleNewSessionRequest)
+      window.removeEventListener('message', handleMessageEvent)
+    }
+  }, [clearConversation, conversation.length, ingestOpenEveryAIPayload, isLoading])
 
   useEffect(() => {
     const handleNativeSpeechToText = (event: Event) => {
@@ -765,19 +826,19 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     text: string,
     files: File[],
     isThinking: boolean,
-    isSearching: boolean,
+    webSearchMode: WebSearchMode,
     mentions?: Array<{ id: string; type: string; display: string }>
   ) => {
-    sendMessage(text, files, isThinking, isSearching, undefined, undefined, mentions, false)
+    sendMessage(text, files, isThinking, webSearchMode, undefined, undefined, mentions)
   }
 
   const handleConversationSend = useCallback(
-    (userInputText: string, files: File[], isThinking: boolean = false, isSearching: boolean = false) => {
+    (userInputText: string, files: File[], isThinking: boolean = false, webSearchMode: WebSearchMode = 'off') => {
       return sendMessage(
         userInputText,
         files,
         isThinking,
-        isSearching,
+        webSearchMode,
         undefined,
         undefined,
         undefined,
@@ -904,7 +965,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
                     isVoiceMode={isSpeechMode}
                     sessionId={sessionId ?? undefined}
                     onCancelGeneration={cancelGeneration}
-                    isAgentGenerating={isLoading}
+                    isAgentGenerating={isGenerating}
                     hideInlinePlan={isDesktopPlanLayout && Boolean(latestAgentPlan)}
                   />
                 </div>

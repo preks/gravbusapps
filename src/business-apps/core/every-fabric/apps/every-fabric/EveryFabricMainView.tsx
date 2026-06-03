@@ -1,0 +1,232 @@
+import type { ReactNode } from 'react'
+import { Button } from '@newwork/nw-design-system'
+import { SpinnerGapIcon } from '@phosphor-icons/react'
+import { AgentMeshScreen } from './components/agent-mesh/AgentMeshScreen'
+import { EnterpriseWorkforceScreen } from './components/enterprise-workforce/EnterpriseWorkforceScreen'
+import { TraceExplorerScreen } from './components/trace-explorer/TraceExplorerScreen'
+import { LandingScreen } from './components/landing/LandingScreen'
+import { ScheduledDispatchesScreen } from './components/scheduled/ScheduledDispatchesScreen'
+import { SettingsScreen } from './components/settings/SettingsScreen'
+import { WorkspaceLayout } from './components/workspace/WorkspaceLayout'
+import type { useActiveSessions } from './hooks/useActiveSessions'
+import type { useFabric } from './context/FabricContext'
+
+type FabricContext = ReturnType<typeof useFabric>
+type ActiveSessions = ReturnType<typeof useActiveSessions>['activeSessions']
+
+interface FadeOverlayProps {
+  visible: boolean
+  children?: ReactNode
+}
+
+function FadeOverlay({ visible, children }: Readonly<FadeOverlayProps>) {
+  return (
+    <div
+      className={`gba:absolute gba:inset-0 gba:transition-opacity gba:duration-300 gba:ease-in-out ${
+        visible ? 'gba:opacity-100' : 'gba:opacity-0 gba:pointer-events-none'
+      }`}
+      style={{ pointerEvents: visible ? 'auto' : 'none', zIndex: visible ? 30 : 0 }}
+    >
+      {children}
+    </div>
+  )
+}
+
+interface SessionLoadGateProps {
+  isLoadingSession: boolean
+  sessionLoadError: FabricContext['sessionLoadError']
+  sessionNotFound: boolean
+  onRetry: () => void
+  onBackToLanding: () => void
+  children: ReactNode
+}
+
+function SessionLoadGate({
+  isLoadingSession,
+  sessionLoadError,
+  sessionNotFound,
+  onRetry,
+  onBackToLanding,
+  children
+}: Readonly<SessionLoadGateProps>) {
+  if (isLoadingSession && sessionLoadError) {
+    return (
+      <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:gap-4">
+        <p className="gba:text-sm gba:text-foreground">Couldn&apos;t load this session</p>
+        <div className="gba:flex gba:items-center gba:gap-3">
+          <Button variant="secondary" onClick={onRetry}>
+            Try again
+          </Button>
+          <Button onClick={onBackToLanding}>Back to landing</Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (isLoadingSession && !sessionNotFound) {
+    return (
+      <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:gap-3">
+        <SpinnerGapIcon className="gba:h-5 gba:w-5 gba:animate-spin gba:text-muted-foreground" />
+        <p className="gba:text-sm gba:text-muted-foreground">Opening session...</p>
+      </div>
+    )
+  }
+
+  if (sessionNotFound) {
+    return (
+      <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:gap-4">
+        <p className="gba:text-sm gba:text-foreground">Session not found</p>
+        <Button onClick={onBackToLanding}>Back to landing</Button>
+      </div>
+    )
+  }
+
+  return children
+}
+
+export interface EveryFabricMainViewProps {
+  accessToken: string
+  session: FabricContext['session']
+  activeSessions: ActiveSessions
+  devModeEnabled: boolean
+  displayView: string | null
+  showSettings: boolean
+  showScheduled: boolean
+  showAgentMesh: boolean
+  showTraceExplorer: boolean
+  showEnterpriseWorkforce: boolean
+  isAnyOverlayShown: boolean
+  isLoadingSession: boolean
+  sessionLoadError: FabricContext['sessionLoadError']
+  sessionNotFound: boolean
+  onRetrySessionLoad: () => void
+  onBackToLanding: () => void
+  onCloseSettings: () => void
+  onCloseScheduled: () => void
+  onCloseAgentMesh: () => void
+  onCloseTraceExplorer: () => void
+  onCloseEnterpriseWorkforce: () => void
+  onSelectSession: (id: string) => void
+  onOpenTraceExplorer: (positionMs?: number) => void
+  onOpenAgentMeshFromTrace: (positionMs?: number) => void
+  onStartSession: FabricContext['startSession']
+}
+
+export function EveryFabricMainView({
+  accessToken,
+  session,
+  activeSessions,
+  devModeEnabled,
+  displayView,
+  showSettings,
+  showScheduled,
+  showAgentMesh,
+  showTraceExplorer,
+  showEnterpriseWorkforce,
+  isAnyOverlayShown,
+  isLoadingSession,
+  sessionLoadError,
+  sessionNotFound,
+  onRetrySessionLoad,
+  onBackToLanding,
+  onCloseSettings,
+  onCloseScheduled,
+  onCloseAgentMesh,
+  onCloseTraceExplorer,
+  onCloseEnterpriseWorkforce,
+  onSelectSession,
+  onOpenTraceExplorer,
+  onOpenAgentMeshFromTrace,
+  onStartSession
+}: Readonly<EveryFabricMainViewProps>) {
+  const showMainContent = !isAnyOverlayShown
+
+  return (
+    <SessionLoadGate
+      isLoadingSession={isLoadingSession}
+      sessionLoadError={sessionLoadError}
+      sessionNotFound={sessionNotFound}
+      onRetry={onRetrySessionLoad}
+      onBackToLanding={onBackToLanding}
+    >
+      <>
+        <FadeOverlay visible={showSettings}>
+          {displayView === 'settings' && (
+            <SettingsScreen
+              accessToken={accessToken}
+              onBack={onCloseSettings}
+              onRunTask={agent => {
+                onCloseSettings()
+                void onStartSession(`Run task with ${agent.name}: `, {
+                  mode: 'deep',
+                  enable_memory: true,
+                  enable_reflection: undefined,
+                  selectedAgent: {
+                    id: agent.id,
+                    name: agent.name,
+                    display_name: agent.name,
+                    description: agent.description,
+                    domain: agent.specialty ?? agent.domain ?? '',
+                    tags: agent.tags ?? []
+                  }
+                })
+              }}
+            />
+          )}
+        </FadeOverlay>
+
+        <FadeOverlay visible={showScheduled}>
+          {displayView === 'scheduled' && (
+            <ScheduledDispatchesScreen
+              accessToken={accessToken}
+              onBack={onCloseScheduled}
+              onOpenSession={onSelectSession}
+            />
+          )}
+        </FadeOverlay>
+
+        <FadeOverlay visible={showAgentMesh}>
+          {displayView === 'agent-mesh' && (
+            <AgentMeshScreen
+              activeSessions={activeSessions}
+              onBack={onCloseAgentMesh}
+              onOpenTraceExplorer={devModeEnabled ? onOpenTraceExplorer : undefined}
+            />
+          )}
+        </FadeOverlay>
+
+        <FadeOverlay visible={showTraceExplorer}>
+          {displayView === 'trace-explorer' && (
+            <TraceExplorerScreen onBack={onCloseTraceExplorer} onOpenAgentMesh={onOpenAgentMeshFromTrace} />
+          )}
+        </FadeOverlay>
+
+        <FadeOverlay visible={showEnterpriseWorkforce}>
+          {displayView === 'enterprise-workforce' && (
+            <EnterpriseWorkforceScreen
+              accessToken={accessToken}
+              activeSessions={activeSessions}
+              onBack={onCloseEnterpriseWorkforce}
+            />
+          )}
+        </FadeOverlay>
+
+        <div
+          className={`gba:absolute gba:inset-0 gba:transition-opacity gba:duration-300 gba:ease-in-out ${
+            showMainContent ? 'gba:opacity-100' : 'gba:opacity-0 gba:pointer-events-none'
+          }`}
+          style={{
+            pointerEvents: showMainContent ? 'auto' : 'none',
+            zIndex: showMainContent ? 20 : 0
+          }}
+        >
+          {session ? (
+            <WorkspaceLayout devModeEnabled={devModeEnabled} />
+          ) : (
+            <LandingScreen accessToken={accessToken} onStartSession={onStartSession} devModeEnabled={devModeEnabled} />
+          )}
+        </div>
+      </>
+    </SessionLoadGate>
+  )
+}

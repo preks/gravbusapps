@@ -442,6 +442,12 @@ export type LoadingOutput = {
 export type ErrorOutput = {
   type: 'error'
   text?: string
+  session_id?: string
+  run_id?: string
+  message_id?: string
+  flowbot_endpoint?: string
+  error_message?: string
+  user_description?: string
 }
 
 export type BulkFlowProposalItem = {
@@ -580,6 +586,14 @@ export type TextDeltaOutput = {
   run_id?: string | null
 }
 
+export type WebSearchPermissionRequestOutput = {
+  type: 'web_search_permission_request'
+  request_id: string
+  reason?: string | null
+  title?: string
+  message?: string
+}
+
 /**
  * Sent by the backend when a streaming `answer` bubble is actually narration
  * of a reasoning step rather than the final answer. The hook locates the
@@ -630,6 +644,44 @@ export type AgentPlanUpdateOutput = {
   items: AgentPlanItem[]
 }
 
+/**
+ * Field type for ClarificationQuestionItem. Mirrors the JSON-schema dialect
+ * used by FlowProposal forms so SchemaField can render either kind.
+ */
+export type ClarificationFieldType = 'STRING' | 'TEXT' | 'NUMBER' | 'BOOLEAN' | 'DATE' | 'SELECT' | 'MULTISELECT'
+
+/**
+ * One question rendered inline in the chat as part of a clarification form.
+ * The user's answer is keyed by `id` when posted back via `/v2/chat`.
+ */
+export type ClarificationQuestionItem = {
+  id: string
+  label: string
+  field?: ClarificationFieldType
+  required?: boolean
+  placeholder?: string | null
+  options?: string[] | null
+  default?: unknown
+}
+
+/**
+ * Inline clarification form emitted when the agent calls the
+ * `ask_clarifications` tool (which wraps LangGraph's `interrupt()`). The
+ * frontend renders one ClarificationFormDisplay per output keyed by `id`
+ * (the LangGraph interrupt id). On submit the answers are POSTed back to
+ * `/v2/chat` with `user_input_text` set to a JSON string of shape:
+ *
+ *   { action: 'clarification_response', interrupt_id, data: { ...answers } }
+ *
+ * On cancel the action is `clarification_cancel` with the same interrupt_id.
+ */
+export type ClarificationRequestOutput = {
+  type: 'clarification_request'
+  id: string
+  purpose: string
+  questions: ClarificationQuestionItem[]
+}
+
 export type OutputItem =
   | AnswerOutput
   | ToolOutput
@@ -643,9 +695,11 @@ export type OutputItem =
   | ReasoningStepOutput
   | ReasoningStepUpdateOutput
   | TextDeltaOutput
+  | WebSearchPermissionRequestOutput
   | NarrationAttachOutput
   | AgentPlanOutput
   | AgentPlanUpdateOutput
+  | ClarificationRequestOutput
 
 export type ChatOutput = {
   items: OutputItem[]

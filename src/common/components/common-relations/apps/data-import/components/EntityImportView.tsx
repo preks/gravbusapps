@@ -36,10 +36,12 @@ import {
   useEntityMappings,
   type ImportSubmissionStrategy
 } from '@/common/components/common-relations/apps/data-import/hooks'
+import { extractErrorMessage } from '@/common/components/common-relations/apps/data-import/hooks/useEntityImport/shared/errorHandling'
 import {
   allEnforcedRequiredSatisfied,
   buildEnforcedSelectDefaults,
   buildEnforcedSelectMap,
+  downloadImportTemplate,
   type EnforcedSelectValues
 } from '@/common/components/common-relations/apps/data-import/utils'
 import { FileUploadStep } from './FileUploadStep'
@@ -92,7 +94,7 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
 }) => {
   // Pre-register all step translation bundles so they are available before
   // each step mounts. Prevents raw keys on first render.
-  useTranslation(fileUploadTranslations)
+  const { t: tFileUpload } = useTranslation(fileUploadTranslations)
   useTranslation(mappingReviewTranslations)
   useTranslation(conversionResultTranslations)
 
@@ -157,6 +159,22 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
     await convertData(mappings, enforcedFieldsJson)
   }, [convertData, mappings, enforcedSelectConfigs, enforcedForm])
 
+  const [isDownloadingTemplate, setIsDownloadingTemplate] = React.useState(false)
+  const [downloadTemplateError, setDownloadTemplateError] = React.useState<string | null>(null)
+
+  const handleDownloadTemplate = React.useCallback(async () => {
+    setDownloadTemplateError(null)
+    setIsDownloadingTemplate(true)
+    try {
+      await downloadImportTemplate({ config, analyzerContext })
+    } catch (downloadError) {
+      console.error('Import template download failed:', extractErrorMessage(downloadError))
+      setDownloadTemplateError(tFileUpload('download-template-error'))
+    } finally {
+      setIsDownloadingTemplate(false)
+    }
+  }, [config, analyzerContext, tFileUpload])
+
   return (
     <PageLayout
       headerIcon={SparkleIcon}
@@ -173,8 +191,11 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
             <FileUploadStep
               file={file}
               isLoading={isLoading}
+              isDownloadingTemplate={isDownloadingTemplate}
+              downloadTemplateError={downloadTemplateError}
               onFileChange={handleFileChange}
               onAnalyze={analyzeWithAgent}
+              onDownloadTemplate={handleDownloadTemplate}
               {...(enableCampaignSelection && {
                 campaignId,
                 onCampaignChange: (campaign: { id: string; name: string } | null) =>

@@ -66,13 +66,11 @@ const CompanyGroupDeletePopup: React.FC<CompanyGroupDeletePopupProps> = ({ initi
     }
 
     return {
-      investmentCompanyGroups: [
-        {
-          id: group.id,
-          version: group.version,
-          isDeleted: true
-        }
-      ],
+      investmentCompanyGroup: {
+        id: group.id,
+        version: group.version,
+        isDeleted: true
+      },
       changeMode: 'DELETE'
     }
   }

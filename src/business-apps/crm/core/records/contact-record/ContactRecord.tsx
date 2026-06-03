@@ -371,6 +371,26 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
                     component: ComplianceSection,
                     props: {
                       entity: contactData,
+                      accessToken: props.accessToken,
+                      actionButtonConfig: {
+                        type: 'AppAction',
+                        config: {
+                          contextsArray: [FlowContextName.contactUpdateComplianceData],
+                          externalContextData: { contactId },
+                          prefixDataTestId: 'contact-compliance-update',
+                          emptyStateBehavior: 'enable',
+                          deferMainContextRequestsUntilClick: true,
+                          variant: 'custom',
+                          children: (
+                            <Button data-testid="contact-compliance-update-button" variant="default" size="sm">
+                              {getTranslationFromI18nKeyAndLabel(
+                                'crm.compliance.updateAction',
+                                'Update Compliance Data'
+                              )}
+                            </Button>
+                          )
+                        }
+                      },
                       'data-testid': 'contact-compliance-section'
                     }
                   }

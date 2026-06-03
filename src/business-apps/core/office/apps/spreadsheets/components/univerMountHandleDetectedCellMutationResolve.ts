@@ -2,8 +2,10 @@ import { createUniverConversionContext, overlaySparseRowIndexMappings } from '..
 import { deriveCellMatrixFromPayloadCoordinates, deriveCellMatrixFromRanges } from '../utils/univerWorksheetCellRead'
 import {
   buildAbsoluteCellMatrixForRanges,
+  mapPayloadCellMatrixToAbsoluteCoordinates,
   mergeExplicitMutationCellsIntoDerived,
-  overlayExplicitMutationCellsOntoDerived
+  overlayExplicitMutationCellsOntoDerived,
+  resolveMergeCoordinateMode
 } from './cellMatrixUtils'
 import type { SheetCellMatrixCoordinateMode } from './cellMatrixUtils'
 import { cellMatrixHasCollabWireStylePayload } from './univerMutationPlanner'
@@ -19,16 +21,17 @@ import {
   getOrCreateClientRowId,
   isCurrentFacadeWorksheet,
   isRegionReplaceStyleCollaborationCommand,
-  pruneExpiredRecentMutationEntries,
   summarizeCellMatrixForDebug,
   summarizeRangesForDebug
 } from './univerGridWorkbookMutationModule'
+import { getCommandKind } from './univerCommandClassification'
 import {
   buildShouldSuppressRemoteEcho,
   cellMatrixHasAnyNonSuppressedCell,
-  selectionReconcileAllCellsRecentlyLocal,
+  selectionReconcileAllCellsLocallyOwned,
   selectionReconcileHasAuthoritativeDiff
 } from './univerMountHandleDetectedCellMutationRemoteEcho'
+import { buildSpreadsheetLocalCellPaintGuard } from '../utils/spreadsheetLocalCellPaintGuard'
 import { getSpreadsheetRowAtUniverGridIndex } from './univerGridAuthoritativeHelpers'
 import {
   createClientRowRef,
@@ -39,6 +42,7 @@ import {
 import { resolveBackendRowUuidPredicateFromGridProps } from './univerBackendRowUuidPredicate'
 import { getViewerRowVisualIndex } from '../utils/spreadsheetPeerRowHydration'
 import { rowSlotTargetMatchesRowIdentity } from '../utils/spreadsheetRowSlotIdentity'
+import { getActiveMergeGestureSuppressRanges, unionSheetRangeShapes } from '../utils/spreadsheetMergeGestureSuppress'
 import type {
   DetectedCellMutationReady,
   HandleDetectedCellMutationArgs,
@@ -196,8 +200,11 @@ function resolvePlannerContextSource({
   const hasColumnStructuralMismatch =
     propsColumnSignature.length !== resolvedColumnSignature.length ||
     propsColumnSignature.some((entry, index) => entry !== resolvedColumnSignature[index])
+  const sessionIsAheadOfProps =
+    resolvedBackendRowCount > propsBackendRowCount ||
+    (hasResolvedRows && resolved.data.length > propsData.length && resolvedBackendRowCount >= propsBackendRowCount)
   const shouldUseResolved =
-    !hasStructuralMismatch &&
+    (!hasStructuralMismatch || sessionIsAheadOfProps) &&
     !hasColumnStructuralMismatch &&
     (resolvedBackendRowCount > 0 || (!hasPropsRows && hasResolvedRows) || resolved.data.length >= propsData.length)
 
@@ -277,11 +284,11 @@ export function resolveDetectedCellMutation(
     callbacksRef,
     recentlyDuplicatedWorksheetIdsRef,
     remoteEchoSuppressionRef,
-    recentLocallyMutatedGridCellsRef,
     lastSyncedGridCellSignaturesRef,
     newRowClientIdByIndexRef,
     getWorkbookSnapshotRef,
-    peekPasteFormattingReplaceIntent
+    peekPasteFormattingReplaceIntent,
+    peekAutofillApplyType
   } = deps
 
   const { source, commandId, payloadCellValue, ranges, worksheetId, preserveUndefinedAsNull = false } = mutationArgs
@@ -314,8 +321,57 @@ export function resolveDetectedCellMutation(
   }
 
   const hasPasteFormattingIntentForSheet = peekPasteFormattingReplaceIntent(targetSheetId)
+  const shouldConsumeAutofillIntent =
+    source !== 'command-executed' && source !== 'selection-reconcile' && source !== 'deferred-reconcile'
+  const autofillApplyType = peekAutofillApplyType(targetSheetId, ranges, shouldConsumeAutofillIntent)
   const commandHasReplaceRangeStyleIntent = isRegionReplaceStyleCollaborationCommand(commandId)
+  const commandHasStyleOnlyIntent = getCommandKind(commandId) === 'styleOnly'
   const shouldReadPostPasteCells = hasPasteFormattingIntentForSheet || commandHasReplaceRangeStyleIntent
+  const shouldReadLiveCellData =
+    source !== 'selection-reconcile' &&
+    source !== 'deferred-reconcile' &&
+    (shouldReadPostPasteCells || commandHasStyleOnlyIntent || autofillApplyType != null)
+
+  const isReadOnlyReconcileSourceEarly = source === 'selection-reconcile' || source === 'deferred-reconcile'
+
+  // Fast path for read-only reconcile: remote apply defers SheetValueChanged events and
+  // flushDeferredDirtyCells replays them here. Most are peer echoes — running the full
+  // planner + getWorkbookSnapshot (wb.save + deepClone) per cell caused ~100% CPU freezes.
+  // Bail out before planner context / coordinate-mode work when there is nothing local to do.
+  if (isReadOnlyReconcileSourceEarly) {
+    if (!currentWorksheet) {
+      return { status: 'return', value: false }
+    }
+    const quickCellValue = deriveCellMatrixFromRanges(
+      currentWorksheet,
+      ranges,
+      SPREADSHEET_MAX_WORKSHEET_RANGE_READ_CELLS,
+      false,
+      false
+    )
+    if (!quickCellValue) {
+      return { status: 'return', value: false }
+    }
+    const reconcileNow = Date.now()
+    const shouldSuppressQuick = buildShouldSuppressRemoteEcho({ remoteEchoSuppressionRef }, reconcileNow)
+    if (!cellMatrixHasAnyNonSuppressedCell(quickCellValue, shouldSuppressQuick, 0, 0)) {
+      return { status: 'return', value: false }
+    }
+    const quickPaintGuard = buildSpreadsheetLocalCellPaintGuard({
+      sheetId: targetSheetId,
+      rows: propsRef.current.data,
+      columns: propsRef.current.columns,
+      versionCausalOwnershipRef: propsRef.current.versionCausalOwnershipRef,
+      pendingLocalMutationCellsRef: propsRef.current.pendingLocalMutationCellsRef,
+      resolveKnownSheetVersion: propsRef.current.resolveKnownSheetVersion
+    })
+    if (selectionReconcileAllCellsLocallyOwned(quickPaintGuard, quickCellValue, 0, 0)) {
+      return { status: 'return', value: false }
+    }
+    if (!selectionReconcileHasAuthoritativeDiff({ lastSyncedGridCellSignaturesRef }, quickCellValue)) {
+      return { status: 'return', value: false }
+    }
+  }
 
   // 2a: single authoritative predicate from host props (not bootstrap wrappers — those are
   // never referentially equal and would false-trigger the conflict warning).
@@ -429,10 +485,11 @@ export function resolveDetectedCellMutation(
   const payloadCellValueForValueMerge = preserveUndefinedAsNull ? undefined : payloadCellValue
   const payloadCoordinateModeHint = detectCellMatrixCoordinateModeHint(ranges, payloadCellValueForValueMerge)
   const workbookSnapshotCellValue =
+    source !== 'deferred-replay' &&
     source === 'sheet-value-changed' &&
     !preserveUndefinedAsNull &&
     !disableMixedValueStylePayloads &&
-    !shouldReadPostPasteCells
+    !shouldReadLiveCellData
       ? deriveCellMatrixFromWorkbookSnapshot(getWorkbookSnapshotRef.current?.() ?? null, targetSheetId, ranges)
       : undefined
   const postPasteCoordinateCellValue =
@@ -454,41 +511,56 @@ export function resolveDetectedCellMutation(
       ranges,
       SPREADSHEET_MAX_WORKSHEET_RANGE_READ_CELLS,
       preserveUndefinedAsNull,
-      shouldReadPostPasteCells
+      shouldReadLiveCellData
     )
-  if (shouldReadPostPasteCells && payloadCellValue && typeof payloadCellValue === 'object') {
-    worksheetCellValue = mergeExplicitMutationCellsIntoDerived(
-      worksheetCellValue,
-      payloadCellValue,
-      ranges,
-      payloadCoordinateModeHint
-    )
-  } else if (preserveUndefinedAsNull && payloadCellValue && typeof payloadCellValue === 'object') {
+  if (preserveUndefinedAsNull && payloadCellValue && typeof payloadCellValue === 'object') {
     worksheetCellValue = overlayExplicitMutationCellsOntoDerived(worksheetCellValue, payloadCellValue)
   }
-  const relativeCellValue = buildAbsoluteCellMatrixForRanges(
-    ranges,
-    worksheetCellValue,
-    payloadCellValueForValueMerge,
-    'relative'
-  )
-  const absoluteCellValue = buildAbsoluteCellMatrixForRanges(
-    ranges,
-    worksheetCellValue,
-    payloadCellValueForValueMerge,
-    'absolute'
-  )
+  const shouldMergeExplicitPayloadIntoWorksheet =
+    (shouldReadPostPasteCells || commandHasStyleOnlyIntent) && payloadCellValue && typeof payloadCellValue === 'object'
+  // SheetValueChanged carries the edit; workbook snapshot / worksheet reads can lag. Prefer the
+  // event payload for value merges, but still backfill blanks from worksheet/snapshot reads.
+  const preferEventPayloadOverWorksheetRead =
+    source === 'sheet-value-changed' &&
+    Boolean(payloadCellValueForValueMerge) &&
+    !shouldReadPostPasteCells &&
+    !commandHasStyleOnlyIntent
+  const buildMergedCellMatrixForRanges = (
+    fallbackCoordinateMode: 'relative' | 'absolute'
+  ): SheetCellMatrix | undefined => {
+    if (!preferEventPayloadOverWorksheetRead) {
+      return buildAbsoluteCellMatrixForRanges(
+        ranges,
+        worksheetCellValue,
+        payloadCellValueForValueMerge,
+        fallbackCoordinateMode
+      )
+    }
+    const payloadAbsolute = buildAbsoluteCellMatrixForRanges(
+      ranges,
+      undefined,
+      payloadCellValueForValueMerge,
+      fallbackCoordinateMode
+    )
+    return buildAbsoluteCellMatrixForRanges(ranges, payloadAbsolute, worksheetCellValue, 'absolute')
+  }
+  const relativeCellValue = buildMergedCellMatrixForRanges('relative')
+  const absoluteCellValue = buildMergedCellMatrixForRanges('absolute')
   let selectedPayloadCoordinateMode: SheetCellMatrixCoordinateMode =
     payloadCoordinateModeHint === 'absolute' || payloadCoordinateModeHint === 'relative'
       ? payloadCoordinateModeHint
-      : 'relative'
+      : payloadCellValueForValueMerge
+        ? 'relative'
+        : 'absolute'
   let relativeStatsDebug: { changed: number; destructiveBlankWrites: number } | null = null
   let absoluteStatsDebug: { changed: number; destructiveBlankWrites: number } | null = null
   let baseCellValue =
     selectedPayloadCoordinateMode === 'absolute'
       ? (absoluteCellValue ?? relativeCellValue)
       : (relativeCellValue ?? absoluteCellValue)
-  if (payloadCoordinateModeHint === 'auto' && relativeCellValue && absoluteCellValue) {
+  const coordinateStatsHaveValueWriteSignal = (stats: { changed: number; destructiveBlankWrites: number }): boolean =>
+    stats.changed > 0 || stats.destructiveBlankWrites > 0
+  if (payloadCoordinateModeHint === 'auto' && payloadCellValueForValueMerge) {
     const relativeStats = countCellMatrixWritesAgainstCurrentData({
       cellValue: relativeCellValue,
       currentData,
@@ -501,32 +573,70 @@ export function resolveDetectedCellMutation(
     })
     relativeStatsDebug = relativeStats
     absoluteStatsDebug = absoluteStats
-    /**
-     * 3b: `'auto'` coordinate-mode tie-breaker decision table.
-     *
-     * Primary metric: `destructiveBlankWrites` (fewer is better — they overwrite real data
-     * with blanks, the highest-risk corruption mode).
-     * Secondary metric: `changed` (fewer is better — smaller delta is less risky).
-     *
-     * | relative.destructiveBlankWrites | absolute.destructiveBlankWrites | relative.changed | absolute.changed | Winner    |
-     * |---------------------------------|---------------------------------|------------------|------------------|-----------|
-     * | x                               | < x                             | any              | any              | absolute  |
-     * | x                               | = x                             | y                | < y              | absolute  |
-     * | x                               | = x                             | y                | = y              | relative  |
-     * | x                               | = x                             | y                | > y              | relative  |
-     * | x                               | > x                             | any              | any              | relative  |
-     *
-     * Rule: absolute wins only on STRICT inequality in either dimension; relative wins all
-     * ties. This bias is intentional — relative is Univer's natural mode for SheetValueChanged
-     * events, so on a true tie we prefer the cheaper interpretation.
-     */
-    if (selectCoordinateModeAuto(relativeStats, absoluteStats) === 'absolute') {
-      selectedPayloadCoordinateMode = 'absolute'
-      baseCellValue = absoluteCellValue
+    const hasValueWriteSignal =
+      coordinateStatsHaveValueWriteSignal(relativeStats) || coordinateStatsHaveValueWriteSignal(absoluteStats)
+    if (!hasValueWriteSignal) {
+      const resolvedAutoMode = resolveMergeCoordinateMode(payloadCellValueForValueMerge, ranges, 'auto')
+      selectedPayloadCoordinateMode = resolvedAutoMode
+      baseCellValue =
+        resolvedAutoMode === 'absolute'
+          ? (absoluteCellValue ?? relativeCellValue)
+          : (relativeCellValue ?? absoluteCellValue)
+    } else if (relativeCellValue && absoluteCellValue) {
+      /**
+       * 3b: `'auto'` coordinate-mode tie-breaker decision table.
+       *
+       * Primary metric: `destructiveBlankWrites` (fewer is better — they overwrite real data
+       * with blanks, the highest-risk corruption mode).
+       * Secondary metric: `changed` (fewer is better — smaller delta is less risky).
+       *
+       * | relative.destructiveBlankWrites | absolute.destructiveBlankWrites | relative.changed | absolute.changed | Winner    |
+       * |---------------------------------|---------------------------------|------------------|------------------|-----------|
+       * | x                               | < x                             | any              | any              | absolute  |
+       * | x                               | = x                             | y                | < y              | absolute  |
+       * | x                               | = x                             | y                | = y              | relative  |
+       * | x                               | = x                             | y                | > y              | relative  |
+       * | x                               | > x                             | any              | any              | relative  |
+       *
+       * Rule: absolute wins only on STRICT inequality in either dimension; relative wins all
+       * ties. This bias is intentional — relative is Univer's natural mode for SheetValueChanged
+       * events, so on a true tie we prefer the cheaper interpretation.
+       */
+      if (selectCoordinateModeAuto(relativeStats, absoluteStats) === 'absolute') {
+        selectedPayloadCoordinateMode = 'absolute'
+        baseCellValue = absoluteCellValue ?? relativeCellValue
+      } else {
+        selectedPayloadCoordinateMode = 'relative'
+        baseCellValue = relativeCellValue ?? absoluteCellValue
+      }
     }
   }
+  if (shouldMergeExplicitPayloadIntoWorksheet) {
+    worksheetCellValue = mergeExplicitMutationCellsIntoDerived(
+      worksheetCellValue,
+      payloadCellValue,
+      ranges,
+      selectedPayloadCoordinateMode
+    )
+    const mergedRelativeCellValue = buildAbsoluteCellMatrixForRanges(
+      ranges,
+      worksheetCellValue,
+      payloadCellValueForValueMerge,
+      'relative'
+    )
+    const mergedAbsoluteCellValue = buildAbsoluteCellMatrixForRanges(
+      ranges,
+      worksheetCellValue,
+      payloadCellValueForValueMerge,
+      'absolute'
+    )
+    baseCellValue =
+      selectedPayloadCoordinateMode === 'absolute'
+        ? (mergedAbsoluteCellValue ?? mergedRelativeCellValue ?? baseCellValue)
+        : (mergedRelativeCellValue ?? mergedAbsoluteCellValue ?? baseCellValue)
+  }
   const explicitPayloadAbsoluteCellValue = payloadCellValueForValueMerge
-    ? buildAbsoluteCellMatrixForRanges(ranges, undefined, payloadCellValueForValueMerge, selectedPayloadCoordinateMode)
+    ? mapPayloadCellMatrixToAbsoluteCoordinates(payloadCellValueForValueMerge, ranges, selectedPayloadCoordinateMode)
     : undefined
   if (!baseCellValue) {
     return { status: 'return', value: false }
@@ -610,7 +720,6 @@ export function resolveDetectedCellMutation(
     return { status: 'return', value: false }
   }
   const now = Date.now()
-  pruneExpiredRecentMutationEntries(recentLocallyMutatedGridCellsRef.current, now)
   const shouldSuppress = buildShouldSuppressRemoteEcho({ remoteEchoSuppressionRef }, now)
   const hasNonSuppressedCell = cellMatrixHasAnyNonSuppressedCell(cellValue, shouldSuppress, rowOffset, colOffset)
 
@@ -622,21 +731,23 @@ export function resolveDetectedCellMutation(
     return { status: 'return', value: false }
   }
 
-  if (source === 'selection-reconcile') {
-    if (
-      selectionReconcileAllCellsRecentlyLocal(
-        { recentLocallyMutatedGridCellsRef },
-        cellValue,
-        now,
-        rowOffset,
-        colOffset
-      )
-    ) {
+  const isReadOnlyReconcileSource = source === 'selection-reconcile' || source === 'deferred-reconcile'
+
+  if (isReadOnlyReconcileSource) {
+    const reconcilePaintGuard = buildSpreadsheetLocalCellPaintGuard({
+      sheetId: targetSheetId,
+      rows: currentData,
+      columns: contextColumns,
+      versionCausalOwnershipRef: propsRef.current.versionCausalOwnershipRef,
+      pendingLocalMutationCellsRef: propsRef.current.pendingLocalMutationCellsRef,
+      resolveKnownSheetVersion: propsRef.current.resolveKnownSheetVersion
+    })
+    if (selectionReconcileAllCellsLocallyOwned(reconcilePaintGuard, cellValue, rowOffset, colOffset)) {
       return { status: 'return', value: false }
     }
   }
 
-  if (source === 'selection-reconcile') {
+  if (isReadOnlyReconcileSource) {
     if (!selectionReconcileHasAuthoritativeDiff({ lastSyncedGridCellSignaturesRef }, cellValue)) {
       return { status: 'return', value: false }
     }
@@ -647,20 +758,23 @@ export function resolveDetectedCellMutation(
     .filter(rowIndex => rowIndex >= 0)
   const candidateNewRowIndices = getNewRowIndices(cellValue, ctxBefore, rowOffset)
 
-  // selection-reconcile is a read-only confirmation pass. It must never create new logical rows
+  // Read-only reconcile (selection move / deferred remote replay) must never create logical rows
   // nor mint client_* identities into newRowClientIdByIndexRef. Doing so caused identity divergence
   // during rapid local edits: reconcile would burn a client_* into a visual slot, then the user's
-  // real sheet-value-changed edit at that slot would inherit the burned id, while the materialized
-  // row carried a different id, leading to unresolved-temporary-row-id drops at the emit dispatch.
-  // If reconcile observes a value in a slot with no logical row yet, bail out and let the next
-  // real edit event mint the identity through its own pendingNewRowsUpdate.
-  if (source === 'selection-reconcile' && candidateNewRowIndices.length > 0) {
+  // real sheet-value-changed / sheet-edit-ended edit at that slot would inherit the burned id, while
+  // the materialized row carried a different id, leading to unresolved-temporary-row-id drops.
+  // Commits run on the write path (sheet-value-changed / sheet-edit-ended) via the emit-tail
+  // coordinator; reconcile waits on that tail before running (see bootstrap reconcileSingleCell).
+  if (isReadOnlyReconcileSource && candidateNewRowIndices.length > 0) {
     callbacksRef.current.onDiagnosticsTraceEvent?.({
       source: 'client',
-      stage: 'grid_mutation_selection_reconcile_skipped_new_rows',
+      stage: 'grid_mutation_reconcile_skipped_new_rows',
+      severity: 'info',
       payload: {
         targetSheetId,
-        candidateNewRowIndices
+        source,
+        candidateNewRowIndices,
+        hint: 'awaiting_write_path_materialization'
       }
     })
     return { status: 'return', value: false }
@@ -747,6 +861,7 @@ export function resolveDetectedCellMutation(
     colOffset,
     hadPasteIntentForSheet: hasPasteFormattingIntentForSheet,
     hadPasteFormattingIntentForSheet,
+    autofillApplyType,
     disableMixedValueStylePayloads,
     preserveUndefinedAsNull,
     explicitPayloadAbsoluteCellValue,
@@ -756,7 +871,17 @@ export function resolveDetectedCellMutation(
     ranges,
     shouldSuppress,
     pendingNewRowsUpdate,
-    liveMergeRanges: extractLiveMergeRangesFromFacade(currentWorksheet)
+    // liveMergeRanges must contain ONLY real merged regions: actual merges read from the
+    // worksheet facade plus in-flight merge gestures (registered exclusively for
+    // `merge_ranges` commands). The mutation target `ranges` must NOT be included here — a
+    // multi-cell write (autofill/fill-down, paste, multi-select typing) is not a merge, and
+    // treating its selection as a merged region makes the planner drop every cell except the
+    // top-left "master" as a merge-covered slave (root cause of "only the first cell of a
+    // fill reaches the API").
+    liveMergeRanges: unionSheetRangeShapes(
+      extractLiveMergeRangesFromFacade(currentWorksheet),
+      getActiveMergeGestureSuppressRanges(deps.mergeGestureSuppressBySheetRef, targetSheetId)
+    )
   }
 
   return { status: 'ready', ready }

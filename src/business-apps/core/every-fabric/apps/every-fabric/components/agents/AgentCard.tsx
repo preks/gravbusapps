@@ -1,6 +1,6 @@
 // Agent card for the Every Fabric agents screen.
 
-import { Button } from '@newwork/nw-design-system'
+import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@newwork/nw-design-system'
 import { PlayIcon, WrenchIcon, LightbulbIcon } from '@phosphor-icons/react'
 import { getSourceDisplay } from './agentSourceUtils'
 import type { FabricAgent } from './agentTypes'
@@ -71,18 +71,6 @@ export const AgentCard: React.FC<AgentCardProps> = ({
       {/* Stats row: value above label */}
       <div className="gba:flex gba:items-end gba:gap-6 gba:px-4 gba:py-3">
         <div>
-          <p className="gba:text-lg gba:font-bold gba:text-foreground gba:leading-none">--</p>
-          <p className="gba:mt-0.5 gba:text-[10px] gba:font-medium gba:uppercase gba:tracking-wider gba:text-muted-foreground">
-            Runs this wk
-          </p>
-        </div>
-        <div>
-          <p className="gba:text-lg gba:font-bold gba:text-foreground gba:leading-none">--</p>
-          <p className="gba:mt-0.5 gba:text-[10px] gba:font-medium gba:uppercase gba:tracking-wider gba:text-muted-foreground">
-            Approved
-          </p>
-        </div>
-        <div>
           <p className="gba:text-lg gba:font-bold gba:text-foreground gba:leading-none">{agent.tools_count}</p>
           <p className="gba:mt-0.5 gba:text-[10px] gba:font-medium gba:uppercase gba:tracking-wider gba:text-muted-foreground">
             Tools
@@ -96,40 +84,48 @@ export const AgentCard: React.FC<AgentCardProps> = ({
         </div>
       </div>
 
-      {/* Skill chips */}
+      {/* Skills (full width). Each shows its tool count; hover reveals the attached tools. */}
       {agent.skill_ids && agent.skill_ids.length > 0 && (
-        <div className="gba:flex gba:flex-wrap gba:gap-1.5 gba:px-4 gba:pb-2">
-          {agent.skill_ids.slice(0, 3).map(sid => (
-            <span
-              key={sid}
-              className="gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:bg-amber-50 gba:px-2.5 gba:py-0.5 gba:text-[11px] gba:font-medium gba:text-amber-700"
-            >
-              <LightbulbIcon className="gba:h-3 gba:w-3" />
-              {sid}
-            </span>
-          ))}
-          {agent.skill_ids.length > 3 && (
-            <span className="gba:text-[11px] gba:text-muted-foreground">+{agent.skill_ids.length - 3} more</span>
-          )}
-        </div>
+        <TooltipProvider>
+          <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-1.5 gba:px-4 gba:pb-3">
+            {agent.skill_ids.map(sid => {
+              const tools = agent.skill_tools_by_id?.[sid] ?? []
+              const chip = (
+                <span className="gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:bg-amber-50 gba:px-2.5 gba:py-0.5 gba:text-[11px] gba:font-medium gba:text-amber-700">
+                  <LightbulbIcon className="gba:h-3 gba:w-3 gba:shrink-0" />
+                  {sid}
+                  {tools.length > 0 && (
+                    <span className="gba:ml-0.5 gba:inline-flex gba:items-center gba:gap-0.5 gba:rounded-full gba:bg-amber-100 gba:px-1.5 gba:text-[10px] gba:text-amber-800">
+                      <WrenchIcon className="gba:h-2.5 gba:w-2.5 gba:shrink-0" />
+                      {tools.length}
+                    </span>
+                  )}
+                </span>
+              )
+              if (tools.length === 0) return <span key={sid}>{chip}</span>
+              return (
+                <Tooltip key={sid}>
+                  <TooltipTrigger asChild>
+                    <button type="button" className="gba:cursor-default gba:border-none gba:bg-transparent gba:p-0">
+                      {chip}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <div className="gba:flex gba:max-w-xs gba:flex-col gba:gap-0.5">
+                      {tools.map(tool => (
+                        <span key={tool} className="gba:flex gba:items-center gba:gap-1 gba:text-xs">
+                          <WrenchIcon className="gba:h-3 gba:w-3 gba:shrink-0" />
+                          {tool}
+                        </span>
+                      ))}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              )
+            })}
+          </div>
+        </TooltipProvider>
       )}
-
-      {/* Tags */}
-      <div className="gba:flex gba:flex-wrap gba:gap-1.5 gba:px-4 gba:pb-3">
-        {agent.tags.length > 0 ? (
-          agent.tags.slice(0, 4).map(tag => (
-            <span
-              key={tag}
-              className="gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:bg-muted/60 gba:px-2.5 gba:py-0.5 gba:text-[11px] gba:text-muted-foreground"
-            >
-              <WrenchIcon className="gba:h-3 gba:w-3" />
-              {tag}
-            </span>
-          ))
-        ) : (
-          <span className="gba:text-[11px] gba:text-muted-foreground/50 gba:italic">No tags</span>
-        )}
-      </div>
 
       {/* Action buttons */}
       <div className="gba:mt-auto gba:grid gba:grid-cols-3 gba:items-center gba:gap-2 gba:border-t gba:border-border/50 gba:px-4 gba:py-3">

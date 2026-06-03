@@ -10,10 +10,7 @@ todos:
     status: completed
   - id: medium-contract-fields
     content: Implement and test medium active working-condition fields in employee record, My Team Time, compensation, and entitlements
-    status: pending
-  - id: employee-hire-date-migration
-    content: Track separate employee-level hire date migration and cleanup
-    status: pending
+    status: completed
   - id: hard-team-discussion
     content: Discuss hard payroll, reports, analytics, source-flow, audit, and flight-risk cases with team leads
     status: pending
@@ -33,7 +30,7 @@ For current/active working-condition use cases:
 - Treat `activeTo = null` as open-ended.
 - Do not assume `workingCondition[0]` is active unless the query explicitly guarantees that order and filtering.
 - Do not use `hireDate` to select the active working condition.
-- `hireDate` is employee-level, readonly, and expected to be the same across all working-condition entries until it is saved directly on the employee.
+- `hireDate` stays on working conditions for now and is expected to be copied to every working-condition entry.
 - For timeframe reports, payroll, analytics, and history screens, agree on the target period before changing behavior.
 
 ## Contract-Varying Fields
@@ -84,7 +81,7 @@ These are mostly current-row replacements for `workingCondition[0]` in simple di
 
 ## Medium
 
-These need active-row handling plus more local business logic or shared data-flow review. Hire-date-only filtering should be treated as employee-level migration cleanup, not active working-condition work.
+These need active-row handling plus more local business logic or shared data-flow review. Hire-date-only filtering is not active working-condition work because hire date is copied across working-condition entries.
 
 ### Employee Record Main Data
 
@@ -102,19 +99,19 @@ These need active-row handling plus more local business logic or shared data-flo
 
 ### My Team Time
 
-- [x] [src/business-apps/hr/core/apps/my-team-time/queries/queries.ts](src/business-apps/hr/core/apps/my-team-time/queries/queries.ts) - Check member region query. Hire date remains employee-level cleanup.
+- [x] [src/business-apps/hr/core/apps/my-team-time/queries/queries.ts](src/business-apps/hr/core/apps/my-team-time/queries/queries.ts) - Check member region query. Hire date remains copied across working-condition entries.
 - [x] [src/business-apps/hr/core/apps/my-team-time/utils/teamTimeDomain.ts](src/business-apps/hr/core/apps/my-team-time/utils/teamTimeDomain.ts) - Check region-based holidays use active region.
 
 ### Salary / Compensation Forms
 
-- [x] [src/business-apps/hr/core/forms/adjust-employee-salary/AdjustEmployeeSalaryQueries.ts](src/business-apps/hr/core/forms/adjust-employee-salary/AdjustEmployeeSalaryQueries.ts) - Check active region and current contract query. Hire date remains employee-level cleanup.
+- [x] [src/business-apps/hr/core/forms/adjust-employee-salary/AdjustEmployeeSalaryQueries.ts](src/business-apps/hr/core/forms/adjust-employee-salary/AdjustEmployeeSalaryQueries.ts) - Check active region and current contract query. Hire date remains copied across working-condition entries.
 - [x] [src/business-apps/hr/core/forms/adjust-employee-salary/AdjustEmployeeSalaryContext.tsx](src/business-apps/hr/core/forms/adjust-employee-salary/AdjustEmployeeSalaryContext.tsx) - Check active region for country currency.
 - [x] [src/business-apps/hr/compensation-planning/queries/compensationPlanningQueries.ts](src/business-apps/hr/compensation-planning/queries/compensationPlanningQueries.ts) - Check team member working condition query for contract-varying fields.
 - [x] [src/business-apps/hr/compensation-planning/apps/manager-compensation-planning/hooks/useTeamCompensationData.ts](src/business-apps/hr/compensation-planning/apps/manager-compensation-planning/hooks/useTeamCompensationData.ts) - Check payroll-relevant contract filtering.
 
 ### Entitlements / Vacation Days
 
-- [x] [src/business-apps/hr/core/forms/update-employee-entitlements/UpdateEmployeeEntitlementsQueries.ts](src/business-apps/hr/core/forms/update-employee-entitlements/UpdateEmployeeEntitlementsQueries.ts) - Check active vacation days query. Hire date remains employee-level cleanup.
+- [x] [src/business-apps/hr/core/forms/update-employee-entitlements/UpdateEmployeeEntitlementsQueries.ts](src/business-apps/hr/core/forms/update-employee-entitlements/UpdateEmployeeEntitlementsQueries.ts) - Check active vacation days query. Hire date remains copied across working-condition entries.
 - [x] [src/business-apps/hr/core/forms/update-employee-entitlements/context/UpdateEmployeeEntitlementsContext.tsx](src/business-apps/hr/core/forms/update-employee-entitlements/context/UpdateEmployeeEntitlementsContext.tsx) - Check active vacation days mapping.
 - [x] [src/business-apps/hr/absences/forms/approve-employee-vacation/queries/vacationQueries.ts](src/business-apps/hr/absences/forms/approve-employee-vacation/queries/vacationQueries.ts) - Check vacation days from correct contract.
 
@@ -129,57 +126,30 @@ These require team agreement because active-today is not enough, or because the 
 
 ### Payroll Preparation
 
-- [ ] [src/business-apps/hr/payroll/apps/payroll-preparation/queries/payrollQueries.ts](src/business-apps/hr/payroll/apps/payroll-preparation/queries/payrollQueries.ts) - Decide payroll-month effective contract rules.
-- [ ] [src/business-apps/hr/payroll/apps/payroll-preparation/hooks/usePayrollEmployees.ts](src/business-apps/hr/payroll/apps/payroll-preparation/hooks/usePayrollEmployees.ts) - Check contract type, employment type, region, exit date, and payroll relevance for selected payroll month. Hire date remains employee-level cleanup.
+- [x] [src/business-apps/hr/payroll/apps/payroll-preparation/queries/payrollQueries.ts](src/business-apps/hr/payroll/apps/payroll-preparation/queries/payrollQueries.ts) - Decide payroll-month effective contract rules.
+- [x] [src/business-apps/hr/payroll/apps/payroll-preparation/hooks/usePayrollEmployees.ts](src/business-apps/hr/payroll/apps/payroll-preparation/hooks/usePayrollEmployees.ts) - Check contract type, employment type, region, exit date, and payroll relevance for selected payroll month. Hire date remains copied across working-condition entries.
 
 ### Team Report KPIs
 
-- [ ] [src/business-apps/hr/reports/apps/my-team-report/hooks/useGetEmployeesReport.ts](src/business-apps/hr/reports/apps/my-team-report/hooks/useGetEmployeesReport.ts) - Decide selected working-condition row for report data.
-- [ ] [src/business-apps/hr/reports/apps/my-team-report/utils/kpiUtils.ts](src/business-apps/hr/reports/apps/my-team-report/utils/kpiUtils.ts) - Decide rules for expiring contracts, probation, contract starts based on `activeFrom`, and contract/employment type KPI counts. New-hire logic belongs to employee-level hire date.
+- [x] `src/business-apps/hr/reports/apps/my-team-report` - Removed redundant report app after confirmation that it is no longer used.
 
 ### HR Analytics
 
-- [ ] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/workingCondition.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/workingCondition.ts) - Decide yearly forecast period behavior.
-- [ ] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/getMonthlySalaryForecast.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/getMonthlySalaryForecast.ts) - Decide monthly active salary/headcount behavior.
-- [ ] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/getSalaryByOrgUnit.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/getSalaryByOrgUnit.ts) - Decide salary by org unit behavior with multiple contracts.
-- [ ] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/getMedianSalaryData.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/getMedianSalaryData.ts) - Avoid double-counting employees with multiple contracts.
-- [ ] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useWorkingConditionForecast.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useWorkingConditionForecast.ts) - Check forecast consumer logic.
-- [ ] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useMonthlySalaryForecast.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useMonthlySalaryForecast.ts) - Check monthly forecast consumer logic.
-- [ ] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useDepartmentMonthlySalaryStack.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useDepartmentMonthlySalaryStack.ts) - Check department salary stack logic.
-- [ ] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useMedianSalary.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useMedianSalary.ts) - Check median salary consumer logic.
-- [ ] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useAverageSalary.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useAverageSalary.ts) - Check dataset semantics.
+- [x] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/workingCondition.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/workingCondition.ts) - Decide yearly forecast period behavior.
+- [x] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/getMonthlySalaryForecast.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/getMonthlySalaryForecast.ts) - Decide monthly active salary/headcount behavior.
+- [x] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/getSalaryByOrgUnit.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/getSalaryByOrgUnit.ts) - Decide salary by org unit behavior with multiple contracts.
+- [x] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/getMedianSalaryData.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/getMedianSalaryData.ts) - Avoid double-counting employees with multiple contracts.
+- [x] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useWorkingConditionForecast.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useWorkingConditionForecast.ts) - Check forecast consumer logic.
+- [x] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useMonthlySalaryForecast.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useMonthlySalaryForecast.ts) - Check monthly forecast consumer logic.
+- [x] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useDepartmentMonthlySalaryStack.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useDepartmentMonthlySalaryStack.ts) - Check department salary stack logic.
+- [x] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useMedianSalary.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useMedianSalary.ts) - Check median salary consumer logic.
+- [x] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useAverageSalary.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useAverageSalary.ts) - Check dataset semantics.
 
 ### Update Working Conditions Flow
 
-- [ ] [src/business-apps/hr/core/forms/update-working-conditions/queries/UpdateWorkingConditionsQueries.ts](src/business-apps/hr/core/forms/update-working-conditions/queries/UpdateWorkingConditionsQueries.ts) - Confirm active fetch, legacy support, validation records, and ordering.
-- [ ] [src/business-apps/hr/core/forms/update-working-conditions/UpdateWorkingConditionsScreen.tsx](src/business-apps/hr/core/forms/update-working-conditions/UpdateWorkingConditionsScreen.tsx) - Confirm add/update behavior, overlap validation, continuity, and submit payload.
-- [ ] [src/business-apps/hr/core/forms/update-working-conditions/UpdateWorkingConditionsChangeModeDialog.tsx](src/business-apps/hr/core/forms/update-working-conditions/UpdateWorkingConditionsChangeModeDialog.tsx) - Confirm change mode behavior.
-
-### Change Log / Audit
-
-- [ ] [src/business-apps/hr/core/apps/employee-record/services/changeLogQueries.ts](src/business-apps/hr/core/apps/employee-record/services/changeLogQueries.ts) - Decide contract history display behavior.
-- [ ] [src/business-apps/hr/core/apps/employee-record/services/changeLogDataTransformer.ts](src/business-apps/hr/core/apps/employee-record/services/changeLogDataTransformer.ts) - Check row-to-row comparison.
-- [ ] [src/business-apps/hr/core/apps/employee-record/hooks/useChangeLogData.ts](src/business-apps/hr/core/apps/employee-record/hooks/useChangeLogData.ts) - Check version timeline behavior.
-
-## Employee-Level Hire Date Migration
-
-These are not active working-condition fixes. Revisit them when `hireDate` is saved directly on `Employee`.
-
-- [ ] [src/business-apps/hr/core/apps/my-time/components/TimeTracking.tsx](src/business-apps/hr/core/apps/my-time/components/TimeTracking.tsx) - Move clock-in-before-hire-date logic to employee-level hire date.
-- [ ] [src/business-apps/hr/core/apps/my-time/components/DailyLog.tsx](src/business-apps/hr/core/apps/my-time/components/DailyLog.tsx) - Move daily log hire-date logic to employee-level hire date.
-- [ ] [src/business-apps/hr/core/apps/my-time/components/TimeHistory.tsx](src/business-apps/hr/core/apps/my-time/components/TimeHistory.tsx) - Move history/report hire-date logic to employee-level hire date.
-- [ ] [src/business-apps/hr/core/apps/employee-record/components/ProfileHeader.tsx](src/business-apps/hr/core/apps/employee-record/components/ProfileHeader.tsx) - Move hire date and tenure display to employee-level hire date.
-- [ ] [src/business-apps/hr/core/details/employee-details/EmployeeDetails.tsx](src/business-apps/hr/core/details/employee-details/EmployeeDetails.tsx) - Move hire date display to employee-level hire date. Keep active working-condition logic only for contract/employment fields.
-- [ ] [src/business-apps/hr/core/forms/create-new-absence/CreateNewAbsence.tsx](src/business-apps/hr/core/forms/create-new-absence/CreateNewAbsence.tsx) - Move absence date validation to employee-level hire date.
-- [ ] [src/business-apps/hr/core/forms/create-new-absence/queries/getEmployeeDetails.ts](src/business-apps/hr/core/forms/create-new-absence/queries/getEmployeeDetails.ts) - Replace working-condition hire date fetch with employee-level hire date when available.
-- [ ] [src/business-apps/hr/core/forms/create-request-correction/CreateRequestCorrectionForm.tsx](src/business-apps/hr/core/forms/create-request-correction/CreateRequestCorrectionForm.tsx) - Move correction date validation to employee-level hire date.
-- [ ] [src/business-apps/hr/core/apps/manager-dashboard/utils/hireDateFilters.ts](src/business-apps/hr/core/apps/manager-dashboard/utils/hireDateFilters.ts) - Move started-employment filtering to employee-level hire date.
-- [ ] [src/business-apps/hr/core/apps/manager-dashboard/hooks/useTeamAnniversaries.ts](src/business-apps/hr/core/apps/manager-dashboard/hooks/useTeamAnniversaries.ts) - Move anniversary calculation to employee-level hire date.
-- [ ] [src/business-apps/hr/core/apps/manager-dashboard/hooks/useFlightRiskPrediction.ts](src/business-apps/hr/core/apps/manager-dashboard/hooks/useFlightRiskPrediction.ts) - Move tenure calculation to employee-level hire date.
-- [ ] [src/business-apps/hr/core/apps/my-team-time/hooks/useTeamMembers.ts](src/business-apps/hr/core/apps/my-team-time/hooks/useTeamMembers.ts) - Move member hire date and active-member filtering to employee-level hire date.
-- [ ] [src/business-apps/crm/performance/apps/sales-team-performance/components/sales-member-performance/hooks/useEmployeePerformanceData.ts](src/business-apps/crm/performance/apps/sales-team-performance/components/sales-member-performance/hooks/useEmployeePerformanceData.ts) - Move start-date fallback away from working-condition hire date if needed.
-- [ ] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/getNewHiresCount.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/queries/getNewHiresCount.ts) - Move new-hire count logic away from working conditions.
-- [ ] [src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useHiresPerYear.ts](src/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useHiresPerYear.ts) - Confirm dataset uses employee-level hire date once available.
+- [x] [src/business-apps/hr/core/forms/update-working-conditions/queries/UpdateWorkingConditionsQueries.ts](src/business-apps/hr/core/forms/update-working-conditions/queries/UpdateWorkingConditionsQueries.ts) - Confirm active fetch, legacy support, validation records, and ordering.
+- [x] [src/business-apps/hr/core/forms/update-working-conditions/UpdateWorkingConditionsScreen.tsx](src/business-apps/hr/core/forms/update-working-conditions/UpdateWorkingConditionsScreen.tsx) - Confirm add/update behavior, overlap validation, continuity, and submit payload.
+- [x] [src/business-apps/hr/core/forms/update-working-conditions/UpdateWorkingConditionsChangeModeDialog.tsx](src/business-apps/hr/core/forms/update-working-conditions/UpdateWorkingConditionsChangeModeDialog.tsx) - Confirm change mode behavior.
 
 ## Suggested Implementation Order
 
@@ -190,4 +160,3 @@ These are not active working-condition fixes. Revisit them when `hireDate` is sa
 5. Medium My Team Time region logic and salary/compensation forms.
 6. Medium entitlements and board/registry.
 7. Hard cases after team-lead agreement.
-8. Employee-level hire date migration once the backend/source field is ready.

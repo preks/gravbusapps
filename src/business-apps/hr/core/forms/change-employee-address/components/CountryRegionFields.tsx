@@ -11,7 +11,11 @@ import {
   SelectContent,
   SelectItem
 } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
+import {
+  getTranslationFromI18nKeyAndLabel,
+  getCatalogValue,
+  getCurrentActiveUserLocale
+} from '@/common/utils/windowUtils'
 import { useWatch, useFormState } from 'react-hook-form'
 
 interface CountryRegionFieldsProps {
@@ -53,6 +57,14 @@ const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({
   const countryField = useWatch({ control, name: 'countryId' })
   const regionField = useWatch({ control, name: 'regionId' })
   const { isSubmitted, submitCount, touchedFields } = useFormState({ control })
+  const activeUserLocale = React.useMemo(() => getCurrentActiveUserLocale() || undefined, [])
+  const sortedCountries = React.useMemo(
+    () =>
+      [...(catalogs?.countries || [])].sort((firstCountry: any, secondCountry: any) =>
+        getCatalogValue(firstCountry).localeCompare(getCatalogValue(secondCountry), activeUserLocale)
+      ),
+    [activeUserLocale, catalogs?.countries]
+  )
   // Compute derived display values and keep effect at top-level (no nested hooks)
   const selectedCountry = (catalogs?.countries || []).find((c: any) => String(c.id) === String(countryField))
   const countryVal = selectedCountry?.id as string | undefined
@@ -113,7 +125,7 @@ const CountryRegionFields: React.FC<CountryRegionFieldsProps> = ({
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {(catalogs?.countries || []).map((entry: any) => (
+                  {sortedCountries.map((entry: any) => (
                     <SelectItem
                       key={entry.id}
                       value={String(entry.id)}

@@ -2,14 +2,9 @@ import React, { createContext, useContext, useState, useEffect, useRef, ReactNod
 
 import { Form, message } from 'antd'
 import { ExpensePosition, ExpenseType, CostCenter, Currency, ExpenseGroup, CustomField } from '../types'
-import { useTranslation } from '@newwork/nw-design-system'
-import expenseItemTranslations from '../_i18n'
+import { useExpenseItemTranslation } from '../useExpenseItemTranslation'
 
-import {
-  getCurrentActiveUserLocale,
-  getCatalogValue,
-  getTranslationFromI18nKeyAndLabel
-} from '../../../../../../common/utils/windowUtils'
+import { getCurrentActiveUserLocale, getCatalogValue } from '../../../../../../common/utils/windowUtils'
 import {
   fetchExpenseCatalogueData,
   fetchExpenseRuleGeneralData,
@@ -17,7 +12,7 @@ import {
   expenseRequestByCurrencyQuery,
   getExpenseRuleCurrencyQuery
 } from '../ExpenseItemQueries'
-import { fetchEmployeeRule } from '../ExpenseItemQueries'
+import { useEmployeeRuleQuery } from '../ExpenseItemQueries'
 import {
   DEFAULT_CURRENCY_ID,
   DEFAULT_EMPLOYEE_ID,
@@ -111,11 +106,8 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   userInfo,
   additionalData
 }): React.ReactNode => {
-  const { t: tNew } = useTranslation(expenseItemTranslations)
-  // Wrapper function for backward compatibility with old translation pattern
-  const t = (key: string, fallback?: string) => {
-    return getTranslationFromI18nKeyAndLabel(key, fallback || key)
-  }
+  const { t } = useExpenseItemTranslation()
+  const { fetchEmployeeRule } = useEmployeeRuleQuery({ accessToken })
 
   const [form] = Form.useForm()
   const [currentStep, setCurrentStep] = useState<FormStepType>(FORM_STEPS.START)
@@ -181,10 +173,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
       setExpenseGroups(matchingItems)
     } catch {
-      showToast(
-        t('lowcoder:create_expense_type_item.process_error_expense_group', 'Error processing expense groups'),
-        'error'
-      )
+      showToast(t('expense-item-error-expense-group'), 'error')
       setExpenseGroups([])
     }
   }, [generalDataResponse, catalogueDataResponse, accessToken])
@@ -287,13 +276,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     suppressRequestResetRef.current = true
     handleCurrencyChangeWrapper(currencyId, { suppressRequestReset: true })
       .catch(() => {
-        showToast(
-          t(
-            'lowcoder:create_expense_type_item.process_error_expense_requests_fetch',
-            'Error fetching expense requests'
-          ),
-          'error'
-        )
+        showToast(t('expense-item-error-requests-fetch'), 'error')
       })
       .finally(() => {
         suppressRequestResetRef.current = false
@@ -351,10 +334,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
         })
       })
     } catch {
-      showToast(
-        t('lowcoder:create_expense_type_item.process_error_ai_items', 'Error processing expense AI items'),
-        'error'
-      )
+      showToast(t('expense-item-error-ai-items'), 'error')
     }
 
     return result
@@ -393,7 +373,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       setExpenseRequests([
         {
           id: '0',
-          name: t('lowcoder:create_expense_type_item.none', 'None')
+          name: t('expense-item-none')
         }
       ])
       return
@@ -402,18 +382,12 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     try {
       addRequests(catalogueDataResponse, setExpenseRequests, t)
     } catch {
-      showToast(
-        t(
-          'lowcoder:create_expense_type_item.process_error_expense_requests_fetch',
-          'Error processing expense requests'
-        ),
-        'error'
-      )
+      showToast(t('expense-item-error-requests-fetch'), 'error')
 
       setExpenseRequests([
         {
           id: '0',
-          name: t('lowcoder:create_expense_type_item.none', 'None')
+          name: t('expense-item-none')
         }
       ])
     }
@@ -424,24 +398,18 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
    */
   const fetchEmployeeRuleData = async (employeeId: string, currentDate: string) => {
     try {
-      const employeeRuleData = await fetchEmployeeRule(employeeId, currentDate, accessToken)
+      const employeeRuleData = await fetchEmployeeRule(employeeId, currentDate)
 
       if (employeeRuleData && employeeRuleData.expenseRuleId) {
         setEmployeeRuleId(employeeRuleData.expenseRuleId)
         setExpenseRuleError(null)
       } else {
-        const errorMsg = t(
-          'lowcoder:create_expense_item.missing_expense_rule_message',
-          'There is no rule set for your user, please reach out to your administrator.'
-        )
+        const errorMsg = t('expense-item-missing-expense-rule')
         setExpenseRuleError(errorMsg)
         setIsInitialized(true)
       }
     } catch {
-      const errorMsg = t(
-        'lowcoder:create_expense_item.missing_expense_rule_message',
-        'There is no rule set for your user, please reach out to your administrator.'
-      )
+      const errorMsg = t('expense-item-missing-expense-rule')
       setExpenseRuleError(errorMsg)
       showToast(errorMsg, 'error')
       setIsInitialized(true)
@@ -463,7 +431,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       })
       setGeneralDataResponse(generalData)
     } catch {
-      showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
+      showToast(t('expense-item-error-data-fetch'), 'error')
     }
   }
 
@@ -484,7 +452,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       setCatalogueDataResponse(catalogueData)
       return catalogueData
     } catch {
-      showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
+      showToast(t('expense-item-error-data-fetch'), 'error')
       return null
     }
   }
@@ -556,7 +524,8 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       const allCostCenters = costCenterData?.data?.userCostCenters || []
       const employeePositionCostCenterId = employeePosition[0]?.costCenterId
       const firstCostCenterId = allCostCenters[0]?.id
-      const isValidCostCenter = employeePositionCostCenterId && allCostCenters.some((c: any) => c.id === employeePositionCostCenterId)
+      const isValidCostCenter =
+        employeePositionCostCenterId && allCostCenters.some((c: any) => c.id === employeePositionCostCenterId)
 
       if (isValidCostCenter) {
         updatedPositions[0].costCenter = employeePositionCostCenterId
@@ -653,7 +622,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       }
       setRerunRule(false)
     } catch {
-      showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
+      showToast(t('expense-item-error-data-fetch'), 'error')
     } finally {
       setIsInitialized(true)
     }
@@ -681,7 +650,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     const requestCurrency = currencies.find(c => c.id === additionalData.itemCurrency)
 
     if (additionalData?.useSingleCurrency && !requestCurrency) {
-      const errorMsg = tNew('currency-validation-unavailable')
+      const errorMsg = t('currency-validation-unavailable')
       setReceiptCurrencyError(errorMsg)
       return false
     }
@@ -694,10 +663,10 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       return true
     }
 
-    const detailedMessage = tNew('currency-mismatch-detail', {
+    const detailedMessage = t('currency-mismatch-detail', {
       receiptCurrency: data.currencyCode,
       requestCurrency: requestCurrency.code
-    } as Record<string, any>)
+    })
 
     setReceiptCurrencyError(detailedMessage)
 
@@ -790,9 +759,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     if (!data.items || data.items.length === 0) return []
 
     const rawCostCenterId = positions[0]?.costCenter || ''
-    const costCenterId = costCenters.some(c => c.id === rawCostCenterId)
-      ? rawCostCenterId
-      : costCenters[0]?.id || ''
+    const costCenterId = costCenters.some(c => c.id === rawCostCenterId) ? rawCostCenterId : costCenters[0]?.id || ''
 
     return data.items.map((item: any, index: number) => {
       const expenseGroupId = matchExpenseGroup(item)
@@ -876,10 +843,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       })
       form.setFieldsValue(formBatch)
     } catch {
-      showToast(
-        t('lowcoder:create_expense_type_item.process_error_receipt_processing', 'Error processing receipt data'),
-        'error'
-      )
+      showToast(t('expense-item-error-receipt-processing'), 'error')
     }
   }
 
@@ -895,10 +859,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
         additionalData?.itemCurrency &&
         (currencies.length === 0 || !currencies.some(currency => currency.id === additionalData.itemCurrency))
       ) {
-        const errorMsg = t(
-          'lowcoder:expense_item.currency_validation_unavailable',
-          'Unable to validate the receipt currency against your expense rule. Please try again or contact your administrator.'
-        )
+        const errorMsg = t('currency-validation-unavailable')
         setReceiptCurrencyError(errorMsg)
         return
       }
@@ -919,16 +880,13 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       // Fetch missing expense types asynchronously
       fetchMissingExpenseTypes(newPositions, data)
     } catch {
-      showToast(
-        t('lowcoder:create_expense_type_item.process_error_receipt_processing', 'Error processing receipt data'),
-        'error'
-      )
+      showToast(t('expense-item-error-receipt-processing'), 'error')
     }
   }
 
   const handleFileUploadWrapper = async (files: File[]): Promise<any | null> => {
     if (!files || files.length === 0) {
-      message.error(t('lowcoder:expense_item.no_files', 'No files selected for upload'))
+      message.error(t('expense-item-no-files'))
       return null
     }
 
@@ -936,7 +894,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       setIsProcessingFiles(true)
       setIsFormDisabled(true)
 
-      const result = await handleFileUpload(files, accessToken, aiGroupsAndTypes)
+      const result = await handleFileUpload(files, accessToken, aiGroupsAndTypes, t)
 
       if (result) {
         setByReceipts(result)
@@ -949,10 +907,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
       return result
     } catch {
-      showToast(
-        t('lowcoder:create_expense_type_item.process_error_receipt_processing', 'Error processing receipt data'),
-        'error'
-      )
+      showToast(t('expense-item-error-receipt-processing'), 'error')
 
       setIsProcessingFiles(false)
       setIsFormDisabled(false)
@@ -1026,15 +981,12 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
           pso_exitStrategy: 'abort',
           pso_completeNotification: {
             type: 'error',
-            messageKey: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:absence_module.toast_notification_cancel_create_absence',
-              'The action has been canceled.'
-            )
+            messageKey: t('expense-item-action-canceled')
           }
         })
       }
     } catch {
-      showToast(t('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'), 'error')
+      showToast(t('expense-item-error-flows'), 'error')
       form.resetFields()
       setPositions([DEFAULT_POSITION])
       setFileListState([])
@@ -1093,7 +1045,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
       addRequests(expenseRequestByCurrency, setExpenseRequests, t)
     } catch {
-      showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
+      showToast(t('expense-item-error-data-fetch'), 'error')
     }
   }
 
@@ -1117,10 +1069,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
   const handleRemovePositionWrapper = (positionId: string): void => {
     if (positions.length <= 1) {
-      showToast(
-        t('lowcoder:create_expense_type_item.position_deletion_warning', 'At least one position is required'),
-        'warning'
-      )
+      showToast(t('expense-item-position-deletion-warning'), 'warning')
       return
     }
 

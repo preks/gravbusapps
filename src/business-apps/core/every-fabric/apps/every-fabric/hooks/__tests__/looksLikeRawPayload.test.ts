@@ -1,4 +1,4 @@
-import { looksLikeRawPayload } from '../useAgentSession'
+import { looksLikeRawPayload } from '../agent-session/streamPayloadGuards'
 
 describe('looksLikeRawPayload', () => {
   describe.each([

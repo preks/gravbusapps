@@ -84,7 +84,7 @@ export const StartCycleConfirmDialog: React.FC<StartCycleConfirmDialogProps> = (
     isLoading: employeesLoading,
     fetchStructureEmployees,
     getEmployeeById
-  } = useStructureEmployees(accessToken, open && runFor === 'self')
+  } = useStructureEmployees(accessToken, open && runFor === 'self', undefined, { excludeFutureHires: true })
 
   const {
     organizationalUnits,

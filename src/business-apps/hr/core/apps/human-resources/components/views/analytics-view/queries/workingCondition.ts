@@ -1,20 +1,20 @@
 // GraphQL query for workingCondition data for forecasting KPI
 
 export const workingConditionQuery = `
-  query WorkingConditionForecast($yearStart: timestamp!, $yearEnd: timestamp!) {
+  query WorkingConditionForecast {
     EmployeeWorkingCondition(
       where: {
-        _and: [
-          { hireDate: { _lte: $yearEnd } },
-          { _or: [
-              { exitDate: { _isNull: true } },
-              { exitDate: { _gte: $yearStart } }
-          ]}
-        ]
+        employee: {
+          isDeleted: { _eq: false }
+        }
+        isDeleted: { _eq: false }
       }
+      orderBy: [{ employeeId: ASC }, { activeFrom: DESC }, { createdAt: DESC }]
     ) {
       id
       employeeId
+      activeFrom
+      activeTo
       hireDate
       exitDate
       monthlyGrossSalary
@@ -26,11 +26,6 @@ export const workingConditionQuery = `
       remote { value }
       probationEnd
       currency { code }
-    }
-    EmployeeWorkingConditionAggregate {
-      aggregate {
-        count
-      }
     }
   }
 `

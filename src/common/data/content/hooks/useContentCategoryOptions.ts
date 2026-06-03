@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type { ContentCategory } from '../types/contentTypes'
-import { buildContentCategoriesQuery } from '../queries/contentQueries'
+import { buildContentCategoriesQuery, buildContentTaxonomyVariables } from '../queries/contentQueries'
 
 interface UseContentCategoryOptionsResult {
   options: ContentCategory[]
@@ -26,7 +26,8 @@ export const useContentCategoryOptions = (accessToken?: string): UseContentCateg
       setError(null)
       try {
         const query = buildContentCategoriesQuery()
-        const response = await graphqlClient.request<{ ContentCategory: ContentCategory[] }>(query)
+        const variables = buildContentTaxonomyVariables()
+        const response = await graphqlClient.request<{ ContentCategory: ContentCategory[] }>(query, variables)
         if (!cancelled) {
           setOptions(
             (response.ContentCategory || []).map(contentCategory => ({

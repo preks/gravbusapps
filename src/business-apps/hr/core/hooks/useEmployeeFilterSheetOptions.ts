@@ -3,7 +3,7 @@ import { useUserLocale } from '@/common/locale/useUserLocale'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
-import { useActiveStructureCompanies } from '@/business-apps/hr/core/apps/human-resources/components/views/analytics-view/hooks/useActiveStructureCompanies'
+import { useActiveStructureCompanies } from '@/business-apps/hr/compensation/hooks/useActiveStructureCompanies'
 
 export interface FilterOption {
   id: string

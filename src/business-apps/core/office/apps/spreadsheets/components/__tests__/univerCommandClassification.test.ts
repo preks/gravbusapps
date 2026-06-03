@@ -23,6 +23,7 @@ describe('UNIVER_COMMAND_KIND_REGISTRY', () => {
       ['sheet.command.move-range', 'cellRangeMove'],
       ['sheet.mutation.move-range', 'cellRangeMove'],
       ['sheet.mutation.move-cell', 'cellRangeMove'],
+      ['sheet.command.cut-paste', 'cellRangeMove'],
       ['sheet.command.set-selection-frozen', 'freezePanes'],
       ['sheet.command.set-row-frozen', 'freezePanes'],
       ['sheet.command.set-col-frozen', 'freezePanes'],

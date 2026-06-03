@@ -54,14 +54,16 @@ const mapManagers = (positions: HubManagerPositionOption[] = []): HubManagerOpti
     }
   })
   return Array.from(unique.values()).sort((a, b) => {
-    const left = `${a.lastName ?? ''} ${a.firstName ?? ''}`.trim()
-    const right = `${b.lastName ?? ''} ${b.firstName ?? ''}`.trim()
+    const left = `${a.firstName ?? ''} ${a.lastName ?? ''}`.trim()
+    const right = `${b.firstName ?? ''} ${b.lastName ?? ''}`.trim()
     return left.localeCompare(right)
   })
 }
 
 const getEmployeeLabel = (employee: HubEmployeeOption): string =>
   employee.displayName || `${employee.firstName ?? ''} ${employee.lastName ?? ''}`.trim() || employee.id
+
+const isActiveCatalogEntry = (entry: any): boolean => entry?.isDeleted !== true && entry?.is_deleted !== true
 
 const mapEmployees = (positions: HubEmployeePositionOption[] = []): HubEmployeeOption[] => {
   const unique = new Map<string, HubEmployeeOption>()
@@ -140,7 +142,10 @@ export const useHubFilterOptions = (accessToken: string): HubFilterOptionsState 
           result => result.status === 'rejected'
         )
         const normalizedAbsenceTypes: HubFilterOption[] = (absenceTypeData?.data ?? [])
-          .filter((entry: any) => entry?.id && entry?.value && entry?.objectValue?.display !== false)
+          .filter(
+            (entry: any) =>
+              entry?.id && entry?.value && entry?.objectValue?.display !== false && isActiveCatalogEntry(entry)
+          )
           .map((entry: any) => ({
             id: String(entry.id),
             name: String(entry.value),

@@ -7,7 +7,7 @@ import {
   parseAndFormatAmount,
   sanitizeDecimalAmountInput
 } from '@/business-apps/fin/expenses/utils/amountFormatting'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useExpenseItemTranslation } from '../../../useExpenseItemTranslation'
 
 interface AmountFieldProps {
   index: number
@@ -34,7 +34,7 @@ export const AmountField: React.FC<AmountFieldProps> = ({
   onAmountChange,
   onCurrencyChange
 }) => {
-  const t = getTranslationFromI18nKeyAndLabel
+  const { t } = useExpenseItemTranslation()
   const previousAmountValueRef = useRef<number | undefined>(amountValue)
   const isUserEditingRef = useRef(false)
   const [inputValue, setInputValue] = useState<string>(() => {
@@ -102,17 +102,14 @@ export const AmountField: React.FC<AmountFieldProps> = ({
 
   const renderAmountInput = () => (
     <InputField
-      label={t('lowcoder:create_expense_item.change_expense_item_container.current_amount_label', 'Amount')}
+      label={t('label-amount')}
       disabled={isProcessingFiles}
       name={`amount-${index}`}
       data-testid={`amount-input-${index}`}
       type="text"
       inputMode="decimal"
       value={inputValue}
-      placeholder={t(
-        'lowcoder:create_expense_item.change_expense_item_container.current_amount_placeholder',
-        'Enter Amount'
-      )}
+      placeholder={t('expense-item-amount-placeholder')}
       onChange={field => {
         // Mark that user is actively editing (prevents useEffect from interfering)
         isUserEditingRef.current = true
@@ -141,7 +138,7 @@ export const AmountField: React.FC<AmountFieldProps> = ({
               rules={[
                 {
                   required: true,
-                  message: t('lowcoder:create_expense_type_item.amount_error_message', 'Please enter an amount')
+                  message: t('expense-item-amount-required')
                 }
               ]}
               style={{ marginBottom: 0 }}
@@ -156,18 +153,12 @@ export const AmountField: React.FC<AmountFieldProps> = ({
               rules={[
                 {
                   required: true,
-                  message: t(
-                    'lowcoder:create_expense_item.change_expense_item_container.current_currency_custom_rule',
-                    'Please select a currency'
-                  )
+                  message: t('expense-item-currency-required')
                 }
               ]}
             >
               <SelectField
-                label={t(
-                  'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
-                  'Currency'
-                )}
+                label={t('label-currency')}
                 disabled={isProcessingFiles || !!form.getFieldValue('fixedCurrency') || hasLinkedExpenseRequest}
                 name="currency"
                 data-testid={`currency-select-${index}`}
@@ -184,10 +175,7 @@ export const AmountField: React.FC<AmountFieldProps> = ({
                     onCurrencyChange(value.value)
                   }
                 }}
-                placeholder={t(
-                  'lowcoder:create_expense_item.change_expense_item_container.current_currency_placeholder',
-                  'Select Currency'
-                )}
+                placeholder={t('expense-item-currency-placeholder')}
                 required={true}
               />
             </Form.Item>
@@ -205,7 +193,7 @@ export const AmountField: React.FC<AmountFieldProps> = ({
           rules={[
             {
               required: true,
-              message: t('lowcoder:create_expense_type_item.amount_error_message', 'Please enter an amount')
+              message: t('expense-item-amount-required')
             }
           ]}
           style={{ marginBottom: 0 }}

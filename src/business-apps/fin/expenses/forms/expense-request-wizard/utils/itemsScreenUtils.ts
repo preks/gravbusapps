@@ -1,4 +1,6 @@
-import { formatDate, getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatDate, getCatalogValue } from '@/common/utils/windowUtils'
+
+type TranslateFn = (key: string, options?: Record<string, unknown>) => string
 import dayjs from 'dayjs'
 import { SCREEN_NAMES_ENUM } from '../constants/constants'
 import {
@@ -12,19 +14,12 @@ import {
  * Returns the list of mandatory field labels that are missing on a raw expense item.
  * Used to show a warning on the card so the user knows to edit before adding to the request.
  */
-export const getMissingMandatoryFields = (item: any): string[] => {
+export const getMissingMandatoryFields = (item: any, t: TranslateFn): string[] => {
   const missing: string[] = []
   const positions: any[] = item?.expensePosition || []
 
   if (positions.length === 0) {
-    missing.push(
-      getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.expense_group', 'Expense group'),
-      getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.expense_type', 'Expense type'),
-      getTranslationFromI18nKeyAndLabel(
-        'lowcoder:initiate_expense_plan.create_expense_plan.cost_center_select_label',
-        'Cost center'
-      )
-    )
+    missing.push(t('expense-group-label'), t('expense-type-label'), t('current-cost-center-label'))
     return missing
   }
 
@@ -33,18 +28,13 @@ export const getMissingMandatoryFields = (item: any): string[] => {
   const allMissingCostCenter = positions.every(p => !p.costCenter?.name)
 
   if (allMissingGroup) {
-    missing.push(getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.expense_group', 'Expense group'))
+    missing.push(t('expense-group-label'))
   }
   if (allMissingType) {
-    missing.push(getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.expense_type', 'Expense type'))
+    missing.push(t('expense-type-label'))
   }
   if (allMissingCostCenter) {
-    missing.push(
-      getTranslationFromI18nKeyAndLabel(
-        'lowcoder:initiate_expense_plan.create_expense_plan.cost_center_select_label',
-        'Cost center'
-      )
-    )
+    missing.push(t('current-cost-center-label'))
   }
 
   return missing
@@ -78,7 +68,7 @@ export const getAllowanceItemsFunction = (arrayOfItems: any[]) => {
  * @param arrayItems - Array of expense items
  * @returns Formatted array of items
  */
-export const formatArrayOfItems = (arrayItems: any[]) => {
+export const formatArrayOfItems = (arrayItems: any[], t: TranslateFn) => {
   return arrayItems.map(element => {
     const positionArray = element.expensePosition
     let singularItemValue = { expenseGroup: '', expenseType: '', costCenter: '' }
@@ -91,12 +81,9 @@ export const formatArrayOfItems = (arrayItems: any[]) => {
       }
     } else {
       singularItemValue = {
-        expenseGroup: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_item_request_card.multiple_positions',
-          'Multiple Positions'
-        ),
+        expenseGroup: t('multiple-positions'),
         expenseType: '',
-        costCenter: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.multiple', 'Multiple')
+        costCenter: t('item-multiple')
       }
     }
 
@@ -109,15 +96,9 @@ export const formatArrayOfItems = (arrayItems: any[]) => {
       currency: element.currency.code,
       expenseGroup: singularItemValue?.expenseGroup
         ? getCatalogValue(singularItemValue.expenseGroup) || singularItemValue.expenseGroup
-        : getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_item_request_card.no_expense_group',
-            'No expense group'
-          ) || '',
+        : t('no-expense-group'),
       expenseType: singularItemValue?.expenseType || '',
-      costCenter: singularItemValue?.costCenter
-        ? singularItemValue.costCenter
-        : getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.no_cost_center', 'No Cost Center') ||
-          '',
+      costCenter: singularItemValue?.costCenter ? singularItemValue.costCenter : t('no-cost-center'),
       attachmentDate:
         element.expenseItemFile?.length > 0 ? formatDate(element?.expenseItemFile[0]?.createdAt, 'date.long') : '',
       totalAdvancePayment: 0

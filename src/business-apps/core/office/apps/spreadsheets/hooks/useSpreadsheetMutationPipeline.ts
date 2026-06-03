@@ -1,10 +1,9 @@
-import { useMemo, useRef, type MutableRefObject } from 'react'
+import { useMemo, type MutableRefObject } from 'react'
 
 import {
   createSpreadsheetMutationBatchSubmitter,
   createSpreadsheetMutationFacade,
   SpreadsheetSessionMutationSources,
-  type SpreadsheetMutationBatchRequest,
   type SpreadsheetMutationFacade,
   type SpreadsheetReplayResponse,
   type SpreadsheetSession,
@@ -12,6 +11,10 @@ import {
 } from '../core'
 import type { SpreadsheetSheet } from '../types'
 import { areCanonicalSheetIdsEqual, resolveReconciledSheetId } from '../utils/reconcileTemporarySheetId'
+import {
+  buildCommittedBatchEnvelopeFromHttpResponse,
+  buildRejectedConflictCommittedBatchEnvelope
+} from '../core/spreadsheetCommittedBatchFromHttp'
 
 const EMPTY_SHEET_ID_ALIASES = new Map<string, string>()
 import type { SpreadsheetTraceEventInput, SpreadsheetTraceSession } from '../services/spreadsheetDiagnostics'
@@ -41,6 +44,12 @@ export interface UseSpreadsheetMutationPipelineParams {
   rememberKnownSheetVersion: (sheetId: string, version: number) => void
   rememberSheetVersion: (sheetId: string, version: number) => void
   rememberLocalCommittedVersion: (version: number) => void
+  onLocalBatchCommitted?: (sheetId: string, version: number) => void
+  applyLocalCommittedBatch?: (params: {
+    committedBatch: import('../core').SpreadsheetCommittedBatchEnvelope
+    traceMeta?: { traceSessionId?: string; traceId?: string; batchId?: string }
+    isSameUser?: boolean
+  }) => boolean
   refreshBaseVersionBeforeWrite: (sheetId: string, baseVersion: number) => Promise<number>
   updateActiveSheetVersion: (version: number, mode: 'set' | 'max') => void
   applyResponseRowsToLocalBaseline: (
@@ -79,6 +88,11 @@ export interface UseSpreadsheetMutationPipelineParams {
   /** Temp→persisted ids for newly created sheets (canonical comparisons + route normalization). */
   createdSheetIdAliasesRef?: MutableRefObject<Map<string, string>>
   /** Serializes every submitBatch through the shared operation queue (cell/style/dim ordering). */
+  releaseMutationOwnershipFromResponse?: (params: {
+    sheetId: string
+    operations: SpreadsheetBatchOperation[]
+    response: SpreadsheetBatchOperationResponse
+  }) => void
   serializeMutationSubmitsWithQueue?: {
     operationQueueRef: MutableRefObject<Promise<void>>
     chainOnOperationQueue: SpreadsheetOperationQueueChain
@@ -90,6 +104,8 @@ export interface UseSpreadsheetMutationPipelineParams {
 export interface UseSpreadsheetMutationPipelineResult {
   mutationFacade: SpreadsheetMutationFacade
   submitMutationBatch: SpreadsheetMutationFacade['submitBatch']
+  /** Unwrapped HTTP submitter for the sheet work queue (avoids main-queue starvation). */
+  submitMutationBatchForSheetQueue: SpreadsheetMutationFacade['submitBatch']
 }
 
 export function useSpreadsheetMutationPipeline(
@@ -113,6 +129,8 @@ export function useSpreadsheetMutationPipeline(
     rememberKnownSheetVersion,
     rememberSheetVersion,
     rememberLocalCommittedVersion,
+    onLocalBatchCommitted,
+    applyLocalCommittedBatch,
     refreshBaseVersionBeforeWrite,
     updateActiveSheetVersion,
     applyResponseRowsToLocalBaseline,
@@ -129,10 +147,9 @@ export function useSpreadsheetMutationPipeline(
     onSheetDelete,
     mutationFacadeRef,
     createdSheetIdAliasesRef,
-    serializeMutationSubmitsWithQueue
+    serializeMutationSubmitsWithQueue,
+    releaseMutationOwnershipFromResponse
   } = params
-
-  const perSheetSubmitTailRef = useRef<Map<string, Promise<SpreadsheetBatchOperationResponse | void>>>(new Map())
 
   const rawSubmitMutationBatch = useMemo<SpreadsheetMutationFacade['submitBatch']>(
     () =>
@@ -175,8 +192,59 @@ export function useSpreadsheetMutationPipeline(
         rememberKnownSheetVersion,
         rememberSheetVersion,
         rememberLocalCommittedVersion,
+        onLocalBatchCommitted,
+        releaseMutationOwnershipFromResponse,
         setActiveSheetVersion: version => {
           updateActiveSheetVersion(version, 'set')
+        },
+        applyLocalCommittedBatch: ({ sheetId, operations, response, batchId, traceId, baseVersion }) => {
+          if (!applyLocalCommittedBatch) return false
+          const traceMeta = {
+            traceSessionId: activeTraceSessionRef.current?.id,
+            traceId,
+            batchId
+          }
+          const committedBatch = buildCommittedBatchEnvelopeFromHttpResponse({
+            workbookId: appId,
+            sheetId,
+            requestOperations: operations,
+            response,
+            batchId,
+            baseVersion,
+            traceId,
+            traceSessionId: activeTraceSessionRef.current?.id,
+            sessionId: diagnosticsBrowserSessionIdRef.current,
+            tabId: diagnosticsTabIdRef.current
+          })
+          const handled = applyLocalCommittedBatch({
+            committedBatch,
+            traceMeta,
+            isSameUser: true
+          })
+          if (!handled) return false
+          const rejectedConflictBatch = buildRejectedConflictCommittedBatchEnvelope({
+            workbookId: appId,
+            sheetId,
+            response,
+            baseBatchId: batchId,
+            traceId,
+            traceSessionId: activeTraceSessionRef.current?.id,
+            sessionId: diagnosticsBrowserSessionIdRef.current,
+            tabId: diagnosticsTabIdRef.current
+          })
+          if (rejectedConflictBatch) {
+            applyLocalCommittedBatch({
+              committedBatch: rejectedConflictBatch,
+              traceMeta: {
+                traceSessionId: traceMeta.traceSessionId,
+                traceId,
+                batchId: rejectedConflictBatch.batchId ?? batchId
+              },
+              isSameUser: true
+            })
+          }
+          spreadsheetSession.capturePersistedBaselineForOperations(sheetId, operations)
+          return true
         },
         applyMutationToSession: (targetSheetId, operations, response) => {
           spreadsheetSession.applyMutation({
@@ -184,6 +252,41 @@ export function useSpreadsheetMutationPipeline(
             operations,
             response,
             source: SpreadsheetSessionMutationSources.LocalEdit
+          })
+
+          // Tier 1 per-field conflict: any operation the backend marked
+          // `rejected_conflict` was NOT applied server-side. The user typed
+          // a value that lost a last-writer-wins race; we paint the server's
+          // current value into the local session as a remote update so the
+          // grid and any other readers converge to the authoritative value.
+          // Older backends omit `results[]`; treat that as "everything accepted".
+          const rejectedResults = response.results?.filter(
+            (entry): entry is Extract<typeof entry, { status: 'rejected_conflict' }> =>
+              entry.status === 'rejected_conflict'
+          )
+          if (!rejectedResults || rejectedResults.length === 0) {
+            return
+          }
+          const paintOperations: SpreadsheetBatchOperation[] = []
+          for (const rejected of rejectedResults) {
+            for (const cell of rejected.serverState) {
+              if (cell.field !== 'value') continue
+              paintOperations.push({
+                operationId: `paint_${rejected.operationId}_${cell.rowId}_${cell.columnName}`,
+                type: 'set_cell',
+                data: {
+                  rowId: cell.rowId,
+                  columnName: cell.columnName,
+                  value: cell.value
+                }
+              })
+            }
+          }
+          if (paintOperations.length === 0) return
+          spreadsheetSession.applyMutation({
+            sheetId: targetSheetId,
+            operations: paintOperations,
+            source: SpreadsheetSessionMutationSources.RemoteApply
           })
         },
         applyResponseRowsToLocalBaseline,
@@ -212,6 +315,8 @@ export function useSpreadsheetMutationPipeline(
       rememberSheetVersion,
       recoverFromVersionConflict,
       refreshBaseVersionBeforeWrite,
+      releaseMutationOwnershipFromResponse,
+      applyLocalCommittedBatch,
       snapshotSaveMetricsRef,
       spreadsheetSession,
       sheetVersionRef,
@@ -225,54 +330,40 @@ export function useSpreadsheetMutationPipeline(
   )
 
   const submitMutationBatch = useMemo<SpreadsheetMutationFacade['submitBatch']>(() => {
-    const chainSheetSubmit = (request: SpreadsheetMutationBatchRequest) => {
-      const aliases = createdSheetIdAliasesRef?.current ?? EMPTY_SHEET_ID_ALIASES
-      const targetSheetId = resolveReconciledSheetId(request.sheetId, aliases)
-      const previous = perSheetSubmitTailRef.current.get(targetSheetId) ?? Promise.resolve()
-      // Fix G: when the previous batch on this sheet rejected, do NOT silently chain through.
-      // We must re-sync our cached baseVersion before issuing the next submit, otherwise the
-      // next batch fires with stale version state and produces cascading 409s that the user
-      // experiences as random missing rows / cells. `recoverFromVersionConflict` is best-effort
-      // (idempotent on its own); we swallow its rejection so the chain stays alive, but the
-      // next batch will at least see a refreshed baseline.
-      const next = previous
-        .then(undefined, async previousError => {
-          console.warn('[SpreadsheetMutationPipeline] previous batch failed; resyncing before next submit', {
-            targetSheetId,
-            error: previousError instanceof Error ? previousError.message : String(previousError ?? 'unknown')
-          })
-          try {
-            await recoverFromVersionConflict()
-          } catch {
-            /* recovery is best-effort; the next submitter call will refreshBaseVersionBeforeWrite anyway */
-          }
-        })
-        .then(() => rawSubmitMutationBatch(request)) as Promise<SpreadsheetBatchOperationResponse>
-      perSheetSubmitTailRef.current.set(targetSheetId, next)
-      // Don't let an unhandled rejection bubble; we only care for chain-consumers awaiting `next` directly.
-      void next.catch(() => undefined)
-      return next
-    }
-
+    // NOTE: Per-sheet HTTP serialization (the old `perSheetSubmitTailRef`)
+    // has been removed. Two equivalent ordering guarantees exist now:
+    //
+    //  1. Queue-routed submits (`sheetWorkQueue.enqueueLocalPersist`) are
+    //     serialized by the queue's own per-sheet FIFO + global
+    //     `chainOnOperationQueue` mutex.
+    //  2. Direct submits from the journal/restore path
+    //     (`useSpreadsheetPendingCellPersistence`) are issued one-at-a-time
+    //     and likewise chained through `chainOnOperationQueue`.
+    //
+    // Both lanes call `refreshBaseVersionBeforeWrite` immediately before
+    // each submit, which is what the old "Fix G" recovery-on-prior-error
+    // ultimately accomplished (resync the cached base before the next wire
+    // call). Cascading 409s are therefore avoided without a per-sheet
+    // promise chain on top of the global queue.
     if (!serializeMutationSubmitsWithQueue) {
-      return chainSheetSubmit
+      return rawSubmitMutationBatch
     }
     const { operationQueueRef, chainOnOperationQueue, operationQueueExecutionDepthRef } =
       serializeMutationSubmitsWithQueue
     return async request => {
       if (operationQueueExecutionDepthRef.current > 0) {
-        return chainSheetSubmit(request)
+        return rawSubmitMutationBatch(request)
       }
       let captured: SpreadsheetBatchOperationResponse | undefined
       await chainOnOperationQueue(operationQueueRef, async () => {
-        captured = await chainSheetSubmit(request)
+        captured = await rawSubmitMutationBatch(request)
       })
       if (!captured) {
         throw new Error('[SpreadsheetMutationPipeline] submitBatch did not return a response')
       }
       return captured
     }
-  }, [createdSheetIdAliasesRef, rawSubmitMutationBatch, recoverFromVersionConflict, serializeMutationSubmitsWithQueue])
+  }, [rawSubmitMutationBatch, serializeMutationSubmitsWithQueue])
 
   const mutationFacade = useMemo(
     () =>
@@ -304,5 +395,5 @@ export function useSpreadsheetMutationPipeline(
 
   mutationFacadeRef.current = mutationFacade
 
-  return { mutationFacade, submitMutationBatch }
+  return { mutationFacade, submitMutationBatch, submitMutationBatchForSheetQueue: rawSubmitMutationBatch }
 }

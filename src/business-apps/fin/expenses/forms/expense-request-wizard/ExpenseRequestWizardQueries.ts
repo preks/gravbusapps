@@ -1,8 +1,8 @@
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useFlowClient } from '@/common/network/flows/useFlowClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { showToast } from '../../utils/notificationUtils'
 import { formatDateWithTimezone } from '../expense-item/utils/dateUtils'
+import type { ExpenseRequestWizardTranslateFn } from './expenseRequestWizardTranslateTypes'
 
 /**
  * Hook for fetching employee rule data
@@ -18,20 +18,14 @@ export const useEmployeeRuleQuery = (contextProps: Pick<BusinessAppContextProps,
    * @param date Date in ISO format
    * @returns Promise with employee rule data or null if error
    */
-  const fetchEmployeeRule = async (employeeId: string, date: string) => {
+  const fetchEmployeeRule = async (employeeId: string, date: string, t?: ExpenseRequestWizardTranslateFn) => {
     try {
       const formattedDate = formatDateWithTimezone(date)
       const path = `employee-expense/getEmployeeRule/${employeeId}/${formattedDate}`
 
       return await flowClient.getResource(path)
     } catch {
-      showToast(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:create_expense_type_item.process_error_data_fetch',
-          'Error fetching data'
-        ),
-        'error'
-      )
+      showToast(t ? t('wizard-error-data-fetch') : 'Error fetching data', 'error')
       return null
     }
   }
@@ -42,7 +36,12 @@ export const useEmployeeRuleQuery = (contextProps: Pick<BusinessAppContextProps,
 /**
  * Function for fetching employee rule data
  */
-export const fetchEmployeeRule = async (employeeId: string, date: string, accessToken: string) => {
+export const fetchEmployeeRule = async (
+  employeeId: string,
+  date: string,
+  accessToken: string,
+  t?: ExpenseRequestWizardTranslateFn
+) => {
   try {
     // Import flowClient directly for non-hook usage
     const { flowClient } = await import('@/common/network/flows/FlowClient')
@@ -56,13 +55,7 @@ export const fetchEmployeeRule = async (employeeId: string, date: string, access
 
     return await flowClient.getResource(path)
   } catch {
-    showToast(
-      getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_type_item.process_error_data_fetch',
-        'Error fetching data'
-      ),
-      'error'
-    )
+    showToast(t ? t('wizard-error-data-fetch') : 'Error fetching data', 'error')
     return null
   }
 }

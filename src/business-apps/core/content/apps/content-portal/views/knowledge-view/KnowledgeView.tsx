@@ -1,5 +1,14 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
-import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Skeleton } from '@newwork/nw-design-system'
+import {
+  useTranslation,
+  Button,
+  Alert,
+  AlertTitle,
+  AlertDescription,
+  EmptyState,
+  Skeleton
+} from '@newwork/nw-design-system'
+import { BookOpenIcon, FunnelIcon, MagnifyingGlassIcon } from '@phosphor-icons/react'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
 import { ContentRole, ContentGroup } from '@/common/data/content/constants/contentConstants'
 import ContentCardSkeleton from '../../components/skeletons/ContentCardSkeleton'
@@ -110,7 +119,16 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
   )
 
   // Use central content data
-  const { entries: fetchedEntries, totalCount, isLoading, error, refetch } = useContentEntries(queryParams, accessToken)
+  const {
+    data: queryData,
+    entries: fetchedEntries,
+    totalCount,
+    isLoading,
+    isPlaceholderData,
+    isFetched,
+    error,
+    refetch
+  } = useContentEntries(queryParams, accessToken)
 
   // Accumulate entries for infinite scroll
   // Track the query key to detect when search/category changes (which should reset)
@@ -127,12 +145,15 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
       lastQueryKeyRef.current = queryKey
       lastProcessedEntriesRef.current = '' // Reset processed entries tracking
       setOffset(0)
-      setAllLoadedEntries([])
     }
   }, [queryKey])
 
   // Accumulate entries based on offset
   useEffect(() => {
+    if (isPlaceholderData || !queryData) {
+      return
+    }
+
     // Create a stable key from fetchedEntries to detect actual changes
     const entriesKey = fetchedEntries
       .map(e => e.id)
@@ -159,10 +180,10 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
         return [...prev, ...newEntries]
       })
     }
-  }, [fetchedEntries, offset])
+  }, [fetchedEntries, isPlaceholderData, offset, queryData])
 
   // Use accumulated entries
-  const entries = allLoadedEntries
+  const entries = allLoadedEntries.length > 0 ? allLoadedEntries : fetchedEntries
 
   // Listen for process completion to refresh data
   useProcessCompletion({
@@ -174,10 +195,6 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
 
   // Use entries directly (no conversion needed)
   const data = entries
-
-  // Keep loading state until we have data on initial load
-  const isInitialDataLoad = offset === 0 && allLoadedEntries.length === 0
-  const showLoading = isLoading || isInitialDataLoad
 
   const hasMore = allLoadedEntries.length > 0 && allLoadedEntries.length < totalCount
 
@@ -213,21 +230,21 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
       setOffset(prev => prev + PAGE_SIZE)
     },
     hasMore,
-    isLoading: showLoading
+    isLoading
   })
 
   const handleSearch = (query: string) => {
+    setOffset(0)
     setSearchQuery(query)
-    // Offset will be reset by the queryKey effect
   }
 
   const handleCategoryClick = (categoryRef: string | null) => {
+    setOffset(0)
     setSelectedCategoryRef(categoryRef)
     // Clear article search when switching to glossary mode
     if (categoryRef === GLOSSARY_VIEW_MODE) {
       setSearchQuery('')
     }
-    // Offset will be reset by the queryKey effect
   }
 
   // Check if we're in glossary mode
@@ -235,6 +252,35 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
 
   // Get selected category name for breadcrumb
   const selectedCategory = categories.find(cat => cat.id === selectedCategoryRef)
+  const visibleEmptyStateConfig = useMemo(() => {
+    const displayedSearchQuery = queryData?.queryMeta.params.search ?? ''
+    const hasDisplayedCategoryFilter = Boolean(queryData?.queryMeta.params.categoryIds?.length)
+
+    if (displayedSearchQuery) {
+      return {
+        type: 'search' as const,
+        title: t('no_search_results'),
+        description: t('no_search_results_description'),
+        icon: MagnifyingGlassIcon
+      }
+    }
+
+    if (hasDisplayedCategoryFilter) {
+      return {
+        type: 'filtered' as const,
+        title: t('no_filter_results'),
+        description: t('no_filter_results_description'),
+        icon: FunnelIcon
+      }
+    }
+
+    return {
+      type: 'no-data' as const,
+      title: t('no_knowledge_found'),
+      description: t('no_knowledge_found_description'),
+      icon: BookOpenIcon
+    }
+  }, [queryData, t])
 
   // Featured articles (first 3 for wiki-style display with content)
   // Always show the first 3 entries as featured, regardless of offset
@@ -310,6 +356,7 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
                 <div className="gba:flex gba:gap-2 gba:items-center">
                   <SearchInput onSearch={handleSearch} placeholder={t('search_knowledge')} className="gba:w-[300px]" />
                   <AppAction
+                    variant="create-primary"
                     contexts={[
                       {
                         context: FlowContextName.contentEntryCreate,
@@ -317,11 +364,9 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
                       }
                     ]}
                     accessToken={accessToken}
-                    emptyState="enable"
-                    lazyLoad
                     data-testid="knowledge-view-create-button"
                   >
-                    <Button>{t('create_article')}</Button>
+                    {t('create_article')}
                   </AppAction>
                 </div>
               </div>
@@ -374,7 +419,7 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
             ) : (
               <>
                 {/* Featured Articles Section */}
-                {showLoading ? (
+                {isLoading ? (
                   <div className="gba:mb-8">
                     <Skeleton className="gba:h-6 gba:w-48 gba:mb-4" />
                     <div className="gba:space-y-4">
@@ -395,7 +440,7 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
                 {/* Regular Articles Grid */}
                 <RegularArticlesSection
                   articles={regularArticles}
-                  isLoading={showLoading}
+                  isLoading={isLoading}
                   isInitialLoad={isInitialLoad}
                   searchQuery={searchQuery}
                   currentTab={currentTab}
@@ -408,12 +453,19 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
                   t={t}
                 />
 
-                {!showLoading && offset === 0 && data.length === 0 && fetchedEntries.length === 0 && (
-                  <div className="gba:col-span-3 gba:text-center gba:py-12">
-                    <p className="gba:text-muted-foreground">
-                      {searchQuery ? t('no_search_results') : t('no_knowledge_found')}
-                    </p>
-                  </div>
+                {isFetched && !isLoading && offset === 0 && data.length === 0 && (
+                  <EmptyState
+                    type={visibleEmptyStateConfig.type}
+                    config={{
+                      configs: {
+                        [visibleEmptyStateConfig.type]: {
+                          ...visibleEmptyStateConfig,
+                          size: 'md'
+                        }
+                      }
+                    }}
+                    data-testid="knowledge-view-empty"
+                  />
                 )}
 
                 {/* Infinite scroll sentinel */}

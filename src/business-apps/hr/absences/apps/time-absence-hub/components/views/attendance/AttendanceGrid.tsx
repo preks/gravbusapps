@@ -1,15 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Badge } from '@newwork/nw-design-system'
-import { ClockIcon, UserIcon } from '@phosphor-icons/react'
+import { ClockIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import {
+import type {
+  AbsenceNetDay,
   AbsenceCalendarDay,
   AttendanceRow,
   FilteredEmployee,
   PublicHolidayDay
 } from '../../../queries/OrgAttendanceQueries'
-import { formatMinutes, toMinutes } from './attendanceUtils'
+import { AttendanceDateRange, formatMinutes } from './attendanceUtils'
 import { HubDataTable, type HubDataTableColumn } from '../shared/HubDataTable'
+import { HubEmployeeCell } from '../shared/HubEmployeeCell'
+import type { AttendanceAbsenceTypeOption } from './attendanceMetrics'
+import { computeAttendanceEmployeeMetrics, formatAbsenceBreakdown } from './attendanceMetrics'
 
 const tt = (key: string, fallback: string) =>
   getTranslationFromI18nKeyAndLabel(`lowcoder:time_absence_hub.attendance.${key}`, fallback)
@@ -19,6 +23,9 @@ interface AttendanceGridProps {
   attendance: AttendanceRow[]
   absences: AbsenceCalendarDay[]
   holidays: PublicHolidayDay[]
+  absenceNet: AbsenceNetDay[]
+  dateRange: AttendanceDateRange | null
+  absenceTypes: AttendanceAbsenceTypeOption[]
   isLoading: boolean
   error: string | null
   onOpenEmployee?: (employeeId: string) => void
@@ -27,13 +34,12 @@ interface AttendanceGridProps {
 interface GridRow {
   employee: FilteredEmployee
   departmentName: string
-  locationName: string
-  managerName: string
+  jobPositionName: string
   totalEffectiveMinutes: number
   totalPlannedMinutes: number
   totalDifferenceMinutes: number
+  absenceSummary: string
   absenceCount: number
-  holidayCount: number
   manualOverrideCount: number
   missingLogCount: number
 }
@@ -41,12 +47,11 @@ interface GridRow {
 type AttendanceSortField =
   | 'employeeName'
   | 'departmentName'
-  | 'locationName'
-  | 'managerName'
   | 'totalPlannedMinutes'
   | 'totalEffectiveMinutes'
   | 'totalDifferenceMinutes'
-  | 'markerCount'
+  | 'absenceCount'
+  | 'exceptionCount'
 
 type AttendanceSortOrder = 'ASC' | 'DESC'
 
@@ -59,46 +64,40 @@ const formatTime = (value?: string | null): string => {
 
 const getEmployeeName = (row: GridRow): string => `${row.employee.firstName} ${row.employee.lastName}`.trim()
 
-const getMarkerCount = (row: GridRow): number =>
-  row.absenceCount + row.holidayCount + row.manualOverrideCount + row.missingLogCount
-
-const countUniqueBy = <T,>(rows: T[], getKey: (row: T) => string): number =>
-  new Set(rows.map(getKey).filter(Boolean)).size
+const getExceptionCount = (row: GridRow): number => row.manualOverrideCount + row.missingLogCount
 
 const buildRows = (
   employees: FilteredEmployee[],
   attendance: AttendanceRow[],
   absences: AbsenceCalendarDay[],
-  holidays: PublicHolidayDay[]
+  holidays: PublicHolidayDay[],
+  absenceNet: AbsenceNetDay[],
+  dateRange: AttendanceDateRange | null,
+  absenceTypes: AttendanceAbsenceTypeOption[]
 ): GridRow[] =>
   employees.map(employee => {
-    const employeeAttendance = attendance.filter(a => a.employeeId === employee.id)
-    const employeeAbsences = absences.filter(a => a.employeeId === employee.id)
-    const employeeHolidays = holidays.filter(h => h.employeeId === employee.id)
     const departmentName = employee.employeePosition?.organizationalUnit?.name ?? '-'
-    const locationName = employee.employeePosition?.siteLocation?.name ?? '-'
-    const managerName = employee.employeePosition?.supervisor
-      ? `${employee.employeePosition.supervisor.firstName} ${employee.employeePosition.supervisor.lastName}`
-      : '-'
-    const totalEffectiveMinutes = employeeAttendance.reduce((acc, a) => acc + toMinutes(a.effectiveTime), 0)
-    const totalPlannedMinutes = employeeAttendance.reduce((acc, a) => acc + toMinutes(a.plannedTime), 0)
-    const totalDifferenceMinutes = employeeAttendance.reduce((acc, a) => acc + toMinutes(a.differenceTime), 0)
-    const manualOverrideCount = employeeAttendance.filter(a => Boolean(a.manualOverride)).length
-    const missingLogCount = employeeAttendance.filter(
-      a => toMinutes(a.plannedTime) > 0 && !a.startTime && !a.endTime
-    ).length
+    const metrics = computeAttendanceEmployeeMetrics({
+      employee,
+      attendance,
+      absences,
+      holidays,
+      absenceNet,
+      dateRange,
+      absenceTypes
+    })
+
     return {
       employee,
       departmentName,
-      locationName,
-      managerName,
-      totalEffectiveMinutes,
-      totalPlannedMinutes,
-      totalDifferenceMinutes,
-      absenceCount: countUniqueBy(employeeAbsences, absence => absence.dayDate),
-      holidayCount: countUniqueBy(employeeHolidays, holiday => holiday.date),
-      manualOverrideCount,
-      missingLogCount
+      jobPositionName: employee.employeePosition?.jobPosition?.name ?? '-',
+      totalEffectiveMinutes: metrics.totalEffectiveMinutes,
+      totalPlannedMinutes: metrics.totalPlannedMinutes,
+      totalDifferenceMinutes: metrics.totalDifferenceMinutes,
+      absenceSummary: formatAbsenceBreakdown(metrics.absenceBreakdown),
+      absenceCount: metrics.absenceBreakdown.reduce((acc, item) => acc + item.count, 0),
+      manualOverrideCount: metrics.manualOverrideCount,
+      missingLogCount: metrics.missingLogCount
     }
   })
 
@@ -107,6 +106,9 @@ export const AttendanceGrid: React.FC<AttendanceGridProps> = ({
   attendance,
   absences,
   holidays,
+  absenceNet,
+  dateRange,
+  absenceTypes,
   isLoading,
   error,
   onOpenEmployee
@@ -117,8 +119,8 @@ export const AttendanceGrid: React.FC<AttendanceGridProps> = ({
   const [sortOrder, setSortOrder] = useState<AttendanceSortOrder>('ASC')
 
   const baseRows = useMemo(
-    () => buildRows(employees, attendance, absences, holidays),
-    [employees, attendance, absences, holidays]
+    () => buildRows(employees, attendance, absences, holidays, absenceNet, dateRange, absenceTypes),
+    [employees, attendance, absences, holidays, absenceNet, dateRange, absenceTypes]
   )
 
   const rows = useMemo(() => {
@@ -137,18 +139,16 @@ export const AttendanceGrid: React.FC<AttendanceGridProps> = ({
       switch (sortField) {
         case 'departmentName':
           return compareStrings(left.departmentName, right.departmentName)
-        case 'locationName':
-          return compareStrings(left.locationName, right.locationName)
-        case 'managerName':
-          return compareStrings(left.managerName, right.managerName)
         case 'totalPlannedMinutes':
           return compareNumbers(left.totalPlannedMinutes, right.totalPlannedMinutes)
         case 'totalEffectiveMinutes':
           return compareNumbers(left.totalEffectiveMinutes, right.totalEffectiveMinutes)
         case 'totalDifferenceMinutes':
           return compareNumbers(left.totalDifferenceMinutes, right.totalDifferenceMinutes)
-        case 'markerCount':
-          return compareNumbers(getMarkerCount(left), getMarkerCount(right))
+        case 'absenceCount':
+          return compareNumbers(left.absenceCount, right.absenceCount)
+        case 'exceptionCount':
+          return compareNumbers(getExceptionCount(left), getExceptionCount(right))
         case 'employeeName':
         default:
           return compareStrings(getEmployeeName(left), getEmployeeName(right))
@@ -186,58 +186,15 @@ export const AttendanceGrid: React.FC<AttendanceGridProps> = ({
         key: 'employee',
         header: tt('column_employee', 'Employee'),
         sortableField: 'employeeName',
-        widthClassName: 'gba:w-32',
+        widthClassName: 'gba:w-72',
         headerClassName: 'gba:px-3',
         cellClassName: 'gba:px-2 gba:py-3',
         renderCell: row => (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <UserIcon size={16} className="gba:text-muted-foreground" />
-            <span
-              className="gba:block gba:truncate gba:text-sm gba:font-medium gba:text-foreground"
-              title={`${row.employee.firstName} ${row.employee.lastName}`}
-            >
-              {row.employee.firstName} {row.employee.lastName}
-            </span>
-          </div>
-        )
-      },
-      {
-        key: 'department',
-        header: tt('column_department', 'Department'),
-        sortableField: 'departmentName',
-        widthClassName: 'gba:w-36',
-        headerClassName: 'gba:px-3',
-        cellClassName: 'gba:px-2 gba:py-3 gba:text-sm',
-        renderCell: row => (
-          <span className="gba:block gba:truncate" title={row.departmentName}>
-            {row.departmentName}
-          </span>
-        )
-      },
-      {
-        key: 'location',
-        header: tt('column_location', 'Location'),
-        sortableField: 'locationName',
-        widthClassName: 'gba:w-24',
-        headerClassName: 'gba:px-2',
-        cellClassName: 'gba:px-2 gba:py-3 gba:text-sm',
-        renderCell: row => (
-          <span className="gba:block gba:truncate" title={row.locationName}>
-            {row.locationName}
-          </span>
-        )
-      },
-      {
-        key: 'manager',
-        header: tt('column_manager', 'Manager'),
-        sortableField: 'managerName',
-        widthClassName: 'gba:w-24',
-        headerClassName: 'gba:px-2',
-        cellClassName: 'gba:px-2 gba:py-3 gba:text-sm',
-        renderCell: row => (
-          <span className="gba:block gba:truncate" title={row.managerName}>
-            {row.managerName}
-          </span>
+          <HubEmployeeCell
+            name={getEmployeeName(row)}
+            pictureThumbnail={row.employee.pictureThumbnail}
+            subtitle={`${row.jobPositionName} - ${row.departmentName}`}
+          />
         )
       },
       {
@@ -272,13 +229,22 @@ export const AttendanceGrid: React.FC<AttendanceGridProps> = ({
         )
       },
       {
-        key: 'markers',
-        header: tt('column_markers', 'Markers'),
-        sortableField: 'markerCount',
-        widthClassName: 'gba:w-24',
+        key: 'absences',
+        header: tt('column_absences', 'Absences'),
+        sortableField: 'absenceCount',
+        widthClassName: 'gba:w-28',
         headerClassName: 'gba:px-2',
         cellClassName: 'gba:px-2 gba:py-3',
-        renderCell: row => <div className="gba:flex gba:flex-wrap gba:gap-1 gba:text-xs">{renderMarkers(row)}</div>
+        renderCell: row => <div className="gba:flex gba:flex-wrap gba:gap-1 gba:text-xs">{renderAbsences(row)}</div>
+      },
+      {
+        key: 'exceptions',
+        header: tt('column_exceptions', 'Exceptions'),
+        sortableField: 'exceptionCount',
+        widthClassName: 'gba:w-28',
+        headerClassName: 'gba:px-2',
+        cellClassName: 'gba:px-2 gba:py-3',
+        renderCell: row => <div className="gba:flex gba:flex-wrap gba:gap-1 gba:text-xs">{renderExceptions(row)}</div>
       }
     ],
     []
@@ -321,17 +287,15 @@ const diffColorClass = (minutes: number): string => {
   return ''
 }
 
-const renderMarkers = (row: GridRow): React.ReactNode => {
-  const absenceDaysLabel = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:time_absence_hub.attendance.badge_absence_days',
-    `${row.absenceCount} absence days`,
-    { count: row.absenceCount }
-  )
-  const holidaysLabel = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:time_absence_hub.attendance.badge_bank_holidays',
-    `${row.holidayCount} bank holidays`,
-    { count: row.holidayCount }
-  )
+const renderAbsences = (row: GridRow): React.ReactNode => {
+  if (row.absenceCount === 0) {
+    return <span className="gba:text-xs gba:text-muted-foreground">-</span>
+  }
+
+  return <Badge variant="secondary">{row.absenceSummary}</Badge>
+}
+
+const renderExceptions = (row: GridRow): React.ReactNode => {
   const manualLabel = getTranslationFromI18nKeyAndLabel(
     'lowcoder:time_absence_hub.attendance.badge_manual',
     `${row.manualOverrideCount} manual`,
@@ -343,7 +307,7 @@ const renderMarkers = (row: GridRow): React.ReactNode => {
     { count: row.missingLogCount }
   )
 
-  if (row.absenceCount === 0 && row.holidayCount === 0 && row.manualOverrideCount === 0 && row.missingLogCount === 0) {
+  if (getExceptionCount(row) === 0) {
     return (
       <span className="gba:text-xs gba:text-muted-foreground">
         <ClockIcon size={12} className="gba:inline gba:mr-1" />
@@ -354,8 +318,6 @@ const renderMarkers = (row: GridRow): React.ReactNode => {
 
   return (
     <>
-      {row.absenceCount > 0 && <Badge variant="secondary">{absenceDaysLabel}</Badge>}
-      {row.holidayCount > 0 && <Badge variant="outline">{holidaysLabel}</Badge>}
       {row.manualOverrideCount > 0 && (
         <Badge variant="outline" className="gba:border-warning gba:text-warning">
           {manualLabel}

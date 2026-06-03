@@ -4,6 +4,7 @@ import { getSalaryByOrgUnitQuery } from '../queries/getSalaryByOrgUnit'
 import dayjs from 'dayjs'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { selectReportingWorkingConditionsByEmployee } from '../utils/workingConditionSelection'
 
 export interface DepartmentSalaryStack {
   month: string // e.g. '2024-06'
@@ -54,8 +55,8 @@ export const useDepartmentMonthlySalaryStack = (props: BusinessAppContextProps, 
         res.EmployeeOrganizationalUnit.forEach((eou: any) => {
           empToDept[eou.employeeId] = eou.organizationalUnitId
         })
-        // Get all working conditions
-        const all = res.EmployeeWorkingCondition
+        // Get one reporting working condition per employee.
+        const all = selectReportingWorkingConditionsByEmployee(res.EmployeeWorkingCondition || [])
         // Build month-wise salary stacks
         const months: DepartmentSalaryStack[] = []
         for (let m = 0; m < 12; m++) {

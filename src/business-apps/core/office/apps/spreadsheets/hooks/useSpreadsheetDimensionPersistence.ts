@@ -164,8 +164,6 @@ export function useSpreadsheetDimensionPersistence(
 
       if (!hasColumnWidthChanges && dimensionOps.length === 0) return
 
-      p.emitDimensionSyncRef.current(payload)
-
       if (hasColumnWidthChanges && colResult) {
         setPendingColumnWidthOverrides(prev => {
           const hasMaterialOverrideChange = colResult.changedColumns.some(

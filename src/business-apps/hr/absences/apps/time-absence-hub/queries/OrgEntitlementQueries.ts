@@ -1,63 +1,31 @@
-/**
- * Org-wide entitlements overview query for the Time & Absence Hub Entitlements view.
- *
- * Mirrors the same shape as the existing `GetDetailedEntitlements` in EntitlementsDetails,
- * but joined with employee + organizationalUnit + siteLocation so we can show a flat
- * org-wide table with department / location columns.
- */
-
 export const GET_ORG_ENTITLEMENTS_OVERVIEW = `
   query GetOrgEntitlementsOverview(
-    $where: EmployeeAbsenceEntitlementBoolExp!
+    $where: EntitlementUsageSnapshotViewBoolExp!
     $offset: Int!
     $limit: Int!
-    $orderBy: [EmployeeAbsenceEntitlementOrderBy!]
+    $orderBy: [EntitlementUsageSnapshotViewOrderBy!]
+    $totalLimit: Int!
   ) {
-    EmployeeAbsenceEntitlement(
+    snapshotRows: EntitlementUsageSnapshotView(
       where: $where
       offset: $offset
       limit: $limit
       orderBy: $orderBy
     ) {
-      id
       employeeId
-      total
-      available
-      approved
-      pending
-      validFrom
-      validTo
-      type {
-        id
-        value
-        parentEntryId
-      }
-      employee {
-        id
-        firstName
-        lastName
-        displayName
-        pictureThumbnail
-        employeePosition {
-          organizationalUnit {
-            id
-            name
-          }
-          company {
-            id
-            name
-          }
-          siteLocation {
-            id
-            name
-          }
-        }
-      }
+      typeRef
+      totalEntitlement
+      usedApproved
+      usedPending
+      remaining
+      periodStart
+      periodEnd
     }
-    EmployeeAbsenceEntitlementAggregate(where: $where) {
-      aggregate {
-        count
-      }
+    totalRows: EntitlementUsageSnapshotView(where: $where, limit: $totalLimit) {
+      employeeId
+      typeRef
+      periodStart
+      periodEnd
     }
   }
 `
@@ -88,15 +56,75 @@ export const GET_ENTITLEMENT_EMPLOYEES_BY_IDS = `
   }
 `
 
+export const GET_ENTITLEMENT_ABSENCE_TYPES_BY_IDS = `
+  query GetEntitlementAbsenceTypesByIds($typeRefs: [String!]!) {
+    CatalogEntry(where: { _and: [{ id: { _in: $typeRefs } }, { isDeleted: { _eq: false } }] }) {
+      id
+      value
+      parentEntryId
+    }
+  }
+`
+
+export interface EntitlementUsageSnapshotRow {
+  employeeId?: string | null
+  typeRef?: string | null
+  totalEntitlement?: number | string | null
+  usedApproved?: number | string | null
+  usedPending?: number | string | null
+  remaining?: number | string | null
+  periodStart?: string | null
+  periodEnd?: string | null
+}
+
+const toSnapshotNumber = (value: number | string | null | undefined): number | null => {
+  if (value === null || value === undefined) {
+    return null
+  }
+
+  const numeric = typeof value === 'number' ? value : Number(value)
+
+  return Number.isFinite(numeric) ? numeric : null
+}
+
+export const mapSnapshotRowToOrgEntitlementRow = (row: EntitlementUsageSnapshotRow): OrgEntitlementRow => {
+  const total = toSnapshotNumber(row.totalEntitlement)
+  const approved = toSnapshotNumber(row.usedApproved)
+  const pending = toSnapshotNumber(row.usedPending)
+  const remaining = toSnapshotNumber(row.remaining)
+  const fallbackRemaining = remaining ?? (total !== null ? Math.max(0, total - (approved ?? 0) - (pending ?? 0)) : null)
+  const employeeId = row.employeeId ?? null
+  const typeRef = row.typeRef ?? null
+  const periodStart = row.periodStart ?? null
+  const periodEnd = row.periodEnd ?? null
+
+  return {
+    id: [employeeId, typeRef, periodStart, periodEnd].filter(Boolean).join(':') || 'snapshot-row',
+    employeeId,
+    total,
+    approved,
+    pending,
+    available: fallbackRemaining,
+    remaining: fallbackRemaining,
+    validFrom: periodStart,
+    validTo: periodEnd,
+    typeRef,
+    type: typeRef ? { id: typeRef, value: typeRef } : null,
+    employee: null
+  }
+}
+
 export interface OrgEntitlementRow {
   id: string
   employeeId?: string | null
   total?: number | null
   available?: number | null
+  remaining?: number | null
   approved?: number | null
   pending?: number | null
   validFrom?: string | null
   validTo?: string | null
+  typeRef?: string | null
   type?: { id: string; value: string; parentEntryId?: string | null } | null
   employee?: {
     id: string

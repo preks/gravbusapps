@@ -54,19 +54,60 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
   const [pictureFile, setPictureFile] = useState<File | null>(null)
   const [picturePreview, setPicturePreview] = useState<string | null>(investmentCompany?.pictureThumbnail || null)
 
+  const companyAdditionalData = (additionalData || {}) as {
+    id?: string
+    investmentCompanyId?: string
+    investmentCompany?: { id?: string }
+    externalContextData?: {
+      id?: string
+      investmentCompanyId?: string
+      investmentCompany?: { id?: string }
+    }
+    psi_initialParameters?: {
+      id?: string
+      investmentCompanyId?: string
+      investmentCompany?: { id?: string }
+    }
+    psi_taskPayload?: {
+      psi_initialParameters?: {
+        id?: string
+        investmentCompanyId?: string
+        investmentCompany?: { id?: string }
+      }
+    }
+  }
+
+  const initialParameters =
+    companyAdditionalData?.psi_initialParameters || companyAdditionalData?.psi_taskPayload?.psi_initialParameters
+
   const resolvedInvestmentCompanyId =
     investmentCompany?.id ||
     investmentCompanyId ||
-    additionalData?.investmentCompanyId ||
-    additionalData?.psi_taskPayload?.psi_initialParameters?.investmentCompanyId
+    companyAdditionalData?.investmentCompanyId ||
+    companyAdditionalData?.investmentCompany?.id ||
+    companyAdditionalData?.id ||
+    companyAdditionalData?.externalContextData?.investmentCompanyId ||
+    companyAdditionalData?.externalContextData?.investmentCompany?.id ||
+    companyAdditionalData?.externalContextData?.id ||
+    initialParameters?.investmentCompanyId ||
+    initialParameters?.investmentCompany?.id ||
+    initialParameters?.id
 
   const {
     company: fetchedInvestmentCompany,
     loading: investmentCompanyLoading,
     error: investmentCompanyError
   } = useInvestmentCompany(accessToken || '', resolvedInvestmentCompanyId)
-  const resolvedInvestmentCompany = ((investmentCompany?.id ? investmentCompany : fetchedInvestmentCompany) ||
-    undefined) as InvestmentCompanyFormSource | undefined
+  const resolvedInvestmentCompany = useMemo<InvestmentCompanyFormSource | undefined>(() => {
+    if (fetchedInvestmentCompany) {
+      return {
+        ...investmentCompany,
+        ...fetchedInvestmentCompany
+      } as InvestmentCompanyFormSource
+    }
+
+    return investmentCompany as InvestmentCompanyFormSource | undefined
+  }, [fetchedInvestmentCompany, investmentCompany])
 
   const {
     employees,

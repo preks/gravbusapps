@@ -151,7 +151,8 @@ const RelationshipsCard: React.FC<RelationshipsCardProps> = ({
                   </div>
                   <div className="gba:flex gba:flex-wrap gba:gap-x-4 gba:gap-y-0.5 gba:mt-1">
                     <span className="gba:text-xs gba:text-muted-foreground">
-                      {t('details-label-relationship-type')}: {formatField(rel.type?.value)}
+                      {t('details-label-relationship-type')}:{' '}
+                      {formatField(rel.type?.translations?.[0]?.value || rel.type?.value)}
                     </span>
                     {rel.phoneNumber ? (
                       <span className="gba:text-xs gba:text-muted-foreground">

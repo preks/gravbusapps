@@ -5,6 +5,13 @@ import type { SpreadsheetSession } from '../core'
 import { sortSpreadsheetRowsBySheetSettings } from '../utils/spreadsheetSheetRowSort'
 import { stripWorkbookSnapshotValuesPreservingFormatting } from '../utils/univerAdapter'
 import {
+  attachSnapshotCoversVersions,
+  getSheetCoverageVersion,
+  mergeSnapshotCoversVersions,
+  snapshotHasFormattingSignal,
+  type SpreadsheetSnapshotCoversVersions
+} from '../utils/spreadsheetSnapshotCoverage'
+import {
   computeBootstrapSnapshotMergeOutcome,
   fetchBootstrapSnapshotRemoteComparedToBaseline,
   loadBootstrapSnapshotData,
@@ -25,6 +32,7 @@ export interface UseSpreadsheetBootstrapSnapshotPipelineParams {
   preferUniverNativeSheetTabs: boolean
   spreadsheetSession: Pick<SpreadsheetSession, 'updateWorkbookSnapshot'>
   workbookSnapshotVersionRef: MutableRefObject<number>
+  workbookSnapshotCoversVersionsRef: MutableRefObject<SpreadsheetSnapshotCoversVersions>
   peerSheetDataCacheRef: MutableRefObject<Map<string, Record<string, unknown>[]>>
   authoritativePeerSheetDataCacheRef: MutableRefObject<Set<string>>
   /**
@@ -77,6 +85,7 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
     preferUniverNativeSheetTabs,
     spreadsheetSession,
     workbookSnapshotVersionRef,
+    workbookSnapshotCoversVersionsRef,
     peerSheetDataCacheRef,
     authoritativePeerSheetDataCacheRef,
     seedActiveSheetState,
@@ -140,7 +149,7 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
 
       let minVersion = Number(activeSheetVersion ?? 0)
 
-      const previewCache = readUniverSnapshotCacheForBootstrap(appId, minVersion)
+      const previewCache = readUniverSnapshotCacheForBootstrap(appId, activeSheetId, minVersion)
 
       const applyBootstrapLoaderResult = (
         canonicalSheetMeta: SpreadsheetSheet,
@@ -149,14 +158,18 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
         activeSheetIdLocal: string
       ): void => {
         workbookSnapshotVersionRef.current = Math.max(workbookSnapshotVersionRef.current, result.version)
+        workbookSnapshotCoversVersionsRef.current = mergeSnapshotCoversVersions(
+          workbookSnapshotCoversVersionsRef.current,
+          result.coversVersions
+        )
 
         const canonicalMin = Math.trunc(minVersion)
-        const loaderWorkbookVersion = Math.trunc(Number(result.version ?? 0))
+        const loaderCoverageVersion = getSheetCoverageVersion(result.coversVersions, activeSheetIdLocal)
         const loaderMeetsCanonicalSheet =
           Number.isFinite(canonicalMin) &&
-          Number.isFinite(loaderWorkbookVersion) &&
-          loaderWorkbookVersion >= canonicalMin
-        const formattingDonorMinWorkbookVersion = loaderMeetsCanonicalSheet ? loaderWorkbookVersion : undefined
+          Number.isFinite(loaderCoverageVersion) &&
+          loaderCoverageVersion >= canonicalMin
+        const formattingDonorMinWorkbookVersion = loaderMeetsCanonicalSheet ? result.version : undefined
 
         const mergeOutcome = computeBootstrapSnapshotMergeOutcome({
           preferUniverNativeSheetTabs,
@@ -169,58 +182,49 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
           formattingDonorMinWorkbookVersion
         })
         const { snapshotForBootstrap, rowOverlayChanged, formattingEnriched } = mergeOutcome
-
-        spreadsheetSession.updateWorkbookSnapshot(
+        const snapshotWithCoverage =
           snapshotForBootstrap && typeof snapshotForBootstrap === 'object'
-            ? (snapshotForBootstrap as Record<string, unknown>)
-            : null,
-          result.version
-        )
+            ? attachSnapshotCoversVersions(snapshotForBootstrap as Record<string, unknown>, result.coversVersions)
+            : null
+
+        spreadsheetSession.updateWorkbookSnapshot(snapshotWithCoverage, result.version)
         if (cancelled) return
-        setBootstrapSnapshot((snapshotForBootstrap ?? null) as Record<string, unknown> | null)
+        setBootstrapSnapshot(snapshotWithCoverage)
         setBootstrapSnapshotSeed(result.seed)
 
-        if (
-          snapshotForBootstrap &&
-          typeof snapshotForBootstrap === 'object' &&
-          (rowOverlayChanged || formattingEnriched)
-        ) {
+        if (snapshotWithCoverage && (rowOverlayChanged || formattingEnriched)) {
           writeUniverSnapshotCache(
             appId,
             result.version,
-            stripWorkbookSnapshotValuesPreservingFormatting(snapshotForBootstrap as Record<string, unknown>)
+            stripWorkbookSnapshotValuesPreservingFormatting(snapshotWithCoverage)
           )
-          debugLog('bootstrap: merged Univer snapshot (rows and/or formatting fallback)', {
+          debugLog('bootstrap snapshot merge applied', {
             appId,
             sheetId: activeSheetIdLocal,
             source: result.source,
             rowOverlayChanged,
-            formattingEnriched
+            formattingEnriched,
+            canonicalVersion: canonicalMin,
+            checkpointCoverageVersion: loaderCoverageVersion,
+            workbookSnapshotVersion: result.version,
+            hasCoverageForSheet: Object.prototype.hasOwnProperty.call(result.coversVersions, activeSheetIdLocal),
+            snapshotHasFormatting: snapshotHasFormattingSignal(snapshotWithCoverage)
           })
         }
-        if (result.source === 'cache') {
-          debugLog('bootstrap snapshot loaded from cache', {
-            appId,
-            sheetId: activeSheetIdLocal,
-            version: result.version
-          })
-          return
-        }
-        if (result.source === 'remote') {
-          debugLog('bootstrap snapshot loaded from backend', {
-            appId,
-            sheetId: activeSheetIdLocal,
-            version: result.version,
-            cacheStored: result.cacheWrite?.stored,
-            cacheReason: result.cacheWrite?.reason
-          })
-          return
-        }
-        debugLog('bootstrap snapshot missing-or-stale; using row fallback', {
+        debugLog('bootstrap snapshot candidate selected', {
           appId,
           sheetId: activeSheetIdLocal,
-          minVersion,
-          remoteVersion: result.version
+          source: result.source,
+          canonicalVersion: canonicalMin,
+          checkpointCoverageVersion: loaderCoverageVersion,
+          workbookSnapshotVersion: result.version,
+          hasCoverageForSheet: Object.prototype.hasOwnProperty.call(result.coversVersions, activeSheetIdLocal),
+          snapshotHasFormatting: snapshotHasFormattingSignal(snapshotWithCoverage),
+          formattingEnriched,
+          rowOverlayChanged,
+          cacheStored: result.cacheWrite?.stored,
+          cacheReason: result.cacheWrite?.reason,
+          minVersion
         })
       }
 
@@ -246,7 +250,7 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
 
         setIsBootstrapCanonicalReady(true)
 
-        const cacheFirst = tryLoadBootstrapSnapshotFromCache(appId, minVersion)
+        const cacheFirst = tryLoadBootstrapSnapshotFromCache(appId, activeSheetId, minVersion)
 
         if (cacheFirst) {
           applyBootstrapLoaderResult(canonicalSheetMeta, canonicalRows, cacheFirst, activeSheetId)
@@ -255,7 +259,12 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
             setIsBootstrapWorkbookEnriching(true)
           }
           try {
-            const reconciled = await fetchBootstrapSnapshotRemoteComparedToBaseline(appId, minVersion, cacheFirst)
+            const reconciled = await fetchBootstrapSnapshotRemoteComparedToBaseline(
+              appId,
+              activeSheetId,
+              minVersion,
+              cacheFirst
+            )
             if (cancelled) return
             if (reconciled !== cacheFirst) {
               applyBootstrapLoaderResult(canonicalSheetMeta, canonicalRows, reconciled, activeSheetId)
@@ -264,7 +273,12 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
             console.error('[SpreadsheetAppViewer] Background Univer snapshot reconcile failed:', reconcileErr)
             onBootstrapWorkbookReconcileIssue?.({ phase: 'reconcile', error: reconcileErr })
             try {
-              const fallbackRemote = await fetchBootstrapSnapshotRemoteComparedToBaseline(appId, minVersion, null)
+              const fallbackRemote = await fetchBootstrapSnapshotRemoteComparedToBaseline(
+                appId,
+                activeSheetId,
+                minVersion,
+                null
+              )
               if (cancelled) return
               if (fallbackRemote !== cacheFirst) {
                 applyBootstrapLoaderResult(canonicalSheetMeta, canonicalRows, fallbackRemote, activeSheetId)
@@ -281,7 +295,7 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
             if (!cancelled) setIsBootstrapWorkbookEnriching(false)
           }
         } else {
-          const result = await loadBootstrapSnapshotData(appId, minVersion)
+          const result = await loadBootstrapSnapshotData(appId, activeSheetId, minVersion)
           if (cancelled) return
           applyBootstrapLoaderResult(canonicalSheetMeta, canonicalRows, result, activeSheetId)
           setIsBootstrapSnapshotLoading(false)

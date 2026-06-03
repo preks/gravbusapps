@@ -51,6 +51,8 @@ export interface EmployeeAbsence {
     id: string
     firstName: string
     lastName: string
+    displayName?: string | null
+    pictureThumbnail?: string | null
     employeePosition: {
       id: string
       organizationalUnit: {
@@ -120,6 +122,8 @@ export const GET_EMPLOYEE_ABSENCES = `
         id
         firstName
         lastName
+        displayName
+        pictureThumbnail
         employeePosition {
           id
           organizationalUnit {
@@ -133,6 +137,26 @@ export const GET_EMPLOYEE_ABSENCES = `
       aggregate {
         count
       }
+    }
+  }
+`
+
+export interface GetEmployeesByIdsResponse {
+  Employee: Array<{
+    id: string
+    firstName?: string | null
+    lastName?: string | null
+    displayName?: string | null
+  }>
+}
+
+export const GET_EMPLOYEES_BY_IDS = `
+  query GetEmployeesByIds($employeeIds: [uuid!]!) {
+    Employee(where: { id: { _in: $employeeIds }, isDeleted: { _eq: false } }) {
+      id
+      firstName
+      lastName
+      displayName
     }
   }
 `

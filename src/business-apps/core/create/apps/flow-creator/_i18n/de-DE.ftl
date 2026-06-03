@@ -21,6 +21,10 @@ studio-save-name-confirm = Flow speichern
 studio-unsaved-changes = Ungespeicherte Änderungen
 studio-saved = Gespeichert
 studio-loading = Lädt...
+studio-test-flow = Flow testen
+studio-import-flow = Importieren
+studio-export-flow = Exportieren
+studio-import-failed = Import fehlgeschlagen. Bitte wählen Sie eine gültige Flow-JSON-Datei aus.
 
 # Labels / Tags
 labels-title = Labels
@@ -127,6 +131,7 @@ config-rework = Nacharbeit
 start-trigger-type = Auslösertyp
 start-trigger-manual = Manuelles Formular
 start-trigger-webhook = Webhook
+start-trigger-email = E-Mail
 start-trigger-event = Ereignis
 start-trigger-schedule = Zeitplan
 

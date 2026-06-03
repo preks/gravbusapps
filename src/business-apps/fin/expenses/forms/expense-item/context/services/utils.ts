@@ -1,7 +1,8 @@
 import { parseFileUpload } from './fileUploadService'
 import { calculateTotalAmount } from '../../utils/calculationUtils'
 import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+
+type ExpenseItemT = (key: string) => string
 
 /**
  * Calculate total amount from all positions
@@ -13,29 +14,22 @@ export const calculateTotal = (positions: any[]) => {
 /**
  * Handle file upload
  */
-export const handleFileUpload = async (files: File[], accessToken: string, aiGroupsAndTypes: any[]) => {
+export const handleFileUpload = async (
+  files: File[],
+  accessToken: string,
+  aiGroupsAndTypes: any[],
+  t: ExpenseItemT
+) => {
   if (!files || files.length === 0) {
-    showToast(
-      getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_type_item.document_upload_error_missing_files',
-        'No valid files to upload'
-      ),
-      'error'
-    )
+    showToast(t('expense-item-error-missing-files'), 'error')
     return null
   }
 
   try {
-    const result = await parseFileUpload(files, accessToken, aiGroupsAndTypes)
+    const result = await parseFileUpload(files, accessToken, aiGroupsAndTypes, t)
     return result
   } catch {
-    showToast(
-      getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_type_item.process_error_receipt_processing',
-        'Error processing receipt data'
-      ),
-      'error'
-    )
+    showToast(t('expense-item-error-receipt-processing'), 'error')
     return null
   }
 }

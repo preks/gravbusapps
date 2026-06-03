@@ -59,6 +59,12 @@ rewards-stock-options = Opțiuni de acțiuni
 rewards-loading = Se încarcă recompensele totale...
 rewards-no-data = Nicio dată de compensare disponibilă
 rewards-package-description = Pachetul dvs. de recompense totale include salariul de bază, bonusurile, beneficiile și opțiunile de acțiuni
+rewards-pay-transparency-download-failed = Raportul de transparență salarială nu a putut fi descărcat. Vă rugăm să încercați din nou.
+
+# Pay Transparency
+pay-transparency-title = Transparență salarială
+pay-transparency-description = Raport și indicatori privind dreptul la informare
+pay-transparency-download-hint = Solicitați raportul de transparență salarială mai jos.
 
 # Benefits & Perks
 benefits-catalog-title = Catalog de beneficii
@@ -618,7 +624,61 @@ performance-status-behind-target = În urmă față de țintă
 performance-status-at-risk = În pericol
 performance-status-achieved = Atins
 performance-status-not-achieved = Neatins
+performance-status-completed = Finalizat
 performance-error-load = Nu s-au putut încărca datele de performanță
+performance-kpi-total-goals = Total obiective
+performance-kpi-selected-cycle = În ciclul selectat
+performance-kpi-on-track = Pe drumul cel bun
+performance-kpi-healthy-progress = Progres bun
+performance-kpi-at-risk = În pericol
+performance-kpi-watch-closely = Monitorizează atent
+performance-kpi-behind-target = În urmă față de țintă
+performance-kpi-needs-attention = Necesită atenție
+performance-kpi-achieved = Atinse
+performance-kpi-completed-goals = Obiective finalizate
+performance-search-placeholder = Caută obiective
+performance-filter-clear = Șterge
+performance-filter-all-status = Toate statusurile
+performance-filter-all-types = Toate tipurile
+performance-type-percentage = Procent
+performance-type-numeric = Numeric
+performance-type-milestone = Etapă
+performance-sort-due-date = Data scadenței
+performance-sort-status = Status
+performance-sort-updated-recently = Actualizat recent
+performance-empty-description = Nu există înregistrări de afișat în acest set de date.
+performance-due-label = Scadent la { $date }
+performance-delete-goal-aria = Șterge obiectiv
+performance-out-of-cycle-goals = Obiective în afara ciclului
+performance-fix-dates-to-edit = Corectează datele pentru editare
+performance-mark-completed = Marchează ca finalizat
+performance-outside-cycle-warning = Acest obiectiv este în afara ciclului selectat și nu poate fi editat până când datele nu sunt corectate.
+performance-update-progress = Actualizează progresul
+performance-target = Țintă
+performance-current = Curent
+performance-details-notes = Detalii / Note
+performance-completed-placeholder = Acest obiectiv este finalizat și nu mai poate fi modificat.
+performance-notes-placeholder = Descrie ce ai realizat sau eventualele blocaje...
+performance-comment-required = Adaugă un comentariu înainte de a salva această actualizare.
+performance-save-update = Salvează actualizarea
+performance-editing-disabled-tooltip = Momentan dezactivat
+performance-burnup-chart = Grafic burnup
+performance-chart-ideal = Ideal
+performance-chart-actual = Actual
+performance-chart-today = Astăzi
+performance-update-history = Istoric actualizări
+performance-history-progress = Progres → { $progress }%
+performance-history-completed = Finalizate: { $milestones }
+performance-history-reopened = Redeschise: { $milestones }
+performance-complete-dialog-title = Marchezi ca finalizat?
+performance-complete-dialog-description = Nu vei mai putea modifica progresul acestui obiectiv.
+performance-confirm = Confirmă
+performance-select-goal-title = Selectează un obiectiv pentru a vedea detaliile
+performance-select-goal-description = Apasă pe orice obiectiv din listă pentru a vedea progresul, graficul și istoricul actualizărilor.
+performance-delete-goal-title = Ștergi obiectivul?
+performance-delete-goal-description = Sigur dorești să ștergi „{ $title }”? Această acțiune nu poate fi anulată.
+performance-delete = Șterge
+performance-goal-marked-completed-comment = Obiectiv marcat ca finalizat
 
 # Performance Evaluation Tab
 performance-evaluation-title = Evaluare performanță
@@ -960,12 +1020,13 @@ change-personal-data-pending-ok = OK
 
 # Change Address - Loading
 change-address-loading-form = Se încarcă formularul de adresă...
+change-address-type-primary = Primară
+change-address-type-secondary = Secundară
+change-address-type-add-address = Adaugă adresă
 
 # Change Relationship - Congratulations modal
-relationship-form-success-title = Felicitări!
-relationship-form-success-child-message-line1 = Felicitări pentru mărirea familiei.
-relationship-form-success-child-message-line2 = Vă mulțumim că ne-ați împărtășit această veste minunată și că vă păstrați datele actualizate.
-relationship-form-success-marriage-message = Felicitări cu ocazia nunții și mulțumim că ați actualizat datele
+relationship-form-success-title = Actualizare primită
+relationship-form-success-loading-message = Se generează...
 relationship-form-success-ok = OK
 
 # Change Working Hours

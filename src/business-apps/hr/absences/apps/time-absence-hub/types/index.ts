@@ -88,6 +88,7 @@ export interface DashboardData {
     estimatedCostPerDay: number
     totalLiabilityEstimate: number
     currencyCode: string
+    hasMultipleCurrencies: boolean
   }
 
   isLoading: boolean
@@ -109,6 +110,7 @@ export interface EnhancedAbsence {
     id: string
     firstName: string
     lastName: string
+    pictureThumbnail?: string | null
     employeePosition?: {
       organizationalUnit?: {
         name: string
@@ -120,6 +122,9 @@ export interface EnhancedAbsence {
   groupName: string
   originalGroupName: string
   typeName: string
+  comment?: string
+  substituteEmployeeId?: string | null
+  substituteEmployeeName?: string | null
   color?: string
   pictureThumbnail?: string
   createdAt?: string

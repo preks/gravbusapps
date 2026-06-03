@@ -1,9 +1,4 @@
-import {
-  getCanonicalRowId,
-  getViewerRowIdentityCandidates,
-  rowMatchesRemoteId,
-  type ViewerRow
-} from './spreadsheetRowIdentity'
+import { getViewerRowIdentityCandidates, rowMatchesRemoteId, type ViewerRow } from './spreadsheetRowIdentity'
 
 const getRowIdentityCandidates = (row: ViewerRow): string[] =>
   Array.from(
@@ -60,9 +55,5 @@ export function mergeInsertedRowsAtIndex(
   const safeInsertAt = Math.min(Math.max(0, Math.trunc(insertAt)), remainingRows.length)
   remainingRows.splice(safeInsertAt, 0, ...rowsToInsert)
 
-  return remainingRows.map((row, index) => {
-    const canonical = getCanonicalRowId(row)
-    if (!canonical && row._gridRowIndex === index) return row
-    return { ...row, _gridRowIndex: index }
-  })
+  return remainingRows
 }

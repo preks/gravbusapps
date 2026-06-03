@@ -25,6 +25,7 @@ import InvestmentCompanyExecutiveTypesPage from './pages/investment-company-exec
 import TaskTemplateDataPage from './pages/task-template-data/TaskTemplateDataPage'
 import DocumentDataPage from './pages/document-data/DocumentDataPage'
 import { FolderTemplateDataPage, ModuleType } from '@/common/components/common-relations/setting-pages/folder-templates'
+import InvestmentGroupPermissionsPage from './pages/investment-permissions/InvestmentGroupPermissionsPage'
 
 export interface InvestmentSettingsProps extends BusinessAppContextProps {
   className?: string
@@ -250,6 +251,18 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
           onClick: () => handleInlinePageChange({ key: 'activity', tab: 'task-priorities' })
         }
       ]
+    },
+    {
+      title: t('crm.permissions', 'Permissions'),
+      description: t('crm.permissions_description', 'Manage permissions by investment group'),
+      icon: FileHtmlIcon,
+      iconSize: 'md' as const,
+      entries: [
+        {
+          label: t('crm.investment_group_permissions', 'Investment Group Permissions'),
+          onClick: () => handleInlinePageChange({ key: 'investment-permissions' })
+        }
+      ]
     }
   ]
 
@@ -268,6 +281,16 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
       <InvestmentLiquidFundTypesPage
         {...context}
         prefixDataTestId={`${prefixDataTestId || ''}-InvestmentLiquidFundTypesSettings`}
+        onBack={() => handleInlinePageChange(null)}
+      />
+    )
+  }
+
+  if (inlinePage?.key === 'investment-permissions') {
+    return (
+      <InvestmentGroupPermissionsPage
+        {...context}
+        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentPermissionsSettings`}
         onBack={() => handleInlinePageChange(null)}
       />
     )

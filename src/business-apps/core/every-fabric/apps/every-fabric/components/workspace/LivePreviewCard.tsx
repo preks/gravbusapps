@@ -23,29 +23,40 @@ import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
 
 const SLIDE_FALLBACK_WIDTH = 400
 
-function buildTimelineArtifactUrl(sessionId: string, artifactPath: string): string {
-  const base = PROMPT_MANAGER_API_URL.endsWith('/') ? PROMPT_MANAGER_API_URL.slice(0, -1) : PROMPT_MANAGER_API_URL
-  return `${base}/deep-agent/sessions/${encodeURIComponent(sessionId)}/artifacts/${encodeURIComponent(artifactPath)}`
+function normalizeArtifactPath(path: string): string {
+  return path.replace(/^\/+/, '')
 }
 
-const TimelineHtmlPreview: React.FC<{
+function buildHtmlArtifactUrl(sessionId: string, artifactPath: string): string {
+  const base = PROMPT_MANAGER_API_URL.endsWith('/') ? PROMPT_MANAGER_API_URL.slice(0, -1) : PROMPT_MANAGER_API_URL
+  const normalized = normalizeArtifactPath(artifactPath)
+  return `${base}/deep-agent/sessions/${encodeURIComponent(sessionId)}/artifacts/${encodeURIComponent(normalized)}`
+}
+
+const HtmlArtifactLivePreview: React.FC<{
   preview: ArtifactPreview
   sessionId: string
   headerExtra?: React.ReactNode
 }> = ({ preview, sessionId, headerExtra }) => {
-  const path = typeof preview.content?.path === 'string' ? preview.content.path : ''
+  const rawPath = typeof preview.content?.path === 'string' ? preview.content.path : ''
+  const path = normalizeArtifactPath(rawPath)
   if (!path || !sessionId) {
     return (
       <PanelCard title="Live Preview" defaultOpen extra={headerExtra}>
-        <p className="gba:p-4 gba:text-xs gba:text-muted-foreground">Timeline path unavailable.</p>
+        <p className="gba:p-4 gba:text-xs gba:text-muted-foreground">HTML artifact path unavailable.</p>
       </PanelCard>
     )
   }
-  const src = buildTimelineArtifactUrl(sessionId, path)
+  const src = buildHtmlArtifactUrl(sessionId, path)
   return (
     <PanelCard title="Live Preview" defaultOpen extra={headerExtra}>
-      <div className="gba:p-2">
-        <AutoHeightHtmlIframe src={src} title={preview.title || path} artifactName={path} />
+      <div className="gba:flex gba:flex-col gba:p-2 gba:min-h-[420px]">
+        <AutoHeightHtmlIframe
+          src={src}
+          title={preview.title || path}
+          variant="panel"
+          data-testid="fabric-live-preview-html-iframe"
+        />
       </div>
     </PanelCard>
   )
@@ -324,7 +335,9 @@ const FRIENDLY_FALLBACK_HEADLINE: Record<ArtifactPreview['artifactType'], string
   slides: "We couldn't finish your slides",
   document: "We couldn't finish your document",
   note: "We couldn't finish your note",
-  chart: "We couldn't finish your chart"
+  chart: "We couldn't finish your chart",
+  html: "We couldn't finish your page",
+  pdf: "We couldn't finish your PDF"
 }
 
 const FRIENDLY_FALLBACK_BODY =
@@ -515,7 +528,7 @@ function renderGenerating(
     )
   }
   if (preview.artifactType === 'html') {
-    return <TimelineHtmlPreview preview={preview} sessionId={sessionId} headerExtra={headerExtra} />
+    return <HtmlArtifactLivePreview preview={preview} sessionId={sessionId} headerExtra={headerExtra} />
   }
   if (preview.artifactType === 'chart') {
     return <ChartPreview preview={preview} sessionId={sessionId} accessToken={accessToken} />
@@ -555,7 +568,7 @@ function renderReady(
     return <SlidesPreview preview={preview} slides={preview.content.slides as SlideData[]} headerExtra={headerExtra} />
   }
   if (preview.artifactType === 'html') {
-    return <TimelineHtmlPreview preview={preview} sessionId={sessionId} headerExtra={headerExtra} />
+    return <HtmlArtifactLivePreview preview={preview} sessionId={sessionId} headerExtra={headerExtra} />
   }
   if (preview.artifactType === 'chart') {
     return <ChartPreview preview={preview} sessionId={sessionId} accessToken={accessToken} />

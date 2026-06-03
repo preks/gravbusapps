@@ -33,6 +33,7 @@ interface ContextTableProps extends BusinessAppContextProps {
   isLoading: boolean
   error: string | null
   loadMore: () => Promise<void>
+  refetch: () => Promise<void>
   hasMore: boolean
   searchValue: string
   sorting: Array<{ id: string; desc: boolean }>
@@ -56,6 +57,7 @@ export const ContextTable: React.FC<ContextTableProps> = ({
   isLoading,
   error,
   loadMore,
+  refetch,
   hasMore,
   searchValue,
   sorting,
@@ -81,11 +83,21 @@ export const ContextTable: React.FC<ContextTableProps> = ({
   const [draftActions, setDraftActions] = useState<Map<string, Array<{ action: ActionDTO; permission: string }>>>(
     new Map()
   )
+  const [draftAssignmentActions, setDraftAssignmentActions] = useState<Map<string, ContextWithActions['actions']>>(
+    new Map()
+  )
 
   // Merge draft contexts with regular contexts (drafts at the top)
   const allContexts = useMemo(() => {
     return [...draftContexts, ...contexts].map(contextItem => {
       const draftActionsForContext = draftActions.get(contextItem.context.id)
+      const draftAssignmentActionsForContext = draftAssignmentActions.get(contextItem.context.id)
+      if (draftAssignmentActionsForContext) {
+        return {
+          ...contextItem,
+          actions: draftAssignmentActionsForContext
+        }
+      }
       if (draftActionsForContext && draftActionsForContext.length > 0) {
         return {
           ...contextItem,
@@ -101,7 +113,7 @@ export const ContextTable: React.FC<ContextTableProps> = ({
       }
       return contextItem
     })
-  }, [draftContexts, contexts, draftActions])
+  }, [draftContexts, contexts, draftActions, draftAssignmentActions])
 
   // Editable state for contexts
   const contextEntries = useMemo(() => allContexts.map(item => item.context), [allContexts])
@@ -184,6 +196,41 @@ export const ContextTable: React.FC<ContextTableProps> = ({
     }
   }
 
+  const markContextEdited = useCallback(
+    (contextId: string, contextName: string) => {
+      editableState.setState(prev => {
+        const newEdited = new Map(prev.editedEntries)
+        const currentEdits = newEdited.get(contextId) || {}
+        if (currentEdits.contextName === undefined) {
+          newEdited.set(contextId, {
+            ...currentEdits,
+            contextName
+          })
+        }
+        return {
+          ...prev,
+          editedEntries: newEdited
+        }
+      })
+    },
+    [editableState]
+  )
+
+  const handleAssignmentActionsEdit = useCallback(
+    (contextId: string, nextActions: ContextWithActions['actions']) => {
+      const contextItem = allContexts.find(c => c.context.id === contextId)
+      if (!contextItem) return
+
+      setDraftAssignmentActions(prev => {
+        const newMap = new Map(prev)
+        newMap.set(contextId, nextActions)
+        return newMap
+      })
+      markContextEdited(contextId, contextItem.context.contextName)
+    },
+    [allContexts, markContextEdited]
+  )
+
   // Handle save entry
   const handleSaveEntry = useCallback(
     async (contextId: string) => {
@@ -201,20 +248,27 @@ export const ContextTable: React.FC<ContextTableProps> = ({
 
           // Get draft actions for this context
           const draftActionsForContext = draftActions.get(contextId) || []
-          const actionIds = draftActionsForContext.map(da => da.action.id)
+          const draftAssignmentActionsForContext = draftAssignmentActions.get(contextId)
+          const actionIds = draftAssignmentActionsForContext
+            ? draftAssignmentActionsForContext.map(assignment => assignment.action.id)
+            : draftActionsForContext.map(da => da.action.id)
+          const permissions = draftAssignmentActionsForContext
+            ? draftAssignmentActionsForContext.map(assignment => assignment.permission || 'execute')
+            : draftActionsForContext.map(da => da.permission)
 
           const fullContextData = buildDraftContextDTO(edits, draftContext)
 
           // Create context first, then create assignment with draft actions
-          await onCreateContext(
-            fullContextData,
-            actionIds,
-            draftActionsForContext.map(da => da.permission)
-          )
+          await onCreateContext(fullContextData, actionIds, permissions)
 
           // Remove draft from local state
           setDraftContexts(prev => prev.filter(d => d.context.id !== contextId))
           setDraftActions(prev => {
+            const newMap = new Map(prev)
+            newMap.delete(contextId)
+            return newMap
+          })
+          setDraftAssignmentActions(prev => {
             const newMap = new Map(prev)
             newMap.delete(contextId)
             return newMap
@@ -260,7 +314,8 @@ export const ContextTable: React.FC<ContextTableProps> = ({
         if (!result) return
         // Get draft actions for this context
         const draftActionsForContext = draftActions.get(contextId) || []
-        if (draftActionsForContext.length > 0) {
+        const draftAssignmentActionsForContext = draftAssignmentActions.get(contextId)
+        if (draftActionsForContext.length > 0 || draftAssignmentActionsForContext) {
           const persistedContext = contexts.find(c => c.context.id === contextId)
           if (!persistedContext) {
             throw new Error('Unable to find persisted context assignment')
@@ -271,19 +326,26 @@ export const ContextTable: React.FC<ContextTableProps> = ({
             rank: originalContext.rank ?? 0
           }
 
-          const allAssignments = [
-            ...(persistedContext.actions || []).map(a => ({
-              id: a.assignmentEntryId,
-              flowItem: a.action,
-              permission: a.permission || 'execute',
-              rank: a.rank || 0
-            })),
-            ...draftActionsForContext.map((da, index) => ({
-              flowItem: da.action,
-              permission: da.permission,
-              rank: (persistedContext.actions?.length || 0) + index
-            }))
-          ]
+          const allAssignments = draftAssignmentActionsForContext
+            ? draftAssignmentActionsForContext.map((assignment, index) => ({
+                id: assignment.assignmentEntryId,
+                flowItem: assignment.action,
+                permission: assignment.permission || 'execute',
+                rank: index
+              }))
+            : [
+                ...(persistedContext.actions || []).map(a => ({
+                  id: a.assignmentEntryId,
+                  flowItem: a.action,
+                  permission: a.permission || 'execute',
+                  rank: a.rank || 0
+                })),
+                ...draftActionsForContext.map((da, index) => ({
+                  flowItem: da.action,
+                  permission: da.permission,
+                  rank: (persistedContext.actions?.length || 0) + index
+                }))
+              ]
 
           const assignmentPayload = {
             context: fullContext,
@@ -300,8 +362,18 @@ export const ContextTable: React.FC<ContextTableProps> = ({
           if (!assignmentResult) {
             throw new Error('Failed to save action assignment')
           }
+        }
 
+        // Reload current contexts before clearing optimistic assignment drafts to avoid flicker.
+        await refetch()
+
+        if (draftActionsForContext.length > 0 || draftAssignmentActionsForContext) {
           setDraftActions(prev => {
+            const newMap = new Map(prev)
+            newMap.delete(contextId)
+            return newMap
+          })
+          setDraftAssignmentActions(prev => {
             const newMap = new Map(prev)
             newMap.delete(contextId)
             return newMap
@@ -309,8 +381,6 @@ export const ContextTable: React.FC<ContextTableProps> = ({
         }
 
         editableState.onDiscardEntry(contextId)
-        // Reload contexts to get updated data
-        await loadMore()
       } catch {
         // Error handled by mutation hooks
       } finally {
@@ -323,12 +393,13 @@ export const ContextTable: React.FC<ContextTableProps> = ({
       setDraftContexts,
       draftContexts,
       draftActions,
+      draftAssignmentActions,
       allContexts,
       contexts,
       updateContext,
       updateActionAssignment,
       createActionAssignment,
-      loadMore
+      refetch
     ]
   )
 
@@ -342,6 +413,11 @@ export const ContextTable: React.FC<ContextTableProps> = ({
       }
       // Remove draft actions for this context
       setDraftActions(prev => {
+        const newMap = new Map(prev)
+        newMap.delete(contextId)
+        return newMap
+      })
+      setDraftAssignmentActions(prev => {
         const newMap = new Map(prev)
         newMap.delete(contextId)
         return newMap
@@ -490,12 +566,13 @@ export const ContextTable: React.FC<ContextTableProps> = ({
 
   // Handle add actions to context (adds to draft, doesn't save yet)
   const handleAddActions = useCallback(
-    (contextId: string, actionPermissions: Map<string, string>) => {
+    (contextId: string, actionPermissions: Map<string, string>, selectedActions: ActionDTO[] = []) => {
       const context = allContexts.find(c => c.context.id === contextId)
       if (!context) return
 
       // Get existing action IDs (both from context and draft)
       const existingActionIds = new Set(context.actions?.map(a => a.action.id) || [])
+      const selectedActionsById = new Map(selectedActions.map(action => [action.id, action]))
 
       const newDraftActions: Array<{ action: ActionDTO; permission: string }> = []
 
@@ -505,10 +582,10 @@ export const ContextTable: React.FC<ContextTableProps> = ({
           return
         }
 
-        const action = actions.find(a => a.action.id === actionId)
+        const action = selectedActionsById.get(actionId) ?? actions.find(a => a.action.id === actionId)?.action
         if (action) {
           newDraftActions.push({
-            action: action.action,
+            action,
             permission
           })
         }
@@ -525,23 +602,26 @@ export const ContextTable: React.FC<ContextTableProps> = ({
           return newMap
         })
 
-        editableState.setState(prev => {
-          const newEdited = new Map(prev.editedEntries)
-          const currentEdits = newEdited.get(contextId) || {}
-          if (currentEdits.contextName === undefined) {
-            newEdited.set(contextId, {
-              ...currentEdits,
-              contextName: context.context.contextName
-            })
-          }
-          return {
-            ...prev,
-            editedEntries: newEdited
-          }
+        setDraftAssignmentActions(prev => {
+          if (!prev.has(contextId)) return prev
+          const newMap = new Map(prev)
+          const existing = newMap.get(contextId) || []
+          const existingIds = new Set(existing.map(assignment => assignment.action.id))
+          const uniqueNewActions = newDraftActions.filter(da => !existingIds.has(da.action.id))
+          newMap.set(contextId, [
+            ...existing,
+            ...uniqueNewActions.map((da, index) => ({
+              action: da.action,
+              permission: da.permission,
+              rank: existing.length + index
+            }))
+          ])
+          return newMap
         })
+        markContextEdited(contextId, context.context.contextName)
       }
     },
-    [actions, allContexts, editableState]
+    [actions, allContexts, markContextEdited]
   )
 
   // Expanded Row Component with Drag & Drop
@@ -580,17 +660,19 @@ export const ContextTable: React.FC<ContextTableProps> = ({
         if (oldIndex !== -1 && newIndex !== -1) {
           const newActions = arrayMove(localActions, oldIndex, newIndex)
           setLocalActions(newActions)
+          handleAssignmentActionsEdit(contextId, newActions)
         }
       },
-      [localActions]
+      [contextId, localActions, handleAssignmentActionsEdit]
     )
 
     const handleRemoveAction = useCallback(
       async (actionId: string) => {
         const newActions = localActions.filter(a => a.action.id !== actionId)
         setLocalActions(newActions)
+        handleAssignmentActionsEdit(contextId, newActions)
       },
-      [localActions]
+      [contextId, localActions, handleAssignmentActionsEdit]
     )
 
     const handlePermissionChange = useCallback(
@@ -599,8 +681,9 @@ export const ContextTable: React.FC<ContextTableProps> = ({
           a.action.id === actionId ? { ...a, permission: permission || undefined } : a
         )
         setLocalActions(newActions)
+        handleAssignmentActionsEdit(contextId, newActions)
       },
-      [localActions]
+      [contextId, localActions, handleAssignmentActionsEdit]
     )
 
     return (
@@ -796,9 +879,9 @@ export const ContextTable: React.FC<ContextTableProps> = ({
         <AddActionDialog
           open={true}
           onOpenChange={open => !open && setAddActionDialogOpen(null)}
-          onAddActions={async actionPermissions => {
+          onAddActions={async (actionPermissions, selectedActions) => {
             if (addActionDialogOpen) {
-              handleAddActions(addActionDialogOpen, actionPermissions)
+              handleAddActions(addActionDialogOpen, actionPermissions, selectedActions)
               setAddActionDialogOpen(null)
             }
           }}

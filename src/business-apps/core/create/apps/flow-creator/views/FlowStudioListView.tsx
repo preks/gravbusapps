@@ -8,7 +8,7 @@ import {
   DataTable,
   useTranslation
 } from '@newwork/nw-design-system'
-import { ListPlus, RefreshCw } from 'lucide-react'
+import { ListPlus, RefreshCw, Upload } from 'lucide-react'
 import { useFlowTemplateClient } from '@/common/network/flows/useFlowTemplateClient'
 import type { FlowTemplate } from '@/common/network/flows/FlowTemplateClient'
 import translations from '../_i18n'
@@ -23,6 +23,7 @@ interface FlowStudioListViewProps {
   accessToken: string
   onOpenTemplate: (templateId: string) => void
   onCreateFlow?: () => void
+  onImportFlow?: () => void
   'data-testid'?: string
 }
 
@@ -30,6 +31,7 @@ export const FlowStudioListView: React.FC<FlowStudioListViewProps> = ({
   accessToken,
   onOpenTemplate,
   onCreateFlow,
+  onImportFlow,
   'data-testid': testId = 'flow-studio-list-view'
 }) => {
   const { t } = useTranslation(translations)
@@ -117,6 +119,41 @@ export const FlowStudioListView: React.FC<FlowStudioListViewProps> = ({
 
   const showCreatorColumn = creatorIds.length > 0
 
+  const getExportFileName = useCallback((name: string) => {
+    const safeName = String(name || 'flow')
+      .trim()
+      .replace(/[^a-z0-9-_]+/gi, '-')
+      .replace(/^-+|-+$/g, '')
+      .toLowerCase()
+    return `${safeName || 'flow'}.flow.json`
+  }, [])
+
+  const exportTemplate = useCallback(
+    async (templateId: string) => {
+      try {
+        setError(null)
+        const metadata = await client.getTemplateWithMetadata(templateId)
+        const template = metadata.metadata?.originalTemplate || metadata.template
+        const exportPayload = {
+          format: 'newwork-flow-template',
+          formatVersion: 1,
+          exportedAt: new Date().toISOString(),
+          template
+        }
+        const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: 'application/json' })
+        const url = URL.createObjectURL(blob)
+        const anchor = document.createElement('a')
+        anchor.href = url
+        anchor.download = getExportFileName(template.name)
+        anchor.click()
+        URL.revokeObjectURL(url)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed to export template')
+      }
+    },
+    [client, getExportFileName]
+  )
+
   const columns = useMemo(
     () =>
       createFlowStudioListColumns({
@@ -124,9 +161,12 @@ export const FlowStudioListView: React.FC<FlowStudioListViewProps> = ({
         appLabelByCode: labelsByCode,
         getCreatorInfo: getUserInfo,
         getAppCode,
-        showCreatorColumn
+        showCreatorColumn,
+        onExportTemplate: templateId => {
+          void exportTemplate(templateId)
+        }
       }),
-    [getAppCode, getUserInfo, labelsByCode, showCreatorColumn, t]
+    [exportTemplate, getAppCode, getUserInfo, labelsByCode, showCreatorColumn, t]
   )
 
   if (error) {
@@ -177,6 +217,14 @@ export const FlowStudioListView: React.FC<FlowStudioListViewProps> = ({
                 icon: ListPlus
               }
             : undefined
+        }
+        secondaryActions={
+          onImportFlow ? (
+            <Button variant="outline" size="sm" type="button" onClick={onImportFlow} data-testid={`${testId}-import`}>
+              <Upload className="gba:h-4 gba:w-4" />
+              <span className="gba:sr-only">{t('studio-import-flow')}</span>
+            </Button>
+          ) : undefined
         }
         toolbarDensity="default"
       >

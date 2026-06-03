@@ -1,5 +1,47 @@
 export type ClearAllRectangle = { startRow: number; endRow: number; startColumn: number; endColumn: number }
 
+export type ClearAllGridBounds = {
+  maxRowIndex: number
+  maxColIndex: number
+}
+
+export function resolveWorksheetGridBounds(worksheet: unknown): ClearAllGridBounds | null {
+  const ws = worksheet as { getMaxRows?: () => number; getMaxColumns?: () => number } | null | undefined
+  if (!ws) return null
+  const maxRows = typeof ws.getMaxRows === 'function' ? ws.getMaxRows() : null
+  const maxColumns = typeof ws.getMaxColumns === 'function' ? ws.getMaxColumns() : null
+  if (maxRows == null || maxColumns == null || !Number.isFinite(maxRows) || !Number.isFinite(maxColumns)) {
+    return null
+  }
+  const rowCount = Math.max(0, Math.trunc(maxRows))
+  const colCount = Math.max(0, Math.trunc(maxColumns))
+  if (rowCount === 0 || colCount === 0) return null
+  return {
+    maxRowIndex: rowCount - 1,
+    maxColIndex: colCount - 1
+  }
+}
+
+export function clampClearAllRangeToBounds(range: ClearAllRectangle, bounds: ClearAllGridBounds): ClearAllRectangle {
+  const startRow = Math.max(0, Math.min(Math.trunc(range.startRow), bounds.maxRowIndex))
+  const endRow = Math.max(startRow, Math.min(Math.trunc(range.endRow), bounds.maxRowIndex))
+  const startColumn = Math.max(0, Math.min(Math.trunc(range.startColumn), bounds.maxColIndex))
+  const endColumn = Math.max(startColumn, Math.min(Math.trunc(range.endColumn), bounds.maxColIndex))
+  return { startRow, endRow, startColumn, endColumn }
+}
+
+export function dedupeClearAllRanges(ranges: ClearAllRectangle[]): ClearAllRectangle[] {
+  const seen = new Set<string>()
+  const deduped: ClearAllRectangle[] = []
+  for (const range of ranges) {
+    const key = `${range.startRow}:${range.endRow}:${range.startColumn}:${range.endColumn}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    deduped.push(range)
+  }
+  return deduped
+}
+
 export function normalizeClearAllRectangle(candidate: unknown): ClearAllRectangle | null {
   if (!candidate || typeof candidate !== 'object') return null
   const rec = candidate as {

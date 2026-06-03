@@ -1,14 +1,24 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Button } from '@newwork/gravity-ui-catalog'
 import { Pagination } from 'antd'
-import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { useExpenseRequestCreationTranslation } from '../../expense-request-creation/useExpenseRequestCreationTranslation'
 import { BusinessAppContextProps } from '@/business-apps/types'
 import { useExpenseRequestWizardContext } from '../context/ExpenseRequestWizardContext'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { ICONS } from '../../../utils/icons'
 import ExpenseItemCard from '../components/ExpenseItemCard/ExpenseItemCard'
-import { createItemsScreenLogObject, formatArrayOfItems, getMissingMandatoryFields, noAllowanceItemsFunction } from '../utils/itemsScreenUtils'
-import { fetchEmployeeExpenseItems, fetchEmployeeExpenseItemsFromPayload, fetchEmployeeExpenseItemsNoCurrency } from '../ExpenseRequestWizardQueries'
+import {
+  createItemsScreenLogObject,
+  formatArrayOfItems,
+  getMissingMandatoryFields,
+  noAllowanceItemsFunction
+} from '../utils/itemsScreenUtils'
+import {
+  fetchEmployeeExpenseItems,
+  fetchEmployeeExpenseItemsFromPayload,
+  fetchEmployeeExpenseItemsNoCurrency
+} from '../ExpenseRequestWizardQueries'
 import { SearchBarWithLabel } from '../../../forms/expense-request/components'
 import { EVENTS } from '../../../utils/constants'
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
@@ -39,6 +49,7 @@ interface ItemsScreenProps extends BusinessAppContextProps {
 }
 
 const ItemsScreen: React.FC<ItemsScreenProps> = props => {
+  const { t } = useExpenseRequestCreationTranslation()
   const { accessToken, additionalData, userInfo, isTrip } = props
   const {
     expenseRequestData,
@@ -143,9 +154,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
         idsArray: excludedIdsForApi,
         expenseRuleId: ruleIdForFilter
       }
-      const countVariables = itemCurrency
-        ? { ...baseVariables, itemCurrency }
-        : baseVariables
+      const countVariables = itemCurrency ? { ...baseVariables, itemCurrency } : baseVariables
       const queryToUse = itemCurrency ? fetchEmployeeExpenseItems : fetchEmployeeExpenseItemsNoCurrency
 
       const countResponse = await graphQLClient.request(queryToUse, {
@@ -200,13 +209,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
 
       setSelectItemsList(finalItems)
     } catch {
-      showToast(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:modify_expense_request.error_fetch_items',
-          'Error fetching expense items'
-        ),
-        'error'
-      )
+      showToast(t('error-fetch-items'), 'error')
       const filteredDeletedItems = deletedItems.filter(
         (item: any) =>
           !expenseRequestData.ExpenseItem?.map((i: any) => i.id).includes(item.id) &&
@@ -475,13 +478,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
         const itemCurrency = determineItemCurrency(currentCurrency ?? '', expenseRequestData, additionalData)
         await fetchAndAddPayloadItems(newItemIds, itemCurrency)
       } catch {
-        showToast(
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:modify_expense_request.error_fetch_items_payload',
-            'Error fetching items from payload'
-          ),
-          'error'
-        )
+        showToast(t('error-fetch-items-payload'), 'error')
       } finally {
         setIsLoading(false)
       }
@@ -618,12 +615,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
         >
           <SearchBarWithLabel
             onSearch={handleSearch}
-            placeholder={
-              getTranslationFromI18nKeyAndLabel(
-                'lowcoder:modify_expense_request.search_module',
-                'Search In Expense Items List'
-              ) + ` (${totalItems})`
-            }
+            placeholder={`${t('search-module-items')} (${totalItems})`}
             alwaysExpanded
             data-testid="expense-request-wizard-search-bar"
           />
@@ -635,14 +627,14 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
         >
           {isLoading ? (
             <div className="gba:text-center gba:p-8 gba:bg-muted" data-testid="loading-message">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.loading_text', 'Loading items...')}
+              {t('loading-items-text')}
             </div>
           ) : selectItemsList.length > 0 ? (
             <>
               <div className="gba:grid gba:grid-cols-1 gba:gap-4" data-testid="selectable-items-list">
                 {selectItemsList.map((item: any) => {
-                  const formattedItem = formatArrayOfItems([item])[0]
-                  const missingFields = getMissingMandatoryFields(item)
+                  const formattedItem = formatArrayOfItems([item], t)[0]
+                  const missingFields = getMissingMandatoryFields(item, t)
                   return (
                     <div
                       key={item.id}
@@ -690,10 +682,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
             </>
           ) : (
             <div className="gba:text-center gba:p-8 gba:bg-muted" data-testid="no-items-message">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:modify_expense_request.no_items_to_select',
-                'No expense items available to select'
-              )}
+              {t('no-items-to-select')}
             </div>
           )}
         </div>
@@ -718,10 +707,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
             className="gba:m-0 gba:text-[16px] gba:font-bold"
             data-testid="expense-request-wizard-items-screen-title"
           >
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:expense_request_overview.expense_items.expense_items_title',
-              'Expense Items'
-            )}
+            {t('expense-items-title')}
             {expenseItems.length > 0 && ` (${expenseItems.length})`}
           </div>
           <div className="gba:flex gba:gap-2">
@@ -732,7 +718,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
               data-testid="add-item-button"
               onClick={toggleSelectItemsView}
             >
-              {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.add_items_text', 'Add Items')}
+              {t('add-items-text')}
             </Button>
             <Button
               variant="secondary"
@@ -741,7 +727,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
               data-testid="create-item-button"
               onClick={handleCreateItem}
             >
-              {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.create_item', 'Create Item')}
+              {t('create-item')}
             </Button>
           </div>
         </div>
@@ -756,7 +742,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
           <div className="gba:py-2 gba:px-2 gba:flex gba:flex-col gba:flex-grow">
             <div className="gba:flex gba:flex-col gba:gap-2">
               {paginatedInitialItems.map(item => {
-                const formattedItem = formatArrayOfItems([item])[0]
+                const formattedItem = formatArrayOfItems([item], t)[0]
                 return (
                   <ExpenseItemCard
                     key={item.id}
@@ -820,7 +806,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
               data-testid="empty-add-item-button"
               onClick={toggleSelectItemsView}
             >
-              {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.add_items_text', 'Add Item')}
+              {t('add-items-text')}
             </Button>
             <Button
               variant="ghost"
@@ -840,7 +826,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
               data-testid="empty-create-item-button"
               onClick={handleCreateItem}
             >
-              {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.create_item', 'Create Item')}
+              {t('create-item')}
             </Button>
           </div>
         )}
@@ -849,9 +835,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
       {/* Expense Total Display */}
       <div className="gba:mt-8 gba:mb-4 gba:px-4" data-testid="expense-items-total-container">
         <div className="gba:flex gba:justify-between gba:items-center">
-          <span className="gba:text-base gba:font-normal">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.expense_items_sum', 'Expenses')}
-          </span>
+          <span className="gba:text-base gba:font-normal">{t('expense-items-sum')}</span>
           <div className="gba:flex gba:flex-col gba:items-end">
             {expenseTotals.length > 0 ? (
               expenseTotals.map((total, index) => (

@@ -21,6 +21,10 @@ studio-save-name-confirm = Save flow
 studio-unsaved-changes = Unsaved changes
 studio-saved = Saved
 studio-loading = Loading...
+studio-test-flow = Test flow
+studio-import-flow = Import
+studio-export-flow = Export
+studio-import-failed = Import failed. Please select a valid flow JSON file.
 
 # Labels / Tags
 labels-title = Labels
@@ -127,6 +131,7 @@ config-rework = Rework Actions
 start-trigger-type = Trigger Type
 start-trigger-manual = Manual Form
 start-trigger-webhook = Webhook
+start-trigger-email = Email
 start-trigger-event = Event
 start-trigger-schedule = Schedule
 

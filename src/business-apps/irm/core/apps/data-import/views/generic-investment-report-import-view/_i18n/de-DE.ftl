@@ -1,21 +1,21 @@
 # Generic Investment Report Import View Translations (German - Germany)
 
-page-title-equity-report = Eigenkapitalinvestitionsbericht-Import mit KI-Zuordnung
-page-description-equity-report = Laden Sie eine CSV- oder Excel-Datei mit Berichtsdaten zu Eigenkapitalinvestitionen hoch. Fügen Sie eine Spalte Investment mit dem exakten Investmentnamen hinzu, damit das Backend ihn automatisch auflösen kann.
-entity-plural-equity-report = Eigenkapitalinvestitionsberichte
-entity-singular-equity-report = Eigenkapitalinvestitionsbericht
+page-title-equity-report = Eigenkapital-Investitionsberichte importieren
+page-description-equity-report = Laden Sie eine Tabelle mit Ihren Eigenkapital-Investitionsberichten hoch. Fügen Sie eine Spalte mit dem Investitionsnamen hinzu, damit jeder Bericht der richtigen Investition zugeordnet wird.
+entity-plural-equity-report = Eigenkapital-Investitionsberichte
+entity-singular-equity-report = Eigenkapital-Investitionsbericht
 
-page-title-real-estate-report = Immobilieninvestitionsbericht-Import mit KI-Zuordnung
-page-description-real-estate-report = Laden Sie eine CSV- oder Excel-Datei mit Berichtsdaten zu Immobilieninvestitionen hoch. Fügen Sie eine Spalte Investment mit dem exakten Investmentnamen hinzu, damit das Backend ihn automatisch auflösen kann.
-entity-plural-real-estate-report = Immobilieninvestitionsberichte
-entity-singular-real-estate-report = Immobilieninvestitionsbericht
+page-title-real-estate-report = Immobilien-Investitionsberichte importieren
+page-description-real-estate-report = Laden Sie eine Tabelle mit Ihren Immobilien-Investitionsberichten hoch. Fügen Sie eine Spalte mit dem Investitionsnamen hinzu, damit jeder Bericht der richtigen Investition zugeordnet wird.
+entity-plural-real-estate-report = Immobilien-Investitionsberichte
+entity-singular-real-estate-report = Immobilien-Investitionsbericht
 
-page-title-liquid-fund-report = Liquiditätsfonds-Investitionsbericht-Import mit KI-Zuordnung
-page-description-liquid-fund-report = Laden Sie eine CSV- oder Excel-Datei mit Berichtsdaten zu Liquiditätsfondsinvestitionen hoch. Fügen Sie eine Spalte Investment mit dem exakten Investmentnamen hinzu, damit das Backend ihn automatisch auflösen kann.
-entity-plural-liquid-fund-report = Liquiditätsfonds-Investitionsberichte
-entity-singular-liquid-fund-report = Liquiditätsfonds-Investitionsbericht
+page-title-liquid-fund-report = Liquid-Fonds-Investitionsberichte importieren
+page-description-liquid-fund-report = Laden Sie eine Tabelle mit Ihren Liquid-Fonds-Investitionsberichten hoch. Fügen Sie eine Spalte mit dem Investitionsnamen hinzu, damit jeder Bericht der richtigen Investition zugeordnet wird.
+entity-plural-liquid-fund-report = Liquid-Fonds-Investitionsberichte
+entity-singular-liquid-fund-report = Liquid-Fonds-Investitionsbericht
 
-page-title-generic-report = { $groupLabel }-Investitionsbericht-Import mit KI-Zuordnung
-page-description-generic-report = Laden Sie eine CSV- oder Excel-Datei mit Berichtsdaten zu { $groupLabel } hoch. Fügen Sie eine Spalte Investment mit dem exakten Investmentnamen hinzu, damit das Backend ihn automatisch auflösen kann.
-entity-plural-generic-report = { $groupLabel }-Investitionsberichte
-entity-singular-generic-report = { $groupLabel }-Investitionsbericht
+page-title-generic-report = { $groupLabel }-Investitionsberichte importieren
+page-description-generic-report = Laden Sie eine Tabelle mit Ihren { $groupLabelLower }-Investitionsberichten hoch. Fügen Sie eine Spalte mit dem Investitionsnamen hinzu, damit jeder Bericht der richtigen Investition zugeordnet wird.
+entity-plural-generic-report = { $groupLabelLower }-Investitionsberichte
+entity-singular-generic-report = { $groupLabelLower }-Investitionsbericht

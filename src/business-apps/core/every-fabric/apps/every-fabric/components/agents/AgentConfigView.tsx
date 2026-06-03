@@ -4,6 +4,7 @@ import {
   ArrowLeftIcon,
   ArrowSquareOutIcon,
   LightbulbIcon,
+  MagnifyingGlassIcon,
   PlusIcon,
   ShieldCheckIcon,
   SpinnerGapIcon,
@@ -50,6 +51,7 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
   const [skillsLoading, setSkillsLoading] = useState(true)
   const [skillsError, setSkillsError] = useState<string | null>(null)
   const [showSkillPicker, setShowSkillPicker] = useState(false)
+  const [skillSearchQuery, setSkillSearchQuery] = useState('')
 
   // Tools state (read-only, from detail endpoint)
   const [tools, setTools] = useState<string[]>([])
@@ -191,10 +193,17 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
     () => availableSkills.filter(s => selectedSkillIds.has(s.skill_id)),
     [availableSkills, selectedSkillIds]
   )
-  const unassignedSkills = useMemo(
-    () => availableSkills.filter(s => !selectedSkillIds.has(s.skill_id)),
-    [availableSkills, selectedSkillIds]
-  )
+  const unassignedSkills = useMemo(() => {
+    const unassigned = availableSkills.filter(s => !selectedSkillIds.has(s.skill_id))
+    const q = skillSearchQuery.trim().toLowerCase()
+    if (!q) return unassigned
+    return unassigned.filter(
+      s =>
+        s.skill_id.toLowerCase().includes(q) ||
+        s.name?.toLowerCase().includes(q) ||
+        s.description?.toLowerCase().includes(q)
+    )
+  }, [availableSkills, selectedSkillIds, skillSearchQuery])
 
   const toggleSkill = (skillId: string) => {
     const next = new Set(selectedSkillIds)
@@ -432,15 +441,31 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
                       <span className="gba:text-xs gba:font-medium gba:text-muted-foreground">Available skills</span>
                       <button
                         type="button"
-                        onClick={() => setShowSkillPicker(false)}
+                        onClick={() => {
+                          setShowSkillPicker(false)
+                          setSkillSearchQuery('')
+                        }}
                         className="gba:text-xs gba:font-medium gba:text-primary gba:hover:text-primary/80"
                         data-testid="config-skill-picker-done"
                       >
                         Done
                       </button>
                     </div>
+                    <div className="gba:relative gba:mb-2">
+                      <MagnifyingGlassIcon className="gba:absolute gba:left-2.5 gba:top-1/2 gba:-translate-y-1/2 gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
+                      <input
+                        type="text"
+                        value={skillSearchQuery}
+                        onChange={e => setSkillSearchQuery(e.target.value)}
+                        placeholder="Search skills…"
+                        className="gba:w-full gba:rounded-md gba:border gba:border-border gba:bg-background gba:pl-8 gba:pr-2.5 gba:py-1.5 gba:text-sm gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring placeholder:gba:text-muted-foreground/50"
+                        data-testid="config-skill-search"
+                      />
+                    </div>
                     {unassignedSkills.length === 0 ? (
-                      <p className="gba:text-xs gba:text-muted-foreground gba:py-2">All skills are already assigned.</p>
+                      <p className="gba:text-xs gba:text-muted-foreground gba:py-2">
+                        {skillSearchQuery.trim() ? 'No matching skills found.' : 'All skills are already assigned.'}
+                      </p>
                     ) : (
                       <div className="gba:space-y-1.5">
                         {unassignedSkills.map(skill => (

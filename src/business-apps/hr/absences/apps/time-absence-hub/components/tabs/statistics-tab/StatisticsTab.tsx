@@ -10,6 +10,7 @@ import { CalendarCheckIcon, ClockIcon, PercentIcon } from '@phosphor-icons/react
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useAbsenceTypeCatalog } from '../../../../personal-absences/hooks/useAbsenceTypeCatalog'
+import { calculatePlannedAbsenceMetrics } from './plannedAbsenceMetrics'
 
 const StatisticsContent: React.FC<{ dashboardData: DashboardData; accessToken?: string }> = ({
   dashboardData,
@@ -86,12 +87,10 @@ const StatisticsContent: React.FC<{ dashboardData: DashboardData; accessToken?: 
   }, [dashboardData?.rawAbsences, currentYear, mapType, userLocale])
 
   const total = absences.length
-  const plannedAbsences = absences.filter(a => {
-    const type = (a.type || '').toLowerCase()
-    return type && !type.includes('sick') && !type.includes('unplanned')
-  }).length
-  const plannedPct = total ? Math.round((plannedAbsences / total) * 100) : 0
-  const unplannedPct = total ? 100 - plannedPct : 0
+  const plannedAbsenceMetrics = useMemo(
+    () => calculatePlannedAbsenceMetrics(dashboardData?.rawAbsences || []),
+    [dashboardData?.rawAbsences]
+  )
 
   const absencesWithDuration = absences.filter(a => {
     const num = parseFloat(a.duration)
@@ -112,13 +111,16 @@ const StatisticsContent: React.FC<{ dashboardData: DashboardData; accessToken?: 
     {
       key: 'planned-absences',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.planned_absences', 'Planned Absences'),
-      value: plannedPct,
+      value: plannedAbsenceMetrics.plannedPct,
       suffix: '%',
       prefix: <CalendarCheckIcon />,
       description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:absence_hub.vs_unplanned',
-        `vs ${unplannedPct}% unplanned (sick leave)`,
-        { unplannedPct }
+        'lowcoder:absence_hub.planned_unplanned_breakdown',
+        `${plannedAbsenceMetrics.plannedCount} planned vs ${plannedAbsenceMetrics.unplannedCount} unplanned requests`,
+        {
+          plannedCount: plannedAbsenceMetrics.plannedCount,
+          unplannedCount: plannedAbsenceMetrics.unplannedCount
+        }
       ),
       span: { xs: 24, sm: 12, lg: 8 }
     },

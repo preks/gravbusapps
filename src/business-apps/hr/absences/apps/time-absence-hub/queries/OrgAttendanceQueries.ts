@@ -38,10 +38,24 @@ export const GET_FILTERED_EMPLOYEE_IDS = `
           firstName
           lastName
         }
+        jobPosition {
+          name
+        }
         siteLocation {
           id
           name
         }
+      }
+      workingHours(where: { isDeleted: { _eq: false } }, orderBy: [{ updatedAt: DESC }], limit: 1) {
+        mondayHours
+        tuesdayHours
+        wednesdayHours
+        thursdayHours
+        fridayHours
+        saturdayHours
+        sundayHours
+        weeklyHours
+        weeklyDays
       }
     }
   }
@@ -58,8 +72,20 @@ export interface FilteredEmployee {
     organizationalUnit?: { id: string; name: string } | null
     company?: { id: string; name: string } | null
     supervisor?: { id: string; firstName: string; lastName: string } | null
+    jobPosition?: { name?: string | null } | null
     siteLocation?: { id: string; name: string } | null
   } | null
+  workingHours?: Array<{
+    mondayHours?: number | null
+    tuesdayHours?: number | null
+    wednesdayHours?: number | null
+    thursdayHours?: number | null
+    fridayHours?: number | null
+    saturdayHours?: number | null
+    sundayHours?: number | null
+    weeklyHours?: number | null
+    weeklyDays?: number | null
+  }> | null
 }
 
 export interface AttendanceRow {
@@ -89,4 +115,12 @@ export interface PublicHolidayDay {
   employeeId: string
   date: string
   name: string
+}
+
+export interface AbsenceNetDay {
+  employeeId: string
+  typeRef: string
+  dayDate: string
+  netSignedEps?: number | null
+  netConsumed?: number | null
 }

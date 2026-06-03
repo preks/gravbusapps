@@ -6,9 +6,11 @@ import {
   AlertTitle,
   AlertDescription,
   Badge,
+  EmptyState,
   Skeleton,
   Card
 } from '@newwork/nw-design-system'
+import { ChatCircleDotsIcon, FunnelIcon, MagnifyingGlassIcon } from '@phosphor-icons/react'
 import { MessageCircle, Folder, ChevronRight, CheckCircle, Share2 } from 'lucide-react'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
 import { useUserContentReactions } from '@/common/data/content/hooks/useUserContentReactions'
@@ -107,7 +109,15 @@ const QuestionView: React.FC<QuestionViewProps> = ({
 
   // Use central content data - FIXED: correct parameter order
   // Questions use childContentEntriesAggregate (direct answers only, not nested replies)
-  const { entries, totalCount, isLoading, error, refetch } = useContentEntries(queryParams, accessToken, queryOptions)
+  const {
+    data: queryData,
+    entries,
+    totalCount,
+    isLoading,
+    isFetched,
+    error,
+    refetch
+  } = useContentEntries(queryParams, accessToken, queryOptions)
 
   // Batch fetch reactions
   const articleIds = useMemo(() => entries.map(entry => entry.id), [entries])
@@ -127,6 +137,35 @@ const QuestionView: React.FC<QuestionViewProps> = ({
 
   // Use entries directly (no conversion needed)
   const data = entries
+  const visibleEmptyStateConfig = useMemo(() => {
+    const displayedSearchQuery = queryData?.queryMeta.params.search ?? ''
+    const displayedContentTypeId = queryData?.queryMeta.params.contentTypeId ?? null
+
+    if (displayedSearchQuery) {
+      return {
+        type: 'search' as const,
+        title: t('no_search_results'),
+        description: t('no_search_results_description'),
+        icon: MagnifyingGlassIcon
+      }
+    }
+
+    if (displayedContentTypeId) {
+      return {
+        type: 'filtered' as const,
+        title: t('no_filter_results'),
+        description: t('no_filter_results_description'),
+        icon: FunnelIcon
+      }
+    }
+
+    return {
+      type: 'no-data' as const,
+      title: t('no_questions_found'),
+      description: t('no_questions_found_description'),
+      icon: ChatCircleDotsIcon
+    }
+  }, [queryData, t])
 
   const hasMore = entries.length > 0 && entries.length < totalCount
 
@@ -275,6 +314,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
             <div className="gba:flex gba:gap-2 gba:items-center">
               <SearchInput onSearch={handleSearch} placeholder={t('search_questions')} className="gba:w-[300px]" />
               <AppAction
+                variant="create-primary"
                 contexts={[
                   {
                     context: FlowContextName.contentEntryCreate,
@@ -282,11 +322,9 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                   }
                 ]}
                 accessToken={accessToken}
-                emptyState="enable"
-                lazyLoad
                 data-testid="question-view-create-button"
               >
-                <Button>{t('ask_question')}</Button>
+                {t('ask_question')}
               </AppAction>
             </div>
           </div>
@@ -519,11 +557,19 @@ const QuestionView: React.FC<QuestionViewProps> = ({
             {/* Infinite scroll sentinel */}
             {hasMore && <div ref={sentinelRef} className="gba:h-4" />}
 
-            {!isLoading && data.length === 0 && (
-              <div className="gba:text-center gba:py-12 gba:bg-card gba:rounded-lg gba:border gba:border-border">
-                <MessageCircle className="gba:w-12 gba:h-12 gba:text-muted-foreground gba:mx-auto gba:mb-4" />
-                <p className="gba:text-muted-foreground">{t('no_questions_found')}</p>
-              </div>
+            {isFetched && !isLoading && data.length === 0 && (
+              <EmptyState
+                type={visibleEmptyStateConfig.type}
+                config={{
+                  configs: {
+                    [visibleEmptyStateConfig.type]: {
+                      ...visibleEmptyStateConfig,
+                      size: 'md'
+                    }
+                  }
+                }}
+                data-testid="question-view-empty"
+              />
             )}
           </div>
         </div>

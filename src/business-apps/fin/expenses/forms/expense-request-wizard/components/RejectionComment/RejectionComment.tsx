@@ -1,6 +1,7 @@
 import React from 'react'
 import { Avatar } from 'antd'
-import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { formatDate } from '@/common/utils/windowUtils'
+import { useExpenseRequestWizardTranslation } from '../../useExpenseRequestWizardTranslation'
 
 interface RejectionCommentProps {
   isRequest?: boolean
@@ -22,6 +23,8 @@ interface RejectionCommentProps {
  * Component to display rejection comments for expense requests
  */
 const RejectionComment: React.FC<RejectionCommentProps> = ({ isRequest = true, comment }) => {
+  const { t } = useExpenseRequestWizardTranslation()
+
   if (!comment) return null
 
   /**
@@ -72,15 +75,7 @@ const RejectionComment: React.FC<RejectionCommentProps> = ({ isRequest = true, c
         </div>
       </div>
       <div className="gba:text-[14px] gba:font-[700] gba:text-red-500 gba:mb-3" data-testid="rejection-comment-title">
-        {isRequest
-          ? getTranslationFromI18nKeyAndLabel(
-              'lowcoder:create_expense_request.add_request_trip_details.trip_request_returned',
-              'Trip Request Returned'
-            )
-          : getTranslationFromI18nKeyAndLabel(
-              'lowcoder:create_expense_request.add_request_trip_details.reject_text',
-              'Expense Plan Returned'
-            )}
+        {isRequest ? t('trip-request-returned') : t('trip-plan-returned')}
       </div>
       <p className="gba:text-[14px] gba:m-0 gba:leading-relaxed" data-testid="rejection-comment-text">
         {comment.comment}

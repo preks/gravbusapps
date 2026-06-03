@@ -263,6 +263,107 @@ describe('meshAggregateModel', () => {
       expect(expertCallEdges[0].sampleSessionIds).toContain('sess-1')
       expect(expertCallEdges[0].sampleSessionIds).toContain('sess-2')
     })
+
+    it('preserves running status when any contributing aggregate node is still running', () => {
+      const completedSession = makeSession({
+        session_id: 'sess-1',
+        user_id: 'user-a',
+        trace: [
+          {
+            type: 'subagent_spawned',
+            seq: 1,
+            event_id: 'e1',
+            step_id: 's1',
+            name: 'PayrollAgent',
+            agent_name: 'PayrollAgent',
+            task_summary: 'Fetch payroll data',
+            timestamp: ts(0)
+          },
+          {
+            type: 'subagent_completed',
+            seq: 2,
+            event_id: 'e2',
+            step_id: 's1',
+            name: 'PayrollAgent',
+            status: 'done',
+            output: 'done',
+            timestamp: ts(1)
+          }
+        ]
+      })
+      const runningSession = makeSession({
+        session_id: 'sess-2',
+        user_id: 'user-b',
+        status: 'running',
+        trace: [
+          {
+            type: 'subagent_spawned',
+            seq: 1,
+            event_id: 'e3',
+            step_id: 's2',
+            name: 'PayrollAgent',
+            agent_name: 'PayrollAgent',
+            task_summary: 'Fetch payroll data again',
+            timestamp: ts(5)
+          }
+        ]
+      })
+
+      const model = buildAggregateModel([completedSession, runningSession])
+      const agent = model.nodes.find(n => n.label === 'PayrollAgent')
+
+      expect(agent?.status).toBe('running')
+    })
+
+    it('keeps aggregate edges unresolved when any contributing call is still running', () => {
+      const completedSession = makeSession({
+        session_id: 'sess-1',
+        user_id: 'user-a',
+        trace: [
+          {
+            type: 'step_started',
+            seq: 1,
+            event_id: 'e1',
+            step_id: 's1',
+            name: 'ask_human_structured',
+            step_type: 'tool',
+            timestamp: ts(0)
+          },
+          {
+            type: 'step_completed',
+            seq: 2,
+            event_id: 'e2',
+            step_id: 's1',
+            name: 'ask_human_structured',
+            status: 'done',
+            output: 'done',
+            timestamp: ts(1)
+          }
+        ]
+      })
+      const runningSession = makeSession({
+        session_id: 'sess-2',
+        user_id: 'user-b',
+        status: 'running',
+        trace: [
+          {
+            type: 'step_started',
+            seq: 1,
+            event_id: 'e3',
+            step_id: 's2',
+            name: 'ask_human_structured',
+            step_type: 'tool',
+            timestamp: ts(5)
+          }
+        ]
+      })
+
+      const model = buildAggregateModel([completedSession, runningSession])
+      const edge = model.edges.find(e => e.kind === 'tool_call' && e.target === 'tool::ask_human_structured')
+
+      expect(edge).toBeDefined()
+      expect(edge?.resolvedAt).toBeUndefined()
+    })
   })
 
   describe('buildAggregateStats', () => {

@@ -1,6 +1,13 @@
 import type { MutableRefObject } from 'react'
 
+import type { SpreadsheetIntentJournal } from '../core/spreadsheetIntentJournal'
+import type { SpreadsheetVersionCausalOwnershipRegistry } from '../core/spreadsheetVersionCausalOwnership'
 import type { SpreadsheetColumn } from '../types'
+import type {
+  AuthoritativeGridReapplyTarget,
+  ForceAuthoritativeGridReapplyOptions
+} from '../utils/spreadsheetAuthoritativeRegion'
+import type { SpreadsheetRowSlotIdentityRegistry } from '../utils/spreadsheetRowSlotIdentity'
 import type { SpreadsheetRowMaterializationReadiness } from './spreadsheetRowMaterializationReadiness'
 
 interface SpreadsheetPersistenceIndicator {
@@ -15,6 +22,7 @@ export interface UseSpreadsheetUniverRowCreatePipelineParams {
   activeSheetId: string
   activeSheetIdRef: MutableRefObject<string>
   activeSheetColumns: SpreadsheetColumn[]
+  pendingLocalMutationCellsRef?: MutableRefObject<Set<string>>
   getColumnsForSheet: (sheetId: string) => SpreadsheetColumn[]
   isUuid: (value: string) => boolean
   isOpsV2Enabled: boolean
@@ -54,6 +62,7 @@ export interface UseSpreadsheetUniverRowCreatePipelineParams {
     }) => void
   ) => Promise<void>
   recoverFromVersionConflict: () => Promise<boolean>
+  fetchAuthoritativeRowsForSheet?: (sheetId: string) => Promise<Array<Record<string, unknown>>>
   summarizeRowsForDebug: (rows: Record<string, unknown>[] | undefined) => Record<string, unknown>
   getRowsForSheet: (sheetId: string) => Record<string, unknown>[]
   multiSheetDebugLog: (event: string, meta?: Record<string, unknown> | (() => Record<string, unknown>)) => void
@@ -61,7 +70,18 @@ export interface UseSpreadsheetUniverRowCreatePipelineParams {
   onRowsMaterializedContextSync?: (
     sheetId: string,
     rows: Record<string, unknown>[],
-    meta: { affectedUiRowIds: string[]; isActiveTarget: boolean }
+    meta: {
+      affectedUiRowIds: string[]
+      createdGridRowIndices: number[]
+      isActiveTarget: boolean
+      createdRows: Record<string, unknown>[]
+      sourceUniverRows: Record<string, unknown>[]
+    }
+  ) => void
+  requestBoundedAuthoritativeReapply?: (
+    sheetId: string,
+    region: AuthoritativeGridReapplyTarget,
+    options?: ForceAuthoritativeGridReapplyOptions
   ) => void
   onRowIdentityDiagnostics?: (stage: string, payload: Record<string, unknown>) => void
   pendingCreatedSheetSelectionRef: MutableRefObject<{
@@ -70,10 +90,15 @@ export interface UseSpreadsheetUniverRowCreatePipelineParams {
   } | null>
   createdSheetIdAliasesRef: MutableRefObject<Map<string, string>>
   rowMaterializationReadiness?: SpreadsheetRowMaterializationReadiness
+  rowSlotIdentityRegistry?: SpreadsheetRowSlotIdentityRegistry
+  spreadsheetIntentJournalRef?: MutableRefObject<SpreadsheetIntentJournal | null>
+  versionCausalOwnershipRef?: MutableRefObject<SpreadsheetVersionCausalOwnershipRegistry | null>
 }
 
 export interface UseSpreadsheetUniverRowCreatePipelineResult {
   processUniverDataChange: () => Promise<void>
   processUniverDataChangeRef: MutableRefObject<() => Promise<void>>
   materializeTemporaryRowsForSubmit: (targetSheetId: string, rows: Array<Record<string, unknown>>) => Promise<void>
+  isRowMaterializationInFlightForSheet: (targetSheetId: string) => boolean
+  releaseRowMaterializationInFlightForSheet: (targetSheetId: string) => void
 }

@@ -2,11 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Typography, Pagination } from 'antd'
 import { useExpenseRequestWizardContext } from '../context/ExpenseRequestWizardContext'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import {
-  getCurrentActiveUserLocale,
-  getCurrentActiveStructureId,
-  getTranslationFromI18nKeyAndLabel
-} from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale, getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { useExpenseRequestWizardTranslation } from '../useExpenseRequestWizardTranslation'
 import { resolvePrimaryEmployeePosition } from '../../expense-request/utils/resolvePrimaryEmployeePosition'
 import { BusinessAppContextProps } from '@/business-apps/types'
 import AllowanceContainer from '../components/AllowanceContainer'
@@ -53,6 +50,7 @@ interface AllowanceScreenProps extends BusinessAppContextProps {
  */
 const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
   const { accessToken, userInfo, additionalData } = props
+  const { t } = useExpenseRequestWizardTranslation()
   const graphQLClient = useGraphqlClient(accessToken)
   const { employeeRuleId, expenseRequestData, currentTitle, updateTripFormValidation } =
     useExpenseRequestWizardContext()
@@ -143,13 +141,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
           }
         }
       } catch {
-        showToast(
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:modify_expense_request.error_fetch_regions_cost_centers',
-            'Error fetching travel regions and cost centers'
-          ),
-          'error'
-        )
+        showToast(t('wizard-error-fetch-regions-cost-centers'), 'error')
       }
     }
 
@@ -192,13 +184,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
           setDeductionsData(response.TravelBreakdown || [])
         }
       } catch {
-        showToast(
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:modify_expense_request.error_fetch_regions_cost_centers',
-            'Error fetching travel regions and cost centers'
-          ),
-          'error'
-        )
+        showToast(t('wizard-error-fetch-regions-cost-centers'), 'error')
       }
     }
     fetchAllowanceData()
@@ -301,13 +287,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
         setProjects(projectsResponse.Project)
       }
     } catch {
-      showToast(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:modify_expense_request.error_fetch_projects',
-          'Error fetching projects'
-        ),
-        'error'
-      )
+      showToast(t('wizard-error-fetch-projects'), 'error')
     }
   }
   useEffect(() => {
@@ -471,10 +451,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
           className="gba:text-center gba:text-2xl gba:font-medium gba:pt-6"
           data-testid="expense-request-wizard-allowance-screen-title"
         >
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:add_allowance_info_request.no_allowances_text',
-            'No allowances created'
-          )}
+          {t('wizard-no-allowances-text')}
         </Title>
       ) : (
         <>

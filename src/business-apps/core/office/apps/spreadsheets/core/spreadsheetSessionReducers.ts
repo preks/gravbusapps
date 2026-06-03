@@ -1,5 +1,11 @@
 import type { SpreadsheetSheet } from '../types'
+import type { SpreadsheetBatchOperation } from '../services/SpreadsheetApiService'
 import { applyAuthoritativeBatchResponseToRows } from '../utils/spreadsheetBatchApply'
+import {
+  getSpreadsheetRowRefIdentity,
+  getViewerRowIdentityCandidates,
+  resolveSpreadsheetRowRef
+} from '../utils/spreadsheetRowIdentity'
 import { applySpreadsheetSessionDeltaChangesToRows } from './spreadsheetSessionDeltaApply'
 import {
   SpreadsheetSessionMutationSources,
@@ -188,6 +194,159 @@ export const captureSpreadsheetSessionPersistedBaseline = (
       [sheetId]: {
         ...currentSheetState,
         persistedBaselineRows: cloneRows(currentSheetState.rows)
+      }
+    }
+  }
+}
+
+const BASELINE_ROW_IDENTITY_KEYS = ['_id', 'id', '_rowUuid', '_clientRowId', 'UUID', 'uuid', '_gridRowIndex'] as const
+
+const buildRowsByIdentity = (rows: SpreadsheetViewerRow[]): Map<string, SpreadsheetViewerRow> => {
+  const map = new Map<string, SpreadsheetViewerRow>()
+  rows.forEach(row => {
+    getViewerRowIdentityCandidates(row).forEach(identity => {
+      map.set(identity, row)
+    })
+  })
+  return map
+}
+
+const collectTouchedBaselineColumns = (operations: SpreadsheetBatchOperation[]): Map<string, Set<string>> => {
+  const touched = new Map<string, Set<string>>()
+  const remember = (rowIdentity: string, columnName: string): void => {
+    if (!rowIdentity || !columnName) return
+    const columns = touched.get(rowIdentity) ?? new Set<string>()
+    columns.add(columnName)
+    touched.set(rowIdentity, columns)
+  }
+
+  operations.forEach(operation => {
+    if (operation.type === 'add_rows' && Array.isArray(operation.data?.rows)) {
+      operation.data.rows.forEach(row => {
+        if (!row || typeof row !== 'object' || Array.isArray(row)) return
+        const record = row as Record<string, unknown>
+        const rowIdentity =
+          typeof record._clientRowId === 'string'
+            ? record._clientRowId
+            : typeof record._rowUuid === 'string'
+              ? record._rowUuid
+              : typeof record._id === 'string'
+                ? record._id
+                : typeof record.id === 'string'
+                  ? record.id
+                  : ''
+        if (!rowIdentity) return
+        Object.keys(record).forEach(key => {
+          if (!key.startsWith('_')) remember(rowIdentity, key)
+        })
+      })
+      return
+    }
+
+    if (operation.type === 'set_range' && Array.isArray(operation.data?.cells)) {
+      operation.data.cells.forEach(cell => {
+        if (!cell || typeof cell !== 'object' || Array.isArray(cell)) return
+        const record = cell as Record<string, unknown>
+        const rowRef = resolveSpreadsheetRowRef(record.rowRef)
+        const rowIdentity =
+          typeof record.rowId === 'string' && record.rowId
+            ? record.rowId
+            : rowRef
+              ? getSpreadsheetRowRefIdentity(rowRef)
+              : ''
+        const columnName = typeof record.columnName === 'string' ? record.columnName : ''
+        remember(rowIdentity, columnName)
+      })
+      return
+    }
+
+    if (
+      (operation.type === 'set_cell' || operation.type === 'clear_cell') &&
+      operation.data &&
+      typeof operation.data === 'object'
+    ) {
+      const rowRef = resolveSpreadsheetRowRef(operation.data.rowRef)
+      const rowIdentity =
+        typeof operation.data.rowId === 'string' && operation.data.rowId
+          ? operation.data.rowId
+          : rowRef
+            ? getSpreadsheetRowRefIdentity(rowRef)
+            : ''
+      const columnName = typeof operation.data.columnName === 'string' ? operation.data.columnName : ''
+      remember(rowIdentity, columnName)
+    }
+  })
+
+  return touched
+}
+
+export const captureSpreadsheetSessionPersistedBaselineForOperations = (
+  state: SpreadsheetSessionState,
+  sheetId: string,
+  operations: SpreadsheetBatchOperation[]
+): SpreadsheetSessionState => {
+  const currentSheetState = state.sheets[sheetId]
+  if (!currentSheetState) {
+    return state
+  }
+  if (operations.length === 0 || !currentSheetState.persistedBaselineRows) {
+    return captureSpreadsheetSessionPersistedBaseline(state, sheetId)
+  }
+
+  const touchedColumnsByIdentity = collectTouchedBaselineColumns(operations)
+  if (touchedColumnsByIdentity.size === 0) {
+    return captureSpreadsheetSessionPersistedBaseline(state, sheetId)
+  }
+
+  const currentRowsByIdentity = buildRowsByIdentity(currentSheetState.rows)
+  const previousBaseline = currentSheetState.persistedBaselineRows
+  const previousBaselineByIdentity = buildRowsByIdentity(previousBaseline)
+  const consumedIdentities = new Set<string>()
+
+  const mergeBaselineRow = (rowIdentity: string): SpreadsheetViewerRow | null => {
+    const currentRow = currentRowsByIdentity.get(rowIdentity)
+    if (!currentRow) return null
+    const previousRow = previousBaselineByIdentity.get(rowIdentity)
+    const nextRow: SpreadsheetViewerRow = previousRow ? { ...previousRow } : {}
+    BASELINE_ROW_IDENTITY_KEYS.forEach(key => {
+      if (currentRow[key] !== undefined) {
+        nextRow[key] = currentRow[key]
+      }
+    })
+    touchedColumnsByIdentity.get(rowIdentity)?.forEach(columnName => {
+      if (Object.prototype.hasOwnProperty.call(currentRow, columnName)) {
+        nextRow[columnName] = currentRow[columnName]
+        return
+      }
+      delete nextRow[columnName]
+    })
+    return nextRow
+  }
+
+  const nextBaselineRows = previousBaseline.map(row => {
+    const rowIdentity = getViewerRowIdentityCandidates(row).find(identity => touchedColumnsByIdentity.has(identity))
+    if (!rowIdentity) return { ...row }
+    consumedIdentities.add(rowIdentity)
+    return mergeBaselineRow(rowIdentity) ?? { ...row }
+  })
+
+  currentSheetState.rows.forEach(row => {
+    const rowIdentity = getViewerRowIdentityCandidates(row).find(identity => touchedColumnsByIdentity.has(identity))
+    if (!rowIdentity || consumedIdentities.has(rowIdentity)) return
+    const mergedRow = mergeBaselineRow(rowIdentity)
+    if (mergedRow) {
+      nextBaselineRows.push(mergedRow)
+      consumedIdentities.add(rowIdentity)
+    }
+  })
+
+  return {
+    ...state,
+    sheets: {
+      ...state.sheets,
+      [sheetId]: {
+        ...currentSheetState,
+        persistedBaselineRows: cloneRows(nextBaselineRows)
       }
     }
   }

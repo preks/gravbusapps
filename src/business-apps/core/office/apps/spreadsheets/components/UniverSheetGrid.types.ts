@@ -11,7 +11,7 @@ import type {
   DocumentParticipant
 } from '../../../../../platform/apps/shared/services/CollaborationClient'
 import type {
-  AuthoritativeGridRegion,
+  AuthoritativeGridReapplyTarget,
   ForceAuthoritativeGridReapplyOptions
 } from '../utils/spreadsheetAuthoritativeRegion'
 import type { SpreadsheetTraceEventInput } from '../services/spreadsheetDiagnostics'
@@ -52,8 +52,19 @@ export interface UniverSheetGridProps {
   initialSnapshot?: Record<string, unknown> | null
   snapshotSeed?: string
   authoritativeDataSyncToken?: number
+  /** One-shot explicit cells to paint after session apply (consumed by authoritative grid sync). */
+  authoritativePaintCellsRef?: MutableRefObject<import('../core').SpreadsheetBulkRemoteCellItem[] | null>
+  authoritativePaintMetaRef?: MutableRefObject<import('../core').SpreadsheetBulkRemoteApplyMeta | null>
   workbookInstanceKey: string
   multiSheetWorkbookMode?: boolean
+  pendingLocalMutationCellsRef?: MutableRefObject<Set<string>>
+  spreadsheetIntentJournalRef?: MutableRefObject<
+    import('../core/spreadsheetIntentJournal').SpreadsheetIntentJournal | null
+  >
+  versionCausalOwnershipRef?: MutableRefObject<
+    import('../core/spreadsheetVersionCausalOwnership').SpreadsheetVersionCausalOwnershipRegistry | null
+  >
+  resolveKnownSheetVersion?: (sheetId: string) => number
   /**
    * When true with {@link multiSheetWorkbookMode}, native sheet insert/copy/rename/delete
    * commands are cancelled and routed through {@link onNativeSheetStructureIntent} (REST-first).
@@ -93,7 +104,9 @@ export interface UniverSheetGridProps {
   onUniverSheetVisibilityChanged?: (payload: { sheetId: string; hidden: boolean }) => void
   columns: SpreadsheetColumn[]
   isReadOnly: boolean
-  onCellChange: (rowId: string, columnId: string, value: unknown, sheetId?: string) => void
+  /** @deprecated Use `onMutationBatchOp`; retained for tests and column-add helpers only. */
+  onCellChange?: (rowId: string, columnId: string, value: unknown, sheetId?: string) => void
+  /** @deprecated Use `onMutationBatchOp`. */
   onCellsChange?: (
     cells: Array<{ rowId: string; columnName: string; value: unknown; sheetId?: string; traceId?: string }>
   ) => void
@@ -155,8 +168,21 @@ export interface UniverSheetGridProps {
   flushUnmaterializedRowsBeforePersistRef?: MutableRefObject<
     ((sheetId: string, finalize?: () => Promise<void>) => Promise<void>) | null
   >
+  /** Flush queued HTTP cell batches; wired from SpreadsheetAppViewer for deferred local-edit recovery. */
+  flushPendingCellChangesRef?: MutableRefObject<(() => Promise<void>) | null>
+  /**
+   * Flush Univer deferred dirty cells (user edits held during remote apply) before snapshot remount.
+   * Wired from SpreadsheetAppViewer; assigned when sheet value listeners mount.
+   */
+  flushDeferredDirtyCellsRef?: MutableRefObject<(() => Promise<void>) | null>
   /** Session-backed row snapshot for remapping `client_*` ids after {@link flushUnmaterializedRowsBeforePersistRef}. */
   getPersistSheetRowsSnapshot?: (sheetId: string) => Record<string, unknown>[]
+  /**
+   * Persisted baseline rows last acknowledged by successful HTTP batches. Used for
+   * cell-level persistence decisions so optimistic session values do not masquerade
+   * as backend-acknowledged writes.
+   */
+  getPersistedBaselineRowsSnapshot?: (sheetId: string) => Record<string, unknown>[] | null
   /**
    * 2a: Single authoritative predicate for backend row UUIDs; should match pending-cell batch
    * logic. Hosts must wire this; the legacy `isUuidForRowRemap` slot is honored for one release.
@@ -168,6 +194,10 @@ export interface UniverSheetGridProps {
    */
   isUuidForRowRemap?: (value: string) => boolean
   rowSlotIdentityRegistryRef?: MutableRefObject<SpreadsheetRowSlotIdentityRegistry | null>
+  /** Resolved `client_*` → backend UUID after `insert_row_slots` (session snapshot may lag). */
+  rowMaterializationReadinessRef?: MutableRefObject<
+    import('../hooks/spreadsheetRowMaterializationReadiness').SpreadsheetRowMaterializationReadiness | null
+  >
   columnStructureStateRef?: MutableRefObject<{
     healthy: boolean
     pendingInsertedRange: { startIndex: number; endIndex: number; columnNames: string[] } | null
@@ -197,6 +227,8 @@ export type ApplyRemoteCellUpdateOptions = {
   useSenderA1Row?: boolean
   /** Target worksheet for multi-sheet workbook mode. Defaults to the active worksheet. */
   targetSheetId?: string
+  /** Skip remote-echo registration when repainting viewer state already present in the grid. */
+  skipRemoteEchoRegistration?: boolean
   /** Style patch for `set_style`: remove `unset`, then assign `set`. */
   stylePatch?: SpreadsheetStylePatch | null
   /** Full Univer cell payload (preferred over scalar `value` when present). */
@@ -228,25 +260,34 @@ export interface UniverSheetGridRemoteApplyHandle {
    * Apply server `clear_all` locally: `set-range-values` with null entries while
    * remote-update suppression is active (drops values + style refs).
    */
-  applyRemoteClearAllRange?: (payload: {
-    sheetId: string
-    ranges: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
-  }) => void
+  applyRemoteClearAllRange?: (
+    payload: {
+      sheetId: string
+      ranges: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
+    },
+    meta?: SpreadsheetBulkRemoteApplyMeta
+  ) => void
   /**
    * Apply server `clear_format` locally: clears formatting while preserving values/formulas.
    */
-  applyRemoteClearFormatRange?: (payload: {
-    sheetId: string
-    ranges: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
-  }) => void
-  applyRemoteSpreadsheetFeatureOperation?: (payload: SpreadsheetRemoteFeatureOperationPayload) => void
+  applyRemoteClearFormatRange?: (
+    payload: {
+      sheetId: string
+      ranges: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
+    },
+    meta?: SpreadsheetBulkRemoteApplyMeta
+  ) => void
+  applyRemoteSpreadsheetFeatureOperation?: (
+    payload: SpreadsheetRemoteFeatureOperationPayload,
+    meta?: SpreadsheetBulkRemoteApplyMeta
+  ) => void
 }
 
 /** Viewer row signature sync and forced reapply after authoritative data changes. */
 export interface UniverSheetGridAuthoritativeHandle {
-  prepareAuthoritativeRegionSync?: (region: AuthoritativeGridRegion | null) => void
+  prepareAuthoritativeRegionSync?: (region: AuthoritativeGridReapplyTarget) => void
   forceAuthoritativeReapply: (
-    region?: AuthoritativeGridRegion | null,
+    region?: AuthoritativeGridReapplyTarget,
     options?: ForceAuthoritativeGridReapplyOptions
   ) => void
   /**
@@ -257,6 +298,25 @@ export interface UniverSheetGridAuthoritativeHandle {
    * mutations persist styles/values under the correct field names.
    */
   syncGridConversionContext?: (columns: SpreadsheetColumn[], data?: Record<string, unknown>[]) => void
+  applyRemoteColumnsReorder?: (params: {
+    previousColumns: SpreadsheetColumn[]
+    nextColumns: SpreadsheetColumn[]
+  }) => boolean
+  applyRemoteRowSlotsMove?: (params: {
+    sourceStartGridRowIndex: number
+    count: number
+    destinationGridRowIndex: number
+  }) => boolean
+  applyRemoteInsertRowSlots?: (params: { startGridRowIndex: number; count: number }) => boolean
+  applyRemoteDeleteRowSlots?: (params: { startGridRowIndex: number; count: number }) => boolean
+  applyRemoteInsertColumnSlots?: (params: { startGridColumnIndex: number; count: number }) => boolean
+  applyRemoteDeleteColumnSlots?: (params: { startGridColumnIndex: number; count: number }) => boolean
+  applyRemoteMoveCellRange?: (params: {
+    fromRange: { startRow: number; endRow: number; startColumn: number; endColumn: number }
+    toRange: { startRow: number; endRow: number; startColumn: number; endColumn: number }
+  }) => boolean
+  /** True while a remote structural command is being applied — skip local row insert/move persistence. */
+  shouldIgnoreStructuralRowCommand?: () => boolean
 }
 
 /** Workbook snapshot IO and checkpoint scheduling for persistence. */
@@ -306,4 +366,5 @@ export interface UniverSheetGridHandle
 export type UniverSheetGridCollaborationBridgeHandle = UniverSheetGridRemoteApplyHandle &
   UniverSheetGridAuthoritativeHandle &
   UniverSheetGridDimensionsHandle &
+  Pick<UniverSheetGridSnapshotHandle, 'getWorkbookSnapshot' | 'getVisibleRangeValues'> &
   Pick<UniverSheetGridWorksheetAdminHandle, 'setWorksheetVisibility'>

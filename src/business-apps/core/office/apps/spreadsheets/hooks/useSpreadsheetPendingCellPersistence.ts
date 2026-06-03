@@ -2,13 +2,14 @@ import { useCallback, useRef, type MutableRefObject } from 'react'
 
 import { SpreadsheetApiRequestError } from '../services/SpreadsheetApiService'
 import { didAuthoritativeCellPersistenceSettle } from '../utils/spreadsheetPersistenceSemantics'
-import { isSheetCreationAwaitingPersistedId, resolveReconciledSheetId } from '../utils/reconcileTemporarySheetId'
+import { isSheetCreationAwaitingPersistedId } from '../utils/reconcileTemporarySheetId'
 
 import type {
   SpreadsheetPendingCellBatch as PendingCellBatch,
-  SpreadsheetPendingCellChange as CellChange,
-  SpreadsheetMutationFacade
+  SpreadsheetPendingCellChange as CellChange
 } from '../core'
+import type { SheetWorkQueueApi } from '../core/spreadsheetSheetWorkQueue'
+import type { SpreadsheetBatchOperation } from '../services/SpreadsheetApiService'
 
 interface SpreadsheetPersistenceIndicator {
   beginPersist: () => void
@@ -20,6 +21,7 @@ interface SpreadsheetPersistenceIndicator {
 export interface UseSpreadsheetPendingCellPersistenceParams {
   entityEnabled: boolean
   defaultPersistDebounceMs: number
+  maxPersistDebounceMs?: number
   pendingCellPersistTimeoutRef: MutableRefObject<ReturnType<typeof setTimeout> | null>
   pendingCellChangesRef: MutableRefObject<CellChange[]>
   pendingCellBatchesRef: MutableRefObject<PendingCellBatch[]>
@@ -30,12 +32,15 @@ export interface UseSpreadsheetPendingCellPersistenceParams {
     persistedSheetId: string | null
   } | null>
   cellFlushSequenceRef: MutableRefObject<number>
-  updateActiveSheetVersion: (version: number, mode: 'set' | 'max') => void
   hasPendingCellPersistence: () => boolean
   buildPendingCellBatches: (cells: CellChange[]) => PendingCellBatch[]
   persistPendingCellJournal: () => void
   recoverFromVersionConflict: () => Promise<boolean>
-  submitMutationBatch: SpreadsheetMutationFacade['submitBatch']
+  /**
+   * Per-sheet local intent coordinator. Pending cell batches are always routed
+   * through `enqueueLocalPersist` (kind `cellValue`).
+   */
+  sheetWorkQueue: SheetWorkQueueApi
   sheetPersist: SpreadsheetPersistenceIndicator
   onPersistErrorMessage: string
   markVersionAsSaved: () => void
@@ -52,6 +57,7 @@ export function useSpreadsheetPendingCellPersistence(
   const {
     entityEnabled,
     defaultPersistDebounceMs,
+    maxPersistDebounceMs = 15000,
     pendingCellPersistTimeoutRef,
     pendingCellChangesRef,
     pendingCellBatchesRef,
@@ -59,16 +65,36 @@ export function useSpreadsheetPendingCellPersistence(
     createdSheetIdAliasesRef,
     pendingCreatedSheetSelectionRef,
     cellFlushSequenceRef,
-    updateActiveSheetVersion,
     hasPendingCellPersistence,
     buildPendingCellBatches,
     persistPendingCellJournal,
     recoverFromVersionConflict,
-    submitMutationBatch,
+    sheetWorkQueue,
     sheetPersist,
     onPersistErrorMessage,
     markVersionAsSaved
   } = params
+
+  /**
+   * Extract `(rowId, columnName)` tuples from a batch's operations so the
+   * coordinator can track cell ownership while the submit is in flight.
+   * Operations without a single-cell shape (e.g. anonymous `set_range`
+   * forms) are skipped — they will fall back to the legacy "all owned →
+   * submitted" path inside the queue when the response lacks per-op
+   * results for those keys.
+   */
+  const collectOwnedCellKeysForBatchOps = (operations: SpreadsheetBatchOperation[]): string[] => {
+    const seen = new Set<string>()
+    for (const op of operations) {
+      const data = (op as { data?: Record<string, unknown> }).data
+      if (!data || typeof data !== 'object') continue
+      const rowId = (data as { rowId?: unknown }).rowId
+      const columnName = (data as { columnName?: unknown }).columnName
+      if (typeof rowId !== 'string' || typeof columnName !== 'string') continue
+      seen.add(`${rowId}\u0000${columnName}`)
+    }
+    return Array.from(seen)
+  }
 
   const flushPendingCellChanges = useCallback(async () => {
     if (entityEnabled) {
@@ -117,11 +143,13 @@ export function useSpreadsheetPendingCellPersistence(
 
         const [nextBatch, ...remainingBatches] = pendingCellBatchesRef.current
         if (!nextBatch) break
-        const response = await submitMutationBatch({
+        await sheetWorkQueue.enqueueLocalPersist(nextBatch.targetSheetId, {
           sheetId: nextBatch.targetSheetId,
+          kind: 'cellValue',
           operations: nextBatch.operations,
+          enqueuedAt: Date.now(),
+          ownedCellKeys: collectOwnedCellKeysForBatchOps(nextBatch.operations),
           batchIdPrefix: 'persisted_cell_batch',
-          batchIdOverride: nextBatch.batchId,
           traceMeta: {
             traceId: nextBatch.traceId,
             sourceTraceIds: nextBatch.sourceTraceIds,
@@ -131,12 +159,6 @@ export function useSpreadsheetPendingCellPersistence(
         pendingCellBatchesRef.current = remainingBatches
         persistPendingCellJournal()
         didPersistAnyBatch = true
-        if (
-          resolveReconciledSheetId(nextBatch.targetSheetId, aliases) ===
-          resolveReconciledSheetId(activeSheetIdRef.current, aliases)
-        ) {
-          updateActiveSheetVersion(Number(response.newVersion || 0), 'max')
-        }
       }
 
       if (!didPersistAnyBatch) return
@@ -162,7 +184,7 @@ export function useSpreadsheetPendingCellPersistence(
       sheetPersist.endPersist()
     }
   }, [
-    submitMutationBatch,
+    sheetWorkQueue,
     buildPendingCellBatches,
     entityEnabled,
     hasPendingCellPersistence,
@@ -170,7 +192,6 @@ export function useSpreadsheetPendingCellPersistence(
     persistPendingCellJournal,
     recoverFromVersionConflict,
     sheetPersist,
-    updateActiveSheetVersion,
     markVersionAsSaved,
     pendingCellPersistTimeoutRef,
     activeSheetIdRef,
@@ -183,18 +204,28 @@ export function useSpreadsheetPendingCellPersistence(
 
   const flushPendingCellChangesRef = useRef(flushPendingCellChanges)
   flushPendingCellChangesRef.current = flushPendingCellChanges
+  const pendingCellPersistFirstScheduledAtRef = useRef<number | null>(null)
 
   const schedulePendingCellPersist = useCallback(
     (delayMs = defaultPersistDebounceMs) => {
+      const now = Date.now()
+      if (pendingCellPersistFirstScheduledAtRef.current == null) {
+        pendingCellPersistFirstScheduledAtRef.current = now
+      }
+      const elapsed = now - pendingCellPersistFirstScheduledAtRef.current
+      const maxRemaining = maxPersistDebounceMs - elapsed
+      const effectiveDelay = maxRemaining <= 0 ? 0 : Math.min(delayMs, maxRemaining)
+
       if (pendingCellPersistTimeoutRef.current) {
         clearTimeout(pendingCellPersistTimeoutRef.current)
       }
       pendingCellPersistTimeoutRef.current = setTimeout(() => {
         pendingCellPersistTimeoutRef.current = null
+        pendingCellPersistFirstScheduledAtRef.current = null
         void flushPendingCellChangesRef.current()
-      }, delayMs)
+      }, effectiveDelay)
     },
-    [defaultPersistDebounceMs, pendingCellPersistTimeoutRef]
+    [defaultPersistDebounceMs, maxPersistDebounceMs, pendingCellPersistTimeoutRef]
   )
 
   return {

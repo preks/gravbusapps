@@ -44,7 +44,6 @@ export const employeePerformanceQuery = `
       }
       employeePerformanceGoalUpdate(orderBy: {updateTime: ASC}) {
         id
-        progressPercent
         comment
         updateTime
         updateDelta

@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { normalizeBearerAccessToken } from './HeaderUtils'
 
 const TOKEN_REFRESH_EVENT = 'com.newwork.token.shouldRefreshAuthorizationHeader'
 
@@ -26,18 +27,31 @@ function resolveAccessTokenFromRefreshEvent(event: Event, fallbackAccessToken: s
   return fallbackAccessToken
 }
 
+function applyAccessToken(client: AccessTokenAwareClient, accessToken?: string) {
+  const normalized = normalizeBearerAccessToken(accessToken)
+  if (!normalized) {
+    return
+  }
+
+  client.setAccessToken(normalized)
+}
+
 export function useSyncClientAccessToken(client: AccessTokenAwareClient, accessToken?: string) {
-  client.setAccessToken(accessToken ?? '')
+  applyAccessToken(client, accessToken)
 
   useEffect(() => {
-    client.setAccessToken(accessToken ?? '')
+    applyAccessToken(client, accessToken)
 
-    if (!accessToken?.trim()) {
+    const normalized = normalizeBearerAccessToken(accessToken)
+    if (!normalized) {
       return
     }
 
     const handleTokenRefresh: EventListener = event => {
-      client.setAccessToken(resolveAccessTokenFromRefreshEvent(event, accessToken))
+      const refreshed = normalizeBearerAccessToken(resolveAccessTokenFromRefreshEvent(event, normalized))
+      if (refreshed) {
+        client.setAccessToken(refreshed)
+      }
     }
 
     globalThis.addEventListener(TOKEN_REFRESH_EVENT, handleTokenRefresh)

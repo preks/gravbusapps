@@ -1,11 +1,12 @@
 import React from 'react'
 import { Button } from '@newwork/gravity-ui-catalog'
 import { SelectField } from '@newwork/gravity-ui-catalog'
-import { formatDate, getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { formatDate, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { CostCenter } from '../../utils/types'
 import { DEDUCTION_KEYS } from '../../constants/constants'
 import { ICONS } from '@/business-apps/fin/expenses/utils/icons'
 import { getDayName } from '../../utils/allowanceScreenUtils'
+import { useExpenseRequestWizardTranslation } from '../../useExpenseRequestWizardTranslation'
 
 /**
  * Props for the AllowanceContainer component
@@ -40,6 +41,7 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
   hasDeductions,
   visibleDeductionKeys
 }) => {
+  const { t } = useExpenseRequestWizardTranslation()
   const locale = getCurrentActiveUserLocale()
   const dateToDisplay = item.allowanceDate || item.expenseDate
   const selectedDeductions: string[] = Array.isArray(item?.deductions) ? item.deductions : []
@@ -47,31 +49,22 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
   const deductionOptions = [
     {
       key: DEDUCTION_KEYS.BREAKFAST,
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_deduction.expense_deduction_modal.breakfast_title',
-        'Breakfast'
-      ),
+      label: t('wizard-deduction-breakfast'),
       icon: ICONS.BREAKFAST_DEDUCTION_ICON
     },
     {
       key: DEDUCTION_KEYS.LUNCH,
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_deduction.expense_deduction_modal.lunch_title',
-        'Lunch'
-      ),
+      label: t('wizard-deduction-lunch'),
       icon: ICONS.LUNCH_DEDUCTION_ICON
     },
     {
       key: DEDUCTION_KEYS.DINNER,
-      label: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:expense_deduction.expense_deduction_modal.dinner_title',
-        'Dinner'
-      ),
+      label: t('wizard-deduction-dinner'),
       icon: ICONS.DINNER_DEDUCTION_ICON
     },
     {
       key: DEDUCTION_KEYS.OVERNIGHT,
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_deduction.overnight_allowance', 'Overnight Allowance'),
+      label: t('wizard-deduction-overnight'),
       icon: ICONS.OVERNIGHT_DEDUCTION_ICON
     }
   ]
@@ -109,7 +102,7 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
             style={{ fontSize: '16px', fontWeight: 500 }}
             data-testid={`allowance-title-${index}`}
           >
-            {dateToDisplay ? `${getDayName(dateToDisplay)}, ${formatDate(dateToDisplay)}` : `Allowance ${index + 1}`}
+            {dateToDisplay ? `${getDayName(dateToDisplay, t)}, ${formatDate(dateToDisplay)}` : `Allowance ${index + 1}`}
           </span>
         </div>
         <div className="gba:flex gba:items-center gba:gap-2" data-testid={`allowance-actions-${index}`}>
@@ -146,10 +139,7 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
         >
           <SelectField
             allowClear
-            label={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:initiate_expense_plan.create_expense_plan.cost_center_select_label',
-              'Cost Center'
-            )}
+            label={t('wizard-cost-center-label')}
             name={`allowance-cost-center-${index}`}
             data-testid={`allowance-cost-center-select-${index}`}
             data={costCenters.map(cc => ({
@@ -161,10 +151,7 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
               const selectedValue = value && value.value ? value.value : undefined
               onCostCenterChange(index, selectedValue)
             }}
-            placeholder={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:initiate_expense_plan.create_expense_plan.cost_center_select_placeholder',
-              'Select Cost Center'
-            )}
+            placeholder={t('wizard-cost-center-placeholder')}
             value={(() => {
               // Only show existing value, not defaults after clearing
               if (item.costCenterId) {
@@ -186,7 +173,7 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
           <SelectField
             allowClear
             className="gba:mt-4"
-            label={getTranslationFromI18nKeyAndLabel('lowcoder:add_allowance_info_request.select_project', 'Project')}
+            label={t('wizard-select-project')}
             name={`allowance-project-${index}`}
             data-testid={`allowance-project-select-${index}`}
             data={projects
@@ -207,10 +194,7 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
               const selectedValue = value && value.value ? value.value : undefined
               onProjectChange(index, selectedValue)
             }}
-            placeholder={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:add_allowance_info_request.select_project_placeholder',
-              'Select Project'
-            )}
+            placeholder={t('wizard-select-project-placeholder')}
             value={(() => {
               // Only show existing value, not defaults after clearing
               if (item.projectId) {
@@ -234,7 +218,7 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
                 className="gba:font-semibold gba:text-black gba:text-base gba:py-3"
                 data-testid={`allowance-deductions-title-${index}`}
               >
-                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_deduction.deductions_modal', 'Deductions')}
+                {t('wizard-deductions-modal')}
               </span>
 
               <div

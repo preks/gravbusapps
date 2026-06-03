@@ -33,6 +33,8 @@ import JobFunctionDrawerContent, {
 import JobLevelDrawerContent, { getJobLevelIcon, getJobLevelTitle } from './drawer-content/JobLevelDrawerContent'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { cn } from '@/common/utils/cn'
+import { formatDate, getCatalogValue } from '@/common/utils/windowUtils'
+import { getAbsenceStatusLabel } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 
 interface SummaryTabProps {
   employee: Employee
@@ -48,6 +50,13 @@ interface SummaryTabProps {
 
 // Employee availability & schedule information comes from employee data
 // Specific schedule information should be retrieved from the API
+
+const formatUpcomingAbsenceDateRange = (startDate: string, endDate: string) => {
+  const formattedStartDate = formatDate(startDate, 'date.monthDay') ?? dayjs(startDate).format('MMM DD')
+  const formattedEndDate = formatDate(endDate, 'date.medium') ?? dayjs(endDate).format('MMM DD, YYYY')
+
+  return `${formattedStartDate} - ${formattedEndDate}`
+}
 
 const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentUserEmployeeId }) => {
   const { t } = useTranslation(translations)
@@ -526,13 +535,16 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                           <p className="gba:text-sm gba:font-medium" data-testid="absence-type">
                             {firstUpcomingValidAbsence.type.parentEntryId === 'AbsenceGroup:v1:HEALTH' && !isCurrentUser
                               ? t('summary-out-of-office')
-                              : firstUpcomingValidAbsence.type.value}
-                            - {firstUpcomingValidAbsence.calendarDays} {t('summary-days')}
+                              : getCatalogValue(firstUpcomingValidAbsence.type)}
+                            {' - '}
+                            {firstUpcomingValidAbsence.calendarDays} {t('summary-days')}
                           </p>
                           <div className="gba:flex gba:items-center gba:mt-1">
                             <span className="gba:text-xs gba:text-muted-foreground" data-testid="absence-dates">
-                              {dayjs(firstUpcomingValidAbsence.startDate).format('MMM DD')} -{' '}
-                              {dayjs(firstUpcomingValidAbsence.endDate).format('MMM DD, YYYY')}
+                              {formatUpcomingAbsenceDateRange(
+                                firstUpcomingValidAbsence.startDate,
+                                firstUpcomingValidAbsence.endDate
+                              )}
                             </span>
                           </div>
                         </div>
@@ -547,7 +559,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                           })}
                           data-testid="absence-status"
                         >
-                          {firstUpcomingValidAbsence.status}
+                          {getAbsenceStatusLabel(firstUpcomingValidAbsence.status)}
                         </div>
                       </div>
                     </div>

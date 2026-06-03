@@ -18,6 +18,11 @@ export const toMinutes = (value?: number | string | null): number => {
     normalized = normalized.slice(1).trim()
   }
 
+  if (/^\d+(\.\d+)?$/.test(normalized)) {
+    const total = Number(normalized)
+    return Number.isFinite(total) ? (isNegative ? -total : total) : 0
+  }
+
   if (/^\d{1,2}:\d{2}$/.test(normalized)) {
     const [hoursPart, minutesPart] = normalized.split(':').map(Number)
     if (!Number.isNaN(hoursPart) && !Number.isNaN(minutesPart)) {
@@ -49,4 +54,24 @@ export const formatMinutes = (minutes?: number | null): string => {
   const mins = abs % 60
 
   return `${sign}${hours}h ${String(mins).padStart(2, '0')}m`
+}
+
+export interface AttendanceDateRange {
+  dateFrom: string
+  dateTo: string
+}
+
+export const clampDateRangeToPast = (dateRange: AttendanceDateRange | null): AttendanceDateRange | null => {
+  if (!dateRange?.dateFrom || !dateRange.dateTo) {
+    return null
+  }
+
+  const today = new Date().toISOString().slice(0, 10)
+  const dateTo = dateRange.dateTo > today ? today : dateRange.dateTo
+
+  if (dateRange.dateFrom > dateTo) {
+    return null
+  }
+
+  return { dateFrom: dateRange.dateFrom, dateTo }
 }

@@ -125,6 +125,18 @@ function buildStartTrigger(startNodeId: string, config: any): FlowTrigger {
       secret: config?.webhookConfig?.secret
     }
   }
+  if (triggerType === 'EMAIL') {
+    const filter = config?.emailConfig?.filter
+    base.config = {
+      filter:
+        filter && typeof filter === 'object'
+          ? {
+              match: filter.match === 'any' ? 'any' : 'all',
+              rules: Array.isArray(filter.rules) ? filter.rules : []
+            }
+          : { match: 'all', rules: [] }
+    }
+  }
   if (triggerType === 'EVENT') {
     base.config = {
       eventType: config?.eventConfig?.eventType,
@@ -484,6 +496,18 @@ export function templateToStudioGraph(template: FlowTemplate): {
       webhookConfig:
         activeTriggerType === 'WEBHOOK'
           ? { url: activeTriggerConfig.url, secret: activeTriggerConfig.secret }
+          : undefined,
+      emailConfig:
+        activeTriggerType === 'EMAIL'
+          ? {
+              filter:
+                activeTriggerConfig?.filter && typeof activeTriggerConfig.filter === 'object'
+                  ? {
+                      match: activeTriggerConfig.filter.match === 'any' ? 'any' : 'all',
+                      rules: Array.isArray(activeTriggerConfig.filter.rules) ? activeTriggerConfig.filter.rules : []
+                    }
+                  : { match: 'all', rules: [] }
+            }
           : undefined,
       eventConfig:
         activeTriggerType === 'EVENT'

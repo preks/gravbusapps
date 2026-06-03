@@ -143,7 +143,36 @@ function renderPipeline({
   }
 }
 
+const ROW_MATERIALIZATION_IDLE_MS = 400
+
+const flushRowMaterializationDebounce = async () => {
+  await act(async () => {
+    jest.advanceTimersByTime(ROW_MATERIALIZATION_IDLE_MS)
+  })
+}
+
+const runProcessUniverDataChange = async (result: {
+  current: { processUniverDataChange: () => Promise<void> } | null
+}) => {
+  let pending: Promise<void> | undefined
+  await act(async () => {
+    pending = result.current?.processUniverDataChange()
+  })
+  await flushRowMaterializationDebounce()
+  await act(async () => {
+    await pending
+  })
+}
+
 describe('useSpreadsheetUniverRowCreatePipeline sparse row materialization', () => {
+  beforeEach(() => {
+    jest.useFakeTimers()
+  })
+
+  afterEach(() => {
+    jest.useRealTimers()
+  })
+
   it('creates only a sparse missing visual row even when the data length was already processed', async () => {
     const latestRows = Array.from({ length: 11 }, (_, index) => clientRow(index + 1))
     const persistedRows = [1, 2, 3, 4, 5, 6, 7, 8, 10, 11].map(backendRow)
@@ -153,9 +182,7 @@ describe('useSpreadsheetUniverRowCreatePipeline sparse row materialization', () 
       lastProcessedLength: latestRows.length
     })
 
-    await act(async () => {
-      await result.current.processUniverDataChange()
-    })
+    await runProcessUniverDataChange(result)
 
     expect(persistAddedRowsWithBatch).toHaveBeenCalledWith(
       'sheet-1',
@@ -170,7 +197,7 @@ describe('useSpreadsheetUniverRowCreatePipeline sparse row materialization', () 
     expect(planLogs[0]).toEqual(
       expect.objectContaining({
         missingGridRowIndices: [9],
-        unmaterializedClientRowIds: ['client-row-9'],
+        unmaterializedClientRowIds: [],
         rowPayloadCount: 1,
         missingAndWillCreateCount: 1,
         gridIndexCoordinateMode: 'zeroBasedVisualGridIndex'
@@ -220,21 +247,23 @@ describe('useSpreadsheetUniverRowCreatePipeline sparse row materialization', () 
     try {
       await act(async () => {
         const firstFlush = result.current.processUniverDataChange()
+        const secondFlush = result.current.processUniverDataChange()
+        jest.advanceTimersByTime(ROW_MATERIALIZATION_IDLE_MS)
         await Promise.resolve()
-        await result.current.processUniverDataChange()
         finishPersist?.()
-        await firstFlush
+        await Promise.all([firstFlush, secondFlush])
       })
     } finally {
       consoleWarnSpy.mockRestore()
     }
 
     expect(persistAddedRowsWithBatch).toHaveBeenCalledTimes(1)
-    const skipLogs = getDebugPayloads(multiSheetDebugLog, 'process_univer_data_change_skip_no_new_rows')
-    expect(skipLogs[0]).toEqual(
+    const planLogs = getDebugPayloads(multiSheetDebugLog, 'process_univer_data_change_materialization_plan')
+    expect(planLogs.length).toBeGreaterThanOrEqual(1)
+    expect(planLogs[planLogs.length - 1]).toEqual(
       expect.objectContaining({
-        visualIndexPlannerFoundMissingRows: true,
-        inFlightMissingGridRowIndices: [2]
+        missingGridRowIndices: [2],
+        rowPayloadCount: 1
       })
     )
   })
@@ -253,9 +282,7 @@ describe('useSpreadsheetUniverRowCreatePipeline sparse row materialization', () 
       })
     })
 
-    await act(async () => {
-      await result.current.processUniverDataChange()
-    })
+    await runProcessUniverDataChange(result)
     consoleErrorSpy.mockRestore()
 
     expect(persistAddedRowsWithBatch).toHaveBeenCalledTimes(1)
@@ -270,9 +297,7 @@ describe('useSpreadsheetUniverRowCreatePipeline sparse row materialization', () 
       lastProcessedLength: 2
     })
 
-    await act(async () => {
-      await result.current.processUniverDataChange()
-    })
+    await runProcessUniverDataChange(result)
 
     expect(persistAddedRowsWithBatch).toHaveBeenCalledWith(
       'sheet-1',
@@ -288,9 +313,7 @@ describe('useSpreadsheetUniverRowCreatePipeline sparse row materialization', () 
       lastProcessedLength: 2
     })
 
-    await act(async () => {
-      await result.current.processUniverDataChange()
-    })
+    await runProcessUniverDataChange(result)
 
     expect(persistAddedRowsWithBatch).not.toHaveBeenCalled()
     const skipLogs = getDebugPayloads(multiSheetDebugLog, 'process_univer_data_change_skip_no_new_rows')

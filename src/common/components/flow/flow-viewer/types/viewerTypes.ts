@@ -12,7 +12,7 @@ export type FlowEdgeDirection = 'forward' | 'backward'
 
 export type DecisionMode = 'USER' | 'AI' | 'LOGIC'
 
-export type TriggerType = 'MANUAL_FORM' | 'WEBHOOK' | 'EVENT' | 'SCHEDULE'
+export type TriggerType = 'MANUAL_FORM' | 'WEBHOOK' | 'EMAIL' | 'EVENT' | 'SCHEDULE'
 
 export type TaskVariant =
   | 'TASK'

@@ -1,5 +1,7 @@
 import { useCallback, useMemo, type MutableRefObject } from 'react'
 
+import type { SheetWorkQueueApi } from '../core/spreadsheetSheetWorkQueue'
+
 interface SpreadsheetPersistenceIndicator {
   beginPersist: () => void
   endPersist: () => void
@@ -36,6 +38,17 @@ export interface UseSpreadsheetLeaveGuardPipelineParams {
   onUnsavedLeaveConfirmMessage: string
   onBack?: () => void
   onNavigateToSpreadsheetHub?: () => void
+  /**
+   * V1 sheet work queue accessor. When provided, the leave guard calls
+   * `forceFlushAll()` (Guard C) before the snapshot checkpoint so any
+   * coalesced / scheduled queue groups are submitted before navigation.
+   * Returns per-sheet/per-group results; we surface aggregate counts via
+   * console for diagnostics but do not block leave on `failed` or
+   * `blocked_by_remote` — best-effort by design (post-load page snapshot
+   * + journal restore covers the rest).
+   */
+  getSheetWorkQueue?: () => SheetWorkQueueApi | null
+  hasUnresolvedCollaborationWork?: () => boolean
 }
 
 export interface UseSpreadsheetLeaveGuardPipelineResult {
@@ -74,7 +87,8 @@ export function useSpreadsheetLeaveGuardPipeline(
     onPersistCellErrorMessage,
     onUnsavedLeaveConfirmMessage,
     onBack,
-    onNavigateToSpreadsheetHub
+    onNavigateToSpreadsheetHub,
+    getSheetWorkQueue
   } = params
 
   const flushPendingPersistenceNow = useCallback(() => {
@@ -91,6 +105,38 @@ export function useSpreadsheetLeaveGuardPipeline(
     const run = async () => {
       cacheLiveUniverSnapshotRef.current()
       await processUniverDataChangeRef.current()
+      // Guard C: best-effort flush of any coalesced/scheduled queue groups
+      // before journal + snapshot. Run BEFORE the legacy journal flush so
+      // resolved cells the queue owns are submitted via the queue path
+      // (where the version-equality invariant + retries apply) rather than
+      // racing through the journal.
+      const queue = getSheetWorkQueue?.()
+      if (queue) {
+        try {
+          const aggregate = await queue.forceFlushAll()
+          let flushed = 0
+          let failed = 0
+          let blocked = 0
+          for (const sheetResults of Object.values(aggregate.bySheet)) {
+            for (const r of sheetResults) {
+              if (r === 'flushed') flushed += 1
+              else if (r === 'failed') failed += 1
+              else if (r === 'blocked_by_remote') blocked += 1
+            }
+          }
+          if (failed > 0 || blocked > 0) {
+            // Diagnostic only; do not abort leave — the journal + post-load
+            // restore covers anything left behind.
+            console.warn('[leave-guard] sheet work queue forceFlushAll partial', {
+              flushed,
+              failed,
+              blockedByRemote: blocked
+            })
+          }
+        } catch (err) {
+          console.warn('[leave-guard] sheet work queue forceFlushAll threw', err)
+        }
+      }
       await flushPendingCellChangesRef.current()
       if (entityEnabledRef.current || !canEditWithLockRef.current) return
       const sheetId = activeSheetIdRef.current
@@ -119,6 +165,7 @@ export function useSpreadsheetLeaveGuardPipeline(
     entityEnabled,
     entityEnabledRef,
     flushPendingCellChangesRef,
+    getSheetWorkQueue,
     onPersistCellErrorMessage,
     operationQueueRef,
     pendingCellPersistTimeoutRef,
@@ -142,10 +189,17 @@ export function useSpreadsheetLeaveGuardPipeline(
       workbookSnapshotThrottlePendingRef.current ||
       pendingSnapshotCheckpointBySheetRef.current.size > 0 ||
       snapshotCheckpointDrainScheduledRef.current
+    const hasUnresolvedCollaborationWork = params.hasUnresolvedCollaborationWork?.() ?? false
     return (
-      matchesHeaderUnsaved || hasPendingCells || hasPendingDebounce || hasPendingUniverChange || hasPendingSnapshotWork
+      matchesHeaderUnsaved ||
+      hasPendingCells ||
+      hasPendingDebounce ||
+      hasPendingUniverChange ||
+      hasPendingSnapshotWork ||
+      hasUnresolvedCollaborationWork
     )
   }, [
+    params.hasUnresolvedCollaborationWork,
     canEditWithLockRef,
     entityEnabledRef,
     leaveGuardSheetDirtyRef,

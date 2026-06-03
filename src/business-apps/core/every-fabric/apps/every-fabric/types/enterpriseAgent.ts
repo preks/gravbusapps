@@ -128,6 +128,7 @@ export interface AgentTerminalEvent {
   event_id: string
   timestamp?: string
   status: 'completed' | 'failed' | 'cancelled' | 'waiting_for_human'
+  metadata?: Record<string, unknown>
   presentation_mode?: EnterprisePresentationMode
   output?: string | null
   todos?: TodoItem[]
@@ -139,6 +140,11 @@ export interface AgentTerminalEvent {
   artifacts?: SessionArtifactMeta[]
   session_attachments?: Array<SessionAttachment | MessageAttachmentRef>
   workspace_documents?: WorkspaceDocument[]
+}
+
+/** Durable copy of a prior turn's terminal payload; survives follow-up pruning. */
+export interface AgentTurnSnapshotEvent extends Omit<AgentTerminalEvent, 'type'> {
+  type: 'turn_snapshot'
 }
 
 export interface AgentErrorEvent {
@@ -178,6 +184,7 @@ export interface AgentSubagentSpawnedEvent {
   step_id: string
   name?: string
   agent_name?: string
+  agent_description?: string
   subagent_id?: string
   parent_step_id?: string
   task_summary?: string
@@ -206,6 +213,7 @@ export interface AgentExpertCalledEvent {
   event_id: string
   step_id: string
   expert_name?: string
+  agent_description?: string
   subagent_id?: string
   task_summary?: string
   timestamp: string
@@ -422,6 +430,9 @@ export interface SkillLoadedEvent {
     category: string
     description: string
     icon?: string
+    version?: number
+    published_version?: number | null
+    current_version?: number
   }
   was_auto_detected: boolean
 }
@@ -445,6 +456,9 @@ export interface SkillScopedEvent {
     category: string
     description: string
     icon?: string
+    version?: number
+    published_version?: number | null
+    current_version?: number
   }
   was_auto_detected: boolean
 }
@@ -537,6 +551,7 @@ export interface CapabilityMissingEvent {
 export type AgentStreamEvent =
   | AgentChunkEvent
   | AgentTerminalEvent
+  | AgentTurnSnapshotEvent
   | AgentErrorEvent
   | AgentStepStartedEvent
   | AgentStepCompletedEvent
@@ -645,12 +660,48 @@ export interface EnterpriseSkill {
 
 // ── Admin Skill Studio types ─────────────────────────────────────────
 
+export interface SkillVersionSummary {
+  skill_id: string
+  version: number
+  name: string
+  description: string
+  author: string
+  note?: string | null
+  created_at: string
+  is_published: boolean
+  published_at?: string | null
+  published_by?: string | null
+  file_paths: string[]
+  has_files: boolean
+  is_current?: boolean
+  is_published_pointer?: boolean
+}
+
+export interface SkillVersionDetail extends SkillVersionSummary {
+  content: string
+  tags: string[]
+  category: string | null
+  tool_refs: string[]
+  tool_policies?: Record<string, Record<string, unknown>>
+  approval_policy?: AdminSkill['approval_policy']
+  safety_level?: string
+  output_contract?: Record<string, unknown>
+}
+
+export interface AgentSkillBinding {
+  skill_id: string
+  version?: number | null
+  follow_latest?: boolean
+  enabled?: boolean
+}
+
 export interface AdminSkill {
   skill_id: string
   name: string
   description: string
   status: 'draft' | 'pending_review' | 'approved' | 'archived'
   version: number
+  published_version?: number | null
   tags: string[]
   category: string | null
   is_active: boolean
@@ -683,6 +734,7 @@ export interface AdminSkillSummary {
   description: string
   status: string
   version: number
+  published_version?: number | null
   tags: string[]
   category: string | null
   is_active: boolean

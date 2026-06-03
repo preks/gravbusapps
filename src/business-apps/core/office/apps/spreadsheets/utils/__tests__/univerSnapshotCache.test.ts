@@ -30,15 +30,28 @@ describe('univerSnapshotCache', () => {
     expect(readLatestUniverSnapshot('app-1', 0)).toBeNull()
   })
 
-  it('readUniverSnapshotCacheForBootstrap prefers primary meeting minVersion over newer saved lag entry', async () => {
-    writeUniverSnapshotCache('app-1', 100, { checkpoint: 'v100' })
+  it('readUniverSnapshotCacheForBootstrap prefers the highest watermark covering the requested sheet', async () => {
+    writeUniverSnapshotCache('app-1', 100, {
+      checkpoint: 'v100',
+      __meta: { coversVersions: { 'sheet-1': 100 } }
+    })
     await new Promise<void>(resolve => {
       setTimeout(resolve, 15)
     })
-    writeUniverSnapshotCache('app-1', 50, { lag: true })
+    writeUniverSnapshotCache('app-1', 50, {
+      lag: true,
+      __meta: { coversVersions: { 'sheet-1': 50 } }
+    })
 
-    const picked = readUniverSnapshotCacheForBootstrap('app-1', 80)
+    const picked = readUniverSnapshotCacheForBootstrap('app-1', 'sheet-1', 80)
     expect(picked?.version).toBe(100)
+    expect(picked?.coversVersions).toEqual({ 'sheet-1': 100 })
+  })
+
+  it('discards legacy cache entries without a coverage watermark', () => {
+    writeUniverSnapshotCache('app-1', 100, { checkpoint: 'v100' })
+
+    expect(readUniverSnapshotCacheForBootstrap('app-1', 'sheet-1', 80)).toBeNull()
   })
 
   it('skips reads and writes when disable flag is set', () => {

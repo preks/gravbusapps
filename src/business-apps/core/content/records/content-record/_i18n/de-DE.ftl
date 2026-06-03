@@ -188,20 +188,9 @@ policy_flows_count = { $count } { $count ->
 policy_flows_empty = Noch keine verknuepften Flow Templates. Generieren Sie eines, um diese Richtlinie zu operationalisieren.
 policy_flows_outdated = Veraltet
 
-policy_flows_generate_ai = Mit KI generieren
-policy_flows_open_creator = Flow Creator öffnen
-policy_flows_generating = Wird generiert...
-policy_flows_generate_success = Flow erstellt
-policy_flows_generate_error = Flow konnte nicht generiert werden
-policy_flows_generate_missing_policy = Richtlinieninhalt fehlt
-policy_flows_generated_name_prefix = Richtlinien-Flow
-policy_flows_generated_description = Generierter Flow basierend auf einer Richtlinie
+policy_flows_generate_missing_policy = Richtlinie ist nicht verfuegbar
 policy_flows_review_updates = Updates pruefen
 policy_flows_generate_update = Draft-Update generieren
-policy_flows_generating_update = Update wird generiert...
-policy_flows_update_draft_suffix = Update-Entwurf
-policy_flows_update_success = Update-Entwurf erstellt
-policy_flows_update_error = Update-Entwurf konnte nicht generiert werden
 
 # Policy insights
 policy_insights_loading = Signale werden geladen...
@@ -266,24 +255,6 @@ policy_workflows_empty = Es wurden noch keine Workflows fuer diese Richtlinie ge
 policy_workflows_no_user = Melden Sie sich an, um Richtlinien-Workflows anzuzeigen.
 policy_workflows_type_approval = Genehmigung
 policy_workflows_type_acknowledgement = Bestätigung
-
-policy_generate_flow_dialog_title = Flow wird generiert
-policy_generate_flow_choose_title = Flow generieren
-policy_generate_flow_choose_desc = Es gibt bereits verknuepfte Flows. Moechten Sie einen bestehenden aktualisieren oder einen neuen erstellen?
-policy_generate_flow_update_version = Neue Version erstellen (aktuell v{ $version })
-policy_generate_flow_create_new = Neuen Flow erstellen
-policy_generate_flow_create_new_desc = Einen neuen Flow aus dieser Richtlinie generieren
-policy_generate_flow_updated = Flow aktualisiert
-policy_generate_flow_phase_loading = Verknuepfte Flows werden geprueft...
-policy_generate_flow_phase_analyzing = Richtlinieninhalt wird analysiert...
-policy_generate_flow_phase_generating = KI erstellt den Workflow...
-policy_generate_flow_phase_saving = Flow wird gespeichert...
-policy_generate_flow_phase_done = Flow bereit
-policy_generate_flow_phase_error = Generierung fehlgeschlagen
-policy_generate_flow_patience = Dies kann einen Moment dauern
-policy_generate_flow_open_creator = Im Flow Creator oeffnen
-policy_generate_flow_close = Schliessen
-retry = Erneut versuchen
 
 policy_metric_linked_flow = Flow
 policy_metric_linked_flows = Flows

@@ -2,7 +2,6 @@ import type { FabricSessionSummary } from '../../types/fabric'
 import { SidebarRecentItem } from './SidebarRecentItem'
 import { SidebarSectionHeader } from './SidebarSectionHeader'
 import { groupRecentsByDay } from './sessionGrouping'
-import { SIDEBAR_LIST_MAX_HEIGHT_CLASS } from './sidebarLayout.constants'
 import { useSidebarSectionCollapsedState } from './useSidebarSectionCollapsedState'
 
 interface SidebarRecentsSectionProps {
@@ -49,7 +48,7 @@ export const SidebarRecentsSection: React.FC<SidebarRecentsSectionProps> = ({
               {emptyHint ?? 'No sessions yet. Start one from the composer.'}
             </p>
           ) : (
-            <div className={`${SIDEBAR_LIST_MAX_HEIGHT_CLASS} gba:overflow-y-auto gba:overscroll-contain`}>
+            <div>
               {groups.map(group => (
                 <div key={group.label} className="gba:pb-1">
                   <p className="gba:px-3 gba:pt-2 gba:pb-1 gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-[0.08em] gba:text-muted-foreground/70">

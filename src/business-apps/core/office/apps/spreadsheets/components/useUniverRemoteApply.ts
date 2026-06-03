@@ -10,7 +10,13 @@ import {
   CURSOR_OVERLAY_ROW_INDEX_WIDTH_PX
 } from './univerGridLayoutConstants'
 import { areSnapshotDimensionsEqual } from './univerGridSnapshotDimensions'
-import { normalizeClearAllRectangle, type ClearAllRectangle } from './univerGridRangeSelection'
+import {
+  clampClearAllRangeToBounds,
+  dedupeClearAllRanges,
+  normalizeClearAllRectangle,
+  resolveWorksheetGridBounds,
+  type ClearAllRectangle
+} from './univerGridRangeSelection'
 
 type UniverApiLike = {
   getActiveWorkbook?: () => unknown
@@ -65,6 +71,7 @@ const SET_COLS_VISIBLE_COMMAND_ID = 'sheet.command.set-col-visible-on-cols'
 function shouldUseRecordedVisibilityCommand(commandId: string): boolean {
   if (!commandId) return false
   const normalized = commandId.toLowerCase()
+  if (normalized.includes('mutation')) return false
   return !normalized.includes('selected') && !normalized.includes('confirm')
 }
 
@@ -72,6 +79,40 @@ function resolveVisibilityCommandId(commandId: string, axis: VisibilityAxis, hid
   if (shouldUseRecordedVisibilityCommand(commandId)) return commandId
   if (axis === 'row') return hidden ? SET_ROWS_HIDDEN_COMMAND_ID : SET_ROWS_VISIBLE_COMMAND_ID
   return hidden ? SET_COLS_HIDDEN_COMMAND_ID : SET_COLS_VISIBLE_COMMAND_ID
+}
+
+function resolveRemoteVisibilityCommandRanges(
+  axis: VisibilityAxis,
+  simplifiedRanges: VisibilityRange[],
+  params: Record<string, unknown>
+): UniverVisibilityRange[] {
+  const paramsRanges = Array.isArray(params.ranges) ? params.ranges : []
+  const fromParams = paramsRanges
+    .map(range => {
+      if (!range || typeof range !== 'object' || Array.isArray(range)) return null
+      const candidate = range as Record<string, unknown>
+      const startRow = Number(candidate.startRow)
+      const endRow = Number(candidate.endRow)
+      const startColumn = Number(candidate.startColumn)
+      const endColumn = Number(candidate.endColumn)
+      if (
+        !Number.isFinite(startRow) ||
+        !Number.isFinite(endRow) ||
+        !Number.isFinite(startColumn) ||
+        !Number.isFinite(endColumn)
+      ) {
+        return null
+      }
+      return {
+        startRow: Math.max(0, Math.trunc(startRow)),
+        endRow: Math.max(0, Math.trunc(endRow)),
+        startColumn: Math.max(0, Math.trunc(startColumn)),
+        endColumn: Math.max(0, Math.trunc(endColumn))
+      }
+    })
+    .filter((range): range is UniverVisibilityRange => range != null)
+  if (fromParams.length > 0) return fromParams
+  return toUniverVisibilityRanges(axis, simplifiedRanges)
 }
 
 function toUniverVisibilityRanges(axis: VisibilityAxis, ranges: VisibilityRange[]): UniverVisibilityRange[] {
@@ -263,25 +304,20 @@ export function useUniverRemoteApply({
         propsRef.current.multiSheetWorkbookMode === true
       )
       if (!targetWorksheet) return
+      const gridBounds = resolveWorksheetGridBounds(targetWorksheet)
+      const normalizedRanges = dedupeClearAllRanges(
+        payload.ranges
+          .map(range => normalizeClearAllRectangle(range))
+          .filter((range): range is ClearAllRectangle => range != null)
+          .map(range => (gridBounds ? clampClearAllRangeToBounds(range, gridBounds) : range))
+      )
+      if (normalizedRanges.length === 0) return
       const cellValue: Record<string, Record<string, null>> = {}
-      for (const range of payload.ranges) {
-        if (!range || typeof range !== 'object') continue
-        const startRow = Number(range.startRow)
-        const endRow = Number(range.endRow)
-        const startColumn = Number(range.startColumn)
-        const endColumn = Number(range.endColumn)
-        if (
-          !Number.isFinite(startRow) ||
-          !Number.isFinite(endRow) ||
-          !Number.isFinite(startColumn) ||
-          !Number.isFinite(endColumn)
-        ) {
-          continue
-        }
-        const sr = Math.max(0, Math.trunc(startRow))
-        const er = Math.max(sr, Math.trunc(endRow))
-        const sc = Math.max(0, Math.trunc(startColumn))
-        const ec = Math.max(sc, Math.trunc(endColumn))
+      for (const range of normalizedRanges) {
+        const sr = range.startRow
+        const er = range.endRow
+        const sc = range.startColumn
+        const ec = range.endColumn
         for (let r = sr; r <= er; r += 1) {
           const rowKey = String(r)
           const rowMap = cellValue[rowKey] ?? (cellValue[rowKey] = {})
@@ -330,25 +366,20 @@ export function useUniverRemoteApply({
         propsRef.current.multiSheetWorkbookMode === true
       )
       if (!targetWorksheet) return
+      const gridBounds = resolveWorksheetGridBounds(targetWorksheet)
+      const normalizedRanges = dedupeClearAllRanges(
+        payload.ranges
+          .map(range => normalizeClearAllRectangle(range))
+          .filter((range): range is ClearAllRectangle => range != null)
+          .map(range => (gridBounds ? clampClearAllRangeToBounds(range, gridBounds) : range))
+      )
+      if (normalizedRanges.length === 0) return
       const cellValue: Record<string, Record<string, { s: null }>> = {}
-      for (const range of payload.ranges) {
-        if (!range || typeof range !== 'object') continue
-        const startRow = Number(range.startRow)
-        const endRow = Number(range.endRow)
-        const startColumn = Number(range.startColumn)
-        const endColumn = Number(range.endColumn)
-        if (
-          !Number.isFinite(startRow) ||
-          !Number.isFinite(endRow) ||
-          !Number.isFinite(startColumn) ||
-          !Number.isFinite(endColumn)
-        ) {
-          continue
-        }
-        const sr = Math.max(0, Math.trunc(startRow))
-        const er = Math.max(sr, Math.trunc(endRow))
-        const sc = Math.max(0, Math.trunc(startColumn))
-        const ec = Math.max(sc, Math.trunc(endColumn))
+      for (const range of normalizedRanges) {
+        const sr = range.startRow
+        const er = range.endRow
+        const sc = range.startColumn
+        const ec = range.endColumn
         for (let r = sr; r <= er; r += 1) {
           const rowKey = String(r)
           const rowMap = cellValue[rowKey] ?? (cellValue[rowKey] = {})
@@ -434,7 +465,7 @@ export function useUniverRemoteApply({
           }
           const axis: VisibilityAxis = visibilityData.axis === 'row' ? 'row' : 'column'
           const ranges = Array.isArray(visibilityData.ranges) ? visibilityData.ranges : []
-          const commandRanges = toUniverVisibilityRanges(axis, ranges)
+          const commandRanges = resolveRemoteVisibilityCommandRanges(axis, ranges, params)
           if (commandRanges.length > 0 && typeof api.syncExecuteCommand === 'function') {
             api.syncExecuteCommand(resolveVisibilityCommandId(commandId, axis, visibilityData.hidden === true), {
               ...params,

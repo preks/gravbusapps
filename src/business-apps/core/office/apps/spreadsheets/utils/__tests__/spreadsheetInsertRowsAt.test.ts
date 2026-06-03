@@ -33,11 +33,11 @@ describe('mergeInsertedRowsAtIndex', () => {
       { _id: 'row-1', _rowUuid: 'backend-row-1', _gridRowIndex: 0, ColumnA: 'top' },
       { _id: 'client-row-1', _clientRowId: 'client-row-1', _rowUuid: 'backend-row-new-1', _gridRowIndex: 1 },
       { _id: 'client-row-2', _clientRowId: 'client-row-2', _rowUuid: 'backend-row-new-2', _gridRowIndex: 2 },
-      { _id: 'row-2', _rowUuid: 'backend-row-2', _gridRowIndex: 3, ColumnA: 'bottom' }
+      { _id: 'row-2', _rowUuid: 'backend-row-2', _gridRowIndex: 1, ColumnA: 'bottom' }
     ])
   })
 
-  it('reindexes every row after insert even when a row has no canonical id', () => {
+  it('preserves canonical _gridRowIndex values instead of array reindexing', () => {
     const rows = [
       { _id: 'row-1', _rowUuid: 'backend-row-1', _gridRowIndex: 0, ColumnA: 'top' },
       { ColumnA: 'blank spacer', _gridRowIndex: 8 },
@@ -49,8 +49,8 @@ describe('mergeInsertedRowsAtIndex', () => {
     expect(merged).toEqual([
       { _id: 'row-1', _rowUuid: 'backend-row-1', _gridRowIndex: 0, ColumnA: 'top' },
       { _id: 'client-row-1', _gridRowIndex: 1 },
-      { ColumnA: 'blank spacer', _gridRowIndex: 2 },
-      { _id: 'row-2', _rowUuid: 'backend-row-2', _gridRowIndex: 3, ColumnA: 'bottom' }
+      { ColumnA: 'blank spacer', _gridRowIndex: 8 },
+      { _id: 'row-2', _rowUuid: 'backend-row-2', _gridRowIndex: 1, ColumnA: 'bottom' }
     ])
   })
 })

@@ -22,9 +22,9 @@ jest.mock('@/common/components/markdown/StreamingMarkdown', () => ({
   }
 }))
 
-jest.mock('./ElegantStatusIndicator', () => ({
+jest.mock('./AgentActivityTimeline', () => ({
   __esModule: true,
-  ElegantStatusIndicator: () => <div data-testid="elegant-status-indicator" />
+  AgentActivityTimeline: () => <div data-testid="agent-activity-timeline" />
 }))
 
 jest.mock('./AgentThinkingStream', () => ({

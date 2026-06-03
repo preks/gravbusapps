@@ -44,7 +44,7 @@ const getEmptyStateMessage = (existingActionIds: readonly string[], searchValue:
 interface AddActionDialogProps extends BusinessAppContextProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onAddActions: (actionPermissions: Map<string, string>) => Promise<void>
+  onAddActions: (actionPermissions: Map<string, string>, selectedActions: ActionDTO[]) => Promise<void>
   existingActionIds: string[]
   'data-testid'?: string
 }
@@ -215,7 +215,8 @@ export const AddActionDialog: React.FC<AddActionDialogProps> = ({
       selectedActionIds.forEach(actionId => {
         permissionsMap.set(actionId, actionPermissions.get(actionId) || 'execute')
       })
-      await onAddActions(permissionsMap)
+      const selectedActions = actions.filter(item => selectedActionIds.has(item.action.id)).map(item => item.action)
+      await onAddActions(permissionsMap, selectedActions)
       onOpenChange(false)
     } catch (error) {
       console.error('Error adding actions:', error)

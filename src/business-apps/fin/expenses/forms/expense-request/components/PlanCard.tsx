@@ -1,7 +1,7 @@
 import React from 'react'
 import { Card, CardContent } from '@newwork/nw-design-system'
 import { formatDate } from '@/common/utils/windowUtils'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useExpenseRequestCreationTranslation } from '../../expense-request-creation/useExpenseRequestCreationTranslation'
 import { ICONS } from '../../../utils/icons'
 import { PLAN_TYPE_ENUM, DEFAULT_PLAN_CURRENCY_CODE } from '../constants/constants'
 
@@ -27,14 +27,13 @@ interface PlanCardProps {
  * PlanCard component to display expense plan information in a card
  */
 const PlanCard: React.FC<PlanCardProps> = ({ plan, onClick, selectable = true }) => {
+  const { t } = useExpenseRequestCreationTranslation()
   const { planType, title, creationDate, tripInterval, paymentAmount, paymentCurrency, planAmount, planCurrency } = plan
 
-  const formattedCreationDate = creationDate
-    ? formatDate(creationDate, 'date.long')
-    : getTranslationFromI18nKeyAndLabel('lowcoder:expense_summary_request.no_creation_date', 'No creation date')
+  const formattedCreationDate = creationDate ? formatDate(creationDate, 'date.long') : t('no-creation-date')
 
   const iconPath = planType === PLAN_TYPE_ENUM.TRIP ? ICONS.TRIP_ICON : ICONS.RECEIPT_ICON
-  const iconTitle = planType === PLAN_TYPE_ENUM.TRIP ? 'Trip' : 'Expense'
+  const iconTitle = planType === PLAN_TYPE_ENUM.TRIP ? t('trip-select-button') : t('expense-select-button')
 
   const handleClick = () => {
     if (selectable && onClick) {
@@ -87,7 +86,7 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, onClick, selectable = true })
             data-testid="plan-card-title-container"
           >
             <span style={{ fontSize: '18px', fontWeight: 500 }} data-testid="plan-card-title">
-              {title || getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.no_title', 'No Title')}
+              {title || t('no-title')}
             </span>
             {tripInterval && (
               <span
@@ -114,8 +113,7 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, onClick, selectable = true })
               }}
               data-testid="plan-card-creation-date"
             >
-              {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.created', 'Created')}:{' '}
-              {formattedCreationDate}
+              {t('plan-card-created')}: {formattedCreationDate}
             </span>
 
             {paymentAmount ? (

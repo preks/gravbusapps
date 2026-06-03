@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type Ref } from 'react'
 import { ArrowCounterClockwiseIcon } from '@phosphor-icons/react'
 import type { ArtifactFile } from '../../../types/fabric'
-import { AutoHeightHtmlIframe, isTimelineHtmlArtifact } from '../AutoHeightHtmlIframe'
+import { AutoHeightHtmlIframe, shouldUseAutoHeightHtmlViewer } from '../AutoHeightHtmlIframe'
 import CodeArtifact from './CodeArtifact'
 
 export interface HtmlArtifactProps {
@@ -54,13 +54,15 @@ const HtmlArtifact: React.FC<HtmlArtifactProps> = ({ file, content, viewMode, if
     return <CodeArtifact file={file} content={content} viewMode={viewMode} language="html" />
   }
 
-  if (isTimelineHtmlArtifact(file.name)) {
+  // All .html uses auto-height (matches chat + live preview) except hyperframe/cinema denylist.
+  if (shouldUseAutoHeightHtmlViewer(file.name)) {
     return (
-      <div className="gba:w-full gba:overflow-hidden gba:bg-white gba:p-2" data-testid="fabric-html-artifact">
+      <div className="gba:w-full gba:min-h-full gba:bg-white gba:p-2" data-testid="fabric-html-artifact">
         <AutoHeightHtmlIframe
           src={file.downloadUrl}
           title={file.name}
           iframeRef={setIframeRef}
+          variant="modal"
           className="gba:bg-white"
           data-testid="fabric-html-iframe"
         />

@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, ReactNode } from 'react'
 import { Form } from 'antd'
-import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { showToast } from '../../../utils/notificationUtils'
 import {
@@ -16,6 +16,10 @@ import {
 } from '../ExpenseRequestWizardQueries'
 import { toSortedCacheKey } from '../utils/cacheKeyUtils'
 import { handleTripSubmitAction } from '../utils/tripScreenUtils'
+import type {
+  ExpenseRequestWizardTranslateFn,
+  ExpenseRequestWizardTranslationVars
+} from '../expenseRequestWizardTranslateTypes'
 import { LocationData } from '../utils/types'
 import { getCurrencyWithFallback } from '../utils/currencyUtils'
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
@@ -46,11 +50,17 @@ export interface ExpenseRequestWizardContextProps {
     expenseRulesData: any,
     event: string,
     overnightAccommodation?: boolean,
-    overrideEmployeeRuleId?: string
+    overrideEmployeeRuleId?: string,
+    t?: ExpenseRequestWizardTranslateFn
   ) => boolean
   showExpenseItem: boolean
   setShowExpenseItem: (show: boolean) => void
-  expenseItemParams: { expenseRequestId?: string; itemCurrency?: string; useSingleCurrency?: boolean; psi_taskPayload?: { psi_initialParameters?: { expenseId?: string } } }
+  expenseItemParams: {
+    expenseRequestId?: string
+    itemCurrency?: string
+    useSingleCurrency?: boolean
+    psi_taskPayload?: { psi_initialParameters?: { expenseId?: string } }
+  }
   setExpenseItemParams: (params: {
     expenseRequestId?: string
     itemCurrency?: string
@@ -103,6 +113,7 @@ export interface ExpenseRequestWizardContextProps {
     requestVersion?: number
     activeUserLocale?: string
   }) => Promise<any>
+  registerWizardTranslate: (translate: ExpenseRequestWizardTranslateFn) => void
 }
 
 /**
@@ -131,6 +142,30 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
   userInfo,
   additionalData
 }) => {
+  const translateRef = useRef<ExpenseRequestWizardTranslateFn | null>(null)
+  const registerWizardTranslate = useCallback((translate: ExpenseRequestWizardTranslateFn) => {
+    translateRef.current = translate
+  }, [])
+  const wizardT = useCallback<ExpenseRequestWizardTranslateFn>(
+    (key: string, second?: string | ExpenseRequestWizardTranslationVars) => {
+      const translate = translateRef.current
+      if (translate) {
+        if (typeof second === 'string') {
+          return translate(key, second)
+        }
+        if (second !== undefined) {
+          return translate(key, second)
+        }
+        return translate(key)
+      }
+      if (typeof second === 'string') {
+        return second
+      }
+      return key
+    },
+    []
+  )
+
   const [form] = Form.useForm()
   const [loading, setLoading] = useState<boolean>(true)
   const [employeeRuleId, setEmployeeRuleId] = useState<string | null>(null)
@@ -292,13 +327,7 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
       // Extract expenseId from additionalData
       const expenseId = additionalData?.psi_taskPayload?.expenseRequest?.id
       if (!expenseId) {
-        showToast(
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:create_expense_request_wizard.missing_expense_id',
-            'Missing expense ID'
-          ),
-          'error'
-        )
+        showToast(wizardT('wizard-missing-expense-id', 'Missing expense ID'), 'error')
         setLoading(false)
         return
       }
@@ -306,13 +335,7 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
       // Get employee ID
       const employeeId = userInfo?.employeeDetails?.employeeId
       if (!employeeId) {
-        showToast(
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:create_expense_request_wizard.missing_employee_id',
-            'Missing employee ID'
-          ),
-          'error'
-        )
+        showToast(wizardT('missing-employee-id'), 'error')
         setLoading(false)
         return
       }
@@ -351,13 +374,7 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
       const refreshedCurrencyId = response?.ExpenseRequestByPk?.currency?.id || null
       setCurrentCurrency(refreshedCurrencyId)
     } catch {
-      showToast(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:modify_expense_request.error_fetching_expense_data',
-          'Error fetching expense data'
-        ),
-        'error'
-      )
+      showToast(wizardT('error-fetching-expense-data'), 'error')
     } finally {
       setLoading(false)
     }
@@ -370,13 +387,7 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
 
         const employeeId = userInfo?.employeeDetails?.employeeId
         if (!employeeId) {
-          showToast(
-            getTranslationFromI18nKeyAndLabel(
-              'lowcoder:create_expense_request_wizard.missing_employee_id',
-              'Missing employee ID'
-            ),
-            'error'
-          )
+          showToast(wizardT('missing-employee-id'), 'error')
           setLoading(false)
           return
         }
@@ -384,40 +395,18 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
         // Get current date
         const currentDate = new Date().toISOString()
 
-        const employeeRuleData = await fetchEmployeeRule(employeeId, currentDate, accessToken)
+        const employeeRuleData = await fetchEmployeeRule(employeeId, currentDate, accessToken, wizardT)
 
         if (employeeRuleData && employeeRuleData.expenseRuleId) {
           setEmployeeRuleId(employeeRuleData.expenseRuleId)
           setExpenseRuleError(null)
         } else {
-          setExpenseRuleError(
-            getTranslationFromI18nKeyAndLabel(
-              'lowcoder:create_expense_request.missing_expense_rule_message',
-              'No expense rule found for this employee'
-            )
-          )
-          showToast(
-            getTranslationFromI18nKeyAndLabel(
-              'lowcoder:create_expense_request.missing_expense_rule_message',
-              'No expense rule found for this employee'
-            ),
-            'error'
-          )
+          setExpenseRuleError(wizardT('missing-expense-rule-message'))
+          showToast(wizardT('missing-expense-rule-message'), 'error')
         }
       } catch {
-        setExpenseRuleError(
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:create_expense_request.error_employee_rule',
-            'Error fetching employee expense rule'
-          )
-        )
-        showToast(
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:create_expense_request.error_employee_rule',
-            'Error fetching employee expense rule'
-          ),
-          'error'
-        )
+        setExpenseRuleError(wizardT('wizard-error-employee-rule'))
+        showToast(wizardT('wizard-error-employee-rule'), 'error')
       } finally {
         setLoading(false)
       }
@@ -444,7 +433,8 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
     expenseRulesData: any,
     event: string,
     overnightAccommodation?: boolean,
-    overrideEmployeeRuleId?: string
+    overrideEmployeeRuleId?: string,
+    t?: ExpenseRequestWizardTranslateFn
   ): boolean => {
     const ruleIdToUse = overrideEmployeeRuleId ?? employeeRuleId ?? ''
     if (overrideEmployeeRuleId) {
@@ -465,7 +455,8 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
       determinedCurrency,
       event,
       overnightAccommodation,
-      dispatchProcessContinueEventIfEnabled
+      dispatchProcessContinueEventIfEnabled,
+      t
     )
   }
 
@@ -571,7 +562,8 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
       getTravelRegionsAndUserCached,
       getUserCostCentersCached,
       getUserProjectsCached,
-      getAllowanceDataCached
+      getAllowanceDataCached,
+      registerWizardTranslate
     }),
     [
       loading,
@@ -590,7 +582,8 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
       payloadItemsLoaded,
       payloadItemIds,
       showSelectItems,
-      fetchExpenseData
+      fetchExpenseData,
+      registerWizardTranslate
     ]
   )
 

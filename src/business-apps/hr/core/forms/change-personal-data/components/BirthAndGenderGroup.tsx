@@ -11,11 +11,13 @@ import {
   SelectTrigger,
   SelectValue,
   SelectContent,
-  SelectItem
+  SelectItem,
+  useTranslation
 } from '@newwork/nw-design-system'
 import type { Control } from 'react-hook-form'
 import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { PersonalDataFormValues, CatalogEntry } from '../types'
+import translations from '../../../apps/employee-record/_i18n'
 
 export interface BirthAndGenderGroupProps {
   control: Control<PersonalDataFormValues>
@@ -23,6 +25,7 @@ export interface BirthAndGenderGroupProps {
 }
 
 const BirthAndGenderGroup: React.FC<BirthAndGenderGroupProps> = ({ control, catalogs }) => {
+  const { t } = useTranslation(translations)
   const placeholderSelect = getTranslationFromI18nKeyAndLabel(
     'lowcoder:employee_profile.details_layout.personal_information_container.select_placeholder',
     'Please Select'
@@ -98,10 +101,7 @@ const BirthAndGenderGroup: React.FC<BirthAndGenderGroupProps> = ({ control, cata
         render={({ field }) => (
           <FormItem>
             <FormLabel data-testid="change-personal-data-birth-place-label">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:employee_profile.details_layout.personal_information_container.place_of_birth',
-                'Place of Birth'
-              )}
+              {t('details-label-place-of-birth')}
             </FormLabel>
             <FormControl>
               <Input

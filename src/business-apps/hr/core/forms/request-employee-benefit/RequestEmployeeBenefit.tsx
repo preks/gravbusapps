@@ -1,13 +1,12 @@
 'use client'
 
-import React, { useMemo } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 import {
   Label,
   Input,
   Textarea,
   useTranslation,
   LocalizationProvider,
-  type SupportedLocale,
   Alert,
   AlertTitle,
   AlertDescription,
@@ -26,6 +25,8 @@ import { useTaskCancellation } from '../../hooks/useTaskCancellation'
 import { useRequestEmployeeBenefitForm } from './useRequestEmployeeBenefitForm'
 import { BENEFIT_FORM_VALIDATION } from '@/business-apps/hr/core/apps/employee-record/components/tabs/compensation/constants/benefitFormValidation'
 
+type SupportedLocale = 'en-US' | 'de-DE' | 'ro-RO'
+
 /**
  * Form for requesting a new employee benefit.
  * Allows employee to select provider, specify value, start date, and provide justification.
@@ -39,6 +40,8 @@ const RequestEmployeeBenefitContent: React.FC<BusinessAppContextProps> = ({ addi
   const { data, isLoading, error, refetch } = useRequestEmployeeBenefit()
   const { t } = useTranslation(translations)
   const locale = getCurrentActiveUserLocale()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submittedBenefitValueDisplay, setSubmittedBenefitValueDisplay] = useState<string | null>(null)
 
   const {
     employeeProfile,
@@ -64,14 +67,28 @@ const RequestEmployeeBenefitContent: React.FC<BusinessAppContextProps> = ({ addi
 
   const title = useMemo(() => t('modal-request-title'), [t])
 
+  const handleSubmit = useCallback(() => {
+    setIsSubmitting(true)
+    setSubmittedBenefitValueDisplay(includedDisplayWithCurrency)
+    return buildSubmitPayload({ markAsSubmitted })
+  }, [buildSubmitPayload, includedDisplayWithCurrency, markAsSubmitted])
+
+  const handleProcessCompletion = useCallback((detail: { resolution?: 'success' | 'failure' } | null) => {
+    if (detail?.resolution !== 'success') {
+      setIsSubmitting(false)
+      setSubmittedBenefitValueDisplay(null)
+    }
+  }, [])
+
   // Get translated benefit type
   const translatedBenefitType = useMemo(
     () => (selectedBenefit ? getTranslatedBenefitType(selectedBenefit, locale) : '-'),
     [selectedBenefit, locale]
   )
+  const benefitValueDisplay = submittedBenefitValueDisplay ?? includedDisplayWithCurrency
 
   // Show loading state while data is being fetched
-  if (isLoading) {
+  if (isLoading && !isSubmitting) {
     return (
       <div
         className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full gba:max-w-[800px] gba:min-h-[400px] gba:items-center gba:justify-center"
@@ -131,7 +148,8 @@ const RequestEmployeeBenefitContent: React.FC<BusinessAppContextProps> = ({ addi
           processType="create"
           formData={{}}
           validateForm={validateForm}
-          onSubmit={() => buildSubmitPayload({ markAsSubmitted })}
+          onSubmit={handleSubmit}
+          onProcessCompletion={handleProcessCompletion}
           submitEventType="pse_submit"
           cancelEventType="pse_abort"
           cancelButtonText={t('modal-request-cancel-button')}
@@ -179,7 +197,7 @@ const RequestEmployeeBenefitContent: React.FC<BusinessAppContextProps> = ({ addi
                 className="gba:w-full gba:rounded-md gba:border gba:border-border gba:bg-muted gba:px-3 gba:py-2 gba:text-sm"
                 data-testid="request-employee-benefit-included-value-display"
               >
-                {includedDisplayWithCurrency}
+                {benefitValueDisplay}
               </div>
             </div>
 

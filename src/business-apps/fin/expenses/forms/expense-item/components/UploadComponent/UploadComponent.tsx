@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, Button as DSButton } 
 import { PaperclipIcon } from '@phosphor-icons/react'
 import { ICONS } from '@/business-apps/fin/expenses/utils/icons'
 import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useExpenseItemTranslation } from '../../useExpenseItemTranslation'
 import { ACCEPTED_FILE_TYPES, isAllowedFileType, createUploadFileItem } from './uploadUtils'
 import { useReceiptPreview } from './useReceiptPreview'
 
@@ -18,8 +18,7 @@ interface UploadComponentProps {
 export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setFileList }) => {
   const { currentStep, handleFileUpload, isProcessingFiles } = useExpenseItem()
   const receiptPreview = useReceiptPreview(fileList)
-
-  const t = getTranslationFromI18nKeyAndLabel
+  const { t } = useExpenseItemTranslation()
   const [isHandlingUpload, setIsHandlingUpload] = useState<boolean>(false)
   const [showProcessing, setShowProcessing] = useState<boolean>(false)
   const [pendingFiles, setPendingFiles] = useState<File[]>([])
@@ -46,13 +45,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
   const validateFileType = (file: File) => {
     const valid = isAllowedFileType(file)
     if (!valid) {
-      showToast(
-        t(
-          'lowcoder:create_expense_type_item.error_file_type_message',
-          'File type not supported. Please upload PDF, JPG, JPEG, or PNG files only.'
-        ),
-        'error'
-      )
+      showToast(t('expense-item-error-file-type'), 'error')
     }
     return valid
   }
@@ -157,28 +150,20 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
                 height="36"
                 data-testid="upload-loading-icon"
               />
-              <span>
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:create_expense_type_item.processing_receipt',
-                  'Processing the receipt...'
-                )}
-              </span>
+              <span>{t('expense-item-processing-receipt')}</span>
             </>
           ) : (
             <>
               <img
                 src={ICONS.FOCUS}
-                alt={getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.focus_alt_text', 'Focus')}
+                alt={t('expense-item-focus-alt', 'Focus')}
                 style={{ width: '36px', height: '36px' }}
                 width="36"
                 height="36"
                 data-testid="upload-icon-large"
               />
-              <span className="gba:font-medium gba:text-black" data-testid="attach-receipt-text-start">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:create_expense_type_item.attach_receipt',
-                  'Attach Receipt'
-                )}
+              <span className="gba:font-medium gba:text-foreground" data-testid="attach-receipt-text-start">
+                {t('expense-item-attach-receipt', 'Attach Receipt')}
               </span>
             </>
           )}
@@ -208,16 +193,16 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
                 style={{ width: '18px', height: '18px' }}
                 data-testid="upload-loading-icon-small"
               />
-              <span>{t('lowcoder:create_expense_type_item.processing', 'Processing...')}</span>
+              <span>{t('expense-item-processing')}</span>
             </>
           ) : (
             <>
-              <span className="gba:font-medium gba:text-black" data-testid="attach-receipt-text-form">
-                {t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}
+              <span className="gba:font-medium gba:text-foreground" data-testid="attach-receipt-text-form">
+                {t('expense-item-attach-receipt', 'Attach Receipt')}
               </span>
               <img
                 src={ICONS.FOCUS}
-                alt={t('lowcoder:create_expense_type_item.focus_alt_text', 'Focus')}
+                alt={t('expense-item-focus-alt', 'Focus')}
                 style={{ width: '18px', height: '18px' }}
                 data-testid="upload-icon-small"
               />
@@ -316,7 +301,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
                 className="gba:flex gba:items-center gba:gap-2 gba:font-medium gba:text-foreground"
               >
                 <PaperclipIcon size={18} />
-                {t('lowcoder:expense.item.receiptPreview', 'Preview receipt')}
+                {t('expense-item-receipt-preview')}
               </DSButton>
             )}
             <Upload
@@ -334,12 +319,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
               >
                 {isProcessingFiles ? (
                   <>
-                    <span data-testid="processing-text">
-                      {t(
-                        'lowcoder:create_expense_item.change_expense_item_container.file_add_document_processing',
-                        'Processing the receipt...'
-                      )}
-                    </span>
+                    <span data-testid="processing-text">{t('expense-item-processing-receipt')}</span>
                     <img
                       src={ICONS.SPINNER_ICON}
                       alt="Loading"
@@ -349,12 +329,12 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
                   </>
                 ) : (
                   <>
-                    <span className="gba:font-medium gba:text-black" data-testid="attach-receipt-text">
-                      {t('lowcoder:create_expense_type_item.attach_receipt', 'Attach Receipt')}
+                    <span className="gba:font-medium gba:text-foreground" data-testid="attach-receipt-text">
+                      {t('expense-item-attach-receipt', 'Attach Receipt')}
                     </span>
                     <img
                       src={ICONS.FOCUS}
-                      alt={t('lowcoder:create_expense_type_item.focus_alt_text', 'Focus')}
+                      alt={t('expense-item-focus-alt', 'Focus')}
                       style={{ width: '18px', height: '18px' }}
                       data-testid="attach-receipt-icon"
                     />
@@ -368,7 +348,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
 
       {isModalVisible && (
         <Modal
-          title={t('lowcoder:create_expense_type_item.attach_additional_files', 'Attach Additional Files')}
+          title={t('expense-item-attach-additional-files')}
           open={true}
           onCancel={() => {
             setIsModalVisible(false)
@@ -387,10 +367,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
               style={{ marginBottom: '24px', fontSize: '16px', color: 'foreground', textAlign: 'center' }}
               data-testid="modal-message"
             >
-              {t(
-                'lowcoder:create_expense_type_item.upload_file_modal_message',
-                'Do you want to keep the current file as well?'
-              )}
+              {t('expense-item-upload-modal-message')}
             </p>
             <div style={{ display: 'flex', justifyContent: 'center', gap: '16px' }} data-testid="modal-buttons">
               <Button
@@ -399,7 +376,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
                 data-testid="modal-no-button"
                 className="gba:min-w-[120px]"
               >
-                {t('lowcoder:create_expense_type_item.cancel_button_modal', 'No')}
+                {t('expense-item-modal-no')}
               </Button>
               <Button
                 variant="primary"
@@ -407,7 +384,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
                 data-testid="modal-yes-button"
                 className="gba:min-w-[120px]"
               >
-                {t('lowcoder:create_expense_type_item.confirm_button_modal', 'Yes')}
+                {t('expense-item-modal-yes')}
               </Button>
             </div>
           </div>
@@ -417,9 +394,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
       <Dialog open={receiptPreview.previewOpen} onOpenChange={open => !open && receiptPreview.closeImagePreview()}>
         <DialogContent className="gba:max-w-[90vw] gba:max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle>
-              {getTranslationFromI18nKeyAndLabel('lowcoder:expense.item.imagePreview', 'Image Preview')}
-            </DialogTitle>
+            <DialogTitle>{t('expense-item-image-preview')}</DialogTitle>
           </DialogHeader>
           <div className="gba:mt-4 gba:flex gba:justify-center">
             <img
@@ -435,9 +410,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
       <Dialog open={receiptPreview.pdfPreviewOpen} onOpenChange={open => !open && receiptPreview.closePdfPreview()}>
         <DialogContent className="gba:max-w-[90vw] gba:max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle>
-              {getTranslationFromI18nKeyAndLabel('lowcoder:expense.item.pdfPreview', 'PDF Preview')}
-            </DialogTitle>
+            <DialogTitle>{t('expense-item-pdf-preview')}</DialogTitle>
           </DialogHeader>
           <div className="gba:mt-4">
             <iframe

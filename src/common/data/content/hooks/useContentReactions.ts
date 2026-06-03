@@ -4,7 +4,7 @@
  */
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { buildContentReactionsQuery } from '../queries/contentQueries'
+import { buildContentReactionsQuery, buildContentReactionsVariables } from '../queries/contentQueries'
 import type { ContentEntryReaction, ReactionAggregation } from '../types/contentEntryTypes'
 import type { ContentReactionQueryParams } from '../queries/contentQueries'
 
@@ -74,7 +74,8 @@ export const useContentReactions = (
 
     try {
       const query = buildContentReactionsQuery(params)
-      const response = await graphqlClient.request<ContentReactionsResponse>(query)
+      const variables = buildContentReactionsVariables(params)
+      const response = await graphqlClient.request<ContentReactionsResponse>(query, variables)
 
       if (response.ContentEntryReaction) {
         setReactions(response.ContentEntryReaction)
@@ -96,7 +97,7 @@ export const useContentReactions = (
     } finally {
       setIsLoading(false)
     }
-  }, [params, accessToken])
+  }, [params, graphqlClient])
 
   useEffect(() => {
     fetchReactions()

@@ -1,7 +1,7 @@
 import type { SpreadsheetColumn } from '../types'
 import type { SpreadsheetPendingCellChange as CellChange } from '../core'
+import { normalizeUniverCellForRowPersistence } from '../core'
 import { getCanonicalRowId, getClientRowIdentity } from './spreadsheetRowIdentity'
-import { getKnownCellValueCount } from '../core'
 import {
   mergeAuthoritativeViewerRowsIntoWorkbookSnapshot,
   stripWorkbookSnapshotValuesPreservingFormatting
@@ -9,6 +9,7 @@ import {
 import { getFiniteNonNegativeGridRowIndex } from './spreadsheetPeerRowHydration'
 import { shouldSkipFreshRowCellReplay } from './spreadsheetPendingCells'
 import type { SnapshotCellCoordinate } from '../core'
+import { mergeRemoteColumnAdd, mergeRemoteColumnDelete } from './spreadsheetColumnGridIndex'
 
 export type ViewerRow = Record<string, unknown>
 
@@ -18,33 +19,63 @@ export const isUuidString = (value: string): boolean => UUID_RE.test(value)
 
 export const viewerRowId = (row: Record<string, unknown>): string => getCanonicalRowId(row)
 
-/** Cap for splitting batched clear-cell ops into individual ops when flushing to backend. */
-export const MAX_INDIVIDUAL_CLEAR_CELL_OPS = 200
+const getDurableRowIdentity = (row: Record<string, unknown>): string => {
+  const explicit = row._rowUuid ?? row.UUID ?? row.uuid
+  if (typeof explicit === 'string' && explicit) return explicit
+  const canonical = getCanonicalRowId(row)
+  return isUuidString(canonical) ? canonical : ''
+}
+
+const getMergeableGridRowIndex = (row: Record<string, unknown>): number | undefined =>
+  getDurableRowIdentity(row) ? getFiniteNonNegativeGridRowIndex(row) : undefined
+
+/** Later duplicate in iteration order wins per field (server / authoritative row). */
+export const mergeDuplicateRowsPreferIncoming = <T extends Record<string, unknown>>(existing: T, incoming: T): T =>
+  ({ ...existing, ...incoming }) as T
 
 export const mergeDuplicateClientRows = <T extends Record<string, unknown>>(rows: T[]): T[] => {
   const mergedByClientId = new Map<string, T>()
+  const mergedByDurableId = new Map<string, T>()
+  const mergedByGridRowIndex = new Map<number, T>()
   const output: T[] = []
+
+  const remember = (row: T): void => {
+    const clientRowId = getClientRowIdentity(row)
+    if (clientRowId) mergedByClientId.set(clientRowId, row)
+    const durableId = getDurableRowIdentity(row)
+    if (durableId) mergedByDurableId.set(durableId, row)
+    const gridRowIndex = getMergeableGridRowIndex(row)
+    if (gridRowIndex !== undefined) mergedByGridRowIndex.set(gridRowIndex, row)
+  }
+
+  const replaceOutputRow = (existing: T, merged: T): void => {
+    const existingIndex = output.indexOf(existing)
+    if (existingIndex >= 0) output[existingIndex] = merged
+  }
 
   for (const row of rows) {
     const clientRowId = getClientRowIdentity(row)
-    if (!clientRowId) {
-      output.push(row)
-      continue
-    }
+    const durableId = getDurableRowIdentity(row)
+    const gridRowIndex = getMergeableGridRowIndex(row)
+    const existing =
+      (durableId ? mergedByDurableId.get(durableId) : undefined) ??
+      (gridRowIndex !== undefined ? mergedByGridRowIndex.get(gridRowIndex) : undefined) ??
+      (clientRowId ? mergedByClientId.get(clientRowId) : undefined)
 
-    const existing = mergedByClientId.get(clientRowId)
     if (!existing) {
-      mergedByClientId.set(clientRowId, row)
+      remember(row)
       output.push(row)
       continue
     }
 
-    const existingCount = getKnownCellValueCount(existing)
-    const nextCount = getKnownCellValueCount(row)
-    const merged = (nextCount >= existingCount ? { ...existing, ...row } : { ...row, ...existing }) as T
-    const existingIndex = output.indexOf(existing)
-    if (existingIndex >= 0) output[existingIndex] = merged
-    mergedByClientId.set(clientRowId, merged)
+    const merged = mergeDuplicateRowsPreferIncoming(existing, row)
+    replaceOutputRow(existing, merged)
+    remember(merged)
+    const existingClientRowId = getClientRowIdentity(existing)
+    if (existingClientRowId) mergedByClientId.set(existingClientRowId, merged)
+    if (clientRowId) mergedByClientId.set(clientRowId, merged)
+    if (durableId) mergedByDurableId.set(durableId, merged)
+    if (gridRowIndex !== undefined) mergedByGridRowIndex.set(gridRowIndex, merged)
   }
 
   return output
@@ -70,6 +101,7 @@ export const applyRemoteColumnUpdate = (
   columns: SpreadsheetColumn[],
   payload: {
     columnId?: string
+    column?: SpreadsheetColumn
     columnPatch?: Partial<SpreadsheetColumn>
     label?: string
     columns?: SpreadsheetColumn[]
@@ -77,6 +109,14 @@ export const applyRemoteColumnUpdate = (
 ): SpreadsheetColumn[] | null => {
   if (Array.isArray(payload.columns) && payload.columns.length > 0) {
     return payload.columns
+  }
+  if (payload.column && typeof payload.column.id === 'string') {
+    return mergeRemoteColumnAdd(columns, payload.column)
+  }
+  if (payload.columnId && !payload.columnPatch && payload.label == null) {
+    const nextColumns = mergeRemoteColumnDelete(columns, payload.columnId)
+    if (nextColumns.length === columns.length) return null
+    return nextColumns
   }
   if (!payload.columnId) return null
   const nextPatch: Partial<SpreadsheetColumn> = { ...(payload.columnPatch ?? {}) }
@@ -159,7 +199,7 @@ export const partitionCellUpdatesByBackendRowId = (
 
 export const buildAddRowPayloadsFromUniverRows = (
   rows: Array<Record<string, unknown>>,
-  columns: SpreadsheetColumn[]
+  columns: SpreadsheetColumn[] = []
 ): Array<Record<string, unknown>> =>
   mergeDuplicateClientRows(rows).map(row => {
     const payload: Record<string, unknown> = {}
@@ -167,9 +207,17 @@ export const buildAddRowPayloadsFromUniverRows = (
     if (clientRowId) payload._clientRowId = clientRowId
     const gridRowIndex = getFiniteNonNegativeGridRowIndex(row)
     if (gridRowIndex !== undefined) payload._gridRowIndex = gridRowIndex
-    columns.forEach(col => {
+    ;(columns ?? []).forEach(col => {
       const value = row[col.name]
-      if (value !== undefined) payload[col.name] = value
+      if (value === undefined) return
+      const normalized = normalizeUniverCellForRowPersistence(value, col)
+      if (normalized !== undefined) {
+        payload[col.name] = normalized
+        return
+      }
+      if (typeof value !== 'object' || value === null) {
+        payload[col.name] = value
+      }
     })
     return payload
   })
@@ -177,35 +225,34 @@ export const buildAddRowPayloadsFromUniverRows = (
 export const buildCreatedRowsFromBatch = (
   rowPayloads: Array<Record<string, unknown>>,
   returnedRows: Array<Record<string, unknown>>,
-  pendingUpdates: Map<string, Record<string, unknown>>
+  pendingUpdates: Map<string, Record<string, unknown>>,
+  options?: {
+    rowMappings?: SpreadsheetBatchRowMapping[]
+  }
 ): {
   createdRows: Array<Record<string, unknown>>
   flushCells: Array<{ rowId: string; columnName: string; value: unknown }>
   persistedIdByClientRowId: Map<string, string>
 } => {
   const flushCells: Array<{ rowId: string; columnName: string; value: unknown }> = []
-  const persistedIdByClientRowId = new Map<string, string>()
-  returnedRows.forEach(entry => {
-    const persistedId = entry.id
-    if (typeof persistedId !== 'string' || !persistedId) return
-    const data = entry.data
-    if (!data || typeof data !== 'object') return
-    const clientRowId = (data as Record<string, unknown>)._clientRowId
-    if (typeof clientRowId === 'string' && clientRowId) {
-      persistedIdByClientRowId.set(clientRowId, persistedId)
-    }
-  })
+  const persistedIdByClientRowId = buildPersistedRowIdMapFromBatchRows(returnedRows)
+  appendRowMappingsToPersistedIdMap(persistedIdByClientRowId, options?.rowMappings)
   const createdRows = rowPayloads.map((rowPayload, index) => {
     const clientRowId = String(rowPayload._clientRowId || '')
+    const returnedRow = returnedRows[index]
+    const returnedRowData =
+      returnedRow?.data && typeof returnedRow.data === 'object' && !Array.isArray(returnedRow.data)
+        ? (returnedRow.data as Record<string, unknown>)
+        : {}
     const persistedId =
-      (clientRowId ? persistedIdByClientRowId.get(clientRowId) : undefined) ??
-      (returnedRows[index]?.id as string | undefined)
+      (clientRowId ? persistedIdByClientRowId.get(clientRowId) : undefined) ?? (returnedRow?.id as string | undefined)
     const pending = clientRowId ? pendingUpdates.get(clientRowId) : undefined
     const reconciledPending: Record<string, unknown> = {}
+    const authoritativeSeed = { ...rowPayload, ...returnedRowData }
     if (clientRowId && pending) {
       pendingUpdates.delete(clientRowId)
       for (const [columnName, value] of Object.entries(pending)) {
-        if (shouldSkipFreshRowCellReplay(rowPayload[columnName], value)) {
+        if (shouldSkipFreshRowCellReplay(authoritativeSeed[columnName], value)) {
           continue
         }
         reconciledPending[columnName] = value
@@ -214,7 +261,8 @@ export const buildCreatedRowsFromBatch = (
         }
       }
     }
-    const merged = Object.keys(reconciledPending).length > 0 ? { ...rowPayload, ...reconciledPending } : rowPayload
+    const merged =
+      Object.keys(reconciledPending).length > 0 ? { ...authoritativeSeed, ...reconciledPending } : authoritativeSeed
     return {
       ...merged,
       _id: persistedId || clientRowId || `temp_${index}`,
@@ -223,6 +271,70 @@ export const buildCreatedRowsFromBatch = (
     }
   })
   return { createdRows, flushCells, persistedIdByClientRowId }
+}
+
+type SpreadsheetBatchRowMapping = {
+  clientRowId?: string
+  rowUuid?: string
+}
+
+const appendRowMappingsToPersistedIdMap = (
+  map: Map<string, string>,
+  mappings: SpreadsheetBatchRowMapping[] | undefined
+): void => {
+  if (!Array.isArray(mappings)) return
+  mappings.forEach(mapping => {
+    const clientRowId = typeof mapping?.clientRowId === 'string' ? mapping.clientRowId : ''
+    const rowUuid = typeof mapping?.rowUuid === 'string' ? mapping.rowUuid : ''
+    if (clientRowId && rowUuid) {
+      map.set(clientRowId, rowUuid)
+    }
+  })
+}
+
+export const buildPersistedRowIdMapFromBatchRows = (rows: unknown): Map<string, string> => {
+  const persistedIdByClientRowId = new Map<string, string>()
+  if (!Array.isArray(rows)) return persistedIdByClientRowId
+  rows.forEach(entry => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return
+    const record = entry as { id?: unknown; data?: unknown }
+    if (typeof record.id !== 'string' || !record.id) return
+    if (!record.data || typeof record.data !== 'object' || Array.isArray(record.data)) return
+    const clientRowId = (record.data as Record<string, unknown>)._clientRowId
+    if (typeof clientRowId === 'string' && clientRowId) {
+      persistedIdByClientRowId.set(clientRowId, record.id)
+    }
+  })
+  return persistedIdByClientRowId
+}
+
+export const buildPersistedRowIdMapFromInsertRowSlotsResult = (
+  result: Record<string, unknown> | undefined,
+  options?: {
+    fallbackClientRowIdsInOrder?: string[]
+    rowMappings?: SpreadsheetBatchRowMapping[]
+  }
+): Map<string, string> => {
+  const persistedIdByClientRowId = buildPersistedRowIdMapFromBatchRows(result?.rows)
+  appendRowMappingsToPersistedIdMap(persistedIdByClientRowId, options?.rowMappings)
+  appendRowMappingsToPersistedIdMap(
+    persistedIdByClientRowId,
+    Array.isArray(result?.rowMappings) ? (result.rowMappings as SpreadsheetBatchRowMapping[]) : undefined
+  )
+
+  const returnedRows = Array.isArray(result?.rows) ? result.rows : []
+  const fallbackClientRowIds = options?.fallbackClientRowIdsInOrder ?? []
+  fallbackClientRowIds.forEach((clientRowId, index) => {
+    if (!clientRowId || persistedIdByClientRowId.has(clientRowId)) return
+    const entry = returnedRows[index]
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return
+    const persistedId = (entry as { id?: unknown }).id
+    if (typeof persistedId === 'string' && persistedId) {
+      persistedIdByClientRowId.set(clientRowId, persistedId)
+    }
+  })
+
+  return persistedIdByClientRowId
 }
 
 export const mapPersistedRowsToViewerRows = (rows: unknown): Array<Record<string, unknown>> => {
@@ -272,7 +384,12 @@ export const replaceClientRowsWithCreatedRows = (
   return mergeDuplicateClientRows(nextRows)
 }
 
-/** Always rebuild value cells from rows; snapshots contribute formatting/layout only. */
+/**
+ * Rebuilds Univer workbook cell **values** from authoritative viewer rows (typically server
+ * snapshot rows after reload). Snapshot formatting/layout is preserved; this is not a heuristic
+ * row-reconcile tiebreaker. Unacked local intents are overlaid separately by id
+ * (`reapplyUnresolvedLocalIntentsToRows`).
+ */
 export const overlaySnapshotIfRowsMismatch = (
   snapshot: Record<string, unknown> | null,
   sheetId: string,

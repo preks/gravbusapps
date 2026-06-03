@@ -40,6 +40,9 @@ export type BrowseSkillManifestEntry = {
   file_count?: number
   tools?: string[]
   source?: 'admin' | 'runtime_manifest'
+  version?: number
+  published_version?: number | null
+  current_version?: number
 }
 
 export interface BrowseSkillsViewProps {
@@ -137,9 +140,10 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
   }, [manifestVersion, loadManifest])
 
   const filteredManifest = useMemo(() => {
-    if (!searchQuery.trim()) return manifest
+    const active = manifest.filter(s => s.status !== 'archived')
+    if (!searchQuery.trim()) return active
     const q = searchQuery.toLowerCase()
-    return manifest.filter(
+    return active.filter(
       s =>
         s.skill_id.toLowerCase().includes(q) ||
         s.name?.toLowerCase().includes(q) ||
@@ -404,6 +408,18 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
                   <p className="gba:text-sm gba:font-semibold gba:text-foreground gba:truncate">
                     {s.name || s.skill_id}
                   </p>
+                  {(s.current_version != null || s.version != null || s.published_version != null) && (
+                    <span
+                      className="gba:shrink-0 gba:rounded gba:bg-muted gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-muted-foreground"
+                      data-testid={`browse-skills-version-${s.skill_id}`}
+                    >
+                      {s.published_version != null ? `pub v${s.published_version}` : 'unpublished'}
+                      {(s.current_version ?? s.version) != null &&
+                      (s.current_version ?? s.version) !== s.published_version
+                        ? ` · draft v${s.current_version ?? s.version}`
+                        : ''}
+                    </span>
+                  )}
                   {s.skill_id === 'skill-creator' && (
                     <span className="gba:text-xs gba:text-muted-foreground gba:italic">(default)</span>
                   )}

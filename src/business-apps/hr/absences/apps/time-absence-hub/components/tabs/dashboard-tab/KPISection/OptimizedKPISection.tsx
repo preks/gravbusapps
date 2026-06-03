@@ -3,7 +3,11 @@ import { BusinessAppContextProps } from '../../../../../../../../../common/Busin
 import { DashboardData, TimeFilter, AbsenceDetailsFilter } from '../../../../types'
 import { WidgetGroup, WidgetItem } from '../../../../../../../../../components/widget-group'
 import { UsersIcon, ClockIcon, CalendarIcon, PercentIcon } from '@phosphor-icons/react'
-import { getDateFormat, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import {
+  getDateFormat,
+  getTranslationFromI18nKeyAndLabel,
+  getCurrentActiveUserLocale
+} from '@/common/utils/windowUtils'
 import { getAbsenceStatusLabel, getAbsenceStatusColor } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 import { DepartmentBarChart, StatusPieChart, VacationEntitlementsCard, VacationLiabilityCard } from './components'
 import dayjs from 'dayjs'
@@ -116,6 +120,12 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
     )
   }
 
+  const locale = getCurrentActiveUserLocale() ?? 'en-US'
+  const formattedAverageDuration = averageDuration.toLocaleString(locale, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1
+  })
+
   const widgets: WidgetItem[] = [
     {
       key: 'total-absences',
@@ -134,9 +144,8 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
         'lowcoder:absence_management_hub_backoffice.avg_duration',
         'Avg Duration'
       ),
-      value: averageDuration,
-      suffix: ` ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.days', 'days')}`,
-      precision: 1,
+      value: `${formattedAverageDuration} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.days', 'days')}`,
+      valueIsString: true,
       prefix: <CalendarIcon />,
       description: getTranslationFromI18nKeyAndLabel(
         'lowcoder:absence_management_hub_backoffice.average_absence_length',

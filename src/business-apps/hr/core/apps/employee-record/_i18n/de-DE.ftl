@@ -12,7 +12,7 @@ tab-compensation-history = Vergütungshistorie
 
 # Current Compensation View
 current-base-salary = Grundgehalt
-current-total-bonuses-ytd = Gesamtboni (YTD)
+current-total-bonuses-ytd = Gesamte Boni (seit Jahresbeginn)
 current-benefits-value = Wert der Zusatzleistungen
 current-active-benefits = Aktive Zusatzleistungen
 current-bonus = Bonus
@@ -59,6 +59,12 @@ rewards-stock-options = Aktienoptionen
 rewards-loading = Gesamtvergütung wird geladen...
 rewards-no-data = Keine Vergütungsdaten verfügbar
 rewards-package-description = Ihr Gesamtvergütungspaket umfasst Grundgehalt, Boni, Zusatzleistungen und Aktienoptionen
+rewards-pay-transparency-download-failed = Der Gehaltstransparenz-Bericht konnte nicht heruntergeladen werden. Bitte versuchen Sie es erneut.
+
+# Pay Transparency
+pay-transparency-title = Gehaltstransparenz
+pay-transparency-description = Bericht und Kennzahlen zum Informationsrecht
+pay-transparency-download-hint = Fordern Sie unten den Gehaltstransparenz-Bericht an.
 
 # Benefits & Perks
 benefits-catalog-title = Zusatzleistungs-Katalog
@@ -618,7 +624,61 @@ performance-status-behind-target = Hinter dem Ziel
 performance-status-at-risk = Gefährdet
 performance-status-achieved = Erreicht
 performance-status-not-achieved = Nicht erreicht
+performance-status-completed = Abgeschlossen
 performance-error-load = Leistungsdaten konnten nicht geladen werden
+performance-kpi-total-goals = Ziele gesamt
+performance-kpi-selected-cycle = Im ausgewählten Zyklus
+performance-kpi-on-track = Im Plan
+performance-kpi-healthy-progress = Guter Fortschritt
+performance-kpi-at-risk = Gefährdet
+performance-kpi-watch-closely = Genau beobachten
+performance-kpi-behind-target = Hinter dem Ziel
+performance-kpi-needs-attention = Aufmerksamkeit erforderlich
+performance-kpi-achieved = Erreicht
+performance-kpi-completed-goals = Abgeschlossene Ziele
+performance-search-placeholder = Ziele suchen
+performance-filter-clear = Zurücksetzen
+performance-filter-all-status = Alle Status
+performance-filter-all-types = Alle Typen
+performance-type-percentage = Prozent
+performance-type-numeric = Numerisch
+performance-type-milestone = Meilenstein
+performance-sort-due-date = Fälligkeitsdatum
+performance-sort-status = Status
+performance-sort-updated-recently = Zuletzt aktualisiert
+performance-empty-description = In diesem Datensatz sind keine Einträge vorhanden.
+performance-due-label = Fällig am { $date }
+performance-delete-goal-aria = Ziel löschen
+performance-out-of-cycle-goals = Ziele außerhalb des Zyklus
+performance-fix-dates-to-edit = Daten korrigieren, um zu bearbeiten
+performance-mark-completed = Als abgeschlossen markieren
+performance-outside-cycle-warning = Dieses Ziel liegt außerhalb des ausgewählten Zyklus und kann erst bearbeitet werden, wenn die Daten korrigiert wurden.
+performance-update-progress = Fortschritt aktualisieren
+performance-target = Zielwert
+performance-current = Aktuell
+performance-details-notes = Details / Notizen
+performance-completed-placeholder = Dieses Ziel ist abgeschlossen und kann nicht mehr geändert werden.
+performance-notes-placeholder = Beschreiben Sie, was Sie erreicht haben oder welche Blocker es gibt...
+performance-comment-required = Bitte fügen Sie vor dem Speichern dieses Updates einen Kommentar hinzu.
+performance-save-update = Update speichern
+performance-editing-disabled-tooltip = Derzeit deaktiviert
+performance-burnup-chart = Burnup-Diagramm
+performance-chart-ideal = Ideal
+performance-chart-actual = Ist
+performance-chart-today = Heute
+performance-update-history = Update-Verlauf
+performance-history-progress = Fortschritt → { $progress }%
+performance-history-completed = Abgeschlossen: { $milestones }
+performance-history-reopened = Wieder geöffnet: { $milestones }
+performance-complete-dialog-title = Als abgeschlossen markieren?
+performance-complete-dialog-description = Sie können den Fortschritt dieses Ziels danach nicht mehr ändern.
+performance-confirm = Bestätigen
+performance-select-goal-title = Wählen Sie ein Ziel aus, um Details anzuzeigen
+performance-select-goal-description = Klicken Sie auf ein Ziel in der Liste, um Fortschritt, Diagramm und Update-Verlauf zu sehen.
+performance-delete-goal-title = Ziel löschen?
+performance-delete-goal-description = Möchten Sie "{ $title }" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+performance-delete = Löschen
+performance-goal-marked-completed-comment = Ziel als abgeschlossen markiert
 
 # Performance Evaluation Tab
 performance-evaluation-title = Leistungsbewertung
@@ -692,13 +752,13 @@ feedback-pagination-per-page = / Seite
 employee-record-tab-compensation = Vergütung
 employee-record-tab-time-tracking = Zeiterfassung
 employee-record-tab-absences = Abwesenheiten
-employee-record-tab-assets = Sachmittel
+employee-record-tab-assets = Arbeitsmittel
 employee-record-tab-service-requests = Serviceanfragen
 employee-record-tab-performance-evaluation = Leistungsbewertung
 
 # Profile Header - Detail labels
-profile-header-work-email = Arbeit-E-Mail
-profile-header-work-phone = Diensttelefon
+profile-header-work-email = E-Mail (geschäftlich)
+profile-header-work-phone = Telefon (geschäftlich)
 profile-header-organization = Organisation
 profile-header-location = Standort
 profile-header-manager = Vorgesetzte/r
@@ -900,7 +960,7 @@ assets-serial-number = Seriennummer
 assets-assignment-period = Zuweisungszeitraum
 assets-condition = Zustand
 assets-status = Status
-assets-total-assets = Gesamt Assets
+assets-total-assets = Gesamt
 assets-in-use = In Verwendung
 assets-status-in-repair = In Reparatur
 assets-handed-over = Übergeben
@@ -915,9 +975,9 @@ assets-error-loading-assets = Fehler beim Laden der Assets
 assets-no-assets-assigned = Keine Assets zugewiesen
 assets-no-equipment-assigned-self = Ihnen sind derzeit keine Geräte zugewiesen.
 assets-no-equipment-assigned-employee = Diesem Mitarbeiter sind derzeit keine Geräte zugewiesen.
-assets-assigned-equipment = Asset-Zusammenfassung
+assets-assigned-equipment = Zusammenfassung
 assets-request-new-asset = Ticket öffnen
-assets-asset-assignment-history = Asset-Zuweisungsverlauf
+assets-asset-assignment-history = Zuweisungsverlauf
 assets-unknown = Unbekannt
 assets-to = bis
 assets-expected = Erwartet
@@ -960,12 +1020,13 @@ change-personal-data-pending-ok = OK
 
 # Change Address - Loading
 change-address-loading-form = Adressformular wird geladen...
+change-address-type-primary = Hauptanschrift
+change-address-type-secondary = Nebenwohnsitz
+change-address-type-add-address = Adresse hinzufügen
 
 # Change Relationship - Congratulations modal
-relationship-form-success-title = Herzlichen Glückwunsch!
-relationship-form-success-child-message-line1 = Herzlichen Glückwunsch zum Familienzuwachs.
-relationship-form-success-child-message-line2 = Vielen Dank, dass Sie diese schöne Lebensveränderung mit uns teilen und Ihre Daten aktuell halten.
-relationship-form-success-marriage-message = Herzlichen Glückwunsch zur Hochzeit und vielen Dank für die Aktualisierung der Daten
+relationship-form-success-title = Änderung erhalten
+relationship-form-success-loading-message = Wird generiert...
 relationship-form-success-ok = OK
 
 # Change Working Hours

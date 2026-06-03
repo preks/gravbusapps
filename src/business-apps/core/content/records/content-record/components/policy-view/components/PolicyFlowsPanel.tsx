@@ -1,10 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { Alert, AlertDescription, AlertTitle, Badge, Button, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { Sparkles } from 'lucide-react'
 import { Navigation, buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { FlowTemplateClient, type FlowTemplate } from '@/common/network/flows/FlowTemplateClient'
-import { flowAIClient } from '@/common/network/flows/FlowAIClient'
-import { toFlowSteps, buildPolicyFlowPrompt } from '@/business-apps/core/content/utils/flowAIMappers'
+import { openPolicyFlowInEveryAI } from '@/business-apps/core/content/utils/flowAIMappers'
 import translations from '../../../_i18n'
 import { toast } from 'sonner'
 
@@ -13,22 +12,18 @@ interface PolicyFlowsPanelProps {
   policyRootId: string
   policyVersionId: string
   policyTitle?: string | null
-  policyContent?: string | null
 }
 
 export const PolicyFlowsPanel: React.FC<PolicyFlowsPanelProps> = ({
   accessToken,
   policyRootId,
   policyVersionId,
-  policyTitle,
-  policyContent
+  policyTitle
 }) => {
   const { t } = useTranslation(translations)
   const [templates, setTemplates] = useState<FlowTemplate[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [updatingTemplateId, setUpdatingTemplateId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setIsLoading(true)
@@ -58,114 +53,32 @@ export const PolicyFlowsPanel: React.FC<PolicyFlowsPanelProps> = ({
     navigateTo(templateId ? base : `${base}#create`)
   }
 
-  const buildAIPrompt = useMemo(
-    () => buildPolicyFlowPrompt({ policyTitle, policyContent, policyRootId, policyVersionId }),
-    [policyTitle, policyContent, policyRootId, policyVersionId]
-  )
-
-  const generateWithAI = async () => {
-    if (!policyTitle && !policyContent) {
+  const startEveryAIFlowGeneration = () => {
+    if (!policyVersionId) {
       toast.error(t('policy_flows_generate_missing_policy'))
       return
     }
 
-    setIsGenerating(true)
-    try {
-      const aiTemplate = await flowAIClient.generateFlowTemplate(buildAIPrompt, accessToken)
-      const client = new FlowTemplateClient(accessToken)
-
-      const payload: Omit<FlowTemplate, 'id'> = {
-        type: 'TEMPLATE',
-        name: aiTemplate.name || `${t('policy_flows_generated_name_prefix')}: ${policyTitle || policyRootId}`,
-        description: aiTemplate.description || t('policy_flows_generated_description'),
-        version: 1,
-        tags: {
-          app: 'policy',
-          policyRootId: String(policyRootId),
-          policyVersionId: String(policyVersionId)
-        },
-        steps: toFlowSteps(aiTemplate)
-      }
-
-      const created = await client.createTemplate(payload)
-      toast.success(t('policy_flows_generate_success'), { description: created.name })
-      await load()
-      openFlowCreator(created.id)
-    } catch (e) {
-      toast.error(t('policy_flows_generate_error'), { description: e instanceof Error ? e.message : String(e) })
-    } finally {
-      setIsGenerating(false)
-    }
+    openPolicyFlowInEveryAI({
+      policyTitle,
+      policyRootId,
+      policyVersionId
+    })
   }
 
-  const generateDraftUpdate = async (tpl: FlowTemplate) => {
-    if (!tpl.id) return
-    if (!policyTitle && !policyContent) {
+  const startEveryAIFlowUpdate = (tpl: FlowTemplate) => {
+    if (!policyVersionId) {
       toast.error(t('policy_flows_generate_missing_policy'))
       return
     }
 
-    setUpdatingTemplateId(tpl.id)
-    try {
-      const updatePrompt = [
-        'Update the following flow template to match the newest policy version.',
-        '',
-        'Instructions:',
-        '- Keep the flow intent and structure where still valid',
-        '- Adjust step titles/messages to reflect the updated policy content',
-        '- If acknowledgement is required, use ACKNOWLEDGE step type',
-        '- Preserve assignment mode unless the policy implies otherwise',
-        '',
-        `Policy title: ${policyTitle || ''}`,
-        `Policy root id: ${policyRootId}`,
-        `New policy version id: ${policyVersionId}`,
-        '',
-        'New policy content:',
-        policyContent || '',
-        '',
-        'Existing flow template (JSON):',
-        JSON.stringify(
-          {
-            id: tpl.id,
-            name: tpl.name,
-            description: tpl.description,
-            tags: tpl.tags,
-            steps: tpl.steps
-          },
-          null,
-          2
-        )
-      ]
-        .filter(Boolean)
-        .join('\n')
-
-      const aiTemplate = await flowAIClient.generateFlowTemplate(updatePrompt, accessToken)
-      const client = new FlowTemplateClient(accessToken)
-
-      const payload: Omit<FlowTemplate, 'id'> = {
-        type: 'TEMPLATE',
-        name: `${tpl.name} — ${t('policy_flows_update_draft_suffix')}`,
-        description: aiTemplate.description || tpl.description || t('policy_flows_generated_description'),
-        version: 1,
-        tags: {
-          ...(tpl.tags || {}),
-          app: 'policy',
-          policyRootId: String(policyRootId),
-          policyVersionId: String(policyVersionId),
-          sourceTemplateId: String(tpl.id)
-        },
-        steps: toFlowSteps(aiTemplate)
-      }
-
-      const created = await client.createTemplate(payload)
-      toast.success(t('policy_flows_update_success'), { description: created.name })
-      await load()
-      openFlowCreator(created.id)
-    } catch (e) {
-      toast.error(t('policy_flows_update_error'), { description: e instanceof Error ? e.message : String(e) })
-    } finally {
-      setUpdatingTemplateId(null)
-    }
+    openPolicyFlowInEveryAI({
+      policyTitle,
+      policyRootId,
+      policyVersionId,
+      mode: 'update',
+      existingTemplate: tpl
+    })
   }
 
   if (isLoading) {
@@ -187,14 +100,9 @@ export const PolicyFlowsPanel: React.FC<PolicyFlowsPanelProps> = ({
           <Button variant="outline" onClick={load} data-testid="policy-flows-retry">
             {t('retry')}
           </Button>
-          <Button
-            variant="outline"
-            onClick={generateWithAI}
-            disabled={isGenerating}
-            data-testid="policy-flows-generate-ai"
-          >
+          <Button variant="outline" onClick={startEveryAIFlowGeneration} data-testid="policy-flows-generate-ai">
             <Sparkles className="gba:h-4 gba:w-4 gba:mr-1.5" />
-            {isGenerating ? t('policy_flows_generating') : t('policy_action_generate_flow')}
+            {t('policy_action_generate_flow')}
           </Button>
         </div>
       </div>
@@ -207,14 +115,9 @@ export const PolicyFlowsPanel: React.FC<PolicyFlowsPanelProps> = ({
         <Badge variant="outline" data-testid="policy-flows-count">
           {t('policy_flows_count', { count: templates.length })}
         </Badge>
-        <Button
-          variant="outline"
-          onClick={generateWithAI}
-          disabled={isGenerating}
-          data-testid="policy-flows-generate-ai"
-        >
+        <Button variant="outline" onClick={startEveryAIFlowGeneration} data-testid="policy-flows-generate-ai">
           <Sparkles className="gba:h-4 gba:w-4 gba:mr-1.5" />
-          {isGenerating ? t('policy_flows_generating') : t('policy_action_generate_flow')}
+          {t('policy_action_generate_flow')}
         </Button>
       </div>
 
@@ -227,7 +130,6 @@ export const PolicyFlowsPanel: React.FC<PolicyFlowsPanelProps> = ({
           {templates.map(tpl => {
             const tplPolicyVersionId = tpl.tags?.policyVersionId
             const isOutdated = Boolean(tplPolicyVersionId) && tplPolicyVersionId !== String(policyVersionId)
-            const isUpdatingThis = updatingTemplateId === tpl.id
             return (
               <div
                 key={tpl.id || tpl.name}
@@ -266,12 +168,11 @@ export const PolicyFlowsPanel: React.FC<PolicyFlowsPanelProps> = ({
                     <Button
                       variant="default"
                       size="sm"
-                      onClick={() => generateDraftUpdate(tpl)}
-                      disabled={Boolean(updatingTemplateId) && !isUpdatingThis}
+                      onClick={() => startEveryAIFlowUpdate(tpl)}
                       data-testid={`policy-flow-generate-update-${tpl.id}`}
                       type="button"
                     >
-                      {isUpdatingThis ? t('policy_flows_generating_update') : t('policy_flows_generate_update')}
+                      {t('policy_flows_generate_update')}
                     </Button>
                   </div>
                 )}

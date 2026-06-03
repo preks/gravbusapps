@@ -1,5 +1,11 @@
 import React from 'react'
-import { chartRenderers, parseChartConfig, LineChartRenderer, type SingleChartConfig } from './chartRenderers'
+import {
+  chartRenderers,
+  normalizeChartPayloadForRender,
+  parseChartConfig,
+  LineChartRenderer,
+  type SingleChartConfig
+} from './chartRenderers'
 
 export interface StatItem {
   label: string
@@ -19,25 +25,73 @@ interface DashboardSection {
   columns?: number
 }
 
+/** Shown when chart JSON is missing, empty, or not yet loaded. */
+export const ChartEmptyState: React.FC<{ message?: string }> = ({ message = 'No chart data available' }) => (
+  <div
+    className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-2 gba:p-6 gba:rounded-xl gba:border gba:border-dashed gba:border-border gba:bg-muted/20"
+    data-testid="chart-empty-state"
+  >
+    <p className="gba:text-sm gba:text-muted-foreground gba:text-center">{message}</p>
+  </div>
+)
+
+/** Direction of a KPI trend, inferred from the explicit flag or the value sign. */
+export function statTrendDirection(trend: NonNullable<StatItem['trend']>): 'up' | 'down' | 'flat' {
+  if (typeof trend.positive === 'boolean') return trend.positive ? 'up' : 'down'
+  const text = String(trend.value ?? '')
+  if (/^\s*[-−]/.test(text) || /\bdown\b/i.test(text)) return 'down'
+  if (/^\s*\+/.test(text) || /▲|↑/.test(text) || /\bup\b/i.test(text)) return 'up'
+  return 'flat'
+}
+
+const TREND_GLYPH: Record<'up' | 'down' | 'flat', string> = { up: '▲', down: '▼', flat: '→' }
+
+const TrendChip: React.FC<{ trend: NonNullable<StatItem['trend']> }> = ({ trend }) => {
+  const dir = statTrendDirection(trend)
+  const tone =
+    dir === 'up'
+      ? 'gba:text-emerald-600 gba:bg-emerald-50'
+      : dir === 'down'
+        ? 'gba:text-red-500 gba:bg-red-50'
+        : 'gba:text-muted-foreground gba:bg-muted/40'
+  const cleaned = String(trend.value ?? '').replace(/^\s*[+\-−▲▼↑→]\s*/, '')
+  return (
+    <span
+      data-testid="stat-trend-chip"
+      data-trend-direction={dir}
+      className={`gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:px-2 gba:py-0.5 gba:text-xs gba:font-medium ${tone}`}
+      title={trend.description}
+    >
+      <span aria-hidden="true">{TREND_GLYPH[dir]}</span>
+      {cleaned}
+    </span>
+  )
+}
+
 const StatRow: React.FC<{ stats: StatItem[] }> = ({ stats }) => (
   <div className="gba:grid gba:grid-cols-2 md:gba:grid-cols-4 gba:gap-3">
     {stats.map((stat, idx) => (
       <div
         key={`${stat.label}-${idx}`}
-        className="gba:rounded-xl gba:border gba:border-border/60 gba:bg-card gba:p-4 gba:shadow-sm"
+        className="gba:relative gba:overflow-hidden gba:rounded-xl gba:border gba:border-border/60 gba:bg-card gba:p-4 gba:shadow-sm gba:transition-shadow hover:gba:shadow-md"
       >
-        <p className="gba:text-xs gba:text-muted-foreground gba:mb-1">{stat.label}</p>
-        <p className="gba:text-2xl gba:font-semibold gba:text-foreground">
-          {stat.prefix && <span className="gba:text-muted-foreground gba:text-lg">{stat.prefix}</span>}
-          {stat.value}
-          {stat.suffix && <span className="gba:text-muted-foreground gba:text-lg">{stat.suffix}</span>}
+        <span
+          aria-hidden="true"
+          className="gba:absolute gba:left-0 gba:top-0 gba:h-full gba:w-1 gba:bg-[var(--nw-chart-1)]"
+        />
+        <p className="gba:text-[11px] gba:uppercase gba:tracking-wide gba:text-muted-foreground gba:mb-1">
+          {stat.label}
         </p>
-        {stat.trend && (
-          <p
-            className={`gba:text-xs gba:font-medium gba:mt-1 ${stat.trend.positive ? 'gba:text-emerald-600' : 'gba:text-red-500'}`}
-          >
-            {stat.trend.value}
+        <div className="gba:flex gba:items-baseline gba:justify-between gba:gap-2">
+          <p className="gba:text-3xl gba:font-semibold gba:leading-none gba:text-foreground">
+            {stat.prefix && <span className="gba:text-muted-foreground gba:text-lg">{stat.prefix}</span>}
+            {stat.value}
+            {stat.suffix && <span className="gba:text-muted-foreground gba:text-lg">{stat.suffix}</span>}
           </p>
+          {stat.trend && <TrendChip trend={stat.trend} />}
+        </div>
+        {stat.trend?.description && (
+          <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">{stat.trend.description}</p>
         )}
       </div>
     ))}
@@ -64,9 +118,23 @@ const SingleChart: React.FC<{ config: SingleChartConfig; title?: string; compact
           {heading}
         </h4>
       )}
-      <Renderer config={config} />
+      <Renderer config={config} compact={compact} />
     </div>
   )
+}
+
+/** True when inline preview can render at least one section (not the error placeholder). */
+export function isChartPreviewRenderable(data: Record<string, unknown>): boolean {
+  if (parseChartConfig(data)) return true
+  const sections = data.sections as DashboardSection[] | undefined
+  if (!Array.isArray(sections) || sections.length === 0) return false
+  return sections.some(section => {
+    if (section.type === 'stat' && section.stats?.length) return true
+    if (section.type === 'chart' && section.chart && parseChartConfig(section.chart)) return true
+    if (section.type === 'chart-grid' && section.charts?.some(c => parseChartConfig(c))) return true
+    if (section.type === 'text' && section.content) return true
+    return false
+  })
 }
 
 /** Inline chart/dashboard body for chat and live-preview panels. */
@@ -74,14 +142,18 @@ export const ChartInlineBody: React.FC<{
   data: Record<string, unknown>
   compact?: boolean
 }> = ({ data, compact }) => {
-  const single = parseChartConfig(data)
+  const normalized = normalizeChartPayloadForRender(data)
+  const single = parseChartConfig(normalized)
   if (single) {
+    if (!single.data?.length) {
+      return <ChartEmptyState message="No data points to display for this chart." />
+    }
     return <SingleChart config={single} compact={compact} />
   }
 
-  const sections = data.sections as DashboardSection[] | undefined
+  const sections = normalized.sections as DashboardSection[] | undefined
   if (!Array.isArray(sections) || sections.length === 0) {
-    return <p className="gba:text-sm gba:text-muted-foreground">Unsupported chart preview shape</p>
+    return <ChartEmptyState message="Unsupported or empty chart preview." />
   }
 
   const title = data.title as string | undefined

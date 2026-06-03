@@ -9,6 +9,7 @@ declare global {
       prompt?: string
       additionInfo?: string
       skills?: string[]
+      newSession?: boolean
       createdAt: number
     }
   }
@@ -27,6 +28,10 @@ export interface OpenEveryAIOptions {
    * Optional skill names to force-enable for this request.
    */
   skills?: string[]
+  /**
+   * When true, clear the current Every AI conversation before sending the prompt.
+   */
+  newSession?: boolean
 }
 
 /**
@@ -45,6 +50,7 @@ export function openEveryAI(options?: OpenEveryAIOptions): void {
     prompt: options?.prompt,
     additionInfo: options?.additionInfo,
     skills: options?.skills,
+    newSession: options?.newSession,
     createdAt: Date.now()
   }
 
@@ -53,7 +59,8 @@ export function openEveryAI(options?: OpenEveryAIOptions): void {
     payload: {
       prompt: options?.prompt,
       additionInfo: options?.additionInfo,
-      skills: options?.skills
+      skills: options?.skills,
+      newSession: options?.newSession
     }
   }
 
@@ -90,10 +97,23 @@ export function openEveryAI(options?: OpenEveryAIOptions): void {
     console.warn('[openEveryAI] Failed to persist skills to sessionStorage:', error)
   }
 
+  try {
+    if (options?.newSession) {
+      sessionStorage.setItem('everyAINewSession', 'true')
+    } else {
+      sessionStorage.removeItem('everyAINewSession')
+    }
+  } catch (error) {
+    console.warn('[openEveryAI] Failed to persist newSession flag to sessionStorage:', error)
+  }
+
   // Try custom event first (more reliable for same-window communication)
   try {
     const customEvent = new CustomEvent('openEveryAI', { detail: message })
     window.dispatchEvent(customEvent)
+    if (options?.newSession) {
+      window.dispatchEvent(new CustomEvent('everyAIStartNewSession'))
+    }
     console.log('[openEveryAI] Dispatched custom event')
   } catch (error) {
     console.warn('[openEveryAI] Failed to dispatch custom event:', error)
