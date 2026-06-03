@@ -101,7 +101,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
 
   useEffect(() => {
     const fetchTravelRegionsAndCostCenters = async () => {
-      if (!employeeRuleId) return
+      if (!accessToken?.trim() || !employeeRuleId) return
 
       try {
         const employeeIdValue = userInfo?.employeeDetails?.employeeId
@@ -146,11 +146,11 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
     }
 
     fetchTravelRegionsAndCostCenters()
-  }, [employeeRuleId, graphQLClient, getCachedOrFetch, userInfo?.employeeDetails?.employeeId])
+  }, [accessToken, employeeRuleId, graphQLClient, getCachedOrFetch, userInfo?.employeeDetails?.employeeId])
 
   useEffect(() => {
     const fetchAllowanceData = async () => {
-      if (!expenseRequestData?.ExpenseRequestByPk) return
+      if (!accessToken?.trim() || !expenseRequestData?.ExpenseRequestByPk) return
       try {
         const employeeIdValue = userInfo?.employeeDetails?.employeeId
         const expenseRequestId = additionalData?.psi_taskPayload?.expenseRequest?.id
@@ -188,7 +188,14 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
       }
     }
     fetchAllowanceData()
-  }, [expenseRequestData, graphQLClient, getCachedOrFetch, userInfo?.employeeDetails?.employeeId, additionalData])
+  }, [
+    accessToken,
+    expenseRequestData,
+    graphQLClient,
+    getCachedOrFetch,
+    userInfo?.employeeDetails?.employeeId,
+    additionalData
+  ])
   useEffect(() => {
     // Determine if deductions exist
     const anyDeductions = Array.isArray(deductionsData) && deductionsData.length > 0
@@ -269,7 +276,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
     }))
   }
   const fetchProjects = async (structureIds: string[]) => {
-    if (!structureIds.length) {
+    if (!accessToken?.trim() || !structureIds.length) {
       setProjects([])
       return
     }
@@ -294,7 +301,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
     if (structureIdArray.length > 0) {
       fetchProjects(structureIdArray)
     }
-  }, [structureIdArray])
+  }, [accessToken, structureIdArray])
 
   useEffect(() => {
     if (costCenters.length > 0 && listDataArray.length > 0) {

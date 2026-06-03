@@ -65,6 +65,9 @@ const DiscardExpenseItems: React.FC<DiscardExpenseItemsProps> = ({
       setMultiStatusLoaded(true)
       return
     }
+    if (!accessToken?.trim()) {
+      return
+    }
     let cancelled = false
     setMultiStatusLoaded(false)
     graphqlClient
@@ -84,7 +87,7 @@ const DiscardExpenseItems: React.FC<DiscardExpenseItemsProps> = ({
     return () => {
       cancelled = true
     }
-  }, [isMultiple, expenseItemsIds, graphqlClient])
+  }, [isMultiple, expenseItemsIds, accessToken, graphqlClient])
 
   const confirmationMessage = useMemo(() => {
     if (isMultiple) {

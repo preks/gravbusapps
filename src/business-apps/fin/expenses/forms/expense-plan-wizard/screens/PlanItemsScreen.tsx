@@ -206,6 +206,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = props => {
   useEffect(() => {
     const fetchItemsFromPayload = async () => {
       // Early returns for invalid states
+      if (!accessToken?.trim()) return
       if (payloadItemsLoaded) return
 
       const extractedPayloadItemIds = extractPayloadItemIds(additionalData)
@@ -238,7 +239,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = props => {
     }
 
     fetchItemsFromPayload()
-  }, [additionalData, employeeId, graphQLClient, expensePlanData, setExpensePlanData, currentCurrency])
+  }, [accessToken, additionalData, employeeId, graphQLClient, expensePlanData, setExpensePlanData, currentCurrency])
 
   const handleNextItems = useCallback(() => {
     if (expensePlanData?.ExpensePlanByPk) {

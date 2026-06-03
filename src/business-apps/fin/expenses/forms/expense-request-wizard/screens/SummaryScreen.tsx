@@ -50,6 +50,7 @@ interface SummaryScreenProps extends BusinessAppContextProps {
  * @returns SummaryScreen component
  */
 const SummaryScreen: React.FC<SummaryScreenProps> = props => {
+  const { accessToken } = props
   const { expenseRequestData, employeeRuleId, currentTitle, getUserCostCentersCached } =
     useExpenseRequestWizardContext()
   const { hasFutureDates } = useExpenseRequestDateValidation()
@@ -99,6 +100,8 @@ const SummaryScreen: React.FC<SummaryScreenProps> = props => {
 
   useEffect(() => {
     const fetchMainCostCenters = async () => {
+      if (!accessToken?.trim()) return
+
       const positions = expenseRequestData?.EmployeePosition || []
       const primaryPosition = resolvePrimaryEmployeePosition(positions, getCurrentActiveStructureId())
       const structureId = primaryPosition?.structureId ?? positions[0]?.structureId ?? getCurrentActiveStructureId()
@@ -119,7 +122,7 @@ const SummaryScreen: React.FC<SummaryScreenProps> = props => {
     }
 
     fetchMainCostCenters()
-  }, [expenseRequestData?.EmployeePosition, getUserCostCentersCached])
+  }, [accessToken, expenseRequestData?.EmployeePosition, getUserCostCentersCached])
 
   const handleSave = useCallback(() => {
     if (expenseRequestData?.ExpenseRequestByPk) {
