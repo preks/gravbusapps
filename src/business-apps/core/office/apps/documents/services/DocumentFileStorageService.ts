@@ -765,7 +765,7 @@ export class DocumentFileStorageService {
   async shareDocument(
     documentId: string,
     recipientUserIds: string[],
-    permission: 'view' | 'edit' | 'comment',
+    permission: 'view' | 'edit' | 'comment' | 'admin',
     sharerName?: string
   ): Promise<boolean> {
     const index = await this.getDocumentIndex()

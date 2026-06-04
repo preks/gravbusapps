@@ -363,7 +363,8 @@ export const SlidesApiService = {
   },
 
   async getSharedUsers(
-    slideId: string
+    slideId: string,
+    options?: { throwOnError?: boolean }
   ): Promise<Array<{ id: string; userId: string; permission: string; sharedAt: string; sharedBy: string }>> {
     try {
       const shares = await apiRequest<Array<Record<string, unknown>>>(`/sharing/slide/${slideId}`)
@@ -371,10 +372,13 @@ export const SlidesApiService = {
         id: s.id as string,
         userId: s.userId as string,
         permission: s.permission as string,
-        sharedAt: s.createdAt as string,
+        sharedAt: (s.createdAt as string) || (s.sharedAt as string),
         sharedBy: s.sharedBy as string
       }))
-    } catch {
+    } catch (error) {
+      if (options?.throwOnError) {
+        throw error
+      }
       return []
     }
   },

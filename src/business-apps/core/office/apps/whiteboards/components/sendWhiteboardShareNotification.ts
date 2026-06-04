@@ -2,7 +2,7 @@ import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { resolveExecuteDynamicUrl } from '@/common/network/flows/flowEngineUrl'
 import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
 
-export type WhiteboardSharePermission = 'view' | 'edit' | 'comment'
+export type WhiteboardSharePermission = 'view' | 'edit' | 'comment' | 'admin'
 
 const createAssignmentTargets = (userIds: string[]) => ({
   users: userIds,

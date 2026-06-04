@@ -35,6 +35,7 @@ import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useWhiteboards } from './hooks/useWhiteboards'
 import { useWhiteboardHubUrlState } from './hooks/useWhiteboardHubUrlState'
 import { useWhiteboardHubFavorites } from './hooks/useWhiteboardHubFavorites'
+import { useWhiteboardsHubShareLookup } from './hooks/useWhiteboardsHubShareLookup'
 import { WhiteboardEditorWithAi } from './components/WhiteboardEditorWithAi'
 import { ShareWhiteboardDialog } from './components/ShareWhiteboardDialog'
 import { ManageSharesDialog } from './components/ManageSharesDialog'
@@ -157,6 +158,11 @@ export const WhiteboardAppsHub: React.FC<WhiteboardAppsHubProps> = ({
   const [isBulkRestoringTrash, setIsBulkRestoringTrash] = useState(false)
 
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
+  const currentUserAvatar = (() => {
+    const avatar = userInfo?.employeeDetails?.pictureThumbnail
+    if (!avatar) return undefined
+    return avatar.startsWith('data:') ? avatar : `data:image/png;base64,${avatar}`
+  })()
 
   useWhiteboardHubUrlState({
     currentView,
@@ -174,6 +180,11 @@ export const WhiteboardAppsHub: React.FC<WhiteboardAppsHubProps> = ({
       sortBy,
       sortOrder
     })
+
+  const { hasSharesForWhiteboard, refreshSharesForWhiteboard } = useWhiteboardsHubShareLookup({
+    accessToken,
+    whiteboards
+  })
 
   const handleToggleFavorite = useCallback(
     async (id: string) => {
@@ -831,6 +842,7 @@ export const WhiteboardAppsHub: React.FC<WhiteboardAppsHubProps> = ({
                     setManageSharesOpen(true)
                   }}
                   onDelete={() => handleDeleteWhiteboard(wb.id, wb.title)}
+                  hasShares={hasSharesForWhiteboard(wb.id)}
                   testId={`${testId}-card-${wb.id}`}
                   t={t}
                 />
@@ -861,6 +873,7 @@ export const WhiteboardAppsHub: React.FC<WhiteboardAppsHubProps> = ({
                     setManageSharesOpen(true)
                   }}
                   onDelete={() => handleDeleteWhiteboard(wb.id, wb.title)}
+                  hasShares={hasSharesForWhiteboard(wb.id)}
                   testId={`${testId}-row-${wb.id}`}
                   t={t}
                 />
@@ -898,8 +911,14 @@ export const WhiteboardAppsHub: React.FC<WhiteboardAppsHubProps> = ({
           whiteboardTitle={whiteboards.find(w => w.id === whiteboardForShare)?.title || t('whiteboard-untitled')}
           currentUserId={currentUserId}
           currentUserName={[userInfo?.givenName, userInfo?.familyName].filter(Boolean).join(' ') || userInfo?.userName}
+          currentUserAvatar={currentUserAvatar}
           accessToken={accessToken}
-          onShareComplete={refresh}
+          isOwner={Boolean(whiteboards.find(w => w.id === whiteboardForShare)?.isOwner)}
+          currentUserPermission={whiteboards.find(w => w.id === whiteboardForShare)?.permission}
+          onShareComplete={async () => {
+            refresh()
+            await refreshSharesForWhiteboard(whiteboardForShare)
+          }}
           data-testid={`${testId}-share-dialog`}
         />
       )}
@@ -909,8 +928,20 @@ export const WhiteboardAppsHub: React.FC<WhiteboardAppsHubProps> = ({
           open={manageSharesOpen}
           onOpenChange={setManageSharesOpen}
           whiteboardId={whiteboardForManageShares}
+          whiteboardTitle={whiteboards.find(w => w.id === whiteboardForManageShares)?.title || t('whiteboard-untitled')}
           accessToken={accessToken}
           currentUserId={currentUserId}
+          currentUserName={[userInfo?.givenName, userInfo?.familyName].filter(Boolean).join(' ') || userInfo?.userName}
+          currentUserAvatar={currentUserAvatar}
+          onSharesChanged={async () => {
+            refresh()
+            await refreshSharesForWhiteboard(whiteboardForManageShares)
+          }}
+          onAddMoreUsers={() => {
+            setManageSharesOpen(false)
+            setWhiteboardForShare(whiteboardForManageShares)
+            setShareDialogOpen(true)
+          }}
         />
       )}
     </div>
@@ -928,6 +959,7 @@ interface WhiteboardCardProps {
   onDuplicate: () => void
   onShare: () => void
   onManageShares: () => void
+  hasShares: boolean
   onDelete: () => void
   testId: string
   t: (key: string, vars?: Record<string, number>) => string
@@ -942,6 +974,7 @@ const WhiteboardCard: React.FC<WhiteboardCardProps> = ({
   onDuplicate,
   onShare,
   onManageShares,
+  hasShares,
   onDelete,
   testId,
   t
@@ -999,10 +1032,12 @@ const WhiteboardCard: React.FC<WhiteboardCardProps> = ({
                       <ShareNetworkIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                       {t('whiteboard-share')}
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={onManageShares}>
-                      <UsersThreeIcon className="gba:h-4 gba:w-4 gba:mr-2" />
-                      {t('whiteboard-manage-shares')}
-                    </DropdownMenuItem>
+                    {hasShares ? (
+                      <DropdownMenuItem onClick={onManageShares}>
+                        <UsersThreeIcon className="gba:h-4 gba:w-4 gba:mr-2" />
+                        {t('whiteboard-manage-shares')}
+                      </DropdownMenuItem>
+                    ) : null}
                   </>
                 ) : null}
                 {capabilities.canDuplicate ? (
@@ -1044,6 +1079,7 @@ interface WhiteboardListItemProps {
   onDuplicate: () => void
   onShare: () => void
   onManageShares: () => void
+  hasShares: boolean
   onDelete: () => void
   testId: string
   t: (key: string, vars?: Record<string, number>) => string
@@ -1058,6 +1094,7 @@ const WhiteboardListItem: React.FC<WhiteboardListItemProps> = ({
   onDuplicate,
   onShare,
   onManageShares,
+  hasShares,
   onDelete,
   testId,
   t
@@ -1113,10 +1150,12 @@ const WhiteboardListItem: React.FC<WhiteboardListItemProps> = ({
                   <ShareNetworkIcon className="gba:h-4 gba:w-4 gba:mr-2" />
                   {t('whiteboard-share')}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={onManageShares}>
-                  <UsersThreeIcon className="gba:h-4 gba:w-4 gba:mr-2" />
-                  {t('whiteboard-manage-shares')}
-                </DropdownMenuItem>
+                {hasShares ? (
+                  <DropdownMenuItem onClick={onManageShares}>
+                    <UsersThreeIcon className="gba:h-4 gba:w-4 gba:mr-2" />
+                    {t('whiteboard-manage-shares')}
+                  </DropdownMenuItem>
+                ) : null}
               </>
             ) : null}
             {capabilities.canDuplicate ? (

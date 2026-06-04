@@ -60,13 +60,15 @@ function makeRawSummary(id: string, title: string) {
 
 describe('useDocumentApps', () => {
   const listMock = jest.fn()
+  const getMock = jest.fn()
 
   beforeEach(() => {
     jest.clearAllMocks()
 
     mockedUseOfficeClient.mockReturnValue({
       documents: {
-        list: listMock
+        list: listMock,
+        get: getMock
       }
     })
     mockedMapApiDocToSummary.mockImplementation(doc => doc as ReturnType<typeof mapApiDocToSummary>)
@@ -74,6 +76,7 @@ describe('useDocumentApps', () => {
     mockedGetDocumentForOpenById.mockReset()
     mockedMapApiDocumentToDocument.mockReset()
     listMock.mockReset()
+    getMock.mockReset()
   })
 
   it('ignores stale list responses when a newer refresh finishes first', async () => {
@@ -123,5 +126,56 @@ describe('useDocumentApps', () => {
     })
     expect(listMock).toHaveBeenNthCalledWith(1, expect.stringContaining('section=my-documents'))
     expect(listMock).toHaveBeenNthCalledWith(2, expect.stringContaining('section=favorites'))
+  })
+
+  it('does not mark admin shared documents as owner in list state', async () => {
+    listMock.mockResolvedValue({
+      items: [
+        {
+          id: 'shared-admin-doc',
+          title: 'Shared admin doc',
+          createdBy: 'owner-1',
+          permission: 'admin',
+          createdAt: '2026-05-10T10:00:00.000Z',
+          updatedAt: '2026-05-10T11:00:00.000Z'
+        }
+      ],
+      total: 1,
+      page: 1,
+      limit: 20,
+      totalPages: 1
+    })
+
+    const { result } = renderHook(() => useDocumentApps('token', 'user-2'))
+
+    await act(async () => {
+      await result.current.refreshDocuments({ section: 'shared', page: 1, limit: 20 })
+    })
+
+    await waitFor(() => {
+      expect(result.current.documents).toHaveLength(1)
+    })
+
+    expect(result.current.documents[0]).toMatchObject({
+      permission: 'admin',
+      isOwner: false
+    })
+  })
+
+  it('keeps currentDocumentPermission as admin for admin shares', async () => {
+    mockedGetDocumentForOpenById.mockResolvedValue({
+      id: 'doc-1',
+      title: 'Shared admin doc',
+      createdBy: 'owner-1',
+      permission: 'admin'
+    } as any)
+
+    const { result } = renderHook(() => useDocumentApps('token', 'user-2'))
+
+    await act(async () => {
+      await result.current.loadDocument('doc-1')
+    })
+
+    expect(result.current.currentDocumentPermission).toBe('admin')
   })
 })

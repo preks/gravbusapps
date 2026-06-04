@@ -450,53 +450,6 @@ import-feature-images = Bilder und Formen
 import-feature-layouts = Folienlayouts
 import-feature-transitions = Basisübergänge (teilweise)
 
-# Share Dialog
-share-title = Folie teilen
-share-description = Teilen Sie „{ $title }“ mit anderen und legen Sie deren Zugriffsstufe fest.
-share-success-title = Folie geteilt!
-share-notified-single = { $name } wurde benachrichtigt und kann jetzt auf diese Folie zugreifen.
-share-notified-multiple = { $count } Personen wurden benachrichtigt und können jetzt auf diese Folie zugreifen.
-share-default-permission = Standardberechtigung für neue Benutzer
-share-can-view = Kann ansehen
-share-can-comment = Kann kommentieren
-share-can-edit = Kann bearbeiten
-share-add-people = Personen hinzufügen
-share-search-placeholder = Personen suchen...
-share-no-results = Keine Personen gefunden, die zu „{ $query }“ passen
-share-people-with-access = Personen mit Zugriff ({ $count })
-share-message-optional = Nachricht (optional)
-share-message-placeholder = Nachricht für die Empfänger hinzufügen...
-share-info = Personen, mit denen Sie teilen, erhalten eine Benachrichtigung und können je nach Berechtigungsstufe auf die Folie zugreifen.
-share-cancel = Abbrechen
-share-button = Teilen
-share-sharing = Wird geteilt...
-share-select-one = Bitte wählen Sie mindestens einen Benutzer
-share-failed = Teilen fehlgeschlagen
-share-success-toast = Folie geteilt
-share-success-description = Geteilt mit { $count } { $count ->
-  [one] Person
- *[other] Personen
-}
-
-# Manage Shares
-manage-title = Freigaben verwalten
-manage-description = Verwalten Sie, wer auf „{ $title }“ zugreifen kann
-manage-not-shared = Noch mit niemandem geteilt
-manage-add-users-hint = Klicken Sie auf „Benutzer hinzufügen“, um diese Präsentation zu teilen
-manage-can-view = Kann ansehen
-manage-can-comment = Kann kommentieren
-manage-can-edit = Kann bearbeiten
-manage-add-users = Benutzer hinzufügen
-manage-done = Fertig
-manage-remove-user = Benutzer entfernen
-manage-shared-at = Geteilt { $time }
-manage-confirm-remove = Zugriff für diesen Benutzer entfernen?
-manage-permission-updated = Berechtigung aktualisiert
-manage-permission-update-failed = Berechtigung konnte nicht aktualisiert werden
-manage-user-removed = Benutzer entfernt
-manage-remove-failed = Benutzer konnte nicht entfernt werden
-manage-load-failed = Freigaben konnten nicht geladen werden
-
 # Header Actions
 header-locked = Gesperrt
 header-comments = Kommentare

@@ -182,6 +182,8 @@ export interface PagedDocumentEditorProps extends Partial<BusinessAppContextProp
   onPersistFormatting?: (formatting: DocumentFormatting) => Promise<void>
   onSaveAsTemplate?: (title: string, content: string) => void
   onSendForApproval?: () => void
+  onShare?: () => void
+  onManageShares?: () => void
   onNavigateToReviewVersion?: (versionNumber: number) => void
   isReadOnly?: boolean
   isTrashedDocument?: boolean
@@ -243,6 +245,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       onPersistFormatting,
       onSaveAsTemplate,
       onSendForApproval,
+      onShare,
+      onManageShares,
       onNavigateToReviewVersion,
       isReadOnly = false,
       isTrashedDocument = false,
@@ -1723,6 +1727,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             onReleaseLock={() => fileLock.releaseLock()}
             onOpenPublishDialog={openPublishDialog}
             onOpenPageSetupDialog={openPageSetupDialog}
+            onShare={onShare}
+            onManageShares={onManageShares}
             onSaveAsTemplate={onSaveAsTemplate ? handleSaveAsTemplate : undefined}
             onSendForApproval={onSendForApproval}
             onExportWord={handleExportWord}

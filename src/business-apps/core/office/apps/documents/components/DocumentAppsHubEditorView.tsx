@@ -14,6 +14,7 @@
 import React from 'react'
 import { toast } from 'sonner'
 import { useTranslation } from '@newwork/nw-design-system'
+import { getShareCapabilities } from '@/business-apps/core/office/sharing'
 import translations from '../_i18n'
 import { isEffectivelyEmptyDocumentHtml } from '../utils/documentContentUtils'
 import { PagedDocumentEditor } from './PagedDocumentEditor'
@@ -60,6 +61,9 @@ export interface DocumentAppsHubEditorViewProps {
   onGoToDocsHome: () => void
   onRestoreTrashedDocument: () => void
   onApprovalResolved?: () => Promise<void> | void
+  onShareDocument?: (documentId: string) => void
+  onManageShares?: (documentId: string) => void
+  hasDocumentShares?: boolean
   testId: string
 }
 
@@ -92,10 +96,18 @@ export function DocumentAppsHubEditorView({
   onGoToDocsHome,
   onRestoreTrashedDocument,
   onApprovalResolved,
+  onShareDocument,
+  onManageShares,
+  hasDocumentShares = false,
   testId
 }: DocumentAppsHubEditorViewProps): React.ReactElement {
   const { t } = useTranslation(translations)
-  const canEdit = currentDocumentPermission === 'owner' || currentDocumentPermission === 'edit'
+  const currentDocumentCapabilities = getShareCapabilities({
+    permission: currentDocumentPermission as 'owner' | 'view' | 'comment' | 'edit' | 'admin',
+    isOwner: currentDocumentPermission === 'owner'
+  })
+  const canEdit = currentDocumentCapabilities.canEdit
+  const canManageSharing = currentDocumentCapabilities.canManageSharing
 
   if (templateBeingEdited) {
     return (
@@ -198,6 +210,16 @@ export function DocumentAppsHubEditorView({
           }}
           onBack={handleBack}
           onSendForApproval={() => handleSendForApprovalClick(currentDocument.id)}
+          onShare={
+            !isTrashedDocument && canManageSharing && onShareDocument
+              ? () => onShareDocument(currentDocument.id)
+              : undefined
+          }
+          onManageShares={
+            !isTrashedDocument && canManageSharing && hasDocumentShares && onManageShares
+              ? () => onManageShares(currentDocument.id)
+              : undefined
+          }
           onNavigateToReviewVersion={onNavigateToDocumentReview}
           isReadOnly={isTrashedDocument || !canEdit || isExternalReadOnly}
           isTrashedDocument={isTrashedDocument}

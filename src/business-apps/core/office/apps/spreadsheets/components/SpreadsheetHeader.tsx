@@ -397,6 +397,7 @@ export interface SpreadsheetHeaderProps {
   onRenameAppName?: (name: string) => Promise<boolean> | boolean
   onOpenAICapability: (capability: 'charts' | 'insights' | 'formula' | 'analyze' | 'review') => void
   onShare?: () => void
+  onManageShares?: () => void
   onOpenAnalytics: () => void
   onOpenAutomations: () => void
   showCheckCollectionResponses?: boolean
@@ -433,6 +434,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
   fileLock,
   onRenameAppName,
   onShare,
+  onManageShares,
   onOpenAICapability,
   onOpenAnalytics,
   onOpenAutomations,
@@ -588,6 +590,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
             onReleaseLock={fileLock.releaseLock}
             canEdit={canEdit}
             onShare={onShare}
+            onManageShares={onManageShares}
             onOpenAnalytics={onOpenAnalytics}
             onOpenAutomations={onOpenAutomations}
             showCheckCollectionResponses={showCheckCollectionResponses}

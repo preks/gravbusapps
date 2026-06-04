@@ -12,6 +12,7 @@ import { NoteContentArea } from './components/NoteContentArea'
 import { NoteEditor } from './NoteEditor'
 import { HandwritingNote } from './components/HandwritingNote'
 import { ShareNoteDialog, type SharedNoteUser } from './components/ShareNoteDialog'
+import { ManageSharesDialog } from './components/ManageSharesDialog'
 import type { QuickAccessSection } from './components/NoteTreeQuickAccess'
 import type { PaperStyle, StrokeData } from './components/handwriting'
 
@@ -21,6 +22,8 @@ import { useNoteTree } from './hooks/useNoteTree'
 import { useNoteAppsHubUrlState } from './hooks/useNoteAppsHubUrlState'
 import { useResizableSidebar } from './hooks/useResizableSidebar'
 import { useNoteTreeDragDrop } from './hooks/useNoteTreeDragDrop'
+import { useNoteAppsHubShareLookup } from './hooks/useNoteAppsHubShareLookup'
+import { getShareCapabilities } from '@/business-apps/core/office/sharing'
 import { useHubPagination } from '../shared/hooks/useHubPagination'
 import { HubPaginationFooter } from '../shared/components/HubPaginationFooter'
 import { DeleteConfirmDialog } from '@/business-apps/core/office/apps/drive/components/DeleteConfirmDialog'
@@ -93,8 +96,15 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
   const [noteToShare, setNoteToShare] = useState<NoteSummary | null>(null)
   const [shareDialogSharedUsers, setShareDialogSharedUsers] = useState<SharedNoteUser[]>([])
+  const [manageSharesDialogOpen, setManageSharesDialogOpen] = useState(false)
+  const [noteToManageShares, setNoteToManageShares] = useState<NoteSummary | null>(null)
 
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
+  const currentUserAvatar = useMemo(() => {
+    const avatar = userInfo?.employeeDetails?.pictureThumbnail
+    if (!avatar) return undefined
+    return avatar.startsWith('data:') ? avatar : `data:image/png;base64,${avatar}`
+  }, [userInfo?.employeeDetails?.pictureThumbnail])
 
   // Clear space return URL if not opened from a space
   useEffect(() => {
@@ -162,6 +172,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     (users: NoteShare[]): SharedNoteUser[] =>
       users.map(user => ({
         ...user,
+        shareId: user.id,
         userName: user.userName || user.userEmail || ''
       })),
     []
@@ -399,6 +410,11 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     pageSize
   } = useHubPagination({ items: filteredNotes, pageSize: 20 })
 
+  const { hasSharesForNote, refreshSharesForNote } = useNoteAppsHubShareLookup({
+    notes: filteredNotes,
+    currentUserId
+  })
+
   // Handlers
   const handleCreateNew = useCallback(
     async (options?: {
@@ -564,11 +580,33 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     [togglePin, notes, t, noteTree]
   )
 
+  const selectedNotesForDelete = useMemo(
+    () =>
+      Array.from(selectedNotes)
+        .map(id => {
+          const note = notes.find(item => item.id === id)
+          if (!note) {
+            return null
+          }
+
+          const capabilities = getShareCapabilities({
+            permission: note.permission,
+            isOwner: Boolean(note.ownerId === currentUserId || note.permission === 'owner')
+          })
+
+          return capabilities.canDelete ? note : null
+        })
+        .filter((note): note is NoteSummary => note !== null),
+    [currentUserId, notes, selectedNotes]
+  )
+
+  const canBulkDeleteNotes = selectedNotes.size > 0 && selectedNotesForDelete.length === selectedNotes.size
+
   const handleBulkDelete = useCallback(() => {
-    if (selectedNotes.size === 0) return
-    setPendingTrashNoteIds(Array.from(selectedNotes))
+    if (selectedNotesForDelete.length === 0) return
+    setPendingTrashNoteIds(selectedNotesForDelete.map(note => note.id))
     setTrashConfirmOpen(true)
-  }, [selectedNotes])
+  }, [selectedNotesForDelete])
 
   const pendingTrashNoteNames = useMemo(
     () =>
@@ -677,7 +715,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   const canEditCurrentNote = useMemo(() => {
     if (!currentNote) return false
     const p = currentNotePermission || 'owner'
-    return p === 'owner' || p === 'edit'
+    return getShareCapabilities({ permission: p, isOwner: p === 'owner' }).canEdit
   }, [currentNote, currentNotePermission])
   const canManageTrashedNote = Boolean(
     isTrashedNote &&
@@ -770,13 +808,15 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
       if (!note) return
       setNoteToShare(note)
       try {
-        setShareDialogSharedUsers(mapShareUsers((await getSharedUsers(id)) || []))
+        const users = (await getSharedUsers(id)) || []
+        setShareDialogSharedUsers(mapShareUsers(users))
+        await refreshSharesForNote(id)
       } catch {
         setShareDialogSharedUsers([])
       }
       setShareDialogOpen(true)
     },
-    [notes, getSharedUsers, mapShareUsers]
+    [notes, getSharedUsers, mapShareUsers, refreshSharesForNote]
   )
 
   const handleShareSubmit = useCallback(
@@ -807,10 +847,38 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     if (!noteToShare) return
     try {
       setShareDialogSharedUsers(mapShareUsers((await getSharedUsers(noteToShare.id)) || []))
+      await refreshSharesForNote(noteToShare.id)
     } catch {
       /* ignore */
     }
-  }, [noteToShare, getSharedUsers, mapShareUsers])
+  }, [noteToShare, getSharedUsers, mapShareUsers, refreshSharesForNote])
+
+  const handleManageShares = useCallback(
+    (id: string) => {
+      const note = notes.find(item => item.id === id) ?? (currentNote?.id === id ? currentNote : null)
+      if (!note) return
+      setNoteToManageShares(note)
+      setManageSharesDialogOpen(true)
+    },
+    [currentNote, notes]
+  )
+
+  const handleOpenManageSharesFromShareDialog = useCallback(() => {
+    if (!noteToShare) return
+    setShareDialogOpen(false)
+    setNoteToManageShares(noteToShare)
+    setManageSharesDialogOpen(true)
+  }, [noteToShare])
+
+  const handleShareDialogOpenChange = useCallback(
+    (open: boolean) => {
+      setShareDialogOpen(open)
+      if (!open && noteToShare) {
+        void refreshSharesForNote(noteToShare.id)
+      }
+    },
+    [noteToShare, refreshSharesForNote]
+  )
 
   const handleQuickAccessChange = useCallback(
     (section: QuickAccessSection) => {
@@ -974,8 +1042,11 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
 
   if (shouldRenderEditorView && currentNote) {
     const effectivePermission = currentNotePermission || 'owner'
-    const canEdit = effectivePermission === 'owner' || effectivePermission === 'edit'
-    const isOwner = currentNote.ownerId === currentUserId || effectivePermission === 'owner'
+    const noteCapabilities = getShareCapabilities({
+      permission: effectivePermission,
+      isOwner: currentNote.ownerId === currentUserId || effectivePermission === 'owner'
+    })
+    const canEdit = noteCapabilities.canEdit
     const contentJson = currentNote.contentJson as
       | {
           _noteType?: string
@@ -1061,17 +1132,36 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
           {!isTrashedNote && noteToShare && (
             <ShareNoteDialog
               open={shareDialogOpen}
-              onOpenChange={setShareDialogOpen}
+              onOpenChange={handleShareDialogOpenChange}
               noteId={noteToShare.id}
               noteTitle={noteToShare.title || t('title-untitled-note')}
               accessToken={accessToken}
               currentUserId={currentUserId}
               currentUserName={userInfo?.employeeDetails?.displayName}
+              currentUserAvatar={currentUserAvatar}
               isOwner={noteToShare.ownerId === currentUserId || noteToShare.permission === 'owner'}
               sharedUsers={shareDialogSharedUsers}
               onShare={handleShareSubmit}
               onUnshare={handleUnshare}
               onRefreshShares={refreshShares}
+              onManageAccess={handleOpenManageSharesFromShareDialog}
+            />
+          )}
+          {noteToManageShares && (
+            <ManageSharesDialog
+              open={manageSharesDialogOpen}
+              onOpenChange={open => {
+                setManageSharesDialogOpen(open)
+                if (!open) setNoteToManageShares(null)
+              }}
+              noteId={noteToManageShares.id}
+              noteTitle={noteToManageShares.title || t('title-untitled-note')}
+              accessToken={accessToken}
+              onSharesChanged={() => {
+                void refreshNotes()
+                void refreshShares()
+                void refreshSharesForNote(noteToManageShares.id)
+              }}
             />
           )}
           {trashedDialog}
@@ -1091,7 +1181,14 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
             }}
             onBack={handleBack}
             onTogglePin={() => handleTogglePin(currentNote.id)}
-            onShare={!isTrashedNote && isOwner ? () => handleShareNote(currentNote.id) : undefined}
+            onShare={
+              !isTrashedNote && noteCapabilities.canManageSharing ? () => handleShareNote(currentNote.id) : undefined
+            }
+            onManageShares={
+              !isTrashedNote && noteCapabilities.canManageSharing && hasSharesForNote(currentNote.id)
+                ? () => handleManageShares(currentNote.id)
+                : undefined
+            }
             onDuplicate={() => handleDuplicateNote(currentNote.id)}
             isReadOnly={isTrashedNote || !canEdit}
             isTrashedNote={isTrashedNote}
@@ -1109,17 +1206,40 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
         {!isTrashedNote && noteToShare && (
           <ShareNoteDialog
             open={shareDialogOpen}
-            onOpenChange={setShareDialogOpen}
+            onOpenChange={handleShareDialogOpenChange}
             noteId={noteToShare.id}
             noteTitle={noteToShare.title || t('title-untitled-note')}
             accessToken={accessToken}
             currentUserId={currentUserId}
             currentUserName={userInfo?.employeeDetails?.displayName}
+            currentUserAvatar={currentUserAvatar}
             isOwner={noteToShare.ownerId === currentUserId || noteToShare.permission === 'owner'}
+            currentUserPermission={noteToShare.permission}
             sharedUsers={shareDialogSharedUsers}
             onShare={handleShareSubmit}
             onUnshare={handleUnshare}
             onRefreshShares={refreshShares}
+            onManageAccess={handleOpenManageSharesFromShareDialog}
+          />
+        )}
+        {noteToManageShares && (
+          <ManageSharesDialog
+            open={manageSharesDialogOpen}
+            onOpenChange={open => {
+              setManageSharesDialogOpen(open)
+              if (!open) setNoteToManageShares(null)
+            }}
+            noteId={noteToManageShares.id}
+            noteTitle={noteToManageShares.title || t('title-untitled-note')}
+            accessToken={accessToken}
+            currentUserId={currentUserId}
+            currentUserName={userInfo?.employeeDetails?.displayName}
+            currentUserAvatar={currentUserAvatar}
+            onSharesChanged={() => {
+              void refreshNotes()
+              void refreshShares()
+              void refreshSharesForNote(noteToManageShares.id)
+            }}
           />
         )}
         {trashedDialog}
@@ -1164,11 +1284,13 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
         onDuplicateNote={handleDuplicateNote}
         onTogglePin={handleTogglePin}
         onShareNote={handleShareNote}
+        onManageShares={handleManageShares}
+        hasSharesForNote={hasSharesForNote}
         onCopyLink={copyLink}
         onToggleFavorite={toggleFavorite}
         onToggleSelect={toggleSelectNote}
         onSelectAll={selectAllNotes}
-        onBulkDelete={handleBulkDelete}
+        onBulkDelete={canBulkDeleteNotes ? handleBulkDelete : undefined}
         onBulkPin={handleBulkPin}
         onClearSelection={handleClearSelection}
         onMoveToFolder={handleMoveToFolder}
@@ -1209,17 +1331,40 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
       {noteToShare && (
         <ShareNoteDialog
           open={shareDialogOpen}
-          onOpenChange={setShareDialogOpen}
+          onOpenChange={handleShareDialogOpenChange}
           noteId={noteToShare.id}
           noteTitle={noteToShare.title || t('title-untitled-note')}
           accessToken={accessToken}
           currentUserId={currentUserId}
           currentUserName={userInfo?.employeeDetails?.displayName}
+          currentUserAvatar={currentUserAvatar}
           isOwner={noteToShare.ownerId === currentUserId || noteToShare.permission === 'owner'}
+          currentUserPermission={noteToShare.permission}
           sharedUsers={shareDialogSharedUsers}
           onShare={handleShareSubmit}
           onUnshare={handleUnshare}
           onRefreshShares={refreshShares}
+          onManageAccess={handleOpenManageSharesFromShareDialog}
+        />
+      )}
+      {noteToManageShares && (
+        <ManageSharesDialog
+          open={manageSharesDialogOpen}
+          onOpenChange={open => {
+            setManageSharesDialogOpen(open)
+            if (!open) setNoteToManageShares(null)
+          }}
+          noteId={noteToManageShares.id}
+          noteTitle={noteToManageShares.title || t('title-untitled-note')}
+          accessToken={accessToken}
+          currentUserId={currentUserId}
+          currentUserName={userInfo?.employeeDetails?.displayName}
+          currentUserAvatar={currentUserAvatar}
+          onSharesChanged={() => {
+            void refreshNotes()
+            void refreshShares()
+            void refreshSharesForNote(noteToManageShares.id)
+          }}
         />
       )}
     </div>

@@ -42,6 +42,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@newwork/nw-design-system'
+import { getShareCapabilities } from '@/business-apps/core/office/sharing'
 import type { SpreadsheetAppSummary, AppStatus } from '../types'
 import { getIconByName, DEFAULT_APP_ICON } from '../utils/appIcons'
 import translations from '../_i18n'
@@ -167,6 +168,7 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
   const statusInfo = getStatusInfo(app.status, t)
   // Determine if the app is shared with me vs I shared it with others
   const isOwner = app.isOwner ?? (currentUserId ? app.createdBy === currentUserId : true)
+  const capabilities = getShareCapabilities({ permission: app.permission, isOwner })
   const isSharedWithMe = app.isShared && !isOwner
 
   return (
@@ -226,7 +228,7 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
                 <Settings className="gba:w-4 gba:h-4 gba:mr-2" />
                 {t('action-settings')}
               </DropdownMenuItem>
-              {isOwner && onShare && (
+              {capabilities.canManageSharing && onShare && (
                 <DropdownMenuItem
                   onClick={e => {
                     e.stopPropagation()
@@ -237,7 +239,7 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
                   {t('action-share')}
                 </DropdownMenuItem>
               )}
-              {isOwner && onManageShares && (sharedUsers.length > 0 || app.sharedWithCount) && (
+              {capabilities.canManageSharing && onManageShares && (sharedUsers.length > 0 || app.sharedWithCount) && (
                 <DropdownMenuItem
                   onClick={e => {
                     e.stopPropagation()
@@ -282,17 +284,21 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
                   </DropdownMenuItem>
                 </>
               )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="gba:text-destructive"
-                onClick={e => {
-                  e.stopPropagation()
-                  onDelete(app.id)
-                }}
-              >
-                <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                {t('action-delete-spreadsheet')}
-              </DropdownMenuItem>
+              {capabilities.canDelete && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="gba:text-destructive"
+                    onClick={e => {
+                      e.stopPropagation()
+                      onDelete(app.id)
+                    }}
+                  >
+                    <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
+                    {t('action-delete-spreadsheet')}
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -367,7 +373,7 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
         )}
 
         {/* Shared users avatars (for apps I own) */}
-        {isOwner && sharedUsers.length > 0 && (
+        {capabilities.canManageSharing && sharedUsers.length > 0 && (
           <div className="gba:mb-3">
             <TooltipProvider>
               <div

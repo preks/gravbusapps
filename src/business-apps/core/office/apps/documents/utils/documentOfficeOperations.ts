@@ -50,10 +50,7 @@ function getApprovalStatusFromMetadata(doc: RecordData): DocumentSummary['approv
 }
 
 export function mapApiDocumentToDocument(apiDoc: RecordData): Document {
-  let permission = apiDoc.permission as Document['permission']
-  if (permission === 'admin') {
-    permission = 'owner'
-  }
+  const permission = apiDoc.permission as Document['permission']
 
   const sourceFileInfo = apiDoc.sourceFileInfo as RecordData | undefined
   const sourceFile = sourceFileInfo
@@ -131,7 +128,7 @@ export function mapApiDocToSummary(doc: RecordData): DocumentSummary {
     isShared: doc.isShared as boolean | undefined,
     sharedBy: doc.sharedBy as string | undefined,
     isFavorite: doc.isFavorite as boolean | undefined,
-    permission: (doc.permission === 'admin' ? 'owner' : doc.permission) as DocumentSummary['permission'],
+    permission: doc.permission as DocumentSummary['permission'],
     sharedCount: (doc.sharedCount as number) ?? 0,
     sharedPreviewUserIds: (doc.sharedPreviewUserIds as string[]) ?? [],
     sourceFile,
@@ -516,7 +513,7 @@ export function buildSharedUserEntries(shares: RecordData[]): Array<DocumentShar
   return shares.map(share => ({
     id: share.id as string,
     userId: share.userId as string,
-    permission: share.permission as 'view' | 'edit' | 'comment',
+    permission: share.permission as 'view' | 'edit' | 'comment' | 'admin',
     sharedAt: share.createdAt as string,
     sharedBy: share.sharedBy as string
   }))

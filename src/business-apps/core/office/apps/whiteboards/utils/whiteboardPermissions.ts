@@ -1,4 +1,5 @@
 import type { WhiteboardPermission, WhiteboardSummary } from '../types'
+import { getShareCapabilities } from '@/business-apps/core/office/sharing'
 
 type WhiteboardPermissionSource = Pick<WhiteboardSummary, 'permission' | 'isOwner'> | null | undefined
 
@@ -23,19 +24,20 @@ export function getEffectiveWhiteboardPermission(whiteboard: WhiteboardPermissio
 }
 
 export function getWhiteboardCapabilities(whiteboard: WhiteboardPermissionSource): WhiteboardCapabilities {
-  const permission = getEffectiveWhiteboardPermission(whiteboard)
-  const canEditCanvas = permission === 'edit' || permission === 'admin'
-  const canComment = canEditCanvas || permission === 'comment'
+  const capabilities = getShareCapabilities({
+    permission: getEffectiveWhiteboardPermission(whiteboard),
+    isOwner: Boolean(whiteboard?.isOwner)
+  })
 
   return {
-    permission,
-    canEditCanvas,
-    canComment,
-    canRename: canEditCanvas,
+    permission: capabilities.permission as WhiteboardPermission,
+    canEditCanvas: capabilities.canEdit,
+    canComment: capabilities.canComment,
+    canRename: capabilities.canEdit,
     canDuplicate: true,
-    canManageSharing: permission === 'admin',
-    canDelete: Boolean(whiteboard?.isOwner),
-    canUseAi: canEditCanvas,
-    isReadonlyCanvas: !canEditCanvas
+    canManageSharing: capabilities.canManageSharing,
+    canDelete: capabilities.canDelete,
+    canUseAi: capabilities.canEdit,
+    isReadonlyCanvas: !capabilities.canEdit
   }
 }

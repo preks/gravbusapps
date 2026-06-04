@@ -24,6 +24,7 @@ import {
   FileText,
   PenTool,
   Share2,
+  Users,
   Link2,
   Copy,
   Trash2,
@@ -35,6 +36,7 @@ import { NoteContentHeader } from './NoteContentHeader'
 import { NotePreviewCard } from './NotePreviewCard'
 import { NoteBulkActions } from './NoteBulkActions'
 import type { NoteSummary, NoteTreeNode } from '../types'
+import { getShareCapabilities } from '@/business-apps/core/office/sharing'
 import translations from '../_i18n'
 
 export interface NoteContentAreaProps {
@@ -66,6 +68,8 @@ export interface NoteContentAreaProps {
   onDuplicateNote: (id: string) => void
   onTogglePin: (id: string) => void
   onShareNote: (id: string) => void
+  onManageShares?: (id: string) => void
+  hasSharesForNote: (noteId: string) => boolean
   onCopyLink: (note: NoteSummary) => void
   onToggleFavorite: (id: string, e?: React.MouseEvent) => void
   onToggleSelect: (id: string, e?: React.MouseEvent) => void
@@ -131,6 +135,8 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
   onDuplicateNote,
   onTogglePin,
   onShareNote,
+  onManageShares,
+  hasSharesForNote,
   onCopyLink,
   onToggleFavorite,
   onToggleSelect,
@@ -249,6 +255,8 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
                 onDuplicate={onDuplicateNote}
                 onTogglePin={onTogglePin}
                 onShare={onShareNote}
+                onManageShares={onManageShares}
+                hasSharesForNote={hasSharesForNote(note.id)}
               />
             ))}
           </div>
@@ -264,6 +272,7 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
                   ? prevNote.icon === '📁' || (prevNote.hasChildren && !prevNote.preview)
                   : false
                 const isOwner = note.ownerId === currentUserId || note.permission === 'owner'
+                const capabilities = getShareCapabilities({ permission: note.permission, isOwner })
                 const isSelected = selectedNotes.has(note.id)
                 const isFavorite = note.isFavorite ?? favorites.has(note.id)
                 const ownerInfo = note.ownerId ? ownerInfoMap.get(note.ownerId) : undefined
@@ -442,12 +451,21 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
                                 {t('menu-rename')}
                               </DropdownMenuItem>
                             )}
-                            {!isNoteFolder && isOwner && (
+                            {!isNoteFolder && capabilities.canManageSharing && (
                               <DropdownMenuItem onClick={() => onShareNote(note.id)}>
                                 <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
                                 {t('menu-share')}
                               </DropdownMenuItem>
                             )}
+                            {!isNoteFolder &&
+                              capabilities.canManageSharing &&
+                              onManageShares &&
+                              hasSharesForNote(note.id) && (
+                                <DropdownMenuItem onClick={() => onManageShares(note.id)}>
+                                  <Users className="gba:w-4 gba:h-4 gba:mr-2" />
+                                  {t('menu-manage-sharing')}
+                                </DropdownMenuItem>
+                              )}
                             {!isNoteFolder && (
                               <DropdownMenuItem onClick={() => onCopyLink(note)}>
                                 <Link2 className="gba:w-4 gba:h-4 gba:mr-2" />
@@ -478,10 +496,12 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="gba:text-destructive" onClick={() => onDeleteNote(note.id)}>
-                              <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                              {t('menu-delete')}
-                            </DropdownMenuItem>
+                            {capabilities.canDelete && (
+                              <DropdownMenuItem className="gba:text-destructive" onClick={() => onDeleteNote(note.id)}>
+                                <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
+                                {t('menu-delete')}
+                              </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
@@ -500,7 +520,7 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
         {/* Bulk Actions floating bar */}
         <NoteBulkActions
           selectedCount={selectedNotes.size}
-          onDelete={onBulkDelete || (() => {})}
+          onDelete={onBulkDelete}
           onPin={onBulkPin}
           onClearSelection={onClearSelection || (() => {})}
         />

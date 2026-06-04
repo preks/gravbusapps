@@ -5,7 +5,7 @@
  * Modern OneDrive-inspired design with sidebar navigation.
  */
 
-import React, { useState, useCallback, useEffect, useMemo } from 'react'
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { toast } from 'sonner'
 import {
   Card,
@@ -77,6 +77,7 @@ import { PromoteToDatabaseModal } from './components/PromoteToDatabaseModal'
 import { SpreadsheetAppViewer } from './SpreadsheetAppViewer'
 import { SpreadsheetAppEditor } from './SpreadsheetAppEditor'
 import { ShareAppDialog } from './components/ShareAppDialog'
+import { getShareCapabilities } from '@/business-apps/core/office/sharing'
 import { ManageSharesDialog } from './components/ManageSharesDialog'
 import { SpreadsheetAutomationsSection } from './components/automations/SpreadsheetAutomationsSection'
 import { TrashedSpreadsheetReadonlyDialog } from './components/TrashedSpreadsheetReadonlyDialog'
@@ -154,6 +155,20 @@ function summarizeIdSet(ids: Set<string>, maxItems = 10): string[] {
 
 const resolveCurrentUserId = (userInfo?: SpreadsheetAppsHubProps['userInfo']): string =>
   userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
+
+function getSpreadsheetCapabilities(
+  app: {
+    permission?: 'owner' | 'view' | 'comment' | 'edit' | 'admin' | null
+    isOwner?: boolean
+    createdBy?: string
+  },
+  currentUserId: string
+) {
+  return getShareCapabilities({
+    permission: app.permission ?? 'view',
+    isOwner: Boolean(app.isOwner || app.permission === 'owner' || currentUserId === app.createdBy)
+  })
+}
 
 const filterTaskDisplayedApps = (
   activeSection: SidebarSection,
@@ -868,21 +883,68 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     pageSize
   } = useHubPagination({ items: activeSection === 'tasks' ? taskDisplayedApps : filteredApps, pageSize: 20 })
 
+  const selectedAppsForDelete = useMemo(
+    () =>
+      Array.from(selectedApps)
+        .map(id => {
+          const app = apps.find(item => item.id === id)
+
+          if (!app || !getSpreadsheetCapabilities(app, currentUserId).canDelete) {
+            return null
+          }
+
+          return app
+        })
+        .filter((app): app is SpreadsheetAppSummary => app !== null),
+    [apps, currentUserId, selectedApps]
+  )
+
+  const canBulkDeleteApps = selectedApps.size > 0 && selectedAppsForDelete.length === selectedApps.size
+
   // Handlers
+  const resolveAppSummaryForSharing = useCallback(
+    (id: string): SpreadsheetAppSummary | null => {
+      const fromList = apps.find(a => a.id === id)
+      if (fromList) {
+        return fromList
+      }
+
+      if (!currentApp || currentApp.id !== id) {
+        return null
+      }
+
+      return {
+        id: currentApp.id,
+        name: currentApp.name,
+        description: currentApp.description,
+        icon: currentApp.icon,
+        sheetCount: currentApp.sheets.length,
+        rowCount: currentApp.sheets.reduce((sum, sheet) => sum + (sheet.data?.length || 0), 0),
+        status: currentApp.status,
+        createdAt: currentApp.createdAt,
+        updatedAt: currentApp.updatedAt,
+        createdBy: currentApp.createdBy,
+        filePath: currentApp.filePath,
+        isShared: currentApp.isShared,
+        isOwner: getSpreadsheetCapabilities(currentApp, currentUserId).canDelete,
+        permission: currentApp.permission,
+        sharedBy: currentApp.sharedBy,
+        settings: currentApp.settings as Record<string, unknown>
+      }
+    },
+    [apps, currentApp, currentUserId]
+  )
+
   const handleManageShares = useCallback(
     (id: string) => {
-      const app = apps.find(a => a.id === id)
-      if (app) {
-        setSelectedAppForManageShares(app)
+      const targetApp = resolveAppSummaryForSharing(id)
+      if (targetApp) {
+        setSelectedAppForManageShares(targetApp)
         setManageSharesDialogOpen(true)
       }
     },
-    [apps]
+    [resolveAppSummaryForSharing]
   )
-
-  const handleSharesChanged = useCallback(async () => {
-    await refreshApps()
-  }, [refreshApps])
 
   const finishCreatedAppNavigation = useCallback(
     async (createdApp: SpreadsheetApp, preferredView: 'viewer' | 'editor' = 'editor') => {
@@ -1161,13 +1223,19 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     [resolveShareUser]
   )
 
+  const sharedUsersRef = useRef(sharedUsers)
+  useEffect(() => {
+    sharedUsersRef.current = sharedUsers
+  }, [sharedUsers])
+
   /**
    * Build a known-users map from current sharedUsers state as a fallback for GraphQL failures.
+   * Reads via ref so fetchAndEnrichShares stays stable when sharedUsers updates (avoids effect loops).
    */
   const buildKnownUsersMap = useCallback(
     (extraDetails?: Array<{ userId: string; displayName: string; avatar?: string; email?: string }>) => {
       const map = new Map<string, { displayName: string; avatar?: string; email?: string }>()
-      sharedUsers.forEach(u => {
+      sharedUsersRef.current.forEach(u => {
         if (u.userName && !u.userName.startsWith('User ')) {
           map.set(u.userId, { displayName: u.userName, avatar: u.userAvatar, email: u.userEmail })
         }
@@ -1175,7 +1243,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       extraDetails?.forEach(u => map.set(u.userId, u))
       return map
     },
-    [sharedUsers]
+    []
   )
 
   /**
@@ -1202,30 +1270,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
   const handleShareApp = useCallback(
     async (id: string) => {
-      const fromList = apps.find(a => a.id === id)
-      const fromCurrent =
-        currentApp && currentApp.id === id
-          ? {
-              id: currentApp.id,
-              name: currentApp.name,
-              description: currentApp.description,
-              icon: currentApp.icon,
-              sheetCount: currentApp.sheets.length,
-              rowCount: currentApp.sheets.reduce((sum, sheet) => sum + (sheet.data?.length || 0), 0),
-              status: currentApp.status,
-              createdAt: currentApp.createdAt,
-              updatedAt: currentApp.updatedAt,
-              createdBy: currentApp.createdBy,
-              filePath: currentApp.filePath,
-              isShared: currentApp.isShared,
-              isOwner: currentApp.permission === 'owner' || currentApp.permission === 'admin' || !currentApp.permission,
-              permission: currentApp.permission,
-              sharedBy: currentApp.sharedBy,
-              settings: currentApp.settings as Record<string, unknown>
-            }
-          : null
-
-      const targetApp = fromList || fromCurrent
+      const targetApp = resolveAppSummaryForSharing(id)
       if (!targetApp) return
 
       // Open dialog immediately so the user gets instant feedback.
@@ -1238,8 +1283,40 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
         console.warn('[SpreadsheetAppsHub] Failed to preload shares:', error)
       }
     },
-    [apps, currentApp, fetchAndEnrichShares]
+    [fetchAndEnrichShares, resolveAppSummaryForSharing]
   )
+
+  const viewerSharesPreloadedAppIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if ((currentView !== 'viewer' && currentView !== 'trash') || !currentApp?.id || currentAppPermission !== 'owner') {
+      if (currentView !== 'viewer' && currentView !== 'trash') {
+        viewerSharesPreloadedAppIdRef.current = null
+      }
+      return
+    }
+    if (viewerSharesPreloadedAppIdRef.current === currentApp.id) {
+      return
+    }
+    viewerSharesPreloadedAppIdRef.current = currentApp.id
+
+    void fetchAndEnrichShares(currentApp.id).catch(error => {
+      console.warn('[SpreadsheetAppsHub] Failed to preload shares in viewer:', error)
+    })
+  }, [currentView, currentApp?.id, currentAppPermission, fetchAndEnrichShares])
+
+  const handleSharesChanged = useCallback(async () => {
+    await refreshApps()
+    const appId = selectedAppForManageShares?.id ?? currentApp?.id
+    if (!appId) {
+      return
+    }
+    try {
+      await fetchAndEnrichShares(appId)
+    } catch (error) {
+      console.warn('[SpreadsheetAppsHub] Shares changed but share list refresh failed:', error)
+    }
+  }, [currentApp?.id, fetchAndEnrichShares, refreshApps, selectedAppForManageShares?.id])
 
   const handleShare = useCallback(
     async (
@@ -1476,6 +1553,10 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   )
 
   const currentUserName = useMemo(() => resolveCurrentUserName(userInfo), [userInfo])
+  const currentUserAvatar = useMemo(
+    () => formatAvatarUrl(userInfo?.employeeDetails?.pictureThumbnail),
+    [userInfo?.employeeDetails?.pictureThumbnail]
+  )
 
   const handleOpenViewerEditor = useCallback(
     (app: SpreadsheetApp) => {
@@ -1513,7 +1594,12 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   const renderViewerContent = useCallback(
     (app: SpreadsheetApp) => {
       const isReadonlyTrashView = Boolean(app.trashedAt)
-      const canEdit = !isReadonlyTrashView && (currentAppPermission === 'owner' || currentAppPermission === 'edit')
+      const currentAppCapabilities = getShareCapabilities({
+        permission: (currentAppPermission || 'view') as 'owner' | 'view' | 'comment' | 'edit' | 'admin',
+        isOwner: currentAppPermission === 'owner'
+      })
+      const canEdit = !isReadonlyTrashView && currentAppCapabilities.canEdit
+      const hasSharesForApp = currentApp?.id === app.id && sharedUsers.length > 0
 
       return (
         <>
@@ -1521,7 +1607,14 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             app={app}
             onBack={handleBack}
             onNavigateToSpreadsheetHub={handleSpreadsheetHubHome}
-            onShare={isReadonlyTrashView ? undefined : () => handleShareApp(app.id)}
+            onShare={
+              isReadonlyTrashView || !currentAppCapabilities.canManageSharing ? undefined : () => handleShareApp(app.id)
+            }
+            onManageShares={
+              !isReadonlyTrashView && currentAppCapabilities.canManageSharing && hasSharesForApp
+                ? () => handleManageShares(app.id)
+                : undefined
+            }
             onEdit={canEdit ? () => handleOpenViewerEditor(app) : undefined}
             onAppUpdate={canEdit ? updatedApp => updateApp(updatedApp.id, updatedApp) : undefined}
             onLocalAppUpdate={canEdit ? applyCurrentAppLocalUpdate : undefined}
@@ -1564,11 +1657,36 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
               accessToken={accessToken || ''}
               currentUserId={currentUserId}
               currentUserName={currentUserName}
+              currentUserAvatar={currentUserAvatar}
               isOwner={selectedAppForShare.isOwner !== false}
+              currentUserPermission={selectedAppForShare.permission}
               sharedUsers={sharedUsers}
               onShare={handleShare}
               onUnshare={handleUnshare}
               onRefreshShares={handleRefreshShares}
+              onManageAccess={() => {
+                setShareDialogOpen(false)
+                setSelectedAppForManageShares(selectedAppForShare)
+                setManageSharesDialogOpen(true)
+              }}
+            />
+          )}
+
+          {selectedAppForManageShares && !isReadonlyTrashView && (
+            <ManageSharesDialog
+              open={manageSharesDialogOpen}
+              onOpenChange={setManageSharesDialogOpen}
+              appId={selectedAppForManageShares.id}
+              appName={selectedAppForManageShares.name}
+              accessToken={accessToken || ''}
+              currentUserId={currentUserId}
+              currentUserName={currentUserName}
+              currentUserAvatar={currentUserAvatar}
+              onSharesChanged={handleSharesChanged}
+              onAddMoreUsers={() => {
+                setManageSharesDialogOpen(false)
+                void handleShareApp(selectedAppForManageShares.id)
+              }}
             />
           )}
         </>
@@ -1586,14 +1704,18 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       handleAppRefreshNeeded,
       handleBack,
       handleDeleteTrashedAppPermanently,
+      handleManageShares,
       handleOpenViewerEditor,
       handleRefreshShares,
       handleShare,
       handleShareApp,
+      handleSharesChanged,
       handleSpreadsheetHubHome,
       handleUnshare,
       isDeletingTrashedApp,
       canManageTrashedApp,
+      manageSharesDialogOpen,
+      selectedAppForManageShares,
       selectedAppForShare,
       setShareDialogOpen,
       sharedUsers,
@@ -1979,29 +2101,24 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                             <Download className="gba:w-3.5 gba:h-3.5 gba:mr-1" />
                             {t('action-download')}
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="gba:h-7 gba:text-xs gba:text-destructive"
-                            onClick={() => {
-                              requestMoveAppsToTrash(
-                                Array.from(selectedApps)
-                                  .map(id => {
-                                    const app = apps.find(item => item.id === id)
-                                    if (!app) return null
-
-                                    return {
-                                      id: app.id,
-                                      name: app.name
-                                    }
-                                  })
-                                  .filter((app): app is { id: string; name: string } => app !== null)
-                              )
-                            }}
-                          >
-                            <Trash2 className="gba:w-3.5 gba:h-3.5 gba:mr-1" />
-                            {t('action-delete-spreadsheet')}
-                          </Button>
+                          {canBulkDeleteApps && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="gba:h-7 gba:text-xs gba:text-destructive"
+                              onClick={() => {
+                                requestMoveAppsToTrash(
+                                  selectedAppsForDelete.map(app => ({
+                                    id: app.id,
+                                    name: app.name
+                                  }))
+                                )
+                              }}
+                            >
+                              <Trash2 className="gba:w-3.5 gba:h-3.5 gba:mr-1" />
+                              {t('action-delete-spreadsheet')}
+                            </Button>
+                          )}
                         </div>
                       ) : (
                         <Button
@@ -2213,7 +2330,8 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                         {/* Table Body */}
                         <div className="gba:divide-y gba:divide-border">
                           {paginatedApps.map(app => {
-                            const isOwner = app.isOwner ?? app.createdBy === currentUserId
+                            const capabilities = getSpreadsheetCapabilities(app, currentUserId)
+                            const isOwner = capabilities.canDelete
                             const isSelected = selectedApps.has(app.id)
                             const isFavorite = app.isFavorite ?? favorites.has(app.id)
                             const ownerInfo = app.createdBy ? ownerInfoMap.get(app.createdBy) : undefined
@@ -2415,14 +2533,18 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                         />
                                         {isFavorite ? t('action-remove-from-favorites') : t('action-add-to-favorites')}
                                       </DropdownMenuItem>
-                                      <DropdownMenuSeparator />
-                                      <DropdownMenuItem
-                                        className="gba:text-destructive"
-                                        onClick={() => handleDeleteApp(app.id, app.name)}
-                                      >
-                                        <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                                        {t('action-delete-spreadsheet')}
-                                      </DropdownMenuItem>
+                                      {capabilities.canDelete && (
+                                        <>
+                                          <DropdownMenuSeparator />
+                                          <DropdownMenuItem
+                                            className="gba:text-destructive"
+                                            onClick={() => handleDeleteApp(app.id, app.name)}
+                                          >
+                                            <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
+                                            {t('action-delete-spreadsheet')}
+                                          </DropdownMenuItem>
+                                        </>
+                                      )}
                                     </DropdownMenuContent>
                                   </DropdownMenu>
                                 </div>
@@ -2439,7 +2561,8 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                     viewLayout === 'grid' && (
                       <div className="gba:p-6 gba:grid gba:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:xl:grid-cols-5 gba:gap-4">
                         {paginatedApps.map(app => {
-                          const isOwner = app.isOwner ?? app.createdBy === currentUserId
+                          const capabilities = getSpreadsheetCapabilities(app, currentUserId)
+                          const isOwner = capabilities.canDelete
                           const isSelected = selectedApps.has(app.id)
                           const isFavorite = app.isFavorite ?? favorites.has(app.id)
 
@@ -2547,14 +2670,18 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                       <Download className="gba:w-4 gba:h-4 gba:mr-2" />
                                       {t('action-download')}
                                     </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                      className="gba:text-destructive"
-                                      onClick={() => handleDeleteApp(app.id, app.name)}
-                                    >
-                                      <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                                      {t('action-delete-spreadsheet')}
-                                    </DropdownMenuItem>
+                                    {capabilities.canDelete && (
+                                      <>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
+                                          className="gba:text-destructive"
+                                          onClick={() => handleDeleteApp(app.id, app.name)}
+                                        >
+                                          <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
+                                          {t('action-delete-spreadsheet')}
+                                        </DropdownMenuItem>
+                                      </>
+                                    )}
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               </div>
@@ -2603,11 +2730,17 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             accessToken={accessToken || ''}
             currentUserId={currentUserId}
             currentUserName={currentUserName}
+            currentUserAvatar={currentUserAvatar}
             isOwner={selectedAppForShare.isOwner !== false}
             sharedUsers={sharedUsers}
             onShare={handleShare}
             onUnshare={handleUnshare}
             onRefreshShares={handleRefreshShares}
+            onManageAccess={() => {
+              setShareDialogOpen(false)
+              setSelectedAppForManageShares(selectedAppForShare)
+              setManageSharesDialogOpen(true)
+            }}
           />
         )}
 
@@ -2631,6 +2764,9 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             appId={selectedAppForManageShares.id}
             appName={selectedAppForManageShares.name}
             accessToken={accessToken || ''}
+            currentUserId={currentUserId}
+            currentUserName={currentUserName}
+            currentUserAvatar={currentUserAvatar}
             onSharesChanged={handleSharesChanged}
             onAddMoreUsers={() => {
               setManageSharesDialogOpen(false)

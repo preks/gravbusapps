@@ -609,9 +609,9 @@ share-dialog-toast-success = „{ $name }" partajat cu { $count } { $count ->
 share-dialog-permission-view = Doar vizualizare
 share-dialog-permission-view-desc = Acces doar pentru citire (fără editare sau gestionare partajare)
 share-dialog-permission-edit = Poate edita
-share-dialog-permission-edit-desc = Poate vizualiza și edita date
-share-dialog-permission-admin = Administrator
-share-dialog-permission-admin-desc = Poate vizualiza, edita și gestiona partajarea
+share-dialog-permission-edit-desc = Poate vizualiza și edita date, dar nu poate șterge sau gestiona partajarea
+share-dialog-permission-admin = Acces complet
+share-dialog-permission-admin-desc = Poate face tot ce poate face „Poate edita”, plus să gestioneze partajarea
 
 analytics-panel-title-generate-charts = Generează diagrame
 analytics-panel-title-ai-insights = Perspective AI

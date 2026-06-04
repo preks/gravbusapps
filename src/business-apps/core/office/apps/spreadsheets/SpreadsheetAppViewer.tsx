@@ -413,6 +413,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   onBack,
   onNavigateToSpreadsheetHub,
   onShare,
+  onManageShares,
   onEdit,
   isEditing = true,
   isTrashedApp = false,
@@ -4255,6 +4256,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         }
       },
       onShare,
+      onManageShares,
       onRenameAppName: handleRenameAppName,
       onOpenAICapability: handleOpenAICapability,
       onOpenAnalytics: openAnalyticsPanel,

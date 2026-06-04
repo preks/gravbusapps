@@ -47,6 +47,7 @@ function buildLayoutProps(params: UseSpreadsheetViewerControllerParams): Spreads
     unresolvedCommentCount: header.unresolvedCommentCount,
     fileLock: header.fileLock,
     onShare: header.onShare,
+    onManageShares: header.onManageShares,
     onRenameAppName: header.onRenameAppName,
     onOpenAICapability: header.onOpenAICapability,
     onOpenAnalytics: header.onOpenAnalytics,

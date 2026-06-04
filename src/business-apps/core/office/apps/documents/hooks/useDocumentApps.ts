@@ -15,6 +15,7 @@ import { useOfficeClient } from '@/common/network/office/useOfficeClient'
 import type { Document, DocumentSummary, ApprovalWorkflowConfig, DocumentApprovalRequest } from '../types'
 import translations from '../_i18n'
 import {
+  buildSharedUserEntries,
   getDocumentById,
   getDocumentForOpenById,
   mapApiDocToSummary,
@@ -31,7 +32,7 @@ interface ServerPageMeta {
 interface UseDocumentAppsState {
   documents: DocumentSummary[]
   currentDocument: Document | null
-  currentDocumentPermission: 'owner' | 'view' | 'edit' | 'comment' | null
+  currentDocumentPermission: 'owner' | 'view' | 'edit' | 'comment' | 'admin' | null
   isLoading: boolean
   error: string | null
   storageMode: 'database' | 'local'
@@ -54,8 +55,23 @@ interface UseDocumentAppsResult extends UseDocumentAppsState {
   updateDocument: (id: string, updates: Partial<Document>) => Promise<Document | null>
   deleteDocument: (id: string) => Promise<boolean>
   duplicateDocument: (id: string) => Promise<Document | null>
-  shareDocument: (id: string, userIds: string[], permission: 'view' | 'edit' | 'comment') => Promise<boolean>
-  revokeAccess: (id: string, userId: string) => Promise<boolean>
+  shareDocument: (id: string, userIds: string[], permission: 'view' | 'edit' | 'comment' | 'admin') => Promise<boolean>
+  shareDocumentBatch: (
+    id: string,
+    shares: Array<{ userId: string; permission: 'view' | 'edit' | 'comment' | 'admin' }>
+  ) => Promise<boolean>
+  getSharedUsers: (id: string) => Promise<
+    Array<{
+      id: string
+      userId: string
+      userName: string
+      userEmail: string
+      permission: 'view' | 'edit' | 'comment' | 'admin'
+      sharedAt: string
+      sharedBy: string
+    }>
+  >
+  revokeAccess: (shareId: string) => Promise<boolean>
   sendForApproval: (config: ApprovalWorkflowConfig) => Promise<DocumentApprovalRequest | null>
   cancelApproval: (documentId: string) => Promise<boolean>
   clearCurrentDocument: () => void
@@ -177,7 +193,8 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
       try {
         const document = await getDocumentForOpenById(officeClient, id)
         if (document) {
-          const permission = document.permission === 'admin' ? 'owner' : document.permission || 'owner'
+          const isOwner = document.createdBy === userId || document.permission === 'owner'
+          const permission = isOwner ? 'owner' : document.permission || 'view'
           setState(prev => ({
             ...prev,
             currentDocument: document,
@@ -191,7 +208,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         return null
       }
     },
-    [accessToken, officeClient, t]
+    [accessToken, officeClient, t, userId]
   )
 
   const createDocument = useCallback(
@@ -318,12 +335,14 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
     [accessToken, officeClient, refreshDocuments, t]
   )
 
-  const shareDocument = useCallback(
-    async (id: string, userIds: string[], permission: 'view' | 'edit' | 'comment'): Promise<boolean> => {
+  const shareDocumentBatch = useCallback(
+    async (
+      id: string,
+      shares: Array<{ userId: string; permission: 'view' | 'edit' | 'comment' | 'admin' }>
+    ): Promise<boolean> => {
       if (!accessToken) return false
 
       try {
-        const shares = userIds.map(userId => ({ userId, permission }))
         await officeClient.createShare({
           entityType: 'document',
           entityId: id,
@@ -334,7 +353,6 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
         })
         const success = true
         if (success) {
-          toast.success(t('doc-apps-toast-share-success'))
           await refreshDocuments()
         }
         return success
@@ -347,22 +365,67 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
     [accessToken, officeClient, refreshDocuments, t]
   )
 
+  const shareDocument = useCallback(
+    async (id: string, userIds: string[], permission: 'view' | 'edit' | 'comment' | 'admin'): Promise<boolean> =>
+      shareDocumentBatch(
+        id,
+        userIds.map(userId => ({ userId, permission }))
+      ),
+    [shareDocumentBatch]
+  )
+
+  const getSharedUsers = useCallback(
+    async (
+      id: string
+    ): Promise<
+      Array<{
+        id: string
+        userId: string
+        userName: string
+        userEmail: string
+        permission: 'view' | 'edit' | 'comment' | 'admin'
+        sharedAt: string
+        sharedBy: string
+      }>
+    > => {
+      if (!accessToken) {
+        return []
+      }
+
+      try {
+        const shares = buildSharedUserEntries(
+          await officeClient.getSharingForDocument<Array<Record<string, unknown>>>(id)
+        )
+        return shares.map(share => ({
+          id: share.id || '',
+          userId: share.userId,
+          userName: '',
+          userEmail: '',
+          permission: share.permission,
+          sharedAt: share.sharedAt,
+          sharedBy: share.sharedBy
+        }))
+      } catch (error) {
+        console.error('[useDocumentApps] Failed to get shared users:', error)
+        return []
+      }
+    },
+    [accessToken, officeClient]
+  )
+
   const revokeAccess = useCallback(
-    async (id: string, revokeUserId: string): Promise<boolean> => {
+    async (shareId: string): Promise<boolean> => {
       if (!accessToken) return false
 
       try {
-        const shares = await officeClient.getSharingForDocument<Array<{ id: string; userId: string }>>(id)
-        const share = shares.find(entry => entry.userId === revokeUserId)
-        if (share) {
-          await officeClient.deleteShare(share.id)
-        }
-        const success = true
-        if (success) {
-          toast.success(t('doc-apps-toast-access-revoked'))
+        await officeClient.deleteShare(shareId)
+        toast.success(t('doc-apps-toast-access-revoked'))
+        try {
           await refreshDocuments()
+        } catch (refreshError) {
+          console.warn('[useDocumentApps] Access revoked but documents refresh failed:', refreshError)
         }
-        return success
+        return true
       } catch (error) {
         console.error('[useDocumentApps] Failed to revoke access:', error)
         toast.error(t('doc-apps-toast-revoke-failed'))
@@ -451,6 +514,8 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
     updateDocument,
     deleteDocument,
     duplicateDocument,
+    shareDocumentBatch,
+    getSharedUsers,
     shareDocument,
     revokeAccess,
     sendForApproval,

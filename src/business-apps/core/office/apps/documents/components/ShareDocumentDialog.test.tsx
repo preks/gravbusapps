@@ -2,71 +2,32 @@ import React from 'react'
 import { render, screen } from '@testing-library/react'
 import { ShareDocumentDialog } from './ShareDocumentDialog'
 
-const mockT = jest.fn((key: string, vars?: Record<string, string | number>) => {
-  if (key === 'share-dialog-title') {
-    throw new ReferenceError('Unknown variable: $name')
-  }
+const mockBuildPlatformUrl = jest.fn(() => '/platform/every-office/documents?docId=doc-1&view=editor')
+const mockSendShareBlinkNotifications = jest.fn().mockResolvedValue({ success: true })
+const mockShareEntityDialog = jest.fn(() => <div data-testid="share-entity-dialog" />)
 
-  if (key === 'share-dialog-description') {
-    return `Freigabe "${vars?.title ?? ''}"`
-  }
-
-  if (key === 'share-dialog-success-title') {
-    return 'Dokument geteilt!'
-  }
-
-  if (key === 'share-task-someone') {
-    return 'Jemand'
-  }
-
-  return key
-})
-
-jest.mock('@newwork/nw-design-system', () => {
-  const passthrough = ({ children, ...props }: any) => <div {...props}>{children}</div>
-  const button = ({ children, ...props }: any) => <button {...props}>{children}</button>
-
-  return {
-    Dialog: ({ children }: any) => <div>{children}</div>,
-    DialogContent: passthrough,
-    DialogHeader: passthrough,
-    DialogTitle: passthrough,
-    DialogDescription: passthrough,
-    DialogFooter: passthrough,
-    Button: button,
-    Input: (props: any) => <input {...props} />,
-    Textarea: (props: any) => <textarea {...props} />,
-    Label: ({ children, ...props }: any) => <label {...props}>{children}</label>,
-    Spinner: (props: any) => <div {...props}>Loading...</div>,
-    Avatar: passthrough,
-    AvatarImage: (props: any) => <img alt="" {...props} />,
-    AvatarFallback: passthrough,
-    Select: ({ children }: any) => <div>{children}</div>,
-    SelectContent: passthrough,
-    SelectItem: passthrough,
-    SelectTrigger: passthrough,
-    SelectValue: (props: any) => <span {...props} />,
-    useTranslation: () => ({ t: mockT })
-  }
-})
-
-jest.mock('@/common/data/employee/useEmployeeSearch', () => ({
-  useEmployeeSearch: () => ({
-    employees: [],
-    loading: false,
-    search: jest.fn()
-  })
+jest.mock('@/common/utils/navigationUtils', () => ({
+  buildPlatformUrl: (...args: unknown[]) => mockBuildPlatformUrl(...args)
 }))
 
-jest.mock('sonner', () => ({
-  toast: {
-    success: jest.fn()
-  }
+jest.mock('@/business-apps/core/office/sharing', () => ({
+  DOCUMENT_SHARE_PERMISSIONS: [{ id: 'view' }, { id: 'comment' }, { id: 'edit' }],
+  ShareEntityDialog: (props: unknown) => mockShareEntityDialog(props),
+  sendShareBlinkNotifications: (...args: unknown[]) => mockSendShareBlinkNotifications(...args)
 }))
 
 describe('ShareDocumentDialog', () => {
-  it('falls back to a safe title when a translation throws during render', () => {
-    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+  beforeEach(() => {
+    mockBuildPlatformUrl.mockClear()
+    mockSendShareBlinkNotifications.mockClear()
+    mockShareEntityDialog.mockClear()
+  })
+
+  it('maps document sharing props into the shared entity dialog', () => {
+    const onShare = jest.fn().mockResolvedValue(true)
+    const onUnshare = jest.fn().mockResolvedValue(true)
+    const onRefreshShares = jest.fn().mockResolvedValue(undefined)
+    const onManageAccess = jest.fn()
 
     render(
       <ShareDocumentDialog
@@ -74,20 +35,90 @@ describe('ShareDocumentDialog', () => {
         onOpenChange={jest.fn()}
         documentId="doc-1"
         documentTitle="Quarterly Plan"
+        accessToken="token"
         currentUserId="user-1"
         currentUserName="Alex Admin"
-        accessToken="token"
-        shareDocument={jest.fn().mockResolvedValue(true)}
+        currentUserAvatar="https://example.com/avatar.png"
+        isOwner={true}
+        sharedUsers={[
+          {
+            id: 'share-1',
+            userId: 'user-2',
+            userName: 'Pat Viewer',
+            userEmail: 'pat@example.com',
+            userAvatar: 'https://example.com/pat.png',
+            permission: 'comment',
+            sharedAt: '2026-06-04T08:00:00.000Z',
+            sharedBy: 'user-1'
+          }
+        ]}
+        onShare={onShare}
+        onUnshare={onUnshare}
+        onRefreshShares={onRefreshShares}
+        onManageAccess={onManageAccess}
       />
     )
 
-    expect(screen.getByText('Share Document')).toBeInTheDocument()
-    expect(screen.getByText('Freigabe "Quarterly Plan"')).toBeInTheDocument()
-    expect(errorSpy).toHaveBeenCalledWith(
-      '[ShareDocument] Failed to translate "share-dialog-title"',
-      expect.any(ReferenceError)
+    expect(screen.getByTestId('share-entity-dialog')).toBeInTheDocument()
+
+    const shareDialogProps = mockShareEntityDialog.mock.calls[0][0]
+    expect(shareDialogProps.entityId).toBe('doc-1')
+    expect(shareDialogProps.entityTitle).toBe('Quarterly Plan')
+    expect(shareDialogProps.entityType).toBe('document')
+    expect(shareDialogProps.currentUserAvatar).toBe('https://example.com/avatar.png')
+    expect(shareDialogProps.permissionOptions).toEqual([{ id: 'view' }, { id: 'comment' }, { id: 'edit' }])
+    expect(shareDialogProps.sharedUsers).toEqual([
+      {
+        shareId: 'share-1',
+        userId: 'user-2',
+        userName: 'Pat Viewer',
+        userEmail: 'pat@example.com',
+        userAvatar: 'https://example.com/pat.png',
+        permission: 'comment',
+        sharedAt: '2026-06-04T08:00:00.000Z'
+      }
+    ])
+    expect(shareDialogProps.onManageAccess).toBe(onManageAccess)
+  })
+
+  it('sends document blink notifications with the shared helper', async () => {
+    render(
+      <ShareDocumentDialog
+        open={true}
+        onOpenChange={jest.fn()}
+        documentId="doc-1"
+        documentTitle="Quarterly Plan"
+        accessToken="token"
+        currentUserId="user-1"
+        isOwner={true}
+        sharedUsers={[]}
+        onShare={jest.fn().mockResolvedValue(true)}
+        onUnshare={jest.fn().mockResolvedValue(true)}
+        onRefreshShares={jest.fn().mockResolvedValue(undefined)}
+      />
     )
 
-    errorSpy.mockRestore()
+    const shareDialogProps = mockShareEntityDialog.mock.calls[0][0]
+
+    await shareDialogProps.sendNotifications({
+      accessToken: 'token',
+      entityId: 'doc-1',
+      entityTitle: 'Quarterly Plan',
+      initiatorId: 'user-1',
+      recipients: [{ userId: 'user-2', permission: 'view' }]
+    })
+
+    expect(mockBuildPlatformUrl).toHaveBeenCalledWith('/platform/every-office/documents', {
+      docId: 'doc-1',
+      view: 'editor'
+    })
+    expect(mockSendShareBlinkNotifications).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entityType: 'document',
+        appTag: 'document-share',
+        titlePrefix: 'Document Shared',
+        entityUrl: '/platform/every-office/documents?docId=doc-1&view=editor'
+      })
+    )
   })
 })

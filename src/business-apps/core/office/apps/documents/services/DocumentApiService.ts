@@ -92,11 +92,7 @@ interface PaginatedResponse<T> {
 
 // Map API document to frontend Document type
 function mapApiDocumentToDocument(apiDoc: Record<string, unknown>): Document {
-  // Map backend permission 'admin' to frontend 'owner'
-  let permission = apiDoc.permission as Document['permission']
-  if (permission === 'admin') {
-    permission = 'owner'
-  }
+  const permission = apiDoc.permission as Document['permission']
 
   // Map sourceFileInfo from backend to sourceFile
   const sourceFileInfo = apiDoc.sourceFileInfo as Record<string, unknown> | undefined
@@ -199,7 +195,7 @@ function mapApiDocToSummary(doc: Record<string, unknown>): DocumentSummary {
     isShared: doc.isShared as boolean | undefined,
     sharedBy: doc.sharedBy as string | undefined,
     isFavorite: doc.isFavorite as boolean | undefined,
-    permission: (doc.permission === 'admin' ? 'owner' : doc.permission) as DocumentSummary['permission'],
+    permission: doc.permission as DocumentSummary['permission'],
     sharedCount: (doc.sharedCount as number) ?? 0,
     sharedPreviewUserIds: (doc.sharedPreviewUserIds as string[]) ?? [],
     sourceFile,
@@ -503,7 +499,7 @@ export const DocumentApiService = {
       const mapped = (shares || []).map(s => ({
         id: s.id as string,
         userId: s.userId as string,
-        permission: s.permission as 'view' | 'edit' | 'comment',
+        permission: s.permission as 'view' | 'edit' | 'comment' | 'admin',
         sharedAt: s.createdAt as string,
         sharedBy: s.sharedBy as string
       }))
@@ -517,7 +513,7 @@ export const DocumentApiService = {
   /**
    * Update a share's permission
    */
-  async updateSharePermission(shareId: string, permission: 'view' | 'edit' | 'comment'): Promise<boolean> {
+  async updateSharePermission(shareId: string, permission: 'view' | 'edit' | 'comment' | 'admin'): Promise<boolean> {
     try {
       await apiRequest(`/sharing/${shareId}`, {
         method: 'PATCH',

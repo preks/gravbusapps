@@ -5,7 +5,7 @@ import translations from '../_i18n'
 
 export interface NoteBulkActionsProps {
   selectedCount: number
-  onDelete: () => void
+  onDelete?: () => void
   onPin?: () => void
   onClearSelection: () => void
   'data-testid'?: string
@@ -45,18 +45,22 @@ export const NoteBulkActions: React.FC<NoteBulkActionsProps> = ({
           {t('menu-pin')}
         </Button>
       )}
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onDelete}
-        className="gba:gap-1.5 gba:text-red-400 hover:gba:bg-red-500/20 hover:gba:text-red-300 gba:h-7"
-        data-testid={`${testId}-delete`}
-      >
-        <Trash2 className="gba:w-3.5 gba:h-3.5" />
-        {t('menu-delete')}
-      </Button>
+      {onDelete && (
+        <>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onDelete}
+            className="gba:gap-1.5 gba:text-red-400 hover:gba:bg-red-500/20 hover:gba:text-red-300 gba:h-7"
+            data-testid={`${testId}-delete`}
+          >
+            <Trash2 className="gba:w-3.5 gba:h-3.5" />
+            {t('menu-delete')}
+          </Button>
 
-      <div className="gba:w-px gba:h-4 gba:bg-background/20 gba:mx-1" />
+          <div className="gba:w-px gba:h-4 gba:bg-background/20 gba:mx-1" />
+        </>
+      )}
 
       <Button
         variant="ghost"

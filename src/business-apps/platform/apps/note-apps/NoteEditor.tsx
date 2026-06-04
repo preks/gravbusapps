@@ -77,7 +77,8 @@ import {
   RefreshCw,
   LayoutGrid,
   Plus,
-  PanelLeft
+  PanelLeft,
+  Users
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCollaboration } from '../shared/hooks/useCollaboration'
@@ -282,6 +283,7 @@ export interface NoteEditorProps extends Partial<BusinessAppContextProps> {
   onBack: () => void
   onTogglePin?: () => void
   onShare?: () => void
+  onManageShares?: () => void
   onDuplicate?: () => void
   onColorChange?: (color: NoteColor) => void
   /** Applied when another collaborator changes note color (hub should patch list/current note). */
@@ -306,6 +308,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   onBack,
   onTogglePin,
   onShare,
+  onManageShares,
   onDuplicate,
   onColorChange,
   onRemoteNoteColor,
@@ -2463,6 +2466,15 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                     <Save className="gba:w-4 gba:h-4 gba:mr-2" />
                     {t('editor-save-checkpoint')}
                   </DropdownMenuItem>
+                  {onManageShares && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={onManageShares} data-testid={`${testId}-manage-sharing`}>
+                        <Users className="gba:w-4 gba:h-4 gba:mr-2" />
+                        {t('menu-manage-sharing')}
+                      </DropdownMenuItem>
+                    </>
+                  )}
                   <DropdownMenuSeparator />
                   {canReleaseOwnNoteLock ? (
                     <DropdownMenuItem onClick={handleReleaseLock} data-testid={`${testId}-unlock-note`}>

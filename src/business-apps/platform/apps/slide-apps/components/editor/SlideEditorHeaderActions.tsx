@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import type { VersionHistoryMessages } from '@/business-apps/platform/apps/shared/components/VersionHistory'
 import type { CheckpointDialogMessages } from '@/business-apps/platform/apps/shared/components/CheckpointDialog'
 import {
@@ -11,13 +11,14 @@ import {
   Separator,
   useTranslation
 } from '@newwork/nw-design-system'
-import { FileText, History, Lock, Share2, Save, Unlock } from 'lucide-react'
+import { FileText, History, Lock, Share2, Save, Unlock, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Version } from '@/business-apps/platform/apps/shared/types/versioning'
 import { useVersioning } from '@/business-apps/platform/apps/shared/hooks/useVersioning'
 import { useFileLock } from '@/business-apps/platform/apps/shared/hooks/useFileLock'
 import { VersionHistory } from '@/business-apps/platform/apps/shared/components/VersionHistory'
 import { CheckpointDialog } from '@/business-apps/platform/apps/shared/components/CheckpointDialog'
+import { getShareCapabilities } from '@/business-apps/core/office/sharing'
 import { SlidesApiService } from '../../services/SlidesApiService'
 import { ShareSlideDialog } from '../ShareSlideDialog'
 import { ManageSharesDialog } from '../ManageSharesDialog'
@@ -29,6 +30,8 @@ export interface SlideEditorHeaderActionsProps {
   accessToken?: string
   currentUserId: string
   currentUserName?: string
+  currentUserAvatar?: string
+  currentUserPermission?: 'view' | 'edit' | 'comment' | 'owner' | 'admin'
   /**
    * Apply a restored snapshot to the live editor (Yjs).
    * The snapshot content is typically `{ slides, themeId }` inside `contentJson`.
@@ -44,6 +47,8 @@ export const SlideEditorHeaderActions: React.FC<SlideEditorHeaderActionsProps> =
   accessToken,
   currentUserId,
   currentUserName,
+  currentUserAvatar,
+  currentUserPermission,
   applyContentJsonSnapshot,
   flushPendingCollaborationUpdates,
   'data-testid': testId = 'slide-editor-header-actions'
@@ -53,6 +58,27 @@ export const SlideEditorHeaderActions: React.FC<SlideEditorHeaderActionsProps> =
   const [showCheckpointDialog, setShowCheckpointDialog] = useState(false)
   const [showShareDialog, setShowShareDialog] = useState(false)
   const [showManageShares, setShowManageShares] = useState(false)
+  const [sharedUsersCount, setSharedUsersCount] = useState(0)
+  const currentUserCapabilities = useMemo(
+    () => getShareCapabilities({ permission: currentUserPermission, isOwner: currentUserPermission === 'owner' }),
+    [currentUserPermission]
+  )
+
+  const refreshShareCount = useCallback(async () => {
+    if (!slideId) return
+    try {
+      const users = await SlidesApiService.getSharedUsers(slideId)
+      setSharedUsersCount(Array.isArray(users) ? users.length : 0)
+    } catch {
+      setSharedUsersCount(0)
+    }
+  }, [slideId])
+
+  useEffect(() => {
+    void refreshShareCount()
+  }, [refreshShareCount])
+
+  const hasExistingShares = sharedUsersCount > 0
 
   const versioning = useVersioning({
     entityId: slideId,
@@ -68,12 +94,15 @@ export const SlideEditorHeaderActions: React.FC<SlideEditorHeaderActionsProps> =
     apiService: SlidesApiService
   })
 
-  const shareSlide = useCallback(async (id: string, userIds: string[], permission: 'view' | 'edit' | 'comment') => {
-    return SlidesApiService.shareSlide(
-      id,
-      userIds.map(userId => ({ userId, permission }))
-    )
-  }, [])
+  const shareSlide = useCallback(
+    async (id: string, userIds: string[], permission: 'view' | 'edit' | 'comment' | 'admin') => {
+      return SlidesApiService.shareSlide(
+        id,
+        userIds.map(userId => ({ userId, permission }))
+      )
+    },
+    []
+  )
 
   const currentVersionNumber = useMemo(() => {
     return versioning.versions?.[0]?.version
@@ -171,14 +200,18 @@ export const SlideEditorHeaderActions: React.FC<SlideEditorHeaderActionsProps> =
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => setShowShareDialog(true)} data-testid={`${testId}-share`}>
-            <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
-            {t('header-share')}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setShowManageShares(true)} data-testid={`${testId}-manage-shares`}>
-            <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
-            {t('header-manage-access')}
-          </DropdownMenuItem>
+          {currentUserCapabilities.canManageSharing && (
+            <DropdownMenuItem onClick={() => setShowShareDialog(true)} data-testid={`${testId}-share`}>
+              <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
+              {t('header-share')}
+            </DropdownMenuItem>
+          )}
+          {currentUserCapabilities.canManageSharing && hasExistingShares && (
+            <DropdownMenuItem onClick={() => setShowManageShares(true)} data-testid={`${testId}-manage-shares`}>
+              <Users className="gba:w-4 gba:h-4 gba:mr-2" />
+              {t('header-manage-access')}
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -229,10 +262,13 @@ export const SlideEditorHeaderActions: React.FC<SlideEditorHeaderActionsProps> =
         slideTitle={slideTitle}
         currentUserId={currentUserId}
         currentUserName={currentUserName}
+        currentUserAvatar={currentUserAvatar}
+        currentUserPermission={currentUserPermission}
         accessToken={accessToken}
         shareSlide={shareSlide}
         onShareComplete={() => {
           setShowShareDialog(false)
+          void refreshShareCount()
         }}
         data-testid={`${testId}-share-dialog`}
       />
@@ -243,7 +279,12 @@ export const SlideEditorHeaderActions: React.FC<SlideEditorHeaderActionsProps> =
         slideId={slideId}
         slideTitle={slideTitle}
         accessToken={accessToken}
-        onSharesChanged={() => undefined}
+        currentUserId={currentUserId}
+        currentUserName={currentUserName}
+        currentUserAvatar={currentUserAvatar}
+        onSharesChanged={() => {
+          void refreshShareCount()
+        }}
         onAddMoreUsers={() => {
           setShowManageShares(false)
           setShowShareDialog(true)

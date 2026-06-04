@@ -43,6 +43,7 @@ export interface SpreadsheetViewerControllerHeaderSlice {
   unresolvedCommentCount: number
   fileLock: SpreadsheetHeaderProps['fileLock']
   onShare?: () => void
+  onManageShares?: () => void
   onRenameAppName?: (name: string) => Promise<boolean> | boolean
   onOpenAICapability: (capability: 'charts' | 'insights' | 'formula' | 'analyze' | 'review') => void
   onOpenAnalytics: () => void

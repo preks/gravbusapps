@@ -451,53 +451,6 @@ import-feature-images = Images & shapes
 import-feature-layouts = Slide layouts
 import-feature-transitions = Transitions
 
-# Share Dialog
-share-title = Share Slide
-share-description = Share "{ $title }" with others and set their access level.
-share-success-title = Slide Shared!
-share-notified-single = { $name } has been notified and can now access this slide.
-share-notified-multiple = { $count } people have been notified and can now access this slide.
-share-default-permission = Default permission for new users
-share-can-view = Can view
-share-can-comment = Can comment
-share-can-edit = Can edit
-share-add-people = Add people
-share-search-placeholder = Search for people...
-share-no-results = No people found matching "{ $query }"
-share-people-with-access = People with access ({ $count })
-share-message-optional = Message (optional)
-share-message-placeholder = Add a message for the recipients...
-share-info = People you share with will receive a notification and can access the slide based on their permission level.
-share-cancel = Cancel
-share-button = Share
-share-sharing = Sharing...
-share-select-one = Please select at least one user
-share-failed = Share failed
-share-success-toast = Slide shared
-share-success-description = Shared with { $count } { $count ->
-  [one] person
- *[other] people
-}
-
-# Manage Shares
-manage-title = Manage shares
-manage-description = Manage who can access "{ $title }"
-manage-not-shared = Not shared with anyone yet
-manage-add-users-hint = Click "Add users" to share this presentation
-manage-can-view = Can view
-manage-can-comment = Can comment
-manage-can-edit = Can edit
-manage-add-users = Add users
-manage-done = Done
-manage-remove-user = Remove user
-manage-shared-at = Shared { $time }
-manage-confirm-remove = Remove access for this user?
-manage-permission-updated = Permission updated
-manage-permission-update-failed = Failed to update permission
-manage-user-removed = User removed
-manage-remove-failed = Failed to remove user
-manage-load-failed = Failed to load shares
-
 # Header Actions
 header-locked = Locked
 header-comments = Comments
