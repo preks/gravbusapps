@@ -1,12 +1,21 @@
 'use client'
 
 import React, { useMemo } from 'react'
-import { Button, Card, Icon, useTranslation } from '@newwork/nw-design-system'
-import { SignIn, SignOut } from '@phosphor-icons/react'
+import {
+  Button,
+  Card,
+  Icon,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+  useTranslation
+} from '@newwork/nw-design-system'
+import { Info, SignIn, SignOut } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { TimeEntry } from '@/business-apps/hr/core/apps/employee-record/components/tabs/hooks/useTimeTrackingData'
 import HeroLiveClock from './HeroLiveClock'
-import { minutesToHHMM } from '../utils/duration'
+import { minutesToHHMM, parseDurationToMinutes } from '../utils/duration'
 import timeTrackingTranslations from '../_i18n'
 
 interface HeroClockCardProps {
@@ -77,9 +86,59 @@ function getWeeklyPlannedHours(workingHours?: HeroClockCardProps['workingHours']
 }
 
 const fmt = (minutes: number) => minutesToHHMM(Math.max(0, Math.floor(minutes)))
+const DEFAULT_DAILY_BREAK_MINUTES = 60
+
+function toLocalDateKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+function getTodayBreakMinutes(entries: TimeEntry[], plannedMinutes: number): number {
+  if (plannedMinutes <= 0) {
+    return 0
+  }
+
+  const todayKey = toLocalDateKey(new Date())
+  const todayEntry = entries.find(entry => toLocalDateKey(new Date(entry.attendanceDateISO)) === todayKey)
+  const breakMinutes = parseDurationToMinutes(todayEntry?.breakTime)
+
+  return breakMinutes > 0 ? breakMinutes : DEFAULT_DAILY_BREAK_MINUTES
+}
 
 function minutesToDecimal(minutes: number): string {
   return (Math.max(0, minutes) / 60).toFixed(1)
+}
+
+function InlineInfoTooltip({
+  label,
+  tooltip,
+  testId
+}: {
+  readonly label: string
+  readonly tooltip: string
+  readonly testId: string
+}) {
+  return (
+    <span className="gba:inline-flex gba:items-center gba:gap-1">
+      {label}
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              className="gba:inline-flex gba:items-center gba:justify-center gba:text-inverse-muted-foreground hover:gba:text-inverse-secondary-foreground"
+              aria-label={tooltip}
+              data-testid={testId}
+            >
+              <Info size={14} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="gba:max-w-[240px]">
+            <p className="gba:text-xs">{tooltip}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    </span>
+  )
 }
 
 export const HeroClockCard: React.FC<HeroClockCardProps> = ({
@@ -99,13 +158,18 @@ export const HeroClockCard: React.FC<HeroClockCardProps> = ({
   workingHours
 }) => {
   const { t } = useTranslation(timeTrackingTranslations)
+  const todayBreakMinutes = useMemo(
+    () => getTodayBreakMinutes(allMonthEntries, todaysPlannedMinutes),
+    [allMonthEntries, todaysPlannedMinutes]
+  )
+  const todaysDisplayTargetMinutes = todaysPlannedMinutes + todayBreakMinutes
 
   const progressPct = useMemo(() => {
-    if (todaysPlannedMinutes <= 0) return 0
-    return Math.min(100, Math.round((todayRecordedMinutes / todaysPlannedMinutes) * 100))
-  }, [todayRecordedMinutes, todaysPlannedMinutes])
+    if (todaysDisplayTargetMinutes <= 0) return 0
+    return Math.min(100, Math.round((todayRecordedMinutes / todaysDisplayTargetMinutes) * 100))
+  }, [todayRecordedMinutes, todaysDisplayTargetMinutes])
 
-  const remainingMinutes = Math.max(0, todaysPlannedMinutes - todayRecordedMinutes)
+  const remainingMinutes = Math.max(0, todaysDisplayTargetMinutes - todayRecordedMinutes)
   const weeklyWorked = useMemo(
     () => getWeeklyWorkedMinutes(allMonthEntries, todayRecordedMinutes),
     [allMonthEntries, todayRecordedMinutes]
@@ -134,13 +198,25 @@ export const HeroClockCard: React.FC<HeroClockCardProps> = ({
               <div className="gba:text-xl gba:font-bold gba:text-inverse-secondary-foreground">
                 {fmt(todayRecordedMinutes)}
               </div>
-              <div className="gba:text-xs gba:text-inverse-muted-foreground">{t('worked_today_stat')}</div>
+              <div className="gba:text-xs gba:text-inverse-muted-foreground">
+                <InlineInfoTooltip
+                  label={t('worked_today_stat')}
+                  tooltip={t('worked_today_tooltip')}
+                  testId="timeclock-worked-today-tooltip-trigger"
+                />
+              </div>
             </div>
             <div>
               <div className="gba:text-xl gba:font-bold gba:text-inverse-secondary-foreground">
                 {fmt(remainingMinutes)}
               </div>
-              <div className="gba:text-xs gba:text-inverse-muted-foreground">{t('remaining_stat')}</div>
+              <div className="gba:text-xs gba:text-inverse-muted-foreground">
+                <InlineInfoTooltip
+                  label={t('remaining_stat')}
+                  tooltip={t('remaining_tooltip', { breakTime: fmt(todayBreakMinutes) })}
+                  testId="timeclock-remaining-tooltip-trigger"
+                />
+              </div>
             </div>
             <div>
               <div className="gba:text-xl gba:font-bold gba:text-inverse-secondary-foreground">
@@ -194,7 +270,11 @@ export const HeroClockCard: React.FC<HeroClockCardProps> = ({
                 {fmt(todayRecordedMinutes)}
               </span>
               <span className="gba:text-xs gba:text-inverse-muted-foreground">
-                {t('of_planned', { planned: fmt(todaysPlannedMinutes) })}
+                <InlineInfoTooltip
+                  label={t('of_planned', { planned: fmt(todaysDisplayTargetMinutes) })}
+                  tooltip={t('break_included_tooltip', { breakTime: fmt(todayBreakMinutes) })}
+                  testId="timeclock-break-included-tooltip-trigger"
+                />
               </span>
             </div>
           </div>
