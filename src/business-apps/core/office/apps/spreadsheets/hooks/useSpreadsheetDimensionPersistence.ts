@@ -67,9 +67,12 @@ export function useSpreadsheetDimensionPersistence(
     baselineColWidthsRef.current = baseline.colWidths
     baselineDefaultRowHeightRef.current = baseline.defaultRowHeight
     baselineDefaultColWidthRef.current = baseline.defaultColWidth
+    pendingDimensionColumnsRef.current = null
+    pendingDimensionChangesRef.current = []
     pendingDimensionOpsRef.current = []
     recentLocalRowHeightRef.current.clear()
     recentLocalColWidthRef.current.clear()
+    setPendingColumnWidthOverrides({})
     if (pendingDimensionPersistTimeoutRef.current) {
       clearTimeout(pendingDimensionPersistTimeoutRef.current)
       pendingDimensionPersistTimeoutRef.current = null
@@ -137,7 +140,13 @@ export function useSpreadsheetDimensionPersistence(
     (payload: CellDimensionsPayload) => {
       const p = paramsRef.current
       if (!p.canEditWithLockRef.current) return
-      if (payload.sheetId !== p.activeSheetId) return
+      if (payload.sheetId !== p.activeSheetId) {
+        console.warn('[SpreadsheetAppViewer] Ignoring dimensions payload for inactive sheet', {
+          payloadSheetId: payload.sheetId,
+          activeSheetId: p.activeSheetId
+        })
+        return
+      }
 
       const colResult = applyColumnWidthsFromDimensions(p.activeSheetColumns, payload)
       const hasColumnWidthChanges =

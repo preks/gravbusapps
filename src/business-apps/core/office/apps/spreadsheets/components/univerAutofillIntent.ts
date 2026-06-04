@@ -42,6 +42,12 @@ export function autofillApplyTypeKeepsValueWrites(applyType: SpreadsheetAutofill
   return applyType === 'COPY' || applyType === 'SERIES' || applyType === 'NO_FORMAT'
 }
 
+export function autofillApplyTypeReplacesDestinationStyle(
+  applyType: SpreadsheetAutofillApplyType | null | undefined
+): boolean {
+  return applyType === 'ONLY_FORMAT'
+}
+
 function normalizeRangeCandidate(candidate: unknown): SheetRangeShape | null {
   if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return null
   const record = candidate as Record<string, unknown>

@@ -50,6 +50,8 @@ export function runDimensionPersistFlush(
   } else {
     const ops: SpreadsheetBatchOperation[] = []
     const now = Date.now()
+    const baselineRowHeightUpdates: Array<{ rowIndex: number; height: number }> = []
+    const baselineColWidthUpdates: Array<{ colIndex: number; width: number }> = []
 
     if (changedColumns.length > 0) {
       for (const change of changedColumns) {
@@ -81,13 +83,13 @@ export function runDimensionPersistFlush(
           height: data.height,
           at: now
         })
-        ctx.baselineRowHeightsRef.current.set(data.rowIndex, data.height)
+        baselineRowHeightUpdates.push({ rowIndex: data.rowIndex, height: data.height })
       } else if (op.type === 'set_col_width' && typeof data.colIndex === 'number' && typeof data.width === 'number') {
         ctx.recentLocalColWidthRef.current.set(`${ctx.activeSheetId}:${data.colIndex}`, {
           width: data.width,
           at: now
         })
-        ctx.baselineColWidthsRef.current.set(data.colIndex, data.width)
+        baselineColWidthUpdates.push({ colIndex: data.colIndex, width: data.width })
       }
       ops.push(op)
     }
@@ -99,6 +101,12 @@ export function runDimensionPersistFlush(
             sheetId: ctx.activeSheetId,
             operations: ops,
             batchIdPrefix: 'dimensions_change'
+          })
+          baselineRowHeightUpdates.forEach(({ rowIndex, height }) => {
+            ctx.baselineRowHeightsRef.current.set(rowIndex, height)
+          })
+          baselineColWidthUpdates.forEach(({ colIndex, width }) => {
+            ctx.baselineColWidthsRef.current.set(colIndex, width)
           })
         } catch (error) {
           ctx.clearPendingWidthOverridesForColumns(changedColumns.map(c => c.columnId))

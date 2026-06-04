@@ -59,17 +59,8 @@ export const buildDimensionPayloadFromSnapshot = (
 ): CellDimensionsPayload | null => {
   try {
     const snap = snapshotToSave as Record<string, unknown>
-    const sheetOrder = snap?.sheetOrder as string[] | undefined
     const sheets = snap?.sheets as Record<string, Record<string, unknown>> | undefined
-    let sheetSnapRaw: unknown
-    if (sheets?.[activeSheetId]) {
-      sheetSnapRaw = sheets[activeSheetId]
-    } else if (sheetOrder?.[0] && sheets) {
-      sheetSnapRaw = sheets[sheetOrder[0]]
-    } else if (sheets) {
-      sheetSnapRaw = Object.values(sheets)[0]
-    }
-    const sheetSnap = sheetSnapRaw as Record<string, unknown> | undefined
+    const sheetSnap = sheets?.[activeSheetId] as Record<string, unknown> | undefined
     if (!sheetSnap) return null
     const rowHeader = sheetSnap.rowHeader as { width?: number } | undefined
     const columnHeader = sheetSnap.columnHeader as { height?: number } | undefined

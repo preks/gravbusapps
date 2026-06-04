@@ -354,24 +354,30 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
   }, 1500)
 
   // Re-read from Univer after it hydrates (handles column/row resizes, Excel imports, etc.)
-  const updateCellDimensions = (): { changed: boolean; dimensions: SnapshotDimensions | null } => {
+  const updateCellDimensions = (): {
+    changed: boolean
+    dimensions: SnapshotDimensions | null
+    sheetId: string | null
+  } => {
     try {
       const wb = univerAPIRef.current?.getActiveWorkbook() as unknown as {
         save?: () => Record<string, unknown>
         getSnapshot?: () => Record<string, unknown>
+        getActiveSheet?: () => { getSheetId?: () => string } | null
       } | null
       const snap = wb?.save?.() ?? wb?.getSnapshot?.()
-      const d = snap ? extractDimensionsFromSnapshot(snap, s.id) : null
-      if (!d) return { changed: false, dimensions: null }
+      const activeSheetId = wb?.getActiveSheet?.()?.getSheetId?.() ?? propsRef.current.sheet.id ?? s.id
+      const d = snap ? extractDimensionsFromSnapshot(snap, activeSheetId) : null
+      if (!d) return { changed: false, dimensions: null, sheetId: activeSheetId }
       const changed = !areSnapshotDimensionsEqual(cellDimensionsRef.current, d)
       cellDimensionsRef.current = d
       if (changed) {
         refreshCursorRectsRef.current?.()
         refreshCommentRectsRef.current?.()
       }
-      return { changed, dimensions: d }
+      return { changed, dimensions: d, sheetId: activeSheetId }
     } catch {
-      return { changed: false, dimensions: null }
+      return { changed: false, dimensions: null, sheetId: null }
     }
   }
   updateCellDimensionsRef.current = updateCellDimensions

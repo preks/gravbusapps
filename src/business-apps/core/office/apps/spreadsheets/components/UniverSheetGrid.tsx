@@ -99,6 +99,7 @@ import {
 import { getSupportedUniverFonts } from './univerGridLocaleChrome'
 import { extractActiveRangePosition } from './univerGridRangeSelection'
 import { formatCommentTime, getInitials } from './univerGridCommentPresentation'
+import { extractDimensionsFromSnapshot } from './univerGridSnapshotDimensions'
 import { tryStructuredClone } from '../utils/tryStructuredClone'
 
 /**
@@ -1471,8 +1472,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     }, [])
 
     const toCellDimensionsPayload = useCallback(
-      (dims: SnapshotDimensions): CellDimensionsPayload => ({
-        sheetId: sheet.id,
+      (dims: SnapshotDimensions, targetSheetId?: string): CellDimensionsPayload => ({
+        sheetId: targetSheetId ?? sheet.id,
         defaultColWidth: dims.defaultColWidth,
         defaultRowHeight: dims.defaultRowHeight,
         columnData: dims.columnData,
@@ -1996,6 +1997,12 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     ])
 
     useEffect(() => {
+      cellDimensionsRef.current = props.initialSnapshot
+        ? extractDimensionsFromSnapshot(props.initialSnapshot, sheet.id)
+        : null
+    }, [props.initialSnapshot, sheet.id])
+
+    useEffect(() => {
       if (!props.multiSheetWorkbookMode) return
       try {
         const wb = univerAPIRef.current?.getActiveWorkbook?.() as
@@ -2005,8 +2012,10 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             }
           | undefined
         const activeWorksheetId = wb?.getActiveSheet?.()?.getSheetId?.()
-        if (activeWorksheetId === sheet.id) return
-        wb?.setActiveSheet?.(sheet.id)
+        if (activeWorksheetId !== sheet.id) {
+          wb?.setActiveSheet?.(sheet.id)
+        }
+        updateCellDimensionsRef.current?.()
       } catch {
         /* ignore */
       }

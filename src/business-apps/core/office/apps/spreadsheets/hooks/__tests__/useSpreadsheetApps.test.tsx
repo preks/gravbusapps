@@ -245,4 +245,62 @@ describe('useSpreadsheetApps pagination', () => {
       { _id: 'row-1', column_a: 'Copied value' }
     ])
   })
+
+  it('creates blank sheets without inheriting template column widths', async () => {
+    mockedListApps.mockResolvedValue([])
+    mockedGetApp.mockResolvedValue({
+      id: 'app-1',
+      name: 'Budget',
+      description: '',
+      icon: 'FileSpreadsheet',
+      status: 'draft',
+      createdAt: '2026-04-01T10:00:00.000Z',
+      updatedAt: '2026-04-01T10:00:00.000Z',
+      createdBy: 'user-1',
+      permission: 'owner',
+      sheets: [
+        {
+          id: 'sheet-1',
+          name: 'Sheet 1',
+          columns: [{ id: 'col-a', name: 'column_a', order: 0, width: 260 }],
+          views: [],
+          data: [],
+          settings: {}
+        }
+      ]
+    } as any)
+    mockedCreateSheet.mockResolvedValue({
+      id: 'sheet-2',
+      name: 'Sheet 2',
+      columns: [{ id: 'col-a', name: 'column_a', order: 0 }],
+      views: [],
+      data: [],
+      settings: {}
+    } as any)
+    mockedGetAllRows.mockResolvedValue([])
+
+    const { result } = renderHook(() => useSpreadsheetApps('token', 'user-1'))
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+
+    await act(async () => {
+      await result.current.loadApp('app-1')
+    })
+
+    await act(async () => {
+      await result.current.addSheet('app-1', {
+        id: 'sheet-2',
+        name: 'Sheet 2'
+      })
+    })
+
+    expect(mockedCreateSheet).toHaveBeenCalledWith(
+      'app-1',
+      expect.objectContaining({
+        columns: [expect.objectContaining({ width: 73 })]
+      })
+    )
+  })
 })

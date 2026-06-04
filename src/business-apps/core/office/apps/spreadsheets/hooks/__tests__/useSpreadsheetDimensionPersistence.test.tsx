@@ -19,12 +19,19 @@ function minimalSheet(id: string, columns: SpreadsheetColumn[]): SpreadsheetShee
 }
 
 describe('useSpreadsheetDimensionPersistence', () => {
+  let consoleErrorSpy: jest.SpyInstance
+  let consoleWarnSpy: jest.SpyInstance
+
   beforeEach(() => {
     jest.useFakeTimers()
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+    consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
   })
 
   afterEach(() => {
     jest.useRealTimers()
+    consoleErrorSpy.mockRestore()
+    consoleWarnSpy.mockRestore()
   })
 
   it('does not emit dimension_sync when canEditWithLockRef is false', () => {
@@ -132,5 +139,114 @@ describe('useSpreadsheetDimensionPersistence', () => {
     expect(submitBatch).toHaveBeenCalledTimes(1)
     expect(submitBatch.mock.calls[0][0].batchIdPrefix).toBe('dimensions_change')
     expect(enqueueSnapshotCheckpointRef.current).toHaveBeenCalled()
+  })
+
+  it('keeps dimension retries possible after a failed batch persist', async () => {
+    const emitDimensionSyncRef = { current: jest.fn<(payload: CellDimensionsPayload) => void>() }
+    const canEditWithLockRef = { current: true }
+    const submitBatch = jest
+      .fn<Promise<void>, [unknown]>()
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValueOnce(undefined)
+    const mutationFacadeRef = {
+      current: { submitBatch } as unknown as SpreadsheetMutationFacade
+    }
+    const enqueueSnapshotCheckpointRef = { current: jest.fn(() => Promise.resolve()) }
+    const appSheetsRef = {
+      current: [minimalSheet('s2', [])]
+    }
+    const spreadsheetGridRef = { current: null }
+
+    const { result } = renderHook(() =>
+      useSpreadsheetDimensionPersistence({
+        bootstrapSnapshot: null,
+        activeSheetId: 's2',
+        activeSheetColumns: [],
+        canEditWithLockRef,
+        emitDimensionSyncRef,
+        applyLocalAppUpdate: jest.fn(),
+        mutationFacadeRef,
+        enqueueSnapshotCheckpointRef,
+        appSheetsRef,
+        spreadsheetGridRef
+      })
+    )
+
+    const payload: CellDimensionsPayload = {
+      sheetId: 's2',
+      defaultColWidth: 73,
+      defaultRowHeight: 23,
+      columnData: {},
+      rowData: { 0: { h: 40 } },
+      rowHeaderWidth: 48,
+      columnHeaderHeight: 28,
+      zoomRatio: 1
+    }
+
+    await act(async () => {
+      result.current.handleDimensionsChanged(payload)
+      jest.advanceTimersByTime(500)
+      await Promise.resolve()
+    })
+
+    expect(submitBatch).toHaveBeenCalledTimes(1)
+    expect(result.current.baselineRowHeightsRef.current.size).toBe(0)
+
+    await act(async () => {
+      result.current.handleDimensionsChanged(payload)
+      jest.advanceTimersByTime(500)
+      await Promise.resolve()
+    })
+
+    expect(submitBatch).toHaveBeenCalledTimes(2)
+    expect(submitBatch.mock.calls[1]?.[0]).toMatchObject({
+      sheetId: 's2',
+      batchIdPrefix: 'dimensions_change'
+    })
+    expect(result.current.baselineRowHeightsRef.current.get(0)).toBe(40)
+  })
+
+  it('ignores dimension payloads that belong to a different sheet', () => {
+    const emitDimensionSyncRef = { current: jest.fn<(payload: CellDimensionsPayload) => void>() }
+    const canEditWithLockRef = { current: true }
+    const mutationFacadeRef = { current: null as SpreadsheetMutationFacade | null }
+    const enqueueSnapshotCheckpointRef = { current: null as null | (() => Promise<void>) }
+    const spreadsheetGridRef = { current: null }
+
+    const { result } = renderHook(() =>
+      useSpreadsheetDimensionPersistence({
+        bootstrapSnapshot: null,
+        activeSheetId: 'sheet-2',
+        activeSheetColumns: [],
+        canEditWithLockRef,
+        emitDimensionSyncRef,
+        applyLocalAppUpdate: jest.fn(),
+        mutationFacadeRef,
+        enqueueSnapshotCheckpointRef,
+        appSheetsRef: { current: [minimalSheet('sheet-1', []), minimalSheet('sheet-2', [])] },
+        spreadsheetGridRef
+      })
+    )
+
+    act(() => {
+      result.current.handleDimensionsChanged({
+        sheetId: 'sheet-1',
+        defaultColWidth: 73,
+        defaultRowHeight: 23,
+        columnData: {},
+        rowData: { 0: { h: 40 } },
+        rowHeaderWidth: 48,
+        columnHeaderHeight: 28,
+        zoomRatio: 1
+      })
+    })
+
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      '[SpreadsheetAppViewer] Ignoring dimensions payload for inactive sheet',
+      expect.objectContaining({
+        payloadSheetId: 'sheet-1',
+        activeSheetId: 'sheet-2'
+      })
+    )
   })
 })

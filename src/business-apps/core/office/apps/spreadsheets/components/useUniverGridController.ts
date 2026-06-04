@@ -9,6 +9,7 @@ import { createUniverConversionContext } from '../utils/univerAdapter'
 import type { AuthoritativeGridRegion } from '../utils/spreadsheetAuthoritativeRegion'
 import type {
   ApplyRemoteCellUpdateOptions,
+  CellDimensionsUpdateResult,
   UniverSheetGridProps,
   WorkbookSnapshotLifecycleOrigin
 } from './UniverSheetGrid.types'
@@ -232,7 +233,7 @@ export function useUniverGridController(props: UniverSheetGridProps) {
   const sheetScrollRef = useRef<{ scrollLeft: number; scrollTop: number }>({ scrollLeft: 0, scrollTop: 0 })
   const refreshCursorRectsRef = useRef<(() => void) | null>(null)
   const refreshCommentRectsRef = useRef<(() => void) | null>(null)
-  const updateCellDimensionsRef = useRef<(() => void) | null>(null)
+  const updateCellDimensionsRef = useRef<(() => CellDimensionsUpdateResult) | null>(null)
 
   return {
     isSheetInteractionActiveRef,

@@ -24,6 +24,6 @@ export type UniverWorkbookBootstrapMountContext = UniverGridController & {
   appLocale: string
   supportedUniverFonts: readonly UniverFontListEntry[]
   flushQueuedSnapshotRequest: () => void
-  toCellDimensionsPayload: (dims: SnapshotDimensions) => CellDimensionsPayload
+  toCellDimensionsPayload: (dims: SnapshotDimensions, sheetId?: string) => CellDimensionsPayload
   isMountAlive: () => boolean
 }

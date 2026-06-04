@@ -1,5 +1,6 @@
 import { useCallback, type MutableRefObject } from 'react'
 
+import { cloneTemplateColumnsForSheetInsert } from '../core'
 import type { SpreadsheetMutationFacade } from '../core/SpreadsheetMutationFacade'
 import { structuralWsDedupTtlExpiry, type StructuralWsDedupToken } from '../utils/spreadsheetStructuralWsDedup'
 import { resolveReconciledSheetId } from '../utils/reconcileTemporarySheetId'
@@ -111,7 +112,7 @@ export function useSpreadsheetNativeSheetStructureIntent(
         try {
           if (intent.type === 'insert') {
             if (appSheets.some(sheet => sheet.id === intent.sheetId)) return
-            const templateColumns = activeSheetColumns.map(column => ({ ...column }))
+            const templateColumns = cloneTemplateColumnsForSheetInsert(activeSheetColumns)
             const previousActiveId = activeSheetIdRef.current
             const rowsToPreserve = getRichestKnownRowsForSheet(previousActiveId)
             const currentActiveRows = getActiveSessionRows()

@@ -208,6 +208,7 @@ export {
   type PrimeSpreadsheetSheetInsertCachesContext
 } from './spreadsheetSheetInsertCaches'
 export {
+  cloneTemplateColumnsForSheetInsert,
   prepareUniverSheetInsertLocally,
   type PrepareUniverSheetInsertLocallyContext,
   type PrepareUniverSheetInsertLocallyParams,

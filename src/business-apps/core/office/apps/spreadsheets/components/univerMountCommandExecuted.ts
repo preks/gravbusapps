@@ -89,7 +89,7 @@ export type RegisterUniverMountCommandExecutedDeps = Pick<
     worksheetId?: string | null
     preserveUndefinedAsNull: boolean
   }) => boolean | Promise<boolean>
-  updateCellDimensions: () => { changed: boolean; dimensions: SnapshotDimensions | null }
+  updateCellDimensions: () => { changed: boolean; dimensions: SnapshotDimensions | null; sheetId: string | null }
   toCellDimensionsPayload: UniverWorkbookBootstrapMountContext['toCellDimensionsPayload']
   markDirtyAndScheduleSnapshot: (origin: WorkbookSnapshotLifecycleOrigin) => void
 }
@@ -162,10 +162,10 @@ export function registerUniverMountCommandExecuted(
         const commandIdForRun = pendingDimensionCommandId
         const commandTypeForRun = pendingDimensionCommandType
         debugUniverDimensionSnapshot('run', { commandId: commandIdForRun, commandType: commandTypeForRun })
-        const { changed: dimensionsChanged, dimensions } = updateCellDimensions()
+        const { changed: dimensionsChanged, dimensions, sheetId } = updateCellDimensions()
         if (dimensionsChanged) {
-          if (dimensions) {
-            callbacksRef.current.onDimensionsChange?.(toCellDimensionsPayload(dimensions))
+          if (dimensions && sheetId) {
+            callbacksRef.current.onDimensionsChange?.(toCellDimensionsPayload(dimensions, sheetId))
           }
           markDirtyAndScheduleSnapshot('workbook')
         }
@@ -181,10 +181,10 @@ export function registerUniverMountCommandExecuted(
       const commandIdForRun = pendingDimensionCommandId
       const commandTypeForRun = pendingDimensionCommandType
       debugUniverDimensionSnapshot('run', { commandId: commandIdForRun, commandType: commandTypeForRun })
-      const { changed: dimensionsChanged, dimensions } = updateCellDimensions()
+      const { changed: dimensionsChanged, dimensions, sheetId } = updateCellDimensions()
       if (dimensionsChanged) {
-        if (dimensions) {
-          callbacksRef.current.onDimensionsChange?.(toCellDimensionsPayload(dimensions))
+        if (dimensions && sheetId) {
+          callbacksRef.current.onDimensionsChange?.(toCellDimensionsPayload(dimensions, sheetId))
         }
         markDirtyAndScheduleSnapshot('workbook')
       }

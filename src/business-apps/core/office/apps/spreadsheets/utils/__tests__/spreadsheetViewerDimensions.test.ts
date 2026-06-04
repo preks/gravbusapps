@@ -68,4 +68,26 @@ describe('spreadsheetViewerDimensions', () => {
 
     expect(ops).toEqual([])
   })
+
+  it('does not fall back to the first sheet when the requested sheet is missing', () => {
+    const baseline = extractDimensionBaselineFromSnapshot(
+      {
+        sheetOrder: ['sheet-1'],
+        sheets: {
+          'sheet-1': {
+            defaultColumnWidth: 144,
+            defaultRowHeight: 33,
+            columnData: { 0: { w: 144 } },
+            rowData: { 0: { h: 33 } }
+          }
+        }
+      },
+      'sheet-2'
+    )
+
+    expect(baseline.defaultColWidth).toBe(73)
+    expect(baseline.defaultRowHeight).toBe(23)
+    expect(baseline.colWidths.size).toBe(0)
+    expect(baseline.rowHeights.size).toBe(0)
+  })
 })

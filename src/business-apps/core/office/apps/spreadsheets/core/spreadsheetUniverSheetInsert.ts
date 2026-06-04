@@ -10,6 +10,34 @@ type PendingCreatedSheetSelection = { temporarySheetId: string; persistedSheetId
 
 type SpreadsheetLocalAppUpdater = (updater: (currentApp: SpreadsheetApp) => SpreadsheetApp) => void
 
+const DEFAULT_INSERTED_COLUMN_WIDTH = 73
+const DEFAULT_INSERTED_AVATAR_COLUMN_WIDTH = 40
+
+function isAvatarLikeColumn(column: Pick<SpreadsheetColumn, 'id' | 'name' | 'type'>): boolean {
+  const normalizedId = String(column.id ?? '').toLowerCase()
+  const normalizedName = String(column.name ?? '').toLowerCase()
+  return (
+    column.type === 'image' ||
+    normalizedId === '_recipient_avatar' ||
+    normalizedName === '_recipient_avatar' ||
+    normalizedId === 'recipient_avatar' ||
+    normalizedName === 'recipient_avatar'
+  )
+}
+
+export const cloneTemplateColumnsForSheetInsert = (
+  columns: SpreadsheetColumn[],
+  options?: { preserveWidths?: boolean }
+): SpreadsheetColumn[] =>
+  columns.map(column => {
+    const nextColumn = { ...column }
+    if (options?.preserveWidths) return nextColumn
+    nextColumn.width = isAvatarLikeColumn(nextColumn)
+      ? DEFAULT_INSERTED_AVATAR_COLUMN_WIDTH
+      : DEFAULT_INSERTED_COLUMN_WIDTH
+    return nextColumn
+  })
+
 export interface UniverSheetInsertPayload {
   kind: 'blank' | 'duplicate'
   sheetId: string
@@ -51,7 +79,12 @@ export const prepareUniverSheetInsertLocally = (
       ? params.payload.sourceSheetId
       : undefined
   const sourceSheet = sourceSheetId ? params.appSheets.find(sheet => sheet.id === sourceSheetId) : undefined
-  const templateColumns = (sourceSheet?.columns ?? params.activeTemplateSheet.columns).map(col => ({ ...col }))
+  const templateColumns = cloneTemplateColumnsForSheetInsert(
+    sourceSheet?.columns ?? params.activeTemplateSheet.columns,
+    {
+      preserveWidths: params.payload.kind === 'duplicate'
+    }
+  )
 
   ctx.pendingCreatedSheetSelectionRef.current = {
     temporarySheetId: params.payload.sheetId,

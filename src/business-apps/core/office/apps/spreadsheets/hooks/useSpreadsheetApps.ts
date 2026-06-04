@@ -7,6 +7,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
+import { cloneTemplateColumnsForSheetInsert } from '../core'
 import { SpreadsheetApiService } from '../services/SpreadsheetApiService'
 import type { SpreadsheetApp, SpreadsheetAppSummary, SpreadsheetSheet, AppStatus } from '../types'
 
@@ -684,12 +685,15 @@ export function useSpreadsheetApps(
         }
 
         const templateSheet = currentApp?.sheets[0]
-        const templateColumns = sheet?.columns ?? templateSheet?.columns ?? []
+        const shouldPreserveWidths = Boolean(sheet?.worksheetSnapshot)
+        const templateColumns = cloneTemplateColumnsForSheetInsert(sheet?.columns ?? templateSheet?.columns ?? [], {
+          preserveWidths: shouldPreserveWidths
+        })
 
         const created = await SpreadsheetApiService.createSheet(appId, {
           ...sheet,
           name: autoName,
-          columns: templateColumns.map(col => ({ ...col })),
+          columns: templateColumns,
           data: sheet?.data ?? []
         })
 

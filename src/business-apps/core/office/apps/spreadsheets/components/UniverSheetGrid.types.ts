@@ -223,6 +223,12 @@ export interface CellDimensionsPayload {
   zoomRatio: number
 }
 
+export interface CellDimensionsUpdateResult {
+  changed: boolean
+  dimensions: import('./univerGridInternalTypes').SnapshotDimensions | null
+  sheetId: string | null
+}
+
 export type ApplyRemoteCellUpdateOptions = {
   useSenderA1Row?: boolean
   /** Target worksheet for multi-sheet workbook mode. Defaults to the active worksheet. */

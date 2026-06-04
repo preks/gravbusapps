@@ -278,6 +278,70 @@ describe('univerMutationPlanner', () => {
     expect(envelope.plan?.cells?.[0]).not.toHaveProperty('stylePatch')
   })
 
+  it('keeps Fill Series autofill on new rows in partial-style mode without unset-only replace patches', () => {
+    const rows = [
+      { _id: 'row-1', name: 'Seed 1' },
+      { _id: 'row-2', name: 'Seed 2' },
+      { _id: 'client_row_3', name: '' }
+    ]
+    const rowCtx = {
+      rowIndexToId: new Map([
+        [0, 'row-1'],
+        [1, 'row-2'],
+        [2, 'client_row_3']
+      ]),
+      columnIndexToName: new Map([[0, 'name']]),
+      columnIndexToId: new Map([[0, 'col-name']])
+    } as any
+
+    const envelope = buildAuthoritativeMutationEnvelope({
+      sheetId: 'sheet-1',
+      traceId: 'trace-autofill-series-new-row-style',
+      intent: 'autofill',
+      currentData: rows,
+      contextColumns: columns,
+      ctx: rowCtx,
+      ranges: [{ startRow: 1, endRow: 2, startColumn: 0, endColumn: 0 }],
+      explicitPayloadAbsoluteCellValue: {
+        1: { 0: { v: 'Filled 2', s: 'style-1' } },
+        2: { 0: { v: 'Filled 3', s: 'style-1' } }
+      },
+      worksheetCellValue: {
+        1: { 0: { v: 'Filled 2', s: 'style-1' } },
+        2: { 0: { v: 'Filled 3', s: 'style-1' } }
+      },
+      mergedCellValue: {
+        1: { 0: { v: 'Filled 2', s: 'style-1' } },
+        2: { 0: { v: 'Filled 3', s: 'style-1' } }
+      },
+      workbookSnapshot: {
+        styles: {
+          'style-1': { bg: { rgb: '#00ff00' } }
+        }
+      },
+      autofillApplyType: 'SERIES',
+      isRowPersistedAtGridIndex: rowIndex => rowIndex < 2
+    })
+
+    expect(envelope.plan?.cells).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          rowId: 'row-2',
+          valueAction: 'set',
+          stylePatch: { set: { s: 'style-1' } }
+        }),
+        expect.objectContaining({
+          rowId: 'client_row_3',
+          valueAction: 'set',
+          stylePatch: { set: { s: 'style-1' } }
+        })
+      ])
+    )
+    expect(
+      envelope.plan?.cells?.some(cell => Array.isArray(cell.stylePatch?.unset) && cell.stylePatch.unset.length > 0)
+    ).toBe(false)
+  })
+
   it('keeps style and strips incidental values for ONLY_FORMAT autofill', () => {
     const envelope = buildAuthoritativeMutationEnvelope({
       sheetId: 'sheet-1',
@@ -319,6 +383,44 @@ describe('univerMutationPlanner', () => {
         valueAction: 'none',
         stylePatch: expect.objectContaining({
           set: expect.objectContaining({ s: 'style-1' })
+        })
+      })
+    ])
+  })
+
+  it('keeps replace-style unset behavior for explicit format-only autofill replacements', () => {
+    const envelope = buildAuthoritativeMutationEnvelope({
+      sheetId: 'sheet-1',
+      traceId: 'trace-autofill-format-only-unset',
+      intent: 'formatOnly',
+      currentData: [{ _id: 'row-1', name: 'Alice' }],
+      contextColumns: columns,
+      ctx,
+      ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }],
+      explicitPayloadAbsoluteCellValue: {
+        0: { 0: { s: 'style-1' } }
+      },
+      worksheetCellValue: {
+        0: { 0: { s: 'style-1' } }
+      },
+      mergedCellValue: {
+        0: { 0: { s: 'style-1' } }
+      },
+      workbookSnapshot: {
+        styles: {
+          'style-1': { bg: { rgb: '#00ff00' } }
+        }
+      },
+      autofillApplyType: 'ONLY_FORMAT',
+      replaceRangeStyleIntent: true
+    })
+
+    expect(envelope.plan?.cells).toEqual([
+      expect.objectContaining({
+        rowId: 'row-1',
+        stylePatch: expect.objectContaining({
+          set: { s: 'style-1' },
+          unset: expect.arrayContaining(['bg', 'cl'])
         })
       })
     ])

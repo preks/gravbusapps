@@ -1,5 +1,6 @@
 import { applyAutofillMutationCellPolicy, resolveSpreadsheetLocalMutationIntent } from '../univerMutationPlanner'
 import {
+  autofillApplyTypeReplacesDestinationStyle,
   consumeSpreadsheetAutofillIntent,
   markSpreadsheetAutofillIntent,
   peekSpreadsheetAutofillIntent,
@@ -15,6 +16,13 @@ describe('univerAutofillIntent', () => {
 
   it('defaults auto-fill drag to SERIES when apply type is omitted', () => {
     expect(resolveAutofillApplyTypeFromCommandParams({ sourceRange: {}, targetRange: {} })).toBe('SERIES')
+  })
+
+  it('only marks ONLY_FORMAT autofill as destination-style replacing', () => {
+    expect(autofillApplyTypeReplacesDestinationStyle('SERIES')).toBe(false)
+    expect(autofillApplyTypeReplacesDestinationStyle('COPY')).toBe(false)
+    expect(autofillApplyTypeReplacesDestinationStyle('NO_FORMAT')).toBe(false)
+    expect(autofillApplyTypeReplacesDestinationStyle('ONLY_FORMAT')).toBe(true)
   })
 
   it('extracts source and target ranges from autofill command params', () => {
