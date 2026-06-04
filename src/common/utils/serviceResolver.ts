@@ -179,6 +179,21 @@ export const NAVIGATION_API_URL = resolveServiceUrl('NEXT_PUBLIC_NAVIGATION_API_
   servicePath: '/navigation',
   apiPath: '/api/v1'
 })
+/**
+ * NewWork Connect (Fibu) — financial integration for Customer 360 invoices /
+ * transactions. The concrete endpoint is not confirmed yet; consumers should
+ * gate requests behind {@link isNewWorkConnectConfigured} so the UI degrades to
+ * an awaiting-backend state when the integration is not enabled.
+ */
+export const NEWWORK_CONNECT_API_URL = resolveServiceUrl('NEXT_PUBLIC_NEWWORK_CONNECT_API_URL', {
+  servicePath: '/newwork-connect',
+  apiPath: '/api/v1'
+})
+
+/** True when a NewWork Connect endpoint has been explicitly configured. */
+export function isNewWorkConnectConfigured(): boolean {
+  return Boolean(env('NEXT_PUBLIC_NEWWORK_CONNECT_API_URL'))
+}
 export const ORGCHART_API_URL = resolveServiceUrl('NEXT_PUBLIC_ORGCHART_API_URL', {
   servicePath: '/orgchart',
   apiPath: '/api/v1'

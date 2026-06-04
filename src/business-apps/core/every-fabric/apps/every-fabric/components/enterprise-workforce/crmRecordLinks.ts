@@ -6,7 +6,31 @@
 
 import { getEntityUrl } from '@/business-apps/platform/apps/every-ai/components/links/EntityLink'
 import { buildEntityNavigationUrl } from '@/business-apps/platform/apps/every-ai/components/entities/utils/entityNavigation'
+import { Navigation, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import type { WorkforceRunCrmActionEntry } from './workforceTypes'
+
+/** Polymorphic Customer360 subject kind (mirrors the app's `?type=` param). */
+export type Customer360SubjectType = 'account' | 'contact'
+
+/**
+ * Build a deep-link back into the Customer360 app for a customer subject.
+ *
+ * Agent runs reference customers by `type` + `id`; this returns the canonical
+ * `/platform/crm/customer-360?type=...&id=...` URL so a run can send the user
+ * straight back to the 360° workspace it operated on.
+ */
+export function buildCustomer360Url(
+  customerType: Customer360SubjectType,
+  customerId: string,
+  source: string = 'workforce-run'
+): string | undefined {
+  if (!customerId) return undefined
+  return buildPlatformUrl(Navigation.CRM_CUSTOMER_360, {
+    type: customerType,
+    id: customerId,
+    source
+  })
+}
 
 const UUID_PATTERN = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi
 
@@ -74,7 +98,8 @@ const RECORD_FIELD_ENTITY: Record<string, string> = {
   contact_id: 'contact',
   account_id: 'account',
   note_id: 'crm_note',
-  task_id: 'sales_task'
+  task_id: 'sales_task',
+  customer_360_id: 'customer_360'
 }
 
 function defaultLabelForField(field: string, id: string): string {
@@ -87,6 +112,8 @@ function defaultLabelForField(field: string, id: string): string {
       return 'CRM note'
     case 'task_id':
       return 'CRM task'
+    case 'customer_360_id':
+      return 'Customer 360'
     default:
       return id
   }
@@ -98,6 +125,11 @@ export function resolveCrmRecordUrl(field: string, id: string, entityType?: stri
   const entity = RECORD_FIELD_ENTITY[field]
   if (entity === 'contact' || entity === 'account') {
     return buildEntityNavigationUrl(entity, id, 'workforce-run')
+  }
+  if (entity === 'customer_360') {
+    const subjectType: Customer360SubjectType =
+      (entityType ?? '').trim().toLowerCase() === 'contact' ? 'contact' : 'account'
+    return buildCustomer360Url(subjectType, id)
   }
   if (entity === 'crm_note' || entity === 'sales_task') {
     return getEntityUrl(entity, id)

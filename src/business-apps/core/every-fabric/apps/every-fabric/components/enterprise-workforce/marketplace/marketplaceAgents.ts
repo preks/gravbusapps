@@ -239,27 +239,38 @@ export const MARKETPLACE_AGENTS: MarketplaceAgentTemplate[] = [
     department: 'Revenue Operations',
     valuePack: 'crm',
     icon: ChartLineUpIcon,
-    tagline: 'Builds a live, complete picture of every account.',
+    tagline: 'Builds a live, complete picture of every customer.',
     description:
-      'Consolidates account data from across your systems into a single 360 view, flags churn and expansion signals, and briefs account owners before every renewal.',
-    skills: ['Account consolidation', 'Churn signals', 'Expansion signals', 'Renewal briefings'],
-    tools: ['CRM', 'Data warehouse', 'Email', 'Knowledge base'],
+      'Loads the full Customer 360 snapshot (scores, satisfaction, contracts, service tickets/cases, invoices and balance) via the getCustomer360 tool, flags churn and expansion signals, and briefs owners before every renewal — always linking back to the Customer 360 workspace.',
+    skills: ['Customer 360 snapshot', 'Health & churn signals', 'Service case review', 'Renewal briefings'],
+    tools: [
+      'Customer 360 (getCustomer360)',
+      'CRM',
+      'Custom Flow Engine (tickets/cases)',
+      'Document service (contracts)',
+      'Email'
+    ],
     governance: {
       autonomy: 'draft_only',
-      highlights: ['Read-only by default', 'Drafts every briefing for review', 'Source-linked insights']
+      highlights: [
+        'Read-only by default',
+        'Drafts every briefing for review',
+        'Source-linked, deep-links back to Customer 360'
+      ]
     },
-    sampleTriggers: ['Renewal approaching', 'Usage drop detected', 'Weekly account review'],
+    sampleTriggers: ['Renewal approaching', 'Satisfaction drop detected', 'Weekly customer review'],
     pricing: { monthlyFee: 460, currency: 'EUR', includedRunsPerMonth: 350, creditsPerRun: 4 },
     rating: 4.5,
     hires: 540,
     createInput: {
       role: 'Customer 360 Analyst',
       department: 'Revenue Operations',
-      description: 'Builds a consolidated 360 view of each account.',
+      description: 'Builds a consolidated 360 view of each customer using the getCustomer360 tool.',
       autonomy_level: 'draft_only',
+      skill_ids: ['Data', 'CrmFunnel', 'Services', 'Documents', 'Search', 'Actions'],
       instructions:
-        'Consolidate account data into a single 360 view. Surface churn and expansion signals, and draft a renewal briefing for the account owner ahead of each renewal. Always link insights to their source.',
-      tags: ['workforce', 'marketplace', 'crm', 'revops']
+        'Operate on the Customer 360 app. For the customer in context, call the getCustomer360 tool with customerType (account|contact) and customerId to load the normalized snapshot (the exact data the Customer 360 UI shows). Surface churn/expansion and service signals, and draft a renewal briefing for the owner. Always link insights to their source and deep-link back to the customer at /platform/crm/customer-360?type=<type>&id=<id>. Stay read-only — draft, never send.',
+      tags: ['workforce', 'marketplace', 'crm', 'revops', 'customer-360']
     }
   }),
   template({

@@ -9,6 +9,12 @@ import INTERNAL_TOOLS from './internal-tools'
 export * from './internal-tools'
 export { INTERNAL_TOOLS }
 
+// Customer 360 provider tool - read the normalized aggregated snapshot
+export * from './customer-360-tool'
+
+// Customer 360 portfolio provider tool - ranked book-of-business for Home
+export * from './customer-portfolio-tool'
+
 // Runtime test tool (for development/testing)
 export * from './runtime-capabilities-test'
 

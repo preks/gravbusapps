@@ -12,6 +12,8 @@ const PAGE_CONTEXT_SKILL_MAP: Record<string, string[]> = {
   contact: ['Data', 'Search', 'Actions'],
   company: ['Data', 'Search', 'AccountEnrichment', 'Actions'],
   account: ['Data', 'Search', 'Actions'],
+  // CRM Customer 360 — full post-sales view: data, scoring/funnel, service desk, documents
+  customer_360: ['Data', 'CrmFunnel', 'Services', 'Documents', 'Search', 'Actions'],
   // IRM pages
   investment: ['Data', 'Investments', 'Search', 'Actions'],
   investment_opportunity: ['Data', 'Investments', 'Search', 'Actions'],
