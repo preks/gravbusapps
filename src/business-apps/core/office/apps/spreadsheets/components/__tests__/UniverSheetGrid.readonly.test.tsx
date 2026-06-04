@@ -193,6 +193,86 @@ describe('UniverSheetGrid read-only behavior', () => {
     }
   })
 
+  it('does not render comment badges above the measured grid viewport', () => {
+    const viewportSpy = jest.spyOn(univerGridOverlayCellRect, 'resolveGridCanvasViewport').mockReturnValue({
+      top: 80,
+      left: 40,
+      width: 600,
+      height: 400
+    })
+    const rectSpy = jest.spyOn(univerGridOverlayCellRect, 'resolveCollaborationOverlayCellRect').mockReturnValue({
+      top: 12,
+      left: 88,
+      width: 73,
+      height: 23
+    })
+
+    try {
+      render(
+        <UniverSheetGrid
+          sheet={sheet}
+          data={data}
+          columns={columns}
+          isReadOnly={false}
+          onCellChange={jest.fn()}
+          onDataChange={jest.fn()}
+          commentedCells={[
+            {
+              cellReference: 'A1',
+              content: 'Hello',
+              createdByName: 'Alice'
+            }
+          ]}
+        />
+      )
+
+      expect(screen.queryByTestId('univer-cell-comment-badge')).not.toBeInTheDocument()
+    } finally {
+      viewportSpy.mockRestore()
+      rectSpy.mockRestore()
+    }
+  })
+
+  it('renders a comment badge for multi-cell range comments', () => {
+    const viewportSpy = jest.spyOn(univerGridOverlayCellRect, 'resolveGridCanvasViewport').mockReturnValue({
+      top: 0,
+      left: 0,
+      width: 600,
+      height: 400
+    })
+    const rectSpy = jest.spyOn(univerGridOverlayCellRect, 'resolveCollaborationOverlayCellRect').mockReturnValue({
+      top: 120,
+      left: 180,
+      width: 73,
+      height: 23
+    })
+
+    try {
+      render(
+        <UniverSheetGrid
+          sheet={sheet}
+          data={data}
+          columns={columns}
+          isReadOnly={false}
+          onCellChange={jest.fn()}
+          onDataChange={jest.fn()}
+          commentedCells={[
+            {
+              cellReference: 'B5:C9',
+              content: 'Range note',
+              createdByName: 'Alice'
+            }
+          ]}
+        />
+      )
+
+      expect(screen.getByTestId('univer-cell-comment-badge')).toBeInTheDocument()
+    } finally {
+      viewportSpy.mockRestore()
+      rectSpy.mockRestore()
+    }
+  })
+
   it('passes the mounted grid host element to Univer (not null from early effect)', () => {
     render(
       <UniverSheetGrid
@@ -3217,6 +3297,12 @@ describe('UniverSheetGrid read-only behavior', () => {
     setTimeout(() => {
       const popup = document.createElement('div')
       popup.className = 'mock-univer-popup'
+      popup.tabIndex = -1
+      popup.addEventListener('keydown', event => {
+        if ((event as KeyboardEvent).key === 'Escape') {
+          popup.remove()
+        }
+      })
 
       const quickRow = document.createElement('div')
       const quickCopy = document.createElement('button')
@@ -3256,9 +3342,11 @@ describe('UniverSheetGrid read-only behavior', () => {
     expect(injected).toBeTruthy()
     expect(injected?.textContent).toContain('Add comment')
     expect(injected?.parentElement?.tagName).toBe('UL')
+    expect(document.querySelector('.mock-univer-popup')).toBeTruthy()
 
     if (injected) fireEvent.click(injected)
     expect(onOpenCommentRequest).toHaveBeenCalledTimes(1)
+    expect(document.querySelector('.mock-univer-popup')).toBeNull()
   })
 
   it('injects Merge for unmerged selections and runs Univer merge command', () => {
@@ -3286,6 +3374,13 @@ describe('UniverSheetGrid read-only behavior', () => {
 
     setTimeout(() => {
       const popup = document.createElement('div')
+      popup.className = 'mock-univer-popup'
+      popup.tabIndex = -1
+      popup.addEventListener('keydown', event => {
+        if ((event as KeyboardEvent).key === 'Escape') {
+          popup.remove()
+        }
+      })
       const mainList = document.createElement('ul')
       const staleUnmerge = document.createElement('li')
       staleUnmerge.setAttribute('data-univer-unmerge-item', 'true')
@@ -3310,6 +3405,7 @@ describe('UniverSheetGrid read-only behavior', () => {
     expect(mergeItem).toBeTruthy()
     expect(mergeItem?.textContent).toContain('Merge')
     expect(mergeItem?.querySelector('svg')).toBeTruthy()
+    expect(document.querySelector('.mock-univer-popup')).toBeTruthy()
 
     const unmergeItem = document.querySelector<HTMLElement>('[data-univer-unmerge-item]')
     expect(unmergeItem).toBeNull()
@@ -3324,6 +3420,7 @@ describe('UniverSheetGrid read-only behavior', () => {
         defaultMerge: true
       })
     )
+    expect(document.querySelector('.mock-univer-popup')).toBeNull()
   })
 
   it('injects Unmerge for merged selections and runs Univer unmerge command', () => {
@@ -3360,6 +3457,13 @@ describe('UniverSheetGrid read-only behavior', () => {
 
     setTimeout(() => {
       const popup = document.createElement('div')
+      popup.className = 'mock-univer-popup'
+      popup.tabIndex = -1
+      popup.addEventListener('keydown', event => {
+        if ((event as KeyboardEvent).key === 'Escape') {
+          popup.remove()
+        }
+      })
       const mainList = document.createElement('ul')
       const staleMerge = document.createElement('li')
       staleMerge.setAttribute('data-univer-merge-item', 'true')
@@ -3397,6 +3501,7 @@ describe('UniverSheetGrid read-only behavior', () => {
         ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }]
       })
     )
+    expect(document.querySelector('.mock-univer-popup')).toBeNull()
   })
 
   it('simplifies the merge toolbar dropdown to Merge and Unmerge', () => {

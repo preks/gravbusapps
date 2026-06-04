@@ -17,12 +17,7 @@ import React, {
 } from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import spreadsheetTranslations from '../_i18n'
-import {
-  parseA1Reference,
-  toA1Reference,
-  type SpreadsheetBulkRemoteApplyMeta,
-  type SpreadsheetBulkRemoteCellItem
-} from '../core'
+import { toA1Reference, type SpreadsheetBulkRemoteApplyMeta, type SpreadsheetBulkRemoteCellItem } from '../core'
 import type { SpreadsheetColumn, SpreadsheetSheet } from '../types/spreadsheet'
 import { buildWorkbookSnapshot, createUniverConversionContext } from '../utils/univerAdapter'
 import type {
@@ -89,18 +84,16 @@ import {
   useUniverGridSnapshotColumnAndTimerEffects
 } from './useUniverGridWorkbookAuxiliaryEffects'
 import { useUniverGridCollaborationOverlays } from './useUniverGridCollaborationOverlays'
-
-import {
-  CURSOR_OVERLAY_COL_WIDTH_PX,
-  CURSOR_OVERLAY_HEADER_HEIGHT_PX,
-  CURSOR_OVERLAY_ROW_HEIGHT_PX,
-  CURSOR_OVERLAY_ROW_INDEX_WIDTH_PX
-} from './univerGridLayoutConstants'
 import { getSupportedUniverFonts } from './univerGridLocaleChrome'
-import { extractActiveRangePosition } from './univerGridRangeSelection'
+import { extractActiveRangeBounds, extractActiveRangePosition } from './univerGridRangeSelection'
 import { formatCommentTime, getInitials } from './univerGridCommentPresentation'
 import { extractDimensionsFromSnapshot } from './univerGridSnapshotDimensions'
 import { tryStructuredClone } from '../utils/tryStructuredClone'
+import type { CollaborationOverlayRect } from './univerGridOverlayCellRect'
+import { parseChartRange } from '../utils/chartRangeUtils'
+import { navigateUniverViaNameBox } from './univerGridNameBoxNavigation'
+
+const SHEET_SCROLL_TO_CELL_COMMAND_ID = 'sheet.command.scroll-to-cell'
 
 /**
  * Classifies a bulk-apply meta `operationType` into a coarse paint-source bucket. Used in
@@ -113,6 +106,21 @@ function derivePaintSourceFromBulkApplyMeta(operationType: string | undefined): 
   if (operationType === 'catch_up_materialized') return 'catch_up_materialized'
   if (operationType === 'add_rows_replay') return 'add_rows_replay'
   return 'collab_replay'
+}
+
+function isOverlayRectVisible(
+  rect: CollaborationOverlayRect | null | undefined,
+  viewport: CollaborationOverlayRect | null,
+  padding = 0
+): rect is CollaborationOverlayRect {
+  if (!rect || !viewport) return false
+
+  return !(
+    rect.left + rect.width < viewport.left - padding ||
+    rect.top + rect.height < viewport.top - padding ||
+    rect.left > viewport.left + viewport.width + padding ||
+    rect.top > viewport.top + viewport.height + padding
+  )
 }
 
 export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGridProps>(
@@ -334,13 +342,15 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       () =>
         (props.commentedCells ?? [])
           .map(comment => {
-            const parsed = parseA1Reference(comment.cellReference)
+            const parsed = parseChartRange(comment.cellReference)
             if (!parsed) return null
             return {
               id: comment.cellReference,
               ref: comment.cellReference,
-              row: parsed.row,
-              col: parsed.col,
+              row: parsed.startRow,
+              col: parsed.startCol,
+              endRow: parsed.endRow,
+              endCol: parsed.endCol,
               content: comment.content,
               createdByName: comment.createdByName,
               createdByAvatar: comment.createdByAvatar,
@@ -355,6 +365,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
               ref: string
               row: number
               col: number
+              endRow: number
+              endCol: number
               content: string
               createdByName: string | undefined
               createdByAvatar: string | undefined
@@ -364,18 +376,19 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       [props.commentedCells]
     )
 
-    const { cursorRects, commentRects, hoveredCommentId, setHoveredCommentId } = useUniverGridCollaborationOverlays({
-      containerRef,
-      remoteCursorOverlays,
-      commentOverlays,
-      univerAPIRef,
-      propsRef,
-      cellDimensionsRef,
-      sheetScrollRef,
-      refreshCursorRectsRef,
-      refreshCommentRectsRef,
-      updateCellDimensionsRef
-    })
+    const { cursorRects, commentRects, gridViewportRect, hoveredCommentId, setHoveredCommentId } =
+      useUniverGridCollaborationOverlays({
+        containerRef,
+        remoteCursorOverlays,
+        commentOverlays,
+        univerAPIRef,
+        propsRef,
+        cellDimensionsRef,
+        sheetScrollRef,
+        refreshCursorRectsRef,
+        refreshCommentRectsRef,
+        updateCellDimensionsRef
+      })
 
     // Callers should prefer passing A1-resolved coordinates (from cellRef) directly as rowIndex/colIndex.
     // The rowId fallback attempts to re-resolve via contextRef, but contextRef tracks the data prop
@@ -1463,13 +1476,104 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       []
     )
 
-    const getActiveCellReference = useCallback((): string | null => {
+    const getActiveSelectionReference = useCallback((): string | null => {
+      const bounds = extractActiveRangeBounds(univerAPIRef.current?.getActiveWorkbook?.())
+      if (bounds) {
+        const start = toA1Reference(bounds.startRow, bounds.startColumn)
+        const end = toA1Reference(bounds.endRow, bounds.endColumn)
+        if (!start) return null
+        if (!end || start === end) return start
+        return `${start}:${end}`
+      }
+
       const active =
         activeSelectionRef.current ?? extractActiveRangePosition(univerAPIRef.current?.getActiveWorkbook?.())
       if (!active) return null
-      const a1 = toA1Reference(active.row, active.col)
-      return a1 || null
+      return toA1Reference(active.row, active.col) || null
     }, [])
+
+    const getActiveCellReference = useCallback((): string | null => {
+      const selectionReference = getActiveSelectionReference()
+      if (!selectionReference) return null
+      return selectionReference.split(':')[0] ?? null
+    }, [getActiveSelectionReference])
+
+    const focusCellReference = useCallback(
+      (cellReference: string, targetSheetId?: string): boolean => {
+        const parsedReference = parseChartRange(cellReference)
+        const doc = containerRef.current?.ownerDocument ?? document
+        const fallbackToNameBox = () => navigateUniverViaNameBox(cellReference, doc)
+        if (!parsedReference) {
+          return false
+        }
+
+        try {
+          type WorkbookWorksheetHandle = {
+            getSheetId?: () => string
+            getRange?: (...args: unknown[]) => unknown
+            setActiveSelection?: (range: unknown) => unknown
+            setActiveRange?: (range: unknown) => unknown
+          }
+          const workbook = univerAPIRef.current?.getActiveWorkbook?.() as
+            | {
+                getActiveSheet?: () => WorkbookWorksheetHandle | null
+                getSheetBySheetId?: (id: string) => WorkbookWorksheetHandle | null
+                setActiveSheet?: (id: string) => unknown
+              }
+            | undefined
+
+          if (!workbook) {
+            return fallbackToNameBox()
+          }
+
+          const resolvedSheetId = targetSheetId || workbook.getActiveSheet?.()?.getSheetId?.() || sheet.id
+          if (resolvedSheetId) {
+            workbook.setActiveSheet?.(resolvedSheetId)
+          }
+
+          const activeWorksheet = workbook.getActiveSheet?.() ?? null
+          const worksheet =
+            workbook.getSheetBySheetId?.(resolvedSheetId) ??
+            (activeWorksheet?.getSheetId?.() === resolvedSheetId ? activeWorksheet : null)
+          const range =
+            worksheet?.getRange?.(cellReference) ??
+            worksheet?.getRange?.(
+              parsedReference.startRow,
+              parsedReference.startCol,
+              parsedReference.endRow - parsedReference.startRow + 1,
+              parsedReference.endCol - parsedReference.startCol + 1
+            )
+          if (!worksheet || !range) {
+            return fallbackToNameBox()
+          }
+
+          ;(worksheet.setActiveSelection ?? worksheet.setActiveRange)?.(range)
+          const scrollRange =
+            range && typeof range === 'object' && 'getRange' in range && typeof range.getRange === 'function'
+              ? range.getRange()
+              : null
+          if (scrollRange) {
+            univerAPIRef.current?.syncExecuteCommand?.(SHEET_SCROLL_TO_CELL_COMMAND_ID, {
+              range: scrollRange
+            })
+          }
+          activeSelectionRef.current = {
+            sheetId: resolvedSheetId,
+            row: parsedReference.startRow,
+            col: parsedReference.startCol
+          }
+          // Restore DOM focus to the sheet after sidebar-driven navigation so
+          // the active selection is immediately visible and keyboard input
+          // continues in the grid instead of staying on the comment button.
+          containerRef.current?.focus({ preventScroll: true })
+          updateCellDimensionsRef.current?.()
+          return true
+        } catch {
+          return fallbackToNameBox()
+        }
+      },
+      [containerRef, sheet.id, updateCellDimensionsRef]
+    )
 
     const toCellDimensionsPayload = useCallback(
       (dims: SnapshotDimensions, targetSheetId?: string): CellDimensionsPayload => ({
@@ -1542,6 +1646,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         applyRemoteClearFormatRange,
         applyRemoteSpreadsheetFeatureOperation,
         getActiveCellReference,
+        getActiveSelectionReference,
+        focusCellReference,
         syncGridConversionContext: (nextColumns: SpreadsheetColumn[], nextData?: Record<string, unknown>[]) => {
           if (!univerAPIRef.current) return
           propsRef.current.columns = nextColumns
@@ -1917,7 +2023,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         applyRemoteDimensions,
         applyRemoteClearFormatRange,
         applyRemoteSpreadsheetFeatureOperation,
-        getActiveCellReference
+        getActiveCellReference,
+        getActiveSelectionReference,
+        focusCellReference
       ]
     )
 
@@ -2029,7 +2137,12 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         style={{ height: props.height ?? '100%', width: props.width ?? '100%' }}
         onKeyDown={onSpreadsheetKeyDown}
       >
-        <div ref={setGridHostRef} className="gba:w-full gba:h-full" data-testid="univer-sheet-grid-container" />
+        <div
+          ref={setGridHostRef}
+          className="gba:w-full gba:h-full"
+          data-testid="univer-sheet-grid-container"
+          tabIndex={-1}
+        />
         {props.isReadOnly && (
           <div
             data-testid="univer-readonly-overlay"
@@ -2038,120 +2151,148 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             aria-hidden="true"
           />
         )}
-        <div className="gba:absolute gba:inset-0 gba:pointer-events-none gba:z-20">
-          {remoteCursorOverlays.map(cursor =>
-            (() => {
-              const rect = cursorRects[cursor.id]
-              if (!rect) return null
+        {gridViewportRect ? (
+          <>
+            <div
+              className="gba:absolute gba:pointer-events-none gba:z-20 gba:overflow-hidden"
+              style={{
+                top: gridViewportRect.top,
+                left: gridViewportRect.left,
+                width: gridViewportRect.width,
+                height: gridViewportRect.height
+              }}
+            >
+              {remoteCursorOverlays.map(cursor => {
+                const rect = cursorRects[cursor.id]
+                if (!isOverlayRectVisible(rect, gridViewportRect, 8)) return null
+
+                return (
+                  <div
+                    key={cursor.id}
+                    className="gba:absolute gba:box-border gba:rounded-sm"
+                    style={{
+                      top: rect.top - gridViewportRect.top,
+                      left: rect.left - gridViewportRect.left,
+                      width: rect.width,
+                      height: rect.height,
+                      border: `2px solid ${cursor.userColor}`,
+                      backgroundColor: `${cursor.userColor}1A`,
+                      boxShadow: `0 0 8px ${cursor.userColor}33`
+                    }}
+                  >
+                    {cursor.avatarUrl ? (
+                      <img
+                        src={cursor.avatarUrl}
+                        alt={cursor.userName}
+                        title={cursor.userName}
+                        className="gba:absolute gba:top-0 gba:right-0 gba:h-5 gba:w-5 gba:rounded-full gba:object-cover gba:shadow-sm"
+                        style={{ border: `2px solid ${cursor.userColor}` }}
+                      />
+                    ) : (
+                      <div
+                        className="gba:absolute gba:top-0 gba:right-0 gba:h-5 gba:min-w-5 gba:px-1 gba:text-[9px] gba:leading-5 gba:font-semibold gba:text-white gba:rounded-full gba:text-center gba:whitespace-nowrap gba:shadow-sm"
+                        style={{ backgroundColor: cursor.userColor }}
+                        title={cursor.userName}
+                      >
+                        {getInitials(cursor.userName)}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            <div
+              className="gba:absolute gba:pointer-events-none gba:z-10 gba:overflow-hidden"
+              style={{
+                top: gridViewportRect.top,
+                left: gridViewportRect.left,
+                width: gridViewportRect.width,
+                height: gridViewportRect.height
+              }}
+            >
+              {commentOverlays.map(marker => {
+                const rect = commentRects[marker.id]
+                if (!isOverlayRectVisible(rect, gridViewportRect, 8)) return null
+
+                const top = rect.top - gridViewportRect.top
+                const leftBase = rect.left - gridViewportRect.left
+                const width = rect.width
+
+                return (
+                  <React.Fragment key={marker.id}>
+                    <div
+                      className="gba:absolute gba:h-2.5 gba:w-2.5 gba:rounded-full gba:bg-blue-500 gba:border gba:border-white gba:shadow-sm"
+                      style={{
+                        top: top + 2,
+                        left: leftBase + width - 12
+                      }}
+                      title={`Comment: ${marker.ref}`}
+                      data-testid="univer-cell-comment-badge"
+                    />
+                    <div
+                      className="gba:absolute gba:pointer-events-auto gba:cursor-pointer"
+                      style={{
+                        top,
+                        left: leftBase + width - 24,
+                        width: 24,
+                        height: 24
+                      }}
+                      onMouseEnter={() => setHoveredCommentId(marker.id)}
+                      onMouseLeave={() => setHoveredCommentId(prev => (prev === marker.id ? null : prev))}
+                    />
+                  </React.Fragment>
+                )
+              })}
+            </div>
+
+            {(() => {
+              if (!hoveredCommentId) return null
+              const marker = commentOverlays.find(entry => entry.id === hoveredCommentId)
+              if (!marker) return null
+              const rect = commentRects[marker.id]
+              if (!isOverlayRectVisible(rect, gridViewportRect, 8)) return null
+
+              const author = marker.createdByName || t('editor-user-fallback')
+              const avatar = marker.createdByAvatar
+              const time = formatCommentTime(marker.createdAt)
+              const hoverCardWidth = Math.min(260, Math.max(200, gridViewportRect.width - 16))
+              const top = Math.max(gridViewportRect.top + 8, rect.top - 164)
+              const left = Math.min(
+                Math.max(gridViewportRect.left + 8, rect.left - 24),
+                gridViewportRect.left + Math.max(8, gridViewportRect.width - hoverCardWidth - 8)
+              )
+
               return (
                 <div
-                  key={cursor.id}
-                  className="gba:absolute gba:box-border gba:rounded-sm"
-                  style={{
-                    top: rect.top,
-                    left: rect.left,
-                    width: rect.width,
-                    height: rect.height,
-                    border: `2px solid ${cursor.userColor}`,
-                    backgroundColor: `${cursor.userColor}1A`,
-                    boxShadow: `0 0 8px ${cursor.userColor}33`
-                  }}
+                  className="gba:absolute gba:z-10 gba:w-[260px] gba:max-w-[65vw] gba:rounded-2xl gba:border gba:bg-card gba:p-4 gba:shadow-xl"
+                  style={{ top, left }}
+                  data-testid="univer-cell-comment-hover-card"
                 >
-                  {cursor.avatarUrl ? (
-                    <img
-                      src={cursor.avatarUrl}
-                      alt={cursor.userName}
-                      title={cursor.userName}
-                      className="gba:absolute gba:-top-2 gba:-right-2 gba:h-5 gba:w-5 gba:rounded-full gba:object-cover gba:shadow-sm"
-                      style={{ border: `2px solid ${cursor.userColor}` }}
-                    />
-                  ) : (
-                    <div
-                      className="gba:absolute gba:-top-2 gba:-right-2 gba:h-5 gba:min-w-5 gba:px-1 gba:text-[9px] gba:leading-5 gba:font-semibold gba:text-white gba:rounded-full gba:text-center gba:whitespace-nowrap gba:shadow-sm"
-                      style={{ backgroundColor: cursor.userColor }}
-                      title={cursor.userName}
-                    >
-                      {getInitials(cursor.userName)}
+                  <div className="gba:flex gba:items-center gba:gap-3">
+                    {avatar ? (
+                      <img
+                        src={avatar}
+                        alt={author}
+                        className="gba:h-9 gba:w-9 gba:rounded-full gba:object-cover gba:border"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="gba:flex gba:h-9 gba:w-9 gba:items-center gba:justify-center gba:rounded-full gba:bg-emerald-800 gba:text-xs gba:font-semibold gba:text-white">
+                        {getInitials(author)}
+                      </div>
+                    )}
+                    <div className="gba:flex gba:flex-col">
+                      <div className="gba:text-sm gba:leading-none gba:font-semibold">{author}</div>
+                      {time && <div className="gba:text-xs gba:leading-none gba:text-muted-foreground">{time}</div>}
                     </div>
-                  )}
+                  </div>
+                  <div className="gba:mt-3 gba:text-sm gba:leading-snug">{marker.content || ''}</div>
                 </div>
               )
-            })()
-          )}
-        </div>
-        <div className="gba:absolute gba:inset-0 gba:pointer-events-none gba:z-10">
-          {commentOverlays.map(marker => {
-            const rect = commentRects[marker.id]
-            const top = rect ? rect.top : CURSOR_OVERLAY_HEADER_HEIGHT_PX + marker.row * CURSOR_OVERLAY_ROW_HEIGHT_PX
-            const leftBase = rect
-              ? rect.left
-              : CURSOR_OVERLAY_ROW_INDEX_WIDTH_PX + marker.col * CURSOR_OVERLAY_COL_WIDTH_PX
-            const width = rect ? rect.width : CURSOR_OVERLAY_COL_WIDTH_PX
-            return (
-              <React.Fragment key={marker.id}>
-                <div
-                  className="gba:absolute gba:h-2.5 gba:w-2.5 gba:rounded-full gba:bg-blue-500 gba:border gba:border-white gba:shadow-sm"
-                  style={{
-                    top: Math.max(0, top + 2),
-                    left: Math.max(0, leftBase + width - 12)
-                  }}
-                  title={`Comment: ${marker.ref}`}
-                  data-testid="univer-cell-comment-badge"
-                />
-                <div
-                  className="gba:absolute gba:pointer-events-auto gba:cursor-pointer"
-                  style={{
-                    top: Math.max(0, top),
-                    left: Math.max(0, leftBase + width - 24),
-                    width: 24,
-                    height: 24
-                  }}
-                  onMouseEnter={() => setHoveredCommentId(marker.id)}
-                  onMouseLeave={() => setHoveredCommentId(prev => (prev === marker.id ? null : prev))}
-                />
-              </React.Fragment>
-            )
-          })}
-          {(() => {
-            if (!hoveredCommentId) return null
-            const marker = commentOverlays.find(entry => entry.id === hoveredCommentId)
-            if (!marker) return null
-            const rect = commentRects[marker.id]
-            if (!rect) return null
-            const top = rect.top
-            const left = rect.left
-            const author = marker.createdByName || t('editor-user-fallback')
-            const avatar = marker.createdByAvatar
-            const time = formatCommentTime(marker.createdAt)
-            return (
-              <div
-                className="gba:absolute gba:w-[260px] gba:max-w-[65vw] gba:rounded-2xl gba:border gba:bg-card gba:p-4 gba:shadow-xl"
-                style={{ top: Math.max(8, top - 164), left: Math.max(8, left - 24) }}
-                data-testid="univer-cell-comment-hover-card"
-              >
-                <div className="gba:flex gba:items-center gba:gap-3">
-                  {avatar ? (
-                    <img
-                      src={avatar}
-                      alt={author}
-                      className="gba:h-9 gba:w-9 gba:rounded-full gba:object-cover gba:border"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <div className="gba:flex gba:h-9 gba:w-9 gba:items-center gba:justify-center gba:rounded-full gba:bg-emerald-800 gba:text-xs gba:font-semibold gba:text-white">
-                      {getInitials(author)}
-                    </div>
-                  )}
-                  <div className="gba:flex gba:flex-col">
-                    <div className="gba:text-sm gba:leading-none gba:font-semibold">{author}</div>
-                    {time && <div className="gba:text-xs gba:leading-none gba:text-muted-foreground">{time}</div>}
-                  </div>
-                </div>
-                <div className="gba:mt-3 gba:text-sm gba:leading-snug">{marker.content || ''}</div>
-              </div>
-            )
-          })()}
-        </div>
+            })()}
+          </>
+        ) : null}
       </div>
     )
   }

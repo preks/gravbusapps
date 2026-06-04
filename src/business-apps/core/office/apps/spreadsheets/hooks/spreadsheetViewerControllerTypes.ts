@@ -4,6 +4,7 @@
  */
 
 import type React from 'react'
+import type { CommentPanelProps } from '@/business-apps/platform/apps/shared/components/CommentPanel'
 import type { DynamicFormField } from '@/business-apps/ser/types/flowTemplate'
 import type { VersionUserDisplay } from '@/business-apps/platform/apps/shared/components/VersionHistory'
 import type { SpreadsheetApp, SpreadsheetColumn, SpreadsheetSheet } from '../types'
@@ -39,7 +40,7 @@ export interface SpreadsheetViewerControllerHeaderSlice {
   onShowVersionHistory: () => void
   publishingStatus: string
   showComments: boolean
-  setShowComments: (show: boolean) => void
+  onToggleComments: () => void
   unresolvedCommentCount: number
   fileLock: SpreadsheetHeaderProps['fileLock']
   onShare?: () => void
@@ -113,18 +114,19 @@ export interface SpreadsheetViewerControllerDialogsSlice {
   }
   showComments: boolean
   setShowComments: (show: boolean) => void
-  getSelectedCellRef?: () => string | null
-  activeSheetId: string
-  comments: {
-    comments: unknown[]
-    unresolvedCount: number
-    isLoading: boolean
-    createComment: (params: unknown) => Promise<unknown>
-    updateComment: (id: string, data: { content: string }) => Promise<unknown>
-    resolveComment: (id: string) => Promise<unknown>
-    unresolveComment: (id: string) => Promise<unknown>
-    deleteComment: (id: string) => Promise<unknown>
-  }
+  commentPanel: Pick<
+    CommentPanelProps,
+    | 'comments'
+    | 'unresolvedCount'
+    | 'isLoading'
+    | 'onCreateComment'
+    | 'onUpdateComment'
+    | 'onResolveComment'
+    | 'onUnresolveComment'
+    | 'onDeleteComment'
+    | 'onScrollToHighlight'
+    | 'onUnhighlight'
+  >
   currentUserId?: string | null
   currentUserName: string
   currentUserAvatar?: string | null

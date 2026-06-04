@@ -402,7 +402,7 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
       socket.off('comment:resolved', refreshComments)
       socket.off('comment:deleted', refreshComments)
     }
-  }, [socket, apiService, entityId, reloadComments])
+  }, [socket, apiService, entityId, refreshComments])
 
   // Auto-refresh (disabled by default - use WebSocket events for real-time updates)
   useEffect(() => {

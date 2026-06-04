@@ -306,6 +306,7 @@ import type {
 import { useEntityDataSource } from './hooks/useEntityDataSource'
 import { useSpreadsheetAutomations } from './hooks/useSpreadsheetAutomations'
 import { useSpreadsheetBulkRows, syncTrackingHeaderRowWithColumnLabels } from './hooks/useSpreadsheetBulkRows'
+import { useSpreadsheetCommentSidebar } from './hooks/useSpreadsheetCommentSidebar'
 import { useSpreadsheetColumns } from './hooks/useSpreadsheetColumns'
 import { useVersionUserDisplays } from '@/business-apps/core/office/apps/documents/hooks/useVersionUserDisplays'
 
@@ -1377,12 +1378,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     leaveGuardSheetSavingRef.current = sheetPersist.isSaving
   }, [sheetPersist.hasLocalDirty, sheetPersist.error, sheetPersist.isSaving])
 
-  const comments = useComments({
-    entityId: app.id,
-    entityType: 'spreadsheet_app',
-    apiService: SpreadsheetApiService
-  })
-
   const publishing = usePublishing({
     entityId: app.id,
     entityType: 'spreadsheet_app',
@@ -1779,69 +1774,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   })
   const [isExporting, setIsExporting] = useState(false)
 
-  const commentedCells = useMemo(() => {
-    const allComments = Array.isArray(comments.comments) ? comments.comments : []
-    const roots = allComments
-      .filter(comment => {
-        const record = comment as {
-          type?: string
-          parentId?: string
-          resolvedAt?: string
-          sheetId?: string
-          cellReference?: string
-          content?: string
-          createdByName?: string
-          createdByAvatar?: string
-          createdAt?: string
-        }
-        return (
-          record.type === 'cell' &&
-          !record.parentId &&
-          !record.resolvedAt &&
-          typeof record.cellReference === 'string' &&
-          record.cellReference.trim().length > 0 &&
-          (!record.sheetId || record.sheetId === activeSheetId)
-        )
-      })
-      .map(comment => {
-        const record = comment as {
-          cellReference: string
-          content?: string
-          createdByName?: string
-          createdByAvatar?: string
-          createdAt?: string
-        }
-        return {
-          cellReference: record.cellReference.trim().toUpperCase(),
-          content: String(record.content || ''),
-          createdByName: record.createdByName,
-          createdByAvatar: record.createdByAvatar,
-          createdAt: record.createdAt
-        }
-      })
-    const latestByCell = new Map<
-      string,
-      { cellReference: string; content: string; createdByName?: string; createdByAvatar?: string; createdAt?: string }
-    >()
-    for (const comment of roots) {
-      const existing = latestByCell.get(comment.cellReference)
-      if (!existing) {
-        latestByCell.set(comment.cellReference, comment)
-        continue
-      }
-      const existingTs = existing.createdAt ? Date.parse(existing.createdAt) : 0
-      const nextTs = comment.createdAt ? Date.parse(comment.createdAt) : 0
-      if (nextTs >= existingTs) {
-        latestByCell.set(comment.cellReference, comment)
-      }
-    }
-    return Array.from(latestByCell.values())
-  }, [comments.comments, activeSheetId])
-  const getSelectedCellRef = useCallback(
-    (): string | null => spreadsheetGridRef.current?.getActiveCellReference?.() ?? null,
-    []
-  )
-
   const trackSnapshotCellClears = useCallback((sheetId: string, cells: SnapshotCellCoordinate[]) => {
     appendPendingSnapshotClearCoordinates(pendingSnapshotClearCellsRef.current, sheetId, cells)
   }, [])
@@ -1905,10 +1837,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     },
     [enqueueDiagnosticsTraceEvent, forgetSnapshotCellClears, trackSnapshotCellClears]
   )
-
-  const handleOpenCommentRequest = useCallback(() => {
-    setShowComments(true)
-  }, [])
 
   const markSheetNeedsGridMaterialization = useCallback(
     (sheetId: string, reason: string) => {
@@ -2178,6 +2106,93 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   collaborationHealthRef.current = collaboration.collaborationHealth
   isCollaborationJoinedRef.current = collaboration.isCollaborationJoined
   isCollaborationConnectedRef.current = collaboration.isCollaborationConnected
+
+  const comments = useComments({
+    entityId: app.id,
+    entityType: 'spreadsheet_app',
+    socket: collaboration.socket,
+    apiService: SpreadsheetApiService,
+    autoRefreshInterval: collaboration.socket ? 0 : 30000
+  })
+
+  const getSelectedCellRef = useCallback(
+    (): string | null =>
+      spreadsheetGridRef.current?.getActiveSelectionReference?.() ??
+      spreadsheetGridRef.current?.getActiveCellReference?.() ??
+      null,
+    []
+  )
+
+  const focusCommentCellReference = useCallback(
+    (cellReference: string, sheetId?: string): boolean =>
+      spreadsheetGridRef.current?.focusCellReference?.(cellReference, sheetId) ?? false,
+    []
+  )
+
+  const commentAuthorUserIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const comment of comments.comments) {
+      if (comment.createdBy) {
+        ids.add(comment.createdBy)
+      }
+    }
+    return [...ids]
+  }, [comments.comments])
+
+  const commentUserDisplayMap = useVersionUserDisplays([], accessToken, commentAuthorUserIds)
+
+  const spreadsheetCommentSidebar = useSpreadsheetCommentSidebar({
+    comments,
+    activeSheetId,
+    showComments,
+    setShowComments,
+    getSelectedCellRef,
+    focusCellReference: focusCommentCellReference,
+    commentUserDisplayMap,
+    currentUserId: userId,
+    currentUserAvatar: collaboration.currentUserAvatar
+  })
+
+  const commentedCells = useMemo(() => {
+    const roots = spreadsheetCommentSidebar.filteredComments
+      .filter(comment => {
+        return (
+          comment.type === 'cell' &&
+          !comment.parentId &&
+          !comment.resolvedAt &&
+          typeof comment.cellReference === 'string' &&
+          comment.cellReference.trim().length > 0
+        )
+      })
+      .map(comment => ({
+        cellReference: comment.cellReference!.trim().toUpperCase(),
+        content: String(comment.content || ''),
+        createdByName: comment.createdByName,
+        createdByAvatar: comment.createdByAvatar,
+        createdAt: comment.createdAt
+      }))
+    const latestByCell = new Map<
+      string,
+      { cellReference: string; content: string; createdByName?: string; createdByAvatar?: string; createdAt?: string }
+    >()
+    for (const comment of roots) {
+      const existing = latestByCell.get(comment.cellReference)
+      if (!existing) {
+        latestByCell.set(comment.cellReference, comment)
+        continue
+      }
+      const existingTs = existing.createdAt ? Date.parse(existing.createdAt) : 0
+      const nextTs = comment.createdAt ? Date.parse(comment.createdAt) : 0
+      if (nextTs >= existingTs) {
+        latestByCell.set(comment.cellReference, comment)
+      }
+    }
+    return Array.from(latestByCell.values())
+  }, [spreadsheetCommentSidebar.filteredComments])
+
+  const handleOpenCommentRequest = useCallback(() => {
+    spreadsheetCommentSidebar.openCommentsSidebar()
+  }, [spreadsheetCommentSidebar])
 
   useSpreadsheetRemoteSyncCollaborationEffects({
     preferUniverNativeSheetTabs,
@@ -4243,8 +4258,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       },
       publishingStatus: app.publishMetadata?.status || 'draft',
       showComments,
-      setShowComments,
-      unresolvedCommentCount: comments.unresolvedCount,
+      onToggleComments: spreadsheetCommentSidebar.toggleCommentsSidebar,
+      unresolvedCommentCount: spreadsheetCommentSidebar.unresolvedCommentCount,
       fileLock: {
         lock: fileLock.lock,
         isLockedByMe: fileLock.isLockedByMe,
@@ -4319,9 +4334,38 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       publishing: publishing as any,
       showComments,
       setShowComments,
-      getSelectedCellRef,
-      activeSheetId,
-      comments: comments as any,
+      commentPanel: {
+        comments: spreadsheetCommentSidebar.filteredComments,
+        unresolvedCount: spreadsheetCommentSidebar.unresolvedCommentCount,
+        isLoading: comments.isLoading,
+        onCreateComment: async (content, parentId, userName, userAvatar) => {
+          const ok = await spreadsheetCommentSidebar.handleCreateComment(content, parentId, userName, userAvatar)
+          if (!ok) {
+            throw new Error('Failed to create comment')
+          }
+        },
+        onUpdateComment: async (commentId, content) => {
+          const ok = await spreadsheetCommentSidebar.handleUpdateComment(commentId, content)
+          if (!ok) {
+            throw new Error('Failed to update comment')
+          }
+        },
+        onResolveComment: async commentId => {
+          const ok = await spreadsheetCommentSidebar.handleResolveComment(commentId)
+          if (!ok) {
+            throw new Error('Failed to resolve comment')
+          }
+        },
+        onUnresolveComment: commentId => spreadsheetCommentSidebar.handleUnresolveComment(commentId),
+        onDeleteComment: async commentId => {
+          const ok = await spreadsheetCommentSidebar.handleDeleteComment(commentId)
+          if (!ok) {
+            throw new Error('Failed to delete comment')
+          }
+        },
+        onScrollToHighlight: spreadsheetCommentSidebar.handleScrollToHighlight,
+        onUnhighlight: undefined
+      },
       currentUserId: userId,
       currentUserName: collaboration.currentUserName,
       currentUserAvatar: collaboration.currentUserAvatar

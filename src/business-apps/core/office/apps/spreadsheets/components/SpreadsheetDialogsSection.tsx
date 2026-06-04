@@ -15,7 +15,6 @@ import { VersionHistory, type VersionUserDisplay } from '../../../../../platform
 import translations from '../_i18n'
 import { CheckpointDialog } from '../../../../../platform/apps/shared/components/CheckpointDialog'
 import { PublishDialog } from '../../../../../platform/apps/shared/components/PublishDialog'
-import { CommentPanel } from '../../../../../platform/apps/shared/components/CommentPanel'
 
 export interface SpreadsheetDialogsSectionProps {
   // Edit Row Dialog
@@ -59,30 +58,6 @@ export interface SpreadsheetDialogsSectionProps {
     publish: (notes: string, createCheckpoint: boolean) => Promise<unknown>
   }
 
-  // Comments Panel
-  showComments: boolean
-  setShowComments: (show: boolean) => void
-  onScrollToHighlight?: (commentId: string) => void
-  onUnhighlight?: (commentId: string) => void
-  /** Get currently selected cell as A1 reference for new comments */
-  getSelectedCellRef?: () => string | null
-  /** Active sheet ID for cell comments */
-  activeSheetId?: string
-  comments: {
-    comments: unknown[]
-    unresolvedCount: number
-    isLoading: boolean
-
-    createComment: (params: any) => Promise<unknown>
-    updateComment: (id: string, data: { content: string }) => Promise<unknown>
-    resolveComment: (id: string) => Promise<unknown>
-    unresolveComment: (id: string) => Promise<unknown>
-    deleteComment: (id: string) => Promise<unknown>
-  }
-  currentUserId?: string
-  currentUserName?: string
-  currentUserAvatar?: string
-
   testId: string
 }
 
@@ -110,17 +85,6 @@ export const SpreadsheetDialogsSection: React.FC<SpreadsheetDialogsSectionProps>
     showPublishDialog,
     setShowPublishDialog,
     publishing,
-    showComments,
-    setShowComments,
-    onScrollToHighlight,
-    onUnhighlight,
-    getSelectedCellRef,
-    activeSheetId,
-    comments,
-    onDeleteComment,
-    currentUserId,
-    currentUserName,
-    currentUserAvatar,
     testId
   }) {
     const { t } = useTranslation(translations)
@@ -241,98 +205,6 @@ export const SpreadsheetDialogsSection: React.FC<SpreadsheetDialogsSectionProps>
               publishing: t('publish-publishing')
             }}
             data-testid="spreadsheet-publish-dialog"
-          />
-        )}
-
-        {showComments && (
-          <CommentPanel
-            comments={
-              Array.isArray(comments.comments)
-                ? (comments.comments as Array<{ sheetId?: string }>).filter(
-                    c => !c.sheetId || c.sheetId === activeSheetId
-                  )
-                : []
-            }
-            unresolvedCount={
-              Array.isArray(comments.comments)
-                ? (comments.comments as Array<{ sheetId?: string; parentId?: string; resolvedAt?: string }>).filter(
-                    c => !c.parentId && !c.resolvedAt && (!c.sheetId || c.sheetId === activeSheetId)
-                  ).length
-                : comments.unresolvedCount
-            }
-            isLoading={comments.isLoading}
-            messages={{
-              title: t('shared-comment-panel-title'),
-              unresolvedCount: t('shared-comment-unresolved'),
-              unresolvedTab: t('shared-comment-unresolved-tab'),
-              resolvedTab: t('shared-comment-resolved-tab'),
-              allCaughtUp: t('shared-comment-all-caught-up'),
-              allResolved: t('shared-comment-all-resolved'),
-              noResolved: t('shared-comment-no-resolved'),
-              resolvedHere: t('shared-comment-resolved-here'),
-              loading: t('shared-comment-loading'),
-              addPlaceholder: t('shared-comment-placeholder')
-            }}
-            threadMessages={{
-              reply: t('shared-comment-reply'),
-              edit: t('shared-comment-edit'),
-              resolve: t('shared-comment-resolve'),
-              reopen: t('shared-comment-reopen'),
-              delete: t('shared-comment-delete'),
-              resolved: t('shared-comment-resolved'),
-              confirmDelete: t('shared-comment-confirm-delete'),
-              editPlaceholder: t('shared-comment-edit-placeholder'),
-              replyPlaceholder: t('shared-comment-reply-placeholder')
-            }}
-            editorMessages={{
-              cancel: t('shared-comment-cancel'),
-              send: t('shared-comment-send'),
-              sending: t('shared-comment-sending'),
-              sendHint: t('shared-comment-send-hint')
-            }}
-            onCreateComment={async (content, parentId, userName, userAvatar) => {
-              const cellRef = !parentId ? getSelectedCellRef?.() : undefined
-              const result = await comments.createComment({
-                type: parentId ? 'document' : 'cell',
-                content,
-                parentId,
-                cellReference: cellRef ?? undefined,
-                sheetId: cellRef ? activeSheetId : undefined,
-                createdByName: userName,
-                createdByAvatar: userAvatar
-              })
-              if (!result) {
-                toast.error(t('shared-error-create-comment'))
-                throw new Error('Failed to create comment')
-              }
-            }}
-            onUpdateComment={async (commentId, content) => {
-              await comments.updateComment(commentId, { content })
-            }}
-            onResolveComment={async commentId => {
-              const ok = await comments.resolveComment(commentId)
-              if (!ok) toast.error(t('shared-error-resolve-comment'))
-            }}
-            onUnresolveComment={async commentId => {
-              const ok = await comments.unresolveComment(commentId)
-              if (!ok) toast.error(t('shared-error-unresolve-comment'))
-              return ok
-            }}
-            onDeleteComment={async commentId => {
-              if (onDeleteComment) {
-                await onDeleteComment(commentId)
-              } else {
-                await comments.deleteComment(commentId)
-              }
-            }}
-            onClose={() => setShowComments(false)}
-            currentUserId={currentUserId}
-            currentUserName={currentUserName || t('editor-user-fallback')}
-            currentUserAvatar={currentUserAvatar || undefined}
-            headerHeight={100}
-            onScrollToHighlight={onScrollToHighlight}
-            onUnhighlight={onUnhighlight}
-            data-testid="spreadsheet-comment-panel"
           />
         )}
       </>

@@ -120,7 +120,44 @@ export function createContextMenuItem(
   item.style.whiteSpace = 'nowrap'
   item.style.wordBreak = 'normal'
   item.style.overflowWrap = 'normal'
-  item.addEventListener('click', onClick)
+  item.addEventListener('click', event => {
+    event.preventDefault()
+    event.stopPropagation()
+    onClick()
+
+    const popup =
+      item.closest<HTMLElement>(
+        '[class*="popup"], [class*="context-menu"], [class*="dropdown"], [data-u-comp="menu"], [role="menu"]'
+      ) ??
+      item.parentElement?.closest<HTMLElement>(
+        '[class*="popup"], [class*="context-menu"], [class*="dropdown"], [data-u-comp="menu"], [role="menu"]'
+      )
+
+    const escapeEvent = new KeyboardEvent('keydown', {
+      key: 'Escape',
+      bubbles: true,
+      cancelable: true
+    })
+    popup?.dispatchEvent(escapeEvent)
+    document.dispatchEvent(escapeEvent)
+
+    const outsideMouseDown = new MouseEvent('mousedown', {
+      bubbles: true,
+      cancelable: true,
+      button: 0
+    })
+    const outsideClick = new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+      button: 0
+    })
+    document.body.dispatchEvent(outsideMouseDown)
+    document.body.dispatchEvent(outsideClick)
+
+    if (popup && popup !== item && popup !== document.body) {
+      popup.blur?.()
+    }
+  })
   return item
 }
 

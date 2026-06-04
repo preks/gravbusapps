@@ -1857,11 +1857,20 @@ export const SpreadsheetApiService = {
     }
   },
 
-  async replyToComment(commentId: string, reply: string): Promise<Comment | null> {
+  async replyToComment(
+    commentId: string,
+    reply: string,
+    userName?: string,
+    userAvatar?: string
+  ): Promise<Comment | null> {
     try {
       const response = await apiRequest<Record<string, unknown>>(`/comments/${commentId}/reply`, {
         method: 'POST',
-        body: JSON.stringify({ content: reply })
+        body: JSON.stringify({
+          content: reply,
+          ...(userName ? { createdByName: userName } : {}),
+          ...(userAvatar ? { createdByAvatar: userAvatar } : {})
+        })
       })
       return mapCommentResponse(response, response.id as string, commentId)
     } catch (error) {

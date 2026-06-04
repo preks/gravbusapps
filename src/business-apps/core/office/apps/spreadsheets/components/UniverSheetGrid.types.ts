@@ -341,6 +341,8 @@ export interface UniverSheetGridDimensionsHandle {
 
 export interface UniverSheetGridSelectionHandle {
   getActiveCellReference: () => string | null
+  getActiveSelectionReference: () => string | null
+  focusCellReference: (cellReference: string, sheetId?: string) => boolean
 }
 
 /** Native worksheet insert/rename/remove via Univer commands. */
