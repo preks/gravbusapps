@@ -57184,25 +57184,25 @@
     ]
   },
   "hr/core/forms/update-working-conditions": {
-    "bitbucketBuildNumber": 12935,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12935/",
-    "chunkJsBytes": 217729,
+    "bitbucketBuildNumber": 12963,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12963/",
+    "chunkJsBytes": 220347,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 119177,
-        "gzip": 25758,
+        "rendered": 118982,
+        "gzip": 26029,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/forms/update-working-conditions/UpdateWorkingConditionsScreen.tsx",
-            "rendered": 34491,
-            "gzip": 5545
+            "rendered": 30088,
+            "gzip": 5030
           },
           {
             "name": "src/business-apps/hr/core/forms/_i18n/ro-RO.ftl?raw",
-            "rendered": 24319,
-            "gzip": 5764
+            "rendered": 25802,
+            "gzip": 6030
           }
         ]
       },
@@ -88308,20 +88308,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12956,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12956/",
-    "chunkJsBytes": 1960152,
+    "bitbucketBuildNumber": 12963,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12963/",
+    "chunkJsBytes": 1960153,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1666822,
-        "gzip": 106560,
+        "gzip": 106555,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1666822,
-            "gzip": 106560
+            "gzip": 106555
           }
         ]
       },
@@ -112839,7 +112839,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-04T08:15:12.206Z",
+    "generatedAt": "2026-06-04T11:50:48.347Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
