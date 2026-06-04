@@ -1,13 +1,15 @@
 // Agents screen — browsable catalog of available AI agents.
 
-import { Button } from '@newwork/nw-design-system'
+import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@newwork/nw-design-system'
 import {
   ArrowLeftIcon,
   CaretDownIcon,
   CaretRightIcon,
   InfoIcon,
+  LightbulbIcon,
   MagnifyingGlassIcon,
   SpinnerGapIcon,
+  WarningCircleIcon,
   WrenchIcon
 } from '@phosphor-icons/react'
 import React, { type FC, type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
@@ -15,8 +17,10 @@ import type { AgentRegistryEntry } from '@/business-apps/platform/apps/agent-mes
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { AgentCard } from './AgentCard'
 import { AgentConfigView } from './AgentConfigView'
-import { CreateAgentModal } from './CreateAgentModal'
+import { CreateAgentScreen } from './CreateAgentScreen'
+import { ConfirmDialog } from './ConfirmDialog'
 import { getAllSourceTypes, getSourceDisplay } from './agentSourceUtils'
+import { evaluateAgentReadiness } from './agentStandard'
 import type { BuiltinSubagent, FabricAgent } from './agentTypes'
 import type { WorkforceAgent } from '../enterprise-workforce/workforceTypes'
 
@@ -43,6 +47,7 @@ function mapRegistryEntryToFabricAgent(
     is_public: e.is_public,
     tags: e.tags ?? [],
     tools_count: e.tools_count ?? 0,
+    system_prompt_length: e.system_prompt_length ?? 0,
     knowledge_sources_count: e.knowledge_sources_count ?? 0,
     skill_ids: skillIds,
     skills_count: e.skills_count ?? 0,
@@ -76,6 +81,9 @@ function mapWorkforceAgentToFabricAgent(wf: WorkforceAgent, skillToolMap: Map<st
     is_public: null,
     tags: wf.tags ?? [],
     tools_count: 0,
+    // Workforce agents (AutonomousAgentODM) don't surface a prompt length here;
+    // leave undefined so the card's prompt-quality check is skipped for them.
+    system_prompt_length: null,
     knowledge_sources_count: wf.workforce_profile?.knowledge_refs?.length ?? 0,
     skill_ids: skillIds,
     skills_count: skillIds.length,
@@ -100,6 +108,38 @@ async function loadSkillToolMap(client: ReturnType<typeof usePromptManagerClient
     if (skill.tool_refs && skill.tool_refs.length > 0) map.set(skill.skill_id, skill.tool_refs)
   }
   return map
+}
+
+interface ConfirmRequest {
+  title: string
+  description: string
+  confirmLabel: string
+  destructive: boolean
+  onConfirm: () => void | Promise<void>
+}
+
+/** Agents whose source supports archive/activate (others are read-only). */
+function isSelectableAgent(agent: FabricAgent): boolean {
+  return agent.source === 'prompt_odm' || agent.source === 'autonomous_agent'
+}
+
+/** Run an async worker over items with a concurrency cap. Returns the failure count. */
+async function runWithConcurrency<T>(items: T[], worker: (item: T) => Promise<void>, concurrency = 8): Promise<number> {
+  let failures = 0
+  let index = 0
+  const runners = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (index < items.length) {
+      const current = items[index]
+      index += 1
+      try {
+        await worker(current)
+      } catch {
+        failures += 1
+      }
+    }
+  })
+  await Promise.all(runners)
+  return failures
 }
 
 interface CollapsibleFabricSectionProps {
@@ -169,14 +209,19 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, onRun
   // AutonomousAgentODM record + a workforce_profile). Drives whether the
   // per-agent config editor shows the workforce-only cards.
   const [workforceAgentIds, setWorkforceAgentIds] = useState<Set<string>>(new Set())
-  const [createOpen, setCreateOpen] = useState(false)
+  const [creating, setCreating] = useState(false)
   const [archivingAgentId, setArchivingAgentId] = useState<string | null>(null)
   const [activatingAgentId, setActivatingAgentId] = useState<string | null>(null)
+  const [selectedActiveIds, setSelectedActiveIds] = useState<Set<string>>(new Set())
+  const [selectedArchivedIds, setSelectedArchivedIds] = useState<Set<string>>(new Set())
+  const [bulkBusy, setBulkBusy] = useState(false)
+  const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
+  const [confirmBusy, setConfirmBusy] = useState(false)
 
   const renderHireAgentButton = () => (
     <button
       type="button"
-      onClick={() => setCreateOpen(true)}
+      onClick={() => setCreating(true)}
       className="gba:inline-flex gba:h-8 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-md gba:bg-primary gba:px-3 gba:text-sm gba:font-medium gba:text-primary-foreground gba:shadow-sm gba:transition-colors gba:hover:bg-primary/90 gba:focus-visible:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-ring gba:focus-visible:ring-offset-2"
       data-testid="agents-hire-button"
     >
@@ -236,13 +281,8 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, onRun
     )
   }, [])
 
-  const handleArchiveAgent = useCallback(
+  const runArchiveAgent = useCallback(
     async (agent: FabricAgent) => {
-      const confirmed = window.confirm(
-        `Archive "${agent.name.replace(/_/g, ' ')}"? It will be hidden from agent selection and orchestration, but history is preserved.`
-      )
-      if (!confirmed) return
-
       setArchivingAgentId(agent.id)
       setError(null)
       try {
@@ -257,6 +297,19 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, onRun
       }
     },
     [client, configuringAgent?.id]
+  )
+
+  const handleArchiveAgent = useCallback(
+    (agent: FabricAgent) => {
+      setConfirm({
+        title: 'Archive agent',
+        description: `Archive "${agent.name.replace(/_/g, ' ')}"? It will be hidden from agent selection and orchestration, but its history is preserved.`,
+        confirmLabel: 'Archive',
+        destructive: true,
+        onConfirm: () => runArchiveAgent(agent)
+      })
+    },
+    [runArchiveAgent]
   )
 
   const handleActivateAgent = useCallback(
@@ -276,6 +329,84 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, onRun
     [client]
   )
 
+  const toggleActiveSelect = useCallback((agent: FabricAgent) => {
+    setSelectedActiveIds(prev => {
+      const next = new Set(prev)
+      if (next.has(agent.id)) next.delete(agent.id)
+      else next.add(agent.id)
+      return next
+    })
+  }, [])
+
+  const toggleArchivedSelect = useCallback((agent: FabricAgent) => {
+    setSelectedArchivedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(agent.id)) next.delete(agent.id)
+      else next.add(agent.id)
+      return next
+    })
+  }, [])
+
+  const runBulkArchive = useCallback(async () => {
+    const targets = agents.filter(a => selectedActiveIds.has(a.id) && isSelectableAgent(a))
+    if (targets.length === 0) return
+
+    setBulkBusy(true)
+    setError(null)
+    const failures = await runWithConcurrency(targets, async a => {
+      await client.archiveAgent(a.id)
+    })
+    await loadAgents()
+    setSelectedActiveIds(new Set())
+    setBulkBusy(false)
+    if (failures > 0) setError(`Failed to archive ${failures} of ${targets.length} agent(s).`)
+  }, [agents, selectedActiveIds, client, loadAgents])
+
+  const handleBulkArchive = useCallback(() => {
+    const count = agents.filter(a => selectedActiveIds.has(a.id) && isSelectableAgent(a)).length
+    if (count === 0) return
+    setConfirm({
+      title: `Archive ${count} agent${count > 1 ? 's' : ''}`,
+      description: `${count > 1 ? 'These agents' : 'This agent'} will be hidden from agent selection and orchestration, but ${
+        count > 1 ? 'their' : 'its'
+      } history is preserved.`,
+      confirmLabel: `Archive ${count}`,
+      destructive: true,
+      onConfirm: () => runBulkArchive()
+    })
+  }, [agents, selectedActiveIds, runBulkArchive])
+
+  const handleBulkActivate = useCallback(async () => {
+    const targets = archivedAgents.filter(a => selectedArchivedIds.has(a.id) && isSelectableAgent(a))
+    if (targets.length === 0) return
+
+    setBulkBusy(true)
+    setError(null)
+    const failures = await runWithConcurrency(targets, async a => {
+      await client.activateAgent(a.id)
+    })
+    await loadAgents()
+    setSelectedArchivedIds(new Set())
+    setBulkBusy(false)
+    if (failures > 0) setError(`Failed to activate ${failures} of ${targets.length} agent(s).`)
+  }, [archivedAgents, selectedArchivedIds, client, loadAgents])
+
+  const handleConfirmAccept = useCallback(async () => {
+    if (!confirm) return
+    setConfirmBusy(true)
+    try {
+      await confirm.onConfirm()
+    } finally {
+      setConfirmBusy(false)
+      setConfirm(null)
+    }
+  }, [confirm])
+
+  const handleConfirmCancel = useCallback(() => {
+    if (confirmBusy) return
+    setConfirm(null)
+  }, [confirmBusy])
+
   const filtered = useMemo(() => {
     if (!search.trim()) return agents
     const q = search.toLowerCase()
@@ -288,6 +419,19 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, onRun
     )
   }, [agents, search])
 
+  const selectableFiltered = useMemo(() => filtered.filter(isSelectableAgent), [filtered])
+  const selectableArchived = useMemo(() => archivedAgents.filter(isSelectableAgent), [archivedAgents])
+
+  const selectAllActive = useCallback(() => {
+    setSelectedActiveIds(new Set(selectableFiltered.map(a => a.id)))
+  }, [selectableFiltered])
+  const clearActiveSelection = useCallback(() => setSelectedActiveIds(new Set()), [])
+
+  const selectAllArchived = useCallback(() => {
+    setSelectedArchivedIds(new Set(selectableArchived.map(a => a.id)))
+  }, [selectableArchived])
+  const clearArchivedSelection = useCallback(() => setSelectedArchivedIds(new Set()), [])
+
   if (isLoading) {
     return (
       <div
@@ -297,6 +441,20 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, onRun
         <SpinnerGapIcon className="gba:h-8 gba:w-8 gba:animate-spin gba:text-muted-foreground" />
         <p className="gba:text-sm gba:text-muted-foreground">Loading agents...</p>
       </div>
+    )
+  }
+
+  if (creating) {
+    return (
+      <CreateAgentScreen
+        client={client}
+        accessToken={accessToken}
+        onBack={() => setCreating(false)}
+        onCreated={async () => {
+          await loadAgents()
+          setCreating(false)
+        }}
+      />
     )
   }
 
@@ -311,12 +469,26 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, onRun
         onAgentUpdated={(agentId, updates) => {
           setAgents(prev =>
             prev.map(a =>
-              a.id === agentId ? { ...a, name: updates.name, description: updates.description, tags: updates.tags } : a
+              a.id === agentId
+                ? {
+                    ...a,
+                    name: updates.name,
+                    description: updates.description,
+                    tags: updates.tags,
+                    specialty: updates.specialty
+                  }
+                : a
             )
           )
           setConfiguringAgent(prev =>
             prev && prev.id === agentId
-              ? { ...prev, name: updates.name, description: updates.description, tags: updates.tags }
+              ? {
+                  ...prev,
+                  name: updates.name,
+                  description: updates.description,
+                  tags: updates.tags,
+                  specialty: updates.specialty
+                }
               : prev
           )
         }}
@@ -423,6 +595,47 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, onRun
             </div>
           )}
 
+          {selectableFiltered.length > 0 && (
+            <div
+              className="gba:mb-4 gba:flex gba:flex-wrap gba:items-center gba:gap-2 gba:rounded-lg gba:border gba:border-border/60 gba:bg-muted/30 gba:px-3 gba:py-2"
+              data-testid="active-bulk-toolbar"
+            >
+              <span className="gba:text-sm gba:font-medium gba:text-foreground">{selectedActiveIds.size} selected</span>
+              <div className="gba:ml-auto gba:flex gba:items-center gba:gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={selectAllActive}
+                  disabled={bulkBusy || selectedActiveIds.size === selectableFiltered.length}
+                  data-testid="active-select-all"
+                >
+                  Select all ({selectableFiltered.length})
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearActiveSelection}
+                  disabled={bulkBusy || selectedActiveIds.size === 0}
+                  data-testid="active-clear-selection"
+                >
+                  Clear
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    handleBulkArchive()
+                  }}
+                  disabled={bulkBusy || selectedActiveIds.size === 0}
+                  data-testid="active-bulk-archive"
+                  className="gba:text-destructive"
+                >
+                  {bulkBusy ? 'Working…' : `Archive selected (${selectedActiveIds.size})`}
+                </Button>
+              </div>
+            </div>
+          )}
+
           <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:xl:grid-cols-3 gba:gap-4">
             {filtered.map(agent => (
               <AgentCard
@@ -434,6 +647,9 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, onRun
                   handleArchiveAgent(agent)
                 }}
                 isArchiving={archivingAgentId === agent.id}
+                selectable={isSelectableAgent(agent)}
+                selected={selectedActiveIds.has(agent.id)}
+                onToggleSelect={toggleActiveSelect}
               />
             ))}
           </div>
@@ -498,15 +714,77 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, onRun
               count={archivedAgents.length}
               description="Previously active agents that have been archived. They are excluded from orchestration but their history is preserved."
             >
+              {selectableArchived.length > 0 && (
+                <div
+                  className="gba:mb-3 gba:flex gba:flex-wrap gba:items-center gba:gap-2 gba:rounded-lg gba:border gba:border-border/60 gba:bg-muted/30 gba:px-3 gba:py-2"
+                  data-testid="archived-bulk-toolbar"
+                >
+                  <span className="gba:text-sm gba:font-medium gba:text-foreground">
+                    {selectedArchivedIds.size} selected
+                  </span>
+                  <div className="gba:ml-auto gba:flex gba:items-center gba:gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={selectAllArchived}
+                      disabled={bulkBusy || selectedArchivedIds.size === selectableArchived.length}
+                      data-testid="archived-select-all"
+                    >
+                      Select all ({selectableArchived.length})
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearArchivedSelection}
+                      disabled={bulkBusy || selectedArchivedIds.size === 0}
+                      data-testid="archived-clear-selection"
+                    >
+                      Clear
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        handleBulkActivate()
+                      }}
+                      disabled={bulkBusy || selectedArchivedIds.size === 0}
+                      data-testid="archived-bulk-activate"
+                    >
+                      {bulkBusy ? 'Working…' : `Activate selected (${selectedArchivedIds.size})`}
+                    </Button>
+                  </div>
+                </div>
+              )}
               {archivedAgents.map(agent => {
                 const sd = getSourceDisplay(agent.source)
+                const archivedSelectable = isSelectableAgent(agent)
+                const archivedDistinctTools = new Set<string>()
+                for (const refs of Object.values(agent.skill_tools_by_id ?? {})) {
+                  for (const ref of refs) archivedDistinctTools.add(ref)
+                }
+                const archivedToolsInSkills = archivedDistinctTools.size
+                const archivedReadiness = evaluateAgentReadiness({
+                  skillCount: agent.skills_count ?? 0,
+                  toolsInSkillsCount: archivedToolsInSkills,
+                  systemPromptLength: agent.system_prompt_length
+                })
                 return (
                   <div
                     key={agent.id}
-                    className="gba:rounded-lg gba:border gba:border-border/60 gba:bg-card/50 gba:p-4 gba:opacity-70"
+                    className="gba:rounded-lg gba:border gba:border-border/60 gba:bg-card/50 gba:p-4 gba:opacity-70 gba:transition-opacity gba:hover:opacity-100"
                     data-testid={`archived-card-${agent.id}`}
                   >
-                    <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1.5">
+                    <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2 gba:mb-1.5">
+                      {archivedSelectable && (
+                        <input
+                          type="checkbox"
+                          checked={selectedArchivedIds.has(agent.id)}
+                          onChange={() => toggleArchivedSelect(agent)}
+                          className="gba:h-4 gba:w-4 gba:shrink-0 gba:rounded gba:border-border gba:text-primary gba:focus:ring-primary"
+                          aria-label={`Select ${agent.name.replace(/_/g, ' ')}`}
+                          data-testid={`archived-select-${agent.id}`}
+                        />
+                      )}
                       <h4 className="gba:text-sm gba:font-semibold gba:text-foreground">
                         {agent.name.replace(/_/g, ' ')}
                       </h4>
@@ -518,10 +796,47 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, onRun
                       <span className="gba:shrink-0 gba:rounded-full gba:bg-muted gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium gba:text-muted-foreground">
                         archived
                       </span>
+                      {!archivedReadiness.ready && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span
+                                className="gba:inline-flex gba:shrink-0 gba:cursor-default gba:items-center gba:gap-1 gba:rounded-full gba:bg-red-100 gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-semibold gba:text-red-700"
+                                data-testid={`archived-not-ready-badge-${agent.id}`}
+                              >
+                                <WarningCircleIcon className="gba:h-3 gba:w-3 gba:shrink-0" weight="fill" />
+                                Incomplete setup
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <div className="gba:flex gba:max-w-xs gba:flex-col gba:gap-0.5">
+                                {archivedReadiness.reasons.map(reason => (
+                                  <span key={reason} className="gba:text-xs">
+                                    {reason}
+                                  </span>
+                                ))}
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
                     </div>
                     <p className="gba:text-xs gba:leading-relaxed gba:text-muted-foreground gba:line-clamp-3">
                       {agent.description}
                     </p>
+
+                    {/* Skills + tools so authors can judge whether to restore it */}
+                    <div className="gba:mt-2.5 gba:flex gba:items-center gba:gap-4">
+                      <span className="gba:inline-flex gba:items-center gba:gap-1 gba:text-[11px] gba:text-muted-foreground">
+                        <LightbulbIcon className="gba:h-3 gba:w-3 gba:shrink-0" />
+                        {agent.skills_count ?? 0} skills
+                      </span>
+                      <span className="gba:inline-flex gba:items-center gba:gap-1 gba:text-[11px] gba:text-muted-foreground">
+                        <WrenchIcon className="gba:h-3 gba:w-3 gba:shrink-0" />
+                        {archivedToolsInSkills} tools in skills
+                      </span>
+                    </div>
+
                     {agent.tags.length > 0 && (
                       <div className="gba:flex gba:flex-wrap gba:gap-1.5 gba:mt-2.5">
                         {agent.tags.map(tag => (
@@ -555,13 +870,18 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, onRun
         </div>
       </div>
 
-      {createOpen && (
-        <CreateAgentModal
-          open={createOpen}
-          client={client}
-          accessToken={accessToken}
-          onClose={() => setCreateOpen(false)}
-          onCreated={loadAgents}
+      {confirm !== null && (
+        <ConfirmDialog
+          open
+          title={confirm.title}
+          description={confirm.description}
+          confirmLabel={confirm.confirmLabel}
+          destructive={confirm.destructive}
+          busy={confirmBusy}
+          onConfirm={() => {
+            handleConfirmAccept()
+          }}
+          onCancel={handleConfirmCancel}
         />
       )}
     </div>

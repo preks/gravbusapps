@@ -33,6 +33,8 @@ export interface AgentRegistryEntry {
   tags: string[]
   agent_card: AgentCard | null
   tools_count: number
+  /** Length (chars) of the agent's system prompt template; 0 when unset. Used to flag thin prompts. */
+  system_prompt_length?: number | null
   knowledge_sources_count: number
   skill_ids?: string[]
   skills_count?: number
@@ -46,6 +48,8 @@ export interface AgentRegistryEntry {
   // Detail-only fields (returned by GET /registry/{id}, not by list)
   tools?: string[]
   knowledge_sources?: KnowledgeSourceEntry[]
+  /** The agent's system prompt template (system_content.template). Null when unset. */
+  system_prompt?: string | null
   response_style?: string | null
   citation_mode?: string | null
 }

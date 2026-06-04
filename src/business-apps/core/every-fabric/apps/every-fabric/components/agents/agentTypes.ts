@@ -12,6 +12,8 @@ export interface FabricAgent {
   is_public: boolean | null
   tags: string[]
   tools_count: number
+  /** Length (chars) of the agent's system prompt; null/undefined when unknown (e.g. workforce agents). */
+  system_prompt_length?: number | null
   knowledge_sources_count: number
   skill_ids?: string[]
   skills_count?: number

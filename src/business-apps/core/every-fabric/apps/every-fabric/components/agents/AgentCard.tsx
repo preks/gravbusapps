@@ -2,8 +2,9 @@
 
 import React from 'react'
 import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@newwork/nw-design-system'
-import { PlayIcon, WrenchIcon, LightbulbIcon } from '@phosphor-icons/react'
+import { PlayIcon, WrenchIcon, LightbulbIcon, WarningCircleIcon } from '@phosphor-icons/react'
 import { getSourceDisplay } from './agentSourceUtils'
+import { evaluateAgentReadiness } from './agentStandard'
 import type { FabricAgent } from './agentTypes'
 
 interface AgentCardProps {
@@ -12,6 +13,10 @@ interface AgentCardProps {
   onConfigure?: (agent: FabricAgent) => void
   onArchive?: (agent: FabricAgent) => void
   isArchiving?: boolean
+  /** When true, render a selection checkbox for bulk actions. */
+  selectable?: boolean
+  selected?: boolean
+  onToggleSelect?: (agent: FabricAgent) => void
 }
 
 function resolveInitial(name: string): string {
@@ -29,12 +34,25 @@ export const AgentCard: React.FC<AgentCardProps> = ({
   onRunTask,
   onConfigure,
   onArchive,
-  isArchiving = false
+  isArchiving = false,
+  selectable = false,
+  selected = false,
+  onToggleSelect
 }) => {
   const displayName = formatAgentName(agent.name)
-  const bgColor = agent.color ?? '#6366f1'
   const sourceDisplay = getSourceDisplay(agent.source)
   const canArchive = agent.source === 'prompt_odm' || agent.source === 'autonomous_agent'
+
+  const distinctSkillTools = new Set<string>()
+  for (const refs of Object.values(agent.skill_tools_by_id ?? {})) {
+    for (const ref of refs) distinctSkillTools.add(ref)
+  }
+  const toolsInSkillsCount = distinctSkillTools.size
+  const readiness = evaluateAgentReadiness({
+    skillCount: agent.skills_count ?? 0,
+    toolsInSkillsCount,
+    systemPromptLength: agent.system_prompt_length
+  })
 
   return (
     <div
@@ -44,10 +62,17 @@ export const AgentCard: React.FC<AgentCardProps> = ({
       {/* Header: avatar, name, badges, description */}
       <div className="gba:p-4 gba:pb-3">
         <div className="gba:flex gba:items-start gba:gap-3">
-          <div
-            className="gba:flex gba:h-10 gba:w-10 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-lg gba:text-sm gba:font-bold gba:text-white"
-            style={{ backgroundColor: bgColor }}
-          >
+          {selectable && (
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={() => onToggleSelect?.(agent)}
+              className="gba:mt-1 gba:h-4 gba:w-4 gba:shrink-0 gba:rounded gba:border-border gba:text-primary gba:focus:ring-primary"
+              aria-label={`Select ${displayName}`}
+              data-testid={`agent-select-${agent.id}`}
+            />
+          )}
+          <div className="gba:flex gba:h-10 gba:w-10 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-lg gba:border gba:border-border gba:bg-muted gba:text-sm gba:font-bold gba:text-muted-foreground">
             {resolveInitial(agent.name)}
           </div>
           <div className="gba:flex-1 gba:min-w-0">
@@ -66,7 +91,35 @@ export const AgentCard: React.FC<AgentCardProps> = ({
                   Workforce
                 </span>
               )}
-              <span className="gba:ml-auto gba:shrink-0 gba:rounded-full gba:bg-emerald-100 gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium gba:text-emerald-700">
+              {!readiness.ready && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span
+                        className="gba:ml-auto gba:inline-flex gba:shrink-0 gba:cursor-default gba:items-center gba:gap-1 gba:rounded-full gba:bg-red-100 gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-semibold gba:text-red-700"
+                        data-testid={`agent-not-ready-badge-${agent.id}`}
+                      >
+                        <WarningCircleIcon className="gba:h-3 gba:w-3 gba:shrink-0" weight="fill" />
+                        Incomplete setup
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <div className="gba:flex gba:max-w-xs gba:flex-col gba:gap-0.5">
+                        {readiness.reasons.map(reason => (
+                          <span key={reason} className="gba:text-xs">
+                            {reason}
+                          </span>
+                        ))}
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              <span
+                className={`gba:shrink-0 gba:rounded-full gba:bg-emerald-100 gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium gba:text-emerald-700 ${
+                  readiness.ready ? 'gba:ml-auto' : ''
+                }`}
+              >
                 active
               </span>
             </div>
@@ -80,15 +133,15 @@ export const AgentCard: React.FC<AgentCardProps> = ({
       {/* Stats row: value above label */}
       <div className="gba:flex gba:items-end gba:gap-6 gba:px-4 gba:py-3">
         <div>
-          <p className="gba:text-lg gba:font-bold gba:text-foreground gba:leading-none">{agent.tools_count}</p>
-          <p className="gba:mt-0.5 gba:text-[10px] gba:font-medium gba:uppercase gba:tracking-wider gba:text-muted-foreground">
-            Tools
-          </p>
-        </div>
-        <div>
           <p className="gba:text-lg gba:font-bold gba:text-foreground gba:leading-none">{agent.skills_count ?? 0}</p>
           <p className="gba:mt-0.5 gba:text-[10px] gba:font-medium gba:uppercase gba:tracking-wider gba:text-muted-foreground">
             Skills
+          </p>
+        </div>
+        <div>
+          <p className="gba:text-lg gba:font-bold gba:text-foreground gba:leading-none">{toolsInSkillsCount}</p>
+          <p className="gba:mt-0.5 gba:text-[10px] gba:font-medium gba:uppercase gba:tracking-wider gba:text-muted-foreground">
+            Tools in skills
           </p>
         </div>
       </div>
@@ -147,7 +200,13 @@ export const AgentCard: React.FC<AgentCardProps> = ({
         >
           Configure
         </Button>
-        <Button size="sm" className="gba:w-full" onClick={() => onRunTask(agent)} data-testid={`agent-run-${agent.id}`}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gba:w-full"
+          onClick={() => onRunTask(agent)}
+          data-testid={`agent-run-${agent.id}`}
+        >
           <PlayIcon className="gba:mr-1.5 gba:h-3.5 gba:w-3.5" />
           Run task
         </Button>

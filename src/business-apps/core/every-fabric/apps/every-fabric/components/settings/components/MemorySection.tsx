@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Button, Input } from '@newwork/nw-design-system'
-import { BrainIcon, MagnifyingGlassIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react'
+import { Input } from '@newwork/nw-design-system'
+import { BrainIcon, MagnifyingGlassIcon, TrashIcon } from '@phosphor-icons/react'
 import type { MemoryEntry, MemoryNamespace } from '../agentSettings.types'
-import { MEMORY_NAMESPACES } from '../agentSettings.types'
+import { MEMORY_NAMESPACES, MEMORY_NAMESPACE_EMPTY, MEMORY_NAMESPACE_LABELS } from '../agentSettings.types'
 import { useEnterpriseAgentClient } from '../../../hooks/useEnterpriseAgentClient'
 import { SectionHeader } from './SettingsShared'
 import { MemoryListSkeleton } from './SkeletonLoader'
+import { PreferencesEditor } from './PreferencesEditor'
 
 interface MemorySectionProps {
   client: ReturnType<typeof useEnterpriseAgentClient>
@@ -17,9 +18,6 @@ export const MemorySection: React.FC<MemorySectionProps> = ({ client, isOpen }) 
   const [memoryQuery, setMemoryQuery] = useState('')
   const [activeNamespace, setActiveNamespace] = useState<MemoryNamespace>('preferences')
   const [isLoading, setIsLoading] = useState(false)
-  const [showAddForm, setShowAddForm] = useState(false)
-  const [newMemoryKey, setNewMemoryKey] = useState('')
-  const [newMemoryValue, setNewMemoryValue] = useState('')
 
   const searchMemories = useCallback(
     async (query?: string) => {
@@ -37,28 +35,14 @@ export const MemorySection: React.FC<MemorySectionProps> = ({ client, isOpen }) 
   )
 
   useEffect(() => {
-    if (isOpen) searchMemories()
-  }, [isOpen, searchMemories])
+    // The preferences tab loads its own data (PreferencesEditor); only fetch the
+    // raw list when a machine-generated namespace is active.
+    if (isOpen && activeNamespace !== 'preferences') searchMemories()
+  }, [isOpen, activeNamespace, searchMemories])
 
   const handleSearchMemory = useCallback(() => {
     searchMemories(memoryQuery || undefined)
   }, [memoryQuery, searchMemories])
-
-  const handleAddMemory = useCallback(async () => {
-    const key = newMemoryKey.trim()
-    const value = newMemoryValue.trim()
-    if (!key || !value) return
-
-    try {
-      await client.saveMemory(key, value, activeNamespace)
-      setNewMemoryKey('')
-      setNewMemoryValue('')
-      setShowAddForm(false)
-      searchMemories()
-    } catch {
-      // Could add toast later
-    }
-  }, [newMemoryKey, newMemoryValue, activeNamespace, client, searchMemories])
 
   const handleDeleteMemory = useCallback(
     async (key: string, namespace?: string) => {
@@ -66,7 +50,7 @@ export const MemorySection: React.FC<MemorySectionProps> = ({ client, isOpen }) 
         await client.deleteMemory(key, namespace)
         setMemories(prev => prev.filter(m => !(m.key === key && m.namespace === namespace)))
       } catch {
-        // Could add toast later
+        // best-effort
       }
     },
     [client]
@@ -85,7 +69,7 @@ export const MemorySection: React.FC<MemorySectionProps> = ({ client, isOpen }) 
     if (filteredMemories.length === 0) {
       return (
         <p className="gba:text-xs gba:text-muted-foreground gba:text-center gba:py-4">
-          No memories in {activeNamespace}
+          {MEMORY_NAMESPACE_EMPTY[activeNamespace]}
         </p>
       )
     }
@@ -116,85 +100,43 @@ export const MemorySection: React.FC<MemorySectionProps> = ({ client, isOpen }) 
   return (
     <>
       <SectionHeader icon={<BrainIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground/60" />} title="Memory" />
-      <div className="gba:px-3 sm:gba:px-4 gba:pb-2.5 sm:gba:pb-3">
-        <div className="gba:flex gba:gap-1 gba:mb-2.5 sm:gba:mb-3">
-          {MEMORY_NAMESPACES.map(ns => (
-            <button
-              key={ns}
-              onClick={() => setActiveNamespace(ns)}
-              className={`gba:px-3 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium gba:transition-colors ${
-                activeNamespace === ns
-                  ? 'gba:bg-foreground gba:text-background'
-                  : 'gba:text-muted-foreground gba:hover:bg-muted/40'
-              }`}
-            >
-              {ns.charAt(0).toUpperCase() + ns.slice(1)}
-            </button>
-          ))}
-        </div>
-
-        <div className="gba:flex gba:gap-2 gba:mb-2.5 sm:gba:mb-3">
-          <div className="gba:relative gba:flex-1">
-            <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 -gba:translate-y-1/2 gba:h-3.5 gba:w-3.5 gba:text-muted-foreground/50" />
-            <Input
-              value={memoryQuery}
-              onChange={e => setMemoryQuery(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSearchMemory()}
-              placeholder="Search memories..."
-              className="gba:h-8 gba:pl-9 gba:text-sm gba:rounded-full gba:bg-muted/30 gba:border-border/50"
-              data-testid="settings-memory-search"
-            />
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="gba:h-8 gba:w-8 gba:rounded-full gba:shrink-0"
-            onClick={() => setShowAddForm(f => !f)}
-            data-testid="settings-memory-add-toggle"
-          >
-            <PlusIcon className="gba:h-4 gba:w-4" />
-          </Button>
-        </div>
-
-        {showAddForm && (
-          <div className="gba:rounded-xl gba:border gba:border-border/60 gba:bg-muted/20 gba:p-2.5 sm:gba:p-3 gba:mb-2.5 sm:gba:mb-3 gba:space-y-2">
-            <Input
-              value={newMemoryKey}
-              onChange={e => setNewMemoryKey(e.target.value)}
-              placeholder="Key (e.g. preferred_language)"
-              className="gba:h-8 gba:text-sm gba:rounded-lg gba:bg-background/80"
-              data-testid="settings-memory-new-key"
-            />
-            <Input
-              value={newMemoryValue}
-              onChange={e => setNewMemoryValue(e.target.value)}
-              placeholder="Value"
-              className="gba:h-8 gba:text-sm gba:rounded-lg gba:bg-background/80"
-              data-testid="settings-memory-new-value"
-            />
-            <div className="gba:flex gba:justify-end gba:gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gba:h-7 gba:text-xs gba:rounded-full"
-                onClick={() => setShowAddForm(false)}
+      <div className="gba:pb-2.5 sm:gba:pb-3">
+        {MEMORY_NAMESPACES.length > 1 && (
+          <div className="gba:flex gba:gap-1 gba:mb-2.5 sm:gba:mb-3 gba:px-3 sm:gba:px-4">
+            {MEMORY_NAMESPACES.map(ns => (
+              <button
+                key={ns}
+                onClick={() => setActiveNamespace(ns)}
+                className={`gba:px-3 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium gba:transition-colors ${
+                  activeNamespace === ns
+                    ? 'gba:bg-foreground gba:text-background'
+                    : 'gba:text-muted-foreground gba:hover:bg-muted/40'
+                }`}
               >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                className="gba:h-7 gba:text-xs gba:rounded-full"
-                onClick={handleAddMemory}
-                disabled={!newMemoryKey.trim() || !newMemoryValue.trim()}
-                data-testid="settings-memory-save"
-              >
-                Save
-              </Button>
-            </div>
+                {MEMORY_NAMESPACE_LABELS[ns]}
+              </button>
+            ))}
           </div>
         )}
 
-        <div className="gba:space-y-1.5">{renderMemoryList()}</div>
+        {activeNamespace === 'preferences' ? (
+          <PreferencesEditor client={client} isOpen={isOpen} />
+        ) : (
+          <div className="gba:px-3 sm:gba:px-4">
+            <div className="gba:relative gba:mb-2.5 sm:gba:mb-3">
+              <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 -gba:translate-y-1/2 gba:h-3.5 gba:w-3.5 gba:text-muted-foreground/50" />
+              <Input
+                value={memoryQuery}
+                onChange={e => setMemoryQuery(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSearchMemory()}
+                placeholder={`Search ${MEMORY_NAMESPACE_LABELS[activeNamespace].toLowerCase()}...`}
+                className="gba:h-8 gba:pl-9 gba:text-sm gba:rounded-full gba:bg-muted/30 gba:border-border/50"
+                data-testid="settings-memory-search"
+              />
+            </div>
+            <div className="gba:space-y-1.5">{renderMemoryList()}</div>
+          </div>
+        )}
       </div>
     </>
   )

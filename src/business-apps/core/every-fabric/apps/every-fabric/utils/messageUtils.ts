@@ -12,6 +12,8 @@ import type {
   ChatMessage,
   ChatMessageType,
   DeepAgentSession,
+  EnterpriseRuntimeTraceEvent,
+  HitlRequestedEvent,
   MessageAttachmentRef,
   SessionAttachment,
   StructuredInputRequestEvent
@@ -478,6 +480,70 @@ function appendLivePlanIfNeeded(sortedEvents: AgentStreamEvent[], messages: Chat
   })
 }
 
+function hitlRequestedToMessage(event: HitlRequestedEvent): ChatMessage {
+  const payload = event.request.payload ?? {}
+  const fields = Array.isArray(payload.fields) ? payload.fields : null
+  if (!fields) {
+    return {
+      id: event.event_id,
+      type: 'human_interrupt',
+      timestamp: event.timestamp,
+      content: { question: event.request.description || event.request.title },
+      presentationMode: event.presentation_mode
+    }
+  }
+  const requestStatus = event.request.status === 'pending' ? undefined : event.request.status
+  return {
+    id: event.event_id,
+    type: 'structured_input_request',
+    timestamp: event.timestamp,
+    presentationMode: event.presentation_mode,
+    content: {
+      // Spread the full backend payload first so form-specific extras
+      // (e.g. `email_draft` / `email_accounts` for compose_email,
+      // `action_requests` / `review_configs` for tool_permission) are
+      // preserved. Without this the EmailComposerBubble would fall back
+      // to the generic StructuredInputForm (empty fields → useless
+      // Submit button) because `email_draft` was being dropped.
+      ...payload,
+      type: 'structured_input_request',
+      seq: event.seq,
+      event_id: event.event_id,
+      timestamp: event.timestamp,
+      form_id: String(payload.form_id ?? event.request.request_id),
+      title: event.request.title,
+      description: event.request.description ?? '',
+      fields,
+      allow_partial_submit: Boolean(payload.allow_partial_submit),
+      tool_ref: typeof payload.tool_ref === 'string' ? payload.tool_ref : undefined,
+      request_status: requestStatus
+    } as unknown as StructuredInputRequestEvent
+  }
+}
+
+function expertSelectedToMessage(event: EnterpriseRuntimeTraceEvent): ChatMessage | null {
+  // Native agents run inline on the main graph and never emit
+  // `expert_called`, so they are tagged `source: 'native'` on the
+  // selection event and rendered as the same blue agent bubble. Other
+  // `expert_selected` events feed the mesh only and stay out of chat.
+  const payload = event.payload ?? {}
+  if (payload.source !== 'native') return null
+  const agentName = pickDisplayName(payload.name as string | undefined) ?? event.expert_id ?? 'Agent'
+  const specialty = typeof payload.specialty === 'string' ? payload.specialty : ''
+  const description = typeof payload.description === 'string' ? payload.description : specialty
+  return {
+    id: `native-agent-${event.event_id}`,
+    type: 'expert_call',
+    timestamp: event.timestamp,
+    content: {
+      agentId: agentName,
+      task: specialty || agentName,
+      description: description || undefined,
+      status: 'done'
+    }
+  }
+}
+
 export function eventToMessage(
   event: AgentStreamEvent,
   stepCompletions?: Map<string, StepCompletion>,
@@ -568,45 +634,8 @@ export function eventToMessage(
       }
     }
 
-    case 'hitl_requested': {
-      const payload = event.request.payload ?? {}
-      const fields = Array.isArray(payload.fields) ? payload.fields : null
-      if (fields) {
-        return {
-          id: event.event_id,
-          type: 'structured_input_request',
-          timestamp: event.timestamp,
-          presentationMode: event.presentation_mode,
-          content: {
-            // Spread the full backend payload first so form-specific extras
-            // (e.g. `email_draft` / `email_accounts` for compose_email,
-            // `action_requests` / `review_configs` for tool_permission) are
-            // preserved. Without this the EmailComposerBubble would fall back
-            // to the generic StructuredInputForm (empty fields → useless
-            // Submit button) because `email_draft` was being dropped.
-            ...payload,
-            type: 'structured_input_request',
-            seq: event.seq,
-            event_id: event.event_id,
-            timestamp: event.timestamp,
-            form_id: String(payload.form_id ?? event.request.request_id),
-            title: event.request.title,
-            description: event.request.description ?? '',
-            fields,
-            allow_partial_submit: Boolean(payload.allow_partial_submit),
-            tool_ref: typeof payload.tool_ref === 'string' ? payload.tool_ref : undefined,
-            request_status: event.request.status === 'pending' ? undefined : event.request.status
-          } as unknown as StructuredInputRequestEvent
-        }
-      }
-      return {
-        id: event.event_id,
-        type: 'human_interrupt',
-        timestamp: event.timestamp,
-        content: { question: event.request.description || event.request.title },
-        presentationMode: event.presentation_mode
-      }
-    }
+    case 'hitl_requested':
+      return hitlRequestedToMessage(event)
 
     case 'terminal':
     case 'turn_snapshot':
@@ -631,6 +660,9 @@ export function eventToMessage(
       // NOT emit a top-level error chat message here — it would render
       // as a "Session failed" banner even when the session completes.
       return null
+
+    case 'expert_selected':
+      return expertSelectedToMessage(event)
 
     default:
       return null
