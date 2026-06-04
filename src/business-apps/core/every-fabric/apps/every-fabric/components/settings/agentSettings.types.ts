@@ -21,6 +21,10 @@ export interface MemoryEntry {
   key: string
   value: string
   namespace?: string
+  /** Human-readable label for auto-learned entries (falls back to a prettified key). */
+  title?: string
+  /** ISO timestamp of the last update, used to show how recent an entry is. */
+  updatedAt?: string
 }
 
 // Namespaces surfaced in the settings UI. `preferences` is human-curatable;

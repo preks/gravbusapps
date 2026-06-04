@@ -54,6 +54,19 @@ const isLikelyTaskText = (value?: string) => {
   return compact.length > 42 || compact.split(/\s+/).length > 5
 }
 
+function getActivitySummary(event: ActivityEvent): string {
+  if (event.type !== 'subagent_spawn') {
+    return event.summary
+  }
+
+  const compactSummary = event.summary.trim()
+  if (!compactSummary || normalizeActivityText(compactSummary) === normalizeActivityText(event.agent)) {
+    return event.agent ? `Delegated to ${event.agent}` : 'Delegated to sub-agent'
+  }
+
+  return isLikelyTaskText(compactSummary) ? 'Working on a delegated task' : compactSummary
+}
+
 function TimelineDot({ ringClass }: Readonly<{ ringClass: string }>) {
   return (
     <span
@@ -112,6 +125,7 @@ function DecisionRow({ decision }: Readonly<{ decision: DecisionItem }>) {
 function ActivityRow({ event }: Readonly<{ event: ActivityEvent }>) {
   const isSubagent = event.type === 'subagent_spawn'
   const isSkillLoad = isSkillLoadActivity(event)
+  const summary = getActivitySummary(event)
   const showAgentBadge =
     isSubagent &&
     !!event.agent &&
@@ -156,7 +170,9 @@ function ActivityRow({ event }: Readonly<{ event: ActivityEvent }>) {
             {event.agent}
           </span>
         )}
-        <p className="gba:mt-1 gba:text-xs gba:text-foreground gba:leading-snug">{event.summary}</p>
+        <p className="gba:mt-1 gba:text-xs gba:text-foreground gba:leading-snug gba:line-clamp-2" title={event.summary}>
+          {summary}
+        </p>
         {event.durationMs !== undefined && (
           <p className="gba:mt-0.5 gba:text-[10px] gba:text-muted-foreground/50">
             {(event.durationMs / 1000).toFixed(2)}s

@@ -263,7 +263,9 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
 
   const getMemory = useCallback(
     (query: string) =>
-      client.get<{ key: string; value: string; namespace?: string }[]>('/deep-agent/memory/search', {
+      client.get<
+        { key: string; value: string; namespace?: string; title?: string | null; updated_at?: string | null }[]
+      >('/deep-agent/memory/search', {
         params: { q: query }
       }),
     [client]

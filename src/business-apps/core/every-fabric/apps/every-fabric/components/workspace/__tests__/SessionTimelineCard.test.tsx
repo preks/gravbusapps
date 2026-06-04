@@ -43,4 +43,28 @@ describe('SessionTimelineCard', () => {
     render(<SessionTimelineCard decisions={[]} activityEvents={[]} />)
     expect(screen.getByText(/Session events will appear here/)).toBeInTheDocument()
   })
+
+  it('keeps long sub-agent task prompts concise in the timeline', () => {
+    const longTask =
+      'Assess the current health of HR operations for the product team across hiring, retention, performance reviews, and exits, and provide a concise expert readout of the main risks, gaps, and likely operational weak points.'
+
+    render(
+      <SessionTimelineCard
+        decisions={[]}
+        activityEvents={[
+          {
+            id: 'subagent-1',
+            timestamp: '2026-06-01T12:02:00.000Z',
+            type: 'subagent_spawn',
+            agent: 'HR_General_Agent',
+            summary: longTask
+          }
+        ]}
+      />
+    )
+
+    expect(screen.getByText('HR_General_Agent')).toBeInTheDocument()
+    expect(screen.getByText('Working on a delegated task')).toBeInTheDocument()
+    expect(screen.queryByText(longTask)).not.toBeInTheDocument()
+  })
 })
