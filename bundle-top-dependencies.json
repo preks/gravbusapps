@@ -12317,15 +12317,15 @@
     ]
   },
   "core/office/apps/spreadsheets": {
-    "bitbucketBuildNumber": 12943,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12943/",
-    "chunkJsBytes": 2001141,
+    "bitbucketBuildNumber": 12956,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12956/",
+    "chunkJsBytes": 2002240,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 3042725,
-        "gzip": 663228,
+        "rendered": 3045093,
+        "gzip": 663765,
         "leaves": [
           {
             "name": "src/business-apps/core/office/apps/spreadsheets/services/SpreadsheetCollaborationManager.ts",
@@ -88308,20 +88308,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 12954,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12954/",
-    "chunkJsBytes": 1960208,
+    "bitbucketBuildNumber": 12956,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12956/",
+    "chunkJsBytes": 1960152,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1666876,
-        "gzip": 106541,
+        "rendered": 1666822,
+        "gzip": 106560,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1666876,
-            "gzip": 106541
+            "rendered": 1666822,
+            "gzip": 106560
           }
         ]
       },
@@ -100894,15 +100894,15 @@
     ]
   },
   "platform/apps/spreadsheet-apps": {
-    "bitbucketBuildNumber": 12943,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12943/",
-    "chunkJsBytes": 2001072,
+    "bitbucketBuildNumber": 12956,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/12956/",
+    "chunkJsBytes": 2002171,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 3042725,
-        "gzip": 663228,
+        "rendered": 3045093,
+        "gzip": 663765,
         "leaves": [
           {
             "name": "src/business-apps/core/office/apps/spreadsheets/services/SpreadsheetCollaborationManager.ts",
@@ -112839,7 +112839,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-04T08:08:35.846Z",
+    "generatedAt": "2026-06-04T08:15:12.206Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
