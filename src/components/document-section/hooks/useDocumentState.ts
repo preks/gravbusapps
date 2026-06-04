@@ -5,9 +5,15 @@ interface UseDocumentStateProps {
   entityId: string
   externalSearchTerm?: string
   onSearchChange?: (term: string) => void
+  defaultViewMode?: 'tree' | 'list'
 }
 
-export function useDocumentState({ entityId, externalSearchTerm, onSearchChange }: UseDocumentStateProps) {
+export function useDocumentState({
+  entityId,
+  externalSearchTerm,
+  onSearchChange,
+  defaultViewMode = 'tree'
+}: UseDocumentStateProps) {
   // State for custom three dots menu
   const [menuOpen, setMenuOpen] = useState(false)
   const [menuMountEl, setMenuMountEl] = useState<HTMLElement | null>(null)
@@ -23,7 +29,7 @@ export function useDocumentState({ entityId, externalSearchTerm, onSearchChange 
   })
 
   // State for view mode (tree vs list) - default to tree view
-  const [viewMode, setViewMode] = useState<'tree' | 'list'>('tree')
+  const [viewMode, setViewMode] = useState<'tree' | 'list'>(defaultViewMode)
 
   // State for expanded folders in tree view with localStorage persistence
   // Generate a unique storage key based on entity

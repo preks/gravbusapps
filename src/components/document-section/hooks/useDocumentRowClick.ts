@@ -5,6 +5,7 @@ interface UseDocumentRowClickProps {
   isDragging: boolean
   filteredDocuments: DocumentItem[]
   handleDownloadDocument: (document: DocumentItem) => Promise<void>
+  onFileClick?: (document: DocumentItem) => void | Promise<void>
   toggleFolderExpansion: (folderId: string) => void
   viewMode: 'tree' | 'list'
   setSelectedItems: (updater: (prev: string[]) => string[]) => void
@@ -19,6 +20,7 @@ export function useDocumentRowClick({
   isDragging,
   filteredDocuments,
   handleDownloadDocument,
+  onFileClick,
   toggleFolderExpansion,
   viewMode,
   setSelectedItems
@@ -40,6 +42,11 @@ export function useDocumentRowClick({
 
     // If it's a file (not a folder), trigger download (browser decides preview vs download)
     if (!document.folder) {
+      if (onFileClick) {
+        onFileClick(document)
+        return
+      }
+
       handleDownloadDocument(document)
       return
     }

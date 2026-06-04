@@ -1,5 +1,5 @@
 import React from 'react'
-import { AiButton, Button } from '@newwork/nw-design-system'
+import { AiButton, Button, useTranslation } from '@newwork/nw-design-system'
 import {
   UploadSimpleIcon,
   FolderNotchIcon,
@@ -10,9 +10,9 @@ import {
   ListBulletsIcon,
   SparkleIcon
 } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 import { DocumentItem } from '../types'
+import translations from '../_i18n'
 
 interface DocumentSectionToolbarProps {
   readonly dataTestId: string
@@ -47,6 +47,7 @@ interface DocumentSectionToolbarProps {
   readonly handleCollapseAll: () => void
   readonly showAiOrganize?: boolean
   readonly onAiOrganize?: () => void
+  readonly showViewModeToggle?: boolean
 }
 
 export function DocumentSectionToolbar({
@@ -66,8 +67,10 @@ export function DocumentSectionToolbar({
   handleExpandAll,
   handleCollapseAll,
   showAiOrganize = false,
-  onAiOrganize
+  onAiOrganize,
+  showViewModeToggle = true
 }: DocumentSectionToolbarProps) {
+  const { t } = useTranslation(translations)
   // Cache the selected folder to avoid redundant array traversals
   const selectedFolder =
     viewMode === 'tree' && selectedItems.length === 1
@@ -75,25 +78,19 @@ export function DocumentSectionToolbar({
       : null
 
   // Build tooltip titles with translations
-  const createFolderTranslation: string =
-    getTranslationFromI18nKeyAndLabel('document.tooltip.createFolderIn', 'Create folder in "{ $folderName }"') || ''
   const createFolderTitle = selectedFolder
-    ? createFolderTranslation.replace('{ $folderName }', selectedFolder.name || '')
-    : getTranslationFromI18nKeyAndLabel('document.tooltip.createFolderRoot', 'Create folder at root level') || ''
+    ? t('document-tooltip-create-folder-in', { folderName: selectedFolder.name || '' })
+    : t('document-tooltip-create-folder-root')
 
-  const uploadTranslation: string =
-    getTranslationFromI18nKeyAndLabel('document.tooltip.uploadTo', 'Upload to "{ $folderName }"') || ''
   const uploadTitle = selectedFolder
-    ? uploadTranslation.replace('{ $folderName }', selectedFolder.name || '')
-    : getTranslationFromI18nKeyAndLabel('document.tooltip.uploadRoot', 'Upload to root level') || ''
+    ? t('document-tooltip-upload-to', { folderName: selectedFolder.name || '' })
+    : t('document-tooltip-upload-root')
 
   return (
     <>
       {/* Header with title and actions */}
       <div className="gba:flex gba:items-center gba:justify-between">
-        <h3 className="gba:text-lg gba:font-semibold">
-          {getTranslationFromI18nKeyAndLabel('document.section.title', 'Document Management')}
-        </h3>
+        <h3 className="gba:text-lg gba:font-semibold">{t('document-section-title')}</h3>
 
         <div className="gba:flex gba:items-center gba:gap-2">
           {createFolderActionProps && (
@@ -105,7 +102,7 @@ export function DocumentSectionToolbar({
               title={createFolderTitle}
             >
               <FolderNotchIcon className="gba:h-4 gba:w-4 gba:mr-2" />
-              {getTranslationFromI18nKeyAndLabel('document.folder.new', 'New Document Folder')}
+              {t('document-folder-new')}
             </Button>
           )}
           {uploadActionProps && (
@@ -117,7 +114,7 @@ export function DocumentSectionToolbar({
               title={uploadTitle}
             >
               <UploadSimpleIcon className="gba:h-4 gba:w-4 gba:mr-2" />
-              {getTranslationFromI18nKeyAndLabel('document.upload.files', 'Upload Documents')}
+              {t('document-upload-files')}
             </Button>
           )}
           {showAiOrganize && onAiOrganize && (
@@ -131,7 +128,7 @@ export function DocumentSectionToolbar({
               onClick={onAiOrganize}
               data-testid={`${dataTestId}-ai-organize-button`}
             >
-              {getTranslationFromI18nKeyAndLabel('document.ai.organize.button', 'Organize with AI')}
+              {t('document-ai-organize-button')}
             </AiButton>
           )}
           {toolbarActions.map(action => (
@@ -152,11 +149,11 @@ export function DocumentSectionToolbar({
       {/* Search and View Toggle Row */}
       <div className="gba:flex gba:items-center gba:justify-between">
         {/* Search Input */}
-        <div className="gba:max-w-sm">
+        <div className="gba:w-full gba:max-w-md">
           <DebouncedInput
             value={searchTerm}
             onChange={handleSearchChange}
-            placeholder={getTranslationFromI18nKeyAndLabel('document.search.placeholder', 'Search documents...')}
+            placeholder={t('document-search-placeholder')}
             icon={<MagnifyingGlassIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
             data-testid={`${dataTestId}-search-input`}
             debounceDelay={300}
@@ -172,55 +169,54 @@ export function DocumentSectionToolbar({
                 size="sm"
                 onClick={handleExpandAll}
                 data-testid={`${dataTestId}-expand-all-button`}
-                title={getTranslationFromI18nKeyAndLabel('document.tree.expand.all', 'Expand All')}
+                title={t('document-tree-expand-all')}
               >
                 <ArrowsOutIcon className="gba:h-4 gba:w-4 gba:mr-1" />
-                {getTranslationFromI18nKeyAndLabel('document.tree.expand.all', 'Expand All')}
+                {t('document-tree-expand-all')}
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleCollapseAll}
                 data-testid={`${dataTestId}-collapse-all-button`}
-                title={getTranslationFromI18nKeyAndLabel('document.tree.collapse.all', 'Collapse All')}
+                title={t('document-tree-collapse-all')}
               >
                 <ArrowsInIcon className="gba:h-4 gba:w-4 gba:mr-1" />
-                {getTranslationFromI18nKeyAndLabel('document.tree.collapse.all', 'Collapse All')}
+                {t('document-tree-collapse-all')}
               </Button>
             </div>
           )}
 
-          {/* View Mode Toggle */}
-          <div className="gba:flex gba:items-center gba:border gba:rounded-md">
-            <Button
-              variant={viewMode === 'tree' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => {
-                setViewMode('tree')
-                // Clear selection when switching to tree view
-                setSelectedItems([])
-              }}
-              className="gba:rounded-r-none gba:border-r"
-              data-testid={`${dataTestId}-tree-view-button`}
-            >
-              <TreeStructureIcon className="gba:h-4 gba:w-4 gba:mr-1" />
-              {getTranslationFromI18nKeyAndLabel('document.view.tree', 'Tree View')}
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => {
-                setViewMode('list')
-                // Clear selection when switching to list view
-                setSelectedItems([])
-              }}
-              className="gba:rounded-l-none"
-              data-testid={`${dataTestId}-list-view-button`}
-            >
-              <ListBulletsIcon className="gba:h-4 gba:w-4 gba:mr-1" />
-              {getTranslationFromI18nKeyAndLabel('document.view.list', 'List View')}
-            </Button>
-          </div>
+          {showViewModeToggle && (
+            <div className="gba:flex gba:items-center gba:border gba:rounded-md">
+              <Button
+                variant={viewMode === 'tree' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => {
+                  setViewMode('tree')
+                  setSelectedItems([])
+                }}
+                className="gba:rounded-r-none gba:border-r"
+                data-testid={`${dataTestId}-tree-view-button`}
+              >
+                <TreeStructureIcon className="gba:h-4 gba:w-4 gba:mr-1" />
+                {t('document-view-tree')}
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => {
+                  setViewMode('list')
+                  setSelectedItems([])
+                }}
+                className="gba:rounded-l-none"
+                data-testid={`${dataTestId}-list-view-button`}
+              >
+                <ListBulletsIcon className="gba:h-4 gba:w-4 gba:mr-1" />
+                {t('document-view-list')}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useFileClient } from '@/common/network/files/useFileClient'
+import type { FileClient } from '@/common/network/files/FileClient'
 import { PROCESSES_BASE_URL } from '@/common/utils/serviceResolver'
 
 const GET_EMPLOYEE_DOCUMENTS_BY_IDS = `
@@ -145,6 +146,29 @@ async function deleteEmployeeDocument(accessToken: string, record: EmployeeDocum
   return response.ok
 }
 
+async function deleteEmployeeDocumentFile(
+  record: EmployeeDocumentRecord,
+  fileClient: Pick<FileClient, 'deleteFile'>,
+  accessScope: 'tenant' | 'public',
+  appName: string,
+  resolvedFolderPath: string
+): Promise<void> {
+  if (!isNonEmptyString(record.file)) {
+    return
+  }
+
+  await fileClient.deleteFile(
+    {
+      accessScope,
+      fileId: record.file
+    },
+    {
+      appName,
+      folderPath: resolvedFolderPath
+    }
+  )
+}
+
 function resolvePickedFileFromUpload(fileObj: any): File | null {
   if (fileObj?.file instanceof File) {
     return fileObj.file
@@ -256,7 +280,11 @@ async function buildManagedFilesFromEmployeeDocumentRecords(
 async function deleteRemovedDocumentsForSync(
   accessToken: string,
   removedDocumentIds: string[],
-  documentRecordsById: Record<string, EmployeeDocumentRecord>
+  documentRecordsById: Record<string, EmployeeDocumentRecord>,
+  fileClient: Pick<FileClient, 'deleteFile'>,
+  accessScope: 'tenant' | 'public',
+  appName: string,
+  resolvedFolderPath: string
 ): Promise<string[]> {
   const deletedIds: string[] = []
   for (const docId of removedDocumentIds) {
@@ -268,6 +296,9 @@ async function deleteRemovedDocumentsForSync(
       const deleted = await deleteEmployeeDocument(accessToken, record)
       if (deleted) {
         deletedIds.push(docId)
+        await deleteEmployeeDocumentFile(record, fileClient, accessScope, appName, resolvedFolderPath).catch(
+          () => undefined
+        )
       }
     } catch {
       // best effort delete to avoid blocking the main form submit flow
@@ -629,7 +660,15 @@ export function useEmployeeDocumentSync({
 
       let deletedIds: string[] = []
       if (deleteRemovedDocuments && deleteFirst && removedDocumentIds.length > 0) {
-        deletedIds = await deleteRemovedDocumentsForSync(accessToken, removedDocumentIds, documentRecordsById)
+        deletedIds = await deleteRemovedDocumentsForSync(
+          accessToken,
+          removedDocumentIds,
+          documentRecordsById,
+          fileClient,
+          accessScope,
+          appName,
+          resolvedFolderPath
+        )
       }
 
       const retainedExistingIds = currentIds.filter(id => initialIds.includes(id))
@@ -656,7 +695,15 @@ export function useEmployeeDocumentSync({
       })
 
       if (deleteRemovedDocuments && !deleteFirst && removedDocumentIds.length > 0) {
-        deletedIds = await deleteRemovedDocumentsForSync(accessToken, removedDocumentIds, documentRecordsById)
+        deletedIds = await deleteRemovedDocumentsForSync(
+          accessToken,
+          removedDocumentIds,
+          documentRecordsById,
+          fileClient,
+          accessScope,
+          appName,
+          resolvedFolderPath
+        )
       }
 
       const retainedIds = currentIds

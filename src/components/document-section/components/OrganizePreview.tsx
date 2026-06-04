@@ -1,9 +1,9 @@
 import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Badge } from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle, Badge, useTranslation } from '@newwork/nw-design-system'
 import { FolderIcon, FileIcon, ArrowRightIcon } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { TemplateTreeNode, OrganizationDecision, ResponseWarning } from '@/common/network/flowbot/FlowbotClient'
 import type { DocumentItem } from '../types'
+import translations from '../_i18n'
 
 interface OrganizePreviewProps {
   decisions: OrganizationDecision[]
@@ -14,21 +14,24 @@ interface OrganizePreviewProps {
   dataTestId: string
 }
 
-function getConfidenceBadge(confidence: number): { label: string; variant: 'default' | 'secondary' | 'destructive' } {
+function getConfidenceBadge(
+  confidence: number,
+  t: (key: string, args?: Record<string, unknown>) => string
+): { label: string; variant: 'default' | 'secondary' | 'destructive' } {
   if (confidence >= 0.85) {
     return {
-      label: getTranslationFromI18nKeyAndLabel('document.ai.organize.confidenceHigh', 'High'),
+      label: t('document-ai-organize-confidence-high'),
       variant: 'default'
     }
   }
   if (confidence >= 0.6) {
     return {
-      label: getTranslationFromI18nKeyAndLabel('document.ai.organize.confidenceMedium', 'Medium'),
+      label: t('document-ai-organize-confidence-medium'),
       variant: 'secondary'
     }
   }
   return {
-    label: getTranslationFromI18nKeyAndLabel('document.ai.organize.confidenceLow', 'Low'),
+    label: t('document-ai-organize-confidence-low'),
     variant: 'destructive'
   }
 }
@@ -57,7 +60,8 @@ export const OrganizePreview: React.FC<OrganizePreviewProps> = ({
   fileDocuments,
   dataTestId
 }) => {
-  const docNameMap = new Map(fileDocuments.map(d => [d.id, d.name || 'Untitled']))
+  const { t } = useTranslation(translations)
+  const docNameMap = new Map(fileDocuments.map(d => [d.id, d.name || t('document-label-untitled-document')]))
 
   return (
     <div className="gba:space-y-4" data-testid={`${dataTestId}-preview`}>
@@ -72,7 +76,7 @@ export const OrganizePreview: React.FC<OrganizePreviewProps> = ({
           <CardHeader className="gba:pb-2">
             <CardTitle className="gba:text-sm gba:flex gba:items-center gba:gap-2">
               <FolderIcon weight="fill" className="gba:h-4 gba:w-4 gba:text-warning" />
-              {getTranslationFromI18nKeyAndLabel('document.ai.organize.proposedStructure', 'Proposed Folder Structure')}
+              {t('document-ai-organize-proposed-structure')}
             </CardTitle>
           </CardHeader>
           <CardContent className="gba:pt-0">
@@ -86,7 +90,7 @@ export const OrganizePreview: React.FC<OrganizePreviewProps> = ({
           <CardHeader className="gba:pb-2">
             <CardTitle className="gba:text-sm gba:flex gba:items-center gba:gap-2">
               <FileIcon className="gba:h-4 gba:w-4 gba:text-primary" />
-              {getTranslationFromI18nKeyAndLabel('document.ai.organize.fileAssignments', 'File Assignments')}
+              {t('document-ai-organize-file-assignments')}
               <Badge variant="secondary" className="gba:ml-auto">
                 {decisions.length}
               </Badge>
@@ -95,7 +99,7 @@ export const OrganizePreview: React.FC<OrganizePreviewProps> = ({
           <CardContent className="gba:pt-0">
             <div className="gba:space-y-2 gba:max-h-48 gba:overflow-y-auto">
               {decisions.map(decision => {
-                const badge = getConfidenceBadge(decision.confidence ?? 0)
+                const badge = getConfidenceBadge(decision.confidence ?? 0, t)
                 return (
                   <div
                     key={decision.document_id}

@@ -6,6 +6,7 @@ documents-description = Vizualizați și gestionați documentele angajaților
 
 # Upload Button
 documents-upload-button = Încarcă document
+documents-upload-folder = Încarcă folder
 
 # Search
 documents-search-placeholder = Caută documente...
@@ -39,6 +40,7 @@ documents-status-valid = Valid
 
 # Delete Actions
 documents-delete = Șterge document
+documents-delete-folder = Șterge folder
 documents-delete-title = Șterge document
 documents-delete-confirm-message = Sigur doriți să ștergeți documentul "{$documentName}"?
 documents-delete-warning = Această acțiune nu poate fi anulată.
@@ -55,8 +57,10 @@ documents-download-image = Descarcă imagine
 documents-download = Descarcă
 documents-preview-not-available = Acest tip de document nu poate fi previzualizat direct.
 documents-browser-no-pdf = Browserul nu poate afișa PDF-ul inline. Vă rugăm să descărcați documentul.
+documents-viewer-close = Închide
 
 # Document Details
+documents-detail-information = Informații document
 documents-detail-name = Nume document
 documents-detail-group = Grup document
 documents-detail-type = Tip document

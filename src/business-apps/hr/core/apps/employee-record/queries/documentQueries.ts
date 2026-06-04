@@ -10,6 +10,8 @@ query screenData($employeeId: uuid!, $activeUserLocale: String = "en-US") {
     employeeId
     name
     file
+    parentEmployeeDocumentId
+    folder
     documentGroup
     createdBy
     description

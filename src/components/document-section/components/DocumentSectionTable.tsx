@@ -1,14 +1,26 @@
 import React from 'react'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@newwork/nw-design-system'
-import { FolderNotchIcon, FileIcon } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { DocumentColumn, DocumentItem } from '../types'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  useTranslation
+} from '@newwork/nw-design-system'
+import { CaretDownIcon, CaretUpDownIcon, CaretUpIcon, FolderNotchIcon, FileIcon } from '@phosphor-icons/react'
+import { DocumentColumn, DocumentItem, DocumentSortDirection } from '../types'
+import translations from '../_i18n'
 
 interface DocumentSectionTableProps {
   readonly dataTestId: string
   readonly viewMode: 'tree' | 'list'
   readonly displayDocuments: Array<DocumentItem & { level: number; hasChildren: boolean; isExpanded: boolean }>
   readonly columns: DocumentColumn[]
+  readonly enableColumnSorting?: boolean
+  readonly sortColumnId: string | null
+  readonly sortDirection: DocumentSortDirection
+  readonly onSortChange: (columnId: string) => void
   readonly draggedDocument: DocumentItem | null
   readonly dropTarget: string | null
   readonly isDroppingOnRoot: boolean
@@ -37,6 +49,10 @@ export function DocumentSectionTable({
   viewMode,
   displayDocuments,
   columns,
+  enableColumnSorting = false,
+  sortColumnId,
+  sortDirection,
+  onSortChange,
   draggedDocument,
   dropTarget,
   isDroppingOnRoot,
@@ -58,12 +74,26 @@ export function DocumentSectionTable({
   handleRootDragLeave,
   handleRootDrop
 }: DocumentSectionTableProps) {
+  const { t } = useTranslation(translations)
+
+  const getSortIcon = (columnId: string) => {
+    if (sortColumnId !== columnId) {
+      return <CaretUpDownIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
+    }
+
+    if (sortDirection === 'asc') {
+      return <CaretUpIcon className="gba:h-3 gba:w-3" />
+    }
+
+    return <CaretDownIcon className="gba:h-3 gba:w-3" />
+  }
+
   return (
     <>
       {/* Root Drop Zone - Always visible in tree view */}
       {viewMode === 'tree' && (
         <section
-          aria-label={getTranslationFromI18nKeyAndLabel('document.aria.rootDropZone', 'Root level drop zone')}
+          aria-label={t('document-aria-root-drop-zone')}
           className={`gba:mb-4 gba:border-2 gba:border-dashed gba:rounded-lg gba:p-6 gba:text-center gba:transition-all gba:duration-200 ${
             isOverDropZone ? 'gba:border-primary gba:bg-primary/10' : 'gba:border-muted-foreground/30 gba:bg-muted/10'
           }`}
@@ -75,9 +105,7 @@ export function DocumentSectionTable({
           <div className="gba:flex gba:items-center gba:justify-center gba:gap-2">
             <FolderNotchIcon className="gba:h-6 gba:w-6 gba:text-muted-foreground" />
             <span className="gba:text-sm gba:font-medium gba:text-muted-foreground">
-              {isOverDropZone
-                ? getTranslationFromI18nKeyAndLabel('document.drop.root.active', 'Release to move to root level')
-                : getTranslationFromI18nKeyAndLabel('document.drop.root.prompt', 'Drop here to move to root level')}
+              {isOverDropZone ? t('document-drop-root-active') : t('document-drop-root-prompt')}
             </span>
           </div>
         </section>
@@ -85,7 +113,7 @@ export function DocumentSectionTable({
 
       {/* Documents Table */}
       <section
-        aria-label={getTranslationFromI18nKeyAndLabel('document.aria.tableContainer', 'Documents table container')}
+        aria-label={t('document-aria-table-container')}
         className={`gba:border gba:rounded-lg ${isDroppingOnRoot ? 'gba:bg-primary/5 gba:border-primary' : ''}`}
         onDragOver={handleRootDragOver}
         onDragLeave={handleRootDragLeave}
@@ -96,6 +124,7 @@ export function DocumentSectionTable({
             <TableRow>
               {columns.map(column => {
                 const widthClass = column.width ? `gba:w-[${column.width}]` : ''
+                const canSort = enableColumnSorting && column.sortable
                 return (
                   <TableHead
                     key={column.id}
@@ -105,7 +134,19 @@ export function DocumentSectionTable({
                       width: column.width
                     }}
                   >
-                    {column.header}
+                    {canSort ? (
+                      <button
+                        type="button"
+                        className="gba:flex gba:items-center gba:gap-1 gba:transition-colors hover:gba:text-foreground"
+                        onClick={() => onSortChange(column.id)}
+                        data-testid={`${dataTestId}-sort-${column.id}`}
+                      >
+                        <span>{column.header}</span>
+                        {getSortIcon(column.id)}
+                      </button>
+                    ) : (
+                      column.header
+                    )}
                   </TableHead>
                 )
               })}
@@ -117,15 +158,8 @@ export function DocumentSectionTable({
                 <TableCell colSpan={columns.length} className="gba:text-center gba:py-12 gba:text-muted-foreground">
                   <div className="gba:space-y-2">
                     <FileIcon className="gba:h-12 gba:w-12 gba:mx-auto gba:text-muted-foreground" />
-                    <div className="gba:text-lg gba:font-medium">
-                      {getTranslationFromI18nKeyAndLabel('document.empty.title', 'No documents found')}
-                    </div>
-                    <div className="gba:text-sm">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'document.empty.description',
-                        'Upload documents or create document folders to organize your files'
-                      )}
-                    </div>
+                    <div className="gba:text-lg gba:font-medium">{t('document-empty-title')}</div>
+                    <div className="gba:text-sm">{t('document-empty-description')}</div>
                   </div>
                 </TableCell>
               </TableRow>

@@ -2,15 +2,16 @@ import React from 'react'
 import { Button, Badge } from '@newwork/nw-design-system'
 import { DotsThreeIcon, CaretDownIcon, CaretRightIcon } from '@phosphor-icons/react'
 import { getDocumentIcon } from '@/common/utils/documentIconUtils'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { DocumentColumn, DocumentItem } from '../types'
 
 interface DocumentTableColumnsProps {
   dataTestId: string
   viewMode: 'tree' | 'list'
+  showActionsColumn?: boolean
   toggleFolderExpansion: (folderId: string) => void
   getFolderChildrenCount: (folderId: string) => number
   handleActionsButtonClick: (document: DocumentItem, event: React.MouseEvent) => void
+  t: (key: string, args?: Record<string, unknown>) => string
 }
 
 // Helper function to format file size
@@ -25,15 +26,19 @@ const formatFileSize = (bytes: number): string => {
 export function createDocumentTableColumns({
   dataTestId,
   viewMode,
+  showActionsColumn = true,
   toggleFolderExpansion,
   getFolderChildrenCount,
-  handleActionsButtonClick
+  handleActionsButtonClick,
+  t
 }: DocumentTableColumnsProps): DocumentColumn[] {
-  return [
+  const columns: DocumentColumn[] = [
     {
       id: 'name',
-      header: getTranslationFromI18nKeyAndLabel('document.column.name', 'Name'),
+      header: t('document-column-name'),
       align: 'left',
+      sortable: true,
+      getSortValue: document => document.name?.toLowerCase() || '',
       render: document => {
         const docWithTreeInfo = document as DocumentItem & {
           level?: number
@@ -75,18 +80,13 @@ export function createDocumentTableColumns({
             <span
               className="gba:text-sm gba:font-medium gba:truncate"
               data-testid={`${dataTestId}-name-${document.id}`}
-              title={
-                document.name ||
-                getTranslationFromI18nKeyAndLabel('document.label.untitledDocument', 'Untitled Document')
-              }
+              title={document.name || t('document-label-untitled-document')}
             >
-              {document.name ||
-                getTranslationFromI18nKeyAndLabel('document.label.untitledDocument', 'Untitled Document')}
+              {document.name || t('document-label-untitled-document')}
               {/* Show children count for folders */}
               {document.folder && viewMode === 'tree' && (
                 <span className="gba:ml-2 gba:text-xs gba:text-muted-foreground">
-                  ({getFolderChildrenCount(document.id)}{' '}
-                  {getTranslationFromI18nKeyAndLabel('document.label.items', 'items')})
+                  ({getFolderChildrenCount(document.id)} {t('document-label-items')})
                 </span>
               )}
             </span>
@@ -96,9 +96,11 @@ export function createDocumentTableColumns({
     },
     {
       id: 'group',
-      header: getTranslationFromI18nKeyAndLabel('document.column.group', 'Group'),
+      header: t('document-column-group'),
       width: '150px',
       align: 'left',
+      sortable: true,
+      getSortValue: document => document.documentGroup?.value?.toLowerCase() || '',
       render: document => (
         <span
           className="gba:text-xs gba:text-muted-foreground gba:truncate"
@@ -111,22 +113,30 @@ export function createDocumentTableColumns({
     },
     {
       id: 'type',
-      header: getTranslationFromI18nKeyAndLabel('document.column.type', 'Type'),
+      header: t('document-column-type'),
       width: '120px',
       align: 'left',
+      sortable: true,
+      getSortValue: document => {
+        if (document.folder) {
+          return t('document-label-folder')
+        }
+
+        return document.documentType?.value?.toLowerCase() || ''
+      },
       render: document => (
         <Badge variant="secondary" className="gba:text-xs" data-testid={`${dataTestId}-type-${document.id}`}>
-          {document.folder === true
-            ? getTranslationFromI18nKeyAndLabel('document.label.folder', 'Folder')
-            : document.documentType?.value || '-'}
+          {document.folder === true ? t('document-label-folder') : document.documentType?.value || '-'}
         </Badge>
       )
     },
     {
       id: 'size',
-      header: getTranslationFromI18nKeyAndLabel('document.column.size', 'Size'),
+      header: t('document-column-size'),
       width: '100px',
       align: 'left',
+      sortable: true,
+      getSortValue: document => (document.folder ? -1 : document.fileSize || 0),
       render: document => (
         <span className="gba:text-xs gba:text-muted-foreground" data-testid={`${dataTestId}-size-${document.id}`}>
           {!document.folder && document.fileSize ? formatFileSize(document.fileSize) : '-'}
@@ -135,9 +145,11 @@ export function createDocumentTableColumns({
     },
     {
       id: 'uploadDate',
-      header: getTranslationFromI18nKeyAndLabel('document.column.uploadDate', 'Upload Date'),
+      header: t('document-column-upload-date'),
       width: '140px',
       align: 'left',
+      sortable: true,
+      getSortValue: document => new Date(document.createdAt).getTime(),
       render: document => (
         <span
           className="gba:text-xs gba:text-muted-foreground"
@@ -149,7 +161,7 @@ export function createDocumentTableColumns({
     },
     {
       id: 'actions',
-      header: getTranslationFromI18nKeyAndLabel('document.column.actions', 'Actions'),
+      header: t('document-column-actions'),
       width: '80px',
       align: 'center',
       render: document => (
@@ -164,4 +176,6 @@ export function createDocumentTableColumns({
       )
     }
   ]
+
+  return showActionsColumn ? columns : columns.filter(column => column.id !== 'actions')
 }

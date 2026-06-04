@@ -18,6 +18,17 @@ export const GET_UPLOAD_DOCUMENT_LOOKUPS = `
       }
       businessPartnerPerson { id lastName firstName userId }
     }
+    parentFolders: EmployeeDocument(
+      where: {
+        employeeId: {_eq: $id}
+        isDeleted: {_eq: false}
+        folder: {_eq: true}
+      }
+      orderBy: [{name: ASC}]
+    ) {
+      id
+      name
+    }
     documentGroup: CatalogEntry(
       where: {
         catalog: { version: { _eq: "v1" }, identifier: { _eq: "DocumentGroup" } }, isDeleted: { _eq: false }
@@ -55,6 +66,7 @@ export const useUploadDocumentLookups = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
   const [groups, setGroups] = useState<CatalogOption[]>([])
   const [types, setTypes] = useState<CatalogTypeOption[]>([])
+  const [parentFolders, setParentFolders] = useState<CatalogOption[]>([])
   const [employee, setEmployee] = useState<Pick<
     EmployeeDetailsData,
     'id' | 'firstName' | 'lastName' | 'pictureThumbnail' | 'employeePosition'
@@ -94,6 +106,11 @@ export const useUploadDocumentLookups = (context: BusinessAppContextProps) => {
         label: toLabel(t),
         parentEntryId: t.parentEntryId || null
       }))
+      const mappedParentFolders: CatalogOption[] = (res?.parentFolders || []).map((folder: any) => ({
+        id: folder.id,
+        value: folder.id,
+        label: folder.name || ''
+      }))
 
       const employeeData = (res?.Employee || [])[0]
       if (employeeData) {
@@ -108,6 +125,7 @@ export const useUploadDocumentLookups = (context: BusinessAppContextProps) => {
 
       setGroups(mappedGroups)
       setTypes(mappedTypes)
+      setParentFolders(mappedParentFolders)
     } catch (e: any) {
       setError(e?.message || 'Failed to load lookups')
     } finally {
@@ -119,5 +137,5 @@ export const useUploadDocumentLookups = (context: BusinessAppContextProps) => {
     load()
   }, [load])
 
-  return { groups, types, employee, loading, error, refetch: load }
+  return { groups, types, parentFolders, employee, loading, error, refetch: load }
 }

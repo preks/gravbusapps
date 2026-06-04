@@ -6,6 +6,7 @@ documents-description = View and manage employee documents
 
 # Upload Button
 documents-upload-button = Upload Document
+documents-upload-folder = Upload Folder
 
 # Search
 documents-search-placeholder = Search documents...
@@ -39,6 +40,7 @@ documents-status-valid = Valid
 
 # Delete Actions
 documents-delete = Delete document
+documents-delete-folder = Delete Folder
 documents-delete-title = Delete Document
 documents-delete-confirm-message = Are you sure you want to delete the document "{$documentName}"?
 documents-delete-warning = This action cannot be undone.
@@ -55,8 +57,10 @@ documents-download-image = Download Image
 documents-download = Download
 documents-preview-not-available = This document type cannot be previewed directly.
 documents-browser-no-pdf = Your browser cannot display the PDF inline. Please download the document to view it.
+documents-viewer-close = Close
 
 # Document Details
+documents-detail-information = Document Information
 documents-detail-name = Document Name
 documents-detail-group = Document Group
 documents-detail-type = Document Type

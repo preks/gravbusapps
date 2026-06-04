@@ -60,11 +60,19 @@ export async function updateDocumentLocation({
     })
   } else {
     // Other domains use the standard process-based approach
+    const parentDocumentFieldName = apiConfig.parentDocumentFieldName ?? 'parentDocument'
+    const documentWithRefs = document as DocumentItem & { fileRef?: string; typeRef?: string }
     const documentPayload = {
       id: documentId,
       version: document.version,
-      parentDocument: parentDocument || '',
+      name: document.name || '',
+      ...(!document.folder && {
+        file: documentWithRefs.fileRef || document.fileInfo?.fileId || document.fileInfo?.path || '',
+        mimeType: document.mimeType || document.fileInfo?.fileMetadata?.mimeType || ''
+      }),
+      ...(documentWithRefs.typeRef && { type: documentWithRefs.typeRef }),
       folder: document.folder || false,
+      [parentDocumentFieldName]: parentDocument || null,
       [apiConfig.entityFieldName]: entityId
     }
 

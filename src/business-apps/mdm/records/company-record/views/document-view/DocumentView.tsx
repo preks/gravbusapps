@@ -117,7 +117,7 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ companyId, ...contex
     () => [
       {
         key: 'create-folder',
-        label: getTranslationFromI18nKeyAndLabel('document.folder.new', 'New Document Folder'),
+        label: getTranslationFromI18nKeyAndLabel('document-folder-new', 'New Document Folder'),
         onClick: () => setFolderPopupOpen(true),
         icon: folderIcon,
         variant: 'outline' as const,

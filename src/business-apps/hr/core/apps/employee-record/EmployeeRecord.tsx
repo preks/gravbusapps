@@ -59,6 +59,24 @@ const TAB_KEYS = {
   serviceRequests: 'serviceRequests'
 }
 
+const isLocalDevelopmentHost = (hostname: string): boolean => {
+  if (!hostname) return false
+
+  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0') {
+    return true
+  }
+
+  if (hostname.endsWith('.local')) {
+    return true
+  }
+
+  if (hostname.startsWith('10.') || hostname.startsWith('192.168.')) {
+    return true
+  }
+
+  return /^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname)
+}
+
 const getUrlParams = () => {
   if (typeof window === 'undefined') return { tab: null, employeeId: null, subView: null }
   const searchParams = new URLSearchParams(globalThis.location.search)
@@ -207,6 +225,8 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   const absencesFeatureFlag = useFeature('human-resources.absence.enabled')
   const compensationFeatureFlagRaw = useFeature<boolean>(Feature.HCM.Compensation.Key)
   const hrDevelopmentFeatureFlag = useFeature<boolean>(Feature.HCM.HRDevelopment.Key)
+  const isLocalDevelopment =
+    globalThis.window !== undefined && isLocalDevelopmentHost(globalThis.window.location.hostname)
 
   // Handle undefined as true (enabled by default until FeatureHub loads)
   const compensationFeatureFlag = compensationFeatureFlagRaw !== false
@@ -578,7 +598,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             }
           ]
         : []),
-      ...(absencesFeatureFlag
+      ...(absencesFeatureFlag || isLocalDevelopment
         ? [
             {
               value: TAB_KEYS.absences,
@@ -646,7 +666,10 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
 
       if (tabKey === TAB_KEYS.absences) {
         const visible =
-          isSelfView || isDirectManagerWithPermission || employeeRecordAllHrBackoffice?.hasPermission === true
+          isSelfView ||
+          isDirectManagerWithPermission ||
+          employeeRecordAllHrBackoffice?.hasPermission === true ||
+          isLocalDevelopment
         return visible
       }
 

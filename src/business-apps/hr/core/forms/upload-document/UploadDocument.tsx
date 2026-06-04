@@ -31,6 +31,7 @@ export async function submitUploadDocument(
     documentName: string
     documentGroupId: string | null
     documentTypeId: string | null
+    parentEmployeeDocumentId?: string | null
     expiryDate?: string
     description?: string
   },
@@ -76,6 +77,7 @@ export async function submitUploadDocument(
         fileSize: file.size,
         documentGroup: values.documentGroupId || null,
         type: values.documentTypeId || null,
+        parentEmployeeDocumentId: values.parentEmployeeDocumentId || null,
         description: values.description || null,
         validFrom: new Date().toISOString(),
         validTo: values.expiryDate ? new Date(values.expiryDate).toISOString() : null,
@@ -98,23 +100,49 @@ interface UploadDocumentValues {
   documentName: string
   documentGroupId: string | null
   documentTypeId: string | null
+  parentEmployeeDocumentId?: string | null
   expiryDate?: string
   description?: string
 }
 
 const DATA_TEST_ID_PREFIX = 'UploadDocumentForm'
 
+function getInitialParentFolderId(context: BusinessAppContextProps): string | null {
+  const additionalData = context.additionalData as any
+  const externalContextData = additionalData?.externalContextData || {}
+  const initialParameters =
+    additionalData?.payload ||
+    additionalData?.psi_taskPayload?.psi_initialParameters?.payload ||
+    additionalData?.psi_taskPayload?.initialParameters?.payload ||
+    {}
+
+  return (
+    externalContextData.parentEmployeeDocumentId ||
+    externalContextData.parentDocumentId ||
+    externalContextData.parentDocument ||
+    additionalData?.parentEmployeeDocumentId ||
+    additionalData?.parentDocumentId ||
+    additionalData?.parentDocument ||
+    initialParameters?.parentEmployeeDocumentId ||
+    initialParameters?.parentDocumentId ||
+    initialParameters?.parentDocument ||
+    null
+  )
+}
+
 const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
   const { t } = useTranslation(translations)
   const { prefixDataTestId } = context as any
   const dataTestId = useMemo(() => formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX), [prefixDataTestId])
   const APP_FORM_TID = 'upload-document-form'
+  const initialParentFolderId = useMemo(() => getInitialParentFolderId(context), [context])
 
   const form = useForm<UploadDocumentValues>({
     defaultValues: {
       documentName: '',
       documentGroupId: null,
       documentTypeId: null,
+      parentEmployeeDocumentId: initialParentFolderId,
       expiryDate: '',
       description: ''
     },
@@ -136,7 +164,7 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
   }, [form.formState, selectedFile])
 
   // GraphQL lookups -> directly populate dropdowns
-  const { groups, types, employee } = useUploadDocumentLookups(context)
+  const { groups, types, parentFolders, employee } = useUploadDocumentLookups(context)
   const selectedGroupId = form.watch('documentGroupId')
   const filteredTypes = useMemo(
     () => (types || []).filter(t => !selectedGroupId || t.parentEntryId === selectedGroupId),
@@ -273,7 +301,7 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
 
   return (
     <div
-      className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px] gba:gap-4 gba:[&>div[data-testid='upload-document-form']]:!p-0 gba:[&>div[data-testid='upload-document-form']>form]:!max-w-full gba:[&>div[data-testid='upload-document-form']>form]:!w-full"
+      className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]"
       data-testid={formatDataTestId(dataTestId, 'Container')}
     >
       <FormHeader
@@ -293,205 +321,235 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
         }
       />
 
-      <AppActionForm
-        processType="create"
-        form={form as any}
-        formData={initialDefaultsRef.current}
-        submitEventType="pse_submit"
-        cancelEventType="pse_abort"
-        submitButtonText={t('action-submit')}
-        cancelButtonText={t('action-cancel')}
-        submitButtonTestId="flw_documentModule_btnSave"
-        cancelButtonTestId="flw_documentModule_btnCancel"
-        isSubmitDisabled={isSubmitDisabled}
-        handlePreSubmit={async (values: UploadDocumentValues) => {
-          return await submitUploadDocument(values, {
-            employeeId,
-            // Provide a minimal UploadFile-like object carrying the actual File
-            files: selectedFile
-              ? ([
-                  {
-                    uid: 'selected-file',
-                    name: selectedFile.name,
-                    type: selectedFile.type,
-                    originFileObj: selectedFile
-                  } as any
-                ] as UploadFile[])
-              : ([] as UploadFile[]),
-            fileClient
-          })
-        }}
-        onSubmit={enhancedData => enhancedData}
-        data-testid={APP_FORM_TID}
+      <div
+        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='upload-document-form']]:!pt-0"
+        data-testid={formatDataTestId(dataTestId, 'FormWrapper')}
       >
-        <div className="gba:flex-1 gba:space-y-4" data-testid={formatDataTestId(dataTestId, 'FormContent')}>
-          {/* Upload field */}
-          <div>
-            <EmployeeDocumentUploadField
-              name="uploadDocumentFile"
-              label={t('upload-document-upload-document')}
-              isLoading={false}
-              initialFiles={[]}
-              onFilesChange={(files: any[]) => {
-                const first = (files || [])[0]
-                setSelectedFile(first && first.file instanceof File ? (first.file as File) : null)
-              }}
-              accept={'.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png'}
-              maxFiles={1}
-              multiple={false}
-              dataTestId="flw_documentModule_uploadFile"
-            />
-            {/* AI classification status */}
-            {selectedFile && (
-              <div className="gba:mt-2 gba:text-sm gba:text-muted-foreground" data-testid="upload-document-ai-status">
-                {aiLoading && (
-                  <span data-testid="upload-document-ai-status-loading">{t('upload-document-ai-detecting')}</span>
-                )}
-                {!aiLoading && aiError && <span data-testid="upload-document-ai-status-error">{aiError}</span>}
-                {!aiLoading && !aiError && aiSuggestion && (
-                  <div className="gba:flex gba:flex-col gba:gap-1" data-testid="upload-document-ai-status-suggestion">
-                    <span>
-                      {t('upload-document-ai-suggestion', {
-                        group: aiSuggestion.group || '-',
-                        type: aiSuggestion.type || '-'
-                      })}
-                    </span>
-                    <div className="gba:flex gba:gap-2">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        onClick={handleApplyAiSuggestion}
-                        data-testid="upload-document-ai-apply-button"
-                      >
-                        {t('upload-document-ai-apply')}
-                      </Button>
+        <AppActionForm
+          processType="create"
+          form={form as any}
+          formData={initialDefaultsRef.current}
+          submitEventType="pse_submit"
+          cancelEventType="pse_abort"
+          submitButtonText={t('action-submit')}
+          cancelButtonText={t('action-cancel')}
+          submitButtonTestId="flw_documentModule_btnSave"
+          cancelButtonTestId="flw_documentModule_btnCancel"
+          isSubmitDisabled={isSubmitDisabled}
+          handlePreSubmit={async (values: UploadDocumentValues) => {
+            return await submitUploadDocument(values, {
+              employeeId,
+              // Provide a minimal UploadFile-like object carrying the actual File
+              files: selectedFile
+                ? ([
+                    {
+                      uid: 'selected-file',
+                      name: selectedFile.name,
+                      type: selectedFile.type,
+                      originFileObj: selectedFile
+                    } as any
+                  ] as UploadFile[])
+                : ([] as UploadFile[]),
+              fileClient
+            })
+          }}
+          onSubmit={enhancedData => enhancedData}
+          data-testid={APP_FORM_TID}
+        >
+          <div className="gba:flex-1 gba:space-y-4" data-testid={formatDataTestId(dataTestId, 'FormContent')}>
+            {/* Upload field */}
+            <div>
+              <EmployeeDocumentUploadField
+                name="uploadDocumentFile"
+                label={t('upload-document-upload-document')}
+                isLoading={false}
+                initialFiles={[]}
+                onFilesChange={(files: any[]) => {
+                  const first = (files || [])[0]
+                  setSelectedFile(first && first.file instanceof File ? (first.file as File) : null)
+                }}
+                accept={'.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png'}
+                maxFiles={1}
+                multiple={false}
+                dataTestId="flw_documentModule_uploadFile"
+              />
+              {/* AI classification status */}
+              {selectedFile && (
+                <div className="gba:mt-2 gba:text-sm gba:text-muted-foreground" data-testid="upload-document-ai-status">
+                  {aiLoading && (
+                    <span data-testid="upload-document-ai-status-loading">{t('upload-document-ai-detecting')}</span>
+                  )}
+                  {!aiLoading && aiError && <span data-testid="upload-document-ai-status-error">{aiError}</span>}
+                  {!aiLoading && !aiError && aiSuggestion && (
+                    <div className="gba:flex gba:flex-col gba:gap-1" data-testid="upload-document-ai-status-suggestion">
+                      <span>
+                        {t('upload-document-ai-suggestion', {
+                          group: aiSuggestion.group || '-',
+                          type: aiSuggestion.type || '-'
+                        })}
+                      </span>
+                      <div className="gba:flex gba:gap-2">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={handleApplyAiSuggestion}
+                          data-testid="upload-document-ai-apply-button"
+                        >
+                          {t('upload-document-ai-apply')}
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+                  )}
+                </div>
+              )}
+            </div>
 
-          {/* Document Name */}
-          <FormField
-            control={form.control as any}
-            name="documentName"
-            rules={{
-              required: t('upload-document-document-name-required')
-            }}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('upload-document-document-name')} <span className="gba:text-destructive">*</span>
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    className="gba:w-full"
-                    placeholder={t('upload-document-document-name-placeholder')}
-                    data-testid="flw_documentModule_fld_documentName"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Document Group */}
-          <FormField
-            control={form.control as any}
-            name="documentGroupId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('upload-document-document-group')}</FormLabel>
-                <FormControl>
-                  <Combobox
-                    className="gba:w-full"
-                    options={(groups || []).map(g => ({ value: g.id, label: g.label }))}
-                    value={field.value || ''}
-                    onValueChange={v => {
-                      field.onChange(v)
-                      form.setValue('documentTypeId', null as any, { shouldValidate: true } as any)
-                    }}
-                    placeholder={t('upload-document-select-document-group')}
-                    data-testid="flw_documentModule_fld_documentGroup"
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Document Type */}
-          <FormField
-            control={form.control as any}
-            name="documentTypeId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('upload-document-document-type')}</FormLabel>
-                <FormControl>
-                  <Combobox
-                    className="gba:w-full"
-                    options={(filteredTypes || []).map(t => ({ value: t.id, label: t.label }))}
-                    value={field.value || ''}
-                    onValueChange={v => field.onChange(v)}
-                    placeholder={t('upload-document-select-document-type')}
-                    data-testid="flw_documentModule_fld_documentType"
-                    disabled={!selectedGroupId}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Expiry Date */}
-          <FormField
-            control={form.control as any}
-            name="expiryDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('upload-document-expiry-date')}</FormLabel>
-                <FormControl>
-                  <div data-testid="flw_uploadDocument_fld_expiryDate">
-                    <DateInput
-                      type="date"
-                      value={field.value || ''}
-                      onChange={(v: string | [string | null, string | null] | null) => {
-                        const single = Array.isArray(v) ? v?.[0] : v
-                        field.onChange(single || '')
-                      }}
+            {/* Document Name */}
+            <FormField
+              control={form.control as any}
+              name="documentName"
+              rules={{
+                required: t('upload-document-document-name-required')
+              }}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    {t('upload-document-document-name')} <span className="gba:text-destructive">*</span>
+                  </FormLabel>
+                  <FormControl>
+                    <Input
                       className="gba:w-full"
+                      placeholder={t('upload-document-document-name-placeholder')}
+                      data-testid="flw_documentModule_fld_documentName"
+                      {...field}
                     />
-                  </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          {/* Description */}
-          <FormField
-            control={form.control as any}
-            name="description"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('upload-document-description')}</FormLabel>
-                <FormControl>
-                  <Textarea
-                    rows={3}
-                    className="gba:w-full"
-                    data-testid="flw_uploadDocument_fld_documentDescription"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-      </AppActionForm>
+            {/* Document Group */}
+            <FormField
+              control={form.control as any}
+              name="documentGroupId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('upload-document-document-group')}</FormLabel>
+                  <FormControl>
+                    <Combobox
+                      className="gba:w-full"
+                      options={(groups || []).map(g => ({ value: g.id, label: g.label }))}
+                      value={field.value || ''}
+                      onValueChange={v => {
+                        field.onChange(v)
+                        form.setValue('documentTypeId', null as any, { shouldValidate: true } as any)
+                      }}
+                      placeholder={t('upload-document-select-document-group')}
+                      data-testid="flw_documentModule_fld_documentGroup"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Document Type */}
+            <FormField
+              control={form.control as any}
+              name="documentTypeId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('upload-document-document-type')}</FormLabel>
+                  <FormControl>
+                    <Combobox
+                      className="gba:w-full"
+                      options={(filteredTypes || []).map(t => ({ value: t.id, label: t.label }))}
+                      value={field.value || ''}
+                      onValueChange={v => field.onChange(v)}
+                      placeholder={t('upload-document-select-document-type')}
+                      data-testid="flw_documentModule_fld_documentType"
+                      disabled={!selectedGroupId}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Parent Folder */}
+            <FormField
+              control={form.control as any}
+              name="parentEmployeeDocumentId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('upload-document-parent-folder')}</FormLabel>
+                  <FormControl>
+                    <Combobox
+                      className="gba:w-full"
+                      options={(parentFolders || []).map(folder => ({ value: folder.id, label: folder.label }))}
+                      value={field.value || ''}
+                      onValueChange={value => field.onChange(value || null)}
+                      placeholder={t('upload-document-select-parent-folder')}
+                      emptyText={t('upload-document-no-parent-folders')}
+                      searchPlaceholder={t('upload-document-search-parent-folder')}
+                      allowClear={true}
+                      data-testid="flw_documentModule_fld_parentFolder"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Expiry Date */}
+            <FormField
+              control={form.control as any}
+              name="expiryDate"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('upload-document-expiry-date')}</FormLabel>
+                  <FormControl>
+                    <div data-testid="flw_uploadDocument_fld_expiryDate">
+                      <DateInput
+                        type="date"
+                        value={field.value || ''}
+                        onChange={(v: string | [string | null, string | null] | null) => {
+                          const single = Array.isArray(v) ? v?.[0] : v
+                          field.onChange(single || '')
+                        }}
+                        className="gba:w-full"
+                      />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Description */}
+            <FormField
+              control={form.control as any}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('upload-document-description')}</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      rows={3}
+                      className="gba:w-full"
+                      data-testid="flw_uploadDocument_fld_documentDescription"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </AppActionForm>
+      </div>
     </div>
   )
 }

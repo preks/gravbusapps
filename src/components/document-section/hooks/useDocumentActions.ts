@@ -1,5 +1,4 @@
-import { toast } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { toast, useTranslation } from '@newwork/nw-design-system'
 import { handleDocumentClick } from '@/common/utils/documentClickHandler'
 import {
   DocumentItem,
@@ -9,6 +8,7 @@ import {
   ApiConfig,
   AppActionData
 } from '../types'
+import translations from '../_i18n'
 
 interface UseDocumentActionsProps {
   documents: DocumentItem[]
@@ -52,6 +52,8 @@ export function useDocumentActions({
   setConfirmationModal,
   getFolderChildrenCount
 }: UseDocumentActionsProps) {
+  const { t } = useTranslation(translations)
+
   // Get the target parent for new folder/upload operations
   const getTargetParentId = (): string | null => {
     if (viewMode !== 'tree' || selectedItems.length === 0) {
@@ -86,33 +88,26 @@ export function useDocumentActions({
   // Create new folder via API
   const handleCreateNewFolder = async () => {
     if (!newFolderName.trim() || !accessToken || !apiConfig) {
-      toast.error(
-        getTranslationFromI18nKeyAndLabel('document.toast.error.folderNameRequired', 'Folder name is required')
-      )
+      toast.error(t('document-toast-error-folder-name-required'))
       return
     }
 
     if (!apiConfig.endpoints?.create) {
-      toast.error(
-        getTranslationFromI18nKeyAndLabel(
-          'document.toast.error.createEndpointNotConfigured',
-          'Create endpoint not configured'
-        )
-      )
+      toast.error(t('document-toast-error-create-endpoint-not-configured'))
       return
     }
 
     try {
       // Use selected parent folder instead of the initial context
       const finalParentId = selectedParentFolder === 'root' ? null : selectedParentFolder
+      const parentDocumentFieldName = apiConfig.parentDocumentFieldName ?? 'parentDocument'
 
       const payload = {
         [apiConfig.documentFieldName]: {
           name: newFolderName.trim(),
           folder: true, // This is the key field that must be set to true for folders
           [apiConfig.entityFieldName]: entityId,
-          ...(finalParentId && { parentDocument: finalParentId }), // Use parentDocument field for hierarchy
-          description: `Folder: ${newFolderName.trim()}`,
+          ...(finalParentId && { [parentDocumentFieldName]: finalParentId }), // Use configured hierarchy field
           recordState: 'active'
         }
       }
@@ -121,7 +116,7 @@ export function useDocumentActions({
         headers: { Authorization: `Bearer ${accessToken}` }
       })
 
-      toast.success(getTranslationFromI18nKeyAndLabel('document.toast.folderCreated', 'Folder created successfully'))
+      toast.success(t('document-toast-folder-created'))
       setNewFolderDialog({ open: false, parentId: null })
       setNewFolderName('')
       setSelectedParentFolder('')
@@ -132,10 +127,7 @@ export function useDocumentActions({
       }
     } catch (e: any) {
       console.error('Error creating folder:', e)
-      toast.error(
-        e?.message ||
-          getTranslationFromI18nKeyAndLabel('document.toast.error.createFolderFailed', 'Failed to create folder')
-      )
+      toast.error(e?.message || t('document-toast-error-create-folder-failed'))
     }
   }
 
@@ -174,14 +166,18 @@ export function useDocumentActions({
       return
     }
 
+    let actionLabel = t('document-action-confirm')
+
     try {
       // Find the document
       const document = documents.find(doc => doc.id === documentId)
       if (!document) {
         console.error('Document not found:', documentId)
-        toast.error(getTranslationFromI18nKeyAndLabel('document.toast.error.documentNotFound', 'Document not found'))
+        toast.error(t('document-toast-error-document-not-found'))
         return
       }
+
+      actionLabel = typeof action.label === 'function' ? action.label(document) : action.label
 
       // Handle custom onClick function (this will handle update action)
       if (action.onClick) {
@@ -211,11 +207,7 @@ export function useDocumentActions({
           headers: { Authorization: `Bearer ${accessToken}` }
         })
 
-        const successMessage = getTranslationFromI18nKeyAndLabel(
-          'document.toast.actionCompleted',
-          '{ $action } completed successfully'
-        ).replace('{ $action }', action.label)
-        toast.success(successMessage)
+        toast.success(t('document-toast-action-completed', { action: actionLabel }))
 
         // Refresh the documents list
         if (onRefresh) {
@@ -224,10 +216,7 @@ export function useDocumentActions({
       }
     } catch (e: any) {
       console.error('Error executing action:', action.key, e)
-      const errorMessage = getTranslationFromI18nKeyAndLabel(
-        'document.toast.error.actionFailed',
-        'Failed to { $action }'
-      ).replace('{ $action }', action.label.toLowerCase())
+      const errorMessage = t('document-toast-error-action-failed', { action: actionLabel.toLowerCase() })
       toast.error(e?.message || errorMessage)
     }
   }
@@ -237,7 +226,7 @@ export function useDocumentActions({
     title: string,
     message: string,
     action: () => Promise<void>,
-    actionLabel: string = 'Confirm'
+    actionLabel: string = t('document-action-confirm')
   ) => {
     setConfirmationModal({
       open: true,
