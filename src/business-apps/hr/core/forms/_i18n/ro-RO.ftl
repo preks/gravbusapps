@@ -373,12 +373,20 @@ entitlements-hire-date-hint = Cea mai devreme data permisa
 # Create Employee Form
 # ============================================
 
+# Tab Headers
+employee-form-tab-organization = Organizare
+employee-form-tab-personal = Informații personale
+employee-form-tab-employment = Angajare
+
 # Section Headers
 employee-form-personal-information = Informații personale
 employee-form-employment-information = Informații despre angajare
 employee-form-additional-attributes = Atribute suplimentare
 
 # Field Labels
+employee-form-legal-entity = Entitate juridică
+employee-form-site-location = Locație
+employee-form-cost-center = Centru de cost
 employee-form-first-name = Prenume
 employee-form-last-name = Nume
 employee-form-email = Email
@@ -392,7 +400,17 @@ employee-form-employment-type = Tip angajare
 employee-form-contract-type = Tip contract
 
 # Validation Messages
+employee-form-required-legal-entity = Vă rugăm să selectați o entitate juridică
+employee-form-required-site-location = Vă rugăm să selectați o locație
+employee-form-required-first-name = Vă rugăm să introduceți un prenume
+employee-form-required-last-name = Vă rugăm să introduceți un nume
+employee-form-required-email = Vă rugăm să introduceți o adresă de email
 employee-form-email-invalid = Vă rugăm să introduceți o adresă de email validă
+employee-form-required-org-unit = Vă rugăm să selectați o unitate organizațională
+employee-form-required-job-position = Vă rugăm să selectați o poziție
+employee-form-required-hire-date = Vă rugăm să selectați data angajării
+employee-form-required-employment-type = Vă rugăm să selectați un tip de angajare
+employee-form-required-contract-type = Vă rugăm să selectați un tip de contract
 employee-form-hire-date-required = Data angajării este obligatorie când este specificată data de încheiere a contractului cu durată determinată
 employee-form-fixed-term-before-hire = Data de încheiere a contractului cu durată determinată trebuie să fie la sau după data angajării
 
@@ -404,10 +422,18 @@ employee-form-no-vacant-positions = Nu sunt poziții vacante disponibile în uni
 # Tooltips
 employee-form-create-job-position-tooltip = Creează poziție nouă
 employee-form-select-org-unit-first = Selectați mai întâi o unitate organizațională
+employee-form-select-legal-entity-first = Selectați mai întâi o entitate juridică
+
+# Step Descriptions
+employee-form-organization-description = Entitate juridică, locație, unitate org. și poziție
+employee-form-personal-description = Nume și email
+employee-form-employment-description = Date și detalii contract
 
 # Buttons
 employee-form-create-employee = Creează angajat
 employee-form-update-employee = Actualizează angajat
+employee-form-next = Următorul
+employee-form-back = Înapoi
 
 # ============================================
 # Create Job Position Modal

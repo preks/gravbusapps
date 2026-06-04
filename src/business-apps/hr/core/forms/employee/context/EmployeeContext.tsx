@@ -5,6 +5,9 @@ import { useOrgUnitById } from '../hooks/useOrgUnitById'
 import { useJobPositions } from '../hooks/useJobPositions'
 import { useEmploymentTypes } from '../hooks/useEmploymentTypes'
 import { useContractTypes } from '../hooks/useContractTypes'
+import { useLegalEntities } from '../hooks/useLegalEntities'
+import { useSiteLocations } from '../hooks/useSiteLocations'
+import { useCostCenters } from '../hooks/useCostCenters'
 
 const EmployeeContext = createContext<EmployeeContextState | undefined>(undefined)
 
@@ -37,6 +40,9 @@ export const EmployeeProvider: React.FC<{
     firstName: '',
     lastName: '',
     email: '',
+    legalEntityId: '',
+    siteLocationId: '',
+    costCenterId: '',
     organizationalUnitId: '',
     jobPositionId: '',
     preferredName: '',
@@ -56,10 +62,48 @@ export const EmployeeProvider: React.FC<{
   // Search states
   const [organizationalUnitSearch, setOrganizationalUnitSearch] = useState<string | undefined>(undefined)
   const [jobPositionSearch, setJobPositionSearch] = useState<string | undefined>(undefined)
+  const [legalEntitySearch, setLegalEntitySearch] = useState<string | undefined>(undefined)
+  const [siteLocationSearch, setSiteLocationSearch] = useState<string | undefined>(undefined)
+  const [costCenterSearch, setCostCenterSearch] = useState<string | undefined>(undefined)
 
   // Refs to track current values to avoid infinite loops
   const currentOrgUnitRef = useRef<string | undefined>()
   const currentJobPositionRef = useRef<string | undefined>()
+
+  // Legal entities hook
+  const {
+    legalEntities,
+    loading: legalEntitiesLoading,
+    error: legalEntitiesError,
+    hasMore: hasMoreLegalEntities,
+    loadMore: loadMoreLegalEntities,
+    searchLegalEntities: searchLegalEntitiesInternal
+  } = useLegalEntities({ accessToken, structureId, search: legalEntitySearch })
+
+  // Site locations hook — enabled only when a legal entity is selected
+  const {
+    siteLocations,
+    loading: siteLocationsLoading,
+    error: siteLocationsError,
+    hasMore: hasMoreSiteLocations,
+    loadMore: loadMoreSiteLocations,
+    searchSiteLocations: searchSiteLocationsInternal
+  } = useSiteLocations({
+    accessToken,
+    structureId,
+    search: siteLocationSearch,
+    enabled: !!formValuesState.legalEntityId
+  })
+
+  // Cost centers hook
+  const {
+    costCenters,
+    loading: costCentersLoading,
+    error: costCentersError,
+    hasMore: hasMoreCostCenters,
+    loadMore: loadMoreCostCenters,
+    searchCostCenters: searchCostCentersInternal
+  } = useCostCenters({ accessToken, structureId, search: costCenterSearch })
 
   // Organizational units hook
   const {
@@ -92,7 +136,8 @@ export const EmployeeProvider: React.FC<{
     hasMore: hasMoreJobPositions,
     loadMore: loadMoreJobPositions,
     searchPositions: searchJobPositionsInternal,
-    refetch: refetchJobPositions
+    refetch: refetchJobPositions,
+    initialLoadDone: jobPositionsInitialLoadDone
   } = useJobPositions({
     accessToken,
     structureId,
@@ -121,6 +166,30 @@ export const EmployeeProvider: React.FC<{
   } = useContractTypes(accessToken)
 
   // Search handlers
+  const searchLegalEntities = useCallback(
+    (searchTerm?: string) => {
+      setLegalEntitySearch(searchTerm)
+      searchLegalEntitiesInternal(searchTerm)
+    },
+    [searchLegalEntitiesInternal]
+  )
+
+  const searchSiteLocations = useCallback(
+    (searchTerm?: string) => {
+      setSiteLocationSearch(searchTerm)
+      searchSiteLocationsInternal(searchTerm)
+    },
+    [searchSiteLocationsInternal]
+  )
+
+  const searchCostCenters = useCallback(
+    (searchTerm?: string) => {
+      setCostCenterSearch(searchTerm)
+      searchCostCentersInternal(searchTerm)
+    },
+    [searchCostCentersInternal]
+  )
+
   const searchOrganizationalUnits = useCallback(
     (searchTerm?: string) => {
       setOrganizationalUnitSearch(searchTerm)
@@ -151,12 +220,18 @@ export const EmployeeProvider: React.FC<{
     [searchContractTypesInternal]
   )
 
+  // Clear site location when legal entity is cleared
+  useEffect(() => {
+    if (!formValuesState.legalEntityId && formValuesState.siteLocationId) {
+      setFormValuesState(prev => ({ ...prev, siteLocationId: '' }))
+    }
+  }, [formValuesState.legalEntityId, formValuesState.siteLocationId])
+
   // Auto-select organizational unit when job position is selected (only if no org unit is currently selected)
   useEffect(() => {
     const jobPositionId = formValuesState.jobPositionId
     const organizationalUnitId = formValuesState.organizationalUnitId
 
-    // Only auto-select if job position changed and no org unit is selected
     if (currentJobPositionRef.current !== jobPositionId) {
       currentJobPositionRef.current = jobPositionId
 
@@ -188,17 +263,14 @@ export const EmployeeProvider: React.FC<{
       if (selectedJobPosition) {
         const updates: Partial<EmployeeFormValues> = {}
 
-        // Auto-select employment type if available and not already set
         if (selectedJobPosition.employmentType && !formValuesState.employmentTypeId) {
           updates.employmentTypeId = selectedJobPosition.employmentType.id
         }
 
-        // Auto-select contract type if available and not already set
         if (selectedJobPosition.contractType && !formValuesState.contractTypeId) {
           updates.contractTypeId = selectedJobPosition.contractType.id
         }
 
-        // Apply updates if any
         if (Object.keys(updates).length > 0) {
           setFormValuesState(prev => ({ ...prev, ...updates }))
         }
@@ -211,11 +283,9 @@ export const EmployeeProvider: React.FC<{
     const organizationalUnitId = formValuesState.organizationalUnitId
     const jobPositionId = formValuesState.jobPositionId
 
-    // Only clear if org unit changed
     if (currentOrgUnitRef.current !== organizationalUnitId) {
       currentOrgUnitRef.current = organizationalUnitId
 
-      // If org unit is cleared and there's a job position, clear the job position
       if (!organizationalUnitId && jobPositionId) {
         setFormValuesState(prev => ({ ...prev, jobPositionId: '' }))
       }
@@ -253,7 +323,6 @@ export const EmployeeProvider: React.FC<{
       // TODO: Replace with real API call
       console.log('Submitting employee:', formValuesState)
       await new Promise(resolve => setTimeout(resolve, 1000))
-      // Success logic here
     } catch (e: any) {
       setError(e.message || 'Unknown error')
     } finally {
@@ -263,7 +332,14 @@ export const EmployeeProvider: React.FC<{
 
   // Combine errors from different sources
   const combinedError =
-    error || organizationalUnitsError || jobPositionsError || employmentTypesError || contractTypesError
+    error ||
+    legalEntitiesError ||
+    siteLocationsError ||
+    costCentersError ||
+    organizationalUnitsError ||
+    jobPositionsError ||
+    employmentTypesError ||
+    contractTypesError
 
   return (
     <EmployeeContext.Provider
@@ -275,8 +351,14 @@ export const EmployeeProvider: React.FC<{
         allJobPositions,
         employmentTypes,
         contractTypes,
+        legalEntities,
+        siteLocations,
+        costCenters,
         loading:
           loading ||
+          legalEntitiesLoading ||
+          siteLocationsLoading ||
+          costCentersLoading ||
           organizationalUnitsLoading ||
           jobPositionsLoading ||
           employmentTypesLoading ||
@@ -286,6 +368,24 @@ export const EmployeeProvider: React.FC<{
         isEdit,
         accessToken,
         structureId,
+        // Legal entity specific methods
+        searchLegalEntities,
+        loadMoreLegalEntities,
+        hasMoreLegalEntities,
+        legalEntitiesError,
+        legalEntitiesLoading,
+        // Site location specific methods
+        searchSiteLocations,
+        loadMoreSiteLocations,
+        hasMoreSiteLocations,
+        siteLocationsError,
+        siteLocationsLoading,
+        // Cost center specific methods
+        searchCostCenters,
+        loadMoreCostCenters,
+        hasMoreCostCenters,
+        costCentersError,
+        costCentersLoading,
         // Organizational unit specific methods
         searchOrganizationalUnits,
         loadMoreOrganizationalUnits,
@@ -299,6 +399,7 @@ export const EmployeeProvider: React.FC<{
         hasMoreJobPositions,
         jobPositionsError,
         jobPositionsLoading,
+        jobPositionsInitialLoadDone,
         // Employment type specific methods
         searchEmploymentTypes,
         loadMoreEmploymentTypes,

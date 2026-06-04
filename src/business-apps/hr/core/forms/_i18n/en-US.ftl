@@ -376,12 +376,20 @@ entitlements-hire-date-hint = Earliest allowed date
 # Create Employee Form
 # ============================================
 
+# Tab Headers
+employee-form-tab-organization = Organization
+employee-form-tab-personal = Personal Information
+employee-form-tab-employment = Employment
+
 # Section Headers
 employee-form-personal-information = Personal Information
 employee-form-employment-information = Employment Information
 employee-form-additional-attributes = Additional Attributes
 
 # Field Labels
+employee-form-legal-entity = Legal Entity
+employee-form-site-location = Location
+employee-form-cost-center = Cost Center
 employee-form-first-name = First Name
 employee-form-last-name = Last Name
 employee-form-email = Email
@@ -395,7 +403,17 @@ employee-form-employment-type = Employment Type
 employee-form-contract-type = Contract Type
 
 # Validation Messages
+employee-form-required-legal-entity = Please select a legal entity
+employee-form-required-site-location = Please select a location
+employee-form-required-first-name = Please enter a first name
+employee-form-required-last-name = Please enter a last name
+employee-form-required-email = Please enter an email address
 employee-form-email-invalid = Please enter a valid email address
+employee-form-required-org-unit = Please select an organizational unit
+employee-form-required-job-position = Please select a job position
+employee-form-required-hire-date = Please select a hire date
+employee-form-required-employment-type = Please select an employment type
+employee-form-required-contract-type = Please select a contract type
 employee-form-hire-date-required = Hire Date is required when Fixed-Term End Date is specified
 employee-form-fixed-term-before-hire = Fixed-Term End Date must be on or after Hire Date
 
@@ -407,10 +425,18 @@ employee-form-no-vacant-positions = No vacant positions available in the selecte
 # Tooltips
 employee-form-create-job-position-tooltip = Create new job position
 employee-form-select-org-unit-first = Select an organizational unit first
+employee-form-select-legal-entity-first = Select a legal entity first
+
+# Step Descriptions
+employee-form-organization-description = Legal entity, location, org unit and position
+employee-form-personal-description = Name and email
+employee-form-employment-description = Dates and contract details
 
 # Buttons
 employee-form-create-employee = Create Employee
 employee-form-update-employee = Update Employee
+employee-form-next = Next
+employee-form-back = Back
 
 # ============================================
 # Create Job Position Modal

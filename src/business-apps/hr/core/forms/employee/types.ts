@@ -3,6 +3,9 @@ export interface EmployeeFormValues {
   firstName: string
   lastName: string
   email: string
+  legalEntityId: string
+  siteLocationId: string
+  costCenterId: string
   organizationalUnitId: string
   jobPositionId: string
   preferredName: string
@@ -29,12 +32,33 @@ export interface EmployeeContextState {
   allJobPositions: any[] // Full job position data
   employmentTypes: SelectOption[]
   contractTypes: SelectOption[]
+  legalEntities: SelectOption[]
+  siteLocations: SelectOption[]
+  costCenters: SelectOption[]
   loading: boolean
   error: string | null
   submit: () => Promise<void>
   isEdit: boolean
   accessToken: string
   structureId: string
+  // Legal entity specific methods
+  searchLegalEntities: (searchTerm?: string) => void
+  loadMoreLegalEntities: () => void
+  hasMoreLegalEntities: boolean
+  legalEntitiesError: string | null
+  legalEntitiesLoading: boolean
+  // Site location specific methods
+  searchSiteLocations: (searchTerm?: string) => void
+  loadMoreSiteLocations: () => void
+  hasMoreSiteLocations: boolean
+  siteLocationsError: string | null
+  siteLocationsLoading: boolean
+  // Cost center specific methods
+  searchCostCenters: (searchTerm?: string) => void
+  loadMoreCostCenters: () => void
+  hasMoreCostCenters: boolean
+  costCentersError: string | null
+  costCentersLoading: boolean
   // Organizational unit specific methods
   searchOrganizationalUnits: (searchTerm?: string) => void
   loadMoreOrganizationalUnits: () => void
@@ -48,6 +72,7 @@ export interface EmployeeContextState {
   hasMoreJobPositions: boolean
   jobPositionsError: string | null
   jobPositionsLoading: boolean
+  jobPositionsInitialLoadDone: boolean
   // Employment type specific methods
   searchEmploymentTypes: (searchTerm?: string) => void
   loadMoreEmploymentTypes: () => void
