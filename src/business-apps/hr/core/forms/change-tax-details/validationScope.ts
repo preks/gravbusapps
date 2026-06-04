@@ -204,7 +204,7 @@ function calculateGermanSsnCheckDigit(compact: string): number | null {
   if (!/^\d{12}$/.test(expanded)) return null
 
   const digits = expanded.split('').map(d => Number.parseInt(d, 10))
-  const weights = [2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1]
+  const weights = [2, 1, 2, 5, 7, 1, 2, 1, 2, 1, 2, 1]
   let total = 0
 
   for (let i = 0; i < digits.length; i++) {
