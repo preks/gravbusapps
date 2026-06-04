@@ -95,6 +95,9 @@ export function useUniverGridController(props: UniverSheetGridProps) {
   >(new Map())
   const pendingFormattingPasteIntentRef = useRef<FormattingPasteIntent | null>(null)
   const pendingAutofillIntentRef = useRef<import('./univerAutofillIntent').SpreadsheetAutofillIntent | null>(null)
+  const pendingDimensionUserIntentRef = useRef<
+    import('./univerDimensionUserIntent').SpreadsheetDimensionUserIntent | null
+  >(null)
   const contextRef = useRef<ReturnType<typeof createUniverConversionContext> | null>(null)
   const propsRef = useRef({
     sheet: props.sheet,
@@ -278,6 +281,7 @@ export function useUniverGridController(props: UniverSheetGridProps) {
     mergeGestureSuppressBySheetRef,
     pendingFormattingPasteIntentRef,
     pendingAutofillIntentRef,
+    pendingDimensionUserIntentRef,
     contextRef,
     propsRef,
     lastUniverInitDepsRef,

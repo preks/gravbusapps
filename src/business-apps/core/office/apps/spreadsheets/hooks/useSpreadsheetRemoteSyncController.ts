@@ -171,10 +171,32 @@ export function useSpreadsheetRemoteSyncController(
           } catch {
             /* ignore */
           }
+          try {
+            const workbookSnapshot = await SpreadsheetApiService.getUniverSnapshot(params.appId)
+            const workbookVersion = Number(workbookSnapshot.version ?? 0)
+            if (Number.isFinite(workbookVersion) && workbookVersion >= 0) {
+              params.workbookSnapshotVersionRef.current = Math.max(
+                params.workbookSnapshotVersionRef.current,
+                workbookVersion
+              )
+            }
+            params.workbookSnapshotCoversVersionsRef.current = mergeSnapshotCoversVersions(
+              params.workbookSnapshotCoversVersionsRef.current,
+              normalizeSnapshotCoversVersions(workbookSnapshot.coversVersions)
+            )
+          } catch {
+            /* ignore */
+          }
         })()
       })
     },
-    [params.appId, params.rememberKnownSheetVersion, params.updateActiveSheetVersion]
+    [
+      params.appId,
+      params.rememberKnownSheetVersion,
+      params.updateActiveSheetVersion,
+      params.workbookSnapshotVersionRef,
+      params.workbookSnapshotCoversVersionsRef
+    ]
   )
 
   const cancelPendingRemoteStructuralResync = useCallback((sheetId: string): void => {

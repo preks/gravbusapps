@@ -11,6 +11,7 @@ import { sanitizeUniverWorkbookSnapshotForBootstrap } from '../utils/sanitizeUni
 import { debugUniverInit } from './univerGridDebug'
 import { buildAuthoritativeCellSignatureMap, getAuthoritativeGridRowExtent } from './univerGridAuthoritativeHelpers'
 import { consumeSpreadsheetAutofillIntent, peekSpreadsheetAutofillIntent } from './univerAutofillIntent'
+import type { SheetRangeShape } from './cellMatrixUtils'
 import {
   registerUniverMountSheetValueAndEditListeners,
   resolveEmitSerializationKey,
@@ -86,6 +87,7 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     mergeGestureSuppressBySheetRef,
     pendingFormattingPasteIntentRef,
     pendingAutofillIntentRef,
+    pendingDimensionUserIntentRef,
     contextRef,
     propsRef,
     lastUniverInitDepsRef,
@@ -354,7 +356,9 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
   }, 1500)
 
   // Re-read from Univer after it hydrates (handles column/row resizes, Excel imports, etc.)
-  const updateCellDimensions = (): {
+  const updateCellDimensions = (
+    focusRanges?: SheetRangeShape[]
+  ): {
     changed: boolean
     dimensions: SnapshotDimensions | null
     sheetId: string | null
@@ -363,11 +367,82 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
       const wb = univerAPIRef.current?.getActiveWorkbook() as unknown as {
         save?: () => Record<string, unknown>
         getSnapshot?: () => Record<string, unknown>
-        getActiveSheet?: () => { getSheetId?: () => string } | null
+        getActiveSheet?: () => {
+          getSheetId?: () => string
+          getRowHeight?: (row: number) => number
+          getColumnWidth?: (col: number) => number
+          getActiveRange?: () => {
+            getRange?: () => {
+              startRow?: number
+              endRow?: number
+              startColumn?: number
+              endColumn?: number
+            }
+          } | null
+        } | null
       } | null
       const snap = wb?.save?.() ?? wb?.getSnapshot?.()
-      const activeSheetId = wb?.getActiveSheet?.()?.getSheetId?.() ?? propsRef.current.sheet.id ?? s.id
-      const d = snap ? extractDimensionsFromSnapshot(snap, activeSheetId) : null
+      const activeWorksheet = wb?.getActiveSheet?.() ?? null
+      const activeSheetId = activeWorksheet?.getSheetId?.() ?? propsRef.current.sheet.id ?? s.id
+      let d = snap ? extractDimensionsFromSnapshot(snap, activeSheetId) : null
+      const currentTrackedDimensions = cellDimensionsRef.current
+      if (d && currentTrackedDimensions) {
+        d = {
+          ...d,
+          columnData: { ...d.columnData, ...currentTrackedDimensions.columnData },
+          rowData: { ...d.rowData, ...currentTrackedDimensions.rowData },
+          rowHeaderWidth: currentTrackedDimensions.rowHeaderWidth || d.rowHeaderWidth,
+          columnHeaderHeight: currentTrackedDimensions.columnHeaderHeight || d.columnHeaderHeight,
+          zoomRatio: currentTrackedDimensions.zoomRatio || d.zoomRatio
+        }
+      }
+      const liveFocusRanges =
+        focusRanges && focusRanges.length > 0
+          ? focusRanges
+          : (() => {
+              const activeRange = activeWorksheet?.getActiveRange?.()
+              const range = activeRange?.getRange?.()
+              if (!range) return []
+              const startRow = Number(range.startRow)
+              const endRow = Number(range.endRow)
+              const startColumn = Number(range.startColumn)
+              const endColumn = Number(range.endColumn)
+              if (
+                !Number.isFinite(startRow) ||
+                !Number.isFinite(endRow) ||
+                !Number.isFinite(startColumn) ||
+                !Number.isFinite(endColumn)
+              ) {
+                return []
+              }
+              return [
+                {
+                  startRow: Math.max(0, Math.trunc(startRow)),
+                  endRow: Math.max(0, Math.trunc(endRow)),
+                  startColumn: Math.max(0, Math.trunc(startColumn)),
+                  endColumn: Math.max(0, Math.trunc(endColumn))
+                }
+              ]
+            })()
+      if (d && activeWorksheet && liveFocusRanges.length > 0) {
+        const nextRowData = { ...d.rowData }
+        const nextColumnData = { ...d.columnData }
+        for (const range of liveFocusRanges) {
+          for (let row = range.startRow; row <= range.endRow; row += 1) {
+            const liveHeight = activeWorksheet.getRowHeight?.(row)
+            if (typeof liveHeight === 'number' && Number.isFinite(liveHeight) && liveHeight > 0) {
+              nextRowData[row] = { ...nextRowData[row], h: Math.round(liveHeight) }
+            }
+          }
+          for (let col = range.startColumn; col <= range.endColumn; col += 1) {
+            const liveWidth = activeWorksheet.getColumnWidth?.(col)
+            if (typeof liveWidth === 'number' && Number.isFinite(liveWidth) && liveWidth > 0) {
+              nextColumnData[col] = { ...nextColumnData[col], w: Math.round(liveWidth) }
+            }
+          }
+        }
+        d = { ...d, rowData: nextRowData, columnData: nextColumnData }
+      }
       if (!d) return { changed: false, dimensions: null, sheetId: activeSheetId }
       const changed = !areSnapshotDimensionsEqual(cellDimensionsRef.current, d)
       cellDimensionsRef.current = d
@@ -606,6 +681,7 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     cutPasteCollabSuppressUntilMsRef,
     mergeGestureSuppressBySheetRef,
     pendingAutofillIntentRef,
+    pendingDimensionUserIntentRef,
     insertSheetSourceIds,
     latestNativeSheetCopySourceIdRef,
     getActiveWorksheetIdFromUniver,

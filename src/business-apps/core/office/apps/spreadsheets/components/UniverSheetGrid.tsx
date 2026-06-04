@@ -1405,6 +1405,40 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           if (liveStyles && liveStylesKeys.length > snapshotStylesKeys.length) {
             snapshotObj.styles = { ...(snapshotObj.styles as Record<string, unknown> | undefined), ...liveStyles }
           }
+          const activeSheetId =
+            (workbook as { getActiveSheet?: () => { getSheetId?: () => string } | null | undefined })
+              .getActiveSheet?.()
+              ?.getSheetId?.() ?? sheet.id
+          const trackedDimensions = cellDimensionsRef.current
+          const sheets =
+            snapshotObj.sheets && typeof snapshotObj.sheets === 'object' && !Array.isArray(snapshotObj.sheets)
+              ? (snapshotObj.sheets as Record<string, Record<string, unknown>>)
+              : null
+          const activeSheetSnapshot =
+            activeSheetId && sheets?.[activeSheetId] && typeof sheets[activeSheetId] === 'object'
+              ? sheets[activeSheetId]
+              : null
+          if (trackedDimensions && activeSheetSnapshot) {
+            activeSheetSnapshot.defaultColumnWidth = trackedDimensions.defaultColWidth
+            activeSheetSnapshot.defaultRowHeight = trackedDimensions.defaultRowHeight
+            activeSheetSnapshot.columnData = {
+              ...((activeSheetSnapshot.columnData as Record<string | number, unknown> | undefined) ?? {}),
+              ...trackedDimensions.columnData
+            }
+            activeSheetSnapshot.rowData = {
+              ...((activeSheetSnapshot.rowData as Record<string | number, unknown> | undefined) ?? {}),
+              ...trackedDimensions.rowData
+            }
+            activeSheetSnapshot.rowHeader = {
+              ...((activeSheetSnapshot.rowHeader as Record<string, unknown> | undefined) ?? {}),
+              width: trackedDimensions.rowHeaderWidth
+            }
+            activeSheetSnapshot.columnHeader = {
+              ...((activeSheetSnapshot.columnHeader as Record<string, unknown> | undefined) ?? {}),
+              height: trackedDimensions.columnHeaderHeight
+            }
+            activeSheetSnapshot.zoomRatio = trackedDimensions.zoomRatio
+          }
         } catch {
           // Non-fatal; fall back to raw snapshot if style rehydration fails.
         }

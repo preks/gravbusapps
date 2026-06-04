@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 
 import { SpreadsheetApiService } from '../../services/SpreadsheetApiService'
 import { useSpreadsheetRemoteSyncController } from '../useSpreadsheetRemoteSyncController'
@@ -18,6 +18,99 @@ const col = (id: string, name: string, order: number) => ({
 describe('useSpreadsheetRemoteSyncController', () => {
   afterEach(() => {
     jest.restoreAllMocks()
+  })
+
+  it('refreshes workbook checkpoint metadata alongside remote sheet version state', async () => {
+    jest.useFakeTimers()
+
+    try {
+      jest.spyOn(SpreadsheetApiService, 'getSheet').mockResolvedValue({
+        id: 'sheet-1',
+        version: 40
+      } as any)
+      jest.spyOn(SpreadsheetApiService, 'getUniverSnapshot').mockResolvedValue({
+        appId: 'app-1',
+        version: 87,
+        updatedAt: null,
+        snapshot: null,
+        coversVersions: { 'sheet-1': 40 }
+      } as any)
+
+      const workbookSnapshotVersionRef = { current: 0 }
+      const workbookSnapshotCoversVersionsRef = { current: { 'sheet-2': 12 } }
+      const rememberKnownSheetVersion = jest.fn()
+      const updateActiveSheetVersion = jest.fn()
+      const activeSheet = {
+        id: 'sheet-1',
+        name: 'Sheet 1',
+        viewType: 'table',
+        columns: [col('col-a', 'A', 0)],
+        views: [],
+        data: [],
+        settings: {}
+      } as any
+
+      const { result } = renderHook(() =>
+        useSpreadsheetRemoteSyncController({
+          appId: 'app-1',
+          activeSheetId: 'sheet-1',
+          activeSheet,
+          preferUniverNativeSheetTabs: false,
+          entityEnabled: false,
+          activeSheetIdRef: { current: 'sheet-1' },
+          appSheetsRef: { current: [activeSheet] },
+          workbookSnapshotVersionRef,
+          workbookSnapshotCoversVersionsRef,
+          pendingCreatedSheetSelectionRef: { current: null },
+          createdSheetIdAliasesRef: { current: new Map() },
+          collaborationManagerRef: { current: null },
+          mutationFacadeRef: { current: null },
+          sheetsNeedingGridMaterializationRef: { current: new Map() },
+          snapshotSaveMetricsRef: { current: { fallbackLoads: 0 } },
+          spreadsheetSession: {
+            replaceSheetState: jest.fn(),
+            clearDirty: jest.fn(),
+            capturePersistedBaseline: jest.fn()
+          } as any,
+          enqueueDiagnosticsTraceEvent: jest.fn(),
+          activeTraceSessionRef: { current: null },
+          debugLog: jest.fn(),
+          rememberKnownSheetVersion,
+          updateActiveSheetVersion,
+          resolveKnownSheetVersion: jest.fn(() => 0),
+          syncSheetRowsIntoLocalState: jest.fn(),
+          setBootstrapSnapshot: jest.fn(),
+          requestGridRefresh: jest.fn(),
+          getKnownRowsForSheet: jest.fn(() => []),
+          hasPendingCellPersistence: jest.fn(() => false),
+          hasPendingPersistenceForSheet: jest.fn(() => false),
+          getActiveSessionVersion: jest.fn(() => 0),
+          sheetMetadataReloadEnabled: false,
+          scheduleSheetVersionRefreshFromApiRef: { current: jest.fn() },
+          conflictRecovery: {
+            onRecoverSuccess: jest.fn(),
+            onRecoverError: jest.fn(),
+            translatePersistRecoveryFailed: jest.fn(() => 'failed')
+          }
+        })
+      )
+
+      await act(async () => {
+        result.current.scheduleSheetVersionRefreshFromApi('sheet-1')
+        jest.advanceTimersByTime(250)
+        await Promise.resolve()
+      })
+
+      expect(rememberKnownSheetVersion).toHaveBeenCalledWith('sheet-1', 40)
+      expect(updateActiveSheetVersion).toHaveBeenCalledWith(40, 'max')
+      expect(workbookSnapshotVersionRef.current).toBe(87)
+      expect(workbookSnapshotCoversVersionsRef.current).toEqual({
+        'sheet-1': 40,
+        'sheet-2': 12
+      })
+    } finally {
+      jest.useRealTimers()
+    }
   })
 
   it('reloads active sheet snapshots using refreshed recovered column order', async () => {

@@ -120,6 +120,8 @@ export const buildDimensionDeltaOps = (
   skippedColIndices: ReadonlySet<number>
 ): SpreadsheetBatchOperation[] => {
   const ops: SpreadsheetBatchOperation[] = []
+  const isVisibilityOnlyEntry = (hidden: unknown, size: unknown): boolean =>
+    hidden === 1 && (typeof size !== 'number' || !Number.isFinite(size) || size <= 0)
   const makeOpId = (prefix: string): string => {
     try {
       return `${prefix}_${crypto.randomUUID()}`
@@ -137,8 +139,8 @@ export const buildDimensionDeltaOps = (
 
   for (const rowIndex of rowKeys) {
     const currentEntry = (payload.rowData ?? {})[rowIndex] ?? (payload.rowData ?? {})[String(rowIndex)]
-    if (typeof (currentEntry as { hd?: unknown } | undefined)?.hd === 'number') continue
     const rawHeight = (currentEntry as { h?: number } | undefined)?.h
+    if (isVisibilityOnlyEntry((currentEntry as { hd?: unknown } | undefined)?.hd, rawHeight)) continue
     const currentHeight =
       typeof rawHeight === 'number' && Number.isFinite(rawHeight) ? Math.round(rawHeight) : baseline.defaultRowHeight
     const baseHeight = baseline.rowHeights.get(rowIndex) ?? baseline.defaultRowHeight
@@ -160,8 +162,8 @@ export const buildDimensionDeltaOps = (
   for (const colIndex of colKeys) {
     if (skippedColIndices.has(colIndex)) continue
     const currentEntry = (payload.columnData ?? {})[colIndex] ?? (payload.columnData ?? {})[String(colIndex)]
-    if (typeof (currentEntry as { hd?: unknown } | undefined)?.hd === 'number') continue
     const rawWidth = (currentEntry as { w?: number } | undefined)?.w
+    if (isVisibilityOnlyEntry((currentEntry as { hd?: unknown } | undefined)?.hd, rawWidth)) continue
     const currentWidth =
       typeof rawWidth === 'number' && Number.isFinite(rawWidth) ? Math.round(rawWidth) : baseline.defaultColWidth
     const baseWidth = baseline.colWidths.get(colIndex) ?? baseline.defaultColWidth

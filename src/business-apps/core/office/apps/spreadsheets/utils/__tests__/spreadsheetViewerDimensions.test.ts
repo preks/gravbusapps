@@ -69,6 +69,35 @@ describe('spreadsheetViewerDimensions', () => {
     expect(ops).toEqual([])
   })
 
+  it('buildDimensionDeltaOps keeps explicit auto-fit sizes even when hd metadata is present', () => {
+    const baseline = extractDimensionBaselineFromSnapshot(null, 's1')
+    const payload: CellDimensionsPayload = {
+      sheetId: 's1',
+      defaultColWidth: 73,
+      defaultRowHeight: 23,
+      columnData: { 0: { w: 180, hd: 0 } },
+      rowData: { 0: { h: 40, hd: 0 } },
+      rowHeaderWidth: 48,
+      columnHeaderHeight: 28,
+      zoomRatio: 1
+    }
+
+    const ops = buildDimensionDeltaOps(payload, baseline, new Set())
+
+    expect(ops).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'set_row_height',
+          data: expect.objectContaining({ rowIndex: 0, height: 40 })
+        }),
+        expect.objectContaining({
+          type: 'set_col_width',
+          data: expect.objectContaining({ colIndex: 0, width: 180 })
+        })
+      ])
+    )
+  })
+
   it('does not fall back to the first sheet when the requested sheet is missing', () => {
     const baseline = extractDimensionBaselineFromSnapshot(
       {

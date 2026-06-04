@@ -4,6 +4,7 @@ import { createSpreadsheetMutationOperationId } from '../core'
 import type { SpreadsheetMutationFacade } from '../core'
 import type { SpreadsheetApp, SpreadsheetColumn } from '../types'
 import type { SpreadsheetBatchOperation } from '../services/SpreadsheetApiService'
+import { debugLog } from '../utils/spreadsheetViewerDebug'
 
 export interface DimensionPersistFlushContext {
   activeSheetId: string
@@ -33,6 +34,13 @@ export function runDimensionPersistFlush(
   const hasWorkToDo = (columnsToPersist && changedColumns.length > 0) || dimOps.length > 0
   if (!hasWorkToDo) return
 
+  debugLog('dimension persist flush queued', {
+    sheetId: ctx.activeSheetId,
+    changedColumnCount: changedColumns.length,
+    dimensionOpCount: dimOps.length,
+    dimensionOpTypes: dimOps.map(op => op.type)
+  })
+
   if (columnsToPersist && changedColumns.length > 0 && (ctx.onLocalAppUpdate || ctx.onAppUpdate)) {
     ctx.applyLocalAppUpdate(currentApp => ({
       ...currentApp,
@@ -44,6 +52,11 @@ export function runDimensionPersistFlush(
 
   const submitBatch = ctx.mutationFacadeRef.current?.submitBatch
   if (!submitBatch) {
+    debugLog('dimension persist flush skipped: mutation facade unavailable', {
+      sheetId: ctx.activeSheetId,
+      changedColumnCount: changedColumns.length,
+      dimensionOpCount: dimOps.length
+    })
     console.warn(
       '[SpreadsheetAppViewer] Dim batch dispatched before mutation facade was ready; widths/heights will still persist via the snapshot checkpoint below'
     )
@@ -95,12 +108,21 @@ export function runDimensionPersistFlush(
     }
 
     if (ops.length > 0) {
+      debugLog('dimension persist submitBatch', {
+        sheetId: ctx.activeSheetId,
+        operationCount: ops.length,
+        operationTypes: ops.map(op => op.type)
+      })
       void (async () => {
         try {
           await submitBatch({
             sheetId: ctx.activeSheetId,
             operations: ops,
             batchIdPrefix: 'dimensions_change'
+          })
+          debugLog('dimension persist submitBatch succeeded', {
+            sheetId: ctx.activeSheetId,
+            operationCount: ops.length
           })
           baselineRowHeightUpdates.forEach(({ rowIndex, height }) => {
             ctx.baselineRowHeightsRef.current.set(rowIndex, height)
@@ -109,6 +131,11 @@ export function runDimensionPersistFlush(
             ctx.baselineColWidthsRef.current.set(colIndex, width)
           })
         } catch (error) {
+          debugLog('dimension persist submitBatch failed', {
+            sheetId: ctx.activeSheetId,
+            operationCount: ops.length,
+            message: error instanceof Error ? error.message : 'unknown'
+          })
           ctx.clearPendingWidthOverridesForColumns(changedColumns.map(c => c.columnId))
           console.error('[SpreadsheetAppViewer] Failed to persist dim batch:', error)
         }
