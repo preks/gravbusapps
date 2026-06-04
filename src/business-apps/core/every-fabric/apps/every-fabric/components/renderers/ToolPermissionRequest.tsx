@@ -9,10 +9,12 @@ import {
   type PresentedPermissionAction,
   type PresentedPermissionField
 } from './toolPermissionPresenter'
+import { applyCatalogLabels, useCatalogRefLabels } from './useCatalogRefLabels'
 
 interface ToolPermissionRequestProps {
   request: StructuredInputRequestEvent
   alreadySubmitted?: boolean
+  accessToken?: string
   onSubmit: (payload: Record<string, unknown>) => void
 }
 
@@ -185,7 +187,114 @@ const PermissionFieldRow = ({
   )
 }
 
-export const ToolPermissionRequest = ({ request, alreadySubmitted = false, onSubmit }: ToolPermissionRequestProps) => {
+// The card heading: prefer the backend intent line ("Create Job Level "Senior")
+// over the bare tool name; drop a trailing period so it reads as a heading.
+const actionHeading = (action: PresentedPermissionAction): string => {
+  const intent = action.summary?.trim()
+  if (intent) return intent.replace(/\.$/, '')
+  return action.title
+}
+
+interface PermissionActionBodyProps {
+  action: PresentedPermissionAction
+  actionIndex: number
+  editing: boolean
+  locked: boolean
+  focusKey: string | null
+  showTechnical: boolean
+  editedValues: Record<number, Record<string, string>>
+  onUpdateValue: (actionIndex: number, field: PresentedPermissionField, value: string) => void
+  onEnterEdit: (editorKey: string) => void
+  onToggleTechnical: () => void
+}
+
+const PermissionActionBody = ({
+  action,
+  actionIndex,
+  editing,
+  locked,
+  focusKey,
+  showTechnical,
+  editedValues,
+  onUpdateValue,
+  onEnterEdit,
+  onToggleTechnical
+}: PermissionActionBodyProps) => {
+  const hasRequired = action.visibleFields.some(field => field.required)
+  const hasSuggested = action.visibleFields.some(field => field.suggested)
+  return (
+    <>
+      <div className="gba:space-y-2">
+        {action.visibleFields.map(field => (
+          <PermissionFieldRow
+            key={field.id}
+            field={field}
+            actionIndex={actionIndex}
+            action={action}
+            editing={editing}
+            locked={locked}
+            focusKey={focusKey}
+            editorKey={`${actionIndex}:${field.id}`}
+            editedValues={editedValues}
+            onUpdateValue={onUpdateValue}
+            onEnterEdit={onEnterEdit}
+          />
+        ))}
+      </div>
+
+      {(hasRequired || hasSuggested) && (
+        <div className="gba:mt-2 gba:flex gba:flex-wrap gba:gap-x-4 gba:gap-y-1 gba:text-[11px] gba:text-muted-foreground">
+          {hasRequired && (
+            <span>
+              <span className="gba:text-destructive">*</span> Required
+            </span>
+          )}
+          {hasSuggested && (
+            <span>
+              <span className="gba:rounded-full gba:bg-muted gba:px-1.5 gba:py-0.5 gba:font-medium">Suggested</span>{' '}
+              Pre-filled by the assistant
+            </span>
+          )}
+        </div>
+      )}
+
+      {action.technicalFields.length > 0 && (
+        <div className="gba:mt-3">
+          <button
+            type="button"
+            onClick={onToggleTechnical}
+            className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:font-medium gba:text-muted-foreground gba:hover:text-foreground"
+          >
+            <CaretDownIcon
+              className={`gba:h-3 gba:w-3 gba:transition-transform ${showTechnical ? 'gba:rotate-180' : ''}`}
+              weight="bold"
+            />
+            {formatTechnicalFieldsToggleLabel(action.technicalFields.length, showTechnical)}
+          </button>
+          {showTechnical && (
+            <div className="gba:mt-2 gba:space-y-1 gba:rounded-lg gba:bg-muted/40 gba:p-3">
+              {action.technicalFields.map(field => (
+                <div key={field.id} className="gba:grid gba:grid-cols-[150px_1fr] gba:gap-3 gba:text-xs">
+                  <div className="gba:text-muted-foreground">{field.label}</div>
+                  <div className="gba:text-foreground">
+                    <PermissionValueDisplay field={field} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  )
+}
+
+export const ToolPermissionRequest = ({
+  request,
+  alreadySubmitted = false,
+  accessToken,
+  onSubmit
+}: ToolPermissionRequestProps) => {
   const [submitted, setSubmitted] = useState(false)
   const [decisionLabel, setDecisionLabel] = useState<string | null>(alreadySubmitted ? 'Decision submitted' : null)
   const [editing, setEditing] = useState(false)
@@ -194,9 +303,16 @@ export const ToolPermissionRequest = ({ request, alreadySubmitted = false, onSub
   const [editedValues, setEditedValues] = useState<Record<number, Record<string, string>>>({})
   const locked = submitted || alreadySubmitted
   const actions = request.action_requests ?? []
-  const presentedActions = useMemo(
+  const basePresentedActions = useMemo(
     () => actions.map(action => presentToolPermissionAction(action, request.review_configs ?? [])),
     [actions, request.review_configs]
+  )
+  // Resolve catalog refs (e.g. ``Country:v1:DE``) to friendly labels (``Germany``)
+  // generically for any catalog, then surface them in place of the raw key.
+  const catalogLabels = useCatalogRefLabels(basePresentedActions, accessToken)
+  const presentedActions = useMemo(
+    () => applyCatalogLabels(basePresentedActions, catalogLabels),
+    [basePresentedActions, catalogLabels]
   )
 
   const updateEditedValue = (actionIndex: number, field: PresentedPermissionField, value: string) => {
@@ -240,6 +356,13 @@ export const ToolPermissionRequest = ({ request, alreadySubmitted = false, onSub
     })
   }
 
+  const single = presentedActions.length === 1
+  const canEditAny = presentedActions.some(action => action.canEdit)
+  const onEnterEdit = (key: string) => {
+    setEditing(true)
+    setFocusKey(key)
+  }
+
   return (
     <div className="gba:rounded-2xl gba:border gba:border-warning/40 gba:bg-warning/5 gba:p-4 gba:shadow-sm">
       <div className="gba:flex gba:items-start gba:gap-3">
@@ -247,127 +370,85 @@ export const ToolPermissionRequest = ({ request, alreadySubmitted = false, onSub
           <ShieldWarningIcon className="gba:h-5 gba:w-5" weight="duotone" />
         </div>
         <div className="gba:min-w-0 gba:flex-1">
-          <p className="gba:text-sm gba:font-semibold gba:text-foreground">
-            {request.title || 'Tool approval required'}
-          </p>
-          <p className="gba:mt-1 gba:text-sm gba:leading-6 gba:text-muted-foreground">
-            {request.description || 'Review this proposed tool action before it runs.'}
-          </p>
-          {presentedActions.length > 0 && (
-            <div className="gba:mt-3 gba:flex gba:flex-wrap gba:gap-2">
-              {presentedActions.map((action, actionIndex) => (
-                <span
-                  key={`${actionIndex}-${actionKey(action)}`}
-                  className="gba:rounded-full gba:bg-background gba:px-2.5 gba:py-1 gba:text-xs gba:font-medium gba:text-foreground gba:border gba:border-border"
-                >
-                  {action.displayToolName}
-                </span>
-              ))}
-            </div>
+          {single ? (
+            <>
+              <p className="gba:text-sm gba:font-semibold gba:text-foreground">{actionHeading(presentedActions[0])}</p>
+              {presentedActions[0].explanation && (
+                <p className="gba:mt-1 gba:text-sm gba:leading-6 gba:text-muted-foreground">
+                  {presentedActions[0].explanation}
+                </p>
+              )}
+            </>
+          ) : (
+            <>
+              <p className="gba:text-sm gba:font-semibold gba:text-foreground">
+                {request.title || `Approve ${presentedActions.length} actions`}
+              </p>
+              <p className="gba:mt-1 gba:text-sm gba:leading-6 gba:text-muted-foreground">
+                Review each action below. They run only after you approve.
+              </p>
+            </>
+          )}
+          {editing && !locked && (
+            <span className="gba:mt-2 gba:inline-flex gba:rounded-full gba:bg-warning/10 gba:px-2.5 gba:py-1 gba:text-[11px] gba:font-medium gba:text-warning">
+              Editing
+            </span>
+          )}
+          {canEditAny && !editing && !locked && (
+            <p className="gba:mt-1.5 gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
+              <PencilSimpleIcon className="gba:h-3 gba:w-3" weight="bold" />
+              Click any field to adjust it before approving.
+            </p>
           )}
         </div>
       </div>
 
       {presentedActions.length > 0 && (
-        <div className="gba:mt-4 gba:space-y-3">
-          {presentedActions.map((action, actionIndex) => (
-            <div
-              key={`${actionIndex}-${actionKey(action)}`}
-              className="gba:rounded-xl gba:border gba:border-border gba:bg-background gba:p-3"
-            >
-              <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
-                <div>
-                  <p className="gba:text-sm gba:font-semibold gba:text-foreground">{action.title}</p>
-                  <p className="gba:mt-1 gba:text-sm gba:leading-6 gba:text-muted-foreground">{action.summary}</p>
-                  {action.canEdit && !editing && !locked && (
-                    <p className="gba:mt-1 gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
-                      <PencilSimpleIcon className="gba:h-3 gba:w-3" weight="bold" />
-                      Click any field to adjust it before approving.
-                    </p>
+        <div className="gba:mt-4">
+          {single ? (
+            <PermissionActionBody
+              action={presentedActions[0]}
+              actionIndex={0}
+              editing={editing}
+              locked={locked}
+              focusKey={focusKey}
+              showTechnical={Boolean(showTechnical[0])}
+              editedValues={editedValues}
+              onUpdateValue={updateEditedValue}
+              onEnterEdit={onEnterEdit}
+              onToggleTechnical={() => setShowTechnical(prev => ({ ...prev, 0: !prev[0] }))}
+            />
+          ) : (
+            <div className="gba:space-y-3">
+              {presentedActions.map((action, actionIndex) => (
+                <div
+                  key={`${actionIndex}-${actionKey(action)}`}
+                  className="gba:rounded-xl gba:border gba:border-border gba:bg-background gba:p-3"
+                >
+                  <p className="gba:text-sm gba:font-semibold gba:text-foreground">{actionHeading(action)}</p>
+                  {action.explanation && (
+                    <p className="gba:mt-1 gba:text-sm gba:leading-6 gba:text-muted-foreground">{action.explanation}</p>
                   )}
-                </div>
-                {action.canEdit && editing && !locked && (
-                  <span className="gba:rounded-full gba:bg-warning/10 gba:px-2.5 gba:py-1 gba:text-[11px] gba:font-medium gba:text-warning">
-                    Editing
-                  </span>
-                )}
-              </div>
-
-              <div className="gba:mt-3 gba:space-y-2">
-                {action.visibleFields.map(field => {
-                  const editorKey = `${actionIndex}:${field.id}`
-                  return (
-                    <PermissionFieldRow
-                      key={field.id}
-                      field={field}
-                      actionIndex={actionIndex}
+                  <div className="gba:mt-3">
+                    <PermissionActionBody
                       action={action}
+                      actionIndex={actionIndex}
                       editing={editing}
                       locked={locked}
                       focusKey={focusKey}
-                      editorKey={editorKey}
+                      showTechnical={Boolean(showTechnical[actionIndex])}
                       editedValues={editedValues}
                       onUpdateValue={updateEditedValue}
-                      onEnterEdit={key => {
-                        setEditing(true)
-                        setFocusKey(key)
-                      }}
+                      onEnterEdit={onEnterEdit}
+                      onToggleTechnical={() =>
+                        setShowTechnical(prev => ({ ...prev, [actionIndex]: !prev[actionIndex] }))
+                      }
                     />
-                  )
-                })}
-              </div>
-
-              {(action.visibleFields.some(field => field.required) ||
-                action.visibleFields.some(field => field.suggested)) && (
-                <div className="gba:mt-2 gba:flex gba:flex-wrap gba:gap-x-4 gba:gap-y-1 gba:text-[11px] gba:text-muted-foreground">
-                  {action.visibleFields.some(field => field.required) && (
-                    <span>
-                      <span className="gba:text-destructive">*</span> Required
-                    </span>
-                  )}
-                  {action.visibleFields.some(field => field.suggested) && (
-                    <span>
-                      <span className="gba:rounded-full gba:bg-muted gba:px-1.5 gba:py-0.5 gba:font-medium">
-                        Suggested
-                      </span>{' '}
-                      Pre-filled by the assistant
-                    </span>
-                  )}
+                  </div>
                 </div>
-              )}
-
-              {action.technicalFields.length > 0 && (
-                <div className="gba:mt-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowTechnical(prev => ({ ...prev, [actionIndex]: !prev[actionIndex] }))}
-                    className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:font-medium gba:text-muted-foreground gba:hover:text-foreground"
-                  >
-                    <CaretDownIcon
-                      className={`gba:h-3 gba:w-3 gba:transition-transform ${showTechnical[actionIndex] ? 'gba:rotate-180' : ''}`}
-                      weight="bold"
-                    />
-                    {formatTechnicalFieldsToggleLabel(
-                      action.technicalFields.length,
-                      Boolean(showTechnical[actionIndex])
-                    )}
-                  </button>
-                  {showTechnical[actionIndex] && (
-                    <div className="gba:mt-2 gba:space-y-1 gba:rounded-lg gba:bg-muted/40 gba:p-3">
-                      {action.technicalFields.map(field => (
-                        <div key={field.id} className="gba:grid gba:grid-cols-[150px_1fr] gba:gap-3 gba:text-xs">
-                          <div className="gba:text-muted-foreground">{field.label}</div>
-                          <div className="gba:text-foreground">
-                            <PermissionValueDisplay field={field} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+              ))}
             </div>
-          ))}
+          )}
         </div>
       )}
 
@@ -376,7 +457,7 @@ export const ToolPermissionRequest = ({ request, alreadySubmitted = false, onSub
           <CheckCircleIcon className="gba:mr-1.5 gba:h-4 gba:w-4" weight="bold" />
           {editing ? 'Save changes and run' : 'Approve and run'}
         </Button>
-        {presentedActions.some(action => action.canEdit) && !editing && !locked && (
+        {canEditAny && !editing && !locked && (
           <Button type="button" variant="outline" onClick={() => setEditing(true)} data-testid="tool-permission-edit">
             <PencilSimpleIcon className="gba:mr-1.5 gba:h-4 gba:w-4" weight="bold" />
             Modify
@@ -397,7 +478,11 @@ export const ToolPermissionRequest = ({ request, alreadySubmitted = false, onSub
           <XCircleIcon className="gba:mr-1.5 gba:h-4 gba:w-4" weight="bold" />
           Reject
         </Button>
-        {decisionLabel && <span className="gba:text-xs gba:text-muted-foreground">{decisionLabel}</span>}
+        {decisionLabel ? (
+          <span className="gba:text-xs gba:text-muted-foreground">{decisionLabel}</span>
+        ) : (
+          !locked && <span className="gba:text-xs gba:text-muted-foreground">Runs only after you approve.</span>
+        )}
       </div>
     </div>
   )

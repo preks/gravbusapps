@@ -321,6 +321,12 @@ export interface ToolPermissionActionRequest {
   input_schema?: Record<string, unknown>
   field_options?: Record<string, Array<{ label: string; value: string }>>
   policy?: Record<string, unknown>
+  /** Intent verb derived from the payload (e.g. "Create", "Update", "Delete"). */
+  operation?: string
+  /** Human intent line, e.g. `Create Job Level "Senior".` — shown as the card summary. */
+  summary_text?: string
+  /** The agent's own reason for the action — surfaced as a prominent "Why" line. */
+  reason_text?: string
 }
 
 export interface ToolPermissionReviewConfig {

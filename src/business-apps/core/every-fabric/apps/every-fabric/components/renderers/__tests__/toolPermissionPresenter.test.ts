@@ -163,9 +163,11 @@ describe('toolPermissionPresenter', () => {
 
     const presented = presentToolPermissionAction(action)
 
+    // The agent's reason is promoted to a prominent "Why" line, not a field row.
+    expect(presented.explanation).toBe('Registering a new Dell XPS 15 laptop as an IT equipment asset.')
+
     // Only the provided + required fields are primary; nulls/system/meta collapse.
     expect(presented.visibleFields.map(field => field.id)).toEqual([
-      'reason',
       'asset.assetCategoryRef',
       'asset.assetBrandRef',
       'asset.model',
@@ -187,7 +189,7 @@ describe('toolPermissionPresenter', () => {
     expect(category?.displayValue).toBe('Laptop')
     expect(category?.options).toHaveLength(2)
 
-    expect(presented.visibleFields.find(field => field.id === 'reason')?.required).toBe(true)
+    expect(presented.visibleFields.find(field => field.id === 'reason')).toBeUndefined()
     expect(presented.visibleFields.find(field => field.id === 'asset.assetStatus')?.required).toBe(true)
     expect(presented.visibleFields.find(field => field.id === 'asset.model')?.required).toBe(false)
   })
@@ -227,8 +229,10 @@ describe('toolPermissionPresenter', () => {
     const presented = presentToolPermissionAction(action)
     const byId = (id: string) => presented.visibleFields.find(field => field.id === id)
 
+    // The required ``reason`` is promoted to the "Why" line, not a field row.
+    expect(byId('reason')).toBeUndefined()
+    expect(presented.explanation).toBe('Registering a Dell XPS 15.')
     // Schema-required: red * (required), never "suggested".
-    expect(byId('reason')).toMatchObject({ required: true, suggested: false })
     expect(byId('asset.assetStatus')).toMatchObject({ required: true, suggested: false })
 
     // Agent pre-filled but NOT schema-required: suggested, not required.
@@ -237,5 +241,37 @@ describe('toolPermissionPresenter', () => {
     expect(byId('asset.serialNumber')).toMatchObject({ required: false, suggested: true })
     expect(byId('asset.model')).toMatchObject({ required: false, suggested: true })
     expect(byId('asset.assetCategoryRef')).toMatchObject({ required: false, suggested: true })
+  })
+
+  it('prefers backend intent summary and reason over the generic fallbacks', () => {
+    const action: ToolPermissionActionRequest = {
+      name: 'flowbot.saveJobLevel',
+      args: { reason: 'Setting up job level for Mira Chen.', changeMode: 'INSERT', name: 'Senior' },
+      summary_text: 'Create Job Level "Senior".',
+      reason_text: 'Setting up job level for Mira Chen.',
+      operation: 'Create'
+    }
+
+    const presented = presentToolPermissionAction(action)
+
+    expect(presented.summary).toBe('Create Job Level "Senior".')
+    expect(presented.explanation).toBe('Setting up job level for Mira Chen.')
+    // reason is promoted, not duplicated as a field
+    expect(presented.visibleFields.find(field => field.id === 'reason')).toBeUndefined()
+  })
+
+  it('drops the provider prefix and boilerplate summary without backend intent', () => {
+    const action: ToolPermissionActionRequest = {
+      name: 'flowbot.saveJobFunction',
+      args: { name: 'Product Management', changeMode: 'INSERT' }
+    }
+
+    const presented = presentToolPermissionAction(action)
+
+    // "Flowbot." prefix stripped, humanized.
+    expect(presented.title).toBe('Save Job Function')
+    expect(presented.displayToolName).toBe('Save Job Function')
+    // No "Run X after approval." boilerplate; card falls back to the title.
+    expect(presented.summary).toBe('')
   })
 })

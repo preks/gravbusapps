@@ -238,6 +238,7 @@ const renderStructuredInputRequestBubble = (
         <ToolPermissionRequest
           request={formData}
           alreadySubmitted={alreadySubmitted}
+          accessToken={accessToken}
           onSubmit={payload => {
             if (onReply) {
               onReply(undefined, payload)

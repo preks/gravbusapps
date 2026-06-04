@@ -29,6 +29,9 @@ export interface PresentedPermissionAction {
   displayToolName: string
   title: string
   summary: string
+  // The agent's own reason for the action ("Why"), promoted above the fields so
+  // the card reads like an explanation instead of a bare confirmation.
+  explanation?: string
   visibleFields: PresentedPermissionField[]
   technicalFields: PresentedPermissionField[]
   canEdit: boolean
@@ -62,6 +65,13 @@ export function humanizePermissionLabel(value: string): string {
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .replace(/[_-]+/g, ' ')
     .replace(/\b\w/g, char => char.toUpperCase())
+}
+
+// Tool names arrive provider-qualified (``flowbot.createEmployeeSpecialLeave``).
+// Drop the provider segment so the card shows "Create Employee Special Leave"
+// instead of the noisy "Flowbot.Create Employee Special Leave".
+export function humanizeToolName(toolName: string): string {
+  return humanizePermissionLabel(toolName.replace(/^[a-z][a-zA-Z0-9_]*\./, ''))
 }
 
 export function formatPermissionDisplayValue(value: unknown): string {
@@ -369,8 +379,11 @@ const presentGeneric = (
   const fields: PresentedPermissionField[] = []
   collectGenericFields(action, args, [], canEdit, fields)
   return {
-    title: humanizePermissionLabel(toolName),
-    summary: `Run ${humanizePermissionLabel(toolName)} after approval.`,
+    title: humanizeToolName(toolName),
+    // No boilerplate "Run X after approval." — the card derives its heading from
+    // the backend intent line (``summary_text``) or the title, and shows the
+    // safety note once. Leave empty so it never competes with the intent line.
+    summary: '',
     ...partitionFields(fields)
   }
 }
@@ -406,6 +419,20 @@ const rebuildArgs = (
   return nextBusinessArgs
 }
 
+// The agent's reason is promoted to a prominent "Why" line, so we drop the
+// duplicate ``reason`` field from the form. The value still rides along in the
+// untouched action args, so submission/edit payloads are unaffected.
+const stripReasonField = (fields: PresentedPermissionField[]): PresentedPermissionField[] =>
+  fields.filter(field => field.id !== 'reason')
+
+const reasonFromFields = (presented: {
+  visibleFields: PresentedPermissionField[]
+  technicalFields: PresentedPermissionField[]
+}): string | undefined => {
+  const reasonField = [...presented.visibleFields, ...presented.technicalFields].find(field => field.id === 'reason')
+  return typeof reasonField?.value === 'string' && reasonField.value.trim() ? reasonField.value.trim() : undefined
+}
+
 export const presentToolPermissionAction = (
   action: ToolPermissionActionRequest,
   reviewConfigs: ToolPermissionReviewConfig[] = []
@@ -418,14 +445,29 @@ export const presentToolPermissionAction = (
       ? presentCreateCrmEntity(action, args, canEdit)
       : presentGeneric(action, toolName, args, canEdit)
 
+  // Prefer the backend-derived intent line ("Create Job Level "Senior".") and the
+  // agent's reason; fall back to the generic summary / inline reason field.
+  const summary =
+    typeof action.summary_text === 'string' && action.summary_text.trim()
+      ? action.summary_text.trim()
+      : presented.summary
+  const explanation =
+    typeof action.reason_text === 'string' && action.reason_text.trim()
+      ? action.reason_text.trim()
+      : reasonFromFields(presented)
+
   return {
     toolName,
-    displayToolName: humanizePermissionLabel(toolName),
+    displayToolName: humanizeToolName(toolName),
     canEdit,
     rebuildAction: editedValues => ({
       ...action,
       args: rebuildArgs(action, args, editedValues)
     }),
-    ...presented
+    ...presented,
+    summary,
+    explanation,
+    visibleFields: stripReasonField(presented.visibleFields),
+    technicalFields: stripReasonField(presented.technicalFields)
   }
 }
