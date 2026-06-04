@@ -1,9 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Form } from 'antd'
 import { Button, Checkbox } from '@newwork/gravity-ui-catalog'
-import { useTranslation } from '@newwork/nw-design-system'
 import dayjs from 'dayjs'
-import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale, formatDate } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale, formatDate } from '@/common/utils/windowUtils'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { ICONS } from '../../../utils/icons'
 import LocationContainer from '../../expense-request-wizard/components/LocationContainer/LocationContainer'
@@ -34,9 +33,9 @@ import { EVENTS } from '../../../utils/constants'
 import { getLatestRejectComment, setLocalitiesDefault } from '../utils/tripScreenUtils'
 import { setByExternalCustomComponent } from '../../expense-request-wizard/utils/tripScreenUtils'
 import { combineDateTimeToISOString } from '../../expense-request-wizard/utils/locationTimeUtils'
-import expenseFormsTranslations from '../../_i18n'
 import { tripLocationPointsEqual } from '../../expense-request-wizard/utils/tripLocationPointEquality'
 import { filterTravelRegionsByExpenseItemsCurrency } from '../../shared/utils/filterTravelRegionsByExpenseItemsCurrency'
+import { useExpensePlanWizardTranslation } from '../useExpensePlanWizardTranslation'
 
 export const PlanTripScreen: React.FC<TripScreenProps> = props => {
   const { accessToken, additionalData } = props
@@ -52,7 +51,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
     setRequestAdvancePayment
   } = useExpensePlanWizardContext()
   const { userInfo } = props
-  const { t: tForms } = useTranslation(expenseFormsTranslations)
+  const { t } = useExpensePlanWizardTranslation()
 
   // Get expense items from additionalData if available
   const getExpenseItems = () => {
@@ -131,10 +130,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
 
       const ruleData = await fetchEmployeeRule(employeeId, dateString, accessToken)
       if (!ruleData) {
-        const errorMessage = getTranslationFromI18nKeyAndLabel(
-          'lowcoder:create_expense_item.missing_expense_rule_message',
-          'There is no rule set for your user, please reach out to your administrator.'
-        )
+        const errorMessage = t('missing-expense-rule-message')
         setEmployeeRuleError(errorMessage)
         return false
       }
@@ -156,10 +152,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
 
       return true
     } catch {
-      const errorMessage = getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_item.missing_expense_rule_message',
-        'There is no rule set for your user, please reach out to your administrator.'
-      )
+      const errorMessage = t('missing-expense-rule-message')
       setEmployeeRuleError(errorMessage)
       return false
     }
@@ -252,29 +245,17 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
         if (lastAbsenceCheckKeyRef.current !== dedupeKey) {
           return
         }
-        const overlapWarning = getOverlapWarningMessage(response, expenseId)
+        const overlapWarning = getOverlapWarningMessage(response, expenseId, t)
         if (isEndLocation) {
           setEndLocationOverlap(overlapWarning)
         } else {
           setStartLocationOverlap(overlapWarning)
         }
       } catch {
-        showToast(
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:modify_expense_request.error_fetching_expense_data',
-            'Error fetching expense plan data'
-          ),
-          'error'
-        )
+        showToast(t('error-fetching-expense-data'), 'error')
       }
     } catch {
-      showToast(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:modify_expense_request.error_fetching_expense_data',
-          'Error fetching expense plan data'
-        ),
-        'error'
-      )
+      showToast(t('error-fetching-expense-data'), 'error')
     }
   }
 
@@ -317,10 +298,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
   const fetchAndSetEmployeeRule = async (formattedDate: string) => {
     const employeeId = userInfo?.employeeDetails?.employeeId
     if (!employeeId) {
-      showToast(
-        getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.missing_employee_id', 'Missing employee ID'),
-        'error'
-      )
+      showToast(t('missing-employee-id'), 'error')
       return null
     }
 
@@ -363,13 +341,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
         )
       }
     } catch {
-      showToast(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:modify_expense_request.error_loading_trip_data',
-          'Error loading trip data'
-        ),
-        'error'
-      )
+      showToast(t('error-load-trip-data'), 'error')
     }
   }
 
@@ -469,13 +441,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
 
         const expenseId = expensePlanData?.ExpensePlanByPk?.id
         if (!expenseId) {
-          showToast(
-            getTranslationFromI18nKeyAndLabel(
-              'lowcoder:create_expense_request.error_missing_user_info',
-              'Missing user information'
-            ),
-            'error'
-          )
+          showToast(t('error-missing-user-info'), 'error')
           return
         }
 
@@ -491,13 +457,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
           await loadInitialTripData()
         }
       } catch {
-        showToast(
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:modify_expense_request.error_fetching_expense_data',
-            'Error fetching expense data'
-          ),
-          'error'
-        )
+        showToast(t('error-fetching-expense-data'), 'error')
       }
     }
 
@@ -532,8 +492,8 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
     if (!tripLocationPointsEqual(startLocation, first)) {
       return null
     }
-    return tForms('trip-start-equals-first-destination')
-  }, [destinations, startLocation, tForms])
+    return t('trip-start-equals-first-destination')
+  }, [destinations, startLocation, t])
 
   const validateTripForm = useCallback(() => {
     if (employeeRuleError || ruleConflictError) {
@@ -678,10 +638,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
           {/* Start Location */}
           <div className="gba:border-b gba:border-b-[#e8e8e8] gba:py-4" data-testid="start-location-wrapper">
             <LocationContainer
-              title={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:add_items_to_plan.add_trip_info_to_plan.start_title',
-                'Start Location'
-              )}
+              title={t('trip-start-location')}
               icon={ICONS.PIN_ICON}
               isCollapsed={startLocation.isCollapsed}
               onToggleCollapse={() => toggleLocationCollapse(setStartLocation)}
@@ -690,10 +647,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
                   <div data-testid="start-location-name">{startLocation.location || '-'}</div>
                   {startLocation.departureDate && (
                     <div data-testid="start-location-datetime">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:add_items_to_plan.add_trip_info_to_plan.departure',
-                        'Departure'
-                      )}
+                      {t('trip-departure')}
                       {formatDate(new Date(startLocation.departureDate), 'date.long')}
                       {startLocation.departureTime
                         ? ' - ' + formatDate(new Date(startLocation.departureTime), 'time.short')
@@ -736,18 +690,9 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
                 showPastWarning={true}
                 errorMessage={employeeRuleError || ruleConflictError}
                 locationFormLabels={{
-                  inputFieldLabel: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:add_items_to_plan.add_trip_info_to_plan.start_input_label',
-                    'Start Location'
-                  ),
-                  dateFieldLabel: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:add_items_to_plan.add_trip_info_to_plan.start_date_label',
-                    'Start Date'
-                  ),
-                  timeFieldLabel: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:add_items_to_plan.add_trip_info_to_plan.start_time_label',
-                    'Start Time'
-                  )
+                  inputFieldLabel: t('trip-start-input-label'),
+                  dateFieldLabel: t('trip-start-date-label'),
+                  timeFieldLabel: t('trip-start-time-label')
                 }}
               />
             </LocationContainer>
@@ -761,10 +706,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
               data-testid={`destination-wrapper-${destination.id}`}
             >
               <LocationContainer
-                title={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:add_items_to_plan.add_trip_info_to_plan.destination_title',
-                  'Destination'
-                )}
+                title={t('trip-destination')}
                 icon={ICONS.PIN_ICON}
                 isCollapsed={destination.isCollapsed}
                 onToggleCollapse={() => toggleDestinationCollapse(destination.id)}
@@ -775,10 +717,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
                     <div data-testid={`destination-name-${destination.id}`}>{destination.location || '-'}</div>
                     {destination.departureDate && (
                       <div data-testid={`destination-datetime-${destination.id}`}>
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:add_items_to_plan.add_trip_info_to_plan.departure',
-                          'Departure'
-                        )}
+                        {t('trip-departure')}
                         {formatDate(new Date(destination.departureDate), 'date.long')}
                         {destination.departureTime
                           ? ' - ' + formatDate(new Date(destination.departureTime), 'time.short')
@@ -797,18 +736,9 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
                   travelRegions={getFilteredTravelRegions(destination.isAbroad)}
                   errorMessage={index === 0 ? startEqualsFirstDestinationMessage : null}
                   locationFormLabels={{
-                    inputFieldLabel: getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:add_items_to_plan.add_trip_info_to_plan.destination_title',
-                      'Destination'
-                    ),
-                    dateFieldLabel: getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:create_expense_request.add_request_trip_details.departure_date',
-                      'Departure Date'
-                    ),
-                    timeFieldLabel: getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:create_expense_request.add_request_trip_details.departure_time',
-                      'Departure Time'
-                    )
+                    inputFieldLabel: t('trip-destination'),
+                    dateFieldLabel: t('trip-departure-date'),
+                    timeFieldLabel: t('trip-departure-time')
                   }}
                 />
               </LocationContainer>
@@ -827,20 +757,14 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
                 style={{ width: '24px', height: '24px' }}
                 data-testid="add-destination-icon"
               />
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:add_items_to_plan.add_trip_info_to_plan.add_destination_button',
-                'Add Destination'
-              )}
+              {t('trip-add-destination')}
             </Button>
           </div>
 
           {/* End Location */}
           <div className="gba:py-4" data-testid="end-location-wrapper">
             <LocationContainer
-              title={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:add_items_to_plan.add_trip_info_to_plan.end_location_title',
-                'End Location'
-              )}
+              title={t('trip-end-location')}
               icon={ICONS.PIN_ICON}
               isCollapsed={endLocation.isCollapsed}
               onToggleCollapse={() => toggleLocationCollapse(setEndLocation)}
@@ -849,10 +773,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
                   <div data-testid="end-location-name">{endLocation.location || '-'}</div>
                   {endLocation.departureDate && (
                     <div data-testid="end-location-datetime">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:add_items_to_plan.add_trip_info_to_plan.arrival',
-                        'Arrival'
-                      )}
+                      {t('trip-arrival')}
                       {formatDate(new Date(endLocation.departureDate), 'date.long')}
                       {endLocation.departureTime
                         ? ' - ' + formatDate(new Date(endLocation.departureTime), 'time.short')
@@ -894,18 +815,9 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
                 }
                 showFutureWarning={false}
                 locationFormLabels={{
-                  inputFieldLabel: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:add_items_to_plan.add_trip_info_to_plan.end_input_label',
-                    'End Location'
-                  ),
-                  dateFieldLabel: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:add_items_to_plan.add_trip_info_to_plan.end_date_label',
-                    'Arrival Date'
-                  ),
-                  timeFieldLabel: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:add_items_to_plan.add_trip_info_to_plan.end_time_label',
-                    'Arrival Time'
-                  )
+                  inputFieldLabel: t('trip-end-input-label'),
+                  dateFieldLabel: t('trip-arrival-date'),
+                  timeFieldLabel: t('trip-arrival-time')
                 }}
                 showPastWarning={true}
               />
@@ -923,10 +835,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
               onChange={e => setRequestAdvancePayment((e.value as boolean) || false)}
               data-testid="skip-advance-payment-checkbox"
             >
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:add_items_to_plan.add_trip_info_to_plan.skip_advance_payment_label',
-                'Request Advance Payment'
-              )}
+              {t('trip-skip-advance-payment-label')}
             </Checkbox>
           </div>
         </div>

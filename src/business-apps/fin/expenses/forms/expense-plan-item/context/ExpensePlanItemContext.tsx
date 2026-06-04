@@ -2,7 +2,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useMe
 import { Form } from 'antd'
 import { ExpenseType, CostCenter, Currency, ExpenseGroup, CustomField } from '../types'
 
-import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { useExpensePlanItemTranslation } from '../useExpensePlanItemTranslation'
 import {
   fetchExpenseCatalogueData,
   fetchExpenseRuleGeneralData,
@@ -70,7 +71,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
   userInfo,
   additionalData
 }): React.ReactNode => {
-  const t = (key: string, fallback: string) => getTranslationFromI18nKeyAndLabel(key, fallback)
+  const { t } = useExpensePlanItemTranslation()
   const { dispatchProcessContinueEventIfEnabled, getIsProcessEventDispatched } = useProcessEventState(additionalData)
 
   const [form] = Form.useForm()
@@ -93,8 +94,6 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
   const [expenseRuleError, setExpenseRuleError] = useState<string | null>(null)
   const [rerunRule, setRerunRule] = useState<boolean>(false)
   const [itemValues, setItemValues] = useState<{ id: string; version: string | number } | null>(null)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [userCostCenter, setUserCostCenter] = useState<string>('')
 
   const [generalDataResponse, setGeneralDataResponse] = useState<any>(null)
   const [catalogueDataResponse, setCatalogueDataResponse] = useState<any>(null)
@@ -127,10 +126,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
 
       setExpenseGroups(matchingItems)
     } catch {
-      showToast(
-        t('lowcoder:create_expense_type_item.process_error_expense_group', 'Error processing expense groups'),
-        'error'
-      )
+      showToast(t('process-error-expense-group'), 'error')
       setExpenseGroups([])
     }
   }, [generalDataResponse, catalogueDataResponse, accessToken])
@@ -186,7 +182,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
         })
       }
     } catch {
-      showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
+      showToast(t('process-error-data-fetch'), 'error')
     }
   }
 
@@ -203,17 +199,11 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
         return employeeRuleData.expenseRuleId
       }
 
-      const errorMessage = t(
-        'lowcoder:create_expense_item.missing_expense_rule_message',
-        'There is no rule set for your user, please reach out to your administrator.'
-      )
+      const errorMessage = t('missing-expense-rule-message')
       setExpenseRuleError(errorMessage)
       return null
     } catch {
-      const errorMessage = t(
-        'lowcoder:create_expense_item.missing_expense_rule_message',
-        'There is no rule set for your user, please reach out to your administrator.'
-      )
+      const errorMessage = t('missing-expense-rule-message')
       setExpenseRuleError(errorMessage)
       showToast(errorMessage, 'error')
       return null
@@ -235,7 +225,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
       })
       setGeneralDataResponse(generalData)
     } catch {
-      showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
+      showToast(t('process-error-data-fetch'), 'error')
     }
   }
 
@@ -256,7 +246,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
       setCatalogueDataResponse(catalogueData)
       return catalogueData
     } catch {
-      showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
+      showToast(t('process-error-data-fetch'), 'error')
       return null
     }
   }
@@ -273,7 +263,6 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
 
     if (defaultCostCenter) {
       form.setFieldsValue({ costCenter: defaultCostCenter })
-      setUserCostCenter(defaultCostCenter)
     }
   }
 
@@ -344,7 +333,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
 
       setRerunRule(false)
     } catch {
-      showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
+      showToast(t('process-error-data-fetch'), 'error')
     }
   }
 
@@ -376,7 +365,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
 
       const item = response?.data?.ExpensePlanItemByPk
       if (!item) {
-        showToast(t('lowcoder:create_expense_type_item.item_not_found', 'Expense plan item not found'), 'error')
+        showToast(t('item-not-found'), 'error')
         return
       }
 
@@ -426,28 +415,19 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
                       })
                     }
                   } catch {
-                    showToast(
-                      getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:create_expense_type_item.process_error_data_fetch',
-                        'Error fetching data'
-                      ),
-                      'error'
-                    )
+                    showToast(t('process-error-data-fetch'), 'error')
                   }
                 }
               }, 300) // Wait for custom fields to be loaded
             }
           }, 500) // Wait 500ms for expense types to load
         } catch {
-          showToast(
-            t('lowcoder:create_expense_type_item.process_error_expense_types', 'Error processing expense types'),
-            'error'
-          )
+          showToast(t('process-error-expense-types'), 'error')
         }
       }
       form.validateFields()
     } catch {
-      showToast(t('lowcoder:create_expense_type_item.error_loading_item', 'Error loading expense plan item'), 'error')
+      showToast(t('error-loading-item'), 'error')
     }
   }
 
@@ -460,6 +440,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
       catalogueDataResponse,
       setLoading,
       expensePlanId,
+      t,
       accessToken,
       userInfo,
       additionalData,
@@ -475,15 +456,15 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
   }
 
   const handleExpenseGroupChangeWrapper = async (value: string): Promise<void> => {
-    await handleExpenseGroupChange(value, form, setExpenseTypes, setCustomFields, fetchExpenseTypesWrapper)
+    await handleExpenseGroupChange(value, form, setExpenseTypes, setCustomFields, fetchExpenseTypesWrapper, t)
   }
 
   const handleCurrencyChangeWrapper = async (currencyId: string): Promise<void> => {
-    await handleCurrencyChange(currencyId, form)
+    await handleCurrencyChange(currencyId, form, t)
   }
 
   const handleExpenseTypeChangeWrapper = async (value: string): Promise<void> => {
-    await handleExpenseTypeChange(value, form, setCustomFields, fetchCustomFieldsWrapper)
+    await handleExpenseTypeChange(value, setCustomFields, fetchCustomFieldsWrapper, t)
   }
 
   const setInitialItemValues = (id: string, version: string | number) => {

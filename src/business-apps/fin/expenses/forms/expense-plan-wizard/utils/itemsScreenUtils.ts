@@ -1,4 +1,4 @@
-import { formatDate, getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatDate, getCatalogValue } from '@/common/utils/windowUtils'
 import dayjs from 'dayjs'
 import { SCREEN_NAMES_ENUM } from '../constants/constants'
 import { EVENTS } from '../../../utils/constants'
@@ -31,7 +31,7 @@ export const getAllowanceItemsFunction = (arrayOfItems: any[]) => {
  * @param arrayItems - Array of expense items
  * @returns Formatted array of items
  */
-export const formatArrayOfItems = (arrayItems: any[]) => {
+export const formatArrayOfItems = (arrayItems: any[], t: (key: string) => string) => {
   return arrayItems?.map(element => {
     return {
       id: element.id,
@@ -41,15 +41,9 @@ export const formatArrayOfItems = (arrayItems: any[]) => {
       currency: element.currency.code,
       expenseGroup: element?.expenseGroup
         ? getCatalogValue(element.expenseGroup) || element.expenseGroup
-        : getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_item_request_card.no_expense_group',
-            'No expense group'
-          ) || '',
+        : t('no-expense-group'),
       expenseType: element?.expenseRuleGeneralExpense?.name || '',
-      costCenter: element?.costCenter
-        ? element.costCenter.name
-        : getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.no_cost_center', 'No Cost Center') ||
-          '',
+      costCenter: element?.costCenter ? element.costCenter.name : t('no-cost-center'),
       attachmentDate:
         element.expenseItemFile?.length > 0 ? formatDate(element?.expenseItemFile[0]?.createdAt, 'date.long') : '',
       totalAdvancePayment: 0

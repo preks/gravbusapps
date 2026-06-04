@@ -4,8 +4,8 @@ import { ExpensePlanItemProvider, useExpensePlanItem } from './context/ExpensePl
 import { ExpensePlanItemForm } from './ExpensePlanItemForm'
 import { ExpensePlanItemProps } from './types'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { showToast } from '../../utils/notificationUtils'
+import { useExpensePlanItemTranslation } from './useExpensePlanItemTranslation'
 
 const { Title } = Typography
 
@@ -48,6 +48,7 @@ const ExpensePlanItem: React.FC<BusinessAppContextProps & ExpensePlanItemProps> 
   }, [])
 
   const ExpensePlanItemContent: React.FC<{ onClose?: (shouldRefetch?: boolean) => void }> = ({ onClose }) => {
+    const { t } = useExpensePlanItemTranslation()
     const {
       form,
       loading,
@@ -77,13 +78,7 @@ const ExpensePlanItem: React.FC<BusinessAppContextProps & ExpensePlanItemProps> 
           onClose(true)
         }
       } catch {
-        showToast(
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_summary_request.no_expense_items',
-            'No expense items created'
-          ),
-          'error'
-        )
+        showToast(t('no-expense-items'), 'error')
       }
     }
 
@@ -106,15 +101,7 @@ const ExpensePlanItem: React.FC<BusinessAppContextProps & ExpensePlanItemProps> 
               className="gba:mb-0 gba:m-0 gba:font-primary gba:pointer-events-auto"
               data-testid="expense-plan-item-header-title"
             >
-              {isEditMode
-                ? getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_type_item.header_container_title_edit',
-                    'Edit Item | Expense'
-                  )
-                : getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_type_item.header_container_title_new',
-                    'New Item | Expense'
-                  )}
+              {isEditMode ? t('header-container-title-edit') : t('header-container-title-new')}
             </Title>
           </div>
         </div>

@@ -3,8 +3,8 @@ import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import dayjs from 'dayjs'
 import { completeTaskFlow, getOpenedTaskFlow, initiateFlow } from '../../expense-item/context/services/flowHandlers'
 import { DEFAULT_EXPENSE_SOURCE, DEFAULT_EXPENSE_STATUS, FLOW_DOMAIN, FLOW_PROCESS_NAME } from '../constants'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { EVENTS } from '../../../utils/constants'
+import type { ExpensePlanItemTranslateFn } from '../useExpensePlanItemTranslation'
 import {
   DEFAULT_CURRENCY_ID,
   DEFAULT_EXPENSE_CLASS_ID,
@@ -59,17 +59,27 @@ const hasExpensePlan = (additionalData?: any): boolean => {
 const initiateFlowAndGetTask = async (
   accessToken: string,
   employeeId: string,
-  userId: string
+  userId: string,
+  t: ExpensePlanItemTranslateFn
 ): Promise<{ flowProcessId: string | null; taskId: string | null; taskName: string | null }> => {
+  const flowT = (key: string) => t(key)
+
   try {
-    const flowResult = await initiateFlow(accessToken, employeeId, FLOW_DOMAIN, FLOW_PROCESS_NAME)
+    const flowResult = await initiateFlow(accessToken, employeeId, FLOW_DOMAIN, FLOW_PROCESS_NAME, flowT)
 
     if (!flowResult?.id) {
       return { flowProcessId: null, taskId: null, taskName: null }
     }
 
     const flowProcessId = flowResult.id
-    const tasksResult = await getOpenedTaskFlow(accessToken, userId, flowProcessId, FLOW_DOMAIN, FLOW_PROCESS_NAME)
+    const tasksResult = await getOpenedTaskFlow(
+      accessToken,
+      userId,
+      flowProcessId,
+      FLOW_DOMAIN,
+      FLOW_PROCESS_NAME,
+      flowT
+    )
 
     if (!tasksResult || !Array.isArray(tasksResult) || tasksResult.length === 0) {
       return { flowProcessId, taskId: null, taskName: null }
@@ -82,10 +92,7 @@ const initiateFlowAndGetTask = async (
 
     return { flowProcessId, taskId: null, taskName: null }
   } catch {
-    showToast(
-      getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'),
-      'error'
-    )
+    showToast(t('error-flows-message'), 'error')
     return { flowProcessId: null, taskId: null, taskName: null }
   }
 }
@@ -147,8 +154,11 @@ const submitViaTaskFlow = async (
   taskName: string,
   accessToken: string,
   userId: string,
-  submitData: any
+  submitData: any,
+  t: ExpensePlanItemTranslateFn
 ): Promise<boolean> => {
+  const flowT = (key: string) => t(key)
+
   try {
     await completeTaskFlow(
       accessToken,
@@ -158,14 +168,12 @@ const submitViaTaskFlow = async (
       taskId,
       submitData,
       FLOW_DOMAIN,
-      FLOW_PROCESS_NAME
+      FLOW_PROCESS_NAME,
+      flowT
     )
     return true
   } catch {
-    showToast(
-      getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'),
-      'error'
-    )
+    showToast(t('error-flows-message'), 'error')
     return false
   }
 }
@@ -175,6 +183,7 @@ const submitViaTaskFlow = async (
  */
 const submitViaProcessEvent = (
   submitData: any,
+  t: ExpensePlanItemTranslateFn,
   dispatchProcessContinueEventIfEnabled?: (event: string, payload: any) => boolean
 ): boolean => {
   try {
@@ -185,13 +194,7 @@ const submitViaProcessEvent = (
     dispatchProcessContinueEvent(EVENTS.SUBMIT, submitData)
     return true
   } catch {
-    showToast(
-      getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_type_item.error_flows',
-        'Error in expense approval process'
-      ),
-      'error'
-    )
+    showToast(t('error-flows-message'), 'error')
     return false
   }
 }
@@ -199,14 +202,8 @@ const submitViaProcessEvent = (
 /**
  * Shows success message and resets form
  */
-const handleSuccess = (form: any, setIsEditMode?: (isEdit: boolean) => void): void => {
-  showToast(
-    getTranslationFromI18nKeyAndLabel(
-      'lowcoder:create_expense_type_item.created_item_notification_message',
-      'Expense item created successfully!'
-    ),
-    'success'
-  )
+const handleSuccess = (form: any, t: ExpensePlanItemTranslateFn, setIsEditMode?: (isEdit: boolean) => void): void => {
+  showToast(t('created-item-notification-message'), 'success')
 
   form.resetFields()
   if (setIsEditMode) {
@@ -225,6 +222,7 @@ export const handleSubmit = async (
   catalogueDataResponse: any,
   setLoading: (loading: boolean) => void,
   expensePlanId: string,
+  t: ExpensePlanItemTranslateFn,
   accessToken?: string,
   userInfo?: any,
   additionalData?: any,
@@ -258,7 +256,8 @@ export const handleSubmit = async (
       const flowData = await initiateFlowAndGetTask(
         accessToken,
         userInfo.employeeDetails.employeeId,
-        userInfo?.id || ''
+        userInfo?.id || '',
+        t
       )
       flowProcessId = flowData.flowProcessId
       taskId = flowData.taskId
@@ -288,21 +287,19 @@ export const handleSubmit = async (
         taskName,
         accessToken,
         userInfo?.id || '',
-        submitData
+        submitData,
+        t
       )
     } else if (accessToken && userInfo?.employeeDetails?.employeeId && !hasPlan) {
-      operationSuccessful = submitViaProcessEvent(submitData, dispatchProcessContinueEventIfEnabled)
+      operationSuccessful = submitViaProcessEvent(submitData, t, dispatchProcessContinueEventIfEnabled)
     }
 
     // Handle success
     if (operationSuccessful) {
-      handleSuccess(form, setIsEditMode)
+      handleSuccess(form, t, setIsEditMode)
     }
   } catch {
-    showToast(
-      getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'),
-      'error'
-    )
+    showToast(t('error-flows-message'), 'error')
   } finally {
     setLoading(false)
   }
@@ -333,7 +330,8 @@ export const handleExpenseGroupChange = async (
   form: any,
   setExpenseTypes: (types: { [classId: string]: any[] }) => void,
   setCustomFields: (fields: any) => void,
-  fetchExpenseTypes: (classId: string) => Promise<any[]>
+  fetchExpenseTypes: (classId: string) => Promise<any[]>,
+  t: ExpensePlanItemTranslateFn
 ) => {
   // Always clear expense type when expense group changes (including when cleared)
   form.setFieldsValue({
@@ -351,28 +349,21 @@ export const handleExpenseGroupChange = async (
     setExpenseTypes({ [value]: types })
     setCustomFields({})
   } catch {
-    showToast(
-      getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_type_item.process_error_expense_types',
-        'Error processing expense types'
-      ),
-      'error'
-    )
+    showToast(t('process-error-expense-types'), 'error')
   }
 }
 
 /**
  * Handles expense type change
  * @param value Selected expense type value
- * @param form Form instance
  * @param setCustomFields Custom fields setter
  * @param fetchCustomFields Function to fetch custom fields
  */
 export const handleExpenseTypeChange = async (
   value: string,
-  form: any,
   setCustomFields: (fields: any) => void,
-  fetchCustomFields: (expenseTypeIds: string[]) => Promise<any[]>
+  fetchCustomFields: (expenseTypeIds: string[]) => Promise<any[]>,
+  t: ExpensePlanItemTranslateFn
 ) => {
   if (!value) {
     setCustomFields({})
@@ -383,13 +374,7 @@ export const handleExpenseTypeChange = async (
     const fields = await fetchCustomFields([value])
     setCustomFields({ [value]: fields })
   } catch {
-    showToast(
-      getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_type_item.process_error_expense_custom_groups',
-        'Error processing custom groups'
-      ),
-      'error'
-    )
+    showToast(t('process-error-expense-custom-groups'), 'error')
   }
 }
 
@@ -398,16 +383,10 @@ export const handleExpenseTypeChange = async (
  * @param currencyId Selected currency ID
  * @param form Form instance
  */
-export const handleCurrencyChange = async (currencyId: string, form: any) => {
+export const handleCurrencyChange = async (currencyId: string, form: any, t: ExpensePlanItemTranslateFn) => {
   try {
     form.setFieldsValue({ currency: currencyId })
   } catch {
-    showToast(
-      getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_type_item.process_error_data_fetch',
-        'Error fetching data'
-      ),
-      'error'
-    )
+    showToast(t('process-error-data-fetch'), 'error')
   }
 }

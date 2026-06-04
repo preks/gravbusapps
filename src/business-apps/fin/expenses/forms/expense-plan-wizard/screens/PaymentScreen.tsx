@@ -1,11 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { Form, Divider } from 'antd'
 import { InputField, SelectField } from '@newwork/gravity-ui-catalog'
-import {
-  getTranslationFromI18nKeyAndLabel,
-  formatNumberFunction,
-  getCurrentActiveUserLocale
-} from '@/common/utils/windowUtils'
+import { formatNumberFunction, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { useExpensePlanWizardTranslation } from '../useExpensePlanWizardTranslation'
 import { useExpensePlanWizardContext } from '../context/ExpensePlanWizardContext'
 import { noAllowanceItemsFunction, getAllowanceItemsFunction } from '../utils/itemsScreenUtils'
 import { BusinessAppContextProps } from '@/business-apps/types'
@@ -36,6 +33,7 @@ const CASH_PAYMENT = 'CASH_PAYMENT'
 
 const PaymentScreen: React.FC<PaymentScreenProps> = props => {
   const { accessToken, additionalData } = props
+  const { t } = useExpensePlanWizardTranslation()
   const { expensePlanData, employeeRuleId, currentTitle, updateTripFormValidation } = useExpensePlanWizardContext()
   const graphQLClient = useGraphqlClient(accessToken)
   const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData)
@@ -132,13 +130,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
         })
         setCurrencies(response.currency || [])
       } catch {
-        showToast(
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:create_expense_type_item.process_error_expense_requests_fetch',
-            'Error fetching data'
-          ),
-          'error'
-        )
+        showToast(t('process-error-data-fetch'), 'error')
       } finally {
         setIsLoadingCurrencies(false)
       }
@@ -152,28 +144,16 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
     () => [
       {
         id: DIRECT_DEPOSIT,
-        name: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
-          'Direct Deposit'
-        ),
-        value: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
-          'Direct Deposit'
-        )
+        name: t('payment-method-direct-deposit'),
+        value: t('payment-method-direct-deposit')
       },
       {
         id: CASH_PAYMENT,
-        name: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment',
-          'Cash Payment'
-        ),
-        value: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment',
-          'Cash Payment'
-        )
+        name: t('payment-method-cash-payment'),
+        value: t('payment-method-cash-payment')
       }
     ],
-    []
+    [t]
   )
 
   // Calculate totals
@@ -304,27 +284,18 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
   // Validation functions
   const validateAmount = (value: string) => {
     if (!value || value.trim() === '') {
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_request.add_request_trip_details.valid_number',
-        'Please enter a valid number'
-      )
+      return t('payment-valid-number')
     }
     const numValue = parseFloat(value)
     if (isNaN(numValue) || numValue < 0) {
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_request.add_request_trip_details.valid_number',
-        'Please enter a valid number'
-      )
+      return t('payment-valid-number')
     }
     return ''
   }
 
   const validatePaymentMethod = () => {
     if (!paymentMethod) {
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_item.change_expense_item_container.errorMessage',
-        'Please Select a Payment Method'
-      )
+      return t('payment-method-select-error')
     }
     return ''
   }
@@ -332,10 +303,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
   const validateAdvancePaymentWithValue = (value: string) => {
     const amountValue = parseFloat(value) || 0
     if (amountValue > expensePlanTotalAmount || selectedCurrencyCode !== currencyCode) {
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_request.add_request_trip_details.advance_payment_custom_rule',
-        "Advance Payment amount can't be greater than Estimated Expenses and Allowances amount and they need to have the same currency"
-      )
+      return t('payment-advance-custom-rule')
     }
     return ''
   }
@@ -471,10 +439,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
                 rules={[
                   {
                     required: true,
-                    message: getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:create_expense_type_item.current_amount_custom_rule',
-                      'Please enter an amount'
-                    )
+                    message: t('payment-amount-custom-rule')
                   }
                 ]}
                 style={{ marginBottom: 0 }}
@@ -482,10 +447,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
                 help={amountError}
               >
                 <InputField
-                  label={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_item.change_expense_item_container.current_amount_label',
-                    'Amount'
-                  )}
+                  label={t('payment-amount-label')}
                   name="amount"
                   type="text"
                   inputMode="decimal"
@@ -511,25 +473,16 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
                 rules={[
                   {
                     required: true,
-                    message: getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:create_expense_type_item.current_currency_custom_rule',
-                      'Please select a currency'
-                    )
+                    message: t('payment-currency-custom-rule')
                   }
                 ]}
                 style={{ marginBottom: 0 }}
               >
                 <SelectField
                   allowClear={!isCurrencyDisabled}
-                  label={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
-                    'Currency'
-                  )}
+                  label={t('payment-currency-label')}
                   name="currency"
-                  placeholder={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:change_expense_item_container.current_currency_placeholder',
-                    'Select Currency'
-                  )}
+                  placeholder={t('payment-currency-placeholder')}
                   data-testid="payment-currency-select"
                   isDataSorted={false}
                   data={currencies.map(currency => ({
@@ -564,10 +517,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
                 rules={[
                   {
                     required: true,
-                    message: getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:create_expense_type_item.payment_method_custom_rule',
-                      'Please select a payment method'
-                    )
+                    message: t('payment-method-select-error')
                   }
                 ]}
                 style={{ marginBottom: 0 }}
@@ -576,15 +526,9 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
               >
                 <SelectField
                   allowClear
-                  label={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_request.add_request_trip_details.payment_method',
-                    'Payment Method'
-                  )}
+                  label={t('payment-method-label')}
                   name="paymentMethod"
-                  placeholder={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_request.add_request_trip_details.payment_method_placeholder',
-                    'Select Method'
-                  )}
+                  placeholder={t('payment-method-placeholder')}
                   data-testid="payment-method-select"
                   isDataSorted={false}
                   data={paymentMethodOptions}
@@ -606,12 +550,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
         <div className="gba:space-y-4">
           {/* Estimated Expenses */}
           <div className="gba:flex gba:justify-between gba:items-center" data-testid="estimated-expenses-row">
-            <span className="gba:text-sm gba:font-normal">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:modify_expense_request.request_amount_title_text',
-                'Estimated Expenses'
-              )}
-            </span>
+            <span className="gba:text-sm gba:font-normal">{t('payment-estimated-expenses-label')}</span>
             <span className="gba:text-3xl gba:font-bold" data-testid="estimated-expenses-value">
               {formatNumberFunction(estimatedExpensesTotal.toString(), '0.00[,]00')} {currencyCode}
             </span>
@@ -621,12 +560,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
 
           {/* Allowances */}
           <div className="gba:flex gba:justify-between gba:items-center" data-testid="allowances-row">
-            <span className="gba:text-sm gba:font-normal">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:expense_calculation_rule_details.calculation_allowance_code_list.calculation_allowance_code_modal.expense_group_placeholder',
-                'Allowances'
-              )}
-            </span>
+            <span className="gba:text-sm gba:font-normal">{t('payment-allowances-label')}</span>
             <span className="gba:text-3xl gba:font-bold" data-testid="allowances-value">
               {formatNumberFunction(allowancesTotal.toString(), '0.00[,]00')} {currencyCode}
             </span>
@@ -636,9 +570,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
 
           {/* Advance Payment */}
           <div className="gba:flex gba:justify-between gba:items-center" data-testid="advance-payment-row">
-            <span className="gba:text-sm gba:font-normal">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:employee_landing_page.advance_payment', 'Advance Payment')}
-            </span>
+            <span className="gba:text-sm gba:font-normal">{t('payment-advance-payment-label')}</span>
             <span
               className={`gba:text-sm gba:font-bold gba:text-${advancePaymentTotal ? '[primary]' : '[#999999]'}`}
               data-testid="advance-payment-value"

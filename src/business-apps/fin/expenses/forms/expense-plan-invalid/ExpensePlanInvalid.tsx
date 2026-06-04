@@ -3,8 +3,7 @@ import { Divider, Typography } from 'antd'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Button } from '@newwork/gravity-ui-catalog'
 import { useTranslation } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import expenseFormsTranslations from '../_i18n'
+import expensePlanTranslations from '../expense-plan/_i18n'
 
 import { showToast } from '../../utils/notificationUtils'
 import { EVENTS } from '../../utils/constants'
@@ -22,7 +21,7 @@ interface ExpensePlanInvalidContentProps {
  * @returns Expense Plan Invalid Content component
  */
 const ExpensePlanInvalidContent: React.FC<ExpensePlanInvalidContentProps> = ({ onCancel }) => {
-  const { t } = useTranslation(expenseFormsTranslations)
+  const { t } = useTranslation(expensePlanTranslations)
 
   return (
     <div
@@ -59,10 +58,7 @@ const ExpensePlanInvalidContent: React.FC<ExpensePlanInvalidContentProps> = ({ o
             style={{ margin: 0, textAlign: 'center', fontFamily: "'Roboto', sans-serif", pointerEvents: 'auto' }}
             data-testid="expense-plan-invalid-title"
           >
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:initiate_expense_plan.header_container',
-              'Create Expense Plan'
-            )}
+            {t('header-container')}
           </Title>
         </div>
       </div>
@@ -81,16 +77,13 @@ const ExpensePlanInvalidContent: React.FC<ExpensePlanInvalidContentProps> = ({ o
           style={{ fontSize: '14px', fontWeight: 700, color: 'destructive', marginBottom: '8px' }}
           data-testid="expense-plan-invalid-validation-title"
         >
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:create_expense_request.invalid_profile_title',
-            'Validation Issue'
-          )}
+          {t('invalid-profile-title')}
         </h3>
         <p
           style={{ fontSize: '14px', color: 'foreground', margin: 0 }}
           data-testid="expense-plan-invalid-validation-message"
         >
-          {t('missing-sap-wizard-description')}
+          {t('invalid-profile-text-plan')}
         </p>
       </div>
 
@@ -115,7 +108,7 @@ const ExpensePlanInvalidContent: React.FC<ExpensePlanInvalidContentProps> = ({ o
             data-testid="expense-plan-invalid-cancel-button"
             onClick={onCancel}
           >
-            {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initiate_cancel_button', 'Cancel')}
+            {t('cancel-button')}
           </Button>
         </div>
       </div>
@@ -129,6 +122,7 @@ const ExpensePlanInvalidContent: React.FC<ExpensePlanInvalidContentProps> = ({ o
  * @returns Expense Plan Invalid component
  */
 const ExpensePlanInvalid: React.FC<BusinessAppContextProps> = () => {
+  const { t } = useTranslation(expensePlanTranslations)
   const { dispatchProcessContinueEventIfEnabled } = useProcessEventState()
 
   const handleCancel = () => {
@@ -138,20 +132,11 @@ const ExpensePlanInvalid: React.FC<BusinessAppContextProps> = () => {
         pso_exitStrategy: 'abort',
         pso_completeNotification: {
           type: 'error',
-          messageKey: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:absence_module.toast_notification_cancel_create_absence',
-            'The action has been canceled.'
-          )
+          messageKey: t('toast-action-canceled')
         }
       })
     } catch {
-      showToast(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:create_expense_type_item.error_flows_message',
-          'Error in flow process'
-        ),
-        'error'
-      )
+      showToast(t('error-flows-message'), 'error')
     }
   }
 

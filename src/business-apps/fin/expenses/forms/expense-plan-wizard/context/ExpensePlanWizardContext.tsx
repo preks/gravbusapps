@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { Form } from 'antd'
-import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { useExpensePlanWizardTranslation } from '../useExpensePlanWizardTranslation'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { showToast } from '../../../utils/notificationUtils'
 import { fetchEmployeeRule, fetchExpensePlanAndItems } from '../queries/ExpensePlanWizardQueries'
@@ -81,6 +82,7 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
   userInfo,
   additionalData
 }) => {
+  const { t } = useExpensePlanWizardTranslation()
   const [form] = Form.useForm()
   const [loading, setLoading] = useState<boolean>(true)
   const [employeeRuleId, setEmployeeRuleId] = useState<string | null>(null)
@@ -134,13 +136,7 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
       // Get employee ID
       const employeeId = userInfo?.employeeDetails?.employeeId
       if (!employeeId) {
-        showToast(
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:create_expense_request_wizard.missing_employee_id',
-            'Missing employee ID'
-          ),
-          'error'
-        )
+        showToast(t('missing-employee-id'), 'error')
         setLoading(false)
         return
       }
@@ -180,13 +176,7 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
         response?.ExpensePlanByPk?.currency?.id || response?.ExpensePlanByPk?.currencyRef || null
       setCurrentCurrency(refreshedCurrencyId)
     } catch {
-      showToast(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:modify_expense_request.error_fetching_expense_data',
-          'Error fetching expense plan data'
-        ),
-        'error'
-      )
+      showToast(t('error-fetching-expense-data'), 'error')
     } finally {
       setLoading(false)
     }
@@ -200,13 +190,7 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
 
         const employeeId = userInfo?.employeeDetails?.employeeId
         if (!employeeId) {
-          showToast(
-            getTranslationFromI18nKeyAndLabel(
-              'lowcoder:create_expense_request_wizard.missing_employee_id',
-              'Missing employee ID'
-            ),
-            'error'
-          )
+          showToast(t('missing-employee-id'), 'error')
           setLoading(false)
           return
         }
@@ -220,34 +204,12 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
           setEmployeeRuleId(employeeRuleData.expenseRuleId)
           setExpenseRuleError(null)
         } else {
-          setExpenseRuleError(
-            getTranslationFromI18nKeyAndLabel(
-              'lowcoder:create_expense_request.missing_expense_rule_message',
-              'No expense rule found for this employee'
-            )
-          )
-          showToast(
-            getTranslationFromI18nKeyAndLabel(
-              'lowcoder:create_expense_request.missing_expense_rule_message',
-              'No expense rule found for this employee'
-            ),
-            'error'
-          )
+          setExpenseRuleError(t('missing-expense-rule-message'))
+          showToast(t('missing-expense-rule-message'), 'error')
         }
       } catch {
-        setExpenseRuleError(
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:create_expense_request.error_employee_rule',
-            'Error fetching employee expense rule'
-          )
-        )
-        showToast(
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:create_expense_request.error_employee_rule',
-            'Error fetching employee expense rule'
-          ),
-          'error'
-        )
+        setExpenseRuleError(t('error-employee-rule'))
+        showToast(t('error-employee-rule'), 'error')
       } finally {
         setLoading(false)
       }
@@ -299,7 +261,8 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
       determinedCurrency,
       event,
       skipStep,
-      dispatchProcessContinueEventIfEnabled
+      dispatchProcessContinueEventIfEnabled,
+      t
     )
   }
 
