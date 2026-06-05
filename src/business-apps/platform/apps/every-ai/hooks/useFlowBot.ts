@@ -19,10 +19,10 @@ import { usePageAnalytics } from '@/page-analitics/hooks/usePageAnalytics'
 import { prepareCurrentPageContext } from '@/page-analitics/send/page-analytics'
 import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 import { env } from '@/common/env/EnvUtils'
+import { isNonRestorableUserDisplayMessage, resolveUserMessageDisplayText } from '../utils/userMessageDisplay'
 
 const STORAGE_KEY = 'newwork_every_ai'
 const FLOWBOT_MODEL_KIND_DEFAULT = 'default'
-const SUBMITTING_FORM_MESSAGE = 'Submitting form data...'
 const PRECHAT_CACHE_PREFIX = 'everyai_prechat_cache'
 const PRECHAT_CACHE_TTL_MS = 10 * 60 * 1000
 const PRECHAT_MIN_REFETCH_MS = 3000
@@ -560,10 +560,10 @@ async function loadHistory(
         try {
           const parsed = JSON.parse(text)
           if (parsed && parsed.action === 'form_submission' && typeof parsed.uuid === 'string') {
-            text = SUBMITTING_FORM_MESSAGE
             submissions[parsed.uuid] = parsed.data ?? {}
           }
         } catch {}
+        text = resolveUserMessageDisplayText(text)
 
         const rawFiles = Array.isArray(item.files) ? item.files : []
         const files: FileMeta[] = rawFiles.map((f: any) => ({
@@ -1689,15 +1689,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         pendingTextDeltaBuffersRef.current = {}
         pendingReasoningStepUpdatesRef.current = {}
 
-        let displayMessage = userInputText
-        try {
-          const parsedMessage = JSON.parse(userInputText)
-          if (parsedMessage && parsedMessage.action === 'form_submission') {
-            displayMessage = SUBMITTING_FORM_MESSAGE
-          }
-        } catch {
-          // Not JSON, use original message
-        }
+        const displayMessage = resolveUserMessageDisplayText(userInputText)
 
         const fileMetas: FileMeta[] = files.map(f => ({ id: uuidv4(), name: f.name, size: f.size, type: f.type }))
         pushTurn({ side: 'user', text: displayMessage, files: fileMetas })
@@ -2053,7 +2045,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
     }
 
     // Restore last user message to input so it can be edited
-    if (userMessageText && userMessageText !== SUBMITTING_FORM_MESSAGE) {
+    if (userMessageText && !isNonRestorableUserDisplayMessage(userMessageText)) {
       setCancelledMessageText(userMessageText)
     }
 
