@@ -88318,20 +88318,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 13022,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13022/",
+    "bitbucketBuildNumber": 13026,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13026/",
     "chunkJsBytes": 1963910,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1670929,
-        "gzip": 106452,
+        "gzip": 106459,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1670929,
-            "gzip": 106452
+            "gzip": 106459
           }
         ]
       },
@@ -101857,20 +101857,20 @@
     ]
   },
   "platform/apps/customer-home": {
-    "bitbucketBuildNumber": 13009,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13009/",
-    "chunkJsBytes": 1380708,
+    "bitbucketBuildNumber": 13026,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13026/",
+    "chunkJsBytes": 1380983,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 845678,
-        "gzip": 205654,
+        "rendered": 846420,
+        "gzip": 205942,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/every-ai/hooks/useFlowBot.ts",
-            "rendered": 70781,
-            "gzip": 14076
+            "rendered": 70527,
+            "gzip": 13935
           },
           {
             "name": "src/business-apps/platform/apps/every-ai/components/OutputRenderers.tsx",
@@ -113120,7 +113120,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-05T09:01:04.502Z",
+    "generatedAt": "2026-06-05T10:03:01.548Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
