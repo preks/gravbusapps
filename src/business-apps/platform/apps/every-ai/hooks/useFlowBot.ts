@@ -21,6 +21,8 @@ import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 import { env } from '@/common/env/EnvUtils'
 import { isNonRestorableUserDisplayMessage, resolveUserMessageDisplayText } from '../utils/userMessageDisplay'
 
+export type WebSearchMode = 'off' | 'on'
+
 const STORAGE_KEY = 'newwork_every_ai'
 const FLOWBOT_MODEL_KIND_DEFAULT = 'default'
 const PRECHAT_CACHE_PREFIX = 'everyai_prechat_cache'
@@ -244,10 +246,10 @@ function resolveRealtimeDocumentId(params: {
   currentPagePayload: RealtimeDocumentContext
   hasFiles: boolean
   isThinking: boolean
-  isSearching: boolean
+  webSearchMode: WebSearchMode
 }): string | null {
-  const { userInputText, currentPagePayload, hasFiles, isThinking, isSearching } = params
-  if (hasFiles || isThinking || isSearching) return null
+  const { userInputText, currentPagePayload, hasFiles, isThinking, webSearchMode } = params
+  if (hasFiles || isThinking || webSearchMode === 'on') return null
   if (!DOCUMENT_REALTIME_EDIT_INTENT_PATTERN.test(userInputText || '')) return null
   if (
     currentPagePayload?.type === 'entity' &&
@@ -1663,7 +1665,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
       userInputText: string,
       files: File[],
       isThinking: boolean = false,
-      isSearching: boolean = false,
+      webSearchMode: WebSearchMode = 'off',
       additionInfo?: string,
       skills?: string[],
       mentions?: Array<{ id: string; type: string; display: string }>,
@@ -1713,7 +1715,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         form.append('session_id', effectiveSessionId || '')
         form.append('user_input_text', userInputText)
         form.append('model_kind', FLOWBOT_MODEL_KIND_DEFAULT)
-        form.append('use_web_search_tool', (isSearching ?? false).toString())
+        form.append('web_search_mode', webSearchMode)
         form.append('hands_free_mode', handsFreeMode.toString())
         // Append when explicitly provided (including empty string) so callers can
         // force inclusion of the multipart field for document-edit flows.
@@ -1742,7 +1744,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
           currentPagePayload: currentPagePayload as RealtimeDocumentContext,
           hasFiles: files.length > 0,
           isThinking,
-          isSearching
+          webSearchMode
         })
         const useRealtimeDocumentEdit = typeof realtimeDocumentId === 'string' && realtimeDocumentId.length > 0
         if (useRealtimeDocumentEdit) {
@@ -2302,7 +2304,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
       await new Promise(resolve => setTimeout(resolve, 0))
 
       // Add new message (resend)
-      await sendMessage(newText, [], false, false)
+      await sendMessage(newText, [], false, 'off')
     },
     [state.conversation.length, sendMessage]
   )
