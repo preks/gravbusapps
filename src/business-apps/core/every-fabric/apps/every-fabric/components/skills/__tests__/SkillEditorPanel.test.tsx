@@ -7,8 +7,12 @@ import { SkillEditorPanel } from '../SkillEditorPanel'
 // whole client so we can deterministically control what functions the
 // modal renders.
 const mockListLatest = jest.fn()
+// Preview pane hydrates one tool's schema on demand via this call; the list is
+// loaded lite (no schema). Defaults to an empty schema in beforeEach.
+const mockGetProviderToolDetail = jest.fn()
 const mockPromptManagerClient = {
   getCanonicalProviderTools: (...args: unknown[]) => mockListLatest(...args),
+  getCanonicalProviderToolDetail: (...args: unknown[]) => mockGetProviderToolDetail(...args),
   getMcpProviderTools: jest.fn().mockResolvedValue([]),
   getBuiltinProviderTools: jest.fn().mockResolvedValue([])
 }
@@ -42,6 +46,7 @@ jest.mock('../../../hooks/useEnterpriseAgentClient', () => {
     getSkillVersion: jest.fn(),
     restoreSkillVersion: jest.fn(),
     getCanonicalProviderTools: (...args: unknown[]) => mockListLatest(...args),
+    getCanonicalProviderToolDetail: (...args: unknown[]) => mockGetProviderToolDetail(...args),
     getMcpProviderTools: jest.fn().mockResolvedValue([]),
     getBuiltinProviderTools: jest.fn().mockResolvedValue([]),
     getSkillsManifest: jest.fn(),
@@ -67,6 +72,8 @@ describe('SkillEditorPanel', () => {
     mockListSkillVersions.mockReset()
     mockPublishSkillVersion.mockReset()
     mockListLatest.mockReset()
+    mockGetProviderToolDetail.mockReset()
+    mockGetProviderToolDetail.mockResolvedValue({ input_schema: {}, output_schema: {} })
     mockListSkillVersions.mockResolvedValue([])
   })
 
@@ -368,6 +375,8 @@ describe('SkillEditorPanel', () => {
       // The right-hand preview must be open without clicking, show the tool's
       // description, and present the JSON schema as a readable parameter list
       // rather than raw JSON.
+      // The list is loaded lite (no schema); the preview hydrates the schema
+      // for the previewed tool on demand via getCanonicalProviderToolDetail.
       mockListLatest.mockResolvedValue([
         {
           tool_ref: 'prompt_manager.newwork_get_employee_profile',
@@ -377,17 +386,22 @@ describe('SkillEditorPanel', () => {
           source: 'prompt_manager',
           category: 'hr',
           tags: [],
-          input_schema: {
-            type: 'object',
-            properties: {
-              employee_id: { type: 'string', description: 'The employee UUID' }
-            },
-            required: ['employee_id']
-          },
+          input_schema: {},
           output_schema: {},
           capabilities: { risk_level: 'read' }
         }
       ])
+      mockGetProviderToolDetail.mockResolvedValue({
+        tool_ref: 'prompt_manager.newwork_get_employee_profile',
+        input_schema: {
+          type: 'object',
+          properties: {
+            employee_id: { type: 'string', description: 'The employee UUID' }
+          },
+          required: ['employee_id']
+        },
+        output_schema: {}
+      })
       await loadSkill(withFrontmatter('# Alpha'))
 
       fireEvent.click(screen.getByTestId('skill-editor-add-tool'))
@@ -397,10 +411,12 @@ describe('SkillEditorPanel', () => {
       const preview = await screen.findByTestId('add-tools-preview')
       expect(preview).toHaveTextContent('Get employee profile')
       expect(preview).toHaveTextContent('Fetch one employee profile by uuid')
-      // Schema rendered as a readable param row, not raw JSON.
-      expect(preview).toHaveTextContent('employee_id')
+      // Schema is fetched on demand and rendered as a readable param row.
+      expect(await screen.findByText('employee_id')).toBeInTheDocument()
       expect(preview).toHaveTextContent('The employee UUID')
       expect(preview).toHaveTextContent('required')
+      // The lite list must request the detail for the previewed tool.
+      expect(mockGetProviderToolDetail).toHaveBeenCalledWith('prompt_manager.newwork_get_employee_profile')
     })
 
     it('falls back to a humanized canonical name when display_name is absent', async () => {
