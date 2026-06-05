@@ -4,12 +4,7 @@
  */
 
 import { useCallback, useRef } from 'react'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { FlightRiskEmployee, RiskScoreInput } from '../types/flightRisk.types'
-import { SAVE_EMPLOYEE_RISK_SCORE } from '../queries/flightRiskQueries'
-
-// Algorithm version - increment when calculation logic changes significantly
-const ALGORITHM_VERSION = 1
+import { FlightRiskEmployee } from '../types/flightRisk.types'
 
 /**
  * Storage key for tracking when we last saved scores
@@ -63,25 +58,6 @@ const markSaved = (): void => {
 }
 
 /**
- * Convert FlightRiskEmployee to RiskScoreInput
- */
-const toRiskScoreInput = (employee: FlightRiskEmployee, managerId: string): RiskScoreInput => {
-  const signalScores: Record<string, number> = {}
-
-  employee.signals.forEach(signal => {
-    signalScores[signal.category] = signal.normalizedScore
-  })
-
-  return {
-    employeeId: employee.employeeId,
-    managerId,
-    overallScore: employee.overallRiskScore,
-    signalScores,
-    version: ALGORITHM_VERSION
-  }
-}
-
-/**
  * Hook to save risk scores for trend tracking
  */
 export const useSaveRiskScores = ({
@@ -90,7 +66,6 @@ export const useSaveRiskScores = ({
   enabled = true
 }: UseSaveRiskScoresProps): UseSaveRiskScoresResult => {
   const hasSavedRef = useRef(false)
-  const graphQLClient = useGraphqlClient(accessToken)
 
   const saveScores = useCallback(
     async (employees: FlightRiskEmployee[]): Promise<void> => {
@@ -104,33 +79,12 @@ export const useSaveRiskScores = ({
         return
       }
 
-      try {
-        // Save each employee's risk score
-        // Using Promise.allSettled to ensure partial failures don't block other saves
-        const savePromises = employees.map(employee => {
-          const input = toRiskScoreInput(employee, managerId)
-
-          return graphQLClient.request(SAVE_EMPLOYEE_RISK_SCORE, { input }).catch(err => {
-            // Log but don't throw - we don't want to block the UI
-            console.warn(`Failed to save risk score for ${employee.employeeId}:`, err)
-            return null
-          })
-        })
-
-        await Promise.allSettled(savePromises)
-
-        // Mark as saved
-        hasSavedRef.current = true
-        markSaved()
-
-        console.debug(`Saved risk scores for ${employees.length} employees`)
-      } catch (err) {
-        // Graceful fallback - if saving fails, just log and continue
-        // This is expected during initial rollout before backend is ready
-        console.warn('Failed to save risk scores (backend may not be ready):', err)
-      }
+      // Backend trend-persistence API is not available yet. Mark as handled so
+      // the dashboard does not repeatedly call missing GraphQL mutations.
+      hasSavedRef.current = true
+      markSaved()
     },
-    [accessToken, managerId, enabled, graphQLClient]
+    [accessToken, managerId, enabled]
   )
 
   return {
