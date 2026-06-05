@@ -9,6 +9,8 @@
  * remain in the parent entity's `accountContacts`.
  */
 
+import { v4 as uuidv4 } from 'uuid'
+
 type EntityBuilder<T = any> = (entity: T) => Record<string, unknown>
 type SubmissionPayload = Record<string, unknown> & { changeMode: 'INSERT' | 'UPDATE' }
 
@@ -110,20 +112,64 @@ export const splitAccountContactDrafts = (entries: any[] | undefined): SplitAcco
 }
 
 /**
- * Build top-level draft entity arrays from draft association rows. The backend infers the
- * association for bulk create requests, so only the lifted entity payload is returned.
+ * Lift inline-created contact drafts to top-level entities while preserving their chosen
+ * relationship type.
+ *
+ * Returns both the top-level contact payloads (each tagged with a `clientId`) and the matching
+ * account-side association rows (`{ contactClientId, contactType }`). The backend correlates the
+ * two via the shared client id, creating a single, correctly-typed association instead of an
+ * untyped auto-link.
  */
-export const buildTopLevelDraftEntities = (
+const buildCorrelatedDraftContacts = (
   draftEntries: any[],
-  kind: 'account' | 'contact',
-  builder: EntityBuilder
+  contactBuilder: EntityBuilder
+): { contacts: Record<string, unknown>[]; draftAssociations: Record<string, unknown>[] } => {
+  const contacts: Record<string, unknown>[] = []
+  const draftAssociations: Record<string, unknown>[] = []
+
+  draftEntries.forEach(entry => {
+    const builtContact = unwrap(contactBuilder(entry.contact), 'contact')
+    if (!builtContact) return
+
+    const clientId: string = entry.__draftId
+    contacts.push({ ...builtContact, clientId })
+    draftAssociations.push({ contactClientId: clientId, contactType: entry.contactType ?? null })
+  })
+
+  return { contacts, draftAssociations }
+}
+
+/**
+ * Lift inline-created account drafts to top-level entities while preserving their chosen
+ * relationship type — the mirror of `buildCorrelatedDraftContacts` for the contact form.
+ *
+ * Unlike the contact drafts (where the typed junction lives on the parent account and references
+ * the contact via `contactClientId`), the backend's `accountContact` junction only understands a
+ * `contactClientId` correlation key — there is no `accountClientId`. So we keep the typed junction
+ * on the account side and reference the parent contact instead: a new contact via `contactClientId`
+ * (correlated to the parent contact's `clientId`), or an existing contact via its `contact` id.
+ *
+ * This produces the same payload contract that already works for the account form, just initiated
+ * from the contact form. Without it the combined-create endpoint auto-links a bare top-level
+ * account and the chosen type is lost (always `contactType: null`).
+ */
+const buildCorrelatedDraftAccounts = (
+  draftEntries: any[],
+  accountBuilder: EntityBuilder,
+  contactReference: Record<string, unknown>
 ): Record<string, unknown>[] => {
   return draftEntries
     .map(entry => {
-      const entity = entry?.[kind]
-      if (!entity) return null
+      const builtAccount = unwrap(accountBuilder(entry.account), 'account')
+      if (!builtAccount) return null
 
-      return unwrap(builder(entity), kind)
+      const accountRecord = builtAccount as { accountContacts?: unknown[] }
+      const currentAssociations = Array.isArray(accountRecord.accountContacts) ? accountRecord.accountContacts : []
+      accountRecord.accountContacts = [
+        ...currentAssociations,
+        { ...contactReference, contactType: entry.contactType ?? null }
+      ]
+      return builtAccount
     })
     .filter((entry): entry is Record<string, unknown> => Boolean(entry))
 }
@@ -143,7 +189,22 @@ export const buildAccountFormSubmissionPayload = ({
     }),
     'account'
   )
-  const contacts = buildTopLevelDraftEntities(draftContactEntries, 'contact', contactBuilder)
+
+  // Lift each inline-created contact to the top-level array, tagging it with a stable `clientId`.
+  // For every lifted contact we also add an account-side association row that references it via
+  // `contactClientId` plus the chosen `contactType`. This is what lets a brand-new contact keep
+  // its relationship type: the combined-create backend only honors a `contactType` on an
+  // account-side row correlated by `contactClientId`. Letting the backend auto-link a bare
+  // top-level contact instead always yields a `contactType: null` association.
+  //
+  // The association rows are appended AFTER `accountBuilder` runs on purpose: `buildPayload`
+  // recursively strips any `*Id` suffix (so `contactClientId` would be mangled to `contactClient`).
+  const { contacts, draftAssociations } = buildCorrelatedDraftContacts(draftContactEntries, contactBuilder)
+  if (draftAssociations.length) {
+    const accountRecord = account as { accountContacts?: unknown[] }
+    const currentAssociations = Array.isArray(accountRecord.accountContacts) ? accountRecord.accountContacts : []
+    accountRecord.accountContacts = [...currentAssociations, ...draftAssociations]
+  }
 
   return {
     [accountCollectionName]: [account],
@@ -167,7 +228,23 @@ export const buildContactFormSubmissionPayload = ({
     }),
     'contact'
   )
-  const accounts = buildTopLevelDraftEntities(draftAccountEntries, 'account', accountBuilder)
+
+  // Each inline-created account is lifted to the top-level array. To keep its chosen relationship
+  // type, the typed junction is placed on the ACCOUNT side (`account.accountContacts`) referencing
+  // the parent contact — mirroring the working account-form contract. The backend's junction only
+  // supports a `contactClientId` correlation key (there is no `accountClientId`), so:
+  //   - new contact (INSERT): tag the parent contact with a `clientId` and reference it via
+  //     `contactClientId`;
+  //   - existing contact (UPDATE): reference it directly via its `contact` id.
+  // The junction is attached AFTER the builders run because `buildPayload` strips any `*Id` suffix.
+  const contactReference: Record<string, unknown> = data.id ? { contact: data.id } : { contactClientId: uuidv4() }
+
+  if (!data.id && draftAccountEntries.length > 0) {
+    const contactRecord = contact as Record<string, unknown>
+    contactRecord.clientId = contactReference.contactClientId
+  }
+
+  const accounts = buildCorrelatedDraftAccounts(draftAccountEntries, accountBuilder, contactReference)
 
   return {
     [contactCollectionName]: [contact],
