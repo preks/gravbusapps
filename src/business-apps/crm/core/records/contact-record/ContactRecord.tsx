@@ -93,75 +93,78 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
   }, [activeTab])
 
   // Load section data
-  const loadSectionData = useCallback(async () => {
-    if (!contactId || !props.accessToken) return
+  const loadSectionData = useCallback(
+    async (silent = false) => {
+      if (!contactId || !props.accessToken) return
 
-    setSectionsLoading(true)
-    setSectionsError(null)
+      if (!silent) {
+        setSectionsLoading(true)
+        setSectionsError(null)
+      }
 
-    try {
-      const [activitiesData, notesData, tasksData] = await Promise.all([
-        fetchCustomerActivitiesByContactId(contactId),
-        fetchCustomerNotesByContactId(contactId),
-        fetchCustomerTasksByContactId(contactId)
-      ])
+      try {
+        const [activitiesData, notesData, tasksData] = await Promise.all([
+          fetchCustomerActivitiesByContactId(contactId),
+          fetchCustomerNotesByContactId(contactId),
+          fetchCustomerTasksByContactId(contactId)
+        ])
 
-      const sortedNotes = (notesData || []).sort(
-        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
-      const sortedTasks = (tasksData || []).sort(
-        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
+        const sortedNotes = (notesData || []).sort(
+          (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
+        const sortedTasks = (tasksData || []).sort(
+          (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
 
-      // Separate regular tasks from approvals based on taskType
-      const regularTasks = sortedTasks.filter((task: any) => {
-        const taskTypeCode = task?.type?.code || task?.taskType?.code || ''
-        const taskTypeValue = task?.type?.value || task?.taskType?.value || ''
-        return taskTypeCode?.toUpperCase() !== 'APPROVAL' && taskTypeValue?.toUpperCase() !== 'APPROVAL'
-      })
-      const approvalTasks = sortedTasks.filter((task: any) => {
-        const taskTypeCode = task?.type?.code || task?.taskType?.code || ''
-        const taskTypeValue = task?.type?.value || task?.taskType?.value || ''
-        return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
-      })
+        // Separate regular tasks from approvals based on taskType
+        const regularTasks = sortedTasks.filter((task: any) => {
+          const taskTypeCode = task?.type?.code || task?.taskType?.code || ''
+          const taskTypeValue = task?.type?.value || task?.taskType?.value || ''
+          return taskTypeCode?.toUpperCase() !== 'APPROVAL' && taskTypeValue?.toUpperCase() !== 'APPROVAL'
+        })
+        const approvalTasks = sortedTasks.filter((task: any) => {
+          const taskTypeCode = task?.type?.code || task?.taskType?.code || ''
+          const taskTypeValue = task?.type?.value || task?.taskType?.value || ''
+          return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
+        })
 
-      setActivities(activitiesData || [])
-      setNotes(sortedNotes)
-      setTasks(regularTasks)
-      setApprovals(approvalTasks)
-    } catch (error) {
-      console.error('Error loading section data:', error)
-      setSectionsError(error instanceof Error ? error.message : 'Failed to load data')
-    } finally {
-      setSectionsLoading(false)
-    }
-  }, [
-    contactId,
-    props.accessToken,
-    fetchCustomerActivitiesByContactId,
-    fetchCustomerNotesByContactId,
-    fetchCustomerTasksByContactId
-  ])
+        setActivities(activitiesData || [])
+        setNotes(sortedNotes)
+        setTasks(regularTasks)
+        setApprovals(approvalTasks)
+      } catch (error) {
+        console.error('Error loading section data:', error)
+        if (!silent) {
+          setSectionsError(error instanceof Error ? error.message : 'Failed to load data')
+        }
+      } finally {
+        if (!silent) {
+          setSectionsLoading(false)
+        }
+      }
+    },
+    [
+      contactId,
+      props.accessToken,
+      fetchCustomerActivitiesByContactId,
+      fetchCustomerNotesByContactId,
+      fetchCustomerTasksByContactId
+    ]
+  )
+
+  const refreshSectionDataSilently = useCallback(() => {
+    void refetchContactData()
+    void loadSectionData(true)
+  }, [loadSectionData, refetchContactData])
 
   // Load section data on mount
   useEffect(() => {
-    loadSectionData()
+    void loadSectionData(false)
   }, [loadSectionData])
 
-  // Fetch contact data
-  const fetchContactData = useCallback(async () => {
-    await refetchContactData()
-  }, [refetchContactData])
-
-  // Memoized callback for process completion
-  const handleProcessSuccess = useCallback(() => {
-    fetchContactData()
-    loadSectionData()
-  }, [fetchContactData, loadSectionData])
-
-  // Listen for process completion events to refresh contact data
+  // Refresh section lists after Kogito flows without reloading the whole record
   useProcessCompletion({
-    onSuccess: handleProcessSuccess
+    onSuccess: refreshSectionDataSilently
   })
 
   const getBackButtonText = () => {
@@ -328,7 +331,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
               approvals={approvals}
               sectionsLoading={sectionsLoading}
               sectionsError={sectionsError}
-              loadSectionData={loadSectionData}
+              loadSectionData={refreshSectionDataSilently}
               activityActionProps={activityActionProps}
               noteActionProps={noteActionProps}
               taskActionProps={taskActionProps}
@@ -414,7 +417,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
       activities,
       sectionsLoading,
       sectionsError,
-      loadSectionData,
+      refreshSectionDataSilently,
       taskActionProps,
       approvalActionProps,
       noteActionProps,
@@ -422,7 +425,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
     ]
   )
 
-  if (loading) {
+  if (loading && !contactData) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <Spinner size="lg" />

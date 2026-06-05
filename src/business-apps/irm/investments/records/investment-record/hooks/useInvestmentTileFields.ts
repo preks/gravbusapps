@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestmentCatalogData } from '@/common/data/investment/hooks/useInvestmentCatalogs'
 
@@ -24,6 +24,7 @@ export interface ProcessedTile extends TileField {
 export const useInvestmentTileFields = (context: BusinessAppContextProps, investment: any) => {
   const [tileFields, setTileFields] = useState<TileField[]>([])
   const [loading, setLoading] = useState(false)
+  const hasLoadedRef = useRef(false)
   const [error, setError] = useState<string | null>(null)
 
   const { fetchInvestmentCatalogData } = useGetInvestmentCatalogData(context)
@@ -81,7 +82,9 @@ export const useInvestmentTileFields = (context: BusinessAppContextProps, invest
   const loadTileFields = useCallback(async () => {
     if (!investment) return
 
-    setLoading(true)
+    if (!hasLoadedRef.current) {
+      setLoading(true)
+    }
     setError(null)
 
     try {
@@ -127,9 +130,14 @@ export const useInvestmentTileFields = (context: BusinessAppContextProps, invest
       console.error('Error loading tile fields:', err)
       setError(errorMessage)
     } finally {
+      hasLoadedRef.current = true
       setLoading(false)
     }
   }, [investment, getInvestmentCodes, fetchInvestmentCatalogData])
+
+  useEffect(() => {
+    hasLoadedRef.current = false
+  }, [investment?.id])
 
   // Load tile fields when investment changes
   useEffect(() => {

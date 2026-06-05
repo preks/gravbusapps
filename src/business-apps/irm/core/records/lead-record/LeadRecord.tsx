@@ -40,6 +40,7 @@ import { buildFormFieldsFromCatalogData } from '../utils/investmentFieldsBuilder
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
+import { RecordSectionsRefreshProvider } from '@/common/components/common-relations/record-sections/RecordSectionsRefreshContext'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
 import { TASK_TYPE, TASK_PRIORITY, ACTIVITY_TYPE } from '@/common/data/investment/constants/investmentCatalogs'
 import {
@@ -102,11 +103,6 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
   } = useInvestmentLead(props.accessToken, leadId, {
     additionalQueries
   })
-
-  // Fetch lead data function for refetch
-  const fetchLeadData = useCallback(async () => {
-    await refetch()
-  }, [refetch])
 
   const docuSignEnabled = useFeature<boolean>(Feature.IRM.DocuSign.Key) === true
   const fileClient = useFileClient({ accessToken: props.accessToken, userInfo: props.userInfo })
@@ -193,64 +189,78 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
   }
 
   // Load section data
-  const loadSectionData = useCallback(async () => {
-    if (!leadId || !props.accessToken) return
+  const loadSectionData = useCallback(
+    async (silent = false) => {
+      if (!leadId || !props.accessToken) return
 
-    setSectionsLoading(true)
-    setSectionsError(null)
+      if (!silent) {
+        setSectionsLoading(true)
+        setSectionsError(null)
+      }
 
-    try {
-      const [activitiesData, notesData, tasksData] = await Promise.all([
-        fetchInvestmentActivitiesByLeadId(leadId),
-        fetchInvestmentNotesByLeadId(leadId),
-        fetchInvestmentTasksByLeadId(leadId)
-      ])
+      try {
+        const [activitiesData, notesData, tasksData] = await Promise.all([
+          fetchInvestmentActivitiesByLeadId(leadId),
+          fetchInvestmentNotesByLeadId(leadId),
+          fetchInvestmentTasksByLeadId(leadId)
+        ])
 
-      // Sort notes and tasks by creation date (newest first). Activity order is applied in ActivitySection.
-      const sortedNotes = (notesData || []).sort(
-        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
-      const sortedTasks = (tasksData || []).sort(
-        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
+        // Sort notes and tasks by creation date (newest first). Activity order is applied in ActivitySection.
+        const sortedNotes = (notesData || []).sort(
+          (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
+        const sortedTasks = (tasksData || []).sort(
+          (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
 
-      // Separate tasks from approvals based on taskType catalog entry
-      const regularTasks = sortedTasks.filter((task: any) => {
-        const taskTypeCode = task?.taskType?.code || ''
-        const taskTypeValue = task?.taskType?.value || ''
-        return taskTypeCode?.toUpperCase() !== 'APPROVAL' && taskTypeValue?.toUpperCase() !== 'APPROVAL'
-      })
-      const approvalTasks = sortedTasks.filter((task: any) => {
-        const taskTypeCode = task?.taskType?.code || ''
-        const taskTypeValue = task?.taskType?.value || ''
-        return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
-      })
+        // Separate tasks from approvals based on taskType catalog entry
+        const regularTasks = sortedTasks.filter((task: any) => {
+          const taskTypeCode = task?.taskType?.code || ''
+          const taskTypeValue = task?.taskType?.value || ''
+          return taskTypeCode?.toUpperCase() !== 'APPROVAL' && taskTypeValue?.toUpperCase() !== 'APPROVAL'
+        })
+        const approvalTasks = sortedTasks.filter((task: any) => {
+          const taskTypeCode = task?.taskType?.code || ''
+          const taskTypeValue = task?.taskType?.value || ''
+          return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
+        })
 
-      setActivities(activitiesData || [])
-      setNotes(sortedNotes)
-      setTasks(regularTasks)
-      setApprovals(approvalTasks)
-    } catch (error) {
-      console.error('Error loading section data:', error)
-      setSectionsError(
-        error instanceof Error
-          ? error.message
-          : getTranslationFromI18nKeyAndLabel('common.loadFailed', 'Failed to load data')
-      )
-    } finally {
-      setSectionsLoading(false)
-    }
-  }, [
-    leadId,
-    props.accessToken,
-    fetchInvestmentActivitiesByLeadId,
-    fetchInvestmentNotesByLeadId,
-    fetchInvestmentTasksByLeadId
-  ])
+        setActivities(activitiesData || [])
+        setNotes(sortedNotes)
+        setTasks(regularTasks)
+        setApprovals(approvalTasks)
+      } catch (error) {
+        console.error('Error loading section data:', error)
+        if (!silent) {
+          setSectionsError(
+            error instanceof Error
+              ? error.message
+              : getTranslationFromI18nKeyAndLabel('common.loadFailed', 'Failed to load data')
+          )
+        }
+      } finally {
+        if (!silent) {
+          setSectionsLoading(false)
+        }
+      }
+    },
+    [
+      leadId,
+      props.accessToken,
+      fetchInvestmentActivitiesByLeadId,
+      fetchInvestmentNotesByLeadId,
+      fetchInvestmentTasksByLeadId
+    ]
+  )
+
+  const refreshSectionDataSilently = useCallback(() => {
+    void refetch()
+    void loadSectionData(true)
+  }, [loadSectionData, refetch])
 
   // Load data when component mounts or leadId changes
   useEffect(() => {
-    loadSectionData()
+    void loadSectionData(false)
   }, [loadSectionData])
 
   // Load rejection reasons function
@@ -270,6 +280,11 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
     }
   }, [leadId, props.accessToken, fetchByLead])
 
+  const refreshLeadRejectionBadgeData = useCallback(() => {
+    refreshSectionDataSilently()
+    void loadRejectionReasons()
+  }, [loadRejectionReasons, refreshSectionDataSilently])
+
   // Load rejection reasons on mount
   useEffect(() => {
     loadRejectionReasons()
@@ -282,16 +297,9 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
     return 'Back to Investment Leads'
   }
 
-  // Memoized callback for process completion
-  const handleProcessSuccess = useCallback(() => {
-    fetchLeadData()
-    loadSectionData()
-    loadRejectionReasons()
-  }, [fetchLeadData, loadSectionData, loadRejectionReasons])
-
-  // Listen for process completion events to refresh lead data (including status updates)
+  // Refresh section lists after Kogito flows without reloading the whole record
   useProcessCompletion({
-    onSuccess: handleProcessSuccess
+    onSuccess: refreshLeadRejectionBadgeData
   })
 
   // Rejection reasons badge - MUST be defined before headerTitle
@@ -488,7 +496,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
     return () => window.removeEventListener('popstate', onPop)
   }, [activeTab])
 
-  if (loading) {
+  if (loading && !leadData) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <Spinner size="lg" />
@@ -538,208 +546,210 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
         label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
         icon: <UsersIcon />,
         content: (
-          <>
-            {/* Account Information - 1/4 width */}
-            <SectionWrapper
-              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1"
-              sections={[
-                {
-                  id: 'account-section',
-                  component: AccountSection,
-                  props: {
-                    ...props,
-                    account: buildInvestmentAccountFromLead(leadData),
-                    accounts: leadData ? [buildInvestmentAccountFromLead(leadData)].filter(Boolean) : undefined
+          <RecordSectionsRefreshProvider value={refreshSectionDataSilently}>
+            <>
+              {/* Account Information - 1/4 width */}
+              <SectionWrapper
+                className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1"
+                sections={[
+                  {
+                    id: 'account-section',
+                    component: AccountSection,
+                    props: {
+                      ...props,
+                      account: buildInvestmentAccountFromLead(leadData),
+                      accounts: leadData ? [buildInvestmentAccountFromLead(leadData)].filter(Boolean) : undefined
+                    }
                   }
-                }
-              ]}
-              data-testid="lead-account-section-wrapper"
-            />
+                ]}
+                data-testid="lead-account-section-wrapper"
+              />
 
-            {/* Contact Information - 1/4 width */}
-            <SectionWrapper
-              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1"
-              sections={[
-                {
-                  id: 'contact-section',
-                  component: ContactSection,
-                  props: {
-                    ...props,
-                    contact: buildInvestmentContactFromLead(leadData),
-                    contacts: leadData ? [buildInvestmentContactFromLead(leadData)].filter(Boolean) : undefined
+              {/* Contact Information - 1/4 width */}
+              <SectionWrapper
+                className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1"
+                sections={[
+                  {
+                    id: 'contact-section',
+                    component: ContactSection,
+                    props: {
+                      ...props,
+                      contact: buildInvestmentContactFromLead(leadData),
+                      contacts: leadData ? [buildInvestmentContactFromLead(leadData)].filter(Boolean) : undefined
+                    }
                   }
-                }
-              ]}
-              data-testid="lead-contact-section-wrapper"
-            />
+                ]}
+                data-testid="lead-contact-section-wrapper"
+              />
 
-            {/* Investment Information - 2/4 width (half) */}
-            <SectionWrapper
-              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-1"
-              sections={[
-                {
-                  id: 'investment-section',
-                  component: InvestmentSection,
-                  props: {
-                    ...props,
-                    investment: buildInvestmentFromLead(leadData) || undefined,
-                    investments: leadData
-                      ? [buildInvestmentFromLead(leadData)].filter((inv): inv is Investment => inv !== null)
-                      : undefined,
-                    fields: investmentFields,
-                    recordUrl: undefined, // No navigation - investment data is part of lead, not a separate entity
-                    isLoading: loading,
-                    error: error
+              {/* Investment Information - 2/4 width (half) */}
+              <SectionWrapper
+                className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-1"
+                sections={[
+                  {
+                    id: 'investment-section',
+                    component: InvestmentSection,
+                    props: {
+                      ...props,
+                      investment: buildInvestmentFromLead(leadData) || undefined,
+                      investments: leadData
+                        ? [buildInvestmentFromLead(leadData)].filter((inv): inv is Investment => inv !== null)
+                        : undefined,
+                      fields: investmentFields,
+                      recordUrl: undefined, // No navigation - investment data is part of lead, not a separate entity
+                      isLoading: loading && !leadData,
+                      error: error
+                    }
                   }
-                }
-              ]}
-              data-testid="lead-investment-section-wrapper"
-            />
+                ]}
+                data-testid="lead-investment-section-wrapper"
+              />
 
-            {/* Tasks & Approvals - 1/2 width, spans 2 rows */}
-            <SectionWrapper
-              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
-              sections={[
-                {
-                  id: 'tasks-section',
-                  component: TaskSection,
-                  props: {
-                    ...props,
-                    leadId: leadId,
-                    buildReferenceUrl,
-                    tasks: tasks,
-                    taskActionProps: {
-                      contextsArray: [FlowContextName.investmentTaskCreate],
-                      externalContextData: { leadId },
-                      prefixDataTestId: 'lead-tasks',
-                      emptyStateBehavior: 'enable'
-                    },
-                    taskEntityActionProps: {
-                      contextsArray: [FlowContextName.investmentTaskEntity],
-                      externalContextData: { leadId },
-                      prefixDataTestId: 'lead-task-entity',
-                      emptyStateBehavior: 'enable'
-                    },
-                    typeCatalog: TASK_TYPE,
-                    priorityCatalog: TASK_PRIORITY,
-                    buildTaskPayload: buildInvestmentTaskPayload,
-                    defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
-                    preSubmit: taskPreSubmit,
-                    docuSignEnabled
-                  }
-                },
-                {
-                  id: 'approval-tasks-section',
-                  component: TaskSection,
-                  props: {
-                    ...props,
-                    sectionTitle: 'Approval Tasks',
-                    leadId: leadId,
-                    buildReferenceUrl,
-                    tasks: approvals,
-                    taskEntityActionProps: {
-                      contextsArray: [FlowContextName.investmentTaskEntity],
-                      externalContextData: { leadId },
-                      prefixDataTestId: 'lead-approval-entity',
-                      emptyStateBehavior: 'enable'
-                    },
-                    taskActionProps: {
-                      contextsArray: [FlowContextName.investmentTaskCreate],
-                      externalContextData: {
-                        leadId,
-                        lead: leadId,
-                        typeRef: APPROVAL_TASK_TYPE_REF,
-                        investmentTask: { lead: leadId, type: APPROVAL_TASK_TYPE_REF }
+              {/* Tasks & Approvals - 1/2 width, spans 2 rows */}
+              <SectionWrapper
+                className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
+                sections={[
+                  {
+                    id: 'tasks-section',
+                    component: TaskSection,
+                    props: {
+                      ...props,
+                      leadId: leadId,
+                      buildReferenceUrl,
+                      tasks: tasks,
+                      taskActionProps: {
+                        contextsArray: [FlowContextName.investmentTaskCreate],
+                        externalContextData: { leadId },
+                        prefixDataTestId: 'lead-tasks',
+                        emptyStateBehavior: 'enable'
                       },
-                      prefixDataTestId: 'lead-approvals',
-                      emptyStateBehavior: 'enable'
-                    },
-                    isApprovalTaskSection: true,
-                    approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
-                    defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
-                    typeCatalog: TASK_TYPE,
-                    priorityCatalog: TASK_PRIORITY,
-                    buildTaskPayload: buildInvestmentTaskPayload,
-                    preSubmit: taskPreSubmit,
-                    docuSignEnabled
-                  }
-                }
-              ]}
-              data-testid="lead-tasks-approvals-section-wrapper"
-            />
-
-            {/* Activities & Notes - 1/2 width, spans 2 rows */}
-            <SectionWrapper
-              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
-              sections={[
-                {
-                  id: 'activities-section',
-                  component: ActivitySection,
-                  props: {
-                    ...props,
-                    leadId,
-                    activities: activities,
-                    activitiesLoading: sectionsLoading,
-                    activitiesError: sectionsError,
-                    onReloadActivities: loadSectionData,
-                    activitySectionActionProps: {
-                      contextsArray: [FlowContextName.investmentActivityCreate],
-                      externalContextData: {
-                        leadId,
-                        lead: leadId,
-                        investmentActivity: { lead: leadId },
-                        ...(props.userInfo?.employeeDetails?.employeeId && {
-                          ownerEmployeeId: props.userInfo.employeeDetails.employeeId
-                        }),
-                        ...(props.userInfo?.id && {
-                          employeeId: props.userInfo.id,
-                          userId: props.userInfo.id,
-                          employeeDetails: { userId: props.userInfo.id }
-                        })
+                      taskEntityActionProps: {
+                        contextsArray: [FlowContextName.investmentTaskEntity],
+                        externalContextData: { leadId },
+                        prefixDataTestId: 'lead-task-entity',
+                        emptyStateBehavior: 'enable'
                       },
-                      prefixDataTestId: 'lead-activities',
-                      emptyStateBehavior: 'enable'
-                    },
-                    activityEntityActionProps: {
-                      contextsArray: [FlowContextName.investmentActivityEntity],
-                      externalContextData: { leadId },
-                      prefixDataTestId: 'lead-activity-entity',
-                      emptyStateBehavior: 'enable'
-                    },
-                    activityTypeCatalog: ACTIVITY_TYPE,
-                    buildActivityPayload: buildInvestmentActivityPayload,
-                    alignment: 'right',
-                    preSubmit: activityPreSubmit,
-                    getRelatedRecordUrl: buildIrmRelatedEntityRecordUrl
+                      typeCatalog: TASK_TYPE,
+                      priorityCatalog: TASK_PRIORITY,
+                      buildTaskPayload: buildInvestmentTaskPayload,
+                      defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
+                      preSubmit: taskPreSubmit,
+                      docuSignEnabled
+                    }
+                  },
+                  {
+                    id: 'approval-tasks-section',
+                    component: TaskSection,
+                    props: {
+                      ...props,
+                      sectionTitle: 'Approval Tasks',
+                      leadId: leadId,
+                      buildReferenceUrl,
+                      tasks: approvals,
+                      taskEntityActionProps: {
+                        contextsArray: [FlowContextName.investmentTaskEntity],
+                        externalContextData: { leadId },
+                        prefixDataTestId: 'lead-approval-entity',
+                        emptyStateBehavior: 'enable'
+                      },
+                      taskActionProps: {
+                        contextsArray: [FlowContextName.investmentTaskCreate],
+                        externalContextData: {
+                          leadId,
+                          lead: leadId,
+                          typeRef: APPROVAL_TASK_TYPE_REF,
+                          investmentTask: { lead: leadId, type: APPROVAL_TASK_TYPE_REF }
+                        },
+                        prefixDataTestId: 'lead-approvals',
+                        emptyStateBehavior: 'enable'
+                      },
+                      isApprovalTaskSection: true,
+                      approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
+                      defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
+                      typeCatalog: TASK_TYPE,
+                      priorityCatalog: TASK_PRIORITY,
+                      buildTaskPayload: buildInvestmentTaskPayload,
+                      preSubmit: taskPreSubmit,
+                      docuSignEnabled
+                    }
                   }
-                },
-                {
-                  id: 'notes-section',
-                  component: NoteSection as React.ComponentType<any>,
-                  props: {
-                    ...props,
-                    leadId,
-                    notes: notes,
-                    noteActionProps: {
-                      contextsArray: [FlowContextName.investmentNoteCreate],
-                      externalContextData: { leadId },
-                      prefixDataTestId: 'lead-notes',
-                      emptyStateBehavior: 'enable'
-                    },
-                    noteEntityActionProps: {
-                      contextsArray: [FlowContextName.investmentNoteEntity],
-                      externalContextData: { leadId },
-                      prefixDataTestId: 'lead-note-entity',
-                      emptyStateBehavior: 'enable'
-                    },
-                    buildNotePayload: buildInvestmentNotePayload,
-                    preSubmit: notePreSubmit
+                ]}
+                data-testid="lead-tasks-approvals-section-wrapper"
+              />
+
+              {/* Activities & Notes - 1/2 width, spans 2 rows */}
+              <SectionWrapper
+                className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
+                sections={[
+                  {
+                    id: 'activities-section',
+                    component: ActivitySection,
+                    props: {
+                      ...props,
+                      leadId,
+                      activities: activities,
+                      activitiesLoading: sectionsLoading,
+                      activitiesError: sectionsError,
+                      onReloadActivities: refreshSectionDataSilently,
+                      activitySectionActionProps: {
+                        contextsArray: [FlowContextName.investmentActivityCreate],
+                        externalContextData: {
+                          leadId,
+                          lead: leadId,
+                          investmentActivity: { lead: leadId },
+                          ...(props.userInfo?.employeeDetails?.employeeId && {
+                            ownerEmployeeId: props.userInfo.employeeDetails.employeeId
+                          }),
+                          ...(props.userInfo?.id && {
+                            employeeId: props.userInfo.id,
+                            userId: props.userInfo.id,
+                            employeeDetails: { userId: props.userInfo.id }
+                          })
+                        },
+                        prefixDataTestId: 'lead-activities',
+                        emptyStateBehavior: 'enable'
+                      },
+                      activityEntityActionProps: {
+                        contextsArray: [FlowContextName.investmentActivityEntity],
+                        externalContextData: { leadId },
+                        prefixDataTestId: 'lead-activity-entity',
+                        emptyStateBehavior: 'enable'
+                      },
+                      activityTypeCatalog: ACTIVITY_TYPE,
+                      buildActivityPayload: buildInvestmentActivityPayload,
+                      alignment: 'right',
+                      preSubmit: activityPreSubmit,
+                      getRelatedRecordUrl: buildIrmRelatedEntityRecordUrl
+                    }
+                  },
+                  {
+                    id: 'notes-section',
+                    component: NoteSection as React.ComponentType<any>,
+                    props: {
+                      ...props,
+                      leadId,
+                      notes: notes,
+                      noteActionProps: {
+                        contextsArray: [FlowContextName.investmentNoteCreate],
+                        externalContextData: { leadId },
+                        prefixDataTestId: 'lead-notes',
+                        emptyStateBehavior: 'enable'
+                      },
+                      noteEntityActionProps: {
+                        contextsArray: [FlowContextName.investmentNoteEntity],
+                        externalContextData: { leadId },
+                        prefixDataTestId: 'lead-note-entity',
+                        emptyStateBehavior: 'enable'
+                      },
+                      buildNotePayload: buildInvestmentNotePayload,
+                      preSubmit: notePreSubmit
+                    }
                   }
-                }
-              ]}
-              data-testid="lead-activities-notes-section-wrapper"
-            />
-          </>
+                ]}
+                data-testid="lead-activities-notes-section-wrapper"
+              />
+            </>
+          </RecordSectionsRefreshProvider>
         )
       },
       {

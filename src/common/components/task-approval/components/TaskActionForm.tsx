@@ -8,6 +8,7 @@ import React, { useState } from 'react'
 import { Alert, useTranslation } from '@newwork/nw-design-system'
 import { ThumbsUp, XCircle, CheckCircle, AlertCircle } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useRecordSectionsRefresh } from '@/common/components/common-relations/record-sections/RecordSectionsRefreshContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
 import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
@@ -30,6 +31,7 @@ export const TaskActionForm: React.FC<TaskActionFormProps> = ({
   onTaskUpdated
 }) => {
   const { t } = useTranslation(translations)
+  const refreshRecordSections = useRecordSectionsRefresh()
   const [isApproving, setIsApproving] = useState(false)
   const [isRejecting, setIsRejecting] = useState(false)
   const [isCompleting, setIsCompleting] = useState(false)
@@ -57,24 +59,29 @@ export const TaskActionForm: React.FC<TaskActionFormProps> = ({
   const approvalStatus = processMetadata?.outputs?.approval || taskPayload?.approval
   const approvalNote = processMetadata?.outputs?.approvalNote || taskPayload?.approvalNote
 
+  const submitTaskAction = async (
+    payload: Record<string, string>,
+    setBusy: (busy: boolean) => void,
+    errorKey: string
+  ) => {
+    try {
+      dispatchProcessContinueEvent('pse_submit', payload)
+      refreshRecordSections?.()
+      onTaskUpdated?.()
+    } catch (error) {
+      console.error('Error submitting task action:', error)
+      setErrorMessage(error instanceof Error ? error.message : t(errorKey))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const handleComplete = async () => {
     if (isTaskCompleted) return
 
     setIsCompleting(true)
     setErrorMessage(null)
-
-    try {
-      const payload = {
-        approval: 'completed'
-      }
-
-      dispatchProcessContinueEvent('pse_submit', payload)
-      onTaskUpdated?.()
-    } catch (error) {
-      console.error('Error completing task:', error)
-      setErrorMessage(error instanceof Error ? error.message : t('task-action-error-complete-task'))
-      setIsCompleting(false)
-    }
+    await submitTaskAction({ approval: 'completed' }, setIsCompleting, 'task-action-error-complete-task')
   }
 
   const handleApprove = async () => {
@@ -82,19 +89,7 @@ export const TaskActionForm: React.FC<TaskActionFormProps> = ({
 
     setIsApproving(true)
     setErrorMessage(null)
-
-    try {
-      const payload = {
-        approval: 'approved'
-      }
-
-      dispatchProcessContinueEvent('pse_submit', payload)
-      onTaskUpdated?.()
-    } catch (error) {
-      console.error('Error approving task:', error)
-      setErrorMessage(error instanceof Error ? error.message : t('task-action-error-approve'))
-      setIsApproving(false)
-    }
+    await submitTaskAction({ approval: 'approved' }, setIsApproving, 'task-action-error-approve')
   }
 
   const handleReject = async () => {
@@ -102,19 +97,7 @@ export const TaskActionForm: React.FC<TaskActionFormProps> = ({
 
     setIsRejecting(true)
     setErrorMessage(null)
-
-    try {
-      const payload = {
-        approval: 'rejected'
-      }
-
-      dispatchProcessContinueEvent('pse_submit', payload)
-      onTaskUpdated?.()
-    } catch (error) {
-      console.error('Error rejecting task:', error)
-      setErrorMessage(error instanceof Error ? error.message : t('task-action-error-reject'))
-      setIsRejecting(false)
-    }
+    await submitTaskAction({ approval: 'rejected' }, setIsRejecting, 'task-action-error-reject')
   }
 
   const handleCancel = () => {

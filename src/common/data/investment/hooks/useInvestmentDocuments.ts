@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { InvestmentDocument } from '@/common/data/investment/types/investmentDocumentTypes'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
@@ -39,32 +39,40 @@ export function useInvestmentDocuments({
 }: UseInvestmentDocumentsParams): UseInvestmentDocumentsReturn {
   const [rawDocuments, setRawDocuments] = useState<InvestmentDocument[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const hasLoadedRef = useRef(false)
   const [error, setError] = useState<string | null>(null)
 
-  const loadDocuments = async () => {
+  const loadDocuments = useCallback(async () => {
     try {
-      setIsLoading(true)
+      if (!hasLoadedRef.current) {
+        setIsLoading(true)
+      }
       setError(null)
       const documentsData = await fetchDocuments(entityId, fetchOptions)
       setRawDocuments(documentsData)
     } catch (err) {
       setError(err instanceof Error ? err.message : errorMessage)
     } finally {
+      hasLoadedRef.current = true
       setIsLoading(false)
     }
-  }
+  }, [entityId, fetchDocuments, fetchOptions?.createdBy, errorMessage])
 
   // Transform documents to match DocumentItem interface
   const transformedDocuments = useMemo(() => {
     return transformInvestmentDocuments(rawDocuments)
   }, [rawDocuments])
 
+  useEffect(() => {
+    hasLoadedRef.current = false
+  }, [entityId, context.accessToken, fetchOptions?.createdBy])
+
   // Load documents on mount and when entityId, accessToken, or filter options change
   useEffect(() => {
     if (entityId && context.accessToken) {
       loadDocuments()
     }
-  }, [entityId, context.accessToken, fetchOptions?.createdBy])
+  }, [entityId, context.accessToken, fetchOptions?.createdBy, loadDocuments])
 
   // Auto-refresh documents on process completion
   useProcessCompletion({

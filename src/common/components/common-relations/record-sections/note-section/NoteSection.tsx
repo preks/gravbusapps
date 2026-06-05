@@ -17,6 +17,7 @@ import type { Note } from '@/common/data/relations/types/noteTypes'
 import translations from './_i18n'
 import { NoteInput } from './NoteInput'
 import { useQuickAddSubmitGuard } from '@/common/components/common-relations/record-sections/utils/quickAddSubmitGuard'
+import { useRecordSectionsRefresh } from '../RecordSectionsRefreshContext'
 
 const quickNoteSchema = z.object({
   details: z.object({
@@ -75,6 +76,7 @@ export interface NoteSectionProps extends BusinessAppContextProps {
 // Standard React component that can be used with SectionWrapper
 const NoteSection: React.FC<NoteSectionProps> = props => {
   const { t } = useTranslation(translations)
+  const refreshRecordSections = useRecordSectionsRefresh()
   const {
     accessToken,
     notes: rawNotes,
@@ -175,6 +177,7 @@ const NoteSection: React.FC<NoteSectionProps> = props => {
                 _pendingFiles: []
               })
               setShowQuickAdd(false)
+              refreshRecordSections?.()
             }}
             onError={error => {
               console.error('Failed to create note:', error)

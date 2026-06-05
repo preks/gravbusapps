@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { transformCrmDocuments, CrmDocument } from '../utils/documentUtils'
@@ -31,18 +31,22 @@ export function useCrmDocuments({
 }: UseCrmDocumentsParams): UseCrmDocumentsReturn {
   const [rawDocuments, setRawDocuments] = useState<CrmDocument[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const hasLoadedRef = useRef(false)
   const [error, setError] = useState<string | null>(null)
 
   // Memoize loadDocuments to prevent unnecessary re-renders and fix useEffect dependency
   const loadDocuments = useCallback(async () => {
     try {
-      setIsLoading(true)
+      if (!hasLoadedRef.current) {
+        setIsLoading(true)
+      }
       setError(null)
       const documentsData = await fetchDocuments(entityId)
       setRawDocuments(documentsData)
     } catch (err) {
       setError(err instanceof Error ? err.message : errorMessage)
     } finally {
+      hasLoadedRef.current = true
       setIsLoading(false)
     }
   }, [entityId, fetchDocuments, errorMessage])
@@ -50,6 +54,10 @@ export function useCrmDocuments({
   const transformedDocuments = useMemo(() => {
     return transformCrmDocuments(rawDocuments)
   }, [rawDocuments])
+
+  useEffect(() => {
+    hasLoadedRef.current = false
+  }, [entityId, context.accessToken])
 
   // Include all dependencies to prevent stale closures
   useEffect(() => {

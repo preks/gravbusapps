@@ -36,6 +36,7 @@ import {
   seedQuickActivityPrimaryEntity,
   type QuickActivityFormValues
 } from './activityQuickAddFormUtils'
+import { useRecordSectionsRefresh } from '../RecordSectionsRefreshContext'
 
 export type ActivityDocument = {
   id: string
@@ -105,6 +106,7 @@ export interface ActivitySectionProps extends BusinessAppContextProps {
 
 // Standard React component that can be used with SectionWrapper
 const ActivitySection: React.FC<ActivitySectionProps> = props => {
+  const refreshRecordSections = useRecordSectionsRefresh()
   const {
     accessToken,
     userInfo,
@@ -127,6 +129,7 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
     getRelatedRecordUrl,
     activityAssociationVariant: activityAssociationVariantProp
   } = props
+  const reloadActivities = refreshRecordSections ?? onReloadActivities
 
   const recordEntityContext = useMemo(
     () => ({ accountId, contactId, opportunityId, leadId, investmentId }),
@@ -341,8 +344,8 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
           <div>
             <strong>{t('activities-errorTitle')}</strong>
             <div>{activitiesError}</div>
-            {onReloadActivities && (
-              <Button variant="secondary" size="sm" onClick={onReloadActivities} data-testid="activity-retry-button">
+            {reloadActivities && (
+              <Button variant="secondary" size="sm" onClick={reloadActivities} data-testid="activity-retry-button">
                 {t('common-retry')}
               </Button>
             )}
@@ -467,6 +470,7 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
             onSuccess={() => {
               form.reset(getQuickActivityDefaultValues(defaultOwnerId, recordEntityContext))
               setShowQuickAdd(false)
+              refreshRecordSections?.()
             }}
             onError={(error: Error) => {
               console.error('Failed to create activity:', error)

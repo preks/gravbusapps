@@ -38,6 +38,7 @@ import {
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { FileInfo } from '@/common/types/FileTypes'
 import translations from './_i18n'
+import { useRecordSectionsRefresh } from '../RecordSectionsRefreshContext'
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
 import type { Task as BaseTask, TaskAssignee } from '@/common/data/relations/types/taskTypes'
 import { transformTaskOrApproval } from './utils/taskMappers'
@@ -145,7 +146,6 @@ export interface TaskSectionProps extends BusinessAppContextProps {
   taskEntityActionProps?: Omit<AppActionCommonProps, 'accessToken'>
   sectionTitle?: string
   buildReferenceUrl?: (reference: TaskReference) => string
-  refetch?: () => void
   /** Catalog identifier for task type (e.g. from customerCatalogs or investmentCatalogs). */
   typeCatalog?: string
   /** Catalog identifier for task priority (e.g. from customerCatalogs or investmentCatalogs). */
@@ -176,7 +176,6 @@ const TaskSection: React.FC<TaskSectionProps> = ({
   taskEntityActionProps,
   taskActionProps,
   preSubmit,
-  refetch,
   buildReferenceUrl,
   typeCatalog,
   priorityCatalog,
@@ -194,6 +193,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
   docuSignEnabled = false
 }) => {
   const { t } = useTranslation(translations)
+  const refreshRecordSections = useRecordSectionsRefresh()
   const { statusMap, ensureStatus, statusVersion } = useEnvelopeStatusCache(accessToken)
 
   useEffect(() => {
@@ -312,6 +312,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
       {
         id: employeeId,
         displayName,
+        userId: userInfo?.id,
         organizationalUnitName: userInfo?.employeeDetails?.organizationalUnit?.name
       }
     ])
@@ -359,6 +360,31 @@ const TaskSection: React.FC<TaskSectionProps> = ({
     () => (userInfo?.employeeDetails?.employeeId ? [userInfo.employeeDetails.employeeId] : []),
     [userInfo?.employeeDetails?.employeeId]
   )
+  const defaultAssignedEmployees = useMemo(() => {
+    const employeeId = userInfo?.employeeDetails?.employeeId
+    if (!employeeId) return []
+
+    const displayName =
+      `${userInfo?.employeeDetails?.firstName || ''} ${userInfo?.employeeDetails?.lastName || ''}`.trim() ||
+      userInfo?.userName ||
+      'Current User'
+
+    return [
+      {
+        id: employeeId,
+        displayName,
+        userId: userInfo?.id,
+        organizationalUnitName: userInfo?.employeeDetails?.organizationalUnit?.name
+      }
+    ]
+  }, [
+    userInfo?.employeeDetails?.employeeId,
+    userInfo?.employeeDetails?.firstName,
+    userInfo?.employeeDetails?.lastName,
+    userInfo?.userName,
+    userInfo?.employeeDetails?.organizationalUnit?.name,
+    userInfo?.id
+  ])
   const quickTaskSchema = useMemo(
     () =>
       z.object({
@@ -370,6 +396,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
         taskPriorityRef: z.string().trim().min(1, 'Priority is required'),
         taskTiming: z.enum(['DEADLINE', 'SCHEDULED']),
         assignedEmployeeIds: z.array(z.string()).min(1, 'At least one assignee is required'),
+        assignedEmployees: z.array(z.any()).optional(),
         deadline: z.string().trim().min(1, 'Deadline is required'),
         _pendingFiles: z.array(z.any()).optional()
       }),
@@ -385,10 +412,20 @@ const TaskSection: React.FC<TaskSectionProps> = ({
       taskPriorityRef: '',
       taskTiming: 'DEADLINE' as const,
       assignedEmployeeIds: defaultAssigneeIds,
+      assignedEmployees: defaultAssignedEmployees,
       deadline: '',
       _pendingFiles: [] as File[]
     }
   })
+
+  // Keep default assignee employee objects in sync when user context loads
+  useEffect(() => {
+    if (defaultAssignedEmployees.length === 0) return
+    const currentEmployees = form.getValues('assignedEmployees') || []
+    if (currentEmployees.length === 0) {
+      form.setValue('assignedEmployees', defaultAssignedEmployees)
+    }
+  }, [defaultAssignedEmployees, form])
 
   // Keep approval task type default in sync when approvalTaskTypeRef is set after mount
   useEffect(() => {
@@ -615,10 +652,12 @@ const TaskSection: React.FC<TaskSectionProps> = ({
                   taskPriorityRef: '',
                   taskTiming: 'DEADLINE',
                   assignedEmployeeIds: defaultAssigneeIds,
+                  assignedEmployees: defaultAssignedEmployees,
                   deadline: '',
                   _pendingFiles: [] as File[]
                 })
                 setShowQuickAdd(false)
+                refreshRecordSections?.()
               }}
               onError={error => {
                 console.error('Failed to create task:', error)
@@ -639,9 +678,13 @@ const TaskSection: React.FC<TaskSectionProps> = ({
                       taskStatusRef: defaultTaskStatusRef,
                       taskTiming: data.taskTiming || 'DEADLINE',
                       dueDate: data.deadline || undefined,
-                      taskAssignees: (data.assignedEmployeeIds || []).map((id: string) => ({
-                        assignedEmployeeId: id
-                      })),
+                      taskAssignees: (data.assignedEmployeeIds || []).map((id: string) => {
+                        const employee = (data.assignedEmployees || []).find((emp: { id?: string }) => emp.id === id)
+                        return {
+                          assignedEmployeeId: id,
+                          assignedUserId: employee?.userId || null
+                        }
+                      }),
                       _creatorEmployee: userInfo?.id ? { userId: userInfo.id } : undefined,
                       creatorUserId: userInfo?.id,
                       _pendingFiles:
@@ -910,7 +953,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
         businessAppContext={businessAppContext}
         flowContext={taskEntityActionProps?.contextsArray?.[0]}
         docuSignEnabled={docuSignEnabled}
-        onTaskCompleted={() => refetch?.()}
+        onTaskCompleted={() => refreshRecordSections?.()}
       />
 
       {docuSignEnabled && (
