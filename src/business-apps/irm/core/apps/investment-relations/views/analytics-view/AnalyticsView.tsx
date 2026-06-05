@@ -149,8 +149,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     setAccountsCurrency,
     opportunitiesKpiCurrency,
     setOpportunitiesKpiCurrency,
-    topDealsCurrency,
-    setTopDealsCurrency
+    topOpportunitiesCurrency,
+    setTopOpportunitiesCurrency
   } = useAnalyticsState({
     defaultCurrency: 'EUR',
     defaultTimeFilter: 'quarter'
@@ -1091,20 +1091,20 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
         oppStageLoading,
         selectedStagePipelineId,
         onStagePipelineChange: (id: string | undefined) => setSelectedStagePipelineId(id),
-        topDeals: [],
+        topOpportunities: [],
         flowData: oppFlowData || null,
         flowLoading: oppFlowLoading,
         statusDistributionData: oppStatusDistributionData || [],
         statusDistributionLoading: oppStatusDistributionLoading,
         kpiCurrency: opportunitiesKpiCurrency,
         onKpiCurrencyChange: setOpportunitiesKpiCurrency,
-        topDealsCurrency,
-        onTopDealsCurrencyChange: setTopDealsCurrency,
+        topOpportunitiesCurrency,
+        onTopOpportunitiesCurrencyChange: setTopOpportunitiesCurrency,
         availableCurrencies
       },
       {
         title: 'Opportunities Analytics',
-        showTopDeals: false,
+        showTopOpportunities: false,
         useTrendData: true, // IRM uses dedicated trend hook
         kpiLabels: IRM_OPPORTUNITIES_TAB_KPI_LABELS
       }

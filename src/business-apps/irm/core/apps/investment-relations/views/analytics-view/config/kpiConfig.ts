@@ -21,8 +21,8 @@ const IRM_SHARED: Record<string, TabKpiLabel> = {
   allContacts: { title: 'Investment Contacts', description: 'All investment contacts' },
   leadsConverted: { title: 'Lead to Opportunity Rate', description: 'Leads converted to opportunities' },
   winRate: { title: 'Opportunity Win Rate', description: 'Won share of all opportunities' },
-  avgWonDealValue: { title: 'Avg Won Opportunity Value', description: 'Average won deal value' },
-  totalWonDealValue: { title: 'Total Won Opportunity Value', description: 'Total won deal value' }
+  avgWonOpportunityValue: { title: 'Avg Won Opportunity Value', description: 'Average won opportunity value' },
+  totalWonOpportunityValue: { title: 'Total Won Opportunity Value', description: 'Total won opportunity value' }
 }
 
 /**
@@ -36,8 +36,8 @@ export const IRM_KPI_LABELS: KpiLabels = {
   contacts: IRM_SHARED.allContacts,
   leadToOpportunityRate: IRM_SHARED.leadsConverted,
   opportunityWinRate: IRM_SHARED.winRate,
-  avgDealSize: IRM_SHARED.avgWonDealValue,
-  totalWonRevenue: IRM_SHARED.totalWonDealValue
+  avgOpportunitySize: IRM_SHARED.avgWonOpportunityValue,
+  totalWonRevenue: IRM_SHARED.totalWonOpportunityValue
 }
 
 export const IRM_LEADS_TAB_KPI_LABELS: LeadsTabKpiLabels = {
@@ -49,19 +49,22 @@ export const IRM_LEADS_TAB_KPI_LABELS: LeadsTabKpiLabels = {
 
 export const IRM_ACCOUNTS_TAB_KPI_LABELS: AccountsTabKpiLabels = {
   totalAccounts: IRM_SHARED.allAccounts,
-  accountsWithOpportunities: { title: 'Accounts with Opportunities', description: 'Accounts with pipeline deals' },
-  avgOpportunitiesPerAccount: { title: 'Avg. Opportunities', description: 'Pipeline deals per account' },
+  accountsWithOpportunities: {
+    title: 'Accounts with Opportunities',
+    description: 'Accounts with pipeline opportunities'
+  },
+  avgOpportunitiesPerAccount: { title: 'Avg. Opportunities', description: 'Pipeline opportunities per account' },
   newThisMonth: { title: 'New This Month', description: 'New investment accounts this month' }
 }
 
 export const IRM_OPPORTUNITIES_TAB_KPI_LABELS: OpportunitiesTabKpiLabels = {
   totalOpportunities: IRM_SHARED.allOpportunities,
   totalValue: { title: 'Total Pipeline Value', description: 'Combined pipeline value' },
-  wonOpportunities: { title: 'Won Opportunities', description: 'Closed-won investment deals' },
+  wonOpportunities: { title: 'Won Opportunities', description: 'Closed-won investment opportunities' },
   winRate: { title: 'Win Rate', description: IRM_SHARED.winRate.description },
-  avgDealSize: { title: 'Avg. Deal Size', description: IRM_SHARED.avgWonDealValue.description },
+  avgOpportunitySize: { title: 'Avg. Opportunity Size', description: IRM_SHARED.avgWonOpportunityValue.description },
   newThisPeriod: { title: 'New This Period', description: 'New pipeline opportunities' },
-  avgOpportunityValue: { title: 'Avg. Opportunity Value', description: 'Average deal value' },
+  avgOpportunityValue: { title: 'Avg. Opportunity Value', description: 'Average opportunity value' },
   conversionRate: { title: 'Conversion Rate', description: IRM_SHARED.leadsConverted.description }
 }
 
@@ -88,6 +91,6 @@ export const IRM_KPI_VISIBILITY: KpiVisibility = {
   // contacts: false,
   // leadToOpportunityRate: false,
   // opportunityWinRate: false,
-  // avgDealSize: false,
+  // avgOpportunitySize: false,
   // totalWonRevenue: false
 }

@@ -213,7 +213,7 @@ export const useRevenueTrends = (
 
         return {
           month: period.label,
-          pipelineRevenue: totalAmount - wonAmount, // Active pipeline revenue (excluding won deals)
+          pipelineRevenue: totalAmount - wonAmount, // Active pipeline revenue (excluding won opportunities)
           wonRevenue: wonAmount,
           opportunities: result[`period${index}`]?.aggregate?.count || 0
         }

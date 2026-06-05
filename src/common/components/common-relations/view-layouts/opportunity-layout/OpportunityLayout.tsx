@@ -607,7 +607,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     filters: {
       entity: config.contextType === 'customer' ? 'Opportunity' : 'InvestmentOpportunity',
       ...(config.boardConfig && 'dealType' in config.boardConfig
-        ? { dealType: (config.boardConfig as any).dealType }
+        ? { dealType: (config.boardConfig as { dealType?: string }).dealType }
         : {})
     },
     returnFormat: 'full'

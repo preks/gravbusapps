@@ -165,7 +165,9 @@ export const TopPerformersCard: React.FC<TopPerformersCardProps> = ({
                 </Avatar>
                 <div className="gba:min-w-0">
                   <p className="gba:font-medium gba:text-sm gba:truncate">{performer.displayName}</p>
-                  <p className="gba:text-xs gba:text-muted-foreground">{performer.dealsWon} deals won</p>
+                  <p className="gba:text-xs gba:text-muted-foreground">
+                    {performer.opportunitiesWon} opportunities won
+                  </p>
                 </div>
               </div>
               <div className="gba:text-right gba:shrink-0 gba:ml-2">

@@ -23,7 +23,7 @@ card-account-description = Add accounts from a spreadsheet—organization detail
 card-account-button = Start Account Import
 
 card-opportunity-title = Import Opportunities
-card-opportunity-description = Add opportunities from a spreadsheet—pipeline stage, forecast, and deal info. We'll suggest how your columns match up.
+card-opportunity-description = Add opportunities from a spreadsheet—pipeline stage, forecast, and opportunity details. We'll suggest how your columns match up.
 card-opportunity-button = Start Opportunity Import
 
 # Multi-entry investments card

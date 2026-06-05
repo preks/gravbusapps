@@ -151,7 +151,7 @@ export const HIGH_VALUE_STAGE_TRANSITION_CONDITIONS: StageTransitionCondition[] 
         type: 'APPROVAL',
         flowTemplateId: 'flow_opportunity_stage_approval',
         title: 'Risk Assessment',
-        description: 'Risk assessment required for high-value deals',
+        description: 'Risk assessment required for high-value opportunities',
         requiredAssignments: {
           organizationalUnits: ['RISK_MANAGEMENT'],
           capabilities: ['RISK_ASSESSMENT']

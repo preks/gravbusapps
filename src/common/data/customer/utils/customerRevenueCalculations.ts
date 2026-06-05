@@ -74,9 +74,9 @@ export const calculateCustomerRevenueAchievementPercentage = (actual: number, ta
 }
 
 /**
- * Calculate average deal size for customer opportunities
+ * Calculate average opportunity size for customer opportunities
  */
-export const calculateCustomerAverageDealSize = (opportunities: any[]): number => {
+export const calculateCustomerAverageOpportunitySize = (opportunities: any[]): number => {
   if (!opportunities || opportunities.length === 0) {
     return 0
   }

@@ -23,7 +23,7 @@ card-account-description = Accounts aus einer Tabelle hinzufügen – mit Organi
 card-account-button = Account-Import starten
 
 card-opportunity-title = Opportunities importieren
-card-opportunity-description = Opportunities aus einer Tabelle hinzufügen – mit Pipeline-Phase, Prognose und Deal-Infos. Wir schlagen passende Spaltenzuordnungen vor.
+card-opportunity-description = Opportunities aus einer Tabelle hinzufügen – mit Pipeline-Phase, Prognose und Opportunity-Details. Wir schlagen passende Spaltenzuordnungen vor.
 card-opportunity-button = Opportunity-Import starten
 
 # Multi-entry investments card

@@ -22,7 +22,7 @@ export function buildAiSummaryPrompt(entityType: string): string {
 
   // Entity-specific prompt enhancements for CRM
   const crmGuidance: Record<string, string> = {
-    opportunity: `Analyze the sales stage, probability, expected close date, and deal value. Review related activities, competitor information, and decision-making factors.`,
+    opportunity: `Analyze the sales stage, probability, expected close date, and opportunity value. Review related activities, competitor information, and decision-making factors.`,
     account: `Examine company details, industry, size, and relationship history. Review associated contacts, opportunities, and account health indicators.`,
     contact: `Review contact role, communication history, influence level, and relationship strength. Analyze engagement patterns and preferred communication methods.`,
     lead: `Assess lead quality, source, conversion potential, and engagement level. Review qualification status, interests, and next steps in the sales process.`
@@ -30,10 +30,10 @@ export function buildAiSummaryPrompt(entityType: string): string {
 
   // Entity-specific prompt enhancements for IRM (Investment Relationship Management)
   const irmGuidance: Record<string, string> = {
-    opportunity: `Analyze this investment deal's stage, deal type (acquisition/divestment), valuation, and expected close date. Review investment thesis, due diligence progress, risk factors, and key decision points. Consider market conditions and strategic fit.`,
+    opportunity: `Analyze this investment opportunity's stage, opportunity type (acquisition/divestment), valuation, and expected close date. Review investment thesis, due diligence progress, risk factors, and key decision points. Consider market conditions and strategic fit.`,
     account: `Examine this investment portfolio company's financial performance, governance structure, ownership stake, and relationship history. Review investment returns, strategic initiatives, and stakeholder relationships. Assess portfolio company health and value creation opportunities.`,
     contact: `Review this investment stakeholder's role (e.g., founder, board member, investor), influence level, and engagement history. Analyze their impact on investment decisions, communication patterns, and relationship strength with the investment team.`,
-    lead: `Assess this investment opportunity lead's potential, deal source, sector fit, and initial interest level. Review preliminary financials, strategic rationale, and qualification status. Identify key evaluation criteria and next steps in the investment pipeline.`
+    lead: `Assess this investment opportunity lead's potential, opportunity source, sector fit, and initial interest level. Review preliminary financials, strategic rationale, and qualification status. Identify key evaluation criteria and next steps in the investment pipeline.`
   }
 
   // Standalone investment entity guidance

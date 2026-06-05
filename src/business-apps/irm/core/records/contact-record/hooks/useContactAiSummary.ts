@@ -23,7 +23,7 @@ Analyze all available contact data, organizational affiliation, engagement histo
    - Contact's influence and decision-making capacity in investments
    - Relationship quality and engagement indicators
    - Engagement gaps or relationship risks
-   - Recommended next steps for relationship development or deal advancement
+   - Recommended next steps for relationship development or opportunity advancement
 
 Focus on relationship management within an investment context.
 Respond strictly in JSON conforming to the provided schema.`

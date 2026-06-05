@@ -118,22 +118,22 @@ export const TeamSelectionCard: React.FC<TeamSelectionCardProps> = ({ team, isAc
           <span className="gba:font-semibold gba:text-foreground">{team.memberCount}</span>
         </div>
 
-        {/* Deals (Total Opportunities) */}
+        {/* Opportunities (Total Opportunities) */}
         <div className="gba:flex gba:items-center gba:justify-between">
           <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
             <TargetIcon className="gba:h-3.5 gba:w-3.5" />
-            <span>Deals</span>
+            <span>Opportunities</span>
           </div>
-          <span className="gba:font-semibold gba:text-foreground">{team.dealsCount}</span>
+          <span className="gba:font-semibold gba:text-foreground">{team.opportunitiesCount}</span>
         </div>
 
-        {/* Won Deals */}
+        {/* Won Opportunities */}
         <div className="gba:flex gba:items-center gba:justify-between">
           <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
             <TrophyIcon className="gba:h-3.5 gba:w-3.5 gba:text-success" />
-            <span>Won Deals</span>
+            <span>Won Opportunities</span>
           </div>
-          <span className="gba:font-semibold gba:text-success">{team.wonDealsCount}</span>
+          <span className="gba:font-semibold gba:text-success">{team.wonOpportunitiesCount}</span>
         </div>
 
         {/* Win Rate */}

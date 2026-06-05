@@ -77,7 +77,7 @@ const getEntityConfig = (type: ActivityViewFilter) => {
     case 'by-opportunity':
       return {
         title: 'Select Opportunity',
-        description: 'Choose an opportunity to view deal activities',
+        description: 'Choose an opportunity to view opportunity activities',
         icon: <HandshakeIcon className="gba:w-6 gba:h-6" />,
         placeholder: 'Search opportunities...',
         color: 'gba:bg-accent/10 gba:text-accent-foreground'

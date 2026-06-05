@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
-export interface TopDeal {
+export interface TopOpportunity {
   id: string
   name: string
   value: number
@@ -26,7 +26,7 @@ interface OpportunityResponse {
 }
 
 /**
- * Shared hook for fetching top deals
+ * Shared hook for fetching top opportunities
  * Used by both CRM and IRM analytics modules
  *
  * @param accessToken - Authentication token
@@ -34,9 +34,9 @@ interface OpportunityResponse {
  * @param entityName - Entity name ('Opportunity' for CRM, 'InvestmentOpportunity' for IRM)
  * @param stageFieldName - Stage field name ('salesPipelineStage' for CRM, 'opportunityPipelineStage' for IRM)
  * @param includeWinningChance - Whether to include winningChance field (CRM has it, IRM doesn't)
- * @param limit - Number of top deals to fetch (default: 5)
+ * @param limit - Number of top opportunities to fetch (default: 5)
  */
-export const useTopDeals = (
+export const useTopOpportunities = (
   accessToken: string,
   currencyCode?: string,
   entityName: 'Opportunity' | 'InvestmentOpportunity' = 'Opportunity',
@@ -44,12 +44,12 @@ export const useTopDeals = (
   includeWinningChance = true,
   limit = 5
 ) => {
-  const [data, setData] = useState<TopDeal[]>([])
+  const [data, setData] = useState<TopOpportunity[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const graphqlClient = useGraphQLClient(accessToken)
 
   useEffect(() => {
-    const fetchTopDeals = async () => {
+    const fetchTopOpportunities = async () => {
       if (!accessToken) return
 
       try {
@@ -58,7 +58,7 @@ export const useTopDeals = (
         const winningChanceField = includeWinningChance ? 'winningChance' : ''
 
         const query = `
-          query GetTopDeals {
+          query GetTopOpportunities {
             ${entityName}(
               where: { isDeleted: { _eq: false }${currencyFilter} }
               orderBy: { estimatedAmount: DESC }
@@ -84,7 +84,7 @@ export const useTopDeals = (
         `
 
         const result = await graphqlClient.request<Record<string, OpportunityResponse[]>>(query)
-        const topDeals = (result[entityName] || []).map((opp: OpportunityResponse) => ({
+        const topOpportunities = (result[entityName] || []).map((opp: OpportunityResponse) => ({
           id: opp.id,
           name: opp.name,
           value: opp.estimatedAmount || 0,
@@ -97,16 +97,16 @@ export const useTopDeals = (
           currencyCode: opp.currency?.code || 'EUR'
         }))
 
-        setData(topDeals)
+        setData(topOpportunities)
       } catch (error) {
-        console.error('Error fetching top deals:', error)
+        console.error('Error fetching top opportunities:', error)
         setData([])
       } finally {
         setIsLoading(false)
       }
     }
 
-    fetchTopDeals()
+    fetchTopOpportunities()
   }, [accessToken, graphqlClient, currencyCode, entityName, stageFieldName, includeWinningChance, limit])
 
   return { data, isLoading }

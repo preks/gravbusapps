@@ -17,8 +17,8 @@ interface OpportunityTrendData {
   // Actual KPI values for this month
   actualWinRateThisMonth: number
   actualWinRateLastMonth: number
-  actualAvgDealSizeThisMonth: number
-  actualAvgDealSizeLastMonth: number
+  actualAvgOpportunitySizeThisMonth: number
+  actualAvgOpportunitySizeLastMonth: number
   actualAvgOpportunityValueThisMonth: number // Average value of ALL opportunities
   actualAvgOpportunityValueLastMonth: number // Average value of ALL opportunities (previous period)
   actualAvgSalesCycleLastMonth: number
@@ -201,13 +201,13 @@ export const useOpportunityTrendData = (
               100
             : 0
 
-        // Calculate average deal sizes (period-based)
-        const currentPeriodAvgDealSize =
+        // Calculate average opportunity sizes (period-based)
+        const currentPeriodAvgOpportunitySize =
           result.currentPeriodOpportunities.aggregate.count > 0
             ? (result.currentPeriodOpportunities.aggregate.sum?.estimatedAmount || 0) /
               result.currentPeriodOpportunities.aggregate.count
             : 0
-        const previousPeriodAvgDealSize =
+        const previousPeriodAvgOpportunitySize =
           result.previousPeriodOpportunities.aggregate.count > 0
             ? (result.previousPeriodOpportunities.aggregate.sum?.estimatedAmount || 0) /
               result.previousPeriodOpportunities.aggregate.count
@@ -235,10 +235,10 @@ export const useOpportunityTrendData = (
           // Real calculated values
           actualWinRateThisMonth: Math.round(currentPeriodWinRate),
           actualWinRateLastMonth: 0, // Will add later
-          actualAvgDealSizeThisMonth: Math.round(currentPeriodAvgDealSize),
-          actualAvgDealSizeLastMonth: Math.round(previousPeriodAvgDealSize),
-          actualAvgOpportunityValueThisMonth: Math.round(currentPeriodAvgDealSize), // Same as avgDealSize (all opps)
-          actualAvgOpportunityValueLastMonth: Math.round(previousPeriodAvgDealSize), // Same as avgDealSize (previous period)
+          actualAvgOpportunitySizeThisMonth: Math.round(currentPeriodAvgOpportunitySize),
+          actualAvgOpportunitySizeLastMonth: Math.round(previousPeriodAvgOpportunitySize),
+          actualAvgOpportunityValueThisMonth: Math.round(currentPeriodAvgOpportunitySize), // Same as avgOpportunitySize (all opps)
+          actualAvgOpportunityValueLastMonth: Math.round(previousPeriodAvgOpportunitySize), // Same as avgOpportunitySize (previous period)
           actualAvgSalesCycleLastMonth: 0,
           actualConversionRateThisMonth: Math.round(currentPeriodConversionRate),
           actualConversionRateLastMonth: Math.round(previousPeriodConversionRate),

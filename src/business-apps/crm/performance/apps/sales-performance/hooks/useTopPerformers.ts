@@ -122,7 +122,7 @@ export const useTopPerformers = (
 
         if (existing) {
           existing.revenue += opp.estimatedAmount
-          existing.dealsWon += 1
+          existing.opportunitiesWon += 1
         } else {
           performerMap.set(employee.id, {
             id: employee.id,
@@ -131,7 +131,7 @@ export const useTopPerformers = (
             picture: employee.picture || undefined,
             pictureThumbnail: employee.pictureThumbnail || undefined,
             revenue: opp.estimatedAmount,
-            dealsWon: 1,
+            opportunitiesWon: 1,
             currencyCode
           })
         }

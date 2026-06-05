@@ -18,9 +18,9 @@ export interface SalesRepPerformance {
   firstName: string
   lastName: string
   displayName: string
-  dealsWon: number
-  dealsLost: number
-  totalDeals?: number
+  opportunitiesWon: number
+  opportunitiesLost: number
+  totalOpportunities?: number
   totalValue: number
   winRate: number
   activitiesCount: number
@@ -155,7 +155,8 @@ export const PerformanceLeaderboard: React.FC<PerformanceLeaderboardProps> = ({
                     <div>
                       <div className="gba:font-medium gba:text-sm">{rep.displayName}</div>
                       <div className="gba:text-xs gba:text-gray-500">
-                        {rep.totalDeals ?? rep.dealsWon + rep.dealsLost} deals • {rep.activitiesCount} activities
+                        {rep.totalOpportunities ?? rep.opportunitiesWon + rep.opportunitiesLost} opportunities •{' '}
+                        {rep.activitiesCount} activities
                       </div>
                     </div>
                   </div>
@@ -177,10 +178,11 @@ export const PerformanceLeaderboard: React.FC<PerformanceLeaderboardProps> = ({
                 {/* Performance Details */}
                 <div className="gba:flex gba:justify-between gba:text-xs gba:text-gray-500">
                   <span>
-                    Won: {rep.dealsWon} | Lost: {rep.dealsLost}
+                    Won: {rep.opportunitiesWon} | Lost: {rep.opportunitiesLost}
                   </span>
                   <span>
-                    Avg Deal: {formatCurrency(rep.dealsWon > 0 ? rep.totalValue / rep.dealsWon : 0, currency)}
+                    Avg Opportunity:{' '}
+                    {formatCurrency(rep.opportunitiesWon > 0 ? rep.totalValue / rep.opportunitiesWon : 0, currency)}
                   </span>
                 </div>
               </div>
@@ -205,9 +207,9 @@ export const PerformanceLeaderboard: React.FC<PerformanceLeaderboardProps> = ({
             </div>
             <div>
               <div className="gba:font-bold gba:text-green-600 gba:text-sm">
-                {topPerformers.reduce((sum, rep) => sum + rep.dealsWon, 0)}
+                {topPerformers.reduce((sum, rep) => sum + rep.opportunitiesWon, 0)}
               </div>
-              <span className="gba:text-gray-600 gba:text-xs">Deals Won</span>
+              <span className="gba:text-gray-600 gba:text-xs">Opportunities Won</span>
             </div>
             <div>
               <div className="gba:font-bold gba:text-orange-600 gba:text-sm">
