@@ -109,15 +109,6 @@ export const FinalAnswerRenderer = ({
             </div>
           )}
 
-          <div className="gba:pt-3 gba:space-y-2">
-            {workspaceDocs.map(doc => (
-              <WorkspaceDocCard key={doc.id} doc={doc} />
-            ))}
-            {pdfAttachments.map(att => (
-              <PdfExportCard key={att.id} attachment={att} sessionId={sessionId} accessToken={accessToken} />
-            ))}
-          </div>
-
           {output.length > 0 && (
             <div className="gba:pt-3">
               <button
@@ -139,6 +130,18 @@ export const FinalAnswerRenderer = ({
               )}
             </div>
           )}
+
+          {/* Deliverable cards render at the end of the response so the
+              agent's summary/findings read first, then the actionable
+              Open / Download cards close it out. */}
+          <div className="gba:pt-3 gba:space-y-2">
+            {workspaceDocs.map(doc => (
+              <WorkspaceDocCard key={doc.id} doc={doc} />
+            ))}
+            {pdfAttachments.map(att => (
+              <PdfExportCard key={att.id} attachment={att} sessionId={sessionId} accessToken={accessToken} />
+            ))}
+          </div>
         </>
       ) : (
         <div className={markdownTopSpacingClass}>
