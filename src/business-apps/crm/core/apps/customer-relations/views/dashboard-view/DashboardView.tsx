@@ -40,8 +40,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ pipelines, dateRan
     error: overviewError,
     refetch: refetchOverview,
     setSelectedCurrency,
-    selectedDealCurrency,
-    setSelectedDealCurrency
+    selectedOpportunityCurrency,
+    setSelectedOpportunityCurrency
   } = useOverviewData(context, pipelines, dateRange, activeTab === 'overview')
 
   const selectedPipeline = pipelines.find(p => p.id === selectedPipelineId)
@@ -73,7 +73,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ pipelines, dateRan
     setSelectedPipelineId(pipelineId)
   }
 
-  const handleDealClick = useCallback((opportunityId: string) => {
+  const handleOpportunityClick = useCallback((opportunityId: string) => {
     const url = buildPlatformUrl('/platform/crm/opportunity-record', {
       opportunityId,
       source: 'customer-relations',
@@ -132,10 +132,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ pipelines, dateRan
         overviewData,
         {
           setSelectedCurrency,
-          handleDealClick,
-          setSelectedDealCurrency
+          handleOpportunityClick,
+          setSelectedOpportunityCurrency
         },
-        selectedDealCurrency,
+        selectedOpportunityCurrency,
         crmRecordNavigationConfig
       )}
       pipelineProps={

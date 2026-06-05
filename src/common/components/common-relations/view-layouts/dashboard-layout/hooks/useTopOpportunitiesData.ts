@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
-export interface TopDealItem {
+export interface TopOpportunityItem {
   id: string
   name: string
   estimatedAmount: number
@@ -22,30 +22,30 @@ export interface TopDealItem {
   pipelineStageRef: string | null
 }
 
-export interface TopDealsConfig {
+export interface TopOpportunitiesConfig {
   opportunityTable: string
   pipelineStageField: string
   pipelineStageRefField: string
   statusField?: string // Optional - only used in CRM
 }
 
-export interface UseTopDealsDataProps {
+export interface UseTopOpportunitiesDataProps {
   accessToken: string
   enabled: boolean
-  config: TopDealsConfig
+  config: TopOpportunitiesConfig
   selectedCurrency: string
   limit?: number
 }
 
-export interface UseTopDealsDataReturn {
-  deals: TopDealItem[]
+export interface UseTopOpportunitiesDataReturn {
+  opportunities: TopOpportunityItem[]
   isLoading: boolean
   error: string | null
   refetch: (currency?: string) => void
 }
 
 /**
- * Generic hook for fetching top deals (highest estimated amounts)
+ * Generic hook for fetching top opportunities (highest estimated amounts)
  * Module-agnostic - accepts configuration for any module
  *
  * Features:
@@ -56,33 +56,33 @@ export interface UseTopDealsDataReturn {
  * - Automatic refetch when currency changes
  *
  * @example CRM
- * const { deals, isLoading, error, refetch } = useTopDealsData({
+ * const { opportunities, isLoading, error, refetch } = useTopOpportunitiesData({
  *   accessToken: context.accessToken,
  *   enabled: true,
- *   config: topDealsConfig,
+ *   config: topOpportunitiesConfig,
  *   selectedCurrency: 'EUR',
  *   limit: 5
  * })
  *
  * @example IRM
- * const { deals, isLoading, error, refetch } = useTopDealsData({
+ * const { opportunities, isLoading, error, refetch } = useTopOpportunitiesData({
  *   accessToken: context.accessToken,
  *   enabled: true,
- *   config: topDealsConfig,
+ *   config: topOpportunitiesConfig,
  *   selectedCurrency: 'USD',
  *   limit: 5
  * })
  */
-export const useTopDealsData = ({
+export const useTopOpportunitiesData = ({
   accessToken,
   enabled,
   config,
   selectedCurrency,
   limit = 5
-}: UseTopDealsDataProps): UseTopDealsDataReturn => {
+}: UseTopOpportunitiesDataProps): UseTopOpportunitiesDataReturn => {
   const graphqlClient = useGraphQLClient(accessToken)
 
-  const [deals, setDeals] = useState<TopDealItem[]>([])
+  const [opportunities, setOpportunities] = useState<TopOpportunityItem[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -113,13 +113,13 @@ export const useTopDealsData = ({
 
         // Build GraphQL query dynamically
         const query = `
-        query GetTopDeals(
+        query GetTopOpportunities(
           $currentYearStart: timestamp!
           $currentYearEnd: timestamp!
           $currencyFilter: String!
           $limit: Int!
         ) {
-          topDeals: ${config.opportunityTable}(
+          topOpportunities: ${config.opportunityTable}(
             where: {
               isDeleted: { _eq: false }
               estimatedAmount: { _gt: 0 }
@@ -152,7 +152,7 @@ export const useTopDealsData = ({
       `
 
         const result = await graphqlClient.request<{
-          topDeals: any[]
+          topOpportunities: any[]
         }>(query, {
           currentYearStart,
           currentYearEnd,
@@ -160,27 +160,27 @@ export const useTopDealsData = ({
           limit
         })
 
-        const fetchedDeals = result.topDeals || []
+        const fetchedOpportunities = result.topOpportunities || []
 
         // Normalize the data structure
-        const normalizedDeals: TopDealItem[] = fetchedDeals.map((deal: any) => ({
-          id: deal.id,
-          name: deal.name,
-          estimatedAmount: deal.estimatedAmount,
-          currencyRef: deal.currencyRef,
-          closeDate: deal.closeDate,
-          status: deal.status,
-          ownerEmployeeId: deal.ownerEmployeeId,
-          ownerEmployee: deal.ownerEmployee,
-          pipelineStage: deal[config.pipelineStageField],
-          pipelineStageRef: deal[config.pipelineStageRefField]
+        const normalizedOpportunities: TopOpportunityItem[] = fetchedOpportunities.map((opportunity: any) => ({
+          id: opportunity.id,
+          name: opportunity.name,
+          estimatedAmount: opportunity.estimatedAmount,
+          currencyRef: opportunity.currencyRef,
+          closeDate: opportunity.closeDate,
+          status: opportunity.status,
+          ownerEmployeeId: opportunity.ownerEmployeeId,
+          ownerEmployee: opportunity.ownerEmployee,
+          pipelineStage: opportunity[config.pipelineStageField],
+          pipelineStageRef: opportunity[config.pipelineStageRefField]
         }))
 
-        setDeals(normalizedDeals)
+        setOpportunities(normalizedOpportunities)
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch top deals'
+        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch top opportunities'
         setError(errorMessage)
-        console.error(`❌ Error fetching top deals:`, err)
+        console.error(`❌ Error fetching top opportunities:`, err)
       } finally {
         setIsLoading(false)
       }
@@ -203,7 +203,7 @@ export const useTopDealsData = ({
   )
 
   return {
-    deals,
+    opportunities,
     isLoading,
     error,
     refetch

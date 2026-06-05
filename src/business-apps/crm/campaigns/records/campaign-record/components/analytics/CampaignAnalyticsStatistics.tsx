@@ -18,15 +18,7 @@ const CampaignAnalyticsStatistics: React.FC<CampaignAnalyticsStatisticsProps> = 
   error = null,
   onRetry
 }) => {
-  // Helper function to create combined descriptions
-  const createCombinedDescription = (mainDesc: string, additionalInfo: string) => {
-    return (
-      <div>
-        <div>{mainDesc}</div>
-        <div className="gba:font-bold gba:mt-1">{additionalInfo}</div>
-      </div>
-    )
-  }
+  const createCombinedDescription = (mainDesc: string, additionalInfo: string) => `${mainDesc}. ${additionalInfo}`
 
   // Calculate derived metrics
   const totalLeads = metrics?.totalEntities.leads || 0
@@ -41,7 +33,7 @@ const CampaignAnalyticsStatistics: React.FC<CampaignAnalyticsStatisticsProps> = 
   const totalAccounts = metrics?.totalEntities.accounts || 0
   const totalContacts = metrics?.totalEntities.contacts || 0
 
-  const averageDealSize = metrics?.revenueMetrics.averageDealSize || 0
+  const averageOpportunitySize = metrics?.revenueMetrics.averageOpportunitySize || 0
 
   // Transform metrics data into combined widgets format
   const widgets: WidgetItem[] = [
@@ -81,7 +73,7 @@ const CampaignAnalyticsStatistics: React.FC<CampaignAnalyticsStatisticsProps> = 
       valueIsString: true,
       description: createCombinedDescription(
         'Revenue from won opportunities',
-        `Pipeline: ${formatCurrencyCompact(totalPipeline)} • Avg: ${formatCurrencyCompact(averageDealSize)}`
+        `Pipeline: ${formatCurrencyCompact(totalPipeline)} • Avg: ${formatCurrencyCompact(averageOpportunitySize)}`
       )
     },
 

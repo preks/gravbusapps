@@ -16,7 +16,7 @@ import {
  * - Total Contacts
  * - Lead to Opportunity Rate
  * - Opportunity Win Rate
- * - Avg Deal Size
+ * - Avg Opportunity Size
  * - Total Won Revenue
  *
  * No customization needed - pass undefined or {} to use defaults

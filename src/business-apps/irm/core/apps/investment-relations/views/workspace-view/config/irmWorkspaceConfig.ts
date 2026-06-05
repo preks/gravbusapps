@@ -85,10 +85,10 @@ const buildIrmWorkspaceConfig = (
     },
     opportunity: {
       enabled: true,
-      displayName: 'Deal',
-      pluralName: 'Deals',
+      displayName: 'Opportunity',
+      pluralName: 'Opportunities',
       icon: TargetIcon,
-      statusField: 'dealStatus'
+      statusField: 'opportunityStatus'
     },
     activity: {
       enabled: true,

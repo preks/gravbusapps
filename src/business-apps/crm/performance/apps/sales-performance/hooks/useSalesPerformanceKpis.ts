@@ -162,7 +162,7 @@ interface KpisQueryResult {
  * Hook to fetch sales performance KPIs with 30-day trend comparison:
  * - Total Revenue: sum of estimated amounts for opportunities with status WON
  * - Opportunities Won: count of opportunities with status WON
- * - Average Deal Size: Average of estimated amounts of all opportunities
+ * - Average Opportunity Size: Average of estimated amounts of all opportunities
  * - Win Rate: count of WON / count of all closed opportunities
  *
  * Each KPI includes trend data comparing current 30 days vs previous 30 days
@@ -212,21 +212,21 @@ export const useSalesPerformanceKpis = (
       const totalRevenue = result.allTimeWon?.aggregate?.sum?.estimatedAmount || 0
       const wonCount = result.allTimeWon?.aggregate?.count || 0
       const totalClosedCount = result.allTimeClosed?.aggregate?.count || 0
-      const avgDealSize = result.allOpportunitiesForAvg?.aggregate?.avg?.estimatedAmount || 0
+      const avgOpportunitySize = result.allOpportunitiesForAvg?.aggregate?.avg?.estimatedAmount || 0
       const winRate = totalClosedCount > 0 ? (wonCount / totalClosedCount) * 100 : 0
 
       // Extract current period data
       const currentRevenue = result.currentWon?.aggregate?.sum?.estimatedAmount || 0
       const currentWonCount = result.currentWon?.aggregate?.count || 0
       const currentClosedCount = result.currentAllClosed?.aggregate?.count || 0
-      const currentAvgDealSize = result.currentWon?.aggregate?.avg?.estimatedAmount || 0
+      const currentAvgOpportunitySize = result.currentWon?.aggregate?.avg?.estimatedAmount || 0
       const currentWinRate = currentClosedCount > 0 ? (currentWonCount / currentClosedCount) * 100 : 0
 
       // Extract previous period data
       const previousRevenue = result.previousWon?.aggregate?.sum?.estimatedAmount || 0
       const previousWonCount = result.previousWon?.aggregate?.count || 0
       const previousClosedCount = result.previousAllClosed?.aggregate?.count || 0
-      const previousAvgDealSize = result.previousWon?.aggregate?.avg?.estimatedAmount || 0
+      const previousAvgOpportunitySize = result.previousWon?.aggregate?.avg?.estimatedAmount || 0
       const previousWinRate = previousClosedCount > 0 ? (previousWonCount / previousClosedCount) * 100 : 0
 
       // Extract currency code from sample opportunity or from selectedCurrencyId
@@ -242,7 +242,7 @@ export const useSalesPerformanceKpis = (
       setKpis({
         totalRevenue,
         opportunitiesWon: wonCount,
-        averageDealSize: avgDealSize,
+        averageOpportunitySize: avgOpportunitySize,
         winRate,
         currencyCode,
         trends: {
@@ -254,9 +254,9 @@ export const useSalesPerformanceKpis = (
             current: currentWonCount,
             previous: previousWonCount
           },
-          averageDealSize: {
-            current: currentAvgDealSize,
-            previous: previousAvgDealSize
+          averageOpportunitySize: {
+            current: currentAvgOpportunitySize,
+            previous: previousAvgOpportunitySize
           },
           winRate: {
             current: currentWinRate,

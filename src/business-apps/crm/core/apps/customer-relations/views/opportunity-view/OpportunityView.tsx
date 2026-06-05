@@ -215,7 +215,7 @@ export const OpportunityView: React.FC<OpportunityViewProps> = props => {
         return [...baseSortable, ...additionalSortable]
       }
     } as typeof baseConfig
-  }, [fetchCustomerOpportunities, opportunityStatisticsData, t, isRecordScoped, accountId, contactId])
+  }, [fetchCustomerOpportunities, opportunityStatisticsData, isRecordScoped, accountId, contactId])
 
   const handleBulkScored = () => {
     setScoreRefreshKey(previous => previous + 1)

@@ -164,7 +164,7 @@ export const ViewSelector: React.FC<ExtendedViewSelectorProps> = ({
       {
         id: 'by-opportunity',
         title: 'By Opportunity',
-        subtitle: 'Deal activities',
+        subtitle: 'Opportunity activities',
         icon: <HandshakeIcon className="gba:w-5 gba:h-5" />,
         iconBg: 'gba:bg-accent',
         iconColor: 'gba:text-accent-foreground',

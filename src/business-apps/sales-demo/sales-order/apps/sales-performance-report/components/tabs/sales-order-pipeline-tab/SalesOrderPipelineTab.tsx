@@ -18,9 +18,9 @@ import { useSalesPerformanceData } from '../../../hooks/useSalesPerformanceData'
 
 const { Text } = Typography
 
-export interface SalesOrderPipelineTabProps extends BusinessAppContextProps {}
+export type SalesOrderPipelineTabProps = BusinessAppContextProps
 
-const SalesOrderPipelineTab: React.FC<SalesOrderPipelineTabProps> = ({ accessToken, userInfo, additionalData }) => {
+const SalesOrderPipelineTab: React.FC<SalesOrderPipelineTabProps> = ({ accessToken }) => {
   const { pipelineMetrics, loading, error } = useSalesPerformanceData({ accessToken })
 
   // Helper function to format currency
@@ -198,10 +198,10 @@ const SalesOrderPipelineTab: React.FC<SalesOrderPipelineTabProps> = ({ accessTok
         </Col>
 
         <Col xs={24} sm={12} lg={6}>
-          <Card hoverable className="gba:h-full" data-testid="average-deal-size-card">
+          <Card hoverable className="gba:h-full" data-testid="average-opportunity-size-card">
             <Statistic
-              title="Average Deal Size"
-              value={pipelineMetrics.averageDealSize}
+              title="Average Opportunity Size"
+              value={pipelineMetrics.averageOpportunitySize}
               prefix={<TrendUpIcon size={16} />}
               valueStyle={{ fontSize: '24px' }}
               formatter={value => formatCurrency(Number(value))}
@@ -262,7 +262,7 @@ const SalesOrderPipelineTab: React.FC<SalesOrderPipelineTabProps> = ({ accessTok
                   ]}
                 />
                 <Legend />
-                <Bar dataKey="count" fill="#376399" name="Order Count" />
+                <Bar dataKey="count" fill="var(--nw-chart-1)" name="Order Count" />
               </BarChart>
             </ResponsiveContainer>
           </Card>
@@ -279,7 +279,7 @@ const SalesOrderPipelineTab: React.FC<SalesOrderPipelineTabProps> = ({ accessTok
                 <Line
                   type="monotone"
                   dataKey="conversionRate"
-                  stroke="#0DBC7B"
+                  stroke="var(--nw-success)"
                   strokeWidth={3}
                   name="Conversion Rate"
                 />

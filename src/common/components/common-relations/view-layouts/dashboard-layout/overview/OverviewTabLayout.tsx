@@ -3,7 +3,7 @@ import { PipelineFunnel, AggregatedFunnelStage } from './widgets/PipelineFunnel'
 import { LeadSourceChart, LeadSourceItem } from './widgets/LeadSourceChart'
 import { OpportunityStatusPieChart } from './widgets/OpportunityStatusPieChart'
 import { RecordSummary, RecentRecordItem, RecordNavigationConfig } from './widgets/RecordSummary'
-import { DealSummary, DealItem } from './widgets/DealSummary'
+import { OpportunitySummary, OpportunitySummaryItem } from './widgets/OpportunitySummary'
 
 export interface OverviewTabLayoutProps {
   moduleColor?: string
@@ -18,10 +18,10 @@ export interface OverviewTabLayoutProps {
   totalRevenue: number
   totalLeadCount: number
   recentRecords: RecentRecordItem[]
-  keyDeals: DealItem[]
-  onDealClick?: (dealId: string) => void
-  selectedDealCurrency?: string
-  onDealCurrencyChange?: (currency: string) => void
+  keyOpportunities: OpportunitySummaryItem[]
+  onOpportunityClick?: (opportunityId: string) => void
+  selectedOpportunityCurrency?: string
+  onOpportunityCurrencyChange?: (currency: string) => void
 
   // Optional: Opportunity status data for pie chart (used instead of lead sources for IRM)
   opportunityStatuses?: Array<{
@@ -48,10 +48,10 @@ export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
   revenueBySource,
   totalLeadCount,
   recentRecords,
-  keyDeals,
-  onDealClick,
-  selectedDealCurrency,
-  onDealCurrencyChange,
+  keyOpportunities,
+  onOpportunityClick,
+  selectedOpportunityCurrency,
+  onOpportunityCurrencyChange,
   opportunityStatuses = [],
   totalOpportunityCount = 0,
   openOpportunitiesComparison = { beforeCurrentQuarter: 0, currentQuarter: 0 },
@@ -86,15 +86,14 @@ export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
         </div>
       </div>
 
-      {/* Key Deals Section */}
+      {/* Key Opportunities Section */}
       <div>
-        <DealSummary
-          deals={keyDeals}
-          moduleColor={moduleColor}
-          onDealClick={onDealClick}
+        <OpportunitySummary
+          opportunities={keyOpportunities}
+          onOpportunityClick={onOpportunityClick}
           availableCurrencies={availableCurrencies}
-          selectedDealCurrency={selectedDealCurrency}
-          onDealCurrencyChange={onDealCurrencyChange}
+          selectedOpportunityCurrency={selectedOpportunityCurrency}
+          onOpportunityCurrencyChange={onOpportunityCurrencyChange}
         />
       </div>
     </div>

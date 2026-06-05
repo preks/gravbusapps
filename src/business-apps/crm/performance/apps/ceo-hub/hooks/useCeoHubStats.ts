@@ -17,7 +17,7 @@ const defaultStats: CeoHubStats = {
   emailsSent: 0,
   totalRevenue: 0,
   revenueGrowth: 0,
-  dealsWon: 0,
+  opportunitiesWon: 0,
   winRate: 0,
   pipelineValue: 0,
   teamPerformanceScore: 0,
@@ -132,7 +132,7 @@ export const useCeoHubStats = (accessToken: string): UseCeoHubStatsResult => {
         emailsSent: totalOpportunities,
         totalRevenue,
         revenueGrowth: 12.5, // Would need historical comparison
-        dealsWon: wonCount,
+        opportunitiesWon: wonCount,
         winRate: Math.round(winRate * 10) / 10,
         pipelineValue,
         teamPerformanceScore: 85, // Would need team performance calculation

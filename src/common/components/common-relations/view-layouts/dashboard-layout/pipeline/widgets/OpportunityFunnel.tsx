@@ -102,7 +102,7 @@ export const OpportunityFunnel: React.FC<OpportunityFunnelProps> = ({
         <div className="gba:space-y-5">
           {funnelData.map((stage, index) => {
             const progressPercent = maxCount > 0 ? (stage.count / maxCount) * 100 : 0
-            const avgDealSize = stage.count > 0 ? stage.value / stage.count : 0
+            const avgOpportunitySize = stage.count > 0 ? stage.value / stage.count : 0
 
             return (
               <div
@@ -117,7 +117,7 @@ export const OpportunityFunnel: React.FC<OpportunityFunnelProps> = ({
                     <span className="gba:font-semibold gba:text-gray-900 gba:text-base">{stage.stage.name}</span>
                   </div>
                   <div className="gba:text-right">
-                    <div className="gba:text-sm gba:text-gray-600">{stage.count} deals</div>
+                    <div className="gba:text-sm gba:text-gray-600">{stage.count} opportunities</div>
                     <div className="gba:text-lg gba:font-bold gba:text-gray-900">
                       {formatCurrency(stage.value, currency)}
                     </div>
@@ -136,7 +136,7 @@ export const OpportunityFunnel: React.FC<OpportunityFunnelProps> = ({
                 <div className="gba:flex gba:justify-between gba:items-center gba:text-sm">
                   <div className="gba:flex gba:items-center gba:gap-4">
                     <span className="gba:text-gray-500">{formatPercentage(stage.percentage)} of total</span>
-                    <span className="gba:text-gray-500">Avg: {formatCurrency(avgDealSize, currency)}</span>
+                    <span className="gba:text-gray-500">Avg: {formatCurrency(avgOpportunitySize, currency)}</span>
                   </div>
                   {index < funnelData.length - 1 && <div className="gba:text-gray-400 gba:text-xs">→ Next stage</div>}
                 </div>

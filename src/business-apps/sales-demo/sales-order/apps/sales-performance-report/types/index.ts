@@ -67,7 +67,7 @@ export interface PipelineStageData {
 
 export interface PipelineMetrics {
   totalPipelineValue: number
-  averageDealSize: number
+  averageOpportunitySize: number
   conversionRate: number
   averageSalesCycle: number
   stagesData: PipelineStageData[]

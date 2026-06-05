@@ -64,8 +64,8 @@ export const GET_FLIGHT_RISK_DATA = `
       completionDate
       employeePerformanceGoalUpdate(orderBy: { updateTime: ASC }) {
         id
-        progressPercent
         updateTime
+        updateDelta
       }
     }
     

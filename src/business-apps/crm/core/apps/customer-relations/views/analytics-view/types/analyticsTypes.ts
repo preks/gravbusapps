@@ -14,8 +14,8 @@ export interface OverviewTrendData {
   // Conversion metrics trend
   currentMonthLeadConversionRate: number
   previousMonthLeadConversionRate: number
-  currentMonthAvgDealSize: number
-  previousMonthAvgDealSize: number
+  currentMonthAvgOpportunitySize: number
+  previousMonthAvgOpportunitySize: number
   currentMonthSalesCycleLength: number
   previousMonthSalesCycleLength: number
   // Compatibility fields
@@ -56,13 +56,13 @@ export interface OverviewAnalytics {
   conversionMetrics: {
     leadToOpportunityRate: number
     opportunityWinRate: number
-    avgDealSize: number
+    avgOpportunitySize: number
     salesCycleLength: number
   }
   topPerformers: {
     employeeId: string
     employeeName: string
-    dealsWon: number
+    opportunitiesWon: number
     totalValue: number
   }[]
 }
@@ -139,10 +139,10 @@ export interface OpportunitiesAnalytics {
   }[]
   winRate: number
   winRateLastMonthOpportunities: number
-  avgDealSize: number
+  avgOpportunitySize: number
   avgSalesCycle: number
   conversionRate: number
-  topDeals: {
+  topOpportunities: {
     id: string
     name: string
     value: number

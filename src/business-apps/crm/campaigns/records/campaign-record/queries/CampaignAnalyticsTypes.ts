@@ -13,7 +13,7 @@ export interface CampaignAnalyticsMetrics {
   revenueMetrics: {
     totalPipeline: number
     wonRevenue: number
-    averageDealSize: number
+    averageOpportunitySize: number
     winRate: number
   }
   performanceMetrics: {

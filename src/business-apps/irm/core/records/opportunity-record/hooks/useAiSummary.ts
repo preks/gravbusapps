@@ -9,17 +9,17 @@ import {
 import type { InvestmentOpportunity } from '@/common/data/investment/types/investmentOpportunityTypes'
 import { sortActivitiesByOccurredAtDesc } from '@/common/data/relations/utils/activityOccurredAtSort'
 
-const taskDescription = `You are an investment deal assistant analyzing an investment opportunity.
+const taskDescription = `You are an investment opportunity assistant analyzing an investment opportunity.
 
-Analyze all available opportunity data including investment details, financial terms, asset characteristics, deal timeline, activities, notes, and tasks to provide:
-1. A concise executive summary highlighting the investment thesis, deal structure, asset profile, and current deal stage
+Analyze all available opportunity data including investment details, financial terms, asset characteristics, opportunity timeline, activities, notes, and tasks to provide:
+1. A concise executive summary highlighting the investment thesis, opportunity structure, asset profile, and current pipeline stage
 2. Up to 5 key insights covering:
    - Investment viability and financial attractiveness
-   - Deal momentum and progression indicators
+   - Opportunity momentum and progression indicators
    - Risk factors or concerns identified
-   - Critical next steps to advance or close the deal
+   - Critical next steps to advance or close the opportunity
 
-Emphasize investment metrics, financial considerations, and deal-specific factors.
+Emphasize investment metrics, financial considerations, and opportunity-specific factors.
 Respond strictly in JSON conforming to the provided schema.`
 
 const summarySchema = z.object({

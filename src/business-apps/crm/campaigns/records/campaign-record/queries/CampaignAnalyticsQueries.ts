@@ -68,7 +68,7 @@ export const useCampaignAnalyticsQueries = (context: BusinessAppContextProps) =>
       const revenueMetrics = {
         totalPipeline: result.opportunitiesRevenue.aggregate.sum?.estimatedAmount || 0,
         wonRevenue: result.wonOpportunities.aggregate.sum?.estimatedAmount || 0,
-        averageDealSize: result.opportunitiesRevenue.aggregate.avg?.estimatedAmount || 0,
+        averageOpportunitySize: result.opportunitiesRevenue.aggregate.avg?.estimatedAmount || 0,
         winRate:
           totalEntities.opportunities > 0
             ? ((result.wonOpportunities.aggregate.count || 0) / totalEntities.opportunities) * 100

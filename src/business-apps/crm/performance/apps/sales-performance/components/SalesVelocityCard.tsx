@@ -132,7 +132,9 @@ export const SalesVelocityCard: React.FC<SalesVelocityCardProps> = ({
           <div className="gba:text-4xl gba:font-bold gba:text-primary">
             {formatCurrency(velocityData.currentMonthRevenue, currencyCode)}
           </div>
-          <div className="gba:text-sm gba:text-muted-foreground">{velocityData.currentMonthDeals} deals closed</div>
+          <div className="gba:text-sm gba:text-muted-foreground">
+            {velocityData.currentMonthOpportunitiesClosed} opportunities closed
+          </div>
 
           {/* Trend indicator */}
           <div
@@ -155,8 +157,8 @@ export const SalesVelocityCard: React.FC<SalesVelocityCardProps> = ({
               </div>
             </div>
             <div className="gba:text-right">
-              <div className="gba:text-xs gba:text-muted-foreground">Deals</div>
-              <div className="gba:text-lg gba:font-semibold">{velocityData.comparisonMonthDeals}</div>
+              <div className="gba:text-xs gba:text-muted-foreground">Opportunities</div>
+              <div className="gba:text-lg gba:font-semibold">{velocityData.comparisonMonthOpportunitiesClosed}</div>
             </div>
           </div>
         </div>
@@ -165,9 +167,9 @@ export const SalesVelocityCard: React.FC<SalesVelocityCardProps> = ({
         <div className="gba:grid gba:grid-cols-3 gba:gap-3 gba:pt-3 gba:border-t">
           <div className="gba:text-center">
             <div className="gba:text-lg gba:font-semibold gba:text-foreground">
-              {formatCurrency(velocityData.avgDealSize, currencyCode)}
+              {formatCurrency(velocityData.avgOpportunitySize, currencyCode)}
             </div>
-            <div className="gba:text-xs gba:text-muted-foreground">Avg Deal</div>
+            <div className="gba:text-xs gba:text-muted-foreground">Avg Opportunity</div>
           </div>
 
           <div className="gba:text-center">

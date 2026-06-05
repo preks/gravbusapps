@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react'
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import {
   Button,
   DataDisplay,
@@ -544,6 +544,9 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
   } = props
   const { accessToken } = context
 
+  const configRef = useRef(config)
+  configRef.current = config
+
   // View State
   const [currentSection, setCurrentSection] = useState<'list' | 'board'>('list')
 
@@ -607,7 +610,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     filters: {
       entity: config.contextType === 'customer' ? 'Opportunity' : 'InvestmentOpportunity',
       ...(config.boardConfig && 'dealType' in config.boardConfig
-        ? { dealType: (config.boardConfig as any).dealType }
+        ? { dealType: (config.boardConfig as { dealType?: string }).dealType }
         : {})
     },
     returnFormat: 'full'
@@ -645,21 +648,56 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     [owners, stages, pipelines, accounts, statuses, forecasts, amountRange, config.baseFilterConfig]
   )
 
-  // List Query Variables
+  // List Query Variables — config is read via ref so parent config reference churn does not retrigger fetches.
   const listQueryVariables = useMemo(() => {
-    const baseVars = config.buildQueryVariables({ pagination, searchTerm, selectedFilters, sorting })
+    const baseVars = configRef.current.buildQueryVariables({ pagination, searchTerm, selectedFilters, sorting })
     const withScope = { ...baseVars, ...scopedQueryFilters }
     return applyCurrencyToVars(withScope, selectedCurrency, availableCurrencies)
   }, [
-    pagination,
+    pagination.pageIndex,
+    pagination.pageSize,
     searchTerm,
     selectedFilters,
     sorting,
     selectedCurrency,
     availableCurrencies,
-    config,
     scopedQueryFilters
   ])
+
+  const listQueryVariablesRef = useRef(listQueryVariables)
+  listQueryVariablesRef.current = listQueryVariables
+
+  const selectedFiltersKey = useMemo(() => JSON.stringify(selectedFilters), [selectedFilters])
+  const sortingKey = useMemo(() => JSON.stringify(sorting), [sorting])
+  const scopedQueryFiltersKey = useMemo(() => JSON.stringify(scopedQueryFilters ?? null), [scopedQueryFilters])
+  const availableCurrenciesKey = useMemo(
+    () => availableCurrencies.map(currency => `${currency.code}:${currency.id}`).join('|'),
+    [availableCurrencies]
+  )
+
+  const listQuerySignature = useMemo(
+    () =>
+      JSON.stringify({
+        pageIndex: pagination.pageIndex,
+        pageSize: pagination.pageSize,
+        searchTerm,
+        selectedFiltersKey,
+        sortingKey,
+        selectedCurrency,
+        scopedQueryFiltersKey,
+        availableCurrenciesKey
+      }),
+    [
+      pagination.pageIndex,
+      pagination.pageSize,
+      searchTerm,
+      selectedFiltersKey,
+      sortingKey,
+      selectedCurrency,
+      scopedQueryFiltersKey,
+      availableCurrenciesKey
+    ]
+  )
 
   // Export
   const { isExporting, handleExportCsv, handleExportExcel } = useOpportunityExport({
@@ -681,7 +719,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
       setError(null)
 
       try {
-        const result = await config.fetchOpportunities(listQueryVariables)
+        const result = await configRef.current.fetchOpportunities(listQueryVariablesRef.current)
         setOpportunities(result.opportunities || [])
         setTotalCount(result.total || 0)
         if (result.aggregates) {
@@ -694,7 +732,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
         setIsInitialLoad(false)
       }
     },
-    [accessToken, config, listQueryVariables]
+    [accessToken]
   )
 
   // Load Board Data
@@ -757,7 +795,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
   useEffect(() => {
     if (isInitialLoad || !accessToken || currentSection !== 'list') return
     loadListData(false)
-  }, [listQueryVariables, accessToken, currentSection])
+  }, [listQuerySignature, accessToken, currentSection, loadListData])
 
   // Reload board data when filters/search/currency change (only when board is active, skip initial load).
   // loadBoardData is intentionally omitted from deps: it is derived from the other deps listed,
@@ -782,6 +820,10 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
   useProcessCompletion({ onSuccess: handleProcessComplete })
 
   // Event Handlers
+  const handlePaginationChange = useCallback((next: { pageIndex: number; pageSize: number }) => {
+    setPagination(prev => (prev.pageIndex === next.pageIndex && prev.pageSize === next.pageSize ? prev : next))
+  }, [])
+
   const handleSearch = useCallback((value: string) => {
     setSearchTerm(value)
     setPagination(prev => ({ ...prev, pageIndex: 0 }))
@@ -1059,7 +1101,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
               sorting={sorting}
               onSortingChange={handleSortingChange}
               pagination={pagination}
-              onPaginationChange={setPagination}
+              onPaginationChange={handlePaginationChange}
               actions={rowActions}
               onRowClick={handleRowClick}
               dataTestId={`${dataTestId}-list`}

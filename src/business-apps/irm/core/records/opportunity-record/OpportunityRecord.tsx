@@ -163,10 +163,10 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     divestmentId
   )
 
-  // Back navigation based on deal type
+  // Back navigation based on opportunity type (dealType)
   const handleDealTypeBack = useCallback(async () => {
     if (opportunityData?.dealType === 'DIVESTMENT_DEAL') {
-      // Divestment deals → back to exit opportunities
+      // Divestment opportunities → back to exit opportunities
       navigateTo(
         buildPlatformUrl('/platform/irm/investment-management', {
           view: 'divestments',
@@ -174,7 +174,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
         })
       )
     } else {
-      // Investment deals (and others) → back to investment relations
+      // Investment opportunities (and others) → back to investment relations
       navigateTo(buildPlatformUrl('/platform/irm/investment-relations', { view: 'opportunities' }))
     }
   }, [opportunityData?.dealType])
@@ -685,16 +685,23 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     [opportunityData?.investmentType, opportunityData?.investmentGroup]
   )
 
-  // Helper function to convert deal type codes to human-readable values
+  // Helper function to convert dealType codes to human-readable values
   const getDealTypeDisplayValue = (dealType: string | undefined): string => {
     if (!dealType) return getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
 
     const dealTypeMap: Record<string, string> = {
-      INVESTMENT_DEAL: getTranslationFromI18nKeyAndLabel('crm.opportunity.dealType.investment', 'Investment Deal'),
-      DIVESTMENT_DEAL: getTranslationFromI18nKeyAndLabel('crm.opportunity.dealType.divestment', 'Divestment Deal'),
-      REFINANCING_DEAL: getTranslationFromI18nKeyAndLabel('crm.opportunity.dealType.refinancing', 'Refinancing Deal'),
-      ACQUISITION_DEAL: getTranslationFromI18nKeyAndLabel('crm.opportunity.dealType.acquisition', 'Acquisition Deal'),
-      MERGER_DEAL: getTranslationFromI18nKeyAndLabel('crm.opportunity.dealType.merger', 'Merger Deal')
+      INVESTMENT_DEAL: getTranslationFromI18nKeyAndLabel(
+        'crm.opportunity.dealType.investment',
+        'Investment Opportunity'
+      ),
+      DIVESTMENT_DEAL: getTranslationFromI18nKeyAndLabel(
+        'crm.opportunity.dealType.divestment',
+        'Divestment Opportunity'
+      ),
+      UNKOWN_DEAL_TYPE: getTranslationFromI18nKeyAndLabel(
+        'crm.opportunity.dealType.unknown',
+        'Unknown Opportunity Type'
+      )
     }
 
     return dealTypeMap[dealType] || dealType // Fallback to original value if not mapped
@@ -706,7 +713,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
         id: 'opportunity-details',
         items: [
           {
-            label: getTranslationFromI18nKeyAndLabel('crm.opportunity.dealType', 'Deal Type'),
+            label: getTranslationFromI18nKeyAndLabel('crm.opportunity.dealType', 'Opportunity Type'),
             value: getDealTypeDisplayValue(opportunityData?.dealType),
             icon: StarIcon
           },

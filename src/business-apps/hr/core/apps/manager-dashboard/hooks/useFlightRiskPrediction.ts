@@ -5,7 +5,6 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { useSaveRiskScores } from './useSaveRiskScores'
 import { useFeedbackSentiment, EmployeeSentimentResult } from './useFeedbackSentiment'
 import { useRiskTrendHistory, EmployeeTrendResult } from './useRiskTrendHistory'
 import { initFlightRiskCache } from '../utils/cacheManagement'
@@ -325,7 +324,7 @@ export const useFlightRiskPrediction = ({
   })
 
   // Initialize risk trend history hook
-  const { trends: trendResults, fetchTrends } = useRiskTrendHistory({
+  const { trends: trendResults } = useRiskTrendHistory({
     accessToken,
     employeeIds: directReportIds,
     historyLimit: 6
@@ -457,18 +456,13 @@ export const useFlightRiskPrediction = ({
           console.warn('Sentiment analysis failed:', err)
         })
       }
-
-      // Note: Trend fetching temporarily disabled as teamRiskScoreHistory API is not yet available
-      // fetchTrends().catch(err => {
-      //   console.warn('Trend fetching failed:', err)
-      // })
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to fetch flight risk data'))
       console.error('Error fetching flight risk data:', err)
     } finally {
       setLoading(false)
     }
-  }, [managerId, accessToken, directReportIds, graphQLClient, enableAISentiment, analyzeBatch, fetchTrends])
+  }, [managerId, accessToken, directReportIds, graphQLClient, enableAISentiment, analyzeBatch])
 
   // Initial data fetch
   useEffect(() => {
@@ -491,24 +485,6 @@ export const useFlightRiskPrediction = ({
       reprocessWithEnhancedData()
     }
   }, [trendResults, reprocessWithEnhancedData])
-
-  // Auto-save risk scores for trend tracking
-  const { saveScores } = useSaveRiskScores({
-    accessToken,
-    managerId,
-    enabled: true
-  })
-
-  // Track if we've already saved this calculation
-  const hasSavedRef = useRef(false)
-
-  useEffect(() => {
-    // Save scores once when we have data and haven't saved yet
-    if (employees.length > 0 && !loading && !hasSavedRef.current) {
-      saveScores(employees)
-      hasSavedRef.current = true
-    }
-  }, [employees, loading, saveScores])
 
   // Calculate summary statistics
   const summary = useMemo((): FlightRiskSummary => {

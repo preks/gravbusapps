@@ -6,14 +6,14 @@ export interface KpiTrendData {
 export interface SalesPerformanceKpis {
   totalRevenue: number
   opportunitiesWon: number
-  averageDealSize: number
+  averageOpportunitySize: number
   winRate: number
   currencyCode: string
   // Trend data for 30-day comparison
   trends: {
     totalRevenue: KpiTrendData
     opportunitiesWon: KpiTrendData
-    averageDealSize: KpiTrendData
+    averageOpportunitySize: KpiTrendData
     winRate: KpiTrendData
   }
 }
@@ -25,7 +25,7 @@ export interface TopPerformer {
   picture?: string
   pictureThumbnail?: string
   revenue: number
-  dealsWon: number
+  opportunitiesWon: number
   currencyCode: string
 }
 
@@ -33,7 +33,7 @@ export interface TopTeam {
   id: string
   name: string
   revenue: number
-  dealsWon: number
+  opportunitiesWon: number
   memberCount: number
   currencyCode: string
 }
@@ -54,8 +54,8 @@ export interface TeamComparisonData {
   leadName: string
   revenue: number
   memberCount: number
-  dealsCount: number // Total opportunities
-  wonDealsCount: number // Won opportunities only
+  opportunitiesCount: number // Total opportunities
+  wonOpportunitiesCount: number // Won opportunities only
   winRate: number
   currencyCode: string
   color: string // for chart line color

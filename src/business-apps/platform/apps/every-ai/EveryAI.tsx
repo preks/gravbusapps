@@ -45,6 +45,9 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
   )
 }
 
+/** Minimum EveryAI container width before the plan moves to a right column. */
+const DESKTOP_PLAN_LAYOUT_MIN_WIDTH_PX = 1024
+
 const HANDS_FREE_HEAVY_DISPLAY_TYPES: Set<DisplayData['type']> = new Set([
   'table',
   'scatter',
@@ -69,6 +72,7 @@ const HANDS_FREE_HEAVY_DISPLAY_TYPES: Set<DisplayData['type']> = new Set([
 const EveryAIInner: React.FC<EveryAIProps> = props => {
   const { accessToken, className, userInfo, isActive = true, compactSuggestions = false, additionalData } = props
   const scrollRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const [isSpeechMode, setIsSpeechMode] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const [isDesktopPlanLayout, setIsDesktopPlanLayout] = useState(false)
@@ -773,18 +777,21 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     }
   }, [])
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return
+  // Plan layout must follow the EveryAI container width (e.g. the global
+  // sidepanel column), not the main window viewport — otherwise a wide
+  // desktop viewport would mount the right plan rail inside a ~450px panel.
+  useLayoutEffect(() => {
+    const container = containerRef.current
+    if (!container || typeof ResizeObserver === 'undefined') return
 
-    const mediaQuery = window.matchMedia('(min-width: 1024px)')
-    const applyLayoutMode = () => setIsDesktopPlanLayout(mediaQuery.matches)
+    const applyLayoutMode = () => {
+      setIsDesktopPlanLayout(container.offsetWidth >= DESKTOP_PLAN_LAYOUT_MIN_WIDTH_PX)
+    }
 
     applyLayoutMode()
-    mediaQuery.addEventListener('change', applyLayoutMode)
-
-    return () => {
-      mediaQuery.removeEventListener('change', applyLayoutMode)
-    }
+    const resizeObserver = new ResizeObserver(applyLayoutMode)
+    resizeObserver.observe(container)
+    return () => resizeObserver.disconnect()
   }, [])
 
   const handleSessionSelect = useCallback(
@@ -876,6 +883,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
 
   return (
     <div
+      ref={containerRef}
       className={`gba:h-full gba:flex gba:flex-col gba:relative gba:overflow-hidden ${className || ''}`}
       style={
         {
@@ -979,7 +987,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
             */}
             {latestAgentPlan && isDesktopPlanLayout && !isEmptyState ? (
               <aside
-                className="gba:hidden gba:lg:flex gba:flex-col gba:w-80 gba:flex-shrink-0 gba:border-l gba:border-border gba:bg-background/60 gba:backdrop-blur-sm gba:overflow-y-auto gba:p-4"
+                className="gba:flex gba:flex-col gba:w-80 gba:flex-shrink-0 gba:border-l gba:border-border gba:bg-background/60 gba:backdrop-blur-sm gba:overflow-y-auto gba:p-4"
                 data-testid="every-ai-plan-side-panel"
                 aria-label="Agent plan"
               >

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
-export interface DealHealthItem {
+export interface OpportunityHealthItem {
   id: string
   name: string
   winningChance: number
@@ -14,9 +14,9 @@ export interface DealHealthItem {
   owner?: string
 }
 
-export interface DealHealthData {
+export interface OpportunityHealthData {
   healthDistribution: { excellent: number; healthy: number; warning: number; critical: number }
-  matrixData: DealHealthItem[]
+  matrixData: OpportunityHealthItem[]
 }
 
 const calculateHealthScore = (opportunity: any): { score: number; riskFactors: string[] } => {
@@ -51,7 +51,7 @@ const calculateHealthScore = (opportunity: any): { score: number; riskFactors: s
   const amount = opportunity.estimatedAmount || 0
   if (amount < 50000) {
     score -= 10
-    riskFactors.push('Small deal size (<€50k)')
+    riskFactors.push('Small opportunity size (<€50k)')
   } else if (amount > 200000) {
     score += 5
   }
@@ -81,26 +81,26 @@ const calculateHealthScore = (opportunity: any): { score: number; riskFactors: s
   return { score: Math.max(0, Math.min(100, score)), riskFactors }
 }
 
-const getHealthCategory = (score: number): DealHealthItem['healthCategory'] => {
+const getHealthCategory = (score: number): OpportunityHealthItem['healthCategory'] => {
   if (score >= 85) return 'excellent'
   if (score >= 70) return 'healthy'
   if (score >= 50) return 'warning'
   return 'critical'
 }
 
-interface UseDealHealthDataResult {
-  data: DealHealthData | null
+interface UseOpportunityHealthDataResult {
+  data: OpportunityHealthData | null
   isLoading: boolean
   error: string | null
   refetch: () => void
 }
 
 /**
- * Hook to fetch deal health data for opportunities
- * Calculates health scores based on win probability, deal age, activity, and other factors
+ * Hook to fetch opportunity health data for opportunities
+ * Calculates health scores based on win probability, opportunity age, activity, and other factors
  */
-export const useDealHealthData = (accessToken: string): UseDealHealthDataResult => {
-  const [data, setData] = useState<DealHealthData | null>(null)
+export const useOpportunityHealthData = (accessToken: string): UseOpportunityHealthDataResult => {
+  const [data, setData] = useState<OpportunityHealthData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const graphqlClient = useGraphQLClient(accessToken)
@@ -116,7 +116,7 @@ export const useDealHealthData = (accessToken: string): UseDealHealthDataResult 
       setError(null)
 
       const query = `
-        query GetDealHealthData($where: OpportunityBoolExp, $orderBy: [OpportunityOrderBy!], $limit: Int) {
+        query GetOpportunityHealthData($where: OpportunityBoolExp, $orderBy: [OpportunityOrderBy!], $limit: Int) {
           opportunities: Opportunity(where: $where, orderBy: $orderBy, limit: $limit) {
             id
             name
@@ -160,11 +160,11 @@ export const useDealHealthData = (accessToken: string): UseDealHealthDataResult 
           riskFactors,
           account: opp.opportunityAccounts?.[0]?.account?.name,
           owner: opp.ownerEmployee?.displayName
-        } as DealHealthItem
+        } as OpportunityHealthItem
       })
 
       const distribution = processed.reduce(
-        (acc: any, opp: DealHealthItem) => {
+        (acc: any, opp: OpportunityHealthItem) => {
           acc[opp.healthCategory] = (acc[opp.healthCategory] || 0) + 1
           return acc
         },
@@ -173,14 +173,16 @@ export const useDealHealthData = (accessToken: string): UseDealHealthDataResult 
 
       setData({ healthDistribution: distribution, matrixData: processed })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch deal health data')
+      setError(err instanceof Error ? err.message : 'Failed to fetch opportunity health data')
     } finally {
       setIsLoading(false)
     }
   }, [accessToken, graphqlClient])
 
   useEffect(() => {
-    void fetchHealthData()
+    fetchHealthData().catch(() => {
+      // Errors are already surfaced via setError inside fetchHealthData
+    })
   }, [fetchHealthData])
 
   return { data, isLoading, error, refetch: fetchHealthData }

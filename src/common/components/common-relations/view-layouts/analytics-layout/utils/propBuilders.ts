@@ -22,7 +22,7 @@ export interface OverviewDataInput {
     conversionMetrics?: {
       leadToOpportunityRate: number
       opportunityWinRate: number
-      avgDealSize: number
+      avgOpportunitySize: number
       totalWonRevenue: number
       salesCycleLength?: number
     }
@@ -73,7 +73,7 @@ export function buildOverviewProps(data: OverviewBuilderData, config: OverviewBu
     conversionMetrics: {
       leadToOpportunityRate: data.overviewData?.overview?.conversionMetrics?.leadToOpportunityRate || 0,
       opportunityWinRate: data.overviewData?.overview?.conversionMetrics?.opportunityWinRate || 0,
-      avgDealSize: data.overviewData?.overview?.conversionMetrics?.avgDealSize || 0,
+      avgOpportunitySize: data.overviewData?.overview?.conversionMetrics?.avgOpportunitySize || 0,
       totalWonRevenue: data.overviewData?.overview?.conversionMetrics?.totalWonRevenue || 0,
       salesCycleLength: data.overviewData?.overview?.conversionMetrics?.salesCycleLength || 0
     },
@@ -286,7 +286,7 @@ export interface OpportunitiesStaticData {
   totalValue: number
   wonOpportunities: number
   winRate: number
-  avgDealSize: number
+  avgOpportunitySize: number
   avgOpportunityValue: number
   last30DaysOpportunities?: number
   previous30DaysOpportunities?: number
@@ -301,7 +301,7 @@ export interface OpportunitiesStaticData {
 
 export interface OpportunitiesBuilderConfig {
   title: string
-  showTopDeals?: boolean
+  showTopOpportunities?: boolean
   useTrendData?: boolean // If true, use oppTrendData param; if false, calculate from static data
   kpiLabels?: OpportunitiesTabKpiLabels
 }
@@ -321,16 +321,16 @@ export interface OpportunitiesBuilderData {
   oppStageLoading?: boolean
   selectedStagePipelineId?: string
   onStagePipelineChange?: (id: string | undefined) => void
-  topDeals?: any[]
-  topDealsLoading?: boolean
+  topOpportunities?: any[]
+  topOpportunitiesLoading?: boolean
   flowData?: any
   flowLoading?: boolean
   statusDistributionData?: Array<{ status: 'Open' | 'Won' | 'Lost'; count: number; value: number }>
   statusDistributionLoading?: boolean
   kpiCurrency?: string
   onKpiCurrencyChange?: (currency: string) => void
-  topDealsCurrency?: string
-  onTopDealsCurrencyChange?: (currency: string) => void
+  topOpportunitiesCurrency?: string
+  onTopOpportunitiesCurrencyChange?: (currency: string) => void
   availableCurrencies?: string[]
   onLifecyclePointClick?: (
     date: string,
@@ -363,11 +363,11 @@ function calculateOpportunitiesTrendData(staticData: OpportunitiesStaticData) {
       (sd.previous30DaysWonOpportunities || 0) > 0
         ? ((sd.previous30DaysWonOpportunities || 0) / (sd.previous30DaysOpportunities || 1)) * 100
         : 0,
-    actualAvgDealSizeThisMonth:
+    actualAvgOpportunitySizeThisMonth:
       (sd.last30DaysWonOpportunities || 0) > 0
         ? (sd.last30DaysTotalValue || 0) / (sd.last30DaysWonOpportunities || 1)
         : 0,
-    actualAvgDealSizeLastMonth:
+    actualAvgOpportunitySizeLastMonth:
       (sd.previous30DaysWonOpportunities || 0) > 0
         ? (sd.previous30DaysTotalValue || 0) / (sd.previous30DaysWonOpportunities || 1)
         : 0,
@@ -403,7 +403,7 @@ export function buildOpportunitiesProps(data: OpportunitiesBuilderData, config: 
     totalValue: data.opportunitiesStaticData?.totalValue || 0,
     wonOpportunities: data.opportunitiesStaticData?.wonOpportunities || 0,
     winRate: data.opportunitiesStaticData?.winRate || 0,
-    avgDealSize: data.opportunitiesStaticData?.avgDealSize || 0,
+    avgOpportunitySize: data.opportunitiesStaticData?.avgOpportunitySize || 0,
     avgSalesCycle: data.opportunitiesStaticData?.avgOpportunityValue || 0,
 
     // Trend data
@@ -446,10 +446,10 @@ export function buildOpportunitiesProps(data: OpportunitiesBuilderData, config: 
     selectedStagePipelineId: data.selectedStagePipelineId,
     onStagePipelineChange: data.onStagePipelineChange,
 
-    // Optional: Top Deals
-    topDeals: data.topDeals || [],
-    ...(data.topDealsLoading !== undefined && { topDealsLoading: data.topDealsLoading }),
-    ...(config.showTopDeals === false && { showTopDeals: false }),
+    // Optional: Top Opportunities
+    topOpportunities: data.topOpportunities || [],
+    ...(data.topOpportunitiesLoading !== undefined && { topOpportunitiesLoading: data.topOpportunitiesLoading }),
+    ...(config.showTopOpportunities === false && { showTopOpportunities: false }),
 
     // Aggregate flow and status distribution
     flowData: data.flowData || null,
@@ -458,8 +458,10 @@ export function buildOpportunitiesProps(data: OpportunitiesBuilderData, config: 
     // Currency filters
     ...(data.kpiCurrency && { kpiCurrency: data.kpiCurrency }),
     ...(data.onKpiCurrencyChange && { onKpiCurrencyChange: data.onKpiCurrencyChange }),
-    ...(data.topDealsCurrency && { topDealsCurrency: data.topDealsCurrency }),
-    ...(data.onTopDealsCurrencyChange && { onTopDealsCurrencyChange: data.onTopDealsCurrencyChange }),
+    ...(data.topOpportunitiesCurrency && { topOpportunitiesCurrency: data.topOpportunitiesCurrency }),
+    ...(data.onTopOpportunitiesCurrencyChange && {
+      onTopOpportunitiesCurrencyChange: data.onTopOpportunitiesCurrencyChange
+    }),
     ...(data.availableCurrencies && { availableCurrencies: data.availableCurrencies }),
 
     ...(config.kpiLabels && { kpiLabels: config.kpiLabels })

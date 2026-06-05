@@ -57,7 +57,7 @@ const irmOpportunityFields: TargetFieldDefinition[] = [
 
   // Investment-Specific
   { value: 'investmentCompanyId', label: 'Investment Company ID', type: 'direct' },
-  { value: 'dealType', label: 'Deal Type', type: 'direct' },
+  { value: 'dealType', label: 'Opportunity Type', type: 'direct' },
   { value: 'investmentName', label: 'Investment Name', type: 'direct' },
   { value: 'investmentTypeRef', label: 'Investment Type (Catalog)', type: 'catalog', catalog: 'InvestmentType' },
   { value: 'investmentRoleRef', label: 'Investment Role (Catalog)', type: 'catalog', catalog: 'InvestmentRole' },

@@ -92,8 +92,11 @@ export interface InvestmentOpportunityStageCondition extends OpportunityStageCon
  * Note: account and accountId are excluded - IRM uses opportunityAccounts junction table instead
  */
 export const InvestmentOpportunityFields = (() => {
+  // account/accountId/companyId/company: IRM uses the opportunityAccounts junction table instead.
+  // aiOpportunityScore/aiOpportunityGrade: CRM-only fields, not present on the InvestmentOpportunity type.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { account, accountId, companyId, company, ...fields } = OpportunityFields
+  const { account, accountId, companyId, company, aiOpportunityScore, aiOpportunityGrade, ...fields } =
+    OpportunityFields
   return {
     ...fields,
     // Override IRM-specific field names

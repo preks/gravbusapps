@@ -26,9 +26,9 @@ Analyze all available contact data, organizational role, engagement history, act
    - Relationship quality and engagement indicators
    - Communication preferences and responsiveness
    - Engagement gaps or relationship risks
-   - Recommended next steps for relationship development or deal advancement
+   - Recommended next steps for relationship development or opportunity advancement
 
-Focus on sales relationship management and deal progression.
+Focus on sales relationship management and opportunity progression.
 Respond strictly in JSON conforming to the provided schema.`
 
 const summarySchema = z.object({

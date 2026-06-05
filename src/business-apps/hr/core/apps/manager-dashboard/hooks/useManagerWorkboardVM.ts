@@ -470,9 +470,9 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
             updatedAt
             employeePerformanceGoalUpdate(orderBy: { updateTime: ASC }) {
               id
-              progressPercent
               comment
               updateTime
+              updateDelta
               employee {
                 firstName
                 lastName

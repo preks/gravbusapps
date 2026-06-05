@@ -54,8 +54,8 @@ export interface OpportunityFunnelData {
 export interface PipelineMetrics {
   totalOpportunities: number
   totalValue: number
-  avgDealSize: number
-  dealsWon: number
+  avgOpportunitySize: number
+  opportunitiesWon: number
   winRate: number // percentage
 }
 
@@ -101,9 +101,9 @@ export interface SalesRepPerformance {
   firstName: string
   lastName: string
   displayName: string
-  dealsWon: number
-  dealsLost: number
-  totalDeals: number
+  opportunitiesWon: number
+  opportunitiesLost: number
+  totalOpportunities: number
   totalValue: number
   winRate: number // percentage
   activitiesCount: number
@@ -735,12 +735,15 @@ export const usePipelineDetailsData = ({
         const wonData = aggregatesResult[`${safeId}_won`]
         const lostData = aggregatesResult[`${safeId}_lost`]
 
-        const totalDeals = totalData?.aggregate?.count || 0
+        const totalOpportunities = totalData?.aggregate?.count || 0
         const totalValue = totalData?.aggregate?.sum?.estimatedAmount || 0
-        const dealsWon = wonData?.aggregate?.count || 0
-        const dealsLost = lostData?.aggregate?.count || 0
+        const opportunitiesWon = wonData?.aggregate?.count || 0
+        const opportunitiesLost = lostData?.aggregate?.count || 0
 
-        const winRate = dealsWon + dealsLost > 0 ? (dealsWon / (dealsWon + dealsLost)) * 100 : 0
+        const winRate =
+          opportunitiesWon + opportunitiesLost > 0
+            ? (opportunitiesWon / (opportunitiesWon + opportunitiesLost)) * 100
+            : 0
 
         return {
           employeeId: owner.ownerEmployeeId,
@@ -749,17 +752,19 @@ export const usePipelineDetailsData = ({
           displayName:
             owner.ownerEmployee?.displayName ||
             `${owner.ownerEmployee?.firstName || ''} ${owner.ownerEmployee?.lastName || ''}`.trim(),
-          totalDeals,
+          totalOpportunities,
           totalValue,
-          dealsWon,
-          dealsLost,
+          opportunitiesWon,
+          opportunitiesLost,
           winRate,
           activitiesCount: 0 // Not currently tracked in leaderboard
         }
       })
 
-      // Step 4: Sort by deals won (primary) and total value (secondary)
-      const sortedLeaderboard = [...leaderboard].sort((a, b) => b.dealsWon - a.dealsWon || b.totalValue - a.totalValue)
+      // Step 4: Sort by opportunities won (primary) and total value (secondary)
+      const sortedLeaderboard = [...leaderboard].sort(
+        (a, b) => b.opportunitiesWon - a.opportunitiesWon || b.totalValue - a.totalValue
+      )
 
       return sortedLeaderboard
     },
@@ -826,12 +831,12 @@ export const usePipelineDetailsData = ({
       // Step 3: Transform data - use server-side totals from aggregate query
       const totalOpportunities = stageAggregatesResult.totalCount
       const totalValue = stageAggregatesResult.totalSum
-      const avgDealSize = totalOpportunities > 0 ? totalValue / totalOpportunities : 0
+      const avgOpportunitySize = totalOpportunities > 0 ? totalValue / totalOpportunities : 0
 
-      const dealsWon = winRateMetrics.allTime.won
-      const dealsLost = winRateMetrics.allTime.lost
-      const totalClosed = dealsWon + dealsLost
-      const overallWinRate = totalClosed > 0 ? (dealsWon / totalClosed) * 100 : 0
+      const opportunitiesWon = winRateMetrics.allTime.won
+      const opportunitiesLost = winRateMetrics.allTime.lost
+      const totalClosed = opportunitiesWon + opportunitiesLost
+      const overallWinRate = totalClosed > 0 ? (opportunitiesWon / totalClosed) * 100 : 0
 
       const funnelData: OpportunityFunnelData[] = stageAggregatesResult.stages
         .map(agg => ({
@@ -859,8 +864,8 @@ export const usePipelineDetailsData = ({
         metrics: {
           totalOpportunities,
           totalValue,
-          avgDealSize,
-          dealsWon,
+          avgOpportunitySize,
+          opportunitiesWon,
           winRate: overallWinRate
         },
         funnelData,
