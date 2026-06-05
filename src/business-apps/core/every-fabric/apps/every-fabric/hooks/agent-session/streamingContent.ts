@@ -8,7 +8,29 @@ const chunkStreamKey = (chunk: AgentChunkEvent): string | null => {
   return typeof raw === 'string' && raw.trim().length > 0 ? raw : null
 }
 
+const chunkSegmentId = (chunk: AgentChunkEvent): number => {
+  const raw = chunk.metadata?.segment_id
+  return typeof raw === 'number' && Number.isFinite(raw) ? raw : 0
+}
+
+const responseStreamIdentity = (chunk: AgentChunkEvent): string =>
+  `${chunkStreamKey(chunk) ?? 'primary'}:${chunkSegmentId(chunk)}`
+
+const demotedResponseStreamIdentities = (events: AgentStreamEvent[]): Set<string> => {
+  const demoted = new Set<string>()
+  for (const entry of events) {
+    if (entry.type !== 'agent_chunk' || entry.chunk_kind !== 'agent_reasoning') continue
+    const metadata = entry.metadata ?? {}
+    if (metadata.source !== 'response_stream') continue
+    const sourceKey = typeof metadata.source_stream_key === 'string' ? metadata.source_stream_key : 'primary'
+    const sourceSegment = typeof metadata.source_segment_id === 'number' ? metadata.source_segment_id : 0
+    demoted.add(`${sourceKey}:${sourceSegment}`)
+  }
+  return demoted
+}
+
 function buildStreamingContentFromSnapshots(events: AgentStreamEvent[]): string | null {
+  const demoted = demotedResponseStreamIdentities(events)
   const responseSnapshots = events
     .filter(
       (entry): entry is AgentChunkEvent =>
@@ -16,7 +38,8 @@ function buildStreamingContentFromSnapshots(events: AgentStreamEvent[]): string 
         entry.role === 'ai' &&
         entry.chunk_kind === 'response_stream' &&
         typeof entry.content === 'string' &&
-        entry.content.trim().length > 0
+        entry.content.trim().length > 0 &&
+        !demoted.has(responseStreamIdentity(entry))
     )
     .sort((a, b) => toEpoch(a.timestamp) - toEpoch(b.timestamp))
 
@@ -24,9 +47,7 @@ function buildStreamingContentFromSnapshots(events: AgentStreamEvent[]): string 
     return null
   }
 
-  const primarySnapshots = responseSnapshots.filter(snapshot => chunkStreamKey(snapshot) !== 'continuation')
-  const preferredSnapshots = primarySnapshots.length > 0 ? primarySnapshots : responseSnapshots
-  const safeSnapshots = preferredSnapshots.filter(snapshot => {
+  const safeSnapshots = responseSnapshots.filter(snapshot => {
     const text = snapshot.content.trim()
     return !looksLikeInternalErrorLeak(text) && !looksLikeDashboardJson(text) && !looksLikeRawPayload(text, 500)
   })
@@ -34,20 +55,10 @@ function buildStreamingContentFromSnapshots(events: AgentStreamEvent[]): string 
     return ''
   }
 
-  let stableContent = ''
-  for (const snapshot of safeSnapshots) {
-    const nextContent = snapshot.content.trim()
-    if (!nextContent) continue
-    if (!stableContent) {
-      stableContent = nextContent
-      continue
-    }
-    if (nextContent.length >= stableContent.length && nextContent.startsWith(stableContent)) {
-      stableContent = nextContent
-    }
-  }
-
-  return stableContent || safeSnapshots[safeSnapshots.length - 1].content.trim()
+  const latestSnapshot = safeSnapshots[safeSnapshots.length - 1]
+  const latestIdentity = responseStreamIdentity(latestSnapshot)
+  const activeSegmentSnapshots = safeSnapshots.filter(snapshot => responseStreamIdentity(snapshot) === latestIdentity)
+  return activeSegmentSnapshots[activeSegmentSnapshots.length - 1]?.content.trim() ?? latestSnapshot.content.trim()
 }
 
 function buildStreamingContentFromLegacyThinking(events: AgentStreamEvent[]): string {
@@ -78,11 +89,8 @@ export function computeStreamingDisplayContent(
   isAgentRunning: boolean,
   mergedStatus: DeepAgentSession['status'] | undefined
 ): string {
-  if (mergedStatus && isTerminalStatus(mergedStatus)) {
-    return ''
-  }
   const isActivelyRunning = isAgentRunning || mergedStatus === 'running' || mergedStatus === 'pending'
-  if (!isActivelyRunning) {
+  if (!isActivelyRunning && !(mergedStatus && isTerminalStatus(mergedStatus))) {
     return ''
   }
 

@@ -73,10 +73,7 @@ export function useAgentSessionDerived({
     [isAgentRunning, liveTurnEvents, mergedSession?.status, lastReplyTimestamp]
   )
 
-  const streamingThinking = useMemo(
-    () => extractStreamingThinking(effectiveEvents, mergedSession),
-    [effectiveEvents, mergedSession]
-  )
+  const streamingThinking = useMemo(() => extractStreamingThinking(liveTurnEvents), [liveTurnEvents])
 
   const statusHeadline = useMemo(
     () => extractStatusHeadline(effectiveEvents, mergedSession?.status),

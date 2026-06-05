@@ -55,14 +55,8 @@ function removeIncompleteCodeBlock(content: string): string {
 }
 
 function removeIncompleteTable(content: string): string {
-  const lastNewline = content.lastIndexOf('\n')
-  if (lastNewline === -1) return content
-
-  const lastLine = content.slice(lastNewline + 1)
-  if (lastLine.startsWith('|') && !lastLine.endsWith('|')) {
-    return content.slice(0, lastNewline)
-  }
-
+  // Render table rows progressively; hiding the current row until the closing
+  // pipe makes streamed answers appear to freeze and then dump a full table.
   return content
 }
 
@@ -77,13 +71,9 @@ function removeIncompleteInlineCode(content: string): string {
 }
 
 function removeIncompleteBold(content: string): string {
-  const lastDoubleStar = content.lastIndexOf('**')
-  if (lastDoubleStar === -1) return content
-
-  const afterStars = content.slice(lastDoubleStar + 2)
-  if (afterStars.includes('**')) return content
-
-  return content.slice(0, lastDoubleStar)
+  // Keep partial emphasis visible while streaming. ReactMarkdown renders the
+  // raw markers until they close, which is less jarring than hiding sentences.
+  return content
 }
 
 function getCompleteContent(content: string, isStreaming: boolean): string {

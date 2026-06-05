@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { StreamingMarkdown } from '@/common/components/markdown/StreamingMarkdown'
+import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
 import type { EnterprisePresentationMode } from '../../types/enterpriseAgent'
 import { AgentThinkingStream } from './AgentThinkingStream'
 import { AgentActivityTimeline } from './AgentActivityTimeline'
@@ -97,7 +98,7 @@ const StreamingAnswerContent: React.FC<StreamingAnswerContentProps> = ({
       ) : null}
       {responseContent ? (
         <div className={responseSpacingClass}>
-          <StreamingMarkdown content={responseContent} isStreaming={isStreaming} variant={streamingVariant} />
+          <MarkdownWithChipsRenderer content={responseContent} variant={streamingVariant} />
         </div>
       ) : null}
     </div>

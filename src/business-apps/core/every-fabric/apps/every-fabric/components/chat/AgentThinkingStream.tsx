@@ -121,6 +121,12 @@ export const AgentThinkingStream: FC<AgentThinkingStreamProps> = ({ thinkingText
       style={{ opacity: 1 }}
       data-testid="agent-thinking-stream"
     >
+      <div className="gba:mb-1.5 gba:flex gba:items-center gba:gap-1.5">
+        <span className="gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-[0.08em] gba:text-muted-foreground">
+          Thinking
+        </span>
+      </div>
+
       {/* Gradient overlay at the top */}
       <div
         className="gba:absolute gba:top-0 gba:left-0 gba:right-0 gba:h-6 gba:pointer-events-none gba:z-10"
