@@ -9,6 +9,7 @@ import { useGetInvestmentNotesByInvestmentId } from '../../hooks/useInvestmentNo
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
 import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
+import { useRecordSectionDisplayConfig } from '@/common/components/common-relations/record-sections/section-display'
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
@@ -45,6 +46,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
   refreshRecordData,
   ...context
 }) => {
+  const sectionDisplay = useRecordSectionDisplayConfig()
   const docuSignEnabled = useFeature<boolean>(Feature.IRM.DocuSign.Key) === true
   const fileClient = useFileClient({ accessToken: context.accessToken, userInfo: context.userInfo })
   const taskPreSubmit = useCallback(
@@ -229,6 +231,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
                   component: AccountSection,
                   props: {
                     ...context,
+                    ...sectionDisplay.relatedAccounts,
                     // Transform junction table to include account type
                     accounts:
                       investment?.investmentAccounts
@@ -273,6 +276,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({
                   component: ContactSection,
                   props: {
                     ...context,
+                    ...sectionDisplay.relatedContacts,
                     // Flatten contacts from all associated accounts (junction table)
                     // GraphQL field: investmentAccountContact (singular), TypeScript: accountContacts (plural)
                     contacts:

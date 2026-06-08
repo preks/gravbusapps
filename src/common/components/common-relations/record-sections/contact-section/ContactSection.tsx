@@ -18,6 +18,7 @@ import { navigateTo } from '@/common/utils/navigationUtils'
 import { renderCommunicationChannels } from '@/common/utils/communicationChannelRenderer'
 import { createGetPages } from '../utils'
 import { ContactTypeBadge } from '../shared/ContactTypeBadge'
+import { SECTION_DISPLAY_DEFAULTS } from '../section-display'
 
 interface ContactSectionProps extends Partial<BusinessAppContextProps> {
   contactId?: string
@@ -25,6 +26,12 @@ interface ContactSectionProps extends Partial<BusinessAppContextProps> {
   contacts?: any[]
   className?: string
   'data-testid'?: string
+  /** Tab/section title in SectionWrapper (default: Contact Information). */
+  sectionTitle?: string
+  /** Empty state title when no contact data is available. */
+  emptyStateTitle?: string
+  /** Empty state description when no contact data is available. */
+  emptyStateDescription?: string
   // Optional configurable action props
   actionButtonProps?: {
     contextsArray?: FlowContextName[]
@@ -48,21 +55,34 @@ const ContactSection: React.FC<ContactSectionProps> = ({ contact, contacts, clas
 
   return (
     <div data-testid={props['data-testid'] || 'contact-section'} className={`gba:w-full gba:h-full ${className}`}>
-      <ContactPersonalInfo contact={displayContact as Contact} onTitleClick={createTitleClickHandler(recordUrl)} />
+      <ContactPersonalInfo
+        contact={displayContact as Contact}
+        emptyStateTitle={props.emptyStateTitle}
+        emptyStateDescription={props.emptyStateDescription}
+        onTitleClick={createTitleClickHandler(recordUrl)}
+      />
     </div>
   )
 }
 
 // Static properties for SectionWrapper
-;(ContactSection as any).sectionTitle = 'Contact Information'
+;(ContactSection as any).sectionTitle = (contactSectionProps: ContactSectionProps) =>
+  contactSectionProps.sectionTitle ?? SECTION_DISPLAY_DEFAULTS.contactInformation.sectionTitle
 ;(ContactSection as any).getPages = createGetPages<any, ContactSectionProps>(
   (props: ContactSectionProps) => props.contacts,
   (props: ContactSectionProps) => props.contact
 )
 ;(ContactSection as any).renderPage = (pageData: any, _pageIndex: number, props: ContactSectionProps) => {
-  const { recordUrl } = props
+  const { recordUrl, emptyStateTitle, emptyStateDescription } = props
 
-  return <ContactPersonalInfo contact={pageData} onTitleClick={createTitleClickHandler(recordUrl)} />
+  return (
+    <ContactPersonalInfo
+      contact={pageData}
+      emptyStateTitle={emptyStateTitle}
+      emptyStateDescription={emptyStateDescription}
+      onTitleClick={createTitleClickHandler(recordUrl)}
+    />
+  )
 }
 ;(ContactSection as any).getActionButtonConfig = (pageData: any, _pageIndex: number, props: ContactSectionProps) => {
   const { accessToken, actionButtonProps, contact, contactId } = props
@@ -98,7 +118,7 @@ const ContactSection: React.FC<ContactSectionProps> = ({ contact, contacts, clas
 export default ContactSection
 
 interface ContactPersonalInfoProps {
-  contact: Contact
+  contact?: Contact | null
   hasMultiple?: boolean
   currentIndex?: number
   totalCount?: number
@@ -111,17 +131,24 @@ interface ContactPersonalInfoProps {
     prefixDataTestId?: string
   }
   onTitleClick?: () => void
+  emptyStateTitle?: string
+  emptyStateDescription?: string
 }
 
-const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contact, onTitleClick }) => {
+const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({
+  contact,
+  emptyStateTitle = SECTION_DISPLAY_DEFAULTS.contactInformation.emptyStateTitle,
+  emptyStateDescription = SECTION_DISPLAY_DEFAULTS.contactInformation.emptyStateDescription,
+  onTitleClick
+}) => {
   // Empty state - when no contact data is available
   if (!contact) {
     return (
       <div className="gba:w-full gba:relative gba:flex gba:flex-col gba:h-full">
         <EmptyState
           type="no-data"
-          title="No Contact Data"
-          description="No contact data is available for this object. Update its details to see the information here."
+          title={emptyStateTitle}
+          description={emptyStateDescription}
           data-testid="contact-section-empty-state"
         />
       </div>

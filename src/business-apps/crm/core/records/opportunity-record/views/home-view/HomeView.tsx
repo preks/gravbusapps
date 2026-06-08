@@ -6,6 +6,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
 import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
+import { useRecordSectionDisplayConfig } from '@/common/components/common-relations/record-sections/section-display'
 import ConditionSection from '@/common/components/common-relations/record-sections/condition-section/ConditionSection'
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
@@ -82,6 +83,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   ...props
 }) => {
   const docuSignEnabled = useFeature<boolean>(Feature.CRM.DocuSign.Key) === true
+  const sectionDisplay = useRecordSectionDisplayConfig()
   const { t } = useTranslation(noteSectionI18n)
   const regularOpportunityNotes = useMemo(() => (notes ?? []).filter(isCrmNoteRegularType), [notes])
   const nextStepOpportunityNotes = useMemo(() => (notes ?? []).filter(isCrmNoteNextStepType), [notes])
@@ -144,6 +146,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           props: {
             ...props,
             accessToken,
+            ...sectionDisplay.relatedAccounts,
             accounts:
               opportunityData?.opportunityAccounts
                 ?.map((junction: CustomerOpportunityAccount) => ({
@@ -189,6 +192,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           props: {
             ...props,
             accessToken,
+            ...sectionDisplay.relatedContacts,
             contacts:
               opportunityData?.opportunityContacts
                 ?.map((oc: any) => ({

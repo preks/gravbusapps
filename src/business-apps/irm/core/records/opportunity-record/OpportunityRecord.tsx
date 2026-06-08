@@ -39,6 +39,7 @@ import { buildInvestmentFromOpportunity } from './utils/opportunityDataTransform
 import { buildFormFieldsFromCatalogData } from '../utils/investmentFieldsBuilder'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
 import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
+import { useRecordSectionDisplayConfig } from '@/common/components/common-relations/record-sections/section-display'
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
@@ -89,6 +90,7 @@ const areStageConditionStatusesEqual = (left: any[], right: any[]): boolean =>
   )
 
 const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({ opportunityId, ...props }) => {
+  const sectionDisplay = useRecordSectionDisplayConfig()
   const ALLOWED_TABS = ['overview', 'documents'] as const
   type TabKey = (typeof ALLOWED_TABS)[number]
   const [activeTab, setActiveTab] = useState('overview')
@@ -892,7 +894,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
           <RecordSectionsRefreshProvider value={refreshSectionDataSilently}>
             <div className="gba:col-span-12 gba:flex gba:flex-col gba:gap-4">
               <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:lg:grid-cols-12">
-                {/* Account Information - 1/4 width */}
+                {/* Related Accounts - 1/4 width */}
                 <SectionWrapper
                   className="gba:min-h-96 gba:max-h-96 gba:lg:col-span-3"
                   sections={[
@@ -901,6 +903,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                       component: AccountSection,
                       props: {
                         ...props,
+                        ...sectionDisplay.relatedAccounts,
                         // Transform junction table to include account type
                         accounts:
                           opportunityData?.opportunityAccounts
@@ -934,7 +937,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                   data-testid="opportunity-account-section-wrapper"
                 />
 
-                {/* Contact Information - 1/4 width */}
+                {/* Related Contacts - 1/4 width */}
                 <SectionWrapper
                   className="gba:min-h-96 gba:max-h-96 gba:lg:col-span-3"
                   sections={[
@@ -943,6 +946,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                       component: ContactSection,
                       props: {
                         ...props,
+                        ...sectionDisplay.relatedContacts,
                         contacts: opportunityData?.opportunityContacts
                           ?.map((ioc: any) => ({
                             ...ioc.contact,

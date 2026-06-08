@@ -19,6 +19,7 @@ import { renderCommunicationChannels } from '@/common/utils/communicationChannel
 import { getAddressTypeLabel } from '@/common/data/relations/types/relationEnums'
 import { createGetPages } from '../utils'
 import { ContactTypeBadge } from '../shared/ContactTypeBadge'
+import { SECTION_DISPLAY_DEFAULTS } from '../section-display'
 
 interface AddressObject {
   id?: string
@@ -177,6 +178,12 @@ interface AccountSectionProps extends Partial<BusinessAppContextProps> {
   address?: AddressObject // Optional: explizite Adresse (falls nicht im Account)
   className?: string
   'data-testid'?: string
+  /** Tab/section title in SectionWrapper (default: Account Information). */
+  sectionTitle?: string
+  /** Empty state title when no account data is available. */
+  emptyStateTitle?: string
+  /** Empty state description when no account data is available. */
+  emptyStateDescription?: string
   // Optional configurable action props
   actionButtonProps?: {
     contextsArray?: FlowContextName[]
@@ -211,6 +218,8 @@ const AccountSection: React.FC<AccountSectionProps> = ({
         account={displayAccount}
         address={address}
         className={className}
+        emptyStateTitle={props.emptyStateTitle}
+        emptyStateDescription={props.emptyStateDescription}
         onTitleClick={createTitleClickHandler(recordUrl)}
       />
     </div>
@@ -218,19 +227,22 @@ const AccountSection: React.FC<AccountSectionProps> = ({
 }
 
 // Static properties for SectionWrapper
-;(AccountSection as any).sectionTitle = 'Account Information'
+;(AccountSection as any).sectionTitle = (accountSectionProps: AccountSectionProps) =>
+  accountSectionProps.sectionTitle ?? SECTION_DISPLAY_DEFAULTS.accountInformation.sectionTitle
 ;(AccountSection as any).getPages = createGetPages<any, AccountSectionProps>(
   (props: AccountSectionProps) => props.accounts,
   (props: AccountSectionProps) => props.account
 )
 ;(AccountSection as any).renderPage = (pageData: any, _pageIndex: number, props: AccountSectionProps) => {
-  const { address, className = '', recordUrl } = props
+  const { address, className = '', recordUrl, emptyStateTitle, emptyStateDescription } = props
 
   return (
     <AccountCompanyInformation
       account={pageData}
       address={address}
       className={className}
+      emptyStateTitle={emptyStateTitle}
+      emptyStateDescription={emptyStateDescription}
       onTitleClick={createTitleClickHandler(recordUrl)}
     />
   )
@@ -285,12 +297,16 @@ interface InlinedCompanyInformationProps {
   }
   onTitleClick?: () => void
   accessToken?: string
+  emptyStateTitle?: string
+  emptyStateDescription?: string
 }
 
 const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
   account,
   address,
   className = '',
+  emptyStateTitle = SECTION_DISPLAY_DEFAULTS.accountInformation.emptyStateTitle,
+  emptyStateDescription = SECTION_DISPLAY_DEFAULTS.accountInformation.emptyStateDescription,
   onTitleClick
 }) => {
   const cardClassName = `gba:w-full ${className}`.trim()
@@ -301,8 +317,8 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
       <div className={`${cardClassName} gba:relative gba:flex gba:flex-col gba:h-full`}>
         <EmptyState
           type="no-data"
-          title="No Account Data"
-          description="No account data is available for this object. Update its details to see the information here."
+          title={emptyStateTitle}
+          description={emptyStateDescription}
           data-testid="account-section-empty-state"
         />
       </div>
@@ -431,7 +447,7 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
         {/* Separator */}
         <div className="gba:border-t"></div>
 
-        {/* Contact Information */}
+        {/* Account details */}
         <div>
           {(() => {
             // Get ALL communication channels dynamically

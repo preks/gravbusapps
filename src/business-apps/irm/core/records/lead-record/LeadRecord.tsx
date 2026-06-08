@@ -29,6 +29,7 @@ import {
 import { LeadDocuments } from './components/LeadDocuments'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
 import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
+import { useRecordSectionDisplayConfig } from '@/common/components/common-relations/record-sections/section-display'
 import InvestmentSection from '@/common/components/common-relations/record-sections/investment-section/InvestmentSection'
 import type { Investment } from '@/common/data/investment/types/investmentTypes'
 import {
@@ -104,6 +105,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
     additionalQueries
   })
 
+  const sectionDisplay = useRecordSectionDisplayConfig()
   const docuSignEnabled = useFeature<boolean>(Feature.IRM.DocuSign.Key) === true
   const fileClient = useFileClient({ accessToken: props.accessToken, userInfo: props.userInfo })
   const taskPreSubmit = useCallback(
@@ -557,6 +559,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                     component: AccountSection,
                     props: {
                       ...props,
+                      ...sectionDisplay.accountInformation,
                       account: buildInvestmentAccountFromLead(leadData),
                       accounts: leadData ? [buildInvestmentAccountFromLead(leadData)].filter(Boolean) : undefined
                     }
@@ -574,6 +577,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                     component: ContactSection,
                     props: {
                       ...props,
+                      ...sectionDisplay.contactInformation,
                       contact: buildInvestmentContactFromLead(leadData),
                       contacts: leadData ? [buildInvestmentContactFromLead(leadData)].filter(Boolean) : undefined
                     }

@@ -6,6 +6,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
 import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
+import { useRecordSectionDisplayConfig } from '@/common/components/common-relations/record-sections/section-display'
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
@@ -63,6 +64,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   userInfo,
   ...props
 }) => {
+  const sectionDisplay = useRecordSectionDisplayConfig()
   const docuSignEnabled = useFeature<boolean>(Feature.CRM.DocuSign.Key) === true
   const fileClient = useFileClient({ accessToken, userInfo })
   const taskPreSubmit = useCallback(
@@ -117,6 +119,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   props: {
                     ...props,
                     accessToken,
+                    ...sectionDisplay.accountInformation,
                     account: buildCustomerAccountFromLead(rawLeadData),
                     accounts: rawLeadData ? [buildCustomerAccountFromLead(rawLeadData)].filter(Boolean) : undefined
                   }
@@ -135,6 +138,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   props: {
                     ...props,
                     accessToken,
+                    ...sectionDisplay.contactInformation,
                     contact: buildCustomerContactFromLead(rawLeadData),
                     contacts: rawLeadData ? [buildCustomerContactFromLead(rawLeadData)].filter(Boolean) : undefined
                   }

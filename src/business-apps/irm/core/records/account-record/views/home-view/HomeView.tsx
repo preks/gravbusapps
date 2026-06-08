@@ -15,6 +15,7 @@ import {
 import type { Investment } from '@/common/data/investment/types/investmentTypes'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
 import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
+import { useRecordSectionDisplayConfig } from '@/common/components/common-relations/record-sections/section-display'
 import InvestmentSection from '@/common/components/common-relations/record-sections/investment-section/InvestmentSection'
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
@@ -53,6 +54,7 @@ const HomeView: React.FC<HomeViewProps> = ({
   refreshRecordData,
   ...props
 }) => {
+  const sectionDisplay = useRecordSectionDisplayConfig()
   const docuSignEnabled = useFeature<boolean>(Feature.IRM.DocuSign.Key) === true
   const fileClient = useFileClient({ accessToken: props.accessToken, userInfo: props.userInfo })
   const taskPreSubmit = useCallback(
@@ -216,6 +218,7 @@ const HomeView: React.FC<HomeViewProps> = ({
               component: AccountSection,
               props: {
                 ...props,
+                ...sectionDisplay.accountInformation,
                 account: accountData,
                 accountId: accountId,
                 actionButtonProps: {
@@ -238,6 +241,7 @@ const HomeView: React.FC<HomeViewProps> = ({
               component: ContactSection,
               props: {
                 ...props,
+                ...sectionDisplay.relatedContacts,
                 contacts:
                   accountData?.accountContacts
                     ?.map((ac: any) => ({

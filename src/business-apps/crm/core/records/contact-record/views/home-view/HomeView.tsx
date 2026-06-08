@@ -27,6 +27,7 @@ import NoteSection from '@/common/components/common-relations/record-sections/no
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
 import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
+import { useRecordSectionDisplayConfig } from '@/common/components/common-relations/record-sections/section-display'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
 import { TASK_TYPE, TASK_PRIORITY, ACTIVITY_TYPE } from '@/common/data/customer/constants/customerCatalogs'
 import { useFeature } from '@/common/hooks/useFeature'
@@ -81,6 +82,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   approvalActionProps,
   ...props
 }) => {
+  const sectionDisplay = useRecordSectionDisplayConfig()
   const docuSignEnabled = useFeature<boolean>(Feature.CRM.DocuSign.Key) === true
   const fileClient = useFileClient({ accessToken: props.accessToken, userInfo: props.userInfo })
   const taskPreSubmit = useCallback(
@@ -136,6 +138,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   component: AccountSection,
                   props: {
                     ...props,
+                    ...sectionDisplay.relatedAccounts,
                     accounts:
                       contact?.accountContacts
                         ?.map(ac => ({
@@ -172,6 +175,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   component: ContactSection,
                   props: {
                     ...props,
+                    ...sectionDisplay.contactInformation,
                     contact: contact,
                     contactId: contact?.id,
                     actionButtonProps: {
