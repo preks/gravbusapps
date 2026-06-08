@@ -4,6 +4,7 @@ import { SpinnerGapIcon } from '@phosphor-icons/react'
 import { AgentMeshScreen } from './components/agent-mesh/AgentMeshScreen'
 import { EnterpriseWorkforceScreen } from './components/enterprise-workforce/EnterpriseWorkforceScreen'
 import { TraceExplorerScreen } from './components/trace-explorer/TraceExplorerScreen'
+import { TraceLensScreen } from './components/trace-lens/TraceLensScreen'
 import { LandingScreen } from './components/landing/LandingScreen'
 import { ScheduledDispatchesScreen } from './components/scheduled/ScheduledDispatchesScreen'
 import { SettingsScreen } from './components/settings/SettingsScreen'
@@ -94,6 +95,7 @@ export interface EveryFabricMainViewProps {
   showScheduled: boolean
   showAgentMesh: boolean
   showTraceExplorer: boolean
+  showTraceLens: boolean
   showEnterpriseWorkforce: boolean
   isAnyOverlayShown: boolean
   isLoadingSession: boolean
@@ -105,6 +107,7 @@ export interface EveryFabricMainViewProps {
   onCloseScheduled: () => void
   onCloseAgentMesh: () => void
   onCloseTraceExplorer: () => void
+  onCloseTraceLens: () => void
   onCloseEnterpriseWorkforce: () => void
   onSelectSession: (id: string) => void
   onOpenTraceExplorer: (positionMs?: number) => void
@@ -122,6 +125,7 @@ export function EveryFabricMainView({
   showScheduled,
   showAgentMesh,
   showTraceExplorer,
+  showTraceLens,
   showEnterpriseWorkforce,
   isAnyOverlayShown,
   isLoadingSession,
@@ -133,6 +137,7 @@ export function EveryFabricMainView({
   onCloseScheduled,
   onCloseAgentMesh,
   onCloseTraceExplorer,
+  onCloseTraceLens,
   onCloseEnterpriseWorkforce,
   onSelectSession,
   onOpenTraceExplorer,
@@ -198,6 +203,16 @@ export function EveryFabricMainView({
         <FadeOverlay visible={showTraceExplorer}>
           {displayView === 'trace-explorer' && (
             <TraceExplorerScreen onBack={onCloseTraceExplorer} onOpenAgentMesh={onOpenAgentMeshFromTrace} />
+          )}
+        </FadeOverlay>
+
+        <FadeOverlay visible={showTraceLens}>
+          {displayView === 'trace-lens' && (
+            <TraceLensScreen
+              accessToken={accessToken}
+              onBack={onCloseTraceLens}
+              initialSessionId={session?.session_id ?? null}
+            />
           )}
         </FadeOverlay>
 

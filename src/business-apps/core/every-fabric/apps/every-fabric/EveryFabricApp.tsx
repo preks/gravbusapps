@@ -79,6 +79,8 @@ const EveryFabricInner: React.FC = () => {
   const handleOpenTraceExplorer = (positionMs?: number) =>
     updateUrl({ view: 'trace-explorer', t: positionMs != null ? String(positionMs) : null })
   const handleCloseTraceExplorer = () => updateUrl({ view: null, t: null, focus: null })
+  const handleOpenTraceLens = () => updateUrl({ view: 'trace-lens' })
+  const handleCloseTraceLens = () => updateUrl({ view: null })
   const handleOpenAgentMeshFromTrace = (positionMs?: number) =>
     updateUrl({ view: 'agent-mesh', t: positionMs != null ? String(positionMs) : null })
   const handleOpenEnterpriseWorkforce = () => updateUrl({ view: 'enterprise-workforce' })
@@ -101,6 +103,7 @@ const EveryFabricInner: React.FC = () => {
   const showScheduled = urlView === 'scheduled'
   const showAgentMesh = urlView === 'agent-mesh'
   const showTraceExplorer = urlView === 'trace-explorer'
+  const showTraceLens = urlView === 'trace-lens'
   const showEnterpriseWorkforce = urlView === 'enterprise-workforce'
   // For sidebar highlighting, split the single agent-mesh URL into
   // "company mesh" vs "session mesh" by inspecting the meshScope param.
@@ -109,7 +112,7 @@ const EveryFabricInner: React.FC = () => {
   const isCompanyMeshActive = showAgentMesh && meshScopeParam === 'company'
   const isSessionMeshActive = showAgentMesh && meshScopeParam !== 'company'
   const isAnyOverlayShown =
-    showSettings || showScheduled || showAgentMesh || showTraceExplorer || showEnterpriseWorkforce
+    showSettings || showScheduled || showAgentMesh || showTraceExplorer || showTraceLens || showEnterpriseWorkforce
   return (
     <div className="gba:flex gba:h-full gba:min-h-full gba:w-full gba:min-w-0">
       <Sidebar
@@ -136,6 +139,8 @@ const EveryFabricInner: React.FC = () => {
         isSessionMeshActive={isSessionMeshActive}
         onOpenTraceExplorer={handleOpenTraceExplorer}
         isTraceExplorerActive={showTraceExplorer}
+        onOpenTraceLens={handleOpenTraceLens}
+        isTraceLensActive={showTraceLens}
         devModeEnabled={devModeEnabled}
       />
       <main className="gba:relative gba:flex-1 gba:min-w-0 gba:h-full">
@@ -149,6 +154,7 @@ const EveryFabricInner: React.FC = () => {
           showScheduled={showScheduled}
           showAgentMesh={showAgentMesh}
           showTraceExplorer={showTraceExplorer}
+          showTraceLens={showTraceLens}
           showEnterpriseWorkforce={showEnterpriseWorkforce}
           isAnyOverlayShown={isAnyOverlayShown}
           isLoadingSession={isLoadingSession}
@@ -160,6 +166,7 @@ const EveryFabricInner: React.FC = () => {
           onCloseScheduled={handleCloseScheduled}
           onCloseAgentMesh={handleCloseAgentMesh}
           onCloseTraceExplorer={handleCloseTraceExplorer}
+          onCloseTraceLens={handleCloseTraceLens}
           onCloseEnterpriseWorkforce={handleCloseEnterpriseWorkforce}
           onSelectSession={handleSelectSession}
           onOpenTraceExplorer={handleOpenTraceExplorer}
