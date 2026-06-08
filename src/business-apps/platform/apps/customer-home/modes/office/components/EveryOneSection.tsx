@@ -1,6 +1,8 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useMemo } from 'react'
 import { Button, useTranslation } from '@newwork/nw-design-system'
-import { ChatCircle, CalendarBlank, Bell, ArrowRight } from '@phosphor-icons/react'
+import { ChatCircle, CalendarBlank, Bell, EnvelopeIcon, ArrowRight } from '@phosphor-icons/react'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { FeatureCard } from './FeatureCard'
 import translations from '../_i18n'
@@ -30,11 +32,23 @@ const ONE_FEATURES = [
     descKey: 'one-reminders-description',
     icon: Bell,
     path: '/platform/chat?view=reminders'
+  },
+  {
+    id: 'mail',
+    titleKey: 'one-mail-title',
+    descKey: 'one-mail-description',
+    icon: EnvelopeIcon,
+    path: '/platform/chat?view=mail'
   }
 ] as const
 
 export const EveryOneSection: React.FC<EveryOneSectionProps> = ({ 'data-testid': testId = 'customer-home-one' }) => {
   const { t } = useTranslation(translations)
+  const previewFeature = useFeature<boolean>(Feature.Preview.Enabled.Key)
+  const visibleFeatures = useMemo(
+    () => ONE_FEATURES.filter(feature => feature.id !== 'mail' || previewFeature === true),
+    [previewFeature]
+  )
 
   const handleFeatureClick = useCallback((path: string) => {
     navigateTo(path)
@@ -61,7 +75,7 @@ export const EveryOneSection: React.FC<EveryOneSectionProps> = ({ 'data-testid':
         </div>
 
         <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:lg:grid-cols-3 gba:gap-4 gba:mb-6">
-          {ONE_FEATURES.map((feature, index) => (
+          {visibleFeatures.map((feature, index) => (
             <FeatureCard
               key={feature.id}
               title={t(feature.titleKey)}
