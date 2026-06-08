@@ -1,11 +1,22 @@
 import React, { useState, useMemo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, LineChart, Line, CartesianGrid } from 'recharts'
 import { ChartBarIcon, ChartLineIcon } from '@phosphor-icons/react'
-import { ChartContainer, ChartTooltip, ChartLegend, ChartLegendContent } from '@newwork/nw-design-system'
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartLegend,
+  ChartLegendContent,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { CampaignsAnalyticsComponentProps } from '../types/CampaignsAnalyticsTypes'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
+import translations from '../../../../../_i18n'
 import { ChartCard, ChartTypeSwitcher } from '@/common/components/customer/campaign-management/ChartCard'
+import {
+  CATEGORY_AXIS_PROPS,
+  CATEGORY_CHART_MARGIN,
+  truncateChartLabel
+} from '@/common/components/customer/campaign-management/ChartHelpers'
 
 /**
  * Custom tooltip for campaign performance chart
@@ -34,7 +45,7 @@ const PerformanceTooltip: React.FC<PerformanceTooltipProps> = ({ active, payload
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1 gba:mt-2 gba:pt-2 gba:border-t">
             <div
               className="gba:w-3 gba:h-3 gba:rounded-full"
-              style={{ backgroundColor: 'var(--color-totalrevenue)' }}
+              style={{ backgroundColor: 'var(--color-totalRevenue)' }}
             />
             <span className="gba:font-medium">Total Revenue:</span>
             <span className="gba:font-semibold">{formatCurrencyCompact(data.totalRevenue, 'USD')}</span>
@@ -52,16 +63,17 @@ const CampaignsPerformanceComparison: React.FC<CampaignsAnalyticsComponentProps>
   error = null,
   onRetry
 }) => {
+  const { t } = useTranslation(translations)
   const [chartType, setChartType] = useState<'bar' | 'line'>('bar')
 
   // Chart configuration using design system approach (same as IRM Portfolio)
   const chartConfig = useMemo(
     () => ({
-      leadscount: { label: 'Leads' },
-      accountscount: { label: 'Accounts' },
-      contactscount: { label: 'Contacts' },
-      opportunitiescount: { label: 'Opportunities' },
-      totalrevenue: { label: 'Total Revenue' }
+      leadsCount: { label: 'Leads' },
+      accountsCount: { label: 'Accounts' },
+      contactsCount: { label: 'Contacts' },
+      opportunitiesCount: { label: 'Opportunities' },
+      totalRevenue: { label: 'Total Revenue' }
     }),
     []
   )
@@ -69,27 +81,25 @@ const CampaignsPerformanceComparison: React.FC<CampaignsAnalyticsComponentProps>
   // Common chart configuration to eliminate duplication
   const commonChartProps = {
     data: campaignComparisons,
-    margin: { top: 20, right: 30, left: 20, bottom: 120 }
+    margin: CATEGORY_CHART_MARGIN
   }
 
   const commonAxisProps = {
-    xAxis: { dataKey: 'campaignName', angle: -45, textAnchor: 'end' as const, height: 100, interval: 0 as const }
+    xAxis: {
+      dataKey: 'campaignName',
+      ...CATEGORY_AXIS_PROPS,
+      tickFormatter: truncateChartLabel
+    }
   }
 
   return (
     <ChartCard
-      title={getTranslationFromI18nKeyAndLabel(
-        'campaigns.analytics.performanceComparison.title',
-        'Last 5 Campaigns Comparison'
-      )}
+      title={t('campaigns-analytics-performanceComparison-title')}
       isLoading={isLoading}
       error={error}
       onRetry={onRetry}
       isEmpty={campaignComparisons.length === 0}
-      emptyMessage={getTranslationFromI18nKeyAndLabel(
-        'campaigns.analytics.performanceComparison.noData',
-        'No campaign performance data available'
-      )}
+      emptyMessage={t('campaigns-analytics-performanceComparison-noData')}
       headerActions={
         <ChartTypeSwitcher
           options={[
@@ -103,7 +113,7 @@ const CampaignsPerformanceComparison: React.FC<CampaignsAnalyticsComponentProps>
       }
       data-testid="campaigns-performance-comparison"
     >
-      <ChartContainer config={chartConfig} className="gba:h-[400px] gba:w-full">
+      <ChartContainer config={chartConfig} className="gba:h-[500px] gba:w-full">
         {chartType === 'bar' ? (
           <BarChart {...commonChartProps}>
             <CartesianGrid strokeDasharray="3 3" />
@@ -111,12 +121,12 @@ const CampaignsPerformanceComparison: React.FC<CampaignsAnalyticsComponentProps>
             <YAxis />
             <ChartTooltip content={<PerformanceTooltip />} />
             <ChartLegend content={<ChartLegendContent />} />
-            <Bar dataKey="leadsCount" fill="var(--color-leadscount)" name="Leads" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="accountsCount" fill="var(--color-accountscount)" name="Accounts" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="contactsCount" fill="var(--color-contactscount)" name="Contacts" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="leadsCount" fill="var(--color-leadsCount)" name="Leads" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="accountsCount" fill="var(--color-accountsCount)" name="Accounts" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="contactsCount" fill="var(--color-contactsCount)" name="Contacts" radius={[4, 4, 0, 0]} />
             <Bar
               dataKey="opportunitiesCount"
-              fill="var(--color-opportunitiescount)"
+              fill="var(--color-opportunitiesCount)"
               name="Opportunities"
               radius={[4, 4, 0, 0]}
             />
@@ -131,7 +141,7 @@ const CampaignsPerformanceComparison: React.FC<CampaignsAnalyticsComponentProps>
             <Line
               type="monotone"
               dataKey="leadsCount"
-              stroke="var(--color-leadscount)"
+              stroke="var(--color-leadsCount)"
               name="Leads"
               strokeWidth={3}
               dot={false}
@@ -140,7 +150,7 @@ const CampaignsPerformanceComparison: React.FC<CampaignsAnalyticsComponentProps>
             <Line
               type="monotone"
               dataKey="accountsCount"
-              stroke="var(--color-accountscount)"
+              stroke="var(--color-accountsCount)"
               name="Accounts"
               strokeWidth={3}
               dot={false}
@@ -149,7 +159,7 @@ const CampaignsPerformanceComparison: React.FC<CampaignsAnalyticsComponentProps>
             <Line
               type="monotone"
               dataKey="contactsCount"
-              stroke="var(--color-contactscount)"
+              stroke="var(--color-contactsCount)"
               name="Contacts"
               strokeWidth={3}
               dot={false}
@@ -158,7 +168,7 @@ const CampaignsPerformanceComparison: React.FC<CampaignsAnalyticsComponentProps>
             <Line
               type="monotone"
               dataKey="opportunitiesCount"
-              stroke="var(--color-opportunitiescount)"
+              stroke="var(--color-opportunitiesCount)"
               name="Opportunities"
               strokeWidth={3}
               dot={false}

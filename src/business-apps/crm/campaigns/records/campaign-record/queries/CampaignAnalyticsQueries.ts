@@ -1,51 +1,74 @@
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCallback } from 'react'
+import dayjs from 'dayjs'
 
 // Import types and GraphQL queries from separate files
 export * from './CampaignAnalyticsTypes'
 export * from './CampaignAnalyticsGraphQL'
-import { CampaignAnalyticsMetrics, CampaignConversionFunnel, CampaignTimelineAnalysis } from './CampaignAnalyticsTypes'
 import {
-  GET_CAMPAIGN_ANALYTICS_METRICS,
-  GET_CAMPAIGN_CONVERSION_FUNNEL,
-  GET_CAMPAIGN_TIMELINE_ANALYSIS,
-  GET_CAMPAIGN_TOP_PERFORMERS
-} from './CampaignAnalyticsGraphQL'
+  CampaignAnalyticsMetrics,
+  CampaignConversionFunnel,
+  CampaignTimelineAnalysis,
+  CampaignRevenueTrendAnalysis
+} from './CampaignAnalyticsTypes'
+import { GET_CAMPAIGN_ANALYTICS_METRICS, GET_CAMPAIGN_CONVERSION_FUNNEL } from './CampaignAnalyticsGraphQL'
 
-// Internal types for GraphQL results
-interface EntityWithCreatedAt {
-  createdAt?: string
+interface DayRange {
+  date: string
+  startIso: string
+  endIso: string
 }
 
-interface EntityWithOwner extends EntityWithCreatedAt {
-  ownerEmployee?: {
-    id: string
-    displayName: string
-  }
+interface CampaignTimelineDateRange {
+  startDate?: string
+  endDate?: string
 }
 
-interface LeadEntity extends EntityWithOwner {
-  account?: {
-    id: string
-  }
-}
-
-interface OpportunityEntity extends EntityWithOwner {
-  estimatedAmount?: string
-  opportunityStatus?: {
-    id: string
-    value: string
-  }
-  stage?: {
-    id: string
-    value: string
-  }
+interface CampaignCombinedTimelineAnalysis {
+  entityTimelineAnalysis: CampaignTimelineAnalysis
+  revenueTrendAnalysis: CampaignRevenueTrendAnalysis
 }
 
 // Hook for Campaign Analytics Queries
 export const useCampaignAnalyticsQueries = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
+
+  const buildDateDayRanges = useCallback(
+    (
+      selectedRange?: CampaignTimelineDateRange
+    ): { rangeStart: dayjs.Dayjs; rangeEnd: dayjs.Dayjs; days: DayRange[] } => {
+      const today = dayjs()
+      const parsedStart = selectedRange?.startDate ? dayjs(selectedRange.startDate).startOf('day') : null
+      const parsedEnd = selectedRange?.endDate ? dayjs(selectedRange.endDate).endOf('day') : null
+
+      const hasValidRange = Boolean(parsedStart && parsedEnd && parsedStart.isValid() && parsedEnd.isValid())
+      const normalizedStart = hasValidRange ? (parsedStart as dayjs.Dayjs) : today.startOf('month')
+      let normalizedEnd = today.endOf('day')
+
+      if (hasValidRange) {
+        const validStart = parsedStart as dayjs.Dayjs
+        const validEnd = parsedEnd as dayjs.Dayjs
+        normalizedEnd = (validEnd.isAfter(validStart) ? validEnd : validStart).endOf('day')
+      }
+
+      const rangeStart = hasValidRange ? normalizedStart : today.startOf('month')
+      const rangeEnd = hasValidRange ? normalizedEnd : today.endOf('day')
+      const dayCount = rangeEnd.diff(rangeStart.startOf('day'), 'day') + 1
+
+      const days = Array.from({ length: dayCount }, (_, dayIndex) => {
+        const start = rangeStart.startOf('day').add(dayIndex, 'day')
+        return {
+          date: start.format('YYYY-MM-DD'),
+          startIso: start.toISOString(),
+          endIso: start.add(1, 'day').toISOString()
+        }
+      })
+
+      return { rangeStart, rangeEnd, days }
+    },
+    []
+  )
 
   const fetchAnalyticsMetrics = useCallback(
     async (campaignId: string): Promise<CampaignAnalyticsMetrics> => {
@@ -62,7 +85,9 @@ export const useCampaignAnalyticsQueries = (context: BusinessAppContextProps) =>
       const conversionMetrics = {
         leadsConverted: result.convertedLeads.aggregate.count || 0,
         conversionRate:
-          totalEntities.leads > 0 ? ((result.convertedLeads.aggregate.count || 0) / totalEntities.leads) * 100 : 0
+          totalEntities.leads > 0 ? ((result.convertedLeads.aggregate.count || 0) / totalEntities.leads) * 100 : 0,
+        mqlCount: result.mqlCount?.aggregate?.count || 0,
+        sqlCount: result.sqlCount?.aggregate?.count || 0
       }
 
       const revenueMetrics = {
@@ -80,9 +105,8 @@ export const useCampaignAnalyticsQueries = (context: BusinessAppContextProps) =>
         conversionMetrics,
         revenueMetrics,
         performanceMetrics: {
-          activitiesCount: 0, // Will be calculated separately
-          avgDaysToClose: 0, // Will be calculated separately
-          topPerformers: [] // Will be fetched separately
+          activitiesCount: 0,
+          avgDaysToClose: 0
         }
       }
     },
@@ -95,6 +119,8 @@ export const useCampaignAnalyticsQueries = (context: BusinessAppContextProps) =>
       const result = await graphqlClient.request<any>(query, { campaignId })
 
       const totalLeads = result.totalLeads.aggregate.count || 0
+      const mqlCount = result.mqlCount?.aggregate?.count || 0
+      const sqlCount = result.sqlCount?.aggregate?.count || 0
       const convertedLeads = result.convertedLeads.aggregate.count || 0
       const createdAccounts = result.createdAccounts.aggregate.count || 0
       const createdContacts = result.createdContacts.aggregate.count || 0
@@ -107,6 +133,18 @@ export const useCampaignAnalyticsQueries = (context: BusinessAppContextProps) =>
           stage: 'Total Leads',
           count: totalLeads,
           percentage: totalLeads > 0 ? 100 : 0
+        },
+        {
+          stage: 'MQL',
+          count: mqlCount,
+          percentage: totalLeads > 0 ? (mqlCount / totalLeads) * 100 : 0,
+          dropoffRate: totalLeads > 0 ? ((totalLeads - mqlCount) / totalLeads) * 100 : 0
+        },
+        {
+          stage: 'SQL',
+          count: sqlCount,
+          percentage: totalLeads > 0 ? (sqlCount / totalLeads) * 100 : 0,
+          dropoffRate: mqlCount > 0 ? ((mqlCount - sqlCount) / mqlCount) * 100 : 0
         },
         {
           stage: 'Converted Leads',
@@ -145,205 +183,132 @@ export const useCampaignAnalyticsQueries = (context: BusinessAppContextProps) =>
     [graphqlClient]
   )
 
-  const fetchTimelineAnalysis = useCallback(
-    async (campaignId: string): Promise<CampaignTimelineAnalysis> => {
-      const query = GET_CAMPAIGN_TIMELINE_ANALYSIS()
-      const result = await graphqlClient.request<any>(query, { campaignId })
+  const fetchCombinedTimelineAnalysis = useCallback(
+    async (
+      campaignId: string,
+      selectedRange?: CampaignTimelineDateRange
+    ): Promise<CampaignCombinedTimelineAnalysis> => {
+      const { rangeStart, rangeEnd, days } = buildDateDayRanges(selectedRange)
 
-      // Process timeline data to create daily/weekly/monthly aggregations
-      // This is a simplified version - you might want to enhance this based on campaign duration
-      const allDates = new Set<string>()
-
-      // Collect all creation dates
-      ;[...result.leads, ...result.accounts, ...result.contacts, ...result.opportunities].forEach(entity => {
-        if (entity.createdAt) {
-          allDates.add(entity.createdAt.split('T')[0]) // Get just the date part
-        }
-      })
-
-      const leads = result.leads as EntityWithCreatedAt[]
-      const accounts = result.accounts as EntityWithCreatedAt[]
-      const contacts = result.contacts as EntityWithCreatedAt[]
-      const opportunities = result.opportunities as OpportunityEntity[]
-
-      const timeline = Array.from(allDates)
-        .sort((a, b) => a.localeCompare(b))
-        .map(date => {
-          const leadsOnDate = leads.filter(l => l.createdAt?.startsWith(date)).length
-          const accountsOnDate = accounts.filter(a => a.createdAt?.startsWith(date)).length
-          const contactsOnDate = contacts.filter(c => c.createdAt?.startsWith(date)).length
-          const opportunitiesOnDate = opportunities.filter(o => o.createdAt?.startsWith(date)).length
-
-          // Calculate daily revenue from opportunities created on this date
-          const dailyRevenue = opportunities
-            .filter(o => o.createdAt?.startsWith(date))
-            .reduce((sum, o) => sum + (Number.parseFloat(o.estimatedAmount || '0') || 0), 0)
-
-          return {
-            date,
-            leads: leadsOnDate,
-            accounts: accountsOnDate,
-            contacts: contactsOnDate,
-            opportunities: opportunitiesOnDate,
-            dailyRevenue,
-            cumulativeLeads: 0, // Will be calculated below
-            cumulativeAccounts: 0,
-            cumulativeContacts: 0,
-            cumulativeOpportunities: 0,
-            cumulativeRevenue: 0
+      const queryParts = days
+        .map(
+          (day, dayIndex) => `
+          day${dayIndex}_leads: LeadAggregate(
+            where: {
+              salesCampaignId: { _eq: $campaignId }
+              isDeleted: { _eq: false }
+              createdAt: { _gte: "${day.startIso}", _lt: "${day.endIso}" }
+            }
+          ) { aggregate { count } }
+          day${dayIndex}_accounts: AccountAggregate(
+            where: {
+              salesCampaignId: { _eq: $campaignId }
+              isDeleted: { _eq: false }
+              createdAt: { _gte: "${day.startIso}", _lt: "${day.endIso}" }
+            }
+          ) { aggregate { count } }
+          day${dayIndex}_contacts: ContactAggregate(
+            where: {
+              salesCampaignId: { _eq: $campaignId }
+              isDeleted: { _eq: false }
+              createdAt: { _gte: "${day.startIso}", _lt: "${day.endIso}" }
+            }
+          ) { aggregate { count } }
+          day${dayIndex}_opportunities: OpportunityAggregate(
+            where: {
+              salesCampaignId: { _eq: $campaignId }
+              isDeleted: { _eq: false }
+              createdAt: { _gte: "${day.startIso}", _lt: "${day.endIso}" }
+            }
+          ) { aggregate { count } }
+          day${dayIndex}_revenue: OpportunityAggregate(
+            where: {
+              salesCampaignId: { _eq: $campaignId }
+              isDeleted: { _eq: false }
+              createdAt: { _gte: "${day.startIso}", _lt: "${day.endIso}" }
+              estimatedAmount: { _gt: 0 }
+            }
+          ) {
+            aggregate {
+              sum {
+                estimatedAmount
+              }
+            }
           }
-        })
+        `
+        )
+        .join('\n')
 
-      // Calculate cumulative values
+      const query = `
+        query GetCampaignCombinedTimelineByRange($campaignId: uuid!) {
+          ${queryParts}
+        }
+      `
+      const result = await graphqlClient.request<Record<string, any>>(query, { campaignId })
+
       let cumulativeLeads = 0
       let cumulativeAccounts = 0
       let cumulativeContacts = 0
       let cumulativeOpportunities = 0
       let cumulativeRevenue = 0
 
-      timeline.forEach(item => {
-        cumulativeLeads += item.leads
-        cumulativeAccounts += item.accounts
-        cumulativeContacts += item.contacts
-        cumulativeOpportunities += item.opportunities
-        cumulativeRevenue += item.dailyRevenue
+      const entityCreationTimeline = days.map((day, dayIndex) => {
+        const leads = result[`day${dayIndex}_leads`]?.aggregate?.count || 0
+        const accounts = result[`day${dayIndex}_accounts`]?.aggregate?.count || 0
+        const contacts = result[`day${dayIndex}_contacts`]?.aggregate?.count || 0
+        const opportunities = result[`day${dayIndex}_opportunities`]?.aggregate?.count || 0
+        const dailyRevenue = Number(result[`day${dayIndex}_revenue`]?.aggregate?.sum?.estimatedAmount || 0)
 
-        item.cumulativeLeads = cumulativeLeads
-        item.cumulativeAccounts = cumulativeAccounts
-        item.cumulativeContacts = cumulativeContacts
-        item.cumulativeOpportunities = cumulativeOpportunities
-        item.cumulativeRevenue = cumulativeRevenue
+        cumulativeLeads += leads
+        cumulativeAccounts += accounts
+        cumulativeContacts += contacts
+        cumulativeOpportunities += opportunities
+        cumulativeRevenue += dailyRevenue
+
+        return {
+          date: day.date,
+          leads,
+          accounts,
+          contacts,
+          opportunities,
+          dailyRevenue,
+          cumulativeLeads,
+          cumulativeAccounts,
+          cumulativeContacts,
+          cumulativeOpportunities,
+          cumulativeRevenue
+        }
       })
 
-      return { entityCreationTimeline: timeline }
+      const revenueTimeline = entityCreationTimeline.map(item => ({
+        date: item.date,
+        dailyRevenue: item.dailyRevenue,
+        cumulativeRevenue: item.cumulativeRevenue
+      }))
+
+      const selectedRangeLabel = `${rangeStart.format('DD MMM YYYY')} – ${rangeEnd.format('DD MMM YYYY')}`
+
+      return {
+        entityTimelineAnalysis: {
+          selectedRangeStart: rangeStart.toISOString(),
+          selectedRangeEnd: rangeEnd.toISOString(),
+          selectedRangeLabel,
+          entityCreationTimeline
+        },
+        revenueTrendAnalysis: {
+          selectedRangeStart: rangeStart.toISOString(),
+          selectedRangeEnd: rangeEnd.toISOString(),
+          selectedRangeLabel,
+          revenueTimeline
+        }
+      }
     },
-    [graphqlClient]
-  )
-
-  const fetchTopPerformers = useCallback(
-    async (campaignId: string) => {
-      const query = GET_CAMPAIGN_TOP_PERFORMERS()
-      const result = await graphqlClient.request<{
-        leads: LeadEntity[]
-        accounts: EntityWithOwner[]
-        contacts: EntityWithOwner[]
-        opportunities: OpportunityEntity[]
-      }>(query, { campaignId })
-
-      // Aggregate performance data by employee with detailed breakdowns
-      const performanceMap = new Map<
-        string,
-        {
-          employeeId: string
-          employeeName: string
-          leads: { total: number; converted: number }
-          opportunities: { total: number; won: number }
-          contacts: { total: number }
-          accounts: { total: number }
-          revenue: number
-        }
-      >()
-
-      // Process leads
-      result.leads.forEach(lead => {
-        if (lead.ownerEmployee) {
-          const key = lead.ownerEmployee.id
-          const existing = performanceMap.get(key) || {
-            employeeId: key,
-            employeeName: lead.ownerEmployee.displayName,
-            leads: { total: 0, converted: 0 },
-            opportunities: { total: 0, won: 0 },
-            contacts: { total: 0 },
-            accounts: { total: 0 },
-            revenue: 0
-          }
-          existing.leads.total += 1
-
-          // Lead is converted if it has an associated account
-          if (lead.account?.id) {
-            existing.leads.converted += 1
-          }
-
-          performanceMap.set(key, existing)
-        }
-      })
-
-      // Process accounts
-      result.accounts.forEach(account => {
-        if (account.ownerEmployee) {
-          const key = account.ownerEmployee.id
-          const existing = performanceMap.get(key) || {
-            employeeId: key,
-            employeeName: account.ownerEmployee.displayName,
-            leads: { total: 0, converted: 0 },
-            opportunities: { total: 0, won: 0 },
-            contacts: { total: 0 },
-            accounts: { total: 0 },
-            revenue: 0
-          }
-          existing.accounts.total += 1
-          performanceMap.set(key, existing)
-        }
-      })
-
-      // Process contacts
-      result.contacts.forEach(contact => {
-        if (contact.ownerEmployee) {
-          const key = contact.ownerEmployee.id
-          const existing = performanceMap.get(key) || {
-            employeeId: key,
-            employeeName: contact.ownerEmployee.displayName,
-            leads: { total: 0, converted: 0 },
-            opportunities: { total: 0, won: 0 },
-            contacts: { total: 0 },
-            accounts: { total: 0 },
-            revenue: 0
-          }
-          existing.contacts.total += 1
-          performanceMap.set(key, existing)
-        }
-      })
-
-      // Process opportunities
-      result.opportunities.forEach(opp => {
-        if (opp.ownerEmployee) {
-          const key = opp.ownerEmployee.id
-          const existing = performanceMap.get(key) || {
-            employeeId: key,
-            employeeName: opp.ownerEmployee.displayName,
-            leads: { total: 0, converted: 0 },
-            opportunities: { total: 0, won: 0 },
-            contacts: { total: 0 },
-            accounts: { total: 0 },
-            revenue: 0
-          }
-          existing.opportunities.total += 1
-
-          // Check if opportunity is won
-          const isWon = opp.opportunityStatus?.value?.toLowerCase().includes('won')
-          if (isWon) {
-            existing.opportunities.won += 1
-            existing.revenue += Number.parseFloat(opp.estimatedAmount || '0') || 0
-          }
-
-          performanceMap.set(key, existing)
-        }
-      })
-
-      // Convert to array and sort by won revenue (primary criterion)
-      const topPerformers = Array.from(performanceMap.values())
-        .sort((a, b) => b.revenue - a.revenue)
-        .slice(0, 5) // Top 5 performers
-
-      return topPerformers
-    },
-    [graphqlClient]
+    [buildDateDayRanges, graphqlClient]
   )
 
   return {
     fetchAnalyticsMetrics,
     fetchConversionFunnel,
-    fetchTimelineAnalysis,
-    fetchTopPerformers
+    fetchCombinedTimelineAnalysis
   }
 }

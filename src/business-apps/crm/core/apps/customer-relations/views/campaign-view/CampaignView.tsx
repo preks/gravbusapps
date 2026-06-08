@@ -84,7 +84,7 @@ const CampaignView: React.FC<CampaignViewProps> = props => {
     const config = { ...campaignFilterConfig }
 
     // Update types from existing filter data (if available)
-    const typesGroup = config.groups.find(g => g.id === 'campaign-filters')
+    const typesGroup = config.groups.find(g => g.id === 'type-group')
     if (typesGroup && campaignTypeOptions?.length > 0) {
       const typeFilter = typesGroup.filters.find(f => f.id === 'types')
       if (typeFilter?.config && 'options' in typeFilter.config) {

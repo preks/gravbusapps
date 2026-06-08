@@ -1,50 +1,54 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   useCampaignAnalyticsQueries,
   CampaignAnalyticsMetrics,
   CampaignConversionFunnel,
-  CampaignTimelineAnalysis
+  CampaignTimelineAnalysis,
+  CampaignRevenueTrendAnalysis
 } from '../queries/CampaignAnalyticsQueries'
-
-interface TopPerformer {
-  employeeId: string
-  employeeName: string
-  leads: { total: number; converted: number }
-  opportunities: { total: number; won: number }
-  contacts: { total: number }
-  accounts: { total: number }
-  revenue: number
-}
 
 interface CampaignAnalyticsData {
   metrics: CampaignAnalyticsMetrics | null
   conversionFunnel: CampaignConversionFunnel | null
-  timelineAnalysis: CampaignTimelineAnalysis | null
-  topPerformers: TopPerformer[]
+  entityTimelineAnalysis: CampaignTimelineAnalysis | null
+  revenueTrendAnalysis: CampaignRevenueTrendAnalysis | null
 }
 
 interface UseCampaignAnalyticsReturn {
   analyticsData: CampaignAnalyticsData
+  timelineDateRangeLabel: string
   isLoading: boolean
+  isTimelineLoading: boolean
   error: string | null
   refetch: () => void
 }
 
+interface UseCampaignAnalyticsOptions {
+  enabled?: boolean
+  startDate?: string
+  endDate?: string
+}
+
 export const useCampaignAnalytics = (
   context: BusinessAppContextProps,
-  campaignId: string
+  campaignId: string,
+  options: UseCampaignAnalyticsOptions = {}
 ): UseCampaignAnalyticsReturn => {
+  const { enabled = true, startDate, endDate } = options
   const [analyticsData, setAnalyticsData] = useState<CampaignAnalyticsData>({
     metrics: null,
     conversionFunnel: null,
-    timelineAnalysis: null,
-    topPerformers: []
+    entityTimelineAnalysis: null,
+    revenueTrendAnalysis: null
   })
   const [isLoading, setIsLoading] = useState(true)
+  const [isTimelineLoading, setIsTimelineLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const initialLoadDoneRef = useRef(false)
+  const selectedRangeRef = useRef({ startDate, endDate })
 
-  const { fetchAnalyticsMetrics, fetchConversionFunnel, fetchTimelineAnalysis, fetchTopPerformers } =
+  const { fetchAnalyticsMetrics, fetchConversionFunnel, fetchCombinedTimelineAnalysis } =
     useCampaignAnalyticsQueries(context)
 
   const loadAllAnalyticsData = useCallback(async () => {
@@ -59,37 +63,19 @@ export const useCampaignAnalytics = (
 
     try {
       // Fetch all analytics data in parallel for better performance
-      const [metrics, conversionFunnel, timelineAnalysis, topPerformers] = await Promise.all([
+      const [metrics, conversionFunnel, combinedTimelineAnalysis] = await Promise.all([
         fetchAnalyticsMetrics(campaignId),
         fetchConversionFunnel(campaignId),
-        fetchTimelineAnalysis(campaignId),
-        fetchTopPerformers(campaignId)
+        fetchCombinedTimelineAnalysis(campaignId, selectedRangeRef.current)
       ])
 
-      // Update performance metrics with top performers data
-      // Transform detailed top performers into simpler format for performance metrics
-      const simplifiedTopPerformers = topPerformers.slice(0, 5).map(performer => ({
-        employeeId: performer.employeeId,
-        employeeName: performer.employeeName,
-        entitiesCount:
-          performer.leads.total + performer.opportunities.total + performer.contacts.total + performer.accounts.total,
-        revenue: performer.revenue
-      }))
-
-      const updatedMetrics: CampaignAnalyticsMetrics = {
-        ...metrics,
-        performanceMetrics: {
-          ...metrics.performanceMetrics,
-          topPerformers: simplifiedTopPerformers
-        }
-      }
-
       setAnalyticsData({
-        metrics: updatedMetrics,
+        metrics,
         conversionFunnel,
-        timelineAnalysis,
-        topPerformers: topPerformers.slice(0, 10) // Show top 10 in detailed view
+        entityTimelineAnalysis: combinedTimelineAnalysis.entityTimelineAnalysis,
+        revenueTrendAnalysis: combinedTimelineAnalysis.revenueTrendAnalysis
       })
+      initialLoadDoneRef.current = true
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load analytics data')
 
@@ -97,31 +83,60 @@ export const useCampaignAnalytics = (
       setAnalyticsData({
         metrics: null,
         conversionFunnel: null,
-        timelineAnalysis: null,
-        topPerformers: []
+        entityTimelineAnalysis: null,
+        revenueTrendAnalysis: null
       })
     } finally {
       setIsLoading(false)
     }
-  }, [
-    campaignId,
-    context.accessToken,
-    fetchAnalyticsMetrics,
-    fetchConversionFunnel,
-    fetchTimelineAnalysis,
-    fetchTopPerformers
-  ])
+  }, [campaignId, context.accessToken, fetchAnalyticsMetrics, fetchConversionFunnel, fetchCombinedTimelineAnalysis])
 
-  // Load data when campaign or context changes
   useEffect(() => {
-    if (campaignId && context.accessToken) {
+    selectedRangeRef.current = { startDate, endDate }
+  }, [startDate, endDate])
+
+  const loadTimelineAnalysis = useCallback(async () => {
+    if (!campaignId || !context.accessToken || !initialLoadDoneRef.current) {
+      return
+    }
+
+    setIsTimelineLoading(true)
+    try {
+      const combinedTimelineAnalysis = await fetchCombinedTimelineAnalysis(campaignId, selectedRangeRef.current)
+      setAnalyticsData(prev => ({
+        ...prev,
+        entityTimelineAnalysis: combinedTimelineAnalysis.entityTimelineAnalysis,
+        revenueTrendAnalysis: combinedTimelineAnalysis.revenueTrendAnalysis
+      }))
+    } catch (err) {
+      console.error('Failed to load timeline analysis:', err)
+    } finally {
+      setIsTimelineLoading(false)
+    }
+  }, [campaignId, context.accessToken, fetchCombinedTimelineAnalysis])
+
+  // Load full analytics data on first mount / refetch only.
+  useEffect(() => {
+    if (enabled && campaignId && context.accessToken) {
       loadAllAnalyticsData()
     }
-  }, [campaignId, context.accessToken, loadAllAnalyticsData])
+  }, [enabled, campaignId, context.accessToken, loadAllAnalyticsData])
+
+  // Reload timeline when campaign date range changes.
+  useEffect(() => {
+    if (enabled && campaignId && context.accessToken) {
+      loadTimelineAnalysis()
+    }
+  }, [enabled, campaignId, context.accessToken, startDate, endDate, loadTimelineAnalysis])
 
   return {
     analyticsData,
+    timelineDateRangeLabel:
+      analyticsData.entityTimelineAnalysis?.selectedRangeLabel ??
+      analyticsData.revenueTrendAnalysis?.selectedRangeLabel ??
+      'Date Range unavailable',
     isLoading,
+    isTimelineLoading,
     error,
     refetch: () => {
       loadAllAnalyticsData().catch(err => {

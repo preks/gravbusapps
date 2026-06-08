@@ -9,6 +9,8 @@ export interface CampaignAnalyticsMetrics {
   conversionMetrics: {
     leadsConverted: number
     conversionRate: number
+    mqlCount: number
+    sqlCount: number
   }
   revenueMetrics: {
     totalPipeline: number
@@ -19,12 +21,6 @@ export interface CampaignAnalyticsMetrics {
   performanceMetrics: {
     activitiesCount: number
     avgDaysToClose: number
-    topPerformers: Array<{
-      employeeId: string
-      employeeName: string
-      entitiesCount: number
-      revenue: number
-    }>
   }
 }
 
@@ -52,6 +48,9 @@ export interface CampaignRevenueAnalysis {
 }
 
 export interface CampaignTimelineAnalysis {
+  selectedRangeStart: string
+  selectedRangeEnd: string
+  selectedRangeLabel: string
   entityCreationTimeline: Array<{
     date: string
     leads: number
@@ -62,6 +61,17 @@ export interface CampaignTimelineAnalysis {
     cumulativeAccounts: number
     cumulativeContacts: number
     cumulativeOpportunities: number
+    dailyRevenue: number
+    cumulativeRevenue: number
+  }>
+}
+
+export interface CampaignRevenueTrendAnalysis {
+  selectedRangeStart: string
+  selectedRangeEnd: string
+  selectedRangeLabel: string
+  revenueTimeline: Array<{
+    date: string
     dailyRevenue: number
     cumulativeRevenue: number
   }>

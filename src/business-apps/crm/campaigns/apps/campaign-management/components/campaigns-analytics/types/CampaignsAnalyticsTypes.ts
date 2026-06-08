@@ -34,10 +34,6 @@ export interface PerformanceMetrics {
 }
 
 export interface CampaignsAnalyticsMetrics {
-  totalCampaigns: number
-  activeCampaigns: number
-  upcomingCampaigns: number
-  completedCampaigns: number
   totalLeads: number
   totalAccounts: number
   totalContacts: number
@@ -81,15 +77,6 @@ export interface TopPerformingCampaign extends EntityCounts, PerformanceMetrics 
   rank: number
 }
 
-export interface TopPerformingEmployee extends EntityCounts {
-  employeeId: string
-  employeeName: string
-  campaignsCount: number
-  averageConversionRate: number
-  averageWinRate: number
-  rank: number
-}
-
 export interface CampaignsAnalyticsData {
   metrics: CampaignsAnalyticsMetrics
   campaignComparisons: CampaignPerformanceComparison[]
@@ -97,7 +84,6 @@ export interface CampaignsAnalyticsData {
   efficiencyComparisons: CampaignPerformanceComparison[]
   timelineAnalysis: CampaignsTimelineData[]
   topCampaigns: TopPerformingCampaign[]
-  topEmployees: TopPerformingEmployee[]
 }
 
 // Shared loading/error state interface

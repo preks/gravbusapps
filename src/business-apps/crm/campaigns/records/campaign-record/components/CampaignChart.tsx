@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { AreaChart, Area, XAxis, YAxis } from 'recharts'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts'
 import {
   Card,
   CardContent,
@@ -19,34 +19,41 @@ import {
 import { ChartLineIcon, EyeIcon } from '@phosphor-icons/react'
 import { useCampaignChart } from '../hooks'
 import { CampaignChartProps, ChartTimeFilter } from '../types'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
+import { NW_CHART_COLOR_VARS } from '@/business-apps/crm/campaigns/utils/campaignChartTokens'
+import translations from '../../../_i18n'
 
 const DATA_TEST_ID_PREFIX = 'CampaignChart'
+const CARD_BACKGROUND_CLASS = 'gba:bg-muted'
 
+// Chart line configuration using design-system chart tokens (aligned with areaChartConfig)
 const CHART_LINE_CONFIG = [
-  { key: 'totalLeads' as const, label: 'Total Leads' },
-  { key: 'totalAccounts' as const, label: 'Total Accounts' },
-  { key: 'totalContacts' as const, label: 'Total Contacts' },
-  { key: 'totalOpportunities' as const, label: 'Total Opportunities' }
+  { key: 'totalLeads' as const, labelKey: 'campaign-kpis-totalLeads', color: NW_CHART_COLOR_VARS[0] },
+  { key: 'totalAccounts' as const, labelKey: 'campaign-kpis-totalAccounts', color: NW_CHART_COLOR_VARS[1] },
+  { key: 'totalContacts' as const, labelKey: 'campaign-kpis-totalContacts', color: NW_CHART_COLOR_VARS[2] },
+  { key: 'totalOpportunities' as const, labelKey: 'campaign-kpis-totalOpportunities', color: NW_CHART_COLOR_VARS[3] }
 ] as const
 
 interface ChartCardHeaderProps {
   children?: React.ReactNode
+  title: string
 }
 
-const ChartCardHeader: React.FC<ChartCardHeaderProps> = ({ children }) => (
+const ChartCardHeader: React.FC<ChartCardHeaderProps> = ({ children, title }) => (
   <CardHeader>
     <div className="gba:flex gba:items-center gba:justify-between">
       <CardTitle className="gba:flex gba:items-center gba:gap-2">
         <ChartLineIcon size={20} />
-        {getTranslationFromI18nKeyAndLabel('campaign.chart.title', 'Campaign Performance Trends')}
+        {title}
       </CardTitle>
       {children}
     </div>
   </CardHeader>
 )
 
-const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, allEntities, ...props }) => {
+const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, ...props }) => {
+  const { t } = useTranslation(translations)
+  // Line visibility state
   const [visibleLines, setVisibleLines] = useState({
     totalLeads: true,
     totalAccounts: true,
@@ -57,16 +64,15 @@ const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, all
   const { chartData, isLoading, error, timeFilter, setTimeFilter, refetch } = useCampaignChart(
     props,
     campaignId,
-    campaign,
-    allEntities
+    campaign
   )
 
   const areaChartConfig = useMemo<ChartConfig>(
     () => ({
-      totalleads: { label: 'Total Leads' },
-      totalaccounts: { label: 'Total Accounts' },
-      totalcontacts: { label: 'Total Contacts' },
-      totalopportunities: { label: 'Total Opportunities' }
+      totalLeads: { label: 'Total Leads', color: NW_CHART_COLOR_VARS[0] },
+      totalAccounts: { label: 'Total Accounts', color: NW_CHART_COLOR_VARS[1] },
+      totalContacts: { label: 'Total Contacts', color: NW_CHART_COLOR_VARS[2] },
+      totalOpportunities: { label: 'Total Opportunities', color: NW_CHART_COLOR_VARS[3] }
     }),
     []
   )
@@ -85,12 +91,16 @@ const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, all
     }))
   }
 
-  const formatXAxisLabel = (value: string) => value
+  // Custom label formatter for X-axis
+  const formatXAxisLabel = (value: string) => {
+    // All time filters currently use the same format
+    return value
+  }
 
   if (isLoading) {
     return (
-      <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
-        <ChartCardHeader />
+      <Card className={CARD_BACKGROUND_CLASS} data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
+        <ChartCardHeader title={t('campaign-chart-title')} />
         <CardContent>
           <div className="gba:flex gba:justify-center gba:p-8" data-testid={`${DATA_TEST_ID_PREFIX}-loading`}>
             <Spinner size="lg" />
@@ -102,19 +112,17 @@ const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, all
 
   if (error) {
     return (
-      <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
-        <ChartCardHeader />
+      <Card className={CARD_BACKGROUND_CLASS} data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
+        <ChartCardHeader title={t('campaign-chart-title')} />
         <CardContent>
           <Alert variant="destructive" data-testid={`${DATA_TEST_ID_PREFIX}-error`}>
             <div className="gba:flex gba:items-center gba:justify-between">
               <div>
-                <h4 className="gba:text-sm gba:font-medium">
-                  {getTranslationFromI18nKeyAndLabel('campaign.chart.error.title', 'Error Loading Chart')}
-                </h4>
+                <h4 className="gba:text-sm gba:font-medium">{t('campaign-chart-error-title')}</h4>
                 <p className="gba:text-sm gba:text-muted-foreground">{error}</p>
               </div>
               <Button variant="outline" size="sm" onClick={refetch} data-testid={`${DATA_TEST_ID_PREFIX}-retry-button`}>
-                {getTranslationFromI18nKeyAndLabel('campaign.chart.retry', 'Retry')}
+                {t('campaign-chart-retry')}
               </Button>
             </div>
           </Alert>
@@ -124,8 +132,8 @@ const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, all
   }
 
   return (
-    <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
-      <ChartCardHeader>
+    <Card className={CARD_BACKGROUND_CLASS} data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
+      <ChartCardHeader title={t('campaign-chart-title')}>
         <div className="gba:flex gba:items-center gba:gap-2">
           <div className="gba:flex gba:gap-1" data-testid={`${DATA_TEST_ID_PREFIX}-time-filters`}>
             {timeFilterOptions.map(option => (
@@ -147,9 +155,7 @@ const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, all
           <div className="gba:flex gba:items-center gba:gap-6">
             <div className="gba:flex gba:items-center gba:gap-2">
               <EyeIcon size={16} className="gba:text-muted-foreground" />
-              <span className="gba:text-sm gba:font-medium gba:text-foreground">
-                {getTranslationFromI18nKeyAndLabel('campaign.chart.showLines', 'Show Lines:')}
-              </span>
+              <span className="gba:text-sm gba:font-medium gba:text-foreground">{t('campaign-chart-showLines')}</span>
             </div>
             <div className="gba:flex gba:flex-wrap gba:gap-4" data-testid={`${DATA_TEST_ID_PREFIX}-line-filters`}>
               {CHART_LINE_CONFIG.map(line => (
@@ -159,13 +165,8 @@ const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, all
                   data-testid={`${DATA_TEST_ID_PREFIX}-line-filter-${line.key}`}
                 >
                   <Checkbox checked={visibleLines[line.key]} onCheckedChange={() => toggleLineVisibility(line.key)} />
-                  <div
-                    className="gba:w-3 gba:h-3 gba:rounded"
-                    style={{
-                      backgroundColor: `var(--color-${line.key.toLowerCase()})`
-                    }}
-                  />
-                  <span className="gba:text-sm gba:text-foreground">{line.label}</span>
+                  <div className="gba:w-3 gba:h-3 gba:rounded" style={{ backgroundColor: line.color }} />
+                  <span className="gba:text-sm gba:text-foreground">{t(line.labelKey)}</span>
                 </label>
               ))}
             </div>
@@ -177,14 +178,9 @@ const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, all
           <div className="gba:text-center gba:p-8" data-testid={`${DATA_TEST_ID_PREFIX}-empty-state`}>
             <ChartLineIcon className="gba:mx-auto gba:h-12 gba:w-12 gba:text-muted-foreground" />
             <h3 className="gba:mt-2 gba:text-sm gba:font-medium gba:text-foreground">
-              {getTranslationFromI18nKeyAndLabel('campaign.chart.noData.title', 'No data available')}
+              {t('campaign-chart-noData-title')}
             </h3>
-            <p className="gba:mt-1 gba:text-sm gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel(
-                'campaign.chart.noData.message',
-                'No campaign data found for the selected time period.'
-              )}
-            </p>
+            <p className="gba:mt-1 gba:text-sm gba:text-muted-foreground">{t('campaign-chart-noData-message')}</p>
           </div>
         ) : (
           <div className="gba:h-80" data-testid={`${DATA_TEST_ID_PREFIX}-chart`}>
@@ -198,6 +194,7 @@ const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, all
                   bottom: 20
                 }}
               >
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-default)" />
                 <XAxis
                   dataKey="date"
                   tick={{ fontSize: 12 }}
@@ -225,17 +222,13 @@ const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, all
                         key={line.key}
                         type="monotone"
                         dataKey={line.key}
-                        stroke={`var(--color-${line.key.toLowerCase()})`}
-                        fill={`var(--color-${line.key.toLowerCase()})`}
+                        stroke={`var(--color-${line.key})`}
+                        fill={`var(--color-${line.key})`}
                         fillOpacity={0.1}
                         strokeWidth={2}
                         dot={false}
-                        activeDot={{
-                          r: 6,
-                          stroke: `var(--color-${line.key.toLowerCase()})`,
-                          strokeWidth: 2
-                        }}
-                        name={line.label}
+                        activeDot={{ r: 6, stroke: line.color, strokeWidth: 2 }}
+                        name={t(line.labelKey)}
                       />
                     )
                 )}

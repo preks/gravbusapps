@@ -1,5 +1,11 @@
 // GraphQL Queries for Campaign Analytics
 
+/** Align `SalesLeadStatus` (or equivalent) catalog entry `code` values with these constants. */
+export const LEAD_STATUS_CODE_MQL = 'MQL'
+export const LEAD_STATUS_CODE_SQL = 'SQL'
+export const LEAD_STATUS_CODE_CONVERTED = 'CONVERTED'
+export const OPPORTUNITY_STATUS_CODE_WON = 'WON'
+
 export const GET_CAMPAIGN_ANALYTICS_METRICS = (): string => {
   return `
     query GetCampaignAnalyticsMetrics($campaignId: uuid!) {
@@ -72,7 +78,7 @@ export const GET_CAMPAIGN_ANALYTICS_METRICS = (): string => {
         where: { 
           salesCampaignId: { _eq: $campaignId }
           isDeleted: { _eq: false }
-          opportunityStatus: { value: { _ilike: "%won%" } }
+          opportunityStatus: { code: { _eq: "${OPPORTUNITY_STATUS_CODE_WON}" } }
         }
       ) {
         aggregate {
@@ -83,12 +89,36 @@ export const GET_CAMPAIGN_ANALYTICS_METRICS = (): string => {
         }
       }
       
-      # Converted Leads (leads that have related accounts)
+      # Converted Leads (lead status catalog code CONVERTED)
       convertedLeads: LeadAggregate(
         where: { 
           salesCampaignId: { _eq: $campaignId }
           isDeleted: { _eq: false }
-          account: {}
+          leadStatus: { code: { _eq: "${LEAD_STATUS_CODE_CONVERTED}" } }
+        }
+      ) {
+        aggregate {
+          count
+        }
+      }
+      
+      # MQL and SQL (filtered by lead status catalog codes)
+      mqlCount: LeadAggregate(
+        where: { 
+          salesCampaignId: { _eq: $campaignId }
+          isDeleted: { _eq: false }
+          leadStatus: { code: { _eq: "${LEAD_STATUS_CODE_MQL}" } }
+        }
+      ) {
+        aggregate {
+          count
+        }
+      }
+      sqlCount: LeadAggregate(
+        where: { 
+          salesCampaignId: { _eq: $campaignId }
+          isDeleted: { _eq: false }
+          leadStatus: { code: { _eq: "${LEAD_STATUS_CODE_SQL}" } }
         }
       ) {
         aggregate {
@@ -114,12 +144,36 @@ export const GET_CAMPAIGN_CONVERSION_FUNNEL = (): string => {
         }
       }
       
-      # Converted Leads (leads that have related accounts)
+      # Converted Leads (lead status catalog code CONVERTED)
       convertedLeads: LeadAggregate(
         where: { 
           salesCampaignId: { _eq: $campaignId }
           isDeleted: { _eq: false }
-          account: {}
+          leadStatus: { code: { _eq: "${LEAD_STATUS_CODE_CONVERTED}" } }
+        }
+      ) {
+        aggregate {
+          count
+        }
+      }
+      
+      # MQL and SQL (filtered by lead status catalog codes)
+      mqlCount: LeadAggregate(
+        where: { 
+          salesCampaignId: { _eq: $campaignId }
+          isDeleted: { _eq: false }
+          leadStatus: { code: { _eq: "${LEAD_STATUS_CODE_MQL}" } }
+        }
+      ) {
+        aggregate {
+          count
+        }
+      }
+      sqlCount: LeadAggregate(
+        where: { 
+          salesCampaignId: { _eq: $campaignId }
+          isDeleted: { _eq: false }
+          leadStatus: { code: { _eq: "${LEAD_STATUS_CODE_SQL}" } }
         }
       ) {
         aggregate {
@@ -168,7 +222,7 @@ export const GET_CAMPAIGN_CONVERSION_FUNNEL = (): string => {
         where: { 
           salesCampaignId: { _eq: $campaignId }
           isDeleted: { _eq: false }
-          opportunityStatus: { value: { _ilike: "%won%" } }
+          opportunityStatus: { code: { _eq: "${OPPORTUNITY_STATUS_CODE_WON}" } }
         }
       ) {
         aggregate {
@@ -226,79 +280,6 @@ export const GET_CAMPAIGN_TIMELINE_ANALYSIS = (): string => {
         createdAt
         estimatedAmount
         closeDate
-      }
-    }
-  `
-}
-
-export const GET_CAMPAIGN_TOP_PERFORMERS = (): string => {
-  return `
-    query GetCampaignTopPerformers($campaignId: uuid!) {
-      # Get all leads with details
-      leads: Lead(
-        where: { 
-          salesCampaignId: { _eq: $campaignId }
-          isDeleted: { _eq: false }
-          ownerEmployee: {}
-        }
-      ) {
-        id
-        account {
-          id
-        }
-        ownerEmployee {
-          id
-          displayName
-        }
-      }
-      
-      # Get all accounts
-      accounts: Account(
-        where: { 
-          salesCampaignId: { _eq: $campaignId }
-          isDeleted: { _eq: false }
-          ownerEmployee: {}
-        }
-      ) {
-        id
-        ownerEmployee {
-          id
-          displayName
-        }
-      }
-      
-      # Get all contacts
-      contacts: Contact(
-        where: { 
-          salesCampaignId: { _eq: $campaignId }
-          isDeleted: { _eq: false }
-          ownerEmployee: {}
-        }
-      ) {
-        id
-        ownerEmployee {
-          id
-          displayName
-        }
-      }
-      
-      # Get all opportunities with status and revenue
-      opportunities: Opportunity(
-        where: { 
-          salesCampaignId: { _eq: $campaignId }
-          isDeleted: { _eq: false }
-          ownerEmployee: {}
-        }
-      ) {
-        id
-        estimatedAmount
-        opportunityStatus {
-          value
-        }
-        ownerEmployee {
-          id
-          displayName
-        }
       }
     }
   `

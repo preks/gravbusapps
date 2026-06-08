@@ -1,3 +1,12 @@
+# Customer settings — Kampagnendaten
+
+campaign-data-title = Kampagnendaten
+campaign-data-description = Kataloge für Einrichtung, Zielgruppe, Distribution und Engagement verwalten
+campaign-group-setup = Einrichtung
+campaign-group-targeting = Zielgruppe
+campaign-group-distribution = Distribution
+campaign-group-engagement = Engagement
+
 # Customer settings — ICP-Profile
 
 # Settings hub card

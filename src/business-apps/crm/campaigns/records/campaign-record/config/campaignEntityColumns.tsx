@@ -75,25 +75,6 @@ export const createCampaignEntityColumns = (): ColumnDef<CampaignEntity>[] => [
     }
   },
   {
-    id: 'type',
-    accessorFn: row => row.type || '',
-    header: 'Type',
-    size: 180,
-    minSize: 120,
-    maxSize: 200,
-    enableResizing: false,
-    cell: ({ row }) => {
-      const typeConfig = getEntityTypeConfig(row.original.type)
-      const IconComponent = typeConfig.icon
-      return (
-        <div className="gba:flex gba:items-center gba:gap-2" data-testid={`entity-type-cell-${row.original.id}`}>
-          <IconComponent className="gba:h-3.5 gba:w-3.5 gba:shrink-0" style={{ color: typeConfig.color }} />
-          <span className="gba:text-sm">{typeConfig.label}</span>
-        </div>
-      )
-    }
-  },
-  {
     id: 'createdAt',
     accessorFn: row => safeString(row.creationDate),
     header: 'Creation Date',
@@ -114,7 +95,7 @@ export const createCampaignEntityColumns = (): ColumnDef<CampaignEntity>[] => [
           className="gba:flex gba:items-center gba:gap-2"
           data-testid={`entity-created-date-cell-${row.original.id}`}
         >
-          <CalendarIcon className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
+          <CalendarIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:shrink-0" />
           <span className="gba:text-sm">{formattedDate}</span>
         </div>
       )
@@ -138,7 +119,7 @@ export const createCampaignEntityColumns = (): ColumnDef<CampaignEntity>[] => [
           : '-')
       return (
         <div className="gba:flex gba:items-center gba:gap-2" data-testid={`entity-owner-cell-${row.original.id}`}>
-          <UserIcon className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
+          <UserIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:shrink-0" />
           <span className="gba:text-sm gba:truncate" title={ownerName}>
             {ownerName}
           </span>
@@ -156,7 +137,7 @@ export const createCampaignEntityColumns = (): ColumnDef<CampaignEntity>[] => [
     enableResizing: false,
     cell: ({ row }) => {
       if (!row.original.status?.value) {
-        return <span className="gba:text-sm gba:text-gray-400">-</span>
+        return <span className="gba:text-sm gba:text-muted-foreground">-</span>
       }
       return (
         <Badge variant="default" data-testid={`entity-status-cell-${row.original.id}`}>
@@ -172,7 +153,6 @@ export const createCampaignEntityColumns = (): ColumnDef<CampaignEntity>[] => [
 export const createCampaignEntitySortableColumns = () => {
   return [
     { id: 'name', label: 'Name' },
-    { id: 'type', label: 'Type' },
     { id: 'createdAt', label: 'Creation Date' },
     { id: 'owner', label: 'Owner' },
     { id: 'status', label: 'Status' }

@@ -1,26 +1,29 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useViewPreferencesStorage } from '@/common/hooks/useViewPreferencesStorage'
-import { useSalesCampaignData } from './components/campaign-list/hooks/useSalesCampaignData'
+import { useSalesCampaignManagementData as useSalesCampaignData } from '@/common/data/customer/hooks/useSalesCampaignManagementData'
 import { useCampaignFilters } from './components/campaign-list/hooks/useCampaignFilters'
-import { useGetCampaignTypes } from './components/campaign-list/hooks/useGetCampaignTypes'
-import { CampaignStatistics, AddCampaignModal } from './components'
+import {
+  useCampaignCatalogOptions as useGetCampaignCatalogOptions,
+  useCampaignTypes as useGetCampaignTypes
+} from '@/common/data/customer/hooks/useCampaignCatalogOptions'
+import { CampaignStatistics } from './components'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
-import type { SalesCampaign } from './components/campaign-list/types/SalesCampaignTypes'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { createCampaignColumns, createCampaignSortableColumns } from './config/campaignColumns'
 import { campaignFilterConfig } from './config/campaignFilters'
 import type { TimelinePeriod } from './components/campaigns-analytics/types/CampaignsAnalyticsTypes'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import { CAMPAIGN_STATUS } from '@/common/data/customer/constants/customerCatalogs'
 
 // Import shared Campaign Management Layout
 import { CampaignManagementLayout } from '@/common/components/customer/campaign-management'
 import type { Campaign } from '@/common/components/customer/campaign-management'
 
 // Import campaigns analytics components
-import { useCampaignsAnalytics } from './components/campaigns-analytics'
+import { useCampaignsAnalytics } from '@/common/data/customer/hooks/useCampaignsAnalytics'
 import CampaignsAnalyticsStatistics from './components/campaigns-analytics/components/CampaignsAnalyticsStatistics'
 import CampaignsPerformanceComparison from './components/campaigns-analytics/components/CampaignsPerformanceComparison'
 import CampaignsTimelineAnalysis from './components/campaigns-analytics/components/CampaignsTimelineAnalysis'
@@ -28,8 +31,15 @@ import CampaignsTopPerformers from './components/campaigns-analytics/components/
 import CampaignsRevenueAnalysis from './components/campaigns-analytics/components/CampaignsRevenueAnalysis'
 import CampaignsRevenueEfficiency from './components/campaigns-analytics/components/CampaignsRevenueEfficiency'
 
+// Import campaign insights
+import CampaignInsights from './components/campaign-dashboards/CampaignInsights'
+
+// Import hero section
+import { CampaignHeroSection } from './components/CampaignHeroSection'
+
 interface CampaignManagementContentProps extends BusinessAppContextProps {
   onBack?: () => void
+  showHero?: boolean
 }
 
 // Extracted campaign actions component
@@ -114,9 +124,13 @@ const createAnalyticsProps = (
 })
 
 // Helper to build dynamic filter configuration
-const buildDynamicFilterConfig = (campaignTypeOptions: Array<{ id: string; label: string }>) => {
+const buildDynamicFilterConfig = (
+  campaignTypeOptions: Array<{ id: string; label: string }>,
+  campaignStatusOptions: Array<{ id: string; label: string }>
+) => {
   const config = structuredClone(campaignFilterConfig)
   const typeGroup = config.groups.find((g: { id: string }) => g.id === 'type-group')
+  const statusGroup = config.groups.find((g: { id: string }) => g.id === 'status-group')
 
   if (typeGroup && campaignTypeOptions?.length > 0) {
     const typeFilter = typeGroup.filters.find((f: { id: string }) => f.id === 'types')
@@ -124,6 +138,16 @@ const buildDynamicFilterConfig = (campaignTypeOptions: Array<{ id: string; label
       typeFilter.config.options = campaignTypeOptions.map(t => ({
         id: t.id,
         label: t.label
+      }))
+    }
+  }
+
+  if (statusGroup && campaignStatusOptions?.length > 0) {
+    const statusFilter = statusGroup.filters.find((f: { id: string }) => f.id === 'status')
+    if (statusFilter?.config && 'options' in statusFilter.config) {
+      statusFilter.config.options = campaignStatusOptions.map(status => ({
+        id: status.id,
+        label: status.label
       }))
     }
   }
@@ -154,44 +178,10 @@ const buildProcessedFilters = (filters: Record<string, any>): Record<string, any
   }
 }
 
-// Helper to determine campaign status from dates
-const getCampaignStatus = (campaign: SalesCampaign): string => {
-  if (!campaign.startDate || !campaign.endDate) {
-    return 'planned'
-  }
-
-  const now = new Date()
-  const startDate = new Date(campaign.startDate)
-  const endDate = new Date(campaign.endDate)
-
-  if (now >= startDate && now <= endDate) {
-    return 'active'
-  }
-  if (now > endDate) {
-    return 'completed'
-  }
-  return 'planned'
-}
-
-// Helper to filter campaigns by status (client-side)
-const filterCampaignsByStatus = (campaigns: SalesCampaign[], statusFilters: string[] | undefined): SalesCampaign[] => {
-  if (!statusFilters || statusFilters.length === 0) {
-    return campaigns
-  }
-
-  return campaigns.filter(campaign => {
-    const status = getCampaignStatus(campaign)
-    return statusFilters.includes(status)
-  })
-}
-
 const CampaignManagementContent: React.FC<CampaignManagementContentProps> = props => {
   // Persist filters, sorting, and visible columns across navigation
   const { initialFilters, saveFilters, initialSorting, saveSorting, initialVisibleColumns, saveVisibleColumns } =
     useViewPreferencesStorage('crm:campaign-management-preferences:v1')
-
-  // Modal state
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
 
   // Analytics timeline period state
   const [timelinePeriod, setTimelinePeriod] = useState<TimelinePeriod>('last-year')
@@ -205,6 +195,7 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
   const storedSort = initialSorting?.[0]
   const [sortField, setSortField] = useState<string>(storedSort?.id ?? 'createdAt')
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>(storedSort?.desc === false ? 'ASC' : 'DESC')
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
 
   // Use the centralized campaign filters hook
   const campaignFilters = useCampaignFilters(props)
@@ -213,6 +204,7 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
   // Fetch campaign data
   const {
     campaigns,
+    totalCount,
     isLoading,
     error,
     statistics,
@@ -238,20 +230,19 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
 
   // Campaign types for filter
   const { campaignTypeOptions } = useGetCampaignTypes(props)
+  const { options: campaignStatusOptions } = useGetCampaignCatalogOptions(props, CAMPAIGN_STATUS)
 
   // Dynamic filter configuration
-  const dynamicFilterConfig = useMemo(() => buildDynamicFilterConfig(campaignTypeOptions || []), [campaignTypeOptions])
-
-  // Client-side status filtering
-  const filteredCampaigns = useMemo(
-    () => filterCampaignsByStatus(campaigns, selectedFilters.status),
-    [campaigns, selectedFilters.status]
+  const dynamicFilterConfig = useMemo(
+    () => buildDynamicFilterConfig(campaignTypeOptions || [], campaignStatusOptions || []),
+    [campaignTypeOptions, campaignStatusOptions]
   )
 
   // Handle filter changes from DataDisplay
   const handleFilterChange = useCallback(
     (filters: Record<string, any>) => {
       setSelectedFilters(buildProcessedFilters(filters))
+      setPagination(prev => ({ ...prev, pageIndex: 0 }))
       // Persist only the raw (user-facing) filters — no _processed* internal keys
       saveFilters(filters)
     },
@@ -263,9 +254,18 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
     (field: string, order: 'ASC' | 'DESC') => {
       setSortField(field)
       setSortOrder(order)
+      setPagination(prev => ({ ...prev, pageIndex: 0 }))
       saveSorting([{ id: field, desc: order === 'DESC' }])
     },
     [saveSorting]
+  )
+
+  const handleSearchChange = useCallback(
+    (newSearch: string) => {
+      setSearch(newSearch)
+      setPagination(prev => ({ ...prev, pageIndex: 0 }))
+    },
+    [setSearch]
   )
 
   // Sync filters and trigger fetch
@@ -294,10 +294,19 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
       createdBefore,
       sortField: sortField,
       sortOrder: sortOrder,
-      offset: 0,
-      limit: 10000
+      offset: pagination.pageIndex * pagination.pageSize,
+      limit: pagination.pageSize
     })
-  }, [search, selectedFilters, sortField, sortOrder, filtersInitialized, processFiltersAndFetch])
+  }, [
+    search,
+    selectedFilters,
+    sortField,
+    sortOrder,
+    pagination.pageIndex,
+    pagination.pageSize,
+    filtersInitialized,
+    processFiltersAndFetch
+  ])
 
   // Process Completion Handlers
   const handleProcessComplete = useCallback(() => {
@@ -306,20 +315,6 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
   }, [refetch, refetchStatistics])
 
   useProcessCompletion({ onSuccess: handleProcessComplete })
-
-  // Modal handlers
-  const handleCloseModal = useCallback(() => {
-    setIsAddModalOpen(false)
-  }, [])
-
-  const handleSubmitCampaign = async () => {
-    setIsAddModalOpen(false)
-    refetch()
-  }
-
-  const handleAddCampaign = useCallback(() => {
-    setIsAddModalOpen(true)
-  }, [])
 
   // Navigation handler for row clicks
   const handleCampaignRowClick = useCallback((campaign: Campaign) => {
@@ -361,6 +356,11 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
 
   // Render analytics section
   const renderAnalytics = useCallback(() => {
+    const handleTimelinePeriodChange = (period: TimelinePeriod) => {
+      setTimelinePeriod(period)
+      refetchTimeline(period).catch(() => undefined)
+    }
+
     const commonProps: CommonAnalyticsProps = {
       isLoading: analyticsLoading,
       error: analyticsError,
@@ -371,7 +371,7 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
       isLoading: isTimelineLoading || analyticsLoading,
       error: timelineError || analyticsError,
       onRetry: () => {
-        void refetchTimeline()
+        refetchTimeline().catch(() => undefined)
       }
     }
 
@@ -387,7 +387,7 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
           {...createAnalyticsProps(timelineProps, {
             timelineAnalysis: analyticsData.timelineAnalysis,
             timelinePeriod,
-            onTimelinePeriodChange: setTimelinePeriod
+            onTimelinePeriodChange: handleTimelinePeriodChange
           })}
         />
 
@@ -411,8 +411,7 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
 
         <CampaignsTopPerformers
           {...createAnalyticsProps(commonProps, {
-            topCampaigns: analyticsData.topCampaigns,
-            topEmployees: analyticsData.topEmployees
+            topCampaigns: analyticsData.topCampaigns
           })}
         />
       </>
@@ -428,13 +427,37 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
     refetchTimeline
   ])
 
+  // Render insights section
+  const renderInsights = useCallback(() => {
+    return <CampaignInsights {...props} />
+  }, [props])
+
+  const handleTabDataFetch = useCallback(
+    (tab: 'overview' | 'analytics' | 'insights') => {
+      if (tab === 'overview') {
+        refetch()
+        refetchStatistics()
+        return
+      }
+
+      if (tab === 'analytics') {
+        fetchAnalytics()
+      }
+    },
+    [refetch, refetchStatistics, fetchAnalytics]
+  )
+
+  const showHero = props.showHero !== false
+
   // Use the shared CampaignManagementLayout component
   return (
     <>
+      {showHero && <CampaignHeroSection />}
       <CampaignManagementLayout
         {...props}
         // Data
-        campaigns={filteredCampaigns}
+        campaigns={campaigns}
+        totalCount={totalCount}
         statistics={statistics}
         analyticsData={analyticsData}
         campaignTypeOptions={campaignTypeOptions || []}
@@ -450,13 +473,15 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
         timelineError={timelineError}
         // Search and filters
         search={search}
-        onSearchChange={setSearch}
+        onSearchChange={handleSearchChange}
         selectedFilters={[]}
         onFilterChange={handleFilterChange}
         // Sorting
         sortField={sortField}
         sortOrder={sortOrder}
         onSortChange={handleSortChange}
+        pagination={pagination}
+        onPaginationChange={setPagination}
         // Persistence props — inject stored values so layout restores them on mount
         initialFilters={initialFilters}
         initialSorting={initialSorting ?? undefined}
@@ -468,8 +493,8 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
         onRefetchAnalytics={refetchAnalytics}
         onRefetchTimeline={refetchTimeline}
         onFetchAnalytics={fetchAnalytics}
+        onTabDataFetch={handleTabDataFetch}
         onCampaignRowClick={handleCampaignRowClick}
-        onAddCampaign={handleAddCampaign}
         // Analytics timeline
         timelinePeriod={timelinePeriod as string}
         onTimelinePeriodChange={setTimelinePeriod as (period: string) => void}
@@ -481,6 +506,7 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
         renderCampaignActions={renderCampaignActions}
         renderStatistics={renderStatistics}
         renderAnalytics={renderAnalytics}
+        renderInsights={renderInsights}
         // Configuration
         filterConfiguration={dynamicFilterConfig}
         sortableColumns={createCampaignSortableColumns()}
@@ -489,15 +515,13 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
         exportFilenamePrefix="campaigns"
         fetchCampaignsForExport={fetchSalesCampaignsWithCount}
       />
-
-      {/* Add Campaign Modal */}
-      <AddCampaignModal isOpen={isAddModalOpen} onClose={handleCloseModal} onSubmit={handleSubmitCampaign} {...props} />
     </>
   )
 }
 
 interface CampaignManagementProps extends BusinessAppContextProps {
   onBack?: () => void
+  showHero?: boolean
 }
 
 const CampaignManagement: React.FC<CampaignManagementProps> = props => {

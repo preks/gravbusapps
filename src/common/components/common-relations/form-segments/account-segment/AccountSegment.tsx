@@ -44,6 +44,8 @@ export interface AccountSegmentOption {
   }
 }
 
+export type AccountSegmentTypeMode = 'accountType' | 'engagementLevel' | 'contactType' | 'accountOnly'
+
 interface AccountSegmentProps {
   // Field array name in form (e.g., "investment.investmentAccounts" or "opportunityAccounts")
   fieldArrayName: string
@@ -51,14 +53,14 @@ interface AccountSegmentProps {
   // Account ID field name in junction table (e.g., "investmentAccountId" or "accountId")
   accountIdFieldName: string
 
-  // Account type field name in junction table (e.g., "investmentAccountTypeRef" or "accountTypeRef" or "contactType")
-  accountTypeFieldName: string
+  // Junction catalog/type field (omit when typeMode is 'accountOnly')
+  accountTypeFieldName?: string
 
-  // Type selector mode: 'accountType' (catalog) or 'contactType' (enum)
-  typeMode?: 'accountType' | 'contactType'
+  // Catalog selector mode: account type, engagement level (campaign targets), contact type enum, or account-only (no selector)
+  typeMode?: AccountSegmentTypeMode
 
-  // Catalog identifier for account type (required when typeMode is 'accountType')
-  // e.g., 'CustomerAccountType:v1' for CRM, 'InvestmentAccountType:v1' for IRM
+  // Catalog identifier (required when typeMode is 'accountType' or 'engagementLevel')
+  // e.g. CustomerAccountType:v1, CustomerEngagementLevel:v1, InvestmentAccountType:v1
   accountTypeCatalogIdentifier?: string
 
   // Account search results
@@ -93,14 +95,20 @@ interface AccountSegmentProps {
   // Inline-edit affordance: when provided, draft rows render an Edit pencil that
   // invokes this callback with the field-array index of the draft entry.
   onEditDraft?: (index: number) => void
+
+  hideAddCombobox?: boolean
+  hideRemoveButton?: boolean
 }
+
+const usesCatalogSelector = (mode: AccountSegmentTypeMode): boolean =>
+  mode === 'accountType' || mode === 'engagementLevel'
 
 // Separate component for each account item
 const AccountItem: React.FC<{
   fieldArrayName: string
   accountIdFieldName: string
-  accountTypeFieldName: string
-  typeMode: 'accountType' | 'contactType'
+  accountTypeFieldName?: string
+  typeMode: AccountSegmentTypeMode
   accountTypeCatalogIdentifier?: string
   accountIndex: number
   accountContactEntry?: any
@@ -111,6 +119,7 @@ const AccountItem: React.FC<{
   onEdit?: () => void
   dataTestId?: string
   disabled?: boolean
+  hideRemoveButton?: boolean
 }> = ({
   fieldArrayName,
   accountIdFieldName,
@@ -125,7 +134,8 @@ const AccountItem: React.FC<{
   onTypeChange,
   onEdit,
   dataTestId,
-  disabled
+  disabled,
+  hideRemoveButton = false
 }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
@@ -140,7 +150,7 @@ const AccountItem: React.FC<{
   const isDraft: boolean =
     accountContactEntry?.__isDraft === true || form.watch(`${fieldArrayName}.${accountIndex}.__isDraft`) === true
   const draftAccount = accountContactEntry?.account ?? form.watch(`${fieldArrayName}.${accountIndex}.account`)
-  const accountTypeValue = accountContactEntry?.[accountTypeFieldName] ?? ''
+  const accountTypeValue = accountTypeFieldName == null ? '' : (accountContactEntry?.[accountTypeFieldName] ?? '')
 
   // Get account display data from accountContacts (from loaded entity), drafts, or accounts (search results)
   const accountData = React.useMemo(() => {
@@ -153,10 +163,16 @@ const AccountItem: React.FC<{
     }
 
     const accountContact = accountContacts?.find((ac: any) => {
-      const id = ac.account?.id || ac.investmentAccount?.id || ac.accountId || ac.investmentAccountId
+      const id =
+        ac.account?.id ||
+        ac.investmentAccount?.id ||
+        ac.customerAccount?.id ||
+        ac.accountId ||
+        ac.investmentAccountId ||
+        ac.customerAccountId
       return id === accountId
     })
-    const account = accountContact?.account || accountContact?.investmentAccount
+    const account = accountContact?.account || accountContact?.investmentAccount || accountContact?.customerAccount
 
     if (account) {
       return {
@@ -195,7 +211,10 @@ const AccountItem: React.FC<{
     </h4>
   )
 
-  const renderTypeSelector = (value: string, onValueChange: (value: string) => void) => {
+  const catalogSelectorTestIdSuffix =
+    typeMode === 'engagementLevel' ? `engagement-level-${accountIndex}` : `account-type-${accountIndex}`
+
+  const renderCatalogSelector = (value: string, onValueChange: (value: string) => void) => {
     if (typeMode === 'contactType') {
       return (
         <Select value={value} onValueChange={v => onValueChange(v || '')} disabled={disabled}>
@@ -203,7 +222,7 @@ const AccountItem: React.FC<{
             className="gba:w-full gba:min-w-0 gba:text-sm"
             data-testid={formatDataTestId(dataTestId || 'account-segment', `contact-type-${accountIndex}`)}
           >
-            <SelectValue placeholder="Select type..." className="gba:truncate">
+            <SelectValue placeholder={t('contact-type-placeholder')} className="gba:truncate">
               {value ? getContactTypeLabel(value, { compact: true }) : undefined}
             </SelectValue>
           </SelectTrigger>
@@ -218,14 +237,14 @@ const AccountItem: React.FC<{
       )
     }
 
-    if (accountTypeCatalogIdentifier) {
+    if (usesCatalogSelector(typeMode) && accountTypeCatalogIdentifier) {
       return (
         <CatalogSelect
           catalogIdentifier={accountTypeCatalogIdentifier}
           value={value}
           onValueChange={v => onValueChange(Array.isArray(v) ? v[0] || '' : v || '')}
           className="gba:w-full gba:min-w-0 gba:text-sm"
-          data-testid={formatDataTestId(dataTestId || 'account-segment', `account-type-${accountIndex}`)}
+          data-testid={formatDataTestId(dataTestId || 'account-segment', catalogSelectorTestIdSuffix)}
           disabled={disabled}
         />
       )
@@ -233,6 +252,9 @@ const AccountItem: React.FC<{
 
     return null
   }
+
+  const showCatalogSelector =
+    typeMode === 'contactType' || (usesCatalogSelector(typeMode) && Boolean(accountTypeCatalogIdentifier))
 
   return (
     <div
@@ -272,28 +294,30 @@ const AccountItem: React.FC<{
         )}
       </div>
 
-      {/* Type Select (Account Type or Contact Type) */}
-      <div className="gba:w-36 gba:flex-shrink-0 gba:min-w-0">
-        {onTypeChange ? (
-          <FormItem>
-            <FormControl>{renderTypeSelector(accountTypeValue, onTypeChange)}</FormControl>
-            <FormMessage />
-          </FormItem>
-        ) : (
-          <FormField
-            control={form.control}
-            name={`${fieldArrayName}.${accountIndex}.${accountTypeFieldName}`}
-            render={({ field }) => (
-              <FormItem>
-                <FormControl>{renderTypeSelector(field.value || '', field.onChange)}</FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        )}
-      </div>
+      {/* Catalog selector: account type, engagement level, or contact type */}
+      {showCatalogSelector && (typeMode === 'contactType' || accountTypeFieldName) && (
+        <div className="gba:w-36 gba:flex-shrink-0 gba:min-w-0">
+          {onTypeChange ? (
+            <FormItem>
+              <FormControl>{renderCatalogSelector(accountTypeValue, onTypeChange)}</FormControl>
+              <FormMessage />
+            </FormItem>
+          ) : (
+            <FormField
+              control={form.control}
+              name={`${fieldArrayName}.${accountIndex}.${accountTypeFieldName!}`}
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>{renderCatalogSelector(field.value || '', field.onChange)}</FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+        </div>
+      )}
 
-      {/* Edit Draft Button - slot is reserved so type selects align across rows */}
+      {/* Edit draft button — slot reserved so type selects align across rows */}
       <div className="gba:w-10 gba:flex-shrink-0 gba:flex gba:justify-center">
         {isDraft && onEdit && (
           <Button
@@ -310,19 +334,20 @@ const AccountItem: React.FC<{
         )}
       </div>
 
-      {/* Remove Button */}
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        onClick={onRemove}
-        className="gba:flex-shrink-0 gba:text-destructive hover:gba:text-destructive/80"
-        data-testid={formatDataTestId(dataTestId || 'account-segment', `remove-account-${accountIndex}`)}
-        aria-label={`Remove ${accountData.name}`}
-        disabled={disabled}
-      >
-        <XIcon className="gba:w-4 gba:h-4 gba:text-destructive gba:stroke-destructive" />
-      </Button>
+      {!hideRemoveButton && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={onRemove}
+          className="gba:flex-shrink-0 gba:text-destructive hover:gba:text-destructive/80"
+          data-testid={formatDataTestId(dataTestId || 'account-segment', `remove-account-${accountIndex}`)}
+          aria-label={`Remove ${accountData.name}`}
+          disabled={disabled}
+        >
+          <XIcon className="gba:w-4 gba:h-4 gba:text-destructive gba:stroke-destructive" />
+        </Button>
+      )}
     </div>
   )
 }
@@ -346,16 +371,17 @@ const AccountSegment: React.FC<AccountSegmentProps> = ({
   disabled = false,
   error,
   onCreateNew,
-  onEditDraft
+  onEditDraft,
+  hideAddCombobox = false,
+  hideRemoveButton = false
 }) => {
   const form = useFormContext<any>()
   const isControlled = Boolean(onAccountContactsChange)
 
-  // Validation: accountTypeCatalogIdentifier is required when typeMode is 'accountType'
-  if (typeMode === 'accountType' && !accountTypeCatalogIdentifier) {
+  if (usesCatalogSelector(typeMode) && !accountTypeCatalogIdentifier) {
     console.error(
-      '[AccountSegment] accountTypeCatalogIdentifier is required when typeMode is "accountType". ' +
-        'Please provide the module-specific catalog identifier (e.g., CustomerAccountType:v1 or InvestmentAccountType:v1)'
+      `[AccountSegment] accountTypeCatalogIdentifier is required when typeMode is "${typeMode}". ` +
+        'Provide the catalog identifier for the consumer (e.g. CustomerAccountType:v1, CustomerEngagementLevel:v1).'
     )
   }
 
@@ -397,9 +423,9 @@ const AccountSegment: React.FC<AccountSegmentProps> = ({
 
     // Create new account association - only store IDs, not nested objects
     // Display data comes from accountContacts prop (from GraphQL) or accounts search results
-    const newAccount: any = {
-      [accountIdFieldName]: accountId,
-      [accountTypeFieldName]: null
+    const newAccount: Record<string, unknown> = { [accountIdFieldName]: accountId }
+    if (typeMode !== 'accountOnly' && accountTypeFieldName) {
+      newAccount[accountTypeFieldName] = null
     }
 
     if (isControlled) {
@@ -420,7 +446,7 @@ const AccountSegment: React.FC<AccountSegmentProps> = ({
   }
 
   const handleAccountTypeChange = (index: number, value: string) => {
-    if (!isControlled) return
+    if (!isControlled || !accountTypeFieldName) return
 
     onAccountContactsChange?.(
       (accountContactsValue ?? []).map((entry, currentIndex) =>
@@ -461,45 +487,48 @@ const AccountSegment: React.FC<AccountSegmentProps> = ({
               onEdit={onEditDraft ? () => onEditDraft(index) : undefined}
               dataTestId={dataTestId}
               disabled={disabled}
+              hideRemoveButton={hideRemoveButton}
             />
           ))}
         </div>
       )}
 
       {/* Combobox for adding accounts (with optional inline-create "+" button) */}
-      <div className="gba:flex gba:items-stretch gba:gap-2 gba:w-full gba:min-w-0">
-        <div className="gba:flex-1 gba:min-w-0">
-          <Combobox
-            value=""
-            onValueChange={handleAddAccount}
-            options={availableAccounts}
-            placeholder="Search and select account..."
-            searchPlaceholder="Type to search..."
-            emptyText={getEmptyText()}
-            disabled={disabled || accountsLoading}
-            loading={accountsLoading}
-            onSearch={searchAccounts}
-            searchDebounce={300}
-            hasMore={Boolean(hasMore)}
-            onLoadMore={onLoadMore}
-            data-testid={formatDataTestId(dataTestId, 'add-account-combobox')}
-          />
+      {!hideAddCombobox && (
+        <div className="gba:flex gba:items-stretch gba:gap-2 gba:w-full gba:min-w-0">
+          <div className="gba:flex-1 gba:min-w-0">
+            <Combobox
+              value=""
+              onValueChange={handleAddAccount}
+              options={availableAccounts}
+              placeholder="Search and select account..."
+              searchPlaceholder="Type to search..."
+              emptyText={getEmptyText()}
+              disabled={disabled || accountsLoading}
+              loading={accountsLoading}
+              onSearch={searchAccounts}
+              searchDebounce={300}
+              hasMore={Boolean(hasMore)}
+              onLoadMore={onLoadMore}
+              data-testid={formatDataTestId(dataTestId, 'add-account-combobox')}
+            />
+          </div>
+          {onCreateNew && (
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon"
+              className="gba:flex-shrink-0"
+              onClick={onCreateNew}
+              disabled={disabled}
+              aria-label="Create new account"
+              data-testid={formatDataTestId(dataTestId, 'create-new-account')}
+            >
+              <PlusIcon className="gba:w-4 gba:h-4" />
+            </Button>
+          )}
         </div>
-        {onCreateNew && (
-          <Button
-            type="button"
-            variant="secondary"
-            size="icon"
-            className="gba:flex-shrink-0"
-            onClick={onCreateNew}
-            disabled={disabled}
-            aria-label="Create new account"
-            data-testid={formatDataTestId(dataTestId, 'create-new-account')}
-          >
-            <PlusIcon className="gba:w-4 gba:h-4" />
-          </Button>
-        )}
-      </div>
+      )}
 
       {/* Error Display */}
       {(error || accountsError) && (

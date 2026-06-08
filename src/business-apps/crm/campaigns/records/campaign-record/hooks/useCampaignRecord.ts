@@ -13,7 +13,7 @@ const parseCatalogReference = (typeRef?: string) => {
     }
   }
 
-  // Parse format like "SalesCampaignType:v1:SEASONAL_PROMOTION"
+  // Parse format like "CustomerCampaignType:v1:SEASONAL_PROMOTION"
   const parts = typeRef.split(':')
   if (parts.length >= 3) {
     const code = parts[2]
@@ -59,14 +59,7 @@ export const useCampaignRecord = (context: BusinessAppContextProps, campaignId: 
       if (result.SalesCampaign && result.SalesCampaign.length > 0) {
         const campaignData = result.SalesCampaign[0]
         setCampaign({
-          id: campaignData.id,
-          name: campaignData.name,
-          description: campaignData.description,
-          startDate: campaignData.startDate,
-          endDate: campaignData.endDate,
-          createdAt: campaignData.createdAt,
-          updatedAt: campaignData.updatedAt,
-          isDeleted: campaignData.isDeleted,
+          ...campaignData,
           type: parseCatalogReference(campaignData.typeRef)
         })
       } else {

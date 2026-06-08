@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGetCampaignTypes } from './useGetCampaignTypes'
+import { useCampaignTypes as useGetCampaignTypes } from '@/common/data/customer/hooks/useCampaignCatalogOptions'
 import { CampaignDateRangeFilter } from '../components/CampaignDateRangeFilter'
 
 // DataFilter interfaces to match DataContainer expectations

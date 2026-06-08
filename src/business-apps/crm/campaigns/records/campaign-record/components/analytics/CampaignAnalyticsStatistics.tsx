@@ -1,6 +1,6 @@
 import React from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { UserIcon, CurrencyDollarIcon, TrophyIcon, BankIcon } from '@phosphor-icons/react'
+import { UserIcon, CurrencyDollarIcon, TrophyIcon, BankIcon, FunnelIcon, TargetIcon } from '@phosphor-icons/react'
 import { CampaignAnalyticsMetrics } from '../../queries/CampaignAnalyticsQueries'
 import { formatCurrencyCompact, formatPercentage } from '@/common/utils/numberFormatter'
 import { NW_CHART_COLOR_VARS } from '@/business-apps/crm/campaigns/utils/campaignChartTokens'
@@ -24,6 +24,8 @@ const CampaignAnalyticsStatistics: React.FC<CampaignAnalyticsStatisticsProps> = 
   const totalLeads = metrics?.totalEntities.leads || 0
   const convertedLeads = metrics?.conversionMetrics.leadsConverted || 0
   const conversionRate = metrics?.conversionMetrics.conversionRate || 0
+  const mqlCount = metrics?.conversionMetrics.mqlCount || 0
+  const sqlCount = metrics?.conversionMetrics.sqlCount || 0
 
   const totalOpportunities = metrics?.totalEntities.opportunities || 0
   const winRate = metrics?.revenueMetrics.winRate || 0
@@ -48,6 +50,26 @@ const CampaignAnalyticsStatistics: React.FC<CampaignAnalyticsStatisticsProps> = 
         'Leads generated from campaign',
         `${convertedLeads}/${totalLeads} converted (${formatPercentage(conversionRate)})`
       )
+    },
+
+    // MQL
+    {
+      key: 'mql-performance',
+      title: 'MQL',
+      value: mqlCount,
+      prefix: <FunnelIcon />,
+      color: '#722ed1',
+      description: createCombinedDescription('Marketing Qualified Leads', 'Leads with MQL status')
+    },
+
+    // SQL
+    {
+      key: 'sql-performance',
+      title: 'SQL',
+      value: sqlCount,
+      prefix: <TargetIcon />,
+      color: '#1890ff',
+      description: createCombinedDescription('Sales Qualified Leads', 'Leads with SQL status')
     },
 
     // Opportunities Performance
@@ -102,7 +124,7 @@ const CampaignAnalyticsStatistics: React.FC<CampaignAnalyticsStatisticsProps> = 
         isLoading={isLoading}
         error={error}
         onRetry={onRetry}
-        skeletonCount={4}
+        skeletonCount={6}
         emptyText="No analytics data available."
         data-testid="campaign-analytics-statistics"
       />

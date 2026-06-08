@@ -1,3 +1,12 @@
+# Customer settings — Date campanii
+
+campaign-data-title = Date campanii
+campaign-data-description = Gestionați cataloagele pentru configurare, targetare, distribuție și engagement
+campaign-group-setup = Configurare
+campaign-group-targeting = Targetare
+campaign-group-distribution = Distribuție
+campaign-group-engagement = Engagement
+
 # Customer settings — Profiluri ICP
 
 # Settings hub card
