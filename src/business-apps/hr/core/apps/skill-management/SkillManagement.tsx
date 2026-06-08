@@ -139,6 +139,7 @@ const SkillManagement: React.FC<SkillManagementProps> = ({ className, prefixData
               error={catalogData.error}
               categoryMap={catalogData.categoryMap}
               categories={catalogData.categories}
+              categoryOptions={categoriesData.categories}
               onDataChange={handleDataChange}
               prefixDataTestId={dataTestId}
             />

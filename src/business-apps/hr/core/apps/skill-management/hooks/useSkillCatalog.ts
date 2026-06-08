@@ -17,10 +17,13 @@ const INITIAL_KPI: SkillKpiData = {
   pendingRequests: 0
 }
 
-function getStartOfTodayIso(): string {
+function getTodayDateKey(): string {
   const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  return today.toISOString()
+  const year = today.getFullYear()
+  const month = String(today.getMonth() + 1).padStart(2, '0')
+  const day = String(today.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
 }
 
 export function useSkillCatalog(accessToken?: string) {
@@ -35,10 +38,10 @@ export function useSkillCatalog(accessToken?: string) {
     if (!accessToken) return
     setError(null)
     try {
-      const todayIso = getStartOfTodayIso()
+      const todayDateInstant = `${getTodayDateKey()}T00:00:00.000Z`
       const [skillsResult, kpiResult, categoryResult] = await Promise.all([
         graphqlClient.request(GET_SKILLS_DIRECTORY, { limit: 500 }),
-        graphqlClient.request(GET_SKILLS_KPI, { today: todayIso }),
+        graphqlClient.request(GET_SKILLS_KPI, { today: todayDateInstant }),
         graphqlClient.request(GET_SKILL_CATEGORY_SKILLS)
       ])
 
@@ -55,8 +58,8 @@ export function useSkillCatalog(accessToken?: string) {
       const catSkills = categoryResult?.skillCategorySkills ?? []
       const map: Record<string, string> = {}
       for (const cs of catSkills) {
-        if (cs.skillId && cs.skillCategory?.name) {
-          map[cs.skillId] = cs.skillCategory.name
+        if (cs.id && cs.skillCategory?.name) {
+          map[cs.id] = cs.skillCategory.name
         }
       }
       setCategoryMap(map)

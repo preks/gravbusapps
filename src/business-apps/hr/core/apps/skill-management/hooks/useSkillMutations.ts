@@ -15,6 +15,31 @@ function resolveSkillVersion(version?: number | null): number {
   return 0
 }
 
+function buildSkillUpdatePayload(id: string, values: Partial<SkillFormValues>) {
+  const skillPayload: Record<string, unknown> = {
+    id,
+    version: resolveSkillVersion(values.version),
+    name: values.name,
+    description: values.description,
+    levelScale: values.levelScale,
+    mandatory: values.mandatory
+  }
+
+  if ('activeFrom' in values) {
+    skillPayload.activeFrom = values.activeFrom
+  }
+
+  if ('activeTo' in values) {
+    skillPayload.activeTo = values.activeTo
+  }
+
+  if ('categoryId' in values) {
+    skillPayload.category = values.categoryId ? { id: values.categoryId } : null
+  }
+
+  return skillPayload
+}
+
 function buildTaskCompletionUrl(task: FlowExecutionTask, userId?: string): string {
   const taskWithSourceMetadata = task as FlowExecutionTask & { sourceMetadata?: { endpoint?: string | null } }
   const taskEndpoint = task.endpoint ?? taskWithSourceMetadata.sourceMetadata?.endpoint
@@ -61,8 +86,8 @@ export function useSkillMutations(accessToken: string) {
             skill: {
               name: values.name,
               description: values.description || null,
-              levelScale: values.levelScale || null,
-              mandatory: values.mandatory ?? false
+              mandatory: values.mandatory ?? false,
+              category: values.categoryId ? { id: values.categoryId } : null
             }
           },
           { headers: getHeaders() }
@@ -83,14 +108,7 @@ export function useSkillMutations(accessToken: string) {
           '/saveSkill',
           {
             changeMode: 'UPDATE',
-            skill: {
-              id,
-              version: resolveSkillVersion(values.version),
-              name: values.name,
-              description: values.description,
-              levelScale: values.levelScale,
-              mandatory: values.mandatory
-            }
+            skill: buildSkillUpdatePayload(id, values)
           },
           { headers: getHeaders() }
         )

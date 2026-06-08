@@ -18,18 +18,27 @@ interface SkillDetailsPanelProps {
   prefixDataTestId?: string
 }
 
-function getStartOfTodayIso(): string {
+function getTodayDateKey(): string {
   const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  return today.toISOString()
+  const year = today.getFullYear()
+  const month = String(today.getMonth() + 1).padStart(2, '0')
+  const day = String(today.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
+function toDateKey(value?: string | null): string {
+  return value?.split('T')[0] ?? ''
 }
 
 function isSkillActive(skill: SkillRecord): boolean {
-  if (skill.activeTo) {
-    return skill.activeTo >= getStartOfTodayIso()
-  }
+  const todayDateKey = getTodayDateKey()
+  const activeFromDate = toDateKey(skill.activeFrom)
+  const activeToDate = toDateKey(skill.activeTo)
+  const hasStarted = !activeFromDate || activeFromDate <= todayDateKey
+  const hasNotEnded = !activeToDate || activeToDate > todayDateKey
 
-  return true
+  return hasStarted && hasNotEnded
 }
 
 function getEmployeeName(emp: EmployeeSkillRecord['employee']): string {
