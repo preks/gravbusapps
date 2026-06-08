@@ -22,6 +22,7 @@ import { Button, Spinner } from '@newwork/nw-design-system'
 import { UserPreferencesProvider, useUserPreferencesContext } from './context/UserPreferencesContext'
 import { UserPreferences } from './components/UserPreferences'
 import { printSessionAsPdf } from './utils/printSession'
+import { StreamBootstrapProvider } from './streaming/StreamBootstrapProvider'
 
 export interface EveryAIProps extends BusinessAppContextProps {
   className?: string
@@ -39,7 +40,13 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
   return (
     <UserPreferencesProvider accessToken={props.accessToken}>
       <VoiceFormProvider>
-        <EveryAIInner {...props} />
+        {/* StreamBootstrapProvider is idempotent: on mount it calls
+            flowbotStreamManager.bootstrap(accessToken) once per session
+            so any background runs from a prior tab/refresh are picked
+            up immediately, before useFlowBot's per-session attach runs. */}
+        <StreamBootstrapProvider accessToken={props.accessToken}>
+          <EveryAIInner {...props} />
+        </StreamBootstrapProvider>
       </VoiceFormProvider>
     </UserPreferencesProvider>
   )

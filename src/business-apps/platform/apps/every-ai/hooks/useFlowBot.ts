@@ -15,6 +15,9 @@ import type {
 } from '../types/models'
 import { getCurrentPageContext } from '../utils/pageContext'
 import { getDefaultSkillsForPage } from '../utils/pageSkills'
+import * as flowbotStreamManager from '../streaming/flowbotStreamManager'
+import type { RunSubscriberHandlers } from '../streaming/flowbotStreamManager'
+import { useStreamStore } from '../streaming/streamStore'
 import { usePageAnalytics } from '@/page-analitics/hooks/usePageAnalytics'
 import { prepareCurrentPageContext } from '@/page-analitics/send/page-analytics'
 import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
@@ -403,6 +406,99 @@ function getCurrentRealm(): string | undefined {
   }
 }
 
+/**
+ * Per-session conversation snapshot — written under a dedicated key so a
+ * remount of <EveryAI/> (e.g. when the user resizes the window across a
+ * responsive breakpoint and the layout container re-creates the subtree)
+ * can hydrate the visible transcript instantly instead of flashing the
+ * blue empty-state hero while the history fetch is in flight. The race
+ * also fixed the loss of the user message when the SSE manager
+ * re-attached to a live run with an empty React state: frames would land
+ * before /chat/messages came back and ``appendOutputItemToLastAgentTurn``
+ * would push a lonely agent turn, then ``setState(history)`` would
+ * either overwrite it or never run.
+ */
+const CONVERSATION_STORAGE_PREFIX = 'newwork_every_ai:conversation:'
+
+/**
+ * Hard cap on the per-session snapshot size. localStorage quotas are
+ * ~5MB origin-wide; a long agentic conversation with embedded tables /
+ * scatter plots can balloon, so we drop the snapshot for that session
+ * rather than throw and rather than nuke unrelated storage.
+ */
+const CONVERSATION_SNAPSHOT_MAX_BYTES = 1_500_000
+
+function conversationStorageKey(sessionId: string | null): string | null {
+  if (!sessionId || !isValidSessionId(sessionId)) return null
+  return `${CONVERSATION_STORAGE_PREFIX}${sessionId}`
+}
+
+function persistConversationSnapshot(state: ConversationState): void {
+  if (typeof window === 'undefined') return
+  const key = conversationStorageKey(state.sessionId)
+  if (!key) return
+  try {
+    const payload = JSON.stringify({
+      conversation: state.conversation,
+      oldestMessageId: state.oldestMessageId,
+      hasMoreHistory: state.hasMoreHistory,
+      savedAt: Date.now()
+    })
+    if (payload.length > CONVERSATION_SNAPSHOT_MAX_BYTES) {
+      // Too big to round-trip safely — drop the snapshot so we don't
+      // half-write a corrupt one and so we don't blow the quota.
+      try {
+        localStorage.removeItem(key)
+      } catch {
+        /* noop */
+      }
+      return
+    }
+    localStorage.setItem(key, payload)
+  } catch {
+    // Quota / serialization issues are non-fatal; the next mount just
+    // falls back to the loadHistory fetch.
+  }
+}
+
+function readConversationSnapshot(sessionId: string | null): {
+  conversation: ConversationState['conversation']
+  oldestMessageId: ConversationState['oldestMessageId']
+  hasMoreHistory: ConversationState['hasMoreHistory']
+} | null {
+  if (typeof window === 'undefined') return null
+  const key = conversationStorageKey(sessionId)
+  if (!key) return null
+  try {
+    const raw = localStorage.getItem(key)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as {
+      conversation?: ConversationState['conversation']
+      oldestMessageId?: ConversationState['oldestMessageId']
+      hasMoreHistory?: ConversationState['hasMoreHistory']
+    }
+    if (!Array.isArray(parsed.conversation)) return null
+    return {
+      conversation: parsed.conversation,
+      oldestMessageId: parsed.oldestMessageId ?? null,
+      hasMoreHistory: parsed.hasMoreHistory ?? false
+    }
+  } catch {
+    return null
+  }
+}
+
+function clearConversationSnapshot(sessionId: string | null): void {
+  if (typeof window === 'undefined') return
+  const key = conversationStorageKey(sessionId)
+  if (!key) return
+  try {
+    localStorage.removeItem(key)
+  } catch {
+    /* noop */
+  }
+}
+
 function saveState(state: ConversationState) {
   if (typeof window !== 'undefined') {
     try {
@@ -414,6 +510,10 @@ function saveState(state: ConversationState) {
     } catch (error) {
       console.warn('[FlowBot] Failed to save session state to localStorage:', error)
     }
+    // Always mirror the visible transcript to a per-session snapshot
+    // alongside the sessionId pointer. The snapshot is keyed by
+    // sessionId so we never confuse two concurrent sessions.
+    persistConversationSnapshot(state)
   }
 }
 
@@ -477,6 +577,21 @@ function getInitialSessionId(): string | null {
 
 function loadState(): ConversationState {
   const sessionId = getInitialSessionId()
+  // If we have a persisted snapshot for this session (written by
+  // ``saveState`` on every mutation), hydrate from it synchronously so
+  // a resize-induced remount doesn't flash the empty-state hero or
+  // lose the user turn that the live SSE manager is about to append
+  // to. The async history fetch will still run as a fallback when
+  // there's no snapshot (e.g. fresh tab on a different machine).
+  const snapshot = readConversationSnapshot(sessionId)
+  if (snapshot) {
+    return {
+      conversation: snapshot.conversation,
+      sessionId,
+      oldestMessageId: snapshot.oldestMessageId,
+      hasMoreHistory: snapshot.hasMoreHistory
+    }
+  }
   return { conversation: [], sessionId, oldestMessageId: null, hasMoreHistory: false }
 }
 
@@ -730,115 +845,16 @@ export async function deleteChatSession(sessionId: string, accessToken: string):
   }
 }
 
-/**
- * Save user message to the server for persistence using the existing /chat/messages endpoint.
- * Content is stored as structured JSON so history restores with full fidelity.
- */
-async function saveUserMessage(
-  sessionId: string,
-  userInputText: string,
-  files: File[],
-  mentions:
-    | Array<{ id: string; typeKey: string; display: string; raw?: any; start?: number; end?: number }>
-    | undefined,
-  accessToken: string
-): Promise<void> {
-  try {
-    const baseUrl = resolveFlowbotBaseUrl()
-    const url = `${baseUrl}/flowbot/chat/messages`
-
-    const fileMetas = files.map(f => ({
-      id: crypto.randomUUID?.() ?? Math.random().toString(36).slice(2),
-      name: f.name,
-      size: f.size,
-      type: f.type
-    }))
-
-    const content: Record<string, any> = {
-      type: 'user_input',
-      text: userInputText,
-      files: fileMetas
-    }
-
-    if (mentions && mentions.length > 0) {
-      content.mentions = mentions
-    }
-
-    const requestBody = {
-      session_id: sessionId,
-      role: 'user',
-      content,
-      short_info: ''
-    }
-
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(requestBody)
-    })
-
-    if (!res.ok) {
-      console.warn('[FlowBot] Failed to save user message:', res.status, res.statusText)
-    } else {
-      console.log('[FlowBot] User message saved successfully')
-    }
-  } catch (error) {
-    console.error('[FlowBot] Error saving user message:', error)
-  }
-}
-
-/**
- * Save agent response to the server for persistence using the existing /chat/messages endpoint.
- * Stores the full OutputItem[] as JSONB so rich content (scatter plots, tables, entities)
- * is preserved and can be faithfully restored from chat history.
- */
-async function saveAgentMessage(sessionId: string, outputs: OutputItem[], accessToken: string): Promise<void> {
-  try {
-    const baseUrl = resolveFlowbotBaseUrl()
-    const url = `${baseUrl}/flowbot/chat/messages`
-
-    // Reasoning steps ARE persisted (users expand them later). We drop
-    // only the truly ephemeral stream events: legacy tool chips, the
-    // thinking placeholder, raw text deltas (the canonical answer carries
-    // the final text), and bare step-update patches (already folded into
-    // their parent `reasoning_step` via the merge logic above).
-    const persistableOutputs = outputs.filter(
-      o =>
-        o.type !== 'tool' &&
-        o.type !== 'loading' &&
-        o.type !== 'text_delta' &&
-        o.type !== 'reasoning_step_update' &&
-        o.type !== 'narration_attach'
-    )
-
-    const requestBody = {
-      session_id: sessionId,
-      role: 'assistant',
-      content: persistableOutputs,
-      short_info: ''
-    }
-
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(requestBody)
-    })
-
-    if (!res.ok) {
-      console.warn('[FlowBot] Failed to save agent message:', res.status, res.statusText)
-    } else {
-      console.log('[FlowBot] Agent message saved successfully')
-    }
-  } catch (error) {
-    console.error('[FlowBot] Error saving agent message:', error)
-  }
-}
+// User and assistant message persistence is now handled server-side by
+// the resumable-streaming pipeline:
+//   * The user message is written to chat_db at the *start* of
+//     `POST /v2/chat` (see `_persist_user_message`), so it's durable
+//     even if the agent run is interrupted.
+//   * The final assistant outputs are written on the run's terminal
+//     `__end__` event by the background recorder.
+// The previous `saveUserMessage` / `saveAgentMessage` helpers (which
+// fired client-side `POST /flowbot/chat/messages` calls *after* the
+// stream ended) have been removed to avoid duplicate writes.
 
 /**
  * Upload files to FlowBot using the async /add_files endpoint.
@@ -1023,7 +1039,33 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
   } | null>(null)
   const isActiveRef = useRef(isActive)
   const inFlightRef = useRef(false)
-  const abortControllerRef = useRef<AbortController | null>(null)
+  /**
+   * Server-assigned run id for the currently-in-flight or most recently
+   * observed agent run on this hook instance. Populated from the SSE
+   * `run-id` envelope event (or from the resume bootstrap). Used by
+   * `cancelGeneration` to address the right run in the manager.
+   *
+   * Note: there is intentionally no `abortControllerRef` any more —
+   * the global :mod:`flowbotStreamManager` owns each run's
+   * AbortController so unmounting this hook does NOT close the
+   * underlying connection.
+   */
+  const currentRunIdRef = useRef<string | null>(null)
+  /**
+   * Bumped every time the user navigates away from the current view
+   * (``clearConversation`` for "New chat", ``loadSession`` for a
+   * sidebar click, ``deleteSession`` for an active deletion). Stream
+   * handlers capture the epoch they were built under; when the value
+   * has advanced they treat themselves as stale and stop mutating the
+   * hook's visible state. The underlying background run is unaffected.
+   *
+   * This guards the brief window after a new-chat click but before
+   * the previous run's ``session-id`` envelope arrives, where a naive
+   * "current session vs. request session" comparison would treat
+   * both-empty as a match and snap the user's fresh chat back to the
+   * old run.
+   */
+  const navigationEpochRef = useRef(0)
   const [cancelledMessageText, setCancelledMessageText] = useState<string | null>(null)
   const currentAgentOutputsRef = useRef<OutputItem[]>([])
   const pendingTextDeltaBuffersRef = useRef<Record<string, string>>({})
@@ -1660,6 +1702,240 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
     }
   }, [accessToken, state.sessionId, state.conversation.length])
 
+  /**
+   * Build the SSE subscriber callbacks that route a run's frames into
+   * this hook's local conversation state. Same handler set is used by
+   * both `sendMessage` (new run) and the mount-time attach effect
+   * (resume of a background run). `requestSessionId` is captured at
+   * call time so frames stop rendering into this view if the user
+   * navigates away — but the underlying run keeps streaming on the
+   * backend either way.
+   */
+  const buildStreamHandlers = useCallback(
+    (requestSessionId: string): RunSubscriberHandlers => {
+      let liveRequestSessionId = requestSessionId
+      // Capture the navigation epoch at the moment these handlers are
+      // built. If the user later clicks "New chat" or switches to a
+      // different session in the sidebar, the epoch advances and these
+      // handlers will no longer mutate state — even before the run's
+      // ``session-id`` envelope arrives (the early window where a
+      // naive session-id comparison would falsely match both-empty).
+      const handlerEpoch = navigationEpochRef.current
+      const isStale = () => navigationEpochRef.current !== handlerEpoch
+      return {
+        onFrame: frame => {
+          // First-line guard: hook has navigated away since attach.
+          if (isStale()) return
+
+          // Session-scoped guard: if the user navigated to a different
+          // chat (or opened a brand-new empty one) after we attached,
+          // drop frames so they don't pollute the other session's
+          // transcript. The underlying run is unaffected — it keeps
+          // streaming into the global store and a later attach will
+          // resume rendering.
+          //
+          // We intentionally DO render frames when ``liveRequestSessionId``
+          // is still empty: that's the brief window right after send,
+          // before the server's ``session-id`` envelope arrives, where
+          // the new-chat view IS the rightful target.
+          const currentSessionId = sessionIdRef.current ?? state.sessionId ?? ''
+          if (liveRequestSessionId && currentSessionId !== liveRequestSessionId) {
+            return
+          }
+
+          if (frame.event !== 'output-item') return
+          try {
+            const newOutput = JSON.parse(frame.data) as OutputItem
+            const isHiddenDocumentStreamOutput = shouldHideDocumentStreamOutput(newOutput)
+            if (isHiddenDocumentStreamOutput) {
+              relayDocumentStreamOutputToEditor(newOutput)
+              if (newOutput.type === 'document_stream_complete') {
+                appendOutputItemToLastAgentTurn(buildRealtimeDocumentCompleteOutput(newOutput))
+                pruneEphemeralOutputsFromLastAgentTurn()
+              }
+              return
+            }
+            // Cursor-style merge events go through their dedicated paths
+            // so deltas update the existing UI in place rather than
+            // appending a new row per chunk.
+            if (newOutput.type === 'reasoning_step' || newOutput.type === 'reasoning_step_update') {
+              applyReasoningStepEvent(newOutput)
+            } else if (newOutput.type === 'agent_plan' || newOutput.type === 'agent_plan_update') {
+              applyAgentPlanEvent(newOutput)
+            } else if (newOutput.type === 'text_delta') {
+              applyTextDelta(newOutput)
+            } else if (newOutput.type === 'narration_attach') {
+              applyNarrationAttach(newOutput)
+            } else if (newOutput.type === 'answer') {
+              commitFinalAnswer(newOutput)
+              pruneEphemeralOutputsFromLastAgentTurn()
+            } else {
+              appendOutputItemToLastAgentTurn(newOutput)
+              if (newOutput.type !== 'tool') {
+                pruneEphemeralOutputsFromLastAgentTurn()
+              }
+            }
+          } catch (err) {
+            console.error('Failed to parse output item:', err)
+          }
+        },
+        onSessionId: newSessionId => {
+          if (!isValidSessionId(newSessionId)) return
+          // Always learn the run's session id in this closure so we
+          // can keep dropping its later frames if the user has moved
+          // on. We just must NOT touch the hook's visible state when
+          // stale.
+          if (!liveRequestSessionId) {
+            liveRequestSessionId = newSessionId
+          }
+          if (isStale()) return
+
+          // Only adopt the server-assigned session id into the hook's
+          // visible state when the user is still looking at the
+          // new-chat view that produced this run. If they've already
+          // navigated away (clicked "New chat" again, opened another
+          // session from the sidebar, etc.) we must NOT yank their
+          // view back — the run continues in the background and a
+          // later attach will reconnect it.
+          const currentSessionId = sessionIdRef.current ?? state.sessionId ?? ''
+          const viewingOriginalRequest =
+            currentSessionId === requestSessionId || (requestSessionId === '' && currentSessionId === '')
+          if (viewingOriginalRequest) {
+            requestSessionId = newSessionId
+            updateSessionId(newSessionId)
+          }
+        },
+        onRunId: rid => {
+          if (isStale()) return
+          currentRunIdRef.current = rid
+        },
+        onTerminate: reason => {
+          // A stale handler never touches the visible state — the
+          // background run is allowed to finish on its own and the
+          // hook has already moved on.
+          if (isStale()) return
+
+          // Only finalize the loading state if this run is still bound
+          // to the currently-rendered session — otherwise the UI for
+          // the currently-viewed session is unaffected by the
+          // terminating background run.
+          const currentSessionId = sessionIdRef.current ?? state.sessionId ?? ''
+          if (!liveRequestSessionId || currentSessionId === liveRequestSessionId) {
+            pruneEphemeralOutputsFromLastAgentTurn()
+            if (currentRunIdRef.current && reason !== 'disconnected') {
+              currentRunIdRef.current = null
+            }
+            inFlightRef.current = false
+            setIsLoading(false)
+            setIsGenerating(false)
+          }
+        },
+        onUnrecoverable: error => {
+          console.error('[FlowBot] Run unrecoverable; surfacing error', error)
+          if (isStale()) return
+
+          const currentSessionId = sessionIdRef.current ?? state.sessionId ?? ''
+          if (!liveRequestSessionId || currentSessionId === liveRequestSessionId) {
+            appendOutputItemToLastAgentTurn({
+              type: 'error',
+              text: 'Lost connection to the agent. Please try again.',
+              session_id: liveRequestSessionId || undefined,
+              error_message: error instanceof Error ? error.message : String(error)
+            })
+            inFlightRef.current = false
+            setIsLoading(false)
+            setIsGenerating(false)
+          }
+        }
+      }
+    },
+    [
+      state.sessionId,
+      appendOutputItemToLastAgentTurn,
+      pruneEphemeralOutputsFromLastAgentTurn,
+      applyReasoningStepEvent,
+      applyAgentPlanEvent,
+      applyTextDelta,
+      applyNarrationAttach,
+      commitFinalAnswer,
+      updateSessionId
+    ]
+  )
+
+  // Mount-time + session-change resume. When this hook lands on a
+  // session that already has an in-flight agent run (because the user
+  // refreshed mid-stream, switched away and back, etc.), attach the
+  // current handlers to that run so the transcript renders live. The
+  // attach helper is idempotent and does not close the connection on
+  // unmount — only on explicit cancel.
+  useEffect(() => {
+    if (!accessToken) return
+    const sid = state.sessionId
+    if (!sid) return
+
+    let detach: (() => void) | null = null
+    let cancelled = false
+
+    const runAttach = async () => {
+      // Make sure the manager has tried to pick up background runs at
+      // least once. After hard refresh this is the call that recovers
+      // background subscriptions; otherwise it's a cheap no-op.
+      try {
+        await flowbotStreamManager.bootstrap(accessToken)
+      } catch {
+        /* swallow — fall back to per-session lookup below */
+      }
+      if (cancelled) return
+
+      // Prefer the store's active pointer (set by bootstrap or by an
+      // earlier sendMessage on this session). If absent, fall back to
+      // the per-session lookup endpoint so even sessions that weren't
+      // in the bootstrap response can be recovered.
+      let runId = useStreamStore.getState().activeRunBySession[sid] ?? null
+      if (!runId) {
+        try {
+          const baseUrl = resolveFlowbotBaseUrl()
+          const res = await fetch(`${baseUrl}/flowbot/api/agent/session/${sid}/active-run`, {
+            method: 'GET',
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              Accept: 'application/json'
+            }
+          })
+          if (res.ok) {
+            const payload = (await res.json()) as { run_id?: string; status?: string } | null
+            if (payload && typeof payload.run_id === 'string' && payload.status === 'running') {
+              runId = payload.run_id
+              useStreamStore.getState().registerRun({
+                runId,
+                sessionId: sid,
+                status: 'streaming'
+              })
+            }
+          }
+        } catch (err) {
+          console.warn('[FlowBot] active-run lookup failed for', sid, err)
+        }
+      }
+      if (cancelled || !runId) return
+
+      currentRunIdRef.current = runId
+      setIsGenerating(true)
+      const handlers = buildStreamHandlers(sid)
+      detach = flowbotStreamManager.attach(runId, handlers, accessToken)
+    }
+
+    void runAttach()
+
+    return () => {
+      cancelled = true
+      if (detach) {
+        detach()
+        detach = null
+      }
+    }
+  }, [accessToken, state.sessionId, buildStreamHandlers])
+
   const sendMessage = useCallback(
     async (
       userInputText: string,
@@ -1677,7 +1953,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
       // Capture the session ID at the START of this request
       // This ensures we can validate that stream events belong to this session
       // Using 'let' because backend may assign a new session ID for new chats
-      let requestSessionId = sessionIdRef.current ?? state.sessionId ?? ''
+      const requestSessionId = sessionIdRef.current ?? state.sessionId ?? ''
       console.log('[FlowBot][sendMessage] Starting request for session:', requestSessionId || '(new session)')
       let flowbotEndpoint: string | undefined
 
@@ -1757,199 +2033,63 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
           : `${baseUrl}/flowbot/api/agent/v2/chat`
         flowbotEndpoint = url
 
-        // Create abort controller for this request
-        abortControllerRef.current = new AbortController()
+        // Build the SSE handler set once, then hand it to the global
+        // stream manager. The manager owns the actual fetch / reader /
+        // reconnect loop — this hook only cares about rendering frames
+        // into the local conversation state.
+        const handlers = buildStreamHandlers(requestSessionId)
 
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            Accept: 'text/event-stream'
-          },
-          body: form,
-          signal: abortControllerRef.current.signal
-        })
-
-        if (!res.ok) {
-          // Handle session-related errors
-          if (res.status === 404 || res.status === 401 || res.status === 403) {
+        let runStartResult: {
+          runId: string | null
+          complete: Promise<'completed' | 'errored' | 'cancelled' | 'disconnected'>
+        }
+        try {
+          runStartResult = await flowbotStreamManager.startRun({
+            url,
+            formData: form,
+            accessToken,
+            provisionalSessionId: effectiveSessionId || requestSessionId || null,
+            handlers
+          })
+        } catch (error) {
+          const status = (error as { status?: number }).status
+          if (status === 404 || status === 401 || status === 403) {
             console.warn('Session invalid during message send, clearing session')
             clearInvalidSession()
             setState(prev => ({ ...prev, sessionId: null }))
             sessionIdRef.current = null
           }
-          throw new Error(`${res.status} ${res.statusText}`)
-        }
-        if (!res.body) throw new Error('No body in streaming response')
-
-        const reader = res.body.pipeThrough(new TextDecoderStream()).getReader()
-
-        let buf = ''
-
-        const flushFrame = (frame: string) => {
-          let event = 'message'
-          let data = ''
-          for (const rawLine of frame.split('\n')) {
-            const line = rawLine.replace(/\r$/, '')
-            if (line.startsWith('event:')) event = line.slice(6).trim()
-            else if (line.startsWith('data:')) data += line.slice(5).trimStart()
-          }
-
-          // CRITICAL: Check if we're still on the same session before processing any events
-          const currentSessionId = sessionIdRef.current ?? state.sessionId ?? ''
-          if (currentSessionId !== requestSessionId) {
-            console.warn(
-              '[FlowBot][sendMessage] Session changed during stream - ignoring event.',
-              'Request session:',
-              requestSessionId || '(new)',
-              'Current session:',
-              currentSessionId || '(none)',
-              'Event type:',
-              event
-            )
-            return
-          }
-
-          if (event === 'output-item') {
-            try {
-              const newOutput = JSON.parse(data) as OutputItem
-              const isHiddenDocumentStreamOutput = shouldHideDocumentStreamOutput(newOutput)
-              if (isHiddenDocumentStreamOutput) {
-                relayDocumentStreamOutputToEditor(newOutput)
-                if (newOutput.type === 'document_stream_complete') {
-                  appendOutputItemToLastAgentTurn(buildRealtimeDocumentCompleteOutput(newOutput))
-                  pruneEphemeralOutputsFromLastAgentTurn()
-                }
-              }
-              if (!isHiddenDocumentStreamOutput) {
-                // New Cursor-style streaming events go through dedicated
-                // merge/accumulate paths so they update existing UI in
-                // place instead of each delta creating a new row.
-                if (newOutput.type === 'reasoning_step' || newOutput.type === 'reasoning_step_update') {
-                  applyReasoningStepEvent(newOutput)
-                } else if (newOutput.type === 'agent_plan' || newOutput.type === 'agent_plan_update') {
-                  applyAgentPlanEvent(newOutput)
-                } else if (newOutput.type === 'text_delta') {
-                  applyTextDelta(newOutput)
-                } else if (newOutput.type === 'narration_attach') {
-                  applyNarrationAttach(newOutput)
-                } else if (newOutput.type === 'answer') {
-                  // Final canonical answer — replace the streaming bubble
-                  // if one is present; otherwise just append normally.
-                  commitFinalAnswer(newOutput)
-                  // Drop only the legacy ephemeral `tool` chips; reasoning
-                  // steps and the new answer both remain visible.
-                  pruneEphemeralOutputsFromLastAgentTurn()
-                } else {
-                  appendOutputItemToLastAgentTurn(newOutput)
-                  if (newOutput.type !== 'tool') {
-                    pruneEphemeralOutputsFromLastAgentTurn()
-                  }
-                }
-              }
-            } catch (err) {
-              console.error('Failed to parse output item:', err)
-            }
-          } else if (event === 'session-id') {
-            try {
-              const cleaned = data.trim()
-              const newSessionId = JSON.parse(cleaned) as string
-              if (isValidSessionId(newSessionId)) {
-                console.log(
-                  '[FlowBot][sendMessage] Received new session ID from server:',
-                  newSessionId,
-                  '(request session was:',
-                  requestSessionId || '(new)',
-                  ')'
-                )
-                // CRITICAL: Update requestSessionId so subsequent events aren't incorrectly flagged
-                // as belonging to a different session (when backend assigns ID for new chats)
-                requestSessionId = newSessionId
-                updateSessionId(newSessionId)
-              } else {
-                console.warn('[FlowBot][sendMessage] Received invalid session ID from server:', newSessionId)
-              }
-            } catch (error) {
-              console.error('[FlowBot][sendMessage] Failed to parse session-id event:', error)
-            }
-          } else {
-            console.warn('Received unknown event type:', event)
-          }
+          throw error
         }
 
-        while (true) {
-          const { value, done } = await reader.read()
-          if (done) {
-            break
+        currentRunIdRef.current = runStartResult.runId
+
+        // Wait for the stream to reach a terminal state so legacy
+        // call-sites that `await sendMessage(...)` still work as before.
+        // The agent and SSE log are durable on the backend, so even if
+        // this await is interrupted (component unmount, tab close) the
+        // run continues to completion and a later /resume picks up the
+        // tail.
+        const terminalReason = await runStartResult.complete
+
+        if (terminalReason === 'errored' || terminalReason === 'disconnected') {
+          // We don't show an error bubble for `disconnected` because the
+          // manager keeps trying to reconnect — only when reconnect is
+          // permanently exhausted do subscribers receive `onUnrecoverable`.
+          if (terminalReason === 'errored') {
+            appendOutputItemToLastAgentTurn({
+              type: 'error',
+              text: 'Something went wrong while processing your request. You can report this so we can investigate.',
+              session_id: requestSessionId || sessionIdRef.current || state.sessionId || undefined,
+              flowbot_endpoint: flowbotEndpoint
+            })
           }
-
-          buf += value
-
-          const parts = buf.split('\n\n')
-          buf = parts.pop() ?? ''
-
-          parts.forEach(part => {
-            flushFrame(part)
-          })
-        }
-        pruneEphemeralOutputsFromLastAgentTurn()
-
-        // After streaming is complete, save both user and agent messages for persistence
-        // CRITICAL: Use the session ID from when the request started, not the current one
-        // This prevents messages from being saved to the wrong session if user switched during stream
-        const persistSessionId = requestSessionId
-        if (persistSessionId) {
-          try {
-            console.log('[FlowBot][sendMessage] Persisting messages to session:', persistSessionId)
-            // Save user message
-            await saveUserMessage(persistSessionId, userInputText, files, undefined, accessToken)
-
-            // Save agent message using tracked outputs
-            const agentOutputs = currentAgentOutputsRef.current
-            if (agentOutputs.length > 0) {
-              await saveAgentMessage(persistSessionId, agentOutputs, accessToken)
-            }
-            console.log('[FlowBot][sendMessage] Successfully persisted messages')
-          } catch (persistenceError) {
-            console.error('[FlowBot][sendMessage] Error during message persistence:', persistenceError)
-            // Don't throw - persistence failure shouldn't break the chat experience
-          }
-        } else {
-          console.warn('[FlowBot][sendMessage] No session ID available for persistence')
         }
       } catch (error) {
-        // Don't show error if request was aborted (user cancelled or session switched)
         if (error instanceof Error && error.name === 'AbortError') {
-          console.log(
-            '[FlowBot][sendMessage] Request was aborted for session:',
-            requestSessionId || '(new)',
-            '- Current session:',
-            sessionIdRef.current ?? state.sessionId ?? '(none)'
-          )
-
-          // CRITICAL: Even when aborted, persist messages to the ORIGINAL session
-          // This ensures messages aren't lost when user switches sessions mid-stream
-          if (requestSessionId) {
-            try {
-              console.log(
-                '[FlowBot][sendMessage] Persisting aborted stream messages to original session:',
-                requestSessionId
-              )
-              await saveUserMessage(requestSessionId, userInputText, files, undefined, accessToken)
-
-              const agentOutputs = currentAgentOutputsRef.current
-              if (agentOutputs.length > 0) {
-                await saveAgentMessage(requestSessionId, agentOutputs, accessToken)
-                console.log(
-                  '[FlowBot][sendMessage] Successfully persisted',
-                  agentOutputs.length,
-                  'agent outputs from aborted stream'
-                )
-              }
-            } catch (persistenceError) {
-              console.error('[FlowBot][sendMessage] Error persisting aborted stream:', persistenceError)
-            }
-          }
+          // Manual cancel; the manager already wrote a terminal entry
+          // and the persistence is owned server-side now.
+          console.log('[FlowBot][sendMessage] Request was aborted for session:', requestSessionId || '(new)')
           return
         }
         console.error('[FlowBot][sendMessage] Error sending message for session:', requestSessionId, error)
@@ -1967,8 +2107,6 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         inFlightRef.current = false
         setIsLoading(false)
         setIsGenerating(false)
-        abortControllerRef.current = null
-        // Reset agent outputs tracking
         currentAgentOutputsRef.current = []
         pendingTextDeltaBuffersRef.current = {}
         pendingReasoningStepUpdatesRef.current = {}
@@ -1994,39 +2132,53 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
   )
 
   const cancelGeneration = useCallback(async () => {
-    // Abort the ongoing fetch request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
-      abortControllerRef.current = null
-    }
-
     let cancelApiMessageText: string | null = null // Fallback for when cancel API fails
     let cancelOutput: OutputItem | null = null // Cancel API response
 
-    // Call the cancel API endpoint if we have a session
+    // Cancel via the global stream manager. This both:
+    //   1) sets the Redis cancel flag on the backend so the background
+    //      recorder breaks the agent loop and writes a terminal entry,
+    //   2) aborts our local SSE fetch so the reader closes promptly.
+    // The manager handles the absence of a known runId gracefully.
     if (state.sessionId && accessToken) {
       try {
         const baseUrl = resolveFlowbotBaseUrl()
+        const runId = currentRunIdRef.current ?? useStreamStore.getState().activeRunBySession[state.sessionId] ?? null
 
+        if (runId) {
+          // `skipNetwork: true` because we POST /chat/cancel ourselves
+          // below to capture the `message` OutputItem; the manager
+          // just aborts the local SSE reader and clears bookkeeping.
+          await flowbotStreamManager.cancel({
+            runId,
+            sessionId: state.sessionId,
+            accessToken,
+            skipNetwork: true
+          })
+        }
+
+        // The legacy /chat/cancel response still carries a `message`
+        // OutputItem describing any side-effects that were committed
+        // during the cancelled turn. Surface it as the assistant turn.
         const form = new FormData()
         form.append('session_id', state.sessionId)
+        if (runId) form.append('run_id', runId)
 
         const res = await fetch(`${baseUrl}/flowbot/api/agent/chat/cancel`, {
           method: 'POST',
-          headers: {
-            Authorization: `Bearer ${accessToken}`
-          },
+          headers: { Authorization: `Bearer ${accessToken}` },
           body: form
         })
 
         if (res.ok) {
           const payload: any = await res.json().catch(() => null)
-          // Backend contract: if message is non-null, it's always an OutputItem.
           cancelOutput = (payload?.message ?? null) as OutputItem | null
         } else if (res.status !== 404) {
           const text = await res.text().catch(() => '')
           cancelApiMessageText = text ? `Cancel failed (${res.status}): ${text}` : `Cancel failed (${res.status})`
         }
+
+        currentRunIdRef.current = null
       } catch (error) {
         console.error('Failed to call cancel API:', error)
         cancelApiMessageText = 'Cancel request failed (network error)'
@@ -2254,17 +2406,37 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
   }, [accessToken, currentPageContext, prechatContextKey, state.conversation.length, waitForIdle])
 
   const clearConversation = useCallback(() => {
-    console.log('[FlowBot][clearConversation] Clearing conversation and starting new session')
+    console.log('[FlowBot][clearConversation] Starting new chat (background runs preserved)')
 
-    // CRITICAL: Abort any ongoing stream request when clearing conversation
-    // This prevents old session's responses from appearing in the new empty chat
-    if (abortControllerRef.current) {
-      console.log('[FlowBot][clearConversation] Aborting ongoing request')
-      abortControllerRef.current.abort()
-      abortControllerRef.current = null
-      inFlightRef.current = false
-      setIsGenerating(false)
-    }
+    // "New chat" is a pure frontend view change, NOT a cancellation.
+    // Per the resumable-streaming design, any in-flight run on the
+    // previous session must keep streaming in the background so the
+    // user can come back to it via the sidebar (where it shows a
+    // "Running" badge). The explicit Stop button — wired to
+    // `cancelGeneration` — is the only thing that should cancel a run.
+    //
+    // We intentionally do NOT:
+    //   - call `flowbotStreamManager.cancel(...)`
+    //   - clear the previous session's conversation snapshot
+    //   - touch `currentRunIdRef` for the previous session (no-op here
+    //     since this hook is about to point at a brand-new session)
+    //
+    // We DO reset the local "is sending / is generating" flags so the
+    // brand-new chat's input is immediately usable. Previously these
+    // were cleared by the cancel path's ``onTerminate`` callback, but
+    // since we no longer cancel on "New chat" we must clear them here
+    // explicitly — otherwise the input stays disabled forever.
+    //
+    // Bumping the navigation epoch invalidates any handlers attached
+    // to the previous run so their late-arriving frames can't leak
+    // into this brand-new chat (e.g., the previous run's ``session-id``
+    // event arriving after the new-chat click would otherwise yank
+    // the user back to the old session).
+    navigationEpochRef.current += 1
+    currentRunIdRef.current = null
+    inFlightRef.current = false
+    setIsLoading(false)
+    setIsGenerating(false)
 
     setState({ conversation: [], sessionId: null, oldestMessageId: null, hasMoreHistory: false })
     sessionIdRef.current = null
@@ -2361,15 +2533,18 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
     async (sessionId: string) => {
       console.log('[FlowBot][loadSession] Loading session:', sessionId)
 
-      // CRITICAL: Abort any ongoing stream request before switching sessions
-      // This prevents old session's responses from appearing in the new session
-      if (abortControllerRef.current) {
-        console.log('[FlowBot][loadSession] Aborting ongoing request before switching sessions')
-        abortControllerRef.current.abort()
-        abortControllerRef.current = null
-        inFlightRef.current = false
-        setIsGenerating(false)
-      }
+      // Per the resumable-streaming plan, switching sessions never
+      // aborts any background run — it's a pure frontend view change.
+      // The mount-effect above will attach to the new session's
+      // in-flight run (if any) and frames will resume rendering.
+      //
+      // Bumping the navigation epoch detaches the hook from any
+      // previously-attached run's handlers so their late frames can't
+      // mutate the new view.
+      navigationEpochRef.current += 1
+      currentRunIdRef.current = null
+      inFlightRef.current = false
+      setIsGenerating(false)
 
       saveState({ conversation: [], sessionId, oldestMessageId: null, hasMoreHistory: false })
       sessionIdRef.current = sessionId
@@ -2440,6 +2615,10 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
   const deleteSession = useCallback(
     async (sessionIdToDelete: string) => {
       await deleteChatSession(sessionIdToDelete, accessToken)
+      // Drop the per-session conversation snapshot so a future tab
+      // load with this sessionId pointer can't resurrect a deleted
+      // transcript from localStorage.
+      clearConversationSnapshot(sessionIdToDelete)
     },
     [accessToken]
   )

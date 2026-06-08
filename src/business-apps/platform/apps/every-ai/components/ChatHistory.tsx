@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { Button, Input, Spinner } from '@newwork/nw-design-system'
 import { ChatsCircle, Trash, Plus, MagnifyingGlass } from '@phosphor-icons/react'
 import { fetchChatListFromApi, deleteChatSession, type FlowBotSession } from '../hooks/useFlowBot'
+import { useStreamStore } from '../streaming/streamStore'
 
 const PAGE_SIZE = 15
 
@@ -24,6 +25,12 @@ export const ChatHistory: React.FC<ChatHistoryProps> = ({
   const [hasMore, setHasMore] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const hasFetchedRef = useRef(false)
+  // Map of sessionId -> active runId so we can render a "running"
+  // indicator without coupling this component to the manager directly.
+  // The store is the single source of truth that bootstrap + manager
+  // keep in sync, so this works for both freshly-started runs and
+  // background runs recovered after a hard refresh.
+  const activeRunBySession = useStreamStore(s => s.activeRunBySession)
 
   const loadSessions = useCallback(async () => {
     setIsLoading(true)
@@ -171,6 +178,7 @@ export const ChatHistory: React.FC<ChatHistoryProps> = ({
             {filteredSessions.map(session => {
               const sessionTitle = session.title || session.shortInfo || `Chat ${session.id.slice(0, 8)}`
               const isActiveSession = currentSessionId === session.id
+              const isRunning = Boolean(activeRunBySession[session.id])
               return (
                 <div
                   key={session.id}
@@ -206,7 +214,20 @@ export const ChatHistory: React.FC<ChatHistoryProps> = ({
                         <span className="gba:font-medium gba:text-sm gba:truncate gba:text-foreground">
                           {sessionTitle}
                         </span>
-                        {isActiveSession && (
+                        {isRunning && (
+                          <span
+                            className="gba:inline-flex gba:items-center gba:gap-1 gba:text-[10px] gba:text-primary gba:uppercase"
+                            title="Agent is still working on this chat in the background"
+                            data-testid={`chat-history-running-${session.id}`}
+                          >
+                            <span className="gba:relative gba:flex gba:h-2 gba:w-2">
+                              <span className="gba:animate-ping gba:absolute gba:inline-flex gba:h-full gba:w-full gba:rounded-full gba:bg-primary gba:opacity-75" />
+                              <span className="gba:relative gba:inline-flex gba:rounded-full gba:h-2 gba:w-2 gba:bg-primary" />
+                            </span>
+                            Running
+                          </span>
+                        )}
+                        {isActiveSession && !isRunning && (
                           <span className="gba:text-[10px] gba:text-success gba:uppercase">Active</span>
                         )}
                       </div>
