@@ -5,6 +5,7 @@ import {
   Avatar,
   AvatarFallback,
   AvatarImage,
+  Badge,
   Button,
   Card,
   ScrollArea,
@@ -17,7 +18,21 @@ import dayjs from 'dayjs'
 import { Briefcase, CalendarBlank, CaretRight, ChatCircleDots, Target } from '@phosphor-icons/react'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { formatLastFeedback } from '../../utils/peopleMomentsHelpers'
+import { avatarSrc } from '../../utils/heatmapHelpers'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
+import {
+  getAbsenceStatusBadgeVariant,
+  getAbsenceStatusLabel
+} from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+
+interface AbsenceInfo {
+  type: string
+  parentEntryId?: string
+  startDate: string
+  endDate: string
+  status: string
+}
 
 interface DirectReport {
   id: string
@@ -27,6 +42,13 @@ interface DirectReport {
   pictureThumbnail?: string
   status: string
   jobPositionName?: string
+  currentAbsence?: AbsenceInfo
+  nextAbsence?: {
+    type: string
+    startDate: string
+    endDate: string
+    status: string
+  }
 }
 
 interface TeamPerformance {
@@ -54,24 +76,6 @@ const InfoRow: React.FC<{ label: string; value: React.ReactNode }> = ({ label, v
   </div>
 )
 
-const formatLastFeedback = (isoDate: string | null): string => {
-  if (!isoDate) return 'No feedback yet'
-
-  const feedbackDate = dayjs(isoDate)
-  if (!feedbackDate.isValid()) return 'No feedback yet'
-
-  const days = dayjs().diff(feedbackDate, 'day')
-  if (days <= 0) return 'Today'
-  if (days === 1) return '1 day ago'
-  if (days < 30) return `${days} days ago`
-
-  const months = Math.floor(days / 30)
-  if (months === 1) return '1 month ago'
-  if (months < 12) return `${months} months ago`
-
-  return feedbackDate.format('MMM D, YYYY')
-}
-
 export const MemberQuickPanel: React.FC<MemberQuickPanelProps> = ({
   isOpen,
   onClose,
@@ -91,6 +95,8 @@ export const MemberQuickPanel: React.FC<MemberQuickPanelProps> = ({
   const isAvailable = member.status === 'Available'
   const formattedLastFeedback = formatLastFeedback(lastFeedbackDate)
   const fullName = `${member.firstName} ${member.lastName}`.trim()
+
+  const activeAbsence = member.currentAbsence || member.nextAbsence || null
 
   const handleViewProfile = () => {
     onNavigateToEmployee(member.id)
@@ -141,10 +147,7 @@ export const MemberQuickPanel: React.FC<MemberQuickPanelProps> = ({
             <div className="gba:border-b gba:border-border gba:pb-6">
               <div className="gba:flex gba:flex-col gba:items-center">
                 <Avatar size="xl" className="gba:h-24 gba:w-24 gba:text-3xl">
-                  <AvatarImage
-                    src={member.pictureThumbnail ? `data:image/jpeg;base64,${member.pictureThumbnail}` : undefined}
-                    alt={fullName}
-                  />
+                  <AvatarImage src={avatarSrc(member.pictureThumbnail)} alt={fullName} />
                   <AvatarFallback>
                     {`${member.firstName?.[0] || ''}${member.lastName?.[0] || ''}`.toUpperCase()}
                   </AvatarFallback>
@@ -169,6 +172,32 @@ export const MemberQuickPanel: React.FC<MemberQuickPanelProps> = ({
             <Card className="gba:p-4">
               <div className="gba:space-y-3">
                 <InfoRow label="Availability" value={isAvailable ? 'Available' : member.status} />
+                {activeAbsence && (
+                  <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
+                    <span className="gba:text-sm gba:text-muted-foreground gba:shrink-0">Vacation</span>
+                    <div className="gba:flex gba:flex-col gba:items-end gba:gap-1">
+                      <div className="gba:flex gba:items-center gba:gap-1.5">
+                        <span className="gba:text-sm gba:font-medium">
+                          {dayjs(activeAbsence.startDate).format('DD.MM')} –{' '}
+                          {dayjs(activeAbsence.endDate).format('DD.MM')}
+                        </span>
+                        {member.currentAbsence && (
+                          <span className="gba:text-[10px] gba:font-semibold gba:text-destructive gba:uppercase">
+                            Now
+                          </span>
+                        )}
+                      </div>
+                      <div className="gba:flex gba:items-center gba:gap-1.5">
+                        {activeAbsence.type && (
+                          <span className="gba:text-xs gba:text-muted-foreground">{activeAbsence.type}</span>
+                        )}
+                        <Badge variant={getAbsenceStatusBadgeVariant(activeAbsence.status)} size="sm">
+                          {getAbsenceStatusLabel(activeAbsence.status)}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <InfoRow label="Project allocation" value={`${allocationPercent}%`} />
                 <InfoRow label="Goals set" value={hasGoals ? 'Yes' : 'No'} />
                 <InfoRow label="Last feedback" value={formattedLastFeedback} />

@@ -1,26 +1,11 @@
 import React, { useMemo, useState } from 'react'
-import {
-  Button,
-  Badge,
-  Spinner,
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-  Avatar,
-  AvatarImage,
-  AvatarFallback
-} from '@newwork/nw-design-system'
-import {
-  CaretDownIcon as ChevronDown,
-  CaretLeftIcon as ChevronLeft,
-  CaretUpIcon as ChevronUp
-} from '@phosphor-icons/react'
+import { Button, Badge, DataTable, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
+import { CaretLeftIcon as ChevronLeft } from '@phosphor-icons/react'
+import { ColumnDef, SortingState } from '@tanstack/react-table'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { DirectReport } from '../hooks/useDirectReports'
 import { getAbsenceStatusBadgeVariant } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+import { avatarSrc } from '../utils/heatmapHelpers'
 
 export interface FilteredTeammatesViewProps {
   directReports: DirectReport[]
@@ -51,6 +36,40 @@ interface Employee {
     endDate: string
     status: string
   }
+}
+
+const EmployeeNameCell: React.FC<{ employee: Employee }> = ({ employee }) => {
+  const image = avatarSrc(employee.profilePicture)
+  return (
+    <div className="gba:flex gba:items-center gba:gap-3">
+      <Avatar className="gba:h-8 gba:w-8">
+        <AvatarImage src={image} alt={`${employee.firstName} ${employee.lastName}`} />
+        <AvatarFallback>
+          {employee.firstName?.[0]}
+          {employee.lastName?.[0]}
+        </AvatarFallback>
+      </Avatar>
+      <span className="gba:font-medium">
+        {employee.firstName} {employee.lastName}
+      </span>
+    </div>
+  )
+}
+
+const AllocateAction: React.FC<{ employee: Employee; onAssign: (id: string) => void }> = ({ employee, onAssign }) => {
+  if (employee.allocationPercent === 100) return null
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      onClick={e => {
+        e.stopPropagation()
+        onAssign(employee.id)
+      }}
+    >
+      Allocate
+    </Button>
+  )
 }
 
 const StatusBadge: React.FC<{ employee: Employee }> = ({ employee }) => {
@@ -86,15 +105,13 @@ export const FilteredTeammatesView: React.FC<FilteredTeammatesViewProps> = ({
   onNavigateToEmployee,
   onAssignProject
 }) => {
-  const [sortField, setSortField] = useState<'name' | 'allocation'>('name')
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+  const [sorting, setSorting] = useState<SortingState>([{ id: 'name', desc: false }])
 
   const allocationMap = useMemo(
     () => new Map(employeeAllocations.map(item => [item.id, item.allocationPercent])),
     [employeeAllocations]
   )
 
-  // Filter direct reports based on active filter
   const getFilteredDirectReports = () => {
     if (filterAbsentOnly) {
       return directReports.filter(report => report.status === 'On Leave')
@@ -106,7 +123,6 @@ export const FilteredTeammatesView: React.FC<FilteredTeammatesViewProps> = ({
   }
   const filteredDirectReports = getFilteredDirectReports()
 
-  // Helper functions for display text
   const getHeaderTitle = () => {
     if (filterAbsentOnly) {
       return getTranslationFromI18nKeyAndLabel(
@@ -155,7 +171,6 @@ export const FilteredTeammatesView: React.FC<FilteredTeammatesViewProps> = ({
     )
   }
 
-  // Transform DirectReport data to Employee interface format
   const transformedFilteredReports: Employee[] = filteredDirectReports.map(report => ({
     id: report.id,
     firstName: report.firstName,
@@ -176,49 +191,53 @@ export const FilteredTeammatesView: React.FC<FilteredTeammatesViewProps> = ({
       : undefined
   }))
 
-  const sortedFilteredReports = useMemo(() => {
-    const cloned = [...transformedFilteredReports]
-
-    cloned.sort((a, b) => {
-      if (sortField === 'allocation') {
-        const allocationComparison = a.allocationPercent - b.allocationPercent
-        return sortDirection === 'asc' ? allocationComparison : -allocationComparison
+  const columns = useMemo<ColumnDef<Employee>[]>(() => {
+    const baseColumns: ColumnDef<Employee>[] = [
+      {
+        id: 'name',
+        accessorFn: row => `${row.firstName} ${row.lastName}`,
+        header: getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.team_member', 'Team Member'),
+        size: 250,
+        cell: ({ row }) => <EmployeeNameCell employee={row.original} />
+      },
+      {
+        id: 'jobTitle',
+        accessorKey: 'jobTitle',
+        header: getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.position', 'Position'),
+        size: 150
+      },
+      {
+        id: 'organizationalUnit',
+        accessorKey: 'organizationalUnit',
+        header: getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.department', 'Department'),
+        size: 150
       }
+    ]
 
-      const nameA = `${a.firstName} ${a.lastName}`.toLowerCase()
-      const nameB = `${b.firstName} ${b.lastName}`.toLowerCase()
-      const nameComparison = nameA.localeCompare(nameB)
-      return sortDirection === 'asc' ? nameComparison : -nameComparison
-    })
-
-    return cloned
-  }, [transformedFilteredReports, sortField, sortDirection])
-
-  const handleSortChange = (field: 'name' | 'allocation') => {
-    if (sortField === field) {
-      setSortDirection(current => (current === 'asc' ? 'desc' : 'asc'))
-      return
+    if (!filterUnallocatedOnly) {
+      baseColumns.push({
+        id: 'status',
+        header: getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.status', 'Status'),
+        size: 120,
+        cell: ({ row }) => <StatusBadge employee={row.original} />
+      })
     }
 
-    setSortField(field)
-    setSortDirection('asc')
-  }
-
-  const handleSelectEmployee = (employee: Employee) => {
-    onNavigateToEmployee(employee.id)
-  }
-
-  const renderSortIndicator = (field: 'name' | 'allocation') => {
-    if (sortField !== field) {
-      return null
+    if (filterUnallocatedOnly) {
+      baseColumns.push({
+        id: 'allocationPercent',
+        accessorKey: 'allocationPercent',
+        header: getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.manager_dashboard.total_allocation',
+          'Total Allocation'
+        ),
+        size: 130,
+        cell: ({ row }) => `${row.original.allocationPercent}%`
+      })
     }
 
-    return sortDirection === 'asc' ? (
-      <ChevronUp size={14} className="gba:text-muted-foreground" />
-    ) : (
-      <ChevronDown size={14} className="gba:text-muted-foreground" />
-    )
-  }
+    return baseColumns
+  }, [filterUnallocatedOnly])
 
   const getHeaderBadgeVariant = () => {
     if (filterAbsentOnly) return 'warning' as const
@@ -251,139 +270,25 @@ export const FilteredTeammatesView: React.FC<FilteredTeammatesViewProps> = ({
         </div>
       </div>
 
-      {/* Loading State */}
-      {loadingDirectReports && (
-        <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
-          <Spinner size="lg" />
-        </div>
-      )}
-
-      {/* Error State */}
-      {directReportsError && (
-        <div className="gba:text-center gba:py-12">
-          <div className="gba:text-destructive gba:mb-4">
-            {getTranslationFromI18nKeyAndLabel(
-              'master-data:hr.manager_dashboard.status.failed_load_team',
-              'Failed to load team members'
-            )}
-          </div>
-          <Button onClick={() => globalThis.location.reload()} variant="outline">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.try_again', 'Try Again')}
-          </Button>
-        </div>
-      )}
-
-      {/* Empty State */}
-      {!loadingDirectReports && !directReportsError && transformedFilteredReports.length === 0 && (
-        <div className="gba:text-center gba:py-12 gba:text-muted-foreground">{getEmptyMessage()}</div>
-      )}
-
-      {/* Team Members Table */}
-      {!loadingDirectReports && !directReportsError && transformedFilteredReports.length > 0 && (
-        <div className="gba:flex-1 gba:overflow-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>
-                  <button
-                    type="button"
-                    onClick={() => handleSortChange('name')}
-                    className="gba:inline-flex gba:items-center gba:gap-1 gba:font-medium hover:gba:text-foreground"
-                    data-testid="manager-dashboard-sort-by-name-header"
-                  >
-                    {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.team_member', 'Team Member')}
-                    {renderSortIndicator('name')}
-                  </button>
-                </TableHead>
-                <TableHead>
-                  {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.position', 'Position')}
-                </TableHead>
-                <TableHead>
-                  {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.department', 'Department')}
-                </TableHead>
-                <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.status', 'Status')}</TableHead>
-                {filterUnallocatedOnly && (
-                  <>
-                    <TableHead>
-                      <button
-                        type="button"
-                        onClick={() => handleSortChange('allocation')}
-                        className="gba:inline-flex gba:items-center gba:gap-1 gba:font-medium hover:gba:text-foreground"
-                        data-testid="manager-dashboard-sort-by-allocation-header"
-                      >
-                        {getTranslationFromI18nKeyAndLabel(
-                          'master-data:hr.manager_dashboard.total_allocation',
-                          'Total Allocation'
-                        )}
-                        {renderSortIndicator('allocation')}
-                      </button>
-                    </TableHead>
-                    <TableHead>{getTranslationFromI18nKeyAndLabel('master-data:allocate', 'Allocate')}</TableHead>
-                  </>
-                )}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sortedFilteredReports.map(employee => (
-                <TableRow
-                  key={employee.id}
-                  className="gba:cursor-pointer hover:gba:bg-muted/50"
-                  onClick={() => handleSelectEmployee(employee)}
-                >
-                  <TableCell>
-                    <div className="gba:flex gba:items-center gba:gap-3">
-                      <Avatar className="gba:h-10 gba:w-10">
-                        <AvatarImage
-                          src={
-                            employee.profilePicture && !employee.profilePicture.startsWith('{')
-                              ? `data:image/jpeg;base64,${employee.profilePicture}`
-                              : undefined
-                          }
-                          alt={`${employee.firstName} ${employee.lastName}`}
-                        />
-                        <AvatarFallback>
-                          {employee.firstName?.[0]}
-                          {employee.lastName?.[0]}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="gba:font-medium">
-                          {employee.firstName} {employee.lastName}
-                        </div>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{employee.jobTitle || '-'}</TableCell>
-                  <TableCell>{employee.organizationalUnit || '-'}</TableCell>
-                  <TableCell>
-                    <StatusBadge employee={employee} />
-                  </TableCell>
-                  {filterUnallocatedOnly && (
-                    <>
-                      <TableCell>{employee.allocationPercent}%</TableCell>
-                      <TableCell>
-                        {employee.allocationPercent !== 100 && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={event => {
-                              event.stopPropagation()
-                              onAssignProject(employee.id)
-                            }}
-                            data-testid={`manager-dashboard-filtered-teammates-allocate-${employee.id}`}
-                          >
-                            Allocate
-                          </Button>
-                        )}
-                      </TableCell>
-                    </>
-                  )}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+      {/* Team Members DataTable */}
+      <div className="gba:flex-1 gba:overflow-auto">
+        <DataTable
+          data={transformedFilteredReports}
+          columns={columns}
+          loading={loadingDirectReports}
+          error={directReportsError}
+          emptyMessage={getEmptyMessage()}
+          enableSorting={true}
+          sorting={sorting}
+          onSortingChange={setSorting}
+          onRowClick={employee => onNavigateToEmployee(employee.id)}
+          actions={
+            filterUnallocatedOnly
+              ? row => <AllocateAction employee={row.original} onAssign={onAssignProject} />
+              : undefined
+          }
+        />
+      </div>
     </div>
   )
 }

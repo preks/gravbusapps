@@ -127,14 +127,11 @@ export const TeammatesView: React.FC<TeammatesViewProps> = ({
     currentGoalProgress: goalProgressByEmployeeId.get(report.id) ?? 0,
     projectAllocationPercent: allocationByEmployeeId.get(report.id) ?? 0,
     lastManagerFeedbackDate: lastFeedbackByEmployeeId[report.id] ?? null,
-    nextVacation: report.nextAbsence
-      ? {
-          type: report.nextAbsence.type,
-          startDate: report.nextAbsence.startDate,
-          endDate: report.nextAbsence.endDate,
-          status: report.nextAbsence.status
-        }
-      : undefined,
+    nextVacation: (() => {
+      const absence = report.currentAbsence ?? report.nextAbsence
+      if (!absence) return undefined
+      return { type: absence.type, startDate: absence.startDate, endDate: absence.endDate, status: absence.status }
+    })(),
     currentAbsence: report.currentAbsence
       ? {
           type: report.currentAbsence.type,

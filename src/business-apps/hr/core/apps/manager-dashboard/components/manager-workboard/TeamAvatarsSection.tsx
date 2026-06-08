@@ -1,6 +1,6 @@
 // NO BUSINESS LOGIC HERE. Data + actions come from useManagerWorkboardVM.
 
-import React from 'react'
+import React, { useMemo } from 'react'
 import {
   Card,
   CardHeader,
@@ -8,9 +8,11 @@ import {
   CardContent,
   Avatar,
   AvatarImage,
-  AvatarFallback
+  AvatarFallback,
+  Badge
 } from '@newwork/nw-design-system'
 import { UsersThreeIcon as Users } from '@phosphor-icons/react'
+import { avatarSrc } from '../../utils/heatmapHelpers'
 
 interface DirectReport {
   id: string
@@ -18,6 +20,22 @@ interface DirectReport {
   lastName: string
   pictureThumbnail?: string
   status: string
+  currentAbsence?: {
+    type: string
+    parentEntryId?: string
+    startDate: string
+    endDate: string
+    status: string
+  }
+}
+
+type StatusGroup = 'available' | 'unallocated' | 'ooo'
+
+interface StatusColors {
+  ring: string
+  dot: string
+  label: string
+  group: StatusGroup
 }
 
 interface TeamAvatarsSectionProps {
@@ -30,39 +48,84 @@ interface TeamAvatarsSectionProps {
 
 const AVATAR_SKELETON_KEYS = Array.from({ length: 16 }, (_, index) => `avatar-skeleton-${index + 1}`)
 
-/**
- * Get status indicator colors based on employee status
- * OOO (Out of Office) statuses: On Leave, Sick Leave
- * Available: Available status
- */
-const getStatusColors = (employeeId: string, status: string, unallocatedIds: string[]) => {
+const getStatusColors = (employeeId: string, status: string, unallocatedIds: string[]): StatusColors => {
   const isUnallocated = unallocatedIds?.includes(employeeId)
 
-  // OOO statuses - red/destructive color
   if (status === 'On Leave' || status === 'Sick Leave') {
     return {
       ring: 'gba:ring-destructive',
       dot: 'gba:bg-destructive',
-      label: 'Out of Office'
+      label: 'Out of Office',
+      group: 'ooo'
     }
   }
 
-  // Unallocated - warning color
   if (isUnallocated) {
     return {
       ring: 'gba:ring-warning',
       dot: 'gba:bg-warning',
-      label: 'Unallocated'
+      label: 'Unallocated',
+      group: 'unallocated'
     }
   }
 
-  // Available - success color
   return {
     ring: 'gba:ring-success',
     dot: 'gba:bg-success',
-    label: 'Available'
+    label: 'Available',
+    group: 'available'
   }
 }
+
+const GROUP_ORDER: Record<StatusGroup, number> = { available: 0, unallocated: 1, ooo: 2 }
+
+const formatAbsenceLabel = (absence?: DirectReport['currentAbsence']): string | null => {
+  if (!absence) return 'On Leave'
+  return absence.type || 'On Leave'
+}
+
+interface TeamMemberAvatarProps {
+  member: DirectReport
+  colors: StatusColors
+  onClick: (memberId: string) => void
+  titleSuffix?: string
+  avatarClassName?: string
+  nameClassName: string
+  extraLabel?: React.ReactNode
+}
+
+const TeamMemberAvatar: React.FC<TeamMemberAvatarProps> = ({
+  member,
+  colors,
+  onClick,
+  titleSuffix,
+  avatarClassName = '',
+  nameClassName,
+  extraLabel
+}) => (
+  <button
+    key={member.id}
+    onClick={() => onClick(member.id)}
+    className="gba:group gba:relative gba:flex gba:flex-col gba:items-center gba:gap-1"
+    title={`${member.firstName} ${member.lastName} - ${titleSuffix ?? colors.label}`}
+  >
+    <div className={`gba:relative gba:ring-2 ${colors.ring} gba:rounded-full gba:p-0.5`}>
+      <Avatar size="md" className={`gba:h-10 gba:w-10 ${avatarClassName}`}>
+        <AvatarImage src={avatarSrc(member.pictureThumbnail)} alt={`${member.firstName} ${member.lastName}`} />
+        <AvatarFallback className="gba:text-xs">
+          {member.firstName.charAt(0)}
+          {member.lastName.charAt(0)}
+        </AvatarFallback>
+      </Avatar>
+      <div
+        className={`gba:absolute gba:bottom-0 gba:right-0 gba:h-2.5 gba:w-2.5 ${colors.dot} gba:rounded-full gba:border-2 gba:border-background`}
+        aria-label={colors.label}
+      />
+    </div>
+    <span className={nameClassName}>{member.firstName}</span>
+    {extraLabel}
+  </button>
+)
 
 export const TeamAvatarsSection: React.FC<TeamAvatarsSectionProps> = ({
   directReports,
@@ -71,6 +134,19 @@ export const TeamAvatarsSection: React.FC<TeamAvatarsSectionProps> = ({
   onNavigateToTeammates,
   onMemberClick
 }) => {
+  const { sorted, oooCount } = useMemo(() => {
+    const withStatus = directReports.map(m => ({
+      member: m,
+      colors: getStatusColors(m.id, m.status, unallocatedIds)
+    }))
+    withStatus.sort((a, b) => GROUP_ORDER[a.colors.group] - GROUP_ORDER[b.colors.group])
+
+    return {
+      sorted: withStatus,
+      oooCount: withStatus.filter(s => s.colors.group === 'ooo').length
+    }
+  }, [directReports, unallocatedIds])
+
   if (loading) {
     return (
       <Card className="gba:rounded-xl gba:p-5">
@@ -88,13 +164,19 @@ export const TeamAvatarsSection: React.FC<TeamAvatarsSectionProps> = ({
     )
   }
 
+  const oooStartIndex = sorted.findIndex(s => s.colors.group === 'ooo')
+
   return (
     <Card data-testid="team-avatars-section" className="gba:rounded-xl gba:p-5">
       <CardHeader>
         <div className="gba:flex gba:items-center gba:justify-between">
-          <div>
+          <div className="gba:flex gba:items-center gba:gap-2">
             <CardTitle className="gba:text-lg">Your Team ({directReports.length})</CardTitle>
-            <p className="gba:text-sm gba:text-muted-foreground">Click avatar to view details</p>
+            {oooCount > 0 && (
+              <Badge variant="destructive" size="sm">
+                {oooCount} absent
+              </Badge>
+            )}
           </div>
           <button
             onClick={onNavigateToTeammates}
@@ -103,47 +185,55 @@ export const TeamAvatarsSection: React.FC<TeamAvatarsSectionProps> = ({
             View all →
           </button>
         </div>
+        <p className="gba:text-sm gba:text-muted-foreground">Click avatar to view details</p>
       </CardHeader>
       <CardContent>
-        {directReports.length > 0 ? (
-          <div className="gba:flex gba:flex-wrap gba:gap-2">
-            {directReports.map(member => {
-              const statusColors = getStatusColors(member.id, member.status, unallocatedIds)
+        {sorted.length > 0 ? (
+          <div className="gba:space-y-4">
+            {/* Available & Unallocated members */}
+            <div className="gba:flex gba:flex-wrap gba:gap-2">
+              {sorted
+                .filter(s => s.colors.group !== 'ooo')
+                .map(({ member, colors }) => (
+                  <TeamMemberAvatar
+                    key={member.id}
+                    member={member}
+                    colors={colors}
+                    onClick={onMemberClick}
+                    nameClassName="gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-[48px] gba:text-center group-hover:gba:text-foreground"
+                  />
+                ))}
+            </div>
 
-              return (
-                <button
-                  key={member.id}
-                  onClick={() => onMemberClick(member.id)}
-                  className="gba:group gba:relative gba:flex gba:flex-col gba:items-center gba:gap-1"
-                  title={`${member.firstName} ${member.lastName} - ${statusColors.label}`}
-                >
-                  <div className={`gba:relative gba:ring-2 ${statusColors.ring} gba:rounded-full gba:p-0.5`}>
-                    <Avatar size="md" className="gba:h-10 gba:w-10">
-                      <AvatarImage
-                        src={
-                          member.pictureThumbnail && !member.pictureThumbnail.startsWith('{')
-                            ? `data:image/jpeg;base64,${member.pictureThumbnail}`
-                            : undefined
+            {/* Out of Office group - visually separated */}
+            {oooStartIndex >= 0 && (
+              <div className="gba:rounded-lg gba:bg-destructive/5 gba:border gba:border-destructive/20 gba:p-3">
+                <div className="gba:flex gba:items-center gba:gap-1.5 gba:mb-3">
+                  <div className="gba:h-2 gba:w-2 gba:rounded-full gba:bg-destructive" />
+                  <span className="gba:text-xs gba:font-medium gba:text-destructive">Out of Office ({oooCount})</span>
+                </div>
+                <div className="gba:flex gba:flex-wrap gba:gap-2">
+                  {sorted
+                    .filter(s => s.colors.group === 'ooo')
+                    .map(({ member, colors }) => (
+                      <TeamMemberAvatar
+                        key={member.id}
+                        member={member}
+                        colors={colors}
+                        onClick={onMemberClick}
+                        titleSuffix={formatAbsenceLabel(member.currentAbsence) ?? undefined}
+                        avatarClassName="gba:opacity-60 gba:grayscale-[40%]"
+                        nameClassName="gba:text-xs gba:text-destructive gba:truncate gba:max-w-[56px] gba:text-center gba:font-medium"
+                        extraLabel={
+                          <span className="gba:text-[10px] gba:text-destructive/70 gba:truncate gba:max-w-[56px] gba:text-center gba:leading-tight">
+                            {formatAbsenceLabel(member.currentAbsence)}
+                          </span>
                         }
-                        alt={`${member.firstName} ${member.lastName}`}
                       />
-                      <AvatarFallback className="gba:text-xs">
-                        {member.firstName.charAt(0)}
-                        {member.lastName.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-                    {/* Chat/Online status dot - bottom right */}
-                    <div
-                      className={`gba:absolute gba:bottom-0 gba:right-0 gba:h-2.5 gba:w-2.5 ${statusColors.dot} gba:rounded-full gba:border-2 gba:border-background`}
-                      aria-label={statusColors.label}
-                    />
-                  </div>
-                  <span className="gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-[48px] gba:text-center group-hover:gba:text-foreground">
-                    {member.firstName}
-                  </span>
-                </button>
-              )
-            })}
+                    ))}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="gba:text-center gba:py-8 gba:text-muted-foreground">

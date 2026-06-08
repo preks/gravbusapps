@@ -434,6 +434,7 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
       return (
         <BirthdaysView
           upcomingBirthdays={vm.upcomingBirthdays}
+          nextMonthBirthdays={vm.nextMonthBirthdays}
           loadingBirthdays={vm.loadingBirthdays}
           accessToken={accessToken || ''}
           onNavigateBack={vm.handleNavigateBackToDashboard}
@@ -444,6 +445,7 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
       return (
         <AnniversariesView
           upcomingAnniversaries={vm.upcomingAnniversaries}
+          nextMonthAnniversaries={vm.nextMonthAnniversaries}
           loadingAnniversaries={vm.loadingAnniversaries}
           accessToken={accessToken || ''}
           onNavigateBack={vm.handleNavigateBackToDashboard}
