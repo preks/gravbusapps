@@ -1,4 +1,5 @@
 # Investment Company Form
+validation-source-type-required = Tipul sursei este obligatoriu
 validation-employee-required = Angajatul este obligatoriu
 validation-investment-contact-required = Contactul de investitii este obligatoriu
 validation-company-name-required = Numele companiei este obligatoriu
