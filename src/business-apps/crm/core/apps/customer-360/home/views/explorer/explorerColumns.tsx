@@ -42,6 +42,24 @@ export function createExplorerColumns({ t, openCustomer }: ExplorerColumnsDeps):
       }
     },
     {
+      id: 'email',
+      header: t('explorer-column-email'),
+      cell: ({ row }) => {
+        const email = row.original.email
+        if (!email) return <span className="gba:text-muted-foreground">—</span>
+        return (
+          <a
+            href={`mailto:${email}`}
+            onClick={event => event.stopPropagation()}
+            className="gba:truncate gba:text-sm gba:text-muted-foreground gba:hover:underline"
+            data-testid={`customer-360-explorer-email-${row.original.id}`}
+          >
+            {email}
+          </a>
+        )
+      }
+    },
+    {
       id: 'type',
       header: t('explorer-column-type'),
       cell: ({ row }) => (

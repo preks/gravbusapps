@@ -12,6 +12,7 @@
 
 import { GET_CUSTOMER_360_TOOL } from './customer-360-tool'
 import { GET_CUSTOMER_PORTFOLIO_TOOL } from './customer-portfolio-tool'
+import { RESOLVE_CUSTOMER_TOOL } from './resolve-customer-tool'
 
 // ============================================================================
 // LEAD TOOLS
@@ -411,6 +412,8 @@ export const INTERNAL_TOOLS: InternalToolDefinition[] = [
   GET_CUSTOMER_360_TOOL,
   // Customer 360 portfolio (read) — ranked book-of-business for the Home product
   GET_CUSTOMER_PORTFOLIO_TOOL,
+  // Customer 360 inbound triage (read) — resolve a sender email to a CRM customer
+  RESOLVE_CUSTOMER_TOOL,
   // Lead tools
   {
     id: 'create_lead',

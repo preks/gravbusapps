@@ -123,6 +123,14 @@ home-tab-analytics = Analize
 home-tab-agent = Agent
 home-provisional-note = Scorurile de sănătate sunt provizorii — derivate din câmpuri CRM (proprietar, ciclu de viață) până la conectarea backendului de agregare. Tichetele, satisfacția și finanțele vor înlocui aceste euristici.
 
+# Home — hero
+home-hero-eyebrow = Acasă pentru clienți
+home-hero-title = Bun venit la Client 360
+home-hero-subtitle = Te ocupi de { $total } clienți — { $accounts } companii și { $contacts } contacte, dintre care { $attention } necesită atenție acum.
+home-hero-explore = Explorează clienții
+home-hero-attention = Ce necesită atenție
+home-hero-agent = Întreabă agentul
+
 # Home — cockpit
 cockpit-total-customers = Clienți
 cockpit-accounts = Companii
@@ -134,6 +142,15 @@ cockpit-avg-csat = CSAT mediu
 cockpit-overdue = Restant
 cockpit-attention-title = Necesită atenție acum
 cockpit-view-worklist = Vezi lista de lucru
+cockpit-insights-renewals-title = Reînnoiri și ciclu de viață
+cockpit-insights-renewals-description = Contracte care expiră și prospecți de cultivat către activare.
+cockpit-insights-renewals-action = Vezi reînnoirile
+cockpit-insights-composition-title = Compoziția portofoliului
+cockpit-insights-composition-description = Cum se împarte portofoliul tău între companii și contacte.
+cockpit-insights-composition-action = Deschide analizele
+cockpit-insights-agent-title = Întreabă agentul de portofoliu
+cockpit-insights-agent-description = Predă întregul portofoliu de clienți către IA pentru triere și pașii următori.
+cockpit-insights-agent-action = Deschide agentul
 
 # Home — listă de atenție
 worklist-intro = Clienți clasificați după risc combinat — satisfacție scăzută, reclamații deschise, facturi restante, contracte care expiră, tichete deschise și lipsa proprietarului.
@@ -152,6 +169,7 @@ attention-reason-prospective = Potențial client
 
 # Home — explorer
 explorer-column-customer = Client
+explorer-column-email = E-mail
 explorer-column-type = Tip
 explorer-column-status = Stare
 explorer-column-owner = Proprietar
@@ -176,8 +194,22 @@ inbound-step-draft = Agentul redactează un răspuns
 inbound-agent-button = Redactează un răspuns cu agentul
 inbound-agent-prompt = Ajută-mă să triez un mesaj primit de la client: identifică clientul, rezumă situația și redactează un răspuns.
 inbound-stream-title = Flux de intrări
-inbound-stream-empty-title = Încă nu există intrări
-inbound-stream-empty-description = E-mailurile și tichetele asociate vor apărea aici după conectarea endpointului de intrări.
+inbound-stream-empty-title = Încă nu există e-mailuri primite
+inbound-stream-empty-description = Când un e-mail ajunge în căsuța agentului Customer 360 Analyst, sesiunea pe care o pornește apare aici — asociată clientului corect.
+inbound-agent-missing-title = Customer 360 Analyst nu este încă configurat
+inbound-agent-missing-description = Activează agentul workforce „Customer 360 Analyst" și conectează un declanșator pentru e-mailuri primite, astfel încât mesajele să apară aici.
+inbound-col-from = De la
+inbound-col-subject = Subiect
+inbound-col-customer = Client
+inbound-col-status = Stare
+inbound-col-received = Primit
+inbound-customer-unmatched = Încă neasociat
+inbound-open-run = Deschide sesiunea
+inbound-search-placeholder = Caută expeditor sau subiect…
+inbound-refresh = Reîmprospătează
+inbound-prev = Înapoi
+inbound-next = Înainte
+inbound-pagination = Pagina { $page } din { $total }
 
 # Home — reînnoiri și ciclu de viață
 renewals-expiring-title = Contracte care expiră

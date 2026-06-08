@@ -123,6 +123,14 @@ home-tab-analytics = Analysen
 home-tab-agent = Agent
 home-provisional-note = Gesundheitswerte sind vorläufig — aus CRM-Feldern (Inhaber, Lebenszyklus) abgeleitet, bis das Aggregations-Backend angebunden ist. Tickets, Zufriedenheit und Finanzen ersetzen dann diese Heuristiken.
 
+# Home — Hero
+home-hero-eyebrow = Kunden-Home
+home-hero-title = Willkommen bei Kunde 360
+home-hero-subtitle = Sie betreuen { $total } Kunden — { $accounts } Firmen und { $contacts } Kontakte, davon { $attention } mit aktuellem Handlungsbedarf.
+home-hero-explore = Kunden erkunden
+home-hero-attention = Was Aufmerksamkeit braucht
+home-hero-agent = Agent fragen
+
 # Home — Cockpit
 cockpit-total-customers = Kunden
 cockpit-accounts = Firmen
@@ -134,6 +142,15 @@ cockpit-avg-csat = Ø CSAT
 cockpit-overdue = Überfällig
 cockpit-attention-title = Braucht jetzt Aufmerksamkeit
 cockpit-view-worklist = Arbeitsliste anzeigen
+cockpit-insights-renewals-title = Verlängerungen & Lebenszyklus
+cockpit-insights-renewals-description = Auslaufende Verträge und Interessenten, die zur Aktivierung gepflegt werden sollten.
+cockpit-insights-renewals-action = Verlängerungen anzeigen
+cockpit-insights-composition-title = Portfolio-Zusammensetzung
+cockpit-insights-composition-description = Wie sich Ihr Portfolio auf Firmen und Kontakte verteilt.
+cockpit-insights-composition-action = Analysen öffnen
+cockpit-insights-agent-title = Den Portfolio-Agenten fragen
+cockpit-insights-agent-description = Übergeben Sie Ihr gesamtes Kundenportfolio zur Triage und für nächste Schritte an die KI.
+cockpit-insights-agent-action = Agent öffnen
 
 # Home — Aufmerksamkeitsliste
 worklist-intro = Kunden nach kombiniertem Risiko sortiert — niedrige Zufriedenheit, offene Beschwerden, überfällige Rechnungen, auslaufende Verträge, offene Tickets und fehlende Zuständigkeit.
@@ -152,6 +169,7 @@ attention-reason-prospective = Interessent
 
 # Home — Explorer
 explorer-column-customer = Kunde
+explorer-column-email = E-Mail
 explorer-column-type = Typ
 explorer-column-status = Status
 explorer-column-owner = Inhaber
@@ -176,8 +194,22 @@ inbound-step-draft = Der Agent entwirft eine Antwort
 inbound-agent-button = Antwort mit dem Agenten entwerfen
 inbound-agent-prompt = Hilf mir bei der Triage einer eingehenden Kundennachricht: identifiziere den Kunden, fasse die Situation zusammen und entwirf eine Antwort.
 inbound-stream-title = Posteingang
-inbound-stream-empty-title = Noch keine Posteingangs-Einträge
-inbound-stream-empty-description = Zugeordnete E-Mails und Tickets erscheinen hier, sobald der Posteingangs-Endpunkt angebunden ist.
+inbound-stream-empty-title = Noch keine eingehenden E-Mails
+inbound-stream-empty-description = Sobald eine E-Mail das Postfach des Customer-360-Analyst-Agenten erreicht, erscheint der gestartete Lauf hier — passend zum richtigen Kunden zugeordnet.
+inbound-agent-missing-title = Customer-360-Analyst noch nicht eingerichtet
+inbound-agent-missing-description = Aktiviere den Workforce-Agenten „Customer 360 Analyst" und verbinde einen Trigger für eingehende E-Mails, damit eingehende Nachrichten hier erscheinen.
+inbound-col-from = Von
+inbound-col-subject = Betreff
+inbound-col-customer = Kunde
+inbound-col-status = Status
+inbound-col-received = Empfangen
+inbound-customer-unmatched = Noch nicht zugeordnet
+inbound-open-run = Lauf öffnen
+inbound-search-placeholder = Absender oder Betreff suchen…
+inbound-refresh = Aktualisieren
+inbound-prev = Zurück
+inbound-next = Weiter
+inbound-pagination = Seite { $page } von { $total }
 
 # Home — Verlängerungen & Lebenszyklus
 renewals-expiring-title = Auslaufende Verträge

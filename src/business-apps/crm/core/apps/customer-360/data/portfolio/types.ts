@@ -47,6 +47,10 @@ export interface CustomerPortfolioRow {
   type: CustomerSubjectType
   displayName: string
   secondary?: string
+  /** Primary email address (from communication channels), if known. */
+  email?: string
+  /** Primary phone/mobile number (from communication channels), if known. */
+  phone?: string
   ownerId?: string
   /** Normalized lifecycle status, e.g. 'active' | 'prospective'. */
   status?: string

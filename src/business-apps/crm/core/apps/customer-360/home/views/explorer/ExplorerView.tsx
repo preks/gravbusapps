@@ -35,7 +35,10 @@ function filterBySearch(rows: CustomerPortfolioRow[], search: string): CustomerP
   const term = search.trim().toLowerCase()
   if (!term) return rows
   return rows.filter(
-    row => row.displayName.toLowerCase().includes(term) || (row.secondary ?? '').toLowerCase().includes(term)
+    row =>
+      row.displayName.toLowerCase().includes(term) ||
+      (row.secondary ?? '').toLowerCase().includes(term) ||
+      (row.email ?? '').toLowerCase().includes(term)
   )
 }
 

@@ -49,15 +49,19 @@ const PortfolioAgentView: React.FC<Customer360HomeViewProps> = ({ portfolio, ope
       <Card variant="decorative">
         <CardHeader>
           <div className="gba:flex gba:items-center gba:gap-2">
-            <RobotIcon className="gba:size-5 gba:text-primary" />
+            <RobotIcon className="gba:size-5 gba:text-card-decorative-foreground" />
             <CardTitle>{t('portfolio-agent-title')}</CardTitle>
           </div>
           <CardDescription>{t('portfolio-agent-description')}</CardDescription>
         </CardHeader>
         <CardContent className="gba:flex gba:flex-col gba:gap-4">
-          <div className="gba:rounded-md gba:border gba:border-border gba:bg-muted gba:p-4">
-            <p className="gba:text-sm gba:font-medium gba:text-foreground">{t('portfolio-agent-context-title')}</p>
-            <p className="gba:mt-1 gba:text-sm gba:text-muted-foreground">{t('portfolio-agent-context-hint')}</p>
+          <div className="gba:rounded-md gba:border gba:border-card-decorative-foreground/20 gba:bg-card-decorative-foreground/10 gba:p-4">
+            <p className="gba:text-sm gba:font-medium gba:text-card-decorative-foreground">
+              {t('portfolio-agent-context-title')}
+            </p>
+            <p className="gba:mt-1 gba:text-sm gba:text-card-decorative-foreground/70">
+              {t('portfolio-agent-context-hint')}
+            </p>
           </div>
           <div className="gba:flex gba:flex-col gba:gap-2 gba:sm:flex-row">
             <Button variant="default" onClick={handleTriage} disabled={loading} data-testid={`${TEST_ID}-triage`}>

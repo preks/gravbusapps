@@ -123,6 +123,14 @@ home-tab-analytics = Analytics
 home-tab-agent = Agent
 home-provisional-note = Health scores are provisional — derived from CRM fields (owner, lifecycle) until the customer-service aggregation backend is connected. Tickets, satisfaction and finances will replace these heuristics.
 
+# Home — hero
+home-hero-eyebrow = Customer home
+home-hero-title = Welcome to Customer 360
+home-hero-subtitle = You're looking after { $total } customers — { $accounts } accounts and { $contacts } contacts, with { $attention } needing attention now.
+home-hero-explore = Explore customers
+home-hero-attention = What needs attention
+home-hero-agent = Ask the agent
+
 # Home — cockpit
 cockpit-total-customers = Customers
 cockpit-accounts = Accounts
@@ -134,6 +142,15 @@ cockpit-avg-csat = Avg CSAT
 cockpit-overdue = Overdue
 cockpit-attention-title = Needs attention now
 cockpit-view-worklist = View worklist
+cockpit-insights-renewals-title = Renewals & lifecycle
+cockpit-insights-renewals-description = Expiring contracts and prospects to nurture toward activation.
+cockpit-insights-renewals-action = View renewals
+cockpit-insights-composition-title = Portfolio composition
+cockpit-insights-composition-description = How your book splits across accounts and contacts.
+cockpit-insights-composition-action = Open analytics
+cockpit-insights-agent-title = Ask the portfolio agent
+cockpit-insights-agent-description = Hand your whole book of business to the AI for triage and next steps.
+cockpit-insights-agent-action = Open agent
 
 # Home — attention worklist
 worklist-intro = Customers ranked by composite risk — low satisfaction, open complaints, overdue invoices, expiring contracts, open tickets and ownership gaps.
@@ -152,6 +169,7 @@ attention-reason-prospective = Prospect
 
 # Home — explorer
 explorer-column-customer = Customer
+explorer-column-email = Email
 explorer-column-type = Type
 explorer-column-status = Status
 explorer-column-owner = Owner
@@ -176,8 +194,22 @@ inbound-step-draft = The agent drafts a reply
 inbound-agent-button = Draft a reply with the agent
 inbound-agent-prompt = Help me triage an inbound customer message: identify the customer, summarize their situation and draft a reply.
 inbound-stream-title = Inbound stream
-inbound-stream-empty-title = No inbound items yet
-inbound-stream-empty-description = Matched emails and tickets will appear here once the customer-service inbound endpoint is connected.
+inbound-stream-empty-title = No inbound emails yet
+inbound-stream-empty-description = When an email reaches the Customer 360 Analyst agent's mailbox, the run it starts appears here — matched to the right customer.
+inbound-agent-missing-title = Customer 360 Analyst not set up yet
+inbound-agent-missing-description = Activate the "Customer 360 Analyst" workforce agent and connect an inbound-email trigger so incoming mail starts showing up here.
+inbound-col-from = From
+inbound-col-subject = Subject
+inbound-col-customer = Customer
+inbound-col-status = Status
+inbound-col-received = Received
+inbound-customer-unmatched = Not matched yet
+inbound-open-run = Open run
+inbound-search-placeholder = Search sender or subject…
+inbound-refresh = Refresh
+inbound-prev = Previous
+inbound-next = Next
+inbound-pagination = Page { $page } of { $total }
 
 # Home — renewals & lifecycle
 renewals-expiring-title = Expiring contracts

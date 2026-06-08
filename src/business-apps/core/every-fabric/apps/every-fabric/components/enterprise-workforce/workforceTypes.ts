@@ -118,6 +118,29 @@ export interface WorkforceAgentCreateInput {
 
 export type WorkforceAgentUpdateInput = Partial<Omit<WorkforceAgentCreateInput, 'name'>>
 
+/**
+ * Agent tag that opts a workforce agent into the CRM Customer 360 Inbound tab.
+ *
+ * When present in `WorkforceAgent.tags`, the agent's inbound-email runs are
+ * surfaced in the Customer 360 inbound stream. It is toggled from the agent's
+ * settings in Enterprise Workforce (no backend change — tags are part of the
+ * existing agent update payload) and read by the Customer 360 app, so the two
+ * surfaces share one source of truth instead of a hardcoded agent name.
+ */
+export const CUSTOMER_360_INBOUND_TAG = 'customer-360-inbound'
+
+/** True when the agent is flagged to surface its inbound runs in Customer 360. */
+export function hasCustomer360InboundTag(agent: Pick<WorkforceAgent, 'tags'>): boolean {
+  return (agent.tags ?? []).includes(CUSTOMER_360_INBOUND_TAG)
+}
+
+/** Add or remove a tag from an agent's tag list (stable, de-duplicated). */
+export function toggleAgentTag(tags: string[] | undefined, tag: string, enabled: boolean): string[] {
+  const current = tags ?? []
+  if (enabled) return current.includes(tag) ? current : [...current, tag]
+  return current.filter(existing => existing !== tag)
+}
+
 export interface WorkforceTrigger {
   trigger_id: string
   agent_id: string
