@@ -8,11 +8,13 @@ import { UniverSheetGrid as UniverSheetGridBase } from '../UniverSheetGrid'
 import { parseChartRange } from '../../utils/chartRangeUtils'
 
 export const eventHandlers: Record<string, (payload: unknown) => void> = {}
+export let directCommandExecutedHandler: ((payload: unknown) => void) | undefined
 
 jest.mock(
   '@univerjs/core',
   () => ({
-    CommandType: { MUTATION: 2 }
+    CommandType: { MUTATION: 2 },
+    ICommandService: Symbol('ICommandService')
   }),
   { virtual: true }
 )
@@ -27,6 +29,9 @@ export let lastRangeSetValueMock: jest.Mock | undefined
 export let inactiveSheetSetValueMock: jest.Mock | undefined
 export let lastSetFreezeMock: jest.Mock | undefined
 export let lastCancelFreezeMock: jest.Mock | undefined
+export let lastRequestedRangeCoords:
+  | { sheetId: 'sheet-1' | 'sheet-2'; row: number | undefined; col: number | undefined }
+  | undefined
 export let univerMockActiveSheetId: 'sheet-1' | 'sheet-2' = 'sheet-1'
 
 /** Mutable test overrides; assign via this object (not namespace imports) from test files. */
@@ -143,6 +148,11 @@ jest.mock(
                 : null
           const resolvedRow = parsedRange?.startRow
           const resolvedCol = parsedRange?.startCol
+          lastRequestedRangeCoords = {
+            sheetId: 'sheet-1',
+            row: resolvedRow,
+            col: resolvedCol
+          }
           return {
             setValue: range.setValue,
             getValue: () =>
@@ -192,6 +202,11 @@ jest.mock(
                   }
                 : null
           inactiveSheetSetValueMock = jest.fn()
+          lastRequestedRangeCoords = {
+            sheetId: 'sheet-2',
+            row: parsedRange?.startRow,
+            col: parsedRange?.startCol
+          }
           return {
             setValue: inactiveSheetSetValueMock,
             getValue: jest.fn(),
@@ -248,7 +263,19 @@ jest.mock(
         }
       })
 
+      const commandService = {
+        onCommandExecuted: (cb: (payload: unknown) => void) => {
+          directCommandExecutedHandler = cb
+          return { dispose: jest.fn() }
+        }
+      }
+
       return {
+        univer: {
+          __getInjector: () => ({
+            get: () => commandService
+          })
+        },
         univerAPI: {
           syncExecuteCommand: executeCommandMock,
           createWorkbook: createWorkbookMock,
@@ -268,6 +295,7 @@ jest.mock(
 
 export function resetUniverSheetGridTestMocks(): void {
   Object.keys(eventHandlers).forEach(key => delete eventHandlers[key])
+  directCommandExecutedHandler = undefined
   lastPresetContainer = undefined
   lastSetNumfmtLocalMock = undefined
   lastRangeGetValueMock = undefined
@@ -276,6 +304,7 @@ export function resetUniverSheetGridTestMocks(): void {
   inactiveSheetSetValueMock = undefined
   lastSetFreezeMock = undefined
   lastCancelFreezeMock = undefined
+  lastRequestedRangeCoords = undefined
   univerMockActiveSheetId = 'sheet-1'
   gridTestMockState.worksheetValueByCoord = null
   gridTestMockState.worksheetCellDataByCoord = null

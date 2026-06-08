@@ -28,6 +28,7 @@ import {
   getWorksheetFromSnapshot
 } from './spreadsheetSnapshotWorkbookUtils'
 import { touchPendingSpreadsheetSnapshotCheckpointForSheet } from './spreadsheetSnapshotCheckpointEnqueue'
+import { summarizeSpreadsheetPendingLocalMutationProtection } from '../utils/spreadsheetPendingMaterializationCells'
 
 type ViewerRow = Record<string, unknown>
 
@@ -238,12 +239,22 @@ export async function persistSpreadsheetSnapshotCheckpointForSheet(
   const persistedBaselineRows = isTargetActiveSheet
     ? (ctx.getPersistedBaselineRowsForSheet(targetSheetId) ?? fallbackTargetRows)
     : fallbackTargetRows
-  const pendingProtectedCellCount = ctx.pendingLocalMutationCellsRef?.current.size ?? 0
+  const pendingLocalProtectionSummary = summarizeSpreadsheetPendingLocalMutationProtection(
+    ctx.pendingLocalMutationCellsRef,
+    targetSheetId
+  )
+  const pendingProtectedCellCount = pendingLocalProtectionSummary.targetSheetKeyCount
   const hasPendingCellPersistence = ctx.hasPendingCellPersistence()
   const sheetPersistenceBusy = ctx.isSheetPersistenceBusy?.(targetSheetId) ?? false
   if (isTargetActiveSheet && pendingProtectedCellCount > 0) {
     deferCheckpoint('pending_local_mutation_protection', {
-      pendingProtectedCellCount
+      pendingProtectedCellCount,
+      pendingProtectedCellGlobalCount: pendingLocalProtectionSummary.globalKeyCount,
+      pendingProtectedOwnerCount: pendingLocalProtectionSummary.targetSheetOwnerCount,
+      pendingProtectedOwnerGlobalCount: pendingLocalProtectionSummary.globalOwnerCount,
+      pendingProtectedKeysBySheet: pendingLocalProtectionSummary.keysBySheet,
+      pendingProtectedOwnerKinds: pendingLocalProtectionSummary.ownerKinds,
+      pendingProtectedOwnerClasses: pendingLocalProtectionSummary.ownerClasses
     })
     return
   }

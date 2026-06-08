@@ -195,12 +195,22 @@ export class UniverRemoteTransactionRunner {
     let appliedOperationCount = 0
     try {
       const deferredOps: SpreadsheetCommittedOperation[] = []
+      const shouldDeferValueOpsUntilRowInsert =
+        batch.operations.some(operation => operation.type === 'insert_row_slots') && batch.operations.length > 1
       let hasEncounteredPersistedCellOp = false
 
       for (const operation of batch.operations) {
         const isPersistedCellOp = UniverRemoteTransactionRunner.PERSISTED_CELL_OP_TYPES.has(operation.type)
         if (isPersistedCellOp) {
           hasEncounteredPersistedCellOp = true
+        }
+        if (
+          shouldDeferValueOpsUntilRowInsert &&
+          (isPersistedCellOp || RUNNER_POST_PERSISTED_VALUE_OPS.has(operation.type))
+        ) {
+          deferredOps.push(operation)
+          appliedOperationCount += 1
+          continue
         }
         if (hasEncounteredPersistedCellOp && RUNNER_POST_PERSISTED_VALUE_OPS.has(operation.type)) {
           deferredOps.push(operation)

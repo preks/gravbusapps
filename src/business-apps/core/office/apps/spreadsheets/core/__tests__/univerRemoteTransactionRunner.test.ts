@@ -137,6 +137,44 @@ describe('UniverRemoteTransactionRunner', () => {
     )
   })
 
+  it('defers persisted value operations when the batch also inserts row slots', () => {
+    const applyRemoteCellUpdatesBulk = jest.fn()
+    const runner = new UniverRemoteTransactionRunner({ applyRemoteCellUpdatesBulk })
+
+    const result = runner.run(
+      okPlan([
+        {
+          type: 'insert_row_slots',
+          operationId: 'insert-1',
+          data: {
+            sheetId: 'sheet-1',
+            startGridRowIndex: 1,
+            count: 1,
+            rows: [{ id: 'row-new', data: { _gridRowIndex: 1, ColumnA: '' } }]
+          }
+        },
+        {
+          type: 'set_range',
+          operationId: 'range-1',
+          data: {
+            sheetId: 'sheet-1',
+            cells: [{ row: 1, col: 0, rowId: 'row-new', value: 'typed' }]
+          }
+        }
+      ])
+    )
+
+    expect(result).toEqual(expect.objectContaining({ ok: true, appliedCellCount: 0, appliedOperationCount: 2 }))
+    expect(applyRemoteCellUpdatesBulk).not.toHaveBeenCalled()
+
+    const deferredResult = result.ok ? result.deferredApply?.() : null
+    expect(deferredResult).toEqual({ ok: true, appliedCellCount: 1, appliedOperationCount: 1 })
+    expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledWith(
+      [expect.objectContaining({ rowIndex: 1, colIndex: 0, rowId: 'row-new', value: 'typed' })],
+      expect.objectContaining({ operationType: 'set_range' })
+    )
+  })
+
   it('accepts row structural operations without applying grid sync in the runner', () => {
     const forceGridReapply = jest.fn()
     const runner = new UniverRemoteTransactionRunner({ applyRemoteCellUpdate: jest.fn(), forceGridReapply })

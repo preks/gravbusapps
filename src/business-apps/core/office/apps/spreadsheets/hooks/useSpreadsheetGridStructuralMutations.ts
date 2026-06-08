@@ -1,6 +1,7 @@
 import { useMemo, type MutableRefObject } from 'react'
 
 import { SpreadsheetApiRequestError } from '../services/SpreadsheetApiService'
+import type { SpreadsheetTraceEventInput } from '../services/spreadsheetDiagnostics'
 import { areCanonicalSheetIdsEqual, resolveReconciledSheetId } from '../utils/reconcileTemporarySheetId'
 import { createIdentityRowProjectionModel } from '../utils/spreadsheetRowProjection'
 import { promoteSpreadsheetRowIdentities } from '../utils/spreadsheetRowIdentityPromotion'
@@ -105,6 +106,7 @@ interface StructuralMutationParams {
     markAsSaved: () => void
   }
   sheetPersistErrorMessage: string
+  onDiagnosticsTraceEvent?: (event: SpreadsheetTraceEventInput) => void
   handleColumnsInsertInternal: (
     insertIndex: number,
     count: number,
@@ -181,6 +183,19 @@ export function useSpreadsheetGridStructuralMutations(params: StructuralMutation
     }
 
     const onColumnsInsert = (insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => {
+      const shouldIgnore = Boolean(params.spreadsheetGridRef.current?.shouldIgnoreStructuralRowCommand?.())
+      params.onDiagnosticsTraceEvent?.({
+        source: 'client',
+        stage: shouldIgnore
+          ? 'viewer_column_insert_structural_callback_skipped'
+          : 'viewer_column_insert_structural_callback_invoked',
+        severity: 'info',
+        sheetId: params.activeSheetIdRef.current,
+        payload: { insertIndex, count, direction }
+      })
+      if (shouldIgnore) {
+        return
+      }
       const nextColumns = params.handleColumnsInsertInternal(insertIndex, count, direction)
       if (nextColumns) {
         params.spreadsheetGridRef.current?.syncGridConversionContext?.(nextColumns)
@@ -188,6 +203,19 @@ export function useSpreadsheetGridStructuralMutations(params: StructuralMutation
     }
 
     const onColumnsDelete = (startIndex: number, endIndex: number) => {
+      const shouldIgnore = Boolean(params.spreadsheetGridRef.current?.shouldIgnoreStructuralRowCommand?.())
+      params.onDiagnosticsTraceEvent?.({
+        source: 'client',
+        stage: shouldIgnore
+          ? 'viewer_column_delete_structural_callback_skipped'
+          : 'viewer_column_delete_structural_callback_invoked',
+        severity: 'info',
+        sheetId: params.activeSheetIdRef.current,
+        payload: { startIndex, endIndex }
+      })
+      if (shouldIgnore) {
+        return
+      }
       const syncPayload = params.handleColumnsDeleteInternal(startIndex, endIndex)
       if (syncPayload) {
         params.spreadsheetGridRef.current?.syncGridConversionContext?.(syncPayload.columns, syncPayload.data)
@@ -195,6 +223,24 @@ export function useSpreadsheetGridStructuralMutations(params: StructuralMutation
     }
 
     const onColumnsMove = (sourceStartIndex: number, count: number, destinationIndex: number) => {
+      const shouldIgnore = Boolean(params.spreadsheetGridRef.current?.shouldIgnoreStructuralRowCommand?.())
+      params.onDiagnosticsTraceEvent?.({
+        source: 'client',
+        stage: shouldIgnore
+          ? 'viewer_column_move_structural_callback_skipped'
+          : 'viewer_column_move_structural_callback_invoked',
+        severity: 'info',
+        sheetId: params.activeSheetIdRef.current,
+        payload: {
+          sourceStartIndex,
+          count,
+          destinationIndex,
+          moveSignature: `${params.activeSheetIdRef.current}:${sourceStartIndex}:${count}:${destinationIndex}`
+        }
+      })
+      if (shouldIgnore) {
+        return
+      }
       const nextColumns = params.handleColumnsMoveInternal(sourceStartIndex, count, destinationIndex)
       if (nextColumns) {
         params.spreadsheetGridRef.current?.syncGridConversionContext?.(nextColumns)
@@ -343,6 +389,9 @@ export function useSpreadsheetGridStructuralMutations(params: StructuralMutation
 
     const onRowsDelete = (startIndex: number, count: number) => {
       if (count <= 0) {
+        return
+      }
+      if (params.spreadsheetGridRef.current?.shouldIgnoreStructuralRowCommand?.()) {
         return
       }
       const targetSheetId = resolveReconciledSheetId(

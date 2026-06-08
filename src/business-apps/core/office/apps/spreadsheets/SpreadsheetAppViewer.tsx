@@ -18,6 +18,7 @@ import {
 } from './services/SpreadsheetApiService'
 
 import { useSpreadsheetViewerState } from './hooks/useSpreadsheetViewerState'
+import { resolveSpreadsheetKnownSheetRouting } from './utils/spreadsheetKnownSheetRouting'
 import { sortSpreadsheetRowsBySheetSettings } from './utils/spreadsheetSheetRowSort'
 import { attachSnapshotCoversVersions, mergeSnapshotCoversVersions } from './utils/spreadsheetSnapshotCoverage'
 import {
@@ -1023,6 +1024,15 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   })
 
   const emitDimensionSyncRef = useRef<(payload: CellDimensionsPayload) => void>(() => {})
+  const columnStructureStateRef = useRef<{
+    healthy: boolean
+    pendingInsertedRange: { startIndex: number; endIndex: number; columnNames: string[] } | null
+    expectedColumnsSignature: string | null
+  }>({
+    healthy: true,
+    pendingInsertedRange: null,
+    expectedColumnsSignature: null
+  })
 
   const {
     pendingColumnWidthOverrides,
@@ -1036,6 +1046,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     bootstrapSnapshot,
     activeSheetId,
     activeSheetColumns: activeSheet.columns,
+    columnStructureStateRef,
     canEditWithLockRef,
     emitDimensionSyncRef,
     applyLocalAppUpdate,
@@ -2002,6 +2013,64 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   )
   const isRowMaterializationInFlightRef = useRef<(sheetId: string) => boolean>(() => false)
   const releaseRowMaterializationInFlightRef = useRef<(sheetId: string) => void>(() => undefined)
+  const applyCommittedCommentAnchorPatchesRef = useRef<(patches: Array<{ id: string }>) => void>(() => undefined)
+  const getCurrentWorkbookSnapshot = useCallback((): Record<string, unknown> | null => {
+    const sessionSnapshot = spreadsheetSession.getState().workbookSnapshot
+    if (sessionSnapshot && typeof sessionSnapshot === 'object') {
+      return sessionSnapshot as Record<string, unknown>
+    }
+    return (spreadsheetGridRef.current?.getWorkbookSnapshot?.() as Record<string, unknown> | null) ?? null
+  }, [spreadsheetSession])
+  const applyCommittedWorksheetMetadataPatch = useCallback(
+    (patch: { sheetId: string; keys: Record<string, unknown> }) => {
+      const currentSnapshot = getCurrentWorkbookSnapshot()
+      if (!currentSnapshot) return
+      const nextSnapshot = cloneSnapshot(currentSnapshot) as Record<string, unknown>
+      const sheets = nextSnapshot.sheets
+      if (!sheets || typeof sheets !== 'object' || Array.isArray(sheets)) return
+      const nextSheets = sheets as Record<string, unknown>
+      const currentSheet = nextSheets[patch.sheetId]
+      if (!currentSheet || typeof currentSheet !== 'object' || Array.isArray(currentSheet)) return
+      const nextSheet = { ...(currentSheet as Record<string, unknown>) }
+      const previousMergeRanges = Array.isArray((currentSheet as Record<string, unknown>).mergeData)
+        ? (cloneSnapshot((currentSheet as Record<string, unknown>).mergeData) as Array<{
+            startRow: number
+            endRow: number
+            startColumn: number
+            endColumn: number
+          }>)
+        : []
+      for (const [key, value] of Object.entries(patch.keys)) {
+        if (value === null) {
+          delete nextSheet[key]
+          continue
+        }
+        nextSheet[key] = cloneSnapshot(value)
+      }
+      nextSheets[patch.sheetId] = nextSheet
+      const nextMergeRanges = Array.isArray(nextSheet.mergeData)
+        ? (cloneSnapshot(nextSheet.mergeData) as Array<{
+            startRow: number
+            endRow: number
+            startColumn: number
+            endColumn: number
+          }>)
+        : []
+      if (Object.prototype.hasOwnProperty.call(patch.keys, 'mergeData')) {
+        spreadsheetGridRef.current?.applyCommittedWorksheetMergePatch?.(
+          patch.sheetId,
+          previousMergeRanges,
+          nextMergeRanges
+        )
+      }
+      spreadsheetSession.updateWorkbookSnapshot(nextSnapshot, workbookSnapshotVersionRef.current)
+    },
+    [getCurrentWorkbookSnapshot, spreadsheetSession, workbookSnapshotVersionRef]
+  )
+  const applyCommittedCommentAnchorPatches = useCallback(
+    (patches: Array<{ id: string }>) => applyCommittedCommentAnchorPatchesRef.current(patches),
+    []
+  )
 
   // Collaboration callbacks wired from the viewer into SpreadsheetCollaborationManager
   const collaborationCallbacks = useMemo(
@@ -2019,6 +2088,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         applyRemoteCellUpdateWithRetry,
         activeSheetIdRef,
         spreadsheetGridRef,
+        getWorkbookSnapshot: getCurrentWorkbookSnapshot,
+        applyCommittedWorksheetMetadataPatch,
+        applyCommittedCommentAnchorPatches,
         recentLocalRowHeightRef,
         recentLocalColWidthRef,
         baselineRowHeightsRef,
@@ -2068,6 +2140,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       handleRemoteColumnUpdate,
       markSheetNeedsGridMaterialization,
       onAppRefreshNeeded,
+      getCurrentWorkbookSnapshot,
       rememberSheetVersion,
       removeRemoteSheetFromLiveWorkbook,
       renameRemoteSheetInLiveWorkbook,
@@ -2079,6 +2152,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       setActiveSheetId,
       spreadsheetSession,
       syncSheetRowsIntoLocalState,
+      applyCommittedWorksheetMetadataPatch,
+      applyCommittedCommentAnchorPatches,
       scheduleRemoteStructuralResync,
       scheduleSheetVersionRefreshFromApi,
       sheetT,
@@ -2114,6 +2189,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     apiService: SpreadsheetApiService,
     autoRefreshInterval: collaboration.socket ? 0 : 30000
   })
+  applyCommittedCommentAnchorPatchesRef.current = comments.applyCommentAnchorPatches
 
   const getSelectedCellRef = useCallback(
     (): string | null =>
@@ -2434,11 +2510,17 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const columnsState = useSpreadsheetColumns({
     app,
     activeSheet,
+    effectiveActiveSheetColumns: effectiveGridColumns,
+    columnStructureStateRef,
     localSheetDataRef,
     canonicalActiveSheetRowsSourceRef,
     commitOptimisticActiveSheetRows,
     handleCellChangeRef,
     onAppUpdate: nextApp => applyLocalAppUpdate(() => nextApp),
+    onDiagnosticsTraceEvent: enqueueDiagnosticsTraceEvent,
+    onBlockedColumnReorder: () => {
+      toast.warning(sheetT('toast-column-reorder-merged-cells-unsupported'))
+    },
     emitColumnBatchOperation: op => {
       const submitBatch = mutationFacadeRef.current?.submitBatch
       if (!submitBatch) {
@@ -3523,7 +3605,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     setIsExporting,
     appName: app.name,
     activeSheetName: activeSheet.name,
-    getWorkbookSnapshot: () => spreadsheetGridRef.current?.getWorkbookSnapshot?.() ?? null,
+    getWorkbookSnapshot: getCurrentWorkbookSnapshot,
     exportSnapshotAsXlsx,
     createReviewComment: async content =>
       Boolean(
@@ -3619,8 +3701,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     queuePersistSpreadsheetSheetRenameAfterCellFlush: queuePersistSpreadsheetSheetRenameAfterCellFlush as any,
     persistSpreadsheetSheetDelete: persistSpreadsheetSheetDelete as any,
     buildDuplicateVisualWorksheetSnapshot,
-    getWorkbookSnapshot: () =>
-      (spreadsheetGridRef.current?.getWorkbookSnapshot?.() as Record<string, unknown> | null) ?? null
+    getWorkbookSnapshot: getCurrentWorkbookSnapshot
   })
 
   const handleUniverSheetVisibilityChanged = useCallback(
@@ -3702,7 +3783,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       if (!Array.isArray(batchData.operations) || batchData.operations.length === 0) {
         return
       }
-      const targetSheetId = resolveReconciledSheetId(batchData.sheetId, createdSheetIdAliasesRef.current)
+      const routingDecision = resolveSpreadsheetKnownSheetRouting({
+        producerSheetId: batchData.sheetId,
+        reactActiveSheetId: activeSheetIdRef.current,
+        sheets: app.sheets,
+        aliases: createdSheetIdAliasesRef.current
+      })
+      const targetSheetId = routingDecision.targetSheetId
 
       // Diagnostic: detect Univer / React active-sheet routing mismatch. The
       // batch's `sheetId` is the producer's view of which sheet the user
@@ -3711,23 +3798,54 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       // the write is about to land on the wrong sheet — log enough context
       // to root-cause without spamming the happy path.
       const reactActiveSheetId = activeSheetIdRef.current
-      const canonicalActive = resolveReconciledSheetId(reactActiveSheetId, createdSheetIdAliasesRef.current)
-      if (
-        reactActiveSheetId &&
-        canonicalActive !== targetSheetId &&
-        // Ignore the early-mount transient when activeSheetId is empty.
-        canonicalActive !== ''
-      ) {
+      if (routingDecision.hasRoutingMismatch) {
         console.warn('[SheetRoutingMismatch] batch target sheet differs from React active sheet', {
           rawProducerSheetId: batchData.sheetId,
           resolvedTargetSheetId: targetSheetId,
           reactActiveSheetId,
-          canonicalReactActiveSheetId: canonicalActive,
+          canonicalReactActiveSheetId: routingDecision.canonicalActiveSheetId,
           firstOperationType: batchData.operations[0]?.type,
           operationCount: batchData.operations.length,
           traceId: batchData.traceId ?? null,
-          knownSheetIds: app.sheets.map(sheet => sheet.id)
+          knownSheetIds: app.sheets.map(sheet => sheet.id),
+          routingOutcome: routingDecision.outcome
         })
+      }
+      if (!routingDecision.knownTargetSheet) {
+        console.warn('[SheetRoutingDrop] dropping mutation batch for unknown target sheet', {
+          rawProducerSheetId: batchData.sheetId,
+          resolvedTargetSheetId: targetSheetId,
+          reactActiveSheetId,
+          canonicalReactActiveSheetId: routingDecision.canonicalActiveSheetId,
+          firstOperationType: batchData.operations[0]?.type,
+          operationCount: batchData.operations.length,
+          traceId: batchData.traceId ?? null,
+          knownSheetIds: app.sheets.map(sheet => sheet.id),
+          routingOutcome: routingDecision.outcome
+        })
+        debugLog('unified mutation batch dropped for unknown sheet', {
+          traceId: batchData.traceId ?? null,
+          rawProducerSheetId: batchData.sheetId,
+          resolvedTargetSheetId: targetSheetId,
+          routingOutcome: routingDecision.outcome
+        })
+        enqueueDiagnosticsTraceEvent({
+          source: 'client',
+          stage: 'viewer_unified_mutation_drop_unknown_sheet',
+          traceId: batchData.traceId ?? null,
+          severity: 'warning',
+          payload: {
+            rawProducerSheetId: batchData.sheetId,
+            resolvedTargetSheetId: targetSheetId,
+            reactActiveSheetId,
+            canonicalReactActiveSheetId: routingDecision.canonicalActiveSheetId,
+            operationCount: batchData.operations.length,
+            firstOperationType: batchData.operations[0]?.type ?? null,
+            knownSheetIds: app.sheets.map(sheet => sheet.id),
+            routingOutcome: routingDecision.outcome
+          }
+        })
+        return
       }
 
       const operationTypes = batchData.operations.map(operation => operation.type)
@@ -4059,9 +4177,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       }
     },
     [
+      app.sheets,
+      activeSheetIdRef,
       sheetWorkQueue,
       createOperationId,
       chainOnOperationQueue,
+      createdSheetIdAliasesRef,
+      debugLog,
       enqueueDiagnosticsTraceEvent,
       getLatestAuthoritativeUniverRowsForSheet,
       getPersistSheetRowsSnapshotForGrid,
@@ -4144,6 +4266,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     sheetPersist,
     versioning,
     sheetPersistErrorMessage: sheetT('persist-rows-add-failed'),
+    onDiagnosticsTraceEvent: enqueueDiagnosticsTraceEvent,
     handleColumnsInsertInternal: columnsState.handleColumnsInsert as any,
     handleColumnsDeleteInternal: columnsState.handleColumnsDelete as any,
     handleColumnsMoveInternal: columnsState.handleColumnsMove as any,

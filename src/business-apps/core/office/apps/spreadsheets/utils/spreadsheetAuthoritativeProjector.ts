@@ -10,6 +10,7 @@ import { getCanonicalRowId } from './spreadsheetRowIdentity'
 import { getViewerRowVisualIndex } from './spreadsheetPeerRowHydration'
 
 const cellValuesEqual = (left: unknown, right: unknown): boolean => toEchoSignature(left) === toEchoSignature(right)
+const projectorOwnedPaintOptions = { useSenderA1Row: true } as const
 
 /**
  * Builds the explicit cell list the Univer grid should paint from authoritative viewer rows.
@@ -37,7 +38,8 @@ export function buildAuthoritativePaintCellsFromViewerRows(
       rowIndex,
       colIndex,
       value,
-      rowId: row ? getCanonicalRowId(row) : undefined
+      rowId: row ? getCanonicalRowId(row) : undefined,
+      options: projectorOwnedPaintOptions
     })
   }
 
@@ -84,14 +86,51 @@ export function diffViewerRowsToAuthoritativePaintCells(
   const visibleColumns = columns.filter(column => column.isVisible !== false)
   if (visibleColumns.length === 0) return []
 
+  const beforeById = new Map<string, { row: Record<string, unknown>; rowIndex: number }>()
+  beforeRows.forEach((row, index) => {
+    const rowId = getCanonicalRowId(row)
+    if (!rowId) return
+    beforeById.set(rowId, { row, rowIndex: getViewerRowVisualIndex(row, index) })
+  })
+  const afterById = new Map<string, { row: Record<string, unknown>; rowIndex: number }>()
+  afterRows.forEach((row, index) => {
+    const rowId = getCanonicalRowId(row)
+    if (!rowId) return
+    afterById.set(rowId, { row, rowIndex: getViewerRowVisualIndex(row, index) })
+  })
   const beforeByIndex = buildAuthoritativeRowsByGridIndex([...beforeRows])
   const afterByIndex = buildAuthoritativeRowsByGridIndex([...afterRows])
   const maxRow = Math.max(getAuthoritativeGridRowExtent([...beforeRows]), getAuthoritativeGridRowExtent([...afterRows]))
   const items: SpreadsheetBulkRemoteCellItem[] = []
+  const seenCommonRowIds = new Set<string>()
+
+  for (const [rowId, beforeEntry] of beforeById) {
+    const afterEntry = afterById.get(rowId)
+    if (!afterEntry) continue
+    seenCommonRowIds.add(rowId)
+    for (let colIndex = 0; colIndex < visibleColumns.length; colIndex += 1) {
+      const column = visibleColumns[colIndex]
+      const beforeValue = readSpreadsheetRowCellValue(beforeEntry.row, column) ?? ''
+      const afterValue = readSpreadsheetRowCellValue(afterEntry.row, column) ?? ''
+      if (cellValuesEqual(beforeValue, afterValue)) continue
+      items.push({
+        rowIndex: afterEntry.rowIndex,
+        colIndex,
+        value: afterValue,
+        rowId,
+        options: projectorOwnedPaintOptions
+      })
+    }
+  }
 
   for (let rowIndex = 0; rowIndex < maxRow; rowIndex += 1) {
     const beforeRow = beforeByIndex.get(rowIndex)
     const afterRow = afterByIndex.get(rowIndex)
+    const beforeRowId = beforeRow ? getCanonicalRowId(beforeRow) : ''
+    const afterRowId = afterRow ? getCanonicalRowId(afterRow) : ''
+    if ((beforeRowId && seenCommonRowIds.has(beforeRowId)) || (afterRowId && seenCommonRowIds.has(afterRowId))) {
+      continue
+    }
     for (let colIndex = 0; colIndex < visibleColumns.length; colIndex += 1) {
       const column = visibleColumns[colIndex]
       const beforeValue = beforeRow ? readSpreadsheetRowCellValue(beforeRow, column) : undefined
@@ -106,7 +145,8 @@ export function diffViewerRowsToAuthoritativePaintCells(
         rowIndex,
         colIndex,
         value: normalizedAfter,
-        rowId: afterRow ? getCanonicalRowId(afterRow) : beforeRow ? getCanonicalRowId(beforeRow) : undefined
+        rowId: afterRow ? getCanonicalRowId(afterRow) : beforeRow ? getCanonicalRowId(beforeRow) : undefined,
+        options: projectorOwnedPaintOptions
       })
     }
   }
@@ -143,7 +183,8 @@ export function collectAuthoritativePaintCellsForNewOrRemovedRows(
         rowIndex: gridRowIndex,
         colIndex,
         value: readSpreadsheetRowCellValue(row, column) ?? '',
-        rowId: id || undefined
+        rowId: id || undefined,
+        options: projectorOwnedPaintOptions
       })
     })
   })
@@ -156,7 +197,8 @@ export function collectAuthoritativePaintCellsForNewOrRemovedRows(
         rowIndex: gridRowIndex,
         colIndex,
         value: '',
-        rowId: id
+        rowId: id,
+        options: projectorOwnedPaintOptions
       })
     })
   })

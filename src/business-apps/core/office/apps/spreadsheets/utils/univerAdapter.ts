@@ -196,9 +196,6 @@ function extractObjectValue(obj: Record<string, unknown>): string {
 function toFormulaCell(obj: Record<string, unknown>): UniverCellData | null {
   const cell: UniverCellData = {}
   if (obj.f && typeof obj.f === 'string') cell.f = obj.f.startsWith('=') ? obj.f : `=${obj.f}`
-  const val = obj.v ?? obj.m
-  if (val !== undefined && val !== null) cell.v = val as UniverCellPrimitiveValue
-  else if (obj.m !== undefined) cell.v = obj.m as UniverCellPrimitiveValue
   const univerStyle = toUniverInlineStyle(obj)
   if (univerStyle) cell.s = univerStyle
   return Object.keys(cell).length > 0 ? cell : null

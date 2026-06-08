@@ -7,8 +7,13 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { columnIndexToLetter as spreadsheetColumnIndexToLetter } from '../core'
 import type { SpreadsheetApp, SpreadsheetSheet, SpreadsheetColumn } from '../types'
+import type { SpreadsheetTraceEventInput } from '../services/spreadsheetDiagnostics'
 import type { SpreadsheetBatchOperation, SpreadsheetBatchOperationType } from '../services/SpreadsheetApiService'
 import type { SpreadsheetCommitOptimisticActiveSheetRows } from './useSpreadsheetBulkRows'
+import {
+  classifyNativeColumnReorderWithMerges,
+  type NativeColumnReorderBlockReason
+} from '../utils/spreadsheetColumnReorderMoves'
 
 /**
  * Column-structure operation payload emitted through the v2 batch endpoint.
@@ -23,6 +28,12 @@ import type { SpreadsheetCommitOptimisticActiveSheetRows } from './useSpreadshee
 export interface UseSpreadsheetColumnsProps {
   app: SpreadsheetApp
   activeSheet: SpreadsheetSheet
+  effectiveActiveSheetColumns?: SpreadsheetColumn[]
+  columnStructureStateRef?: React.MutableRefObject<{
+    healthy: boolean
+    pendingInsertedRange: { startIndex: number; endIndex: number; columnNames: string[] } | null
+    expectedColumnsSignature: string | null
+  }>
   localSheetDataRef: React.MutableRefObject<Record<string, unknown>[]>
   /**
    * When set (SpreadsheetAppViewer), row reads prefer live SpreadsheetSession rows for the active sheet,
@@ -33,6 +44,8 @@ export interface UseSpreadsheetColumnsProps {
   commitOptimisticActiveSheetRows: SpreadsheetCommitOptimisticActiveSheetRows
   handleCellChangeRef: React.MutableRefObject<(rowId: string, columnName: string, value: unknown) => void>
   onAppUpdate?: (app: SpreadsheetApp) => void
+  onDiagnosticsTraceEvent?: (event: SpreadsheetTraceEventInput) => void
+  onBlockedColumnReorder?: (reason: NativeColumnReorderBlockReason) => void
   /**
    * Emit a column-structure batch operation to the v2 HTTP batch endpoint.
    * This is the single authoritative persistence+broadcast path for
@@ -153,11 +166,15 @@ const createColumnOperationId = (prefix: SpreadsheetBatchOperationType): string 
 export function useSpreadsheetColumns({
   app,
   activeSheet,
+  effectiveActiveSheetColumns,
+  columnStructureStateRef: externalColumnStructureStateRef,
   localSheetDataRef,
   canonicalActiveSheetRowsSourceRef,
   commitOptimisticActiveSheetRows,
   handleCellChangeRef,
   onAppUpdate,
+  onDiagnosticsTraceEvent,
+  onBlockedColumnReorder,
   emitColumnBatchOperation,
   emitColumnBatchOperations
 }: UseSpreadsheetColumnsProps): SpreadsheetColumnsState {
@@ -172,6 +189,10 @@ export function useSpreadsheetColumns({
   useEffect(() => {
     onAppUpdateRef.current = onAppUpdate
   }, [onAppUpdate])
+  const onDiagnosticsTraceEventRef = useRef(onDiagnosticsTraceEvent)
+  useEffect(() => {
+    onDiagnosticsTraceEventRef.current = onDiagnosticsTraceEvent
+  }, [onDiagnosticsTraceEvent])
   const emitColumnBatchOperationRef = useRef(emitColumnBatchOperation)
   useEffect(() => {
     emitColumnBatchOperationRef.current = emitColumnBatchOperation
@@ -192,9 +213,9 @@ export function useSpreadsheetColumns({
   // Track the latest columns including pending additions that haven't
   // propagated back through props yet (prevents stale-state race when
   // adding multiple columns quickly).
-  const latestColumnsRef = useRef<SpreadsheetColumn[]>(activeSheet.columns)
+  const latestColumnsRef = useRef<SpreadsheetColumn[]>(effectiveActiveSheetColumns ?? activeSheet.columns)
   const hasPendingColumnChanges = useRef(false)
-  const columnStructureStateRef = useRef<{
+  const internalColumnStructureStateRef = useRef<{
     healthy: boolean
     pendingInsertedRange: { startIndex: number; endIndex: number; columnNames: string[] } | null
     expectedColumnsSignature: string | null
@@ -203,8 +224,10 @@ export function useSpreadsheetColumns({
     pendingInsertedRange: null,
     expectedColumnsSignature: null
   })
+  const columnStructureStateRef = externalColumnStructureStateRef ?? internalColumnStructureStateRef
   useEffect(() => {
-    const normalized = sortColumnsByOrder(activeSheet.columns).map((col, idx) =>
+    const incomingColumns = effectiveActiveSheetColumns ?? activeSheet.columns
+    const normalized = sortColumnsByOrder(incomingColumns).map((col, idx) =>
       col.order === idx ? col : { ...col, order: idx }
     )
     const expectedSignature = columnStructureStateRef.current.expectedColumnsSignature
@@ -219,7 +242,22 @@ export function useSpreadsheetColumns({
     if (!hasPendingColumnChanges.current) {
       latestColumnsRef.current = normalized
     }
-  }, [activeSheet.columns])
+  }, [activeSheet.columns, effectiveActiveSheetColumns])
+
+  const resolvePreferredColumnWidth = useCallback((columns: SpreadsheetColumn[], order: number): number => {
+    const sortedColumns = sortColumnsByOrder(columns)
+    const candidateWidths = [
+      sortedColumns[order]?.width,
+      sortedColumns[order - 1]?.width,
+      sortedColumns[order + 1]?.width
+    ]
+    for (const candidate of candidateWidths) {
+      if (typeof candidate === 'number' && Number.isFinite(candidate) && candidate > 0) {
+        return Math.round(candidate)
+      }
+    }
+    return 150
+  }, [])
 
   /**
    * Apply column changes to the local in-memory app state optimistically so
@@ -264,8 +302,31 @@ export function useSpreadsheetColumns({
       if (!emit) {
         return
       }
+      const operationId = createColumnOperationId(type)
+      onDiagnosticsTraceEventRef.current?.({
+        source: 'client',
+        stage: 'viewer_column_batch_operation_dispatch',
+        severity: 'info',
+        sheetId: typeof data.sheetId === 'string' ? data.sheetId : activeSheetRef.current.id,
+        payload: {
+          type,
+          operationId,
+          moveSignature:
+            type === 'columns_reorder' &&
+            typeof data.sheetId === 'string' &&
+            typeof data.sourceStartIndex === 'number' &&
+            typeof data.count === 'number' &&
+            typeof data.destinationIndex === 'number'
+              ? `${data.sheetId}:${data.sourceStartIndex}:${data.count}:${data.destinationIndex}`
+              : null,
+          sourceStartIndex: typeof data.sourceStartIndex === 'number' ? data.sourceStartIndex : null,
+          count: typeof data.count === 'number' ? data.count : null,
+          destinationIndex: typeof data.destinationIndex === 'number' ? data.destinationIndex : null,
+          columnCount: Array.isArray(data.columns) ? data.columns.length : null
+        }
+      })
       emit({
-        operationId: createColumnOperationId(type),
+        operationId,
         type,
         data
       })
@@ -284,6 +345,41 @@ export function useSpreadsheetColumns({
     if (!emit) return
     operations.forEach(operation => emit(operation))
   }, [])
+
+  const rejectUnsupportedColumnReorder = useCallback(
+    (
+      previousColumns: SpreadsheetColumn[],
+      nextColumns: SpreadsheetColumn[],
+      options?: {
+        explicitMoves?: Array<{ sourceStartColumn: number; count: number; destinationStartColumn: number }>
+        diagnosticStage: string
+        diagnosticPayload?: Record<string, unknown>
+      }
+    ): boolean => {
+      const classification = classifyNativeColumnReorderWithMerges({
+        previousColumns,
+        nextColumns,
+        mergeRanges: activeSheetRef.current.settings.mergeData,
+        explicitMoves: options?.explicitMoves
+      })
+      if (classification.ok || classification.reason === 'unplannable_reorder') {
+        return false
+      }
+      onDiagnosticsTraceEventRef.current?.({
+        source: 'client',
+        stage: options?.diagnosticStage ?? 'viewer_column_reorder_blocked_by_merge',
+        severity: 'warning',
+        sheetId: activeSheetRef.current.id,
+        payload: {
+          reason: classification.reason,
+          ...(options?.diagnosticPayload ?? {})
+        }
+      })
+      onBlockedColumnReorder?.(classification.reason)
+      return true
+    },
+    [onBlockedColumnReorder]
+  )
 
   // Inline editing state
   const [editingColumnId, setEditingColumnIdState] = useState<string | null>(null)
@@ -319,7 +415,12 @@ export function useSpreadsheetColumns({
       columnName = `column_${columnNumber}`
     }
 
-    const newColumn = createColumn(columnName, `Column ${columnNumber}`, currentColumns.length)
+    const newColumn = createColumn(
+      columnName,
+      `Column ${columnNumber}`,
+      currentColumns.length,
+      resolvePreferredColumnWidth(currentColumns, currentColumns.length)
+    )
 
     const updatedColumns = [...currentColumns, newColumn]
     latestColumnsRef.current = updatedColumns
@@ -327,7 +428,7 @@ export function useSpreadsheetColumns({
 
     applyColumnsLocal(updatedColumns, 'handleAddColumn')
     dispatchColumnBatchOp('column_add', { sheetId: activeSheet.id, column: newColumn })
-  }, [activeSheet, applyColumnsLocal, dispatchColumnBatchOp])
+  }, [activeSheet, applyColumnsLocal, dispatchColumnBatchOp, resolvePreferredColumnWidth])
 
   // Auto column add handler
   const handleAutoColumnAdd = useCallback(
@@ -360,7 +461,12 @@ export function useSpreadsheetColumns({
         return
       }
 
-      const newColumn = createColumn(columnName, columnLabel, columnIndex, 100)
+      const newColumn = createColumn(
+        columnName,
+        columnLabel,
+        columnIndex,
+        resolvePreferredColumnWidth(currentColumns, columnIndex)
+      )
 
       // Fill gap columns between current count and target index
       const columnsToAdd: SpreadsheetColumn[] = []
@@ -368,7 +474,9 @@ export function useSpreadsheetColumns({
         const gapLetter = spreadsheetColumnIndexToLetter(i)
         const gapColName = `column_${gapLetter.toLowerCase()}`
         if (!currentColumns.find(c => c.name === gapColName)) {
-          columnsToAdd.push(createColumn(gapColName, `Column ${gapLetter}`, i, 100))
+          columnsToAdd.push(
+            createColumn(gapColName, `Column ${gapLetter}`, i, resolvePreferredColumnWidth(currentColumns, i))
+          )
         }
       }
       columnsToAdd.push(newColumn)
@@ -398,6 +506,7 @@ export function useSpreadsheetColumns({
       activeSheet,
       applyColumnsLocal,
       dispatchColumnBatchOp,
+      resolvePreferredColumnWidth,
       canonicalActiveSheetRowsSourceRef,
       localSheetDataRef,
       handleCellChangeRef
@@ -492,6 +601,14 @@ export function useSpreadsheetColumns({
       columns.splice(targetIndex, 0, draggedColumn)
 
       const reorderedColumns = columns.map((col, idx) => ({ ...col, order: idx }))
+      if (
+        rejectUnsupportedColumnReorder(latestColumnsRef.current, reorderedColumns, {
+          diagnosticStage: 'viewer_column_reorder_handler_blocked',
+          diagnosticPayload: { draggedColumnId, targetColumnId }
+        })
+      ) {
+        return
+      }
 
       applyColumnsLocal(reorderedColumns, 'handleReorderColumns')
       dispatchColumnBatchOp('columns_reorder', {
@@ -499,7 +616,7 @@ export function useSpreadsheetColumns({
         columns: reorderedColumns
       })
     },
-    [activeSheet, applyColumnsLocal, dispatchColumnBatchOp]
+    [activeSheet, applyColumnsLocal, dispatchColumnBatchOp, rejectUnsupportedColumnReorder]
   )
 
   const handleColumnsMove = useCallback(
@@ -524,6 +641,7 @@ export function useSpreadsheetColumns({
       )
       if (normalizedDestinationIndex == null) return undefined
       const safeDestinationIndex = Math.max(0, Math.min(normalizedDestinationIndex, remainingVisibleColumns.length))
+      const moveSignature = `${activeSheet.id}:${safeSourceStart}:${movedVisibleColumns.length}:${destinationIndex}`
 
       const remainingAllColumns = sortedColumns.filter(column => !movedColumnIds.has(column.id))
       const fullInsertAt =
@@ -539,19 +657,61 @@ export function useSpreadsheetColumns({
         ...movedVisibleColumns,
         ...remainingAllColumns.slice(fullInsertAt)
       ].map((column, index) => ({ ...column, order: index }))
+      const explicitMove = {
+        sourceStartColumn: safeSourceStart,
+        count: movedVisibleColumns.length,
+        destinationStartColumn: safeDestinationIndex
+      }
+      if (
+        rejectUnsupportedColumnReorder(currentColumns, reorderedColumns, {
+          explicitMoves: [explicitMove],
+          diagnosticStage: 'viewer_column_move_handler_blocked',
+          diagnosticPayload: {
+            sourceStartIndex: safeSourceStart,
+            count: movedVisibleColumns.length,
+            destinationIndex,
+            normalizedDestinationIndex: safeDestinationIndex,
+            moveSignature
+          }
+        })
+      ) {
+        return undefined
+      }
 
       latestColumnsRef.current = reorderedColumns
       hasPendingColumnChanges.current = true
 
+      onDiagnosticsTraceEventRef.current?.({
+        source: 'client',
+        stage: 'viewer_column_move_handler_executed',
+        severity: 'info',
+        sheetId: activeSheet.id,
+        payload: {
+          sourceStartIndex: safeSourceStart,
+          count: movedVisibleColumns.length,
+          destinationIndex,
+          normalizedDestinationIndex,
+          safeDestinationIndex,
+          moveSignature,
+          movedColumnIds: movedVisibleColumns.map(column => column.id),
+          visibleColumnCountBefore: visibleSortedColumns.length,
+          totalColumnCountBefore: sortedColumns.length
+        }
+      })
+
       applyColumnsLocal(reorderedColumns, 'handleColumnsMove')
       dispatchColumnBatchOp('columns_reorder', {
         sheetId: activeSheet.id,
-        columns: reorderedColumns
+        columns: reorderedColumns,
+        sourceStartIndex: safeSourceStart,
+        count: movedVisibleColumns.length,
+        destinationIndex,
+        normalizedDestinationIndex: safeDestinationIndex
       })
 
       return reorderedColumns
     },
-    [activeSheet, applyColumnsLocal, dispatchColumnBatchOp]
+    [activeSheet, applyColumnsLocal, dispatchColumnBatchOp, rejectUnsupportedColumnReorder]
   )
 
   // Insert columns handler (from FortuneSheet context menu: insert column left/right)
@@ -592,7 +752,14 @@ export function useSpreadsheetColumns({
           num++
           colName = `column_${num}`
         }
-        newColumns.push(createColumn(colName, `Column ${num}`, fullInsertAt + i))
+        newColumns.push(
+          createColumn(
+            colName,
+            `Column ${num}`,
+            fullInsertAt + i,
+            resolvePreferredColumnWidth(currentColumns, fullInsertAt + i)
+          )
+        )
       }
 
       // Splice new columns into the sorted array at the mapped position
@@ -633,7 +800,7 @@ export function useSpreadsheetColumns({
       )
       return allColumns
     },
-    [activeSheet, applyColumnsLocal, dispatchColumnBatchOps]
+    [activeSheet, applyColumnsLocal, dispatchColumnBatchOps, resolvePreferredColumnWidth]
   )
 
   // Delete columns handler (from FortuneSheet context menu: delete column)

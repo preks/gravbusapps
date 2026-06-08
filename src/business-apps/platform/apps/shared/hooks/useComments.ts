@@ -10,6 +10,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import type { Socket } from 'socket.io-client'
 import type { Comment, CommentQueryOptions, CreateCommentInput } from '../types/versioning'
+import type { SpreadsheetCommittedCommentAnchorPatch } from '@/business-apps/core/office/apps/spreadsheets/core/spreadsheetCommittedDeltaContract'
 
 export interface UseCommentsOptions {
   entityId: string
@@ -52,6 +53,7 @@ export interface UseCommentsActions {
   unresolveComment: (commentId: string) => Promise<boolean>
   deleteComment: (commentId: string) => Promise<boolean>
   replyToComment: (commentId: string, reply: string, userName?: string, userAvatar?: string) => Promise<Comment | null>
+  applyCommentAnchorPatches: (patches: SpreadsheetCommittedCommentAnchorPatch[]) => void
   clearError: () => void
 }
 
@@ -375,6 +377,28 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
     setState(prev => ({ ...prev, error: null }))
   }, [])
 
+  const applyCommentAnchorPatches = useCallback((patches: SpreadsheetCommittedCommentAnchorPatch[]) => {
+    if (!Array.isArray(patches) || patches.length === 0) return
+    const patchById = new Map(
+      patches
+        .filter(patch => typeof patch.id === 'string' && patch.id.trim().length > 0)
+        .map(patch => [patch.id, patch] as const)
+    )
+    if (patchById.size === 0) return
+    setState(prev => ({
+      ...prev,
+      comments: prev.comments.map(comment => {
+        const patch = patchById.get(comment.id)
+        if (!patch) return comment
+        return {
+          ...comment,
+          ...(patch.sheetId ? { sheetId: patch.sheetId } : {}),
+          ...(patch.cellReference !== undefined ? { cellReference: patch.cellReference ?? undefined } : {})
+        }
+      })
+    }))
+  }, [])
+
   const refreshComments = useCallback(() => {
     reloadComments().catch(() => undefined)
   }, [reloadComments])
@@ -427,6 +451,7 @@ export function useComments(options: UseCommentsOptions): UseCommentsReturn {
     unresolveComment,
     deleteComment,
     replyToComment,
+    applyCommentAnchorPatches,
     clearError
   }
 }

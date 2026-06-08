@@ -19,6 +19,11 @@ export interface UseSpreadsheetDimensionPersistenceParams {
   bootstrapSnapshot: unknown | null
   activeSheetId: string
   activeSheetColumns: SpreadsheetColumn[]
+  columnStructureStateRef?: MutableRefObject<{
+    healthy: boolean
+    pendingInsertedRange: { startIndex: number; endIndex: number; columnNames: string[] } | null
+    expectedColumnsSignature: string | null
+  }>
   canEditWithLockRef: MutableRefObject<boolean>
   emitDimensionSyncRef: MutableRefObject<(payload: CellDimensionsPayload) => void>
   applyLocalAppUpdate: (updater: (currentApp: SpreadsheetApp) => SpreadsheetApp) => void
@@ -155,6 +160,14 @@ export function useSpreadsheetDimensionPersistence(
         debugLog('dimension payload skipped: inactive sheet', {
           payloadSheetId: payload.sheetId,
           activeSheetId: p.activeSheetId
+        })
+        return
+      }
+      if (p.columnStructureStateRef?.current && !p.columnStructureStateRef.current.healthy) {
+        debugLog('dimension payload skipped: structural column state pending', {
+          payloadSheetId: payload.sheetId,
+          activeSheetId: p.activeSheetId,
+          pendingInsertedRange: p.columnStructureStateRef.current.pendingInsertedRange
         })
         return
       }

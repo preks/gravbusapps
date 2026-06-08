@@ -1,7 +1,12 @@
 import { createUniver } from '@univerjs/presets'
+import { armColumnMoveFormulaFollowUpSuppression } from '../utils/spreadsheetCutPasteMove'
 import { UNIVER_NATIVE_SHEET_STRUCTURE_COMMANDS } from '../utils/nativeSheetStructureIntent'
 import { proposeDuplicateSheetDisplayName } from '../utils/workbookStructureFormatting'
-import { isFormattingOverwritingPasteCommand } from './univerGridWorkbookMutationModule'
+import {
+  getColumnMoveMutation,
+  isFormattingOverwritingPasteCommand,
+  isNativeColumnMoveCommand
+} from './univerGridWorkbookMutationModule'
 import {
   markSpreadsheetAutofillIntent,
   resolveAutofillApplyTypeFromCommandParams,
@@ -25,6 +30,8 @@ export type RegisterUniverMountBeforeCommandSheetStructureDeps = Pick<
   | 'readOnlyRef'
   | 'recentSheetMutationIdsRef'
   | 'pendingAutofillIntentRef'
+  | 'columnMoveFormulaFollowUpSuppressUntilMsRef'
+  | 'recentMoveColumnFormulaFollowUpRef'
 > & {
   univerAPI: ReturnType<typeof createUniver>['univerAPI']
   insertSheetSourceIds: Map<string, string>
@@ -52,6 +59,8 @@ export function registerUniverMountBeforeCommandSheetStructure(
     readOnlyRef,
     recentSheetMutationIdsRef,
     pendingAutofillIntentRef,
+    columnMoveFormulaFollowUpSuppressUntilMsRef,
+    recentMoveColumnFormulaFollowUpRef,
     insertSheetSourceIds,
     latestNativeSheetCopySourceIdRef,
     markFormattingPasteIntent,
@@ -92,6 +101,52 @@ export function registerUniverMountBeforeCommandSheetStructure(
   ).addEvent?.(beforeCommandEventKey, event => {
     const commandId = String(event?.id ?? '').toLowerCase()
     rewriteWorksheetIdReferencesInParams(rewrittenWorksheetIdsRef, event?.params)
+
+    if (!readOnlyRef.current && isNativeColumnMoveCommand(commandId)) {
+      const move = getColumnMoveMutation((event?.params ?? {}) as Parameters<typeof getColumnMoveMutation>[0])
+      const targetSheetId =
+        ((event?.params as { subUnitId?: string; sheetId?: string } | undefined)?.subUnitId ??
+          (event?.params as { subUnitId?: string; sheetId?: string } | undefined)?.sheetId ??
+          getActiveWorksheetIdFromUniver() ??
+          propsRef.current.sheet.id) ||
+        propsRef.current.sheet.id
+
+      callbacksRef.current.onDiagnosticsTraceEvent?.({
+        source: 'client',
+        stage: 'grid_column_move_before_command',
+        severity: move ? 'info' : 'warning',
+        sheetId: propsRef.current.sheet.id,
+        payload: {
+          commandId,
+          hasMove: Boolean(move),
+          emitsIntent: false,
+          targetSheetId,
+          ...(move
+            ? {
+                sourceStartColumn: move.sourceStartColumn,
+                sourceEndColumn: move.sourceEndColumn,
+                destinationStartColumn: move.destinationStartColumn
+              }
+            : {})
+        }
+      })
+
+      if (move) {
+        armColumnMoveFormulaFollowUpSuppression({
+          suppressionRef: columnMoveFormulaFollowUpSuppressUntilMsRef,
+          recentMoveRef: recentMoveColumnFormulaFollowUpRef,
+          sheetId: targetSheetId,
+          moves: [
+            {
+              sourceStartIndex: move.sourceStartColumn,
+              count: move.sourceEndColumn - move.sourceStartColumn + 1,
+              destinationStartIndex: move.destinationStartColumn
+            }
+          ]
+        })
+      }
+    }
+
     if (commandId === UNIVER_AUTOFILL_COMMAND_ID || commandId === UNIVER_REFILL_COMMAND_ID) {
       const params = event?.params as { subUnitId?: string; sheetId?: string } | undefined
       const autofillSheetId =

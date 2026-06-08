@@ -13,11 +13,25 @@ import {
   markDeferredDirtyCellsFromMutation,
   markDeferredDirtyCellsFromRanges,
   resolveEmitSerializationKey,
+  shouldSkipDeferredDirtyCellQueueDuringRemoteApplyGuard,
+  shouldSuppressGuardedColumnStructuralFormulaFollowUp,
+  shouldSuppressGuardedMoveCellFormulaFollowUp,
+  shouldTreatGuardedMutationAsLocalUserEdit,
+  shouldSuppressGuardedRowMoveFormulaFollowUp,
   shouldDropRemoteEchoDuringApplyGuard,
   shouldScheduleDeferredLocalCellFlush,
   type DeferredDirtyCell
 } from '../univerMountSheetValueAndEditListeners'
+import {
+  isRowDeleteDerivedFormulaFollowUpCollab,
+  isRowInsertDerivedFormulaFollowUpCollab,
+  isRowMoveDerivedFormulaFollowUpCollab,
+  shouldDropStandaloneDeleteRowFormulaFollowUpBatch,
+  shouldDropStandaloneInsertRowFormulaFollowUpBatch,
+  shouldDropStandaloneMoveRowFormulaFollowUpBatch
+} from '../../utils/spreadsheetCutPasteMove'
 import { remoteEchoKey, toEchoSignature } from '../univerGridAuthoritativeHelpers'
+import { MERGE_WORKSHEET_MUTATION_ID, UNMERGE_WORKSHEET_MUTATION_ID } from '../univerGridMergeCommandIds'
 import { normalizeBlankLikeEchoSignature } from '../univerGridWorkbookMutationModule'
 
 describe('resolveEmitSerializationKey', () => {
@@ -71,6 +85,232 @@ describe('remote apply guard defer helpers', () => {
     isApplyingRemoteUpdateRef.current = false
     collabPersistedBulkApplyDepthRef.current = 1
     expect(isRemoteApplyGuardActive(isApplyingRemoteUpdateRef, collabPersistedBulkApplyDepthRef)).toBe(true)
+  })
+
+  it('treats only non-bulk guarded mutations as deferred local-user edits', () => {
+    expect(
+      shouldTreatGuardedMutationAsLocalUserEdit({
+        isApplyingRemoteUpdate: false,
+        currentBulkApplyOperationType: null
+      })
+    ).toBe(true)
+    expect(
+      shouldTreatGuardedMutationAsLocalUserEdit({
+        isApplyingRemoteUpdate: true,
+        currentBulkApplyOperationType: null
+      })
+    ).toBe(false)
+    expect(
+      shouldTreatGuardedMutationAsLocalUserEdit({
+        isApplyingRemoteUpdate: false,
+        currentBulkApplyOperationType: 'authoritative_reapply'
+      })
+    ).toBe(false)
+  })
+
+  it('suppresses guarded row-move formula follow-ups only while a remote row move is applying', () => {
+    expect(
+      shouldSuppressGuardedRowMoveFormulaFollowUp({
+        currentBulkApplyOperationType: 'move_row_slots',
+        suppressUntilMs: Date.now() + 500,
+        commandId: 'sheet.mutation.set-range-values',
+        payloadCellValue: {
+          12: { 6: { f: '=SUM(G1:G5)' } }
+        },
+        ranges: [{ startRow: 12, endRow: 12, startColumn: 6, endColumn: 6 }],
+        worksheetId: 'sheet-1',
+        recentMove: {
+          sheetId: 'sheet-1',
+          followUpRanges: [
+            {
+              startRow: 12,
+              endRow: Number.MAX_SAFE_INTEGER,
+              startColumn: 0,
+              endColumn: Number.MAX_SAFE_INTEGER
+            }
+          ]
+        }
+      })
+    ).toBe(true)
+
+    expect(
+      shouldSuppressGuardedRowMoveFormulaFollowUp({
+        currentBulkApplyOperationType: 'authoritative_reapply',
+        suppressUntilMs: Date.now() + 500,
+        commandId: 'sheet.mutation.set-range-values',
+        payloadCellValue: {
+          12: { 6: { f: '=SUM(G1:G5)' } }
+        },
+        ranges: [{ startRow: 12, endRow: 12, startColumn: 6, endColumn: 6 }],
+        worksheetId: 'sheet-1',
+        recentMove: {
+          sheetId: 'sheet-1',
+          followUpRanges: [
+            {
+              startRow: 12,
+              endRow: Number.MAX_SAFE_INTEGER,
+              startColumn: 0,
+              endColumn: Number.MAX_SAFE_INTEGER
+            }
+          ]
+        }
+      })
+    ).toBe(false)
+  })
+
+  it('suppresses guarded move-cell formula follow-ups only while a remote move_cell_range is applying', () => {
+    expect(
+      shouldSuppressGuardedMoveCellFormulaFollowUp({
+        currentBulkApplyOperationType: 'move_cell_range',
+        suppressUntilMs: Date.now() + 500,
+        commandId: 'sheet.mutation.set-range-values',
+        payloadCellValue: {
+          13: { 8: { f: '=SUM(H1:H5)' } },
+          14: { 8: { f: '=SUM(H2:H6)' } }
+        },
+        ranges: [{ startRow: 13, endRow: 14, startColumn: 8, endColumn: 8 }],
+        worksheetId: 'sheet-1',
+        recentMove: {
+          sheetId: 'sheet-1',
+          fromRange: { startRow: 13, endRow: 13, startColumn: 6, endColumn: 6 },
+          toRange: { startRow: 16, endRow: 16, startColumn: 6, endColumn: 6 }
+        }
+      })
+    ).toBe(true)
+
+    expect(
+      shouldSuppressGuardedMoveCellFormulaFollowUp({
+        currentBulkApplyOperationType: 'move_cell_range',
+        suppressUntilMs: Date.now() + 500,
+        commandId: 'sheet.mutation.set-range-values',
+        payloadCellValue: {
+          13: { 8: { f: '=SUM(H1:H5)' } }
+        },
+        ranges: [{ startRow: 13, endRow: 13, startColumn: 8, endColumn: 8 }],
+        worksheetId: 'sheet-1',
+        recentMove: {
+          sheetId: 'sheet-1',
+          fromRange: { startRow: 13, endRow: 13, startColumn: 6, endColumn: 6 },
+          toRange: { startRow: 16, endRow: 16, startColumn: 6, endColumn: 6 }
+        }
+      })
+    ).toBe(false)
+
+    expect(
+      shouldSuppressGuardedMoveCellFormulaFollowUp({
+        currentBulkApplyOperationType: 'column_add',
+        suppressUntilMs: Date.now() + 500,
+        commandId: 'sheet.mutation.set-range-values',
+        payloadCellValue: {
+          13: { 8: { f: '=SUM(H1:H5)' } }
+        },
+        ranges: [{ startRow: 13, endRow: 13, startColumn: 8, endColumn: 8 }],
+        worksheetId: 'sheet-1',
+        recentMove: {
+          sheetId: 'sheet-1',
+          fromRange: { startRow: 13, endRow: 13, startColumn: 6, endColumn: 6 },
+          toRange: { startRow: 16, endRow: 16, startColumn: 6, endColumn: 6 }
+        }
+      })
+    ).toBe(false)
+  })
+
+  it('suppresses guarded column structural formula follow-ups only for the matching remote column operation', () => {
+    expect(
+      shouldSuppressGuardedColumnStructuralFormulaFollowUp({
+        currentBulkApplyOperationType: 'column_add',
+        commandId: 'sheet.mutation.set-range-values',
+        payloadCellValue: {
+          0: { 2: { f: '=SUM(C1:C5)' } },
+          1: { 2: { f: '=SUM(C2:C6)' } }
+        },
+        ranges: [{ startRow: 0, endRow: 1, startColumn: 2, endColumn: 2 }],
+        worksheetId: 'sheet-1',
+        columnInsertSuppressUntilMs: Date.now() + 500,
+        recentInsert: {
+          sheetId: 'sheet-1',
+          followUpRanges: [
+            {
+              startRow: 0,
+              endRow: Number.MAX_SAFE_INTEGER,
+              startColumn: 2,
+              endColumn: 3
+            }
+          ]
+        },
+        columnDeleteSuppressUntilMs: 0,
+        recentDelete: null,
+        columnMoveSuppressUntilMs: 0,
+        recentMove: null
+      })
+    ).toBe(true)
+
+    expect(
+      shouldSuppressGuardedColumnStructuralFormulaFollowUp({
+        currentBulkApplyOperationType: 'column_add',
+        commandId: 'sheet.mutation.set-range-values',
+        payloadCellValue: {
+          0: { 2: { f: '=SUM(C1:C5)' } }
+        },
+        ranges: [{ startRow: 0, endRow: 0, startColumn: 2, endColumn: 2 }],
+        worksheetId: 'sheet-1',
+        columnInsertSuppressUntilMs: Date.now() + 500,
+        recentInsert: {
+          sheetId: 'sheet-1',
+          followUpRanges: [
+            {
+              startRow: 0,
+              endRow: Number.MAX_SAFE_INTEGER,
+              startColumn: 2,
+              endColumn: 3
+            }
+          ]
+        },
+        columnDeleteSuppressUntilMs: 0,
+        recentDelete: null,
+        columnMoveSuppressUntilMs: 0,
+        recentMove: null
+      })
+    ).toBe(false)
+
+    expect(
+      shouldSuppressGuardedColumnStructuralFormulaFollowUp({
+        currentBulkApplyOperationType: 'columns_reorder',
+        commandId: 'sheet.mutation.set-range-values',
+        payloadCellValue: {
+          0: { 2: { f: '=SUM(C1:C5)' } },
+          1: { 2: { f: '=SUM(C2:C6)' } }
+        },
+        ranges: [{ startRow: 0, endRow: 1, startColumn: 2, endColumn: 2 }],
+        worksheetId: 'sheet-1',
+        columnInsertSuppressUntilMs: Date.now() + 500,
+        recentInsert: {
+          sheetId: 'sheet-1',
+          followUpRanges: [
+            {
+              startRow: 0,
+              endRow: Number.MAX_SAFE_INTEGER,
+              startColumn: 2,
+              endColumn: 3
+            }
+          ]
+        },
+        columnDeleteSuppressUntilMs: 0,
+        recentDelete: null,
+        columnMoveSuppressUntilMs: Date.now() + 500,
+        recentMove: {
+          sheetId: 'sheet-1',
+          followUpRanges: [
+            {
+              startRow: 0,
+              endRow: Number.MAX_SAFE_INTEGER,
+              startColumn: 2,
+              endColumn: Number.MAX_SAFE_INTEGER
+            }
+          ]
+        }
+      })
+    ).toBe(true)
   })
 
   it('marks deferred dirty cells from mutation ranges', () => {
@@ -240,5 +480,233 @@ describe('remote apply guard defer helpers', () => {
     expect(shouldDropRemoteEchoDuringApplyGuard({ 1: { 2: { v: 'local edit' } } }, remoteEchoSuppressionRef)).toBe(
       false
     )
+  })
+
+  it('skips deferred dirty-cell queueing for guarded merge mutations', () => {
+    expect(shouldSkipDeferredDirtyCellQueueDuringRemoteApplyGuard(MERGE_WORKSHEET_MUTATION_ID)).toBe(true)
+    expect(shouldSkipDeferredDirtyCellQueueDuringRemoteApplyGuard(UNMERGE_WORKSHEET_MUTATION_ID)).toBe(true)
+    expect(shouldSkipDeferredDirtyCellQueueDuringRemoteApplyGuard('sheet.mutation.set-range-values')).toBe(false)
+  })
+
+  it('treats formula-only row-insert follow-up payloads inside the insert window as suppressible', () => {
+    expect(
+      isRowInsertDerivedFormulaFollowUpCollab({
+        suppressUntilMs: Date.now() + 500,
+        commandId: 'sheet.mutation.set-range-values',
+        payloadCellValue: {
+          2: { 6: { f: null, si: null } },
+          3: { 6: { f: '=SUM(A1:A23)' } }
+        },
+        ranges: [{ startRow: 2, endRow: 3, startColumn: 6, endColumn: 6 }],
+        worksheetId: 'sheet-1',
+        recentInsert: {
+          sheetId: 'sheet-1',
+          followUpRanges: [
+            {
+              startRow: 2,
+              endRow: 3,
+              startColumn: 0,
+              endColumn: Number.MAX_SAFE_INTEGER
+            }
+          ]
+        }
+      })
+    ).toBe(true)
+  })
+
+  it('does not suppress a plain user value edit during the row-insert follow-up window', () => {
+    expect(
+      isRowInsertDerivedFormulaFollowUpCollab({
+        suppressUntilMs: Date.now() + 500,
+        commandId: 'sheet.mutation.set-range-values',
+        payloadCellValue: {
+          2: { 6: { v: 'typed right after insert' } }
+        },
+        ranges: [{ startRow: 2, endRow: 2, startColumn: 6, endColumn: 6 }],
+        worksheetId: 'sheet-1',
+        recentInsert: {
+          sheetId: 'sheet-1',
+          followUpRanges: [
+            {
+              startRow: 2,
+              endRow: 3,
+              startColumn: 0,
+              endColumn: Number.MAX_SAFE_INTEGER
+            }
+          ]
+        }
+      })
+    ).toBe(false)
+
+    expect(
+      shouldSuppressGuardedColumnStructuralFormulaFollowUp({
+        currentBulkApplyOperationType: 'column_delete',
+        commandId: 'sheet.mutation.set-range-values',
+        payloadCellValue: {
+          17: { 9: { f: '=SUM(J8:J9)' } }
+        },
+        ranges: [{ startRow: 17, endRow: 17, startColumn: 9, endColumn: 9 }],
+        worksheetId: 'sheet-1',
+        columnInsertSuppressUntilMs: 0,
+        recentInsert: null,
+        columnDeleteSuppressUntilMs: Date.now() + 500,
+        recentDelete: {
+          sheetId: 'sheet-1',
+          followUpRanges: [
+            {
+              startRow: 0,
+              endRow: Number.MAX_SAFE_INTEGER,
+              startColumn: 9,
+              endColumn: Number.MAX_SAFE_INTEGER
+            }
+          ]
+        },
+        columnMoveSuppressUntilMs: 0,
+        recentMove: null
+      })
+    ).toBe(true)
+  })
+
+  it('drops standalone formula-only set_range batches covered by the recent row-insert window', () => {
+    expect(
+      shouldDropStandaloneInsertRowFormulaFollowUpBatch({
+        suppressUntilMs: Date.now() + 500,
+        targetSheetId: 'sheet-1',
+        recentInsert: {
+          sheetId: 'sheet-1',
+          followUpRanges: [
+            {
+              startRow: 2,
+              endRow: 3,
+              startColumn: 0,
+              endColumn: Number.MAX_SAFE_INTEGER
+            }
+          ]
+        },
+        operations: [
+          {
+            type: 'set_range',
+            data: {
+              cells: [
+                {
+                  rowId: 'backend-row-1',
+                  columnName: 'column_g',
+                  value: { f: '=SUM(A1:A23)' },
+                  row: 3,
+                  col: 6,
+                  cellRef: 'G4'
+                }
+              ]
+            }
+          }
+        ]
+      })
+    ).toBe(true)
+  })
+
+  it('treats formula-only row-delete follow-up payloads inside the delete window as suppressible', () => {
+    expect(
+      isRowDeleteDerivedFormulaFollowUpCollab({
+        suppressUntilMs: Date.now() + 500,
+        commandId: 'sheet.mutation.set-range-values',
+        payloadCellValue: {
+          4: { 0: { f: '=SUM(A1:A4)' } }
+        },
+        ranges: [{ startRow: 4, endRow: 4, startColumn: 0, endColumn: 0 }],
+        worksheetId: 'sheet-1',
+        recentDelete: {
+          sheetId: 'sheet-1',
+          followUpRanges: [
+            {
+              startRow: 4,
+              endRow: Number.MAX_SAFE_INTEGER,
+              startColumn: 0,
+              endColumn: Number.MAX_SAFE_INTEGER
+            }
+          ]
+        }
+      })
+    ).toBe(true)
+  })
+
+  it('treats formula-only row-move follow-up payloads inside the move window as suppressible', () => {
+    expect(
+      isRowMoveDerivedFormulaFollowUpCollab({
+        suppressUntilMs: Date.now() + 500,
+        commandId: 'sheet.mutation.set-range-values',
+        payloadCellValue: {
+          6: { 0: { f: '=SUM(A1:A4)' } }
+        },
+        ranges: [{ startRow: 6, endRow: 6, startColumn: 0, endColumn: 0 }],
+        worksheetId: 'sheet-1',
+        recentMove: {
+          sheetId: 'sheet-1',
+          followUpRanges: [
+            {
+              startRow: 2,
+              endRow: Number.MAX_SAFE_INTEGER,
+              startColumn: 0,
+              endColumn: Number.MAX_SAFE_INTEGER
+            }
+          ]
+        }
+      })
+    ).toBe(true)
+  })
+
+  it('drops standalone formula-only delete follow-up batches covered by the recent row-delete window', () => {
+    expect(
+      shouldDropStandaloneDeleteRowFormulaFollowUpBatch({
+        suppressUntilMs: Date.now() + 500,
+        targetSheetId: 'sheet-1',
+        recentDelete: {
+          sheetId: 'sheet-1',
+          followUpRanges: [
+            {
+              startRow: 4,
+              endRow: Number.MAX_SAFE_INTEGER,
+              startColumn: 0,
+              endColumn: Number.MAX_SAFE_INTEGER
+            }
+          ]
+        },
+        operations: [
+          {
+            type: 'set_range',
+            data: {
+              cells: [{ rowId: 'backend-row-1', columnName: 'column_a', value: { f: '=A1' }, row: 4, col: 0 }]
+            }
+          }
+        ]
+      })
+    ).toBe(true)
+  })
+
+  it('drops standalone formula-only move follow-up batches covered by the recent row-move window', () => {
+    expect(
+      shouldDropStandaloneMoveRowFormulaFollowUpBatch({
+        suppressUntilMs: Date.now() + 500,
+        targetSheetId: 'sheet-1',
+        recentMove: {
+          sheetId: 'sheet-1',
+          followUpRanges: [
+            {
+              startRow: 2,
+              endRow: Number.MAX_SAFE_INTEGER,
+              startColumn: 0,
+              endColumn: Number.MAX_SAFE_INTEGER
+            }
+          ]
+        },
+        operations: [
+          {
+            type: 'set_range',
+            data: {
+              cells: [{ rowId: 'backend-row-1', columnName: 'column_a', value: { f: '=A1' }, row: 6, col: 0 }]
+            }
+          }
+        ]
+      })
+    ).toBe(true)
   })
 })

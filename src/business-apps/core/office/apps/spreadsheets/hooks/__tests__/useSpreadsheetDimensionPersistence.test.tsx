@@ -249,4 +249,68 @@ describe('useSpreadsheetDimensionPersistence', () => {
       })
     )
   })
+
+  it('skips dimension persistence while column structure is still unhealthy after insert', async () => {
+    const emitDimensionSyncRef = { current: jest.fn<(payload: CellDimensionsPayload) => void>() }
+    const canEditWithLockRef = { current: true }
+    const submitBatch = jest.fn(() => Promise.resolve())
+    const mutationFacadeRef = {
+      current: { submitBatch } as unknown as SpreadsheetMutationFacade
+    }
+    const enqueueSnapshotCheckpointRef = { current: jest.fn(() => Promise.resolve()) }
+    const columns: SpreadsheetColumn[] = [
+      { id: 'c1', name: 'a', label: 'A', type: 'text', order: 0, width: 80 },
+      { id: 'c2', name: 'b', label: 'B', type: 'text', order: 1, width: 80 }
+    ]
+    const appSheetsRef = {
+      current: [minimalSheet('s1', columns)]
+    }
+    const spreadsheetGridRef = { current: null }
+    const applyLocalAppUpdate = jest.fn()
+    const columnStructureStateRef = {
+      current: {
+        healthy: false,
+        pendingInsertedRange: { startIndex: 2, endIndex: 3, columnNames: ['c3', 'c4'] },
+        expectedColumnsSignature: 'pending'
+      }
+    }
+
+    const { result } = renderHook(() =>
+      useSpreadsheetDimensionPersistence({
+        bootstrapSnapshot: null,
+        activeSheetId: 's1',
+        activeSheetColumns: columns,
+        columnStructureStateRef,
+        canEditWithLockRef,
+        emitDimensionSyncRef,
+        applyLocalAppUpdate,
+        mutationFacadeRef,
+        enqueueSnapshotCheckpointRef,
+        appSheetsRef,
+        spreadsheetGridRef
+      })
+    )
+
+    act(() => {
+      result.current.handleDimensionsChanged({
+        sheetId: 's1',
+        defaultColWidth: 73,
+        defaultRowHeight: 23,
+        columnData: { 2: { w: 150 }, 3: { w: 150 } },
+        rowData: {},
+        rowHeaderWidth: 48,
+        columnHeaderHeight: 28,
+        zoomRatio: 1
+      })
+    })
+
+    await act(async () => {
+      jest.advanceTimersByTime(500)
+      await Promise.resolve()
+    })
+
+    expect(submitBatch).not.toHaveBeenCalled()
+    expect(applyLocalAppUpdate).not.toHaveBeenCalled()
+    expect(enqueueSnapshotCheckpointRef.current).not.toHaveBeenCalled()
+  })
 })

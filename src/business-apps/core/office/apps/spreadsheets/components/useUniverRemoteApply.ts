@@ -17,6 +17,10 @@ import {
   resolveWorksheetGridBounds,
   type ClearAllRectangle
 } from './univerGridRangeSelection'
+import {
+  acquireRemoteStructuralApplyGuard,
+  scheduleReleaseRemoteStructuralApplyGuard
+} from './univerRemoteStructuralApplyGuard'
 
 type UniverApiLike = {
   getActiveWorkbook?: () => unknown
@@ -187,8 +191,26 @@ export interface UseUniverRemoteApplyParams {
   univerAPIRef: MutableRefObject<UniverApiLike>
   cellDimensionsRef: MutableRefObject<SnapshotDimensions | null>
   isApplyingRemoteUpdateRef: MutableRefObject<boolean>
+  collabPersistedBulkApplyDepthRef: MutableRefObject<number>
   refreshCursorRectsRef: MutableRefObject<(() => void) | null>
   refreshCommentRectsRef: MutableRefObject<(() => void) | null>
+}
+
+export function runRemoteCommandWithStructuralGuard(params: {
+  isApplyingRemoteUpdateRef: MutableRefObject<boolean>
+  collabPersistedBulkApplyDepthRef: MutableRefObject<number>
+  execute: () => unknown
+}): unknown {
+  const guardRefs = {
+    isApplyingRemoteUpdateRef: params.isApplyingRemoteUpdateRef,
+    collabPersistedBulkApplyDepthRef: params.collabPersistedBulkApplyDepthRef
+  }
+  acquireRemoteStructuralApplyGuard(guardRefs)
+  try {
+    return params.execute()
+  } finally {
+    scheduleReleaseRemoteStructuralApplyGuard(guardRefs)
+  }
 }
 
 export function useUniverRemoteApply({
@@ -197,6 +219,7 @@ export function useUniverRemoteApply({
   univerAPIRef,
   cellDimensionsRef,
   isApplyingRemoteUpdateRef,
+  collabPersistedBulkApplyDepthRef,
   refreshCursorRectsRef,
   refreshCommentRectsRef
 }: UseUniverRemoteApplyParams) {
@@ -434,7 +457,6 @@ export function useUniverRemoteApply({
         payload.data.params && typeof payload.data.params === 'object' && !Array.isArray(payload.data.params)
           ? { ...(payload.data.params as Record<string, unknown>), unitId, subUnitId, sheetId: targetSheetId }
           : { unitId, subUnitId, sheetId: targetSheetId }
-      isApplyingRemoteUpdateRef.current = true
       try {
         if (payload.type === 'merge_ranges' || payload.type === 'unmerge_ranges') {
           const mergeData = payload.data as { ranges?: unknown }
@@ -444,16 +466,21 @@ export function useUniverRemoteApply({
                 .filter((range): range is ClearAllRectangle => range != null)
             : []
           if (ranges.length > 0 && typeof api.syncExecuteCommand === 'function') {
-            api.syncExecuteCommand(
-              payload.type === 'merge_ranges'
-                ? 'sheet.mutation.add-worksheet-merge'
-                : 'sheet.mutation.remove-worksheet-merge',
-              {
-                unitId,
-                subUnitId,
-                ranges
-              }
-            )
+            runRemoteCommandWithStructuralGuard({
+              isApplyingRemoteUpdateRef,
+              collabPersistedBulkApplyDepthRef,
+              execute: () =>
+                api.syncExecuteCommand?.(
+                  payload.type === 'merge_ranges'
+                    ? 'sheet.mutation.add-worksheet-merge'
+                    : 'sheet.mutation.remove-worksheet-merge',
+                  {
+                    unitId,
+                    subUnitId,
+                    ranges
+                  }
+                )
+            })
           }
           return
         }
@@ -467,9 +494,14 @@ export function useUniverRemoteApply({
           const ranges = Array.isArray(visibilityData.ranges) ? visibilityData.ranges : []
           const commandRanges = resolveRemoteVisibilityCommandRanges(axis, ranges, params)
           if (commandRanges.length > 0 && typeof api.syncExecuteCommand === 'function') {
-            api.syncExecuteCommand(resolveVisibilityCommandId(commandId, axis, visibilityData.hidden === true), {
-              ...params,
-              ranges: commandRanges
+            runRemoteCommandWithStructuralGuard({
+              isApplyingRemoteUpdateRef,
+              collabPersistedBulkApplyDepthRef,
+              execute: () =>
+                api.syncExecuteCommand?.(resolveVisibilityCommandId(commandId, axis, visibilityData.hidden === true), {
+                  ...params,
+                  ranges: commandRanges
+                })
             })
             return
           }
@@ -497,7 +529,11 @@ export function useUniverRemoteApply({
               return
             }
             if (typeof api.syncExecuteCommand === 'function') {
-              api.syncExecuteCommand(commandId || 'sheet.command.cancel-frozen', params)
+              runRemoteCommandWithStructuralGuard({
+                isApplyingRemoteUpdateRef,
+                collabPersistedBulkApplyDepthRef,
+                execute: () => api.syncExecuteCommand?.(commandId || 'sheet.command.cancel-frozen', params)
+              })
               return
             }
           }
@@ -508,25 +544,33 @@ export function useUniverRemoteApply({
               return
             }
             if (typeof api.syncExecuteCommand === 'function') {
-              api.syncExecuteCommand(commandId || 'sheet.command.set-selection-frozen', {
-                ...params,
-                ...freeze
+              runRemoteCommandWithStructuralGuard({
+                isApplyingRemoteUpdateRef,
+                collabPersistedBulkApplyDepthRef,
+                execute: () =>
+                  api.syncExecuteCommand?.(commandId || 'sheet.command.set-selection-frozen', {
+                    ...params,
+                    ...freeze
+                  })
               })
               return
             }
           }
         }
         if (commandId && typeof api.syncExecuteCommand === 'function') {
-          api.syncExecuteCommand(commandId, params && typeof params === 'object' ? params : undefined)
+          runRemoteCommandWithStructuralGuard({
+            isApplyingRemoteUpdateRef,
+            collabPersistedBulkApplyDepthRef,
+            execute: () =>
+              api.syncExecuteCommand?.(commandId, params && typeof params === 'object' ? params : undefined)
+          })
           return
         }
       } catch (featureErr) {
         console.warn('[UniverSheetGrid] applyRemoteSpreadsheetFeatureOperation failed:', featureErr)
-      } finally {
-        isApplyingRemoteUpdateRef.current = false
       }
     },
-    [sheetId]
+    [collabPersistedBulkApplyDepthRef, isApplyingRemoteUpdateRef, sheetId]
   )
 
   return {

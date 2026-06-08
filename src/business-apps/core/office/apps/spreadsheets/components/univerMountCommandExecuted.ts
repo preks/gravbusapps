@@ -1,8 +1,10 @@
+import { ICommandService } from '@univerjs/core'
 import { createUniver } from '@univerjs/presets'
 import {
   detectClearAllRangesFromCellMatrix,
   detectClearFormatRangesFromCellMatrix,
   normalizeCellMatrix,
+  type SheetCellMatrix,
   type SheetRangeShape
 } from './cellMatrixUtils'
 import {
@@ -20,6 +22,7 @@ import {
   markDimensionUserIntent,
   resolveDimensionIntentKindFromCommandId
 } from './univerDimensionUserIntent'
+import { debugMutationTrace } from './univerGridDebug'
 import { resolveClearAllRanges } from './univerGridRangeSelection'
 import { UNIVER_COMMAND_TYPE_MUTATION } from './univerGridUniverConstants'
 import { handleCommandExecutedColumnInsertsAndFeatureOps } from './univerMountCommandExecutedColumnsAndFeatures'
@@ -33,7 +36,7 @@ import {
 import {
   captureCutSelectionRange,
   isNativeCutPasteCommand,
-  shouldSuppressCutPasteFollowUpCollab
+  resolveCutPasteFollowUpCollab
 } from '../utils/spreadsheetCutPasteMove'
 import { getCommandKind } from './univerCommandClassification'
 import {
@@ -58,6 +61,7 @@ function normalizeWorksheetHidden(value: unknown): boolean | undefined {
 
 export type RegisterUniverMountCommandExecutedDeps = Pick<
   UniverGridController,
+  | 'univerInstanceRef'
   | 'univerAPIRef'
   | 'propsRef'
   | 'callbacksRef'
@@ -73,6 +77,20 @@ export type RegisterUniverMountCommandExecutedDeps = Pick<
   | 'lastCellValueMutationAtRef'
   | 'pendingCutCellRangeRef'
   | 'cutPasteCollabSuppressUntilMsRef'
+  | 'recentMoveCellRangeFollowUpRef'
+  | 'rowInsertFormulaFollowUpSuppressUntilMsRef'
+  | 'recentInsertRowFormulaFollowUpRef'
+  | 'rowDeleteFormulaFollowUpSuppressUntilMsRef'
+  | 'recentDeleteRowFormulaFollowUpRef'
+  | 'rowMoveFormulaFollowUpSuppressUntilMsRef'
+  | 'recentMoveRowFormulaFollowUpRef'
+  | 'columnInsertFormulaFollowUpSuppressUntilMsRef'
+  | 'recentInsertColumnFormulaFollowUpRef'
+  | 'columnDeleteFormulaFollowUpSuppressUntilMsRef'
+  | 'recentDeleteColumnFormulaFollowUpRef'
+  | 'columnMoveFormulaFollowUpSuppressUntilMsRef'
+  | 'recentMoveColumnFormulaFollowUpRef'
+  | 'recentNativeColumnMoveEmitRef'
   | 'mergeGestureSuppressBySheetRef'
   | 'pendingAutofillIntentRef'
   | 'pendingDimensionUserIntentRef'
@@ -116,6 +134,7 @@ export function registerUniverMountCommandExecuted(
 ): RegisterUniverMountCommandExecutedHandles {
   const {
     univerAPI,
+    univerInstanceRef,
     univerAPIRef,
     propsRef,
     callbacksRef,
@@ -131,6 +150,20 @@ export function registerUniverMountCommandExecuted(
     lastCellValueMutationAtRef,
     pendingCutCellRangeRef,
     cutPasteCollabSuppressUntilMsRef,
+    recentMoveCellRangeFollowUpRef,
+    rowInsertFormulaFollowUpSuppressUntilMsRef,
+    recentInsertRowFormulaFollowUpRef,
+    rowDeleteFormulaFollowUpSuppressUntilMsRef,
+    recentDeleteRowFormulaFollowUpRef,
+    rowMoveFormulaFollowUpSuppressUntilMsRef,
+    recentMoveRowFormulaFollowUpRef,
+    columnInsertFormulaFollowUpSuppressUntilMsRef,
+    recentInsertColumnFormulaFollowUpRef,
+    columnDeleteFormulaFollowUpSuppressUntilMsRef,
+    recentDeleteColumnFormulaFollowUpRef,
+    columnMoveFormulaFollowUpSuppressUntilMsRef,
+    recentMoveColumnFormulaFollowUpRef,
+    recentNativeColumnMoveEmitRef,
     mergeGestureSuppressBySheetRef,
     pendingAutofillIntentRef,
     pendingDimensionUserIntentRef,
@@ -298,16 +331,7 @@ export function registerUniverMountCommandExecuted(
     )
   }
 
-  const commandEventKey =
-    (univerAPI as { Event?: { CommandExecuted?: string } }).Event?.CommandExecuted ?? 'CommandExecuted'
-  const rawCommandDisposable = (
-    univerAPI as {
-      addEvent?(
-        event: string,
-        cb: (p: { type?: number; id?: string; commandId?: string; params?: unknown }) => void
-      ): { dispose(): void }
-    }
-  ).addEvent?.(commandEventKey, (event: { type?: number; id?: string; commandId?: string; params?: unknown }) => {
+  const handleCommandEvent = (event: { type?: number; id?: string; commandId?: string; params?: unknown }) => {
     const commandId = String(event?.id ?? event?.commandId ?? '').toLowerCase()
     const params = event?.params as
       | {
@@ -455,6 +479,20 @@ export function registerUniverMountCommandExecuted(
         pendingFreezeClearEmitTimeoutBySheetRef,
         pendingCutCellRangeRef,
         cutPasteCollabSuppressUntilMsRef,
+        recentMoveCellRangeFollowUpRef,
+        rowInsertFormulaFollowUpSuppressUntilMsRef,
+        recentInsertRowFormulaFollowUpRef,
+        rowDeleteFormulaFollowUpSuppressUntilMsRef,
+        recentDeleteRowFormulaFollowUpRef,
+        rowMoveFormulaFollowUpSuppressUntilMsRef,
+        recentMoveRowFormulaFollowUpRef,
+        columnInsertFormulaFollowUpSuppressUntilMsRef,
+        recentInsertColumnFormulaFollowUpRef,
+        columnDeleteFormulaFollowUpSuppressUntilMsRef,
+        recentDeleteColumnFormulaFollowUpRef,
+        columnMoveFormulaFollowUpSuppressUntilMsRef,
+        recentMoveColumnFormulaFollowUpRef,
+        recentNativeColumnMoveEmitRef,
         mergeGestureSuppressBySheetRef
       },
       { t, commandId, params }
@@ -464,12 +502,13 @@ export function registerUniverMountCommandExecuted(
       (typeof params?.subUnitId === 'string' && params.subUnitId) ||
       (typeof params?.sheetId === 'string' && params.sheetId) ||
       propsRef.current.sheet.id
-    const suppressCutPasteFollowUpEarly = shouldSuppressCutPasteFollowUpCollab({
+    const suppressCutPasteFollowUpEarly = resolveCutPasteFollowUpCollab({
       suppressUntilMs: cutPasteCollabSuppressUntilMsRef.current,
       commandId,
       commandKind: getCommandKind(commandId),
-      isRegionReplaceStyleCommand: isRegionReplaceStyleCollaborationCommand(commandId)
-    })
+      isRegionReplaceStyleCommand: isRegionReplaceStyleCollaborationCommand(commandId),
+      recentMove: recentMoveCellRangeFollowUpRef.current
+    }).suppress
     if (!suppressCutPasteFollowUpEarly && isClearAllRangeCommand(commandId)) {
       const clearAllRanges = resolveClearAllRanges(
         univerAPIRef.current?.getActiveWorkbook?.(),
@@ -524,24 +563,31 @@ export function registerUniverMountCommandExecuted(
       }
     }
     const commandKind = getCommandKind(commandId)
-    const suppressCutPasteFollowUp = shouldSuppressCutPasteFollowUpCollab({
+    const cutPasteFollowUpDecision = resolveCutPasteFollowUpCollab({
       suppressUntilMs: cutPasteCollabSuppressUntilMsRef.current,
       commandId,
       commandKind,
-      isRegionReplaceStyleCommand: isRegionReplaceStyleCollaborationCommand(commandId)
+      isRegionReplaceStyleCommand: isRegionReplaceStyleCollaborationCommand(commandId),
+      payloadCellValue: commandPayloadCellValue,
+      ranges: commandRanges,
+      worksheetId: params?.subUnitId ?? params?.sheetId ?? propsRef.current.sheet.id,
+      recentMove: recentMoveCellRangeFollowUpRef.current
     })
+    const nextCommandPayloadCellValue: SheetCellMatrix | undefined =
+      cutPasteFollowUpDecision.payloadCellValue ?? commandPayloadCellValue
+    const nextCommandRanges = cutPasteFollowUpDecision.ranges ?? commandRanges
     const commandPreserveUndefinedAsNull =
       commandKind === 'clearLike' ||
       isClearLikeMutationCommand(commandId) ||
       isImplicitClearLikeSetRangeMutation({
         commandId,
-        ranges: commandRanges,
-        payloadCellValue: commandPayloadCellValue
+        ranges: nextCommandRanges,
+        payloadCellValue: nextCommandPayloadCellValue
       })
     const didHandleCellMutation =
-      !suppressCutPasteFollowUp &&
+      !cutPasteFollowUpDecision.suppress &&
       t === UNIVER_COMMAND_TYPE_MUTATION &&
-      (commandPayloadCellValue || commandRanges.length > 0) &&
+      (nextCommandPayloadCellValue || nextCommandRanges.length > 0) &&
       commandKind !== 'structuralRow' &&
       commandKind !== 'structuralColumn' &&
       commandKind !== 'cellRangeMove' &&
@@ -552,8 +598,8 @@ export function registerUniverMountCommandExecuted(
       const result = handleDetectedCellMutation({
         source: 'command-executed',
         commandId,
-        payloadCellValue: commandPayloadCellValue,
-        ranges: commandRanges,
+        payloadCellValue: nextCommandPayloadCellValue,
+        ranges: nextCommandRanges,
         worksheetId: params?.subUnitId ?? params?.sheetId ?? null,
         preserveUndefinedAsNull: commandPreserveUndefinedAsNull
       })
@@ -601,17 +647,66 @@ export function registerUniverMountCommandExecuted(
     ) {
       markDirtyAndScheduleSnapshot(didHandleCellMutation ? 'cell' : 'workbook')
     }
+  }
+
+  const commandEventKey =
+    (univerAPI as { Event?: { CommandExecuted?: string } }).Event?.CommandExecuted ?? 'CommandExecuted'
+  const rawCommandDisposable = (
+    univerAPI as {
+      addEvent?(
+        event: string,
+        cb: (p: { type?: number; id?: string; commandId?: string; params?: unknown }) => void
+      ): { dispose(): void }
+    }
+  ).addEvent?.(commandEventKey, handleCommandEvent)
+
+  const directMoveCommandDisposable = (
+    (
+      univerInstanceRef.current as {
+        __getInjector?: () => { get?: (token: unknown) => unknown }
+      } | null
+    )
+      ?.__getInjector?.()
+      ?.get?.(ICommandService) as
+      | {
+          onCommandExecuted?: (cb: (commandInfo: { id?: string; type?: number; params?: unknown }) => void) => {
+            dispose(): void
+          }
+        }
+      | undefined
+  )?.onCommandExecuted?.((commandInfo: { id?: string; type?: number; params?: unknown }) => {
+    const commandId = String(commandInfo?.id ?? '').toLowerCase()
+    // Visible (gated) trace for any column-affecting command so we can see the
+    // exact command id a header drag-reorder produces, even if it does not match
+    // the move-col filter below.
+    if (commandId.includes('col') && (commandId.includes('move') || commandId.includes('drag'))) {
+      debugMutationTrace('direct-command-service-col-move', { commandId, commandType: commandInfo?.type })
+    }
+    if (!commandId.includes('move-col')) return
+    callbacksRef.current.onDiagnosticsTraceEvent?.({
+      source: 'client',
+      stage: 'grid_column_move_direct_command_service',
+      severity: 'info',
+      sheetId: propsRef.current.sheet.id,
+      payload: {
+        commandId,
+        commandType: commandInfo?.type
+      }
+    })
+    handleCommandEvent(commandInfo)
   })
 
-  const commandDisposable = rawCommandDisposable
-    ? {
-        dispose: () => {
-          cancelPendingDimensionFrame()
-          cancelPendingDeferredDimensionTimeout()
-          rawCommandDisposable.dispose()
+  const commandDisposable =
+    rawCommandDisposable || directMoveCommandDisposable
+      ? {
+          dispose: () => {
+            cancelPendingDimensionFrame()
+            cancelPendingDeferredDimensionTimeout()
+            rawCommandDisposable?.dispose?.()
+            directMoveCommandDisposable?.dispose?.()
+          }
         }
-      }
-    : undefined
+      : undefined
 
   return { commandDisposable }
 }

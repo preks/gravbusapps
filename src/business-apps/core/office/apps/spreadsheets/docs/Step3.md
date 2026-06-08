@@ -8,7 +8,7 @@ This document describes **Step 3** of the spreadsheet structural collaboration r
 | ---- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | 1    | Remote grid apply for `move_cell_range`           | **Done**                                                                                         |
 | 2    | Visible grid column index alignment               | **Done**                                                                                         |
-| 3    | Rich workbook policy (this doc)                   | **Partial** — Policy **A** for merges/metadata; formula gate narrowed to move from/to ranges     |
+| 3    | Rich workbook policy (this doc)                   | **Partial** — row-slot ops and `move_cell_range` allowed on rich sheets; formula gate remains    |
 | 4    | Cut/paste vs drag-move collab (`move_cell_range`) | **Done** — cut+paste emits a single `move_cell_range` batch; follow-up Univer ops suppressed ~2s |
 | 5    | Hide/unhide + freeze on committed-batch path      | **Done** — see [Step 5 (done)](#step-5-hideunhide--freeze-done)                                  |
 | 6    | Two-client E2E / integration tests                | **Partial** — `__tests__/spreadsheetDeltaReplayCollabHarness.test.ts` (automated matrix)         |
@@ -62,7 +62,7 @@ After a successful plan, `SpreadsheetCollaborationManager` applies structural li
 
 ### Range-bound metadata (sheet-level)
 
-If **any** of these keys has entries on the worksheet snapshot, **all structural ops** in the batch are blocked for lightweight replay:
+If **any** of these keys has entries on the worksheet snapshot, some structural ops in the batch are blocked for lightweight replay:
 
 - `mergeData`
 - `conditionalFormatting`
@@ -86,10 +86,15 @@ Formulas elsewhere on the sheet do **not** block the move.
 
 ### Structural ops affected by the rich-workbook gate
 
-`STRUCTURAL_OPS` in the feature matrix (blocked when rich metadata is present):
+`STRUCTURAL_OPS` in the feature matrix:
 
-- `insert_row_slots`, `delete_row_slots`, `move_row_slots`
-- `move_cell_range`
+- `insert_row_slots`, `delete_row_slots`, `move_row_slots` — allowed through live native grid apply even on rich sheets
+- `move_cell_range` — allowed through live native grid apply unless formulas intersect `fromRange` / `toRange`
+- `column_add`, `column_delete`
+- `columns_reorder`, `column_reorder`
+
+Blocked when rich metadata is present:
+
 - `column_add`, `column_delete`
 - `columns_reorder`, `column_reorder`
 
@@ -117,13 +122,12 @@ If they appear only as committed batch op types without separate wiring, plannin
 
 **Step 3 implementation** = choose and wire **A vs B** (per feature and/or per op), plus diagnostics and tests — not full **C**.
 
-**Current product choice:** **Policy A** for all `RANGE_BOUND_WORKBOOK_KEYS` and formula-in-move-range failures — planning rejects, `requestSnapshotFallback`, no live structural apply. Policy B remains a future opt-in per op type.
+**Current product choice:** row-slot ops (`insert_row_slots`, `delete_row_slots`, `move_row_slots`) and `move_cell_range` use the native live-grid path even when `RANGE_BOUND_WORKBOOK_KEYS` are present. **Policy A** still applies to column structural ops and formula-in-move-range failures — planning rejects, `requestSnapshotFallback`, no live structural apply.
 
 ### Recommended direction (when implementing)
 
-- Keep **A** for high-risk metadata: `mergeData`, filters, protection, charts, …
-- Consider **B** for `move_cell_range` when the only blocker is **formulas outside the moved range**
-- Narrow formula check to **formulas intersecting `fromRange`** (not entire sheet)
+- Keep **A** for column structural ops on high-risk metadata: `mergeData`, filters, protection, charts, …
+- Keep formula fallback narrow: only formulas intersecting `fromRange` / `toRange` block `move_cell_range`
 
 ---
 
@@ -132,7 +136,7 @@ If they appear only as committed batch op types without separate wiring, plannin
 | Outcome                          | Typical client stages                                                                                                                                  |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Lightweight path (plain sheet)   | `client_committed_batch_transaction_planned` → `client_committed_batch_transaction_applied` → `client_collab_cell_range_move_grid_applied` (for moves) |
-| Hard reject (current rich sheet) | `client_committed_batch_transaction_rejected` (`reason` / `detail`: e.g. `mergeData`, `formulas`) → snapshot fallback scheduled                        |
+| Hard reject (current rich sheet) | `client_committed_batch_transaction_rejected` (`reason` / `detail`: e.g. `formulas`, `columnGroups`) → snapshot fallback scheduled                     |
 | Explicit fallback (if added)     | `client_committed_batch_transaction_applied` + grid applied + e.g. `client_collab_*_degraded_apply` (name TBD)                                         |
 | Hide/unhide / freeze (Step 5)    | `client_collab_visibility_update_grid_applied` / `client_collab_freeze_panes_grid_applied` (or `_failed`)                                              |
 
@@ -181,25 +185,37 @@ Copy-paste remains on paste / `set_range` paths, not `move_cell_range`.
 ### 2. Rich sheet — merged
 
 - At least one entry in `mergeData`.
-- Sender: structural op (e.g. move or row insert).
-- Receiver: behavior matches chosen policy (**A** = reject + snapshot; **B** = degraded live apply if implemented).
+- Sender: `insert_row_slots`, `delete_row_slots`, or `move_row_slots`.
+- Receiver: row-slot op uses live native grid apply; no snapshot fallback for that batch.
 
-### 3. Rich sheet — formulas
+### 3. Rich sheet — move_cell_range
+
+- At least one rich-workbook key such as `mergeData`.
+- Sender: `move_cell_range`.
+- Receiver: move uses live native grid apply; no snapshot fallback unless formulas intersect the moved ranges.
+
+### 4. Rich sheet — still blocked ops
+
+- At least one rich-workbook key such as `mergeData`.
+- Sender: column structural op.
+- Receiver: behavior matches current policy (**A** = reject + snapshot).
+
+### 5. Rich sheet — formulas
 
 - At least one `f` in `cellData`.
 - Sender: `move_cell_range` on a **non-formula** cell.
 - Receiver: per policy (ideally **B** if formula is outside `fromRange` after tightened check).
 
-### 4. Diagnostics
+### 6. Diagnostics
 
 - Confirm expected stages in Spreadsheet diagnostics (no silent skip).
 
-### 5. Step 5 regression (done — keep in E2E)
+### 7. Step 5 regression (done — keep in E2E)
 
 - Two clients: hide column → peer sees `visibility_update` applied (`client_collab_visibility_update_grid_applied`).
 - Freeze panes → `client_collab_freeze_panes_grid_applied`.
 
-### 6. Step 4 regression (done — keep in E2E)
+### 8. Step 4 regression (done — keep in E2E)
 
 - Cut+paste range → sender batch is **only** `move_cell_range` (matching `fromRange`/`toRange` dimensions).
 - Peer receives move on plain sheet without snapshot fallback.
@@ -214,6 +230,7 @@ if (!STRUCTURAL_OPS.has(operation.type)) continue
 if (operationMayMoveFormulaCells(operation, worksheet)) {
   return { ok: false, reason: 'unsupported_workbook_feature', detail: 'formulas' }
 }
+if (RICH_WORKBOOK_LIVE_GRID_OPS.has(operation.type)) continue
 for (const key of RANGE_BOUND_WORKBOOK_KEYS) {
   if (valueHasEntries(worksheet?.[key])) {
     return { ok: false, reason: 'unsupported_workbook_feature', detail: key }
