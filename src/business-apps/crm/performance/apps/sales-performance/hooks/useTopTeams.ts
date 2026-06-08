@@ -175,18 +175,18 @@ export const useTopTeams = (accessToken: string, limit: number = 5, selectedCurr
       const opportunities = oppsResult.Opportunity || []
 
       // Create a map of employeeId to their revenue
-      const employeeRevenue = new Map<string, { revenue: number; dealsWon: number; currencyCode: string }>()
+      const employeeRevenue = new Map<string, { revenue: number; opportunitiesWon: number; currencyCode: string }>()
       opportunities.forEach(opp => {
         const existing = employeeRevenue.get(opp.ownerEmployeeId)
         const currencyCode = opp.currencyRef?.split(':').pop() || 'EUR'
 
         if (existing) {
           existing.revenue += opp.estimatedAmount
-          existing.dealsWon += 1
+          existing.opportunitiesWon += 1
         } else {
           employeeRevenue.set(opp.ownerEmployeeId, {
             revenue: opp.estimatedAmount,
-            dealsWon: 1,
+            opportunitiesWon: 1,
             currencyCode
           })
         }
@@ -195,14 +195,14 @@ export const useTopTeams = (accessToken: string, limit: number = 5, selectedCurr
       // Calculate team totals
       const teamPerformance: TopTeam[] = teams.map(team => {
         let totalRevenue = 0
-        let totalDealsWon = 0
+        let totalOpportunitiesWon = 0
         let currencyCode = 'EUR'
 
         team.organizationalUnitEmployee.forEach(emp => {
           const empData = employeeRevenue.get(emp.employeeId)
           if (empData) {
             totalRevenue += empData.revenue
-            totalDealsWon += empData.dealsWon
+            totalOpportunitiesWon += empData.opportunitiesWon
             currencyCode = empData.currencyCode
           }
         })
@@ -211,7 +211,7 @@ export const useTopTeams = (accessToken: string, limit: number = 5, selectedCurr
           id: team.id,
           name: team.name,
           revenue: totalRevenue,
-          dealsWon: totalDealsWon,
+          opportunitiesWon: totalOpportunitiesWon,
           memberCount: team.organizationalUnitEmployee.filter(emp => emp.employee !== null).length,
           currencyCode
         }

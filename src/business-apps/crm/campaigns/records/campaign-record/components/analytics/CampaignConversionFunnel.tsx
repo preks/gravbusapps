@@ -1,16 +1,25 @@
 import React, { useMemo } from 'react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis } from 'recharts'
 import {
   Alert,
   AlertTitle,
   AlertDescription,
   Button,
   Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  IconAvatar,
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  Spinner,
   type ChartConfig
 } from '@newwork/nw-design-system'
+import { ChartBarIcon } from '@phosphor-icons/react'
 import { CampaignConversionFunnel } from '../../queries/CampaignAnalyticsQueries'
 import { NW_CHART_COLOR_VARS, toChartConfigKey } from '@/business-apps/crm/campaigns/utils/campaignChartTokens'
 
@@ -27,6 +36,8 @@ const CampaignConversionFunnelComponent: React.FC<CampaignConversionFunnelProps>
   error = null,
   onRetry
 }) => {
+  const chartCanvasClassName = 'gba:w-full gba:h-full gba:bg-muted gba:rounded-md gba:p-2'
+
   const stagesWithKeys = useMemo(() => {
     if (!funnelData?.stages?.length) return []
     const used = new Set<string>()
@@ -49,12 +60,60 @@ const CampaignConversionFunnelComponent: React.FC<CampaignConversionFunnelProps>
     return config
   }, [stagesWithKeys])
 
-  if (isLoading) {
+  const kpiGridClassName = 'gba:grid gba:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-6 gba:gap-4'
+
+  const renderFunnelContent = () => {
+    if (isLoading) {
+      return (
+        <div className="gba:flex gba:items-center gba:justify-center gba:h-80" data-testid="funnel-loading">
+          <Spinner size="lg" />
+        </div>
+      )
+    }
+
+    if (!funnelData?.stages || funnelData.stages.length === 0) {
+      return (
+        <div className="gba:h-80 gba:flex gba:items-center gba:justify-center">
+          <p className="gba:text-muted-foreground">No conversion funnel data available.</p>
+        </div>
+      )
+    }
+
     return (
-      <div className="gba:p-8 gba:text-center" data-testid="funnel-loading">
-        <div className="gba:animate-spin gba:rounded-full gba:h-8 gba:w-8 gba:border-b-2 gba:border-primary gba:mx-auto gba:mb-4"></div>
-        <p className="gba:text-muted-foreground">Loading conversion funnel...</p>
-      </div>
+      <>
+        <div className="gba:h-56 gba:mb-8">
+          <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-2">Lead progression by stage</h4>
+          <ChartContainer config={funnelChartConfig} className={chartCanvasClassName}>
+            <BarChart data={stagesWithKeys} margin={{ top: 5, right: 30, left: 20, bottom: 5 }} maxBarSize={50}>
+              <XAxis dataKey="stage" tick={{ fontSize: 10 }} height={40} />
+              <YAxis
+                tick={{ fontSize: 10 }}
+                tickFormatter={value => Math.floor(value).toString()}
+                domain={[0, 'dataMax']}
+                allowDecimals={false}
+              />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Bar dataKey="count" name="Count" radius={[4, 4, 0, 0]} maxBarSize={60} />
+              <ChartLegend content={<ChartLegendContent />} />
+            </BarChart>
+          </ChartContainer>
+        </div>
+
+        <div className={`gba:mt-2 ${kpiGridClassName}`} data-testid="funnel-kpi-cards">
+          {stagesWithKeys.map((stage, index) => (
+            <div
+              key={stage.stageKey}
+              className="gba:text-center gba:p-4 gba:bg-secondary gba:rounded-lg gba:border gba:border-border gba:shadow-sm"
+              data-testid={`funnel-kpi-${index}`}
+            >
+              <h4 className="gba:text-sm gba:font-medium gba:text-foreground">{stage.stage}</h4>
+              <div className="gba:mt-2 gba:text-2xl gba:font-bold gba:text-foreground">
+                {stage.count.toLocaleString()}
+              </div>
+            </div>
+          ))}
+        </div>
+      </>
     )
   }
 
@@ -72,69 +131,16 @@ const CampaignConversionFunnelComponent: React.FC<CampaignConversionFunnelProps>
     )
   }
 
-  if (!funnelData?.stages || funnelData.stages.length === 0) {
-    return (
-      <div className="gba:p-8 gba:text-center gba:bg-muted">
-        <p className="gba:text-muted-foreground">No conversion funnel data available.</p>
-      </div>
-    )
-  }
-
   return (
-    <Card className="gba:p-6" data-testid="campaign-conversion-funnel-container">
-      <div className="gba:mb-6">
-        <h3 className="gba:text-lg gba:font-semibold gba:mb-2 gba:text-foreground">Conversion Funnel</h3>
-        <p className="gba:text-sm gba:text-muted-foreground">Lead progression through the sales funnel</p>
-      </div>
-
-      <div className="gba:h-80 gba:mb-6">
-        <ChartContainer config={funnelChartConfig} className="gba:h-80 gba:w-full">
-          <BarChart data={stagesWithKeys} margin={{ top: 20, right: 30, left: 20, bottom: 80 }} maxBarSize={60}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-default)" />
-            <XAxis
-              dataKey="stage"
-              tick={{ fontSize: 12 }}
-              stroke="var(--color-text-secondary)"
-              angle={-45}
-              textAnchor="end"
-              height={80}
-            />
-            <YAxis
-              tick={{ fontSize: 12 }}
-              stroke="var(--color-text-secondary)"
-              tickFormatter={value => Math.floor(value).toString()}
-              domain={[0, 'dataMax']}
-              allowDecimals={false}
-            />
-            <ChartTooltip content={<ChartTooltipContent />} />
-            <Bar dataKey="count" name="Count" radius={[4, 4, 0, 0]} maxBarSize={60} />
-          </BarChart>
-        </ChartContainer>
-      </div>
-
-      <div
-        className="gba:grid gba:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-6 gba:gap-4"
-        data-testid="funnel-kpi-cards"
-      >
-        {stagesWithKeys.map((stage, index) => (
-          <div
-            key={stage.stageKey}
-            className="gba:text-center gba:p-4 gba:bg-muted gba:rounded-lg gba:border gba:border-border"
-            data-testid={`funnel-kpi-${index}`}
-          >
-            <div className="gba:flex gba:items-center gba:justify-center gba:mb-2">
-              <div
-                className="gba:w-3 gba:h-3 gba:rounded-full gba:mr-2"
-                style={{
-                  backgroundColor: NW_CHART_COLOR_VARS[index % NW_CHART_COLOR_VARS.length]
-                }}
-              ></div>
-              <h4 className="gba:text-sm gba:font-medium gba:text-foreground">{stage.stage}</h4>
-            </div>
-            <div className="gba:text-2xl gba:font-bold gba:text-foreground">{stage.count.toLocaleString()}</div>
-          </div>
-        ))}
-      </div>
+    <Card className="gba:bg-muted" data-testid="campaign-conversion-funnel-container">
+      <CardHeader className="gba:flex gba:items-center gba:gap-3">
+        <IconAvatar icon={ChartBarIcon} variant="default" size="md" iconWeight="regular" decorative />
+        <div>
+          <CardTitle>Conversion Funnel</CardTitle>
+          <CardDescription>Lead progression through the sales funnel</CardDescription>
+        </div>
+      </CardHeader>
+      <CardContent>{renderFunnelContent()}</CardContent>
     </Card>
   )
 }

@@ -120,43 +120,48 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
   }, [props.accessToken, fetchInvestmentCatalogData])
 
   // Load investment data
-  const loadData = useCallback(async () => {
-    if (!investmentId || !props.accessToken) {
-      setIsLoading(false)
-      return
-    }
-
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const investmentResult = await fetchInvestmentById(investmentId)
-
-      if (!investmentResult.investment) {
-        setError(`No investment found for ID: ${investmentId}`)
+  const loadData = useCallback(
+    async (silent = false) => {
+      if (!investmentId || !props.accessToken) {
+        setIsLoading(false)
         return
       }
 
-      setInvestmentData(investmentResult.investment)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [investmentId, props.accessToken, fetchInvestmentById])
+      if (!silent) {
+        setIsLoading(true)
+      }
+      setError(null)
+
+      try {
+        const investmentResult = await fetchInvestmentById(investmentId)
+
+        if (!investmentResult.investment) {
+          setError(`No investment found for ID: ${investmentId}`)
+          return
+        }
+
+        setInvestmentData(investmentResult.investment)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unknown error')
+      } finally {
+        if (!silent) {
+          setIsLoading(false)
+        }
+      }
+    },
+    [investmentId, props.accessToken, fetchInvestmentById]
+  )
+
+  const refreshInvestmentDataSilently = useCallback(() => {
+    void loadData(true)
+  }, [loadData])
 
   useEffect(() => {
-    loadData()
+    void loadData(false)
   }, [loadData])
 
-  // Memoized callback for process completion
-  const handleProcessSuccess = useCallback(() => {
-    loadData()
-  }, [loadData])
-
-  // Refresh on process completion success using shared hook
   useProcessCompletion({
-    onSuccess: handleProcessSuccess
+    onSuccess: refreshInvestmentDataSilently
   })
 
   // Determine investment type and type-specific data using dynamic approach
@@ -261,7 +266,7 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
   )
 
   // Loading state
-  if (isLoading) {
+  if (isLoading && !investmentData) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <Spinner size="lg" />
@@ -315,7 +320,7 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
     investmentType,
     typeSpecificData,
     processedTiles,
-    loadData,
+    refreshInvestmentDataSilently,
     props,
     catalogData
   )

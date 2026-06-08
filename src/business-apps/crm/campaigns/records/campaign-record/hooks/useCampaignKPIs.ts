@@ -3,12 +3,21 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCampaignRecordQueries } from '../queries'
 import { CampaignKPIs, CampaignKPIWithTrend, UseCampaignKPIsReturn } from '../types'
 
-export const useCampaignKPIs = (context: BusinessAppContextProps, campaignId: string): UseCampaignKPIsReturn => {
+interface UseCampaignKPIsOptions {
+  enabled?: boolean
+}
+
+export const useCampaignKPIs = (
+  context: BusinessAppContextProps,
+  campaignId: string,
+  options: UseCampaignKPIsOptions = {}
+): UseCampaignKPIsReturn => {
+  const { enabled = true } = options
   const [kpis, setKpis] = useState<CampaignKPIs | null>(null)
   const [kpisWithTrends, setKpisWithTrends] = useState<{
     totalLeads: CampaignKPIWithTrend
-    totalAccounts: CampaignKPIWithTrend
-    totalContacts: CampaignKPIWithTrend
+    mqlCount: CampaignKPIWithTrend
+    sqlCount: CampaignKPIWithTrend
     totalOpportunities: CampaignKPIWithTrend
   } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -31,8 +40,8 @@ export const useCampaignKPIs = (context: BusinessAppContextProps, campaignId: st
 
       const totalLeads = result.totalLeads?.aggregate?.count || 0
       const convertedLeads = result.convertedLeads?.aggregate?.count || 0
-      const totalAccounts = result.totalAccounts?.aggregate?.count || 0
-      const totalContacts = result.totalContacts?.aggregate?.count || 0
+      const mqlCount = result.mqlCount?.aggregate?.count || 0
+      const sqlCount = result.sqlCount?.aggregate?.count || 0
       const totalOpportunities = result.totalOpportunities?.aggregate?.count || 0
       const wonOpportunities = result.wonOpportunities?.aggregate?.count || 0
 
@@ -43,8 +52,8 @@ export const useCampaignKPIs = (context: BusinessAppContextProps, campaignId: st
         totalLeads,
         convertedLeads,
         convertedLeadsPercentage,
-        totalAccounts,
-        totalContacts,
+        mqlCount,
+        sqlCount,
         totalOpportunities,
         wonOpportunities,
         wonOpportunitiesPercentage
@@ -60,16 +69,16 @@ export const useCampaignKPIs = (context: BusinessAppContextProps, campaignId: st
             description: ''
           }
         },
-        totalAccounts: {
-          current: totalAccounts,
+        mqlCount: {
+          current: mqlCount,
           trend: {
             value: '',
             positive: true,
             description: ''
           }
         },
-        totalContacts: {
-          current: totalContacts,
+        sqlCount: {
+          current: sqlCount,
           trend: {
             value: '',
             positive: true,
@@ -103,10 +112,10 @@ export const useCampaignKPIs = (context: BusinessAppContextProps, campaignId: st
   }, [loadCampaignKPIs])
 
   useEffect(() => {
-    if (context.accessToken && campaignId) {
+    if (enabled && context.accessToken && campaignId) {
       loadCampaignKPIs()
     }
-  }, [context.accessToken, campaignId, loadCampaignKPIs])
+  }, [enabled, context.accessToken, campaignId, loadCampaignKPIs])
 
   return {
     kpis,

@@ -78,10 +78,16 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
   const {
     account: accountData,
     investments,
-    loading: dataLoading,
-    error: dataError,
+    loading,
+    error,
     refetch: refetchAccountData
   } = useInvestmentAccount(props.accessToken, accountId, { additionalQueries })
+
+  useProcessCompletion({
+    onSuccess: () => {
+      void refetchAccountData()
+    }
+  })
 
   // AI Summary hook - must be called before any conditional returns
   const aiSummaryHook = useAccountAiSummary(accountId, props.accessToken)
@@ -101,16 +107,6 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
     }
   }, [])
 
-  // Memoized callback for process completion
-  const handleProcessSuccess = useCallback(() => {
-    refetchAccountData()
-  }, [refetchAccountData])
-
-  // Listen for process completion events to refresh account data
-  useProcessCompletion({
-    onSuccess: handleProcessSuccess
-  })
-
   // Memoize header data - must be called before conditional returns
   const headerDetailGroups = useMemo(
     () => [
@@ -119,7 +115,7 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
         items: [
           {
             label: 'Email',
-            value: getEmailChannel(accountData?.communicationChannels)?.value || accountData?.email || 'Not set',
+            value: getEmailChannel(accountData?.communicationChannels)?.value || 'Not set',
             icon: EnvelopeIcon
           },
           {
@@ -144,7 +140,7 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
         ]
       }
     ],
-    [accountData?.email, accountData?.foundationDate, accountData?.ownerEmployee]
+    [accountData?.communicationChannels, accountData?.foundationDate, accountData?.ownerEmployee]
   )
 
   const headerMeta = useMemo(() => {
@@ -224,7 +220,10 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
               accountId={accountId}
               accountData={accountData ?? undefined}
               investments={investments || []}
-              investmentsLoading={dataLoading}
+              investmentsLoading={loading}
+              refreshRecordData={() => {
+                void refetchAccountData()
+              }}
               {...props}
             />
           )
@@ -254,7 +253,7 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
     [activeTab, handleTabChange, accountData, accountId, props]
   )
 
-  if (dataLoading) {
+  if (loading && !accountData) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <Spinner size="lg" />
@@ -262,12 +261,12 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
     )
   }
 
-  if (dataError || !accountData) {
+  if (error || !accountData) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <div className="gba:text-center">
           <p className="gba:text-lg" data-testid="investment-account-error-message">
-            {dataError ||
+            {error ||
               getTranslationFromI18nKeyAndLabel('crm.investments.account.notFound', 'Investment Account not found')}
           </p>
           <Button

@@ -1,11 +1,16 @@
 import React from 'react'
 import { Alert } from '@newwork/nw-design-system'
-import { CampaignAnalyticsMetrics, CampaignTimelineAnalysis } from '../../queries/CampaignAnalyticsQueries'
+import {
+  CampaignAnalyticsMetrics,
+  CampaignTimelineAnalysis,
+  CampaignRevenueTrendAnalysis
+} from '../../queries/CampaignAnalyticsQueries'
 import CampaignRevenueCharts from './CampaignRevenueCharts'
 
 interface CampaignRevenueAnalysisProps {
   metrics: CampaignAnalyticsMetrics | null
-  timelineData: CampaignTimelineAnalysis | null
+  entityTimelineData: CampaignTimelineAnalysis | null
+  revenueTimelineData: CampaignRevenueTrendAnalysis | null
   isLoading?: boolean
   error?: string | null
   onRetry?: () => void
@@ -13,12 +18,13 @@ interface CampaignRevenueAnalysisProps {
 
 const CampaignRevenueAnalysis: React.FC<CampaignRevenueAnalysisProps> = ({
   metrics,
-  timelineData,
+  entityTimelineData,
+  revenueTimelineData,
   isLoading = false,
   error = null,
   onRetry
 }) => {
-  if (isLoading) {
+  if (isLoading && !metrics && !entityTimelineData && !revenueTimelineData) {
     return (
       <div className="gba:p-8 gba:text-center" data-testid="revenue-analysis-loading">
         <div className="gba:animate-spin gba:rounded-full gba:h-8 gba:w-8 gba:border-b-2 gba:border-primary gba:mx-auto gba:mb-4"></div>
@@ -49,7 +55,13 @@ const CampaignRevenueAnalysis: React.FC<CampaignRevenueAnalysisProps> = ({
     )
   }
 
-  return <CampaignRevenueCharts metrics={metrics} timelineData={timelineData} />
+  return (
+    <CampaignRevenueCharts
+      metrics={metrics}
+      entityTimelineData={entityTimelineData}
+      revenueTimelineData={revenueTimelineData}
+    />
+  )
 }
 
 export default CampaignRevenueAnalysis

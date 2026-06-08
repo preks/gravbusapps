@@ -15,6 +15,7 @@ import {
 import type { Investment } from '@/common/data/investment/types/investmentTypes'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
 import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
+import { useRecordSectionDisplayConfig } from '@/common/components/common-relations/record-sections/section-display'
 import InvestmentSection from '@/common/components/common-relations/record-sections/investment-section/InvestmentSection'
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
@@ -28,6 +29,7 @@ import {
   getFileEntityFromType
 } from '@/common/data/investment/constants/investmentConstants'
 import { buildInvestmentTaskPayload } from '@/common/data/investment/types/investmentTaskTypes'
+import { RecordSectionsRefreshProvider } from '@/common/components/common-relations/record-sections/RecordSectionsRefreshContext'
 import { buildInvestmentActivityPayload } from '@/common/data/investment/types/investmentActivityTypes'
 import { buildInvestmentNotePayload } from '@/common/data/investment/types/investmentNoteTypes'
 import { getReferenceEntityType } from '@/common/data/investment/utils/referenceEntityUtils'
@@ -41,9 +43,18 @@ interface HomeViewProps extends BusinessAppContextProps {
   accountData: InvestmentAccount | undefined
   investments: Investment[]
   investmentsLoading: boolean
+  refreshRecordData?: () => void
 }
 
-const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, investments, investmentsLoading, ...props }) => {
+const HomeView: React.FC<HomeViewProps> = ({
+  accountId,
+  accountData,
+  investments,
+  investmentsLoading,
+  refreshRecordData,
+  ...props
+}) => {
+  const sectionDisplay = useRecordSectionDisplayConfig()
   const docuSignEnabled = useFeature<boolean>(Feature.IRM.DocuSign.Key) === true
   const fileClient = useFileClient({ accessToken: props.accessToken, userInfo: props.userInfo })
   const taskPreSubmit = useCallback(
@@ -117,296 +128,312 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, investments
   }
 
   // Load section data
-  const loadSectionData = useCallback(async () => {
-    if (!accountId || !props.accessToken) return
+  const loadSectionData = useCallback(
+    async (silent = false) => {
+      if (!accountId || !props.accessToken) return
 
-    setSectionsLoading(true)
-    setSectionsError(null)
+      if (!silent) {
+        setSectionsLoading(true)
+        setSectionsError(null)
+      }
 
-    try {
-      const [activitiesData, notesData, tasksData] = await Promise.all([
-        fetchInvestmentActivitiesByAccountId(accountId),
-        fetchInvestmentNotesByAccountId(accountId),
-        fetchInvestmentTasksByAccountId(accountId)
-      ])
+      try {
+        const [activitiesData, notesData, tasksData] = await Promise.all([
+          fetchInvestmentActivitiesByAccountId(accountId),
+          fetchInvestmentNotesByAccountId(accountId),
+          fetchInvestmentTasksByAccountId(accountId)
+        ])
 
-      const sortedNotes = (notesData || []).sort(
-        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
-      const sortedTasks = (tasksData || []).sort(
-        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
+        const sortedNotes = (notesData || []).sort(
+          (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
+        const sortedTasks = (tasksData || []).sort(
+          (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
 
-      // Separate regular tasks from approvals based on taskType catalog entry
-      const regularTasks = sortedTasks.filter((task: any) => {
-        const taskTypeCode = task?.taskType?.code || ''
-        const taskTypeValue = task?.taskType?.value || ''
-        return taskTypeCode?.toUpperCase() !== 'APPROVAL' && taskTypeValue?.toUpperCase() !== 'APPROVAL'
-      })
-      const approvalTasks = sortedTasks.filter((task: any) => {
-        const taskTypeCode = task?.taskType?.code || ''
-        const taskTypeValue = task?.taskType?.value || ''
-        return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
-      })
+        // Separate regular tasks from approvals based on taskType catalog entry
+        const regularTasks = sortedTasks.filter((task: any) => {
+          const taskTypeCode = task?.taskType?.code || ''
+          const taskTypeValue = task?.taskType?.value || ''
+          return taskTypeCode?.toUpperCase() !== 'APPROVAL' && taskTypeValue?.toUpperCase() !== 'APPROVAL'
+        })
+        const approvalTasks = sortedTasks.filter((task: any) => {
+          const taskTypeCode = task?.taskType?.code || ''
+          const taskTypeValue = task?.taskType?.value || ''
+          return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
+        })
 
-      setActivities(activitiesData || [])
-      setNotes(sortedNotes)
-      setTasks(regularTasks)
-      setApprovals(approvalTasks)
-    } catch (error) {
-      console.error('Error loading section data:', error)
-      setSectionsError(
-        error instanceof Error
-          ? error.message
-          : getTranslationFromI18nKeyAndLabel('crm.common.loadFailed', 'Failed to load data')
-      )
-    } finally {
-      setSectionsLoading(false)
-    }
-  }, [
-    accountId,
-    props.accessToken,
-    fetchInvestmentActivitiesByAccountId,
-    fetchInvestmentNotesByAccountId,
-    fetchInvestmentTasksByAccountId
-  ])
+        setActivities(activitiesData || [])
+        setNotes(sortedNotes)
+        setTasks(regularTasks)
+        setApprovals(approvalTasks)
+      } catch (error) {
+        console.error('Error loading section data:', error)
+        if (!silent) {
+          setSectionsError(
+            error instanceof Error
+              ? error.message
+              : getTranslationFromI18nKeyAndLabel('crm.common.loadFailed', 'Failed to load data')
+          )
+        }
+      } finally {
+        if (!silent) {
+          setSectionsLoading(false)
+        }
+      }
+    },
+    [
+      accountId,
+      props.accessToken,
+      fetchInvestmentActivitiesByAccountId,
+      fetchInvestmentNotesByAccountId,
+      fetchInvestmentTasksByAccountId
+    ]
+  )
+
+  const refreshSectionDataSilently = useCallback(() => {
+    refreshRecordData?.()
+    void loadSectionData(true)
+  }, [loadSectionData, refreshRecordData])
 
   // Load section data on mount
   useEffect(() => {
-    loadSectionData()
+    void loadSectionData(false)
   }, [loadSectionData])
 
-  // Listen for process completion events to refresh section data
+  // Refresh section lists after Kogito flows without section loading UI
   useProcessCompletion({
-    onSuccess: () => {
-      loadSectionData()
-    }
+    onSuccess: refreshSectionDataSilently
   })
 
   return (
-    <>
-      {/* Account Section - 1/4 width - EXACT MATCH TO LEAD */}
-      <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1 gba:min-h-96 gba:max-h-96"
-        sections={[
-          {
-            id: 'account-section',
-            component: AccountSection,
-            props: {
-              ...props,
-              account: accountData,
-              accountId: accountId,
-              actionButtonProps: {
-                contextsArray: [FlowContextName.investmentAccountEntity],
-                externalContextData: { accountId },
-                prefixDataTestId: 'account-account'
+    <RecordSectionsRefreshProvider value={refreshSectionDataSilently}>
+      <>
+        {/* Account Section - 1/4 width - EXACT MATCH TO LEAD */}
+        <SectionWrapper
+          className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1 gba:min-h-96 gba:max-h-96"
+          sections={[
+            {
+              id: 'account-section',
+              component: AccountSection,
+              props: {
+                ...props,
+                ...sectionDisplay.accountInformation,
+                account: accountData,
+                accountId: accountId,
+                actionButtonProps: {
+                  contextsArray: [FlowContextName.investmentAccountEntity],
+                  externalContextData: { accountId },
+                  prefixDataTestId: 'account-account'
+                }
               }
             }
-          }
-        ]}
-        data-testid="account-account-section-wrapper"
-      />
+          ]}
+          data-testid="account-account-section-wrapper"
+        />
 
-      {/* Contact Section - 1/4 width - EXACT MATCH TO LEAD */}
-      <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1 gba:min-h-96 gba:max-h-96"
-        sections={[
-          {
-            id: 'contact-section',
-            component: ContactSection,
-            props: {
-              ...props,
-              contacts:
-                accountData?.accountContacts
-                  ?.map((ac: any) => ({
-                    ...ac.contact,
-                    contactType: ac.contactType
-                  }))
-                  .filter(Boolean) || [],
-              contactId: accountData?.accountContacts?.[0]?.contact?.id || undefined,
-              recordUrl: accountData?.accountContacts?.[0]?.contact?.id
-                ? buildPlatformUrl('/platform/irm/contact-record', {
-                    contactId: accountData.accountContacts[0].contact.id,
-                    source: 'account-relations',
-                    fromEntity: 'accounts'
-                  })
-                : undefined,
-              actionButtonProps: {
-                contextsArray: [FlowContextName.investmentContactEntity],
-                externalContextData: { accountId },
-                prefixDataTestId: 'account-contact'
+        {/* Contact Section - 1/4 width - EXACT MATCH TO LEAD */}
+        <SectionWrapper
+          className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1 gba:min-h-96 gba:max-h-96"
+          sections={[
+            {
+              id: 'contact-section',
+              component: ContactSection,
+              props: {
+                ...props,
+                ...sectionDisplay.relatedContacts,
+                contacts:
+                  accountData?.accountContacts
+                    ?.map((ac: any) => ({
+                      ...ac.contact,
+                      contactType: ac.contactType
+                    }))
+                    .filter(Boolean) || [],
+                contactId: accountData?.accountContacts?.[0]?.contact?.id || undefined,
+                recordUrl: accountData?.accountContacts?.[0]?.contact?.id
+                  ? buildPlatformUrl('/platform/irm/contact-record', {
+                      contactId: accountData.accountContacts[0].contact.id,
+                      source: 'account-relations',
+                      fromEntity: 'accounts'
+                    })
+                  : undefined,
+                actionButtonProps: {
+                  contextsArray: [FlowContextName.investmentContactEntity],
+                  externalContextData: { accountId },
+                  prefixDataTestId: 'account-contact'
+                }
               }
             }
-          }
-        ]}
-        data-testid="account-contact-section-wrapper"
-      />
+          ]}
+          data-testid="account-contact-section-wrapper"
+        />
 
-      {/* Investment Section - 1/2 width - EXACT MATCH TO LEAD */}
-      <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-1"
-        sections={[
-          {
-            id: 'investment-section',
-            component: InvestmentSection,
-            props: {
-              ...props,
-              investments: investments,
-              isLoading: investmentsLoading,
-              error: sectionsError,
-              actionButtonProps: {
-                contextsArray: [FlowContextName.investmentEntity],
-                externalContextData: { accountId, dealType: 'DIVESTMENT_DEAL' },
-                prefixDataTestId: 'account-investment'
+        {/* Investment Section - 1/2 width - EXACT MATCH TO LEAD */}
+        <SectionWrapper
+          className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-1"
+          sections={[
+            {
+              id: 'investment-section',
+              component: InvestmentSection,
+              props: {
+                ...props,
+                investments: investments,
+                isLoading: investmentsLoading,
+                error: sectionsError,
+                actionButtonProps: {
+                  contextsArray: [FlowContextName.investmentEntity],
+                  externalContextData: { accountId, dealType: 'DIVESTMENT_DEAL' },
+                  prefixDataTestId: 'account-investment'
+                }
               }
             }
-          }
-        ]}
-        data-testid="account-investment-section-wrapper"
-      />
+          ]}
+          data-testid="account-investment-section-wrapper"
+        />
 
-      {/* Tasks & Approvals - 1/2 width, spans 2 rows - EXACT MATCH TO LEAD */}
-      <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
-        sections={[
-          {
-            id: 'tasks-section',
-            component: TaskSection,
-            props: {
-              ...props,
-              accountId,
-              buildReferenceUrl,
-              tasks: tasks,
-              taskActionProps: {
-                contextsArray: [FlowContextName.investmentTaskCreate],
-                externalContextData: { accountId },
-                prefixDataTestId: 'account-tasks',
-                emptyStateBehavior: 'enable'
-              },
-              taskEntityActionProps: {
-                contextsArray: [FlowContextName.investmentTaskEntity],
-                externalContextData: { accountId },
-                prefixDataTestId: 'account-task-entity',
-                emptyStateBehavior: 'enable'
-              },
-              typeCatalog: TASK_TYPE,
-              priorityCatalog: TASK_PRIORITY,
-              buildTaskPayload: buildInvestmentTaskPayload,
-              defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
-              preSubmit: taskPreSubmit,
-              docuSignEnabled
-            }
-          },
-          {
-            id: 'approval-tasks-section',
-            component: TaskSection,
-            props: {
-              ...props,
-              accountId,
-              sectionTitle: 'Approval Tasks',
-              buildReferenceUrl,
-              tasks: approvals,
-              taskEntityActionProps: {
-                contextsArray: [FlowContextName.investmentTaskEntity],
-                externalContextData: { accountId },
-                prefixDataTestId: 'account-approval-entity',
-                emptyStateBehavior: 'enable'
-              },
-              taskActionProps: {
-                contextsArray: [FlowContextName.investmentTaskCreate],
-                externalContextData: {
-                  accountId,
-                  account: accountId,
-                  typeRef: APPROVAL_TASK_TYPE_REF,
-                  investmentTask: { account: accountId, type: APPROVAL_TASK_TYPE_REF }
+        {/* Tasks & Approvals - 1/2 width, spans 2 rows - EXACT MATCH TO LEAD */}
+        <SectionWrapper
+          className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
+          sections={[
+            {
+              id: 'tasks-section',
+              component: TaskSection,
+              props: {
+                ...props,
+                accountId,
+                buildReferenceUrl,
+                tasks: tasks,
+                taskActionProps: {
+                  contextsArray: [FlowContextName.investmentTaskCreate],
+                  externalContextData: { accountId },
+                  prefixDataTestId: 'account-tasks',
+                  emptyStateBehavior: 'enable'
                 },
-                prefixDataTestId: 'account-approvals',
-                emptyStateBehavior: 'enable'
-              },
-              typeCatalog: TASK_TYPE,
-              priorityCatalog: TASK_PRIORITY,
-              isApprovalTaskSection: true,
-              approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
-              defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
-              buildTaskPayload: buildInvestmentTaskPayload,
-              preSubmit: taskPreSubmit,
-              docuSignEnabled
-            }
-          }
-        ]}
-        data-testid="account-tasks-approvals-section-wrapper"
-      />
-
-      {/* Activities & Notes - 1/2 width, spans 2 rows - EXACT MATCH TO LEAD */}
-      <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
-        sections={[
-          {
-            id: 'activities-section',
-            component: ActivitySection,
-            props: {
-              ...props,
-              accountId,
-              activities: activities,
-              activitiesLoading: sectionsLoading,
-              activitiesError: sectionsError,
-              onReloadActivities: loadSectionData,
-              activitySectionActionProps: {
-                contextsArray: [FlowContextName.investmentActivityCreate],
-                externalContextData: {
-                  accountId,
-                  ...(props.userInfo?.employeeDetails?.employeeId && {
-                    ownerEmployeeId: props.userInfo.employeeDetails.employeeId
-                  }),
-                  ...(props.userInfo?.id && {
-                    employeeId: props.userInfo.id,
-                    userId: props.userInfo.id,
-                    employeeDetails: { userId: props.userInfo.id }
-                  })
+                taskEntityActionProps: {
+                  contextsArray: [FlowContextName.investmentTaskEntity],
+                  externalContextData: { accountId },
+                  prefixDataTestId: 'account-task-entity',
+                  emptyStateBehavior: 'enable'
                 },
-                prefixDataTestId: 'account-activities',
-                emptyStateBehavior: 'enable'
-              },
-              activityEntityActionProps: {
-                contextsArray: [FlowContextName.investmentActivityEntity],
-                externalContextData: { accountId },
-                prefixDataTestId: 'account-activity-entity',
-                emptyStateBehavior: 'enable'
-              },
-              activityTypeCatalog: ACTIVITY_TYPE,
-              buildActivityPayload: buildInvestmentActivityPayload,
-              alignment: 'right',
-              preSubmit: activityPreSubmit,
-              getRelatedRecordUrl: buildIrmRelatedEntityRecordUrl
+                typeCatalog: TASK_TYPE,
+                priorityCatalog: TASK_PRIORITY,
+                buildTaskPayload: buildInvestmentTaskPayload,
+                defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
+                preSubmit: taskPreSubmit,
+                docuSignEnabled
+              }
+            },
+            {
+              id: 'approval-tasks-section',
+              component: TaskSection,
+              props: {
+                ...props,
+                accountId,
+                sectionTitle: 'Approval Tasks',
+                buildReferenceUrl,
+                tasks: approvals,
+                taskEntityActionProps: {
+                  contextsArray: [FlowContextName.investmentTaskEntity],
+                  externalContextData: { accountId },
+                  prefixDataTestId: 'account-approval-entity',
+                  emptyStateBehavior: 'enable'
+                },
+                taskActionProps: {
+                  contextsArray: [FlowContextName.investmentTaskCreate],
+                  externalContextData: {
+                    accountId,
+                    account: accountId,
+                    typeRef: APPROVAL_TASK_TYPE_REF,
+                    investmentTask: { account: accountId, type: APPROVAL_TASK_TYPE_REF }
+                  },
+                  prefixDataTestId: 'account-approvals',
+                  emptyStateBehavior: 'enable'
+                },
+                typeCatalog: TASK_TYPE,
+                priorityCatalog: TASK_PRIORITY,
+                isApprovalTaskSection: true,
+                approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
+                defaultTaskStatusRef: 'InvestmentTaskStatus:v1:IN_PROGRESS',
+                buildTaskPayload: buildInvestmentTaskPayload,
+                preSubmit: taskPreSubmit,
+                docuSignEnabled
+              }
             }
-          },
-          {
-            id: 'notes-section',
-            component: NoteSection as React.ComponentType<any>,
-            props: {
-              ...props,
-              accountId,
-              notes: notes,
-              noteActionProps: {
-                contextsArray: [FlowContextName.investmentNoteCreate],
-                externalContextData: { accountId },
-                prefixDataTestId: 'account-notes',
-                emptyStateBehavior: 'enable'
-              },
-              noteEntityActionProps: {
-                contextsArray: [FlowContextName.investmentNoteEntity],
-                externalContextData: { accountId },
-                prefixDataTestId: 'account-note-entity',
-                emptyStateBehavior: 'enable'
-              },
-              buildNotePayload: buildInvestmentNotePayload,
-              preSubmit: notePreSubmit
+          ]}
+          data-testid="account-tasks-approvals-section-wrapper"
+        />
+
+        {/* Activities & Notes - 1/2 width, spans 2 rows - EXACT MATCH TO LEAD */}
+        <SectionWrapper
+          className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2"
+          sections={[
+            {
+              id: 'activities-section',
+              component: ActivitySection,
+              props: {
+                ...props,
+                accountId,
+                activities: activities,
+                activitiesLoading: sectionsLoading,
+                activitiesError: sectionsError,
+                onReloadActivities: refreshSectionDataSilently,
+                activitySectionActionProps: {
+                  contextsArray: [FlowContextName.investmentActivityCreate],
+                  externalContextData: {
+                    accountId,
+                    ...(props.userInfo?.employeeDetails?.employeeId && {
+                      ownerEmployeeId: props.userInfo.employeeDetails.employeeId
+                    }),
+                    ...(props.userInfo?.id && {
+                      employeeId: props.userInfo.id,
+                      userId: props.userInfo.id,
+                      employeeDetails: { userId: props.userInfo.id }
+                    })
+                  },
+                  prefixDataTestId: 'account-activities',
+                  emptyStateBehavior: 'enable'
+                },
+                activityEntityActionProps: {
+                  contextsArray: [FlowContextName.investmentActivityEntity],
+                  externalContextData: { accountId },
+                  prefixDataTestId: 'account-activity-entity',
+                  emptyStateBehavior: 'enable'
+                },
+                activityTypeCatalog: ACTIVITY_TYPE,
+                buildActivityPayload: buildInvestmentActivityPayload,
+                alignment: 'right',
+                preSubmit: activityPreSubmit,
+                getRelatedRecordUrl: buildIrmRelatedEntityRecordUrl
+              }
+            },
+            {
+              id: 'notes-section',
+              component: NoteSection as React.ComponentType<any>,
+              props: {
+                ...props,
+                accountId,
+                notes: notes,
+                noteActionProps: {
+                  contextsArray: [FlowContextName.investmentNoteCreate],
+                  externalContextData: { accountId },
+                  prefixDataTestId: 'account-notes',
+                  emptyStateBehavior: 'enable'
+                },
+                noteEntityActionProps: {
+                  contextsArray: [FlowContextName.investmentNoteEntity],
+                  externalContextData: { accountId },
+                  prefixDataTestId: 'account-note-entity',
+                  emptyStateBehavior: 'enable'
+                },
+                buildNotePayload: buildInvestmentNotePayload,
+                preSubmit: notePreSubmit
+              }
             }
-          }
-        ]}
-        data-testid="account-activities-notes-section-wrapper"
-      />
-    </>
+          ]}
+          data-testid="account-activities-notes-section-wrapper"
+        />
+      </>
+    </RecordSectionsRefreshProvider>
   )
 }
 

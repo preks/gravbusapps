@@ -50,6 +50,7 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     containerRef,
     getWorkbookSnapshotRef,
     toCellDimensionsPayload,
+    univerInstanceRef,
     univerAPIRef,
     remoteEchoSuppressionRef,
     isApplyingRemoteUpdateRef,
@@ -68,6 +69,7 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     scheduleSnapshotCheckpointRef,
     lastSyncedGridCellSignaturesRef,
     collabPersistedBulkApplyDepthRef,
+    currentBulkApplyOperationTypeRef,
     bulkApplyClearDeferredDirtyCellsRef,
     flushDeferredDirtyCellsRef,
     lastSyncedGridRowCountRef,
@@ -84,6 +86,20 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     copiedSelectionAnchorRef,
     pendingCutCellRangeRef,
     cutPasteCollabSuppressUntilMsRef,
+    recentMoveCellRangeFollowUpRef,
+    rowInsertFormulaFollowUpSuppressUntilMsRef,
+    recentInsertRowFormulaFollowUpRef,
+    rowDeleteFormulaFollowUpSuppressUntilMsRef,
+    recentDeleteRowFormulaFollowUpRef,
+    rowMoveFormulaFollowUpSuppressUntilMsRef,
+    recentMoveRowFormulaFollowUpRef,
+    columnInsertFormulaFollowUpSuppressUntilMsRef,
+    recentInsertColumnFormulaFollowUpRef,
+    columnDeleteFormulaFollowUpSuppressUntilMsRef,
+    recentDeleteColumnFormulaFollowUpRef,
+    columnMoveFormulaFollowUpSuppressUntilMsRef,
+    recentMoveColumnFormulaFollowUpRef,
+    recentNativeColumnMoveEmitRef,
     mergeGestureSuppressBySheetRef,
     pendingFormattingPasteIntentRef,
     pendingAutofillIntentRef,
@@ -225,7 +241,7 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
   /** `FR_FR` maps the numfmt plugin's default currency symbol to € (see `localeCurrencySymbolMap` in `@univerjs/sheets-numfmt`). Locale bundles still ship merged English strings under this key. */
   const spreadsheetUniverLocale = LocaleType.FR_FR
 
-  const createUniverApi = () =>
+  const createUniverBinding = () =>
     createUniver({
       locale: spreadsheetUniverLocale,
       locales: {
@@ -240,12 +256,14 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
           }
         })
       ]
-    }).univerAPI
+    })
 
   const initDims = extractDimensionsFromSnapshot(snapshotForInit as unknown as Record<string, unknown>, s.id)
   if (initDims) cellDimensionsRef.current = initDims
 
-  let univerAPI = createUniverApi()
+  let univerBinding = createUniverBinding()
+  let univerAPI = univerBinding.univerAPI
+  univerInstanceRef.current = univerBinding.univer
   univerAPIRef.current = univerAPI
   try {
     univerAPI.createWorkbook(snapshotForInit as unknown as Record<string, unknown>)
@@ -262,7 +280,9 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
       try {
         snapshotForInit = buildSafeRowSnapshot()
         initializedFromProvidedSnapshot = false
-        univerAPI = createUniverApi()
+        univerBinding = createUniverBinding()
+        univerAPI = univerBinding.univerAPI
+        univerInstanceRef.current = univerBinding.univer
         univerAPIRef.current = univerAPI
         univerAPI.createWorkbook(snapshotForInit as unknown as Record<string, unknown>)
         scheduleApplyGermanNumfmtLocale(univerAPI, isBootstrapAlive)
@@ -271,6 +291,7 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
         try {
           univerAPI.dispose()
         } catch {}
+        univerInstanceRef.current = null
         univerAPIRef.current = null
         contextRef.current = null
         lastSyncedGridCellSignaturesRef.current = new Map()
@@ -286,6 +307,7 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
       }
     } else {
       univerAPI.dispose()
+      univerInstanceRef.current = null
       univerAPIRef.current = null
       contextRef.current = null
       lastSyncedGridCellSignaturesRef.current = new Map()
@@ -499,6 +521,20 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     pendingFormattingPasteIntentRef,
     pendingAutofillIntentRef,
     mergeGestureSuppressBySheetRef,
+    cutPasteCollabSuppressUntilMsRef,
+    recentMoveCellRangeFollowUpRef,
+    rowInsertFormulaFollowUpSuppressUntilMsRef,
+    recentInsertRowFormulaFollowUpRef,
+    rowDeleteFormulaFollowUpSuppressUntilMsRef,
+    recentDeleteRowFormulaFollowUpRef,
+    rowMoveFormulaFollowUpSuppressUntilMsRef,
+    recentMoveRowFormulaFollowUpRef,
+    columnInsertFormulaFollowUpSuppressUntilMsRef,
+    recentInsertColumnFormulaFollowUpRef,
+    columnDeleteFormulaFollowUpSuppressUntilMsRef,
+    recentDeleteColumnFormulaFollowUpRef,
+    columnMoveFormulaFollowUpSuppressUntilMsRef,
+    recentMoveColumnFormulaFollowUpRef,
     getWorkbookSnapshotRef,
     peekPasteFormattingReplaceIntent,
     peekAutofillApplyType,
@@ -656,6 +692,8 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     readOnlyRef,
     recentSheetMutationIdsRef,
     pendingAutofillIntentRef,
+    columnMoveFormulaFollowUpSuppressUntilMsRef,
+    recentMoveColumnFormulaFollowUpRef,
     insertSheetSourceIds,
     latestNativeSheetCopySourceIdRef,
     markFormattingPasteIntent,
@@ -664,6 +702,7 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
 
   const { commandDisposable } = registerUniverMountCommandExecuted({
     univerAPI,
+    univerInstanceRef,
     univerAPIRef,
     propsRef,
     callbacksRef,
@@ -679,6 +718,20 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     lastCellValueMutationAtRef,
     pendingCutCellRangeRef,
     cutPasteCollabSuppressUntilMsRef,
+    recentMoveCellRangeFollowUpRef,
+    rowInsertFormulaFollowUpSuppressUntilMsRef,
+    recentInsertRowFormulaFollowUpRef,
+    rowDeleteFormulaFollowUpSuppressUntilMsRef,
+    recentDeleteRowFormulaFollowUpRef,
+    rowMoveFormulaFollowUpSuppressUntilMsRef,
+    recentMoveRowFormulaFollowUpRef,
+    columnInsertFormulaFollowUpSuppressUntilMsRef,
+    recentInsertColumnFormulaFollowUpRef,
+    columnDeleteFormulaFollowUpSuppressUntilMsRef,
+    recentDeleteColumnFormulaFollowUpRef,
+    columnMoveFormulaFollowUpSuppressUntilMsRef,
+    recentMoveColumnFormulaFollowUpRef,
+    recentNativeColumnMoveEmitRef,
     mergeGestureSuppressBySheetRef,
     pendingAutofillIntentRef,
     pendingDimensionUserIntentRef,
@@ -744,6 +797,21 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
       readOnlyRef,
       isApplyingRemoteUpdateRef,
       collabPersistedBulkApplyDepthRef,
+      currentBulkApplyOperationTypeRef,
+      cutPasteCollabSuppressUntilMsRef,
+      recentMoveCellRangeFollowUpRef,
+      rowInsertFormulaFollowUpSuppressUntilMsRef,
+      recentInsertRowFormulaFollowUpRef,
+      rowDeleteFormulaFollowUpSuppressUntilMsRef,
+      recentDeleteRowFormulaFollowUpRef,
+      rowMoveFormulaFollowUpSuppressUntilMsRef,
+      recentMoveRowFormulaFollowUpRef,
+      columnInsertFormulaFollowUpSuppressUntilMsRef,
+      recentInsertColumnFormulaFollowUpRef,
+      columnDeleteFormulaFollowUpSuppressUntilMsRef,
+      recentDeleteColumnFormulaFollowUpRef,
+      columnMoveFormulaFollowUpSuppressUntilMsRef,
+      recentMoveColumnFormulaFollowUpRef,
       remoteEchoSuppressionRef,
       univerAPIRef,
       callbacksRef,
@@ -838,6 +906,7 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     } catch {}
     sheetScrollRef.current = { scrollLeft: 0, scrollTop: 0 }
     univerAPI.dispose()
+    univerInstanceRef.current = null
     univerAPIRef.current = null
     contextRef.current = null
     lastSyncedGridCellSignaturesRef.current = new Map()

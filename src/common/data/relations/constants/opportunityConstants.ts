@@ -5,7 +5,7 @@
  */
 
 /**
- * Deal Type
+ * Opportunity Type
  * Indicates the nature of the business opportunity
  */
 export enum DealType {

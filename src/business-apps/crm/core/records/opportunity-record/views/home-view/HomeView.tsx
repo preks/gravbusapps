@@ -6,6 +6,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
 import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
+import { useRecordSectionDisplayConfig } from '@/common/components/common-relations/record-sections/section-display'
 import ConditionSection from '@/common/components/common-relations/record-sections/condition-section/ConditionSection'
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
@@ -34,6 +35,7 @@ import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPr
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
+import { RecordSectionsRefreshProvider } from '@/common/components/common-relations/record-sections/RecordSectionsRefreshContext'
 
 interface HomeViewProps extends BusinessAppContextProps {
   opportunityId: string
@@ -45,7 +47,7 @@ interface HomeViewProps extends BusinessAppContextProps {
   stageConditionStatuses: any[]
   activitiesLoading: boolean
   activitiesError: string | null
-  loadActivities: () => void
+  loadSectionData: () => void
   stageConditionActionProps: any
 }
 
@@ -75,12 +77,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
   stageConditionStatuses,
   activitiesLoading,
   activitiesError,
-  loadActivities,
+  loadSectionData,
   stageConditionActionProps,
   accessToken,
   ...props
 }) => {
   const docuSignEnabled = useFeature<boolean>(Feature.CRM.DocuSign.Key) === true
+  const sectionDisplay = useRecordSectionDisplayConfig()
   const { t } = useTranslation(noteSectionI18n)
   const regularOpportunityNotes = useMemo(() => (notes ?? []).filter(isCrmNoteRegularType), [notes])
   const nextStepOpportunityNotes = useMemo(() => (notes ?? []).filter(isCrmNoteNextStepType), [notes])
@@ -143,6 +146,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           props: {
             ...props,
             accessToken,
+            ...sectionDisplay.relatedAccounts,
             accounts:
               opportunityData?.opportunityAccounts
                 ?.map((junction: CustomerOpportunityAccount) => ({
@@ -188,6 +192,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           props: {
             ...props,
             accessToken,
+            ...sectionDisplay.relatedContacts,
             contacts:
               opportunityData?.opportunityContacts
                 ?.map((oc: any) => ({
@@ -331,7 +336,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             activities: activities,
             activitiesLoading: activitiesLoading,
             activitiesError: activitiesError,
-            onReloadActivities: loadActivities,
+            onReloadActivities: loadSectionData,
             activitySectionActionProps: {
               contextsArray: [FlowContextName.customerActivityCreate],
               externalContextData: {
@@ -421,33 +426,37 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
   if (!shouldShowStageConditions) {
     return (
-      <div className="gba:col-span-12 gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch gba:lg:grid-cols-12">
-        <div className="gba:flex gba:h-full gba:flex-col gba:gap-4 gba:lg:col-span-6">
-          <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:sm:grid-cols-2">
-            {renderAccountSection('gba:min-h-96 gba:max-h-96')}
-            {renderContactSection('gba:min-h-96 gba:max-h-96')}
+      <RecordSectionsRefreshProvider value={loadSectionData}>
+        <div className="gba:col-span-12 gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch gba:lg:grid-cols-12">
+          <div className="gba:flex gba:h-full gba:flex-col gba:gap-4 gba:lg:col-span-6">
+            <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:sm:grid-cols-2">
+              {renderAccountSection('gba:min-h-96 gba:max-h-96')}
+              {renderContactSection('gba:min-h-96 gba:max-h-96')}
+            </div>
+
+            {renderTasksAndApprovalsSection('gba:min-h-96 gba:flex-1')}
           </div>
 
-          {renderTasksAndApprovalsSection('gba:min-h-96 gba:flex-1')}
+          {renderActivitiesNotesAndNextStepsSection('gba:min-h-196 gba:h-full gba:lg:col-span-6')}
         </div>
-
-        {renderActivitiesNotesAndNextStepsSection('gba:min-h-196 gba:h-full gba:lg:col-span-6')}
-      </div>
+      </RecordSectionsRefreshProvider>
     )
   }
 
   return (
-    <div className="gba:col-span-12 gba:flex gba:flex-col gba:gap-4">
-      <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:lg:grid-cols-12">
-        {renderAccountSection('gba:min-h-96 gba:max-h-96 gba:lg:col-span-3')}
-        {renderContactSection('gba:min-h-96 gba:max-h-96 gba:lg:col-span-3')}
-        {renderConditionSection()}
-      </div>
+    <RecordSectionsRefreshProvider value={loadSectionData}>
+      <div className="gba:col-span-12 gba:flex gba:flex-col gba:gap-4">
+        <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:lg:grid-cols-12">
+          {renderAccountSection('gba:min-h-96 gba:max-h-96 gba:lg:col-span-3')}
+          {renderContactSection('gba:min-h-96 gba:max-h-96 gba:lg:col-span-3')}
+          {renderConditionSection()}
+        </div>
 
-      <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch gba:lg:grid-cols-12">
-        {renderTasksAndApprovalsSection('gba:min-h-196 gba:h-full gba:lg:col-span-6')}
-        {renderActivitiesNotesAndNextStepsSection('gba:min-h-196 gba:h-full gba:lg:col-span-6')}
+        <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch gba:lg:grid-cols-12">
+          {renderTasksAndApprovalsSection('gba:min-h-196 gba:h-full gba:lg:col-span-6')}
+          {renderActivitiesNotesAndNextStepsSection('gba:min-h-196 gba:h-full gba:lg:col-span-6')}
+        </div>
       </div>
-    </div>
+    </RecordSectionsRefreshProvider>
   )
 }

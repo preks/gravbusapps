@@ -32,7 +32,7 @@ export interface OverviewCounts {
 export interface ConversionMetrics {
   leadToOpportunityRate: number
   opportunityWinRate: number
-  avgDealSize: number
+  avgOpportunitySize: number
   totalWonRevenue: number
   salesCycleLength?: number
 }

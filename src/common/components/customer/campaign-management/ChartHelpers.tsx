@@ -1,5 +1,42 @@
 import React from 'react'
 
+const DEFAULT_CHART_LABEL_MAX_LENGTH = 16
+
+interface CategoryAxisTickProps {
+  x?: number
+  y?: number
+  payload?: {
+    value?: string
+  }
+}
+
+const CategoryAxisTick: React.FC<CategoryAxisTickProps> = ({ x = 0, y = 0, payload }) => (
+  <g transform={`translate(${x},${y})`}>
+    <text dy={10} transform="rotate(-35)" textAnchor="end" className="gba:fill-muted-foreground" fontSize={12}>
+      {truncateChartLabel(String(payload?.value ?? ''))}
+    </text>
+  </g>
+)
+
+export const CATEGORY_CHART_MARGIN = {
+  top: 16,
+  right: 24,
+  left: 8,
+  bottom: 48
+}
+
+export const CATEGORY_AXIS_PROPS = {
+  interval: 0,
+  height: 72,
+  tick: <CategoryAxisTick />
+}
+
+export const truncateChartLabel = (label: string, maxLength = DEFAULT_CHART_LABEL_MAX_LENGTH): string => {
+  if (label.length <= maxLength) return label
+
+  return `${label.slice(0, maxLength).trimEnd()}...`
+}
+
 // Reusable tooltip wrapper component
 interface TooltipWrapperProps {
   title: string

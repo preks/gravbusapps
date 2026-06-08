@@ -254,20 +254,23 @@ export const MemorySection: React.FC<MemorySectionProps> = ({ client, isOpen }) 
       <SectionHeader icon={<BrainIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground/60" />} title="Memory" />
       <div className="gba:pb-2.5 sm:gba:pb-3">
         {MEMORY_NAMESPACES.length > 1 && (
-          <div className="gba:flex gba:gap-1 gba:mb-2.5 sm:gba:mb-3 gba:px-3 sm:gba:px-4">
-            {MEMORY_NAMESPACES.map(ns => (
-              <button
-                key={ns}
-                onClick={() => setActiveNamespace(ns)}
-                className={`gba:px-3 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium gba:transition-colors ${
-                  activeNamespace === ns
-                    ? 'gba:bg-foreground gba:text-background'
-                    : 'gba:text-muted-foreground gba:hover:bg-muted/40'
-                }`}
-              >
-                {MEMORY_NAMESPACE_LABELS[ns]}
-              </button>
-            ))}
+          <div className="gba:px-3 sm:gba:px-4 gba:mb-5">
+            <div className="gba:flex gba:gap-5 gba:border-b gba:border-border/60">
+              {MEMORY_NAMESPACES.map(ns => (
+                <button
+                  key={ns}
+                  type="button"
+                  onClick={() => setActiveNamespace(ns)}
+                  className={`gba:-mb-px gba:border-b-2 gba:px-0.5 gba:pb-2 gba:text-sm gba:font-semibold gba:transition-colors ${
+                    activeNamespace === ns
+                      ? 'gba:border-foreground gba:text-foreground'
+                      : 'gba:border-transparent gba:text-muted-foreground gba:hover:text-foreground'
+                  }`}
+                >
+                  {MEMORY_NAMESPACE_LABELS[ns]}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 

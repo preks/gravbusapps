@@ -5,7 +5,7 @@ import { useOpportunityStatusData, type OpportunityStatusConfig } from './useOpp
 import { useRecentRecordsData, type RecentRecordsConfig } from './useRecentRecordsData'
 import { useActiveTasksData, type ActiveTasksConfig } from './useActiveTasksData'
 import { useTodaysActivitiesData, type TodaysActivitiesConfig } from './useTodaysActivitiesData'
-import { useTopDealsData, type TopDealsConfig } from './useTopDealsData'
+import { useTopOpportunitiesData, type TopOpportunitiesConfig } from './useTopOpportunitiesData'
 import type { OverviewData, RelatedEntityType } from './types/OverviewDataTypes'
 import dayjs from 'dayjs'
 
@@ -18,7 +18,7 @@ export interface OverviewDashboardConfig {
   opportunityStatus?: OpportunityStatusConfig
   recentRecords: RecentRecordsConfig
   todaysActivities: TodaysActivitiesConfig
-  topDeals: TopDealsConfig
+  topOpportunities: TopOpportunitiesConfig
   aggregatedFunnel: AggregatedFunnelConfig
   activeTasks: ActiveTasksConfig
   useOpportunityStatusInsteadOfLeadSource?: boolean
@@ -43,8 +43,8 @@ export interface UseGenericOverviewDataReturn {
   error: string | null
   refetch: () => void
   setSelectedCurrency: (currency: string) => void
-  selectedDealCurrency: string
-  setSelectedDealCurrency: (currency: string) => void
+  selectedOpportunityCurrency: string
+  setSelectedOpportunityCurrency: (currency: string) => void
   handleTasksPageChange: (page: number, pageSize: number) => Promise<void>
   handleActivitiesPageChange: (page: number, pageSize: number) => Promise<void>
 }
@@ -83,7 +83,7 @@ export const useGenericOverviewData = (
   const [isLoading, setIsLoading] = useState(shouldFetch)
   const [error, setError] = useState<string | null>(null)
   const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR')
-  const [selectedDealCurrency, setSelectedDealCurrency] = useState<string>('EUR')
+  const [selectedOpportunityCurrency, setSelectedOpportunityCurrency] = useState<string>('EUR')
 
   // Use shared hooks with config parameters extracted from comprehensive config
   const pipelineRefs = pipelines.map(p => p.ref)
@@ -154,11 +154,11 @@ export const useGenericOverviewData = (
     currentEmployeeId
   })
 
-  const { deals: sharedTopDeals } = useTopDealsData({
+  const { opportunities: sharedTopOpportunities } = useTopOpportunitiesData({
     accessToken,
     enabled: shouldFetch,
-    config: config.topDeals,
-    selectedCurrency: selectedDealCurrency,
+    config: config.topOpportunities,
+    selectedCurrency: selectedOpportunityCurrency,
     limit: 5
   })
 
@@ -315,20 +315,24 @@ export const useGenericOverviewData = (
     })
   }, [sharedTodaysActivities])
 
-  const processedTopDeals = React.useMemo(() => {
-    return sharedTopDeals.map(deal => {
-      const currencyCode = deal.currencyRef ? extractCurrencyCode(deal.currencyRef) : selectedDealCurrency
+  const processedTopOpportunities = React.useMemo(() => {
+    return sharedTopOpportunities.map(opportunity => {
+      const currencyCode = opportunity.currencyRef
+        ? extractCurrencyCode(opportunity.currencyRef)
+        : selectedOpportunityCurrency
 
       return {
-        id: deal.id,
-        name: deal.name,
-        value: formatCurrency(deal.estimatedAmount || 0, currencyCode),
-        stage: deal.pipelineStage?.value || 'Unknown',
-        owner: `${deal.ownerEmployee?.firstName || ''} ${deal.ownerEmployee?.lastName || ''}`.trim() || 'Unknown',
-        closeDate: deal.closeDate ? dayjs(deal.closeDate).format('MMM D, YYYY') : 'Not set'
+        id: opportunity.id,
+        name: opportunity.name,
+        value: formatCurrency(opportunity.estimatedAmount || 0, currencyCode),
+        stage: opportunity.pipelineStage?.value || 'Unknown',
+        owner:
+          `${opportunity.ownerEmployee?.firstName || ''} ${opportunity.ownerEmployee?.lastName || ''}`.trim() ||
+          'Unknown',
+        closeDate: opportunity.closeDate ? dayjs(opportunity.closeDate).format('MMM D, YYYY') : 'Not set'
       }
     })
-  }, [sharedTopDeals, selectedDealCurrency, formatCurrency, extractCurrencyCode])
+  }, [sharedTopOpportunities, selectedOpportunityCurrency, formatCurrency, extractCurrencyCode])
 
   useEffect(() => {
     if (shouldFetch) {
@@ -358,7 +362,7 @@ export const useGenericOverviewData = (
         openOpportunitiesComparison: staticData.openOpportunitiesComparison,
         useOpportunityStatus: config.useOpportunityStatusInsteadOfLeadSource,
         recentRecords: staticData.recentRecords,
-        keyDeals: processedTopDeals,
+        keyOpportunities: processedTopOpportunities,
         todaysActivities: processedTodaysActivities,
         todaysActivitiesTotal: sharedTodaysActivitiesTotal,
         activeTasks: processedActiveTasks,
@@ -370,7 +374,7 @@ export const useGenericOverviewData = (
     sharedAggregatedFunnel,
     sharedTotalPipelineValue,
     selectedCurrency,
-    processedTopDeals,
+    processedTopOpportunities,
     processedTodaysActivities,
     sharedTodaysActivitiesTotal,
     processedActiveTasks,
@@ -397,8 +401,8 @@ export const useGenericOverviewData = (
     error,
     refetch,
     setSelectedCurrency,
-    selectedDealCurrency,
-    setSelectedDealCurrency,
+    selectedOpportunityCurrency,
+    setSelectedOpportunityCurrency,
     handleTasksPageChange,
     handleActivitiesPageChange
   }

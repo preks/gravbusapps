@@ -28,8 +28,8 @@ export const crmOverviewDashboardConfig = {
     leadNameFields: 'name'
   },
 
-  // Top Deals Data
-  topDeals: {
+  // Top Opportunities Data
+  topOpportunities: {
     opportunityTable: 'Opportunity',
     pipelineStageField: 'salesPipelineStage',
     pipelineStageRefField: 'salesPipelineStageRef',

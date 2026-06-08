@@ -19,7 +19,7 @@ export interface OverviewCounts {
 export interface OverviewConversionMetrics {
   leadToOpportunityRate: number
   opportunityWinRate: number
-  avgDealSize: number
+  avgOpportunitySize: number
   totalWonRevenue: number
   salesCycleLength?: number // Optional: calculated in specific implementations if needed
 }
@@ -318,7 +318,7 @@ export const useGenericOverviewData = (accessToken: string, config: OverviewEnti
         const leadToOpportunityRate = totalLeads > 0 ? Math.round((totalOpportunities / totalLeads) * 100) : 0
         const opportunityWinRate =
           totalOpportunities > 0 ? Math.round((wonOpportunitiesCount / totalOpportunities) * 100) : 0
-        const avgDealSize = wonOpportunitiesCount > 0 ? totalWonRevenue / wonOpportunitiesCount : 0
+        const avgOpportunitySize = wonOpportunitiesCount > 0 ? totalWonRevenue / wonOpportunitiesCount : 0
 
         // Trend data
         const trendData: OverviewTrendData = {
@@ -363,7 +363,7 @@ export const useGenericOverviewData = (accessToken: string, config: OverviewEnti
             conversionMetrics: {
               leadToOpportunityRate,
               opportunityWinRate,
-              avgDealSize,
+              avgOpportunitySize,
               totalWonRevenue
             }
           },

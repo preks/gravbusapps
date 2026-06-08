@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { zodResolver } from '@hookform/resolvers/zod'
+import type { Resolver, ResolverResult } from 'react-hook-form'
 import { AddressType } from '@/common/data/relations/types/relationEnums'
 import type { InvestmentCompany } from '@/common/data/investment/types/investmentCompanyTypes'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -24,108 +26,195 @@ const addressSchema = z.object({
 })
 
 export const createCompanySchema = (t: (key: string) => string) => {
-  const executiveSchema = z
-    .object({
-      id: z.string().optional(),
-      version: z.number().optional(),
-      sourceType: z.enum(['employee', 'investmentContact']),
-      employeeId: z.string().optional(),
-      investmentContactId: z.string().optional(),
-      executiveTypeRef: z.string().optional()
+  const executiveSchema = z.object({
+    id: z.string().optional(),
+    version: z.number().optional(),
+    sourceType: z.enum(['employee', 'investmentContact']).optional(),
+    employeeId: z.string().optional(),
+    investmentContactId: z.string().optional(),
+    executiveTypeRef: z.string().optional()
+  })
+
+  const ownershipSchema = z.object({
+    id: z.string().optional(),
+    version: z.number().optional(),
+    ownerInvestmentCompanyId: z.string().optional(),
+    percentage: z
+      .number()
+      .min(0, t('validation-ownership-percentage-min'))
+      .max(OWNERSHIP_TOTAL_LIMIT, t('validation-ownership-percentage-max'))
+      .optional()
+  })
+
+  return z.object({
+    id: z.string().optional(),
+    version: z.number().optional(),
+    name: z.string().trim().min(1, t('validation-company-name-required')).max(64, t('validation-company-name-max')),
+    code: z.string().trim().min(1, t('validation-company-code-required')).max(20, t('validation-company-code-max')),
+    description: z.string().optional(),
+    commercialRegistrationNumber: z.string().optional(),
+    taxIdentificationNumber: z.string().optional(),
+    taxNumber: z.string().optional(),
+    valueAddedTaxNumber: z.string().optional(),
+    currencyRef: z.string().optional(),
+    investmentCompanyGroupAssociationId: z.string().optional(),
+    investmentCompanyGroupAssociationVersion: z.number().optional(),
+    investmentCompanyGroupId: z.string().optional(),
+    addresses: z.array(addressSchema).optional(),
+    executives: z.array(executiveSchema).optional(),
+    ownerships: z.array(ownershipSchema).optional(),
+    pictureModified: z.boolean().optional()
+  })
+}
+
+export interface CompanyCrossFieldError {
+  path: string
+  message: string
+}
+
+const validateExecutiveRow = (
+  executive: ExecutiveFormRow,
+  index: number,
+  t: (key: string) => string
+): CompanyCrossFieldError[] => {
+  const issues: CompanyCrossFieldError[] = []
+  const hasSourceType = Boolean(executive.sourceType)
+  // A fully empty row is an optional draft (a company can be created without executives) and is
+  // dropped from the payload on submit. Once the row is engaged via a source type, an executive
+  // type, a person, or it is an existing executive, the mandatory chain applies.
+  const hasMeaningfulData =
+    Boolean(executive.employeeId) ||
+    Boolean(executive.investmentContactId) ||
+    Boolean(executive.executiveTypeRef) ||
+    hasSourceType ||
+    Boolean(executive.id)
+
+  if (!hasMeaningfulData) {
+    return issues
+  }
+
+  // Choosing an executive type (or otherwise engaging the row) makes the source type mandatory.
+  if (!hasSourceType) {
+    issues.push({ path: `executives.${index}.sourceType`, message: t('validation-source-type-required') })
+    return issues
+  }
+
+  // A chosen source type makes the matching person mandatory.
+  if (executive.sourceType === 'employee' && !executive.employeeId) {
+    issues.push({ path: `executives.${index}.employeeId`, message: t('validation-employee-required') })
+  }
+  if (executive.sourceType === 'investmentContact' && !executive.investmentContactId) {
+    issues.push({
+      path: `executives.${index}.investmentContactId`,
+      message: t('validation-investment-contact-required')
     })
-    .superRefine((value, ctx) => {
-      const hasEmployee = Boolean(value.employeeId)
-      const hasInvestmentContact = Boolean(value.investmentContactId)
-      const hasExecutiveType = Boolean(value.executiveTypeRef)
-      const hasExistingId = Boolean(value.id)
-      const hasMeaningfulData = hasEmployee || hasInvestmentContact || hasExecutiveType || hasExistingId
+  }
 
-      if (!hasMeaningfulData) {
-        // Allow empty draft rows; they are dropped from payload on submit.
-        return
-      }
+  return issues
+}
 
-      if (value.sourceType === 'employee' && !value.employeeId) {
-        ctx.addIssue({ code: 'custom', path: ['employeeId'], message: t('validation-employee-required') })
-      }
-      if (value.sourceType === 'investmentContact' && !value.investmentContactId) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['investmentContactId'],
-          message: t('validation-investment-contact-required')
-        })
-      }
+const validateOwnershipRow = (
+  ownership: OwnershipFormRow,
+  index: number,
+  t: (key: string) => string
+): CompanyCrossFieldError[] => {
+  const issues: CompanyCrossFieldError[] = []
+  const hasOwner = Boolean(ownership.ownerInvestmentCompanyId)
+  const hasPercentage = ownership.percentage !== undefined
+  const hasMeaningfulData = hasOwner || hasPercentage || Boolean(ownership.id)
+
+  // Allow empty draft rows; they are dropped from the payload on submit.
+  if (!hasMeaningfulData) {
+    return issues
+  }
+
+  if (!hasOwner) {
+    issues.push({
+      path: `ownerships.${index}.ownerInvestmentCompanyId`,
+      message: t('validation-owner-company-required')
     })
+  }
+  if (!hasPercentage) {
+    issues.push({ path: `ownerships.${index}.percentage`, message: t('validation-ownership-percentage-min') })
+  }
 
-  const ownershipSchema = z
-    .object({
-      id: z.string().optional(),
-      version: z.number().optional(),
-      ownerInvestmentCompanyId: z.string().optional(),
-      percentage: z
-        .number()
-        .min(0, t('validation-ownership-percentage-min'))
-        .max(OWNERSHIP_TOTAL_LIMIT, t('validation-ownership-percentage-max'))
-        .optional()
-    })
-    .superRefine((value, ctx) => {
-      const hasOwner = Boolean(value.ownerInvestmentCompanyId)
-      const hasPercentage = value.percentage !== undefined
-      const hasExistingId = Boolean(value.id)
-      const hasMeaningfulData = hasOwner || hasPercentage || hasExistingId
+  return issues
+}
 
-      if (!hasMeaningfulData) {
-        // Allow empty draft rows; they are dropped from payload on submit.
-        return
-      }
+// Conditional / cross-row validation kept out of the Zod schema (see the note on
+// `createCompanySchema`). Returns inline field errors that the resolver merges into the result on
+// full-form validation only.
+export const validateCompanyCrossFields = (
+  data: CompanyFormData,
+  t: (key: string) => string
+): CompanyCrossFieldError[] => {
+  const issues: CompanyCrossFieldError[] = []
 
-      if (!hasOwner) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['ownerInvestmentCompanyId'],
-          message: t('validation-owner-company-required')
-        })
-      }
+  ;(data.executives || []).forEach((executive, index) => {
+    issues.push(...validateExecutiveRow(executive, index, t))
+  })
+  ;(data.ownerships || []).forEach((ownership, index) => {
+    issues.push(...validateOwnershipRow(ownership, index, t))
+  })
 
-      if (!hasPercentage) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['percentage'],
-          message: t('validation-ownership-percentage-min')
-        })
-      }
-    })
+  const ownershipTotal = (data.ownerships || []).reduce((sum, ownership) => sum + (ownership.percentage || 0), 0)
+  if (ownershipTotal > OWNERSHIP_TOTAL_LIMIT) {
+    issues.push({ path: 'ownerships', message: t('validation-ownership-total-max') })
+  }
 
-  return z
-    .object({
-      id: z.string().optional(),
-      version: z.number().optional(),
-      name: z.string().trim().min(1, t('validation-company-name-required')).max(64, t('validation-company-name-max')),
-      code: z.string().trim().min(1, t('validation-company-code-required')).max(20, t('validation-company-code-max')),
-      description: z.string().optional(),
-      commercialRegistrationNumber: z.string().optional(),
-      taxIdentificationNumber: z.string().optional(),
-      taxNumber: z.string().optional(),
-      valueAddedTaxNumber: z.string().optional(),
-      currencyRef: z.string().optional(),
-      investmentCompanyGroupAssociationId: z.string().optional(),
-      investmentCompanyGroupAssociationVersion: z.number().optional(),
-      investmentCompanyGroupId: z.string().optional(),
-      addresses: z.array(addressSchema).optional(),
-      executives: z.array(executiveSchema).optional(),
-      ownerships: z.array(ownershipSchema).optional(),
-      pictureModified: z.boolean().optional()
-    })
-    .superRefine((value, ctx) => {
-      const ownershipTotal = (value.ownerships || []).reduce((sum, ownership) => sum + (ownership.percentage || 0), 0)
-      if (ownershipTotal > OWNERSHIP_TOTAL_LIMIT) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['ownerships'],
-          message: t('validation-ownership-total-max')
-        })
-      }
-    })
+  return issues
+}
+
+const setNestedError = (errors: Record<string, any>, path: string, message: string): void => {
+  const keys = path.split('.')
+  let node = errors
+  for (let index = 0; index < keys.length - 1; index += 1) {
+    const key = keys[index]
+    if (typeof node[key] !== 'object' || node[key] === null) {
+      node[key] = {}
+    }
+    node = node[key]
+  }
+  const lastKey = keys[keys.length - 1]
+  // Never overwrite an existing (Zod) field error already sitting on this path.
+  if (!node[lastKey]) {
+    node[lastKey] = { type: 'manual', message }
+  }
+}
+
+// Detect full-form validation (submit) vs a scoped single-field trigger. On full submit RHF calls
+// the resolver with `names` undefined (and always validates the top-level required `name`/`code`).
+// A `requireSourceForEnable`-disabled CatalogSelect instead fires a scoped `trigger(field)` with a
+// single non-`name`/`code` field name; for those we must NOT augment, otherwise we re-introduce the
+// whole-form revalidation loop the plain schema exists to avoid.
+const isFullFormValidation = (names?: string[]): boolean =>
+  !names || names.length === 0 || names.some(name => name === 'name' || name === 'code')
+
+// Plain zodResolver augmented with the conditional/cross-row company rules. The extra errors are
+// merged in ONLY during full-form validation, keeping single-field triggers scoped and loop-free.
+export const createCompanyResolver = (
+  schema: ReturnType<typeof createCompanySchema>,
+  t: (key: string) => string
+): Resolver<CompanyFormData> => {
+  const baseResolver = zodResolver(schema) as Resolver<CompanyFormData>
+
+  return async (values, context, options) => {
+    const result = await baseResolver(values, context, options)
+
+    if (!isFullFormValidation(options.names as string[] | undefined)) {
+      return result
+    }
+
+    const crossFieldErrors = validateCompanyCrossFields(values as CompanyFormData, t)
+    if (crossFieldErrors.length === 0) {
+      return result
+    }
+
+    const mergedErrors: Record<string, any> = { ...result.errors }
+    crossFieldErrors.forEach(({ path, message }) => setNestedError(mergedErrors, path, message))
+
+    return { values: result.values, errors: mergedErrors } as ResolverResult<CompanyFormData>
+  }
 }
 
 export type CompanyFormData = z.infer<ReturnType<typeof createCompanySchema>>
@@ -239,7 +328,7 @@ export const createEmptyAddress = (): AddressFormRow => ({
 })
 
 export const createEmptyExecutive = (): ExecutiveFormRow => ({
-  sourceType: 'employee',
+  sourceType: undefined,
   employeeId: undefined,
   investmentContactId: undefined,
   executiveTypeRef: undefined

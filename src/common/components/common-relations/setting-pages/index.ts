@@ -14,6 +14,14 @@ export type { EngagementSettingsConfig, EngagementSettingsLayoutProps } from './
 export { DocumentSettingsLayout } from './document'
 export type { DocumentSettingsConfig, DocumentSettingsLayoutProps } from './document'
 
+export { CampaignSettingsLayout } from './campaign'
+export type {
+  CampaignSettingsCatalog,
+  CampaignSettingsConfig,
+  CampaignSettingsGroup,
+  CampaignSettingsLayoutProps
+} from './campaign'
+
 // Shared components
 export { CatalogTab } from './components/CatalogTab'
 export { DeleteConfirmationDialog } from './components/DeleteConfirmationDialog'

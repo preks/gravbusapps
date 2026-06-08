@@ -2,6 +2,8 @@ import { useCallback, useRef, useState, useMemo } from 'react'
 import type { MessageEntityReference } from '../types'
 import type { OutputItem } from '../../every-ai/types/models'
 import { getCurrentPageContext } from '../../every-ai/utils/pageContext'
+import * as flowbotStreamManager from '../../every-ai/streaming/flowbotStreamManager'
+import type { RunSubscriberHandlers } from '../../every-ai/streaming/flowbotStreamManager'
 import { usePageAnalytics } from '@/page-analitics/hooks/usePageAnalytics'
 import { prepareCurrentPageContext } from '@/page-analitics/send/page-analytics'
 import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
@@ -337,6 +339,18 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
     sessionId: conversationContextRef.current?.existingSessionId
   })
 
+  // Bootstrap the global stream manager once on mount so any in-flight
+  // @Every runs survive a team-chat refresh and we don't double-fire
+  // the agent if it was already running on the backend. The manager's
+  // bootstrap is idempotent across components.
+  useMemo(() => {
+    if (!accessToken) return null
+    flowbotStreamManager.bootstrap(accessToken).catch(err => {
+      console.warn('[useEveryAIChat] bootstrap rejected', err)
+    })
+    return null
+  }, [accessToken])
+
   /**
    * Check if message contains an @Every mention
    */
@@ -620,187 +634,142 @@ export function useEveryAIChat({ accessToken, onAIResponse, onStreamingUpdate }:
           files.forEach(file => form.append('files', file))
         }
 
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            Accept: 'text/event-stream'
-          },
-          body: form
-        })
-
-        if (!res.ok) {
-          throw new Error(`FlowBot request failed: ${res.statusText}`)
-        }
-
-        if (!res.body) {
-          throw new Error('No body in FlowBot response')
-        }
-
-        // Parse SSE response to extract the answer and meeting data
-        const reader = res.body.pipeThrough(new TextDecoderStream()).getReader()
+        // Route through the global stream manager so this run gets:
+        //  - 15s SSE heartbeats (no Kong/nginx idle kill),
+        //  - durable Redis-backed event log (refresh / re-mount survives),
+        //  - automatic /resume reconnect on transient disconnects.
+        // The team-chat surface still needs a single aggregated response
+        // object (text + outputs + scheduledMeeting + sessionId) for the
+        // existing callers, so we accumulate frames in local state via
+        // the subscriber callbacks and resolve once the manager reports
+        // the stream is terminal.
         let responseText = ''
-        let responseSessionId = effectiveSessionId // Start with current, will be updated if new one received
+        let responseSessionId = effectiveSessionId
         let scheduledMeeting: ScheduledMeeting | undefined
-        const collectedOutputs: OutputItem[] = [] // Collect all output items for rich rendering
-        let buf = ''
+        const collectedOutputs: OutputItem[] = []
 
-        while (true) {
-          const { value, done } = await reader.read()
-          if (done) break
-
-          buf += value
-          const parts = buf.split('\n\n')
-          buf = parts.pop() ?? ''
-
-          for (const part of parts) {
-            let event = 'message'
-            let data = ''
-            for (const rawLine of part.split('\n')) {
-              const line = rawLine.replace(/\r$/, '')
-              if (line.startsWith('event:')) event = line.slice(6).trim()
-              else if (line.startsWith('data:')) data += line.slice(5).trimStart()
+        const handlers: RunSubscriberHandlers = {
+          onSessionId: sid => {
+            if (sid) responseSessionId = sid
+          },
+          onFrame: frame => {
+            if (frame.event !== 'output-item') return
+            let output: any
+            try {
+              output = JSON.parse(frame.data)
+            } catch (e) {
+              console.error('❌ [EveryAI] Error parsing output-item:', e)
+              return
             }
 
-            if (event === 'session-id') {
+            if (output.type !== 'loading') {
+              collectedOutputs.push(output)
+            }
+
+            // scheduled_meeting output is the canonical backend signal.
+            if (output.type === 'scheduled_meeting' && output.meeting) {
               try {
-                const newSessionId = JSON.parse(data.trim())
-                if (newSessionId) {
-                  responseSessionId = newSessionId
+                const meetingData = output.meeting
+                scheduledMeeting = {
+                  id: meetingData.id || `meeting-${Date.now()}`,
+                  title: meetingData.title || 'Meeting',
+                  startTime: meetingData.startTime,
+                  endTime: meetingData.endTime,
+                  participants: meetingData.participants || [],
+                  meetingLink: meetingData.meetingLink,
+                  description: meetingData.description
                 }
-              } catch {
-                // Ignore parse errors
+              } catch (e) {
+                console.error('❌ [EveryAI] Error parsing scheduled_meeting output:', e)
               }
-            } else if (event === 'output-item') {
-              try {
-                const output = JSON.parse(data) // Collect the output item for rich rendering (except loading which we handle separately)
-                if (output.type !== 'loading') {
-                  collectedOutputs.push(output)
-                }
-
-                // Check for scheduled meeting output (NEW: proper backend support)
-                if (output.type === 'scheduled_meeting' && output.meeting) {
-                  try {
-                    const meetingData = output.meeting
+            } else if (output.type === 'tool') {
+              if ((output.name === 'schedule_meeting' || output.name === 'create_meeting') && output.parameters) {
+                try {
+                  const params = output.parameters
+                  if (params.title || params.subject) {
                     scheduledMeeting = {
-                      id: meetingData.id || `meeting-${Date.now()}`,
-                      title: meetingData.title || 'Meeting',
-                      startTime: meetingData.startTime,
-                      endTime: meetingData.endTime,
-                      participants: meetingData.participants || [],
-                      meetingLink: meetingData.meetingLink,
-                      description: meetingData.description
-                    }
-                  } catch (e) {
-                    console.error('❌ [EveryAI] Error parsing scheduled_meeting output:', e)
-                    // Don't throw - continue processing
-                  }
-                }
-
-                // Check for tool calls (meeting scheduling intent)
-                else if (output.type === 'tool') {
-                  // Check if tool has parameters with meeting details
-                  if ((output.name === 'schedule_meeting' || output.name === 'create_meeting') && output.parameters) {
-                    try {
-                      const params = output.parameters // Extract meeting details from tool parameters
-                      if (params.title || params.subject) {
-                        scheduledMeeting = {
-                          id: params.id || params.meeting_id || `meeting-${Date.now()}`,
-                          title: params.title || params.subject || params.summary || 'Meeting',
-                          startTime: params.start_time || params.startTime || params.start,
-                          endTime: params.end_time || params.endTime || params.end,
-                          participants: params.participant_ids || params.participants || params.attendees || [],
-                          meetingLink: params.meeting_link || params.meetingLink || params.link,
-                          description: params.description || params.agenda || params.notes
-                        }
-                      }
-                    } catch (e) {
-                      console.error('❌ [EveryAI] Error parsing tool parameters:', e)
-                      // Don't throw - continue processing
+                      id: params.id || params.meeting_id || `meeting-${Date.now()}`,
+                      title: params.title || params.subject || params.summary || 'Meeting',
+                      startTime: params.start_time || params.startTime || params.start,
+                      endTime: params.end_time || params.endTime || params.end,
+                      participants: params.participant_ids || params.participants || params.attendees || [],
+                      meetingLink: params.meeting_link || params.meetingLink || params.link,
+                      description: params.description || params.agenda || params.notes
                     }
                   }
+                } catch (e) {
+                  console.error('❌ [EveryAI] Error parsing tool parameters:', e)
                 }
+              }
+            }
 
-                if (output.type === 'answer') {
-                  let extractedText = ''
-
-                  try {
-                    // Check for text directly on the output
-                    if (output.text) {
-                      extractedText = output.text
-                    }
-                    // Also check displayData array for textBlock items
-                    else if (output.displayData && Array.isArray(output.displayData)) {
-                      const textBlocks = output.displayData
-                        .filter((item: any) => item.type === 'textBlock' && item.text)
-                        .map((item: any) => item.text)
-                      if (textBlocks.length > 0) {
-                        extractedText = textBlocks.join('\n\n')
-                      }
-                    }
-
-                    if (extractedText) {
-                      responseText = extractedText
-                      // Update streaming state for live updates
-                      setStreamingText(extractedText)
-                      if (onStreamingUpdate) {
-                        onStreamingUpdate(extractedText)
-                      }
-                    }
-                  } catch (e) {
-                    console.error('❌ [EveryAI] Error extracting answer text:', e)
-                    // Don't throw - continue processing
+            if (output.type === 'answer') {
+              let extractedText = ''
+              try {
+                if (output.text) {
+                  extractedText = output.text
+                } else if (output.displayData && Array.isArray(output.displayData)) {
+                  const textBlocks = output.displayData
+                    .filter((item: any) => item.type === 'textBlock' && item.text)
+                    .map((item: any) => item.text)
+                  if (textBlocks.length > 0) {
+                    extractedText = textBlocks.join('\n\n')
                   }
                 }
-                // Check for tool call results (meeting scheduling)
-                else if (output.type === 'tool-call-result' || output.type === 'tool_result') {
-                  try {
-                    // FlowBot returns meeting data in tool-call-result events
-                    const toolName = output.tool || output.tool_name || output.name
-                    if ((toolName === 'schedule_meeting' || toolName === 'create_meeting') && output.result) {
-                      const resultData = typeof output.result === 'string' ? JSON.parse(output.result) : output.result // FlowBot returns: { success: true, meeting: {...}, message: "..." }
-                      // Extract the nested meeting object
-                      const meetingData = resultData.meeting || resultData
-
-                      // Extract meeting details from the result
-                      if (meetingData.id || meetingData.meetingId || meetingData.meeting_id) {
-                        scheduledMeeting = {
-                          id:
-                            meetingData.id ||
-                            meetingData.meetingId ||
-                            meetingData.meeting_id ||
-                            `meeting-${Date.now()}`,
-                          title: meetingData.title || meetingData.subject || meetingData.summary || 'Meeting',
-                          startTime:
-                            meetingData.startTime ||
-                            meetingData.start ||
-                            meetingData.startDateTime ||
-                            meetingData.start_time,
-                          endTime:
-                            meetingData.endTime || meetingData.end || meetingData.endDateTime || meetingData.end_time,
-                          participants:
-                            meetingData.participants || meetingData.attendees || meetingData.participant_ids || [],
-                          meetingLink:
-                            meetingData.meetingLink ||
-                            meetingData.link ||
-                            meetingData.joinUrl ||
-                            meetingData.meeting_link,
-                          description: meetingData.description || meetingData.agenda || meetingData.notes
-                        }
-                      }
+                if (extractedText) {
+                  responseText = extractedText
+                  setStreamingText(extractedText)
+                  if (onStreamingUpdate) onStreamingUpdate(extractedText)
+                }
+              } catch (e) {
+                console.error('❌ [EveryAI] Error extracting answer text:', e)
+              }
+            } else if (output.type === 'tool-call-result' || output.type === 'tool_result') {
+              try {
+                const toolName = output.tool || output.tool_name || output.name
+                if ((toolName === 'schedule_meeting' || toolName === 'create_meeting') && output.result) {
+                  const resultData = typeof output.result === 'string' ? JSON.parse(output.result) : output.result
+                  const meetingData = resultData.meeting || resultData
+                  if (meetingData.id || meetingData.meetingId || meetingData.meeting_id) {
+                    scheduledMeeting = {
+                      id: meetingData.id || meetingData.meetingId || meetingData.meeting_id || `meeting-${Date.now()}`,
+                      title: meetingData.title || meetingData.subject || meetingData.summary || 'Meeting',
+                      startTime:
+                        meetingData.startTime ||
+                        meetingData.start ||
+                        meetingData.startDateTime ||
+                        meetingData.start_time,
+                      endTime:
+                        meetingData.endTime || meetingData.end || meetingData.endDateTime || meetingData.end_time,
+                      participants:
+                        meetingData.participants || meetingData.attendees || meetingData.participant_ids || [],
+                      meetingLink:
+                        meetingData.meetingLink || meetingData.link || meetingData.joinUrl || meetingData.meeting_link,
+                      description: meetingData.description || meetingData.agenda || meetingData.notes
                     }
-                  } catch (e) {
-                    console.error('❌ [EveryAI] Error parsing tool result:', e)
-                    // Don't throw - continue processing
                   }
                 }
               } catch (e) {
-                // Ignore JSON parse errors but log them
-                console.error('❌ [EveryAI] Error parsing output-item:', e)
+                console.error('❌ [EveryAI] Error parsing tool result:', e)
               }
             }
           }
         }
+
+        const startResult = await flowbotStreamManager.startRun({
+          url,
+          formData: form,
+          accessToken,
+          provisionalSessionId: effectiveSessionId || null,
+          handlers
+        })
+
+        // Wait for the run to terminate before returning the aggregated
+        // response. This matches the legacy contract callers expect.
+        // The agent runs server-side in a background task, so even if
+        // this await is cancelled the run completes — and the next
+        // /resume after a refresh sees the full backlog.
+        await startResult.complete
 
         // Meeting scheduling is now handled by FlowBot backend tools
         // The AI will call schedule_meeting, update_meeting, or cancel_meeting tools directly

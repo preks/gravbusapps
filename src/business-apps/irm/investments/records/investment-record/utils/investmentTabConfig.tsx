@@ -44,7 +44,14 @@ export const createInvestmentTabsConfig = (
       value: 'home',
       label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.home', 'Home'),
       icon: <HouseIcon className="gba:h-4 gba:w-4 gba:mr-2" />,
-      content: <InvestmentHomeTab investmentId={investmentId} investment={investment} {...props} />
+      content: (
+        <InvestmentHomeTab
+          investmentId={investmentId}
+          investment={investment}
+          refreshRecordData={loadData}
+          {...props}
+        />
+      )
     }
   ]
 

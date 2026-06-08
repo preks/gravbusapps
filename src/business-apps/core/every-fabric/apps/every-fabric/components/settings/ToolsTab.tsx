@@ -78,7 +78,9 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({ accessToken }) => {
     try {
       const [page, canonicalTools] = await Promise.all([
         client.getTools({ limit: 100 }),
-        client.getCanonicalProviderTools().catch(() => [] as CanonicalProviderToolEntry[])
+        // The Tools page only renders name/description/category/tags/related —
+        // never the JSON schema — so fetch the lite list to keep the payload small.
+        client.getCanonicalProviderTools({ includeSchema: false }).catch(() => [] as CanonicalProviderToolEntry[])
       ])
       setTools(page.data)
       setProviderTools(canonicalTools)

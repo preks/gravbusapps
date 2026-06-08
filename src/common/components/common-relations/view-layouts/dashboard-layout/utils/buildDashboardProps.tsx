@@ -8,10 +8,10 @@ export const buildOverviewProps = (
   overviewData: any,
   handlers: {
     setSelectedCurrency: (currency: string) => void
-    handleDealClick: (dealId: string) => void
-    setSelectedDealCurrency: (currency: string) => void
+    handleOpportunityClick: (opportunityId: string) => void
+    setSelectedOpportunityCurrency: (currency: string) => void
   },
-  selectedDealCurrency: string,
+  selectedOpportunityCurrency: string,
   recordNavigationConfig: RecordNavigationConfig
 ) => {
   if (!overviewData) return undefined
@@ -25,10 +25,10 @@ export const buildOverviewProps = (
     totalRevenue: overviewData.totalRevenue,
     totalLeadCount: overviewData.totalLeadCount,
     recentRecords: overviewData.recentRecords,
-    keyDeals: overviewData.keyDeals,
-    onDealClick: handlers.handleDealClick,
-    selectedDealCurrency,
-    onDealCurrencyChange: handlers.setSelectedDealCurrency,
+    keyOpportunities: overviewData.keyOpportunities,
+    onOpportunityClick: handlers.handleOpportunityClick,
+    selectedOpportunityCurrency,
+    onOpportunityCurrencyChange: handlers.setSelectedOpportunityCurrency,
     recordNavigationConfig,
     // Opportunity status data (IRM only)
     opportunityStatuses: overviewData.opportunityStatuses,
@@ -95,7 +95,7 @@ export const buildPipelineProps = ({
             variant: 'default' as const
           },
           {
-            label: `${pipelineData.metrics.dealsWon} won`,
+            label: `${pipelineData.metrics.opportunitiesWon} won`,
             variant: 'outline' as const
           }
         ]
@@ -104,14 +104,14 @@ export const buildPipelineProps = ({
     metrics: pipelineData
       ? {
           totalValue: pipelineData.metrics.totalValue,
-          avgDealSize: pipelineData.metrics.avgDealSize,
-          dealsWon: pipelineData.metrics.dealsWon,
+          avgOpportunitySize: pipelineData.metrics.avgOpportunitySize,
+          opportunitiesWon: pipelineData.metrics.opportunitiesWon,
           winRate: pipelineData.metrics.winRate
         }
       : {
           totalValue: 0,
-          avgDealSize: 0,
-          dealsWon: 0,
+          avgOpportunitySize: 0,
+          opportunitiesWon: 0,
           winRate: 0
         },
     funnelData: pipelineData?.funnelData || [],

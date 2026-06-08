@@ -1,6 +1,11 @@
 import type { SpreadsheetTraceEventInput } from '../services/spreadsheetDiagnostics'
+import type { ColumnReorderMove } from '../utils/spreadsheetColumnReorderMoves'
 import type { SpreadsheetColumn } from '../types'
 import type { SpreadsheetViewerRow } from './SpreadsheetSession'
+import type {
+  SpreadsheetCommittedCommentAnchorPatch,
+  SpreadsheetCommittedWorksheetMetadataPatch
+} from './spreadsheetCommittedDeltaContract'
 
 import type {
   AuthoritativeGridReapplyTarget,
@@ -259,6 +264,8 @@ export interface SpreadsheetCollaborationCallbacks {
   getSheetData?: (sheetId: string) => SpreadsheetViewerRow[]
   /** Live Univer workbook snapshot for committed-batch feature-matrix planning (Step 3). */
   getWorkbookSnapshot?: () => Record<string, unknown> | null
+  applyCommittedWorksheetMetadataPatch?: (patch: SpreadsheetCommittedWorksheetMetadataPatch) => void
+  applyCommittedCommentAnchorPatches?: (patches: SpreadsheetCommittedCommentAnchorPatch[]) => void
   getBackendRowIdForUiRowId: (uiRowId: string, univerRow?: number) => string | undefined
   commitLocalSheetData: (
     data: SpreadsheetViewerRow[],
@@ -346,6 +353,7 @@ export interface SpreadsheetCollaborationCallbacks {
     sheetId: string
     previousColumns: SpreadsheetColumn[]
     nextColumns: SpreadsheetColumn[]
+    moves?: ColumnReorderMove[]
   }) => boolean
   applyRemoteRowSlotsMove?: (params: {
     sheetId: string

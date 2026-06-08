@@ -12,8 +12,8 @@ import { toEpoch } from './traceTurn'
 const isSessionTerminalForHeadlines = (status: DeepAgentSession['status'] | undefined): boolean =>
   isTerminalSessionStatus(status)
 
-export function extractStreamingThinking(events: AgentStreamEvent[], mergedSession: DeepAgentSession | null): string {
-  const allEvents = events.length > 0 ? events : (mergedSession?.trace ?? [])
+export function extractStreamingThinking(events: AgentStreamEvent[]): string {
+  const allEvents = events.length > 0 ? events : []
   const thinkingSnapshots = allEvents
     .filter(
       (entry): entry is AgentChunkEvent =>

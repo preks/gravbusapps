@@ -24,6 +24,10 @@ import AccountDataPage from './pages/account-data/AccountDataPage'
 import TaskTemplateDataPage from './pages/task-template-data/TaskTemplateDataPage'
 import DocumentDataPage from './pages/document-data/DocumentDataPage'
 import CampaignDataPage from './pages/campaign-data/CampaignDataPage'
+import type {
+  CampaignSettingsCatalog,
+  CampaignSettingsGroup
+} from '@/common/components/common-relations/setting-pages/campaign'
 import IdealCustomerProfilesPage from './pages/ideal-customer-profiles/IdealCustomerProfilesPage'
 import MarketingComplianceDataPage from './pages/marketing-compliance-data/MarketingComplianceDataPage'
 import { FolderTemplateDataPage, ModuleType } from '@/common/components/common-relations/setting-pages/folder-templates'
@@ -36,7 +40,7 @@ export interface CustomerSettingsProps extends BusinessAppContextProps {
 
 const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDataTestId, ...context }) => {
   const { t } = useTranslation()
-  const { t: tIcp } = useFluentTranslation(customerSettingsI18n)
+  const { t: tCustomerSettings } = useFluentTranslation(customerSettingsI18n)
   const [inlinePage, setInlinePage] = React.useState<{ key: string; tab?: string } | null>(null)
 
   // Handle query parameters on component mount and browser back/forward
@@ -207,14 +211,26 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
       ]
     },
     {
-      title: t('crm.campaign_data', 'Campaign Data'),
-      description: t('crm.campaign_data_description', 'Manage campaign types'),
+      title: tCustomerSettings('campaign-data-title'),
+      description: tCustomerSettings('campaign-data-description'),
       icon: MegaphoneIcon,
       iconSize: 'md' as const,
       entries: [
         {
-          label: t('crm.campaign_types', 'Campaign Types'),
-          onClick: () => handleInlinePageChange({ key: 'campaign-data' })
+          label: tCustomerSettings('campaign-group-setup'),
+          onClick: () => handleInlinePageChange({ key: 'campaign-data', tab: 'setup' })
+        },
+        {
+          label: tCustomerSettings('campaign-group-targeting'),
+          onClick: () => handleInlinePageChange({ key: 'campaign-data', tab: 'targeting' })
+        },
+        {
+          label: tCustomerSettings('campaign-group-distribution'),
+          onClick: () => handleInlinePageChange({ key: 'campaign-data', tab: 'distribution' })
+        },
+        {
+          label: tCustomerSettings('campaign-group-engagement'),
+          onClick: () => handleInlinePageChange({ key: 'campaign-data', tab: 'engagement' })
         }
       ]
     },
@@ -235,13 +251,13 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
       ]
     },
     {
-      title: tIcp('icp-settings-card-title'),
-      description: tIcp('icp-settings-card-description'),
+      title: tCustomerSettings('icp-settings-card-title'),
+      description: tCustomerSettings('icp-settings-card-description'),
       icon: GaugeIcon,
       iconSize: 'md' as const,
       entries: [
         {
-          label: tIcp('icp-settings-card-entry'),
+          label: tCustomerSettings('icp-settings-card-entry'),
           onClick: () => handleInlinePageChange({ key: 'ideal-customer-profiles' })
         }
       ]
@@ -325,11 +341,17 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
   }
 
   if (inlinePage?.key === 'campaign-data') {
+    const tabParam = inlinePage.tab
+    const campaignGroups: CampaignSettingsGroup[] = ['setup', 'targeting', 'distribution', 'engagement']
+    const isGroupTab = campaignGroups.includes(tabParam as CampaignSettingsGroup)
+
     return (
       <CampaignDataPage
         {...context}
         prefixDataTestId={`${prefixDataTestId || ''}-CustomerCampaignSettings`}
         onBack={() => handleInlinePageChange(null)}
+        initialGroup={isGroupTab ? (tabParam as CampaignSettingsGroup) : undefined}
+        initialTab={isGroupTab ? undefined : (tabParam as CampaignSettingsCatalog)}
       />
     )
   }

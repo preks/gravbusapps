@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { useMemo, useState, useEffect, useRef } from 'react'
 import {
   Card,
   CardHeader,
@@ -37,6 +37,7 @@ export const ShareholderStructureChart: React.FC<ShareholderStructureChartProps>
   const { investment } = props
   const [shareholderData, setShareholderData] = useState<ShareholderChartData[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const hasLoadedRef = useRef(false)
   const [error, setError] = useState<string | null>(null)
 
   const { fetchInvestmentShareholders } = useGetInvestmentShareholdersByInvestmentId(props)
@@ -55,7 +56,9 @@ export const ShareholderStructureChart: React.FC<ShareholderStructureChartProps>
       return
     }
 
-    setIsLoading(true)
+    if (!hasLoadedRef.current) {
+      setIsLoading(true)
+    }
     setError(null)
 
     try {
@@ -102,9 +105,14 @@ export const ShareholderStructureChart: React.FC<ShareholderStructureChartProps>
       console.error('Error loading shareholder data:', err)
       setError(err instanceof Error ? err.message : 'Failed to load shareholder data')
     } finally {
+      hasLoadedRef.current = true
       setIsLoading(false)
     }
   }
+
+  useEffect(() => {
+    hasLoadedRef.current = false
+  }, [investment?.id])
 
   // Load shareholder data on component mount
   useEffect(() => {

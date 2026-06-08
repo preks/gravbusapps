@@ -15,13 +15,15 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { UserIcon, BuildingIcon, TargetIcon, CalendarIcon } from '@phosphor-icons/react'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { CampaignEntity } from '../types/CampaignRecordTypes'
-import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { formatDate } from '@/common/utils/windowUtils'
+import translations from '../../../_i18n'
 import { SortableHeader, PaginationButton, IconCell, useTableSorting } from '@/common/components/customer/TableHelpers'
 
 interface CampaignEntitiesTableProps {
@@ -53,6 +55,7 @@ const CampaignEntitiesTable: React.FC<CampaignEntitiesTableProps> = ({
   onRowClick,
   accessToken
 }) => {
+  const { t } = useTranslation(translations)
   const DATA_TEST_ID_PREFIX = 'CampaignEntitiesTable'
 
   // Helper function to get entity type config
@@ -65,7 +68,7 @@ const CampaignEntitiesTable: React.FC<CampaignEntitiesTableProps> = ({
         icon: BuildingIcon,
         color: 'var(--color-primary-600)'
       },
-      contact: { label: 'Contact', variant: 'outline' as const, icon: UserIcons, color: 'var(--color-primary-600)' },
+      contact: { label: 'Contact', variant: 'outline' as const, icon: UserIcon, color: 'var(--color-primary-600)' },
       opportunity: {
         label: 'Opportunity',
         variant: 'destructive' as const,
@@ -142,7 +145,7 @@ const CampaignEntitiesTable: React.FC<CampaignEntitiesTableProps> = ({
         data-testid={`${DATA_TEST_ID_PREFIX}-error-state`}
       >
         <div className="gba:text-lg gba:font-medium gba:mb-2" style={{ color: 'var(--color-danger-500)' }}>
-          {getTranslationFromI18nKeyAndLabel('campaign.entities.error.title', 'Error Loading Entities')}
+          {t('campaign-entities-error-title')}
         </div>
         <div className="gba:mb-4" style={{ color: 'var(--color-text-secondary)' }}>
           {error}
@@ -152,7 +155,7 @@ const CampaignEntitiesTable: React.FC<CampaignEntitiesTableProps> = ({
           onClick={() => globalThis.location.reload()}
           data-testid={`${DATA_TEST_ID_PREFIX}-retry-button`}
         >
-          {getTranslationFromI18nKeyAndLabel('common.retry', 'Retry')}
+          {t('common-retry')}
         </Button>
       </div>
     )
@@ -170,19 +173,19 @@ const CampaignEntitiesTable: React.FC<CampaignEntitiesTableProps> = ({
         <div className="gba:overflow-x-auto">
           <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`} style={{ minWidth: '1000px' }}>
             <TableHeader>
-              <TableRow className="gba:border-b gba:bg-gray-50">
+              <TableRow className="gba:border-b gba:bg-muted">
                 {/* Actions Column */}
                 <TableHead
-                  className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
+                  className="gba:w-[60px] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6"
                   data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
                 >
-                  {getTranslationFromI18nKeyAndLabel('campaign.entities.table.actions', 'ACTIONS')}
+                  {t('campaign-entities-table-actions')}
                 </TableHead>
 
                 {/* Name Column - Sortable */}
                 <SortableHeader
                   field="name"
-                  label={getTranslationFromI18nKeyAndLabel('campaign.entities.table.name', 'Name')}
+                  label={t('campaign-entities-table-name')}
                   width="gba:w-[300px]"
                   onSort={handleSort}
                   renderSortIcon={renderSortIcon}
@@ -193,7 +196,7 @@ const CampaignEntitiesTable: React.FC<CampaignEntitiesTableProps> = ({
                 {/* Type Column - Sortable */}
                 <SortableHeader
                   field="type"
-                  label={getTranslationFromI18nKeyAndLabel('campaign.entities.table.type', 'Type')}
+                  label={t('campaign-entities-table-type')}
                   width="gba:w-[180px]"
                   onSort={handleSort}
                   renderSortIcon={renderSortIcon}
@@ -204,7 +207,7 @@ const CampaignEntitiesTable: React.FC<CampaignEntitiesTableProps> = ({
                 {/* Creation Date Column - Sortable */}
                 <SortableHeader
                   field="createdAt"
-                  label={getTranslationFromI18nKeyAndLabel('campaign.entities.table.creationDate', 'Creation Date')}
+                  label={t('campaign-entities-table-creationDate')}
                   width="gba:w-[144px]"
                   onSort={handleSort}
                   renderSortIcon={renderSortIcon}
@@ -215,7 +218,7 @@ const CampaignEntitiesTable: React.FC<CampaignEntitiesTableProps> = ({
                 {/* Owner Column - Sortable */}
                 <SortableHeader
                   field="ownerEmployeeId"
-                  label={getTranslationFromI18nKeyAndLabel('campaign.entities.table.owner', 'Owner')}
+                  label={t('campaign-entities-table-owner')}
                   width="gba:w-[200px]"
                   onSort={handleSort}
                   renderSortIcon={renderSortIcon}
@@ -226,7 +229,7 @@ const CampaignEntitiesTable: React.FC<CampaignEntitiesTableProps> = ({
                 {/* Status Column - Sortable */}
                 <SortableHeader
                   field="status"
-                  label={getTranslationFromI18nKeyAndLabel('campaign.entities.table.status', 'Status')}
+                  label={t('campaign-entities-table-status')}
                   width="gba:w-[144px]"
                   onSort={handleSort}
                   renderSortIcon={renderSortIcon}
@@ -265,6 +268,7 @@ const CampaignEntitiesTable: React.FC<CampaignEntitiesTableProps> = ({
                       <div className="gba:flex gba:justify-start gba:gap-2">
                         <AppAction
                           variant="table-row"
+                          className="gba:bg-background hover:gba:bg-accent"
                           data-testid={`${DATA_TEST_ID_PREFIX}-update-${entity.type}-button-${entity.id}`}
                           contexts={getFlowContext(entity.type).map(context => ({
                             context,
@@ -420,7 +424,7 @@ const CampaignEntitiesTable: React.FC<CampaignEntitiesTableProps> = ({
           style={{ color: 'var(--color-text-secondary)' }}
           data-testid={`${DATA_TEST_ID_PREFIX}-empty-state`}
         >
-          {getTranslationFromI18nKeyAndLabel('campaign.entities.empty', 'No entities found for this campaign')}
+          {t('campaign-entities-empty')}
         </div>
       )}
     </Card>

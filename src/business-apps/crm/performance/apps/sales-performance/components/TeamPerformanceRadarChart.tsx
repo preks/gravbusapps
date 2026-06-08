@@ -32,7 +32,7 @@ const DATA_TEST_ID_PREFIX = 'team-performance-radar-chart'
 const METRICS = [
   { key: 'winRate', label: 'Win Rate', unit: '%' },
   { key: 'revenue', label: 'Revenue', unit: '' },
-  { key: 'dealsPerMember', label: 'Deals/Member', unit: '' },
+  { key: 'opportunitiesPerMember', label: 'Opportunities/Member', unit: '' },
   { key: 'winsPerMember', label: 'Wins/Member', unit: '' },
   { key: 'teamSize', label: 'Team Size', unit: '' }
 ] as const
@@ -78,7 +78,7 @@ const CustomTooltip = ({ active, payload }: any) => {
  * Shows a spider/radar chart comparing multiple team metrics:
  * - Win Rate (percentage)
  * - Revenue (normalized against highest team)
- * - Deals per Member (normalized)
+ * - Opportunities per Member (normalized)
  * - Wins per Member (normalized)
  * - Team Size (normalized)
  *
@@ -97,10 +97,10 @@ export const TeamPerformanceRadarChart: React.FC<TeamPerformanceRadarChartProps>
     }
 
     // Calculate raw metrics for each team
-    // Use wonDealsCount for win-based metrics, dealsCount for total deals
+    // Use wonOpportunitiesCount for win-based metrics, opportunitiesCount for total opportunities
     const teamMetrics = teams.map(team => {
-      const dealsPerMember = team.memberCount > 0 ? team.dealsCount / team.memberCount : 0
-      const winsPerMember = team.memberCount > 0 ? team.wonDealsCount / team.memberCount : 0
+      const opportunitiesPerMember = team.memberCount > 0 ? team.opportunitiesCount / team.memberCount : 0
+      const winsPerMember = team.memberCount > 0 ? team.wonOpportunitiesCount / team.memberCount : 0
 
       return {
         id: team.id,
@@ -108,7 +108,7 @@ export const TeamPerformanceRadarChart: React.FC<TeamPerformanceRadarChartProps>
         color: team.color,
         winRate: team.winRate,
         revenue: team.revenue,
-        dealsPerMember,
+        opportunitiesPerMember,
         winsPerMember,
         teamSize: team.memberCount
       }
@@ -116,7 +116,7 @@ export const TeamPerformanceRadarChart: React.FC<TeamPerformanceRadarChartProps>
 
     // Find max values for normalization
     const maxRevenue = Math.max(...teamMetrics.map(t => t.revenue), 1)
-    const maxDealsPerMember = Math.max(...teamMetrics.map(t => t.dealsPerMember), 1)
+    const maxOpportunitiesPerMember = Math.max(...teamMetrics.map(t => t.opportunitiesPerMember), 1)
     const maxWinsPerMember = Math.max(...teamMetrics.map(t => t.winsPerMember), 1)
     const maxTeamSize = Math.max(...teamMetrics.map(t => t.teamSize), 1)
 
@@ -137,8 +137,8 @@ export const TeamPerformanceRadarChart: React.FC<TeamPerformanceRadarChartProps>
           case 'revenue':
             value = normalizeValue(team.revenue, maxRevenue)
             break
-          case 'dealsPerMember':
-            value = normalizeValue(team.dealsPerMember, maxDealsPerMember)
+          case 'opportunitiesPerMember':
+            value = normalizeValue(team.opportunitiesPerMember, maxOpportunitiesPerMember)
             break
           case 'winsPerMember':
             value = normalizeValue(team.winsPerMember, maxWinsPerMember)

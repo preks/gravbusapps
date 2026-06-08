@@ -17,6 +17,7 @@ import type {
 import type { SpreadsheetTraceEventInput } from '../services/spreadsheetDiagnostics'
 import type { NativeSheetStructureIntent } from '../utils/nativeSheetStructureIntent'
 import type { SpreadsheetRowSlotIdentityRegistry } from '../utils/spreadsheetRowSlotIdentity'
+import type { ColumnReorderMove } from '../utils/spreadsheetColumnReorderMoves'
 import type { MutableRefObject } from 'react'
 
 export type WorkbookSnapshotLifecycleOrigin = 'cell' | 'workbook'
@@ -289,6 +290,11 @@ export interface UniverSheetGridRemoteApplyHandle {
     payload: SpreadsheetRemoteFeatureOperationPayload,
     meta?: SpreadsheetBulkRemoteApplyMeta
   ) => void
+  applyCommittedWorksheetMergePatch?: (
+    sheetId: string,
+    previousRanges: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>,
+    nextRanges: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
+  ) => void
 }
 
 /** Viewer row signature sync and forced reapply after authoritative data changes. */
@@ -309,6 +315,7 @@ export interface UniverSheetGridAuthoritativeHandle {
   applyRemoteColumnsReorder?: (params: {
     previousColumns: SpreadsheetColumn[]
     nextColumns: SpreadsheetColumn[]
+    moves?: ColumnReorderMove[]
   }) => boolean
   applyRemoteRowSlotsMove?: (params: {
     sourceStartGridRowIndex: number

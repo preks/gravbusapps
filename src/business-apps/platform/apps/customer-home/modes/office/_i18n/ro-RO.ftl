@@ -78,6 +78,8 @@ one-calendar-title = Calendar
 one-calendar-description = Programează și gestionează întâlniri. Integrat cu fluxul tău de lucru.
 one-reminders-title = Mementouri
 one-reminders-description = Nu rata niciun termen limită. Notificările inteligente te țin la curent.
+one-mail-title = E-mail
+one-mail-description = Gestionează-ți inboxul și rămâi la curent cu conversațiile importante.
 
 # EveryAI Section
 ai-title = EveryAI

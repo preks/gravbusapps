@@ -7,7 +7,7 @@ export { default as CampaignsRevenueAnalysis } from './components/CampaignsReven
 export { default as CampaignsRevenueEfficiency } from './components/CampaignsRevenueEfficiency'
 
 // Export hooks
-export { useCampaignsAnalytics } from './hooks/useCampaignsAnalytics'
+export { useCampaignsAnalytics } from '@/common/data/customer/hooks/useCampaignsAnalytics'
 
 // Export types
 export * from './types/CampaignsAnalyticsTypes'

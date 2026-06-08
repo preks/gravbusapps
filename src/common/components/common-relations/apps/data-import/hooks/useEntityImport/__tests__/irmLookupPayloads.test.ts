@@ -63,7 +63,7 @@ describe('toInvestmentOpportunityPayload — lookup arrays from Flowbot', () => 
   it('forwards opportunityContacts and opportunityAccounts as-is', () => {
     const payload = toInvestmentOpportunityPayload(
       {
-        name: 'Deal A',
+        name: 'Opportunity A',
         ownerEmployee: 'employee-resolved-id',
         opportunityContacts: [
           { contact: 'contact-anna-id', contactType: 'PRIMARY_CONTACT' },
@@ -77,7 +77,7 @@ describe('toInvestmentOpportunityPayload — lookup arrays from Flowbot', () => 
       undefined
     )
 
-    expect(payload.name).toBe('Deal A')
+    expect(payload.name).toBe('Opportunity A')
     expect(payload.ownerEmployee).toBe('employee-resolved-id')
     expect(payload.opportunityContacts).toEqual([
       { contact: 'contact-anna-id', contactType: 'PRIMARY_CONTACT' },
@@ -92,7 +92,7 @@ describe('toInvestmentOpportunityPayload — lookup arrays from Flowbot', () => 
   it('drops the legacy ownerEmployee key so only the renamed payload key is sent', () => {
     const payload = toInvestmentOpportunityPayload(
       {
-        name: 'Deal A',
+        name: 'Opportunity A',
         ownerEmployee: 'employee-from-row'
       },
       undefined
@@ -104,13 +104,13 @@ describe('toInvestmentOpportunityPayload — lookup arrays from Flowbot', () => 
   it('forwards investmentCompanyId as investmentCompany in the payload', () => {
     const payload = toInvestmentOpportunityPayload(
       {
-        name: 'Deal B',
+        name: 'Opportunity B',
         investmentCompanyId: 'investment-company-uuid'
       },
       undefined
     )
 
-    expect(payload.name).toBe('Deal B')
+    expect(payload.name).toBe('Opportunity B')
     expect(payload.investmentCompany).toBe('investment-company-uuid')
     expect(payload.investmentCompanyId).toBeUndefined()
   })
@@ -118,13 +118,13 @@ describe('toInvestmentOpportunityPayload — lookup arrays from Flowbot', () => 
   it('omits investmentCompany when not provided by Flowbot', () => {
     const payload = toInvestmentOpportunityPayload(
       {
-        name: 'Deal C',
+        name: 'Opportunity C',
         ownerEmployee: 'employee-resolved-id'
       },
       undefined
     )
 
-    expect(payload.name).toBe('Deal C')
+    expect(payload.name).toBe('Opportunity C')
     expect(payload.investmentCompany).toBeUndefined()
   })
 })

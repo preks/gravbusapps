@@ -5,8 +5,6 @@ import type { SpreadsheetCollaborationManager } from '../services/SpreadsheetCol
 import type { SpreadsheetMutationFacade } from '../core'
 import type { SpreadsheetSessionDiffProjectionMode } from '../core/SpreadsheetCollaborationContract'
 import {
-  replayRemoteDeltaThroughCollaborationManager,
-  applyRemoteFetchedSheetDelta,
   SpreadsheetSnapshotFallbackController,
   sheetDeltaRequiresFullSnapshot,
   type SpreadsheetSnapshotFallbackReason,
@@ -15,17 +13,13 @@ import {
 import type { SpreadsheetTraceEventInput, SpreadsheetTraceSession } from '../services/spreadsheetDiagnostics'
 
 import type { SheetDeltaCatchUpReason, SheetDeltaCatchUpOptions } from './spreadsheetRemoteSyncTypes'
-import {
-  estimateAuthoritativeGridReapplyTargetCellCount,
-  tryComputeAuthoritativeRegionsFromReplayDeltas,
-  type AuthoritativeGridReapplyTarget
-} from '../utils/spreadsheetAuthoritativeRegion'
-import { countReplayDeltaChangeKinds, partitionReplayDeltaChanges } from '../utils/spreadsheetReplayDeltaPartition'
+import type { AuthoritativeGridReapplyTarget } from '../utils/spreadsheetAuthoritativeRegion'
 import {
   getSheetCoverageVersion,
   hasSheetCoverageVersion,
   type SpreadsheetSnapshotCoversVersions
 } from '../utils/spreadsheetSnapshotCoverage'
+import { applyFetchedSheetDeltaRemotely } from './applyFetchedSheetDeltaRemotely'
 
 import type { SpreadsheetCellIntentRecord } from '../core/spreadsheetIntentJournal'
 
@@ -255,147 +249,23 @@ export function useSpreadsheetRemoteDeltaCatchUp(params: UseSpreadsheetRemoteDel
           appliedSinceVersion: number,
           catchUpReason: SheetDeltaCatchUpReason
         ): Promise<boolean> => {
-          const currentVersion = Number(delta.currentVersion || appliedSinceVersion)
-          if (currentVersion <= appliedSinceVersion) {
-            reportStaleRecoveryLifecycle({
-              sheetId: targetSheetId,
-              stage: 'catchup_noop',
-              version: currentVersion
-            })
-            params.workbookSnapshotCoversVersionsRef.current = {
-              ...params.workbookSnapshotCoversVersionsRef.current,
-              [targetSheetId]: Math.max(appliedSinceVersion, currentVersion)
-            }
-            params.enqueueDiagnosticsTraceEvent({
-              source: 'client',
-              stage: 'client_delta_catchup_noop',
-              traceSessionId: params.activeTraceSessionRef.current?.id ?? null,
-              version: currentVersion,
-              payload: {
-                reason: catchUpReason,
-                targetSheetId,
-                sinceVersion: appliedSinceVersion,
-                versionStream: OPERATION_VERSION_STREAM
-              }
-            })
-            return true
-          }
-
-          const targetSheet = params.appSheetsRef.current.find(sheet => sheet.id === targetSheetId)
-          const baseRows = params.getKnownRowsForSheet(targetSheetId)
-          // Only structural ops (rows, columns, styles, moves, merges, etc.) need to be replayed
-          // through the collaboration manager onto the live Univer grid. Pure cell-value ops
-          // (`set_cell` / `set_range` / `clear_cell` / `cells_changed`) are intentionally
-          // excluded: the session row state below + the authoritative-region Univer re-sync
-          // triggered by `syncSheetRowsIntoLocalState({ syncGrid: true, authoritativeGridRegion })`
-          // paint those values once. Replaying them here would trigger thousands of per-cell
-          // Univer `setValue` commands that dominate CPU during catch-up.
-          const { structuralChanges } = partitionReplayDeltaChanges(delta.changes)
-          const replayThroughManager = replayRemoteDeltaThroughCollaborationManager({
-            collaborationManager: params.collaborationManagerRef.current,
-            changes: structuralChanges,
-            currentVersion,
-            sheetId: targetSheetId,
-            traceSessionId: params.activeTraceSessionRef.current?.id
-          })
-          const nextRows = applyRemoteFetchedSheetDelta({
+          return applyFetchedSheetDeltaRemotely({
+            delta,
+            targetSheetId,
+            sinceVersion: appliedSinceVersion,
+            reason: catchUpReason,
             spreadsheetSession: params.spreadsheetSession,
-            sheetId: targetSheetId,
-            changes: delta.changes,
-            columns: targetSheet?.columns ?? [],
-            version: currentVersion,
-            baseRows,
-            targetSheet
-          })
-          params.rememberKnownSheetVersion(targetSheetId, currentVersion)
-          params.workbookSnapshotCoversVersionsRef.current = {
-            ...params.workbookSnapshotCoversVersionsRef.current,
-            [targetSheetId]: currentVersion
-          }
-          const isActiveTarget = targetSheetId === params.activeSheetIdRef.current
-          // Region is resolved against the **post-replay** row set so add_rows / insert_rows_at
-          // contribute correct visual indices for their newly inserted rows.
-          const authoritativeGridRegion =
-            isActiveTarget && targetSheet
-              ? tryComputeAuthoritativeRegionsFromReplayDeltas({
-                  changes: delta.changes,
-                  columns: targetSheet.columns,
-                  rows: nextRows
-                })
-              : undefined
-          const changeKinds = countReplayDeltaChangeKinds(delta.changes)
-          const hasAddRowsStructural = structuralChanges.some(change => {
-            const opType = typeof change.operationType === 'string' ? change.operationType : ''
-            return opType === 'add_rows' || opType === 'insert_rows_at'
-          })
-          // Phase 3: when the structural replay already painted add_rows onto the active grid
-          // (Phase 1's `add_rows_replay` bulk), the full authoritative token bump from
-          // `syncSheetRowsIntoLocalState` becomes a redundant third pass. Skip the grid sync in
-          // pure-structural add_rows deltas; for mixed deltas keep the sync but rely on the
-          // merged `authoritativeGridRegion` (now including add_rows rows) instead of a full diff.
-          const replayPaintedAddRows = replayThroughManager && isActiveTarget && hasAddRowsStructural
-          const skipSyncGrid = replayPaintedAddRows && changeKinds.cellChangeCount === 0
-          const syncGrid = isActiveTarget && !skipSyncGrid
-          const sessionDiffProjectionMode: SpreadsheetSessionDiffProjectionMode | undefined =
-            syncGrid && !authoritativeGridRegion ? 'skip' : undefined
-          const skipSyncGridReason = !isActiveTarget
-            ? 'inactive_target'
-            : skipSyncGrid
-              ? 'structural_replay_painted'
-              : authoritativeGridRegion
-                ? 'region_sync'
-                : 'full_token'
-          const authoritativeRegionCellEstimate =
-            estimateAuthoritativeGridReapplyTargetCellCount(authoritativeGridRegion)
-          params.enqueueDiagnosticsTraceEvent({
-            source: 'client',
-            stage: 'client_catchup_paint_strategy',
-            traceSessionId: params.activeTraceSessionRef.current?.id ?? null,
-            version: currentVersion,
-            payload: {
-              reason: catchUpReason,
-              targetSheetId,
-              versionStream: OPERATION_VERSION_STREAM,
-              replayRan: replayThroughManager,
-              syncGrid,
-              skipSyncGridReason,
-              changeCount: changeKinds.changeCount,
-              cellChangeCount: changeKinds.cellChangeCount,
-              structuralChangeCount: changeKinds.structuralChangeCount,
-              hasAddRowsStructural,
-              authoritativeRegionCellEstimate
-            }
-          })
-          params.syncSheetRowsIntoLocalState(targetSheetId, nextRows, {
-            persisted: true,
-            syncGrid,
-            sessionDiffProjectionMode,
-            version: currentVersion,
-            ...(authoritativeGridRegion ? { authoritativeGridRegion } : {})
-          })
-          params.enqueueDiagnosticsTraceEvent({
-            source: 'client',
-            stage: 'client_delta_catchup_applied',
-            traceSessionId: params.activeTraceSessionRef.current?.id ?? null,
-            version: currentVersion,
-            payload: {
-              reason: catchUpReason,
-              targetSheetId,
-              sinceVersion: appliedSinceVersion,
-              currentVersion,
-              versionStream: OPERATION_VERSION_STREAM,
-              changeCount: delta.changes?.length ?? 0,
-              rowCount: nextRows.length,
-              activeSheet: targetSheetId === params.activeSheetIdRef.current,
-              replayedThroughManager: replayThroughManager
-            }
-          })
-          reportStaleRecoveryLifecycle({
-            sheetId: targetSheetId,
-            stage: 'catchup_applied',
-            version: currentVersion
-          })
-          return true
+            getKnownRowsForSheet: params.getKnownRowsForSheet,
+            syncSheetRowsIntoLocalState: params.syncSheetRowsIntoLocalState,
+            rememberKnownSheetVersion: params.rememberKnownSheetVersion,
+            workbookSnapshotCoversVersionsRef: params.workbookSnapshotCoversVersionsRef,
+            activeSheetIdRef: params.activeSheetIdRef,
+            collaborationManagerRef: params.collaborationManagerRef,
+            enqueueDiagnosticsTraceEvent: params.enqueueDiagnosticsTraceEvent,
+            activeTraceSessionRef: params.activeTraceSessionRef,
+            resolveTargetSheet: sheetId => params.appSheetsRef.current.find(sheet => sheet.id === sheetId),
+            reportStaleRecoveryLifecycle
+          }).applied
         }
 
         try {

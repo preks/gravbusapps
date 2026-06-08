@@ -122,6 +122,28 @@ export enum FlowContextName {
   customerCampaignCreate = 'customerCampaignCreate',
   customerCampaignUpdate = 'customerCampaignUpdate',
 
+  /// Customer Campaign Event
+  customerCampaignEventEntity = 'customerCampaignEventEntity',
+  customerCampaignEventCreate = 'customerCampaignEventCreate',
+  customerCampaignEventUpdate = 'customerCampaignEventUpdate',
+  customerCampaignEventDelete = 'customerCampaignEventDelete',
+
+  /// Customer Campaign Content
+  customerCampaignContentEntity = 'customerCampaignContentEntity',
+  customerCampaignContentCreate = 'customerCampaignContentCreate',
+  customerCampaignContentUpdate = 'customerCampaignContentUpdate',
+  customerCampaignContentDelete = 'customerCampaignContentDelete',
+
+  /// Customer Campaign Target Account
+  customerCampaignAccountEntity = 'customerCampaignAccountEntity',
+  customerCampaignAccountCreate = 'customerCampaignAccountCreate',
+  customerCampaignAccountUpdate = 'customerCampaignAccountUpdate',
+  customerCampaignAccountDelete = 'customerCampaignAccountDelete',
+
+  /// Customer Campaign Event Account
+  customerCampaignEventAccountCreate = 'customerCampaignEventAccountCreate',
+  customerCampaignEventAccountDelete = 'customerCampaignEventAccountDelete',
+
   /// Customer Activities
   customerActivityEntity = 'customerActivityEntity',
   customerActivityCreate = 'customerActivityCreate',

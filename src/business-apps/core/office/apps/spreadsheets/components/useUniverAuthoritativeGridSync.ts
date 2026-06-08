@@ -123,7 +123,8 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
             rowIndex,
             colIndex,
             value: row ? (readSpreadsheetRowCellValue(row, column) ?? '') : '',
-            rowId: row ? getCanonicalRowId(row) : undefined
+            rowId: row ? getCanonicalRowId(row) : undefined,
+            options: { useSenderA1Row: true }
           })
         }
       }
@@ -217,6 +218,25 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
     const authoritativePaintMeta = authoritativePaintMetaRef?.current ?? null
     if (authoritativePaintMetaRef) {
       authoritativePaintMetaRef.current = null
+    }
+    const shouldSkipForcedColumnReorderLocalEcho =
+      isForcedAuthoritativeReapply &&
+      forcedSpec?.reason === 'column_reorder_local_echo' &&
+      scanRegions.length === 0 &&
+      !sessionPaintCells?.length
+    if (shouldSkipForcedColumnReorderLocalEcho) {
+      lastSyncedGridRowCountRef.current = getAuthoritativeGridRowExtent(data)
+      lastSyncedGridColumnCountRef.current = visibleColumns.length
+      lastProcessedAuthoritativeDataSyncTokenRef.current = nextToken
+      lastProcessedAuthoritativeReapplySeedRef.current = authoritativeReapplySeed
+      hasCompletedAuthoritativeSyncRef.current = true
+      debugRemoteApply('skip_authoritative_reapply_for_column_reorder_local_echo', {
+        sheetId: sheet.id,
+        token: nextToken,
+        forced: true,
+        reason: forcedSpec?.reason
+      })
+      return
     }
 
     let authoritativeBulkBuffer: SpreadsheetBulkRemoteCellItem[] = []

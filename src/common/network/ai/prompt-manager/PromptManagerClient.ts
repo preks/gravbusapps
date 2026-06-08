@@ -841,6 +841,9 @@ export class PromptManagerClient extends RestClient {
    * @param baseUrl - API base including `/api/v1` (defaults to global Prompt Manager URL).
    *                  Use a dedicated base for feature-scoped routing (e.g. spreadsheet AI → Flowbot mount).
    */
+  /** Memoized per-tool schema details for the picker preview pane. */
+  private providerToolDetailCache = new Map<string, Promise<CanonicalProviderToolEntry>>()
+
   constructor(baseUrl: string = PROMPT_MANAGER_API_URL) {
     super(baseUrl, {})
   }
@@ -928,11 +931,40 @@ export class PromptManagerClient extends RestClient {
    * ``/prompt-manager/api/v2/provider-tools`` without requiring a second
    * client instance with a different base URL.
    */
-  async getCanonicalProviderTools(options: { includeShadowed?: boolean } = {}): Promise<CanonicalProviderToolEntry[]> {
+  async getCanonicalProviderTools(
+    options: { includeShadowed?: boolean; includeSchema?: boolean } = {}
+  ): Promise<CanonicalProviderToolEntry[]> {
     const path = '/../v2/provider-tools'
+    const params: Record<string, unknown> = {}
+    if (options.includeShadowed) params.include_shadowed = true
+    // Default to the lite list (no input/output schema). Schemas are only
+    // rendered one tool at a time in the preview pane, so the list ships the
+    // metadata and the preview re-hydrates a single tool via
+    // getCanonicalProviderToolDetail. Pass includeSchema:true to opt back in.
+    if (options.includeSchema !== true) params.include_schema = false
     return this.get<CanonicalProviderToolEntry[]>(path, {
-      params: options.includeShadowed ? { include_shadowed: true } : undefined
+      params: Object.keys(params).length > 0 ? params : undefined
     })
+  }
+
+  /**
+   * Full detail (including JSON schema) for a single provider tool. Used by the
+   * picker preview pane after the lite list (above) omits schemas. Results are
+   * memoized per tool_ref for the lifetime of the client so re-opening the same
+   * preview is instant and does not re-hit the backend.
+   */
+  async getCanonicalProviderToolDetail(toolRef: string): Promise<CanonicalProviderToolEntry> {
+    const cached = this.providerToolDetailCache.get(toolRef)
+    if (cached) return cached
+    const promise = this.get<CanonicalProviderToolEntry>(`/../v2/provider-tools/${encodeURIComponent(toolRef)}`).catch(
+      err => {
+        // Don't cache failures — a transient catalog flake should be retryable.
+        this.providerToolDetailCache.delete(toolRef)
+        throw err
+      }
+    )
+    this.providerToolDetailCache.set(toolRef, promise)
+    return promise
   }
 
   /** Read the service-global set of disabled (blocked) canonical tool names. */

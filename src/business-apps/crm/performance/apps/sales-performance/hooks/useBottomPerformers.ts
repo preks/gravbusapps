@@ -134,18 +134,18 @@ export const useBottomPerformers = (
       const opportunities = opportunitiesResult.Opportunity || []
 
       // Create a map of employee revenue
-      const employeeRevenue = new Map<string, { revenue: number; dealsWon: number; currencyCode: string }>()
+      const employeeRevenue = new Map<string, { revenue: number; opportunitiesWon: number; currencyCode: string }>()
       opportunities.forEach(opp => {
         const existing = employeeRevenue.get(opp.ownerEmployeeId)
         const currencyCode = opp.currencyRef?.split(':').pop() || 'EUR'
 
         if (existing) {
           existing.revenue += opp.estimatedAmount
-          existing.dealsWon += 1
+          existing.opportunitiesWon += 1
         } else {
           employeeRevenue.set(opp.ownerEmployeeId, {
             revenue: opp.estimatedAmount,
-            dealsWon: 1,
+            opportunitiesWon: 1,
             currencyCode
           })
         }
@@ -163,7 +163,7 @@ export const useBottomPerformers = (
           picture: employee.picture || undefined,
           pictureThumbnail: employee.pictureThumbnail || undefined,
           revenue: revenueData?.revenue || 0,
-          dealsWon: revenueData?.dealsWon || 0,
+          opportunitiesWon: revenueData?.opportunitiesWon || 0,
           currencyCode: revenueData?.currencyCode || defaultCurrencyCode
         }
       })

@@ -30,7 +30,7 @@ export interface CeoHubStats {
   // Sales Performance stats
   totalRevenue: number
   revenueGrowth: number
-  dealsWon: number
+  opportunitiesWon: number
   winRate: number
   pipelineValue: number
 

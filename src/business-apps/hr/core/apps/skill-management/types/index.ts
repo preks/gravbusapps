@@ -5,6 +5,9 @@ export interface SkillDirectoryRecord {
   version?: number | null
   name: string
   description?: string | null
+  mandatory?: boolean | null
+  skillCategoryId?: string | null
+  activeFrom?: string | null
   activeTo?: string | null
   employeeSkillsAggregate?: {
     aggregate: { count: number }
@@ -94,6 +97,9 @@ export interface SkillFormValues {
   description?: string
   levelScale?: number
   mandatory?: boolean
+  categoryId?: string | null
+  activeFrom?: string | null
+  activeTo?: string | null
   version?: number | null
 }
 

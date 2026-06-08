@@ -51,15 +51,15 @@ section-job-architecture = Jobarchitektur – Vollständigkeit
 ja-stat-positions = Stellen
 ja-stat-with-profiles = Mit Jobprofilen
 ja-stat-with-descriptions = Mit Beschreibungen
-ja-stat-with-skills = Mit Kompetenzen
+ja-stat-with-skills = Mit Skills
 ja-stat-sub-total = Gesamt
 ja-missing-profiles = Fehlende Profile
 ja-missing-descriptions = Fehlende Jobbeschreibungen
-ja-missing-skills = Fehlende Kompetenzen
+ja-missing-skills = Fehlende Skills
 
 ja-drawer-positions-title = Stellen ohne Profile
 ja-drawer-descriptions-title = Jobprofile ohne Jobbeschreibung
-ja-drawer-skills-title = Jobprofile ohne Kompetenzen
+ja-drawer-skills-title = Jobprofile ohne Skills
 
 section-recommended-actions = Empfohlene Maßnahmen
 recommended-actions-subtitle = Aufgaben mit dem größten Einfluss
@@ -75,8 +75,8 @@ action-jp-profile-title = Jobprofile mit Stellen verknüpfen
 action-jp-profile-desc = Stellen ohne Profile stören die Jobarchitektur-Governance.
 action-jprof-desc-title = Jobprofilbeschreibungen hinzufügen
 action-jprof-desc-desc = Profile ohne Beschreibungen im Geltungsbereich.
-action-jprof-skills-title = Kompetenzen mit Jobprofilen verknüpfen
-action-jprof-skills-desc = Kompetenzrahmen erfordern verknüpfte Kompetenzen je Profil.
+action-jprof-skills-title = Skills mit Jobprofilen verknüpfen
+action-jprof-skills-desc = Skillrahmen erfordern verknüpfte Skills je Profil.
 
 section-top-urgent = Dringendste Datensätze
 top-urgent-subtitle = Dringendste offene Aufgaben
@@ -129,7 +129,7 @@ profile-label-code = Code
 profile-label-description = Beschreibung
 profile-label-job-function = Jobfunktion
 profile-label-job-level = Joblevel
-profile-section-skills = Erforderliche Kompetenzen und Level
+profile-section-skills = Erforderliche Skills und Level
 profile-skill-level = Level { $level }
 profile-skill-level-unspecified = Level nicht angegeben
 profile-btn-edit = Bearbeiten
@@ -145,7 +145,7 @@ issue-tax = Steuerinformationen unvollständig
 issue-payroll-bank = Bankkonto fehlt
 issue-jp-no-profile = Stelle hat kein Jobprofil
 issue-jp-no-description = Jobprofil ohne Beschreibung
-issue-jp-no-skills = Jobprofil hat keine Kompetenzen
+issue-jp-no-skills = Jobprofil hat keine Skills
 
 hint-legal-entity = Weisen Sie ein Unternehmen / eine rechtliche Einheit auf der aktiven Zuordnung zu.
 hint-location = Wählen Sie einen Standort für die Mitarbeiterzuordnung aus.
@@ -157,7 +157,7 @@ hint-tax = Steuer-IDs für die Gehaltsabrechnung hinzufügen.
 hint-payroll-bank = Ein Gehalts-Bankkonto hinzufügen.
 hint-jp-no-profile = Diese Stelle mit einem Jobprofil in MDM / Jobstrukturen verbinden.
 hint-jp-no-description = Eine Jobprofilbeschreibung oder lokalisierte Beschreibung hinzufügen.
-hint-jp-no-skills = Mindestens eine Kompetenz mit dem Jobprofil verknüpfen.
+hint-jp-no-skills = Mindestens eine Skill mit dem Jobprofil verknüpfen.
 
 severity-critical = Kritisch
 severity-warning = Warnung
@@ -189,7 +189,7 @@ employee-not-assigned = Nicht zugewiesen
 unknown-company = Unbekanntes Unternehmen
 unknown-location = Unbekannter Standort
 unknown-label = Unbekannt
-unknown-skill = Unbekannte Kompetenz
+unknown-skill = Unbekannte Skill
 
 error-no-structure = Keine aktive Organisationsstruktur gefunden.
 error-load-failed = Datenqualitäts-Dataset konnte nicht geladen werden

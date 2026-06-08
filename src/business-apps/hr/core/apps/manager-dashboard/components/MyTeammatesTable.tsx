@@ -5,12 +5,7 @@ import {
   TabsContent,
   Badge,
   Spinner,
-  Table,
-  TableHeader,
-  TableBody,
-  TableHead,
-  TableRow,
-  TableCell,
+  DataTable,
   Avatar,
   AvatarImage,
   AvatarFallback,
@@ -22,46 +17,25 @@ import {
   SelectTrigger,
   SelectValue
 } from '@newwork/nw-design-system'
+import { ColumnDef } from '@tanstack/react-table'
 import { GitFork, UsersThree } from '@phosphor-icons/react'
 import { Employee } from '@/business-apps/hr/core/hooks/useGetEmployees'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { memo, useMemo, useState } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import {
+  getAbsenceStatusBadgeVariant,
+  getAbsenceStatusLabel
+} from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 import dayjs from 'dayjs'
+import { formatLastFeedback } from '../utils/peopleMomentsHelpers'
+import { avatarSrc } from '../utils/heatmapHelpers'
 
 interface GroupedMatrixTeam {
   matrixTeamName: string
   members: Employee[]
 }
-
-const MemoizedAppActionButton = memo<{
-  employeeId: string
-  userId?: string
-  supervisorEmployeeId?: string
-  organizationalUnitId?: string
-  accessToken: string
-  dataTestIdPrefix: string
-}>(({ employeeId, userId, supervisorEmployeeId, organizationalUnitId, accessToken, dataTestIdPrefix }) => (
-  <AppActionButton
-    data-testid={`${dataTestIdPrefix}-Actions-${employeeId}`}
-    size="icon"
-    contextsArray={[FlowContextName.employeeEntity]}
-    externalContextData={{
-      employeeId: employeeId,
-      keycloakUserId: userId,
-      managerId: supervisorEmployeeId,
-      organizationalUnitId: organizationalUnitId
-    }}
-    prefixDataTestId={`${dataTestIdPrefix}-action-${employeeId}`}
-    accessToken={accessToken}
-    emptyStateBehavior="enable"
-    deferMainContextRequestsUntilClick
-  />
-))
-
-MemoizedAppActionButton.displayName = 'MemoizedAppActionButton'
 
 interface ActionCellProps {
   employee: Employee
@@ -69,24 +43,32 @@ interface ActionCellProps {
   dataTestIdPrefix: string
 }
 
-const ActionCell: React.FC<ActionCellProps> = ({ employee, accessToken, dataTestIdPrefix }) => {
-  const handleClick = (e: React.MouseEvent) => e.stopPropagation()
-
+const ActionCell: React.FC<ActionCellProps> = memo(({ employee, accessToken, dataTestIdPrefix }) => {
   if (!accessToken) return null
 
   return (
-    <button type="button" onClick={handleClick} className="gba:bg-transparent gba:border-0 gba:p-0">
-      <MemoizedAppActionButton
-        employeeId={employee.id}
-        userId={employee.userId}
-        supervisorEmployeeId={employee.supervisorEmployeeId}
-        organizationalUnitId={employee.organizationalUnitId}
-        accessToken={accessToken}
-        dataTestIdPrefix={dataTestIdPrefix}
-      />
-    </button>
+    <AppAction
+      mode="button"
+      variant="table-row"
+      contexts={[
+        {
+          context: FlowContextName.employeeEntity,
+          contextData: {
+            employeeId: employee.id,
+            keycloakUserId: employee.userId,
+            managerId: employee.supervisorEmployeeId,
+            organizationalUnitId: employee.organizationalUnitId
+          }
+        }
+      ]}
+      accessToken={accessToken}
+      data-testid={`${dataTestIdPrefix}-Actions-${employee.id}`}
+      prefixDataTestId={`${dataTestIdPrefix}-action-${employee.id}`}
+    />
   )
-}
+})
+
+ActionCell.displayName = 'ActionCell'
 
 interface StatusBadgeProps {
   employee: Employee
@@ -109,161 +91,17 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ employee }) => {
   )
 }
 
-interface EmployeeAvatarProps {
-  employee: Employee
-}
-
-const EmployeeAvatar: React.FC<EmployeeAvatarProps> = ({ employee }) => {
-  const imageSrc =
-    employee.profilePicture && !employee.profilePicture.startsWith('{')
-      ? `data:image/jpeg;base64,${employee.profilePicture}`
-      : undefined
-
-  return (
-    <div className="gba:flex gba:items-center gba:space-x-3">
-      <Avatar size="sm" className="gba:h-8 gba:w-8">
-        <AvatarImage src={imageSrc} alt={`${employee.firstName} ${employee.lastName}`} />
-        <AvatarFallback>{`${employee.firstName[0]}${employee.lastName[0]}`.toUpperCase()}</AvatarFallback>
-      </Avatar>
-      <span className="gba:font-medium">
-        {employee.firstName} {employee.lastName}
-      </span>
-    </div>
-  )
-}
-
-const formatLastFeedback = (isoDate?: string | null): string => {
-  if (!isoDate) return 'No feedback yet'
-
-  const feedbackDate = dayjs(isoDate)
-  if (!feedbackDate.isValid()) return 'No feedback yet'
-
-  const days = dayjs().diff(feedbackDate, 'day')
-  if (days <= 0) return 'Today'
-  if (days === 1) return '1 day ago'
-  if (days < 30) return `${days} days ago`
-
-  const months = Math.floor(days / 30)
-  if (months === 1) return '1 month ago'
-  if (months < 12) return `${months} months ago`
-  return feedbackDate.format('MMM D, YYYY')
-}
-
-const formatNextVacation = (nextVacation?: Employee['nextVacation']): string => {
-  if (!nextVacation?.startDate) return 'No vacation planned'
+const formatVacationDateRange = (nextVacation?: Employee['nextVacation']): string | null => {
+  if (!nextVacation?.startDate) return null
 
   const start = dayjs(nextVacation.startDate)
-  if (!start.isValid()) return 'No vacation planned'
-  return start.format('MMM D')
-}
+  if (!start.isValid()) return null
 
-interface EmployeeRowProps {
-  employee: Employee
-  accessToken: string
-  dataTestIdPrefix: string
-  onSelectEmployee: (employee: Employee) => void
-  onAvatarClick: (employeeId: string) => void
-}
-
-const EmployeeRow: React.FC<EmployeeRowProps> = ({
-  employee,
-  accessToken,
-  dataTestIdPrefix,
-  onSelectEmployee,
-  onAvatarClick
-}) => {
-  const handleRowClick = () => onSelectEmployee(employee)
-  const goalProgress = employee.currentGoalProgress ?? 0
-  const allocation = employee.projectAllocationPercent ?? 0
-
-  return (
-    <TableRow className="gba:cursor-pointer hover:gba:bg-muted/50" onClick={handleRowClick}>
-      <TableCell>
-        <button
-          type="button"
-          onClick={event => {
-            event.stopPropagation()
-            onAvatarClick(employee.id)
-          }}
-          className="gba:rounded gba:p-0.5 hover:gba:bg-muted/40"
-          data-testid={`${dataTestIdPrefix}-avatar-${employee.id}`}
-        >
-          <EmployeeAvatar employee={employee} />
-        </button>
-      </TableCell>
-      <TableCell>
-        <div className="gba:text-sm gba:text-muted-foreground">{employee.jobTitle || '-'}</div>
-      </TableCell>
-      <TableCell>
-        <div className="gba:min-w-[110px]">
-          <span className="gba:text-xs gba:text-muted-foreground">{Math.round(goalProgress)}%</span>
-          <Progress value={Math.max(0, Math.min(100, Math.round(goalProgress)))} className="gba:mt-1 gba:h-1.5" />
-        </div>
-      </TableCell>
-      <TableCell>
-        <div className="gba:text-sm gba:text-muted-foreground">
-          {formatLastFeedback(employee.lastManagerFeedbackDate)}
-        </div>
-      </TableCell>
-      <TableCell>
-        <Badge variant={allocation > 0 ? 'info' : 'secondary'} size="sm">
-          {allocation}%
-        </Badge>
-      </TableCell>
-      <TableCell>
-        <div className="gba:text-sm gba:text-muted-foreground">{formatNextVacation(employee.nextVacation)}</div>
-      </TableCell>
-      <TableCell className="gba:py-4 gba:px-6">
-        <ActionCell employee={employee} accessToken={accessToken} dataTestIdPrefix={dataTestIdPrefix} />
-      </TableCell>
-    </TableRow>
-  )
-}
-
-interface MatrixEmployeeRowProps {
-  employee: Employee
-  accessToken: string
-  dataTestIdPrefix: string
-  onSelectEmployee: (employee: Employee) => void
-  onAvatarClick: (employeeId: string) => void
-}
-
-const MatrixEmployeeRow: React.FC<MatrixEmployeeRowProps> = ({
-  employee,
-  accessToken,
-  dataTestIdPrefix,
-  onSelectEmployee,
-  onAvatarClick
-}) => {
-  return (
-    <TableRow className="gba:cursor-pointer hover:gba:bg-muted/50" onClick={() => onSelectEmployee(employee)}>
-      <TableCell>
-        <button
-          type="button"
-          onClick={event => {
-            event.stopPropagation()
-            onAvatarClick(employee.id)
-          }}
-          className="gba:rounded gba:p-0.5 hover:gba:bg-muted/40"
-          data-testid={`${dataTestIdPrefix}-avatar-${employee.id}`}
-        >
-          <EmployeeAvatar employee={employee} />
-        </button>
-      </TableCell>
-      <TableCell>
-        <div className="gba:text-sm gba:text-muted-foreground">{employee.jobTitle || '-'}</div>
-      </TableCell>
-      <TableCell>
-        <div className="gba:text-sm gba:text-muted-foreground">{employee.organizationalUnit || '-'}</div>
-      </TableCell>
-      <TableCell>
-        <StatusBadge employee={employee} />
-      </TableCell>
-      <TableCell className="gba:py-4 gba:px-6">
-        <ActionCell employee={employee} accessToken={accessToken} dataTestIdPrefix={dataTestIdPrefix} />
-      </TableCell>
-    </TableRow>
-  )
+  const end = nextVacation.endDate ? dayjs(nextVacation.endDate) : null
+  if (end?.isValid() && !end.isSame(start, 'day')) {
+    return `${start.format('DD.MM')} – ${end.format('DD.MM')}`
+  }
+  return start.format('DD.MM')
 }
 
 const FiltersBar: React.FC<{
@@ -386,6 +224,93 @@ const EmptyState: React.FC<EmptyStateProps> = ({ icon, title, description }) => 
 const sortByName = (a: Employee, b: Employee) =>
   `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)
 
+const createEmployeeNameColumn = (onAvatarClick: (employeeId: string) => void): ColumnDef<Employee> => ({
+  id: 'name',
+  header: getTranslationFromI18nKeyAndLabel('master-data:forms.capability.fields.name.label', 'Name'),
+  cell: ({ row }) => {
+    const employee = row.original
+    const imageSrc = avatarSrc(employee.profilePicture)
+    return (
+      <button
+        type="button"
+        onClick={e => {
+          e.stopPropagation()
+          onAvatarClick(employee.id)
+        }}
+        className="gba:flex gba:items-center gba:gap-3 gba:rounded gba:p-0.5 hover:gba:bg-muted/40"
+      >
+        <Avatar size="sm" className="gba:h-8 gba:w-8">
+          <AvatarImage src={imageSrc} alt={`${employee.firstName} ${employee.lastName}`} />
+          <AvatarFallback>{`${employee.firstName[0]}${employee.lastName[0]}`.toUpperCase()}</AvatarFallback>
+        </Avatar>
+        <span className="gba:font-medium">
+          {employee.firstName} {employee.lastName}
+        </span>
+      </button>
+    )
+  }
+})
+
+const GoalProgressCell: React.FC<{ value: number }> = ({ value }) => {
+  const rounded = Math.round(value)
+  return (
+    <div className="gba:min-w-[110px]">
+      <span className="gba:text-xs gba:text-muted-foreground">{rounded}%</span>
+      <Progress value={Math.max(0, Math.min(100, rounded))} className="gba:mt-1 gba:h-1.5" />
+    </div>
+  )
+}
+
+const LastFeedbackCell: React.FC<{ date?: string | null }> = ({ date }) => (
+  <div className="gba:text-sm gba:text-muted-foreground">{formatLastFeedback(date)}</div>
+)
+
+const AllocationCell: React.FC<{ percent: number }> = ({ percent }) => (
+  <Badge variant={percent > 0 ? 'info' : 'secondary'} size="sm">
+    {percent}%
+  </Badge>
+)
+
+const VacationCell: React.FC<{ employee: Employee }> = ({ employee }) => {
+  const vacation = employee.nextVacation
+  const dateRange = formatVacationDateRange(vacation)
+  const isOngoing = employee.status === 'On Leave' && vacation && employee.currentAbsence
+
+  if (!dateRange) {
+    return <div className="gba:text-sm gba:text-muted-foreground">No vacation planned</div>
+  }
+
+  return (
+    <div className="gba:flex gba:flex-col gba:gap-1">
+      <div className="gba:flex gba:items-center gba:gap-1.5">
+        <span className="gba:text-sm">{dateRange}</span>
+        {isOngoing && <span className="gba:text-[10px] gba:font-semibold gba:text-destructive gba:uppercase">Now</span>}
+      </div>
+      <div className="gba:flex gba:items-center gba:gap-1.5">
+        {vacation?.type && <span className="gba:text-xs gba:text-muted-foreground">{vacation.type}</span>}
+        {vacation?.status && (
+          <Badge variant={getAbsenceStatusBadgeVariant(vacation.status)} size="sm">
+            {getAbsenceStatusLabel(vacation.status)}
+          </Badge>
+        )}
+      </div>
+    </div>
+  )
+}
+
+const DepartmentCell: React.FC<{ value?: string }> = ({ value }) => (
+  <div className="gba:text-sm gba:text-muted-foreground">{value || '-'}</div>
+)
+
+const jobTitleColumn: ColumnDef<Employee> = {
+  accessorKey: 'jobTitle',
+  header: getTranslationFromI18nKeyAndLabel(
+    'lowcoder:employee_list.search_employee_list.recent_employees_table.job_title',
+    'Job Title'
+  ),
+  cell: ({ row }) => <div className="gba:text-sm gba:text-muted-foreground">{row.original.jobTitle || '-'}</div>
+}
+
 type MyTeammatesTableProps = {
   activeTeamTab: 'my-team' | 'my-teams'
   setActiveTeamTab: (_value: 'my-team' | 'my-teams') => void
@@ -427,6 +352,20 @@ export const MyTeammatesTable = ({
   const handleRetry = () => {
     globalThis.location.reload()
   }
+
+  const renderMyTeamActions = useCallback(
+    (row: { original: Employee }) => (
+      <ActionCell employee={row.original} accessToken={accessToken} dataTestIdPrefix="my-team" />
+    ),
+    [accessToken]
+  )
+
+  const renderMatrixTeamActions = useCallback(
+    (row: { original: Employee }) => (
+      <ActionCell employee={row.original} accessToken={accessToken} dataTestIdPrefix="my-teams" />
+    ),
+    [accessToken]
+  )
 
   const jobTitleOptions = useMemo(
     () =>
@@ -478,6 +417,53 @@ export const MyTeammatesTable = ({
 
     return [...result].sort((a, b) => a.matrixTeamName.localeCompare(b.matrixTeamName))
   }, [matrixTeamMembers])
+
+  const directReportsColumns: ColumnDef<Employee>[] = useMemo(
+    () => [
+      createEmployeeNameColumn(onAvatarClick),
+      jobTitleColumn,
+      {
+        id: 'goalProgress',
+        header: 'Current goal progress',
+        cell: ({ row }) => <GoalProgressCell value={row.original.currentGoalProgress ?? 0} />
+      },
+      {
+        id: 'lastFeedback',
+        header: 'Manager last feedback',
+        cell: ({ row }) => <LastFeedbackCell date={row.original.lastManagerFeedbackDate} />
+      },
+      {
+        id: 'allocation',
+        header: 'Project allocation',
+        cell: ({ row }) => <AllocationCell percent={row.original.projectAllocationPercent ?? 0} />
+      },
+      {
+        id: 'nextVacation',
+        header: 'Vacation',
+        size: 190,
+        cell: ({ row }) => <VacationCell employee={row.original} />
+      }
+    ],
+    [onAvatarClick]
+  )
+
+  const matrixColumns: ColumnDef<Employee>[] = useMemo(
+    () => [
+      createEmployeeNameColumn(onAvatarClick),
+      jobTitleColumn,
+      {
+        accessorKey: 'organizationalUnit',
+        header: getTranslationFromI18nKeyAndLabel('master-data:forms.department.title', 'Department'),
+        cell: ({ row }) => <DepartmentCell value={row.original.organizationalUnit} />
+      },
+      {
+        id: 'status',
+        header: getTranslationFromI18nKeyAndLabel('master-data:forms.capability.fields.status.label', 'Status'),
+        cell: ({ row }) => <StatusBadge employee={row.original} />
+      }
+    ],
+    [onAvatarClick]
+  )
 
   const renderDirectReportsContent = () => {
     if (loadingDirectReports) {
@@ -540,42 +526,13 @@ export const MyTeammatesTable = ({
             description="Try adjusting search or filters."
           />
         ) : (
-          <div className="gba:border gba:rounded-lg gba:overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>
-                    {getTranslationFromI18nKeyAndLabel('master-data:forms.capability.fields.name.label', 'Name')}
-                  </TableHead>
-                  <TableHead>
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:employee_list.search_employee_list.recent_employees_table.job_title',
-                      'Job Title'
-                    )}
-                  </TableHead>
-                  <TableHead>Current goal progress</TableHead>
-                  <TableHead>Manager last feedback</TableHead>
-                  <TableHead>Project allocation</TableHead>
-                  <TableHead>Next vacation</TableHead>
-                  <TableHead>
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions')}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredDirectReports.map(employee => (
-                  <EmployeeRow
-                    key={employee.id}
-                    employee={employee}
-                    accessToken={accessToken}
-                    dataTestIdPrefix="my-team"
-                    onSelectEmployee={onSelectEmployee}
-                    onAvatarClick={onAvatarClick}
-                  />
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <DataTable
+            data={filteredDirectReports}
+            columns={directReportsColumns}
+            enableSorting
+            onRowClick={employee => onSelectEmployee(employee)}
+            actions={renderMyTeamActions}
+          />
         )}
       </div>
     )
@@ -637,42 +594,13 @@ export const MyTeammatesTable = ({
               </Badge>
             </div>
 
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>
-                    {getTranslationFromI18nKeyAndLabel('master-data:forms.capability.fields.name.label', 'Name')}
-                  </TableHead>
-                  <TableHead>
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:employee_list.search_employee_list.recent_employees_table.job_title',
-                      'Job Title'
-                    )}
-                  </TableHead>
-                  <TableHead>
-                    {getTranslationFromI18nKeyAndLabel('master-data:forms.department.title', 'Department')}
-                  </TableHead>
-                  <TableHead>
-                    {getTranslationFromI18nKeyAndLabel('master-data:forms.capability.fields.status.label', 'Status')}
-                  </TableHead>
-                  <TableHead>
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions')}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {group.members.map(employee => (
-                  <MatrixEmployeeRow
-                    key={employee.id}
-                    employee={employee}
-                    accessToken={accessToken}
-                    dataTestIdPrefix="my-teams"
-                    onSelectEmployee={onSelectEmployee}
-                    onAvatarClick={onAvatarClick}
-                  />
-                ))}
-              </TableBody>
-            </Table>
+            <DataTable
+              data={group.members}
+              columns={matrixColumns}
+              enableSorting
+              onRowClick={employee => onSelectEmployee(employee)}
+              actions={renderMatrixTeamActions}
+            />
           </div>
         ))}
       </div>

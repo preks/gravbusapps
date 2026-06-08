@@ -181,6 +181,9 @@ export const TaskInput: React.FC<TaskInputProps> = ({
                       initialEmployees={employees.filter(e => (field.value ?? []).includes(e.id))}
                       value={field.value || []}
                       onValueChange={field.onChange}
+                      onEmployeesChange={selectedEmployees => {
+                        form.setValue('assignedEmployees', selectedEmployees)
+                      }}
                       placeholder={t('tasks-selectAssignee')}
                       data-testid="task-quick-add-assignee"
                     />
@@ -189,6 +192,9 @@ export const TaskInput: React.FC<TaskInputProps> = ({
                       accessToken={accessToken}
                       value={field.value?.[0] ?? null}
                       onValueChange={id => field.onChange(id ? [id] : [])}
+                      onEmployeeChange={employee => {
+                        form.setValue('assignedEmployees', employee ? [employee] : [])
+                      }}
                       placeholder={t('tasks-selectAssignee')}
                       initialEmployee={employees.find(e => e.id === field.value?.[0]) ?? null}
                       employees={employees}
@@ -273,10 +279,13 @@ export const TaskInput: React.FC<TaskInputProps> = ({
                   <FormControl>
                     <div className="gba:min-w-0 gba:w-full gba:max-w-full gba:overflow-hidden">
                       <DateInput
-                        type="datetime-local"
-                        value={field.value}
-                        onChange={field.onChange}
+                        type="date"
+                        value={field.value || ''}
+                        onChange={value => field.onChange(value || '')}
                         disabled={isBusy}
+                        placeholder={t('tasks-deadlinePlaceholder')}
+                        captionLayout="dropdown"
+                        outputFormat="iso"
                         data-testid="task-quick-add-deadline"
                         className="gba:w-full gba:max-w-full gba:min-w-0"
                       />

@@ -1,5 +1,5 @@
-import type { SpreadsheetColumn } from '../types/spreadsheet'
-import { planVisibleColumnReorderMoves, type ColumnReorderMove } from '../utils/spreadsheetColumnReorderMoves'
+import type { SpreadsheetColumn, SpreadsheetMergeRange } from '../types/spreadsheet'
+import { classifyNativeColumnReorderWithMerges, type ColumnReorderMove } from '../utils/spreadsheetColumnReorderMoves'
 import { getAuthoritativeGridRowExtent } from './univerGridAuthoritativeHelpers'
 import { resolveWorksheetGridBounds } from './univerGridRangeSelection'
 import { runUniverSyncStructuralCommand } from './univerSyncStructuralCommand'
@@ -21,6 +21,9 @@ type UniverFacadeWorkbook = {
   getId?: () => string
   getUnitId?: () => string
   setActiveSheet?: (id: string) => unknown
+  save?: () => unknown
+  getSnapshot?: () => unknown
+  snapshot?: unknown
 }
 
 const resolveWorkbookContext = (
@@ -69,18 +72,69 @@ const buildMoveCommandParams = (move: ColumnReorderMove, maxRowIndex: number, un
   }
 }
 
+const extractLiveWorksheetMergeRanges = (workbook: UniverFacadeWorkbook, sheetId: string): SpreadsheetMergeRange[] => {
+  const workbookSnapshot = workbook.save?.() ?? workbook.getSnapshot?.() ?? workbook.snapshot
+  if (!workbookSnapshot || typeof workbookSnapshot !== 'object' || Array.isArray(workbookSnapshot)) return []
+  const sheets =
+    'sheets' in workbookSnapshot &&
+    workbookSnapshot.sheets &&
+    typeof workbookSnapshot.sheets === 'object' &&
+    !Array.isArray(workbookSnapshot.sheets)
+      ? (workbookSnapshot.sheets as Record<string, unknown>)
+      : null
+  const worksheet = sheets?.[sheetId]
+  if (!worksheet || typeof worksheet !== 'object' || Array.isArray(worksheet)) return []
+  const mergeData = (worksheet as { mergeData?: unknown }).mergeData
+  if (!Array.isArray(mergeData)) return []
+  return mergeData.filter(
+    (range): range is SpreadsheetMergeRange =>
+      Boolean(range) &&
+      typeof range === 'object' &&
+      Number.isFinite((range as SpreadsheetMergeRange).startRow) &&
+      Number.isFinite((range as SpreadsheetMergeRange).endRow) &&
+      Number.isFinite((range as SpreadsheetMergeRange).startColumn) &&
+      Number.isFinite((range as SpreadsheetMergeRange).endColumn)
+  )
+}
+
 export function applyRemoteColumnReorderOnGrid(params: {
   api: UniverApiLike
   sheetId: string
   previousColumns: SpreadsheetColumn[]
   nextColumns: SpreadsheetColumn[]
   rows: Record<string, unknown>[]
-}): { ok: true; moveCount: number; appliedMoveCount: number } | { ok: false; reason: string } {
-  const moves = planVisibleColumnReorderMoves(params.previousColumns, params.nextColumns)
-  if (moves.length === 0) return { ok: true, moveCount: 0, appliedMoveCount: 0 }
-
+  moves?: ColumnReorderMove[]
+}):
+  | { ok: true; moveCount: number; appliedMoveCount: number; status: 'already_in_order' | 'moves_applied' }
+  | {
+      ok: false
+      reason:
+        | 'missing_workbook'
+        | 'unplannable_reorder'
+        | 'partial_move_failure'
+        | 'move_cols_command_failed'
+        | 'move_cols_merge_unsupported'
+    } {
   const context = resolveWorkbookContext(params.api, params.sheetId)
   if (!context) return { ok: false, reason: 'missing_workbook' }
+  const liveMergeRanges = extractLiveWorksheetMergeRanges(context.workbook, params.sheetId)
+  const moveClassification = classifyNativeColumnReorderWithMerges({
+    previousColumns: params.previousColumns,
+    nextColumns: params.nextColumns,
+    mergeRanges: liveMergeRanges,
+    explicitMoves: params.moves
+  })
+  if (!moveClassification.ok) {
+    return {
+      ok: false,
+      reason:
+        moveClassification.reason === 'unplannable_reorder' ? 'unplannable_reorder' : 'move_cols_merge_unsupported'
+    }
+  }
+  const moves = moveClassification.moves
+  if (moves.length === 0) {
+    return { ok: true, moveCount: 0, appliedMoveCount: 0, status: 'already_in_order' }
+  }
 
   const maxRowIndex = resolveMaxRowIndex(context.worksheet, params.rows)
   let appliedMoveCount = 0
@@ -89,16 +143,23 @@ export function applyRemoteColumnReorderOnGrid(params: {
     for (const move of moves) {
       const commandParams = buildMoveCommandParams(move, maxRowIndex, context.unitId, context.subUnitId)
       const commandRun = runUniverSyncStructuralCommand(params.api, MOVE_COLS_COMMAND_ID, commandParams)
-      if (commandRun.ok) {
-        appliedMoveCount += 1
+      if (!commandRun.ok) {
+        return false
       }
+      appliedMoveCount += 1
     }
-    return appliedMoveCount > 0
+    return appliedMoveCount === moves.length
   })
 
-  if (!applied || appliedMoveCount === 0) {
+  if (!applied) {
+    return { ok: false, reason: appliedMoveCount > 0 ? 'partial_move_failure' : 'move_cols_command_failed' }
+  }
+  if (appliedMoveCount === 0) {
     return { ok: false, reason: 'move_cols_command_failed' }
   }
+  if (appliedMoveCount !== moves.length) {
+    return { ok: false, reason: 'partial_move_failure' }
+  }
 
-  return { ok: true, moveCount: moves.length, appliedMoveCount }
+  return { ok: true, moveCount: moves.length, appliedMoveCount, status: 'moves_applied' }
 }

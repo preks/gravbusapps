@@ -1066,6 +1066,7 @@ toast-spreadsheet-not-found = This spreadsheet could not be found or you don't h
 toast-no-edit-permission = You do not have permission to edit this spreadsheet
 toast-submit-success = Submitted successfully. Your task is now complete.
 toast-submit-failed = Failed to submit
+toast-column-reorder-merged-cells-unsupported = This column move is not supported while it would split merged cells.
 toast-checkpoint-flush-warning = Checkpoint saved, but some pending edits may not be included.
 toast-checkpoint-save-failed = Could not save checkpoint. Please try again.
 toast-analytics-no-matching-columns = No matching columns found to insert pivot result.

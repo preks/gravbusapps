@@ -122,7 +122,49 @@ describe('spreadsheetRemoteTransaction', () => {
     ])
   })
 
-  it('rejects structural live replay when unsupported merges are present', () => {
+  it('allows insert_row_slots live replay when mergeData is present', () => {
+    const plan = planCommittedSpreadsheetRemoteTransaction({
+      batch: baseBatch({
+        type: 'insert_row_slots',
+        operationId: 'op-merge-insert',
+        data: {
+          sheetId: 'sheet-1',
+          startGridRowIndex: 1,
+          count: 1,
+          rows: [{ id: 'row-2', data: { _gridRowIndex: 1, Name: 'Inserted' } }],
+          rowIds: ['row-2']
+        }
+      }),
+      baseRows: [
+        { _id: 'row-1', _rowUuid: 'row-1', Name: 'A' },
+        { _id: 'row-3', _rowUuid: 'row-3', Name: 'C' }
+      ],
+      columns: [{ id: 'name', name: 'Name', type: 'text', isVisible: true } as any],
+      workbookSnapshot: {
+        sheets: {
+          'sheet-1': {
+            mergeData: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 1 }],
+            cellData: { '0': { '0': { v: 'A' } } }
+          }
+        }
+      }
+    })
+
+    expect(plan.ok).toBe(true)
+    if (!plan.ok) return
+    expect(plan.sessionPatch.rows).toHaveLength(3)
+    expect(plan.dirtyRegions).toEqual([
+      {
+        type: 'rect',
+        minRow: 1,
+        maxRow: 1,
+        minCol: 0,
+        maxCol: Number.MAX_SAFE_INTEGER
+      }
+    ])
+  })
+
+  it('allows move_cell_range live replay when mergeData is present', () => {
     const plan = planCommittedSpreadsheetRemoteTransaction({
       batch: baseBatch({
         type: 'move_cell_range',
@@ -144,14 +186,10 @@ describe('spreadsheetRemoteTransaction', () => {
       }
     })
 
-    expect(plan).toEqual({
-      ok: false,
-      reason: 'unsupported_workbook_feature',
-      detail: 'mergeData'
-    })
+    expect(plan.ok).toBe(true)
   })
 
-  it('rejects move range live replay when from/to ranges contain formulas', () => {
+  it('allows move range live replay when from/to ranges contain formulas', () => {
     const plan = planCommittedSpreadsheetRemoteTransaction({
       batch: baseBatch({
         type: 'move_cell_range',
@@ -172,11 +210,7 @@ describe('spreadsheetRemoteTransaction', () => {
       }
     })
 
-    expect(plan).toEqual({
-      ok: false,
-      reason: 'unsupported_workbook_feature',
-      detail: 'formulas'
-    })
+    expect(plan.ok).toBe(true)
   })
 
   it('allows move range live replay when formulas exist only outside from/to ranges', () => {
@@ -210,7 +244,7 @@ describe('spreadsheetRemoteTransaction', () => {
   })
 
   it.each(['conditionalFormatting', 'dataValidation', 'filterData'])(
-    'rejects structural live replay when %s metadata is present',
+    'allows move_cell_range live replay when %s metadata is present',
     metadataKey => {
       const plan = planCommittedSpreadsheetRemoteTransaction({
         batch: baseBatch({
@@ -233,45 +267,111 @@ describe('spreadsheetRemoteTransaction', () => {
         }
       })
 
-      expect(plan).toEqual({
-        ok: false,
-        reason: 'unsupported_workbook_feature',
-        detail: metadataKey
-      })
+      expect(plan.ok).toBe(true)
     }
   )
 
-  it.each(['comments', 'images', 'charts', 'drawings', 'rowGroups', 'columnGroups'])(
-    'rejects structural live replay when anchored %s metadata is present',
-    metadataKey => {
+  it('allows column add/delete live replay when mergeData is present', () => {
+    for (const operationType of ['column_add', 'column_delete'] as const) {
       const plan = planCommittedSpreadsheetRemoteTransaction({
         batch: baseBatch({
-          type: 'move_row_slots',
-          operationId: 'op-1',
-          data: {
-            sheetId: 'sheet-1',
-            sourceStartGridRowIndex: 0,
-            count: 1,
-            destinationGridRowIndex: 2,
-            rowIds: ['row-1']
-          }
+          type: operationType,
+          operationId: `op-${operationType}-merge`,
+          data:
+            operationType === 'column_add'
+              ? {
+                  sheetId: 'sheet-1',
+                  column: { id: 'new-col', name: 'New', label: 'New', type: 'text', order: 1, isVisible: true }
+                }
+              : {
+                  sheetId: 'sheet-1',
+                  columnId: 'name'
+                }
         }),
         baseRows: [{ _id: 'row-1', _rowUuid: 'row-1', Name: 'A' }],
+        columns: [{ id: 'name', name: 'Name', label: 'Name', type: 'text', isVisible: true, order: 0 } as any],
         workbookSnapshot: {
           sheets: {
             'sheet-1': {
-              [metadataKey]: [{ id: `${metadataKey}-1` }],
+              mergeData: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 1 }],
               cellData: { '0': { '0': { v: 'A' } } }
             }
           }
         }
       })
 
-      expect(plan).toEqual({
-        ok: false,
-        reason: 'unsupported_workbook_feature',
-        detail: metadataKey
-      })
+      expect(plan.ok).toBe(true)
+    }
+  })
+
+  it.each(['conditionalFormatting', 'dataValidation', 'filterData'])(
+    'allows column add/delete replay when %s metadata is present',
+    metadataKey => {
+      for (const operationType of ['column_add', 'column_delete'] as const) {
+        const plan = planCommittedSpreadsheetRemoteTransaction({
+          batch: baseBatch({
+            type: operationType,
+            operationId: `op-${operationType}-rich`,
+            data:
+              operationType === 'column_add'
+                ? {
+                    sheetId: 'sheet-1',
+                    column: { id: 'new-col', name: 'New', label: 'New', type: 'text', order: 1, isVisible: true }
+                  }
+                : {
+                    sheetId: 'sheet-1',
+                    columnId: 'name'
+                  }
+          }),
+          baseRows: [{ _id: 'row-1', _rowUuid: 'row-1', Name: 'A' }],
+          columns: [{ id: 'name', name: 'Name', label: 'Name', type: 'text', isVisible: true, order: 0 } as any],
+          workbookSnapshot: {
+            sheets: {
+              'sheet-1': {
+                [metadataKey]: [{ range: { startRow: 0, endRow: 1, startColumn: 0, endColumn: 0 } }],
+                cellData: { '0': { '0': { v: 'A' } } }
+              }
+            }
+          }
+        })
+
+        expect(plan.ok).toBe(true)
+      }
+    }
+  )
+
+  it.each(['comments', 'images', 'charts', 'drawings', 'rowGroups', 'columnGroups'])(
+    'allows column add/delete live replay when anchored %s metadata is present',
+    metadataKey => {
+      for (const operationType of ['column_add', 'column_delete'] as const) {
+        const plan = planCommittedSpreadsheetRemoteTransaction({
+          batch: baseBatch({
+            type: operationType,
+            operationId: 'op-1',
+            data:
+              operationType === 'column_add'
+                ? {
+                    sheetId: 'sheet-1',
+                    column: { id: 'new-col', name: 'New', label: 'New', type: 'text', order: 1, isVisible: true }
+                  }
+                : {
+                    sheetId: 'sheet-1',
+                    columnId: 'name'
+                  }
+          }),
+          baseRows: [{ _id: 'row-1', _rowUuid: 'row-1', Name: 'A' }],
+          workbookSnapshot: {
+            sheets: {
+              'sheet-1': {
+                [metadataKey]: [{ id: `${metadataKey}-1` }],
+                cellData: { '0': { '0': { v: 'A' } } }
+              }
+            }
+          }
+        })
+
+        expect(plan.ok).toBe(true)
+      }
     }
   )
 
@@ -290,5 +390,65 @@ describe('spreadsheetRemoteTransaction', () => {
       reason: 'unsupported_workbook_feature',
       detail: 'column_reorder_missing_index_maps'
     })
+  })
+
+  it('accepts column reorder when authoritative columns exist at batch level', () => {
+    const plan = planCommittedSpreadsheetRemoteTransaction({
+      batch: {
+        ...baseBatch({
+          type: 'columns_reorder',
+          operationId: 'op-1',
+          data: { sheetId: 'sheet-1' }
+        }),
+        columns: [
+          { id: 'col-a', name: 'ColumnA', type: 'text', isVisible: true, order: 0 } as any,
+          { id: 'col-c', name: 'ColumnC', type: 'text', isVisible: true, order: 1 } as any,
+          { id: 'col-b', name: 'ColumnB', type: 'text', isVisible: true, order: 2 } as any
+        ],
+        visibleColumnIds: ['col-a', 'col-c', 'col-b'],
+        gridColumnIndexByColumnId: { 'col-a': 0, 'col-c': 1, 'col-b': 2 }
+      },
+      baseRows: []
+    })
+
+    expect(plan.ok).toBe(true)
+  })
+
+  it('allows column reorder when rich workbook metadata is present', () => {
+    const plan = planCommittedSpreadsheetRemoteTransaction({
+      batch: {
+        ...baseBatch({
+          type: 'columns_reorder',
+          operationId: 'op-reorder-rich',
+          data: { sheetId: 'sheet-1' }
+        }),
+        columns: [
+          { id: 'col-a', name: 'ColumnA', type: 'text', isVisible: true, order: 0 } as any,
+          { id: 'col-c', name: 'ColumnC', type: 'text', isVisible: true, order: 1 } as any,
+          { id: 'col-b', name: 'ColumnB', type: 'text', isVisible: true, order: 2 } as any
+        ],
+        visibleColumnIds: ['col-a', 'col-c', 'col-b'],
+        gridColumnIndexByColumnId: { 'col-a': 0, 'col-c': 1, 'col-b': 2 }
+      },
+      baseRows: [{ _id: 'row-1', _rowUuid: 'row-1', ColumnA: 'A' }],
+      columns: [
+        { id: 'col-a', name: 'ColumnA', type: 'text', isVisible: true, order: 0 } as any,
+        { id: 'col-b', name: 'ColumnB', type: 'text', isVisible: true, order: 1 } as any,
+        { id: 'col-c', name: 'ColumnC', type: 'text', isVisible: true, order: 2 } as any
+      ],
+      workbookSnapshot: {
+        sheets: {
+          'sheet-1': {
+            mergeData: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 1 }],
+            conditionalFormatting: [{ range: { startRow: 0, endRow: 1, startColumn: 0, endColumn: 0 } }],
+            dataValidation: [{ range: { startRow: 0, endRow: 1, startColumn: 0, endColumn: 0 } }],
+            filterData: [{ range: { startRow: 0, endRow: 1, startColumn: 0, endColumn: 0 } }],
+            cellData: { '0': { '0': { v: 'A' } } }
+          }
+        }
+      }
+    })
+
+    expect(plan.ok).toBe(true)
   })
 })

@@ -1066,6 +1066,7 @@ toast-spreadsheet-not-found = Diese Tabelle wurde nicht gefunden oder du hast ke
 toast-no-edit-permission = Du hast keine Berechtigung, diese Tabelle zu bearbeiten
 toast-submit-success = Erfolgreich eingereicht. Deine Aufgabe ist jetzt abgeschlossen.
 toast-submit-failed = Einreichen fehlgeschlagen
+toast-column-reorder-merged-cells-unsupported = Diese Spaltenverschiebung wird nicht unterstützt, wenn dadurch verbundene Zellen getrennt würden.
 toast-checkpoint-flush-warning = Checkpoint gespeichert, aber einige ausstehende Änderungen sind möglicherweise nicht enthalten.
 toast-checkpoint-save-failed = Checkpoint konnte nicht gespeichert werden. Bitte erneut versuchen.
 toast-analytics-no-matching-columns = Keine passenden Spalten gefunden, um das Pivot-Ergebnis einzufügen.

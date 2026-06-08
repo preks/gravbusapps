@@ -222,4 +222,33 @@ describe('PendingInvitationsPanel', () => {
 
     expect(screen.queryByTestId('pending-invitations-dialog')).not.toBeInTheDocument()
   })
+
+  it('keeps a stable responsive dialog shell and scrolls the list content inside it', () => {
+    render(
+      <PendingInvitationsPanel
+        isOpen
+        onClose={jest.fn()}
+        groups={[buildSeriesGroup()]}
+        onRespond={jest.fn()}
+        onRespondSeries={jest.fn()}
+      />
+    )
+
+    expect(screen.getByTestId('pending-invitations-dialog')).toHaveClass(
+      'gba:w-full',
+      'gba:max-w-xl',
+      'gba:max-h-screen',
+      'gba:sm:h-128',
+      'gba:sm:max-h-128',
+      'gba:flex',
+      'gba:flex-col',
+      'gba:overflow-hidden'
+    )
+
+    expect(screen.getByTestId('pending-invitations-list-scroll-area')).toHaveClass(
+      'gba:flex-1',
+      'gba:min-h-0',
+      'gba:overflow-y-auto'
+    )
+  })
 })

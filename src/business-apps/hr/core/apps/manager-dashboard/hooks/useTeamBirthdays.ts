@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import dayjs from 'dayjs'
-import { Employee, WorkCommunication } from '../types/employee.types'
+import { Employee } from '../types/employee.types'
 import { filterEmployeesByStartedEmployment } from '../utils/hireDateFilters'
+import { extractEmployeeEmail, WORK_COMMUNICATIONS_FRAGMENT } from '../utils/peopleMomentsHelpers'
 
 export interface TeamBirthday {
   id: string
@@ -19,6 +20,7 @@ export interface TeamBirthday {
 
 export interface UseTeamBirthdaysResult {
   upcomingBirthdays: TeamBirthday[]
+  nextMonthBirthdays: TeamBirthday[]
   loading: boolean
   error: Error | null
   refetch: () => void
@@ -35,6 +37,7 @@ interface UseTeamBirthdaysProps {
  */
 export const useTeamBirthdays = ({ accessToken, managerId }: UseTeamBirthdaysProps): UseTeamBirthdaysResult => {
   const [upcomingBirthdays, setUpcomingBirthdays] = useState<TeamBirthday[]>([])
+  const [nextMonthBirthdays, setNextMonthBirthdays] = useState<TeamBirthday[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<Error | null>(null)
 
@@ -75,22 +78,7 @@ export const useTeamBirthdays = ({ accessToken, managerId }: UseTeamBirthdaysPro
                 name
               }
             }
-            workCommunications: communication(
-              where: {
-                _and: [
-                  { isDeleted: { _eq: false } }
-                  { purpose: { _eq: "INTERNAL" } }
-                  { value: { _neq: "" } }
-                  { channelRef: { _eq: "CommunicationChannel:v1:e-mail" } }
-                ]
-              }
-            ) {
-              id
-              value
-              channel {
-                value
-              }
-            }
+            ${WORK_COMMUNICATIONS_FRAGMENT}
           }
         }
       `
@@ -102,49 +90,47 @@ export const useTeamBirthdays = ({ accessToken, managerId }: UseTeamBirthdaysPro
       if (response?.Employee) {
         const employees = filterEmployeesByStartedEmployment(response.Employee)
         const today = dayjs()
+        const currentMonth = today.month()
+        const nextMonth = today.add(1, 'month').month()
+        const nextMonthYear = today.add(1, 'month').year()
 
-        const birthdaysWithCalculations: TeamBirthday[] = employees
-          .map((employee: Employee) => {
-            const birthDate = dayjs(employee.birthDate)
-            if (!birthDate.isValid()) return null
+        const currentMonthList: TeamBirthday[] = []
+        const nextMonthList: TeamBirthday[] = []
 
-            const currentYear = today.year()
-            const currentMonth = today.month()
+        employees.forEach((employee: Employee) => {
+          const birthDate = dayjs(employee.birthDate)
+          if (!birthDate.isValid()) return
 
-            // Get this year's birthday
-            const thisYearBirthday = birthDate.year(currentYear)
-            if (thisYearBirthday.month() !== currentMonth) {
-              return null
-            }
+          const baseBirthday: TeamBirthday = {
+            id: employee.id,
+            userId: employee.userId,
+            firstName: employee.firstName,
+            lastName: employee.lastName,
+            fullName: `${employee.firstName} ${employee.lastName}`,
+            birthDate: employee.birthDate,
+            pictureThumbnail: employee.pictureThumbnail,
+            daysUntilBirthday: 0,
+            jobPositionName: employee.employeePosition?.[0]?.jobPosition?.name,
+            email: extractEmployeeEmail(employee.workCommunications)
+          }
 
-            const daysUntilBirthday = thisYearBirthday.diff(today, 'day')
+          const thisYearBirthday = birthDate.year(today.year())
+          if (thisYearBirthday.month() === currentMonth) {
+            currentMonthList.push({ ...baseBirthday, daysUntilBirthday: thisYearBirthday.diff(today, 'day') })
+          }
 
-            // Extract email from work communications
-            const emailComm = employee.workCommunications?.find(
-              (c: WorkCommunication) =>
-                c.channel?.value?.toLowerCase().includes('email') || c.channel?.value?.toLowerCase() === 'e-mail'
-            )
+          const nextMonthBirthday = birthDate.year(nextMonthYear)
+          if (nextMonthBirthday.month() === nextMonth) {
+            nextMonthList.push({ ...baseBirthday, daysUntilBirthday: nextMonthBirthday.diff(today, 'day') })
+          }
+        })
 
-            return {
-              id: employee.id,
-              userId: employee.userId,
-              firstName: employee.firstName,
-              lastName: employee.lastName,
-              fullName: `${employee.firstName} ${employee.lastName}`,
-              birthDate: employee.birthDate,
-              pictureThumbnail: employee.pictureThumbnail,
-              daysUntilBirthday,
-              jobPositionName: employee.employeePosition?.[0]?.jobPosition?.name,
-              email: emailComm?.value
-            }
-          })
-          .filter((birthday): birthday is TeamBirthday => birthday !== null)
-          // Sort by day in current month
-          .sort((a: TeamBirthday, b: TeamBirthday) => dayjs(a.birthDate).date() - dayjs(b.birthDate).date())
-
-        setUpcomingBirthdays(birthdaysWithCalculations)
+        const sortByDay = (a: TeamBirthday, b: TeamBirthday) => dayjs(a.birthDate).date() - dayjs(b.birthDate).date()
+        setUpcomingBirthdays(currentMonthList.toSorted(sortByDay))
+        setNextMonthBirthdays(nextMonthList.toSorted(sortByDay))
       } else {
         setUpcomingBirthdays([])
+        setNextMonthBirthdays([])
       }
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to fetch team birthdays'))
@@ -160,6 +146,7 @@ export const useTeamBirthdays = ({ accessToken, managerId }: UseTeamBirthdaysPro
 
   return {
     upcomingBirthdays,
+    nextMonthBirthdays,
     loading,
     error,
     refetch: fetchTeamBirthdays

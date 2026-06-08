@@ -62,6 +62,12 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
 
   const { account: accountData, loading, error, refetch } = useCustomerAccount(props.accessToken, accountId)
 
+  useProcessCompletion({
+    onSuccess: () => {
+      void refetch()
+    }
+  })
+
   // AI Summary hook - must be called before any conditional returns
   // Pass already-fetched accountData to avoid a duplicate GetAccountById query
   const aiSummaryHook = useAccountAiSummary(accountId, props.accessToken, accountData)
@@ -76,16 +82,6 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
       window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`)
     }
   }, [])
-
-  // Memoized callback for process completion
-  const handleProcessSuccess = useCallback(() => {
-    refetch()
-  }, [refetch])
-
-  // Listen for process completion events to refresh account data
-  useProcessCompletion({
-    onSuccess: handleProcessSuccess
-  })
 
   // Memoize header data - must be called before conditional returns
   const headerDetailGroups = useMemo(
@@ -193,7 +189,16 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
           value: 'overview',
           label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
           icon: <UsersIcon className="gba:mr-2" />,
-          content: <HomeView accountId={accountId} accountData={accountData} {...props} />
+          content: (
+            <HomeView
+              accountId={accountId}
+              accountData={accountData}
+              refreshRecordData={() => {
+                void refetch()
+              }}
+              {...props}
+            />
+          )
         },
         {
           value: 'opportunities',
@@ -220,7 +225,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
     [activeTab, handleTabChange, accountData, accountId, props]
   )
 
-  if (loading) {
+  if (loading && !accountData) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <Spinner size="lg" />

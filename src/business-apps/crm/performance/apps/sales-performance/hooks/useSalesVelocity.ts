@@ -4,21 +4,21 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 export interface SalesVelocityData {
   // Current month metrics
   currentMonthRevenue: number
-  currentMonthDeals: number
+  currentMonthOpportunitiesClosed: number
   currentMonthName: string
 
   // Last month metrics
   comparisonMonthRevenue: number
-  comparisonMonthDeals: number
+  comparisonMonthOpportunitiesClosed: number
   comparisonMonthName: string
 
   // Comparison
   revenueChange: number // percentage change
-  dealsChange: number // percentage change
+  opportunitiesChange: number // percentage change
   trend: 'up' | 'down' | 'stable'
 
   // Additional metrics
-  avgDealSize: number
+  avgOpportunitySize: number
   winRate: number
   avgSalesCycleDays: number
 }
@@ -28,6 +28,17 @@ interface UseSalesVelocityResult {
   isLoading: boolean
   error: string | null
   refetch: () => void
+}
+
+/**
+ * Percentage change between a previous and current value.
+ * When there is no previous baseline, a positive current value is treated as a full +100% increase.
+ */
+const calculatePercentChange = (current: number, previous: number): number => {
+  if (previous > 0) {
+    return ((current - previous) / previous) * 100
+  }
+  return current > 0 ? 100 : 0
 }
 
 /**
@@ -131,17 +142,18 @@ export const useSalesVelocity = (accessToken: string, selectedCurrencyId?: strin
       }>(query)
 
       // Current month calculations
-      const currentWonDeals = result.currentMonthWon || []
+      const currentWonOpportunities = result.currentMonthWon || []
       const currentClosedCount = result.currentMonthClosed?.aggregate?.count || 0
-      const currentMonthRevenue = currentWonDeals.reduce((sum, opp) => sum + (opp.estimatedAmount || 0), 0)
-      const currentMonthDeals = currentWonDeals.length
-      const currentWinRate = currentClosedCount > 0 ? (currentMonthDeals / currentClosedCount) * 100 : 0
+      const currentMonthRevenue = currentWonOpportunities.reduce((sum, opp) => sum + (opp.estimatedAmount || 0), 0)
+      const currentMonthOpportunitiesClosed = currentWonOpportunities.length
+      const currentWinRate = currentClosedCount > 0 ? (currentMonthOpportunitiesClosed / currentClosedCount) * 100 : 0
 
-      // Average deal size (current month)
-      const avgDealSize = currentMonthDeals > 0 ? currentMonthRevenue / currentMonthDeals : 0
+      // Average opportunity size (current month)
+      const avgOpportunitySize =
+        currentMonthOpportunitiesClosed > 0 ? currentMonthRevenue / currentMonthOpportunitiesClosed : 0
 
       // Average sales cycle (days from created to closed)
-      const cycleDays = currentWonDeals.map(opp => {
+      const cycleDays = currentWonOpportunities.map(opp => {
         const created = new Date(opp.createdAt)
         const closed = new Date(opp.closeDate)
         return Math.max(1, Math.floor((closed.getTime() - created.getTime()) / (1000 * 60 * 60 * 24)))
@@ -150,24 +162,20 @@ export const useSalesVelocity = (accessToken: string, selectedCurrencyId?: strin
         cycleDays.length > 0 ? Math.round(cycleDays.reduce((sum, days) => sum + days, 0) / cycleDays.length) : 0
 
       // Comparison month calculations (last month)
-      const comparisonWonDeals = result.comparisonMonthWon || []
-      const comparisonMonthRevenue = comparisonWonDeals.reduce((sum, opp) => sum + (opp.estimatedAmount || 0), 0)
-      const comparisonMonthDeals = comparisonWonDeals.length
+      const comparisonWonOpportunities = result.comparisonMonthWon || []
+      const comparisonMonthRevenue = comparisonWonOpportunities.reduce(
+        (sum, opp) => sum + (opp.estimatedAmount || 0),
+        0
+      )
+      const comparisonMonthOpportunitiesClosed = comparisonWonOpportunities.length
 
       // Calculate changes
-      const revenueChange =
-        comparisonMonthRevenue > 0
-          ? ((currentMonthRevenue - comparisonMonthRevenue) / comparisonMonthRevenue) * 100
-          : currentMonthRevenue > 0
-            ? 100
-            : 0
+      const revenueChange = calculatePercentChange(currentMonthRevenue, comparisonMonthRevenue)
 
-      const dealsChange =
-        comparisonMonthDeals > 0
-          ? ((currentMonthDeals - comparisonMonthDeals) / comparisonMonthDeals) * 100
-          : currentMonthDeals > 0
-            ? 100
-            : 0
+      const opportunitiesChange = calculatePercentChange(
+        currentMonthOpportunitiesClosed,
+        comparisonMonthOpportunitiesClosed
+      )
 
       const trend: 'up' | 'down' | 'stable' = revenueChange > 5 ? 'up' : revenueChange < -5 ? 'down' : 'stable'
 
@@ -177,15 +185,15 @@ export const useSalesVelocity = (accessToken: string, selectedCurrencyId?: strin
 
       setVelocityData({
         currentMonthRevenue,
-        currentMonthDeals,
+        currentMonthOpportunitiesClosed,
         currentMonthName,
         comparisonMonthRevenue,
-        comparisonMonthDeals,
+        comparisonMonthOpportunitiesClosed,
         comparisonMonthName,
         revenueChange: Math.round(revenueChange * 10) / 10,
-        dealsChange: Math.round(dealsChange * 10) / 10,
+        opportunitiesChange: Math.round(opportunitiesChange * 10) / 10,
         trend,
-        avgDealSize,
+        avgOpportunitySize,
         winRate: Math.round(currentWinRate * 10) / 10,
         avgSalesCycleDays
       })

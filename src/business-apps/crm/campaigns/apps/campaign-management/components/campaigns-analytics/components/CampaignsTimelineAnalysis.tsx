@@ -12,6 +12,7 @@ import {
   ChartLegend,
   ChartLegendContent,
   ChartTooltip,
+  useTranslation,
   type ChartConfig
 } from '@newwork/nw-design-system'
 import { LineChart, Line, XAxis, YAxis } from 'recharts'
@@ -22,8 +23,8 @@ import {
   TIMELINE_PERIODS,
   CampaignsTimelineData
 } from '../types/CampaignsAnalyticsTypes'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { NW_CHART_COLOR_VARS } from '@/business-apps/crm/campaigns/utils/campaignChartTokens'
+import translations from '../../../../../_i18n'
 import { TooltipWrapper, TooltipDataLine } from '@/common/components/customer/campaign-management/ChartHelpers'
 import dayjs from 'dayjs'
 
@@ -75,11 +76,11 @@ const LINE_CONFIG = [
 ] as const
 
 const TIMELINE_CHART_CONFIG: ChartConfig = {
-  cumulativecampaigns: { label: 'Campaigns' },
-  cumulativeleads: { label: 'Leads' },
-  cumulativeaccounts: { label: 'Accounts' },
-  cumulativecontacts: { label: 'Contacts' },
-  cumulativeopportunities: { label: 'Opportunities' }
+  cumulativeCampaigns: { label: 'Campaigns', color: NW_CHART_COLOR_VARS[0] },
+  cumulativeLeads: { label: 'Leads', color: NW_CHART_COLOR_VARS[1] },
+  cumulativeAccounts: { label: 'Accounts', color: NW_CHART_COLOR_VARS[2] },
+  cumulativeContacts: { label: 'Contacts', color: NW_CHART_COLOR_VARS[3] },
+  cumulativeOpportunities: { label: 'Opportunities', color: NW_CHART_COLOR_VARS[4] }
 }
 
 const CampaignsTimelineAnalysis: React.FC<CampaignsTimelineAnalysisProps> = ({
@@ -90,6 +91,7 @@ const CampaignsTimelineAnalysis: React.FC<CampaignsTimelineAnalysisProps> = ({
   timelinePeriod = 'last-year',
   onTimelinePeriodChange
 }) => {
+  const { t } = useTranslation(translations)
   const [visibleLines, setVisibleLines] = useState({
     cumulativeCampaigns: true,
     cumulativeLeads: true,
@@ -324,13 +326,10 @@ const CampaignsTimelineAnalysis: React.FC<CampaignsTimelineAnalysisProps> = ({
         <CardContent className="gba:p-6">
           <Alert variant="destructive">
             <AlertDescription>
-              {getTranslationFromI18nKeyAndLabel(
-                'campaigns.analytics.timelineAnalysis.error',
-                'Error loading timeline analysis data'
-              )}
+              {t('campaigns-analytics-timelineAnalysis-error')}
               {onRetry && (
                 <Button variant="outline" size="sm" onClick={onRetry} className="gba:ml-2">
-                  {getTranslationFromI18nKeyAndLabel('common.retry', 'Retry')}
+                  {t('common-retry')}
                 </Button>
               )}
             </AlertDescription>
@@ -344,12 +343,7 @@ const CampaignsTimelineAnalysis: React.FC<CampaignsTimelineAnalysisProps> = ({
     <Card data-testid="campaigns-timeline-analysis">
       <CardHeader>
         <div className="gba:flex gba:justify-between gba:items-start gba:gap-4">
-          <CardTitle>
-            {getTranslationFromI18nKeyAndLabel(
-              'campaigns.analytics.timelineAnalysis.title',
-              'Cumulative Entity Growth'
-            )}
-          </CardTitle>
+          <CardTitle>{t('campaigns-analytics-timelineAnalysis-title')}</CardTitle>
           <div className="gba:flex gba:flex-col gba:gap-2">
             {/* Timeline Period Filters */}
             <div className="gba:flex gba:flex-wrap gba:gap-2 gba:justify-end">
@@ -391,10 +385,7 @@ const CampaignsTimelineAnalysis: React.FC<CampaignsTimelineAnalysisProps> = ({
       <CardContent className="gba:p-6">
         {aggregateTimelineData.length === 0 ? (
           <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel(
-              'campaigns.analytics.timelineAnalysis.noData',
-              'No timeline data available'
-            )}
+            {t('campaigns-analytics-timelineAnalysis-noData')}
           </div>
         ) : (
           <div className="gba:h-[500px]">
@@ -422,7 +413,7 @@ const CampaignsTimelineAnalysis: React.FC<CampaignsTimelineAnalysisProps> = ({
                         key={lineConfig.key}
                         type="monotone"
                         dataKey={lineConfig.dataKey}
-                        stroke={`var(--color-${lineConfig.dataKey.toLowerCase()})`}
+                        stroke={`var(--color-${lineConfig.dataKey})`}
                         name={lineConfig.name}
                         strokeWidth={2}
                         dot={{ r: 3 }}

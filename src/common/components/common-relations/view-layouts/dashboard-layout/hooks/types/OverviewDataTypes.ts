@@ -37,7 +37,7 @@ export interface OverviewData {
     type: RecordType
     createdAt: string
   }>
-  keyDeals: Array<{
+  keyOpportunities: Array<{
     id: string
     name: string
     value: string
@@ -100,8 +100,8 @@ export interface UseOverviewDataReturn {
   error: string | null
   refetch: () => void
   setSelectedCurrency: (currency: string) => void
-  selectedDealCurrency: string
-  setSelectedDealCurrency: (currency: string) => void
+  selectedOpportunityCurrency: string
+  setSelectedOpportunityCurrency: (currency: string) => void
   handleTasksPageChange: (page: number, pageSize: number) => void
   handleActivitiesPageChange: (page: number, pageSize: number) => void
 }

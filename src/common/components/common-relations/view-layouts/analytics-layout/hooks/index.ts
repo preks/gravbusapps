@@ -80,4 +80,4 @@ export {
   type OpportunityStatusDistributionItem
 } from './useOpportunityStatusDistribution'
 export { useRevenueTrends, type RevenueTrendData, type TimeFilter } from './useRevenueTrends'
-export { useTopDeals, type TopDeal } from './useTopDeals'
+export { useTopOpportunities, type TopOpportunity } from './useTopOpportunities'

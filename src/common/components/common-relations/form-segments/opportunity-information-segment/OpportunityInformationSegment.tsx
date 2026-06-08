@@ -54,7 +54,7 @@ interface OpportunityInformationSegmentProps {
     loadMore?: () => void
     refetch?: (variables?: any) => Promise<void>
   }
-  // Custom fields (context-specific, e.g., CRM Sales Campaign, IRM Deal Type)
+  // Custom fields (context-specific, e.g., CRM Sales Campaign, IRM Opportunity Type)
   customFields?: React.ReactNode
   // Hide related entities (account/contact) sections - useful in Lead Convert context
   hideRelatedEntities?: boolean
@@ -287,7 +287,7 @@ const OpportunityInformationSegment: React.FC<OpportunityInformationSegmentProps
         <div></div>
       </div>
 
-      {/* Custom fields (context-specific, e.g., CRM Sales Campaign, IRM Deal Type) */}
+      {/* Custom fields (context-specific, e.g., CRM Sales Campaign, IRM Opportunity Type) */}
       {customFields && <div>{customFields}</div>}
 
       {/* Accounts Selection - Multiple accounts with types */}

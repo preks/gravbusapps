@@ -78,6 +78,8 @@ one-calendar-title = Kalender
 one-calendar-description = Termine planen und verwalten. In Ihren Arbeitsablauf integriert.
 one-reminders-title = Erinnerungen
 one-reminders-description = Keine Frist verpassen. Smarte Benachrichtigungen halten Sie auf Kurs.
+one-mail-title = E-Mail
+one-mail-description = Verwalten Sie Ihren Posteingang und behalten Sie wichtige Unterhaltungen im Blick.
 
 # EveryAI Section
 ai-title = EveryAI

@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import dayjs from 'dayjs'
 import {
   SalesPerformanceKPI,
@@ -103,7 +102,7 @@ const generateMockAutomotiveData = (): {
   // Generate pipeline metrics
   const pipelineMetrics: PipelineMetrics = {
     totalPipelineValue: 4200000,
-    averageDealSize: 2850,
+    averageOpportunitySize: 2850,
     conversionRate: 68.5,
     averageSalesCycle: 45,
     stagesData: [
@@ -160,9 +159,6 @@ interface UseSalesPerformanceDataReturn {
 export const useSalesPerformanceData = ({
   accessToken
 }: UseSalesPerformanceDataProps): UseSalesPerformanceDataReturn => {
-  // GraphQL client
-  const graphqlClient = useGraphqlClient(accessToken)
-
   // State
   const [kpiData, setKpiData] = useState<SalesPerformanceKPI | null>(null)
   const [performanceData, setPerformanceData] = useState<SalesPerformanceData[]>([])

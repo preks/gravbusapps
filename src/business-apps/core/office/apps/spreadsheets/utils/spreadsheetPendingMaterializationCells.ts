@@ -14,11 +14,42 @@ interface PendingLocalMutationCellProtectionEntry {
 
 export type PendingLocalMutationProtectionKind = 'local_user_edit' | 'materialization_adoption'
 
+export type PendingLocalMutationProtectionOwnerClass = 'queue' | 'plan' | 'deferred' | 'materialization' | 'other'
+
+export interface SpreadsheetPendingLocalMutationProtectionSummary {
+  globalKeyCount: number
+  targetSheetKeyCount: number
+  globalOwnerCount: number
+  targetSheetOwnerCount: number
+  keysBySheet: Record<string, number>
+  ownerKinds: Record<PendingLocalMutationProtectionKind, number>
+  ownerClasses: Record<PendingLocalMutationProtectionOwnerClass, number>
+}
+
 interface PendingLocalMutationCellProtectionOwner {
   expectedSignature?: string
   timeoutHandle?: ReturnType<typeof globalThis.setTimeout>
   kind: PendingLocalMutationProtectionKind
 }
+
+const EMPTY_PROTECTION_SUMMARY = (): SpreadsheetPendingLocalMutationProtectionSummary => ({
+  globalKeyCount: 0,
+  targetSheetKeyCount: 0,
+  globalOwnerCount: 0,
+  targetSheetOwnerCount: 0,
+  keysBySheet: {},
+  ownerKinds: {
+    local_user_edit: 0,
+    materialization_adoption: 0
+  },
+  ownerClasses: {
+    queue: 0,
+    plan: 0,
+    deferred: 0,
+    materialization: 0,
+    other: 0
+  }
+})
 
 const pendingLocalMutationProtectionStateBySet = new WeakMap<
   Set<string>,
@@ -114,6 +145,67 @@ export function spreadsheetPendingLocalMutationSemanticCellKey(
   columnName: string
 ): string {
   return ['semantic', sheetId, rowId, columnName].join(PENDING_LOCAL_MUTATION_KEY_SEPARATOR)
+}
+
+export function getSheetIdFromPendingLocalMutationProtectionKey(key: string): string | null {
+  if (!key) return null
+  const [kind, sheetId] = key.split(PENDING_LOCAL_MUTATION_KEY_SEPARATOR)
+  if ((kind !== 'coord' && kind !== 'semantic') || !sheetId) return null
+  return sheetId
+}
+
+function classifyPendingLocalMutationProtectionOwner(ownerId: string): PendingLocalMutationProtectionOwnerClass {
+  const normalized = ownerId.trim().toLowerCase()
+  if (normalized.startsWith('queue:')) return 'queue'
+  if (normalized.startsWith('plan:')) return 'plan'
+  if (normalized.startsWith('deferred:')) return 'deferred'
+  if (normalized.startsWith('materialization:')) return 'materialization'
+  return 'other'
+}
+
+export function summarizeSpreadsheetPendingLocalMutationProtection(
+  pendingLocalMutationCellsRef: PendingLocalMutationCellsRef | undefined,
+  targetSheetId?: string
+): SpreadsheetPendingLocalMutationProtectionSummary {
+  const pendingCells = pendingLocalMutationCellsRef?.current
+  if (!pendingCells || pendingCells.size === 0) {
+    return EMPTY_PROTECTION_SUMMARY()
+  }
+  const state = pendingLocalMutationProtectionStateBySet.get(pendingCells)
+  if (!state || state.size === 0) {
+    const summary = EMPTY_PROTECTION_SUMMARY()
+    for (const key of pendingCells) {
+      const sheetId = getSheetIdFromPendingLocalMutationProtectionKey(key) ?? 'unknown'
+      summary.globalKeyCount += 1
+      summary.keysBySheet[sheetId] = (summary.keysBySheet[sheetId] ?? 0) + 1
+      if (targetSheetId != null && sheetId === targetSheetId) {
+        summary.targetSheetKeyCount += 1
+      }
+    }
+    return summary
+  }
+
+  const summary = EMPTY_PROTECTION_SUMMARY()
+  for (const [key, owners] of state.entries()) {
+    const sheetId = getSheetIdFromPendingLocalMutationProtectionKey(key) ?? 'unknown'
+    summary.globalKeyCount += 1
+    summary.keysBySheet[sheetId] = (summary.keysBySheet[sheetId] ?? 0) + 1
+    const isTargetSheet = targetSheetId != null && sheetId === targetSheetId
+    if (isTargetSheet) {
+      summary.targetSheetKeyCount += 1
+    }
+    for (const [ownerId, owner] of owners.entries()) {
+      void ownerId
+      summary.globalOwnerCount += 1
+      if (isTargetSheet) {
+        summary.targetSheetOwnerCount += 1
+      }
+      summary.ownerKinds[owner.kind] += 1
+      const ownerClass = classifyPendingLocalMutationProtectionOwner(ownerId)
+      summary.ownerClasses[ownerClass] += 1
+    }
+  }
+  return summary
 }
 
 export function spreadsheetPendingMaterializationCellKey(sheetId: string, rowIndex: number, colIndex: number): string {

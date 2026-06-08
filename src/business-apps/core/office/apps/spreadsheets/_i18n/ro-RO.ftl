@@ -1236,6 +1236,7 @@ wizard-select-status-column = Selectează coloana pentru afișarea stării
 # Header labels
 toast-submit-success = Trimis cu succes. Sarcina ta este acum finalizată.
 toast-submit-failed = Trimiterea a eșuat
+toast-column-reorder-merged-cells-unsupported = Această mutare de coloane nu este acceptată dacă ar împărți celule îmbinate.
 toast-checkpoint-flush-warning = Punctul de control a fost salvat, dar unele modificări în așteptare s-ar putea să nu fie incluse.
 toast-analytics-no-matching-columns = Nu s-au găsit coloane potrivite pentru a insera rezultatul pivotului.
 toast-analytics-no-rows-inserted = Nu s-au inserat rânduri în foaie.

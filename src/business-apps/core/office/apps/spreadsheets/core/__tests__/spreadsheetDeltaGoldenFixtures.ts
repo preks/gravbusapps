@@ -90,7 +90,7 @@ export const spreadsheetDeltaGoldenFixtures: SpreadsheetDeltaGoldenFixture[] = [
     ]
   },
   {
-    name: 'merge-fallback',
+    name: 'merge-move-live',
     columns: [textColumn('name', 'Name', 0)],
     baseRows: [{ _id: 'row-1', _rowUuid: 'row-1', Name: 'A' }],
     workbookSnapshot: {
@@ -101,7 +101,7 @@ export const spreadsheetDeltaGoldenFixtures: SpreadsheetDeltaGoldenFixture[] = [
         }
       }
     },
-    batch: baseEnvelope('merge-fallback', {
+    batch: baseEnvelope('merge-move-live', {
       type: 'move_cell_range',
       operationId: 'op-move-cell-range',
       data: {
@@ -110,6 +110,7 @@ export const spreadsheetDeltaGoldenFixtures: SpreadsheetDeltaGoldenFixture[] = [
         toRange: { startRow: 1, endRow: 1, startColumn: 0, endColumn: 0 }
       }
     }),
-    expectedRejection: { reason: 'unsupported_workbook_feature', detail: 'mergeData' }
+    expectedRows: [{ _id: 'row-1', _rowUuid: 'row-1' }],
+    expectedDirtyRegions: [{ type: 'rect', minRow: 0, maxRow: 1, minCol: 0, maxCol: 0 }]
   }
 ]

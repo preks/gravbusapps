@@ -24,6 +24,15 @@ import {
 } from '../utils/spreadsheetPendingMaterializationCells'
 import { buildAddRowPayloadsFromUniverRows } from '../utils/spreadsheetViewerRows'
 import { cellValuesAreEquivalentForPersist } from '../utils/spreadsheetPendingCells'
+import {
+  shouldDropStandaloneDeleteColumnFormulaFollowUpBatch,
+  shouldDropStandaloneDeleteRowFormulaFollowUpBatch,
+  shouldDropStandaloneInsertColumnFormulaFollowUpBatch,
+  shouldDropStandaloneInsertRowFormulaFollowUpBatch,
+  shouldDropStandaloneMoveCellRangeFormulaFollowUpBatch,
+  shouldDropStandaloneMoveColumnFormulaFollowUpBatch,
+  shouldDropStandaloneMoveRowFormulaFollowUpBatch
+} from '../utils/spreadsheetCutPasteMove'
 import type {
   PersistEmitInput,
   UniverMountHandleDetectedCellMutationDeps
@@ -267,6 +276,122 @@ function emitRowIdentityDiagnostics(
   })
 }
 
+function shouldDropStandaloneRowInsertFormulaFollowUp(
+  deps: UniverMountHandleDetectedCellMutationDeps,
+  emit: PersistEmitInput,
+  unifiedOperations: SpreadsheetBatchOperation[]
+): boolean {
+  if (emit.source !== 'sheet-value-changed') return false
+  return shouldDropStandaloneInsertRowFormulaFollowUpBatch({
+    suppressUntilMs: deps.rowInsertFormulaFollowUpSuppressUntilMsRef?.current ?? 0,
+    targetSheetId: emit.targetSheetId,
+    recentInsert: deps.recentInsertRowFormulaFollowUpRef?.current ?? null,
+    operations: unifiedOperations
+  })
+}
+
+function shouldDropStandaloneRowDeleteFormulaFollowUp(
+  deps: UniverMountHandleDetectedCellMutationDeps,
+  emit: PersistEmitInput,
+  unifiedOperations: SpreadsheetBatchOperation[]
+): boolean {
+  if (emit.source !== 'sheet-value-changed') return false
+  return shouldDropStandaloneDeleteRowFormulaFollowUpBatch({
+    suppressUntilMs: deps.rowDeleteFormulaFollowUpSuppressUntilMsRef?.current ?? 0,
+    targetSheetId: emit.targetSheetId,
+    recentDelete: deps.recentDeleteRowFormulaFollowUpRef?.current ?? null,
+    operations: unifiedOperations
+  })
+}
+
+function shouldDropStandaloneRowMoveFormulaFollowUp(
+  deps: UniverMountHandleDetectedCellMutationDeps,
+  emit: PersistEmitInput,
+  unifiedOperations: SpreadsheetBatchOperation[]
+): boolean {
+  if (emit.source !== 'sheet-value-changed') return false
+  return shouldDropStandaloneMoveRowFormulaFollowUpBatch({
+    suppressUntilMs: deps.rowMoveFormulaFollowUpSuppressUntilMsRef?.current ?? 0,
+    targetSheetId: emit.targetSheetId,
+    recentMove: deps.recentMoveRowFormulaFollowUpRef?.current ?? null,
+    operations: unifiedOperations
+  })
+}
+
+function shouldDropStandaloneMoveCellRangeFormulaFollowUp(
+  deps: UniverMountHandleDetectedCellMutationDeps,
+  emit: PersistEmitInput,
+  unifiedOperations: SpreadsheetBatchOperation[]
+): boolean {
+  if (emit.source !== 'sheet-value-changed') return false
+  return shouldDropStandaloneMoveCellRangeFormulaFollowUpBatch({
+    suppressUntilMs: deps.cutPasteCollabSuppressUntilMsRef?.current ?? 0,
+    targetSheetId: emit.targetSheetId,
+    recentMove: deps.recentMoveCellRangeFollowUpRef?.current ?? null,
+    operations: unifiedOperations
+  })
+}
+
+function shouldDropStandaloneColumnInsertFormulaFollowUp(
+  deps: UniverMountHandleDetectedCellMutationDeps,
+  emit: PersistEmitInput,
+  unifiedOperations: SpreadsheetBatchOperation[]
+): boolean {
+  if (emit.source !== 'sheet-value-changed') return false
+  return shouldDropStandaloneInsertColumnFormulaFollowUpBatch({
+    suppressUntilMs: deps.columnInsertFormulaFollowUpSuppressUntilMsRef?.current ?? 0,
+    targetSheetId: emit.targetSheetId,
+    recentInsert: deps.recentInsertColumnFormulaFollowUpRef?.current ?? null,
+    operations: unifiedOperations
+  })
+}
+
+function shouldDropStandaloneColumnDeleteFormulaFollowUp(
+  deps: UniverMountHandleDetectedCellMutationDeps,
+  emit: PersistEmitInput,
+  unifiedOperations: SpreadsheetBatchOperation[]
+): boolean {
+  if (emit.source !== 'sheet-value-changed') return false
+  return shouldDropStandaloneDeleteColumnFormulaFollowUpBatch({
+    suppressUntilMs: deps.columnDeleteFormulaFollowUpSuppressUntilMsRef?.current ?? 0,
+    targetSheetId: emit.targetSheetId,
+    recentDelete: deps.recentDeleteColumnFormulaFollowUpRef?.current ?? null,
+    operations: unifiedOperations
+  })
+}
+
+function shouldDropStandaloneColumnMoveFormulaFollowUp(
+  deps: UniverMountHandleDetectedCellMutationDeps,
+  emit: PersistEmitInput,
+  unifiedOperations: SpreadsheetBatchOperation[]
+): boolean {
+  if (emit.source !== 'sheet-value-changed') return false
+  return shouldDropStandaloneMoveColumnFormulaFollowUpBatch({
+    suppressUntilMs: deps.columnMoveFormulaFollowUpSuppressUntilMsRef?.current ?? 0,
+    targetSheetId: emit.targetSheetId,
+    recentMove: deps.recentMoveColumnFormulaFollowUpRef?.current ?? null,
+    operations: unifiedOperations
+  })
+}
+
+function resolveFormulaFollowUpSuppressionStage(params: {
+  rowInsert: boolean
+  rowDelete: boolean
+  rowMove: boolean
+  moveCell: boolean
+  columnInsert: boolean
+  columnDelete: boolean
+  columnMove: boolean
+}): string {
+  if (params.moveCell) return 'move_cell_formula_followup_suppressed'
+  if (params.columnInsert || params.columnDelete || params.columnMove) {
+    return 'column_structural_formula_followup_suppressed'
+  }
+  if (params.rowMove) return 'move_row_formula_followup_suppressed'
+  if (params.rowDelete) return 'spreadsheet.cell_emit.dedup_row_delete_formula_follow_up'
+  return 'spreadsheet.cell_emit.dedup_row_insert_formula_follow_up'
+}
+
 // Rate-limit per (workbook|worksheet|errorCode) to avoid log floods if a host integration is
 // permanently misconfigured. We only need one warning per minute per host scope to keep the
 // signal visible without burying other logs.
@@ -301,15 +426,73 @@ export function runDetectedCellMutationPersistEmitSync(
   } = emit
 
   const isReadOnlyReconcileSource = source === 'selection-reconcile' || source === 'deferred-reconcile'
+  const onMutationBatchOp = !isReadOnlyReconcileSource ? propsRef.current.onMutationBatchOp : undefined
+  const unifiedOperationsPrecheck =
+    !isReadOnlyReconcileSource && onMutationBatchOp
+      ? unifiedOpsOverride === undefined
+        ? buildUnifiedOperationsForEmit(deps, emit)
+        : (unifiedOpsOverride ?? [])
+      : null
+  const shouldDropRowInsertFormulaFollowUp =
+    unifiedOperationsPrecheck != null &&
+    shouldDropStandaloneRowInsertFormulaFollowUp(deps, emit, unifiedOperationsPrecheck)
+  const shouldDropRowDeleteFormulaFollowUp =
+    unifiedOperationsPrecheck != null &&
+    shouldDropStandaloneRowDeleteFormulaFollowUp(deps, emit, unifiedOperationsPrecheck)
+  const shouldDropRowMoveFormulaFollowUp =
+    unifiedOperationsPrecheck != null &&
+    shouldDropStandaloneRowMoveFormulaFollowUp(deps, emit, unifiedOperationsPrecheck)
+  const shouldDropMoveCellFormulaFollowUp =
+    unifiedOperationsPrecheck != null &&
+    shouldDropStandaloneMoveCellRangeFormulaFollowUp(deps, emit, unifiedOperationsPrecheck)
+  const shouldDropColumnInsertFormulaFollowUp =
+    unifiedOperationsPrecheck != null &&
+    shouldDropStandaloneColumnInsertFormulaFollowUp(deps, emit, unifiedOperationsPrecheck)
+  const shouldDropColumnDeleteFormulaFollowUp =
+    unifiedOperationsPrecheck != null &&
+    shouldDropStandaloneColumnDeleteFormulaFollowUp(deps, emit, unifiedOperationsPrecheck)
+  const shouldDropColumnMoveFormulaFollowUp =
+    unifiedOperationsPrecheck != null &&
+    shouldDropStandaloneColumnMoveFormulaFollowUp(deps, emit, unifiedOperationsPrecheck)
+  if (
+    unifiedOperationsPrecheck &&
+    (shouldDropRowInsertFormulaFollowUp ||
+      shouldDropRowDeleteFormulaFollowUp ||
+      shouldDropRowMoveFormulaFollowUp ||
+      shouldDropMoveCellFormulaFollowUp ||
+      shouldDropColumnInsertFormulaFollowUp ||
+      shouldDropColumnDeleteFormulaFollowUp ||
+      shouldDropColumnMoveFormulaFollowUp)
+  ) {
+    callbacksRef.current.onDiagnosticsTraceEvent?.({
+      source: 'client',
+      stage: resolveFormulaFollowUpSuppressionStage({
+        rowInsert: shouldDropRowInsertFormulaFollowUp,
+        rowDelete: shouldDropRowDeleteFormulaFollowUp,
+        rowMove: shouldDropRowMoveFormulaFollowUp,
+        moveCell: shouldDropMoveCellFormulaFollowUp,
+        columnInsert: shouldDropColumnInsertFormulaFollowUp,
+        columnDelete: shouldDropColumnDeleteFormulaFollowUp,
+        columnMove: shouldDropColumnMoveFormulaFollowUp
+      }),
+      traceId: mutationTraceId,
+      payload: {
+        targetSheetId,
+        operationCount: unifiedOperationsPrecheck.length,
+        operationTypes: unifiedOperationsPrecheck.map(operation => operation.type)
+      }
+    })
+    return false
+  }
   if (!isReadOnlyReconcileSource) {
     protectPlannedValueCellsFromAuthoritativeReapply(deps, emit)
   }
   let handledPersistable = false
   if (!isReadOnlyReconcileSource) {
-    const onMutationBatchOp = propsRef.current.onMutationBatchOp
     if (onMutationBatchOp) {
       const unifiedOperations: SpreadsheetBatchOperation[] =
-        unifiedOpsOverride === undefined ? buildUnifiedOperationsForEmit(deps, emit) : (unifiedOpsOverride ?? [])
+        unifiedOperationsPrecheck ??
+        (unifiedOpsOverride === undefined ? buildUnifiedOperationsForEmit(deps, emit) : (unifiedOpsOverride ?? []))
 
       if (unifiedOperations.length > 0) {
         const operations: SpreadsheetUnifiedMutationBatchPayload['operations'] = []
@@ -388,6 +571,58 @@ export function runDetectedCellMutationPersistEmitDispatch(
   }
 
   const unifiedOperations = buildUnifiedOperationsForEmit(deps, emit)
+  const shouldDropRowInsertFormulaFollowUp = shouldDropStandaloneRowInsertFormulaFollowUp(deps, emit, unifiedOperations)
+  const shouldDropRowDeleteFormulaFollowUp = shouldDropStandaloneRowDeleteFormulaFollowUp(deps, emit, unifiedOperations)
+  const shouldDropRowMoveFormulaFollowUp = shouldDropStandaloneRowMoveFormulaFollowUp(deps, emit, unifiedOperations)
+  const shouldDropMoveCellFormulaFollowUp = shouldDropStandaloneMoveCellRangeFormulaFollowUp(
+    deps,
+    emit,
+    unifiedOperations
+  )
+  const shouldDropColumnInsertFormulaFollowUp = shouldDropStandaloneColumnInsertFormulaFollowUp(
+    deps,
+    emit,
+    unifiedOperations
+  )
+  const shouldDropColumnDeleteFormulaFollowUp = shouldDropStandaloneColumnDeleteFormulaFollowUp(
+    deps,
+    emit,
+    unifiedOperations
+  )
+  const shouldDropColumnMoveFormulaFollowUp = shouldDropStandaloneColumnMoveFormulaFollowUp(
+    deps,
+    emit,
+    unifiedOperations
+  )
+  if (
+    shouldDropRowInsertFormulaFollowUp ||
+    shouldDropRowDeleteFormulaFollowUp ||
+    shouldDropRowMoveFormulaFollowUp ||
+    shouldDropMoveCellFormulaFollowUp ||
+    shouldDropColumnInsertFormulaFollowUp ||
+    shouldDropColumnDeleteFormulaFollowUp ||
+    shouldDropColumnMoveFormulaFollowUp
+  ) {
+    deps.callbacksRef.current.onDiagnosticsTraceEvent?.({
+      source: 'client',
+      stage: resolveFormulaFollowUpSuppressionStage({
+        rowInsert: shouldDropRowInsertFormulaFollowUp,
+        rowDelete: shouldDropRowDeleteFormulaFollowUp,
+        rowMove: shouldDropRowMoveFormulaFollowUp,
+        moveCell: shouldDropMoveCellFormulaFollowUp,
+        columnInsert: shouldDropColumnInsertFormulaFollowUp,
+        columnDelete: shouldDropColumnDeleteFormulaFollowUp,
+        columnMove: shouldDropColumnMoveFormulaFollowUp
+      }),
+      traceId: emit.mutationTraceId,
+      payload: {
+        targetSheetId: emit.targetSheetId,
+        operationCount: unifiedOperations.length,
+        operationTypes: unifiedOperations.map(operation => operation.type)
+      }
+    })
+    return false
+  }
   protectPlannedValueCellsFromAuthoritativeReapply(deps, emit)
   const temporaryRowIdMatches = detectTemporaryRowIdsInKnownRowIdFields(unifiedOperations)
   const affectedUiRowIds = Array.from(new Set(temporaryRowIdMatches.map(match => match.rowId)))

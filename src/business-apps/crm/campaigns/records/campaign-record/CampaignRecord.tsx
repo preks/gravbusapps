@@ -1,16 +1,19 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { RecordLayout, Badge, Spinner, IconAvatar, HeaderSlot } from '@newwork/nw-design-system'
+import { RecordLayout, Badge, Button, Spinner, IconAvatar, HeaderSlot, useTranslation } from '@newwork/nw-design-system'
 import { MegaphoneIcon, CalendarIcon, TagIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useCampaignRecord, useCampaignKPIs, useCampaignAnalytics, useCampaignEntities } from './hooks'
+import { useCampaignRecord, useCampaignKPIs, useCampaignAnalytics } from './hooks'
 import { CampaignKPIs, CampaignChart, CampaignEntitiesSection } from './components'
-import CampaignAnalyticsStatistics from './components/analytics/CampaignAnalyticsStatistics'
+import CampaignEventsSection from './components/CampaignEventsSection'
+import CampaignContentSection from './components/CampaignContentSection'
+import CampaignAccountsSection from './components/CampaignAccountsSection'
+import CampaignDetailsSection from './components/CampaignDetailsSection'
 import CampaignConversionFunnel from './components/analytics/CampaignConversionFunnel'
 import CampaignRevenueAnalysis from './components/analytics/CampaignRevenueAnalysis'
-import CampaignTopPerformers from './components/analytics/CampaignTopPerformers'
 import { CampaignRecordProps } from './types'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import translations from '../../_i18n'
+import { getBadgeVariantFromCatalog } from '@/common/utils/badgeUtils'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import dayjs from 'dayjs'
@@ -24,6 +27,7 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
   onTabChange,
   ...props
 }) => {
+  const { t } = useTranslation(translations)
   // Extract campaignId from props or URL parameters (needed for dynamic loader)
   const campaignId = propCampaignId || new URLSearchParams(globalThis.location.search).get('campaignId') || ''
 
@@ -38,6 +42,8 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
   }, [onBack])
 
   const [activeTab, setActiveTab] = useState(initialActiveTab)
+  const isOverviewTabActive = activeTab === 'overview'
+  const isAnalyticsTabActive = activeTab === 'analytics'
 
   // Update local state when prop changes
   useEffect(() => {
@@ -71,7 +77,7 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
     isLoading: kpisLoading,
     error: kpisError,
     refetch: refetchKPIs
-  } = useCampaignKPIs(stableContext, campaignId)
+  } = useCampaignKPIs(stableContext, campaignId, { enabled: isOverviewTabActive })
 
   // Fetch campaign analytics data
   const {
@@ -79,26 +85,28 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
     isLoading: analyticsLoading,
     error: analyticsError,
     refetch: refetchAnalytics
-  } = useCampaignAnalytics(stableContext, campaignId)
-
-  // Fetch campaign entities once — shared between CampaignChart and CampaignEntitiesSection
-  const campaignEntities = useCampaignEntities(stableContext, campaignId)
+  } = useCampaignAnalytics(stableContext, campaignId, {
+    enabled: isAnalyticsTabActive && Boolean(campaign),
+    startDate: campaign?.startDate,
+    endDate: campaign?.endDate
+  })
 
   // Helper functions for campaign status - MUST be before any early returns (Rules of Hooks)
-  const getCampaignStatus = useCallback((startDate?: string, endDate?: string) => {
-    if (!startDate || !endDate) return { status: 'Unknown', variant: 'secondary' as const }
-
-    const now = dayjs()
-    const start = dayjs(startDate)
-    const end = dayjs(endDate)
-
-    if (now.isBefore(start)) {
-      return { status: 'Upcoming', variant: 'pending' as const }
-    } else if (now.isAfter(end)) {
-      return { status: 'Completed', variant: 'default' as const }
-    } else {
-      return { status: 'Active', variant: 'success' as const }
+  const getCampaignStatus = useCallback((statusEntry?: { value?: string; code?: string; objectValue?: any }) => {
+    if (statusEntry?.value) {
+      const catalogVariant = getBadgeVariantFromCatalog(statusEntry)
+      if (catalogVariant && catalogVariant !== 'default') {
+        return { status: statusEntry.value, variant: catalogVariant }
+      }
+      const lower = statusEntry.value.toLowerCase()
+      if (lower.includes('active')) return { status: statusEntry.value, variant: 'success' as const }
+      if (lower.includes('paused')) return { status: statusEntry.value, variant: 'warning' as const }
+      if (lower.includes('completed')) return { status: statusEntry.value, variant: 'default' as const }
+      if (lower.includes('planned')) return { status: statusEntry.value, variant: 'pending' as const }
+      return { status: statusEntry.value, variant: 'secondary' as const }
     }
+
+    return { status: statusEntry?.code || 'Unknown', variant: 'secondary' as const }
   }, [])
 
   const calculateDuration = useCallback((startDate?: string, endDate?: string): string => {
@@ -120,7 +128,7 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
   const statusInfo = useMemo(
     () =>
       campaign
-        ? getCampaignStatus(campaign.startDate, campaign.endDate)
+        ? getCampaignStatus(campaign.customerCampaignStatus)
         : { status: 'Unknown', variant: 'secondary' as const },
     [campaign, getCampaignStatus]
   )
@@ -133,24 +141,51 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
               items: [
                 {
                   icon: TagIcon,
-                  label: getTranslationFromI18nKeyAndLabel('campaign.type', 'Type'),
+                  label: t('campaign-type'),
                   value: campaign.type?.value || 'Unknown Type'
                 },
                 {
                   icon: CalendarIcon,
-                  label: getTranslationFromI18nKeyAndLabel('campaign.duration', 'Duration'),
+                  label: t('campaign-duration'),
                   value: calculateDuration(campaign.startDate, campaign.endDate)
                 },
                 {
                   icon: CalendarIcon,
-                  label: getTranslationFromI18nKeyAndLabel('campaign.dateRange', 'Date Range'),
+                  label: t('campaign-dateRange'),
                   value: formatDateRange(campaign.startDate, campaign.endDate)
-                }
+                },
+                ...(campaign.customerCampaignSegment
+                  ? [
+                      {
+                        icon: TagIcon,
+                        label: t('campaign-segment'),
+                        value: campaign.customerCampaignSegment.value
+                      }
+                    ]
+                  : []),
+                ...(campaign.budgetAllocated == null
+                  ? []
+                  : [
+                      {
+                        icon: TagIcon,
+                        label: t('campaign-budget'),
+                        value: `$${Number(campaign.budgetAllocated).toLocaleString()}`
+                      }
+                    ]),
+                ...(campaign.ownerEmployee
+                  ? [
+                      {
+                        icon: TagIcon,
+                        label: t('campaign-owner'),
+                        value: campaign.ownerEmployee.displayName
+                      }
+                    ]
+                  : [])
               ]
             }
           ]
         : [],
-    [campaign, calculateDuration, formatDateRange]
+    [campaign, calculateDuration, formatDateRange, t]
   )
 
   const headerActions = useMemo(
@@ -195,9 +230,9 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
       items: [
         {
           value: 'overview',
-          label: getTranslationFromI18nKeyAndLabel('campaign.tabs.overview', 'Overview'),
+          label: t('campaign-tabs-overview'),
           icon: <MegaphoneIcon className="gba:mr-2" />,
-          content: (
+          content: isOverviewTabActive ? (
             <div className="gba:col-span-12 gba:space-y-6" data-testid="campaign-overview-container">
               {/* KPIs - Full width */}
               <div data-testid="campaign-kpis-section">
@@ -210,39 +245,44 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
                 />
               </div>
 
+              {/* Campaign details (strategic, financial, description) */}
+              <div data-testid="campaign-details-wrapper">
+                {campaign ? <CampaignDetailsSection campaign={campaign} /> : null}
+              </div>
+
               {/* Chart - Full width */}
               <div data-testid="campaign-chart-section">
-                <CampaignChart
-                  campaignId={campaignId}
-                  campaign={campaign}
-                  allEntities={campaignEntities.entities}
-                  {...stableContext}
-                />
+                <CampaignChart campaignId={campaignId} campaign={campaign} {...stableContext} />
+              </div>
+
+              {/* Target Accounts */}
+              <div data-testid="campaign-accounts-wrapper">
+                <CampaignAccountsSection campaignId={campaignId} {...stableContext} />
+              </div>
+
+              {/* Events */}
+              <div data-testid="campaign-events-wrapper">
+                <CampaignEventsSection campaignId={campaignId} {...stableContext} />
+              </div>
+
+              {/* Content */}
+              <div data-testid="campaign-content-wrapper">
+                <CampaignContentSection campaignId={campaignId} {...stableContext} />
               </div>
 
               {/* Campaign Entities - Full width */}
               <div data-testid="campaign-entities-section" className="gba:min-h-[600px]">
-                <CampaignEntitiesSection campaignId={campaignId} {...campaignEntities} {...stableContext} />
+                <CampaignEntitiesSection campaignId={campaignId} {...stableContext} />
               </div>
             </div>
-          )
+          ) : null
         },
         {
           value: 'analytics',
-          label: getTranslationFromI18nKeyAndLabel('campaign.tabs.analytics', 'Analytics'),
+          label: t('campaign-tabs-analytics'),
           icon: <CalendarIcon className="gba:mr-2" />,
-          content: (
+          content: isAnalyticsTabActive ? (
             <div className="gba:col-span-12 gba:space-y-6" data-testid="campaign-analytics-container">
-              {/* Analytics Statistics - Full width */}
-              <div data-testid="campaign-analytics-statistics-section">
-                <CampaignAnalyticsStatistics
-                  metrics={analyticsData.metrics}
-                  isLoading={analyticsLoading}
-                  error={analyticsError}
-                  onRetry={refetchAnalytics}
-                />
-              </div>
-
               {/* Conversion Funnel - Full width */}
               <div data-testid="campaign-conversion-funnel-section">
                 <CampaignConversionFunnel
@@ -257,24 +297,15 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
               <div data-testid="campaign-revenue-analysis-section">
                 <CampaignRevenueAnalysis
                   metrics={analyticsData.metrics}
-                  timelineData={analyticsData.timelineAnalysis}
-                  isLoading={analyticsLoading}
-                  error={analyticsError}
-                  onRetry={refetchAnalytics}
-                />
-              </div>
-
-              {/* Top Performers - Full width */}
-              <div data-testid="campaign-top-performers-section">
-                <CampaignTopPerformers
-                  performers={analyticsData.topPerformers}
+                  entityTimelineData={analyticsData.entityTimelineAnalysis}
+                  revenueTimelineData={analyticsData.revenueTrendAnalysis}
                   isLoading={analyticsLoading}
                   error={analyticsError}
                   onRetry={refetchAnalytics}
                 />
               </div>
             </div>
-          )
+          ) : null
         }
       ]
     }),
@@ -283,6 +314,8 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
       handleTabChange,
       campaign,
       campaignId,
+      isOverviewTabActive,
+      isAnalyticsTabActive,
       kpis,
       kpisWithTrends,
       kpisLoading,
@@ -292,7 +325,7 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
       analyticsLoading,
       analyticsError,
       refetchAnalytics,
-      props
+      stableContext
     ]
   )
 
@@ -307,11 +340,12 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
 
   if (campaignError || !campaign) {
     return (
-      <div className="gba:p-8">
-        <h1>Campaign Error</h1>
-        <p>Error: {campaignError || 'Campaign not found'}</p>
-        <p>Campaign ID: {campaignId}</p>
-        <button onClick={handleBackNavigation}>Back to List</button>
+      <div className="gba:p-8 gba:space-y-4" data-testid="campaign-record-error">
+        <h1 className="gba:text-xl gba:font-semibold">{t('campaign-error-title')}</h1>
+        <p className="gba:text-muted-foreground">{campaignError || t('campaign-error-notFound')}</p>
+        <Button variant="outline" onClick={handleBackNavigation} data-testid="campaign-error-back-button">
+          {t('campaign-error-backToList')}
+        </Button>
       </div>
     )
   }
@@ -321,7 +355,7 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
       data-testid="campaign-record"
       headerOrientation="horizontal"
       headerAvatar={<IconAvatar icon={MegaphoneIcon} variant="decorative" size="xl" />}
-      headerOverline={getTranslationFromI18nKeyAndLabel('campaigns.header.category', 'CAMPAIGN')}
+      headerOverline={t('campaigns-header-category')}
       onBack={handleBackNavigation}
       headerTitle={campaign.name}
       headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}

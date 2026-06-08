@@ -18,7 +18,7 @@ import React, {
 import { useTranslation } from '@newwork/nw-design-system'
 import spreadsheetTranslations from '../_i18n'
 import { toA1Reference, type SpreadsheetBulkRemoteApplyMeta, type SpreadsheetBulkRemoteCellItem } from '../core'
-import type { SpreadsheetColumn, SpreadsheetSheet } from '../types/spreadsheet'
+import type { SpreadsheetColumn, SpreadsheetMergeRange, SpreadsheetSheet } from '../types/spreadsheet'
 import { buildWorkbookSnapshot, createUniverConversionContext } from '../utils/univerAdapter'
 import type {
   AuthoritativeGridReapplyTarget,
@@ -88,10 +88,26 @@ import { getSupportedUniverFonts } from './univerGridLocaleChrome'
 import { extractActiveRangeBounds, extractActiveRangePosition } from './univerGridRangeSelection'
 import { formatCommentTime, getInitials } from './univerGridCommentPresentation'
 import { extractDimensionsFromSnapshot } from './univerGridSnapshotDimensions'
+import {
+  armColumnDeleteFormulaFollowUpSuppression,
+  armColumnInsertFormulaFollowUpSuppression,
+  armColumnMoveFormulaFollowUpSuppression,
+  armMoveCellRangeFollowUpCollabSuppression,
+  armRowMoveFormulaFollowUpSuppression,
+  filterColumnDeleteFormulaReapplyCells,
+  filterColumnInsertFormulaReapplyCells,
+  filterColumnMoveFormulaReapplyCells,
+  filterMoveCellRangeFormulaReapplyCells,
+  filterRowMoveFormulaReapplyCells
+} from '../utils/spreadsheetCutPasteMove'
 import { tryStructuredClone } from '../utils/tryStructuredClone'
 import type { CollaborationOverlayRect } from './univerGridOverlayCellRect'
 import { parseChartRange } from '../utils/chartRangeUtils'
 import { navigateUniverViaNameBox } from './univerGridNameBoxNavigation'
+import {
+  classifyNativeColumnReorderWithMerges,
+  planVisibleColumnReorderMoves
+} from '../utils/spreadsheetColumnReorderMoves'
 
 const SHEET_SCROLL_TO_CELL_COMMAND_ID = 'sheet.command.scroll-to-cell'
 
@@ -121,6 +137,131 @@ function isOverlayRectVisible(
     rect.left > viewport.left + viewport.width + padding ||
     rect.top > viewport.top + viewport.height + padding
   )
+}
+
+function normalizeWorksheetMergeRanges(ranges: unknown): SpreadsheetMergeRange[] {
+  if (!Array.isArray(ranges)) return []
+  return ranges
+    .filter(
+      (range): range is SpreadsheetMergeRange =>
+        Boolean(range) &&
+        typeof range === 'object' &&
+        Number.isFinite((range as SpreadsheetMergeRange).startRow) &&
+        Number.isFinite((range as SpreadsheetMergeRange).endRow) &&
+        Number.isFinite((range as SpreadsheetMergeRange).startColumn) &&
+        Number.isFinite((range as SpreadsheetMergeRange).endColumn)
+    )
+    .map(range => ({
+      startRow: Math.trunc(range.startRow),
+      endRow: Math.trunc(range.endRow),
+      startColumn: Math.trunc(range.startColumn),
+      endColumn: Math.trunc(range.endColumn)
+    }))
+}
+
+function buildWorksheetMergeRangeKey(range: SpreadsheetMergeRange): string {
+  return `${range.startRow}:${range.endRow}:${range.startColumn}:${range.endColumn}`
+}
+
+function extractWorksheetMergeRangesFromWorkbookSnapshot(
+  snapshot: Record<string, unknown> | null | undefined,
+  sheetId: string
+): SpreadsheetMergeRange[] {
+  const sheets =
+    snapshot?.sheets && typeof snapshot.sheets === 'object' && !Array.isArray(snapshot.sheets)
+      ? (snapshot.sheets as Record<string, unknown>)
+      : null
+  const worksheet = sheets?.[sheetId]
+  if (!worksheet || typeof worksheet !== 'object' || Array.isArray(worksheet)) return []
+  return normalizeWorksheetMergeRanges((worksheet as Record<string, unknown>).mergeData)
+}
+
+function resolveAuthoritativeWorksheetMergeRanges(
+  sheet: SpreadsheetSheet,
+  initialSnapshot?: Record<string, unknown> | null
+): SpreadsheetMergeRange[] {
+  const initialSnapshotRanges = extractWorksheetMergeRangesFromWorkbookSnapshot(initialSnapshot ?? null, sheet.id)
+  if (initialSnapshotRanges.length > 0) return initialSnapshotRanges
+  const worksheetSnapshotRanges =
+    sheet.worksheetSnapshot && typeof sheet.worksheetSnapshot === 'object' && !Array.isArray(sheet.worksheetSnapshot)
+      ? normalizeWorksheetMergeRanges((sheet.worksheetSnapshot as Record<string, unknown>).mergeData)
+      : []
+  if (worksheetSnapshotRanges.length > 0) return worksheetSnapshotRanges
+  return normalizeWorksheetMergeRanges(sheet.settings.mergeData)
+}
+
+function applyCommittedWorksheetMergePatchDelta(params: {
+  applyRemoteSpreadsheetFeatureOperation?:
+    | ((payload: {
+        type: 'merge_ranges' | 'unmerge_ranges'
+        data: { sheetId: string; ranges: SpreadsheetMergeRange[] }
+      }) => void)
+    | null
+  targetSheetId: string
+  previousRanges: SpreadsheetMergeRange[]
+  nextRanges: SpreadsheetMergeRange[]
+}): void {
+  const applyRemoteSpreadsheetFeatureOperation = params.applyRemoteSpreadsheetFeatureOperation
+  if (!applyRemoteSpreadsheetFeatureOperation) return
+  const previous = normalizeWorksheetMergeRanges(params.previousRanges)
+  const next = normalizeWorksheetMergeRanges(params.nextRanges)
+  const nextKeys = new Set(next.map(buildWorksheetMergeRangeKey))
+  const previousKeys = new Set(previous.map(buildWorksheetMergeRangeKey))
+  const removedRanges = previous.filter(range => !nextKeys.has(buildWorksheetMergeRangeKey(range)))
+  const addedRanges = next.filter(range => !previousKeys.has(buildWorksheetMergeRangeKey(range)))
+
+  if (removedRanges.length > 0) {
+    applyRemoteSpreadsheetFeatureOperation({
+      type: 'unmerge_ranges',
+      data: {
+        sheetId: params.targetSheetId,
+        ranges: removedRanges
+      }
+    })
+  }
+  if (addedRanges.length > 0) {
+    applyRemoteSpreadsheetFeatureOperation({
+      type: 'merge_ranges',
+      data: {
+        sheetId: params.targetSheetId,
+        ranges: addedRanges
+      }
+    })
+  }
+}
+
+export function repairAuthoritativeMergeRegistryAfterBootstrap(params: {
+  liveSnapshot: Record<string, unknown> | null | undefined
+  sheet: SpreadsheetSheet
+  initialSnapshot?: Record<string, unknown> | null
+  snapshotSeed?: string
+  applyRemoteSpreadsheetFeatureOperation?:
+    | ((payload: {
+        type: 'merge_ranges' | 'unmerge_ranges'
+        data: { sheetId: string; ranges: SpreadsheetMergeRange[] }
+      }) => void)
+    | null
+}): boolean {
+  const liveMergeRanges = extractWorksheetMergeRangesFromWorkbookSnapshot(params.liveSnapshot ?? null, params.sheet.id)
+  const authoritativeMergeRanges = resolveAuthoritativeWorksheetMergeRanges(params.sheet, params.initialSnapshot)
+  const liveKeys = liveMergeRanges.map(buildWorksheetMergeRangeKey).sort()
+  const authoritativeKeys = authoritativeMergeRanges.map(buildWorksheetMergeRangeKey).sort()
+  const mergeRangesMatch =
+    liveKeys.length === authoritativeKeys.length && liveKeys.every((key, index) => key === authoritativeKeys[index])
+  if (mergeRangesMatch) return false
+  debugRemoteApply('repair_authoritative_merge_registry_after_bootstrap', {
+    sheetId: params.sheet.id,
+    liveMergeCount: liveMergeRanges.length,
+    authoritativeMergeCount: authoritativeMergeRanges.length,
+    snapshotSeed: params.snapshotSeed ?? undefined
+  })
+  applyCommittedWorksheetMergePatchDelta({
+    applyRemoteSpreadsheetFeatureOperation: params.applyRemoteSpreadsheetFeatureOperation,
+    targetSheetId: params.sheet.id,
+    previousRanges: liveMergeRanges,
+    nextRanges: authoritativeMergeRanges
+  })
+  return true
 }
 
 export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGridProps>(
@@ -167,6 +308,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       scheduleSnapshotCheckpointRef,
       lastSyncedGridCellSignaturesRef,
       collabPersistedBulkApplyDepthRef,
+      currentBulkApplyOperationTypeRef,
       bulkApplyClearDeferredDirtyCellsRef,
       lastSyncedGridRowCountRef,
       lastSyncedGridColumnCountRef,
@@ -176,6 +318,16 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       lastProcessedAuthoritativeReapplySeedRef,
       skipNextAuthoritativeSyncAfterSnapshotInitRef,
       activeSelectionRef,
+      cutPasteCollabSuppressUntilMsRef,
+      recentMoveCellRangeFollowUpRef,
+      rowMoveFormulaFollowUpSuppressUntilMsRef,
+      recentMoveRowFormulaFollowUpRef,
+      columnInsertFormulaFollowUpSuppressUntilMsRef,
+      recentInsertColumnFormulaFollowUpRef,
+      columnDeleteFormulaFollowUpSuppressUntilMsRef,
+      recentDeleteColumnFormulaFollowUpRef,
+      columnMoveFormulaFollowUpSuppressUntilMsRef,
+      recentMoveColumnFormulaFollowUpRef,
       contextRef,
       propsRef,
       callbacksRef,
@@ -819,7 +971,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         const started = globalThis.performance?.now?.() ?? Date.now()
         const d = propsRef.current.data
 
-        const normalized: SpreadsheetBulkRemoteCellItem[] = items.map(it => {
+        const normalizedBase: SpreadsheetBulkRemoteCellItem[] = items.map(it => {
           let rowIndex = it.rowIndex
           const targetSheetId =
             typeof it.options?.targetSheetId === 'string' && it.options.targetSheetId.trim()
@@ -842,6 +994,77 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           }
           return { ...it, rowIndex }
         })
+        const normalizedTargetSheetId =
+          (typeof normalizedBase[0]?.options?.targetSheetId === 'string' &&
+            normalizedBase[0].options.targetSheetId.trim()) ||
+          propsRef.current.sheet.id
+        let normalized: SpreadsheetBulkRemoteCellItem[] = normalizedBase
+        if (meta?.operationType === 'authoritative_reapply') {
+          const reapplyFilters = [
+            {
+              stage: 'move_row_formula_reapply_skipped',
+              result: filterRowMoveFormulaReapplyCells({
+                suppressUntilMs: rowMoveFormulaFollowUpSuppressUntilMsRef.current,
+                worksheetId: normalizedTargetSheetId,
+                recentMove: recentMoveRowFormulaFollowUpRef.current,
+                cells: normalized
+              })
+            },
+            {
+              stage: 'move_cell_formula_reapply_skipped',
+              result: filterMoveCellRangeFormulaReapplyCells({
+                suppressUntilMs: cutPasteCollabSuppressUntilMsRef.current,
+                worksheetId: normalizedTargetSheetId,
+                recentMove: recentMoveCellRangeFollowUpRef.current,
+                cells: normalized
+              })
+            },
+            {
+              stage: 'column_insert_formula_reapply_skipped',
+              result: filterColumnInsertFormulaReapplyCells({
+                suppressUntilMs: columnInsertFormulaFollowUpSuppressUntilMsRef.current,
+                worksheetId: normalizedTargetSheetId,
+                recentInsert: recentInsertColumnFormulaFollowUpRef.current,
+                cells: normalized
+              })
+            },
+            {
+              stage: 'column_delete_formula_reapply_skipped',
+              result: filterColumnDeleteFormulaReapplyCells({
+                suppressUntilMs: columnDeleteFormulaFollowUpSuppressUntilMsRef.current,
+                worksheetId: normalizedTargetSheetId,
+                recentDelete: recentDeleteColumnFormulaFollowUpRef.current,
+                cells: normalized
+              })
+            },
+            {
+              stage: 'column_move_formula_reapply_skipped',
+              result: filterColumnMoveFormulaReapplyCells({
+                suppressUntilMs: columnMoveFormulaFollowUpSuppressUntilMsRef.current,
+                worksheetId: normalizedTargetSheetId,
+                recentMove: recentMoveColumnFormulaFollowUpRef.current,
+                cells: normalized
+              })
+            }
+          ]
+          for (const filter of reapplyFilters) {
+            if (filter.result.skippedCellCount <= 0) continue
+            callbacksRef.current.onDiagnosticsTraceEvent?.({
+              source: 'client',
+              stage: filter.stage,
+              traceSessionId: meta?.traceSessionId ?? null,
+              traceId: meta?.traceId ?? null,
+              batchId: meta?.batchId ?? null,
+              operationType: meta?.operationType ?? null,
+              payload: {
+                worksheetId: normalizedTargetSheetId,
+                skippedCellCount: filter.result.skippedCellCount,
+                attemptedCellCount: normalized.length
+              }
+            })
+            normalized = filter.result.cells
+          }
+        }
 
         const seededEchoSuppressAt = Date.now()
         const isBacklogDrain = isBacklogBulkApply(meta?.operationType ?? undefined, normalized.length)
@@ -906,11 +1129,13 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             (typeof normalized[0]?.options?.targetSheetId === 'string' ? normalized[0].options.targetSheetId : null) ??
             propsRef.current.sheet.id
 
+          currentBulkApplyOperationTypeRef.current = meta?.operationType ?? 'bulk_remote_cell'
           collabPersistedBulkApplyDepthRef.current += 1
           let bulkApplyFinished = false
           const finishBulkApplyOnce = () => {
             if (bulkApplyFinished) return
             bulkApplyFinished = true
+            currentBulkApplyOperationTypeRef.current = null
             collabPersistedBulkApplyDepthRef.current -= 1
             if (bulkPaintedRegion) {
               bulkApplyClearDeferredDirtyCellsRef.current?.(bulkPaintedWorksheetId, bulkPaintedRegion)
@@ -1469,9 +1694,67 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       univerAPIRef,
       cellDimensionsRef,
       isApplyingRemoteUpdateRef,
+      collabPersistedBulkApplyDepthRef,
       refreshCursorRectsRef,
       refreshCommentRectsRef
     })
+    const lastBootstrapMergeRepairKeyRef = useRef<string | null>(null)
+    const applyCommittedWorksheetMergePatch = useCallback(
+      (
+        targetSheetId: string,
+        previousRanges: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>,
+        nextRanges: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
+      ) => {
+        applyCommittedWorksheetMergePatchDelta({
+          applyRemoteSpreadsheetFeatureOperation,
+          targetSheetId,
+          previousRanges,
+          nextRanges
+        })
+      },
+      [applyRemoteSpreadsheetFeatureOperation]
+    )
+
+    useEffect(() => {
+      if (!gridHostReady) return
+      const repairKey = `${props.workbookInstanceKey}|${props.snapshotSeed ?? 'no-snapshot-seed'}|${sheet.id}`
+      if (lastBootstrapMergeRepairKeyRef.current === repairKey) return
+      let cancelled = false
+      let animationFrameId = 0
+      let attemptsRemaining = 3
+      const repairIfNeeded = () => {
+        if (cancelled) return
+        const liveSnapshot = getWorkbookSnapshotRef.current?.() ?? null
+        if (!liveSnapshot && attemptsRemaining > 0) {
+          attemptsRemaining -= 1
+          animationFrameId = globalThis.requestAnimationFrame(repairIfNeeded)
+          return
+        }
+        if (!liveSnapshot) return
+        lastBootstrapMergeRepairKeyRef.current = repairKey
+        repairAuthoritativeMergeRegistryAfterBootstrap({
+          liveSnapshot,
+          sheet,
+          initialSnapshot: props.initialSnapshot,
+          snapshotSeed: props.snapshotSeed,
+          applyRemoteSpreadsheetFeatureOperation
+        })
+      }
+      repairIfNeeded()
+      return () => {
+        cancelled = true
+        if (animationFrameId) {
+          globalThis.cancelAnimationFrame(animationFrameId)
+        }
+      }
+    }, [
+      applyRemoteSpreadsheetFeatureOperation,
+      gridHostReady,
+      props.initialSnapshot,
+      props.snapshotSeed,
+      props.workbookInstanceKey,
+      sheet
+    ])
 
     const getVisibleRangeValues = useCallback(
       (rowCount: number, colCount: number): Record<number, Record<number, unknown>> | null => {
@@ -1679,6 +1962,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         applyRemoteDimensions,
         applyRemoteClearFormatRange,
         applyRemoteSpreadsheetFeatureOperation,
+        applyCommittedWorksheetMergePatch,
         getActiveCellReference,
         getActiveSelectionReference,
         focusCellReference,
@@ -1695,16 +1979,39 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             isApplyingRemoteUpdateRef,
             collabPersistedBulkApplyDepthRef
           }),
-        applyRemoteColumnsReorder: ({ previousColumns, nextColumns }) => {
+        applyRemoteColumnsReorder: ({ previousColumns, nextColumns, moves }) => {
           const guardRefs = { isApplyingRemoteUpdateRef, collabPersistedBulkApplyDepthRef }
           acquireRemoteStructuralApplyGuard(guardRefs)
+          const previousBulkApplyOperationType = currentBulkApplyOperationTypeRef.current
+          currentBulkApplyOperationTypeRef.current = 'columns_reorder'
           try {
+            const moveClassification = classifyNativeColumnReorderWithMerges({
+              previousColumns,
+              nextColumns,
+              explicitMoves: moves
+            })
+            const reorderMoves = moveClassification.ok
+              ? moveClassification.moves
+              : planVisibleColumnReorderMoves(previousColumns, nextColumns)
+            if (reorderMoves.length > 0) {
+              armColumnMoveFormulaFollowUpSuppression({
+                suppressionRef: columnMoveFormulaFollowUpSuppressUntilMsRef,
+                recentMoveRef: recentMoveColumnFormulaFollowUpRef,
+                sheetId: sheet.id,
+                moves: reorderMoves.map(move => ({
+                  sourceStartIndex: move.sourceStartColumn,
+                  count: move.count,
+                  destinationStartIndex: move.destinationStartColumn
+                }))
+              })
+            }
             const result = applyRemoteColumnReorderOnGrid({
               api: univerAPIRef.current,
               sheetId: sheet.id,
               previousColumns,
               nextColumns,
-              rows: propsRef.current.data
+              rows: propsRef.current.data,
+              moves: moveClassification.ok ? moveClassification.moves : moves
             })
             propsRef.current.columns = nextColumns
             contextRef.current = createUniverConversionContext(nextColumns, propsRef.current.data)
@@ -1721,13 +2028,24 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             }
             return false
           } finally {
+            currentBulkApplyOperationTypeRef.current = previousBulkApplyOperationType
             scheduleReleaseRemoteStructuralApplyGuard(guardRefs)
           }
         },
         applyRemoteRowSlotsMove: ({ sourceStartGridRowIndex, count, destinationGridRowIndex }) => {
           const guardRefs = { isApplyingRemoteUpdateRef, collabPersistedBulkApplyDepthRef }
           acquireRemoteStructuralApplyGuard(guardRefs)
+          const previousBulkApplyOperationType = currentBulkApplyOperationTypeRef.current
+          currentBulkApplyOperationTypeRef.current = 'move_row_slots'
           try {
+            armRowMoveFormulaFollowUpSuppression({
+              suppressionRef: rowMoveFormulaFollowUpSuppressUntilMsRef,
+              recentMoveRef: recentMoveRowFormulaFollowUpRef,
+              sheetId: sheet.id,
+              sourceStartRow: sourceStartGridRowIndex,
+              count,
+              destinationStartRow: destinationGridRowIndex
+            })
             const visibleColumns = propsRef.current.columns.filter(column => column.isVisible !== false)
             const result = applyRemoteRowSlotsOnGrid({
               api: univerAPIRef.current,
@@ -1746,6 +2064,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             }
             return false
           } finally {
+            currentBulkApplyOperationTypeRef.current = previousBulkApplyOperationType
             scheduleReleaseRemoteStructuralApplyGuard(guardRefs)
           }
         },
@@ -1792,7 +2111,17 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         applyRemoteInsertColumnSlots: ({ startGridColumnIndex, count }) => {
           const guardRefs = { isApplyingRemoteUpdateRef, collabPersistedBulkApplyDepthRef }
           acquireRemoteStructuralApplyGuard(guardRefs)
+          const previousBulkApplyOperationType = currentBulkApplyOperationTypeRef.current
+          currentBulkApplyOperationTypeRef.current = 'column_add'
           try {
+            armColumnInsertFormulaFollowUpSuppression({
+              suppressionRef: columnInsertFormulaFollowUpSuppressUntilMsRef,
+              recentInsertRef: recentInsertColumnFormulaFollowUpRef,
+              sheetId: sheet.id,
+              insertIndex: startGridColumnIndex,
+              count,
+              direction: 'lefttop'
+            })
             const result = applyRemoteInsertColumnSlotsOnGrid({
               api: univerAPIRef.current,
               sheetId: sheet.id,
@@ -1807,13 +2136,22 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             }
             return false
           } finally {
+            currentBulkApplyOperationTypeRef.current = previousBulkApplyOperationType
             scheduleReleaseRemoteStructuralApplyGuard(guardRefs)
           }
         },
         applyRemoteDeleteColumnSlots: ({ startGridColumnIndex, count }) => {
           const guardRefs = { isApplyingRemoteUpdateRef, collabPersistedBulkApplyDepthRef }
           acquireRemoteStructuralApplyGuard(guardRefs)
+          const previousBulkApplyOperationType = currentBulkApplyOperationTypeRef.current
+          currentBulkApplyOperationTypeRef.current = 'column_delete'
           try {
+            armColumnDeleteFormulaFollowUpSuppression({
+              suppressionRef: columnDeleteFormulaFollowUpSuppressUntilMsRef,
+              recentDeleteRef: recentDeleteColumnFormulaFollowUpRef,
+              sheetId: sheet.id,
+              deleteStartColumn: startGridColumnIndex
+            })
             const result = applyRemoteDeleteColumnSlotsOnGrid({
               api: univerAPIRef.current,
               sheetId: sheet.id,
@@ -1828,12 +2166,15 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             }
             return false
           } finally {
+            currentBulkApplyOperationTypeRef.current = previousBulkApplyOperationType
             scheduleReleaseRemoteStructuralApplyGuard(guardRefs)
           }
         },
         applyRemoteMoveCellRange: ({ fromRange, toRange }) => {
           const guardRefs = { isApplyingRemoteUpdateRef, collabPersistedBulkApplyDepthRef }
           acquireRemoteStructuralApplyGuard(guardRefs)
+          const previousBulkApplyOperationType = currentBulkApplyOperationTypeRef.current
+          currentBulkApplyOperationTypeRef.current = 'move_cell_range'
           try {
             const visibleColumnCount = propsRef.current.columns.filter(column => column.isVisible !== false).length
             const result = applyRemoteMoveCellRangeOnGrid({
@@ -1848,10 +2189,18 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
                 propsRef.current.data,
                 propsRef.current.columns
               )
+              armMoveCellRangeFollowUpCollabSuppression({
+                suppressionRef: cutPasteCollabSuppressUntilMsRef,
+                recentMoveRef: recentMoveCellRangeFollowUpRef,
+                sheetId: sheet.id,
+                fromRange,
+                toRange
+              })
               return true
             }
             return false
           } finally {
+            currentBulkApplyOperationTypeRef.current = previousBulkApplyOperationType
             scheduleReleaseRemoteStructuralApplyGuard(guardRefs)
           }
         },
@@ -2057,6 +2406,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         applyRemoteDimensions,
         applyRemoteClearFormatRange,
         applyRemoteSpreadsheetFeatureOperation,
+        applyCommittedWorksheetMergePatch,
         getActiveCellReference,
         getActiveSelectionReference,
         focusCellReference

@@ -9,6 +9,84 @@ import {
 import { useSpreadsheetGridStructuralMutations } from '../useSpreadsheetGridStructuralMutations'
 
 describe('useSpreadsheetGridStructuralMutations', () => {
+  it('skips column move handling while remote structural apply guard is active', () => {
+    const handleColumnsMoveInternal = jest.fn()
+    const syncGridConversionContext = jest.fn()
+
+    const { result } = renderHook(() =>
+      useSpreadsheetGridStructuralMutations({
+        activeSheetIdRef: { current: 'sheet-1' },
+        createdSheetIdAliasesRef: { current: new Map() },
+        operationQueueRef: { current: Promise.resolve() },
+        chainOnOperationQueue: async (_queueRef, fn) => fn(),
+        mutationFacade: {
+          insertRowSlots: jest.fn(),
+          deleteRowSlots: jest.fn(),
+          moveRowSlots: jest.fn(),
+          moveCellRange: jest.fn()
+        },
+        rowSlotIdentityRegistry: {
+          markUnhealthy: jest.fn(),
+          markHealthy: jest.fn(),
+          bindBackendRowId: jest.fn(),
+          syncRows: jest.fn()
+        },
+        rowMaterializationReadiness: {
+          registerPending: jest.fn(),
+          resolveMany: jest.fn(),
+          reject: jest.fn()
+        },
+        activeSheetColumns: [],
+        spreadsheetColumnsForGrid: [],
+        spreadsheetGridRef: {
+          current: {
+            syncGridConversionContext,
+            shouldIgnoreStructuralRowCommand: () => true
+          }
+        },
+        getActiveSessionRows: () => [],
+        getKnownRowsForSheet: () => [],
+        commitLocalSheetData: jest.fn(),
+        syncSheetRowsIntoLocalState: jest.fn(),
+        pendingUniverRowsBySheetRef: { current: new Map() },
+        latestUniverDataRef: { current: null },
+        lastProcessedLengthRef: { current: 0 },
+        buildAddRowPayloadsFromUniverRows: jest.fn(),
+        buildPersistedRowIdMapFromInsertRowSlotsResult: jest.fn(() => new Map()),
+        mapPersistedRowsToViewerRows: jest.fn(),
+        createNativeSpreadsheetClientRowId: jest.fn(() => 'client-row-1'),
+        logRowIdentityDiagnostics: jest.fn(),
+        buildRowIdentityDiagnostics: jest.fn(),
+        isUuid: jest.fn(),
+        isUuidString: jest.fn((value: string) => value.startsWith('row-')),
+        recoverFromVersionConflictRef: { current: jest.fn().mockResolvedValue(false) },
+        sheetPersist: {
+          beginPersist: jest.fn(),
+          markDirty: jest.fn(),
+          recordSuccess: jest.fn(),
+          recordError: jest.fn(),
+          endPersist: jest.fn()
+        },
+        versioning: {
+          markAsChanged: jest.fn(),
+          markAsSaved: jest.fn()
+        },
+        sheetPersistErrorMessage: 'persist failed',
+        handleColumnsInsertInternal: jest.fn(),
+        handleColumnsDeleteInternal: jest.fn(),
+        handleColumnsMoveInternal,
+        scheduleStructuralSnapshotReload: jest.fn()
+      })
+    )
+
+    act(() => {
+      result.current.onColumnsMove(1, 2, 4)
+    })
+
+    expect(handleColumnsMoveInternal).not.toHaveBeenCalled()
+    expect(syncGridConversionContext).not.toHaveBeenCalled()
+  })
+
   it('persists move_row_slots without full snapshot reload or grid resync', async () => {
     const initialRows = [
       { _id: 'row-1', _rowUuid: 'row-1', _gridRowIndex: 1, name: 'A' },

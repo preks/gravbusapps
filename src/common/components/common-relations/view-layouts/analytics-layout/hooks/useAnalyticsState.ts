@@ -54,8 +54,8 @@ export interface AnalyticsState {
   setAccountsCurrency: (currency: string) => void
   opportunitiesKpiCurrency: string
   setOpportunitiesKpiCurrency: (currency: string) => void
-  topDealsCurrency: string
-  setTopDealsCurrency: (currency: string) => void
+  topOpportunitiesCurrency: string
+  setTopOpportunitiesCurrency: (currency: string) => void
 }
 
 export function useAnalyticsState(config: AnalyticsStateConfig = {}): AnalyticsState {
@@ -115,7 +115,7 @@ export function useAnalyticsState(config: AnalyticsStateConfig = {}): AnalyticsS
   const [revenueCurrency, setRevenueCurrency] = useState(defaultCurrency)
   const [accountsCurrency, setAccountsCurrency] = useState(defaultCurrency)
   const [opportunitiesKpiCurrency, setOpportunitiesKpiCurrency] = useState(defaultCurrency)
-  const [topDealsCurrency, setTopDealsCurrency] = useState(defaultCurrency)
+  const [topOpportunitiesCurrency, setTopOpportunitiesCurrency] = useState(defaultCurrency)
 
   // ============================================================================
   // CURRENCY SYNC EFFECTS
@@ -126,9 +126,9 @@ export function useAnalyticsState(config: AnalyticsStateConfig = {}): AnalyticsS
     setRevenueCurrency(kpiCurrency)
   }, [kpiCurrency])
 
-  // Sync top deals currency when opportunities KPI currency changes
+  // Sync top opportunities currency when opportunities KPI currency changes
   useEffect(() => {
-    setTopDealsCurrency(opportunitiesKpiCurrency)
+    setTopOpportunitiesCurrency(opportunitiesKpiCurrency)
   }, [opportunitiesKpiCurrency])
 
   // ============================================================================
@@ -171,7 +171,7 @@ export function useAnalyticsState(config: AnalyticsStateConfig = {}): AnalyticsS
     setAccountsCurrency,
     opportunitiesKpiCurrency,
     setOpportunitiesKpiCurrency,
-    topDealsCurrency,
-    setTopDealsCurrency
+    topOpportunitiesCurrency,
+    setTopOpportunitiesCurrency
   }
 }

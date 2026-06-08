@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import dayjs from 'dayjs'
-import { Employee, WorkCommunication } from '../types/employee.types'
+import { Employee } from '../types/employee.types'
 import { filterEmployeesByStartedEmployment } from '../utils/hireDateFilters'
+import { extractEmployeeEmail, WORK_COMMUNICATIONS_FRAGMENT } from '../utils/peopleMomentsHelpers'
 
 export interface TeamAnniversary {
   id: string
@@ -21,6 +22,7 @@ export interface TeamAnniversary {
 
 export interface UseTeamAnniversariesResult {
   upcomingAnniversaries: TeamAnniversary[]
+  nextMonthAnniversaries: TeamAnniversary[]
   loading: boolean
   error: Error | null
   refetch: () => void
@@ -40,6 +42,7 @@ export const useTeamAnniversaries = ({
   managerId
 }: UseTeamAnniversariesProps): UseTeamAnniversariesResult => {
   const [upcomingAnniversaries, setUpcomingAnniversaries] = useState<TeamAnniversary[]>([])
+  const [nextMonthAnniversaries, setNextMonthAnniversaries] = useState<TeamAnniversary[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<Error | null>(null)
 
@@ -78,22 +81,7 @@ export const useTeamAnniversaries = ({
             workingCondition {
               hireDate
             }
-            workCommunications: communication(
-              where: {
-                _and: [
-                  { isDeleted: { _eq: false } }
-                  { purpose: { _eq: "INTERNAL" } }
-                  { value: { _neq: "" } }
-                  { channelRef: { _eq: "CommunicationChannel:v1:e-mail" } }
-                ]
-              }
-            ) {
-              id
-              value
-              channel {
-                value
-              }
-            }
+            ${WORK_COMMUNICATIONS_FRAGMENT}
           }
         }
       `
@@ -105,56 +93,60 @@ export const useTeamAnniversaries = ({
       if (response?.Employee) {
         const employees = filterEmployeesByStartedEmployment(response.Employee)
         const today = dayjs()
+        const currentMonth = today.month()
+        const nextMonthDate = today.add(1, 'month')
+        const nextMonth = nextMonthDate.month()
+        const nextMonthYear = nextMonthDate.year()
 
-        const anniversariesWithCalculations: TeamAnniversary[] = employees
-          .filter((employee: Employee) => employee.workingCondition?.[0]?.hireDate) // Only employees with hire dates
-          .map((employee: Employee) => {
+        const currentMonthList: TeamAnniversary[] = []
+        const nextMonthList: TeamAnniversary[] = []
+
+        employees
+          .filter((employee: Employee) => employee.workingCondition?.[0]?.hireDate)
+          .forEach((employee: Employee) => {
             const hireDate = dayjs(employee.workingCondition?.[0]?.hireDate)
-            if (!hireDate.isValid()) return null
+            if (!hireDate.isValid()) return
 
-            const currentYear = today.year()
-            const currentMonth = today.month()
-
-            // Get this year's anniversary
-            const thisYearAnniversary = hireDate.year(currentYear)
-            if (thisYearAnniversary.month() !== currentMonth) {
-              return null
+            const buildAnniversary = (targetYear: number): TeamAnniversary | null => {
+              const anniversary = hireDate.year(targetYear)
+              const yearsOfService = anniversary.diff(hireDate, 'year')
+              if (yearsOfService <= 0) return null
+              return {
+                id: employee.id,
+                userId: employee.userId,
+                firstName: employee.firstName,
+                lastName: employee.lastName,
+                fullName: `${employee.firstName} ${employee.lastName}`,
+                hireDate: employee.workingCondition?.[0]?.hireDate,
+                pictureThumbnail: employee.pictureThumbnail,
+                daysUntilAnniversary: anniversary.diff(today, 'day'),
+                yearsOfService,
+                jobPositionName: employee.employeePosition?.[0]?.jobPosition?.name,
+                anniversaryDate: anniversary.format('MMM D, YYYY'),
+                email: extractEmployeeEmail(employee.workCommunications)
+              }
             }
 
-            const daysUntilAnniversary = thisYearAnniversary.diff(today, 'day')
+            const thisYearAnniversary = hireDate.year(today.year())
+            if (thisYearAnniversary.month() === currentMonth) {
+              const entry = buildAnniversary(today.year())
+              if (entry) currentMonthList.push(entry)
+            }
 
-            // Calculate years of service (will be completed years on the anniversary)
-            const yearsOfService = thisYearAnniversary.diff(hireDate, 'year')
-
-            // Extract email from work communications
-            const emailComm = employee.workCommunications?.find(
-              (c: WorkCommunication) =>
-                c.channel?.value?.toLowerCase().includes('email') || c.channel?.value?.toLowerCase() === 'e-mail'
-            )
-
-            return {
-              id: employee.id,
-              userId: employee.userId,
-              firstName: employee.firstName,
-              lastName: employee.lastName,
-              fullName: `${employee.firstName} ${employee.lastName}`,
-              hireDate: employee.workingCondition?.[0]?.hireDate,
-              pictureThumbnail: employee.pictureThumbnail,
-              daysUntilAnniversary,
-              yearsOfService,
-              jobPositionName: employee.employeePosition?.[0]?.jobPosition?.name,
-              anniversaryDate: thisYearAnniversary.format('MMM D, YYYY'), // Format: Jan 15, 2025
-              email: emailComm?.value
+            const nextMonthAnniversary = hireDate.year(nextMonthYear)
+            if (nextMonthAnniversary.month() === nextMonth) {
+              const entry = buildAnniversary(nextMonthYear)
+              if (entry) nextMonthList.push(entry)
             }
           })
-          .filter((anniversary): anniversary is TeamAnniversary => anniversary !== null)
-          .filter((anniversary: TeamAnniversary) => anniversary.yearsOfService > 0) // Don't include first-year employees
-          // Sort by day in current month
-          .sort((a: TeamAnniversary, b: TeamAnniversary) => dayjs(a.hireDate).date() - dayjs(b.hireDate).date())
 
-        setUpcomingAnniversaries(anniversariesWithCalculations)
+        const sortByDay = (a: TeamAnniversary, b: TeamAnniversary) =>
+          dayjs(a.hireDate).date() - dayjs(b.hireDate).date()
+        setUpcomingAnniversaries(currentMonthList.toSorted(sortByDay))
+        setNextMonthAnniversaries(nextMonthList.toSorted(sortByDay))
       } else {
         setUpcomingAnniversaries([])
+        setNextMonthAnniversaries([])
       }
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to fetch team anniversaries'))
@@ -170,6 +162,7 @@ export const useTeamAnniversaries = ({
 
   return {
     upcomingAnniversaries,
+    nextMonthAnniversaries,
     loading,
     error,
     refetch: fetchTeamAnniversaries

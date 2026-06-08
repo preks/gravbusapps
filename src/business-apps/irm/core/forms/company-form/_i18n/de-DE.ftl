@@ -1,4 +1,5 @@
 # Investment Company Form
+validation-source-type-required = Quelle ist erforderlich
 validation-employee-required = Mitarbeiter ist erforderlich
 validation-investment-contact-required = Investmentkontakt ist erforderlich
 validation-company-name-required = Gesellschaftsname ist erforderlich

@@ -78,6 +78,8 @@ one-calendar-title = Calendar
 one-calendar-description = Schedule and manage meetings. Integrated with your workflow.
 one-reminders-title = Reminders
 one-reminders-description = Never miss a deadline. Smart notifications keep you on track.
+one-mail-title = Mail
+one-mail-description = Manage your inbox and stay on top of important conversations.
 
 # EveryAI Section
 ai-title = EveryAI

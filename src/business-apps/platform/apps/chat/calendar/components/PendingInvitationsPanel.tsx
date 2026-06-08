@@ -332,7 +332,10 @@ export const PendingInvitationsPanel: React.FC<PendingInvitationsPanelProps> = (
 
   return (
     <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
-      <DialogContent className="gba:max-w-lg" data-testid="pending-invitations-dialog">
+      <DialogContent
+        className="gba:w-full gba:max-w-xl gba:max-h-screen gba:sm:h-128 gba:sm:max-h-128 gba:flex gba:flex-col gba:overflow-hidden"
+        data-testid="pending-invitations-dialog"
+      >
         <DialogDescription className="gba:sr-only">{t('calendar-pending-invitations')}</DialogDescription>
         <DialogHeader className="gba:pb-2">
           <DialogTitle className="gba:flex gba:items-center gba:gap-2 gba:text-base">
@@ -346,18 +349,26 @@ export const PendingInvitationsPanel: React.FC<PendingInvitationsPanelProps> = (
         </DialogHeader>
 
         {detail ? (
-          <PendingInvitationDetail
-            meeting={detail.type === 'series' ? detail.group.pendingMeetings[0] : detail.meeting}
-            seriesGroup={detail.type === 'series' ? detail.group : undefined}
-            onBack={() => setDetail(null)}
-            onRespond={handleRespondFromDetail}
-            onRespondSeries={handleRespondSeriesFromDetail}
-          />
+          <div
+            className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:pr-1"
+            data-testid="pending-invitations-detail-scroll-area"
+          >
+            <PendingInvitationDetail
+              meeting={detail.type === 'series' ? detail.group.pendingMeetings[0] : detail.meeting}
+              seriesGroup={detail.type === 'series' ? detail.group : undefined}
+              onBack={() => setDetail(null)}
+              onRespond={handleRespondFromDetail}
+              onRespondSeries={handleRespondSeriesFromDetail}
+            />
+          </div>
         ) : (
-          <div className="gba:space-y-3">
+          <div className="gba:flex gba:flex-1 gba:min-h-0 gba:flex-col gba:space-y-3">
             <FilterTabs value={filter} onChange={setFilter} t={t} />
 
-            <div className="gba:max-h-[60vh] gba:space-y-3 gba:overflow-y-auto gba:pr-1">
+            <div
+              className="gba:flex-1 gba:min-h-0 gba:space-y-3 gba:overflow-y-auto gba:pr-1"
+              data-testid="pending-invitations-list-scroll-area"
+            >
               {isLoading ? (
                 <div className="gba:py-6 gba:text-center" data-testid="pending-invitations-loading">
                   <Spinner className="gba:mx-auto gba:h-6 gba:w-6" />

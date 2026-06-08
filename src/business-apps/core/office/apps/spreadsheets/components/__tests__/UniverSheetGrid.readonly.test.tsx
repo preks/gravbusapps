@@ -5,6 +5,7 @@ import type { UniverSheetGridHandle } from '../UniverSheetGrid.types'
 import { extractFormatMenuLabel, getGermanNumfmtPattern } from '../univerSheetGridShared'
 import * as univerGridOverlayCellRect from '../univerGridOverlayCellRect'
 import {
+  directCommandExecutedHandler,
   eventHandlers,
   executeCommandMock,
   gridTestMockState,
@@ -1193,6 +1194,77 @@ describe('UniverSheetGrid read-only behavior', () => {
       }
     })
 
+    expect(onColumnsMove).toHaveBeenCalledWith(1, 2, 4)
+  })
+
+  it('emits native column reorder from BeforeCommandExecute and dedupes the later command event', () => {
+    const onColumnsMove = jest.fn()
+
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onCellsChange={jest.fn()}
+        onDataChange={jest.fn()}
+        onColumnsMove={onColumnsMove}
+      />
+    )
+
+    eventHandlers.BeforeCommandExecute?.({
+      id: 'sheet.command.move-cols',
+      params: {
+        subUnitId: 'sheet-1',
+        fromRange: { startRow: 0, endRow: 99, startColumn: 1, endColumn: 2 },
+        toRange: { startRow: 0, endRow: 99, startColumn: 4, endColumn: 5 },
+        range: { startRow: 0, endRow: 99, startColumn: 1, endColumn: 2 }
+      }
+    })
+
+    eventHandlers.CommandExecuted?.({
+      type: 2,
+      id: 'sheet.mutation.move-columns',
+      params: {
+        subUnitId: 'sheet-1',
+        sourceRange: { startRow: 0, endRow: 99, startColumn: 1, endColumn: 2 },
+        targetRange: { startRow: 0, endRow: 99, startColumn: 4, endColumn: 5 }
+      }
+    })
+
+    expect(onColumnsMove).toHaveBeenCalledTimes(1)
+    expect(onColumnsMove).toHaveBeenCalledWith(1, 2, 4)
+  })
+
+  it('routes direct Univer command-service column reorder events to onColumnsMove', () => {
+    const onColumnsMove = jest.fn()
+
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onCellsChange={jest.fn()}
+        onDataChange={jest.fn()}
+        onColumnsMove={onColumnsMove}
+      />
+    )
+
+    directCommandExecutedHandler?.({
+      type: 0,
+      id: 'sheet.command.move-cols',
+      params: {
+        subUnitId: 'sheet-1',
+        fromRange: { startRow: 0, endRow: 99, startColumn: 1, endColumn: 2 },
+        toRange: { startRow: 0, endRow: 99, startColumn: 4, endColumn: 5 },
+        range: { startRow: 0, endRow: 99, startColumn: 1, endColumn: 2 }
+      }
+    })
+
+    expect(onColumnsMove).toHaveBeenCalledTimes(1)
     expect(onColumnsMove).toHaveBeenCalledWith(1, 2, 4)
   })
 

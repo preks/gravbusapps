@@ -1,70 +1,97 @@
-import React from 'react'
-import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { UserIcon, AddressBookIcon, UsersThreeIcon, CurrencyDollarIcon } from '@phosphor-icons/react'
+import React, { useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
+import { UserIcon, CurrencyDollarIcon, FunnelIcon, TargetIcon } from '@phosphor-icons/react'
 import { CampaignKPIsProps } from '../types'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatPercentage } from '@/common/utils/numberFormatter'
-import { NW_CHART_COLOR_VARS } from '@/business-apps/crm/campaigns/utils/campaignChartTokens'
+import translations from '@/business-apps/crm/campaigns/_i18n'
+import { type WidgetItem } from '@/components/widget-group'
+import { CampaignStatistics } from '@/business-apps/crm/campaigns/apps/campaign-management/components'
 
-const CampaignKPIs: React.FC<CampaignKPIsProps> = ({ kpisWithTrends, isLoading, error, onRetry }) => {
-  // Transform KPIs data into widgets format
-  const widgets: WidgetItem[] = [
-    {
-      key: 'total-leads',
-      title: getTranslationFromI18nKeyAndLabel('campaign.kpis.totalLeads', 'Total Leads'),
-      value: kpisWithTrends?.totalLeads.current || 0,
-      prefix: <UserIcon />,
-      color: NW_CHART_COLOR_VARS[0],
-      span: { xs: 24, sm: 12, lg: 6 },
-      description: kpisWithTrends?.totalLeads.percentage
-        ? `${formatPercentage(kpisWithTrends.totalLeads.percentage)} converted`
-        : 'Campaign leads',
-      trend: kpisWithTrends?.totalLeads.trend
-    },
-    {
-      key: 'total-accounts',
-      title: getTranslationFromI18nKeyAndLabel('campaign.kpis.totalAccounts', 'Total Accounts'),
-      value: kpisWithTrends?.totalAccounts.current || 0,
-      prefix: <AddressBookIcon />,
-      color: NW_CHART_COLOR_VARS[1],
-      span: { xs: 24, sm: 12, lg: 6 },
-      description: getTranslationFromI18nKeyAndLabel('campaign.kpis.accounts.description', 'Campaign accounts'),
-      trend: kpisWithTrends?.totalAccounts.trend
-    },
-    {
-      key: 'total-contacts',
-      title: getTranslationFromI18nKeyAndLabel('campaign.kpis.totalContacts', 'Total Contacts'),
-      value: kpisWithTrends?.totalContacts.current || 0,
-      prefix: <UsersThreeIcon />,
-      color: NW_CHART_COLOR_VARS[2],
-      span: { xs: 24, sm: 12, lg: 6 },
-      description: getTranslationFromI18nKeyAndLabel('campaign.kpis.contacts.description', 'Campaign contacts'),
-      trend: kpisWithTrends?.totalContacts.trend
-    },
-    {
-      key: 'total-opportunities',
-      title: getTranslationFromI18nKeyAndLabel('campaign.kpis.totalOpportunities', 'Total Opportunities'),
-      value: kpisWithTrends?.totalOpportunities.current || 0,
-      prefix: <CurrencyDollarIcon />,
-      color: NW_CHART_COLOR_VARS[3],
-      span: { xs: 24, sm: 12, lg: 6 },
-      description: kpisWithTrends?.totalOpportunities.percentage
-        ? `${formatPercentage(kpisWithTrends.totalOpportunities.percentage)} won`
-        : 'Campaign opportunities',
-      trend: kpisWithTrends?.totalOpportunities.trend
-    }
-  ]
+const CampaignKPIs: React.FC<CampaignKPIsProps> = ({ kpis, kpisWithTrends, isLoading, error, onRetry }) => {
+  const { t } = useTranslation(translations)
+  const toTrendBadgeValue = (value: number) => `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`
+
+  const widgets = useMemo<WidgetItem[]>(() => {
+    const leadsConversionLabel =
+      kpis && kpis.totalLeads > 0
+        ? `${kpis.convertedLeads}/${kpis.totalLeads} converted (${formatPercentage(kpis.convertedLeadsPercentage)})`
+        : '0/0 converted (0%)'
+    const opportunitiesWinLabel =
+      kpis && kpis.totalOpportunities > 0
+        ? `${kpis.wonOpportunities}/${kpis.totalOpportunities} won (${formatPercentage(kpis.wonOpportunitiesPercentage)})`
+        : '0/0 won (0%)'
+    const mqlRate = kpis && kpis.totalLeads > 0 ? (kpis.mqlCount / kpis.totalLeads) * 100 : 0
+    const sqlRate = kpis && kpis.totalLeads > 0 ? (kpis.sqlCount / kpis.totalLeads) * 100 : 0
+
+    return [
+      {
+        key: 'total-leads',
+        title: t('campaign-kpis-totalLeads'),
+        value: kpisWithTrends?.totalLeads.current || 0,
+        prefix: <UserIcon size={16} />,
+        color: '#1890ff',
+        span: { xs: 24, sm: 12, lg: 6 },
+        description: leadsConversionLabel,
+        trend: {
+          value: toTrendBadgeValue(kpis?.convertedLeadsPercentage ?? 0),
+          positive: (kpis?.convertedLeadsPercentage ?? 0) >= 0,
+          description: 'vs previous period (30 days ago)'
+        }
+      },
+      {
+        key: 'mql-count',
+        title: t('campaign-kpis-mql'),
+        value: kpisWithTrends?.mqlCount.current || 0,
+        prefix: <FunnelIcon size={16} />,
+        color: '#52c41a',
+        span: { xs: 24, sm: 12, lg: 6 },
+        description: t('campaign-kpis-mql-description'),
+        trend: {
+          value: toTrendBadgeValue(mqlRate),
+          positive: mqlRate >= 0,
+          description: 'vs previous period (30 days ago)'
+        }
+      },
+      {
+        key: 'sql-count',
+        title: t('campaign-kpis-sql'),
+        value: kpisWithTrends?.sqlCount.current || 0,
+        prefix: <TargetIcon size={16} />,
+        color: '#fa8c16',
+        span: { xs: 24, sm: 12, lg: 6 },
+        description: t('campaign-kpis-sql-description'),
+        trend: {
+          value: toTrendBadgeValue(sqlRate),
+          positive: sqlRate >= 0,
+          description: 'vs previous period (30 days ago)'
+        }
+      },
+      {
+        key: 'total-opportunities',
+        title: t('campaign-kpis-totalOpportunities'),
+        value: kpisWithTrends?.totalOpportunities.current || 0,
+        prefix: <CurrencyDollarIcon size={16} />,
+        color: '#722ed1',
+        span: { xs: 24, sm: 12, lg: 6 },
+        description: opportunitiesWinLabel,
+        trend: {
+          value: toTrendBadgeValue(kpis?.wonOpportunitiesPercentage ?? 0),
+          positive: (kpis?.wonOpportunitiesPercentage ?? 0) >= 0,
+          description: 'vs previous period (30 days ago)'
+        }
+      }
+    ]
+  }, [kpis, kpisWithTrends, t])
 
   return (
-    <WidgetGroup
+    <CampaignStatistics
       widgets={widgets}
       isLoading={isLoading}
       error={error}
       onRetry={onRetry}
-      skeletonCount={4}
-      emptyText={getTranslationFromI18nKeyAndLabel('campaign.kpis.noData', 'No campaign KPIs available.')}
-      className="gba:w-full"
-      data-testid="campaign-kpis"
+      dataTestId="campaign-kpis"
+      emptyText={t('campaign-kpis-noData')}
+      cardsClassName="gba:[&_div]:!bg-muted gba:[&_div]:!border-border/70"
     />
   )
 }

@@ -8,12 +8,17 @@ import {
   FormControl,
   FormMessage,
   Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Textarea,
   Switch,
   useTranslation
 } from '@newwork/nw-design-system'
 import FormWrapperModal from '@/components/form-wrapper/FormWrapperModal'
-import type { SkillRecord, SkillDirectoryRecord } from '../types'
+import type { SkillRecord, SkillDirectoryRecord, SkillCategoryRecord } from '../types'
 import translations from '../_i18n'
 
 interface SkillFormDialogProps {
@@ -23,6 +28,7 @@ interface SkillFormDialogProps {
   setOpen?: React.Dispatch<React.SetStateAction<boolean>>
   onSubmit: (data: FieldValues) => void | Promise<void>
   isLoading?: boolean
+  categories?: SkillCategoryRecord[]
   prefixDataTestId?: string
 }
 
@@ -33,6 +39,7 @@ export default function SkillFormDialog({
   setOpen,
   onSubmit,
   isLoading,
+  categories = [],
   prefixDataTestId
 }: Readonly<SkillFormDialogProps>) {
   const { t } = useTranslation(translations)
@@ -43,7 +50,7 @@ export default function SkillFormDialog({
       z.object({
         name: z.string().min(1, t('skill-form-name-required')),
         description: z.string().optional(),
-        levelScale: z.coerce.number().min(1).max(100).optional().or(z.literal('')),
+        categoryId: z.string().optional(),
         mandatory: z.boolean().optional()
       }),
     [t]
@@ -53,10 +60,16 @@ export default function SkillFormDialog({
     () => ({
       name: skill?.name ?? '',
       description: skill?.description ?? '',
-      levelScale: (skill && 'levelScale' in skill ? skill.levelScale : null) ?? '',
+      categoryId: skill?.skillCategoryId ?? '',
       mandatory: (skill && 'mandatory' in skill ? skill.mandatory : false) ?? false
     }),
-    [skill?.id, skill?.name, skill?.description]
+    [
+      skill?.id,
+      skill?.name,
+      skill?.description,
+      skill?.skillCategoryId,
+      skill && 'mandatory' in skill ? skill.mandatory : null
+    ]
   )
 
   return (
@@ -103,24 +116,34 @@ export default function SkillFormDialog({
           )}
         />
 
-        <FormField
-          name="levelScale"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('skill-form-level-scale-label')}</FormLabel>
-              <FormControl>
-                <Input
-                  type="number"
-                  min={1}
-                  max={100}
-                  placeholder={t('skill-form-level-scale-placeholder')}
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {categories.length > 0 && (
+          <FormField
+            name="categoryId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('skill-form-category-label')}</FormLabel>
+                <FormControl>
+                  <Select value={field.value ?? ''} onValueChange={field.onChange}>
+                    <SelectTrigger
+                      className="gba:w-full"
+                      data-testid={`${prefixDataTestId ?? 'skill'}-category-select`}
+                    >
+                      <SelectValue placeholder={t('skill-form-category-placeholder')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map(category => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
 
         <FormField
           name="mandatory"

@@ -13,6 +13,7 @@ import { debugMutationTrace } from './univerGridDebug'
 import { SPREADSHEET_MAX_WORKSHEET_RANGE_READ_CELLS } from './univerGridUniverConstants'
 import {
   buildNewRowsFromCellMatrix,
+  countCellMatrixEntries,
   countCellMatrixWritesAgainstCurrentData,
   deriveCellMatrixFromWorkbookSnapshot,
   detectCellMatrixCoordinateModeHint,
@@ -25,6 +26,7 @@ import {
   summarizeRangesForDebug
 } from './univerGridWorkbookMutationModule'
 import { getCommandKind } from './univerCommandClassification'
+import { isWorksheetMergeMutationCommand } from './univerGridMergeCommandIds'
 import {
   buildShouldSuppressRemoteEcho,
   cellMatrixHasAnyNonSuppressedCell,
@@ -51,6 +53,17 @@ import type {
 } from './univerMountHandleDetectedCellMutation.types'
 
 type PlannerContextSourceName = 'props' | 'resolved'
+
+type PlannerContextSource = {
+  source: PlannerContextSourceName
+  columns: UniverMountHandleDetectedCellMutationDeps['propsRef']['current']['columns']
+  data: Record<string, unknown>[]
+  context: NonNullable<UniverMountHandleDetectedCellMutationDeps['contextRef']['current']>
+  resolvedDataLength: number | null
+  propsBackendRowCount: number
+  resolvedBackendRowCount: number | null
+  columnStructuralMismatch: boolean
+} | null
 
 /**
  * 3b: Pure scoring decision for `'auto'` coordinate-mode tie-breaker. Extracted so the
@@ -151,28 +164,24 @@ function createPlannerContext(
 function resolvePlannerContextSource({
   deps,
   targetSheetId,
+  propSheetId,
   propsData,
   propsColumns,
   isUuid
 }: {
   deps: UniverMountHandleDetectedCellMutationDeps
   targetSheetId: string
+  propSheetId: string
   propsData: Record<string, unknown>[]
   propsColumns: UniverMountHandleDetectedCellMutationDeps['propsRef']['current']['columns']
   isUuid: (value: string) => boolean
-}): {
-  source: PlannerContextSourceName
-  columns: typeof propsColumns
-  data: Record<string, unknown>[]
-  context: NonNullable<UniverMountHandleDetectedCellMutationDeps['contextRef']['current']>
-  resolvedDataLength: number | null
-  propsBackendRowCount: number
-  resolvedBackendRowCount: number | null
-  columnStructuralMismatch: boolean
-} {
+}): PlannerContextSource {
   const propsBackendRowCount = countRowsWithBackendIdentity(propsData, isUuid)
   const resolved = deps.propsRef.current.getSheetContext?.(targetSheetId) ?? null
   if (!resolved) {
+    if (targetSheetId !== propSheetId) {
+      return null
+    }
     return {
       source: 'props',
       columns: propsColumns,
@@ -294,6 +303,10 @@ export function resolveDetectedCellMutation(
   const { source, commandId, payloadCellValue, ranges, worksheetId, preserveUndefinedAsNull = false } = mutationArgs
   const workbook = univerAPIRef.current?.getActiveWorkbook()
   const activeWorksheet = workbook?.getActiveSheet()
+  const canonicalizeSheetId = (sheetId: string | null): string | null => {
+    if (!sheetId) return null
+    return propsRef.current.getCanonicalSheetId?.(sheetId) ?? sheetId
+  }
   const explicitWorksheetId = typeof worksheetId === 'string' && worksheetId.length > 0 ? worksheetId : null
   const worksheet =
     explicitWorksheetId && typeof workbook?.getSheetBySheetId === 'function'
@@ -306,12 +319,30 @@ export function resolveDetectedCellMutation(
       ? worksheet
       : undefined
   const disableMixedValueStylePayloads = preserveUndefinedAsNull
-  const univerActiveSheetId = explicitWorksheetId ?? worksheet?.getSheetId?.() ?? null
-  const propSheetId = propsRef.current.sheet.id
+  const univerActiveSheetId = canonicalizeSheetId(explicitWorksheetId ?? worksheet?.getSheetId?.() ?? null)
+  const propSheetId = canonicalizeSheetId(propsRef.current.sheet.id) ?? propsRef.current.sheet.id
   const targetSheetId =
     propsRef.current.multiSheetWorkbookMode && univerActiveSheetId ? univerActiveSheetId : propSheetId
   const canResolveContext =
     propsRef.current.multiSheetWorkbookMode && typeof propsRef.current.getSheetContext === 'function'
+  if (canResolveContext && univerActiveSheetId) {
+    const knownSheetContext = propsRef.current.getSheetContext?.(univerActiveSheetId) ?? null
+    if (!knownSheetContext) {
+      callbacksRef.current.onDiagnosticsTraceEvent?.({
+        source: 'client',
+        stage: 'grid_mutation_dropped_unknown_sheet',
+        severity: 'warning',
+        payload: {
+          source,
+          commandId: commandId ?? '',
+          rawWorksheetId: explicitWorksheetId ?? worksheet?.getSheetId?.() ?? null,
+          canonicalWorksheetId: univerActiveSheetId,
+          propSheetId
+        }
+      })
+      return { status: 'return', value: false }
+    }
+  }
   const duplicateInsertedAt = recentlyDuplicatedWorksheetIdsRef.current.get(targetSheetId)
   if (duplicateInsertedAt != null) {
     if (Date.now() - duplicateInsertedAt < 3000) {
@@ -380,6 +411,7 @@ export function resolveDetectedCellMutation(
     ? resolvePlannerContextSource({
         deps,
         targetSheetId,
+        propSheetId,
         propsData: propsRef.current.data,
         propsColumns: propsRef.current.columns,
         isUuid: isUuidForRowIdentity
@@ -394,6 +426,21 @@ export function resolveDetectedCellMutation(
         resolvedBackendRowCount: null,
         columnStructuralMismatch: false
       }
+  if (!plannerContext) {
+    callbacksRef.current.onDiagnosticsTraceEvent?.({
+      source: 'client',
+      stage: 'grid_mutation_dropped_unknown_sheet',
+      severity: 'warning',
+      payload: {
+        source,
+        commandId: commandId ?? '',
+        targetSheetId,
+        propSheetId,
+        reason: 'planner_context_unavailable_for_non_active_sheet'
+      }
+    })
+    return { status: 'return', value: false }
+  }
   const ctxBefore = plannerContext.context
   const contextColumns = plannerContext.columns
   const currentData = plannerContext.data
@@ -724,6 +771,19 @@ export function resolveDetectedCellMutation(
   const hasNonSuppressedCell = cellMatrixHasAnyNonSuppressedCell(cellValue, shouldSuppress, rowOffset, colOffset)
 
   if (!hasNonSuppressedCell) {
+    return { status: 'return', value: false }
+  }
+
+  if (source === 'sheet-value-changed' && isWorksheetMergeMutationCommand(commandId)) {
+    callbacksRef.current.onDiagnosticsTraceEvent?.({
+      source: 'client',
+      stage: 'grid_merge_mutation_cell_persist_skipped',
+      payload: {
+        targetSheetId,
+        commandId,
+        mutatedCellCount: countCellMatrixEntries(cellValue)
+      }
+    })
     return { status: 'return', value: false }
   }
 

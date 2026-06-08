@@ -1,248 +1,91 @@
-import React, { useCallback, useState } from 'react'
+import React from 'react'
 import dayjs from 'dayjs'
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-  Badge,
-  Button,
-  Spinner,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@newwork/nw-design-system'
-import { CaretLeft, ChatCircleDots } from '@phosphor-icons/react'
+import { Badge } from '@newwork/nw-design-system'
+import { ColumnDef } from '@tanstack/react-table'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { TeamAnniversary } from '../hooks/useTeamAnniversaries'
-import { useChatClient } from '@/common/network/chat/useChatClient'
-import { toast } from 'sonner'
-import { PrefilledMessageDialog } from '../components/shared/PrefilledMessageDialog'
+import { PeopleMomentsListView } from '../components/shared/PeopleMomentsListView'
+import { PersonAvatarCell } from '../components/shared/PersonAvatarCell'
+import { getDeterministicVariantIndex } from '../utils/peopleMomentsHelpers'
 
 export interface AnniversariesViewProps {
   upcomingAnniversaries: TeamAnniversary[]
+  nextMonthAnniversaries: TeamAnniversary[]
   loadingAnniversaries: boolean
   accessToken: string
   onNavigateBack: () => void
   onNavigateToEmployee: (employeeId: string) => void
 }
 
-const getDeterministicVariantIndex = (seed: string, variantsCount: number): number => {
-  let hash = 0
-  for (let i = 0; i < seed.length; i += 1) {
-    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0
-  }
-  return hash % variantsCount
-}
-
-const buildAnniversaryMessage = (employeeName: string, yearsOfService: number, seed: string) => {
+const buildAnniversaryMessage = (person: TeamAnniversary) => {
   const variants = [
-    `Congratulations ${employeeName} on your ${yearsOfService}-year work anniversary! Your dedication and impact are truly appreciated.`,
-    `Happy work anniversary, ${employeeName}! ${yearsOfService} years is a great milestone - thank you for your continuous contribution.`,
-    `${employeeName}, congrats on your ${yearsOfService} years with the company! Appreciate your commitment and teamwork.`
+    `Congratulations ${person.firstName} on your ${person.yearsOfService}-year work anniversary! Your dedication and impact are truly appreciated.`,
+    `Happy work anniversary, ${person.firstName}! ${person.yearsOfService} years is a great milestone - thank you for your continuous contribution.`,
+    `${person.firstName}, congrats on your ${person.yearsOfService} years with the company! Appreciate your commitment and teamwork.`
   ]
+  const seed = `${person.id}-${person.yearsOfService}-${person.hireDate || ''}`
   return variants[getDeterministicVariantIndex(seed, variants.length)]
 }
 
+const isAnniversaryToday = (person: TeamAnniversary, today: dayjs.Dayjs) => {
+  const hireDate = dayjs(person.hireDate)
+  return hireDate.isValid() && hireDate.month() === today.month() && hireDate.date() === today.date()
+}
+
+const anniversaryColumns: ColumnDef<TeamAnniversary>[] = [
+  {
+    id: 'name',
+    header: getTranslationFromI18nKeyAndLabel('master-data:forms.capability.fields.name.label', 'Name'),
+    size: 250,
+    cell: ({ row }) => <PersonAvatarCell {...row.original} />
+  },
+  {
+    id: 'hireDate',
+    accessorKey: 'hireDate',
+    header: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.anniversary_date', 'Anniversary'),
+    size: 150,
+    cell: ({ row }) => (row.original.hireDate ? dayjs(row.original.hireDate).format('MMMM D') : '-')
+  },
+  {
+    id: 'years',
+    accessorKey: 'yearsOfService',
+    header: getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.years', 'Years'),
+    size: 100,
+    cell: ({ row }) => (
+      <Badge variant="info" size="sm">
+        {row.original.yearsOfService} {row.original.yearsOfService === 1 ? 'year' : 'years'}
+      </Badge>
+    )
+  }
+]
+
 export const AnniversariesView: React.FC<AnniversariesViewProps> = ({
   upcomingAnniversaries,
+  nextMonthAnniversaries,
   loadingAnniversaries,
   accessToken,
   onNavigateBack,
   onNavigateToEmployee
-}) => {
-  const [sendingToUserId, setSendingToUserId] = useState<string | null>(null)
-  const [messageDraft, setMessageDraft] = useState<{ person: TeamAnniversary; message: string } | null>(null)
-  const today = dayjs()
-
-  const chatClient = useChatClient(accessToken)
-
-  const sendAnniversaryMessage = useCallback(
-    async (person: TeamAnniversary, message: string) => {
-      const recipientUserId = person.userId || person.id
-
-      if (!recipientUserId) {
-        toast.error('Unable to send message for this employee')
-        return
-      }
-
-      setSendingToUserId(recipientUserId)
-      try {
-        const currentUser = await chatClient.getCurrentUser()
-        const conversation = await chatClient.getOrCreateDirectConversation(recipientUserId)
-        await chatClient.sendMessage(conversation.id, message, currentUser.id, undefined, {
-          source: 'manager-dashboard',
-          type: 'anniversary-greeting',
-          aiCustomized: true
-        })
-        toast.success(`Message sent to ${person.firstName} ${person.lastName}`)
-        setMessageDraft(null)
-      } catch {
-        console.error('Failed to send anniversary chat message')
-        toast.error('Failed to send message')
-      } finally {
-        setSendingToUserId(null)
-      }
-    },
-    [chatClient]
-  )
-
-  return (
-    <div className="gba:p-6 gba:h-full gba:flex gba:flex-col">
-      <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
-        <div className="gba:flex gba:items-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onNavigateBack}
-            className="gba:mr-4"
-            data-testid="manager-dashboard-anniversaries-back-button"
-          >
-            <CaretLeft size={16} className="gba:mr-1" />
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:absence_management_hub_backoffice.absence_details.back_to_dashboard',
-              'Back to Dashboard'
-            )}
-          </Button>
-          <h1 className="gba:text-xl gba:font-semibold">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.anniversary_date', 'Anniversaries')}
-          </h1>
-          <Badge variant="info" className="gba:ml-3">
-            {`${upcomingAnniversaries.length} this month`}
-          </Badge>
-        </div>
-      </div>
-
-      {loadingAnniversaries && (
-        <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
-          <Spinner size="lg" />
-        </div>
-      )}
-
-      {!loadingAnniversaries && upcomingAnniversaries.length === 0 && (
-        <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
-          <p>
-            {getTranslationFromI18nKeyAndLabel(
-              'master-data:hr.manager_dashboard.no_upcoming_anniversaries',
-              'No work anniversaries this month'
-            )}
-          </p>
-          <p className="gba:mt-2 gba:text-sm">Consider checking career development plans during this period.</p>
-        </div>
-      )}
-
-      {!loadingAnniversaries && upcomingAnniversaries.length > 0 && (
-        <div className="gba:flex-1 gba:overflow-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>
-                  {getTranslationFromI18nKeyAndLabel('master-data:forms.capability.fields.name.label', 'Name')}
-                </TableHead>
-                <TableHead>
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.anniversary_date', 'Anniversary')}
-                </TableHead>
-                <TableHead>
-                  {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.years', 'Years')}
-                </TableHead>
-                <TableHead>
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.actions', 'Actions')}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {upcomingAnniversaries.map(person => {
-                const userKey = person.userId || person.id
-                const isSending = sendingToUserId === userKey
-                const hireDate = dayjs(person.hireDate)
-                const isAnniversaryToday =
-                  hireDate.isValid() && hireDate.month() === today.month() && hireDate.date() === today.date()
-
-                return (
-                  <TableRow
-                    key={person.id}
-                    className="gba:cursor-pointer hover:gba:bg-muted/40"
-                    onClick={() => onNavigateToEmployee(person.id)}
-                  >
-                    <TableCell>
-                      <div className="gba:flex gba:items-center gba:gap-3">
-                        <Avatar className="gba:h-8 gba:w-8">
-                          <AvatarImage
-                            src={
-                              person.pictureThumbnail && !person.pictureThumbnail.startsWith('{')
-                                ? `data:image/jpeg;base64,${person.pictureThumbnail}`
-                                : undefined
-                            }
-                            alt={person.fullName}
-                          />
-                          <AvatarFallback>{`${person.firstName[0]}${person.lastName[0]}`.toUpperCase()}</AvatarFallback>
-                        </Avatar>
-                        <span className="gba:font-medium">{person.fullName}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{person.hireDate ? dayjs(person.hireDate).format('MMMM D') : '-'}</TableCell>
-                    <TableCell>
-                      <Badge variant="info" size="sm">
-                        {person.yearsOfService} {person.yearsOfService === 1 ? 'year' : 'years'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={event => {
-                          event.stopPropagation()
-                          if (!isAnniversaryToday) return
-                          setMessageDraft({
-                            person,
-                            message: buildAnniversaryMessage(
-                              person.firstName,
-                              person.yearsOfService,
-                              `${person.id}-${person.yearsOfService}-${person.hireDate || ''}`
-                            )
-                          })
-                        }}
-                        disabled={isSending || !isAnniversaryToday}
-                        title={isAnniversaryToday ? '' : 'Available on the anniversary date'}
-                        data-testid={`manager-dashboard-anniversary-chat-${person.id}`}
-                      >
-                        <ChatCircleDots size={16} className="gba:mr-1" />
-                        {isSending
-                          ? getTranslationFromI18nKeyAndLabel('master-data:sending', 'Sending...')
-                          : getTranslationFromI18nKeyAndLabel(
-                              'master-data:hr.manager_dashboard.send_message',
-                              'Send Message'
-                            )}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
-        </div>
-      )}
-
-      <PrefilledMessageDialog
-        open={Boolean(messageDraft)}
-        onOpenChange={open => {
-          if (!open) {
-            setMessageDraft(null)
-          }
-        }}
-        title="Send anniversary message"
-        description="Review and edit the message before sending."
-        recipientName={messageDraft?.person.fullName || ''}
-        defaultMessage={messageDraft?.message || ''}
-        confirmLabel="Send message"
-        sending={sendingToUserId === (messageDraft?.person.userId || messageDraft?.person.id)}
-        onConfirm={async message => {
-          if (!messageDraft) return
-          await sendAnniversaryMessage(messageDraft.person, message)
-        }}
-      />
-    </div>
-  )
-}
+}) => (
+  <PeopleMomentsListView<TeamAnniversary>
+    currentData={upcomingAnniversaries}
+    nextMonthData={nextMonthAnniversaries}
+    loading={loadingAnniversaries}
+    accessToken={accessToken}
+    onNavigateBack={onNavigateBack}
+    onNavigateToEmployee={onNavigateToEmployee}
+    greetingType="anniversary-greeting"
+    columns={anniversaryColumns}
+    title={getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.anniversary_date', 'Anniversaries')}
+    emptyMessage="No work anniversaries this month"
+    categoryLabel="anniversaries"
+    testIdPrefix="manager-dashboard-anniversaries"
+    messageConfig={{
+      buildMessage: buildAnniversaryMessage,
+      isTodayCheck: isAnniversaryToday,
+      todayTooltip: 'Available on the anniversary date',
+      dialogTitle: 'Send anniversary message',
+      dialogDescription: 'Review and edit the message before sending.'
+    }}
+  />
+)

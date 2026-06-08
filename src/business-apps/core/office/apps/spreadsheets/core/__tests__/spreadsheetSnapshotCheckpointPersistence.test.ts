@@ -128,18 +128,47 @@ describe('persistSpreadsheetSnapshotCheckpointForSheet', () => {
 
     await persistSpreadsheetSnapshotCheckpointForSheet('sheet-1', ctx as never)
 
-    expect(ctx.debugLog).toHaveBeenCalledWith('snapshot checkpoint deferred: sheet not safe', {
-      appId: 'app-1',
-      sheetId: 'sheet-1',
-      reason: 'pending_local_mutation_protection',
-      pendingProtectedCellCount: 1
-    })
+    expect(ctx.debugLog).toHaveBeenCalledWith(
+      'snapshot checkpoint deferred: sheet not safe',
+      expect.objectContaining({
+        appId: 'app-1',
+        sheetId: 'sheet-1',
+        reason: 'pending_local_mutation_protection',
+        pendingProtectedCellCount: 1,
+        pendingProtectedCellGlobalCount: 1,
+        pendingProtectedOwnerCount: 0,
+        pendingProtectedOwnerGlobalCount: 0,
+        pendingProtectedKeysBySheet: { 'sheet-1': 1 }
+      })
+    )
     expect(ctx.pendingSnapshotCheckpointBySheetRef.current.get('sheet-1')).toEqual(
       expect.objectContaining({
         requestedAt: expect.any(Number)
       })
     )
     expect(mockSaveSpreadsheetSnapshotWithRetry).not.toHaveBeenCalled()
+  })
+
+  it('ignores protection keys from other sheets when deciding active-sheet snapshot safety', async () => {
+    jest.spyOn(SpreadsheetApiService, 'getUniverSnapshot').mockResolvedValue({
+      version: 2,
+      coversVersions: { 'sheet-1': 2 }
+    } as never)
+    mockSaveSpreadsheetSnapshotWithRetry.mockResolvedValue({
+      savedSnapshot: { ok: true },
+      cacheResult: { stored: true, reason: null }
+    })
+    const { ctx } = createContext({
+      pendingLocalMutationCellsRef: { current: new Set(['coord\u0000sheet-2\u00000\u00000']) }
+    })
+
+    await persistSpreadsheetSnapshotCheckpointForSheet('sheet-1', ctx as never)
+
+    expect(mockSaveSpreadsheetSnapshotWithRetry).toHaveBeenCalledTimes(1)
+    expect(ctx.debugLog).not.toHaveBeenCalledWith(
+      'snapshot checkpoint deferred: sheet not safe',
+      expect.objectContaining({ reason: 'pending_local_mutation_protection' })
+    )
   })
 
   it('defers checkpoint persistence while sheet queue work is still busy', async () => {

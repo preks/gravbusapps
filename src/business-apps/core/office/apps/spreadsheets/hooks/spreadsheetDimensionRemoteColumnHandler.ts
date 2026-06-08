@@ -26,6 +26,7 @@ export function handleSpreadsheetRemoteColumnUpdate(
     columnPatch?: Partial<SpreadsheetColumn>
     label?: string
     columns?: SpreadsheetColumn[]
+    skipGridConversionContextSync?: boolean
   }
   const targetSheetId = typeof d.sheetId === 'string' ? d.sheetId : ''
   if (!targetSheetId) return
@@ -54,7 +55,7 @@ export function handleSpreadsheetRemoteColumnUpdate(
   }
   const nextColumns = applyRemoteColumnUpdate(targetSheet.columns, d)
   if (!nextColumns || (!deps.onLocalAppUpdate && !deps.onAppUpdate)) return
-  if (targetSheetId === deps.activeSheetId) {
+  if (targetSheetId === deps.activeSheetId && d.skipGridConversionContextSync !== true) {
     deps.spreadsheetGridRef.current?.syncGridConversionContext?.(nextColumns)
   }
   deps.applyLocalAppUpdate(currentApp => ({

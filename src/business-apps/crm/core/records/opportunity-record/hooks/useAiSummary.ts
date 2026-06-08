@@ -14,16 +14,16 @@ const taskDescription = `You are a sales pipeline assistant analyzing a sales op
 
 "General notes" are historical context (UNKNOWN_NOTE_TYPE, GENERAL_NOTE). "Next steps" are explicit committed follow-ups (NEXT_STEP_NOTE). Treat them differently: next steps are actionable commitments; general notes are broader context.
 
-Analyze all available opportunity data including deal details, pipeline stage, revenue potential, customer interactions, activities, notes, and tasks to provide:
-1. A concise executive summary highlighting the deal structure, revenue potential, pipeline stage, competitive position, and win probability
+Analyze all available opportunity data including opportunity details, pipeline stage, revenue potential, customer interactions, activities, notes, and tasks to provide:
+1. A concise executive summary highlighting the opportunity structure, revenue potential, pipeline stage, competitive position, and win probability
 2. Up to 5 key insights covering:
-   - Deal momentum and progression indicators
+   - Opportunity momentum and progression indicators
    - Win probability and competitive positioning
    - Risk factors or blockers identified
    - Stakeholder engagement and buying signals
-   - Critical next steps to advance or close the deal
+   - Critical next steps to advance or close the opportunity
 
-Emphasize sales metrics, pipeline health, and deal closing strategies.
+Emphasize sales metrics, pipeline health, and opportunity closing strategies.
 Respond strictly in JSON conforming to the provided schema.`
 
 const summarySchema = z.object({

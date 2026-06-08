@@ -39,7 +39,7 @@ import {
 } from '@newwork/nw-design-system'
 import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
-import { format, addDays, parseISO, differenceInYears } from 'date-fns'
+import { format, addMonths, parseISO, differenceInYears, startOfMonth, endOfMonth } from 'date-fns'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { GenerateDocumentDialog } from '@/business-apps/core/office/apps/documents/components'
@@ -67,65 +67,41 @@ interface EmployeeInsight {
   companyName?: string
 }
 
-interface UpcomingBirthdayDatasetRow {
+interface DatasetRow {
   category?: string
   value?: number
   display_name?: string
   first_name?: string
   last_name?: string
   birth_date?: string
-  organizational_unit_name?: string
-  job_position_name?: string
-  picture_thumbnail?: string
-}
-
-interface UpcomingAnniversaryDatasetRow {
-  category?: string
-  value?: number
-  display_name?: string
-  first_name?: string
-  last_name?: string
   hire_date?: string
-  organizational_unit_name?: string
-  job_position_name?: string
-  picture_thumbnail?: string
-}
-
-interface UpcomingNewHireDatasetRow {
-  category?: string
-  value?: number
-  display_name?: string
-  first_name?: string
-  last_name?: string
-  hire_date?: string
-  organizational_unit_name?: string
-  job_position_name?: string
-  picture_thumbnail?: string
-}
-
-interface UpcomingProbationDatasetRow {
-  category?: string
-  value?: number
-  display_name?: string
-  first_name?: string
-  last_name?: string
   probation_end_date?: string
-  organizational_unit_name?: string
-  job_position_name?: string
-  picture_thumbnail?: string
-}
-
-interface UpcomingTerminationDatasetRow {
-  category?: string
-  value?: number
-  display_name?: string
-  first_name?: string
-  last_name?: string
   termination_date?: string
   organizational_unit_name?: string
   job_position_name?: string
   picture_thumbnail?: string
 }
+
+type DateFieldMapping = {
+  sourceField: keyof DatasetRow
+  targetField: keyof EmployeeInsight
+}
+
+const mapDatasetRows = (rows: DatasetRow[], dateMapping: DateFieldMapping): EmployeeInsight[] =>
+  rows.map(row => {
+    const firstName = row.first_name ?? ''
+    const lastName = row.last_name ?? ''
+    return {
+      id: String(row.category ?? ''),
+      firstName,
+      lastName,
+      fullName: row.display_name ?? `${firstName} ${lastName}`.trim(),
+      [dateMapping.targetField]: row[dateMapping.sourceField],
+      pictureThumbnail: row.picture_thumbnail,
+      jobPositionName: row.job_position_name,
+      organizationalUnitName: row.organizational_unit_name
+    }
+  })
 
 export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
   const { t } = useTranslation(hrTranslations)
@@ -153,6 +129,18 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
   const [terminationsHasNextPage, setTerminationsHasNextPage] = useState(false)
   const [generateDocEmployee, setGenerateDocEmployee] = useState<EmployeeInsight | null>(null)
   const [generateDocOpen, setGenerateDocOpen] = useState(false)
+  const [includeNextMonthBirthdays, setIncludeNextMonthBirthdays] = useState(false)
+  const [includeNextMonthAnniversaries, setIncludeNextMonthAnniversaries] = useState(false)
+  const [includeNextMonthNewHires, setIncludeNextMonthNewHires] = useState(false)
+  const [includeNextMonthProbation, setIncludeNextMonthProbation] = useState(false)
+  const [includeNextMonthTerminations, setIncludeNextMonthTerminations] = useState(false)
+  const [nextMonthBirthdays, setNextMonthBirthdays] = useState<EmployeeInsight[]>([])
+  const [nextMonthAnniversaries, setNextMonthAnniversaries] = useState<EmployeeInsight[]>([])
+  const [nextMonthNewHires, setNextMonthNewHires] = useState<EmployeeInsight[]>([])
+  const [nextMonthProbationEnds, setNextMonthProbationEnds] = useState<EmployeeInsight[]>([])
+  const [nextMonthTerminations, setNextMonthTerminations] = useState<EmployeeInsight[]>([])
+
+  const nextMonthName = useMemo(() => format(addMonths(new Date(), 1), 'MMMM'), [])
 
   const datasetClient = useQueryExecutionClient(accessToken, Services.EMPLOYEE)
   const structureId = getCurrentActiveStructureId()
@@ -205,6 +193,11 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
     setNewHiresPage(1)
     setProbationPage(1)
     setTerminationsPage(1)
+    setIncludeNextMonthBirthdays(false)
+    setIncludeNextMonthAnniversaries(false)
+    setIncludeNextMonthNewHires(false)
+    setIncludeNextMonthProbation(false)
+    setIncludeNextMonthTerminations(false)
   }, [])
 
   const clearSelectedCompanies = useCallback(() => {
@@ -247,140 +240,102 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
     setLoading(true)
     setError(null)
     try {
-      const startDate = new Date().toISOString().slice(0, 10)
-      const endDate = addDays(new Date(), 30).toISOString().slice(0, 10)
+      const now = new Date()
+      const currentMonthStart = startOfMonth(now).toISOString().slice(0, 10)
+      const currentMonthEnd = endOfMonth(now).toISOString().slice(0, 10)
+      const nextMonthStart = startOfMonth(addMonths(now, 1)).toISOString().slice(0, 10)
+      const nextMonthEnd = endOfMonth(addMonths(now, 1)).toISOString().slice(0, 10)
+
       const companyIdsParam = selectedCompanyIds.length > 0 ? selectedCompanyIds.join(',') : ''
-      const commonParams: Record<string, string | number> = {
-        startDate,
-        endDate
+      const buildParams = (start: string, end: string): Record<string, string | number> => {
+        const params: Record<string, string | number> = { startDate: start, endDate: end }
+        if (structureId) params.structureId = structureId
+        if (companyIdsParam) params.companyIds = companyIdsParam
+        return params
       }
-      if (structureId) commonParams.structureId = structureId
-      if (companyIdsParam) commonParams.companyIds = companyIdsParam
 
-      const birthdaysDataset = await datasetClient.executeQuery('upcomingBirthdaysEmployees', QueryType.DATASET, {
-        ...commonParams,
-        page: birthdaysPage,
-        pageSize: birthdaysPageSize
-      })
-      const birthdayRows = (birthdaysDataset?.data ?? []) as UpcomingBirthdayDatasetRow[]
-      const birthdaysFromDataset: EmployeeInsight[] = birthdayRows.map(row => {
-        const firstName = row.first_name ?? ''
-        const lastName = row.last_name ?? ''
-        const fallbackName = `${firstName} ${lastName}`.trim()
+      const currentMonthParams = buildParams(currentMonthStart, currentMonthEnd)
+      const nextMonthParams = buildParams(nextMonthStart, nextMonthEnd)
+
+      const fetchInsightCategory = async (
+        queryName: string,
+        dateMapping: DateFieldMapping,
+        page: number,
+        pageSize: number
+      ) => {
+        const currentDataset = await datasetClient.executeQuery(queryName, QueryType.DATASET, {
+          ...currentMonthParams,
+          page,
+          pageSize
+        })
+        const currentRows = (currentDataset?.data ?? []) as DatasetRow[]
+
+        const nextDataset = await datasetClient.executeQuery(queryName, QueryType.DATASET, {
+          ...nextMonthParams,
+          page: 1,
+          pageSize
+        })
+        const nextRows = (nextDataset?.data ?? []) as DatasetRow[]
+
         return {
-          id: String(row.category ?? ''),
-          firstName,
-          lastName,
-          fullName: row.display_name ?? fallbackName,
-          birthDate: row.birth_date,
-          pictureThumbnail: row.picture_thumbnail,
-          jobPositionName: row.job_position_name,
-          organizationalUnitName: row.organizational_unit_name
+          current: mapDatasetRows(currentRows, dateMapping),
+          next: mapDatasetRows(nextRows, dateMapping),
+          hasNextPage: currentRows.length === pageSize
         }
-      })
-      setBirthdaysHasNextPage(birthdayRows.length === birthdaysPageSize)
+      }
 
-      const anniversariesDataset = await datasetClient.executeQuery(
-        'upcomingAnniversariesEmployees',
-        QueryType.DATASET,
-        {
-          ...commonParams,
-          page: anniversariesPage,
-          pageSize: anniversariesPageSize
-        }
-      )
-      const anniversaryRows = (anniversariesDataset?.data ?? []) as UpcomingAnniversaryDatasetRow[]
-      const anniversariesFromDataset: EmployeeInsight[] = anniversaryRows.map(row => {
-        const firstName = row.first_name ?? ''
-        const lastName = row.last_name ?? ''
-        const fallbackName = `${firstName} ${lastName}`.trim()
-        return {
-          id: String(row.category ?? ''),
-          firstName,
-          lastName,
-          fullName: row.display_name ?? fallbackName,
-          hireDate: row.hire_date,
-          pictureThumbnail: row.picture_thumbnail,
-          jobPositionName: row.job_position_name,
-          organizationalUnitName: row.organizational_unit_name
-        }
-      })
-      setAnniversariesHasNextPage(anniversaryRows.length === anniversariesPageSize)
+      const [bdResult, annResult, nhResult, probResult, termResult] = await Promise.all([
+        fetchInsightCategory(
+          'upcomingBirthdaysEmployees',
+          { sourceField: 'birth_date', targetField: 'birthDate' },
+          birthdaysPage,
+          birthdaysPageSize
+        ),
+        fetchInsightCategory(
+          'upcomingAnniversariesEmployees',
+          { sourceField: 'hire_date', targetField: 'hireDate' },
+          anniversariesPage,
+          anniversariesPageSize
+        ),
+        fetchInsightCategory(
+          'upcomingNewHiresEmployees',
+          { sourceField: 'hire_date', targetField: 'hireDate' },
+          newHiresPage,
+          newHiresPageSize
+        ),
+        fetchInsightCategory(
+          'upcomingProbationEndsEmployees',
+          { sourceField: 'probation_end_date', targetField: 'probationEnd' },
+          probationPage,
+          probationPageSize
+        ),
+        fetchInsightCategory(
+          'upcomingTerminationsEmployees',
+          { sourceField: 'termination_date', targetField: 'exitDate' },
+          terminationsPage,
+          terminationsPageSize
+        )
+      ])
 
-      const newHiresDataset = await datasetClient.executeQuery('upcomingNewHiresEmployees', QueryType.DATASET, {
-        ...commonParams,
-        page: newHiresPage,
-        pageSize: newHiresPageSize
-      })
-      const newHireRows = (newHiresDataset?.data ?? []) as UpcomingNewHireDatasetRow[]
-      const newHiresFromDataset: EmployeeInsight[] = newHireRows.map(row => {
-        const firstName = row.first_name ?? ''
-        const lastName = row.last_name ?? ''
-        const fallbackName = `${firstName} ${lastName}`.trim()
-        return {
-          id: String(row.category ?? ''),
-          firstName,
-          lastName,
-          fullName: row.display_name ?? fallbackName,
-          hireDate: row.hire_date,
-          pictureThumbnail: row.picture_thumbnail,
-          jobPositionName: row.job_position_name,
-          organizationalUnitName: row.organizational_unit_name
-        }
-      })
-      setNewHiresHasNextPage(newHireRows.length === newHiresPageSize)
+      setBirthdays(bdResult.current)
+      setNextMonthBirthdays(bdResult.next)
+      setBirthdaysHasNextPage(bdResult.hasNextPage)
 
-      const probationDataset = await datasetClient.executeQuery('upcomingProbationEndsEmployees', QueryType.DATASET, {
-        ...commonParams,
-        page: probationPage,
-        pageSize: probationPageSize
-      })
-      const probationRows = (probationDataset?.data ?? []) as UpcomingProbationDatasetRow[]
-      const probationFromDataset: EmployeeInsight[] = probationRows.map(row => {
-        const firstName = row.first_name ?? ''
-        const lastName = row.last_name ?? ''
-        const fallbackName = `${firstName} ${lastName}`.trim()
-        return {
-          id: String(row.category ?? ''),
-          firstName,
-          lastName,
-          fullName: row.display_name ?? fallbackName,
-          probationEnd: row.probation_end_date,
-          pictureThumbnail: row.picture_thumbnail,
-          jobPositionName: row.job_position_name,
-          organizationalUnitName: row.organizational_unit_name
-        }
-      })
-      setProbationHasNextPage(probationRows.length === probationPageSize)
+      setAnniversaries(annResult.current)
+      setNextMonthAnniversaries(annResult.next)
+      setAnniversariesHasNextPage(annResult.hasNextPage)
 
-      const terminationsDataset = await datasetClient.executeQuery('upcomingTerminationsEmployees', QueryType.DATASET, {
-        ...commonParams,
-        page: terminationsPage,
-        pageSize: terminationsPageSize
-      })
-      const termRows = (terminationsDataset?.data ?? []) as UpcomingTerminationDatasetRow[]
-      const terminationsFromDataset: EmployeeInsight[] = termRows.map(row => {
-        const firstName = row.first_name ?? ''
-        const lastName = row.last_name ?? ''
-        const fallbackName = `${firstName} ${lastName}`.trim()
-        return {
-          id: String(row.category ?? ''),
-          firstName,
-          lastName,
-          fullName: row.display_name ?? fallbackName,
-          exitDate: row.termination_date,
-          pictureThumbnail: row.picture_thumbnail,
-          jobPositionName: row.job_position_name,
-          organizationalUnitName: row.organizational_unit_name
-        }
-      })
-      setTerminationsHasNextPage(termRows.length === terminationsPageSize)
+      setNewHires(nhResult.current)
+      setNextMonthNewHires(nhResult.next)
+      setNewHiresHasNextPage(nhResult.hasNextPage)
 
-      setBirthdays(birthdaysFromDataset)
-      setAnniversaries(anniversariesFromDataset)
-      setNewHires(newHiresFromDataset)
-      setProbationEnds(probationFromDataset)
-      setTerminations(terminationsFromDataset)
+      setProbationEnds(probResult.current)
+      setNextMonthProbationEnds(probResult.next)
+      setProbationHasNextPage(probResult.hasNextPage)
+
+      setTerminations(termResult.current)
+      setNextMonthTerminations(termResult.next)
+      setTerminationsHasNextPage(termResult.hasNextPage)
     } catch (err: any) {
       setError(
         err.message ||
@@ -445,36 +400,39 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
     return () => window.removeEventListener('popstate', handlePopState)
   }, [])
 
+  const getDisplayedCount = (data: EmployeeInsight[], nextData: EmployeeInsight[], included: boolean) =>
+    included ? data.length + nextData.length : data.length
+
   const viewOptions = [
     {
       key: 'birthdays',
       icon: <CalendarIcon size={16} />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.birthdays', 'Birthdays'),
-      count: birthdays.length
+      count: getDisplayedCount(birthdays, nextMonthBirthdays, includeNextMonthBirthdays)
     },
     {
       key: 'anniversaries',
       icon: <UserIcon size={16} />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.anniversaries', 'Anniversaries'),
-      count: anniversaries.length
+      count: getDisplayedCount(anniversaries, nextMonthAnniversaries, includeNextMonthAnniversaries)
     },
     {
       key: 'new-hires',
       icon: <UsersIcon size={16} />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.new_hires', 'New Hires'),
-      count: newHires.length
+      count: getDisplayedCount(newHires, nextMonthNewHires, includeNextMonthNewHires)
     },
     {
       key: 'probation-ends',
       icon: <ClockIcon size={16} />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.probation_ends', 'Probation Ends'),
-      count: probationEnds.length
+      count: getDisplayedCount(probationEnds, nextMonthProbationEnds, includeNextMonthProbation)
     },
     {
       key: 'terminations',
       icon: <WarningCircleIcon size={16} />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.terminations', 'Terminations'),
-      count: terminations.length
+      count: getDisplayedCount(terminations, nextMonthTerminations, includeNextMonthTerminations)
     }
   ]
 
@@ -490,7 +448,7 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
     if (!employees || employees.length === 0) {
       return (
         <div className="gba:text-sm gba:text-gray-500">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.no_events', 'No events in the next 30 days.')}
+          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.no_events', 'No events this month.')}
         </div>
       )
     }
@@ -602,6 +560,133 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
     )
   }
 
+  interface TabConfig {
+    key: string
+    data: EmployeeInsight[]
+    nextMonthData: EmployeeInsight[]
+    includeNextMonth: boolean
+    onToggleNextMonth: () => void
+    dateField: string
+    dateLabel: string
+    categoryLabel: string
+    page: number
+    setPage: React.Dispatch<React.SetStateAction<number>>
+    hasNextPage: boolean
+  }
+
+  const tabConfigs: TabConfig[] = [
+    {
+      key: 'birthdays',
+      data: birthdays,
+      nextMonthData: nextMonthBirthdays,
+      includeNextMonth: includeNextMonthBirthdays,
+      onToggleNextMonth: () => setIncludeNextMonthBirthdays(true),
+      dateField: 'birthDate',
+      dateLabel: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.birthday_date', 'Birthday'),
+      categoryLabel: 'birthdays',
+      page: birthdaysPage,
+      setPage: setBirthdaysPage,
+      hasNextPage: birthdaysHasNextPage
+    },
+    {
+      key: 'anniversaries',
+      data: anniversaries,
+      nextMonthData: nextMonthAnniversaries,
+      includeNextMonth: includeNextMonthAnniversaries,
+      onToggleNextMonth: () => setIncludeNextMonthAnniversaries(true),
+      dateField: 'hireDate',
+      dateLabel: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.anniversary_date', 'Anniversary'),
+      categoryLabel: 'anniversaries',
+      page: anniversariesPage,
+      setPage: setAnniversariesPage,
+      hasNextPage: anniversariesHasNextPage
+    },
+    {
+      key: 'new-hires',
+      data: newHires,
+      nextMonthData: nextMonthNewHires,
+      includeNextMonth: includeNextMonthNewHires,
+      onToggleNextMonth: () => setIncludeNextMonthNewHires(true),
+      dateField: 'hireDate',
+      dateLabel: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.start_date', 'Start Date'),
+      categoryLabel: 'new hires',
+      page: newHiresPage,
+      setPage: setNewHiresPage,
+      hasNextPage: newHiresHasNextPage
+    },
+    {
+      key: 'probation-ends',
+      data: probationEnds,
+      nextMonthData: nextMonthProbationEnds,
+      includeNextMonth: includeNextMonthProbation,
+      onToggleNextMonth: () => setIncludeNextMonthProbation(true),
+      dateField: 'probationEnd',
+      dateLabel: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.probation_end_date', 'Probation End'),
+      categoryLabel: 'probation ends',
+      page: probationPage,
+      setPage: setProbationPage,
+      hasNextPage: probationHasNextPage
+    },
+    {
+      key: 'terminations',
+      data: terminations,
+      nextMonthData: nextMonthTerminations,
+      includeNextMonth: includeNextMonthTerminations,
+      onToggleNextMonth: () => setIncludeNextMonthTerminations(true),
+      dateField: 'exitDate',
+      dateLabel: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.termination_date', 'Termination Date'),
+      categoryLabel: 'terminations',
+      page: terminationsPage,
+      setPage: setTerminationsPage,
+      hasNextPage: terminationsHasNextPage
+    }
+  ]
+
+  const renderTabFooter = (cfg: TabConfig) => (
+    <div className="gba:mt-4 gba:flex gba:items-center gba:justify-between">
+      <div>
+        {!cfg.includeNextMonth && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={cfg.onToggleNextMonth}
+            data-testid={`hr-insights-${cfg.key}-load-next-month`}
+          >
+            {cfg.nextMonthData.length > 0
+              ? `Show ${nextMonthName} ${cfg.categoryLabel} (${cfg.nextMonthData.length})`
+              : `Show ${nextMonthName} ${cfg.categoryLabel}`}
+          </Button>
+        )}
+        {cfg.includeNextMonth && cfg.nextMonthData.length === 0 && (
+          <span className="gba:text-sm gba:text-muted-foreground">{`No ${cfg.categoryLabel} in ${nextMonthName}`}</span>
+        )}
+      </div>
+      <div className="gba:flex gba:items-center gba:gap-2">
+        <span className="gba:text-sm gba:text-muted-foreground">
+          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.page', 'Page')} {cfg.page}
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          data-testid={`hr-insights-${cfg.key}-prev-page`}
+          onClick={() => cfg.setPage(p => Math.max(1, p - 1))}
+          disabled={cfg.page === 1}
+        >
+          {getTranslationFromI18nKeyAndLabel('common-previous', 'Previous')}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          data-testid={`hr-insights-${cfg.key}-next-page`}
+          onClick={() => cfg.setPage(p => p + 1)}
+          disabled={!cfg.hasNextPage}
+        >
+          {getTranslationFromI18nKeyAndLabel('common-next', 'Next')}
+        </Button>
+      </div>
+    </div>
+  )
+
   if (loading) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:py-12">
@@ -669,160 +754,16 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
           </Button>
         </div>
 
-        <TabsContent value="birthdays">
-          {renderEmployeeTable(
-            birthdays,
-            'birthDate',
-            getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.birthday_date', 'Birthday')
-          )}
-          <div className="gba:mt-4 gba:flex gba:items-center gba:justify-end gba:gap-2">
-            <span className="gba:text-sm gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.page', 'Page')} {birthdaysPage}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              data-testid="hr-insights-birthdays-prev-page"
-              onClick={() => setBirthdaysPage(currentPage => Math.max(1, currentPage - 1))}
-              disabled={birthdaysPage === 1}
-            >
-              {getTranslationFromI18nKeyAndLabel('common-previous', 'Previous')}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              data-testid="hr-insights-birthdays-next-page"
-              onClick={() => setBirthdaysPage(currentPage => currentPage + 1)}
-              disabled={!birthdaysHasNextPage}
-            >
-              {getTranslationFromI18nKeyAndLabel('common-next', 'Next')}
-            </Button>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="anniversaries">
-          {renderEmployeeTable(
-            anniversaries,
-            'hireDate',
-            getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.anniversary_date', 'Anniversary')
-          )}
-          <div className="gba:mt-4 gba:flex gba:items-center gba:justify-end gba:gap-2">
-            <span className="gba:text-sm gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.page', 'Page')} {anniversariesPage}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              data-testid="hr-insights-anniversaries-prev-page"
-              onClick={() => setAnniversariesPage(currentPage => Math.max(1, currentPage - 1))}
-              disabled={anniversariesPage === 1}
-            >
-              {getTranslationFromI18nKeyAndLabel('common-previous', 'Previous')}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              data-testid="hr-insights-anniversaries-next-page"
-              onClick={() => setAnniversariesPage(currentPage => currentPage + 1)}
-              disabled={!anniversariesHasNextPage}
-            >
-              {getTranslationFromI18nKeyAndLabel('common-next', 'Next')}
-            </Button>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="new-hires">
-          {renderEmployeeTable(
-            newHires,
-            'hireDate',
-            getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.start_date', 'Start Date')
-          )}
-          <div className="gba:mt-4 gba:flex gba:items-center gba:justify-end gba:gap-2">
-            <span className="gba:text-sm gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.page', 'Page')} {newHiresPage}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              data-testid="hr-insights-new-hires-prev-page"
-              onClick={() => setNewHiresPage(currentPage => Math.max(1, currentPage - 1))}
-              disabled={newHiresPage === 1}
-            >
-              {getTranslationFromI18nKeyAndLabel('common-previous', 'Previous')}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              data-testid="hr-insights-new-hires-next-page"
-              onClick={() => setNewHiresPage(currentPage => currentPage + 1)}
-              disabled={!newHiresHasNextPage}
-            >
-              {getTranslationFromI18nKeyAndLabel('common-next', 'Next')}
-            </Button>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="probation-ends">
-          {renderEmployeeTable(
-            probationEnds,
-            'probationEnd',
-            getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.probation_end_date', 'Probation End')
-          )}
-          <div className="gba:mt-4 gba:flex gba:items-center gba:justify-end gba:gap-2">
-            <span className="gba:text-sm gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.page', 'Page')} {probationPage}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              data-testid="hr-insights-probation-prev-page"
-              onClick={() => setProbationPage(currentPage => Math.max(1, currentPage - 1))}
-              disabled={probationPage === 1}
-            >
-              {getTranslationFromI18nKeyAndLabel('common-previous', 'Previous')}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              data-testid="hr-insights-probation-next-page"
-              onClick={() => setProbationPage(currentPage => currentPage + 1)}
-              disabled={!probationHasNextPage}
-            >
-              {getTranslationFromI18nKeyAndLabel('common-next', 'Next')}
-            </Button>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="terminations">
-          {renderEmployeeTable(
-            terminations,
-            'exitDate',
-            getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.termination_date', 'Termination Date')
-          )}
-          <div className="gba:mt-4 gba:flex gba:items-center gba:justify-end gba:gap-2">
-            <span className="gba:text-sm gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.page', 'Page')} {terminationsPage}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              data-testid="hr-insights-terminations-prev-page"
-              onClick={() => setTerminationsPage(currentPage => Math.max(1, currentPage - 1))}
-              disabled={terminationsPage === 1}
-            >
-              {getTranslationFromI18nKeyAndLabel('common-previous', 'Previous')}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              data-testid="hr-insights-terminations-next-page"
-              onClick={() => setTerminationsPage(currentPage => currentPage + 1)}
-              disabled={!terminationsHasNextPage}
-            >
-              {getTranslationFromI18nKeyAndLabel('common-next', 'Next')}
-            </Button>
-          </div>
-        </TabsContent>
+        {tabConfigs.map(cfg => (
+          <TabsContent key={cfg.key} value={cfg.key}>
+            {renderEmployeeTable(
+              cfg.includeNextMonth ? [...cfg.data, ...cfg.nextMonthData] : cfg.data,
+              cfg.dateField,
+              cfg.dateLabel
+            )}
+            {renderTabFooter(cfg)}
+          </TabsContent>
+        ))}
       </Tabs>
 
       <GenerateDocumentDialog

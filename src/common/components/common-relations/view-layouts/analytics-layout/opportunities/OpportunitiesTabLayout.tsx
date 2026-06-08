@@ -32,7 +32,7 @@ export type OpportunitiesTabKpiLabels = {
   totalValue: TabKpiLabel
   wonOpportunities: TabKpiLabel
   winRate: TabKpiLabel
-  avgDealSize: TabKpiLabel
+  avgOpportunitySize: TabKpiLabel
   newThisPeriod: TabKpiLabel
   avgOpportunityValue: TabKpiLabel
   conversionRate: TabKpiLabel
@@ -43,7 +43,7 @@ const DEFAULT_OPPORTUNITIES_TAB_KPI_LABELS: OpportunitiesTabKpiLabels = {
   totalValue: { title: 'Total Pipeline Value', description: 'Combined value of all opportunities' },
   wonOpportunities: { title: 'Won Opportunities', description: 'Opportunities marked as won' },
   winRate: { title: 'Win Rate', description: 'Percentage of won opportunities' },
-  avgDealSize: { title: 'Avg. Deal Size', description: 'Average opportunity value' },
+  avgOpportunitySize: { title: 'Avg. Opportunity Size', description: 'Average opportunity value' },
   newThisPeriod: { title: 'New This Period', description: 'Opportunities created in selected period' },
   avgOpportunityValue: { title: 'Avg. Opportunity Value', description: 'Average value per opportunity' },
   conversionRate: { title: 'Conversion Rate', description: 'Leads converted to opportunities' }
@@ -54,8 +54,8 @@ export interface OpportunitiesTrendData {
   previousPeriodPipelineValue: number
   actualWinRateThisMonth: number
   actualWinRateLastMonth: number
-  actualAvgDealSizeThisMonth: number
-  actualAvgDealSizeLastMonth: number
+  actualAvgOpportunitySizeThisMonth: number
+  actualAvgOpportunitySizeLastMonth: number
   actualAvgOpportunityValueThisMonth?: number // Average value of ALL opportunities
   actualAvgOpportunityValueLastMonth?: number // Average value of ALL opportunities (previous period)
   actualAvgSalesCycleLastMonth: number
@@ -92,7 +92,7 @@ export interface OpportunitiesTabLayoutProps {
   totalValue: number
   wonOpportunities: number
   winRate: number
-  avgDealSize: number
+  avgOpportunitySize: number
   avgSalesCycle: number
   trendData?: OpportunitiesTrendData | null
   trendLoading?: boolean
@@ -109,7 +109,7 @@ export interface OpportunitiesTabLayoutProps {
   selectedOppTabStage?: { stage: string; stageRef: string } | null
   selectedStagePipelineId?: string
   onStagePipelineChange?: (id: string | undefined) => void
-  topDeals: Array<{
+  topOpportunities: Array<{
     id: string
     name: string
     value: number
@@ -118,8 +118,8 @@ export interface OpportunitiesTabLayoutProps {
     owner: string
     currencyCode?: string
   }>
-  topDealsLoading?: boolean
-  onTopDealClick?: (dealId: string) => void
+  topOpportunitiesLoading?: boolean
+  onTopOpportunityClick?: (opportunityId: string) => void
   flowData?: {
     flowTrend: Array<{
       month: string
@@ -145,8 +145,8 @@ export interface OpportunitiesTabLayoutProps {
   // Currency filter props
   kpiCurrency?: string
   onKpiCurrencyChange?: (currency: string) => void
-  topDealsCurrency?: string
-  onTopDealsCurrencyChange?: (currency: string) => void
+  topOpportunitiesCurrency?: string
+  onTopOpportunitiesCurrencyChange?: (currency: string) => void
   availableCurrencies?: string[]
 
   // Lifecycle drill-down
@@ -160,7 +160,7 @@ export interface OpportunitiesTabLayoutProps {
   renderLifecycleDrillDown?: React.ReactNode
 
   // Feature flags
-  showTopDeals?: boolean // Default: true - Set to false to hide top deals section (e.g., for IRM)
+  showTopOpportunities?: boolean // Default: true - Set to false to hide top opportunities section (e.g., for IRM)
 
   /** Optional KPI title/description overrides (e.g. IRM investment terminology) */
   kpiLabels?: PartialTabKpiLabels<OpportunitiesTabKpiLabels>
@@ -173,7 +173,7 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
   totalValue,
   wonOpportunities,
   winRate,
-  avgDealSize,
+  avgOpportunitySize,
   avgSalesCycle,
   trendData,
   trendLoading = false,
@@ -190,9 +190,9 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
   onOpportunitiesStageClick,
   renderOpportunitiesStageDrillDown,
   selectedOppTabStage,
-  topDeals,
-  topDealsLoading = false,
-  onTopDealClick,
+  topOpportunities,
+  topOpportunitiesLoading = false,
+  onTopOpportunityClick,
   flowData,
   statusDistributionData = [],
   onStatusClick,
@@ -201,10 +201,10 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
   moduleColor = 'default',
   kpiCurrency = 'EUR',
   onKpiCurrencyChange,
-  topDealsCurrency = 'EUR',
-  onTopDealsCurrencyChange,
+  topOpportunitiesCurrency = 'EUR',
+  onTopOpportunitiesCurrencyChange,
   availableCurrencies = ['EUR', 'USD'],
-  showTopDeals = true,
+  showTopOpportunities = true,
   onLifecyclePointClick,
   renderLifecycleDrillDown,
   onFlowTrendPointClick,
@@ -273,10 +273,10 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
         : {})
     },
     {
-      key: 'avg-deal-size',
-      title: labels.avgDealSize.title,
+      key: 'avg-opportunity-size',
+      title: labels.avgOpportunitySize.title,
       value: formatCurrencyCompact(
-        trendData?.actualAvgDealSizeThisMonth || avgDealSize,
+        trendData?.actualAvgOpportunitySizeThisMonth || avgOpportunitySize,
         kpiCurrency,
         undefined,
         1,
@@ -284,12 +284,12 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
       ),
       valueIsString: true,
       prefix: <CurrencyCircleDollarIcon size={16} />,
-      description: labels.avgDealSize.description,
+      description: labels.avgOpportunitySize.description,
       ...(trendData && !trendLoading
         ? {
             trend: calculateTrend(
-              trendData.actualAvgDealSizeThisMonth || avgDealSize,
-              trendData.actualAvgDealSizeLastMonth || 0,
+              trendData.actualAvgOpportunitySizeThisMonth || avgOpportunitySize,
+              trendData.actualAvgOpportunitySizeLastMonth || 0,
               TREND_DESCRIPTION
             )
           }
@@ -413,20 +413,20 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
 
       {selectedOppTabStage && renderOpportunitiesStageDrillDown?.(selectedOppTabStage)}
 
-      {/* Conditionally render Top Deals section */}
-      {showTopDeals && (
-        <Card data-testid="top-deals-section">
+      {/* Conditionally render Top Opportunities section */}
+      {showTopOpportunities && (
+        <Card data-testid="top-opportunities-section">
           <CardHeader>
             <div className="gba:flex gba:items-center gba:justify-between">
               <CardTitle className="gba:flex gba:items-center gba:gap-2">Top Opportunities by Value</CardTitle>
               {/* Currency Filter */}
-              {availableCurrencies && availableCurrencies.length > 1 && onTopDealsCurrencyChange && (
+              {availableCurrencies && availableCurrencies.length > 1 && onTopOpportunitiesCurrencyChange && (
                 <div
                   className="gba:flex gba:items-center gba:gap-2 gba:ml-auto"
-                  data-testid="top-deals-currency-filter"
+                  data-testid="top-opportunities-currency-filter"
                 >
                   <Label className="gba:text-sm gba:font-medium gba:whitespace-nowrap">Currency</Label>
-                  <Select value={topDealsCurrency} onValueChange={onTopDealsCurrencyChange}>
+                  <Select value={topOpportunitiesCurrency} onValueChange={onTopOpportunitiesCurrencyChange}>
                     <SelectTrigger className="gba:w-32">
                       <SelectValue />
                     </SelectTrigger>
@@ -443,42 +443,45 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
             </div>
           </CardHeader>
           <CardContent>
-            {topDealsLoading && (
-              <div className="gba:flex gba:justify-center gba:items-center gba:py-12" data-testid="top-deals-loading">
+            {topOpportunitiesLoading && (
+              <div
+                className="gba:flex gba:justify-center gba:items-center gba:py-12"
+                data-testid="top-opportunities-loading"
+              >
                 <Spinner size="lg" />
               </div>
             )}
-            {!topDealsLoading && topDeals.length > 0 && (
+            {!topOpportunitiesLoading && topOpportunities.length > 0 && (
               <div className="gba:space-y-3">
-                {topDeals.map((deal, index) => {
+                {topOpportunities.map((opportunity, index) => {
                   const content = (
                     <>
                       <div className="gba:flex gba:items-center gba:gap-3">
                         <span className="gba:text-xs gba:text-gray-600">#{index + 1}</span>
                         <div>
-                          <div className="gba:font-medium">{deal.name}</div>
+                          <div className="gba:font-medium">{opportunity.name}</div>
                           <div className="gba:text-sm gba:text-gray-600">
-                            {deal.stage} • {deal.winChance}% win chance • {deal.owner}
+                            {opportunity.stage} • {opportunity.winChance}% win chance • {opportunity.owner}
                           </div>
                         </div>
                       </div>
                       <div className="gba:text-right">
                         <div className="gba:font-bold">
-                          {formatCurrencyCompact(deal.value, topDealsCurrency, undefined, 1, true)}
+                          {formatCurrencyCompact(opportunity.value, topOpportunitiesCurrency, undefined, 1, true)}
                         </div>
                         <div className="gba:text-sm gba:text-gray-600">Opportunity Value</div>
                       </div>
                     </>
                   )
 
-                  if (onTopDealClick) {
+                  if (onTopOpportunityClick) {
                     return (
                       <button
-                        key={deal.id}
+                        key={opportunity.id}
                         type="button"
                         className="gba:flex gba:w-full gba:items-center gba:justify-between gba:p-3 gba:border gba:rounded-lg gba:text-left gba:transition-colors gba:hover:bg-muted"
-                        onClick={() => onTopDealClick(deal.id)}
-                        data-testid={`top-deal-${index}`}
+                        onClick={() => onTopOpportunityClick(opportunity.id)}
+                        data-testid={`top-opportunity-${index}`}
                       >
                         {content}
                       </button>
@@ -487,9 +490,9 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
 
                   return (
                     <div
-                      key={deal.id}
+                      key={opportunity.id}
                       className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:border gba:rounded-lg"
-                      data-testid={`top-deal-${index}`}
+                      data-testid={`top-opportunity-${index}`}
                     >
                       {content}
                     </div>
@@ -497,8 +500,8 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
                 })}
               </div>
             )}
-            {!topDealsLoading && topDeals.length === 0 && (
-              <div className="gba:text-center gba:text-gray-500 gba:py-8">No deal data available</div>
+            {!topOpportunitiesLoading && topOpportunities.length === 0 && (
+              <div className="gba:text-center gba:text-gray-500 gba:py-8">No opportunity data available</div>
             )}
           </CardContent>
         </Card>

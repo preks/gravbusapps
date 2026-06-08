@@ -2,11 +2,13 @@ import './setupUniverSheetGridTestMocks'
 import React from 'react'
 import { act, render, waitFor } from '@testing-library/react'
 import type { UniverSheetGridHandle } from '../UniverSheetGrid.types'
+import { repairAuthoritativeMergeRegistryAfterBootstrap } from '../UniverSheetGrid'
 import {
   executeCommandMock,
   eventHandlers,
   gridTestMockState,
   lastCancelFreezeMock,
+  lastRequestedRangeCoords,
   lastRangeSetValueMock,
   lastSetFreezeMock,
   resetUniverSheetGridTestMocks,
@@ -94,6 +96,34 @@ describe('UniverSheetGrid remote apply', () => {
     )
     const lastCall = lastRangeSetValueMock?.mock.calls.at(-1)?.[0] as Record<string, unknown>
     expect(lastCall).not.toHaveProperty('t')
+  })
+
+  it('applyRemoteCellUpdate preserves sender row coordinates when useSenderA1Row is set', async () => {
+    const ref = React.createRef<UniverSheetGridHandle>()
+    const shiftedData = [{ _id: 'row-1', _rowUuid: 'row-1', _gridRowIndex: 5, name: 'Alice' }]
+    render(
+      <TestUniverSheetGrid
+        ref={ref}
+        sheet={sheet}
+        data={shiftedData}
+        columns={columns}
+        isReadOnly
+        onCellChange={jest.fn()}
+        onDataChange={jest.fn()}
+      />
+    )
+    await waitFor(() => expect(ref.current?.applyRemoteCellUpdate).toBeDefined())
+    await act(async () => {
+      ref.current?.applyRemoteCellUpdate?.(5, 0, 'RemoteVal', 'row-1', { useSenderA1Row: true })
+      await Promise.resolve()
+    })
+
+    expect(lastRequestedRangeCoords).toEqual({
+      sheetId: 'sheet-1',
+      row: 5,
+      col: 0
+    })
+    expect(lastRangeSetValueMock).toHaveBeenCalled()
   })
 
   it('applyRemoteCellUpdatesBulk routes a single-cell batch through the deferred bulk path', async () => {
@@ -221,6 +251,88 @@ describe('UniverSheetGrid remote apply', () => {
         ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 1 }]
       })
     )
+  })
+
+  it('applyCommittedWorksheetMergePatch dispatches unmerge before merge deltas', async () => {
+    const ref = React.createRef<UniverSheetGridHandle>()
+    render(
+      <TestUniverSheetGrid
+        ref={ref}
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly
+        onCellChange={jest.fn()}
+        onDataChange={jest.fn()}
+      />
+    )
+    await waitFor(() => expect(ref.current?.applyCommittedWorksheetMergePatch).toBeDefined())
+    await waitFor(() => expect(executeCommandMock).toBeDefined())
+    executeCommandMock?.mockClear()
+
+    act(() => {
+      ref.current?.applyCommittedWorksheetMergePatch?.(
+        'sheet-1',
+        [{ startRow: 0, endRow: 2, startColumn: 1, endColumn: 2 }],
+        [{ startRow: 0, endRow: 2, startColumn: 1, endColumn: 1 }]
+      )
+    })
+
+    expect(executeCommandMock?.mock.calls).toEqual([
+      [
+        'sheet.mutation.remove-worksheet-merge',
+        expect.objectContaining({
+          unitId: expect.anything(),
+          subUnitId: expect.anything(),
+          ranges: [{ startRow: 0, endRow: 2, startColumn: 1, endColumn: 2 }]
+        })
+      ],
+      [
+        'sheet.mutation.add-worksheet-merge',
+        expect.objectContaining({
+          unitId: expect.anything(),
+          subUnitId: expect.anything(),
+          ranges: [{ startRow: 0, endRow: 2, startColumn: 1, endColumn: 1 }]
+        })
+      ]
+    ])
+  })
+
+  it('repairs authoritative merge registry after bootstrap when live snapshot mergeData is stale', async () => {
+    const sheetWithMerge = {
+      ...sheet,
+      settings: {
+        ...sheet.settings,
+        mergeData: [{ startRow: 6, endRow: 14, startColumn: 1, endColumn: 1 }]
+      }
+    } as any
+    gridTestMockState.workbookSnapshotOverride = {
+      sheetOrder: ['sheet-1'],
+      sheets: {
+        'sheet-1': {
+          id: 'sheet-1',
+          mergeData: []
+        }
+      }
+    }
+
+    const applyRemoteSpreadsheetFeatureOperation = jest.fn()
+
+    expect(
+      repairAuthoritativeMergeRegistryAfterBootstrap({
+        liveSnapshot: gridTestMockState.workbookSnapshotOverride,
+        sheet: sheetWithMerge,
+        snapshotSeed: 'snapshot-with-merge',
+        applyRemoteSpreadsheetFeatureOperation
+      })
+    ).toBe(true)
+    expect(applyRemoteSpreadsheetFeatureOperation).toHaveBeenCalledWith({
+      type: 'merge_ranges',
+      data: {
+        sheetId: 'sheet-1',
+        ranges: [{ startRow: 6, endRow: 14, startColumn: 1, endColumn: 1 }]
+      }
+    })
   })
 
   it('applyRemoteSpreadsheetFeatureOperation maps recorded column hide mutations to command replay', async () => {

@@ -205,12 +205,3 @@ export interface ReferenceData {
   alternativeCode?: string
   additionalValue1?: string
 }
-
-export interface OpportunityMetrics {
-  totalValue: number
-  weightedValue: number
-  averageSalesCycle: number
-  winRate: number
-  averageDealSize: number
-  pipelineVelocity: number
-}

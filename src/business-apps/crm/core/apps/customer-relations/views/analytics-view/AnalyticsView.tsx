@@ -109,7 +109,7 @@ import { useLeadsStaticData } from './hooks/useLeadsStaticData'
 import { useAccountsStaticData } from './hooks/useAccountsStaticData'
 import { useAccountsOverTime } from './hooks/useAccountsOverTime'
 import { useOpportunitiesStaticData } from './hooks/useOpportunitiesStaticData'
-import { useTopDeals } from './hooks/useTopDeals'
+import { useTopOpportunities } from './hooks/useTopOpportunities'
 
 export interface AnalyticsViewProps extends BusinessAppContextProps {
   moduleColor?: string
@@ -146,8 +146,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     setAccountsCurrency,
     opportunitiesKpiCurrency,
     setOpportunitiesKpiCurrency,
-    topDealsCurrency,
-    setTopDealsCurrency
+    topOpportunitiesCurrency,
+    setTopOpportunitiesCurrency
   } = useAnalyticsState({
     defaultCurrency: 'EUR',
     defaultTimeFilter: 'quarter'
@@ -837,7 +837,10 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     oppLifecyclePipelineId
   )
   const { data: oppStageData } = useOpportunitiesByStage(tabTokens.opportunities, selectedStagePipelineId)
-  const { data: topDealsData, isLoading: topDealsLoading } = useTopDeals(tabTokens.opportunities, topDealsCurrency)
+  const { data: topOpportunitiesData, isLoading: topOpportunitiesLoading } = useTopOpportunities(
+    tabTokens.opportunities,
+    topOpportunitiesCurrency
+  )
 
   // Contacts tab static data (KPIs)
   const { data: contactsStaticData, isLoading: contactsStaticLoading } = useContactsStaticData(tabTokens.contacts)
@@ -1054,27 +1057,27 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
         oppStageData: oppStageData || [],
         selectedStagePipelineId,
         onStagePipelineChange: (id: string | undefined) => setSelectedStagePipelineId(id),
-        topDeals: topDealsData,
-        topDealsLoading,
+        topOpportunities: topOpportunitiesData,
+        topOpportunitiesLoading,
         flowData: oppFlowData || null,
         flowLoading: oppFlowLoading,
         statusDistributionData: oppStatusDistributionData || [],
         statusDistributionLoading: oppStatusDistributionLoading,
         kpiCurrency: opportunitiesKpiCurrency,
         onKpiCurrencyChange: setOpportunitiesKpiCurrency,
-        topDealsCurrency,
-        onTopDealsCurrencyChange: setTopDealsCurrency,
+        topOpportunitiesCurrency,
+        onTopOpportunitiesCurrencyChange: setTopOpportunitiesCurrency,
         availableCurrencies
       },
       {
         title: 'Opportunities Analytics',
-        showTopDeals: true,
+        showTopOpportunities: true,
         useTrendData: false // CRM calculates from static data
       }
     ),
     selectedOppTabStage,
-    onTopDealClick: (dealId: string) =>
-      navigateTo(buildPlatformUrl('/platform/crm/opportunity-record', { opportunityId: dealId })),
+    onTopOpportunityClick: (opportunityId: string) =>
+      navigateTo(buildPlatformUrl('/platform/crm/opportunity-record', { opportunityId })),
     onOpportunitiesStageClick: handleOppTabStageClick,
     renderOpportunitiesStageDrillDown: (sel: { stage: string; stageRef: string }) => (
       <AnalyticsOpportunityDrillDown
