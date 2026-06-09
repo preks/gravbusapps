@@ -18,9 +18,15 @@ export interface OverviewViewProps extends BusinessAppContextProps {
 
 function buildAgentHref(): string {
   if (typeof window === 'undefined') return '?tab=agent'
+  // Return a query-only relative href (e.g. "?tab=agent&..."). The browser
+  // resolves it against the current document URL, so the path is preserved
+  // without interpolating the (tainted) location pathname into the value. The
+  // query is rebuilt through URLSearchParams, so every value is percent-encoded
+  // and the result can never become a cross-origin or "javascript:" URL
+  // (DOM-based XSS hardening, CWE-79).
   const params = new URLSearchParams(window.location.search)
   params.set('tab', 'agent')
-  return `${window.location.pathname}?${params.toString()}`
+  return `?${params.toString()}`
 }
 
 /**
