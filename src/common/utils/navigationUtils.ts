@@ -90,6 +90,7 @@ export const Navigation = {
 
   // Platform
   PLATFORM_WORK_HOME: `${NAVIGATION_BASE_PATH}/work-home`,
+  PLATFORM_DIGITAL_WORKPLACE: `${NAVIGATION_BASE_PATH}/digital-workplace`,
   PLATFORM_TASK_MANAGER: `${NAVIGATION_BASE_PATH}/task-manager`,
   PLATFORM_TEAM_CHAT: `${NAVIGATION_BASE_PATH}/chat`,
   PLATFORM_AI_CHAT: `${NAVIGATION_BASE_PATH}/every-ai`,
@@ -222,6 +223,7 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
 
   // Platform
   [Navigation.PLATFORM_WORK_HOME]: 'platform/apps/work-home',
+  [Navigation.PLATFORM_DIGITAL_WORKPLACE]: 'platform/apps/digital-workplace',
   [Navigation.PLATFORM_TASK_MANAGER]: 'core/every/apps/every-box',
   [Navigation.PLATFORM_TEAM_CHAT]: 'platform/apps/chat',
   [Navigation.PLATFORM_AI_CHAT]: 'platform/apps/every-ai',
