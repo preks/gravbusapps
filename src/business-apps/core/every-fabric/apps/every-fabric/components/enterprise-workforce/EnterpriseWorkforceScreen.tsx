@@ -264,7 +264,7 @@ export const EnterpriseWorkforceScreen: React.FC<EnterpriseWorkforceScreenProps>
           >
             <ArrowLeftIcon className="gba:h-5 gba:w-5" />
           </button>
-          <span className="gba:text-sm gba:font-medium gba:text-muted-foreground">Agent Workforce</span>
+          <span className="gba:text-sm gba:font-medium gba:text-muted-foreground">Digital Workforce</span>
           <div className="gba:ml-auto gba:inline-flex gba:rounded-md gba:border gba:border-border gba:bg-background gba:p-0.5">
             <button
               type="button"
