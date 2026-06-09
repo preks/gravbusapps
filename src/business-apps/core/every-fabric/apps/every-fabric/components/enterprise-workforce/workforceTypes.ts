@@ -244,6 +244,18 @@ export interface WorkforceRunDomainAction extends WorkforceRunCrmActionEntry {
   domain: string
 }
 
+// Persisted matched customer (metadata.workforce.customer_ref) — written
+// once by the backend when a run resolves a CRM account/contact. Unlike
+// case_ref (recomputed from trace on every read), this is stable and is the
+// reference the Customer 360 Inbound tab prefers.
+export interface WorkforceRunCustomerRef {
+  customerType: 'account' | 'contact'
+  customerId: string
+  displayName?: string | null
+  resolved_at?: string | null
+  resolved_by?: string | null
+}
+
 // The primary entity/case a run acted on, for the "Case assigned" link.
 export interface WorkforceRunCaseRef {
   domain: string
@@ -315,6 +327,8 @@ export interface WorkforceRun {
   actions?: WorkforceRunDomainAction[]
   // Primary entity/case the run acted on, for the "Case assigned" link.
   case_ref?: WorkforceRunCaseRef | null
+  // Persisted matched customer; preferred over case_ref when present.
+  customer_ref?: WorkforceRunCustomerRef | null
 }
 
 export type WorkforceRunSource = 'manual' | 'schedule' | 'webhook' | 'inbound_email'

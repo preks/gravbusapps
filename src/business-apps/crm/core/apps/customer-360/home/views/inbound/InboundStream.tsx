@@ -9,11 +9,15 @@ import {
 import type { WorkforceRun } from '@/business-apps/core/every-fabric/apps/every-fabric/components/enterprise-workforce/workforceTypes'
 import customer360I18n from '../../../_i18n'
 import type { CustomerSubjectType } from '../../../data/types'
+import { readInputMeta, readSenderEmail, readTriggerField } from './inboundRunFields'
+import type { InboundCustomerMatch } from './resolveCustomersByEmail'
 
 export interface InboundStreamProps {
   runs: WorkforceRun[]
   onOpenRun: (run: WorkforceRun) => void
   onOpenCustomer: (type: CustomerSubjectType, id: string) => void
+  /** View-time fallback matches keyed by lowercased sender email. */
+  emailMatches?: Record<string, InboundCustomerMatch>
 }
 
 interface MatchedCustomer {
@@ -22,44 +26,43 @@ interface MatchedCustomer {
   label: string
 }
 
-function readTriggerField(run: WorkforceRun, field: string): string {
-  const payload = run.trigger_payload
-  if (payload && typeof payload === 'object') {
-    const value = (payload as Record<string, unknown>)[field]
-    if (typeof value === 'string' && value.trim()) return value.trim()
-  }
-  return ''
-}
-
 /**
- * Fallback when the trigger payload has no structured sender/subject: the
- * inbound forwarder embeds them in the run input text as
- * `Inbound email from <addr>` / `Subject: <subject>`. Parse those so the
- * stream still shows who wrote and about what.
+ * The customer this run is about. Preference order:
+ * 1. persisted `customer_ref` (written by the backend when the run resolved
+ *    the customer itself),
+ * 2. derived `case_ref` from the run trace,
+ * 3. view-time email resolution with the viewer's token (`emailMatches`).
  */
-function readInputMeta(run: WorkforceRun, field: 'from' | 'subject'): string {
-  const input = run.input
-  if (!input) return ''
-  if (field === 'from') {
-    const match = input.match(/from[:\s]+([^\s<>"']+@[^\s<>"']+)/i)
-    return match ? match[1].trim() : ''
+function readMatchedCustomer(
+  run: WorkforceRun,
+  emailMatches?: Record<string, InboundCustomerMatch>
+): MatchedCustomer | null {
+  const customerRef = run.customer_ref
+  if (customerRef?.customerId && (customerRef.customerType === 'account' || customerRef.customerType === 'contact')) {
+    return {
+      type: customerRef.customerType,
+      id: customerRef.customerId,
+      label: customerRef.displayName || customerRef.customerId
+    }
   }
-  const match = input.match(/^\s*subject[:\s]+(.+)$/im)
-  return match ? match[1].trim() : ''
-}
-
-/** The customer the agent matched, derived from the run's case reference. */
-function readMatchedCustomer(run: WorkforceRun): MatchedCustomer | null {
   const caseRef = run.case_ref
-  if (!caseRef?.record_id) return null
-  const entity = (caseRef.entity_type ?? '').trim().toLowerCase()
-  if (entity !== 'account' && entity !== 'contact') return null
-  const label = caseRef.record_labels?.[caseRef.record_id]
-  return { type: entity, id: caseRef.record_id, label: label || caseRef.record_id }
+  if (caseRef?.record_id) {
+    const entity = (caseRef.entity_type ?? '').trim().toLowerCase()
+    if (entity === 'account' || entity === 'contact') {
+      const label = caseRef.record_labels?.[caseRef.record_id]
+      return { type: entity, id: caseRef.record_id, label: label || caseRef.record_id }
+    }
+  }
+  if (emailMatches) {
+    const sender = readSenderEmail(run)
+    const fallback = sender ? emailMatches[sender] : undefined
+    if (fallback) return { type: fallback.type, id: fallback.id, label: fallback.label }
+  }
+  return null
 }
 
 /** The inbound run table — sender, subject, matched customer, status, time. */
-const InboundStream: React.FC<InboundStreamProps> = ({ runs, onOpenRun, onOpenCustomer }) => {
+const InboundStream: React.FC<InboundStreamProps> = ({ runs, onOpenRun, onOpenCustomer, emailMatches }) => {
   const { t } = useFluentTranslation(customer360I18n)
   return (
     <div className="gba:overflow-x-auto" data-testid="customer-360-inbound-stream-table">
@@ -80,7 +83,7 @@ const InboundStream: React.FC<InboundStreamProps> = ({ runs, onOpenRun, onOpenCu
             const from = readTriggerField(run, 'from') || readInputMeta(run, 'from') || '—'
             const subject =
               readTriggerField(run, 'subject') || readInputMeta(run, 'subject') || shortenInput(run.input, 80) || '—'
-            const customer = readMatchedCustomer(run)
+            const customer = readMatchedCustomer(run, emailMatches)
             return (
               <tr key={run.session_id} data-testid={`customer-360-inbound-row-${run.session_id}`}>
                 <td className="gba:max-w-48 gba:truncate gba:px-3 gba:py-2 gba:text-foreground">{from}</td>
