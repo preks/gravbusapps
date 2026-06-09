@@ -54,20 +54,18 @@ const InboundView: React.FC<Customer360HomeViewProps> = ({ openCustomer, accessT
     })
   }, [t])
 
-  const handleOpenRun = useCallback(
-    (run: WorkforceRun) => {
-      if (!inbound.agentId) return
-      navigateTo(
-        buildPlatformUrl(Navigation.EVERY_FABRIC, {
-          view: 'enterprise-workforce',
-          agentId: inbound.agentId,
-          tab: 'runs',
-          runId: run.session_id
-        })
-      )
-    },
-    [inbound.agentId]
-  )
+  const handleOpenRun = useCallback((run: WorkforceRun) => {
+    const agentId = run.agent_id || ''
+    if (!agentId) return
+    navigateTo(
+      buildPlatformUrl(Navigation.EVERY_FABRIC, {
+        view: 'enterprise-workforce',
+        agentId,
+        tab: 'runs',
+        runId: run.session_id
+      })
+    )
+  }, [])
 
   return (
     <div className="gba:flex gba:flex-col gba:gap-4" data-testid={TEST_ID}>

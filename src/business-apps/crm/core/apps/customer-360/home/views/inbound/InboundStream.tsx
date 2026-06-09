@@ -31,6 +31,23 @@ function readTriggerField(run: WorkforceRun, field: string): string {
   return ''
 }
 
+/**
+ * Fallback when the trigger payload has no structured sender/subject: the
+ * inbound forwarder embeds them in the run input text as
+ * `Inbound email from <addr>` / `Subject: <subject>`. Parse those so the
+ * stream still shows who wrote and about what.
+ */
+function readInputMeta(run: WorkforceRun, field: 'from' | 'subject'): string {
+  const input = run.input
+  if (!input) return ''
+  if (field === 'from') {
+    const match = input.match(/from[:\s]+([^\s<>"']+@[^\s<>"']+)/i)
+    return match ? match[1].trim() : ''
+  }
+  const match = input.match(/^\s*subject[:\s]+(.+)$/im)
+  return match ? match[1].trim() : ''
+}
+
 /** The customer the agent matched, derived from the run's case reference. */
 function readMatchedCustomer(run: WorkforceRun): MatchedCustomer | null {
   const caseRef = run.case_ref
@@ -60,8 +77,9 @@ const InboundStream: React.FC<InboundStreamProps> = ({ runs, onOpenRun, onOpenCu
         <tbody className="gba:divide-y gba:divide-border">
           {runs.map(run => {
             const visual = runStatusVisual(run.status)
-            const from = readTriggerField(run, 'from') || '—'
-            const subject = readTriggerField(run, 'subject') || shortenInput(run.input, 80) || '—'
+            const from = readTriggerField(run, 'from') || readInputMeta(run, 'from') || '—'
+            const subject =
+              readTriggerField(run, 'subject') || readInputMeta(run, 'subject') || shortenInput(run.input, 80) || '—'
             const customer = readMatchedCustomer(run)
             return (
               <tr key={run.session_id} data-testid={`customer-360-inbound-row-${run.session_id}`}>
