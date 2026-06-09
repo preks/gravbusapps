@@ -11,6 +11,21 @@ retired-at-by = Retired at { $disposalDate } by { $responsiblePerson }
 # Allocate Asset validation
 issue-date-not-before-purchase = The asset cannot be allocated before the aquisition date.
 start-date-not-before-last-return = Allocation start date must be on or after the last return date.
+please_select_employee = Please select an employee.
+please_select_room = Please select a workplace room.
+room_required = Workplace room is required.
+
+# Allocate Asset form
+allocation_target = Allocation target
+select_allocation_target = Select allocation target
+allocation_target_employee = Employee
+allocation_target_workplace = Workplace
+workplace_room = Workplace room
+select_room = Select a room
+loading_rooms = Loading rooms...
+no_rooms_found = No rooms found
+rooms-load-error = Rooms could not be loaded.
+loading = Loading...
 
 # Actions
 generate_document = Generate document

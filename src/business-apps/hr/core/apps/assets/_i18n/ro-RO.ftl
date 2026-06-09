@@ -11,6 +11,21 @@ retired-at-by = Retras la { $disposalDate } de { $responsiblePerson }
 # Allocate Asset validation
 issue-date-not-before-purchase = Activul nu poate fi alocat înainte de data achiziției.
 start-date-not-before-last-return = Data de început a alocării trebuie să fie în ziua ultimei returnări sau după aceasta.
+please_select_employee = Selectează un angajat.
+please_select_room = Selectează o sală de lucru.
+room_required = Sala de lucru este obligatorie.
+
+# Allocate Asset form
+allocation_target = Ținta alocării
+select_allocation_target = Selectează ținta alocării
+allocation_target_employee = Angajat
+allocation_target_workplace = Loc de lucru
+workplace_room = Sală de lucru
+select_room = Selectează o sală
+loading_rooms = Se încarcă sălile...
+no_rooms_found = Nu au fost găsite săli
+rooms-load-error = Sălile nu au putut fi încărcate.
+loading = Se încarcă...
 
 # Actions
 generate_document = Generează document

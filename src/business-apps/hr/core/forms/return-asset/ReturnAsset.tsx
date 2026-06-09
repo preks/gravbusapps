@@ -157,10 +157,12 @@ const ReturnAssetContent: React.FC<BusinessAppContextProps> = (context: Business
     loadData()
   }, [assetId, existingAsset, assetService])
 
-  const employeeDisplayName = currentAllocation?.employee
-    ? currentAllocation.employee.displayName ||
-      `${currentAllocation.employee.firstName} ${currentAllocation.employee.lastName}`.trim()
-    : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.employee', 'Employee')
+  const allocationTargetDisplayName =
+    currentAllocation?.room?.name ||
+    (currentAllocation?.employee
+      ? currentAllocation.employee.displayName ||
+        `${currentAllocation.employee.firstName} ${currentAllocation.employee.lastName}`.trim()
+      : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.employee', 'Employee'))
 
   const formFields = (
     <div className="gba:flex-1 gba:space-y-4">
@@ -181,7 +183,7 @@ const ReturnAssetContent: React.FC<BusinessAppContextProps> = (context: Business
           <p className="gba:text-sm gba:font-medium">
             {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.currently_allocated_to', 'Currently allocated to')}:
           </p>
-          <p className="gba:text-sm">{employeeDisplayName}</p>
+          <p className="gba:text-sm">{allocationTargetDisplayName}</p>
           <p className="gba:text-xs gba:text-muted-foreground">
             {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.since', 'Since')}:{' '}
             {currentAllocation.startDate
@@ -414,7 +416,8 @@ const ReturnAssetContent: React.FC<BusinessAppContextProps> = (context: Business
                       startAssetConditionRef: currentAllocation.startAssetConditionRef,
                       endAssetConditionRef: values.endAssetConditionRef,
                       notes: values.notes || currentAllocation.notes,
-                      employee: currentAllocation.employeeId,
+                      ...(currentAllocation.employeeId ? { employee: currentAllocation.employeeId } : {}),
+                      ...(currentAllocation.roomId ? { room: currentAllocation.roomId } : {}),
                       asset: assetId
                     }
 
@@ -437,7 +440,8 @@ const ReturnAssetContent: React.FC<BusinessAppContextProps> = (context: Business
                         employeeAsset: {
                           id: currentAllocation.id,
                           assetId: assetId,
-                          employeeId: currentAllocation.employeeId,
+                          ...(currentAllocation.employeeId ? { employeeId: currentAllocation.employeeId } : {}),
+                          ...(currentAllocation.roomId ? { roomId: currentAllocation.roomId } : {}),
                           endDate: values.endDate
                         },
                         asset: {

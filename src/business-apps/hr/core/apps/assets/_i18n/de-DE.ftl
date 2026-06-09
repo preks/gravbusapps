@@ -11,6 +11,21 @@ retired-at-by = Außer Betrieb genommen am { $disposalDate } von { $responsibleP
 # Allocate Asset validation
 issue-date-not-before-purchase = Die Zuweisung kann nicht vor dem Erwerbsdatum erfolgen.
 start-date-not-before-last-return = Das Zuweisungsstartdatum muss am oder nach dem letzten Rückgabedatum liegen.
+please_select_employee = Bitte wählen Sie einen Mitarbeiter aus.
+please_select_room = Bitte wählen Sie einen Arbeitsplatzraum aus.
+room_required = Arbeitsplatzraum ist erforderlich.
+
+# Allocate Asset form
+allocation_target = Zuweisungsziel
+select_allocation_target = Zuweisungsziel auswählen
+allocation_target_employee = Mitarbeiter
+allocation_target_workplace = Arbeitsplatz
+workplace_room = Arbeitsplatzraum
+select_room = Raum auswählen
+loading_rooms = Räume werden geladen...
+no_rooms_found = Keine Räume gefunden
+rooms-load-error = Räume konnten nicht geladen werden.
+loading = Wird geladen...
 
 # Actions
 generate_document = Dokument erstellen
