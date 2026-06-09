@@ -265,13 +265,13 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
       ]
     },
     {
-      title: tIcp('data-export-settings-card-title'),
-      description: tIcp('data-export-settings-card-description'),
+      title: tCustomerSettings('data-export-settings-card-title'),
+      description: tCustomerSettings('data-export-settings-card-description'),
       icon: FileArrowDownIcon,
       iconSize: 'md' as const,
       entries: [
         {
-          label: tIcp('data-export-settings-card-entry'),
+          label: tCustomerSettings('data-export-settings-card-entry'),
           onClick: () => handleInlinePageChange({ key: 'data-export' })
         }
       ]
