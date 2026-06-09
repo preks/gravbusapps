@@ -27,10 +27,10 @@ function loadPersistedWidth(): number {
   return DEFAULT_WIDTH
 }
 
-export function useResizableSidebar(): UseResizableSidebarReturn {
+export function useResizableSidebar(initialCollapsed = false): UseResizableSidebarReturn {
   const [width, setWidth] = useState(loadPersistedWidth)
   const [isResizing, setIsResizing] = useState(false)
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isCollapsed, setIsCollapsed] = useState(initialCollapsed)
   const startXRef = useRef(0)
   const startWidthRef = useRef(0)
 

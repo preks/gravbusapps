@@ -3,6 +3,7 @@ nh-parent-label = Every Office
 nh-title = Notițe
 nh-tabs-aria-label = Secțiuni notițe
 nh-tab-my-notes = Notițele mele
+nh-tab-favorites = Favorite
 nh-tab-shared = Partajate
 nh-tab-pinned = Fixate
 nh-tab-recent = Recente

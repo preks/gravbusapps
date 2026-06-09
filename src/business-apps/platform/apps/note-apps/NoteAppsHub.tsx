@@ -1,6 +1,15 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
-import { useTranslation } from '@newwork/nw-design-system'
+import {
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  useTranslation
+} from '@newwork/nw-design-system'
+import { Plus, FileText, PenTool, FolderPlus } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
@@ -8,6 +17,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEE_LIGHT_BY_USER_ID } from '@/common/data/employee/queries/employeeQueries'
 
 import { NoteTreeSidebar } from './components/NoteTreeSidebar'
+import { NoteHero } from './components/NoteHero'
 import { NoteContentArea } from './components/NoteContentArea'
 import { NoteEditor } from './NoteEditor'
 import { HandwritingNote } from './components/HandwritingNote'
@@ -149,7 +159,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     setActiveSection
   })
 
-  const sidebar = useResizableSidebar()
+  const sidebar = useResizableSidebar(true)
 
   const dragDrop = useNoteTreeDragDrop({
     flatNodes: noteTree.flatNodes,
@@ -986,12 +996,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
       expandedIds={noteTree.expandedIds}
       selectedId={noteTree.selectedId}
       isLoadingTree={noteTree.isLoading}
-      activeQuickAccess={activeQuickAccess}
-      quickAccessCounts={quickAccessCounts}
-      searchQuery={searchQuery}
       dragDrop={dragDrop}
-      onSearchChange={setSearchQuery}
-      onQuickAccessChange={handleQuickAccessChange}
       onSelectNode={handleTreeSelect}
       onToggleExpand={noteTree.toggleExpand}
       onCreateNote={opts => handleCreateNew(opts)}
@@ -1003,6 +1008,59 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
       onResizeStart={sidebar.handleMouseDown}
     />
   ) : null
+
+  // "New" dropdown rendered inside the hero header (mirrors the office apps layout)
+  const heroNewButton = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          size="sm"
+          className="gba:gap-1.5 gba:bg-white/15 gba:text-white gba:border gba:border-white/20 hover:gba:bg-white/25 gba:backdrop-blur-sm"
+          data-testid={`${testId}-hero-new-btn`}
+        >
+          <Plus className="gba:w-4 gba:h-4" />
+          {t('sidebar-new')}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="gba:w-52">
+        <DropdownMenuItem onClick={() => handleCreateNew()}>
+          <FileText className="gba:w-4 gba:h-4 gba:mr-2 gba:text-warning" />
+          <div>
+            <div className="gba:font-medium gba:text-sm">{t('menu-new-text-title')}</div>
+            <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-text-description')}</div>
+          </div>
+        </DropdownMenuItem>
+        {previewEnabled ? (
+          <DropdownMenuItem onClick={() => handleCreateNew({ noteType: 'handwriting' })}>
+            <PenTool className="gba:w-4 gba:h-4 gba:mr-2 gba:text-info" />
+            <div>
+              <div className="gba:font-medium gba:text-sm">{t('menu-new-handwriting-title')}</div>
+              <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-handwriting-description')}</div>
+            </div>
+          </DropdownMenuItem>
+        ) : null}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleCreateFolder}>
+          <FolderPlus className="gba:w-4 gba:h-4 gba:mr-2" />
+          <div>
+            <div className="gba:font-medium gba:text-sm">{t('menu-new-folder-title')}</div>
+            <div className="gba:text-xs gba:text-muted-foreground">{t('menu-new-folder-description')}</div>
+          </div>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+
+  const notesHero = (
+    <NoteHero
+      activeSection={activeQuickAccess}
+      onSectionChange={handleQuickAccessChange}
+      newButton={heroNewButton}
+      counts={quickAccessCounts}
+      t={t}
+      data-testid={`${testId}-hero`}
+    />
+  )
 
   if (currentView === 'trash' && selectedNoteId && !currentNote) {
     return (
@@ -1019,20 +1077,23 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
 
   if (currentView === 'list' && activeSection === 'trash') {
     return (
-      <div className="gba:flex gba:h-full gba:bg-background" data-testid={testId}>
-        {sidebarElement}
-        <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:p-6">
-          <NoteTrashList
-            accessToken={accessToken}
-            currentUserId={currentUserId}
-            searchQuery={searchQuery}
-            onOpenItem={item => handleOpenTrashedNote(item.id)}
-            onItemsChanged={() => {
-              void refreshNotes()
-              void loadTrashCount()
-              noteTree.loadTree()
-            }}
-          />
+      <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
+        {notesHero}
+        <div className="gba:flex gba:flex-1 gba:min-h-0">
+          {sidebarElement}
+          <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:overflow-auto gba:p-6">
+            <NoteTrashList
+              accessToken={accessToken}
+              currentUserId={currentUserId}
+              searchQuery={searchQuery}
+              onOpenItem={item => handleOpenTrashedNote(item.id)}
+              onItemsChanged={() => {
+                void refreshNotes()
+                void loadTrashCount()
+                noteTree.loadTree()
+              }}
+            />
+          </div>
         </div>
       </div>
     )
@@ -1247,73 +1308,76 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     )
   }
 
-  // List view: sidebar + content
+  // List view: hero + (sidebar + content)
   return (
-    <div className="gba:flex gba:h-full gba:bg-background" data-testid={testId}>
-      {sidebarElement}
+    <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
+      {notesHero}
 
-      {/* Content */}
-      <NoteContentArea
-        notes={paginatedNotes}
-        breadcrumbs={breadcrumbs}
-        viewLayout={viewLayout}
-        sortBy={sortBy}
-        sortOrder={sortOrder}
-        isLoading={isLoadingNotes}
-        error={notesError}
-        isSidebarCollapsed={sidebar.isCollapsed}
-        currentUserId={currentUserId}
-        selectedNotes={selectedNotes}
-        favorites={favorites}
-        ownerInfoMap={ownerInfoMap}
-        activeSection={activeSection}
-        onViewLayoutChange={setViewLayout}
-        onSortByChange={setSortBy}
-        onSortOrderToggle={() => setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'))}
-        onBreadcrumbClick={handleBreadcrumbNav}
-        onToggleSidebar={sidebar.toggleCollapsed}
-        onCreateNote={opts => handleCreateNew({ ...opts, parentId: currentFolderId || undefined })}
-        onCreateFolder={handleCreateFolder}
-        onRefresh={() => {
-          refreshNotes()
-          noteTree.loadTree()
-        }}
-        onOpenNote={handleOpenNote}
-        onOpenFolder={handleOpenFolder}
-        onDeleteNote={handleDeleteNote}
-        onDuplicateNote={handleDuplicateNote}
-        onTogglePin={handleTogglePin}
-        onShareNote={handleShareNote}
-        onManageShares={handleManageShares}
-        hasSharesForNote={hasSharesForNote}
-        onCopyLink={copyLink}
-        onToggleFavorite={toggleFavorite}
-        onToggleSelect={toggleSelectNote}
-        onSelectAll={selectAllNotes}
-        onBulkDelete={canBulkDeleteNotes ? handleBulkDelete : undefined}
-        onBulkPin={handleBulkPin}
-        onClearSelection={handleClearSelection}
-        onMoveToFolder={handleMoveToFolder}
-        onRenameNote={handleRenameNote}
-        handwritingNotesEnabled={previewEnabled}
-      />
+      <div className="gba:flex gba:flex-1 gba:min-h-0">
+        {sidebarElement}
 
-      {/* Pagination */}
-      {!isLoadingNotes && filteredNotes.length > 0 && (
-        <div
-          className="gba:absolute gba:bottom-0 gba:right-0 gba:left-0"
-          style={!sidebar.isCollapsed ? { marginLeft: `${sidebar.width}px` } : undefined}
-        >
-          <HubPaginationFooter
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={totalItems}
-            pageSize={pageSize}
-            onPageChange={goToPage}
-            data-testid={`${testId}-pagination`}
+        <div className="gba:flex gba:flex-col gba:flex-1 gba:min-w-0">
+          {/* Content */}
+          <NoteContentArea
+            notes={paginatedNotes}
+            breadcrumbs={breadcrumbs}
+            viewLayout={viewLayout}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            isLoading={isLoadingNotes}
+            error={notesError}
+            isSidebarCollapsed={sidebar.isCollapsed}
+            currentUserId={currentUserId}
+            selectedNotes={selectedNotes}
+            favorites={favorites}
+            ownerInfoMap={ownerInfoMap}
+            activeSection={activeSection}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            onViewLayoutChange={setViewLayout}
+            onSortByChange={setSortBy}
+            onSortOrderToggle={() => setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'))}
+            onBreadcrumbClick={handleBreadcrumbNav}
+            onToggleSidebar={sidebar.toggleCollapsed}
+            onCreateNote={opts => handleCreateNew({ ...opts, parentId: currentFolderId || undefined })}
+            onRefresh={() => {
+              refreshNotes()
+              noteTree.loadTree()
+            }}
+            onOpenNote={handleOpenNote}
+            onOpenFolder={handleOpenFolder}
+            onDeleteNote={handleDeleteNote}
+            onDuplicateNote={handleDuplicateNote}
+            onTogglePin={handleTogglePin}
+            onShareNote={handleShareNote}
+            onManageShares={handleManageShares}
+            hasSharesForNote={hasSharesForNote}
+            onCopyLink={copyLink}
+            onToggleFavorite={toggleFavorite}
+            onToggleSelect={toggleSelectNote}
+            onSelectAll={selectAllNotes}
+            onBulkDelete={canBulkDeleteNotes ? handleBulkDelete : undefined}
+            onBulkPin={handleBulkPin}
+            onClearSelection={handleClearSelection}
+            onMoveToFolder={handleMoveToFolder}
+            onRenameNote={handleRenameNote}
           />
+
+          {/* Pagination */}
+          {!isLoadingNotes && filteredNotes.length > 0 && (
+            <div className="gba:flex-shrink-0 gba:max-w-6xl gba:mx-auto gba:w-full">
+              <HubPaginationFooter
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                pageSize={pageSize}
+                onPageChange={goToPage}
+                data-testid={`${testId}-pagination`}
+              />
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       <DeleteConfirmDialog
         open={trashConfirmOpen}
