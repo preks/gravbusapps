@@ -32,3 +32,9 @@ validation-description-too-long = Die Beschreibung darf maximal 100 Zeichen lang
 validation-probation-value-invalid = Muss eine positive Zahl mit maximal 4 Ziffern sein
 validation-probation-unit-required = Einheit ist erforderlich, wenn ein Wert eingegeben wurde. Entweder den Wert entfernen oder eine Einheit auswählen.
 validation-no-leading-whitespace = Darf nicht mit einem Leerzeichen beginnen
+
+# Toggle fields
+field-payroll-relevant-label = Lohnrelevant
+field-payroll-relevant-description = Wenn aktiviert, wird diese Vertragsart als lohnrelevant behandelt.
+field-time-relevant-label = Zeitrelevant
+field-time-relevant-description = Wenn aktiviert, wird erwartet, dass Mitarbeiter mit dieser Vertragsart ihre Arbeitszeit erfassen.

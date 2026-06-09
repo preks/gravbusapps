@@ -9,6 +9,7 @@ export type ContractTypeAdditionalJson = {
 
 export type ContractTypeObjectValue = JSONObject & {
   payroll_relevant?: boolean
+  time_relevant?: boolean
 }
 
 export function parseContractTypeJson(additionalValue2?: string): ContractTypeAdditionalJson {
@@ -40,13 +41,24 @@ export function getContractTypeObjectValue(entry: {
   const objectValue = asCatalogObjectValue(entry.objectValue)
   return {
     ...objectValue,
-    payroll_relevant: objectValue.payroll_relevant === true
+    payroll_relevant: objectValue.payroll_relevant === true,
+    time_relevant: objectValue.time_relevant === true
   }
 }
 
+function getContractTypeBooleanFlag(
+  entry: { objectValue?: CatalogEntry['objectValue'] },
+  key: keyof ContractTypeObjectValue
+): boolean {
+  return asCatalogObjectValue(entry.objectValue)[key] === true
+}
+
 export function getContractTypePayrollRelevant(entry: { objectValue?: CatalogEntry['objectValue'] }): boolean {
-  const objectValue = asCatalogObjectValue(entry.objectValue)
-  return objectValue.payroll_relevant === true
+  return getContractTypeBooleanFlag(entry, 'payroll_relevant')
+}
+
+export function getContractTypeTimeRelevant(entry: { objectValue?: CatalogEntry['objectValue'] }): boolean {
+  return getContractTypeBooleanFlag(entry, 'time_relevant')
 }
 
 export function isEmploymentTypeMarkedDeleted(entry: { isDeleted?: boolean }): boolean {
