@@ -1103,7 +1103,7 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
         'react-dom'
       ],
       esbuildOptions: {
-        target: 'es2020',
+        target: 'es2022',
         plugins: [
           {
             name: 'patch-roughjs-nan-guard',
