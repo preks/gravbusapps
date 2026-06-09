@@ -189,10 +189,6 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
 
   const { folders, inboxFolder } = useEmailFolders(accessToken, defaultAccount?.id)
 
-  // When realtime is connected, new mail is pushed instantly so we can fall
-  // back to a slower safety poll; otherwise keep the responsive 15s poll.
-  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false)
-
   const {
     messages,
     selectedMessage,
@@ -216,12 +212,16 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     labels: selectedLabels.length ? selectedLabels : undefined,
     starredOnly,
     threadView: threadViewEnabled,
-    autoRefreshInterval: isRealtimeConnected ? 60000 : 15000
+    // Always keep the responsive 15s safety poll: a connected socket only
+    // proves the client reached the gateway, not that the backend actually
+    // emits email:new (e.g. Graph webhooks unconfigured or a missed event),
+    // so slowing down on connect risked stale inboxes for up to a minute.
+    autoRefreshInterval: 15000
   })
 
   // Instant push updates: refresh the active list the moment new mail arrives,
   // instead of waiting for the polling interval. Polling remains as a fallback.
-  const { isConnected: realtimeConnected } = useEmailRealtime({
+  useEmailRealtime({
     accessToken,
     accountId: defaultAccount?.id,
     enabled: Boolean(defaultAccount?.id),
@@ -229,10 +229,6 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
       void refreshMessages(true)
     }, [refreshMessages])
   })
-
-  useEffect(() => {
-    setIsRealtimeConnected(realtimeConnected)
-  }, [realtimeConnected])
 
   // Directory hook for auto-suggest (org directory + provider contacts)
   const { searchContacts, addRecentRecipients, findDirectoryUserMatch } = useEmailDirectory(accessToken, accounts)
