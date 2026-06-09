@@ -5,7 +5,6 @@ import type { UniverSheetGridHandle } from '../UniverSheetGrid.types'
 import { extractFormatMenuLabel, getGermanNumfmtPattern } from '../univerSheetGridShared'
 import * as univerGridOverlayCellRect from '../univerGridOverlayCellRect'
 import {
-  directCommandExecutedHandler,
   eventHandlers,
   executeCommandMock,
   gridTestMockState,
@@ -1237,35 +1236,221 @@ describe('UniverSheetGrid read-only behavior', () => {
     expect(onColumnsMove).toHaveBeenCalledWith(1, 2, 4)
   })
 
-  it('routes direct Univer command-service column reorder events to onColumnsMove', () => {
-    const onColumnsMove = jest.fn()
+  it('cancels native column reorder before command when the move would split a merge from the live workbook snapshot', () => {
+    const moveColumns = [
+      { ...columns[0], id: 'col-a', name: 'column_a', label: 'Column A', order: 0 },
+      { ...columns[0], id: 'col-b', name: 'column_b', label: 'Column B', order: 1 },
+      { ...columns[0], id: 'col-c', name: 'column_c', label: 'Column C', order: 2 }
+    ]
+    gridTestMockState.workbookSnapshotOverride = {
+      sheetOrder: ['sheet-1'],
+      sheets: {
+        'sheet-1': {
+          mergeData: [{ startRow: 6, endRow: 14, startColumn: 1, endColumn: 2 }]
+        }
+      }
+    }
 
     render(
       <UniverSheetGrid
         sheet={sheet}
         data={data}
-        columns={columns}
+        columns={moveColumns}
         isReadOnly={false}
         onCellChange={jest.fn()}
         onCellsChange={jest.fn()}
         onDataChange={jest.fn()}
-        onColumnsMove={onColumnsMove}
       />
     )
 
-    directCommandExecutedHandler?.({
-      type: 0,
+    const event = {
+      id: 'sheet.command.move-cols',
+      params: {
+        subUnitId: 'sheet-1',
+        fromRange: { startRow: 0, endRow: 99, startColumn: 2, endColumn: 2 },
+        toRange: { startRow: 0, endRow: 99, startColumn: 1, endColumn: 1 },
+        range: { startRow: 0, endRow: 99, startColumn: 2, endColumn: 2 }
+      }
+    }
+
+    eventHandlers.BeforeCommandExecute?.(event)
+
+    expect(event.cancel).toBe(true)
+  })
+
+  it('cancels native column reorder before command when the destination lands inside a merge', () => {
+    const moveColumns = [
+      { ...columns[0], id: 'col-a', name: 'column_a', label: 'Column A', order: 0 },
+      { ...columns[0], id: 'col-b', name: 'column_b', label: 'Column B', order: 1 },
+      { ...columns[0], id: 'col-c', name: 'column_c', label: 'Column C', order: 2 },
+      { ...columns[0], id: 'col-d', name: 'column_d', label: 'Column D', order: 3 },
+      { ...columns[0], id: 'col-e', name: 'column_e', label: 'Column E', order: 4 }
+    ]
+    gridTestMockState.workbookSnapshotOverride = {
+      sheetOrder: ['sheet-1'],
+      sheets: {
+        'sheet-1': {
+          mergeData: [{ startRow: 6, endRow: 14, startColumn: 1, endColumn: 2 }]
+        }
+      }
+    }
+
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={data}
+        columns={moveColumns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onCellsChange={jest.fn()}
+        onDataChange={jest.fn()}
+      />
+    )
+
+    const event = {
+      id: 'sheet.command.move-cols',
+      params: {
+        subUnitId: 'sheet-1',
+        fromRange: { startRow: 0, endRow: 99, startColumn: 3, endColumn: 3 },
+        toRange: { startRow: 0, endRow: 99, startColumn: 2, endColumn: 2 },
+        range: { startRow: 0, endRow: 99, startColumn: 3, endColumn: 3 }
+      }
+    }
+
+    eventHandlers.BeforeCommandExecute?.(event)
+
+    expect(event.cancel).toBe(true)
+  })
+
+  it('cancels native column reorder before command when a rightward move crosses a merge span', () => {
+    const moveColumns = [
+      { ...columns[0], id: 'col-a', name: 'column_a', label: 'Column A', order: 0 },
+      { ...columns[0], id: 'col-b', name: 'column_b', label: 'Column B', order: 1 },
+      { ...columns[0], id: 'col-c', name: 'column_c', label: 'Column C', order: 2 },
+      { ...columns[0], id: 'col-d', name: 'column_d', label: 'Column D', order: 3 },
+      { ...columns[0], id: 'col-e', name: 'column_e', label: 'Column E', order: 4 }
+    ]
+    gridTestMockState.workbookSnapshotOverride = {
+      sheetOrder: ['sheet-1'],
+      sheets: {
+        'sheet-1': {
+          mergeData: [{ startRow: 6, endRow: 14, startColumn: 2, endColumn: 3 }]
+        }
+      }
+    }
+
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={data}
+        columns={moveColumns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onCellsChange={jest.fn()}
+        onDataChange={jest.fn()}
+      />
+    )
+
+    const event = {
+      id: 'sheet.command.move-cols',
+      params: {
+        subUnitId: 'sheet-1',
+        fromRange: { startRow: 0, endRow: 99, startColumn: 1, endColumn: 1 },
+        toRange: { startRow: 0, endRow: 99, startColumn: 5, endColumn: 5 },
+        range: { startRow: 0, endRow: 99, startColumn: 1, endColumn: 1 }
+      }
+    }
+
+    eventHandlers.BeforeCommandExecute?.(event)
+
+    expect(event.cancel).toBe(true)
+  })
+
+  it('cancels native column reorder before command when only the raw rightward destination path crosses a merge span', () => {
+    const moveColumns = Array.from({ length: 12 }, (_, index) => ({
+      ...columns[0],
+      id: `col-${index}`,
+      name: `column_${index}`,
+      label: `Column ${index}`,
+      order: index
+    }))
+    gridTestMockState.workbookSnapshotOverride = {
+      sheetOrder: ['sheet-1'],
+      sheets: {
+        'sheet-1': {
+          mergeData: [{ startRow: 6, endRow: 14, startColumn: 10, endColumn: 11 }]
+        }
+      }
+    }
+
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={data}
+        columns={moveColumns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onCellsChange={jest.fn()}
+        onDataChange={jest.fn()}
+      />
+    )
+
+    const event = {
+      id: 'sheet.command.move-cols',
+      params: {
+        subUnitId: 'sheet-1',
+        fromRange: { startRow: 0, endRow: 99, startColumn: 8, endColumn: 8 },
+        toRange: { startRow: 0, endRow: 99, startColumn: 10, endColumn: 10 },
+        range: { startRow: 0, endRow: 99, startColumn: 8, endColumn: 8 }
+      }
+    }
+
+    eventHandlers.BeforeCommandExecute?.(event)
+
+    expect(event.cancel).toBe(true)
+  })
+
+  it('keeps native column reorder enabled before command when the move carries the whole merged block', () => {
+    const moveColumns = [
+      { ...columns[0], id: 'col-a', name: 'column_a', label: 'Column A', order: 0 },
+      { ...columns[0], id: 'col-b', name: 'column_b', label: 'Column B', order: 1 },
+      { ...columns[0], id: 'col-c', name: 'column_c', label: 'Column C', order: 2 },
+      { ...columns[0], id: 'col-d', name: 'column_d', label: 'Column D', order: 3 }
+    ]
+    gridTestMockState.workbookSnapshotOverride = {
+      sheetOrder: ['sheet-1'],
+      sheets: {
+        'sheet-1': {
+          mergeData: [{ startRow: 6, endRow: 14, startColumn: 1, endColumn: 2 }]
+        }
+      }
+    }
+
+    render(
+      <UniverSheetGrid
+        sheet={sheet}
+        data={data}
+        columns={moveColumns}
+        isReadOnly={false}
+        onCellChange={jest.fn()}
+        onCellsChange={jest.fn()}
+        onDataChange={jest.fn()}
+      />
+    )
+
+    const event = {
       id: 'sheet.command.move-cols',
       params: {
         subUnitId: 'sheet-1',
         fromRange: { startRow: 0, endRow: 99, startColumn: 1, endColumn: 2 },
-        toRange: { startRow: 0, endRow: 99, startColumn: 4, endColumn: 5 },
+        toRange: { startRow: 0, endRow: 99, startColumn: 0, endColumn: 1 },
         range: { startRow: 0, endRow: 99, startColumn: 1, endColumn: 2 }
       }
-    })
+    }
 
-    expect(onColumnsMove).toHaveBeenCalledTimes(1)
-    expect(onColumnsMove).toHaveBeenCalledWith(1, 2, 4)
+    eventHandlers.BeforeCommandExecute?.(event)
+
+    expect(event.cancel).not.toBe(true)
   })
 
   it('routes native row move mutations to the dedicated callback', () => {

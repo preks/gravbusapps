@@ -86,6 +86,39 @@ function makeDeps(overrides: Partial<any> = {}) {
 }
 
 describe('resolveDetectedCellMutation', () => {
+  it('drops mutations when active workbook access hits a transient redi cycle', () => {
+    const deps = makeDeps({
+      deps: {
+        univerAPIRef: {
+          current: {
+            getActiveWorkbook: () => {
+              throw new Error('[redi]: Detecting cyclic dependency. The last identifier is "E11".')
+            }
+          }
+        }
+      }
+    })
+
+    const result = resolveDetectedCellMutation(deps, {
+      source: 'command-executed',
+      commandId: 'sheet.command.set-range-bold',
+      ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }],
+      payloadCellValue: undefined,
+      worksheetId: 'sheet-1'
+    })
+
+    expect(result).toEqual({ status: 'return', value: false })
+    expect(deps.callbacksRef.current.onDiagnosticsTraceEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stage: 'grid_mutation_skipped_workbook_unavailable',
+        payload: expect.objectContaining({
+          source: 'command-executed',
+          explicitWorksheetId: 'sheet-1'
+        })
+      })
+    )
+  })
+
   it('consumes autofill intent on sheet-value-changed using the mutation ranges', () => {
     const peekAutofillApplyType = jest.fn().mockReturnValue('COPY')
     const deps = makeDeps({

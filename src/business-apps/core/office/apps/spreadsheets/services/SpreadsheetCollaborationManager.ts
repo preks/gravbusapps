@@ -46,6 +46,7 @@ import {
   visibleGridColumnIndexFromColumn
 } from '../utils/spreadsheetColumnGridIndex'
 import {
+  explicitColumnReorderMovesReachTarget,
   classifyNativeColumnReorderWithMerges,
   normalizeColumnMoveDestinationIndex,
   visibleColumnsInGridOrder,
@@ -53,7 +54,11 @@ import {
 } from '../utils/spreadsheetColumnReorderMoves'
 import { applyColumnVisibilityRangesToSpreadsheetColumns } from '../utils/spreadsheetColumnVisibilityMetadata'
 import { createUniverConversionContext, snapshotTrackingHeaderMatchesColumnLabels } from '../utils/univerAdapter'
-import type { AuthoritativeGridRegion, AuthoritativeGridReapplyTarget } from '../utils/spreadsheetAuthoritativeRegion'
+import type {
+  AuthoritativeGridRegion,
+  AuthoritativeGridReapplyTarget,
+  PendingLocalFilterPolicy
+} from '../utils/spreadsheetAuthoritativeRegion'
 import {
   resolveBackendDirtyRegionsToAuthoritativeRegions,
   type SpreadsheetDirtyRegion
@@ -1246,9 +1251,20 @@ export class SpreadsheetCollaborationManager {
     this.confirmedPhysicalColumnOrderBySheetId.set(sheetId, [...columnIds])
   }
 
+  private clearConfirmedPhysicalColumnOrder(sheetId: string): void {
+    if (!sheetId) return
+    this.confirmedPhysicalColumnOrderBySheetId.delete(sheetId)
+  }
+
   private getConfirmedPhysicalColumnOrder(sheetId: string): string[] | null {
     const columnIds = this.confirmedPhysicalColumnOrderBySheetId.get(sheetId)
     return Array.isArray(columnIds) && columnIds.length > 0 ? [...columnIds] : null
+  }
+
+  private hasMatchingVisibleColumnOrder(left: SpreadsheetColumn[], right: SpreadsheetColumn[]): boolean {
+    const leftIds = this.getVisibleColumnIds(left)
+    const rightIds = this.getVisibleColumnIds(right)
+    return leftIds.length === rightIds.length && leftIds.every((columnId, index) => columnId === rightIds[index])
   }
 
   private rebuildColumnsWithVisibleOrder(
@@ -1356,19 +1372,31 @@ export class SpreadsheetCollaborationManager {
     sheetId: string
     nextColumns: SpreadsheetColumn[]
     reason: string
+    confirmedPhysicalOrderStrategy?: 'set-next' | 'clear'
+    pendingLocalFilterPolicy?: PendingLocalFilterPolicy
     traceMeta?: { traceSessionId?: string; traceId?: string; batchId?: string; tabId?: string }
   }): void {
-    this.setConfirmedPhysicalColumnOrder(params.sheetId, params.nextColumns)
     this.callbacks.onRemoteColumnUpdate?.({
       sheetId: params.sheetId,
       columns: params.nextColumns
     })
-    this.callbacks.forceGridReapply?.(params.sheetId, null, {
-      allowFullGridReapply: true,
-      clearAllSignatures: true,
-      preferBulk: true,
-      reason: params.reason
-    })
+    const canScheduleRepair = typeof this.callbacks.forceGridReapply === 'function'
+    if (canScheduleRepair) {
+      this.callbacks.forceGridReapply?.(params.sheetId, null, {
+        allowFullGridReapply: true,
+        clearAllSignatures: true,
+        preferBulk: true,
+        reason: params.reason,
+        pendingLocalFilterPolicy: params.pendingLocalFilterPolicy
+      })
+    }
+    if (params.confirmedPhysicalOrderStrategy === 'clear') {
+      if (canScheduleRepair) {
+        this.clearConfirmedPhysicalColumnOrder(params.sheetId)
+      }
+    } else {
+      this.setConfirmedPhysicalColumnOrder(params.sheetId, params.nextColumns)
+    }
     this.traceEvent({
       source: 'client',
       stage: 'client_collab_column_structure_repair_requested',
@@ -1379,7 +1407,8 @@ export class SpreadsheetCollaborationManager {
       payload: {
         sheetId: params.sheetId,
         reason: params.reason,
-        visibleColumnCount: params.nextColumns.filter(column => column.isVisible !== false).length
+        visibleColumnCount: params.nextColumns.filter(column => column.isVisible !== false).length,
+        repairHandoffScheduled: canScheduleRepair
       }
     })
   }
@@ -4981,7 +5010,10 @@ export class SpreadsheetCollaborationManager {
       {
         sourceStartColumn: Math.max(0, Math.trunc(sourceStartIndex)),
         count: Math.max(1, Math.trunc(count)),
-        destinationStartColumn: Math.max(0, Math.trunc(destinationStartColumn))
+        destinationStartColumn: Math.max(0, Math.trunc(destinationStartColumn)),
+        ...(Number.isFinite(destinationIndex)
+          ? { rawDestinationStartColumn: Math.max(0, Math.trunc(destinationIndex)) }
+          : {})
       }
     ]
   }
@@ -5211,6 +5243,7 @@ export class SpreadsheetCollaborationManager {
         })
         return
       }
+      this.clearConfirmedPhysicalColumnOrder(committedBatch.sheetId)
       this.callbacks.forceGridReapply?.(committedBatch.sheetId, null, {
         allowFullGridReapply: true,
         clearAllSignatures: true,
@@ -6483,13 +6516,33 @@ export class SpreadsheetCollaborationManager {
     traceMeta?: { traceSessionId?: string; traceId?: string; batchId?: string; tabId?: string }
     isLocalEcho?: boolean
   }): void {
-    const hadConfirmedPhysicalOrder = this.getConfirmedPhysicalColumnOrder(params.sheetId) != null
-    const previousColumnsForGrid =
+    const confirmedPreviousColumnsForGrid =
       this.buildColumnsUsingConfirmedPhysicalOrder({
         sheetId: params.sheetId,
         columns: params.previousColumns,
         seedIfMissing: params.sheetId === this.callbacks.getActiveSheetId()
       }) ?? params.previousColumns
+    const snapshotOrderedPreviousColumns = this.buildSnapshotOrderedPreviousColumns(params.sheetId, params.nextColumns)
+    const explicitMoves = params.moves?.filter(move => move.count > 0) ?? []
+    const replayBaseCandidates = [
+      { strategy: 'confirmed_physical_order', columns: confirmedPreviousColumnsForGrid },
+      { strategy: 'committed_previous_columns', columns: params.previousColumns },
+      { strategy: 'snapshot_physical_order', columns: snapshotOrderedPreviousColumns ?? null }
+    ]
+    const matchingReplayBase =
+      explicitMoves.length > 0
+        ? replayBaseCandidates.find(
+            candidate =>
+              Array.isArray(candidate.columns) &&
+              explicitColumnReorderMovesReachTarget({
+                previousColumns: candidate.columns,
+                nextColumns: params.nextColumns,
+                explicitMoves
+              })
+          )
+        : null
+    const previousColumnsForGrid = matchingReplayBase?.columns ?? confirmedPreviousColumnsForGrid
+    const replayBaseStrategy = matchingReplayBase?.strategy ?? 'confirmed_physical_order'
     const isOwnRecentBatch =
       Boolean(params.traceMeta?.batchId) &&
       (this.callbacks.isRecentLocalBatchId?.(params.traceMeta?.batchId, params.traceMeta?.tabId) ?? false)
@@ -6506,6 +6559,7 @@ export class SpreadsheetCollaborationManager {
       mergeSupportOk: nativeMergeSupport.ok,
       mergeSupportReason: nativeMergeSupport.ok ? undefined : nativeMergeSupport.reason,
       hasNativeHandler: Boolean(this.callbacks.applyRemoteColumnReorder),
+      replayBaseStrategy,
       previousOrder: visibleColumnsInGridOrder(previousColumnsForGrid)
         .map(column => column.id)
         .join(','),
@@ -6576,65 +6630,107 @@ export class SpreadsheetCollaborationManager {
       })
       return
     }
+    const replayMoves =
+      params.moves && params.moves.length > 0
+        ? params.moves
+        : nativeMergeSupport.ok
+          ? nativeMergeSupport.moves
+          : params.moves
+    this.collabDiag('column_reorder_native_replay_queued', {
+      sheetId: params.sheetId,
+      replayMoveCount: replayMoves?.length ?? 0,
+      previousMatchesNext: this.hasMatchingVisibleColumnOrder(previousColumnsForGrid, params.nextColumns),
+      hasExplicitMoves: Boolean(params.moves?.length),
+      replayBaseStrategy
+    })
     queueMicrotask(() => {
-      const gridApplied =
-        this.callbacks.applyRemoteColumnReorder?.({
+      try {
+        this.collabDiag('column_reorder_native_replay_start', {
           sheetId: params.sheetId,
-          previousColumns: previousColumnsForGrid,
-          nextColumns: params.nextColumns,
-          moves: nativeMergeSupport.ok ? nativeMergeSupport.moves : params.moves
-        }) ?? false
-      let verifiedGridApplied = gridApplied && this.verifyActiveSheetColumnStructure(params.sheetId, params.nextColumns)
-      let snapshotRetryAttempted = false
-      let snapshotRetryGridApplied = false
-      if (!verifiedGridApplied && !hadConfirmedPhysicalOrder) {
-        const snapshotOrderedPreviousColumns = this.buildSnapshotOrderedPreviousColumns(
-          params.sheetId,
-          params.nextColumns
-        )
-        if (snapshotOrderedPreviousColumns) {
+          replayMoveCount: replayMoves?.length ?? 0,
+          previousMatchesNext: this.hasMatchingVisibleColumnOrder(previousColumnsForGrid, params.nextColumns),
+          hasExplicitMoves: Boolean(params.moves?.length),
+          replayBaseStrategy
+        })
+        const gridApplied =
+          this.callbacks.applyRemoteColumnReorder?.({
+            sheetId: params.sheetId,
+            previousColumns: previousColumnsForGrid,
+            nextColumns: params.nextColumns,
+            moves: replayMoves
+          }) ?? false
+        let verifiedGridApplied =
+          gridApplied && this.verifyActiveSheetColumnStructure(params.sheetId, params.nextColumns)
+        let snapshotRetryAttempted = false
+        let snapshotRetryGridApplied = false
+        const shouldRetryFromSnapshot =
+          verifiedGridApplied !== true &&
+          snapshotOrderedPreviousColumns != null &&
+          !this.hasMatchingVisibleColumnOrder(snapshotOrderedPreviousColumns, previousColumnsForGrid) &&
+          !this.hasMatchingVisibleColumnOrder(snapshotOrderedPreviousColumns, params.nextColumns)
+        if (!verifiedGridApplied && shouldRetryFromSnapshot) {
           snapshotRetryAttempted = true
           snapshotRetryGridApplied =
             this.callbacks.applyRemoteColumnReorder?.({
               sheetId: params.sheetId,
               previousColumns: snapshotOrderedPreviousColumns,
-              nextColumns: params.nextColumns
+              nextColumns: params.nextColumns,
+              moves: replayMoves
             }) ?? false
           verifiedGridApplied =
             snapshotRetryGridApplied && this.verifyActiveSheetColumnStructure(params.sheetId, params.nextColumns)
         }
-      }
-      if (verifiedGridApplied) {
-        this.setConfirmedPhysicalColumnOrder(params.sheetId, params.nextColumns)
-        // Native grid move already refreshed the active-sheet conversion context.
-        applyColumnMetadata(true)
-      } else {
-        this.repairColumnStructure({
+        this.collabDiag('column_reorder_native_replay_result', {
           sheetId: params.sheetId,
-          nextColumns: params.nextColumns,
-          reason: 'column_reorder_structural_repair',
-          traceMeta: params.traceMeta
-        })
-      }
-      this.traceEvent({
-        source: 'client',
-        stage: verifiedGridApplied
-          ? 'client_collab_column_reorder_grid_moves_applied'
-          : 'client_collab_column_reorder_grid_moves_failed',
-        severity: verifiedGridApplied ? 'info' : 'warning',
-        traceSessionId: params.traceMeta?.traceSessionId,
-        traceId: params.traceMeta?.traceId,
-        batchId: params.traceMeta?.batchId,
-        payload: {
-          sheetId: params.sheetId,
-          gridApplied: verifiedGridApplied,
-          nativeGridApplied: gridApplied,
+          gridApplied,
+          verifiedGridApplied,
+          replayMoveCount: replayMoves?.length ?? 0,
           snapshotRetryAttempted,
           snapshotRetryGridApplied,
-          previousVisibleOrder: visibleColumnsInGridOrder(previousColumnsForGrid).map(column => column.id),
-          nextVisibleOrder: visibleColumnsInGridOrder(params.nextColumns).map(column => column.id)
+          replayBaseStrategy
+        })
+        if (verifiedGridApplied) {
+          this.setConfirmedPhysicalColumnOrder(params.sheetId, params.nextColumns)
+          // Native grid move already refreshed the active-sheet conversion context.
+          applyColumnMetadata(true)
+        } else {
+          this.repairColumnStructure({
+            sheetId: params.sheetId,
+            nextColumns: params.nextColumns,
+            reason: 'column_reorder_structural_repair',
+            confirmedPhysicalOrderStrategy: 'clear',
+            pendingLocalFilterPolicy: 'server_authoritative_repair',
+            traceMeta: params.traceMeta
+          })
         }
-      })
+        this.traceEvent({
+          source: 'client',
+          stage: verifiedGridApplied
+            ? 'client_collab_column_reorder_grid_moves_applied'
+            : 'client_collab_column_reorder_grid_moves_failed',
+          severity: verifiedGridApplied ? 'info' : 'warning',
+          traceSessionId: params.traceMeta?.traceSessionId,
+          traceId: params.traceMeta?.traceId,
+          batchId: params.traceMeta?.batchId,
+          payload: {
+            sheetId: params.sheetId,
+            gridApplied: verifiedGridApplied,
+            nativeGridApplied: gridApplied,
+            replayMoveCount: replayMoves?.length ?? 0,
+            snapshotRetryAttempted,
+            snapshotRetryGridApplied,
+            previousVisibleOrder: visibleColumnsInGridOrder(previousColumnsForGrid).map(column => column.id),
+            nextVisibleOrder: visibleColumnsInGridOrder(params.nextColumns).map(column => column.id)
+          }
+        })
+      } catch (error) {
+        this.collabDiag('column_reorder_native_replay_error', {
+          sheetId: params.sheetId,
+          replayMoveCount: replayMoves?.length ?? 0,
+          errorMessage: error instanceof Error ? error.message.slice(0, 160) : String(error ?? 'unknown').slice(0, 160)
+        })
+        throw error
+      }
     })
   }
 

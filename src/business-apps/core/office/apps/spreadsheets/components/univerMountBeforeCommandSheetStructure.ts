@@ -1,6 +1,11 @@
 import { createUniver } from '@univerjs/presets'
 import { armColumnMoveFormulaFollowUpSuppression } from '../utils/spreadsheetCutPasteMove'
 import { UNIVER_NATIVE_SHEET_STRUCTURE_COMMANDS } from '../utils/nativeSheetStructureIntent'
+import {
+  classifyNativeColumnReorderWithMerges,
+  normalizeColumnMoveDestinationIndex
+} from '../utils/spreadsheetColumnReorderMoves'
+import { resolveColumnReorderMergeRanges } from '../utils/spreadsheetMergeRanges'
 import { proposeDuplicateSheetDisplayName } from '../utils/workbookStructureFormatting'
 import {
   getColumnMoveMutation,
@@ -85,6 +90,7 @@ export function registerUniverMountBeforeCommandSheetStructure(
               }>
               getSheetBySheetId?: (id: string) => { getName?: () => string } | null | undefined
               setActiveSheet?: (idOrSheet: string) => unknown
+              save?: () => Record<string, unknown> | null | undefined
             }
           | null
           | undefined
@@ -132,6 +138,83 @@ export function registerUniverMountBeforeCommandSheetStructure(
       })
 
       if (move) {
+        const moveCount = move.sourceEndColumn - move.sourceStartColumn + 1
+        const normalizedDestinationStartColumn = normalizeColumnMoveDestinationIndex(
+          move.sourceStartColumn,
+          moveCount,
+          move.destinationStartColumn
+        )
+        const liveSnapshot = resolveFacadeWorkbook()?.save?.() ?? null
+        const mergeRanges = resolveColumnReorderMergeRanges({
+          targetSheetId,
+          liveSnapshot,
+          initialSnapshot: propsRef.current.initialSnapshot,
+          sheet: propsRef.current.sheet
+        })
+
+        if (normalizedDestinationStartColumn != null) {
+          const previousColumns = [...propsRef.current.columns].sort((left, right) => left.order - right.order)
+          const visibleColumns = previousColumns.filter(column => column.isVisible !== false)
+          const movingColumns = visibleColumns.slice(move.sourceStartColumn, move.sourceStartColumn + moveCount)
+          const movedColumnIds = new Set(movingColumns.map(column => column.id))
+          const remainingVisibleColumns = visibleColumns.filter(column => !movedColumnIds.has(column.id))
+          const safeDestinationIndex = Math.max(
+            0,
+            Math.min(normalizedDestinationStartColumn, remainingVisibleColumns.length)
+          )
+          const remainingColumns = previousColumns.filter(column => !movedColumnIds.has(column.id))
+          const fullInsertAt =
+            safeDestinationIndex >= remainingVisibleColumns.length
+              ? remainingColumns.length
+              : Math.max(
+                  0,
+                  remainingColumns.findIndex(column => column.id === remainingVisibleColumns[safeDestinationIndex]?.id)
+                )
+
+          if (movingColumns.length === moveCount) {
+            const nextColumns = [
+              ...remainingColumns.slice(0, fullInsertAt),
+              ...movingColumns,
+              ...remainingColumns.slice(fullInsertAt)
+            ].map((column, index) => ({ ...column, order: index }))
+
+            const classification = classifyNativeColumnReorderWithMerges({
+              previousColumns,
+              nextColumns,
+              mergeRanges,
+              explicitMoves: [
+                {
+                  sourceStartColumn: move.sourceStartColumn,
+                  count: moveCount,
+                  destinationStartColumn: safeDestinationIndex,
+                  rawDestinationStartColumn: move.destinationStartColumn
+                }
+              ]
+            })
+
+            if (!classification.ok && (classification.reason !== 'unplannable_reorder' || mergeRanges.length > 0)) {
+              event.cancel = true
+              callbacksRef.current.onDiagnosticsTraceEvent?.({
+                source: 'client',
+                stage: 'grid_column_move_before_command_blocked_by_merge',
+                severity: 'warning',
+                sheetId: propsRef.current.sheet.id,
+                payload: {
+                  commandId,
+                  targetSheetId,
+                  reason: classification.reason,
+                  sourceStartColumn: move.sourceStartColumn,
+                  sourceEndColumn: move.sourceEndColumn,
+                  destinationStartColumn: move.destinationStartColumn,
+                  normalizedDestinationStartColumn: safeDestinationIndex,
+                  mergeRangeCount: mergeRanges.length
+                }
+              })
+              return
+            }
+          }
+        }
+
         armColumnMoveFormulaFollowUpSuppression({
           suppressionRef: columnMoveFormulaFollowUpSuppressUntilMsRef,
           recentMoveRef: recentMoveColumnFormulaFollowUpRef,

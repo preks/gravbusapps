@@ -450,6 +450,123 @@ describe('runDetectedCellMutationPersistEmitSync deferred-replay', () => {
     expect(onMutationBatchOp).toHaveBeenCalledTimes(1)
   })
 
+  it('drops multi-cell value follow-up emits during the recent move-cell window', () => {
+    const onMutationBatchOp = jest.fn()
+    const cells: SpreadsheetMutationPlannedCell[] = [
+      {
+        rowId: 'backend-row-1',
+        columnName: 'column_g',
+        rowIndex: 8,
+        colIndex: 6,
+        cellRef: 'G9',
+        valueAction: 'set',
+        value: 2
+      },
+      {
+        rowId: 'backend-row-2',
+        columnName: 'column_g',
+        rowIndex: 9,
+        colIndex: 6,
+        cellRef: 'G10',
+        valueAction: 'set',
+        value: 5
+      }
+    ]
+    const plan: SpreadsheetMutationPlan = { sheetId: 'sheet-1', cells } as SpreadsheetMutationPlan
+    const emit: PersistEmitInput = {
+      source: 'sheet-value-changed',
+      targetSheetId: 'sheet-1',
+      mutationTraceId: 'trace_move_cell_value_follow_up',
+      localMutationPlan: plan,
+      plannedCellsFiltered: cells,
+      emittedChangedCells: cells.map(cell => ({
+        rowId: cell.rowId,
+        columnName: cell.columnName,
+        value: cell.value,
+        univerRow: cell.rowIndex,
+        univerCol: cell.colIndex
+      })),
+      planStyles: undefined,
+      hadPasteIntentForSheet: false,
+      hadPasteFormattingIntentForSheet: false,
+      autofillApplyType: null,
+      commandId: 'sheet.mutation.set-range-values',
+      materializeRowsBeforeEmit: false
+    }
+    const deps = {
+      propsRef: { current: { onMutationBatchOp } },
+      callbacksRef: { current: {} },
+      pendingFormattingPasteIntentRef: { current: null },
+      pendingAutofillIntentRef: { current: null },
+      cutPasteCollabSuppressUntilMsRef: { current: Date.now() + 500 },
+      recentMoveCellRangeFollowUpRef: {
+        current: {
+          sheetId: 'sheet-1',
+          fromRange: { startRow: 1, endRow: 6, startColumn: 5, endColumn: 5 },
+          toRange: { startRow: 8, endRow: 13, startColumn: 6, endColumn: 6 }
+        }
+      }
+    } as unknown as UniverMountHandleDetectedCellMutationDeps
+
+    const handled = runDetectedCellMutationPersistEmitSync(deps, emit)
+    expect(handled).toBe(false)
+    expect(onMutationBatchOp).not.toHaveBeenCalled()
+  })
+
+  it('keeps single-cell value edits during the recent move-cell window', () => {
+    const onMutationBatchOp = jest.fn()
+    const cell: SpreadsheetMutationPlannedCell = {
+      rowId: 'backend-row-1',
+      columnName: 'column_g',
+      rowIndex: 8,
+      colIndex: 6,
+      cellRef: 'G9',
+      valueAction: 'set',
+      value: 42
+    }
+    const plan: SpreadsheetMutationPlan = { sheetId: 'sheet-1', cells: [cell] } as SpreadsheetMutationPlan
+    const emit: PersistEmitInput = {
+      source: 'sheet-value-changed',
+      targetSheetId: 'sheet-1',
+      mutationTraceId: 'trace_move_cell_single_value_edit',
+      localMutationPlan: plan,
+      plannedCellsFiltered: [cell],
+      emittedChangedCells: [
+        {
+          rowId: cell.rowId,
+          columnName: cell.columnName,
+          value: cell.value,
+          univerRow: cell.rowIndex,
+          univerCol: cell.colIndex
+        }
+      ],
+      planStyles: undefined,
+      hadPasteIntentForSheet: false,
+      hadPasteFormattingIntentForSheet: false,
+      autofillApplyType: null,
+      commandId: 'sheet.mutation.set-range-values',
+      materializeRowsBeforeEmit: false
+    }
+    const deps = {
+      propsRef: { current: { onMutationBatchOp } },
+      callbacksRef: { current: {} },
+      pendingFormattingPasteIntentRef: { current: null },
+      pendingAutofillIntentRef: { current: null },
+      cutPasteCollabSuppressUntilMsRef: { current: Date.now() + 500 },
+      recentMoveCellRangeFollowUpRef: {
+        current: {
+          sheetId: 'sheet-1',
+          fromRange: { startRow: 1, endRow: 6, startColumn: 5, endColumn: 5 },
+          toRange: { startRow: 8, endRow: 13, startColumn: 6, endColumn: 6 }
+        }
+      }
+    } as unknown as UniverMountHandleDetectedCellMutationDeps
+
+    const handled = runDetectedCellMutationPersistEmitSync(deps, emit)
+    expect(handled).toBe(true)
+    expect(onMutationBatchOp).toHaveBeenCalledTimes(1)
+  })
+
   it('keeps single-cell formula repair emits during the recent column-move window', () => {
     const onMutationBatchOp = jest.fn()
     const cell: SpreadsheetMutationPlannedCell = {

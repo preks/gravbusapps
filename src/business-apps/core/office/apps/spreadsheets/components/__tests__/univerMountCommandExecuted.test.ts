@@ -46,7 +46,6 @@ function createCommandExecutedHarness(
         return { dispose() {} }
       }
     } as never,
-    univerInstanceRef: { current: null },
     univerAPIRef: { current: null },
     propsRef: {
       current: {

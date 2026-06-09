@@ -4765,7 +4765,90 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
             expect.objectContaining({ id: 'col-c', order: 1 }),
             expect.objectContaining({ id: 'col-a', order: 2 })
           ],
-          moves: [{ sourceStartColumn: 1, count: 2, destinationStartColumn: 0 }]
+          moves: [{ sourceStartColumn: 1, count: 2, destinationStartColumn: 0, rawDestinationStartColumn: 0 }]
+        })
+      )
+      expect(forceGridReapply).not.toHaveBeenCalled()
+      expect(scheduleRemoteStructuralResync).not.toHaveBeenCalled()
+    })
+  })
+
+  it('preserves raw destination for rightward peer columns_reorder replay', () => {
+    const scheduleRemoteStructuralResync = jest.fn()
+    const onRemoteColumnUpdate = jest.fn()
+    const applyRemoteColumnReorder = jest.fn(() => true)
+    const forceGridReapply = jest.fn()
+    const previousColumns = Array.from({ length: 12 }, (_, index) =>
+      col({ id: `col-${index}`, name: `Column${index}`, order: index })
+    )
+    const nextColumns = [
+      previousColumns[0],
+      previousColumns[1],
+      previousColumns[2],
+      previousColumns[3],
+      previousColumns[4],
+      previousColumns[5],
+      previousColumns[6],
+      previousColumns[7],
+      previousColumns[9],
+      previousColumns[8],
+      previousColumns[10],
+      previousColumns[11]
+    ].map((column, order) => ({ ...column, order }))
+    const callbacks = makeCallbacks({
+      scheduleRemoteStructuralResync,
+      onRemoteColumnUpdate,
+      applyRemoteColumnReorder,
+      forceGridReapply,
+      getColumns: () => previousColumns,
+      getColumnsForSheet: () => previousColumns,
+      getActiveSheetId: () => 'sheet-2'
+    })
+
+    const manager = new SpreadsheetCollaborationManager(callbacks)
+    manager.handleOperation({
+      userId: 'u2',
+      userName: 'Other',
+      operation: {
+        type: 'batch_operations',
+        data: {
+          sheetId: 'sheet-2',
+          columns: nextColumns,
+          visibleColumnIds: nextColumns.map(column => column.id),
+          gridColumnIndexByColumnId: Object.fromEntries(nextColumns.map((column, index) => [column.id, index])),
+          operations: [
+            {
+              type: 'columns_reorder',
+              data: {
+                sheetId: 'sheet-2',
+                columns: nextColumns,
+                sourceStartIndex: 8,
+                count: 1,
+                destinationIndex: 10,
+                normalizedDestinationIndex: 9
+              }
+            }
+          ]
+        }
+      },
+      version: 15,
+      timestamp: Date.now()
+    })
+
+    return Promise.resolve().then(() => {
+      expect(applyRemoteColumnReorder).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sheetId: 'sheet-2',
+          previousColumns,
+          nextColumns,
+          moves: [
+            {
+              sourceStartColumn: 8,
+              count: 1,
+              destinationStartColumn: 9,
+              rawDestinationStartColumn: 10
+            }
+          ]
         })
       )
       expect(forceGridReapply).not.toHaveBeenCalled()
@@ -5252,7 +5335,8 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
           allowFullGridReapply: true,
           clearAllSignatures: true,
           preferBulk: true,
-          reason: 'column_reorder_structural_repair'
+          reason: 'column_reorder_structural_repair',
+          pendingLocalFilterPolicy: 'server_authoritative_repair'
         })
       )
       expect(scheduleRemoteStructuralResync).not.toHaveBeenCalled()
@@ -5345,7 +5429,8 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
           allowFullGridReapply: true,
           clearAllSignatures: true,
           preferBulk: true,
-          reason: 'column_reorder_structural_repair'
+          reason: 'column_reorder_structural_repair',
+          pendingLocalFilterPolicy: 'server_authoritative_repair'
         })
       )
       expect(scheduleRemoteStructuralResync).not.toHaveBeenCalled()
@@ -5353,7 +5438,7 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
     })
   })
 
-  it('retries active-sheet columns_reorder from snapshot physical order when metadata is already advanced', () => {
+  it('uses snapshot physical order immediately for active-sheet columns_reorder when metadata is already advanced', () => {
     localStorage.setItem('gba.spreadsheets.deltaReplay', 'enabled')
     const reorderedColumns = [
       col({ id: 'col-a', name: 'ColumnA', order: 0 }),
@@ -5430,7 +5515,11 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
               type: 'columns_reorder',
               data: {
                 sheetId: 'sheet-2',
-                columns: reorderedColumns
+                columns: reorderedColumns,
+                sourceStartIndex: 1,
+                count: 1,
+                destinationIndex: 3,
+                normalizedDestinationIndex: 2
               }
             }
           ]
@@ -5441,17 +5530,8 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
     })
 
     return Promise.resolve().then(() => {
-      expect(applyRemoteColumnReorder).toHaveBeenCalledTimes(2)
-      expect(applyRemoteColumnReorder).toHaveBeenNthCalledWith(
-        1,
-        expect.objectContaining({
-          sheetId: 'sheet-2',
-          previousColumns: reorderedColumns,
-          nextColumns: reorderedColumns
-        })
-      )
-      expect(applyRemoteColumnReorder).toHaveBeenNthCalledWith(
-        2,
+      expect(applyRemoteColumnReorder).toHaveBeenCalledTimes(1)
+      expect(applyRemoteColumnReorder).toHaveBeenCalledWith(
         expect.objectContaining({
           sheetId: 'sheet-2',
           previousColumns: [
@@ -5459,7 +5539,8 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
             expect.objectContaining({ id: 'col-c', order: 2 }),
             expect.objectContaining({ id: 'col-b', order: 1 })
           ],
-          nextColumns: reorderedColumns
+          nextColumns: reorderedColumns,
+          moves: [{ sourceStartColumn: 1, count: 1, destinationStartColumn: 2, rawDestinationStartColumn: 3 }]
         })
       )
       expect(forceGridReapply).not.toHaveBeenCalled()
@@ -5554,6 +5635,84 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
     })
   })
 
+  it('uses committed previous columns for explicit peer moves when confirmed physical order is already advanced', () => {
+    const previousColumns = [
+      col({ id: 'col-a', name: 'ColumnA', order: 0 }),
+      col({ id: 'col-b', name: 'ColumnB', order: 1 }),
+      col({ id: 'col-c', name: 'ColumnC', order: 2 })
+    ]
+    const reorderedColumns = [
+      col({ id: 'col-a', name: 'ColumnA', order: 0 }),
+      col({ id: 'col-c', name: 'ColumnC', order: 1 }),
+      col({ id: 'col-b', name: 'ColumnB', order: 2 })
+    ]
+    const repairedSnapshot = {
+      sheets: {
+        'sheet-2': {
+          columnCount: 3,
+          cellData: {
+            0: {
+              0: { v: 'ColumnA' },
+              1: { v: 'ColumnC' },
+              2: { v: 'ColumnB' }
+            }
+          }
+        }
+      }
+    }
+    const applyRemoteColumnReorder = jest.fn(() => true)
+    const forceGridReapply = jest.fn()
+    const callbacks = makeCallbacks({
+      applyRemoteColumnReorder,
+      forceGridReapply,
+      getActiveSheetId: () => 'sheet-2',
+      getWorkbookSnapshot: () => repairedSnapshot,
+      getSheetData: sheetId =>
+        sheetId === 'sheet-2'
+          ? [{ _id: 'header-row', _isTrackingHeader: true, ColumnA: 'ColumnA', ColumnB: 'ColumnB', ColumnC: 'ColumnC' }]
+          : []
+    })
+
+    const manager = new SpreadsheetCollaborationManager(callbacks)
+    ;(
+      manager as unknown as {
+        setConfirmedPhysicalColumnOrder: (sheetId: string, columnIds: string[]) => void
+      }
+    ).setConfirmedPhysicalColumnOrder('sheet-2', ['col-a', 'col-c', 'col-b'])
+    ;(
+      manager as unknown as {
+        applyRemoteColumnReorderLive: (params: {
+          sheetId: string
+          previousColumns: SpreadsheetColumn[]
+          nextColumns: SpreadsheetColumn[]
+          moves: Array<{ sourceStartColumn: number; count: number; destinationStartColumn: number }>
+        }) => void
+      }
+    ).applyRemoteColumnReorderLive({
+      sheetId: 'sheet-2',
+      previousColumns,
+      nextColumns: reorderedColumns,
+      moves: [{ sourceStartColumn: 2, count: 1, destinationStartColumn: 1 }]
+    })
+
+    return Promise.resolve().then(() => {
+      expect(applyRemoteColumnReorder).toHaveBeenCalledTimes(1)
+      expect(applyRemoteColumnReorder).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sheetId: 'sheet-2',
+          previousColumns: [
+            expect.objectContaining({ id: 'col-a', order: 0 }),
+            expect.objectContaining({ id: 'col-b', order: 1 }),
+            expect.objectContaining({ id: 'col-c', order: 2 })
+          ],
+          nextColumns: reorderedColumns,
+          moves: [{ sourceStartColumn: 2, count: 1, destinationStartColumn: 1 }]
+        })
+      )
+      expect(forceGridReapply).not.toHaveBeenCalled()
+    })
+  })
+
   it('skips snapshot retry and repairs when confirmed physical order exists but reorder still cannot be verified', () => {
     localStorage.setItem('gba.spreadsheets.deltaReplay', 'enabled')
     const reorderedColumns = [
@@ -5632,9 +5791,191 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
           allowFullGridReapply: true,
           clearAllSignatures: true,
           preferBulk: true,
-          reason: 'column_reorder_structural_repair'
+          reason: 'column_reorder_structural_repair',
+          pendingLocalFilterPolicy: 'server_authoritative_repair'
         })
       )
+      localStorage.removeItem('gba.spreadsheets.deltaReplay')
+    })
+  })
+
+  it('retries columns_reorder from snapshot order when confirmed physical order was previously advanced by a failed repair', () => {
+    localStorage.setItem('gba.spreadsheets.deltaReplay', 'enabled')
+    const reorderedColumns = [
+      col({ id: 'col-a', name: 'ColumnA', order: 0 }),
+      col({ id: 'col-c', name: 'ColumnC', order: 1 }),
+      col({ id: 'col-b', name: 'ColumnB', order: 2 })
+    ]
+    const staleSnapshot = {
+      sheets: {
+        'sheet-2': {
+          columnCount: 3,
+          cellData: {
+            0: {
+              0: { v: 'ColumnA' },
+              1: { v: 'ColumnB' },
+              2: { v: 'ColumnC' }
+            }
+          }
+        }
+      }
+    }
+    const repairedSnapshot = {
+      sheets: {
+        'sheet-2': {
+          columnCount: 3,
+          cellData: {
+            0: {
+              0: { v: 'ColumnA' },
+              1: { v: 'ColumnC' },
+              2: { v: 'ColumnB' }
+            }
+          }
+        }
+      }
+    }
+    let workbookSnapshot: Record<string, unknown> = staleSnapshot
+    const applyRemoteColumnReorder = jest.fn(({ previousColumns }: { previousColumns: SpreadsheetColumn[] }) => {
+      const previousVisibleOrder = [...previousColumns]
+        .sort((left, right) => left.order - right.order)
+        .map(column => column.id)
+        .join('|')
+      if (previousVisibleOrder === 'col-a|col-b|col-c') {
+        workbookSnapshot = repairedSnapshot
+      }
+      return true
+    })
+    const forceGridReapply = jest.fn()
+    const callbacks = makeCallbacks({
+      applyRemoteColumnReorder,
+      forceGridReapply,
+      runRemoteTransaction: jest.fn(() => ({ ok: true as const, appliedCellCount: 0, appliedOperationCount: 1 })),
+      getActiveSheetId: () => 'sheet-2',
+      getWorkbookSnapshot: () => workbookSnapshot,
+      getColumns: () => reorderedColumns,
+      getColumnsForSheet: () => reorderedColumns,
+      getSheetData: sheetId =>
+        sheetId === 'sheet-2'
+          ? [{ _id: 'header-row', _isTrackingHeader: true, ColumnA: 'ColumnA', ColumnB: 'ColumnB', ColumnC: 'ColumnC' }]
+          : []
+    })
+
+    const manager = new SpreadsheetCollaborationManager(callbacks)
+    ;(
+      manager as unknown as {
+        setConfirmedPhysicalColumnOrder: (sheetId: string, columnIds: string[]) => void
+      }
+    ).setConfirmedPhysicalColumnOrder('sheet-2', ['col-a', 'col-c', 'col-b'])
+
+    manager.handleOperation({
+      userId: 'u2',
+      userName: 'Other',
+      operation: {
+        type: 'batch_operations',
+        data: {
+          sheetId: 'sheet-2',
+          columns: reorderedColumns,
+          visibleColumnIds: ['col-a', 'col-c', 'col-b'],
+          gridColumnIndexByColumnId: { 'col-a': 0, 'col-c': 1, 'col-b': 2 },
+          operations: [
+            {
+              type: 'columns_reorder',
+              data: {
+                sheetId: 'sheet-2',
+                columns: reorderedColumns
+              }
+            }
+          ]
+        }
+      },
+      version: 16,
+      timestamp: Date.now()
+    })
+
+    return Promise.resolve().then(() => {
+      expect(applyRemoteColumnReorder).toHaveBeenCalledTimes(2)
+      expect(applyRemoteColumnReorder).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          sheetId: 'sheet-2',
+          previousColumns: reorderedColumns,
+          nextColumns: reorderedColumns
+        })
+      )
+      expect(applyRemoteColumnReorder).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          sheetId: 'sheet-2',
+          previousColumns: [
+            expect.objectContaining({ id: 'col-a', order: 0 }),
+            expect.objectContaining({ id: 'col-c', order: 2 }),
+            expect.objectContaining({ id: 'col-b', order: 1 })
+          ],
+          nextColumns: reorderedColumns
+        })
+      )
+      expect(forceGridReapply).not.toHaveBeenCalled()
+      localStorage.removeItem('gba.spreadsheets.deltaReplay')
+    })
+  })
+
+  it('clears confirmed physical order when columns_reorder falls back to structural repair', () => {
+    localStorage.setItem('gba.spreadsheets.deltaReplay', 'enabled')
+    const reorderedColumns = [
+      col({ id: 'col-a', name: 'ColumnA', order: 0 }),
+      col({ id: 'col-c', name: 'ColumnC', order: 1 }),
+      col({ id: 'col-b', name: 'ColumnB', order: 2 })
+    ]
+    const callbacks = makeCallbacks({
+      applyRemoteColumnReorder: jest.fn(() => false),
+      forceGridReapply: jest.fn(),
+      runRemoteTransaction: jest.fn(() => ({ ok: true as const, appliedCellCount: 0, appliedOperationCount: 1 })),
+      getActiveSheetId: () => 'sheet-2',
+      getColumns: () => reorderedColumns,
+      getColumnsForSheet: () => reorderedColumns
+    })
+
+    const manager = new SpreadsheetCollaborationManager(callbacks)
+    ;(
+      manager as unknown as {
+        setConfirmedPhysicalColumnOrder: (sheetId: string, columnIds: string[]) => void
+        getConfirmedPhysicalColumnOrder: (sheetId: string) => string[] | null
+      }
+    ).setConfirmedPhysicalColumnOrder('sheet-2', ['col-a', 'col-c', 'col-b'])
+
+    manager.handleOperation({
+      userId: 'u2',
+      userName: 'Other',
+      operation: {
+        type: 'batch_operations',
+        data: {
+          sheetId: 'sheet-2',
+          columns: reorderedColumns,
+          visibleColumnIds: ['col-a', 'col-c', 'col-b'],
+          gridColumnIndexByColumnId: { 'col-a': 0, 'col-c': 1, 'col-b': 2 },
+          operations: [
+            {
+              type: 'columns_reorder',
+              data: {
+                sheetId: 'sheet-2',
+                columns: reorderedColumns
+              }
+            }
+          ]
+        }
+      },
+      version: 16,
+      timestamp: Date.now()
+    })
+
+    return Promise.resolve().then(() => {
+      expect(
+        (
+          manager as unknown as {
+            getConfirmedPhysicalColumnOrder: (sheetId: string) => string[] | null
+          }
+        ).getConfirmedPhysicalColumnOrder('sheet-2')
+      ).toBeNull()
       localStorage.removeItem('gba.spreadsheets.deltaReplay')
     })
   })

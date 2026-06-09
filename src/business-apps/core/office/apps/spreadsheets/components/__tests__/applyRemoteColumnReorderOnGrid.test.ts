@@ -44,11 +44,14 @@ describe('applyRemoteColumnReorderOnGrid', () => {
       expect.objectContaining({
         unitId: 'unit-1',
         subUnitId: 'sheet-1',
-        range: expect.objectContaining({
-          rangeType: 2,
-          startColumn: 2,
-          endColumn: 2
-        }),
+        range: expect.arrayContaining([
+          expect.objectContaining({
+            rangeType: 2,
+            startColumn: 2,
+            endColumn: 2
+          })
+        ]),
+        targetRange: expect.objectContaining({ startColumn: 1, endColumn: 1 }),
         fromRange: expect.objectContaining({ startColumn: 2, endColumn: 2 }),
         toRange: expect.objectContaining({ startColumn: 1, endColumn: 1 })
       })
@@ -159,7 +162,7 @@ describe('applyRemoteColumnReorderOnGrid', () => {
     expect(result).toEqual({ ok: true, moveCount: 0, appliedMoveCount: 0, status: 'already_in_order' })
   })
 
-  it('blocks native move-cols when the source move would split a merge', () => {
+  it('replays committed native move-cols even when live merge data exists', () => {
     const syncExecuteCommand = jest.fn(() => true)
     const previous = [column('a', 0), column('b', 1), column('c', 2)]
     const next = [column('a', 0), column('c', 1), column('b', 2)]
@@ -186,11 +189,20 @@ describe('applyRemoteColumnReorderOnGrid', () => {
       sheetId: 'sheet-1',
       previousColumns: previous,
       nextColumns: next,
-      rows: []
+      rows: [],
+      moves: [{ sourceStartColumn: 2, count: 1, destinationStartColumn: 1 }]
     })
 
-    expect(result).toEqual({ ok: false, reason: 'move_cols_merge_unsupported' })
-    expect(syncExecuteCommand).not.toHaveBeenCalled()
+    expect(result).toEqual({ ok: true, moveCount: 1, appliedMoveCount: 1, status: 'moves_applied' })
+    expect(syncExecuteCommand).toHaveBeenCalledWith(
+      'sheet.command.move-cols',
+      expect.objectContaining({
+        range: expect.arrayContaining([expect.objectContaining({ startColumn: 2, endColumn: 2 })]),
+        targetRange: expect.objectContaining({ startColumn: 1, endColumn: 1 }),
+        fromRange: expect.objectContaining({ startColumn: 2, endColumn: 2 }),
+        toRange: expect.objectContaining({ startColumn: 1, endColumn: 1 })
+      })
+    )
   })
 
   it('allows native move-cols when an explicit move carries a whole merged block', () => {
@@ -228,8 +240,66 @@ describe('applyRemoteColumnReorderOnGrid', () => {
     expect(syncExecuteCommand).toHaveBeenCalledWith(
       'sheet.command.move-cols',
       expect.objectContaining({
+        range: expect.arrayContaining([expect.objectContaining({ startColumn: 1, endColumn: 2 })]),
+        targetRange: expect.objectContaining({ startColumn: 0, endColumn: 1 }),
         fromRange: expect.objectContaining({ startColumn: 1, endColumn: 2 }),
         toRange: expect.objectContaining({ startColumn: 0, endColumn: 1 })
+      })
+    )
+  })
+
+  it('uses rawDestinationStartColumn for native rightward peer moves', () => {
+    const syncExecuteCommand = jest.fn(() => true)
+    const previous = Array.from({ length: 12 }, (_, index) => column(`col-${index}`, index))
+    const next = [
+      previous[0],
+      previous[1],
+      previous[2],
+      previous[3],
+      previous[4],
+      previous[5],
+      previous[6],
+      previous[7],
+      previous[9],
+      previous[8],
+      previous[10],
+      previous[11]
+    ].map((entry, index) => ({ ...entry, order: index }))
+
+    const result = applyRemoteColumnReorderOnGrid({
+      api: {
+        getActiveWorkbook: () => ({
+          getUnitId: () => 'unit-1',
+          getSheetBySheetId: () => ({
+            getMaxRows: () => 100,
+            getMaxColumns: () => 12
+          }),
+          setActiveSheet: jest.fn()
+        }),
+        syncExecuteCommand
+      },
+      sheetId: 'sheet-1',
+      previousColumns: previous,
+      nextColumns: next,
+      rows: [],
+      moves: [
+        {
+          sourceStartColumn: 8,
+          count: 1,
+          destinationStartColumn: 9,
+          rawDestinationStartColumn: 10
+        }
+      ]
+    })
+
+    expect(result).toEqual({ ok: true, moveCount: 1, appliedMoveCount: 1, status: 'moves_applied' })
+    expect(syncExecuteCommand).toHaveBeenCalledWith(
+      'sheet.command.move-cols',
+      expect.objectContaining({
+        range: expect.arrayContaining([expect.objectContaining({ startColumn: 8, endColumn: 8 })]),
+        targetRange: expect.objectContaining({ startColumn: 10, endColumn: 10 }),
+        fromRange: expect.objectContaining({ startColumn: 8, endColumn: 8 }),
+        toRange: expect.objectContaining({ startColumn: 10, endColumn: 10 })
       })
     )
   })

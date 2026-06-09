@@ -702,7 +702,6 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
 
   const { commandDisposable } = registerUniverMountCommandExecuted({
     univerAPI,
-    univerInstanceRef,
     univerAPIRef,
     propsRef,
     callbacksRef,
