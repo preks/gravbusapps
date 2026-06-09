@@ -29,11 +29,11 @@ const activityOlder: ActivityEvent = {
 }
 
 describe('sessionTimelineMerge', () => {
-  it('sorts newest first', () => {
+  it('sorts oldest first', () => {
     const merged = mergeSessionTimelineEntries([decision], [activityNewer, activityOlder])
-    expect(merged[0]?.id).toBe('activity-a-1')
+    expect(merged[0]?.id).toBe('activity-a-2')
     expect(merged[1]?.id).toBe('decision-d-1')
-    expect(merged[2]?.id).toBe('activity-a-2')
+    expect(merged[2]?.id).toBe('activity-a-1')
   })
 
   it('skips duplicate reflection activity when a reflection decision exists', () => {

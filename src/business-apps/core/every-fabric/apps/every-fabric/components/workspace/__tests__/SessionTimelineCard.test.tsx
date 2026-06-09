@@ -31,12 +31,49 @@ describe('SessionTimelineCard', () => {
     expect(screen.queryByTestId('fabric-timeline-tab-decisions')).not.toBeInTheDocument()
   })
 
-  it('shows activity first when it is newer', () => {
+  it('shows events in chronological order with newest at the bottom', () => {
     render(<SessionTimelineCard decisions={[decision]} activityEvents={[activity]} />)
     const timeline = screen.getByTestId('fabric-unified-session-timeline')
     const rows = timeline.querySelectorAll('[data-testid^="fabric-activity-"], [data-testid^="fabric-decision-"]')
-    expect(rows[0]).toHaveAttribute('data-testid', 'fabric-activity-a-1')
-    expect(rows[1]).toHaveAttribute('data-testid', 'fabric-decision-d-1')
+    expect(rows[0]).toHaveAttribute('data-testid', 'fabric-decision-d-1')
+    expect(rows[1]).toHaveAttribute('data-testid', 'fabric-activity-a-1')
+  })
+
+  it('matches debug-trace direction for a typical run (runtime → delegate → tool)', () => {
+    const runtimeDecision: DecisionItem = {
+      id: 'd-runtime',
+      seq: 10,
+      timestamp: '2026-06-08T17:09:46.000Z',
+      category: 'tool_routing',
+      title: 'Runtime owner resolved',
+      chosen: 'router',
+      rationale: 'Runtime type: router'
+    }
+    const delegation: ActivityEvent = {
+      id: 'a-delegate',
+      timestamp: '2026-06-08T17:09:48.000Z',
+      type: 'subagent_spawn',
+      agent: 'HR_General_Agent',
+      summary: 'Working on a delegated task',
+      durationMs: 11130
+    }
+    const policyLoad: ActivityEvent = {
+      id: 'a-policy',
+      timestamp: '2026-06-08T17:09:51.000Z',
+      type: 'tool_call',
+      toolName: 'policy_load',
+      summary: 'policy_load — done',
+      durationMs: 230
+    }
+
+    render(<SessionTimelineCard decisions={[runtimeDecision]} activityEvents={[policyLoad, delegation]} />)
+
+    const rows = screen
+      .getByTestId('fabric-unified-session-timeline')
+      .querySelectorAll('[data-testid^="fabric-activity-"], [data-testid^="fabric-decision-"]')
+    expect(rows[0]).toHaveAttribute('data-testid', 'fabric-decision-d-runtime')
+    expect(rows[1]).toHaveAttribute('data-testid', 'fabric-activity-a-delegate')
+    expect(rows[2]).toHaveAttribute('data-testid', 'fabric-activity-a-policy')
   })
 
   it('shows empty state when no events', () => {

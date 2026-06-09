@@ -4,7 +4,6 @@ import { ArrowLeftIcon, GearSixIcon, UsersThreeIcon, LightbulbIcon, WrenchIcon }
 import type { Icon } from '@phosphor-icons/react'
 import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
 import { AgentsScreen } from '../agents/AgentsScreen'
-import type { FabricAgent } from '../agents/agentTypes'
 import { SkillsScreen } from '../skills/SkillsScreen'
 import { useAgentSettings } from '../../hooks/useAgentSettings'
 import { ConfigurationSection } from './components/ConfigurationSection'
@@ -26,15 +25,9 @@ interface SettingsScreenProps {
   accessToken: string
   initialTab?: SettingsTab
   onBack: () => void
-  onRunTask?: (agent: FabricAgent) => void
 }
 
-export const SettingsScreen: React.FC<SettingsScreenProps> = ({
-  accessToken,
-  initialTab = 'settings',
-  onBack,
-  onRunTask
-}) => {
+export const SettingsScreen: React.FC<SettingsScreenProps> = ({ accessToken, initialTab = 'settings', onBack }) => {
   const client = useEnterpriseAgentClient(accessToken)
   const { settings, updateSetting } = useAgentSettings()
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab)
@@ -98,12 +91,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 
       {activeTab === 'agents' && (
         <div className="gba:flex-1 gba:min-h-0">
-          <AgentsScreen
-            accessToken={accessToken}
-            onBack={() => setActiveTab('settings')}
-            onRunTask={agent => onRunTask?.(agent)}
-            embedded
-          />
+          <AgentsScreen accessToken={accessToken} onBack={() => setActiveTab('settings')} embedded />
         </div>
       )}
 
