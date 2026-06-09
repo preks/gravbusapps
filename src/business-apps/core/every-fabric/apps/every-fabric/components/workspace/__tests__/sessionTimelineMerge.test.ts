@@ -52,4 +52,20 @@ describe('sessionTimelineMerge', () => {
     const formatted = formatTimelineClockTime('2026-06-01T14:05:07.000Z')
     expect(formatted).toMatch(/\d{1,2}:\d{2}:\d{2}/)
   })
+
+  it('excludes runtime_scope decisions from the merged timeline', () => {
+    const runtimeDecision = {
+      id: 'd-runtime',
+      seq: 5,
+      timestamp: '2026-06-01T12:00:00.000Z',
+      category: 'runtime_scope',
+      title: 'Runtime owner resolved',
+      chosen: 'router',
+      rationale: 'owner=router runtime_type=direct_agent'
+    } as DecisionItem
+
+    const merged = mergeSessionTimelineEntries([runtimeDecision, decision], [activityNewer])
+    expect(merged.some(e => e.id === 'decision-d-runtime')).toBe(false)
+    expect(merged.some(e => e.id === 'decision-d-1')).toBe(true)
+  })
 })
