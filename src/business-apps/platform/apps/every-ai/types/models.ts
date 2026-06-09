@@ -48,11 +48,35 @@ export type BarSeries = {
   color: Color
 }
 
+/** A chart segment/category that, when clicked, re-queries GraphQL with overrides. */
+export type QueryDrilldown = {
+  matchValue: string
+  variables: Record<string, unknown>
+  title?: string
+}
+
+/** Reusable, read-only GraphQL query embedded in chart/table payloads so the
+ * frontend can paginate, filter, or drill down by re-querying GraphQL directly
+ * instead of calling the agent again. */
+export type DataQuerySpec = {
+  type?: 'dataQuerySpec'
+  query: string
+  variables: Record<string, unknown>
+  rowsPath?: string | null
+  pageSize?: number
+  totalCount?: number | null
+  limitVar?: string | null
+  offsetVar?: string | null
+  orderByVar?: string | null
+  drilldowns?: QueryDrilldown[]
+}
+
 export type BarGraphData = {
   type: 'bar'
   series: BarSeries[]
   title: string
   description: string
+  querySpec?: DataQuerySpec | null
 }
 
 export type ScatterGraphData = {
@@ -193,6 +217,7 @@ export type LineChartData = {
   xAxis?: ChartAxisSpec
   yAxis?: ChartAxisSpec
   showLegend?: boolean
+  querySpec?: DataQuerySpec | null
 }
 
 export type AreaChartData = {
@@ -205,6 +230,7 @@ export type AreaChartData = {
   yAxis?: ChartAxisSpec
   stacked?: boolean
   showLegend?: boolean
+  querySpec?: DataQuerySpec | null
 }
 
 export type StackedBarSegment = {
@@ -228,6 +254,7 @@ export type StackedBarChartData = {
   yAxis?: ChartAxisSpec
   horizontal?: boolean
   showLegend?: boolean
+  querySpec?: DataQuerySpec | null
 }
 
 export type PieSegment = {
@@ -245,6 +272,7 @@ export type PieChartData = {
   donut?: boolean
   subtitle?: string
   valueFormat?: ValueFormat
+  querySpec?: DataQuerySpec | null
 }
 
 export type MetricCardItem = {
@@ -389,6 +417,8 @@ export type InteractiveTableData = {
   defaultSort?: InteractiveTableDefaultSort
   rowEntityType?: string
   rowEntityIdColumn?: string
+  totalCount?: number | null
+  querySpec?: DataQuerySpec | null
 }
 
 export type DisplayData =
