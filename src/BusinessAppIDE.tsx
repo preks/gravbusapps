@@ -31,6 +31,7 @@ import { useBusinessAuth } from './common/auth/useBusinessAuth'
 import { NotificationsHost } from '@/business-apps/core/use/apps/notifications'
 import { useNotificationsBadgeCount } from '@/business-apps/core/use/apps/notifications/hooks'
 import { useUserProfileFromKeycloak } from './common/user-profile/useUserProfileFromKeycloak'
+import { usePromptManagerClient } from './common/network/ai/prompt-manager/usePromptManagerClient'
 import type { UserMenuUserInfo } from '@/business-apps/core/use/apps/user-menu/types'
 import { useBrandingLogo } from './common/hooks/useBrandingLogo'
 import {
@@ -73,6 +74,7 @@ const ALL_MAIN_MODULE_ID = 'all-main-modules'
 const ALL_SUBMODULE_ID = 'all-submodules'
 const DEFAULT_SUBMODULE_ID = 'default'
 const EXAMPLES_MODULE_ID = 'examples'
+const USER_PROFILE_MEMORY_ENSURE_VERSION = 'v1'
 
 function getPrimarySubModuleId(businessApp: BusinessAppInfo): string {
   return businessApp.subModule?.split('/')[0] || DEFAULT_SUBMODULE_ID
@@ -970,6 +972,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     isMsOAuthCallback
   } = useBusinessAuth()
   const { userInfo: profileUserInfo } = useUserProfileFromKeycloak(authToken, tokenParsed)
+  const promptManagerClient = usePromptManagerClient(authToken || '')
   const { wordmarkUrl: brandingWordmarkUrl, logomarkUrl: brandingLogomarkUrl } = useBrandingLogo(authToken)
 
   const menuUserInfo = useMemo((): UserMenuUserInfo | undefined => {
@@ -1007,6 +1010,36 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
       // ignore serialization or storage errors
     }
   }, [profileUserInfo])
+
+  useEffect(() => {
+    if (!authToken || !profileUserInfo?.id) return
+
+    const tenantKey = profileUserInfo.tenantId || 'default'
+    const storageKey = `every-fabric:user-profile-memory-ensure:${tenantKey}:${profileUserInfo.id}:${USER_PROFILE_MEMORY_ENSURE_VERSION}`
+    try {
+      if (localStorage.getItem(storageKey) === 'done') return
+      localStorage.setItem(storageKey, 'pending')
+    } catch {
+      // Storage is only a browser-side throttle; backend idempotency is the source of truth.
+    }
+
+    void promptManagerClient
+      .post('/deep-agent/user-profile/ensure', {})
+      .then(() => {
+        try {
+          localStorage.setItem(storageKey, 'done')
+        } catch {
+          // ignore storage errors
+        }
+      })
+      .catch(() => {
+        try {
+          localStorage.removeItem(storageKey)
+        } catch {
+          // ignore storage errors
+        }
+      })
+  }, [authToken, profileUserInfo?.id, profileUserInfo?.tenantId, promptManagerClient])
 
   // After auth init, sync selectedApp from URL (covers path restore after reload)
   useEffect(() => {
