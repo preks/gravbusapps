@@ -8,6 +8,7 @@ import { Customer360SurfaceSection } from './sections/Customer360SurfaceSection'
 import { EscalationSection } from './sections/EscalationSection'
 import { IdentitySection } from './sections/IdentitySection'
 import { KnowledgeSection } from './sections/KnowledgeSection'
+import { OrgchartRegistrationSection } from './sections/OrgchartRegistrationSection'
 import { RoleOwnershipSection } from './sections/RoleOwnershipSection'
 import { SkillsAndPoliciesSection } from './sections/SkillsAndPoliciesSection'
 import { TriggersSection } from './sections/TriggersSection'
@@ -84,6 +85,12 @@ export const WorkforceConfigSectionStack: React.FC<WorkforceConfigSectionStackPr
         agent={agent}
         isSaving={savingSection === 'customer-360-surface'}
         onSave={makeSaver('customer-360-surface')}
+      />
+      <OrgchartRegistrationSection
+        agent={agent}
+        accessToken={accessToken}
+        isSaving={savingSection === 'orgchart'}
+        onSave={makeSaver('orgchart')}
       />
       <EscalationSection agent={agent} isSaving={savingSection === 'escalation'} onSave={makeSaver('escalation')} />
       <BudgetSection agent={agent} isSaving={savingSection === 'budget'} onSave={makeSaver('budget')} />

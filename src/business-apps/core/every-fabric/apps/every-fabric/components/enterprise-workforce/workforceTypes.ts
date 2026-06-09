@@ -74,6 +74,22 @@ export interface WorkforceCreditUsage {
   estimated_usd?: number | null
 }
 
+/**
+ * Link to the agent's own platform identity (FlowBot virtual assistant).
+ *
+ * When set, the agent exists as a Keycloak user + orgchart employee and
+ * headless runs authenticate AS the agent via token exchange instead of
+ * the shared service account. Written by the "Orgchart" section in the
+ * agent config; read by prompt-manager's run dispatchers.
+ */
+export interface WorkforceOrgchartIdentity {
+  keycloak_user_id?: string | null
+  employee_id?: string | null
+  org_unit_id?: string | null
+  registered_at?: string | null
+  registered_by_user_id?: string | null
+}
+
 // Workforce-only configuration carried on the host agent record.
 export interface WorkforceProfile {
   role: string
@@ -84,6 +100,9 @@ export interface WorkforceProfile {
   budget: WorkforceBudget
   knowledge_refs: WorkforceKnowledgeRef[]
   instructions: string
+  // Orgchart/Keycloak identity for per-agent token exchange. Null/absent
+  // means headless runs use the shared service account.
+  orgchart?: WorkforceOrgchartIdentity | null
   // Soft-delete marker. Populated when an operator archives the agent;
   // restoring the agent clears it. The UI uses this to render the
   // archived view and to drive the recovery flow.
@@ -131,7 +150,11 @@ export interface WorkforceAgentCreateInput {
   tags?: string[]
 }
 
-export type WorkforceAgentUpdateInput = Partial<Omit<WorkforceAgentCreateInput, 'name'>>
+export type WorkforceAgentUpdateInput = Partial<Omit<WorkforceAgentCreateInput, 'name'>> & {
+  // Orgchart identity is only settable via update (registration happens
+  // after the agent exists), hence not part of the create input.
+  orgchart?: WorkforceOrgchartIdentity | null
+}
 
 /**
  * Agent tag that opts a workforce agent into the CRM Customer 360 Inbound tab.
