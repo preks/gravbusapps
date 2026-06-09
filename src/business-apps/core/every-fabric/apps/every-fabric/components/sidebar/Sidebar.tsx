@@ -155,7 +155,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <SidebarSectionLabel label="Workspace" isCollapsed={isCollapsed} testId="sidebar-section-workspace" />
         <SidebarNavItem
           icon={UsersThreeIcon}
-          label="Enterprise Workforce"
+          label="Digital Workforce"
           badge="NEW"
           isActive={isEnterpriseWorkforceActive}
           isCollapsed={isCollapsed}

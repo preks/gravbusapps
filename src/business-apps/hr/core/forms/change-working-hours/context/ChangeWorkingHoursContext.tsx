@@ -5,6 +5,15 @@ import { EMPLOYEE_DATA_QUERY, ALL_EMPLOYEE_DATA_QUERY } from '../ChangeWorkingHo
 import { WorkingHoursFormValues } from '../constants/changeWorkingHoursConstants'
 import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
+type ChangeMode = 'UPDATE' | 'INSERT'
+
+export interface WorkingHoursValidationRecord {
+  id?: string
+  version?: number
+  activeFrom?: string | null
+  activeTo?: string | null
+}
+
 export interface EmployeeLite {
   pictureThumbnail?: string
   firstName?: string
@@ -19,12 +28,14 @@ export interface ChangeWorkingHoursContextState {
   employees: Array<{ id: string; firstName: string; lastName: string }>
   defaults: WorkingHoursFormValues | null
   existingWorkingMeta: { id?: string; version?: number; remoteRef?: string } | null
+  workingHoursValidationRecords: WorkingHoursValidationRecord[]
   selectedEmployeeId: string
   setSelectedEmployeeId: (id: string) => void
   activeEmployeeId: string
   isFixedEmployeeId: boolean
   loading: boolean
   error: string | null
+  changeMode: ChangeMode
   reload: () => Promise<void>
   buildSubmitPayload: (
     values: WorkingHoursFormValues,
@@ -33,6 +44,61 @@ export interface ChangeWorkingHoursContextState {
 }
 
 const ChangeWorkingHoursContext = createContext<ChangeWorkingHoursContextState | undefined>(undefined)
+
+const toDateInputValue = (value?: string | null): string => {
+  if (!value) {
+    return ''
+  }
+
+  const timestampIndex = value.indexOf('T')
+  return timestampIndex === -1 ? value : value.substring(0, timestampIndex)
+}
+
+const toInstantDate = (value: string): string | undefined => {
+  const dateValue = toDateInputValue(value)
+  return dateValue ? `${dateValue}T00:00:00.000Z` : undefined
+}
+
+const toTimestamp = (value?: string | null): number | null => {
+  if (!value) {
+    return null
+  }
+
+  const timestamp = Date.parse(value)
+  return Number.isNaN(timestamp) ? null : timestamp
+}
+
+const isActiveWorkingHours = (record: any, today: string): boolean => {
+  const activeFrom = toTimestamp(record?.activeFrom)
+  const todayTimestamp = toTimestamp(today)
+
+  if (activeFrom === null || todayTimestamp === null || activeFrom > todayTimestamp) {
+    return false
+  }
+
+  const activeTo = toTimestamp(record?.activeTo)
+  return activeTo === null || activeTo >= todayTimestamp
+}
+
+const isLegacyWorkingHours = (record: any): boolean => !record?.activeFrom && !record?.activeTo
+
+const getCurrentWorkingHours = (records: any[], today: string, workingHoursId?: string, changeMode?: ChangeMode) => {
+  if (changeMode === 'INSERT') {
+    return null
+  }
+
+  if (workingHoursId) {
+    return records.find(record => record?.id === workingHoursId) || null
+  }
+
+  const activeRecord = records.find(record => isActiveWorkingHours(record, today))
+
+  if (activeRecord) {
+    return activeRecord
+  }
+
+  return records.find(isLegacyWorkingHours) || null
+}
 
 export const useChangeWorkingHoursContext = () => {
   const ctx = useContext(ChangeWorkingHoursContext)
@@ -43,6 +109,7 @@ export const useChangeWorkingHoursContext = () => {
 export interface ChangeWorkingHoursProviderProps {
   accessToken: string
   userInfo?: BusinessAppContextProps['userInfo']
+  additionalData?: BusinessAppContextProps['additionalData']
   employeeId?: string
   children: React.ReactNode
 }
@@ -50,9 +117,10 @@ export interface ChangeWorkingHoursProviderProps {
 export function ChangeWorkingHoursProvider({
   accessToken,
   userInfo,
+  additionalData,
   employeeId,
   children
-}: ChangeWorkingHoursProviderProps) {
+}: Readonly<ChangeWorkingHoursProviderProps>) {
   const graphql = useGraphqlClient(accessToken)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -63,10 +131,53 @@ export function ChangeWorkingHoursProvider({
     version?: number
     remoteRef?: string
   } | null>(null)
+  const [workingHoursValidationRecords, setWorkingHoursValidationRecords] = useState<WorkingHoursValidationRecord[]>([])
   const [employees, setEmployees] = useState<Array<{ id: string; firstName: string; lastName: string }>>([])
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('')
-  const isFixedEmployeeId = useMemo(() => Boolean(employeeId && String(employeeId).trim().length > 0), [employeeId])
-  const activeEmployeeId = useMemo(() => employeeId || selectedEmployeeId, [employeeId, selectedEmployeeId])
+  const contextEmployeeId = useMemo(() => {
+    const externalContextData = additionalData?.externalContextData
+    const psiTaskPayload = additionalData?.psi_taskPayload
+    const initialParameters = psiTaskPayload?.psi_initialParameters
+
+    return (
+      externalContextData?.employeeId ||
+      additionalData?.employeeId ||
+      psiTaskPayload?.employeeId ||
+      initialParameters?.employeeId ||
+      ''
+    )
+  }, [additionalData])
+  const workingHoursId = useMemo(() => {
+    const externalContextData = additionalData?.externalContextData
+    const psiTaskPayload = additionalData?.psi_taskPayload
+    const initialParameters = psiTaskPayload?.psi_initialParameters
+
+    return (
+      externalContextData?.workingHoursId ||
+      additionalData?.workingHoursId ||
+      psiTaskPayload?.workingHoursId ||
+      initialParameters?.workingHoursId ||
+      undefined
+    )
+  }, [additionalData])
+  const changeMode = useMemo<ChangeMode>(() => {
+    const externalContextData = additionalData?.externalContextData
+    const psiTaskPayload = additionalData?.psi_taskPayload
+    const initialParameters = psiTaskPayload?.psi_initialParameters
+    const requestedChangeMode =
+      externalContextData?.changeMode ||
+      additionalData?.changeMode ||
+      psiTaskPayload?.changeMode ||
+      initialParameters?.changeMode
+
+    return requestedChangeMode === 'INSERT' ? 'INSERT' : 'UPDATE'
+  }, [additionalData])
+  const fixedEmployeeId = useMemo(() => employeeId || contextEmployeeId, [contextEmployeeId, employeeId])
+  const isFixedEmployeeId = useMemo(
+    () => Boolean(fixedEmployeeId && String(fixedEmployeeId).trim().length > 0),
+    [fixedEmployeeId]
+  )
+  const activeEmployeeId = useMemo(() => fixedEmployeeId || selectedEmployeeId, [fixedEmployeeId, selectedEmployeeId])
 
   const loadEmployee = useCallback(async () => {
     try {
@@ -74,9 +185,14 @@ export function ChangeWorkingHoursProvider({
       setError(null)
       const res: any = await graphql.request(EMPLOYEE_DATA_QUERY as any, { employeeId: activeEmployeeId })
       const emp = res?.Employee?.[0]
-      const working = res?.employee?.[0]?.workingHours?.[0]
+      const today = `${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`
+      const workingHoursCandidates = res?.employee?.[0]?.workingHours || []
+      const working = getCurrentWorkingHours(workingHoursCandidates, today, workingHoursId, changeMode)
       setEmployee(emp)
+      setWorkingHoursValidationRecords(res?.employee?.[0]?.workingHoursValidationRecords || [])
       const d: WorkingHoursFormValues = {
+        activeFrom: toDateInputValue(working?.activeFrom),
+        activeTo: toDateInputValue(working?.activeTo),
         mondayHours: (working?.mondayHours ?? 0) as number,
         tuesdayHours: (working?.tuesdayHours ?? 0) as number,
         wednesdayHours: (working?.wednesdayHours ?? 0) as number,
@@ -95,7 +211,7 @@ export function ChangeWorkingHoursProvider({
     } finally {
       setLoading(false)
     }
-  }, [activeEmployeeId, graphql])
+  }, [activeEmployeeId, changeMode, graphql, workingHoursId])
 
   const loadAllEmployees = useCallback(async () => {
     try {
@@ -114,6 +230,8 @@ export function ChangeWorkingHoursProvider({
       loadEmployee()
     } else {
       const zeroDefaults: WorkingHoursFormValues = {
+        activeFrom: '',
+        activeTo: '',
         mondayHours: 0,
         tuesdayHours: 0,
         wednesdayHours: 0,
@@ -124,6 +242,7 @@ export function ChangeWorkingHoursProvider({
       }
       setEmployee(null)
       setExistingWorkingMeta(null)
+      setWorkingHoursValidationRecords([])
       setDefaults(zeroDefaults)
       setLoading(false)
       if (!isFixedEmployeeId) {
@@ -144,6 +263,7 @@ export function ChangeWorkingHoursProvider({
         return {
           employeeId: activeEmployeeId,
           event: 'pse_submit',
+          changeMode,
           pso_exitStrategy: 'complete',
           employeeWorkingHours: {
             id: (workingHours as any)?.id,
@@ -153,6 +273,8 @@ export function ChangeWorkingHoursProvider({
             weeklyDays: workingDays,
             fullTimeWeeklyHours: 40,
             fullTimeEquivalent: fte,
+            activeFrom: toInstantDate(values.activeFrom),
+            activeTo: toInstantDate(values.activeTo),
             mondayHours: Number(values.mondayHours || 0),
             tuesdayHours: Number(values.tuesdayHours || 0),
             wednesdayHours: Number(values.wednesdayHours || 0),
@@ -167,6 +289,7 @@ export function ChangeWorkingHoursProvider({
       return {
         employeeId: activeEmployeeId,
         event: 'pse_submit',
+        changeMode,
         pso_exitStrategy: 'complete',
         employeeWorkingHours: {
           employeeId: activeEmployeeId,
@@ -174,6 +297,8 @@ export function ChangeWorkingHoursProvider({
           weeklyDays: workingDays,
           fullTimeWeeklyHours: 40,
           fullTimeEquivalent: fte,
+          activeFrom: toInstantDate(values.activeFrom),
+          activeTo: toInstantDate(values.activeTo),
           mondayHours: Number(values.mondayHours || 0),
           tuesdayHours: Number(values.tuesdayHours || 0),
           wednesdayHours: Number(values.wednesdayHours || 0),
@@ -185,27 +310,42 @@ export function ChangeWorkingHoursProvider({
         }
       }
     },
-    [existingWorkingMeta, activeEmployeeId]
+    [existingWorkingMeta, activeEmployeeId, changeMode]
   )
 
-  return (
-    <ChangeWorkingHoursContext.Provider
-      value={{
-        employee,
-        employees,
-        defaults,
-        existingWorkingMeta,
-        selectedEmployeeId,
-        setSelectedEmployeeId,
-        activeEmployeeId,
-        isFixedEmployeeId,
-        loading,
-        error,
-        reload,
-        buildSubmitPayload
-      }}
-    >
-      {children}
-    </ChangeWorkingHoursContext.Provider>
+  const contextValue = useMemo<ChangeWorkingHoursContextState>(
+    () => ({
+      employee,
+      employees,
+      defaults,
+      existingWorkingMeta,
+      workingHoursValidationRecords,
+      selectedEmployeeId,
+      setSelectedEmployeeId,
+      activeEmployeeId,
+      isFixedEmployeeId,
+      loading,
+      error,
+      changeMode,
+      reload,
+      buildSubmitPayload
+    }),
+    [
+      employee,
+      employees,
+      defaults,
+      existingWorkingMeta,
+      workingHoursValidationRecords,
+      selectedEmployeeId,
+      activeEmployeeId,
+      isFixedEmployeeId,
+      loading,
+      error,
+      changeMode,
+      reload,
+      buildSubmitPayload
+    ]
   )
+
+  return <ChangeWorkingHoursContext.Provider value={contextValue}>{children}</ChangeWorkingHoursContext.Provider>
 }

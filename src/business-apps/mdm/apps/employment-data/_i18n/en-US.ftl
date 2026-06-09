@@ -50,6 +50,8 @@ ct-table-header-code = Code
 ct-table-header-name = Name
 ct-table-header-description = Description
 ct-table-header-probation-period = Probation Period
+ct-table-header-payroll-relevant = Payroll relevant
+ct-table-header-time-relevant = Time relevant
 ct-table-header-actions = Actions
 
 # Buttons
@@ -66,6 +68,8 @@ ct-drawer-label-name = Name
 ct-drawer-label-code = Code
 ct-drawer-label-description = Description
 ct-drawer-label-probation-period = Probation Period
+ct-drawer-label-payroll-relevant = Payroll relevant
+ct-drawer-label-time-relevant = Time relevant
 ct-sheet-extra-content = This contract type can be used to classify employees and job positions.
 
 # Probation period units

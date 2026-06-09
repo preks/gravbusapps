@@ -8,16 +8,6 @@ import { UniverSheetGrid as UniverSheetGridBase } from '../UniverSheetGrid'
 import { parseChartRange } from '../../utils/chartRangeUtils'
 
 export const eventHandlers: Record<string, (payload: unknown) => void> = {}
-export let directCommandExecutedHandler: ((payload: unknown) => void) | undefined
-
-jest.mock(
-  '@univerjs/core',
-  () => ({
-    CommandType: { MUTATION: 2 },
-    ICommandService: Symbol('ICommandService')
-  }),
-  { virtual: true }
-)
 
 jest.mock('@univerjs/preset-sheets-core/locales/en-US', () => ({}), { virtual: true })
 
@@ -263,19 +253,8 @@ jest.mock(
         }
       })
 
-      const commandService = {
-        onCommandExecuted: (cb: (payload: unknown) => void) => {
-          directCommandExecutedHandler = cb
-          return { dispose: jest.fn() }
-        }
-      }
-
       return {
-        univer: {
-          __getInjector: () => ({
-            get: () => commandService
-          })
-        },
+        univer: {},
         univerAPI: {
           syncExecuteCommand: executeCommandMock,
           createWorkbook: createWorkbookMock,
@@ -295,7 +274,6 @@ jest.mock(
 
 export function resetUniverSheetGridTestMocks(): void {
   Object.keys(eventHandlers).forEach(key => delete eventHandlers[key])
-  directCommandExecutedHandler = undefined
   lastPresetContainer = undefined
   lastSetNumfmtLocalMock = undefined
   lastRangeGetValueMock = undefined

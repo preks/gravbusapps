@@ -242,11 +242,51 @@ export const createOpportunityDescriptors = (
   { key: 'winningChance', searchPaths: [fields.winningChance], sortPath: fields.winningChance, type: 'number' },
 
   // Filter IDs
-  { key: 'accountIds', path: fields.accountId, kind: 'inIds' },
-  { key: 'currencyIds', path: fields.currencyRef, kind: 'inIds' },
-  { key: 'opportunityPipelineIds', path: fields.opportunityPipelineRef, kind: 'inIds' },
-  { key: 'opportunityPipelineStageIds', path: fields.opportunityPipelineStageRef, kind: 'inIds' },
-  { key: 'opportunityStatusIds', path: fields.opportunityStatusRef, kind: 'inIds' },
+  {
+    key: 'accountIds',
+    path: fields.accountId,
+    filterLabel: 'Account',
+    optionSelectPaths: [`${fields.account}.id`, `${fields.account}.name`],
+    optionSearchPaths: [`${fields.account}.name`, `${fields.account}.code`],
+    optionDistinctOn: [fields.accountId],
+    kind: 'inIds'
+  },
+  {
+    key: 'currencyIds',
+    path: fields.currencyRef,
+    filterLabel: 'Currency',
+    optionSelectPaths: [`${fields.currency}.id`, `${fields.currency}.code`],
+    optionSearchPaths: [`${fields.currency}.value`, `${fields.currency}.code`],
+    optionDistinctOn: [fields.currencyRef],
+    kind: 'inIds'
+  },
+  {
+    key: 'opportunityPipelineIds',
+    path: fields.opportunityPipelineRef,
+    filterLabel: 'Pipeline',
+    optionSelectPaths: [`${fields.opportunityPipeline}.id`, `${fields.opportunityPipeline}.value`],
+    optionSearchPaths: [`${fields.opportunityPipeline}.value`, `${fields.opportunityPipeline}.code`],
+    optionDistinctOn: [fields.opportunityPipelineRef],
+    kind: 'inIds'
+  },
+  {
+    key: 'opportunityPipelineStageIds',
+    path: fields.opportunityPipelineStageRef,
+    filterLabel: 'Stage',
+    optionSelectPaths: [`${fields.opportunityPipelineStage}.id`, `${fields.opportunityPipelineStage}.value`],
+    optionSearchPaths: [`${fields.opportunityPipelineStage}.value`, `${fields.opportunityPipelineStage}.code`],
+    optionDistinctOn: [fields.opportunityPipelineStageRef],
+    kind: 'inIds'
+  },
+  {
+    key: 'opportunityStatusIds',
+    path: fields.opportunityStatusRef,
+    filterLabel: 'Status',
+    optionSelectPaths: [`${fields.opportunityStatus}.id`, `${fields.opportunityStatus}.value`],
+    optionSearchPaths: [`${fields.opportunityStatus}.value`, `${fields.opportunityStatus}.code`],
+    optionDistinctOn: [fields.opportunityStatusRef],
+    kind: 'inIds'
+  },
   {
     key: 'opportunityForecastIds',
     path: fields.opportunityForecastRef,
@@ -264,7 +304,19 @@ export const createOpportunityDescriptors = (
     optionDistinctOn: [fields.opportunityForecastRef],
     kind: 'inIds'
   },
-  { key: 'ownerEmployeeIds', path: fields.ownerEmployeeId, kind: 'inIds' },
+  {
+    key: 'ownerEmployeeIds',
+    path: fields.ownerEmployeeId,
+    filterLabel: 'Owner',
+    optionSelectPaths: [`${fields.ownerEmployee}.id`, `${fields.ownerEmployee}.displayName`],
+    optionSearchPaths: [
+      `${fields.ownerEmployee}.displayName`,
+      `${fields.ownerEmployee}.firstName`,
+      `${fields.ownerEmployee}.lastName`
+    ],
+    optionDistinctOn: [fields.ownerEmployeeId],
+    kind: 'inIds'
+  },
 
   // Date range filters
   { key: 'closeDateFrom', path: fields.closeDate, kind: 'dateFrom' },

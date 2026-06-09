@@ -1,84 +1,38 @@
 import { useCallback, useMemo } from 'react'
-import { formatExportDate } from '@/common/utils/excelExportUtils'
-import { useExportBase } from '@/common/hooks/useExportBase'
 import type { Opportunity } from '@/common/data/relations/types/opportunityTypes'
+import { useExportBase } from '@/common/hooks/useExportBase'
+import { buildCrmOpportunityExportFields } from '@/common/components/common-relations/apps/data-export/registries/opportunity/crmOpportunityExportFields'
+import { buildIrmOpportunityExportFields } from '@/common/components/common-relations/apps/data-export/registries/opportunity/irmOpportunityExportFields'
+import {
+  formatEntityForExport,
+  getDateColumnKeys,
+  getDefaultSelectedFieldKeys,
+  resolveExportFields,
+  toExportColumns
+} from '@/common/components/common-relations/apps/data-export/types/exportFieldTypes'
 import type { OpportunityAggregates } from '../components/OpportunityAggregatesBar'
 
-// ─── Column definitions ───────────────────────────────────────────────────────
+const CRM_DEFAULT_EXPORT_FIELDS = resolveExportFields(
+  buildCrmOpportunityExportFields(),
+  getDefaultSelectedFieldKeys(buildCrmOpportunityExportFields())
+)
 
-const CRM_OPPORTUNITY_EXPORT_COLUMNS = [
-  { key: 'name', title: 'Opportunity' },
-  { key: 'opportunityStatus', title: 'Status' },
-  { key: 'pipeline', title: 'Pipeline' },
-  { key: 'stage', title: 'Stage' },
-  { key: 'opportunityForecast', title: 'Forecast' },
-  { key: 'amount', title: 'Amount' },
-  { key: 'winningChance', title: 'Win Chance (%)' },
-  { key: 'closeDate', title: 'Close Date' },
-  { key: 'ownerEmployee', title: 'Owner' },
-  { key: 'createdAt', title: 'Created Date' }
-] as const
+const IRM_DEFAULT_EXPORT_FIELDS = resolveExportFields(
+  buildIrmOpportunityExportFields(),
+  getDefaultSelectedFieldKeys(buildIrmOpportunityExportFields())
+)
 
-const IRM_OPPORTUNITY_EXPORT_COLUMNS = [
-  { key: 'name', title: 'Opportunity' },
-  { key: 'opportunityStatus', title: 'Status' },
-  { key: 'pipeline', title: 'Pipeline' },
-  { key: 'stage', title: 'Stage' },
-  { key: 'opportunityForecast', title: 'Forecast' },
-  { key: 'amount', title: 'Amount' },
-  { key: 'forecastedProfitAmount', title: 'Forecasted Profit' },
-  { key: 'closeDate', title: 'Close Date' },
-  { key: 'ownerEmployee', title: 'Owner' },
-  { key: 'createdAt', title: 'Created Date' }
-] as const
+export const CRM_OPPORTUNITY_EXPORT_COLUMNS = toExportColumns(CRM_DEFAULT_EXPORT_FIELDS)
+export const IRM_OPPORTUNITY_EXPORT_COLUMNS = toExportColumns(IRM_DEFAULT_EXPORT_FIELDS)
 
-const OPPORTUNITY_DATE_COLUMN_KEYS = new Set(['closeDate', 'createdAt'])
+const CRM_OPPORTUNITY_DATE_COLUMN_KEYS = getDateColumnKeys(CRM_DEFAULT_EXPORT_FIELDS)
+const IRM_OPPORTUNITY_DATE_COLUMN_KEYS = getDateColumnKeys(IRM_DEFAULT_EXPORT_FIELDS)
 
-// ─── Formatters ───────────────────────────────────────────────────────────────
+export const formatCrmOpportunityForExport = (opportunity: Opportunity): Record<string, string> =>
+  formatEntityForExport(opportunity, CRM_DEFAULT_EXPORT_FIELDS)
 
-const getOwnerDisplayName = (opp: Opportunity): string => {
-  const emp = opp.ownerEmployee
-  if (!emp) return '-'
-  return emp.displayName || [emp.firstName, emp.lastName].filter(Boolean).join(' ') || '-'
-}
-
-const getPipelineValue = (opp: any): string => opp.opportunityPipeline?.value || opp.salesPipeline?.value || '-'
-
-const getStageValue = (opp: any): string => opp.opportunityPipelineStage?.value || opp.salesPipelineStage?.value || '-'
-
-const formatAmount = (opp: Opportunity): string => {
-  if (opp.estimatedAmount == null) return '-'
-  const currencyCode = opp.currency?.code || ''
-  return currencyCode ? `${opp.estimatedAmount} ${currencyCode}` : String(opp.estimatedAmount)
-}
-
-const formatCrmOpportunityForExport = (opp: Opportunity): Record<string, string> => ({
-  name: opp.name || '-',
-  opportunityStatus: opp.opportunityStatus?.value || '-',
-  pipeline: getPipelineValue(opp),
-  stage: getStageValue(opp),
-  opportunityForecast: opp.opportunityForecast?.value || '-',
-  amount: formatAmount(opp),
-  winningChance: opp.winningChance == null ? '-' : String(opp.winningChance),
-  closeDate: formatExportDate(opp.closeDate),
-  ownerEmployee: getOwnerDisplayName(opp),
-  createdAt: formatExportDate(opp.createdAt)
-})
-
-const formatIrmOpportunityForExport = (opp: any): Record<string, string> => ({
-  name: opp.name || '-',
-  opportunityStatus: opp.opportunityStatus?.value || '-',
-  pipeline: getPipelineValue(opp),
-  stage: getStageValue(opp),
-  opportunityForecast: opp.opportunityForecast?.value || '-',
-  amount: formatAmount(opp),
-  forecastedProfitAmount: opp.forecastedProfitAmount == null ? '-' : String(opp.forecastedProfitAmount),
-  closeDate: formatExportDate(opp.closeDate),
-  ownerEmployee: getOwnerDisplayName(opp),
-  createdAt: formatExportDate(opp.createdAt)
-})
-
-// ─── Summary rows ─────────────────────────────────────────────────────────────
+export const formatIrmOpportunityForExport = (opportunity: Opportunity): Record<string, string> =>
+  formatEntityForExport(opportunity, IRM_DEFAULT_EXPORT_FIELDS)
 
 function formatCurrencyAmount(value: number | null, currencyCode: string): string {
   if (value == null || Number.isNaN(value)) return '—'
@@ -96,7 +50,7 @@ function buildOpportunitySummaryRows(
 ): Array<[string, string]> {
   if (!aggregates) return []
 
-  const fmt = (v: number | null) => formatCurrencyAmount(v, displayCurrencyCode)
+  const fmt = (value: number | null) => formatCurrencyAmount(value, displayCurrencyCode)
 
   return [
     ['Count:', String(aggregates.count)],
@@ -107,17 +61,13 @@ function buildOpportunitySummaryRows(
   ]
 }
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
-
 interface UseOpportunityExportOptions {
-  fetchOpportunities: (variables: any) => Promise<{ opportunities?: Opportunity[]; total?: number }>
-  queryVariables: any
+  fetchOpportunities: (variables: Record<string, unknown>) => Promise<{ opportunities?: Opportunity[]; total?: number }>
+  queryVariables: Record<string, unknown>
   totalCount: number
   filenamePrefix?: string
   contextType: 'customer' | 'investment'
-  /** Aggregates from the current filtered list (IRM only). */
   listAggregates?: OpportunityAggregates | null
-  /** Currency code for formatting aggregate amounts (IRM only). */
   displayCurrencyCode?: string
 }
 
@@ -146,7 +96,7 @@ export function useOpportunityExport({
     fetchAllItems,
     formatItem: isIrm ? formatIrmOpportunityForExport : formatCrmOpportunityForExport,
     columns: isIrm ? IRM_OPPORTUNITY_EXPORT_COLUMNS : CRM_OPPORTUNITY_EXPORT_COLUMNS,
-    dateColumnKeys: OPPORTUNITY_DATE_COLUMN_KEYS,
+    dateColumnKeys: isIrm ? IRM_OPPORTUNITY_DATE_COLUMN_KEYS : CRM_OPPORTUNITY_DATE_COLUMN_KEYS,
     sheetName: 'Opportunities',
     entityLabel: 'opportunities',
     totalCount,

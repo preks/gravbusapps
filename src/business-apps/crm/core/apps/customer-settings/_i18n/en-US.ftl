@@ -13,6 +13,9 @@ campaign-group-engagement = Engagement
 icp-settings-card-title = ICP Profiles
 icp-settings-card-description = Define ideal customer profiles with criteria and weights for your sales motion.
 icp-settings-card-entry = Manage profiles
+data-export-settings-card-title = Data Export
+data-export-settings-card-description = Export CRM records with filters and selectable columns
+data-export-settings-card-entry = Export Data
 
 # Page
 icp-page-title = ICP Profiles

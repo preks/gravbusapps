@@ -12,8 +12,10 @@ import type { SpreadsheetBatchOperation, SpreadsheetBatchOperationType } from '.
 import type { SpreadsheetCommitOptimisticActiveSheetRows } from './useSpreadsheetBulkRows'
 import {
   classifyNativeColumnReorderWithMerges,
+  type ColumnReorderMove,
   type NativeColumnReorderBlockReason
 } from '../utils/spreadsheetColumnReorderMoves'
+import { resolveAuthoritativeWorksheetMergeRanges } from '../utils/spreadsheetMergeRanges'
 
 /**
  * Column-structure operation payload emitted through the v2 batch endpoint.
@@ -45,7 +47,7 @@ export interface UseSpreadsheetColumnsProps {
   handleCellChangeRef: React.MutableRefObject<(rowId: string, columnName: string, value: unknown) => void>
   onAppUpdate?: (app: SpreadsheetApp) => void
   onDiagnosticsTraceEvent?: (event: SpreadsheetTraceEventInput) => void
-  onBlockedColumnReorder?: (reason: NativeColumnReorderBlockReason) => void
+  onBlockedColumnReorder?: (reason: NativeColumnReorderBlockReason | 'unplannable_reorder') => void
   /**
    * Emit a column-structure batch operation to the v2 HTTP batch endpoint.
    * This is the single authoritative persistence+broadcast path for
@@ -351,18 +353,21 @@ export function useSpreadsheetColumns({
       previousColumns: SpreadsheetColumn[],
       nextColumns: SpreadsheetColumn[],
       options?: {
-        explicitMoves?: Array<{ sourceStartColumn: number; count: number; destinationStartColumn: number }>
+        explicitMoves?: ColumnReorderMove[]
         diagnosticStage: string
         diagnosticPayload?: Record<string, unknown>
       }
     ): boolean => {
+      const mergeRanges = resolveAuthoritativeWorksheetMergeRanges(activeSheetRef.current)
       const classification = classifyNativeColumnReorderWithMerges({
         previousColumns,
         nextColumns,
-        mergeRanges: activeSheetRef.current.settings.mergeData,
+        mergeRanges,
         explicitMoves: options?.explicitMoves
       })
-      if (classification.ok || classification.reason === 'unplannable_reorder') {
+      const shouldBlock =
+        !classification.ok && (classification.reason !== 'unplannable_reorder' || mergeRanges.length > 0)
+      if (!shouldBlock) {
         return false
       }
       onDiagnosticsTraceEventRef.current?.({
@@ -372,6 +377,7 @@ export function useSpreadsheetColumns({
         sheetId: activeSheetRef.current.id,
         payload: {
           reason: classification.reason,
+          mergeRangeCount: mergeRanges.length,
           ...(options?.diagnosticPayload ?? {})
         }
       })
@@ -610,10 +616,37 @@ export function useSpreadsheetColumns({
         return
       }
 
+      const visibleColumns = latestColumnsRef.current
+        .slice()
+        .sort((left, right) => left.order - right.order)
+        .filter(column => column.isVisible !== false)
+      const sourceStartIndex = visibleColumns.findIndex(column => column.id === draggedColumnId)
+      const targetVisibleIndex = visibleColumns.findIndex(column => column.id === targetColumnId)
+      const destinationIndex =
+        sourceStartIndex >= 0 && targetVisibleIndex >= 0
+          ? sourceStartIndex < targetVisibleIndex
+            ? targetVisibleIndex + 1
+            : targetVisibleIndex
+          : null
+      const normalizedDestinationIndex =
+        sourceStartIndex >= 0 && destinationIndex != null
+          ? normalizeColumnMoveDestinationIndex(sourceStartIndex, 1, destinationIndex)
+          : null
+      const explicitMove =
+        sourceStartIndex >= 0 && destinationIndex != null && normalizedDestinationIndex != null
+          ? {
+              sourceStartIndex,
+              count: 1,
+              destinationIndex,
+              normalizedDestinationIndex
+            }
+          : null
+
       applyColumnsLocal(reorderedColumns, 'handleReorderColumns')
       dispatchColumnBatchOp('columns_reorder', {
         sheetId: activeSheet.id,
-        columns: reorderedColumns
+        columns: reorderedColumns,
+        ...(explicitMove ?? {})
       })
     },
     [activeSheet, applyColumnsLocal, dispatchColumnBatchOp, rejectUnsupportedColumnReorder]
@@ -660,7 +693,8 @@ export function useSpreadsheetColumns({
       const explicitMove = {
         sourceStartColumn: safeSourceStart,
         count: movedVisibleColumns.length,
-        destinationStartColumn: safeDestinationIndex
+        destinationStartColumn: safeDestinationIndex,
+        rawDestinationStartColumn: Math.max(0, Math.trunc(destinationIndex))
       }
       if (
         rejectUnsupportedColumnReorder(currentColumns, reorderedColumns, {

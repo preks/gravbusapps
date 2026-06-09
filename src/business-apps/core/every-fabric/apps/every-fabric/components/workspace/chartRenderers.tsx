@@ -58,6 +58,13 @@ export interface SingleChartConfig {
   dataKeys?: string[]
   yAxisUnit?: string
   gradientFill?: boolean
+  layout?: 'vertical' | 'horizontal'
+  displayData?: ChartDataPoint[]
+  summarizedData?: ChartDataPoint[]
+  denseCategoryChart?: boolean
+  recommendedHeight?: number
+  showValueLabels?: boolean
+  categoryLimit?: number
 }
 
 // Chart palette uses semantic design tokens from the NEWWORK design system.
@@ -75,6 +82,14 @@ export const DEFAULT_COLORS = [
 
 const PART_TO_WHOLE_CHART_TYPES = new Set(['pie', 'radar', 'radial', 'funnel', 'treemap', 'sunburst'])
 const MAX_PART_TO_WHOLE_ITEMS = 6
+const DENSE_CATEGORY_THRESHOLD = 12
+const VERY_DENSE_CATEGORY_THRESHOLD = 18
+const DENSE_LABEL_LENGTH_THRESHOLD = 11
+const DEFAULT_DENSE_CATEGORY_LIMIT = 12
+const HORIZONTAL_BAR_ROW_HEIGHT = 30
+const HORIZONTAL_BAR_MIN_HEIGHT = 220
+const HORIZONTAL_BAR_MAX_HEIGHT = 520
+const CLEAN_BAR_FILL = 'var(--primary)'
 
 const compactLongTail = (data: ChartDataPoint[], valueKey: string, labelKey: string): ChartDataPoint[] => {
   if (data.length <= MAX_PART_TO_WHOLE_ITEMS) return data
@@ -101,6 +116,103 @@ const toChartAxisKey = (value: unknown, fallback: string): string => {
 }
 
 const toOptionalChartTitle = (value: unknown): string | undefined => (typeof value === 'string' ? value : undefined)
+
+const toOptionalNumber = (value: unknown): number | undefined =>
+  typeof value === 'number' && Number.isFinite(value) ? value : undefined
+
+const toOptionalBoolean = (value: unknown): boolean | undefined => (typeof value === 'boolean' ? value : undefined)
+
+const toOptionalLayout = (value: unknown): SingleChartConfig['layout'] | undefined =>
+  value === 'horizontal' || value === 'vertical' ? value : undefined
+
+const toChartDataPoints = (value: unknown): ChartDataPoint[] | undefined =>
+  Array.isArray(value) ? (value.filter(row => row && typeof row === 'object') as ChartDataPoint[]) : undefined
+
+const toLabelText = (value: unknown): string => {
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  if (typeof value === 'boolean') return value ? 'true' : 'false'
+  return ''
+}
+
+const truncateAxisLabel = (value: unknown, maxLength = 24): string => {
+  const text = toLabelText(value)
+  return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text
+}
+
+const numericValueForKeys = (row: ChartDataPoint, keys: string[]): number =>
+  keys.reduce((sum, key) => {
+    const value = row[key]
+    return sum + (typeof value === 'number' ? value : 0)
+  }, 0)
+
+const summarizeCategoryData = (
+  data: ChartDataPoint[],
+  labelKey: string,
+  dataKeys: string[],
+  limit = DEFAULT_DENSE_CATEGORY_LIMIT
+): ChartDataPoint[] => {
+  if (data.length <= limit) return data
+
+  const safeLimit = Math.max(4, limit)
+  const sorted = [...data].sort((a, b) => numericValueForKeys(b, dataKeys) - numericValueForKeys(a, dataKeys))
+  const top = sorted.slice(0, safeLimit - 1)
+  const rest = sorted.slice(safeLimit - 1)
+  const other: ChartDataPoint = { name: 'Other', value: 0 }
+  other[labelKey] = 'Other'
+
+  for (const key of dataKeys) {
+    other[key] = rest.reduce((sum, row) => {
+      const value = row[key]
+      return sum + (typeof value === 'number' ? value : 0)
+    }, 0)
+  }
+
+  const firstKey = dataKeys[0] ?? 'value'
+  if (typeof other.value !== 'number' || other.value === 0) {
+    const firstValue = other[firstKey]
+    other.value = typeof firstValue === 'number' ? firstValue : 0
+  }
+
+  return [...top, other]
+}
+
+const labelStats = (data: ChartDataPoint[], labelKey: string) => {
+  const lengths = data.map(row => toLabelText(row[labelKey] ?? row.name).length)
+  const max = lengths.length > 0 ? Math.max(...lengths) : 0
+  const avg = lengths.length > 0 ? lengths.reduce((sum, len) => sum + len, 0) / lengths.length : 0
+  return { max, avg }
+}
+
+const shouldUseDenseCategoryLayout = (config: SingleChartConfig): boolean => {
+  if (config.chartType !== 'bar') return false
+  if (config.layout === 'horizontal' || config.denseCategoryChart) return true
+  if (config.layout === 'vertical') return false
+
+  const labelKey = config.xAxisKey ?? 'name'
+  const { max, avg } = labelStats(config.data, labelKey)
+  if (config.data.length >= VERY_DENSE_CATEGORY_THRESHOLD) return true
+  return config.data.length > DENSE_CATEGORY_THRESHOLD && (max >= DENSE_LABEL_LENGTH_THRESHOLD || avg >= 8)
+}
+
+const chartDataForRender = (config: SingleChartConfig): ChartDataPoint[] => {
+  if (config.displayData?.length) return config.displayData
+  if (config.summarizedData?.length) return config.summarizedData
+  if (!shouldUseDenseCategoryLayout(config)) return config.data
+
+  const labelKey = config.xAxisKey ?? 'name'
+  const dataKeys = config.dataKeys?.length ? config.dataKeys : [config.yAxisKey ?? 'value']
+  return summarizeCategoryData(config.data, labelKey, dataKeys, config.categoryLimit ?? DEFAULT_DENSE_CATEGORY_LIMIT)
+}
+
+const barChartHeight = (config: SingleChartConfig, data: ChartDataPoint[], horizontal: boolean): number => {
+  if (config.recommendedHeight) return config.recommendedHeight
+  if (!horizontal) return CHART_HEIGHT
+  return Math.min(
+    HORIZONTAL_BAR_MAX_HEIGHT,
+    Math.max(HORIZONTAL_BAR_MIN_HEIGHT, data.length * HORIZONTAL_BAR_ROW_HEIGHT + 56)
+  )
+}
 
 /** Unwrap Flowbot/provider chart payloads ({ kind, content: { chart_type, ... } }). */
 export function unwrapProviderChartPayload(content: Record<string, unknown>): Record<string, unknown> {
@@ -138,7 +250,14 @@ export function unwrapProviderChartPayload(content: Record<string, unknown>): Re
     xAxisKey,
     title: toOptionalChartTitle(content.title ?? inner.title),
     yAxisUnit: inner.yAxisUnit,
-    colors: inner.colors
+    colors: inner.colors,
+    layout: inner.layout,
+    displayData: inner.displayData,
+    summarizedData: inner.summarizedData,
+    denseCategoryChart: inner.denseCategoryChart,
+    recommendedHeight: inner.recommendedHeight,
+    showValueLabels: inner.showValueLabels,
+    categoryLimit: inner.categoryLimit
   }
 }
 
@@ -180,7 +299,14 @@ export function normalizeChartPayloadForRender(raw: Record<string, unknown>): Re
     title: (raw.title ?? inner.title) as string | undefined,
     data: series,
     xAxisKey: 'name',
-    dataKeys: ['value']
+    dataKeys: ['value'],
+    layout: toOptionalLayout(inner.layout),
+    displayData: toChartDataPoints(inner.displayData),
+    summarizedData: toChartDataPoints(inner.summarizedData),
+    denseCategoryChart: toOptionalBoolean(inner.denseCategoryChart),
+    recommendedHeight: toOptionalNumber(inner.recommendedHeight),
+    showValueLabels: toOptionalBoolean(inner.showValueLabels),
+    categoryLimit: toOptionalNumber(inner.categoryLimit)
   }
 }
 
@@ -230,7 +356,14 @@ export function parseChartConfig(content: Record<string, unknown>): SingleChartC
     colors: (source.colors as string[]) ?? DEFAULT_COLORS,
     dataKeys,
     yAxisUnit: source.yAxisUnit as string | undefined,
-    gradientFill: source.gradientFill as boolean | undefined
+    gradientFill: source.gradientFill as boolean | undefined,
+    layout: toOptionalLayout(source.layout),
+    displayData: toChartDataPoints(source.displayData),
+    summarizedData: toChartDataPoints(source.summarizedData),
+    denseCategoryChart: toOptionalBoolean(source.denseCategoryChart),
+    recommendedHeight: toOptionalNumber(source.recommendedHeight),
+    showValueLabels: toOptionalBoolean(source.showValueLabels),
+    categoryLimit: toOptionalNumber(source.categoryLimit)
   }
 }
 
@@ -359,19 +492,65 @@ export const AreaChartRenderer: React.FC<{ config: SingleChartConfig }> = ({ con
 export const BarChartRenderer: React.FC<{ config: SingleChartConfig }> = ({ config }) => {
   const singleSeries = (config.dataKeys?.length ?? 1) <= 1
   const colors = config.colors ?? DEFAULT_COLORS
-  const gradientBase = useId()
-  const gradientId = `${gradientBase}-bar`
+  const renderData = chartDataForRender(config)
+  const horizontal = shouldUseDenseCategoryLayout(config)
+  const height = barChartHeight(config, renderData, horizontal)
+  const dataKeys = config.dataKeys?.length ? config.dataKeys : ['value']
+  const showValueLabels =
+    config.showValueLabels ?? (!horizontal && singleSeries && renderData.length <= DENSE_CATEGORY_THRESHOLD)
+  const labelKey = config.xAxisKey ?? 'name'
+
+  if (horizontal) {
+    return (
+      <ResponsiveContainer width="100%" height={height}>
+        <BarChart data={renderData} layout="vertical" margin={{ top: 8, right: 28, bottom: 8, left: 8 }}>
+          <CartesianGrid strokeDasharray="3 3" opacity={0.08} horizontal={false} />
+          <XAxis
+            type="number"
+            tick={{ fontSize: 11 }}
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={v => formatAxisTick(v, config.yAxisUnit)}
+          />
+          <YAxis
+            type="category"
+            dataKey={labelKey}
+            width={156}
+            tick={{ fontSize: 11 }}
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={v => truncateAxisLabel(v, 22)}
+          />
+          <Tooltip cursor={{ fill: 'var(--muted)', opacity: 0.3 }} content={<ChartTooltip unit={config.yAxisUnit} />} />
+          {!singleSeries && <Legend wrapperStyle={{ fontSize: 11 }} iconType="circle" />}
+          {dataKeys.map((key, idx) => (
+            <Bar
+              key={key}
+              dataKey={key}
+              fill={singleSeries ? CLEAN_BAR_FILL : (colors[idx % colors.length] ?? DEFAULT_COLORS[idx])}
+              radius={0}
+              maxBarSize={18}
+            >
+              {showValueLabels && (
+                <LabelList
+                  dataKey={key}
+                  position="right"
+                  fontSize={11}
+                  fill="var(--foreground)"
+                  formatter={(v: unknown) => formatValueLabel(v, config.yAxisUnit)}
+                />
+              )}
+            </Bar>
+          ))}
+        </BarChart>
+      </ResponsiveContainer>
+    )
+  }
 
   return (
-    <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-      <BarChart data={config.data} margin={{ top: 20, right: 8, bottom: 0, left: 0 }}>
-        <defs>
-          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={colors[0]} stopOpacity={0.95} />
-            <stop offset="100%" stopColor={colors[0]} stopOpacity={0.55} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid strokeDasharray="3 3" opacity={0.12} vertical={false} />
+    <ResponsiveContainer width="100%" height={height}>
+      <BarChart data={renderData} margin={{ top: 20, right: 8, bottom: 0, left: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" opacity={0.08} vertical={false} />
         <XAxis dataKey={config.xAxisKey} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
         <YAxis
           tick={{ fontSize: 11 }}
@@ -381,15 +560,15 @@ export const BarChartRenderer: React.FC<{ config: SingleChartConfig }> = ({ conf
         />
         <Tooltip cursor={{ fill: 'var(--muted)', opacity: 0.3 }} content={<ChartTooltip unit={config.yAxisUnit} />} />
         {!singleSeries && <Legend wrapperStyle={{ fontSize: 11 }} iconType="circle" />}
-        {config.dataKeys?.map((key, idx) => (
+        {dataKeys.map((key, idx) => (
           <Bar
             key={key}
             dataKey={key}
-            fill={singleSeries ? `url(#${gradientId})` : (colors[idx % colors.length] ?? DEFAULT_COLORS[idx])}
-            radius={[6, 6, 0, 0]}
-            maxBarSize={64}
+            fill={singleSeries ? CLEAN_BAR_FILL : (colors[idx % colors.length] ?? DEFAULT_COLORS[idx])}
+            radius={0}
+            maxBarSize={48}
           >
-            {singleSeries && (
+            {showValueLabels && (
               <LabelList
                 dataKey={key}
                 position="top"

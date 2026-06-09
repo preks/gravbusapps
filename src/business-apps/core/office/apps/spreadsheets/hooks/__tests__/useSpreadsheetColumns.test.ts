@@ -324,6 +324,107 @@ describe('useSpreadsheetColumns', () => {
     expect(onBlockedColumnReorder).toHaveBeenCalledWith('source_partially_spans_merge')
   })
 
+  it('blocks column moves when merge ranges only exist in worksheetSnapshot', () => {
+    const columns = [column('col-a', 'column_a', 0), column('col-b', 'column_b', 1), column('col-c', 'column_c', 2)]
+    const sheet = {
+      ...makeSheet(columns),
+      worksheetSnapshot: {
+        mergeData: [{ startRow: 0, endRow: 0, startColumn: 1, endColumn: 2 }]
+      }
+    } as SpreadsheetSheet
+    const onAppUpdate = jest.fn()
+    const emitColumnBatchOperation = jest.fn()
+    const onBlockedColumnReorder = jest.fn()
+    const commitOptimisticActiveSheetRows = jest.fn()
+
+    const { result } = renderHook(() =>
+      useSpreadsheetColumns({
+        app: makeApp(sheet),
+        activeSheet: sheet,
+        localSheetDataRef: { current: sheet.data },
+        commitOptimisticActiveSheetRows,
+        handleCellChangeRef: { current: jest.fn() },
+        onAppUpdate,
+        onBlockedColumnReorder,
+        emitColumnBatchOperation
+      })
+    )
+
+    act(() => {
+      result.current.handleColumnsMove(2, 1, 1)
+    })
+
+    expect(onAppUpdate).not.toHaveBeenCalled()
+    expect(emitColumnBatchOperation).not.toHaveBeenCalled()
+    expect(onBlockedColumnReorder).toHaveBeenCalledWith('source_partially_spans_merge')
+  })
+
+  it('blocks rightward column moves that cross a merge span', () => {
+    const columns = [
+      column('col-a', 'column_a', 0),
+      column('col-b', 'column_b', 1),
+      column('col-c', 'column_c', 2),
+      column('col-d', 'column_d', 3),
+      column('col-e', 'column_e', 4)
+    ]
+    const sheet = makeSheet(columns, [{ startRow: 0, endRow: 0, startColumn: 2, endColumn: 3 }])
+    const onAppUpdate = jest.fn()
+    const emitColumnBatchOperation = jest.fn()
+    const onBlockedColumnReorder = jest.fn()
+    const commitOptimisticActiveSheetRows = jest.fn()
+
+    const { result } = renderHook(() =>
+      useSpreadsheetColumns({
+        app: makeApp(sheet),
+        activeSheet: sheet,
+        localSheetDataRef: { current: sheet.data },
+        commitOptimisticActiveSheetRows,
+        handleCellChangeRef: { current: jest.fn() },
+        onAppUpdate,
+        onBlockedColumnReorder,
+        emitColumnBatchOperation
+      })
+    )
+
+    act(() => {
+      result.current.handleColumnsMove(1, 1, 5)
+    })
+
+    expect(onAppUpdate).not.toHaveBeenCalled()
+    expect(emitColumnBatchOperation).not.toHaveBeenCalled()
+    expect(onBlockedColumnReorder).toHaveBeenCalledWith('shifted_range_intersects_merge')
+  })
+
+  it('blocks rightward column moves when only the raw destination path crosses a merge span', () => {
+    const columns = Array.from({ length: 12 }, (_, index) => column(`col-${index}`, `column_${index}`, index))
+    const sheet = makeSheet(columns, [{ startRow: 0, endRow: 0, startColumn: 10, endColumn: 11 }])
+    const onAppUpdate = jest.fn()
+    const emitColumnBatchOperation = jest.fn()
+    const onBlockedColumnReorder = jest.fn()
+    const commitOptimisticActiveSheetRows = jest.fn()
+
+    const { result } = renderHook(() =>
+      useSpreadsheetColumns({
+        app: makeApp(sheet),
+        activeSheet: sheet,
+        localSheetDataRef: { current: sheet.data },
+        commitOptimisticActiveSheetRows,
+        handleCellChangeRef: { current: jest.fn() },
+        onAppUpdate,
+        onBlockedColumnReorder,
+        emitColumnBatchOperation
+      })
+    )
+
+    act(() => {
+      result.current.handleColumnsMove(8, 1, 10)
+    })
+
+    expect(onAppUpdate).not.toHaveBeenCalled()
+    expect(emitColumnBatchOperation).not.toHaveBeenCalled()
+    expect(onBlockedColumnReorder).toHaveBeenCalledWith('shifted_range_intersects_merge')
+  })
+
   it('allows moving a whole merged column block when the explicit move fully contains it', () => {
     const columns = [
       column('col-a', 'column_a', 0),
@@ -366,6 +467,48 @@ describe('useSpreadsheetColumns', () => {
       })
     )
     expect(onBlockedColumnReorder).not.toHaveBeenCalled()
+  })
+
+  it('emits explicit move indices for handleReorderColumns when the drag is a single native-equivalent move', () => {
+    const columns = [
+      column('col-a', 'column_a', 0),
+      column('col-b', 'column_b', 1),
+      column('col-c', 'column_c', 2),
+      column('col-d', 'column_d', 3)
+    ]
+    const sheet = makeSheet(columns)
+    const onAppUpdate = jest.fn()
+    const emitColumnBatchOperation = jest.fn()
+    const commitOptimisticActiveSheetRows = jest.fn()
+
+    const { result } = renderHook(() =>
+      useSpreadsheetColumns({
+        app: makeApp(sheet),
+        activeSheet: sheet,
+        localSheetDataRef: { current: sheet.data },
+        commitOptimisticActiveSheetRows,
+        handleCellChangeRef: { current: jest.fn() },
+        onAppUpdate,
+        emitColumnBatchOperation
+      })
+    )
+
+    act(() => {
+      result.current.handleReorderColumns('col-b', 'col-d')
+    })
+
+    expect(emitColumnBatchOperation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'columns_reorder',
+        data: expect.objectContaining({
+          sheetId: 'sheet-1',
+          sourceStartIndex: 1,
+          count: 1,
+          normalizedDestinationIndex: 3,
+          destinationIndex: 4
+        })
+      })
+    )
   })
 
   it('does not auto-create another column for an immediate edit in a freshly inserted structural slot', async () => {

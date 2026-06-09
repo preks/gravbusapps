@@ -203,6 +203,25 @@ export const TabsContent = ({ children, value, ...props }: any) => (
     {children}
   </div>
 )
+export const TabNav = ({ children, showBorder, orientation, verticalIndicatorSide, ...props }: any) => {
+  // Strip styling-only props so they never reach the DOM in tests.
+  void showBorder
+  void orientation
+  void verticalIndicatorSide
+  return (
+    <div role="tablist" {...props}>
+      {children}
+    </div>
+  )
+}
+export const TabNavLink = ({ children, active, href, startIcon, endAdornment, ...props }: any) => (
+  <a role="tab" aria-selected={active} href={href} {...props}>
+    {startIcon}
+    {children}
+    {endAdornment}
+  </a>
+)
+export const TabsBadge = ({ children, ...props }: any) => <span {...props}>{children}</span>
 
 export default {
   LocalizationProvider,
@@ -258,5 +277,8 @@ export default {
   Tabs,
   TabsList,
   TabsTrigger,
-  TabsContent
+  TabsContent,
+  TabNav,
+  TabNavLink,
+  TabsBadge
 }

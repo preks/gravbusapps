@@ -5,29 +5,30 @@
  */
 
 import React, { useCallback } from 'react'
-import { StickyNote, ChevronRight, Layers } from 'lucide-react'
+import { FileText, ChevronRight, Layers } from 'lucide-react'
 import { PremiumHeroBackground } from '@/common/components/premium-hero-background/PremiumHeroBackground'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-
-export type NoteSection = 'home' | 'my-notes' | 'shared' | 'pinned' | 'recent' | 'archived'
+import type { QuickAccessSection } from './NoteTreeQuickAccess'
 
 interface SectionTab {
-  id: NoteSection
+  id: QuickAccessSection
   labelKey: string
 }
 
 const SECTION_TABS: SectionTab[] = [
-  { id: 'my-notes', labelKey: 'nh-tab-my-notes' },
+  { id: 'all-notes', labelKey: 'nh-tab-my-notes' },
   { id: 'shared', labelKey: 'nh-tab-shared' },
+  { id: 'favorites', labelKey: 'nh-tab-favorites' },
   { id: 'pinned', labelKey: 'nh-tab-pinned' },
   { id: 'recent', labelKey: 'nh-tab-recent' },
-  { id: 'archived', labelKey: 'nh-tab-archived' }
+  { id: 'trash', labelKey: 'nh-tab-trash' }
 ]
 
 export interface NoteHeroProps {
-  activeSection: NoteSection
-  onSectionChange: (section: NoteSection) => void
+  activeSection: QuickAccessSection | null
+  onSectionChange: (section: QuickAccessSection) => void
   newButton?: React.ReactNode
+  counts?: Partial<Record<QuickAccessSection, number>>
   t: (key: string) => string
   'data-testid'?: string
 }
@@ -36,6 +37,7 @@ export const NoteHero: React.FC<NoteHeroProps> = ({
   activeSection,
   onSectionChange,
   newButton,
+  counts = {},
   t,
   'data-testid': testId = 'note-hero'
 }) => {
@@ -70,7 +72,7 @@ export const NoteHero: React.FC<NoteHeroProps> = ({
         <div className="gba:flex gba:items-center gba:justify-between gba:gap-4 gba:mb-5">
           <div className="gba:flex gba:items-center gba:gap-3">
             <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-white/10 gba:border gba:border-white/15 gba:flex gba:items-center gba:justify-center">
-              <StickyNote className="gba:w-5 gba:h-5 gba:text-white" />
+              <FileText className="gba:w-5 gba:h-5 gba:text-white" />
             </div>
             <h1 className="gba:font-funnel-display gba:text-3xl gba:sm:text-4xl gba:font-semibold gba:text-white gba:tracking-tight">
               {t('nh-title')}
@@ -87,6 +89,7 @@ export const NoteHero: React.FC<NoteHeroProps> = ({
         >
           {SECTION_TABS.map(tab => {
             const isActive = activeSection === tab.id
+            const count = counts[tab.id]
             return (
               <button
                 key={tab.id}
@@ -95,14 +98,17 @@ export const NoteHero: React.FC<NoteHeroProps> = ({
                 aria-selected={isActive}
                 onClick={() => onSectionChange(tab.id)}
                 className={[
-                  'gba:px-4 gba:py-2 gba:rounded-lg gba:text-sm gba:font-medium gba:transition-all gba:duration-200 gba:border gba:cursor-pointer',
+                  'gba:flex gba:items-center gba:gap-1.5 gba:px-4 gba:py-2 gba:rounded-lg gba:text-sm gba:font-medium gba:transition-all gba:duration-200 gba:border gba:cursor-pointer',
                   isActive
                     ? 'gba:bg-white/20 gba:text-white gba:border-white/30 gba:backdrop-blur-sm gba:shadow-sm'
                     : 'gba:bg-transparent gba:text-white/55 gba:border-transparent hover:gba:text-white/90 hover:gba:bg-white/10'
                 ].join(' ')}
                 data-testid={`${testId}-tab-${tab.id}`}
               >
-                {t(tab.labelKey)}
+                <span>{t(tab.labelKey)}</span>
+                {count !== undefined && count > 0 && (
+                  <span className="gba:text-xs gba:tabular-nums gba:opacity-70">{count}</span>
+                )}
               </button>
             )
           })}

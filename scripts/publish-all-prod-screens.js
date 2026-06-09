@@ -102,7 +102,7 @@ async function main() {
     // Use the existing publish-prod-screens.js script which handles:
     // - RC promotion (no local build)
     // - Comprehensive screen synchronization
-    // - Resource URL synchronization
+    // - Published screen artifact creation for the follow-up resource URL step
     // - Screen management registration
     execSync(`node scripts/publish-prod-screens.js ${allScreensFile}`, {
       stdio: 'inherit',
@@ -110,7 +110,13 @@ async function main() {
     })
 
     logPhase('PUBLISH ALL SCREENS RESULT')
-    console.log('All screens published successfully to production!')
+    const resultPath = path.resolve(__dirname, '..', 'screen-release-result.json')
+    const result = fs.existsSync(resultPath) ? JSON.parse(fs.readFileSync(resultPath, 'utf8')) : null
+    if (result?.status === 'failed') {
+      console.log('Production publisher completed with recorded failures. Final release gate will fail the pipeline.')
+    } else {
+      console.log('All screens published successfully to production!')
+    }
     console.log(`Total screens published: ${existingScreens.length}`)
   } catch (error) {
     logPhase('PUBLISH ALL SCREENS RESULT')

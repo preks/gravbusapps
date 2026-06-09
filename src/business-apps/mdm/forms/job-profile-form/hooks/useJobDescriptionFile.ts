@@ -11,6 +11,7 @@ export interface JobDescriptionInitialFile {
   path: string
   size: number
   url: string
+  file?: File
 }
 
 export interface ResolvedFileChanges {
@@ -29,6 +30,16 @@ const ACCESS_SCOPE = 'tenant'
 
 function getJobDescriptionFolderPath(jobProfileId: string): string {
   return `/job-profiles/${jobProfileId}/documents`
+}
+
+function createJobDescriptionFile(blob: Blob, fileName: string, mimeType: string): File {
+  const type = blob.type || mimeType || 'application/pdf'
+
+  if (blob instanceof File && blob.name === fileName && blob.type === type) {
+    return blob
+  }
+
+  return new File([blob], fileName, { type })
 }
 
 function normalizeFormFileEntries(value: unknown): unknown[] {
@@ -80,6 +91,9 @@ export function useJobDescriptionFile({ accessToken, jobProfileId, isModalOpen }
         let fileSize = 0
         let fileUrl = latestFile.path || latestFile.fileId
         const filePath = latestFile.path || ''
+        const fileName = latestFile.fileMetadata?.originalFileName || latestFile.fileId
+        const mimeType = latestFile.fileMetadata?.mimeType || ''
+        let downloadedFile: File | undefined
 
         try {
           const downloaded = filePath
@@ -90,7 +104,8 @@ export function useJobDescriptionFile({ accessToken, jobProfileId, isModalOpen }
               )
 
           fileSize = downloaded.size
-          objectUrlToRevoke = URL.createObjectURL(downloaded)
+          downloadedFile = createJobDescriptionFile(downloaded, fileName, mimeType)
+          objectUrlToRevoke = URL.createObjectURL(downloadedFile)
           fileUrl = objectUrlToRevoke
         } catch (downloadError) {
           console.error('Error downloading existing job description file:', downloadError)
@@ -100,11 +115,12 @@ export function useJobDescriptionFile({ accessToken, jobProfileId, isModalOpen }
           setInitialJobDescriptionFile({
             id: latestFile.fileId,
             fileId: latestFile.fileId,
-            name: latestFile.fileMetadata?.originalFileName || latestFile.fileId,
-            type: latestFile.fileMetadata?.mimeType || '',
+            name: fileName,
+            type: mimeType,
             path: latestFile.path || latestFile.fileId,
             size: fileSize,
-            url: fileUrl
+            url: fileUrl,
+            file: downloadedFile
           })
         }
       } catch (error) {
@@ -144,6 +160,11 @@ export function useJobDescriptionFile({ accessToken, jobProfileId, isModalOpen }
       }
 
       const firstEntry = entries[0] as Record<string, unknown>
+      const existingFileId = firstEntry?.fileId as string | undefined
+      if (existingFileId) {
+        return { jobDescriptionFileId: existingFileId, fileIdsToDelete: [] }
+      }
+
       const file = (firstEntry?.originFileObj ?? firstEntry?.file) as File | undefined
 
       if (file instanceof File) {
@@ -161,11 +182,6 @@ export function useJobDescriptionFile({ accessToken, jobProfileId, isModalOpen }
           console.error('Error uploading job description file:', error)
           return { jobDescriptionFileId: undefined, fileIdsToDelete: [] }
         }
-      }
-
-      const existingFileId = firstEntry?.fileId as string | undefined
-      if (existingFileId) {
-        return { jobDescriptionFileId: existingFileId, fileIdsToDelete: [] }
       }
 
       return { jobDescriptionFileId: undefined, fileIdsToDelete: [] }

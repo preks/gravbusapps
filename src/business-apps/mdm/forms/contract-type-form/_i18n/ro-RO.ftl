@@ -32,3 +32,9 @@ validation-description-too-long = Descrierea trebuie să aibă mai puțin de 100
 validation-probation-value-invalid = Trebuie să fie un număr pozitiv cu maxim 4 cifre
 validation-probation-unit-required = Unitatea este obligatorie când este introdus un număr. Fie eliminați valoarea, fie selectați o unitate.
 validation-no-leading-whitespace = Nu poate începe cu spațiu
+
+# Toggle fields
+field-payroll-relevant-label = Relevant pentru salarizare
+field-payroll-relevant-description = Când este activat, acest tip de contract este considerat relevant pentru procesele de salarizare.
+field-time-relevant-label = Relevant pentru pontaj
+field-time-relevant-description = Când este activat, angajații cu acest tip de contract trebuie să își înregistreze timpul de lucru.

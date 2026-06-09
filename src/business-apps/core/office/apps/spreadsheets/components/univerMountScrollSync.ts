@@ -1,5 +1,6 @@
 import { createUniver } from '@univerjs/presets'
 import { CURSOR_OVERLAY_COL_WIDTH_PX, CURSOR_OVERLAY_ROW_HEIGHT_PX } from './univerGridLayoutConstants'
+import { tryGetUniverActiveWorkbook, tryGetUniverActiveWorksheet } from './univerSafeFacadeAccess'
 import type { UniverGridController } from './useUniverGridController'
 
 export type UniverMountScrollSyncRefs = Pick<
@@ -38,10 +39,13 @@ export function registerUniverMountScrollSync(refs: UniverMountScrollSyncRefs): 
   }
 
   let scrollStateReadBlockedUntil = 0
+  const workbookAccessBlockedUntilRef = { current: 0 }
   const syncScrollFromWorksheet = () => {
-    if (Date.now() < scrollStateReadBlockedUntil) return
-    const workbook = univerAPI.getActiveWorkbook?.()
-    const worksheet = workbook?.getActiveSheet?.()
+    if (Date.now() < Math.max(scrollStateReadBlockedUntil, workbookAccessBlockedUntilRef.current)) return
+    const workbook = tryGetUniverActiveWorkbook(univerAPI, { blockedUntilRef: workbookAccessBlockedUntilRef })
+    const worksheet = tryGetUniverActiveWorksheet(workbook as { getActiveSheet?: () => unknown } | null | undefined, {
+      blockedUntilRef: workbookAccessBlockedUntilRef
+    })
     if (!worksheet) return
     const dims = cellDimensionsRef.current
     const zoom = dims?.zoomRatio ?? 1
@@ -106,7 +110,15 @@ export function registerUniverMountScrollSync(refs: UniverMountScrollSyncRefs): 
   ).addEvent?.(scrollEventName, () => {
     syncScrollFromWorksheet()
   })
-  const activeWorksheet = univerAPI.getActiveWorkbook?.()?.getActiveSheet?.()
+  const activeWorksheet = tryGetUniverActiveWorksheet(
+    tryGetUniverActiveWorkbook(univerAPI, { blockedUntilRef: workbookAccessBlockedUntilRef }) as
+      | { getActiveSheet?: () => unknown }
+      | null
+      | undefined,
+    {
+      blockedUntilRef: workbookAccessBlockedUntilRef
+    }
+  )
   const worksheetScrollDisposable = (
     activeWorksheet as {
       onScroll?: (cb: (s: unknown) => void) => { dispose(): void }

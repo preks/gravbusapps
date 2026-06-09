@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, Button, useTranslation } from '@newwork/nw-design-system'
 import translations from '../_i18n'
 import { CheckCircleIcon, CopyIcon } from '@phosphor-icons/react'
@@ -41,6 +41,7 @@ import { AssetSummaryDisplay } from './displays/asset-summary'
 import { TeamAvailabilityDisplay } from './displays/team-availability'
 import { FlowbotCalendarDisplay } from './displays/calendar/FlowbotCalendarDisplay'
 import { InteractiveTableDisplay } from './displays/interactive-table/InteractiveTableDisplay'
+import { ChartDrilldown } from './displays/shared/ChartDrilldown'
 import { ChatSnippetDisplay } from './displays/ChatSnippetDisplay'
 import {
   AreaChartDisplay,
@@ -442,7 +443,15 @@ export const TableDisplay: React.FC<{ data: TableData; accessToken: string }> = 
 }
 
 // Premium Bar Graph Display
-export const BarGraphDisplay: React.FC<{ data: BarGraphData }> = ({ data }) => {
+export const BarGraphDisplay: React.FC<{ data: BarGraphData; accessToken?: string }> = ({ data, accessToken }) => {
+  const querySpec = data.querySpec ?? null
+  const drilldownValues = useMemo(
+    () => new Set((querySpec?.drilldowns ?? []).map(entry => entry.matchValue)),
+    [querySpec]
+  )
+  const [activeDrilldown, setActiveDrilldown] = useState<string | null>(null)
+  const canDrilldown = Boolean(querySpec && accessToken && drilldownValues.size > 0)
+
   return (
     <Card className="gba:border-2 gba:shadow-lg gba:overflow-hidden" data-testid="bar-graph-display">
       {data.title && (
@@ -461,25 +470,46 @@ export const BarGraphDisplay: React.FC<{ data: BarGraphData }> = ({ data }) => {
               {series.data.map((point, pointIdx) => {
                 const maxValue = Math.max(...series.data.map(p => p.y))
                 const percentage = (point.y / maxValue) * 100
+                const label = String(point.x)
+                const isDrillable = canDrilldown && drilldownValues.has(label)
                 return (
-                  <div key={pointIdx} className="gba:flex gba:items-center gba:gap-3 gba:group">
+                  <button
+                    type="button"
+                    key={pointIdx}
+                    className="gba:flex gba:items-center gba:gap-3 gba:group gba:w-full gba:text-left"
+                    disabled={!isDrillable}
+                    onClick={
+                      isDrillable ? () => setActiveDrilldown(prev => (prev === label ? null : label)) : undefined
+                    }
+                    data-testid={isDrillable ? 'bar-graph-bar-drillable' : 'bar-graph-bar'}
+                  >
                     <span className="gba:text-xs gba:text-muted-foreground gba:w-24 gba:truncate gba:font-medium">
-                      {point.x}
+                      {label}
                     </span>
                     <div className="gba:flex-1 gba:h-8 gba:bg-muted gba:rounded-lg gba:overflow-hidden gba:relative">
                       <div
-                        className="gba:h-full gba:bg-primary gba:rounded-lg gba:flex gba:items-center gba:justify-end gba:pr-3 gba:transition-all gba:shadow-md group-hover:gba:shadow-lg"
+                        className={`gba:h-full gba:bg-primary gba:rounded-lg gba:flex gba:items-center gba:justify-end gba:pr-3 gba:transition-all gba:shadow-md group-hover:gba:shadow-lg ${
+                          isDrillable ? 'gba:cursor-pointer' : ''
+                        }`}
                         style={{ width: `${percentage}%` }}
                       >
                         <span className="gba:text-xs gba:text-primary-foreground gba:font-bold">{point.y}</span>
                       </div>
                     </div>
-                  </div>
+                  </button>
                 )
               })}
             </div>
           ))}
         </div>
+        {canDrilldown && activeDrilldown && querySpec && accessToken ? (
+          <ChartDrilldown
+            accessToken={accessToken}
+            querySpec={querySpec}
+            matchValue={activeDrilldown}
+            onClose={() => setActiveDrilldown(null)}
+          />
+        ) : null}
       </CardContent>
     </Card>
   )
@@ -1008,7 +1038,7 @@ function renderDisplayData(
     case 'interactiveTable':
       return <InteractiveTableDisplay key={idx} data={item} accessToken={accessToken} />
     case 'bar':
-      return <BarGraphDisplay key={idx} data={item} />
+      return <BarGraphDisplay key={idx} data={item} accessToken={accessToken} />
     case 'scatter':
       return <ScatterGraphDisplay key={idx} data={item} />
     case 'calendar':
@@ -1034,13 +1064,13 @@ function renderDisplayData(
       // Skip rendering to avoid duplicates
       return null
     case 'lineChart':
-      return <LineChartDisplay key={idx} data={item} />
+      return <LineChartDisplay key={idx} data={item} accessToken={accessToken} />
     case 'areaChart':
-      return <AreaChartDisplay key={idx} data={item} />
+      return <AreaChartDisplay key={idx} data={item} accessToken={accessToken} />
     case 'stackedBarChart':
       return <StackedBarChartDisplay key={idx} data={item} />
     case 'pieChart':
-      return <PieChartDisplay key={idx} data={item} />
+      return <PieChartDisplay key={idx} data={item} accessToken={accessToken} />
     case 'metricCards':
       return <MetricCardsDisplay key={idx} data={item} />
     case 'heatmap':

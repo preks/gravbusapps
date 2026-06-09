@@ -40,6 +40,15 @@ describe('ChartInlineBody — KPI stat cards', () => {
     expect(screen.getByText('New')).toBeInTheDocument()
   })
 
+  it('renders one clean KPI card per stat', () => {
+    render(<ChartInlineBody data={dashboard} />)
+    const cards = screen.getAllByTestId('stat-card')
+    expect(cards).toHaveLength(3)
+    expect(cards[0]).toHaveClass('gba:bg-background')
+    expect(cards[0]).toHaveClass('gba:rounded-lg')
+    expect(cards[0]).not.toHaveClass('gba:shadow-sm')
+  })
+
   it('renders trend chips with the correct direction and only for stats that have a trend', () => {
     render(<ChartInlineBody data={dashboard} />)
     const chips = screen.getAllByTestId('stat-trend-chip')

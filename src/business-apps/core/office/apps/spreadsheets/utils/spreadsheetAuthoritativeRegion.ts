@@ -292,8 +292,10 @@ function resolveCreatedRowRegionsForReplayDeltaChange(params: {
     change.payload && typeof change.payload === 'object' ? (change.payload as Record<string, unknown>) : {}
   const wireRowsSource = Array.isArray(payload.rows)
     ? (payload.rows as unknown[])
-    : Array.isArray(((change as Record<string, unknown>).result as Record<string, unknown> | undefined)?.rows)
-      ? (((change as Record<string, unknown>).result as Record<string, unknown>).rows as unknown[])
+    : Array.isArray(
+          ((change as unknown as Record<string, unknown>).result as Record<string, unknown> | undefined)?.rows
+        )
+      ? (((change as unknown as Record<string, unknown>).result as Record<string, unknown>).rows as unknown[])
       : []
   if (wireRowsSource.length === 0) return []
 

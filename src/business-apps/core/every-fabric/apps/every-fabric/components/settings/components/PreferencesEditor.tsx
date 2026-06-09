@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { CheckCircleIcon, SpinnerGapIcon } from '@phosphor-icons/react'
 import { useEnterpriseAgentClient } from '../../../hooks/useEnterpriseAgentClient'
 import { MemoryListSkeleton } from './SkeletonLoader'
+import { UserProfileBriefEditor } from './UserProfileBriefEditor'
 
 interface PreferencesEditorProps {
   client: ReturnType<typeof useEnterpriseAgentClient>
@@ -30,7 +31,6 @@ const PRESET_FIELDS: PresetField[] = [
 const LANGUAGES = ['English', 'German', 'French', 'Spanish', 'Italian', 'Portuguese', 'Dutch']
 
 const FREETEXT_FIELDS = [
-  { key: 'about_you', label: 'About you', placeholder: 'e.g. I lead HR operations for a 2,000-person company.' },
   {
     key: 'custom_instructions',
     label: 'Custom instructions',
@@ -131,6 +131,8 @@ export const PreferencesEditor: React.FC<PreferencesEditorProps> = ({ client, is
         These apply to every task. The agent reads them at the start of each session, so you don’t have to repeat
         yourself.
       </p>
+
+      <UserProfileBriefEditor client={client} isOpen={isOpen} />
 
       {PRESET_FIELDS.map(field => {
         const selected = values[field.key]

@@ -30,6 +30,7 @@ import {
   shouldDropStandaloneInsertColumnFormulaFollowUpBatch,
   shouldDropStandaloneInsertRowFormulaFollowUpBatch,
   shouldDropStandaloneMoveCellRangeFormulaFollowUpBatch,
+  shouldDropStandaloneMoveCellRangeValueFollowUpBatch,
   shouldDropStandaloneMoveColumnFormulaFollowUpBatch,
   shouldDropStandaloneMoveRowFormulaFollowUpBatch
 } from '../utils/spreadsheetCutPasteMove'
@@ -332,6 +333,24 @@ function shouldDropStandaloneMoveCellRangeFormulaFollowUp(
   })
 }
 
+function shouldDropStandaloneMoveCellRangeValueFollowUp(
+  deps: UniverMountHandleDetectedCellMutationDeps,
+  emit: PersistEmitInput,
+  unifiedOperations: SpreadsheetBatchOperation[]
+): boolean {
+  if (emit.source !== 'sheet-value-changed') return false
+  if (emit.hadPasteIntentForSheet || emit.hadPasteFormattingIntentForSheet || emit.autofillApplyType != null) {
+    return false
+  }
+  if (!emit.commandId?.includes('set-range-values')) return false
+  return shouldDropStandaloneMoveCellRangeValueFollowUpBatch({
+    suppressUntilMs: deps.cutPasteCollabSuppressUntilMsRef?.current ?? 0,
+    targetSheetId: emit.targetSheetId,
+    recentMove: deps.recentMoveCellRangeFollowUpRef?.current ?? null,
+    operations: unifiedOperations
+  })
+}
+
 function shouldDropStandaloneColumnInsertFormulaFollowUp(
   deps: UniverMountHandleDetectedCellMutationDeps,
   emit: PersistEmitInput,
@@ -445,6 +464,9 @@ export function runDetectedCellMutationPersistEmitSync(
   const shouldDropMoveCellFormulaFollowUp =
     unifiedOperationsPrecheck != null &&
     shouldDropStandaloneMoveCellRangeFormulaFollowUp(deps, emit, unifiedOperationsPrecheck)
+  const shouldDropMoveCellValueFollowUp =
+    unifiedOperationsPrecheck != null &&
+    shouldDropStandaloneMoveCellRangeValueFollowUp(deps, emit, unifiedOperationsPrecheck)
   const shouldDropColumnInsertFormulaFollowUp =
     unifiedOperationsPrecheck != null &&
     shouldDropStandaloneColumnInsertFormulaFollowUp(deps, emit, unifiedOperationsPrecheck)
@@ -460,6 +482,7 @@ export function runDetectedCellMutationPersistEmitSync(
       shouldDropRowDeleteFormulaFollowUp ||
       shouldDropRowMoveFormulaFollowUp ||
       shouldDropMoveCellFormulaFollowUp ||
+      shouldDropMoveCellValueFollowUp ||
       shouldDropColumnInsertFormulaFollowUp ||
       shouldDropColumnDeleteFormulaFollowUp ||
       shouldDropColumnMoveFormulaFollowUp)
@@ -470,7 +493,7 @@ export function runDetectedCellMutationPersistEmitSync(
         rowInsert: shouldDropRowInsertFormulaFollowUp,
         rowDelete: shouldDropRowDeleteFormulaFollowUp,
         rowMove: shouldDropRowMoveFormulaFollowUp,
-        moveCell: shouldDropMoveCellFormulaFollowUp,
+        moveCell: shouldDropMoveCellFormulaFollowUp || shouldDropMoveCellValueFollowUp,
         columnInsert: shouldDropColumnInsertFormulaFollowUp,
         columnDelete: shouldDropColumnDeleteFormulaFollowUp,
         columnMove: shouldDropColumnMoveFormulaFollowUp
@@ -579,6 +602,7 @@ export function runDetectedCellMutationPersistEmitDispatch(
     emit,
     unifiedOperations
   )
+  const shouldDropMoveCellValueFollowUp = shouldDropStandaloneMoveCellRangeValueFollowUp(deps, emit, unifiedOperations)
   const shouldDropColumnInsertFormulaFollowUp = shouldDropStandaloneColumnInsertFormulaFollowUp(
     deps,
     emit,
@@ -599,6 +623,7 @@ export function runDetectedCellMutationPersistEmitDispatch(
     shouldDropRowDeleteFormulaFollowUp ||
     shouldDropRowMoveFormulaFollowUp ||
     shouldDropMoveCellFormulaFollowUp ||
+    shouldDropMoveCellValueFollowUp ||
     shouldDropColumnInsertFormulaFollowUp ||
     shouldDropColumnDeleteFormulaFollowUp ||
     shouldDropColumnMoveFormulaFollowUp
@@ -609,7 +634,7 @@ export function runDetectedCellMutationPersistEmitDispatch(
         rowInsert: shouldDropRowInsertFormulaFollowUp,
         rowDelete: shouldDropRowDeleteFormulaFollowUp,
         rowMove: shouldDropRowMoveFormulaFollowUp,
-        moveCell: shouldDropMoveCellFormulaFollowUp,
+        moveCell: shouldDropMoveCellFormulaFollowUp || shouldDropMoveCellValueFollowUp,
         columnInsert: shouldDropColumnInsertFormulaFollowUp,
         columnDelete: shouldDropColumnDeleteFormulaFollowUp,
         columnMove: shouldDropColumnMoveFormulaFollowUp

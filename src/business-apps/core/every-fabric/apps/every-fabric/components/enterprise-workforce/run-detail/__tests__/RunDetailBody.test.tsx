@@ -112,10 +112,15 @@ describe('RunDetailBody', () => {
     expect(screen.getByTestId('run-detail-approval')).toHaveTextContent('Sign in is required')
   })
 
-  it('renders task, output, credits and a readable trace', () => {
+  it('renders task and output on the Overview tab', () => {
     renderBody(buildRun())
     expect(screen.getByTestId('run-detail-task')).toHaveTextContent('Triage policy questions')
     expect(screen.getByTestId('run-detail-output')).toHaveTextContent('Sent reply to customer.')
+  })
+
+  it('renders credits and a readable trace on the Diagnostics tab', () => {
+    renderBody(buildRun())
+    fireEvent.click(screen.getByTestId('run-detail-tab-diagnostics'))
     expect(screen.getByText('3 Newwork credits')).toBeInTheDocument()
     expect(screen.getByTestId('run-detail-trace')).toHaveTextContent('Run started')
     expect(screen.getByTestId('run-detail-trace')).toHaveTextContent('Called lookup_policy(id="P-42")')

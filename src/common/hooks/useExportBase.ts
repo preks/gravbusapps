@@ -8,6 +8,8 @@ import {
   downloadCsvData
 } from '@/common/utils/excelExportUtils'
 
+import type { ExportToastMessages } from '@/common/components/common-relations/apps/data-export/utils/exportI18n'
+
 export interface UseExportBaseOptions<TItem> {
   /** Pre-bound fetch that returns all items for the current filters (no pagination). */
   fetchAllItems: () => Promise<TItem[]>
@@ -30,6 +32,8 @@ export interface UseExportBaseOptions<TItem> {
    * Each entry is a [label, value] tuple (e.g. ['Total investment:', '€1,234,567']).
    */
   summaryRows?: Array<[string, string]>
+  /** Optional localized toast messages for export feedback. */
+  toastMessages?: ExportToastMessages
 }
 
 /**
@@ -47,7 +51,8 @@ export function useExportBase<TItem>({
   entityLabel,
   totalCount,
   filenamePrefix = 'export',
-  summaryRows
+  summaryRows,
+  toastMessages
 }: UseExportBaseOptions<TItem>) {
   const [isExporting, setIsExporting] = useState(false)
 
@@ -56,7 +61,9 @@ export function useExportBase<TItem>({
       if (isExporting) return
 
       if (totalCount === 0) {
-        toast.error('No data to export', { description: 'Apply different filters or wait for data to load.' })
+        toast.error(toastMessages?.noDataTitle ?? 'No data to export', {
+          description: toastMessages?.noDataDescription ?? 'Apply different filters or wait for data to load.'
+        })
         return
       }
 
@@ -67,8 +74,9 @@ export function useExportBase<TItem>({
         const items = await fetchAllItems()
 
         if (!items || items.length === 0) {
-          toast.error('No data to export', {
-            description: `No ${entityLabel} were found for the current filters.`
+          toast.error(toastMessages?.noDataTitle ?? 'No data to export', {
+            description:
+              toastMessages?.noFilteredDataDescription ?? `No ${entityLabel} were found for the current filters.`
           })
           return
         }
@@ -87,12 +95,17 @@ export function useExportBase<TItem>({
           await downloadExcelWorkbook(workbook, filename)
         }
 
-        toast.success(`${formatLabel} exported successfully`, {
-          description: `${rows.length} ${entityLabel} exported.`
-        })
+        toast.success(
+          format === 'csv'
+            ? (toastMessages?.successCsvTitle ?? `${formatLabel} exported successfully`)
+            : (toastMessages?.successExcelTitle ?? `${formatLabel} exported successfully`),
+          {
+            description: toastMessages?.successDescription(rows.length) ?? `${rows.length} ${entityLabel} exported.`
+          }
+        )
       } catch (err) {
         console.error(`[EXPORT ${formatLabel}] Error:`, err)
-        toast.error('Export failed', {
+        toast.error(toastMessages?.failedTitle ?? 'Export failed', {
           description: err instanceof Error ? err.message : String(err)
         })
       } finally {
@@ -109,7 +122,8 @@ export function useExportBase<TItem>({
       sheetName,
       entityLabel,
       filenamePrefix,
-      summaryRows
+      summaryRows,
+      toastMessages
     ]
   )
 

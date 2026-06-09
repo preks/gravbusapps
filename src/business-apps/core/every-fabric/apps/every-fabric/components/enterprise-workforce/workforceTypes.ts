@@ -27,6 +27,21 @@ export type WorkforceRunStatus =
   | 'cancelled'
   | 'escalated'
   | 'budget_paused'
+  // Recorded when an inbound email was skipped by a trigger subject filter.
+  // Non-billed: the agent never ran.
+  | 'filtered'
+
+// Subject-match modes for the inbound-email trigger subject filter. Mirrors
+// the backend (src/workforce/inbound.py / validators.py).
+export type SubjectFilterMode = 'contains' | 'prefix' | 'regex'
+
+// Optional subject filter stored on an inbound_email trigger's config.
+// Absent or empty patterns means "forward all" (backward compatible).
+export interface SubjectFilter {
+  patterns: string[]
+  mode?: SubjectFilterMode
+  case_sensitive?: boolean
+}
 
 export interface WorkforceEscalationPolicy {
   owner_user_id?: string | null

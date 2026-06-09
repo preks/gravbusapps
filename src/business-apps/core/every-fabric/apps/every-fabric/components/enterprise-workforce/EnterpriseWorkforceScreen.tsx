@@ -32,6 +32,7 @@ import { WorkforceAIComposer } from './WorkforceAIComposer'
 import { WorkforceAgentDetailScreen } from './WorkforceAgentDetailScreen'
 import { WorkforceFilters } from './WorkforceFilters'
 import { WorkforceHero } from './WorkforceHero'
+import { GlassWorkforceSphere } from './glass-sphere/GlassWorkforceSphere'
 import { rankAgents, type RankableAgent } from './agentMatching'
 import { useArchivedWorkforceAgents } from './useArchivedWorkforceAgents'
 import { useWorkforceData, type WorkforceAgentSummary, type WorkforceFilter } from './useWorkforceData'
@@ -149,6 +150,9 @@ export const EnterpriseWorkforceScreen: React.FC<EnterpriseWorkforceScreenProps>
 
   const deckSummaries = isAIMatching ? aiSummaries : filtered
 
+  // Active agents drive the 3D glass sphere showpiece on the overview.
+  const activeSummaries = useMemo(() => agents.filter(summary => summary.agent.status === 'active'), [agents])
+
   // Stable id -> display name lookup for the live strip + per-agent charts.
   const nameById = useMemo(() => {
     const map: Record<string, string> = {}
@@ -260,7 +264,7 @@ export const EnterpriseWorkforceScreen: React.FC<EnterpriseWorkforceScreenProps>
           >
             <ArrowLeftIcon className="gba:h-5 gba:w-5" />
           </button>
-          <span className="gba:text-sm gba:font-medium gba:text-muted-foreground">Agent Workforce</span>
+          <span className="gba:text-sm gba:font-medium gba:text-muted-foreground">Digital Workforce</span>
           <div className="gba:ml-auto gba:inline-flex gba:rounded-md gba:border gba:border-border gba:bg-background gba:p-0.5">
             <button
               type="button"
@@ -300,6 +304,10 @@ export const EnterpriseWorkforceScreen: React.FC<EnterpriseWorkforceScreenProps>
                 onHireAgent={openHireChooser}
                 workingNow={liveActivity.workingAgentIds.size}
               />
+
+              {!isAIMatching && activeSummaries.length > 0 && (
+                <GlassWorkforceSphere summaries={activeSummaries} isAgentWorking={liveActivity.isAgentWorking} />
+              )}
 
               {!isAIMatching && <ValueScoreboard accessToken={accessToken} />}
 

@@ -2,14 +2,12 @@
 
 import React from 'react'
 import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@newwork/nw-design-system'
-import { PlayIcon, WrenchIcon, LightbulbIcon, WarningCircleIcon } from '@phosphor-icons/react'
-import { getSourceDisplay } from './agentSourceUtils'
+import { WrenchIcon, LightbulbIcon, WarningCircleIcon } from '@phosphor-icons/react'
 import { evaluateAgentReadiness } from './agentStandard'
 import type { FabricAgent } from './agentTypes'
 
 interface AgentCardProps {
   agent: FabricAgent
-  onRunTask: (agent: FabricAgent) => void
   onConfigure?: (agent: FabricAgent) => void
   onArchive?: (agent: FabricAgent) => void
   isArchiving?: boolean
@@ -31,7 +29,6 @@ function formatAgentName(name: string): string {
 
 export const AgentCard: React.FC<AgentCardProps> = ({
   agent,
-  onRunTask,
   onConfigure,
   onArchive,
   isArchiving = false,
@@ -40,7 +37,6 @@ export const AgentCard: React.FC<AgentCardProps> = ({
   onToggleSelect
 }) => {
   const displayName = formatAgentName(agent.name)
-  const sourceDisplay = getSourceDisplay(agent.source)
   const canArchive = agent.source === 'prompt_odm' || agent.source === 'autonomous_agent'
 
   const distinctSkillTools = new Set<string>()
@@ -78,11 +74,6 @@ export const AgentCard: React.FC<AgentCardProps> = ({
           <div className="gba:flex-1 gba:min-w-0">
             <div className="gba:flex gba:items-center gba:gap-1.5">
               <h3 className="gba:truncate gba:text-sm gba:font-semibold gba:text-foreground">{displayName}</h3>
-              <span
-                className={`gba:shrink-0 gba:rounded-full gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium ${sourceDisplay.badgeClass}`}
-              >
-                {sourceDisplay.label}
-              </span>
               {agent.isWorkforce && (
                 <span
                   className="gba:shrink-0 gba:rounded-full gba:bg-indigo-100 gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium gba:text-indigo-700"
@@ -190,7 +181,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({
       )}
 
       {/* Action buttons */}
-      <div className="gba:mt-auto gba:grid gba:grid-cols-3 gba:items-center gba:gap-2 gba:border-t gba:border-border/50 gba:px-4 gba:py-3">
+      <div className="gba:mt-auto gba:grid gba:grid-cols-2 gba:items-center gba:gap-2 gba:border-t gba:border-border/50 gba:px-4 gba:py-3">
         <Button
           variant="outline"
           size="sm"
@@ -199,16 +190,6 @@ export const AgentCard: React.FC<AgentCardProps> = ({
           data-testid={`agent-configure-${agent.id}`}
         >
           Configure
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="gba:w-full"
-          onClick={() => onRunTask(agent)}
-          data-testid={`agent-run-${agent.id}`}
-        >
-          <PlayIcon className="gba:mr-1.5 gba:h-3.5 gba:w-3.5" />
-          Run task
         </Button>
         <Button
           variant="outline"

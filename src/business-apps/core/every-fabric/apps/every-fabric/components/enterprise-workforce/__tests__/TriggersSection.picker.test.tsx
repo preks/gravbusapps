@@ -97,6 +97,58 @@ describe('TriggersSection inbound mailbox picker', () => {
     )
   })
 
+  it('includes a subject_filter in the config when patterns are entered', async () => {
+    const onCreate = jest.fn().mockResolvedValue(undefined)
+    renderSection(onCreate)
+    await openInboundForm()
+
+    await screen.findByText('support@acme.com')
+    fireEvent.change(screen.getByTestId('workforce-mailbox-picker-select'), {
+      target: { value: 'acct-1' }
+    })
+    fireEvent.change(screen.getByTestId('workforce-trigger-subject-filter-mode'), {
+      target: { value: 'prefix' }
+    })
+    fireEvent.click(screen.getByTestId('workforce-trigger-subject-filter-case'))
+    fireEvent.change(screen.getByTestId('workforce-trigger-subject-filter-patterns'), {
+      target: { value: 'ticket\n[support]' }
+    })
+    fireEvent.click(screen.getByTestId('workforce-trigger-create-submit'))
+
+    await waitFor(() => expect(onCreate).toHaveBeenCalledTimes(1))
+    expect(onCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'inbound_email',
+        config: {
+          mailbox: 'support@acme.com',
+          email_account_id: 'acct-1',
+          subject_filter: {
+            patterns: ['ticket', '[support]'],
+            mode: 'prefix',
+            case_sensitive: true
+          }
+        }
+      })
+    )
+  })
+
+  it('omits subject_filter when no patterns are entered (forward all)', async () => {
+    const onCreate = jest.fn().mockResolvedValue(undefined)
+    renderSection(onCreate)
+    await openInboundForm()
+
+    await screen.findByText('support@acme.com')
+    fireEvent.change(screen.getByTestId('workforce-mailbox-picker-select'), {
+      target: { value: 'acct-1' }
+    })
+    fireEvent.click(screen.getByTestId('workforce-trigger-create-submit'))
+
+    await waitFor(() => expect(onCreate).toHaveBeenCalledTimes(1))
+    const input = onCreate.mock.calls[0][0]
+    expect(input.config).toEqual({ mailbox: 'support@acme.com', email_account_id: 'acct-1' })
+    expect(input.config.subject_filter).toBeUndefined()
+  })
+
   it('blocks creation when no mailbox is selected', async () => {
     const onCreate = jest.fn().mockResolvedValue(undefined)
     renderSection(onCreate)

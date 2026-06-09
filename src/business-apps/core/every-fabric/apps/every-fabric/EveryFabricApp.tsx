@@ -1,7 +1,9 @@
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { EVERY_FABRIC_PROMPT_PARAM } from '@/common/utils/openEveryFabric'
 import { getCurrentUrlWithUpdatedSearchParams } from '@/common/utils/navigationUtils'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 import { EveryFabricErrorBoundary } from './components/EveryFabricErrorBoundary'
 import { Sidebar } from './components/sidebar/Sidebar'
 import { useSidebarCollapsedState } from './components/sidebar/useSidebarCollapsedState'
@@ -10,6 +12,7 @@ import { useActiveSessions } from './hooks/useActiveSessions'
 import { useAgentSettings } from './hooks/useAgentSettings'
 import { useSessionUrlState } from './hooks/useSessionUrlState'
 import { EveryFabricMainView } from './EveryFabricMainView'
+import { isEveryFabricDevToolsEnabled } from './utils/devToolsGate'
 
 /**
  * Every Fabric — Autonomous Agent Workspace
@@ -41,7 +44,10 @@ const EveryFabricInner: React.FC = () => {
   const { urlView, updateUrl } = useSessionUrlState()
   const { isCollapsed, toggleCollapsed, setCollapsed } = useSidebarCollapsedState()
   const { activeSessions, removeActive } = useActiveSessions(accessToken)
-  const { devModeEnabled } = useAgentSettings()
+  const { devModeEnabled: localDevModeEnabled } = useAgentSettings()
+  const devToolsFeature = useFeature<boolean>(Feature.EveryFabric.DevTools.Key)
+  const devToolsEnabled = isEveryFabricDevToolsEnabled(devToolsFeature)
+  const devModeEnabled = devToolsEnabled && localDevModeEnabled
 
   // Stop a session: drop it from the active sidebar immediately (optimistic)
   // and then call deleteSession, which issues DELETE /sessions/{id} and
@@ -131,8 +137,8 @@ const EveryFabricInner: React.FC = () => {
   const showSettings = urlView === 'settings'
   const showScheduled = urlView === 'scheduled'
   const showAgentMesh = urlView === 'agent-mesh'
-  const showTraceExplorer = urlView === 'trace-explorer'
-  const showTraceLens = urlView === 'trace-lens'
+  const showTraceExplorer = devModeEnabled && urlView === 'trace-explorer'
+  const showTraceLens = devModeEnabled && urlView === 'trace-lens'
   const showEnterpriseWorkforce = urlView === 'enterprise-workforce'
   // For sidebar highlighting, split the single agent-mesh URL into
   // "company mesh" vs "session mesh" by inspecting the meshScope param.
@@ -177,6 +183,7 @@ const EveryFabricInner: React.FC = () => {
           accessToken={accessToken}
           session={session}
           activeSessions={activeSessions}
+          devToolsEnabled={devToolsEnabled}
           devModeEnabled={devModeEnabled}
           displayView={displayView}
           showSettings={showSettings}

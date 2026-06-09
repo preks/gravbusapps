@@ -81,6 +81,10 @@ const EveryBoxFeature = {
   AiInsightsEnabled: { Key: 'everyboxadmin.ai.enabled' }
 }
 
+const EveryFabricFeature = {
+  DevTools: { Key: 'everyfabric.devtools.enabled' }
+}
+
 const DevFeature = {
   Enabled: { Key: 'dev.enabled' }
 }
@@ -107,5 +111,6 @@ export const Feature = {
   Dev: DevFeature,
   Preview: PreviewFeature,
   Reporting: ReportingFeature,
-  EveryBox: EveryBoxFeature
+  EveryBox: EveryBoxFeature,
+  EveryFabric: EveryFabricFeature
 }

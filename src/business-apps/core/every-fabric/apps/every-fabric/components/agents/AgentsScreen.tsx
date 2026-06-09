@@ -123,6 +123,22 @@ function isSelectableAgent(agent: FabricAgent): boolean {
   return agent.source === 'prompt_odm' || agent.source === 'autonomous_agent'
 }
 
+function agentMatchesSearch(agent: FabricAgent, query: string): boolean {
+  const q = query.toLowerCase()
+  return (
+    agent.name.toLowerCase().includes(q) ||
+    agent.description.toLowerCase().includes(q) ||
+    (agent.specialty ?? '').toLowerCase().includes(q) ||
+    agent.tags.some(t => t.toLowerCase().includes(q))
+  )
+}
+
+function filterAgentsBySearch(agents: FabricAgent[], search: string): FabricAgent[] {
+  const q = search.trim()
+  if (!q) return agents
+  return agents.filter(a => agentMatchesSearch(a, q))
+}
+
 /** Run an async worker over items with a concurrency cap. Returns the failure count. */
 async function runWithConcurrency<T>(items: T[], worker: (item: T) => Promise<void>, concurrency = 8): Promise<number> {
   let failures = 0
@@ -188,12 +204,11 @@ const CollapsibleFabricSection: FC<CollapsibleFabricSectionProps> = ({
 interface AgentsScreenProps {
   accessToken: string
   onBack: () => void
-  onRunTask: (agent: FabricAgent) => void
   /** When true, the header bar is hidden (used when embedded inside SettingsScreen tabs). */
   embedded?: boolean
 }
 
-export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, onRunTask, embedded = false }) => {
+export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, embedded = false }) => {
   const client = usePromptManagerClient(accessToken)
   const [agents, setAgents] = useState<FabricAgent[]>([])
   const [builtins, setBuiltins] = useState<BuiltinSubagent[]>([])
@@ -407,20 +422,21 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, onRun
     setConfirm(null)
   }, [confirmBusy])
 
-  const filtered = useMemo(() => {
-    if (!search.trim()) return agents
-    const q = search.toLowerCase()
-    return agents.filter(
-      a =>
-        a.name.toLowerCase().includes(q) ||
-        a.description.toLowerCase().includes(q) ||
-        (a.specialty ?? '').toLowerCase().includes(q) ||
-        a.tags.some(t => t.toLowerCase().includes(q))
-    )
-  }, [agents, search])
+  const filtered = useMemo(() => filterAgentsBySearch(agents, search), [agents, search])
+  const filteredArchived = useMemo(() => filterAgentsBySearch(archivedAgents, search), [archivedAgents, search])
 
   const selectableFiltered = useMemo(() => filtered.filter(isSelectableAgent), [filtered])
-  const selectableArchived = useMemo(() => archivedAgents.filter(isSelectableAgent), [archivedAgents])
+  const selectableArchived = useMemo(() => filteredArchived.filter(isSelectableAgent), [filteredArchived])
+
+  const hasSearch = search.trim().length > 0
+  const hasAnyVisibleResults = filtered.length > 0 || filteredArchived.length > 0
+  const showArchivedSection = hasSearch ? filteredArchived.length > 0 : archivedAgents.length > 0
+
+  useEffect(() => {
+    if (hasSearch && filteredArchived.length > 0) {
+      setArchivedExpanded(true)
+    }
+  }, [hasSearch, filteredArchived.length])
 
   const selectAllActive = useCallback(() => {
     setSelectedActiveIds(new Set(selectableFiltered.map(a => a.id)))
@@ -567,7 +583,7 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, onRun
           <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search agents..."
+            placeholder="Search active and archived agents..."
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-background gba:py-2 gba:pl-9 gba:pr-3 gba:text-sm gba:text-foreground gba:placeholder-muted-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring"
@@ -587,10 +603,10 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, onRun
             </div>
           )}
 
-          {!error && filtered.length === 0 && (
+          {!error && !hasAnyVisibleResults && (
             <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-20 gba:text-center">
               <p className="gba:text-sm gba:text-muted-foreground">
-                {search ? 'No agents match your search.' : 'No agents registered yet.'}
+                {hasSearch ? 'No agents match your search.' : 'No agents registered yet.'}
               </p>
             </div>
           )}
@@ -641,7 +657,6 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, onRun
               <AgentCard
                 key={agent.id}
                 agent={agent}
-                onRunTask={onRunTask}
                 onConfigure={setConfiguringAgent}
                 onArchive={agent => {
                   handleArchiveAgent(agent)
@@ -704,14 +719,14 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, onRun
             </CollapsibleFabricSection>
           )}
 
-          {archivedAgents.length > 0 && (
+          {showArchivedSection && (
             <CollapsibleFabricSection
               sectionTestId="archived-section"
               toggleTestId="archived-toggle"
               expanded={archivedExpanded}
               onToggle={() => setArchivedExpanded(prev => !prev)}
               title="Archived Agents"
-              count={archivedAgents.length}
+              count={hasSearch ? filteredArchived.length : archivedAgents.length}
               description="Previously active agents that have been archived. They are excluded from orchestration but their history is preserved."
             >
               {selectableArchived.length > 0 && (
@@ -755,8 +770,7 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, onRun
                   </div>
                 </div>
               )}
-              {archivedAgents.map(agent => {
-                const sd = getSourceDisplay(agent.source)
+              {filteredArchived.map(agent => {
                 const archivedSelectable = isSelectableAgent(agent)
                 const archivedDistinctTools = new Set<string>()
                 for (const refs of Object.values(agent.skill_tools_by_id ?? {})) {
@@ -788,11 +802,6 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, onRun
                       <h4 className="gba:text-sm gba:font-semibold gba:text-foreground">
                         {agent.name.replace(/_/g, ' ')}
                       </h4>
-                      <span
-                        className={`gba:shrink-0 gba:rounded-full gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium ${sd.badgeClass}`}
-                      >
-                        {sd.label}
-                      </span>
                       <span className="gba:shrink-0 gba:rounded-full gba:bg-muted gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium gba:text-muted-foreground">
                         archived
                       </span>

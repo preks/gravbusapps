@@ -136,10 +136,7 @@ export const useSuggestedSkills = ({
   })
 
   const hasFile = Boolean(
-    (jobDescriptionFile as any)?.file instanceof File ||
-      (jobDescriptionFile as any)?.originFileObj instanceof File ||
-      (jobDescriptionFile as any)?.fileId ||
-      (jobDescriptionFile as any)?.url
+    (jobDescriptionFile as any)?.file instanceof File || (jobDescriptionFile as any)?.originFileObj instanceof File
   )
 
   const handleAnalyze = useCallback(() => {

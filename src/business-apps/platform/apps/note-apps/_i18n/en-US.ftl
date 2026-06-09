@@ -3,6 +3,7 @@ nh-parent-label = Every Office
 nh-title = Notes
 nh-tabs-aria-label = Note sections
 nh-tab-my-notes = My Notes
+nh-tab-favorites = Favorites
 nh-tab-shared = Shared
 nh-tab-pinned = Pinned
 nh-tab-recent = Recent

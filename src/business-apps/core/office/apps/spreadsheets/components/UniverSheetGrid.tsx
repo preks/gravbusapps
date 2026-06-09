@@ -78,6 +78,12 @@ import {
 import { useUniverGridContextMenuChrome } from './useUniverGridContextMenuChrome'
 import { useUniverGridLocaleRibbonChrome } from './useUniverGridLocaleRibbonChrome'
 import { useUniverGridHyperlinkCapture } from './useUniverGridHyperlinkCapture'
+import {
+  extractWorksheetMergeRangesFromWorkbookSnapshot,
+  normalizeWorksheetMergeRanges,
+  resolveAuthoritativeWorksheetMergeRanges
+} from '../utils/spreadsheetMergeRanges'
+import { tryGetUniverActiveWorkbook, tryGetUniverActiveWorksheet } from './univerSafeFacadeAccess'
 import { useUniverGridEmbeddedShortcuts } from './useUniverGridEmbeddedShortcuts'
 import {
   useUniverGridConversionContextSync,
@@ -139,55 +145,8 @@ function isOverlayRectVisible(
   )
 }
 
-function normalizeWorksheetMergeRanges(ranges: unknown): SpreadsheetMergeRange[] {
-  if (!Array.isArray(ranges)) return []
-  return ranges
-    .filter(
-      (range): range is SpreadsheetMergeRange =>
-        Boolean(range) &&
-        typeof range === 'object' &&
-        Number.isFinite((range as SpreadsheetMergeRange).startRow) &&
-        Number.isFinite((range as SpreadsheetMergeRange).endRow) &&
-        Number.isFinite((range as SpreadsheetMergeRange).startColumn) &&
-        Number.isFinite((range as SpreadsheetMergeRange).endColumn)
-    )
-    .map(range => ({
-      startRow: Math.trunc(range.startRow),
-      endRow: Math.trunc(range.endRow),
-      startColumn: Math.trunc(range.startColumn),
-      endColumn: Math.trunc(range.endColumn)
-    }))
-}
-
 function buildWorksheetMergeRangeKey(range: SpreadsheetMergeRange): string {
   return `${range.startRow}:${range.endRow}:${range.startColumn}:${range.endColumn}`
-}
-
-function extractWorksheetMergeRangesFromWorkbookSnapshot(
-  snapshot: Record<string, unknown> | null | undefined,
-  sheetId: string
-): SpreadsheetMergeRange[] {
-  const sheets =
-    snapshot?.sheets && typeof snapshot.sheets === 'object' && !Array.isArray(snapshot.sheets)
-      ? (snapshot.sheets as Record<string, unknown>)
-      : null
-  const worksheet = sheets?.[sheetId]
-  if (!worksheet || typeof worksheet !== 'object' || Array.isArray(worksheet)) return []
-  return normalizeWorksheetMergeRanges((worksheet as Record<string, unknown>).mergeData)
-}
-
-function resolveAuthoritativeWorksheetMergeRanges(
-  sheet: SpreadsheetSheet,
-  initialSnapshot?: Record<string, unknown> | null
-): SpreadsheetMergeRange[] {
-  const initialSnapshotRanges = extractWorksheetMergeRangesFromWorkbookSnapshot(initialSnapshot ?? null, sheet.id)
-  if (initialSnapshotRanges.length > 0) return initialSnapshotRanges
-  const worksheetSnapshotRanges =
-    sheet.worksheetSnapshot && typeof sheet.worksheetSnapshot === 'object' && !Array.isArray(sheet.worksheetSnapshot)
-      ? normalizeWorksheetMergeRanges((sheet.worksheetSnapshot as Record<string, unknown>).mergeData)
-      : []
-  if (worksheetSnapshotRanges.length > 0) return worksheetSnapshotRanges
-  return normalizeWorksheetMergeRanges(sheet.settings.mergeData)
 }
 
 function applyCommittedWorksheetMergePatchDelta(params: {
@@ -1600,11 +1559,15 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       return () => globalThis.cancelAnimationFrame(raf)
     }, [props.multiSheetWorkbookMode, sheet.id, applyRemoteCellUpdate])
 
+    const workbookSnapshotAccessBlockedUntilRef = useRef(0)
+
     const getWorkbookSnapshot = useCallback((): Record<string, unknown> | null => {
       const api = univerAPIRef.current
       if (!api) return null
       try {
-        const workbook = api.getActiveWorkbook()
+        const workbook = tryGetUniverActiveWorkbook(api, {
+          blockedUntilRef: workbookSnapshotAccessBlockedUntilRef
+        })
         if (!workbook) return null
         const wb = workbook as unknown as {
           save?: () => unknown
@@ -1630,10 +1593,13 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           if (liveStyles && liveStylesKeys.length > snapshotStylesKeys.length) {
             snapshotObj.styles = { ...(snapshotObj.styles as Record<string, unknown> | undefined), ...liveStyles }
           }
-          const activeSheetId =
-            (workbook as { getActiveSheet?: () => { getSheetId?: () => string } | null | undefined })
-              .getActiveSheet?.()
-              ?.getSheetId?.() ?? sheet.id
+          const activeWorksheet = tryGetUniverActiveWorksheet(
+            workbook as { getActiveSheet?: () => unknown } | null | undefined,
+            {
+              blockedUntilRef: workbookSnapshotAccessBlockedUntilRef
+            }
+          ) as { getSheetId?: () => string } | null
+          const activeSheetId = activeWorksheet?.getSheetId?.() ?? sheet.id
           const trackedDimensions = cellDimensionsRef.current
           const sheets =
             snapshotObj.sheets && typeof snapshotObj.sheets === 'object' && !Array.isArray(snapshotObj.sheets)
@@ -2013,9 +1979,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
               rows: propsRef.current.data,
               moves: moveClassification.ok ? moveClassification.moves : moves
             })
-            propsRef.current.columns = nextColumns
-            contextRef.current = createUniverConversionContext(nextColumns, propsRef.current.data)
             if (result.ok && result.appliedMoveCount > 0) {
+              propsRef.current.columns = nextColumns
+              contextRef.current = createUniverConversionContext(nextColumns, propsRef.current.data)
               lastSyncedGridCellSignaturesRef.current = buildAuthoritativeCellSignatureMap(
                 propsRef.current.data,
                 nextColumns
@@ -2024,6 +1990,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
               return true
             }
             if (result.ok && result.moveCount === 0) {
+              propsRef.current.columns = nextColumns
+              contextRef.current = createUniverConversionContext(nextColumns, propsRef.current.data)
               return true
             }
             return false
@@ -2455,6 +2423,11 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       columns,
       univerAPIRef,
       cellDimensionsRef,
+      isApplyingRemoteUpdateRef,
+      collabPersistedBulkApplyDepthRef,
+      columnInsertFormulaFollowUpSuppressUntilMsRef,
+      columnDeleteFormulaFollowUpSuppressUntilMsRef,
+      columnMoveFormulaFollowUpSuppressUntilMsRef,
       isDirtyRef,
       snapshotRequestInFlightRef,
       requestSnapshotCheckpointRef,

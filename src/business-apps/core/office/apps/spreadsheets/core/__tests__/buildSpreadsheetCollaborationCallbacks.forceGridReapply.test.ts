@@ -150,4 +150,29 @@ describe('buildSpreadsheetCollaborationCallbacks forceGridReapply guard', () => 
     })
     expect(forceAuthoritativeReapply).not.toHaveBeenCalled()
   })
+
+  it('routes full-grid server-authoritative repairs through the coordinated viewer callback', () => {
+    const forceAuthoritativeReapply = jest.fn()
+    const coordinateForceGridReapply = jest.fn()
+    const spreadsheetGridRef = { current: { forceAuthoritativeReapply } }
+    const callbacks = buildMinimalCallbacks(spreadsheetGridRef, coordinateForceGridReapply)
+
+    callbacks.forceGridReapply?.(ACTIVE_SHEET_ID, null, {
+      allowFullGridReapply: true,
+      clearAllSignatures: true,
+      preferBulk: true,
+      reason: 'column_reorder_structural_repair',
+      pendingLocalFilterPolicy: 'server_authoritative_repair'
+    })
+
+    jest.runOnlyPendingTimers()
+    expect(coordinateForceGridReapply).toHaveBeenCalledWith(ACTIVE_SHEET_ID, null, {
+      allowFullGridReapply: true,
+      clearAllSignatures: true,
+      preferBulk: true,
+      reason: 'column_reorder_structural_repair',
+      pendingLocalFilterPolicy: 'server_authoritative_repair'
+    })
+    expect(forceAuthoritativeReapply).not.toHaveBeenCalled()
+  })
 })

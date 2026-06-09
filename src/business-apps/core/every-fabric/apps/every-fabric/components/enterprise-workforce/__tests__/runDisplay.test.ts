@@ -36,6 +36,7 @@ describe('runStatusVisual', () => {
     expect(runStatusVisual('running').label).toBe('Running')
     expect(runStatusVisual('failed').label).toBe('Failed')
     expect(runStatusVisual('budget_paused').label).toBe('Budget paused')
+    expect(runStatusVisual('filtered').label).toBe('Filtered')
   })
 })
 

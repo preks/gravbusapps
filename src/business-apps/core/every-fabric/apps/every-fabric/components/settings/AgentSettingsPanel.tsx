@@ -1,7 +1,10 @@
-import { useCallback, useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { GearIcon, XIcon } from '@phosphor-icons/react'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
+import { isEveryFabricDevToolsEnabled } from '../../utils/devToolsGate'
 import type { AgentSettings } from './agentSettings.types'
 import { loadSettings, persistSettings } from './agentSettings.utils'
 import { ConfigurationSection } from './components/ConfigurationSection'
@@ -16,6 +19,8 @@ interface AgentSettingsPanelProps {
 
 export const AgentSettingsPanel: React.FC<AgentSettingsPanelProps> = ({ isOpen, onClose, accessToken }) => {
   const client = useEnterpriseAgentClient(accessToken)
+  const devToolsFeature = useFeature<boolean>(Feature.EveryFabric.DevTools.Key)
+  const devToolsEnabled = isEveryFabricDevToolsEnabled(devToolsFeature)
   const [settings, setSettings] = useState<AgentSettings>(loadSettings)
 
   const updateSetting = useCallback(<K extends keyof AgentSettings>(key: K, value: AgentSettings[K]) => {
@@ -53,11 +58,15 @@ export const AgentSettingsPanel: React.FC<AgentSettingsPanelProps> = ({ isOpen, 
         </div>
 
         <div className="gba:max-h-[70vh] sm:gba:max-h-[min(42rem,80vh)] gba:overflow-y-auto">
-          <ConfigurationSection settings={settings} updateSetting={updateSetting} />
+          <ConfigurationSection settings={settings} updateSetting={updateSetting} devToolsEnabled={devToolsEnabled} />
           <div className="gba:mx-4 sm:gba:mx-5 gba:border-t gba:border-border/40" />
           <MemorySection client={client} isOpen={isOpen} />
-          <div className="gba:mx-4 sm:gba:mx-5 gba:border-t gba:border-border/40" />
-          <MetricsSection client={client} isOpen={isOpen} />
+          {devToolsEnabled && (
+            <>
+              <div className="gba:mx-4 sm:gba:mx-5 gba:border-t gba:border-border/40" />
+              <MetricsSection client={client} isOpen={isOpen} />
+            </>
+          )}
         </div>
       </div>
     </div>

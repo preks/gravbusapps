@@ -35,6 +35,7 @@ import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 import {
   formatProbationFromJson,
   getContractTypePayrollRelevant,
+  getContractTypeTimeRelevant,
   mergeCatalogEntryForPut
 } from '../../utils/catalogEntryMetadata'
 import { CatalogLookupDataTableShell } from '../CatalogLookupDataTableShell'
@@ -67,11 +68,19 @@ export interface ContractTypeTable {
   objectValue?: CatalogEntry['objectValue']
   isDeleted?: boolean
   payrollRelevant?: boolean
+  timeRelevant?: boolean
 }
 
 export interface ContractTypesTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string
 }
+
+const buildBooleanBadgeColumn = (accessorKey: string, header: string): ColumnDef<ContractTypeTable> => ({
+  accessorKey,
+  header,
+  enableSorting: true,
+  cell: ({ getValue }) => <Badge variant={getValue() ? 'default' : 'secondary'}>{getValue() ? 'Yes' : 'No'}</Badge>
+})
 
 const DATA_TEST_ID_PREFIX = 'ContractTypesTab'
 
@@ -172,8 +181,12 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
             value: formatProbationFromJson(selectedType.additionalValue2)
           },
           {
-            label: 'Payroll relevant',
+            label: t('ct-drawer-label-payroll-relevant'),
             value: getContractTypePayrollRelevant(selectedType) ? 'Yes' : 'No'
+          },
+          {
+            label: t('ct-drawer-label-time-relevant'),
+            value: getContractTypeTimeRelevant(selectedType) ? 'Yes' : 'No'
           }
         ],
         verticalTable: true
@@ -232,14 +245,8 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
           )
         }
       },
-      {
-        accessorKey: 'payrollRelevant',
-        header: 'Payroll relevant',
-        enableSorting: true,
-        cell: ({ getValue }) => (
-          <Badge variant={getValue() ? 'default' : 'secondary'}>{getValue() ? 'Yes' : 'No'}</Badge>
-        )
-      },
+      buildBooleanBadgeColumn('payrollRelevant', t('ct-table-header-payroll-relevant')),
+      buildBooleanBadgeColumn('timeRelevant', t('ct-table-header-time-relevant')),
       {
         id: 'actions',
         header: () => <div className="gba:flex gba:w-[115px]">{t('ct-table-header-actions')}</div>,
@@ -290,7 +297,8 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
       probationPeriod: contractType.additionalValue2,
       objectValue: contractType.objectValue,
       isDeleted: contractType.isDeleted,
-      payrollRelevant: getContractTypePayrollRelevant(contractType)
+      payrollRelevant: getContractTypePayrollRelevant(contractType),
+      timeRelevant: getContractTypeTimeRelevant(contractType)
     }))
 
     return (

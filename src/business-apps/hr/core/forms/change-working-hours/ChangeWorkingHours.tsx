@@ -9,7 +9,9 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 export const ChangeWorkingHours: React.FC<BusinessAppContextProps> = props => {
   const { accessToken, additionalData, userInfo } = props
   const employeeId = useMemo(() => {
+    const externalContextData = additionalData?.externalContextData
     return (
+      externalContextData?.employeeId ||
       additionalData?.employeeId ||
       additionalData?.psi_taskPayload?.employeeId ||
       additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
@@ -31,7 +33,12 @@ export const ChangeWorkingHours: React.FC<BusinessAppContextProps> = props => {
     <div className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]">
       <FormHeader title={title} flowIconUrl={flowIconUrl} className="gba:px-6" />
       <div className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-working-hours-form']]:!pt-0">
-        <ChangeWorkingHoursProvider accessToken={accessToken} userInfo={userInfo} employeeId={employeeId}>
+        <ChangeWorkingHoursProvider
+          accessToken={accessToken}
+          userInfo={userInfo}
+          additionalData={additionalData}
+          employeeId={employeeId}
+        >
           <ChangeWorkingHoursForm />
         </ChangeWorkingHoursProvider>
       </div>

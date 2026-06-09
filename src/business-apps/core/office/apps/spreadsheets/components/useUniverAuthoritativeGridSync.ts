@@ -284,6 +284,8 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
         shouldMergeSessionPaintWithForcedRepair && sessionPaintCells
           ? mergeAuthoritativePaintCellLists(sessionPaintCells, regionProjectedBuffer)
           : regionProjectedBuffer
+    } else if (preferForcedRepairProjection && isForcedAuthoritativeReapply) {
+      authoritativeBulkBuffer = buildAuthoritativePaintCellsFromViewerRows(data, columns)
     } else if (!hasCompletedAuthoritativeSyncRef.current && nextToken === 0) {
       authoritativeBulkBuffer = buildAuthoritativePaintCellsFromViewerRows(data, columns)
     } else {

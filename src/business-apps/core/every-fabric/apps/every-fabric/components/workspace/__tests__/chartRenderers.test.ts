@@ -37,6 +37,35 @@ describe('parseChartConfig', () => {
     expect(cfg?.chartType).toBe('bar')
     expect(cfg?.dataKeys).toEqual(['count'])
   })
+
+  it('preserves optional presentation metadata for dense category charts', () => {
+    const cfg = parseChartConfig({
+      chartType: 'bar',
+      data: Array.from({ length: 20 }, (_, idx) => ({ name: `Very long category ${idx + 1}`, value: idx + 1 })),
+      dataKeys: ['value'],
+      layout: 'horizontal',
+      denseCategoryChart: true,
+      recommendedHeight: 420,
+      showValueLabels: false,
+      categoryLimit: 10,
+      displayData: [
+        { name: 'Very long category 20', value: 20 },
+        { name: 'Other', value: 190 }
+      ]
+    })
+
+    expect(cfg).not.toBeNull()
+    expect(cfg?.layout).toBe('horizontal')
+    expect(cfg?.denseCategoryChart).toBe(true)
+    expect(cfg?.recommendedHeight).toBe(420)
+    expect(cfg?.showValueLabels).toBe(false)
+    expect(cfg?.categoryLimit).toBe(10)
+    expect(cfg?.displayData).toEqual([
+      { name: 'Very long category 20', value: 20 },
+      { name: 'Other', value: 190 }
+    ])
+    expect(cfg?.data).toHaveLength(20)
+  })
 })
 
 describe('sumSeries (donut center total)', () => {

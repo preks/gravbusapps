@@ -760,12 +760,15 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       options?: ForceAuthoritativeGridReapplyOptions
     ): AuthoritativeGridRegion[] | null => {
       const regions = normalizeAuthoritativeGridReapplyTarget(target)
-      if (!regions) return null
+      const isFullGridRepair = regions == null
+      if (isFullGridRepair && options?.allowFullGridReapply !== true) {
+        return null
+      }
       if (!areCanonicalSheetIdsEqual(targetSheetId, activeSheetIdRef.current, createdSheetIdAliasesRef.current)) {
         return null
       }
 
-      const scheduledRegions = regions.map(region => ({ ...region }))
+      const scheduledRegions = regions?.map(region => ({ ...region })) ?? []
       const repairDescriptor = {
         reason: options?.reason,
         pendingLocalFilterPolicy: options?.pendingLocalFilterPolicy
@@ -779,6 +782,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       let nextScheduledRegions = scheduledRegions
       let preserveStagedDirectPaint = false
       if (
+        !isFullGridRepair &&
         isRepairReapply &&
         (isBackendDirtyRepairReapply || isRowMaterializationRepairReapply) &&
         authoritativePaintCellsRef.current?.length
@@ -816,20 +820,27 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         authoritativePaintCellsRef.current = null
         authoritativePaintMetaRef.current = null
         const generation = (coordinatedAuthoritativeRepairGenerationRef.current += 1)
-        debugLog('authoritative repair scheduled', {
+        debugLog(isFullGridRepair ? 'authoritative full repair scheduled' : 'authoritative repair scheduled', {
           sheetId: targetSheetId,
           reason: repairDescriptor.reason,
           generation,
+          fullGrid: isFullGridRepair,
           regionCount: nextScheduledRegions.length
         })
       } else if (isRepairReapply && preserveStagedDirectPaint) {
         const generation = (coordinatedAuthoritativeRepairGenerationRef.current += 1)
-        debugLog('authoritative repair scheduled after staged direct paint', {
-          sheetId: targetSheetId,
-          reason: repairDescriptor.reason,
-          generation,
-          regionCount: nextScheduledRegions.length
-        })
+        debugLog(
+          isFullGridRepair
+            ? 'authoritative full repair scheduled after staged direct paint'
+            : 'authoritative repair scheduled after staged direct paint',
+          {
+            sheetId: targetSheetId,
+            reason: repairDescriptor.reason,
+            generation,
+            fullGrid: isFullGridRepair,
+            regionCount: nextScheduledRegions.length
+          }
+        )
       }
 
       globalThis.setTimeout(() => {
@@ -837,7 +848,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           return
         }
         spreadsheetGridRef.current?.forceAuthoritativeReapply?.(
-          nextScheduledRegions.length === 1 ? nextScheduledRegions[0] : nextScheduledRegions,
+          isFullGridRepair ? null : nextScheduledRegions.length === 1 ? nextScheduledRegions[0] : nextScheduledRegions,
           preserveStagedDirectPaint ? { ...options, preserveStagedDirectPaint: true } : options
         )
       }, 0)

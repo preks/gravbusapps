@@ -1,5 +1,6 @@
 /** @jest-environment jsdom */
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import React from 'react'
 
 import { AgentsScreen } from '../AgentsScreen'
@@ -81,16 +82,35 @@ describe('AgentsScreen workforce merge', () => {
   })
 
   it("requests surface 'all' so workforce agents are included", async () => {
-    render(<AgentsScreen accessToken="tok" onBack={() => {}} onRunTask={() => {}} embedded />)
+    render(<AgentsScreen accessToken="tok" onBack={() => {}} embedded />)
 
     await waitFor(() => expect(screen.getByTestId('agent-card-wf-1')).toBeInTheDocument())
     expect(mockGetAgentRegistry).toHaveBeenCalledWith(expect.objectContaining({ surface: 'all' }))
   })
 
   it('shows the Workforce badge only on workforce-enabled agents', async () => {
-    render(<AgentsScreen accessToken="tok" onBack={() => {}} onRunTask={() => {}} embedded />)
+    render(<AgentsScreen accessToken="tok" onBack={() => {}} embedded />)
 
     expect(await screen.findByTestId('agent-workforce-badge-wf-1')).toBeInTheDocument()
     expect(screen.queryByTestId('agent-workforce-badge-ent-1')).toBeNull()
+  })
+
+  it('searches archived agents and expands the archived section on match', async () => {
+    mockGetAgentRegistry.mockImplementation((params: { status?: string }) =>
+      params?.status === 'archived'
+        ? Promise.resolve([registryEntry('arch-1', 'retired_hr_bot')])
+        : Promise.resolve([registryEntry('ent-1', 'web_search_agent')])
+    )
+
+    render(<AgentsScreen accessToken="tok" onBack={() => {}} embedded />)
+
+    await waitFor(() => expect(screen.getByTestId('archived-section')).toBeInTheDocument())
+    expect(screen.queryByTestId('archived-card-arch-1')).toBeNull()
+
+    const searchInput = screen.getByTestId('agents-search-input')
+    await userEvent.type(searchInput, 'retired_hr')
+
+    expect(await screen.findByTestId('archived-card-arch-1')).toBeInTheDocument()
+    expect(screen.queryByTestId('agent-card-ent-1')).toBeNull()
   })
 })

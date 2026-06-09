@@ -1,3 +1,4 @@
+import React from 'react'
 import { ToggleLeftIcon, ToggleRightIcon } from '@phosphor-icons/react'
 
 export const SectionHeader: React.FC<{ icon: React.ReactNode; title: string }> = ({ icon, title }) => (

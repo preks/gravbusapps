@@ -188,6 +188,51 @@ describe('useUniverAuthoritativeGridSync', () => {
     expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
   })
 
+  it('rebuilds the full viewer state for forced column reorder structural repair after initial sync', async () => {
+    const applyRemoteCellUpdatesBulk = jest.fn()
+    const applyRemoteCellUpdate = jest.fn()
+    const refs = createStableHookRefs()
+    refs.pendingForcedAuthoritativeReapplyRef.current = {
+      regions: null,
+      preferBulk: true,
+      clearAllSignatures: true,
+      reason: 'column_reorder_structural_repair',
+      pendingLocalFilterPolicy: 'server_authoritative_repair'
+    }
+
+    renderHook(() =>
+      useUniverAuthoritativeGridSync({
+        sheet: { id: 'sheet-1' } as any,
+        data: [
+          { _id: 'row-1', _gridRowIndex: 0, name: 'A1', note: 'B1' },
+          { _id: 'row-2', _gridRowIndex: 1, name: 'A2', note: 'B2' }
+        ],
+        columns: [
+          { id: 'col-name', name: 'name', isVisible: true },
+          { id: 'col-note', name: 'note', isVisible: true }
+        ] as any,
+        authoritativeDataSyncToken: 1,
+        authoritativeReapplySeed: 1,
+        collabBulkApplyIdleNonce: 0,
+        applyRemoteCellUpdate,
+        applyRemoteCellUpdatesBulk,
+        ...refs
+      })
+    )
+
+    await waitFor(() => expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledTimes(1))
+    expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
+    expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ rowIndex: 0, colIndex: 0, value: 'A1' }),
+        expect.objectContaining({ rowIndex: 0, colIndex: 1, value: 'B1' }),
+        expect.objectContaining({ rowIndex: 1, colIndex: 0, value: 'A2' }),
+        expect.objectContaining({ rowIndex: 1, colIndex: 1, value: 'B2' })
+      ]),
+      { operationType: 'authoritative_reapply', skipRemoteEchoRegistration: true }
+    )
+  })
+
   it('paints peer-cleared blank cells during authoritative reapply', async () => {
     const applyRemoteCellUpdatesBulk = jest.fn()
     const refs = createStableHookRefs()

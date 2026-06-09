@@ -81,7 +81,7 @@ export const SortableNoteTree: React.FC<SortableNoteTreeProps> = ({
         <ScrollArea className="gba:flex-1">
           <div className="gba:py-1 gba:px-2" role="tree" data-testid="note-tree">
             {visibleNodes.length === 0 ? (
-              <div className="gba:text-center gba:py-6 gba:text-white/40 gba:text-xs">{t('tree-empty')}</div>
+              <div className="gba:text-center gba:py-6 gba:text-muted-foreground gba:text-xs">{t('tree-empty')}</div>
             ) : (
               visibleNodes.map(node => {
                 const showDropIndicator =
@@ -91,7 +91,7 @@ export const SortableNoteTree: React.FC<SortableNoteTreeProps> = ({
                   <React.Fragment key={node.id}>
                     {showDropIndicator && dragDrop.dropProjection && (
                       <div
-                        className="gba:h-0.5 gba:bg-white/50 gba:rounded-full gba:mx-2 gba:transition-all gba:duration-150"
+                        className="gba:h-0.5 gba:bg-primary/50 gba:rounded-full gba:mx-2 gba:transition-all gba:duration-150"
                         style={{
                           marginLeft: `${12 + (dragDrop.dropProjection?.depth || 0) * 20}px`
                         }}

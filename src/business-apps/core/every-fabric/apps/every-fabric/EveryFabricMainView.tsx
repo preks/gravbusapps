@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import React, { type ReactNode } from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { SpinnerGapIcon } from '@phosphor-icons/react'
 import { AgentMeshScreen } from './components/agent-mesh/AgentMeshScreen'
@@ -89,6 +89,7 @@ export interface EveryFabricMainViewProps {
   accessToken: string
   session: FabricContext['session']
   activeSessions: ActiveSessions
+  devToolsEnabled: boolean
   devModeEnabled: boolean
   displayView: string | null
   showSettings: boolean
@@ -119,6 +120,7 @@ export function EveryFabricMainView({
   accessToken,
   session,
   activeSessions,
+  devToolsEnabled,
   devModeEnabled,
   displayView,
   showSettings,
@@ -157,26 +159,7 @@ export function EveryFabricMainView({
       <>
         <FadeOverlay visible={showSettings}>
           {displayView === 'settings' && (
-            <SettingsScreen
-              accessToken={accessToken}
-              onBack={onCloseSettings}
-              onRunTask={agent => {
-                onCloseSettings()
-                void onStartSession(`Run task with ${agent.name}: `, {
-                  mode: 'deep',
-                  enable_memory: true,
-                  enable_reflection: undefined,
-                  selectedAgent: {
-                    id: agent.id,
-                    name: agent.name,
-                    display_name: agent.name,
-                    description: agent.description,
-                    domain: agent.specialty ?? agent.domain ?? '',
-                    tags: agent.tags ?? []
-                  }
-                })
-              }}
-            />
+            <SettingsScreen accessToken={accessToken} devToolsEnabled={devToolsEnabled} onBack={onCloseSettings} />
           )}
         </FadeOverlay>
 
@@ -201,13 +184,13 @@ export function EveryFabricMainView({
         </FadeOverlay>
 
         <FadeOverlay visible={showTraceExplorer}>
-          {displayView === 'trace-explorer' && (
+          {devModeEnabled && displayView === 'trace-explorer' && (
             <TraceExplorerScreen onBack={onCloseTraceExplorer} onOpenAgentMesh={onOpenAgentMeshFromTrace} />
           )}
         </FadeOverlay>
 
         <FadeOverlay visible={showTraceLens}>
-          {displayView === 'trace-lens' && (
+          {devModeEnabled && displayView === 'trace-lens' && (
             <TraceLensScreen
               accessToken={accessToken}
               onBack={onCloseTraceLens}

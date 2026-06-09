@@ -46,7 +46,7 @@ export const WorkforceHero: React.FC<WorkforceHeroProps> = ({ counts, onHireAgen
       <div className="gba:flex gba:flex-col gba:items-start gba:justify-between gba:gap-3 gba:sm:flex-row gba:sm:items-center">
         <div>
           <div className="gba:flex gba:items-center gba:gap-2.5">
-            <h1 className="gba:text-2xl gba:font-semibold gba:tracking-tight gba:text-foreground">Agent Workforce</h1>
+            <h1 className="gba:text-2xl gba:font-semibold gba:tracking-tight gba:text-foreground">Digital Workforce</h1>
             {workingNow > 0 && (
               <span
                 className="gba:inline-flex gba:items-center gba:gap-1.5 gba:rounded-full gba:bg-emerald-50 gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-semibold gba:text-emerald-700"

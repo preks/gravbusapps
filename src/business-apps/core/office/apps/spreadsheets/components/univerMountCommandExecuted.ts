@@ -1,4 +1,3 @@
-import { ICommandService } from '@univerjs/core'
 import { createUniver } from '@univerjs/presets'
 import {
   detectClearAllRangesFromCellMatrix,
@@ -22,7 +21,6 @@ import {
   markDimensionUserIntent,
   resolveDimensionIntentKindFromCommandId
 } from './univerDimensionUserIntent'
-import { debugMutationTrace } from './univerGridDebug'
 import { resolveClearAllRanges } from './univerGridRangeSelection'
 import { UNIVER_COMMAND_TYPE_MUTATION } from './univerGridUniverConstants'
 import { handleCommandExecutedColumnInsertsAndFeatureOps } from './univerMountCommandExecutedColumnsAndFeatures'
@@ -61,7 +59,6 @@ function normalizeWorksheetHidden(value: unknown): boolean | undefined {
 
 export type RegisterUniverMountCommandExecutedDeps = Pick<
   UniverGridController,
-  | 'univerInstanceRef'
   | 'univerAPIRef'
   | 'propsRef'
   | 'callbacksRef'
@@ -134,7 +131,6 @@ export function registerUniverMountCommandExecuted(
 ): RegisterUniverMountCommandExecutedHandles {
   const {
     univerAPI,
-    univerInstanceRef,
     univerAPIRef,
     propsRef,
     callbacksRef,
@@ -660,53 +656,15 @@ export function registerUniverMountCommandExecuted(
     }
   ).addEvent?.(commandEventKey, handleCommandEvent)
 
-  const directMoveCommandDisposable = (
-    (
-      univerInstanceRef.current as {
-        __getInjector?: () => { get?: (token: unknown) => unknown }
-      } | null
-    )
-      ?.__getInjector?.()
-      ?.get?.(ICommandService) as
-      | {
-          onCommandExecuted?: (cb: (commandInfo: { id?: string; type?: number; params?: unknown }) => void) => {
-            dispose(): void
-          }
+  const commandDisposable = rawCommandDisposable
+    ? {
+        dispose: () => {
+          cancelPendingDimensionFrame()
+          cancelPendingDeferredDimensionTimeout()
+          rawCommandDisposable.dispose?.()
         }
-      | undefined
-  )?.onCommandExecuted?.((commandInfo: { id?: string; type?: number; params?: unknown }) => {
-    const commandId = String(commandInfo?.id ?? '').toLowerCase()
-    // Visible (gated) trace for any column-affecting command so we can see the
-    // exact command id a header drag-reorder produces, even if it does not match
-    // the move-col filter below.
-    if (commandId.includes('col') && (commandId.includes('move') || commandId.includes('drag'))) {
-      debugMutationTrace('direct-command-service-col-move', { commandId, commandType: commandInfo?.type })
-    }
-    if (!commandId.includes('move-col')) return
-    callbacksRef.current.onDiagnosticsTraceEvent?.({
-      source: 'client',
-      stage: 'grid_column_move_direct_command_service',
-      severity: 'info',
-      sheetId: propsRef.current.sheet.id,
-      payload: {
-        commandId,
-        commandType: commandInfo?.type
       }
-    })
-    handleCommandEvent(commandInfo)
-  })
-
-  const commandDisposable =
-    rawCommandDisposable || directMoveCommandDisposable
-      ? {
-          dispose: () => {
-            cancelPendingDimensionFrame()
-            cancelPendingDeferredDimensionTimeout()
-            rawCommandDisposable?.dispose?.()
-            directMoveCommandDisposable?.dispose?.()
-          }
-        }
-      : undefined
+    : undefined
 
   return { commandDisposable }
 }

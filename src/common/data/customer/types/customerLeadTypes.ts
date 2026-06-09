@@ -143,6 +143,17 @@ export const CUSTOMER_LEAD_DESCRIPTORS: Descriptor[] = [
     searchPaths: [CustomerLeadFields.singleOptInDate],
     sortPath: CustomerLeadFields.singleOptInDate,
     type: 'date'
+  },
+
+  // CRM-specific filter: sales campaign (form-savable via salesCampaignId)
+  {
+    key: 'salesCampaignIds',
+    path: 'salesCampaignId',
+    filterLabel: 'Sales Campaign',
+    kind: 'inIds',
+    optionSelectPaths: ['salesCampaign.id', 'salesCampaign.name'],
+    optionSearchPaths: ['salesCampaign.name'],
+    optionDistinctOn: ['salesCampaignId']
   }
 ]
 

@@ -1104,6 +1104,25 @@ export function shouldDropStandaloneMoveCellRangeFormulaFollowUpBatch(params: {
   )
 }
 
+export function shouldDropStandaloneMoveCellRangeValueFollowUpBatch(params: {
+  suppressUntilMs: number
+  targetSheetId: string
+  recentMove?: RecentMoveCellRangeFollowUp | null
+  operations: Array<{ type: string; data?: Record<string, unknown> }>
+}): boolean {
+  if (Date.now() >= params.suppressUntilMs) return false
+  if (!params.recentMove || params.targetSheetId !== params.recentMove.sheetId) return false
+  const extracted = extractStandaloneValueOperationRanges(params.operations)
+  if (!extracted || extracted.cellCount <= 1) return false
+  return extracted.ranges.every(range =>
+    rangesTouchRecentMove({
+      worksheetId: params.targetSheetId,
+      ranges: [range],
+      recentMove: params.recentMove
+    })
+  )
+}
+
 function extractFormulaOnlyStandaloneOperationRanges(
   operations: Array<{ type: string; data?: Record<string, unknown> }>
 ): { ranges: CellRangeRect[]; sawFormulaCell: boolean; formulaCellCount: number } | null {
@@ -1139,6 +1158,35 @@ function extractFormulaOnlyStandaloneOperationRanges(
     }
   }
   return { ranges, sawFormulaCell, formulaCellCount }
+}
+
+function extractStandaloneValueOperationRanges(
+  operations: Array<{ type: string; data?: Record<string, unknown> }>
+): { ranges: CellRangeRect[]; cellCount: number } | null {
+  if (operations.length === 0) return null
+  const ranges: CellRangeRect[] = []
+  let cellCount = 0
+  for (const operation of operations) {
+    if (operation.type !== 'set_range' && operation.type !== 'set_cell') return null
+    const cells = Array.isArray(operation.data?.cells)
+      ? operation.data.cells
+      : operation.data && typeof operation.data === 'object'
+        ? [operation.data]
+        : []
+    if (cells.length === 0) return null
+    for (const cell of cells) {
+      if (!cell || typeof cell !== 'object' || Array.isArray(cell)) return null
+      const record = cell as Record<string, unknown>
+      const row =
+        typeof record.row === 'number' ? record.row : typeof record.rowIndex === 'number' ? record.rowIndex : null
+      const col =
+        typeof record.col === 'number' ? record.col : typeof record.colIndex === 'number' ? record.colIndex : null
+      if (row == null || col == null) return null
+      cellCount += 1
+      ranges.push({ startRow: row, endRow: row, startColumn: col, endColumn: col })
+    }
+  }
+  return { ranges, cellCount }
 }
 
 export function resolveCutPasteFollowUpCollab(params: {

@@ -50,6 +50,8 @@ ct-table-header-code = Code
 ct-table-header-name = Name
 ct-table-header-description = Beschreibung
 ct-table-header-probation-period = Probezeit
+ct-table-header-payroll-relevant = Lohnrelevant
+ct-table-header-time-relevant = Zeitrelevant
 ct-table-header-actions = Aktionen
 
 # Buttons
@@ -66,6 +68,8 @@ ct-drawer-label-name = Name
 ct-drawer-label-code = Code
 ct-drawer-label-description = Beschreibung
 ct-drawer-label-probation-period = Probezeit
+ct-drawer-label-payroll-relevant = Lohnrelevant
+ct-drawer-label-time-relevant = Zeitrelevant
 ct-sheet-extra-content = Diese Vertragsart kann zur Klassifizierung von Mitarbeitern und Stellen verwendet werden.
 
 # Probation period units

@@ -48,6 +48,10 @@ const STATUS_VISUALS: Record<WorkforceRunStatus, RunStatusVisual> = {
   budget_paused: {
     label: 'Budget paused',
     pillClass: 'gba:bg-amber-500/15 gba:text-amber-700 gba:dark:text-amber-300'
+  },
+  filtered: {
+    label: 'Filtered',
+    pillClass: 'gba:bg-muted gba:text-muted-foreground'
   }
 }
 

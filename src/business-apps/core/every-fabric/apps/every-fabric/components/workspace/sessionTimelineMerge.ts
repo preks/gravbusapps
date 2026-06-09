@@ -11,7 +11,12 @@ export function timelineSortKey(timestamp: string, seq?: number): number {
   return ms * 1000 + (seq ?? 0)
 }
 
-/** Clock time with hours, minutes, and seconds (newest rows show precise ordering). */
+/** Oldest first — matches debug-trace step ordering (timestamp, then seq). */
+export function compareTimelineEntriesChronologically(a: SessionTimelineEntry, b: SessionTimelineEntry): number {
+  return a.sortKey - b.sortKey
+}
+
+/** Clock time with hours, minutes, and seconds (chronological timeline). */
 export function formatTimelineClockTime(timestamp: string): string {
   const date = parseIsoTimestamp(timestamp)
   if (!date) return ''
@@ -59,7 +64,7 @@ export function mergeSessionTimelineEntries(
     })
   }
 
-  return entries.sort((a, b) => b.sortKey - a.sortKey)
+  return entries.sort(compareTimelineEntriesChronologically)
 }
 
 export const DECISION_CATEGORY_LABEL: Record<DecisionCategory, string> = {
