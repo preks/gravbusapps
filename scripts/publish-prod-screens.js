@@ -180,6 +180,11 @@ function writePublishedScreensArtifact(outputFilePath, screens, options = {}) {
   }
 }
 
+function writeScreenReleaseResult(outputFilePath, result) {
+  fs.writeFileSync(outputFilePath, `${JSON.stringify(result, null, 2)}\n`, 'utf8')
+  console.log(`Wrote screen release result artifact: ${path.basename(outputFilePath)}`)
+}
+
 function buildBlobUrl(accountName, containerName, blobName, sasToken) {
   const encodedBlobName = blobName
     .split('/')
@@ -587,9 +592,18 @@ async function main() {
   const devHashFile = path.join(projectRootDirForHashes, 'component-hashes.json')
   const prodHashFile = path.join(projectRootDirForHashes, 'component-hashes-prod.json')
   const publishedScreensFile = path.join(projectRootDirForHashes, 'published-screens.txt')
+  const screenReleaseResultFile = path.join(projectRootDirForHashes, 'screen-release-result.json')
 
   // Always initialize the artifact file for downstream manual sync step.
   writePublishedScreensArtifact(publishedScreensFile, [], { silent: true })
+  writeScreenReleaseResult(screenReleaseResultFile, {
+    status: 'success',
+    processedScreens: 0,
+    publishedScreens: [],
+    skippedScreens: [],
+    failedScreens: [],
+    comprehensiveSyncResults: []
+  })
 
   // Load hash files ONCE at the beginning (keep in memory throughout)
   const devHashes = loadHashFile(devHashFile)
@@ -634,6 +648,14 @@ async function main() {
   // Promote RC artifacts (only changed screens or all if manual)
   if (screensToPublish.length === 0) {
     console.log(`\nNo screens need publishing - all unchanged!`)
+    writeScreenReleaseResult(screenReleaseResultFile, {
+      status: 'success',
+      processedScreens: changedScreens.length,
+      publishedScreens: [],
+      skippedScreens,
+      failedScreens: [],
+      comprehensiveSyncResults: []
+    })
     return
   }
 
@@ -1081,10 +1103,19 @@ async function main() {
   const totalFailures = failedScreens.length
   const totalSkipped = skippedScreens.length
   const actualSuccessCount = changedScreens.length - totalFailures - totalSkipped
+  const screenReleaseResult = {
+    status: totalFailures > 0 ? 'failed' : 'success',
+    processedScreens: changedScreens.length,
+    publishedScreens: successfulScreens,
+    skippedScreens,
+    failedScreens,
+    comprehensiveSyncResults
+  }
 
   console.log(`Successfully published: ${actualSuccessCount}`)
   console.log(`Skipped (unchanged): ${totalSkipped}`)
   console.log(`Failed: ${totalFailures}`)
+  writeScreenReleaseResult(screenReleaseResultFile, screenReleaseResult)
 
   // Add comprehensive sync summary per target
   console.log(`\nCOMPREHENSIVE SYNC RESULTS (per target):`)
@@ -1148,8 +1179,7 @@ async function main() {
       console.log(`WARNING: ${promoteFailures.length} screen(s) failed during RC promotion (Azure copy)`)
     }
 
-    // Exit with error code to fail the pipeline
-    process.exit(1)
+    console.log('Failure recorded for final release gate. Continuing so resource URL creation can run.')
   } else {
     console.log(`\nProduction publishing completed successfully!`)
     console.log(`All ${actualSuccessCount} screen(s) were published without errors.`)
@@ -1158,5 +1188,19 @@ async function main() {
 
 main().catch(error => {
   console.error('An unexpected error occurred:', error)
-  process.exit(1)
+  const screenReleaseResultFile = path.resolve(__dirname, '..', 'screen-release-result.json')
+  writeScreenReleaseResult(screenReleaseResultFile, {
+    status: 'failed',
+    processedScreens: 0,
+    publishedScreens: [],
+    skippedScreens: [],
+    failedScreens: [
+      {
+        screen: 'unknown',
+        error: error.message,
+        stage: 'unexpected'
+      }
+    ],
+    comprehensiveSyncResults: []
+  })
 })

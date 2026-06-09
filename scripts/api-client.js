@@ -182,6 +182,66 @@ async function getResourceUrlByPath(urlPath, apiEndpoint = null, oauthConfig = {
   }
 }
 
+async function getAllResourceUrls(apiEndpoint = null, oauthConfig = {}) {
+  const oauthClient = new OAuthClient(oauthConfig)
+  const accessToken = await oauthClient.getAccessToken()
+  const navigationServiceApi = apiEndpoint || process.env.NEXT_PUBLIC_NAVIGATION_SERVICE_API
+  const endpoint = `${navigationServiceApi}/resource-url`
+
+  let allResourceUrls = []
+  let offset = 0
+  const limit = 100
+  let hasMore = true
+  const seenKeys = new Set()
+
+  while (hasMore) {
+    try {
+      const response = await http.get(endpoint, {
+        headers: {
+          accept: 'application/json',
+          authorization: `Bearer ${accessToken}`
+        },
+        params: {
+          limit,
+          offset
+        }
+      })
+
+      let resourceUrls = []
+      if (Array.isArray(response.data)) {
+        resourceUrls = response.data
+      } else if (response.data && Array.isArray(response.data.data)) {
+        resourceUrls = response.data.data
+      } else if (response.data && response.data.content && Array.isArray(response.data.content)) {
+        resourceUrls = response.data.content
+      }
+
+      const newResourceUrls = resourceUrls.filter(resourceUrl => {
+        const key = `${resourceUrl?.id || ''}:${resourceUrl?.url || ''}:${resourceUrl?.name || ''}`
+        if (seenKeys.has(key)) {
+          return false
+        }
+        seenKeys.add(key)
+        return true
+      })
+      allResourceUrls = allResourceUrls.concat(newResourceUrls)
+
+      const totalRecords =
+        response.data?.totalRecords ?? response.data?.totalElements ?? response.data?.total ?? response.data?.count
+      hasMore =
+        newResourceUrls.length > 0 &&
+        resourceUrls.length === limit &&
+        (typeof totalRecords !== 'number' || allResourceUrls.length < totalRecords)
+      offset += limit
+    } catch (error) {
+      logAxiosError('navigation.getAllResourceUrls', error, { apiEndpoint, offset })
+      throw error
+    }
+  }
+
+  return allResourceUrls
+}
+
 function normalizeFormComponentPath(path) {
   if (!path || typeof path !== 'string') return ''
   return path.replace(/^\/+/, '').trim()
@@ -1109,6 +1169,7 @@ export {
   OAuthClient,
   fetchAllScreensPaginated,
   getResourceUrlByPath,
+  getAllResourceUrls,
   addAppResourceUrl,
   addCustomResourceUrl,
   addScreenConfigToScreenManagement,
