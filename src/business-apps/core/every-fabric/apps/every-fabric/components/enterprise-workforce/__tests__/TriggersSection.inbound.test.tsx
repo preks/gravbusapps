@@ -147,6 +147,51 @@ describe('TriggersSection inbound details', () => {
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('support@acme.com'))
   })
 
+  it('summarises the subject filter when configured', () => {
+    const trigger = buildTrigger({
+      trigger_id: 'tr-filter',
+      type: 'inbound_email',
+      config: {
+        mailbox: 'support@acme.com',
+        subject_filter: { patterns: ['ticket', '[support]'], mode: 'contains', case_sensitive: false }
+      },
+      webhook_url: null
+    })
+    render(
+      <TriggersSection
+        triggers={[trigger]}
+        pendingTriggerId={null}
+        onCreate={noopAsync}
+        onUpdate={noopAsync}
+        onDelete={noopAsync}
+      />
+    )
+    expect(screen.getByTestId(`workforce-trigger-subject-filter-summary-${trigger.trigger_id}`)).toHaveTextContent(
+      'filter: contains "ticket", "[support]"'
+    )
+  })
+
+  it('shows "forwards all" when no subject filter is configured', () => {
+    const trigger = buildTrigger({
+      trigger_id: 'tr-nofilter',
+      type: 'inbound_email',
+      config: { mailbox: 'support@acme.com' },
+      webhook_url: null
+    })
+    render(
+      <TriggersSection
+        triggers={[trigger]}
+        pendingTriggerId={null}
+        onCreate={noopAsync}
+        onUpdate={noopAsync}
+        onDelete={noopAsync}
+      />
+    )
+    expect(screen.getByTestId(`workforce-trigger-subject-filter-summary-${trigger.trigger_id}`)).toHaveTextContent(
+      'forwards all'
+    )
+  })
+
   it('does not render inbound details for schedule triggers', () => {
     const trigger = buildTrigger({
       trigger_id: 'tr-sched',

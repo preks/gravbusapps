@@ -18,6 +18,8 @@ import {
 } from '@phosphor-icons/react'
 import React, { useCallback, useMemo, useState } from 'react'
 import type {
+  SubjectFilter,
+  SubjectFilterMode,
   WorkforceTrigger,
   WorkforceTriggerCreateInput,
   WorkforceTriggerType,
@@ -42,6 +44,32 @@ const TYPE_META: Record<WorkforceTriggerType, { label: string; hint: string; Ico
   schedule: { label: 'Schedule', hint: 'Runs on a cron schedule or fixed interval.', Icon: CalendarIcon },
   webhook: { label: 'Webhook', hint: 'External system POSTs to start a run.', Icon: WebhooksLogoIcon },
   inbound_email: { label: 'Inbound email', hint: 'New emails to a mailbox start a run.', Icon: EnvelopeIcon }
+}
+
+const SUBJECT_FILTER_MODE_LABELS: Record<SubjectFilterMode, string> = {
+  contains: 'contains',
+  prefix: 'starts with',
+  regex: 'matches'
+}
+
+// Reads a validated SubjectFilter from a trigger config, or null when absent
+// or empty (which the backend treats as "forward all").
+function readSubjectFilter(config: Record<string, unknown>): SubjectFilter | null {
+  const raw = config.subject_filter
+  if (!raw || typeof raw !== 'object') return null
+  const candidate = raw as Record<string, unknown>
+  const patterns = Array.isArray(candidate.patterns)
+    ? candidate.patterns.filter((p): p is string => typeof p === 'string' && p.trim().length > 0)
+    : []
+  if (patterns.length === 0) return null
+  const mode = candidate.mode === 'prefix' || candidate.mode === 'regex' ? candidate.mode : 'contains'
+  return { patterns, mode, case_sensitive: candidate.case_sensitive === true }
+}
+
+function describeSubjectFilter(filter: SubjectFilter | null): string {
+  if (!filter) return 'forwards all'
+  const mode = SUBJECT_FILTER_MODE_LABELS[filter.mode ?? 'contains']
+  return `filter: ${mode} ${filter.patterns.map(p => `"${p}"`).join(', ')}`
 }
 
 function describeConfig(trigger: WorkforceTrigger): string {
@@ -69,6 +97,11 @@ interface CreateFormState {
   // Bound from the connected-mailbox picker, never typed. Both mailbox and
   // emailAccountId are set together when an account is selected.
   emailAccountId: string
+  // Inbound-email subject filter. Patterns are entered one per line; an empty
+  // list means "forward all" (no subject_filter sent to the backend).
+  subjectFilterPatterns: string
+  subjectFilterMode: SubjectFilterMode
+  subjectFilterCaseSensitive: boolean
   webhookSecret: string
 }
 
@@ -79,7 +112,19 @@ const EMPTY_FORM: CreateFormState = {
   intervalMinutes: '',
   mailbox: '',
   emailAccountId: '',
+  subjectFilterPatterns: '',
+  subjectFilterMode: 'contains',
+  subjectFilterCaseSensitive: false,
   webhookSecret: ''
+}
+
+// Splits the textarea (one pattern per line, commas also allowed) into the
+// trimmed, non-empty patterns the backend expects.
+function parseSubjectFilterPatterns(raw: string): string[] {
+  return raw
+    .split(/[\n,]/)
+    .map(p => p.trim())
+    .filter(p => p.length > 0)
 }
 
 function buildCreateInput(form: CreateFormState): WorkforceTriggerCreateInput | { error: string } {
@@ -114,6 +159,15 @@ function buildCreateInput(form: CreateFormState): WorkforceTriggerCreateInput | 
       }
       base.config!.mailbox = mailbox
       base.config!.email_account_id = emailAccountId
+      const patterns = parseSubjectFilterPatterns(form.subjectFilterPatterns)
+      if (patterns.length > 0) {
+        const subjectFilter: SubjectFilter = {
+          patterns,
+          mode: form.subjectFilterMode,
+          case_sensitive: form.subjectFilterCaseSensitive
+        }
+        base.config!.subject_filter = subjectFilter
+      }
       return base
     }
     case 'webhook': {
@@ -238,17 +292,60 @@ export const TriggersSection: React.FC<TriggersSectionProps> = ({
             )}
 
             {form.type === 'inbound_email' && (
-              <InboundMailboxPicker
-                accessToken={accessToken}
-                selectedAccountId={form.emailAccountId || null}
-                onSelect={account =>
-                  setForm(prev => ({
-                    ...prev,
-                    mailbox: account?.emailAddress ?? '',
-                    emailAccountId: account?.id ?? ''
-                  }))
-                }
-              />
+              <>
+                <InboundMailboxPicker
+                  accessToken={accessToken}
+                  selectedAccountId={form.emailAccountId || null}
+                  onSelect={account =>
+                    setForm(prev => ({
+                      ...prev,
+                      mailbox: account?.emailAddress ?? '',
+                      emailAccountId: account?.id ?? ''
+                    }))
+                  }
+                />
+                <div
+                  className="gba:mt-2 gba:rounded-lg gba:border gba:border-border gba:bg-background gba:p-3"
+                  data-testid="workforce-trigger-subject-filter"
+                >
+                  <p className="gba:text-[11px] gba:font-medium gba:text-foreground">Subject filter (optional)</p>
+                  <p className="gba:mt-0.5 gba:text-[11px] gba:text-muted-foreground">
+                    Only forward emails whose subject matches. Leave empty to forward all.
+                  </p>
+                  <div className="gba:mt-2 gba:grid gba:grid-cols-1 gba:gap-2 gba:sm:grid-cols-2">
+                    <select
+                      aria-label="Subject filter mode"
+                      value={form.subjectFilterMode}
+                      onChange={e =>
+                        setForm(prev => ({ ...prev, subjectFilterMode: e.target.value as SubjectFilterMode }))
+                      }
+                      className="gba:h-9 gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-2 gba:text-xs gba:text-foreground"
+                      data-testid="workforce-trigger-subject-filter-mode"
+                    >
+                      <option value="contains">Contains</option>
+                      <option value="prefix">Starts with</option>
+                      <option value="regex">Regex</option>
+                    </select>
+                    <label className="gba:inline-flex gba:items-center gba:gap-2 gba:text-xs gba:text-foreground">
+                      <input
+                        type="checkbox"
+                        checked={form.subjectFilterCaseSensitive}
+                        onChange={e => setForm(prev => ({ ...prev, subjectFilterCaseSensitive: e.target.checked }))}
+                        data-testid="workforce-trigger-subject-filter-case"
+                      />
+                      Case sensitive
+                    </label>
+                  </div>
+                  <textarea
+                    value={form.subjectFilterPatterns}
+                    onChange={e => setForm(prev => ({ ...prev, subjectFilterPatterns: e.target.value }))}
+                    placeholder={'One pattern per line, e.g.\nticket\n[support]'}
+                    rows={3}
+                    className="gba:mt-2 gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:text-foreground"
+                    data-testid="workforce-trigger-subject-filter-patterns"
+                  />
+                </div>
+              </>
             )}
 
             {form.type === 'webhook' && (
@@ -445,6 +542,7 @@ const WebhookDetails: React.FC<DetailsProps> = ({ trigger }) => {
 
 const InboundEmailDetails: React.FC<DetailsProps> = ({ trigger }) => {
   const mailbox = typeof trigger.config?.mailbox === 'string' ? (trigger.config.mailbox as string) : ''
+  const subjectFilter = readSubjectFilter(trigger.config || {})
   if (!mailbox) {
     return <p className="gba:text-[11px] gba:italic gba:text-muted-foreground">No mailbox configured.</p>
   }
@@ -460,6 +558,12 @@ const InboundEmailDetails: React.FC<DetailsProps> = ({ trigger }) => {
         </code>
         <CopyButton value={mailbox} testId={`workforce-trigger-mailbox-copy-${trigger.trigger_id}`} />
       </div>
+      <p
+        className="gba:text-[11px] gba:text-muted-foreground"
+        data-testid={`workforce-trigger-subject-filter-summary-${trigger.trigger_id}`}
+      >
+        {describeSubjectFilter(subjectFilter)}
+      </p>
       <p className="gba:text-[11px] gba:text-muted-foreground">
         Forward messages here from your email provider. The router fires the agent once per matched recipient.
       </p>
