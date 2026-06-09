@@ -20,7 +20,6 @@ import {
   WalletIcon,
   CalendarIcon
 } from '@phosphor-icons/react'
-import Pill from '@/components/pill'
 import { formatDate } from '@/common/utils/windowUtils'
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -33,6 +32,7 @@ import TravelOrderAttachmentPreview from '../../common/components/document-previ
 
 // Import tab components
 import ExpenseRequestItems from './components/ExpenseRequestItems.tsx'
+import { ExpenseRecordHeaderSummary } from '../../common/components/record/ExpenseRecordHeaderSummary'
 import ExpenseRequestAllowances from './components/ExpenseRequestAllowances.tsx'
 import ExpenseRequestTrip from './components/ExpenseRequestTrip.tsx'
 import ExpenseRequestAdvancePayments from './components/ExpenseRequestAdvancePayments.tsx'
@@ -224,6 +224,13 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
       children: (
         <ExpenseRequestItems
           expenseRequestItems={expenseRequest?.expenseRequestItem || []}
+          requestTotals={{
+            totalAmount: expenseRequest?.totalAmount ?? 0,
+            reimbursableAmount: expenseRequest?.reimbursableAmount ?? 0,
+            nonReimbursableAmount: expenseRequest?.nonReimbursableAmount ?? 0,
+            deductibleAmount: expenseRequest?.deductibleAmount ?? 0,
+            nonDeductibleAmount: expenseRequest?.nonDeductibleAmount ?? 0
+          }}
           currencyCode={expenseRequest?.currency?.code}
           accessToken={accessToken}
           userInfo={userInfo}
@@ -306,23 +313,17 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
     if (!expenseRequest) return null
 
     return (
-      <div className="gba:ml-6 gba:mr-6">
-        <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
-          <div>
-            <h4 className="gba:text-lg gba:font-semibold gba:mb-1">{expenseRequest.title ?? '-'}</h4>
-            <span className="gba:text-gray-500">{expenseRequest?.code}</span>
-            <div className="gba:mt-1" data-testid="expense-request-record-header-cost-center">
-              <span className="gba:text-gray-500">{t('expense-request-record-cost-center-label')}: </span>
-              <span>{expenseRequest?.costCenter?.name ?? '-'}</span>
-            </div>
-          </div>
-          <Pill
-            type={getExpenseRequestStatusDisplayT(t, expenseRequest.status).type}
-            label={getExpenseRequestStatusDisplayT(t, expenseRequest.status).label}
-            className="gba:text-base"
-            data-testid="expense-request-status-pill"
-          />
-        </div>
+      <div className="gba:px-4 gba:py-2">
+        <ExpenseRecordHeaderSummary
+          title={expenseRequest.title}
+          code={expenseRequest.code}
+          costCenterLabel={t('expense-request-record-cost-center-label')}
+          costCenterName={expenseRequest.costCenter?.name}
+          statusType={getExpenseRequestStatusDisplayT(t, expenseRequest.status).type}
+          statusLabel={getExpenseRequestStatusDisplayT(t, expenseRequest.status).label}
+          costCenterTestId="expense-request-record-header-cost-center"
+          statusTestId="expense-request-status-pill"
+        />
         {expenseRequest?.startDate && expenseRequest?.endDate && (
           <div className="gba:flex gba:items-center gba:mb-2">
             <CalendarIcon weight="duotone" className="gba:mr-2" />

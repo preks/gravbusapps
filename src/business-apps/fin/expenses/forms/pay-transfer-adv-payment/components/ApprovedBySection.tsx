@@ -6,9 +6,10 @@ import {
   CardTitle,
   Avatar,
   AvatarImage,
-  AvatarFallback
+  AvatarFallback,
+  useTranslation
 } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import translations from '../_i18n'
 
 interface ApprovedBySectionProps {
   approver?: {
@@ -31,6 +32,8 @@ const ApprovedBySection: React.FC<ApprovedBySectionProps> = ({
   approver,
   prefixDataTestId = 'pay-transfer-adv-payment-v2'
 }) => {
+  const { t } = useTranslation(translations)
+
   if (!approver) {
     return null
   }
@@ -40,9 +43,7 @@ const ApprovedBySection: React.FC<ApprovedBySectionProps> = ({
   return (
     <Card data-testid={`${prefixDataTestId}-approved-by-section`}>
       <CardHeader>
-        <CardTitle data-testid={`${prefixDataTestId}-approved-by-title`}>
-          {getTranslationFromI18nKeyAndLabel('lowcoder:confirm_transfer_advance_payment.approved_by', 'Approved By')}
-        </CardTitle>
+        <CardTitle data-testid={`${prefixDataTestId}-approved-by-title`}>{t('label-approved-by')}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="gba:flex gba:items-center gba:gap-3" data-testid={`${prefixDataTestId}-approved-by-details`}>

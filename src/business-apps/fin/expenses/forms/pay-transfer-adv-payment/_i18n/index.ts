@@ -1,11 +1,12 @@
 import translations from '../../_i18n'
+import commonTranslations from '../../../common/_i18n'
 
 import enUS from './en-US.ftl?raw'
 import deDE from './de-DE.ftl?raw'
 import roRO from './ro-RO.ftl?raw'
 
 export default {
-  'en-US': translations['en-US'] + '\n' + enUS,
-  'de-DE': translations['de-DE'] + '\n' + deDE,
-  'ro-RO': translations['ro-RO'] + '\n' + roRO
+  'en-US': translations['en-US'] + '\n' + commonTranslations['en-US'] + '\n' + enUS,
+  'de-DE': translations['de-DE'] + '\n' + commonTranslations['de-DE'] + '\n' + deDE,
+  'ro-RO': translations['ro-RO'] + '\n' + commonTranslations['ro-RO'] + '\n' + roRO
 } as Record<string, string>

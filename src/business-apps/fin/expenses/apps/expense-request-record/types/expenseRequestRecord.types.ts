@@ -26,6 +26,15 @@ export interface ExpensePosition {
   }
 }
 
+/** Request-level amount aggregates from ExpenseRequestByPk (backend-computed). */
+export interface ExpenseRequestAmountTotals {
+  totalAmount: number
+  reimbursableAmount: number
+  nonReimbursableAmount: number
+  deductibleAmount: number
+  nonDeductibleAmount: number
+}
+
 export interface ExpenseRequestItem {
   id: string
   code: string | null

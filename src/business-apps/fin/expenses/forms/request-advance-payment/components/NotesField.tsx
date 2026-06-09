@@ -1,7 +1,7 @@
 import React from 'react'
-import { Textarea } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { Textarea, useTranslation } from '@newwork/nw-design-system'
 import { TextFieldProps } from '../types/FormTypes'
+import translations from '../_i18n'
 
 type NotesFieldProps = TextFieldProps
 
@@ -11,16 +11,15 @@ const NotesField: React.FC<NotesFieldProps> = ({
   disabled,
   'data-testid': dataTestId = 'request-advance-payment-notes-field'
 }) => {
+  const { t } = useTranslation(translations)
+
   return (
     <div className="gba:mb-6" data-testid={dataTestId}>
       <label className="gba:block gba:text-xs gba:font-medium gba:text-black gba:px-3 gba:py-1">
-        {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.notes_area_label', 'Note')}
+        {t('notes-label')}
       </label>
       <Textarea
-        placeholder={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:request_advance_payment.notes_placeholder',
-          'Enter additional notes...'
-        )}
+        placeholder={t('notes-placeholder')}
         value={value}
         onChange={e => onChange(e.target.value)}
         disabled={disabled}

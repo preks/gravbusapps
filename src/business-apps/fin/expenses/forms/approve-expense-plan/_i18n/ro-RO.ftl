@@ -24,5 +24,5 @@ section-expense-plan-items = Elementele planului de cheltuieli
 # Allowances Section (specific labels)
 # ============================================
 
-label-allowance-date = Data indemnizației
+label-allowance-date = Data diurnei
 label-day-rate = Tarif zilnic
