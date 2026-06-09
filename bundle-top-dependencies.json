@@ -80362,9 +80362,9 @@
     ]
   },
   "mdm/apps/employment-data": {
-    "bitbucketBuildNumber": 13075,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13075/",
-    "chunkJsBytes": 210409,
+    "bitbucketBuildNumber": 13174,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13174/",
+    "chunkJsBytes": 212433,
     "top": [
       {
         "kind": "bucket",
@@ -80387,18 +80387,18 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/mdm",
-        "rendered": 78104,
-        "gzip": 22735,
+        "rendered": 80677,
+        "gzip": 23471,
         "leaves": [
           {
             "name": "src/business-apps/mdm/forms/contract-type-form/ContractTypeForm.tsx",
-            "rendered": 12932,
-            "gzip": 2819
+            "rendered": 13146,
+            "gzip": 2925
           },
           {
             "name": "src/business-apps/mdm/apps/employment-data/components/tabs/ContractTypesTab.tsx",
-            "rendered": 12032,
-            "gzip": 2777
+            "rendered": 12426,
+            "gzip": 2867
           }
         ]
       },
@@ -83656,9 +83656,9 @@
     ]
   },
   "mdm/forms/contract-type-form": {
-    "bitbucketBuildNumber": 13075,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13075/",
-    "chunkJsBytes": 109523,
+    "bitbucketBuildNumber": 13174,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13174/",
+    "chunkJsBytes": 110735,
     "top": [
       {
         "kind": "bucket",
@@ -83717,18 +83717,18 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/mdm",
-        "rendered": 20820,
-        "gzip": 5842,
+        "rendered": 22371,
+        "gzip": 6363,
         "leaves": [
           {
             "name": "src/business-apps/mdm/forms/contract-type-form/ContractTypeForm.tsx",
-            "rendered": 12910,
-            "gzip": 2807
+            "rendered": 13124,
+            "gzip": 2913
           },
           {
             "name": "src/business-apps/mdm/apps/employment-data/utils/catalogEntryMetadata.ts",
-            "rendered": 2546,
-            "gzip": 805
+            "rendered": 2779,
+            "gzip": 857
           }
         ]
       },
@@ -88401,20 +88401,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 13171,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13171/",
-    "chunkJsBytes": 1998133,
+    "bitbucketBuildNumber": 13174,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13174/",
+    "chunkJsBytes": 1998163,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1708145,
-        "gzip": 108234,
+        "rendered": 1708169,
+        "gzip": 108415,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1708145,
-            "gzip": 108234
+            "rendered": 1708169,
+            "gzip": 108415
           }
         ]
       },
@@ -115633,7 +115633,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-09T08:43:24.364Z",
+    "generatedAt": "2026-06-09T08:56:26.449Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
