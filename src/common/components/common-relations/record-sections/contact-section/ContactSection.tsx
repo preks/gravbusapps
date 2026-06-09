@@ -283,7 +283,8 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({
                     <span className="gba:text-sm gba:text-muted-foreground">
                       {value.charAt(0).toUpperCase() + value.slice(1)}
                     </span>
-                  )
+                  ),
+                  isCommunicationChannel: false
                 }
               : null
 
@@ -302,12 +303,33 @@ const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({
               )
             }
 
-            return itemsWithValues.map((item, index) => {
+            return itemsWithValues.map(item => {
               const IconComponent = item.icon
               const content = item.render(item.value)
+              const itemKey = `${item.title}-${typeof item.value === 'string' ? item.value : item.title}`
+
+              if (item.isCommunicationChannel) {
+                return (
+                  <div
+                    key={itemKey}
+                    className="gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1 gba:rounded gba:min-w-0"
+                  >
+                    <IconComponent
+                      className="gba:w-4 gba:h-4 gba:shrink-0 gba:text-muted-foreground"
+                      title={item.title}
+                    />
+                    <div
+                      className="gba:text-sm gba:text-muted-foreground gba:min-w-0 gba:flex-1 gba:truncate"
+                      title={typeof item.value === 'string' ? item.value : undefined}
+                    >
+                      {content}
+                    </div>
+                  </div>
+                )
+              }
 
               return (
-                <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1 gba:rounded">
+                <div key={itemKey} className="gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1 gba:rounded">
                   <IconComponent className="gba:text-sm gba:text-muted-foreground" title={item.title} />
                   {content}
                 </div>

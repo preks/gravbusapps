@@ -1,31 +1,6 @@
 import React from 'react'
-import { EnvelopeIcon, PhoneIcon, LinkedinLogoIcon, ShareNetworkIcon, GlobeIcon, FacebookLogoIcon, InstagramLogoIcon, YoutubeLogoIcon, DeviceMobileIcon, PrinterIcon, SlackLogoIcon, ChatsCircleIcon } from '@phosphor-icons/react'
-/**
- * Get icon component for a communication channel code
- */
-const getChannelIcon = (code: string): React.ComponentType<{ className?: string; title?: string }> => {
-  const codeUpper = code.toUpperCase()
-
-  // Map channel codes to icons
-  if (codeUpper.includes('EMAIL') || codeUpper.includes('E-MAIL')) return EnvelopeIcon
-  if (codeUpper.includes('PHONE')) return PhoneIcon
-  if (codeUpper.includes('MOBILE')) return DeviceMobileIcon
-  if (codeUpper.includes('LINKEDIN')) return LinkedinLogoIcon
-  if (codeUpper.includes('XING')) return ShareNetworkIcon
-  if (codeUpper.includes('FACEBOOK')) return FacebookLogoIcon
-  if (codeUpper.includes('INSTAGRAM')) return InstagramLogoIcon
-  if (codeUpper.includes('YOUTUBE')) return YoutubeLogoIcon
-  if (codeUpper.includes('WEBSITE')) return GlobeIcon
-  if (codeUpper.includes('FAX')) return PrinterIcon
-  if (codeUpper.includes('SLACK')) return SlackLogoIcon
-  if (codeUpper.includes('MESSENGER')) return ChatsCircleIcon
-  if (codeUpper.includes('PAGER')) return DeviceMobileIcon
-  if (codeUpper.includes('X')) return ShareNetworkIcon
-
-  // Default icon for unknown types
-  return EnvelopeIcon
-}
-
+import { LinkIcon } from '@phosphor-icons/react'
+import { resolvePhosphorIconComponent } from '@/common/utils/phosphorIconUtils'
 /**
  * Get label for a communication channel code
  */
@@ -43,7 +18,7 @@ const getChannelLabel = (code: string): string => {
   if (codeUpper.includes('WEBSITE')) return 'Website'
   if (codeUpper.includes('FAX')) return 'Fax'
   if (codeUpper.includes('SLACK')) return 'Slack'
-  if (codeUpper.includes('MESSENGER')) return 'Messenger'
+  if (codeUpper.includes('MESSENGER') || codeUpper.includes('MESSAGING')) return 'Messaging App'
   if (codeUpper.includes('PAGER')) return 'Pager'
   if (codeUpper.includes('X')) return 'X'
 
@@ -137,6 +112,15 @@ const getChannelCode = (channel: any): string | null => {
 }
 
 /**
+ * Extract the catalog-defined Phosphor icon name (additionalValue3) from a channel.
+ * This is the same source the communication-channel form select uses, so icons stay consistent.
+ */
+const getChannelIconName = (channel: any): string | undefined => {
+  const iconName = channel.communicationChannel?.additionalValue3
+  return typeof iconName === 'string' && iconName.trim() ? iconName.trim() : undefined
+}
+
+/**
  * Render all communication channels from an array
  */
 export const renderCommunicationChannels = (
@@ -147,6 +131,7 @@ export const renderCommunicationChannels = (
   title: string
   value: string
   render: (value: string) => React.ReactNode
+  isCommunicationChannel: boolean
 }> => {
   if (!channels || channels.length === 0) return []
 
@@ -156,14 +141,17 @@ export const renderCommunicationChannels = (
       const code = getChannelCode(channel)
       if (!code) return null
 
-      const icon = getChannelIcon(code)
+      // Use the exact catalog-defined icon (same source as the form select),
+      // falling back to the generic link icon when no icon is configured.
+      const icon = resolvePhosphorIconComponent(getChannelIconName(channel), LinkIcon)
       const label = getChannelLabel(code)
 
       return {
         icon,
         title: label,
         value: channel.value,
-        render: (value: string) => renderChannelValue(code, value, testIdPrefix)
+        render: (value: string) => renderChannelValue(code, value, testIdPrefix),
+        isCommunicationChannel: true
       }
     })
     .filter(Boolean) as Array<{
@@ -171,5 +159,6 @@ export const renderCommunicationChannels = (
     title: string
     value: string
     render: (value: string) => React.ReactNode
+    isCommunicationChannel: boolean
   }>
 }
