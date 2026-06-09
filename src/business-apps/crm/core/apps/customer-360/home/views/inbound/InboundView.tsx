@@ -26,6 +26,7 @@ import customer360I18n from '../../../_i18n'
 import Customer360Section from '../../../components/Customer360Section'
 import type { Customer360HomeViewProps } from '../../types'
 import InboundStream from './InboundStream'
+import { useInboundCustomerMatches } from './useInboundCustomerMatches'
 import { useInboundRuns } from './useInboundRuns'
 
 const TEST_ID = 'customer-360-inbound-view'
@@ -46,6 +47,7 @@ const FLOW_STEPS = [
 const InboundView: React.FC<Customer360HomeViewProps> = ({ openCustomer, accessToken }) => {
   const { t } = useFluentTranslation(customer360I18n)
   const inbound = useInboundRuns(accessToken)
+  const emailMatches = useInboundCustomerMatches(accessToken, inbound.runs)
 
   const handleAskAgent = useCallback(() => {
     openEveryAI({
@@ -131,7 +133,12 @@ const InboundView: React.FC<Customer360HomeViewProps> = ({ openCustomer, accessT
         }
       >
         <div className="gba:flex gba:flex-col gba:gap-3">
-          <InboundStream runs={inbound.runs} onOpenRun={handleOpenRun} onOpenCustomer={openCustomer} />
+          <InboundStream
+            runs={inbound.runs}
+            onOpenRun={handleOpenRun}
+            onOpenCustomer={openCustomer}
+            emailMatches={emailMatches}
+          />
           {inbound.totalPages > 1 ? (
             <div className="gba:flex gba:items-center gba:justify-between gba:pt-1">
               <Button
