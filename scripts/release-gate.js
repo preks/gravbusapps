@@ -63,6 +63,30 @@ function printDuplicateNameWarnings(warnings) {
   }
 }
 
+function printMovedResourceUrlWarnings(warnings) {
+  logPhase('FINAL MOVED SCREEN RESOURCE URL WARNINGS')
+
+  if (!warnings || warnings.length === 0) {
+    console.log('No possible moved screen resource URLs found.')
+    return
+  }
+
+  for (const warning of warnings) {
+    if (warning.error) {
+      console.log(`\n${warning.target}: moved resource URL check failed (${warning.error})`)
+      continue
+    }
+
+    console.log(`\n${warning.target}: ${warning.name}`)
+    console.log(`   Screen key: ${warning.screenKey || 'unknown'}`)
+    console.log(`   New URL: ${warning.newUrl}`)
+    warning.previousEntries.forEach(entry => {
+      const id = entry.id ? ` [${entry.id}]` : ''
+      console.log(`   Previous URL: ${entry.url}${id}`)
+    })
+  }
+}
+
 function printScreenFailures(failedScreens) {
   if (!failedScreens || failedScreens.length === 0) {
     return
@@ -104,6 +128,7 @@ function main() {
 
   printCreatedResourceUrls(resourceUrlResult.created)
   printDuplicateNameWarnings(resourceUrlResult.duplicateNameWarnings)
+  printMovedResourceUrlWarnings(resourceUrlResult.movedResourceUrlWarnings)
   printScreenFailures(screenResult.failedScreens)
   printResourceUrlFailures(resourceUrlResult.failed)
 
