@@ -22,12 +22,12 @@ export interface UseSkillsFromFileOptions {
   onSkillsSuggested: (skills: AgentSkillItem[]) => void
 }
 
-/** The value stored in the `jobDescriptionFile` form field. Two shapes are possible:
- *  - Raw browser file (just picked, not yet uploaded): has `file` / `originFileObj`
- *  - Server-hosted file (loaded in edit mode): has `fileId` / `url` / `path`
+/** The value stored in the `jobDescriptionFile` form field.
+ * Both newly selected and server-hosted files should expose a browser `File`
+ * so prompt execution can always send binary file content.
  */
 export type JobDescriptionFileValue =
-  | { file?: File; originFileObj?: File; name?: string; [key: string]: unknown }
+  | { file?: File; originFileObj?: File; fileId?: string; name?: string; [key: string]: unknown }
   | { fileId?: string; url?: string; path?: string; name?: string; mimeType?: string; [key: string]: unknown }
   | null
 
@@ -103,26 +103,12 @@ export const useSkillsFromFile = ({ accessToken, onSkillsSuggested }: UseSkillsF
         const rawFile =
           (jobDescriptionFile as any).file instanceof File ? (jobDescriptionFile as any).file : fileFromOrigin
 
-        if (rawFile) {
-          formData.append('files', rawFile)
-        } else {
-          const url = (jobDescriptionFile as any).url || (jobDescriptionFile as any).path || ''
-          if (!url) {
-            setError(t('suggest-skills-error-no-url'))
-            return
-          }
-          formData.append(
-            'attachments',
-            JSON.stringify([
-              {
-                id: (jobDescriptionFile as any).fileId || 'job-description',
-                name: (jobDescriptionFile as any).name || 'job-description',
-                url,
-                mimeType: (jobDescriptionFile as any).mimeType || ''
-              }
-            ])
-          )
+        if (!rawFile) {
+          setError(t('suggest-skills-error-no-file'))
+          return
         }
+
+        formData.append('files', rawFile, rawFile.name)
 
         const promptsPage = await client.getPrompts({ promptName: JOB_DESCRIPTION_SKILLS_PROMPT_NAME, limit: 1 })
         const taskExpertId = promptsPage?.data?.[0]?._id

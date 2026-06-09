@@ -35,6 +35,7 @@ interface SkillsSectionProps {
     path: string
     size: number
     url: string
+    file?: File
   } | null
 }
 
@@ -179,7 +180,12 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({
         fileId: initialJobDescriptionFile.fileId,
         name: initialJobDescriptionFile.name,
         mimeType: initialJobDescriptionFile.type,
-        path: initialJobDescriptionFile.path
+        path: initialJobDescriptionFile.path,
+        size: initialJobDescriptionFile.size,
+        url: initialJobDescriptionFile.url,
+        status: 'done' as const,
+        originFileObj: initialJobDescriptionFile.file,
+        file: initialJobDescriptionFile.file
       },
       { shouldDirty: false }
     )
