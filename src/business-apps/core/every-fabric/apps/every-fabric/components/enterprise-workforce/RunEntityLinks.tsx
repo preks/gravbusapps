@@ -48,13 +48,14 @@ function actionKey(entry: WorkforceRunDomainAction, index: number): string {
   return `${entry.tool_ref}:${index}`
 }
 
-const CrmRecordLink: React.FC<{ entityType: 'account' | 'contact'; entityId: string; label: string }> = ({
-  entityType,
-  entityId,
-  label
-}) => {
+const CrmRecordLink: React.FC<{
+  entityType: 'account' | 'contact'
+  entityId: string
+  label: string
+  displayName?: string
+}> = ({ entityType, entityId, label, displayName }) => {
   const url = buildEntityNavigationUrl(entityType, entityId, 'workforce-run')
-  const idLabel = `${label}: ${entityId}`
+  const idLabel = `${label}: ${displayName?.trim() || entityId}`
   if (!url) {
     return (
       <span
@@ -88,7 +89,8 @@ const IdChip: React.FC<{ name: string; value: string }> = ({ name, value }) => (
 const RecordIds: React.FC<{
   domain: string
   recordIds: Record<string, string>
-}> = ({ domain, recordIds }) => {
+  recordLabels?: Record<string, string>
+}> = ({ domain, recordIds, recordLabels }) => {
   const isCrm = domain === 'crm'
   const linkable = isCrm ? CRM_LINK_FIELDS.filter(field => Boolean(recordIds[field.key])) : []
   const linkedKeys = new Set(linkable.map(field => field.key))
@@ -102,6 +104,7 @@ const RecordIds: React.FC<{
           entityType={field.entityType}
           entityId={recordIds[field.key]}
           label={field.label}
+          displayName={recordLabels?.[recordIds[field.key]]}
         />
       ))}
       {extraIds.map(([key, value]) => (
@@ -111,8 +114,13 @@ const RecordIds: React.FC<{
   )
 }
 
-const CaseBanner: React.FC<{ caseRef: WorkforceRunCaseRef }> = ({ caseRef }) => {
-  const label = caseRef.entity_type ? `${caseRef.entity_type} · ${caseRef.record_id}` : caseRef.record_id
+const CaseBanner: React.FC<{ caseRef: WorkforceRunCaseRef; fallbackLabels?: Record<string, string> }> = ({
+  caseRef,
+  fallbackLabels
+}) => {
+  const displayName = (caseRef.record_labels?.[caseRef.record_id] || fallbackLabels?.[caseRef.record_id])?.trim()
+  const subject = displayName || caseRef.record_id
+  const label = caseRef.entity_type ? `${caseRef.entity_type} · ${subject}` : subject
   return (
     <div
       className="gba:mb-2 gba:flex gba:items-center gba:gap-2 gba:rounded-lg gba:border gba:border-primary/30 gba:bg-primary/5 gba:px-3 gba:py-2"
@@ -129,15 +137,37 @@ const CaseBanner: React.FC<{ caseRef: WorkforceRunCaseRef }> = ({ caseRef }) => 
   )
 }
 
+// Some tools (e.g. add_crm_note) return only the record id, not the record's
+// name, so their per-row `record_labels` is empty. Names resolved by other
+// actions in the same run (e.g. a prior search) still apply to the same id, so
+// we merge all labels into one run-level lookup and use it as a fallback.
+function buildRunLabelMap(
+  actions: readonly WorkforceRunDomainAction[] | undefined,
+  caseRef?: WorkforceRunCaseRef | null
+): Record<string, string> {
+  const merged: Record<string, string> = {}
+  const add = (labels?: Record<string, string>) => {
+    if (!labels) return
+    for (const [id, label] of Object.entries(labels)) {
+      if (id && label?.trim() && !merged[id]) merged[id] = label.trim()
+    }
+  }
+  actions?.forEach(entry => add(entry.record_labels))
+  add(caseRef?.record_labels)
+  return merged
+}
+
 export const RunEntityLinks: React.FC<RunEntityLinksProps> = ({ actions, caseRef, accessToken, onOpenFlow }) => {
   if ((!actions || actions.length === 0) && !caseRef) return null
+
+  const runLabels = buildRunLabelMap(actions, caseRef)
 
   return (
     <section data-testid="workforce-run-detail-entity-links">
       <h3 className="gba:mb-1.5 gba:text-xs gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground">
         Records & actions
       </h3>
-      {caseRef && <CaseBanner caseRef={caseRef} />}
+      {caseRef && <CaseBanner caseRef={caseRef} fallbackLabels={runLabels} />}
       {actions && actions.length > 0 && (
         <ul className="gba:space-y-1.5">
           {actions.map((entry, index) => {
@@ -184,7 +214,11 @@ export const RunEntityLinks: React.FC<RunEntityLinksProps> = ({ actions, caseRef
                     onOpenFlow={onOpenFlow}
                   />
                 ) : (
-                  <RecordIds domain={entry.domain ?? 'crm'} recordIds={recordIds} />
+                  <RecordIds
+                    domain={entry.domain ?? 'crm'}
+                    recordIds={recordIds}
+                    recordLabels={{ ...runLabels, ...entry.record_labels }}
+                  />
                 )}
               </li>
             )

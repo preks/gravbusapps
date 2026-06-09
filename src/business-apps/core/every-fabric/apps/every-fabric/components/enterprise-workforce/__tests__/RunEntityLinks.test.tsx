@@ -64,7 +64,7 @@ describe('RunEntityLinks — flow actions', () => {
     expect(screen.getByText(/template_id: flow_abc/)).toBeInTheDocument()
   })
 
-  it('opens the flow in-app via onOpenFlow and keeps an external deep link', () => {
+  it('opens the flow in-app via onOpenFlow without showing a separate external link', () => {
     const onOpenFlow = jest.fn()
     render(<RunEntityLinks actions={[buildFlowAction()]} onOpenFlow={onOpenFlow} />)
 
@@ -73,8 +73,80 @@ describe('RunEntityLinks — flow actions', () => {
     fireEvent.click(openButton)
     expect(onOpenFlow).toHaveBeenCalledWith('wf-123')
 
-    const externalLink = screen.getByTestId('entity-link-workflow')
-    expect(externalLink).toHaveAttribute('href', '/platform/apps/flow/apps/detail?flowId=wf-123')
+    // The flow name is the only entry point; no secondary deep-link icon.
+    expect(screen.queryByTestId('entity-link-workflow')).not.toBeInTheDocument()
+  })
+
+  it('shows the contact name on the CRM record chip instead of the raw uuid', () => {
+    const crmAction: WorkforceRunDomainAction = {
+      domain: 'crm',
+      tool_ref: 'functions.search_crm_entity',
+      action: 'search',
+      entity_type: 'contact',
+      record_ids: { contact_id: 'f3236e6c-d72c-4730-b60f-74990a6b413e' },
+      record_labels: { 'f3236e6c-d72c-4730-b60f-74990a6b413e': 'Maria Schmidt' },
+      succeeded: true,
+      timestamp: '2026-06-01T10:00:05Z',
+      seq: 8
+    }
+
+    render(<RunEntityLinks actions={[crmAction]} />)
+
+    const link = screen.getByTestId('entity-link-contact')
+    expect(link).toHaveTextContent('Contact: Maria Schmidt')
+    expect(link).not.toHaveTextContent('f3236e6c-d72c-4730-b60f-74990a6b413e')
+    expect(link).toHaveAttribute('href', expect.stringContaining('f3236e6c-d72c-4730-b60f-74990a6b413e'))
+  })
+
+  it('falls back to the record id when no contact name label is available', () => {
+    const crmAction: WorkforceRunDomainAction = {
+      domain: 'crm',
+      tool_ref: 'functions.search_crm_entity',
+      action: 'search',
+      entity_type: 'contact',
+      record_ids: { contact_id: 'f3236e6c-d72c-4730-b60f-74990a6b413e' },
+      record_labels: {},
+      succeeded: true,
+      timestamp: '2026-06-01T10:00:05Z',
+      seq: 8
+    }
+
+    render(<RunEntityLinks actions={[crmAction]} />)
+
+    expect(screen.getByTestId('entity-link-contact')).toHaveTextContent('Contact: f3236e6c-d72c-4730-b60f-74990a6b413e')
+  })
+
+  it('reuses a contact name resolved by one action for another action with the same id', () => {
+    const contactId = 'f3236e6c-d72c-4730-b60f-74990a6b413e'
+    const searchAction: WorkforceRunDomainAction = {
+      domain: 'crm',
+      tool_ref: 'functions.search_crm_entity',
+      action: 'search',
+      entity_type: 'contact',
+      record_ids: { contact_id: contactId },
+      record_labels: { [contactId]: 'Jonas Weber' },
+      succeeded: true,
+      timestamp: '2026-06-01T10:00:05Z',
+      seq: 8
+    }
+    // The note tool returns only ids, so its own labels are empty.
+    const noteAction: WorkforceRunDomainAction = {
+      domain: 'crm',
+      tool_ref: 'functions.add_crm_note',
+      action: 'note',
+      entity_type: 'contact',
+      record_ids: { contact_id: contactId, note_id: 'note-1', entity_id: contactId },
+      record_labels: {},
+      succeeded: true,
+      timestamp: '2026-06-01T10:00:09Z',
+      seq: 9
+    }
+
+    render(<RunEntityLinks actions={[searchAction, noteAction]} />)
+
+    const contactLinks = screen.getAllByTestId('entity-link-contact')
+    expect(contactLinks).toHaveLength(2)
+    contactLinks.forEach(link => expect(link).toHaveTextContent('Contact: Jonas Weber'))
   })
 
   it('renders flow and CRM rows together in the same section', () => {

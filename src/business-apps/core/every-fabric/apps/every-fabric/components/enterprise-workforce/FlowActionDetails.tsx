@@ -18,7 +18,7 @@ export interface FlowActionDetailsProps {
   accessToken?: string
   succeeded: boolean
   // When set, the workflow name becomes an in-app button that opens the Flows
-  // tab for this workflow; the external deep link stays as a secondary icon.
+  // tab for this workflow (no separate external deep-link icon is shown).
   onOpenFlow?: (workflowId: string) => void
 }
 
@@ -107,18 +107,6 @@ export const FlowActionDetails: React.FC<FlowActionDetailsProps> = ({
           <span className="gba:inline-flex gba:items-center gba:rounded-md gba:border gba:border-border/60 gba:bg-muted/40 gba:px-2 gba:py-0.5 gba:font-mono gba:text-[11px] gba:text-muted-foreground">
             {workflowName}
           </span>
-        )}
-        {canOpenInApp && flowUrl && (
-          <a
-            href={flowUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="gba:inline-flex gba:items-center gba:rounded-md gba:border gba:border-border/60 gba:bg-muted/40 gba:px-1.5 gba:py-0.5 gba:text-muted-foreground gba:hover:bg-muted"
-            data-testid="entity-link-workflow"
-            aria-label="Open flow detail page"
-          >
-            <ArrowSquareOutIcon className="gba:h-3 gba:w-3" />
-          </a>
         )}
         <span
           className={`gba:inline-flex gba:items-center gba:gap-1.5 gba:rounded-full gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium ${STATUS_BADGE_CLASS[live.status.variant]}`}
