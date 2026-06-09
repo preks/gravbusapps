@@ -1111,15 +1111,15 @@
     ]
   },
   "common/apps/case-management": {
-    "bitbucketBuildNumber": 13272,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13272/",
-    "chunkJsBytes": 411096,
+    "bitbucketBuildNumber": 13292,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13292/",
+    "chunkJsBytes": 411162,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/common",
-        "rendered": 307819,
-        "gzip": 62068,
+        "rendered": 307932,
+        "gzip": 62155,
         "leaves": [
           {
             "name": "src/business-apps/common/apps/case-management/components/FlowManagementPanel.tsx",
@@ -1128,8 +1128,8 @@
           },
           {
             "name": "src/business-apps/common/apps/case-management/components/FlowGanttChart.tsx",
-            "rendered": 41396,
-            "gzip": 7017
+            "rendered": 41509,
+            "gzip": 7104
           }
         ]
       },
@@ -88419,20 +88419,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 13290,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13290/",
-    "chunkJsBytes": 2010425,
+    "bitbucketBuildNumber": 13292,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13292/",
+    "chunkJsBytes": 2010422,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1723426,
-        "gzip": 110284,
+        "gzip": 110400,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1723426,
-            "gzip": 110284
+            "gzip": 110400
           }
         ]
       },
@@ -98945,15 +98945,15 @@
     ]
   },
   "ser/apps/service-cases": {
-    "bitbucketBuildNumber": 13272,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13272/",
-    "chunkJsBytes": 412216,
+    "bitbucketBuildNumber": 13292,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13292/",
+    "chunkJsBytes": 412282,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/common",
-        "rendered": 307819,
-        "gzip": 62068,
+        "rendered": 307932,
+        "gzip": 62155,
         "leaves": [
           {
             "name": "src/business-apps/common/apps/case-management/components/FlowManagementPanel.tsx",
@@ -98962,8 +98962,8 @@
           },
           {
             "name": "src/business-apps/common/apps/case-management/components/FlowGanttChart.tsx",
-            "rendered": 41396,
-            "gzip": 7017
+            "rendered": 41509,
+            "gzip": 7104
           }
         ]
       },
@@ -100737,15 +100737,15 @@
     ]
   },
   "core/every-fabric/apps/every-fabric": {
-    "bitbucketBuildNumber": 13290,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13290/",
-    "chunkJsBytes": 2557537,
+    "bitbucketBuildNumber": 13292,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13292/",
+    "chunkJsBytes": 2557707,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 2121889,
-        "gzip": 564993,
+        "rendered": 2122175,
+        "gzip": 565191,
         "leaves": [
           {
             "name": "src/business-apps/core/every-fabric/apps/every-fabric/components/workspace/WorkspaceRightPanel.tsx",
@@ -100958,13 +100958,13 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/common",
-        "rendered": 41980,
-        "gzip": 7426,
+        "rendered": 42093,
+        "gzip": 7514,
         "leaves": [
           {
             "name": "src/business-apps/common/apps/case-management/components/FlowGanttChart.tsx",
-            "rendered": 41396,
-            "gzip": 7022
+            "rendered": 41509,
+            "gzip": 7110
           },
           {
             "name": "src/business-apps/common/apps/case-management/utils/caseHelpers.ts",
@@ -116622,7 +116622,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-09T21:37:12.110Z",
+    "generatedAt": "2026-06-09T22:18:23.483Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
