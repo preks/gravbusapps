@@ -10,10 +10,17 @@ import React from 'react'
 import { buildEntityNavigationUrl } from '@/business-apps/platform/apps/every-ai/components/entities/utils/entityNavigation'
 import type { WorkforceRunCaseRef, WorkforceRunDomainAction } from './workforceTypes'
 import { formatTimestamp } from './runDisplay'
+import { FlowActionDetails } from './FlowActionDetails'
 
 export interface RunEntityLinksProps {
   actions: readonly WorkforceRunDomainAction[]
   caseRef?: WorkforceRunCaseRef | null
+  // Needed to poll live workflow status for flow rows. When absent, flow
+  // rows still render with their last-known (agent-reported) state.
+  accessToken?: string
+  // When set, flow rows open the Flows tab for the workflow instead of only
+  // deep-linking to the external flow detail page.
+  onOpenFlow?: (workflowId: string) => void
 }
 
 const ACTION_LABELS: Record<string, { label: string; description: string }> = {
@@ -22,7 +29,8 @@ const ACTION_LABELS: Record<string, { label: string; description: string }> = {
   update: { label: 'Update', description: 'Updated an existing record' },
   timeline: { label: 'Timeline', description: 'Read record history' },
   note: { label: 'Note', description: 'Added a note' },
-  task: { label: 'Task', description: 'Logged a follow-up task' }
+  task: { label: 'Task', description: 'Logged a follow-up task' },
+  flow: { label: 'Flow', description: 'Started a workflow' }
 }
 
 const CRM_LINK_FIELDS: Array<{ key: string; entityType: 'account' | 'contact'; label: string }> = [
@@ -77,7 +85,10 @@ const IdChip: React.FC<{ name: string; value: string }> = ({ name, value }) => (
   </span>
 )
 
-const RecordIds: React.FC<{ domain: string; recordIds: Record<string, string> }> = ({ domain, recordIds }) => {
+const RecordIds: React.FC<{
+  domain: string
+  recordIds: Record<string, string>
+}> = ({ domain, recordIds }) => {
   const isCrm = domain === 'crm'
   const linkable = isCrm ? CRM_LINK_FIELDS.filter(field => Boolean(recordIds[field.key])) : []
   const linkedKeys = new Set(linkable.map(field => field.key))
@@ -118,7 +129,7 @@ const CaseBanner: React.FC<{ caseRef: WorkforceRunCaseRef }> = ({ caseRef }) => 
   )
 }
 
-export const RunEntityLinks: React.FC<RunEntityLinksProps> = ({ actions, caseRef }) => {
+export const RunEntityLinks: React.FC<RunEntityLinksProps> = ({ actions, caseRef, accessToken, onOpenFlow }) => {
   if ((!actions || actions.length === 0) && !caseRef) return null
 
   return (
@@ -132,6 +143,8 @@ export const RunEntityLinks: React.FC<RunEntityLinksProps> = ({ actions, caseRef
           {actions.map((entry, index) => {
             const meta = describeAction(entry.action)
             const recordIds = entry.record_ids ?? {}
+            const isFlow = (entry.domain ?? 'crm') === 'flow'
+            const workflowId = recordIds.workflow_id
             return (
               <li
                 key={actionKey(entry, index)}
@@ -161,7 +174,18 @@ export const RunEntityLinks: React.FC<RunEntityLinksProps> = ({ actions, caseRef
                     </span>
                   )}
                 </div>
-                <RecordIds domain={entry.domain ?? 'crm'} recordIds={recordIds} />
+                {isFlow ? (
+                  <FlowActionDetails
+                    workflowId={workflowId}
+                    templateId={recordIds.template_id}
+                    workflowName={(workflowId && entry.record_labels?.[workflowId]) || 'Workflow'}
+                    accessToken={accessToken}
+                    succeeded={entry.succeeded}
+                    onOpenFlow={onOpenFlow}
+                  />
+                ) : (
+                  <RecordIds domain={entry.domain ?? 'crm'} recordIds={recordIds} />
+                )}
               </li>
             )
           })}

@@ -32,6 +32,7 @@ import { WorkforceAIComposer } from './WorkforceAIComposer'
 import { WorkforceAgentDetailScreen } from './WorkforceAgentDetailScreen'
 import { WorkforceFilters } from './WorkforceFilters'
 import { WorkforceHero } from './WorkforceHero'
+import { GlassWorkforceSphere } from './glass-sphere/GlassWorkforceSphere'
 import { rankAgents, type RankableAgent } from './agentMatching'
 import { useArchivedWorkforceAgents } from './useArchivedWorkforceAgents'
 import { useWorkforceData, type WorkforceAgentSummary, type WorkforceFilter } from './useWorkforceData'
@@ -148,6 +149,9 @@ export const EnterpriseWorkforceScreen: React.FC<EnterpriseWorkforceScreenProps>
   }, [aiResults])
 
   const deckSummaries = isAIMatching ? aiSummaries : filtered
+
+  // Active agents drive the 3D glass sphere showpiece on the overview.
+  const activeSummaries = useMemo(() => agents.filter(summary => summary.agent.status === 'active'), [agents])
 
   // Stable id -> display name lookup for the live strip + per-agent charts.
   const nameById = useMemo(() => {
@@ -300,6 +304,10 @@ export const EnterpriseWorkforceScreen: React.FC<EnterpriseWorkforceScreenProps>
                 onHireAgent={openHireChooser}
                 workingNow={liveActivity.workingAgentIds.size}
               />
+
+              {!isAIMatching && activeSummaries.length > 0 && (
+                <GlassWorkforceSphere summaries={activeSummaries} isAgentWorking={liveActivity.isAgentWorking} />
+              )}
 
               {!isAIMatching && <ValueScoreboard accessToken={accessToken} />}
 
