@@ -4,6 +4,7 @@
 import React from 'react'
 import { AutonomySection } from './sections/AutonomySection'
 import { BudgetSection } from './sections/BudgetSection'
+import { Customer360SurfaceSection } from './sections/Customer360SurfaceSection'
 import { EscalationSection } from './sections/EscalationSection'
 import { IdentitySection } from './sections/IdentitySection'
 import { KnowledgeSection } from './sections/KnowledgeSection'
@@ -78,6 +79,11 @@ export const WorkforceConfigSectionStack: React.FC<WorkforceConfigSectionStackPr
         onCreate={createTrigger}
         onUpdate={wrapTriggerUpdate(updateTrigger)}
         onDelete={wrapTriggerDelete(deleteTrigger)}
+      />
+      <Customer360SurfaceSection
+        agent={agent}
+        isSaving={savingSection === 'customer-360-surface'}
+        onSave={makeSaver('customer-360-surface')}
       />
       <EscalationSection agent={agent} isSaving={savingSection === 'escalation'} onSave={makeSaver('escalation')} />
       <BudgetSection agent={agent} isSaving={savingSection === 'budget'} onSave={makeSaver('budget')} />

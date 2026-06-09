@@ -24,6 +24,9 @@ const ENTITY_URL_PATTERNS = [
   },
   { pattern: /\/platform\/irm\/account-record\?accountId=([^&]+)/, entity_name: 'investment_account' },
 
+  // CRM Customer 360 (polymorphic account|contact subject keyed by ?type=&id=)
+  { pattern: /\/platform\/crm\/customer-360\?[^#]*id=([^&]+)/, entity_name: 'customer_360' },
+
   // CRM entities (general patterns)
   { pattern: /\/platform\/crm\/opportunity-record\?opportunityId=([^&]+)/, entity_name: 'opportunity' },
   { pattern: /\/platform\/crm\/contact-record\?contactId=([^&]+)/, entity_name: 'contact' },
@@ -178,6 +181,11 @@ const APP_ENTITY_PATTERNS = [
     pattern: /crm\/core\/records\/account-record$/,
     entity_name: 'account',
     idParams: ['accountId']
+  },
+  {
+    pattern: /crm\/core\/apps\/customer-360$/,
+    entity_name: 'customer_360',
+    idParams: ['id']
   }
 ] as const
 

@@ -41,6 +41,8 @@ interface FabricContextValue {
 
   // Session list
   sessions: FabricSessionSummary[]
+  /** True while the initial session history is still being fetched. */
+  sessionsLoading: boolean
 
   // Active session
   activeSessionId: string | null
@@ -405,7 +407,7 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
   }, [activeSessionId, userInfo?.id])
 
   // Session list management
-  const { sessions, addSession, updateSession, removeSession } = useAgentSessions(accessToken)
+  const { sessions, loading: sessionsLoading, addSession, updateSession, removeSession } = useAgentSessions(accessToken)
 
   // Active session — streaming, messages, events
   const {
@@ -711,6 +713,7 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       accessToken,
       userInfo,
       sessions: sessions as FabricSessionSummary[],
+      sessionsLoading,
       activeSessionId,
       session,
       messages: enrichedMessages,
@@ -775,6 +778,7 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       accessToken,
       userInfo,
       sessions,
+      sessionsLoading,
       activeSessionId,
       session,
       enrichedMessages,

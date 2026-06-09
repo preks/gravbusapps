@@ -1,5 +1,7 @@
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { EVERY_FABRIC_PROMPT_PARAM } from '@/common/utils/openEveryFabric'
+import { getCurrentUrlWithUpdatedSearchParams } from '@/common/utils/navigationUtils'
 import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
 import { EveryFabricErrorBoundary } from './components/EveryFabricErrorBoundary'
@@ -35,6 +37,7 @@ const EveryFabricInner: React.FC = () => {
     deleteSession,
     newSession,
     startSession,
+    sessionsLoading,
     sessionLoadError,
     retrySessionLoad
   } = useFabric()
@@ -59,6 +62,32 @@ const EveryFabricInner: React.FC = () => {
     [removeActive, deleteSession]
   )
   const [displayView, setDisplayView] = useState<string | null>(urlView)
+
+  // External hand-off: another screen (e.g. the Digital Workplace composer)
+  // navigates here with a `fabricPrompt` query param to kick off a fresh
+  // EveryFabric session. We consume it once, then strip it from the URL so a
+  // refresh doesn't restart the task. We wait for the initial session history
+  // fetch to finish first — otherwise that fetch resolves after our optimistic
+  // addSession and overwrites it, leaving the new session "not found".
+  const initialTaskConsumedRef = useRef(false)
+  useEffect(() => {
+    if (initialTaskConsumedRef.current || sessionsLoading) return
+    let task: string | null = null
+    try {
+      task = new URLSearchParams(globalThis.location.search).get(EVERY_FABRIC_PROMPT_PARAM)
+    } catch {
+      task = null
+    }
+    if (!task) return
+    initialTaskConsumedRef.current = true
+    try {
+      const stripped = getCurrentUrlWithUpdatedSearchParams({ [EVERY_FABRIC_PROMPT_PARAM]: null })
+      globalThis.history.replaceState(globalThis.history.state, '', stripped)
+    } catch {
+      // ignore — failing to strip only means a refresh could restart the task
+    }
+    void startSession(task, { mode: 'deep', enable_memory: true, enable_reflection: undefined })
+  }, [sessionsLoading, startSession])
 
   useEffect(() => {
     if (urlView !== displayView) {

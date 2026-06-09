@@ -8,6 +8,7 @@ export const Navigation = {
   // CRM
   CRM_CUSTOMER_LAUNCHER: `${NAVIGATION_BASE_PATH}/crm/customer-launcher`,
   CRM_CUSTOMER_RELATIONS: `${NAVIGATION_BASE_PATH}/crm/customer-relations`,
+  CRM_CUSTOMER_360: `${NAVIGATION_BASE_PATH}/crm/customer-360`,
   CRM_CUSTOMER_SETTINGS: `${NAVIGATION_BASE_PATH}/crm/customer-settings`,
   CRM_CUSTOMER_DATA_IMPORT: `${NAVIGATION_BASE_PATH}/crm/data-import`,
   CRM_CUSTOMER_ACCOUNT_RECORD: `${NAVIGATION_BASE_PATH}/crm/account-record`,
@@ -89,6 +90,7 @@ export const Navigation = {
 
   // Platform
   PLATFORM_WORK_HOME: `${NAVIGATION_BASE_PATH}/work-home`,
+  PLATFORM_DIGITAL_WORKPLACE: `${NAVIGATION_BASE_PATH}/digital-workplace`,
   PLATFORM_TASK_MANAGER: `${NAVIGATION_BASE_PATH}/task-manager`,
   PLATFORM_TEAM_CHAT: `${NAVIGATION_BASE_PATH}/chat`,
   PLATFORM_AI_CHAT: `${NAVIGATION_BASE_PATH}/every-ai`,
@@ -143,6 +145,7 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   // CRM
   [Navigation.CRM_CUSTOMER_LAUNCHER]: 'crm/core/apps/customer-launcher',
   [Navigation.CRM_CUSTOMER_RELATIONS]: 'crm/core/apps/customer-relations',
+  [Navigation.CRM_CUSTOMER_360]: 'crm/core/apps/customer-360',
   [Navigation.CRM_CUSTOMER_SETTINGS]: 'crm/core/apps/customer-settings',
   [Navigation.CRM_CUSTOMER_DATA_IMPORT]: 'crm/core/apps/data-import',
   [Navigation.CRM_CUSTOMER_ACCOUNT_RECORD]: 'crm/core/records/account-record',
@@ -220,6 +223,7 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
 
   // Platform
   [Navigation.PLATFORM_WORK_HOME]: 'platform/apps/work-home',
+  [Navigation.PLATFORM_DIGITAL_WORKPLACE]: 'platform/apps/digital-workplace',
   [Navigation.PLATFORM_TASK_MANAGER]: 'core/every/apps/every-box',
   [Navigation.PLATFORM_TEAM_CHAT]: 'platform/apps/chat',
   [Navigation.PLATFORM_AI_CHAT]: 'platform/apps/every-ai',
