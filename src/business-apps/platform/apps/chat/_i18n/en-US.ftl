@@ -626,6 +626,8 @@ calendar-sidebar-calendarExistsError = A shared calendar for this group already 
 # Calendar - CreateMeetingModal
 calendar-scheduleMeeting = Schedule Meeting
 calendar-editMeeting = Edit Meeting
+calendar-scheduleMeetingSubtitle = Set up a new meeting and invite your team
+calendar-editMeetingSubtitle = Update meeting details and participants
 calendar-meetingTitle = Title
 calendar-meetingTitleRequired = Title *
 calendar-meetingTitlePlaceholder = Meeting title
@@ -657,6 +659,7 @@ calendar-daily = Daily
 calendar-weekly = Weekly
 calendar-every2Weeks = Every 2 weeks
 calendar-monthly = Monthly
+calendar-until = until
 calendar-endDate = End date
 calendar-reminders = Reminders
 calendar-color = Color

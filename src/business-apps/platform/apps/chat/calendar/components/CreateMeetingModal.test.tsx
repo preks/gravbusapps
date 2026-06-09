@@ -67,6 +67,7 @@ describe('CreateMeetingModal', () => {
     const createChatToggle = screen.getByTestId('meeting-create-chat-toggle') as HTMLInputElement
 
     expect(createChatToggle.checked).toBe(false)
+    expect(mockAvailabilityPanel).not.toHaveBeenCalled()
   })
 
   it('defaults meeting chat on when video call is enabled', () => {

@@ -47,31 +47,31 @@ type Step = 'select_type' | 'select_dimension' | 'confirm_members'
 const DIMENSION_TYPES: { type: DimensionType; labelKey: string; defaultLabel: string; icon: React.ElementType }[] = [
   {
     type: 'organization_unit',
-    labelKey: 'chat.dimensionOrgUnit',
+    labelKey: 'chat-dimensionOrgUnit',
     defaultLabel: 'Organization Unit',
     icon: Buildings
   },
   {
     type: 'matrix_team',
-    labelKey: 'chat.dimensionMatrixTeam',
+    labelKey: 'chat-dimensionMatrixTeam',
     defaultLabel: 'Matrix Team',
     icon: UsersThree
   },
   {
     type: 'location',
-    labelKey: 'chat.dimensionLocation',
+    labelKey: 'chat-dimensionLocation',
     defaultLabel: 'Location',
     icon: MapPin
   },
   {
     type: 'legal_entity',
-    labelKey: 'chat.dimensionLegalEntity',
+    labelKey: 'chat-dimensionLegalEntity',
     defaultLabel: 'Legal Entity',
     icon: Bank
   },
   {
     type: 'capability',
-    labelKey: 'chat.dimensionCapability',
+    labelKey: 'chat-dimensionCapability',
     defaultLabel: 'Capability',
     icon: Lightning
   }

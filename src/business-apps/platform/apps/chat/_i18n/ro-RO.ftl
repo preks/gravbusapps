@@ -626,6 +626,8 @@ calendar-sidebar-calendarExistsError = Există deja un calendar partajat pentru 
 # Calendar - CreateMeetingModal
 calendar-scheduleMeeting = Programează Întâlnire
 calendar-editMeeting = Editează Întâlnirea
+calendar-scheduleMeetingSubtitle = Creează o întâlnire nouă și invită-ți echipa
+calendar-editMeetingSubtitle = Actualizează detaliile și participanții întâlnirii
 calendar-meetingTitle = Titlu
 calendar-meetingTitleRequired = Titlu *
 calendar-meetingTitlePlaceholder = Titlul întâlnirii
@@ -657,6 +659,7 @@ calendar-daily = Zilnic
 calendar-weekly = Săptămânal
 calendar-every2Weeks = La fiecare 2 săptămâni
 calendar-monthly = Lunar
+calendar-until = până la
 calendar-endDate = Data sfârșit
 calendar-reminders = Memento-uri
 calendar-color = Culoare

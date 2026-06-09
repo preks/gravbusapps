@@ -626,6 +626,8 @@ calendar-sidebar-calendarExistsError = Fur diese Gruppe existiert bereits ein ge
 # Calendar - CreateMeetingModal
 calendar-scheduleMeeting = Termin planen
 calendar-editMeeting = Termin bearbeiten
+calendar-scheduleMeetingSubtitle = Plane einen neuen Termin und lade dein Team ein
+calendar-editMeetingSubtitle = Termindetails und Teilnehmer aktualisieren
 calendar-meetingTitle = Titel
 calendar-meetingTitleRequired = Titel *
 calendar-meetingTitlePlaceholder = Besprechungstitel
@@ -657,6 +659,7 @@ calendar-daily = Täglich
 calendar-weekly = Wöchentlich
 calendar-every2Weeks = Alle 2 Wochen
 calendar-monthly = Monatlich
+calendar-until = bis
 calendar-endDate = Enddatum
 calendar-reminders = Erinnerungen
 calendar-color = Farbe
