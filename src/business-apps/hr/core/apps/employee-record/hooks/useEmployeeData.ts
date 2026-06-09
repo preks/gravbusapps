@@ -207,6 +207,10 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
           id
           code
           value
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            localeCode
+            value
+          }
         }
       }
       relationship {

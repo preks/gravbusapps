@@ -7,7 +7,7 @@ team-expenses-page-subheader = Gestionați cheltuielile echipei, urmăriți plan
 team-expenses-tab-dashboard = Tablou de Bord
 team-expenses-tab-expense-plans = Planuri de cheltuieli
 team-expenses-tab-advance-payments = Plăți în avans
-team-expenses-tab-expense-requests = Solicitări de Decont
+team-expenses-tab-expense-requests = Cererei de Decont
 team-expenses-tab-expense-calendar = Calendar cheltuieli
 
 # Dashboard tab (strings from transl.txt — team_expenses_page.dashboard_tab and related keys)
@@ -146,7 +146,7 @@ expense-details-label-remaining-amount = Suma rămasă
 expense-details-label-total-amount = Suma Totală
 
 expense-requests-details-title = Detalii solicitare decont
-expense-requests-section-title = Solicitări de Decont
+expense-requests-section-title = Cererei de Decont
 expense-requests-search-placeholder = Căutați...
 
 # Expense plans tab (transl.txt — backoffice_expense_landing_page, employee_list, team_expenses_page, personal_expenses, etc.)
@@ -215,7 +215,7 @@ expense-details-label-remaining-amount = Suma rămasă
 expense-details-label-total-amount = Suma Totală
 
 expense-requests-details-title = Detalii solicitare decont
-expense-requests-section-title = Solicitări de Decont
+expense-requests-section-title = Cererei de Decont
 expense-requests-search-placeholder = Căutați...
 
 expense-requests-column-title = Scop
@@ -319,7 +319,7 @@ approvals-empty-no-pending = Nicio cerere de aprobare în așteptare
 approvals-empty-all-processed = Toate cererile de aprobare au fost procesate.
 
 approvals-tab-expense-plan = Planuri de cheltuieli
-approvals-tab-expense-request = Solicitări Decont
+approvals-tab-expense-request = Cererei de Decont
 approvals-tab-advance-payment = Plăți în avans
 approvals-tab-handout-payment = Plata manuală
 approvals-tab-transfer-payment = Transfer de Plată
@@ -422,7 +422,7 @@ expense-reports-title = Rapoarte de Cheltuieli
 expense-reports-subheader = Generează și descarcă rapoarte de cheltuieli complete pe diferite categorii și perioade de timp
 expense-reports-tab-expense-items = Elemente de cheltuieli
 expense-reports-tab-expense-plans = Planuri de cheltuieli
-expense-reports-tab-expense-requests = Solicitări Decont
+expense-reports-tab-expense-requests = Cererei de Decont
 expense-reports-tab-advance-payments = Plăți în avans
 expense-reports-data-label = Data
 expense-reports-search-placeholder = Caută date de raport...

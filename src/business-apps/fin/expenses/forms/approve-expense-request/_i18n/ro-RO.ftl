@@ -17,7 +17,7 @@ error-no-data-description = Cererea de cheltuieli nu a fost găsită
 
 section-expense-request-details = Detalii cerere cheltuieli
 section-expenses = Cheltuieli
-section-daily-allowances = Indemnizații zilnice
+section-daily-allowances = Diurne zilnice
 section-approval-details = Detalii aprobare
 
 # ============================================
@@ -35,7 +35,7 @@ label-currency = Monedă
 label-request-created = Cerere creată
 label-expense-plan-total = Total plan de cheltuieli
 label-remaining-amount = Sumă rămasă
-label-allowance-date = Data indemnizației
+label-allowance-date = Data diurnei
 label-day-rate = Tarif zilnic
 label-region = Regiune
 label-days = zile

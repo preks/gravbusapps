@@ -11,15 +11,19 @@ import {
 } from '@newwork/nw-design-system'
 import type { ColumnsType } from 'antd/es/table'
 import Pill from '@/components/pill'
-import { ExpensePlanItem } from '../types/expensePlanRecord.types'
+import { ExpensePlanAmountTotals, ExpensePlanItem } from '../types/expensePlanRecord.types'
 import { getCatalogValue } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../utils/currency'
-import type { WidgetItem } from '@/components/widget-group'
 import { formatDate } from '@/common/utils/windowUtils'
 import expensePlanRecordTranslations from '../_i18n'
+import {
+  getRecordKpiAmountFields,
+  RECORD_EXPENSE_FIVE_KPI_CARDS_CLASSNAME
+} from '../../../common/utils/recordExpenseKpiCards'
 
 interface ExpensePlanItemsProps {
   expensePlanItems: ExpensePlanItem[]
+  planTotals: ExpensePlanAmountTotals
   currencyCode?: string
 }
 
@@ -30,7 +34,7 @@ function getPlanItemCostCenterLabel(record: ExpensePlanItem): string {
   return name || '-'
 }
 
-const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, currencyCode }) => {
+const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, planTotals, currencyCode }) => {
   const { t } = useTranslation(expensePlanRecordTranslations)
   const loading = false
 
@@ -126,85 +130,35 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, c
     }
   ]
 
-  // Calculate summary amounts for the cards
-  const summaryAmounts = useMemo(() => {
-    if (!expensePlanItems.length) {
-      return {
-        reimbursable: 0,
-        nonReimbursable: 0,
-        deductible: 0,
-        nonDeductible: 0,
-        total: 0
-      }
-    }
-
-    return expensePlanItems.reduce(
-      (acc, item) => {
-        // Calculate totals
-        acc.reimbursable += item.reimbursableAmount || 0
-        acc.deductible += item.deductibleAmount || 0
-        acc.nonDeductible += item.nonDeductibleAmount || 0
-        acc.total += item.totalAmount || 0
-
-        // Calculate non-reimbursable (total minus reimbursable)
-        const nonReimbursable = item.totalAmount - item.reimbursableAmount
-        acc.nonReimbursable += nonReimbursable > 0 ? nonReimbursable : 0
-
-        return acc
-      },
-      {
-        reimbursable: 0,
-        nonReimbursable: 0,
-        deductible: 0,
-        nonDeductible: 0,
-        total: 0
-      }
-    )
-  }, [expensePlanItems])
-
-  // Build KPI widgets using design system WidgetGroup
-  const widgets: WidgetItem[] = useMemo(
+  const kpiCards: KpiCardData[] = useMemo(
     () => [
       {
-        key: 'total-amount',
+        id: 'total-amount',
         title: t('expense-plan-record-total-amount'),
-        value: formatAmount(summaryAmounts.total),
-        valueIsString: true
+        ...getRecordKpiAmountFields(planTotals.totalAmount, currencyCode)
       },
       {
-        key: 'reimbursable-amount',
+        id: 'reimbursable-amount',
         title: t('expense-plan-record-column-reimbursable'),
-        value: formatAmount(summaryAmounts.reimbursable),
-        valueIsString: true
+        ...getRecordKpiAmountFields(planTotals.reimbursableAmount, currencyCode)
       },
       {
-        key: 'non-reimbursable-amount',
+        id: 'non-reimbursable-amount',
         title: t('expense-plan-record-non-reimbursable'),
-        value: formatAmount(summaryAmounts.nonReimbursable),
-        valueIsString: true
+        ...getRecordKpiAmountFields(planTotals.nonReimbursableAmount, currencyCode)
       },
       {
-        key: 'deductible-amount',
+        id: 'deductible-amount',
         title: t('expense-plan-record-column-deductible'),
-        value: formatAmount(summaryAmounts.deductible),
-        valueIsString: true
+        ...getRecordKpiAmountFields(planTotals.deductibleAmount, currencyCode)
       },
       {
-        key: 'non-deductible-amount',
+        id: 'non-deductible-amount',
         title: t('expense-plan-record-non-deductible'),
-        value: formatAmount(summaryAmounts.nonDeductible),
-        valueIsString: true
+        ...getRecordKpiAmountFields(planTotals.nonDeductibleAmount, currencyCode)
       }
     ],
-    [
-      summaryAmounts.total,
-      summaryAmounts.reimbursable,
-      summaryAmounts.nonReimbursable,
-      summaryAmounts.deductible,
-      summaryAmounts.nonDeductible,
-      currencyCode,
-      t
-    ]
+    [planTotals, currencyCode, t]
   )
 
   return (
@@ -217,21 +171,7 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, c
       <CardContent className="gba:p-0">
         <div className="gba:mb-6" data-testid="expense-plan-summary-widgets">
           <div data-testid="expense-plan-kpi-cards">
-            {(() => {
-              const cards: KpiCardData[] = widgets.map(w => ({
-                id: w.key,
-                title: w.title,
-                value: w.value ?? (w.valueIsString ? '0' : 0),
-                footer: w.description,
-                decimalPlaces: w.precision
-              }))
-              return (
-                <SectionKpiCards
-                  cards={cards}
-                  className="gba:!grid-cols-5 gba:md:!grid-cols-5 gba:lg:!grid-cols-5 gba:[&_[data-slot=card-title]]:!text-xl"
-                />
-              )
-            })()}
+            <SectionKpiCards cards={kpiCards} className={RECORD_EXPENSE_FIVE_KPI_CARDS_CLASSNAME} />
           </div>
         </div>
         <Table
@@ -244,22 +184,20 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, c
           pagination={false}
           size="middle"
           scroll={{ x: 'max-content' }}
-          summary={pageData => (
+          summary={() => (
             <Table.Summary fixed>
               <Table.Summary.Row>
                 <Table.Summary.Cell index={0} colSpan={6}>
                   <span className="gba:font-semibold">{t('expense-plan-record-total')}</span>
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={6} align="right">
-                  <span className="gba:font-semibold">
-                    {formatAmount(pageData.reduce((sum, i) => sum + i.totalAmount, 0))}
-                  </span>
+                  <span className="gba:font-semibold">{formatAmount(planTotals.totalAmount)}</span>
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={7} align="right">
-                  <span>{formatAmount(pageData.reduce((sum, i) => sum + i.reimbursableAmount, 0))}</span>
+                  <span>{formatAmount(planTotals.reimbursableAmount)}</span>
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={8} align="right">
-                  <span>{formatAmount(pageData.reduce((sum, i) => sum + i.deductibleAmount, 0))}</span>
+                  <span>{formatAmount(planTotals.deductibleAmount)}</span>
                 </Table.Summary.Cell>
               </Table.Summary.Row>
             </Table.Summary>

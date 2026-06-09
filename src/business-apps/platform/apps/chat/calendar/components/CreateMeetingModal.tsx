@@ -301,6 +301,10 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
     (nextIsVideoCall: boolean) => {
       setIsVideoCall(nextIsVideoCall)
 
+      if (!nextIsVideoCall) {
+        setEnableAITranscription(false)
+      }
+
       if (hasExistingConversation) {
         setCreateConversation(true)
         return
@@ -444,7 +448,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
       setHasUserChosenCalendar(false)
       setSelectedCalendarId(nextCalendarId)
 
-      const transcriptionValue = editMeeting.metadata?.aiTranscriptionEnabled === true
+      const transcriptionValue = !!editMeeting.meetingLink && editMeeting.metadata?.aiTranscriptionEnabled === true
       setEnableAITranscription(transcriptionValue)
 
       // Initialize agenda from metadata
@@ -618,7 +622,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
           calendarId: selectedCalendarId === 'personal' ? undefined : selectedCalendarId,
           reminderMinutes,
           metadata: {
-            aiTranscriptionEnabled: enableAITranscription,
+            aiTranscriptionEnabled: isVideoCall && enableAITranscription,
             ...(validAgendaItems.length > 0 && { agenda: validAgendaItems })
           },
           // For updates, use addParticipantIds and removeParticipantIds
@@ -649,7 +653,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
           participantIds: selectedParticipants.map(p => p.userId || p.id),
           createConversation,
           metadata: {
-            aiTranscriptionEnabled: enableAITranscription,
+            aiTranscriptionEnabled: isVideoCall && enableAITranscription,
             ...(validAgendaItems.length > 0 && { agenda: validAgendaItems })
           }
         }
@@ -682,18 +686,27 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
-      <DialogContent className="gba:max-w-lg gba:w-[95vw] gba:sm:w-full gba:max-h-[90vh] gba:overflow-y-auto">
+      <DialogContent className="gba:max-w-lg gba:w-[95vw] gba:sm:w-full gba:max-h-[90vh] gba:flex gba:flex-col gba:overflow-hidden">
         <DialogDescription className="gba:sr-only">
           {isEditMode ? t('calendar-editMeeting') : t('calendar-scheduleMeeting')}
         </DialogDescription>
-        <DialogHeader>
-          <DialogTitle className="gba:flex gba:items-center gba:gap-2">
-            <Calendar className="gba:h-5 gba:w-5 gba:text-primary" />
-            {isEditMode ? t('calendar-editMeeting') : t('calendar-scheduleMeeting')}
-          </DialogTitle>
+        <DialogHeader className="gba:flex-shrink-0 gba:pb-4 gba:border-b gba:border-border">
+          <div className="gba:flex gba:items-center gba:gap-3 gba:pr-8">
+            <div className="gba:flex gba:h-11 gba:w-11 gba:items-center gba:justify-center gba:rounded-xl gba:bg-primary/10 gba:text-primary gba:flex-shrink-0">
+              <Calendar className="gba:h-5 gba:w-5" />
+            </div>
+            <div className="gba:flex gba:flex-col gba:gap-0.5 gba:text-left">
+              <DialogTitle className="gba:text-lg gba:font-semibold gba:leading-tight">
+                {isEditMode ? t('calendar-editMeeting') : t('calendar-scheduleMeeting')}
+              </DialogTitle>
+              <span className="gba:text-xs gba:text-muted-foreground">
+                {isEditMode ? t('calendar-editMeetingSubtitle') : t('calendar-scheduleMeetingSubtitle')}
+              </span>
+            </div>
+          </div>
         </DialogHeader>
 
-        <div className="gba:space-y-4 gba:py-4">
+        <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:space-y-5 gba:py-1">
           {/* Title */}
           <div className="gba:space-y-2">
             <Label htmlFor="title">{t('calendar-meetingTitleRequired')}</Label>
@@ -803,8 +816,51 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
             </div>
           </div>
 
-          <div className="gba:space-y-2">
-            <div className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:border gba:border-border gba:rounded-lg gba:bg-muted/50">
+          {isVideoCall && (
+            <div className="gba:space-y-2">
+              <div className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:p-4 gba:border gba:border-border gba:rounded-xl gba:bg-muted/40 gba:shadow-sm gba:transition-colors gba:hover:border-primary/30">
+                <div className="gba:flex gba:items-start gba:gap-3 gba:flex-1">
+                  <div className="gba:flex gba:h-9 gba:w-9 gba:items-center gba:justify-center gba:rounded-lg gba:bg-primary/10 gba:text-primary gba:flex-shrink-0">
+                    <Mic className="gba:h-4 gba:w-4" />
+                  </div>
+                  <div className="gba:flex-1">
+                    <Label htmlFor="ai-transcription" className="gba:font-medium gba:cursor-pointer">
+                      {t('calendar-aiTranscription')}
+                    </Label>
+                    <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
+                      {t('calendar-aiTranscriptionDescription')}
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  id="ai-transcription"
+                  checked={enableAITranscription}
+                  onCheckedChange={setEnableAITranscription}
+                  data-testid="meeting-ai-transcription-toggle"
+                />
+              </div>
+              {enableAITranscription && (
+                <div
+                  className="gba:flex gba:items-center gba:gap-2 gba:px-1"
+                  data-testid="create-meeting-recording-notice"
+                >
+                  <span
+                    className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse gba:flex-shrink-0"
+                    aria-hidden
+                  />
+                  <p className="gba:text-xs gba:text-muted-foreground gba:italic">
+                    {t('chat-call-recordingTranscriptActive')}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:p-4 gba:border gba:border-border gba:rounded-xl gba:bg-muted/40 gba:shadow-sm gba:transition-colors gba:hover:border-primary/30">
+            <div className="gba:flex gba:items-start gba:gap-3 gba:flex-1">
+              <div className="gba:flex gba:h-9 gba:w-9 gba:items-center gba:justify-center gba:rounded-lg gba:bg-primary/10 gba:text-primary gba:flex-shrink-0">
+                <Users className="gba:h-4 gba:w-4" />
+              </div>
               <div className="gba:flex-1">
                 <Label htmlFor="meeting-create-chat" className="gba:font-medium gba:cursor-pointer">
                   {t('calendar-createMeetingChat')}
@@ -813,17 +869,17 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
                   {t('calendar-createMeetingChatDescription')}
                 </p>
               </div>
-              <Switch
-                id="meeting-create-chat"
-                checked={createConversation}
-                disabled={hasExistingConversation}
-                onCheckedChange={checked => {
-                  setCreateConversation(checked)
-                  setHasManualCreateConversationOverride(true)
-                }}
-                data-testid="meeting-create-chat-toggle"
-              />
             </div>
+            <Switch
+              id="meeting-create-chat"
+              checked={createConversation}
+              disabled={hasExistingConversation}
+              onCheckedChange={checked => {
+                setCreateConversation(checked)
+                setHasManualCreateConversationOverride(true)
+              }}
+              data-testid="meeting-create-chat-toggle"
+            />
           </div>
 
           {/* Description */}
@@ -979,7 +1035,11 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
             {selectedParticipants.length > 0 && (
               <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mb-2">
                 {enrichedSelectedParticipants.map(employee => (
-                  <Badge key={employee.id} variant="secondary" className="gba:flex gba:items-center gba:gap-1 gba:pr-1">
+                  <Badge
+                    key={employee.id}
+                    variant="secondary"
+                    className="gba:flex gba:items-center gba:gap-1 gba:rounded-full gba:py-1 gba:pl-3 gba:pr-1.5"
+                  >
                     <span>
                       {employee.displayName ||
                         `${employee.firstName || ''} ${employee.lastName || ''}`.trim() ||
@@ -988,7 +1048,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
                     <button
                       type="button"
                       onClick={() => removeParticipant(employee.id)}
-                      className="gba:ml-1 gba:hover:bg-muted gba:rounded-full gba:p-0.5"
+                      className="gba:ml-0.5 gba:rounded-full gba:p-0.5 gba:text-muted-foreground gba:transition-colors gba:hover:bg-background gba:hover:text-foreground"
                     >
                       <X className="gba:h-3 gba:w-3" />
                     </button>
@@ -1044,14 +1104,16 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
             </div>
           </div>
 
-          <AvailabilityPanel
-            accessToken={accessToken}
-            participants={availabilityParticipants}
-            date={date}
-            startTime={startTime}
-            endTime={endTime}
-            onApplySuggestion={handleApplyAvailabilitySuggestion}
-          />
+          {selectedParticipants.length > 0 && (
+            <AvailabilityPanel
+              accessToken={accessToken}
+              participants={availabilityParticipants}
+              date={date}
+              startTime={startTime}
+              endTime={endTime}
+              onApplySuggestion={handleApplyAvailabilitySuggestion}
+            />
+          )}
 
           {/* Recurrence */}
           <div className="gba:space-y-2">
@@ -1059,9 +1121,9 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
               <Repeat className="gba:h-3 gba:w-3" />
               {t('calendar-repeat')}
             </Label>
-            <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:gap-3 gba:sm:gap-4">
+            <div className="gba:flex gba:flex-col gba:sm:flex-row gba:sm:items-center gba:gap-2 gba:sm:gap-3">
               <Select value={recurrence} onValueChange={v => setRecurrence(v as MeetingRecurrence)}>
-                <SelectTrigger>
+                <SelectTrigger className="gba:sm:w-48">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1073,13 +1135,17 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
                 </SelectContent>
               </Select>
               {recurrence !== 'none' && (
-                <Input
-                  type="date"
-                  value={recurrenceEndDate}
-                  onChange={e => setRecurrenceEndDate(e.target.value)}
-                  min={date}
-                  placeholder={t('calendar-endDate')}
-                />
+                <>
+                  <span className="gba:text-sm gba:text-muted-foreground">{t('calendar-until')}</span>
+                  <Input
+                    type="date"
+                    value={recurrenceEndDate}
+                    onChange={e => setRecurrenceEndDate(e.target.value)}
+                    min={date}
+                    placeholder={t('calendar-endDate')}
+                    className="gba:sm:flex-1"
+                  />
+                </>
               )}
             </div>
           </div>
@@ -1095,7 +1161,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
                 <Badge
                   key={option.value}
                   variant={reminderMinutes.includes(option.value) ? 'default' : 'outline'}
-                  className="gba:cursor-pointer gba:transition-colors"
+                  className="gba:cursor-pointer gba:rounded-full gba:px-3 gba:py-1 gba:transition-colors gba:hover:border-primary/40"
                   onClick={() => toggleReminder(option.value)}
                 >
                   {getReminderLabel(option.value)}
@@ -1103,48 +1169,14 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
               ))}
             </div>
           </div>
-
-          {/* AI Transcription */}
-          <div className="gba:space-y-2">
-            <div className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:border gba:border-border gba:rounded-lg gba:bg-muted/50">
-              <div className="gba:flex gba:items-start gba:gap-2 gba:flex-1">
-                <Mic className="gba:h-4 gba:w-4 gba:text-primary gba:mt-0.5" />
-                <div className="gba:flex-1">
-                  <Label htmlFor="ai-transcription" className="gba:font-medium gba:cursor-pointer">
-                    {t('calendar-aiTranscription')}
-                  </Label>
-                  <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
-                    {t('calendar-aiTranscriptionDescription')}
-                  </p>
-                </div>
-              </div>
-              <Switch
-                id="ai-transcription"
-                checked={enableAITranscription}
-                onCheckedChange={setEnableAITranscription}
-                data-testid="meeting-ai-transcription-toggle"
-              />
-            </div>
-          </div>
-          {enableAITranscription && (
-            <div className="gba:flex gba:items-center gba:gap-2" data-testid="create-meeting-recording-notice">
-              <span
-                className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse gba:flex-shrink-0"
-                aria-hidden
-              />
-              <p className="gba:text-xs gba:text-muted-foreground gba:italic">
-                {t('chat-call-recordingTranscriptActive')}
-              </p>
-            </div>
-          )}
         </div>
 
         {/* Actions */}
-        <div className="gba:flex gba:justify-end gba:gap-2 gba:pt-4 gba:border-t gba:border-border">
+        <div className="gba:flex-shrink-0 gba:flex gba:justify-end gba:gap-2 gba:pt-4 gba:border-t gba:border-border">
           <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
             {t('calendar-cancel')}
           </Button>
-          <Button onClick={handleSubmit} disabled={!isValid || isSubmitting}>
+          <Button onClick={handleSubmit} disabled={!isValid || isSubmitting} className="gba:min-w-36">
             {isSubmitting ? (
               <>
                 <Spinner className="gba:h-4 gba:w-4 gba:mr-2" />

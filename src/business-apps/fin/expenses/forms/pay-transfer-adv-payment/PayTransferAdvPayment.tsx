@@ -222,8 +222,11 @@ const PayTransferAdvPaymentContent: React.FC<PayTransferAdvPaymentProps> = ({
         currency={advancePayment.currency}
         requestDate={advancePayment.expensePlan?.decisionDate || requestCreatedAt}
         status={advancePayment.status || 'PENDING'}
+        expensePlanId={advancePayment.expensePlan?.id}
         expensePlanTitle={advancePayment.expensePlan?.title}
         expensePlanDocument={advancePayment.expensePlan?.employeeDocument}
+        employeeId={advancePayment.expensePlan?.employee?.id}
+        accessToken={accessToken}
         prefixDataTestId="pay-transfer-adv-payment"
       />
 

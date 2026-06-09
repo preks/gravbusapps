@@ -123,6 +123,7 @@ function createEmptyResult(status = 'success') {
     created: [],
     failed: [],
     duplicateNameWarnings: [],
+    movedResourceUrlWarnings: [],
     summary: {
       artifactScreens: 0,
       matchingDevScreens: 0,
@@ -132,6 +133,13 @@ function createEmptyResult(status = 'success') {
       createOperationsFailed: 0
     }
   }
+}
+
+function normalizeResourceUrlName(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
 }
 
 function findDuplicateResourceUrlNames(resourceUrls, targetLabel) {
@@ -162,25 +170,70 @@ function findDuplicateResourceUrlNames(resourceUrls, targetLabel) {
     }))
 }
 
-async function collectDuplicateNameWarnings(targets) {
+function findMovedResourceUrlWarnings(resourceUrls, targetLabel, releasedResourceUrls) {
   const warnings = []
+
+  for (const releasedResourceUrl of releasedResourceUrls) {
+    const releasedName = normalizeResourceUrlName(releasedResourceUrl.name)
+    if (!releasedName) {
+      continue
+    }
+
+    const previousEntries = resourceUrls
+      .filter(resourceUrl => {
+        const targetName = normalizeResourceUrlName(resourceUrl?.name)
+        return targetName === releasedName && resourceUrl?.url && resourceUrl.url !== releasedResourceUrl.url
+      })
+      .map(resourceUrl => ({
+        id: resourceUrl.id || '',
+        name: resourceUrl.name || '',
+        url: resourceUrl.url || '',
+        code: resourceUrl.code || ''
+      }))
+
+    if (previousEntries.length > 0) {
+      warnings.push({
+        target: targetLabel,
+        name: releasedResourceUrl.name,
+        screenKey: releasedResourceUrl.screenKey,
+        newUrl: releasedResourceUrl.url,
+        previousEntries
+      })
+    }
+  }
+
+  return warnings
+}
+
+async function collectResourceUrlWarnings(targets, releasedResourceUrls) {
+  const duplicateNameWarnings = []
+  const movedResourceUrlWarnings = []
 
   for (const target of targets) {
     try {
       const resourceUrls = await getAllResourceUrls(target.navigationApi, target.oauth)
-      warnings.push(...findDuplicateResourceUrlNames(resourceUrls, target.label))
+      duplicateNameWarnings.push(...findDuplicateResourceUrlNames(resourceUrls, target.label))
+      movedResourceUrlWarnings.push(...findMovedResourceUrlWarnings(resourceUrls, target.label, releasedResourceUrls))
     } catch (error) {
-      warnings.push({
+      duplicateNameWarnings.push({
         target: target.label,
         name: '<duplicate check failed>',
         count: 0,
         error: error.message,
         entries: []
       })
+      movedResourceUrlWarnings.push({
+        target: target.label,
+        name: '<moved resource URL check failed>',
+        screenKey: '',
+        newUrl: '',
+        error: error.message,
+        previousEntries: []
+      })
     }
   }
 
-  return warnings
+  return { duplicateNameWarnings, movedResourceUrlWarnings }
 }
 
 function printCreatedResourceUrls(created) {
@@ -229,6 +282,30 @@ function printDuplicateNameWarnings(warnings) {
   }
 }
 
+function printMovedResourceUrlWarnings(warnings) {
+  logPhase('MOVED SCREEN RESOURCE URL WARNINGS')
+
+  if (warnings.length === 0) {
+    console.log('No possible moved screen resource URLs found.')
+    return
+  }
+
+  for (const warning of warnings) {
+    if (warning.error) {
+      console.log(`\n${warning.target}: moved resource URL check failed (${warning.error})`)
+      continue
+    }
+
+    console.log(`\n${warning.target}: ${warning.name}`)
+    console.log(`   Screen key: ${warning.screenKey || 'unknown'}`)
+    console.log(`   New URL: ${warning.newUrl}`)
+    warning.previousEntries.forEach(entry => {
+      const id = entry.id ? ` [${entry.id}]` : ''
+      console.log(`   Previous URL: ${entry.url}${id}`)
+    })
+  }
+}
+
 async function main() {
   logPhase('RESOURCE URL CREATION')
   console.log(`Artifact contract file: ${PUBLISHED_SCREENS_FILE}`)
@@ -265,9 +342,12 @@ async function main() {
 
   if (publishedScreens.length === 0) {
     console.log('No published screens in artifact. Nothing to create.')
-    result.duplicateNameWarnings = await collectDuplicateNameWarnings(targets)
+    const warnings = await collectResourceUrlWarnings(targets, [])
+    result.duplicateNameWarnings = warnings.duplicateNameWarnings
+    result.movedResourceUrlWarnings = warnings.movedResourceUrlWarnings
     printCreatedResourceUrls(result.created)
     printDuplicateNameWarnings(result.duplicateNameWarnings)
+    printMovedResourceUrlWarnings(result.movedResourceUrlWarnings)
     writeResourceUrlResult(result)
     return
   }
@@ -280,9 +360,12 @@ async function main() {
 
   if (matchingDevScreens.length === 0) {
     console.log('No matching dev screens found for published-screens.txt entries.')
-    result.duplicateNameWarnings = await collectDuplicateNameWarnings(targets)
+    const warnings = await collectResourceUrlWarnings(targets, [])
+    result.duplicateNameWarnings = warnings.duplicateNameWarnings
+    result.movedResourceUrlWarnings = warnings.movedResourceUrlWarnings
     printCreatedResourceUrls(result.created)
     printDuplicateNameWarnings(result.duplicateNameWarnings)
+    printMovedResourceUrlWarnings(result.movedResourceUrlWarnings)
     writeResourceUrlResult(result)
     return
   }
@@ -304,6 +387,7 @@ async function main() {
   let matchedInDev = 0
   let skippedMissingInDev = 0
   let failed = 0
+  const releasedResourceUrls = []
 
   for (const [platformUrl, screen] of urlCandidates.entries()) {
     console.log(`\nProcessing: ${screen.screenKey} -> ${platformUrl}`)
@@ -321,6 +405,14 @@ async function main() {
     }
 
     matchedInDev++
+    releasedResourceUrls.push({
+      url: platformUrl,
+      id: devResourceUrl.id || '',
+      name: devResourceUrl.name || '',
+      code: devResourceUrl.code || '',
+      screenKey: screen.screenKey
+    })
+
     for (const target of targets) {
       const syncResult = await syncResourceUrlWithSameId(devResourceUrl, target.navigationApi, target.oauth)
 
@@ -351,7 +443,9 @@ async function main() {
   result.summary.missingInDev = skippedMissingInDev
   result.summary.createOperationsFailed = failed
   result.status = failed > 0 ? 'failed' : 'success'
-  result.duplicateNameWarnings = await collectDuplicateNameWarnings(targets)
+  const warnings = await collectResourceUrlWarnings(targets, releasedResourceUrls)
+  result.duplicateNameWarnings = warnings.duplicateNameWarnings
+  result.movedResourceUrlWarnings = warnings.movedResourceUrlWarnings
 
   logPhase('RESOURCE URL CREATION SUMMARY')
   console.log(`   Artifact screens: ${publishedScreens.length}`)
@@ -364,6 +458,7 @@ async function main() {
 
   printCreatedResourceUrls(result.created)
   printDuplicateNameWarnings(result.duplicateNameWarnings)
+  printMovedResourceUrlWarnings(result.movedResourceUrlWarnings)
   writeResourceUrlResult(result)
 }
 

@@ -1,22 +1,18 @@
-# Pay Transfer Advance Payment - German Translations (Form-specific)
+# Pay Transfer Advance Payment (transl.txt lowcoder keys)
 
-# Task Title
 task-title = Vorauszahlung aushändigen
 
-# Error States
 error-loading-title = Fehler beim Laden der Vorauszahlung
 error-no-data-title = Keine Daten
 error-no-data-description = Vorauszahlung nicht gefunden
 
-# ============================================
-# Request Details Section (specific labels)
-# ============================================
-
-label-request-date = Antragsdatum
-
-# ============================================
-# Pickup Confirmation Section
-# ============================================
+label-request-date = Datum der Anfrage
 
 section-pickup-confirmation = Abholbestätigung
-confirmation-checkbox-message = Ich bestätige, dass die Vorauszahlung an den Mitarbeiter ausgezahlt wurde.
+label-date-of-transfer = Datum der Überweisung
+confirmation-checkbox-message-cash = Ich bestätige, dass der Vorschuss an den Arbeitnehmer ausgezahlt wurde.
+
+label-payment-confirmed = Zahlung bestätigt und ausgehändigt
+
+action-view-document = Dokument anzeigen
+error-no-document = Kein Dokument verfügbar

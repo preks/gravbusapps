@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { ArrowLeftIcon, GearSixIcon, UsersThreeIcon, LightbulbIcon, WrenchIcon } from '@phosphor-icons/react'
 import type { Icon } from '@phosphor-icons/react'
@@ -11,8 +11,7 @@ import { MemorySection } from './components/MemorySection'
 import { PoliciesSection } from './components/PoliciesSection'
 import { MetricsSection } from './components/MetricsSection'
 import { ToolsTab } from './ToolsTab'
-
-type SettingsTab = 'settings' | 'agents' | 'skills' | 'tools'
+import { useSettingsUrlState, type SettingsTab } from './useSettingsUrlState'
 
 const TABS: { key: SettingsTab; label: string; icon: Icon }[] = [
   { key: 'settings', label: 'Settings', icon: GearSixIcon },
@@ -24,21 +23,17 @@ const TABS: { key: SettingsTab; label: string; icon: Icon }[] = [
 interface SettingsScreenProps {
   accessToken: string
   devToolsEnabled: boolean
+  /** @deprecated URL state is now the source of truth. This prop is kept for backward compatibility but is no longer used. */
   initialTab?: SettingsTab
   onBack: () => void
 }
 
-export const SettingsScreen: React.FC<SettingsScreenProps> = ({
-  accessToken,
-  devToolsEnabled,
-  initialTab = 'settings',
-  onBack
-}) => {
+export const SettingsScreen: React.FC<SettingsScreenProps> = ({ accessToken, devToolsEnabled, onBack }) => {
   const client = useEnterpriseAgentClient(accessToken)
   const { settings, updateSetting } = useAgentSettings()
-  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab)
+  const { tab, agentId, skillId, setTab, setAgent, setSkill } = useSettingsUrlState()
   const visibleTabs = devToolsEnabled ? TABS : TABS.filter(tab => tab.key !== 'tools')
-  const activeSettingsTab = devToolsEnabled || activeTab !== 'tools' ? activeTab : 'settings'
+  const activeSettingsTab = devToolsEnabled || tab !== 'tools' ? tab : 'settings'
 
   // Each tab/section loads its own data (MemorySection, SkillsSection, MetricsSection,
   // SkillsScreen). A global preload here blocked the whole screen when any single
@@ -67,7 +62,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               <button
                 key={tab.key}
                 type="button"
-                onClick={() => setActiveTab(tab.key)}
+                onClick={() => setTab(tab.key)}
                 className={`gba:inline-flex gba:items-center gba:gap-1.5 gba:px-4 gba:py-2 gba:text-sm gba:font-medium gba:transition-colors gba:border-b-2 gba:-mb-px ${
                   activeSettingsTab === tab.key
                     ? 'gba:border-primary gba:text-foreground'
@@ -103,13 +98,25 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 
       {activeSettingsTab === 'agents' && (
         <div className="gba:flex-1 gba:min-h-0">
-          <AgentsScreen accessToken={accessToken} onBack={() => setActiveTab('settings')} embedded />
+          <AgentsScreen
+            accessToken={accessToken}
+            agentId={agentId}
+            onAgentChange={setAgent}
+            onBack={() => setTab('settings')}
+            embedded
+          />
         </div>
       )}
 
       {activeSettingsTab === 'skills' && (
         <div className="gba:flex-1 gba:min-h-0">
-          <SkillsScreen accessToken={accessToken} onBack={() => setActiveTab('settings')} embedded />
+          <SkillsScreen
+            accessToken={accessToken}
+            skillId={skillId}
+            onSkillChange={setSkill}
+            onBack={() => setTab('settings')}
+            embedded
+          />
         </div>
       )}
 

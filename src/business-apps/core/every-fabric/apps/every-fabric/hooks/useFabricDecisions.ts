@@ -133,6 +133,9 @@ const isNoExecutionPackDecision = (decision: DecisionItem): boolean =>
   (decision.category as string) === 'execution_pack' &&
   NO_EXECUTION_PACK_CHOSEN.has(decision.chosen?.trim().toLowerCase() ?? '')
 
+/** PR-B runtime-owner observability — surfaced in debug trace only, not the session timeline. */
+const isRuntimeScopeDecision = (decision: DecisionItem): boolean => (decision.category as string) === 'runtime_scope'
+
 /**
  * Collapses consecutive / redundant skill decisions that picked the same
  * skill. The backend may emit one per turn; the UI only needs to surface
@@ -223,7 +226,7 @@ export const useFabricDecisions = (events: AgentStreamEvent[]): DecisionItem[] =
     }
 
     const merged = [...native, ...synthesized]
-      .filter(d => !isNoSkillDecision(d) && !isNoExecutionPackDecision(d))
+      .filter(d => !isNoSkillDecision(d) && !isNoExecutionPackDecision(d) && !isRuntimeScopeDecision(d))
       .sort((a, b) => a.seq - b.seq)
 
     return dedupeSkillDecisions(merged)

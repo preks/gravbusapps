@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { ArrowLeftIcon, XIcon } from '@phosphor-icons/react'
 import { BrowseSkillsView } from './BrowseSkillsView'
@@ -12,6 +12,10 @@ interface SkillsScreenProps {
   onBack: () => void
   /** When true, the header bar is hidden (used when embedded inside SettingsScreen tabs). */
   embedded?: boolean
+  /** Optional skill ID from URL state (when embedded in SettingsScreen). When provided, opens the skill editor. */
+  skillId?: string | null
+  /** Optional callback to update skill ID in URL state (when embedded in SettingsScreen). */
+  onSkillChange?: (skillId: string | null) => void
 }
 
 /**
@@ -22,10 +26,24 @@ interface SkillsScreenProps {
  * Layout is a master-detail split: a narrow single-column list on the left and a persistent
  * SKILL.md editor panel on the right. Clicking a row selects it for editing.
  */
-export const SkillsScreen: React.FC<SkillsScreenProps> = ({ accessToken, onBack, embedded = false }) => {
+export const SkillsScreen: React.FC<SkillsScreenProps> = ({
+  accessToken,
+  onBack,
+  embedded = false,
+  skillId: skillIdProp,
+  onSkillChange
+}) => {
   const { toast, showToast, dismissToast } = useSkillToast()
 
-  const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null)
+  // Initialize from prop if provided (for URL-driven state), otherwise use local state
+  const [selectedSkillId, setSelectedSkillId] = useState<string | null>(skillIdProp ?? null)
+
+  // Sync local state with prop changes (for browser back/forward navigation)
+  useEffect(() => {
+    if (skillIdProp !== undefined) {
+      setSelectedSkillId(skillIdProp)
+    }
+  }, [skillIdProp])
   const [creatingNew, setCreatingNew] = useState(false)
   /** Bumped after a successful save so BrowseSkillsView re-fetches its manifest in the background. */
   const [manifestVersion, setManifestVersion] = useState(0)
@@ -41,10 +59,17 @@ export const SkillsScreen: React.FC<SkillsScreenProps> = ({ accessToken, onBack,
     setManifestVersion(v => v + 1)
   }, [])
 
-  const handleEditSkill = useCallback((skillId: string) => {
-    setCreatingNew(false)
-    setSelectedSkillId(prev => (prev === skillId ? prev : skillId))
-  }, [])
+  const handleEditSkill = useCallback(
+    (skillId: string) => {
+      setCreatingNew(false)
+      setSelectedSkillId(prev => (prev === skillId ? prev : skillId))
+      // Update URL state if callback is provided (embedded mode)
+      if (onSkillChange) {
+        onSkillChange(skillId)
+      }
+    },
+    [onSkillChange]
+  )
 
   const handleSaved = useCallback(() => {
     setManifestVersion(v => v + 1)
@@ -52,7 +77,11 @@ export const SkillsScreen: React.FC<SkillsScreenProps> = ({ accessToken, onBack,
 
   const handleCloseEditor = useCallback(() => {
     setSelectedSkillId(null)
-  }, [])
+    // Clear URL state if callback is provided (embedded mode)
+    if (onSkillChange) {
+      onSkillChange(null)
+    }
+  }, [onSkillChange])
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid="fabric-skills-screen">

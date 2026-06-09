@@ -27,6 +27,11 @@ export function formatTimelineClockTime(timestamp: string): string {
   })
 }
 
+/** Dev-only PR-B observability — kept in debug trace, not the end-user timeline. */
+function shouldSkipDecision(decision: DecisionItem): boolean {
+  return (decision.category as string) === 'runtime_scope'
+}
+
 function shouldSkipActivityEvent(event: ActivityEvent, decisions: DecisionItem[]): boolean {
   if (event.type === 'reflection') {
     return decisions.some(d => d.category === 'reflection')
@@ -44,6 +49,7 @@ export function mergeSessionTimelineEntries(
   const entries: SessionTimelineEntry[] = []
 
   for (const decision of decisions) {
+    if (shouldSkipDecision(decision)) continue
     entries.push({
       kind: 'decision',
       id: `decision-${decision.id}`,

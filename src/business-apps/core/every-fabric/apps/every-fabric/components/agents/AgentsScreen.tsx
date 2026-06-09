@@ -12,7 +12,7 @@ import {
   WarningCircleIcon,
   WrenchIcon
 } from '@phosphor-icons/react'
-import React, { type FC, type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
+import { type FC, type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
 import type { AgentRegistryEntry } from '@/business-apps/platform/apps/agent-mesh/types/agentMesh'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { AgentCard } from './AgentCard'
@@ -41,7 +41,7 @@ function mapRegistryEntryToFabricAgent(
     description: e.description,
     agent_type: e.agent_type,
     specialty: e.specialty,
-    domain: ((e as Record<string, unknown>).domain as string | null) ?? e.specialty,
+    domain: ((e as unknown as Record<string, unknown>).domain as string | null) ?? e.specialty,
     avatar: e.avatar,
     color: e.color,
     is_public: e.is_public,
@@ -206,9 +206,19 @@ interface AgentsScreenProps {
   onBack: () => void
   /** When true, the header bar is hidden (used when embedded inside SettingsScreen tabs). */
   embedded?: boolean
+  /** Optional agent ID from URL state (when embedded in SettingsScreen). When provided, shows the agent detail view. */
+  agentId?: string | null
+  /** Optional callback to update agent ID in URL state (when embedded in SettingsScreen). */
+  onAgentChange?: (agentId: string | null) => void
 }
 
-export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, embedded = false }) => {
+export const AgentsScreen: FC<AgentsScreenProps> = ({
+  accessToken,
+  onBack,
+  embedded = false,
+  agentId: agentIdProp,
+  onAgentChange
+}) => {
   const client = usePromptManagerClient(accessToken)
   const [agents, setAgents] = useState<FabricAgent[]>([])
   const [builtins, setBuiltins] = useState<BuiltinSubagent[]>([])
@@ -219,11 +229,41 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, embed
   const [archivedAgents, setArchivedAgents] = useState<FabricAgent[]>([])
   const [archivedExpanded, setArchivedExpanded] = useState(false)
   const [showLegend, setShowLegend] = useState(false)
-  const [configuringAgent, setConfiguringAgent] = useState<FabricAgent | null>(null)
+  // Local state for non-embedded usage. When embedded, agentIdProp/onAgentChange drive the detail view.
+  const [configuringAgentLocal, setConfiguringAgentLocal] = useState<FabricAgent | null>(null)
   // Ids of agents that also live on the Workforce surface (same
   // AutonomousAgentODM record + a workforce_profile). Drives whether the
   // per-agent config editor shows the workforce-only cards.
   const [workforceAgentIds, setWorkforceAgentIds] = useState<Set<string>>(new Set())
+
+  // Derive configuring agent from either URL state (when embedded) or local state
+  const configuringAgent = useMemo(() => {
+    if (agentIdProp) {
+      // Check both active and archived agents
+      return agents.find(a => a.id === agentIdProp) ?? archivedAgents.find(a => a.id === agentIdProp) ?? null
+    }
+    return configuringAgentLocal
+  }, [agentIdProp, agents, archivedAgents, configuringAgentLocal])
+
+  // Handler that updates either URL state or local state depending on context
+  const handleSetConfiguringAgent = useCallback(
+    (agent: FabricAgent | null) => {
+      if (onAgentChange) {
+        onAgentChange(agent?.id ?? null)
+      } else {
+        setConfiguringAgentLocal(agent)
+      }
+    },
+    [onAgentChange]
+  )
+
+  // Edge case: if agentId is in URL but agent isn't found after loading completes, clear the URL
+  useEffect(() => {
+    if (agentIdProp && !isLoading && agents.length > 0 && !configuringAgent && onAgentChange) {
+      // Agent ID in URL but not found - clear it to return to list view
+      onAgentChange(null)
+    }
+  }, [agentIdProp, isLoading, agents.length, configuringAgent, onAgentChange])
   const [creating, setCreating] = useState(false)
   const [archivingAgentId, setArchivingAgentId] = useState<string | null>(null)
   const [activatingAgentId, setActivatingAgentId] = useState<string | null>(null)
@@ -304,7 +344,7 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, embed
         await client.archiveAgent(agent.id)
         setAgents(prev => prev.filter(a => a.id !== agent.id))
         setArchivedAgents(prev => [...prev, { ...agent, status: 'archived' }])
-        if (configuringAgent?.id === agent.id) setConfiguringAgent(null)
+        if (configuringAgent?.id === agent.id) handleSetConfiguringAgent(null)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to archive agent')
       } finally {
@@ -480,7 +520,7 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, embed
         agent={configuringAgent}
         accessToken={accessToken}
         isWorkforceEnabled={workforceAgentIds.has(configuringAgent.id)}
-        onBack={() => setConfiguringAgent(null)}
+        onBack={() => handleSetConfiguringAgent(null)}
         onSkillsSaved={handleSkillsSaved}
         onAgentUpdated={(agentId, updates) => {
           setAgents(prev =>
@@ -496,17 +536,20 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, embed
                 : a
             )
           )
-          setConfiguringAgent(prev =>
-            prev && prev.id === agentId
-              ? {
-                  ...prev,
-                  name: updates.name,
-                  description: updates.description,
-                  tags: updates.tags,
-                  specialty: updates.specialty
-                }
-              : prev
-          )
+          // Update local state if using local state mode
+          if (!onAgentChange) {
+            setConfiguringAgentLocal(prev =>
+              prev && prev.id === agentId
+                ? {
+                    ...prev,
+                    name: updates.name,
+                    description: updates.description,
+                    tags: updates.tags,
+                    specialty: updates.specialty
+                  }
+                : prev
+            )
+          }
         }}
       />
     )
@@ -657,7 +700,7 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({ accessToken, onBack, embed
               <AgentCard
                 key={agent.id}
                 agent={agent}
-                onConfigure={setConfiguringAgent}
+                onConfigure={handleSetConfiguringAgent}
                 onArchive={agent => {
                   handleArchiveAgent(agent)
                 }}

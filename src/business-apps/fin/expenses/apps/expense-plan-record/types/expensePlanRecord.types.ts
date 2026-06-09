@@ -7,6 +7,15 @@ export interface ExpensePlanRecordProps {
   code?: string
 }
 
+/** Plan-level amount aggregates from ExpensePlanByPk (backend-computed). */
+export interface ExpensePlanAmountTotals {
+  totalAmount: number
+  reimbursableAmount: number
+  nonReimbursableAmount: number
+  deductibleAmount: number
+  nonDeductibleAmount: number
+}
+
 export interface ExpensePlanItem {
   id?: string
   code: string | null

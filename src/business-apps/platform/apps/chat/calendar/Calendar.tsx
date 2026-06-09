@@ -38,6 +38,7 @@ import {
   PendingInvitationGroup
 } from './types'
 import { getDefaultCalendarColor } from './utils/calendarColors'
+import { isSameDay } from './utils/dateHelpers'
 import {
   collectPendingInvitationUserIds,
   enrichPendingInvitationGroupsWithAvatars
@@ -335,8 +336,16 @@ const CalendarInner: React.FC<CalendarProps> = ({
   const eventsRef = useRef<CalendarEvent[]>(events)
   eventsRef.current = events
 
+  // Ref so URL-driven navigation can compare against the latest selected date without
+  // re-running on every render (avoids redundant setCurrentDate that re-triggers effects).
+  const currentDateRef = useRef<Date>(currentDate)
+  currentDateRef.current = currentDate
+
   /** True while meeting detail was opened from the calendar UI and meetingId was written to the URL. Skips URL-driven navigation so event refetches do not change time scope (e.g. 3-day → day). */
   const meetingDetailOpenedInAppRef = useRef(false)
+
+  /** Meeting id the URL-driven navigation has already auto-opened, so repeated effect runs / overlapping events do not open the detail modal twice. Reset when the modal closes. */
+  const autoOpenedMeetingIdRef = useRef<string | null>(null)
 
   const applyLocalCalendarSurfaceColor = useCallback(
     ({ calendarId, color, isPersonal = false }: { calendarId?: string; color: string; isPersonal?: boolean }) => {
@@ -519,19 +528,25 @@ const CalendarInner: React.FC<CalendarProps> = ({
       if (dateParam) {
         const targetDate = new Date(dateParam)
         if (!Number.isNaN(targetDate.getTime())) {
-          setCurrentDate(targetDate)
+          if (!isSameDay(currentDateRef.current, targetDate)) {
+            setCurrentDate(targetDate)
+          }
           void viewPreferences.setTimeScope('day')
 
           // If we have a meetingId, find and select that meeting after events load (URL keeps meetingId for shareable link)
-          if (meetingIdParam) {
+          if (meetingIdParam && autoOpenedMeetingIdRef.current !== meetingIdParam) {
+            // Clear any timer scheduled by a previous invocation so we never open twice
+            if (timeoutId !== null) clearTimeout(timeoutId)
             timeoutId = setTimeout(() => {
               timeoutId = null
               // Only open if URL still has this meetingId (user may have closed modal and cleared URL)
               const currentParams = new URLSearchParams(globalThis.window.location.search)
               if (currentParams.get('meetingId') !== meetingIdParam) return
+              if (autoOpenedMeetingIdRef.current === meetingIdParam) return
               // Use ref so we see events after they load for the new date (e.g. "view in calendar" from card)
               const meetingEvent = eventsRef.current.find(e => e.id === meetingIdParam)
               if (meetingEvent && canOpenEventDetails(meetingEvent)) {
+                autoOpenedMeetingIdRef.current = meetingIdParam
                 selectEvent(meetingEvent)
                 setIsDetailModalOpen(true)
               }
@@ -539,15 +554,24 @@ const CalendarInner: React.FC<CalendarProps> = ({
           }
           // Keep meetingId in URL so the open meeting dialog is reflected and link is shareable
         }
-      } else if (meetingIdParam && events.length > 0 && !meetingDetailOpenedInAppRef.current && !isCreateModalOpen) {
+      } else if (
+        meetingIdParam &&
+        events.length > 0 &&
+        !meetingDetailOpenedInAppRef.current &&
+        !isCreateModalOpen &&
+        autoOpenedMeetingIdRef.current !== meetingIdParam
+      ) {
         // meetingId without date: deep link / external open — go to day and open modal.
         // When opened in-app, meetingDetailOpenedInAppRef is set before the URL is updated so refetches do not force day view.
         const meetingEvent = events.find(e => e.id === meetingIdParam)
         if (meetingEvent && canOpenEventDetails(meetingEvent)) {
           const meetingDate = meetingEvent.start
           if (!Number.isNaN(meetingDate.getTime())) {
-            setCurrentDate(meetingDate)
+            if (!isSameDay(currentDateRef.current, meetingDate)) {
+              setCurrentDate(meetingDate)
+            }
             void viewPreferences.setTimeScope('day')
+            autoOpenedMeetingIdRef.current = meetingIdParam
             selectEvent(meetingEvent)
             setIsDetailModalOpen(true)
           }
@@ -578,11 +602,13 @@ const CalendarInner: React.FC<CalendarProps> = ({
         if (meetingEvent && canOpenEventDetails(meetingEvent)) {
           setCurrentDate(meetingEvent.start)
           void viewPreferences.setTimeScope('day')
+          autoOpenedMeetingIdRef.current = meetingIdParam
           selectEvent(meetingEvent)
           setIsDetailModalOpen(true)
         }
       } else if (!meetingIdParam && isDetailModalOpen) {
         meetingDetailOpenedInAppRef.current = false
+        autoOpenedMeetingIdRef.current = null
         setIsDetailModalOpen(false)
         selectEvent(null)
       }
@@ -609,6 +635,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
   }, [])
   const clearMeetingFromUrl = useCallback(() => {
     meetingDetailOpenedInAppRef.current = false
+    autoOpenedMeetingIdRef.current = null
     const pathAndQuery = getCurrentUrlWithUpdatedSearchParams({ meetingId: null, date: null })
     globalThis.window.history.replaceState({}, '', `${globalThis.window.location.origin}${pathAndQuery}`)
   }, [])
@@ -621,6 +648,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
       }
 
       meetingDetailOpenedInAppRef.current = true
+      autoOpenedMeetingIdRef.current = event.id
       selectEvent(event)
       setIsDetailModalOpen(true)
       setMeetingInUrl(event.id, event.start)

@@ -1,4 +1,11 @@
 /**
+ * Returns true when both dates fall on the same calendar day (local time).
+ */
+export function isSameDay(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+}
+
+/**
  * Format duration in seconds to human-readable string
  */
 export function formatDuration(seconds: number): string {

@@ -16,7 +16,7 @@ filter-expense-items-description = Aplică filtre pentru a restrânge lista pozi
 
 # Expense Requests Tab (transl.txt)
 personal-expenses-update-request-action = Actualizare Solicitare
-expense-requests-list-section-title = Solicitări Decont
+expense-requests-list-section-title = Cererei de Decont
 expense-requests-column-title = Titlu
 expense-requests-column-request-number = Număr Cerere
 personal-expenses-label-request-date = Data Solicitării
@@ -166,7 +166,7 @@ personal-shell-tab-dashboard = Tablou de Bord
 personal-shell-tab-expense-items = Elemente Cheltuială
 personal-shell-tab-expense-plans = Planuri de cheltuieli
 personal-shell-tab-advance-payments = Plăți în avans
-personal-shell-tab-expense-requests = Solicitări Decont
+personal-shell-tab-expense-requests = Cererei de Decont
 personal-shell-tab-calendar = Calendar
 
 # Expense calendar tab (transl.txt)

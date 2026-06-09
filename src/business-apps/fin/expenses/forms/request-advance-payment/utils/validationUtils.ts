@@ -10,31 +10,43 @@ export interface ValidationResult {
   errors: string[]
 }
 
+export interface RequestAdvancePaymentValidationMessages {
+  expensePlanRequired: string
+  amountRequired: string
+  currencyRequired: string
+  costCenterRequired: string
+  paymentMethodRequired: string
+  amountLimit: string
+}
+
 /**
  * Validates required form fields
  * Follows Single Responsibility Principle
  */
-export const validateRequiredFields = (formData: FormData): ValidationResult => {
+export const validateRequiredFields = (
+  formData: FormData,
+  messages: RequestAdvancePaymentValidationMessages
+): ValidationResult => {
   const errors: string[] = []
 
   if (!formData.expensePlanId) {
-    errors.push('Expense plan is required')
+    errors.push(messages.expensePlanRequired)
   }
 
   if (!formData.amount || formData.amount <= 0) {
-    errors.push('Amount must be greater than 0')
+    errors.push(messages.amountRequired)
   }
 
   if (!formData.currency) {
-    errors.push('Currency is required')
+    errors.push(messages.currencyRequired)
   }
 
   if (!formData.costCenter) {
-    errors.push('Cost center is required')
+    errors.push(messages.costCenterRequired)
   }
 
   if (!formData.paymentMethod) {
-    errors.push('Payment method is required')
+    errors.push(messages.paymentMethodRequired)
   }
 
   return {
@@ -47,11 +59,15 @@ export const validateRequiredFields = (formData: FormData): ValidationResult => 
  * Validates amount against maximum allowed
  * Follows Single Responsibility Principle
  */
-export const validateAmountLimit = (amount: number, maxAmount: number): ValidationResult => {
+export const validateAmountLimit = (
+  amount: number,
+  maxAmount: number,
+  amountLimitMessage: string
+): ValidationResult => {
   if (amount > maxAmount) {
     return {
       isValid: false,
-      errors: ["Advance Payment amount can't be greater than Estimated Expenses and Allowances amount"]
+      errors: [amountLimitMessage]
     }
   }
 
@@ -65,9 +81,13 @@ export const validateAmountLimit = (amount: number, maxAmount: number): Validati
  * Combines all validation rules
  * Follows Open/Closed Principle - can add new validators without modifying existing ones
  */
-export const validateForm = (formData: FormData, maxAmount: number): ValidationResult => {
-  const requiredFieldsResult = validateRequiredFields(formData)
-  const amountLimitResult = validateAmountLimit(formData.amount, maxAmount)
+export const validateForm = (
+  formData: FormData,
+  maxAmount: number,
+  messages: RequestAdvancePaymentValidationMessages
+): ValidationResult => {
+  const requiredFieldsResult = validateRequiredFields(formData, messages)
+  const amountLimitResult = validateAmountLimit(formData.amount, maxAmount, messages.amountLimit)
 
   const allErrors = [...requiredFieldsResult.errors, ...amountLimitResult.errors]
 

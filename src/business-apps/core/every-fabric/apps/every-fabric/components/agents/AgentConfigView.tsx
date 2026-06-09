@@ -25,7 +25,6 @@ import {
   SYSTEM_PROMPT_MIN_LENGTH,
   type ComplianceLevel
 } from './agentStandard'
-import { getSourceDisplay } from './agentSourceUtils'
 import { AgentPoliciesEditor } from './AgentPoliciesEditor'
 import { WorkforceConfigSections } from './WorkforceConfigSections'
 import type { FabricAgent } from './agentTypes'
@@ -148,7 +147,6 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
   onAgentUpdated
 }) => {
   const client = usePromptManagerClient(accessToken)
-  const sourceDisplay = getSourceDisplay(agent.source)
 
   // Skills state
   const [availableSkills, setAvailableSkills] = useState<SkillOption[]>([])
@@ -381,14 +379,7 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
           >
             <ArrowLeftIcon className="gba:h-5 gba:w-5" />
           </button>
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <h1 className="gba:text-xl gba:font-semibold gba:text-foreground">{formatAgentName(agent.name)}</h1>
-            <span
-              className={`gba:rounded-full gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium ${sourceDisplay.badgeClass}`}
-            >
-              {sourceDisplay.label}
-            </span>
-          </div>
+          <h1 className="gba:text-xl gba:font-semibold gba:text-foreground">{formatAgentName(agent.name)}</h1>
         </div>
       </div>
 

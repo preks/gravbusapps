@@ -44,6 +44,7 @@ interface InfoItem {
   value?: any
   render: (value: any) => React.ReactNode
   testId?: string
+  isCommunicationChannel?: boolean
 }
 
 // Helper component to render address lines with reduced nesting
@@ -540,6 +541,27 @@ const AccountCompanyInformation: React.FC<InlinedCompanyInformationProps> = ({
               const content = item.render(item.value)
               const itemKey = item.testId || `${item.title}-${typeof item.value === 'string' ? item.value : item.title}`
               const isAddressItem = item.title === 'Address' || item.title === 'Addresses'
+
+              if (item.isCommunicationChannel) {
+                return (
+                  <div
+                    key={itemKey}
+                    className="gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1 gba:rounded gba:min-w-0"
+                  >
+                    <IconComponent
+                      className="gba:w-4 gba:h-4 gba:shrink-0 gba:text-muted-foreground"
+                      title={item.title}
+                    />
+                    <div
+                      className="gba:text-sm gba:text-muted-foreground gba:min-w-0 gba:flex-1 gba:truncate"
+                      data-testid={item.testId}
+                      title={typeof item.value === 'string' ? item.value : undefined}
+                    >
+                      {content}
+                    </div>
+                  </div>
+                )
+              }
 
               return (
                 <div
