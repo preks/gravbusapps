@@ -12,7 +12,12 @@ export const EMPLOYEE_DATA_QUERY = `query MyQuery ($employeeId: uuid!) {
   }
  employee: Employee(where: {isDeleted: {_eq: false}, id: {_eq: $employeeId}}) {
     id
-    workingHours {
+    workingHours(
+      where: {isDeleted: {_eq: false}}
+      orderBy: [{activeFrom: DESC}, {createdAt: DESC}]
+    ) {
+      activeFrom
+      activeTo
       fridayHours
       id
       mondayHours
@@ -25,6 +30,12 @@ export const EMPLOYEE_DATA_QUERY = `query MyQuery ($employeeId: uuid!) {
       weeklyHours
       employeeId
       remoteRef
+    }
+    workingHoursValidationRecords: workingHours(where: {isDeleted: {_eq: false}}) {
+      id
+      version
+      activeFrom
+      activeTo
     }
   }
 }

@@ -10,6 +10,8 @@ export type DayKey =
   | 'sundayHours'
 
 export interface WorkingHoursFormValues {
+  activeFrom: string
+  activeTo: string
   mondayHours: number | ''
   tuesdayHours: number | ''
   wednesdayHours: number | ''
