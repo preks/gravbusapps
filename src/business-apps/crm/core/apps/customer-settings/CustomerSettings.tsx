@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useTranslation as useFluentTranslation } from '@newwork/nw-design-system'
 import customerSettingsI18n from './_i18n'
 import {
-  UsersIcon,
+  GearIcon,
   FlowArrowIcon,
   AddressBookIcon,
   ListChecksIcon,
@@ -12,7 +12,8 @@ import {
   FileTextIcon,
   MegaphoneIcon,
   GaugeIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  FileArrowDownIcon
 } from '@phosphor-icons/react'
 import { SettingsLayout } from '@/components/layout/settings-layout'
 import { navigateTo } from '@/common/utils/navigationUtils'
@@ -30,6 +31,7 @@ import type {
 } from '@/common/components/common-relations/setting-pages/campaign'
 import IdealCustomerProfilesPage from './pages/ideal-customer-profiles/IdealCustomerProfilesPage'
 import MarketingComplianceDataPage from './pages/marketing-compliance-data/MarketingComplianceDataPage'
+import CrmDataExportPage from './pages/data-export/DataExportPage'
 import { FolderTemplateDataPage, ModuleType } from '@/common/components/common-relations/setting-pages/folder-templates'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
@@ -261,6 +263,18 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
           onClick: () => handleInlinePageChange({ key: 'ideal-customer-profiles' })
         }
       ]
+    },
+    {
+      title: tIcp('data-export-settings-card-title'),
+      description: tIcp('data-export-settings-card-description'),
+      icon: FileArrowDownIcon,
+      iconSize: 'md' as const,
+      entries: [
+        {
+          label: tIcp('data-export-settings-card-entry'),
+          onClick: () => handleInlinePageChange({ key: 'data-export' })
+        }
+      ]
     }
   ]
 
@@ -378,10 +392,20 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
     )
   }
 
+  if (inlinePage?.key === 'data-export') {
+    return (
+      <CrmDataExportPage
+        {...context}
+        prefixDataTestId={`${prefixDataTestId || ''}-CustomerDataExport`}
+        onBack={() => handleInlinePageChange(null)}
+      />
+    )
+  }
+
   return (
     <SettingsLayout
       headerPhosphorIcon={{
-        icon: UsersIcon,
+        icon: GearIcon,
         variant: 'info',
         size: 'lg',
         label: 'Customer Settings'

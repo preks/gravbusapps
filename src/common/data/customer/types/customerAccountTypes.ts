@@ -108,7 +108,15 @@ export const CUSTOMER_ACCOUNT_DESCRIPTORS: Descriptor[] = [
   },
 
   // CRM-specific fields
-  { key: 'campaignIds', path: 'salesCampaignId', kind: 'inIds' }
+  {
+    key: 'campaignIds',
+    path: CustomerAccountFields.salesCampaignId,
+    filterLabel: 'Sales Campaign',
+    kind: 'inIds',
+    optionSelectPaths: ['salesCampaign.id', 'salesCampaign.name'],
+    optionSearchPaths: ['salesCampaign.name'],
+    optionDistinctOn: [CustomerAccountFields.salesCampaignId]
+  }
 ]
 
 /**

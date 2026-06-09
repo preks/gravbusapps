@@ -286,13 +286,76 @@ export const INVESTMENT_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
   // IRM-specific filter IDs
   { key: 'divestmentIds', path: 'divestmentId', kind: 'inIds' },
   { key: 'investmentIds', path: 'investment.id', kind: 'inIds' },
-  { key: 'investmentGroupIds', path: 'investmentGroupRef', kind: 'inIds' },
-  { key: 'investmentRoleIds', path: 'investmentRoleRef', kind: 'inIds' },
-  { key: 'investmentStakeTypeIds', path: 'investmentStakeTypeRef', kind: 'inIds' },
-  { key: 'investmentTypeIds', path: 'investmentTypeRef', kind: 'inIds' },
-  { key: 'sizeMeasurementUnitIds', path: 'sizeMeasurementUnitRef', kind: 'inIds' },
-  { key: 'contactIds', path: 'investmentOpportunityContact.contact.id', kind: 'inIds' }, // IRM uses "investmentOpportunityContact" not "opportunityContacts"
-  { key: 'accountIds', path: 'opportunityAccounts.accountId', kind: 'inIds' } // GraphQL field name is 'opportunityAccounts'
+  {
+    key: 'investmentGroupIds',
+    path: 'investmentGroupRef',
+    filterLabel: 'Investment Group',
+    kind: 'inIds',
+    optionSelectPaths: ['investmentGroup.id', 'investmentGroup.value'],
+    optionSearchPaths: ['investmentGroup.value', 'investmentGroup.code'],
+    optionDistinctOn: ['investmentGroupRef']
+  },
+  {
+    key: 'investmentRoleIds',
+    path: 'investmentRoleRef',
+    filterLabel: 'Investment Role',
+    kind: 'inIds',
+    optionSelectPaths: ['investmentRole.id', 'investmentRole.value'],
+    optionSearchPaths: ['investmentRole.value', 'investmentRole.code'],
+    optionDistinctOn: ['investmentRoleRef']
+  },
+  {
+    key: 'investmentStakeTypeIds',
+    path: 'investmentStakeTypeRef',
+    filterLabel: 'Stake Type',
+    kind: 'inIds',
+    optionSelectPaths: ['investmentStakeType.id', 'investmentStakeType.value'],
+    optionSearchPaths: ['investmentStakeType.value', 'investmentStakeType.code'],
+    optionDistinctOn: ['investmentStakeTypeRef']
+  },
+  {
+    key: 'investmentTypeIds',
+    path: 'investmentTypeRef',
+    filterLabel: 'Investment Type',
+    kind: 'inIds',
+    optionSelectPaths: ['investmentType.id', 'investmentType.value'],
+    optionSearchPaths: ['investmentType.value', 'investmentType.code'],
+    optionDistinctOn: ['investmentTypeRef']
+  },
+  {
+    key: 'sizeMeasurementUnitIds',
+    path: 'sizeMeasurementUnitRef',
+    filterLabel: 'Size Unit',
+    kind: 'inIds',
+    optionSelectPaths: ['sizeMeasurementUnit.id', 'sizeMeasurementUnit.value'],
+    optionSearchPaths: ['sizeMeasurementUnit.value', 'sizeMeasurementUnit.code'],
+    optionDistinctOn: ['sizeMeasurementUnitRef']
+  },
+  {
+    key: 'contactIds',
+    path: 'investmentOpportunityContact.contact.id',
+    filterLabel: 'Contact',
+    kind: 'inIds',
+    optionSelectPaths: [
+      'investmentOpportunityContact.contact.id',
+      'investmentOpportunityContact.contact.firstName',
+      'investmentOpportunityContact.contact.lastName'
+    ],
+    optionSearchPaths: [
+      'investmentOpportunityContact.contact.firstName',
+      'investmentOpportunityContact.contact.lastName'
+    ],
+    optionDistinctOn: ['investmentOpportunityContact.contact.id']
+  },
+  {
+    key: 'accountIds',
+    path: 'opportunityAccounts.accountId',
+    filterLabel: 'Account',
+    kind: 'inIds',
+    optionSelectPaths: ['opportunityAccounts.account.id', 'opportunityAccounts.account.name'],
+    optionSearchPaths: ['opportunityAccounts.account.name'],
+    optionDistinctOn: ['opportunityAccounts.accountId']
+  }
 ]
 
 /**

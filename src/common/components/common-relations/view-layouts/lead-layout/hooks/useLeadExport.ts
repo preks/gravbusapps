@@ -1,56 +1,31 @@
 import { useCallback } from 'react'
-import { formatExportDate } from '@/common/utils/excelExportUtils'
-import { useExportBase } from '@/common/hooks/useExportBase'
 import type { Lead } from '@/common/data/relations/types/leadTypes'
-import { getCatalogEntryValue } from '@/common/data/catalog/utils/catalogTranslationUtils'
+import { useExportBase } from '@/common/hooks/useExportBase'
+import { buildCommonLeadExportFields } from '@/common/components/common-relations/apps/data-export/registries/lead/commonLeadExportFields'
+import {
+  formatEntityForExport,
+  getDateColumnKeys,
+  getDefaultSelectedFieldKeys,
+  resolveExportFields,
+  toExportColumns
+} from '@/common/components/common-relations/apps/data-export/types/exportFieldTypes'
 
-// ─── Column definitions ───────────────────────────────────────────────────────
+const ALL_COMMON_LEAD_EXPORT_FIELDS = buildCommonLeadExportFields()
+const DEFAULT_EXPORT_FIELDS = resolveExportFields(
+  ALL_COMMON_LEAD_EXPORT_FIELDS,
+  getDefaultSelectedFieldKeys(ALL_COMMON_LEAD_EXPORT_FIELDS)
+)
 
-export const LEAD_EXPORT_COLUMNS = [
-  { key: 'firstName', title: 'First Name' },
-  { key: 'lastName', title: 'Last Name' },
-  { key: 'email', title: 'Email' },
-  { key: 'phoneNumber', title: 'Phone' },
-  { key: 'companyName', title: 'Company' },
-  { key: 'jobPosition', title: 'Job Position' },
-  { key: 'leadStatus', title: 'Status' },
-  { key: 'leadRating', title: 'Rating' },
-  { key: 'leadSource', title: 'Source' },
-  { key: 'industryClass', title: 'Industry' },
-  { key: 'ownerEmployee', title: 'Owner' },
-  { key: 'createdAt', title: 'Created Date' }
-] as const
+export const LEAD_EXPORT_COLUMNS = toExportColumns(DEFAULT_EXPORT_FIELDS)
 
-const LEAD_DATE_COLUMN_KEYS = new Set(['createdAt'])
+const LEAD_DATE_COLUMN_KEYS = getDateColumnKeys(DEFAULT_EXPORT_FIELDS)
 
-// ─── Formatters ───────────────────────────────────────────────────────────────
-
-const getOwnerDisplayName = (lead: Lead): string => {
-  const emp = lead.ownerEmployee
-  if (!emp) return '-'
-  return emp.displayName || [emp.firstName, emp.lastName].filter(Boolean).join(' ') || '-'
-}
-
-export const formatLeadForExport = (lead: Lead): Record<string, string> => ({
-  firstName: lead.firstName || '-',
-  lastName: lead.lastName || '-',
-  email: lead.email || '-',
-  phoneNumber: lead.phoneNumber || '-',
-  companyName: lead.companyName || '-',
-  jobPosition: lead.jobPosition || '-',
-  leadStatus: lead.leadStatus ? getCatalogEntryValue(lead.leadStatus as any) || '-' : '-',
-  leadRating: lead.leadRating ? getCatalogEntryValue(lead.leadRating as any) || '-' : '-',
-  leadSource: lead.leadSource ? getCatalogEntryValue(lead.leadSource as any) || '-' : '-',
-  industryClass: lead.industryClass ? getCatalogEntryValue(lead.industryClass as any) || '-' : '-',
-  ownerEmployee: getOwnerDisplayName(lead),
-  createdAt: formatExportDate(lead.createdAt)
-})
-
-// ─── Hook ─────────────────────────────────────────────────────────────────────
+export const formatLeadForExport = (lead: Lead): Record<string, string> =>
+  formatEntityForExport(lead, DEFAULT_EXPORT_FIELDS)
 
 interface UseLeadExportOptions {
-  fetchLeads: (variables: any) => Promise<{ leads?: Lead[]; total?: number }>
-  queryVariables: any
+  fetchLeads: (variables: Record<string, unknown>) => Promise<{ leads?: Lead[]; total?: number }>
+  queryVariables: Record<string, unknown>
   totalCount: number
   filenamePrefix?: string
 }

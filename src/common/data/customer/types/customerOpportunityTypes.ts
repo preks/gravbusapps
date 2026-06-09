@@ -107,9 +107,15 @@ export const CUSTOMER_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
   // Filter out descriptors that need structural overrides or have undefined field paths
   ...createOpportunityDescriptors(CustomerOpportunityFields as Record<keyof typeof OpportunityFields, string>).filter(
     d =>
-      !['account', 'leads', 'notes', 'opportunityContacts', 'opportunityStageConditions', 'rejectionReasons'].includes(
-        d.key
-      )
+      ![
+        'account',
+        'accountIds',
+        'leads',
+        'notes',
+        'opportunityContacts',
+        'opportunityStageConditions',
+        'rejectionReasons'
+      ].includes(d.key)
   ),
   {
     key: 'opportunityStageConditions',
@@ -133,9 +139,33 @@ export const CUSTOMER_OPPORTUNITY_DESCRIPTORS: Descriptor[] = [
   },
 
   // CRM-specific additional fields
-  { key: 'salesCampaignIds', path: 'salesCampaignId', kind: 'inIds' },
-  { key: 'contactIds', path: 'contacts.contact.id', kind: 'inIds' }, // CRM uses "contacts" not "opportunityContacts"
-  { key: 'accountIds', path: 'opportunityAccounts.accountId', kind: 'inIds' }, // Junction table for many-to-many accounts
+  {
+    key: 'salesCampaignIds',
+    path: 'salesCampaignId',
+    filterLabel: 'Sales Campaign',
+    kind: 'inIds',
+    optionSelectPaths: ['salesCampaign.id', 'salesCampaign.name'],
+    optionSearchPaths: ['salesCampaign.name'],
+    optionDistinctOn: ['salesCampaignId']
+  },
+  {
+    key: 'contactIds',
+    path: 'contacts.contact.id',
+    filterLabel: 'Contact',
+    kind: 'inIds',
+    optionSelectPaths: ['contacts.contact.id', 'contacts.contact.firstName', 'contacts.contact.lastName'],
+    optionSearchPaths: ['contacts.contact.firstName', 'contacts.contact.lastName'],
+    optionDistinctOn: ['contacts.contact.id']
+  },
+  {
+    key: 'accountIds',
+    path: 'opportunityAccounts.accountId',
+    filterLabel: 'Account',
+    kind: 'inIds',
+    optionSelectPaths: ['opportunityAccounts.account.id', 'opportunityAccounts.account.name'],
+    optionSearchPaths: ['opportunityAccounts.account.name'],
+    optionDistinctOn: ['opportunityAccounts.accountId']
+  },
   {
     key: 'aiOpportunityScore',
     searchPaths: ['aiOpportunityScore'],

@@ -167,11 +167,27 @@ export const INVESTMENT_LEAD_DESCRIPTORS: Descriptor[] = [
     type: 'text'
   },
 
-  // IRM-specific filter IDs
-  { key: 'investmentGroupIds', path: 'investmentGroupRef', kind: 'inIds' },
+  // IRM-specific filter IDs (with optionSelectPaths for export/list filter dropdowns)
+  {
+    key: 'investmentGroupIds',
+    path: 'investmentGroupRef',
+    filterLabel: 'Investment Group',
+    kind: 'inIds',
+    optionSelectPaths: ['investmentGroup.id', 'investmentGroup.value'],
+    optionSearchPaths: ['investmentGroup.value', 'investmentGroup.code'],
+    optionDistinctOn: ['investmentGroupRef']
+  },
   { key: 'investmentRoleIds', path: 'investmentRoleRef', kind: 'inIds' },
   { key: 'investmentStakeTypeIds', path: 'investmentStakeTypeRef', kind: 'inIds' },
-  { key: 'investmentTypeIds', path: 'investmentTypeRef', kind: 'inIds' },
+  {
+    key: 'investmentTypeIds',
+    path: 'investmentTypeRef',
+    filterLabel: 'Investment Type',
+    kind: 'inIds',
+    optionSelectPaths: ['investmentType.id', 'investmentType.value'],
+    optionSearchPaths: ['investmentType.value', 'investmentType.code'],
+    optionDistinctOn: ['investmentTypeRef']
+  },
   { key: 'legalFormIds', path: 'legalFormRef', kind: 'inIds' },
   { key: 'sizeMeasurementUnitIds', path: 'sizeMeasurementUnitRef', kind: 'inIds' },
   { key: 'timeZoneIds', path: 'timeZoneRef', kind: 'inIds' }

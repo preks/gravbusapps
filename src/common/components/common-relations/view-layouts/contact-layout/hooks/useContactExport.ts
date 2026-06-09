@@ -1,53 +1,31 @@
 import { useCallback } from 'react'
-import { formatExportDate } from '@/common/utils/excelExportUtils'
-import { useExportBase } from '@/common/hooks/useExportBase'
 import type { Contact } from '@/common/data/relations/types/contactTypes'
-import { CommunicationChannelCode } from '@/common/data/common/types/commonTypes'
+import { useExportBase } from '@/common/hooks/useExportBase'
+import { buildCommonContactExportFields } from '@/common/components/common-relations/apps/data-export/registries/contact/commonContactExportFields'
+import {
+  formatEntityForExport,
+  getDateColumnKeys,
+  getDefaultSelectedFieldKeys,
+  resolveExportFields,
+  toExportColumns
+} from '@/common/components/common-relations/apps/data-export/types/exportFieldTypes'
 
-// ─── Column definitions ───────────────────────────────────────────────────────
+const ALL_COMMON_CONTACT_EXPORT_FIELDS = buildCommonContactExportFields()
+const DEFAULT_EXPORT_FIELDS = resolveExportFields(
+  ALL_COMMON_CONTACT_EXPORT_FIELDS,
+  getDefaultSelectedFieldKeys(ALL_COMMON_CONTACT_EXPORT_FIELDS)
+)
 
-export const CONTACT_EXPORT_COLUMNS = [
-  { key: 'firstName', title: 'First Name' },
-  { key: 'lastName', title: 'Last Name' },
-  { key: 'email', title: 'Email' },
-  { key: 'phone', title: 'Phone' },
-  { key: 'department', title: 'Department' },
-  { key: 'jobPosition', title: 'Job Position' },
-  { key: 'ownerEmployee', title: 'Owner' },
-  { key: 'createdAt', title: 'Created Date' }
-] as const
+export const CONTACT_EXPORT_COLUMNS = toExportColumns(DEFAULT_EXPORT_FIELDS)
 
-const CONTACT_DATE_COLUMN_KEYS = new Set(['createdAt'])
+const CONTACT_DATE_COLUMN_KEYS = getDateColumnKeys(DEFAULT_EXPORT_FIELDS)
 
-// ─── Formatters ───────────────────────────────────────────────────────────────
-
-const getChannelValue = (contact: Contact, code: string): string => {
-  const channel = contact.communicationChannels?.find(ch => ch.communicationChannel?.code === code)
-  return channel?.value || '-'
-}
-
-const getOwnerDisplayName = (contact: Contact): string => {
-  const emp = contact.ownerEmployee
-  if (!emp) return '-'
-  return emp.displayName || [emp.firstName, emp.lastName].filter(Boolean).join(' ') || '-'
-}
-
-export const formatContactForExport = (contact: Contact): Record<string, string> => ({
-  firstName: contact.firstName || '-',
-  lastName: contact.lastName || '-',
-  email: getChannelValue(contact, CommunicationChannelCode.EMAIL),
-  phone: getChannelValue(contact, CommunicationChannelCode.PHONE),
-  department: contact.department || '-',
-  jobPosition: contact.jobPosition || '-',
-  ownerEmployee: getOwnerDisplayName(contact),
-  createdAt: formatExportDate(contact.createdAt)
-})
-
-// ─── Hook ─────────────────────────────────────────────────────────────────────
+export const formatContactForExport = (contact: Contact): Record<string, string> =>
+  formatEntityForExport(contact, DEFAULT_EXPORT_FIELDS)
 
 interface UseContactExportOptions {
-  fetchContacts: (variables: any) => Promise<{ contacts?: Contact[]; total?: number }>
-  queryVariables: any
+  fetchContacts: (variables: Record<string, unknown>) => Promise<{ contacts?: Contact[]; total?: number }>
+  queryVariables: Record<string, unknown>
   totalCount: number
   filenamePrefix?: string
 }

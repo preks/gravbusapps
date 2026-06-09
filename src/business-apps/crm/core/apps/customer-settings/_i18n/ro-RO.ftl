@@ -13,6 +13,9 @@ campaign-group-engagement = Engagement
 icp-settings-card-title = Profiluri ICP
 icp-settings-card-description = Definiți profiluri de client ideal cu criterii și ponderi pentru procesul de vânzări.
 icp-settings-card-entry = Gestionați profilurile
+data-export-settings-card-title = Export de date
+data-export-settings-card-description = Exportați înregistrări CRM cu filtre și coloane selectabile
+data-export-settings-card-entry = Exportați date
 
 # Page
 icp-page-title = Profiluri ICP
