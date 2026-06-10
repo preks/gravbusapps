@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react'
+import React, { useMemo } from 'react'
 import { Button, Card, CardContent, useTranslation as useFluentTranslation } from '@newwork/nw-design-system'
 import { SquaresFourIcon, RobotIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -14,38 +14,15 @@ export interface OverviewViewProps extends BusinessAppContextProps {
   subject: Customer360Subject
   snapshot: Customer360Snapshot
   loading?: boolean
-}
-
-function buildAgentHref(): string {
-  if (typeof window === 'undefined') return '?tab=agent'
-  // Return a query-only relative href (e.g. "?tab=agent&..."). The browser
-  // resolves it against the current document URL, so the path is preserved
-  // without interpolating the (tainted) location pathname into the value. The
-  // query is rebuilt through URLSearchParams, so every value is percent-encoded
-  // and the result can never become a cross-origin or "javascript:" URL
-  // (DOM-based XSS hardening, CWE-79).
-  const params = new URLSearchParams(window.location.search)
-  params.set('tab', 'agent')
-  return `?${params.toString()}`
+  onOpenAgent: () => void
 }
 
 /**
  * Overview tab — at-a-glance counts, a condensed journal feed and an entry point
  * into the scoped agent experience.
  */
-const OverviewView: React.FC<OverviewViewProps> = ({ snapshot, loading }) => {
+const OverviewView: React.FC<OverviewViewProps> = ({ snapshot, loading, onOpenAgent }) => {
   const { t } = useFluentTranslation(customer360I18n)
-
-  // Switch to the agent tab client-side (RecordLayout reads the active tab from
-  // the URL via the popstate listener in Customer360Content). Modifier-clicks
-  // fall through to the anchor's href so the tab can still be opened in a new tab.
-  const handleOpenAgent = useCallback((event: React.MouseEvent<HTMLAnchorElement>) => {
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return
-    if (typeof window === 'undefined') return
-    event.preventDefault()
-    window.history.pushState(null, '', buildAgentHref())
-    window.dispatchEvent(new PopStateEvent('popstate'))
-  }, [])
 
   const summary = useMemo(() => {
     const contracts = snapshot.contracts ?? []
@@ -110,10 +87,8 @@ const OverviewView: React.FC<OverviewViewProps> = ({ snapshot, loading }) => {
             <span className="gba:text-base gba:font-semibold">{t('overview-ask-agent-title')}</span>
           </div>
           <p className="gba:text-sm">{t('overview-ask-agent-description')}</p>
-          <Button asChild variant="secondary" size="sm">
-            <a href={buildAgentHref()} onClick={handleOpenAgent} data-testid="customer-360-overview-ask-agent-cta">
-              {t('overview-ask-agent-cta')}
-            </a>
+          <Button variant="secondary" size="sm" onClick={onOpenAgent} data-testid="customer-360-overview-ask-agent-cta">
+            {t('overview-ask-agent-cta')}
           </Button>
         </CardContent>
       </Card>

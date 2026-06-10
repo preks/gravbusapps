@@ -90,6 +90,10 @@ const Customer360Content: React.FC<Customer360ContentProps> = ({ subjectType, su
     window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`)
   }, [])
 
+  const handleOpenAgent = useCallback(() => {
+    handleTabChange('agent')
+  }, [handleTabChange])
+
   const { subject, loading, error } = useCustomerRoot(props.accessToken, subjectType, subjectId)
   const { snapshot, loading: snapshotLoading } = useCustomer360(props.accessToken, subject)
 
@@ -101,7 +105,7 @@ const Customer360Content: React.FC<Customer360ContentProps> = ({ subjectType, su
         value: 'overview',
         label: t('tab-overview'),
         icon: <SquaresFourIcon className="gba:mr-2" />,
-        content: <OverviewView {...shared} />
+        content: <OverviewView {...shared} onOpenAgent={handleOpenAgent} />
       },
       {
         value: 'details',
@@ -152,7 +156,7 @@ const Customer360Content: React.FC<Customer360ContentProps> = ({ subjectType, su
         content: <AgentView {...shared} />
       }
     ]
-  }, [subject, snapshot, snapshotLoading, props, t])
+  }, [subject, snapshot, snapshotLoading, props, t, handleOpenAgent])
 
   if (loading) {
     return (
