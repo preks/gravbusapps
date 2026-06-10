@@ -13,6 +13,7 @@ import {
   AvatarFallback,
   Spinner,
   toast,
+  Toaster,
   useTranslation
 } from '@newwork/nw-design-system'
 import { useScopePermissionCheck } from '@/common/hooks/useScopePermissionCheck'
@@ -722,7 +723,12 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     }
   }, [tabItems, activeTab])
 
-  return renderContent()
+  return (
+    <>
+      <Toaster position="bottom-right" />
+      {renderContent()}
+    </>
+  )
 }
 
 export default EmployeeRecord
