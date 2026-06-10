@@ -1,69 +1,35 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { CheckCircleIcon, XCircleIcon, InfoIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
 import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
 import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
-import { useTranslation } from '@newwork/nw-design-system'
+import { Badge, useTranslation } from '@newwork/nw-design-system'
+import { useSkillCategories } from '@/business-apps/hr/core/apps/employee-record/hooks/useSkillCategories'
 import { DecisionReasonDialog } from '../components/DecisionReasonDialog'
 import approveCreateSkillTranslations from './_i18n/index'
+
 interface NewSkillItem {
   name: string
+  category?: {
+    id?: string | null
+    name?: string | null
+  } | null
 }
+
 interface ApproveCreateSkillProps extends BusinessAppContextProps {
   onClose?: () => void
 }
 
-const temporaryDisabled = true
-const temporaryDisabledMessage =
-  'This approval form is temporarily disabled because the skill functionality is currently being adjusted.'
+function getCategoryLabel(skill: NewSkillItem, categoryMap: Map<string, string>, fallback: string): string {
+  const categoryName = skill.category?.name?.trim()
+  if (categoryName) return categoryName
 
-function ApproveCreateSkillTemporaryDisabled({
-  additionalData,
-  onClose,
-  accessToken
-}: Readonly<ApproveCreateSkillProps>) {
-  const { t } = useTranslation(approveCreateSkillTranslations)
-  const taskPayload = additionalData?.psi_taskPayload || {}
-  const processMetadata = additionalData?.psi_processMetadata || {}
-  const taskTitle = processMetadata?.referenceTaskName ?? t('approve-create-skill-title')
-  const creatorName = taskPayload?.creatorName ?? processMetadata?.creatorName
-  const creatorUserId: string | undefined = processMetadata?.creatorUserId
-  const isEveryBoxContext = !!onClose
+  const categoryId = skill.category?.id
+  if (categoryId) return categoryMap.get(categoryId) ?? categoryId
 
-  const handleClose = () => {
-    if (onClose) {
-      onClose()
-    } else {
-      dispatchProcessContinueEvent('pse_abort', { event: 'pse_abort' })
-    }
-  }
-
-  return (
-    <TaskFormLayout
-      data-testid="approve-create-skill-container"
-      header={
-        <TaskDetailHeader
-          title={taskTitle}
-          showEmployeeInfo
-          creatorName={creatorName}
-          userId={creatorUserId}
-          accessToken={accessToken}
-          onClose={isEveryBoxContext ? handleClose : undefined}
-        />
-      }
-      contentClassName="gba:space-y-4"
-    >
-      <div
-        className="gba:flex gba:items-start gba:gap-3 gba:rounded-md gba:border gba:border-border gba:bg-card/50 gba:px-4 gba:py-3"
-        data-testid="create-skill-temporary-disabled"
-      >
-        <InfoIcon size={16} className="gba:mt-0.5 gba:shrink-0 gba:text-muted-foreground" />
-        <p className="gba:text-sm gba:text-muted-foreground">{temporaryDisabledMessage}</p>
-      </div>
-    </TaskFormLayout>
-  )
+  return fallback
 }
 
 const ApproveCreateSkillContent: React.FC<ApproveCreateSkillProps> = ({ additionalData, onClose, accessToken }) => {
@@ -74,6 +40,7 @@ const ApproveCreateSkillContent: React.FC<ApproveCreateSkillProps> = ({ addition
   const [decisionReasonError, setDecisionReasonError] = useState<string | undefined>()
   const taskPayload = additionalData?.psi_taskPayload || {}
   const processMetadata = additionalData?.psi_processMetadata || {}
+  const skillCategoriesData = useSkillCategories(accessToken)
   const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
   const isTaskCompleted = taskStatus === 'COMPLETED'
   const taskTitle = processMetadata?.referenceTaskName ?? t('approve-create-skill-title')
@@ -83,6 +50,9 @@ const ApproveCreateSkillContent: React.FC<ApproveCreateSkillProps> = ({ addition
     | { newSkills?: NewSkillItem[] }
     | undefined
   const newSkills: NewSkillItem[] = employeeSkills?.newSkills ?? []
+  const categoryMap = useMemo(() => {
+    return new Map(skillCategoriesData.categories.map(category => [category.id, category.name]))
+  }, [skillCategoriesData.categories])
   const isEveryBoxContext = !!onClose
   const handleClose = () => {
     if (onClose) {
@@ -204,11 +174,11 @@ const ApproveCreateSkillContent: React.FC<ApproveCreateSkillProps> = ({ addition
           </p>
         )}
         {newSkills.length > 0 && (
-          <div className="gba:space-y-3 gba:w-1/2" data-testid="create-skill-list">
+          <div className="gba:space-y-3 gba:w-full" data-testid="create-skill-list">
             {newSkills.map(skill => (
               <div
                 key={skill.name}
-                className="gba:flex gba:items-center gba:rounded-md gba:border gba:border-border gba:bg-muted/40 gba:px-4 gba:py-3"
+                className="gba:flex gba:flex-col gba:gap-2 gba:rounded-md gba:border gba:border-border gba:bg-muted/40 gba:px-4 gba:py-3"
                 data-testid={`create-skill-row-${skill.name}`}
               >
                 <span
@@ -218,6 +188,12 @@ const ApproveCreateSkillContent: React.FC<ApproveCreateSkillProps> = ({ addition
                 >
                   {skill.name}
                 </span>
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <span className="gba:text-xs gba:text-muted-foreground">{t('approve-create-skill-category')}</span>
+                  <Badge variant="secondary" data-testid={`create-skill-category-${skill.name}`}>
+                    {getCategoryLabel(skill, categoryMap, t('approve-create-skill-category-missing'))}
+                  </Badge>
+                </div>
               </div>
             ))}
           </div>
@@ -252,12 +228,6 @@ const ApproveCreateSkillContent: React.FC<ApproveCreateSkillProps> = ({ addition
   )
 }
 
-export const ApproveCreateSkill: React.FC<ApproveCreateSkillProps> = props => {
-  if (temporaryDisabled) {
-    return <ApproveCreateSkillTemporaryDisabled {...props} />
-  }
-
-  return <ApproveCreateSkillContent {...props} />
-}
+export const ApproveCreateSkill: React.FC<ApproveCreateSkillProps> = props => <ApproveCreateSkillContent {...props} />
 
 export default ApproveCreateSkill

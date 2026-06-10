@@ -13,6 +13,7 @@ export interface SkillLevelRowProps {
   dataTestIdPrefix?: string
   removeButtonTestId?: string
   actionButton?: React.ReactNode
+  bottomContent?: React.ReactNode
   index?: number
   rowId?: string
   /** When false, the Remove button is not rendered (e.g. single-skill level update). */
@@ -28,6 +29,7 @@ export const SkillLevelRow: React.FC<SkillLevelRowProps> = ({
   dataTestIdPrefix = 'job-profile',
   removeButtonTestId,
   actionButton,
+  bottomContent,
   index,
   rowId,
   showRemove = true,
@@ -38,45 +40,48 @@ export const SkillLevelRow: React.FC<SkillLevelRowProps> = ({
   else if (index !== undefined) suffix = `-${index}`
   return (
     <div
-      className="gba:border gba:border-border gba:rounded-md gba:p-4"
+      className="gba:border gba:border-border gba:rounded-md gba:p-4 gba:flex gba:items-center gba:gap-3"
       data-testid={`${dataTestIdPrefix}-skill-row${suffix}`}
     >
-      <div className="gba:flex gba:items-center gba:gap-3">
-        <Badge
-          variant="secondary"
-          className="gba:flex gba:items-center gba:gap-2 gba:h-10 gba:py-0 gba:px-4 gba:text-sm gba:flex-1 gba:min-w-0"
-          data-testid={`${dataTestIdPrefix}-skill-badge${suffix}`}
-        >
-          <span className="gba:flex-1 gba:min-w-0 gba:px-1 gba:truncate" title={skillName || ''}>
-            {skillName || 'Unknown Skill'}
-          </span>
-          {statusLabel && (
-            <Badge variant="destructive" className="gba:shrink-0 gba:py-0 gba:px-2 gba:text-xs">
-              {statusLabel}
-            </Badge>
-          )}
-        </Badge>
-
-        <div className="gba:w-24 gba:flex-shrink-0">{levelContent}</div>
-
-        {actionButton}
-
-        {showRemove && (
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            onClick={onRemove}
-            className="gba:flex-shrink-0"
-            data-testid={removeButtonTestId || `${dataTestIdPrefix}-remove-skill`}
+      <div className="gba:flex-col gba:flex-1">
+        <div className="gba:flex gba:items-center gba:gap-3">
+          <Badge
+            variant="secondary"
+            className="gba:flex gba:items-center gba:gap-2 gba:h-10 gba:py-0 gba:px-4 gba:text-sm gba:flex-1 gba:min-w-0"
+            data-testid={`${dataTestIdPrefix}-skill-badge${suffix}`}
           >
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:employee_profile.details_layout.add_skill_form.remove_aria_label',
-              'Remove'
+            <span className="gba:flex-1 gba:min-w-0 gba:px-1 gba:truncate" title={skillName || ''}>
+              {skillName || 'Unknown Skill'}
+            </span>
+            {statusLabel && (
+              <Badge variant="destructive" className="gba:shrink-0 gba:py-0 gba:px-2 gba:text-xs">
+                {statusLabel}
+              </Badge>
             )}
-          </Button>
-        )}
+          </Badge>
+
+          <div>{levelContent}</div>
+
+          {actionButton}
+        </div>
+
+        {bottomContent && <div className="gba:mt-3">{bottomContent}</div>}
       </div>
+      {showRemove && (
+        <Button
+          type="button"
+          variant="destructive"
+          size="sm"
+          onClick={onRemove}
+          className="gba:shrink-0 gba:self-center"
+          data-testid={removeButtonTestId || `${dataTestIdPrefix}-remove-skill`}
+        >
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:employee_profile.details_layout.add_skill_form.remove_aria_label',
+            'Remove'
+          )}
+        </Button>
+      )}
     </div>
   )
 }
