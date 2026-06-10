@@ -49,6 +49,8 @@ export interface UseSpreadsheetViewerSessionModelParams {
     Map<string, { data: Record<string, unknown>[]; persistedRows: Record<string, unknown>[] }>
   >
   latestUniverDataRef: MutableRefObject<{ data: Record<string, unknown>[]; sheetId: string } | null>
+  sheetsNeedingGridMaterializationRef?: MutableRefObject<Map<string, string>>
+  requestCanonicalGridMaterialization?: (sheetId: string, reason: string) => void
   setActiveSheetId: (nextId: string) => void
   onRowsStateUpdated?: (
     sheetId: string,
@@ -354,6 +356,9 @@ export function useSpreadsheetViewerSessionModel(params: UseSpreadsheetViewerSes
     resolveKnownSheetVersion: params.resolveKnownSheetVersion,
     resolveCanonicalSheetId,
     buildFullAuthoritativeGridRegion,
+    getGridMaterializationReason: sheetId =>
+      params.sheetsNeedingGridMaterializationRef?.current.get(resolveCanonicalSheetId(sheetId)),
+    requestCanonicalGridMaterialization: params.requestCanonicalGridMaterialization,
     commitLocalSheetData
   })
 

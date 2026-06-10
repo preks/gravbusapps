@@ -10,6 +10,7 @@ export type UniverMountWorksheetSelectionChromeRefs = Pick<
   | 'copiedSelectionAnchorRef'
   | 'pendingFormattingPasteIntentRef'
   | 'lastEmittedWorksheetIdRef'
+  | 'suppressWorksheetSelectionEmitRef'
   | 'callbacksRef'
 >
 
@@ -24,6 +25,7 @@ export function createUniverMountWorksheetSelectionChrome(refs: UniverMountWorks
     copiedSelectionAnchorRef,
     pendingFormattingPasteIntentRef,
     lastEmittedWorksheetIdRef,
+    suppressWorksheetSelectionEmitRef,
     callbacksRef
   } = refs
 
@@ -126,6 +128,16 @@ export function createUniverMountWorksheetSelectionChrome(refs: UniverMountWorks
       const activeWorksheet = wb?.getActiveSheet?.()
       const worksheetId = activeWorksheet?.getSheetId?.()
       if (!worksheetId || worksheetId === lastEmittedWorksheetIdRef.current) return
+      const suppressedSelection = suppressWorksheetSelectionEmitRef.current
+      if (suppressedSelection) {
+        if (Date.now() > suppressedSelection.untilMs) {
+          suppressWorksheetSelectionEmitRef.current = null
+        } else if (worksheetId !== suppressedSelection.expectedSheetId) {
+          return
+        } else {
+          suppressWorksheetSelectionEmitRef.current = null
+        }
+      }
       lastEmittedWorksheetIdRef.current = worksheetId
       const worksheetName = typeof activeWorksheet?.getSheetName === 'function' ? activeWorksheet.getSheetName() : ''
       restoreCopiedSelectionAnchorOnSheetSwitch(worksheetId)

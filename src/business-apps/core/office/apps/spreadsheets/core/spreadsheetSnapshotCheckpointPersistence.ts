@@ -341,6 +341,8 @@ export async function persistSpreadsheetSnapshotCheckpointForSheet(
         rowCount: rowsForAuthoritativeSnapshot.length
       }
     })
+    const shouldPreserveLiveWorkbookValues =
+      isTargetActiveSheet && rowsForAuthoritativeSnapshotValueCount < liveSnapshotValueCount
     if (rowsForAuthoritativeSnapshotValueCount < liveSnapshotValueCount) {
       ctx.debugLog('snapshot checkpoint: replacing richer live workbook values with authoritative rows', {
         appId: ctx.appId,
@@ -349,12 +351,22 @@ export async function persistSpreadsheetSnapshotCheckpointForSheet(
         liveSnapshotValueCount
       })
     }
-    const snapshotToPersistBase = mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(
-      snapshot as Record<string, unknown>,
-      targetSheetId,
-      rowsForAuthoritativeSnapshot,
-      targetSheetMeta.columns
-    )
+    if (shouldPreserveLiveWorkbookValues) {
+      ctx.debugLog('snapshot checkpoint: preserving richer live workbook values for active sheet', {
+        appId: ctx.appId,
+        sheetId: targetSheetId,
+        rowsForAuthoritativeSnapshotValueCount,
+        liveSnapshotValueCount
+      })
+    }
+    const snapshotToPersistBase = shouldPreserveLiveWorkbookValues
+      ? (snapshot as Record<string, unknown>)
+      : mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(
+          snapshot as Record<string, unknown>,
+          targetSheetId,
+          rowsForAuthoritativeSnapshot,
+          targetSheetMeta.columns
+        )
     const snapshotToPersist = attachSnapshotCoversVersions(
       normalizeWorkbookSnapshotToAppSheets(
         clearSnapshotCellsByCoordinate(snapshotToPersistBase, targetSheetId, pendingSnapshotClearCells),
@@ -394,12 +406,14 @@ export async function persistSpreadsheetSnapshotCheckpointForSheet(
         attachSnapshotCoversVersions(
           normalizeWorkbookSnapshotToAppSheets(
             clearSnapshotCellsByCoordinate(
-              mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(
-                currentSnapshot as Record<string, unknown>,
-                targetSheetId,
-                rowsForAuthoritativeSnapshot,
-                targetSheetMeta.columns
-              ),
+              shouldPreserveLiveWorkbookValues
+                ? (currentSnapshot as Record<string, unknown>)
+                : mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(
+                    currentSnapshot as Record<string, unknown>,
+                    targetSheetId,
+                    rowsForAuthoritativeSnapshot,
+                    targetSheetMeta.columns
+                  ),
               targetSheetId,
               getPendingSnapshotClearCoordinates(ctx.pendingSnapshotClearCellsRef.current, targetSheetId)
             ),

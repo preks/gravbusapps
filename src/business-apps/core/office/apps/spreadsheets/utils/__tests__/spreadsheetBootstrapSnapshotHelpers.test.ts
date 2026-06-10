@@ -9,7 +9,8 @@ import {
   enrichBootstrapSnapshotFromOlderCacheFormatting,
   fetchBootstrapSnapshotRemoteComparedToBaseline,
   getBootstrapSnapshotCoverageVersion,
-  selectBootstrapWorksheetSnapshotForPipeline
+  selectBootstrapWorksheetSnapshotForPipeline,
+  validateActiveSheetBootstrapSnapshot
 } from '../spreadsheetBootstrapSnapshotHelpers'
 
 const fooColumn = (): SpreadsheetColumn => ({
@@ -120,6 +121,148 @@ describe('chooseBootstrapWorkbookCandidate', () => {
     })
     expect(picked.source).toBe('cache')
     expect(picked.version).toBe(500)
+  })
+
+  it('prefers the structurally valid candidate over higher coverage', () => {
+    const picked = chooseBootstrapWorkbookCandidate({
+      activeSheetId: 'sh1',
+      minVersion: 100,
+      baseline: cacheCandidate(999, 999),
+      remoteResult: remoteCandidate(110, 110),
+      baselineValidationResult: {
+        valid: false,
+        safety: 'unsafe',
+        reason: 'row_mismatch',
+        rowMismatch: true,
+        trackingHeaderMatches: true,
+        formattingScore: 0
+      },
+      remoteValidationResult: {
+        valid: true,
+        safety: 'safe',
+        reason: null,
+        rowMismatch: false,
+        trackingHeaderMatches: true,
+        formattingScore: 0
+      }
+    })
+    expect(picked.source).toBe('remote')
+  })
+
+  it('prefers the richer-formatting candidate when both are otherwise safe', () => {
+    const picked = chooseBootstrapWorkbookCandidate({
+      activeSheetId: 'sh1',
+      minVersion: 100,
+      baseline: cacheCandidate(111, 120),
+      remoteResult: remoteCandidate(120, 140),
+      baselineValidationResult: {
+        valid: true,
+        safety: 'safe',
+        reason: null,
+        rowMismatch: false,
+        trackingHeaderMatches: true,
+        formattingScore: 8
+      },
+      remoteValidationResult: {
+        valid: true,
+        safety: 'safe',
+        reason: null,
+        rowMismatch: false,
+        trackingHeaderMatches: true,
+        formattingScore: 2
+      }
+    })
+    expect(picked.source).toBe('cache')
+  })
+})
+
+describe('validateActiveSheetBootstrapSnapshot', () => {
+  it('rejects snapshots whose active-sheet cell data mismatches canonical rows', () => {
+    const result = validateActiveSheetBootstrapSnapshot({
+      snapshot: {
+        sheetOrder: ['sh1'],
+        sheets: {
+          sh1: {
+            id: 'sh1',
+            name: 'Sheet 1',
+            cellData: {
+              0: { 0: { v: 'stale' } }
+            }
+          }
+        }
+      },
+      activeSheetId: 'sh1',
+      canonicalSheetMeta: minimalSheet(),
+      canonicalRows: [{ _id: 'r1', foo: 'fresh' }]
+    })
+
+    expect(result).toEqual({
+      valid: false,
+      safety: 'unsafe',
+      reason: 'row_mismatch',
+      rowMismatch: true,
+      trackingHeaderMatches: true,
+      formattingScore: 0
+    })
+  })
+
+  it('accepts snapshots whose active sheet matches canonical rows', () => {
+    const result = validateActiveSheetBootstrapSnapshot({
+      snapshot: {
+        sheetOrder: ['sh1'],
+        sheets: {
+          sh1: {
+            id: 'sh1',
+            name: 'Sheet 1',
+            cellData: {
+              0: { 0: { v: 'fresh' } }
+            }
+          }
+        }
+      },
+      activeSheetId: 'sh1',
+      canonicalSheetMeta: minimalSheet(),
+      canonicalRows: [{ _id: 'r1', foo: 'fresh' }]
+    })
+
+    expect(result).toEqual({
+      valid: true,
+      safety: 'safe',
+      reason: null,
+      rowMismatch: false,
+      trackingHeaderMatches: true,
+      formattingScore: 0
+    })
+  })
+
+  it('keeps snapshot-only values usable when canonical rows do not positively conflict', () => {
+    const result = validateActiveSheetBootstrapSnapshot({
+      snapshot: {
+        sheetOrder: ['sh1'],
+        sheets: {
+          sh1: {
+            id: 'sh1',
+            name: 'Sheet 1',
+            cellData: {
+              0: { 0: { v: 'fresh' } },
+              13: { 0: { v: 'snapshot-only' } }
+            }
+          }
+        }
+      },
+      activeSheetId: 'sh1',
+      canonicalSheetMeta: minimalSheet(),
+      canonicalRows: [{ _id: 'r1', foo: 'fresh' }]
+    })
+
+    expect(result).toEqual({
+      valid: true,
+      safety: 'safe',
+      reason: null,
+      rowMismatch: false,
+      trackingHeaderMatches: true,
+      formattingScore: 0
+    })
   })
 })
 

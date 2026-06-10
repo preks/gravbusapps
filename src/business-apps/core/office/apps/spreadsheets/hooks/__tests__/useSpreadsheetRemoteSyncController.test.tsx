@@ -114,7 +114,7 @@ describe('useSpreadsheetRemoteSyncController', () => {
   })
 
   it('reloads active sheet snapshots using refreshed recovered column order', async () => {
-    jest.spyOn(SpreadsheetApiService, 'getSheetSnapshot').mockResolvedValue({
+    jest.spyOn(SpreadsheetApiService, 'getSheetHydrationSnapshot').mockResolvedValue({
       sheet: {
         id: 'sheet-1',
         name: 'Sheet 1',
@@ -125,7 +125,11 @@ describe('useSpreadsheetRemoteSyncController', () => {
         settings: {}
       },
       rows: [{ id: 'row-1', data: { A: 1, B: 2, C: 4 } }],
-      version: 3
+      operationVersion: 3,
+      sheetSnapshotVersion: 1,
+      worksheetSnapshot: null,
+      workbookDependencies: {},
+      workbookSnapshotVersion: 3
     } as any)
     jest.spyOn(SpreadsheetApiService, 'getUniverSnapshot').mockResolvedValue({
       version: 3,
@@ -257,8 +261,8 @@ describe('useSpreadsheetRemoteSyncController', () => {
     const snapshotPromise = new Promise(resolve => {
       resolveSnapshot = resolve
     })
-    const getSheetSnapshot = jest
-      .spyOn(SpreadsheetApiService, 'getSheetSnapshot')
+    const getSheetHydrationSnapshot = jest
+      .spyOn(SpreadsheetApiService, 'getSheetHydrationSnapshot')
       .mockImplementation(() => snapshotPromise as Promise<any>)
     jest.spyOn(SpreadsheetApiService, 'getUniverSnapshot').mockResolvedValue({
       version: 3,
@@ -327,12 +331,16 @@ describe('useSpreadsheetRemoteSyncController', () => {
     const firstReload = result.current.reloadSheetFromCanonicalSnapshot('remote-structural-resync', 'sheet-1')
     const secondReload = result.current.reloadSheetFromCanonicalSnapshot('delta-catchup-version-gap', 'sheet-1')
 
-    expect(getSheetSnapshot).toHaveBeenCalledTimes(1)
+    expect(getSheetHydrationSnapshot).toHaveBeenCalledTimes(1)
 
     resolveSnapshot?.({
       sheet: activeSheet,
       rows: [{ id: 'row-1', data: { A: 1 } }],
-      version: 3
+      operationVersion: 3,
+      sheetSnapshotVersion: 1,
+      worksheetSnapshot: null,
+      workbookDependencies: {},
+      workbookSnapshotVersion: 3
     })
 
     await expect(firstReload).resolves.toBe(true)
@@ -350,7 +358,7 @@ describe('useSpreadsheetRemoteSyncController', () => {
 
   it('cancels a pending structural resync timeout once an immediate reload begins', async () => {
     jest.useFakeTimers()
-    jest.spyOn(SpreadsheetApiService, 'getSheetSnapshot').mockResolvedValue({
+    jest.spyOn(SpreadsheetApiService, 'getSheetHydrationSnapshot').mockResolvedValue({
       sheet: {
         id: 'sheet-1',
         name: 'Sheet 1',
@@ -361,7 +369,11 @@ describe('useSpreadsheetRemoteSyncController', () => {
         settings: {}
       },
       rows: [{ id: 'row-1', data: { A: 1 } }],
-      version: 3
+      operationVersion: 3,
+      sheetSnapshotVersion: 1,
+      worksheetSnapshot: null,
+      workbookDependencies: {},
+      workbookSnapshotVersion: 3
     } as any)
     jest.spyOn(SpreadsheetApiService, 'getUniverSnapshot').mockResolvedValue({
       version: 3,
@@ -430,7 +442,7 @@ describe('useSpreadsheetRemoteSyncController', () => {
     await result.current.reloadSheetFromCanonicalSnapshot('delta-catchup-version-gap', 'sheet-1')
     jest.advanceTimersByTime(500)
 
-    expect(SpreadsheetApiService.getSheetSnapshot).toHaveBeenCalledTimes(1)
+    expect(SpreadsheetApiService.getSheetHydrationSnapshot).toHaveBeenCalledTimes(1)
     expect(requestGridRefresh).toHaveBeenCalledTimes(1)
     jest.useRealTimers()
   })
@@ -492,7 +504,7 @@ describe('useSpreadsheetRemoteSyncController', () => {
     }
 
     it('skips a non-cold-start reload while the work queue still has pending persist', async () => {
-      const getSheetSnapshot = jest.spyOn(SpreadsheetApiService, 'getSheetSnapshot')
+      const getSheetHydrationSnapshot = jest.spyOn(SpreadsheetApiService, 'getSheetHydrationSnapshot')
       const enqueueDiagnosticsTraceEvent = jest.fn()
       const params = buildControllerParams({
         enqueueDiagnosticsTraceEvent,
@@ -504,7 +516,7 @@ describe('useSpreadsheetRemoteSyncController', () => {
       const reloaded = await result.current.reloadSheetFromCanonicalSnapshot('delta-catchup-version-gap', 'sheet-1')
 
       expect(reloaded).toBe(false)
-      expect(getSheetSnapshot).not.toHaveBeenCalled()
+      expect(getSheetHydrationSnapshot).not.toHaveBeenCalled()
       expect(enqueueDiagnosticsTraceEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           stage: 'client_snapshot_reload_skipped',
@@ -518,7 +530,7 @@ describe('useSpreadsheetRemoteSyncController', () => {
     })
 
     it('skips an active-sheet reload while transient local grid state still exists', async () => {
-      const getSheetSnapshot = jest.spyOn(SpreadsheetApiService, 'getSheetSnapshot')
+      const getSheetHydrationSnapshot = jest.spyOn(SpreadsheetApiService, 'getSheetHydrationSnapshot')
       const enqueueDiagnosticsTraceEvent = jest.fn()
       const params = buildControllerParams({
         enqueueDiagnosticsTraceEvent,
@@ -530,7 +542,7 @@ describe('useSpreadsheetRemoteSyncController', () => {
       const reloaded = await result.current.reloadSheetFromCanonicalSnapshot('delta-catchup-version-gap', 'sheet-1')
 
       expect(reloaded).toBe(false)
-      expect(getSheetSnapshot).not.toHaveBeenCalled()
+      expect(getSheetHydrationSnapshot).not.toHaveBeenCalled()
       expect(enqueueDiagnosticsTraceEvent).toHaveBeenCalledWith(
         expect.objectContaining({
           stage: 'client_snapshot_reload_skipped',
@@ -543,8 +555,59 @@ describe('useSpreadsheetRemoteSyncController', () => {
       )
     })
 
+    it('skips an inactive-sheet reload while transient local grid state still exists for that sheet', async () => {
+      const getSheetHydrationSnapshot = jest.spyOn(SpreadsheetApiService, 'getSheetHydrationSnapshot')
+      const enqueueDiagnosticsTraceEvent = jest.fn()
+      const activeSheet = {
+        id: 'sheet-1',
+        name: 'Sheet 1',
+        viewType: 'table',
+        columns: [col('col-a', 'A', 0)],
+        views: [],
+        data: [],
+        settings: {}
+      } as any
+      const inactiveSheet = {
+        id: 'sheet-2',
+        name: 'Sheet 2',
+        viewType: 'table',
+        columns: [col('col-b', 'B', 0)],
+        views: [],
+        data: [],
+        settings: {}
+      } as any
+
+      const { result } = renderHook(() =>
+        useSpreadsheetRemoteSyncController({
+          ...buildControllerParams({
+            enqueueDiagnosticsTraceEvent,
+            activeSheet,
+            activeSheetId: 'sheet-1',
+            activeSheetIdRef: { current: 'sheet-1' },
+            appSheetsRef: { current: [activeSheet, inactiveSheet] },
+            hasTransientLocalGridStateForSheet: jest.fn((sheetId: string) => sheetId === 'sheet-2')
+          } as any)
+        })
+      )
+
+      const reloaded = await result.current.reloadSheetFromCanonicalSnapshot('delta-catchup-version-gap', 'sheet-2')
+
+      expect(reloaded).toBe(false)
+      expect(getSheetHydrationSnapshot).not.toHaveBeenCalled()
+      expect(enqueueDiagnosticsTraceEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          stage: 'client_snapshot_reload_skipped',
+          payload: expect.objectContaining({
+            reason: 'transient-local-grid-state',
+            hasTransientLocalGridState: true,
+            targetSheetId: 'sheet-2'
+          })
+        })
+      )
+    })
+
     it('still performs a cold-start reload even when pending persist is reported', async () => {
-      jest.spyOn(SpreadsheetApiService, 'getSheetSnapshot').mockResolvedValue({
+      jest.spyOn(SpreadsheetApiService, 'getSheetHydrationSnapshot').mockResolvedValue({
         sheet: {
           id: 'sheet-1',
           name: 'Sheet 1',
@@ -555,7 +618,11 @@ describe('useSpreadsheetRemoteSyncController', () => {
           settings: {}
         },
         rows: [{ id: 'row-1', data: { A: 1 } }],
-        version: 3
+        operationVersion: 3,
+        sheetSnapshotVersion: 1,
+        worksheetSnapshot: null,
+        workbookDependencies: {},
+        workbookSnapshotVersion: 3
       } as any)
       jest.spyOn(SpreadsheetApiService, 'getUniverSnapshot').mockResolvedValue({
         version: 3,
@@ -573,7 +640,7 @@ describe('useSpreadsheetRemoteSyncController', () => {
       const reloaded = await result.current.reloadSheetFromCanonicalSnapshot('workbook-bootstrap', 'sheet-1')
 
       expect(reloaded).toBe(true)
-      expect(SpreadsheetApiService.getSheetSnapshot).toHaveBeenCalledTimes(1)
+      expect(SpreadsheetApiService.getSheetHydrationSnapshot).toHaveBeenCalledTimes(1)
     })
   })
 })

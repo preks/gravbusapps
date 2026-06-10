@@ -10,6 +10,10 @@ export interface UseSpreadsheetWorksheetContextBridgeParams {
   sheets: SpreadsheetSheet[]
   activeSheetIdRef: MutableRefObject<string>
   createdSheetIdAliasesRef: MutableRefObject<Map<string, string>>
+  programmaticWorksheetActivationGuardRef?: MutableRefObject<{
+    expectedActiveSheetId: string
+    expiresAt: number
+  } | null>
   pendingCreatedSheetSelectionRef: MutableRefObject<{
     temporarySheetId: string
     persistedSheetId: string | null
@@ -32,6 +36,7 @@ export function useSpreadsheetWorksheetContextBridge(
     sheets,
     activeSheetIdRef,
     createdSheetIdAliasesRef,
+    programmaticWorksheetActivationGuardRef,
     pendingCreatedSheetSelectionRef,
     peerSheetDataCacheRef,
     getActiveSessionRows,
@@ -46,6 +51,28 @@ export function useSpreadsheetWorksheetContextBridge(
         activeSheetIdRef.current,
         createdSheetIdAliasesRef.current
       )
+      const programmaticWorksheetActivationGuard = programmaticWorksheetActivationGuardRef?.current
+      if (programmaticWorksheetActivationGuard) {
+        const expectedActiveSheetId = resolveReconciledSheetId(
+          programmaticWorksheetActivationGuard.expectedActiveSheetId,
+          createdSheetIdAliasesRef.current
+        )
+        if (Date.now() > programmaticWorksheetActivationGuard.expiresAt) {
+          programmaticWorksheetActivationGuardRef.current = null
+        } else if (canonicalWorksheetId === expectedActiveSheetId) {
+          programmaticWorksheetActivationGuardRef.current = null
+        } else if (canonicalActiveSheetId === expectedActiveSheetId) {
+          debugLog('ignoring worksheet change during programmatic worksheet activation', {
+            worksheetId,
+            canonicalWorksheetId,
+            canonicalActiveSheetId,
+            expectedActiveSheetId
+          })
+          return
+        } else {
+          programmaticWorksheetActivationGuardRef.current = null
+        }
+      }
       const pendingCreatedSheetSelection = pendingCreatedSheetSelectionRef.current
       if (pendingCreatedSheetSelection) {
         const expectedSheetIds = new Set(
@@ -82,6 +109,7 @@ export function useSpreadsheetWorksheetContextBridge(
       createdSheetIdAliasesRef,
       debugLog,
       pendingCreatedSheetSelectionRef,
+      programmaticWorksheetActivationGuardRef,
       setActiveSheetIdWithPeerCache,
       sheets
     ]

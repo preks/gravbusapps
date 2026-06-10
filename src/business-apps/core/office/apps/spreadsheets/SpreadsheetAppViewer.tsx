@@ -19,7 +19,17 @@ import {
 
 import { useSpreadsheetViewerState } from './hooks/useSpreadsheetViewerState'
 import { resolveSpreadsheetKnownSheetRouting } from './utils/spreadsheetKnownSheetRouting'
+import { prefersCanonicalReloadForMaterializationReason } from './utils/spreadsheetGridMaterialization'
 import { sortSpreadsheetRowsBySheetSettings } from './utils/spreadsheetSheetRowSort'
+import { mergeSheetColumnVisibilityFromLocal } from './utils/spreadsheetColumnVisibilityMetadata'
+import {
+  getRecentLocalSnapshotMutation,
+  isSnapshotMutatingOperationType,
+  markRecentLocalSnapshotMutation,
+  shouldSkipActiveSheetSnapshotHydration,
+  shouldDeferHydrationForRecentLocalSnapshotMutation,
+  type SheetHydrationReason
+} from './utils/spreadsheetRecentLocalSnapshotMutation'
 import { attachSnapshotCoversVersions, mergeSnapshotCoversVersions } from './utils/spreadsheetSnapshotCoverage'
 import {
   useSpreadsheetBootstrapSnapshotPipeline,
@@ -351,7 +361,8 @@ import {
   protectSpreadsheetPendingLocalMutationCells,
   releaseSpreadsheetPendingLocalMutationCells,
   spreadsheetPendingLocalMutationCoordinateCellKey,
-  spreadsheetPendingLocalMutationSemanticCellKey
+  spreadsheetPendingLocalMutationSemanticCellKey,
+  summarizeSpreadsheetPendingLocalMutationProtection
 } from './utils/spreadsheetPendingMaterializationCells'
 import { promoteSpreadsheetRowIdentities } from './utils/spreadsheetRowIdentityPromotion'
 import {
@@ -521,6 +532,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     Map<string, { data: Record<string, unknown>[]; persistedRows: Record<string, unknown>[] }>
   >(new Map())
   const pendingLocalMutationCellsRef = useRef<Set<string>>(new Set())
+  const recentLocalSnapshotMutationsRef = useRef(new Map())
   const spreadsheetIntentJournalRef = useRef(new SpreadsheetIntentJournal())
   const versionCausalOwnershipRef = useRef(new SpreadsheetVersionCausalOwnershipRegistry())
   const liveRemoteApplyVersionRef = useRef<SpreadsheetLiveRemoteApplyVersionScope | null>(null)
@@ -539,6 +551,30 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     []
   )
   const createdSheetIdAliasesRef = useRef<Map<string, string>>(new Map())
+  const markRecentLocalSnapshotMutationForSheet = useCallback((targetSheetId: string, source: string) => {
+    const canonicalTargetSheetId = resolveReconciledSheetId(targetSheetId, createdSheetIdAliasesRef.current)
+    markRecentLocalSnapshotMutation(recentLocalSnapshotMutationsRef.current, canonicalTargetSheetId, source)
+  }, [])
+  const getRecentLocalSnapshotMutationForSheet = useCallback((targetSheetId: string) => {
+    const canonicalTargetSheetId = resolveReconciledSheetId(targetSheetId, createdSheetIdAliasesRef.current)
+    return getRecentLocalSnapshotMutation(recentLocalSnapshotMutationsRef.current, canonicalTargetSheetId)
+  }, [])
+  const shouldDeferHydrationForRecentLocalSnapshotMutationForSheet = useCallback(
+    (targetSheetId: string, reason: SheetHydrationReason): boolean => {
+      const canonicalTargetSheetId = resolveReconciledSheetId(targetSheetId, createdSheetIdAliasesRef.current)
+      const canonicalActiveSheetId = resolveReconciledSheetId(
+        activeSheetIdRef.current,
+        createdSheetIdAliasesRef.current
+      )
+      return shouldDeferHydrationForRecentLocalSnapshotMutation({
+        state: recentLocalSnapshotMutationsRef.current,
+        targetSheetId: canonicalTargetSheetId,
+        activeSheetId: canonicalActiveSheetId,
+        reason
+      })
+    },
+    []
+  )
   const onPersistedSheetReadyRef = useRef<(() => void) | null>(null)
   const pendingCreatedSheetSelectionRef = useRef<{ temporarySheetId: string; persistedSheetId: string | null } | null>(
     null
@@ -566,6 +602,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const isCollaborationJoinedRef = useRef(false)
   const scheduleSheetVersionRefreshFromApiRef = useRef<() => void>(() => {})
   const sheetsNeedingGridMaterializationRef = useRef<Map<string, string>>(new Map())
+  const requestCanonicalGridMaterializationRef = useRef<(sheetId: string, reason: string) => void>(() => {})
   const UNIVER_DATA_CHANGE_DEBOUNCE_MS = 250
   // 400ms debounce batches rapid keystrokes into a single flush without noticeable delay.
   const CELL_PERSIST_DEBOUNCE_MS = 250
@@ -587,6 +624,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   })
   const activeSheetIdRef = useRef(activeSheetId)
   activeSheetIdRef.current = activeSheetId
+  const programmaticWorksheetActivationGuardRef = useRef<{
+    expectedActiveSheetId: string
+    expiresAt: number
+  } | null>(null)
   const {
     showDiagnosticsButton,
     diagnosticsBrowserSessionIdRef,
@@ -627,8 +668,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     workbookSnapshotCoversVersionsRef,
     knownSheetVersionsRef,
     rememberSheetVersion,
+    rememberSheetSnapshotVersion,
+    resolveTrackedSheetVersion,
     resolveKnownSheetVersion,
+    resolveTrackedSheetSnapshotVersion,
     rememberKnownSheetVersion,
+    rememberKnownSheetSnapshotVersion,
     getKnownSheetVersion,
     updateActiveSheetVersion,
     refreshBaseVersionBeforeWrite,
@@ -669,7 +714,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
   const getActiveSessionRows = useCallback(
     (): Record<string, unknown>[] => spreadsheetSession.getActiveSheetState()?.rows ?? [],
-    [spreadsheetSession]
+    [debugLog, spreadsheetSession]
   )
 
   const getPersistedBaselineRowsForSheet = useCallback(
@@ -748,6 +793,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     spreadsheetGridRef,
     pendingUniverRowsBySheetRef,
     latestUniverDataRef,
+    sheetsNeedingGridMaterializationRef,
+    requestCanonicalGridMaterialization: (sheetId, reason) =>
+      requestCanonicalGridMaterializationRef.current(sheetId, reason),
     setActiveSheetId,
     onRowsStateUpdated: syncRowSlotIdentityRegistry
   })
@@ -898,34 +946,64 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     pendingCreatedSheetReconciliationRef.current = null
     pendingUniverRowsBySheetRef.current.clear()
   }, [app.id])
-  const hasPendingPersistenceForSheet = useCallback((targetSheetId: string): boolean => {
-    if (pendingCellBatchesRef.current.some(batch => batch.targetSheetId === targetSheetId)) {
-      return true
-    }
-    if (pendingCellChangesRef.current.some(cell => (cell.sheetId ?? activeSheetIdRef.current) === targetSheetId)) {
-      return true
-    }
-    if (pendingSnapshotCheckpointBySheetRef.current.has(targetSheetId)) {
-      return true
-    }
-    const pendingUniverRows = pendingUniverRowsBySheetRef.current.get(targetSheetId)
-    if (pendingUniverRows && pendingUniverRows.data.length > pendingUniverRows.persistedRows.length) {
-      return true
-    }
-    const latest = latestUniverDataRef.current
-    return Boolean(latest?.sheetId === targetSheetId && latest.data.length > lastProcessedLengthRef.current)
+  const hasPendingLocalMutationProtectionForSheet = useCallback((targetSheetId: string): boolean => {
+    const canonicalTargetSheetId = resolveReconciledSheetId(targetSheetId, createdSheetIdAliasesRef.current)
+    return (
+      summarizeSpreadsheetPendingLocalMutationProtection(pendingLocalMutationCellsRef, canonicalTargetSheetId)
+        .targetSheetKeyCount > 0
+    )
   }, [])
-  const hasTransientLocalGridStateForSheet = useCallback(
+  const isSheetPersistenceBusyForSwitch = useCallback((targetSheetId: string): boolean => {
+    const canonicalTargetSheetId = resolveReconciledSheetId(targetSheetId, createdSheetIdAliasesRef.current)
+    return sheetWorkQueueAccessorRef.current?.isSheetPersistenceBusy(canonicalTargetSheetId) ?? false
+  }, [])
+  const hasPendingPersistenceForSheet = useCallback(
     (targetSheetId: string): boolean => {
-      if (!areCanonicalSheetIdsEqual(targetSheetId, activeSheetIdRef.current, createdSheetIdAliasesRef.current)) {
-        return false
-      }
-      if (pendingLocalMutationCellsRef.current.size > 0) {
+      const canonicalTargetSheetId = resolveReconciledSheetId(targetSheetId, createdSheetIdAliasesRef.current)
+      if (pendingCellBatchesRef.current.some(batch => batch.targetSheetId === canonicalTargetSheetId)) {
         return true
       }
-      return spreadsheetSession.getSheetState(targetSheetId)?.isDirty === true
+      if (
+        pendingCellChangesRef.current.some(
+          cell =>
+            resolveReconciledSheetId(cell.sheetId ?? activeSheetIdRef.current, createdSheetIdAliasesRef.current) ===
+            canonicalTargetSheetId
+        )
+      ) {
+        return true
+      }
+      if (pendingSnapshotCheckpointBySheetRef.current.has(canonicalTargetSheetId)) {
+        return true
+      }
+      const pendingUniverRows = pendingUniverRowsBySheetRef.current.get(canonicalTargetSheetId)
+      if (pendingUniverRows && pendingUniverRows.data.length > pendingUniverRows.persistedRows.length) {
+        return true
+      }
+      const latest = latestUniverDataRef.current
+      if (latest?.sheetId === canonicalTargetSheetId && latest.data.length > lastProcessedLengthRef.current) {
+        return true
+      }
+      if (isSheetPersistenceBusyForSwitch(canonicalTargetSheetId)) {
+        return true
+      }
+      return hasPendingLocalMutationProtectionForSheet(canonicalTargetSheetId)
     },
-    [activeSheetIdRef, createdSheetIdAliasesRef, spreadsheetSession]
+    [
+      activeSheetIdRef,
+      createdSheetIdAliasesRef,
+      hasPendingLocalMutationProtectionForSheet,
+      isSheetPersistenceBusyForSwitch
+    ]
+  )
+  const hasTransientLocalGridStateForSheet = useCallback(
+    (targetSheetId: string): boolean => {
+      const canonicalTargetSheetId = resolveReconciledSheetId(targetSheetId, createdSheetIdAliasesRef.current)
+      if (hasPendingLocalMutationProtectionForSheet(canonicalTargetSheetId)) {
+        return true
+      }
+      return spreadsheetSession.getSheetState(canonicalTargetSheetId)?.isDirty === true
+    },
+    [createdSheetIdAliasesRef, hasPendingLocalMutationProtectionForSheet, spreadsheetSession]
   )
 
   /** Narrow signal for delta catch-up: queued cell batches only (not snapshot/style dim gaps). */
@@ -1015,6 +1093,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     isBootstrapCanonicalReady,
     isBootstrapWorkbookEnriching,
     isBootstrapWorkbookSyncFailed,
+    visualBootstrapState,
+    pendingBootstrapStyleRepair,
     hasBootstrappedForAppIdRef
   } = useSpreadsheetBootstrapSnapshotPipeline({
     appId: app.id,
@@ -1033,6 +1113,20 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     debugLog,
     onBootstrapWorkbookReconcileIssue: handleBootstrapWorkbookReconcileIssue
   })
+
+  useEffect(() => {
+    debugLog('bootstrap visual contract', {
+      sheetId: visualBootstrapState.sheetId,
+      mountKind: visualBootstrapState.mountKind,
+      valueSource: visualBootstrapState.valueSource,
+      formattingSource: visualBootstrapState.formattingSource,
+      formattingScore: visualBootstrapState.formattingScore,
+      validationSafety: visualBootstrapState.validationSafety,
+      visibleDecision: visualBootstrapState.visibleDecision,
+      needsVisibleStyleRepair: visualBootstrapState.needsVisibleStyleRepair,
+      hasMountedSnapshot: visualBootstrapState.hasMountedSnapshot
+    })
+  }, [debugLog, visualBootstrapState])
 
   const emitDimensionSyncRef = useRef<(payload: CellDimensionsPayload) => void>(() => {})
   const columnStructureStateRef = useRef<{
@@ -1066,7 +1160,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     mutationFacadeRef,
     enqueueSnapshotCheckpointRef,
     appSheetsRef,
-    spreadsheetGridRef
+    spreadsheetGridRef,
+    markRecentLocalSnapshotMutation: markRecentLocalSnapshotMutationForSheet
   })
 
   useEffect(() => {
@@ -1548,11 +1643,434 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   ])
 
   const {
+    reloadSheetFromCanonicalSnapshot,
     scheduleSheetVersionRefreshFromApi,
     scheduleRemoteStructuralResync,
     requestSheetDeltaCatchUp,
     recoverFromVersionConflict
   } = useSpreadsheetRemoteSyncController(remoteSyncControllerParams)
+  const sheetManifestRef = useRef<{
+    appId: string
+    workbookSnapshotVersion: number
+    sheets: Map<string, { operationVersion: number; sheetSnapshotVersion: number }>
+  } | null>(null)
+
+  useEffect(() => {
+    sheetManifestRef.current = null
+  }, [app.id])
+
+  const readSheetManifest = useCallback(
+    async (allowRefresh = true) => {
+      if (!allowRefresh && sheetManifestRef.current?.appId === app.id) {
+        return sheetManifestRef.current
+      }
+      const manifest = await SpreadsheetApiService.getSheetManifest(app.id)
+      const normalized = {
+        appId: manifest.appId,
+        workbookSnapshotVersion: Number(manifest.workbookSnapshotVersion ?? 0),
+        sheets: new Map(
+          (manifest.sheets ?? []).map(sheet => [
+            sheet.id,
+            {
+              operationVersion: Math.max(0, Math.trunc(Number(sheet.operationVersion ?? 0))),
+              sheetSnapshotVersion: Math.max(0, Math.trunc(Number(sheet.sheetSnapshotVersion ?? 0)))
+            }
+          ])
+        )
+      }
+      workbookSnapshotVersionRef.current = Math.max(
+        workbookSnapshotVersionRef.current,
+        normalized.workbookSnapshotVersion
+      )
+      for (const [sheetId, versions] of normalized.sheets) {
+        rememberKnownSheetVersion(sheetId, versions.operationVersion)
+        rememberKnownSheetSnapshotVersion(sheetId, versions.sheetSnapshotVersion)
+      }
+      sheetManifestRef.current = normalized
+      return normalized
+    },
+    [app.id, rememberKnownSheetSnapshotVersion, rememberKnownSheetVersion, workbookSnapshotVersionRef]
+  )
+
+  const hydrateSheetFromBackend = useCallback(
+    async (
+      targetSheetId: string,
+      reason: SheetHydrationReason,
+      options?: { activate?: boolean; prefetchOnly?: boolean }
+    ): Promise<boolean> => {
+      if (!targetSheetId) return false
+      const recentLocalSnapshotMutation = getRecentLocalSnapshotMutationForSheet(targetSheetId)
+      if (
+        recentLocalSnapshotMutation &&
+        shouldDeferHydrationForRecentLocalSnapshotMutationForSheet(targetSheetId, reason)
+      ) {
+        debugLog('sheet hydration deferred due to recent local snapshot mutation', {
+          sheetId: targetSheetId,
+          reason,
+          remainingMs: Math.max(0, recentLocalSnapshotMutation.expiresAt - Date.now()),
+          sources: [...recentLocalSnapshotMutation.sources]
+        })
+        return false
+      }
+      if (hasPendingPersistenceForSheet(targetSheetId) || hasTransientLocalGridStateForSheet(targetSheetId)) {
+        debugLog('sheet hydration blocked by pending local work', {
+          sheetId: targetSheetId,
+          reason,
+          pendingPersistence: hasPendingPersistenceForSheet(targetSheetId),
+          transientLocalGridState: hasTransientLocalGridStateForSheet(targetSheetId)
+        })
+        return false
+      }
+
+      const hydration = await SpreadsheetApiService.getSheetHydrationSnapshot(app.id, targetSheetId)
+      const currentSheets = appSheetsRef.current
+      const targetSheetMeta =
+        currentSheets.find(sheet => sheet.id === targetSheetId) ??
+        currentSheets.find(sheet => sheet.id === activeSheetIdRef.current) ??
+        activeSheet
+      const serverSheetMeta = hydration.sheet ?? targetSheetMeta
+      const localColumns = targetSheetMeta?.columns ?? []
+      const serverColumns = Array.isArray(serverSheetMeta.columns) ? serverSheetMeta.columns : []
+      const mergedColumns =
+        serverColumns.length > 0
+          ? mergeSheetColumnVisibilityFromLocal(serverColumns, localColumns, {
+              preserveLocalVisibility: hasPendingPersistenceForSheet(targetSheetId)
+            })
+          : localColumns
+      const hydratedSheetMeta: SpreadsheetSheet = {
+        ...targetSheetMeta,
+        ...serverSheetMeta,
+        columns: mergedColumns,
+        sheetSnapshotVersion: hydration.sheetSnapshotVersion,
+        ...(hydration.worksheetSnapshot ? { worksheetSnapshot: hydration.worksheetSnapshot } : {})
+      }
+      const hydratedRows = sortSpreadsheetRowsBySheetSettings(
+        mapSnapshotRowsToViewerRows(hydration.rows || []),
+        hydratedSheetMeta
+      )
+      const operationVersion = Math.max(0, Math.trunc(Number(hydration.operationVersion ?? 0)))
+      const sheetSnapshotVersion = Math.max(0, Math.trunc(Number(hydration.sheetSnapshotVersion ?? 0)))
+      const workbookSnapshotVersion = Math.max(0, Math.trunc(Number(hydration.workbookSnapshotVersion ?? 0)))
+
+      rememberKnownSheetVersion(targetSheetId, operationVersion)
+      rememberSheetVersion(targetSheetId, operationVersion)
+      rememberKnownSheetSnapshotVersion(targetSheetId, sheetSnapshotVersion)
+      rememberSheetSnapshotVersion(targetSheetId, sheetSnapshotVersion)
+      workbookSnapshotVersionRef.current = Math.max(workbookSnapshotVersionRef.current, workbookSnapshotVersion)
+      peerSheetDataCacheRef.current.set(targetSheetId, hydratedRows)
+      authoritativePeerSheetDataCacheRef.current.add(targetSheetId)
+
+      const sessionWorkbookSnapshot = spreadsheetSession.getState().workbookSnapshot
+      const currentSnapshot =
+        sessionWorkbookSnapshot && typeof sessionWorkbookSnapshot === 'object'
+          ? (sessionWorkbookSnapshot as Record<string, unknown>)
+          : ((spreadsheetGridRef.current?.getWorkbookSnapshot?.() as Record<string, unknown> | null) ?? null)
+      const nextSnapshot = cloneSnapshot(
+        currentSnapshot ??
+          ({
+            sheetOrder: currentSheets.map(sheet => sheet.id),
+            sheets: {}
+          } as Record<string, unknown>)
+      ) as Record<string, unknown>
+      const nextSheets =
+        nextSnapshot.sheets && typeof nextSnapshot.sheets === 'object' && !Array.isArray(nextSnapshot.sheets)
+          ? (nextSnapshot.sheets as Record<string, unknown>)
+          : {}
+      nextSnapshot.sheets = nextSheets
+      if (hydration.worksheetSnapshot) {
+        nextSheets[targetSheetId] = cloneSnapshot(hydration.worksheetSnapshot)
+      }
+      for (const [key, value] of Object.entries(hydration.workbookDependencies ?? {})) {
+        nextSnapshot[key] = cloneSnapshot(value)
+      }
+      const nextMeta =
+        nextSnapshot.__meta && typeof nextSnapshot.__meta === 'object' && !Array.isArray(nextSnapshot.__meta)
+          ? ({ ...(nextSnapshot.__meta as Record<string, unknown>) } as Record<string, unknown>)
+          : {}
+      const existingSheetSnapshots =
+        nextMeta.sheetSnapshots &&
+        typeof nextMeta.sheetSnapshots === 'object' &&
+        !Array.isArray(nextMeta.sheetSnapshots)
+          ? ({ ...(nextMeta.sheetSnapshots as Record<string, unknown>) } as Record<string, unknown>)
+          : {}
+      existingSheetSnapshots[targetSheetId] = {
+        snapshotVersion: sheetSnapshotVersion,
+        coversOperationVersion: operationVersion,
+        persistedInWorkbookSnapshotVersion: workbookSnapshotVersion
+      }
+      nextMeta.sheetSnapshots = existingSheetSnapshots
+      nextMeta.workbookSnapshotVersion = workbookSnapshotVersion
+      nextSnapshot.__meta = nextMeta
+      spreadsheetSession.updateWorkbookSnapshot(nextSnapshot, workbookSnapshotVersion)
+
+      syncSheetRowsIntoLocalState(targetSheetId, hydratedRows, {
+        persisted: true,
+        syncGrid: false,
+        version: operationVersion,
+        recoveredSheetMeta: hydratedSheetMeta
+      })
+
+      if (options?.prefetchOnly) {
+        return true
+      }
+
+      const refreshedRecentLocalSnapshotMutation = getRecentLocalSnapshotMutationForSheet(targetSheetId)
+      if (
+        refreshedRecentLocalSnapshotMutation &&
+        shouldDeferHydrationForRecentLocalSnapshotMutationForSheet(targetSheetId, reason)
+      ) {
+        debugLog('sheet hydration deferred after fetch due to recent local snapshot mutation', {
+          sheetId: targetSheetId,
+          reason,
+          remainingMs: Math.max(0, refreshedRecentLocalSnapshotMutation.expiresAt - Date.now()),
+          sources: [...refreshedRecentLocalSnapshotMutation.sources]
+        })
+        return false
+      }
+      if (hasPendingPersistenceForSheet(targetSheetId) || hasTransientLocalGridStateForSheet(targetSheetId)) {
+        debugLog('sheet hydration blocked after fetch due to local work', {
+          sheetId: targetSheetId,
+          reason,
+          pendingPersistence: hasPendingPersistenceForSheet(targetSheetId),
+          transientLocalGridState: hasTransientLocalGridStateForSheet(targetSheetId)
+        })
+        return false
+      }
+
+      const shouldActivate =
+        (options?.activate ?? activeSheetIdRef.current === targetSheetId) && activeSheetIdRef.current === targetSheetId
+      if (Boolean(hydration.worksheetSnapshot) && shouldActivate) {
+        programmaticWorksheetActivationGuardRef.current = {
+          expectedActiveSheetId: targetSheetId,
+          expiresAt: Date.now() + 1500
+        }
+      } else {
+        programmaticWorksheetActivationGuardRef.current = null
+      }
+      spreadsheetGridRef.current?.mergeWorkbookDependencies?.(hydration.workbookDependencies ?? {})
+      const ensured = spreadsheetGridRef.current?.ensureWorksheetExists(
+        hydratedSheetMeta,
+        hydratedRows,
+        mergedColumns,
+        {
+          activate: shouldActivate,
+          replaceExisting: Boolean(hydration.worksheetSnapshot),
+          ...(hydration.worksheetSnapshot ? { worksheetSnapshot: hydration.worksheetSnapshot } : {})
+        }
+      )
+      if (!ensured) {
+        programmaticWorksheetActivationGuardRef.current = null
+        debugLog('sheet hydration fell back to canonical reload', {
+          sheetId: targetSheetId,
+          reason
+        })
+        return reloadSheetFromCanonicalSnapshot(`hydrate-fallback-${reason}`, targetSheetId)
+      }
+      sheetsNeedingGridMaterializationRef.current.delete(targetSheetId)
+      spreadsheetSessionRef.current?.clearSheetGridMaterialization(targetSheetId)
+      debugLog('sheet hydrated from backend', {
+        sheetId: targetSheetId,
+        reason,
+        activate: shouldActivate
+      })
+      return true
+    },
+    [
+      activeSheet,
+      app.id,
+      appSheetsRef,
+      authoritativePeerSheetDataCacheRef,
+      debugLog,
+      getRecentLocalSnapshotMutationForSheet,
+      hasPendingPersistenceForSheet,
+      hasTransientLocalGridStateForSheet,
+      peerSheetDataCacheRef,
+      reloadSheetFromCanonicalSnapshot,
+      rememberKnownSheetSnapshotVersion,
+      rememberKnownSheetVersion,
+      rememberSheetSnapshotVersion,
+      rememberSheetVersion,
+      spreadsheetSession,
+      shouldDeferHydrationForRecentLocalSnapshotMutationForSheet,
+      syncSheetRowsIntoLocalState,
+      workbookSnapshotVersionRef
+    ]
+  )
+
+  const ensureSheetReady = useCallback(
+    async (
+      targetSheetId: string,
+      reason: 'sheet_switch' | 'focus' | 'visibility' | 'reconnect' | 'prefetch',
+      options?: { prefetchOnly?: boolean; allowManifestRefresh?: boolean }
+    ): Promise<'ready' | 'blocked' | 'failed'> => {
+      if (!targetSheetId) return 'failed'
+      try {
+        const recentLocalSnapshotMutation = getRecentLocalSnapshotMutationForSheet(targetSheetId)
+        if (
+          recentLocalSnapshotMutation &&
+          shouldDeferHydrationForRecentLocalSnapshotMutationForSheet(targetSheetId, reason)
+        ) {
+          debugLog('ensureSheetReady deferred due to recent local snapshot mutation', {
+            sheetId: targetSheetId,
+            reason,
+            remainingMs: Math.max(0, recentLocalSnapshotMutation.expiresAt - Date.now()),
+            sources: [...recentLocalSnapshotMutation.sources]
+          })
+          return 'blocked'
+        }
+        const manifest = await readSheetManifest(options?.allowManifestRefresh !== false)
+        const server = manifest.sheets.get(targetSheetId)
+        if (!server) return 'failed'
+        const localOperationVersion = resolveTrackedSheetVersion(targetSheetId)
+        const localSheetSnapshotVersion = resolveTrackedSheetSnapshotVersion(targetSheetId)
+        const isActiveTargetSheet = areCanonicalSheetIdsEqual(
+          targetSheetId,
+          activeSheetIdRef.current,
+          createdSheetIdAliasesRef.current
+        )
+        const isActiveFocusRecovery = isActiveTargetSheet && (reason === 'focus' || reason === 'visibility')
+
+        if (isActiveFocusRecovery) {
+          if (localOperationVersion < server.operationVersion) {
+            if (options?.prefetchOnly) return 'blocked'
+            const applied = await requestSheetDeltaCatchUp(targetSheetId, 'sheet_activation', {
+              sinceVersion: localOperationVersion,
+              incomingVersion: server.operationVersion
+            })
+            return applied ? 'ready' : 'blocked'
+          }
+          if (localSheetSnapshotVersion < server.sheetSnapshotVersion) {
+            debugLog('ensureSheetReady skipped active-sheet focus hydration and trusted live workbook', {
+              sheetId: targetSheetId,
+              reason,
+              localOperationVersion,
+              serverOperationVersion: server.operationVersion,
+              localSheetSnapshotVersion,
+              serverSheetSnapshotVersion: server.sheetSnapshotVersion
+            })
+          }
+          return 'ready'
+        }
+
+        if (
+          shouldSkipActiveSheetSnapshotHydration({
+            reason,
+            isActiveTargetSheet,
+            localOperationVersion,
+            serverOperationVersion: server.operationVersion,
+            localSheetSnapshotVersion,
+            serverSheetSnapshotVersion: server.sheetSnapshotVersion
+          })
+        ) {
+          debugLog('ensureSheetReady skipped active-sheet focus hydration on snapshot drift alone', {
+            sheetId: targetSheetId,
+            reason,
+            localOperationVersion,
+            serverOperationVersion: server.operationVersion,
+            localSheetSnapshotVersion,
+            serverSheetSnapshotVersion: server.sheetSnapshotVersion
+          })
+          return 'ready'
+        }
+
+        if (localSheetSnapshotVersion < server.sheetSnapshotVersion) {
+          const hydrated = await hydrateSheetFromBackend(targetSheetId, reason, {
+            activate: !options?.prefetchOnly,
+            prefetchOnly: options?.prefetchOnly
+          })
+          return hydrated ? 'ready' : 'blocked'
+        }
+
+        if (localOperationVersion < server.operationVersion) {
+          if (options?.prefetchOnly) return 'blocked'
+          const applied = await requestSheetDeltaCatchUp(targetSheetId, 'sheet_activation', {
+            sinceVersion: localOperationVersion,
+            incomingVersion: server.operationVersion
+          })
+          return applied ? 'ready' : 'blocked'
+        }
+
+        return 'ready'
+      } catch (error) {
+        debugLog('ensureSheetReady failed', {
+          sheetId: targetSheetId,
+          reason,
+          message: error instanceof Error ? error.message : String(error)
+        })
+        return 'failed'
+      }
+    },
+    [
+      debugLog,
+      getRecentLocalSnapshotMutationForSheet,
+      hydrateSheetFromBackend,
+      readSheetManifest,
+      requestSheetDeltaCatchUp,
+      resolveTrackedSheetSnapshotVersion,
+      resolveTrackedSheetVersion,
+      shouldDeferHydrationForRecentLocalSnapshotMutationForSheet
+    ]
+  )
+  const sheetReadinessInFlightRef = useRef<Map<string, Promise<'ready' | 'blocked' | 'failed'>>>(new Map())
+  const runEnsureSheetReady = useCallback(
+    (
+      targetSheetId: string,
+      reason: 'sheet_switch' | 'focus' | 'visibility' | 'reconnect' | 'prefetch',
+      options?: { prefetchOnly?: boolean; allowManifestRefresh?: boolean }
+    ) => {
+      const existing = sheetReadinessInFlightRef.current.get(targetSheetId)
+      if (existing) return existing
+      const task = ensureSheetReady(targetSheetId, reason, options).finally(() => {
+        sheetReadinessInFlightRef.current.delete(targetSheetId)
+      })
+      sheetReadinessInFlightRef.current.set(targetSheetId, task)
+      return task
+    },
+    [ensureSheetReady]
+  )
+
+  const activationMaterializationInFlightRef = useRef<Map<string, Promise<'ready' | 'blocked' | 'failed'>>>(new Map())
+  const runActivationMaterialization = useCallback(
+    (sheetId: string, reason: string) => {
+      const existing = activationMaterializationInFlightRef.current.get(sheetId)
+      if (existing) return existing
+      const task = runEnsureSheetReady(sheetId, 'sheet_switch', { allowManifestRefresh: true })
+        .then(status => {
+          if (status === 'ready' && activeSheetIdRef.current === sheetId) {
+            sheetsNeedingGridMaterializationRef.current.delete(sheetId)
+            spreadsheetSessionRef.current?.clearSheetGridMaterialization(sheetId)
+            debugLog('activation sheet hydrated/materialized', {
+              sheetId,
+              reason
+            })
+          } else if (status === 'blocked' && activeSheetIdRef.current === sheetId) {
+            const queue = sheetWorkQueueAccessorRef.current
+            void (async () => {
+              if (queue?.isSheetPersistenceBusy(sheetId)) {
+                await queue.awaitIdle(sheetId)
+              } else {
+                await new Promise(resolve => globalThis.setTimeout(resolve, 150))
+              }
+              if (activeSheetIdRef.current !== sheetId) return
+              if (!sheetsNeedingGridMaterializationRef.current.has(sheetId)) return
+              void runActivationMaterialization(sheetId, reason)
+            })()
+          }
+          return status
+        })
+        .finally(() => {
+          activationMaterializationInFlightRef.current.delete(sheetId)
+        })
+      activationMaterializationInFlightRef.current.set(sheetId, task)
+      return task
+    },
+    [debugLog, runEnsureSheetReady]
+  )
+
+  requestCanonicalGridMaterializationRef.current = (sheetId, reason) => {
+    if (activeSheetIdRef.current !== sheetId) return
+    void runActivationMaterialization(sheetId, reason)
+  }
 
   useEffect(() => {
     const pending = pendingCreatedSheetReconciliationRef.current
@@ -1864,6 +2382,18 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     (sheetId: string, reason: string) => {
       const resolvedSheetId = resolveReconciledSheetId(sheetId, createdSheetIdAliasesRef.current)
       if (!resolvedSheetId || resolvedSheetId === activeSheetIdRef.current) return
+      const existingReason = sheetsNeedingGridMaterializationRef.current.get(resolvedSheetId)
+      if (
+        prefersCanonicalReloadForMaterializationReason(existingReason) &&
+        !prefersCanonicalReloadForMaterializationReason(reason)
+      ) {
+        debugLog('sheet grid materialization reason preserved', {
+          sheetId: resolvedSheetId,
+          existingReason,
+          ignoredReason: reason
+        })
+        return
+      }
       sheetsNeedingGridMaterializationRef.current.set(resolvedSheetId, reason)
       spreadsheetSession.markSheetNeedsGridMaterialization(resolvedSheetId, reason)
       debugLog('sheet marked for grid materialization', { sheetId: resolvedSheetId, reason })
@@ -2291,6 +2821,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     collaborationJoined: collaboration.isCollaborationJoined,
     collaborationConnected: collaboration.isCollaborationConnected,
     requestSheetDeltaCatchUp,
+    ensureSheetReady: runEnsureSheetReady,
     rememberKnownSheetVersion,
     rememberSheetVersion,
     scheduleSheetVersionRefreshFromApi,
@@ -2306,9 +2837,14 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   useEffect(() => {
     const materializationReason = sheetsNeedingGridMaterializationRef.current.get(activeSheetId)
     if (!materializationReason) return
+    const prefersCanonicalReload = prefersCanonicalReloadForMaterializationReason(materializationReason)
 
     const timeoutId = globalThis.setTimeout(() => {
       if (activeSheetIdRef.current !== activeSheetId) return
+      if (prefersCanonicalReload) {
+        void runActivationMaterialization(activeSheetId, materializationReason)
+        return
+      }
       sheetsNeedingGridMaterializationRef.current.delete(activeSheetId)
       spreadsheetSessionRef.current?.clearSheetGridMaterialization(activeSheetId)
       spreadsheetGridRef.current?.forceAuthoritativeReapply?.(null, {
@@ -2324,7 +2860,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     }, 0)
 
     return () => globalThis.clearTimeout(timeoutId)
-  }, [activeSheetId])
+  }, [activeSheetId, debugLog, runActivationMaterialization])
 
   // Seed the manager's version tracker so delta reconciliation has a baseline
   useEffect(() => {
@@ -2532,6 +3068,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     onBlockedColumnReorder: () => {
       toast.warning(sheetT('toast-column-reorder-merged-cells-unsupported'))
     },
+    getWorkbookSnapshot: () => spreadsheetGridRef.current?.getWorkbookSnapshot?.() ?? null,
     emitColumnBatchOperation: op => {
       const submitBatch = mutationFacadeRef.current?.submitBatch
       if (!submitBatch) {
@@ -3673,6 +4210,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     sheets: app.sheets,
     activeSheetIdRef,
     createdSheetIdAliasesRef,
+    programmaticWorksheetActivationGuardRef,
     pendingCreatedSheetSelectionRef,
     peerSheetDataCacheRef,
     getActiveSessionRows,
@@ -3768,6 +4306,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const handleStyleBatchOp = useCallback(
     (styleData: any) => {
       const targetSheetId = resolveReconciledSheetId(styleData.sheetId, createdSheetIdAliasesRef.current)
+      markRecentLocalSnapshotMutationForSheet(targetSheetId, 'set_style')
       void submitMutationBatch({
         sheetId: targetSheetId,
         operations: [
@@ -3786,7 +4325,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         console.error('[SpreadsheetAppViewer] set_style batch op failed', err)
       })
     },
-    [submitMutationBatch, createOperationId]
+    [submitMutationBatch, createOperationId, markRecentLocalSnapshotMutationForSheet]
   )
 
   const handleMutationBatchOp = useCallback(
@@ -4107,6 +4646,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         return
       }
 
+      if (mappedOperations.some(operation => isSnapshotMutatingOperationType(String(operation.type ?? '')))) {
+        markRecentLocalSnapshotMutationForSheet(targetSheetId, 'unified_mutation')
+      }
+
       const chunks = splitUnifiedOperationsByPersistKind(
         mappedOperations,
         SPREADSHEET_UNIFIED_MUTATION_SUBMIT_MAX_BYTES
@@ -4201,6 +4744,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       isUuid,
       logRowIdentityDiagnostics,
       materializeTemporaryRowsForSubmit,
+      markRecentLocalSnapshotMutationForSheet,
       operationQueueRef,
       pendingCellChangesRef,
       persistPendingCellJournal,
@@ -4260,6 +4804,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     spreadsheetGridRef: spreadsheetGridRef as any,
     getActiveSessionRows,
     getKnownRowsForSheet,
+    resolveSheetContext: resolveSheetContextForGrid,
     commitLocalSheetData,
     syncSheetRowsIntoLocalState,
     pendingUniverRowsBySheetRef,
@@ -4303,6 +4848,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     authoritativeDataSyncToken: authoritativeDataSyncToken as any,
     authoritativePaintCellsRef,
     authoritativePaintMetaRef,
+    pendingBootstrapStyleRepair,
     workbookInstanceKey: tableWorkbookInstanceKey as any,
     pendingLocalMutationCellsRef,
     spreadsheetIntentJournalRef,
@@ -4352,6 +4898,19 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     onColumnsMove: structuralMutations.onColumnsMove,
     onCellRangeMove: structuralMutations.onCellRangeMove,
     onDimensionsChange: handleDimensionsChanged as any,
+    onAuthoritativeReapplyError: ({ sheetId, reason, error }) => {
+      enqueueDiagnosticsTraceEvent({
+        source: 'client',
+        stage: 'viewer_authoritative_reapply_failed',
+        severity: 'error',
+        payload: {
+          sheetId,
+          reason: reason ?? null,
+          message: error instanceof Error ? error.message : String(error)
+        }
+      })
+      void reloadSheetFromCanonicalSnapshot('authoritative-reapply-failed', sheetId)
+    },
     gridRef: spreadsheetGridRef as any,
     onEditRow: row => setEditingRow(row),
     onDeleteRow: handleDeleteRow,

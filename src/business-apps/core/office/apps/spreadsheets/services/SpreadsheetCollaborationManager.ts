@@ -46,13 +46,13 @@ import {
   visibleGridColumnIndexFromColumn
 } from '../utils/spreadsheetColumnGridIndex'
 import {
-  explicitColumnReorderMovesReachTarget,
   classifyNativeColumnReorderWithMerges,
   normalizeColumnMoveDestinationIndex,
   visibleColumnsInGridOrder,
   type ColumnReorderMove
 } from '../utils/spreadsheetColumnReorderMoves'
 import { applyColumnVisibilityRangesToSpreadsheetColumns } from '../utils/spreadsheetColumnVisibilityMetadata'
+import { prefersCanonicalReloadForMaterializationReason } from '../utils/spreadsheetGridMaterialization'
 import { createUniverConversionContext, snapshotTrackingHeaderMatchesColumnLabels } from '../utils/univerAdapter'
 import type {
   AuthoritativeGridRegion,
@@ -116,6 +116,34 @@ const hasColumnSlotStructuralOperation = (
 
 const hasColumnStructuralOperation = (operations: readonly Pick<SpreadsheetCommittedOperation, 'type'>[]): boolean =>
   hasColumnSlotStructuralOperation(operations) || hasColumnReorderStructuralOperation(operations)
+
+const MAX_INACTIVE_STRUCTURAL_BATCH_OPERATIONS = 24
+const MAX_INACTIVE_STRUCTURAL_BATCH_UNITS = 128
+
+const explicitColumnReorderMovesReachTarget = (params: {
+  previousColumns: SpreadsheetColumn[]
+  nextColumns: SpreadsheetColumn[]
+  explicitMoves?: ColumnReorderMove[]
+}): boolean => {
+  const explicitMoves = Array.isArray(params.explicitMoves) ? params.explicitMoves.filter(move => move.count > 0) : []
+  if (explicitMoves.length === 0) return false
+  const workingVisibleIds = visibleColumnsInGridOrder(params.previousColumns).map(column => column.id)
+  const nextVisibleIds = visibleColumnsInGridOrder(params.nextColumns).map(column => column.id)
+  for (const move of explicitMoves) {
+    const clampedSourceStart = Math.max(0, Math.min(move.sourceStartColumn, workingVisibleIds.length))
+    const clampedCount = Math.max(0, Math.min(move.count, Math.max(0, workingVisibleIds.length - clampedSourceStart)))
+    if (clampedCount === 0) continue
+    const destinationIndex = normalizeColumnMoveDestinationIndex(
+      clampedSourceStart,
+      clampedCount,
+      move.destinationStartColumn
+    )
+    if (destinationIndex == null) return false
+    const movedIds = workingVisibleIds.splice(clampedSourceStart, clampedCount)
+    workingVisibleIds.splice(destinationIndex, 0, ...movedIds)
+  }
+  return workingVisibleIds.join('|') === nextVisibleIds.join('|')
+}
 
 type SpreadsheetStaleRecoveryLifecycleStage =
   | 'catchup_started'
@@ -427,6 +455,7 @@ export class SpreadsheetCollaborationManager {
   private readonly deferredSnapshotFallbackTimers = new Map<string, DeferredSnapshotFallbackEntry>()
   private readonly coalescedCatchUpSinceVersionByKey = new Map<string, number>()
   private readonly staleRecoveryStateBySheet = new Map<string, SpreadsheetStaleRecoveryState>()
+  private readonly inactiveSheetsAwaitingCanonicalMaterialization = new Set<string>()
   private readonly confirmedPhysicalColumnOrderBySheetId = new Map<string, string[]>()
 
   constructor(callbacks: CollaborationCallbacks) {
@@ -847,6 +876,9 @@ export class SpreadsheetCollaborationManager {
         case 'catchup_noop':
         case 'catchup_applied':
         case 'snapshot_reload_succeeded':
+          if (params.stage === 'snapshot_reload_succeeded') {
+            this.inactiveSheetsAwaitingCanonicalMaterialization.delete(params.sheetId)
+          }
           if (params.stage === 'catchup_noop' || params.stage === 'catchup_applied') {
             this.clearDeferredVersionSnapshotFallbacks(params.sheetId, params.stage)
           }
@@ -1164,8 +1196,47 @@ export class SpreadsheetCollaborationManager {
 
   private markGridMaterializationNeeded(sheetId: string, reason: string): void {
     if (!sheetId || sheetId === this.callbacks.getActiveSheetId()) return
+    if (prefersCanonicalReloadForMaterializationReason(reason)) {
+      this.inactiveSheetsAwaitingCanonicalMaterialization.add(sheetId)
+    }
     this.callbacks.markSheetNeedsGridMaterialization?.(sheetId, reason)
     this.callbacks.scheduleRemoteStructuralResync?.(sheetId, { immediate: false })
+  }
+
+  private shouldDeferInactiveGridApplyUntilCanonicalMaterialization(sheetId: string): boolean {
+    return (
+      sheetId !== this.callbacks.getActiveSheetId() && this.inactiveSheetsAwaitingCanonicalMaterialization.has(sheetId)
+    )
+  }
+
+  private shouldApplyInactiveStructuralGridUpdate(params: {
+    sheetId: string
+    operationCount: number
+    structuralUnitCount: number
+    reason: string
+    traceMeta?: { traceSessionId?: string; traceId?: string; batchId?: string }
+  }): boolean {
+    if (params.sheetId === this.callbacks.getActiveSheetId()) return true
+    const overBudget =
+      params.operationCount > MAX_INACTIVE_STRUCTURAL_BATCH_OPERATIONS ||
+      params.structuralUnitCount > MAX_INACTIVE_STRUCTURAL_BATCH_UNITS
+    if (!overBudget) return true
+    this.markGridMaterializationNeeded(params.sheetId, params.reason)
+    this.traceEvent({
+      source: 'client',
+      stage: 'client_collab_inactive_structural_apply_deferred',
+      severity: 'warning',
+      traceSessionId: params.traceMeta?.traceSessionId,
+      traceId: params.traceMeta?.traceId,
+      batchId: params.traceMeta?.batchId,
+      payload: {
+        sheetId: params.sheetId,
+        reason: params.reason,
+        operationCount: params.operationCount,
+        structuralUnitCount: params.structuralUnitCount
+      }
+    })
+    return false
   }
 
   private getWorkbookSnapshotSheet(sheetId: string): Record<string, unknown> | null {
@@ -1373,6 +1444,7 @@ export class SpreadsheetCollaborationManager {
     nextColumns: SpreadsheetColumn[]
     reason: string
     confirmedPhysicalOrderStrategy?: 'set-next' | 'clear'
+    allowValueOnlyGridRepair?: boolean
     pendingLocalFilterPolicy?: PendingLocalFilterPolicy
     traceMeta?: { traceSessionId?: string; traceId?: string; batchId?: string; tabId?: string }
   }): void {
@@ -1380,8 +1452,9 @@ export class SpreadsheetCollaborationManager {
       sheetId: params.sheetId,
       columns: params.nextColumns
     })
+    const isActiveTargetSheet = params.sheetId === this.callbacks.getActiveSheetId()
     const canScheduleRepair = typeof this.callbacks.forceGridReapply === 'function'
-    if (canScheduleRepair) {
+    if (isActiveTargetSheet && canScheduleRepair && params.allowValueOnlyGridRepair !== false) {
       this.callbacks.forceGridReapply?.(params.sheetId, null, {
         allowFullGridReapply: true,
         clearAllSignatures: true,
@@ -1389,6 +1462,34 @@ export class SpreadsheetCollaborationManager {
         reason: params.reason,
         pendingLocalFilterPolicy: params.pendingLocalFilterPolicy
       })
+    } else if (isActiveTargetSheet && params.allowValueOnlyGridRepair === false) {
+      this.clearConfirmedPhysicalColumnOrder(params.sheetId)
+      this.markGridMaterializationNeeded(params.sheetId, params.reason)
+      this.requestSnapshotFallback({
+        sheetId: params.sheetId,
+        reason: 'planning_failure',
+        immediate: true,
+        detail: 'column_structure'
+      })
+    }
+    if (!isActiveTargetSheet) {
+      if (params.confirmedPhysicalOrderStrategy === 'clear') {
+        this.clearConfirmedPhysicalColumnOrder(params.sheetId)
+      }
+      this.markGridMaterializationNeeded(params.sheetId, params.reason)
+      this.traceEvent({
+        source: 'client',
+        stage: 'client_collab_inactive_column_repair_deferred',
+        severity: 'warning',
+        traceSessionId: params.traceMeta?.traceSessionId,
+        traceId: params.traceMeta?.traceId,
+        batchId: params.traceMeta?.batchId,
+        payload: {
+          sheetId: params.sheetId,
+          reason: params.reason
+        }
+      })
+      return
     }
     if (params.confirmedPhysicalOrderStrategy === 'clear') {
       if (canScheduleRepair) {
@@ -1408,9 +1509,16 @@ export class SpreadsheetCollaborationManager {
         sheetId: params.sheetId,
         reason: params.reason,
         visibleColumnCount: params.nextColumns.filter(column => column.isVisible !== false).length,
-        repairHandoffScheduled: canScheduleRepair
+        repairHandoffScheduled: params.allowValueOnlyGridRepair === false ? false : canScheduleRepair
       }
     })
+  }
+
+  private queueDeferredSetStyleForSheet(sheetId: string, operation: DeferredSetStyleOperation): void {
+    if (!sheetId) return
+    const queued = this.deferredSetStyleBySheet.get(sheetId) ?? []
+    queued.push(operation)
+    this.deferredSetStyleBySheet.set(sheetId, queued)
   }
 
   private withTargetSheetApplyOptions(
@@ -2878,14 +2986,21 @@ export class SpreadsheetCollaborationManager {
       const hasPersistedCellOps = gridReadyBatch.operations.some(operation =>
         LIVE_PERSISTED_CELL_OP_TYPES.has(operation.type)
       )
-      const runResult = this.callbacks.runRemoteTransaction({
-        ...transactionPlan,
-        batch: gridReadyBatch
-      })
+      const skipInactiveGridTransaction =
+        (committedBatch.sheetId !== activeSheetId && hasColumnStructuralOperation(gridReadyBatch.operations)) ||
+        this.shouldDeferInactiveGridApplyUntilCanonicalMaterialization(committedBatch.sheetId)
+      const runResult = skipInactiveGridTransaction
+        ? ({ ok: true, appliedCellCount: 0, appliedOperationCount: 0 } as const)
+        : this.callbacks.runRemoteTransaction({
+            ...transactionPlan,
+            batch: gridReadyBatch
+          })
       this.traceEvent({
         source: 'client',
         stage: runResult.ok
-          ? 'client_committed_batch_transaction_applied'
+          ? skipInactiveGridTransaction
+            ? 'client_committed_batch_inactive_grid_transaction_deferred'
+            : 'client_committed_batch_transaction_applied'
           : 'client_committed_batch_transaction_apply_failed',
         severity: runResult.ok ? 'info' : 'warning',
         traceSessionId: committedBatch.traceSessionId ?? traceMeta.traceSessionId,
@@ -3051,7 +3166,7 @@ export class SpreadsheetCollaborationManager {
       }
       if (runResult.appliedCellCount === 0) {
         const identityCellChanges = this.collectIdentityBasedCellChanges(gridReadyBatch)
-        if (identityCellChanges.length > 0) {
+        if (identityCellChanges.length > 0 && !skipInactiveGridTransaction) {
           this.collabDiag('committed_batch_runner_zero_cells_fallback', {
             sheetId: committedBatch.sheetId,
             changeCount: identityCellChanges.length,
@@ -3108,6 +3223,14 @@ export class SpreadsheetCollaborationManager {
       const opType = typeof op.type === 'string' ? op.type : ''
       if (!LIVE_PERSISTED_CELL_OP_TYPES.has(opType)) return false
       return Boolean(op.data && typeof op.data === 'object')
+    })
+    const batchIncludesColumnReorder = operations.some(op => {
+      const opType = typeof op.type === 'string' ? op.type : ''
+      return opType === 'columns_reorder' || opType === 'column_reorder'
+    })
+    const batchIncludesSetStyle = operations.some(op => {
+      const opType = typeof op.type === 'string' ? op.type : ''
+      return opType === 'set_style'
     })
     const deferredSetStyleAfterCellBulk: DeferredSetStyleOperation[] = []
 
@@ -3179,6 +3302,7 @@ export class SpreadsheetCollaborationManager {
               previousColumns: this.getColumnsForSheet(operationSheetId),
               nextColumns,
               ...(moves ? { moves } : {}),
+              expectDeferredStyleReplay: batchIncludesColumnReorder && batchIncludesSetStyle,
               traceMeta,
               isLocalEcho: applyOptions?.isLocalEcho
             })
@@ -3200,16 +3324,10 @@ export class SpreadsheetCollaborationManager {
           }
         }
         if (type === 'column_add') {
-          if (operationSheetId !== this.callbacks.getActiveSheetId()) {
-            requiresInactiveSheetSnapshotReload = true
-          }
           this.markGridMaterializationNeeded(operationSheetId, type)
           continue
         }
         if (type === 'column_delete') {
-          if (operationSheetId !== this.callbacks.getActiveSheetId()) {
-            requiresInactiveSheetSnapshotReload = true
-          }
           this.markGridMaterializationNeeded(operationSheetId, type)
           continue
         }
@@ -3246,6 +3364,14 @@ export class SpreadsheetCollaborationManager {
         const operationSheetId = this.getSheetIdFromData(operation.data) ?? targetSheetId
         if (batchIncludesPersistedCellOps) {
           deferredSetStyleAfterCellBulk.push({
+            data: operation.data,
+            traceMeta,
+            fallbackSheetId: operationSheetId
+          })
+          continue
+        }
+        if (batchIncludesColumnReorder && batchIncludesSetStyle) {
+          this.queueDeferredSetStyleForSheet(operationSheetId, {
             data: operation.data,
             traceMeta,
             fallbackSheetId: operationSheetId
@@ -3322,7 +3448,7 @@ export class SpreadsheetCollaborationManager {
     }
 
     if (columnAddOperations.length > 0) {
-      if (columnInserts.length > 0 && targetSheetId === this.callbacks.getActiveSheetId()) {
+      if (columnInserts.length > 0) {
         this.applyRemoteInsertColumnSlotsLive({
           sheetId: targetSheetId,
           inserts: columnInserts,
@@ -3333,7 +3459,7 @@ export class SpreadsheetCollaborationManager {
       }
     }
     if (columnDeleteOperations.length > 0) {
-      if (columnDeletes.length > 0 && targetSheetId === this.callbacks.getActiveSheetId()) {
+      if (columnDeletes.length > 0) {
         this.applyRemoteDeleteColumnSlotsLive({
           sheetId: targetSheetId,
           deletes: columnDeletes,
@@ -4033,7 +4159,7 @@ export class SpreadsheetCollaborationManager {
           isLocalEcho: applyOptions?.isLocalEcho
         })
       }
-    } else if (targetSheetId === activeSheetId && !isOwnRecentBatch) {
+    } else if (!isOwnRecentBatch) {
       if (operationType === 'insert_row_slots') {
         const startGridRowIndex = Number(payload.startGridRowIndex)
         const count = Number(payload.count)
@@ -4085,7 +4211,7 @@ export class SpreadsheetCollaborationManager {
           traceMeta,
           isLocalEcho: applyOptions?.isLocalEcho
         })
-      } else {
+      } else if (targetSheetId === activeSheetId) {
         // Projector-owned add_rows values already repaint through `syncGrid: true`; keep
         // `forceGridReapply` for insert-at / structural-shift cases, but do not duplicate the
         // plain append path with another bounded reapply.
@@ -5821,13 +5947,26 @@ export class SpreadsheetCollaborationManager {
     isLocalEcho?: boolean
   }): void {
     const isOwnRecentBatch = this.isOwnRecentStructuralBatch(params.traceMeta)
-    if (isOwnRecentBatch || params.sheetId !== this.callbacks.getActiveSheetId() || params.inserts.length === 0) {
+    if (isOwnRecentBatch || params.inserts.length === 0) {
       if (isOwnRecentBatch && params.nextColumns) {
         this.setConfirmedPhysicalColumnOrder(params.sheetId, params.nextColumns)
       }
       return
     }
+    const structuralUnitCount = params.inserts.reduce((total, insert) => total + Math.max(0, insert.count), 0)
+    if (
+      !this.shouldApplyInactiveStructuralGridUpdate({
+        sheetId: params.sheetId,
+        operationCount: params.inserts.length,
+        structuralUnitCount,
+        reason: 'column_structure',
+        traceMeta: params.traceMeta
+      })
+    ) {
+      return
+    }
     queueMicrotask(() => {
+      const isActiveTargetSheet = params.sheetId === this.callbacks.getActiveSheetId()
       let gridApplied = Boolean(this.callbacks.applyRemoteInsertColumnSlots)
       if (gridApplied) {
         for (const insert of params.inserts) {
@@ -5854,13 +5993,15 @@ export class SpreadsheetCollaborationManager {
           reason: 'column_insert_structural_repair',
           traceMeta: params.traceMeta
         })
-      } else if (!gridApplied) {
+      } else if (!gridApplied && isActiveTargetSheet) {
         this.callbacks.forceGridReapply?.(params.sheetId, null, {
           allowFullGridReapply: true,
           clearAllSignatures: true,
           preferBulk: true,
           reason: 'column_slots_insert_fallback'
         })
+      } else if (!gridApplied) {
+        this.markGridMaterializationNeeded(params.sheetId, 'column_slots_insert_fallback')
       }
       this.collabDiag('column_slot_live_applied', {
         sheetId: params.sheetId,
@@ -5895,13 +6036,26 @@ export class SpreadsheetCollaborationManager {
     isLocalEcho?: boolean
   }): void {
     const isOwnRecentBatch = this.isOwnRecentStructuralBatch(params.traceMeta)
-    if (isOwnRecentBatch || params.sheetId !== this.callbacks.getActiveSheetId() || params.deletes.length === 0) {
+    if (isOwnRecentBatch || params.deletes.length === 0) {
       if (isOwnRecentBatch && params.nextColumns) {
         this.setConfirmedPhysicalColumnOrder(params.sheetId, params.nextColumns)
       }
       return
     }
+    const structuralUnitCount = params.deletes.reduce((total, deleteSlots) => total + Math.max(0, deleteSlots.count), 0)
+    if (
+      !this.shouldApplyInactiveStructuralGridUpdate({
+        sheetId: params.sheetId,
+        operationCount: params.deletes.length,
+        structuralUnitCount,
+        reason: 'column_structure',
+        traceMeta: params.traceMeta
+      })
+    ) {
+      return
+    }
     queueMicrotask(() => {
+      const isActiveTargetSheet = params.sheetId === this.callbacks.getActiveSheetId()
       let gridApplied = Boolean(this.callbacks.applyRemoteDeleteColumnSlots)
       if (gridApplied) {
         for (const deleteSlots of params.deletes) {
@@ -5928,13 +6082,15 @@ export class SpreadsheetCollaborationManager {
           reason: 'column_delete_structural_repair',
           traceMeta: params.traceMeta
         })
-      } else if (!gridApplied) {
+      } else if (!gridApplied && isActiveTargetSheet) {
         this.callbacks.forceGridReapply?.(params.sheetId, null, {
           allowFullGridReapply: true,
           clearAllSignatures: true,
           preferBulk: true,
           reason: 'column_slots_delete_fallback'
         })
+      } else if (!gridApplied) {
+        this.markGridMaterializationNeeded(params.sheetId, 'column_slots_delete_fallback')
       }
       this.collabDiag('column_slot_live_applied', {
         sheetId: params.sheetId,
@@ -6229,10 +6385,23 @@ export class SpreadsheetCollaborationManager {
     onAfterGridSettled?: () => void
   }): void {
     const isOwnRecentBatch = this.isOwnRecentStructuralBatch(params.traceMeta)
-    if (isOwnRecentBatch || params.sheetId !== this.callbacks.getActiveSheetId() || params.inserts.length === 0) {
+    if (isOwnRecentBatch || params.inserts.length === 0) {
+      return
+    }
+    const structuralUnitCount = params.inserts.reduce((total, insert) => total + Math.max(0, insert.count), 0)
+    if (
+      !this.shouldApplyInactiveStructuralGridUpdate({
+        sheetId: params.sheetId,
+        operationCount: params.inserts.length,
+        structuralUnitCount,
+        reason: 'row_structure',
+        traceMeta: params.traceMeta
+      })
+    ) {
       return
     }
     queueMicrotask(() => {
+      const isActiveTargetSheet = params.sheetId === this.callbacks.getActiveSheetId()
       let gridApplied = Boolean(this.callbacks.applyRemoteInsertRowSlots)
       if (gridApplied) {
         for (const insert of params.inserts) {
@@ -6250,7 +6419,7 @@ export class SpreadsheetCollaborationManager {
       if (gridApplied && Array.isArray(params.createdRows) && params.createdRows.length > 0) {
         this.applyCreatedRowsToGrid(params.sheetId, params.rows, params.createdRows)
       }
-      if (!gridApplied) {
+      if (!gridApplied && isActiveTargetSheet) {
         const region =
           params.fallbackRegion ??
           (params.dirtyRegions
@@ -6263,6 +6432,8 @@ export class SpreadsheetCollaborationManager {
             reason: 'row_slots_insert_fallback'
           })
         }
+      } else if (!gridApplied) {
+        this.markGridMaterializationNeeded(params.sheetId, 'row_slots_insert_fallback')
       }
       params.onAfterGridSettled?.()
       this.traceEvent({
@@ -6294,10 +6465,23 @@ export class SpreadsheetCollaborationManager {
     isLocalEcho?: boolean
   }): void {
     const isOwnRecentBatch = this.isOwnRecentStructuralBatch(params.traceMeta)
-    if (isOwnRecentBatch || params.sheetId !== this.callbacks.getActiveSheetId() || params.deletes.length === 0) {
+    if (isOwnRecentBatch || params.deletes.length === 0) {
+      return
+    }
+    const structuralUnitCount = params.deletes.reduce((total, deleteSlots) => total + Math.max(0, deleteSlots.count), 0)
+    if (
+      !this.shouldApplyInactiveStructuralGridUpdate({
+        sheetId: params.sheetId,
+        operationCount: params.deletes.length,
+        structuralUnitCount,
+        reason: 'row_structure',
+        traceMeta: params.traceMeta
+      })
+    ) {
       return
     }
     queueMicrotask(() => {
+      const isActiveTargetSheet = params.sheetId === this.callbacks.getActiveSheetId()
       let gridApplied = Boolean(this.callbacks.applyRemoteDeleteRowSlots)
       if (gridApplied) {
         for (const deleteSlots of params.deletes) {
@@ -6312,7 +6496,7 @@ export class SpreadsheetCollaborationManager {
           }
         }
       }
-      if (!gridApplied) {
+      if (!gridApplied && isActiveTargetSheet) {
         const region =
           params.fallbackRegion ??
           (params.dirtyRegions
@@ -6332,6 +6516,8 @@ export class SpreadsheetCollaborationManager {
             reason: 'row_slots_delete_fallback_full'
           })
         }
+      } else if (!gridApplied) {
+        this.markGridMaterializationNeeded(params.sheetId, 'row_slots_delete_fallback')
       }
       this.traceEvent({
         source: 'client',
@@ -6394,7 +6580,7 @@ export class SpreadsheetCollaborationManager {
   }): void {
     const isOwnRecentBatch = this.isOwnRecentStructuralBatch(params.traceMeta)
     const skipNativeMove = isOwnRecentBatch
-    if (params.sheetId !== this.callbacks.getActiveSheetId() || params.moves.length === 0) {
+    if (params.moves.length === 0) {
       return
     }
     queueMicrotask(() => {
@@ -6456,10 +6642,23 @@ export class SpreadsheetCollaborationManager {
     isLocalEcho?: boolean
   }): void {
     const isOwnRecentBatch = this.isOwnRecentStructuralBatch(params.traceMeta)
-    if (isOwnRecentBatch || params.sheetId !== this.callbacks.getActiveSheetId() || params.moves.length === 0) {
+    if (isOwnRecentBatch || params.moves.length === 0) {
+      return
+    }
+    const structuralUnitCount = params.moves.reduce((total, move) => total + Math.max(0, move.count), 0)
+    if (
+      !this.shouldApplyInactiveStructuralGridUpdate({
+        sheetId: params.sheetId,
+        operationCount: params.moves.length,
+        structuralUnitCount,
+        reason: 'row_structure',
+        traceMeta: params.traceMeta
+      })
+    ) {
       return
     }
     queueMicrotask(() => {
+      const isActiveTargetSheet = params.sheetId === this.callbacks.getActiveSheetId()
       let gridApplied = Boolean(this.callbacks.applyRemoteRowSlotsMove)
       if (gridApplied) {
         for (const move of params.moves) {
@@ -6475,7 +6674,7 @@ export class SpreadsheetCollaborationManager {
           }
         }
       }
-      if (!gridApplied) {
+      if (!gridApplied && isActiveTargetSheet) {
         const region =
           params.fallbackRegion ??
           (params.dirtyRegions
@@ -6488,6 +6687,8 @@ export class SpreadsheetCollaborationManager {
             reason: 'row_slots_move_fallback'
           })
         }
+      } else if (!gridApplied) {
+        this.markGridMaterializationNeeded(params.sheetId, 'row_slots_move_fallback')
       }
       this.traceEvent({
         source: 'client',
@@ -6513,6 +6714,7 @@ export class SpreadsheetCollaborationManager {
     previousColumns: SpreadsheetColumn[]
     nextColumns: SpreadsheetColumn[]
     moves?: ColumnReorderMove[]
+    expectDeferredStyleReplay?: boolean
     traceMeta?: { traceSessionId?: string; traceId?: string; batchId?: string; tabId?: string }
     isLocalEcho?: boolean
   }): void {
@@ -6574,13 +6776,14 @@ export class SpreadsheetCollaborationManager {
         ...(skipGridConversionContextSync ? { skipGridConversionContextSync: true } : {})
       })
     }
-    if (params.sheetId !== this.callbacks.getActiveSheetId()) {
-      applyColumnMetadata(false)
-      return
-    }
+    const isActiveTargetSheet = params.sheetId === this.callbacks.getActiveSheetId()
     if (!nativeMergeSupport.ok && nativeMergeSupport.reason !== 'unplannable_reorder') {
       applyColumnMetadata(false)
-      this.callbacks.scheduleRemoteStructuralResync?.(params.sheetId, { immediate: true })
+      if (isActiveTargetSheet) {
+        this.callbacks.scheduleRemoteStructuralResync?.(params.sheetId, { immediate: true })
+      } else {
+        this.markGridMaterializationNeeded(params.sheetId, 'column_structure')
+      }
       queueMicrotask(() => {
         this.traceEvent({
           source: 'client',
@@ -6636,6 +6839,20 @@ export class SpreadsheetCollaborationManager {
         : nativeMergeSupport.ok
           ? nativeMergeSupport.moves
           : params.moves
+    const structuralUnitCount =
+      replayMoves?.reduce((total, move) => total + Math.max(0, move.count), 0) ?? replayMoves?.length ?? 0
+    if (
+      !this.shouldApplyInactiveStructuralGridUpdate({
+        sheetId: params.sheetId,
+        operationCount: replayMoves?.length ?? 0,
+        structuralUnitCount,
+        reason: 'column_structure',
+        traceMeta: params.traceMeta
+      })
+    ) {
+      applyColumnMetadata(false)
+      return
+    }
     this.collabDiag('column_reorder_native_replay_queued', {
       sheetId: params.sheetId,
       replayMoveCount: replayMoves?.length ?? 0,
@@ -6699,6 +6916,7 @@ export class SpreadsheetCollaborationManager {
             nextColumns: params.nextColumns,
             reason: 'column_reorder_structural_repair',
             confirmedPhysicalOrderStrategy: 'clear',
+            allowValueOnlyGridRepair: params.expectDeferredStyleReplay === true,
             pendingLocalFilterPolicy: 'server_authoritative_repair',
             traceMeta: params.traceMeta
           })
@@ -6730,6 +6948,10 @@ export class SpreadsheetCollaborationManager {
           errorMessage: error instanceof Error ? error.message.slice(0, 160) : String(error ?? 'unknown').slice(0, 160)
         })
         throw error
+      } finally {
+        if (params.expectDeferredStyleReplay) {
+          this.flushDeferredSetStyleForSheet(params.sheetId)
+        }
       }
     })
   }

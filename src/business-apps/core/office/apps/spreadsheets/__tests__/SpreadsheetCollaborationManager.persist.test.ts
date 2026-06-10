@@ -4557,17 +4557,44 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
     localStorage.removeItem('gba.spreadsheets.deltaReplay')
   })
 
-  it('defers inactive-sheet structural column batches without touching the active data model', () => {
+  it('keeps inactive-sheet structural column batches off the active row model while updating target metadata', async () => {
+    localStorage.setItem('gba.spreadsheets.deltaReplay', 'enabled')
     const scheduleRemoteStructuralResync = jest.fn()
     const onSheetVersionUpdate = jest.fn()
     const commitLocalSheetData = jest.fn()
     const commitSheetData = jest.fn()
+    const runRemoteTransaction = jest.fn(() => ({ ok: true, appliedCellCount: 0, appliedOperationCount: 1 }) as const)
+    const onRemoteColumnUpdate = jest.fn()
+    const applyRemoteCellUpdate = jest.fn()
+    const applyRemoteCellUpdatesBulk = jest.fn()
     const callbacks = makeCallbacks({
       scheduleRemoteStructuralResync,
       onSheetVersionUpdate,
       commitLocalSheetData,
       commitSheetData,
-      getActiveSheetId: () => 'sheet-1'
+      runRemoteTransaction,
+      onRemoteColumnUpdate,
+      applyRemoteCellUpdate,
+      applyRemoteCellUpdatesBulk,
+      getSheetVersion: () => 4,
+      getColumns: () => [
+        col({ id: 'col-a', name: 'ColumnA', order: 0 }),
+        col({ id: 'col-b', name: 'ColumnB', order: 1 }),
+        col({ id: 'col-c', name: 'ColumnC', order: 2 })
+      ],
+      getColumnsForSheet: sheetId =>
+        sheetId === 'sheet-1'
+          ? [
+              col({ id: 'col-a', name: 'ColumnA', order: 0 }),
+              col({ id: 'col-b', name: 'ColumnB', order: 1 }),
+              col({ id: 'col-c', name: 'ColumnC', order: 2 })
+            ]
+          : [],
+      getSheetData: sheetId =>
+        sheetId === 'sheet-1'
+          ? [{ _id: 'row-1', _rowUuid: 'row-1', ColumnA: 'existing' }]
+          : [{ _id: 'active-row', ColumnA: 'typing' }],
+      getActiveSheetId: () => 'sheet-2'
     })
 
     const manager = new SpreadsheetCollaborationManager(callbacks)
@@ -4577,26 +4604,79 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
       operation: {
         type: 'batch_operations',
         data: {
-          sheetId: 'sheet-2',
+          sheetId: 'sheet-1',
+          workbookId: 'workbook-1',
+          batchId: 'batch-inactive-column-add',
+          actorId: 'user-2',
+          baseVersion: 4,
+          appliedVersion: 5,
+          payloadSchemaVersion: 1,
+          columns: [
+            col({ id: 'col-a', name: 'ColumnA', order: 0 }),
+            col({ id: 'col-new', name: 'ColumnB2', order: 1 }),
+            col({ id: 'col-b', name: 'ColumnB', order: 2 }),
+            col({ id: 'col-c', name: 'ColumnC', order: 3 })
+          ],
+          visibleColumnIds: ['col-a', 'col-new', 'col-b', 'col-c'],
+          gridColumnIndexByColumnId: { 'col-a': 0, 'col-new': 1, 'col-b': 2, 'col-c': 3 },
           operations: [
             {
               type: 'column_add',
+              operationId: 'inactive-column-add-1',
               data: {
-                sheetId: 'sheet-2',
-                column: { id: 'col-new', name: 'ColumnD', order: 3 }
+                sheetId: 'sheet-1',
+                column: { id: 'col-new', name: 'ColumnB2', order: 1, isVisible: true },
+                visibleInsertIndex: 1,
+                insertCount: 1
+              },
+              result: {
+                columnId: 'col-new',
+                visibleGridIndex: 1
+              }
+            },
+            {
+              type: 'set_cell',
+              operationId: 'inactive-new-column-value-1',
+              data: {
+                sheetId: 'sheet-1',
+                rowId: 'row-1',
+                columnName: 'ColumnB2',
+                value: 'new inactive column value'
               }
             }
           ]
         }
       },
-      version: 12,
+      version: 5,
       timestamp: Date.now()
     })
 
-    expect(scheduleRemoteStructuralResync).toHaveBeenCalledWith('sheet-2', { immediate: false })
-    expect(onSheetVersionUpdate).toHaveBeenCalledWith('sheet-2', 12)
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(runRemoteTransaction).not.toHaveBeenCalled()
+    expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
+    expect(applyRemoteCellUpdatesBulk).not.toHaveBeenCalled()
+    expect(onRemoteColumnUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sheetId: 'sheet-1',
+        columns: [
+          expect.objectContaining({ id: 'col-a', order: 0 }),
+          expect.objectContaining({ id: 'col-new', order: 1 }),
+          expect.objectContaining({ id: 'col-b', order: 2 }),
+          expect.objectContaining({ id: 'col-c', order: 3 })
+        ]
+      })
+    )
+    expect(scheduleRemoteStructuralResync).toHaveBeenCalledWith('sheet-1', { immediate: false })
+    expect(onSheetVersionUpdate).toHaveBeenCalledWith('sheet-1', 5)
     expect(commitLocalSheetData).not.toHaveBeenCalled()
-    expect(commitSheetData).not.toHaveBeenCalled()
+    expect(commitSheetData).toHaveBeenCalledWith(
+      'sheet-1',
+      [expect.objectContaining({ _id: 'row-1', ColumnB2: 'new inactive column value' })],
+      { persisted: true, syncGrid: false }
+    )
+    localStorage.removeItem('gba.spreadsheets.deltaReplay')
   })
 
   it('applies full remote columns_reorder payloads with native grid moves instead of forcing reapply', () => {
@@ -5530,8 +5610,22 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
     })
 
     return Promise.resolve().then(() => {
-      expect(applyRemoteColumnReorder).toHaveBeenCalledTimes(1)
-      expect(applyRemoteColumnReorder).toHaveBeenCalledWith(
+      expect(applyRemoteColumnReorder).toHaveBeenCalledTimes(2)
+      expect(applyRemoteColumnReorder).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          sheetId: 'sheet-2',
+          previousColumns: [
+            expect.objectContaining({ id: 'col-a', order: 0 }),
+            expect.objectContaining({ id: 'col-c', order: 1 }),
+            expect.objectContaining({ id: 'col-b', order: 2 })
+          ],
+          nextColumns: reorderedColumns,
+          moves: [{ sourceStartColumn: 1, count: 1, destinationStartColumn: 2, rawDestinationStartColumn: 3 }]
+        })
+      )
+      expect(applyRemoteColumnReorder).toHaveBeenNthCalledWith(
+        2,
         expect.objectContaining({
           sheetId: 'sheet-2',
           previousColumns: [
@@ -6037,6 +6131,7 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
     })
 
     await Promise.resolve()
+    await Promise.resolve()
 
     expect(applyRemoteDeleteColumnSlots).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -6090,6 +6185,70 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
     expect(onSheetVersionUpdate).toHaveBeenCalledWith('sheet-2', 13)
     expect(callbacks.commitLocalSheetData).not.toHaveBeenCalled()
     expect(callbacks.onVersionUpdate).not.toHaveBeenCalled()
+  })
+
+  it('applies inactive-sheet insert_row_slots into cache state with syncGrid disabled', async () => {
+    localStorage.setItem('gba.spreadsheets.deltaReplay', 'enabled')
+    const scheduleRemoteStructuralResync = jest.fn()
+    const commitSheetData = jest.fn()
+    const runRemoteTransaction = jest.fn(() => ({ ok: true, appliedCellCount: 0, appliedOperationCount: 1 }) as const)
+    const callbacks = makeCallbacks({
+      scheduleRemoteStructuralResync,
+      runRemoteTransaction,
+      getSheetVersion: () => 2,
+      getActiveSheetId: () => 'sheet-2',
+      getColumns: () => [col({ id: 'col-a', name: 'ColumnA', isVisible: true, order: 0 })],
+      getColumnsForSheet: () => [col({ id: 'col-a', name: 'ColumnA', isVisible: true, order: 0 })],
+      getSheetData: sheetId =>
+        sheetId === 'sheet-1' ? [{ _id: 'row-1', _rowUuid: 'row-1', _gridRowIndex: 0, ColumnA: 'before' }] : [],
+      commitSheetData
+    })
+
+    const manager = new SpreadsheetCollaborationManager(callbacks)
+    manager.handleOperation({
+      userId: 'u2',
+      userName: 'Other',
+      operation: {
+        type: 'batch_operations',
+        data: {
+          sheetId: 'sheet-1',
+          workbookId: 'workbook-1',
+          batchId: 'batch-inactive-insert-row-slots',
+          actorId: 'user-2',
+          baseVersion: 2,
+          appliedVersion: 3,
+          payloadSchemaVersion: 1,
+          operations: [
+            {
+              type: 'insert_row_slots',
+              operationId: 'inactive-row-slots-1',
+              data: {
+                sheetId: 'sheet-1',
+                startGridRowIndex: 1,
+                count: 1,
+                rows: [{ id: 'row-2', data: { ColumnA: 'inserted' } }]
+              }
+            }
+          ]
+        }
+      },
+      version: 3,
+      timestamp: Date.now()
+    })
+
+    await Promise.resolve()
+
+    expect(runRemoteTransaction).toHaveBeenCalled()
+    expect(commitSheetData).toHaveBeenCalledWith(
+      'sheet-1',
+      [
+        expect.objectContaining({ _id: 'row-1', _gridRowIndex: 0, ColumnA: 'before' }),
+        expect.objectContaining({ _id: 'row-2', _gridRowIndex: 1, ColumnA: 'inserted' })
+      ],
+      { persisted: true, syncGrid: false }
+    )
+    expect(scheduleRemoteStructuralResync).toHaveBeenCalledWith('sheet-1', { immediate: false })
+    localStorage.removeItem('gba.spreadsheets.deltaReplay')
   })
 
   it('applies move_row_slots with live grid reapply instead of snapshot resync', () => {

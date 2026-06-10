@@ -12,7 +12,8 @@ import {
   lastRangeSetValueMock,
   lastSetFreezeMock,
   resetUniverSheetGridTestMocks,
-  TestUniverSheetGrid
+  TestUniverSheetGrid,
+  univerMockActiveSheetId
 } from './setupUniverSheetGridTestMocks'
 
 describe('UniverSheetGrid remote apply', () => {
@@ -372,6 +373,63 @@ describe('UniverSheetGrid remote apply', () => {
       'sheet.command.set-col-hidden',
       expect.objectContaining({
         ranges: [{ startRow: 0, startColumn: 3, endRow: 1027, endColumn: 3 }]
+      })
+    )
+  })
+
+  it('applies remote visibility updates to the targeted non-visible sheet in multi-sheet mode', async () => {
+    const ref = React.createRef<UniverSheetGridHandle>()
+    const visibleSheet = { ...sheet, id: 'sheet-2', name: 'Sheet 2' }
+    const activeSheetIdsDuringCommand: string[] = []
+    univerMockActiveSheetId = 'sheet-2'
+    render(
+      <TestUniverSheetGrid
+        ref={ref}
+        sheet={visibleSheet}
+        data={data}
+        columns={columns}
+        multiSheetWorkbookMode={true}
+        isReadOnly
+        onCellChange={jest.fn()}
+        onDataChange={jest.fn()}
+      />
+    )
+    await waitFor(() => expect(ref.current?.applyRemoteSpreadsheetFeatureOperation).toBeDefined())
+    await waitFor(() => expect(executeCommandMock).toBeDefined())
+    executeCommandMock?.mockClear()
+    executeCommandMock?.mockImplementation(() => {
+      activeSheetIdsDuringCommand.push(univerMockActiveSheetId)
+    })
+
+    act(() => {
+      ref.current?.applyRemoteSpreadsheetFeatureOperation?.({
+        type: 'visibility_update',
+        data: {
+          sheetId: 'sheet-1',
+          commandId: 'sheet.mutation.set-col-hidden',
+          axis: 'column',
+          hidden: true,
+          ranges: [{ start: 4, end: 4 }],
+          params: {
+            ranges: [{ startRow: 0, startColumn: 4, endRow: 1002, endColumn: 4 }]
+          }
+        }
+      })
+    })
+
+    expect(executeCommandMock).toHaveBeenCalledWith(
+      'sheet.command.set-col-hidden',
+      expect.objectContaining({
+        subUnitId: 'sheet-1',
+        sheetId: 'sheet-1'
+      })
+    )
+    expect(activeSheetIdsDuringCommand).toContain('sheet-1')
+    expect(univerMockActiveSheetId).toBe('sheet-2')
+    expect(executeCommandMock).not.toHaveBeenCalledWith(
+      'sheet.command.set-col-hidden',
+      expect.objectContaining({
+        subUnitId: 'sheet-2'
       })
     )
   })

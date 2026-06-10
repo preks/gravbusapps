@@ -214,6 +214,8 @@ export interface SpreadsheetBulkRemoteApplyMeta {
    * Used to chain dependent grid work (e.g. apply `set_style` after paste `set_range` values).
    */
   onApplyComplete?: () => void
+  /** Invoked when a deferred bulk apply aborts due to an unrecoverable grid write error. */
+  onApplyError?: (error: unknown) => void
 }
 
 export type SpreadsheetSessionDiffProjectionMode = 'allow' | 'skip'

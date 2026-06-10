@@ -11,6 +11,7 @@ import {
   summarizeLiveWorksheetSnapshotForDebug,
   summarizeRowsForDebug
 } from '../utils/spreadsheetViewerDebug'
+import { prefersCanonicalReloadForMaterializationReason } from '../utils/spreadsheetGridMaterialization'
 
 import type { CommitLocalSheetDataOptions } from './spreadsheetViewerSessionTypes'
 
@@ -27,6 +28,8 @@ export interface UseSpreadsheetActiveSheetPeerRestoreParams {
     rows: readonly Record<string, unknown>[],
     columns: readonly SpreadsheetSheet['columns']
   ) => CommitLocalSheetDataOptions['authoritativeGridRegion']
+  getGridMaterializationReason?: (sheetId: string) => string | null | undefined
+  requestCanonicalGridMaterialization?: (sheetId: string, reason: string) => void
   commitLocalSheetData: (next: Record<string, unknown>[], options?: CommitLocalSheetDataOptions) => void
 }
 
@@ -77,12 +80,29 @@ export function useSpreadsheetActiveSheetPeerRestore(params: UseSpreadsheetActiv
       )
     const needsReapplyBecauseWorkbookSheetIsStale =
       (sourceValueCount > 0 && liveSnapshotValueCount < sourceValueCount) || Boolean(authoritativeCacheHasLiveMismatch)
-    const authoritativeGridRegion = needsReapplyBecauseWorkbookSheetIsStale
+    const materializationReason = params.getGridMaterializationReason?.(params.activeSheetId)
+    const shouldWaitForCanonicalMaterialization = prefersCanonicalReloadForMaterializationReason(materializationReason)
+    if (shouldWaitForCanonicalMaterialization) {
+      multiSheetDebugLog('active_sheet_peer_restore_deferred_for_materialization', () => ({
+        activeSheetId: params.activeSheetId,
+        materializationReason,
+        usedCache: Boolean(cached),
+        cachedRows: summarizeRowsForDebug(cached),
+        activeSheetData: summarizeRowsForDebug(params.activeSheet.data ?? [])
+      }))
+      params.requestCanonicalGridMaterialization?.(
+        params.activeSheetId,
+        typeof materializationReason === 'string' ? materializationReason : 'grid_materialization'
+      )
+      return
+    }
+    const shouldSyncGrid = needsReapplyBecauseWorkbookSheetIsStale && !shouldWaitForCanonicalMaterialization
+    const authoritativeGridRegion = shouldSyncGrid
       ? params.buildFullAuthoritativeGridRegion(sortedSourceRows, params.activeSheet.columns)
       : null
     params.commitLocalSheetData(sortedSourceRows, {
       persisted: false,
-      syncGrid: needsReapplyBecauseWorkbookSheetIsStale,
+      syncGrid: shouldSyncGrid,
       publishParent: false,
       peerAuthoritative: true,
       replaceSheetVersion: params.resolveKnownSheetVersion(params.activeSheetId),
@@ -95,6 +115,8 @@ export function useSpreadsheetActiveSheetPeerRestore(params: UseSpreadsheetActiv
         authoritativeCacheHasLiveMismatch: Boolean(authoritativeCacheHasLiveMismatch),
         sourceValueCount,
         liveSnapshotValueCount,
+        materializationReason,
+        deferredForCanonicalMaterialization: shouldWaitForCanonicalMaterialization,
         liveSnapshot: summarizeLiveWorksheetSnapshotForDebug(
           liveSnapshot as Record<string, unknown> | null,
           params.activeSheetId
@@ -107,7 +129,9 @@ export function useSpreadsheetActiveSheetPeerRestore(params: UseSpreadsheetActiv
     params.activeSheetId,
     params.buildFullAuthoritativeGridRegion,
     params.commitLocalSheetData,
+    params.getGridMaterializationReason,
     params.preferUniverNativeSheetTabs,
+    params.requestCanonicalGridMaterialization,
     params.resolveCanonicalSheetId,
     params.resolveKnownSheetVersion,
     params.spreadsheetGridRef

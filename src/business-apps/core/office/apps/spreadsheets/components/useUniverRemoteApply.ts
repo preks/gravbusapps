@@ -17,6 +17,7 @@ import {
   resolveWorksheetGridBounds,
   type ClearAllRectangle
 } from './univerGridRangeSelection'
+import { runWithWorkbookFacadeSheetActive } from './univerGridWorkbookMutationModule'
 import {
   acquireRemoteStructuralApplyGuard,
   scheduleReleaseRemoteStructuralApplyGuard
@@ -60,9 +61,10 @@ function resolveWorksheetForRemoteApply(
   multiSheetWorkbookMode: boolean
 ): unknown {
   const wb = workbook as UniverFacadeWorkbook
-  const isActivePropSheet = targetSheetId === activePropSheetId
-  if (!isActivePropSheet && multiSheetWorkbookMode) {
-    return wb.getSheetBySheetId?.(targetSheetId) ?? wb.getActiveSheet?.()
+  if (multiSheetWorkbookMode) {
+    const targetWorksheet = wb.getSheetBySheetId?.(targetSheetId)
+    if (targetWorksheet) return targetWorksheet
+    if (targetSheetId !== activePropSheetId) return null
   }
   return wb.getActiveSheet?.()
 }
@@ -189,6 +191,7 @@ export interface UseUniverRemoteApplyParams {
   sheetId: string
   propsRef: MutableRefObject<{ multiSheetWorkbookMode?: boolean }>
   univerAPIRef: MutableRefObject<UniverApiLike>
+  suppressWorksheetSelectionEmitRef: MutableRefObject<{ expectedSheetId: string; untilMs: number } | null>
   cellDimensionsRef: MutableRefObject<SnapshotDimensions | null>
   isApplyingRemoteUpdateRef: MutableRefObject<boolean>
   collabPersistedBulkApplyDepthRef: MutableRefObject<number>
@@ -217,6 +220,7 @@ export function useUniverRemoteApply({
   sheetId,
   propsRef,
   univerAPIRef,
+  suppressWorksheetSelectionEmitRef,
   cellDimensionsRef,
   isApplyingRemoteUpdateRef,
   collabPersistedBulkApplyDepthRef,
@@ -457,6 +461,35 @@ export function useUniverRemoteApply({
         payload.data.params && typeof payload.data.params === 'object' && !Array.isArray(payload.data.params)
           ? { ...(payload.data.params as Record<string, unknown>), unitId, subUnitId, sheetId: targetSheetId }
           : { unitId, subUnitId, sheetId: targetSheetId }
+      const activeWorksheetId = (workbook as { getActiveSheet?: () => { getSheetId?: () => string } | null } | null)
+        ?.getActiveSheet?.()
+        ?.getSheetId?.()
+      const shouldPreserveVisibleWorksheet =
+        propsRef.current.multiSheetWorkbookMode === true &&
+        typeof activeWorksheetId === 'string' &&
+        activeWorksheetId.length > 0 &&
+        activeWorksheetId !== subUnitId
+      const runSheetScopedCommand = (execute: () => unknown): unknown => {
+        if (shouldPreserveVisibleWorksheet && activeWorksheetId) {
+          suppressWorksheetSelectionEmitRef.current = {
+            expectedSheetId: activeWorksheetId,
+            untilMs: Date.now() + 750
+          }
+        }
+        return runRemoteCommandWithStructuralGuard({
+          isApplyingRemoteUpdateRef,
+          collabPersistedBulkApplyDepthRef,
+          execute: () =>
+            runWithWorkbookFacadeSheetActive(
+              workbook as {
+                getActiveSheet?: () => { getSheetId?: () => string } | null
+                setActiveSheet?: (id: string) => unknown
+              },
+              subUnitId,
+              execute
+            )
+        })
+      }
       try {
         if (payload.type === 'merge_ranges' || payload.type === 'unmerge_ranges') {
           const mergeData = payload.data as { ranges?: unknown }
@@ -466,21 +499,18 @@ export function useUniverRemoteApply({
                 .filter((range): range is ClearAllRectangle => range != null)
             : []
           if (ranges.length > 0 && typeof api.syncExecuteCommand === 'function') {
-            runRemoteCommandWithStructuralGuard({
-              isApplyingRemoteUpdateRef,
-              collabPersistedBulkApplyDepthRef,
-              execute: () =>
-                api.syncExecuteCommand?.(
-                  payload.type === 'merge_ranges'
-                    ? 'sheet.mutation.add-worksheet-merge'
-                    : 'sheet.mutation.remove-worksheet-merge',
-                  {
-                    unitId,
-                    subUnitId,
-                    ranges
-                  }
-                )
-            })
+            runSheetScopedCommand(() =>
+              api.syncExecuteCommand?.(
+                payload.type === 'merge_ranges'
+                  ? 'sheet.mutation.add-worksheet-merge'
+                  : 'sheet.mutation.remove-worksheet-merge',
+                {
+                  unitId,
+                  subUnitId,
+                  ranges
+                }
+              )
+            )
           }
           return
         }
@@ -494,15 +524,12 @@ export function useUniverRemoteApply({
           const ranges = Array.isArray(visibilityData.ranges) ? visibilityData.ranges : []
           const commandRanges = resolveRemoteVisibilityCommandRanges(axis, ranges, params)
           if (commandRanges.length > 0 && typeof api.syncExecuteCommand === 'function') {
-            runRemoteCommandWithStructuralGuard({
-              isApplyingRemoteUpdateRef,
-              collabPersistedBulkApplyDepthRef,
-              execute: () =>
-                api.syncExecuteCommand?.(resolveVisibilityCommandId(commandId, axis, visibilityData.hidden === true), {
-                  ...params,
-                  ranges: commandRanges
-                })
-            })
+            runSheetScopedCommand(() =>
+              api.syncExecuteCommand?.(resolveVisibilityCommandId(commandId, axis, visibilityData.hidden === true), {
+                ...params,
+                ranges: commandRanges
+              })
+            )
             return
           }
           const columnSetter = targetWorksheet as { setColumnWidth?: (col: number, w: number) => unknown }
@@ -529,11 +556,7 @@ export function useUniverRemoteApply({
               return
             }
             if (typeof api.syncExecuteCommand === 'function') {
-              runRemoteCommandWithStructuralGuard({
-                isApplyingRemoteUpdateRef,
-                collabPersistedBulkApplyDepthRef,
-                execute: () => api.syncExecuteCommand?.(commandId || 'sheet.command.cancel-frozen', params)
-              })
+              runSheetScopedCommand(() => api.syncExecuteCommand?.(commandId || 'sheet.command.cancel-frozen', params))
               return
             }
           }
@@ -544,26 +567,20 @@ export function useUniverRemoteApply({
               return
             }
             if (typeof api.syncExecuteCommand === 'function') {
-              runRemoteCommandWithStructuralGuard({
-                isApplyingRemoteUpdateRef,
-                collabPersistedBulkApplyDepthRef,
-                execute: () =>
-                  api.syncExecuteCommand?.(commandId || 'sheet.command.set-selection-frozen', {
-                    ...params,
-                    ...freeze
-                  })
-              })
+              runSheetScopedCommand(() =>
+                api.syncExecuteCommand?.(commandId || 'sheet.command.set-selection-frozen', {
+                  ...params,
+                  ...freeze
+                })
+              )
               return
             }
           }
         }
         if (commandId && typeof api.syncExecuteCommand === 'function') {
-          runRemoteCommandWithStructuralGuard({
-            isApplyingRemoteUpdateRef,
-            collabPersistedBulkApplyDepthRef,
-            execute: () =>
-              api.syncExecuteCommand?.(commandId, params && typeof params === 'object' ? params : undefined)
-          })
+          runSheetScopedCommand(() =>
+            api.syncExecuteCommand?.(commandId, params && typeof params === 'object' ? params : undefined)
+          )
           return
         }
       } catch (featureErr) {

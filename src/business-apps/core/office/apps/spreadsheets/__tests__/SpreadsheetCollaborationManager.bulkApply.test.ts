@@ -501,6 +501,123 @@ describe('SpreadsheetCollaborationManager bulk apply', () => {
     )
   })
 
+  it('defers set_style until columns_reorder replay finishes', async () => {
+    localStorage.setItem('gba.spreadsheets.deltaReplay', 'off')
+    const columns: SpreadsheetColumn[] = [
+      col({ id: 'col-a', name: 'ColumnA', order: 0 }),
+      col({ id: 'col-b', name: 'ColumnB', order: 1 })
+    ]
+    const applyRemoteCellUpdate = jest.fn()
+    const applyRemoteColumnReorder = jest.fn(() => true)
+    const manager = new SpreadsheetCollaborationManager(
+      makeCallbacks({
+        getColumns: () => columns,
+        applyRemoteCellUpdate,
+        applyRemoteColumnReorder
+      })
+    )
+
+    manager.handleOperation({
+      userId: 'u2',
+      userName: 'Other',
+      operation: {
+        type: 'batch_operations',
+        data: {
+          sheetId: 'sheet-1',
+          operations: [
+            {
+              type: 'columns_reorder',
+              data: {
+                sheetId: 'sheet-1',
+                columns: [columns[1], columns[0]].map((column, index) => ({ ...column, order: index })),
+                sourceStartIndex: 1,
+                count: 1,
+                normalizedDestinationIndex: 0
+              }
+            },
+            {
+              type: 'set_style',
+              data: {
+                sheetId: 'sheet-1',
+                styles: { 'style-1': { bg: { rgb: '#00ff00' } } },
+                cells: [{ row: 0, col: 0, stylePatch: { set: { s: 'style-1' } } }]
+              }
+            }
+          ]
+        }
+      },
+      version: 12,
+      timestamp: Date.now()
+    })
+
+    expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
+
+    await Promise.resolve()
+
+    expect(applyRemoteColumnReorder).toHaveBeenCalled()
+    expect(applyRemoteCellUpdate).toHaveBeenCalledWith(
+      0,
+      0,
+      undefined,
+      undefined,
+      expect.objectContaining({
+        stylePatch: { set: { s: 'style-1' } },
+        univerStyles: { 'style-1': { bg: { rgb: '#00ff00' } } }
+      })
+    )
+  })
+
+  it('fails closed on column reorder repair when formatting replay is missing', async () => {
+    localStorage.setItem('gba.spreadsheets.deltaReplay', 'off')
+    const columns: SpreadsheetColumn[] = [
+      col({ id: 'col-a', name: 'ColumnA', order: 0 }),
+      col({ id: 'col-b', name: 'ColumnB', order: 1 })
+    ]
+    const forceGridReapply = jest.fn()
+    const scheduleRemoteStructuralResync = jest.fn()
+    const markSheetNeedsGridMaterialization = jest.fn()
+    const manager = new SpreadsheetCollaborationManager(
+      makeCallbacks({
+        getColumns: () => columns,
+        forceGridReapply,
+        scheduleRemoteStructuralResync,
+        markSheetNeedsGridMaterialization,
+        applyRemoteColumnReorder: jest.fn(() => false)
+      })
+    )
+
+    manager.handleOperation({
+      userId: 'u2',
+      userName: 'Other',
+      operation: {
+        type: 'batch_operations',
+        data: {
+          sheetId: 'sheet-1',
+          operations: [
+            {
+              type: 'columns_reorder',
+              data: {
+                sheetId: 'sheet-1',
+                columns: [columns[1], columns[0]].map((column, index) => ({ ...column, order: index })),
+                sourceStartIndex: 1,
+                count: 1,
+                normalizedDestinationIndex: 0
+              }
+            }
+          ]
+        }
+      },
+      version: 13,
+      timestamp: Date.now()
+    })
+
+    await Promise.resolve()
+
+    expect(forceGridReapply).not.toHaveBeenCalled()
+    expect(scheduleRemoteStructuralResync).toHaveBeenCalledWith('sheet-1', { immediate: true })
+    expect(markSheetNeedsGridMaterialization).not.toHaveBeenCalledWith('sheet-1', 'set_style')
+  })
+
   it('routes clear_all replay through applyRemoteClearAllRange when callback exists', () => {
     const columns: SpreadsheetColumn[] = [
       col({ id: 'col-a', name: 'ColumnA', order: 0 }),

@@ -25,6 +25,7 @@ import type { SpreadsheetTraceEventInput } from '../services/spreadsheetDiagnost
 import type { NativeSheetStructureIntent } from '../utils/nativeSheetStructureIntent'
 import type { SpreadsheetRowSlotIdentityRegistry } from '../utils/spreadsheetRowSlotIdentity'
 import type { SpreadsheetRowMaterializationReadiness } from '../hooks/spreadsheetRowMaterializationReadiness'
+import type { BootstrapVisibleStyleRepair } from '../hooks/useSpreadsheetBootstrapSnapshotPipeline'
 
 export interface TableViewProps {
   sheet: SpreadsheetSheet
@@ -34,6 +35,7 @@ export interface TableViewProps {
   authoritativeDataSyncToken?: number
   authoritativePaintCellsRef?: MutableRefObject<import('../core').SpreadsheetBulkRemoteCellItem[] | null>
   authoritativePaintMetaRef?: MutableRefObject<import('../core').SpreadsheetBulkRemoteApplyMeta | null>
+  pendingBootstrapStyleRepair?: BootstrapVisibleStyleRepair | null
   workbookInstanceKey: string
   multiSheetWorkbookMode?: boolean
   pendingLocalMutationCellsRef?: MutableRefObject<Set<string>>
@@ -96,13 +98,14 @@ export interface TableViewProps {
   onDataChange?: (data: Record<string, unknown>[], sheetId?: string) => void
   /** Callback when a new column needs to be auto-created */
   onColumnAdd?: (columnIndex: number, initialValue?: unknown, rowIndex?: number) => void
-  onColumnsInsert?: (insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => void
-  onColumnsDelete?: (startIndex: number, endIndex: number) => void
-  onColumnsMove?: (sourceStartIndex: number, count: number, destinationIndex: number) => void
-  onRowsInsert?: (insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => void
-  onRowsDelete?: (startIndex: number, count: number) => void
-  onRowsMove?: (sourceStartIndex: number, count: number, destinationIndex: number) => void
+  onColumnsInsert?: (sheetId: string, insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => void
+  onColumnsDelete?: (sheetId: string, startIndex: number, endIndex: number) => void
+  onColumnsMove?: (sheetId: string, sourceStartIndex: number, count: number, destinationIndex: number) => void
+  onRowsInsert?: (sheetId: string, insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => void
+  onRowsDelete?: (sheetId: string, startIndex: number, count: number) => void
+  onRowsMove?: (sheetId: string, sourceStartIndex: number, count: number, destinationIndex: number) => void
   onCellRangeMove?: (
+    sheetId: string,
     fromRange: { startRow: number; endRow: number; startColumn: number; endColumn: number },
     toRange: { startRow: number; endRow: number; startColumn: number; endColumn: number }
   ) => void
@@ -138,6 +141,7 @@ export interface TableViewProps {
   collaborationEnabled?: boolean
   isReadOnly?: boolean
   onDimensionsChange?: (payload: CellDimensionsPayload) => void
+  onAuthoritativeReapplyError?: (payload: { sheetId: string; reason?: string; error: unknown }) => void
   /** Ref to access UniverSheetGrid imperative methods */
   gridRef?: React.Ref<UniverSheetGridHandle>
 }
@@ -153,6 +157,7 @@ export const TableView = memo<TableViewProps>(function TableView({
   authoritativeDataSyncToken,
   authoritativePaintCellsRef,
   authoritativePaintMetaRef,
+  pendingBootstrapStyleRepair,
   workbookInstanceKey,
   multiSheetWorkbookMode,
   pendingLocalMutationCellsRef,
@@ -207,6 +212,7 @@ export const TableView = memo<TableViewProps>(function TableView({
   collaborationEnabled,
   isReadOnly,
   onDimensionsChange,
+  onAuthoritativeReapplyError,
   gridRef
 }) {
   const { t } = useTranslation(translations)
@@ -449,6 +455,7 @@ export const TableView = memo<TableViewProps>(function TableView({
           authoritativeDataSyncToken={authoritativeDataSyncToken}
           authoritativePaintCellsRef={authoritativePaintCellsRef}
           authoritativePaintMetaRef={authoritativePaintMetaRef}
+          pendingBootstrapStyleRepair={pendingBootstrapStyleRepair}
           workbookInstanceKey={workbookInstanceKey}
           multiSheetWorkbookMode={multiSheetWorkbookMode}
           pendingLocalMutationCellsRef={pendingLocalMutationCellsRef}
@@ -500,6 +507,7 @@ export const TableView = memo<TableViewProps>(function TableView({
           getCanonicalSheetId={getCanonicalSheetId}
           collaborationEnabled={collaborationEnabled}
           onDimensionsChange={onDimensionsChange}
+          onAuthoritativeReapplyError={onAuthoritativeReapplyError}
           height="100%"
           width="100%"
         />

@@ -9,6 +9,7 @@ import { TableView } from '../views/TableView'
 import type { UniverSheetGridInitLifecycleEvent } from '../components/UniverSheetGrid.types'
 import type { SpreadsheetRowSlotIdentityRegistry } from '../utils/spreadsheetRowSlotIdentity'
 import type { SpreadsheetRowMaterializationReadiness } from './spreadsheetRowMaterializationReadiness'
+import type { BootstrapVisibleStyleRepair } from './useSpreadsheetBootstrapSnapshotPipeline'
 import translations from '../_i18n'
 
 type ViewerRow = Record<string, unknown>
@@ -35,6 +36,7 @@ export interface UseSpreadsheetMainViewRendererParams {
   authoritativeDataSyncToken: number | string
   authoritativePaintCellsRef?: MutableRefObject<import('../core').SpreadsheetBulkRemoteCellItem[] | null>
   authoritativePaintMetaRef?: MutableRefObject<import('../core').SpreadsheetBulkRemoteApplyMeta | null>
+  pendingBootstrapStyleRepair?: BootstrapVisibleStyleRepair | null
   workbookInstanceKey: string
   pendingLocalMutationCellsRef: MutableRefObject<Set<string>>
   spreadsheetIntentJournalRef?: MutableRefObject<import('../core/spreadsheetIntentJournal').SpreadsheetIntentJournal>
@@ -82,14 +84,19 @@ export interface UseSpreadsheetMainViewRendererParams {
   collaborationEnabled: boolean
   canEditWithLock: boolean
   onColumnAdd?: (...args: any[]) => void | Promise<void>
-  onColumnsInsert?: (...args: any[]) => void
-  onColumnsDelete?: (...args: any[]) => void
-  onColumnsMove?: (...args: any[]) => void
-  onRowsInsert?: (...args: any[]) => void
-  onRowsDelete?: (...args: any[]) => void
-  onRowsMove?: (...args: any[]) => void
-  onCellRangeMove?: (...args: any[]) => void
+  onColumnsInsert?: (sheetId: string, insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => void
+  onColumnsDelete?: (sheetId: string, startIndex: number, endIndex: number) => void
+  onColumnsMove?: (sheetId: string, sourceStartIndex: number, count: number, destinationIndex: number) => void
+  onRowsInsert?: (sheetId: string, insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => void
+  onRowsDelete?: (sheetId: string, startIndex: number, count: number) => void
+  onRowsMove?: (sheetId: string, sourceStartIndex: number, count: number, destinationIndex: number) => void
+  onCellRangeMove?: (
+    sheetId: string,
+    fromRange: { startRow: number; endRow: number; startColumn: number; endColumn: number },
+    toRange: { startRow: number; endRow: number; startColumn: number; endColumn: number }
+  ) => void
   onDimensionsChange: (payload: unknown) => void
+  onAuthoritativeReapplyError: (payload: { sheetId: string; reason?: string; error: unknown }) => void
   gridRef: MutableRefObject<any>
   onEditRow: (row: ViewerRow) => void
   onDeleteRow: (rowId: string) => Promise<void>
@@ -115,6 +122,7 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
     authoritativeDataSyncToken,
     authoritativePaintCellsRef,
     authoritativePaintMetaRef,
+    pendingBootstrapStyleRepair,
     workbookInstanceKey,
     pendingLocalMutationCellsRef,
     spreadsheetIntentJournalRef,
@@ -164,6 +172,7 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
     onRowsMove,
     onCellRangeMove,
     onDimensionsChange,
+    onAuthoritativeReapplyError,
     gridRef,
     onEditRow,
     onDeleteRow,
@@ -202,6 +211,7 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
           authoritativeDataSyncToken={authoritativeDataSyncToken as any}
           authoritativePaintCellsRef={authoritativePaintCellsRef}
           authoritativePaintMetaRef={authoritativePaintMetaRef}
+          pendingBootstrapStyleRepair={pendingBootstrapStyleRepair}
           workbookInstanceKey={workbookInstanceKey as any}
           pendingLocalMutationCellsRef={pendingLocalMutationCellsRef}
           spreadsheetIntentJournalRef={spreadsheetIntentJournalRef}
@@ -246,6 +256,7 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
           onCursorEmit={onCursorEmit}
           getCanonicalSheetId={getCanonicalSheetId}
           collaborationEnabled={collaborationEnabled}
+          onAuthoritativeReapplyError={onAuthoritativeReapplyError}
           onColumnAdd={canEditWithLock ? onColumnAdd : undefined}
           onColumnsInsert={canEditWithLock ? onColumnsInsert : undefined}
           onColumnsDelete={canEditWithLock ? onColumnsDelete : undefined}
@@ -312,6 +323,7 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
     onCellChange,
     onCellsChange,
     onColumnAdd,
+    pendingBootstrapStyleRepair,
     pendingLocalMutationCellsRef,
     onColumnsDelete,
     onColumnsInsert,

@@ -1003,6 +1003,14 @@ export function buildSpreadsheetCollaborationCallbacks(
       routeVersionEcho(sheetId, version, knownVersionBefore)
     },
     onSheetVersionUpdate: (sheetId, version) => {
+      if (sheetId !== activeSheetIdRef.current) {
+        debugLog('inactive_sheet_version_echo_deferred', {
+          sheetId,
+          version,
+          activeSheetId: activeSheetIdRef.current
+        })
+        return
+      }
       const knownVersionBefore = resolveKnownSheetVersion(sheetId)
       rememberSheetVersion(sheetId, version)
       routeVersionEcho(sheetId, version, knownVersionBefore)
@@ -1027,10 +1035,10 @@ export function buildSpreadsheetCollaborationCallbacks(
     scheduleRemoteStructuralResync,
     onRemoteColumnUpdate: handleRemoteColumnUpdate,
     applyRemoteColumnReorder: ({ sheetId, previousColumns, nextColumns, moves }) => {
-      if (activeSheetIdRef.current !== sheetId) return false
       flushPendingRemoteCellPaints(sheetId)
       return (
         spreadsheetGridRef.current?.applyRemoteColumnsReorder?.({
+          sheetId,
           previousColumns,
           nextColumns,
           moves
@@ -1038,10 +1046,10 @@ export function buildSpreadsheetCollaborationCallbacks(
       )
     },
     applyRemoteRowSlotsMove: ({ sheetId, sourceStartGridRowIndex, count, destinationGridRowIndex }) => {
-      if (activeSheetIdRef.current !== sheetId) return false
       flushPendingRemoteCellPaints(sheetId)
       return (
         spreadsheetGridRef.current?.applyRemoteRowSlotsMove?.({
+          sheetId,
           sourceStartGridRowIndex,
           count,
           destinationGridRowIndex
@@ -1049,49 +1057,48 @@ export function buildSpreadsheetCollaborationCallbacks(
       )
     },
     applyRemoteInsertRowSlots: ({ sheetId, startGridRowIndex, count }) => {
-      if (activeSheetIdRef.current !== sheetId) return false
       flushPendingRemoteCellPaints(sheetId)
       return (
         spreadsheetGridRef.current?.applyRemoteInsertRowSlots?.({
+          sheetId,
           startGridRowIndex,
           count
         }) ?? false
       )
     },
     applyRemoteDeleteRowSlots: ({ sheetId, startGridRowIndex, count }) => {
-      if (activeSheetIdRef.current !== sheetId) return false
       flushPendingRemoteCellPaints(sheetId)
       return (
         spreadsheetGridRef.current?.applyRemoteDeleteRowSlots?.({
+          sheetId,
           startGridRowIndex,
           count
         }) ?? false
       )
     },
     applyRemoteInsertColumnSlots: ({ sheetId, startGridColumnIndex, count }) => {
-      if (activeSheetIdRef.current !== sheetId) return false
       flushPendingRemoteCellPaints(sheetId)
       return (
         spreadsheetGridRef.current?.applyRemoteInsertColumnSlots?.({
+          sheetId,
           startGridColumnIndex,
           count
         }) ?? false
       )
     },
     applyRemoteDeleteColumnSlots: ({ sheetId, startGridColumnIndex, count }) => {
-      if (activeSheetIdRef.current !== sheetId) return false
       flushPendingRemoteCellPaints(sheetId)
       return (
         spreadsheetGridRef.current?.applyRemoteDeleteColumnSlots?.({
+          sheetId,
           startGridColumnIndex,
           count
         }) ?? false
       )
     },
     applyRemoteMoveCellRange: ({ sheetId, fromRange, toRange }) => {
-      if (activeSheetIdRef.current !== sheetId) return false
       flushPendingRemoteCellPaints(sheetId)
-      return spreadsheetGridRef.current?.applyRemoteMoveCellRange?.({ fromRange, toRange }) ?? false
+      return spreadsheetGridRef.current?.applyRemoteMoveCellRange?.({ sheetId, fromRange, toRange }) ?? false
     },
     isRecentLocalBatchId,
     fetchChangesSince: async (sheetId, sinceVersion) => {

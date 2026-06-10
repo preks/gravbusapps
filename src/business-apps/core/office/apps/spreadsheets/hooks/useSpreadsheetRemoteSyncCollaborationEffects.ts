@@ -1,10 +1,7 @@
 import { useEffect, useRef, type MutableRefObject } from 'react'
 
-import { SpreadsheetApiService } from '../services/SpreadsheetApiService'
 import { REMOTE_SHEET_CATCHUP_DEBOUNCE_MS } from '../utils/spreadsheetViewerDebug'
-import { sortSpreadsheetRowsBySheetSettings } from '../utils/spreadsheetSheetRowSort'
 import { resolveReconciledSheetId } from '../utils/reconcileTemporarySheetId'
-import { mapSnapshotRowsToViewerRows } from '../utils/spreadsheetViewerRows'
 
 import type { SpreadsheetSheet } from '../types'
 import type { SheetDeltaCatchUpReason } from './spreadsheetRemoteSyncTypes'
@@ -19,6 +16,11 @@ export interface UseSpreadsheetRemoteSyncCollaborationEffectsParams {
   collaborationJoined: boolean
   collaborationConnected: boolean
   requestSheetDeltaCatchUp: (sheetId: string, reason: SheetDeltaCatchUpReason) => Promise<boolean>
+  ensureSheetReady: (
+    sheetId: string,
+    reason: 'sheet_switch' | 'focus' | 'visibility' | 'reconnect' | 'prefetch',
+    options?: { prefetchOnly?: boolean; allowManifestRefresh?: boolean }
+  ) => Promise<'ready' | 'blocked' | 'failed'>
   rememberKnownSheetVersion: (sheetId: string, version: number) => void
   rememberSheetVersion: (sheetId: string, version: number | undefined) => void
   scheduleSheetVersionRefreshFromApi: (requestedSheetId?: string) => void
@@ -62,24 +64,24 @@ export function useSpreadsheetRemoteSyncCollaborationEffects(
     const wasConnected = previousCollaborationConnectedRef.current
     previousCollaborationConnectedRef.current = params.collaborationConnected
     if (!params.collaborationConnected || wasConnected || !params.collaborationJoined) return
-    void params.requestSheetDeltaCatchUp(params.activeSheetId, 'collaboration_reconnect')
-  }, [params.activeSheetId, params.collaborationConnected, params.collaborationJoined, params.requestSheetDeltaCatchUp])
+    void params.ensureSheetReady(params.activeSheetId, 'reconnect', { allowManifestRefresh: true })
+  }, [params.activeSheetId, params.collaborationConnected, params.collaborationJoined, params.ensureSheetReady])
 
   useEffect(() => {
     const previousSheetId = prevActiveSheetIdForRemoteCatchupRef.current
     prevActiveSheetIdForRemoteCatchupRef.current = params.activeSheetId
     if (previousSheetId === params.activeSheetId || !params.collaborationJoined) return
-    void params.requestSheetDeltaCatchUp(params.activeSheetId, 'sheet_activation')
-  }, [params.activeSheetId, params.collaborationJoined, params.requestSheetDeltaCatchUp])
+    void params.ensureSheetReady(params.activeSheetId, 'sheet_switch', { allowManifestRefresh: true })
+  }, [params.activeSheetId, params.collaborationJoined, params.ensureSheetReady])
 
   useEffect(() => {
     if (!params.collaborationJoined || typeof window === 'undefined') return
     const catchUpOnFocus = () => {
-      void params.requestSheetDeltaCatchUp(params.activeSheetIdRef.current, 'focus')
+      void params.ensureSheetReady(params.activeSheetIdRef.current, 'focus', { allowManifestRefresh: true })
     }
     const catchUpOnVisibility = () => {
       if (document.visibilityState !== 'visible') return
-      void params.requestSheetDeltaCatchUp(params.activeSheetIdRef.current, 'visibility')
+      void params.ensureSheetReady(params.activeSheetIdRef.current, 'visibility', { allowManifestRefresh: true })
     }
     window.addEventListener('focus', catchUpOnFocus)
     document.addEventListener('visibilitychange', catchUpOnVisibility)
@@ -87,7 +89,7 @@ export function useSpreadsheetRemoteSyncCollaborationEffects(
       window.removeEventListener('focus', catchUpOnFocus)
       document.removeEventListener('visibilitychange', catchUpOnVisibility)
     }
-  }, [params.collaborationJoined, params.requestSheetDeltaCatchUp])
+  }, [params.collaborationJoined, params.ensureSheetReady])
 
   useEffect(() => {
     const prev = prevActiveSheetIdForRemoteCatchupRef.current
@@ -121,38 +123,16 @@ export function useSpreadsheetRemoteSyncCollaborationEffects(
 
       void (async () => {
         try {
-          const snapshot = await SpreadsheetApiService.getSheetSnapshot(params.appId, targetSheetId)
+          const readiness = await params.ensureSheetReady(targetSheetId, 'sheet_switch', {
+            allowManifestRefresh: true
+          })
           if (remoteSheetCatchupSequenceRef.current !== catchupSequence) return
           const canonicalActiveSheetId = resolveReconciledSheetId(
             params.activeSheetIdRef.current,
             params.createdSheetIdAliasesRef.current
           )
           if (targetSheetId !== canonicalActiveSheetId) return
-
-          const currentSheets = params.appSheetsRef.current
-          const refreshedSheetMeta =
-            (snapshot.sheet as unknown as SpreadsheetSheet | undefined) ??
-            currentSheets.find(sheet => sheet.id === targetSheetId) ??
-            currentSheets.find(sheet => sheet.id === canonicalActiveSheetId)
-          const refreshedRows = sortSpreadsheetRowsBySheetSettings(
-            mapSnapshotRowsToViewerRows(snapshot.rows || []),
-            refreshedSheetMeta
-          )
-          const refreshedVersion = Number(snapshot.version ?? 0)
-          if (Number.isFinite(refreshedVersion) && refreshedVersion >= 0) {
-            params.rememberKnownSheetVersion(targetSheetId, refreshedVersion)
-            params.rememberSheetVersion(targetSheetId, refreshedVersion)
-          }
-          if (params.hasPendingPersistenceForSheet(targetSheetId)) {
-            return
-          }
-          const rowsToCommit = refreshedRows
-          params.peerSheetDataCacheRef.current.set(targetSheetId, rowsToCommit)
-          params.authoritativePeerSheetDataCacheRef.current.add(targetSheetId)
-          params.commitLocalSheetData(rowsToCommit, {
-            persisted: rowsToCommit === refreshedRows,
-            syncGrid: !params.preferUniverNativeSheetTabs
-          })
+          if (readiness === 'ready') return
         } catch {
           if (remoteSheetCatchupSequenceRef.current !== catchupSequence) return
           const canonicalActiveSheetId = resolveReconciledSheetId(
@@ -178,8 +158,8 @@ export function useSpreadsheetRemoteSyncCollaborationEffects(
     params.appId,
     params.appIsShared,
     params.collaborationConnected,
-    params.commitLocalSheetData,
     params.entityEnabled,
+    params.ensureSheetReady,
     params.hasPendingPersistenceForSheet,
     params.preferUniverNativeSheetTabs,
     params.rememberKnownSheetVersion,

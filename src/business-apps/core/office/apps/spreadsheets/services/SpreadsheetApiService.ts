@@ -415,6 +415,9 @@ function mapApiResponseToSheet(sheet: Record<string, unknown>): SpreadsheetSheet
     name: sheet.name as string,
     description: sheet.description as string | undefined,
     version: (sheet.version as number | undefined) ?? 0,
+    ...(typeof sheet.sheetSnapshotVersion === 'number'
+      ? { sheetSnapshotVersion: sheet.sheetSnapshotVersion as number }
+      : {}),
     ...(hidden !== undefined ? { hidden } : {}),
     ...(sheet.worksheetSnapshot &&
     typeof sheet.worksheetSnapshot === 'object' &&
@@ -1052,6 +1055,52 @@ export const SpreadsheetApiService = {
     return {
       ...snapshot,
       sheet: mapApiResponseToSheet(snapshot.sheet)
+    }
+  },
+
+  async getSheetManifest(appId: string): Promise<{
+    appId: string
+    workbookSnapshotVersion: number
+    sheets: Array<{
+      id: string
+      name: string
+      position: number
+      operationVersion: number
+      sheetSnapshotVersion: number
+    }>
+  }> {
+    return apiRequestToBase(SPREADSHEET_CORE_API_URL, spreadsheetEndpoint(`/${appId}/sheet-manifest`))
+  },
+
+  async getSheetHydrationSnapshot(
+    appId: string,
+    sheetId: string
+  ): Promise<{
+    sheet: SpreadsheetSheet
+    rows: Array<Record<string, unknown>>
+    operationVersion: number
+    sheetSnapshotVersion: number
+    worksheetSnapshot: Record<string, unknown> | null
+    workbookDependencies: Record<string, unknown>
+    workbookSnapshotVersion: number
+  }> {
+    const snapshot = await apiRequestToBase<{
+      sheet: Record<string, unknown>
+      rows: Array<Record<string, unknown>>
+      operationVersion: number
+      sheetSnapshotVersion: number
+      worksheetSnapshot: Record<string, unknown> | null
+      workbookDependencies: Record<string, unknown>
+      workbookSnapshotVersion: number
+    }>(SPREADSHEET_CORE_API_URL, spreadsheetEndpoint(`/${appId}/sheets/${sheetId}/hydration-snapshot`))
+
+    return {
+      ...snapshot,
+      sheet: mapApiResponseToSheet({
+        ...snapshot.sheet,
+        sheetSnapshotVersion: snapshot.sheetSnapshotVersion,
+        ...(snapshot.worksheetSnapshot ? { worksheetSnapshot: snapshot.worksheetSnapshot } : {})
+      })
     }
   },
 

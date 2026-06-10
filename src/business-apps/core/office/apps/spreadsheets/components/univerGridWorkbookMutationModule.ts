@@ -1553,7 +1553,17 @@ export function writeRemoteCellIntoUniverWorksheetSync(params: {
   remoteEchoSuppressionRef: MutableRefObject<Map<string, RemoteEchoSuppressionEntry>>
 }): void {
   const { workbook, worksheet, rowForApply, colForApply, value, options, echoKey, remoteEchoSuppressionRef } = params
-  const rQ = worksheet.getRange(rowForApply, colForApply)
+  let rQ: { getCellData?: () => unknown; setValue: (v: unknown) => unknown } | null | undefined
+  try {
+    rQ = worksheet.getRange(rowForApply, colForApply)
+  } catch (rangeErr) {
+    console.warn('[UniverSheetGrid] remote collab getRange failed:', {
+      rowForApply,
+      colForApply,
+      message: rangeErr instanceof Error ? rangeErr.message : String(rangeErr)
+    })
+    throw rangeErr
+  }
   if (!rQ) return
 
   const optStyles = options?.univerStyles

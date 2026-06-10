@@ -19,6 +19,7 @@ import type { NativeSheetStructureIntent } from '../utils/nativeSheetStructureIn
 import type { SpreadsheetRowSlotIdentityRegistry } from '../utils/spreadsheetRowSlotIdentity'
 import type { ColumnReorderMove } from '../utils/spreadsheetColumnReorderMoves'
 import type { MutableRefObject } from 'react'
+import type { BootstrapVisibleStyleRepair } from '../hooks/useSpreadsheetBootstrapSnapshotPipeline'
 
 export type WorkbookSnapshotLifecycleOrigin = 'cell' | 'workbook'
 
@@ -56,6 +57,7 @@ export interface UniverSheetGridProps {
   /** One-shot explicit cells to paint after session apply (consumed by authoritative grid sync). */
   authoritativePaintCellsRef?: MutableRefObject<import('../core').SpreadsheetBulkRemoteCellItem[] | null>
   authoritativePaintMetaRef?: MutableRefObject<import('../core').SpreadsheetBulkRemoteApplyMeta | null>
+  pendingBootstrapStyleRepair?: BootstrapVisibleStyleRepair | null
   workbookInstanceKey: string
   multiSheetWorkbookMode?: boolean
   pendingLocalMutationCellsRef?: MutableRefObject<Set<string>>
@@ -126,18 +128,19 @@ export interface UniverSheetGridProps {
     createdAt?: string
   }>
   onColumnAdd?: (columnIndex: number, initialValue?: unknown, rowIndex?: number) => void
-  onColumnsInsert?: (insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => void
-  onColumnsDelete?: (startIndex: number, endIndex: number) => void
-  onColumnsMove?: (sourceStartIndex: number, count: number, destinationIndex: number) => void
-  onRowsInsert?: (insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => void
-  onRowsDelete?: (startIndex: number, count: number) => void
-  onRowsMove?: (sourceStartIndex: number, count: number, destinationIndex: number) => void
+  onColumnsInsert?: (sheetId: string, insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => void
+  onColumnsDelete?: (sheetId: string, startIndex: number, endIndex: number) => void
+  onColumnsMove?: (sheetId: string, sourceStartIndex: number, count: number, destinationIndex: number) => void
+  onRowsInsert?: (sheetId: string, insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => void
+  onRowsDelete?: (sheetId: string, startIndex: number, count: number) => void
+  onRowsMove?: (sheetId: string, sourceStartIndex: number, count: number, destinationIndex: number) => void
   /**
    * Fires for Univer's cell-range move (sheet.command.move-range / sheet.mutation.move-range /
    * sheet.mutation.move-cell). Emits the absolute source and destination rectangles (zero-based,
    * end-inclusive) so the embedding viewer can persist a single `move_cell_range` batch op.
    */
   onCellRangeMove?: (
+    sheetId: string,
     fromRange: { startRow: number; endRow: number; startColumn: number; endColumn: number },
     toRange: { startRow: number; endRow: number; startColumn: number; endColumn: number }
   ) => void
@@ -209,6 +212,7 @@ export interface UniverSheetGridProps {
   getCanonicalSheetId?: (sheetId: string) => string
   collaborationEnabled?: boolean
   onDimensionsChange?: (payload: CellDimensionsPayload) => void
+  onAuthoritativeReapplyError?: (payload: { sheetId: string; reason?: string; error: unknown }) => void
   height?: string | number
   width?: string | number
 }
@@ -313,20 +317,23 @@ export interface UniverSheetGridAuthoritativeHandle {
    */
   syncGridConversionContext?: (columns: SpreadsheetColumn[], data?: Record<string, unknown>[]) => void
   applyRemoteColumnsReorder?: (params: {
+    sheetId: string
     previousColumns: SpreadsheetColumn[]
     nextColumns: SpreadsheetColumn[]
     moves?: ColumnReorderMove[]
   }) => boolean
   applyRemoteRowSlotsMove?: (params: {
+    sheetId: string
     sourceStartGridRowIndex: number
     count: number
     destinationGridRowIndex: number
   }) => boolean
-  applyRemoteInsertRowSlots?: (params: { startGridRowIndex: number; count: number }) => boolean
-  applyRemoteDeleteRowSlots?: (params: { startGridRowIndex: number; count: number }) => boolean
-  applyRemoteInsertColumnSlots?: (params: { startGridColumnIndex: number; count: number }) => boolean
-  applyRemoteDeleteColumnSlots?: (params: { startGridColumnIndex: number; count: number }) => boolean
+  applyRemoteInsertRowSlots?: (params: { sheetId: string; startGridRowIndex: number; count: number }) => boolean
+  applyRemoteDeleteRowSlots?: (params: { sheetId: string; startGridRowIndex: number; count: number }) => boolean
+  applyRemoteInsertColumnSlots?: (params: { sheetId: string; startGridColumnIndex: number; count: number }) => boolean
+  applyRemoteDeleteColumnSlots?: (params: { sheetId: string; startGridColumnIndex: number; count: number }) => boolean
   applyRemoteMoveCellRange?: (params: {
+    sheetId: string
     fromRange: { startRow: number; endRow: number; startColumn: number; endColumn: number }
     toRange: { startRow: number; endRow: number; startColumn: number; endColumn: number }
   }) => boolean
@@ -354,6 +361,7 @@ export interface UniverSheetGridSelectionHandle {
 
 /** Native worksheet insert/rename/remove via Univer commands. */
 export interface UniverSheetGridWorksheetAdminHandle {
+  mergeWorkbookDependencies: (dependencies: Record<string, unknown>) => boolean
   ensureWorksheetExists: (
     sheet: SpreadsheetSheet,
     data?: Record<string, unknown>[],

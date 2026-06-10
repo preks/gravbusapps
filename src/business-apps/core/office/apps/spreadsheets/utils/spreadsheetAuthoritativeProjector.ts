@@ -11,6 +11,66 @@ import { getViewerRowVisualIndex } from './spreadsheetPeerRowHydration'
 
 const cellValuesEqual = (left: unknown, right: unknown): boolean => toEchoSignature(left) === toEchoSignature(right)
 const projectorOwnedPaintOptions = { useSenderA1Row: true } as const
+const SNAPSHOT_STYLE_INLINE_KEYS = [
+  'bl',
+  'it',
+  'ul',
+  'st',
+  'ol',
+  'ff',
+  'fs',
+  'cl',
+  'bg',
+  'ht',
+  'vt',
+  'tb',
+  'tr',
+  'pd',
+  'bd',
+  'n'
+] as const
+
+const cloneSnapshotValue = <T>(value: T): T => {
+  if (value == null) return value
+  try {
+    if (typeof structuredClone === 'function') {
+      return structuredClone(value)
+    }
+  } catch {
+    // Fall through to JSON clone.
+  }
+  return JSON.parse(JSON.stringify(value)) as T
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+
+const buildSnapshotCellStylePatch = (
+  cell: Record<string, unknown> | null | undefined,
+  workbookStyles: Record<string, unknown>
+): { set: Record<string, unknown> } | null => {
+  if (!isRecord(cell)) return null
+
+  const set: Record<string, unknown> = {}
+  const styleRef = cell.s
+  if (typeof styleRef === 'string' && styleRef.trim().length > 0 && isRecord(workbookStyles[styleRef])) {
+    set.s = styleRef.trim()
+  } else if (isRecord(styleRef)) {
+    for (const key of SNAPSHOT_STYLE_INLINE_KEYS) {
+      if (styleRef[key] !== undefined) {
+        set[key] = cloneSnapshotValue(styleRef[key])
+      }
+    }
+  }
+
+  for (const key of SNAPSHOT_STYLE_INLINE_KEYS) {
+    if (cell[key] !== undefined) {
+      set[key] = cloneSnapshotValue(cell[key])
+    }
+  }
+
+  return Object.keys(set).length > 0 ? { set } : null
+}
 
 /**
  * Builds the explicit cell list the Univer grid should paint from authoritative viewer rows.
@@ -73,6 +133,74 @@ export function buildAuthoritativePaintCellsForMaterializedRows(
 ): SpreadsheetBulkRemoteCellItem[] {
   if (!region) return []
   return buildAuthoritativePaintCellsFromViewerRows(data, columns, { regions: [region] })
+}
+
+export function buildSnapshotStylePaintCellsFromWorkbookSnapshot(
+  workbookSnapshot: Record<string, unknown> | null,
+  sheetId: string,
+  data: readonly Record<string, unknown>[],
+  columns: SpreadsheetColumn[],
+  options?: { regions?: readonly AuthoritativeGridRegion[] }
+): SpreadsheetBulkRemoteCellItem[] {
+  if (!isRecord(workbookSnapshot) || !sheetId) return []
+  const workbookStyles = isRecord(workbookSnapshot.styles) ? (workbookSnapshot.styles as Record<string, unknown>) : {}
+  const sheets = isRecord(workbookSnapshot.sheets) ? (workbookSnapshot.sheets as Record<string, unknown>) : {}
+  const worksheet = isRecord(sheets[sheetId]) ? (sheets[sheetId] as Record<string, unknown>) : null
+  if (!worksheet) return []
+
+  const cellData = isRecord(worksheet.cellData) ? (worksheet.cellData as Record<string, Record<string, unknown>>) : {}
+  const visibleColumns = columns.filter(column => column.isVisible !== false)
+  if (visibleColumns.length === 0) return []
+
+  const rowsByGridIndex = buildAuthoritativeRowsByGridIndex([...data])
+  const regions = options?.regions ?? []
+  const items: SpreadsheetBulkRemoteCellItem[] = []
+
+  const rowIndexAllowed = (rowIndex: number, colIndex: number): boolean => {
+    if (regions.length === 0) return true
+    return regions.some(
+      region =>
+        rowIndex >= region.minRow && rowIndex <= region.maxRow && colIndex >= region.minCol && colIndex <= region.maxCol
+    )
+  }
+
+  const sharedStyles = Object.keys(workbookStyles).length > 0 ? cloneSnapshotValue(workbookStyles) : null
+
+  for (const [rowKey, rowCells] of Object.entries(cellData)) {
+    const rowIndex = Number(rowKey)
+    if (!Number.isInteger(rowIndex) || rowIndex < 0 || !isRecord(rowCells)) continue
+    const row = rowsByGridIndex.get(rowIndex)
+    for (const [colKey, cellValue] of Object.entries(rowCells)) {
+      const colIndex = Number(colKey)
+      if (
+        !Number.isInteger(colIndex) ||
+        colIndex < 0 ||
+        colIndex >= visibleColumns.length ||
+        !rowIndexAllowed(rowIndex, colIndex)
+      ) {
+        continue
+      }
+      const stylePatch = buildSnapshotCellStylePatch(
+        isRecord(cellValue) ? (cellValue as Record<string, unknown>) : null,
+        workbookStyles
+      )
+      if (!stylePatch) continue
+      items.push({
+        rowIndex,
+        colIndex,
+        rowId: row ? getCanonicalRowId(row) : undefined,
+        options: {
+          ...projectorOwnedPaintOptions,
+          targetSheetId: sheetId,
+          skipRemoteEchoRegistration: true,
+          stylePatch,
+          univerStyles: sharedStyles
+        }
+      })
+    }
+  }
+
+  return items
 }
 
 /**

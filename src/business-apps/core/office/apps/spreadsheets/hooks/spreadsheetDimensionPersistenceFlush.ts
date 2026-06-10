@@ -18,6 +18,7 @@ export interface DimensionPersistFlushContext {
   applyLocalAppUpdate: (updater: (currentApp: SpreadsheetApp) => SpreadsheetApp) => void
   onAppUpdate?: (app: SpreadsheetApp) => void
   onLocalAppUpdate?: (updater: (currentApp: SpreadsheetApp) => SpreadsheetApp) => void
+  markRecentLocalSnapshotMutation?: (sheetId: string, source: string) => void
   clearPendingWidthOverridesForColumns: (columnIds: string[]) => void
 }
 
@@ -108,6 +109,7 @@ export function runDimensionPersistFlush(
     }
 
     if (ops.length > 0) {
+      ctx.markRecentLocalSnapshotMutation?.(ctx.activeSheetId, 'dimensions_submit')
       debugLog('dimension persist submitBatch', {
         sheetId: ctx.activeSheetId,
         operationCount: ops.length,

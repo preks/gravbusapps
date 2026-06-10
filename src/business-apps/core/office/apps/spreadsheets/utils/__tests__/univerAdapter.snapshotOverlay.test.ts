@@ -71,6 +71,25 @@ describe('workbookFormattingRichnessScore', () => {
     }
     expect(workbookFormattingRichnessScore(snap, sheetId)).toBe(3)
   })
+
+  it('counts inline cell formatting even without workbook style ids', () => {
+    const snap: Record<string, unknown> = {
+      id: 'wb',
+      sheetOrder: [sheetId],
+      sheets: {
+        [sheetId]: {
+          id: sheetId,
+          cellData: {
+            0: {
+              0: { v: 'x', bg: { rgb: '#ffff00' } },
+              1: { v: 'y', bl: 1 }
+            }
+          }
+        }
+      }
+    }
+    expect(workbookFormattingRichnessScore(snap, sheetId)).toBe(2)
+  })
 })
 
 describe('mergeWorkbookFormattingFromDonor', () => {
@@ -471,6 +490,40 @@ describe('univerAdapter snapshot row overlay', () => {
     expect(workbookSnapshotMismatchesViewerRows(merged, sheetId, viewerRows, columns)).toBe(false)
   })
 
+  it('preserves unresolved snapshot-only values when bootstrap requests no-degrade overlay semantics', () => {
+    const viewerRows: Record<string, unknown>[] = Array.from({ length: 15 }, () => ({}))
+    viewerRows[12] = { alpha: 'a' }
+
+    const snapshot: Record<string, unknown> = {
+      id: 'wb',
+      name: 'W',
+      sheetOrder: [sheetId],
+      sheets: {
+        [sheetId]: {
+          id: sheetId,
+          name: 'S',
+          cellData: {
+            12: {
+              0: { v: 'a' }
+            },
+            13: {
+              0: { v: 'snapshot-only', s: 'carry-style' }
+            }
+          }
+        }
+      }
+    }
+
+    const merged = mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(snapshot, sheetId, viewerRows, columns, {
+      preserveUnresolvedSnapshotValues: true
+    })
+    const ws = (
+      merged.sheets as Record<string, { cellData?: Record<number, Record<number, { v?: unknown; s?: string }>> }>
+    )[sheetId]
+
+    expect(ws?.cellData?.[13]?.[0]).toEqual({ v: 'snapshot-only', s: 'carry-style' })
+  })
+
   it('synchronizes worksheet bounds with authoritative columns without collapsing the row canvas', () => {
     const structuralColumns = [textCol('alpha', 'alpha', 0), textCol('beta', 'beta', 1), textCol('gamma', 'gamma', 2)]
     const viewerRows: Record<string, unknown>[] = [{ alpha: 'a', beta: 'b' }]
@@ -679,9 +732,43 @@ describe('buildMultiSheetWorkbookFromAppSheets', () => {
     })
 
     expect(workbook.sheets['sheet-1']?.cellData?.[0]?.[0]?.v).toBe('row-value')
-    expect(workbook.sheets['sheet-1']?.cellData?.[0]?.[1]?.v).toBeUndefined()
+    expect(workbook.sheets['sheet-1']?.cellData?.[0]?.[1]?.v).toBe('snapshot-only')
     expect(workbook.sheets['sheet-1']?.cellData?.[0]?.[1]?.s).toBe('border-style')
-    expect(workbook.sheets['sheet-1']?.cellData?.[4]?.[0]).toBeUndefined()
+    expect(workbook.sheets['sheet-1']?.cellData?.[4]?.[0]?.v).toBe('drag-filled')
+  })
+
+  it('preserves snapshot-only hydration cells and inline styling in native workbook bootstrap', () => {
+    const sheet1Columns = [textCol('s1c0', 'alpha', 0), textCol('s1c1', 'beta', 1)]
+    const appSheets = [makeSheet('sheet-1', 'Sheet1', sheet1Columns, [{ alpha: 'row-value' }])]
+
+    const hydrationBootstrap: Record<string, unknown> = {
+      id: 'wb-sheet-1',
+      sheetOrder: ['sheet-1'],
+      sheets: {
+        'sheet-1': {
+          id: 'sheet-1',
+          name: 'Sheet1',
+          cellData: {
+            0: {
+              0: { v: 'row-value', bg: { rgb: '#ffee58' } },
+              1: { v: 'snapshot-only', bg: { rgb: '#c8e6c9' } }
+            }
+          },
+          columnCount: 2
+        }
+      }
+    }
+
+    const workbook = buildMultiSheetWorkbookFromAppSheets({
+      appSheets,
+      activeSheetId: 'sheet-1',
+      getRowsForSheet: sheetId => appSheets.find(sheet => sheet.id === sheetId)?.data ?? [],
+      singleWorksheetBootstrap: hydrationBootstrap,
+      appId: 'app-1'
+    })
+
+    expect(workbook.sheets['sheet-1']?.cellData?.[0]?.[0]).toEqual({ v: 'row-value', bg: { rgb: '#ffee58' } })
+    expect(workbook.sheets['sheet-1']?.cellData?.[0]?.[1]).toEqual({ v: 'snapshot-only', bg: { rgb: '#c8e6c9' } })
   })
 
   it('does not reuse another sheet bootstrap when the active sheet changes', () => {
@@ -764,7 +851,7 @@ describe('buildMultiSheetWorkbookFromAppSheets', () => {
     expect(workbook.sheetOrder).toEqual(['sheet-1', 'sheet-2'])
     expect(workbook.sheets['sheet-2']?.id).toBe('sheet-2')
     expect(workbook.sheets['sheet-2']?.name).toBe('Sheet2')
-    expect(workbook.sheets['sheet-2']?.cellData?.[0]?.[0]).toBeUndefined()
+    expect(workbook.sheets['sheet-2']?.cellData?.[0]?.[0]?.v).toBe('sheet-2-from-snapshot')
   })
 
   it('uses inactive sheet canonical rows over stale cached workbook values', () => {

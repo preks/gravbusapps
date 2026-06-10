@@ -8,6 +8,24 @@ const IMAGE_URI_REGEXP =
   /^(?:(?:(?:f|ht)tps?|blob|mailto|tel|callto|sms|cid|xmpp|matrix):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i
 const SAFE_STYLE_ID_REGEXP = /^[\w:-]+$/i
 const SAFE_COLOR_REGEXP = /^#[0-9a-f]{3,8}$/i
+const INLINE_CELL_STYLE_KEYS = [
+  'bl',
+  'it',
+  'ul',
+  'st',
+  'ol',
+  'ff',
+  'fs',
+  'cl',
+  'bg',
+  'ht',
+  'vt',
+  'tb',
+  'tr',
+  'pd',
+  'bd',
+  'n'
+] as const
 
 const finiteNumberSchema = z.number().finite()
 const cellScalarSchema = z.union([z.string(), finiteNumberSchema, z.boolean(), z.null()])
@@ -250,7 +268,7 @@ function sanitizeCellRecord(rawCell: unknown): Record<string, unknown> | null {
   const parsed = z
     .object({
       v: cellScalarSchema.optional(),
-      f: z.string().optional(),
+      f: z.union([z.string(), z.null()]).optional(),
       s: z.union([z.string(), z.record(z.string(), z.unknown())]).optional(),
       t: finiteNumberSchema.optional()
     })
@@ -267,6 +285,8 @@ function sanitizeCellRecord(rawCell: unknown): Record<string, unknown> | null {
     const sanitizedFormula = sanitizeFormula(sanitizedCell.f)
     if (sanitizedFormula) sanitizedCell.f = sanitizedFormula
     else delete sanitizedCell.f
+  } else if (sanitizedCell.f === null) {
+    delete sanitizedCell.f
   }
   if (typeof sanitizedCell.s === 'string') {
     if (!SAFE_STYLE_ID_REGEXP.test(sanitizedCell.s)) delete sanitizedCell.s
@@ -274,6 +294,19 @@ function sanitizeCellRecord(rawCell: unknown): Record<string, unknown> | null {
     const sanitizedInlineStyle = sanitizeStyleValue(sanitizedCell.s)
     if (sanitizedInlineStyle && typeof sanitizedInlineStyle === 'object') sanitizedCell.s = sanitizedInlineStyle
     else delete sanitizedCell.s
+  }
+  const inlineStyleEntries = INLINE_CELL_STYLE_KEYS.flatMap(key => {
+    if (!Object.prototype.hasOwnProperty.call(sanitizedCell, key)) return []
+    const sanitizedValue = sanitizeStyleValue(sanitizedCell[key])
+    delete sanitizedCell[key]
+    return sanitizedValue !== undefined ? [[key, sanitizedValue] as const] : []
+  })
+  if (inlineStyleEntries.length > 0) {
+    const existingInlineStyle =
+      sanitizedCell.s && typeof sanitizedCell.s === 'object' && !Array.isArray(sanitizedCell.s)
+        ? (sanitizedCell.s as Record<string, unknown>)
+        : {}
+    sanitizedCell.s = { ...existingInlineStyle, ...Object.fromEntries(inlineStyleEntries) }
   }
   for (const [key, value] of Object.entries(sanitizedCell)) {
     if (value === undefined) delete sanitizedCell[key]

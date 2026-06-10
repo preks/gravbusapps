@@ -293,6 +293,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       readOnlyRef,
       lastEmittedCursorPathRef,
       pendingInitialCursorPathRef,
+      suppressWorksheetSelectionEmitRef,
       recentSheetMutationIdsRef,
       cellDimensionsRef,
       sheetScrollRef,
@@ -388,6 +389,38 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     const renderedSheetId = useMemo(
       () => props.getCanonicalSheetId?.(sheet.id) ?? sheet.id,
       [props.getCanonicalSheetId, sheet.id]
+    )
+    const resolveStructuralGridTarget = useCallback(
+      (
+        incomingSheetId: string
+      ): {
+        sheetId: string
+        isActivePropSheet: boolean
+        data: Record<string, unknown>[]
+        columns: SpreadsheetColumn[]
+      } | null => {
+        const currentProps = propsRef.current
+        const canonicalTargetSheetId = currentProps.getCanonicalSheetId?.(incomingSheetId) ?? incomingSheetId
+        const canonicalPropSheetId = currentProps.getCanonicalSheetId?.(currentProps.sheet.id) ?? currentProps.sheet.id
+        const isActivePropSheet = canonicalTargetSheetId === canonicalPropSheetId
+        if (isActivePropSheet || !currentProps.multiSheetWorkbookMode) {
+          return {
+            sheetId: canonicalTargetSheetId,
+            isActivePropSheet,
+            data: currentProps.data,
+            columns: currentProps.columns
+          }
+        }
+        const sheetContext = currentProps.getSheetContext?.(canonicalTargetSheetId) ?? null
+        if (!sheetContext) return null
+        return {
+          sheetId: canonicalTargetSheetId,
+          isActivePropSheet: false,
+          data: sheetContext.data,
+          columns: sheetContext.columns
+        }
+      },
+      []
     )
     const remoteCursorOverlays = useMemo(
       () =>
@@ -1104,6 +1137,15 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             }
             meta?.onApplyComplete?.()
           }
+          const failBulkApply = (error: unknown) => {
+            traceBulk('grid_bulk_remote_apply_failed', {
+              reason: 'write_error',
+              cellCount: normalized.length,
+              message: error instanceof Error ? error.message : String(error)
+            })
+            meta?.onApplyError?.(error)
+            finishBulkApplyOnce()
+          }
 
           const recordBulkCellSignature = (cellItem: SpreadsheetBulkRemoteCellItem) => {
             const sigKey = remoteEchoKey(cellItem.rowIndex, cellItem.colIndex)
@@ -1171,16 +1213,21 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
                 finishBulkApplyOnce()
                 return
               }
-              const end = Math.min(serialOffset + BULK_SERIAL_FALLBACK_CELLS_PER_FRAME, normalized.length)
-              for (; serialOffset < end; serialOffset += 1) {
-                const it = normalized[serialOffset]
-                if (it) {
-                  applyRemoteCellUpdate(it.rowIndex, it.colIndex, it.value, it.rowId, {
-                    ...it.options,
-                    skipRemoteEchoRegistration:
-                      it.options?.skipRemoteEchoRegistration ?? meta?.skipRemoteEchoRegistration
-                  })
+              try {
+                const end = Math.min(serialOffset + BULK_SERIAL_FALLBACK_CELLS_PER_FRAME, normalized.length)
+                for (; serialOffset < end; serialOffset += 1) {
+                  const it = normalized[serialOffset]
+                  if (it) {
+                    applyRemoteCellUpdate(it.rowIndex, it.colIndex, it.value, it.rowId, {
+                      ...it.options,
+                      skipRemoteEchoRegistration:
+                        it.options?.skipRemoteEchoRegistration ?? meta?.skipRemoteEchoRegistration
+                    })
+                  }
                 }
+              } catch (error) {
+                failBulkApply(error)
+                return
               }
               if (serialOffset < normalized.length) {
                 globalThis.requestAnimationFrame(runSerialChunk)
@@ -1498,6 +1545,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
                 }
               }
               chunkCount += 1
+            } catch (error) {
+              failBulkApply(error)
+              return
             } finally {
               isApplyingRemoteUpdateRef.current = false
             }
@@ -1658,6 +1708,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       sheetId: sheet.id,
       propsRef,
       univerAPIRef,
+      suppressWorksheetSelectionEmitRef,
       cellDimensionsRef,
       isApplyingRemoteUpdateRef,
       collabPersistedBulkApplyDepthRef,
@@ -1945,12 +1996,14 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             isApplyingRemoteUpdateRef,
             collabPersistedBulkApplyDepthRef
           }),
-        applyRemoteColumnsReorder: ({ previousColumns, nextColumns, moves }) => {
+        applyRemoteColumnsReorder: ({ sheetId: targetSheetId, previousColumns, nextColumns, moves }) => {
           const guardRefs = { isApplyingRemoteUpdateRef, collabPersistedBulkApplyDepthRef }
           acquireRemoteStructuralApplyGuard(guardRefs)
           const previousBulkApplyOperationType = currentBulkApplyOperationTypeRef.current
           currentBulkApplyOperationTypeRef.current = 'columns_reorder'
           try {
+            const target = resolveStructuralGridTarget(targetSheetId)
+            if (!target) return false
             const moveClassification = classifyNativeColumnReorderWithMerges({
               previousColumns,
               nextColumns,
@@ -1963,7 +2016,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
               armColumnMoveFormulaFollowUpSuppression({
                 suppressionRef: columnMoveFormulaFollowUpSuppressUntilMsRef,
                 recentMoveRef: recentMoveColumnFormulaFollowUpRef,
-                sheetId: sheet.id,
+                sheetId: target.sheetId,
                 moves: reorderMoves.map(move => ({
                   sourceStartIndex: move.sourceStartColumn,
                   count: move.count,
@@ -1973,13 +2026,13 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             }
             const result = applyRemoteColumnReorderOnGrid({
               api: univerAPIRef.current,
-              sheetId: sheet.id,
+              sheetId: target.sheetId,
               previousColumns,
               nextColumns,
-              rows: propsRef.current.data,
+              rows: target.data,
               moves: moveClassification.ok ? moveClassification.moves : moves
             })
-            if (result.ok && result.appliedMoveCount > 0) {
+            if (result.ok && result.appliedMoveCount > 0 && target.isActivePropSheet) {
               propsRef.current.columns = nextColumns
               contextRef.current = createUniverConversionContext(nextColumns, propsRef.current.data)
               lastSyncedGridCellSignaturesRef.current = buildAuthoritativeCellSignatureMap(
@@ -1990,8 +2043,13 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
               return true
             }
             if (result.ok && result.moveCount === 0) {
-              propsRef.current.columns = nextColumns
-              contextRef.current = createUniverConversionContext(nextColumns, propsRef.current.data)
+              if (target.isActivePropSheet) {
+                propsRef.current.columns = nextColumns
+                contextRef.current = createUniverConversionContext(nextColumns, propsRef.current.data)
+              }
+              return true
+            }
+            if (result.ok) {
               return true
             }
             return false
@@ -2000,29 +2058,36 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             scheduleReleaseRemoteStructuralApplyGuard(guardRefs)
           }
         },
-        applyRemoteRowSlotsMove: ({ sourceStartGridRowIndex, count, destinationGridRowIndex }) => {
+        applyRemoteRowSlotsMove: ({
+          sheetId: targetSheetId,
+          sourceStartGridRowIndex,
+          count,
+          destinationGridRowIndex
+        }) => {
           const guardRefs = { isApplyingRemoteUpdateRef, collabPersistedBulkApplyDepthRef }
           acquireRemoteStructuralApplyGuard(guardRefs)
           const previousBulkApplyOperationType = currentBulkApplyOperationTypeRef.current
           currentBulkApplyOperationTypeRef.current = 'move_row_slots'
           try {
+            const target = resolveStructuralGridTarget(targetSheetId)
+            if (!target) return false
             armRowMoveFormulaFollowUpSuppression({
               suppressionRef: rowMoveFormulaFollowUpSuppressUntilMsRef,
               recentMoveRef: recentMoveRowFormulaFollowUpRef,
-              sheetId: sheet.id,
+              sheetId: target.sheetId,
               sourceStartRow: sourceStartGridRowIndex,
               count,
               destinationStartRow: destinationGridRowIndex
             })
-            const visibleColumns = propsRef.current.columns.filter(column => column.isVisible !== false)
+            const visibleColumns = target.columns.filter(column => column.isVisible !== false)
             const result = applyRemoteRowSlotsOnGrid({
               api: univerAPIRef.current,
-              sheetId: sheet.id,
+              sheetId: target.sheetId,
               move: { sourceStartGridRowIndex, count, destinationGridRowIndex },
-              rows: propsRef.current.data,
+              rows: target.data,
               visibleColumnCount: visibleColumns.length
             })
-            if (result.ok) {
+            if (result.ok && target.isActivePropSheet) {
               lastSyncedGridCellSignaturesRef.current = buildAuthoritativeCellSignatureMap(
                 propsRef.current.data,
                 propsRef.current.columns
@@ -2030,137 +2095,154 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
               lastSyncedGridRowCountRef.current = propsRef.current.data.length
               return true
             }
+            if (result.ok) return true
             return false
           } finally {
             currentBulkApplyOperationTypeRef.current = previousBulkApplyOperationType
             scheduleReleaseRemoteStructuralApplyGuard(guardRefs)
           }
         },
-        applyRemoteInsertRowSlots: ({ startGridRowIndex, count }) => {
+        applyRemoteInsertRowSlots: ({ sheetId: targetSheetId, startGridRowIndex, count }) => {
           const guardRefs = { isApplyingRemoteUpdateRef, collabPersistedBulkApplyDepthRef }
           acquireRemoteStructuralApplyGuard(guardRefs)
           try {
-            const visibleColumns = propsRef.current.columns.filter(column => column.isVisible !== false)
+            const target = resolveStructuralGridTarget(targetSheetId)
+            if (!target) return false
+            const visibleColumns = target.columns.filter(column => column.isVisible !== false)
             const result = applyRemoteInsertRowSlotsOnGrid({
               api: univerAPIRef.current,
-              sheetId: sheet.id,
+              sheetId: target.sheetId,
               insert: { startGridRowIndex, count },
               visibleColumnCount: visibleColumns.length
             })
-            if (result.ok) {
+            if (result.ok && target.isActivePropSheet) {
               lastSyncedGridRowCountRef.current = propsRef.current.data.length
               return true
             }
+            if (result.ok) return true
             return false
           } finally {
             scheduleReleaseRemoteStructuralApplyGuard(guardRefs)
           }
         },
-        applyRemoteDeleteRowSlots: ({ startGridRowIndex, count }) => {
+        applyRemoteDeleteRowSlots: ({ sheetId: targetSheetId, startGridRowIndex, count }) => {
           const guardRefs = { isApplyingRemoteUpdateRef, collabPersistedBulkApplyDepthRef }
           acquireRemoteStructuralApplyGuard(guardRefs)
           try {
-            const visibleColumns = propsRef.current.columns.filter(column => column.isVisible !== false)
+            const target = resolveStructuralGridTarget(targetSheetId)
+            if (!target) return false
+            const visibleColumns = target.columns.filter(column => column.isVisible !== false)
             const result = applyRemoteDeleteRowSlotsOnGrid({
               api: univerAPIRef.current,
-              sheetId: sheet.id,
+              sheetId: target.sheetId,
               deleteSlots: { startGridRowIndex, count },
               visibleColumnCount: visibleColumns.length
             })
-            if (result.ok) {
+            if (result.ok && target.isActivePropSheet) {
               lastSyncedGridRowCountRef.current = propsRef.current.data.length
               return true
             }
+            if (result.ok) return true
             return false
           } finally {
             scheduleReleaseRemoteStructuralApplyGuard(guardRefs)
           }
         },
-        applyRemoteInsertColumnSlots: ({ startGridColumnIndex, count }) => {
+        applyRemoteInsertColumnSlots: ({ sheetId: targetSheetId, startGridColumnIndex, count }) => {
           const guardRefs = { isApplyingRemoteUpdateRef, collabPersistedBulkApplyDepthRef }
           acquireRemoteStructuralApplyGuard(guardRefs)
           const previousBulkApplyOperationType = currentBulkApplyOperationTypeRef.current
           currentBulkApplyOperationTypeRef.current = 'column_add'
           try {
+            const target = resolveStructuralGridTarget(targetSheetId)
+            if (!target) return false
             armColumnInsertFormulaFollowUpSuppression({
               suppressionRef: columnInsertFormulaFollowUpSuppressUntilMsRef,
               recentInsertRef: recentInsertColumnFormulaFollowUpRef,
-              sheetId: sheet.id,
+              sheetId: target.sheetId,
               insertIndex: startGridColumnIndex,
               count,
               direction: 'lefttop'
             })
             const result = applyRemoteInsertColumnSlotsOnGrid({
               api: univerAPIRef.current,
-              sheetId: sheet.id,
+              sheetId: target.sheetId,
               insert: { startGridColumnIndex, count },
-              rowCount: propsRef.current.data.length
+              rowCount: target.data.length
             })
-            if (result.ok) {
+            if (result.ok && target.isActivePropSheet) {
               lastSyncedGridColumnCountRef.current = propsRef.current.columns.filter(
                 column => column.isVisible !== false
               ).length
               return true
             }
+            if (result.ok) return true
             return false
           } finally {
             currentBulkApplyOperationTypeRef.current = previousBulkApplyOperationType
             scheduleReleaseRemoteStructuralApplyGuard(guardRefs)
           }
         },
-        applyRemoteDeleteColumnSlots: ({ startGridColumnIndex, count }) => {
+        applyRemoteDeleteColumnSlots: ({ sheetId: targetSheetId, startGridColumnIndex, count }) => {
           const guardRefs = { isApplyingRemoteUpdateRef, collabPersistedBulkApplyDepthRef }
           acquireRemoteStructuralApplyGuard(guardRefs)
           const previousBulkApplyOperationType = currentBulkApplyOperationTypeRef.current
           currentBulkApplyOperationTypeRef.current = 'column_delete'
           try {
+            const target = resolveStructuralGridTarget(targetSheetId)
+            if (!target) return false
             armColumnDeleteFormulaFollowUpSuppression({
               suppressionRef: columnDeleteFormulaFollowUpSuppressUntilMsRef,
               recentDeleteRef: recentDeleteColumnFormulaFollowUpRef,
-              sheetId: sheet.id,
+              sheetId: target.sheetId,
               deleteStartColumn: startGridColumnIndex
             })
             const result = applyRemoteDeleteColumnSlotsOnGrid({
               api: univerAPIRef.current,
-              sheetId: sheet.id,
+              sheetId: target.sheetId,
               deleteSlots: { startGridColumnIndex, count },
-              rowCount: propsRef.current.data.length
+              rowCount: target.data.length
             })
-            if (result.ok) {
+            if (result.ok && target.isActivePropSheet) {
               lastSyncedGridColumnCountRef.current = propsRef.current.columns.filter(
                 column => column.isVisible !== false
               ).length
               return true
             }
+            if (result.ok) return true
             return false
           } finally {
             currentBulkApplyOperationTypeRef.current = previousBulkApplyOperationType
             scheduleReleaseRemoteStructuralApplyGuard(guardRefs)
           }
         },
-        applyRemoteMoveCellRange: ({ fromRange, toRange }) => {
+        applyRemoteMoveCellRange: ({ sheetId: targetSheetId, fromRange, toRange }) => {
           const guardRefs = { isApplyingRemoteUpdateRef, collabPersistedBulkApplyDepthRef }
           acquireRemoteStructuralApplyGuard(guardRefs)
           const previousBulkApplyOperationType = currentBulkApplyOperationTypeRef.current
           currentBulkApplyOperationTypeRef.current = 'move_cell_range'
           try {
-            const visibleColumnCount = propsRef.current.columns.filter(column => column.isVisible !== false).length
+            const target = resolveStructuralGridTarget(targetSheetId)
+            if (!target) return false
+            const visibleColumnCount = target.columns.filter(column => column.isVisible !== false).length
             const result = applyRemoteMoveCellRangeOnGrid({
               api: univerAPIRef.current,
-              sheetId: sheet.id,
+              sheetId: target.sheetId,
               fromRange,
               toRange,
               visibleColumnCount
             })
-            if (result.ok) {
+            if (result.ok && target.isActivePropSheet) {
               lastSyncedGridCellSignaturesRef.current = buildAuthoritativeCellSignatureMap(
                 propsRef.current.data,
                 propsRef.current.columns
               )
+            }
+            if (result.ok) {
               armMoveCellRangeFollowUpCollabSuppression({
                 suppressionRef: cutPasteCollabSuppressUntilMsRef,
                 recentMoveRef: recentMoveCellRangeFollowUpRef,
-                sheetId: sheet.id,
+                sheetId: target.sheetId,
                 fromRange,
                 toRange
               })
@@ -2174,6 +2256,27 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         },
         requestSnapshotCheckpoint: (force = false) => {
           requestSnapshotCheckpointRef.current?.(force)
+        },
+        mergeWorkbookDependencies: dependencies => {
+          if (!dependencies || typeof dependencies !== 'object' || Array.isArray(dependencies)) return false
+          try {
+            const api = univerAPIRef.current
+            const workbook = api?.getActiveWorkbook?.() as {
+              addStyles?: (styles: Record<string, unknown>) => void
+            } | null
+            if (!workbook) return false
+            const styles =
+              dependencies.styles && typeof dependencies.styles === 'object' && !Array.isArray(dependencies.styles)
+                ? (dependencies.styles as Record<string, unknown>)
+                : null
+            if (styles && Object.keys(styles).length > 0) {
+              workbook.addStyles?.(styles)
+            }
+            return true
+          } catch (error) {
+            console.warn('[UniverSheetGrid] mergeWorkbookDependencies failed:', error)
+            return false
+          }
         },
         ensureWorksheetExists: (targetSheet, targetData = [], targetColumns = targetSheet.columns, options = {}) => {
           const sheetId = typeof targetSheet?.id === 'string' ? targetSheet.id : ''
@@ -2254,6 +2357,12 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
               previousActiveSheetId = typeof id === 'string' ? id : undefined
             } catch {
               previousActiveSheetId = undefined
+            }
+            if (options.replaceExisting && options.activate) {
+              suppressWorksheetSelectionEmitRef.current = {
+                expectedSheetId: sheetId,
+                untilMs: Date.now() + 1500
+              }
             }
             if (options.replaceExisting && workbook.getSheetBySheetId?.(sheetId)) {
               recentSheetMutationIdsRef.current.add(`rm:${sheetId}`)
@@ -2405,6 +2514,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       univerAPIRef,
       authoritativePaintCellsRef: props.authoritativePaintCellsRef,
       authoritativePaintMetaRef: props.authoritativePaintMetaRef,
+      pendingBootstrapStyleRepair: props.pendingBootstrapStyleRepair,
       lastSyncedGridRowCountRef,
       lastSyncedGridColumnCountRef,
       lastProcessedAuthoritativeDataSyncTokenRef,
@@ -2414,7 +2524,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       getWorkbookSnapshotRef,
       pendingAuthoritativeRegionRef,
       pendingForcedAuthoritativeReapplyRef,
+      columnStructureStateRef: props.columnStructureStateRef,
       pendingLocalMutationCellsRef: props.pendingLocalMutationCellsRef,
+      onAuthoritativeReapplyError: props.onAuthoritativeReapplyError,
       applyRemoteCellUpdate,
       applyRemoteCellUpdatesBulk
     })

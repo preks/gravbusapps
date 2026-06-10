@@ -5,11 +5,12 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { columnIndexToLetter as spreadsheetColumnIndexToLetter } from '../core'
+import { buildOperationsFromMutationPlan, columnIndexToLetter as spreadsheetColumnIndexToLetter } from '../core'
 import type { SpreadsheetApp, SpreadsheetSheet, SpreadsheetColumn } from '../types'
 import type { SpreadsheetTraceEventInput } from '../services/spreadsheetDiagnostics'
 import type { SpreadsheetBatchOperation, SpreadsheetBatchOperationType } from '../services/SpreadsheetApiService'
 import type { SpreadsheetCommitOptimisticActiveSheetRows } from './useSpreadsheetBulkRows'
+import { buildColumnMoveStyleReplayPlan } from '../components/univerGridColumnMoveStyleReplay'
 import {
   classifyNativeColumnReorderWithMerges,
   type ColumnReorderMove,
@@ -48,6 +49,7 @@ export interface UseSpreadsheetColumnsProps {
   onAppUpdate?: (app: SpreadsheetApp) => void
   onDiagnosticsTraceEvent?: (event: SpreadsheetTraceEventInput) => void
   onBlockedColumnReorder?: (reason: NativeColumnReorderBlockReason | 'unplannable_reorder') => void
+  getWorkbookSnapshot?: () => Record<string, unknown> | null
   /**
    * Emit a column-structure batch operation to the v2 HTTP batch endpoint.
    * This is the single authoritative persistence+broadcast path for
@@ -165,6 +167,16 @@ const createColumnOperationId = (prefix: SpreadsheetBatchOperationType): string 
   }
 }
 
+const schedulePostMoveStyleReplay = (callback: () => void): void => {
+  if (typeof globalThis.requestAnimationFrame === 'function') {
+    globalThis.requestAnimationFrame(() => {
+      queueMicrotask(callback)
+    })
+    return
+  }
+  queueMicrotask(callback)
+}
+
 export function useSpreadsheetColumns({
   app,
   activeSheet,
@@ -177,6 +189,7 @@ export function useSpreadsheetColumns({
   onAppUpdate,
   onDiagnosticsTraceEvent,
   onBlockedColumnReorder,
+  getWorkbookSnapshot,
   emitColumnBatchOperation,
   emitColumnBatchOperations
 }: UseSpreadsheetColumnsProps): SpreadsheetColumnsState {
@@ -199,6 +212,10 @@ export function useSpreadsheetColumns({
   useEffect(() => {
     emitColumnBatchOperationRef.current = emitColumnBatchOperation
   }, [emitColumnBatchOperation])
+  const getWorkbookSnapshotRef = useRef(getWorkbookSnapshot)
+  useEffect(() => {
+    getWorkbookSnapshotRef.current = getWorkbookSnapshot
+  }, [getWorkbookSnapshot])
   const emitColumnBatchOperationsRef = useRef(emitColumnBatchOperations)
   useEffect(() => {
     emitColumnBatchOperationsRef.current = emitColumnBatchOperations
@@ -297,13 +314,8 @@ export function useSpreadsheetColumns({
     [canonicalActiveSheetRowsSourceRef, localSheetDataRef]
   )
 
-  /** Dispatch a column batch op through the v2 HTTP batch endpoint. No-op when no emitter is wired. */
-  const dispatchColumnBatchOp = useCallback(
-    (type: SpreadsheetBatchOperationType, data: Record<string, unknown>): void => {
-      const emit = emitColumnBatchOperationRef.current
-      if (!emit) {
-        return
-      }
+  const createColumnBatchOperation = useCallback(
+    (type: SpreadsheetBatchOperationType, data: Record<string, unknown>): SpreadsheetBatchOperation => {
       const operationId = createColumnOperationId(type)
       onDiagnosticsTraceEventRef.current?.({
         source: 'client',
@@ -327,13 +339,25 @@ export function useSpreadsheetColumns({
           columnCount: Array.isArray(data.columns) ? data.columns.length : null
         }
       })
-      emit({
+      return {
         operationId,
         type,
         data
-      })
+      }
     },
     []
+  )
+
+  /** Dispatch a column batch op through the v2 HTTP batch endpoint. No-op when no emitter is wired. */
+  const dispatchColumnBatchOp = useCallback(
+    (type: SpreadsheetBatchOperationType, data: Record<string, unknown>): void => {
+      const emit = emitColumnBatchOperationRef.current
+      if (!emit) {
+        return
+      }
+      emit(createColumnBatchOperation(type, data))
+    },
+    [createColumnBatchOperation]
   )
 
   const dispatchColumnBatchOps = useCallback((operations: SpreadsheetBatchOperation[]): void => {
@@ -734,7 +758,7 @@ export function useSpreadsheetColumns({
       })
 
       applyColumnsLocal(reorderedColumns, 'handleColumnsMove')
-      dispatchColumnBatchOp('columns_reorder', {
+      const reorderOperation = createColumnBatchOperation('columns_reorder', {
         sheetId: activeSheet.id,
         columns: reorderedColumns,
         sourceStartIndex: safeSourceStart,
@@ -742,10 +766,45 @@ export function useSpreadsheetColumns({
         destinationIndex,
         normalizedDestinationIndex: safeDestinationIndex
       })
+      const styleReplayRowCountHint = readCanonicalActiveRows().length
+      dispatchColumnBatchOps([reorderOperation])
+      schedulePostMoveStyleReplay(() => {
+        const styleReplayPlan = buildColumnMoveStyleReplayPlan({
+          snapshot: getWorkbookSnapshotRef.current?.() ?? null,
+          sheetId: activeSheet.id,
+          moves: [explicitMove],
+          rowCountHint: styleReplayRowCountHint
+        })
+        if (!styleReplayPlan) {
+          onDiagnosticsTraceEventRef.current?.({
+            source: 'client',
+            stage: 'viewer_column_move_style_replay_skipped',
+            severity: 'info',
+            sheetId: activeSheet.id,
+            payload: {
+              moveSignature,
+              sourceStartIndex: safeSourceStart,
+              count: movedVisibleColumns.length,
+              destinationIndex
+            }
+          })
+          return
+        }
+        dispatchColumnBatchOps(
+          buildOperationsFromMutationPlan({
+            plan: {
+              sheetId: activeSheet.id,
+              cells: styleReplayPlan.cells,
+              ...(styleReplayPlan.styles ? { styles: styleReplayPlan.styles } : {})
+            },
+            createOperationId: createColumnOperationId
+          })
+        )
+      })
 
       return reorderedColumns
     },
-    [activeSheet, applyColumnsLocal, dispatchColumnBatchOp, rejectUnsupportedColumnReorder]
+    [activeSheet, applyColumnsLocal, createColumnBatchOperation, dispatchColumnBatchOps, rejectUnsupportedColumnReorder]
   )
 
   // Insert columns handler (from FortuneSheet context menu: insert column left/right)

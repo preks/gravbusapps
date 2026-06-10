@@ -73,6 +73,7 @@ interface StructuralMutationParams {
   } | null>
   getActiveSessionRows: () => ViewerRow[]
   getKnownRowsForSheet: (sheetId: string) => ViewerRow[]
+  resolveSheetContext?: (sheetId: string) => { columns: any[]; data: ViewerRow[] } | null
   commitLocalSheetData: (
     rows: ViewerRow[],
     options: { persisted: boolean; syncGrid: boolean; publishParent?: boolean }
@@ -169,31 +170,108 @@ export function useSpreadsheetGridStructuralMutations(params: StructuralMutation
       for (const clientRowId of pendingClientRowIds ?? []) {
         params.rowMaterializationReadiness.reject(targetSheetId, clientRowId, error)
       }
-      params.commitLocalSheetData(rollbackRows, {
-        persisted: false,
-        syncGrid: false,
-        publishParent: true
-      })
+      const isActiveTargetSheet = areCanonicalSheetIdsEqual(
+        targetSheetId,
+        params.activeSheetIdRef.current,
+        params.createdSheetIdAliasesRef.current
+      )
+      if (isActiveTargetSheet) {
+        params.commitLocalSheetData(rollbackRows, {
+          persisted: false,
+          syncGrid: false,
+          publishParent: true
+        })
+      } else {
+        params.syncSheetRowsIntoLocalState(targetSheetId, rollbackRows, {
+          persisted: false,
+          syncGrid: false
+        })
+      }
       params.rowSlotIdentityRegistry.markHealthy(targetSheetId)
-      params.spreadsheetGridRef.current?.syncGridConversionContext?.(params.spreadsheetColumnsForGrid, rollbackRows)
+      if (isActiveTargetSheet) {
+        params.spreadsheetGridRef.current?.syncGridConversionContext?.(params.spreadsheetColumnsForGrid, rollbackRows)
+      }
       if (error instanceof SpreadsheetApiRequestError && error.status === 409) {
         await params.recoverFromVersionConflictRef.current()
       }
       params.sheetPersist.recordError(params.sheetPersistErrorMessage)
     }
 
-    const onColumnsInsert = (insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => {
+    const resolveTargetSheetState = (
+      sheetId: string
+    ): { targetSheetId: string; isActiveTargetSheet: boolean; rows: ViewerRow[]; columns: any[] } | null => {
+      const targetSheetId = resolveReconciledSheetId(sheetId, params.createdSheetIdAliasesRef.current)
+      const isActiveTargetSheet = areCanonicalSheetIdsEqual(
+        targetSheetId,
+        params.activeSheetIdRef.current,
+        params.createdSheetIdAliasesRef.current
+      )
+      if (isActiveTargetSheet) {
+        return {
+          targetSheetId,
+          isActiveTargetSheet: true,
+          rows: params.getActiveSessionRows(),
+          columns: params.activeSheetColumns
+        }
+      }
+      const targetSheetContext = params.resolveSheetContext?.(targetSheetId) ?? null
+      if (!targetSheetContext) return null
+      return {
+        targetSheetId,
+        isActiveTargetSheet: false,
+        rows: targetSheetContext.data,
+        columns: targetSheetContext.columns
+      }
+    }
+
+    const syncOptimisticRows = (
+      targetSheetId: string,
+      isActiveTargetSheet: boolean,
+      rows: ViewerRow[],
+      columnsForGridSync: any[]
+    ) => {
+      if (isActiveTargetSheet) {
+        params.commitLocalSheetData(rows, {
+          persisted: false,
+          syncGrid: false,
+          publishParent: true
+        })
+        params.spreadsheetGridRef.current?.syncGridConversionContext?.(columnsForGridSync, rows)
+        return
+      }
+      params.syncSheetRowsIntoLocalState(targetSheetId, rows, {
+        persisted: false,
+        syncGrid: false
+      })
+    }
+
+    const onColumnsInsert = (
+      sheetId: string,
+      insertIndex: number,
+      count: number,
+      direction: 'lefttop' | 'rightbottom'
+    ) => {
       const shouldIgnore = Boolean(params.spreadsheetGridRef.current?.shouldIgnoreStructuralRowCommand?.())
+      const targetSheetId = resolveReconciledSheetId(sheetId, params.createdSheetIdAliasesRef.current)
+      const isActiveTargetSheet = areCanonicalSheetIdsEqual(
+        targetSheetId,
+        params.activeSheetIdRef.current,
+        params.createdSheetIdAliasesRef.current
+      )
       params.onDiagnosticsTraceEvent?.({
         source: 'client',
         stage: shouldIgnore
           ? 'viewer_column_insert_structural_callback_skipped'
           : 'viewer_column_insert_structural_callback_invoked',
         severity: 'info',
-        sheetId: params.activeSheetIdRef.current,
-        payload: { insertIndex, count, direction }
+        sheetId: targetSheetId,
+        payload: { insertIndex, count, direction, isActiveTargetSheet }
       })
       if (shouldIgnore) {
+        return
+      }
+      if (!isActiveTargetSheet) {
+        params.scheduleStructuralSnapshotReload?.(targetSheetId)
         return
       }
       const nextColumns = params.handleColumnsInsertInternal(insertIndex, count, direction)
@@ -202,18 +280,28 @@ export function useSpreadsheetGridStructuralMutations(params: StructuralMutation
       }
     }
 
-    const onColumnsDelete = (startIndex: number, endIndex: number) => {
+    const onColumnsDelete = (sheetId: string, startIndex: number, endIndex: number) => {
       const shouldIgnore = Boolean(params.spreadsheetGridRef.current?.shouldIgnoreStructuralRowCommand?.())
+      const targetSheetId = resolveReconciledSheetId(sheetId, params.createdSheetIdAliasesRef.current)
+      const isActiveTargetSheet = areCanonicalSheetIdsEqual(
+        targetSheetId,
+        params.activeSheetIdRef.current,
+        params.createdSheetIdAliasesRef.current
+      )
       params.onDiagnosticsTraceEvent?.({
         source: 'client',
         stage: shouldIgnore
           ? 'viewer_column_delete_structural_callback_skipped'
           : 'viewer_column_delete_structural_callback_invoked',
         severity: 'info',
-        sheetId: params.activeSheetIdRef.current,
-        payload: { startIndex, endIndex }
+        sheetId: targetSheetId,
+        payload: { startIndex, endIndex, isActiveTargetSheet }
       })
       if (shouldIgnore) {
+        return
+      }
+      if (!isActiveTargetSheet) {
+        params.scheduleStructuralSnapshotReload?.(targetSheetId)
         return
       }
       const syncPayload = params.handleColumnsDeleteInternal(startIndex, endIndex)
@@ -222,23 +310,34 @@ export function useSpreadsheetGridStructuralMutations(params: StructuralMutation
       }
     }
 
-    const onColumnsMove = (sourceStartIndex: number, count: number, destinationIndex: number) => {
+    const onColumnsMove = (sheetId: string, sourceStartIndex: number, count: number, destinationIndex: number) => {
       const shouldIgnore = Boolean(params.spreadsheetGridRef.current?.shouldIgnoreStructuralRowCommand?.())
+      const targetSheetId = resolveReconciledSheetId(sheetId, params.createdSheetIdAliasesRef.current)
+      const isActiveTargetSheet = areCanonicalSheetIdsEqual(
+        targetSheetId,
+        params.activeSheetIdRef.current,
+        params.createdSheetIdAliasesRef.current
+      )
       params.onDiagnosticsTraceEvent?.({
         source: 'client',
         stage: shouldIgnore
           ? 'viewer_column_move_structural_callback_skipped'
           : 'viewer_column_move_structural_callback_invoked',
         severity: 'info',
-        sheetId: params.activeSheetIdRef.current,
+        sheetId: targetSheetId,
         payload: {
           sourceStartIndex,
           count,
           destinationIndex,
-          moveSignature: `${params.activeSheetIdRef.current}:${sourceStartIndex}:${count}:${destinationIndex}`
+          moveSignature: `${targetSheetId}:${sourceStartIndex}:${count}:${destinationIndex}`,
+          isActiveTargetSheet
         }
       })
       if (shouldIgnore) {
+        return
+      }
+      if (!isActiveTargetSheet) {
+        params.scheduleStructuralSnapshotReload?.(targetSheetId)
         return
       }
       const nextColumns = params.handleColumnsMoveInternal(sourceStartIndex, count, destinationIndex)
@@ -247,19 +346,26 @@ export function useSpreadsheetGridStructuralMutations(params: StructuralMutation
       }
     }
 
-    const onRowsInsert = (insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => {
+    const onRowsInsert = (
+      sheetId: string,
+      insertIndex: number,
+      count: number,
+      direction: 'lefttop' | 'rightbottom'
+    ) => {
       if (count <= 0) {
         return
       }
       if (params.spreadsheetGridRef.current?.shouldIgnoreStructuralRowCommand?.()) {
         return
       }
-      const targetSheetId = resolveReconciledSheetId(
-        params.activeSheetIdRef.current,
-        params.createdSheetIdAliasesRef.current
-      )
+      const target = resolveTargetSheetState(sheetId)
+      if (!target) {
+        const targetSheetId = resolveReconciledSheetId(sheetId, params.createdSheetIdAliasesRef.current)
+        params.scheduleStructuralSnapshotReload?.(targetSheetId)
+        return
+      }
+      const { targetSheetId, isActiveTargetSheet, rows: previousRows, columns: targetColumns } = target
       params.rowSlotIdentityRegistry.markUnhealthy(targetSheetId, 'row_slot_insert_pending')
-      const previousRows = params.getActiveSessionRows()
       const projection = createIdentityRowProjectionModel(previousRows)
       const startGridRowIndex = projection.resolveVisibleRowIndex(
         direction === 'rightbottom' ? insertIndex + 1 : insertIndex
@@ -272,7 +378,7 @@ export function useSpreadsheetGridStructuralMutations(params: StructuralMutation
       const placeholderClientIds = new Set(placeholders.map(row => String(row._id ?? '')).filter(Boolean))
       const optimisticRows = applyInsertRowSlotsTransform(previousRows, startGridRowIndex, count, placeholders)
       const insertedRows = resolveLocalRowsInSlotRange(optimisticRows, startGridRowIndex, count)
-      const rowPayloads = params.buildAddRowPayloadsFromUniverRows(insertedRows, params.activeSheetColumns)
+      const rowPayloads = params.buildAddRowPayloadsFromUniverRows(insertedRows, targetColumns)
 
       params.logRowIdentityDiagnostics('viewer_row_slot_insert_optimistic_rows', {
         targetSheetId,
@@ -300,12 +406,7 @@ export function useSpreadsheetGridStructuralMutations(params: StructuralMutation
         params.rowMaterializationReadiness.registerPending(targetSheetId, clientRowId, promise)
       })
 
-      params.commitLocalSheetData(optimisticRows, {
-        persisted: false,
-        syncGrid: false,
-        publishParent: true
-      })
-      params.spreadsheetGridRef.current?.syncGridConversionContext?.(params.spreadsheetColumnsForGrid, optimisticRows)
+      syncOptimisticRows(targetSheetId, isActiveTargetSheet, optimisticRows, params.spreadsheetColumnsForGrid)
 
       void params.chainOnOperationQueue(params.operationQueueRef, async () => {
         params.sheetPersist.beginPersist()
@@ -343,7 +444,9 @@ export function useSpreadsheetGridStructuralMutations(params: StructuralMutation
             resolver.resolve(backendRowId)
             readinessPendingResolvers.delete(clientRowId)
           })
-          const sessionRows = params.getActiveSessionRows()
+          const sessionRows = isActiveTargetSheet
+            ? params.getActiveSessionRows()
+            : (params.resolveSheetContext?.(targetSheetId)?.data ?? optimisticRows)
           const authoritativeRows = applyCommittedGridRowPlacements(
             applyInsertRowSlotsTransform(
               sessionRows,
@@ -387,29 +490,26 @@ export function useSpreadsheetGridStructuralMutations(params: StructuralMutation
       })
     }
 
-    const onRowsDelete = (startIndex: number, count: number) => {
+    const onRowsDelete = (sheetId: string, startIndex: number, count: number) => {
       if (count <= 0) {
         return
       }
       if (params.spreadsheetGridRef.current?.shouldIgnoreStructuralRowCommand?.()) {
         return
       }
-      const targetSheetId = resolveReconciledSheetId(
-        params.activeSheetIdRef.current,
-        params.createdSheetIdAliasesRef.current
-      )
+      const target = resolveTargetSheetState(sheetId)
+      if (!target) {
+        const targetSheetId = resolveReconciledSheetId(sheetId, params.createdSheetIdAliasesRef.current)
+        params.scheduleStructuralSnapshotReload?.(targetSheetId)
+        return
+      }
+      const { targetSheetId, isActiveTargetSheet, rows: previousRows } = target
       params.rowSlotIdentityRegistry.markUnhealthy(targetSheetId, 'row_slot_delete_pending')
-      const previousRows = params.getActiveSessionRows()
       const projection = createIdentityRowProjectionModel(previousRows)
       const startGridRowIndex = projection.resolveVisibleRowIndex(startIndex).virtualSlot
       const optimisticRows = applyDeleteRowSlotsTransform(previousRows, startGridRowIndex, count)
 
-      params.commitLocalSheetData(optimisticRows, {
-        persisted: false,
-        syncGrid: false,
-        publishParent: true
-      })
-      params.spreadsheetGridRef.current?.syncGridConversionContext?.(params.spreadsheetColumnsForGrid, optimisticRows)
+      syncOptimisticRows(targetSheetId, isActiveTargetSheet, optimisticRows, params.spreadsheetColumnsForGrid)
 
       void params.chainOnOperationQueue(params.operationQueueRef, async () => {
         params.sheetPersist.beginPersist()
@@ -426,19 +526,21 @@ export function useSpreadsheetGridStructuralMutations(params: StructuralMutation
       })
     }
 
-    const onRowsMove = (sourceStartIndex: number, count: number, destinationIndex: number) => {
+    const onRowsMove = (sheetId: string, sourceStartIndex: number, count: number, destinationIndex: number) => {
       if (count <= 0) {
         return
       }
       if (params.spreadsheetGridRef.current?.shouldIgnoreStructuralRowCommand?.()) {
         return
       }
-      const targetSheetId = resolveReconciledSheetId(
-        params.activeSheetIdRef.current,
-        params.createdSheetIdAliasesRef.current
-      )
+      const target = resolveTargetSheetState(sheetId)
+      if (!target) {
+        const targetSheetId = resolveReconciledSheetId(sheetId, params.createdSheetIdAliasesRef.current)
+        params.scheduleStructuralSnapshotReload?.(targetSheetId)
+        return
+      }
+      const { targetSheetId, isActiveTargetSheet, rows: previousRows } = target
       params.rowSlotIdentityRegistry.markUnhealthy(targetSheetId, 'row_slot_move_pending')
-      const previousRows = params.getActiveSessionRows()
       const projection = createIdentityRowProjectionModel(previousRows)
       const sourceStartGridRowIndex = projection.resolveVisibleRowIndex(sourceStartIndex).virtualSlot
       const destinationGridRowIndex = projection.resolveVisibleRowIndex(destinationIndex).virtualSlot
@@ -449,12 +551,7 @@ export function useSpreadsheetGridStructuralMutations(params: StructuralMutation
         destinationGridRowIndex
       )
 
-      params.commitLocalSheetData(optimisticRows, {
-        persisted: false,
-        syncGrid: false,
-        publishParent: true
-      })
-      params.spreadsheetGridRef.current?.syncGridConversionContext?.(params.spreadsheetColumnsForGrid, optimisticRows)
+      syncOptimisticRows(targetSheetId, isActiveTargetSheet, optimisticRows, params.spreadsheetColumnsForGrid)
 
       void params.chainOnOperationQueue(params.operationQueueRef, async () => {
         params.sheetPersist.beginPersist()
@@ -479,6 +576,7 @@ export function useSpreadsheetGridStructuralMutations(params: StructuralMutation
     }
 
     const onCellRangeMove = (
+      sheetId: string,
       fromRange: { startRow: number; endRow: number; startColumn: number; endColumn: number },
       toRange: { startRow: number; endRow: number; startColumn: number; endColumn: number }
     ) => {
@@ -488,14 +586,23 @@ export function useSpreadsheetGridStructuralMutations(params: StructuralMutation
       ) {
         return
       }
-      const targetSheetId = resolveReconciledSheetId(
+      const targetSheetId = resolveReconciledSheetId(sheetId, params.createdSheetIdAliasesRef.current)
+      const isActiveTargetSheet = areCanonicalSheetIdsEqual(
+        targetSheetId,
         params.activeSheetIdRef.current,
         params.createdSheetIdAliasesRef.current
       )
-      const previousRows = params.getActiveSessionRows()
+      const targetSheetContext = isActiveTargetSheet
+        ? { columns: params.activeSheetColumns, data: params.getActiveSessionRows() }
+        : (params.resolveSheetContext?.(targetSheetId) ?? null)
+      if (!targetSheetContext) {
+        params.scheduleStructuralSnapshotReload?.(targetSheetId)
+        return
+      }
+      const previousRows = targetSheetContext.data
       const optimisticRows = applyMoveCellRangeToViewerRows({
         rows: previousRows,
-        columns: params.activeSheetColumns,
+        columns: targetSheetContext.columns,
         fromRange,
         toRange
       })
@@ -504,12 +611,22 @@ export function useSpreadsheetGridStructuralMutations(params: StructuralMutation
       // grid move locally — do not push rows back into the workbook (syncGrid) or reload the
       // full canonical snapshot (same rationale as column batch ops in SpreadsheetAppViewer).
       if (optimisticRows !== previousRows) {
-        params.commitLocalSheetData(optimisticRows, {
-          persisted: false,
-          syncGrid: false,
-          publishParent: true
-        })
-        params.spreadsheetGridRef.current?.syncGridConversionContext?.(params.spreadsheetColumnsForGrid, optimisticRows)
+        if (isActiveTargetSheet) {
+          params.commitLocalSheetData(optimisticRows, {
+            persisted: false,
+            syncGrid: false,
+            publishParent: true
+          })
+          params.spreadsheetGridRef.current?.syncGridConversionContext?.(
+            params.spreadsheetColumnsForGrid,
+            optimisticRows
+          )
+        } else {
+          params.syncSheetRowsIntoLocalState(targetSheetId, optimisticRows, {
+            persisted: false,
+            syncGrid: false
+          })
+        }
       }
 
       void params.chainOnOperationQueue(params.operationQueueRef, async () => {

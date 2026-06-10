@@ -264,6 +264,7 @@ export function useUniverGridController(props: UniverSheetGridProps) {
   const lastEmittedCursorPathRef = useRef<string>('')
   const pendingInitialCursorPathRef = useRef<string>('')
   const lastEmittedWorksheetIdRef = useRef<string>('')
+  const suppressWorksheetSelectionEmitRef = useRef<{ expectedSheetId: string; untilMs: number } | null>(null)
   const univerBootstrapCompleteRef = useRef<boolean>(false)
   const recentSheetMutationIdsRef = useRef<Set<string>>(new Set())
   const recentlyDuplicatedWorksheetIdsRef = useRef<Map<string, number>>(new Map())
@@ -342,6 +343,7 @@ export function useUniverGridController(props: UniverSheetGridProps) {
     lastEmittedCursorPathRef,
     pendingInitialCursorPathRef,
     lastEmittedWorksheetIdRef,
+    suppressWorksheetSelectionEmitRef,
     univerBootstrapCompleteRef,
     recentSheetMutationIdsRef,
     recentlyDuplicatedWorksheetIdsRef,

@@ -1138,7 +1138,7 @@ describe('UniverSheetGrid read-only behavior', () => {
       }
     })
 
-    expect(onColumnsInsert).toHaveBeenCalledWith(3, 2, 'rightbottom')
+    expect(onColumnsInsert).toHaveBeenCalledWith('sheet-1', 3, 2, 'rightbottom')
   })
 
   it('routes native column delete mutations to the dedicated callback', () => {
@@ -1165,7 +1165,7 @@ describe('UniverSheetGrid read-only behavior', () => {
       }
     })
 
-    expect(onColumnsDelete).toHaveBeenCalledWith(1, 2)
+    expect(onColumnsDelete).toHaveBeenCalledWith('sheet-1', 1, 2)
   })
 
   it('routes native column move mutations to the dedicated callback', () => {
@@ -1193,7 +1193,7 @@ describe('UniverSheetGrid read-only behavior', () => {
       }
     })
 
-    expect(onColumnsMove).toHaveBeenCalledWith(1, 2, 4)
+    expect(onColumnsMove).toHaveBeenCalledWith('sheet-1', 1, 2, 4)
   })
 
   it('emits native column reorder from BeforeCommandExecute and dedupes the later command event', () => {
@@ -1233,7 +1233,7 @@ describe('UniverSheetGrid read-only behavior', () => {
     })
 
     expect(onColumnsMove).toHaveBeenCalledTimes(1)
-    expect(onColumnsMove).toHaveBeenCalledWith(1, 2, 4)
+    expect(onColumnsMove).toHaveBeenCalledWith('sheet-1', 1, 2, 4)
   })
 
   it('cancels native column reorder before command when the move would split a merge from the live workbook snapshot', () => {
@@ -1478,7 +1478,7 @@ describe('UniverSheetGrid read-only behavior', () => {
       }
     })
 
-    expect(onRowsMove).toHaveBeenCalledWith(1, 2, 5)
+    expect(onRowsMove).toHaveBeenCalledWith('sheet-1', 1, 2, 5)
   })
 
   it('routes native cell-range move mutations to onCellRangeMove without firing the unified planner', () => {
@@ -1510,6 +1510,7 @@ describe('UniverSheetGrid read-only behavior', () => {
 
     expect(onCellRangeMove).toHaveBeenCalledTimes(1)
     expect(onCellRangeMove).toHaveBeenCalledWith(
+      'sheet-1',
       { startRow: 1, endRow: 2, startColumn: 1, endColumn: 2 },
       { startRow: 5, endRow: 6, startColumn: 4, endColumn: 5 }
     )

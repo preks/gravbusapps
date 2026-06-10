@@ -28,8 +28,10 @@ export function useSpreadsheetSheetVersionModel(params: UseSpreadsheetSheetVersi
   const workbookSnapshotVersionRef = useRef<number>(0)
   const workbookSnapshotCoversVersionsRef = useRef<SpreadsheetSnapshotCoversVersions>({})
   const sheetVersionsRef = useRef<Map<string, number>>(new Map())
+  const sheetSnapshotVersionsRef = useRef<Map<string, number>>(new Map())
   const sheetVersionSyncSheetIdRef = useRef<string>('')
   const knownSheetVersionsRef = useRef<Map<string, { version: number; fetchedAt: number }>>(new Map())
+  const knownSheetSnapshotVersionsRef = useRef<Map<string, { version: number; fetchedAt: number }>>(new Map())
   const inFlightSheetVersionRefreshesRef = useRef<Map<string, Promise<number>>>(new Map())
   const recentLocalCommittedVersionsRef = useRef<Map<number, number>>(new Map())
   const recentLocalBatchIdsRef = useRef<Map<string, { expiresAt: number; tabId?: string }>>(new Map())
@@ -55,12 +57,11 @@ export function useSpreadsheetSheetVersionModel(params: UseSpreadsheetSheetVersi
     [params.activeSheetIdRef, params.appSheetsRef, params.spreadsheetSessionRef]
   )
 
-  const resolveKnownSheetVersion = useCallback(
+  const resolveTrackedSheetVersion = useCallback(
     (sheetId: string): number => {
       const sessionVersion = params.spreadsheetSessionRef.current?.getSheetState(sheetId)?.version
       const trackedVersion = sheetVersionsRef.current.get(sheetId)
       const appSheetVersionRaw = params.appSheetsRef.current.find(sheet => sheet.id === sheetId)?.version
-      const knownFromNetwork = knownSheetVersionsRef.current.get(sheetId)?.version
 
       const appParsed = Number(appSheetVersionRaw ?? 0)
       const appSheetVersion = Number.isFinite(appParsed) ? Math.trunc(appParsed) : null
@@ -68,8 +69,7 @@ export function useSpreadsheetSheetVersionModel(params: UseSpreadsheetSheetVersi
       const candidates = [
         typeof sessionVersion === 'number' && Number.isFinite(sessionVersion) ? Math.trunc(sessionVersion) : null,
         typeof trackedVersion === 'number' && Number.isFinite(trackedVersion) ? Math.trunc(trackedVersion) : null,
-        appSheetVersion,
-        typeof knownFromNetwork === 'number' && Number.isFinite(knownFromNetwork) ? Math.trunc(knownFromNetwork) : null
+        appSheetVersion
       ].filter((v): v is number => typeof v === 'number' && v >= 0)
 
       return candidates.length > 0 ? Math.max(...candidates) : 0
@@ -77,9 +77,30 @@ export function useSpreadsheetSheetVersionModel(params: UseSpreadsheetSheetVersi
     [params.appSheetsRef, params.spreadsheetSessionRef]
   )
 
+  const resolveKnownSheetVersion = useCallback(
+    (sheetId: string): number => {
+      const trackedVersion = resolveTrackedSheetVersion(sheetId)
+      const knownFromNetwork = knownSheetVersionsRef.current.get(sheetId)?.version
+      const knownNetworkVersion =
+        typeof knownFromNetwork === 'number' && Number.isFinite(knownFromNetwork) ? Math.trunc(knownFromNetwork) : 0
+      return Math.max(trackedVersion, knownNetworkVersion)
+    },
+    [resolveTrackedSheetVersion]
+  )
+
   useEffect(() => {
     for (const sheet of params.sheets) {
       rememberSheetVersion(sheet.id, Number(sheet.version ?? 0))
+      const snapshotVersion = Number(sheet.sheetSnapshotVersion ?? 0)
+      if (Number.isFinite(snapshotVersion) && snapshotVersion >= 0) {
+        const normalizedSnapshotVersion = Math.trunc(snapshotVersion)
+        sheetSnapshotVersionsRef.current.set(sheet.id, normalizedSnapshotVersion)
+        const previousKnown = knownSheetSnapshotVersionsRef.current.get(sheet.id)?.version ?? 0
+        knownSheetSnapshotVersionsRef.current.set(sheet.id, {
+          version: Math.max(previousKnown, normalizedSnapshotVersion),
+          fetchedAt: Date.now()
+        })
+      }
     }
   }, [params.sheets, rememberSheetVersion])
 
@@ -116,6 +137,54 @@ export function useSpreadsheetSheetVersionModel(params: UseSpreadsheetSheetVersi
       }
     },
     [params.activeSheetIdRef, params.appSheetsRef, params.spreadsheetSessionRef, rememberKnownSheetVersion]
+  )
+
+  const rememberSheetSnapshotVersion = useCallback((sheetId: string, version: number | undefined) => {
+    if (typeof version !== 'number' || !Number.isFinite(version) || version < 0) return
+    const normalizedVersion = Math.trunc(version)
+    const currentVersion = sheetSnapshotVersionsRef.current.get(sheetId)
+    if (currentVersion == null || normalizedVersion > currentVersion) {
+      sheetSnapshotVersionsRef.current.set(sheetId, normalizedVersion)
+    }
+  }, [])
+
+  const rememberKnownSheetSnapshotVersion = useCallback((sheetId: string, version: number | undefined) => {
+    if (typeof version !== 'number' || !Number.isFinite(version) || version < 0) return
+    const normalizedVersion = Math.trunc(version)
+    const previous = knownSheetSnapshotVersionsRef.current.get(sheetId)?.version ?? 0
+    knownSheetSnapshotVersionsRef.current.set(sheetId, {
+      version: Math.max(previous, normalizedVersion),
+      fetchedAt: Date.now()
+    })
+  }, [])
+
+  const resolveTrackedSheetSnapshotVersion = useCallback(
+    (sheetId: string): number => {
+      const trackedVersion = sheetSnapshotVersionsRef.current.get(sheetId)
+      const appSheetVersionRaw = params.appSheetsRef.current.find(sheet => sheet.id === sheetId)?.sheetSnapshotVersion
+
+      const appParsed = Number(appSheetVersionRaw ?? 0)
+      const appSheetVersion = Number.isFinite(appParsed) ? Math.trunc(appParsed) : null
+
+      const candidates = [
+        typeof trackedVersion === 'number' && Number.isFinite(trackedVersion) ? Math.trunc(trackedVersion) : null,
+        appSheetVersion
+      ].filter((v): v is number => typeof v === 'number' && v >= 0)
+
+      return candidates.length > 0 ? Math.max(...candidates) : 0
+    },
+    [params.appSheetsRef]
+  )
+
+  const resolveKnownSheetSnapshotVersion = useCallback(
+    (sheetId: string): number => {
+      const trackedVersion = resolveTrackedSheetSnapshotVersion(sheetId)
+      const knownFromNetwork = knownSheetSnapshotVersionsRef.current.get(sheetId)?.version
+      const knownNetworkVersion =
+        typeof knownFromNetwork === 'number' && Number.isFinite(knownFromNetwork) ? Math.trunc(knownFromNetwork) : 0
+      return Math.max(trackedVersion, knownNetworkVersion)
+    },
+    [resolveTrackedSheetSnapshotVersion]
   )
 
   const getKnownSheetVersion = useCallback((targetSheetId: string, fallbackVersion: number): number => {
@@ -255,9 +324,16 @@ export function useSpreadsheetSheetVersionModel(params: UseSpreadsheetSheetVersi
     workbookSnapshotVersionRef,
     workbookSnapshotCoversVersionsRef,
     knownSheetVersionsRef,
+    sheetSnapshotVersionsRef,
+    knownSheetSnapshotVersionsRef,
     rememberSheetVersion,
+    rememberSheetSnapshotVersion,
+    resolveTrackedSheetVersion,
     resolveKnownSheetVersion,
+    resolveTrackedSheetSnapshotVersion,
+    resolveKnownSheetSnapshotVersion,
     rememberKnownSheetVersion,
+    rememberKnownSheetSnapshotVersion,
     getKnownSheetVersion,
     updateActiveSheetVersion,
     refreshBaseVersionBeforeWrite,

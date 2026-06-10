@@ -326,6 +326,7 @@ export function handleCommandExecutedColumnInsertsAndFeatureOps(
         direction: getColumnInsertDirection(commandId, params ?? {})
       })
       callbacksRef.current.onColumnsInsert?.(
+        targetSheetId,
         range.startColumn,
         range.endColumn - range.startColumn + 1,
         getColumnInsertDirection(commandId, params ?? {})
@@ -366,7 +367,7 @@ export function handleCommandExecutedColumnInsertsAndFeatureOps(
         sheetId: targetSheetId,
         deleteStartColumn: range.startColumn
       })
-      callbacksRef.current.onColumnsDelete?.(range.startColumn, range.endColumn)
+      callbacksRef.current.onColumnsDelete?.(targetSheetId, range.startColumn, range.endColumn)
     }
   } else if (isNativeColumnMoveCommand(commandId)) {
     const move = getColumnMoveMutation((params ?? {}) as Parameters<typeof getColumnMoveMutation>[0])
@@ -435,6 +436,7 @@ export function handleCommandExecutedColumnInsertsAndFeatureOps(
       })
       recentNativeColumnMoveEmitRef.current = { signature, emittedAt: Date.now() }
       callbacksRef.current.onColumnsMove?.(
+        targetSheetId,
         move.sourceStartColumn,
         move.sourceEndColumn - move.sourceStartColumn + 1,
         move.destinationStartColumn
@@ -478,7 +480,7 @@ export function handleCommandExecutedColumnInsertsAndFeatureOps(
         count: range.endRow - range.startRow + 1,
         direction
       })
-      callbacksRef.current.onRowsInsert?.(range.startRow, range.endRow - range.startRow + 1, direction)
+      callbacksRef.current.onRowsInsert?.(targetSheetId, range.startRow, range.endRow - range.startRow + 1, direction)
     }
   } else if (t === UNIVER_COMMAND_TYPE_MUTATION && isNativeRowDeleteCommand(commandId)) {
     const range = getRowMutationRange(params ?? {})
@@ -494,7 +496,7 @@ export function handleCommandExecutedColumnInsertsAndFeatureOps(
         deleteStartRow: range.startRow,
         count: range.endRow - range.startRow + 1
       })
-      callbacksRef.current.onRowsDelete?.(range.startRow, range.endRow - range.startRow + 1)
+      callbacksRef.current.onRowsDelete?.(targetSheetId, range.startRow, range.endRow - range.startRow + 1)
     }
   } else if (t === UNIVER_COMMAND_TYPE_MUTATION && isNativeRowMoveCommand(commandId)) {
     const move = getRowMoveMutation((params ?? {}) as Parameters<typeof getRowMoveMutation>[0])
@@ -534,6 +536,7 @@ export function handleCommandExecutedColumnInsertsAndFeatureOps(
         destinationStartRow: move.destinationStartRow
       })
       callbacksRef.current.onRowsMove?.(
+        targetSheetId,
         move.sourceStartRow,
         move.sourceEndRow - move.sourceStartRow + 1,
         move.destinationStartRow
@@ -576,7 +579,7 @@ export function handleCommandExecutedColumnInsertsAndFeatureOps(
       const shouldEmit = emitNow - lastEmitAt >= 1000
       if (shouldEmit) {
         lastFeatureEmitAtBySignatureRef.current.set(dedupKey, emitNow)
-        callbacksRef.current.onCellRangeMove?.(move.fromRange, move.toRange)
+        callbacksRef.current.onCellRangeMove?.(targetSheetId, move.fromRange, move.toRange)
         armMoveCellRangeFollowUpCollabSuppression({
           suppressionRef: cutPasteCollabSuppressUntilMsRef,
           recentMoveRef: recentMoveCellRangeFollowUpRef,
@@ -624,7 +627,7 @@ export function handleCommandExecutedColumnInsertsAndFeatureOps(
             if (emitNow - timestamp > 5000) lastFeatureEmitAtBySignatureRef.current.delete(key)
           }
         }
-        callbacksRef.current.onCellRangeMove?.(move.fromRange, move.toRange)
+        callbacksRef.current.onCellRangeMove?.(targetSheetId, move.fromRange, move.toRange)
         armMoveCellRangeFollowUpCollabSuppression({
           suppressionRef: cutPasteCollabSuppressUntilMsRef,
           recentMoveRef: recentMoveCellRangeFollowUpRef,

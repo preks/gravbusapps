@@ -36,6 +36,11 @@ import {
   extractWorkbookStylesFromSnapshot
 } from './univerGridSnapshotDimensions'
 import { stripWorksheetValueKeys, worksheetHasCopyPayload } from './univerGridWorkbookMutationModule'
+import {
+  debugLog,
+  summarizeLiveWorksheetSnapshotForDebug,
+  summarizeWorkbookSnapshotForDebug
+} from '../utils/spreadsheetViewerDebug'
 
 export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountContext): (() => void) | undefined {
   const {
@@ -260,6 +265,16 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
 
   const initDims = extractDimensionsFromSnapshot(snapshotForInit as unknown as Record<string, unknown>, s.id)
   if (initDims) cellDimensionsRef.current = initDims
+  debugLog('grid bootstrap createWorkbook payload', {
+    sheetId: s.id,
+    snapshotSeed: props.snapshotSeed,
+    initializedFromProvidedSnapshot,
+    workbookSummary: summarizeWorkbookSnapshotForDebug(snapshotForInit as unknown as Record<string, unknown>, s.id),
+    worksheetSummary: summarizeLiveWorksheetSnapshotForDebug(
+      snapshotForInit as unknown as Record<string, unknown>,
+      s.id
+    )
+  })
 
   let univerBinding = createUniverBinding()
   let univerAPI = univerBinding.univerAPI

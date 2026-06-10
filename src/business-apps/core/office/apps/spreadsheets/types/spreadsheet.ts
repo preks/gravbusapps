@@ -322,6 +322,7 @@ export interface SpreadsheetSheet {
   name: string
   description?: string
   version?: number
+  sheetSnapshotVersion?: number
   /** Hidden state for the native Univer worksheet tab. */
   hidden?: boolean
   /** Present on some API responses (duplicate/create) for Univer materialization. */

@@ -84,4 +84,50 @@ describe('useSpreadsheetActiveSheetPeerRestore', () => {
 
     expect(commitLocalSheetData).not.toHaveBeenCalled()
   })
+
+  it('defers cached peer restore when activated sheet is waiting for canonical materialization', () => {
+    const commitLocalSheetData = jest.fn()
+    const activeSheet = {
+      id: 'sheet-2',
+      data: [{ _id: 'row-2', _gridRowIndex: 0, column_a: 'server value', column_b: 'new column value' }],
+      columns: [
+        { id: 'col-a', name: 'column_a', isVisible: true },
+        { id: 'col-b', name: 'column_b', isVisible: true }
+      ]
+    } as any
+
+    const { rerender } = renderHook(
+      ({ activeSheetId }) =>
+        useSpreadsheetActiveSheetPeerRestore({
+          activeSheet,
+          activeSheetId,
+          preferUniverNativeSheetTabs: true,
+          spreadsheetGridRef: {
+            current: {
+              getWorkbookSnapshot: () => ({ sheets: {} })
+            } as any
+          },
+          peerSheetDataCacheRef: {
+            current: new Map([
+              ['sheet-2', [{ _id: 'row-2', _gridRowIndex: 0, column_a: 'server value', column_b: 'new column value' }]]
+            ])
+          },
+          authoritativePeerSheetDataCacheRef: {
+            current: new Set(['sheet-2'])
+          },
+          resolveKnownSheetVersion: () => 8,
+          resolveCanonicalSheetId: (sheetId: string) => sheetId,
+          buildFullAuthoritativeGridRegion: () => ({ minRow: 0, maxRow: 0, minCol: 0, maxCol: 1 }),
+          getGridMaterializationReason: () => 'column_add',
+          commitLocalSheetData
+        }),
+      {
+        initialProps: { activeSheetId: 'sheet-1' }
+      }
+    )
+
+    rerender({ activeSheetId: 'sheet-2' })
+
+    expect(commitLocalSheetData).not.toHaveBeenCalled()
+  })
 })

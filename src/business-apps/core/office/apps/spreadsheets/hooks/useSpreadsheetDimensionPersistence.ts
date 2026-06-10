@@ -33,6 +33,7 @@ export interface UseSpreadsheetDimensionPersistenceParams {
   enqueueSnapshotCheckpointRef: MutableRefObject<(() => Promise<void>) | null>
   appSheetsRef: MutableRefObject<SpreadsheetSheet[]>
   spreadsheetGridRef: MutableRefObject<UniverSheetGridHandle | null>
+  markRecentLocalSnapshotMutation?: (sheetId: string, source: string) => void
 }
 
 export interface UseSpreadsheetDimensionPersistenceResult {
@@ -226,6 +227,13 @@ export function useSpreadsheetDimensionPersistence(
       }
 
       pendingDimensionOpsRef.current = dimensionOps
+      const changedColumnCount = colResult?.changedColumns.length ?? 0
+      if ((changedColumnCount > 0 || dimensionOps.length > 0) && p.markRecentLocalSnapshotMutation) {
+        p.markRecentLocalSnapshotMutation(
+          p.activeSheetId,
+          changedColumnCount > 0 ? 'dimensions_changed' : 'dimension_ops_changed'
+        )
+      }
 
       if (pendingDimensionPersistTimeoutRef.current) {
         clearTimeout(pendingDimensionPersistTimeoutRef.current)
@@ -253,6 +261,7 @@ export function useSpreadsheetDimensionPersistence(
           applyLocalAppUpdate: q.applyLocalAppUpdate,
           onAppUpdate: q.onAppUpdate,
           onLocalAppUpdate: q.onLocalAppUpdate,
+          markRecentLocalSnapshotMutation: q.markRecentLocalSnapshotMutation,
           clearPendingWidthOverridesForColumns
         })
       }, 500)

@@ -177,6 +177,63 @@ describe('useSpreadsheetSheetVersionModel', () => {
     expect(result.current.resolveKnownSheetVersion('sheet-a')).toBe(600)
   })
 
+  it('resolveTrackedSheetVersion ignores newer network-known versions until applied locally', () => {
+    const spreadsheetSessionRef = {
+      current: {
+        getSheetState: (id: string) => (id === 'sheet-a' ? { version: 100, rows: [], columns: [] } : undefined),
+        replaceSheetState: jest.fn()
+      }
+    } as React.MutableRefObject<SpreadsheetSession | null>
+    const activeSheetIdRef = { current: 'sheet-a' }
+    const appSheetsRef = { current: [createMinimalSheet('sheet-a', 50)] }
+
+    const { result } = renderHook(() =>
+      useSpreadsheetSheetVersionModel({
+        appId: 'app-1',
+        spreadsheetSessionRef,
+        activeSheetIdRef,
+        appSheetsRef,
+        sheets: appSheetsRef.current,
+        activeSheetId: 'sheet-a',
+        activeSheetVersion: 50
+      })
+    )
+
+    act(() => {
+      result.current.rememberKnownSheetVersion('sheet-a', 536)
+    })
+
+    expect(result.current.resolveTrackedSheetVersion('sheet-a')).toBe(100)
+    expect(result.current.resolveKnownSheetVersion('sheet-a')).toBe(536)
+  })
+
+  it('keeps tracked sheet snapshot version behind network-known snapshot version until hydration applies', () => {
+    const spreadsheetSessionRef = { current: null as SpreadsheetSession | null }
+    const activeSheetIdRef = { current: 'sheet-a' }
+    const appSheetsRef = {
+      current: [{ ...createMinimalSheet('sheet-a', 5), sheetSnapshotVersion: 2 }]
+    }
+
+    const { result } = renderHook(() =>
+      useSpreadsheetSheetVersionModel({
+        appId: 'app-1',
+        spreadsheetSessionRef,
+        activeSheetIdRef,
+        appSheetsRef,
+        sheets: appSheetsRef.current,
+        activeSheetId: 'sheet-a',
+        activeSheetVersion: 5
+      })
+    )
+
+    act(() => {
+      result.current.rememberKnownSheetSnapshotVersion('sheet-a', 10)
+    })
+
+    expect(result.current.resolveTrackedSheetSnapshotVersion('sheet-a')).toBe(2)
+    expect(result.current.resolveKnownSheetSnapshotVersion('sheet-a')).toBe(10)
+  })
+
   it('never downgrades known sheet version on refreshBaseVersionBeforeWrite', async () => {
     const spreadsheetSessionRef = { current: null as SpreadsheetSession | null }
     const activeSheetIdRef = { current: 'sheet-a' }

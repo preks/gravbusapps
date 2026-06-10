@@ -5,8 +5,10 @@ import {
   mergeAuthoritativeViewerRowsIntoWorkbookSnapshot,
   mergeWorkbookFormattingFromDonor,
   normalizeWorkbookSnapshotToAppSheets,
+  snapshotTrackingHeaderMatchesColumnLabels,
   stripWorkbookSnapshotValuesPreservingFormatting,
-  workbookFormattingRichnessScore
+  workbookFormattingRichnessScore,
+  workbookSnapshotConflictsWithViewerRows
 } from './univerAdapter'
 import {
   listValidUniverSnapshotCacheEntries,
@@ -66,6 +68,98 @@ export type BootstrapSnapshotLoaderResult = {
   cacheWrite?: ReturnType<typeof writeUniverSnapshotCache>
 }
 
+export type BootstrapSnapshotValidationReason =
+  | 'missing_snapshot'
+  | 'missing_active_sheet'
+  | 'row_mismatch'
+  | 'tracking_header_mismatch'
+
+export type BootstrapSnapshotValidationResult = {
+  valid: boolean
+  safety: 'unsafe' | 'repairable' | 'safe'
+  reason: BootstrapSnapshotValidationReason | null
+  rowMismatch: boolean
+  trackingHeaderMatches: boolean
+  formattingScore: number
+}
+
+export const validateActiveSheetBootstrapSnapshot = (params: {
+  snapshot: Record<string, unknown> | null
+  activeSheetId: string
+  canonicalSheetMeta: SpreadsheetSheet
+  canonicalRows: Record<string, unknown>[]
+}): BootstrapSnapshotValidationResult => {
+  const { snapshot, activeSheetId, canonicalSheetMeta, canonicalRows } = params
+  const formattingScore =
+    snapshot && typeof snapshot === 'object' ? workbookFormattingRichnessScore(snapshot, activeSheetId) : 0
+  if (!snapshot || typeof snapshot !== 'object') {
+    return {
+      valid: false,
+      safety: 'unsafe',
+      reason: 'missing_snapshot',
+      rowMismatch: false,
+      trackingHeaderMatches: true,
+      formattingScore
+    }
+  }
+
+  const sheets = snapshot.sheets as Record<string, unknown> | undefined
+  const worksheet = sheets?.[activeSheetId]
+  if (!worksheet || typeof worksheet !== 'object' || Array.isArray(worksheet)) {
+    return {
+      valid: false,
+      safety: 'unsafe',
+      reason: 'missing_active_sheet',
+      rowMismatch: false,
+      trackingHeaderMatches: true,
+      formattingScore
+    }
+  }
+
+  const rowMismatch = workbookSnapshotConflictsWithViewerRows(
+    snapshot,
+    activeSheetId,
+    canonicalRows,
+    canonicalSheetMeta.columns
+  )
+  if (rowMismatch) {
+    return {
+      valid: false,
+      safety: 'unsafe',
+      reason: 'row_mismatch',
+      rowMismatch: true,
+      trackingHeaderMatches: true,
+      formattingScore
+    }
+  }
+
+  const trackingHeaderMatches = snapshotTrackingHeaderMatchesColumnLabels(
+    snapshot,
+    activeSheetId,
+    canonicalRows,
+    canonicalSheetMeta.columns
+  )
+  if (!trackingHeaderMatches) {
+    return {
+      valid: true,
+      safety: 'repairable',
+      reason: 'tracking_header_mismatch',
+      rowMismatch: false,
+      trackingHeaderMatches: false,
+      formattingScore
+    }
+  }
+
+  return {
+    valid: true,
+    safety: 'safe',
+    reason: null,
+    rowMismatch: false,
+    trackingHeaderMatches: true,
+    formattingScore
+  }
+}
+
 export const getBootstrapSnapshotCoverageVersion = (
   result: Pick<BootstrapSnapshotLoaderResult, 'coversVersions'>,
   sheetId: string
@@ -80,12 +174,34 @@ export const chooseBootstrapWorkbookCandidate = (params: {
   minVersion: number
   baseline: BootstrapSnapshotLoaderResult
   remoteResult: BootstrapSnapshotLoaderResult
+  baselineValidationResult?: BootstrapSnapshotValidationResult
+  remoteValidationResult?: BootstrapSnapshotValidationResult
 }): BootstrapSnapshotLoaderResult => {
-  const { activeSheetId, minVersion, baseline, remoteResult } = params
+  const { activeSheetId, minVersion, baseline, remoteResult, baselineValidationResult, remoteValidationResult } = params
   const remoteCoverage = getBootstrapSnapshotCoverageVersion(remoteResult, activeSheetId)
   const cacheCoverage = getBootstrapSnapshotCoverageVersion(baseline, activeSheetId)
   const remoteCompatible = remoteCoverage >= minVersion
   const cacheCompatible = cacheCoverage >= minVersion
+  const getSafetyRank = (result?: BootstrapSnapshotValidationResult): number => {
+    if (!result) return -1
+    if (result.safety === 'safe') return 2
+    if (result.safety === 'repairable') return 1
+    return 0
+  }
+  const remoteSafetyRank = getSafetyRank(remoteValidationResult)
+  const cacheSafetyRank = getSafetyRank(baselineValidationResult)
+
+  if (baselineValidationResult && remoteValidationResult && remoteSafetyRank !== cacheSafetyRank) {
+    return remoteSafetyRank > cacheSafetyRank ? remoteResult : baseline
+  }
+
+  if (
+    baselineValidationResult &&
+    remoteValidationResult &&
+    remoteValidationResult.formattingScore !== baselineValidationResult.formattingScore
+  ) {
+    return remoteValidationResult.formattingScore > baselineValidationResult.formattingScore ? remoteResult : baseline
+  }
 
   if (remoteCompatible && !cacheCompatible) return remoteResult
   if (!remoteCompatible && cacheCompatible) return baseline
@@ -122,7 +238,15 @@ export const fetchBootstrapSnapshotRemoteComparedToBaseline = async (
   appId: string,
   activeSheetId: string,
   minVersion: number,
-  baseline: BootstrapSnapshotLoaderResult | null
+  baseline: BootstrapSnapshotLoaderResult | null,
+  options?: {
+    selectCandidate?: (params: {
+      activeSheetId: string
+      minVersion: number
+      baseline: BootstrapSnapshotLoaderResult
+      remoteResult: BootstrapSnapshotLoaderResult
+    }) => BootstrapSnapshotLoaderResult
+  }
 ): Promise<BootstrapSnapshotLoaderResult> => {
   const remote = await fetchUniverSnapshotWithTimeout(appId, SNAPSHOT_FETCH_TIMEOUT_MS)
   const remoteVersionRaw = Number(remote?.version ?? 0)
@@ -158,7 +282,10 @@ export const fetchBootstrapSnapshotRemoteComparedToBaseline = async (
       cacheWrite
     }
     if (!baseline) return remoteResult
-    return chooseBootstrapWorkbookCandidate({ activeSheetId, minVersion, baseline, remoteResult })
+    return (
+      options?.selectCandidate?.({ activeSheetId, minVersion, baseline, remoteResult }) ??
+      chooseBootstrapWorkbookCandidate({ activeSheetId, minVersion, baseline, remoteResult })
+    )
   }
 
   const cacheOnly = baseline ?? tryLoadBootstrapSnapshotFromCache(appId, activeSheetId, minVersion)
@@ -177,17 +304,28 @@ export const fetchBootstrapSnapshotRemoteComparedToBaseline = async (
 export const loadBootstrapSnapshotData = async (
   appId: string,
   activeSheetId: string,
-  minVersion: number
+  minVersion: number,
+  options?: {
+    selectCandidate?: (params: {
+      activeSheetId: string
+      minVersion: number
+      baseline: BootstrapSnapshotLoaderResult
+      remoteResult: BootstrapSnapshotLoaderResult
+    }) => BootstrapSnapshotLoaderResult
+  }
 ): Promise<BootstrapSnapshotLoaderResult> => {
   const cachedResult = tryLoadBootstrapSnapshotFromCache(appId, activeSheetId, minVersion)
-  return fetchBootstrapSnapshotRemoteComparedToBaseline(appId, activeSheetId, minVersion, cachedResult)
+  return fetchBootstrapSnapshotRemoteComparedToBaseline(appId, activeSheetId, minVersion, cachedResult, options)
 }
 
 export const mergeBootstrapSnapshotWithCanonicalRows = (
   snapshot: Record<string, unknown>,
   sheet: SpreadsheetSheet,
   rows: Record<string, unknown>[]
-): Record<string, unknown> => mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(snapshot, sheet.id, rows, sheet.columns)
+): Record<string, unknown> =>
+  mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(snapshot, sheet.id, rows, sheet.columns, {
+    preserveUnresolvedSnapshotValues: true
+  })
 
 /**
  * When the chosen bootstrap workbook is value-only or stale (e.g. bad remote payload) but an older

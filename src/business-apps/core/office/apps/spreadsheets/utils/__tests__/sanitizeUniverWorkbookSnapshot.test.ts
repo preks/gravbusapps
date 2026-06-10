@@ -57,4 +57,72 @@ describe('sanitizeUniverWorkbookSnapshotForBootstrap', () => {
 
     expect(result.snapshot).toBeNull()
   })
+
+  it('moves inline cell formatting keys under s for bootstrap snapshots', () => {
+    const result = sanitizeUniverWorkbookSnapshotForBootstrap({
+      id: 'workbook-sheet-1',
+      name: 'Sheet 1',
+      sheetOrder: ['sheet-1'],
+      sheets: {
+        'sheet-1': {
+          id: 'sheet-1',
+          name: 'Sheet 1',
+          cellData: {
+            0: {
+              0: { v: 'A', bg: { rgb: '#ff0000' }, bl: 1 }
+            }
+          }
+        }
+      }
+    })
+
+    expect(result.snapshot).not.toBeNull()
+    expect(result.snapshot?.sheets).toMatchObject({
+      'sheet-1': {
+        cellData: {
+          '0': {
+            '0': {
+              v: 'A',
+              s: {
+                bg: { rgb: '#ff0000' },
+                bl: 1
+              }
+            }
+          }
+        }
+      }
+    })
+  })
+
+  it('preserves value cells when hydration payload includes f: null', () => {
+    const result = sanitizeUniverWorkbookSnapshotForBootstrap({
+      id: 'workbook-sheet-1',
+      name: 'Sheet 1',
+      sheetOrder: ['sheet-1'],
+      sheets: {
+        'sheet-1': {
+          id: 'sheet-1',
+          name: 'Sheet 1',
+          cellData: {
+            1: {
+              1: { f: null, v: 'Emir' }
+            }
+          }
+        }
+      }
+    })
+
+    expect(result.snapshot).not.toBeNull()
+    expect(result.snapshot?.sheets).toMatchObject({
+      'sheet-1': {
+        cellData: {
+          '1': {
+            '1': {
+              v: 'Emir'
+            }
+          }
+        }
+      }
+    })
+  })
 })

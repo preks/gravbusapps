@@ -224,7 +224,8 @@ jest.mock(
           if (id === 'sheet-1') univerMockActiveSheetId = 'sheet-1'
         }),
         getSheets: () => [activeSheet, inactiveSheet],
-        getSheetBySheetId: (sheetId: string) => (sheetId === 'sheet-2' ? inactiveSheet : undefined),
+        getSheetBySheetId: (sheetId: string) =>
+          sheetId === 'sheet-2' ? inactiveSheet : sheetId === 'sheet-1' ? activeSheet : undefined,
         save: () =>
           gridTestMockState.workbookSnapshotOverride ?? {
             sheetOrder: ['sheet-1'],

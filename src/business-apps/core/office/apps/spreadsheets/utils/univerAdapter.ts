@@ -482,6 +482,31 @@ function getWorksheetFromWorkbookSnapshot(
     | undefined
 }
 
+const INLINE_FORMATTING_KEYS = new Set([
+  'bg',
+  'cl',
+  'bd',
+  'bl',
+  'it',
+  'ul',
+  'st',
+  'ol',
+  'ff',
+  'fs',
+  'ht',
+  'vt',
+  'tb',
+  'tr',
+  'pd',
+  'n'
+])
+
+function cellHasFormattingSignal(cell: UniverCellData | undefined): boolean {
+  if (!cell || typeof cell !== 'object') return false
+  if (cell.s != null && cell.s !== '') return true
+  return Object.keys(cell as Record<string, unknown>).some(key => INLINE_FORMATTING_KEYS.has(key))
+}
+
 /** Heuristic: how much formatting exists (workbook `styles` + per-cell `s` refs) for bootstrap fallback. */
 export function workbookFormattingRichnessScore(snapshot: Record<string, unknown>, sheetId: string): number {
   if (!snapshot || typeof snapshot !== 'object') return 0
@@ -500,7 +525,7 @@ export function workbookFormattingRichnessScore(snapshot: Record<string, unknown
     for (const colKey of Object.keys(row)) {
       const cell = (row as Record<string, UniverCellData | undefined>)[colKey]
       if (!cell || typeof cell !== 'object') continue
-      if (cell.s != null && cell.s !== '') score += 1
+      if (cellHasFormattingSignal(cell)) score += 1
     }
   }
   return score
@@ -543,11 +568,12 @@ export function mergeWorkbookFormattingFromDonor(
       if (Number.isNaN(ci)) continue
       const bc = baseRow[ci]
       if (!bc || typeof bc !== 'object') continue
-      if (bc.s != null && bc.s !== '') continue
+      if (cellHasFormattingSignal(bc)) continue
       const dc = donorRow[ci]
       if (!dc || typeof dc !== 'object') continue
-      if (dc.s == null || dc.s === '') continue
-      baseRow[ci] = { ...bc, s: dc.s } as UniverCellData
+      if (!cellHasFormattingSignal(dc)) continue
+      const donorFormattingOnly = clearSnapshotCellValuePreservingFormatting(dc) ?? {}
+      baseRow[ci] = { ...bc, ...(donorFormattingOnly as Record<string, unknown>) } as UniverCellData
     }
   }
 
@@ -604,6 +630,42 @@ export function workbookSnapshotMismatchesViewerRows(
       return true
     }
   }
+  return false
+}
+
+/**
+ * Returns true when persisted workbook cellData disagrees with viewer-row values for cells that
+ * canonical rows positively define. Extra snapshot-only values are ignored.
+ */
+export function workbookSnapshotConflictsWithViewerRows(
+  workbookSnapshot: Record<string, unknown> | null,
+  sheetId: string,
+  viewerRows: Record<string, unknown>[],
+  columns: SpreadsheetColumn[]
+): boolean {
+  if (!workbookSnapshot || typeof workbookSnapshot !== 'object') return false
+  const worksheet = getWorksheetFromWorkbookSnapshot(workbookSnapshot, sheetId)
+  if (!worksheet) return false
+  const snapCellData = worksheet.cellData as UniverSheetCellData | undefined
+  const visibleColumns = columns.filter(c => c.isVisible !== false)
+  const authoritative = buildCellData(viewerRows, visibleColumns)
+
+  for (const rowKey of Object.keys(authoritative)) {
+    const rowIndex = Number(rowKey)
+    if (Number.isNaN(rowIndex) || rowIndex < 0) continue
+    const authRow = authoritative[rowIndex] ?? {}
+    const snapRow = snapCellData?.[rowIndex] ?? snapCellData?.[String(rowIndex) as unknown as number] ?? {}
+
+    for (let colIndex = 0; colIndex < visibleColumns.length; colIndex += 1) {
+      const authCell = (authRow as Record<number, UniverCellData | undefined>)[colIndex]
+      if (!authCell) continue
+      const snapCell = (snapRow as Record<number, UniverCellData | undefined>)[colIndex]
+      if (comparableUniverCellPayload(authCell) !== comparableUniverCellPayload(snapCell)) {
+        return true
+      }
+    }
+  }
+
   return false
 }
 
@@ -674,7 +736,8 @@ export function mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(
   workbookSnapshot: Record<string, unknown>,
   sheetId: string,
   viewerRows: Record<string, unknown>[],
-  columns: SpreadsheetColumn[]
+  columns: SpreadsheetColumn[],
+  options?: { preserveUnresolvedSnapshotValues?: boolean }
 ): Record<string, unknown> {
   const cloned = cloneWorkbookSnapshotJson(workbookSnapshot)
   const sheets = cloned.sheets as Record<string, Record<string, unknown>> | undefined
@@ -737,6 +800,9 @@ export function mergeAuthoritativeViewerRowsIntoWorkbookSnapshot(
       }
 
       const priorCell = mergedRow[colIndex]
+      if (options?.preserveUnresolvedSnapshotValues) {
+        continue
+      }
       if (shouldClearSnapshotCellValue(priorCell)) {
         const styleOnlyCell = clearSnapshotCellValuePreservingFormatting(priorCell)
         if (styleOnlyCell) {
@@ -1015,7 +1081,8 @@ export function buildMultiSheetWorkbookFromAppSheets(options: {
         },
         sheet.id,
         sheetRows,
-        sheet.columns
+        sheet.columns,
+        { preserveUnresolvedSnapshotValues: true }
       )
       nextWorksheet = cloneUniverSnapshotSlice(
         (mergedWorkbook as { sheets: Record<string, UniverWorksheetData> }).sheets[sheet.id]

@@ -3,7 +3,7 @@ import { buildSpreadsheetCollaborationCallbacks } from '../buildSpreadsheetColla
 const ACTIVE_SHEET_ID = 'sheet-A'
 
 const buildMinimalCallbacks = (
-  spreadsheetGridRef: { current: { forceAuthoritativeReapply: jest.Mock } | null },
+  spreadsheetGridRef: { current: Record<string, jest.Mock> | null },
   coordinateForceGridReapply?: jest.Mock
 ) => {
   const activeSheet = { id: ACTIVE_SHEET_ID, columns: [], data: [] } as any
@@ -174,5 +174,62 @@ describe('buildSpreadsheetCollaborationCallbacks forceGridReapply guard', () => 
       pendingLocalFilterPolicy: 'server_authoritative_repair'
     })
     expect(forceAuthoritativeReapply).not.toHaveBeenCalled()
+  })
+
+  it('replays inactive-sheet column slot inserts through the live workbook bridge', () => {
+    const applyRemoteInsertColumnSlots = jest.fn(() => true)
+    const spreadsheetGridRef = { current: { forceAuthoritativeReapply: jest.fn(), applyRemoteInsertColumnSlots } }
+    const callbacks = buildMinimalCallbacks(spreadsheetGridRef)
+
+    const applied = callbacks.applyRemoteInsertColumnSlots?.({
+      sheetId: 'sheet-B',
+      startGridColumnIndex: 3,
+      count: 2
+    })
+
+    expect(applied).toBe(true)
+    expect(applyRemoteInsertColumnSlots).toHaveBeenCalledWith({
+      sheetId: 'sheet-B',
+      startGridColumnIndex: 3,
+      count: 2
+    })
+  })
+
+  it('replays inactive-sheet row slot inserts through the live workbook bridge', () => {
+    const applyRemoteInsertRowSlots = jest.fn(() => true)
+    const spreadsheetGridRef = { current: { forceAuthoritativeReapply: jest.fn(), applyRemoteInsertRowSlots } }
+    const callbacks = buildMinimalCallbacks(spreadsheetGridRef)
+
+    const applied = callbacks.applyRemoteInsertRowSlots?.({
+      sheetId: 'sheet-B',
+      startGridRowIndex: 7,
+      count: 1
+    })
+
+    expect(applied).toBe(true)
+    expect(applyRemoteInsertRowSlots).toHaveBeenCalledWith({
+      sheetId: 'sheet-B',
+      startGridRowIndex: 7,
+      count: 1
+    })
+  })
+
+  it('replays inactive-sheet move_cell_range through the live workbook bridge', () => {
+    const applyRemoteMoveCellRange = jest.fn(() => true)
+    const spreadsheetGridRef = { current: { forceAuthoritativeReapply: jest.fn(), applyRemoteMoveCellRange } }
+    const callbacks = buildMinimalCallbacks(spreadsheetGridRef)
+
+    const applied = callbacks.applyRemoteMoveCellRange?.({
+      sheetId: 'sheet-B',
+      fromRange: { startRow: 1, endRow: 2, startColumn: 0, endColumn: 0 },
+      toRange: { startRow: 1, endRow: 2, startColumn: 1, endColumn: 1 }
+    })
+
+    expect(applied).toBe(true)
+    expect(applyRemoteMoveCellRange).toHaveBeenCalledWith({
+      sheetId: 'sheet-B',
+      fromRange: { startRow: 1, endRow: 2, startColumn: 0, endColumn: 0 },
+      toRange: { startRow: 1, endRow: 2, startColumn: 1, endColumn: 1 }
+    })
   })
 })

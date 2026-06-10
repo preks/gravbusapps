@@ -294,6 +294,84 @@ describe('useSpreadsheetColumns', () => {
     )
   })
 
+  it('emits ordered style replay after columns_reorder for moved column formatting', async () => {
+    const columns = [column('col-a', 'column_a', 0), column('col-b', 'column_b', 1), column('col-c', 'column_c', 2)]
+    const sheet = makeSheet(columns)
+    const onAppUpdate = jest.fn()
+    const emitColumnBatchOperations = jest.fn()
+    const commitOptimisticActiveSheetRows = jest.fn()
+    const requestAnimationFrameSpy = jest.spyOn(globalThis, 'requestAnimationFrame').mockImplementation(callback => {
+      callback(0)
+      return 1
+    })
+
+    const { result } = renderHook(() =>
+      useSpreadsheetColumns({
+        app: makeApp(sheet),
+        activeSheet: sheet,
+        localSheetDataRef: { current: sheet.data },
+        commitOptimisticActiveSheetRows,
+        handleCellChangeRef: { current: jest.fn() },
+        onAppUpdate,
+        getWorkbookSnapshot: () => ({
+          styles: {
+            'style-moved': { bg: { rgb: '#ff0000' } }
+          },
+          sheets: {
+            'sheet-1': {
+              cellData: {
+                0: {
+                  0: { s: 'style-moved' }
+                }
+              }
+            }
+          }
+        }),
+        emitColumnBatchOperations
+      })
+    )
+
+    await act(async () => {
+      result.current.handleColumnsMove(1, 1, 0)
+      await Promise.resolve()
+    })
+
+    expect(emitColumnBatchOperations).toHaveBeenCalledTimes(2)
+    const reorderOperations = emitColumnBatchOperations.mock.calls[0]?.[0] as Array<{
+      type: string
+      data: Record<string, unknown>
+    }>
+    const styleOperations = emitColumnBatchOperations.mock.calls[1]?.[0] as Array<{
+      type: string
+      data: Record<string, unknown>
+    }>
+    expect(reorderOperations.map(operation => operation.type)).toEqual(['columns_reorder'])
+    expect(styleOperations.map(operation => operation.type)).toEqual(['set_style'])
+    expect(styleOperations[0]?.data).toEqual(
+      expect.objectContaining({
+        sheetId: 'sheet-1',
+        styles: {
+          'style-moved': { bg: { rgb: '#ff0000' } }
+        },
+        cells: expect.arrayContaining([
+          expect.objectContaining({
+            row: 0,
+            col: 0,
+            stylePatch: { set: { s: 'style-moved' } }
+          }),
+          expect.objectContaining({
+            row: 0,
+            col: 1,
+            stylePatch: expect.objectContaining({
+              unset: expect.arrayContaining(['s', 'bg'])
+            })
+          })
+        ])
+      })
+    )
+    requestAnimationFrameSpy.mockRestore()
+  })
+
   it('blocks column moves that would split a merged range', () => {
     const columns = [column('col-a', 'column_a', 0), column('col-b', 'column_b', 1), column('col-c', 'column_c', 2)]
     const sheet = makeSheet(columns, [{ startRow: 0, endRow: 0, startColumn: 1, endColumn: 2 }])

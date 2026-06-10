@@ -2,6 +2,7 @@ import { SpreadsheetApiService } from '../../services/SpreadsheetApiService'
 import { saveSpreadsheetSnapshotWithRetry } from '../spreadsheetSnapshotSaveWithRetry'
 import { createTestSpreadsheetSheet } from '../test-fixtures/spreadsheetCoreTestFixtures'
 import { persistSpreadsheetSnapshotCheckpointForSheet } from '../spreadsheetSnapshotCheckpointPersistence'
+import { mergeAuthoritativeViewerRowsIntoWorkbookSnapshot } from '../../utils/univerAdapter'
 
 jest.mock('../../utils/univerAdapter', () => ({
   mergeAuthoritativeViewerRowsIntoWorkbookSnapshot: jest.fn((snapshot: unknown) => snapshot),
@@ -22,6 +23,9 @@ jest.mock('../spreadsheetSnapshotSaveWithRetry', () => ({
 }))
 
 const mockSaveSpreadsheetSnapshotWithRetry = jest.mocked(saveSpreadsheetSnapshotWithRetry)
+const mockMergeAuthoritativeViewerRowsIntoWorkbookSnapshot = jest.mocked(
+  mergeAuthoritativeViewerRowsIntoWorkbookSnapshot
+)
 
 const baseSheet = createTestSpreadsheetSheet()
 
@@ -87,6 +91,7 @@ describe('persistSpreadsheetSnapshotCheckpointForSheet', () => {
   afterEach(() => {
     jest.restoreAllMocks()
     jest.clearAllMocks()
+    mockMergeAuthoritativeViewerRowsIntoWorkbookSnapshot.mockImplementation((snapshot: unknown) => snapshot as never)
   })
 
   it('returns early when entity-backed mode is enabled', async () => {
@@ -222,6 +227,57 @@ describe('persistSpreadsheetSnapshotCheckpointForSheet', () => {
     expect(ctx.pendingSnapshotClearCellsRef.current.has('sheet-1')).toBe(false)
     expect(ctx.workbookSnapshotVersionRef.current).toBe(8)
     expect(ctx.lastSuccessfulSnapshotCheckpointAtRef.current).toBeGreaterThan(0)
+  })
+
+  it('preserves richer live workbook values for the active sheet instead of downgrading to rows state', async () => {
+    jest.spyOn(SpreadsheetApiService, 'getUniverSnapshot').mockResolvedValue({
+      version: 2,
+      coversVersions: { 'sheet-1': 2 }
+    } as never)
+    mockMergeAuthoritativeViewerRowsIntoWorkbookSnapshot.mockImplementation(() => ({ merged: true }) as never)
+    mockSaveSpreadsheetSnapshotWithRetry.mockResolvedValue({
+      savedSnapshot: { ok: true },
+      cacheResult: { stored: true, reason: null }
+    })
+    const liveSnapshot = {
+      sheets: {
+        'sheet-1': {
+          id: 'sheet-1',
+          rowCount: 2,
+          columnCount: 2,
+          cellData: {
+            0: { 0: { v: 'Alice' }, 1: { v: 'Extra' } }
+          }
+        }
+      }
+    }
+    const { ctx } = createContext({
+      spreadsheetGridRef: {
+        current: {
+          getWorkbookSnapshot: jest.fn(() => liveSnapshot),
+          getVisibleRangeValues: jest.fn(() => ({ 0: { 0: { v: 'Alice' }, 1: { v: 'Extra' } } }))
+        }
+      },
+      getActiveSessionRows: jest.fn(() => [{ _id: 'row-1', Name: 'Alice' }]),
+      getPersistedBaselineRowsForSheet: jest.fn(() => [{ _id: 'row-1', Name: 'Alice' }])
+    })
+
+    await persistSpreadsheetSnapshotCheckpointForSheet('sheet-1', ctx as never)
+
+    expect(ctx.debugLog).toHaveBeenCalledWith(
+      'snapshot checkpoint: preserving richer live workbook values for active sheet',
+      expect.objectContaining({
+        appId: 'app-1',
+        sheetId: 'sheet-1',
+        rowsForAuthoritativeSnapshotValueCount: 1,
+        liveSnapshotValueCount: 2
+      })
+    )
+    expect(mockSaveSpreadsheetSnapshotWithRetry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseSnapshot: expect.objectContaining(liveSnapshot)
+      })
+    )
   })
 
   it('seeds snapshot save retry from the latest snapshot api version', async () => {

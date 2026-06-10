@@ -24,6 +24,7 @@ import { sortSpreadsheetRowsBySheetSettings } from '../utils/spreadsheetSheetRow
 import { type AuthoritativeGridReapplyTarget } from '../utils/spreadsheetAuthoritativeRegion'
 import type { SpreadsheetSessionDiffProjectionMode } from '../core/SpreadsheetCollaborationContract'
 import { resolveReconciledSheetId } from '../utils/reconcileTemporarySheetId'
+import { prefersCanonicalReloadForMaterializationReason } from '../utils/spreadsheetGridMaterialization'
 import { mapSnapshotRowsToViewerRows, overlaySnapshotIfRowsMismatch } from '../utils/spreadsheetViewerRows'
 import {
   buildColumnVisibilityReplayOperations,
@@ -270,7 +271,7 @@ export function useSpreadsheetRemoteSyncController(
             return false
           }
 
-          const snapshot = await SpreadsheetApiService.getSheetSnapshot(params.appId, targetSheetId)
+          const snapshot = await SpreadsheetApiService.getSheetHydrationSnapshot(params.appId, targetSheetId)
           const recoveredSheetMeta = (snapshot.sheet as unknown as SpreadsheetSheet | undefined) ?? targetSheet
           const appSheetsWithRecoveredMeta = params.appSheetsRef.current.map(sheet =>
             sheet.id === targetSheetId ? { ...sheet, ...recoveredSheetMeta } : sheet
@@ -353,7 +354,7 @@ export function useSpreadsheetRemoteSyncController(
             console.warn('[SpreadsheetAppViewer] Could not fetch Univer snapshot during sheet reload:', e)
           }
 
-          const nextVersion = Number(snapshot.version || 0)
+          const nextVersion = Number(snapshot.operationVersion || 0)
           params.collaborationManagerRef.current?.reportStaleRecoveryLifecycle({
             sheetId: targetSheetId,
             stage: 'snapshot_reload_started',
@@ -516,8 +517,17 @@ export function useSpreadsheetRemoteSyncController(
     if (!params.preferUniverNativeSheetTabs) return
     if (!deferredInactiveSheetResyncsRef.current.has(params.activeSheetId)) return
     deferredInactiveSheetResyncsRef.current.delete(params.activeSheetId)
+    const materializationReason = params.sheetsNeedingGridMaterializationRef.current.get(params.activeSheetId)
+    if (prefersCanonicalReloadForMaterializationReason(materializationReason)) {
+      return
+    }
     void requestSheetDeltaCatchUp(params.activeSheetId, 'remote_structural')
-  }, [params.activeSheetId, params.preferUniverNativeSheetTabs, requestSheetDeltaCatchUp])
+  }, [
+    params.activeSheetId,
+    params.preferUniverNativeSheetTabs,
+    params.sheetsNeedingGridMaterializationRef,
+    requestSheetDeltaCatchUp
+  ])
 
   useEffect(() => {
     params.scheduleSheetVersionRefreshFromApiRef.current = scheduleSheetVersionRefreshFromApi

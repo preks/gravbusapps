@@ -297,7 +297,7 @@ describe('registerUniverMountCommandExecuted', () => {
       }
     })
 
-    expect(onRowsInsert).toHaveBeenCalledWith(3, 1, 'lefttop')
+    expect(onRowsInsert).toHaveBeenCalledWith('sheet-1', 3, 1, 'lefttop')
     expect(rowInsertFormulaFollowUpSuppressUntilMsRef.current).toBeGreaterThan(Date.now())
     expect(recentInsertRowFormulaFollowUpRef.current).toEqual({
       sheetId: 'sheet-1',
@@ -326,7 +326,7 @@ describe('registerUniverMountCommandExecuted', () => {
       }
     })
 
-    expect(onRowsDelete).toHaveBeenCalledWith(4, 2)
+    expect(onRowsDelete).toHaveBeenCalledWith('sheet-1', 4, 2)
     expect(rowDeleteFormulaFollowUpSuppressUntilMsRef.current).toBeGreaterThan(Date.now())
     expect(recentDeleteRowFormulaFollowUpRef.current).toEqual({
       sheetId: 'sheet-1',
@@ -356,7 +356,7 @@ describe('registerUniverMountCommandExecuted', () => {
       }
     })
 
-    expect(onRowsMove).toHaveBeenCalledWith(2, 2, 6)
+    expect(onRowsMove).toHaveBeenCalledWith('sheet-1', 2, 2, 6)
     expect(rowMoveFormulaFollowUpSuppressUntilMsRef.current).toBeGreaterThan(Date.now())
     expect(recentMoveRowFormulaFollowUpRef.current).toEqual({
       sheetId: 'sheet-1',
@@ -400,7 +400,7 @@ describe('registerUniverMountCommandExecuted', () => {
       }
     })
 
-    expect(onColumnsInsert).toHaveBeenCalledWith(2, 1, 'lefttop')
+    expect(onColumnsInsert).toHaveBeenCalledWith('sheet-1', 2, 1, 'lefttop')
     expect(columnInsertFormulaFollowUpSuppressUntilMsRef.current).toBeGreaterThan(Date.now())
     expect(recentInsertColumnFormulaFollowUpRef.current).toEqual({
       sheetId: 'sheet-1',
@@ -432,7 +432,7 @@ describe('registerUniverMountCommandExecuted', () => {
       }
     })
 
-    expect(onColumnsDelete).toHaveBeenCalledWith(1, 1)
+    expect(onColumnsDelete).toHaveBeenCalledWith('sheet-1', 1, 1)
     expect(columnDeleteFormulaFollowUpSuppressUntilMsRef.current).toBeGreaterThan(Date.now())
     expect(recentDeleteColumnFormulaFollowUpRef.current).toEqual({
       sheetId: 'sheet-1',
@@ -469,7 +469,7 @@ describe('registerUniverMountCommandExecuted', () => {
     })
 
     expect(onColumnsDelete).toHaveBeenCalledTimes(1)
-    expect(onColumnsDelete).toHaveBeenCalledWith(1, 1)
+    expect(onColumnsDelete).toHaveBeenCalledWith('sheet-1', 1, 1)
   })
 
   it('arms column-move follow-up suppression while routing native column move through onColumnsMove', () => {
@@ -487,7 +487,7 @@ describe('registerUniverMountCommandExecuted', () => {
       }
     })
 
-    expect(onColumnsMove).toHaveBeenCalledWith(1, 2, 4)
+    expect(onColumnsMove).toHaveBeenCalledWith('sheet-1', 1, 2, 4)
     expect(columnMoveFormulaFollowUpSuppressUntilMsRef.current).toBeGreaterThan(Date.now())
     expect(recentMoveColumnFormulaFollowUpRef.current).toEqual({
       sheetId: 'sheet-1',
@@ -529,7 +529,7 @@ describe('registerUniverMountCommandExecuted', () => {
       }
     })
 
-    expect(onColumnsMove).toHaveBeenCalledWith(1, 2, 4)
+    expect(onColumnsMove).toHaveBeenCalledWith('sheet-1', 1, 2, 4)
     expect(columnMoveFormulaFollowUpSuppressUntilMsRef.current).toBeGreaterThan(Date.now())
     expect(recentMoveColumnFormulaFollowUpRef.current).toEqual({
       sheetId: 'sheet-1',
@@ -570,7 +570,7 @@ describe('registerUniverMountCommandExecuted', () => {
       }
     })
 
-    expect(onColumnsMove).toHaveBeenCalledWith(1, 2, 4)
+    expect(onColumnsMove).toHaveBeenCalledWith('sheet-1', 1, 2, 4)
     expect(columnMoveFormulaFollowUpSuppressUntilMsRef.current).toBeGreaterThan(Date.now())
     expect(recentMoveColumnFormulaFollowUpRef.current).toEqual({
       sheetId: 'sheet-1',

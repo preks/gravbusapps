@@ -70,7 +70,7 @@ describe('useUniverAuthoritativeGridSync', () => {
 
     expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledWith(
       [expect.objectContaining({ rowIndex: 0, colIndex: 1, value: 'remote note' })],
-      { operationType: 'authoritative_reapply', skipRemoteEchoRegistration: true }
+      expect.objectContaining({ operationType: 'authoritative_reapply', skipRemoteEchoRegistration: true })
     )
   })
 
@@ -108,7 +108,7 @@ describe('useUniverAuthoritativeGridSync', () => {
 
     expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledWith(
       [expect.objectContaining({ rowIndex: 0, colIndex: 1, value: 'remote note' })],
-      { operationType: 'authoritative_reapply', skipRemoteEchoRegistration: true }
+      expect.objectContaining({ operationType: 'authoritative_reapply', skipRemoteEchoRegistration: true })
     )
   })
 
@@ -151,7 +151,7 @@ describe('useUniverAuthoritativeGridSync', () => {
         expect.objectContaining({ rowIndex: 0, colIndex: 0, value: 'local name' }),
         expect.objectContaining({ rowIndex: 0, colIndex: 1, value: 'remote note' })
       ],
-      { operationType: 'authoritative_reapply', skipRemoteEchoRegistration: true }
+      expect.objectContaining({ operationType: 'authoritative_reapply', skipRemoteEchoRegistration: true })
     )
   })
 
@@ -186,6 +186,44 @@ describe('useUniverAuthoritativeGridSync', () => {
     await waitFor(() => expect(refs.lastProcessedAuthoritativeReapplySeedRef.current).toBe(1))
     expect(applyRemoteCellUpdatesBulk).not.toHaveBeenCalled()
     expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
+  })
+
+  it('defers authoritative repaint while column structure is unhealthy', async () => {
+    const applyRemoteCellUpdatesBulk = jest.fn()
+    const applyRemoteCellUpdate = jest.fn()
+    const refs = createStableHookRefs()
+    const columnStructureStateRef = {
+      current: {
+        healthy: false,
+        pendingInsertedRange: { startIndex: 1, endIndex: 1, columnNames: ['inserted'] },
+        expectedColumnsSignature: 'pending'
+      }
+    }
+
+    renderHook(() =>
+      useUniverAuthoritativeGridSync({
+        sheet: { id: 'sheet-1' } as any,
+        data: [{ _id: 'row-1', _gridRowIndex: 0, name: 'A1', note: 'B1' }],
+        columns: [
+          { id: 'col-name', name: 'name', isVisible: true },
+          { id: 'col-note', name: 'note', isVisible: true }
+        ] as any,
+        authoritativeDataSyncToken: 1,
+        authoritativeReapplySeed: 1,
+        collabBulkApplyIdleNonce: 0,
+        columnStructureStateRef,
+        applyRemoteCellUpdate,
+        applyRemoteCellUpdatesBulk,
+        ...refs
+      })
+    )
+
+    await Promise.resolve()
+
+    expect(applyRemoteCellUpdatesBulk).not.toHaveBeenCalled()
+    expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
+    expect(refs.lastProcessedAuthoritativeDataSyncTokenRef.current).toBe(0)
+    expect(refs.lastProcessedAuthoritativeReapplySeedRef.current).toBe(0)
   })
 
   it('rebuilds the full viewer state for forced column reorder structural repair after initial sync', async () => {
@@ -229,7 +267,7 @@ describe('useUniverAuthoritativeGridSync', () => {
         expect.objectContaining({ rowIndex: 1, colIndex: 0, value: 'A2' }),
         expect.objectContaining({ rowIndex: 1, colIndex: 1, value: 'B2' })
       ]),
-      { operationType: 'authoritative_reapply', skipRemoteEchoRegistration: true }
+      expect.objectContaining({ operationType: 'authoritative_reapply', skipRemoteEchoRegistration: true })
     )
   })
 
@@ -260,7 +298,7 @@ describe('useUniverAuthoritativeGridSync', () => {
     await waitFor(() => expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledTimes(1))
     expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledWith(
       [expect.objectContaining({ rowIndex: 0, colIndex: 0, value: '' })],
-      { operationType: 'authoritative_reapply', skipRemoteEchoRegistration: true }
+      expect.objectContaining({ operationType: 'authoritative_reapply', skipRemoteEchoRegistration: true })
     )
   })
 
@@ -333,7 +371,7 @@ describe('useUniverAuthoritativeGridSync', () => {
     await waitFor(() => expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledTimes(1))
     expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledWith(
       [expect.objectContaining({ rowIndex: 2, colIndex: 0, value: '' })],
-      { operationType: 'authoritative_reapply', skipRemoteEchoRegistration: true }
+      expect.objectContaining({ operationType: 'authoritative_reapply', skipRemoteEchoRegistration: true })
     )
   })
 
@@ -379,7 +417,7 @@ describe('useUniverAuthoritativeGridSync', () => {
     await waitFor(() => expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledTimes(1))
     expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledWith(
       [expect.objectContaining({ rowIndex: 2, colIndex: 0, value: '' })],
-      { operationType: 'authoritative_reapply', skipRemoteEchoRegistration: true }
+      expect.objectContaining({ operationType: 'authoritative_reapply', skipRemoteEchoRegistration: true })
     )
     expect(
       pendingLocalMutationCellsRef.current.has(spreadsheetPendingLocalMutationCoordinateCellKey('sheet-1', 2, 0))
@@ -433,7 +471,9 @@ describe('useUniverAuthoritativeGridSync', () => {
       Array<{ rowIndex: number; colIndex: number; value: unknown }>,
       { operationType: string; skipRemoteEchoRegistration: boolean }
     ]
-    expect(meta).toEqual({ operationType: 'authoritative_reapply', skipRemoteEchoRegistration: true })
+    expect(meta).toEqual(
+      expect.objectContaining({ operationType: 'authoritative_reapply', skipRemoteEchoRegistration: true })
+    )
     expect(items).toEqual([
       expect.objectContaining({ rowIndex: 2, colIndex: 0, value: '' }),
       expect.objectContaining({ rowIndex: 2, colIndex: 1, value: '' })
@@ -479,7 +519,7 @@ describe('useUniverAuthoritativeGridSync', () => {
     await waitFor(() => expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledTimes(1))
     expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledWith(
       [expect.objectContaining({ rowIndex: 0, colIndex: 1, value: 'repair' })],
-      { operationType: 'authoritative_reapply', skipRemoteEchoRegistration: true }
+      expect.objectContaining({ operationType: 'authoritative_reapply', skipRemoteEchoRegistration: true })
     )
     expect(
       pendingLocalMutationCellsRef.current.has(spreadsheetPendingLocalMutationCoordinateCellKey('sheet-1', 0, 0))
@@ -576,7 +616,7 @@ describe('useUniverAuthoritativeGridSync', () => {
         expect.objectContaining({ rowIndex: 0, colIndex: 0, value: 'local', options: { useSenderA1Row: true } }),
         expect.objectContaining({ rowIndex: 0, colIndex: 1, value: '', options: { useSenderA1Row: true } })
       ],
-      { operationType: 'authoritative_reapply', skipRemoteEchoRegistration: false }
+      expect.objectContaining({ operationType: 'authoritative_reapply', skipRemoteEchoRegistration: false })
     )
     expect(refs.authoritativePaintCellsRef.current).toBeNull()
   })
@@ -617,7 +657,7 @@ describe('useUniverAuthoritativeGridSync', () => {
           options: { useSenderA1Row: true }
         })
       ],
-      { operationType: 'authoritative_reapply', skipRemoteEchoRegistration: false }
+      expect.objectContaining({ operationType: 'authoritative_reapply', skipRemoteEchoRegistration: false })
     )
   })
 
@@ -658,7 +698,7 @@ describe('useUniverAuthoritativeGridSync', () => {
     await waitFor(() => expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledTimes(1))
     expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledWith(
       [expect.objectContaining({ rowIndex: 0, colIndex: 2, value: 'right' })],
-      { operationType: 'authoritative_reapply', skipRemoteEchoRegistration: true }
+      expect.objectContaining({ operationType: 'authoritative_reapply', skipRemoteEchoRegistration: true })
     )
   })
 
@@ -703,7 +743,7 @@ describe('useUniverAuthoritativeGridSync', () => {
         expect.objectContaining({ rowIndex: 0, colIndex: 1, value: 'middle' }),
         expect.objectContaining({ rowIndex: 0, colIndex: 2, value: 'right' })
       ],
-      { operationType: 'authoritative_reapply', skipRemoteEchoRegistration: false }
+      expect.objectContaining({ operationType: 'authoritative_reapply', skipRemoteEchoRegistration: false })
     )
   })
 
@@ -763,7 +803,7 @@ describe('useUniverAuthoritativeGridSync', () => {
           })
         })
       ],
-      { operationType: 'authoritative_reapply', skipRemoteEchoRegistration: false }
+      expect.objectContaining({ operationType: 'authoritative_reapply', skipRemoteEchoRegistration: false })
     )
   })
 
@@ -815,7 +855,7 @@ describe('useUniverAuthoritativeGridSync', () => {
           rowId: 'row-1'
         })
       ],
-      { operationType: 'authoritative_reapply', skipRemoteEchoRegistration: false }
+      expect.objectContaining({ operationType: 'authoritative_reapply', skipRemoteEchoRegistration: false })
     )
   })
 
@@ -936,7 +976,7 @@ describe('useUniverAuthoritativeGridSync', () => {
         expect.objectContaining({ rowIndex: 0, colIndex: 0, value: 'left' }),
         expect.objectContaining({ rowIndex: 0, colIndex: 2, value: 'right' })
       ],
-      { operationType: 'authoritative_reapply', skipRemoteEchoRegistration: true }
+      expect.objectContaining({ operationType: 'authoritative_reapply', skipRemoteEchoRegistration: true })
     )
     const [items] = applyRemoteCellUpdatesBulk.mock.calls[0] as [
       Array<{ rowIndex: number; colIndex: number; value: unknown }>
@@ -976,7 +1016,7 @@ describe('useUniverAuthoritativeGridSync', () => {
     await waitFor(() => expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledTimes(1))
     expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledWith(
       [expect.objectContaining({ rowIndex: 0, colIndex: 0, value: 'left' })],
-      { operationType: 'authoritative_reapply', skipRemoteEchoRegistration: true }
+      expect.objectContaining({ operationType: 'authoritative_reapply', skipRemoteEchoRegistration: true })
     )
     const [items] = applyRemoteCellUpdatesBulk.mock.calls[0] as [
       Array<{ rowIndex: number; colIndex: number; value: unknown }>
@@ -1053,7 +1093,7 @@ describe('useUniverAuthoritativeGridSync', () => {
         expect.objectContaining({ rowIndex: 0, colIndex: 0, value: 'stale name' }),
         expect.objectContaining({ rowIndex: 0, colIndex: 1, value: 'remote note' })
       ],
-      { operationType: 'authoritative_reapply', skipRemoteEchoRegistration: true }
+      expect.objectContaining({ operationType: 'authoritative_reapply', skipRemoteEchoRegistration: true })
     )
   })
 
@@ -1103,7 +1143,9 @@ describe('useUniverAuthoritativeGridSync', () => {
     const matchingSnapshot = { sheets: { 'sheet-1': { cellData: {} } } }
     refs.getWorkbookSnapshotRef.current = () => matchingSnapshot
 
-    const snapshotMismatchSpy = jest.spyOn(univerAdapter, 'workbookSnapshotMismatchesViewerRows').mockReturnValue(false)
+    const snapshotMismatchSpy = jest
+      .spyOn(univerAdapter, 'workbookSnapshotConflictsWithViewerRows')
+      .mockReturnValue(false)
 
     renderHook(() =>
       useUniverAuthoritativeGridSync({
@@ -1124,6 +1166,166 @@ describe('useUniverAuthoritativeGridSync', () => {
     expect(refs.lastProcessedAuthoritativeDataSyncTokenRef.current).toBe(1)
     expect(refs.skipNextAuthoritativeSyncAfterSnapshotInitRef.current).toBe(false)
 
+    snapshotMismatchSpy.mockRestore()
+  })
+
+  it('skips authoritative sync after snapshot init when workbook only has extra snapshot-only cells', async () => {
+    const applyRemoteCellUpdatesBulk = jest.fn()
+    const refs = createStableHookRefs()
+    refs.skipNextAuthoritativeSyncAfterSnapshotInitRef.current = true
+    const sheet = { id: 'sheet-1' } as any
+    const data = [{ _id: 'row-1', _gridRowIndex: 0, column_p: 'local' }]
+    const columns = [{ id: 'col-p', name: 'column_p', isVisible: true }] as any
+    refs.getWorkbookSnapshotRef.current = () => ({
+      sheets: {
+        'sheet-1': {
+          cellData: {
+            0: {
+              0: { v: 'local' },
+              1: { v: 'snapshot-only', bg: { rgb: '#ffee58' } }
+            }
+          }
+        }
+      }
+    })
+
+    const snapshotConflictSpy = jest
+      .spyOn(univerAdapter, 'workbookSnapshotConflictsWithViewerRows')
+      .mockReturnValue(false)
+    const trackingHeaderSpy = jest
+      .spyOn(univerAdapter, 'snapshotTrackingHeaderMatchesColumnLabels')
+      .mockReturnValue(true)
+
+    renderHook(() =>
+      useUniverAuthoritativeGridSync({
+        sheet,
+        data,
+        columns,
+        authoritativeDataSyncToken: 1,
+        authoritativeReapplySeed: 0,
+        collabBulkApplyIdleNonce: 0,
+        applyRemoteCellUpdate: jest.fn(),
+        applyRemoteCellUpdatesBulk,
+        ...refs
+      })
+    )
+
+    await waitFor(() => undefined)
+    expect(applyRemoteCellUpdatesBulk).not.toHaveBeenCalled()
+    expect(refs.skipNextAuthoritativeSyncAfterSnapshotInitRef.current).toBe(false)
+
+    trackingHeaderSpy.mockRestore()
+    snapshotConflictSpy.mockRestore()
+  })
+
+  it('does not skip authoritative sync after snapshot init when tracking headers are stale', async () => {
+    const applyRemoteCellUpdatesBulk = jest.fn()
+    const applyRemoteCellUpdate = jest.fn()
+    const refs = createStableHookRefs()
+    refs.skipNextAuthoritativeSyncAfterSnapshotInitRef.current = true
+    const sheet = { id: 'sheet-1' } as any
+    const data = [{ _id: 'row-1', _gridRowIndex: 0, column_p: 'local' }]
+    const columns = [{ id: 'col-p', name: 'column_p', isVisible: true }] as any
+    const matchingSnapshot = { sheets: { 'sheet-1': { cellData: {} } } }
+    refs.getWorkbookSnapshotRef.current = () => matchingSnapshot
+
+    const snapshotMismatchSpy = jest
+      .spyOn(univerAdapter, 'workbookSnapshotConflictsWithViewerRows')
+      .mockReturnValue(false)
+    const trackingHeaderSpy = jest
+      .spyOn(univerAdapter, 'snapshotTrackingHeaderMatchesColumnLabels')
+      .mockReturnValue(false)
+
+    renderHook(() =>
+      useUniverAuthoritativeGridSync({
+        sheet,
+        data,
+        columns,
+        authoritativeDataSyncToken: 1,
+        authoritativeReapplySeed: 0,
+        collabBulkApplyIdleNonce: 0,
+        applyRemoteCellUpdate,
+        applyRemoteCellUpdatesBulk,
+        ...refs
+      })
+    )
+
+    await waitFor(() => expect(refs.skipNextAuthoritativeSyncAfterSnapshotInitRef.current).toBe(false))
+    expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledWith(
+      [expect.objectContaining({ rowIndex: 0, colIndex: 0, value: 'local', rowId: 'row-1' })],
+      expect.objectContaining({ operationType: 'authoritative_reapply', skipRemoteEchoRegistration: true })
+    )
+    expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
+    expect(refs.lastProcessedAuthoritativeDataSyncTokenRef.current).toBe(1)
+    expect(refs.skipNextAuthoritativeSyncAfterSnapshotInitRef.current).toBe(false)
+
+    trackingHeaderSpy.mockRestore()
+    snapshotMismatchSpy.mockRestore()
+  })
+
+  it('applies pending bootstrap style repair through the stylePatch lane', async () => {
+    const applyRemoteCellUpdatesBulk = jest.fn()
+    const refs = createStableHookRefs()
+    refs.skipNextAuthoritativeSyncAfterSnapshotInitRef.current = true
+    refs.getWorkbookSnapshotRef.current = () => ({ sheets: { 'sheet-1': { cellData: {} } } })
+    const snapshotMismatchSpy = jest
+      .spyOn(univerAdapter, 'workbookSnapshotConflictsWithViewerRows')
+      .mockReturnValue(false)
+    const trackingHeaderSpy = jest
+      .spyOn(univerAdapter, 'snapshotTrackingHeaderMatchesColumnLabels')
+      .mockReturnValue(true)
+
+    renderHook(() =>
+      useUniverAuthoritativeGridSync({
+        sheet: { id: 'sheet-1' } as any,
+        data: [{ _id: 'row-1', _gridRowIndex: 0, column_a: 'local' }],
+        columns: [{ id: 'col-a', name: 'column_a', isVisible: true }] as any,
+        authoritativeDataSyncToken: 1,
+        authoritativeReapplySeed: 0,
+        collabBulkApplyIdleNonce: 0,
+        pendingBootstrapStyleRepair: {
+          sheetId: 'sheet-1',
+          snapshot: {
+            sheetOrder: ['sheet-1'],
+            sheets: {
+              'sheet-1': {
+                id: 'sheet-1',
+                cellData: {
+                  0: { 0: { s: 'style-1' } }
+                }
+              }
+            },
+            styles: { 'style-1': { bg: { rgb: '#ffff00' } } }
+          },
+          formattingSource: 'remote',
+          formattingScore: 1,
+          nonce: 1
+        },
+        applyRemoteCellUpdate: jest.fn(),
+        applyRemoteCellUpdatesBulk,
+        ...refs
+      })
+    )
+
+    await waitFor(() => expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledTimes(1))
+    expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          rowIndex: 0,
+          colIndex: 0,
+          rowId: 'row-1',
+          options: expect.objectContaining({
+            stylePatch: { set: { s: 'style-1' } },
+            targetSheetId: 'sheet-1',
+            skipRemoteEchoRegistration: true,
+            univerStyles: { 'style-1': { bg: { rgb: '#ffff00' } } }
+          })
+        })
+      ],
+      expect.objectContaining({ operationType: 'bootstrap_style_repair', skipRemoteEchoRegistration: true })
+    )
+
+    trackingHeaderSpy.mockRestore()
     snapshotMismatchSpy.mockRestore()
   })
 
