@@ -259,6 +259,25 @@ definitions:
           - node scripts/sync-resource-urls.js
         artifacts:
           - resource-url-result.json
+    - step: &prepare-resource-url-rerun-inputs
+        name: Prepare Resource URL Rerun Inputs
+        runs-on:
+          - 'self.hosted'
+          - 'do.global.runner.size1'
+        size: 1x
+        clone:
+          enabled: true
+          depth: full
+        caches:
+          - npm
+        script:
+          - bash scripts/ci-install-dependencies.sh
+          - node scripts/prepare-resource-url-release-inputs.js
+        artifacts:
+          - published-screens.txt
+          - screen-release-result.json
+          - manual-screens.txt
+          - all-screens.txt
     - step: &release-gate
         name: Release Gate
         runs-on:
@@ -408,6 +427,37 @@ pipelines:
                 exit 1
               fi
       - step: *publish-manual-prod-screens
+      - step: *sync-resource-urls
+      - step: *release-gate
+
+    create-missing-resource-urls:
+      - variables:
+          - name: SCREENS_TO_PUBLISH
+            default: ""
+          - name: PUBLISH_ALL_SCREENS
+            default: "false"
+            allowed-values:
+              - "true"
+              - "false"
+          - name: PUBLISH_TARGET
+            default: "all"
+            allowed-values:
+              - "all"
+              - "primary"
+              - "secondary"
+      - step:
+          name: Enforce develop/main branches for resource URL creation
+          runs-on:
+            - 'self.hosted'
+            - 'do.global.runner.size1'
+          size: 1x
+          script:
+            - |
+              if [ "$BITBUCKET_BRANCH" != "develop" ] && [ "$BITBUCKET_BRANCH" != "main" ]; then
+                echo "resource URL creation is restricted to develop or main branches. Current branch: $BITBUCKET_BRANCH"
+                exit 1
+              fi
+      - step: *prepare-resource-url-rerun-inputs
       - step: *sync-resource-urls
       - step: *release-gate
 

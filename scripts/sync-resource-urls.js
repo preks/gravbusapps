@@ -18,6 +18,7 @@ dotenv.config({ path: path.resolve(__dirname, '..', '.env') })
 
 const PUBLISHED_SCREENS_FILE = path.resolve(__dirname, '..', 'published-screens.txt')
 const RESOURCE_URL_RESULT_FILE = path.resolve(__dirname, '..', 'resource-url-result.json')
+const PUBLISH_TARGET = (process.env.PUBLISH_TARGET || 'all').trim().toLowerCase()
 
 const NAVIGATION_SERVICE_API_PROD_SECONDARY =
   process.env.NAVIGATION_SERVICE_API_PROD_SECONDARY ||
@@ -62,6 +63,35 @@ const SECONDARY_TARGET =
         }
       }
     : null
+
+function normalizePublishTarget(value) {
+  if (value === 'gravity') return 'primary'
+  if (value === 'demo') return 'secondary'
+  return value || 'all'
+}
+
+function resolveTargets() {
+  const requestedTarget = normalizePublishTarget(PUBLISH_TARGET)
+  const targets = [PRIMARY_TARGET]
+  if (SECONDARY_TARGET) {
+    targets.push(SECONDARY_TARGET)
+  }
+
+  if (requestedTarget === 'all') {
+    return targets
+  }
+
+  if (!['primary', 'secondary'].includes(requestedTarget)) {
+    throw new Error(`Invalid PUBLISH_TARGET "${PUBLISH_TARGET}". Use all, primary/gravity, or secondary/demo.`)
+  }
+
+  const selectedTarget = targets.find(target => target.label === requestedTarget)
+  if (!selectedTarget) {
+    throw new Error(`PUBLISH_TARGET=${requestedTarget} requested, but that target is not configured.`)
+  }
+
+  return [selectedTarget]
+}
 
 function requireEnv(name) {
   const value = process.env[name]
@@ -331,10 +361,8 @@ async function main() {
     throw new Error('Missing required production OAuth configuration')
   }
 
-  const targets = [PRIMARY_TARGET]
-  if (SECONDARY_TARGET) {
-    targets.push(SECONDARY_TARGET)
-  }
+  const targets = resolveTargets()
+  console.log(`Selected target(s): ${targets.map(target => target.label).join(', ')}`)
 
   const publishedScreens = loadPublishedScreens()
   result.summary.artifactScreens = publishedScreens.length
