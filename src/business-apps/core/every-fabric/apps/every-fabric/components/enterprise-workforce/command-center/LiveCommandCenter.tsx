@@ -22,6 +22,8 @@ export interface LiveCommandCenterProps {
   isConnected: boolean
   nameById: Record<string, string>
   onOpenRun: (agentId: string, sessionId: string) => void
+  /** Card = inset panel; sidebar = flat rail content without extra chrome. */
+  variant?: 'card' | 'sidebar'
 }
 
 export const LiveCommandCenter: React.FC<LiveCommandCenterProps> = ({
@@ -31,15 +33,17 @@ export const LiveCommandCenter: React.FC<LiveCommandCenterProps> = ({
   throughputBuckets,
   isConnected,
   nameById,
-  onOpenRun
+  onOpenRun,
+  variant = 'card'
 }) => {
   const counts = overview?.status_counts ?? { running: 0, pending: 0, waiting_for_human: 0 }
+  const shellClassName =
+    variant === 'sidebar'
+      ? 'gba:flex gba:h-full gba:min-h-0 gba:flex-col gba:gap-3 gba:p-4'
+      : 'gba:flex gba:flex-col gba:gap-3 gba:rounded-xl gba:border gba:border-border/60 gba:bg-card gba:p-4'
 
   return (
-    <section
-      className="gba:flex gba:flex-col gba:gap-3 gba:rounded-xl gba:border gba:border-border/60 gba:bg-card gba:p-4"
-      data-testid="workforce-command-center"
-    >
+    <section className={shellClassName} data-testid="workforce-command-center">
       <header className="gba:flex gba:items-center gba:gap-2">
         <LightningIcon className="gba:h-4 gba:w-4 gba:text-primary" weight="fill" />
         <h2 className="gba:text-sm gba:font-semibold gba:text-foreground">Command center</h2>
@@ -54,7 +58,7 @@ export const LiveCommandCenter: React.FC<LiveCommandCenterProps> = ({
         isConnected={isConnected}
       />
 
-      <CommandCenterFeed items={feed} nameById={nameById} onOpenRun={onOpenRun} />
+      <CommandCenterFeed items={feed} nameById={nameById} onOpenRun={onOpenRun} variant={variant} />
     </section>
   )
 }
