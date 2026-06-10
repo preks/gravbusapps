@@ -386,12 +386,13 @@ employee-form-tab-personal = Personal Information
 employee-form-tab-employment = Employment
 
 # Section Headers
+employee-form-header-description = Fill in the information step by step.
 employee-form-personal-information = Personal Information
 employee-form-employment-information = Employment Information
 employee-form-additional-attributes = Additional Attributes
 
 # Field Labels
-employee-form-legal-entity = Legal Entity
+employee-form-legal-entity = Company
 employee-form-site-location = Location
 employee-form-cost-center = Cost Center
 employee-form-first-name = First Name
@@ -407,7 +408,7 @@ employee-form-employment-type = Employment Type
 employee-form-contract-type = Contract Type
 
 # Validation Messages
-employee-form-required-legal-entity = Please select a legal entity
+employee-form-required-legal-entity = Please select a company
 employee-form-required-site-location = Please select a location
 employee-form-required-first-name = Please enter a first name
 employee-form-required-last-name = Please enter a last name
@@ -429,10 +430,10 @@ employee-form-no-vacant-positions = No vacant positions available in the selecte
 # Tooltips
 employee-form-create-job-position-tooltip = Create new job position
 employee-form-select-org-unit-first = Select an organizational unit first
-employee-form-select-legal-entity-first = Select a legal entity first
+employee-form-select-legal-entity-first = Select a company first
 
 # Step Descriptions
-employee-form-organization-description = Legal entity, location, org unit and position
+employee-form-organization-description = Company, location, org unit and position
 employee-form-personal-description = Name and email
 employee-form-employment-description = Dates and contract details
 

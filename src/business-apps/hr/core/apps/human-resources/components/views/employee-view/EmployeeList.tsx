@@ -125,6 +125,16 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
     }
   }, [search, filtersObject, pageSize, hasInitialLoad]) // Removed loadPage from dependencies
 
+  React.useEffect(() => {
+    const handleEmployeeCreated = () => {
+      setCurrentPage(1)
+      loadPage(1, pageSize)
+    }
+
+    globalThis.window.addEventListener('com.newwork.employee.created', handleEmployeeCreated)
+    return () => globalThis.window.removeEventListener('com.newwork.employee.created', handleEmployeeCreated)
+  }, [loadPage, pageSize])
+
   // Handle employee selection
   const handleEmployeeSelect = useCallback((employee: Employee) => {
     setSelectedEmployee(employee)

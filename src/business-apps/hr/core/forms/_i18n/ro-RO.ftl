@@ -383,12 +383,13 @@ employee-form-tab-personal = Informații personale
 employee-form-tab-employment = Angajare
 
 # Section Headers
+employee-form-header-description = Completați informațiile pas cu pas.
 employee-form-personal-information = Informații personale
 employee-form-employment-information = Informații despre angajare
 employee-form-additional-attributes = Atribute suplimentare
 
 # Field Labels
-employee-form-legal-entity = Entitate juridică
+employee-form-legal-entity = Companie
 employee-form-site-location = Locație
 employee-form-cost-center = Centru de cost
 employee-form-first-name = Prenume
@@ -404,7 +405,7 @@ employee-form-employment-type = Tip angajare
 employee-form-contract-type = Tip contract
 
 # Validation Messages
-employee-form-required-legal-entity = Vă rugăm să selectați o entitate juridică
+employee-form-required-legal-entity = Vă rugăm să selectați o companie
 employee-form-required-site-location = Vă rugăm să selectați o locație
 employee-form-required-first-name = Vă rugăm să introduceți un prenume
 employee-form-required-last-name = Vă rugăm să introduceți un nume
@@ -426,10 +427,10 @@ employee-form-no-vacant-positions = Nu sunt poziții vacante disponibile în uni
 # Tooltips
 employee-form-create-job-position-tooltip = Creează poziție nouă
 employee-form-select-org-unit-first = Selectați mai întâi o unitate organizațională
-employee-form-select-legal-entity-first = Selectați mai întâi o entitate juridică
+employee-form-select-legal-entity-first = Selectați mai întâi o companie
 
 # Step Descriptions
-employee-form-organization-description = Entitate juridică, locație, unitate org. și poziție
+employee-form-organization-description = Companie, locație, unitate org. și poziție
 employee-form-personal-description = Nume și email
 employee-form-employment-description = Date și detalii contract
 

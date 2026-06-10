@@ -384,12 +384,13 @@ employee-form-tab-personal = Persönliche Informationen
 employee-form-tab-employment = Beschäftigung
 
 # Section Headers
+employee-form-header-description = Füllen Sie die Informationen Schritt für Schritt aus.
 employee-form-personal-information = Persönliche Informationen
 employee-form-employment-information = Beschäftigungsinformationen
 employee-form-additional-attributes = Zusätzliche Attribute
 
 # Field Labels
-employee-form-legal-entity = Rechtseinheit
+employee-form-legal-entity = Unternehmen
 employee-form-site-location = Standort
 employee-form-cost-center = Kostenstelle
 employee-form-first-name = Vorname
@@ -397,15 +398,15 @@ employee-form-last-name = Nachname
 employee-form-email = E-Mail
 employee-form-organizational-unit = Organisationseinheit
 employee-form-job-position = Stelle
-employee-form-hire-date = Einstellungsdatum
-employee-form-fixed-term-end-date = Befristungsende
+employee-form-hire-date = Eintrittsdatum
+employee-form-fixed-term-end-date = Befristet bis
 employee-form-fixed-term-reason = Austrittsgrund
 employee-form-preferred-name = Bevorzugter Name
 employee-form-employment-type = Beschäftigungsart
 employee-form-contract-type = Vertragsart
 
 # Validation Messages
-employee-form-required-legal-entity = Bitte wählen Sie eine Rechtseinheit
+employee-form-required-legal-entity = Bitte wählen Sie ein Unternehmen
 employee-form-required-site-location = Bitte wählen Sie einen Standort
 employee-form-required-first-name = Bitte geben Sie einen Vornamen ein
 employee-form-required-last-name = Bitte geben Sie einen Nachnamen ein
@@ -413,11 +414,11 @@ employee-form-required-email = Bitte geben Sie eine E-Mail-Adresse ein
 employee-form-email-invalid = Bitte geben Sie eine gültige E-Mail-Adresse ein
 employee-form-required-org-unit = Bitte wählen Sie eine Organisationseinheit
 employee-form-required-job-position = Bitte wählen Sie eine Stelle
-employee-form-required-hire-date = Bitte wählen Sie ein Einstellungsdatum
+employee-form-required-hire-date = Bitte wählen Sie ein Eintrittsdatum
 employee-form-required-employment-type = Bitte wählen Sie eine Beschäftigungsart
 employee-form-required-contract-type = Bitte wählen Sie eine Vertragsart
-employee-form-hire-date-required = Einstellungsdatum ist erforderlich, wenn Befristungsende angegeben ist
-employee-form-fixed-term-before-hire = Befristungsende muss am oder nach dem Einstellungsdatum liegen
+employee-form-hire-date-required = Eintrittsdatum ist erforderlich, wenn Befristet bis angegeben ist
+employee-form-fixed-term-before-hire = Befristet bis muss am oder nach dem Eintrittsdatum liegen
 
 # Empty States
 employee-form-no-results = Keine Ergebnisse gefunden
@@ -427,10 +428,10 @@ employee-form-no-vacant-positions = Keine freien Stellen in der ausgewählten Or
 # Tooltips
 employee-form-create-job-position-tooltip = Neue Stelle erstellen
 employee-form-select-org-unit-first = Bitte zuerst eine Organisationseinheit auswählen
-employee-form-select-legal-entity-first = Bitte zuerst eine Rechtseinheit auswählen
+employee-form-select-legal-entity-first = Bitte zuerst ein Unternehmen auswählen
 
 # Step Descriptions
-employee-form-organization-description = Rechtseinheit, Standort, Org.-Einheit und Stelle
+employee-form-organization-description = Unternehmen, Standort, Org.-Einheit und Stelle
 employee-form-personal-description = Name und E-Mail
 employee-form-employment-description = Daten und Vertragsdetails
 

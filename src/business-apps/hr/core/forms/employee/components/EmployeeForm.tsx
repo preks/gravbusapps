@@ -36,18 +36,18 @@ const createEmployeeFormSchema = (t: (key: string) => string) =>
   z.object({
     legalEntityId: z.string().min(1, t('employee-form-required-legal-entity')),
     siteLocationId: z.string().min(1, t('employee-form-required-site-location')),
-    costCenterId: z.string().optional().default(''),
+    costCenterId: z.string(),
     firstName: z.string().min(1, t('employee-form-required-first-name')),
     lastName: z.string().min(1, t('employee-form-required-last-name')),
     email: z.string().min(1, t('employee-form-required-email')).email(t('employee-form-email-invalid')),
-    preferredName: z.string().optional().default(''),
+    preferredName: z.string(),
     organizationalUnitId: z.string().min(1, t('employee-form-required-org-unit')),
     jobPositionId: z.string().min(1, t('employee-form-required-job-position')),
     hireDate: z.string().min(1, t('employee-form-required-hire-date')),
     employmentTypeId: z.string().min(1, t('employee-form-required-employment-type')),
     contractTypeId: z.string().min(1, t('employee-form-required-contract-type')),
-    fixedTermUntil: z.string().optional().default(''),
-    fixedTermReason: z.string().optional().default('')
+    fixedTermUntil: z.string(),
+    fixedTermReason: z.string()
   })
 
 type EmployeeFormData = z.infer<ReturnType<typeof createEmployeeFormSchema>>
@@ -165,6 +165,7 @@ const EmployeeForm: React.FC = () => {
 
   const [isCreateJobPositionModalOpen, setIsCreateJobPositionModalOpen] = useState(false)
   const [isProcessPending, setIsProcessPending] = useState(false)
+  const formTitle = isEdit ? t('employee-form-update-employee') : t('employee-form-create-employee')
 
   const employeeFormSchema = useMemo(() => createEmployeeFormSchema(t), [t])
 
@@ -350,6 +351,9 @@ const EmployeeForm: React.FC = () => {
           const customEvent = event as CustomEvent<{ resolution?: 'success' | 'failure' }>
           const detail = customEvent?.detail ?? null
           if (detail?.resolution === 'success' || detail?.resolution === 'failure') {
+            if (detail?.resolution === 'success' && !isEdit) {
+              globalThis.window.dispatchEvent(new CustomEvent('com.newwork.employee.created'))
+            }
             cleanup()
             resolve()
           }
@@ -742,7 +746,9 @@ const EmployeeForm: React.FC = () => {
                 name="fixedTermUntil"
                 render={() => (
                   <FormItem>
-                    <FormLabel>{t('employee-form-fixed-term-end-date')}</FormLabel>
+                    <label className="gba:text-sm gba:font-medium gba:leading-none">
+                      {t('employee-form-fixed-term-end-date')}
+                    </label>
                     <FormControl>
                       <DateInput
                         type="date"
@@ -813,46 +819,63 @@ const EmployeeForm: React.FC = () => {
   )
 
   return (
-    <div className="gba:h-full gba:flex gba:flex-col gba:w-full gba:max-w-2xl gba:mx-auto gba:p-6">
-      {error && (
-        <div className="gba:bg-destructive/10 gba:border gba:border-destructive gba:rounded-md gba:p-4 gba:mb-4">
-          <div className="gba:text-destructive gba:text-sm">{error}</div>
-        </div>
-      )}
+    <div className="gba:h-full gba:flex gba:flex-col gba:w-full gba:max-w-2xl gba:mx-auto">
+      <div className="gba:px-6 gba:pt-6 gba:pb-5">
+        <h2 className="gba:text-xl gba:font-semibold gba:leading-7 gba:text-foreground">{formTitle}</h2>
+        <p className="gba:mt-1 gba:text-sm gba:leading-5 gba:text-muted-foreground">
+          {t('employee-form-header-description')}
+        </p>
+      </div>
+      <div className="gba:flex gba:flex-col gba:px-6 gba:pb-6">
+        {error && (
+          <div className="gba:bg-destructive/10 gba:border gba:border-destructive gba:rounded-md gba:p-4 gba:mb-4">
+            <div className="gba:text-destructive gba:text-sm">{error}</div>
+          </div>
+        )}
 
-      <WizardForm
-        form={form}
-        steps={steps}
-        onSubmit={handleSubmit}
-        schema={employeeFormSchema}
-        allowStepJumping={false}
-        contentClassName="gba:min-h-[380px]"
-      >
-        <WizardNavigation
+        <WizardForm
           form={form}
           steps={steps}
-          submitDisabled={!form.formState.isValid || loading || isProcessPending}
-          submitLabel={
-            loading || isProcessPending
-              ? t('loading')
-              : isEdit
-                ? t('employee-form-update-employee')
-                : t('employee-form-create-employee')
-          }
-        />
-      </WizardForm>
+          onSubmit={handleSubmit}
+          schema={employeeFormSchema}
+          allowStepJumping={false}
+          containerClassName="employee-form-wizard-stepper"
+          contentClassName="gba:min-h-[380px]"
+        >
+          <WizardNavigation
+            form={form}
+            steps={steps}
+            submitDisabled={!form.formState.isValid || loading || isProcessPending}
+            submitLabel={
+              loading || isProcessPending
+                ? t('loading')
+                : isEdit
+                  ? t('employee-form-update-employee')
+                  : t('employee-form-create-employee')
+            }
+          />
+        </WizardForm>
+        <style>
+          {`
+            .employee-form-wizard-stepper [data-slot='step-separator'] {
+              align-self: flex-start;
+              margin-top: 23px;
+            }
+          `}
+        </style>
 
-      <CreateJobPositionModal
-        visible={isCreateJobPositionModalOpen}
-        organizationalUnitId={formValues.organizationalUnitId}
-        organizationalUnitName={selectedOrgUnitName}
-        accessToken={accessToken}
-        structureId={structureId}
-        onCancel={() => setIsCreateJobPositionModalOpen(false)}
-        onSuccess={() => {
-          refetchJobPositions()
-        }}
-      />
+        <CreateJobPositionModal
+          visible={isCreateJobPositionModalOpen}
+          organizationalUnitId={formValues.organizationalUnitId}
+          organizationalUnitName={selectedOrgUnitName}
+          accessToken={accessToken}
+          structureId={structureId}
+          onCancel={() => setIsCreateJobPositionModalOpen(false)}
+          onSuccess={() => {
+            refetchJobPositions()
+          }}
+        />
+      </div>
     </div>
   )
 }
