@@ -1,4 +1,6 @@
 import {
+  ArrowSquareOutIcon,
+  DownloadSimpleIcon,
   FileIcon,
   FileCsvIcon,
   FileDocIcon,
@@ -14,6 +16,7 @@ import {
   XIcon
 } from '@phosphor-icons/react'
 import type { Icon as PhosphorIcon } from '@phosphor-icons/react'
+import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from '@newwork/nw-design-system'
 import { useEffect, useMemo, useState } from 'react'
 import type {
   MessageAttachmentRef,
@@ -22,7 +25,7 @@ import type {
   SessionAttachmentStatus
 } from '../../types/enterpriseAgent'
 import { PROMPT_MANAGER_API_URL } from '@/common/utils/serviceResolver'
-import { setAccessTokenToAuthorizationHeader } from '@/common/network/HeaderUtils'
+import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
 
 /**
  * Visual states a chip can be in, derived from either a live session
@@ -49,6 +52,12 @@ interface ChipDescriptor {
 interface FileTypePresentation {
   label: string
   Icon: PhosphorIcon
+}
+
+interface ImagePreviewSelection {
+  id: string
+  name: string
+  src: string
 }
 
 export interface AttachmentChipListProps {
@@ -299,6 +308,108 @@ const sanitizeImagePreviewSrc = (raw: string | undefined): string | undefined =>
   return parsed.href
 }
 
+const resolveViewportSize = (): { width: number; height: number } | null => {
+  const browserWindow = globalThis.window
+  if (!browserWindow) return null
+
+  return {
+    width: browserWindow.innerWidth,
+    height: browserWindow.innerHeight
+  }
+}
+
+const ImagePreviewDialog: React.FC<{
+  preview: ImagePreviewSelection | null
+  onClose: () => void
+}> = ({ preview, onClose }) => {
+  const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null)
+
+  useEffect(() => {
+    setImageDimensions(null)
+  }, [preview?.id, preview?.src])
+
+  if (!preview) return null
+
+  const getDialogStyle = () => {
+    const viewport = resolveViewportSize()
+    if (!viewport || !imageDimensions) {
+      return {
+        maxWidth: 'calc(100vw - 32px)',
+        width: 'calc(100vw - 32px)',
+        height: 'calc(100vh - 32px)',
+        maxHeight: 'calc(100vh - 32px)'
+      }
+    }
+
+    const maxWidth = viewport.width - 64
+    const maxHeight = viewport.height - 64
+    const headerFooterHeight = 112
+    const availableHeight = maxHeight - headerFooterHeight
+    const scaleX = maxWidth / imageDimensions.width
+    const scaleY = availableHeight / imageDimensions.height
+    const scale = Math.min(scaleX, scaleY, 1)
+    const dialogWidth = Math.max(400, imageDimensions.width * scale + 32)
+
+    return {
+      maxWidth: `${Math.min(dialogWidth, maxWidth)}px`,
+      width: 'auto',
+      height: 'auto',
+      maxHeight: `${maxHeight}px`
+    }
+  }
+
+  const dialogStyle = getDialogStyle()
+
+  return (
+    <Dialog open={!!preview} onOpenChange={open => !open && onClose()}>
+      <DialogContent
+        className="gba:p-0! gba:flex gba:flex-col gba:overflow-hidden"
+        style={{
+          maxWidth: dialogStyle.maxWidth,
+          width: dialogStyle.width,
+          height: dialogStyle.height,
+          maxHeight: dialogStyle.maxHeight
+        }}
+        data-testid="attachment-image-preview-dialog"
+      >
+        <DialogHeader className="gba:border-b gba:border-border gba:px-4 gba:py-3 gba:pr-12">
+          <DialogTitle className="gba:min-w-0 gba:flex-1 gba:truncate gba:text-sm gba:font-medium">
+            {preview.name}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="gba:flex gba:min-h-0 gba:flex-1 gba:items-center gba:justify-center gba:bg-muted/30">
+          <img
+            src={preview.src}
+            alt={preview.name}
+            className="gba:max-h-full gba:max-w-full gba:object-contain"
+            onLoad={event => {
+              const image = event.currentTarget
+              setImageDimensions({ width: image.naturalWidth, height: image.naturalHeight })
+            }}
+            data-testid="attachment-image-preview-image"
+          />
+        </div>
+
+        <div className="gba:flex gba:shrink-0 gba:items-center gba:justify-end gba:gap-2 gba:border-t gba:border-border gba:bg-background gba:px-4 gba:py-3">
+          <Button variant="outline" size="sm" asChild>
+            <a href={preview.src} target="_blank" rel="noopener noreferrer" data-testid="attachment-image-preview-open">
+              <ArrowSquareOutIcon className="gba:mr-1.5 gba:h-3.5 gba:w-3.5" weight="bold" />
+              Open
+            </a>
+          </Button>
+          <Button variant="default" size="sm" asChild>
+            <a href={preview.src} download={preview.name} data-testid="attachment-image-preview-download">
+              <DownloadSimpleIcon className="gba:mr-1.5 gba:h-3.5 gba:w-3.5" weight="bold" />
+              Download
+            </a>
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 /** Renders a single image attachment as a larger standalone block (imageVariant='block'). */
 const ImageBlock: React.FC<{
   chip: ChipDescriptor
@@ -306,7 +417,9 @@ const ImageBlock: React.FC<{
   accessToken?: string
   testIdPrefix: string
   onRemove?: (chip: ChipDescriptor) => void
-}> = ({ chip, sessionId, accessToken, testIdPrefix, onRemove }) => {
+  onPreviewOpen?: (preview: ImagePreviewSelection) => void
+}> = ({ chip, sessionId, accessToken, testIdPrefix, onRemove, onPreviewOpen }) => {
+  const { fetchAttachmentContent } = useEnterpriseAgentClient(accessToken ?? '')
   const [resolvedUrl, setResolvedUrl] = useState<string | undefined>(() => sanitizeImagePreviewSrc(chip.previewUrl))
 
   useEffect(() => {
@@ -321,23 +434,12 @@ const ImageBlock: React.FC<{
     const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
     if (!uuidPattern.test(chip.id)) return
 
+    let revoked = false
     let createdBlobUrl: string | null = null
-    const controller = new AbortController()
-    const base = resolvePromptManagerBase()
-    const headers: Record<string, string> = {
-      Authorization: setAccessTokenToAuthorizationHeader(accessToken)
-    }
 
-    fetch(
-      `${base}/deep-agent/sessions/${encodeURIComponent(sessionId)}/attachments/${encodeURIComponent(chip.id)}/content`,
-      { method: 'GET', headers, credentials: 'same-origin', mode: 'cors', signal: controller.signal }
-    )
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        return res.blob()
-      })
+    fetchAttachmentContent(sessionId, chip.id)
       .then(blob => {
-        if (controller.signal.aborted) return
+        if (revoked) return
         createdBlobUrl = URL.createObjectURL(blob)
         const safeBlob = sanitizeImagePreviewSrc(createdBlobUrl)
         if (!safeBlob) {
@@ -350,27 +452,24 @@ const ImageBlock: React.FC<{
       .catch(() => {})
 
     return () => {
-      controller.abort()
+      revoked = true
       if (createdBlobUrl) URL.revokeObjectURL(createdBlobUrl)
     }
-  }, [chip.previewUrl, chip.id, sessionId, accessToken])
+  }, [chip.previewUrl, chip.id, sessionId, accessToken, fetchAttachmentContent])
 
   const displaySrc = sanitizeImagePreviewSrc(resolvedUrl)
-
-  return (
-    <div
-      className="gba:relative gba:inline-block gba:rounded-xl gba:overflow-hidden gba:max-w-[240px]"
-      title={chip.tooltip}
-      data-testid={`${testIdPrefix}-img-block-${chip.id}`}
-    >
+  const canPreview = !!displaySrc
+  const previewLabel = canPreview ? `Open larger preview for ${chip.name}` : undefined
+  const previewBody = (
+    <>
       {displaySrc ? (
         <img
           src={displaySrc}
           alt={chip.name}
-          className="gba:block gba:max-w-[240px] gba:max-h-[200px] gba:w-auto gba:h-auto gba:object-contain gba:rounded-xl"
+          className="gba:block gba:h-auto gba:max-h-[200px] gba:max-w-[240px] gba:w-auto gba:rounded-xl gba:object-contain"
         />
       ) : (
-        <div className="gba:flex gba:items-center gba:justify-center gba:w-[80px] gba:h-[60px] gba:bg-muted/40 gba:rounded-xl">
+        <div className="gba:flex gba:h-[60px] gba:w-[80px] gba:items-center gba:justify-center gba:rounded-xl gba:bg-muted/40">
           <SpinnerGapIcon
             className="gba:h-4 gba:w-4 gba:animate-spin gba:text-muted-foreground"
             weight="bold"
@@ -379,7 +478,7 @@ const ImageBlock: React.FC<{
         </div>
       )}
       {chip.state === 'pending' && (
-        <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-black/25 gba:rounded-xl">
+        <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:rounded-xl gba:bg-black/25">
           <SpinnerGapIcon
             className="gba:h-5 gba:w-5 gba:animate-spin gba:text-white"
             weight="bold"
@@ -388,9 +487,35 @@ const ImageBlock: React.FC<{
         </div>
       )}
       {chip.state === 'failed' && !displaySrc && (
-        <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-muted/40 gba:rounded-xl">
+        <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:rounded-xl gba:bg-muted/40">
           <WarningCircleIcon className="gba:h-5 gba:w-5 gba:text-rose-500" weight="fill" aria-hidden="true" />
         </div>
+      )}
+    </>
+  )
+  const previewContainerClass = `gba:relative gba:inline-block gba:max-w-[240px] gba:overflow-hidden gba:rounded-xl ${
+    canPreview
+      ? 'gba:cursor-zoom-in gba:outline-none gba:ring-offset-background focus-visible:gba:ring-2 focus-visible:gba:ring-primary/60'
+      : ''
+  }`
+
+  return (
+    <div
+      className="gba:relative gba:inline-block gba:max-w-[240px]"
+      title={chip.tooltip}
+      data-testid={`${testIdPrefix}-img-block-${chip.id}`}
+    >
+      {canPreview ? (
+        <button
+          type="button"
+          className={`${previewContainerClass} gba:border-0 gba:bg-transparent gba:p-0`}
+          aria-label={previewLabel}
+          onClick={() => onPreviewOpen?.({ id: chip.id, name: chip.name, src: displaySrc })}
+        >
+          {previewBody}
+        </button>
+      ) : (
+        <div className={previewContainerClass}>{previewBody}</div>
       )}
       {chip.removable && onRemove && (
         <button
@@ -441,6 +566,7 @@ export const AttachmentChipList: React.FC<AttachmentChipListProps> = props => {
     sessionId,
     accessToken
   } = props
+  const [selectedPreview, setSelectedPreview] = useState<ImagePreviewSelection | null>(null)
 
   const chips = collectChips(props)
   const chipsWithType = useMemo(
@@ -499,6 +625,7 @@ export const AttachmentChipList: React.FC<AttachmentChipListProps> = props => {
               accessToken={accessToken}
               testIdPrefix={testIdPrefix}
               onRemove={chip.removable ? handleRemove : undefined}
+              onPreviewOpen={setSelectedPreview}
             />
           ))}
         </div>
@@ -583,6 +710,7 @@ export const AttachmentChipList: React.FC<AttachmentChipListProps> = props => {
           })}
         </div>
       )}
+      <ImagePreviewDialog preview={selectedPreview} onClose={() => setSelectedPreview(null)} />
     </div>
   )
 }

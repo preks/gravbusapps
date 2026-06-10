@@ -33,6 +33,15 @@ export function useSessionAttachments(sessionId: string | null | undefined, acce
   const [attachments, setAttachments] = useState<SessionAttachment[]>([])
   const [pendingAttachments, setPendingAttachments] = useState<PendingComposerAttachment[]>([])
   const stagedFilesRef = useRef<StagedFile[]>([])
+  /**
+   * Ids (server attachment ids and pending client ids) that have already been
+   * attached to a sent message. They're dropped from the composer chip list and
+   * never re-surfaced by `refresh()`/polling, so an attachment is "consumed" by
+   * the turn it was sent with instead of clinging to every follow-up message.
+   * The files themselves stay on the server (RAG) and the thumbnail stays on the
+   * message bubble that snapshotted them.
+   */
+  const consumedIdsRef = useRef<Set<string>>(new Set())
   const pollDeadlineRef = useRef<number | null>(null)
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const flushingRef = useRef(false)
@@ -64,12 +73,13 @@ export function useSessionAttachments(sessionId: string | null | undefined, acce
     try {
       const fresh = await client.listSessionAttachments(sessionId)
       const freshList = Array.isArray(fresh) ? fresh : []
+      const filteredFreshList = freshList.filter(a => !consumedIdsRef.current.has(a.id))
       // Re-enrich from our in-memory blob URL map so polling never silently
       // drops the preview thumbnails created during upload. The server has
       // no knowledge of client-side blob URLs, so a plain replacement would
       // lose preview_url and break the optimistic image display on send.
       setAttachments(
-        freshList.map(a => {
+        filteredFreshList.map(a => {
           const blobUrl = previewUrlMapRef.current.get(a.id)
           return blobUrl ? { ...a, preview_url: blobUrl } : a
         })
@@ -175,6 +185,7 @@ export function useSessionAttachments(sessionId: string | null | undefined, acce
   useEffect(() => {
     if (sessionId) return
     setAttachments([])
+    consumedIdsRef.current = new Set()
     stopPolling()
     // Note: we do NOT clear stagedFilesRef here — files staged on the landing
     // screen must survive until the new session id appears.
@@ -247,6 +258,28 @@ export function useSessionAttachments(sessionId: string | null | undefined, acce
     [sessionId, uploadOne]
   )
 
+  /**
+   * Mark every attachment currently on the composer as consumed by the turn the
+   * user just sent. Clears the chip list (confirmed + pending + staged) without
+   * deleting the files server-side, so they aren't re-attached to the next
+   * follow-up message. Blob preview URLs are intentionally left intact so the
+   * thumbnail keeps rendering on the message bubble that already snapshotted it.
+   */
+  const clearComposerAttachments = useCallback(() => {
+    setAttachments(prev => {
+      prev.forEach(a => consumedIdsRef.current.add(a.id))
+      return []
+    })
+    setPendingAttachments(prev => {
+      prev.forEach(p => {
+        consumedIdsRef.current.add(p.client_id)
+        if (p.attachment) consumedIdsRef.current.add(p.attachment.id)
+      })
+      return []
+    })
+    stagedFilesRef.current = []
+  }, [])
+
   const remove = useCallback(
     async (id: string) => {
       // Drop pending / staged first so the chip disappears immediately.
@@ -276,6 +309,7 @@ export function useSessionAttachments(sessionId: string | null | undefined, acce
     upload,
     remove,
     removePending,
+    clearComposerAttachments,
     flushPendingToSession,
     refresh
   }

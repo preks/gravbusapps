@@ -113,11 +113,30 @@ describe('useAgentMeshScope', () => {
       expect(result.current.scope).toBe('company')
     })
 
-    it('clears active session when leaving session scope via setScope', () => {
+    it('preserves the active session when leaving session scope via setScope', () => {
+      mockActiveSessionId = 's1'
+      setUrl('?sessionId=s1')
+      const { result } = renderScopeHook()
+      act(() => result.current.setScope('company'))
+      // Switching to an aggregate (company) mesh is a view-only change; it must
+      // not deselect the running session (regression: it used to clear it).
+      expect(mockSelectSession).not.toHaveBeenCalled()
+    })
+
+    it('keeps sessionId in the URL after switching to company scope', () => {
+      mockActiveSessionId = 's1'
+      setUrl('?sessionId=s1')
+      const { result } = renderScopeHook()
+      act(() => result.current.setScope('company'))
+      expect(window.location.search).toContain('meshScope=company')
+      expect(window.location.search).toContain('sessionId=s1')
+    })
+
+    it('selects the target session when drilling into a different session mesh', () => {
       mockActiveSessionId = 's1'
       const { result } = renderScopeHook()
-      act(() => result.current.setScope('user', 'u1'))
-      expect(mockSelectSession).toHaveBeenCalledWith(null)
+      act(() => result.current.pushSnapshot({ scope: 'session', sessionId: 's2', fullscreen: false }))
+      expect(mockSelectSession).toHaveBeenCalledWith('s2')
     })
   })
 

@@ -424,6 +424,7 @@ export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({ devModeEnabled
                     activeInterrupt={composerInterruptQuestion}
                     isRunning={isStreaming}
                     isDisabled={isStreaming && !isWaitingForInput}
+                    selectedAgent={session?.config?.selectedAgent}
                     availableConnectors={availableConnectors}
                     activeConnectorIds={composerActiveConnectorIds}
                     onToggleConnector={toggleConnector}

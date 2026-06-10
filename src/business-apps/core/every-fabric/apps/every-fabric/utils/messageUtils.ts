@@ -916,6 +916,27 @@ function sessionAttachmentsToRefs(
   }))
 }
 
+function suppressRepeatedUserAttachmentRefs(messages: ChatMessage[]): ChatMessage[] {
+  const seenAttachmentIds = new Set<string>()
+
+  return messages.map(msg => {
+    if (msg.type !== 'user_input' || !msg.attachments?.length) return msg
+
+    const nextAttachments = msg.attachments.filter(att => !seenAttachmentIds.has(att.id))
+    msg.attachments.forEach(att => seenAttachmentIds.add(att.id))
+
+    if (nextAttachments.length === msg.attachments.length) return msg
+
+    if (nextAttachments.length > 0) {
+      return { ...msg, attachments: nextAttachments }
+    }
+
+    const messageWithoutAttachments = { ...msg }
+    delete messageWithoutAttachments.attachments
+    return messageWithoutAttachments
+  })
+}
+
 export function sessionToMessages(session: DeepAgentSession): ChatMessage[] {
   // Derive messages from the trace - the server's authoritative record.
   // The trace is already in correct chronological/seq order from the backend.
@@ -954,13 +975,16 @@ export function sessionToMessages(session: DeepAgentSession): ChatMessage[] {
   if (sessionAttachmentRefs && sessionAttachmentRefs.length > 0) {
     let enriched = false
     messages = messages.map(msg => {
-      if (!enriched && msg.type === 'user_input' && !msg.attachments) {
+      if (!enriched && msg.type === 'user_input') {
         enriched = true
+        if (msg.attachments) return msg
         return { ...msg, attachments: sessionAttachmentRefs }
       }
       return msg
     })
   }
+
+  messages = suppressRepeatedUserAttachmentRefs(messages)
 
   // Backfill `final_answer` rows whose terminal event was emitted before
   // backend started embedding `session_attachments` / `workspace_documents`
