@@ -36,6 +36,7 @@ import {
   ReadCvLogoIcon,
   XCircleIcon
 } from '@phosphor-icons/react'
+import { GenerateJobProfilesDialog } from '../generate-profiles'
 
 export interface JobProfilesTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -259,25 +260,37 @@ export default function JobProfilesTab(context: Readonly<JobProfilesTabProps>) {
         {!isLoading && (
           <CardTabHeaderComponent
             addButton={
-              <ErrorBoundary>
-                <JobProfileForm
-                  usedCodes={usedCodes}
-                  childAddButton={
-                    <Button
-                      variant="default"
-                      onClick={e => e.stopPropagation()}
-                      data-testid={`${dataTestId}-add-profile`}
-                    >
-                      <PlusIcon /> Add Job Profile
-                    </Button>
-                  }
-                  prefixDataTestId={dataTestId}
-                  accessToken={accessToken}
-                  refetch={refetch}
-                  jobFunctions={jobFunctions}
-                  jobLevels={jobLevels}
-                />
-              </ErrorBoundary>
+              <div className="gba:flex gba:gap-2">
+                <ErrorBoundary>
+                  <GenerateJobProfilesDialog
+                    accessToken={accessToken}
+                    jobFunctions={jobFunctions}
+                    jobLevels={jobLevels}
+                    existingProfiles={jobProfiles}
+                    refetch={refetch}
+                    dataTestId={dataTestId}
+                  />
+                </ErrorBoundary>
+                <ErrorBoundary>
+                  <JobProfileForm
+                    usedCodes={usedCodes}
+                    childAddButton={
+                      <Button
+                        variant="default"
+                        onClick={e => e.stopPropagation()}
+                        data-testid={`${dataTestId}-add-profile`}
+                      >
+                        <PlusIcon /> Add Job Profile
+                      </Button>
+                    }
+                    prefixDataTestId={dataTestId}
+                    accessToken={accessToken}
+                    refetch={refetch}
+                    jobFunctions={jobFunctions}
+                    jobLevels={jobLevels}
+                  />
+                </ErrorBoundary>
+              </div>
             }
             cardTitle={`Job Profiles (${jobProfiles.length})`}
             cardDescription="Manage job profiles and their classifications"
