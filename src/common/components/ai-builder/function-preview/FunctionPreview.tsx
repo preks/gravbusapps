@@ -22,7 +22,7 @@ import {
 import { Play, Zap, Bot, GitBranch } from 'lucide-react'
 import { PreviewHeaderCard } from '../preview-header'
 import { friendlyLabel, getSchemaTypeLabel, PreviewTabs, PreviewLoading, PreviewError, PreviewEmpty } from '../shared'
-import { FunctionsServiceClient } from '@/common/network/functions/FunctionsServiceClient'
+import { useFunctionsServiceClient } from '@/common/network/functions/useFunctionsServiceClient'
 
 export interface FunctionDefinition {
   id: string
@@ -107,7 +107,7 @@ const FunctionPreviewSingle: React.FC<FunctionPreviewSingleProps> = ({
   const [testError, setTestError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'overview' | 'try-it'>('overview')
 
-  const client = useMemo(() => new FunctionsServiceClient(accessToken), [accessToken])
+  const client = useFunctionsServiceClient(accessToken)
 
   useEffect(() => {
     if (definition) {

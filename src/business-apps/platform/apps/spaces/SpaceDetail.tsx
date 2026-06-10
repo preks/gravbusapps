@@ -682,6 +682,16 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
         isOpen={scheduleMeetingModalOpen}
         onOpenChange={handleScheduleMeetingOpenChange}
         accessToken={accessToken || ''}
+        currentUser={
+          userInfo?.id
+            ? {
+                id: userInfo.id,
+                displayName: userInfo.displayName?.trim() || undefined,
+                firstName: userInfo.givenName || userInfo.employeeDetails?.firstName || undefined,
+                lastName: userInfo.familyName || userInfo.employeeDetails?.lastName || undefined
+              }
+            : undefined
+        }
         defaultCalendarId={linkedCalendar?.id}
         initialTitle={scheduleMeetingTitle}
         initialParticipants={scheduleMeetingParticipants}

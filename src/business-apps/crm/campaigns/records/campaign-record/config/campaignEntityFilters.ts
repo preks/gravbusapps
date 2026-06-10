@@ -38,28 +38,21 @@ export const campaignEntityFilterConfig: FilterConfiguration = {
           label: 'Status',
           type: 'multi-select',
           config: {
-            options: [
-              { id: 'new', label: 'New' },
-              { id: 'open', label: 'Open' },
-              { id: 'qualified', label: 'Qualified' },
-              { id: 'converted', label: 'Converted' },
-              { id: 'won', label: 'Won' },
-              { id: 'lost', label: 'Lost' }
-            ],
+            options: [],
             searchPlaceholder: 'Search statuses...'
           }
         }
       ]
     },
     {
-      id: 'date-group',
-      label: 'Date Range',
+      id: 'creation-date-group',
+      label: 'Creation Date',
       collapsible: true,
       defaultExpanded: false,
       filters: [
         {
-          id: 'createdAtRange',
-          field: 'createdAtRange',
+          id: 'createdAt',
+          field: 'createdAt',
           label: 'Creation Date',
           type: 'date',
           config: {

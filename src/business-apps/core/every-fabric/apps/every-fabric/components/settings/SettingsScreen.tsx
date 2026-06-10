@@ -1,20 +1,17 @@
-import { useCallback, useState } from 'react'
+import React from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { ArrowLeftIcon, GearSixIcon, UsersThreeIcon, LightbulbIcon, WrenchIcon } from '@phosphor-icons/react'
 import type { Icon } from '@phosphor-icons/react'
 import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
 import { AgentsScreen } from '../agents/AgentsScreen'
-import type { FabricAgent } from '../agents/agentTypes'
 import { SkillsScreen } from '../skills/SkillsScreen'
 import { useAgentSettings } from '../../hooks/useAgentSettings'
 import { ConfigurationSection } from './components/ConfigurationSection'
 import { MemorySection } from './components/MemorySection'
 import { PoliciesSection } from './components/PoliciesSection'
-import { SkillsSection } from './components/SkillsSection'
 import { MetricsSection } from './components/MetricsSection'
 import { ToolsTab } from './ToolsTab'
-
-type SettingsTab = 'settings' | 'agents' | 'skills' | 'tools'
+import { useSettingsUrlState, type SettingsTab } from './useSettingsUrlState'
 
 const TABS: { key: SettingsTab; label: string; icon: Icon }[] = [
   { key: 'settings', label: 'Settings', icon: GearSixIcon },
@@ -25,31 +22,22 @@ const TABS: { key: SettingsTab; label: string; icon: Icon }[] = [
 
 interface SettingsScreenProps {
   accessToken: string
+  devToolsEnabled: boolean
+  /** @deprecated URL state is now the source of truth. This prop is kept for backward compatibility but is no longer used. */
   initialTab?: SettingsTab
   onBack: () => void
-  onRunTask?: (agent: FabricAgent) => void
 }
 
-export const SettingsScreen: React.FC<SettingsScreenProps> = ({
-  accessToken,
-  initialTab = 'settings',
-  onBack,
-  onRunTask
-}) => {
+export const SettingsScreen: React.FC<SettingsScreenProps> = ({ accessToken, devToolsEnabled, onBack }) => {
   const client = useEnterpriseAgentClient(accessToken)
   const { settings, updateSetting } = useAgentSettings()
-  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab)
+  const { tab, agentId, skillId, setTab, setAgent, setSkill } = useSettingsUrlState()
+  const visibleTabs = devToolsEnabled ? TABS : TABS.filter(tab => tab.key !== 'tools')
+  const activeSettingsTab = devToolsEnabled || tab !== 'tools' ? tab : 'settings'
 
   // Each tab/section loads its own data (MemorySection, SkillsSection, MetricsSection,
   // SkillsScreen). A global preload here blocked the whole screen when any single
   // request hung (e.g. GET /deep-agent/sessions?limit=200).
-
-  const handleSetDefaultSkill = useCallback(
-    (skillId: string) => {
-      updateSetting('defaultSkillId', settings.defaultSkillId === skillId ? undefined : skillId)
-    },
-    [settings.defaultSkillId, updateSetting]
-  )
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid="fabric-settings-screen">
@@ -68,15 +56,15 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         </div>
 
         <nav className="gba:flex gba:gap-1 gba:mt-4 gba:border-b gba:border-border/50" data-testid="settings-tabs">
-          {TABS.map(tab => {
+          {visibleTabs.map(tab => {
             const TabIcon = tab.icon
             return (
               <button
                 key={tab.key}
                 type="button"
-                onClick={() => setActiveTab(tab.key)}
+                onClick={() => setTab(tab.key)}
                 className={`gba:inline-flex gba:items-center gba:gap-1.5 gba:px-4 gba:py-2 gba:text-sm gba:font-medium gba:transition-colors gba:border-b-2 gba:-mb-px ${
-                  activeTab === tab.key
+                  activeSettingsTab === tab.key
                     ? 'gba:border-primary gba:text-foreground'
                     : 'gba:border-transparent gba:text-muted-foreground gba:hover:text-foreground gba:hover:border-border'
                 }`}
@@ -90,45 +78,49 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         </nav>
       </div>
 
-      {activeTab === 'settings' && (
+      {activeSettingsTab === 'settings' && (
         <div className="gba:flex-1 gba:overflow-y-auto">
           <div className="gba:max-w-5xl gba:mx-auto gba:px-4 sm:gba:px-6 lg:gba:px-8 gba:py-6 sm:gba:py-8 lg:gba:py-12">
-            <ConfigurationSection settings={settings} updateSetting={updateSetting} />
-            <div className="gba:h-12 lg:gba:h-16" />
-            <PoliciesSection accessToken={accessToken} isOpen />
+            <ConfigurationSection settings={settings} updateSetting={updateSetting} devToolsEnabled={devToolsEnabled} />
             <div className="gba:h-12 lg:gba:h-16" />
             <MemorySection client={client} isOpen />
             <div className="gba:h-12 lg:gba:h-16" />
-            <SkillsSection
-              client={client}
-              isOpen
-              defaultSkillId={settings.defaultSkillId}
-              onSetDefaultSkill={handleSetDefaultSkill}
-            />
-            <div className="gba:h-12 lg:gba:h-16" />
-            <MetricsSection client={client} isOpen />
+            <PoliciesSection accessToken={accessToken} isOpen />
+            {devToolsEnabled && (
+              <>
+                <div className="gba:h-12 lg:gba:h-16" />
+                <MetricsSection client={client} isOpen />
+              </>
+            )}
           </div>
         </div>
       )}
 
-      {activeTab === 'agents' && (
+      {activeSettingsTab === 'agents' && (
         <div className="gba:flex-1 gba:min-h-0">
           <AgentsScreen
             accessToken={accessToken}
-            onBack={() => setActiveTab('settings')}
-            onRunTask={agent => onRunTask?.(agent)}
+            agentId={agentId}
+            onAgentChange={setAgent}
+            onBack={() => setTab('settings')}
             embedded
           />
         </div>
       )}
 
-      {activeTab === 'skills' && (
+      {activeSettingsTab === 'skills' && (
         <div className="gba:flex-1 gba:min-h-0">
-          <SkillsScreen accessToken={accessToken} onBack={() => setActiveTab('settings')} embedded />
+          <SkillsScreen
+            accessToken={accessToken}
+            skillId={skillId}
+            onSkillChange={setSkill}
+            onBack={() => setTab('settings')}
+            embedded
+          />
         </div>
       )}
 
-      {activeTab === 'tools' && (
+      {devToolsEnabled && activeSettingsTab === 'tools' && (
         <div className="gba:flex-1 gba:overflow-y-auto">
           <ToolsTab accessToken={accessToken} />
         </div>

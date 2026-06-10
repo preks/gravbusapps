@@ -275,7 +275,7 @@ const BenefitTypesView: React.FC<BenefitTypesViewProps> = ({
   ...context
 }) => {
   const [search, setSearch] = useState('')
-  const [filters, setFilters] = useState<Record<string, string[]>>({})
+  const [filters, setFilters] = useState<Record<string, string[]>>({ status: ['active'] })
   const [section, setSection] = useState('all')
 
   const deferredSearch = useDeferredValue(search)
@@ -344,8 +344,6 @@ const BenefitTypesView: React.FC<BenefitTypesViewProps> = ({
         if (statusFilter.includes('archived') && isArchived) return true
         return false
       })
-    } else {
-      result = result.filter(e => !e.isDeleted)
     }
 
     const entityFilter: string[] = deferredFilters.legalEntity ?? []
@@ -435,17 +433,40 @@ const BenefitTypesView: React.FC<BenefitTypesViewProps> = ({
         await mutations.deactivateBenefitType(entry.id, {
           code: entry.code,
           value: entry.value,
+          description: entry.description,
           parentEntryId: entry.parentEntryId,
           objectValue: entry.objectValue
         })
         toast.success(t('toast-deactivated', { name: entry.value }))
         markAsDeleted(entry.id)
+        await fetchEntries({ search: undefined })
       } catch (err) {
         console.error(LOG_PREFIX, 'handleArchive ERROR:', err)
         toast.error(t('toast-error', { message: err instanceof Error ? err.message : String(err) }))
       }
     },
-    [mutations, t, markAsDeleted]
+    [mutations, t, markAsDeleted, fetchEntries]
+  )
+
+  const handleActivate = useCallback(
+    async (entry: BenefitTypeEntry) => {
+      setSelectedEntry(null)
+      try {
+        await mutations.activateBenefitType(entry.id, {
+          code: entry.code,
+          value: entry.value,
+          description: entry.description,
+          parentEntryId: entry.parentEntryId,
+          objectValue: entry.objectValue
+        })
+        toast.success(t('toast-activated', { name: entry.value }))
+        await fetchEntries({ search: undefined })
+      } catch (err) {
+        console.error(LOG_PREFIX, 'handleActivate ERROR:', err)
+        toast.error(t('toast-error', { message: err instanceof Error ? err.message : String(err) }))
+      }
+    },
+    [mutations, t, fetchEntries]
   )
 
   const handleExport = useCallback(async () => {
@@ -562,6 +583,7 @@ const BenefitTypesView: React.FC<BenefitTypesViewProps> = ({
             accessToken={context.accessToken}
             onEdit={handleEdit}
             onArchive={handleArchive}
+            onActivate={handleActivate}
             onViewProviders={onViewProviders}
             onLinkProvider={mutations.linkProviderToBenefit}
             onUnlinkProvider={mutations.unlinkProvider}

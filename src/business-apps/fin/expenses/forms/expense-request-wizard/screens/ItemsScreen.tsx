@@ -134,6 +134,10 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
   }, [expenseItems, expenseRequestData])
 
   const fetchSelectItems = useCallback(async () => {
+    if (!accessToken?.trim()) {
+      return
+    }
+
     try {
       setIsLoading(true)
 
@@ -222,6 +226,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
       setIsLoading(false)
     }
   }, [
+    accessToken,
     currentPage,
     deletedItems,
     employeeId,
@@ -459,6 +464,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
   useEffect(() => {
     const fetchItemsFromPayload = async () => {
       // Early returns for invalid states
+      if (!accessToken?.trim()) return
       if (payloadItemsLoaded || !expenseRequestData) return
 
       const extractedPayloadItemIds = extractPayloadItemIds(additionalData)
@@ -485,7 +491,15 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
     }
 
     fetchItemsFromPayload()
-  }, [additionalData, employeeId, graphQLClient, expenseRequestData, setExpenseRequestData, currentCurrency])
+  }, [
+    accessToken,
+    additionalData,
+    employeeId,
+    graphQLClient,
+    expenseRequestData,
+    setExpenseRequestData,
+    currentCurrency
+  ])
 
   const handleNextItems = useCallback(() => {
     if (expenseRequestData?.ExpenseRequestByPk) {
@@ -579,7 +593,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
 
       fetchSelectItems()
     }
-  }, [searchQuery, currentPage, showSelectItems])
+  }, [searchQuery, currentPage, showSelectItems, accessToken, fetchSelectItems])
 
   const toggleItemSelection = (itemId: string) => {
     if (selectedItemIdsForSelection.includes(itemId)) {

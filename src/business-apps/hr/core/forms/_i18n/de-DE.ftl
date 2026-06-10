@@ -99,6 +99,10 @@ upload-document-document-group = Dokumentgruppe
 upload-document-select-document-group = Dokumentgruppe auswählen
 upload-document-document-type = Dokumenttyp
 upload-document-select-document-type = Dokumenttyp auswählen
+upload-document-parent-folder = Übergeordneter Ordner (optional)
+upload-document-select-parent-folder = Übergeordneten Ordner auswählen
+upload-document-no-parent-folders = Keine Ordner gefunden
+upload-document-search-parent-folder = Ordner suchen...
 upload-document-expiry-date = Ablaufdatum
 upload-document-description = Beschreibung
 upload-document-ai-detecting = Dokumentgruppe und -typ werden erkannt...
@@ -374,12 +378,20 @@ entitlements-hire-date-hint = Fruehestes erlaubtes Datum
 # Create Employee Form
 # ============================================
 
+# Tab Headers
+employee-form-tab-organization = Organisation
+employee-form-tab-personal = Persönliche Informationen
+employee-form-tab-employment = Beschäftigung
+
 # Section Headers
 employee-form-personal-information = Persönliche Informationen
 employee-form-employment-information = Beschäftigungsinformationen
 employee-form-additional-attributes = Zusätzliche Attribute
 
 # Field Labels
+employee-form-legal-entity = Rechtseinheit
+employee-form-site-location = Standort
+employee-form-cost-center = Kostenstelle
 employee-form-first-name = Vorname
 employee-form-last-name = Nachname
 employee-form-email = E-Mail
@@ -393,7 +405,17 @@ employee-form-employment-type = Beschäftigungsart
 employee-form-contract-type = Vertragsart
 
 # Validation Messages
+employee-form-required-legal-entity = Bitte wählen Sie eine Rechtseinheit
+employee-form-required-site-location = Bitte wählen Sie einen Standort
+employee-form-required-first-name = Bitte geben Sie einen Vornamen ein
+employee-form-required-last-name = Bitte geben Sie einen Nachnamen ein
+employee-form-required-email = Bitte geben Sie eine E-Mail-Adresse ein
 employee-form-email-invalid = Bitte geben Sie eine gültige E-Mail-Adresse ein
+employee-form-required-org-unit = Bitte wählen Sie eine Organisationseinheit
+employee-form-required-job-position = Bitte wählen Sie eine Stelle
+employee-form-required-hire-date = Bitte wählen Sie ein Einstellungsdatum
+employee-form-required-employment-type = Bitte wählen Sie eine Beschäftigungsart
+employee-form-required-contract-type = Bitte wählen Sie eine Vertragsart
 employee-form-hire-date-required = Einstellungsdatum ist erforderlich, wenn Befristungsende angegeben ist
 employee-form-fixed-term-before-hire = Befristungsende muss am oder nach dem Einstellungsdatum liegen
 
@@ -405,10 +427,18 @@ employee-form-no-vacant-positions = Keine freien Stellen in der ausgewählten Or
 # Tooltips
 employee-form-create-job-position-tooltip = Neue Stelle erstellen
 employee-form-select-org-unit-first = Bitte zuerst eine Organisationseinheit auswählen
+employee-form-select-legal-entity-first = Bitte zuerst eine Rechtseinheit auswählen
+
+# Step Descriptions
+employee-form-organization-description = Rechtseinheit, Standort, Org.-Einheit und Stelle
+employee-form-personal-description = Name und E-Mail
+employee-form-employment-description = Daten und Vertragsdetails
 
 # Buttons
 employee-form-create-employee = Mitarbeiter erstellen
 employee-form-update-employee = Mitarbeiter aktualisieren
+employee-form-next = Weiter
+employee-form-back = Zurück
 
 # ============================================
 # Create Job Position Modal

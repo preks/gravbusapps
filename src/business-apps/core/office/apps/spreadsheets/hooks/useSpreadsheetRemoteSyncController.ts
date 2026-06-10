@@ -4,12 +4,7 @@ import type { SpreadsheetSheet, SpreadsheetColumn } from '../types'
 import { SpreadsheetApiService } from '../services/SpreadsheetApiService'
 import type { SpreadsheetCollaborationManager } from '../services/SpreadsheetCollaborationManager'
 import type { SpreadsheetMutationFacade } from '../core'
-import {
-  replayRemoteDeltaThroughCollaborationManager,
-  applyRemoteFetchedSheetDelta,
-  sheetDeltaRequiresFullSnapshot,
-  type SpreadsheetSession
-} from '../core'
+import { sheetDeltaRequiresFullSnapshot, type SpreadsheetSession } from '../core'
 import { useSpreadsheetRemoteDeltaCatchUp, type SpreadsheetLocalWorkGuard } from './useSpreadsheetRemoteDeltaCatchUp'
 import { isColdStartSnapshotReload } from '../utils/spreadsheetUnresolvedLocalWork'
 import { reapplyUnresolvedLocalIntentsToRows } from '../utils/spreadsheetReapplyLocalIntents'
@@ -26,13 +21,8 @@ import {
 } from '../utils/spreadsheetSnapshotCoverage'
 import { scheduleCoalescedTimeout } from '../utils/collaborationRepairScheduler'
 import { sortSpreadsheetRowsBySheetSettings } from '../utils/spreadsheetSheetRowSort'
-import {
-  estimateAuthoritativeGridReapplyTargetCellCount,
-  tryComputeAuthoritativeRegionsFromReplayDeltas,
-  type AuthoritativeGridReapplyTarget
-} from '../utils/spreadsheetAuthoritativeRegion'
+import { type AuthoritativeGridReapplyTarget } from '../utils/spreadsheetAuthoritativeRegion'
 import type { SpreadsheetSessionDiffProjectionMode } from '../core/SpreadsheetCollaborationContract'
-import { countReplayDeltaChangeKinds, partitionReplayDeltaChanges } from '../utils/spreadsheetReplayDeltaPartition'
 import { resolveReconciledSheetId } from '../utils/reconcileTemporarySheetId'
 import { mapSnapshotRowsToViewerRows, overlaySnapshotIfRowsMismatch } from '../utils/spreadsheetViewerRows'
 import {
@@ -43,6 +33,7 @@ import {
 import type { SpreadsheetTraceEventInput, SpreadsheetTraceSession } from '../services/spreadsheetDiagnostics'
 
 import type { SheetDeltaCatchUpReason, SheetDeltaCatchUpOptions } from './spreadsheetRemoteSyncTypes'
+import { applyFetchedSheetDeltaRemotely } from './applyFetchedSheetDeltaRemotely'
 
 export type { SheetDeltaCatchUpReason, SheetDeltaCatchUpOptions } from './spreadsheetRemoteSyncTypes'
 
@@ -171,10 +162,32 @@ export function useSpreadsheetRemoteSyncController(
           } catch {
             /* ignore */
           }
+          try {
+            const workbookSnapshot = await SpreadsheetApiService.getUniverSnapshot(params.appId)
+            const workbookVersion = Number(workbookSnapshot.version ?? 0)
+            if (Number.isFinite(workbookVersion) && workbookVersion >= 0) {
+              params.workbookSnapshotVersionRef.current = Math.max(
+                params.workbookSnapshotVersionRef.current,
+                workbookVersion
+              )
+            }
+            params.workbookSnapshotCoversVersionsRef.current = mergeSnapshotCoversVersions(
+              params.workbookSnapshotCoversVersionsRef.current,
+              normalizeSnapshotCoversVersions(workbookSnapshot.coversVersions)
+            )
+          } catch {
+            /* ignore */
+          }
         })()
       })
     },
-    [params.appId, params.rememberKnownSheetVersion, params.updateActiveSheetVersion]
+    [
+      params.appId,
+      params.rememberKnownSheetVersion,
+      params.updateActiveSheetVersion,
+      params.workbookSnapshotVersionRef,
+      params.workbookSnapshotCoversVersionsRef
+    ]
   )
 
   const cancelPendingRemoteStructuralResync = useCallback((sheetId: string): void => {
@@ -515,76 +528,21 @@ export function useSpreadsheetRemoteSyncController(
       const sinceVersion = params.getActiveSessionVersion()
       const delta = await requireMutationFacade().fetchSheetChangesSince(params.activeSheetId, sinceVersion)
       if (!sheetDeltaRequiresFullSnapshot(sinceVersion, delta)) {
-        const resolvedVersion = Number(delta.currentVersion || sinceVersion)
-        // See `useSpreadsheetRemoteDeltaCatchUp` for the rationale: structural ops only are
-        // replayed through the collab manager onto Univer; pure cell-value ops are painted
-        // by the authoritative-region Univer re-sync triggered below.
-        const { structuralChanges } = partitionReplayDeltaChanges(delta.changes)
-        const replayRan = replayRemoteDeltaThroughCollaborationManager({
-          collaborationManager: params.collaborationManagerRef.current,
-          changes: structuralChanges,
-          currentVersion: resolvedVersion,
-          sheetId: params.activeSheetId,
-          traceSessionId: params.activeTraceSessionRef.current?.id
-        })
-        const nextRows = applyRemoteFetchedSheetDelta({
+        applyFetchedSheetDeltaRemotely({
+          delta,
+          targetSheetId: params.activeSheetId,
+          sinceVersion,
+          reason: 'conflict_recovery',
           spreadsheetSession: params.spreadsheetSession,
-          sheetId: params.activeSheetId,
-          changes: delta.changes,
-          columns: params.activeSheet.columns,
-          version: resolvedVersion,
-          baseRows: params.getKnownRowsForSheet(params.activeSheetId),
+          getKnownRowsForSheet: params.getKnownRowsForSheet,
+          syncSheetRowsIntoLocalState: params.syncSheetRowsIntoLocalState,
+          rememberKnownSheetVersion: params.rememberKnownSheetVersion,
+          workbookSnapshotCoversVersionsRef: params.workbookSnapshotCoversVersionsRef,
+          activeSheetIdRef: params.activeSheetIdRef,
+          collaborationManagerRef: params.collaborationManagerRef,
+          enqueueDiagnosticsTraceEvent: params.enqueueDiagnosticsTraceEvent,
+          activeTraceSessionRef: params.activeTraceSessionRef,
           targetSheet: params.activeSheet
-        })
-        const authoritativeGridRegion = tryComputeAuthoritativeRegionsFromReplayDeltas({
-          changes: delta.changes,
-          columns: params.activeSheet.columns,
-          rows: nextRows
-        })
-        const changeKinds = countReplayDeltaChangeKinds(delta.changes)
-        const hasAddRowsStructural = structuralChanges.some(change => {
-          const opType = typeof change.operationType === 'string' ? change.operationType : ''
-          return opType === 'add_rows' || opType === 'insert_rows_at'
-        })
-        // Phase 3: skip the redundant full-grid token bump when the structural replay already
-        // painted add_rows onto the active sheet and there are no pure cell-value changes left
-        // that would need an authoritative region paint.
-        const skipSyncGrid = replayRan && hasAddRowsStructural && changeKinds.cellChangeCount === 0
-        const syncGrid = !skipSyncGrid
-        const sessionDiffProjectionMode: SpreadsheetSessionDiffProjectionMode | undefined =
-          syncGrid && !authoritativeGridRegion ? 'skip' : undefined
-        const skipSyncGridReason = skipSyncGrid
-          ? 'structural_replay_painted'
-          : authoritativeGridRegion
-            ? 'region_sync'
-            : 'full_token'
-        const authoritativeRegionCellEstimate = estimateAuthoritativeGridReapplyTargetCellCount(authoritativeGridRegion)
-        params.enqueueDiagnosticsTraceEvent({
-          source: 'client',
-          stage: 'client_catchup_paint_strategy',
-          traceSessionId: params.activeTraceSessionRef.current?.id ?? null,
-          version: resolvedVersion,
-          payload: {
-            reason: 'conflict_recovery',
-            targetSheetId: params.activeSheetId,
-            replayRan,
-            syncGrid,
-            skipSyncGridReason,
-            changeCount: changeKinds.changeCount,
-            cellChangeCount: changeKinds.cellChangeCount,
-            structuralChangeCount: changeKinds.structuralChangeCount,
-            hasAddRowsStructural,
-            authoritativeRegionCellEstimate
-          }
-        })
-        params.syncSheetRowsIntoLocalState(params.activeSheetId, nextRows, {
-          persisted: true,
-          // Skip the full-grid token bump after add_rows replay so we do not re-paint the rows
-          // the manager just bulk-applied. Mixed deltas still sync via the merged region.
-          syncGrid,
-          sessionDiffProjectionMode,
-          version: resolvedVersion,
-          authoritativeGridRegion
         })
         params.conflictRecovery.onRecoverSuccess()
         return true

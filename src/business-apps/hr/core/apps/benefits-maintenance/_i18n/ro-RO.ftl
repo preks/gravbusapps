@@ -19,7 +19,7 @@ filter-legal-entity = Entitate Juridică
 filter-visibility = Vizibilitate
 filter-visibility-all = Toate
 filter-visibility-public = Public
-filter-visibility-private = Privat
+filter-visibility-private = Individual
 filter-status = Status
 filter-status-all = Toate
 filter-status-active = Activ
@@ -59,7 +59,7 @@ period-one-time = O singură dată
 
 # Benefit visibility
 visibility-public = Public
-visibility-private = Privat
+visibility-private = Individual
 
 # Pagination
 pagination-showing = Se afișează { $from } - { $to } din { $total } beneficii
@@ -98,6 +98,7 @@ detail-field-version = Versiune
 detail-field-entry-id = ID Intrare
 action-edit-benefit = Editare Beneficiu
 action-archive-benefit = Arhivare Beneficiu
+action-reactivate-benefit = Reactivare Beneficiu
 action-edit = Editare
 
 # Benefit Type Dialog
@@ -121,7 +122,7 @@ field-currency = Monedă
 field-currency-placeholder = ex. EUR
 field-currency-hint = Setată automat pe baza companiei
 field-visibility = Vizibilitate
-field-visibility-hint = Beneficiile publice sunt vizibile tuturor angajaților. Beneficiile private sunt vizibile doar pentru HR Backoffice.
+field-visibility-hint = Beneficiile publice sunt vizibile tuturor angajaților. Beneficiile individuale sunt vizibile doar pentru HR Backoffice.
 field-icon = Pictogramă
 field-icon-placeholder = Selectați o pictogramă...
 field-icon-search = Căutare pictograme...
@@ -136,6 +137,7 @@ field-display-order-placeholder = ex. 10
 dialog-create-provider-title = Creare Furnizor
 dialog-edit-provider-title = Editare Furnizor
 field-parent-benefit = Tip Beneficiu Părinte
+field-parent-benefit-placeholder = Selectați un tip de beneficiu...
 field-provider-name = Nume Furnizor
 field-provider-name-placeholder = ex. Allianz, Edenred
 
@@ -160,6 +162,7 @@ toast-activated = Beneficiul "{ $name }" a fost activat
 toast-provider-created = Furnizorul "{ $name }" a fost creat cu succes
 toast-provider-updated = Furnizorul "{ $name }" a fost actualizat cu succes
 toast-provider-deleted = Furnizorul "{ $name }" a fost șters
+toast-provider-activated = Furnizorul "{ $name }" a fost reactivat
 toast-error = A apărut o eroare: { $message }
 toast-copied = Copiat în clipboard
 
@@ -169,6 +172,7 @@ validation-name-required = Numele este obligatoriu
 validation-country-required = Cel puțin o țară este obligatorie
 validation-legal-entity-required = Entitatea juridică este obligatorie
 validation-value-required = Valoarea este obligatorie
+validation-parent-benefit-required = Tipul de beneficiu părinte este obligatoriu
 validation-currency-missing = Compania selectată nu are moneda configurată. Actualizați mai întâi setările companiei.
 
 # Providers tab (standalone)
@@ -181,6 +185,8 @@ providers-no-available = Nu sunt furnizori disponibili
 action-create-provider = Furnizor Nou
 action-add-provider = Adaugă Furnizor
 action-select-provider = Selectează un furnizor...
+action-archive-provider = Arhivează Furnizor
+action-reactivate-provider = Reactivează Furnizor
 toast-provider-linked = Furnizorul "{ $name }" a fost asociat cu succes
 toast-provider-unlinked = Furnizorul "{ $name }" a fost disociat
 action-back = Înapoi
@@ -190,12 +196,12 @@ action-refresh = Reîmprospătare
 # KPI Cards - Benefits tab
 kpi-section-title = Privire de Ansamblu Beneficii
 kpi-available-benefits = Beneficii Disponibile
-kpi-private-benefits = Beneficii Private
+kpi-private-benefits = Beneficii Individuale
 kpi-employees-with-benefits = Angajați cu Beneficii
 kpi-avg-per-employee = Media Beneficii / Angajat
 kpi-trend-vs-last-month = vs luna trecută
 kpi-available-footer = Beneficii active oferite de companie
-kpi-private-footer = Beneficii care pot fi atribuite doar de HR
+kpi-private-footer = Beneficii individuale care pot fi atribuite doar de HR
 kpi-employees-footer = Angajați cu cel puțin un beneficiu activ
 kpi-avg-footer = Numărul mediu de beneficii per angajat
 

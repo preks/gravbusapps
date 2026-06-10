@@ -11,6 +11,7 @@ import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
 import { useCustomerNotes } from '@/common/data/customer/hooks/useCustomerNotes'
 import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
 import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
+import { useRecordSectionDisplayConfig } from '@/common/components/common-relations/record-sections/section-display'
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
@@ -28,13 +29,19 @@ import { buildCustomerNotePayload } from '@/common/data/customer/types/customerN
 import { getReferenceEntityType } from '@/common/data/customer/utils/referenceEntityUtils'
 import { createFormPreSubmitHandler } from '@/common/data/relations/utils/formPreSubmitUtils'
 import { useFileClient } from '@/common/network/files/useFileClient'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
+import { RecordSectionsRefreshProvider } from '@/common/components/common-relations/record-sections/RecordSectionsRefreshContext'
 
 interface HomeViewProps extends BusinessAppContextProps {
   accountId: string
   accountData: any
+  refreshRecordData?: () => void
 }
 
-const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props }) => {
+const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, refreshRecordData, ...props }) => {
+  const sectionDisplay = useRecordSectionDisplayConfig()
+  const docuSignEnabled = useFeature<boolean>(Feature.CRM.DocuSign.Key) === true
   const fileClient = useFileClient({ accessToken: props.accessToken, userInfo: props.userInfo })
   const taskPreSubmit = useCallback(
     createFormPreSubmitHandler({
@@ -105,70 +112,82 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
   }
 
   // Load section data
-  const loadSectionData = useCallback(async () => {
-    if (!accountId || !props.accessToken) return
+  const loadSectionData = useCallback(
+    async (silent = false) => {
+      if (!accountId || !props.accessToken) return
 
-    setSectionsLoading(true)
-    setSectionsError(null)
+      if (!silent) {
+        setSectionsLoading(true)
+        setSectionsError(null)
+      }
 
-    try {
-      const [activitiesData, notesData, tasksData] = await Promise.all([
-        fetchCustomerActivitiesByAccountId(accountId),
-        fetchCustomerNotesByAccountId(accountId),
-        fetchCustomerTasksByAccountId(accountId)
-      ])
+      try {
+        const [activitiesData, notesData, tasksData] = await Promise.all([
+          fetchCustomerActivitiesByAccountId(accountId),
+          fetchCustomerNotesByAccountId(accountId),
+          fetchCustomerTasksByAccountId(accountId)
+        ])
 
-      const sortedNotes = (notesData || []).sort(
-        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
-      const sortedTasks = (tasksData || []).sort(
-        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
+        const sortedNotes = (notesData || []).sort(
+          (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
+        const sortedTasks = (tasksData || []).sort(
+          (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
 
-      // Separate regular tasks from approvals based on type catalog entry
-      const regularTasks = sortedTasks.filter((task: any) => {
-        const taskTypeCode = task?.taskType?.code || ''
-        const taskTypeValue = task?.taskType?.value || ''
-        return taskTypeCode?.toUpperCase() !== 'APPROVAL' && taskTypeValue?.toUpperCase() !== 'APPROVAL'
-      })
-      const approvalTasks = sortedTasks.filter((task: any) => {
-        const taskTypeCode = task?.taskType?.code || ''
-        const taskTypeValue = task?.taskType?.value || ''
-        return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
-      })
+        // Separate regular tasks from approvals based on type catalog entry
+        const regularTasks = sortedTasks.filter((task: any) => {
+          const taskTypeCode = task?.taskType?.code || ''
+          const taskTypeValue = task?.taskType?.value || ''
+          return taskTypeCode?.toUpperCase() !== 'APPROVAL' && taskTypeValue?.toUpperCase() !== 'APPROVAL'
+        })
+        const approvalTasks = sortedTasks.filter((task: any) => {
+          const taskTypeCode = task?.taskType?.code || ''
+          const taskTypeValue = task?.taskType?.value || ''
+          return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
+        })
 
-      setActivities(activitiesData || [])
-      setNotes(sortedNotes)
-      setTasks(regularTasks)
-      setApprovals(approvalTasks)
-    } catch (error) {
-      console.error('Error loading section data:', error)
-      setSectionsError(
-        error instanceof Error
-          ? error.message
-          : getTranslationFromI18nKeyAndLabel('crm.common.loadFailed', 'Failed to load data')
-      )
-    } finally {
-      setSectionsLoading(false)
-    }
-  }, [
-    accountId,
-    props.accessToken,
-    fetchCustomerActivitiesByAccountId,
-    fetchCustomerNotesByAccountId,
-    fetchCustomerTasksByAccountId
-  ])
+        setActivities(activitiesData || [])
+        setNotes(sortedNotes)
+        setTasks(regularTasks)
+        setApprovals(approvalTasks)
+      } catch (error) {
+        console.error('Error loading section data:', error)
+        if (!silent) {
+          setSectionsError(
+            error instanceof Error
+              ? error.message
+              : getTranslationFromI18nKeyAndLabel('crm.common.loadFailed', 'Failed to load data')
+          )
+        }
+      } finally {
+        if (!silent) {
+          setSectionsLoading(false)
+        }
+      }
+    },
+    [
+      accountId,
+      props.accessToken,
+      fetchCustomerActivitiesByAccountId,
+      fetchCustomerNotesByAccountId,
+      fetchCustomerTasksByAccountId
+    ]
+  )
+
+  const refreshSectionDataSilently = useCallback(() => {
+    refreshRecordData?.()
+    void loadSectionData(true)
+  }, [loadSectionData, refreshRecordData])
 
   // Load section data on mount
   useEffect(() => {
-    loadSectionData()
+    void loadSectionData(false)
   }, [loadSectionData])
 
-  // Listen for process completion events to refresh section data
+  // Refresh section lists after Kogito flows without section loading UI
   useProcessCompletion({
-    onSuccess: () => {
-      loadSectionData()
-    }
+    onSuccess: refreshSectionDataSilently
   })
 
   // Action props for sections - MUST be fully memoized to prevent infinite loops
@@ -263,155 +282,161 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
   )
 
   return (
-    <div className="gba:col-span-12 gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch gba:lg:grid-cols-12">
-      <div className="gba:flex gba:h-full gba:flex-col gba:gap-4 gba:lg:col-span-6">
-        <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:sm:grid-cols-2">
-          {/* Account Section - 1/4 width */}
-          <SectionWrapper
-            className="gba:min-h-96 gba:max-h-96"
-            sections={[
-              {
-                id: 'account-section',
-                component: AccountSection,
-                props: {
-                  ...props,
-                  account: accountData,
-                  accountId: accountId,
-                  actionButtonProps: {
-                    contextsArray: [FlowContextName.customerAccountEntity],
-                    externalContextData: { accountId },
-                    prefixDataTestId: 'account-account'
+    <RecordSectionsRefreshProvider value={refreshSectionDataSilently}>
+      <div className="gba:col-span-12 gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch gba:lg:grid-cols-12">
+        <div className="gba:flex gba:h-full gba:flex-col gba:gap-4 gba:lg:col-span-6">
+          <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:sm:grid-cols-2">
+            {/* Account Section - 1/4 width */}
+            <SectionWrapper
+              className="gba:min-h-96 gba:max-h-96"
+              sections={[
+                {
+                  id: 'account-section',
+                  component: AccountSection,
+                  props: {
+                    ...props,
+                    ...sectionDisplay.accountInformation,
+                    account: accountData,
+                    accountId: accountId,
+                    actionButtonProps: {
+                      contextsArray: [FlowContextName.customerAccountEntity],
+                      externalContextData: { accountId },
+                      prefixDataTestId: 'account-account'
+                    }
                   }
                 }
-              }
-            ]}
-            data-testid="account-account-section-wrapper"
-          />
+              ]}
+              data-testid="account-account-section-wrapper"
+            />
 
-          {/* Contact Section - 1/4 width */}
+            {/* Contact Section - 1/4 width */}
+            <SectionWrapper
+              className="gba:min-h-96 gba:max-h-96"
+              sections={[
+                {
+                  id: 'contact-section',
+                  component: ContactSection,
+                  props: {
+                    ...props,
+                    ...sectionDisplay.relatedContacts,
+                    contacts:
+                      accountData?.accountContacts
+                        ?.map((ac: any) => ({
+                          ...ac.contact,
+                          jobPosition: ac.contact?.jobTitle, // Map CRM jobTitle to jobPosition for ContactSection
+                          contactType: ac.contactType
+                        }))
+                        .filter(Boolean) || [],
+                    contactId: accountData?.accountContacts?.[0]?.contact?.id || undefined,
+                    recordUrl: accountData?.accountContacts?.[0]?.contact?.id
+                      ? buildPlatformUrl('/platform/crm/contact-record', {
+                          contactId: accountData.accountContacts[0].contact.id,
+                          source: 'account-relations',
+                          fromEntity: 'accounts'
+                        })
+                      : undefined,
+                    actionButtonProps: {
+                      contextsArray: [FlowContextName.customerContactEntity],
+                      externalContextData: { accountId },
+                      prefixDataTestId: 'account-contact'
+                    }
+                  }
+                }
+              ]}
+              data-testid="account-contact-section-wrapper"
+            />
+          </div>
+
+          {/* Tasks & Approvals - stretches to align with the right column */}
           <SectionWrapper
-            className="gba:min-h-96 gba:max-h-96"
+            className="gba:min-h-96 gba:flex-1"
             sections={[
               {
-                id: 'contact-section',
-                component: ContactSection,
+                id: 'tasks-section',
+                component: TaskSection,
                 props: {
                   ...props,
-                  contacts:
-                    accountData?.accountContacts
-                      ?.map((ac: any) => ({
-                        ...ac.contact,
-                        jobPosition: ac.contact?.jobTitle, // Map CRM jobTitle to jobPosition for ContactSection
-                        contactType: ac.contactType
-                      }))
-                      .filter(Boolean) || [],
-                  contactId: accountData?.accountContacts?.[0]?.contact?.id || undefined,
-                  recordUrl: accountData?.accountContacts?.[0]?.contact?.id
-                    ? buildPlatformUrl('/platform/crm/contact-record', {
-                        contactId: accountData.accountContacts[0].contact.id,
-                        source: 'account-relations',
-                        fromEntity: 'accounts'
-                      })
-                    : undefined,
-                  actionButtonProps: {
-                    contextsArray: [FlowContextName.customerContactEntity],
-                    externalContextData: { accountId },
-                    prefixDataTestId: 'account-contact'
-                  }
+                  accountId,
+                  buildReferenceUrl,
+                  tasks: tasks,
+                  taskActionProps: taskActionProps,
+                  taskEntityActionProps: taskEntityActionProps,
+                  typeCatalog: TASK_TYPE,
+                  priorityCatalog: TASK_PRIORITY,
+                  buildTaskPayload: buildCustomerTaskPayload,
+                  defaultTaskStatusRef: 'SalesTaskStatus:v1:IN_PROGRESS',
+                  preSubmit: taskPreSubmit,
+                  docuSignEnabled
+                }
+              },
+              {
+                id: 'approval-tasks-section',
+                component: TaskSection,
+                props: {
+                  ...props,
+                  accountId,
+                  sectionTitle: 'Approval Tasks',
+                  buildReferenceUrl,
+                  tasks: approvals,
+                  taskEntityActionProps: approvalEntityActionProps,
+                  taskActionProps: approvalActionProps,
+                  typeCatalog: TASK_TYPE,
+                  priorityCatalog: TASK_PRIORITY,
+                  buildTaskPayload: buildCustomerTaskPayload,
+                  isApprovalTaskSection: true,
+                  approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
+                  defaultTaskStatusRef: 'SalesTaskStatus:v1:IN_PROGRESS',
+                  preSubmit: taskPreSubmit,
+                  docuSignEnabled
                 }
               }
             ]}
-            data-testid="account-contact-section-wrapper"
+            data-testid="account-tasks-approvals-section-wrapper"
           />
         </div>
 
-        {/* Tasks & Approvals - stretches to align with the right column */}
+        {/* Activities & Notes Section - 1/2 width, stretches with left column */}
         <SectionWrapper
-          className="gba:min-h-96 gba:flex-1"
+          className="gba:min-h-196 gba:h-full gba:lg:col-span-6"
           sections={[
             {
-              id: 'tasks-section',
-              component: TaskSection,
+              id: 'activities-section',
+              component: ActivitySection as React.ComponentType<any>,
               props: {
                 ...props,
                 accountId,
-                buildReferenceUrl,
-                tasks: tasks,
-                taskActionProps: taskActionProps,
-                taskEntityActionProps: taskEntityActionProps,
-                typeCatalog: TASK_TYPE,
-                priorityCatalog: TASK_PRIORITY,
-                buildTaskPayload: buildCustomerTaskPayload,
-                defaultTaskStatusRef: 'SalesTaskStatus:v1:IN_PROGRESS',
-                preSubmit: taskPreSubmit
+                activities: activities,
+                activitiesLoading: sectionsLoading,
+                activitiesError: sectionsError,
+                onReloadActivities: refreshSectionDataSilently,
+                alignment: 'right',
+                activitySectionActionProps: activityActionProps,
+                activityEntityActionProps: activityEntityActionProps,
+                activityTypeCatalog: ACTIVITY_TYPE,
+                buildActivityPayload: buildCustomerActivityPayload,
+                preSubmit: activityPreSubmit,
+                getRelatedRecordUrl: buildCrmRelatedEntityRecordUrl
               }
             },
             {
-              id: 'approval-tasks-section',
-              component: TaskSection,
+              id: 'notes-section',
+              component: NoteSection as React.ComponentType<any>,
               props: {
                 ...props,
                 accountId,
-                sectionTitle: 'Approval Tasks',
-                buildReferenceUrl,
-                tasks: approvals,
-                taskEntityActionProps: approvalEntityActionProps,
-                taskActionProps: approvalActionProps,
-                typeCatalog: TASK_TYPE,
-                priorityCatalog: TASK_PRIORITY,
-                buildTaskPayload: buildCustomerTaskPayload,
-                isApprovalTaskSection: true,
-                approvalTaskTypeRef: APPROVAL_TASK_TYPE_REF,
-                defaultTaskStatusRef: 'SalesTaskStatus:v1:IN_PROGRESS',
-                preSubmit: taskPreSubmit
+                notes: notes,
+                noteActionProps: noteActionProps,
+                noteEntityActionProps: noteEntityActionProps,
+                buildNotePayload: buildCustomerNotePayload,
+                preSubmit: notePreSubmit,
+                'data-testid': 'account-notes-section'
               }
             }
           ]}
-          data-testid="account-tasks-approvals-section-wrapper"
+          data-testid="account-activities-notes-section-wrapper"
         />
       </div>
-
-      {/* Activities & Notes Section - 1/2 width, stretches with left column */}
-      <SectionWrapper
-        className="gba:min-h-196 gba:h-full gba:lg:col-span-6"
-        sections={[
-          {
-            id: 'activities-section',
-            component: ActivitySection,
-            props: {
-              ...props,
-              accountId,
-              activities: activities,
-              activitiesLoading: sectionsLoading,
-              activitiesError: sectionsError,
-              onReloadActivities: loadSectionData,
-              alignment: 'right',
-              activitySectionActionProps: activityActionProps,
-              activityEntityActionProps: activityEntityActionProps,
-              activityTypeCatalog: ACTIVITY_TYPE,
-              buildActivityPayload: buildCustomerActivityPayload,
-              preSubmit: activityPreSubmit,
-              getRelatedRecordUrl: buildCrmRelatedEntityRecordUrl
-            }
-          },
-          {
-            id: 'notes-section',
-            component: NoteSection,
-            props: {
-              ...props,
-              accountId,
-              notes: notes,
-              noteActionProps: noteActionProps,
-              noteEntityActionProps: noteEntityActionProps,
-              buildNotePayload: buildCustomerNotePayload,
-              preSubmit: notePreSubmit,
-              'data-testid': 'account-notes-section'
-            }
-          }
-        ]}
-        data-testid="account-activities-notes-section-wrapper"
-      />
-    </div>
+    </RecordSectionsRefreshProvider>
   )
 }
 

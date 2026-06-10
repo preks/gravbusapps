@@ -6,10 +6,13 @@ const baseSheet = createTestSpreadsheetSheet()
 
 describe('spreadsheetUniverSheetInsert', () => {
   it('prepareUniverSheetInsertLocally pre-seeds placeholder, selection ref, and primes caches', () => {
+    const baseSheetWithWidth = createTestSpreadsheetSheet({
+      columns: [createTestSpreadsheetColumn({ id: 'col-1', name: 'Name', label: 'Name', width: 222 })]
+    })
     const pendingCreatedSheetSelectionRef = {
       current: null as { temporarySheetId: string; persistedSheetId: string | null } | null
     }
-    const appWithOneSheet = { sheets: [baseSheet] } as SpreadsheetApp
+    const appWithOneSheet = { sheets: [baseSheetWithWidth] } as SpreadsheetApp
     const applyLocalAppUpdate = jest.fn((updater: (app: SpreadsheetApp) => SpreadsheetApp) => updater(appWithOneSheet))
     const onWillPrime = jest.fn()
     const getRows = jest.fn(() => [{ _id: 'r1' }])
@@ -18,11 +21,11 @@ describe('spreadsheetUniverSheetInsert', () => {
     const result = prepareUniverSheetInsertLocally(
       {
         payload: { kind: 'blank', sheetId: 'new-1', sheetName: 'Tab 2' },
-        appSheets: [baseSheet],
+        appSheets: [baseSheetWithWidth],
         activeTemplateSheet: {
-          columns: baseSheet.columns,
-          viewType: baseSheet.viewType,
-          settings: baseSheet.settings
+          columns: baseSheetWithWidth.columns,
+          viewType: baseSheetWithWidth.viewType,
+          settings: baseSheetWithWidth.settings
         },
         previousActiveSheetId: 'sheet-1',
         getActiveSessionRows: getActive,
@@ -39,7 +42,14 @@ describe('spreadsheetUniverSheetInsert', () => {
       }
     )
 
-    expect(result.templateColumns).toEqual(baseSheet.columns)
+    expect(result.templateColumns).toEqual([
+      expect.objectContaining({
+        id: 'col-1',
+        name: 'Name',
+        label: 'Name',
+        width: 73
+      })
+    ])
     expect(result.sourceSheetId).toBeUndefined()
     expect(pendingCreatedSheetSelectionRef.current).toEqual({
       temporarySheetId: 'new-1',
@@ -55,7 +65,7 @@ describe('spreadsheetUniverSheetInsert', () => {
   it('prepareUniverSheetInsertLocally resolves duplicate source columns and skips placeholder when disabled', () => {
     const duplicateSource = createTestSpreadsheetSheet({
       id: 'src',
-      columns: [createTestSpreadsheetColumn({ id: 'c2', name: 'Extra', label: 'Extra' })]
+      columns: [createTestSpreadsheetColumn({ id: 'c2', name: 'Extra', label: 'Extra', width: 310 })]
     })
     const pendingCreatedSheetSelectionRef = {
       current: null as { temporarySheetId: string; persistedSheetId: string | null } | null
@@ -92,6 +102,7 @@ describe('spreadsheetUniverSheetInsert', () => {
 
     expect(result.sourceSheetId).toBe('src')
     expect(result.templateColumns).toEqual(duplicateSource.columns)
+    expect(result.templateColumns[0]?.width).toBe(310)
     expect(applyLocalAppUpdate).not.toHaveBeenCalled()
   })
 })

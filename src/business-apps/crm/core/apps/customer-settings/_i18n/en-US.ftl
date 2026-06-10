@@ -1,23 +1,32 @@
-# Customer settings — Ideal Customer Profiles (ICP)
+# Customer settings — Campaign data
+
+campaign-data-title = Campaign Data
+campaign-data-description = Manage campaign setup, targeting, distribution, and engagement catalogs
+campaign-group-setup = Setup
+campaign-group-targeting = Targeting
+campaign-group-distribution = Distribution
+campaign-group-engagement = Engagement
+
+# Customer settings — ICP Profiles
 
 # Settings hub card
-icp-settings-card-title = Ideal Customer Profiles
-icp-settings-card-description = Configure ICP criteria and weights for AI ICP scoring
-icp-settings-card-entry = Manage Profiles
-lead-scoring-settings-card-title = Lead Scoring
-lead-scoring-settings-card-description = Score individual leads or lead lists against your ICP profiles
-lead-scoring-settings-card-entry = Open Lead Scoring
+icp-settings-card-title = ICP Profiles
+icp-settings-card-description = Define ideal customer profiles with criteria and weights for your sales motion.
+icp-settings-card-entry = Manage profiles
+data-export-settings-card-title = Data Export
+data-export-settings-card-description = Export CRM records with filters and selectable columns
+data-export-settings-card-entry = Export Data
 
 # Page
-icp-page-title = Ideal Customer Profiles
-icp-page-description = Define ICP criteria and weights for AI ICP scoring.
+icp-page-title = ICP Profiles
+icp-page-description = Define criteria and weights for each ideal customer profile.
 
 # Sidebar
 icp-profiles-heading = Profiles
 icp-new-profile = New profile
 icp-search-placeholder = Search profiles...
 icp-no-profiles-title = No profiles yet
-icp-no-profiles-hint = Create a profile to start configuring ICP scoring.
+icp-no-profiles-hint = Create a profile to define criteria and weights.
 icp-delete-profile-aria = Delete profile
 
 # Editor
@@ -30,7 +39,7 @@ icp-save-profile = Save profile
 
 # Dialogs
 icp-dialog-new-profile-title = New profile
-icp-dialog-new-profile-description = Creates a new profile for ICP criteria and scoring.
+icp-dialog-new-profile-description = Creates a new profile for ICP criteria and weights.
 icp-cancel = Cancel
 icp-create-profile = Create
 icp-delete-confirm-message = This permanently removes "{ $name }".

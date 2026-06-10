@@ -1,5 +1,9 @@
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { EVERY_FABRIC_PROMPT_PARAM } from '@/common/utils/openEveryFabric'
+import { getCurrentUrlWithUpdatedSearchParams } from '@/common/utils/navigationUtils'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 import { EveryFabricErrorBoundary } from './components/EveryFabricErrorBoundary'
 import { Sidebar } from './components/sidebar/Sidebar'
 import { useSidebarCollapsedState } from './components/sidebar/useSidebarCollapsedState'
@@ -8,6 +12,7 @@ import { useActiveSessions } from './hooks/useActiveSessions'
 import { useAgentSettings } from './hooks/useAgentSettings'
 import { useSessionUrlState } from './hooks/useSessionUrlState'
 import { EveryFabricMainView } from './EveryFabricMainView'
+import { isEveryFabricDevToolsEnabled } from './utils/devToolsGate'
 
 /**
  * Every Fabric — Autonomous Agent Workspace
@@ -32,13 +37,17 @@ const EveryFabricInner: React.FC = () => {
     deleteSession,
     newSession,
     startSession,
+    sessionsLoading,
     sessionLoadError,
     retrySessionLoad
   } = useFabric()
   const { urlView, updateUrl } = useSessionUrlState()
   const { isCollapsed, toggleCollapsed, setCollapsed } = useSidebarCollapsedState()
   const { activeSessions, removeActive } = useActiveSessions(accessToken)
-  const { devModeEnabled } = useAgentSettings()
+  const { devModeEnabled: localDevModeEnabled } = useAgentSettings()
+  const devToolsFeature = useFeature<boolean>(Feature.EveryFabric.DevTools.Key)
+  const devToolsEnabled = isEveryFabricDevToolsEnabled(devToolsFeature)
+  const devModeEnabled = devToolsEnabled && localDevModeEnabled
 
   // Stop a session: drop it from the active sidebar immediately (optimistic)
   // and then call deleteSession, which issues DELETE /sessions/{id} and
@@ -53,6 +62,32 @@ const EveryFabricInner: React.FC = () => {
     [removeActive, deleteSession]
   )
   const [displayView, setDisplayView] = useState<string | null>(urlView)
+
+  // External hand-off: another screen (e.g. the Digital Workplace composer)
+  // navigates here with a `fabricPrompt` query param to kick off a fresh
+  // EveryFabric session. We consume it once, then strip it from the URL so a
+  // refresh doesn't restart the task. We wait for the initial session history
+  // fetch to finish first — otherwise that fetch resolves after our optimistic
+  // addSession and overwrites it, leaving the new session "not found".
+  const initialTaskConsumedRef = useRef(false)
+  useEffect(() => {
+    if (initialTaskConsumedRef.current || sessionsLoading) return
+    let task: string | null = null
+    try {
+      task = new URLSearchParams(globalThis.location.search).get(EVERY_FABRIC_PROMPT_PARAM)
+    } catch {
+      task = null
+    }
+    if (!task) return
+    initialTaskConsumedRef.current = true
+    try {
+      const stripped = getCurrentUrlWithUpdatedSearchParams({ [EVERY_FABRIC_PROMPT_PARAM]: null })
+      globalThis.history.replaceState(globalThis.history.state, '', stripped)
+    } catch {
+      // ignore — failing to strip only means a refresh could restart the task
+    }
+    void startSession(task, { mode: 'deep', enable_memory: true, enable_reflection: undefined })
+  }, [sessionsLoading, startSession])
 
   useEffect(() => {
     if (urlView !== displayView) {
@@ -79,6 +114,8 @@ const EveryFabricInner: React.FC = () => {
   const handleOpenTraceExplorer = (positionMs?: number) =>
     updateUrl({ view: 'trace-explorer', t: positionMs != null ? String(positionMs) : null })
   const handleCloseTraceExplorer = () => updateUrl({ view: null, t: null, focus: null })
+  const handleOpenTraceLens = () => updateUrl({ view: 'trace-lens' })
+  const handleCloseTraceLens = () => updateUrl({ view: null })
   const handleOpenAgentMeshFromTrace = (positionMs?: number) =>
     updateUrl({ view: 'agent-mesh', t: positionMs != null ? String(positionMs) : null })
   const handleOpenEnterpriseWorkforce = () => updateUrl({ view: 'enterprise-workforce' })
@@ -100,7 +137,8 @@ const EveryFabricInner: React.FC = () => {
   const showSettings = urlView === 'settings'
   const showScheduled = urlView === 'scheduled'
   const showAgentMesh = urlView === 'agent-mesh'
-  const showTraceExplorer = urlView === 'trace-explorer'
+  const showTraceExplorer = devModeEnabled && urlView === 'trace-explorer'
+  const showTraceLens = devModeEnabled && urlView === 'trace-lens'
   const showEnterpriseWorkforce = urlView === 'enterprise-workforce'
   // For sidebar highlighting, split the single agent-mesh URL into
   // "company mesh" vs "session mesh" by inspecting the meshScope param.
@@ -109,8 +147,7 @@ const EveryFabricInner: React.FC = () => {
   const isCompanyMeshActive = showAgentMesh && meshScopeParam === 'company'
   const isSessionMeshActive = showAgentMesh && meshScopeParam !== 'company'
   const isAnyOverlayShown =
-    showSettings || showScheduled || showAgentMesh || showTraceExplorer || showEnterpriseWorkforce
-
+    showSettings || showScheduled || showAgentMesh || showTraceExplorer || showTraceLens || showEnterpriseWorkforce
   return (
     <div className="gba:flex gba:h-full gba:min-h-full gba:w-full gba:min-w-0">
       <Sidebar
@@ -137,6 +174,8 @@ const EveryFabricInner: React.FC = () => {
         isSessionMeshActive={isSessionMeshActive}
         onOpenTraceExplorer={handleOpenTraceExplorer}
         isTraceExplorerActive={showTraceExplorer}
+        onOpenTraceLens={handleOpenTraceLens}
+        isTraceLensActive={showTraceLens}
         devModeEnabled={devModeEnabled}
       />
       <main className="gba:relative gba:flex-1 gba:min-w-0 gba:h-full">
@@ -144,12 +183,14 @@ const EveryFabricInner: React.FC = () => {
           accessToken={accessToken}
           session={session}
           activeSessions={activeSessions}
+          devToolsEnabled={devToolsEnabled}
           devModeEnabled={devModeEnabled}
           displayView={displayView}
           showSettings={showSettings}
           showScheduled={showScheduled}
           showAgentMesh={showAgentMesh}
           showTraceExplorer={showTraceExplorer}
+          showTraceLens={showTraceLens}
           showEnterpriseWorkforce={showEnterpriseWorkforce}
           isAnyOverlayShown={isAnyOverlayShown}
           isLoadingSession={isLoadingSession}
@@ -161,6 +202,7 @@ const EveryFabricInner: React.FC = () => {
           onCloseScheduled={handleCloseScheduled}
           onCloseAgentMesh={handleCloseAgentMesh}
           onCloseTraceExplorer={handleCloseTraceExplorer}
+          onCloseTraceLens={handleCloseTraceLens}
           onCloseEnterpriseWorkforce={handleCloseEnterpriseWorkforce}
           onSelectSession={handleSelectSession}
           onOpenTraceExplorer={handleOpenTraceExplorer}

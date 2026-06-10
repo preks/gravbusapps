@@ -71,6 +71,7 @@ import { CreateTemplateDialog } from './components/CreateTemplateDialog'
 import { SendForApprovalDialog } from './components/SendForApprovalDialog'
 import { ShareDocumentDialog } from './components/ShareDocumentDialog'
 import { ManageSharesDialog } from './components/ManageSharesDialog'
+import { getShareCapabilities } from '@/business-apps/core/office/sharing'
 import type { PagedDocumentEditorRef } from './components/PagedDocumentEditor'
 import { DocumentAppsHubEditorView } from './components/DocumentAppsHubEditorView'
 
@@ -79,6 +80,7 @@ import { useDocumentApps, type ListQueryParams } from './hooks/useDocumentApps'
 import { useDocumentTemplates } from './hooks/useDocumentTemplates'
 
 import { useDocumentAppsHubUserLookup } from './hooks/useDocumentAppsHubUserLookup'
+import { useDocumentShareEnrichment, type DocumentSharedUser } from './hooks/useDocumentShareEnrichment'
 import { useDocumentAppsHubFavorites } from './hooks/useDocumentAppsHubFavorites'
 import { useDocumentAppsHubUrlState } from './hooks/useDocumentAppsHubUrlState'
 import { HubPaginationFooter } from '@/business-apps/platform/apps/shared/components/HubPaginationFooter'
@@ -107,6 +109,7 @@ export interface DocumentAppsHubProps extends BusinessAppContextProps {
 
 type HubView = Parameters<typeof useDocumentAppsHubUrlState>[0]['currentView']
 type SidebarSection = DocumentSection
+type SharePermissionForDelete = 'owner' | 'view' | 'comment' | 'edit' | 'admin'
 
 /** Get initials from a name */
 function getInitials(name: string): string {
@@ -116,6 +119,23 @@ function getInitials(name: string): string {
     .join('')
     .toUpperCase()
     .slice(0, 2)
+}
+
+function getDocumentCapabilities(
+  document: Pick<DocumentSummary, 'permission' | 'isOwner' | 'createdBy'>,
+  currentUserId?: string
+) {
+  return getShareCapabilities({
+    permission: (document.permission || 'view') as SharePermissionForDelete,
+    isOwner: Boolean(
+      document.isOwner || document.permission === 'owner' || (currentUserId && currentUserId === document.createdBy)
+    )
+  })
+}
+
+function formatAvatarUrl(pictureThumbnail?: string): string | undefined {
+  if (!pictureThumbnail) return undefined
+  return pictureThumbnail.startsWith('data:') ? pictureThumbnail : `data:image/png;base64,${pictureThumbnail}`
 }
 
 /**
@@ -203,6 +223,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   const [documentForApproval, setDocumentForApproval] = useState<string | null>(null)
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
   const [documentForShare, setDocumentForShare] = useState<string | null>(null)
+  const [sharedUsers, setSharedUsers] = useState<DocumentSharedUser[]>([])
   const [manageSharesDialogOpen, setManageSharesDialogOpen] = useState(false)
   const [documentForManageShares, setDocumentForManageShares] = useState<string | null>(null)
   const [createTemplateDialogOpen, setCreateTemplateDialogOpen] = useState(false)
@@ -219,6 +240,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   /** Context chosen in create modal; used only to pick entities in the editor (not sent to API). */
   const [sessionEntityContext, setSessionEntityContext] = useState<string | null>(null)
   const templateEditorRef = useRef<PagedDocumentEditorRef>(null)
+  const pendingRemovedShareIdsRef = useRef<Set<string>>(new Set())
 
   // Get current user ID
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
@@ -227,6 +249,10 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     userInfo?.userName ||
     [userInfo?.employeeDetails?.firstName, userInfo?.employeeDetails?.lastName].filter(Boolean).join(' ') ||
     ''
+  const currentUserAvatar = useMemo(
+    () => formatAvatarUrl(userInfo?.employeeDetails?.pictureThumbnail),
+    [userInfo?.employeeDetails?.pictureThumbnail]
+  )
 
   // Clear space return URL if not opened from a space
   useEffect(() => {
@@ -273,6 +299,9 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     deleteDocument,
     duplicateDocument,
     shareDocument,
+    shareDocumentBatch,
+    getSharedUsers,
+    revokeAccess,
     clearCurrentDocument,
     refreshDocuments
   } = useDocumentApps(accessToken, currentUserId)
@@ -462,6 +491,22 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     documents: hubLookupDocuments,
     loadSharedUsers: hubLookupDocuments.length > 0
   })
+  const { fetchAndEnrichShares } = useDocumentShareEnrichment({
+    accessToken,
+    sharedUsers,
+    getSharedUsers
+  })
+
+  useEffect(() => {
+    const currentDocumentCapabilities = getShareCapabilities({
+      permission: (currentDocumentPermission || 'view') as 'owner' | 'view' | 'comment' | 'edit' | 'admin',
+      isOwner: currentDocumentPermission === 'owner'
+    })
+    if (currentView !== 'editor' || !currentDocument?.id || !currentDocumentCapabilities.canManageSharing) {
+      return
+    }
+    void refreshSharedUsersForDocument(currentDocument.id)
+  }, [currentView, currentDocument?.id, currentDocumentPermission, refreshSharedUsersForDocument])
 
   /**
    * Handle a parsed import (Word/ODF) by auto-creating a draft in the
@@ -625,17 +670,45 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   )
 
   const handleBulkDeleteDocuments = useCallback(() => {
-    const selectedIds = Array.from(selectedDocuments)
-    if (selectedIds.length === 0) {
+    const selectedDocumentsToDelete = Array.from(selectedDocuments)
+      .map(id => {
+        const document = documents.find(doc => doc.id === id)
+
+        if (!document || !getDocumentCapabilities(document, currentUserId).canDelete) {
+          return null
+        }
+
+        return document
+      })
+      .filter((document): document is DocumentSummary => document !== null)
+
+    if (selectedDocumentsToDelete.length === 0) {
       return
     }
 
-    const selectedNames = selectedIds.map(
-      id => documents.find(doc => doc.id === id)?.title || t('title-untitled-document')
-    )
+    const selectedNames = selectedDocumentsToDelete.map(document => document.title || t('title-untitled-document'))
 
-    handleDeleteDocument(selectedIds, selectedNames)
-  }, [documents, handleDeleteDocument, selectedDocuments, t])
+    handleDeleteDocument(
+      selectedDocumentsToDelete.map(document => document.id),
+      selectedNames
+    )
+  }, [currentUserId, documents, handleDeleteDocument, selectedDocuments, t])
+
+  const canBulkDeleteDocuments = useMemo(() => {
+    if (selectedDocuments.size === 0) {
+      return false
+    }
+
+    return Array.from(selectedDocuments).every(id => {
+      const document = documents.find(doc => doc.id === id)
+
+      if (!document) {
+        return false
+      }
+
+      return getDocumentCapabilities(document, currentUserId).canDelete
+    })
+  }, [currentUserId, documents, selectedDocuments])
 
   const confirmMoveToTrash = useCallback(async () => {
     if (pendingTrashDocuments.length === 0) return
@@ -701,6 +774,50 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     setApprovalDialogOpen(true)
   }, [])
 
+  const resolveDocumentById = useCallback(
+    (id: string | null) => {
+      if (!id) {
+        return null
+      }
+
+      const fromList = documents.find(doc => doc.id === id)
+      if (fromList) {
+        return fromList
+      }
+
+      return currentDocument?.id === id ? currentDocument : null
+    },
+    [currentDocument, documents]
+  )
+
+  const selectedDocumentForShare = useMemo(
+    () => resolveDocumentById(documentForShare),
+    [documentForShare, resolveDocumentById]
+  )
+  const selectedDocumentForManageShares = useMemo(
+    () => resolveDocumentById(documentForManageShares),
+    [documentForManageShares, resolveDocumentById]
+  )
+  const filterPendingRemovedShares = useCallback(
+    (nextSharedUsers: DocumentSharedUser[]) =>
+      nextSharedUsers.filter(user => !pendingRemovedShareIdsRef.current.has(user.id)),
+    []
+  )
+  const isSelectedShareDocumentOwner = useMemo(() => {
+    if (!selectedDocumentForShare) {
+      return false
+    }
+
+    if ('isOwner' in selectedDocumentForShare && selectedDocumentForShare.isOwner !== undefined) {
+      return selectedDocumentForShare.isOwner
+    }
+
+    return (
+      selectedDocumentForShare.permission === 'owner' ||
+      (Boolean(currentUserId) && selectedDocumentForShare.createdBy === currentUserId)
+    )
+  }, [currentUserId, selectedDocumentForShare])
+
   const handleNavigateToDocumentReview = useCallback(
     (versionNumber: number) => {
       if (!currentDocument?.id) {
@@ -716,10 +833,142 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   /**
    * Handle share document click
    */
-  const handleShareClick = useCallback((id: string) => {
-    setDocumentForShare(id)
-    setShareDialogOpen(true)
+  const handleShareDialogOpenChange = useCallback((open: boolean) => {
+    setShareDialogOpen(open)
+    if (!open) {
+      pendingRemovedShareIdsRef.current.clear()
+      setDocumentForShare(null)
+      setSharedUsers([])
+    }
   }, [])
+
+  const handleShareClick = useCallback(
+    async (id: string) => {
+      const targetDocument = resolveDocumentById(id)
+      if (!targetDocument) {
+        return
+      }
+
+      pendingRemovedShareIdsRef.current.clear()
+      setDocumentForShare(targetDocument.id)
+      setSharedUsers([])
+      setShareDialogOpen(true)
+
+      try {
+        setSharedUsers(filterPendingRemovedShares(await fetchAndEnrichShares(targetDocument.id)))
+      } catch (error) {
+        console.warn('[DocumentAppsHub] Failed to preload shares:', error)
+      }
+    },
+    [fetchAndEnrichShares, filterPendingRemovedShares, resolveDocumentById]
+  )
+
+  const handleShareSubmit = useCallback(
+    async (shares: Array<{ userId: string; permission: 'view' | 'edit' | 'comment' | 'admin' }>) => {
+      if (!documentForShare) {
+        return false
+      }
+
+      const success = await shareDocumentBatch(documentForShare, shares)
+      if (success) {
+        void fetchAndEnrichShares(documentForShare)
+          .then(setSharedUsers)
+          .catch(error => {
+            console.warn('[DocumentAppsHub] Failed to refresh shared users after share:', error)
+          })
+        try {
+          await refreshCurrentList()
+        } catch (error) {
+          console.warn('[DocumentAppsHub] Document shared but list refresh failed:', error)
+        }
+        try {
+          await refreshSharedUsersForDocument(documentForShare)
+        } catch (error) {
+          console.warn('[DocumentAppsHub] Document shared but preview refresh failed:', error)
+        }
+      }
+
+      return success
+    },
+    [documentForShare, fetchAndEnrichShares, refreshCurrentList, refreshSharedUsersForDocument, shareDocumentBatch]
+  )
+
+  const handleUnshare = useCallback(
+    async (shareId: string) => {
+      if (!documentForShare) {
+        return false
+      }
+
+      const success = await revokeAccess(shareId)
+      if (success) {
+        pendingRemovedShareIdsRef.current.add(shareId)
+        setSharedUsers(prev => prev.filter(user => user.id !== shareId))
+        try {
+          setSharedUsers(filterPendingRemovedShares(await fetchAndEnrichShares(documentForShare)))
+        } catch (error) {
+          console.warn('[DocumentAppsHub] Share revoked but share dialog refresh failed:', error)
+        }
+        try {
+          await refreshCurrentList()
+        } catch (error) {
+          console.warn('[DocumentAppsHub] Share revoked but list refresh failed:', error)
+        }
+        try {
+          await refreshSharedUsersForDocument(documentForShare)
+        } catch (error) {
+          console.warn('[DocumentAppsHub] Share revoked but preview refresh failed:', error)
+        }
+      }
+
+      return success
+    },
+    [
+      documentForShare,
+      fetchAndEnrichShares,
+      filterPendingRemovedShares,
+      refreshCurrentList,
+      refreshSharedUsersForDocument,
+      revokeAccess
+    ]
+  )
+
+  const handleRefreshShares = useCallback(async () => {
+    if (!documentForShare) {
+      return
+    }
+
+    try {
+      setSharedUsers(filterPendingRemovedShares(await fetchAndEnrichShares(documentForShare)))
+    } catch (error) {
+      console.warn('[DocumentAppsHub] Manual share refresh failed:', error)
+    }
+    try {
+      await refreshCurrentList()
+    } catch (error) {
+      console.warn('[DocumentAppsHub] Manual list refresh failed:', error)
+    }
+    try {
+      await refreshSharedUsersForDocument(documentForShare)
+    } catch (error) {
+      console.warn('[DocumentAppsHub] Manual preview refresh failed:', error)
+    }
+  }, [
+    documentForShare,
+    fetchAndEnrichShares,
+    filterPendingRemovedShares,
+    refreshCurrentList,
+    refreshSharedUsersForDocument
+  ])
+
+  const handleOpenManageSharesFromShareDialog = useCallback(() => {
+    if (!documentForShare) {
+      return
+    }
+
+    setShareDialogOpen(false)
+    setDocumentForManageShares(documentForShare)
+    setManageSharesDialogOpen(true)
+  }, [documentForShare])
 
   /**
    * Handle manage shares click
@@ -943,20 +1192,20 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
       {documentForShare && (
         <ShareDocumentDialog
           open={shareDialogOpen}
-          onOpenChange={open => {
-            setShareDialogOpen(open)
-            if (!open) setDocumentForShare(null)
-          }}
+          onOpenChange={handleShareDialogOpenChange}
           documentId={documentForShare}
-          documentTitle={documents.find(d => d.id === documentForShare)?.title || t('title-untitled-document')}
+          documentTitle={selectedDocumentForShare?.title || t('title-untitled-document')}
+          accessToken={accessToken}
           currentUserId={currentUserId}
           currentUserName={currentUserName}
-          accessToken={accessToken}
-          shareDocument={shareDocument}
-          onShareComplete={async () => {
-            await refreshCurrentList()
-            await refreshSharedUsersForDocument(documentForShare)
-          }}
+          currentUserAvatar={currentUserAvatar}
+          isOwner={isSelectedShareDocumentOwner}
+          currentUserPermission={selectedDocumentForShare?.permission}
+          sharedUsers={sharedUsers}
+          onShare={handleShareSubmit}
+          onUnshare={handleUnshare}
+          onRefreshShares={handleRefreshShares}
+          onManageAccess={handleOpenManageSharesFromShareDialog}
           data-testid={`${testId}-share-dialog`}
         />
       )}
@@ -970,16 +1219,22 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
             if (!open) setDocumentForManageShares(null)
           }}
           documentId={documentForManageShares}
-          documentTitle={documents.find(d => d.id === documentForManageShares)?.title || t('title-untitled-document')}
+          documentTitle={selectedDocumentForManageShares?.title || t('title-untitled-document')}
           accessToken={accessToken}
+          currentUserId={currentUserId}
+          currentUserName={currentUserName}
+          currentUserAvatar={currentUserAvatar}
           onSharesChanged={async () => {
             await refreshCurrentList()
-            await refreshSharedUsersForDocument(documentForManageShares)
+            if (documentForManageShares) {
+              await refreshSharedUsersForDocument(documentForManageShares)
+            }
           }}
           onAddMoreUsers={() => {
             setManageSharesDialogOpen(false)
-            setDocumentForShare(documentForManageShares)
-            setShareDialogOpen(true)
+            if (documentForManageShares) {
+              void handleShareClick(documentForManageShares)
+            }
           }}
           data-testid={`${testId}-manage-shares-dialog`}
         />
@@ -1024,6 +1279,9 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
               await loadDocument(currentDocument.id)
             }
           }}
+          onShareDocument={handleShareClick}
+          onManageShares={handleManageSharesClick}
+          hasDocumentShares={Boolean(currentDocument?.id && (sharedUsersMap[currentDocument.id]?.length ?? 0) > 0)}
           testId={testId}
         />
         {sharedDocumentDialogs}
@@ -1421,16 +1679,18 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                           {t('header-selected-count', { count: selectedDocuments.size })}
                         </Button>
                         <div className="gba:w-px gba:h-5 gba:bg-border gba:mx-1" />
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="gba:text-destructive"
-                          onClick={handleBulkDeleteDocuments}
-                          data-testid={`${testId}-bulk-delete`}
-                        >
-                          <Trash2 className="gba:w-4 gba:h-4 gba:mr-1" />
-                          {t('menu-delete')}
-                        </Button>
+                        {canBulkDeleteDocuments && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gba:text-destructive"
+                            onClick={handleBulkDeleteDocuments}
+                            data-testid={`${testId}-bulk-delete`}
+                          >
+                            <Trash2 className="gba:w-4 gba:h-4 gba:mr-1" />
+                            {t('menu-delete')}
+                          </Button>
+                        )}
                       </>
                     ) : (
                       <>
@@ -1593,7 +1853,9 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                     {/* Table Body */}
                     <div className="gba:divide-y gba:divide-border">
                       {paginatedDocuments.map(doc => {
-                        const isOwner = doc.isOwner || doc.permission === 'owner'
+                        const capabilities = getDocumentCapabilities(doc, currentUserId)
+                        const isOwner = capabilities.canDelete
+                        const canManageSharing = capabilities.canManageSharing
                         const isCurrentUserCreator = Boolean(
                           currentUserId && doc.createdBy && doc.createdBy === currentUserId
                         )
@@ -1678,7 +1940,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                                       {doc.settings.external.connectorName}
                                     </Badge>
                                   )}
-                                  {isOwner && sharedWith.length > 0 && (
+                                  {canManageSharing && sharedWith.length > 0 && (
                                     <TooltipProvider>
                                       <Tooltip>
                                         <TooltipTrigger asChild>
@@ -1770,13 +2032,13 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                                     <FileText className="gba:w-4 gba:h-4 gba:mr-2" />
                                     {t('menu-open')}
                                   </DropdownMenuItem>
-                                  {isOwner && (
+                                  {canManageSharing && (
                                     <DropdownMenuItem onClick={() => handleShareClick(doc.id)}>
                                       <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
                                       {t('menu-share')}
                                     </DropdownMenuItem>
                                   )}
-                                  {isOwner && sharedWith.length > 0 && (
+                                  {canManageSharing && sharedWith.length > 0 && (
                                     <DropdownMenuItem onClick={() => handleManageSharesClick(doc.id)}>
                                       <Users className="gba:w-4 gba:h-4 gba:mr-2" />
                                       {t('menu-manage-sharing')}
@@ -1803,14 +2065,18 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                                     />
                                     {isFavorite ? t('menu-remove-favorite') : t('menu-add-favorite')}
                                   </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    className="gba:text-destructive"
-                                    onClick={() => handleDeleteDocument(doc.id)}
-                                  >
-                                    <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                                    {t('menu-delete')}
-                                  </DropdownMenuItem>
+                                  {capabilities.canDelete && (
+                                    <>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        className="gba:text-destructive"
+                                        onClick={() => handleDeleteDocument(doc.id)}
+                                      >
+                                        <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
+                                        {t('menu-delete')}
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>

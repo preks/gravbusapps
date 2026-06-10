@@ -29,6 +29,7 @@ import translations from './_i18n'
 import {
   getContractTypeObjectValue,
   getContractTypePayrollRelevant,
+  getContractTypeTimeRelevant,
   isContractTypeMarkedDeleted,
   mergeCatalogEntryForPut,
   parseContractTypeJson,
@@ -54,6 +55,32 @@ const buildProbationRefinement =
     }
   }
 
+const buildCommonFields = (msgs: {
+  nameRequired: string
+  nameTooLong: string
+  descriptionTooLong: string
+  probationValueInvalid: string
+  noLeadingWhitespace: string
+}) => ({
+  value: z
+    .string({ message: msgs.nameRequired })
+    .min(1, msgs.nameRequired)
+    .max(64, msgs.nameTooLong)
+    .refine(noLeadingWhitespace, msgs.noLeadingWhitespace),
+  description: z
+    .string()
+    .max(100, msgs.descriptionTooLong)
+    .refine(val => !val || noLeadingWhitespace(val), msgs.noLeadingWhitespace)
+    .optional(),
+  probationValue: z
+    .string()
+    .refine(val => !val || /^[1-9]\d{0,3}$/.test(val), msgs.probationValueInvalid)
+    .optional(),
+  probationUnit: z.enum(['day', 'week', 'month', '']).optional(),
+  payrollRelevant: z.boolean().optional(),
+  timeRelevant: z.boolean().optional()
+})
+
 const buildContractTypeFormSchema = (msgs: {
   nameRequired: string
   nameTooLong: string
@@ -64,23 +91,8 @@ const buildContractTypeFormSchema = (msgs: {
 }) =>
   z
     .object({
-      value: z
-        .string({ message: msgs.nameRequired })
-        .min(1, msgs.nameRequired)
-        .max(64, msgs.nameTooLong)
-        .refine(noLeadingWhitespace, msgs.noLeadingWhitespace),
-      code: z.string().optional(),
-      description: z
-        .string()
-        .max(100, msgs.descriptionTooLong)
-        .refine(val => !val || noLeadingWhitespace(val), msgs.noLeadingWhitespace)
-        .optional(),
-      probationValue: z
-        .string()
-        .refine(val => !val || /^[1-9]\d{0,3}$/.test(val), msgs.probationValueInvalid)
-        .optional(),
-      probationUnit: z.enum(['day', 'week', 'month', '']).optional(),
-      payrollRelevant: z.boolean().optional()
+      ...buildCommonFields(msgs),
+      code: z.string().optional()
     })
     .superRefine(buildProbationRefinement(msgs.probationUnitRequired))
 
@@ -96,27 +108,12 @@ const buildCreateContractTypeFormSchema = (msgs: {
 }) =>
   z
     .object({
-      value: z
-        .string({ message: msgs.nameRequired })
-        .min(1, msgs.nameRequired)
-        .max(64, msgs.nameTooLong)
-        .refine(noLeadingWhitespace, msgs.noLeadingWhitespace),
+      ...buildCommonFields(msgs),
       code: z
         .string({ message: msgs.codeRequired })
         .min(1, msgs.codeRequired)
         .max(10, msgs.codeTooLong)
-        .refine(noLeadingWhitespace, msgs.noLeadingWhitespace),
-      description: z
-        .string()
-        .max(100, msgs.descriptionTooLong)
-        .refine(val => !val || noLeadingWhitespace(val), msgs.noLeadingWhitespace)
-        .optional(),
-      probationValue: z
-        .string()
-        .refine(val => !val || /^[1-9]\d{0,3}$/.test(val), msgs.probationValueInvalid)
-        .optional(),
-      probationUnit: z.enum(['day', 'week', 'month', '']).optional(),
-      payrollRelevant: z.boolean().optional()
+        .refine(noLeadingWhitespace, msgs.noLeadingWhitespace)
     })
     .superRefine(buildProbationRefinement(msgs.probationUnitRequired))
 
@@ -205,6 +202,29 @@ const ProbationPeriodFields: React.FC<{ dataTestId: string; t: (key: string) => 
   )
 }
 
+const SwitchToggleField: React.FC<{
+  name: string
+  labelKey: string
+  descriptionKey: string
+  dataTestId: string
+  t: (key: string) => string
+}> = ({ name, labelKey, descriptionKey, dataTestId, t }) => (
+  <FormField
+    name={name}
+    render={({ field }) => (
+      <FormItem className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:rounded-lg gba:border gba:p-4">
+        <div className="gba:space-y-0.5">
+          <FormLabel className="gba:text-base">{t(labelKey)}</FormLabel>
+          <p className="gba:text-sm gba:text-muted-foreground">{t(descriptionKey)}</p>
+        </div>
+        <FormControl>
+          <Switch checked={field.value === true} onCheckedChange={field.onChange} data-testid={dataTestId} />
+        </FormControl>
+      </FormItem>
+    )}
+  />
+)
+
 const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
   prefixDataTestId,
   contractType,
@@ -278,7 +298,8 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
         additionalValue2: additionalJson,
         objectValue: {
           ...getContractTypeObjectValue(fresh),
-          payroll_relevant: trimmedData.payrollRelevant === true
+          payroll_relevant: trimmedData.payrollRelevant === true,
+          time_relevant: trimmedData.timeRelevant === true
         },
         isDeleted: isContractTypeMarkedDeleted(fresh),
         translations
@@ -296,7 +317,8 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
         additionalValue1: trimmedData.description,
         additionalValue2: additionalJson,
         objectValue: {
-          payroll_relevant: trimmedData.payrollRelevant === true
+          payroll_relevant: trimmedData.payrollRelevant === true,
+          time_relevant: trimmedData.timeRelevant === true
         },
         isDeleted: false,
         translations: []
@@ -320,6 +342,11 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
       probationUnit: existingParsed.unit || undefined,
       payrollRelevant: contractType
         ? getContractTypePayrollRelevant({
+            objectValue: contractType.objectValue
+          })
+        : false,
+      timeRelevant: contractType
+        ? getContractTypeTimeRelevant({
             objectValue: contractType.objectValue
           })
         : false
@@ -401,25 +428,19 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
 
       <ProbationPeriodFields dataTestId={dataTestId} t={t} />
 
-      <FormField
+      <SwitchToggleField
         name="payrollRelevant"
-        render={({ field }) => (
-          <FormItem className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:rounded-lg gba:border gba:p-4">
-            <div className="gba:space-y-0.5">
-              <FormLabel className="gba:text-base">Payroll relevant</FormLabel>
-              <p className="gba:text-sm gba:text-muted-foreground">
-                When enabled, this contract type is treated as relevant for payroll processes.
-              </p>
-            </div>
-            <FormControl>
-              <Switch
-                checked={field.value === true}
-                onCheckedChange={field.onChange}
-                data-testid={`${dataTestId}-payroll-relevant`}
-              />
-            </FormControl>
-          </FormItem>
-        )}
+        labelKey="field-payroll-relevant-label"
+        descriptionKey="field-payroll-relevant-description"
+        dataTestId={`${dataTestId}-payroll-relevant`}
+        t={t}
+      />
+      <SwitchToggleField
+        name="timeRelevant"
+        labelKey="field-time-relevant-label"
+        descriptionKey="field-time-relevant-description"
+        dataTestId={`${dataTestId}-time-relevant`}
+        t={t}
       />
     </FormWrapperModal>
   )

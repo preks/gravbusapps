@@ -1,10 +1,10 @@
 import React from 'react'
-import { toast } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { toast, useTranslation } from '@newwork/nw-design-system'
 import { DocumentItem, RestClient, ApiConfig } from '../types'
 import { DRAG_TRANSITION_DELAY_MS } from '../constants'
 import { updateDocumentLocation } from '../utils/documentApi'
 import { useMouseDragDetection } from './useMouseDragDetection'
+import translations from '../_i18n'
 
 interface UseDocumentDragDropProps {
   documents: DocumentItem[]
@@ -48,6 +48,8 @@ export function useDocumentDragDrop({
   isFolderDescendant,
   companyData
 }: UseDocumentDragDropProps) {
+  const { t } = useTranslation(translations)
+
   // Use mouse drag detection hook
   const mouseDrag = useMouseDragDetection({
     mouseDownPos,
@@ -116,12 +118,7 @@ export function useDocumentDragDrop({
 
     // Prevent circular references when moving folders
     if (draggedDocument.folder && isFolderDescendant(targetFolder.id, draggedDocument.id)) {
-      toast.error(
-        getTranslationFromI18nKeyAndLabel(
-          'document.toast.error.moveToSelfOrDescendant',
-          'Cannot move a folder into itself or its descendants'
-        )
-      )
+      toast.error(t('document-toast-error-move-to-self-or-descendant'))
       setDraggedDocument(null)
       return
     }
@@ -227,18 +224,13 @@ export function useDocumentDragDrop({
   // Move document to folder via API
   const moveDocumentToFolder = async (documentId: string, targetFolderId: string) => {
     if (!accessToken || !apiConfig) {
-      toast.error(
-        getTranslationFromI18nKeyAndLabel(
-          'document.toast.error.moveConfigMissing',
-          'Cannot move document: missing configuration'
-        )
-      )
+      toast.error(t('document-toast-error-move-config-missing'))
       return
     }
 
     const document = documents.find(doc => doc.id === documentId)
     if (!document) {
-      toast.error(getTranslationFromI18nKeyAndLabel('document.toast.error.documentNotFound', 'Document not found'))
+      toast.error(t('document-toast-error-document-not-found'))
       return
     }
 
@@ -255,35 +247,24 @@ export function useDocumentDragDrop({
         companyData // Pass company data for MDM operations
       })
 
-      const itemType = document.folder ? 'Folder' : 'Document'
-      const successMessage = getTranslationFromI18nKeyAndLabel(
-        'document.toast.documentMoved',
-        '{ $itemType } moved successfully'
-      ).replace('{ $itemType }', itemType)
-      toast.success(successMessage)
+      const itemType = document.folder ? t('document-label-folder') : t('document-label-document')
+      toast.success(t('document-toast-document-moved', { itemType }))
     } catch (e: any) {
       console.error('Error moving document:', e)
-      toast.error(
-        e?.message || getTranslationFromI18nKeyAndLabel('document.toast.error.moveFailed', 'Failed to move document')
-      )
+      toast.error(e?.message || t('document-toast-error-move-failed'))
     }
   }
 
   // Move document to root level (remove from folder)
   const moveDocumentToRoot = async (documentId: string) => {
     if (!accessToken || !apiConfig) {
-      toast.error(
-        getTranslationFromI18nKeyAndLabel(
-          'document.toast.error.moveConfigMissing',
-          'Cannot move document: missing configuration'
-        )
-      )
+      toast.error(t('document-toast-error-move-config-missing'))
       return
     }
 
     const document = documents.find(doc => doc.id === documentId)
     if (!document) {
-      toast.error(getTranslationFromI18nKeyAndLabel('document.toast.error.documentNotFound', 'Document not found'))
+      toast.error(t('document-toast-error-document-not-found'))
       return
     }
 
@@ -300,18 +281,11 @@ export function useDocumentDragDrop({
         companyData // Pass company data for MDM operations
       })
 
-      const itemType = document.folder ? 'Folder' : 'Document'
-      const successMessage = getTranslationFromI18nKeyAndLabel(
-        'document.toast.documentMovedToRoot',
-        '{ $itemType } moved to root level'
-      ).replace('{ $itemType }', itemType)
-      toast.success(successMessage)
+      const itemType = document.folder ? t('document-label-folder') : t('document-label-document')
+      toast.success(t('document-toast-document-moved-to-root', { itemType }))
     } catch (e: any) {
       console.error('Error moving document to root:', e)
-      toast.error(
-        e?.message ||
-          getTranslationFromI18nKeyAndLabel('document.toast.error.moveToRootFailed', 'Failed to move document to root')
-      )
+      toast.error(e?.message || t('document-toast-error-move-to-root-failed'))
     }
   }
 

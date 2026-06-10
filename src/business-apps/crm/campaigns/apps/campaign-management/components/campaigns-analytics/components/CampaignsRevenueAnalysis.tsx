@@ -20,18 +20,25 @@ import {
   ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
+  useTranslation,
   type ChartConfig
 } from '@newwork/nw-design-system'
 import { CurrencyDollarIcon, ChartBarIcon, ChartPieIcon, ChartLineIcon, ChartPolarIcon } from '@phosphor-icons/react'
 import { CampaignsAnalyticsComponentProps } from '../types/CampaignsAnalyticsTypes'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
+import translations from '../../../../../_i18n'
 import {
   NW_CHART_COLOR_VARS,
   nwChartColorAt,
   resolveCssColor
 } from '@/business-apps/crm/campaigns/utils/campaignChartTokens'
-import { TooltipWrapper, TooltipDataLine } from '@/common/components/customer/campaign-management/ChartHelpers'
+import {
+  CATEGORY_AXIS_PROPS,
+  CATEGORY_CHART_MARGIN,
+  TooltipWrapper,
+  TooltipDataLine,
+  truncateChartLabel
+} from '@/common/components/customer/campaign-management/ChartHelpers'
 import { ChartCard, ChartTypeSwitcher } from '@/common/components/customer/campaign-management/ChartCard'
 
 interface RevenueBarTooltipData {
@@ -110,6 +117,7 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
   error = null,
   onRetry
 }) => {
+  const { t } = useTranslation(translations)
   const [chartType, setChartType] = useState<'revenue-bar' | 'revenue-pie' | 'revenue-area' | 'revenue-radar'>(
     'revenue-bar'
   )
@@ -142,7 +150,7 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
     .filter(campaign => campaign.totalRevenue > 0 && campaign.leadsCount > 0 && campaign.opportunitiesCount > 0)
     .map(campaign => ({
       id: campaign.campaignId,
-      name: campaign.campaignName.length > 15 ? campaign.campaignName.substring(0, 15) + '...' : campaign.campaignName,
+      name: truncateChartLabel(campaign.campaignName),
       fullName: campaign.campaignName,
       revenue: campaign.totalRevenue,
       winRate: campaign.winRate,
@@ -198,8 +206,8 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
       case 'revenue-bar':
         return (
           <ChartContainer config={barChartConfig} className="gba:h-[500px] gba:w-full">
-            <BarChart data={revenueData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-              <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} />
+            <BarChart data={revenueData} margin={CATEGORY_CHART_MARGIN}>
+              <XAxis dataKey="name" {...CATEGORY_AXIS_PROPS} />
               <YAxis tickFormatter={val => formatCurrencyCompact(val, 'USD')} />
               <ChartTooltip content={<RevenueBarTooltip />} />
               <Bar dataKey="revenue" fill="var(--color-revenue)" name="Revenue" radius={[4, 4, 0, 0]} />
@@ -221,7 +229,7 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
                 dataKey="revenue"
                 nameKey={SLICE_KEY}
                 label={(props: { name?: string; percent?: number; payload?: { name?: string } }) => {
-                  const shortName = props.payload?.name ?? props.name ?? ''
+                  const shortName = truncateChartLabel(props.payload?.name ?? props.name ?? '')
                   const percent = props.percent || 0
                   return `${shortName} ${(percent * 100).toFixed(0)}%`
                 }}
@@ -235,14 +243,14 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
       case 'revenue-area':
         return (
           <ChartContainer config={areaChartConfig} className="gba:h-[500px] gba:w-full">
-            <AreaChart data={revenueData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <AreaChart data={revenueData} margin={CATEGORY_CHART_MARGIN}>
               <defs>
                 <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor={areaGradientStops.top} stopOpacity={0.8} />
                   <stop offset="95%" stopColor={areaGradientStops.bottom} stopOpacity={0.1} />
                 </linearGradient>
               </defs>
-              <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} />
+              <XAxis dataKey="name" {...CATEGORY_AXIS_PROPS} />
               <YAxis tickFormatter={val => formatCurrencyCompact(val, 'USD')} />
               <ChartTooltip content={<RevenueBarTooltip />} />
               <Area
@@ -298,17 +306,14 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
       title={
         <span className="gba:inline-flex gba:items-center gba:gap-1 gba:text-foreground">
           <CurrencyDollarIcon className="gba:text-[var(--nw-chart-2)]" size={22} aria-hidden />
-          {getTranslationFromI18nKeyAndLabel('campaigns.analytics.revenueAnalysis.title', 'Won Revenue Analysis')}
+          {t('campaigns-analytics-revenueAnalysis-title')}
         </span>
       }
       isLoading={isLoading}
       error={error}
       onRetry={onRetry}
       isEmpty={revenueData.length === 0}
-      emptyMessage={getTranslationFromI18nKeyAndLabel(
-        'campaigns.analytics.revenueAnalysis.noData',
-        'No revenue data available - campaigns have not generated any won revenue yet'
-      )}
+      emptyMessage={t('campaigns-analytics-revenueAnalysis-noData')}
       headerActions={
         <ChartTypeSwitcher
           options={chartTypeOptions}

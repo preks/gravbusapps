@@ -4,6 +4,8 @@ import { render, waitFor } from '@testing-library/react'
 import type { UniverSheetGridHandle } from '../UniverSheetGrid.types'
 import {
   createWorkbookSnapshots,
+  executeCommandMock,
+  gridTestMockState,
   resetUniverSheetGridTestMocks,
   TestUniverSheetGrid
 } from './setupUniverSheetGridTestMocks'
@@ -116,6 +118,83 @@ describe('UniverSheetGrid handle contract', () => {
     } finally {
       globalThis.structuredClone = originalStructuredClone
     }
+  })
+
+  it('focuses a cell reference through the imperative handle', async () => {
+    const ref = React.createRef<UniverSheetGridHandle>()
+
+    const { getByTestId } = render(
+      <TestUniverSheetGrid
+        ref={ref}
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly
+        onCellChange={jest.fn()}
+        onDataChange={jest.fn()}
+      />
+    )
+
+    await waitFor(() => {
+      expect(typeof ref.current?.focusCellReference).toBe('function')
+    })
+
+    expect(ref.current?.focusCellReference('B3', 'sheet-2')).toBe(true)
+    expect(ref.current?.getActiveCellReference()).toBe('B3')
+    expect(document.activeElement).toBe(getByTestId('univer-sheet-grid-container'))
+    expect(executeCommandMock).toHaveBeenCalledWith(
+      'sheet.command.scroll-to-cell',
+      expect.objectContaining({
+        range: expect.objectContaining({
+          startRow: 2,
+          startColumn: 1,
+          endRow: 2,
+          endColumn: 1
+        })
+      })
+    )
+  })
+
+  it('returns and restores full multi-cell selections through the imperative handle', async () => {
+    const ref = React.createRef<UniverSheetGridHandle>()
+    gridTestMockState.selectionState = {
+      actualRow: 4,
+      actualColumn: 1,
+      startRow: 4,
+      startColumn: 1,
+      endRow: 8,
+      endColumn: 2
+    }
+
+    render(
+      <TestUniverSheetGrid
+        ref={ref}
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly
+        onCellChange={jest.fn()}
+        onDataChange={jest.fn()}
+      />
+    )
+
+    await waitFor(() => {
+      expect(typeof ref.current?.getActiveSelectionReference).toBe('function')
+    })
+
+    expect(ref.current?.getActiveSelectionReference()).toBe('B5:C9')
+    expect(ref.current?.focusCellReference('B5:C9', 'sheet-2')).toBe(true)
+    expect(executeCommandMock).toHaveBeenCalledWith(
+      'sheet.command.scroll-to-cell',
+      expect.objectContaining({
+        range: expect.objectContaining({
+          startRow: 4,
+          startColumn: 1,
+          endRow: 8,
+          endColumn: 2
+        })
+      })
+    )
   })
 
   it('falls back to a row-built snapshot when the provided snapshot is rejected before bootstrap', async () => {

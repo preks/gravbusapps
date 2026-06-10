@@ -51,7 +51,8 @@ describe('SpreadsheetActionsMenu', () => {
     expect(onOpenAnalytics).toHaveBeenCalledTimes(1)
   })
 
-  it('does not render a Share action even when onShare is provided', () => {
+  it('renders a Share action when onShare is provided', () => {
+    const onShare = jest.fn()
     render(
       <SpreadsheetActionsMenu
         onShowVersionHistory={jest.fn()}
@@ -60,12 +61,13 @@ describe('SpreadsheetActionsMenu', () => {
         onAcquireLock={jest.fn()}
         onReleaseLock={jest.fn()}
         canEdit={true}
-        onShare={jest.fn()}
+        onShare={onShare}
         onOpenAnalytics={jest.fn()}
         onOpenAutomations={jest.fn()}
       />
     )
 
-    expect(screen.queryByRole('button', { name: /Share/i })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Share/i }))
+    expect(onShare).toHaveBeenCalledTimes(1)
   })
 })

@@ -82,6 +82,27 @@ export const getNestedValue = (obj: any, path: string): any => {
 }
 
 /**
+ * Immutable nested assign: returns a new root object with `path` set to `value`.
+ * Intermediate objects are shallow-cloned; does not mutate `root`.
+ */
+export const immutableSetByPath = <T extends Record<string, any>>(root: T, path: string, value: any): T => {
+  const keys = path.split('.').filter(Boolean)
+  if (keys.length === 0) return root
+  if (keys.length === 1) {
+    return { ...root, [keys[0]]: value }
+  }
+  const [head, ...rest] = keys
+  const restPath = rest.join('.')
+  const child = root[head]
+  const nextBase =
+    typeof child === 'object' && child !== null && !Array.isArray(child) ? (child as Record<string, any>) : {}
+  return {
+    ...root,
+    [head]: immutableSetByPath(nextBase, restPath, value)
+  }
+}
+
+/**
  * Set nested value in object by path
  */
 export const setNestedValue = (obj: any, path: string, value: any): any => {

@@ -39,6 +39,8 @@ export interface InvestmentAccount extends Account {
 
   // Mapped from Account to Investment-specific types
   accountContacts?: InvestmentAccountContact[]
+  /** Raw GraphQL field name; use `accountContacts` when data is mapped via toInvestmentAccount */
+  investmentAccountContact?: InvestmentAccountContact[]
   activities?: InvestmentActivity[]
   addresses?: InvestmentAddress[]
   communicationChannels?: InvestmentCommunicationChannel[]
@@ -156,6 +158,16 @@ export const buildInvestmentAccountPayload = (account: Partial<InvestmentAccount
  * - investmentOpportunity → opportunities (common naming)
  * - investmentLead → leads (common naming)
  */
+/** Contact junction rows from mapped or raw GraphQL account payloads */
+export function getInvestmentAccountContactAssociations(
+  account?: InvestmentAccount | null
+): InvestmentAccountContact[] {
+  if (!account) {
+    return []
+  }
+  return account.accountContacts ?? account.investmentAccountContact ?? []
+}
+
 export function toInvestmentAccount(raw: any): InvestmentAccount {
   // Extract GraphQL field names to exclude from spread
   const {

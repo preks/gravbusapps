@@ -1,5 +1,11 @@
 import { useMemo, useState } from 'react'
-import { BuildingsIcon, GraphIcon, ListMagnifyingGlassIcon, UsersThreeIcon } from '@phosphor-icons/react'
+import {
+  BuildingsIcon,
+  GraphIcon,
+  ListMagnifyingGlassIcon,
+  TreeStructureIcon,
+  UsersThreeIcon
+} from '@phosphor-icons/react'
 import type { UserInfoProps } from '@/common/BusinessAppContext'
 import type { ActiveSessionSnapshot } from '../../types/activeSession'
 import type { FabricSessionSummary } from '../../types/fabric'
@@ -61,6 +67,9 @@ export interface SidebarProps {
   isEnterpriseWorkforceActive?: boolean
   onOpenCompanyMesh: () => void
   isCompanyMeshActive?: boolean
+  /** Trace Lens — a global LangSmith-style run debugger (dev-mode only). */
+  onOpenTraceLens: () => void
+  isTraceLensActive?: boolean
 
   /**
    * Session-scoped destinations under the "Active session" header. These
@@ -104,6 +113,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isEnterpriseWorkforceActive = false,
   onOpenCompanyMesh,
   isCompanyMeshActive = false,
+  onOpenTraceLens,
+  isTraceLensActive = false,
   onOpenSessionMesh,
   isSessionMeshActive = false,
   onOpenTraceExplorer,
@@ -144,7 +155,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <SidebarSectionLabel label="Workspace" isCollapsed={isCollapsed} testId="sidebar-section-workspace" />
         <SidebarNavItem
           icon={UsersThreeIcon}
-          label="Enterprise Workforce"
+          label="Digital Workforce"
           badge="NEW"
           isActive={isEnterpriseWorkforceActive}
           isCollapsed={isCollapsed}
@@ -159,6 +170,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onClick={onOpenCompanyMesh}
           testId="sidebar-nav-company-mesh"
         />
+        {devModeEnabled && (
+          <SidebarNavItem
+            icon={TreeStructureIcon}
+            label="Trace Lens"
+            isActive={isTraceLensActive}
+            isCollapsed={isCollapsed}
+            onClick={onOpenTraceLens}
+            testId="sidebar-nav-trace-lens"
+          />
+        )}
 
         {/* ACTIVE SESSION — only when a session is selected. */}
         {hasActiveSession && (

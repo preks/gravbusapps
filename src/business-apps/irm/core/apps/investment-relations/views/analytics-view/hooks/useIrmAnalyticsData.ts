@@ -81,7 +81,7 @@ export const useIrmAnalyticsData = (
             // - useOpportunitiesOverTime: lifecycle chart data
             // - useOpportunityTrendData: KPI trend data
             // - useOpportunitiesByStage: stage distribution
-            // - useTopDeals: top opportunities
+            // - useTopOpportunities: top opportunities
             // No query needed in this hook anymore!
             break
           }

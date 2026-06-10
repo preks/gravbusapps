@@ -32,3 +32,9 @@ validation-description-too-long = Description must be less than 100 characters
 validation-probation-value-invalid = Must be a positive number with maximum 4 digits
 validation-probation-unit-required = Time unit is required when a value is entered. Either remove the value or select a time unit.
 validation-no-leading-whitespace = Cannot start with whitespace
+
+# Toggle fields
+field-payroll-relevant-label = Payroll relevant
+field-payroll-relevant-description = When enabled, this contract type is treated as relevant for payroll processes.
+field-time-relevant-label = Time relevant
+field-time-relevant-description = When enabled, employees with this contract type are expected to track their working time.

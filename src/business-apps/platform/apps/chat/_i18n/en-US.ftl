@@ -6,6 +6,7 @@ chat-fullscreen-button = Open in Fullscreen
 chat-tab-everyai = EveryAI
 chat-tab-chat = Chat
 chat-tab-calendar = Calendar
+chat-tab-mail = Mail
 chat-tab-reminders = Reminders
 chat-shell-disabled-title = Chat unavailable
 chat-shell-disabled-description = This panel is currently disabled for your workspace.
@@ -625,6 +626,8 @@ calendar-sidebar-calendarExistsError = A shared calendar for this group already 
 # Calendar - CreateMeetingModal
 calendar-scheduleMeeting = Schedule Meeting
 calendar-editMeeting = Edit Meeting
+calendar-scheduleMeetingSubtitle = Set up a new meeting and invite your team
+calendar-editMeetingSubtitle = Update meeting details and participants
 calendar-meetingTitle = Title
 calendar-meetingTitleRequired = Title *
 calendar-meetingTitlePlaceholder = Meeting title
@@ -656,6 +659,7 @@ calendar-daily = Daily
 calendar-weekly = Weekly
 calendar-every2Weeks = Every 2 weeks
 calendar-monthly = Monthly
+calendar-until = until
 calendar-endDate = End date
 calendar-reminders = Reminders
 calendar-color = Color
@@ -724,9 +728,26 @@ calendar-error = Failed to load calendar
 calendar-retry = Retry
 calendar-event-details = Event Details
 calendar-pending-invitations = Pending Invitations
+calendar-pending-invitations-empty = No pending invitations
+calendar-pending-back = Back to list
+calendar-pending-filter-all = All
+calendar-pending-filter-upcoming = Upcoming
+calendar-pending-filter-past = Past
 calendar-accept = Accept
 calendar-decline = Decline
 calendar-tentative = Tentative
+calendar-accept-all = Accept all
+calendar-maybe-all = Maybe all
+calendar-decline-all = Decline all
+calendar-pending-invitations-from = from {$organizer}
+calendar-pending-series-count = {$count ->
+  [one] {$count} pending occurrence
+ *[other] {$count} pending occurrences
+}
+calendar-pending-series-more = +{$count} more pending occurrences
+calendar-view-occurrences = View occurrences
+calendar-hide-occurrences = Hide occurrences
+calendar-view-details = View details
 
 # Calendar - Agenda
 calendar-agenda = Agenda

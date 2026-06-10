@@ -6,6 +6,7 @@ chat-fullscreen-button = Im Vollbildmodus öffnen
 chat-tab-everyai = EveryAI
 chat-tab-chat = Chat
 chat-tab-calendar = Kalender
+chat-tab-mail = E-Mail
 chat-tab-reminders = Erinnerungen
 chat-shell-disabled-title = Chat nicht verfügbar
 chat-shell-disabled-description = Dieses Panel ist für Ihren Workspace derzeit deaktiviert.
@@ -625,6 +626,8 @@ calendar-sidebar-calendarExistsError = Fur diese Gruppe existiert bereits ein ge
 # Calendar - CreateMeetingModal
 calendar-scheduleMeeting = Termin planen
 calendar-editMeeting = Termin bearbeiten
+calendar-scheduleMeetingSubtitle = Plane einen neuen Termin und lade dein Team ein
+calendar-editMeetingSubtitle = Termindetails und Teilnehmer aktualisieren
 calendar-meetingTitle = Titel
 calendar-meetingTitleRequired = Titel *
 calendar-meetingTitlePlaceholder = Besprechungstitel
@@ -656,6 +659,7 @@ calendar-daily = Täglich
 calendar-weekly = Wöchentlich
 calendar-every2Weeks = Alle 2 Wochen
 calendar-monthly = Monatlich
+calendar-until = bis
 calendar-endDate = Enddatum
 calendar-reminders = Erinnerungen
 calendar-color = Farbe
@@ -724,9 +728,26 @@ calendar-error = Kalender konnte nicht geladen werden
 calendar-retry = Erneut versuchen
 calendar-event-details = Termindetails
 calendar-pending-invitations = Ausstehende Einladungen
+calendar-pending-invitations-empty = Keine ausstehenden Einladungen
+calendar-pending-back = Zurück zur Liste
+calendar-pending-filter-all = Alle
+calendar-pending-filter-upcoming = Bevorstehend
+calendar-pending-filter-past = Vergangen
 calendar-accept = Annehmen
 calendar-decline = Ablehnen
 calendar-tentative = Mit Vorbehalt
+calendar-accept-all = Alle annehmen
+calendar-maybe-all = Alle mit Vorbehalt
+calendar-decline-all = Alle ablehnen
+calendar-pending-invitations-from = von {$organizer}
+calendar-pending-series-count = {$count ->
+  [one] {$count} ausstehender Termin
+ *[other] {$count} ausstehende Termine
+}
+calendar-pending-series-more = +{$count} weitere ausstehende Termine
+calendar-view-occurrences = Termine anzeigen
+calendar-hide-occurrences = Termine ausblenden
+calendar-view-details = Details anzeigen
 
 # Calendar - Agenda
 calendar-agenda = Agenda

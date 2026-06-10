@@ -2,6 +2,7 @@ import type React from 'react'
 import { toast } from 'sonner'
 
 import type {
+  SpreadsheetBulkRemoteApplyResult,
   SpreadsheetBulkRemoteApplyMeta,
   SpreadsheetBulkRemoteCellItem,
   SpreadsheetCollaborationCallbacks,
@@ -21,6 +22,7 @@ import { sortSpreadsheetRowsBySheetSettings } from '../utils/spreadsheetSheetRow
 import { createCollaborationApplyRemoteDimensions } from '../hooks/collaborationApplyRemoteDimensions'
 import { createCollaborationWorkbookStructureHandler } from '../hooks/collaborationWorkbookStructureBridge'
 import type { UniverSheetGridCollaborationBridgeHandle } from '../components/UniverSheetGrid.types'
+import { isServerAuthoritativeRepairReapply } from '../utils/spreadsheetBackendRepairReapply'
 import type {
   AuthoritativeGridReapplyTarget,
   ForceAuthoritativeGridReapplyOptions
@@ -30,6 +32,10 @@ import type {
   SpreadsheetLiveRemoteApplyVersionScope,
   SpreadsheetVersionCausalOwnershipRegistry
 } from './spreadsheetVersionCausalOwnership'
+import type {
+  SpreadsheetCommittedCommentAnchorPatch,
+  SpreadsheetCommittedWorksheetMetadataPatch
+} from './spreadsheetCommittedDeltaContract'
 
 type ViewerRow = Record<string, unknown>
 
@@ -94,6 +100,9 @@ export interface BuildSpreadsheetCollaborationCallbacksParams {
   applyRemoteCellUpdateWithRetry: SpreadsheetCollaborationCallbacks['applyRemoteCellUpdate']
   activeSheetIdRef: React.MutableRefObject<string>
   spreadsheetGridRef: React.MutableRefObject<UniverSheetGridCollaborationBridgeHandle | null | undefined>
+  getWorkbookSnapshot: () => Record<string, unknown> | null
+  applyCommittedWorksheetMetadataPatch: (patch: SpreadsheetCommittedWorksheetMetadataPatch) => void
+  applyCommittedCommentAnchorPatches: (patches: SpreadsheetCommittedCommentAnchorPatch[]) => void
   recentLocalRowHeightRef: React.MutableRefObject<Map<string, { height: number; at: number }>>
   recentLocalColWidthRef: React.MutableRefObject<Map<string, { width: number; at: number }>>
   baselineRowHeightsRef: React.MutableRefObject<Map<number, number>>
@@ -126,7 +135,7 @@ export interface BuildSpreadsheetCollaborationCallbacksParams {
       | 'row_identity_mismatch'
       | 'stale_version_data_op',
     options?: { sinceVersion?: number; incomingVersion?: number }
-  ) => void
+  ) => Promise<boolean>
   scheduleSheetVersionRefreshFromApi: () => void
   scheduleRemoteStructuralResync: (sheetId?: string, options?: { immediate?: boolean }) => void
   handleRemoteColumnUpdate: (data: Record<string, unknown>) => void
@@ -139,6 +148,7 @@ export interface BuildSpreadsheetCollaborationCallbacksParams {
   setActiveSheetId: (id: string) => void
   getActiveSessionRows: () => ViewerRow[]
   resolveKnownSheetVersion: (sheetId: string) => number
+  coordinateForceGridReapply?: SpreadsheetCollaborationCallbacks['forceGridReapply']
   createdSheetIdAliasesRef?: React.MutableRefObject<Map<string, string>>
   isRecentLocalBatchId?: (batchId: string | undefined, tabId?: string | undefined) => boolean
   /**
@@ -189,6 +199,9 @@ export function buildSpreadsheetCollaborationCallbacks(
     applyRemoteCellUpdateWithRetry,
     activeSheetIdRef,
     spreadsheetGridRef,
+    getWorkbookSnapshot,
+    applyCommittedWorksheetMetadataPatch,
+    applyCommittedCommentAnchorPatches,
     recentLocalRowHeightRef,
     recentLocalColWidthRef,
     baselineRowHeightsRef,
@@ -218,12 +231,36 @@ export function buildSpreadsheetCollaborationCallbacks(
     setActiveSheetId,
     getActiveSessionRows,
     resolveKnownSheetVersion,
+    coordinateForceGridReapply,
     createdSheetIdAliasesRef,
     isRecentLocalBatchId,
     getSheetWorkQueue,
     isRowMaterializationInFlight,
     liveRemoteApplyVersionRef
   } = params
+  const dispatchForceGridReapply: SpreadsheetCollaborationCallbacks['forceGridReapply'] = (
+    sheetId,
+    region,
+    options
+  ) => {
+    const shouldUseCoordinatedRepair =
+      typeof coordinateForceGridReapply === 'function' &&
+      isServerAuthoritativeRepairReapply({
+        reason: options?.reason,
+        pendingLocalFilterPolicy: options?.pendingLocalFilterPolicy
+      })
+    if (shouldUseCoordinatedRepair) {
+      coordinateForceGridReapply(sheetId, region, options)
+      return
+    }
+    globalThis.setTimeout(() => {
+      if (activeSheetIdRef.current !== sheetId) return
+      forwardForceAuthoritativeReapply(spreadsheetGridRef, region ?? null, options, {
+        debugLog,
+        enqueueDiagnosticsTraceEvent
+      })
+    }, 0)
+  }
 
   /**
    * Feeds a `versionOnlyEcho` job to the queue so `queueClientAppliedVersion`
@@ -242,6 +279,14 @@ export function buildSpreadsheetCollaborationCallbacks(
    */
   const pendingVersionEcho = new Map<string, number>()
   let pendingVersionEchoHandle: number | null = null
+  const getQueueAppliedVersion = (sheetId: string): number | null => {
+    const queue = getSheetWorkQueue?.()
+    if (!queue || typeof queue.getDebugState !== 'function') {
+      return null
+    }
+    const appliedVersion = queue.getDebugState(sheetId).queueClientAppliedVersion
+    return typeof appliedVersion === 'number' && Number.isFinite(appliedVersion) ? Math.trunc(appliedVersion) : null
+  }
   const flushPendingVersionEchoes = (): void => {
     pendingVersionEchoHandle = null
     const queue = getSheetWorkQueue?.()
@@ -250,6 +295,27 @@ export function buildSpreadsheetCollaborationCallbacks(
       return
     }
     for (const [sheetId, version] of pendingVersionEcho) {
+      const queueAppliedVersion = getQueueAppliedVersion(sheetId)
+      if (queueAppliedVersion != null && queueAppliedVersion >= version) {
+        debugLog('versionOnlyEcho_noop', {
+          sheetId,
+          version,
+          queueAppliedVersion
+        })
+        enqueueDiagnosticsTraceEvent({
+          source: 'client',
+          stage: 'client_version_echo_noop',
+          severity: 'info',
+          version,
+          payload: {
+            sheetId,
+            incomingVersion: version,
+            queueAppliedVersion,
+            diagnostic: 'versionOnlyEcho_noop'
+          }
+        })
+        continue
+      }
       void queue.enqueueRemoteApply(sheetId, 'versionOnlyEcho', async controller => {
         controller.markVersionDone(version)
       })
@@ -275,6 +341,98 @@ export function buildSpreadsheetCollaborationCallbacks(
       pendingVersionEcho.set(sheetId, version)
     }
     scheduleVersionEchoFlush()
+  }
+  const routeVersionEcho = (sheetId: string, version: number, knownVersionBefore: number): void => {
+    if (!sheetId || !Number.isFinite(version)) return
+    const liveAppliedVersionScope = liveRemoteApplyVersionRef?.current
+    const liveVersionAlreadyApplied =
+      liveAppliedVersionScope?.sheetId === sheetId && liveAppliedVersionScope.appliedVersion === version
+    const clearLiveAppliedVersionScope = () => {
+      if (
+        liveRemoteApplyVersionRef?.current?.sheetId === sheetId &&
+        liveRemoteApplyVersionRef.current.appliedVersion === version
+      ) {
+        liveRemoteApplyVersionRef.current = null
+      }
+    }
+    if (liveVersionAlreadyApplied) {
+      seedQueueVersionEcho(sheetId, version)
+      clearLiveAppliedVersionScope()
+      return
+    }
+    const queueAppliedVersion = getQueueAppliedVersion(sheetId)
+    const confirmedVersionCandidates = [queueAppliedVersion, knownVersionBefore].filter(
+      (candidate): candidate is number => typeof candidate === 'number' && Number.isFinite(candidate) && candidate >= 0
+    )
+    const latestConfirmedVersion =
+      confirmedVersionCandidates.length > 0 ? Math.max(...confirmedVersionCandidates) : null
+    const catchUpBaselineVersion =
+      typeof knownVersionBefore === 'number' && Number.isFinite(knownVersionBefore) && knownVersionBefore >= 0
+        ? Math.trunc(knownVersionBefore)
+        : latestConfirmedVersion
+    if (!liveVersionAlreadyApplied && catchUpBaselineVersion != null && version > catchUpBaselineVersion) {
+      debugLog('versionEcho_requires_catchup', {
+        sheetId,
+        version,
+        catchUpBaselineVersion,
+        latestConfirmedVersion,
+        queueAppliedVersion,
+        knownVersionBefore,
+        liveAppliedVersion: liveAppliedVersionScope?.sheetId === sheetId ? liveAppliedVersionScope.appliedVersion : null
+      })
+      enqueueDiagnosticsTraceEvent({
+        source: 'client',
+        stage: 'client_version_echo_requires_catchup',
+        severity: 'info',
+        version,
+        payload: {
+          sheetId,
+          incomingVersion: version,
+          sinceVersion: catchUpBaselineVersion,
+          catchUpBaselineVersion,
+          queueAppliedVersion,
+          knownVersionBefore,
+          diagnostic: 'versionEcho_requires_catchup'
+        }
+      })
+      void requestSheetDeltaCatchUp(sheetId, 'version_gap', {
+        sinceVersion: catchUpBaselineVersion,
+        incomingVersion: version
+      })
+        .then(applied => {
+          if (!applied) return
+          debugLog('structural_catchup_applied', {
+            sheetId,
+            version,
+            sinceVersion: catchUpBaselineVersion
+          })
+          enqueueDiagnosticsTraceEvent({
+            source: 'client',
+            stage: 'client_version_echo_catchup_applied',
+            severity: 'info',
+            version,
+            payload: {
+              sheetId,
+              incomingVersion: version,
+              sinceVersion: catchUpBaselineVersion,
+              diagnostic: 'structural_catchup_applied'
+            }
+          })
+          seedQueueVersionEcho(sheetId, version)
+        })
+        .catch(error => {
+          debugLog('version_echo_catchup_failed', {
+            sheetId,
+            version,
+            sinceVersion: catchUpBaselineVersion,
+            error: error instanceof Error ? error.message : String(error)
+          })
+        })
+      clearLiveAppliedVersionScope()
+      return
+    }
+    seedQueueVersionEcho(sheetId, version)
+    clearLiveAppliedVersionScope()
   }
 
   /**
@@ -311,6 +469,18 @@ export function buildSpreadsheetCollaborationCallbacks(
     if (!queue) return false
     const key = `${rowId}\u0000${columnName}`
     return queue.isQueueOwnedCell(sheetId, key)
+  }
+
+  const isAcknowledgedOverlayBypassCell = (
+    sheetId: string,
+    rowId: string | undefined,
+    colIndex: number,
+    metaOrOptions?: Pick<SpreadsheetBulkRemoteApplyMeta, 'acknowledgedCellKeys'>
+  ): boolean => {
+    if (!rowId || !metaOrOptions?.acknowledgedCellKeys?.length) return false
+    const columnName = resolveColumnNameForIndex(sheetId, colIndex)
+    if (!columnName) return false
+    return metaOrOptions.acknowledgedCellKeys.includes(`${rowId}\u0000${columnName}`)
   }
 
   /**
@@ -493,6 +663,41 @@ export function buildSpreadsheetCollaborationCallbacks(
     ) as unknown as number
   }
 
+  const shouldFlushRemoteBulkImmediately = (operationType?: string | null): boolean =>
+    operationType === 'authoritative_reapply'
+
+  const wrapRemoteBulkApplyMeta = (
+    sheetId: string,
+    meta?: SpreadsheetBulkRemoteApplyMeta
+  ): SpreadsheetBulkRemoteApplyMeta | undefined => {
+    if (!meta) return undefined
+    const { onApplyComplete, operationType } = meta
+    if (!onApplyComplete && operationType !== 'authoritative_reapply') {
+      return meta
+    }
+    let completed = false
+    return {
+      ...meta,
+      onApplyComplete: () => {
+        if (completed) return
+        completed = true
+        if (operationType === 'authoritative_reapply') {
+          enqueueDiagnosticsTraceEvent({
+            source: 'client',
+            stage: 'authoritative_reapply_complete',
+            sheetId,
+            traceSessionId: meta.traceSessionId ?? null,
+            traceId: meta.traceId ?? null,
+            batchId: meta.batchId ?? null,
+            operationType,
+            payload: {}
+          })
+        }
+        onApplyComplete?.()
+      }
+    }
+  }
+
   const wrappedApplyRemoteCellUpdate: SpreadsheetCollaborationCallbacks['applyRemoteCellUpdate'] = (
     rowIndex,
     colIndex,
@@ -501,7 +706,10 @@ export function buildSpreadsheetCollaborationCallbacks(
     options
   ) => {
     const targetSheetId = options?.targetSheetId ?? activeSheetIdRef.current
-    if (isCellLocallyOwnedForOverlay(targetSheetId, rowId, colIndex)) {
+    if (
+      isCellLocallyOwnedForOverlay(targetSheetId, rowId, colIndex) &&
+      !isAcknowledgedOverlayBypassCell(targetSheetId, rowId, colIndex, options)
+    ) {
       debugLog('remote_cell_update_skipped_locally_owned', {
         sheetId: targetSheetId,
         rowId,
@@ -518,37 +726,77 @@ export function buildSpreadsheetCollaborationCallbacks(
     SpreadsheetCollaborationCallbacks['applyRemoteCellUpdatesBulk']
   > = (items, meta) => {
     const targetSheetId = activeSheetIdRef.current
+    const effectiveMeta = wrapRemoteBulkApplyMeta(targetSheetId, meta)
+    const requestedCellCount = items.length
     let skipped = 0
+    let bypassed = 0
     const filtered = items.filter(item => {
       const owned = isCellLocallyOwnedForOverlay(targetSheetId, item.rowId, item.colIndex)
-      if (owned) skipped += 1
-      return !owned
+      if (!owned) return true
+      if (isAcknowledgedOverlayBypassCell(targetSheetId, item.rowId, item.colIndex, effectiveMeta)) {
+        bypassed += 1
+        return true
+      }
+      skipped += 1
+      return false
     })
-    if (skipped > 0) {
+    if (skipped > 0 || bypassed > 0) {
       debugLog('remote_cell_bulk_skipped_locally_owned', {
         sheetId: targetSheetId,
         skipped,
-        kept: filtered.length
+        kept: filtered.length,
+        bypassed,
+        operationType: effectiveMeta?.operationType ?? null
       })
     }
     if (filtered.length === 0) {
       // Nothing to paint — still invoke `onApplyComplete` so callers waiting
       // on the bulk finish signal (e.g. style-after-paste chaining) proceed.
-      meta?.onApplyComplete?.()
-      return
+      debugLog('remote_cell_bulk_zero_visible_paint', {
+        sheetId: targetSheetId,
+        requested: requestedCellCount,
+        skipped,
+        bypassed,
+        operationType: effectiveMeta?.operationType ?? null
+      })
+      const result: SpreadsheetBulkRemoteApplyResult = {
+        status: 'filtered_to_zero',
+        requestedCellCount,
+        paintedCellCount: 0,
+        skippedCellCount: skipped
+      }
+      effectiveMeta?.onApplyComplete?.()
+      return result
+    }
+    if (shouldFlushRemoteBulkImmediately(effectiveMeta?.operationType)) {
+      flushPendingRemoteCellPaints(targetSheetId)
+      const applyBulk = spreadsheetGridRef.current?.applyRemoteCellUpdatesBulk
+      applyBulk?.(filtered, effectiveMeta)
+      return {
+        status: applyBulk ? 'painted' : 'filtered_to_zero',
+        requestedCellCount,
+        paintedCellCount: applyBulk ? filtered.length : 0,
+        skippedCellCount: skipped
+      }
     }
     const buf = ensureRemoteCellBuffer(targetSheetId)
     for (const it of filtered) buf.items.push(it)
-    if (meta?.onApplyComplete) buf.completes.push(meta.onApplyComplete)
-    if (meta && !buf.traceMeta) {
+    if (effectiveMeta?.onApplyComplete) buf.completes.push(effectiveMeta.onApplyComplete)
+    if (effectiveMeta && !buf.traceMeta) {
       buf.traceMeta = {
-        traceSessionId: meta.traceSessionId,
-        traceId: meta.traceId,
-        batchId: meta.batchId,
-        operationType: meta.operationType
+        traceSessionId: effectiveMeta.traceSessionId,
+        traceId: effectiveMeta.traceId,
+        batchId: effectiveMeta.batchId,
+        operationType: effectiveMeta.operationType
       }
     }
     scheduleRemoteCellBufferFlush(targetSheetId)
+    return {
+      status: 'deferred_buffered',
+      requestedCellCount,
+      paintedCellCount: 0,
+      skippedCellCount: skipped
+    }
   }
 
   // The remote-transaction runner and structural callbacks need an
@@ -563,7 +811,12 @@ export function buildSpreadsheetCollaborationCallbacks(
     options
   ) => {
     const targetSheetId = options?.targetSheetId ?? activeSheetIdRef.current
-    if (isCellLocallyOwnedForOverlay(targetSheetId, rowId, colIndex)) return
+    if (
+      isCellLocallyOwnedForOverlay(targetSheetId, rowId, colIndex) &&
+      !isAcknowledgedOverlayBypassCell(targetSheetId, rowId, colIndex, options)
+    ) {
+      return
+    }
     flushPendingRemoteCellPaints(targetSheetId)
     applyRemoteCellUpdateWithRetry(rowIndex, colIndex, value, rowId, options)
   }
@@ -574,22 +827,48 @@ export function buildSpreadsheetCollaborationCallbacks(
       items
         .find(item => typeof item.options?.targetSheetId === 'string' && item.options.targetSheetId.trim())
         ?.options?.targetSheetId?.trim() ?? activeSheetIdRef.current
+    const requestedCellCount = items.length
     flushPendingRemoteCellPaints(targetSheetId)
-    const filtered = items.filter(
-      item =>
-        !isCellLocallyOwnedForOverlay(
-          typeof item.options?.targetSheetId === 'string' && item.options.targetSheetId.trim()
-            ? item.options.targetSheetId.trim()
-            : targetSheetId,
-          item.rowId,
-          item.colIndex
-        )
-    )
+    let skippedCellCount = 0
+    let bypassed = 0
+    const filtered = items.filter(item => {
+      const itemSheetId =
+        typeof item.options?.targetSheetId === 'string' && item.options.targetSheetId.trim()
+          ? item.options.targetSheetId.trim()
+          : targetSheetId
+      const owned = isCellLocallyOwnedForOverlay(itemSheetId, item.rowId, item.colIndex)
+      if (!owned) return true
+      if (isAcknowledgedOverlayBypassCell(itemSheetId, item.rowId, item.colIndex, meta)) {
+        bypassed += 1
+        return true
+      }
+      skippedCellCount += 1
+      return false
+    })
     if (filtered.length === 0) {
+      debugLog('remote_cell_bulk_zero_visible_paint', {
+        sheetId: targetSheetId,
+        requested: requestedCellCount,
+        skipped: skippedCellCount,
+        bypassed,
+        operationType: meta?.operationType ?? null
+      })
       meta?.onApplyComplete?.()
-      return
+      return {
+        status: 'filtered_to_zero',
+        requestedCellCount,
+        paintedCellCount: 0,
+        skippedCellCount
+      }
     }
-    spreadsheetGridRef.current?.applyRemoteCellUpdatesBulk?.(filtered, meta)
+    const applyBulk = spreadsheetGridRef.current?.applyRemoteCellUpdatesBulk
+    applyBulk?.(filtered, meta)
+    return {
+      status: applyBulk ? 'painted' : 'filtered_to_zero',
+      requestedCellCount,
+      paintedCellCount: applyBulk ? filtered.length : 0,
+      skippedCellCount
+    }
   }
 
   const applyRemoteDimensions = createCollaborationApplyRemoteDimensions({
@@ -659,7 +938,9 @@ export function buildSpreadsheetCollaborationCallbacks(
       }
       return fallbackSorted
     },
-    getWorkbookSnapshot: () => spreadsheetGridRef.current?.getWorkbookSnapshot?.() ?? null,
+    getWorkbookSnapshot,
+    applyCommittedWorksheetMetadataPatch,
+    applyCommittedCommentAnchorPatches,
     getBackendRowIdForUiRowId: (uiRowId, univerRow) => getBackendRowIdForUiRowIdRef.current(uiRowId, univerRow),
     commitLocalSheetData,
     commitSheetData: (sheetId, data, options) => {
@@ -681,13 +962,7 @@ export function buildSpreadsheetCollaborationCallbacks(
     },
     forceGridReapply: (sheetId, region, options) => {
       flushPendingRemoteCellPaints(sheetId)
-      globalThis.setTimeout(() => {
-        if (activeSheetIdRef.current !== sheetId) return
-        forwardForceAuthoritativeReapply(spreadsheetGridRef, region ?? null, options, {
-          debugLog,
-          enqueueDiagnosticsTraceEvent
-        })
-      }, 0)
+      dispatchForceGridReapply(sheetId, region, options)
     },
     applyRemoteDimensions: payload => {
       flushPendingRemoteCellPaints(payload.sheetId)
@@ -704,42 +979,33 @@ export function buildSpreadsheetCollaborationCallbacks(
           appliedVersion: plan.batch.appliedVersion
         }
       }
-      try {
-        return new UniverRemoteTransactionRunner({
-          applyRemoteCellUpdate: immediateApplyRemoteCellUpdate,
-          applyRemoteCellUpdatesBulk: immediateApplyRemoteCellUpdatesBulk,
-          applyRemoteClearAllRange: (payload, meta) => {
-            spreadsheetGridRef.current?.applyRemoteClearAllRange?.(payload, meta)
-          },
-          applyRemoteClearFormatRange: (payload, meta) => {
-            spreadsheetGridRef.current?.applyRemoteClearFormatRange?.(payload, meta)
-          },
-          applyRemoteSpreadsheetFeatureOperation: (payload, meta) => {
-            spreadsheetGridRef.current?.applyRemoteSpreadsheetFeatureOperation?.(payload, meta)
-          },
-          forceGridReapply: (sheetId, region, options) => {
-            globalThis.setTimeout(() => {
-              if (activeSheetIdRef.current !== sheetId) return
-              forwardForceAuthoritativeReapply(spreadsheetGridRef, region ?? null, options, {
-                debugLog,
-                enqueueDiagnosticsTraceEvent
-              })
-            }, 0)
-          }
-        }).run(plan)
-      } finally {
-        if (liveRemoteApplyVersionRef?.current?.sheetId === plan.batch.sheetId) {
-          liveRemoteApplyVersionRef.current = null
+      return new UniverRemoteTransactionRunner({
+        applyRemoteCellUpdate: immediateApplyRemoteCellUpdate,
+        applyRemoteCellUpdatesBulk: immediateApplyRemoteCellUpdatesBulk,
+        applyRemoteClearAllRange: (payload, meta) => {
+          spreadsheetGridRef.current?.applyRemoteClearAllRange?.(payload, meta)
+        },
+        applyRemoteClearFormatRange: (payload, meta) => {
+          spreadsheetGridRef.current?.applyRemoteClearFormatRange?.(payload, meta)
+        },
+        applyRemoteSpreadsheetFeatureOperation: (payload, meta) => {
+          spreadsheetGridRef.current?.applyRemoteSpreadsheetFeatureOperation?.(payload, meta)
+        },
+        forceGridReapply: (sheetId, region, options) => {
+          dispatchForceGridReapply(sheetId, region, options)
         }
-      }
+      }).run(plan)
     },
     onVersionUpdate: version => {
+      const sheetId = activeSheetIdRef.current
+      const knownVersionBefore = resolveKnownSheetVersion(sheetId)
       updateActiveSheetVersion(version)
-      seedQueueVersionEcho(activeSheetIdRef.current, version)
+      routeVersionEcho(sheetId, version, knownVersionBefore)
     },
     onSheetVersionUpdate: (sheetId, version) => {
+      const knownVersionBefore = resolveKnownSheetVersion(sheetId)
       rememberSheetVersion(sheetId, version)
-      seedQueueVersionEcho(sheetId, version)
+      routeVersionEcho(sheetId, version, knownVersionBefore)
       applyLocalAppUpdate(currentApp => ({
         ...currentApp,
         sheets: currentApp.sheets.map(sheet =>
@@ -760,13 +1026,14 @@ export function buildSpreadsheetCollaborationCallbacks(
     scheduleSheetVersionRefreshFromApi,
     scheduleRemoteStructuralResync,
     onRemoteColumnUpdate: handleRemoteColumnUpdate,
-    applyRemoteColumnReorder: ({ sheetId, previousColumns, nextColumns }) => {
+    applyRemoteColumnReorder: ({ sheetId, previousColumns, nextColumns, moves }) => {
       if (activeSheetIdRef.current !== sheetId) return false
       flushPendingRemoteCellPaints(sheetId)
       return (
         spreadsheetGridRef.current?.applyRemoteColumnsReorder?.({
           previousColumns,
-          nextColumns
+          nextColumns,
+          moves
         }) ?? false
       )
     },

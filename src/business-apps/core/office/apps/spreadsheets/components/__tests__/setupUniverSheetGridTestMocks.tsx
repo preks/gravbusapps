@@ -5,16 +5,9 @@
 import React from 'react'
 import type { UniverSheetGridHandle, UniverSheetGridProps } from '../UniverSheetGrid.types'
 import { UniverSheetGrid as UniverSheetGridBase } from '../UniverSheetGrid'
+import { parseChartRange } from '../../utils/chartRangeUtils'
 
 export const eventHandlers: Record<string, (payload: unknown) => void> = {}
-
-jest.mock(
-  '@univerjs/core',
-  () => ({
-    CommandType: { MUTATION: 2 }
-  }),
-  { virtual: true }
-)
 
 jest.mock('@univerjs/preset-sheets-core/locales/en-US', () => ({}), { virtual: true })
 
@@ -26,6 +19,9 @@ export let lastRangeSetValueMock: jest.Mock | undefined
 export let inactiveSheetSetValueMock: jest.Mock | undefined
 export let lastSetFreezeMock: jest.Mock | undefined
 export let lastCancelFreezeMock: jest.Mock | undefined
+export let lastRequestedRangeCoords:
+  | { sheetId: 'sheet-1' | 'sheet-2'; row: number | undefined; col: number | undefined }
+  | undefined
 export let univerMockActiveSheetId: 'sheet-1' | 'sheet-2' = 'sheet-1'
 
 /** Mutable test overrides; assign via this object (not namespace imports) from test files. */
@@ -42,7 +38,29 @@ export const gridTestMockState = {
     actualColumn?: number
     row?: number
     column?: number
+    startRow?: number
+    startColumn?: number
+    endRow?: number
+    endColumn?: number
   } | null
+}
+
+function getExplicitSelectionRange() {
+  const selection = gridTestMockState.selectionState
+  if (!selection) return null
+  const hasExplicitRange =
+    typeof selection.startRow === 'number' ||
+    typeof selection.startColumn === 'number' ||
+    typeof selection.endRow === 'number' ||
+    typeof selection.endColumn === 'number'
+  if (!hasExplicitRange) return null
+
+  const startRow = selection.startRow ?? selection.actualRow ?? selection.row ?? 0
+  const startColumn = selection.startColumn ?? selection.actualColumn ?? selection.column ?? 0
+  const endRow = selection.endRow ?? startRow
+  const endColumn = selection.endColumn ?? startColumn
+
+  return { startRow, startColumn, endRow, endColumn }
 }
 
 export let executeCommandMock: jest.Mock | undefined
@@ -106,35 +124,93 @@ jest.mock(
         onScroll: () => ({ dispose: jest.fn() }),
         setFreeze: lastSetFreezeMock,
         cancelFreeze: lastCancelFreezeMock,
-        getRange: (row?: number, col?: number) => {
-          const key = `${row ?? ''}:${col ?? ''}`
+        getRange: (rowOrA1?: number | string, col?: number, height?: number, width?: number) => {
+          const parsedRange =
+            typeof rowOrA1 === 'string'
+              ? parseChartRange(rowOrA1)
+              : typeof rowOrA1 === 'number' && typeof col === 'number'
+                ? {
+                    startRow: rowOrA1,
+                    startCol: col,
+                    endRow: rowOrA1 + Math.max(0, (height ?? 1) - 1),
+                    endCol: col + Math.max(0, (width ?? 1) - 1)
+                  }
+                : null
+          const resolvedRow = parsedRange?.startRow
+          const resolvedCol = parsedRange?.startCol
+          lastRequestedRangeCoords = {
+            sheetId: 'sheet-1',
+            row: resolvedRow,
+            col: resolvedCol
+          }
           return {
             setValue: range.setValue,
             getValue: () =>
-              gridTestMockState.worksheetValueByCoord?.has(key)
-                ? gridTestMockState.worksheetValueByCoord.get(key)
+              gridTestMockState.worksheetValueByCoord?.has(`${resolvedRow ?? ''}:${resolvedCol ?? ''}`)
+                ? gridTestMockState.worksheetValueByCoord.get(`${resolvedRow ?? ''}:${resolvedCol ?? ''}`)
                 : range.getValue(),
             getCellData: () =>
-              gridTestMockState.worksheetCellDataByCoord?.has(key)
-                ? gridTestMockState.worksheetCellDataByCoord.get(key)
+              gridTestMockState.worksheetCellDataByCoord?.has(`${resolvedRow ?? ''}:${resolvedCol ?? ''}`)
+                ? gridTestMockState.worksheetCellDataByCoord.get(`${resolvedRow ?? ''}:${resolvedCol ?? ''}`)
                 : range.getCellData(),
-            getCellRect: () => range.getCellRect(row, col)
+            getCellRect: () => range.getCellRect(resolvedRow, resolvedCol),
+            row: resolvedRow,
+            col: resolvedCol,
+            height,
+            width,
+            getRange: () => ({
+              startRow: parsedRange?.startRow,
+              startColumn: parsedRange?.startCol,
+              endRow: parsedRange?.endRow,
+              endColumn: parsedRange?.endCol
+            })
           }
         },
         getSelection: () => ({
-          getCurrentCell: () => gridTestMockState.selectionState
+          getCurrentCell: () => gridTestMockState.selectionState,
+          getActiveRange: () => getExplicitSelectionRange(),
+          getActiveRangeList: () => {
+            const range = getExplicitSelectionRange()
+            return range ? [range] : null
+          }
         })
       }
       const inactiveSheet = {
         getSheetId: () => 'sheet-2',
         setFreeze: lastSetFreezeMock,
         cancelFreeze: lastCancelFreezeMock,
-        getRange: jest.fn(() => {
+        getRange: jest.fn((rowOrA1?: number | string, col?: number, height?: number, width?: number) => {
+          const parsedRange =
+            typeof rowOrA1 === 'string'
+              ? parseChartRange(rowOrA1)
+              : typeof rowOrA1 === 'number' && typeof col === 'number'
+                ? {
+                    startRow: rowOrA1,
+                    startCol: col,
+                    endRow: rowOrA1 + Math.max(0, (height ?? 1) - 1),
+                    endCol: col + Math.max(0, (width ?? 1) - 1)
+                  }
+                : null
           inactiveSheetSetValueMock = jest.fn()
+          lastRequestedRangeCoords = {
+            sheetId: 'sheet-2',
+            row: parsedRange?.startRow,
+            col: parsedRange?.startCol
+          }
           return {
             setValue: inactiveSheetSetValueMock,
             getValue: jest.fn(),
-            getCellData: jest.fn(() => ({ v: undefined }))
+            getCellData: jest.fn(() => ({ v: undefined })),
+            row: parsedRange?.startRow,
+            col: parsedRange?.startCol,
+            height,
+            width,
+            getRange: () => ({
+              startRow: parsedRange?.startRow,
+              startColumn: parsedRange?.startCol,
+              endRow: parsedRange?.endRow,
+              endColumn: parsedRange?.endCol
+            })
           }
         })
       }
@@ -178,6 +254,7 @@ jest.mock(
       })
 
       return {
+        univer: {},
         univerAPI: {
           syncExecuteCommand: executeCommandMock,
           createWorkbook: createWorkbookMock,
@@ -205,6 +282,7 @@ export function resetUniverSheetGridTestMocks(): void {
   inactiveSheetSetValueMock = undefined
   lastSetFreezeMock = undefined
   lastCancelFreezeMock = undefined
+  lastRequestedRangeCoords = undefined
   univerMockActiveSheetId = 'sheet-1'
   gridTestMockState.worksheetValueByCoord = null
   gridTestMockState.worksheetCellDataByCoord = null

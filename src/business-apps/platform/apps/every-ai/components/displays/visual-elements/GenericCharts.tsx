@@ -17,10 +17,51 @@ import {
   XAxis,
   YAxis
 } from 'recharts'
-import type { AreaChartData, LineChartData, PieChartData, StackedBarChartData } from '../../../types/models'
+import type {
+  AreaChartData,
+  DataQuerySpec,
+  LineChartData,
+  PieChartData,
+  StackedBarChartData
+} from '../../../types/models'
+import { ChartDrilldown } from '../shared/ChartDrilldown'
 import { chartColorAt } from './chartPalette'
 
 const CHART_DOT_COLOR = 'var(--nw-foreground)'
+
+interface DrilldownState {
+  active: string | null
+  setActive: (value: string | null) => void
+  has: (value: string) => boolean
+  enabled: boolean
+  /** Recharts cartesian onClick handler (LineChart/AreaChart). */
+  handleAxisClick: (state: { activeLabel?: string | number } | undefined) => void
+  /** Recharts Pie onClick handler. */
+  handleSliceClick: (slice: { name?: string | number }) => void
+}
+
+function useDrilldownState(querySpec?: DataQuerySpec | null, accessToken?: string): DrilldownState {
+  const [active, setActive] = useState<string | null>(null)
+  const values = useMemo(() => new Set((querySpec?.drilldowns ?? []).map(entry => entry.matchValue)), [querySpec])
+  const enabled = Boolean(querySpec && accessToken && values.size > 0)
+  const trigger = (raw: string | number | undefined) => {
+    if (!enabled || raw === undefined) {
+      return
+    }
+    const label = String(raw)
+    if (values.has(label)) {
+      setActive(label)
+    }
+  }
+  return {
+    active,
+    setActive,
+    has: (value: string) => values.has(value),
+    enabled,
+    handleAxisClick: state => trigger(state?.activeLabel),
+    handleSliceClick: slice => trigger(slice?.name)
+  }
+}
 
 function mergeLineSeriesForRecharts(series: LineChartData['series']) {
   const byX = new Map<string, Record<string, number | string>>()
@@ -47,9 +88,10 @@ function formatTooltipValue(v: number, fmt?: string) {
   return String(v)
 }
 
-export const LineChartDisplay: React.FC<{ data: LineChartData }> = ({ data }) => {
+export const LineChartDisplay: React.FC<{ data: LineChartData; accessToken?: string }> = ({ data, accessToken }) => {
   const chartData = useMemo(() => mergeLineSeriesForRecharts(data.series), [data.series])
   const [colors, setColors] = useState<string[]>([])
+  const drilldown = useDrilldownState(data.querySpec, accessToken)
 
   useLayoutEffect(() => {
     setColors(data.series.map((s, i) => chartColorAt(i, s.color ?? null)))
@@ -64,7 +106,11 @@ export const LineChartDisplay: React.FC<{ data: LineChartData }> = ({ data }) =>
       </CardHeader>
       <CardContent className="gba:p-4">
         <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+          <LineChart
+            data={chartData}
+            margin={{ top: 8, right: 16, left: 0, bottom: 8 }}
+            onClick={drilldown.handleAxisClick}
+          >
             <CartesianGrid strokeDasharray="3 3" stroke="var(--nw-border)" />
             <XAxis dataKey="x" name={data.xAxis?.label ?? ''} tick={{ fontSize: 12 }} />
             <YAxis tick={{ fontSize: 12 }} />
@@ -86,14 +132,23 @@ export const LineChartDisplay: React.FC<{ data: LineChartData }> = ({ data }) =>
             ))}
           </LineChart>
         </ResponsiveContainer>
+        {drilldown.enabled && drilldown.active && data.querySpec && accessToken ? (
+          <ChartDrilldown
+            accessToken={accessToken}
+            querySpec={data.querySpec}
+            matchValue={drilldown.active}
+            onClose={() => drilldown.setActive(null)}
+          />
+        ) : null}
       </CardContent>
     </Card>
   )
 }
 
-export const AreaChartDisplay: React.FC<{ data: AreaChartData }> = ({ data }) => {
+export const AreaChartDisplay: React.FC<{ data: AreaChartData; accessToken?: string }> = ({ data, accessToken }) => {
   const chartData = useMemo(() => mergeLineSeriesForRecharts(data.series), [data.series])
   const [colors, setColors] = useState<string[]>([])
+  const drilldown = useDrilldownState(data.querySpec, accessToken)
 
   useLayoutEffect(() => {
     setColors(data.series.map((s, i) => chartColorAt(i, s.color ?? null)))
@@ -108,7 +163,11 @@ export const AreaChartDisplay: React.FC<{ data: AreaChartData }> = ({ data }) =>
       </CardHeader>
       <CardContent className="gba:p-4">
         <ResponsiveContainer width="100%" height={300}>
-          <AreaChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+          <AreaChart
+            data={chartData}
+            margin={{ top: 8, right: 16, left: 0, bottom: 8 }}
+            onClick={drilldown.handleAxisClick}
+          >
             <CartesianGrid strokeDasharray="3 3" stroke="var(--nw-border)" />
             <XAxis dataKey="x" tick={{ fontSize: 12 }} />
             <YAxis tick={{ fontSize: 12 }} />
@@ -127,6 +186,14 @@ export const AreaChartDisplay: React.FC<{ data: AreaChartData }> = ({ data }) =>
             ))}
           </AreaChart>
         </ResponsiveContainer>
+        {drilldown.enabled && drilldown.active && data.querySpec && accessToken ? (
+          <ChartDrilldown
+            accessToken={accessToken}
+            querySpec={data.querySpec}
+            matchValue={drilldown.active}
+            onClose={() => drilldown.setActive(null)}
+          />
+        ) : null}
       </CardContent>
     </Card>
   )
@@ -194,12 +261,13 @@ export const StackedBarChartDisplay: React.FC<{ data: StackedBarChartData }> = (
   )
 }
 
-export const PieChartDisplay: React.FC<{ data: PieChartData }> = ({ data }) => {
+export const PieChartDisplay: React.FC<{ data: PieChartData; accessToken?: string }> = ({ data, accessToken }) => {
   const pieData = useMemo(
     () => data.segments.map(s => ({ name: s.name, value: s.value, tooltip: s.tooltip })),
     [data.segments]
   )
   const [colors, setColors] = useState<string[]>([])
+  const drilldown = useDrilldownState(data.querySpec, accessToken)
 
   useLayoutEffect(() => {
     setColors(data.segments.map((s, i) => chartColorAt(i, s.color ?? null)))
@@ -224,6 +292,7 @@ export const PieChartDisplay: React.FC<{ data: PieChartData }> = ({ data }) => {
               innerRadius={data.donut ? 56 : 0}
               outerRadius={96}
               paddingAngle={2}
+              onClick={drilldown.handleSliceClick}
               label={({ name, percent }: { name: string; percent?: number }) =>
                 `${name} ${((percent ?? 0) * 100).toFixed(0)}%`
               }
@@ -235,6 +304,14 @@ export const PieChartDisplay: React.FC<{ data: PieChartData }> = ({ data }) => {
             <Tooltip formatter={(v: number) => formatTooltipValue(v, data.valueFormat ?? undefined)} />
           </PieChart>
         </ResponsiveContainer>
+        {drilldown.enabled && drilldown.active && data.querySpec && accessToken ? (
+          <ChartDrilldown
+            accessToken={accessToken}
+            querySpec={data.querySpec}
+            matchValue={drilldown.active}
+            onClose={() => drilldown.setActive(null)}
+          />
+        ) : null}
       </CardContent>
     </Card>
   )

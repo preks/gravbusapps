@@ -163,11 +163,11 @@ export const EntitlementsView: React.FC<EntitlementsViewProps> = ({
 
   const handleExportExcel = async () => {
     const workbook = buildExcelWorkbook(
-      tt('export_sheet_name', 'Entitlements'),
+      tt('leave_balances_export_sheet_name', 'Leave Balances'),
       buildExportColumns(),
       buildExportRows(overview.rows)
     )
-    await downloadExcelWorkbook(workbook, buildFilename('time-absence-hub-entitlements', 'xlsx'))
+    await downloadExcelWorkbook(workbook, buildFilename('time-absence-hub-leave-balances', 'xlsx'))
   }
 
   const handleEmployeeSearchChange = (employeeQuery: string) => {
@@ -185,11 +185,13 @@ export const EntitlementsView: React.FC<EntitlementsViewProps> = ({
     <div className="gba:flex gba:flex-col gba:gap-4" data-testid="time-absence-hub-entitlements-view">
       <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
         <div>
-          <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">{tt('title', 'Entitlements')}</h2>
+          <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">
+            {tt('leave_balances_title', 'Leave Balances')}
+          </h2>
           <p className="gba:text-sm gba:text-muted-foreground">
             {tt(
-              'page_intro',
-              'Review employee balances, validity periods and entitlement health across the organization.'
+              'leave_balances_page_intro',
+              'Review employee leave balances, validity periods and balance health across the organization.'
             )}
           </p>
         </div>
@@ -199,7 +201,7 @@ export const EntitlementsView: React.FC<EntitlementsViewProps> = ({
         titleSections={[
           {
             id: 'entitlements',
-            label: tt('title', 'Entitlements'),
+            label: tt('leave_balances_title', 'Leave Balances'),
             metadata: {
               count: overview.total,
               isLoading: overview.isLoading,

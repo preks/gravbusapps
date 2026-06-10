@@ -19,7 +19,7 @@ filter-legal-entity = Legal Entity
 filter-visibility = Visibility
 filter-visibility-all = All
 filter-visibility-public = Public
-filter-visibility-private = Private
+filter-visibility-private = Individual
 filter-status = Status
 filter-status-all = All
 filter-status-active = Active
@@ -59,7 +59,7 @@ period-one-time = One-time
 
 # Benefit visibility
 visibility-public = Public
-visibility-private = Private
+visibility-private = Individual
 
 # Pagination
 pagination-showing = Showing { $from } to { $to } of { $total } benefits
@@ -98,6 +98,7 @@ detail-field-version = Version
 detail-field-entry-id = Entry ID
 action-edit-benefit = Edit Benefit
 action-archive-benefit = Archive Benefit
+action-reactivate-benefit = Reactivate Benefit
 action-edit = Edit
 
 # Benefit Type Dialog
@@ -121,7 +122,7 @@ field-currency = Currency
 field-currency-placeholder = e.g. EUR
 field-currency-hint = Auto-set based on company
 field-visibility = Visibility
-field-visibility-hint = Public benefits are visible to all employees. Private benefits are visible only to HR Backoffice.
+field-visibility-hint = Public benefits are visible to all employees. Individual benefits are visible only to HR Backoffice.
 field-icon = Icon
 field-icon-placeholder = Select an icon...
 field-icon-search = Search icons...
@@ -136,6 +137,7 @@ field-display-order-placeholder = e.g. 10
 dialog-create-provider-title = Create Provider
 dialog-edit-provider-title = Edit Provider
 field-parent-benefit = Parent Benefit Type
+field-parent-benefit-placeholder = Select a benefit type...
 field-provider-name = Provider Name
 field-provider-name-placeholder = e.g. Allianz, Edenred
 
@@ -160,6 +162,7 @@ toast-activated = Benefit "{ $name }" activated
 toast-provider-created = Provider "{ $name }" created successfully
 toast-provider-updated = Provider "{ $name }" updated successfully
 toast-provider-deleted = Provider "{ $name }" deleted
+toast-provider-activated = Provider "{ $name }" reactivated
 toast-error = An error occurred: { $message }
 toast-copied = Copied to clipboard
 
@@ -169,6 +172,7 @@ validation-name-required = Name is required
 validation-country-required = At least one country is required
 validation-legal-entity-required = Legal entity is required
 validation-value-required = Value is required
+validation-parent-benefit-required = Parent benefit type is required
 validation-currency-missing = Selected company has no currency configured. Please update the company setup first.
 
 # Providers tab (standalone)
@@ -181,6 +185,8 @@ providers-no-available = No unlinked providers available
 action-create-provider = New Provider
 action-add-provider = Add Provider
 action-select-provider = Select a provider...
+action-archive-provider = Archive Provider
+action-reactivate-provider = Reactivate Provider
 toast-provider-linked = Provider "{ $name }" linked successfully
 toast-provider-unlinked = Provider "{ $name }" unlinked
 action-back = Back
@@ -190,12 +196,12 @@ action-refresh = Refresh
 # KPI Cards - Benefits tab
 kpi-section-title = Benefits Overview
 kpi-available-benefits = Available Benefits
-kpi-private-benefits = Private Benefits
+kpi-private-benefits = Individual Benefits
 kpi-employees-with-benefits = Employees with Benefits
 kpi-avg-per-employee = Avg Benefits / Employee
 kpi-trend-vs-last-month = vs last month
 kpi-available-footer = Active benefits the company offers
-kpi-private-footer = Benefits that can be assigned only by HR
+kpi-private-footer = Individual benefits that can be assigned only by HR
 kpi-employees-footer = Employees with at least one active benefit
 kpi-avg-footer = Average number of benefits per employee
 

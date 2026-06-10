@@ -85,7 +85,7 @@ describe('releaseSpreadsheetMutationOwnershipFromResponse', () => {
     ).toBe(false)
   })
 
-  it('acknowledges each cleared cell inside set_range operations', () => {
+  it('acknowledges value and clear cells inside set_range operations', () => {
     const ownership = new SpreadsheetVersionCausalOwnershipRegistry()
     ownership.registerIntent({
       sheetId: 'sheet-1',
@@ -99,6 +99,12 @@ describe('releaseSpreadsheetMutationOwnershipFromResponse', () => {
       columnName: 'ColumnB',
       baseVersion: 3
     })
+    ownership.registerIntent({
+      sheetId: 'sheet-1',
+      logicalRowHandle: 'row-3',
+      columnName: 'ColumnC',
+      baseVersion: 3
+    })
 
     releaseSpreadsheetMutationOwnershipFromResponse({
       sheetId: 'sheet-1',
@@ -110,7 +116,7 @@ describe('releaseSpreadsheetMutationOwnershipFromResponse', () => {
             cells: [
               { rowId: 'row-1', columnName: 'ColumnA', value: null },
               { rowId: 'row-2', columnName: 'ColumnB', value: null },
-              { rowId: 'row-3', columnName: 'ColumnC', value: 'keep' }
+              { rowId: 'row-3', columnName: 'ColumnC', value: 'typed-fast' }
             ]
           }
         }
@@ -135,6 +141,14 @@ describe('releaseSpreadsheetMutationOwnershipFromResponse', () => {
         sheetId: 'sheet-1',
         rowId: 'row-2',
         columnName: 'ColumnB',
+        remoteAppliedVersion: 4
+      })
+    ).toBe(false)
+    expect(
+      ownership.shouldSuppressRemotePaint({
+        sheetId: 'sheet-1',
+        rowId: 'row-3',
+        columnName: 'ColumnC',
         remoteAppliedVersion: 4
       })
     ).toBe(false)

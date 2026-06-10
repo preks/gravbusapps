@@ -99,6 +99,8 @@ const ROW_HEIGHT = 56
 const HEADER_HEIGHT = 48
 const LABEL_WIDTH = 240
 const MIN_BAR_WIDTH = 24
+// Minimum horizontal space (px) reserved per axis label so they never overlap.
+const MIN_LABEL_SPACING = 80
 
 // ============================================================================
 // Utility Functions
@@ -527,7 +529,7 @@ export const FlowGanttChart: React.FC<FlowGanttChartProps> = props => {
     className = ''
   } = props
   const scrollRef = useRef<HTMLDivElement>(null)
-  const [zoomLevel, setZoomLevel] = useState<ZoomLevel>('1m')
+  const [zoomLevel, setZoomLevel] = useState<ZoomLevel>('12h')
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
 
@@ -580,22 +582,28 @@ export const FlowGanttChart: React.FC<FlowGanttChartProps> = props => {
   // Generate time grid lines
   const gridLines = useMemo(() => {
     const config = ZOOM_CONFIGS[zoomLevel]
-    const lines: { position: number; label: string; isHour: boolean }[] = []
+    const lines: { position: number; label: string; showLabel: boolean }[] = []
 
     const intervalMs = config.gridInterval * 60 * 1000
+    // Pixels between two consecutive ticks at this zoom level.
+    const pxPerInterval = (config.gridInterval / 60) * timeRange.pixelsPerHour
+    // Render a label only every Nth tick so labels keep MIN_LABEL_SPACING apart.
+    const labelEvery = Math.max(1, Math.ceil(MIN_LABEL_SPACING / Math.max(1, pxPerInterval)))
+
     let current = new Date(Math.ceil(timeRange.start.getTime() / intervalMs) * intervalMs)
+    let tickIndex = 0
 
     while (current <= timeRange.end) {
       const position = ((current.getTime() - timeRange.start.getTime()) / (1000 * 60 * 60)) * timeRange.pixelsPerHour
-      const isHour = current.getMinutes() === 0
 
       lines.push({
         position,
         label: formatGridTime(current, zoomLevel),
-        isHour
+        showLabel: tickIndex % labelEvery === 0
       })
 
       current = new Date(current.getTime() + intervalMs)
+      tickIndex += 1
     }
 
     return lines
@@ -882,19 +890,17 @@ export const FlowGanttChart: React.FC<FlowGanttChartProps> = props => {
 
               {/* Time scale */}
               <div className="gba:relative gba:flex-1" style={{ width: `${chartWidth}px` }}>
-                {gridLines.map((line, index) => (
-                  <div
-                    key={index}
-                    className="gba:absolute gba:top-0 gba:bottom-0 gba:flex gba:flex-col gba:items-center gba:justify-center"
-                    style={{ left: `${line.position}px` }}
-                  >
-                    <span
-                      className={`gba:text-xs gba:whitespace-nowrap ${line.isHour ? 'gba:font-medium' : 'gba:text-muted-foreground'}`}
+                {gridLines.map(line =>
+                  line.showLabel ? (
+                    <div
+                      key={`label-${line.position}`}
+                      className="gba:absolute gba:top-0 gba:bottom-0 gba:flex gba:items-center"
+                      style={{ left: `${line.position}px` }}
                     >
-                      {line.label}
-                    </span>
-                  </div>
-                ))}
+                      <span className="gba:text-xs gba:whitespace-nowrap gba:font-medium gba:pl-1.5">{line.label}</span>
+                    </div>
+                  ) : null
+                )}
               </div>
             </div>
 
@@ -958,10 +964,10 @@ export const FlowGanttChart: React.FC<FlowGanttChartProps> = props => {
                   {/* Chart area */}
                   <div className="gba:relative gba:flex-1" style={{ width: `${chartWidth}px` }}>
                     {/* Grid lines */}
-                    {gridLines.map((line, lineIndex) => (
+                    {gridLines.map(line => (
                       <div
-                        key={lineIndex}
-                        className={`gba:absolute gba:top-0 gba:bottom-0 gba:w-px ${line.isHour ? 'gba:bg-border' : 'gba:bg-border/50'}`}
+                        key={`grid-${line.position}`}
+                        className={`gba:absolute gba:top-0 gba:bottom-0 gba:w-px ${line.showLabel ? 'gba:bg-border' : 'gba:bg-border/40'}`}
                         style={{ left: `${line.position}px` }}
                       />
                     ))}

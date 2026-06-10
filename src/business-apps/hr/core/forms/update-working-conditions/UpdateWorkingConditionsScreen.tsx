@@ -29,7 +29,6 @@ const prefixDataTestId = 'UpdateWorkingConditionsScreen'
 type ChangeMode = 'UPDATE' | 'INSERT'
 
 const getDateInputValue = (value: string): string | undefined => (value ? value : undefined)
-const getTomorrowDate = (): string => dayjs().add(1, 'day').format('YYYY-MM-DD')
 const toInstantDate = (value: string): string | undefined => {
   if (!value) return undefined
 
@@ -118,14 +117,6 @@ interface WorkingConditionsSubmitPayload {
   employeeWorkingCondition: EmployeeWorkingConditionSubmitPayload
 }
 
-interface DateValidationErrors {
-  effectiveStartDate?: string
-  effectiveEndDate?: string
-}
-
-const hasDateValidationErrors = (errors: DateValidationErrors): boolean =>
-  Boolean(errors.effectiveStartDate || errors.effectiveEndDate)
-
 const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context => {
   const { t } = useTranslation(translations)
   const changeMode = useMemo(() => getWorkingConditionChangeMode(context), [context])
@@ -153,7 +144,6 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
   const [startDate, setStartDate] = useState<string>('')
   const [probationEndDate, setProbationEndDate] = useState<string>('')
   const [validationError, setValidationError] = useState<string | null>(null)
-  const [dateValidationErrors, setDateValidationErrors] = useState<DateValidationErrors>({})
   useEffect(() => {
     if (!current) {
       return
@@ -186,23 +176,8 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
   const selectedRegion = region || current?.regionRef || ''
   const currentStartDate = current?.startDate ? current.startDate.split('T')[0] : ''
   const currentContractTypeRef = current?.contractTypeRef || ''
-  const minimumEntryDate = useMemo(getTomorrowDate, [])
-  const minimumEffectiveStartDate = changeMode === 'UPDATE' ? startDate || undefined : minimumEntryDate
-  const effectiveEndMinDate = useMemo(() => {
-    if (changeMode === 'UPDATE') {
-      if (effectiveStartDate) {
-        return effectiveStartDate
-      }
-
-      return startDate || undefined
-    }
-
-    if (effectiveStartDate && effectiveStartDate > minimumEntryDate) {
-      return effectiveStartDate
-    }
-
-    return minimumEntryDate
-  }, [changeMode, effectiveStartDate, minimumEntryDate, startDate])
+  const minimumEffectiveStartDate = changeMode === 'UPDATE' ? startDate || undefined : undefined
+  const effectiveEndMinDate = effectiveStartDate || minimumEffectiveStartDate
 
   useEffect(() => {
     if (employmentType) {
@@ -374,12 +349,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
   const isValid = useMemo(() => {
     return (
       Boolean(
-        effectiveStartDate &&
-          selectedEmploymentType &&
-          selectedContractType &&
-          selectedRemote &&
-          selectedRegion &&
-          startDate
+        effectiveStartDate && selectedEmploymentType && selectedContractType && selectedRemote && selectedRegion
       ) &&
       !isEffectiveEndBeforeStart &&
       !isProbationEndBeforeStart
@@ -390,7 +360,6 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
     selectedContractType,
     selectedRemote,
     selectedRegion,
-    startDate,
     isEffectiveEndBeforeStart,
     isProbationEndBeforeStart
   ])
@@ -399,7 +368,6 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
 
   const hasChanges = useMemo(() => {
     if (!current) return true
-    const curStart = current.startDate ? current.startDate.split('T')[0] : ''
     const curProb = current.probationEndDate ? current.probationEndDate.split('T')[0] : ''
     return (
       Boolean(effectiveStartDate || effectiveEndDate) ||
@@ -407,7 +375,6 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
       selectedContractType !== (current.contractTypeRef || '') ||
       selectedRemote !== (current.remoteRef || '') ||
       selectedRegion !== (current.regionRef || '') ||
-      (startDate || '') !== curStart ||
       (probationEndDate || '') !== curProb
     )
   }, [
@@ -418,49 +385,8 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
     selectedContractType,
     selectedRemote,
     selectedRegion,
-    startDate,
     probationEndDate
   ])
-
-  const futureDateErrorMessage = t('working-conditions-future-entry-dates-required')
-
-  const getFutureEntryDateError = useCallback(
-    (value: string): string | undefined => {
-      if (changeMode === 'UPDATE') {
-        return undefined
-      }
-
-      const minimumTimestamp = getDateTimestamp(minimumEntryDate)
-      const valueTimestamp = getDateTimestamp(value)
-
-      if (valueTimestamp !== null && minimumTimestamp !== null && valueTimestamp < minimumTimestamp) {
-        return futureDateErrorMessage
-      }
-
-      return undefined
-    },
-    [changeMode, futureDateErrorMessage, minimumEntryDate]
-  )
-
-  const getFutureEntryDateErrors = useCallback((): DateValidationErrors => {
-    const errors: DateValidationErrors = {}
-    errors.effectiveStartDate = getFutureEntryDateError(effectiveStartDate)
-    errors.effectiveEndDate = getFutureEntryDateError(effectiveEndDate)
-
-    return errors
-  }, [effectiveEndDate, effectiveStartDate, getFutureEntryDateError])
-
-  const validateFutureEntryDates = useCallback(() => {
-    const errors = getFutureEntryDateErrors()
-    setDateValidationErrors(errors)
-
-    if (hasDateValidationErrors(errors)) {
-      setValidationError(null)
-      return false
-    }
-
-    return true
-  }, [getFutureEntryDateErrors])
 
   const hasWorkingConditionDateRange = useCallback(
     (record: WorkingConditionValidationRecord): boolean =>
@@ -547,14 +473,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
     if (isProbationEndBeforeStart) {
       return [t('working-conditions-probation-end-before-start')]
     }
-    if (
-      !effectiveStartDate ||
-      !selectedEmploymentType ||
-      !selectedContractType ||
-      !selectedRemote ||
-      !selectedRegion ||
-      !startDate
-    ) {
+    if (!effectiveStartDate || !selectedEmploymentType || !selectedContractType || !selectedRemote || !selectedRegion) {
       return [t('working-conditions-required')]
     }
     return null
@@ -617,10 +536,6 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
   ])
 
   const handleSubmitClick = useCallback(() => {
-    if (!validateFutureEntryDates()) {
-      return
-    }
-
     const errors = validateForm()
     if (errors && errors.length > 0) {
       setValidationError(errors.join(', '))
@@ -636,7 +551,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
     }
 
     dispatchProcessContinueEvent('pse_submit', payload)
-  }, [buildSubmitPayload, changeMode, getActivePeriodOverlapErrors, validateForm, validateFutureEntryDates])
+  }, [buildSubmitPayload, changeMode, getActivePeriodOverlapErrors, validateForm])
 
   const handleCancelClick = useCallback(() => {
     dispatchProcessContinueEvent('pse_abort', {})
@@ -737,23 +652,11 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
                   const stringValue = typeof value === 'string' ? value : ''
                   setEffectiveStartDate(stringValue)
                   clearDateRelatedValidationError()
-                  setDateValidationErrors(previousErrors => ({
-                    ...previousErrors,
-                    effectiveStartDate: getFutureEntryDateError(stringValue)
-                  }))
                 }}
                 min={minimumEffectiveStartDate}
                 outputFormat="iso"
                 data-testid="flw_updateWorkingConditions_effectiveStartDatePicker"
               />
-              {dateValidationErrors.effectiveStartDate && (
-                <div
-                  className="gba:text-sm gba:text-destructive"
-                  data-testid="flw_updateWorkingConditions_effectiveStartDateFutureError"
-                >
-                  {dateValidationErrors.effectiveStartDate}
-                </div>
-              )}
             </div>
 
             <div className="gba:space-y-2 gba:overflow-hidden">
@@ -765,23 +668,11 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
                   const stringValue = typeof value === 'string' ? value : ''
                   setEffectiveEndDate(stringValue)
                   clearDateRelatedValidationError()
-                  setDateValidationErrors(previousErrors => ({
-                    ...previousErrors,
-                    effectiveEndDate: getFutureEntryDateError(stringValue)
-                  }))
                 }}
                 min={effectiveEndMinDate}
                 outputFormat="iso"
                 data-testid="flw_updateWorkingConditions_effectiveEndDatePicker"
               />
-              {dateValidationErrors.effectiveEndDate && (
-                <div
-                  className="gba:text-sm gba:text-destructive"
-                  data-testid="flw_updateWorkingConditions_effectiveEndDateFutureError"
-                >
-                  {dateValidationErrors.effectiveEndDate}
-                </div>
-              )}
               {isEffectiveEndBeforeStart && (
                 <div
                   className="gba:text-sm gba:text-destructive"
@@ -869,22 +760,6 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
             </div>
 
             <div className="gba:flex gba:flex-col gba:gap-4">
-              <div className="gba:space-y-2 gba:overflow-hidden">
-                <div className="gba:text-sm gba:font-medium">{t('working-conditions-start-date')}*</div>
-                <DateInput
-                  type="date"
-                  value={getDateInputValue(startDate)}
-                  onChange={(value: string | [string | null, string | null] | null) => {
-                    const stringValue = typeof value === 'string' ? value : ''
-                    setStartDate(stringValue)
-                  }}
-                  disabled={loading || changeMode === 'UPDATE' || changeMode === 'INSERT'}
-                  readOnly
-                  outputFormat="iso"
-                  data-testid="flw_updateWorkingConditions_startDatePicker"
-                />
-              </div>
-
               {probationPeriodText && (
                 <div className="gba:space-y-2">
                   <div className="gba:text-sm gba:font-medium">{t('working-conditions-probation-period')}</div>

@@ -43,4 +43,4 @@ export interface ExpenseRecordAdvancePayment {
 
 export type ExpenseRecordI18nPrefix = 'expense-plan-record' | 'expense-request-record'
 
-export type ExpenseRecordTranslations = Record<'en-US' | 'de-DE' | 'ro-RO', string>
+export type ExpenseRecordTranslations = Record<string, string>

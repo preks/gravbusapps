@@ -32,6 +32,7 @@ const initialState: FlowStudioState = {
   templateTags: {},
   templateVersion: 1,
   isDirty: false,
+  webhookConfigRefreshKey: 0,
   isLoading: false,
   pendingDelete: null,
   undoStack: [],
@@ -517,7 +518,8 @@ export const useFlowStudioStore = create<FlowStudioState & FlowStudioActions>((s
       templateDescription: '',
       nodes: initialGraph.nodes,
       edges: initialGraph.edges,
-      chatMessages: []
+      chatMessages: [],
+      webhookConfigRefreshKey: 0
     }),
   pushSnapshot: () => {
     const snapshot: FlowStudioSnapshot = { nodes: structuredClone(get().nodes), edges: structuredClone(get().edges) }

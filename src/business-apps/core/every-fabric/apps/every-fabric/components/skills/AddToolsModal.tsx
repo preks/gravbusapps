@@ -68,6 +68,12 @@ interface SchemaParam {
   description?: string
 }
 
+/** Input/output JSON schema for one tool, fetched on demand for the preview. */
+interface ToolSchema {
+  inputSchema: Record<string, unknown>
+  outputSchema: Record<string, unknown>
+}
+
 /**
  * Best-effort human-readable type label for one JSON-Schema property.
  * Tool schemas come from several sources (pydantic ``model_json_schema``,
@@ -121,7 +127,7 @@ const canonicalToToolOption = (entry: CanonicalProviderToolEntry): ToolOption =>
     displayName: formatToolDisplayName(entry.display_name, entry.canonical_name),
     description: entry.description,
     source: entry.source,
-    sourceLabel: formatToolSourceLabel(entry.source),
+    sourceLabel: entry.execution_backend || formatToolSourceLabel(entry.source),
     categoryId,
     categoryLabel: formatCategoryLabel(entry.category),
     tags: Array.isArray(entry.tags) ? entry.tags : [],
@@ -145,6 +151,11 @@ export const AddToolsModal: React.FC<AddToolsModalProps> = ({ open, onClose, acc
   const [localSelected, setLocalSelected] = useState<Set<string>>(new Set())
   const [previewTool, setPreviewTool] = useState<ToolOption | null>(null)
   const [categoryFilter, setCategoryFilter] = useState<string>(ALL_FILTER)
+  // Per-tool schemas fetched on demand for the preview pane. The list itself
+  // is loaded lite (no schemas) to keep the payload small; the schema for a
+  // single tool is hydrated only when it is previewed.
+  const [schemaByRef, setSchemaByRef] = useState<Record<string, ToolSchema>>({})
+  const [schemaLoading, setSchemaLoading] = useState(false)
 
   const fetchTools = useCallback(async () => {
     setLoading(true)
@@ -152,8 +163,9 @@ export const AddToolsModal: React.FC<AddToolsModalProps> = ({ open, onClose, acc
     try {
       // The v2 endpoint is the single source — flowbot, functions,
       // prompt_manager (native), mcp, and builtin all flow through one
-      // response with category pre-populated.
-      const canonicalTools = await promptManagerClient.getCanonicalProviderTools()
+      // response with category pre-populated. Loaded lite (no input/output
+      // schema): the preview pane re-hydrates one tool's schema on demand.
+      const canonicalTools = await promptManagerClient.getCanonicalProviderTools({ includeSchema: false })
       setTools(canonicalTools.map(canonicalToToolOption))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load tools')
@@ -161,6 +173,42 @@ export const AddToolsModal: React.FC<AddToolsModalProps> = ({ open, onClose, acc
       setLoading(false)
     }
   }, [promptManagerClient])
+
+  // Hydrate the previewed tool's schema lazily. Results are cached both in this
+  // component (schemaByRef) and in the client (per-ref memo), so re-previewing
+  // a tool never re-hits the network. A stale-response guard keeps a slow fetch
+  // from overwriting a newer preview selection.
+  useEffect(() => {
+    const ref = previewTool?.ref
+    if (!ref || schemaByRef[ref]) {
+      setSchemaLoading(false)
+      return
+    }
+    let cancelled = false
+    setSchemaLoading(true)
+    promptManagerClient
+      .getCanonicalProviderToolDetail(ref)
+      .then(detail => {
+        if (cancelled) return
+        setSchemaByRef(prev => ({
+          ...prev,
+          [ref]: {
+            inputSchema: detail.input_schema ?? {},
+            outputSchema: detail.output_schema ?? {}
+          }
+        }))
+      })
+      .catch(() => {
+        // Leave the entry unset so a later preview can retry; the pane simply
+        // shows "no parameters" rather than blocking the whole modal.
+      })
+      .finally(() => {
+        if (!cancelled) setSchemaLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [previewTool, schemaByRef, promptManagerClient])
 
   useEffect(() => {
     if (!open) return
@@ -249,6 +297,17 @@ export const AddToolsModal: React.FC<AddToolsModalProps> = ({ open, onClose, acc
     })
   }, [])
 
+  const setSectionSelection = useCallback((refs: string[], select: boolean) => {
+    setLocalSelected(prev => {
+      const next = new Set(prev)
+      for (const ref of refs) {
+        if (select) next.add(ref)
+        else next.delete(ref)
+      }
+      return next
+    })
+  }, [])
+
   const previewByRef = useCallback(
     (toolRef: string) => {
       const match = tools.find(t => t.ref === toolRef)
@@ -258,6 +317,15 @@ export const AddToolsModal: React.FC<AddToolsModalProps> = ({ open, onClose, acc
   )
 
   const labelForRef = useCallback((toolRef: string) => tools.find(t => t.ref === toolRef)?.displayName, [tools])
+
+  // Merge the lazily-fetched schema into the previewed tool so the preview pane
+  // renders parameters without the list ever carrying schemas.
+  const enrichedPreviewTool = useMemo<ToolOption | null>(() => {
+    if (!previewTool) return null
+    const schema = schemaByRef[previewTool.ref]
+    if (!schema) return previewTool
+    return { ...previewTool, inputSchema: schema.inputSchema, outputSchema: schema.outputSchema }
+  }, [previewTool, schemaByRef])
 
   const handleAdd = () => {
     onAdd([...localSelected])
@@ -384,6 +452,7 @@ export const AddToolsModal: React.FC<AddToolsModalProps> = ({ open, onClose, acc
                     selected={localSelected}
                     onToggle={toggleItem}
                     onPreview={setPreviewTool}
+                    onSetSectionSelection={setSectionSelection}
                   />
                 ))}
               </div>
@@ -407,7 +476,8 @@ export const AddToolsModal: React.FC<AddToolsModalProps> = ({ open, onClose, acc
         </div>
         <aside className="gba:w-80 gba:shrink-0 gba:border-l gba:border-border gba:bg-muted/15 gba:p-4 gba:overflow-y-auto">
           <ToolPreviewPane
-            tool={previewTool}
+            tool={enrichedPreviewTool}
+            schemaLoading={schemaLoading}
             isSelected={ref => localSelected.has(ref)}
             onAddCompanion={ref => addItems([ref])}
             onAddCompanions={addItems}
@@ -427,6 +497,7 @@ interface ToolPickerSectionProps {
   selected: Set<string>
   onToggle: (toolRef: string) => void
   onPreview: (tool: ToolOption) => void
+  onSetSectionSelection: (refs: string[], select: boolean) => void
 }
 
 const ToolPickerSection: React.FC<ToolPickerSectionProps> = ({
@@ -435,26 +506,50 @@ const ToolPickerSection: React.FC<ToolPickerSectionProps> = ({
   items,
   selected,
   onToggle,
-  onPreview
-}) => (
-  <section className="gba:mb-4" data-testid={`add-tools-modal-section-${sectionId}`}>
-    <h4 className="gba:sticky gba:top-0 gba:z-[1] gba:bg-background gba:py-1 gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground gba:border-b gba:border-border/50">
-      {label}
-      <span className="gba:ml-1.5 gba:font-normal gba:normal-case gba:text-muted-foreground/70">({items.length})</span>
-    </h4>
-    <ul className="gba:space-y-1 gba:py-1">
-      {items.map(tool => (
-        <ToolPickerRow
-          key={tool.id}
-          tool={tool}
-          checked={selected.has(tool.ref)}
-          onToggle={onToggle}
-          onPreview={onPreview}
-        />
-      ))}
-    </ul>
-  </section>
-)
+  onPreview,
+  onSetSectionSelection
+}) => {
+  const sectionRefs = items.map(tool => tool.ref)
+  const selectedInSection = items.filter(tool => selected.has(tool.ref)).length
+  const allSelected = items.length > 0 && selectedInSection === items.length
+
+  return (
+    <section className="gba:mb-4" data-testid={`add-tools-modal-section-${sectionId}`}>
+      <div className="gba:sticky gba:top-0 gba:z-[1] gba:flex gba:items-center gba:justify-between gba:gap-2 gba:bg-background gba:py-1 gba:border-b gba:border-border/50">
+        <h4 className="gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground gba:min-w-0">
+          {label}
+          <span className="gba:ml-1.5 gba:font-normal gba:normal-case gba:text-muted-foreground/70">
+            ({items.length})
+          </span>
+        </h4>
+        {items.length > 0 && (
+          <button
+            type="button"
+            className="gba:shrink-0 gba:text-[11px] gba:font-medium gba:text-primary gba:hover:underline"
+            onClick={event => {
+              event.stopPropagation()
+              onSetSectionSelection(sectionRefs, !allSelected)
+            }}
+            data-testid={`add-tools-modal-section-select-all-${sectionId}`}
+          >
+            {allSelected ? 'Deselect all' : 'Select all'}
+          </button>
+        )}
+      </div>
+      <ul className="gba:space-y-1 gba:py-1">
+        {items.map(tool => (
+          <ToolPickerRow
+            key={tool.id}
+            tool={tool}
+            checked={selected.has(tool.ref)}
+            onToggle={onToggle}
+            onPreview={onPreview}
+          />
+        ))}
+      </ul>
+    </section>
+  )
+}
 
 interface ToolPickerRowProps {
   tool: ToolOption
@@ -584,6 +679,8 @@ const FilterPill: React.FC<FilterPillProps> = ({ label, active, onClick, testId 
 
 interface ToolPreviewPaneProps {
   tool: ToolOption | null
+  /** True while the previewed tool's schema is being fetched on demand. */
+  schemaLoading: boolean
   isSelected: (ref: string) => boolean
   onAddCompanion: (ref: string) => void
   onAddCompanions: (refs: string[]) => void
@@ -593,6 +690,7 @@ interface ToolPreviewPaneProps {
 
 const ToolPreviewPane: React.FC<ToolPreviewPaneProps> = ({
   tool,
+  schemaLoading,
   isSelected,
   onAddCompanion,
   onAddCompanions,
@@ -689,7 +787,11 @@ const ToolPreviewPane: React.FC<ToolPreviewPaneProps> = ({
           )}
         </div>
 
-        {showRaw ? (
+        {schemaLoading && !hasSchema ? (
+          <p className="gba:text-xs gba:text-muted-foreground" data-testid="add-tools-preview-schema-loading">
+            Loading parameters…
+          </p>
+        ) : showRaw ? (
           <div className="gba:space-y-2">
             <pre className="gba:max-h-48 gba:overflow-auto gba:rounded-lg gba:bg-background gba:p-2 gba:text-[11px]">
               {JSON.stringify(tool.inputSchema ?? {}, null, 2)}

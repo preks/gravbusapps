@@ -23,6 +23,8 @@ export interface TaskDetailSheetProps {
   businessAppContext?: BusinessAppContextProps
   flowContext?: FlowContextName
   onTaskCompleted?: () => void
+  /** When true, DocuSign signing UI is shown (set by CRM/IRM parents from FeatureHub). */
+  docuSignEnabled?: boolean
 }
 
 const DATA_TEST_ID_PREFIX = 'TaskDetailSheet'
@@ -42,7 +44,8 @@ export const TaskDetailSheet: React.FC<TaskDetailSheetProps> = ({
   currentUserId,
   businessAppContext,
   flowContext,
-  onTaskCompleted
+  onTaskCompleted,
+  docuSignEnabled = false
 }) => {
   // Get businessKey from task (shared by all task instances)
   const businessKey = task?.businessKey
@@ -144,6 +147,7 @@ export const TaskDetailSheet: React.FC<TaskDetailSheetProps> = ({
               assignedUserId={assignedUserId}
               currentUserId={currentUserId}
               businessAppContext={businessAppContext}
+              docuSignEnabled={docuSignEnabled}
             />
           ) : (
             <div className="gba:p-4 gba:text-center gba:text-muted-foreground">No task selected</div>

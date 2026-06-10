@@ -9,6 +9,7 @@ import { createUniverConversionContext } from '../utils/univerAdapter'
 import type { AuthoritativeGridRegion } from '../utils/spreadsheetAuthoritativeRegion'
 import type {
   ApplyRemoteCellUpdateOptions,
+  CellDimensionsUpdateResult,
   UniverSheetGridProps,
   WorkbookSnapshotLifecycleOrigin
 } from './UniverSheetGrid.types'
@@ -23,12 +24,18 @@ export type FormattingPasteIntent = {
   source: FormattingPasteIntentSource
 }
 
+export type RecentNativeColumnMoveEmit = {
+  signature: string
+  emittedAt: number
+}
+
 /**
  * Shared mutable refs for Univer bootstrap, collaboration, snapshots, and sheet chrome.
  * Keeps a single object boundary for hooks extracted from `UniverSheetGrid`.
  */
 export function useUniverGridController(props: UniverSheetGridProps) {
   const isSheetInteractionActiveRef = useRef<boolean>(false)
+  const univerInstanceRef = useRef<unknown>(null)
   const univerAPIRef = useRef<ReturnType<typeof createUniver>['univerAPI'] | null>(null)
   const remoteEchoSuppressionRef = useRef<Map<string, RemoteEchoSuppressionEntry>>(new Map())
   const deferredRemoteCellAppliesRef = useRef<
@@ -53,6 +60,8 @@ export function useUniverGridController(props: UniverSheetGridProps) {
   const scheduleSnapshotCheckpointRef = useRef<((delayMs?: number) => void) | null>(null)
   const lastSyncedGridCellSignaturesRef = useRef<Map<string, string>>(new Map())
   const collabPersistedBulkApplyDepthRef = useRef(0)
+  /** Best-effort source tag for the currently executing bulk remote/app-authoritative paint. */
+  const currentBulkApplyOperationTypeRef = useRef<string | null>(null)
   /**
    * Set by `registerUniverMountSheetValueAndEditListeners` so the bulk-apply hot path can drop
    * any deferred reconcile entries that fall inside the region the manager just painted
@@ -75,6 +84,7 @@ export function useUniverGridController(props: UniverSheetGridProps) {
     clearAllSignatures: boolean
     reason?: string
     pendingLocalFilterPolicy?: import('../utils/spreadsheetAuthoritativeRegion').PendingLocalFilterPolicy
+    preserveStagedDirectPaint?: boolean
   } | null>(null)
   const lastProcessedAuthoritativeReapplySeedRef = useRef(0)
   const skipNextAuthoritativeSyncAfterSnapshotInitRef = useRef(false)
@@ -88,11 +98,42 @@ export function useUniverGridController(props: UniverSheetGridProps) {
   const copiedSelectionAnchorRef = useRef<(ActiveSelectionPosition & { copiedAt: number }) | null>(null)
   const pendingCutCellRangeRef = useRef<import('../utils/spreadsheetCutPasteMove').PendingCutCellRange | null>(null)
   const cutPasteCollabSuppressUntilMsRef = useRef(0)
+  const recentMoveCellRangeFollowUpRef = useRef<
+    import('../utils/spreadsheetCutPasteMove').RecentMoveCellRangeFollowUp | null
+  >(null)
+  const rowInsertFormulaFollowUpSuppressUntilMsRef = useRef(0)
+  const recentInsertRowFormulaFollowUpRef = useRef<
+    import('../utils/spreadsheetCutPasteMove').RecentInsertRowFormulaFollowUp | null
+  >(null)
+  const rowDeleteFormulaFollowUpSuppressUntilMsRef = useRef(0)
+  const recentDeleteRowFormulaFollowUpRef = useRef<
+    import('../utils/spreadsheetCutPasteMove').RecentDeleteRowFormulaFollowUp | null
+  >(null)
+  const rowMoveFormulaFollowUpSuppressUntilMsRef = useRef(0)
+  const recentMoveRowFormulaFollowUpRef = useRef<
+    import('../utils/spreadsheetCutPasteMove').RecentMoveRowFormulaFollowUp | null
+  >(null)
+  const columnInsertFormulaFollowUpSuppressUntilMsRef = useRef(0)
+  const recentInsertColumnFormulaFollowUpRef = useRef<
+    import('../utils/spreadsheetCutPasteMove').RecentInsertColumnFormulaFollowUp | null
+  >(null)
+  const columnDeleteFormulaFollowUpSuppressUntilMsRef = useRef(0)
+  const recentDeleteColumnFormulaFollowUpRef = useRef<
+    import('../utils/spreadsheetCutPasteMove').RecentDeleteColumnFormulaFollowUp | null
+  >(null)
+  const columnMoveFormulaFollowUpSuppressUntilMsRef = useRef(0)
+  const recentMoveColumnFormulaFollowUpRef = useRef<
+    import('../utils/spreadsheetCutPasteMove').RecentMoveColumnFormulaFollowUp | null
+  >(null)
+  const recentNativeColumnMoveEmitRef = useRef<RecentNativeColumnMoveEmit | null>(null)
   const mergeGestureSuppressBySheetRef = useRef<
     Map<string, import('../utils/spreadsheetMergeGestureSuppress').MergeGestureSuppressEntry>
   >(new Map())
   const pendingFormattingPasteIntentRef = useRef<FormattingPasteIntent | null>(null)
   const pendingAutofillIntentRef = useRef<import('./univerAutofillIntent').SpreadsheetAutofillIntent | null>(null)
+  const pendingDimensionUserIntentRef = useRef<
+    import('./univerDimensionUserIntent').SpreadsheetDimensionUserIntent | null
+  >(null)
   const contextRef = useRef<ReturnType<typeof createUniverConversionContext> | null>(null)
   const propsRef = useRef({
     sheet: props.sheet,
@@ -231,10 +272,11 @@ export function useUniverGridController(props: UniverSheetGridProps) {
   const sheetScrollRef = useRef<{ scrollLeft: number; scrollTop: number }>({ scrollLeft: 0, scrollTop: 0 })
   const refreshCursorRectsRef = useRef<(() => void) | null>(null)
   const refreshCommentRectsRef = useRef<(() => void) | null>(null)
-  const updateCellDimensionsRef = useRef<(() => void) | null>(null)
+  const updateCellDimensionsRef = useRef<(() => CellDimensionsUpdateResult) | null>(null)
 
   return {
     isSheetInteractionActiveRef,
+    univerInstanceRef,
     univerAPIRef,
     remoteEchoSuppressionRef,
     deferredRemoteCellAppliesRef,
@@ -254,6 +296,7 @@ export function useUniverGridController(props: UniverSheetGridProps) {
     scheduleSnapshotCheckpointRef,
     lastSyncedGridCellSignaturesRef,
     collabPersistedBulkApplyDepthRef,
+    currentBulkApplyOperationTypeRef,
     bulkApplyClearDeferredDirtyCellsRef,
     flushDeferredDirtyCellsRef,
     lastSyncedGridRowCountRef,
@@ -273,9 +316,24 @@ export function useUniverGridController(props: UniverSheetGridProps) {
     copiedSelectionAnchorRef,
     pendingCutCellRangeRef,
     cutPasteCollabSuppressUntilMsRef,
+    recentMoveCellRangeFollowUpRef,
+    rowInsertFormulaFollowUpSuppressUntilMsRef,
+    recentInsertRowFormulaFollowUpRef,
+    rowDeleteFormulaFollowUpSuppressUntilMsRef,
+    recentDeleteRowFormulaFollowUpRef,
+    rowMoveFormulaFollowUpSuppressUntilMsRef,
+    recentMoveRowFormulaFollowUpRef,
+    columnInsertFormulaFollowUpSuppressUntilMsRef,
+    recentInsertColumnFormulaFollowUpRef,
+    columnDeleteFormulaFollowUpSuppressUntilMsRef,
+    recentDeleteColumnFormulaFollowUpRef,
+    columnMoveFormulaFollowUpSuppressUntilMsRef,
+    recentMoveColumnFormulaFollowUpRef,
+    recentNativeColumnMoveEmitRef,
     mergeGestureSuppressBySheetRef,
     pendingFormattingPasteIntentRef,
     pendingAutofillIntentRef,
+    pendingDimensionUserIntentRef,
     contextRef,
     propsRef,
     lastUniverInitDepsRef,

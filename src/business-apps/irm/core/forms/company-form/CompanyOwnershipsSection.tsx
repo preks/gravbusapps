@@ -1,3 +1,4 @@
+import { useFieldArray, useFormContext } from 'react-hook-form'
 import {
   Button,
   Combobox,
@@ -11,27 +12,27 @@ import {
   Input
 } from '@newwork/nw-design-system'
 import { PlusIcon, TrashIcon } from '@phosphor-icons/react'
-import { createEmptyOwnership, type OwnershipFormRow } from './companyFormTypes'
+import { createEmptyOwnership, type CompanyFormData } from './companyFormTypes'
 
 type CompanyOwnershipsSectionProps = Readonly<{
   t: (key: string) => string
-  fields: Array<{ id: string }>
   ownerCompanyOptions: Array<{ value: string; label: string }>
   ownerCompaniesLoading: boolean
-  append: (value: OwnershipFormRow) => void
-  remove: (index: number) => void
   onOwnerCompanySearch: (value: string) => void
 }>
 
 export function CompanyOwnershipsSection({
   t,
-  fields,
   ownerCompanyOptions,
   ownerCompaniesLoading,
-  append,
-  remove,
   onOwnerCompanySearch
 }: CompanyOwnershipsSectionProps) {
+  // Field-array subscription lives here (not in the parent CompanyForm) so the heavy
+  // top-level form component does not re-render on RHF array/state subject pings, mirroring
+  // how AccountForm keeps its field arrays inside its segments.
+  const { control } = useFormContext<CompanyFormData>()
+  const { fields, append, remove } = useFieldArray({ control, name: 'ownerships' })
+
   return (
     <FormSection title={t('ownerships-section')} value="company-ownerships">
       <div className="gba:space-y-4">

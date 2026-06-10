@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react'
+import { useQuickAddSubmitGuard } from '@/common/components/common-relations/record-sections/utils/quickAddSubmitGuard'
 import {
   Button,
   TimelineLayout,
@@ -37,6 +38,7 @@ import {
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { FileInfo } from '@/common/types/FileTypes'
 import translations from './_i18n'
+import { useRecordSectionsRefresh } from '../RecordSectionsRefreshContext'
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
 import type { Task as BaseTask, TaskAssignee } from '@/common/data/relations/types/taskTypes'
 import { transformTaskOrApproval } from './utils/taskMappers'
@@ -144,7 +146,6 @@ export interface TaskSectionProps extends BusinessAppContextProps {
   taskEntityActionProps?: Omit<AppActionCommonProps, 'accessToken'>
   sectionTitle?: string
   buildReferenceUrl?: (reference: TaskReference) => string
-  refetch?: () => void
   /** Catalog identifier for task type (e.g. from customerCatalogs or investmentCatalogs). */
   typeCatalog?: string
   /** Catalog identifier for task priority (e.g. from customerCatalogs or investmentCatalogs). */
@@ -163,6 +164,8 @@ export interface TaskSectionProps extends BusinessAppContextProps {
   emptyStateTitle?: string
   /** Optional override for the empty-state description shown when no tasks exist. */
   emptyStateDescription?: string
+  /** When true, DocuSign signing UI is shown (set by CRM/IRM parents from FeatureHub). */
+  docuSignEnabled?: boolean
 }
 
 const TaskSection: React.FC<TaskSectionProps> = ({
@@ -173,7 +176,6 @@ const TaskSection: React.FC<TaskSectionProps> = ({
   taskEntityActionProps,
   taskActionProps,
   preSubmit,
-  refetch,
   buildReferenceUrl,
   typeCatalog,
   priorityCatalog,
@@ -187,13 +189,15 @@ const TaskSection: React.FC<TaskSectionProps> = ({
   leadId,
   investmentId,
   emptyStateTitle,
-  emptyStateDescription
+  emptyStateDescription,
+  docuSignEnabled = false
 }) => {
   const { t } = useTranslation(translations)
+  const refreshRecordSections = useRecordSectionsRefresh()
   const { statusMap, ensureStatus, statusVersion } = useEnvelopeStatusCache(accessToken)
 
   useEffect(() => {
-    if (!rawTasks || rawTasks.length === 0) {
+    if (!docuSignEnabled || !rawTasks || rawTasks.length === 0) {
       return
     }
     const envelopeIds = new Set<string>()
@@ -208,7 +212,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
     envelopeIds.forEach(id => {
       ensureStatus(id)
     })
-  }, [rawTasks, ensureStatus])
+  }, [rawTasks, ensureStatus, docuSignEnabled])
 
   // Map raw tasks to TaskItem format
   const tasks = useMemo(() => {
@@ -265,6 +269,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
 
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [showQuickAdd, setShowQuickAdd] = useState(false)
+  const { isSubmitting: isQuickAddSubmitting, runGuarded: runQuickAddGuarded } = useQuickAddSubmitGuard()
   const [assigneePrefill, setAssigneePrefill] = useState<
     Array<{
       id: string
@@ -307,6 +312,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
       {
         id: employeeId,
         displayName,
+        userId: userInfo?.id,
         organizationalUnitName: userInfo?.employeeDetails?.organizationalUnit?.name
       }
     ])
@@ -354,6 +360,31 @@ const TaskSection: React.FC<TaskSectionProps> = ({
     () => (userInfo?.employeeDetails?.employeeId ? [userInfo.employeeDetails.employeeId] : []),
     [userInfo?.employeeDetails?.employeeId]
   )
+  const defaultAssignedEmployees = useMemo(() => {
+    const employeeId = userInfo?.employeeDetails?.employeeId
+    if (!employeeId) return []
+
+    const displayName =
+      `${userInfo?.employeeDetails?.firstName || ''} ${userInfo?.employeeDetails?.lastName || ''}`.trim() ||
+      userInfo?.userName ||
+      'Current User'
+
+    return [
+      {
+        id: employeeId,
+        displayName,
+        userId: userInfo?.id,
+        organizationalUnitName: userInfo?.employeeDetails?.organizationalUnit?.name
+      }
+    ]
+  }, [
+    userInfo?.employeeDetails?.employeeId,
+    userInfo?.employeeDetails?.firstName,
+    userInfo?.employeeDetails?.lastName,
+    userInfo?.userName,
+    userInfo?.employeeDetails?.organizationalUnit?.name,
+    userInfo?.id
+  ])
   const quickTaskSchema = useMemo(
     () =>
       z.object({
@@ -365,6 +396,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
         taskPriorityRef: z.string().trim().min(1, 'Priority is required'),
         taskTiming: z.enum(['DEADLINE', 'SCHEDULED']),
         assignedEmployeeIds: z.array(z.string()).min(1, 'At least one assignee is required'),
+        assignedEmployees: z.array(z.any()).optional(),
         deadline: z.string().trim().min(1, 'Deadline is required'),
         _pendingFiles: z.array(z.any()).optional()
       }),
@@ -380,10 +412,20 @@ const TaskSection: React.FC<TaskSectionProps> = ({
       taskPriorityRef: '',
       taskTiming: 'DEADLINE' as const,
       assignedEmployeeIds: defaultAssigneeIds,
+      assignedEmployees: defaultAssignedEmployees,
       deadline: '',
       _pendingFiles: [] as File[]
     }
   })
+
+  // Keep default assignee employee objects in sync when user context loads
+  useEffect(() => {
+    if (defaultAssignedEmployees.length === 0) return
+    const currentEmployees = form.getValues('assignedEmployees') || []
+    if (currentEmployees.length === 0) {
+      form.setValue('assignedEmployees', defaultAssignedEmployees)
+    }
+  }, [defaultAssignedEmployees, form])
 
   // Keep approval task type default in sync when approvalTaskTypeRef is set after mount
   useEffect(() => {
@@ -610,10 +652,12 @@ const TaskSection: React.FC<TaskSectionProps> = ({
                   taskPriorityRef: '',
                   taskTiming: 'DEADLINE',
                   assignedEmployeeIds: defaultAssigneeIds,
+                  assignedEmployees: defaultAssignedEmployees,
                   deadline: '',
                   _pendingFiles: [] as File[]
                 })
                 setShowQuickAdd(false)
+                refreshRecordSections?.()
               }}
               onError={error => {
                 console.error('Failed to create task:', error)
@@ -622,35 +666,45 @@ const TaskSection: React.FC<TaskSectionProps> = ({
             >
               {({ executeAction, isProcessing }) => {
                 const handleQuickAddSubmit = async (data: any) => {
-                  const task: Partial<BaseTask> & Record<string, any> = {
-                    name: data.task.title,
-                    description: data.task.description,
-                    taskTypeRef: isApprovalTaskSection ? data.taskTypeRef || approvalTaskTypeRef : data.taskTypeRef,
-                    taskPriorityRef: data.taskPriorityRef,
-                    taskStatusRef: defaultTaskStatusRef,
-                    taskTiming: data.taskTiming || 'DEADLINE',
-                    dueDate: data.deadline || undefined,
-                    taskAssignees: (data.assignedEmployeeIds || []).map((id: string) => ({
-                      assignedEmployeeId: id
-                    })),
-                    _creatorEmployee: userInfo?.id ? { userId: userInfo.id } : undefined,
-                    creatorUserId: userInfo?.id,
-                    _pendingFiles: data._pendingFiles && data._pendingFiles.length > 0 ? data._pendingFiles : undefined,
-                    ...(leadId && { leadId }),
-                    ...(accountId && { accountId }),
-                    ...(contactId && { contactId }),
-                    ...(opportunityId && { opportunityId }),
-                    ...(investmentId && { investmentId })
+                  if (isProcessing || isQuickAddSubmitting) {
+                    return
                   }
-                  let toBuild: Record<string, any> = task
-                  if (preSubmit && task._pendingFiles?.length) {
-                    toBuild = await preSubmit(task)
-                  }
-                  const payload = buildTaskPayload ? buildTaskPayload(toBuild) : toBuild
-                  if (payload && '_pendingFiles' in payload) {
-                    delete payload._pendingFiles
-                  }
-                  await executeAction(payload)
+                  await runQuickAddGuarded(async () => {
+                    const task: Partial<BaseTask> & Record<string, any> = {
+                      name: data.task.title,
+                      description: data.task.description,
+                      taskTypeRef: isApprovalTaskSection ? data.taskTypeRef || approvalTaskTypeRef : data.taskTypeRef,
+                      taskPriorityRef: data.taskPriorityRef,
+                      taskStatusRef: defaultTaskStatusRef,
+                      taskTiming: data.taskTiming || 'DEADLINE',
+                      dueDate: data.deadline || undefined,
+                      taskAssignees: (data.assignedEmployeeIds || []).map((id: string) => {
+                        const employee = (data.assignedEmployees || []).find((emp: { id?: string }) => emp.id === id)
+                        return {
+                          assignedEmployeeId: id,
+                          assignedUserId: employee?.userId || null
+                        }
+                      }),
+                      _creatorEmployee: userInfo?.id ? { userId: userInfo.id } : undefined,
+                      creatorUserId: userInfo?.id,
+                      _pendingFiles:
+                        data._pendingFiles && data._pendingFiles.length > 0 ? data._pendingFiles : undefined,
+                      ...(leadId && { leadId }),
+                      ...(accountId && { accountId }),
+                      ...(contactId && { contactId }),
+                      ...(opportunityId && { opportunityId }),
+                      ...(investmentId && { investmentId })
+                    }
+                    let toBuild: Record<string, any> = task
+                    if (preSubmit && task._pendingFiles?.length) {
+                      toBuild = await preSubmit(task)
+                    }
+                    const payload = buildTaskPayload ? buildTaskPayload(toBuild) : toBuild
+                    if (payload && '_pendingFiles' in payload) {
+                      delete payload._pendingFiles
+                    }
+                    await executeAction(payload)
+                  })
                 }
                 return (
                   <TaskInput
@@ -663,6 +717,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
                     onLoadMore={loadMore}
                     onSubmit={handleQuickAddSubmit}
                     isProcessing={isProcessing}
+                    isSubmitting={isQuickAddSubmitting}
                     showQuickAdd={showQuickAdd}
                     onShowQuickAddChange={setShowQuickAdd}
                     typeCatalog={typeCatalog}
@@ -795,7 +850,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
                       </div>
                       <div className="gba:flex gba:items-center gba:gap-1">
                         {taskActions}
-                        {hasSignableDocs && (
+                        {docuSignEnabled && hasSignableDocs && (
                           <Button
                             size="sm"
                             onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
@@ -897,38 +952,40 @@ const TaskSection: React.FC<TaskSectionProps> = ({
         currentUserId={userInfo?.id}
         businessAppContext={businessAppContext}
         flowContext={taskEntityActionProps?.contextsArray?.[0]}
-        onTaskCompleted={() => refetch?.()}
+        docuSignEnabled={docuSignEnabled}
+        onTaskCompleted={() => refreshRecordSections?.()}
       />
 
-      {/* DocuSign Modal (from list actions) */}
-      <DocuSignSignatureModal
-        isOpen={isDocuSignOpen}
-        onClose={() => {
-          setIsDocuSignOpen(false)
-          setDocuSignFocusReferral(false)
-        }}
-        accessToken={accessToken}
-        assignedUserId={docuSignAssignedUserId}
-        emailOnly={!(docuSignAssignedUserId && userInfo?.id && docuSignAssignedUserId === (userInfo?.id as any))}
-        businessAppContext={businessAppContext}
-        taskContext={
-          docuSignTask && docuSignTaskFormData
-            ? {
-                taskId: docuSignTask.id,
-                taskFormData: docuSignTaskFormData
-              }
-            : undefined
-        }
-        documents={(docuSignDocs || []).map(d => ({
-          id: d.id,
-          name: d.name,
-          mimeType: d.mimeType,
-          version: d.version,
-          envelopeStatus: d.envelopeStatus,
-          fileInfo: d.fileInfo
-        }))}
-        focusReferral={docuSignFocusReferral}
-      />
+      {docuSignEnabled && (
+        <DocuSignSignatureModal
+          isOpen={isDocuSignOpen}
+          onClose={() => {
+            setIsDocuSignOpen(false)
+            setDocuSignFocusReferral(false)
+          }}
+          accessToken={accessToken}
+          assignedUserId={docuSignAssignedUserId}
+          emailOnly={!(docuSignAssignedUserId && userInfo?.id && docuSignAssignedUserId === (userInfo?.id as any))}
+          businessAppContext={businessAppContext}
+          taskContext={
+            docuSignTask && docuSignTaskFormData
+              ? {
+                  taskId: docuSignTask.id,
+                  taskFormData: docuSignTaskFormData
+                }
+              : undefined
+          }
+          documents={(docuSignDocs || []).map(d => ({
+            id: d.id,
+            name: d.name,
+            mimeType: d.mimeType,
+            version: d.version,
+            envelopeStatus: d.envelopeStatus,
+            fileInfo: d.fileInfo
+          }))}
+          focusReferral={docuSignFocusReferral}
+        />
+      )}
     </>
   )
 }

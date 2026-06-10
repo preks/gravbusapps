@@ -12,7 +12,7 @@ interface DecisionsCardProps {
  * Standalone decisions panel (legacy). Prefer SessionTimelineCard in the right rail.
  */
 export const DecisionsCard: FC<DecisionsCardProps> = ({ decisions, defaultCollapsed = true }) => {
-  const ordered = [...decisions].sort((a, b) => b.seq - a.seq)
+  const ordered = [...decisions].sort((a, b) => a.seq - b.seq)
 
   const summary = (() => {
     if (ordered.length === 0) return 'No branch points yet'

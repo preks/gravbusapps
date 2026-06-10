@@ -1,12 +1,12 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import {
-  FunctionsServiceClient,
   FUNCTION_CATEGORIES,
   type FunctionCategory,
   type LatestFunctionItem
 } from '@/common/network/functions/FunctionsServiceClient'
 import type { SortingState } from '@tanstack/react-table'
 import { getDefaultVisibleColumns } from '../config/functionsColumns'
+import { useFunctionsServiceClient } from '@/common/network/functions/useFunctionsServiceClient'
 
 export interface PaginationState {
   pageIndex: number
@@ -34,12 +34,20 @@ export interface UseFunctionsDataReturn {
   visibleColumns: string[]
   setVisibleColumns: (columns: string[]) => void
   refetch: () => Promise<void>
+  /** List row or GET /functions/:id when deep-linking ?functionId= */
+  resolvedFunctionItem: LatestFunctionItem | null
+  /** True while fetching by id (list row missing but id in URL) */
+  deepLinkLoading: boolean
 }
 
 const compareStrings = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: 'base' })
 
-export const useFunctionsData = (accessToken?: string, sorting?: SortingState): UseFunctionsDataReturn => {
-  const client = useMemo(() => new FunctionsServiceClient(accessToken), [accessToken])
+export const useFunctionsData = (
+  accessToken?: string,
+  sorting?: SortingState,
+  editingFunctionId?: string | null
+): UseFunctionsDataReturn => {
+  const client = useFunctionsServiceClient(accessToken)
 
   const [allItems, setAllItems] = useState<LatestFunctionItem[]>([])
   // Initial loading is `true` (not false) so the consumer's "invalid functionId" cleanup effect
@@ -155,6 +163,41 @@ export const useFunctionsData = (accessToken?: string, sorting?: SortingState): 
     }
   }, [sorting])
 
+  const editingFunctionFromList = useMemo(() => {
+    if (!editingFunctionId) return null
+    return allItems.find(f => f.id === editingFunctionId) ?? null
+  }, [allItems, editingFunctionId])
+
+  const [deepLinkedFunction, setDeepLinkedFunction] = useState<LatestFunctionItem | null>(null)
+  const [deepLinkLoading, setDeepLinkLoading] = useState(false)
+
+  // Deep-link (?functionId=) when list fetch failed or row is missing from /functions/latest
+  useEffect(() => {
+    if (!editingFunctionId || editingFunctionFromList) {
+      setDeepLinkedFunction(null)
+      setDeepLinkLoading(false)
+      return
+    }
+    let cancelled = false
+    setDeepLinkLoading(true)
+    void (async () => {
+      try {
+        const detail = await client.getFunction(editingFunctionId)
+        const item = client.toLatestFunctionItem(detail)
+        if (!cancelled) setDeepLinkedFunction(item)
+      } catch {
+        if (!cancelled) setDeepLinkedFunction(null)
+      } finally {
+        if (!cancelled) setDeepLinkLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [editingFunctionId, editingFunctionFromList, client])
+
+  const resolvedFunctionItem = editingFunctionId ? (editingFunctionFromList ?? deepLinkedFunction) : null
+
   return {
     data: paginatedItems,
     allItems,
@@ -170,6 +213,8 @@ export const useFunctionsData = (accessToken?: string, sorting?: SortingState): 
     setPagination,
     visibleColumns,
     setVisibleColumns,
-    refetch: fetchData
+    refetch: fetchData,
+    resolvedFunctionItem,
+    deepLinkLoading
   }
 }

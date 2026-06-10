@@ -134,12 +134,14 @@ describe('spreadsheetDeltaReplayCollabHarness', () => {
     expect(applyRemoteCellUpdatesBulk).not.toHaveBeenCalled()
   })
 
-  it('rich sheet merge: plans snapshot fallback instead of committed apply', () => {
+  it('rich sheet merge: move_cell_range applies through committed replay', async () => {
     const onDiagnosticsTraceEvent = jest.fn()
     const applyRemoteCellUpdatesBulk = jest.fn()
+    const applyRemoteMoveCellRange = jest.fn(() => true)
     const { manager } = createManagerWithCommittedReplay({
       getSheetVersion: () => 1,
       getLocalSheetData: () => [{ _id: 'row-1', ColumnA: 'x' }],
+      getSheetData: () => [{ _id: 'row-1', ColumnA: 'x' }],
       getWorkbookSnapshot: () => ({
         sheets: {
           'sheet-1': {
@@ -149,7 +151,8 @@ describe('spreadsheetDeltaReplayCollabHarness', () => {
         }
       }),
       onDiagnosticsTraceEvent,
-      applyRemoteCellUpdatesBulk
+      applyRemoteCellUpdatesBulk,
+      applyRemoteMoveCellRange
     })
 
     manager.handleOperation({
@@ -178,13 +181,78 @@ describe('spreadsheetDeltaReplayCollabHarness', () => {
       timestamp: Date.now()
     })
 
-    expect(onDiagnosticsTraceEvent).toHaveBeenCalledWith(
+    await Promise.resolve()
+    expect(applyRemoteMoveCellRange).toHaveBeenCalledWith({
+      sheetId: 'sheet-1',
+      fromRange: { startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 },
+      toRange: { startRow: 1, endRow: 1, startColumn: 0, endColumn: 0 }
+    })
+    expect(onDiagnosticsTraceEvent).not.toHaveBeenCalledWith(
       expect.objectContaining({
         stage: 'client_committed_batch_transaction_rejected',
         payload: expect.objectContaining({ detail: 'mergeData' })
       })
     )
     expect(applyRemoteCellUpdatesBulk).not.toHaveBeenCalled()
+  })
+
+  it('rich sheet formulas in moved range: applies move_cell_range through committed replay', async () => {
+    const onDiagnosticsTraceEvent = jest.fn()
+    const applyRemoteMoveCellRange = jest.fn(() => true)
+    const { manager } = createManagerWithCommittedReplay({
+      getSheetVersion: () => 1,
+      getLocalSheetData: () => [{ _id: 'row-1', ColumnA: 'x' }],
+      getSheetData: () => [{ _id: 'row-1', ColumnA: 'x' }],
+      getWorkbookSnapshot: () => ({
+        sheets: {
+          'sheet-1': {
+            mergeData: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 1 }],
+            cellData: { '0': { '0': { f: '=A2' } } }
+          }
+        }
+      }),
+      onDiagnosticsTraceEvent,
+      applyRemoteMoveCellRange
+    })
+
+    manager.handleOperation({
+      userId: 'peer',
+      userName: 'Peer',
+      operation: {
+        type: 'batch_operations',
+        data: {
+          sheetId: 'sheet-1',
+          baseVersion: 1,
+          appliedVersion: 2,
+          payloadSchemaVersion: 1,
+          operations: [
+            {
+              type: 'move_cell_range',
+              data: {
+                sheetId: 'sheet-1',
+                fromRange: { startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 },
+                toRange: { startRow: 1, endRow: 1, startColumn: 0, endColumn: 0 }
+              }
+            }
+          ]
+        }
+      },
+      version: 2,
+      timestamp: Date.now()
+    })
+
+    await Promise.resolve()
+    expect(onDiagnosticsTraceEvent).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        stage: 'client_committed_batch_transaction_rejected',
+        payload: expect.objectContaining({ detail: 'formulas' })
+      })
+    )
+    expect(applyRemoteMoveCellRange).toHaveBeenCalledWith({
+      sheetId: 'sheet-1',
+      fromRange: { startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 },
+      toRange: { startRow: 1, endRow: 1, startColumn: 0, endColumn: 0 }
+    })
   })
 
   it('identity-keyed placements: applies gridRowIndexByRowUuid on committed batch', async () => {

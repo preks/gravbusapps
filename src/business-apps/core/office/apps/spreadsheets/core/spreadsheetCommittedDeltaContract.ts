@@ -1,5 +1,6 @@
 import { parseSpreadsheetDirtyRegions, type SpreadsheetDirtyRegion } from '../utils/spreadsheetDirtyRegions'
 import { parseCommittedGridRowPlacements } from '../utils/spreadsheetCommittedGridRowPlacements'
+import type { SpreadsheetColumn } from '../types'
 
 export const SPREADSHEET_COMMITTED_DELTA_PAYLOAD_SCHEMA_VERSION = 1
 
@@ -15,6 +16,19 @@ export type SpreadsheetCommittedOperation = {
   result?: Record<string, unknown>
   baseVersion?: number
   appliedVersion?: number
+}
+
+export type SpreadsheetCommittedWorksheetMetadataPatch = {
+  sheetId: string
+  keys: Record<string, unknown>
+}
+
+export type SpreadsheetCommittedCommentAnchorPatch = {
+  entityType?: string
+  entityId?: string
+  id: string
+  cellReference?: string | null
+  sheetId?: string
 }
 
 export type SpreadsheetCommittedBatchEnvelope = {
@@ -38,6 +52,11 @@ export type SpreadsheetCommittedBatchEnvelope = {
   gridRowIndexByRowUuid?: Record<string, number>
   removedRowUuids?: string[]
   rowMappings?: Array<{ clientRowId: string; rowUuid: string; gridRowIndex?: number }>
+  columns?: SpreadsheetColumn[]
+  visibleColumnIds?: string[]
+  gridColumnIndexByColumnId?: Record<string, number>
+  worksheetMetadataPatch?: SpreadsheetCommittedWorksheetMetadataPatch
+  commentAnchorPatches?: SpreadsheetCommittedCommentAnchorPatch[]
 }
 
 export type SpreadsheetCommittedBatchValidationResult =
@@ -69,6 +88,89 @@ const optionalString = (value: unknown): string | undefined => {
   return trimmed ? trimmed : undefined
 }
 
+const normalizeCommittedColumns = (value: unknown): SpreadsheetColumn[] => {
+  if (!Array.isArray(value)) return []
+  return value
+    .map((entry, index): SpreadsheetColumn | null => {
+      const column = asRecord(entry)
+      const id = optionalString(column?.id)
+      const name = optionalString(column?.name)
+      if (!id || !name) return null
+      const label = optionalString(column?.label) ?? name
+      const order = toFiniteVersion(column?.order) ?? index
+      return {
+        ...(column as SpreadsheetColumn),
+        id,
+        name,
+        label,
+        type: optionalString(column?.type) ?? 'text',
+        isVisible: column?.isVisible !== false,
+        isEditable: column?.isEditable !== false,
+        isRequired: column?.isRequired === true,
+        isUnique: column?.isUnique === true,
+        order
+      }
+    })
+    .filter((column): column is SpreadsheetColumn => column != null)
+    .sort((left, right) => left.order - right.order)
+}
+
+const parseCommittedGridColumnPlacements = (value: unknown): Record<string, number> | undefined => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  const placements: Record<string, number> = {}
+  for (const [columnId, rawIndex] of Object.entries(value as Record<string, unknown>)) {
+    const normalized = Number(rawIndex)
+    if (!columnId || !Number.isFinite(normalized) || normalized < 0) continue
+    placements[columnId] = Math.trunc(normalized)
+  }
+  return Object.keys(placements).length > 0 ? placements : undefined
+}
+
+const parseVisibleColumnIds = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return []
+  return value.map(entry => (typeof entry === 'string' ? entry.trim() : '')).filter(Boolean)
+}
+
+const parseWorksheetMetadataPatch = (value: unknown): SpreadsheetCommittedWorksheetMetadataPatch | undefined => {
+  const patch = asRecord(value)
+  const sheetId = optionalString(patch?.sheetId)
+  const keys = asRecord(patch?.keys)
+  if (!sheetId || !keys || Object.keys(keys).length === 0) {
+    return undefined
+  }
+  return {
+    sheetId,
+    keys: { ...keys }
+  }
+}
+
+const parseCommentAnchorPatches = (value: unknown): SpreadsheetCommittedCommentAnchorPatch[] => {
+  if (!Array.isArray(value)) return []
+  return value
+    .map(entry => {
+      const patch = asRecord(entry)
+      const id = optionalString(patch?.id)
+      if (!id) return null
+      const entityType = optionalString(patch?.entityType)
+      const entityId = optionalString(patch?.entityId)
+      const sheetId = optionalString(patch?.sheetId)
+      const cellReference =
+        typeof patch?.cellReference === 'string'
+          ? patch.cellReference
+          : patch?.cellReference === null
+            ? null
+            : undefined
+      return {
+        ...(entityType ? { entityType } : {}),
+        ...(entityId ? { entityId } : {}),
+        id,
+        ...(sheetId ? { sheetId } : {}),
+        ...(cellReference !== undefined ? { cellReference } : {})
+      }
+    })
+    .filter((patch): patch is SpreadsheetCommittedCommentAnchorPatch => patch != null)
+}
+
 export function getSpreadsheetDeltaReplayMode(): SpreadsheetDeltaReplayMode {
   try {
     const value = globalThis.localStorage?.getItem('gba.spreadsheets.deltaReplay')
@@ -79,9 +181,21 @@ export function getSpreadsheetDeltaReplayMode(): SpreadsheetDeltaReplayMode {
   return 'enabled'
 }
 
+const resolveCommittedOperationIdentity = (
+  operations: readonly Pick<SpreadsheetCommittedOperation, 'operationId' | 'operationLogId'>[]
+): string | null => {
+  const identities = operations
+    .map(operation => operation.operationLogId ?? operation.operationId ?? '')
+    .map(identity => identity.trim())
+    .filter(Boolean)
+  if (identities.length === 0) {
+    return null
+  }
+  return Array.from(new Set(identities)).join(',')
+}
+
 export function buildCommittedBatchDedupeKey(batch: SpreadsheetCommittedBatchEnvelope): string {
-  const id =
-    batch.batchId || batch.clientMutationId || batch.operations.map(op => op.operationLogId || op.operationId).join(',')
+  const id = resolveCommittedOperationIdentity(batch.operations) ?? batch.clientMutationId ?? batch.batchId ?? 'no-id'
   return `${batch.sheetId}:${batch.appliedVersion}:${id || 'no-id'}`
 }
 
@@ -151,6 +265,26 @@ export function normalizeCommittedBatchEnvelope(params: {
         : []
       return rowMappings.length > 0 ? { rowMappings } : {}
     })(),
+    ...(() => {
+      const columns = normalizeCommittedColumns(data.columns)
+      return columns.length > 0 ? { columns } : {}
+    })(),
+    ...(() => {
+      const visibleColumnIds = parseVisibleColumnIds(data.visibleColumnIds)
+      return visibleColumnIds.length > 0 ? { visibleColumnIds } : {}
+    })(),
+    ...(() => {
+      const gridColumnIndexByColumnId = parseCommittedGridColumnPlacements(data.gridColumnIndexByColumnId)
+      return gridColumnIndexByColumnId ? { gridColumnIndexByColumnId } : {}
+    })(),
+    ...(() => {
+      const worksheetMetadataPatch = parseWorksheetMetadataPatch(data.worksheetMetadataPatch)
+      return worksheetMetadataPatch ? { worksheetMetadataPatch } : {}
+    })(),
+    ...(() => {
+      const commentAnchorPatches = parseCommentAnchorPatches(data.commentAnchorPatches)
+      return commentAnchorPatches.length > 0 ? { commentAnchorPatches } : {}
+    })(),
     operations: operations
       .map((entry): SpreadsheetCommittedOperation | null => {
         const op = asRecord(entry)
@@ -182,12 +316,35 @@ type ReplayDeltaLike = {
   appliedVersion: number
 }
 
+const extractCommittedColumnStructureFromChange = (
+  change: ReplayDeltaLike
+): {
+  columns: SpreadsheetColumn[]
+  visibleColumnIds?: string[]
+  gridColumnIndexByColumnId?: Record<string, number>
+} | null => {
+  const result = asRecord(change.result)
+  if (!result) return null
+  const columns = normalizeCommittedColumns(result.columns)
+  if (columns.length === 0) return null
+  const visibleColumnIds = parseVisibleColumnIds(result.visibleColumnIds)
+  const gridColumnIndexByColumnId = parseCommittedGridColumnPlacements(result.gridColumnIndexByColumnId)
+  return {
+    columns,
+    ...(visibleColumnIds.length > 0 ? { visibleColumnIds } : {}),
+    ...(gridColumnIndexByColumnId ? { gridColumnIndexByColumnId } : {})
+  }
+}
+
 const replayDeltaBatchGroupKey = (change: ReplayDeltaLike): string => {
   const appliedVersion = Math.trunc(change.appliedVersion)
   const baseVersion =
     change.baseVersion != null && Number.isFinite(change.baseVersion)
       ? Math.trunc(change.baseVersion)
       : Math.max(0, appliedVersion - 1)
+  if (change.operationType === 'column_add' || change.operationType === 'column_delete') {
+    return `${appliedVersion}:${baseVersion}:column-structure:${change.operationType}`
+  }
   const batchId = change.operationLogId ?? change.operationId
   return batchId ? `${appliedVersion}:${baseVersion}:${batchId}` : `${appliedVersion}:${baseVersion}`
 }
@@ -223,7 +380,10 @@ export function replayDeltasAsCommittedBatches(params: {
       change.baseVersion != null && Number.isFinite(change.baseVersion)
         ? Math.trunc(change.baseVersion)
         : Math.max(0, appliedVersion - 1)
-    const batchId = change.operationLogId ?? change.operationId
+    const batchId =
+      change.operationType === 'column_add' || change.operationType === 'column_delete'
+        ? undefined
+        : (change.operationLogId ?? change.operationId)
 
     if (!current || currentGroupKey !== groupKey) {
       if (current) batches.push(current)
@@ -247,6 +407,13 @@ export function replayDeltasAsCommittedBatches(params: {
       baseVersion,
       appliedVersion
     })
+    const columnStructure = extractCommittedColumnStructureFromChange(change)
+    if (columnStructure) {
+      current = {
+        ...current,
+        ...columnStructure
+      }
+    }
   }
 
   if (current) batches.push(current)

@@ -1,6 +1,9 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
+import { useTranslation as useFluentTranslation } from '@newwork/nw-design-system'
+import investmentSettingsI18n from './_i18n'
 import {
+  GearIcon,
   TrendUpIcon,
   FlowArrowIcon,
   AddressBookIcon,
@@ -8,38 +11,22 @@ import {
   DatabaseIcon,
   FileHtmlIcon,
   BuildingsIcon,
-  FileTextIcon
+  FileTextIcon,
+  FileArrowDownIcon
 } from '@phosphor-icons/react'
 import { SettingsLayout } from '@/components/layout/settings-layout'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import LeadDataPage from './pages/lead-data/LeadDataPage'
-import ActivityDataPage from './pages/activity-data/ActivityDataPage'
-import OpportunityDataPage from './pages/opportunity-data/OpportunityDataPage'
-import AccountDataPage from './pages/account-data/AccountDataPage'
-import InvestmentDataPage from './pages/investment-data/InvestmentDataPage'
-import InvestmentGroupsTypesPage from './pages/investment-groups-types/InvestmentGroupsTypesPage'
-import InvestmentLiquidFundTypesPage from './pages/investment-liquid-fund-types/InvestmentLiquidFundTypesPage'
-import InvestmentSpecificDataPage from './pages/investment-specific-data/InvestmentSpecificDataPage'
-import InvestmentCompanyExecutiveTypesPage from './pages/investment-company-executive-types'
-import TaskTemplateDataPage from './pages/task-template-data/TaskTemplateDataPage'
-import DocumentDataPage from './pages/document-data/DocumentDataPage'
-import { FolderTemplateDataPage, ModuleType } from '@/common/components/common-relations/setting-pages/folder-templates'
-import InvestmentGroupPermissionsPage from './pages/investment-permissions/InvestmentGroupPermissionsPage'
+import { renderInvestmentSettingsInlinePage } from './renderInvestmentSettingsInlinePage'
 
 export interface InvestmentSettingsProps extends BusinessAppContextProps {
   className?: string
   prefixDataTestId?: string
 }
 
-type LeadDataTab = 'ratings' | 'statuses' | 'sources'
-
-function isValidLeadTab(value: unknown): value is LeadDataTab {
-  return value === 'ratings' || value === 'statuses' || value === 'sources'
-}
-
 const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, prefixDataTestId, ...context }) => {
   const { t } = useTranslation()
+  const { t: tExport } = useFluentTranslation(investmentSettingsI18n)
   const [inlinePage, setInlinePage] = React.useState<{ key: string; tab?: string } | null>(null)
 
   // Handle query parameters on component mount and browser back/forward
@@ -95,6 +82,8 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
     const newURL = `${globalThis.location.pathname}?${newSearchParams.toString()}`
     globalThis.history.pushState({}, '', newURL)
   }
+
+  const handleBack = () => handleInlinePageChange(null)
 
   const cards = [
     {
@@ -263,153 +252,38 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
           onClick: () => handleInlinePageChange({ key: 'investment-permissions' })
         }
       ]
+    },
+    {
+      title: tExport('data-export-settings-card-title'),
+      description: tExport('data-export-settings-card-description'),
+      icon: FileArrowDownIcon,
+      iconSize: 'md' as const,
+      entries: [
+        {
+          label: tExport('data-export-settings-card-entry'),
+          onClick: () => handleInlinePageChange({ key: 'data-export' })
+        }
+      ]
     }
   ]
 
-  if (inlinePage?.key === 'investment-groups-types') {
-    return (
-      <InvestmentGroupsTypesPage
-        {...context}
-        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentGroupsTypesSettings`}
-        onBack={() => handleInlinePageChange(null)}
-      />
-    )
-  }
+  if (inlinePage) {
+    const inlinePageContent = renderInvestmentSettingsInlinePage({
+      inlinePage,
+      context,
+      prefixDataTestId,
+      onBack: handleBack
+    })
 
-  if (inlinePage?.key === 'investment-liquid-fund-types') {
-    return (
-      <InvestmentLiquidFundTypesPage
-        {...context}
-        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentLiquidFundTypesSettings`}
-        onBack={() => handleInlinePageChange(null)}
-      />
-    )
-  }
-
-  if (inlinePage?.key === 'investment-permissions') {
-    return (
-      <InvestmentGroupPermissionsPage
-        {...context}
-        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentPermissionsSettings`}
-        onBack={() => handleInlinePageChange(null)}
-      />
-    )
-  }
-
-  if (inlinePage?.key === 'investment-data') {
-    return (
-      <InvestmentDataPage
-        {...context}
-        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentDataSettings`}
-        onBack={() => handleInlinePageChange(null)}
-      />
-    )
-  }
-
-  if (inlinePage?.key === 'investment-specific-data') {
-    const initialTab = inlinePage.tab as 'roles' | 'statuses' | 'stake-types' | undefined
-    return (
-      <InvestmentSpecificDataPage
-        {...context}
-        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentSpecificSettings`}
-        onBack={() => handleInlinePageChange(null)}
-        initialTab={initialTab || 'roles'}
-      />
-    )
-  }
-
-  if (inlinePage?.key === 'investment-company-executive-types') {
-    return (
-      <InvestmentCompanyExecutiveTypesPage
-        {...context}
-        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentCompanyExecutiveTypesSettings`}
-        onBack={() => handleInlinePageChange(null)}
-      />
-    )
-  }
-
-  if (inlinePage?.key === 'task-template-data') {
-    return (
-      <TaskTemplateDataPage
-        {...context}
-        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentTaskTemplateSettings`}
-        onBack={() => handleInlinePageChange(null)}
-      />
-    )
-  }
-
-  if (inlinePage?.key === 'lead') {
-    const initialTab: LeadDataTab = isValidLeadTab(inlinePage.tab) ? inlinePage.tab : 'ratings'
-
-    return (
-      <LeadDataPage
-        {...context}
-        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentLeadSettings`}
-        initialTab={initialTab}
-        onBack={() => handleInlinePageChange(null)}
-      />
-    )
-  }
-
-  if (inlinePage?.key === 'activity') {
-    return (
-      <ActivityDataPage
-        {...context}
-        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentActivitySettings`}
-        onBack={() => handleInlinePageChange(null)}
-      />
-    )
-  }
-
-  if (inlinePage?.key === 'opportunity-data') {
-    const initialTab = inlinePage.tab as 'pipelines' | 'statuses' | 'forecasts' | 'stage-types' | undefined
-    return (
-      <OpportunityDataPage
-        {...context}
-        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentOpportunitySettings`}
-        onBack={() => handleInlinePageChange(null)}
-        initialTab={initialTab || 'pipelines'}
-      />
-    )
-  }
-
-  if (inlinePage?.key === 'account-data') {
-    const initialTab = inlinePage.tab as 'priorities' | 'types' | undefined
-    return (
-      <AccountDataPage
-        {...context}
-        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentAccountSettings`}
-        onBack={() => handleInlinePageChange(null)}
-        initialTab={initialTab || 'priorities'}
-      />
-    )
-  }
-
-  if (inlinePage?.key === 'folder-templates') {
-    return (
-      <FolderTemplateDataPage
-        accessToken={context.accessToken}
-        moduleType={ModuleType.IRM}
-        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentFolderTemplateSettings`}
-        onBack={() => handleInlinePageChange(null)}
-      />
-    )
-  }
-
-  if (inlinePage?.key === 'document-data') {
-    return (
-      <DocumentDataPage
-        {...context}
-        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentDocumentSettings`}
-        onBack={() => handleInlinePageChange(null)}
-      />
-    )
+    if (inlinePageContent) {
+      return inlinePageContent
+    }
   }
 
   return (
     <SettingsLayout
       headerPhosphorIcon={{
-        icon: TrendUpIcon,
+        icon: GearIcon,
         variant: 'premium',
         size: 'lg',
         label: 'Investment Settings'

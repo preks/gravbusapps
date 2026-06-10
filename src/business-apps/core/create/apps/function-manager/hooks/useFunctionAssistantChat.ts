@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import {
-  FunctionsServiceClient,
   type FunctionAssistantDraftResponse,
   type FunctionAssistantDocSource,
   type FunctionAssistantExistingSnapshot,
@@ -8,6 +7,7 @@ import {
   type FunctionAssistantQuestionOption
 } from '@/common/network/functions/FunctionsServiceClient'
 import { hasImplementedHandler, hasMeaningfulSchema } from '../utils/functionDraftGuards'
+import { useFunctionsServiceClient } from '@/common/network/functions/useFunctionsServiceClient'
 
 export type AssistantChatMessage =
   | { id: string; role: 'assistant' | 'system'; kind: 'text'; content: string }
@@ -152,7 +152,7 @@ export type AssistantToolEvent = {
 const MAX_ACTIVITY_LINES = 200
 
 export function useFunctionAssistantChat({ accessToken, mode, existing, onApply }: UseFunctionAssistantChatArgs) {
-  const client = useMemo(() => (accessToken ? new FunctionsServiceClient(accessToken) : null), [accessToken])
+  const client = useFunctionsServiceClient(accessToken)
   const [input, setInput] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [isFixingTest, setIsFixingTest] = useState(false)
@@ -263,7 +263,7 @@ export function useFunctionAssistantChat({ accessToken, mode, existing, onApply 
   }, [])
 
   const canSend = useMemo(() => {
-    if (!client) return false
+    if (!accessToken) return false
     if (clarifyWizard) return false
     if (!input.trim()) return false
     return true
@@ -482,7 +482,7 @@ export function useFunctionAssistantChat({ accessToken, mode, existing, onApply 
       displayText?: string,
       answers?: FunctionAssistantAnswers
     ) => {
-      if (!client) {
+      if (!accessToken) {
         setMessages(prev => [
           ...prev,
           { id: uid('assistant'), role: 'assistant', kind: 'error', content: 'Access token missing.' }
@@ -689,7 +689,7 @@ export function useFunctionAssistantChat({ accessToken, mode, existing, onApply 
   )
 
   const retryLast = useCallback(async () => {
-    if (!client) return
+    if (!accessToken) return
     if (isGenerating) return
     const last = lastRequestRef.current
     if (!last) return
@@ -859,7 +859,7 @@ export function useFunctionAssistantChat({ accessToken, mode, existing, onApply 
   ])
 
   const send = useCallback(async () => {
-    if (!client) {
+    if (!accessToken) {
       setMessages(prev => [
         ...prev,
         { id: uid('assistant'), role: 'assistant', kind: 'error', content: 'Access token missing.' }
@@ -883,7 +883,7 @@ export function useFunctionAssistantChat({ accessToken, mode, existing, onApply 
 
   const startUseCase = useCallback(
     async (useCase: UseCaseTemplate) => {
-      if (!client) return
+      if (!accessToken) return
       if (isGenerating) return
       const kickoff = getUseCaseKickoffPrompt(useCase)
       const context = getUseCaseContext(useCase)
@@ -1021,7 +1021,7 @@ export function useFunctionAssistantChat({ accessToken, mode, existing, onApply 
 
   const fixTest = useCallback(
     async (args: AssistantFixTestArgs) => {
-      if (!client) {
+      if (!accessToken) {
         setMessages(prev => [
           ...prev,
           { id: uid('assistant'), role: 'assistant', kind: 'error', content: 'Access token missing.' }

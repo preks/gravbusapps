@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Button } from '@newwork/gravity-ui-catalog'
 import { Pagination } from 'antd'
-import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/business-apps/types'
 import { useExpensePlanWizardContext } from '../context/ExpensePlanWizardContext'
+import { useExpensePlanWizardTranslation } from '../useExpensePlanWizardTranslation'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { ICONS } from '../../../utils/icons'
 import { createItemsScreenLogObject, formatArrayOfItems, noAllowanceItemsFunction } from '../utils/itemsScreenUtils'
@@ -27,6 +28,7 @@ interface ItemsScreenProps extends BusinessAppContextProps {
 }
 
 const PlanItemsScreen: React.FC<ItemsScreenProps> = props => {
+  const { t } = useExpensePlanWizardTranslation()
   const { accessToken, additionalData, userInfo, isTrip } = props
   const {
     expensePlanData,
@@ -42,6 +44,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = props => {
   } = useExpensePlanWizardContext()
   const [selectedItemsToInitial, setSelectedItemsToInitial] = useState<any[]>([])
   const [initialCurrentPage, setInitialCurrentPage] = useState<number>(1)
+  const [, setIsLoading] = useState<boolean>(false)
   const [expenseTotals, setExpenseTotals] = useState<{ currency: string; amount: number }[]>([])
 
   const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData)
@@ -147,7 +150,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = props => {
   /**
    * Determines the currency to use for items
    */
-  const determineItemCurrency = (currentCurrency: string, expensePlanData: any, additionalData: any): string => {
+  const determineItemCurrency = (currentCurrency: string | null, expensePlanData: any, additionalData: any): string => {
     // Use current currency if available
     if (currentCurrency) return currentCurrency
 
@@ -206,6 +209,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = props => {
   useEffect(() => {
     const fetchItemsFromPayload = async () => {
       // Early returns for invalid states
+      if (!accessToken?.trim()) return
       if (payloadItemsLoaded) return
 
       const extractedPayloadItemIds = extractPayloadItemIds(additionalData)
@@ -225,20 +229,14 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = props => {
         const itemCurrency = determineItemCurrency(currentCurrency, expensePlanData, additionalData)
         await fetchAndAddPayloadItems(newItemIds, itemCurrency)
       } catch {
-        showToast(
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:modify_expense_request.error_fetch_items_payload',
-            'Error fetching items from payload'
-          ),
-          'error'
-        )
+        showToast(t('error-fetch-items-payload'), 'error')
       } finally {
         setIsLoading(false)
       }
     }
 
     fetchItemsFromPayload()
-  }, [additionalData, employeeId, graphQLClient, expensePlanData, setExpensePlanData, currentCurrency])
+  }, [accessToken, additionalData, employeeId, graphQLClient, expensePlanData, setExpensePlanData, currentCurrency])
 
   const handleNextItems = useCallback(() => {
     if (expensePlanData?.ExpensePlanByPk) {
@@ -329,10 +327,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = props => {
       {expenseItems.length > 0 && (
         <div className="gba:flex gba:flex-row gba:justify-between gba:items-center gba:mb-4 gba:px-4">
           <div className="gba:m-0 gba:text-[16px] gba:font-bold" data-testid="expense-plan-wizard-items-screen-title">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:add_items_to_plan.expense_items_counter',
-              'Estimated Expense Items'
-            )}
+            {t('expense-items-counter')}
             {expenseItems.length > 0 && ` (${expenseItems.length})`}
           </div>
           <div className="gba:flex gba:gap-2">
@@ -346,7 +341,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = props => {
                 handleCreateItem()
               }}
             >
-              {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.add_position_btn', 'Add Expense Item')}
+              {t('add-position-btn')}
             </Button>
           </div>
         </div>
@@ -361,7 +356,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = props => {
           <div className="gba:py-2 gba:px-2 gba:flex gba:flex-col gba:flex-grow">
             <div className="gba:flex gba:flex-col gba:gap-2">
               {paginatedInitialItems.map(item => {
-                const formattedItem = formatArrayOfItems([item])[0]
+                const formattedItem = formatArrayOfItems([item], t)[0]
                 return (
                   <ExpenseItemCard
                     key={item.id}
@@ -428,10 +423,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = props => {
                 handleCreateItem()
               }}
             >
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:add_items_to_plan.add_items_button',
-                'Add Estimated Expense Items'
-              )}
+              {t('add-items-button')}
             </Button>
           </div>
         )}
@@ -440,9 +432,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = props => {
       {/* Expense Total Display */}
       <div className="gba:mt-8 gba:mb-4 gba:px-4" data-testid="expense-items-total-container">
         <div className="gba:flex gba:justify-between gba:items-center">
-          <span className="gba:text-base gba:font-normal">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.total_text', 'Estimated Expenses')}
-          </span>
+          <span className="gba:text-base gba:font-normal">{t('total-text')}</span>
           <div className="gba:flex gba:flex-col gba:items-end">
             {expenseTotals.length > 0 ? (
               expenseTotals.map((total, index) => (

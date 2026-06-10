@@ -6,13 +6,20 @@ import {
   ChartTooltip,
   ChartLegend,
   ChartLegendContent,
+  useTranslation,
   type ChartConfig
 } from '@newwork/nw-design-system'
 import { CampaignsAnalyticsComponentProps } from '../types/CampaignsAnalyticsTypes'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyCompact } from '@/common/utils/numberFormatter'
+import translations from '../../../../../_i18n'
 import { NW_CHART_COLOR_VARS, nwChartColorAt } from '@/business-apps/crm/campaigns/utils/campaignChartTokens'
-import { TooltipWrapper, TooltipDataLine } from '@/common/components/customer/campaign-management/ChartHelpers'
+import {
+  CATEGORY_AXIS_PROPS,
+  CATEGORY_CHART_MARGIN,
+  TooltipWrapper,
+  TooltipDataLine,
+  truncateChartLabel
+} from '@/common/components/customer/campaign-management/ChartHelpers'
 import { ChartCard, ChartTypeSwitcher } from '@/common/components/customer/campaign-management/ChartCard'
 
 /**
@@ -159,13 +166,14 @@ const CampaignsRevenueEfficiency: React.FC<CampaignsAnalyticsComponentProps> = (
   error = null,
   onRetry
 }) => {
+  const { t } = useTranslation(translations)
   const [chartType, setChartType] = useState<'scatter' | 'composed' | 'treemap'>('scatter')
 
   const scatterChartConfig = useMemo<ChartConfig>(() => ({ scatter: { label: 'Campaigns' } }), [])
   const composedChartConfig = useMemo<ChartConfig>(
     () => ({
-      revenueperlead: { label: 'Revenue per Lead' },
-      efficiencyscore: { label: 'Efficiency Score (%)' }
+      revenuePerLead: { label: 'Revenue per Lead' },
+      efficiencyScore: { label: 'Efficiency Score (%)' }
     }),
     []
   )
@@ -174,7 +182,7 @@ const CampaignsRevenueEfficiency: React.FC<CampaignsAnalyticsComponentProps> = (
   const efficiencyData = efficiencyComparisons
     .map(campaign => ({
       id: campaign.campaignId,
-      name: campaign.campaignName.length > 20 ? campaign.campaignName.substring(0, 20) + '...' : campaign.campaignName,
+      name: truncateChartLabel(campaign.campaignName),
       fullName: campaign.campaignName,
       revenue: campaign.totalRevenue,
       winRate: campaign.winRate,
@@ -230,8 +238,8 @@ const CampaignsRevenueEfficiency: React.FC<CampaignsAnalyticsComponentProps> = (
       case 'composed':
         return (
           <ChartContainer config={composedChartConfig} className="gba:h-[500px] gba:w-full">
-            <ComposedChart data={efficiencyData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-              <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} />
+            <ComposedChart data={efficiencyData} margin={CATEGORY_CHART_MARGIN}>
+              <XAxis dataKey="name" {...CATEGORY_AXIS_PROPS} />
               <YAxis yAxisId="revenue" orientation="left" tickFormatter={val => formatCurrencyCompact(val, 'USD')} />
               <YAxis yAxisId="score" orientation="right" domain={[0, 100]} />
               <ChartTooltip content={<EfficiencyComposedTooltip />} />
@@ -239,7 +247,7 @@ const CampaignsRevenueEfficiency: React.FC<CampaignsAnalyticsComponentProps> = (
               <Bar
                 yAxisId="revenue"
                 dataKey="revenuePerLead"
-                fill="var(--color-revenueperlead)"
+                fill="var(--color-revenuePerLead)"
                 name="Revenue per Lead"
                 radius={[4, 4, 0, 0]}
               />
@@ -247,10 +255,10 @@ const CampaignsRevenueEfficiency: React.FC<CampaignsAnalyticsComponentProps> = (
                 yAxisId="score"
                 type="monotone"
                 dataKey="efficiencyScore"
-                stroke="var(--color-efficiencyscore)"
+                stroke="var(--color-efficiencyScore)"
                 strokeWidth={3}
                 name="Efficiency Score (%)"
-                dot={{ fill: 'var(--color-efficiencyscore)', strokeWidth: 2, r: 4 }}
+                dot={{ fill: 'var(--color-efficiencyScore)', strokeWidth: 2, r: 4 }}
               />
             </ComposedChart>
           </ChartContainer>
@@ -291,18 +299,12 @@ const CampaignsRevenueEfficiency: React.FC<CampaignsAnalyticsComponentProps> = (
 
   return (
     <ChartCard
-      title={getTranslationFromI18nKeyAndLabel(
-        'campaigns.analytics.revenueEfficiency.title',
-        'Revenue Efficiency Analysis'
-      )}
+      title={t('campaigns-analytics-revenueEfficiency-title')}
       isLoading={isLoading}
       error={error}
       onRetry={onRetry}
       isEmpty={efficiencyData.length === 0}
-      emptyMessage={getTranslationFromI18nKeyAndLabel(
-        'campaigns.analytics.revenueEfficiency.noData',
-        'No efficiency data available - need campaigns with both leads and revenue'
-      )}
+      emptyMessage={t('campaigns-analytics-revenueEfficiency-noData')}
       headerActions={
         <ChartTypeSwitcher
           options={[

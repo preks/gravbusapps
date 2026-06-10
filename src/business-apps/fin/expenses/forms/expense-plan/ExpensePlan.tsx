@@ -1,18 +1,19 @@
 import React from 'react'
 import { Divider, Form } from 'antd'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Spinner } from '@newwork/nw-design-system'
-import { ICONS } from '../../utils/icons'
+import { Spinner, useTranslation } from '@newwork/nw-design-system'
 import { Button } from '@newwork/gravity-ui-catalog'
+import { ICONS } from '../../utils/icons'
 import { ExpensePlanProvider, useExpensePlanContext } from './context/ExpensePlanContext'
 import { FormFooter, ExpenseFormContent, FormHeaderTitle } from './components'
+import expensePlanTranslations from './_i18n'
 
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
 
 import { showToast } from '../../utils/notificationUtils'
 import { FORM_STEPS, PLAN_TYPES, PLAN_STATUS, DISABLED_FLAG, ABORT_EXIT_STRATEGY } from './constants/constants'
 import { EVENTS } from '../../utils/constants'
-import { formatDateToISO, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatDateToISO } from '@/common/utils/windowUtils'
 import { getCatalogTypeTransformer } from '../expense-request/utils/planUtils'
 
 interface ExpensePlanContentProps {
@@ -30,6 +31,7 @@ interface ExpenseFormValues {
 }
 
 const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, userInfo, additionalData }) => {
+  const { t } = useTranslation(expensePlanTranslations)
   const [form] = Form.useForm()
   const {
     step,
@@ -66,12 +68,6 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
     [step, loading, expenseCatalogueData, userInfo?.employeeDetails?.employeeId]
   )
 
-  /** Stable title for start step so memoized header does not re-render when context updates. */
-  const expensePlanStartTitle = React.useMemo(
-    () => getTranslationFromI18nKeyAndLabel('lowcoder:initiate_expense_plan.header_container', 'Create Expense Plan'),
-    []
-  )
-
   const handleExpenseClick = () => {
     setStep(FORM_STEPS.EXPENSE)
   }
@@ -94,20 +90,11 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
         pso_exitStrategy: ABORT_EXIT_STRATEGY,
         pso_completeNotification: {
           type: 'error',
-          messageKey: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:absence_module.toast_notification_cancel_create_absence',
-            'The action has been canceled.'
-          )
+          messageKey: t('toast-action-canceled')
         }
       })
     } catch {
-      showToast(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:create_expense_type_item.error_flows_message',
-          'Error in flow process'
-        ),
-        'error'
-      )
+      showToast(t('error-flows-message'), 'error')
       form.resetFields()
       setStep(FORM_STEPS.START)
     }
@@ -122,13 +109,7 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
 
       const employeeId = userInfo?.employeeDetails?.employeeId
       if (!accessToken || !employeeId) {
-        showToast(
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:create_expense_request.error_missing_user_info',
-            'Missing user information'
-          ),
-          'error'
-        )
+        showToast(t('error-missing-user-info'), 'error')
         setLoading(false)
         return
       }
@@ -165,13 +146,7 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
       try {
         dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, submitData)
       } catch {
-        showToast(
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:create_expense_type_item.error_flows_message',
-            'Error in flow process'
-          ),
-          'error'
-        )
+        showToast(t('error-flows-message'), 'error')
       }
 
       // if (operationSuccessful) {
@@ -181,13 +156,7 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
       //   }, SUBMIT_SUCCESS_RESET_TIMEOUT)
       // }
     } catch {
-      showToast(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:create_expense_request.error_fields_validation',
-          'Please check all required fields'
-        ),
-        'error'
-      )
+      showToast(t('error-fields-validation'), 'error')
     } finally {
       setLoading(false)
     }
@@ -231,17 +200,7 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
               />
             </Button>
             <FormHeaderTitle
-              title={
-                showTransportation
-                  ? getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:initiate_expense_plan.expense_create_trip_plan.header_title',
-                      'Plan New Trip'
-                    )
-                  : getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:initiate_expense_plan.create_expense_plan.header_title',
-                      'Plan New Expense'
-                    )
-              }
+              title={showTransportation ? t('create-trip-plan-header-title') : t('create-expense-plan-header-title')}
               titleContainerTestId="expense-plan-form-title-container"
               headerTitleTestId="expense-plan-form-header-title"
             />
@@ -259,6 +218,7 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
             selectedCostCenter={selectedCostCenter}
             setSelectedCostCenter={setSelectedCostCenter}
             expenseCatalogueData={expenseCatalogueData}
+            translationScope="plan"
           />
 
           {/* Footer with divider and action buttons */}
@@ -270,11 +230,11 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
             onSubmit={handleSubmit}
             testIdPrefix="expense-plan"
             additionalData={additionalData}
+            translationScope="plan"
           />
         </>
       ) : (
         <>
-          {/* Header */}
           <div
             className="gba:flex gba:items-center"
             style={{
@@ -289,7 +249,7 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
             data-testid="expense-plan-header-container"
           >
             <FormHeaderTitle
-              title={expensePlanStartTitle}
+              title={t('header-container')}
               titleContainerTestId="expense-plan-title-container"
               headerTitleTestId="expense-plan-header-title"
             />
@@ -312,9 +272,7 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
                 data-testid="expense-plan-form"
                 className="gba:flex gba:flex-col gba:flex-grow"
               >
-                {/* Without Plan Section */}
                 <div data-testid="expense-plan-without-plan-section">
-                  {/* Expense Button - Only show if not disabled */}
                   {!isExpenseDisabled && (
                     <div className="gba:bg-muted gba:rounded gba:mb-4">
                       <Button
@@ -346,10 +304,7 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
                               }}
                               data-testid="expense-plan-expense-text"
                             >
-                              {getTranslationFromI18nKeyAndLabel(
-                                'lowcoder:create_expense_request.expense_select_button',
-                                'Expense'
-                              )}
+                              {t('expense-button')}
                             </span>
                           </div>
                           <img
@@ -365,7 +320,6 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
                     </div>
                   )}
 
-                  {/* Trip Button - Only show if not disabled */}
                   {!isTripDisabled && (
                     <div className="gba:bg-muted gba:rounded gba:mb-4">
                       <Button
@@ -397,10 +351,7 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
                               }}
                               data-testid="expense-plan-trip-text"
                             >
-                              {getTranslationFromI18nKeyAndLabel(
-                                'lowcoder:create_expense_request.trip_select_button',
-                                'Trip'
-                              )}
+                              {t('trip-button')}
                             </span>
                           </div>
                           <img
@@ -417,14 +368,18 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
                   )}
                 </div>
 
-                {/* Spacer to push content to the top */}
                 <div className="gba:flex-grow" data-testid="expense-plan-spacer" />
               </Form>
             )}
           </div>
 
-          {/* Footer with divider and action buttons */}
-          <FormFooter step={step} onCancel={handleCancel} testIdPrefix="expense-plan" additionalData={additionalData} />
+          <FormFooter
+            step={step}
+            onCancel={handleCancel}
+            testIdPrefix="expense-plan"
+            additionalData={additionalData}
+            translationScope="plan"
+          />
         </>
       )}
     </div>

@@ -75,13 +75,31 @@ function mergeDraftsIntoMenuTree(menuItems: MenuItemDTO[], draftMenuItems: MenuI
   return [...topLevelDraftHubs, ...mergedMenuTree]
 }
 
-function removeDraftNodesFromTree(items: MenuItemDTO[]): MenuItemDTO[] {
+function removeMissingDraftNodesFromTree(items: MenuItemDTO[], activeDraftIds: Set<string>): MenuItemDTO[] {
   return items
-    .filter(item => !item.id.startsWith('draft:'))
+    .filter(item => !item.id.startsWith('draft:') || activeDraftIds.has(item.id))
     .map(item => ({
       ...item,
-      children: removeDraftNodesFromTree(item.children || [])
+      children: removeMissingDraftNodesFromTree(item.children || [], activeDraftIds)
     }))
+}
+
+function collectDraftIdsFromTree(items: MenuItemDTO[]): Set<string> {
+  const draftIds = new Set<string>()
+
+  const collectIds = (nodes: MenuItemDTO[]) => {
+    nodes.forEach(node => {
+      if (node.id.startsWith('draft:')) {
+        draftIds.add(node.id)
+      }
+
+      collectIds(node.children || [])
+    })
+  }
+
+  collectIds(items)
+
+  return draftIds
 }
 
 function enrichTreePreservingOrder(
@@ -232,9 +250,12 @@ export function useMenuTreeState(props: UseMenuTreeStateProps): UseMenuTreeState
       }
 
       if (draftItemsChanged) {
-        // Only drafts changed: preserve current target ordering/structure and re-merge drafts on top
-        const targetWithoutDrafts = removeDraftNodesFromTree(prev)
-        const targetWithDrafts = mergeDraftsIntoMenuTree(targetWithoutDrafts, draftMenuItems)
+        // Only drafts changed: keep positioned drafts from targetTree and insert only new drafts.
+        const activeDraftIds = new Set(draftMenuItems.map(draft => draft.id))
+        const targetWithActiveDrafts = removeMissingDraftNodesFromTree(prev, activeDraftIds)
+        const existingDraftIds = collectDraftIdsFromTree(targetWithActiveDrafts)
+        const newDrafts = draftMenuItems.filter(draft => !existingDraftIds.has(draft.id))
+        const targetWithDrafts = mergeDraftsIntoMenuTree(targetWithActiveDrafts, newDrafts)
         return enrichTreePreservingOrder(targetWithDrafts, 'space')
       }
 

@@ -21,7 +21,7 @@ describe('univerSyncStructuralCommand', () => {
         'sheet.mutation.insert-row',
         {}
       )
-    ).toEqual({ ok: false, reason: 'command_failed' })
+    ).toEqual({ ok: false, reason: 'command_failed', detail: 'returned_thenable', resultType: 'object' })
   })
 
   it('runUniverSyncStructuralCommand catches syncExecuteCommand throws', () => {
@@ -35,6 +35,11 @@ describe('univerSyncStructuralCommand', () => {
         'sheet.command.insert-row',
         {}
       )
-    ).toEqual({ ok: false, reason: 'command_failed' })
+    ).toEqual({
+      ok: false,
+      reason: 'command_failed',
+      detail: 'threw',
+      errorMessage: '[CommandService]: Command handler should not return a promise.'
+    })
   })
 })

@@ -12,6 +12,14 @@ export interface PresentedPermissionField {
   path: string[]
   editable: boolean
   technical?: boolean
+  // ``required`` means the backend schema lists the field in ``required`` — i.e.
+  // the write fails without it (red ``*``). ``suggested`` means the agent
+  // pre-filled a non-required field: worth confirming, but NOT a hard rule, so
+  // it must not show a red ``*`` (avoids inheriting FlowBot's unstable
+  // "every prefilled key is required" behaviour).
+  required?: boolean
+  suggested?: boolean
+  displayValue?: string
   options?: PresentedPermissionFieldOption[]
   inputType?: 'text' | 'textarea' | 'select' | 'boolean'
 }
@@ -21,6 +29,9 @@ export interface PresentedPermissionAction {
   displayToolName: string
   title: string
   summary: string
+  // The agent's own reason for the action ("Why"), promoted above the fields so
+  // the card reads like an explanation instead of a bare confirmation.
+  explanation?: string
   visibleFields: PresentedPermissionField[]
   technicalFields: PresentedPermissionField[]
   canEdit: boolean
@@ -54,6 +65,13 @@ export function humanizePermissionLabel(value: string): string {
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .replace(/[_-]+/g, ' ')
     .replace(/\b\w/g, char => char.toUpperCase())
+}
+
+// Tool names arrive provider-qualified (``flowbot.createEmployeeSpecialLeave``).
+// Drop the provider segment so the card shows "Create Employee Special Leave"
+// instead of the noisy "Flowbot.Create Employee Special Leave".
+export function humanizeToolName(toolName: string): string {
+  return humanizePermissionLabel(toolName.replace(/^[a-z][a-zA-Z0-9_]*\./, ''))
 }
 
 export function formatPermissionDisplayValue(value: unknown): string {
@@ -135,12 +153,28 @@ const schemaPropertyForPath = (
   action: ToolPermissionActionRequest,
   path: string[]
 ): Record<string, unknown> | undefined => {
-  const schema = action.input_schema
-  if (!schema || typeof schema !== 'object') return undefined
-  const properties = schema.properties
-  if (!properties || typeof properties !== 'object' || Array.isArray(properties)) return undefined
-  const first = (properties as Record<string, unknown>)[path[0]]
-  return first && typeof first === 'object' && !Array.isArray(first) ? (first as Record<string, unknown>) : undefined
+  let node: unknown = action.input_schema
+  for (const part of path) {
+    if (!node || typeof node !== 'object' || Array.isArray(node)) return undefined
+    const properties = (node as Record<string, unknown>).properties
+    if (!properties || typeof properties !== 'object' || Array.isArray(properties)) return undefined
+    node = (properties as Record<string, unknown>)[part]
+  }
+  return node && typeof node === 'object' && !Array.isArray(node) ? (node as Record<string, unknown>) : undefined
+}
+
+// A field is required when its immediate parent schema object lists it in
+// ``required`` (matches FlowBot's per-level required arrays, e.g. asset.required).
+const isRequiredForPath = (action: ToolPermissionActionRequest, path: string[]): boolean => {
+  let node: unknown = action.input_schema
+  for (let index = 0; index < path.length - 1; index += 1) {
+    if (!node || typeof node !== 'object' || Array.isArray(node)) return false
+    const properties = (node as Record<string, unknown>).properties
+    if (!properties || typeof properties !== 'object' || Array.isArray(properties)) return false
+    node = (properties as Record<string, unknown>)[path[index]]
+  }
+  const required = node && typeof node === 'object' ? (node as Record<string, unknown>).required : undefined
+  return Array.isArray(required) && required.includes(path[path.length - 1])
 }
 
 const optionsFromSchema = (
@@ -178,6 +212,30 @@ const isEditableValue = (value: unknown): boolean =>
   typeof value === 'boolean' ||
   Array.isArray(value)
 
+const isEmptyFieldValue = (value: unknown): boolean => {
+  if (value === null || value === undefined || value === '') return true
+  if (Array.isArray(value)) return value.length === 0
+  if (typeof value === 'object') return Object.keys(value).length === 0
+  return false
+}
+
+const stripRefIdSuffix = (label: string): string => {
+  if (label.endsWith(' Ref')) return label.slice(0, -4)
+  if (label.endsWith(' Id')) return label.slice(0, -3)
+  return label
+}
+
+const resolveInputType = (
+  selectOptions: PresentedPermissionFieldOption[] | undefined,
+  schema: Record<string, unknown> | undefined,
+  value: unknown
+): PresentedPermissionField['inputType'] => {
+  if (selectOptions?.length) return 'select'
+  if (schemaType(schema) === 'boolean' || typeof value === 'boolean') return 'boolean'
+  if (!isEditableValue(value)) return 'textarea'
+  return 'text'
+}
+
 const makeField = (
   action: ToolPermissionActionRequest,
   path: string[],
@@ -186,21 +244,27 @@ const makeField = (
 ): PresentedPermissionField => {
   const schema = schemaPropertyForPath(action, path)
   const selectOptions = fieldOptionsForPath(action, path)
-  const inputType: PresentedPermissionField['inputType'] = selectOptions?.length
-    ? 'select'
-    : schemaType(schema) === 'boolean' || typeof value === 'boolean'
-      ? 'boolean'
-      : !isEditableValue(value)
-        ? 'textarea'
-        : 'text'
+  const inputType = resolveInputType(selectOptions, schema, value)
+  // Show the friendly catalog label (e.g. "Laptop") instead of the raw ref
+  // ("AssetCategory:v1:LAPTOP") in read-only display mode.
+  const matchedOption = selectOptions?.find(option => option.value === formatPermissionValue(value))
+  const defaultLabel = stripRefIdSuffix(humanizePermissionLabel(path[path.length - 1]))
+  const technical = options.technical ?? false
+  const required = isRequiredForPath(action, path)
+  // Agent pre-filled an optional, visible field: surface it as "suggested"
+  // rather than required so users can tell hard rules from assistant guesses.
+  const suggested = !required && !technical && !isEmptyFieldValue(value)
 
   return {
     id: fieldId(path),
-    label: options.label ?? humanizePermissionLabel(path[path.length - 1]),
+    label: options.label ?? defaultLabel,
     value,
     path,
     editable: options.editable,
-    technical: options.technical ?? false,
+    technical,
+    required,
+    suggested,
+    displayValue: matchedOption?.label,
     options: selectOptions,
     inputType
   }
@@ -259,21 +323,67 @@ const presentCreateCrmEntity = (
   }
 }
 
+// Internal/system keys that should never sit in the primary form. These are
+// either backend-managed (id, versioning, record bookkeeping) or wrappers
+// (meta). They go into the collapsible "technical details" section.
+const SYSTEM_FIELD_KEYS = new Set([
+  ...TECHNICAL_KEYS,
+  'businessKey',
+  'recordState',
+  'activeTo',
+  'additionalProperties',
+  'version',
+  'creatorEmployee',
+  'ownerEmployee',
+  'authorEmployee',
+  'meta'
+])
+
+const isPlainObjectValue = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+
+// Walk the payload like FlowBot's flow-form pipeline: recurse into nested
+// objects (so we use dotted-path options/labels instead of dumping raw JSON),
+// keep required + provided fields in the primary form, and collapse empty
+// optional fields and system fields into "technical details".
+const collectGenericFields = (
+  action: ToolPermissionActionRequest,
+  value: Record<string, unknown>,
+  basePath: string[],
+  canEdit: boolean,
+  acc: PresentedPermissionField[]
+): void => {
+  for (const [key, fieldValue] of Object.entries(value)) {
+    const path = [...basePath, key]
+    if (isPlainObjectValue(fieldValue) && Object.keys(fieldValue).length > 0 && !fieldOptionsForPath(action, path)) {
+      collectGenericFields(action, fieldValue, path, canEdit, acc)
+      continue
+    }
+    const required = isRequiredForPath(action, path)
+    const technical = SYSTEM_FIELD_KEYS.has(key) || (!required && isEmptyFieldValue(fieldValue))
+    acc.push(
+      makeField(action, path, fieldValue, {
+        editable: canEdit && isEditableValue(fieldValue),
+        technical
+      })
+    )
+  }
+}
+
 const presentGeneric = (
   action: ToolPermissionActionRequest,
   toolName: string,
   args: Record<string, unknown>,
   canEdit: boolean
 ): Omit<PresentedPermissionAction, 'toolName' | 'displayToolName' | 'canEdit' | 'rebuildAction'> => {
-  const fields = Object.entries(args).map(([key, value]) =>
-    makeField(action, [key], value, {
-      editable: canEdit && isEditableValue(value),
-      technical: TECHNICAL_KEYS.has(key)
-    })
-  )
+  const fields: PresentedPermissionField[] = []
+  collectGenericFields(action, args, [], canEdit, fields)
   return {
-    title: humanizePermissionLabel(toolName),
-    summary: `Run ${humanizePermissionLabel(toolName)} after approval.`,
+    title: humanizeToolName(toolName),
+    // No boilerplate "Run X after approval." — the card derives its heading from
+    // the backend intent line (``summary_text``) or the title, and shows the
+    // safety note once. Leave empty so it never competes with the intent line.
+    summary: '',
     ...partitionFields(fields)
   }
 }
@@ -309,6 +419,20 @@ const rebuildArgs = (
   return nextBusinessArgs
 }
 
+// The agent's reason is promoted to a prominent "Why" line, so we drop the
+// duplicate ``reason`` field from the form. The value still rides along in the
+// untouched action args, so submission/edit payloads are unaffected.
+const stripReasonField = (fields: PresentedPermissionField[]): PresentedPermissionField[] =>
+  fields.filter(field => field.id !== 'reason')
+
+const reasonFromFields = (presented: {
+  visibleFields: PresentedPermissionField[]
+  technicalFields: PresentedPermissionField[]
+}): string | undefined => {
+  const reasonField = [...presented.visibleFields, ...presented.technicalFields].find(field => field.id === 'reason')
+  return typeof reasonField?.value === 'string' && reasonField.value.trim() ? reasonField.value.trim() : undefined
+}
+
 export const presentToolPermissionAction = (
   action: ToolPermissionActionRequest,
   reviewConfigs: ToolPermissionReviewConfig[] = []
@@ -321,14 +445,29 @@ export const presentToolPermissionAction = (
       ? presentCreateCrmEntity(action, args, canEdit)
       : presentGeneric(action, toolName, args, canEdit)
 
+  // Prefer the backend-derived intent line ("Create Job Level "Senior".") and the
+  // agent's reason; fall back to the generic summary / inline reason field.
+  const summary =
+    typeof action.summary_text === 'string' && action.summary_text.trim()
+      ? action.summary_text.trim()
+      : presented.summary
+  const explanation =
+    typeof action.reason_text === 'string' && action.reason_text.trim()
+      ? action.reason_text.trim()
+      : reasonFromFields(presented)
+
   return {
     toolName,
-    displayToolName: humanizePermissionLabel(toolName),
+    displayToolName: humanizeToolName(toolName),
     canEdit,
     rebuildAction: editedValues => ({
       ...action,
       args: rebuildArgs(action, args, editedValues)
     }),
-    ...presented
+    ...presented,
+    summary,
+    explanation,
+    visibleFields: stripReasonField(presented.visibleFields),
+    technicalFields: stripReasonField(presented.technicalFields)
   }
 }

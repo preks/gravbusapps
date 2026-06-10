@@ -218,6 +218,267 @@ describe('useSpreadsheetRemoteDeltaCatchUp', () => {
     )
   })
 
+  it('treats insert_row_slots-only catch-up like structural replay already painted the active grid', async () => {
+    const replayDeltaChanges = jest.fn()
+    const collaborationManagerRef = {
+      current: {
+        replayDeltaChanges
+      } as unknown as SpreadsheetCollaborationManager
+    }
+    const spreadsheetSession = {
+      applyDeltaChanges: jest.fn(),
+      getSheetState: jest.fn(() => ({ rows: [] }))
+    } as unknown as never
+    const enqueueDiagnosticsTraceEvent = jest.fn()
+    const syncSheetRowsIntoLocalState = jest.fn()
+    const fetchSheetChangesSince = jest.fn(async () => ({
+      currentVersion: 5,
+      changes: [
+        {
+          operationType: 'insert_row_slots',
+          appliedVersion: 5,
+          payload: { startGridRowIndex: 2, count: 1, rows: [] }
+        }
+      ],
+      requiresSnapshot: false
+    }))
+    const { result } = renderHook(() =>
+      useSpreadsheetRemoteDeltaCatchUp({
+        ...baseParams(),
+        spreadsheetSession,
+        collaborationManagerRef,
+        enqueueDiagnosticsTraceEvent,
+        syncSheetRowsIntoLocalState,
+        appSheetsRef: { current: [{ id: 's1', name: 's1', columns: [] }] as never[] },
+        resolveKnownSheetVersion: jest.fn(() => 4),
+        mutationFacadeRef: {
+          current: {
+            fetchSheetChangesSince
+          } as unknown as SpreadsheetMutationFacade
+        }
+      })
+    )
+
+    await expect(result.current.requestSheetDeltaCatchUp('s1', 'version_gap', { sinceVersion: 4 })).resolves.toBe(true)
+
+    expect(replayDeltaChanges).toHaveBeenCalledTimes(1)
+    expect(syncSheetRowsIntoLocalState).toHaveBeenCalledWith(
+      's1',
+      expect.any(Array),
+      expect.objectContaining({ persisted: true, syncGrid: false, version: 5 })
+    )
+    expect(enqueueDiagnosticsTraceEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stage: 'client_catchup_paint_strategy',
+        payload: expect.objectContaining({
+          syncGrid: false,
+          skipSyncGridReason: 'structural_replay_painted',
+          hasAddRowsStructural: true
+        })
+      })
+    )
+  })
+
+  it('replays pure column structural catch-up even when the version is already known', async () => {
+    const replayDeltaChanges = jest.fn()
+    const collaborationManagerRef = {
+      current: {
+        replayDeltaChanges
+      } as unknown as SpreadsheetCollaborationManager
+    }
+    const spreadsheetSession = {
+      applyDeltaChanges: jest.fn(),
+      getSheetState: jest.fn(() => ({ rows: [] }))
+    } as unknown as never
+    const enqueueDiagnosticsTraceEvent = jest.fn()
+    const syncSheetRowsIntoLocalState = jest.fn()
+    const knownVersion = 109
+    const fetchSheetChangesSince = jest.fn(async () => ({
+      currentVersion: 109,
+      changes: [
+        {
+          operationType: 'columns_reorder',
+          appliedVersion: 109,
+          baseVersion: 108,
+          operationId: 'columns-reorder-op-109',
+          operationLogId: 'columns-reorder-log-109',
+          payload: {
+            sheetId: 's1',
+            columns: [
+              { id: 'col-a', name: 'ColumnA', order: 0, isVisible: true },
+              { id: 'col-b', name: 'ColumnB', order: 1, isVisible: true }
+            ]
+          },
+          result: {
+            columns: [
+              { id: 'col-b', name: 'ColumnB', order: 0, isVisible: true },
+              { id: 'col-a', name: 'ColumnA', order: 1, isVisible: true }
+            ],
+            visibleColumnIds: ['col-b', 'col-a'],
+            gridColumnIndexByColumnId: { 'col-b': 0, 'col-a': 1 }
+          }
+        }
+      ],
+      requiresSnapshot: false
+    }))
+    const { result } = renderHook(() =>
+      useSpreadsheetRemoteDeltaCatchUp({
+        ...baseParams(),
+        spreadsheetSession,
+        collaborationManagerRef,
+        enqueueDiagnosticsTraceEvent,
+        syncSheetRowsIntoLocalState,
+        appSheetsRef: {
+          current: [
+            {
+              id: 's1',
+              name: 's1',
+              columns: [
+                { id: 'col-a', name: 'ColumnA', isVisible: true, order: 0 },
+                { id: 'col-b', name: 'ColumnB', isVisible: true, order: 1 }
+              ]
+            } as never
+          ]
+        },
+        resolveKnownSheetVersion: jest.fn(() => knownVersion),
+        mutationFacadeRef: {
+          current: {
+            fetchSheetChangesSince
+          } as unknown as SpreadsheetMutationFacade
+        }
+      })
+    )
+
+    await expect(result.current.requestSheetDeltaCatchUp('s1', 'version_gap', { sinceVersion: 108 })).resolves.toBe(
+      true
+    )
+
+    expect(replayDeltaChanges).toHaveBeenCalledTimes(1)
+    expect(
+      (replayDeltaChanges.mock.calls[0]?.[0] as Array<{ operationType: string }>).map(change => change.operationType)
+    ).toEqual(['columns_reorder'])
+    expect(syncSheetRowsIntoLocalState).toHaveBeenCalledWith(
+      's1',
+      expect.any(Array),
+      expect.objectContaining({ persisted: true, syncGrid: true, version: 109 })
+    )
+    expect(enqueueDiagnosticsTraceEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stage: 'client_catchup_paint_strategy',
+        payload: expect.objectContaining({
+          replayRan: true,
+          skippedStructuralReplay: false,
+          hasColumnStructuralChanges: true,
+          syncGrid: true,
+          skipSyncGridReason: 'full_token'
+        })
+      })
+    )
+  })
+
+  it('still replays mixed column reorder catch-up when cell changes share an already-known version', async () => {
+    const replayDeltaChanges = jest.fn()
+    const applyDeltaChanges = jest.fn()
+    const collaborationManagerRef = {
+      current: {
+        replayDeltaChanges
+      } as unknown as SpreadsheetCollaborationManager
+    }
+    const spreadsheetSession = {
+      applyDeltaChanges,
+      getSheetState: jest.fn(() => ({ rows: [] }))
+    } as unknown as never
+    const enqueueDiagnosticsTraceEvent = jest.fn()
+    const syncSheetRowsIntoLocalState = jest.fn()
+    const fetchSheetChangesSince = jest.fn(async () => ({
+      currentVersion: 109,
+      changes: [
+        {
+          operationType: 'columns_reorder',
+          appliedVersion: 109,
+          baseVersion: 108,
+          operationId: 'columns-reorder-op-109',
+          operationLogId: 'columns-reorder-log-109',
+          payload: {
+            sheetId: 's1',
+            columns: [
+              { id: 'col-b', name: 'ColumnB', order: 0, isVisible: true },
+              { id: 'col-a', name: 'ColumnA', order: 1, isVisible: true }
+            ]
+          }
+        },
+        {
+          operationType: 'set_range',
+          appliedVersion: 109,
+          baseVersion: 108,
+          payload: {
+            cells: [
+              {
+                rowId: 'row-1',
+                columnName: 'ColumnB',
+                value: 'moved'
+              }
+            ]
+          }
+        }
+      ],
+      requiresSnapshot: false
+    }))
+    const { result } = renderHook(() =>
+      useSpreadsheetRemoteDeltaCatchUp({
+        ...baseParams(),
+        spreadsheetSession,
+        collaborationManagerRef,
+        enqueueDiagnosticsTraceEvent,
+        syncSheetRowsIntoLocalState,
+        appSheetsRef: {
+          current: [
+            {
+              id: 's1',
+              name: 's1',
+              columns: [
+                { id: 'col-a', name: 'ColumnA', isVisible: true, order: 0 },
+                { id: 'col-b', name: 'ColumnB', isVisible: true, order: 1 }
+              ]
+            } as never
+          ]
+        },
+        resolveKnownSheetVersion: jest.fn(() => 109),
+        mutationFacadeRef: {
+          current: {
+            fetchSheetChangesSince
+          } as unknown as SpreadsheetMutationFacade
+        }
+      })
+    )
+
+    await expect(result.current.requestSheetDeltaCatchUp('s1', 'version_gap', { sinceVersion: 108 })).resolves.toBe(
+      true
+    )
+
+    expect(replayDeltaChanges).toHaveBeenCalledTimes(1)
+    expect(
+      (replayDeltaChanges.mock.calls[0]?.[0] as Array<{ operationType: string }>).map(change => change.operationType)
+    ).toEqual(['columns_reorder'])
+    expect(syncSheetRowsIntoLocalState).toHaveBeenCalledWith(
+      's1',
+      expect.any(Array),
+      expect.objectContaining({ persisted: true, syncGrid: true, version: 109 })
+    )
+    expect(enqueueDiagnosticsTraceEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stage: 'client_catchup_paint_strategy',
+        payload: expect.objectContaining({
+          replayRan: true,
+          skippedStructuralReplay: false,
+          cellChangeCount: 1,
+          structuralChangeCount: 1,
+          syncGrid: true
+        })
+      })
+    )
+  })
+
   it('marks recovery sync to skip generic session diff when no bounded region can be computed', async () => {
     const spreadsheetSession = {
       applyDeltaChanges: jest.fn(),

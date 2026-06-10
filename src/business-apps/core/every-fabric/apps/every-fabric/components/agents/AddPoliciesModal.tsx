@@ -13,6 +13,16 @@ import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes
 export const buildPolicyDetailUrl = (policyId: string): string =>
   `/platform/content/intranet/content-record?contentId=${encodeURIComponent(policyId)}`
 
+const POLICY_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * True when a policy ref is a real intranet ContentEntry uuid. The registry
+ * endpoint rejects non-uuid refs with 422, so legacy slug refs (e.g.
+ * `policy.insurance.claim_triage.v1`) must be filtered out before persisting.
+ */
+export const isPolicyUuid = (value: string | null | undefined): value is string =>
+  typeof value === 'string' && POLICY_UUID_RE.test(value.trim())
+
 /** Minimum payload the parent needs to render a chip with a real title. */
 export interface PickedPolicy {
   id: string

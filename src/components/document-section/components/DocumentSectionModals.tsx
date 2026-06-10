@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Button,
@@ -14,12 +14,20 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  ActionMenu
+  ActionMenu,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { FolderNotchIcon, DownloadSimpleIcon, EyeIcon } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { DocumentItem, ConfirmationModalState, NewFolderDialogState } from '../types'
 import { useAppActionData } from '@/common/hooks/useAppActionData'
+import translations from '../_i18n'
+
+interface DocumentMenuAction {
+  key: string
+  label: ReactNode
+  icon?: ReactNode | null
+  onClick: () => void
+}
 
 interface DocumentSectionModalsProps {
   // Confirmation modal
@@ -76,6 +84,10 @@ export function DocumentSectionModals({
   deleteActionProps,
   accessToken
 }: DocumentSectionModalsProps) {
+  const { t } = useTranslation(translations)
+  const updateActionLabel = t('document-action-update')
+  const deleteActionLabel = t('document-action-delete')
+
   // Get update action data from flow registry
   const updateActionData = useAppActionData(
     updateActionProps && selectedDocument && accessToken
@@ -92,7 +104,7 @@ export function DocumentSectionModals({
           deferMainContextRequestsUntilClick: false,
           prefixDataTestId: 'document-update'
         },
-    'Update'
+    updateActionLabel
   )
 
   // Get delete action data from flow registry
@@ -111,17 +123,19 @@ export function DocumentSectionModals({
           deferMainContextRequestsUntilClick: false,
           prefixDataTestId: 'document-delete'
         },
-    'Delete'
+    deleteActionLabel
   )
 
   // Build complete menu actions: custom actions + update + delete
   const enrichedMenuActions = useMemo(() => {
-    const actions = []
+    const actions: DocumentMenuAction[] = []
 
     // Add custom actions (download, etc.) with icons
     customMenuActions.forEach(action => {
       if (action.key === 'download' && !action.icon) {
         actions.push({ ...action, icon: <DownloadSimpleIcon className="gba:h-4 gba:w-4" /> })
+      } else if (action.icon === null) {
+        actions.push(action)
       } else if (action.icon) {
         actions.push(action)
       } else {
@@ -135,7 +149,7 @@ export function DocumentSectionModals({
         if (action?.onClick) {
           actions.push({
             key: `update-${actions.length}`,
-            label: action.label || 'Update',
+            label: action.label || updateActionLabel,
             icon: action.icon,
             onClick: () => {
               setMenuOpen(false)
@@ -152,7 +166,7 @@ export function DocumentSectionModals({
         if (action?.onClick) {
           actions.push({
             key: `delete-${actions.length}`,
-            label: action.label || 'Delete',
+            label: action.label || deleteActionLabel,
             icon: action.icon,
             onClick: () => {
               setMenuOpen(false)
@@ -164,7 +178,14 @@ export function DocumentSectionModals({
     }
 
     return actions
-  }, [customMenuActions, updateActionData?.combinedData, deleteActionData?.combinedData, setMenuOpen])
+  }, [
+    customMenuActions,
+    updateActionData?.combinedData,
+    deleteActionData?.combinedData,
+    setMenuOpen,
+    updateActionLabel,
+    deleteActionLabel
+  ])
 
   return (
     <>
@@ -193,7 +214,7 @@ export function DocumentSectionModals({
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={handleCancelAction} data-testid="document-section-cancel-button">
-              {getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
+              {t('common-cancel')}
             </Button>
             <Button variant="destructive" onClick={handleConfirmAction} data-testid="document-section-confirm-button">
               {confirmationModal.actionLabel}
@@ -214,29 +235,21 @@ export function DocumentSectionModals({
       >
         <DialogContent data-testid="document-section-new-folder-modal">
           <DialogHeader>
-            <DialogTitle>
-              {getTranslationFromI18nKeyAndLabel('document.folder.create.title', 'Create New Folder')}
-            </DialogTitle>
+            <DialogTitle>{t('document-folder-create-title')}</DialogTitle>
             <DialogDescription>
               {newFolderDialog.parentName
-                ? getTranslationFromI18nKeyAndLabel(
-                    'document.dialog.creatingIn',
-                    'Creating folder in "{ $folderName }"'
-                  ).replace('{ $folderName }', newFolderDialog.parentName)
-                : getTranslationFromI18nKeyAndLabel('document.dialog.creatingRoot', 'Creating folder at root level')}
+                ? t('document-dialog-creating-in', { folderName: newFolderDialog.parentName })
+                : t('document-dialog-creating-root')}
             </DialogDescription>
           </DialogHeader>
           <div className="gba:space-y-4 gba:py-4">
             <div className="gba:space-y-2">
               <label htmlFor="folder-name" className="gba:text-sm gba:font-medium">
-                {getTranslationFromI18nKeyAndLabel('document.folder.name.label', 'Folder Name')}
+                {t('document-folder-name-label')}
               </label>
               <Input
                 id="folder-name"
-                placeholder={getTranslationFromI18nKeyAndLabel(
-                  'document.folder.name.placeholder',
-                  'Enter folder name...'
-                )}
+                placeholder={t('document-folder-name-placeholder')}
                 value={newFolderName}
                 onChange={e => setNewFolderName(e.target.value)}
                 data-testid="document-section-folder-name-input"
@@ -250,30 +263,24 @@ export function DocumentSectionModals({
 
             <div className="gba:space-y-2">
               <label htmlFor="parent-folder" className="gba:text-sm gba:font-medium">
-                {getTranslationFromI18nKeyAndLabel('document.folder.parent.label', 'Parent Folder')}
+                {t('document-folder-parent-label')}
               </label>
               <Select value={selectedParentFolder} onValueChange={setSelectedParentFolder}>
                 <SelectTrigger data-testid="document-section-parent-folder-select">
-                  <SelectValue
-                    placeholder={getTranslationFromI18nKeyAndLabel(
-                      'document.folder.parent.placeholder',
-                      'Select parent folder...'
-                    )}
-                  />
+                  <SelectValue placeholder={t('document-folder-parent-placeholder')} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="root" data-testid="document-section-parent-root">
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <FolderNotchIcon className="gba:h-4 gba:w-4" />
-                      {getTranslationFromI18nKeyAndLabel('document.folder.root', 'Root Level')}
+                      {t('document-folder-root')}
                     </div>
                   </SelectItem>
                   {availableFolders.map(folder => (
                     <SelectItem key={folder.id} value={folder.id} data-testid={`document-section-parent-${folder.id}`}>
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <FolderNotchIcon className="gba:h-4 gba:w-4" />
-                        {folder.name ||
-                          getTranslationFromI18nKeyAndLabel('document.label.untitledFolder', 'Untitled Folder')}
+                        {folder.name || t('document-label-untitled-folder')}
                       </div>
                     </SelectItem>
                   ))}
@@ -290,14 +297,14 @@ export function DocumentSectionModals({
               }}
               data-testid="document-section-folder-cancel-button"
             >
-              {getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
+              {t('common-cancel')}
             </Button>
             <Button
               onClick={handleCreateNewFolder}
               disabled={!newFolderName.trim()}
               data-testid="document-section-folder-create-button"
             >
-              {getTranslationFromI18nKeyAndLabel('document.folder.create.action', 'Create Folder')}
+              {t('document-folder-create-action')}
             </Button>
           </DialogFooter>
         </DialogContent>

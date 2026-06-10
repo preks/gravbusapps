@@ -9,7 +9,7 @@ import {
   useTranslation,
   toast
 } from '@newwork/nw-design-system'
-import { MessageSquare, Calendar as CalendarIcon, Sparkles, Bell, LayoutDashboard } from 'lucide-react'
+import { MessageSquare, Calendar as CalendarIcon, Sparkles, Bell, LayoutDashboard, Mail } from 'lucide-react'
 import { ArrowsOut } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Chat } from './Chat'
@@ -17,6 +17,7 @@ import { Calendar } from './calendar/Calendar'
 import { EveryAI } from '../every-ai/EveryAI'
 import { RemindersPanel } from './components/RemindersPanel'
 import { EveryOneDashboard } from './components/dashboard'
+import { EmailAppsHub } from '../email-apps/EmailAppsHub'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { useDevReportScreenKey } from '@/common/dev-report/DevReportScreenKeyContext'
 import { useFeature } from '@/common/hooks/useFeature'
@@ -32,7 +33,7 @@ import type { CalendarEvent, CalendarEventSource, ExternalCalendarSource } from 
 import { InvitationStatus, MeetingStatus } from './calendar/types'
 import type { EmailAccount, ExternalCalendarEvent } from '../email-apps/types'
 
-type TabValue = 'dashboard' | 'everyai' | 'chat' | 'calendar' | 'reminders'
+type TabValue = 'dashboard' | 'everyai' | 'chat' | 'calendar' | 'reminders' | 'mail'
 type ResolvedTabValue = TabValue | null
 type CallParticipant = { id: string; odId: string; odName: string; avatarUrl?: string }
 type CalendarAccount = EmailAccount & { provider: ExternalCalendarSource['provider']; status: 'active' }
@@ -54,7 +55,8 @@ const parseTabValue = (value: string | null): TabValue | null => {
     value === 'everyai' ||
     value === 'chat' ||
     value === 'calendar' ||
-    value === 'reminders'
+    value === 'reminders' ||
+    value === 'mail'
   ) {
     return value
   }
@@ -100,6 +102,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
   const [activeCalls, setActiveCalls] = useState<Record<string, any>>({})
   const isTeamChatEnabled = useFeature<boolean>(Feature.Core.ChatTeam.Key)
   const isChatAIEnabled = useFeature<boolean>(Feature.Core.ChatAI.Key)
+  const isEmailEnabled = useFeature<boolean>(Feature.Preview.Enabled.Key)
 
   const calendarApiClient = useChatClient(accessToken)
   const chatSocket = useChatWebSocketClient(accessToken)
@@ -274,9 +277,15 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
         return isTeamChatEnabled ? requestedTab : getSafeDefaultTab()
       }
 
+      // Mail uses a wide 3-panel layout, so it is only offered on the fullscreen
+      // EveryOne page (never in the narrow sidepanel) and behind the email flag.
+      if (requestedTab === 'mail') {
+        return isEmailEnabled && !isInSidepanel ? 'mail' : getSafeDefaultTab()
+      }
+
       return getSafeDefaultTab()
     },
-    [getSafeDefaultTab, isChatAIEnabled, isChatShellBlocked, isInSidepanel, isTeamChatEnabled]
+    [getSafeDefaultTab, isChatAIEnabled, isChatShellBlocked, isEmailEnabled, isInSidepanel, isTeamChatEnabled]
   )
 
   const [chatInitState] = useState<{
@@ -567,6 +576,15 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
                   {t('chat-tab-calendar')}
                 </TabSwitchTrigger>
               )}
+              {isEmailEnabled && !isInSidepanel && (
+                <TabSwitchTrigger
+                  value="mail"
+                  startIcon={<Mail className="gba:h-4 gba:w-4" />}
+                  data-testid={`${prefixDataTestId}-mail-tab`}
+                >
+                  {t('chat-tab-mail')}
+                </TabSwitchTrigger>
+              )}
               {isChatAIEnabled && (
                 <TabSwitchTrigger
                   value="reminders"
@@ -769,6 +787,16 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
               }}
               {...props}
             />
+          </TabSwitchContent>
+        )}
+
+        {isEmailEnabled && !isInSidepanel && (
+          <TabSwitchContent
+            value="mail"
+            forceMount
+            className={`gba:flex-1 gba:m-0 gba:h-full gba:min-h-0 gba:overflow-hidden ${activeTab !== 'mail' ? 'gba:hidden' : ''}`}
+          >
+            <EmailAppsHub accessToken={accessToken} userInfo={userInfo} data-testid={`${prefixDataTestId}-mail`} />
           </TabSwitchContent>
         )}
 

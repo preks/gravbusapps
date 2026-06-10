@@ -14,6 +14,8 @@ import {
   taskFilterConfig
 } from '@/common/components/common-relations/view-layouts/task-layout/config'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 
 // Helper function to process reference type filter
 const processInvestmentReferenceTypeFilter = (
@@ -69,6 +71,7 @@ const copyInvestmentTaskFilters = (
 export type TaskViewProps = BusinessAppContextProps
 
 export const TaskView: React.FC<TaskViewProps> = context => {
+  const docuSignEnabled = useFeature<boolean>(Feature.IRM.DocuSign.Key) === true
   const { initialFilters, saveFilters, initialSorting, saveSorting, initialVisibleColumns, saveVisibleColumns } =
     useViewPreferencesStorage('irm:investment-task-preferences:v1')
 
@@ -224,6 +227,7 @@ export const TaskView: React.FC<TaskViewProps> = context => {
       onSortingChange={saveSorting}
       initialVisibleColumns={initialVisibleColumns ?? undefined}
       onVisibleColumnsChange={saveVisibleColumns}
+      docuSignEnabled={docuSignEnabled}
     />
   )
 }

@@ -3,6 +3,17 @@ import { io, type Socket } from 'socket.io-client'
 
 const OFFICE_CLIENT_VERSION = '1'
 
+// See CollaborationClient: on an auth rejection the server force-disconnects, so
+// reconnecting immediately just replays the rejected token in a tight loop. Back
+// off and wait for a refreshed token instead.
+const AUTH_RECONNECT_DELAY_MS = 30000
+
+function isAuthRejectionMessage(message?: string): boolean {
+  if (!message) return false
+  const normalized = message.toLowerCase()
+  return normalized.includes('auth') || normalized.includes('token') || normalized.includes('unauthorized')
+}
+
 export type OfficeEntityType = 'document' | 'spreadsheet' | 'note' | 'slide' | 'whiteboard' | 'presentation'
 
 export type OfficeWebSocketOptions = {
@@ -104,6 +115,8 @@ export class OfficeWebSocketClient {
   private socket: Socket | null = null
   private accessToken = ''
   private reconnectAttempts = 0
+  private lastAuthErrorAt = 0
+  private authReconnectTimer: ReturnType<typeof setTimeout> | null = null
   /**
    * When set, used as the socket.io base URL. When omitted, `DOCUMENT_WEB_SOCKET_URL` is used
    * so the client matches runtime document-service config.
@@ -139,11 +152,37 @@ export class OfficeWebSocketClient {
       return
     }
 
-    this.socket.auth = toSocketAuth(accessToken)
+    // Fresh token: if we were backing off after an auth rejection, recover now.
+    if (this.authReconnectTimer) {
+      this.clearAuthReconnectTimer()
+      this.lastAuthErrorAt = 0
+      this.forceReconnect()
+      return
+    }
 
     if (this.socket.connected) {
       this.forceReconnect()
     }
+  }
+
+  private clearAuthReconnectTimer() {
+    if (this.authReconnectTimer) {
+      clearTimeout(this.authReconnectTimer)
+      this.authReconnectTimer = null
+    }
+  }
+
+  private scheduleAuthReconnect() {
+    if (this.authReconnectTimer) {
+      return
+    }
+
+    this.authReconnectTimer = setTimeout(() => {
+      this.authReconnectTimer = null
+      if (this.socket && !this.socket.connected) {
+        this.socket.connect()
+      }
+    }, AUTH_RECONNECT_DELAY_MS)
   }
 
   connect(accessToken?: string) {
@@ -157,7 +196,8 @@ export class OfficeWebSocketClient {
     this.accessToken = resolvedAccessToken
 
     if (this.socket) {
-      this.socket.auth = toSocketAuth(this.accessToken)
+      this.clearAuthReconnectTimer()
+      this.lastAuthErrorAt = 0
 
       if (this.socket.connected) {
         if (accessTokenChanged) {
@@ -175,7 +215,8 @@ export class OfficeWebSocketClient {
     const transports = resolveSocketTransports(options.enablePollingFallback)
 
     this.socket = io(target.socketUrl, {
-      auth: toSocketAuth(this.accessToken),
+      // Callback form so reconnect attempts read the latest token, not a frozen one.
+      auth: cb => cb(toSocketAuth(this.accessToken)),
       transports,
       tryAllTransports: options.enablePollingFallback,
       path: options.path,
@@ -198,22 +239,42 @@ export class OfficeWebSocketClient {
 
     this.socket.on('connect', () => {
       this.reconnectAttempts = 0
+      this.lastAuthErrorAt = 0
+      this.clearAuthReconnectTimer()
     })
 
     this.socket.on('disconnect', reason => {
       if (reason === 'io server disconnect') {
+        // Server force-disconnects on auth rejection; don't immediately replay a
+        // rejected token (that creates a reconnect storm). Back off instead.
+        if (Date.now() - this.lastAuthErrorAt < 5000) {
+          this.scheduleAuthReconnect()
+          return
+        }
         this.socket?.connect()
       }
     })
 
-    this.socket.on('connect_error', () => {
+    this.socket.on('connect_error', (error: Error) => {
       this.reconnectAttempts += 1
+      if (isAuthRejectionMessage(error?.message)) {
+        this.lastAuthErrorAt = Date.now()
+      }
+    })
+
+    this.socket.on('error', (error: unknown) => {
+      const message = typeof error === 'string' ? error : (error as { message?: string } | null | undefined)?.message
+      if (isAuthRejectionMessage(message)) {
+        this.lastAuthErrorAt = Date.now()
+      }
     })
 
     return this.socket
   }
 
   disconnect() {
+    this.clearAuthReconnectTimer()
+    this.lastAuthErrorAt = 0
     if (this.socket) {
       this.socket.disconnect()
       this.socket = null
@@ -250,7 +311,6 @@ export class OfficeWebSocketClient {
 
     this.socket.disconnect()
     this.reconnectAttempts = 0
-    this.socket.auth = toSocketAuth(this.accessToken)
     this.socket.connect()
   }
 

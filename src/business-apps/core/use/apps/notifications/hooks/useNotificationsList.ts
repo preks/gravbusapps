@@ -5,21 +5,26 @@ import type { GetNotificationsParams } from '@/common/network/notification/types
 import type { NotificationItem } from '../types'
 import translations from '../_i18n'
 import {
+  computeHasMore,
   fetchUnreadNotificationCount,
   formatNotificationErrorMessage,
+  getCachedUnreadCount,
   getNotificationsRefreshDetailFromEvent,
+  NOTIFICATIONS_PAGE_SIZE,
   notifyHostRefresh
 } from '../utils'
 
-const PAGE_SIZE = 10
+/** Extra pages to prefetch only when the list does not scroll yet (viewport fill). */
+const MAX_VIEWPORT_FILL_PAGES = 2
 
 interface UseNotificationsListOptions {
   client: NotificationClient
   accessToken?: string
   isOpen: boolean
+  seedUnreadCount?: number
 }
 
-export function useNotificationsList({ client, accessToken, isOpen }: UseNotificationsListOptions) {
+export function useNotificationsList({ client, accessToken, isOpen, seedUnreadCount }: UseNotificationsListOptions) {
   const { t } = useTranslation(translations)
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [page, setPage] = useState(0)
@@ -27,7 +32,7 @@ export function useNotificationsList({ client, accessToken, isOpen }: UseNotific
   const [isLoadingList, setIsLoadingList] = useState(false)
   const [unreadOnly, setUnreadOnly] = useState(false)
   const [listTotalCount, setListTotalCount] = useState(0)
-  const [unreadTotalCount, setUnreadTotalCount] = useState(0)
+  const [unreadTotalCount, setUnreadTotalCount] = useState(() => getCachedUnreadCount() ?? 0)
   const [listError, setListError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const scrollContainerRef = useRef<HTMLDivElement | null>(null)
@@ -36,11 +41,14 @@ export function useNotificationsList({ client, accessToken, isOpen }: UseNotific
   const pageRef = useRef(0)
   const unreadOnlyRef = useRef(false)
   const isOpenRef = useRef(isOpen)
+  const viewportFillAttemptsRef = useRef(0)
+  const unreadTotalCountRef = useRef(0)
 
   accessTokenRef.current = accessToken
   pageRef.current = page
   unreadOnlyRef.current = unreadOnly
   isOpenRef.current = isOpen
+  unreadTotalCountRef.current = unreadTotalCount
 
   const toListErrorMessage = useCallback(
     (error: unknown) => formatNotificationErrorMessage(error, t('notifications-error-load-failed')),
@@ -95,7 +103,7 @@ export function useNotificationsList({ client, accessToken, isOpen }: UseNotific
     try {
       const params: GetNotificationsParams = {
         page: nextPage,
-        size: PAGE_SIZE,
+        size: NOTIFICATIONS_PAGE_SIZE,
         sortDirection: 'DESC'
       }
       if (unreadOnlyRef.current) {
@@ -104,8 +112,10 @@ export function useNotificationsList({ client, accessToken, isOpen }: UseNotific
       const resp = await client.getNotifications(params)
       const items = resp.notifications ?? []
       const total = resp.totalCount ?? 0
-      setListTotalCount(total)
-      setHasMore((nextPage + 1) * PAGE_SIZE < total)
+      if (!unreadOnlyRef.current) {
+        setListTotalCount(total)
+      }
+      setHasMore(computeHasMore(nextPage, items.length, total, unreadTotalCountRef.current, unreadOnlyRef.current))
       if (replace) {
         setNotifications(items)
       } else {
@@ -127,6 +137,7 @@ export function useNotificationsList({ client, accessToken, isOpen }: UseNotific
   }
 
   const resetAndLoadFirstPage = useCallback(() => {
+    viewportFillAttemptsRef.current = 0
     setNotifications([])
     setPage(0)
     setHasMore(true)
@@ -135,9 +146,22 @@ export function useNotificationsList({ client, accessToken, isOpen }: UseNotific
   }, [])
 
   useEffect(() => {
+    if (isOpen && typeof seedUnreadCount === 'number') {
+      setUnreadTotalCount(seedUnreadCount)
+    }
+  }, [isOpen, seedUnreadCount])
+
+  useEffect(() => {
     if (isOpen) {
+      if (typeof seedUnreadCount !== 'number') {
+        const cachedUnread = getCachedUnreadCount()
+        if (typeof cachedUnread === 'number') {
+          setUnreadTotalCount(cachedUnread)
+        } else {
+          syncUnreadTotalCount({ broadcast: false }).catch(() => undefined)
+        }
+      }
       resetAndLoadFirstPage()
-      syncUnreadTotalCount({ broadcast: false }).catch(() => undefined)
       return
     }
     setUnreadOnly(false)
@@ -148,7 +172,10 @@ export function useNotificationsList({ client, accessToken, isOpen }: UseNotific
       return
     }
     resetAndLoadFirstPage()
-  }, [unreadOnly, resetAndLoadFirstPage])
+    if (unreadOnly) {
+      syncUnreadTotalCount({ broadcast: false }).catch(() => undefined)
+    }
+  }, [unreadOnly, resetAndLoadFirstPage, syncUnreadTotalCount])
 
   const reloadList = useCallback(() => {
     resetAndLoadFirstPage()
@@ -197,13 +224,28 @@ export function useNotificationsList({ client, accessToken, isOpen }: UseNotific
     loadPageRef.current?.(next)?.catch(() => undefined)
   }, [hasMore, isLoadingList, listError])
 
+  useEffect(() => {
+    if (!isOpen || isLoadingList || !hasMore || listError || notifications.length === 0) {
+      return
+    }
+
+    const container = scrollContainerRef.current
+    if (!container) {
+      return
+    }
+
+    const scrollable = container.scrollHeight - container.clientHeight > 8
+    if (scrollable || viewportFillAttemptsRef.current >= MAX_VIEWPORT_FILL_PAGES) {
+      return
+    }
+
+    viewportFillAttemptsRef.current += 1
+    loadNextPage()
+  }, [hasMore, isLoadingList, isOpen, listError, loadNextPage, notifications.length])
+
   const handleScrollCheck = useCallback(() => {
     const container = scrollContainerRef.current
     if (!container || isLoadingList || !hasMore || listError) {
-      return
-    }
-    const scrollable = container.scrollHeight - container.clientHeight > 8
-    if (!scrollable) {
       return
     }
     const nearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 8

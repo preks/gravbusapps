@@ -255,4 +255,221 @@ describe('useSpreadsheetViewerSessionModel', () => {
     expect(result.current.authoritativeDataSyncToken).toBe(1)
     expect(result.current.authoritativePaintCellsRef.current).toBeNull()
   })
+
+  it('suppresses token-only sync when skip projection explicitly delegates first paint elsewhere', () => {
+    const spreadsheetSession = {
+      getSheetState: jest.fn((sheetId: string) =>
+        sheetId === 'sheet-live'
+          ? {
+              rows: [{ _id: 'row-1', _gridRowIndex: 0, column_a: 'before' }],
+              version: 1
+            }
+          : null
+      ),
+      getActiveSheetState: jest.fn(() => ({
+        rows: [{ _id: 'row-1', _gridRowIndex: 0, column_a: 'before' }],
+        version: 1
+      })),
+      replaceSheetState: jest.fn(),
+      clearDirty: jest.fn(),
+      capturePersistedBaseline: jest.fn()
+    }
+    const activeSheet = {
+      id: 'sheet-live',
+      columns: [{ id: 'col-a', name: 'column_a', isVisible: true }]
+    } as any
+
+    const { result } = renderHook(() =>
+      useSpreadsheetViewerSessionModel({
+        app: { id: 'app-1', sheets: [activeSheet] },
+        spreadsheetSession: spreadsheetSession as any,
+        activeSheet,
+        activeSheetId: 'sheet-live',
+        activeSheetIdRef: { current: 'sheet-live' },
+        appSheetsRef: { current: [activeSheet] } as any,
+        sheetVersionRef: { current: 1 },
+        rememberSheetVersion: jest.fn(),
+        updateActiveSheetVersion: jest.fn(),
+        resolveKnownSheetVersion: jest.fn(() => 1),
+        getActiveSessionRows: jest.fn(() => [{ _id: 'row-1', _gridRowIndex: 0, column_a: 'before' }]),
+        applyLocalAppUpdate: jest.fn(),
+        onDataChange: jest.fn(),
+        collaborationManagerRef: { current: null },
+        preferUniverNativeSheetTabs: true,
+        spreadsheetGridRef: { current: null },
+        pendingUniverRowsBySheetRef: { current: new Map() },
+        latestUniverDataRef: { current: null },
+        setActiveSheetId: jest.fn(),
+        onRowsStateUpdated: jest.fn()
+      })
+    )
+
+    act(() => {
+      result.current.syncSheetRowsIntoLocalState(
+        'sheet-live',
+        [{ _id: 'row-1', _gridRowIndex: 0, column_a: 'after' }],
+        {
+          syncGrid: true,
+          suppressAuthoritativeDataSyncToken: true,
+          sessionDiffProjectionMode: 'skip'
+        }
+      )
+    })
+
+    expect(result.current.authoritativeDataSyncToken).toBe(0)
+    expect(result.current.authoritativePaintCellsRef.current).toBeNull()
+  })
+
+  it('stages explicit direct paint cells without re-running session diff projection', () => {
+    const spreadsheetSession = {
+      getSheetState: jest.fn((sheetId: string) =>
+        sheetId === 'sheet-live'
+          ? {
+              rows: [{ _id: 'row-1', _rowUuid: 'row-1', _gridRowIndex: 0, column_a: 'after' }],
+              version: 1
+            }
+          : null
+      ),
+      getActiveSheetState: jest.fn(() => ({
+        rows: [{ _id: 'row-1', _rowUuid: 'row-1', _gridRowIndex: 0, column_a: 'after' }],
+        version: 1
+      })),
+      replaceSheetState: jest.fn(),
+      clearDirty: jest.fn(),
+      capturePersistedBaseline: jest.fn()
+    }
+    const activeSheet = {
+      id: 'sheet-live',
+      columns: [{ id: 'col-a', name: 'column_a', isVisible: true }]
+    } as any
+
+    const { result } = renderHook(() =>
+      useSpreadsheetViewerSessionModel({
+        app: { id: 'app-1', sheets: [activeSheet] },
+        spreadsheetSession: spreadsheetSession as any,
+        activeSheet,
+        activeSheetId: 'sheet-live',
+        activeSheetIdRef: { current: 'sheet-live' },
+        appSheetsRef: { current: [activeSheet] } as any,
+        sheetVersionRef: { current: 1 },
+        rememberSheetVersion: jest.fn(),
+        updateActiveSheetVersion: jest.fn(),
+        resolveKnownSheetVersion: jest.fn(() => 1),
+        getActiveSessionRows: jest.fn(() => [{ _id: 'row-1', _rowUuid: 'row-1', _gridRowIndex: 0, column_a: 'after' }]),
+        applyLocalAppUpdate: jest.fn(),
+        onDataChange: jest.fn(),
+        collaborationManagerRef: { current: null },
+        preferUniverNativeSheetTabs: true,
+        spreadsheetGridRef: { current: null },
+        pendingUniverRowsBySheetRef: { current: new Map() },
+        latestUniverDataRef: { current: null },
+        setActiveSheetId: jest.fn(),
+        onRowsStateUpdated: jest.fn()
+      })
+    )
+
+    act(() => {
+      const staged = result.current.stageAuthoritativeDirectPaintForSync(
+        'sheet-live',
+        [{ rowIndex: 0, colIndex: 0, value: 'after', rowId: 'row-1' }],
+        { operationType: 'authoritative_reapply' }
+      )
+      expect(staged).toBe(true)
+    })
+
+    expect(result.current.authoritativeDataSyncToken).toBe(1)
+    expect(result.current.authoritativePaintCellsRef.current).toEqual([
+      { rowIndex: 0, colIndex: 0, value: 'after', rowId: 'row-1' }
+    ])
+    expect(result.current.authoritativePaintMetaRef.current).toEqual({
+      operationType: 'authoritative_reapply'
+    })
+    expect(spreadsheetSession.replaceSheetState).not.toHaveBeenCalled()
+  })
+
+  it('preserves staged direct paint across a skip-projection sync without new diff cells', () => {
+    const spreadsheetSession = {
+      getSheetState: jest.fn((sheetId: string) =>
+        sheetId === 'sheet-live'
+          ? {
+              rows: [{ _id: 'row-1', _rowUuid: 'row-1', _gridRowIndex: 0, column_a: 'after' }],
+              version: 1
+            }
+          : null
+      ),
+      getActiveSheetState: jest.fn(() => ({
+        rows: [{ _id: 'row-1', _rowUuid: 'row-1', _gridRowIndex: 0, column_a: 'after' }],
+        version: 1
+      })),
+      replaceSheetState: jest.fn(),
+      clearDirty: jest.fn(),
+      capturePersistedBaseline: jest.fn()
+    }
+    const activeSheet = {
+      id: 'sheet-live',
+      columns: [{ id: 'col-a', name: 'column_a', isVisible: true }]
+    } as any
+
+    const { result } = renderHook(() =>
+      useSpreadsheetViewerSessionModel({
+        app: { id: 'app-1', sheets: [activeSheet] },
+        spreadsheetSession: spreadsheetSession as any,
+        activeSheet,
+        activeSheetId: 'sheet-live',
+        activeSheetIdRef: { current: 'sheet-live' },
+        appSheetsRef: { current: [activeSheet] } as any,
+        sheetVersionRef: { current: 1 },
+        rememberSheetVersion: jest.fn(),
+        updateActiveSheetVersion: jest.fn(),
+        resolveKnownSheetVersion: jest.fn(() => 1),
+        getActiveSessionRows: jest.fn(() => [{ _id: 'row-1', _rowUuid: 'row-1', _gridRowIndex: 0, column_a: 'after' }]),
+        applyLocalAppUpdate: jest.fn(),
+        onDataChange: jest.fn(),
+        collaborationManagerRef: { current: null },
+        preferUniverNativeSheetTabs: true,
+        spreadsheetGridRef: { current: null },
+        pendingUniverRowsBySheetRef: { current: new Map() },
+        latestUniverDataRef: { current: null },
+        setActiveSheetId: jest.fn(),
+        onRowsStateUpdated: jest.fn()
+      })
+    )
+
+    act(() => {
+      result.current.stageAuthoritativeDirectPaintForSync(
+        'sheet-live',
+        [
+          {
+            rowIndex: 0,
+            colIndex: 0,
+            value: 'after',
+            rowId: 'row-1',
+            options: { stylePatch: { set: { s: 'style-1' } } }
+          }
+        ],
+        { operationType: 'set_range' }
+      )
+      result.current.syncSheetRowsIntoLocalState(
+        'sheet-live',
+        [{ _id: 'row-1', _rowUuid: 'row-1', _gridRowIndex: 0, column_a: 'after' }],
+        {
+          syncGrid: true,
+          sessionDiffProjectionMode: 'skip',
+          authoritativeApplyMeta: { operationType: 'set_style' }
+        }
+      )
+    })
+
+    expect(result.current.authoritativeDataSyncToken).toBe(2)
+    expect(result.current.authoritativePaintCellsRef.current).toEqual([
+      {
+        rowIndex: 0,
+        colIndex: 0,
+        value: 'after',
+        rowId: 'row-1',
+        options: { stylePatch: { set: { s: 'style-1' } } }
+      }
+    ])
+    expect(result.current.authoritativePaintMetaRef.current).toEqual({ operationType: 'set_style' })
+  })
 })

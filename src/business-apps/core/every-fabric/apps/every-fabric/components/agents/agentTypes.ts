@@ -12,12 +12,18 @@ export interface FabricAgent {
   is_public: boolean | null
   tags: string[]
   tools_count: number
+  /** Length (chars) of the agent's system prompt; null/undefined when unknown (e.g. workforce agents). */
+  system_prompt_length?: number | null
   knowledge_sources_count: number
   skill_ids?: string[]
   skills_count?: number
   /** Tool refs attached to each of the agent's skills, keyed by skill_id. */
   skill_tools_by_id?: Record<string, string[]>
   source: string
+  /** True when the agent is also on the Workforce surface (surfaces
+   *  contains "workforce"). Drives the Workforce badge and the
+   *  workforce-only config cards in the per-agent editor. */
+  isWorkforce?: boolean
   categories?: string[]
   status?: string
   created_at: string | null

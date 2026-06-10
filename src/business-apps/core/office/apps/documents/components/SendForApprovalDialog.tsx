@@ -41,7 +41,7 @@ export interface SendForApprovalDialogProps {
   currentUserName?: string
   accessToken: string
   onApprovalSent?: (approverIds: string[]) => void
-  shareDocument?: (id: string, userIds: string[], permission: 'view' | 'edit' | 'comment') => Promise<boolean>
+  shareDocument?: (id: string, userIds: string[], permission: 'view' | 'edit' | 'comment' | 'admin') => Promise<boolean>
   'data-testid'?: string
 }
 

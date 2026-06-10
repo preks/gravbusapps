@@ -165,6 +165,15 @@ export const CUSTOMER_CONTACT_DESCRIPTORS: Descriptor[] = [
     searchPaths: [CustomerContactFields.singleOptInDate],
     sortPath: CustomerContactFields.singleOptInDate,
     type: 'date'
+  },
+  {
+    key: 'salesCampaignIds',
+    path: 'salesCampaignId',
+    filterLabel: 'Sales Campaign',
+    kind: 'inIds',
+    optionSelectPaths: ['salesCampaign.id', 'salesCampaign.name'],
+    optionSearchPaths: ['salesCampaign.name'],
+    optionDistinctOn: ['salesCampaignId']
   }
 ]
 

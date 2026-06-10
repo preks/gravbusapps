@@ -10,7 +10,14 @@ import {
   SelectItem,
   toast
 } from '@newwork/nw-design-system'
-import { PencilSimpleIcon, ArchiveIcon, EyeIcon, PlusIcon, XIcon } from '@phosphor-icons/react'
+import {
+  PencilSimpleIcon,
+  ArchiveIcon,
+  EyeIcon,
+  PlusIcon,
+  XIcon,
+  ArrowCounterClockwiseIcon
+} from '@phosphor-icons/react'
 import {
   BenefitTypeEntry,
   LegalEntityOption,
@@ -19,6 +26,10 @@ import {
 } from '../types/benefitsMaintenanceTypes'
 import { CatalogEntry, useCatalogEntries } from '@/common/data/catalog'
 import { BENEFIT_PROVIDER_CATALOG, BENEFIT_PROVIDER_VERSION } from '../constants/benefitsMaintenanceConstants'
+import {
+  DetailPanelField as Field,
+  DetailPanelSection as Section
+} from '@/business-apps/hr/core/apps/shared/components/DetailPanelLayout'
 import { getIconComponent, DEFAULT_BENEFIT_ICON } from './BenefitIconPicker'
 import BenefitProviderDialog from './BenefitProviderDialog'
 
@@ -34,6 +45,7 @@ interface BenefitDetailPanelProps {
   accessToken: string
   onEdit: (entry: BenefitTypeEntry) => void
   onArchive: (entry: BenefitTypeEntry) => void
+  onActivate: (entry: BenefitTypeEntry) => void
   onViewProviders: (entry: BenefitTypeEntry) => void
   onLinkProvider: (provider: CatalogEntry, benefitTypeId: string) => Promise<void>
   onUnlinkProvider: (provider: CatalogEntry) => Promise<void>
@@ -58,29 +70,6 @@ function resolveLegalEntity(
   return undefined
 }
 
-const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <div className="gba:flex gba:items-start gba:justify-between gba:gap-3 gba:py-1.5 gba:text-sm">
-    <span className="gba:text-muted-foreground">{label}</span>
-    <span className="gba:max-w-64 gba:text-right gba:font-medium gba:text-foreground">
-      {children || <span className="gba:text-muted-foreground">-</span>}
-    </span>
-  </div>
-)
-
-const Section: React.FC<{ title: string; children: React.ReactNode; action?: React.ReactNode }> = ({
-  title,
-  children,
-  action
-}) => (
-  <div className="gba:mb-6">
-    <div className="gba:mb-3 gba:flex gba:items-center gba:justify-between gba:gap-3 gba:border-b gba:border-border gba:pb-2">
-      <h4 className="gba:min-w-0 gba:text-sm gba:font-semibold gba:text-foreground">{title}</h4>
-      {action ? <div className="gba:shrink-0">{action}</div> : null}
-    </div>
-    <div className="gba:space-y-1">{children}</div>
-  </div>
-)
-
 const BenefitDetailPanel: React.FC<BenefitDetailPanelProps> = ({
   t,
   entry,
@@ -88,6 +77,7 @@ const BenefitDetailPanel: React.FC<BenefitDetailPanelProps> = ({
   accessToken,
   onEdit,
   onArchive,
+  onActivate,
   onViewProviders,
   onLinkProvider,
   onUnlinkProvider,
@@ -203,7 +193,7 @@ const BenefitDetailPanel: React.FC<BenefitDetailPanelProps> = ({
       <div className="gba:mb-6 gba:flex gba:items-start gba:gap-3">
         <IconAvatar icon={getIconComponent(obj?.icon) ?? DEFAULT_BENEFIT_ICON} variant="default" size="lg" decorative />
         <div className="gba:min-w-0 gba:flex-1">
-          <div className="gba:text-base gba:font-semibold gba:leading-tight">{entry.value}</div>
+          <div className="gba:break-words gba:text-base gba:font-semibold gba:leading-tight">{entry.value}</div>
           <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-1.5 gba:mt-2">
             <Badge variant={isDeleted ? 'outline' : 'default'} size="sm">
               {isDeleted ? t('status-archived') : t('status-active')}
@@ -245,7 +235,7 @@ const BenefitDetailPanel: React.FC<BenefitDetailPanelProps> = ({
                 key={child.id}
                 className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:py-1 gba:px-2 gba:rounded gba:hover:bg-muted/50 gba:group"
               >
-                <span>{child.value || child.code || '-'}</span>
+                <span className="gba:min-w-0 gba:break-words">{child.value || child.code || '-'}</span>
                 {!isDeleted && (
                   <Button
                     variant="ghost"
@@ -310,6 +300,17 @@ const BenefitDetailPanel: React.FC<BenefitDetailPanelProps> = ({
           >
             <ArchiveIcon className="gba:size-3.5 gba:mr-1.5" />
             {t('action-archive-benefit')}
+          </Button>
+        )}
+        {isDeleted && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onActivate(entry)}
+            data-testid="BenefitDetailPanel-Activate"
+          >
+            <ArrowCounterClockwiseIcon className="gba:size-3.5 gba:mr-1.5" />
+            {t('action-reactivate-benefit')}
           </Button>
         )}
       </div>

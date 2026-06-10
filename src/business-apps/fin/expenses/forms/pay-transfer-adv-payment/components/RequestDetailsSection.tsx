@@ -1,13 +1,16 @@
-import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Badge, Label } from '@newwork/nw-design-system'
+import React, { useState } from 'react'
+import { Card, CardContent, CardHeader, CardTitle, Badge, Label, useTranslation } from '@newwork/nw-design-system'
 import { CaretRightIcon, FileTextIcon } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrency } from '../utils/formatters'
 import { formatDateTime } from '@/common/utils/dateFormatter'
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import {
-  getAdvancePaymentStatusDisplay,
+  getAdvancePaymentStatusDisplayT,
   type StatusDisplayConfig
 } from '@/business-apps/fin/expenses/common/utils/statusDisplayUtils'
+import DocumentPdfModal from '../../confirm-transfer-adv-payment/components/DocumentPdfModal'
+import commonTranslations from '@/business-apps/fin/expenses/common/_i18n'
+import translations from '../_i18n'
 
 interface RequestDetailsSectionProps {
   amount: number
@@ -16,14 +19,16 @@ interface RequestDetailsSectionProps {
   }
   requestDate?: string | null
   status: string
+  expensePlanId?: string
   expensePlanTitle?: string
   expensePlanDocument?: {
     id: string
     file: string
     mimeType: string
   }
+  employeeId?: string
+  accessToken?: string
   prefixDataTestId?: string
-  onDocumentClick?: () => void
 }
 
 const RequestDetailsSection: React.FC<RequestDetailsSectionProps> = ({
@@ -31,84 +36,126 @@ const RequestDetailsSection: React.FC<RequestDetailsSectionProps> = ({
   currency,
   requestDate,
   status,
+  expensePlanId,
   expensePlanTitle,
   expensePlanDocument,
-  prefixDataTestId = 'pay-transfer-adv-payment-v2',
-  onDocumentClick
+  employeeId,
+  accessToken,
+  prefixDataTestId = 'pay-transfer-adv-payment-v2'
 }) => {
-  const statusConfig: StatusDisplayConfig = getAdvancePaymentStatusDisplay(status)
+  const { t } = useTranslation(translations)
+  const { t: tCommon } = useTranslation(commonTranslations)
+  const statusConfig: StatusDisplayConfig = getAdvancePaymentStatusDisplayT(tCommon, status)
+
+  const [isPdfModalVisible, setIsPdfModalVisible] = useState(false)
+  const [pdfLoading, setPdfLoading] = useState(false)
+
+  const handleExpensePlanClick = () => {
+    if (!expensePlanId) {
+      return
+    }
+
+    const url = buildPlatformUrl('/platform/fin/expenses/expense-plan-record', {
+      expensePlanId
+    })
+    navigateTo(url)
+  }
+
+  const handleDocumentClick = () => {
+    if (!expensePlanDocument?.file) {
+      return
+    }
+
+    setPdfLoading(true)
+    setIsPdfModalVisible(true)
+
+    setTimeout(() => {
+      setPdfLoading(false)
+    }, 500)
+  }
+
+  const handleClosePdfModal = () => {
+    setIsPdfModalVisible(false)
+    setPdfLoading(false)
+  }
 
   return (
-    <Card data-testid={`${prefixDataTestId}-request-details-section`}>
-      <CardHeader>
-        <CardTitle data-testid={`${prefixDataTestId}-request-details-title`}>
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:confirm_transfer_advance_payment.request_details',
-            'Request Details'
-          )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="gba:space-y-4">
-        {/* Amount, Request Date, Status in 3 columns */}
-        <div className="gba:grid gba:grid-cols-3 gba:gap-4">
-          {/* Amount */}
-          <div>
-            <Label className="gba:text-sm gba:text-muted-foreground gba:mb-1">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.amount', 'Amount')}
-            </Label>
-            <p className="gba:text-base gba:font-semibold gba:text-foreground">
-              {formatCurrency(amount, currency.code)}
-            </p>
+    <>
+      <Card data-testid={`${prefixDataTestId}-request-details-section`}>
+        <CardHeader>
+          <CardTitle data-testid={`${prefixDataTestId}-request-details-title`}>
+            {t('section-request-details')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="gba:space-y-4">
+          <div className="gba:grid gba:grid-cols-3 gba:gap-4">
+            <div>
+              <Label className="gba:text-sm gba:text-muted-foreground gba:mb-1">{t('label-amount')}</Label>
+              <p className="gba:text-base gba:font-semibold gba:text-foreground">
+                {formatCurrency(amount, currency.code)}
+              </p>
+            </div>
+
+            <div>
+              <Label className="gba:text-sm gba:text-muted-foreground gba:mb-1">{t('label-request-date')}</Label>
+              <p className="gba:text-base gba:font-semibold gba:text-foreground">
+                {requestDate ? formatDateTime(requestDate, 'date') : '-'}
+              </p>
+            </div>
+
+            <div>
+              <Label className="gba:text-sm gba:text-muted-foreground gba:mb-1">{tCommon('header-status')}</Label>
+              <Badge variant={statusConfig.badgeVariant || 'outline'} className="gba:text-xs">
+                {statusConfig.label}
+              </Badge>
+            </div>
           </div>
 
-          {/* Request Date */}
-          <div>
-            <Label className="gba:text-sm gba:text-muted-foreground gba:mb-1">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:confirm_transfer_advance_payment.request_date_label',
-                'Request Date'
-              )}
-            </Label>
-            <p className="gba:text-base gba:font-semibold gba:text-foreground">
-              {requestDate ? formatDateTime(requestDate, 'date') : '-'}
-            </p>
-          </div>
-
-          {/* Status */}
-          <div>
-            <Label className="gba:text-sm gba:text-muted-foreground gba:mb-1">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}
-            </Label>
-            <Badge variant={statusConfig.badgeVariant || 'outline'} className="gba:text-xs">
-              {statusConfig.label}
-            </Badge>
-          </div>
-        </div>
-
-        {/* Expense Plan Title and Document */}
-        {expensePlanTitle && (
-          <div className="gba:flex gba:items-center gba:gap-2 gba:pt-2">
-            <button
-              className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground gba:hover:text-foreground gba:cursor-pointer gba:transition-colors"
-              data-testid="expense-plan-link-button"
-            >
-              <CaretRightIcon size={16} />
-              {expensePlanTitle}
-            </button>
-            {expensePlanDocument?.file && (
+          {expensePlanTitle && (
+            <div className="gba:flex gba:items-center gba:gap-2 gba:pt-2">
               <button
-                className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground gba:hover:text-foreground gba:hover:scale-105 gba:transition-transform gba:cursor-pointer"
-                onClick={onDocumentClick}
+                type="button"
+                className={`gba:flex gba:items-center gba:gap-1 gba:text-xs gba:transition-colors ${
+                  expensePlanId
+                    ? 'gba:text-muted-foreground gba:hover:text-foreground gba:cursor-pointer'
+                    : 'gba:text-muted-foreground/50 gba:cursor-default'
+                }`}
+                onClick={handleExpensePlanClick}
+                disabled={!expensePlanId}
+                data-testid="expense-plan-link-button"
+              >
+                <CaretRightIcon size={16} />
+                {expensePlanTitle}
+              </button>
+              <button
+                type="button"
+                className={`gba:flex gba:items-center gba:gap-1 gba:text-xs gba:cursor-pointer ${
+                  expensePlanDocument?.file
+                    ? 'gba:text-muted-foreground gba:hover:text-foreground gba:hover:scale-105 gba:transition-transform'
+                    : 'gba:text-muted-foreground/50 gba:cursor-not-allowed'
+                }`}
+                onClick={handleDocumentClick}
+                disabled={!expensePlanDocument?.file}
                 data-testid="document-view-button"
-                title="View Document"
+                title={expensePlanDocument?.file ? t('action-view-document') : t('error-no-document')}
               >
                 <FileTextIcon size={16} />
               </button>
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <DocumentPdfModal
+        isVisible={isPdfModalVisible}
+        pdfUrl={expensePlanDocument?.file || ''}
+        pdfLoading={pdfLoading}
+        pdfError=""
+        onClose={handleClosePdfModal}
+        accessToken={accessToken}
+        employeeId={employeeId}
+      />
+    </>
   )
 }
 

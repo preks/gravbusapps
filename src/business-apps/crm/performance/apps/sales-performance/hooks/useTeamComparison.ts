@@ -491,8 +491,8 @@ export const useTeamComparison = (
             leadName: findTeamLead(team.organizationalUnitEmployee),
             revenue: 0,
             memberCount: 0,
-            dealsCount: 0,
-            wonDealsCount: 0,
+            opportunitiesCount: 0,
+            wonOpportunitiesCount: 0,
             winRate: 0,
             currencyCode: selectedCurrencyCode,
             color: TEAM_COLORS[i % TEAM_COLORS.length]
@@ -525,8 +525,8 @@ export const useTeamComparison = (
           leadName: findTeamLead(team.organizationalUnitEmployee),
           revenue,
           memberCount: memberIds.length,
-          dealsCount: totalCount,
-          wonDealsCount: wonCount,
+          opportunitiesCount: totalCount,
+          wonOpportunitiesCount: wonCount,
           winRate: totalClosed > 0 ? (wonCount / totalClosed) * 100 : 0,
           currencyCode: selectedCurrencyCode,
           color: TEAM_COLORS[i % TEAM_COLORS.length]

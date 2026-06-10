@@ -17,6 +17,7 @@ import type {
 import type { SpreadsheetTraceEventInput } from '../services/spreadsheetDiagnostics'
 import type { NativeSheetStructureIntent } from '../utils/nativeSheetStructureIntent'
 import type { SpreadsheetRowSlotIdentityRegistry } from '../utils/spreadsheetRowSlotIdentity'
+import type { ColumnReorderMove } from '../utils/spreadsheetColumnReorderMoves'
 import type { MutableRefObject } from 'react'
 
 export type WorkbookSnapshotLifecycleOrigin = 'cell' | 'workbook'
@@ -223,12 +224,20 @@ export interface CellDimensionsPayload {
   zoomRatio: number
 }
 
+export interface CellDimensionsUpdateResult {
+  changed: boolean
+  dimensions: import('./univerGridInternalTypes').SnapshotDimensions | null
+  sheetId: string | null
+}
+
 export type ApplyRemoteCellUpdateOptions = {
   useSenderA1Row?: boolean
   /** Target worksheet for multi-sheet workbook mode. Defaults to the active worksheet. */
   targetSheetId?: string
   /** Skip remote-echo registration when repainting viewer state already present in the grid. */
   skipRemoteEchoRegistration?: boolean
+  /** Exact `rowId\u0000columnName` cells accepted by the backend and safe to paint once. */
+  acknowledgedCellKeys?: readonly string[]
   /** Style patch for `set_style`: remove `unset`, then assign `set`. */
   stylePatch?: SpreadsheetStylePatch | null
   /** Full Univer cell payload (preferred over scalar `value` when present). */
@@ -281,6 +290,11 @@ export interface UniverSheetGridRemoteApplyHandle {
     payload: SpreadsheetRemoteFeatureOperationPayload,
     meta?: SpreadsheetBulkRemoteApplyMeta
   ) => void
+  applyCommittedWorksheetMergePatch?: (
+    sheetId: string,
+    previousRanges: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>,
+    nextRanges: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
+  ) => void
 }
 
 /** Viewer row signature sync and forced reapply after authoritative data changes. */
@@ -301,6 +315,7 @@ export interface UniverSheetGridAuthoritativeHandle {
   applyRemoteColumnsReorder?: (params: {
     previousColumns: SpreadsheetColumn[]
     nextColumns: SpreadsheetColumn[]
+    moves?: ColumnReorderMove[]
   }) => boolean
   applyRemoteRowSlotsMove?: (params: {
     sourceStartGridRowIndex: number
@@ -333,6 +348,8 @@ export interface UniverSheetGridDimensionsHandle {
 
 export interface UniverSheetGridSelectionHandle {
   getActiveCellReference: () => string | null
+  getActiveSelectionReference: () => string | null
+  focusCellReference: (cellReference: string, sheetId?: string) => boolean
 }
 
 /** Native worksheet insert/rename/remove via Univer commands. */

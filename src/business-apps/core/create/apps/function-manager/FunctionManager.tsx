@@ -141,10 +141,8 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
   const [editingCredentialId, setEditingCredentialId] = React.useState<string | null>(() => getCredentialIdFromUrl())
   const [listView, setListView] = React.useState<ListView>(() => resolveListViewFromUrl(context.accessToken))
   const [sorting, setSorting] = React.useState<SortingState>([{ id: 'lastVersionAt', desc: true }])
-
   const {
     data,
-    allItems,
     total,
     categoryCounts,
     loading,
@@ -157,8 +155,10 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
     setPagination,
     visibleColumns,
     setVisibleColumns,
-    refetch
-  } = useFunctionsData(context.accessToken, sorting)
+    refetch,
+    resolvedFunctionItem,
+    deepLinkLoading
+  } = useFunctionsData(context.accessToken, sorting, editingFunctionId)
 
   const {
     storedSecrets,
@@ -222,22 +222,19 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
     updateUrlWithFunctionId(fn.id, true)
   }, [])
 
-  // Use the full unpaginated list so deep-links (?functionId=) resolve even when the target
-  // function is not on the current page slice. Falls back to `data` (current page) only for safety.
-  const editingFunction = editingFunctionId
-    ? (allItems.find(f => f.id === editingFunctionId) ?? data.find(f => f.id === editingFunctionId) ?? null)
-    : null
+  const editingFunction = resolvedFunctionItem
 
   const editingCredential =
-    editingCredentialId != null ? storedSecrets.find(s => s.id === editingCredentialId) ?? null : null
+    editingCredentialId != null ? (storedSecrets.find(s => s.id === editingCredentialId) ?? null) : null
 
-  // Clear editingFunctionId from URL only when the id is truly not in the loaded full list (invalid id).
+  // Clear editingFunctionId from URL only when the id cannot be resolved (invalid id).
   useEffect(() => {
+    if (deepLinkLoading) return
     if (!loading && editingFunctionId && !editingFunction) {
       setEditingFunctionId(null)
       updateUrlWithFunctionId(null)
     }
-  }, [loading, editingFunctionId, editingFunction])
+  }, [loading, deepLinkLoading, editingFunctionId, editingFunction])
 
   // Clear invalid credential deep links after the list has loaded.
   useEffect(() => {
@@ -249,24 +246,12 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
       setEditingCredentialId(null)
       updateUrlWithCredentialId(null)
     }
-  }, [
-    showCredentialsTab,
-    listView,
-    secretsLoading,
-    isCredentialCreateOpen,
-    editingCredentialId,
-    storedSecrets
-  ])
+  }, [showCredentialsTab, listView, secretsLoading, isCredentialCreateOpen, editingCredentialId, storedSecrets])
 
   // Normalize legacy ?view=secrets → ?view=credentials; strip credentials view from URL if user lacks apps-creator
   useEffect(() => {
     if (typeof globalThis.window === 'undefined') return
-    if (
-      getFunctionIdFromUrl() ||
-      isFunctionIdNewFromUrl() ||
-      getCredentialIdFromUrl() ||
-      isCredentialIdNewFromUrl()
-    ) {
+    if (getFunctionIdFromUrl() || isFunctionIdNewFromUrl() || getCredentialIdFromUrl() || isCredentialIdNewFromUrl()) {
       return
     }
     const url = new URL(globalThis.location.href)
@@ -443,8 +428,7 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
   if (
     listView === 'credentials' &&
     showCredentialsTab &&
-    (isCredentialCreateOpen ||
-      (!secretsLoading && editingCredentialId !== null && editingCredential !== null))
+    (isCredentialCreateOpen || (!secretsLoading && editingCredentialId !== null && editingCredential !== null))
   ) {
     return (
       <CredentialEditorPage

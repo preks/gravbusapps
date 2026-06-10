@@ -25,11 +25,21 @@ import {
   getCommandKind,
   setCommandClassificationTelemetryEmitter
 } from './univerCommandClassification'
+import { isWorksheetMergeMutationCommand } from './univerGridMergeCommandIds'
 import { deriveCellMatrixFromRanges } from '../utils/univerWorksheetCellRead'
 import {
   buildSpreadsheetLocalCellPaintGuard,
   protectDeferredLocalUserMutationCells
 } from '../utils/spreadsheetLocalCellPaintGuard'
+import {
+  isColumnDeleteDerivedFormulaFollowUpCollab,
+  isColumnInsertDerivedFormulaFollowUpCollab,
+  isColumnMoveDerivedFormulaFollowUpCollab,
+  isMoveDerivedFormulaFollowUpCollab,
+  isRowDeleteDerivedFormulaFollowUpCollab,
+  isRowInsertDerivedFormulaFollowUpCollab,
+  isRowMoveDerivedFormulaFollowUpCollab
+} from '../utils/spreadsheetCutPasteMove'
 import type { HandleDetectedCellMutationArgs } from './univerMountHandleDetectedCellMutation.types'
 import type { MutationEmitTailCoordinator } from './univerMutationEmitTailCoordinator'
 import type { UniverGridController } from './useUniverGridController'
@@ -108,6 +118,106 @@ export function isRemoteApplyGuardActive(
   collabPersistedBulkApplyDepthRef: MutableRefObject<number>
 ): boolean {
   return isApplyingRemoteUpdateRef.current || collabPersistedBulkApplyDepthRef.current > 0
+}
+
+export function shouldTreatGuardedMutationAsLocalUserEdit(params: {
+  isApplyingRemoteUpdate: boolean
+  currentBulkApplyOperationType: string | null
+}): boolean {
+  return !params.isApplyingRemoteUpdate && params.currentBulkApplyOperationType == null
+}
+
+export function shouldSkipDeferredDirtyCellQueueDuringRemoteApplyGuard(commandId: string): boolean {
+  return isWorksheetMergeMutationCommand(commandId)
+}
+
+export function shouldSuppressGuardedRowMoveFormulaFollowUp(params: {
+  currentBulkApplyOperationType: string | null
+  suppressUntilMs: number
+  commandId: string
+  payloadCellValue?: unknown
+  ranges?: SheetRangeShape[]
+  worksheetId?: string | null
+  recentMove?: import('../utils/spreadsheetCutPasteMove').RecentMoveRowFormulaFollowUp | null
+}): boolean {
+  if (params.currentBulkApplyOperationType !== 'move_row_slots') return false
+  return isRowMoveDerivedFormulaFollowUpCollab({
+    suppressUntilMs: params.suppressUntilMs,
+    commandId: params.commandId,
+    payloadCellValue: params.payloadCellValue,
+    ranges: params.ranges,
+    worksheetId: params.worksheetId,
+    recentMove: params.recentMove
+  })
+}
+
+export function shouldSuppressGuardedMoveCellFormulaFollowUp(params: {
+  currentBulkApplyOperationType: string | null
+  suppressUntilMs: number
+  commandId: string
+  payloadCellValue?: unknown
+  ranges?: SheetRangeShape[]
+  worksheetId?: string | null
+  recentMove?: import('../utils/spreadsheetCutPasteMove').RecentMoveCellRangeFollowUp | null
+}): boolean {
+  if (params.currentBulkApplyOperationType !== 'move_cell_range') return false
+  return isMoveDerivedFormulaFollowUpCollab({
+    suppressUntilMs: params.suppressUntilMs,
+    commandId: params.commandId,
+    payloadCellValue: params.payloadCellValue,
+    ranges: params.ranges,
+    worksheetId: params.worksheetId,
+    recentMove: params.recentMove
+  })
+}
+
+export function shouldSuppressGuardedColumnStructuralFormulaFollowUp(params: {
+  currentBulkApplyOperationType: string | null
+  commandId: string
+  payloadCellValue?: unknown
+  ranges?: SheetRangeShape[]
+  worksheetId?: string | null
+  columnInsertSuppressUntilMs: number
+  recentInsert?: import('../utils/spreadsheetCutPasteMove').RecentInsertColumnFormulaFollowUp | null
+  columnDeleteSuppressUntilMs: number
+  recentDelete?: import('../utils/spreadsheetCutPasteMove').RecentDeleteColumnFormulaFollowUp | null
+  columnMoveSuppressUntilMs: number
+  recentMove?: import('../utils/spreadsheetCutPasteMove').RecentMoveColumnFormulaFollowUp | null
+}): boolean {
+  if (params.currentBulkApplyOperationType === 'column_add') {
+    return isColumnInsertDerivedFormulaFollowUpCollab({
+      suppressUntilMs: params.columnInsertSuppressUntilMs,
+      commandId: params.commandId,
+      payloadCellValue: params.payloadCellValue,
+      ranges: params.ranges,
+      worksheetId: params.worksheetId,
+      recentInsert: params.recentInsert
+    })
+  }
+  if (params.currentBulkApplyOperationType === 'column_delete') {
+    return isColumnDeleteDerivedFormulaFollowUpCollab({
+      suppressUntilMs: params.columnDeleteSuppressUntilMs,
+      commandId: params.commandId,
+      payloadCellValue: params.payloadCellValue,
+      ranges: params.ranges,
+      worksheetId: params.worksheetId,
+      recentDelete: params.recentDelete
+    })
+  }
+  if (
+    params.currentBulkApplyOperationType === 'columns_reorder' ||
+    params.currentBulkApplyOperationType === 'column_reorder'
+  ) {
+    return isColumnMoveDerivedFormulaFollowUpCollab({
+      suppressUntilMs: params.columnMoveSuppressUntilMs,
+      commandId: params.commandId,
+      payloadCellValue: params.payloadCellValue,
+      ranges: params.ranges,
+      worksheetId: params.worksheetId,
+      recentMove: params.recentMove
+    })
+  }
+  return false
 }
 
 export const DEFERRED_LOCAL_CELL_FLUSH_POLL_MS = 100
@@ -293,6 +403,21 @@ export type RegisterUniverMountSheetValueAndEditListenersDeps = Pick<
   | 'readOnlyRef'
   | 'isApplyingRemoteUpdateRef'
   | 'collabPersistedBulkApplyDepthRef'
+  | 'currentBulkApplyOperationTypeRef'
+  | 'cutPasteCollabSuppressUntilMsRef'
+  | 'recentMoveCellRangeFollowUpRef'
+  | 'rowInsertFormulaFollowUpSuppressUntilMsRef'
+  | 'recentInsertRowFormulaFollowUpRef'
+  | 'rowDeleteFormulaFollowUpSuppressUntilMsRef'
+  | 'recentDeleteRowFormulaFollowUpRef'
+  | 'rowMoveFormulaFollowUpSuppressUntilMsRef'
+  | 'recentMoveRowFormulaFollowUpRef'
+  | 'columnInsertFormulaFollowUpSuppressUntilMsRef'
+  | 'recentInsertColumnFormulaFollowUpRef'
+  | 'columnDeleteFormulaFollowUpSuppressUntilMsRef'
+  | 'recentDeleteColumnFormulaFollowUpRef'
+  | 'columnMoveFormulaFollowUpSuppressUntilMsRef'
+  | 'recentMoveColumnFormulaFollowUpRef'
   | 'remoteEchoSuppressionRef'
   | 'univerAPIRef'
   | 'callbacksRef'
@@ -330,6 +455,21 @@ export function registerUniverMountSheetValueAndEditListeners(
     readOnlyRef,
     isApplyingRemoteUpdateRef,
     collabPersistedBulkApplyDepthRef,
+    currentBulkApplyOperationTypeRef,
+    cutPasteCollabSuppressUntilMsRef,
+    recentMoveCellRangeFollowUpRef,
+    rowInsertFormulaFollowUpSuppressUntilMsRef,
+    recentInsertRowFormulaFollowUpRef,
+    rowDeleteFormulaFollowUpSuppressUntilMsRef,
+    recentDeleteRowFormulaFollowUpRef,
+    rowMoveFormulaFollowUpSuppressUntilMsRef,
+    recentMoveRowFormulaFollowUpRef,
+    columnInsertFormulaFollowUpSuppressUntilMsRef,
+    recentInsertColumnFormulaFollowUpRef,
+    columnDeleteFormulaFollowUpSuppressUntilMsRef,
+    recentDeleteColumnFormulaFollowUpRef,
+    columnMoveFormulaFollowUpSuppressUntilMsRef,
+    recentMoveColumnFormulaFollowUpRef,
     remoteEchoSuppressionRef,
     univerAPIRef,
     callbacksRef,
@@ -548,11 +688,113 @@ export function registerUniverMountSheetValueAndEditListeners(
       return
     }
 
+    const resolvedWorksheetId = worksheetId ?? activeWorksheetIdAtEventTime
+
     if (isRemoteApplyGuardActive(isApplyingRemoteUpdateRef, collabPersistedBulkApplyDepthRef)) {
       if (shouldDropRemoteEchoDuringApplyGuard(cellValue, remoteEchoSuppressionRef)) {
         return
       }
-      const treatDeferredMutationAsLocalUser = !isApplyingRemoteUpdateRef.current
+      if (shouldSkipDeferredDirtyCellQueueDuringRemoteApplyGuard(commandId)) {
+        callbacksRef.current.onDiagnosticsTraceEvent?.({
+          source: 'client',
+          stage: 'guarded_merge_reconcile_queue_skipped',
+          payload: {
+            worksheetId: resolvedWorksheetId,
+            source: 'remote_apply_guard',
+            commandId,
+            rangeCount: mutationRanges.length
+          }
+        })
+        return
+      }
+      if (
+        shouldSuppressGuardedRowMoveFormulaFollowUp({
+          currentBulkApplyOperationType: currentBulkApplyOperationTypeRef.current,
+          suppressUntilMs: rowMoveFormulaFollowUpSuppressUntilMsRef.current,
+          commandId,
+          payloadCellValue: cellValue,
+          ranges: mutationRanges,
+          worksheetId: resolvedWorksheetId,
+          recentMove: recentMoveRowFormulaFollowUpRef.current
+        })
+      ) {
+        callbacksRef.current.onDiagnosticsTraceEvent?.({
+          source: 'client',
+          stage: 'move_row_formula_followup_suppressed',
+          payload: {
+            worksheetId: resolvedWorksheetId,
+            source: 'remote_apply_guard',
+            commandId,
+            rangeCount: mutationRanges.length
+          }
+        })
+        return
+      }
+      const shouldDeferGuardedMoveCellFormulaFollowUp = shouldSuppressGuardedMoveCellFormulaFollowUp({
+        currentBulkApplyOperationType: currentBulkApplyOperationTypeRef.current,
+        suppressUntilMs: cutPasteCollabSuppressUntilMsRef.current,
+        commandId,
+        payloadCellValue: cellValue,
+        ranges: mutationRanges,
+        worksheetId: resolvedWorksheetId,
+        recentMove: recentMoveCellRangeFollowUpRef.current
+      })
+      if (shouldDeferGuardedMoveCellFormulaFollowUp) {
+        callbacksRef.current.onDiagnosticsTraceEvent?.({
+          source: 'client',
+          stage: 'move_cell_formula_followup_suppressed',
+          payload: {
+            worksheetId: resolvedWorksheetId,
+            source: 'remote_apply_guard',
+            commandId,
+            action: 'deferred_replay',
+            rangeCount: mutationRanges.length
+          }
+        })
+      }
+      const shouldDeferGuardedColumnFormulaFollowUp = shouldSuppressGuardedColumnStructuralFormulaFollowUp({
+        currentBulkApplyOperationType: currentBulkApplyOperationTypeRef.current,
+        commandId,
+        payloadCellValue: cellValue,
+        ranges: mutationRanges,
+        worksheetId: resolvedWorksheetId,
+        columnInsertSuppressUntilMs: columnInsertFormulaFollowUpSuppressUntilMsRef.current,
+        recentInsert: recentInsertColumnFormulaFollowUpRef.current,
+        columnDeleteSuppressUntilMs: columnDeleteFormulaFollowUpSuppressUntilMsRef.current,
+        recentDelete: recentDeleteColumnFormulaFollowUpRef.current,
+        columnMoveSuppressUntilMs: columnMoveFormulaFollowUpSuppressUntilMsRef.current,
+        recentMove: recentMoveColumnFormulaFollowUpRef.current
+      })
+      if (shouldDeferGuardedColumnFormulaFollowUp) {
+        callbacksRef.current.onDiagnosticsTraceEvent?.({
+          source: 'client',
+          stage: 'column_structural_formula_followup_suppressed',
+          payload: {
+            worksheetId: resolvedWorksheetId,
+            source: 'remote_apply_guard',
+            commandId,
+            action: 'deferred_replay',
+            operationType: currentBulkApplyOperationTypeRef.current,
+            rangeCount: mutationRanges.length
+          }
+        })
+        callbacksRef.current.onDiagnosticsTraceEvent?.({
+          source: 'client',
+          stage: 'formula_repair_deferred_or_preserved',
+          payload: {
+            worksheetId: resolvedWorksheetId,
+            source: 'remote_apply_guard',
+            commandId,
+            action: 'deferred_replay',
+            operationType: currentBulkApplyOperationTypeRef.current,
+            rangeCount: mutationRanges.length
+          }
+        })
+      }
+      const treatDeferredMutationAsLocalUser = shouldTreatGuardedMutationAsLocalUserEdit({
+        isApplyingRemoteUpdate: isApplyingRemoteUpdateRef.current,
+        currentBulkApplyOperationType: currentBulkApplyOperationTypeRef.current
+      })
       markDeferredDirtyCellsFromMutation(
         deferredDirtyCells,
         mutationRanges,
@@ -566,6 +808,115 @@ export function registerUniverMountSheetValueAndEditListeners(
         guardDeferredLocalUserCells(cellValue)
       }
       scheduleDeferredFlushWhenGuardClears()
+      return
+    }
+
+    const isRowInsertFormulaFollowUp = isRowInsertDerivedFormulaFollowUpCollab({
+      suppressUntilMs: rowInsertFormulaFollowUpSuppressUntilMsRef.current,
+      commandId,
+      payloadCellValue: cellValue,
+      ranges: mutationRanges,
+      worksheetId: resolvedWorksheetId,
+      recentInsert: recentInsertRowFormulaFollowUpRef.current
+    })
+    const isRowDeleteFormulaFollowUp = isRowDeleteDerivedFormulaFollowUpCollab({
+      suppressUntilMs: rowDeleteFormulaFollowUpSuppressUntilMsRef.current,
+      commandId,
+      payloadCellValue: cellValue,
+      ranges: mutationRanges,
+      worksheetId: resolvedWorksheetId,
+      recentDelete: recentDeleteRowFormulaFollowUpRef.current
+    })
+    const isRowMoveFormulaFollowUp = isRowMoveDerivedFormulaFollowUpCollab({
+      suppressUntilMs: rowMoveFormulaFollowUpSuppressUntilMsRef.current,
+      commandId,
+      payloadCellValue: cellValue,
+      ranges: mutationRanges,
+      worksheetId: resolvedWorksheetId,
+      recentMove: recentMoveRowFormulaFollowUpRef.current
+    })
+    const isCutPasteFormulaFollowUp = isMoveDerivedFormulaFollowUpCollab({
+      suppressUntilMs: cutPasteCollabSuppressUntilMsRef.current,
+      commandId,
+      payloadCellValue: cellValue,
+      ranges: mutationRanges,
+      worksheetId: resolvedWorksheetId,
+      recentMove: recentMoveCellRangeFollowUpRef.current
+    })
+    const isColumnInsertFormulaFollowUp = isColumnInsertDerivedFormulaFollowUpCollab({
+      suppressUntilMs: columnInsertFormulaFollowUpSuppressUntilMsRef.current,
+      commandId,
+      payloadCellValue: cellValue,
+      ranges: mutationRanges,
+      worksheetId: resolvedWorksheetId,
+      recentInsert: recentInsertColumnFormulaFollowUpRef.current
+    })
+    const isColumnDeleteFormulaFollowUp = isColumnDeleteDerivedFormulaFollowUpCollab({
+      suppressUntilMs: columnDeleteFormulaFollowUpSuppressUntilMsRef.current,
+      commandId,
+      payloadCellValue: cellValue,
+      ranges: mutationRanges,
+      worksheetId: resolvedWorksheetId,
+      recentDelete: recentDeleteColumnFormulaFollowUpRef.current
+    })
+    const isColumnMoveFormulaFollowUp = isColumnMoveDerivedFormulaFollowUpCollab({
+      suppressUntilMs: columnMoveFormulaFollowUpSuppressUntilMsRef.current,
+      commandId,
+      payloadCellValue: cellValue,
+      ranges: mutationRanges,
+      worksheetId: resolvedWorksheetId,
+      recentMove: recentMoveColumnFormulaFollowUpRef.current
+    })
+    if (
+      isRowInsertFormulaFollowUp ||
+      isRowDeleteFormulaFollowUp ||
+      isRowMoveFormulaFollowUp ||
+      isCutPasteFormulaFollowUp ||
+      isColumnInsertFormulaFollowUp ||
+      isColumnDeleteFormulaFollowUp ||
+      isColumnMoveFormulaFollowUp
+    ) {
+      if (isRowMoveFormulaFollowUp) {
+        callbacksRef.current.onDiagnosticsTraceEvent?.({
+          source: 'client',
+          stage: 'move_row_formula_followup_suppressed',
+          payload: {
+            worksheetId: resolvedWorksheetId,
+            source: 'listener',
+            commandId,
+            rangeCount: mutationRanges.length
+          }
+        })
+      }
+      if (isCutPasteFormulaFollowUp) {
+        callbacksRef.current.onDiagnosticsTraceEvent?.({
+          source: 'client',
+          stage: 'move_cell_formula_followup_suppressed',
+          payload: {
+            worksheetId: resolvedWorksheetId,
+            source: 'listener',
+            commandId,
+            rangeCount: mutationRanges.length
+          }
+        })
+      }
+      if (isColumnInsertFormulaFollowUp || isColumnDeleteFormulaFollowUp || isColumnMoveFormulaFollowUp) {
+        callbacksRef.current.onDiagnosticsTraceEvent?.({
+          source: 'client',
+          stage: 'column_structural_formula_followup_suppressed',
+          payload: {
+            worksheetId: resolvedWorksheetId,
+            source: 'listener',
+            commandId,
+            rangeCount: mutationRanges.length,
+            operationType: isColumnInsertFormulaFollowUp
+              ? 'column_add'
+              : isColumnDeleteFormulaFollowUp
+                ? 'column_delete'
+                : 'columns_reorder'
+          }
+        })
+      }
       return
     }
 

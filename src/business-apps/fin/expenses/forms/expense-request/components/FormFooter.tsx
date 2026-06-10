@@ -2,7 +2,11 @@ import React from 'react'
 import { Divider } from 'antd'
 import { Button } from '@newwork/gravity-ui-catalog'
 import { FORM_STEPS, REQUEST_TYPES } from '../constants/constants'
+import { useTranslation } from '@newwork/nw-design-system'
 import { useExpenseRequestCreationTranslation } from '../../expense-request-creation/useExpenseRequestCreationTranslation'
+import expensePlanTranslations from '../../expense-plan/_i18n'
+
+type FormFooterTranslationScope = 'request' | 'plan'
 
 interface FormFooterProps {
   step: string
@@ -12,6 +16,7 @@ interface FormFooterProps {
   onSubmit?: () => void
   testIdPrefix?: string
   additionalData?: any
+  translationScope?: FormFooterTranslationScope
 }
 
 /**
@@ -23,9 +28,14 @@ const FormFooter: React.FC<FormFooterProps> = ({
   formIsValid = false,
   onCancel,
   onSubmit,
-  testIdPrefix = REQUEST_TYPES.EXPENSE
+  testIdPrefix = REQUEST_TYPES.EXPENSE,
+  translationScope = 'request'
 }) => {
-  const { t } = useExpenseRequestCreationTranslation()
+  const { t: tRequest } = useExpenseRequestCreationTranslation()
+  const { t: tPlan } = useTranslation(expensePlanTranslations)
+  const isPlan = translationScope === 'plan'
+  const cancelLabel = isPlan ? tPlan('cancel-button') : tRequest('initiate-cancel-button')
+  const submitLabel = isPlan ? tPlan('next-btn') : tRequest('btn-submit')
 
   return (
     <div style={{ marginTop: 'auto', width: '100%' }} data-testid={`${testIdPrefix}-footer`}>
@@ -50,7 +60,7 @@ const FormFooter: React.FC<FormFooterProps> = ({
           onClick={onCancel}
           disabled={loading}
         >
-          {t('initiate-cancel-button')}
+          {cancelLabel}
         </Button>
         {(step === FORM_STEPS.EXPENSE || step === FORM_STEPS.TRIP) && (
           <Button
@@ -69,7 +79,7 @@ const FormFooter: React.FC<FormFooterProps> = ({
             onClick={onSubmit}
             disabled={loading || !formIsValid}
           >
-            {t('btn-submit')}
+            {submitLabel}
           </Button>
         )}
       </div>

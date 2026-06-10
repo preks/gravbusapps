@@ -1,23 +1,32 @@
-# Customer settings — Ideale Kundenprofile (ICP)
+# Customer settings — Kampagnendaten
+
+campaign-data-title = Kampagnendaten
+campaign-data-description = Kataloge für Einrichtung, Zielgruppe, Distribution und Engagement verwalten
+campaign-group-setup = Einrichtung
+campaign-group-targeting = Zielgruppe
+campaign-group-distribution = Distribution
+campaign-group-engagement = Engagement
+
+# Customer settings — ICP-Profile
 
 # Settings hub card
-icp-settings-card-title = Ideale Kundenprofile
-icp-settings-card-description = ICP-Kriterien und Gewichtungen für die KI-ICP-Bewertung konfigurieren
+icp-settings-card-title = ICP-Profile
+icp-settings-card-description = Ideale Kundenprofile mit Kriterien und Gewichtungen für Ihren Vertriebsprozess definieren.
 icp-settings-card-entry = Profile verwalten
-lead-scoring-settings-card-title = Lead-Bewertung
-lead-scoring-settings-card-description = Einzelne Leads oder Lead-Listen anhand Ihrer ICP-Profile bewerten
-lead-scoring-settings-card-entry = Lead-Bewertung öffnen
+data-export-settings-card-title = Datenexport
+data-export-settings-card-description = CRM-Datensätze mit Filtern und auswählbaren Spalten exportieren
+data-export-settings-card-entry = Daten exportieren
 
 # Page
-icp-page-title = Ideale Kundenprofile
-icp-page-description = Definieren Sie ICP-Kriterien und Gewichtungen für die KI-ICP-Bewertung.
+icp-page-title = ICP-Profile
+icp-page-description = Legen Sie Kriterien und Gewichtungen für jedes ideale Kundenprofil fest.
 
 # Sidebar
 icp-profiles-heading = Profile
 icp-new-profile = Neues Profil
 icp-search-placeholder = Profile suchen …
 icp-no-profiles-title = Noch keine Profile
-icp-no-profiles-hint = Legen Sie ein Profil an, um mit der ICP-Bewertung zu beginnen.
+icp-no-profiles-hint = Legen Sie ein Profil an, um Kriterien und Gewichtungen zu definieren.
 icp-delete-profile-aria = Profil löschen
 
 # Editor
@@ -30,7 +39,7 @@ icp-save-profile = Profil speichern
 
 # Dialogs
 icp-dialog-new-profile-title = Neues Profil
-icp-dialog-new-profile-description = Erstellt ein neues Profil für ICP-Kriterien und die Bewertung.
+icp-dialog-new-profile-description = Erstellt ein neues Profil für ICP-Kriterien und Gewichtungen.
 icp-cancel = Abbrechen
 icp-create-profile = Erstellen
 icp-delete-confirm-message = „{ $name }“ wird dauerhaft entfernt.

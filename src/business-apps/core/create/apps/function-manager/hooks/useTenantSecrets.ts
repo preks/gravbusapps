@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { FunctionsServiceClient, type CredentialReferenceLocation } from '@/common/network/functions/FunctionsServiceClient'
+import { useCallback, useEffect, useState } from 'react'
+import { type CredentialReferenceLocation } from '@/common/network/functions/FunctionsServiceClient'
+import { useFunctionsServiceClient } from '@/common/network/functions/useFunctionsServiceClient'
 import type { StoredSecretOption } from '../components/editor/SettingsEditor'
 import { assertValidCredentialFieldKey } from '@/common/utils/fncredRef'
 
 /** Lists and manages tenant credentials (encrypted field maps; bind as `fncred:` from Settings). */
 export function useTenantSecrets(accessToken: string) {
-  const client = useMemo(() => new FunctionsServiceClient(accessToken), [accessToken])
+  const client = useFunctionsServiceClient(accessToken)
   const [storedSecrets, setStoredSecrets] = useState<StoredSecretOption[]>([])
   const [secretsLoading, setSecretsLoading] = useState(true)
 
@@ -73,9 +74,7 @@ export function useTenantSecrets(accessToken: string) {
     ) => {
       const displayName = String(input.displayName || '').trim()
       if (!displayName) throw new Error('Display name is required')
-      const removeFieldKeys = (input.removeFieldKeys || [])
-        .map(k => String(k || '').trim())
-        .filter(Boolean)
+      const removeFieldKeys = (input.removeFieldKeys || []).map(k => String(k || '').trim()).filter(Boolean)
       const liveToSet = input.liveToSet || {}
       const previewToSet = input.previewToSet || {}
       for (const k of Object.keys(liveToSet)) {

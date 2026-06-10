@@ -14,6 +14,10 @@ error-invalid-date = Vă rugăm să introduceți o dată validă a tranzacției 
 error-confirm-required = Vă rugăm să confirmați transferul plății
 error-confirm-failed = Confirmarea plății a eșuat. Vă rugăm să încercați din nou.
 
+label-request-date = Data Solicitării
+action-view-document = Vizualizați documentul
+error-no-document = Nu există document disponibil
+
 # ============================================
 # Transaction Confirmation Section
 # ============================================

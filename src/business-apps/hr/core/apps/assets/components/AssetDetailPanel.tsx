@@ -506,6 +506,12 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
                         : isRetired
                           ? t('asset-retired')
                           : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.present', 'Present')
+                      const allocationTargetName =
+                        allocation.room?.name ||
+                        allocation.employee?.displayName ||
+                        `${allocation.employee?.firstName || ''} ${allocation.employee?.lastName || ''}`.trim() ||
+                        getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.unknown_employee', 'Unknown Employee')
+
                       return (
                         <div key={allocation.id} data-testid={`allocation-history-item-${allocation.id}`}>
                           <div className="gba:flex gba:items-start gba:gap-3">
@@ -530,12 +536,7 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
                                   className="gba:text-sm gba:font-medium"
                                   data-testid={`allocation-employee-${allocation.id}`}
                                 >
-                                  {allocation.employee?.displayName ||
-                                    `${allocation.employee?.firstName || ''} ${allocation.employee?.lastName || ''}`.trim() ||
-                                    getTranslationFromI18nKeyAndLabel(
-                                      'lowcoder:hr_assets.unknown_employee',
-                                      'Unknown Employee'
-                                    )}
+                                  {allocationTargetName}
                                 </p>
                                 {showCurrentBadge && (
                                   <Badge variant="success" data-testid={`allocation-status-${allocation.id}`}>

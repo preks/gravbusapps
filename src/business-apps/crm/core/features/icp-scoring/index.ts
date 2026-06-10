@@ -1,0 +1,6 @@
+export { createLeadIcpScoringEntityConfig } from './adapters/createLeadIcpScoringEntityConfig'
+export { createOpportunityIcpScoringEntityConfig } from './adapters/createOpportunityIcpScoringEntityConfig'
+export { getIcpScoringEntityConfig, isIcpScoringEntityType } from './getIcpScoringEntityConfig'
+export { IcpScoringSelectionDialog } from './components/IcpScoringSelectionDialog'
+export { useIcpScoringLeadCandidates } from './hooks/useIcpScoringLeadCandidates'
+export { useIcpScoringOpportunityCandidates } from './hooks/useIcpScoringOpportunityCandidates'

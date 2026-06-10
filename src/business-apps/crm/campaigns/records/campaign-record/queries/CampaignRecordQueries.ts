@@ -1,7 +1,17 @@
 import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { CampaignRecordQueryVariables } from '../types'
+import { CampaignEntityType, CampaignRecordQueryVariables } from '../types'
+import { LEAD_STATUS_CODE_CONVERTED, LEAD_STATUS_CODE_MQL, LEAD_STATUS_CODE_SQL } from './CampaignAnalyticsGraphQL'
+import { GET_CAMPAIGN_EVENTS } from '@/common/data/customer/queries/customerCampaignEventQueries'
+import type { CustomerCampaignEventsQueryResponse } from '@/common/data/customer/queries/customerCampaignEventQueries'
+import { GET_CAMPAIGN_CONTENTS } from '@/common/data/customer/queries/customerCampaignContentQueries'
+import type { CustomerCampaignContentsQueryResponse } from '@/common/data/customer/queries/customerCampaignContentQueries'
+import { GET_CAMPAIGN_ACCOUNTS } from '@/common/data/customer/queries/customerCampaignAccountQueries'
+import type { CustomerCampaignAccountsQueryResponse } from '@/common/data/customer/queries/customerCampaignAccountQueries'
+import type { CustomerCampaignEvent } from '@/common/data/customer/types/customerCampaignEventTypes'
+import type { CustomerCampaignContent } from '@/common/data/customer/types/customerCampaignContentTypes'
+import type { CustomerCampaignAccount } from '@/common/data/customer/types/customerCampaignAccountTypes'
 
 export interface CampaignRecordQueryResponse {
   SalesCampaign: Array<{
@@ -14,14 +24,17 @@ export interface CampaignRecordQueryResponse {
     updatedAt: string
     isDeleted: boolean
     typeRef?: string
+    customerCampaignAccounts?: Array<{
+      customerAccountId?: string
+    }>
   }>
 }
 
 export interface CampaignKPIsQueryResponse {
   totalLeads: { aggregate: { count: number } }
   convertedLeads: { aggregate: { count: number } }
-  totalAccounts: { aggregate: { count: number } }
-  totalContacts: { aggregate: { count: number } }
+  mqlCount: { aggregate: { count: number } }
+  sqlCount: { aggregate: { count: number } }
   totalOpportunities: { aggregate: { count: number } }
   wonOpportunities: { aggregate: { count: number } }
 }
@@ -36,7 +49,7 @@ export interface CampaignEntitiesQueryResponse {
       id: string
       displayName: string
     }
-    leadStatus?: { value: string }
+    leadStatus?: { value: string; code?: string }
   }>
   accounts: Array<{
     id: string
@@ -65,6 +78,7 @@ export interface CampaignEntitiesQueryResponse {
       id: string
       displayName: string
     }
+    opportunityStatus?: { value: string; code?: string }
   }>
   leadsCount: { aggregate: { count: number } }
   accountsCount: { aggregate: { count: number } }
@@ -86,6 +100,27 @@ export const GET_CAMPAIGN_RECORD = (): string => {
         updatedAt
         isDeleted
         typeRef
+        type { id value code objectValue }
+        customerCampaignSegment { id value code objectValue }
+        customerCampaignSegmentRef
+        customerPersona { id value code }
+        customerPersonaRef
+        customerValuePackFocus { id value code }
+        customerValuePackFocusRef
+        customerIndustryFocus { id value code }
+        customerIndustryFocusRef
+        country { id value code }
+        countryRef
+        budgetAllocated
+        pipelineTarget
+        expectedWinRate
+        expectedRevenueContribution
+        ownerEmployee { id displayName }
+        customerCampaignStatus { id value code objectValue }
+        customerCampaignStatusRef
+        customerCampaignAccounts(where: { isDeleted: { _eq: false } }) {
+          customerAccountId
+        }
       }
     }
   `
@@ -109,27 +144,29 @@ export const GET_CAMPAIGN_KPIS = (): string => {
         where: { 
           salesCampaignId: { _eq: $campaignId },
           isDeleted: { _eq: false },
-          conversionDate: { _isNull: false }
+          leadStatus: { code: { _eq: "${LEAD_STATUS_CODE_CONVERTED}" } }
         }
       ) {
         aggregate {
           count
         }
       }
-      totalAccounts: AccountAggregate(
+      mqlCount: LeadAggregate(
         where: { 
           salesCampaignId: { _eq: $campaignId },
-          isDeleted: { _eq: false }
+          isDeleted: { _eq: false },
+          leadStatus: { code: { _eq: "${LEAD_STATUS_CODE_MQL}" } }
         }
       ) {
         aggregate {
           count
         }
       }
-      totalContacts: ContactAggregate(
+      sqlCount: LeadAggregate(
         where: { 
           salesCampaignId: { _eq: $campaignId },
-          isDeleted: { _eq: false }
+          isDeleted: { _eq: false },
+          leadStatus: { code: { _eq: "${LEAD_STATUS_CODE_SQL}" } }
         }
       ) {
         aggregate {
@@ -164,19 +201,23 @@ export const GET_CAMPAIGN_KPIS = (): string => {
 // Get Campaign Entities Query - Fetches all entities for client-side pagination
 export const GET_CAMPAIGN_ENTITIES = (): string => {
   return `
-    query GetCampaignEntities($campaignId: uuid!, $search: String, $orderByLeads: [LeadOrderBy!], $orderByAccounts: [AccountOrderBy!], $orderByContacts: [ContactOrderBy!], $orderByOpportunities: [OpportunityOrderBy!]) {
+    query GetCampaignEntities(
+      $leadsWhere: LeadBoolExp!,
+      $accountsWhere: AccountBoolExp!,
+      $contactsWhere: ContactBoolExp!,
+      $opportunitiesWhere: OpportunityBoolExp!,
+      $limit: Int,
+      $offset: Int,
+      $orderByLeads: [LeadOrderBy!],
+      $orderByAccounts: [AccountOrderBy!],
+      $orderByContacts: [ContactOrderBy!],
+      $orderByOpportunities: [OpportunityOrderBy!]
+    ) {
       leads: Lead(
-        where: { 
-          salesCampaignId: { _eq: $campaignId }
-          isDeleted: { _eq: false }
-          _or: [
-            { firstName: { _ilike: $search } }
-            { lastName: { _ilike: $search } }
-            { ownerEmployee: { displayName: { _ilike: $search } } }
-            { leadStatus: { value: { _ilike: $search } } }
-          ]
-        }
+        where: $leadsWhere
         orderBy: $orderByLeads
+        limit: $limit
+        offset: $offset
       ) {
         id
         firstName
@@ -186,18 +227,13 @@ export const GET_CAMPAIGN_ENTITIES = (): string => {
           id
           displayName
         }
-        leadStatus { value }
+        leadStatus { value code }
       }
       accounts: Account(
-        where: { 
-          salesCampaignId: { _eq: $campaignId }
-          isDeleted: { _eq: false }
-          _or: [
-            { name: { _ilike: $search } }
-            { ownerEmployee: { displayName: { _ilike: $search } } }
-          ]
-        }
+        where: $accountsWhere
         orderBy: $orderByAccounts
+        limit: $limit
+        offset: $offset
       ) {
         id
         name
@@ -208,16 +244,10 @@ export const GET_CAMPAIGN_ENTITIES = (): string => {
         }
       }
       contacts: Contact(
-        where: { 
-          salesCampaignId: { _eq: $campaignId }
-          isDeleted: { _eq: false }
-          _or: [
-            { firstName: { _ilike: $search } }
-            { lastName: { _ilike: $search } }
-            { ownerEmployee: { displayName: { _ilike: $search } } }
-          ]
-        }
+        where: $contactsWhere
         orderBy: $orderByContacts
+        limit: $limit
+        offset: $offset
       ) {
         id
         firstName
@@ -229,16 +259,10 @@ export const GET_CAMPAIGN_ENTITIES = (): string => {
         }
       }
       opportunities: Opportunity(
-        where: { 
-          salesCampaignId: { _eq: $campaignId }
-          isDeleted: { _eq: false }
-          _or: [
-            { name: { _ilike: $search } }
-            { ownerEmployee: { displayName: { _ilike: $search } } }
-            { opportunityStatus: { value: { _ilike: $search } } }
-          ]
-        }
+        where: $opportunitiesWhere
         orderBy: $orderByOpportunities
+        limit: $limit
+        offset: $offset
       ) {
         id
         name
@@ -247,63 +271,31 @@ export const GET_CAMPAIGN_ENTITIES = (): string => {
           id
           displayName
         }
-        opportunityStatus { value }
+        opportunityStatus { value code }
       }
       leadsCount: LeadAggregate(
-        where: { 
-          salesCampaignId: { _eq: $campaignId }
-          isDeleted: { _eq: false }
-          _or: [
-            { firstName: { _ilike: $search } }
-            { lastName: { _ilike: $search } }
-            { ownerEmployee: { displayName: { _ilike: $search } } }
-            { leadStatus: { value: { _ilike: $search } } }
-          ]
-        }
+        where: $leadsWhere
       ) {
         aggregate {
           count
         }
       }
       accountsCount: AccountAggregate(
-        where: { 
-          salesCampaignId: { _eq: $campaignId }
-          isDeleted: { _eq: false }
-          _or: [
-            { name: { _ilike: $search } }
-            { ownerEmployee: { displayName: { _ilike: $search } } }
-          ]
-        }
+        where: $accountsWhere
       ) {
         aggregate {
           count
         }
       }
       contactsCount: ContactAggregate(
-        where: { 
-          salesCampaignId: { _eq: $campaignId }
-          isDeleted: { _eq: false }
-          _or: [
-            { firstName: { _ilike: $search } }
-            { lastName: { _ilike: $search } }
-            { ownerEmployee: { displayName: { _ilike: $search } } }
-          ]
-        }
+        where: $contactsWhere
       ) {
         aggregate {
           count
         }
       }
       opportunitiesCount: OpportunityAggregate(
-        where: { 
-          salesCampaignId: { _eq: $campaignId }
-          isDeleted: { _eq: false }
-          _or: [
-            { name: { _ilike: $search } }
-            { ownerEmployee: { displayName: { _ilike: $search } } }
-            { opportunityStatus: { value: { _ilike: $search } } }
-          ]
-        }
+        where: $opportunitiesWhere
       ) {
         aggregate {
           count
@@ -313,9 +305,278 @@ export const GET_CAMPAIGN_ENTITIES = (): string => {
   `
 }
 
+const GET_CAMPAIGN_LEAD_ENTITIES_QUERY = `
+  query GetCampaignLeadEntities($where: LeadBoolExp!, $limit: Int, $offset: Int, $orderBy: [LeadOrderBy!]) {
+    leads: Lead(where: $where, limit: $limit, offset: $offset, orderBy: $orderBy) {
+      id
+      firstName
+      lastName
+      createdAt
+      ownerEmployee { id displayName }
+      leadStatus { value code }
+    }
+    leadsCount: LeadAggregate(where: $where) {
+      aggregate { count }
+    }
+  }
+`
+
+const GET_CAMPAIGN_ACCOUNT_ENTITIES_QUERY = `
+  query GetCampaignAccountEntities($where: AccountBoolExp!, $limit: Int, $offset: Int, $orderBy: [AccountOrderBy!]) {
+    accounts: Account(where: $where, limit: $limit, offset: $offset, orderBy: $orderBy) {
+      id
+      name
+      createdAt
+      ownerEmployee { id displayName }
+    }
+    accountsCount: AccountAggregate(where: $where) {
+      aggregate { count }
+    }
+  }
+`
+
+const GET_CAMPAIGN_CONTACT_ENTITIES_QUERY = `
+  query GetCampaignContactEntities($where: ContactBoolExp!, $limit: Int, $offset: Int, $orderBy: [ContactOrderBy!]) {
+    contacts: Contact(where: $where, limit: $limit, offset: $offset, orderBy: $orderBy) {
+      id
+      firstName
+      lastName
+      createdAt
+      ownerEmployee { id displayName }
+    }
+    contactsCount: ContactAggregate(where: $where) {
+      aggregate { count }
+    }
+  }
+`
+
+const GET_CAMPAIGN_OPPORTUNITY_ENTITIES_QUERY = `
+  query GetCampaignOpportunityEntities(
+    $where: OpportunityBoolExp!,
+    $limit: Int,
+    $offset: Int,
+    $orderBy: [OpportunityOrderBy!]
+  ) {
+    opportunities: Opportunity(where: $where, limit: $limit, offset: $offset, orderBy: $orderBy) {
+      id
+      name
+      createdAt
+      ownerEmployee { id displayName }
+      opportunityStatus { value code }
+    }
+    opportunitiesCount: OpportunityAggregate(where: $where) {
+      aggregate { count }
+    }
+  }
+`
+
+interface CampaignEntityFilterFlags {
+  includeLead: boolean
+  includeAccount: boolean
+  includeContact: boolean
+  includeOpportunity: boolean
+}
+
+const createDisabledFilter = (): Record<string, any> => ({ id: { _is_null: true } })
+
+const getEntityFilterFlags = (types: CampaignRecordQueryVariables['types']): CampaignEntityFilterFlags => {
+  const selectedTypes = types ?? []
+  const hasTypeFilter = selectedTypes.length > 0
+
+  return {
+    includeLead: !hasTypeFilter || selectedTypes.includes('lead'),
+    includeAccount: !hasTypeFilter || selectedTypes.includes('account'),
+    includeContact: !hasTypeFilter || selectedTypes.includes('contact'),
+    includeOpportunity: !hasTypeFilter || selectedTypes.includes('opportunity')
+  }
+}
+
+const buildDateFilter = (variables: CampaignRecordQueryVariables): { createdAt: Record<string, string> } | null => {
+  const createdAt: Record<string, string> = {}
+
+  if (variables.createdAtFrom) {
+    createdAt._gte = variables.createdAtFrom
+  }
+
+  if (variables.createdAtTo) {
+    createdAt._lte = variables.createdAtTo
+  }
+
+  return Object.keys(createdAt).length > 0 ? { createdAt } : null
+}
+
+const appendAndFilter = (whereClause: Record<string, any>, filterClause: Record<string, any>) => {
+  whereClause._and = [...(whereClause._and ?? []), filterClause]
+}
+
+const applyDateFilter = (
+  whereClause: Record<string, any>,
+  includeEntity: boolean,
+  dateFilter: { createdAt: Record<string, string> } | null
+) => {
+  if (includeEntity && dateFilter) {
+    appendAndFilter(whereClause, dateFilter)
+  }
+}
+
+const applyStatusFilters = (
+  variables: CampaignRecordQueryVariables,
+  leadWhere: Record<string, any>,
+  opportunityWhere: Record<string, any>,
+  includeLead: boolean,
+  includeOpportunity: boolean
+) => {
+  const hasStatusFilter = Array.isArray(variables.statuses) && variables.statuses.length > 0
+  if (!hasStatusFilter || !variables.statuses) {
+    return
+  }
+
+  const statusCodes = variables.statuses.map(status => String(status).trim()).filter(Boolean)
+  if (statusCodes.length === 0) {
+    return
+  }
+
+  if (includeLead) {
+    appendAndFilter(leadWhere, { leadStatus: { code: { _in: statusCodes } } })
+  }
+
+  if (includeOpportunity) {
+    appendAndFilter(opportunityWhere, { opportunityStatus: { code: { _in: statusCodes } } })
+  }
+}
+
+const getOrderByClause = (variables: CampaignRecordQueryVariables) => {
+  const firstSort = variables.orderBy?.[0]
+  const orderField = firstSort ? Object.keys(firstSort)[0] : 'createdAt'
+  const orderDir = firstSort ? (firstSort as any)[orderField] : 'DESC'
+  return [{ [orderField]: orderDir }]
+}
+
+const buildEntityWhereClauses = (variables: CampaignRecordQueryVariables) => {
+  const searchPattern = variables.search?.trim() ? `%${variables.search.trim()}%` : '%'
+  const { includeLead, includeAccount, includeContact, includeOpportunity } = getEntityFilterFlags(variables.types)
+  const dateFilter = buildDateFilter(variables)
+  const accountReferenceIds = variables.accountReferenceIds ?? []
+  const hasAccountReferenceIds = accountReferenceIds.length > 0
+
+  const leadWhere: Record<string, any> = includeLead
+    ? {
+        salesCampaignId: { _eq: variables.campaignId },
+        isDeleted: { _eq: false },
+        _or: [
+          { firstName: { _ilike: searchPattern } },
+          { lastName: { _ilike: searchPattern } },
+          { ownerEmployee: { displayName: { _ilike: searchPattern } } },
+          { leadStatus: { value: { _ilike: searchPattern } } },
+          { leadStatus: { code: { _ilike: searchPattern } } }
+        ]
+      }
+    : createDisabledFilter()
+
+  const accountWhere: Record<string, any> = includeAccount
+    ? {
+        isDeleted: { _eq: false },
+        _and: [
+          hasAccountReferenceIds
+            ? {
+                _or: [{ salesCampaignId: { _eq: variables.campaignId } }, { id: { _in: accountReferenceIds } }]
+              }
+            : { salesCampaignId: { _eq: variables.campaignId } },
+          {
+            _or: [{ name: { _ilike: searchPattern } }, { ownerEmployee: { displayName: { _ilike: searchPattern } } }]
+          }
+        ]
+      }
+    : createDisabledFilter()
+
+  const contactWhere: Record<string, any> = includeContact
+    ? {
+        salesCampaignId: { _eq: variables.campaignId },
+        isDeleted: { _eq: false },
+        _or: [
+          { firstName: { _ilike: searchPattern } },
+          { lastName: { _ilike: searchPattern } },
+          { ownerEmployee: { displayName: { _ilike: searchPattern } } }
+        ]
+      }
+    : createDisabledFilter()
+
+  const opportunityWhere: Record<string, any> = includeOpportunity
+    ? {
+        salesCampaignId: { _eq: variables.campaignId },
+        isDeleted: { _eq: false },
+        _or: [
+          { name: { _ilike: searchPattern } },
+          { ownerEmployee: { displayName: { _ilike: searchPattern } } },
+          { opportunityStatus: { value: { _ilike: searchPattern } } },
+          { opportunityStatus: { code: { _ilike: searchPattern } } }
+        ]
+      }
+    : createDisabledFilter()
+
+  applyDateFilter(leadWhere, includeLead, dateFilter)
+  applyDateFilter(accountWhere, includeAccount, dateFilter)
+  applyDateFilter(contactWhere, includeContact, dateFilter)
+  applyDateFilter(opportunityWhere, includeOpportunity, dateFilter)
+
+  applyStatusFilters(variables, leadWhere, opportunityWhere, includeLead, includeOpportunity)
+
+  return {
+    activeType: variables.types?.[0],
+    orderByClause: getOrderByClause(variables),
+    leadWhere,
+    accountWhere,
+    contactWhere,
+    opportunityWhere
+  }
+}
+
+const getCampaignEntityQueryConfig = (activeType?: CampaignEntityType) => {
+  if (activeType === 'lead') {
+    return { query: GET_CAMPAIGN_LEAD_ENTITIES_QUERY, whereKey: 'leadWhere' as const }
+  }
+
+  if (activeType === 'account') {
+    return { query: GET_CAMPAIGN_ACCOUNT_ENTITIES_QUERY, whereKey: 'accountWhere' as const }
+  }
+
+  if (activeType === 'contact') {
+    return { query: GET_CAMPAIGN_CONTACT_ENTITIES_QUERY, whereKey: 'contactWhere' as const }
+  }
+
+  return { query: GET_CAMPAIGN_OPPORTUNITY_ENTITIES_QUERY, whereKey: 'opportunityWhere' as const }
+}
+
 // Campaign Record Query Hook
 export const useCampaignRecordQueries = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
+
+  const fetchCampaignEvents = useCallback(
+    async (variables: { campaignId: string }): Promise<CustomerCampaignEvent[]> => {
+      const query = GET_CAMPAIGN_EVENTS()
+      const result = await graphqlClient.request<CustomerCampaignEventsQueryResponse>(query, variables)
+      return result?.CustomerCampaignEvent ?? []
+    },
+    [graphqlClient]
+  )
+
+  const fetchCampaignContents = useCallback(
+    async (variables: { campaignId: string }): Promise<CustomerCampaignContent[]> => {
+      const query = GET_CAMPAIGN_CONTENTS()
+      const result = await graphqlClient.request<CustomerCampaignContentsQueryResponse>(query, variables)
+      return result?.CustomerCampaignContent ?? []
+    },
+    [graphqlClient]
+  )
+
+  const fetchCampaignAccounts = useCallback(
+    async (variables: { campaignId: string }): Promise<CustomerCampaignAccount[]> => {
+      const query = GET_CAMPAIGN_ACCOUNTS()
+      const result = await graphqlClient.request<CustomerCampaignAccountsQueryResponse>(query, variables)
+      return result?.CustomerCampaignAccount ?? []
+    },
+    [graphqlClient]
+  )
 
   const fetchCampaignRecord = useCallback(
     async (variables: { campaignId: string }) => {
@@ -337,23 +598,23 @@ export const useCampaignRecordQueries = (context: BusinessAppContextProps) => {
 
   const fetchCampaignEntities = useCallback(
     async (variables: CampaignRecordQueryVariables) => {
-      const query = GET_CAMPAIGN_ENTITIES()
-      const orderField = variables.orderBy?.[0] ? Object.keys(variables.orderBy[0])[0] : 'createdAt'
-      const orderDir = variables.orderBy?.[0] ? (variables.orderBy[0] as any)[orderField] : 'DESC'
-      const orderByClause = [{ [orderField]: orderDir }]
-      // Prepare search pattern for GraphQL (add wildcards)
-      // Use empty pattern % to match all if no search, so _or conditions work properly
-      const searchPattern = variables.search?.trim() ? `%${variables.search.trim()}%` : '%'
+      const { activeType, orderByClause, leadWhere, accountWhere, contactWhere, opportunityWhere } =
+        buildEntityWhereClauses(variables)
+      const queryConfig = getCampaignEntityQueryConfig(activeType)
 
-      const result = await graphqlClient.request<CampaignEntitiesQueryResponse>(query, {
-        campaignId: variables.campaignId,
-        search: searchPattern,
-        orderByLeads: orderByClause,
-        orderByAccounts: orderByClause,
-        orderByContacts: orderByClause,
-        orderByOpportunities: orderByClause
+      const whereClauseByType = {
+        leadWhere,
+        accountWhere,
+        contactWhere,
+        opportunityWhere
+      }
+
+      return graphqlClient.request<CampaignEntitiesQueryResponse>(queryConfig.query, {
+        where: whereClauseByType[queryConfig.whereKey],
+        limit: variables.limit,
+        offset: variables.offset,
+        orderBy: orderByClause
       })
-      return result
     },
     [graphqlClient]
   )
@@ -361,6 +622,9 @@ export const useCampaignRecordQueries = (context: BusinessAppContextProps) => {
   return {
     fetchCampaignRecord,
     fetchCampaignKPIs,
-    fetchCampaignEntities
+    fetchCampaignEntities,
+    fetchCampaignEvents,
+    fetchCampaignContents,
+    fetchCampaignAccounts
   }
 }

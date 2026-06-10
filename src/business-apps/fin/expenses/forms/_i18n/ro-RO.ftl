@@ -26,7 +26,7 @@ status-booked = Rezervat
 # ============================================
 
 value-employee = Angajat
-value-generated-allowance = Indemnizație generată
+value-generated-allowance = Diurnă generată
 
 # ============================================
 # Comment Section
@@ -80,7 +80,7 @@ label-non-deductible = Nedeductibil
 label-decision-date = Data deciziei
 label-confirmed = Confirmat
 label-expenses = Cheltuieli
-label-allowances = Indemnizații
+label-allowances = Diurne
 
 # ============================================
 # Request Types
@@ -108,7 +108,7 @@ section-financial-overview = Prezentare financiară
 section-trip-details = Detalii călătorie
 section-advance-payments = Plăți în avans
 section-expenses = Cheltuieli
-section-allowances = Indemnizații
+section-allowances = Diurne
 section-transaction-confirmation-details = Detalii confirmare tranzacție
 section-expense-plan = Plan de cheltuieli
 section-advance-payment = Plată în avans

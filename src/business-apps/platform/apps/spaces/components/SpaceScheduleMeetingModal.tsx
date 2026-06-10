@@ -7,6 +7,12 @@ export interface SpaceScheduleMeetingModalProps {
   isOpen: boolean
   onOpenChange: (open: boolean) => void
   accessToken: string
+  currentUser?: {
+    id: string
+    displayName?: string
+    firstName?: string
+    lastName?: string
+  }
   defaultCalendarId?: string
   initialTitle?: string
   initialParticipants?: CalendarEmployee[]
@@ -17,6 +23,7 @@ export const SpaceScheduleMeetingModal: React.FC<SpaceScheduleMeetingModalProps>
   isOpen,
   onOpenChange,
   accessToken,
+  currentUser,
   defaultCalendarId,
   initialTitle,
   initialParticipants = [],
@@ -32,6 +39,7 @@ export const SpaceScheduleMeetingModal: React.FC<SpaceScheduleMeetingModalProps>
       onClose={() => onOpenChange(false)}
       onSubmit={createMeeting}
       accessToken={accessToken}
+      currentUser={currentUser}
       availableCalendars={linkedCalendar ? [linkedCalendar] : []}
       includePersonal
       defaultCalendarId={defaultCalendarId}

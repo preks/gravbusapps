@@ -1,4 +1,5 @@
 export { useWhiteboards } from './useWhiteboards'
 export { useWhiteboardHubUrlState } from './useWhiteboardHubUrlState'
 export { useWhiteboardHubFavorites } from './useWhiteboardHubFavorites'
+export { useWhiteboardsHubShareLookup } from './useWhiteboardsHubShareLookup'
 export { useWhiteboardAiSocket } from './useWhiteboardAiSocket'

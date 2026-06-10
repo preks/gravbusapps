@@ -209,7 +209,7 @@ export function OpportunityBoardLayout<T extends GenericOpportunityForBoard>(
               </span>
             </div>
             <div>
-              <span className="gba:font-medium">{itemCount}</span> {itemCount === 1 ? 'deal' : 'deals'}
+              <span className="gba:font-medium">{itemCount}</span> {itemCount === 1 ? 'opportunity' : 'opportunities'}
             </div>
           </div>
         </div>

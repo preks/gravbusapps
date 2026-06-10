@@ -58,8 +58,10 @@ export interface GenericTask {
   status?: { value: string; code: string }
   priority?: { value: string }
   taskAssignees?: Array<{
+    assignedUserId?: string | null
     assignedEmployee?: {
       id: string
+      userId?: string
       displayName?: string
       fullName?: string
     }

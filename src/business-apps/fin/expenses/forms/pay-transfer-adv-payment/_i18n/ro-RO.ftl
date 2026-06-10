@@ -1,22 +1,18 @@
-# Pay Transfer Advance Payment - Romanian Translations (Form-specific)
+# Pay Transfer Advance Payment (transl.txt lowcoder keys)
 
-# Task Title
 task-title = Înmânează avansul
 
-# Error States
 error-loading-title = Eroare la încărcarea avansului
 error-no-data-title = Fără date
 error-no-data-description = Avansul nu a fost găsit
 
-# ============================================
-# Request Details Section (specific labels)
-# ============================================
+label-request-date = Data Solicitării
 
-label-request-date = Data cererii
+section-pickup-confirmation = Confirmarea Ridicării
+label-date-of-transfer = Data Transferului
+confirmation-checkbox-message-cash = Confirm că plata în avans a fost înmânată angajatului.
 
-# ============================================
-# Pickup Confirmation Section
-# ============================================
+label-payment-confirmed = Plată confirmată și înmânată
 
-section-pickup-confirmation = Confirmare ridicare
-confirmation-checkbox-message = Confirm că avansul a fost înmânat angajatului.
+action-view-document = Vizualizați documentul
+error-no-document = Nu există document disponibil

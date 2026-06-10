@@ -28,10 +28,10 @@
 # - Requires dev + prod1 SMS OAuth; prod2 optional; RC Azure (AZURE_*_PROD) for E3.
 #
 # Resource URL sync (production only):
-# - Resource URL sync is a separate manual step after production publish
+# - Resource URL creation is a separate automatic step after production publish
 # - Publish always creates `published-screens.txt` artifact with successfully promoted screens
-# - Manual sync step consumes EXACTLY `published-screens.txt` and performs exact-match sync only
-# - No fuzzy URL matching is performed during sync
+# - Creation step consumes EXACTLY `published-screens.txt` and creates missing URLs only
+# - Final release gate fails the pipeline after screen release and resource URL creation both ran
 #
 # SECONDARY TARGET (optional):
 # - To deploy to a second system in addition to staging, set the following vars
@@ -177,6 +177,7 @@ definitions:
         artifacts:
           - changed-tsx.txt
           - published-screens.txt
+          - screen-release-result.json
 
     - step: &publish-manual-screens
         name: Publish Manual Screens
@@ -241,8 +242,9 @@ definitions:
           - manual-screens.txt
           - all-screens.txt
           - published-screens.txt
+          - screen-release-result.json
     - step: &sync-resource-urls
-        name: Sync Resource URLs (manual)
+        name: Create Missing Resource URLs
         runs-on:
           - 'self.hosted'
           - 'do.global.runner.size2'
@@ -255,6 +257,19 @@ definitions:
         script:
           - bash scripts/ci-install-dependencies.sh
           - node scripts/sync-resource-urls.js
+        artifacts:
+          - resource-url-result.json
+    - step: &release-gate
+        name: Release Gate
+        runs-on:
+          - 'self.hosted'
+          - 'do.global.runner.size1'
+        size: 1x
+        clone:
+          enabled: true
+          depth: full
+        script:
+          - node scripts/release-gate.js
     - step: &sonar_scan
         name: Sonar scan
         runs-on:
@@ -303,12 +318,13 @@ pipelines:
 
     hotfix/*:
       - step: *publish-changed-prod-screens
+      - step: *sync-resource-urls
+      - step: *release-gate
 
     main:
       - step: *publish-changed-prod-screens
-      - step:
-          <<: *sync-resource-urls
-          trigger: manual
+      - step: *sync-resource-urls
+      - step: *release-gate
 
   custom:
     sms-smoke-weekly:
@@ -392,9 +408,8 @@ pipelines:
                 exit 1
               fi
       - step: *publish-manual-prod-screens
-      - step:
-          <<: *sync-resource-urls
-          trigger: manual
+      - step: *sync-resource-urls
+      - step: *release-gate
 
     calculate-hashes:
       - variables:

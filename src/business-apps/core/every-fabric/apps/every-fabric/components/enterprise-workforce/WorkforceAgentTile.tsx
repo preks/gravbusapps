@@ -1,67 +1,50 @@
-// Workforce agent tile — minimal, modern, professional.
+// Workforce agent tile - employee-style card for the Workforce overview.
 //
-// Design intent:
-//   - No glows, no gradient washes, no decorative rails.
-//   - Each agent's accent colour is used only on the small avatar block.
-//   - Active agents are visually distinct via a subtle green dot on the
-//     avatar plus an "Active" pill in the header; the primary action
-//     becomes a passive "Activated" indicator instead of "Run task".
-//   - The card is hover-aware (border darkens slightly) but stays flat.
+// Layout:
+//   - Avatar block + name + role/department in the header.
+//   - Status pill (Active / Paused) with a subtle dot on the avatar.
+//   - Description below.
+//   - Stats row: triggers · last run · credits this week.
+//   - Action row: Pause/Activate · Archive.
+//
+// The whole card is clickable (opens the agent detail); the action buttons
+// stop propagation so they keep their own behaviour.
+//
+// Designed to read like a row in an HR directory - the agent IS an employee.
 
 import { Button } from '@newwork/nw-design-system'
-import { ArchiveIcon, CheckIcon, GearSixIcon, PlusIcon, SparkleIcon } from '@phosphor-icons/react'
-import { getSourceDisplay } from '../agents/agentSourceUtils'
-import type { FabricAgent } from '../agents/agentTypes'
+import { ArchiveIcon, LightningIcon, PauseIcon, PlayIcon, PulseIcon, SparkleIcon } from '@phosphor-icons/react'
+import React from 'react'
+import type { WorkforceAgentSummary } from './useWorkforceData'
+import { formatLastRunLabel } from './runDisplay'
+import {
+  avatarAccent,
+  formatAgentName,
+  resolveInitials,
+  statusPill,
+  type WorkforceTileStatus
+} from './workforceAgentDisplay'
+import type { WorkforceAgent } from './workforceTypes'
 
-export type WorkforceTileStatus = 'active' | 'inactive' | 'builtin' | 'archived'
+export type { WorkforceTileStatus }
 
 interface WorkforceAgentTileProps {
-  agent: FabricAgent
-  status: WorkforceTileStatus
+  summary: WorkforceAgentSummary
   isActivating?: boolean
+  isPausing?: boolean
   isArchiving?: boolean
-  onActivate?: (agent: FabricAgent) => void
-  onArchive?: (agent: FabricAgent) => void
-  onConfigure?: (agent: FabricAgent) => void
+  onActivate?: (agent: WorkforceAgent) => void
+  onPause?: (agent: WorkforceAgent) => void
+  onArchive?: (agent: WorkforceAgent) => void
+  onConfigure?: (agent: WorkforceAgent) => void
   /** Optional 0-100 confidence shown as a corner badge when AI matching is active. */
   matchConfidence?: number
   /** Position 1-based within a ranked list. */
   matchRank?: number
-}
-
-function formatAgentName(name: string): string {
-  return name.replace(/[_-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-}
-
-function resolveInitials(name: string): string {
-  const parts = name.replace(/[_-]/g, ' ').split(/\s+/).filter(Boolean)
-  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
-  return name.slice(0, 2).toUpperCase()
-}
-
-function getStatusPill(status: WorkforceTileStatus): { label: string; className: string } {
-  switch (status) {
-    case 'active':
-      return {
-        label: 'Active',
-        className: 'gba:bg-emerald-50 gba:text-emerald-700'
-      }
-    case 'inactive':
-      return {
-        label: 'Inactive',
-        className: 'gba:bg-muted gba:text-muted-foreground'
-      }
-    case 'builtin':
-      return {
-        label: 'Built-in',
-        className: 'gba:bg-amber-50 gba:text-amber-700'
-      }
-    case 'archived':
-      return {
-        label: 'Archived',
-        className: 'gba:bg-muted gba:text-muted-foreground'
-      }
-  }
+  /** True when the agent currently has at least one in-flight run. */
+  isWorking?: boolean
+  /** Human-readable label of what the agent is doing right now. */
+  currentActivity?: string | null
 }
 
 interface MatchBadgeProps {
@@ -86,49 +69,89 @@ const MatchBadge: React.FC<MatchBadgeProps> = ({ confidence, rank }) => {
   )
 }
 
+interface StatChipProps {
+  icon: typeof LightningIcon
+  label: string
+  testId: string
+}
+
+const StatChip: React.FC<StatChipProps> = ({ icon: IconComponent, label, testId }) => (
+  <span
+    className="gba:inline-flex gba:items-center gba:gap-1 gba:text-[11px] gba:text-muted-foreground"
+    data-testid={testId}
+  >
+    <IconComponent className="gba:h-3 gba:w-3" />
+    {label}
+  </span>
+)
+
 export const WorkforceAgentTile: React.FC<WorkforceAgentTileProps> = ({
-  agent,
-  status,
+  summary,
   isActivating = false,
+  isPausing = false,
   isArchiving = false,
   onActivate,
+  onPause,
   onArchive,
   onConfigure,
   matchConfidence,
-  matchRank
+  matchRank,
+  isWorking = false,
+  currentActivity
 }) => {
-  const displayName = formatAgentName(agent.name)
-  const sourceDisplay = getSourceDisplay(agent.source)
-  const accentColor = agent.color ?? '#6366f1'
-  const statusPill = getStatusPill(status)
-  const isActive = status === 'active'
-  const isBuiltin = status === 'builtin'
-  const isArchived = status === 'archived'
-  const canArchive = isActive && (agent.source === 'prompt_odm' || agent.source === 'autonomous_agent')
+  const { agent } = summary
+  const profile = agent.workforce_profile
+  const displayName = formatAgentName(agent.display_name || agent.name)
+  // Accent comes from a DS-token palette keyed off the agent id so each agent
+  // keeps a stable colour without hardcoded hex or inline styles.
+  const accentClass = avatarAccent(agent.agent_id)
+  const status: WorkforceTileStatus = agent.status === 'paused' ? 'paused' : 'active'
+  const pill = statusPill(status)
   const isTopMatch = matchRank === 1
+  const roleLabel = profile.role || agent.domain || 'Workforce specialist'
+  const departmentLabel = profile.department ?? null
+  const canOpen = Boolean(onConfigure)
+  const handleOpen = () => onConfigure?.(agent)
+  const handleCardKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!canOpen) return
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      handleOpen()
+    }
+  }
 
   return (
     <div
       className={`gba:group gba:relative gba:flex gba:flex-col gba:rounded-xl gba:border gba:bg-card gba:transition-colors gba:duration-150 ${
         isTopMatch ? 'gba:border-foreground/30' : 'gba:border-border gba:hover:border-foreground/20'
-      } ${isArchived ? 'gba:opacity-75' : ''}`}
-      data-testid={`workforce-agent-tile-${agent.id}`}
+      } ${status === 'paused' ? 'gba:opacity-80' : ''} ${
+        canOpen
+          ? 'gba:cursor-pointer gba:focus-visible:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-ring'
+          : ''
+      }`}
+      data-testid={`workforce-agent-tile-${agent.agent_id}`}
+      role={canOpen ? 'button' : undefined}
+      tabIndex={canOpen ? 0 : undefined}
+      aria-label={canOpen ? `Open ${displayName}` : undefined}
+      onClick={canOpen ? handleOpen : undefined}
+      onKeyDown={canOpen ? handleCardKeyDown : undefined}
     >
       <div className="gba:flex gba:flex-1 gba:flex-col gba:p-4">
         {/* Header */}
         <div className="gba:flex gba:items-start gba:gap-3">
           <div className="gba:relative gba:shrink-0">
             <div
-              className="gba:flex gba:h-10 gba:w-10 gba:items-center gba:justify-center gba:rounded-lg gba:text-xs gba:font-semibold gba:text-white"
-              style={{ backgroundColor: accentColor }}
+              className={`gba:flex gba:h-10 gba:w-10 gba:items-center gba:justify-center gba:rounded-lg gba:text-xs gba:font-semibold ${accentClass}`}
             >
-              {resolveInitials(agent.name)}
+              {resolveInitials(displayName)}
             </div>
-            {isActive && (
-              <span
-                aria-hidden
-                className="gba:absolute gba:-bottom-0.5 gba:-right-0.5 gba:h-2.5 gba:w-2.5 gba:rounded-full gba:border-2 gba:border-card gba:bg-emerald-500"
-              />
+            {status === 'active' && (
+              <span aria-hidden className="gba:absolute gba:-bottom-0.5 gba:-right-0.5 gba:flex gba:h-2.5 gba:w-2.5">
+                {isWorking && (
+                  <span className="gba:absolute gba:inline-flex gba:h-full gba:w-full gba:animate-ping gba:rounded-full gba:bg-emerald-400" />
+                )}
+                <span className="gba:relative gba:inline-flex gba:h-2.5 gba:w-2.5 gba:rounded-full gba:border-2 gba:border-card gba:bg-emerald-500" />
+              </span>
             )}
           </div>
 
@@ -137,25 +160,29 @@ export const WorkforceAgentTile: React.FC<WorkforceAgentTileProps> = ({
               <h3 className="gba:truncate gba:text-sm gba:font-semibold gba:text-foreground">{displayName}</h3>
               {matchConfidence !== undefined ? (
                 <MatchBadge confidence={matchConfidence} rank={matchRank} />
+              ) : isWorking ? (
+                <span
+                  className="gba:inline-flex gba:shrink-0 gba:items-center gba:gap-1 gba:rounded-full gba:bg-emerald-50 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-semibold gba:text-emerald-700"
+                  data-testid={`workforce-agent-working-${agent.agent_id}`}
+                >
+                  <span className="gba:relative gba:flex gba:h-1.5 gba:w-1.5">
+                    <span className="gba:absolute gba:inline-flex gba:h-full gba:w-full gba:animate-ping gba:rounded-full gba:bg-emerald-400" />
+                    <span className="gba:relative gba:inline-flex gba:h-1.5 gba:w-1.5 gba:rounded-full gba:bg-emerald-500" />
+                  </span>
+                  Working
+                </span>
               ) : (
                 <span
-                  className={`gba:shrink-0 gba:rounded-full gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium ${statusPill.className}`}
+                  className={`gba:shrink-0 gba:rounded-full gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium ${pill.className}`}
+                  data-testid={`workforce-agent-status-${agent.agent_id}`}
                 >
-                  {statusPill.label}
+                  {pill.label}
                 </span>
               )}
             </div>
-            <p className="gba:mt-0.5 gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
-              <span
-                className={`gba:inline-flex gba:items-center gba:rounded-full gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium ${sourceDisplay.badgeClass}`}
-              >
-                {sourceDisplay.label}
-              </span>
-              {agent.specialty && (
-                <span className="gba:truncate" title={agent.specialty}>
-                  · {agent.specialty}
-                </span>
-              )}
+            <p className="gba:mt-0.5 gba:truncate gba:text-xs gba:text-muted-foreground" title={roleLabel}>
+              {roleLabel}
+              {departmentLabel ? ` · ${departmentLabel}` : ''}
             </p>
           </div>
         </div>
@@ -165,55 +192,82 @@ export const WorkforceAgentTile: React.FC<WorkforceAgentTileProps> = ({
           {agent.description || 'No description provided yet.'}
         </p>
 
-        {/* Action row pinned at the bottom */}
-        <div className="gba:mt-4 gba:flex gba:items-center gba:gap-2">
-          {isActive ? (
-            <>
-              <div
-                className="gba:flex gba:h-9 gba:flex-1 gba:items-center gba:justify-center gba:gap-1.5 gba:rounded-md gba:border gba:border-emerald-200 gba:bg-emerald-50 gba:text-xs gba:font-medium gba:text-emerald-700"
-                data-testid={`workforce-agent-activated-${agent.id}`}
-              >
-                <CheckIcon className="gba:h-3.5 gba:w-3.5" weight="bold" />
-                Activated
-              </div>
-              {onConfigure && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onConfigure(agent)}
-                  data-testid={`workforce-agent-configure-${agent.id}`}
-                  aria-label="Configure agent"
-                >
-                  <GearSixIcon className="gba:h-3.5 gba:w-3.5" />
-                </Button>
-              )}
-              {canArchive && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={isArchiving}
-                  onClick={() => onArchive?.(agent)}
-                  data-testid={`workforce-agent-archive-${agent.id}`}
-                  aria-label="Archive agent"
-                >
-                  <ArchiveIcon className="gba:h-3.5 gba:w-3.5" />
-                </Button>
-              )}
-            </>
-          ) : isBuiltin ? (
-            <div className="gba:flex gba:h-9 gba:flex-1 gba:items-center gba:justify-center gba:rounded-md gba:bg-muted/50 gba:text-xs gba:text-muted-foreground">
-              Activated automatically
-            </div>
+        {isWorking && currentActivity && (
+          <p
+            className="gba:mt-2 gba:flex gba:items-center gba:gap-1.5 gba:truncate gba:text-[11px] gba:font-medium gba:text-emerald-700"
+            title={currentActivity}
+            data-testid={`workforce-agent-activity-${agent.agent_id}`}
+          >
+            <PulseIcon className="gba:h-3 gba:w-3 gba:shrink-0" weight="bold" />
+            <span className="gba:truncate">{currentActivity}</span>
+          </p>
+        )}
+
+        {/* Stats row */}
+        <div
+          className="gba:mt-3 gba:flex gba:flex-wrap gba:items-center gba:gap-x-3 gba:gap-y-1"
+          data-testid={`workforce-agent-stats-${agent.agent_id}`}
+        >
+          <StatChip
+            icon={LightningIcon}
+            label={`${summary.activeTriggerCount}/${summary.triggerCount} triggers`}
+            testId={`workforce-agent-triggers-${agent.agent_id}`}
+          />
+          <StatChip
+            icon={PulseIcon}
+            label={`Last run ${formatLastRunLabel(summary.lastCompletedAt)}`}
+            testId={`workforce-agent-lastrun-${agent.agent_id}`}
+          />
+          <StatChip
+            icon={SparkleIcon}
+            label={`${summary.creditsThisWeek} credits / 7d`}
+            testId={`workforce-agent-credits-${agent.agent_id}`}
+          />
+        </div>
+
+        {/* Action row pinned at the bottom. Stop propagation so the buttons
+            keep their own behaviour and don't also trigger the card open. */}
+        <div
+          className="gba:mt-4 gba:flex gba:items-center gba:gap-2"
+          onClick={event => event.stopPropagation()}
+          onKeyDown={event => event.stopPropagation()}
+          role="presentation"
+        >
+          {status === 'active' ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gba:flex-1"
+              disabled={isPausing}
+              onClick={() => onPause?.(agent)}
+              data-testid={`workforce-agent-pause-${agent.agent_id}`}
+            >
+              <PauseIcon className="gba:mr-1 gba:h-3.5 gba:w-3.5" />
+              {isPausing ? 'Pausing…' : 'Pause'}
+            </Button>
           ) : (
             <Button
               size="sm"
               className="gba:flex-1"
               disabled={isActivating}
               onClick={() => onActivate?.(agent)}
-              data-testid={`workforce-agent-activate-${agent.id}`}
+              data-testid={`workforce-agent-activate-${agent.agent_id}`}
             >
-              <PlusIcon className="gba:mr-1 gba:h-3.5 gba:w-3.5" />
+              <PlayIcon className="gba:mr-1 gba:h-3.5 gba:w-3.5" />
               {isActivating ? 'Activating…' : 'Activate'}
+            </Button>
+          )}
+
+          {onArchive && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isArchiving}
+              onClick={() => onArchive(agent)}
+              data-testid={`workforce-agent-archive-${agent.agent_id}`}
+              aria-label="Remove from workforce"
+            >
+              <ArchiveIcon className="gba:h-3.5 gba:w-3.5" />
             </Button>
           )}
         </div>

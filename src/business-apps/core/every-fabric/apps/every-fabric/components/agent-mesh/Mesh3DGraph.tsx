@@ -2,9 +2,10 @@
 // `MeshGraph` so `AgentMeshCanvas` can swap renderers based on the 2D/3D
 // view-mode toggle without owning any WebGL-specific state.
 
-import { Component, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { Component, type ReactNode, useMemo, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
 import type { TraceModel } from '../../utils/traceModel'
+import { detectWebGL, usePrefersReducedMotion } from '../glass-card-sphere/glassCardEnv'
 import type { MeshLayerKey } from './meshLayers'
 import { Mesh3DScene } from './Mesh3DScene'
 import { useMeshTheme } from './useMeshTheme'
@@ -49,34 +50,6 @@ export interface Mesh3DGraphProps {
   onPaneClick?: () => void
   /** Optional fallback when WebGL is unavailable (rendered in place of the canvas). */
   fallback?: React.ReactNode
-}
-
-/** Cheap one-time WebGL probe so we render the 2D fallback in headless environments. */
-function detectWebGL(): boolean {
-  if (typeof window === 'undefined' || typeof document === 'undefined') return false
-  try {
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('webgl2') || canvas.getContext('webgl')
-    return !!ctx
-  } catch {
-    return false
-  }
-}
-
-function usePrefersReducedMotion(): boolean {
-  const [prefers, setPrefers] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false
-    return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
-  })
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const mq = window.matchMedia?.('(prefers-reduced-motion: reduce)')
-    if (!mq) return
-    const handler = () => setPrefers(mq.matches)
-    mq.addEventListener?.('change', handler)
-    return () => mq.removeEventListener?.('change', handler)
-  }, [])
-  return prefers
 }
 
 export function Mesh3DGraph(props: Mesh3DGraphProps) {

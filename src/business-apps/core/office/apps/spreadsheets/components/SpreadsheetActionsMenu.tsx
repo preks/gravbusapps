@@ -15,7 +15,7 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { FileSpreadsheet, History, Save, Lock, Unlock, Download, Zap, BarChart3 } from 'lucide-react'
-import { ArrowsClockwise } from '@phosphor-icons/react'
+import { ArrowsClockwise, ShareNetwork, Users } from '@phosphor-icons/react'
 import translations from '../_i18n'
 
 export interface SpreadsheetActionsMenuProps {
@@ -29,6 +29,7 @@ export interface SpreadsheetActionsMenuProps {
   // Other actions
   canEdit: boolean
   onShare?: () => void
+  onManageShares?: () => void
   onOpenAnalytics: () => void
   onOpenAutomations: () => void
   /** When provided with showCheckCollectionResponses, adds a menu entry to fetch collection completions */
@@ -47,6 +48,8 @@ export const SpreadsheetActionsMenu: React.FC<SpreadsheetActionsMenuProps> = ({
   onReleaseLock,
   onOpenAnalytics,
   onOpenAutomations,
+  onShare,
+  onManageShares,
   onCheckCollectionResponses,
   showCheckCollectionResponses = false,
   allowExport,
@@ -96,6 +99,18 @@ export const SpreadsheetActionsMenu: React.FC<SpreadsheetActionsMenuProps> = ({
             <DropdownMenuItem onClick={onExport}>
               <Download className="gba:w-4 gba:h-4 gba:mr-2" />
               {t('menu-export-to-excel')}
+            </DropdownMenuItem>
+          )}
+          {onShare && (
+            <DropdownMenuItem onClick={onShare} data-testid={`${testId}-share`}>
+              <ShareNetwork className="gba:w-4 gba:h-4 gba:mr-2" />
+              {t('menu-share')}
+            </DropdownMenuItem>
+          )}
+          {onManageShares && (
+            <DropdownMenuItem onClick={onManageShares} data-testid={`${testId}-manage-sharing`}>
+              <Users className="gba:w-4 gba:h-4 gba:mr-2" />
+              {t('action-manage-sharing')}
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />

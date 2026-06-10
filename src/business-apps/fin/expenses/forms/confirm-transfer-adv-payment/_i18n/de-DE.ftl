@@ -14,6 +14,10 @@ error-invalid-date = Bitte geben Sie ein gültiges Transaktionsdatum ein (JJJJ-M
 error-confirm-required = Bitte bestätigen Sie die Zahlungsüberweisung
 error-confirm-failed = Bestätigung der Zahlung fehlgeschlagen. Bitte versuchen Sie es erneut.
 
+label-request-date = Anfragedatum
+action-view-document = Dokument anzeigen
+error-no-document = Kein Dokument verfügbar
+
 # ============================================
 # Transaction Confirmation Section
 # ============================================

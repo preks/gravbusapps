@@ -74,6 +74,44 @@ describe('applyMoveCellRangeTransform', () => {
     expect((next[0] as Record<string, unknown>).col_c).toBe('B')
   })
 
+  it('moves formula objects and clears the source cell', () => {
+    const rows = [
+      buildRow({
+        _id: 'r0',
+        _gridRowIndex: 0,
+        col_a: { f: '=SUM(B1:B5)', v: 83 },
+        col_b: 'keep'
+      }),
+      buildRow({ _id: 'r1', _gridRowIndex: 1 })
+    ]
+
+    const next = applyMoveCellRangeTransform({
+      rows,
+      columnNamesByGridIndex: columnNames,
+      fromRange: { startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 },
+      toRange: { startRow: 1, endRow: 1, startColumn: 2, endColumn: 2 }
+    })
+
+    expect((next[0] as Record<string, unknown>).col_a).toBeUndefined()
+    expect((next[0] as Record<string, unknown>).col_b).toBe('keep')
+    expect((next[1] as Record<string, unknown>).col_c).toEqual({ f: '=SUM(B1:B5)', v: 83 })
+  })
+
+  it('does not clear overlapping destinations after moving formula objects', () => {
+    const rows = [buildRow({ _id: 'r0', _gridRowIndex: 0, col_a: { f: '=A1', v: 1 }, col_b: { f: '=B1', v: 2 } })]
+
+    const next = applyMoveCellRangeTransform({
+      rows,
+      columnNamesByGridIndex: columnNames,
+      fromRange: { startRow: 0, endRow: 0, startColumn: 0, endColumn: 1 },
+      toRange: { startRow: 0, endRow: 0, startColumn: 1, endColumn: 2 }
+    })
+
+    expect((next[0] as Record<string, unknown>).col_a).toBeUndefined()
+    expect((next[0] as Record<string, unknown>).col_b).toEqual({ f: '=A1', v: 1 })
+    expect((next[0] as Record<string, unknown>).col_c).toEqual({ f: '=B1', v: 2 })
+  })
+
   it('skips out-of-bounds rows and columns', () => {
     const rows = [buildRow({ _id: 'r0', _gridRowIndex: 0, col_a: 'A' })]
     const next = applyMoveCellRangeTransform({

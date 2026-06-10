@@ -18,6 +18,7 @@ import {
 } from './services/SpreadsheetApiService'
 
 import { useSpreadsheetViewerState } from './hooks/useSpreadsheetViewerState'
+import { resolveSpreadsheetKnownSheetRouting } from './utils/spreadsheetKnownSheetRouting'
 import { sortSpreadsheetRowsBySheetSettings } from './utils/spreadsheetSheetRowSort'
 import { attachSnapshotCoversVersions, mergeSnapshotCoversVersions } from './utils/spreadsheetSnapshotCoverage'
 import {
@@ -30,15 +31,22 @@ import { useSpreadsheetMutationPipeline } from './hooks/useSpreadsheetMutationPi
 import { resolveBackendDirtyRegionsToAuthoritativeRegions } from './utils/spreadsheetDirtyRegions'
 import {
   computeAuthoritativeRegionForMaterializedRows,
+  estimateAuthoritativeGridReapplyTargetCellCount,
   normalizeAuthoritativeGridReapplyTarget,
   type AuthoritativeGridReapplyTarget,
   type AuthoritativeGridRegion,
   type ForceAuthoritativeGridReapplyOptions
 } from './utils/spreadsheetAuthoritativeRegion'
 import {
+  buildAuthoritativePaintCoverageRegions,
   classifyBackendDirtyRegionReapply,
-  isServerAuthoritativeRepairReapply
+  isServerAuthoritativeRepairReapply,
+  subtractAuthoritativeRepairRegions
 } from './utils/spreadsheetBackendRepairReapply'
+import {
+  buildAuthoritativePaintCellsForMaterializedRows,
+  buildAuthoritativePaintCellsFromViewerRows
+} from './utils/spreadsheetAuthoritativeProjector'
 import { useSpreadsheetSheetWorkQueue } from './hooks/useSpreadsheetSheetWorkQueue'
 import { splitUnifiedOperationsByPersistKind } from './core/spreadsheetLocalPersistChunks'
 
@@ -69,6 +77,106 @@ const readOperationCells = (op: SpreadsheetBatchOperation): Record<string, unkno
     return data.cells.filter((cell): cell is Record<string, unknown> => Boolean(cell) && typeof cell === 'object')
   }
   return [data]
+}
+
+const readOperationCellIndex = (
+  cell: Record<string, unknown>,
+  keys: readonly ['rowIndex', 'row'] | ['colIndex', 'col']
+): number | null => {
+  const direct = cell[keys[0]]
+  if (typeof direct === 'number' && Number.isFinite(direct)) return Math.trunc(direct)
+  const fallback = cell[keys[1]]
+  if (typeof fallback === 'number' && Number.isFinite(fallback)) return Math.trunc(fallback)
+  return null
+}
+
+const readOperationStylePatch = (value: unknown): SpreadsheetStylePatch | null => {
+  return value && typeof value === 'object' ? (value as SpreadsheetStylePatch) : null
+}
+
+const mergeAckDirectPaintItems = (
+  baseItems: readonly SpreadsheetBulkRemoteCellItem[],
+  overlayItems: readonly SpreadsheetBulkRemoteCellItem[]
+): SpreadsheetBulkRemoteCellItem[] => {
+  const byKey = new Map<string, SpreadsheetBulkRemoteCellItem>()
+  for (const item of baseItems) {
+    byKey.set(`${item.rowIndex}:${item.colIndex}`, item)
+  }
+  for (const item of overlayItems) {
+    const key = `${item.rowIndex}:${item.colIndex}`
+    const existing = byKey.get(key)
+    if (!existing) {
+      byKey.set(key, item)
+      continue
+    }
+    byKey.set(key, {
+      ...existing,
+      ...item,
+      value: item.value !== undefined ? item.value : existing.value,
+      rowId: item.rowId ?? existing.rowId,
+      options:
+        existing.options || item.options
+          ? {
+              ...(existing.options ?? {}),
+              ...(item.options ?? {})
+            }
+          : undefined
+    })
+  }
+  return [...byKey.values()]
+}
+
+const buildAckDirectPaintCellsFromOperations = (
+  targetSheetId: string,
+  operations: readonly SpreadsheetBatchOperation[]
+): SpreadsheetBulkRemoteCellItem[] => {
+  const items: SpreadsheetBulkRemoteCellItem[] = []
+  for (const operation of operations) {
+    const operationType = String(operation.type ?? '')
+    if (
+      operationType !== 'set_cell' &&
+      operationType !== 'set_range' &&
+      operationType !== 'clear_cell' &&
+      operationType !== 'set_style'
+    ) {
+      continue
+    }
+    const operationData =
+      operation.data && typeof operation.data === 'object' ? (operation.data as Record<string, unknown>) : null
+    if (!operationData) continue
+    const univerStyles =
+      operationType === 'set_style' && operationData.styles && typeof operationData.styles === 'object'
+        ? (operationData.styles as Record<string, unknown>)
+        : undefined
+    for (const cell of readOperationCells(operation)) {
+      const rowIndex = readOperationCellIndex(cell, ['rowIndex', 'row'])
+      const colIndex = readOperationCellIndex(cell, ['colIndex', 'col'])
+      if (rowIndex == null || colIndex == null) continue
+      items.push({
+        rowIndex,
+        colIndex,
+        value:
+          operationType === 'set_style'
+            ? undefined
+            : operationType === 'clear_cell'
+              ? null
+              : Object.prototype.hasOwnProperty.call(cell, 'value')
+                ? cell.value
+                : null,
+        rowId: typeof cell.rowId === 'string' ? cell.rowId : undefined,
+        options:
+          operationType === 'set_style'
+            ? {
+                stylePatch: readOperationStylePatch(cell.stylePatch),
+                univerStyles,
+                targetSheetId,
+                useSenderA1Row: true
+              }
+            : { targetSheetId }
+      })
+    }
+  }
+  return items
 }
 
 const extractOwnedCellKeysFromChunk = (chunk: SpreadsheetBatchOperation[]): string[] => {
@@ -106,6 +214,14 @@ const extractPendingLocalMutationCellKeysFromChunk = (
   }
   return Array.from(keys)
 }
+
+const collectAcknowledgedOverlayReleaseKeys = (
+  sheetId: string,
+  operations: SpreadsheetBatchOperation[]
+): { ownedCellKeys: string[]; protectedCellKeys: string[] } => ({
+  ownedCellKeys: extractOwnedCellKeysFromChunk(operations),
+  protectedCellKeys: extractPendingLocalMutationCellKeysFromChunk(sheetId, operations)
+})
 
 import { useSpreadsheetCheckpointOrchestration } from './hooks/useSpreadsheetCheckpointOrchestration'
 import { useSpreadsheetDiagnosticsTrace } from './hooks/useSpreadsheetDiagnosticsTrace'
@@ -156,7 +272,9 @@ import {
   releaseSpreadsheetMutationOwnershipFromResponse,
   SpreadsheetIntentJournal,
   SpreadsheetVersionCausalOwnershipRegistry,
+  type SpreadsheetBulkRemoteCellItem,
   type SpreadsheetFeatureOperationPayload,
+  type SpreadsheetStylePatch,
   type SpreadsheetLiveRemoteApplyVersionScope
 } from './core'
 import type { SpreadsheetCollaborationManager } from './services/SpreadsheetCollaborationManager'
@@ -189,6 +307,7 @@ import type {
 import { useEntityDataSource } from './hooks/useEntityDataSource'
 import { useSpreadsheetAutomations } from './hooks/useSpreadsheetAutomations'
 import { useSpreadsheetBulkRows, syncTrackingHeaderRowWithColumnLabels } from './hooks/useSpreadsheetBulkRows'
+import { useSpreadsheetCommentSidebar } from './hooks/useSpreadsheetCommentSidebar'
 import { useSpreadsheetColumns } from './hooks/useSpreadsheetColumns'
 import { useVersionUserDisplays } from '@/business-apps/core/office/apps/documents/hooks/useVersionUserDisplays'
 
@@ -296,6 +415,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   onBack,
   onNavigateToSpreadsheetHub,
   onShare,
+  onManageShares,
   onEdit,
   isEditing = true,
   isTrashedApp = false,
@@ -606,7 +726,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     getRichestKnownRowsForSheet,
     commitLocalSheetData,
     commitOptimisticActiveSheetRows,
-    syncSheetRowsIntoLocalState
+    syncSheetRowsIntoLocalState,
+    stageAuthoritativeDirectPaintForSync
   } = useSpreadsheetViewerSessionModel({
     app,
     spreadsheetSession,
@@ -639,28 +760,87 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       options?: ForceAuthoritativeGridReapplyOptions
     ): AuthoritativeGridRegion[] | null => {
       const regions = normalizeAuthoritativeGridReapplyTarget(target)
-      if (!regions) return null
+      const isFullGridRepair = regions == null
+      if (isFullGridRepair && options?.allowFullGridReapply !== true) {
+        return null
+      }
       if (!areCanonicalSheetIdsEqual(targetSheetId, activeSheetIdRef.current, createdSheetIdAliasesRef.current)) {
         return null
       }
 
-      const scheduledRegions = regions.map(region => ({ ...region }))
+      const scheduledRegions = regions?.map(region => ({ ...region })) ?? []
       const repairDescriptor = {
         reason: options?.reason,
         pendingLocalFilterPolicy: options?.pendingLocalFilterPolicy
       }
       const isRepairReapply = isServerAuthoritativeRepairReapply(repairDescriptor)
+      const isBackendDirtyRepairReapply =
+        repairDescriptor.reason === 'dirty_regions_from_backend_used' ||
+        repairDescriptor.reason === 'dirty_regions_from_backend_materialization'
+      const isRowMaterializationRepairReapply = repairDescriptor.reason === 'row_materialization'
 
-      if (isRepairReapply) {
+      let nextScheduledRegions = scheduledRegions
+      let preserveStagedDirectPaint = false
+      if (
+        !isFullGridRepair &&
+        isRepairReapply &&
+        (isBackendDirtyRepairReapply || isRowMaterializationRepairReapply) &&
+        authoritativePaintCellsRef.current?.length
+      ) {
+        preserveStagedDirectPaint = true
+        const remainingRegions = subtractAuthoritativeRepairRegions({
+          target: scheduledRegions,
+          coveredRegions: buildAuthoritativePaintCoverageRegions(authoritativePaintCellsRef.current)
+        })
+        if (remainingRegions && remainingRegions.length === 0) {
+          debugLog('authoritative repair skipped covered by staged direct paint', {
+            sheetId: targetSheetId,
+            reason: repairDescriptor.reason,
+            regionCount: scheduledRegions.length,
+            regionCellEstimate: estimateAuthoritativeGridReapplyTargetCellCount(scheduledRegions),
+            stagedPaintCellCount: authoritativePaintCellsRef.current.length
+          })
+          return null
+        }
+        if (remainingRegions && remainingRegions.length < scheduledRegions.length) {
+          nextScheduledRegions = remainingRegions
+          debugLog('authoritative repair reduced by staged direct paint', {
+            sheetId: targetSheetId,
+            reason: repairDescriptor.reason,
+            originalRegionCount: scheduledRegions.length,
+            remainingRegionCount: remainingRegions.length,
+            originalRegionCellEstimate: estimateAuthoritativeGridReapplyTargetCellCount(scheduledRegions),
+            remainingRegionCellEstimate: estimateAuthoritativeGridReapplyTargetCellCount(remainingRegions),
+            stagedPaintCellCount: authoritativePaintCellsRef.current.length
+          })
+        }
+      }
+
+      if (isRepairReapply && !preserveStagedDirectPaint) {
         authoritativePaintCellsRef.current = null
         authoritativePaintMetaRef.current = null
         const generation = (coordinatedAuthoritativeRepairGenerationRef.current += 1)
-        debugLog('authoritative repair scheduled', {
+        debugLog(isFullGridRepair ? 'authoritative full repair scheduled' : 'authoritative repair scheduled', {
           sheetId: targetSheetId,
           reason: repairDescriptor.reason,
           generation,
-          regionCount: scheduledRegions.length
+          fullGrid: isFullGridRepair,
+          regionCount: nextScheduledRegions.length
         })
+      } else if (isRepairReapply && preserveStagedDirectPaint) {
+        const generation = (coordinatedAuthoritativeRepairGenerationRef.current += 1)
+        debugLog(
+          isFullGridRepair
+            ? 'authoritative full repair scheduled after staged direct paint'
+            : 'authoritative repair scheduled after staged direct paint',
+          {
+            sheetId: targetSheetId,
+            reason: repairDescriptor.reason,
+            generation,
+            fullGrid: isFullGridRepair,
+            regionCount: nextScheduledRegions.length
+          }
+        )
       }
 
       globalThis.setTimeout(() => {
@@ -668,12 +848,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           return
         }
         spreadsheetGridRef.current?.forceAuthoritativeReapply?.(
-          scheduledRegions.length === 1 ? scheduledRegions[0] : scheduledRegions,
-          options
+          isFullGridRepair ? null : nextScheduledRegions.length === 1 ? nextScheduledRegions[0] : nextScheduledRegions,
+          preserveStagedDirectPaint ? { ...options, preserveStagedDirectPaint: true } : options
         )
       }, 0)
 
-      return scheduledRegions
+      return nextScheduledRegions
     },
     [
       activeSheetIdRef,
@@ -855,6 +1035,15 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   })
 
   const emitDimensionSyncRef = useRef<(payload: CellDimensionsPayload) => void>(() => {})
+  const columnStructureStateRef = useRef<{
+    healthy: boolean
+    pendingInsertedRange: { startIndex: number; endIndex: number; columnNames: string[] } | null
+    expectedColumnsSignature: string | null
+  }>({
+    healthy: true,
+    pendingInsertedRange: null,
+    expectedColumnsSignature: null
+  })
 
   const {
     pendingColumnWidthOverrides,
@@ -868,6 +1057,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     bootstrapSnapshot,
     activeSheetId,
     activeSheetColumns: activeSheet.columns,
+    columnStructureStateRef,
     canEditWithLockRef,
     emitDimensionSyncRef,
     applyLocalAppUpdate,
@@ -1209,12 +1399,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     leaveGuardSheetErrorRef.current = sheetPersist.error
     leaveGuardSheetSavingRef.current = sheetPersist.isSaving
   }, [sheetPersist.hasLocalDirty, sheetPersist.error, sheetPersist.isSaving])
-
-  const comments = useComments({
-    entityId: app.id,
-    entityType: 'spreadsheet_app',
-    apiService: SpreadsheetApiService
-  })
 
   const publishing = usePublishing({
     entityId: app.id,
@@ -1612,69 +1796,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   })
   const [isExporting, setIsExporting] = useState(false)
 
-  const commentedCells = useMemo(() => {
-    const allComments = Array.isArray(comments.comments) ? comments.comments : []
-    const roots = allComments
-      .filter(comment => {
-        const record = comment as {
-          type?: string
-          parentId?: string
-          resolvedAt?: string
-          sheetId?: string
-          cellReference?: string
-          content?: string
-          createdByName?: string
-          createdByAvatar?: string
-          createdAt?: string
-        }
-        return (
-          record.type === 'cell' &&
-          !record.parentId &&
-          !record.resolvedAt &&
-          typeof record.cellReference === 'string' &&
-          record.cellReference.trim().length > 0 &&
-          (!record.sheetId || record.sheetId === activeSheetId)
-        )
-      })
-      .map(comment => {
-        const record = comment as {
-          cellReference: string
-          content?: string
-          createdByName?: string
-          createdByAvatar?: string
-          createdAt?: string
-        }
-        return {
-          cellReference: record.cellReference.trim().toUpperCase(),
-          content: String(record.content || ''),
-          createdByName: record.createdByName,
-          createdByAvatar: record.createdByAvatar,
-          createdAt: record.createdAt
-        }
-      })
-    const latestByCell = new Map<
-      string,
-      { cellReference: string; content: string; createdByName?: string; createdByAvatar?: string; createdAt?: string }
-    >()
-    for (const comment of roots) {
-      const existing = latestByCell.get(comment.cellReference)
-      if (!existing) {
-        latestByCell.set(comment.cellReference, comment)
-        continue
-      }
-      const existingTs = existing.createdAt ? Date.parse(existing.createdAt) : 0
-      const nextTs = comment.createdAt ? Date.parse(comment.createdAt) : 0
-      if (nextTs >= existingTs) {
-        latestByCell.set(comment.cellReference, comment)
-      }
-    }
-    return Array.from(latestByCell.values())
-  }, [comments.comments, activeSheetId])
-  const getSelectedCellRef = useCallback(
-    (): string | null => spreadsheetGridRef.current?.getActiveCellReference?.() ?? null,
-    []
-  )
-
   const trackSnapshotCellClears = useCallback((sheetId: string, cells: SnapshotCellCoordinate[]) => {
     appendPendingSnapshotClearCoordinates(pendingSnapshotClearCellsRef.current, sheetId, cells)
   }, [])
@@ -1738,10 +1859,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     },
     [enqueueDiagnosticsTraceEvent, forgetSnapshotCellClears, trackSnapshotCellClears]
   )
-
-  const handleOpenCommentRequest = useCallback(() => {
-    setShowComments(true)
-  }, [])
 
   const markSheetNeedsGridMaterialization = useCallback(
     (sheetId: string, reason: string) => {
@@ -1907,6 +2024,64 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   )
   const isRowMaterializationInFlightRef = useRef<(sheetId: string) => boolean>(() => false)
   const releaseRowMaterializationInFlightRef = useRef<(sheetId: string) => void>(() => undefined)
+  const applyCommittedCommentAnchorPatchesRef = useRef<(patches: Array<{ id: string }>) => void>(() => undefined)
+  const getCurrentWorkbookSnapshot = useCallback((): Record<string, unknown> | null => {
+    const sessionSnapshot = spreadsheetSession.getState().workbookSnapshot
+    if (sessionSnapshot && typeof sessionSnapshot === 'object') {
+      return sessionSnapshot as Record<string, unknown>
+    }
+    return (spreadsheetGridRef.current?.getWorkbookSnapshot?.() as Record<string, unknown> | null) ?? null
+  }, [spreadsheetSession])
+  const applyCommittedWorksheetMetadataPatch = useCallback(
+    (patch: { sheetId: string; keys: Record<string, unknown> }) => {
+      const currentSnapshot = getCurrentWorkbookSnapshot()
+      if (!currentSnapshot) return
+      const nextSnapshot = cloneSnapshot(currentSnapshot) as Record<string, unknown>
+      const sheets = nextSnapshot.sheets
+      if (!sheets || typeof sheets !== 'object' || Array.isArray(sheets)) return
+      const nextSheets = sheets as Record<string, unknown>
+      const currentSheet = nextSheets[patch.sheetId]
+      if (!currentSheet || typeof currentSheet !== 'object' || Array.isArray(currentSheet)) return
+      const nextSheet = { ...(currentSheet as Record<string, unknown>) }
+      const previousMergeRanges = Array.isArray((currentSheet as Record<string, unknown>).mergeData)
+        ? (cloneSnapshot((currentSheet as Record<string, unknown>).mergeData) as Array<{
+            startRow: number
+            endRow: number
+            startColumn: number
+            endColumn: number
+          }>)
+        : []
+      for (const [key, value] of Object.entries(patch.keys)) {
+        if (value === null) {
+          delete nextSheet[key]
+          continue
+        }
+        nextSheet[key] = cloneSnapshot(value)
+      }
+      nextSheets[patch.sheetId] = nextSheet
+      const nextMergeRanges = Array.isArray(nextSheet.mergeData)
+        ? (cloneSnapshot(nextSheet.mergeData) as Array<{
+            startRow: number
+            endRow: number
+            startColumn: number
+            endColumn: number
+          }>)
+        : []
+      if (Object.prototype.hasOwnProperty.call(patch.keys, 'mergeData')) {
+        spreadsheetGridRef.current?.applyCommittedWorksheetMergePatch?.(
+          patch.sheetId,
+          previousMergeRanges,
+          nextMergeRanges
+        )
+      }
+      spreadsheetSession.updateWorkbookSnapshot(nextSnapshot, workbookSnapshotVersionRef.current)
+    },
+    [getCurrentWorkbookSnapshot, spreadsheetSession, workbookSnapshotVersionRef]
+  )
+  const applyCommittedCommentAnchorPatches = useCallback(
+    (patches: Array<{ id: string }>) => applyCommittedCommentAnchorPatchesRef.current(patches),
+    []
+  )
 
   // Collaboration callbacks wired from the viewer into SpreadsheetCollaborationManager
   const collaborationCallbacks = useMemo(
@@ -1924,6 +2099,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         applyRemoteCellUpdateWithRetry,
         activeSheetIdRef,
         spreadsheetGridRef,
+        getWorkbookSnapshot: getCurrentWorkbookSnapshot,
+        applyCommittedWorksheetMetadataPatch,
+        applyCommittedCommentAnchorPatches,
         recentLocalRowHeightRef,
         recentLocalColWidthRef,
         baselineRowHeightsRef,
@@ -1953,6 +2131,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         setActiveSheetId,
         getActiveSessionRows,
         resolveKnownSheetVersion,
+        coordinateForceGridReapply: scheduleCoordinatedAuthoritativeRepair,
         createdSheetIdAliasesRef,
         isRecentLocalBatchId,
         getSheetWorkQueue: () => sheetWorkQueueAccessorRef.current,
@@ -1972,6 +2151,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       handleRemoteColumnUpdate,
       markSheetNeedsGridMaterialization,
       onAppRefreshNeeded,
+      getCurrentWorkbookSnapshot,
       rememberSheetVersion,
       removeRemoteSheetFromLiveWorkbook,
       renameRemoteSheetInLiveWorkbook,
@@ -1983,12 +2163,15 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       setActiveSheetId,
       spreadsheetSession,
       syncSheetRowsIntoLocalState,
+      applyCommittedWorksheetMetadataPatch,
+      applyCommittedCommentAnchorPatches,
       scheduleRemoteStructuralResync,
       scheduleSheetVersionRefreshFromApi,
       sheetT,
       updateActiveSheetVersion,
       enqueueDiagnosticsTraceEvent,
-      getActiveSessionRows
+      getActiveSessionRows,
+      scheduleCoordinatedAuthoritativeRepair
     ]
   )
 
@@ -2009,6 +2192,94 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   collaborationHealthRef.current = collaboration.collaborationHealth
   isCollaborationJoinedRef.current = collaboration.isCollaborationJoined
   isCollaborationConnectedRef.current = collaboration.isCollaborationConnected
+
+  const comments = useComments({
+    entityId: app.id,
+    entityType: 'spreadsheet_app',
+    socket: collaboration.socket,
+    apiService: SpreadsheetApiService,
+    autoRefreshInterval: collaboration.socket ? 0 : 30000
+  })
+  applyCommittedCommentAnchorPatchesRef.current = comments.applyCommentAnchorPatches
+
+  const getSelectedCellRef = useCallback(
+    (): string | null =>
+      spreadsheetGridRef.current?.getActiveSelectionReference?.() ??
+      spreadsheetGridRef.current?.getActiveCellReference?.() ??
+      null,
+    []
+  )
+
+  const focusCommentCellReference = useCallback(
+    (cellReference: string, sheetId?: string): boolean =>
+      spreadsheetGridRef.current?.focusCellReference?.(cellReference, sheetId) ?? false,
+    []
+  )
+
+  const commentAuthorUserIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const comment of comments.comments) {
+      if (comment.createdBy) {
+        ids.add(comment.createdBy)
+      }
+    }
+    return [...ids]
+  }, [comments.comments])
+
+  const commentUserDisplayMap = useVersionUserDisplays([], accessToken, commentAuthorUserIds)
+
+  const spreadsheetCommentSidebar = useSpreadsheetCommentSidebar({
+    comments,
+    activeSheetId,
+    showComments,
+    setShowComments,
+    getSelectedCellRef,
+    focusCellReference: focusCommentCellReference,
+    commentUserDisplayMap,
+    currentUserId: userId,
+    currentUserAvatar: collaboration.currentUserAvatar
+  })
+
+  const commentedCells = useMemo(() => {
+    const roots = spreadsheetCommentSidebar.filteredComments
+      .filter(comment => {
+        return (
+          comment.type === 'cell' &&
+          !comment.parentId &&
+          !comment.resolvedAt &&
+          typeof comment.cellReference === 'string' &&
+          comment.cellReference.trim().length > 0
+        )
+      })
+      .map(comment => ({
+        cellReference: comment.cellReference!.trim().toUpperCase(),
+        content: String(comment.content || ''),
+        createdByName: comment.createdByName,
+        createdByAvatar: comment.createdByAvatar,
+        createdAt: comment.createdAt
+      }))
+    const latestByCell = new Map<
+      string,
+      { cellReference: string; content: string; createdByName?: string; createdByAvatar?: string; createdAt?: string }
+    >()
+    for (const comment of roots) {
+      const existing = latestByCell.get(comment.cellReference)
+      if (!existing) {
+        latestByCell.set(comment.cellReference, comment)
+        continue
+      }
+      const existingTs = existing.createdAt ? Date.parse(existing.createdAt) : 0
+      const nextTs = comment.createdAt ? Date.parse(comment.createdAt) : 0
+      if (nextTs >= existingTs) {
+        latestByCell.set(comment.cellReference, comment)
+      }
+    }
+    return Array.from(latestByCell.values())
+  }, [spreadsheetCommentSidebar.filteredComments])
+
+  const handleOpenCommentRequest = useCallback(() => {
+    spreadsheetCommentSidebar.openCommentsSidebar()
+  }, [spreadsheetCommentSidebar])
 
   useSpreadsheetRemoteSyncCollaborationEffects({
     preferUniverNativeSheetTabs,
@@ -2250,11 +2521,17 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const columnsState = useSpreadsheetColumns({
     app,
     activeSheet,
+    effectiveActiveSheetColumns: effectiveGridColumns,
+    columnStructureStateRef,
     localSheetDataRef,
     canonicalActiveSheetRowsSourceRef,
     commitOptimisticActiveSheetRows,
     handleCellChangeRef,
     onAppUpdate: nextApp => applyLocalAppUpdate(() => nextApp),
+    onDiagnosticsTraceEvent: enqueueDiagnosticsTraceEvent,
+    onBlockedColumnReorder: () => {
+      toast.warning(sheetT('toast-column-reorder-merged-cells-unsupported'))
+    },
     emitColumnBatchOperation: op => {
       const submitBatch = mutationFacadeRef.current?.submitBatch
       if (!submitBatch) {
@@ -2446,14 +2723,41 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         activeSheetIdRef.current,
         createdSheetIdAliasesRef.current
       )
-      if (!isActiveTarget || dirtyRegions.length === 0) return
+      if (!isActiveTarget) return
+      const isStyleOnlyAck =
+        operations.length > 0 && operations.every(operation => String(operation.type ?? '') === 'set_style')
+      const ackOperationPaintCells = buildAckDirectPaintCellsFromOperations(targetSheetId, operations)
+      if (dirtyRegions.length === 0) {
+        if (isStyleOnlyAck && ackOperationPaintCells.length > 0) {
+          stageAuthoritativeDirectPaintForSync(targetSheetId, ackOperationPaintCells, {
+            operationType: 'set_style'
+          })
+        }
+        return
+      }
       const regions = resolveBackendDirtyRegionsToAuthoritativeRegions({
         dirtyRegions,
         columns: spreadsheetColumnsForGrid,
         rows: getActiveSessionRows() as Record<string, unknown>[]
       })
-      if (regions.length === 0) return
+      if (regions.length === 0) {
+        if (isStyleOnlyAck && ackOperationPaintCells.length > 0) {
+          stageAuthoritativeDirectPaintForSync(targetSheetId, ackOperationPaintCells, {
+            operationType: 'set_style'
+          })
+        }
+        return
+      }
       const activeRows = getActiveSessionRows() as Record<string, unknown>[]
+      const ackRegionPaintCells = buildAuthoritativePaintCellsFromViewerRows(activeRows, spreadsheetColumnsForGrid, {
+        regions
+      })
+      const ackDirectPaintCells = mergeAckDirectPaintItems(ackRegionPaintCells, ackOperationPaintCells)
+      if (ackDirectPaintCells.length > 0) {
+        stageAuthoritativeDirectPaintForSync(targetSheetId, ackDirectPaintCells, {
+          operationType: isStyleOnlyAck ? 'set_style' : 'authoritative_reapply'
+        })
+      }
       const backendRepairClassification = classifyBackendDirtyRegionReapply({
         sheetId: targetSheetId,
         regions,
@@ -2477,7 +2781,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       createdSheetIdAliasesRef,
       isUuid,
       rowMaterializationReadinessRef,
-      scheduleCoordinatedAuthoritativeRepair
+      scheduleCoordinatedAuthoritativeRepair,
+      stageAuthoritativeDirectPaintForSync
     ]
   )
 
@@ -2511,6 +2816,17 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         rowSlotIdentityRegistry,
         pendingLocalMutationCellsRef
       })
+      const queue = sheetWorkQueueAccessorRef.current
+      if (queue) {
+        const { ownedCellKeys, protectedCellKeys } = collectAcknowledgedOverlayReleaseKeys(
+          params.sheetId,
+          params.operations
+        )
+        queue.releaseAcknowledgedCellOwnership(params.sheetId, {
+          ownedCellKeys,
+          protectedCellKeys
+        })
+      }
     },
     []
   )
@@ -2897,6 +3213,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     activeSheetId,
     activeSheetIdRef,
     activeSheetColumns: activeSheet.columns,
+    collaborationConnected: collaboration.isCollaborationConnected,
+    collaborationParticipantCount: collaboration.headerParticipants.length,
     pendingLocalMutationCellsRef,
     getColumnsForSheet: (targetSheetId: string) =>
       appSheetsRef.current.find(sheet =>
@@ -2951,6 +3269,16 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           sourceUniverRows: meta.sourceUniverRows
         })
         if (region) {
+          const directPaintCells = buildAuthoritativePaintCellsForMaterializedRows(
+            rows,
+            spreadsheetColumnsForGrid,
+            region
+          )
+          if (directPaintCells.length > 0) {
+            stageAuthoritativeDirectPaintForSync(targetSheetId, directPaintCells, {
+              operationType: 'authoritative_reapply'
+            })
+          }
           const regionCellEstimate = (region.maxRow - region.minRow + 1) * (region.maxCol - region.minCol + 1)
           const scheduledRegions = scheduleCoordinatedAuthoritativeRepair(targetSheetId, region, {
             clearAllSignatures: false,
@@ -3288,7 +3616,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     setIsExporting,
     appName: app.name,
     activeSheetName: activeSheet.name,
-    getWorkbookSnapshot: () => spreadsheetGridRef.current?.getWorkbookSnapshot?.() ?? null,
+    getWorkbookSnapshot: getCurrentWorkbookSnapshot,
     exportSnapshotAsXlsx,
     createReviewComment: async content =>
       Boolean(
@@ -3384,8 +3712,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     queuePersistSpreadsheetSheetRenameAfterCellFlush: queuePersistSpreadsheetSheetRenameAfterCellFlush as any,
     persistSpreadsheetSheetDelete: persistSpreadsheetSheetDelete as any,
     buildDuplicateVisualWorksheetSnapshot,
-    getWorkbookSnapshot: () =>
-      (spreadsheetGridRef.current?.getWorkbookSnapshot?.() as Record<string, unknown> | null) ?? null
+    getWorkbookSnapshot: getCurrentWorkbookSnapshot
   })
 
   const handleUniverSheetVisibilityChanged = useCallback(
@@ -3467,7 +3794,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       if (!Array.isArray(batchData.operations) || batchData.operations.length === 0) {
         return
       }
-      const targetSheetId = resolveReconciledSheetId(batchData.sheetId, createdSheetIdAliasesRef.current)
+      const routingDecision = resolveSpreadsheetKnownSheetRouting({
+        producerSheetId: batchData.sheetId,
+        reactActiveSheetId: activeSheetIdRef.current,
+        sheets: app.sheets,
+        aliases: createdSheetIdAliasesRef.current
+      })
+      const targetSheetId = routingDecision.targetSheetId
 
       // Diagnostic: detect Univer / React active-sheet routing mismatch. The
       // batch's `sheetId` is the producer's view of which sheet the user
@@ -3476,23 +3809,54 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       // the write is about to land on the wrong sheet — log enough context
       // to root-cause without spamming the happy path.
       const reactActiveSheetId = activeSheetIdRef.current
-      const canonicalActive = resolveReconciledSheetId(reactActiveSheetId, createdSheetIdAliasesRef.current)
-      if (
-        reactActiveSheetId &&
-        canonicalActive !== targetSheetId &&
-        // Ignore the early-mount transient when activeSheetId is empty.
-        canonicalActive !== ''
-      ) {
+      if (routingDecision.hasRoutingMismatch) {
         console.warn('[SheetRoutingMismatch] batch target sheet differs from React active sheet', {
           rawProducerSheetId: batchData.sheetId,
           resolvedTargetSheetId: targetSheetId,
           reactActiveSheetId,
-          canonicalReactActiveSheetId: canonicalActive,
+          canonicalReactActiveSheetId: routingDecision.canonicalActiveSheetId,
           firstOperationType: batchData.operations[0]?.type,
           operationCount: batchData.operations.length,
           traceId: batchData.traceId ?? null,
-          knownSheetIds: app.sheets.map(sheet => sheet.id)
+          knownSheetIds: app.sheets.map(sheet => sheet.id),
+          routingOutcome: routingDecision.outcome
         })
+      }
+      if (!routingDecision.knownTargetSheet) {
+        console.warn('[SheetRoutingDrop] dropping mutation batch for unknown target sheet', {
+          rawProducerSheetId: batchData.sheetId,
+          resolvedTargetSheetId: targetSheetId,
+          reactActiveSheetId,
+          canonicalReactActiveSheetId: routingDecision.canonicalActiveSheetId,
+          firstOperationType: batchData.operations[0]?.type,
+          operationCount: batchData.operations.length,
+          traceId: batchData.traceId ?? null,
+          knownSheetIds: app.sheets.map(sheet => sheet.id),
+          routingOutcome: routingDecision.outcome
+        })
+        debugLog('unified mutation batch dropped for unknown sheet', {
+          traceId: batchData.traceId ?? null,
+          rawProducerSheetId: batchData.sheetId,
+          resolvedTargetSheetId: targetSheetId,
+          routingOutcome: routingDecision.outcome
+        })
+        enqueueDiagnosticsTraceEvent({
+          source: 'client',
+          stage: 'viewer_unified_mutation_drop_unknown_sheet',
+          traceId: batchData.traceId ?? null,
+          severity: 'warning',
+          payload: {
+            rawProducerSheetId: batchData.sheetId,
+            resolvedTargetSheetId: targetSheetId,
+            reactActiveSheetId,
+            canonicalReactActiveSheetId: routingDecision.canonicalActiveSheetId,
+            operationCount: batchData.operations.length,
+            firstOperationType: batchData.operations[0]?.type ?? null,
+            knownSheetIds: app.sheets.map(sheet => sheet.id),
+            routingOutcome: routingDecision.outcome
+          }
+        })
+        return
       }
 
       const operationTypes = batchData.operations.map(operation => operation.type)
@@ -3563,6 +3927,15 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       }
 
       if (affectedUiRowIds.length > readinessResolvedRowIds.size) {
+        enqueueDiagnosticsTraceEvent({
+          source: 'client',
+          stage: 'viewer_row_materialization_readiness_gate_start',
+          traceId: batchData.traceId ?? null,
+          payload: {
+            targetSheetId,
+            pendingClientRowIds: affectedUiRowIds.filter(clientRowId => !readinessResolvedRowIds.has(clientRowId))
+          }
+        })
         const readinessResult = await rowMaterializationReadiness.awaitTemporaryRowsReadyForSubmit({
           sheetId: targetSheetId,
           clientRowIds: affectedUiRowIds.filter(clientRowId => !readinessResolvedRowIds.has(clientRowId)),
@@ -3815,9 +4188,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       }
     },
     [
+      app.sheets,
+      activeSheetIdRef,
       sheetWorkQueue,
       createOperationId,
       chainOnOperationQueue,
+      createdSheetIdAliasesRef,
+      debugLog,
       enqueueDiagnosticsTraceEvent,
       getLatestAuthoritativeUniverRowsForSheet,
       getPersistSheetRowsSnapshotForGrid,
@@ -3900,6 +4277,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     sheetPersist,
     versioning,
     sheetPersistErrorMessage: sheetT('persist-rows-add-failed'),
+    onDiagnosticsTraceEvent: enqueueDiagnosticsTraceEvent,
     handleColumnsInsertInternal: columnsState.handleColumnsInsert as any,
     handleColumnsDeleteInternal: columnsState.handleColumnsDelete as any,
     handleColumnsMoveInternal: columnsState.handleColumnsMove as any,
@@ -4014,8 +4392,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       },
       publishingStatus: app.publishMetadata?.status || 'draft',
       showComments,
-      setShowComments,
-      unresolvedCommentCount: comments.unresolvedCount,
+      onToggleComments: spreadsheetCommentSidebar.toggleCommentsSidebar,
+      unresolvedCommentCount: spreadsheetCommentSidebar.unresolvedCommentCount,
       fileLock: {
         lock: fileLock.lock,
         isLockedByMe: fileLock.isLockedByMe,
@@ -4027,6 +4405,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         }
       },
       onShare,
+      onManageShares,
       onRenameAppName: handleRenameAppName,
       onOpenAICapability: handleOpenAICapability,
       onOpenAnalytics: openAnalyticsPanel,
@@ -4089,9 +4468,38 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       publishing: publishing as any,
       showComments,
       setShowComments,
-      getSelectedCellRef,
-      activeSheetId,
-      comments: comments as any,
+      commentPanel: {
+        comments: spreadsheetCommentSidebar.filteredComments,
+        unresolvedCount: spreadsheetCommentSidebar.unresolvedCommentCount,
+        isLoading: comments.isLoading,
+        onCreateComment: async (content, parentId, userName, userAvatar) => {
+          const ok = await spreadsheetCommentSidebar.handleCreateComment(content, parentId, userName, userAvatar)
+          if (!ok) {
+            throw new Error('Failed to create comment')
+          }
+        },
+        onUpdateComment: async (commentId, content) => {
+          const ok = await spreadsheetCommentSidebar.handleUpdateComment(commentId, content)
+          if (!ok) {
+            throw new Error('Failed to update comment')
+          }
+        },
+        onResolveComment: async commentId => {
+          const ok = await spreadsheetCommentSidebar.handleResolveComment(commentId)
+          if (!ok) {
+            throw new Error('Failed to resolve comment')
+          }
+        },
+        onUnresolveComment: commentId => spreadsheetCommentSidebar.handleUnresolveComment(commentId),
+        onDeleteComment: async commentId => {
+          const ok = await spreadsheetCommentSidebar.handleDeleteComment(commentId)
+          if (!ok) {
+            throw new Error('Failed to delete comment')
+          }
+        },
+        onScrollToHighlight: spreadsheetCommentSidebar.handleScrollToHighlight,
+        onUnhighlight: undefined
+      },
       currentUserId: userId,
       currentUserName: collaboration.currentUserName,
       currentUserAvatar: collaboration.currentUserAvatar

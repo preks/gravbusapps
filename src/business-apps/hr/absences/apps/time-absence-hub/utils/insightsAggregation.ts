@@ -104,6 +104,10 @@ interface EmployeeDayMetrics {
 
 const round1 = (value: number): number => Math.round(value * 10) / 10
 
+const todayDateKey = (): string => new Date().toISOString().slice(0, 10)
+
+const isCompletedDay = (dateIso: string, today = todayDateKey()): boolean => dateIso < today
+
 const getWorkingHours = (employee: FilteredEmployee): WeeklyWorkingHours | undefined => {
   const workingHours = employee.workingHours?.[0]
   if (!workingHours) {
@@ -186,7 +190,8 @@ const buildEmployeeDayMetrics = ({
     return []
   }
 
-  const dates = eachDateInRange(dateRange)
+  const today = todayDateKey()
+  const dates = eachDateInRange(dateRange).filter(dayKey => isCompletedDay(dayKey, today))
   const attendanceByEmployeeAndDay = buildAttendanceByEmployeeAndDay(attendance)
   const holidaysByEmployee = buildHolidayDatesByEmployee(holidays)
   const absenceFractionByEmployeeAndDay = buildAbsenceFractionByEmployeeAndDay(absenceNet)
@@ -363,7 +368,10 @@ export const computeDailyPresence = (input: InsightsAggregationInput): DailyPres
     presentByDay.set(day.dayKey, set)
   })
 
+  const today = todayDateKey()
+
   return eachDateInRange(input.dateRange)
+    .filter(dayKey => isCompletedDay(dayKey, today))
     .map(dayKey => {
       const employeesSet = presentByDay.get(dayKey) ?? new Set<string>()
       return {
@@ -385,7 +393,12 @@ export const countAbsenceDaysByDimension = (
   const employeeIndex = new Map<string, FilteredEmployee>()
   employees.forEach(employee => employeeIndex.set(employee.id, employee))
   const result = new Map<string, number>()
+  const today = todayDateKey()
   absences.forEach(absence => {
+    if (!isCompletedDay(absence.dayDate, today)) {
+      return
+    }
+
     const employee = employeeIndex.get(absence.employeeId)
     if (!employee) {
       return

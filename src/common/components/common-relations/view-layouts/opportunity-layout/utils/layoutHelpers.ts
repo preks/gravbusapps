@@ -1,5 +1,16 @@
 import type { FilterConfiguration } from '@newwork/nw-design-system'
 
+/** Filter keys that scope a list to a record; must not appear in UI or persisted prefs. */
+const RECORD_SCOPE_FILTER_KEYS = ['accountIds', 'contactIds', 'account'] as const
+
+export const stripRecordScopeFilterKeys = (filters: Record<string, unknown>): Record<string, unknown> => {
+  const next = { ...filters }
+  for (const key of RECORD_SCOPE_FILTER_KEYS) {
+    delete next[key]
+  }
+  return next
+}
+
 /**
  * Helper to determine filters based on current section
  */

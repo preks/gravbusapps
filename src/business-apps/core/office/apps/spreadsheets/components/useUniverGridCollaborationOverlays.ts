@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Dispatch, RefObject, SetStateAction } from 'react'
 import { areCursorRectsEqual } from './univerGridCommentPresentation'
-import { resolveCollaborationOverlayCellRect } from './univerGridOverlayCellRect'
+import {
+  resolveCollaborationOverlayCellRect,
+  resolveGridCanvasViewport,
+  type CollaborationOverlayRect
+} from './univerGridOverlayCellRect'
 import type { UniverGridController } from './useUniverGridController'
 
 export type RemoteCursorOverlayItem = {
@@ -20,13 +24,13 @@ export type CommentOverlayItem = {
   ref: string
   row: number
   col: number
+  endRow?: number
+  endCol?: number
   content: string
   createdByName?: string
   createdByAvatar?: string
   createdAt?: string
 }
-
-type OverlayRect = { top: number; left: number; width: number; height: number }
 
 type CollaborationOverlayDeps = Pick<
   UniverGridController,
@@ -49,8 +53,9 @@ export function useUniverGridCollaborationOverlays(
     commentOverlays: readonly CommentOverlayItem[]
   } & CollaborationOverlayDeps
 ): {
-  cursorRects: Record<string, OverlayRect>
-  commentRects: Record<string, OverlayRect>
+  cursorRects: Record<string, CollaborationOverlayRect>
+  commentRects: Record<string, CollaborationOverlayRect>
+  gridViewportRect: CollaborationOverlayRect | null
   hoveredCommentId: string | null
   setHoveredCommentId: Dispatch<SetStateAction<string | null>>
 } {
@@ -67,12 +72,13 @@ export function useUniverGridCollaborationOverlays(
     updateCellDimensionsRef
   } = params
 
-  const [cursorRects, setCursorRects] = useState<Record<string, OverlayRect>>({})
-  const [commentRects, setCommentRects] = useState<Record<string, OverlayRect>>({})
+  const [cursorRects, setCursorRects] = useState<Record<string, CollaborationOverlayRect>>({})
+  const [commentRects, setCommentRects] = useState<Record<string, CollaborationOverlayRect>>({})
+  const [gridViewportRect, setGridViewportRect] = useState<CollaborationOverlayRect | null>(null)
   const [hoveredCommentId, setHoveredCommentId] = useState<string | null>(null)
 
   const resolveCellRect = useCallback(
-    (row: number, col: number): OverlayRect | null => {
+    (row: number, col: number): CollaborationOverlayRect | null => {
       const api = univerAPIRef.current
       const container = containerRef.current
       if (!api || !container) return null
@@ -89,6 +95,24 @@ export function useUniverGridCollaborationOverlays(
     [cellDimensionsRef, containerRef, propsRef, sheetScrollRef, univerAPIRef]
   )
 
+  const refreshViewportRect = useCallback(() => {
+    const container = containerRef.current
+    const next = container ? resolveGridCanvasViewport(container, cellDimensionsRef.current) : null
+    setGridViewportRect(prev => {
+      if (!prev && !next) return prev
+      if (!prev || !next) return next
+      if (
+        Math.abs(prev.top - next.top) > 0.5 ||
+        Math.abs(prev.left - next.left) > 0.5 ||
+        Math.abs(prev.width - next.width) > 0.5 ||
+        Math.abs(prev.height - next.height) > 0.5
+      ) {
+        return next
+      }
+      return prev
+    })
+  }, [cellDimensionsRef, containerRef])
+
   useEffect(() => {
     if (remoteCursorOverlays.length === 0) {
       refreshCursorRectsRef.current = null
@@ -96,7 +120,8 @@ export function useUniverGridCollaborationOverlays(
       return
     }
     const refresh = () => {
-      const next: Record<string, OverlayRect> = {}
+      refreshViewportRect()
+      const next: Record<string, CollaborationOverlayRect> = {}
       for (const cursor of remoteCursorOverlays) {
         const startRect = resolveCellRect(cursor.row, cursor.col)
         if (!startRect) continue
@@ -134,7 +159,7 @@ export function useUniverGridCollaborationOverlays(
       globalThis.removeEventListener('resize', onResize)
       globalThis.removeEventListener('scroll', onScroll, true)
     }
-  }, [remoteCursorOverlays, resolveCellRect])
+  }, [refreshViewportRect, remoteCursorOverlays, resolveCellRect])
 
   useEffect(() => {
     if (commentOverlays.length === 0) {
@@ -144,10 +169,27 @@ export function useUniverGridCollaborationOverlays(
       return
     }
     const refresh = () => {
-      const next: Record<string, OverlayRect> = {}
+      refreshViewportRect()
+      const next: Record<string, CollaborationOverlayRect> = {}
       for (const marker of commentOverlays) {
-        const rect = resolveCellRect(marker.row, marker.col)
-        if (rect) next[marker.id] = { top: rect.top, left: rect.left, width: rect.width, height: rect.height }
+        const startRect = resolveCellRect(marker.row, marker.col)
+        if (!startRect) continue
+        const hasEnd =
+          typeof marker.endRow === 'number' &&
+          typeof marker.endCol === 'number' &&
+          (marker.endRow !== marker.row || marker.endCol !== marker.col)
+        if (hasEnd) {
+          const endRect = resolveCellRect(marker.endRow as number, marker.endCol as number)
+          if (endRect) {
+            const top = Math.min(startRect.top, endRect.top)
+            const left = Math.min(startRect.left, endRect.left)
+            const right = Math.max(startRect.left + startRect.width, endRect.left + endRect.width)
+            const bottom = Math.max(startRect.top + startRect.height, endRect.top + endRect.height)
+            next[marker.id] = { top, left, width: right - left, height: bottom - top }
+            continue
+          }
+        }
+        next[marker.id] = { top: startRect.top, left: startRect.left, width: startRect.width, height: startRect.height }
       }
       setCommentRects(prev => {
         const prevKeys = Object.keys(prev)
@@ -184,7 +226,19 @@ export function useUniverGridCollaborationOverlays(
       globalThis.removeEventListener('resize', onResize)
       globalThis.removeEventListener('scroll', onScroll, true)
     }
-  }, [commentOverlays, resolveCellRect])
+  }, [commentOverlays, refreshViewportRect, resolveCellRect])
+
+  useEffect(() => {
+    refreshViewportRect()
+    const onResize = () => refreshViewportRect()
+    const onScroll = () => refreshViewportRect()
+    globalThis.addEventListener('resize', onResize)
+    globalThis.addEventListener('scroll', onScroll, true)
+    return () => {
+      globalThis.removeEventListener('resize', onResize)
+      globalThis.removeEventListener('scroll', onScroll, true)
+    }
+  }, [refreshViewportRect])
 
   useEffect(() => {
     let currentDpr = globalThis.devicePixelRatio ?? 1
@@ -213,5 +267,5 @@ export function useUniverGridCollaborationOverlays(
     if (!stillExists) setHoveredCommentId(null)
   }, [commentOverlays, hoveredCommentId])
 
-  return { cursorRects, commentRects, hoveredCommentId, setHoveredCommentId }
+  return { cursorRects, commentRects, gridViewportRect, hoveredCommentId, setHoveredCommentId }
 }

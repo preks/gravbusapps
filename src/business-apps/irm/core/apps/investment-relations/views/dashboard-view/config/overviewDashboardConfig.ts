@@ -37,8 +37,8 @@ export const irmOverviewDashboardConfig = {
     leadNameFields: 'firstName\n              lastName'
   },
 
-  // Top Deals Data
-  topDeals: {
+  // Top Opportunities Data
+  topOpportunities: {
     opportunityTable: 'InvestmentOpportunity',
     pipelineStageField: 'opportunityPipelineStage',
     pipelineStageRefField: 'opportunityPipelineStageRef'

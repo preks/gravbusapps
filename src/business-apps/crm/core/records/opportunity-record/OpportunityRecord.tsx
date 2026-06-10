@@ -19,6 +19,7 @@ import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { formatCurrency, extractCurrencyCode } from '@/business-apps/crm/common/utils/currencyUtils'
 import { getOpportunityStatusBadgeVariant, getOpportunityForecastBadgeVariant } from '@/common/utils/badgeUtils'
+import { AiScoreRecordBadge } from '@/common/components/ai-score/AiScoreRecordBadge'
 import { useAiSummary } from './hooks/useAiSummary'
 import { AiActions } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { AppAction } from '@/components/app-action'
@@ -38,6 +39,21 @@ interface OpportunityRecordContentProps extends BusinessAppContextProps {
   getBackButtonText: () => string
   fromEntity?: string | null
 }
+
+const buildStageConditionStatusKey = (statusData: any): string =>
+  [
+    statusData?.id ?? '',
+    statusData?.completed ?? false,
+    statusData?.completedByEmployee?.id ?? '',
+    statusData?.opportunityPipelineStageCondition?.id ?? '',
+    statusData?.opportunityPipelineStageCondition?.parentEntryId ?? ''
+  ].join(':')
+
+const areStageConditionStatusesEqual = (left: any[], right: any[]): boolean =>
+  left.length === right.length &&
+  left.every(
+    (statusData, index) => buildStageConditionStatusKey(statusData) === buildStageConditionStatusKey(right[index])
+  )
 
 const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
   opportunityId,
@@ -114,11 +130,10 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
 
   // Extract stageConditionStatuses from opportunityData
   useEffect(() => {
-    if (opportunityData?.opportunityStageConditions) {
-      setStageConditionStatuses(opportunityData.opportunityStageConditions)
-    } else {
-      setStageConditionStatuses([])
-    }
+    const nextStageConditionStatuses = opportunityData?.opportunityStageConditions ?? []
+    setStageConditionStatuses(previous =>
+      areStageConditionStatusesEqual(previous, nextStageConditionStatuses) ? previous : nextStageConditionStatuses
+    )
   }, [opportunityData?.opportunityStageConditions])
 
   // CRM-specific configuration for OpportunityStageProgression
@@ -130,7 +145,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
       extractStageConditions: extractCrmStageConditions,
       isTooltipEnabled: (status?: string) => isOpportunityOpen(status)
     }),
-    [extractCrmStageConditions, opportunityData?.opportunityStatus?.value]
+    [extractCrmStageConditions]
   )
 
   // AI Summary hook for HeaderSection
@@ -149,19 +164,28 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
   const [tasks, setTasks] = useState<any[]>([])
   const [approvals, setApprovals] = useState<any[]>([])
 
-  const loadActivities = async () => {
+  const loadActivities = async (silent = false) => {
     if (!opportunityId) return
 
-    setActivitiesLoading(true)
-    setActivitiesError(null)
+    if (!silent) {
+      setActivitiesLoading(true)
+      setActivitiesError(null)
+    }
 
     try {
       const activitiesData = await fetchCustomerActivitiesByOpportunityId(opportunityId)
       setActivities(activitiesData || [])
     } catch (err) {
-      setActivitiesError(err instanceof Error ? err.message : 'Failed to load activities')
+      const message = err instanceof Error ? err.message : 'Failed to load activities'
+      if (silent) {
+        console.error('Failed to refresh activities:', message)
+      } else {
+        setActivitiesError(message)
+      }
     } finally {
-      setActivitiesLoading(false)
+      if (!silent) {
+        setActivitiesLoading(false)
+      }
     }
   }
 
@@ -201,23 +225,28 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     }
   }
 
+  const loadSectionData = useCallback(
+    (silent = false) => {
+      loadActivities(silent)
+      loadNotes()
+      loadTasksAndApprovals()
+    },
+    [opportunityId]
+  )
+
+  const refreshSectionDataSilently = useCallback(() => {
+    void refetch()
+    loadSectionData(true)
+  }, [loadSectionData, refetch])
+
   // Load all data on mount and when opportunityId changes
   useEffect(() => {
-    loadActivities()
-    loadNotes()
-    loadTasksAndApprovals()
-  }, [opportunityId])
+    loadSectionData(false)
+  }, [loadSectionData])
 
-  // Memoized callback for process completion
-  const handleProcessSuccess = useCallback(() => {
-    refetch()
-    loadActivities()
-    loadNotes()
-    loadTasksAndApprovals()
-  }, [refetch])
-
+  // Refresh section lists after Kogito flows without reloading the whole record
   useProcessCompletion({
-    onSuccess: handleProcessSuccess
+    onSuccess: refreshSectionDataSilently
   })
 
   // Memoize stage condition action props to prevent recreation
@@ -412,23 +441,24 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     <AiActions
       entityType="opportunity"
       entityId={opportunityId}
-      features={['summary', 'meeting-planner']}
+      features={['summary', 'meeting-planner', 'ai-scoring']}
       hooks={{ summary: aiSummaryHook, meetingPlanner: aiSummaryHook }}
+      accessToken={props.accessToken}
+      requireAccessToken
+      onIcpScored={refetch}
     />
   )
 
   const headerContent = useMemo(() => {
     // Show stage progression if data is ready
-    if (!loadingStages && !stagesError && opportunityStages.length > 0 && opportunityData?.opportunityPipelineRef) {
+    if (!stagesError && opportunityStages.length > 0 && opportunityData?.opportunityPipelineRef) {
       return (
         <OpportunityStageProgression
           currentStage={opportunityData?.opportunityPipelineStage?.value || 'Discovery'}
           stages={opportunityStages}
           opportunityId={opportunityId || ''}
-          opportunityVersion={opportunityData?.version}
           accessToken={props.accessToken}
           stageConditionStatuses={stageConditionStatuses}
-          onStageUpdate={refetch}
           contextConfig={crmPipelineConfig}
           opportunityStatus={opportunityData?.opportunityStatus?.value}
         />
@@ -436,7 +466,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     }
 
     // Show loading state
-    if (loadingStages) {
+    if (loadingStages && opportunityStages.length === 0) {
       return (
         <div
           style={{
@@ -493,14 +523,12 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     crmPipelineConfig,
     opportunityData?.opportunityPipelineStage?.value,
     opportunityId,
-    opportunityData?.version,
     stageConditionStatuses,
     props.accessToken,
-    refetch,
     opportunityData?.opportunityStatus?.value
   ])
 
-  if (loading) {
+  if (loading && !opportunityData) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <Spinner size="lg" />
@@ -527,6 +555,22 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
       </div>
     )
   }
+
+  const gradeFallback = getTranslationFromI18nKeyAndLabel('crm.common.notAvailable', 'N/A')
+
+  const headerTitle = (
+    <div className="gba:flex gba:items-center gba:gap-2">
+      <span>
+        {opportunityData.name || getTranslationFromI18nKeyAndLabel('crm.opportunity.unnamed', 'Unnamed Opportunity')}
+      </span>
+      <AiScoreRecordBadge
+        score={opportunityData.aiOpportunityScore}
+        grade={opportunityData.aiOpportunityGrade}
+        gradeFallback={gradeFallback}
+        dataTestId="opportunity-ai-score-badge"
+      />
+    </div>
+  )
 
   const subViewsConfig = {
     defaultValue: activeTab,
@@ -555,7 +599,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
             stageConditionStatuses={stageConditionStatuses || []}
             activitiesLoading={activitiesLoading}
             activitiesError={activitiesError}
-            loadActivities={loadActivities}
+            loadSectionData={refreshSectionDataSilently}
             stageConditionActionProps={stageConditionActionProps}
             {...props}
           />
@@ -582,7 +626,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
       headerAvatar={<IconAvatar icon={LightbulbIcon} variant="decorative" size="xl" />}
       headerOverline="OPPORTUNITY"
       onBack={onBack}
-      headerTitle={opportunityData.name || 'Unnamed Opportunity'}
+      headerTitle={headerTitle}
       headerMeta={headerMeta}
       headerActions={headerActions}
       headerActionButton={headerActionButton}

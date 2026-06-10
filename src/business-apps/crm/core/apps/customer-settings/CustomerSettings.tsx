@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useTranslation as useFluentTranslation } from '@newwork/nw-design-system'
 import customerSettingsI18n from './_i18n'
 import {
-  UsersIcon,
+  GearIcon,
   FlowArrowIcon,
   AddressBookIcon,
   ListChecksIcon,
@@ -11,8 +11,9 @@ import {
   BuildingsIcon,
   FileTextIcon,
   MegaphoneIcon,
-  FunnelSimpleIcon,
-  ShieldCheckIcon
+  GaugeIcon,
+  ShieldCheckIcon,
+  FileArrowDownIcon
 } from '@phosphor-icons/react'
 import { SettingsLayout } from '@/components/layout/settings-layout'
 import { navigateTo } from '@/common/utils/navigationUtils'
@@ -24,9 +25,13 @@ import AccountDataPage from './pages/account-data/AccountDataPage'
 import TaskTemplateDataPage from './pages/task-template-data/TaskTemplateDataPage'
 import DocumentDataPage from './pages/document-data/DocumentDataPage'
 import CampaignDataPage from './pages/campaign-data/CampaignDataPage'
+import type {
+  CampaignSettingsCatalog,
+  CampaignSettingsGroup
+} from '@/common/components/common-relations/setting-pages/campaign'
 import IdealCustomerProfilesPage from './pages/ideal-customer-profiles/IdealCustomerProfilesPage'
-import { LeadScoringPage } from '@/business-apps/crm/core/features/lead-scoring'
 import MarketingComplianceDataPage from './pages/marketing-compliance-data/MarketingComplianceDataPage'
+import CrmDataExportPage from './pages/data-export/DataExportPage'
 import { FolderTemplateDataPage, ModuleType } from '@/common/components/common-relations/setting-pages/folder-templates'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
@@ -35,19 +40,21 @@ export interface CustomerSettingsProps extends BusinessAppContextProps {
   prefixDataTestId?: string
 }
 
-// Removed unused DATA_TEST_ID
-
 const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDataTestId, ...context }) => {
   const { t } = useTranslation()
-  const { t: tIcp } = useFluentTranslation(customerSettingsI18n)
+  const { t: tCustomerSettings } = useFluentTranslation(customerSettingsI18n)
   const [inlinePage, setInlinePage] = React.useState<{ key: string; tab?: string } | null>(null)
 
   // Handle query parameters on component mount and browser back/forward
   React.useEffect(() => {
     const parseUrlAndSetPage = () => {
       const urlParams = new URLSearchParams(globalThis.location.search)
-      const page = urlParams.get('page')
+      let page = urlParams.get('page')
       const tab = urlParams.get('tab')
+
+      if (page === 'icp-scoring') {
+        page = 'ideal-customer-profiles'
+      }
 
       if (page) {
         setInlinePage({ key: page, tab: tab || undefined })
@@ -206,26 +213,26 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
       ]
     },
     {
-      title: t('crm.campaign_data', 'Campaign Data'),
-      description: t('crm.campaign_data_description', 'Manage campaign types'),
+      title: tCustomerSettings('campaign-data-title'),
+      description: tCustomerSettings('campaign-data-description'),
       icon: MegaphoneIcon,
       iconSize: 'md' as const,
       entries: [
         {
-          label: t('crm.campaign_types', 'Campaign Types'),
-          onClick: () => handleInlinePageChange({ key: 'campaign-data' })
-        }
-      ]
-    },
-    {
-      title: tIcp('lead-scoring-settings-card-title'),
-      description: tIcp('lead-scoring-settings-card-description'),
-      icon: FunnelSimpleIcon,
-      iconSize: 'md' as const,
-      entries: [
+          label: tCustomerSettings('campaign-group-setup'),
+          onClick: () => handleInlinePageChange({ key: 'campaign-data', tab: 'setup' })
+        },
         {
-          label: tIcp('lead-scoring-settings-card-entry'),
-          onClick: () => handleInlinePageChange({ key: 'lead-scoring' })
+          label: tCustomerSettings('campaign-group-targeting'),
+          onClick: () => handleInlinePageChange({ key: 'campaign-data', tab: 'targeting' })
+        },
+        {
+          label: tCustomerSettings('campaign-group-distribution'),
+          onClick: () => handleInlinePageChange({ key: 'campaign-data', tab: 'distribution' })
+        },
+        {
+          label: tCustomerSettings('campaign-group-engagement'),
+          onClick: () => handleInlinePageChange({ key: 'campaign-data', tab: 'engagement' })
         }
       ]
     },
@@ -246,14 +253,26 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
       ]
     },
     {
-      title: tIcp('icp-settings-card-title'),
-      description: tIcp('icp-settings-card-description'),
-      icon: FunnelSimpleIcon,
+      title: tCustomerSettings('icp-settings-card-title'),
+      description: tCustomerSettings('icp-settings-card-description'),
+      icon: GaugeIcon,
       iconSize: 'md' as const,
       entries: [
         {
-          label: tIcp('icp-settings-card-entry'),
+          label: tCustomerSettings('icp-settings-card-entry'),
           onClick: () => handleInlinePageChange({ key: 'ideal-customer-profiles' })
+        }
+      ]
+    },
+    {
+      title: tCustomerSettings('data-export-settings-card-title'),
+      description: tCustomerSettings('data-export-settings-card-description'),
+      icon: FileArrowDownIcon,
+      iconSize: 'md' as const,
+      entries: [
+        {
+          label: tCustomerSettings('data-export-settings-card-entry'),
+          onClick: () => handleInlinePageChange({ key: 'data-export' })
         }
       ]
     }
@@ -336,11 +355,17 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
   }
 
   if (inlinePage?.key === 'campaign-data') {
+    const tabParam = inlinePage.tab
+    const campaignGroups: CampaignSettingsGroup[] = ['setup', 'targeting', 'distribution', 'engagement']
+    const isGroupTab = campaignGroups.includes(tabParam as CampaignSettingsGroup)
+
     return (
       <CampaignDataPage
         {...context}
         prefixDataTestId={`${prefixDataTestId || ''}-CustomerCampaignSettings`}
         onBack={() => handleInlinePageChange(null)}
+        initialGroup={isGroupTab ? (tabParam as CampaignSettingsGroup) : undefined}
+        initialTab={isGroupTab ? undefined : (tabParam as CampaignSettingsCatalog)}
       />
     )
   }
@@ -367,14 +392,12 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
     )
   }
 
-  if (inlinePage?.key === 'lead-scoring') {
+  if (inlinePage?.key === 'data-export') {
     return (
-      <LeadScoringPage
+      <CrmDataExportPage
         {...context}
-        prefixDataTestId={`${prefixDataTestId || ''}-CustomerLeadScoringSettings`}
+        prefixDataTestId={`${prefixDataTestId || ''}-CustomerDataExport`}
         onBack={() => handleInlinePageChange(null)}
-        mode="both"
-        variant="page"
       />
     )
   }
@@ -382,7 +405,7 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
   return (
     <SettingsLayout
       headerPhosphorIcon={{
-        icon: UsersIcon,
+        icon: GearIcon,
         variant: 'info',
         size: 'lg',
         label: 'Customer Settings'

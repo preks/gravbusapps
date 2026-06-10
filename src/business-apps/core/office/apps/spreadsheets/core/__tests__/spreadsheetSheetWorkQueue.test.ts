@@ -858,6 +858,41 @@ describe('createSpreadsheetSheetWorkQueue', () => {
       expect(queue.getQueueCellState(sheetA, keyA)).toBe('submitted')
       expect(queue.getQueueCellState(sheetA, keyB)).toBe('submitted')
     })
+
+    it('releases acknowledged cell ownership and repaint protection before the queue settles', async () => {
+      const protectionEvents: Array<{ keys: readonly string[]; protectedFromRepaint: boolean }> = []
+      const { queue } = buildHarness({
+        initialClientVersion: 1,
+        onLocalMutationCellProtectionChange: (_sheetId, keys, protectedFromRepaint) => {
+          protectionEvents.push({ keys, protectedFromRepaint })
+        }
+      })
+      await seedClientVersion(queue, sheetA, 1)
+
+      const key = cellKey('row-1', 'A')
+      await queue.enqueueLocalPersist(
+        sheetA,
+        makeLocal({
+          kind: 'rangeValue',
+          operations: [setRangeOp('row-1', 'A', 'typed-fast')],
+          ownedCellKeys: [key],
+          protectedCellKeys: ['semantic-key', 'coord-key']
+        })
+      )
+
+      expect(queue.getQueueCellState(sheetA, key)).toBe('scheduled')
+      queue.releaseAcknowledgedCellOwnership(sheetA, {
+        ownedCellKeys: [key],
+        protectedCellKeys: ['semantic-key', 'coord-key']
+      })
+
+      expect(queue.getQueueCellState(sheetA, key)).toBe('submitted')
+      expect(queue.isQueueOwnedCell(sheetA, key)).toBe(false)
+      expect(protectionEvents).toContainEqual({
+        keys: ['semantic-key', 'coord-key'],
+        protectedFromRepaint: false
+      })
+    })
   })
 
   describe('remote priority FIFO', () => {

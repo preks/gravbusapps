@@ -74,8 +74,8 @@ export const DraggableNoteTreeItem: React.FC<DraggableNoteTreeItemProps> = ({
 
   if (isOverlay) {
     return (
-      <div className="gba:flex gba:items-center gba:gap-1.5 gba:py-1.5 gba:px-3 gba:rounded-lg gba:bg-card-decorative gba:shadow-lg gba:border gba:border-white/10 gba:rotate-1 gba:scale-[1.02] gba:w-56">
-        <span className="gba:text-sm gba:font-medium gba:truncate gba:text-white">
+      <div className="gba:flex gba:items-center gba:gap-1.5 gba:py-1.5 gba:px-3 gba:rounded-lg gba:bg-card gba:shadow-lg gba:border gba:border-border gba:rotate-1 gba:scale-[1.02] gba:w-56">
+        <span className="gba:text-sm gba:font-medium gba:truncate gba:text-foreground">
           {node.title || t('title-untitled')}
         </span>
       </div>
@@ -88,8 +88,8 @@ export const DraggableNoteTreeItem: React.FC<DraggableNoteTreeItemProps> = ({
       style={style}
       className={`gba:relative gba:flex gba:items-center gba:gap-1 gba:py-1.5 gba:pr-1 gba:rounded-md gba:cursor-pointer gba:group gba:transition-all gba:duration-150 ${
         isSelected
-          ? 'gba:bg-white/15 gba:text-white gba:font-medium before:gba:absolute before:gba:left-0 before:gba:top-1 before:gba:bottom-1 before:gba:w-[3px] before:gba:rounded-full before:gba:bg-white'
-          : 'gba:text-white/70 hover:gba:bg-white/10 hover:gba:text-white'
+          ? 'gba:bg-accent gba:text-accent-foreground gba:font-medium before:gba:absolute before:gba:left-0 before:gba:top-1 before:gba:bottom-1 before:gba:w-[3px] before:gba:rounded-full before:gba:bg-primary'
+          : 'gba:text-muted-foreground hover:gba:bg-muted hover:gba:text-foreground'
       }`}
       onClick={() => onSelect(node.id)}
       role="treeitem"
@@ -110,7 +110,7 @@ export const DraggableNoteTreeItem: React.FC<DraggableNoteTreeItemProps> = ({
       {/* Expand/collapse -- only rendered for nodes with children */}
       {hasChildren && (
         <button
-          className="gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center gba:rounded hover:gba:bg-white/10 gba:transition-colors gba:flex-shrink-0"
+          className="gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center gba:rounded hover:gba:bg-muted gba:transition-colors gba:flex-shrink-0"
           onClick={e => {
             e.stopPropagation()
             onToggleExpand(node.id)
@@ -131,9 +131,9 @@ export const DraggableNoteTreeItem: React.FC<DraggableNoteTreeItemProps> = ({
           {node.icon ? (
             <span className="gba:text-sm">{node.icon}</span>
           ) : isExpanded ? (
-            <FolderOpen className="gba:w-4 gba:h-4 gba:text-white/50" />
+            <FolderOpen className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
           ) : (
-            <Folder className="gba:w-4 gba:h-4 gba:text-white/50" />
+            <Folder className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
           )}
         </span>
       )}
@@ -144,13 +144,15 @@ export const DraggableNoteTreeItem: React.FC<DraggableNoteTreeItemProps> = ({
       </span>
 
       {/* Pin indicator */}
-      {node.isPinned && <Pin className="gba:w-3 gba:h-3 gba:text-white/50 gba:fill-current gba:flex-shrink-0" />}
+      {node.isPinned && (
+        <Pin className="gba:w-3 gba:h-3 gba:text-muted-foreground gba:fill-current gba:flex-shrink-0" />
+      )}
 
       {/* Context menu -- faintly visible at rest */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
-            className="gba:w-6 gba:h-6 gba:flex gba:items-center gba:justify-center gba:rounded-md gba:opacity-30 group-hover:gba:opacity-100 hover:gba:bg-white/15 gba:transition-opacity gba:flex-shrink-0"
+            className="gba:w-6 gba:h-6 gba:flex gba:items-center gba:justify-center gba:rounded-md gba:opacity-30 group-hover:gba:opacity-100 hover:gba:bg-muted gba:transition-opacity gba:flex-shrink-0"
             onClick={e => e.stopPropagation()}
             tabIndex={-1}
           >

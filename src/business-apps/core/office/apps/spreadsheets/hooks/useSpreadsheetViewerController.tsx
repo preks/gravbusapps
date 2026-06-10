@@ -43,10 +43,11 @@ function buildLayoutProps(params: UseSpreadsheetViewerControllerParams): Spreads
     onShowVersionHistory: header.onShowVersionHistory,
     publishingStatus: header.publishingStatus,
     showComments: header.showComments,
-    setShowComments: header.setShowComments,
+    onToggleComments: header.onToggleComments,
     unresolvedCommentCount: header.unresolvedCommentCount,
     fileLock: header.fileLock,
     onShare: header.onShare,
+    onManageShares: header.onManageShares,
     onRenameAppName: header.onRenameAppName,
     onOpenAICapability: header.onOpenAICapability,
     onOpenAnalytics: header.onOpenAnalytics,
@@ -100,6 +101,17 @@ function buildLayoutProps(params: UseSpreadsheetViewerControllerParams): Spreads
         'data-testid': `${testId}-sheet-tabs`
       }
 
+  const commentsSidebarProps: SpreadsheetViewerLayoutProps['commentsSidebarProps'] = dialogs.showComments
+    ? {
+        onClose: () => dialogs.setShowComments(false),
+        commentPanel: dialogs.commentPanel,
+        currentUserId: dialogs.currentUserId ?? undefined,
+        currentUserName: dialogs.currentUserName,
+        currentUserAvatar: dialogs.currentUserAvatar ?? undefined,
+        testId
+      }
+    : null
+
   const dialogsProps: SpreadsheetViewerLayoutProps['dialogsProps'] = {
     editingRow: dialogs.editingRow,
     setEditingRow: dialogs.setEditingRow,
@@ -130,14 +142,6 @@ function buildLayoutProps(params: UseSpreadsheetViewerControllerParams): Spreads
     showPublishDialog: dialogs.showPublishDialog,
     setShowPublishDialog: dialogs.setShowPublishDialog,
     publishing: dialogs.publishing as SpreadsheetViewerLayoutProps['dialogsProps']['publishing'],
-    showComments: dialogs.showComments,
-    setShowComments: dialogs.setShowComments,
-    getSelectedCellRef: dialogs.getSelectedCellRef,
-    activeSheetId: dialogs.activeSheetId,
-    comments: dialogs.comments as SpreadsheetViewerLayoutProps['dialogsProps']['comments'],
-    currentUserId: dialogs.currentUserId,
-    currentUserName: dialogs.currentUserName,
-    currentUserAvatar: dialogs.currentUserAvatar,
     testId
   }
 
@@ -227,6 +231,7 @@ function buildLayoutProps(params: UseSpreadsheetViewerControllerParams): Spreads
     mainView,
     emergencyFallback,
     sheetTabsProps,
+    commentsSidebarProps,
     dialogsProps,
     diagnosticsProps,
     sidePanelsProps,

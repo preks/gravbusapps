@@ -71,7 +71,7 @@ const CurrencyFilter: React.FC<CurrencyFilterProps> = ({
  * Overview View for Sales Performance
  * Displays:
  * - Currency selector filter (EUR by default)
- * - 4 KPI cards (Total Revenue, Opportunities Won, Average Deal Size, Win Rate)
+ * - 4 KPI cards (Total Revenue, Opportunities Won, Average Opportunity Size, Win Rate)
  * - Revenue Trends Chart with pipeline selector
  * - Top 5 Individual Performers
  * - Top 5 Teams by Revenue

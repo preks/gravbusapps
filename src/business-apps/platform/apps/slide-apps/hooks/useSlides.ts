@@ -57,7 +57,11 @@ interface UseSlidesResult extends UseSlidesState {
   ) => Promise<Slide | null>
   deleteSlide: (id: string) => Promise<boolean>
   duplicateSlide: (id: string) => Promise<Slide | null>
-  shareSlide: (slideId: string, userIds: string[], permission: 'view' | 'edit' | 'comment') => Promise<boolean>
+  shareSlide: (
+    slideId: string,
+    userIds: string[],
+    permission: 'view' | 'edit' | 'comment' | 'admin'
+  ) => Promise<boolean>
   clearCurrentSlide: () => void
   refreshSlides: () => Promise<void>
 }
@@ -304,7 +308,7 @@ export function useSlides(accessToken: string | undefined, listOptions?: UseSlid
   }, [])
 
   const shareSlide = useCallback(
-    async (slideId: string, userIds: string[], permission: 'view' | 'edit' | 'comment'): Promise<boolean> => {
+    async (slideId: string, userIds: string[], permission: 'view' | 'edit' | 'comment' | 'admin'): Promise<boolean> => {
       if (!accessToken) return false
       try {
         const shares = userIds.map(userId => ({ userId, permission }))

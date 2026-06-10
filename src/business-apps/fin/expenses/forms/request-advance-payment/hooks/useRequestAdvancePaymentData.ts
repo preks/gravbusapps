@@ -49,6 +49,10 @@ export interface PaymentMethod {
   code: string
 }
 
+export interface FetchExpensePlanDetailsOptions {
+  onLoaded?: (plan: ExpensePlan) => void
+}
+
 export interface UseRequestAdvancePaymentDataReturn {
   expensePlans: ExpensePlan[]
   currencies: Currency[]
@@ -57,7 +61,7 @@ export interface UseRequestAdvancePaymentDataReturn {
   isLoading: boolean
   error: string | null
   refetch: () => Promise<void>
-  fetchExpensePlanDetails: (planId: string) => Promise<void>
+  fetchExpensePlanDetails: (planId: string, options?: FetchExpensePlanDetailsOptions) => Promise<void>
 }
 
 // Constants to avoid duplication
@@ -88,10 +92,13 @@ export const useRequestAdvancePaymentData = (context: BusinessAppContextProps): 
       const structureId = getCurrentActiveStructureId()
       const employeeId = context.userInfo.employeeDetails.employeeId
 
+      const activeUserLocale = getCurrentActiveUserLocale()
+
       const response = await graphqlClient.request(GET_EXPENSE_PLANS_BY_USER, {
         status: ['APPROVED', 'ASSIGNED'],
         structureId,
-        employeeId
+        employeeId,
+        activeUserLocale
       })
 
       if (response?.ExpensePlan && response.ExpensePlan.length > 0) {
@@ -113,7 +120,7 @@ export const useRequestAdvancePaymentData = (context: BusinessAppContextProps): 
   }, [graphqlClient, context.accessToken, context.userInfo?.employeeDetails?.employeeId])
 
   const fetchExpensePlanDetails = useCallback(
-    async (planId: string) => {
+    async (planId: string, options?: FetchExpensePlanDetailsOptions) => {
       if (!context.accessToken) {
         return
       }
@@ -127,9 +134,8 @@ export const useRequestAdvancePaymentData = (context: BusinessAppContextProps): 
         })
 
         if (response?.ExpensePlan && response.ExpensePlan.length > 0) {
-          const planDetails = response.ExpensePlan[0]
-          // Update the expense plan with detailed information
-          setExpensePlans(prev => prev.map(plan => (plan.id === planId ? { ...plan, ...planDetails } : plan)))
+          const planDetails = response.ExpensePlan[0] as ExpensePlan
+          options?.onLoaded?.(planDetails)
         }
       } catch (err) {
         console.error('Error fetching expense plan details:', err)
@@ -181,18 +187,10 @@ export const useRequestAdvancePaymentData = (context: BusinessAppContextProps): 
   }, [catalogClient, context.accessToken])
 
   const fetchPaymentMethods = useCallback(async () => {
-    // Payment methods are hardcoded since there's no PaymentMethod catalog
+    // No PaymentMethod catalog — fixed codes; labels come from i18n via getPaymentMethodDisplay
     const paymentMethodOptions: PaymentMethod[] = [
-      {
-        id: 'DIRECT_DEPOSIT',
-        name: 'Direct Deposit',
-        code: 'DIRECT_DEPOSIT'
-      },
-      {
-        id: 'CASH_PAYMENT',
-        name: 'Cash Payment',
-        code: 'CASH_PAYMENT'
-      }
+      { id: 'DIRECT_DEPOSIT', name: 'DIRECT_DEPOSIT', code: 'DIRECT_DEPOSIT' },
+      { id: 'CASH_PAYMENT', name: 'CASH_PAYMENT', code: 'CASH_PAYMENT' }
     ]
 
     setPaymentMethods(paymentMethodOptions)

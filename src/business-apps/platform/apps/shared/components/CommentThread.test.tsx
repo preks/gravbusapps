@@ -1,5 +1,5 @@
 import React from 'react'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { createEvent, fireEvent, render, screen } from '@testing-library/react'
 import type { Comment } from '../types/versioning'
 import { CommentThread } from './CommentThread'
 
@@ -7,7 +7,9 @@ jest.mock('@newwork/nw-design-system', () => ({
   Button: ({ children, ...props }: React.PropsWithChildren<React.ButtonHTMLAttributes<HTMLButtonElement>>) => (
     <button {...props}>{children}</button>
   ),
-  Badge: ({ children }: React.PropsWithChildren) => <span>{children}</span>,
+  Badge: ({ children, ...props }: React.PropsWithChildren<React.HTMLAttributes<HTMLSpanElement>>) => (
+    <span {...props}>{children}</span>
+  ),
   Avatar: ({ children }: React.PropsWithChildren) => <div>{children}</div>,
   AvatarImage: () => null,
   AvatarFallback: ({ children }: React.PropsWithChildren) => <div>{children}</div>,
@@ -121,5 +123,76 @@ describe('CommentThread', () => {
 
     expect(screen.queryByText('comment-thread-edit')).not.toBeInTheDocument()
     expect(screen.queryByText('comment-thread-delete')).not.toBeInTheDocument()
+  })
+
+  it('makes spreadsheet cell references clickable when highlight navigation is available', () => {
+    const onScrollToHighlight = jest.fn()
+
+    render(
+      <CommentThread
+        comment={{
+          ...baseComment,
+          entityType: 'spreadsheet_app',
+          type: 'cell',
+          cellReference: 'C5:D9'
+        }}
+        onReply={jest.fn().mockResolvedValue(undefined)}
+        onUpdate={jest.fn().mockResolvedValue(undefined)}
+        onResolve={jest.fn().mockResolvedValue(undefined)}
+        onUnresolve={jest.fn().mockResolvedValue(undefined)}
+        onDelete={jest.fn().mockResolvedValue(undefined)}
+        onScrollToHighlight={onScrollToHighlight}
+      />
+    )
+
+    fireEvent.click(screen.getByTestId('comment-thread-cell-ref-comment-1'))
+
+    expect(onScrollToHighlight).toHaveBeenCalledWith('comment-1')
+  })
+
+  it('prevents anchor mouse down from stealing focus before spreadsheet navigation', () => {
+    render(
+      <CommentThread
+        comment={{
+          ...baseComment,
+          entityType: 'spreadsheet_app',
+          type: 'cell',
+          cellReference: 'C5:D9'
+        }}
+        onReply={jest.fn().mockResolvedValue(undefined)}
+        onUpdate={jest.fn().mockResolvedValue(undefined)}
+        onResolve={jest.fn().mockResolvedValue(undefined)}
+        onUnresolve={jest.fn().mockResolvedValue(undefined)}
+        onDelete={jest.fn().mockResolvedValue(undefined)}
+        onScrollToHighlight={jest.fn()}
+      />
+    )
+
+    const button = screen.getByTestId('comment-thread-cell-ref-comment-1')
+    const mouseDown = createEvent.mouseDown(button)
+    fireEvent(button, mouseDown)
+
+    expect(mouseDown.defaultPrevented).toBe(true)
+  })
+
+  it('still renders spreadsheet cell references without navigation when no callback is provided', () => {
+    render(
+      <CommentThread
+        comment={{
+          ...baseComment,
+          entityType: 'spreadsheet_app',
+          type: 'cell',
+          cellReference: 'B6'
+        }}
+        onReply={jest.fn().mockResolvedValue(undefined)}
+        onUpdate={jest.fn().mockResolvedValue(undefined)}
+        onResolve={jest.fn().mockResolvedValue(undefined)}
+        onUnresolve={jest.fn().mockResolvedValue(undefined)}
+        onDelete={jest.fn().mockResolvedValue(undefined)}
+      />
+    )
+
+    expect(screen.getByTestId('comment-thread-cell-ref-comment-1')).toBeInTheDocument()
+    expect(screen.getByText('comment-thread-cell-reference')).toBeInTheDocument()
   })
 })

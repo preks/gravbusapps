@@ -40,7 +40,10 @@ describe('UniverRemoteTransactionRunner', () => {
 
     expect(result).toEqual({ ok: true, appliedCellCount: 1, appliedOperationCount: 1 })
     expect(runWithRemoteApplyGuard).toHaveBeenCalledTimes(1)
-    expect(applyRemoteCellUpdatesBulk).not.toHaveBeenCalled()
+    expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledWith(
+      [expect.objectContaining({ rowIndex: 0, colIndex: 1, rowId: 'row-1', value: 'Remote' })],
+      expect.objectContaining({ operationType: 'set_cell' })
+    )
   })
 
   it('applies style operations after registering style payloads in cell options', () => {
@@ -111,7 +114,14 @@ describe('UniverRemoteTransactionRunner', () => {
     )
 
     expect(result).toEqual(expect.objectContaining({ ok: true, appliedCellCount: 2, appliedOperationCount: 3 }))
-    expect(applyRemoteCellUpdatesBulk).not.toHaveBeenCalled()
+    expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledTimes(1)
+    expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({ rowIndex: 0, colIndex: 0, rowId: 'row-1', value: 'A' }),
+        expect.objectContaining({ rowIndex: 0, colIndex: 1, rowId: 'row-1', value: 'B' })
+      ],
+      expect.objectContaining({ operationType: 'set_range' })
+    )
     expect(applyRemoteClearAllRange).not.toHaveBeenCalled()
     expect(applyRemoteClearFormatRange).not.toHaveBeenCalled()
 
@@ -124,6 +134,44 @@ describe('UniverRemoteTransactionRunner', () => {
     expect(applyRemoteClearFormatRange).toHaveBeenCalledWith(
       { sheetId: 'sheet-1', ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 1 }] },
       expect.objectContaining({ operationType: 'clear_format' })
+    )
+  })
+
+  it('defers persisted value operations when the batch also inserts row slots', () => {
+    const applyRemoteCellUpdatesBulk = jest.fn()
+    const runner = new UniverRemoteTransactionRunner({ applyRemoteCellUpdatesBulk })
+
+    const result = runner.run(
+      okPlan([
+        {
+          type: 'insert_row_slots',
+          operationId: 'insert-1',
+          data: {
+            sheetId: 'sheet-1',
+            startGridRowIndex: 1,
+            count: 1,
+            rows: [{ id: 'row-new', data: { _gridRowIndex: 1, ColumnA: '' } }]
+          }
+        },
+        {
+          type: 'set_range',
+          operationId: 'range-1',
+          data: {
+            sheetId: 'sheet-1',
+            cells: [{ row: 1, col: 0, rowId: 'row-new', value: 'typed' }]
+          }
+        }
+      ])
+    )
+
+    expect(result).toEqual(expect.objectContaining({ ok: true, appliedCellCount: 0, appliedOperationCount: 2 }))
+    expect(applyRemoteCellUpdatesBulk).not.toHaveBeenCalled()
+
+    const deferredResult = result.ok ? result.deferredApply?.() : null
+    expect(deferredResult).toEqual({ ok: true, appliedCellCount: 1, appliedOperationCount: 1 })
+    expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledWith(
+      [expect.objectContaining({ rowIndex: 1, colIndex: 0, rowId: 'row-new', value: 'typed' })],
+      expect.objectContaining({ operationType: 'set_range' })
     )
   })
 
@@ -272,11 +320,14 @@ describe('UniverRemoteTransactionRunner', () => {
     )
 
     expect(result).toEqual(expect.objectContaining({ ok: true, appliedCellCount: 1, appliedOperationCount: 2 }))
-    expect(applyRemoteCellUpdatesBulk).not.toHaveBeenCalled()
-    const deferredResult = result.ok ? result.deferredApply?.() : null
-    expect(deferredResult).toEqual({ ok: true, appliedCellCount: 1, appliedOperationCount: 1 })
     expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledTimes(1)
     expect(applyRemoteCellUpdatesBulk.mock.calls[0]?.[1]).toEqual(
+      expect.objectContaining({ operationType: 'set_range' })
+    )
+    const deferredResult = result.ok ? result.deferredApply?.() : null
+    expect(deferredResult).toEqual({ ok: true, appliedCellCount: 1, appliedOperationCount: 1 })
+    expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledTimes(2)
+    expect(applyRemoteCellUpdatesBulk.mock.calls[1]?.[1]).toEqual(
       expect.objectContaining({ operationType: 'set_style' })
     )
   })

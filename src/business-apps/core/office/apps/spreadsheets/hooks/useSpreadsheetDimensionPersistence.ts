@@ -10,6 +10,7 @@ import {
   buildDimensionDeltaOps,
   extractDimensionBaselineFromSnapshot
 } from '../utils/spreadsheetViewerDimensions'
+import { debugLog } from '../utils/spreadsheetViewerDebug'
 
 import { runDimensionPersistFlush } from './spreadsheetDimensionPersistenceFlush'
 import { handleSpreadsheetRemoteColumnUpdate } from './spreadsheetDimensionRemoteColumnHandler'
@@ -18,6 +19,11 @@ export interface UseSpreadsheetDimensionPersistenceParams {
   bootstrapSnapshot: unknown | null
   activeSheetId: string
   activeSheetColumns: SpreadsheetColumn[]
+  columnStructureStateRef?: MutableRefObject<{
+    healthy: boolean
+    pendingInsertedRange: { startIndex: number; endIndex: number; columnNames: string[] } | null
+    expectedColumnsSignature: string | null
+  }>
   canEditWithLockRef: MutableRefObject<boolean>
   emitDimensionSyncRef: MutableRefObject<(payload: CellDimensionsPayload) => void>
   applyLocalAppUpdate: (updater: (currentApp: SpreadsheetApp) => SpreadsheetApp) => void
@@ -67,9 +73,12 @@ export function useSpreadsheetDimensionPersistence(
     baselineColWidthsRef.current = baseline.colWidths
     baselineDefaultRowHeightRef.current = baseline.defaultRowHeight
     baselineDefaultColWidthRef.current = baseline.defaultColWidth
+    pendingDimensionColumnsRef.current = null
+    pendingDimensionChangesRef.current = []
     pendingDimensionOpsRef.current = []
     recentLocalRowHeightRef.current.clear()
     recentLocalColWidthRef.current.clear()
+    setPendingColumnWidthOverrides({})
     if (pendingDimensionPersistTimeoutRef.current) {
       clearTimeout(pendingDimensionPersistTimeoutRef.current)
       pendingDimensionPersistTimeoutRef.current = null
@@ -136,8 +145,32 @@ export function useSpreadsheetDimensionPersistence(
   const handleDimensionsChanged = useCallback(
     (payload: CellDimensionsPayload) => {
       const p = paramsRef.current
-      if (!p.canEditWithLockRef.current) return
-      if (payload.sheetId !== p.activeSheetId) return
+      if (!p.canEditWithLockRef.current) {
+        debugLog('dimension payload skipped: cannot edit with lock', {
+          payloadSheetId: payload.sheetId,
+          activeSheetId: p.activeSheetId
+        })
+        return
+      }
+      if (payload.sheetId !== p.activeSheetId) {
+        console.warn('[SpreadsheetAppViewer] Ignoring dimensions payload for inactive sheet', {
+          payloadSheetId: payload.sheetId,
+          activeSheetId: p.activeSheetId
+        })
+        debugLog('dimension payload skipped: inactive sheet', {
+          payloadSheetId: payload.sheetId,
+          activeSheetId: p.activeSheetId
+        })
+        return
+      }
+      if (p.columnStructureStateRef?.current && !p.columnStructureStateRef.current.healthy) {
+        debugLog('dimension payload skipped: structural column state pending', {
+          payloadSheetId: payload.sheetId,
+          activeSheetId: p.activeSheetId,
+          pendingInsertedRange: p.columnStructureStateRef.current.pendingInsertedRange
+        })
+        return
+      }
 
       const colResult = applyColumnWidthsFromDimensions(p.activeSheetColumns, payload)
       const hasColumnWidthChanges =
@@ -161,6 +194,15 @@ export function useSpreadsheetDimensionPersistence(
         },
         skippedColIndices
       )
+
+      debugLog('dimension payload analyzed', {
+        sheetId: payload.sheetId,
+        rowEntryCount: Object.keys(payload.rowData ?? {}).length,
+        columnEntryCount: Object.keys(payload.columnData ?? {}).length,
+        changedColumnCount: colResult?.changedColumns.length ?? 0,
+        dimensionOpCount: dimensionOps.length,
+        dimensionOpTypes: dimensionOps.map(op => op.type)
+      })
 
       if (!hasColumnWidthChanges && dimensionOps.length === 0) return
 

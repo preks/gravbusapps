@@ -11,10 +11,10 @@ import {
   TabsTrigger,
   TabsContent,
   Spinner,
-  Textarea
+  Textarea,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { SparkleIcon, TreeStructureIcon, TextAaIcon } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useFolderTemplateData } from '@/common/components/common-relations/setting-pages/folder-templates/hooks/useFolderTemplateData'
 import {
   ModuleType,
@@ -27,6 +27,7 @@ import type { OrganizeState } from '../hooks/useDocumentOrganize'
 import type { FolderNode } from '@/common/components/common-relations/setting-pages/folder-templates/types'
 import { OrganizePreview } from './OrganizePreview'
 import { TemplatePreviewSection, DocumentSelectionList } from './OrganizeDialogParts'
+import translations from '../_i18n'
 
 interface OrganizeWithAiDialogProps {
   open: boolean
@@ -44,7 +45,7 @@ interface OrganizeWithAiDialogProps {
 
 const DATA_TEST_ID = 'organize-with-ai'
 
-const ENTITY_TYPE_MAP: Record<AiOrganizeConfig['entityType'], EntityType> = {
+const ENTITY_TYPE_MAP: Partial<Record<AiOrganizeConfig['entityType'], EntityType>> = {
   LEAD: EntityType.LEAD,
   CONTACT: EntityType.CONTACT,
   ACCOUNT: EntityType.ACCOUNT,
@@ -61,6 +62,94 @@ const INVESTMENT_CATALOG_TYPE_MAP: Record<
   LIQUID_FUND_TYPE: InvestmentCatalogType.LIQUID_FUND_TYPE
 }
 
+function getTemplateFolders(
+  isInvestmentEntity: boolean,
+  investmentFolders: FolderNode[] | undefined,
+  mappedEntityType: EntityType | undefined,
+  genericFolders: FolderNode[]
+): FolderNode[] {
+  if (isInvestmentEntity) {
+    return investmentFolders ?? []
+  }
+
+  if (mappedEntityType) {
+    return genericFolders
+  }
+
+  return []
+}
+
+function getTemplateLoading(isInvestmentEntity: boolean, investmentLoading: boolean, genericLoading: boolean): boolean {
+  if (isInvestmentEntity) {
+    return investmentLoading
+  }
+
+  return genericLoading
+}
+
+function OrganizeDialogFooter({
+  phase,
+  showPreview,
+  activeTab,
+  canOrganize,
+  onClose,
+  onReset,
+  onApply,
+  onOrganize,
+  dataTestId
+}: Readonly<{
+  phase: OrganizeState['phase']
+  showPreview: boolean
+  activeTab: 'template' | 'description'
+  canOrganize: boolean
+  onClose: () => void
+  onReset: () => void
+  onApply: () => void
+  onOrganize: () => void
+  dataTestId: string
+}>) {
+  const { t } = useTranslation(translations)
+
+  if (phase === 'done') {
+    return (
+      <Button onClick={onClose} data-testid={`${dataTestId}-close`}>
+        {t('document-ai-organize-close')}
+      </Button>
+    )
+  }
+
+  if (showPreview) {
+    return (
+      <>
+        <Button variant="outline" onClick={onReset} data-testid={`${dataTestId}-back`}>
+          {t('document-ai-organize-back')}
+        </Button>
+        <Button onClick={onApply} data-testid={`${dataTestId}-confirm`}>
+          <SparkleIcon weight="fill" className="gba:h-4 gba:w-4 gba:mr-1" />
+          {t('document-ai-organize-confirm')}
+        </Button>
+      </>
+    )
+  }
+
+  const actionLabel =
+    activeTab === 'template' ? t('document-ai-organize-organize-btn') : t('document-ai-organize-suggest-btn')
+
+  return (
+    <>
+      <Button variant="outline" onClick={onClose} data-testid={`${dataTestId}-cancel`}>
+        {t('document-ai-organize-cancel')}
+      </Button>
+      {phase === 'idle' && (
+        <Button onClick={onOrganize} disabled={!canOrganize} data-testid={`${dataTestId}-organize`}>
+          <SparkleIcon weight="fill" className="gba:h-4 gba:w-4 gba:mr-1" />
+          {actionLabel}
+        </Button>
+      )}
+    </>
+  )
+}
+
 export const OrganizeWithAiDialog: React.FC<OrganizeWithAiDialogProps> = ({
   open,
   onClose,
@@ -74,15 +163,21 @@ export const OrganizeWithAiDialog: React.FC<OrganizeWithAiDialogProps> = ({
   onReset,
   dataTestId = DATA_TEST_ID
 }) => {
+  const { t } = useTranslation(translations)
   const [activeTab, setActiveTab] = useState<'template' | 'description'>('template')
   const [selectedDocIds, setSelectedDocIds] = useState<string[]>(() => fileDocuments.map(d => d.id))
   const [description, setDescription] = useState('')
 
   const moduleType = aiOrganizeConfig.moduleType === 'IRM' ? ModuleType.IRM : ModuleType.CRM
-  const entityType = ENTITY_TYPE_MAP[aiOrganizeConfig.entityType]
-  const isInvestmentEntity = moduleType === ModuleType.IRM && entityType === EntityType.INVESTMENT
+  const mappedEntityType = ENTITY_TYPE_MAP[aiOrganizeConfig.entityType]
+  const entityType = mappedEntityType ?? EntityType.INVESTMENT
+  const isInvestmentEntity = moduleType === ModuleType.IRM && mappedEntityType === EntityType.INVESTMENT
 
-  const genericTemplateData = useFolderTemplateData(isInvestmentEntity ? '' : accessToken, moduleType, entityType)
+  const genericTemplateData = useFolderTemplateData(
+    mappedEntityType && !isInvestmentEntity ? accessToken : '',
+    moduleType,
+    entityType
+  )
   const investmentCatalogType = INVESTMENT_CATALOG_TYPE_MAP[aiOrganizeConfig.investmentTemplate?.catalogType ?? 'GROUP']
   const investmentTemplateData = useInvestmentFolderTemplates(
     isInvestmentEntity ? accessToken : '',
@@ -110,10 +205,17 @@ export const OrganizeWithAiDialog: React.FC<OrganizeWithAiDialogProps> = ({
     aiOrganizeConfig.investmentTemplate?.entryCode,
     investmentTemplateData.entries
   ])
-  const templateFolders = isInvestmentEntity
-    ? (investmentTemplateEntry?.objectValue?.initFolders ?? [])
-    : genericTemplateData.folders
-  const templateLoading = isInvestmentEntity ? investmentTemplateData.isLoading : genericTemplateData.isLoading
+  const templateFolders = getTemplateFolders(
+    isInvestmentEntity,
+    investmentTemplateEntry?.objectValue?.initFolders,
+    mappedEntityType,
+    genericTemplateData.folders
+  )
+  const templateLoading = getTemplateLoading(
+    isInvestmentEntity,
+    investmentTemplateData.isLoading,
+    genericTemplateData.isLoading
+  )
 
   const allSelected = selectedDocIds.length === fileDocuments.length
 
@@ -150,7 +252,7 @@ export const OrganizeWithAiDialog: React.FC<OrganizeWithAiDialogProps> = ({
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <SparkleIcon weight="fill" className="gba:h-5 gba:w-5 gba:text-primary" />
-            {getTranslationFromI18nKeyAndLabel('document.ai.organize.title', 'Organize with AI')}
+            {t('document-ai-organize-title')}
           </DialogTitle>
         </DialogHeader>
 
@@ -158,12 +260,7 @@ export const OrganizeWithAiDialog: React.FC<OrganizeWithAiDialogProps> = ({
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-12 gba:gap-4">
             <Spinner size="lg" />
             <p className="gba:text-sm gba:text-muted-foreground gba:animate-pulse">
-              {state.phase === 'applying'
-                ? getTranslationFromI18nKeyAndLabel('document.ai.organize.applying', 'Applying changes...')
-                : getTranslationFromI18nKeyAndLabel(
-                    'document.ai.organize.analyzing',
-                    'AI is analyzing your documents...'
-                  )}
+              {state.phase === 'applying' ? t('document-ai-organize-applying') : t('document-ai-organize-analyzing')}
             </p>
           </div>
         )}
@@ -171,11 +268,11 @@ export const OrganizeWithAiDialog: React.FC<OrganizeWithAiDialogProps> = ({
         {showError && (
           <div className="gba:py-6">
             <div className="gba:rounded-lg gba:bg-destructive/10 gba:p-4 gba:text-sm gba:text-destructive gba:text-center">
-              {state.errorMessage || 'An error occurred'}
+              {state.errorMessage || t('document-ai-organize-error')}
             </div>
             <div className="gba:flex gba:justify-center gba:mt-4">
               <Button variant="outline" size="sm" onClick={onReset} data-testid={`${dataTestId}-retry`}>
-                {getTranslationFromI18nKeyAndLabel('document.ai.organize.tryAgain', 'Try Again')}
+                {t('document-ai-organize-try-again')}
               </Button>
             </div>
           </div>
@@ -201,7 +298,7 @@ export const OrganizeWithAiDialog: React.FC<OrganizeWithAiDialogProps> = ({
                 startIcon={<TreeStructureIcon size={16} />}
                 data-testid={`${dataTestId}-tab-template`}
               >
-                {getTranslationFromI18nKeyAndLabel('document.ai.organize.byTemplate', 'By Template')}
+                {t('document-ai-organize-by-template')}
               </TabsTrigger>
               <TabsTrigger
                 value="description"
@@ -209,7 +306,7 @@ export const OrganizeWithAiDialog: React.FC<OrganizeWithAiDialogProps> = ({
                 startIcon={<TextAaIcon size={16} />}
                 data-testid={`${dataTestId}-tab-description`}
               >
-                {getTranslationFromI18nKeyAndLabel('document.ai.organize.byDescription', 'By Description')}
+                {t('document-ai-organize-by-description')}
               </TabsTrigger>
             </TabsList>
 
@@ -219,10 +316,7 @@ export const OrganizeWithAiDialog: React.FC<OrganizeWithAiDialogProps> = ({
 
             <TabsContent value="description" className="gba:space-y-4 gba:mt-4">
               <Textarea
-                placeholder={getTranslationFromI18nKeyAndLabel(
-                  'document.ai.organize.descriptionPlaceholder',
-                  'Describe how you want your documents organized...'
-                )}
+                placeholder={t('document-ai-organize-description-placeholder')}
                 value={description}
                 onChange={e => setDescription(e.target.value)}
                 rows={4}
@@ -242,35 +336,17 @@ export const OrganizeWithAiDialog: React.FC<OrganizeWithAiDialogProps> = ({
         )}
 
         <DialogFooter>
-          {state.phase === 'done' ? (
-            <Button onClick={onClose} data-testid={`${dataTestId}-close`}>
-              {getTranslationFromI18nKeyAndLabel('document.ai.organize.close', 'Close')}
-            </Button>
-          ) : showPreview ? (
-            <>
-              <Button variant="outline" onClick={onReset} data-testid={`${dataTestId}-back`}>
-                {getTranslationFromI18nKeyAndLabel('document.ai.organize.back', 'Back')}
-              </Button>
-              <Button onClick={onApply} data-testid={`${dataTestId}-confirm`}>
-                <SparkleIcon weight="fill" className="gba:h-4 gba:w-4 gba:mr-1" />
-                {getTranslationFromI18nKeyAndLabel('document.ai.organize.confirm', 'Confirm & Apply')}
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button variant="outline" onClick={onClose} data-testid={`${dataTestId}-cancel`}>
-                {getTranslationFromI18nKeyAndLabel('document.ai.organize.cancel', 'Cancel')}
-              </Button>
-              {state.phase === 'idle' && (
-                <Button onClick={handleOrganize} disabled={!canOrganize} data-testid={`${dataTestId}-organize`}>
-                  <SparkleIcon weight="fill" className="gba:h-4 gba:w-4 gba:mr-1" />
-                  {activeTab === 'template'
-                    ? getTranslationFromI18nKeyAndLabel('document.ai.organize.organizeBtn', 'Organize')
-                    : getTranslationFromI18nKeyAndLabel('document.ai.organize.suggestBtn', 'Suggest & Apply')}
-                </Button>
-              )}
-            </>
-          )}
+          <OrganizeDialogFooter
+            phase={state.phase}
+            showPreview={showPreview}
+            activeTab={activeTab}
+            canOrganize={canOrganize}
+            onClose={onClose}
+            onReset={onReset}
+            onApply={onApply}
+            onOrganize={handleOrganize}
+            dataTestId={dataTestId}
+          />
         </DialogFooter>
       </DialogContent>
     </Dialog>

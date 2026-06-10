@@ -3,6 +3,7 @@ nh-parent-label = Every Office
 nh-title = Notizen
 nh-tabs-aria-label = Notizbereiche
 nh-tab-my-notes = Meine Notizen
+nh-tab-favorites = Favoriten
 nh-tab-shared = Geteilt
 nh-tab-pinned = Angeheftet
 nh-tab-recent = Zuletzt verwendet
@@ -60,6 +61,7 @@ loading-message = Wird geladen...
 
 menu-open = Öffnen
 menu-share = Teilen
+menu-manage-sharing = Freigaben verwalten
 menu-copy-link = Link kopieren
 menu-duplicate = Duplizieren
 menu-pin = Anheften
@@ -128,22 +130,8 @@ folder-no-folders = Noch keine Ordner
 folder-create-to-start = Erstellen Sie eine Notiz zum Start
 folder-settings = Einstellungen
 
-# ShareNoteDialog
-share-title = „{ $title }“ teilen
-share-description = Diese Notiz mit Teammitgliedern teilen. Echtzeit-Zusammenarbeit möglich.
-share-add-people = Personen hinzufügen
-share-search-placeholder = Nach Name oder E-Mail suchen...
-share-searching = Suche...
-share-sharing = Wird geteilt...
-share-no-users = Keine Benutzer gefunden
+# Note sharing (legacy keys — shared UI uses office/sharing/_i18n)
 share-selected-count = Ausgewählt ({ $count })
-share-permission-label = Berechtigung:
-share-permission-view = Kann ansehen
-share-permission-view-desc = Kann ansehen, aber nicht ändern
-share-permission-comment = Kann kommentieren
-share-permission-comment-desc = Kann ansehen und kommentieren
-share-permission-edit = Kann bearbeiten
-share-permission-edit-desc = Kann ansehen und bearbeiten
 share-permission-owner = Besitzer
 share-permission-owner-desc = Vollzugriff inkl. Freigabe
 share-success-blink = Erfolgreich geteilt! Blink-Benachrichtigungen gesendet.
@@ -151,36 +139,22 @@ share-share-with = Geteilt mit { $count } { $count ->
   [one] Person
  *[other] Personen
 }
-share-people-with-access = Personen mit Zugriff
 share-label-owner = Besitzer
-share-not-shared = Noch mit niemandem geteilt
-share-add-above = Personen oben hinzufügen zum Teilen
-share-done = Fertig
-share-error-select = Bitte mindestens einen Benutzer auswählen
 share-error-failed = Notiz konnte nicht geteilt werden. Bitte erneut versuchen.
 share-toast-success = „{ $title }“ mit { $count } { $count ->
   [one] Person
  *[other] Personen
 } geteilt!
 
-# ManageSharesDialog
-manage-title = Freigabe verwalten
-manage-description = Verwalten, wer Zugriff auf „{ $title }“ hat
-manage-retry = Erneut versuchen
-manage-load-failed = Freigabeinformationen konnten nicht geladen werden
+# Manage share links (legacy — people tab uses office/sharing/_i18n)
 manage-people-tab = Personen ({ $count })
 manage-links-tab = Freigabe-Links ({ $count })
-manage-not-shared = Diese Notiz wurde noch mit niemandem geteilt.
-manage-shared-at = Geteilt { $date }
 manage-create-link = Freigabe-Link erstellen
 manage-permission = Berechtigung
 manage-expires-optional = Läuft ab (optional)
 manage-permission-view-label = Ansehen
 manage-permission-comment-label = Kommentieren
 manage-permission-edit-label = Bearbeiten
-manage-can-view = Kann ansehen
-manage-can-comment = Kann kommentieren
-manage-can-edit = Kann bearbeiten
 manage-creating = Wird erstellt...
 manage-create-link-btn = Link erstellen
 manage-no-links = Noch keine Freigabe-Links erstellt.

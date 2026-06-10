@@ -204,12 +204,20 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     structureId: structureId || undefined
   })
 
-  const { upcomingBirthdays, loading: loadingBirthdays } = useTeamBirthdays({
+  const {
+    upcomingBirthdays,
+    nextMonthBirthdays,
+    loading: loadingBirthdays
+  } = useTeamBirthdays({
     accessToken: accessToken || '',
     managerId: employeeId || ''
   })
 
-  const { upcomingAnniversaries, loading: loadingAnniversaries } = useTeamAnniversaries({
+  const {
+    upcomingAnniversaries,
+    nextMonthAnniversaries,
+    loading: loadingAnniversaries
+  } = useTeamAnniversaries({
     accessToken: accessToken || '',
     managerId: employeeId || ''
   })
@@ -470,9 +478,9 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
             updatedAt
             employeePerformanceGoalUpdate(orderBy: { updateTime: ASC }) {
               id
-              progressPercent
               comment
               updateTime
+              updateDelta
               employee {
                 firstName
                 lastName
@@ -1300,7 +1308,9 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     directReports,
     matrixTeamMembers,
     upcomingBirthdays,
+    nextMonthBirthdays,
     upcomingAnniversaries,
+    nextMonthAnniversaries,
     openPositions,
     fullPositions,
     teamPerformance,

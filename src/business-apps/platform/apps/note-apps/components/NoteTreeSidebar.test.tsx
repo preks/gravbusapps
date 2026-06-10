@@ -90,11 +90,7 @@ describe('NoteTreeSidebar', () => {
         expandedIds={new Set()}
         selectedId={null}
         isLoadingTree={false}
-        activeQuickAccess="recent"
-        searchQuery=""
         dragDrop={dragDrop}
-        onSearchChange={() => {}}
-        onQuickAccessChange={() => {}}
         onSelectNode={() => {}}
         onToggleExpand={() => {}}
         onCreateNote={() => {}}

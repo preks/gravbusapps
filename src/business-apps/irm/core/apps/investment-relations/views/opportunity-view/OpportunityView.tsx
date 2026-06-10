@@ -14,6 +14,7 @@ import { INVESTMENT_OPPORTUNITY_DESCRIPTORS } from '@/common/data/investment/typ
 import { OpportunityStatisticsLayout } from '@/common/components/common-relations/view-layouts/opportunity-layout/components/OpportunityStatisticsLayout'
 import type { OpportunityStatisticsData } from '@/common/components/common-relations/view-layouts/opportunity-layout/components/OpportunityStatisticsLayout'
 import { OpportunityQuickFilters, type QuickFilterType } from './components'
+import { stripRecordScopeFilterKeys } from '@/common/components/common-relations/view-layouts/opportunity-layout/utils/layoutHelpers'
 
 /**
  * Map quickFilter type to opportunity status codes for statistics filtering
@@ -51,13 +52,51 @@ const InvestmentOpportunityStatistics: React.FC<{
   )
 }
 
-export type OpportunityViewProps = BusinessAppContextProps
+export type OpportunityViewProps = BusinessAppContextProps & {
+  accountId?: string
+  contactId?: string
+}
 
-export const OpportunityView: React.FC<OpportunityViewProps> = context => {
+export const OpportunityView: React.FC<OpportunityViewProps> = props => {
+  const { accountId, contactId } = props
+  const isRecordScoped = Boolean(accountId || contactId)
+
+  const preferencesStorageKey = useMemo(() => {
+    if (accountId) {
+      return `irm:investment-opportunity-preferences:account:${accountId}`
+    }
+    if (contactId) {
+      return `irm:investment-opportunity-preferences:contact:${contactId}`
+    }
+    return 'irm:investment-opportunity-preferences:v1'
+  }, [accountId, contactId])
+
+  const recordScopeFilters = useMemo(() => {
+    if (accountId) {
+      return { accountIds: [accountId] }
+    }
+    if (contactId) {
+      return { contactIds: [contactId] }
+    }
+    return {}
+  }, [accountId, contactId])
+
   const { initialFilters, saveFilters, initialSorting, saveSorting, initialVisibleColumns, saveVisibleColumns } =
-    useViewPreferencesStorage('irm:investment-opportunity-preferences:v1')
+    useViewPreferencesStorage(preferencesStorageKey)
 
-  const { fetchInvestmentOpportunities, fetchInvestmentOpportunityAggregates } = useGetInvestmentOpportunities(context)
+  const recordListInitialFilters = useMemo(
+    () => (isRecordScoped ? stripRecordScopeFilterKeys(initialFilters) : initialFilters),
+    [initialFilters, isRecordScoped]
+  )
+
+  const handleFilterChange = useCallback(
+    (filters: Record<string, unknown>) => {
+      saveFilters(isRecordScoped ? stripRecordScopeFilterKeys(filters) : filters)
+    },
+    [saveFilters, isRecordScoped]
+  )
+
+  const { fetchInvestmentOpportunities, fetchInvestmentOpportunityAggregates } = useGetInvestmentOpportunities(props)
   const [activeQuickFilter, setActiveQuickFilter] = useState<QuickFilterType>('all')
 
   const handleQuickFilterChange = useCallback(
@@ -96,8 +135,8 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
   // causing config to rebuild (which would cascade to listQueryVariables → loadListData → query).
   const statisticsRefreshKeyRef = useRef(statisticsRefreshKey)
   statisticsRefreshKeyRef.current = statisticsRefreshKey
-  const contextRef = useRef(context)
-  contextRef.current = context
+  const contextRef = useRef(props)
+  contextRef.current = props
 
   // Create a refetch callback for statistics
   const refetchStatistics = useCallback(() => {
@@ -156,7 +195,11 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
         flowContexts: {
           entity: FlowContextName.investmentOpportunityEntity,
           create: FlowContextName.investmentOpportunityCreate,
-          createContextData: { dealType: 'INVESTMENT_DEAL' }
+          createContextData: {
+            dealType: 'INVESTMENT_DEAL',
+            ...(accountId ? { accountId } : {}),
+            ...(contactId ? { contactId } : {})
+          }
         },
 
         urlPaths: {
@@ -178,40 +221,51 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
         extractBoardOpportunities: result => result.InvestmentOpportunity || [],
         extractBoardTotalCount: result => result.InvestmentOpportunityAggregate?.aggregate?.count || 0,
 
-        opportunityStatistics: opportunityStatisticsData,
+        opportunityStatistics: isRecordScoped ? undefined : opportunityStatisticsData,
 
-        // Reads latest context/key from refs so config stays stable
-        renderStatistics: (selectedCurrency?: string, quickFilter?: string) => (
-          <InvestmentOpportunityStatistics
-            key={statisticsRefreshKeyRef.current}
-            context={contextRef.current}
-            selectedCurrency={selectedCurrency}
-            quickFilter={quickFilter}
-          />
-        ),
+        renderStatistics: isRecordScoped
+          ? undefined
+          : (selectedCurrency?: string, quickFilter?: string) => (
+              <InvestmentOpportunityStatistics
+                key={statisticsRefreshKeyRef.current}
+                context={contextRef.current}
+                selectedCurrency={selectedCurrency}
+                quickFilter={quickFilter}
+              />
+            ),
         rowActionsContextArray: [FlowContextName.investmentOpportunityEntity],
         buildRowActionsExternalContextData: (row: { original: InvestmentOpportunity }) => ({
           opportunityId: row.original.id
         })
       }),
-    [fetchInvestmentOpportunities, fetchInvestmentOpportunityAggregates, opportunityStatisticsData]
+    [
+      fetchInvestmentOpportunities,
+      fetchInvestmentOpportunityAggregates,
+      opportunityStatisticsData,
+      isRecordScoped,
+      accountId,
+      contactId
+    ]
   )
 
   return (
     <OpportunityLayout
-      context={context}
+      context={props}
       config={config}
-      dataTestId="investment-opportunities-view"
-      renderQuickFilters={renderQuickFilters}
-      quickFilter={activeQuickFilter}
+      dataTestId={isRecordScoped ? 'investment-record-opportunities-view' : 'investment-opportunities-view'}
+      renderQuickFilters={isRecordScoped ? undefined : renderQuickFilters}
+      quickFilter={isRecordScoped ? undefined : activeQuickFilter}
       enableExport
       exportFilenamePrefix="opportunities"
-      initialFilters={initialFilters}
-      onFilterChange={saveFilters}
+      initialFilters={recordListInitialFilters}
+      scopedQueryFilters={isRecordScoped ? recordScopeFilters : undefined}
+      hideFilters={isRecordScoped}
+      onFilterChange={handleFilterChange}
       initialSorting={initialSorting ?? undefined}
       onSortingChange={saveSorting}
       initialVisibleColumns={initialVisibleColumns ?? undefined}
       onVisibleColumnsChange={saveVisibleColumns}
+      hideBoard={isRecordScoped}
     />
   )
 }

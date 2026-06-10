@@ -21,6 +21,8 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 
 interface InvestmentPortalTasksProps {
@@ -29,6 +31,7 @@ interface InvestmentPortalTasksProps {
 }
 
 const InvestmentPortalTasks: React.FC<InvestmentPortalTasksProps> = ({ investmentId, context }) => {
+  const docuSignEnabled = useFeature<boolean>(Feature.IRM.DocuSign.Key) === true
   const [tasks, setTasks] = useState<InvestmentTask[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -188,6 +191,7 @@ const InvestmentPortalTasks: React.FC<InvestmentPortalTasksProps> = ({ investmen
             taskEntityActionProps={taskEntityActionProps}
             emptyStateTitle={emptyStateTitle}
             emptyStateDescription={emptyStateDescription}
+            docuSignEnabled={docuSignEnabled}
           />
         </CardContent>
       </Card>
@@ -222,6 +226,7 @@ const InvestmentPortalTasks: React.FC<InvestmentPortalTasksProps> = ({ investmen
               taskEntityActionProps={taskEntityActionProps}
               emptyStateTitle={emptyStateTitle}
               emptyStateDescription={emptyStateDescription}
+              docuSignEnabled={docuSignEnabled}
             />
           </TabsContent>
 
@@ -234,6 +239,7 @@ const InvestmentPortalTasks: React.FC<InvestmentPortalTasksProps> = ({ investmen
               taskEntityActionProps={taskEntityActionProps}
               emptyStateTitle={emptyStateTitle}
               emptyStateDescription={emptyStateDescription}
+              docuSignEnabled={docuSignEnabled}
             />
           </TabsContent>
         </Tabs>

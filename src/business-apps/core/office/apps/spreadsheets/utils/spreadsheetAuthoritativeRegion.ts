@@ -59,6 +59,8 @@ export type ForceAuthoritativeGridReapplyOptions = {
   reason?: string
   /** How pending-local protection should be applied during bounded authoritative repair. */
   pendingLocalFilterPolicy?: PendingLocalFilterPolicy
+  /** When true, merge any staged direct paint with the forced repair remainder in the same sync. */
+  preserveStagedDirectPaint?: boolean
 }
 
 function resolveColumnDisplayName(columns: SpreadsheetColumn[], columnKey: string): string {
@@ -290,8 +292,10 @@ function resolveCreatedRowRegionsForReplayDeltaChange(params: {
     change.payload && typeof change.payload === 'object' ? (change.payload as Record<string, unknown>) : {}
   const wireRowsSource = Array.isArray(payload.rows)
     ? (payload.rows as unknown[])
-    : Array.isArray(((change as Record<string, unknown>).result as Record<string, unknown> | undefined)?.rows)
-      ? (((change as Record<string, unknown>).result as Record<string, unknown>).rows as unknown[])
+    : Array.isArray(
+          ((change as unknown as Record<string, unknown>).result as Record<string, unknown> | undefined)?.rows
+        )
+      ? (((change as unknown as Record<string, unknown>).result as Record<string, unknown>).rows as unknown[])
       : []
   if (wireRowsSource.length === 0) return []
 

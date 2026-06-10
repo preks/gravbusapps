@@ -31,7 +31,7 @@ import { HomeView } from './views/home-view/HomeView'
 import { DocumentView } from './views/document-view/DocumentView'
 import ComplianceSection from '@/common/components/common-relations/record-sections/compliance-section/ComplianceSection'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
-import { formatScoreValue, getGradeBadgeVariant } from '@/business-apps/crm/core/features/lead-scoring'
+import { AiScoreRecordBadge } from '@/common/components/ai-score/AiScoreRecordBadge'
 
 interface LeadRecordContentProps extends BusinessAppContextProps {
   leadId: string
@@ -114,103 +114,108 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
   }, [activeTab])
 
   // Load section data
-  const loadSectionData = useCallback(async () => {
-    if (!leadId || !props.accessToken) return
+  const loadSectionData = useCallback(
+    async (silent = false) => {
+      if (!leadId || !props.accessToken) return
 
-    setSectionsLoading(true)
-    setSectionsError(null)
-
-    try {
-      // Helpers: sleep and retry with exponential backoff on 429s
-      const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-      const withRetry = async <T,>(fn: () => Promise<T>, maxRetries = 3, baseDelayMs = 400): Promise<T> => {
-        let attempt = 0
-
-        while (true) {
-          try {
-            return await fn()
-          } catch (err: any) {
-            const message = typeof err?.message === 'string' ? err.message : ''
-            const status = (err && (err.status || err.code)) as number | undefined
-            const isRateLimited = status === 429 || message.includes('429') || message.includes('Too Many Requests')
-            if (!isRateLimited || attempt >= maxRetries - 1) {
-              throw err
-            }
-            const jitter = Math.floor(Math.random() * 150)
-            const delay = baseDelayMs * Math.pow(2, attempt) + jitter
-            attempt += 1
-            await sleep(delay)
-          }
-        }
+      if (!silent) {
+        setSectionsLoading(true)
+        setSectionsError(null)
       }
 
-      // Staggered serial execution to reduce burst load on API
-      const activitiesData = await withRetry(() => fetchCustomerActivitiesByLeadId(leadId))
-      await sleep(120)
-      const notesData = await withRetry(() => fetchCustomerNotesByLeadId(leadId))
-      await sleep(120)
-      const tasksData = await withRetry(() => fetchCustomerTasksByLeadId(leadId))
+      try {
+        // Helpers: sleep and retry with exponential backoff on 429s
+        const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+        const withRetry = async <T,>(fn: () => Promise<T>, maxRetries = 3, baseDelayMs = 400): Promise<T> => {
+          let attempt = 0
 
-      const sortedNotes = (notesData || []).sort(
-        (a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-      )
-      const sortedTasks = (tasksData || []).sort(
-        (a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-      )
+          while (true) {
+            try {
+              return await fn()
+            } catch (err: any) {
+              const message = typeof err?.message === 'string' ? err.message : ''
+              const status = (err && (err.status || err.code)) as number | undefined
+              const isRateLimited = status === 429 || message.includes('429') || message.includes('Too Many Requests')
+              if (!isRateLimited || attempt >= maxRetries - 1) {
+                throw err
+              }
+              const jitter = Math.floor(Math.random() * 150)
+              const delay = baseDelayMs * Math.pow(2, attempt) + jitter
+              attempt += 1
+              await sleep(delay)
+            }
+          }
+        }
 
-      // Separate regular tasks from approvals based on taskType catalog entry
-      const regularTasks = sortedTasks.filter((task: any) => {
-        const taskTypeCode = task?.taskType?.code || ''
-        const taskTypeValue = task?.taskType?.value || ''
-        return taskTypeCode?.toUpperCase() !== 'APPROVAL' && taskTypeValue?.toUpperCase() !== 'APPROVAL'
-      })
-      const approvalTasks = sortedTasks.filter((task: any) => {
-        const taskTypeCode = task?.taskType?.code || ''
-        const taskTypeValue = task?.taskType?.value || ''
-        return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
-      })
+        // Staggered serial execution to reduce burst load on API
+        const activitiesData = await withRetry(() => fetchCustomerActivitiesByLeadId(leadId))
+        await sleep(120)
+        const notesData = await withRetry(() => fetchCustomerNotesByLeadId(leadId))
+        await sleep(120)
+        const tasksData = await withRetry(() => fetchCustomerTasksByLeadId(leadId))
 
-      setActivities(activitiesData || [])
-      setNotes(sortedNotes)
-      setTasks(regularTasks)
-      setApprovals(approvalTasks)
-    } catch (error: any) {
-      console.error('Error loading section data:', error)
-      const message = typeof error?.message === 'string' ? error.message : ''
-      const status = (error && (error.status || error.code)) as number | undefined
-      const is429 = status === 429 || message.includes('429') || message.includes('Too Many Requests')
-      setSectionsError(
-        is429
-          ? getTranslationFromI18nKeyAndLabel('crm.errors.rateLimited', 'Rate limited. Please try again in a moment.')
-          : error instanceof Error
-            ? error.message
-            : 'Failed to load data'
-      )
-    } finally {
-      setSectionsLoading(false)
-    }
-  }, [
-    leadId,
-    props.accessToken,
-    fetchCustomerActivitiesByLeadId,
-    fetchCustomerNotesByLeadId,
-    fetchCustomerTasksByLeadId
-  ])
+        const sortedNotes = (notesData || []).sort(
+          (a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+        )
+        const sortedTasks = (tasksData || []).sort(
+          (a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+        )
+
+        // Separate regular tasks from approvals based on taskType catalog entry
+        const regularTasks = sortedTasks.filter((task: any) => {
+          const taskTypeCode = task?.taskType?.code || ''
+          const taskTypeValue = task?.taskType?.value || ''
+          return taskTypeCode?.toUpperCase() !== 'APPROVAL' && taskTypeValue?.toUpperCase() !== 'APPROVAL'
+        })
+        const approvalTasks = sortedTasks.filter((task: any) => {
+          const taskTypeCode = task?.taskType?.code || ''
+          const taskTypeValue = task?.taskType?.value || ''
+          return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
+        })
+
+        setActivities(activitiesData || [])
+        setNotes(sortedNotes)
+        setTasks(regularTasks)
+        setApprovals(approvalTasks)
+      } catch (error: any) {
+        console.error('Error loading section data:', error)
+        if (!silent) {
+          const message = typeof error?.message === 'string' ? error.message : ''
+          const status = (error && (error.status || error.code)) as number | undefined
+          const is429 = status === 429 || message.includes('429') || message.includes('Too Many Requests')
+          setSectionsError(
+            is429
+              ? getTranslationFromI18nKeyAndLabel(
+                  'crm.errors.rateLimited',
+                  'Rate limited. Please try again in a moment.'
+                )
+              : error instanceof Error
+                ? error.message
+                : 'Failed to load data'
+          )
+        }
+      } finally {
+        if (!silent) {
+          setSectionsLoading(false)
+        }
+      }
+    },
+    [leadId, props.accessToken, fetchCustomerActivitiesByLeadId, fetchCustomerNotesByLeadId, fetchCustomerTasksByLeadId]
+  )
+
+  const refreshSectionDataSilently = useCallback(() => {
+    void refetch()
+    void loadSectionData(true)
+  }, [loadSectionData, refetch])
 
   // Load section data on mount
   useEffect(() => {
-    loadSectionData()
+    void loadSectionData(false)
   }, [loadSectionData])
 
-  // Memoized callback for process completion
-  const handleProcessSuccess = useCallback(() => {
-    fetchLeadData()
-    loadSectionData()
-  }, [fetchLeadData, loadSectionData])
-
-  // Listen for process completion events to refresh lead data
+  // Refresh section lists after Kogito flows without reloading the whole record
   useProcessCompletion({
-    onSuccess: handleProcessSuccess
+    onSuccess: refreshSectionDataSilently
   })
 
   const getBackButtonText = () => {
@@ -258,12 +263,12 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
     <AiActions
       entityType="lead"
       entityId={leadId}
-      features={['summary', 'meeting-planner', 'lead-scoring']}
+      features={['summary', 'meeting-planner', 'ai-scoring']}
       hooks={{ summary: aiSummaryHook, meetingPlanner: aiSummaryHook }}
       accessToken={props.accessToken}
       userInfo={props.userInfo}
       additionalData={props.additionalData}
-      onLeadScored={fetchLeadData}
+      onIcpScored={fetchLeadData}
     />
   )
 
@@ -395,7 +400,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
               approvals={approvals}
               sectionsLoading={sectionsLoading}
               sectionsError={sectionsError}
-              loadSectionData={loadSectionData}
+              loadSectionData={refreshSectionDataSilently}
               activityActionProps={activityActionProps}
               noteActionProps={noteActionProps}
               taskActionProps={taskActionProps}
@@ -471,7 +476,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
       activities,
       sectionsLoading,
       sectionsError,
-      loadSectionData,
+      refreshSectionDataSilently,
       taskActionProps,
       approvalActionProps,
       noteActionProps,
@@ -481,7 +486,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
     ]
   )
 
-  if (loading) {
+  if (loading && !leadData) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <Spinner size="lg" />
@@ -509,25 +514,18 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
     )
   }
 
-  const hasAiScoreValue = leadData.aiLeadScore !== null && leadData.aiLeadScore !== undefined
-  const hasAiScoreBadge = hasAiScoreValue || Boolean(leadData.aiLeadGrade)
-  const aiScoreLabel = `${formatScoreValue(leadData.aiLeadScore)} · ${
-    leadData.aiLeadGrade || getTranslationFromI18nKeyAndLabel('crm.common.notAvailable', 'N/A')
-  }`
+  const gradeFallback = getTranslationFromI18nKeyAndLabel('crm.common.notAvailable', 'N/A')
 
   // Create header title with sensitive badge
   const headerTitle = (
     <div className="gba:flex gba:items-center gba:gap-2">
       <span>{leadName}</span>
-      {hasAiScoreBadge && (
-        <Badge
-          data-testid="lead-ai-score-badge"
-          variant={getGradeBadgeVariant(leadData.aiLeadGrade)}
-          className="gba:text-sm"
-        >
-          {aiScoreLabel}
-        </Badge>
-      )}
+      <AiScoreRecordBadge
+        score={leadData.aiLeadScore}
+        grade={leadData.aiLeadGrade}
+        gradeFallback={gradeFallback}
+        dataTestId="lead-ai-score-badge"
+      />
       {leadData?.sensitive === true && (
         <TooltipProvider>
           <Tooltip>

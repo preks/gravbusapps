@@ -125,6 +125,28 @@ export interface Meeting {
   participants?: MeetingParticipant[]
 }
 
+export interface PendingInvitationSingleGroup {
+  kind: 'single'
+  seriesRootId: string
+  meeting: Meeting
+}
+
+export interface PendingInvitationSeriesGroup {
+  kind: 'series'
+  seriesRootId: string
+  title: string
+  organizer?: Meeting['organizer']
+  recurrence: MeetingRecurrence
+  pendingMeetings: Meeting[]
+  pendingCount: number
+  dateRange: {
+    start: string
+    end: string
+  }
+}
+
+export type PendingInvitationGroup = PendingInvitationSingleGroup | PendingInvitationSeriesGroup
+
 export interface EventParticipant {
   id: string
   firstName?: string

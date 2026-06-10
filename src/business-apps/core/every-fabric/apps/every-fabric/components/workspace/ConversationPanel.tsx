@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useLayoutEffect } from 'react'
-import type { ChatMessage, EnterprisePresentationMode, PlanItem } from '../../types/enterpriseAgent'
+import type { ChatMessage, EnterprisePresentationMode } from '../../types/enterpriseAgent'
 import { MessageBubble } from '../chat/MessageBubble'
 import { StreamingAnswerBubble } from '../chat/StreamingAnswerBubble'
 import {
@@ -22,7 +22,6 @@ interface ConversationPanelProps {
   streamingContent: string
   streamingThinking: string
   statusHeadline: string | null
-  planItems?: PlanItem[]
   activityLines?: readonly string[]
   isStreaming: boolean
   isWaitingForInput: boolean
@@ -140,7 +139,6 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
   streamingContent,
   streamingThinking,
   statusHeadline,
-  planItems,
   activityLines,
   isStreaming,
   hasFixedFollowUps = false,
@@ -244,7 +242,6 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
               thinkingContent={streamingThinking}
               isStreaming={isStreaming}
               statusMessage={statusHeadline}
-              planItems={planItems ?? []}
               activityLines={activityLines ?? []}
               presentationMode={presentationMode}
             />

@@ -262,6 +262,47 @@ export function getOpportunityForecastBadgeVariant(
 }
 
 /**
+ * Utility function for customer engagement-level badges (Marketing extension).
+ * Mirrors the keyword-fallback used across campaign sections / ABM dashboards
+ * so the same logic isn't reimplemented per consumer.
+ */
+export function getCustomerEngagementLevelBadgeVariant(
+  engagementLevel?: {
+    code?: string
+    value?: string
+    objectValue?: any
+  } | null
+): BadgeProps['variant'] {
+  const catalogVariant = getBadgeVariantFromCatalog(engagementLevel)
+  if (catalogVariant && catalogVariant !== 'default') return catalogVariant
+
+  const code = (engagementLevel?.code || engagementLevel?.value || '').toLowerCase()
+  if (code.includes('high') || code.includes('engaged')) return 'success'
+  if (code.includes('medium')) return 'default'
+  if (code.includes('low')) return 'warning'
+  return 'secondary'
+}
+
+/**
+ * Utility function for marketing funnel-stage badges (awareness/consideration/decision).
+ */
+export function getMarketingFunnelStageBadgeVariant(
+  funnelStage?: {
+    value?: string
+    objectValue?: any
+  } | null
+): BadgeProps['variant'] {
+  const catalogVariant = getBadgeVariantFromCatalog(funnelStage)
+  if (catalogVariant && catalogVariant !== 'default') return catalogVariant
+
+  const value = (funnelStage?.value || '').toLowerCase()
+  if (value.includes('awareness')) return 'info'
+  if (value.includes('consideration')) return 'default'
+  if (value.includes('decision')) return 'success'
+  return 'secondary'
+}
+
+/**
  * Utility function for prospective account type badges
  * @param isProspective - Boolean indicating if account is prospective
  * @param context - Context to determine non-prospective label ('crm' | 'irm')

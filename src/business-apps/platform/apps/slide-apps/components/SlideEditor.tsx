@@ -4730,6 +4730,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                     accessToken={accessToken}
                     currentUserId={currentUserId}
                     currentUserName={currentUserName}
+                    currentUserAvatar={currentUserAvatar}
+                    currentUserPermission={slidePermission}
                     flushPendingCollaborationUpdates={() => {
                       flushPendingUpdates()
                     }}

@@ -40,7 +40,6 @@ function isCursorRulesDeclared() {
   }
 }
 
-
 function syncPlatformAssets() {
   try {
     execSync('node ./scripts/sync-platform-assets.mjs', { stdio: 'inherit' })
@@ -146,7 +145,7 @@ function startDevServer(port) {
   syncPlatformAssets()
   syncCursorRules()
 
-  const command = `npm run cleanup:logs && vite --port ${port}`
+  const command = `npm run cleanup:logs && vite --port ${port} --host`
 
   const child = spawn(command, {
     stdio: 'inherit',

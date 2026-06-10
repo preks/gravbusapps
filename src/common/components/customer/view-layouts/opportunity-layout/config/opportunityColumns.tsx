@@ -7,12 +7,39 @@
 
 import { Badge } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
+import { formatScoreValue, getGradeBadgeVariant } from '@/common/utils/aiScoreDisplay'
 import { getWinningChanceBadgeVariant } from '@/common/utils/badgeUtils'
 import type { CustomerOpportunity } from '@/common/data/customer/types/customerOpportunityTypes'
 
 // ============================================================================
 // Column Definitions
 // ============================================================================
+
+/**
+ * AI opportunity score column — persisted score and grade from CRM
+ */
+export const aiOpportunityScoreColumn: ColumnDef<CustomerOpportunity> = {
+  id: 'aiOpportunityScore',
+  accessorFn: row => row.aiOpportunityScore ?? null,
+  header: 'Opportunity Score',
+  size: 160,
+  minSize: 140,
+  maxSize: 220,
+  cell: ({ row }) => {
+    const { aiOpportunityScore, aiOpportunityGrade } = row.original
+
+    if ((aiOpportunityScore === null || aiOpportunityScore === undefined) && !aiOpportunityGrade) {
+      return <span className="gba:text-sm gba:text-muted-foreground">Not scored</span>
+    }
+
+    return (
+      <div className="gba:flex gba:flex-col gba:gap-1" data-testid={`opportunity-ai-score-${row.original.id}`}>
+        <span className="gba:font-medium gba:text-sm">{formatScoreValue(aiOpportunityScore)}</span>
+        <Badge variant={getGradeBadgeVariant(aiOpportunityGrade)}>{aiOpportunityGrade || 'N/A'}</Badge>
+      </div>
+    )
+  }
+}
 
 /**
  * Winning Chance column - displays opportunity win probability as percentage
@@ -47,17 +74,23 @@ export const winningChanceColumn: ColumnDef<CustomerOpportunity> = {
 /**
  * All additional columns specific to CRM opportunities.
  */
-export const CUSTOMER_OPPORTUNITY_ADDITIONAL_COLUMNS: ColumnDef<CustomerOpportunity>[] = [winningChanceColumn]
+export const CUSTOMER_OPPORTUNITY_ADDITIONAL_COLUMNS: ColumnDef<CustomerOpportunity>[] = [
+  aiOpportunityScoreColumn,
+  winningChanceColumn
+]
 
 /**
  * Column IDs to extend visible columns by default in CRM views.
  */
-export const CUSTOMER_OPPORTUNITY_EXTENDED_COLUMN_IDS: string[] = ['winningChance']
+export const CUSTOMER_OPPORTUNITY_EXTENDED_COLUMN_IDS: string[] = ['aiOpportunityScore', 'winningChance']
 
 /**
  * Sortable column metadata for CRM-specific columns.
  */
-export const CUSTOMER_OPPORTUNITY_SORTABLE_COLUMNS = [{ id: 'winningChance', label: 'Winning Chance' }]
+export const CUSTOMER_OPPORTUNITY_SORTABLE_COLUMNS = [
+  { id: 'aiOpportunityScore', label: 'Opportunity Score' },
+  { id: 'winningChance', label: 'Winning Chance' }
+]
 
 // ============================================================================
 // Utility Functions

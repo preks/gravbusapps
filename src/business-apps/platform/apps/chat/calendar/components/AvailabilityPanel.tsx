@@ -49,6 +49,10 @@ export const AvailabilityPanel: React.FC<AvailabilityPanelProps> = ({
     () => Array.from(new Set(participants.map(participant => participant.id).filter(Boolean))),
     [participants]
   )
+  const participantsById = useMemo(
+    () => new Map(participants.map(participant => [participant.id, participant])),
+    [participants]
+  )
 
   const durationMinutes = useMemo(() => {
     const start = new Date(`${date}T${startTime}`)
@@ -147,7 +151,7 @@ export const AvailabilityPanel: React.FC<AvailabilityPanelProps> = ({
 
       <div className="gba:space-y-2">
         {(data?.availability || []).map(entry => {
-          const participant = participants.find(item => item.id === entry.userId)
+          const participant = participantsById.get(entry.userId)
 
           return (
             <div
@@ -156,7 +160,7 @@ export const AvailabilityPanel: React.FC<AvailabilityPanelProps> = ({
             >
               <div className="gba:min-w-0">
                 <p className="gba:text-sm gba:font-medium gba:text-foreground">
-                  {participant ? formatPersonName(participant) : entry.userId}
+                  {formatPersonName(participant ?? { id: entry.userId })}
                 </p>
                 <p className="gba:text-xs gba:text-muted-foreground">
                   {entry.busySlots.length === 0 ? 'No conflicts on this day' : `${entry.busySlots.length} busy slot(s)`}

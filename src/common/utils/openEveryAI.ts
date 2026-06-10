@@ -119,11 +119,20 @@ export function openEveryAI(options?: OpenEveryAIOptions): void {
     console.warn('[openEveryAI] Failed to dispatch custom event:', error)
   }
 
-  // Also try postMessage as fallback
-  try {
-    window.postMessage(message, '*')
-    console.log('[openEveryAI] Sent postMessage')
-  } catch (error) {
-    console.warn('[openEveryAI] Failed to send postMessage:', error)
-  }
+  // Also try postMessage as fallback. When this screen runs inside an iframe,
+  // the platform host that owns the Every AI sidebar listens on the parent /
+  // top window, so broadcast there too (guarded to avoid double-posting when
+  // we are not embedded).
+  const messageTargets: Window[] = [window]
+  if (window.parent && window.parent !== window) messageTargets.push(window.parent)
+  if (window.top && window.top !== window && window.top !== window.parent) messageTargets.push(window.top)
+
+  messageTargets.forEach(target => {
+    try {
+      target.postMessage(message, '*')
+    } catch (error) {
+      console.warn('[openEveryAI] Failed to send postMessage:', error)
+    }
+  })
+  console.log('[openEveryAI] Sent postMessage to', messageTargets.length, 'window(s)')
 }

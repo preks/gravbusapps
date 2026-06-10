@@ -59,7 +59,7 @@ export const BenefitsMaintenance: React.FC<BenefitsMaintenanceProps> = context =
   const mutations = useBenefitMutations(context)
   const { counts: employeeKpiCounts, trends: employeeKpiTrends } = useBenefitsKpiData(context.accessToken)
 
-  const { entries: providerKpiBenefitEntries } = useBenefitTypesCatalog({
+  const { entries: providerKpiBenefitEntries, fetchEntries: fetchProviderKpiEntries } = useBenefitTypesCatalog({
     accessToken: context.accessToken,
     autoFetch: activeTab === 'providers'
   })
@@ -84,6 +84,10 @@ export const BenefitsMaintenance: React.FC<BenefitsMaintenanceProps> = context =
     setSelectedBenefitForProviders(null)
     setActiveTab('benefits')
   }, [])
+
+  const handleProvidersChanged = useCallback(() => {
+    return fetchProviderKpiEntries({ search: undefined })
+  }, [fetchProviderKpiEntries])
 
   const handleCreateSubmit = async (data: BenefitTypeFormData) => {
     try {
@@ -264,6 +268,7 @@ export const BenefitsMaintenance: React.FC<BenefitsMaintenanceProps> = context =
             parentBenefitType={selectedBenefitForProviders}
             benefitTypes={providerKpiBenefitEntries}
             onBack={handleBackFromProviders}
+            onProvidersChanged={handleProvidersChanged}
             {...context}
           />
         )
@@ -300,6 +305,7 @@ export const BenefitsMaintenance: React.FC<BenefitsMaintenanceProps> = context =
     handleViewProviders,
     selectedBenefitForProviders,
     handleBackFromProviders,
+    handleProvidersChanged,
     handleAssignmentKpiChange,
     context,
     pendingTasks,

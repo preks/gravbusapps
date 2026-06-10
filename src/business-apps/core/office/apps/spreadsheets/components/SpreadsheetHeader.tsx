@@ -199,7 +199,7 @@ function EditingToolbar({
   persistenceError,
   onShowCheckpointDialog,
   showComments,
-  setShowComments,
+  onToggleComments,
   unresolvedCommentCount,
   onOpenAICapability,
   fileLock,
@@ -209,7 +209,7 @@ function EditingToolbar({
   persistenceError?: string | null
   onShowCheckpointDialog: () => void
   showComments: boolean
-  setShowComments: (show: boolean) => void
+  onToggleComments: () => void
   unresolvedCommentCount: number
   onOpenAICapability: (capability: 'charts' | 'insights' | 'formula' | 'analyze' | 'review') => void
   fileLock: {
@@ -239,7 +239,7 @@ function EditingToolbar({
       <Button
         variant={showComments ? 'default' : 'ghost'}
         size="sm"
-        onClick={() => setShowComments(!showComments)}
+        onClick={onToggleComments}
         title={t('header-comments')}
         data-testid="spreadsheet-comments-button"
         className="gba:h-8"
@@ -382,7 +382,7 @@ export interface SpreadsheetHeaderProps {
 
   // Comments
   showComments: boolean
-  setShowComments: (show: boolean) => void
+  onToggleComments: () => void
   unresolvedCommentCount: number
 
   // File lock
@@ -397,6 +397,7 @@ export interface SpreadsheetHeaderProps {
   onRenameAppName?: (name: string) => Promise<boolean> | boolean
   onOpenAICapability: (capability: 'charts' | 'insights' | 'formula' | 'analyze' | 'review') => void
   onShare?: () => void
+  onManageShares?: () => void
   onOpenAnalytics: () => void
   onOpenAutomations: () => void
   showCheckCollectionResponses?: boolean
@@ -428,11 +429,12 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
   onShowVersionHistory,
   publishingStatus,
   showComments,
-  setShowComments,
+  onToggleComments,
   unresolvedCommentCount,
   fileLock,
   onRenameAppName,
   onShare,
+  onManageShares,
   onOpenAICapability,
   onOpenAnalytics,
   onOpenAutomations,
@@ -568,7 +570,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
               persistenceError={persistenceError}
               onShowCheckpointDialog={onShowCheckpointDialog}
               showComments={showComments}
-              setShowComments={setShowComments}
+              onToggleComments={onToggleComments}
               unresolvedCommentCount={unresolvedCommentCount}
               onOpenAICapability={onOpenAICapability}
               fileLock={fileLock}
@@ -588,6 +590,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
             onReleaseLock={fileLock.releaseLock}
             canEdit={canEdit}
             onShare={onShare}
+            onManageShares={onManageShares}
             onOpenAnalytics={onOpenAnalytics}
             onOpenAutomations={onOpenAutomations}
             showCheckCollectionResponses={showCheckCollectionResponses}

@@ -99,10 +99,27 @@ export const useBenefitMutations = (context: BusinessAppContextProps) => {
         id: entryId,
         code: entry.code,
         value: entry.value,
+        description: entry.description || '',
         parentEntryId: entry.parentEntryId,
         objectValue: entry.objectValue ?? {},
         translations: [],
         isDeleted: true
+      })
+    },
+    [catalogClient]
+  )
+
+  const activateBenefitType = useCallback(
+    async (entryId: string, entry: CatalogMutationSource): Promise<void> => {
+      await catalogClient.put(`/catalog-entries/${entryId}`, {
+        id: entryId,
+        code: entry.code,
+        value: entry.value,
+        description: entry.description || '',
+        parentEntryId: entry.parentEntryId,
+        objectValue: entry.objectValue ?? {},
+        translations: [],
+        isDeleted: false
       })
     },
     [catalogClient]
@@ -153,10 +170,27 @@ export const useBenefitMutations = (context: BusinessAppContextProps) => {
         id: entryId,
         code: entry.code,
         value: entry.value,
+        description: entry.description || '',
         parentEntryId: entry.parentEntryId,
         objectValue: entry.objectValue ?? {},
         translations: [],
         isDeleted: true
+      })
+    },
+    [catalogClient]
+  )
+
+  const activateProvider = useCallback(
+    async (entryId: string, entry: CatalogMutationSource): Promise<void> => {
+      await catalogClient.put(`/catalog-entries/${entryId}`, {
+        id: entryId,
+        code: entry.code,
+        value: entry.value,
+        description: entry.description || '',
+        parentEntryId: entry.parentEntryId,
+        objectValue: entry.objectValue ?? {},
+        translations: [],
+        isDeleted: false
       })
     },
     [catalogClient]
@@ -194,9 +228,11 @@ export const useBenefitMutations = (context: BusinessAppContextProps) => {
       createBenefitType,
       updateBenefitType,
       deactivateBenefitType,
+      activateBenefitType,
       createProvider,
       updateProvider,
       deleteProvider,
+      activateProvider,
       linkProviderToBenefit,
       unlinkProvider
     }),
@@ -204,9 +240,11 @@ export const useBenefitMutations = (context: BusinessAppContextProps) => {
       createBenefitType,
       updateBenefitType,
       deactivateBenefitType,
+      activateBenefitType,
       createProvider,
       updateProvider,
       deleteProvider,
+      activateProvider,
       linkProviderToBenefit,
       unlinkProvider
     ]

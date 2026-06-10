@@ -75,6 +75,7 @@ export const EMPLOYEE_ASSET_FIELDS = `
   id
   assetId
   employeeId
+  roomId
   startDate
   expectedEndDate
   endDate
@@ -90,6 +91,10 @@ export const EMPLOYEE_ASSET_FIELDS = `
     firstName
     lastName
     displayName
+  }
+  room {
+    id
+    name
   }
   startAssetCondition {
     id

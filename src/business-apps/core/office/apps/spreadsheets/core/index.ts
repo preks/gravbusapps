@@ -1,4 +1,5 @@
 export type {
+  SpreadsheetBulkRemoteApplyResult,
   SpreadsheetBulkRemoteApplyMeta,
   SpreadsheetBulkRemoteCellItem,
   SpreadsheetCollaborationCallbacks,
@@ -207,6 +208,7 @@ export {
   type PrimeSpreadsheetSheetInsertCachesContext
 } from './spreadsheetSheetInsertCaches'
 export {
+  cloneTemplateColumnsForSheetInsert,
   prepareUniverSheetInsertLocally,
   type PrepareUniverSheetInsertLocallyContext,
   type PrepareUniverSheetInsertLocallyParams,

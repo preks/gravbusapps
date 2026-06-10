@@ -19,8 +19,11 @@ type RafCallback = (ts: number) => void
 interface TestHarness {
   callbacks: ReturnType<typeof buildSpreadsheetCollaborationCallbacks>
   flushRaf: () => void
+  flushMicrotasks: () => Promise<void>
   bulkApplyCalls: Array<{ items: unknown[]; meta: unknown }>
   versionEchoCalls: Array<{ sheetId: string; version: number }>
+  requestCatchUpCalls: Array<{ sheetId: string; reason: string; options: unknown }>
+  debugLogCalls: Array<{ message: string; meta: Record<string, unknown> | undefined }>
   applyRemoteCellUpdateWithRetry: jest.Mock
 }
 
@@ -49,9 +52,16 @@ afterEach(() => {
   globalThis.cancelAnimationFrame = originalCancel
 })
 
-const buildHarness = (): TestHarness => {
+const buildHarness = (options?: {
+  isQueueOwnedCell?: SheetWorkQueueApi['isQueueOwnedCell']
+  queueAppliedVersion?: number | null
+  resolveKnownSheetVersion?: number
+  requestSheetDeltaCatchUpImpl?: () => Promise<boolean>
+}): TestHarness => {
   const bulkApplyCalls: Array<{ items: unknown[]; meta: unknown }> = []
   const versionEchoCalls: Array<{ sheetId: string; version: number }> = []
+  const requestCatchUpCalls: Array<{ sheetId: string; reason: string; options: unknown }> = []
+  const debugLogCalls: Array<{ message: string; meta: Record<string, unknown> | undefined }> = []
   const applyRemoteCellUpdateWithRetry = jest.fn()
 
   const spreadsheetGridRef = {
@@ -84,16 +94,27 @@ const buildHarness = (): TestHarness => {
         return 'job-id'
       }
     ) as unknown as SheetWorkQueueApi['enqueueRemoteApply'],
-    isQueueOwnedCell: () => false
+    isQueueOwnedCell: options?.isQueueOwnedCell ?? (() => false),
+    getDebugState: jest.fn(
+      () =>
+        ({
+          queueClientAppliedVersion: options?.queueAppliedVersion ?? null
+        }) as SheetWorkQueueApi['getDebugState'] extends (...args: any[]) => infer TResult ? TResult : never
+    ) as unknown as SheetWorkQueueApi['getDebugState']
   }
 
-  const activeSheet = { id: ACTIVE_SHEET_ID, columns: [], data: [] } as any
+  const activeSheet = {
+    id: ACTIVE_SHEET_ID,
+    columns: [{ id: 'col-a', name: 'ColumnA', isVisible: true, order: 0 }],
+    data: []
+  } as any
   const spreadsheetSession = {
     getState: () => ({ activeSheetId: ACTIVE_SHEET_ID }),
-    getActiveSheetState: () => ({ columns: [], version: 0 }),
-    getSheetState: () => ({ columns: [], version: 0, rows: [] }),
+    getActiveSheetState: () => ({ columns: activeSheet.columns, version: 0 }),
+    getSheetState: () => ({ columns: activeSheet.columns, version: 0, rows: [] }),
     applyMutation: () => undefined
   } as any
+  const liveRemoteApplyVersionRef = { current: null } as any
 
   const callbacks = buildSpreadsheetCollaborationCallbacks({
     spreadsheetSession,
@@ -108,6 +129,9 @@ const buildHarness = (): TestHarness => {
     applyRemoteCellUpdateWithRetry: applyRemoteCellUpdateWithRetry as any,
     activeSheetIdRef: { current: ACTIVE_SHEET_ID } as any,
     spreadsheetGridRef: spreadsheetGridRef as any,
+    getWorkbookSnapshot: () => null,
+    applyCommittedWorksheetMetadataPatch: () => undefined,
+    applyCommittedCommentAnchorPatches: () => undefined,
     recentLocalRowHeightRef: { current: new Map() } as any,
     recentLocalColWidthRef: { current: new Map() } as any,
     baselineRowHeightsRef: { current: new Map() } as any,
@@ -123,7 +147,10 @@ const buildHarness = (): TestHarness => {
     mapPersistedRowsToViewerRows: () => [],
     appId: 'app-1',
     markSheetNeedsGridMaterialization: () => undefined,
-    requestSheetDeltaCatchUp: () => undefined,
+    requestSheetDeltaCatchUp: async (sheetId: string, reason: string, extraOptions?: unknown) => {
+      requestCatchUpCalls.push({ sheetId, reason, options: extraOptions })
+      return options?.requestSheetDeltaCatchUpImpl ? options.requestSheetDeltaCatchUpImpl() : true
+    },
     scheduleSheetVersionRefreshFromApi: () => undefined,
     scheduleRemoteStructuralResync: () => undefined,
     handleRemoteColumnUpdate: () => undefined,
@@ -132,19 +159,35 @@ const buildHarness = (): TestHarness => {
     isSpreadsheetAppsDebugEnabled: () => false,
     enqueueDiagnosticsTraceEvent: () => undefined,
     sheetT: (k: string) => k,
-    debugLog: () => undefined,
+    debugLog: (message: string, meta?: Record<string, unknown>) => {
+      debugLogCalls.push({ message, meta })
+    },
     setActiveSheetId: () => undefined,
     getActiveSessionRows: () => [],
-    resolveKnownSheetVersion: () => 0,
-    getSheetWorkQueue: () => sheetWorkQueue as SheetWorkQueueApi
+    resolveKnownSheetVersion: () => options?.resolveKnownSheetVersion ?? 0,
+    getSheetWorkQueue: () => sheetWorkQueue as SheetWorkQueueApi,
+    liveRemoteApplyVersionRef
   })
 
   const flushRaf = (): void => {
     const drained = rafQueue.splice(0, rafQueue.length)
     for (const cb of drained) cb(performance.now?.() ?? Date.now())
   }
+  const flushMicrotasks = async (): Promise<void> => {
+    await Promise.resolve()
+    await Promise.resolve()
+  }
 
-  return { callbacks, flushRaf, bulkApplyCalls, versionEchoCalls, applyRemoteCellUpdateWithRetry }
+  return {
+    callbacks,
+    flushRaf,
+    flushMicrotasks,
+    bulkApplyCalls,
+    versionEchoCalls,
+    requestCatchUpCalls,
+    debugLogCalls,
+    applyRemoteCellUpdateWithRetry
+  }
 }
 
 describe('buildSpreadsheetCollaborationCallbacks rAF coalescing', () => {
@@ -181,15 +224,187 @@ describe('buildSpreadsheetCollaborationCallbacks rAF coalescing', () => {
     expect((h.bulkApplyCalls[0].items as unknown[]).length).toBe(1)
   })
 
-  it('collapses repeated version updates into one queue enqueue per frame', async () => {
+  it('flushes authoritative reapply bulks immediately instead of waiting for rAF', () => {
     const h = buildHarness()
+    const result = h.callbacks.applyRemoteCellUpdatesBulk?.(
+      [{ rowIndex: 4, colIndex: 2, value: 'repair', rowId: 'row-4' }],
+      {
+        operationType: 'authoritative_reapply',
+        traceId: 'trace-repair-1'
+      }
+    )
+
+    expect(h.bulkApplyCalls).toHaveLength(1)
+    expect((h.bulkApplyCalls[0].items as unknown[]).length).toBe(1)
+    expect(result).toEqual({
+      status: 'painted',
+      requestedCellCount: 1,
+      paintedCellCount: 1,
+      skippedCellCount: 0
+    })
+  })
+
+  it('returns filtered_to_zero when overlay ownership drops every bulk cell', () => {
+    const h = buildHarness({ isQueueOwnedCell: () => true })
+    const onApplyComplete = jest.fn()
+
+    const result = h.callbacks.applyRemoteCellUpdatesBulk?.(
+      [{ rowIndex: 4, colIndex: 0, value: 'repair', rowId: 'row-4' }],
+      {
+        operationType: 'add_rows_replay',
+        onApplyComplete
+      }
+    )
+
+    expect(result).toEqual({
+      status: 'filtered_to_zero',
+      requestedCellCount: 1,
+      paintedCellCount: 0,
+      skippedCellCount: 1
+    })
+    expect(onApplyComplete).toHaveBeenCalledTimes(1)
+    expect(h.bulkApplyCalls).toHaveLength(0)
+  })
+
+  it('keeps acknowledged locally-owned set_range cells in the visible bulk apply', () => {
+    const h = buildHarness({ isQueueOwnedCell: () => true })
+
+    const result = h.callbacks.applyRemoteCellUpdatesBulk?.(
+      [{ rowIndex: 4, colIndex: 0, value: 'ack', rowId: 'row-4' }],
+      {
+        operationType: 'set_range',
+        acknowledgedCellKeys: ['row-4\u0000ColumnA']
+      }
+    )
+
+    expect(result).toEqual({
+      status: 'deferred_buffered',
+      requestedCellCount: 1,
+      paintedCellCount: 0,
+      skippedCellCount: 0
+    })
+    h.flushRaf()
+    expect(h.bulkApplyCalls).toHaveLength(1)
+    expect(h.bulkApplyCalls[0].items).toEqual([expect.objectContaining({ rowId: 'row-4', colIndex: 0, value: 'ack' })])
+  })
+
+  it('collapses repeated version updates into one queue enqueue per frame once catch-up resolves', async () => {
+    const h = buildHarness({
+      queueAppliedVersion: 29,
+      resolveKnownSheetVersion: 29,
+      requestSheetDeltaCatchUpImpl: async () => true
+    })
     for (let v = 10; v <= 30; v += 1) {
       h.callbacks.onVersionUpdate(v)
     }
     expect(h.versionEchoCalls).toHaveLength(0)
+    await h.flushMicrotasks()
     h.flushRaf()
-    await Promise.resolve()
+    await h.flushMicrotasks()
     expect(h.versionEchoCalls).toHaveLength(1)
     expect(h.versionEchoCalls[0]).toEqual({ sheetId: ACTIVE_SHEET_ID, version: 30 })
+  })
+
+  it('routes behind-version echoes through catch-up before marking the queue current', async () => {
+    let resolveCatchUp!: (value: boolean) => void
+    const h = buildHarness({
+      queueAppliedVersion: 31,
+      resolveKnownSheetVersion: 31,
+      requestSheetDeltaCatchUpImpl: () =>
+        new Promise<boolean>(resolve => {
+          resolveCatchUp = resolve
+        })
+    })
+
+    h.callbacks.onVersionUpdate(32)
+
+    expect(h.requestCatchUpCalls).toEqual([
+      {
+        sheetId: ACTIVE_SHEET_ID,
+        reason: 'version_gap',
+        options: { sinceVersion: 31, incomingVersion: 32 }
+      }
+    ])
+    expect(h.versionEchoCalls).toHaveLength(0)
+
+    resolveCatchUp(true)
+    await h.flushMicrotasks()
+    h.flushRaf()
+    await h.flushMicrotasks()
+
+    expect(h.versionEchoCalls).toEqual([{ sheetId: ACTIVE_SHEET_ID, version: 32 }])
+    expect(h.debugLogCalls.some(call => call.message === 'versionEcho_requires_catchup')).toBe(true)
+    expect(h.debugLogCalls.some(call => call.message === 'structural_catchup_applied')).toBe(true)
+  })
+
+  it('does not request catch-up for the same version right after a live remote transaction applied it', async () => {
+    const h = buildHarness({
+      queueAppliedVersion: 31,
+      resolveKnownSheetVersion: 31
+    })
+
+    h.callbacks.runRemoteTransaction?.({
+      ok: true,
+      batch: {
+        sheetId: ACTIVE_SHEET_ID,
+        baseVersion: 31,
+        appliedVersion: 32,
+        payloadSchemaVersion: 1,
+        operations: []
+      },
+      sessionPatch: { rows: [] },
+      dirtyRegions: []
+    } as any)
+
+    h.callbacks.onVersionUpdate(32)
+    await h.flushMicrotasks()
+    h.flushRaf()
+    await h.flushMicrotasks()
+
+    expect(h.requestCatchUpCalls).toHaveLength(0)
+    expect(h.versionEchoCalls).toEqual([{ sheetId: ACTIVE_SHEET_ID, version: 32 }])
+    expect(h.debugLogCalls.some(call => call.message === 'versionEcho_requires_catchup')).toBe(false)
+  })
+
+  it('does not let queue-applied version state suppress catch-up when the known sheet version is behind', async () => {
+    const h = buildHarness({
+      queueAppliedVersion: 32,
+      resolveKnownSheetVersion: 31,
+      requestSheetDeltaCatchUpImpl: async () => true
+    })
+
+    h.callbacks.onVersionUpdate(32)
+
+    await h.flushMicrotasks()
+    expect(h.requestCatchUpCalls).toEqual([
+      {
+        sheetId: ACTIVE_SHEET_ID,
+        reason: 'version_gap',
+        options: { sinceVersion: 31, incomingVersion: 32 }
+      }
+    ])
+    expect(h.versionEchoCalls).toHaveLength(0)
+
+    h.flushRaf()
+    await h.flushMicrotasks()
+
+    expect(h.versionEchoCalls).toHaveLength(0)
+    expect(h.debugLogCalls.some(call => call.message === 'versionEcho_requires_catchup')).toBe(true)
+    expect(h.debugLogCalls.some(call => call.message === 'versionOnlyEcho_noop')).toBe(true)
+  })
+
+  it('keeps equal-version echoes cheap and skips redundant queue version jobs', async () => {
+    const h = buildHarness({
+      queueAppliedVersion: 32,
+      resolveKnownSheetVersion: 32
+    })
+
+    h.callbacks.onVersionUpdate(32)
+    h.flushRaf()
+    await h.flushMicrotasks()
+
+    expect(h.requestCatchUpCalls).toHaveLength(0)
+    expect(h.versionEchoCalls).toHaveLength(0)
+    expect(h.debugLogCalls.some(call => call.message === 'versionOnlyEcho_noop')).toBe(true)
   })
 })

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react'
+import React, { useEffect, useRef, useCallback, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { AppActionForm } from '@/components/app-action-form'
@@ -18,6 +18,15 @@ import { CampaignSelect } from '@/common/components/customer/selects/campaign-se
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, Input } from '@newwork/nw-design-system'
 import { useCustomerAccountsList } from '@/common/data/customer/hooks/useCustomerAccounts'
 import { useCustomerContactsList } from '@/common/data/customer/hooks/useCustomerContacts'
+import { useCustomerAccount } from '@/common/data/customer/hooks/useCustomerAccount'
+import { useCustomerContact } from '@/common/data/customer/hooks/useCustomerContact'
+import {
+  applyOpportunityAssociationDefaultsToForm,
+  buildContextOpportunityAccounts,
+  buildContextOpportunityContacts,
+  getCreateModeOpportunityAssociationDefaults,
+  getOpportunityFormContextIds
+} from '@/common/components/common-relations/form-layouts/opportunity-layout/utils/opportunityRecordContextPrefill'
 import {
   OPPORTUNITY_PIPELINE,
   OPPORTUNITY_PIPELINE_STAGE,
@@ -55,8 +64,20 @@ const OpportunityForm: React.FC<OpportunityFormProps> = ({ accessToken, userInfo
   const opportunityId =
     additionalData?.opportunityId || additionalData?.psi_taskPayload?.psi_initialParameters?.opportunityId
 
+  const contextIds = useMemo(() => getOpportunityFormContextIds(additionalData), [additionalData])
+  const isCreateMode = !opportunityId
+
   // Fetch opportunity data using declarative hook
   const { opportunity, loading, error } = useCustomerOpportunity(accessToken || '', opportunityId)
+
+  const { account: contextAccount } = useCustomerAccount(
+    accessToken || '',
+    isCreateMode ? (contextIds.accountId ?? undefined) : undefined
+  )
+  const { contact: contextContact } = useCustomerContact(
+    accessToken || '',
+    isCreateMode ? (contextIds.contactId ?? undefined) : undefined
+  )
 
   // ALL HOOKS MUST BE CALLED BEFORE EARLY RETURN (Rules of Hooks)
   // Account selection hook - using new declarative list hook
@@ -65,13 +86,42 @@ const OpportunityForm: React.FC<OpportunityFormProps> = ({ accessToken, userInfo
   // Contact selection hook - using new declarative list hook
   const useContacts = useCustomerContactsList({ accessToken, userInfo, additionalData }, { limit: 20 })
 
+  const createAssociationDefaults = useMemo(
+    () => (isCreateMode ? getCreateModeOpportunityAssociationDefaults(contextIds) : {}),
+    [isCreateMode, contextIds]
+  )
+
+  const layoutOpportunityAccounts = useMemo(() => {
+    if (!isCreateMode) {
+      return opportunity?.opportunityAccounts || []
+    }
+    return buildContextOpportunityAccounts(contextIds.accountId, contextAccount) ?? []
+  }, [isCreateMode, opportunity?.opportunityAccounts, contextIds.accountId, contextAccount])
+
+  const layoutOpportunityContacts = useMemo(() => {
+    if (!isCreateMode) {
+      return opportunity?.opportunityContacts
+    }
+    return buildContextOpportunityContacts(contextIds.contactId, contextContact)
+  }, [isCreateMode, opportunity?.opportunityContacts, contextIds.contactId, contextContact])
+
   // Initialize React Hook Form with CRM-specific schema
   const form = useForm<z.infer<typeof customerOpportunitySchema>>({
     resolver: zodResolver(customerOpportunitySchema),
-    defaultValues: mapToFormValues(opportunity || {}, customerOpportunitySchema) as Partial<CustomerOpportunity>,
+    defaultValues: {
+      ...(mapToFormValues(opportunity || {}, customerOpportunitySchema) as Partial<CustomerOpportunity>),
+      ...createAssociationDefaults
+    },
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   })
+
+  useEffect(() => {
+    if (!isCreateMode) {
+      return
+    }
+    applyOpportunityAssociationDefaultsToForm(form, contextIds)
+  }, [isCreateMode, contextIds, contextAccount?.id, contextContact?.id, form])
 
   // Sync form when opportunity changes
   const opportunityRef = useRef(opportunity)
@@ -232,9 +282,9 @@ const OpportunityForm: React.FC<OpportunityFormProps> = ({ accessToken, userInfo
           businessAppContext={{ accessToken, userInfo, additionalData }}
           ownerEmployee={opportunity?.ownerEmployee}
           entityId={opportunity?.id || opportunityId}
-          opportunityAccounts={opportunity?.opportunityAccounts || []}
+          opportunityAccounts={layoutOpportunityAccounts}
           useAccounts={useAccounts}
-          opportunityContacts={opportunity?.opportunityContacts}
+          opportunityContacts={layoutOpportunityContacts}
           useContacts={useContacts}
           pipelineCatalogIdentifier={OPPORTUNITY_PIPELINE}
           stageCatalogIdentifier={OPPORTUNITY_PIPELINE_STAGE}

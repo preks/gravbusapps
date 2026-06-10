@@ -53,6 +53,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
   const employeeIdForPermissions = employeeId || employee?.id
   const { isSectionVisible } = useEmployeePermissions(employeeIdForPermissions, accessToken)
   const [selectedWorkingConditionIndex, setSelectedWorkingConditionIndex] = React.useState(0)
+  const [selectedWorkingHoursIndex, setSelectedWorkingHoursIndex] = React.useState(0)
   const workingConditions = React.useMemo(() => {
     return [...(employee.workingCondition || [])].sort((a, b) => {
       const firstDate = dayjs(a.activeFrom || a.hireDate)
@@ -104,6 +105,53 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
   const hasMultipleWorkingConditions = workingConditions.length > 1
   const isFirstWorkingCondition = selectedWorkingConditionSafeIndex <= 0
   const isLastWorkingCondition = selectedWorkingConditionSafeIndex >= workingConditions.length - 1
+  const workingHoursEntries = React.useMemo(() => {
+    return [...(employee.workingHours || [])].sort((a, b) => {
+      const firstDate = dayjs(a.activeFrom)
+      const secondDate = dayjs(b.activeFrom)
+
+      if (!firstDate.isValid() && !secondDate.isValid()) {
+        return 0
+      }
+
+      if (!firstDate.isValid()) {
+        return 1
+      }
+
+      if (!secondDate.isValid()) {
+        return -1
+      }
+
+      return firstDate.valueOf() - secondDate.valueOf()
+    })
+  }, [employee.workingHours])
+  const activeWorkingHoursIndex = React.useMemo(() => {
+    const today = dayjs().startOf('day')
+    const activeIndex = workingHoursEntries.findIndex(workingHours => {
+      if (!workingHours.activeFrom) {
+        return false
+      }
+
+      const activeFrom = dayjs(workingHours.activeFrom).startOf('day')
+      const activeTo = workingHours.activeTo ? dayjs(workingHours.activeTo).startOf('day') : null
+
+      if (!activeFrom.isValid()) {
+        return false
+      }
+
+      const startsTodayOrEarlier = !today.isBefore(activeFrom, 'day')
+      const endsTodayOrLater = !activeTo?.isValid() || !today.isAfter(activeTo, 'day')
+
+      return startsTodayOrEarlier && endsTodayOrLater
+    })
+
+    return Math.max(activeIndex, 0)
+  }, [workingHoursEntries])
+  const selectedWorkingHoursSafeIndex = Math.max(0, Math.min(selectedWorkingHoursIndex, workingHoursEntries.length - 1))
+  const workingHours = workingHoursEntries[selectedWorkingHoursSafeIndex]
+  const hasMultipleWorkingHours = workingHoursEntries.length > 1
+  const isFirstWorkingHours = selectedWorkingHoursSafeIndex <= 0
+  const isLastWorkingHours = selectedWorkingHoursSafeIndex >= workingHoursEntries.length - 1
   const employmentPeriodIsNotContinuous = React.useMemo(() => {
     const currentCondition = workingConditions[selectedWorkingConditionSafeIndex]
     const previousCondition = workingConditions[selectedWorkingConditionSafeIndex - 1]
@@ -131,6 +179,10 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
   React.useEffect(() => {
     setSelectedWorkingConditionIndex(activeWorkingConditionIndex)
   }, [activeWorkingConditionIndex, employee.id, workingConditions.length])
+
+  React.useEffect(() => {
+    setSelectedWorkingHoursIndex(activeWorkingHoursIndex)
+  }, [activeWorkingHoursIndex, employee.id, workingHoursEntries.length])
 
   const primaryAddress = employee.addresses?.find(addr => addr.type === 'PRIMARY')
   const addressCountryId = primaryAddress?.country?.id ?? ''
@@ -230,8 +282,6 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
 
   // Prepare working hours data
   const getWorkingHoursData = () => {
-    const workingHours = employee.workingHours?.[0]
-
     // Compute weekly hours by summing daily hours if missing
     const computedWeeklyHours = (() => {
       const days = [
@@ -261,6 +311,14 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
     })()
 
     return [
+      {
+        label: t('employment-label-employment-start-date'),
+        value: workingHours?.activeFrom ? formatDate(workingHours.activeFrom, 'date.medium') || '' : ''
+      },
+      {
+        label: t('employment-label-employment-end-date'),
+        value: workingHours?.activeTo ? formatDate(workingHours.activeTo, 'date.medium') || '' : ''
+      },
       {
         label: t('employment-label-weekly-hours'),
         value: computedWeeklyHours.toString() || ''
@@ -572,16 +630,80 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
               <h3 className="gba:text-lg gba:font-semibold">{t('employment-working-hours')}</h3>
               <AppAction
-                variant="update-secondary"
-                data-testid="employee-working-hours-edit-button"
+                variant="create-secondary"
+                data-testid="employee-working-hours-add-button"
                 contexts={[
-                  { context: FlowContextName.updateEmployeeWorkingHours, contextData: { employeeId: employee?.id } }
+                  {
+                    context: FlowContextName.updateEmployeeWorkingHours,
+                    contextData: { employeeId: employee?.id, changeMode: 'INSERT' }
+                  }
                 ]}
-                prefixDataTestId="employee-working-hours-edit"
+                prefixDataTestId="employee-working-hours-add"
                 accessToken={accessToken}
               />
             </div>
             {renderDataItems(workingHoursData)}
+            {(workingHours?.id || hasMultipleWorkingHours) && (
+              <div
+                className="gba:mt-4 gba:flex gba:items-center gba:justify-between gba:gap-2"
+                data-testid="employment-working-hours-actions"
+              >
+                <div className="gba:flex gba:items-center gba:gap-2" data-testid="employment-working-hours-navigation">
+                  {hasMultipleWorkingHours && (
+                    <>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        disabled={isFirstWorkingHours}
+                        data-testid="employment-working-hours-previous"
+                        onClick={() => setSelectedWorkingHoursIndex(prev => Math.max(0, prev - 1))}
+                      >
+                        {t('employment-working-conditions-previous')}
+                      </Button>
+                      <span
+                        className="gba:text-xs gba:text-muted-foreground"
+                        data-testid="employment-working-hours-pagination-position"
+                      >
+                        {selectedWorkingHoursSafeIndex + 1} / {workingHoursEntries.length}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        disabled={isLastWorkingHours}
+                        data-testid="employment-working-hours-next"
+                        onClick={() =>
+                          setSelectedWorkingHoursIndex(prev => Math.min(workingHoursEntries.length - 1, prev + 1))
+                        }
+                      >
+                        {t('employment-working-conditions-next')}
+                      </Button>
+                    </>
+                  )}
+                </div>
+                <div className="gba:flex gba:items-center gba:gap-2" data-testid="employment-working-hours-update">
+                  {workingHours?.id && (
+                    <AppAction
+                      variant="update-secondary"
+                      data-testid="employee-working-hours-edit-button"
+                      contexts={[
+                        {
+                          context: FlowContextName.updateEmployeeWorkingHours,
+                          contextData: {
+                            employeeId: employee?.id,
+                            workingHoursId: workingHours.id,
+                            changeMode: 'UPDATE'
+                          }
+                        }
+                      ]}
+                      prefixDataTestId="employee-working-hours-edit"
+                      accessToken={accessToken}
+                    />
+                  )}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

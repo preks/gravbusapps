@@ -1,7 +1,14 @@
 import React from 'react'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  useTranslation
+} from '@newwork/nw-design-system'
 import AmountInput from './AmountInput'
+import translations from '../_i18n'
 // types from FormTypes are not required here
 
 interface AmountCurrencySectionProps {
@@ -29,39 +36,33 @@ const AmountCurrencySection: React.FC<AmountCurrencySectionProps> = ({
   disabled = false,
   'data-testid': dataTestId = 'request-advance-payment-amount-currency-section'
 }) => {
+  const { t } = useTranslation(translations)
+
   const handleAmountChange = (newAmount: number) => {
     onAmountChange(newAmount)
 
     // Validate against max amount
     if (newAmount > maxAmount) {
-      onValidationError(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:initiate_advance_payment.amount_error',
-          "Advance Payment amount can't be greater than Estimated Expenses and Allowances amount"
-        )
-      )
+      onValidationError(t('amount-error'))
     } else {
       onValidationError(null)
     }
   }
   return (
-    <div className="gba:flex gba:gap-4 gba:mb-4" data-testid={dataTestId}>
+    <div className="gba:grid gba:w-full gba:grid-cols-2 gba:gap-4 gba:mb-4" data-testid={dataTestId}>
       {/* Amount Field - single background for label + input */}
       <div
-        className="gba:flex-1 gba:flex gba:flex-col gba:bg-gray-100 gba:rounded-md"
+        className="gba:min-w-0 gba:flex gba:flex-col gba:bg-gray-100 gba:rounded-md"
         data-testid="request-advance-payment-amount-field"
       >
         <label className="gba:block gba:text-xs gba:font-medium gba:text-black gba:bg-transparent gba:px-3 gba:py-1 gba:rounded-t-md">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.amount', 'Amount')}
+          {t('amount-label')}
           <span className="gba:text-muted-foreground"> *</span>
         </label>
         <AmountInput
           value={amount}
           onChange={handleAmountChange}
-          placeholder={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:create_expense_item.change_expense_item_container.current_amount_placeholder',
-            'Enter Amount'
-          )}
+          placeholder={t('amount-placeholder')}
           disabled={disabled}
           data-testid="request-advance-payment-amount-input"
           required={true}
@@ -69,39 +70,33 @@ const AmountCurrencySection: React.FC<AmountCurrencySectionProps> = ({
       </div>
 
       {/* Currency Field */}
-      <div className="gba:flex-1 gba:bg-gray-100" data-testid="request-advance-payment-currency-field">
-        <label className="gba:block gba:text-xs gba:font-medium gba:text-black gba:bg-gray-100 gba:px-2 gba:py-1 gba:rounded">
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
-            'Currency'
-          )}
+      <div
+        className="gba:min-w-0 gba:flex gba:flex-col gba:bg-gray-100 gba:rounded-md"
+        data-testid="request-advance-payment-currency-field"
+      >
+        <label className="gba:block gba:text-xs gba:font-medium gba:text-black gba:bg-gray-100 gba:px-3 gba:py-1 gba:rounded-t-md">
+          {t('currency-label')}
           <span className="gba:text-muted-foreground"> *</span>
         </label>
-        <Select
-          value={currency}
-          onValueChange={onCurrencyChange}
-          disabled={true} // Currency is locked to plan's currency
-          data-testid="request-advance-payment-currency-select"
-        >
-          <SelectTrigger
-            className="gba:h-10 gba:bg-gray-100 gba:border-none"
-            style={{ width: '100%', justifyContent: 'space-between' }}
+        <div className="gba:w-full">
+          <Select
+            value={currency}
+            onValueChange={onCurrencyChange}
+            disabled={true} // Currency is locked to plan's currency
+            data-testid="request-advance-payment-currency-select"
           >
-            <SelectValue
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:request_advance_payment.select_currency',
-                'Select Currency'
+            <SelectTrigger className="gba:h-10 gba:w-full gba:justify-between gba:bg-gray-100 gba:border-none">
+              <SelectValue placeholder={t('currency-placeholder')} />
+            </SelectTrigger>
+            <SelectContent>
+              {currency && (
+                <SelectItem key={currency} value={currency}>
+                  {currency}
+                </SelectItem>
               )}
-            />
-          </SelectTrigger>
-          <SelectContent>
-            {currency && (
-              <SelectItem key={currency} value={currency}>
-                {currency}
-              </SelectItem>
-            )}
-          </SelectContent>
-        </Select>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
     </div>
   )

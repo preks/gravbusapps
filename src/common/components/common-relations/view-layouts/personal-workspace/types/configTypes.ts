@@ -103,6 +103,7 @@ export interface KpiResult {
   data: any
   loading: boolean
   error: Error | null
+  refetch?: () => void | Promise<void>
 }
 
 /**

@@ -4,6 +4,9 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 interface EmployeeAvatarData {
   id: string // employeeId for navigation
   userId: string
+  displayName: string | null
+  firstName: string | null
+  lastName: string | null
   pictureThumbnail: string | null
 }
 
@@ -14,13 +17,19 @@ interface EmployeeAvatarResponse {
 export interface EmployeeAvatarInfo {
   avatarUrl?: string
   employeeId?: string
+  displayName?: string
+  firstName?: string
+  lastName?: string
 }
 
 const GET_EMPLOYEE_AVATARS = `
   query GetEmployeeAvatars($userIds: [String!]) {
-    Employee(where: {userId: {_in: $userIds}}) {
+    Employee(where: { userId: { _in: $userIds }, isDeleted: { _eq: false } }) {
       id
       userId
+      displayName
+      firstName
+      lastName
       pictureThumbnail
     }
   }
@@ -109,7 +118,10 @@ export const useEmployeeAvatarsCache = (accessToken: string) => {
           if (result?.Employee) {
             result.Employee.forEach(employee => {
               const info: EmployeeAvatarInfo = {
-                employeeId: employee.id
+                employeeId: employee.id,
+                displayName: employee.displayName || undefined,
+                firstName: employee.firstName || undefined,
+                lastName: employee.lastName || undefined
               }
               if (employee.pictureThumbnail) {
                 info.avatarUrl = `data:image/png;base64,${employee.pictureThumbnail}`

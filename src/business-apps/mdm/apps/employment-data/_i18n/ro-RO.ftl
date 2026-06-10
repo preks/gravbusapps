@@ -50,6 +50,8 @@ ct-table-header-code = Cod
 ct-table-header-name = Nume
 ct-table-header-description = Descriere
 ct-table-header-probation-period = Perioadă de probă
+ct-table-header-payroll-relevant = Relevant pentru salarizare
+ct-table-header-time-relevant = Relevant pentru pontaj
 ct-table-header-actions = Acțiuni
 
 # Buttons
@@ -66,6 +68,8 @@ ct-drawer-label-name = Nume
 ct-drawer-label-code = Cod
 ct-drawer-label-description = Descriere
 ct-drawer-label-probation-period = Perioadă de probă
+ct-drawer-label-payroll-relevant = Relevant pentru salarizare
+ct-drawer-label-time-relevant = Relevant pentru pontaj
 ct-sheet-extra-content = Acest tip de contract poate fi utilizat pentru clasificarea angajaților și posturilor.
 
 # Probation period units

@@ -129,6 +129,9 @@ export const buildOpportunityQuery = (
         }
         ${entityFields.ownerEmployeeId}
         ${entityFields.winningChance}
+        # AI scoring fields (CRM-only; InvestmentOpportunity has no such fields)
+        ${entityFields.aiOpportunityScore ? entityFields.aiOpportunityScore : ''}
+        ${entityFields.aiOpportunityGrade ? entityFields.aiOpportunityGrade : ''}
         # Account relation (only for IRM - CRM uses opportunityAccounts junction table)
         ${
           entityFields.account
@@ -220,6 +223,9 @@ export const buildOpportunityByIdQuery = (
         }
         ${entityFields.ownerEmployeeId}
         ${entityFields.winningChance}
+        # AI scoring fields (CRM-only; InvestmentOpportunity has no such fields)
+        ${entityFields.aiOpportunityScore ? entityFields.aiOpportunityScore : ''}
+        ${entityFields.aiOpportunityGrade ? entityFields.aiOpportunityGrade : ''}
         # Company relation (only for CRM - IRM does not have companyId)
         ${
           entityFields.companyId

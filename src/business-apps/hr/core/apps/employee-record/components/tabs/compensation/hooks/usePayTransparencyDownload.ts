@@ -22,8 +22,7 @@ export function usePayTransparencyDownload({ employeeId, accessToken, t }: UsePa
     try {
       const { blob, filename } = await downloadEmployeePayTransparencyReport(accessToken, employeeId)
       triggerDownload(blob, filename)
-    } catch (error) {
-      console.error('Pay transparency download failed:', error instanceof Error ? error.message : error)
+    } catch {
       toast.warning(t('rewards-pay-transparency-download-failed'))
     } finally {
       setIsDownloading(false)

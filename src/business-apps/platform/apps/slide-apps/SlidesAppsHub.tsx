@@ -58,6 +58,7 @@ import {
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { sanitizeSameOriginReturnUrl } from '@/common/utils/safeUrlUtils'
+import { getShareCapabilities } from '@/business-apps/core/office/sharing'
 import { DeleteConfirmDialog } from '@/business-apps/core/office/apps/drive/components/DeleteConfirmDialog'
 import { DriveApiService } from '@/business-apps/core/office/apps/drive/services/DriveApiService'
 import {
@@ -107,6 +108,16 @@ export interface SlidesAppsHubProps extends BusinessAppContextProps {
 
 type ViewMode = 'grid' | 'list'
 type HubView = 'list' | 'editor' | 'trash'
+
+function getSlideCapabilities(
+  slide: Pick<SlideSummary, 'permission' | 'isOwner' | 'createdBy'>,
+  currentUserId: string
+) {
+  return getShareCapabilities({
+    permission: (slide.permission || 'view') as 'owner' | 'view' | 'comment' | 'edit' | 'admin',
+    isOwner: Boolean(slide.isOwner || slide.permission === 'owner' || slide.createdBy === currentUserId)
+  })
+}
 
 /** Get initials from a name */
 function getInitials(name: string): string {
@@ -218,6 +229,11 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   } | null>(null)
 
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
+  const currentUserAvatar = useMemo(() => {
+    const avatar = userInfo?.employeeDetails?.pictureThumbnail
+    if (!avatar) return undefined
+    return avatar.startsWith('data:') ? avatar : `data:image/png;base64,${avatar}`
+  }, [userInfo?.employeeDetails?.pictureThumbnail])
 
   // Hooks
   const {
@@ -339,6 +355,24 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
     goToPage,
     pageSize
   } = useHubPagination({ items: filteredSlides, pageSize: 20 })
+
+  const selectedSlidesForDelete = useMemo(
+    () =>
+      Array.from(selectedSlides)
+        .map(id => {
+          const slide = slides.find(item => item.id === id)
+
+          if (!slide || !getSlideCapabilities(slide, currentUserId).canDelete) {
+            return null
+          }
+
+          return slide
+        })
+        .filter((slide): slide is SlideSummary => slide !== null),
+    [currentUserId, selectedSlides, slides]
+  )
+
+  const canBulkDeleteSlides = selectedSlides.size > 0 && selectedSlidesForDelete.length === selectedSlides.size
 
   // Track if initial URL load has been processed
   const [initialUrlProcessed, setInitialUrlProcessed] = useState(false)
@@ -591,11 +625,15 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
     setShareDialogOpen(true)
   }, [])
 
-  /** Manage shares click */
-  const handleManageSharesClick = useCallback((id: string) => {
-    setSlideForManageShares(id)
-    setManageSharesDialogOpen(true)
-  }, [])
+  /** Manage shares click — refresh list avatars from API so they match the dialog */
+  const handleManageSharesClick = useCallback(
+    (id: string) => {
+      setSlideForManageShares(id)
+      setManageSharesDialogOpen(true)
+      void refreshSharedUsersForSlide(id)
+    },
+    [refreshSharedUsersForSlide]
+  )
 
   /** Toggle favorite */
   const toggleFavorite = useCallback(
@@ -1103,21 +1141,22 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                       {selectedSlides.size} selected
                     </Button>
                     <div className="gba:w-px gba:h-5 gba:bg-border gba:mx-1" />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="gba:text-destructive"
-                      onClick={() => {
-                        const selectedIds = Array.from(selectedSlides)
-                        const selectedNames = selectedIds.map(
-                          id => slides.find(slide => slide.id === id)?.title || t('title-untitled-slide')
-                        )
-                        handleDeleteSlide(selectedIds, selectedNames)
-                      }}
-                    >
-                      <Trash2 className="gba:w-4 gba:h-4 gba:mr-1" />
-                      {t('menu-delete')}
-                    </Button>
+                    {canBulkDeleteSlides && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gba:text-destructive"
+                        onClick={() => {
+                          handleDeleteSlide(
+                            selectedSlidesForDelete.map(slide => slide.id),
+                            selectedSlidesForDelete.map(slide => slide.title || t('title-untitled-slide'))
+                          )
+                        }}
+                      >
+                        <Trash2 className="gba:w-4 gba:h-4 gba:mr-1" />
+                        {t('menu-delete')}
+                      </Button>
+                    )}
                   </>
                 ) : (
                   <>
@@ -1278,7 +1317,8 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                 {/* Table Body */}
                 <div className="gba:divide-y gba:divide-border">
                   {paginatedSlides.map(slide => {
-                    const isOwner = slide.isOwner || slide.permission === 'owner' || slide.createdBy === currentUserId
+                    const slideCapabilities = getSlideCapabilities(slide, currentUserId)
+                    const isOwner = slideCapabilities.canDelete
                     const isSelected = selectedSlides.has(slide.id)
                     const isFavorite = slide.isFavorite ?? favorites.has(slide.id)
                     const ownerInfo = slide.createdBy ? ownerInfoMap.get(slide.createdBy) : undefined
@@ -1322,7 +1362,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                                   {t('label-shared')}
                                 </Badge>
                               )}
-                              {isOwner && sharedWith.length > 0 && (
+                              {slideCapabilities.canManageSharing && sharedWith.length > 0 && (
                                 <TooltipProvider>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
@@ -1408,13 +1448,13 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                                 <Presentation className="gba:w-4 gba:h-4 gba:mr-2" />
                                 {t('menu-open')}
                               </DropdownMenuItem>
-                              {isOwner && (
+                              {slideCapabilities.canManageSharing && (
                                 <DropdownMenuItem onClick={() => handleShareClick(slide.id)}>
                                   <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
                                   {t('menu-share')}
                                 </DropdownMenuItem>
                               )}
-                              {isOwner && sharedWith.length > 0 && (
+                              {slideCapabilities.canManageSharing && sharedWith.length > 0 && (
                                 <DropdownMenuItem onClick={() => handleManageSharesClick(slide.id)}>
                                   <Users className="gba:w-4 gba:h-4 gba:mr-2" />
                                   {t('menu-manage-sharing')}
@@ -1556,7 +1596,14 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
             userInfo?.employeeDetails?.displayName ||
             `${userInfo?.givenName || ''} ${userInfo?.familyName || ''}`.trim()
           }
+          currentUserAvatar={currentUserAvatar}
           accessToken={accessToken}
+          isOwner={Boolean(
+            slides.find(s => s.id === slideForShare)?.isOwner ||
+              slides.find(s => s.id === slideForShare)?.permission === 'owner' ||
+              slides.find(s => s.id === slideForShare)?.createdBy === currentUserId
+          )}
+          currentUserPermission={slides.find(s => s.id === slideForShare)?.permission}
           shareSlide={shareSlide}
           onShareComplete={async () => {
             refreshSlides()
@@ -1572,11 +1619,22 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
           open={manageSharesDialogOpen}
           onOpenChange={open => {
             setManageSharesDialogOpen(open)
-            if (!open) setSlideForManageShares(null)
+            if (!open) {
+              if (slideForManageShares) {
+                void refreshSharedUsersForSlide(slideForManageShares)
+              }
+              setSlideForManageShares(null)
+            }
           }}
           slideId={slideForManageShares}
           slideTitle={slides.find(s => s.id === slideForManageShares)?.title || t('title-untitled-slide')}
           accessToken={accessToken}
+          currentUserId={currentUserId}
+          currentUserName={
+            userInfo?.employeeDetails?.displayName ||
+            `${userInfo?.givenName || ''} ${userInfo?.familyName || ''}`.trim()
+          }
+          currentUserAvatar={currentUserAvatar}
           onSharesChanged={async () => {
             refreshSlides()
             await refreshSharedUsersForSlide(slideForManageShares)

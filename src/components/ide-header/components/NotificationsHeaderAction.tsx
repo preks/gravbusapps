@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Badge } from '@newwork/nw-design-system'
 import { BellSimpleIcon } from '@phosphor-icons/react'
 import { IDEHeaderActionButton, NOTIFICATIONS_POPOVER_CLASS } from './IDEHeaderActionButton'
@@ -13,6 +13,8 @@ export const NotificationsHeaderAction = React.memo(function NotificationsHeader
   accessToken,
   unreadCount
 }: NotificationsHeaderActionProps) {
+  const [popoverOpen, setPopoverOpen] = useState(false)
+
   return (
     <IDEHeaderActionButton
       id="notifications"
@@ -28,7 +30,11 @@ export const NotificationsHeaderAction = React.memo(function NotificationsHeader
       }
       label="Notifications"
       popoverClassName={NOTIFICATIONS_POPOVER_CLASS}
-      popoverContent={<NotificationsPopoverContent accessToken={accessToken} />}
+      popoverOpen={popoverOpen}
+      onPopoverOpenChange={setPopoverOpen}
+      popoverContent={
+        <NotificationsPopoverContent accessToken={accessToken} isOpen={popoverOpen} unreadCount={unreadCount} />
+      }
     />
   )
 })

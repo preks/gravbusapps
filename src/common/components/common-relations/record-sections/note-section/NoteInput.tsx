@@ -23,6 +23,7 @@ interface NoteInputProps {
   form: UseFormReturn<any>
   onSubmit: (data: any) => void
   isProcessing: boolean
+  isSubmitting?: boolean
   showQuickAdd: boolean
   onShowQuickAddChange: (show: boolean) => void
   /** Zod schema for the form (passed to DS Form for required/validation UI if supported). */
@@ -35,12 +36,14 @@ export const NoteInput: React.FC<NoteInputProps> = ({
   form,
   onSubmit,
   isProcessing,
+  isSubmitting = false,
   showQuickAdd,
   onShowQuickAddChange,
   schema,
   quickAddTriggerLabel
 }) => {
   const { t } = useTranslation(translations)
+  const isBusy = isProcessing || isSubmitting
   if (!showQuickAdd) {
     return (
       <Button
@@ -67,7 +70,22 @@ export const NoteInput: React.FC<NoteInputProps> = ({
       </button>
 
       <Form {...form} schema={schema}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="gba:space-y-2">
+        <form
+          onSubmit={form.handleSubmit(onSubmit, errors => {
+            if (errors.details && typeof errors.details === 'object') {
+              const detailKey = Object.keys(errors.details)[0]
+              if (detailKey) {
+                form.setFocus(`details.${detailKey}` as 'details.title')
+                return
+              }
+            }
+            const firstKey = Object.keys(errors)[0]
+            if (firstKey) {
+              form.setFocus(firstKey as 'reminderDate')
+            }
+          })}
+          className="gba:space-y-2"
+        >
           <FormField
             control={form.control}
             name="reminderDate"
@@ -79,7 +97,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                     type="datetime-local"
                     value={field.value}
                     onChange={field.onChange}
-                    disabled={isProcessing}
+                    disabled={isBusy}
                     data-testid="note-quick-add-reminder"
                     className="gba:w-full gba:max-w-full gba:min-w-0"
                     placeholder={t('notes-reminderPlaceholder')}
@@ -109,7 +127,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                       value={field.value ?? ''}
                       onChange={e => field.onChange(e.target.value)}
                       placeholder={t('notes-titlePlaceholder')}
-                      disabled={isProcessing}
+                      disabled={isBusy}
                       data-testid="note-quick-add-title"
                       className="gba:rounded-none gba:border-0 gba:border-b gba:border-border gba:shadow-none gba:focus-visible:gba:ring-0 gba:focus-visible:gba:ring-offset-0"
                     />
@@ -124,7 +142,7 @@ export const NoteInput: React.FC<NoteInputProps> = ({
                       value={field.value ?? ''}
                       onChange={e => field.onChange(e.target.value)}
                       placeholder={t('notes-textPlaceholder')}
-                      disabled={isProcessing}
+                      disabled={isBusy}
                       data-testid="note-quick-add-text"
                       rows={5}
                       className="gba:min-h-24 gba:rounded-none gba:border-0 gba:shadow-none gba:text-xs gba:resize-y gba:text-muted-foreground gba:focus-visible:gba:ring-0 gba:focus-visible:gba:ring-offset-0"
@@ -173,11 +191,11 @@ export const NoteInput: React.FC<NoteInputProps> = ({
             <Button
               type="submit"
               variant="default"
-              disabled={isProcessing}
+              disabled={isBusy}
               className="gba:w-full gba:gap-2"
               data-testid="note-quick-add-submit"
             >
-              {isProcessing ? (
+              {isBusy ? (
                 <span className="gba:inline-flex gba:items-center gba:gap-2">
                   <Spinner size="sm" />
                   {t('notes-creating')}

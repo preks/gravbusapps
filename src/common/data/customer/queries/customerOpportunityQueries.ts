@@ -171,6 +171,8 @@ export const buildCustomerOpportunityByIdQuery = (
     }
     
     # CRM-specific fields
+    ${fields.aiOpportunityScore}
+    ${fields.aiOpportunityGrade}
     salesCampaign {
       ${CUSTOMER_CAMPAIGN_REF}
     }

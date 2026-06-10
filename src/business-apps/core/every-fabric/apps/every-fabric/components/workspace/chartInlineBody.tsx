@@ -73,25 +73,22 @@ const StatRow: React.FC<{ stats: StatItem[] }> = ({ stats }) => (
     {stats.map((stat, idx) => (
       <div
         key={`${stat.label}-${idx}`}
-        className="gba:relative gba:overflow-hidden gba:rounded-xl gba:border gba:border-border/60 gba:bg-card gba:p-4 gba:shadow-sm gba:transition-shadow hover:gba:shadow-md"
+        data-testid="stat-card"
+        className="gba:rounded-lg gba:border gba:border-border/60 gba:bg-background gba:p-4 gba:transition-colors hover:gba:border-border"
       >
-        <span
-          aria-hidden="true"
-          className="gba:absolute gba:left-0 gba:top-0 gba:h-full gba:w-1 gba:bg-[var(--nw-chart-1)]"
-        />
-        <p className="gba:text-[11px] gba:uppercase gba:tracking-wide gba:text-muted-foreground gba:mb-1">
+        <p className="gba:mb-2 gba:text-[11px] gba:font-medium gba:uppercase gba:tracking-[0.08em] gba:text-muted-foreground">
           {stat.label}
         </p>
         <div className="gba:flex gba:items-baseline gba:justify-between gba:gap-2">
-          <p className="gba:text-3xl gba:font-semibold gba:leading-none gba:text-foreground">
-            {stat.prefix && <span className="gba:text-muted-foreground gba:text-lg">{stat.prefix}</span>}
+          <p className="gba:min-w-0 gba:truncate gba:text-2xl gba:font-semibold gba:leading-none gba:text-foreground">
+            {stat.prefix && <span className="gba:text-base gba:text-muted-foreground">{stat.prefix}</span>}
             {stat.value}
-            {stat.suffix && <span className="gba:text-muted-foreground gba:text-lg">{stat.suffix}</span>}
+            {stat.suffix && <span className="gba:text-base gba:text-muted-foreground">{stat.suffix}</span>}
           </p>
           {stat.trend && <TrendChip trend={stat.trend} />}
         </div>
         {stat.trend?.description && (
-          <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">{stat.trend.description}</p>
+          <p className="gba:mt-2 gba:text-xs gba:leading-snug gba:text-muted-foreground">{stat.trend.description}</p>
         )}
       </div>
     ))}

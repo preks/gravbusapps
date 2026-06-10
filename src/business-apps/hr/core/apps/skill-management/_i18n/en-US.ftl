@@ -33,7 +33,10 @@ skill-updated = Last Updated
 
 skill-actions-view = View
 skill-actions-edit = Edit
+skill-actions-activate = Activate
+skill-actions-deactivate = Deactivate
 skill-actions-delete = Delete
+skill-actions-menu = Skill actions
 skill-actions-retry = Retry
 
 skill-details-title = Skill Details
@@ -51,6 +54,8 @@ skill-form-name-label = Skill Name
 skill-form-name-placeholder = Enter skill name
 skill-form-description-label = Description
 skill-form-description-placeholder = Enter skill description
+skill-form-category-label = Category
+skill-form-category-placeholder = Select category
 skill-form-level-scale-label = Level Scale
 skill-form-level-scale-placeholder = Maximum level (e.g. 10)
 skill-form-mandatory-label = Mandatory Skill
@@ -58,6 +63,18 @@ skill-form-save = Save
 skill-form-cancel = Cancel
 skill-form-name-required = Skill name is required
 skill-form-name-duplicate = A skill with this name already exists
+
+skill-activation-activate-title = Activate Skill
+skill-activation-deactivate-title = Deactivate Skill
+skill-activation-activate-description = Choose when "{$skillName}" becomes active again.
+skill-activation-deactivate-description = Choose when "{$skillName}" should stop being active.
+skill-activation-activate-scheduled-warning = This skill is already set to activate on {$date}, but you can still change the date.
+skill-activation-deactivate-scheduled-warning = This skill is already set to deactivate on {$date}, but you can still change the date.
+skill-activation-activate-from = Activate skill from
+skill-activation-deactivate-from = Deactivate skill from
+skill-activation-active-from = Active from
+skill-activation-active-to = Active to
+skill-activation-date-error = Active to cannot be before active from
 
 confirm-deactivate-title = Deactivate Skill
 confirm-deactivate-description = Are you sure you want to deactivate "{$skillName}"? This skill is currently assigned to {$employeeCount} employees.

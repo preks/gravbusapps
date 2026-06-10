@@ -27,8 +27,7 @@ describe('spreadsheetBatchBuilders', () => {
     })
     expect(normalizeCellValueForBatchPersistence('plain value')).toBe('plain value')
     expect(normalizeCellValueForBatchPersistence({ f: 'SUM(A1:A2)', v: 3 })).toEqual({
-      f: '=SUM(A1:A2)',
-      v: 3
+      f: '=SUM(A1:A2)'
     })
   })
 
@@ -42,6 +41,21 @@ describe('spreadsheetBatchBuilders', () => {
     expect(normalizeUniverCellForRowPersistence({ v: '42', t: 2, s: 'style-1' }, numericColumn)).toEqual({
       v: 42,
       t: 2
+    })
+  })
+
+  it('strips cached formula values and display metadata from row persistence payloads', () => {
+    expect(
+      normalizeUniverCellForRowPersistence({
+        f: 'SUM(A1:A2)',
+        v: 25,
+        m: '25',
+        p: { body: { dataStream: '25' } },
+        si: 'style-inline',
+        t: 2
+      })
+    ).toEqual({
+      f: '=SUM(A1:A2)'
     })
   })
 

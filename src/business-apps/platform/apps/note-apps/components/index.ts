@@ -6,7 +6,6 @@ export { SortableNoteTree, type SortableNoteTreeProps } from './SortableNoteTree
 export { DraggableNoteTreeItem, type DraggableNoteTreeItemProps } from './DraggableNoteTreeItem'
 export { NoteContentArea, type NoteContentAreaProps } from './NoteContentArea'
 export { NoteContentHeader, type NoteContentHeaderProps } from './NoteContentHeader'
-export { NoteBulkActions, type NoteBulkActionsProps } from './NoteBulkActions'
 export { ShareNoteDialog, type ShareNoteDialogProps, type SharedNoteUser } from './ShareNoteDialog'
 export { ManageSharesDialog, type ManageSharesDialogProps } from './ManageSharesDialog'
 export { SearchCommand, type SearchCommandProps } from './SearchCommand'

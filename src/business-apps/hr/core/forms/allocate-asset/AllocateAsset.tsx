@@ -26,6 +26,7 @@ import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { useEmployeeSearch } from './hooks/useEmployeeSearch'
+import { useRoomOptions } from './hooks/useRoomOptions'
 import { AssetProcessClient, CreateEmployeeAssetPayload } from '../../apps/assets/services/AssetProcessClient'
 import { AssetStatus } from '../../apps/assets/types'
 import { useAssetConditionCatalog } from '../equipment-registration/hooks/useAssetConditionCatalog'
@@ -35,8 +36,12 @@ import { dispatchProcessCompletionEvents } from '../return-asset/utils/processEv
 import { useAssetService } from '../../apps/assets/services/useAssetService'
 import assetsTranslations from '../../apps/assets/_i18n'
 
+type AllocationTarget = 'EMPLOYEE' | 'WORKPLACE'
+
 type FormValues = {
+  allocationTarget: AllocationTarget
   employeeId: string
+  roomId: string
   startDate: string
   expectedEndDate?: string
   startAssetConditionRef?: string
@@ -98,15 +103,9 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
     () =>
       z
         .object({
-          employeeId: z
-            .string()
-            .min(
-              1,
-              getTranslationFromI18nKeyAndLabel(
-                'lowcoder:hr_assets.please_select_employee',
-                'Please select an employee'
-              )
-            ),
+          allocationTarget: z.enum(['EMPLOYEE', 'WORKPLACE']),
+          employeeId: z.string(),
+          roomId: z.string(),
           startDate: z
             .string()
             .min(
@@ -117,6 +116,23 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
           startAssetConditionRef: z.string().optional(),
           notes: z.string().optional()
         })
+        .superRefine((data, ctx) => {
+          if (data.allocationTarget === 'EMPLOYEE' && !data.employeeId?.trim()) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ['employeeId'],
+              message: t('please_select_employee')
+            })
+          }
+
+          if (data.allocationTarget === 'WORKPLACE' && !data.roomId?.trim()) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ['roomId'],
+              message: t('please_select_room')
+            })
+          }
+        })
         .refine(
           data => {
             if (!data.startDate || !acquisitionDate) return true
@@ -124,7 +140,7 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
           },
           { message: issueDateBeforePurchaseMessage, path: ['startDate'] }
         ),
-    [currentLocale, acquisitionDate, isStartDateBeforeAcquisition, issueDateBeforePurchaseMessage]
+    [currentLocale, acquisitionDate, isStartDateBeforeAcquisition, issueDateBeforePurchaseMessage, t]
   )
 
   const {
@@ -153,13 +169,31 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
     resolver: zodResolver(formSchema),
     mode: 'onChange',
     defaultValues: {
+      allocationTarget: 'EMPLOYEE',
       employeeId: '',
+      roomId: '',
       startDate: defaultStartDate,
       expectedEndDate: '',
       startAssetConditionRef: '',
       notes: ''
     }
   })
+
+  const allocationTarget = form.watch('allocationTarget')
+  const {
+    rooms,
+    isLoading: roomsLoading,
+    error: roomsError
+  } = useRoomOptions(context.accessToken, allocationTarget === 'WORKPLACE', t('rooms-load-error'))
+
+  useEffect(() => {
+    if (allocationTarget === 'EMPLOYEE') {
+      form.setValue('roomId', '', { shouldValidate: true })
+      return
+    }
+
+    form.setValue('employeeId', '', { shouldValidate: true })
+  }, [allocationTarget, form])
 
   const title = useMemo(
     () => getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.allocate_asset_form', 'Allocate Asset'),
@@ -177,8 +211,9 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
   )
 
   const isSubmitDisabled = useMemo(() => {
-    return isSubmitting || employeesLoading || conditionsLoading || !form.formState.isValid
-  }, [isSubmitting, employeesLoading, conditionsLoading, form.formState.isValid])
+    const isTargetLoading = allocationTarget === 'EMPLOYEE' ? employeesLoading : roomsLoading
+    return isSubmitting || isTargetLoading || conditionsLoading || !form.formState.isValid
+  }, [isSubmitting, allocationTarget, employeesLoading, roomsLoading, conditionsLoading, form.formState.isValid])
 
   const handleEmployeeSearch = (value: string) => {
     setSearchQuery(value)
@@ -303,76 +338,134 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
 
       <FormField
         control={form.control}
-        name="employeeId"
+        name="allocationTarget"
         render={({ field }) => (
           <FormItem>
-            <Label htmlFor="employeeId" data-testid="employee-label">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.employee', 'Employee')} *
+            <Label htmlFor="allocationTarget" data-testid="allocation-target-label">
+              {t('allocation_target')}
             </Label>
-            <Select onValueChange={field.onChange} value={field.value} disabled={employeesLoading}>
-              <style>{`#employeeId [data-job-title] { display: none !important; }`}</style>
-              <SelectTrigger id="employeeId" data-testid="employee-select" className="gba:w-full">
-                <SelectValue
-                  placeholder={
-                    employeesLoading
-                      ? getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:hr_assets.loading_employees',
-                          'Loading employees...'
-                        )
-                      : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.select_employee', 'Select an employee')
-                  }
-                />
+            <Select onValueChange={field.onChange} value={field.value}>
+              <SelectTrigger id="allocationTarget" data-testid="allocation-target-select" className="gba:w-full">
+                <SelectValue placeholder={t('select_allocation_target')} />
               </SelectTrigger>
               <SelectContent>
-                <div className="gba:p-2">
-                  <Input
-                    placeholder={getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:hr_assets.search_employees',
-                      'Search employees...'
-                    )}
-                    value={searchQuery}
-                    onChange={e => handleEmployeeSearch(e.target.value)}
-                    onKeyDown={handleSearchInputKeyDown}
-                    onClick={handleSearchInputClick}
-                    onFocus={e => e.stopPropagation()}
-                    className="gba:mb-2"
-                    data-testid="employee-search-input"
-                  />
-                </div>
-                {filteredEmployees.length === 0 ? (
-                  <div className="gba:p-2 gba:text-sm gba:text-muted-foreground gba:text-center">
-                    {employeesLoading
-                      ? getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.loading', 'Loading...')
-                      : getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:hr_assets.no_employees_found',
-                          'No employees found'
-                        )}
-                  </div>
-                ) : (
-                  filteredEmployees.map(employee => (
-                    <SelectItem
-                      key={employee.id}
-                      value={employee.id}
-                      data-testid={`employee-option-${employee.id}`}
-                      textValue={employee.name}
-                    >
-                      <div className="gba:flex gba:flex-col">
-                        <span className="gba:font-medium">{employee.name}</span>
-                        {employee.jobTitle && (
-                          <span data-job-title className="gba:text-xs gba:text-muted-foreground">
-                            {employee.jobTitle}
-                          </span>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))
-                )}
+                <SelectItem value="EMPLOYEE" data-testid="allocation-target-employee-option">
+                  {t('allocation_target_employee')}
+                </SelectItem>
+                <SelectItem value="WORKPLACE" data-testid="allocation-target-workplace-option">
+                  {t('allocation_target_workplace')}
+                </SelectItem>
               </SelectContent>
             </Select>
-            {employeesError && <p className="gba:text-sm gba:text-destructive">{employeesError}</p>}
           </FormItem>
         )}
       />
+
+      {allocationTarget === 'EMPLOYEE' ? (
+        <FormField
+          control={form.control}
+          name="employeeId"
+          render={({ field }) => (
+            <FormItem>
+              <Label htmlFor="employeeId" data-testid="employee-label">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.employee', 'Employee')}
+              </Label>
+              <Select onValueChange={field.onChange} value={field.value} disabled={employeesLoading}>
+                <style>{`#employeeId [data-job-title] { display: none !important; }`}</style>
+                <SelectTrigger id="employeeId" data-testid="employee-select" className="gba:w-full">
+                  <SelectValue
+                    placeholder={
+                      employeesLoading
+                        ? getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:hr_assets.loading_employees',
+                            'Loading employees...'
+                          )
+                        : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.select_employee', 'Select an employee')
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <div className="gba:p-2">
+                    <Input
+                      placeholder={getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:hr_assets.search_employees',
+                        'Search employees...'
+                      )}
+                      value={searchQuery}
+                      onChange={e => handleEmployeeSearch(e.target.value)}
+                      onKeyDown={handleSearchInputKeyDown}
+                      onClick={handleSearchInputClick}
+                      onFocus={e => e.stopPropagation()}
+                      className="gba:mb-2"
+                      data-testid="employee-search-input"
+                    />
+                  </div>
+                  {filteredEmployees.length === 0 ? (
+                    <div className="gba:p-2 gba:text-sm gba:text-muted-foreground gba:text-center">
+                      {employeesLoading
+                        ? getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.loading', 'Loading...')
+                        : getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:hr_assets.no_employees_found',
+                            'No employees found'
+                          )}
+                    </div>
+                  ) : (
+                    filteredEmployees.map(employee => (
+                      <SelectItem
+                        key={employee.id}
+                        value={employee.id}
+                        data-testid={`employee-option-${employee.id}`}
+                        textValue={employee.name}
+                      >
+                        <div className="gba:flex gba:flex-col">
+                          <span className="gba:font-medium">{employee.name}</span>
+                          {employee.jobTitle && (
+                            <span data-job-title className="gba:text-xs gba:text-muted-foreground">
+                              {employee.jobTitle}
+                            </span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              {employeesError && <p className="gba:text-sm gba:text-destructive">{employeesError}</p>}
+            </FormItem>
+          )}
+        />
+      ) : (
+        <FormField
+          control={form.control}
+          name="roomId"
+          render={({ field }) => (
+            <FormItem>
+              <Label htmlFor="roomId" data-testid="room-label">
+                {t('workplace_room')}
+              </Label>
+              <Select onValueChange={field.onChange} value={field.value} disabled={roomsLoading}>
+                <SelectTrigger id="roomId" data-testid="room-select" className="gba:w-full">
+                  <SelectValue placeholder={roomsLoading ? t('loading_rooms') : t('select_room')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {rooms.length === 0 ? (
+                    <div className="gba:p-2 gba:text-sm gba:text-muted-foreground gba:text-center">
+                      {roomsLoading ? t('loading') : t('no_rooms_found')}
+                    </div>
+                  ) : (
+                    rooms.map(room => (
+                      <SelectItem key={room.id} value={room.id} data-testid={`room-option-${room.id}`}>
+                        {room.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              {roomsError && <p className="gba:text-sm gba:text-destructive">{roomsError}</p>}
+            </FormItem>
+          )}
+        />
+      )}
 
       <div className="gba:flex gba:gap-4 gba:items-start">
         <FormField
@@ -623,7 +716,7 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                   }
 
                   setIsSubmitting(true)
-                  const assetStatusUpdated = false
+                  let assetStatusUpdated = false
 
                   try {
                     if (!assetId) {
@@ -635,13 +728,17 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                       )
                     }
 
-                    if (!values.employeeId?.trim()) {
+                    if (values.allocationTarget === 'EMPLOYEE' && !values.employeeId?.trim()) {
                       throw new Error(
                         getTranslationFromI18nKeyAndLabel(
                           'lowcoder:hr_assets.employee_required',
                           'Employee is required'
                         )
                       )
+                    }
+
+                    if (values.allocationTarget === 'WORKPLACE' && !values.roomId?.trim()) {
+                      throw new Error(t('room_required'))
                     }
 
                     const currentAssetVersion = await resolveAssetVersion()
@@ -661,8 +758,13 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
 
                     const employeeAssetPayload: CreateEmployeeAssetPayload = {
                       startDate: values.startDate,
-                      employee: values.employeeId,
                       asset: assetId
+                    }
+
+                    if (values.allocationTarget === 'EMPLOYEE') {
+                      employeeAssetPayload.employee = values.employeeId
+                    } else {
+                      employeeAssetPayload.room = values.roomId
                     }
 
                     if (values.expectedEndDate) {
@@ -678,7 +780,8 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                     }
 
                     const allocatorUserId = userInfo?.id ?? ''
-                    const selectedEmployee = employees.find(e => e.id === values.employeeId)
+                    const selectedEmployee =
+                      values.allocationTarget === 'EMPLOYEE' ? employees.find(e => e.id === values.employeeId) : null
                     const employeeUserId = selectedEmployee?.userId ?? ''
 
                     if (!allocatorUserId) {
@@ -690,7 +793,7 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                       )
                     }
 
-                    if (!employeeUserId) {
+                    if (values.allocationTarget === 'EMPLOYEE' && !employeeUserId) {
                       throw new Error(
                         getTranslationFromI18nKeyAndLabel(
                           'lowcoder:hr_assets.employee_user_required',
@@ -699,29 +802,41 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                       )
                     }
 
-                    const processResponse = await assetProcessClient.startAllocateAssetToEmployee({
-                      employeeAsset: employeeAssetPayload,
-                      allocatorUserId,
-                      employeeUserId
-                    })
+                    const isWorkplaceAllocation = values.allocationTarget === 'WORKPLACE'
+                    const processResponse = isWorkplaceAllocation
+                      ? await assetProcessClient.createEmployeeAsset(employeeAssetPayload)
+                      : await assetProcessClient.startAllocateAssetToEmployee({
+                          employeeAsset: employeeAssetPayload,
+                          allocatorUserId,
+                          employeeUserId
+                        })
+
+                    if (isWorkplaceAllocation) {
+                      await assetProcessClient.updateAsset({
+                        id: assetId,
+                        version: currentAssetVersion,
+                        assetStatus: AssetStatus.ALLOCATED
+                      })
+                      assetStatusUpdated = true
+                    }
 
                     dispatchProcessContinueEvent('pse_submit', {})
 
-                    // Asset remains PENDING_ASSET until employee acknowledges; then process sets ALLOCATED_ASSET
                     dispatchProcessCompletionEvents({
                       resolution: 'success',
-                      processName: 'allocateAssetToEmployee',
+                      processName: isWorkplaceAllocation ? 'createEmployeeAsset' : 'allocateAssetToEmployee',
                       domain: 'employee',
                       response: {
                         employeeAsset: {
                           id: processResponse?.id || processResponse?.employeeAsset?.id,
                           assetId: assetId,
-                          employeeId: values.employeeId
+                          ...(values.employeeId ? { employeeId: values.employeeId } : {}),
+                          ...(values.roomId ? { roomId: values.roomId } : {})
                         },
                         asset: {
                           id: assetId,
                           version: currentAssetVersion,
-                          assetStatus: AssetStatus.PENDING
+                          assetStatus: isWorkplaceAllocation ? AssetStatus.ALLOCATED : AssetStatus.PENDING
                         }
                       }
                     })

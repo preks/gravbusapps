@@ -110,7 +110,7 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
       vacationDays,
       plannedHours: fmt(totalPlannedMin),
       effectiveHours: fmt(totalEffectiveMin),
-      difference: fmt(totalPlannedMin - totalEffectiveMin)
+      difference: fmt(Math.abs(totalPlannedMin - totalEffectiveMin))
     }
   }, [entriesForReport, entries])
 

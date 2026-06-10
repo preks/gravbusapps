@@ -14,7 +14,7 @@ export interface GenericOpportunitiesStaticData {
   totalOpportunities: number
   totalValue: number
   wonOpportunities: number
-  avgDealSize: number
+  avgOpportunitySize: number
   avgOpportunityValue: number // Average value of ALL opportunities in pipeline
   winRate: number
   conversionRate: number // Lead to Opportunity conversion rate (all time)
@@ -113,7 +113,7 @@ export const useGenericOpportunitiesStaticData = (
               aggregate { count }
             }
 
-            # Won opportunities value (all time) - for avg deal size
+            # Won opportunities value (all time) - for avg opportunity size
             wonOpportunitiesValue: ${config.opportunityEntity}Aggregate(
               where: {
                 isDeleted: { _eq: false }
@@ -245,8 +245,8 @@ export const useGenericOpportunitiesStaticData = (
         const wonOpportunities = result.wonOpportunities?.aggregate?.count || 0
         const wonOpportunitiesValue = result.wonOpportunitiesValue?.aggregate?.sum?.estimatedAmount || 0
 
-        // Calculate avg deal size (won opportunities only)
-        const avgDealSize = wonOpportunities > 0 ? wonOpportunitiesValue / wonOpportunities : 0
+        // Calculate avg opportunity size (won opportunities only)
+        const avgOpportunitySize = wonOpportunities > 0 ? wonOpportunitiesValue / wonOpportunities : 0
 
         // Calculate avg opportunity value (all opportunities)
         const avgOpportunityValue = totalOpportunities > 0 ? totalValue / totalOpportunities : 0
@@ -284,7 +284,7 @@ export const useGenericOpportunitiesStaticData = (
           totalOpportunities,
           totalValue,
           wonOpportunities,
-          avgDealSize,
+          avgOpportunitySize,
           avgOpportunityValue,
           winRate,
           conversionRate,

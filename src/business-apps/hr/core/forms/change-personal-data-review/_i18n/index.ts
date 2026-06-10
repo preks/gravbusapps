@@ -5,7 +5,7 @@ import deDE from './de-DE.ftl?raw'
 import roRO from './ro-RO.ftl?raw'
 
 export default {
-  enUS: translations.enUS + '\n' + enUS,
-  deDE: translations.deDE + '\n' + deDE,
-  roRO: translations.roRO + '\n' + roRO
-} as { enUS: string; deDE: string; roRO: string }
+  'en-US': translations['en-US'] + '\n' + enUS,
+  'de-DE': translations['de-DE'] + '\n' + deDE,
+  'ro-RO': translations['ro-RO'] + '\n' + roRO
+} as Record<string, string>

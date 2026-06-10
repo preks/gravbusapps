@@ -88,7 +88,7 @@ export interface OverviewCounts {
 export interface ConversionMetrics {
   leadToOpportunityRate: number
   opportunityWinRate: number
-  avgDealSize: number
+  avgOpportunitySize: number
   totalWonRevenue: number
   salesCycleLength?: number // Optional: not used in KPIs display
 }
@@ -107,7 +107,7 @@ export interface KpiLabels {
   // Second row KPIs (conversion metrics)
   leadToOpportunityRate?: { title: string; description: string }
   opportunityWinRate?: { title: string; description: string }
-  avgDealSize?: { title: string; description: string }
+  avgOpportunitySize?: { title: string; description: string }
   totalWonRevenue?: { title: string; description: string }
 }
 
@@ -122,7 +122,7 @@ export interface KpiVisibility {
   contacts?: boolean
   leadToOpportunityRate?: boolean
   opportunityWinRate?: boolean
-  avgDealSize?: boolean
+  avgOpportunitySize?: boolean
   totalWonRevenue?: boolean
 }
 
@@ -168,10 +168,10 @@ const DEFAULT_KPI_LABELS: Required<KpiLabels> = {
   },
   opportunityWinRate: {
     title: 'Opportunity Win Rate',
-    description: 'Deal closing success rate'
+    description: 'Opportunity closing success rate'
   },
-  avgDealSize: {
-    title: 'Avg Deal Size',
+  avgOpportunitySize: {
+    title: 'Avg Opportunity Size',
     description: 'Average opportunity value'
   },
   totalWonRevenue: {
@@ -199,7 +199,7 @@ export const OverviewMetricsWidgets: React.FC<OverviewMetricsWidgetsProps> = ({
     contacts: { ...DEFAULT_KPI_LABELS.contacts, ...kpiLabels.contacts },
     leadToOpportunityRate: { ...DEFAULT_KPI_LABELS.leadToOpportunityRate, ...kpiLabels.leadToOpportunityRate },
     opportunityWinRate: { ...DEFAULT_KPI_LABELS.opportunityWinRate, ...kpiLabels.opportunityWinRate },
-    avgDealSize: { ...DEFAULT_KPI_LABELS.avgDealSize, ...kpiLabels.avgDealSize },
+    avgOpportunitySize: { ...DEFAULT_KPI_LABELS.avgOpportunitySize, ...kpiLabels.avgOpportunitySize },
     totalWonRevenue: { ...DEFAULT_KPI_LABELS.totalWonRevenue, ...kpiLabels.totalWonRevenue }
   }
 
@@ -211,7 +211,7 @@ export const OverviewMetricsWidgets: React.FC<OverviewMetricsWidgetsProps> = ({
     contacts: kpiVisibility.contacts !== false,
     leadToOpportunityRate: kpiVisibility.leadToOpportunityRate !== false,
     opportunityWinRate: kpiVisibility.opportunityWinRate !== false,
-    avgDealSize: kpiVisibility.avgDealSize !== false,
+    avgOpportunitySize: kpiVisibility.avgOpportunitySize !== false,
     totalWonRevenue: kpiVisibility.totalWonRevenue !== false
   }
 
@@ -304,25 +304,25 @@ export const OverviewMetricsWidgets: React.FC<OverviewMetricsWidgetsProps> = ({
     )
   }
 
-  if (visibility.avgDealSize) {
-    const currentAvgDealSize =
+  if (visibility.avgOpportunitySize) {
+    const currentAvgOpportunitySize =
       trendData && trendData.wonOpportunities.current > 0
         ? trendData.wonRevenue.current / trendData.wonOpportunities.current
         : 0
-    const previousAvgDealSize =
+    const previousAvgOpportunitySize =
       trendData && trendData.wonOpportunities.previous > 0
         ? trendData.wonRevenue.previous / trendData.wonOpportunities.previous
         : 0
 
     conversionWidgets.push(
       buildCurrencyWidget({
-        key: 'avg-deal-size',
-        title: labels.avgDealSize.title,
-        value: conversionMetrics.avgDealSize,
+        key: 'avg-opportunity-size',
+        title: labels.avgOpportunitySize.title,
+        value: conversionMetrics.avgOpportunitySize,
         currency: selectedCurrency,
         icon: <CurrencyCircleDollarIcon size={16} />,
-        description: labels.avgDealSize.description,
-        trendData: { current: currentAvgDealSize, previous: previousAvgDealSize },
+        description: labels.avgOpportunitySize.description,
+        trendData: { current: currentAvgOpportunitySize, previous: previousAvgOpportunitySize },
         trendLoading
       })
     )

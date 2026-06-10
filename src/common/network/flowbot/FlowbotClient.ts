@@ -44,43 +44,6 @@ export interface EvalsDashboardQueryParams {
   llm_model?: string
 }
 
-export type IcpScoringEntityType = 'lead' | 'opportunity'
-
-export interface IcpScoreRequest {
-  entity_type: IcpScoringEntityType
-  entity_id: string
-  icp_id: string
-}
-
-export interface BulkIcpScoreRequest {
-  entity_type: IcpScoringEntityType
-  entity_ids: string[]
-  icp_id: string
-}
-
-export interface IcpFieldScore {
-  field: string
-  icp_value?: string | number | boolean | null
-  entity_value?: string | number | boolean | null
-  score: number
-  method?: string | null
-  weight?: number | null
-}
-
-export interface IcpScoreResponse {
-  entity_type: IcpScoringEntityType
-  entity_id: string
-  account_id?: string | null
-  account_name?: string | null
-  overall_score: number
-  grade?: string | null
-  field_scores: IcpFieldScore[]
-  win_rate?: number | null
-  applied_criteria?: unknown[]
-  ignored_criteria?: unknown[]
-  warnings?: string[]
-}
-
 export interface MapFromFileRequest {
   entity_type: string
   import_file: File
@@ -240,6 +203,40 @@ export interface DocumentAutocompleteResponse {
   diagnostics?: string | null
 }
 
+// --- Virtual Assistants (orgchart registration for workforce agents) ---
+
+export interface CreateVirtualAssistantKeycloakUserRequest {
+  username: string
+  email?: string
+  first_name?: string
+  last_name?: string
+  enabled?: boolean
+}
+
+export interface CreateVirtualAssistantKeycloakUserResponse {
+  user_id: string
+}
+
+export interface CreateVirtualAssistantRequest {
+  /** Existing Keycloak user UUID the employee record will be linked to. */
+  user_id: string
+  first_name: string
+  last_name: string
+  display_name?: string
+  /** Created (or reused) and linked to the orgchart assignment when set. */
+  job_position_name?: string
+  org_unit_id?: string
+  org_unit_name?: string
+}
+
+export interface CreateVirtualAssistantResponse {
+  employee_id: string
+  user_id: string
+  org_unit_id: string
+  structure_id: string
+  job_position_id?: string | null
+}
+
 export class FlowbotClient extends RestClient {
   constructor() {
     // Driven by NEXT_PUBLIC_FLOWBOT_ENDPOINT (or NEXT_PUBLIC_BASE_URL fallback). See resolveFlowbotBaseUrl.
@@ -302,50 +299,6 @@ export class FlowbotClient extends RestClient {
     >
 
     return this.get<T>('/flowbot/analytics/evals/dashboard', { ...options, params: cleanedParams })
-  }
-
-  public async scoreIcpEntity(
-    request: IcpScoreRequest,
-    options: Omit<RequestOptions, 'body'> = {}
-  ): Promise<IcpScoreResponse> {
-    return this.post<IcpScoreResponse>('/flowbot/icp-scoring/score', request, options)
-  }
-
-  public async scoreIcpEntitiesBulk(
-    request: BulkIcpScoreRequest,
-    options: Omit<RequestOptions, 'body'> = {}
-  ): Promise<IcpScoreResponse[]> {
-    return this.post<IcpScoreResponse[]>('/flowbot/icp-scoring/score/bulk', request, options)
-  }
-
-  public async scoreLeadWithIcp(
-    leadId: string,
-    icpId: string,
-    options: Omit<RequestOptions, 'body'> = {}
-  ): Promise<IcpScoreResponse> {
-    return this.scoreIcpEntity(
-      {
-        entity_type: 'lead',
-        entity_id: leadId,
-        icp_id: icpId
-      },
-      options
-    )
-  }
-
-  public async scoreLeadsWithIcp(
-    leadIds: string[],
-    icpId: string,
-    options: Omit<RequestOptions, 'body'> = {}
-  ): Promise<IcpScoreResponse[]> {
-    return this.scoreIcpEntitiesBulk(
-      {
-        entity_type: 'lead',
-        entity_ids: leadIds,
-        icp_id: icpId
-      },
-      options
-    )
   }
 
   public async mapFromFile(
@@ -443,6 +396,30 @@ export class FlowbotClient extends RestClient {
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<DocumentAutocompleteResponse> {
     return this.post<DocumentAutocompleteResponse>('/text-generation/document-autocomplete', request, options)
+  }
+
+  /**
+   * Create a Keycloak user for a virtual assistant (workforce agent identity).
+   * Dev-tenant only; 503 when KEYCLOAK_USER_CREATION_ENABLED is off — callers
+   * should let the operator supply an existing user id instead.
+   */
+  public async createVirtualAssistantKeycloakUser(
+    request: CreateVirtualAssistantKeycloakUserRequest,
+    options: Omit<RequestOptions, 'body'> = {}
+  ): Promise<CreateVirtualAssistantKeycloakUserResponse> {
+    return this.post<CreateVirtualAssistantKeycloakUserResponse>(
+      '/flowbot/api/virtual-assistants/keycloak-user',
+      request,
+      options
+    )
+  }
+
+  /** Register a virtual assistant employee in the orgchart (dev-tenant only). */
+  public async createVirtualAssistant(
+    request: CreateVirtualAssistantRequest,
+    options: Omit<RequestOptions, 'body'> = {}
+  ): Promise<CreateVirtualAssistantResponse> {
+    return this.post<CreateVirtualAssistantResponse>('/flowbot/api/virtual-assistants', request, options)
   }
 }
 

@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCampaignRecordQueries } from '../queries'
-import { CampaignEntity, UseCampaignEntitiesReturn } from '../types'
+import { CampaignEntity, CampaignEntityOwner, CampaignEntityType, UseCampaignEntitiesReturn } from '../types'
+import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 
 // Types for GraphQL response entities
 interface EntityOwner {
@@ -16,7 +17,7 @@ interface LeadEntity {
   firstName?: string
   lastName?: string
   createdAt: string
-  leadStatus: unknown
+  leadStatus?: { value: string; code?: string }
   ownerEmployee?: EntityOwner
 }
 
@@ -40,8 +41,14 @@ interface OpportunityEntity {
   name: string
   createdAt: string
   estimatedAmount?: number
-  opportunityStatus: unknown
+  opportunityStatus?: { value: string; code?: string }
   ownerEmployee?: EntityOwner
+}
+
+interface AggregateCountEntity {
+  aggregate?: {
+    count?: number
+  }
 }
 
 interface CampaignEntitiesResult {
@@ -49,12 +56,80 @@ interface CampaignEntitiesResult {
   accounts?: AccountEntity[]
   contacts?: ContactEntity[]
   opportunities?: OpportunityEntity[]
+  leadsCount?: AggregateCountEntity
+  accountsCount?: AggregateCountEntity
+  contactsCount?: AggregateCountEntity
+  opportunitiesCount?: AggregateCountEntity
+}
+
+interface UseCampaignEntitiesOptions {
+  enabled?: boolean
+}
+
+const normalizeOwner = (owner?: EntityOwner): CampaignEntityOwner => {
+  if (!owner) {
+    return {
+      id: '',
+      firstName: '',
+      lastName: '',
+      displayName: 'Unassigned'
+    }
+  }
+
+  return {
+    id: owner.id || '',
+    firstName: owner.firstName || '',
+    lastName: owner.lastName || '',
+    displayName: owner.displayName || [owner.firstName, owner.lastName].filter(Boolean).join(' ') || 'Unassigned'
+  }
+}
+
+const normalizeStatusCode = (rawStatus: string): string => {
+  const trimmedValue = rawStatus.trim()
+  if (!trimmedValue) {
+    return ''
+  }
+
+  if (trimmedValue.includes(':')) {
+    const refParts = trimmedValue.split(':')
+    return refParts[refParts.length - 1].toUpperCase()
+  }
+
+  return trimmedValue.toUpperCase()
+}
+
+const normalizeStatusFilters = (statusFilters: unknown): string[] | undefined => {
+  if (!Array.isArray(statusFilters)) {
+    return undefined
+  }
+
+  const normalizedCodes = statusFilters.map(String).map(normalizeStatusCode).filter(Boolean)
+
+  return normalizedCodes.length > 0 ? Array.from(new Set(normalizedCodes)) : undefined
+}
+
+const getEntityTypeTotalCount = (result: CampaignEntitiesResult, entityType: CampaignEntityType): number => {
+  if (entityType === 'lead') {
+    return result.leadsCount?.aggregate?.count || 0
+  }
+
+  if (entityType === 'account') {
+    return result.accountsCount?.aggregate?.count || 0
+  }
+
+  if (entityType === 'contact') {
+    return result.contactsCount?.aggregate?.count || 0
+  }
+
+  return result.opportunitiesCount?.aggregate?.count || 0
 }
 
 export const useCampaignEntities = (
   context: BusinessAppContextProps,
-  campaignId: string
+  campaignId: string,
+  options: UseCampaignEntitiesOptions = {}
 ): UseCampaignEntitiesReturn => {
+  const { enabled = true } = options
   const [entities, setEntities] = useState<CampaignEntity[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
@@ -64,8 +139,12 @@ export const useCampaignEntities = (
   const [search, setSearch] = useState('')
   const [sortField, setSortField] = useState<string>('')
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC' | ''>('')
+  const [activeEntityType, setActiveEntityType] = useState<CampaignEntityType>('lead')
+  const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>({})
+  const [accountReferenceIds, setAccountReferenceIds] = useState<string[]>([])
+  const [accountReferencesInitialized, setAccountReferencesInitialized] = useState(true)
 
-  const { fetchCampaignEntities } = useCampaignRecordQueries(context)
+  const { fetchCampaignEntities, fetchCampaignRecord } = useCampaignRecordQueries(context)
 
   const transformEntitiesToUnified = useCallback(
     (result: CampaignEntitiesResult, sortField?: string, sortOrder?: 'ASC' | 'DESC' | ''): CampaignEntity[] => {
@@ -82,12 +161,7 @@ export const useCampaignEntities = (
             firstName: lead.firstName,
             lastName: lead.lastName,
             status: lead.leadStatus,
-            owner: lead.ownerEmployee || {
-              id: '',
-              firstName: '',
-              lastName: '',
-              displayName: 'Unassigned'
-            }
+            owner: normalizeOwner(lead.ownerEmployee)
           })
         })
       }
@@ -100,12 +174,7 @@ export const useCampaignEntities = (
             name: account.name,
             type: 'account',
             creationDate: account.createdAt,
-            owner: account.ownerEmployee || {
-              id: '',
-              firstName: '',
-              lastName: '',
-              displayName: 'Unassigned'
-            }
+            owner: normalizeOwner(account.ownerEmployee)
           })
         })
       }
@@ -120,12 +189,7 @@ export const useCampaignEntities = (
             creationDate: contact.createdAt,
             firstName: contact.firstName,
             lastName: contact.lastName,
-            owner: contact.ownerEmployee || {
-              id: '',
-              firstName: '',
-              lastName: '',
-              displayName: 'Unassigned'
-            }
+            owner: normalizeOwner(contact.ownerEmployee)
           })
         })
       }
@@ -139,12 +203,7 @@ export const useCampaignEntities = (
             type: 'opportunity',
             creationDate: opportunity.createdAt,
             status: opportunity.opportunityStatus,
-            owner: opportunity.ownerEmployee || {
-              id: '',
-              firstName: '',
-              lastName: '',
-              displayName: 'Unassigned'
-            }
+            owner: normalizeOwner(opportunity.ownerEmployee)
           })
         })
       }
@@ -152,8 +211,8 @@ export const useCampaignEntities = (
       // Apply client-side sorting if specified
       if (sortField && sortOrder) {
         allEntities.sort((a, b) => {
-          let valueA: string | number | undefined
-          let valueB: string | number | undefined
+          let valueA: string | number = ''
+          let valueB: string | number = ''
 
           switch (sortField) {
             case 'name':
@@ -206,10 +265,24 @@ export const useCampaignEntities = (
     setError(null)
 
     try {
+      if (activeEntityType === 'account' && !accountReferencesInitialized) {
+        return
+      }
+
+      const normalizedCreatedAtRange = normalizeDateRange(selectedFilters.createdAt ?? selectedFilters.createdAtRange)
+      const normalizedStatuses = normalizeStatusFilters(selectedFilters.status)
+
       // Fetch all entities (no offset/limit since we can't paginate across multiple entity types)
       const result = await fetchCampaignEntities({
         campaignId,
+        limit: pageSize,
+        offset: (currentPage - 1) * pageSize,
         search: search.trim() || undefined,
+        types: [activeEntityType],
+        accountReferenceIds: accountReferenceIds.length > 0 ? accountReferenceIds : undefined,
+        statuses: normalizedStatuses,
+        createdAtFrom: normalizedCreatedAtRange?.from || undefined,
+        createdAtTo: normalizedCreatedAtRange?.to || undefined,
         orderBy: [{ createdAt: 'DESC' }]
       })
 
@@ -217,11 +290,7 @@ export const useCampaignEntities = (
       const allTransformedEntities = transformEntitiesToUnified(result, sortField, sortOrder)
 
       // Get total count from aggregate queries
-      const totalEntitiesCount =
-        (result.leadsCount?.aggregate?.count || 0) +
-        (result.accountsCount?.aggregate?.count || 0) +
-        (result.contactsCount?.aggregate?.count || 0) +
-        (result.opportunitiesCount?.aggregate?.count || 0)
+      const totalEntitiesCount = getEntityTypeTotalCount(result, activeEntityType)
       setTotalCount(totalEntitiesCount)
 
       // Return ALL entities - let DataTable handle pagination client-side
@@ -239,9 +308,14 @@ export const useCampaignEntities = (
     search,
     sortField,
     sortOrder,
+    activeEntityType,
+    accountReferencesInitialized,
+    selectedFilters,
+    accountReferenceIds,
     fetchCampaignEntities,
-    transformEntitiesToUnified
-    // Removed currentPage and pageSize - pagination handled client-side in DataTable
+    transformEntitiesToUnified,
+    currentPage,
+    pageSize
   ])
 
   const setPage = useCallback((page: number) => {
@@ -258,6 +332,16 @@ export const useCampaignEntities = (
     setCurrentPage(1) // Reset to first page when searching
   }, [])
 
+  const handleSetFilters = useCallback((filters: Record<string, any>) => {
+    setSelectedFilters(filters)
+    setCurrentPage(1) // Reset to first page when filtering
+  }, [])
+
+  const handleSetActiveEntityType = useCallback((entityType: CampaignEntityType) => {
+    setActiveEntityType(entityType)
+    setCurrentPage(1)
+  }, [])
+
   const refetch = useCallback(() => {
     loadCampaignEntities()
   }, [loadCampaignEntities])
@@ -270,11 +354,56 @@ export const useCampaignEntities = (
   }, [])
 
   useEffect(() => {
-    if (context.accessToken && campaignId) {
+    const loadCampaignReferences = async () => {
+      if (!context.accessToken || !campaignId) {
+        return
+      }
+      if (activeEntityType !== 'account') {
+        if (!accountReferencesInitialized) {
+          setAccountReferencesInitialized(true)
+        }
+        return
+      }
+
+      try {
+        setAccountReferencesInitialized(false)
+        const result = await fetchCampaignRecord({ campaignId })
+        const campaignData = result.SalesCampaign?.[0]
+        if (!campaignData) {
+          setAccountReferenceIds([])
+          setAccountReferencesInitialized(true)
+          return
+        }
+
+        const references = (campaignData.customerCampaignAccounts ?? [])
+          .map(item => item.customerAccountId)
+          .filter((id): id is string => Boolean(id))
+        setAccountReferenceIds(references)
+        setAccountReferencesInitialized(true)
+      } catch {
+        setAccountReferenceIds([])
+        setAccountReferencesInitialized(true)
+      }
+    }
+
+    loadCampaignReferences().catch(() => undefined)
+  }, [activeEntityType, context.accessToken, campaignId, fetchCampaignRecord])
+
+  useEffect(() => {
+    if (enabled && context.accessToken && campaignId) {
       loadCampaignEntities()
     }
-  }, [context.accessToken, campaignId, search, sortField, sortOrder, loadCampaignEntities])
-  // Note: currentPage and pageSize removed - pagination is client-side only
+  }, [
+    enabled,
+    context.accessToken,
+    campaignId,
+    search,
+    sortField,
+    sortOrder,
+    currentPage,
+    pageSize,
+    loadCampaignEntities
+  ])
 
   return {
     entities,
@@ -286,7 +415,10 @@ export const useCampaignEntities = (
     search,
     sortField,
     sortOrder,
+    activeEntityType,
     setSearch: handleSetSearch,
+    setFilters: handleSetFilters,
+    setActiveEntityType: handleSetActiveEntityType,
     setPage,
     setPageSize: handleSetPageSize,
     setSorting,

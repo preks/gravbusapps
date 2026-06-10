@@ -1,6 +1,8 @@
 import { useMemo, useEffect } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { DocumentItem, ApiConfig } from '../types'
 import { MENU_CLEANUP_DELAY_MS } from '../constants'
+import translations from '../_i18n'
 
 interface UseDocumentMenuProps {
   selectedDocument: DocumentItem | null
@@ -22,7 +24,7 @@ interface UseDocumentMenuProps {
   }
   customActions?: Array<{
     key: string
-    label: string
+    label: string | ((document: DocumentItem) => string)
     icon?: React.ReactNode
     apiEndpoint?: string
     payload?: (documentId: string, document: DocumentItem, entityId: string) => any
@@ -32,7 +34,7 @@ interface UseDocumentMenuProps {
       entityId: string,
       accessToken?: string
     ) => void | Promise<void>
-    confirmMessage?: string
+    confirmMessage?: string | ((document: DocumentItem) => string)
   }>
   accessToken?: string
   apiConfig?: ApiConfig
@@ -62,6 +64,8 @@ export function useDocumentMenu({
   handleCustomAction,
   showConfirmation
 }: UseDocumentMenuProps) {
+  const { t } = useTranslation(translations)
+
   // Handle three-dots click to open custom menu
   const handleActionsButtonClick = (document: DocumentItem, event: React.MouseEvent) => {
     event.stopPropagation()
@@ -104,7 +108,7 @@ export function useDocumentMenu({
     if (downloadActionProps && selectedDocument.fileInfo && !selectedDocument.folder) {
       actions.push({
         key: 'download',
-        label: 'Download',
+        label: t('document-action-download'),
         onClick: () => {
           // Trigger download action
           handleDownloadDocument(selectedDocument)
@@ -119,18 +123,25 @@ export function useDocumentMenu({
     // Add custom actions from configuration (deprecated but still supported for backward compatibility)
     if (customActions && customActions.length > 0 && accessToken && apiConfig) {
       const customActionItems = customActions.map(action => {
+        const actionLabel = typeof action.label === 'function' ? action.label(selectedDocument) : action.label
+
         return {
           key: action.key,
-          label: action.label,
+          label: actionLabel,
           onClick: async () => {
             setMenuOpen(false)
 
             if (action.confirmMessage) {
+              const confirmMessage =
+                typeof action.confirmMessage === 'function'
+                  ? action.confirmMessage(selectedDocument)
+                  : action.confirmMessage
+
               showConfirmation(
-                `Confirm ${action.label}`,
-                action.confirmMessage,
+                t('document-action-confirm-title', { action: actionLabel }),
+                confirmMessage,
                 () => handleCustomAction(action, selectedDocument.id),
-                action.label
+                actionLabel
               )
             } else {
               await handleCustomAction(action, selectedDocument.id)
@@ -153,7 +164,8 @@ export function useDocumentMenu({
     handleDownloadDocument,
     handleCustomAction,
     showConfirmation,
-    setMenuOpen
+    setMenuOpen,
+    t
   ])
 
   // Cleanup mount element when menu closes

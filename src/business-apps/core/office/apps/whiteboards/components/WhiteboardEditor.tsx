@@ -31,7 +31,8 @@ import {
   DownloadSimpleIcon,
   ImageIcon,
   PaintBucketIcon,
-  ShareNetworkIcon
+  ShareNetworkIcon,
+  UsersThreeIcon
 } from '@phosphor-icons/react'
 import { MessageSquare } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -51,6 +52,7 @@ import { PresenceIndicator } from '@/business-apps/platform/apps/shared/componen
 import { WhiteboardCollaboratorCursors } from './WhiteboardCollaboratorCursors'
 import { WhiteboardCommentPins } from './WhiteboardCommentPins'
 import { ShareWhiteboardDialog } from './ShareWhiteboardDialog'
+import { ManageSharesDialog } from './ManageSharesDialog'
 import { WhiteboardApiService } from '../services'
 import {
   WHITEBOARD_LOCAL_YJS_ORIGIN,
@@ -245,6 +247,8 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
   const [whiteboard, setWhiteboard] = useState<WhiteboardSummary | null>(null)
   const [hasLoadedWhiteboard, setHasLoadedWhiteboard] = useState(false)
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
+  const [manageSharesDialogOpen, setManageSharesDialogOpen] = useState(false)
+  const [hasSharedUsers, setHasSharedUsers] = useState(false)
   const [isRenamingTitle, setIsRenamingTitle] = useState(false)
   const [draftTitle, setDraftTitle] = useState('')
   const [isRenameSaving, setIsRenameSaving] = useState(false)
@@ -328,6 +332,26 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
       .catch(err => console.error('Failed to load whiteboard:', err.message))
       .finally(() => setHasLoadedWhiteboard(true))
   }, [accessToken, whiteboardId])
+
+  const refreshShareCount = useCallback(async () => {
+    if (!accessToken || !whiteboardId || !canManageSharing) {
+      setHasSharedUsers(false)
+      return
+    }
+
+    try {
+      const shares = await WhiteboardApiService.getSharedUsers(accessToken, whiteboardId)
+      setHasSharedUsers(Array.isArray(shares) && shares.length > 0)
+    } catch {
+      setHasSharedUsers(false)
+    }
+  }, [accessToken, canManageSharing, whiteboardId])
+
+  useEffect(() => {
+    if (hasLoadedWhiteboard) {
+      void refreshShareCount()
+    }
+  }, [hasLoadedWhiteboard, refreshShareCount])
 
   useEffect(() => {
     const persistedSnapshot = (whiteboard?.contentJson as Record<string, unknown> | undefined)?.yjsStateBase64
@@ -1267,6 +1291,15 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
                     <ShareNetworkIcon className="gba:w-4 gba:h-4 gba:mr-2" />
                     {t('whiteboard-share')}
                   </DropdownMenuItem>
+                  {hasSharedUsers ? (
+                    <DropdownMenuItem
+                      onClick={() => setManageSharesDialogOpen(true)}
+                      data-testid={`${testId}-manage-shares`}
+                    >
+                      <UsersThreeIcon className="gba:w-4 gba:h-4 gba:mr-2" />
+                      {t('whiteboard-manage-shares')}
+                    </DropdownMenuItem>
+                  ) : null}
                 </>
               ) : null}
             </DropdownMenuContent>
@@ -1408,9 +1441,38 @@ export const WhiteboardEditor: React.FC<WhiteboardEditorProps> = ({
         whiteboardTitle={whiteboard?.title || t('whiteboard-untitled')}
         currentUserId={currentUserId}
         currentUserName={currentUserName}
+        currentUserAvatar={currentUserAvatar}
         accessToken={accessToken}
+        onManageAccess={
+          hasSharedUsers
+            ? () => {
+                setShareDialogOpen(false)
+                setManageSharesDialogOpen(true)
+              }
+            : undefined
+        }
+        onShareComplete={() => void refreshShareCount()}
         data-testid={`${testId}-share-dialog`}
       />
+
+      {accessToken ? (
+        <ManageSharesDialog
+          open={manageSharesDialogOpen}
+          onOpenChange={setManageSharesDialogOpen}
+          whiteboardId={whiteboardId}
+          whiteboardTitle={whiteboard?.title || t('whiteboard-untitled')}
+          accessToken={accessToken}
+          currentUserId={currentUserId}
+          currentUserName={currentUserName}
+          currentUserAvatar={currentUserAvatar}
+          onSharesChanged={() => void refreshShareCount()}
+          onAddMoreUsers={() => {
+            setManageSharesDialogOpen(false)
+            setShareDialogOpen(true)
+          }}
+          data-testid={`${testId}-manage-shares-dialog`}
+        />
+      ) : null}
 
       <InlineCommentPopover
         isOpen={!!commentPopoverPosition && !!pendingCommentAnchor}

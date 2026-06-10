@@ -23,6 +23,11 @@ export const GET_FILTERED_EMPLOYEE_IDS = `
       lastName
       pictureThumbnail
       additionalProperties
+      workingCondition(where: { isDeleted: { _eq: false } }, orderBy: [{ activeFrom: DESC }, { createdAt: DESC }], limit: 1) {
+        contractType {
+          objectValue
+        }
+      }
       employeePosition {
         organizationalUnitId
         organizationalUnit {
@@ -67,6 +72,12 @@ export interface FilteredEmployee {
   lastName: string
   pictureThumbnail?: string | null
   additionalProperties?: Record<string, unknown> | null
+  timeRelevant?: boolean
+  workingCondition?: Array<{
+    contractType?: {
+      objectValue?: Record<string, unknown> | null
+    } | null
+  }> | null
   employeePosition?: {
     organizationalUnitId?: string | null
     organizationalUnit?: { id: string; name: string } | null

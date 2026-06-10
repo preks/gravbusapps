@@ -10,6 +10,7 @@ import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 export interface OverviewViewProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {
   config: PersonalWorkspaceConfig
   employeeId: string
+  docuSignEnabled?: boolean
 }
 
 /**
@@ -17,7 +18,13 @@ export interface OverviewViewProps extends Pick<BusinessAppContextProps, 'access
  * Main dashboard view showing KPIs, recent activities, and calendar
  * Fetches data only when this component is mounted (lazy loading per tab)
  */
-export const OverviewView: React.FC<OverviewViewProps> = ({ config, employeeId, accessToken, userInfo }) => {
+export const OverviewView: React.FC<OverviewViewProps> = ({
+  config,
+  employeeId,
+  accessToken,
+  userInfo,
+  docuSignEnabled = false
+}) => {
   // Fetch Overview tab data (only when this component is mounted)
   const kpisResult = config.hooks.useKpis({ accessToken, userInfo }, employeeId)
   const recentActivitiesResult = config.hooks.useActivities({ accessToken, userInfo }, employeeId)
@@ -99,6 +106,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ config, employeeId, 
           userInfo={userInfo}
           refetchActivities={calendarActivitiesResult.refetch}
           refetchTasks={calendarTasksResult.refetch}
+          docuSignEnabled={docuSignEnabled}
         />
       </div>
     </div>

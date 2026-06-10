@@ -5,9 +5,10 @@ import {
   CampaignChartDataPoint,
   ChartTimeFilter,
   UseCampaignChartReturn,
-  CampaignRecord,
-  CampaignEntity
+  CampaignRecord
 } from '../types'
+import { LEAD_STATUS_CODE_CONVERTED, OPPORTUNITY_STATUS_CODE_WON } from '../queries/CampaignAnalyticsGraphQL'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import isoWeek from 'dayjs/plugin/isoWeek'
@@ -18,89 +19,127 @@ dayjs.extend(isoWeek)
 dayjs.extend(advancedFormat)
 
 export const useCampaignChart = (
-  _context: BusinessAppContextProps,
+  context: BusinessAppContextProps,
   campaignId: string,
-  campaign: CampaignRecord | null,
-  allEntities: CampaignEntity[]
+  campaign: CampaignRecord | null
 ): UseCampaignChartReturn => {
   const [chartData, setChartData] = useState<CampaignChartData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [timeFilter, setTimeFilter] = useState<ChartTimeFilter>('weekly')
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  const generateChartData = useCallback(
-    (startDate: string, endDate: string, filter: ChartTimeFilter, entities: CampaignEntity[]): CampaignChartDataPoint[] => {
-      const start = dayjs(startDate)
-      const end = dayjs(endDate)
-      const data: CampaignChartDataPoint[] = []
+  const buildPeriods = useCallback(
+    (
+      startDate: string,
+      endDate: string,
+      filter: ChartTimeFilter
+    ): Array<{ start: string; end: string; label: string }> => {
+      const campaignStart = dayjs(startDate)
+      const campaignEnd = dayjs(endDate)
 
-      const leads = entities.filter(e => e.type === 'lead')
-      const accounts = entities.filter(e => e.type === 'account')
-      const contacts = entities.filter(e => e.type === 'contact')
-      const opportunities = entities.filter(e => e.type === 'opportunity')
-
-      const countInPeriod = (list: CampaignEntity[], periodStart: dayjs.Dayjs, periodEnd: dayjs.Dayjs) =>
-        list.filter(entity => {
-          const createdAt = dayjs(entity.creationDate)
-          if (filter === 'daily') return createdAt.isSame(periodStart, 'day')
-          if (filter === 'weekly') return createdAt.isSame(periodStart, 'week')
-          if (filter === 'monthly') return createdAt.isSame(periodStart, 'month')
-          if (filter === 'yearly') return createdAt.isSame(periodStart, 'year')
-          return (
-            (createdAt.isSame(periodStart, 'day') || createdAt.isAfter(periodStart)) &&
-            (createdAt.isSame(periodEnd, 'day') || createdAt.isBefore(periodEnd))
-          )
-        }).length
-
-      let increment: dayjs.ManipulateType
+      let unit: dayjs.ManipulateType
       let format: string
 
       switch (filter) {
         case 'daily':
-          increment = 'day'
+          unit = 'day'
           format = 'MMM DD'
           break
         case 'monthly':
-          increment = 'month'
+          unit = 'month'
           format = 'MMM YYYY'
           break
         case 'yearly':
-          increment = 'year'
+          unit = 'year'
           format = 'YYYY'
           break
         case 'weekly':
         default:
-          increment = 'week'
+          unit = 'week'
           format = '[Week of] MMM DD'
+          break
       }
 
-      let current = start
-      while (current.isBefore(end) || current.isSame(end, 'day')) {
-        const periodStart = current
-        const periodEnd = current.add(1, increment).subtract(1, 'day')
-        const leadsInPeriod = countInPeriod(leads, periodStart, periodEnd)
-        const opportunitiesInPeriod = countInPeriod(opportunities, periodStart, periodEnd)
+      const periods: Array<{ start: string; end: string; label: string }> = []
+      let cursor = campaignStart.startOf(unit)
+      const endBoundary = campaignEnd.endOf('day')
 
-        data.push({
-          date: current.format(format),
-          totalLeads: leadsInPeriod,
-          totalAccounts: countInPeriod(accounts, periodStart, periodEnd),
-          totalContacts: countInPeriod(contacts, periodStart, periodEnd),
-          totalOpportunities: opportunitiesInPeriod,
-          convertedLeads: Math.floor(leadsInPeriod * 0.15),
-          wonOpportunities: Math.floor(opportunitiesInPeriod * 0.25)
+      while (cursor.isBefore(endBoundary) || cursor.isSame(endBoundary, 'day')) {
+        const next = cursor.add(1, unit)
+        periods.push({
+          start: cursor.toISOString(),
+          end: next.toISOString(),
+          label: cursor.format(format)
         })
-
-        current = current.add(1, increment)
+        cursor = next
       }
 
-      return data
+      return periods
     },
     []
   )
 
-  const loadChartData = useCallback(() => {
-    if (!campaignId || !campaign) {
+  const buildAggregateQuery = useCallback((periods: Array<{ start: string; end: string }>) => {
+    const queryParts = periods.map((period, index) => {
+      const prefix = `period${index}`
+      return `
+        ${prefix}_leads: LeadAggregate(
+          where: {
+            salesCampaignId: { _eq: $campaignId }
+            isDeleted: { _eq: false }
+            createdAt: { _gte: "${period.start}", _lt: "${period.end}" }
+          }
+        ) { aggregate { count } }
+        ${prefix}_accounts: AccountAggregate(
+          where: {
+            salesCampaignId: { _eq: $campaignId }
+            isDeleted: { _eq: false }
+            createdAt: { _gte: "${period.start}", _lt: "${period.end}" }
+          }
+        ) { aggregate { count } }
+        ${prefix}_contacts: ContactAggregate(
+          where: {
+            salesCampaignId: { _eq: $campaignId }
+            isDeleted: { _eq: false }
+            createdAt: { _gte: "${period.start}", _lt: "${period.end}" }
+          }
+        ) { aggregate { count } }
+        ${prefix}_opportunities: OpportunityAggregate(
+          where: {
+            salesCampaignId: { _eq: $campaignId }
+            isDeleted: { _eq: false }
+            createdAt: { _gte: "${period.start}", _lt: "${period.end}" }
+          }
+        ) { aggregate { count } }
+        ${prefix}_convertedLeads: LeadAggregate(
+          where: {
+            salesCampaignId: { _eq: $campaignId }
+            isDeleted: { _eq: false }
+            createdAt: { _gte: "${period.start}", _lt: "${period.end}" }
+            leadStatus: { code: { _eq: "${LEAD_STATUS_CODE_CONVERTED}" } }
+          }
+        ) { aggregate { count } }
+        ${prefix}_wonOpportunities: OpportunityAggregate(
+          where: {
+            salesCampaignId: { _eq: $campaignId }
+            isDeleted: { _eq: false }
+            createdAt: { _gte: "${period.start}", _lt: "${period.end}" }
+            opportunityStatus: { code: { _eq: "${OPPORTUNITY_STATUS_CODE_WON}" } }
+          }
+        ) { aggregate { count } }
+      `
+    })
+
+    return `
+      query GetCampaignTimeline($campaignId: uuid!) {
+        ${queryParts.join('\n')}
+      }
+    `
+  }, [])
+
+  const loadChartData = useCallback(async () => {
+    if (!context.accessToken || !campaignId || !campaign) {
       setError('No campaign data available')
       setIsLoading(false)
       return
@@ -127,18 +166,41 @@ export const useCampaignChart = (
         throw new Error('Campaign start date cannot be after end date')
       }
 
-      const data = generateChartData(campaign.startDate, campaign.endDate, timeFilter, allEntities)
+      const periods = buildPeriods(campaign.startDate, campaign.endDate, timeFilter)
+      if (periods.length === 0) {
+        setChartData({ data: [], timeFilter })
+        return
+      }
+
+      const query = buildAggregateQuery(periods)
+      const result = await graphqlClient.request<Record<string, { aggregate?: { count?: number } }>>(query, {
+        campaignId
+      })
+
+      const data: CampaignChartDataPoint[] = periods.map((period, index) => {
+        const prefix = `period${index}`
+        return {
+          date: period.label,
+          totalLeads: result[`${prefix}_leads`]?.aggregate?.count || 0,
+          totalAccounts: result[`${prefix}_accounts`]?.aggregate?.count || 0,
+          totalContacts: result[`${prefix}_contacts`]?.aggregate?.count || 0,
+          totalOpportunities: result[`${prefix}_opportunities`]?.aggregate?.count || 0,
+          convertedLeads: result[`${prefix}_convertedLeads`]?.aggregate?.count || 0,
+          wonOpportunities: result[`${prefix}_wonOpportunities`]?.aggregate?.count || 0
+        }
+      })
+
       setChartData({ data, timeFilter })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate chart data')
+      setError(err instanceof Error ? err.message : 'Failed to load chart data')
       setChartData(null)
     } finally {
       setIsLoading(false)
     }
-  }, [campaignId, campaign, timeFilter, allEntities, generateChartData])
+  }, [context.accessToken, campaignId, campaign, timeFilter, buildPeriods, buildAggregateQuery, graphqlClient])
 
   const refetch = useCallback(() => {
-    loadChartData()
+    loadChartData().catch(() => undefined)
   }, [loadChartData])
 
   const handleSetTimeFilter = useCallback((filter: ChartTimeFilter) => {
@@ -146,10 +208,10 @@ export const useCampaignChart = (
   }, [])
 
   useEffect(() => {
-    if (campaignId && campaign) {
-      loadChartData()
+    if (context.accessToken && campaignId && campaign) {
+      loadChartData().catch(() => undefined)
     }
-  }, [campaignId, campaign, timeFilter, allEntities, loadChartData])
+  }, [context.accessToken, campaignId, campaign, timeFilter, loadChartData])
 
   return {
     chartData,

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { Typography, Input } from 'antd'
 import { Button } from '@newwork/gravity-ui-catalog'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
 import { EVENTS } from '../../utils/constants'
 import { ICONS } from '../../utils/icons'
@@ -22,6 +21,7 @@ import PlanSummaryScreen from './screens/PlanSummaryScreen'
 
 // Import context provider and hook
 import { ExpensePlanWizardProvider, useExpensePlanWizardContext } from './context/ExpensePlanWizardContext'
+import { useExpensePlanWizardTranslation } from './useExpensePlanWizardTranslation'
 
 import { setInitialScreen } from './utils/tripScreenUtils'
 import ExpensePlanItem from '../expense-plan-item'
@@ -38,6 +38,7 @@ const { Title } = Typography
  * @returns Expense Plan Wizard Content component
  */
 const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo, additionalData }) => {
+  const { t } = useExpensePlanWizardTranslation()
   const {
     loading,
     expenseRuleError,
@@ -92,10 +93,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
         event: EVENTS.DISCARD,
         pso_completeNotification: {
           type: 'error',
-          messageKey: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:absence_module.toast_notification_cancel_create_absence',
-            'The action has been canceled.'
-          )
+          messageKey: t('toast-action-canceled')
         },
         expensePlan: logObject.expensePlan,
         expensePlanItems: logObject.expensePlanItems,
@@ -103,7 +101,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
         advancePayment: logObject.advancePayment
       })
     }
-  }, [expensePlanData?.ExpensePlanByPk])
+  }, [expensePlanData?.ExpensePlanByPk, t, currentTitle, dispatchProcessContinueEventIfEnabled])
 
   // Update currency when expensePlanData changes: prefer plan currency, fallback to item currency
   useEffect(() => {
@@ -150,16 +148,10 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
 
   const validateTitle = (value: string): string => {
     if (!value.trim()) {
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_request.expense_request_container.current_title_custom_rule',
-        'Please enter a title'
-      )
+      return t('current-title-custom-rule')
     }
     if (value.length > TITLE_MAX_LENGTH) {
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:create_expense_request.maximum_characters_title_error_message',
-        'Maximum limit reached: The title can be up to 50 characters only.'
-      )
+      return t('maximum-characters-title-error-message')
     }
     return ''
   }
@@ -337,10 +329,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
     (currentScreen === SCREEN_NAMES_ENUM.PAYMENT_TAB && !isFormValid) ||
     (currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB && !isTrip && itemsCount === 0) ||
     (currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB && missingOrgchartCostCenter)
-  const nextButtonLabel =
-    currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB
-      ? getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.btn_submit', 'Submit')
-      : getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.submit_button', 'Next')
+  const nextButtonLabel = currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB ? t('wizard-btn-submit') : t('submit-button')
 
   if (loading) {
     return (
@@ -351,7 +340,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
       >
         <img
           src={ICONS.SPINNER_ICON}
-          alt="Loading"
+          alt={t('loading-text')}
           className="gba:w-20 gba:h-20"
           data-testid="expense-plan-wizard-spinner-icon"
         />
@@ -406,7 +395,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
             >
               <img
                 src={ICONS.BACK_ARROW}
-                alt={getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_plan.back_text', 'Back')}
+                alt={t('wizard-back-text')}
                 style={{ width: '24px', height: '24px' }}
                 width="24"
                 height="24"
@@ -460,10 +449,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
                     data-testid="expense-plan-wizard-title-input"
                     value={titleValue}
                     onChange={handleTitleChange}
-                    placeholder={getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:create_expense_plan.title_placeholder',
-                      'Enter title'
-                    )}
+                    placeholder={t('title-input-placeholder')}
                     maxLength={TITLE_MAX_LENGTH}
                     autoFocus
                   />
@@ -486,7 +472,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
                     >
                       <img
                         src={ICONS.CHECK_ICON}
-                        alt={getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_plan.save_btn', 'Save')}
+                        alt={t('save-button')}
                         width="20"
                         height="20"
                         data-testid="title-save-button-icon"
@@ -506,10 +492,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
                     >
                       <img
                         src={ICONS.X_ICON}
-                        alt={getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:add_items_to_plan.cancel_items_button',
-                          'Cancel'
-                        )}
+                        alt={t('cancel-items-button')}
                         width="20"
                         height="20"
                         data-testid="title-cancel-button-icon"
@@ -550,7 +533,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
                   >
                     <img
                       src={ICONS.EDIT_ICON}
-                      alt={getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_plan.back_text', 'Edit')}
+                      alt={t('wizard-edit-text')}
                       width="20"
                       height="20"
                       data-testid="edit-title-button-icon"
@@ -563,20 +546,10 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
               style={{ fontSize: '14px', fontWeight: 600, textAlign: 'center', marginTop: '4px' }}
               data-testid="expense-plan-wizard-subtitle"
             >
-              {currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB &&
-                getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.subtitle', 'Expenses')}
-              {currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB &&
-                getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:add_items_to_plan.add_trip_info_to_plan.title',
-                  'Trip Details'
-                )}
-              {currentScreen === SCREEN_NAMES_ENUM.PAYMENT_TAB &&
-                getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:approve_expense_request.advance_payment',
-                  'Advance Payment'
-                )}
-              {currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB &&
-                getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.employee_tabs.summary', 'Summary')}
+              {currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB && t('subtitle')}
+              {currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB && t('trip-details-title')}
+              {currentScreen === SCREEN_NAMES_ENUM.PAYMENT_TAB && t('advance-payment-title')}
+              {currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB && t('summary-title')}
             </div>
           </div>
         </div>
@@ -599,7 +572,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
             style={{ height: '100%' }}
             data-testid="expense-plan-wizard-loading"
           >
-            {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')}
+            {t('loading-text')}
           </div>
         ) : expenseRuleError ? (
           <div
@@ -610,10 +583,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
               className="gba:text-sm gba:font-bold gba:text-destructive gba:mb-2"
               data-testid="expense-plan-wizard-error-title"
             >
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:create_expense_plan.invalid_profile_title',
-                'Validation Issue'
-              )}
+              {t('invalid-profile-title')}
             </h3>
             <p
               className="gba:text-sm gba:text-muted-foreground gba:m-0"
@@ -666,7 +636,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
                   document.dispatchEvent(cancelEvent)
                 }}
               >
-                {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_plan.btn_cancel', 'Cancel')}
+                {t('wizard-btn-cancel')}
               </Button>
               <div className="gba:flex" style={{ gap: '12px' }}>
                 <Button
@@ -687,7 +657,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
                     document.dispatchEvent(confirmEvent)
                   }}
                 >
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_plan.btn_items_submit', 'Confirm')}
+                  {t('wizard-btn-confirm')}
                 </Button>
               </div>
             </>
@@ -712,7 +682,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
                 }}
               >
                 <WizardFooterButtonContent isPending={pendingFooterAction === 'cancel'}>
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.cancel_items_button', 'Cancel')}
+                  {t('cancel-items-button')}
                 </WizardFooterButtonContent>
               </Button>
               <div className="gba:flex" style={{ gap: '12px' }}>
@@ -750,7 +720,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
                   }}
                 >
                   <WizardFooterButtonContent isPending={pendingFooterAction === 'save'}>
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.save_button', 'Save')}
+                    {t('save-button')}
                   </WizardFooterButtonContent>
                 </Button>
                 <Button

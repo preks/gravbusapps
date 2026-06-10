@@ -87,3 +87,53 @@ export function findComposeEmailOutcomeAfterMessage(
   }
   return null
 }
+
+const COMPOSE_EMAIL_TOOL_NAMES = new Set(['compose_email', 'builtin.compose_email'])
+
+function isComposeEmailHitlEntry(entry: Record<string, unknown>): boolean {
+  if (entry.type === 'structured_input_request') {
+    return entry.form_id === 'compose_email'
+  }
+  if (entry.type !== 'hitl_requested') return false
+  const request = entry.request
+  if (!request || typeof request !== 'object') return false
+  const payload = (request as Record<string, unknown>).payload
+  if (!payload || typeof payload !== 'object') return false
+  return (payload as Record<string, unknown>).form_id === 'compose_email'
+}
+
+/**
+ * Workforce runs expose the raw session trace (not chat messages). After the
+ * operator submits the composer, prompt-manager appends a `step_completed`
+ * row for `compose_email` with JSON `output`.
+ */
+export function findComposeEmailOutcomeInTrace(
+  trace: readonly Record<string, unknown>[] | undefined
+): ComposeEmailOutcomePayload | null {
+  if (!trace || trace.length === 0) return null
+
+  let sawComposeHitl = false
+  for (const entry of trace) {
+    if (isComposeEmailHitlEntry(entry)) {
+      sawComposeHitl = true
+      continue
+    }
+    if (!sawComposeHitl) continue
+    if (entry.type !== 'step_completed') continue
+    const name = typeof entry.name === 'string' ? entry.name : ''
+    if (!COMPOSE_EMAIL_TOOL_NAMES.has(name)) continue
+    const outcome = parseComposeEmailToolResult(entry.output ?? entry.result)
+    if (outcome) return outcome
+  }
+
+  for (let i = trace.length - 1; i >= 0; i -= 1) {
+    const entry = trace[i]
+    if (entry.type !== 'step_completed') continue
+    const name = typeof entry.name === 'string' ? entry.name : ''
+    if (!COMPOSE_EMAIL_TOOL_NAMES.has(name)) continue
+    const outcome = parseComposeEmailToolResult(entry.output ?? entry.result)
+    if (outcome) return outcome
+  }
+
+  return null
+}

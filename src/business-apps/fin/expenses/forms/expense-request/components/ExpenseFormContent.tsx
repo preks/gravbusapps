@@ -2,8 +2,13 @@ import React, { useEffect } from 'react'
 import { Form } from 'antd'
 import { InputField, SelectField, TextAreaField, CheckboxGroup } from '@newwork/gravity-ui-catalog'
 import { getCatalogValue } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
 import { useExpenseRequestCreationTranslation } from '../../expense-request-creation/useExpenseRequestCreationTranslation'
+import expensePlanTranslations from '../../expense-plan/_i18n'
 import { TITLE_MAX_LENGTH, COMMENT_TEXTAREA_ROWS, REQUEST_TYPES } from '../constants/constants'
+
+type ExpenseFormTranslationScope = 'request' | 'plan'
+
 interface ExpenseFormContentProps {
   form: any
   showTransportation: boolean
@@ -14,6 +19,7 @@ interface ExpenseFormContentProps {
   selectedCostCenter?: string
   setSelectedCostCenter?: (costCenterId: string) => void
   expenseCatalogueData?: any
+  translationScope?: ExpenseFormTranslationScope
 }
 
 /**
@@ -28,9 +34,34 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
   projects = [],
   selectedCostCenter = '',
   setSelectedCostCenter,
-  expenseCatalogueData = {}
+  expenseCatalogueData = {},
+  translationScope = 'request'
 }) => {
-  const { t } = useExpenseRequestCreationTranslation()
+  const { t: tRequest } = useExpenseRequestCreationTranslation()
+  const { t: tPlan } = useTranslation(expensePlanTranslations)
+  const isPlan = translationScope === 'plan'
+  const titleLabel = isPlan
+    ? showTransportation
+      ? tPlan('trip-title-input-label')
+      : tPlan('expense-plan-title-input-label')
+    : tRequest('form-title-label')
+  const titlePlaceholder = isPlan ? tPlan('title-input-placeholder') : tRequest('current-title-placeholder')
+  const titleRequiredMessage = isPlan ? tPlan('current-title-custom-rule') : tRequest('current-title-custom-rule')
+  const titleMaxLengthMessage = isPlan
+    ? tPlan('maximum-characters-title-error-message')
+    : tRequest('maximum-characters-title-error-message')
+  const costCenterLabel = isPlan ? tPlan('cost-center-select-label') : tRequest('current-cost-center-label')
+  const costCenterPlaceholder = isPlan
+    ? tPlan('cost-center-select-placeholder')
+    : tRequest('current-cost-center-placeholder')
+  const costCenterRequiredMessage = isPlan
+    ? tPlan('current-cost-center-custom-rule')
+    : tRequest('current-cost-center-custom-rule')
+  const commentLabel = isPlan ? tPlan('comment-text-area') : tRequest('comment-text-area')
+  const commentPlaceholder = isPlan ? tPlan('comment-text-area-enter') : tRequest('comment-text-area-enter')
+  const projectLabel = isPlan ? tPlan('select-project') : tRequest('select-project')
+  const projectPlaceholder = isPlan ? tPlan('select-project-placeholder') : tRequest('select-project-placeholder')
+  const transportationLabel = isPlan ? tPlan('transportation-checkbox') : tRequest('transportation-checkbox')
   const transportationMeans = expenseCatalogueData?.expenseTransportationMeans || []
 
   /**
@@ -85,19 +116,19 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
               rules={[
                 {
                   required: true,
-                  message: t('current-title-custom-rule')
+                  message: titleRequiredMessage
                 },
                 {
                   max: TITLE_MAX_LENGTH,
-                  message: t('maximum-characters-title-error-message')
+                  message: titleMaxLengthMessage
                 }
               ]}
               style={{ marginBottom: 0 }}
             >
               <InputField
-                label={t('form-title-label')}
+                label={titleLabel}
                 name="title"
-                placeholder={t('current-title-placeholder')}
+                placeholder={titlePlaceholder}
                 onChange={(field: any) => form.setFieldsValue({ title: field.value })}
                 required={true}
                 data-testid={`${testIdPrefix}-title-input`}
@@ -114,7 +145,7 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
               rules={[
                 {
                   required: true,
-                  message: t('current-cost-center-custom-rule')
+                  message: costCenterRequiredMessage
                 }
               ]}
               style={{ marginBottom: 0 }}
@@ -133,8 +164,8 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
                   form.setFieldsValue({ costCenter: value.value })
                   setSelectedCostCenter?.(value.value as string)
                 }}
-                label={t('current-cost-center-label')}
-                placeholder={t('current-cost-center-placeholder')}
+                label={costCenterLabel}
+                placeholder={costCenterPlaceholder}
                 value={selectedCostCenter || undefined}
                 required={true}
               />
@@ -157,8 +188,8 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
                   })) || []
                 }
                 onChange={(value: any) => form.setFieldsValue({ project: value.value })}
-                label={t('select-project')}
-                placeholder={t('select-project-placeholder')}
+                label={projectLabel}
+                placeholder={projectPlaceholder}
               />
             </Form.Item>
           </div>
@@ -171,8 +202,8 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
               <TextAreaField
                 name="comment"
                 data-testid={`${testIdPrefix}-comment-textarea`}
-                label={t('comment-text-area')}
-                placeholder={t('comment-text-area-enter')}
+                label={commentLabel}
+                placeholder={commentPlaceholder}
                 onChange={(field: any) => form.setFieldsValue({ comment: field.value })}
                 rows={COMMENT_TEXTAREA_ROWS}
               />
@@ -188,7 +219,7 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
                 name="transportationMeans"
                 label={
                   <div style={{ paddingBottom: '15px', fontWeight: 500, fontStyle: 'normal', fontSize: '14px' }}>
-                    {t('transportation-checkbox')}
+                    {transportationLabel}
                   </div>
                 }
                 style={{ marginBottom: 0 }}

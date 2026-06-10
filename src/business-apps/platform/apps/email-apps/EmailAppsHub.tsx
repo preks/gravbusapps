@@ -11,7 +11,7 @@ import { useTranslation } from '@newwork/nw-design-system'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { postToPlatform } from '@/common/utils/postToPlatform'
-import { useEmailAccounts, useEmailFolders, useEmails, useEmailDirectory } from './hooks'
+import { useEmailAccounts, useEmailFolders, useEmails, useEmailRealtime, useEmailDirectory } from './hooks'
 import { EmailApiService } from './services/EmailApiService'
 import {
   EmailSidebar,
@@ -211,7 +211,23 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     search: searchQuery || undefined,
     labels: selectedLabels.length ? selectedLabels : undefined,
     starredOnly,
-    threadView: threadViewEnabled
+    threadView: threadViewEnabled,
+    // Always keep the responsive 15s safety poll: a connected socket only
+    // proves the client reached the gateway, not that the backend actually
+    // emits email:new (e.g. Graph webhooks unconfigured or a missed event),
+    // so slowing down on connect risked stale inboxes for up to a minute.
+    autoRefreshInterval: 15000
+  })
+
+  // Instant push updates: refresh the active list the moment new mail arrives,
+  // instead of waiting for the polling interval. Polling remains as a fallback.
+  useEmailRealtime({
+    accessToken,
+    accountId: defaultAccount?.id,
+    enabled: Boolean(defaultAccount?.id),
+    onNewEmail: useCallback(() => {
+      void refreshMessages(true)
+    }, [refreshMessages])
   })
 
   // Directory hook for auto-suggest (org directory + provider contacts)

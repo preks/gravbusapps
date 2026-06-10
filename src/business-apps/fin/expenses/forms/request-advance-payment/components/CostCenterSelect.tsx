@@ -1,8 +1,15 @@
 import React from 'react'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { CostCenter } from '../hooks/useRequestAdvancePaymentData'
 import { SelectFieldProps } from '../types/FormTypes'
+import translations from '../_i18n'
 
 interface CostCenterSelectProps extends SelectFieldProps {
   costCenters: CostCenter[]
@@ -17,13 +24,12 @@ const CostCenterSelect: React.FC<CostCenterSelectProps> = ({
   disabled,
   'data-testid': dataTestId = 'request-advance-payment-cost-center-field'
 }) => {
+  const { t } = useTranslation(translations)
+
   return (
     <div className="gba:mb-4 gba:bg-gray-100" data-testid={dataTestId}>
       <label className="gba:block gba:text-xs gba:font-medium gba:text-black  gba:bg-gray-100 gba:px-3 gba:py-1 gba:rounded">
-        {getTranslationFromI18nKeyAndLabel(
-          'lowcoder:create_expense_request.expense_request_container.current_cost_center_label',
-          'Cost Center'
-        )}
+        {t('cost-center-label')}
         <span className="gba:text-muted-foreground"> *</span>
       </label>
       <Select
@@ -36,12 +42,7 @@ const CostCenterSelect: React.FC<CostCenterSelectProps> = ({
           className="gba:h-10 gba:bg-gray-100 gba:border-none"
           style={{ width: '100%', justifyContent: 'space-between' }}
         >
-          <SelectValue
-            placeholder={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:create_expense_request.expense_request_container.current_cost_center_placeholder',
-              'Select Cost Center'
-            )}
-          />
+          <SelectValue placeholder={t('cost-center-placeholder')} />
         </SelectTrigger>
         <SelectContent>
           {selectedPlanCostCenterId && (

@@ -61,7 +61,7 @@ export const PerformanceCard: React.FC<PerformanceCardProps> = ({
   revenueLabel = 'Revenue',
   testIdPrefix
 }) => (
-  <Card data-testid={`${testIdPrefix}-${index}`}>
+  <Card className="gba:bg-muted/50 gba:border-border gba:shadow-sm" data-testid={`${testIdPrefix}-${index}`}>
     <CardContent className="gba:p-4">
       <div className="gba:flex gba:flex-col gba:gap-4 gba:sm:flex-row gba:sm:items-center gba:sm:justify-between">
         <div className="gba:flex gba:items-start gba:gap-3 gba:min-w-0">
@@ -87,38 +87,6 @@ export const PerformanceCard: React.FC<PerformanceCardProps> = ({
     </CardContent>
   </Card>
 )
-
-interface EmployeeAnalyticsItem {
-  employeeId: string
-  employeeName: string
-  leadsCount?: number
-  convertedLeadsCount?: number
-  opportunitiesCount?: number
-  wonOpportunitiesCount?: number
-  contactsCount?: number
-  accountsCount?: number
-  totalRevenue?: number
-}
-
-export interface PerformerData {
-  employeeId: string
-  employeeName: string
-  leads: { total: number; converted: number }
-  opportunities: { total: number; won: number }
-  contacts: { total: number }
-  accounts: { total: number }
-  revenue: number
-}
-
-export const mapEmployeeToPerformer = (e: EmployeeAnalyticsItem): PerformerData => ({
-  employeeId: e.employeeId,
-  employeeName: e.employeeName,
-  leads: { total: e.leadsCount || 0, converted: e.convertedLeadsCount || 0 },
-  opportunities: { total: e.opportunitiesCount || 0, won: e.wonOpportunitiesCount || 0 },
-  contacts: { total: e.contactsCount || 0 },
-  accounts: { total: e.accountsCount || 0 },
-  revenue: e.totalRevenue || 0
-})
 
 const getPercentage = (converted: number, total: number): number => {
   return total > 0 ? Math.round((converted / total) * 100) : 0
@@ -157,34 +125,5 @@ export const buildCampaignStats = (c: {
     iconClassName: 'gba:text-info',
     label: 'Accounts',
     value: c.accountsCount || 0
-  }
-]
-
-export const buildPerformerStats = (performer: PerformerData) => [
-  {
-    icon: <UserIcon className="gba:text-xs" />,
-    iconClassName: 'gba:text-primary',
-    label: 'Leads',
-    value: performer.leads.total,
-    subtitle: `${performer.leads.converted}/${performer.leads.total} (${getPercentage(performer.leads.converted, performer.leads.total)}%)`
-  },
-  {
-    icon: <CurrencyDollarIcon className="gba:text-xs" />,
-    iconClassName: 'gba:text-success',
-    label: 'Opps',
-    value: performer.opportunities.total,
-    subtitle: `${performer.opportunities.won}/${performer.opportunities.total} (${getPercentage(performer.opportunities.won, performer.opportunities.total)}%)`
-  },
-  {
-    icon: <AddressBookIcon className="gba:text-xs" />,
-    iconClassName: 'gba:text-warning',
-    label: 'Contacts',
-    value: performer.contacts.total
-  },
-  {
-    icon: <BankIcon className="gba:text-xs" />,
-    iconClassName: 'gba:text-info',
-    label: 'Accounts',
-    value: performer.accounts.total
   }
 ]

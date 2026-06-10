@@ -1,14 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { Row, Col, Pagination, Alert } from 'antd'
-import { useTranslation } from '@newwork/nw-design-system'
-import {
-  getTranslationFromI18nKeyAndLabel,
-  formatDate,
-  getCatalogValue,
-  formatNumberFunction
-} from '@/common/utils/windowUtils'
+import { formatDate, getCatalogValue, formatNumberFunction } from '@/common/utils/windowUtils'
+import { useExpensePlanWizardTranslation } from '../useExpensePlanWizardTranslation'
 import { hasEmployeeOrgchartCostCenter } from '@/business-apps/fin/expenses/common/utils/employeeOrgchartCostCenter'
-import expenseFormsTranslations from '../../_i18n'
 import { BusinessAppContextProps } from '@/business-apps/types'
 import { useExpensePlanWizardContext } from '../context/ExpensePlanWizardContext'
 import ExpenseItemRow from '../../expense-request-wizard/components/ExpenseItemRow'
@@ -44,7 +38,7 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = props => {
   const { additionalData, accessToken } = props
   const { expensePlanData, employeeRuleId, currentTitle } = useExpensePlanWizardContext()
   const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData)
-  const { t: tForms } = useTranslation(expenseFormsTranslations)
+  const { t } = useExpensePlanWizardTranslation()
   const graphqlClient = useGraphqlClient(accessToken)
   const planData = expensePlanData?.ExpensePlanByPk
   const planItemData = expensePlanData?.ExpensePlanItem
@@ -192,28 +186,17 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = props => {
                 <span className="gba:font-normal" data-testid="expense-plan-id-label">
                   ID:
                 </span>
-                <span data-testid="expense-plan-id-value">
-                  {planData?.code ||
-                    getTranslationFromI18nKeyAndLabel('lowcoder:expense_summary_request.no_code', 'No code')}
-                </span>
+                <span data-testid="expense-plan-id-value">{planData?.code || t('summary-no-code')}</span>
               </div>
             </Col>
             {isTrip ? (
               <Col xs={24} md={12} className="gba:text-right">
                 <div className="gba:flex gba:items-center gba:gap-2 gba:justify-end">
                   <span className="gba:font-normal" data-testid="expense-plan-start-date-label">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:add_items_to_plan.add_trip_info_to_plan.start_date_label',
-                      'Start Date'
-                    ) + ': '}
+                    {`${t('trip-start-date-label')}: `}
                   </span>
                   <span data-testid="expense-plan-start-date-value">
-                    {planData?.startDate
-                      ? formatDate(planData.startDate)
-                      : getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:expense_summary_request.no_start_date',
-                          'No start date'
-                        )}
+                    {planData?.startDate ? formatDate(planData.startDate) : t('summary-no-start-date')}
                   </span>
                 </div>
               </Col>
@@ -222,18 +205,10 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = props => {
                 <div className="gba:flex gba:items-center gba:gap-2 gba:justify-end">
                   <div className="gba:flex gba:items-center gba:gap-2">
                     <span className="gba:font-normal" data-testid="expense-request-cost-center-label">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:expense_summary_request.plan_creation',
-                        'Plan Creation:'
-                      )}
+                      {t('summary-plan-creation')}
                     </span>
                     <span data-testid="expense-request-cost-center-value">
-                      {planData?.createdAt
-                        ? formatDate(planData.createdAt)
-                        : getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:expense_summary_request.no_creation_date',
-                            'No creation date'
-                          )}
+                      {planData?.createdAt ? formatDate(planData.createdAt) : t('summary-no-creation-date')}
                     </span>
                   </div>
                 </div>
@@ -245,18 +220,10 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = props => {
               <Col xs={24} md={12} className="gba:text-right">
                 <div className="gba:flex gba:items-center gba:gap-2 gba:justify-end">
                   <span className="gba:font-normal" data-testid="expense-plan-end-date-label">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:add_items_to_plan.add_trip_info_to_plan.end_date_label',
-                      'End Date'
-                    ) + ': '}
+                    {`${t('trip-end-date-label')}: `}
                   </span>
                   <span data-testid="expense-plan-end-date-value">
-                    {planData?.endDate
-                      ? formatDate(planData.endDate)
-                      : getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:expense_summary_request.no_end_date',
-                          'No end date'
-                        )}
+                    {planData?.endDate ? formatDate(planData.endDate) : t('summary-no-end-date')}
                   </span>
                 </div>
               </Col>
@@ -269,13 +236,7 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = props => {
               className="gba:inline-block gba:font-bold gba:w-full gba:bg-muted gba:px-4 gba:py-5 gba:text-sm gba:mb-3"
               data-testid="expense-plan-allowances-section-title"
             >
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:expense_calculation_rule_details.calculation_allowance_code_list.calculation_allowance_code_modal.expense_group_placeholder',
-                'Allowances'
-              ) +
-                ' (' +
-                allowanceItems?.length +
-                ')'}
+              {`${t('summary-allowances-section')} (${allowanceItems?.length})`}
             </span>
 
             {allowanceItems && allowanceItems.length > 0 ? (
@@ -285,7 +246,7 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = props => {
                     <ExpenseItemRow
                       key={item.id}
                       id={item.id}
-                      leftPrimary={getDayName(item.expenseDate)}
+                      leftPrimary={getDayName(item.expenseDate, t)}
                       leftSecondary={formatDate(item.expenseDate)}
                       rightSecondary={`${formatNumberFunction(item.totalAmount)} ${item.currency.code}`}
                     />
@@ -307,10 +268,7 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = props => {
               </>
             ) : (
               <div className="gba:text-gray-500 gba:px-4 gba:py-5" data-testid="expense-plan-no-allowances">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:add_allowance_info_request.no_allowances_text',
-                  'No allowances created'
-                )}
+                {t('summary-no-allowances')}
               </div>
             )}
           </div>
@@ -320,13 +278,7 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = props => {
               className="gba:inline-block gba:font-bold gba:w-full gba:bg-muted gba:px-4 gba:py-5 gba:text-sm gba:mb-3"
               data-testid="expense-plan-expense-items-section-title"
             >
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:add_items_to_plan.expense_items_counter',
-                'Estimated Expense Items'
-              ) +
-                ' (' +
-                normalItems.length +
-                ')'}
+              {`${t('summary-expense-items-section')} (${normalItems.length})`}
             </span>
 
             {normalItems && normalItems.length > 0 ? (
@@ -358,10 +310,7 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = props => {
               </>
             ) : (
               <div className="gba:text-gray-500 gba:px-4 gba:py-5" data-testid="expense-plan-no-expense-items">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:create_expense_request.add_request_trip_details.no_estimated_items',
-                  'No Estimated Expense Items Added'
-                )}
+                {t('summary-no-estimated-items')}
               </div>
             )}
           </div>
@@ -370,7 +319,7 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = props => {
         {missingOrgchartCostCenter && (
           <div className="gba:mt-4 gba:mb-4" data-testid="expense-plan-missing-orgchart-cost-center-container">
             <Alert
-              message={tForms('missing-orgchart-cost-center-wizard-message')}
+              message={t('missing-orgchart-cost-center-wizard-message')}
               type="error"
               showIcon
               data-testid="expense-plan-missing-orgchart-cost-center-warning"

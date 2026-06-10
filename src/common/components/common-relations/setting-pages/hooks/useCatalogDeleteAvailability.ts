@@ -40,6 +40,45 @@ const CATALOG_USAGE_SPECS: Record<string, CatalogUsageCheckSpec[]> = {
     { table: 'SalesTaskTemplateAggregate', refField: 'priorityRef', label: 'task templates' }
   ],
   CustomerCampaignType: [{ table: 'SalesCampaignAggregate', refField: 'typeRef', label: 'campaigns' }],
+  CustomerCampaignStatus: [
+    { table: 'SalesCampaignAggregate', refField: 'customerCampaignStatusRef', label: 'campaigns' }
+  ],
+  CustomerCampaignSegment: [
+    { table: 'SalesCampaignAggregate', refField: 'customerCampaignSegmentRef', label: 'campaigns' }
+  ],
+  CustomerPersona: [
+    { table: 'SalesCampaignAggregate', refField: 'customerPersonaRef', label: 'campaigns' },
+    {
+      table: 'CustomerCampaignContentAggregate',
+      refField: 'customerPersonaRef',
+      label: 'campaign content items'
+    }
+  ],
+  ValuePackFocus: [{ table: 'SalesCampaignAggregate', refField: 'customerValuePackFocusRef', label: 'campaigns' }],
+  MarketingFunnelStage: [
+    {
+      table: 'CustomerCampaignContentAggregate',
+      refField: 'marketingFunnelStageRef',
+      label: 'campaign content items'
+    }
+  ],
+  MarketingChannel: [
+    { table: 'CustomerCampaignContentAggregate', refField: 'marketingChannelRef', label: 'campaign content items' }
+  ],
+  MarketingDistributionType: [
+    {
+      table: 'CustomerCampaignContentAggregate',
+      refField: 'marketingDistributionTypeRef',
+      label: 'campaign content items'
+    }
+  ],
+  CustomerEngagementLevel: [
+    {
+      table: 'CustomerCampaignAccountAggregate',
+      refField: 'customerEngagementLevelRef',
+      label: 'campaign accounts'
+    }
+  ],
   SalesDocumentGroup: [{ table: 'CrmDocumentAggregate', refField: 'documentGroupRef', label: 'documents' }],
   SalesDocumentType: [{ table: 'CrmDocumentAggregate', refField: 'documentTypeRef', label: 'documents' }],
   SalesPipelineStageCondition: [

@@ -100,11 +100,11 @@ export const AbsencesView: React.FC<AbsencesViewProps> = ({
 
   const handleExportExcel = async () => {
     const workbook = buildExcelWorkbook(
-      tt('export_sheet_name', 'Absences'),
+      tt('leave_requests_export_sheet_name', 'Leave Requests'),
       buildExportColumns(),
       buildExportRows(exportRows)
     )
-    await downloadExcelWorkbook(workbook, buildFilename('time-absence-hub-absences', 'xlsx'))
+    await downloadExcelWorkbook(workbook, buildFilename('time-absence-hub-leave-requests', 'xlsx'))
   }
 
   const handleEmployeeSearchChange = (employeeQuery: string) => {
@@ -150,11 +150,13 @@ export const AbsencesView: React.FC<AbsencesViewProps> = ({
     <div className="gba:flex gba:flex-col gba:gap-4" data-testid="time-absence-hub-absences-view">
       <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
         <div>
-          <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">{tt('title', 'Absences')}</h2>
+          <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">
+            {tt('leave_requests_title', 'Leave Requests')}
+          </h2>
           <p className="gba:text-sm gba:text-muted-foreground">
             {tt(
-              'page_intro',
-              'Review absence requests and switch to the team calendar for a broader view of time away.'
+              'leave_requests_page_intro',
+              'Review leave requests and switch to the team calendar for a broader view of time away.'
             )}
           </p>
         </div>
@@ -167,7 +169,7 @@ export const AbsencesView: React.FC<AbsencesViewProps> = ({
             label: tt('subtab_list', 'List'),
             metadata: {
               count: listTotal,
-              subtitle: tt('title', 'Absences')
+              subtitle: tt('leave_requests_title', 'Leave Requests')
             }
           },
           {

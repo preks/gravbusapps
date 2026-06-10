@@ -11,6 +11,7 @@ import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
 export interface PersonalWorkspaceProps extends BusinessAppContextProps {
   config: PersonalWorkspaceConfig
+  docuSignEnabled?: boolean
 }
 
 /**
@@ -20,7 +21,12 @@ export interface PersonalWorkspaceProps extends BusinessAppContextProps {
  * Note: This component should be rendered inside a parent PageLayout (e.g., CustomerRelations, InvestmentRelations)
  * It does not include its own PageLayout to avoid nesting issues
  */
-export const PersonalWorkspace: React.FC<PersonalWorkspaceProps> = ({ config, accessToken, userInfo }) => {
+export const PersonalWorkspace: React.FC<PersonalWorkspaceProps> = ({
+  config,
+  accessToken,
+  userInfo,
+  docuSignEnabled = false
+}) => {
   // Valid tab values
   const VALID_TABS = ['overview', 'activities', 'tasks'] as const
   type ValidTab = (typeof VALID_TABS)[number]
@@ -111,7 +117,13 @@ export const PersonalWorkspace: React.FC<PersonalWorkspaceProps> = ({ config, ac
         {/* Only render active tab to prevent data fetching for inactive tabs */}
         {activeTab === 'overview' && (
           <TabsContent value="overview">
-            <OverviewView config={config} employeeId={employeeId} accessToken={accessToken} userInfo={userInfo} />
+            <OverviewView
+              config={config}
+              employeeId={employeeId}
+              accessToken={accessToken}
+              userInfo={userInfo}
+              docuSignEnabled={docuSignEnabled}
+            />
           </TabsContent>
         )}
 
@@ -160,6 +172,7 @@ export const PersonalWorkspace: React.FC<PersonalWorkspaceProps> = ({ config, ac
                     accessToken={accessToken}
                     userInfo={userInfo}
                     dataTestId="workspace-my-tasks"
+                    docuSignEnabled={docuSignEnabled}
                   />
                 )
               }

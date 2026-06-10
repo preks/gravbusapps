@@ -6,6 +6,7 @@ chat-fullscreen-button = Deschide în ecran complet
 chat-tab-everyai = EveryAI
 chat-tab-chat = Chat
 chat-tab-calendar = Calendar
+chat-tab-mail = E-mail
 chat-tab-reminders = Memento-uri
 chat-shell-disabled-title = Chat indisponibil
 chat-shell-disabled-description = Acest panou este dezactivat momentan pentru workspace-ul tău.
@@ -625,6 +626,8 @@ calendar-sidebar-calendarExistsError = Există deja un calendar partajat pentru 
 # Calendar - CreateMeetingModal
 calendar-scheduleMeeting = Programează Întâlnire
 calendar-editMeeting = Editează Întâlnirea
+calendar-scheduleMeetingSubtitle = Creează o întâlnire nouă și invită-ți echipa
+calendar-editMeetingSubtitle = Actualizează detaliile și participanții întâlnirii
 calendar-meetingTitle = Titlu
 calendar-meetingTitleRequired = Titlu *
 calendar-meetingTitlePlaceholder = Titlul întâlnirii
@@ -656,6 +659,7 @@ calendar-daily = Zilnic
 calendar-weekly = Săptămânal
 calendar-every2Weeks = La fiecare 2 săptămâni
 calendar-monthly = Lunar
+calendar-until = până la
 calendar-endDate = Data sfârșit
 calendar-reminders = Memento-uri
 calendar-color = Culoare
@@ -724,9 +728,26 @@ calendar-error = Nu s-a putut încărca calendarul
 calendar-retry = Reîncearcă
 calendar-event-details = Detalii eveniment
 calendar-pending-invitations = Invitații în așteptare
+calendar-pending-invitations-empty = Nicio invitație în așteptare
+calendar-pending-back = Înapoi la listă
+calendar-pending-filter-all = Toate
+calendar-pending-filter-upcoming = Viitoare
+calendar-pending-filter-past = Trecute
 calendar-accept = Acceptă
 calendar-decline = Refuză
 calendar-tentative = Tentativ
+calendar-accept-all = Acceptă toate
+calendar-maybe-all = Poate pentru toate
+calendar-decline-all = Refuză toate
+calendar-pending-invitations-from = de la {$organizer}
+calendar-pending-series-count = {$count ->
+  [one] {$count} ocurență în așteptare
+ *[other] {$count} ocurențe în așteptare
+}
+calendar-pending-series-more = +{$count} alte ocurențe în așteptare
+calendar-view-occurrences = Vezi ocurențele
+calendar-hide-occurrences = Ascunde ocurențele
+calendar-view-details = Vezi detalii
 
 # Calendar - Agenda
 calendar-agenda = Agendă

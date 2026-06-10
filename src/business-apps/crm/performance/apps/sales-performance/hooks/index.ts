@@ -10,5 +10,9 @@ export { usePipelines, type Pipeline } from './usePipelines'
 export { useCurrencies, type CurrencyOption } from './useCurrencies'
 export { useTeamComparison, type TeamOption } from './useTeamComparison'
 export { useTeamEntityCounts, prepareTeamsDataForEntityCounts } from './useTeamEntityCounts'
-export { useDealHealthData, type DealHealthData, type DealHealthItem } from './useDealHealthData'
+export {
+  useOpportunityHealthData,
+  type OpportunityHealthData,
+  type OpportunityHealthItem
+} from './useOpportunityHealthData'
 export { useEmployeesList, type EmployeeListItem, type FilterOption } from './useEmployeesList'

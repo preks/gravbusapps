@@ -543,4 +543,38 @@ describe('templateConverter', () => {
     expect(rebuiltExpert.config.agentConfig.version).toBe(3)
     expect(rebuiltExpert.config.agentConfig.outputSchema).toEqual(expertSchema)
   })
+
+  it('roundtrips WEBHOOK trigger with webhookId and secretRef only', () => {
+    const start: StudioNode = {
+      ...makeStartNode(),
+      config: {
+        nodeType: 'start',
+        triggerType: 'WEBHOOK',
+        form: [{ type: 'TEXT', name: 'title', label: 'Title', required: true }],
+        webhookConfig: {
+          webhookId: 'wh_abc1234567890123456789012345678',
+          secretRef: 'fncred:11111111-1111-4111-8111-111111111111:WEBHOOK_SECRET'
+        }
+      } as any
+    }
+    const nodes: StudioNode[] = [start, makeEndNode()]
+    const edges: FlowGraphEdge[] = [
+      { id: 'e-start-end', source: START_ID, target: END_ID, direction: 'forward' } as any
+    ]
+
+    const template = studioGraphToTemplate(nodes, edges, 'Webhook Flow') as any
+    const trigger = template.start.triggers[0]
+    expect(trigger.type).toBe('WEBHOOK')
+    expect(trigger.config.webhookId).toBe('wh_abc1234567890123456789012345678')
+    expect(trigger.config.secretRef).toBe('fncred:11111111-1111-4111-8111-111111111111:WEBHOOK_SECRET')
+    expect(trigger.config.url).toBeUndefined()
+    expect(trigger.config.secret).toBeUndefined()
+
+    const rebuilt = templateToStudioGraph(template)
+    const rebuiltStart = rebuilt.nodes.find(n => n.id === START_ID) as any
+    expect(rebuiltStart.config.webhookConfig).toEqual({
+      webhookId: 'wh_abc1234567890123456789012345678',
+      secretRef: 'fncred:11111111-1111-4111-8111-111111111111:WEBHOOK_SECRET'
+    })
+  })
 })

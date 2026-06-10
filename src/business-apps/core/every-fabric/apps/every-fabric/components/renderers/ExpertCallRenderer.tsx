@@ -1,11 +1,13 @@
+import React from 'react'
 import { CheckIcon, ShareNetworkIcon, SpinnerGapIcon, XIcon } from '@phosphor-icons/react'
-import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
+
+type ExpertCallStatus = 'running' | 'done' | 'failed'
 
 export interface ExpertCallRendererProps {
   agentId: string
   task: string
   description?: string
-  status: 'running' | 'done' | 'failed'
+  status: ExpertCallStatus
   output?: string
   outputPreview?: string
   durationMs?: number
@@ -46,7 +48,7 @@ function hasSubtitle(displayName: string, normalizedTask: string): boolean {
   return normalizeText(displayName) === normalizeText(normalizedTask)
 }
 
-const ExpertCallStatusIcon: React.FC<{ status: 'running' | 'done' | 'failed' }> = ({ status }) => {
+const ExpertCallStatusIcon: React.FC<{ status: ExpertCallStatus }> = ({ status }) => {
   if (status === 'running') {
     return <SpinnerGapIcon className="gba:h-3 gba:w-3 gba:animate-spin gba:text-sky-600" />
   }
@@ -54,6 +56,12 @@ const ExpertCallStatusIcon: React.FC<{ status: 'running' | 'done' | 'failed' }> 
     return <CheckIcon className="gba:h-3 gba:w-3 gba:text-green-500" />
   }
   return <XIcon className="gba:h-3 gba:w-3 gba:text-destructive" />
+}
+
+const statusLabel = (status: ExpertCallStatus) => {
+  if (status === 'running') return 'Working'
+  if (status === 'failed') return 'Failed'
+  return 'Completed'
 }
 
 export const ExpertCallRenderer = ({
@@ -69,58 +77,38 @@ export const ExpertCallRenderer = ({
   const normalizedTask = task.trim()
   const normalizedDescription = (description ?? '').trim()
   const displayName = resolveExpertDisplayName(normalizedAgentId, normalizedTask)
-  // Prefer the agent's short role description over the raw delegated prompt
-  // (which can be the entire orchestrator task). Only fall back to a generic
-  // line when no description is available — never dump the full task text.
-  const subtitle = normalizedDescription
-    ? firstSentence(normalizedDescription)
-    : hasSubtitle(displayName, normalizedTask)
-      ? ''
-      : 'Working on a delegated task'
+  const subtitle =
+    normalizedDescription || !hasSubtitle(displayName, normalizedTask)
+      ? firstSentence(normalizedDescription || normalizedTask)
+      : ''
+  const title = [displayName, subtitle, outputPreview || output].filter(Boolean).join(' - ')
 
   return (
     <div
-      className="gba:overflow-hidden gba:rounded-lg gba:border gba:border-border/60 gba:bg-background"
+      className="gba:inline-flex gba:max-w-full gba:items-center gba:gap-1.5 gba:rounded-full gba:border gba:border-sky-500/15 gba:bg-sky-50/60 gba:px-2 gba:py-1 gba:text-sky-800 gba:shadow-[0_1px_4px_rgba(14,165,233,0.08)] dark:gba:border-sky-400/15 dark:gba:bg-sky-950/25 dark:gba:text-sky-200"
       data-testid={`enterprise-agent-expert-${agentId}`}
+      title={title || undefined}
     >
-      <div className="gba:flex gba:items-start gba:gap-2 gba:px-2.5 gba:py-1.5">
-        <span className="gba:flex gba:h-6 gba:w-6 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-full gba:bg-sky-100 gba:text-sky-700 dark:gba:bg-sky-950/40 dark:gba:text-sky-300">
-          <ShareNetworkIcon className="gba:h-3 gba:w-3" />
+      <span className="gba:flex gba:h-5 gba:w-5 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-full gba:bg-white/85 gba:text-sky-600 gba:ring-1 gba:ring-sky-500/10 dark:gba:bg-sky-950/60 dark:gba:text-sky-300">
+        <ShareNetworkIcon className="gba:h-3 gba:w-3" />
+      </span>
+      <span className="gba:min-w-0 gba:truncate gba:text-[11px] gba:font-semibold gba:leading-none">
+        <span className="gba:text-muted-foreground/80">Expert</span>
+        <span className="gba:mx-1 gba:text-sky-500/70">/</span>
+        <span>{displayName}</span>
+      </span>
+      <span className="gba:flex gba:shrink-0 gba:items-center gba:gap-1 gba:rounded-full gba:bg-white/70 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:leading-none gba:text-muted-foreground gba:ring-1 gba:ring-border/40 dark:gba:bg-background/40">
+        <ExpertCallStatusIcon status={status} />
+        <span>{statusLabel(status)}</span>
+        {durationMs !== undefined && (
+          <span className="gba:text-muted-foreground/55">{(durationMs / 1000).toFixed(1)}s</span>
+        )}
+      </span>
+      {subtitle ? (
+        <span className="gba:hidden gba:max-w-2xs gba:truncate gba:text-[10px] gba:leading-none gba:text-muted-foreground/70 sm:gba:inline">
+          {subtitle}
         </span>
-        <div className="gba:flex-1 gba:min-w-0">
-          <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-x-1.5 gba:gap-y-0.5">
-            <span className="gba:text-[9px] gba:font-semibold gba:uppercase gba:tracking-[0.14em] gba:text-muted-foreground/80">
-              Enterprise expert:
-            </span>
-            <span className="gba:inline-flex gba:items-center gba:rounded-full gba:bg-sky-100 gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-semibold gba:leading-none gba:text-sky-700 dark:gba:bg-sky-950/40 dark:gba:text-sky-300">
-              {displayName}
-            </span>
-            {durationMs !== undefined && (
-              <span className="gba:text-[10px] gba:text-muted-foreground/60">{(durationMs / 1000).toFixed(2)}s</span>
-            )}
-          </div>
-          {subtitle ? (
-            <p
-              className="gba:mt-0.5 gba:text-[11px] gba:leading-4 gba:text-muted-foreground/85 gba:line-clamp-1"
-              title={normalizedDescription || subtitle}
-            >
-              {subtitle}
-            </p>
-          ) : null}
-          {(output || outputPreview) && (
-            <div className="gba:mt-1">
-              {output ? (
-                <MarkdownWithChipsRenderer content={output} />
-              ) : (
-                <p className="gba:text-[11px] gba:leading-4 gba:text-muted-foreground gba:truncate">{outputPreview}</p>
-              )}
-            </div>
-          )}
-        </div>
-        <div className="gba:flex gba:h-6 gba:shrink-0 gba:items-center">
-          <ExpertCallStatusIcon status={status} />
-        </div>
-      </div>
+      ) : null}
     </div>
   )
 }

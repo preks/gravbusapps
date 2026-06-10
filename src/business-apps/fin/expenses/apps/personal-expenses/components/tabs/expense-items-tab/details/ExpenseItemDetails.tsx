@@ -14,22 +14,13 @@ import { ExpenseItemMediaPreviewDialogs } from './ExpenseItemMediaPreviewDialogs
 import { useExpenseItemFileAttachments } from './useExpenseItemFileAttachments'
 import personalTranslations from '../../../../_i18n'
 
-type ExpenseItemTranslationsBundle = Record<'en-US' | 'de-DE' | 'ro-RO', string>
-
 export interface ExpenseItemDetailsProps extends BusinessAppContextProps {
   selectedItem: ExpenseItem | null
   onClose: () => void
-  translations?: ExpenseItemTranslationsBundle
 }
 
-export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
-  selectedItem,
-  onClose,
-  translations,
-  ...contextProps
-}) => {
-  const translationBundle = translations ?? personalTranslations
-  const { t } = useTranslation(translationBundle)
+export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selectedItem, onClose, ...contextProps }) => {
+  const { t } = useTranslation(personalTranslations)
   const { item: detailedItem, isLoading: isItemLoading, error: itemError, fetchItem } = useGetExpenseItem(contextProps)
 
   const [previewOpen, setPreviewOpen] = useState(false)
@@ -145,7 +136,6 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
                 fileList={fileList}
                 onImagePreview={handleImagePreview}
                 onPdfPreview={handlePdfPreview}
-                translations={translationBundle}
               />
             </div>
           </>
@@ -159,7 +149,6 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({
         pdfPreviewOpen={pdfPreviewOpen}
         onPdfPreviewOpenChange={setPdfPreviewOpen}
         pdfPreviewUrl={pdfPreviewUrl}
-        translations={translationBundle}
       />
     </div>
   )

@@ -1,7 +1,6 @@
 import dayjs from 'dayjs'
 import { LogObject, TripData } from './types'
 import { showToast } from '../../../utils/notificationUtils'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { SCREEN_NAMES_ENUM } from '../constants/constants'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { combineDateTimeToISOString } from './locationTimeUtils'
@@ -9,6 +8,7 @@ import { LocationData } from '../../expense-request-wizard/utils/types'
 import { PointTypeEnum, TripDirectionDefaultValue } from '../../expense-request-wizard/constants/constants'
 import { mergeUniqueById } from '../../../utils/functionUtils'
 import { EVENTS } from '../../../utils/constants'
+import type { ExpensePlanWizardTranslateFn } from '../expensePlanWizardTranslateTypes'
 import {
   getAllowanceRegionRuleDetailId,
   getCountryRefFromRegion
@@ -109,17 +109,12 @@ export const handleTripSubmitAction = (
   currentCurrency: string | null,
   event: string,
   requestAdvancePayment?: boolean,
-  dispatchProcessContinueEventIfEnabled?: (event: string, payload: any) => boolean
+  dispatchProcessContinueEventIfEnabled?: (event: string, payload: any) => boolean,
+  t: ExpensePlanWizardTranslateFn
 ): boolean => {
   const initialPlan = expensePlanData?.ExpensePlanByPk
   if (!initialPlan) {
-    showToast(
-      getTranslationFromI18nKeyAndLabel(
-        'lowcoder:add_items_to_plan.add_trip_info_to_plan.missing_plan_data',
-        'Missing plan data'
-      ),
-      'error'
-    )
+    showToast(t('missing-plan-data'), 'error')
     return false
   }
   const logObject = createTripLogObject(

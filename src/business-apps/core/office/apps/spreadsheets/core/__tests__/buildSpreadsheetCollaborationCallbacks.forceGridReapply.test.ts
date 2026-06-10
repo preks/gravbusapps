@@ -2,7 +2,10 @@ import { buildSpreadsheetCollaborationCallbacks } from '../buildSpreadsheetColla
 
 const ACTIVE_SHEET_ID = 'sheet-A'
 
-const buildMinimalCallbacks = (spreadsheetGridRef: { current: { forceAuthoritativeReapply: jest.Mock } | null }) => {
+const buildMinimalCallbacks = (
+  spreadsheetGridRef: { current: { forceAuthoritativeReapply: jest.Mock } | null },
+  coordinateForceGridReapply?: jest.Mock
+) => {
   const activeSheet = { id: ACTIVE_SHEET_ID, columns: [], data: [] } as any
   const spreadsheetSession = {
     getState: () => ({ activeSheetId: ACTIVE_SHEET_ID }),
@@ -24,6 +27,9 @@ const buildMinimalCallbacks = (spreadsheetGridRef: { current: { forceAuthoritati
     applyRemoteCellUpdateWithRetry: jest.fn() as any,
     activeSheetIdRef: { current: ACTIVE_SHEET_ID } as any,
     spreadsheetGridRef: spreadsheetGridRef as any,
+    getWorkbookSnapshot: () => null,
+    applyCommittedWorksheetMetadataPatch: () => undefined,
+    applyCommittedCommentAnchorPatches: () => undefined,
     recentLocalRowHeightRef: { current: new Map() } as any,
     recentLocalColWidthRef: { current: new Map() } as any,
     baselineRowHeightsRef: { current: new Map() } as any,
@@ -51,7 +57,8 @@ const buildMinimalCallbacks = (spreadsheetGridRef: { current: { forceAuthoritati
     debugLog: jest.fn(),
     setActiveSheetId: () => undefined,
     getActiveSessionRows: () => [],
-    resolveKnownSheetVersion: () => 0
+    resolveKnownSheetVersion: () => 0,
+    coordinateForceGridReapply
   })
 }
 
@@ -118,5 +125,54 @@ describe('buildSpreadsheetCollaborationCallbacks forceGridReapply guard', () => 
       preferBulk: true,
       reason: 'column_reorder_fallback'
     })
+  })
+
+  it('routes server-authoritative repairs through the coordinated viewer callback', () => {
+    const forceAuthoritativeReapply = jest.fn()
+    const coordinateForceGridReapply = jest.fn()
+    const spreadsheetGridRef = { current: { forceAuthoritativeReapply } }
+    const callbacks = buildMinimalCallbacks(spreadsheetGridRef, coordinateForceGridReapply)
+    const region = { minRow: 3, maxRow: 3, minCol: 1, maxCol: 1 }
+
+    callbacks.forceGridReapply?.(ACTIVE_SHEET_ID, region, {
+      clearAllSignatures: false,
+      preferBulk: true,
+      reason: 'dirty_regions_from_backend_used',
+      pendingLocalFilterPolicy: 'server_authoritative_repair'
+    })
+
+    jest.runOnlyPendingTimers()
+    expect(coordinateForceGridReapply).toHaveBeenCalledWith(ACTIVE_SHEET_ID, region, {
+      clearAllSignatures: false,
+      preferBulk: true,
+      reason: 'dirty_regions_from_backend_used',
+      pendingLocalFilterPolicy: 'server_authoritative_repair'
+    })
+    expect(forceAuthoritativeReapply).not.toHaveBeenCalled()
+  })
+
+  it('routes full-grid server-authoritative repairs through the coordinated viewer callback', () => {
+    const forceAuthoritativeReapply = jest.fn()
+    const coordinateForceGridReapply = jest.fn()
+    const spreadsheetGridRef = { current: { forceAuthoritativeReapply } }
+    const callbacks = buildMinimalCallbacks(spreadsheetGridRef, coordinateForceGridReapply)
+
+    callbacks.forceGridReapply?.(ACTIVE_SHEET_ID, null, {
+      allowFullGridReapply: true,
+      clearAllSignatures: true,
+      preferBulk: true,
+      reason: 'column_reorder_structural_repair',
+      pendingLocalFilterPolicy: 'server_authoritative_repair'
+    })
+
+    jest.runOnlyPendingTimers()
+    expect(coordinateForceGridReapply).toHaveBeenCalledWith(ACTIVE_SHEET_ID, null, {
+      allowFullGridReapply: true,
+      clearAllSignatures: true,
+      preferBulk: true,
+      reason: 'column_reorder_structural_repair',
+      pendingLocalFilterPolicy: 'server_authoritative_repair'
+    })
+    expect(forceAuthoritativeReapply).not.toHaveBeenCalled()
   })
 })

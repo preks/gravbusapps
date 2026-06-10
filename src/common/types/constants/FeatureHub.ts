@@ -47,7 +47,12 @@ const HCMFeature = {
 
 const CRMFeature = {
   Accounts: { Key: 'crm.accounts.enabled' },
-  CustomerRelations: { Key: 'customer-relations.enabled' }
+  CustomerRelations: { Key: 'customer-relations.enabled' },
+  DocuSign: { Key: 'customer-relations.docusign.enabled' }
+}
+
+const IRMFeature = {
+  DocuSign: { Key: 'investment-relations.docusign.enabled' }
 }
 
 const ServicesFeature = {
@@ -76,6 +81,10 @@ const EveryBoxFeature = {
   AiInsightsEnabled: { Key: 'everyboxadmin.ai.enabled' }
 }
 
+const EveryFabricFeature = {
+  DevTools: { Key: 'everyfabric.devtools.enabled' }
+}
+
 const DevFeature = {
   Enabled: { Key: 'dev.enabled' }
 }
@@ -95,11 +104,13 @@ export const Feature = {
   Core: CoreFeature,
   HCM: HCMFeature,
   CRM: CRMFeature,
+  IRM: IRMFeature,
   Services: ServicesFeature,
   FLOW: FLOWFeature,
   Platform: PlatformFeature,
   Dev: DevFeature,
   Preview: PreviewFeature,
   Reporting: ReportingFeature,
-  EveryBox: EveryBoxFeature
+  EveryBox: EveryBoxFeature,
+  EveryFabric: EveryFabricFeature
 }

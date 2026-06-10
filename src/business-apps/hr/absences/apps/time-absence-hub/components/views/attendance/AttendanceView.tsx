@@ -187,7 +187,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
 
   const handleExportExcel = async () => {
     const workbook = buildExcelWorkbook(
-      tt('export_sheet_name', 'Attendance'),
+      tt('time_balances_export_sheet_name', 'Time Balances'),
       buildExportColumns(),
       buildExportRows(
         data.employees,
@@ -199,7 +199,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
         absenceTypes
       )
     )
-    await downloadExcelWorkbook(workbook, buildFilename('time-absence-hub-attendance', 'xlsx'))
+    await downloadExcelWorkbook(workbook, buildFilename('time-absence-hub-time-balances', 'xlsx'))
   }
 
   const handleEmployeeSearchChange = (employeeQuery: string) => {
@@ -213,11 +213,13 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
     <div className="gba:flex gba:flex-col gba:gap-4" data-testid="time-absence-hub-attendance-view">
       <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
         <div>
-          <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">{tt('title', 'Attendance')}</h2>
+          <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">
+            {tt('time_balances_title', 'Time Balances')}
+          </h2>
           <p className="gba:text-sm gba:text-muted-foreground">
             {tt(
-              'page_intro',
-              'Monitor planned versus effective time, absence markers and attendance gaps across the organization.'
+              'time_balances_page_intro',
+              'Monitor planned versus effective time, leave markers and time balance gaps across the organization.'
             )}
           </p>
         </div>
@@ -227,7 +229,7 @@ export const AttendanceView: React.FC<AttendanceViewProps> = ({
         titleSections={[
           {
             id: 'attendance',
-            label: tt('title', 'Attendance'),
+            label: tt('time_balances_title', 'Time Balances'),
             metadata: {
               count: data.employees.length,
               isLoading: data.isLoading,

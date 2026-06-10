@@ -142,7 +142,7 @@ export const TopTeamsCard: React.FC<TopTeamsCardProps> = ({ topTeams, isLoading 
                 <div className="gba:min-w-0">
                   <p className="gba:font-medium gba:text-sm gba:truncate">{team.name}</p>
                   <p className="gba:text-xs gba:text-muted-foreground">
-                    {team.memberCount} members · {team.dealsWon} deals
+                    {team.memberCount} members · {team.opportunitiesWon} opportunities
                   </p>
                 </div>
               </div>

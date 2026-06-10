@@ -7,7 +7,7 @@ interface TabDataTableProps<TData> {
   readonly loading: boolean
   readonly error: string | null
   readonly emptyMessage: string
-  readonly onRowClick: (row: TData) => void
+  readonly onRowClick?: (row: TData) => void
 }
 
 export function TabDataTable<TData>({

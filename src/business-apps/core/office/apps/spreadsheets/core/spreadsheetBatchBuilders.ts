@@ -91,16 +91,20 @@ const coerceNumericValueForColumn = (value: unknown, column?: SpreadsheetColumn)
   return Number.isFinite(numericValue) ? numericValue : value
 }
 
+const normalizeFormulaDefinition = (formula: string): { f: string } => {
+  const trimmed = formula.trim()
+  return { f: trimmed.startsWith('=') ? trimmed : `=${trimmed}` }
+}
+
 export const normalizeCellValueForBatchPersistence = (value: unknown, column?: SpreadsheetColumn): unknown => {
   if (typeof value === 'string') {
     const trimmed = value.trim()
-    return trimmed.startsWith('=') ? { f: trimmed } : coerceNumericValueForColumn(value, column)
+    return trimmed.startsWith('=') ? normalizeFormulaDefinition(trimmed) : coerceNumericValueForColumn(value, column)
   }
   if (!value || typeof value !== 'object' || Array.isArray(value)) return value
   const obj = value as Record<string, unknown>
   if (typeof obj.f === 'string') {
-    const trimmed = obj.f.trim()
-    return { ...obj, f: trimmed.startsWith('=') ? trimmed : `=${trimmed}` }
+    return normalizeFormulaDefinition(obj.f)
   }
   if (!Object.prototype.hasOwnProperty.call(obj, 'v')) return value
   const coercedValue = coerceNumericValueForColumn(obj.v, column)

@@ -33,7 +33,10 @@ skill-updated = Ultima Actualizare
 
 skill-actions-view = Vizualizare
 skill-actions-edit = Editare
+skill-actions-activate = Activează
+skill-actions-deactivate = Dezactivează
 skill-actions-delete = Ștergere
+skill-actions-menu = Acțiuni competență
 skill-actions-retry = Reîncearcă
 
 skill-details-title = Detalii Competență
@@ -51,6 +54,8 @@ skill-form-name-label = Nume Competență
 skill-form-name-placeholder = Introduceți numele competenței
 skill-form-description-label = Descriere
 skill-form-description-placeholder = Introduceți descrierea
+skill-form-category-label = Categorie
+skill-form-category-placeholder = Selectați categoria
 skill-form-level-scale-label = Scară Nivel
 skill-form-level-scale-placeholder = Nivel maxim (ex. 10)
 skill-form-mandatory-label = Competență Obligatorie
@@ -58,6 +63,18 @@ skill-form-save = Salvează
 skill-form-cancel = Anulează
 skill-form-name-required = Numele competenței este obligatoriu
 skill-form-name-duplicate = O competență cu acest nume există deja
+
+skill-activation-activate-title = Activează competența
+skill-activation-deactivate-title = Dezactivează competența
+skill-activation-activate-description = Alegeți când "{$skillName}" devine din nou activă.
+skill-activation-deactivate-description = Alegeți când "{$skillName}" nu ar trebui să mai fie activă.
+skill-activation-activate-scheduled-warning = Această competență este deja setată să fie activată pe {$date}, dar puteți schimba în continuare data.
+skill-activation-deactivate-scheduled-warning = Această competență este deja setată să fie dezactivată pe {$date}, dar puteți schimba în continuare data.
+skill-activation-activate-from = Activează competența de la
+skill-activation-deactivate-from = Dezactivează competența de la
+skill-activation-active-from = Activ de la
+skill-activation-active-to = Activ până la
+skill-activation-date-error = Activ până la nu poate fi înainte de Activ de la
 
 confirm-deactivate-title = Dezactivare Competență
 confirm-deactivate-description = Sunteți sigur că doriți să dezactivați "{$skillName}"? Această competență este atribuită la {$employeeCount} angajați.

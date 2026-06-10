@@ -171,6 +171,8 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
       <EmailReaderToolbar
         message={message}
         threadEnabled={threadEnabled}
+        mailboxAddress={activeAccount?.emailAddress}
+        accessToken={accessToken}
         onCompose={onCompose}
         onEditDraft={onEditDraft}
         onArchive={onArchive}

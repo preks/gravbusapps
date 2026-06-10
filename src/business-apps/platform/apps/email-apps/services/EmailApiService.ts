@@ -35,7 +35,8 @@ import type {
   EmailAssistantReplySuggestRequest,
   EmailAssistantResponse,
   EmailAssistantRewriteRequest,
-  EmailAssistantTemperatureCheckRequest
+  EmailAssistantTemperatureCheckRequest,
+  EmailSyncDiagnostics
 } from '../types'
 
 const API_URL = getDocumentServiceApiUrl()
@@ -69,6 +70,22 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   return (text ? JSON.parse(text) : null) as T
 }
 
+// Typed outcome of the Workforce debug re-emit endpoint.
+// Mirrors document-service ``ForwardResult``.
+export type WorkforceForwardReason =
+  | 'not_configured'
+  | 'unknown_message'
+  | 'not_received_status'
+  | 'not_inbox_folder'
+  | 'no_account_address'
+  | 'forwarding_disabled'
+  | 'no_workforce_mailbox'
+  | 'forward_failed'
+
+export type WorkforceForwardResult =
+  | { ok: true; sessionId: string | null; mailbox: string }
+  | { ok: false; reason: WorkforceForwardReason; detail?: string }
+
 export const EmailApiService = {
   setAccessToken(token: string | null) {
     currentAccessToken = token
@@ -99,6 +116,10 @@ export const EmailApiService = {
 
   async syncAccount(id: string): Promise<void> {
     await apiRequest(`/emails/accounts/${id}/sync`, { method: 'POST' })
+  },
+
+  async getSyncDiagnostics(id: string): Promise<EmailSyncDiagnostics> {
+    return apiRequest<EmailSyncDiagnostics>(`/emails/accounts/${id}/sync-diagnostics`)
   },
 
   async testConnection(data: CreateEmailAccountRequest): Promise<{ success: boolean; error?: string }> {
@@ -217,6 +238,15 @@ export const EmailApiService = {
       method: 'POST'
     })
     return normalizeMessageSummaryResult(result)
+  },
+
+  /**
+   * Debug: re-emit an already-synced email through the Workforce inbound-email
+   * forwarder. Lets us trigger a Workforce Agent run from an existing inbox
+   * message instead of waiting for a real inbound email during testing.
+   */
+  async resendMessageToWorkforce(messageId: string): Promise<WorkforceForwardResult> {
+    return apiRequest<WorkforceForwardResult>(`/emails/messages/${messageId}/resend-to-workforce`, { method: 'POST' })
   },
 
   /**

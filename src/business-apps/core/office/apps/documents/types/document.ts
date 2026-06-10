@@ -118,7 +118,7 @@ export interface DocumentShare {
   userId: string
   userName?: string
   userEmail?: string
-  permission: 'view' | 'edit' | 'comment'
+  permission: 'view' | 'edit' | 'comment' | 'admin'
   sharedAt: string
   sharedBy: string
 }

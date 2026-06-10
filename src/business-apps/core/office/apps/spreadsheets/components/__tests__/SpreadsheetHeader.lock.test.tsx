@@ -69,7 +69,7 @@ describe('SpreadsheetHeader lock badge', () => {
         onShowVersionHistory={jest.fn()}
         publishingStatus="draft"
         showComments={false}
-        setShowComments={jest.fn()}
+        onToggleComments={jest.fn()}
         unresolvedCommentCount={0}
         fileLock={{
           lock: { isLocked: true, lockedByName: 'Alice' },
@@ -85,5 +85,44 @@ describe('SpreadsheetHeader lock badge', () => {
     )
 
     expect(screen.getByText('Locked by Alice')).toBeInTheDocument()
+  })
+
+  it('calls the explicit comments toggle handler', () => {
+    const onToggleComments = jest.fn()
+
+    render(
+      <SpreadsheetHeader
+        app={{ id: 'app-1', name: 'Budget', sheets: [], settings: {} } as any}
+        activeSheet={{ id: 'sheet-1', name: 'Sheet 1', settings: { allowExport: true } } as any}
+        isEditing={true}
+        canEdit={true}
+        headerParticipants={[]}
+        isCollaborationConnected={false}
+        isEntityDataLoading={false}
+        onRefreshEntityData={jest.fn()}
+        versioning={{ isSaving: false, lastSaveTime: null, hasUnsavedChanges: false }}
+        onShowCheckpointDialog={jest.fn()}
+        onShowVersionHistory={jest.fn()}
+        publishingStatus="draft"
+        showComments={false}
+        onToggleComments={onToggleComments}
+        unresolvedCommentCount={2}
+        fileLock={{
+          lock: null,
+          isLockedByMe: false,
+          acquireLock: jest.fn(),
+          releaseLock: jest.fn()
+        }}
+        onOpenAICapability={jest.fn()}
+        onOpenAnalytics={jest.fn()}
+        onOpenAutomations={jest.fn()}
+        testId="spreadsheet-header-test"
+      />
+    )
+
+    screen.getByTestId('spreadsheet-comments-button').click()
+
+    expect(onToggleComments).toHaveBeenCalledTimes(1)
+    expect(screen.getByText('2')).toBeInTheDocument()
   })
 })

@@ -18,7 +18,7 @@ export interface DocumentWithStatus extends TaskDocument {
  * @param isAssignee - Whether current user is the task assignee
  * @returns DocuSign integration state and handlers
  */
-export const useDocuSignIntegration = (task: Task, accessToken?: string, isAssignee?: boolean) => {
+export const useDocuSignIntegration = (task: Task, accessToken?: string, isAssignee?: boolean, enabled = true) => {
   const { statusMap, ensureStatus, statusVersion } = useEnvelopeStatusCache(accessToken)
   const { checkAuth } = useDocuSign(accessToken)
 
@@ -41,6 +41,10 @@ export const useDocuSignIntegration = (task: Task, accessToken?: string, isAssig
 
   // Check DocuSign authentication status
   React.useEffect(() => {
+    if (!enabled) {
+      setIsAuthenticated(null)
+      return
+    }
     checkAuth()
       .then(result => {
         setIsAuthenticated(result.authenticated)
@@ -48,22 +52,27 @@ export const useDocuSignIntegration = (task: Task, accessToken?: string, isAssig
       .catch(() => {
         setIsAuthenticated(false)
       })
-  }, [checkAuth])
+  }, [checkAuth, enabled])
 
   // Ensure all envelope statuses are loaded
   React.useEffect(() => {
+    if (!enabled) {
+      return
+    }
     documentsWithStatus.forEach(doc => {
       if (doc.envelopeId) {
         ensureStatus(doc.envelopeId)
       }
     })
-  }, [documentsWithStatus, ensureStatus])
+  }, [documentsWithStatus, ensureStatus, enabled])
 
   // Compute button state
-  const { hasSignableDocs, label: docuSignButtonLabel } = React.useMemo(
-    () => getDocuSignButtonState(documentsWithStatus, isAssignee),
-    [documentsWithStatus, isAssignee]
-  )
+  const { hasSignableDocs, label: docuSignButtonLabel } = React.useMemo(() => {
+    if (!enabled) {
+      return { hasSignableDocs: false, label: 'Request Signature' }
+    }
+    return getDocuSignButtonState(documentsWithStatus, isAssignee ?? false)
+  }, [documentsWithStatus, isAssignee, enabled])
 
   // Check envelope status helper
   const checkEnvelopeStatus = async (envelopeId: string) => {

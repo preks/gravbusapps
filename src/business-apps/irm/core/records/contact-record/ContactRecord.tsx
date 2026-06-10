@@ -12,7 +12,7 @@ import { getContactFullName } from './utils'
 import { useContactAiSummary } from './hooks/useContactAiSummary'
 import { useInvestmentContact } from '@/common/data/investment/hooks/useInvestmentContact'
 import { HomeView } from './views/home-view/HomeView'
-import { OpportunityView } from './views/opportunity-view/OpportunityView'
+import { OpportunityView } from '@/business-apps/irm/core/apps/investment-relations/views/opportunity-view'
 import { DocumentView } from './views/document-view/DocumentView'
 import { getEmailChannel, getPhoneChannel } from '@/common/data/common/utils/communicationChannelHelpers'
 
@@ -46,6 +46,12 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
   // Pass already-fetched contactData to avoid a duplicate GetInvestmentContactById query
   const aiSummaryHook = useContactAiSummary(contactId, props.accessToken, contactData)
 
+  useProcessCompletion({
+    onSuccess: () => {
+      void refetchContactData()
+    }
+  })
+
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value)
     if (typeof window === 'undefined') return
@@ -70,17 +76,7 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     return () => window.removeEventListener('popstate', onPop)
   }, [activeTab])
 
-  // Memoized callback for process completion
-  const handleProcessSuccess = useCallback(() => {
-    refetchContactData()
-  }, [refetchContactData])
-
-  // Listen for process completion events to refresh contact data
-  useProcessCompletion({
-    onSuccess: handleProcessSuccess
-  })
-
-  // Get source from URL parameters to determine back navigation text
+  // Memoize header data - must be called before conditional returns
   const source = useMemo(() => {
     return new URLSearchParams(window.location.search).get('source')
   }, [])
@@ -194,7 +190,16 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
           value: 'overview',
           label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
           icon: <UserIcon className="gba:mr-2" />,
-          content: <HomeView contactId={contactId} contactData={contactData!} {...props} />
+          content: (
+            <HomeView
+              contactId={contactId}
+              contactData={contactData!}
+              refreshRecordData={() => {
+                void refetchContactData()
+              }}
+              {...props}
+            />
+          )
         },
         {
           value: 'opportunities',
@@ -202,7 +207,7 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
           icon: <TargetIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
-              <OpportunityView contactId={contactId} {...props} />
+              <OpportunityView {...props} contactId={contactId} />
             </div>
           )
         },
@@ -221,7 +226,7 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     [activeTab, handleTabChange, contactData, contactId, props]
   )
 
-  if (loading) {
+  if (loading && !contactData) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <Spinner size="lg" />

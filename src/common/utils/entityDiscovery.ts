@@ -58,6 +58,23 @@ const buildHeaders = (accessToken?: string): Record<string, string> => ({
   ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
 })
 
+/** CFE returns a paged `{ data, paging, _links }` object; older callers expected a raw array. */
+function normalizeNamespaceList(payload: unknown): CustomDataNamespaceResponseItem[] {
+  if (Array.isArray(payload)) return payload
+  if (payload && typeof payload === 'object' && Array.isArray((payload as { data?: unknown }).data)) {
+    return (payload as { data: CustomDataNamespaceResponseItem[] }).data
+  }
+  return []
+}
+
+function normalizeInternalEntityList(payload: unknown): InternalEntitySchemaResponseItem[] {
+  if (Array.isArray(payload)) return payload
+  if (payload && typeof payload === 'object' && Array.isArray((payload as { data?: unknown }).data)) {
+    return (payload as { data: InternalEntitySchemaResponseItem[] }).data
+  }
+  return []
+}
+
 export async function fetchInternalEntityOptions(params: {
   accessToken?: string
   includeFields?: boolean
@@ -69,10 +86,11 @@ export async function fetchInternalEntityOptions(params: {
   })
 
   if (!response.ok) {
-    throw new Error(`Failed to load internal entities: ${response.status} ${response.statusText}`)
+    console.warn(`Internal entities unavailable: ${response.status} ${response.statusText}`)
+    return []
   }
 
-  const payload: InternalEntitySchemaResponseItem[] = await response.json()
+  const payload = normalizeInternalEntityList(await response.json())
   return payload
     .map(entity => ({
       type: String(entity.type || entity.entity || entity.entityType || '').trim(),
@@ -90,16 +108,20 @@ export async function fetchCustomEntityOptions(accessToken: string): Promise<Dis
     return []
   }
 
-  const namespacesResponse = await fetch(`${CUSTOM_FLOW_ENGINE_API_URL}/v1/custom-data/namespaces`, {
-    method: 'GET',
-    headers: buildHeaders(accessToken)
-  })
+  const namespacesResponse = await fetch(
+    `${CUSTOM_FLOW_ENGINE_API_URL}/v1/custom-data/namespaces?limit=500&offset=0&returnTotalRecords=false`,
+    {
+      method: 'GET',
+      headers: buildHeaders(accessToken)
+    }
+  )
 
   if (!namespacesResponse.ok) {
-    throw new Error(`Failed to load namespaces: ${namespacesResponse.status} ${namespacesResponse.statusText}`)
+    console.warn(`Custom data namespaces unavailable: ${namespacesResponse.status} ${namespacesResponse.statusText}`)
+    return []
   }
 
-  const namespaces: CustomDataNamespaceResponseItem[] = await namespacesResponse.json()
+  const namespaces = normalizeNamespaceList(await namespacesResponse.json())
   const definitionsByNamespace = await Promise.all(
     namespaces.map(async namespaceItem => {
       const namespace = String(namespaceItem.namespace || '').trim()

@@ -15,6 +15,15 @@ describe('univerGridContextMenuDom', () => {
 
     it('rebuilds the menu item with a DOM-created default icon and click handler', () => {
       const onClick = jest.fn()
+      const popup = document.createElement('div')
+      popup.className = 'mock-univer-popup'
+      popup.tabIndex = -1
+      popup.addEventListener('keydown', event => {
+        if ((event as KeyboardEvent).key === 'Escape') {
+          popup.remove()
+        }
+      })
+      document.body.appendChild(popup)
 
       const item = createContextMenuItem(
         createTemplate(),
@@ -23,6 +32,7 @@ describe('univerGridContextMenuDom', () => {
         'Add comment',
         onClick
       )
+      popup.appendChild(item)
 
       item.click()
 
@@ -33,6 +43,7 @@ describe('univerGridContextMenuDom', () => {
       expect(item.querySelector('svg')).not.toBeNull()
       expect(item.querySelectorAll('path')).toHaveLength(1)
       expect(onClick).toHaveBeenCalledTimes(1)
+      expect(document.body.querySelector('.mock-univer-popup')).toBeNull()
     })
 
     it('renders the requested trusted icon variant without HTML parsing', () => {

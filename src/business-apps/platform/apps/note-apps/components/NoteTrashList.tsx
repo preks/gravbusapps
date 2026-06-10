@@ -1,22 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import {
-  Badge,
-  Button,
-  Checkbox,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  Spinner,
-  useTranslation
-} from '@newwork/nw-design-system'
-import { FileText, MoreHorizontal, RefreshCw, RotateCcw, Trash2, X } from 'lucide-react'
-import { SortAscendingIcon, SortDescendingIcon } from '@phosphor-icons/react'
+import { Button, Spinner, useTranslation } from '@newwork/nw-design-system'
+import { RotateCcw, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { DriveApiService } from '@/business-apps/core/office/apps/drive/services/DriveApiService'
 import type { DriveItem } from '@/business-apps/core/office/apps/drive/types/drive.types'
 import { PermanentDeleteConfirmDialog } from '../../shared/components/PermanentDeleteConfirmDialog'
+import {
+  OfficeTrashListTable,
+  OfficeTrashListToolbar,
+  type OfficeTrashListControls
+} from '../../shared/components/OfficeTrashList'
 import translations from '../_i18n'
 
 interface NoteTrashListProps {
@@ -26,11 +19,6 @@ interface NoteTrashListProps {
   onOpenItem: (item: DriveItem) => void
   onItemsChanged?: () => void
   'data-testid'?: string
-}
-
-function formatDate(value?: string | null): string {
-  if (!value) return ''
-  return new Date(value).toLocaleDateString()
 }
 
 export function NoteTrashList({
@@ -197,6 +185,50 @@ export function NoteTrashList({
     }
   }, [accessToken, loadItems, onItemsChanged, selectedIds, sortedItems, t])
 
+  const handleSelectAll = useCallback(() => {
+    const allIds = sortedItems.map(item => item.id)
+    setSelectedIds(prev => (prev.size === allIds.length && allIds.length > 0 ? new Set() : new Set(allIds)))
+  }, [sortedItems])
+
+  const handleRequestDelete = useCallback((item: DriveItem) => {
+    setDeleteConfirmItem(item)
+  }, [])
+
+  const handleDeleteConfirmOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open && !actionKey?.startsWith('delete:')) {
+        setDeleteConfirmItem(null)
+      }
+    },
+    [actionKey]
+  )
+
+  const handleConfirmDelete = useCallback(() => {
+    if (deleteConfirmItem) {
+      void handleDelete(deleteConfirmItem)
+    }
+  }, [deleteConfirmItem, handleDelete])
+
+  const listControls = useMemo<OfficeTrashListControls>(
+    () => ({
+      refreshLabel: t('trash-list-refresh'),
+      sortNameLabel: t('trash-list-sort-name'),
+      sortTrashedOnLabel: t('trash-list-sort-trashed-on'),
+      trashedOnColumnLabel: t('trash-list-trashed-on-column'),
+      defaultSortBy: 'trashedAt',
+      deleteDialogTitle: t('trash-delete-dialog-title-single'),
+      deleteDialogDescriptionFn: (name: string) => t('trash-delete-dialog-description-single', { name }),
+      deleteDialogCancel: t('trash-delete-dialog-cancel'),
+      deleteDialogConfirm: t('trash-delete-dialog-confirm'),
+      deleteDialogDeleting: t('trash-delete-dialog-deleting'),
+      restoreLabel: t('trash-list-restore'),
+      restoringLabel: t('trash-list-restoring'),
+      deleteLabel: t('trash-list-delete'),
+      deletingLabel: t('trash-delete-dialog-deleting')
+    }),
+    [t]
+  )
+
   if (isLoading) {
     return (
       <div className="gba:flex gba:justify-center gba:py-12" data-testid={`${testId}-loading`}>
@@ -207,214 +239,91 @@ export function NoteTrashList({
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full">
-      {/* Toolbar */}
-      <div className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-2 gba:mb-1">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => void loadItems()}
-          className="gba:gap-1.5 gba:h-7 gba:text-xs"
-          disabled={isLoading}
-          data-testid={`${testId}-refresh-button`}
-        >
-          <RefreshCw className={`gba:w-3.5 gba:h-3.5 ${isLoading ? 'gba:animate-spin' : ''}`} />
-          {t('trash-list-refresh')}
-        </Button>
-        <div className="gba:flex gba:items-center gba:gap-1.5">
-          <div className="gba:flex gba:items-center gba:border gba:border-border/50 gba:rounded-lg gba:px-1 gba:py-0.5">
-            <select
-              value={sortBy}
-              onChange={event => handleSortChange(event.target.value as 'name' | 'trashedAt')}
-              className="gba:text-xs gba:bg-transparent gba:border-0 gba:pr-1 gba:py-0.5 gba:text-muted-foreground gba:cursor-pointer focus:gba:outline-none"
-              data-testid={`${testId}-sort-select`}
+      <div className="gba:w-full gba:max-w-6xl gba:mx-auto gba:flex gba:flex-col gba:flex-1 gba:min-h-0">
+        {/* Toolbar / bulk actions */}
+        <div className="gba:mb-4">
+          {selectedIds.size > 0 ? (
+            <div className="gba:flex gba:items-center gba:gap-2" data-testid={`${testId}-bulk-bar`}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedIds(new Set())}
+                data-testid={`${testId}-bulk-clear`}
+              >
+                <X className="gba:w-4 gba:h-4 gba:mr-1" />
+                {t('trash-bulk-selected', { count: selectedIds.size })}
+              </Button>
+              <div className="gba:w-px gba:h-5 gba:bg-border gba:mx-1" />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  void handleBulkRestore()
+                }}
+                disabled={isBulkRestoring || isBulkDeleting}
+                data-testid={`${testId}-bulk-restore`}
+              >
+                <RotateCcw className="gba:w-4 gba:h-4 gba:mr-1" />
+                {isBulkRestoring ? t('trash-list-restoring') : t('trash-list-restore')}
+              </Button>
+              <div className="gba:w-px gba:h-5 gba:bg-border gba:mx-1" />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gba:text-destructive"
+                onClick={() => setBulkDeleteOpen(true)}
+                disabled={isBulkRestoring || isBulkDeleting}
+                data-testid={`${testId}-bulk-delete`}
+              >
+                <Trash2 className="gba:w-4 gba:h-4 gba:mr-1" />
+                {t('trash-list-delete')}
+              </Button>
+            </div>
+          ) : (
+            <OfficeTrashListToolbar
+              listControls={listControls}
+              isLoading={isLoading}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onRefresh={() => void loadItems()}
+              onSortChange={nextSortBy => handleSortChange(nextSortBy)}
+              onToggleSortOrder={() => setSortOrder(previous => (previous === 'asc' ? 'desc' : 'asc'))}
+              data-testid={testId}
+            />
+          )}
+        </div>
+
+        {/* List */}
+        <div className="gba:flex-1 gba:overflow-auto">
+          {sortedItems.length === 0 ? (
+            <div
+              className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-20 gba:px-4 gba:text-center"
+              data-testid={`${testId}-empty`}
             >
-              <option value="trashedAt">{t('trash-list-sort-trashed-on')}</option>
-              <option value="name">{t('trash-list-sort-name')}</option>
-            </select>
-            <div className="gba:w-px gba:h-4 gba:bg-border/50" />
-            <button
-              type="button"
-              onClick={() => setSortOrder(previous => (previous === 'asc' ? 'desc' : 'asc'))}
-              className="gba:p-1 gba:rounded hover:gba:bg-accent gba:text-muted-foreground gba:transition-colors"
-              data-testid={`${testId}-sort-order-button`}
-            >
-              {sortOrder === 'asc' ? (
-                <SortAscendingIcon className="gba:w-3.5 gba:h-3.5" />
-              ) : (
-                <SortDescendingIcon className="gba:w-3.5 gba:h-3.5" />
-              )}
-            </button>
-          </div>
+              <h3 className="gba:text-lg gba:font-semibold">{t('notes-empty-trash-title')}</h3>
+              <p className="gba:mt-2 gba:text-sm gba:text-muted-foreground">{t('notes-empty-trash-description')}</p>
+            </div>
+          ) : (
+            <OfficeTrashListTable
+              items={sortedItems}
+              listControls={listControls}
+              sortBy={sortBy}
+              actionKey={actionKey}
+              deleteConfirmItem={deleteConfirmItem}
+              onOpenItem={onOpenItem}
+              onSortChange={nextSortBy => handleSortChange(nextSortBy)}
+              onRestoreItem={item => void handleRestore(item)}
+              onRequestDelete={handleRequestDelete}
+              onDeleteConfirmOpenChange={handleDeleteConfirmOpenChange}
+              onConfirmDelete={handleConfirmDelete}
+              selectedIds={selectedIds}
+              onToggleSelect={handleToggleSelect}
+              onSelectAll={handleSelectAll}
+              data-testid={testId}
+            />
+          )}
         </div>
       </div>
-
-      {/* List */}
-      <div className="gba:flex-1 gba:overflow-auto">
-        {sortedItems.length === 0 ? (
-          <div
-            className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-20 gba:px-4 gba:text-center"
-            data-testid={`${testId}-empty`}
-          >
-            <h3 className="gba:text-lg gba:font-semibold">{t('notes-empty-trash-title')}</h3>
-            <p className="gba:mt-2 gba:text-sm gba:text-muted-foreground">{t('notes-empty-trash-description')}</p>
-          </div>
-        ) : (
-          <div className="gba:w-full gba:px-4 gba:py-2 gba:space-y-px" data-testid={testId}>
-            {sortedItems.map(item => {
-              const isSelected = selectedIds.has(item.id)
-              const restoreKey = `restore:${item.id}`
-              const deleteKey = `delete:${item.id}`
-              const isRestoring = actionKey === restoreKey
-              const isDeleting = actionKey === deleteKey
-
-              return (
-                <div
-                  key={item.id}
-                  className={`gba:group gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-3 gba:rounded-xl gba:transition-all gba:duration-150 gba:cursor-pointer ${
-                    isSelected ? 'gba:bg-primary/8 gba:ring-1 gba:ring-primary/20' : 'hover:gba:bg-muted/40'
-                  }`}
-                  onClick={() => onOpenItem(item)}
-                  data-testid={`${testId}-item-${item.id}`}
-                >
-                  <div
-                    className={`gba:flex-shrink-0 gba:transition-opacity ${isSelected ? 'gba:opacity-100' : 'gba:opacity-60 group-hover:gba:opacity-100'}`}
-                    onClick={event => event.stopPropagation()}
-                  >
-                    <Checkbox checked={isSelected} onCheckedChange={() => handleToggleSelect(item.id)} />
-                  </div>
-
-                  <div className="gba:w-9 gba:h-9 gba:rounded-xl gba:flex gba:items-center gba:justify-center gba:flex-shrink-0 gba:bg-card-decorative">
-                    <FileText className="gba:w-4 gba:h-4 gba:text-decorative-foreground" />
-                  </div>
-
-                  <div className="gba:flex-1 gba:min-w-0">
-                    <div className="gba:flex gba:items-center gba:gap-1.5">
-                      <span className="gba:text-[13px] gba:font-medium gba:text-foreground gba:truncate">
-                        {item.name || t('title-untitled')}
-                      </span>
-                      {item.isShared && (
-                        <Badge
-                          variant="outline"
-                          className="gba:text-[10px] gba:px-1.5 gba:py-0 gba:border-muted-foreground/20"
-                        >
-                          {t('trash-list-owner-badge')}
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="gba:text-xs gba:text-muted-foreground/60 gba:truncate gba:mt-0.5">
-                      {formatDate(item.trashedAt)}
-                    </p>
-                  </div>
-
-                  <div
-                    className="gba:flex-shrink-0 gba:flex gba:items-center gba:gap-1"
-                    onClick={event => event.stopPropagation()}
-                  >
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="gba:h-7 gba:w-7 gba:p-0 gba:opacity-50 group-hover:gba:opacity-100 gba:transition-opacity"
-                        >
-                          <MoreHorizontal className="gba:h-4 gba:w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="gba:w-48">
-                        <DropdownMenuItem onClick={() => void handleRestore(item)} disabled={isRestoring || isDeleting}>
-                          <RotateCcw className="gba:mr-2 gba:h-4 gba:w-4" />
-                          {isRestoring ? t('trash-list-restoring') : t('trash-list-restore')}
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="gba:text-destructive focus:gba:text-destructive"
-                          onClick={() => setDeleteConfirmItem(item)}
-                          disabled={isRestoring || isDeleting}
-                        >
-                          <Trash2 className="gba:mr-2 gba:h-4 gba:w-4" />
-                          {t('trash-list-delete')}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Floating bulk action bar */}
-      {selectedIds.size > 0 && (
-        <div
-          className="gba:sticky gba:bottom-4 gba:z-20 gba:mx-auto gba:w-fit gba:flex gba:items-center gba:gap-1.5 gba:px-4 gba:py-2 gba:bg-foreground/90 gba:backdrop-blur-lg gba:text-background gba:rounded-full gba:shadow-xl gba:border gba:border-foreground/10"
-          data-testid={`${testId}-bulk-bar`}
-        >
-          <span className="gba:text-sm gba:font-medium gba:px-2 gba:tabular-nums">
-            {t('trash-bulk-selected', { count: selectedIds.size })}
-          </span>
-          <div className="gba:w-px gba:h-4 gba:bg-background/20 gba:mx-1" />
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              void handleBulkRestore()
-            }}
-            disabled={isBulkRestoring || isBulkDeleting}
-            className="gba:gap-1.5 gba:text-background hover:gba:bg-background/10 hover:gba:text-background gba:h-7"
-            data-testid={`${testId}-bulk-restore`}
-          >
-            <RotateCcw className="gba:w-3.5 gba:h-3.5" />
-            {isBulkRestoring ? t('trash-list-restoring') : t('trash-list-restore')}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setBulkDeleteOpen(true)}
-            disabled={isBulkRestoring || isBulkDeleting}
-            className="gba:gap-1.5 gba:text-red-400 hover:gba:bg-red-500/20 hover:gba:text-red-300 gba:h-7"
-            data-testid={`${testId}-bulk-delete`}
-          >
-            <Trash2 className="gba:w-3.5 gba:h-3.5" />
-            {t('trash-list-delete')}
-          </Button>
-          <div className="gba:w-px gba:h-4 gba:bg-background/20 gba:mx-1" />
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setSelectedIds(new Set())}
-            className="gba:text-background/60 hover:gba:text-background hover:gba:bg-background/10 gba:h-7 gba:w-7"
-            data-testid={`${testId}-bulk-clear`}
-          >
-            <X className="gba:w-3.5 gba:h-3.5" />
-          </Button>
-        </div>
-      )}
-
-      {/* Single-item delete confirmation */}
-      <PermanentDeleteConfirmDialog
-        open={Boolean(deleteConfirmItem)}
-        onOpenChange={open => {
-          if (!open && !actionKey?.startsWith('delete:')) {
-            setDeleteConfirmItem(null)
-          }
-        }}
-        itemNames={deleteConfirmItem ? [deleteConfirmItem.name] : []}
-        title={t('trash-delete-dialog-title-single')}
-        description={
-          deleteConfirmItem ? t('trash-delete-dialog-description-single', { name: deleteConfirmItem.name }) : undefined
-        }
-        cancelLabel={t('trash-delete-dialog-cancel')}
-        confirmLabel={t('trash-delete-dialog-confirm')}
-        deletingLabel={t('trash-delete-dialog-deleting')}
-        onConfirm={() => {
-          if (deleteConfirmItem) {
-            void handleDelete(deleteConfirmItem)
-          }
-        }}
-        isDeleting={Boolean(deleteConfirmItem && actionKey === `delete:${deleteConfirmItem.id}`)}
-        data-testid={`${testId}-delete-confirm-dialog`}
-      />
 
       {/* Bulk delete confirmation */}
       <PermanentDeleteConfirmDialog

@@ -170,7 +170,7 @@ export const WhiteboardApiService = {
     accessToken: string,
     whiteboardId: string,
     userIds: string[],
-    permission: 'view' | 'edit' | 'comment',
+    permission: 'view' | 'edit' | 'comment' | 'admin',
     message?: string
   ): Promise<boolean> {
     try {
@@ -193,6 +193,33 @@ export const WhiteboardApiService = {
 
   async getSharedUsers(accessToken: string, id: string): Promise<unknown[]> {
     return request(`/sharing/whiteboard/${id}`, accessToken)
+  },
+
+  async updateSharePermission(
+    accessToken: string,
+    shareId: string,
+    permission: 'view' | 'edit' | 'comment' | 'admin'
+  ): Promise<boolean> {
+    try {
+      await request(`/sharing/${shareId}`, accessToken, {
+        method: 'PATCH',
+        body: JSON.stringify({ permission })
+      })
+      return true
+    } catch {
+      return false
+    }
+  },
+
+  async revokeShareById(accessToken: string, shareId: string): Promise<boolean> {
+    try {
+      await request(`/sharing/${shareId}`, accessToken, {
+        method: 'DELETE'
+      })
+      return true
+    } catch {
+      return false
+    }
   },
 
   async createComment(accessToken: string, whiteboardId: string, input: CreateCommentInput): Promise<Comment | null> {

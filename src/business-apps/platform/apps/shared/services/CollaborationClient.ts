@@ -5,6 +5,19 @@ import { getSpreadsheetServiceApiUrl } from '@/business-apps/platform/apps/share
 // Client version for tracking
 const CLIENT_VERSION = '1'
 
+// When the server rejects us for an auth reason (expired/invalid token) it emits an
+// `error` event and force-disconnects. Reconnecting immediately with the same token
+// just gets rejected again, producing a tight loop that floods the server with
+// `Rejecting socket ... invalid auth token` warnings. Instead we back off and wait
+// for a fresh token (delivered via setAccessToken) before retrying.
+const AUTH_RECONNECT_DELAY_MS = 30000
+
+function isAuthRejectionMessage(message?: string): boolean {
+  if (!message) return false
+  const normalized = message.toLowerCase()
+  return normalized.includes('auth') || normalized.includes('token') || normalized.includes('unauthorized')
+}
+
 export interface DocumentParticipant {
   userId: string
   userName: string
@@ -69,6 +82,8 @@ export class CollaborationClient {
   private maxReconnectAttempts: number
   private debug: boolean
   private onReconnectFailed?: () => void
+  private lastAuthErrorAt = 0
+  private authReconnectTimer: ReturnType<typeof setTimeout> | null = null
 
   constructor(url: string, options: CollaborationWebSocketOptions = {}) {
     this.url = url
@@ -94,14 +109,41 @@ export class CollaborationClient {
       return
     }
 
-    this.socket.auth = {
-      token,
-      clientVersion: CLIENT_VERSION
+    // A fresh token arrived. If we were backing off after an auth rejection,
+    // cancel the wait and reconnect now so the user recovers immediately.
+    if (this.authReconnectTimer) {
+      this.clearAuthReconnectTimer()
+      this.lastAuthErrorAt = 0
+      this.forceReconnect()
+      return
     }
 
     if (this.socket.connected) {
       this.forceReconnect()
     }
+  }
+
+  private clearAuthReconnectTimer() {
+    if (this.authReconnectTimer) {
+      clearTimeout(this.authReconnectTimer)
+      this.authReconnectTimer = null
+    }
+  }
+
+  private scheduleAuthReconnect() {
+    if (this.authReconnectTimer) {
+      return
+    }
+
+    console.warn(
+      `[CollaborationClient] Auth rejected; backing off ${AUTH_RECONNECT_DELAY_MS}ms before retrying (waiting for refreshed token).`
+    )
+    this.authReconnectTimer = setTimeout(() => {
+      this.authReconnectTimer = null
+      if (this.socket && !this.socket.connected) {
+        this.socket.connect()
+      }
+    }, AUTH_RECONNECT_DELAY_MS)
   }
 
   connect(token: string) {
@@ -112,10 +154,8 @@ export class CollaborationClient {
 
     if (this.socket) {
       this.accessToken = nextToken
-      this.socket.auth = {
-        token: nextToken,
-        clientVersion: CLIENT_VERSION
-      }
+      this.clearAuthReconnectTimer()
+      this.lastAuthErrorAt = 0
 
       if (this.socket.connected) {
         return this.socket
@@ -140,10 +180,9 @@ export class CollaborationClient {
     }
 
     this.socket = io(this.url, {
-      auth: {
-        token: nextToken,
-        clientVersion: CLIENT_VERSION
-      },
+      // Use a callback so every (re)connection attempt reads the *latest* token
+      // rather than freezing the one captured at first connect.
+      auth: cb => cb({ token: this.accessToken, clientVersion: CLIENT_VERSION }),
       transports,
       tryAllTransports: enablePollingFallback,
       path: this.options.path,
@@ -179,6 +218,8 @@ export class CollaborationClient {
 
     this.socket.on('connect', () => {
       this.reconnectAttempts = 0
+      this.lastAuthErrorAt = 0
+      this.clearAuthReconnectTimer()
       if (this.debug) {
         console.log(
           `[CollaborationClient] CONNECTED! Socket ID: ${this.socket?.id}, Transport: ${this.socket?.io?.engine?.transport?.name}`
@@ -190,6 +231,13 @@ export class CollaborationClient {
       console.warn('[CollaborationClient] Disconnected:', reason)
 
       if (reason === 'io server disconnect') {
+        // The server force-disconnects on auth rejection. If the disconnect
+        // immediately follows an auth error, reconnecting now would just replay
+        // the same rejected token, so back off and wait for a refreshed token.
+        if (Date.now() - this.lastAuthErrorAt < 5000) {
+          this.scheduleAuthReconnect()
+          return
+        }
         console.warn('[CollaborationClient] Server disconnected, attempting manual reconnection...')
         this.socket?.connect()
       } else if (reason === 'ping timeout') {
@@ -205,6 +253,10 @@ export class CollaborationClient {
       this.reconnectAttempts++
       console.error(`[CollaborationClient] CONNECTION ERROR: ${error.message}, attempt: ${this.reconnectAttempts}`)
 
+      if (isAuthRejectionMessage(error.message)) {
+        this.lastAuthErrorAt = Date.now()
+      }
+
       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
         console.error('[CollaborationClient] Max reconnection attempts reached')
       }
@@ -212,6 +264,10 @@ export class CollaborationClient {
 
     this.socket.on('error', error => {
       console.error('[CollaborationClient] Error:', error)
+      const message = typeof error === 'string' ? error : (error as { message?: string } | null | undefined)?.message
+      if (isAuthRejectionMessage(message)) {
+        this.lastAuthErrorAt = Date.now()
+      }
     })
 
     this.socket.io.on('reconnect', () => {
@@ -227,6 +283,8 @@ export class CollaborationClient {
   }
 
   disconnect() {
+    this.clearAuthReconnectTimer()
+    this.lastAuthErrorAt = 0
     if (this.socket) {
       this.socket.disconnect()
       this.socket = null

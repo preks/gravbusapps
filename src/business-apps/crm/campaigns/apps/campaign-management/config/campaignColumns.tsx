@@ -2,7 +2,12 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { Badge } from '@newwork/nw-design-system'
 import { CalendarIcon, TagIcon } from '@phosphor-icons/react'
 import type { SalesCampaign } from '../components/campaign-list/types/SalesCampaignTypes'
-import dayjs from 'dayjs'
+import { getBadgeVariantFromCatalog } from '@/common/utils/badgeUtils'
+import {
+  CAMPAIGN_STATUS_CODE_ACTIVE,
+  CAMPAIGN_STATUS_CODE_COMPLETED,
+  CAMPAIGN_STATUS_CODE_PLANNED
+} from '@/common/data/customer/constants/customerCatalogs'
 
 // Helper to safely convert values to strings
 // Returns empty string for objects to avoid '[object Object]' stringification
@@ -22,24 +27,49 @@ const safeString = (value: unknown): string => {
   return ''
 }
 
-// Helper to compute campaign status from dates
-const getCampaignStatus = (startDate?: string, endDate?: string): string => {
-  if (!startDate || !endDate) return '-'
-  const now = dayjs()
-  const start = dayjs(startDate)
-  const end = dayjs(endDate)
+const getFallbackCampaignStatusCode = (campaign: SalesCampaign): string => {
+  const now = new Date()
+  const startDate = campaign.startDate ? new Date(campaign.startDate) : null
+  const endDate = campaign.endDate ? new Date(campaign.endDate) : null
 
-  if (now.isBefore(start, 'day')) return 'Planned'
-  if (now.isAfter(end, 'day')) return 'Completed'
-  return 'Active'
+  if (endDate && !Number.isNaN(endDate.getTime()) && now > endDate) {
+    return CAMPAIGN_STATUS_CODE_COMPLETED
+  }
+
+  if (startDate && endDate && !Number.isNaN(startDate.getTime()) && !Number.isNaN(endDate.getTime())) {
+    if (now >= startDate && now <= endDate) {
+      return CAMPAIGN_STATUS_CODE_ACTIVE
+    }
+  }
+
+  return CAMPAIGN_STATUS_CODE_PLANNED
 }
 
-// Helper to get status badge variant
-const getStatusVariant = (status: string): 'default' | 'success' | 'warning' | 'info' => {
-  if (status === 'Active') return 'success'
-  if (status === 'Planned') return 'info'
-  if (status === 'Completed') return 'default'
-  return 'default'
+const formatCampaignStatusLabel = (statusCode: string): string => {
+  if (statusCode === CAMPAIGN_STATUS_CODE_ACTIVE) return 'Active'
+  if (statusCode === CAMPAIGN_STATUS_CODE_COMPLETED) return 'Completed'
+  return 'Planned'
+}
+
+const getCampaignStatusDisplay = (campaign: SalesCampaign) => {
+  if (campaign.customerCampaignStatus) {
+    return {
+      value: safeString(campaign.customerCampaignStatus.value || campaign.customerCampaignStatus.code),
+      variant: getBadgeVariantFromCatalog(campaign.customerCampaignStatus)
+    }
+  }
+
+  const fallbackStatusCode = getFallbackCampaignStatusCode(campaign)
+  let fallbackVariant: 'success' | 'default' | 'secondary' = 'secondary'
+  if (fallbackStatusCode === CAMPAIGN_STATUS_CODE_ACTIVE) {
+    fallbackVariant = 'success'
+  } else if (fallbackStatusCode === CAMPAIGN_STATUS_CODE_COMPLETED) {
+    fallbackVariant = 'default'
+  }
+  return {
+    value: formatCampaignStatusLabel(fallbackStatusCode),
+    variant: fallbackVariant
+  }
 }
 
 export const createCampaignColumns = (): ColumnDef<SalesCampaign>[] => [
@@ -57,13 +87,16 @@ export const createCampaignColumns = (): ColumnDef<SalesCampaign>[] => [
         className="gba:flex gba:items-center gba:gap-2 gba:min-w-0"
         data-testid={`campaign-name-cell-${row.original.id}`}
       >
-        <TagIcon className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
+        <TagIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:shrink-0" />
         <div className="gba:min-w-0 gba:flex-1">
           <div className="gba:font-medium gba:text-sm gba:truncate" title={safeString(row.original.name)}>
             {safeString(row.original.name)}
           </div>
           {row.original.description && (
-            <div className="gba:text-xs gba:text-gray-500 gba:truncate" title={safeString(row.original.description)}>
+            <div
+              className="gba:text-xs gba:text-muted-foreground gba:truncate"
+              title={safeString(row.original.description)}
+            >
               {safeString(row.original.description)}
             </div>
           )}
@@ -82,7 +115,7 @@ export const createCampaignColumns = (): ColumnDef<SalesCampaign>[] => [
     enableResizing: false,
     cell: ({ row }) => {
       if (!row.original.type) {
-        return <span className="gba:text-gray-400">-</span>
+        return <span className="gba:text-muted-foreground">-</span>
       }
       const typeValue = safeString(row.original.type.value || row.original.type.code)
       return (
@@ -116,7 +149,7 @@ export const createCampaignColumns = (): ColumnDef<SalesCampaign>[] => [
           className="gba:flex gba:items-center gba:gap-2"
           data-testid={`campaign-start-date-cell-${row.original.id}`}
         >
-          <CalendarIcon className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
+          <CalendarIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:shrink-0" />
           <span className="gba:text-sm">{formattedDate}</span>
         </div>
       )
@@ -141,7 +174,7 @@ export const createCampaignColumns = (): ColumnDef<SalesCampaign>[] => [
         : '-'
       return (
         <div className="gba:flex gba:items-center gba:gap-2" data-testid={`campaign-end-date-cell-${row.original.id}`}>
-          <CalendarIcon className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
+          <CalendarIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:shrink-0" />
           <span className="gba:text-sm">{formattedDate}</span>
         </div>
       )
@@ -149,7 +182,7 @@ export const createCampaignColumns = (): ColumnDef<SalesCampaign>[] => [
   },
   {
     id: 'status',
-    accessorFn: row => getCampaignStatus(row.startDate, row.endDate),
+    accessorFn: row => getCampaignStatusDisplay(row).value,
     header: 'Status',
     size: 120,
     minSize: 100,
@@ -157,10 +190,10 @@ export const createCampaignColumns = (): ColumnDef<SalesCampaign>[] => [
     enableResizing: false,
     enableSorting: true,
     cell: ({ row }) => {
-      const status = getCampaignStatus(row.original.startDate, row.original.endDate)
+      const statusDisplay = getCampaignStatusDisplay(row.original)
       return (
-        <Badge variant={getStatusVariant(status)} data-testid={`campaign-status-cell-${row.original.id}`}>
-          {status}
+        <Badge variant={statusDisplay.variant as any} data-testid={`campaign-status-cell-${row.original.id}`}>
+          {statusDisplay.value}
         </Badge>
       )
     }
@@ -184,7 +217,7 @@ export const createCampaignColumns = (): ColumnDef<SalesCampaign>[] => [
         : '-'
       return (
         <div className="gba:flex gba:items-center gba:gap-2" data-testid={`campaign-created-cell-${row.original.id}`}>
-          <CalendarIcon className="gba:h-4 gba:w-4 gba:text-gray-400 gba:shrink-0" />
+          <CalendarIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:shrink-0" />
           <span className="gba:text-sm">{formattedDate}</span>
         </div>
       )

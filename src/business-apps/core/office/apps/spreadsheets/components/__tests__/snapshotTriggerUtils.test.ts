@@ -1,6 +1,8 @@
 import {
   VALUE_MUTATION_SNAPSHOT_SUPPRESSION_MS,
   isClearAllRangeCommand,
+  isDimensionSnapshotSideEffectCommand,
+  isDimensionSnapshotUserCommand,
   isStyleOnlySheetMutationCommand,
   isUnsupportedSnapshotOnlyCollaborationCommand,
   shouldRunDimensionSnapshotForCommand,
@@ -112,8 +114,11 @@ describe('snapshotTriggerUtils', () => {
     expect(shouldRunDimensionSnapshotForCommand('sheet.command.resize-column', 0)).toBe(true)
     expect(shouldRunDimensionSnapshotForCommand('sheet.command.set-column-width', 0)).toBe(true)
     expect(shouldRunDimensionSnapshotForCommand('sheet.command.set-row-height', 0)).toBe(true)
+    expect(shouldRunDimensionSnapshotForCommand('sheet.command.delta-row-height', 0)).toBe(true)
+    expect(shouldRunDimensionSnapshotForCommand('sheet.command.delta-column-width', 0)).toBe(true)
     expect(shouldRunDimensionSnapshotForCommand('sheet.command.zoom-in', 0)).toBe(true)
-    expect(shouldRunDimensionSnapshotForCommand('sheet.command.auto-fit-column', 0)).toBe(true)
+    expect(shouldRunDimensionSnapshotForCommand('sheet.command.set-col-auto-width', 0)).toBe(true)
+    expect(shouldRunDimensionSnapshotForCommand('sheet.command.set-row-is-auto-height', 0)).toBe(true)
     expect(shouldRunDimensionSnapshotForCommand('sheet.command.insert-column-right', 0)).toBe(true)
     expect(shouldRunDimensionSnapshotForCommand('sheet.command.delete-column', 0)).toBe(true)
     expect(shouldRunDimensionSnapshotForCommand('sheet.command.insert-row-before', 0)).toBe(true)
@@ -122,6 +127,21 @@ describe('snapshotTriggerUtils', () => {
     expect(shouldRunDimensionSnapshotForCommand('sheet.command.set-selected-rows-visible', 0)).toBe(true)
     expect(shouldRunDimensionSnapshotForCommand('sheet.mutation.set-col-hidden', 2)).toBe(true)
     expect(shouldRunDimensionSnapshotForCommand('sheet.command.set-selected-cols-visible', 0)).toBe(true)
+  })
+
+  it('does not run dimension snapshots for side-effect auto-height mutations', () => {
+    expect(shouldRunDimensionSnapshotForCommand('sheet.mutation.set-worksheet-row-auto-height', 2)).toBe(false)
+    expect(shouldRunDimensionSnapshotForCommand('sheet.mutation.set-worksheet-col-width', 2)).toBe(false)
+    expect(shouldRunDimensionSnapshotForCommand('sheet.operation.mark-dirty-row-auto-height', 0)).toBe(false)
+    expect(shouldRunDimensionSnapshotForCommand('sheet.operation.cancel-mark-dirty-row-auto-height', 0)).toBe(false)
+  })
+
+  it('classifies dimension commands for allowlist and denylist helpers', () => {
+    expect(isDimensionSnapshotUserCommand('sheet.command.set-row-height')).toBe(true)
+    expect(isDimensionSnapshotUserCommand('sheet.command.set-col-auto-width')).toBe(true)
+    expect(isDimensionSnapshotUserCommand('sheet.command.zoom-in')).toBe(false)
+    expect(isDimensionSnapshotSideEffectCommand('sheet.mutation.set-worksheet-row-auto-height')).toBe(true)
+    expect(isDimensionSnapshotSideEffectCommand('sheet.command.set-row-height')).toBe(false)
   })
 
   it('classifies style-only mutation commands for batch gating', () => {

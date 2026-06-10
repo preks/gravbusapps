@@ -108,7 +108,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
       },
       {
         label: t('details-label-country'),
-        value: primaryAddress?.country?.value || ''
+        value: getTranslatedValue(primaryAddress?.country)
       },
       {
         label: t('details-label-address-line'),

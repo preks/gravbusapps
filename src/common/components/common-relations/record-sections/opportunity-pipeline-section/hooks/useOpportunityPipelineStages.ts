@@ -1,5 +1,25 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+
+const buildStageKey = (stage: any): string =>
+  [stage?.id ?? '', stage?.code ?? '', stage?.value ?? '', stage?.alternativeCode ?? ''].join(':')
+
+const areStagesEqual = (left: any[], right: any[]): boolean =>
+  left.length === right.length && left.every((stage, index) => buildStageKey(stage) === buildStageKey(right[index]))
+
+const buildConditionKey = (condition: any): string =>
+  [
+    condition?.id ?? '',
+    condition?.code ?? '',
+    condition?.value ?? '',
+    condition?.parentEntryId ?? '',
+    condition?.additionalValue1 ?? '',
+    condition?.type ?? ''
+  ].join(':')
+
+const areConditionsEqual = (left: any[], right: any[]): boolean =>
+  left.length === right.length &&
+  left.every((condition, index) => buildConditionKey(condition) === buildConditionKey(right[index]))
 
 export interface UseOpportunityPipelineStagesOptions {
   /**
@@ -95,6 +115,22 @@ export const useOpportunityPipelineStages = ({
   const [catalogStageConditions, setCatalogStageConditions] = useState<any[]>([])
   const [loadingStages, setLoadingStages] = useState(false)
   const [stagesError, setStagesError] = useState<string | null>(null)
+  const hasLoadedStagesRef = useRef(false)
+
+  const childEntries = (opportunityData?.opportunityPipeline as any)?.childEntries as any[] | undefined
+  const latestChildEntriesRef = useRef<any[] | undefined>(childEntries)
+  latestChildEntriesRef.current = childEntries
+
+  const pipelineStagesKey = useMemo(() => {
+    if (!childEntries?.length) {
+      return ''
+    }
+
+    return [...childEntries]
+      .sort((a: any, b: any) => (a?.displayOrder ?? 0) - (b?.displayOrder ?? 0))
+      .map(buildStageKey)
+      .join('|')
+  }, [childEntries])
 
   /**
    * Fetches catalog conditions for given stage IDs
@@ -129,7 +165,10 @@ export const useOpportunityPipelineStages = ({
       `
 
         const result = await graphQLClient.request<{ conditions: any[] }>(GET_STAGE_CONDITIONS, { stageIds })
-        setCatalogStageConditions(result.conditions || [])
+        const nextConditions = result.conditions || []
+        setCatalogStageConditions(previous =>
+          areConditionsEqual(previous, nextConditions) ? previous : nextConditions
+        )
       } catch (err) {
         console.error('Error fetching catalog stage conditions:', err)
         setCatalogStageConditions([])
@@ -141,51 +180,61 @@ export const useOpportunityPipelineStages = ({
   /**
    * Extracts stages from opportunity pipeline childEntries and fetches their conditions
    */
-  const fetchOpportunityStages = useCallback(async () => {
-    try {
-      setLoadingStages(true)
-      setStagesError(null)
+  const fetchOpportunityStages = useCallback(
+    async (entriesOverride?: any[]) => {
+      try {
+        if (!hasLoadedStagesRef.current) {
+          setLoadingStages(true)
+        }
+        setStagesError(null)
 
-      const childEntries = (opportunityData?.opportunityPipeline as any)?.childEntries
+        const entries = entriesOverride ?? latestChildEntriesRef.current
 
-      if (childEntries?.length) {
-        // Sort by displayOrder
-        const sorted = [...(childEntries as any[])].sort(
-          (a: any, b: any) => (a?.displayOrder ?? 0) - (b?.displayOrder ?? 0)
-        )
+        if (entries?.length) {
+          // Sort by displayOrder
+          const sorted = [...(entries as any[])].sort(
+            (a: any, b: any) => (a?.displayOrder ?? 0) - (b?.displayOrder ?? 0)
+          )
 
-        // Map to stage format
-        const stageData = sorted.map((entry: any) => ({
-          id: entry.id,
-          code: entry.code,
-          value: entry.value,
-          alternativeCode: entry.alternativeCode
-        }))
+          // Map to stage format
+          const stageData = sorted.map((entry: any) => ({
+            id: entry.id,
+            code: entry.code,
+            value: entry.value,
+            alternativeCode: entry.alternativeCode
+          }))
 
-        setOpportunityStages(stageData)
+          setOpportunityStages(previous => (areStagesEqual(previous, stageData) ? previous : stageData))
 
-        // Fetch catalog conditions for all stages
-        await fetchCatalogConditions(stageData.map(s => s.id))
-      } else {
+          // Fetch catalog conditions for all stages
+          await fetchCatalogConditions(stageData.map(s => s.id))
+        } else {
+          setOpportunityStages(previous => (previous.length === 0 ? previous : []))
+          setCatalogStageConditions(previous => (previous.length === 0 ? previous : []))
+        }
+      } catch (err) {
+        console.error(`Error mapping ${contextLabel} opportunity pipeline stages:`, err)
+        setStagesError(err instanceof Error ? err.message : 'Failed to fetch stages')
         setOpportunityStages([])
         setCatalogStageConditions([])
+      } finally {
+        hasLoadedStagesRef.current = true
+        setLoadingStages(false)
       }
-    } catch (err) {
-      console.error(`Error mapping ${contextLabel} opportunity pipeline stages:`, err)
-      setStagesError(err instanceof Error ? err.message : 'Failed to fetch stages')
-      setOpportunityStages([])
-      setCatalogStageConditions([])
-    } finally {
-      setLoadingStages(false)
-    }
-  }, [opportunityData?.opportunityPipeline, fetchCatalogConditions, contextLabel])
+    },
+    [fetchCatalogConditions, contextLabel]
+  )
 
-  // Auto-fetch when opportunity data changes
+  useEffect(() => {
+    hasLoadedStagesRef.current = false
+  }, [stageConditionCatalog, accessToken])
+
+  // Auto-fetch only when pipeline stage definitions change, not on every opportunity refetch.
   useEffect(() => {
     if (opportunityData) {
       fetchOpportunityStages()
     }
-  }, [opportunityData, fetchOpportunityStages])
+  }, [Boolean(opportunityData), pipelineStagesKey, fetchOpportunityStages])
 
   return {
     opportunityStages,

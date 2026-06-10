@@ -21,6 +21,8 @@ import { SpreadsheetSheetTabs } from './SpreadsheetSheetTabs'
 import type { SpreadsheetSheetTabsProps } from './SpreadsheetSheetTabs'
 import type { SpreadsheetCollaborationHealthBannerProps } from './SpreadsheetCollaborationHealthBanner'
 import type { EntityDataStatusBarProps } from './EntityDataStatusBar'
+import { SpreadsheetCommentsSidebar } from './SpreadsheetCommentsSidebar'
+import type { SpreadsheetCommentsSidebarProps } from './SpreadsheetCommentsSidebar'
 
 export interface SpreadsheetViewerLayoutProps {
   testId: string
@@ -33,6 +35,7 @@ export interface SpreadsheetViewerLayoutProps {
     sheetData: Record<string, unknown>[]
   }
   sheetTabsProps: SpreadsheetSheetTabsProps | null
+  commentsSidebarProps: SpreadsheetCommentsSidebarProps | null
   dialogsProps: SpreadsheetDialogsSectionProps
   diagnosticsProps: ComponentProps<typeof SpreadsheetDiagnosticsDialog>
   sidePanelsProps: SpreadsheetSidePanelsSectionProps
@@ -90,6 +93,7 @@ export const SpreadsheetViewerLayout: React.FC<SpreadsheetViewerLayoutProps> = m
   mainView,
   emergencyFallback,
   sheetTabsProps,
+  commentsSidebarProps,
   dialogsProps,
   diagnosticsProps,
   sidePanelsProps,
@@ -102,17 +106,23 @@ export const SpreadsheetViewerLayout: React.FC<SpreadsheetViewerLayoutProps> = m
 
       {entityStatusBarProps ? <EntityDataStatusBar {...entityStatusBarProps} /> : null}
 
-      <div className="gba:flex-1 gba:relative gba:min-h-0 gba:overflow-hidden">
-        {mainView}
-        {emergencyFallback.show ? (
-          <SpreadsheetViewerEmergencyFallback
-            columns={emergencyFallback.columns}
-            sheetData={emergencyFallback.sheetData}
-          />
-        ) : null}
-      </div>
+      <div className="gba:flex gba:flex-1 gba:min-h-0 gba:w-full gba:overflow-hidden">
+        <div className="gba:flex gba:min-h-0 gba:min-w-0 gba:flex-1 gba:flex-col gba:overflow-hidden">
+          <div className="gba:relative gba:min-h-0 gba:flex-1 gba:overflow-hidden">
+            {mainView}
+            {emergencyFallback.show ? (
+              <SpreadsheetViewerEmergencyFallback
+                columns={emergencyFallback.columns}
+                sheetData={emergencyFallback.sheetData}
+              />
+            ) : null}
+          </div>
 
-      {sheetTabsProps ? <SpreadsheetSheetTabs {...sheetTabsProps} /> : null}
+          {sheetTabsProps ? <SpreadsheetSheetTabs {...sheetTabsProps} /> : null}
+        </div>
+
+        {commentsSidebarProps ? <SpreadsheetCommentsSidebar {...commentsSidebarProps} /> : null}
+      </div>
 
       <SpreadsheetDialogsSection {...dialogsProps} />
 

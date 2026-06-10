@@ -40,6 +40,7 @@ const buildOptions = () => {
       recoverFromVersionConflict: jest.fn(async () => true),
       scheduleSnapshotCheckpointFromPersistence: jest.fn(),
       onLocalBatchCommitted: jest.fn(),
+      releaseMutationOwnershipFromResponse: jest.fn(),
       emitTraceEvent: jest.fn()
     },
     getActiveSheetVersionValue: () => activeSheetVersion
@@ -119,6 +120,68 @@ describe('createSpreadsheetMutationBatchSubmitter', () => {
     })
     expect(options.applyMutationToSession).not.toHaveBeenCalled()
     expect(options.applyResponseRowsToLocalBaseline).not.toHaveBeenCalled()
+  })
+
+  it('releases ownership before committed-batch replay and queues version echo after replay finishes', async () => {
+    const { options } = buildOptions()
+    const events: string[] = []
+    ;(
+      options as { releaseMutationOwnershipFromResponse: jest.Mock }
+    ).releaseMutationOwnershipFromResponse.mockImplementation(() => {
+      events.push('release')
+    })
+    ;(options as { applyLocalCommittedBatch?: jest.Mock }).applyLocalCommittedBatch = jest.fn(() => {
+      events.push('replay')
+      return true
+    })
+    ;(options as { onLocalBatchCommitted: jest.Mock }).onLocalBatchCommitted.mockImplementation(() => {
+      events.push('version_echo')
+    })
+    jest.spyOn(SpreadsheetApiService, 'applyOperationBatch').mockResolvedValue(buildResponse(7))
+    const submitBatch = createSpreadsheetMutationBatchSubmitter(options)
+
+    await expect(
+      submitBatch({
+        sheetId: 'sheet-1',
+        operations: [{ operationId: 'style-1', type: 'set_style', data: { cells: [] } }],
+        batchIdPrefix: 'set_style'
+      })
+    ).resolves.toEqual(buildResponse(7))
+
+    expect(events).toEqual(['release', 'replay', 'version_echo'])
+  })
+
+  it('queues version echo after active-sheet baseline handling on the non-replay path', async () => {
+    const { options } = buildOptions()
+    const events: string[] = []
+    ;(
+      options as { releaseMutationOwnershipFromResponse: jest.Mock }
+    ).releaseMutationOwnershipFromResponse.mockImplementation(() => {
+      events.push('release')
+    })
+    ;(options as { applyMutationToSession: jest.Mock }).applyMutationToSession.mockImplementation(() => {
+      events.push('session')
+    })
+    ;(options as { applyResponseRowsToLocalBaseline: jest.Mock }).applyResponseRowsToLocalBaseline.mockImplementation(
+      () => {
+        events.push('baseline')
+      }
+    )
+    ;(options as { onLocalBatchCommitted: jest.Mock }).onLocalBatchCommitted.mockImplementation(() => {
+      events.push('version_echo')
+    })
+    jest.spyOn(SpreadsheetApiService, 'applyOperationBatch').mockResolvedValue(buildResponse(7))
+    const submitBatch = createSpreadsheetMutationBatchSubmitter(options)
+
+    await expect(
+      submitBatch({
+        sheetId: 'sheet-1',
+        operations: [{ operationId: 'style-1', type: 'set_style', data: { cells: [] } }],
+        batchIdPrefix: 'set_style'
+      })
+    ).resolves.toEqual(buildResponse(7))
+
+    expect(events).toEqual(['release', 'session', 'baseline', 'version_echo'])
   })
 
   it('surfaces a 409 structural_conflict without any quick-retry or recoverFromVersionConflict (Tier 1 cutover)', async () => {

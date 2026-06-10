@@ -24,7 +24,7 @@ export const TOOL_CATEGORY_LABELS: Record<string, string> = {
   irm: 'Investments',
   office: 'Office & Intranet',
   flow: 'Flows & Automations',
-  flowbot_actions: 'FlowBot Actions',
+  flowbot_actions: 'Business Actions',
   expert: 'Experts',
   create_expert: 'Create Expert',
   documents: 'Documents',

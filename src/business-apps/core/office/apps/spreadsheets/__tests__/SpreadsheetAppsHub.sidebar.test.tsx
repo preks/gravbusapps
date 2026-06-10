@@ -265,6 +265,20 @@ describe('SpreadsheetAppsHub sidebar sections', () => {
     expect(screen.getByTestId('spreadsheet-apps-hub-row-share-app-1')).toBeInTheDocument()
   })
 
+  it('does not render Delete in the row overflow menu for a non-owner', () => {
+    render(<SpreadsheetAppsHub accessToken="token" />)
+
+    expect(screen.queryByText('action-delete-spreadsheet')).not.toBeInTheDocument()
+  })
+
+  it('renders Delete in the row overflow menu for the owner', () => {
+    const userInfo = { id: 'u-1' } as UserInfoProps
+
+    render(<SpreadsheetAppsHub accessToken="token" userInfo={userInfo} />)
+
+    expect(screen.getByText('action-delete-spreadsheet')).toBeInTheDocument()
+  })
+
   it('does not render the Rows column in list view', () => {
     render(<SpreadsheetAppsHub accessToken="token" />)
 

@@ -197,6 +197,10 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
     setIsEditing(false)
   }
 
+  const handleAnchorMouseDown = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault()
+  }
+
   return (
     <div
       className={`gba:min-w-0 gba:overflow-hidden gba:rounded-xl gba:border gba:bg-card/50 gba:p-4 gba:transition-all hover:gba:shadow-sm ${
@@ -225,23 +229,41 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
               {formatCommentRelativeTime(comment.createdAt, locale)}
             </span>
             {isResolved && (
-              <Badge variant="success" className="gba:text-xs gba:h-5">
-                <CheckCircle className="gba:h-3 gba:w-3 gba:mr-1" />
-                {messages.resolved}
+              <Badge
+                variant="success"
+                className="gba:h-5 gba:w-5 gba:p-0 gba:flex gba:items-center gba:justify-center"
+                aria-label={messages.resolved}
+                data-testid={`${testId}-resolved-badge-${comment.id}`}
+              >
+                <CheckCircle className="gba:h-3 gba:w-3" aria-hidden />
               </Badge>
             )}
           </div>
 
-          {/* Cell reference for spreadsheet comments - display only (setSelection causes page refresh) */}
+          {/* Cell reference for spreadsheet comments */}
           {hasCellReference && (
             <div className="gba:mb-2 gba:flex gba:items-center gba:gap-1.5">
-              <Badge
-                variant="outline"
-                className="gba:text-xs gba:font-mono gba:bg-muted/50"
-                data-testid={`${testId}-cell-ref-${comment.id}`}
-              >
-                {t('comment-thread-cell-reference', { reference: comment.cellReference })}
-              </Badge>
+              {onScrollToHighlight ? (
+                <button
+                  type="button"
+                  onMouseDown={handleAnchorMouseDown}
+                  onClick={() => onScrollToHighlight(comment.id)}
+                  className="gba:inline-flex gba:items-center gba:rounded-md gba:border gba:border-primary/20 gba:bg-primary/5 gba:px-2 gba:py-1 gba:text-left gba:transition-colors hover:gba:bg-primary/10 focus-visible:gba:outline-none focus-visible:gba:ring-2 focus-visible:gba:ring-primary/20"
+                  data-testid={`${testId}-cell-ref-${comment.id}`}
+                >
+                  <span className="gba:text-xs gba:font-mono gba:text-primary">
+                    {t('comment-thread-cell-reference', { reference: comment.cellReference })}
+                  </span>
+                </button>
+              ) : (
+                <Badge
+                  variant="outline"
+                  className="gba:text-xs gba:font-mono gba:bg-muted/50"
+                  data-testid={`${testId}-cell-ref-${comment.id}`}
+                >
+                  {t('comment-thread-cell-reference', { reference: comment.cellReference })}
+                </Badge>
+              )}
             </div>
           )}
 
@@ -249,6 +271,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
           {showSlideWholeAnchor && (
             <button
               type="button"
+              onMouseDown={handleAnchorMouseDown}
               onClick={() => onScrollToHighlight?.(comment.id)}
               className="gba:mb-2 gba:flex gba:items-center gba:gap-1.5 gba:rounded-md gba:border gba:border-primary/20 gba:bg-primary/5 gba:px-2 gba:py-1 gba:text-left gba:transition-colors hover:gba:bg-primary/10"
               data-testid={`${testId}-slide-anchor-${comment.id}`}
@@ -262,6 +285,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
           {showSlideElementAnchor && (
             <button
               type="button"
+              onMouseDown={handleAnchorMouseDown}
               onClick={() => onScrollToHighlight?.(comment.id)}
               className="gba:mb-2 gba:flex gba:items-center gba:gap-1.5 gba:rounded-md gba:border gba:border-primary/20 gba:bg-primary/5 gba:px-2 gba:py-1 gba:text-left gba:transition-colors hover:gba:bg-primary/10"
               data-testid={`${testId}-slide-anchor-${comment.id}`}
@@ -277,6 +301,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
           {showSlideTextAnchor && (
             <button
               type="button"
+              onMouseDown={handleAnchorMouseDown}
               onClick={() => onScrollToHighlight?.(comment.id)}
               className="gba:mb-2 gba:flex gba:w-full gba:min-w-0 gba:flex-col gba:gap-1.5 gba:text-left"
               data-testid={`${testId}-slide-anchor-${comment.id}`}
@@ -300,6 +325,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
           {/* Inline comment reference (legacy; suppressed when a slide anchor is present) */}
           {!hasSlideAnchor && isInlineComment && comment.selectedText && (
             <button
+              onMouseDown={handleAnchorMouseDown}
               onClick={() => onScrollToHighlight?.(comment.id)}
               className="gba:mb-2 gba:w-full gba:min-w-0 gba:rounded-md gba:border gba:border-warning/20 gba:bg-warning/10 gba:p-2 gba:text-left gba:transition-colors hover:gba:bg-warning/20 gba:cursor-pointer"
             >

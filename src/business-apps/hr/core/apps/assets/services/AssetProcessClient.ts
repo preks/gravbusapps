@@ -81,7 +81,8 @@ export interface CreateEmployeeAssetPayload {
   startAssetConditionRef?: string
   endAssetConditionRef?: string
   notes?: string
-  employee: string
+  employee?: string
+  room?: string
   asset: string
 }
 
@@ -91,7 +92,7 @@ export interface AllocateAssetToEmployeePayload {
   /** User id of the person performing the allocation (manager/HR). */
   allocatorUserId: string
   /** User id of the employee who will receive the "Acknowledge Asset Allocation" task. */
-  employeeUserId: string
+  employeeUserId?: string
 }
 
 export interface UpdateEmployeeAssetPayload {
@@ -104,6 +105,7 @@ export interface UpdateEmployeeAssetPayload {
   endAssetConditionRef?: string
   notes?: string
   employee?: string
+  room?: string
   asset?: string
 }
 
@@ -235,7 +237,7 @@ export class AssetProcessClient extends RestClient {
         {
           employeeAsset: payload.employeeAsset,
           allocatorUserId: payload.allocatorUserId,
-          employeeUserId: payload.employeeUserId
+          ...(payload.employeeUserId ? { employeeUserId: payload.employeeUserId } : {})
         },
         {
           headers: {

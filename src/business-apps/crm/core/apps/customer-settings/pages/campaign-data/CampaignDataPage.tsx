@@ -1,47 +1,64 @@
-import React from 'react'
-import { PageLayout } from '@newwork/nw-design-system'
-import { MegaphoneIcon } from '@phosphor-icons/react'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useCatalogSettings } from '@/common/components/common-relations/setting-pages/hooks/useCatalogSettings'
-import { CAMPAIGN_TYPE } from '@/common/data/customer/constants/customerCatalogs'
-import { CatalogTab } from '@/common/components/common-relations/setting-pages/components/CatalogTab'
+import React, { useMemo } from 'react'
+import { useTranslation as useFluentTranslation } from '@newwork/nw-design-system'
 import {
-  getCatalogUsageCheckSpecs,
-  useCatalogDeleteAvailability
-} from '@/common/components/common-relations/setting-pages/hooks/useCatalogDeleteAvailability'
+  CampaignSettingsLayout,
+  type CampaignSettingsCatalog,
+  type CampaignSettingsGroup
+} from '@/common/components/common-relations/setting-pages/campaign'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import {
+  CAMPAIGN_SEGMENT,
+  CAMPAIGN_STATUS,
+  CAMPAIGN_TYPE,
+  CUSTOMER_ENGAGEMENT_LEVEL,
+  CUSTOMER_PERSONA,
+  MARKETING_CHANNEL,
+  MARKETING_DISTRIBUTION_TYPE,
+  MARKETING_FUNNEL_STAGE,
+  VALUE_PACK_FOCUS
+} from '@/common/data/customer/constants/customerCatalogs'
+import customerSettingsI18n from '../../_i18n'
 
 export interface CampaignDataPageProps extends BusinessAppContextProps {
   className?: string
   prefixDataTestId?: string
   onBack?: () => void
+  initialGroup?: CampaignSettingsGroup
+  initialCatalog?: CampaignSettingsCatalog
+  /** @deprecated Use initialGroup; leaf catalog tab IDs still work for deep links. */
+  initialTab?: CampaignSettingsCatalog
 }
 
-const DATA_TEST_ID = 'CustomerCampaignDataPage'
+const getCatalogIdentifier = (catalogRef: string) => catalogRef.split(':')[0]
 
-const CampaignDataPage: React.FC<CampaignDataPageProps> = ({ prefixDataTestId, onBack, ...context }) => {
-  const campaignTypes = useCatalogSettings(context, CAMPAIGN_TYPE)
-  const getCampaignTypeDeleteAvailability = useCatalogDeleteAvailability(
-    context.accessToken,
-    'Campaign Type',
-    getCatalogUsageCheckSpecs(CAMPAIGN_TYPE)
+const CampaignDataPage: React.FC<CampaignDataPageProps> = props => {
+  const { t } = useFluentTranslation(customerSettingsI18n)
+
+  const config = useMemo(
+    () => ({
+      typeCatalog: getCatalogIdentifier(CAMPAIGN_TYPE),
+      statusCatalog: getCatalogIdentifier(CAMPAIGN_STATUS),
+      segmentCatalog: getCatalogIdentifier(CAMPAIGN_SEGMENT),
+      personaCatalog: getCatalogIdentifier(CUSTOMER_PERSONA),
+      valuePackFocusCatalog: getCatalogIdentifier(VALUE_PACK_FOCUS),
+      funnelStageCatalog: getCatalogIdentifier(MARKETING_FUNNEL_STAGE),
+      channelCatalog: getCatalogIdentifier(MARKETING_CHANNEL),
+      distributionTypeCatalog: getCatalogIdentifier(MARKETING_DISTRIBUTION_TYPE),
+      engagementLevelCatalog: getCatalogIdentifier(CUSTOMER_ENGAGEMENT_LEVEL),
+      dataTestIdPrefix: 'CustomerCampaignDataPage',
+      headerTitle: t('campaign-data-title'),
+      headerDescription: t('campaign-data-description'),
+      groupLabels: {
+        setup: t('campaign-group-setup'),
+        targeting: t('campaign-group-targeting'),
+        distribution: t('campaign-group-distribution'),
+        engagement: t('campaign-group-engagement')
+      } satisfies Record<CampaignSettingsGroup, string>
+    }),
+    [t]
   )
 
-  return (
-    <PageLayout
-      headerIcon={MegaphoneIcon}
-      headerTitle="Campaign Data"
-      headerDescription="Manage campaign types"
-      onBack={onBack}
-      data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Container`}
-    >
-      <CatalogTab
-        entityName="Campaign Type"
-        dataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}-CampaignTypes`}
-        getDeleteAvailability={getCampaignTypeDeleteAvailability}
-        {...campaignTypes}
-      />
-    </PageLayout>
-  )
+  return <CampaignSettingsLayout config={config} {...props} />
 }
 
 export default CampaignDataPage

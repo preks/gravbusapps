@@ -1,20 +1,41 @@
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
+interface CatalogEntry {
+  id: string
+  code: string
+  value: string
+}
+
 // Campaign record interfaces
 export interface CampaignRecord {
   id: string
   name: string
-  type: {
-    id: string
-    code: string
-    value: string
-  }
+  type: CatalogEntry
   startDate: string
   endDate: string
   description?: string
   createdAt: string
   updatedAt: string
   isDeleted: boolean
+
+  // Strategic Fields
+  customerCampaignSegment?: CatalogEntry
+  customerCampaignSegmentRef?: string
+  customerPersona?: CatalogEntry
+  customerValuePackFocus?: CatalogEntry
+  customerIndustryFocus?: CatalogEntry
+  country?: CatalogEntry
+
+  // Financial Fields
+  budgetAllocated?: number
+  pipelineTarget?: number
+  expectedWinRate?: number
+  expectedRevenueContribution?: number
+
+  // Execution Fields
+  ownerEmployee?: { id: string; displayName: string }
+  customerCampaignStatus?: CatalogEntry
+  customerCampaignStatusRef?: string
 }
 
 // KPI interfaces with trend data
@@ -22,8 +43,8 @@ export interface CampaignKPIs {
   totalLeads: number
   convertedLeads: number
   convertedLeadsPercentage: number
-  totalAccounts: number
-  totalContacts: number
+  mqlCount: number
+  sqlCount: number
   totalOpportunities: number
   wonOpportunities: number
   wonOpportunitiesPercentage: number
@@ -74,12 +95,14 @@ export interface CampaignEntity {
   type: 'lead' | 'account' | 'contact' | 'opportunity'
   creationDate: string
   owner: CampaignEntityOwner
-  status?: { value: string }
+  status?: { value: string; code?: string }
 
   // Essential fields for table display only
   firstName?: string // For leads and contacts
   lastName?: string // For leads and contacts
 }
+
+export type CampaignEntityType = 'lead' | 'account' | 'contact' | 'opportunity'
 
 // Query variables
 export interface CampaignRecordQueryVariables {
@@ -90,6 +113,11 @@ export interface CampaignRecordQueryVariables {
   offset?: number
   limit?: number
   search?: string
+  types?: CampaignEntityType[]
+  accountReferenceIds?: string[]
+  statuses?: string[]
+  createdAtFrom?: string
+  createdAtTo?: string
   orderBy?: Array<{ [key: string]: 'ASC' | 'DESC' }>
 }
 
@@ -105,8 +133,8 @@ export interface UseCampaignKPIsReturn {
   kpis: CampaignKPIs | null
   kpisWithTrends: {
     totalLeads: CampaignKPIWithTrend
-    totalAccounts: CampaignKPIWithTrend
-    totalContacts: CampaignKPIWithTrend
+    mqlCount: CampaignKPIWithTrend
+    sqlCount: CampaignKPIWithTrend
     totalOpportunities: CampaignKPIWithTrend
   } | null
   isLoading: boolean
@@ -133,7 +161,10 @@ export interface UseCampaignEntitiesReturn {
   search: string
   sortField: string
   sortOrder: 'ASC' | 'DESC' | ''
+  activeEntityType: CampaignEntityType
   setSearch: (search: string) => void
+  setFilters: (filters: Record<string, any>) => void
+  setActiveEntityType: (entityType: CampaignEntityType) => void
   setPage: (page: number) => void
   setPageSize: (pageSize: number) => void
   setSorting: (field?: string, order?: 'ASC' | 'DESC') => void
@@ -159,8 +190,8 @@ export interface CampaignKPIsProps {
   kpis: CampaignKPIs | null
   kpisWithTrends: {
     totalLeads: CampaignKPIWithTrend
-    totalAccounts: CampaignKPIWithTrend
-    totalContacts: CampaignKPIWithTrend
+    mqlCount: CampaignKPIWithTrend
+    sqlCount: CampaignKPIWithTrend
     totalOpportunities: CampaignKPIWithTrend
   } | null
   isLoading: boolean
@@ -171,10 +202,9 @@ export interface CampaignKPIsProps {
 export interface CampaignChartProps extends BusinessAppContextProps {
   campaignId: string
   campaign: CampaignRecord | null
-  allEntities: CampaignEntity[]
 }
 
-export interface CampaignEntitiesSectionProps extends BusinessAppContextProps, UseCampaignEntitiesReturn {
+export interface CampaignEntitiesSectionProps extends BusinessAppContextProps {
   campaignId: string
 }
 

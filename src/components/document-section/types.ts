@@ -8,8 +8,12 @@ export interface DocumentColumn {
   header: string
   width?: string
   align?: 'left' | 'center' | 'right'
+  sortable?: boolean
+  getSortValue?: (document: DocumentItem) => string | number | null | undefined
   render: (document: DocumentItem) => React.ReactNode
 }
+
+export type DocumentSortDirection = 'asc' | 'desc'
 
 // Generic document interface for any entity type
 export interface DocumentItem {
@@ -63,6 +67,11 @@ export interface DocumentSectionProps extends BusinessAppContextProps {
   // Optional: Search control (parent handles search logic, this just provides UI)
   searchTerm?: string
   onSearchChange?: (searchTerm: string) => void
+  defaultViewMode?: 'tree' | 'list'
+  showViewModeToggle?: boolean
+  showActionsColumn?: boolean
+  enableColumnSorting?: boolean
+  onFileClick?: (document: DocumentItem) => void | Promise<void>
 
   // Custom menu actions configuration
   /**
@@ -70,7 +79,7 @@ export interface DocumentSectionProps extends BusinessAppContextProps {
    */
   customActions?: Array<{
     key: string
-    label: string
+    label: string | ((document: DocumentItem) => string)
     icon?: React.ReactNode
     apiEndpoint?: string // e.g., '/your-service/deleteDocument'
     payload?: (documentId: string, document: DocumentItem, entityId: string) => any
@@ -80,7 +89,7 @@ export interface DocumentSectionProps extends BusinessAppContextProps {
       entityId: string,
       accessToken?: string
     ) => void | Promise<void>
-    confirmMessage?: string // Optional confirmation dialog
+    confirmMessage?: string | ((document: DocumentItem) => string) // Optional confirmation dialog
   }>
   // Custom toolbar actions (upload, etc.)
   toolbarActions?: Array<{
@@ -167,6 +176,7 @@ export interface ApiConfig {
   baseEndpoint: string
   entityFieldName: string
   documentFieldName: string
+  parentDocumentFieldName?: string
   endpoints?: {
     create?: string
     update?: string

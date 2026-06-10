@@ -239,7 +239,7 @@ export const useTimeTrackingData = ({
       startTimeISO: startIso,
       endTimeISO: endIso,
       recordedTime: row.recordedTime,
-      breakTime: '1h',
+      breakTime: row.breakTime ?? '1h',
       effectiveTime: row.effectiveTime,
       plannedTime: row.plannedTime,
       differenceTime: row.differenceTime,

@@ -24,6 +24,42 @@ export interface EmailAccount {
   createdAt: string
   /** Whether calendar sync is enabled for this account */
   calendarSyncEnabled?: boolean
+  /** Owner opt-in: forward inbound INBOX mail to Workforce inbound-email */
+  forwardingEnabled?: boolean
+}
+
+export interface EmailSyncDiagnostics {
+  generatedAt: string
+  pod: string
+  account: {
+    id: string
+    emailAddress: string
+    provider: EmailAccountProvider
+    status: EmailAccountStatus
+    tenantId?: string | null
+    lastSyncAt?: string | null
+    lastSyncError?: string
+    updatedAt?: string | null
+  }
+  scheduler: {
+    isDue: boolean
+    nextSyncAt: string | null
+    secondsUntilNextSync: number | null
+    lastEvaluatedAt: unknown
+    lastChangeCount: unknown
+    quietStreak: unknown
+    lastError: string
+  }
+  queue: {
+    counts: Record<string, number>
+    accountJob: Record<string, unknown> | null
+    schedulerJob: Record<string, unknown> | null
+  }
+  locks: {
+    accountLockKey: string
+    accountLockTtlMs: number | null
+    accountLockHeld: boolean
+  }
 }
 
 /** Well-known folder types */
@@ -196,6 +232,7 @@ export interface CreateEmailAccountRequest {
   oauthProviderConfig?: OAuthProviderConfig
   signature?: string
   isDefault?: boolean
+  forwardingEnabled?: boolean
 }
 
 /** Attachment to send with an email (base64-encoded) */

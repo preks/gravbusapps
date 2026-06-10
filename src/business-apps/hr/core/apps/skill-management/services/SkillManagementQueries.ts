@@ -10,6 +10,9 @@ query GetSkillsDirectory($limit: Int = 500, $offset: Int = 0) {
     version
     name
     description
+    mandatory
+    skillCategoryId
+    activeFrom
     activeTo
     employeeSkillsAggregate(where: { isDeleted: { _eq: false }, employee: { isDeleted: { _eq: false } } }) {
       aggregate {
@@ -192,7 +195,13 @@ query GetSkillsKpi($today: timestamptz!) {
     }
   }
   activeSkills: SkillAggregate(
-    where: { isDeleted: { _eq: false }, _or: [{ activeTo: { _isNull: true } }, { activeTo: { _gte: $today } }] }
+    where: {
+      isDeleted: { _eq: false }
+      _and: [
+        { _or: [{ activeFrom: { _isNull: true } }, { activeFrom: { _lte: $today } }] }
+        { _or: [{ activeTo: { _isNull: true } }, { activeTo: { _gt: $today } }] }
+      ]
+    }
   ) {
     aggregate {
       count

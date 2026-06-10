@@ -6,6 +6,7 @@ import {
 import { runDetectedCellMutationPersistPlanPhase } from '../univerMountHandleDetectedCellMutationPersistPlan'
 import { createUniverConversionContext } from '../../utils/univerAdapter'
 import { createSpreadsheetRowSlotIdentityRegistry } from '../../utils/spreadsheetRowSlotIdentity'
+import { MERGE_WORKSHEET_MUTATION_ID, UNMERGE_WORKSHEET_MUTATION_ID } from '../univerGridMergeCommandIds'
 
 const columns = [
   {
@@ -46,6 +47,7 @@ function makeDeps(overrides: Partial<any> = {}) {
       columns: propsColumns,
       multiSheetWorkbookMode: true,
       getSheetContext: overrides.getSheetContext,
+      getCanonicalSheetId: (sheetId: string) => sheetId,
       isUuidForRowRemap: (value: string) => value.startsWith('backend-'),
       ...overrides.props
     }
@@ -84,6 +86,39 @@ function makeDeps(overrides: Partial<any> = {}) {
 }
 
 describe('resolveDetectedCellMutation', () => {
+  it('drops mutations when active workbook access hits a transient redi cycle', () => {
+    const deps = makeDeps({
+      deps: {
+        univerAPIRef: {
+          current: {
+            getActiveWorkbook: () => {
+              throw new Error('[redi]: Detecting cyclic dependency. The last identifier is "E11".')
+            }
+          }
+        }
+      }
+    })
+
+    const result = resolveDetectedCellMutation(deps, {
+      source: 'command-executed',
+      commandId: 'sheet.command.set-range-bold',
+      ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }],
+      payloadCellValue: undefined,
+      worksheetId: 'sheet-1'
+    })
+
+    expect(result).toEqual({ status: 'return', value: false })
+    expect(deps.callbacksRef.current.onDiagnosticsTraceEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stage: 'grid_mutation_skipped_workbook_unavailable',
+        payload: expect.objectContaining({
+          source: 'command-executed',
+          explicitWorksheetId: 'sheet-1'
+        })
+      })
+    )
+  })
+
   it('consumes autofill intent on sheet-value-changed using the mutation ranges', () => {
     const peekAutofillApplyType = jest.fn().mockReturnValue('COPY')
     const deps = makeDeps({
@@ -124,6 +159,81 @@ describe('resolveDetectedCellMutation', () => {
     })
 
     expect(peekAutofillApplyType).toHaveBeenCalledWith('sheet-1', ranges, false)
+  })
+
+  it('skips sheet-value-changed persistence planning for merge mutations', () => {
+    const deps = makeDeps({
+      propsData: [{ _id: 'backend-row-1', _rowUuid: 'backend-row-1', column_a: 'seed' }],
+      propsColumns: [
+        ...columns,
+        {
+          id: 'col-b',
+          name: 'column_b',
+          label: 'Column B',
+          type: 'text',
+          isVisible: true,
+          isEditable: true,
+          isRequired: false,
+          isUnique: false,
+          order: 1
+        }
+      ],
+      worksheetCellData: { v: 'seed' },
+      worksheetValue: 'seed'
+    })
+
+    const result = resolveDetectedCellMutation(deps, {
+      source: 'sheet-value-changed',
+      commandId: MERGE_WORKSHEET_MUTATION_ID,
+      ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 1 }],
+      payloadCellValue: {
+        0: {
+          0: { v: 'seed' },
+          1: { v: 'seed' }
+        }
+      },
+      worksheetId: 'sheet-1'
+    })
+
+    expect(result).toEqual({ status: 'return', value: false })
+    expect(deps.callbacksRef.current.onDiagnosticsTraceEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stage: 'grid_merge_mutation_cell_persist_skipped',
+        payload: expect.objectContaining({
+          commandId: MERGE_WORKSHEET_MUTATION_ID
+        })
+      })
+    )
+  })
+
+  it('skips sheet-value-changed persistence planning for unmerge mutations', () => {
+    const deps = makeDeps({
+      propsData: [{ _id: 'backend-row-1', _rowUuid: 'backend-row-1', column_a: 'seed' }],
+      worksheetCellData: { v: 'seed' },
+      worksheetValue: 'seed'
+    })
+
+    const result = resolveDetectedCellMutation(deps, {
+      source: 'sheet-value-changed',
+      commandId: UNMERGE_WORKSHEET_MUTATION_ID,
+      ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }],
+      payloadCellValue: {
+        0: {
+          0: { v: 'seed' }
+        }
+      },
+      worksheetId: 'sheet-1'
+    })
+
+    expect(result).toEqual({ status: 'return', value: false })
+    expect(deps.callbacksRef.current.onDiagnosticsTraceEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stage: 'grid_merge_mutation_cell_persist_skipped',
+        payload: expect.objectContaining({
+          commandId: UNMERGE_WORKSHEET_MUTATION_ID
+        })
+      })
+    )
   })
 
   it('reads live worksheet cell data for style-only SheetValueChanged commands so formatting can be persisted', () => {
@@ -241,6 +351,36 @@ describe('resolveDetectedCellMutation', () => {
         0: { v: 'Allowed' }
       }
     })
+  })
+
+  it('drops mutations from unknown worksheet ids instead of falling back to the active sheet context', () => {
+    const deps = makeDeps({
+      getSheetContext: (sheetId: string) => (sheetId === 'sheet-1' ? { columns, data: [] } : null),
+      props: {
+        getCanonicalSheetId: (sheetId: string) => sheetId
+      },
+      sheetId: 'ghost-sheet'
+    })
+
+    const result = resolveDetectedCellMutation(deps, {
+      source: 'sheet-value-changed',
+      commandId: 'sheet.mutation.set-range-values',
+      ranges: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 0 }],
+      payloadCellValue: { 0: { 0: { v: 'ghost write' } } },
+      worksheetId: 'ghost-sheet'
+    })
+
+    expect(result).toEqual({ status: 'return', value: false })
+    expect(deps.callbacksRef.current.onDiagnosticsTraceEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stage: 'grid_mutation_dropped_unknown_sheet',
+        payload: expect.objectContaining({
+          rawWorksheetId: 'ghost-sheet',
+          canonicalWorksheetId: 'ghost-sheet',
+          propSheetId: 'sheet-1'
+        })
+      })
+    )
   })
 
   it('uses session-backed context when props lag behind after fill-down materialized more backend rows', () => {

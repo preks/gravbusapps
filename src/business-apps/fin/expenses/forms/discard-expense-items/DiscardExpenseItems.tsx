@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react'
-import { Separator } from '@newwork/nw-design-system'
+import { Separator, useTranslation } from '@newwork/nw-design-system'
 import { AppActionForm } from '@/components/app-action-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import translations from './_i18n'
 import { useGetExpenseItem } from '@/business-apps/fin/expenses/apps/personal-expenses/hooks/useGetExpenseItems'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EXPENSE_ITEMS_STATUS_BY_IDS } from '@/business-apps/fin/expenses/apps/personal-expenses/queries/expenseItems'
@@ -18,7 +18,7 @@ const DiscardExpenseItems: React.FC<DiscardExpenseItemsProps> = ({
   accessToken,
   userInfo
 }) => {
-  const t = getTranslationFromI18nKeyAndLabel
+  const { t } = useTranslation(translations)
   const graphqlClient = useGraphQLClient(accessToken || '')
 
   const expenseItemsIds = useMemo(() => {
@@ -65,6 +65,9 @@ const DiscardExpenseItems: React.FC<DiscardExpenseItemsProps> = ({
       setMultiStatusLoaded(true)
       return
     }
+    if (!accessToken?.trim()) {
+      return
+    }
     let cancelled = false
     setMultiStatusLoaded(false)
     graphqlClient
@@ -84,39 +87,27 @@ const DiscardExpenseItems: React.FC<DiscardExpenseItemsProps> = ({
     return () => {
       cancelled = true
     }
-  }, [isMultiple, expenseItemsIds, graphqlClient])
+  }, [isMultiple, expenseItemsIds, accessToken, graphqlClient])
 
   const confirmationMessage = useMemo(() => {
     if (isMultiple) {
       const useAssigned = !multiStatusLoaded || hasAssignedItems
       if (useAssigned) {
-        return t(
-          'lowcoder:discard_expense_items.assigned_expense_items',
-          'Are you sure you want to delete already assigned expense items?'
-        )
+        return t('assigned-expense-items')
       }
-      return t(
-        'lowcoder:discard_expense_items.draft_expense_items',
-        'Are you sure you want to delete these expense items?'
-      )
+      return t('delete-expense-items')
     }
     if (expenseItemStatus === 'CREATED') {
-      return t(
-        'lowcoder:discard_expense_items.draft_expense_item',
-        'Are you sure you want to delete this expense item?'
-      )
+      return t('delete-expense-item')
     }
-    return t(
-      'lowcoder:discard_expense_items.assigned_expense_item',
-      'Are you sure you want to delete an already assigned expense item?'
-    )
+    return t('assigned-expense-item')
   }, [expenseItemStatus, isMultiple, hasAssignedItems, multiStatusLoaded, t])
 
   const title = useMemo(() => {
     if (isMultiple) {
-      return t('lowcoder:discard_expense_items.discard_expense_items', 'Discard Expense Items')
+      return t('discard-expense-items')
     }
-    return t('lowcoder:discard_expense_items.discard_expense_item', 'Discard Expense Item')
+    return t('discard-expense-item')
   }, [isMultiple, t])
 
   // Return payload only; AppActionForm dispatches once (same as JobRequestDeletePopup etc.).
@@ -154,8 +145,8 @@ const DiscardExpenseItems: React.FC<DiscardExpenseItemsProps> = ({
       onCancel={handleCancel}
       formData={{}}
       onProcessCompletion={handleProcessCompletion}
-      submitButtonText={t('lowcoder:discard_expense_items.confirm_button', 'Yes')}
-      cancelButtonText={t('lowcoder:add_items_to_plan.cancel_items_button', 'Cancel')}
+      submitButtonText={t('action-yes')}
+      cancelButtonText={t('action-cancel')}
       submitButtonVariant="default"
       data-testid="discard-expense-items-form"
     >

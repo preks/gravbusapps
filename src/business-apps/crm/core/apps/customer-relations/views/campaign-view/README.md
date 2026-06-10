@@ -85,6 +85,6 @@ The app queries the `SalesCampaign` table with the following structure:
 
 - Basic fields: `id`, `name`, `description`, `createdAt`, `updatedAt`
 - Date fields: `startDate`, `endDate`
-- Reference fields: `statusRef`, `campaignTypeRef`, `currencyRef`
-- Related entities: `status`, `campaignType`, `currency`, `ownerEmployee`
+- Reference fields: `typeRef`, `customerCampaignStatusRef`, `customerCampaignSegmentRef`, `customerPersonaRef`, `countryRef`, `customerValuePackFocusRef`, `customerIndustryFocusRef`
+- Related entities: `type`, `customerCampaignStatus`, `customerCampaignSegment`, `customerPersona`, `country`, `customerValuePackFocus`, `customerIndustryFocus`, `ownerEmployee`
 - System fields: `isDeleted`, `recordState`, `version`

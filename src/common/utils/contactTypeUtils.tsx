@@ -14,7 +14,6 @@ export const getContactTypeIcon = (contactType: string | undefined) => {
       return BriefcaseIcon
     case ContactType.SECONDARY_CONTACT:
       return UsersIcon
-    case ContactType.UNKNOWN_CONTACT:
     default:
       return UserCircleIcon
   }
@@ -33,9 +32,8 @@ export const getContactTypeColor = (contactType: string | undefined) => {
       return 'gba:bg-blue-100' // Blue for primary
     case ContactType.SECONDARY_CONTACT:
       return 'gba:bg-cyan-100' // Cyan for secondary
-    case ContactType.UNKNOWN_CONTACT:
     default:
-      return 'gba:bg-slate-100' // Slate for unknown
+      return 'gba:bg-slate-100' // Slate for unset or legacy values
   }
 }
 
@@ -52,8 +50,7 @@ export const getContactTypeIconColor = (contactType: string | undefined) => {
       return 'gba:text-blue-600' // Blue for primary
     case ContactType.SECONDARY_CONTACT:
       return 'gba:text-cyan-600' // Cyan for secondary
-    case ContactType.UNKNOWN_CONTACT:
     default:
-      return 'gba:text-slate-600' // Slate for unknown
+      return 'gba:text-slate-600' // Slate for unset or legacy values
   }
 }

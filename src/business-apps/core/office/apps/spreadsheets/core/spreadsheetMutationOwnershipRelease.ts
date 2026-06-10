@@ -1,7 +1,6 @@
 import type { SpreadsheetBatchOperation, SpreadsheetBatchOperationResponse } from '../services/SpreadsheetApiService'
 import { getSpreadsheetRowRefIdentity, resolveSpreadsheetRowRef } from '../utils/spreadsheetRowIdentity'
 import { promoteSpreadsheetRowIdentities } from '../utils/spreadsheetRowIdentityPromotion'
-import { isSpreadsheetStoredCellClearValue } from './spreadsheetBatchBuilders'
 import type { SpreadsheetIntentJournal } from './spreadsheetIntentJournal'
 import type { SpreadsheetVersionCausalOwnershipRegistry } from './spreadsheetVersionCausalOwnership'
 
@@ -38,7 +37,7 @@ const readOperationCellTargets = (operation: SpreadsheetBatchOperation): Operati
     const cells = Array.isArray(record.cells) ? (record.cells as Array<Record<string, unknown>>) : []
     const targets: OperationCellTarget[] = []
     for (const cell of cells) {
-      if (!Object.prototype.hasOwnProperty.call(cell, 'value') || !isSpreadsheetStoredCellClearValue(cell.value)) {
+      if (!Object.prototype.hasOwnProperty.call(cell, 'value')) {
         continue
       }
       const target = readCellTargetFromRecord(cell)

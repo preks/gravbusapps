@@ -66,7 +66,8 @@ export interface CompanyLocation {
 export interface AssetAllocation {
   id: string
   assetId: string
-  employeeId: string
+  employeeId?: string
+  roomId?: string
   startDate: string
   expectedEndDate?: string
   endDate?: string
@@ -76,6 +77,7 @@ export interface AssetAllocation {
   startAssetConditionRef?: string
   endAssetConditionRef?: string
   employee?: { id: string; firstName: string; lastName: string; displayName: string }
+  room?: { id: string; name: string }
   startAssetCondition?: { id: string; code: string; value: string }
   endAssetCondition?: { id: string; code: string; value: string }
   createdAt?: string

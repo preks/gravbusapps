@@ -71,7 +71,7 @@ interface ActivityTimelineListProps {
 
 export const ActivityTimelineList: FC<ActivityTimelineListProps> = ({ events }) => {
   const sortedEvents = useMemo(
-    () => [...events].sort((a, b) => activityTimestampSortValue(b.timestamp) - activityTimestampSortValue(a.timestamp)),
+    () => [...events].sort((a, b) => activityTimestampSortValue(a.timestamp) - activityTimestampSortValue(b.timestamp)),
     [events]
   )
 

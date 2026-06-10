@@ -3,6 +3,7 @@ nh-parent-label = Every Office
 nh-title = Notes
 nh-tabs-aria-label = Note sections
 nh-tab-my-notes = My Notes
+nh-tab-favorites = Favorites
 nh-tab-shared = Shared
 nh-tab-pinned = Pinned
 nh-tab-recent = Recent
@@ -60,6 +61,7 @@ loading-message = Loading...
 
 menu-open = Open
 menu-share = Share
+menu-manage-sharing = Manage sharing
 menu-copy-link = Copy link
 menu-duplicate = Duplicate
 menu-pin = Pin
@@ -128,22 +130,8 @@ folder-no-folders = No folders yet
 folder-create-to-start = Create a note to get started
 folder-settings = Settings
 
-# ShareNoteDialog
-share-title = Share "{ $title }"
-share-description = Share this note with team members. They'll be able to collaborate in real-time.
-share-add-people = Add People
-share-search-placeholder = Search by name or email...
-share-searching = Searching...
-share-sharing = Sharing...
-share-no-users = No users found
+# Note sharing (legacy keys — shared UI uses office/sharing/_i18n)
 share-selected-count = Selected ({ $count })
-share-permission-label = Permission:
-share-permission-view = Can View
-share-permission-view-desc = Can view but not make changes
-share-permission-comment = Can Comment
-share-permission-comment-desc = Can view and add comments
-share-permission-edit = Can Edit
-share-permission-edit-desc = Can view and edit content
 share-permission-owner = Owner
 share-permission-owner-desc = Full access including sharing
 share-success-blink = Shared successfully! Blink notifications sent.
@@ -151,36 +139,22 @@ share-share-with = Share with { $count } { $count ->
   [one] person
  *[other] people
 }
-share-people-with-access = People with access
 share-label-owner = Owner
-share-not-shared = Not shared with anyone yet
-share-add-above = Add people above to share this note
-share-done = Done
-share-error-select = Please select at least one user to share with
 share-error-failed = Failed to share note. Please try again.
 share-toast-success = Shared "{ $title }" with { $count } { $count ->
   [one] person
  *[other] people
 }!
 
-# ManageSharesDialog
-manage-title = Manage Sharing
-manage-description = Manage who has access to "{ $title }"
-manage-retry = Retry
-manage-load-failed = Failed to load sharing information
+# Manage share links (legacy — people tab uses office/sharing/_i18n)
 manage-people-tab = People ({ $count })
 manage-links-tab = Share Links ({ $count })
-manage-not-shared = This note hasn't been shared with anyone yet.
-manage-shared-at = Shared { $date }
 manage-create-link = Create Share Link
 manage-permission = Permission
 manage-expires-optional = Expires (optional)
 manage-permission-view-label = View
 manage-permission-comment-label = Comment
 manage-permission-edit-label = Edit
-manage-can-view = Can view
-manage-can-comment = Can comment
-manage-can-edit = Can edit
 manage-creating = Creating...
 manage-create-link-btn = Create Link
 manage-no-links = No share links created yet.

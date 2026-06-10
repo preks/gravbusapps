@@ -120,9 +120,11 @@ function buildStartTrigger(startNodeId: string, config: any): FlowTrigger {
   } as any
 
   if (triggerType === 'WEBHOOK') {
+    const webhookId = safeString(config?.webhookConfig?.webhookId)
+    const secretRef = safeString(config?.webhookConfig?.secretRef)
     base.config = {
-      url: config?.webhookConfig?.url,
-      secret: config?.webhookConfig?.secret
+      ...(webhookId ? { webhookId } : {}),
+      ...(secretRef ? { secretRef } : {})
     }
   }
   if (triggerType === 'EMAIL') {
@@ -495,7 +497,10 @@ export function templateToStudioGraph(template: FlowTemplate): {
       form: (template.start as any)?.form ?? (template as any)?.initStep?.form ?? [],
       webhookConfig:
         activeTriggerType === 'WEBHOOK'
-          ? { url: activeTriggerConfig.url, secret: activeTriggerConfig.secret }
+          ? {
+              webhookId: safeString(activeTriggerConfig.webhookId),
+              secretRef: safeString(activeTriggerConfig.secretRef)
+            }
           : undefined,
       emailConfig:
         activeTriggerType === 'EMAIL'

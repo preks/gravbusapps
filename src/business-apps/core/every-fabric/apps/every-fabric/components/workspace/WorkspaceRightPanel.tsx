@@ -1249,6 +1249,7 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
         <SessionTimelineCard
           decisions={decisions}
           activityEvents={activityEvents}
+          isStreaming={isStreaming}
           defaultCollapsed={collapseSecondaryPanels}
         />
       )}

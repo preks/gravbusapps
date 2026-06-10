@@ -108,75 +108,83 @@ export const AssetAllocationHistory: React.FC<AssetAllocationHistoryProps> = ({
       </CardHeader>
       <CardContent>
         <div className="gba:space-y-4">
-          {allocations.map(allocation => (
-            <div
-              key={allocation.id}
-              className="gba:border-l-2 gba:border-primary gba:pl-4 gba:pb-4"
-              data-testid={`allocation-item-${allocation.id}`}
-            >
-              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                <UserIcon size={20} className="gba:text-primary" />
-                <span className="gba:font-medium">
-                  {allocation.employee?.displayName ||
-                    `${allocation.employee?.firstName || ''} ${allocation.employee?.lastName || ''}`.trim() ||
-                    getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.unknown_employee', 'Unknown Employee')}
-                </span>
-                {!allocation.endDate && (
-                  <Badge variant="success" data-testid={`allocation-active-${allocation.id}`}>
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.current', 'Current')}
-                  </Badge>
+          {allocations.map(allocation => {
+            const allocationTargetName =
+              allocation.room?.name ||
+              allocation.employee?.displayName ||
+              `${allocation.employee?.firstName || ''} ${allocation.employee?.lastName || ''}`.trim() ||
+              getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.unknown_employee', 'Unknown Employee')
+
+            return (
+              <div
+                key={allocation.id}
+                className="gba:border-l-2 gba:border-primary gba:pl-4 gba:pb-4"
+                data-testid={`allocation-item-${allocation.id}`}
+              >
+                <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                  <UserIcon size={20} className="gba:text-primary" />
+                  <span className="gba:font-medium">{allocationTargetName}</span>
+                  {!allocation.endDate && (
+                    <Badge variant="success" data-testid={`allocation-active-${allocation.id}`}>
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.current', 'Current')}
+                    </Badge>
+                  )}
+                </div>
+
+                <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground gba:mb-2">
+                  <CalendarIcon size={16} />
+                  <span>
+                    {formatDate(allocation.startDate) || allocation.startDate}
+                    {allocation.endDate ? (
+                      <>
+                        {' → '}
+                        {formatDate(allocation.endDate) || allocation.endDate}
+                      </>
+                    ) : (
+                      ` → ${getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.present', 'Present')}`
+                    )}
+                  </span>
+                  <span className="gba:text-xs">({calculateDuration(allocation.startDate, allocation.endDate)})</span>
+                </div>
+
+                {allocation.startAssetCondition && (
+                  <div className="gba:text-sm gba:mb-1">
+                    <span className="gba:font-medium">
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.start_condition', 'Start Condition')}:{' '}
+                    </span>
+                    <span className="gba:text-muted-foreground">
+                      {getConditionDisplayValue(
+                        allocation.startAssetConditionRef,
+                        allocation.startAssetCondition.value
+                      )}
+                    </span>
+                  </div>
+                )}
+
+                {allocation.endAssetCondition && (
+                  <div className="gba:text-sm gba:mb-1">
+                    <span className="gba:font-medium">
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.return_condition', 'Return Condition')}
+                      :{' '}
+                    </span>
+                    <span className="gba:text-muted-foreground">
+                      {getConditionDisplayValue(allocation.endAssetConditionRef, allocation.endAssetCondition.value)}
+                    </span>
+                  </div>
+                )}
+
+                {!allocation.endDate && allocation.expectedEndDate && (
+                  <div className="gba:text-sm gba:text-muted-foreground gba:flex gba:items-center gba:gap-2">
+                    <CheckCircleIcon size={16} />
+                    <span>
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.expected_return', 'Expected return')}:{' '}
+                      {formatDate(allocation.expectedEndDate) || allocation.expectedEndDate}
+                    </span>
+                  </div>
                 )}
               </div>
-
-              <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground gba:mb-2">
-                <CalendarIcon size={16} />
-                <span>
-                  {formatDate(allocation.startDate) || allocation.startDate}
-                  {allocation.endDate ? (
-                    <>
-                      {' → '}
-                      {formatDate(allocation.endDate) || allocation.endDate}
-                    </>
-                  ) : (
-                    ` → ${getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.present', 'Present')}`
-                  )}
-                </span>
-                <span className="gba:text-xs">({calculateDuration(allocation.startDate, allocation.endDate)})</span>
-              </div>
-
-              {allocation.startAssetCondition && (
-                <div className="gba:text-sm gba:mb-1">
-                  <span className="gba:font-medium">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.start_condition', 'Start Condition')}:{' '}
-                  </span>
-                  <span className="gba:text-muted-foreground">
-                    {getConditionDisplayValue(allocation.startAssetConditionRef, allocation.startAssetCondition.value)}
-                  </span>
-                </div>
-              )}
-
-              {allocation.endAssetCondition && (
-                <div className="gba:text-sm gba:mb-1">
-                  <span className="gba:font-medium">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.return_condition', 'Return Condition')}:{' '}
-                  </span>
-                  <span className="gba:text-muted-foreground">
-                    {getConditionDisplayValue(allocation.endAssetConditionRef, allocation.endAssetCondition.value)}
-                  </span>
-                </div>
-              )}
-
-              {!allocation.endDate && allocation.expectedEndDate && (
-                <div className="gba:text-sm gba:text-muted-foreground gba:flex gba:items-center gba:gap-2">
-                  <CheckCircleIcon size={16} />
-                  <span>
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.expected_return', 'Expected return')}:{' '}
-                    {formatDate(allocation.expectedEndDate) || allocation.expectedEndDate}
-                  </span>
-                </div>
-              )}
-            </div>
-          ))}
+            )
+          })}
         </div>
       </CardContent>
     </Card>

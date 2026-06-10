@@ -24,6 +24,8 @@ export interface TaskDetailContentProps {
   assignedUserId?: string
   currentUserId?: string
   businessAppContext?: BusinessAppContextProps
+  /** When true, DocuSign signing UI is shown (set by CRM/IRM parents from FeatureHub). */
+  docuSignEnabled?: boolean
 }
 
 /**
@@ -37,7 +39,8 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
   accessToken,
   assignedUserId,
   currentUserId,
-  businessAppContext
+  businessAppContext,
+  docuSignEnabled = false
 }) => {
   // Extract catalog entries for task metadata
   const taskStatus = (task as any).taskStatus as CatalogEntry
@@ -65,7 +68,7 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
     openDocuSignModal,
     statusMap,
     isDocuSignAuthenticated
-  } = useDocuSignIntegration(task, accessToken, isAssignee)
+  } = useDocuSignIntegration(task, accessToken, isAssignee, docuSignEnabled)
 
   // Build task context for DocuSign modal
   const investmentTaskFormData = React.useMemo(() => buildInvestmentTaskFormDataFromTask(task), [task])
@@ -113,7 +116,7 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
           onOpenDocuSignModal={() => openDocuSignModal()}
         />
 
-        {isDocuSignAuthenticated === false && (
+        {docuSignEnabled && isDocuSignAuthenticated === false && (
           <DigitalReferralBanner
             onStartReferral={() => openDocuSignModal({ focusReferral: true })}
             className="gba:bg-background"
@@ -126,6 +129,7 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
           dataTestId={dataTestId || DATA_TEST_ID_PREFIX}
           onDocumentClick={handleDocumentClick}
           onCheckEnvelopeStatus={checkEnvelopeStatus}
+          showDocuSignEnvelopeStatus={docuSignEnabled}
         />
 
         <TaskInstancesCard
@@ -138,27 +142,29 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
         <div className="gba:h-4" />
       </div>
 
-      <DocuSignSignatureModal
-        isOpen={isDocuSignOpen}
-        onClose={() => {
-          setIsDocuSignOpen(false)
-          setFocusReferral(false)
-        }}
-        accessToken={accessToken}
-        assignedUserId={assignedUserId}
-        emailOnly={!isAssignee}
-        businessAppContext={businessAppContext}
-        taskContext={docuSignTaskContext}
-        documents={documentsWithStatus.map(d => ({
-          id: d.id,
-          name: d.name,
-          mimeType: d.mimeType,
-          version: d.version,
-          envelopeStatus: d.envelopeStatus,
-          fileInfo: d.fileInfo
-        }))}
-        focusReferral={focusReferral}
-      />
+      {docuSignEnabled && (
+        <DocuSignSignatureModal
+          isOpen={isDocuSignOpen}
+          onClose={() => {
+            setIsDocuSignOpen(false)
+            setFocusReferral(false)
+          }}
+          accessToken={accessToken}
+          assignedUserId={assignedUserId}
+          emailOnly={!isAssignee}
+          businessAppContext={businessAppContext}
+          taskContext={docuSignTaskContext}
+          documents={documentsWithStatus.map(d => ({
+            id: d.id,
+            name: d.name,
+            mimeType: d.mimeType,
+            version: d.version,
+            envelopeStatus: d.envelopeStatus,
+            fileInfo: d.fileInfo
+          }))}
+          focusReferral={focusReferral}
+        />
+      )}
     </ScrollArea>
   )
 }

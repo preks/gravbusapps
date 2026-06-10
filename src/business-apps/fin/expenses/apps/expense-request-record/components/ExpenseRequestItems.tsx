@@ -13,7 +13,7 @@ import {
 } from '@newwork/nw-design-system'
 import type { ColumnsType } from 'antd/es/table'
 import Pill from '@/components/pill'
-import { ExpenseRequestItem } from '../types/expenseRequestRecord.types'
+import { ExpenseRequestAmountTotals, ExpenseRequestItem } from '../types/expenseRequestRecord.types'
 import { getCatalogValue } from '@/common/utils/windowUtils'
 import { SectionKpiCards, type KpiCardData } from '@newwork/nw-design-system'
 import { Check } from '@phosphor-icons/react'
@@ -24,9 +24,14 @@ import { ExpenseItemDetails } from '../../personal-expenses/components/tabs/expe
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import ExpensePositionsSection from './ExpensePositionsSection'
 import expenseRequestRecordTranslations from '../_i18n'
+import {
+  getRecordKpiAmountFields,
+  RECORD_EXPENSE_FIVE_KPI_CARDS_CLASSNAME
+} from '../../../common/utils/recordExpenseKpiCards'
 
 interface ExpenseRequestItemsProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {
   expenseRequestItems: ExpenseRequestItem[]
+  requestTotals: ExpenseRequestAmountTotals
   currencyCode?: string
   /** The employee ID of the expense owner (for fetching file attachments) */
   expenseOwnerEmployeeId?: string
@@ -34,21 +39,12 @@ interface ExpenseRequestItemsProps extends Pick<BusinessAppContextProps, 'access
 
 // Table summary component defined outside parent component to fix lint error
 interface TableSummaryProps {
-  pageData: readonly ExpenseRequestItem[]
+  requestTotals: ExpenseRequestAmountTotals
   formatAmount: (amount: number) => string
 }
 
-const TableSummary: React.FC<TableSummaryProps> = ({ pageData, formatAmount }) => {
+const TableSummary: React.FC<TableSummaryProps> = ({ requestTotals, formatAmount }) => {
   const { t } = useTranslation(expenseRequestRecordTranslations)
-  let totalAmount = 0
-  let totalReimbursable = 0
-  let totalDeductible = 0
-
-  pageData.forEach(({ totalAmount: amount, reimbursableAmount, deductibleAmount }) => {
-    totalAmount += amount
-    totalReimbursable += reimbursableAmount
-    totalDeductible += deductibleAmount
-  })
 
   return (
     <Table.Summary fixed>
@@ -57,13 +53,13 @@ const TableSummary: React.FC<TableSummaryProps> = ({ pageData, formatAmount }) =
           <span className="gba:font-semibold">{t('expense-request-record-total')}</span>
         </Table.Summary.Cell>
         <Table.Summary.Cell index={6} align="right">
-          <span className="gba:font-semibold">{formatAmount(totalAmount)}</span>
+          <span className="gba:font-semibold">{formatAmount(requestTotals.totalAmount)}</span>
         </Table.Summary.Cell>
         <Table.Summary.Cell index={7} align="right">
-          <span>{formatAmount(totalReimbursable)}</span>
+          <span>{formatAmount(requestTotals.reimbursableAmount)}</span>
         </Table.Summary.Cell>
         <Table.Summary.Cell index={8} align="right">
-          <span>{formatAmount(totalDeductible)}</span>
+          <span>{formatAmount(requestTotals.deductibleAmount)}</span>
         </Table.Summary.Cell>
       </Table.Summary.Row>
     </Table.Summary>
@@ -72,6 +68,7 @@ const TableSummary: React.FC<TableSummaryProps> = ({ pageData, formatAmount }) =
 
 const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({
   expenseRequestItems,
+  requestTotals,
   currencyCode,
   accessToken,
   userInfo,
@@ -227,71 +224,35 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({
     }
   ]
 
-  // Calculate summary amounts for the KPI cards
-  const summaryAmounts = useMemo(() => {
-    if (!expenseRequestItems.length) {
-      return {
-        reimbursable: 0,
-        nonReimbursable: 0,
-        deductible: 0,
-        nonDeductible: 0,
-        total: 0
-      }
-    }
-
-    return expenseRequestItems.reduce(
-      (acc, item) => {
-        // Calculate totals
-        acc.reimbursable += item.reimbursableAmount || 0
-        acc.deductible += item.deductibleAmount || 0
-        acc.nonDeductible += item.nonDeductibleAmount || 0
-        acc.total += item.totalAmount || 0
-
-        // Calculate non-reimbursable (total minus reimbursable)
-        const nonReimbursable = item.totalAmount - item.reimbursableAmount
-        acc.nonReimbursable += nonReimbursable > 0 ? nonReimbursable : 0
-
-        return acc
-      },
-      {
-        reimbursable: 0,
-        nonReimbursable: 0,
-        deductible: 0,
-        nonDeductible: 0,
-        total: 0
-      }
-    )
-  }, [expenseRequestItems])
-  // KPI cards from design system
   const kpiCards: KpiCardData[] = useMemo(
     () => [
       {
         id: 'total-amount',
         title: t('expense-request-record-total-amount'),
-        value: formatAmount(summaryAmounts.total)
+        ...getRecordKpiAmountFields(requestTotals.totalAmount, currencyCode)
       },
       {
         id: 'reimbursable-amount',
         title: t('expense-request-record-column-reimbursable'),
-        value: formatAmount(summaryAmounts.reimbursable)
+        ...getRecordKpiAmountFields(requestTotals.reimbursableAmount, currencyCode)
       },
       {
         id: 'non-reimbursable-amount',
         title: t('expense-request-record-non-reimbursable'),
-        value: formatAmount(summaryAmounts.nonReimbursable)
+        ...getRecordKpiAmountFields(requestTotals.nonReimbursableAmount, currencyCode)
       },
       {
         id: 'deductible-amount',
         title: t('expense-request-record-column-deductible'),
-        value: formatAmount(summaryAmounts.deductible)
+        ...getRecordKpiAmountFields(requestTotals.deductibleAmount, currencyCode)
       },
       {
         id: 'non-deductible-amount',
         title: t('expense-request-record-non-deductible'),
-        value: formatAmount(summaryAmounts.nonDeductible)
+        ...getRecordKpiAmountFields(requestTotals.nonDeductibleAmount, currencyCode)
       }
     ],
-    [summaryAmounts, currencyCode, t]
+    [requestTotals, currencyCode, t]
   )
 
   return (
@@ -303,10 +264,7 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({
       </CardHeader>
       <CardContent className="gba:p-0">
         <div className="gba:mb-6" data-testid="expense-request-summary-widgets">
-          <SectionKpiCards
-            cards={kpiCards}
-            className="gba:!grid-cols-5 gba:md:!grid-cols-5 gba:lg:!grid-cols-5 gba:[&_[data-slot=card-title]]:!text-xl"
-          />
+          <SectionKpiCards cards={kpiCards} className={RECORD_EXPENSE_FIVE_KPI_CARDS_CLASSNAME} />
         </div>
         <Table
           columns={columns}
@@ -315,7 +273,7 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({
           pagination={false}
           size="middle"
           scroll={{ x: 'max-content' }}
-          summary={pageData => <TableSummary pageData={pageData} formatAmount={formatAmount} />}
+          summary={() => <TableSummary requestTotals={requestTotals} formatAmount={formatAmount} />}
           onRow={record => ({
             onClick: () => handleRowClick(record),
             style: { cursor: 'pointer' }
@@ -334,7 +292,6 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({
             {selectedItem && accessToken ? (
               <>
                 <ExpenseItemDetails
-                  translations={expenseRequestRecordTranslations}
                   selectedItem={
                     {
                       ...selectedItem,

@@ -1,5 +1,6 @@
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import type { Dispatch, SetStateAction } from 'react'
 
 /**
  * Campaign data structure (generic - adaptable to any module's campaign entity)
@@ -80,6 +81,7 @@ export interface CampaignTypeOption {
 export interface CampaignManagementLayoutProps extends BusinessAppContextProps {
   // Data props
   campaigns: Campaign[]
+  totalCount: number
   statistics: CampaignStatistics | null
   analyticsData: CampaignAnalyticsData | null
   campaignTypeOptions: CampaignTypeOption[]
@@ -120,6 +122,8 @@ export interface CampaignManagementLayoutProps extends BusinessAppContextProps {
   sortField?: string
   sortOrder?: 'ASC' | 'DESC'
   onSortChange?: (field: string, order: 'ASC' | 'DESC') => void
+  pagination: { pageIndex: number; pageSize: number }
+  onPaginationChange: Dispatch<SetStateAction<{ pageIndex: number; pageSize: number }>>
 
   // Actions
   onRefetch: () => void
@@ -127,8 +131,8 @@ export interface CampaignManagementLayoutProps extends BusinessAppContextProps {
   onRefetchAnalytics: () => void
   onRefetchTimeline: () => void
   onFetchAnalytics: () => void
+  onTabDataFetch?: (tab: 'overview' | 'analytics' | 'insights') => void
   onCampaignRowClick?: (campaign: Campaign) => void
-  onAddCampaign?: () => void
 
   // Analytics timeline period (flexible string to support different module schemas)
   timelinePeriod: string
@@ -147,10 +151,11 @@ export interface CampaignManagementLayoutProps extends BusinessAppContextProps {
   }
 
   // Rendering functions (allows parent to control how components are rendered)
-  columns?: any[] // Column definitions for the table
+  columns?: any[]
   renderCampaignActions?: (row: { original: Campaign }) => React.ReactNode
   renderStatistics?: () => React.ReactNode
   renderAnalytics?: () => React.ReactNode
+  renderInsights?: () => React.ReactNode
 
   // Configuration objects
   filterConfiguration?: any

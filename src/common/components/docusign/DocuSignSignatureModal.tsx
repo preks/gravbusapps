@@ -24,7 +24,6 @@ import {
   Label,
   RadioGroup,
   RadioGroupItem,
-  Checkbox,
   Alert,
   AlertDescription,
   Spinner
@@ -33,13 +32,15 @@ import {
 type TaskDoc = {
   id: string
   name: string
-  mimeType?: string
+  mimeType?: string | null
   version?: number
   envelopeStatus?: string
   fileInfo?: FileInfo
 }
 
 type SelectedSource = 'existing' | 'upload'
+
+type DocuSignAlertVariant = 'default' | 'destructive'
 
 interface DocuSignSignatureModalProps {
   isOpen: boolean
@@ -191,7 +192,7 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
 
   const getFileExtension = (name?: string) => (name || '').split('.').pop()?.toLowerCase() || ''
 
-  const isSupportedDoc = (name?: string, mime?: string) => {
+  const isSupportedDoc = (name?: string, mime?: string | null) => {
     const ext = getFileExtension(name)
     if (ext && SUPPORTED_EXTENSIONS.includes(ext)) {
       return true
@@ -254,42 +255,45 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
     emailOnly,
     isCurrentUserAssignee
   ])
-  const { alertVariant, alertMessage } = useMemo(() => {
+  const { alertVariant, alertMessage } = useMemo((): {
+    alertVariant: DocuSignAlertVariant
+    alertMessage: string
+  } => {
     if (selectedSource === 'existing') {
       if (selectedDocEnvelopeId) {
         if (isSelectedDocCompleted) {
           return {
-            alertVariant: 'success' as const,
+            alertVariant: 'default',
             alertMessage: 'This document has already been signed. No further action is required.'
           }
         }
         if (canReuseEnvelope) {
           return {
-            alertVariant: 'info' as const,
+            alertVariant: 'default',
             alertMessage: 'You will be redirected to DocuSign to continue signing this envelope and then returned here.'
           }
         }
         if (selectedDocEnvelopeMode === 'email') {
           return {
-            alertVariant: 'info' as const,
+            alertVariant: 'default',
             alertMessage: 'This request was sent via email. Please use the DocuSign email invitation to sign.'
           }
         }
         return {
-          alertVariant: 'info' as const,
+          alertVariant: 'default',
           alertMessage:
             'A signature request for this document is already in progress. We are waiting for the assignee to complete it.'
         }
       }
       return {
-        alertVariant: 'info' as const,
+        alertVariant: 'default',
         alertMessage:
           'The signer will be redirected to DocuSign to sign this attachment (PDF, Office, or image files) and then returned.'
       }
     }
 
     return {
-      alertVariant: 'info' as const,
+      alertVariant: 'default',
       alertMessage:
         'After you upload a supported document (PDF, Office, or image), the signer will be redirected to DocuSign to complete the signature.'
     }
@@ -550,7 +554,7 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
               </Alert>
             )}
             {referralMessage && (
-              <Alert variant="success">
+              <Alert variant="default">
                 <AlertDescription>{referralMessage}</AlertDescription>
               </Alert>
             )}
@@ -722,7 +726,7 @@ export const DocuSignSignatureModal: React.FC<DocuSignSignatureModalProps> = ({
                 (selectedSource === 'existing'
                   ? !selectedDocId || (selectedDocEnvelopeId ? isSelectedDocCompleted : false)
                   : !uploadedFile) ||
-                (selectedSource === 'existing' && selectedDocEnvelopeId && !canReuseEnvelope)
+                Boolean(selectedSource === 'existing' && selectedDocEnvelopeId && !canReuseEnvelope)
               }
             >
               {isLoading ? (

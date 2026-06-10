@@ -19,6 +19,7 @@ interface ConfirmSkillActionDialogProps {
   onConfirm: () => void | Promise<void>
   variant?: 'default' | 'destructive'
   isLoading?: boolean
+  hideConfirm?: boolean
 }
 
 export default function ConfirmSkillActionDialog({
@@ -30,7 +31,8 @@ export default function ConfirmSkillActionDialog({
   cancelLabel = 'Cancel',
   onConfirm,
   variant = 'default',
-  isLoading
+  isLoading,
+  hideConfirm = false
 }: Readonly<ConfirmSkillActionDialogProps>) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -41,19 +43,21 @@ export default function ConfirmSkillActionDialog({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isLoading}>{cancelLabel}</AlertDialogCancel>
-          <Button
-            type="button"
-            onClick={() => void onConfirm()}
-            disabled={isLoading}
-            variant={variant}
-            className={
-              variant === 'destructive'
-                ? 'gba:bg-destructive gba:text-destructive-foreground gba:hover:bg-destructive/90'
-                : ''
-            }
-          >
-            {isLoading ? 'Processing...' : confirmLabel}
-          </Button>
+          {!hideConfirm && (
+            <Button
+              type="button"
+              onClick={() => void onConfirm()}
+              disabled={isLoading}
+              variant={variant}
+              className={
+                variant === 'destructive'
+                  ? 'gba:bg-destructive gba:text-destructive-foreground gba:hover:bg-destructive/90'
+                  : ''
+              }
+            >
+              {isLoading ? 'Processing...' : confirmLabel}
+            </Button>
+          )}
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

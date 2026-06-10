@@ -55,20 +55,26 @@ export const useJobPositions = ({
     value: position.id
   })
 
-  // Build filter object based on organizational unit
+  // Build filter object based on organizational unit + active positions only
   const buildFilter = useCallback(() => {
-    const filter: any = {}
+    const conditions: any[] = []
 
-    // Filter by organizational unit if specified
+    const todayIso = new Date().toISOString().split('T')[0]
+    conditions.push({
+      _or: [{ activeTo: { _isNull: true } }, { activeTo: { _gte: todayIso } }]
+    })
+
     if (currentOrgUnitId) {
-      filter.organizationalUnitEmployees = {
-        organizationalUnit: {
-          id: { _eq: currentOrgUnitId }
+      conditions.push({
+        organizationalUnitEmployees: {
+          organizationalUnit: {
+            id: { _eq: currentOrgUnitId }
+          }
         }
-      }
+      })
     }
 
-    return filter
+    return conditions.length === 1 ? conditions[0] : { _and: conditions }
   }, [currentOrgUnitId])
 
   const buildVacancyFilter = useCallback(() => {
@@ -226,6 +232,7 @@ export const useJobPositions = ({
     loadMore,
     searchPositions,
     retry,
-    refetch
+    refetch,
+    initialLoadDone
   }
 }

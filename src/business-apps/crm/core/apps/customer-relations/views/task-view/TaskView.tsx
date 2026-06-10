@@ -15,6 +15,8 @@ import {
 } from '@/common/components/common-relations/view-layouts/task-layout/config'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import type { FilterConfiguration } from '@newwork/nw-design-system'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 
 // CRM-specific filter config (exclude investment reference type)
 const crmTaskFilterConfig: FilterConfiguration = {
@@ -95,6 +97,7 @@ const copyTaskFilters = (
 export type TaskViewProps = BusinessAppContextProps
 
 export const TaskView: React.FC<TaskViewProps> = context => {
+  const docuSignEnabled = useFeature<boolean>(Feature.CRM.DocuSign.Key) === true
   const { initialFilters, saveFilters, initialSorting, saveSorting, initialVisibleColumns, saveVisibleColumns } =
     useViewPreferencesStorage('crm:customer-task-preferences:v1')
   const { fetchCustomerTasks } = useCustomerTasks(context)
@@ -235,6 +238,7 @@ export const TaskView: React.FC<TaskViewProps> = context => {
       onSortingChange={saveSorting}
       initialVisibleColumns={initialVisibleColumns ?? undefined}
       onVisibleColumnsChange={saveVisibleColumns}
+      docuSignEnabled={docuSignEnabled}
     />
   )
 }

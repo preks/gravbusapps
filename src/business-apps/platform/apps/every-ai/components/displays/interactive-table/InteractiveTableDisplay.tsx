@@ -1,8 +1,10 @@
 import React, { useMemo, useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, DataDisplay, DataTable } from '@newwork/nw-design-system'
+import { Button, Card, CardContent, CardHeader, CardTitle, DataDisplay, DataTable } from '@newwork/nw-design-system'
 import type { CurrencyCellValue, InteractiveTableData, InteractiveTableColumn } from '../../../types/models'
+import { useDisplayDataRequery } from '../../../hooks/useDisplayDataRequery'
 import { formatCurrencyCell } from './formatCurrencyCell'
 import { formatDateCell, isIsoDateLike } from './formatDateCell'
+import { mapGraphqlRowsToExistingColumns } from './graphqlRowsToTableData'
 import { renderInteractiveTableCell } from './interactiveTableCells'
 import { ensureDataTableRowIds, sortableValueForColumn, type TableRow } from './interactiveTableRowUtils'
 
@@ -59,13 +61,44 @@ export const InteractiveTableDisplay: React.FC<InteractiveTableDisplayProps> = (
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => data.columns.map(c => c.id))
 
+  const querySpec = data.querySpec ?? null
+  const requeryPageSize = querySpec?.pageSize ?? 20
+  const {
+    run: runRequery,
+    loading: requeryLoading,
+    error: requeryError
+  } = useDisplayDataRequery(accessToken, querySpec)
+  const [extraRows, setExtraRows] = useState<TableRow[]>([])
+  const [requeryExhausted, setRequeryExhausted] = useState(false)
+
+  const allRows = useMemo(() => [...(data.rows as TableRow[]), ...extraRows], [data.rows, extraRows])
+
+  const knownTotal = data.totalCount ?? querySpec?.totalCount ?? null
+  const canLoadMore = Boolean(querySpec) && !requeryExhausted && (knownTotal === null || allRows.length < knownTotal)
+
+  const handleLoadMore = async () => {
+    if (!querySpec) {
+      return
+    }
+    const offsetVar = querySpec.offsetVar ?? 'offset'
+    const limitVar = querySpec.limitVar ?? 'limit'
+    const fetched = await runRequery({ [offsetVar]: allRows.length, [limitVar]: requeryPageSize })
+    if (fetched.length < requeryPageSize) {
+      setRequeryExhausted(true)
+    }
+    if (fetched.length > 0) {
+      const mapped = mapGraphqlRowsToExistingColumns(fetched, data.columns, data.rowEntityIdColumn) as TableRow[]
+      setExtraRows(prev => [...prev, ...mapped])
+    }
+  }
+
   const rowsWithIds = useMemo(
     () =>
-      ensureDataTableRowIds(data.rows as TableRow[], {
+      ensureDataTableRowIds(allRows, {
         rowEntityIdColumn: data.rowEntityIdColumn,
         columns: data.columns
       }),
-    [data.rows, data.rowEntityIdColumn, data.columns]
+    [allRows, data.rowEntityIdColumn, data.columns]
   )
 
   const filteredRows = useMemo(
@@ -152,6 +185,25 @@ export const InteractiveTableDisplay: React.FC<InteractiveTableDisplayProps> = (
             data-testid="interactive-table-data-table"
           />
         </DataDisplay>
+        {querySpec ? (
+          <div className="gba:mt-3 gba:flex gba:items-center gba:gap-3" data-testid="interactive-table-requery">
+            {canLoadMore ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLoadMore}
+                disabled={requeryLoading}
+                data-testid="interactive-table-load-more"
+              >
+                {requeryLoading ? 'Loading…' : 'Load more'}
+              </Button>
+            ) : (
+              <span className="gba:text-xs gba:text-muted-foreground">All loaded rows shown.</span>
+            )}
+            <span className="gba:text-xs gba:text-muted-foreground">{allRows.length} rows loaded</span>
+            {requeryError ? <span className="gba:text-xs gba:text-destructive">{requeryError}</span> : null}
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   )

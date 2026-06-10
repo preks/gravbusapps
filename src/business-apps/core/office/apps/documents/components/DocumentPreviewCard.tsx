@@ -44,6 +44,7 @@ import {
   Settings,
   FileType
 } from 'lucide-react'
+import { getShareCapabilities } from '@/business-apps/core/office/sharing'
 import type { DocumentSummary, DocumentStatus, DocumentApprovalRequest } from '../types'
 import translations from '../_i18n'
 
@@ -52,7 +53,7 @@ export interface SharedUserInfo {
   userId: string
   userName?: string
   userAvatar?: string
-  permission?: 'view' | 'edit' | 'comment'
+  permission?: 'view' | 'edit' | 'comment' | 'admin'
 }
 
 export interface DocumentPreviewCardProps {
@@ -196,8 +197,7 @@ function getAvatarUrl(picture?: string): string | undefined {
 export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
   document,
   approvalRequest,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  currentUserId: _currentUserId,
+  currentUserId,
   sharedUsers = [],
   sharedByUser,
   onOpen,
@@ -212,6 +212,12 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
 }) => {
   const { t } = useTranslation(translations)
   const statusBadge = getStatusBadge(document.status, t)
+  const capabilities = getShareCapabilities({
+    permission: document.permission,
+    isOwner: Boolean(
+      document.isOwner || document.permission === 'owner' || (currentUserId && currentUserId === document.createdBy)
+    )
+  })
   const canEdit = document.isOwner || document.permission === 'edit'
   const canShare = document.isOwner
   const canSendForApproval =
@@ -238,7 +244,7 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
       sharedByUser: sharedByUser?.userName
     })
   }, [document, canEdit, onSendForApproval, canSendForApproval, isSharedWithMe, sharedUsers, sharedByUser])
-  const canDelete = document.isOwner
+  const canDelete = capabilities.canDelete
 
   // Get approval info
   const approvedBy = approvalRequest?.approvers?.filter(a => a.status === 'approved') || []

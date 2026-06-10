@@ -13,6 +13,7 @@ import {
   AvatarFallback,
   Spinner,
   toast,
+  Toaster,
   useTranslation
 } from '@newwork/nw-design-system'
 import { useScopePermissionCheck } from '@/common/hooks/useScopePermissionCheck'
@@ -645,9 +646,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       }
 
       if (tabKey === TAB_KEYS.absences) {
-        const visible =
-          isSelfView || isDirectManagerWithPermission || employeeRecordAllHrBackoffice?.hasPermission === true
-        return visible
+        return isSelfView || isDirectManagerWithPermission || employeeRecordAllHrBackoffice?.hasPermission === true
       }
 
       if (tabKey === TAB_KEYS.serviceRequests) {
@@ -724,7 +723,12 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     }
   }, [tabItems, activeTab])
 
-  return renderContent()
+  return (
+    <>
+      <Toaster position="bottom-right" />
+      {renderContent()}
+    </>
+  )
 }
 
 export default EmployeeRecord

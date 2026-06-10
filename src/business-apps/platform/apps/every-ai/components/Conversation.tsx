@@ -6,6 +6,7 @@ import { AvatarWithInitials } from './shared/AvatarWithInitials'
 import { UserInfoProps } from '@/common/BusinessAppContext'
 import { CheckCircleIcon, CopyIcon, PencilSimple, SparkleIcon } from '@phosphor-icons/react'
 import { Button } from '@newwork/nw-design-system'
+import { resolveUserMessageDisplayText } from '../utils/userMessageDisplay'
 
 interface ConversationProps {
   turns: ConversationTurn[]
@@ -43,16 +44,7 @@ const UserTurnRenderer: React.FC<{ turn: UserTurn; accessToken: string; userInfo
 }) => {
   const [copied, setCopied] = useState(false)
 
-  // Parse JSON messages to show user-friendly text
-  let displayText = turn.text || ''
-  try {
-    const parsed = JSON.parse(turn.text || '')
-    if (parsed?.userMessage) {
-      displayText = parsed.userMessage
-    }
-  } catch {
-    // Not JSON, use original text
-  }
+  const displayText = resolveUserMessageDisplayText(turn.text || '')
   const textWithMentions = buildTextWithMentions(displayText, turn.mentions)
 
   const handleCopy = async (e: React.MouseEvent) => {

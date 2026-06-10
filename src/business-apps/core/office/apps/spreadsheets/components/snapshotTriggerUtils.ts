@@ -1,3 +1,10 @@
+import {
+  UNIVER_COL_WIDTH_MUTATION,
+  UNIVER_SET_COL_AUTO_WIDTH_COMMAND,
+  UNIVER_SET_ROW_AUTO_HEIGHT_COMMAND,
+  UNIVER_ROW_AUTO_HEIGHT_MUTATION
+} from './univerDimensionUserIntent'
+
 export const VALUE_MUTATION_SNAPSHOT_SUPPRESSION_MS = 300
 
 export const VALUE_MUTATION_COMMAND_HINTS = [
@@ -61,13 +68,25 @@ const DIMENSION_SNAPSHOT_EXCLUDE_COMMAND_HINTS = [
   'move-selection'
 ]
 
+const DIMENSION_SNAPSHOT_SIDE_EFFECT_COMMAND_IDS = new Set([
+  UNIVER_ROW_AUTO_HEIGHT_MUTATION,
+  'sheet.operation.mark-dirty-row-auto-height',
+  'sheet.operation.cancel-mark-dirty-row-auto-height'
+])
+
+const DIMENSION_SNAPSHOT_USER_COMMAND_IDS = new Set([
+  'sheet.command.delta-row-height',
+  'sheet.command.set-row-height',
+  'sheet.command.delta-column-width',
+  'sheet.command.set-column-width',
+  'sheet.command.set-worksheet-col-width',
+  UNIVER_SET_ROW_AUTO_HEIGHT_COMMAND,
+  UNIVER_SET_COL_AUTO_WIDTH_COMMAND
+])
+
 const DIMENSION_SNAPSHOT_LAYOUT_COMMAND_HINTS = [
   'resize',
-  'width',
-  'height',
   'zoom',
-  'autofit',
-  'auto-fit',
   'insert-row',
   'insert-rows',
   'insert-column',
@@ -99,6 +118,23 @@ const DIMENSION_SNAPSHOT_LAYOUT_COMMAND_HINTS = [
   'duplicate-sheet'
 ]
 
+export const isDimensionSnapshotSideEffectCommand = (commandId: string): boolean => {
+  const id = commandId.toLowerCase()
+  if (!id) return false
+  return DIMENSION_SNAPSHOT_SIDE_EFFECT_COMMAND_IDS.has(id)
+}
+
+export const isDimensionSnapshotUserCommand = (commandId: string): boolean => {
+  const id = commandId.toLowerCase()
+  if (!id) return false
+  return DIMENSION_SNAPSHOT_USER_COMMAND_IDS.has(id)
+}
+
+export const isDimensionApplyMutationCommand = (commandId: string): boolean => {
+  const id = commandId.toLowerCase()
+  return id === UNIVER_ROW_AUTO_HEIGHT_MUTATION || id === UNIVER_COL_WIDTH_MUTATION
+}
+
 /**
  * Dimension sync only needs row/column/zoom metadata, but the current reader
  * obtains it through a full workbook snapshot. Run that expensive read only for
@@ -110,6 +146,9 @@ export const shouldRunDimensionSnapshotForCommand = (commandId: string, commandT
   const id = commandId.toLowerCase()
   if (!id) return false
   if (DIMENSION_SNAPSHOT_EXCLUDE_COMMAND_HINTS.some(hint => id.includes(hint))) return false
+  if (isDimensionSnapshotSideEffectCommand(id)) return false
+  if (isDimensionApplyMutationCommand(id)) return false
+  if (isDimensionSnapshotUserCommand(id)) return true
   return DIMENSION_SNAPSHOT_LAYOUT_COMMAND_HINTS.some(hint => id.includes(hint))
 }
 

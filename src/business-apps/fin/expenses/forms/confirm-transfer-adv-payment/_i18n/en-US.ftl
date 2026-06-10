@@ -14,6 +14,10 @@ error-invalid-date = Please enter a valid transaction date (YYYY-MM-DD)
 error-confirm-required = Please confirm the payment transfer
 error-confirm-failed = Failed to confirm payment. Please try again.
 
+label-request-date = Request Date
+action-view-document = View Document
+error-no-document = No document available
+
 # ============================================
 # Transaction Confirmation Section
 # ============================================

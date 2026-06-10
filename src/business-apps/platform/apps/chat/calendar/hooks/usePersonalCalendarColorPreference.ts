@@ -45,11 +45,17 @@ export function usePersonalCalendarColorPreference(accessToken: string): UsePers
 
   const updateColor = useCallback(
     async (nextColor: string | null) => {
+      const optimisticColor = nextColor || getDefaultCalendarColor()
+      const nextHasColorOverride = nextColor !== null
+
+      if (optimisticColor === color && nextHasColorOverride === hasColorOverride) {
+        return
+      }
+
       const previousColor = color
       const previousHasColorOverride = hasColorOverride
-      const optimisticColor = nextColor || getDefaultCalendarColor()
       setColor(optimisticColor)
-      setHasColorOverride(nextColor !== null)
+      setHasColorOverride(nextHasColorOverride)
       setIsSaving(true)
       setError(null)
 

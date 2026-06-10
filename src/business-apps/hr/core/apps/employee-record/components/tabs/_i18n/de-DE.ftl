@@ -6,6 +6,7 @@ documents-description = Mitarbeiterdokumente anzeigen und verwalten
 
 # Upload Button
 documents-upload-button = Dokument hochladen
+documents-upload-folder = Ordner hochladen
 
 # Search
 documents-search-placeholder = Dokumente suchen...
@@ -39,6 +40,7 @@ documents-status-valid = Gültig
 
 # Delete Actions
 documents-delete = Dokument löschen
+documents-delete-folder = Ordner löschen
 documents-delete-title = Dokument löschen
 documents-delete-confirm-message = Möchten Sie das Dokument "{$documentName}" wirklich löschen?
 documents-delete-warning = Diese Aktion kann nicht rückgängig gemacht werden.
@@ -55,8 +57,10 @@ documents-download-image = Bild herunterladen
 documents-download = Herunterladen
 documents-preview-not-available = Dieser Dokumenttyp kann nicht direkt angezeigt werden.
 documents-browser-no-pdf = Ihr Browser kann das PDF nicht inline anzeigen. Bitte laden Sie das Dokument herunter.
+documents-viewer-close = Schließen
 
 # Document Details
+documents-detail-information = Dokumentinformationen
 documents-detail-name = Dokumentname
 documents-detail-group = Dokumentgruppe
 documents-detail-type = Dokumenttyp

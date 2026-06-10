@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
 import { AiButton, Button, useTranslation } from '@newwork/nw-design-system'
-import { FunnelSimpleIcon } from '@phosphor-icons/react'
 import { Plus } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -13,109 +12,33 @@ import {
 } from '@/common/components/common-relations/view-layouts/lead-layout/config'
 import { useCustomerLeads } from '@/common/data/customer/hooks/useCustomerLeads'
 import type { CustomerLeadQueryVariables } from '@/common/data/customer/queries/customerLeadQueries'
-import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
+import { buildLeadQueryVariables } from '@/common/components/common-relations/view-layouts/lead-layout/utils/buildLeadQueryVariables'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useCustomerLeadStatistics } from '@/common/data/customer/hooks/useCustomerLeadStatistics'
 import { AppAction } from '@/components/app-action/AppAction'
-import leadScoringI18n from '@/business-apps/crm/core/features/lead-scoring/_i18n'
-import { LeadScoringSelectionDialog } from '@/business-apps/crm/core/features/lead-scoring/components/LeadScoringSelectionDialog'
-import { createLeadAiScoreColumn } from './leadAiScoreColumn'
+import icpScoringI18n from '@/common/components/icp-scoring/_i18n'
+import { IcpScoringSelectionDialog } from '@/business-apps/crm/core/features/icp-scoring'
+import { insertCustomerLeadColumnsAfter } from '@/common/components/customer/view-layouts/lead-layout/config/leadColumns'
 
 export type LeadViewProps = BusinessAppContextProps
 
-// Helper functions to reduce cognitive complexity
-const processDateRangeFilters = (
-  selectedFilters: Record<string, any>,
-  dateRangeKeys: string[],
-  vars: CustomerLeadQueryVariables
-): void => {
-  for (const rangeKey of dateRangeKeys) {
-    const normalized = normalizeDateRange(selectedFilters[rangeKey])
-    if (normalized) {
-      const baseKey = rangeKey.replace('Range', '')
-      if (normalized.from) vars[`${baseKey}From` as keyof CustomerLeadQueryVariables] = normalized.from
-      if (normalized.to) vars[`${baseKey}To` as keyof CustomerLeadQueryVariables] = normalized.to
-    }
-  }
-}
-
-const processSensitiveFilter = (selectedFilters: Record<string, any>, vars: CustomerLeadQueryVariables): void => {
-  if (selectedFilters.sensitive !== undefined && selectedFilters.sensitive !== null) {
-    if (Array.isArray(selectedFilters.sensitive) && selectedFilters.sensitive.length > 0) {
-      const sensitiveValue = selectedFilters.sensitive[0]
-      if (sensitiveValue === 'true') {
-        vars.sensitive = true
-      } else if (sensitiveValue === 'false') {
-        vars.sensitive = false
-      }
-    }
-  }
-}
-
-const processOtherFilters = (
-  selectedFilters: Record<string, any>,
-  excludeKeys: string[],
-  vars: CustomerLeadQueryVariables
-): void => {
-  for (const key of Object.keys(selectedFilters)) {
-    if (!excludeKeys.includes(key) && selectedFilters[key] !== undefined && selectedFilters[key] !== null) {
-      vars[key as keyof CustomerLeadQueryVariables] = selectedFilters[key]
-    }
-  }
-}
-
-const processSorting = (sorting: Array<{ id: string; desc: boolean }>, vars: CustomerLeadQueryVariables): void => {
-  if (sorting.length > 0) {
-    const columnId = sorting[0].id
-    const direction = sorting[0].desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
-
-    const nonSortableColumns = ['communicationChannels', 'location']
-    if (nonSortableColumns.includes(columnId)) {
-      vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
-    } else if (columnId === 'lead') {
-      vars.orderBy = [
-        { field: 'firstName', direction },
-        { field: 'lastName', direction }
-      ]
-    } else {
-      vars.orderBy = [{ field: columnId as any, direction }]
-    }
-  } else {
-    vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
-  }
-}
-
 export const LeadView: React.FC<LeadViewProps> = context => {
   const { accessToken } = context
-  const { t } = useTranslation(leadScoringI18n)
+  const { t } = useTranslation(icpScoringI18n)
   const { initialFilters, saveFilters, initialSorting, saveSorting, initialVisibleColumns, saveVisibleColumns } =
     useViewPreferencesStorage('crm:customer-lead-preferences:v1')
   const [isBulkScoringOpen, setIsBulkScoringOpen] = useState(false)
   const [scoreRefreshKey, setScoreRefreshKey] = useState(0)
 
-  // Data Hooks
   const { fetchCustomerLeads } = useCustomerLeads(context)
   const leadStatistics = useCustomerLeadStatistics(context)
 
-  // Config — leadStatistics is intentionally excluded so that statistics state
-  // updates (isLoading, recentLeads, etc.) do not recreate config, which would
-  // cascade into new queryVariables/loadData references and re-fire GetLeads.
-  // leadStatistics is passed as a separate prop to LeadLayout instead.
   const config: LeadViewConfig<CustomerLead, CustomerLeadQueryVariables> = useMemo(
     () => ({
       fetchLeads: fetchCustomerLeads,
-      createColumns: () => {
-        const baseColumns = commonLeadColumns() as ColumnDef<CustomerLead>[]
-        const scoreColumn = createLeadAiScoreColumn({
-          header: t('lead-scoring-table-column'),
-          notScoredLabel: t('lead-scoring-not-scored'),
-          notAvailableLabel: t('lead-scoring-not-available')
-        })
-
-        return [baseColumns[0], scoreColumn, ...baseColumns.slice(1)] as any
-      },
+      createColumns: () => insertCustomerLeadColumnsAfter(commonLeadColumns() as ColumnDef<CustomerLead>[], 'lead'),
       descriptors: CUSTOMER_LEAD_DESCRIPTORS,
       entityName: 'Lead',
       columnLabels: {
@@ -134,26 +57,16 @@ export const LeadView: React.FC<LeadViewProps> = context => {
         updatedAt: 'Updated Date'
       },
       baseFilterConfig: commonLeadFilterConfig,
-      buildQueryVariables: (params: {
-        pagination: { pageIndex: number; pageSize: number }
-        searchTerm: string
-        selectedFilters: Record<string, any>
-        sorting: Array<{ id: string; desc: boolean }>
-      }) => {
-        const vars: CustomerLeadQueryVariables = {
-          limit: params.pagination.pageSize,
-          offset: params.pagination.pageIndex * params.pagination.pageSize,
-          search: params.searchTerm.trim() || undefined
-        }
-
-        const dateRangeKeys = ['createdAtRange', 'updatedAtRange']
-        processDateRangeFilters(params.selectedFilters, dateRangeKeys, vars)
-        processSensitiveFilter(params.selectedFilters, vars)
-        processOtherFilters(params.selectedFilters, [...dateRangeKeys, 'sensitive'], vars)
-        processSorting(params.sorting, vars)
-
-        return vars
-      },
+      buildQueryVariables: params =>
+        buildLeadQueryVariables<CustomerLeadQueryVariables>(
+          {
+            pagination: params.pagination,
+            searchTerm: params.searchTerm,
+            selectedFilters: params.selectedFilters,
+            sorting: params.sorting
+          },
+          { nonSortableColumns: ['communicationChannels', 'location'] }
+        ),
       flowContexts: {
         entityContext: FlowContextName.customerLeadEntity,
         createContext: FlowContextName.customerLeadCreate
@@ -219,14 +132,14 @@ export const LeadView: React.FC<LeadViewProps> = context => {
               onClick={() => setIsBulkScoringOpen(true)}
               data-testid="customer-lead-view-open-bulk-scoring"
             >
-              <FunnelSimpleIcon className="gba:mr-2 gba:h-4 gba:w-4" />
-              {t('lead-scoring-title')}
+              {t('icp-scoring-title')}
             </AiButton>
           </div>
         }
       />
 
-      <LeadScoringSelectionDialog
+      <IcpScoringSelectionDialog
+        entityType="lead"
         open={isBulkScoringOpen}
         onOpenChange={setIsBulkScoringOpen}
         accessToken={accessToken}

@@ -316,7 +316,7 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = context => {
       case 'campaigns':
         return (
           <div data-testid="campaigns-tab-content">
-            <CampaignManagement {...context} />
+            <CampaignManagement {...context} showHero={false} />
           </div>
         )
       case 'opportunities':

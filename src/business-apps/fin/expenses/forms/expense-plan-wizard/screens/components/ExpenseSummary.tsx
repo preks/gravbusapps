@@ -1,6 +1,7 @@
 import React from 'react'
 import { Divider } from 'antd'
-import { getTranslationFromI18nKeyAndLabel, formatNumberFunction } from '@/common/utils/windowUtils'
+import { formatNumberFunction } from '@/common/utils/windowUtils'
+import { useExpensePlanWizardTranslation } from '../../useExpensePlanWizardTranslation'
 
 interface ExpenseSummaryProps {
   planData: any
@@ -11,6 +12,8 @@ interface ExpenseSummaryProps {
  * including expenses, non-reimbursable amount, reimbursable amount, and advance payment
  */
 const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ planData }) => {
+  const { t } = useExpensePlanWizardTranslation()
+
   if (!planData) return null
 
   /**
@@ -123,12 +126,7 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ planData }) => {
         <>
           <div className="gba:min-h-[40px] gba:py-4" data-testid="expense-summary-expenses">
             <div className="gba:flex gba:justify-between gba:items-center">
-              <span className="gba:text-sm gba:font-normal">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:modify_expense_request.request_amount_title_text',
-                  'Estimated Expenses'
-                )}
-              </span>
+              <span className="gba:text-sm gba:font-normal">{t('payment-estimated-expenses-label')}</span>
               <span className="gba:text-3xl gba:font-bold">
                 {formatNumberFunction(values.expenses.amount, '0.00[,]00')} {values.expenses.currency}
               </span>
@@ -142,12 +140,7 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ planData }) => {
         <>
           <div className="gba:min-h-[40px] gba:py-4" data-testid="expense-summary-non-reimbursable">
             <div className="gba:flex gba:justify-between gba:items-center">
-              <span className="gba:text-sm gba:font-normal">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:approve_expense_request.non_reimbursable',
-                  'Not Reimbursable Amount'
-                )}
-              </span>
+              <span className="gba:text-sm gba:font-normal">{t('summary-non-reimbursable-amount')}</span>
               <span className="gba:text-sm gba:font-bold gba:text-primary">
                 {formatNumberFunction(values.nonReimbursable.amount, '0.00[,]00')} {values.nonReimbursable.currency}
               </span>
@@ -161,12 +154,7 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ planData }) => {
         <>
           <div className="gba:min-h-[40px] gba:py-4" data-testid="expense-summary-reimbursable">
             <div className="gba:flex gba:justify-between gba:items-center">
-              <span className="gba:text-sm gba:font-normal">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:approve_expense_request.reimbursable',
-                  'Reimbursable Amount'
-                )}
-              </span>
+              <span className="gba:text-sm gba:font-normal">{t('summary-reimbursable-amount')}</span>
               <span className="gba:text-sm gba:font-bold gba:text-success">
                 {formatNumberFunction(values.reimbursable.amount, '0.00[,]00')} {values.reimbursable.currency}
               </span>
@@ -180,9 +168,7 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ planData }) => {
         <>
           <div className="gba:min-h-[40px] gba:py-4" data-testid="expense-summary-advance">
             <div className="gba:flex gba:justify-between gba:items-center">
-              <span className="gba:text-sm gba:font-normal">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:employee_landing_page.advance_payment', 'Advance Payment')}
-              </span>
+              <span className="gba:text-sm gba:font-normal">{t('payment-advance-payment-label')}</span>
               <span className="gba:text-sm gba:font-bold gba:text-foreground">
                 {formatNumberFunction(values.advancePayment.amount, '0.00[,]00')} {values.advancePayment.currency}
               </span>

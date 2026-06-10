@@ -288,15 +288,15 @@ export const calculateCustomerConversionQuality = (
   opportunities: any[]
 ): {
   qualityScore: number
-  averageDealSize: number
-  dealSizeConsistency: 'high' | 'medium' | 'low'
+  averageOpportunitySize: number
+  opportunitySizeConsistency: 'high' | 'medium' | 'low'
   qualityIndicators: string[]
 } => {
   if (!opportunities || opportunities.length === 0) {
     return {
       qualityScore: 0,
-      averageDealSize: 0,
-      dealSizeConsistency: 'low',
+      averageOpportunitySize: 0,
+      opportunitySizeConsistency: 'low',
       qualityIndicators: ['No opportunities to analyze']
     }
   }
@@ -306,27 +306,31 @@ export const calculateCustomerConversionQuality = (
   if (wonOpportunities.length === 0) {
     return {
       qualityScore: 0,
-      averageDealSize: 0,
-      dealSizeConsistency: 'low',
+      averageOpportunitySize: 0,
+      opportunitySizeConsistency: 'low',
       qualityIndicators: ['No won opportunities']
     }
   }
 
-  // Calculate average deal size
-  const dealSizes = wonOpportunities.filter(opp => opp.estimatedAmount > 0).map(opp => opp.estimatedAmount)
+  // Calculate average opportunity size
+  const opportunitySizes = wonOpportunities.filter(opp => opp.estimatedAmount > 0).map(opp => opp.estimatedAmount)
 
-  const averageDealSize =
-    dealSizes.length > 0 ? Math.round(dealSizes.reduce((sum, size) => sum + size, 0) / dealSizes.length) : 0
+  const averageOpportunitySize =
+    opportunitySizes.length > 0
+      ? Math.round(opportunitySizes.reduce((sum, size) => sum + size, 0) / opportunitySizes.length)
+      : 0
 
-  // Calculate deal size consistency
-  let dealSizeConsistency: 'high' | 'medium' | 'low' = 'low'
-  if (dealSizes.length >= 3) {
-    const variance = dealSizes.reduce((sum, size) => sum + Math.pow(size - averageDealSize, 2), 0) / dealSizes.length
+  // Calculate opportunity size consistency
+  let opportunitySizeConsistency: 'high' | 'medium' | 'low' = 'low'
+  if (opportunitySizes.length >= 3) {
+    const variance =
+      opportunitySizes.reduce((sum, size) => sum + Math.pow(size - averageOpportunitySize, 2), 0) /
+      opportunitySizes.length
     const standardDeviation = Math.sqrt(variance)
-    const coefficientOfVariation = standardDeviation / averageDealSize
+    const coefficientOfVariation = standardDeviation / averageOpportunitySize
 
-    if (coefficientOfVariation < 0.3) dealSizeConsistency = 'high'
-    else if (coefficientOfVariation < 0.6) dealSizeConsistency = 'medium'
+    if (coefficientOfVariation < 0.3) opportunitySizeConsistency = 'high'
+    else if (coefficientOfVariation < 0.6) opportunitySizeConsistency = 'medium'
   }
 
   // Calculate quality indicators
@@ -336,22 +340,26 @@ export const calculateCustomerConversionQuality = (
   if (winRate >= 60) qualityIndicators.push('High win rate')
   else if (winRate < 30) qualityIndicators.push('Low win rate needs improvement')
 
-  if (averageDealSize >= 50000) qualityIndicators.push('Large deal sizes')
-  else if (averageDealSize < 10000) qualityIndicators.push('Small deal sizes')
+  if (averageOpportunitySize >= 50000) qualityIndicators.push('Large opportunity sizes')
+  else if (averageOpportunitySize < 10000) qualityIndicators.push('Small opportunity sizes')
 
-  if (dealSizeConsistency === 'high') qualityIndicators.push('Consistent deal sizes')
-  else if (dealSizeConsistency === 'low') qualityIndicators.push('Inconsistent deal sizes')
+  if (opportunitySizeConsistency === 'high') qualityIndicators.push('Consistent opportunity sizes')
+  else if (opportunitySizeConsistency === 'low') qualityIndicators.push('Inconsistent opportunity sizes')
+
+  // Consistency contribution (avoids a nested ternary in the score accumulation below)
+  const consistencyScoreByLevel: Record<string, number> = { high: 100, medium: 60, low: 20 }
+  const consistencyScore = consistencyScoreByLevel[opportunitySizeConsistency] ?? 20
 
   // Calculate overall quality score
   let qualityScore = 0
   qualityScore += Math.min(winRate, 100) * 0.4 // Win rate (40% weight)
-  qualityScore += Math.min(averageDealSize / 1000, 100) * 0.3 // Deal size (30% weight)
-  qualityScore += (dealSizeConsistency === 'high' ? 100 : dealSizeConsistency === 'medium' ? 60 : 20) * 0.3 // Consistency (30% weight)
+  qualityScore += Math.min(averageOpportunitySize / 1000, 100) * 0.3 // Opportunity size (30% weight)
+  qualityScore += consistencyScore * 0.3 // Consistency (30% weight)
 
   return {
     qualityScore: Math.round(qualityScore),
-    averageDealSize,
-    dealSizeConsistency,
+    averageOpportunitySize,
+    opportunitySizeConsistency,
     qualityIndicators
   }
 }

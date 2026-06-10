@@ -33,9 +33,76 @@ interface HrAdminTabProps extends BusinessAppContextProps {
 const HR_ADMIN_SUBVIEW_VALUES = ['details', 'employment', 'documents', 'changeLog', 'hrNotes'] as const
 type HrAdminSubView = (typeof HR_ADMIN_SUBVIEW_VALUES)[number]
 
+interface HrAdminSubViewAccess {
+  readonly details: boolean
+  readonly employment: boolean
+  readonly documents: boolean
+  readonly changeLog: boolean
+  readonly hrNotes: boolean
+}
+
+interface HrAdminPermissionState extends HrAdminSubViewAccess {
+  readonly canDeleteDocuments: boolean
+}
+
+interface ResolveHrAdminPermissionsOptions {
+  readonly permissionsLoading: boolean
+  readonly employeeGrowthPermissionLoading: boolean
+  readonly hasManagerEmployeeGrowthPermission: boolean
+  readonly employeeRecordAllHrBackofficeLoading: boolean
+  readonly employeeRecordAllHrBackofficeAccess?: boolean
+  readonly employeeRecordHrBackofficeLoading: boolean
+  readonly employeeRecordHrBackofficeAccess?: boolean
+  readonly isSelfView: boolean
+  readonly changeLogTabFeatureFlag: boolean
+  readonly hasHrNotesAccess: boolean
+  readonly scopePermissionLoading: boolean
+}
+
+function resolveHrAdminPermissions({
+  permissionsLoading,
+  employeeGrowthPermissionLoading,
+  hasManagerEmployeeGrowthPermission,
+  employeeRecordAllHrBackofficeLoading,
+  employeeRecordAllHrBackofficeAccess,
+  employeeRecordHrBackofficeLoading,
+  employeeRecordHrBackofficeAccess,
+  isSelfView,
+  changeLogTabFeatureFlag,
+  hasHrNotesAccess,
+  scopePermissionLoading
+}: ResolveHrAdminPermissionsOptions): HrAdminPermissionState {
+  const hasBasePermissionChecksLoading =
+    permissionsLoading || employeeGrowthPermissionLoading || employeeRecordAllHrBackofficeLoading
+  const hasEmployeeAccess =
+    isSelfView || hasManagerEmployeeGrowthPermission || employeeRecordAllHrBackofficeAccess === true
+
+  return {
+    details: !hasBasePermissionChecksLoading && hasEmployeeAccess,
+    employment: !hasBasePermissionChecksLoading && hasEmployeeAccess,
+    documents: !hasBasePermissionChecksLoading && hasEmployeeAccess,
+    changeLog: !hasBasePermissionChecksLoading && changeLogTabFeatureFlag && hasEmployeeAccess,
+    hrNotes: !isSelfView && hasHrNotesAccess && !scopePermissionLoading && hasEmployeeAccess,
+    canDeleteDocuments:
+      !permissionsLoading &&
+      !employeeRecordHrBackofficeLoading &&
+      !isSelfView &&
+      employeeRecordHrBackofficeAccess === true
+  }
+}
+
+const resolveActiveSubView = (currentSubView: HrAdminSubView, access: HrAdminSubViewAccess): HrAdminSubView => {
+  if (access[currentSubView]) {
+    return currentSubView
+  }
+
+  const orderedSubViews: HrAdminSubView[] = ['details', 'employment', 'documents', 'changeLog', 'hrNotes']
+  return orderedSubViews.find(subView => access[subView]) ?? 'details'
+}
+
 const getInitialHrAdminSubView = (): HrAdminSubView => {
-  if (typeof window === 'undefined') return 'details'
-  const urlParams = new URLSearchParams(window.location.search)
+  if (globalThis.window === undefined) return 'details'
+  const urlParams = new URLSearchParams(globalThis.window.location.search)
   const subViewFromUrl = urlParams.get('subView')
 
   if (subViewFromUrl === 'compensation') {
@@ -82,86 +149,51 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
   const hasManagerEmployeeGrowthPermission =
     isManager && !employeeGrowthPermission.loading && employeeGrowthPermission.hasPermission === true
 
-  const hasDetailsPermission =
-    permissionsLoading || employeeGrowthPermission.loading || employeeRecordAllHrBackoffice.loading
-      ? false
-      : isSelfView || hasManagerEmployeeGrowthPermission || employeeRecordAllHrBackoffice?.hasPermission === true
-
-  const hasEmploymentPermission =
-    permissionsLoading || employeeGrowthPermission.loading || employeeRecordAllHrBackoffice.loading
-      ? false
-      : isSelfView || hasManagerEmployeeGrowthPermission || employeeRecordAllHrBackoffice?.hasPermission === true
-
-  const hasDocumentsPermission =
-    permissionsLoading || employeeGrowthPermission.loading || employeeRecordAllHrBackoffice.loading
-      ? false
-      : isSelfView || hasManagerEmployeeGrowthPermission || employeeRecordAllHrBackoffice?.hasPermission === true
-
-  const canDeleteDocuments =
-    permissionsLoading || employeeRecordHrBackoffice.loading
-      ? false
-      : !isSelfView && employeeRecordHrBackoffice?.hasPermission === true
-
-  const hasChangeLogPermission =
-    permissionsLoading || employeeGrowthPermission.loading || employeeRecordAllHrBackoffice.loading
-      ? false
-      : isSelfView ||
-        (changeLogTabFeatureFlag &&
-          (hasManagerEmployeeGrowthPermission || employeeRecordAllHrBackoffice?.hasPermission === true))
-
-  const shouldShowHrNotes =
-    !isSelfView &&
-    hasHrNotesAccess &&
-    !scopePermissionLoading &&
-    (hasManagerEmployeeGrowthPermission || employeeRecordAllHrBackoffice?.hasPermission === true)
+  const permissions = resolveHrAdminPermissions({
+    permissionsLoading,
+    employeeGrowthPermissionLoading: employeeGrowthPermission.loading,
+    hasManagerEmployeeGrowthPermission,
+    employeeRecordAllHrBackofficeLoading: employeeRecordAllHrBackoffice.loading,
+    employeeRecordAllHrBackofficeAccess: employeeRecordAllHrBackoffice?.hasPermission,
+    employeeRecordHrBackofficeLoading: employeeRecordHrBackoffice.loading,
+    employeeRecordHrBackofficeAccess: employeeRecordHrBackoffice?.hasPermission,
+    isSelfView,
+    changeLogTabFeatureFlag,
+    hasHrNotesAccess,
+    scopePermissionLoading
+  })
 
   useEffect(() => {
-    if (activeSubView === 'hrNotes' && !shouldShowHrNotes) {
-      setActiveSubView('details')
+    if (permissionsLoading) {
+      return
     }
-    if (activeSubView === 'changeLog' && !changeLogTabFeatureFlag) {
-      setActiveSubView('details')
+
+    const accessibleSubViews: HrAdminSubViewAccess = {
+      details: permissions.details,
+      employment: permissions.employment,
+      documents: permissions.documents,
+      changeLog: permissions.changeLog,
+      hrNotes: permissions.hrNotes
     }
-    // Redirect if user doesn't have permission for the active subtab
-    if (!permissionsLoading) {
-      if (activeSubView === 'details' && !hasDetailsPermission) {
-        // Find first available subtab
-        if (hasEmploymentPermission) setActiveSubView('employment')
-        else if (hasDocumentsPermission) setActiveSubView('documents')
-        else if (hasChangeLogPermission) setActiveSubView('changeLog')
-        else if (shouldShowHrNotes) setActiveSubView('hrNotes')
-      } else if (activeSubView === 'employment' && !hasEmploymentPermission) {
-        if (hasDetailsPermission) setActiveSubView('details')
-        else if (hasDocumentsPermission) setActiveSubView('documents')
-        else if (hasChangeLogPermission) setActiveSubView('changeLog')
-        else if (shouldShowHrNotes) setActiveSubView('hrNotes')
-      } else if (activeSubView === 'documents' && !hasDocumentsPermission) {
-        if (hasDetailsPermission) setActiveSubView('details')
-        else if (hasEmploymentPermission) setActiveSubView('employment')
-        else if (hasChangeLogPermission) setActiveSubView('changeLog')
-        else if (shouldShowHrNotes) setActiveSubView('hrNotes')
-      } else if (activeSubView === 'changeLog' && !hasChangeLogPermission) {
-        if (hasDetailsPermission) setActiveSubView('details')
-        else if (hasEmploymentPermission) setActiveSubView('employment')
-        else if (hasDocumentsPermission) setActiveSubView('documents')
-        else if (shouldShowHrNotes) setActiveSubView('hrNotes')
-      }
+
+    const resolvedSubView = resolveActiveSubView(activeSubView, accessibleSubViews)
+    if (resolvedSubView !== activeSubView) {
+      setActiveSubView(resolvedSubView)
     }
   }, [
     activeSubView,
-    shouldShowHrNotes,
-    changeLogTabFeatureFlag,
     permissionsLoading,
-    hasDetailsPermission,
-    hasEmploymentPermission,
-    hasDocumentsPermission,
-    hasChangeLogPermission
+    permissions.details,
+    permissions.employment,
+    permissions.documents,
+    permissions.changeLog,
+    permissions.hrNotes
   ])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    if (globalThis.window === undefined) return
 
-    const searchParams = new URLSearchParams(window.location.search)
+    const searchParams = new URLSearchParams(globalThis.window.location.search)
     searchParams.set('tab', 'hrAdmin')
     searchParams.set('subView', activeSubView)
 
@@ -173,8 +205,8 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
       searchParams.delete('id')
     }
 
-    const newUrl = `${window.location.pathname}?${searchParams.toString()}`
-    window.history.replaceState({}, '', newUrl)
+    const newUrl = `${globalThis.window.location.pathname}?${searchParams.toString()}`
+    globalThis.window.history.replaceState({}, '', newUrl)
   }, [activeSubView, employeeId, userInfo])
 
   useEffect(() => {
@@ -183,22 +215,26 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
       setActiveSubView(newSubView)
     }
 
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
+    globalThis.window.addEventListener('popstate', handlePopState)
+    return () => globalThis.window.removeEventListener('popstate', handlePopState)
   }, [])
 
   const handleSubViewChange = (value: string) => {
     setActiveSubView(value as HrAdminSubView)
   }
 
+  const basePermissionsLoading =
+    permissionsLoading || employeeGrowthPermission.loading || employeeRecordAllHrBackoffice.loading
+  const showDetailsSection = basePermissionsLoading || permissions.details
+  const showEmploymentSection = basePermissionsLoading || permissions.employment
+  const showDocumentsSection = basePermissionsLoading || permissions.documents
+  const showChangeLogSection = changeLogTabFeatureFlag || (!basePermissionsLoading && permissions.changeLog)
+
   return (
     <div data-testid="hr-admin-tab-container" className="gba:w-full">
       <Tabs value={activeSubView} onValueChange={handleSubViewChange} className="gba:w-full">
         <TabsList className="gba:mb-4 gba:w-full gba:justify-start" data-testid="hr-admin-tabs-list">
-          {(permissionsLoading ||
-            employeeGrowthPermission.loading ||
-            employeeRecordAllHrBackoffice.loading ||
-            hasDetailsPermission) && (
+          {showDetailsSection && (
             <TabsTrigger value="details" data-testid="hr-admin-details-subtab" className="gba:flex-1">
               <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
                 <IdentificationCardIcon />
@@ -206,10 +242,7 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
               </div>
             </TabsTrigger>
           )}
-          {(permissionsLoading ||
-            employeeGrowthPermission.loading ||
-            employeeRecordAllHrBackoffice.loading ||
-            hasEmploymentPermission) && (
+          {showEmploymentSection && (
             <TabsTrigger value="employment" data-testid="hr-admin-employment-subtab" className="gba:flex-1">
               <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
                 <BriefcaseIcon />
@@ -217,10 +250,7 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
               </div>
             </TabsTrigger>
           )}
-          {(permissionsLoading ||
-            employeeGrowthPermission.loading ||
-            employeeRecordAllHrBackoffice.loading ||
-            hasDocumentsPermission) && (
+          {showDocumentsSection && (
             <TabsTrigger value="documents" data-testid="hr-admin-documents-subtab" className="gba:flex-1">
               <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
                 <FilesIcon />
@@ -228,11 +258,7 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
               </div>
             </TabsTrigger>
           )}
-          {(changeLogTabFeatureFlag ||
-            (!permissionsLoading &&
-              !employeeGrowthPermission.loading &&
-              !employeeRecordAllHrBackoffice.loading &&
-              hasChangeLogPermission)) && (
+          {showChangeLogSection && (
             <TabsTrigger value="changeLog" data-testid="hr-admin-changelog-subtab" className="gba:flex-1">
               <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
                 <ClockCounterClockwiseIcon />
@@ -240,7 +266,7 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
               </div>
             </TabsTrigger>
           )}
-          {shouldShowHrNotes && (
+          {permissions.hrNotes && (
             <TabsTrigger value="hrNotes" data-testid="hr-admin-hrnotes-subtab" className="gba:flex-1">
               <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
                 <NotebookIcon />
@@ -250,12 +276,9 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
           )}
         </TabsList>
 
-        {(permissionsLoading ||
-          employeeGrowthPermission.loading ||
-          employeeRecordAllHrBackoffice.loading ||
-          hasDetailsPermission) && (
+        {showDetailsSection && (
           <TabsContent value="details" data-testid="hr-admin-details-content" className="gba:mt-4">
-            {permissionsLoading || employeeGrowthPermission.loading || employeeRecordAllHrBackoffice.loading ? (
+            {basePermissionsLoading ? (
               <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
                 <Spinner size="lg" />
               </div>
@@ -271,12 +294,9 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
           </TabsContent>
         )}
 
-        {(permissionsLoading ||
-          employeeGrowthPermission.loading ||
-          employeeRecordAllHrBackoffice.loading ||
-          hasEmploymentPermission) && (
+        {showEmploymentSection && (
           <TabsContent value="employment" data-testid="hr-admin-employment-content" className="gba:mt-4">
-            {permissionsLoading || employeeGrowthPermission.loading || employeeRecordAllHrBackoffice.loading ? (
+            {basePermissionsLoading ? (
               <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
                 <Spinner size="lg" />
               </div>
@@ -296,12 +316,9 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
           </TabsContent>
         )}
 
-        {(permissionsLoading ||
-          employeeGrowthPermission.loading ||
-          employeeRecordAllHrBackoffice.loading ||
-          hasDocumentsPermission) && (
+        {showDocumentsSection && (
           <TabsContent value="documents" data-testid="hr-admin-documents-content" className="gba:mt-4">
-            {permissionsLoading || employeeGrowthPermission.loading || employeeRecordAllHrBackoffice.loading ? (
+            {basePermissionsLoading ? (
               <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
                 <Spinner size="lg" />
               </div>
@@ -309,15 +326,13 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
               <DocumentsTab
                 employee={employee}
                 accessToken={accessToken}
-                employeeId={employeeId}
-                userInfo={userInfo}
-                canEditDocuments={canDeleteDocuments}
+                canEditDocuments={permissions.canDeleteDocuments}
               />
             )}
           </TabsContent>
         )}
 
-        {(changeLogTabFeatureFlag || (!permissionsLoading && hasChangeLogPermission)) && (
+        {showChangeLogSection && (
           <TabsContent value="changeLog" data-testid="hr-admin-changelog-content" className="gba:mt-4">
             <ChangeLogTab
               employeeId={employeeId}
@@ -330,7 +345,7 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
           </TabsContent>
         )}
 
-        {shouldShowHrNotes && (
+        {permissions.hrNotes && (
           <TabsContent value="hrNotes" data-testid="hr-admin-hrnotes-content" className="gba:mt-4">
             <HrNotesTab
               accessToken={accessToken}

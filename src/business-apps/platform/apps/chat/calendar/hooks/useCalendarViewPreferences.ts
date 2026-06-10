@@ -64,6 +64,10 @@ export function useCalendarViewPreferences(accessToken: string): UseCalendarView
 
   const setTimeScopePersisted = useCallback(
     async (next: CalendarTimeScope) => {
+      if (next === timeScope) {
+        return
+      }
+
       const previous = timeScope
       setTimeScope(next)
       setIsSaving(true)
@@ -90,6 +94,10 @@ export function useCalendarViewPreferences(accessToken: string): UseCalendarView
 
   const setCalendarLayoutPersisted = useCallback(
     async (next: CalendarLayout) => {
+      if (next === calendarLayout) {
+        return
+      }
+
       const previous = calendarLayout
       setCalendarLayout(next)
       setIsSaving(true)

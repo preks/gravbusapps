@@ -6,6 +6,7 @@ import { UserInfoProps } from '@/common/BusinessAppContext'
 import { CheckCircleIcon, CopyIcon, PencilSimple } from '@phosphor-icons/react'
 import { Button } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { resolveUserMessageDisplayText } from '../utils/userMessageDisplay'
 
 interface UnifiedUserMessageProps {
   turn: UserTurn
@@ -97,16 +98,7 @@ export const UnifiedUserMessage: React.FC<UnifiedUserMessageProps> = ({
   // Check if editing is allowed (disabled if entity cards exist in history after this turn)
   const canEdit = !hasEntityCardsAfterTurn(turns, turnIndex)
 
-  // Parse JSON messages to show user-friendly text
-  let displayText = turn.text || ''
-  try {
-    const parsed = JSON.parse(turn.text || '')
-    if (parsed?.userMessage) {
-      displayText = parsed.userMessage
-    }
-  } catch {
-    // Not JSON, use original text
-  }
+  const displayText = resolveUserMessageDisplayText(turn.text || '')
   const textWithMentions = buildTextWithMentions(displayText, turn.mentions)
   const hasTextToCopy = displayText.trim().length > 0
 

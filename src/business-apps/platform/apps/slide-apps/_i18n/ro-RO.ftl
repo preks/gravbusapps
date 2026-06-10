@@ -431,53 +431,6 @@ import-feature-images = Imagini și forme
 import-feature-layouts = Layout-uri slide
 import-feature-transitions = Tranziții de bază (parțial)
 
-# Share Dialog
-share-title = Partajare slide
-share-description = Partajați "{ $title }" cu alții și setați nivelul de acces.
-share-success-title = Slide partajat!
-share-notified-single = { $name } a fost notificat și poate accesa acest slide.
-share-notified-multiple = { $count } persoane au fost notificate și pot accesa acest slide.
-share-default-permission = Permisiune implicită pentru utilizatori noi
-share-can-view = Poate vizualiza
-share-can-comment = Poate comenta
-share-can-edit = Poate edita
-share-add-people = Adăugare persoane
-share-search-placeholder = Căutare persoane...
-share-no-results = Nicio persoană găsită pentru "{ $query }"
-share-people-with-access = Persoane cu acces ({ $count })
-share-message-optional = Mesaj (opțional)
-share-message-placeholder = Adăugați un mesaj pentru destinatari...
-share-info = Persoanele cu care partajați vor primi o notificare și pot accesa slide-ul în funcție de permisiune.
-share-cancel = Anulare
-share-button = Partajare
-share-sharing = Se partajează...
-share-select-one = Selectați cel puțin un utilizator
-share-failed = Partajare eșuată
-share-success-toast = Slide partajat
-share-success-description = Partajat cu { $count } { $count ->
-  [one] persoană
- *[other] persoane
-}
-
-# Manage Shares
-manage-title = Gestionare partajări
-manage-description = Gestionați cine poate accesa "{ $title }"
-manage-not-shared = Nu e partajat cu nimeni încă
-manage-add-users-hint = Apăsați „Adăugare utilizatori” pentru a partaja prezentarea
-manage-can-view = Poate vizualiza
-manage-can-comment = Poate comenta
-manage-can-edit = Poate edita
-manage-add-users = Adăugare utilizatori
-manage-done = Gata
-manage-remove-user = Eliminare utilizator
-manage-shared-at = Partajat { $time }
-manage-confirm-remove = Eliminați accesul pentru acest utilizator?
-manage-permission-updated = Permisiune actualizată
-manage-permission-update-failed = Actualizare permisiune eșuată
-manage-user-removed = Utilizator eliminat
-manage-remove-failed = Eliminare utilizator eșuată
-manage-load-failed = Încărcare partajări eșuată
-
 # Header Actions
 header-locked = Blocat
 header-comments = Comentarii

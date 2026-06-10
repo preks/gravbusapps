@@ -47,6 +47,15 @@ import {
 } from '@newwork/nw-design-system'
 import { useInvestmentAccountsList } from '@/common/data/investment/hooks/useInvestmentAccounts'
 import { useInvestmentContactsList } from '@/common/data/investment/hooks/useInvestmentContacts'
+import { useInvestmentAccount } from '@/common/data/investment/hooks/useInvestmentAccount'
+import { useInvestmentContact } from '@/common/data/investment/hooks/useInvestmentContact'
+import {
+  applyOpportunityAssociationDefaultsToForm,
+  buildContextOpportunityAccounts,
+  buildContextOpportunityContacts,
+  getCreateModeOpportunityAssociationDefaults,
+  getOpportunityFormContextIds
+} from '@/common/components/common-relations/form-layouts/opportunity-layout/utils/opportunityRecordContextPrefill'
 import { useInvestment } from '@/common/data/investment/hooks/useInvestment.new'
 import { useInvestments } from '@/common/data/investment/hooks/useInvestments.new'
 import { mapInvestmentToInvestmentOpportunityValues } from '@/common/data/investment/utils/investmentToOpportunityMapper'
@@ -73,25 +82,25 @@ const baseInvestmentOpportunitySchema = opportunitySchemaBase.extend({
 const investmentOpportunitySchemaWithType = createInvestmentOpportunitySchema(baseInvestmentOpportunitySchema)
 export const investmentOpportunitySchema = addPipelineStageRefinement(investmentOpportunitySchemaWithType)
 
-// Deal types for Investment Opportunities (matching backend enum values)
-const DEAL_TYPES = [
+// Opportunity type options (backend dealType enum values)
+const OPPORTUNITY_TYPE_OPTIONS = [
   {
     id: 'INVESTMENT_DEAL',
     value: 'INVESTMENT_DEAL',
-    label: 'Investment Deal',
-    name: 'Investment Deal'
+    label: 'Investment Opportunity',
+    name: 'Investment Opportunity'
   },
   {
     id: 'DIVESTMENT_DEAL',
     value: 'DIVESTMENT_DEAL',
-    label: 'Divestment Deal',
-    name: 'Divestment Deal'
+    label: 'Divestment Opportunity',
+    name: 'Divestment Opportunity'
   },
   {
     id: 'UNKOWN_DEAL_TYPE',
     value: 'UNKOWN_DEAL_TYPE',
-    label: 'Unknown Deal Type',
-    name: 'Unknown Deal Type'
+    label: 'Unknown Opportunity Type',
+    name: 'Unknown Opportunity Type'
   }
 ] as const
 
@@ -109,6 +118,9 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
   const opportunityId =
     additionalData?.opportunityId || additionalData?.psi_taskPayload?.psi_initialParameters?.opportunityId
 
+  const contextIds = useMemo(() => getOpportunityFormContextIds(additionalData), [additionalData])
+  const isCreateMode = !opportunityId
+
   // Extract investmentId from additionalData (for divestment cases)
   const investmentId =
     additionalData?.investmentId || additionalData?.psi_taskPayload?.psi_initialParameters?.investmentId
@@ -118,6 +130,34 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
 
   // Fetch opportunity data using declarative hook
   const { opportunity, loading, error } = useInvestmentOpportunity(accessToken || '', opportunityId)
+
+  const { account: contextAccount } = useInvestmentAccount(
+    accessToken || '',
+    isCreateMode ? (contextIds.accountId ?? undefined) : undefined
+  )
+  const { contact: contextContact } = useInvestmentContact(
+    accessToken || '',
+    isCreateMode ? (contextIds.contactId ?? undefined) : undefined
+  )
+
+  const createAssociationDefaults = useMemo(
+    () => (isCreateMode ? getCreateModeOpportunityAssociationDefaults(contextIds) : {}),
+    [isCreateMode, contextIds]
+  )
+
+  const layoutOpportunityAccounts = useMemo(() => {
+    if (!isCreateMode) {
+      return opportunity?.opportunityAccounts
+    }
+    return buildContextOpportunityAccounts(contextIds.accountId, contextAccount)
+  }, [isCreateMode, opportunity?.opportunityAccounts, contextIds.accountId, contextAccount])
+
+  const layoutOpportunityContacts = useMemo(() => {
+    if (!isCreateMode) {
+      return opportunity?.opportunityContacts
+    }
+    return buildContextOpportunityContacts(contextIds.contactId, contextContact)
+  }, [isCreateMode, opportunity?.opportunityContacts, contextIds.contactId, contextContact])
 
   // Fetch investment data if investmentId is provided (for divestment cases) - using declarative hook
   const { investment, loading: investmentLoading } = useInvestment(accessToken || '', investmentId)
@@ -137,12 +177,20 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
   const form = useForm({
     defaultValues: {
       ...mapToFormValues(opportunity || {}, investmentOpportunitySchema),
+      ...createAssociationDefaults,
       ...(dealType && { dealType }),
       ...(investmentId && !opportunity?.id && { investmentId })
     } as InvestmentOpportunityFormValues,
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   }) as any
+
+  useEffect(() => {
+    if (!isCreateMode) {
+      return
+    }
+    applyOpportunityAssociationDefaultsToForm(form, contextIds)
+  }, [isCreateMode, contextIds, contextAccount?.id, contextContact?.id, form])
 
   // Watch investmentTypeId from form (HEAD approach - working)
   const watchedInvestmentTypeId = form.watch('investmentTypeId')
@@ -514,7 +562,7 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
           // Start with mapped investment defaults, then keep current form values authoritative.
           ...investmentMappedFields,
           ...data,
-          ...prospectFields, // Add dynamic fields for non-divestment deals
+          ...prospectFields, // Add dynamic fields for non-divestment opportunities
           // Remove investmentTypeId from payload (not part of API)
           investmentTypeId: undefined,
           // Add group/type for payload
@@ -583,7 +631,7 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
     [accessToken, additionalData, form.control, opportunity?.investmentCompany, userInfo]
   )
 
-  // Deal Type selector - hide if dealType is already set (from additionalData or opportunity)
+  // Opportunity type selector - hide if dealType is already set (from additionalData or opportunity)
   const dealTypeField = useMemo(() => {
     // Hide if dealType is set from additionalData (create mode) OR from opportunity (edit mode)
     if (dealType || opportunity?.dealType) return null
@@ -593,7 +641,7 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
         name="dealType"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Deal Type</FormLabel>
+            <FormLabel>Opportunity Type</FormLabel>
             <FormControl>
               <Select
                 value={typeof field.value === 'string' ? field.value : ''}
@@ -601,12 +649,12 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
                 data-testid={formatDataTestId(prefixDataTestId, 'deal-type')}
               >
                 <SelectTrigger className="gba:border-gray-300 gba:bg-white">
-                  <SelectValue placeholder="Please select deal type..." />
+                  <SelectValue placeholder="Please select opportunity type..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {DEAL_TYPES.map(dealType => (
-                    <SelectItem key={dealType.id} value={dealType.value}>
-                      {dealType.label}
+                  {OPPORTUNITY_TYPE_OPTIONS.map(option => (
+                    <SelectItem key={option.id} value={option.value}>
+                      {option.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -621,7 +669,7 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
 
   // Investment selector - hide if not DIVESTMENT_DEAL, or if investmentId/divestmentId already exists
   const investmentSelectorField = useMemo(() => {
-    // Hide if not a divestment deal
+    // Hide if not a divestment opportunity
     const isDivestmentDeal = (watchedDealType || dealType || opportunity?.dealType) === 'DIVESTMENT_DEAL'
     if (!isDivestmentDeal) return null
     // Hide if investmentId from additionalData or divestmentId from opportunity already exists
@@ -706,9 +754,9 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
           businessAppContext={{ accessToken, userInfo, additionalData }}
           ownerEmployee={opportunity?.ownerEmployee}
           entityId={opportunity?.id || opportunityId}
-          opportunityAccounts={opportunity?.opportunityAccounts}
+          opportunityAccounts={layoutOpportunityAccounts}
           useAccounts={useAccounts}
-          opportunityContacts={opportunity?.opportunityContacts}
+          opportunityContacts={layoutOpportunityContacts}
           useContacts={useContacts}
           pipelineCatalogIdentifier={OPPORTUNITY_PIPELINE}
           stageCatalogIdentifier={OPPORTUNITY_PIPELINE_STAGE}
@@ -724,7 +772,7 @@ const InvestmentOpportunityForm: React.FC<InvestmentOpportunityFormProps> = ({
           }
           loading={!isFormReady}
           customSegments={useMemo(() => {
-            // Hide InvestmentProspectLayout for divestment deals (develop approach)
+            // Hide InvestmentProspectLayout for divestment opportunities (develop approach)
             return (watchedDealType || dealType) === 'DIVESTMENT_DEAL'
               ? []
               : [

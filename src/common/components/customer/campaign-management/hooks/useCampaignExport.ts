@@ -1,5 +1,4 @@
 import { useCallback } from 'react'
-import dayjs from 'dayjs'
 import { formatExportDate } from '@/common/utils/excelExportUtils'
 import { useExportBase } from '@/common/hooks/useExportBase'
 import type { Campaign } from '../types/CampaignManagementLayoutTypes'
@@ -19,18 +18,10 @@ const CAMPAIGN_DATE_COLUMN_KEYS = new Set(['startDate', 'endDate', 'createdAt'])
 
 // ─── Formatters ───────────────────────────────────────────────────────────────
 
-const getCampaignStatus = (startDate?: string, endDate?: string): string => {
-  if (!startDate || !endDate) return '-'
-  const now = dayjs()
-  if (now.isBefore(dayjs(startDate), 'day')) return 'Planned'
-  if (now.isAfter(dayjs(endDate), 'day')) return 'Completed'
-  return 'Active'
-}
-
 export const formatCampaignForExport = (campaign: Campaign): Record<string, string> => ({
   name: campaign.name || '-',
   type: campaign.type?.value || '-',
-  status: getCampaignStatus(campaign.startDate, campaign.endDate),
+  status: campaign.customerCampaignStatus?.value || campaign.customerCampaignStatus?.code || '-',
   startDate: formatExportDate(campaign.startDate),
   endDate: formatExportDate(campaign.endDate),
   createdAt: formatExportDate(campaign.createdAt)

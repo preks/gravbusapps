@@ -10,6 +10,10 @@
  * to prevent hallucinated fields.
  */
 
+import { GET_CUSTOMER_360_TOOL } from './customer-360-tool'
+import { GET_CUSTOMER_PORTFOLIO_TOOL } from './customer-portfolio-tool'
+import { RESOLVE_CUSTOMER_TOOL } from './resolve-customer-tool'
+
 // ============================================================================
 // LEAD TOOLS
 // ============================================================================
@@ -394,12 +398,22 @@ export interface InternalToolDefinition {
   name: string
   description: string
   category: string
-  operation: 'create' | 'update'
+  operation: 'create' | 'update' | 'read'
   schema: Record<string, unknown>
+  /** Optional JSON-schema describing the tool's return shape (e.g. getCustomer360). */
+  outputSchema?: Record<string, unknown>
+  /** Optional ids of other provider tools this tool expects to be reachable. */
+  relatedToolIds?: string[]
   source: string
 }
 
 export const INTERNAL_TOOLS: InternalToolDefinition[] = [
+  // Customer 360 aggregation (read) — exposes the normalized snapshot to the agent
+  GET_CUSTOMER_360_TOOL,
+  // Customer 360 portfolio (read) — ranked book-of-business for the Home product
+  GET_CUSTOMER_PORTFOLIO_TOOL,
+  // Customer 360 inbound triage (read) — resolve a sender email to a CRM customer
+  RESOLVE_CUSTOMER_TOOL,
   // Lead tools
   {
     id: 'create_lead',

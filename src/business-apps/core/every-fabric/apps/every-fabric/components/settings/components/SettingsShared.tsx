@@ -1,9 +1,12 @@
+import React from 'react'
 import { ToggleLeftIcon, ToggleRightIcon } from '@phosphor-icons/react'
 
 export const SectionHeader: React.FC<{ icon: React.ReactNode; title: string }> = ({ icon, title }) => (
-  <div className="gba:flex gba:items-center gba:gap-2 gba:px-5 gba:pt-5 gba:pb-2">
-    {icon}
-    <span className="gba:text-[10px] gba:uppercase gba:tracking-widest gba:font-semibold gba:text-muted-foreground/75">
+  <div className="gba:flex gba:items-center gba:gap-3 gba:px-5 gba:pt-7 gba:pb-4">
+    <span className="gba:flex gba:h-6 gba:w-6 gba:items-center gba:justify-center gba:rounded-md gba:bg-muted/60 gba:text-foreground/80 gba:[&>svg]:h-4.5 gba:[&>svg]:w-4.5 gba:[&>svg]:text-foreground/80">
+      {icon}
+    </span>
+    <span className="gba:text-sm gba:uppercase gba:tracking-[0.14em] gba:font-bold gba:text-foreground/90">
       {title}
     </span>
   </div>

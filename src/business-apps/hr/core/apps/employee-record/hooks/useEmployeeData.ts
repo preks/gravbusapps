@@ -207,6 +207,10 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
           id
           code
           value
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            localeCode
+            value
+          }
         }
       }
       relationship {
@@ -299,9 +303,14 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         exitDate
         additionalProperties
       }
-      workingHours {
+      workingHours(
+        where: { isDeleted: { _eq: false } }
+        orderBy: [{ activeFrom: ASC }, { createdAt: ASC }]
+      ) {
         id
         version
+        activeFrom
+        activeTo
         weeklyHours
         fullTimeEquivalent
         mondayHours
@@ -795,6 +804,8 @@ interface WorkingCondition {
 interface WorkingHours {
   id: string
   version: number
+  activeFrom?: string | null
+  activeTo?: string | null
   weeklyHours: number
   fullTimeEquivalent: number
   mondayHours: number

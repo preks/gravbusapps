@@ -10,4 +10,6 @@ export interface NotificationsAdditionalData {
    * When false, do not mount background SSE/unread host (IDE already mounts NotificationsHost).
    */
   enableHost?: boolean
+  /** Unread count from shell badge; seeds panel header before list hooks receive refresh events. */
+  seedUnreadCount?: number
 }

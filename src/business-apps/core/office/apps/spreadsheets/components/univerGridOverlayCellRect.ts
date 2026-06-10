@@ -1,9 +1,77 @@
 import type { SnapshotDimensions } from './univerGridInternalTypes'
 import { CURSOR_OVERLAY_COL_WIDTH_PX, CURSOR_OVERLAY_ROW_HEIGHT_PX } from './univerGridLayoutConstants'
 
+export type CollaborationOverlayRect = {
+  top: number
+  left: number
+  width: number
+  height: number
+}
+
 export type CollaborationOverlayPropsSnapshot = {
   sheet?: { id?: string }
   getCanonicalSheetId?: (id: string) => string | undefined
+}
+
+function resolveMainGridCanvas(container: HTMLElement): HTMLCanvasElement | null {
+  const canvases = Array.from(container.querySelectorAll<HTMLCanvasElement>('canvas'))
+
+  return canvases.reduce<HTMLCanvasElement | null>((best, candidate) => {
+    const candidateBox = candidate.getBoundingClientRect()
+    const candidateWidth = candidateBox.width > 0 ? candidateBox.width : candidate.width
+    const candidateHeight = candidateBox.height > 0 ? candidateBox.height : candidate.height
+    const candidateArea = Math.max(0, candidateWidth) * Math.max(0, candidateHeight)
+
+    if (candidateArea <= 0) {
+      return best
+    }
+
+    if (!best) {
+      return candidate
+    }
+
+    const bestBox = best.getBoundingClientRect()
+    const bestWidth = bestBox.width > 0 ? bestBox.width : best.width
+    const bestHeight = bestBox.height > 0 ? bestBox.height : best.height
+    const bestArea = Math.max(0, bestWidth) * Math.max(0, bestHeight)
+
+    return candidateArea > bestArea ? candidate : best
+  }, null)
+}
+
+export function resolveGridCanvasViewport(
+  container: HTMLElement,
+  cellDimensions?: SnapshotDimensions | null
+): CollaborationOverlayRect | null {
+  const canvas = resolveMainGridCanvas(container)
+  if (!canvas) return null
+
+  const containerBox = container.getBoundingClientRect()
+  const canvasBox = canvas.getBoundingClientRect()
+  const width = canvasBox.width > 0 ? canvasBox.width : canvas.width
+  const height = canvasBox.height > 0 ? canvasBox.height : canvas.height
+
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return null
+  }
+
+  const rawZoom = cellDimensions?.zoomRatio ?? 1
+  const zoom = Number.isFinite(rawZoom) && rawZoom > 0 ? rawZoom : 1
+  const headerLeft = (cellDimensions?.rowHeaderWidth ?? 0) * zoom
+  const headerTop = (cellDimensions?.columnHeaderHeight ?? 0) * zoom
+  const viewportWidth = Math.max(0, width - headerLeft)
+  const viewportHeight = Math.max(0, height - headerTop)
+
+  if (viewportWidth <= 0 || viewportHeight <= 0) {
+    return null
+  }
+
+  return {
+    top: canvasBox.top - containerBox.top + headerTop,
+    left: canvasBox.left - containerBox.left + headerLeft,
+    width: viewportWidth,
+    height: viewportHeight
+  }
 }
 
 /**
@@ -21,7 +89,7 @@ export function resolveCollaborationOverlayCellRect(params: {
   sheetScroll: { scrollLeft: number; scrollTop: number }
   row: number
   col: number
-}): { top: number; left: number; width: number; height: number } | null {
+}): CollaborationOverlayRect | null {
   const { api, container, props, cellDimensions: dims, sheetScroll, row, col } = params
   try {
     if (row < 0 || col < 0) return null
@@ -109,11 +177,7 @@ export function resolveCollaborationOverlayCellRect(params: {
         ? scrollTopFromState
         : sheetScroll.scrollTop
 
-    const canvases = Array.from(container.querySelectorAll<HTMLCanvasElement>('canvas'))
-    const mainCanvas = canvases.reduce<HTMLCanvasElement | null>((best, c) => {
-      if (!best) return c
-      return c.width * c.height > best.width * best.height ? c : best
-    }, null)
+    const mainCanvas = resolveMainGridCanvas(container)
 
     if (mainCanvas) {
       const canvasBox = mainCanvas.getBoundingClientRect()

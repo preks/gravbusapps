@@ -12,6 +12,11 @@ import { useBlinkOptional } from '@/common/providers/BlinkProvider'
  * This ensures consistent behavior across AppAction, AppActionButton, and AppActionMenu
  */
 export const appActionPropsComparison = (prevProps: any, nextProps: any): boolean => {
+  // Children carry visible trigger content (e.g. status badge label) and must trigger re-renders.
+  if (prevProps.children !== nextProps.children) {
+    return false
+  }
+
   // Prefer primary API comparison when contexts are used.
   const prevPrimaryContexts = prevProps.contexts || []
   const nextPrimaryContexts = nextProps.contexts || []

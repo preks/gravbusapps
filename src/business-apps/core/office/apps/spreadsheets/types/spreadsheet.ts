@@ -523,6 +523,7 @@ export interface SpreadsheetAppViewerProps {
   /** Header breadcrumb (Spreadsheets home): spreadsheet hub only. Falls back to onBack when omitted. */
   onNavigateToSpreadsheetHub?: () => void
   onShare?: () => void
+  onManageShares?: () => void
   onEdit?: () => void
   isEditing?: boolean
   isTrashedApp?: boolean

@@ -121,7 +121,7 @@ export const PaginationButton: React.FC<PaginationButtonProps> = ({ onClick, dis
 
 // Icon cell component for displaying content with an icon
 export interface IconCellProps {
-  icon: React.ComponentType<{ size?: number; style?: React.CSSProperties }>
+  icon: React.ElementType<{ size?: string | number; style?: React.CSSProperties }>
   iconSize?: number
   iconColor: string
   content: React.ReactNode

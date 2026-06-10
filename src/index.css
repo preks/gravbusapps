@@ -283,6 +283,63 @@
     }
   }
 
+  /* Digital Workplace - Every icon "alive and waiting" idle turn.
+     Rests still, then performs one smooth full rotation periodically. */
+  @keyframes dw-every-idle-turn {
+    0%,
+    72% {
+      transform: rotate(0deg);
+    }
+    88%,
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dw-idle-turn {
+      animation: none !important;
+    }
+  }
+
+  /* Digital Workplace - composer rotating placeholder ("split-flap" flip).
+     Each new phrase drops in from above like a flip-clock flap. */
+  @keyframes dw-phrase-flip {
+    0% {
+      transform: translateY(-70%) rotateX(80deg);
+      opacity: 0;
+    }
+    55% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(0) rotateX(0deg);
+      opacity: 1;
+    }
+  }
+
+  .dw-phrase-flip {
+    display: inline-block;
+    transform-origin: center bottom;
+    backface-visibility: hidden;
+    animation: dw-phrase-flip 520ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dw-phrase-flip {
+      animation: none !important;
+    }
+  }
+
+  /* Digital Workplace - keep panel rows inside their column.
+     Radix ScrollArea wraps content in an inline `display:table; min-width:100%`
+     div, which sizes to content and lets rows overflow horizontally. Forcing it
+     to block (still 100% wide) makes w-full rows shrink and truncate instead. */
+  .dw-panel-scroll [data-slot='scroll-area-viewport'] > div {
+    display: block !important;
+    min-width: 100% !important;
+  }
+
   /* ------------------------------------------------------------------------ */
   /* Space/EveryOne hero background (CSS-only, replaces <video>)               */
   /* ------------------------------------------------------------------------ */

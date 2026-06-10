@@ -8,6 +8,7 @@ import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/comp
 import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
 import { Badge, toast, useTranslation } from '@newwork/nw-design-system'
 import { useFileClient } from '@/common/network/files/useFileClient'
+import type { FileClient } from '@/common/network/files/FileClient'
 import { isPreviewableFile } from '@/common/utils/filePreview'
 import { DecisionReasonDialog } from '../components/DecisionReasonDialog'
 import {
@@ -136,7 +137,11 @@ function getVerificationDocumentChange(changes: SkillChange[]) {
     .find(detail => detail.labelKey === 'approve-skill-assignment-verification-document')
 }
 
-function scheduleDocumentCleanup(accessToken: string, document: SkillChangeDocumentValue): void {
+function scheduleDocumentCleanup(
+  accessToken: string,
+  document: SkillChangeDocumentValue,
+  fileClient: Pick<FileClient, 'deleteFile'>
+): void {
   let cleanupStarted = false
 
   const runCleanup = () => {
@@ -145,7 +150,7 @@ function scheduleDocumentCleanup(accessToken: string, document: SkillChangeDocum
     globalThis.removeEventListener('com.newwork.process.taskCompletion', runCleanup)
     globalThis.removeEventListener('com.newwork.process.processCompletion', runCleanup)
 
-    void deleteEmployeeDocument(accessToken, document).catch(error => {
+    void deleteEmployeeDocument(accessToken, document, fileClient).catch(error => {
       console.error('Error cleaning up verification document:', error)
     })
   }
@@ -155,7 +160,11 @@ function scheduleDocumentCleanup(accessToken: string, document: SkillChangeDocum
   globalThis.setTimeout(runCleanup, 3000)
 }
 
-async function deleteEmployeeDocument(accessToken: string, document: SkillChangeDocumentValue): Promise<void> {
+async function deleteEmployeeDocument(
+  accessToken: string,
+  document: SkillChangeDocumentValue,
+  fileClient: Pick<FileClient, 'deleteFile'>
+): Promise<void> {
   const response = await fetch(`${PROCESSES_BASE_URL}/employee/deleteEmployeeDocument`, {
     method: 'POST',
     headers: {
@@ -178,6 +187,13 @@ async function deleteEmployeeDocument(accessToken: string, document: SkillChange
 
   if (!response.ok) {
     throw new Error(`Failed to delete employee document ${document.id}`)
+  }
+
+  if (document.file) {
+    await fileClient.deleteFile(
+      { accessScope: 'tenant', fileId: document.file },
+      { appName: 'employee-profile', folderPath: `/documents/${document.employeeId || ''}` }
+    )
   }
 }
 
@@ -342,9 +358,9 @@ const ApproveSkillAssignmentContent: React.FC<ApproveSkillAssignmentProps> = ({
         return
       }
 
-      scheduleDocumentCleanup(accessToken, documentToRemove)
+      scheduleDocumentCleanup(accessToken, documentToRemove, fileClient)
     },
-    [accessToken, changes]
+    [accessToken, changes, fileClient]
   )
 
   const handleClose = () => {

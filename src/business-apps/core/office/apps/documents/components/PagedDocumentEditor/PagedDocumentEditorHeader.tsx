@@ -29,6 +29,7 @@ import {
   Upload,
   Wand2
 } from 'lucide-react'
+import { ShareNetwork, Users } from '@phosphor-icons/react'
 import type { Document, DocumentApprovalRequest } from '../../types'
 import type { PageLayoutPaginationConfig } from '../../utils/pageLayoutUtils'
 import { PresenceIndicator } from '@/business-apps/platform/apps/shared/components/PresenceIndicator'
@@ -92,6 +93,8 @@ export interface PagedDocumentEditorHeaderProps {
   onReleaseLock: () => void
   onOpenPublishDialog: () => void
   onOpenPageSetupDialog: () => void
+  onShare?: () => void
+  onManageShares?: () => void
   onSaveAsTemplate?: () => void
   onSendForApproval?: () => void
   onExportWord: () => void
@@ -148,6 +151,8 @@ export function PagedDocumentEditorHeader({
   onReleaseLock,
   onOpenPublishDialog,
   onOpenPageSetupDialog,
+  onShare,
+  onManageShares,
   onSaveAsTemplate,
   onSendForApproval,
   onExportWord,
@@ -419,6 +424,26 @@ export function PagedDocumentEditorHeader({
                         <History className="gba:w-4 gba:h-4 gba:mr-2" />
                         {onTranslate('editor-version-history')}
                       </DropdownMenuItem>
+                      {(onShare || onManageShares) && (
+                        <>
+                          <DropdownMenuSeparator />
+                          {onShare && (
+                            <DropdownMenuItem onClick={onShare} data-testid={`${testId}-document-menu-share`}>
+                              <ShareNetwork className="gba:w-4 gba:h-4 gba:mr-2" />
+                              {onTranslate('menu-share')}
+                            </DropdownMenuItem>
+                          )}
+                          {onManageShares && (
+                            <DropdownMenuItem
+                              onClick={onManageShares}
+                              data-testid={`${testId}-document-menu-manage-sharing`}
+                            >
+                              <Users className="gba:w-4 gba:h-4 gba:mr-2" />
+                              {onTranslate('menu-manage-sharing')}
+                            </DropdownMenuItem>
+                          )}
+                        </>
+                      )}
                       <DropdownMenuSeparator />
                       {isLockedByMe ? (
                         <DropdownMenuItem onClick={onReleaseLock}>

@@ -275,15 +275,27 @@ export function useFlowStudioData(accessToken: string): FlowStudioData {
       setEntitiesLoading(true)
       setEntitiesError(null)
       try {
-        const [customEntities, internalEntities] = await Promise.all([
+        const [customResult, internalResult] = await Promise.allSettled([
           fetchCustomEntityOptions(accessToken),
           fetchInternalEntityOptions({ accessToken, includeFields: true })
         ])
+        const customEntities = customResult.status === 'fulfilled' ? customResult.value : []
+        const internalEntities = internalResult.status === 'fulfilled' ? internalResult.value : []
+        if (customResult.status === 'rejected') {
+          console.warn('Custom entities fetch failed:', customResult.reason)
+        }
+        if (internalResult.status === 'rejected') {
+          console.warn('Internal entities fetch failed:', internalResult.reason)
+        }
+        const errors = [customResult, internalResult]
+          .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+          .map(r => (r.reason instanceof Error ? r.reason.message : String(r.reason)))
         setEntities(
           [...customEntities, ...internalEntities].sort((left, right) =>
             String(left.name || left.type).localeCompare(String(right.name || right.type))
           )
         )
+        setEntitiesError(errors.length === 2 ? errors.join('; ') : null)
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to load entities'
         console.error('Entities fetch failed:', message)

@@ -26,6 +26,7 @@ import {
 } from '@newwork/nw-design-system'
 import { MoreHorizontal, Pin, PinOff, Copy, Trash2, Share2, FolderInput, Users, FileText, Folder } from 'lucide-react'
 import type { NoteSummary, NoteColor } from '../types'
+import { getShareCapabilities } from '@/business-apps/core/office/sharing'
 import translations from '../_i18n'
 
 export interface SharedUserInfo {
@@ -47,6 +48,8 @@ export interface NotePreviewCardProps {
   onTogglePin?: (id: string) => void
   onShare?: (id: string) => void
   onManageShares?: (id: string) => void
+  /** When set, gates "Manage sharing" (from hub share lookup). */
+  hasSharesForNote?: boolean
   onMove?: (id: string) => void
   'data-testid'?: string
 }
@@ -114,14 +117,17 @@ export const NotePreviewCard: React.FC<NotePreviewCardProps> = ({
   onTogglePin,
   onShare,
   onManageShares,
+  hasSharesForNote,
   onMove,
   'data-testid': testId = 'note-preview-card'
 }) => {
   const { t } = useTranslation(translations)
   const isOwner = note.ownerId === currentUserId || note.permission === 'owner'
-  const canEdit = isOwner || note.permission === 'edit' || note.permission === 'admin'
+  const capabilities = getShareCapabilities({ permission: note.permission, isOwner })
+  const canEdit = capabilities.canEdit
   const noteColor = note.color || 'default'
-  const hasSharedUsers = sharedUsers.length > 0
+  const sharedUserCount = sharedUsers.length || note.sharedWithCount || 0
+  const hasSharedUsers = sharedUserCount > 0
   const isSharedWithMe = note.isShared && !isOwner
 
   const handleClick = () => {
@@ -235,13 +241,13 @@ export const NotePreviewCard: React.FC<NotePreviewCardProps> = ({
                           </Avatar>
                         ))}
                       </div>
-                      {sharedUsers.length > 3 && (
-                        <span className="gba:text-xs gba:text-muted-foreground">+{sharedUsers.length - 3}</span>
+                      {sharedUserCount > 3 && (
+                        <span className="gba:text-xs gba:text-muted-foreground">+{sharedUserCount - 3}</span>
                       )}
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>{t('shared-with-count', { count: sharedUsers.length })}</p>
+                    <p>{t('shared-with-count', { count: sharedUserCount })}</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -301,21 +307,21 @@ export const NotePreviewCard: React.FC<NotePreviewCardProps> = ({
 
               <DropdownMenuSeparator />
 
-              {isOwner && onShare && (
+              {capabilities.canManageSharing && onShare && (
                 <DropdownMenuItem onClick={() => onShare(note.id)}>
                   <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
                   {t('menu-share')}
                 </DropdownMenuItem>
               )}
 
-              {isOwner && hasSharedUsers && onManageShares && (
+              {capabilities.canManageSharing && onManageShares && (hasSharesForNote ?? hasSharedUsers) && (
                 <DropdownMenuItem onClick={() => onManageShares(note.id)}>
                   <Users className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {t('preview-menu-manage-shares')}
+                  {t('menu-manage-sharing')}
                 </DropdownMenuItem>
               )}
 
-              {isOwner && onDelete && (
+              {capabilities.canDelete && onDelete && (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem

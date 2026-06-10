@@ -110,7 +110,6 @@ export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({ devModeEnabled
     streamingThinking,
     statusHeadline: statusHeadlineRaw,
     liveStatusHeadline,
-    planItems,
     agentActivityLines,
     accessToken,
     isStreaming,
@@ -482,7 +481,6 @@ export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({ devModeEnabled
           streamingContent={streamingContent}
           streamingThinking={streamingThinking}
           statusHeadline={statusHeadline}
-          planItems={planItems}
           activityLines={agentActivityLines}
           isStreaming={isStreaming}
           isWaitingForInput={isWaitingForInput}

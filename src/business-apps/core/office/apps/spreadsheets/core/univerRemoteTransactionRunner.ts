@@ -195,12 +195,22 @@ export class UniverRemoteTransactionRunner {
     let appliedOperationCount = 0
     try {
       const deferredOps: SpreadsheetCommittedOperation[] = []
+      const shouldDeferValueOpsUntilRowInsert =
+        batch.operations.some(operation => operation.type === 'insert_row_slots') && batch.operations.length > 1
       let hasEncounteredPersistedCellOp = false
 
       for (const operation of batch.operations) {
         const isPersistedCellOp = UniverRemoteTransactionRunner.PERSISTED_CELL_OP_TYPES.has(operation.type)
         if (isPersistedCellOp) {
           hasEncounteredPersistedCellOp = true
+        }
+        if (
+          shouldDeferValueOpsUntilRowInsert &&
+          (isPersistedCellOp || RUNNER_POST_PERSISTED_VALUE_OPS.has(operation.type))
+        ) {
+          deferredOps.push(operation)
+          appliedOperationCount += 1
+          continue
         }
         if (hasEncounteredPersistedCellOp && RUNNER_POST_PERSISTED_VALUE_OPS.has(operation.type)) {
           deferredOps.push(operation)
@@ -251,6 +261,15 @@ export class UniverRemoteTransactionRunner {
     if (operation.type === 'set_cell' || operation.type === 'set_range' || operation.type === 'clear_cell') {
       const items = normalizeCellItems(batch, operation)
       if (items.length === 0) return { ok: true, appliedCellCount: 0, appliedOperationCount: 1 }
+      if (this.callbacks.applyRemoteCellUpdatesBulk) {
+        this.callbacks.applyRemoteCellUpdatesBulk(items, getMeta(batch, operation))
+      } else if (this.callbacks.applyRemoteCellUpdate) {
+        for (const item of items) {
+          this.callbacks.applyRemoteCellUpdate(item.rowIndex, item.colIndex, item.value, item.rowId, item.options)
+        }
+      } else {
+        return { ok: false, reason: 'missing_runner_callback', detail: 'applyRemoteCellUpdate' }
+      }
       return { ok: true, appliedCellCount: items.length, appliedOperationCount: 1 }
     }
 

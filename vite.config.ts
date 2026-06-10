@@ -1103,7 +1103,7 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
         'react-dom'
       ],
       esbuildOptions: {
-        target: 'es2020',
+        target: 'es2022',
         plugins: [
           {
             name: 'patch-roughjs-nan-guard',
@@ -1165,6 +1165,7 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
       ]
     },
     build: {
+      target: 'es2022',
       outDir: resolve(projectRootDir, 'dist'),
       // emptyOutDir behavior:
       // true for 'npm run build' (multi-screen, full clean)

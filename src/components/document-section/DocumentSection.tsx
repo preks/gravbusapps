@@ -1,6 +1,5 @@
 import React from 'react'
-import { Spinner, Alert, Button } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { Spinner, Alert, Button, useTranslation } from '@newwork/nw-design-system'
 import { useAppActionData } from '@/common/hooks/useAppActionData'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { DocumentSectionProps } from './types'
@@ -16,7 +15,9 @@ import { DocumentSectionToolbar } from './components/DocumentSectionToolbar'
 import { DocumentSectionTable } from './components/DocumentSectionTable'
 import { DocumentSectionModals } from './components/DocumentSectionModals'
 import { useDocumentOrganize } from './hooks/useDocumentOrganize'
+import { useDocumentSorting } from './hooks/useDocumentSorting'
 import { OrganizeWithAiDialog } from './components/OrganizeWithAiDialog'
+import translations from './_i18n'
 
 export const DocumentSection: React.FC<DocumentSectionProps> = ({
   entityId,
@@ -29,6 +30,11 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
   companyData,
   searchTerm: externalSearchTerm,
   onSearchChange,
+  defaultViewMode,
+  showViewModeToggle = true,
+  showActionsColumn = true,
+  enableColumnSorting = false,
+  onFileClick,
   customActions = [],
   toolbarActions = [],
   uploadActionProps,
@@ -40,7 +46,30 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
   aiOrganizeConfig,
   'data-testid': dataTestId = 'document-section'
 }) => {
-  // Listen for process completion events to refresh documents after update/delete flows
+  const { t } = useTranslation(translations)
+
+  const state = useDocumentState({
+    entityId,
+    externalSearchTerm,
+    onSearchChange,
+    defaultViewMode
+  })
+
+  const selectedUploadFolderId =
+    state.viewMode === 'tree' && state.selectedItems.length === 1
+      ? documents.find(document => document.id === state.selectedItems[0] && document.folder)?.id
+      : null
+  const parentDocumentFieldName = apiConfig?.parentDocumentFieldName ?? 'parentDocument'
+  const uploadExternalContextData =
+    uploadActionProps && selectedUploadFolderId
+      ? {
+          ...uploadActionProps.externalContextData,
+          parentDocument: selectedUploadFolderId,
+          parentDocumentId: selectedUploadFolderId,
+          [parentDocumentFieldName]: selectedUploadFolderId
+        }
+      : uploadActionProps?.externalContextData
+
   useProcessCompletion({
     onSuccess: () => {
       if (onRefresh) {
@@ -49,12 +78,11 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
     }
   })
 
-  // Set up AppAction data hooks for programmatic triggering (upload only - non-document-specific)
   const uploadActionData = useAppActionData(
     uploadActionProps && accessToken
       ? {
           contextsArray: uploadActionProps.contextsArray,
-          externalContextData: uploadActionProps.externalContextData,
+          externalContextData: uploadExternalContextData,
           accessToken,
           deferMainContextRequestsUntilClick: false,
           prefixDataTestId: uploadActionProps.prefixDataTestId
@@ -65,17 +93,9 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
           deferMainContextRequestsUntilClick: false,
           prefixDataTestId: 'document-upload'
         },
-    'Upload'
+    t('document-action-upload')
   )
 
-  // Initialize all state management
-  const state = useDocumentState({
-    entityId,
-    externalSearchTerm,
-    onSearchChange
-  })
-
-  // Initialize tree operations
   const treeOps = useDocumentTreeOperations({
     documents,
     viewMode: state.viewMode,
@@ -85,7 +105,6 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
     onSearchChange
   })
 
-  // Initialize document actions
   const actions = useDocumentActions({
     documents,
     filteredDocuments: treeOps.filteredDocuments,
@@ -107,7 +126,6 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
     getFolderChildrenCount: treeOps.getFolderChildrenCount
   })
 
-  // Initialize drag and drop
   const dragDrop = useDocumentDragDrop({
     documents,
     entityId,
@@ -127,13 +145,11 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
     companyData // Pass company data for MDM operations
   })
 
-  // Initialize confirmation modal handlers
   const confirmModal = useConfirmationModal({
     confirmationModal: state.confirmationModal,
     setConfirmationModal: state.setConfirmationModal
   })
 
-  // Initialize menu
   const menu = useDocumentMenu({
     selectedDocument: state.selectedDocument,
     setSelectedDocument: state.setSelectedDocument,
@@ -152,17 +168,16 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
     showConfirmation: actions.showConfirmation
   })
 
-  // Initialize row click handler
   const handleRowClick = useDocumentRowClick({
     isDragging: state.isDragging,
     filteredDocuments: treeOps.filteredDocuments,
     handleDownloadDocument: actions.handleDownloadDocument,
+    onFileClick,
     toggleFolderExpansion: treeOps.toggleFolderExpansion,
     viewMode: state.viewMode,
     setSelectedItems: state.setSelectedItems
   })
 
-  // Initialize AI document organization
   const aiOrganize = useDocumentOrganize({
     documents,
     entityId,
@@ -173,16 +188,22 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
     onRefresh
   })
 
-  // Create table columns
   const columns = createDocumentTableColumns({
     dataTestId,
     viewMode: state.viewMode,
+    showActionsColumn,
     toggleFolderExpansion: treeOps.toggleFolderExpansion,
     getFolderChildrenCount: treeOps.getFolderChildrenCount,
-    handleActionsButtonClick: menu.handleActionsButtonClick
+    handleActionsButtonClick: menu.handleActionsButtonClick,
+    t
   })
 
-  // Loading state
+  const documentSorting = useDocumentSorting({
+    documents: treeOps.displayDocuments,
+    columns,
+    enabled: enableColumnSorting
+  })
+
   if (isLoading) {
     return (
       <div data-testid={dataTestId} className="gba:flex gba:justify-center gba:items-center gba:py-12">
@@ -191,19 +212,16 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
     )
   }
 
-  // Error state
   if (error) {
     return (
       <div data-testid={dataTestId} className="gba:p-6">
         <Alert variant="destructive">
           <div>
-            <div className="gba:font-medium">
-              {getTranslationFromI18nKeyAndLabel('document.error.loading.title', 'Error Loading Documents')}
-            </div>
+            <div className="gba:font-medium">{t('document-error-loading-title')}</div>
             <div className="gba:text-sm gba:mt-1">{error}</div>
             {onRefresh && (
               <Button variant="outline" size="sm" onClick={onRefresh} className="gba:mt-2">
-                {getTranslationFromI18nKeyAndLabel('document.action.retry', 'Retry')}
+                {t('document-action-retry')}
               </Button>
             )}
           </div>
@@ -234,14 +252,19 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
           handleCollapseAll={actions.handleCollapseAll}
           showAiOrganize={!!aiOrganizeConfig && aiOrganize.hasDocuments}
           onAiOrganize={aiOrganize.openDialog}
+          showViewModeToggle={showViewModeToggle}
         />
 
         {/* Table */}
         <DocumentSectionTable
           dataTestId={dataTestId}
           viewMode={state.viewMode}
-          displayDocuments={treeOps.displayDocuments}
+          displayDocuments={documentSorting.sortedDocuments}
           columns={columns}
+          enableColumnSorting={enableColumnSorting}
+          sortColumnId={documentSorting.sortColumnId}
+          sortDirection={documentSorting.sortDirection}
+          onSortChange={documentSorting.handleSortChange}
           draggedDocument={state.draggedDocument}
           dropTarget={state.dropTarget}
           isDroppingOnRoot={state.isDroppingOnRoot}

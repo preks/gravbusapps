@@ -221,9 +221,9 @@ export const useTeamPerformance = ({ accessToken, managerId }: UseTeamPerformanc
             updatedAt
             employeePerformanceGoalUpdate(orderBy: { updateTime: ASC }) {
               id
-              progressPercent
               comment
               updateTime
+              updateDelta
               employee {
                 firstName
                 lastName

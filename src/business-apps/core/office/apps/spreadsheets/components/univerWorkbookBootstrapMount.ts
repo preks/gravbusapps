@@ -11,6 +11,7 @@ import { sanitizeUniverWorkbookSnapshotForBootstrap } from '../utils/sanitizeUni
 import { debugUniverInit } from './univerGridDebug'
 import { buildAuthoritativeCellSignatureMap, getAuthoritativeGridRowExtent } from './univerGridAuthoritativeHelpers'
 import { consumeSpreadsheetAutofillIntent, peekSpreadsheetAutofillIntent } from './univerAutofillIntent'
+import type { SheetRangeShape } from './cellMatrixUtils'
 import {
   registerUniverMountSheetValueAndEditListeners,
   resolveEmitSerializationKey,
@@ -49,6 +50,7 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     containerRef,
     getWorkbookSnapshotRef,
     toCellDimensionsPayload,
+    univerInstanceRef,
     univerAPIRef,
     remoteEchoSuppressionRef,
     isApplyingRemoteUpdateRef,
@@ -67,6 +69,7 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     scheduleSnapshotCheckpointRef,
     lastSyncedGridCellSignaturesRef,
     collabPersistedBulkApplyDepthRef,
+    currentBulkApplyOperationTypeRef,
     bulkApplyClearDeferredDirtyCellsRef,
     flushDeferredDirtyCellsRef,
     lastSyncedGridRowCountRef,
@@ -83,9 +86,24 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     copiedSelectionAnchorRef,
     pendingCutCellRangeRef,
     cutPasteCollabSuppressUntilMsRef,
+    recentMoveCellRangeFollowUpRef,
+    rowInsertFormulaFollowUpSuppressUntilMsRef,
+    recentInsertRowFormulaFollowUpRef,
+    rowDeleteFormulaFollowUpSuppressUntilMsRef,
+    recentDeleteRowFormulaFollowUpRef,
+    rowMoveFormulaFollowUpSuppressUntilMsRef,
+    recentMoveRowFormulaFollowUpRef,
+    columnInsertFormulaFollowUpSuppressUntilMsRef,
+    recentInsertColumnFormulaFollowUpRef,
+    columnDeleteFormulaFollowUpSuppressUntilMsRef,
+    recentDeleteColumnFormulaFollowUpRef,
+    columnMoveFormulaFollowUpSuppressUntilMsRef,
+    recentMoveColumnFormulaFollowUpRef,
+    recentNativeColumnMoveEmitRef,
     mergeGestureSuppressBySheetRef,
     pendingFormattingPasteIntentRef,
     pendingAutofillIntentRef,
+    pendingDimensionUserIntentRef,
     contextRef,
     propsRef,
     lastUniverInitDepsRef,
@@ -223,7 +241,7 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
   /** `FR_FR` maps the numfmt plugin's default currency symbol to € (see `localeCurrencySymbolMap` in `@univerjs/sheets-numfmt`). Locale bundles still ship merged English strings under this key. */
   const spreadsheetUniverLocale = LocaleType.FR_FR
 
-  const createUniverApi = () =>
+  const createUniverBinding = () =>
     createUniver({
       locale: spreadsheetUniverLocale,
       locales: {
@@ -238,12 +256,14 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
           }
         })
       ]
-    }).univerAPI
+    })
 
   const initDims = extractDimensionsFromSnapshot(snapshotForInit as unknown as Record<string, unknown>, s.id)
   if (initDims) cellDimensionsRef.current = initDims
 
-  let univerAPI = createUniverApi()
+  let univerBinding = createUniverBinding()
+  let univerAPI = univerBinding.univerAPI
+  univerInstanceRef.current = univerBinding.univer
   univerAPIRef.current = univerAPI
   try {
     univerAPI.createWorkbook(snapshotForInit as unknown as Record<string, unknown>)
@@ -260,7 +280,9 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
       try {
         snapshotForInit = buildSafeRowSnapshot()
         initializedFromProvidedSnapshot = false
-        univerAPI = createUniverApi()
+        univerBinding = createUniverBinding()
+        univerAPI = univerBinding.univerAPI
+        univerInstanceRef.current = univerBinding.univer
         univerAPIRef.current = univerAPI
         univerAPI.createWorkbook(snapshotForInit as unknown as Record<string, unknown>)
         scheduleApplyGermanNumfmtLocale(univerAPI, isBootstrapAlive)
@@ -269,6 +291,7 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
         try {
           univerAPI.dispose()
         } catch {}
+        univerInstanceRef.current = null
         univerAPIRef.current = null
         contextRef.current = null
         lastSyncedGridCellSignaturesRef.current = new Map()
@@ -284,6 +307,7 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
       }
     } else {
       univerAPI.dispose()
+      univerInstanceRef.current = null
       univerAPIRef.current = null
       contextRef.current = null
       lastSyncedGridCellSignaturesRef.current = new Map()
@@ -354,24 +378,103 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
   }, 1500)
 
   // Re-read from Univer after it hydrates (handles column/row resizes, Excel imports, etc.)
-  const updateCellDimensions = (): { changed: boolean; dimensions: SnapshotDimensions | null } => {
+  const updateCellDimensions = (
+    focusRanges?: SheetRangeShape[]
+  ): {
+    changed: boolean
+    dimensions: SnapshotDimensions | null
+    sheetId: string | null
+  } => {
     try {
       const wb = univerAPIRef.current?.getActiveWorkbook() as unknown as {
         save?: () => Record<string, unknown>
         getSnapshot?: () => Record<string, unknown>
+        getActiveSheet?: () => {
+          getSheetId?: () => string
+          getRowHeight?: (row: number) => number
+          getColumnWidth?: (col: number) => number
+          getActiveRange?: () => {
+            getRange?: () => {
+              startRow?: number
+              endRow?: number
+              startColumn?: number
+              endColumn?: number
+            }
+          } | null
+        } | null
       } | null
       const snap = wb?.save?.() ?? wb?.getSnapshot?.()
-      const d = snap ? extractDimensionsFromSnapshot(snap, s.id) : null
-      if (!d) return { changed: false, dimensions: null }
+      const activeWorksheet = wb?.getActiveSheet?.() ?? null
+      const activeSheetId = activeWorksheet?.getSheetId?.() ?? propsRef.current.sheet.id ?? s.id
+      let d = snap ? extractDimensionsFromSnapshot(snap, activeSheetId) : null
+      const currentTrackedDimensions = cellDimensionsRef.current
+      if (d && currentTrackedDimensions) {
+        d = {
+          ...d,
+          columnData: { ...d.columnData, ...currentTrackedDimensions.columnData },
+          rowData: { ...d.rowData, ...currentTrackedDimensions.rowData },
+          rowHeaderWidth: currentTrackedDimensions.rowHeaderWidth || d.rowHeaderWidth,
+          columnHeaderHeight: currentTrackedDimensions.columnHeaderHeight || d.columnHeaderHeight,
+          zoomRatio: currentTrackedDimensions.zoomRatio || d.zoomRatio
+        }
+      }
+      const liveFocusRanges =
+        focusRanges && focusRanges.length > 0
+          ? focusRanges
+          : (() => {
+              const activeRange = activeWorksheet?.getActiveRange?.()
+              const range = activeRange?.getRange?.()
+              if (!range) return []
+              const startRow = Number(range.startRow)
+              const endRow = Number(range.endRow)
+              const startColumn = Number(range.startColumn)
+              const endColumn = Number(range.endColumn)
+              if (
+                !Number.isFinite(startRow) ||
+                !Number.isFinite(endRow) ||
+                !Number.isFinite(startColumn) ||
+                !Number.isFinite(endColumn)
+              ) {
+                return []
+              }
+              return [
+                {
+                  startRow: Math.max(0, Math.trunc(startRow)),
+                  endRow: Math.max(0, Math.trunc(endRow)),
+                  startColumn: Math.max(0, Math.trunc(startColumn)),
+                  endColumn: Math.max(0, Math.trunc(endColumn))
+                }
+              ]
+            })()
+      if (d && activeWorksheet && liveFocusRanges.length > 0) {
+        const nextRowData = { ...d.rowData }
+        const nextColumnData = { ...d.columnData }
+        for (const range of liveFocusRanges) {
+          for (let row = range.startRow; row <= range.endRow; row += 1) {
+            const liveHeight = activeWorksheet.getRowHeight?.(row)
+            if (typeof liveHeight === 'number' && Number.isFinite(liveHeight) && liveHeight > 0) {
+              nextRowData[row] = { ...nextRowData[row], h: Math.round(liveHeight) }
+            }
+          }
+          for (let col = range.startColumn; col <= range.endColumn; col += 1) {
+            const liveWidth = activeWorksheet.getColumnWidth?.(col)
+            if (typeof liveWidth === 'number' && Number.isFinite(liveWidth) && liveWidth > 0) {
+              nextColumnData[col] = { ...nextColumnData[col], w: Math.round(liveWidth) }
+            }
+          }
+        }
+        d = { ...d, rowData: nextRowData, columnData: nextColumnData }
+      }
+      if (!d) return { changed: false, dimensions: null, sheetId: activeSheetId }
       const changed = !areSnapshotDimensionsEqual(cellDimensionsRef.current, d)
       cellDimensionsRef.current = d
       if (changed) {
         refreshCursorRectsRef.current?.()
         refreshCommentRectsRef.current?.()
       }
-      return { changed, dimensions: d }
+      return { changed, dimensions: d, sheetId: activeSheetId }
     } catch {
-      return { changed: false, dimensions: null }
+      return { changed: false, dimensions: null, sheetId: null }
     }
   }
   updateCellDimensionsRef.current = updateCellDimensions
@@ -418,6 +521,20 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     pendingFormattingPasteIntentRef,
     pendingAutofillIntentRef,
     mergeGestureSuppressBySheetRef,
+    cutPasteCollabSuppressUntilMsRef,
+    recentMoveCellRangeFollowUpRef,
+    rowInsertFormulaFollowUpSuppressUntilMsRef,
+    recentInsertRowFormulaFollowUpRef,
+    rowDeleteFormulaFollowUpSuppressUntilMsRef,
+    recentDeleteRowFormulaFollowUpRef,
+    rowMoveFormulaFollowUpSuppressUntilMsRef,
+    recentMoveRowFormulaFollowUpRef,
+    columnInsertFormulaFollowUpSuppressUntilMsRef,
+    recentInsertColumnFormulaFollowUpRef,
+    columnDeleteFormulaFollowUpSuppressUntilMsRef,
+    recentDeleteColumnFormulaFollowUpRef,
+    columnMoveFormulaFollowUpSuppressUntilMsRef,
+    recentMoveColumnFormulaFollowUpRef,
     getWorkbookSnapshotRef,
     peekPasteFormattingReplaceIntent,
     peekAutofillApplyType,
@@ -575,6 +692,8 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     readOnlyRef,
     recentSheetMutationIdsRef,
     pendingAutofillIntentRef,
+    columnMoveFormulaFollowUpSuppressUntilMsRef,
+    recentMoveColumnFormulaFollowUpRef,
     insertSheetSourceIds,
     latestNativeSheetCopySourceIdRef,
     markFormattingPasteIntent,
@@ -598,8 +717,23 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     lastCellValueMutationAtRef,
     pendingCutCellRangeRef,
     cutPasteCollabSuppressUntilMsRef,
+    recentMoveCellRangeFollowUpRef,
+    rowInsertFormulaFollowUpSuppressUntilMsRef,
+    recentInsertRowFormulaFollowUpRef,
+    rowDeleteFormulaFollowUpSuppressUntilMsRef,
+    recentDeleteRowFormulaFollowUpRef,
+    rowMoveFormulaFollowUpSuppressUntilMsRef,
+    recentMoveRowFormulaFollowUpRef,
+    columnInsertFormulaFollowUpSuppressUntilMsRef,
+    recentInsertColumnFormulaFollowUpRef,
+    columnDeleteFormulaFollowUpSuppressUntilMsRef,
+    recentDeleteColumnFormulaFollowUpRef,
+    columnMoveFormulaFollowUpSuppressUntilMsRef,
+    recentMoveColumnFormulaFollowUpRef,
+    recentNativeColumnMoveEmitRef,
     mergeGestureSuppressBySheetRef,
     pendingAutofillIntentRef,
+    pendingDimensionUserIntentRef,
     insertSheetSourceIds,
     latestNativeSheetCopySourceIdRef,
     getActiveWorksheetIdFromUniver,
@@ -662,6 +796,21 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
       readOnlyRef,
       isApplyingRemoteUpdateRef,
       collabPersistedBulkApplyDepthRef,
+      currentBulkApplyOperationTypeRef,
+      cutPasteCollabSuppressUntilMsRef,
+      recentMoveCellRangeFollowUpRef,
+      rowInsertFormulaFollowUpSuppressUntilMsRef,
+      recentInsertRowFormulaFollowUpRef,
+      rowDeleteFormulaFollowUpSuppressUntilMsRef,
+      recentDeleteRowFormulaFollowUpRef,
+      rowMoveFormulaFollowUpSuppressUntilMsRef,
+      recentMoveRowFormulaFollowUpRef,
+      columnInsertFormulaFollowUpSuppressUntilMsRef,
+      recentInsertColumnFormulaFollowUpRef,
+      columnDeleteFormulaFollowUpSuppressUntilMsRef,
+      recentDeleteColumnFormulaFollowUpRef,
+      columnMoveFormulaFollowUpSuppressUntilMsRef,
+      recentMoveColumnFormulaFollowUpRef,
       remoteEchoSuppressionRef,
       univerAPIRef,
       callbacksRef,
@@ -756,6 +905,7 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     } catch {}
     sheetScrollRef.current = { scrollLeft: 0, scrollTop: 0 }
     univerAPI.dispose()
+    univerInstanceRef.current = null
     univerAPIRef.current = null
     contextRef.current = null
     lastSyncedGridCellSignaturesRef.current = new Map()

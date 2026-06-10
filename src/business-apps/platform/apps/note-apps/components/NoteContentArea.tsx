@@ -24,17 +24,18 @@ import {
   FileText,
   PenTool,
   Share2,
+  Users,
   Link2,
   Copy,
   Trash2,
   Folder,
-  ChevronRight,
+  ArrowUpDown,
   Edit3
 } from 'lucide-react'
 import { NoteContentHeader } from './NoteContentHeader'
 import { NotePreviewCard } from './NotePreviewCard'
-import { NoteBulkActions } from './NoteBulkActions'
 import type { NoteSummary, NoteTreeNode } from '../types'
+import { getShareCapabilities } from '@/business-apps/core/office/sharing'
 import translations from '../_i18n'
 
 export interface NoteContentAreaProps {
@@ -52,13 +53,14 @@ export interface NoteContentAreaProps {
   favorites: Set<string>
   ownerInfoMap: Map<string, { name: string; avatar?: string }>
   activeSection: string
+  searchQuery: string
+  onSearchChange: (query: string) => void
   onViewLayoutChange: (layout: 'grid' | 'list') => void
   onSortByChange: (sortBy: 'name' | 'modified' | 'created') => void
   onSortOrderToggle: () => void
   onBreadcrumbClick: (id: string | null) => void
   onToggleSidebar: () => void
   onCreateNote: (opts?: { noteType?: 'text' | 'handwriting' }) => void
-  onCreateFolder?: () => void
   onRefresh: () => void
   onOpenNote: (id: string) => void
   onOpenFolder?: (id: string) => void
@@ -66,6 +68,8 @@ export interface NoteContentAreaProps {
   onDuplicateNote: (id: string) => void
   onTogglePin: (id: string) => void
   onShareNote: (id: string) => void
+  onManageShares?: (id: string) => void
+  hasSharesForNote: (noteId: string) => boolean
   onCopyLink: (note: NoteSummary) => void
   onToggleFavorite: (id: string, e?: React.MouseEvent) => void
   onToggleSelect: (id: string, e?: React.MouseEvent) => void
@@ -75,7 +79,6 @@ export interface NoteContentAreaProps {
   onClearSelection?: () => void
   onMoveToFolder?: (noteId: string, folderId: string) => void
   onRenameNote?: (noteId: string, newTitle: string) => void
-  handwritingNotesEnabled?: boolean
 }
 
 function getInitials(name: string): string {
@@ -117,13 +120,14 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
   favorites,
   ownerInfoMap,
   activeSection,
+  searchQuery,
+  onSearchChange,
   onViewLayoutChange,
   onSortByChange,
   onSortOrderToggle,
   onBreadcrumbClick,
   onToggleSidebar,
   onCreateNote,
-  onCreateFolder,
   onRefresh,
   onOpenNote,
   onOpenFolder,
@@ -131,17 +135,17 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
   onDuplicateNote,
   onTogglePin,
   onShareNote,
+  onManageShares,
+  hasSharesForNote,
   onCopyLink,
   onToggleFavorite,
   onToggleSelect,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onSelectAll: _onSelectAll,
+  onSelectAll,
   onBulkDelete,
   onBulkPin,
   onClearSelection,
   onMoveToFolder,
-  onRenameNote,
-  handwritingNotesEnabled = true
+  onRenameNote
 }) => {
   const { t } = useTranslation(translations)
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null)
@@ -168,6 +172,17 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
     setRenamingId(null)
   }, [renamingId, renameValue, onRenameNote])
 
+  const handleSortColumn = useCallback(
+    (column: 'name' | 'modified' | 'created') => {
+      if (sortBy === column) {
+        onSortOrderToggle()
+      } else {
+        onSortByChange(column)
+      }
+    },
+    [sortBy, onSortByChange, onSortOrderToggle]
+  )
+
   return (
     <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:min-h-0 gba:bg-background">
       <NoteContentHeader
@@ -177,15 +192,18 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
         sortBy={sortBy}
         sortOrder={sortOrder}
         isSidebarCollapsed={isSidebarCollapsed}
+        searchQuery={searchQuery}
+        selectedCount={selectedNotes.size}
+        onSearchChange={onSearchChange}
         onViewLayoutChange={onViewLayoutChange}
         onSortByChange={onSortByChange}
         onSortOrderToggle={onSortOrderToggle}
         onBreadcrumbClick={onBreadcrumbClick}
         onToggleSidebar={onToggleSidebar}
-        onCreateNote={onCreateNote}
-        onCreateFolder={onCreateFolder}
         onRefresh={onRefresh}
-        handwritingNotesEnabled={handwritingNotesEnabled}
+        onBulkDelete={onBulkDelete}
+        onBulkPin={onBulkPin}
+        onClearSelection={onClearSelection || (() => {})}
       />
 
       <div className="gba:flex-1 gba:overflow-auto">
@@ -237,7 +255,7 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
 
         {/* Grid view */}
         {!isLoading && notes.length > 0 && viewLayout === 'grid' && (
-          <div className="gba:p-5 gba:grid gba:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:gap-3">
+          <div className="gba:max-w-6xl gba:mx-auto gba:w-full gba:px-6 gba:py-5 gba:grid gba:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:gap-3">
             {notes.map(note => (
               <NotePreviewCard
                 key={note.id}
@@ -249,6 +267,8 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
                 onDuplicate={onDuplicateNote}
                 onTogglePin={onTogglePin}
                 onShare={onShareNote}
+                onManageShares={onManageShares}
+                hasSharesForNote={hasSharesForNote(note.id)}
               />
             ))}
           </div>
@@ -256,14 +276,51 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
 
         {/* List view */}
         {!isLoading && notes.length > 0 && viewLayout === 'list' && (
-          <div className="gba:w-full gba:px-4 gba:py-2">
-            <div className="gba:space-y-px">
-              {notes.map((note, idx) => {
-                const prevNote = idx > 0 ? notes[idx - 1] : null
-                const prevIsFolder = prevNote
-                  ? prevNote.icon === '📁' || (prevNote.hasChildren && !prevNote.preview)
-                  : false
+          <div className="gba:max-w-6xl gba:mx-auto gba:w-full">
+            {/* Table header */}
+            <div className="gba:sticky gba:top-0 gba:bg-muted/50 gba:border-b gba:z-10">
+              <div className="gba:flex gba:items-center gba:px-4 gba:py-2 gba:text-xs gba:font-medium gba:text-muted-foreground">
+                <div className="gba:w-8 gba:flex-shrink-0">
+                  <Checkbox
+                    checked={selectedNotes.size === notes.length && notes.length > 0}
+                    onCheckedChange={onSelectAll}
+                  />
+                </div>
+                <div className="gba:w-8 gba:flex-shrink-0" />
+                <button
+                  type="button"
+                  className="gba:flex-1 gba:min-w-0 gba:flex gba:items-center gba:gap-1 gba:text-left hover:gba:text-foreground"
+                  onClick={() => handleSortColumn('name')}
+                >
+                  {t('sort-name')}
+                  {sortBy === 'name' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
+                </button>
+                <button
+                  type="button"
+                  className="gba:w-36 gba:flex-shrink-0 gba:hidden gba:sm:flex gba:items-center gba:gap-1 gba:text-left hover:gba:text-foreground"
+                  onClick={() => handleSortColumn('modified')}
+                >
+                  {t('sort-modified')}
+                  {sortBy === 'modified' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
+                </button>
+                <div className="gba:w-40 gba:flex-shrink-0 gba:hidden gba:md:block">{t('table-owner')}</div>
+                <button
+                  type="button"
+                  className="gba:w-32 gba:flex-shrink-0 gba:hidden gba:lg:flex gba:items-center gba:gap-1 gba:text-left hover:gba:text-foreground"
+                  onClick={() => handleSortColumn('created')}
+                >
+                  {t('sort-created')}
+                  {sortBy === 'created' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
+                </button>
+                <div className="gba:w-10 gba:flex-shrink-0" />
+              </div>
+            </div>
+
+            {/* Table body */}
+            <div className="gba:divide-y gba:divide-border">
+              {notes.map(note => {
                 const isOwner = note.ownerId === currentUserId || note.permission === 'owner'
+                const capabilities = getShareCapabilities({ permission: note.permission, isOwner })
                 const isSelected = selectedNotes.has(note.id)
                 const isFavorite = note.isFavorite ?? favorites.has(note.id)
                 const ownerInfo = note.ownerId ? ownerInfoMap.get(note.ownerId) : undefined
@@ -280,67 +337,62 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
                   }
                 }
 
-                const showFolderDivider = prevIsFolder && !isNoteFolder
-
                 return (
-                  <React.Fragment key={note.id}>
-                    {showFolderDivider && <div className="gba:h-2" />}
-                    <div
-                      className={`gba:group gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-3 gba:rounded-xl gba:transition-all gba:duration-150 gba:cursor-pointer ${
-                        isSelected
-                          ? 'gba:bg-primary/8 gba:ring-1 gba:ring-primary/20'
-                          : dragOverFolderId === note.id
-                            ? 'gba:bg-primary/12 gba:ring-2 gba:ring-primary/40 gba:scale-[1.01]'
-                            : 'hover:gba:bg-muted/40'
-                      }`}
-                      draggable={!isNoteFolder}
-                      onDragStart={e => {
-                        e.dataTransfer.setData('text/plain', note.id)
-                        e.dataTransfer.effectAllowed = 'move'
-                      }}
-                      onDragOver={e => {
-                        if (isNoteFolder) {
-                          e.preventDefault()
-                          e.dataTransfer.dropEffect = 'move'
-                          setDragOverFolderId(note.id)
-                        }
-                      }}
-                      onDragLeave={() => {
-                        if (dragOverFolderId === note.id) setDragOverFolderId(null)
-                      }}
-                      onDrop={e => {
+                  <div
+                    key={note.id}
+                    className={`gba:group gba:flex gba:items-center gba:px-4 gba:py-3 gba:transition-colors gba:cursor-pointer ${
+                      isSelected
+                        ? 'gba:bg-primary/5'
+                        : dragOverFolderId === note.id
+                          ? 'gba:bg-primary/10 gba:ring-1 gba:ring-primary/30'
+                          : 'hover:gba:bg-muted/30'
+                    }`}
+                    draggable={!isNoteFolder}
+                    onDragStart={e => {
+                      e.dataTransfer.setData('text/plain', note.id)
+                      e.dataTransfer.effectAllowed = 'move'
+                    }}
+                    onDragOver={e => {
+                      if (isNoteFolder) {
                         e.preventDefault()
-                        setDragOverFolderId(null)
-                        const draggedId = e.dataTransfer.getData('text/plain')
-                        if (draggedId && draggedId !== note.id && isNoteFolder && onMoveToFolder)
-                          onMoveToFolder(draggedId, note.id)
-                      }}
-                      onClick={handleRowClick}
-                      data-testid={`list-row-${note.id}`}
-                    >
-                      {/* Checkbox */}
-                      <div
-                        className={`gba:flex-shrink-0 gba:transition-opacity ${isSelected ? 'gba:opacity-100' : 'gba:opacity-60 group-hover:gba:opacity-100'}`}
-                        onClick={e => e.stopPropagation()}
-                      >
-                        <Checkbox checked={isSelected} onCheckedChange={() => onToggleSelect(note.id)} />
-                      </div>
+                        e.dataTransfer.dropEffect = 'move'
+                        setDragOverFolderId(note.id)
+                      }
+                    }}
+                    onDragLeave={() => {
+                      if (dragOverFolderId === note.id) setDragOverFolderId(null)
+                    }}
+                    onDrop={e => {
+                      e.preventDefault()
+                      setDragOverFolderId(null)
+                      const draggedId = e.dataTransfer.getData('text/plain')
+                      if (draggedId && draggedId !== note.id && isNoteFolder && onMoveToFolder)
+                        onMoveToFolder(draggedId, note.id)
+                    }}
+                    onClick={handleRowClick}
+                    data-testid={`list-row-${note.id}`}
+                  >
+                    {/* Checkbox */}
+                    <div className="gba:w-8 gba:flex-shrink-0" onClick={e => e.stopPropagation()}>
+                      <Checkbox checked={isSelected} onCheckedChange={() => onToggleSelect(note.id)} />
+                    </div>
 
-                      {/* Favorite */}
+                    {/* Favorite */}
+                    <div className="gba:w-8 gba:flex-shrink-0">
                       {!isNoteFolder && (
                         <button
                           onClick={e => onToggleFavorite(note.id, e)}
-                          className={`gba:flex-shrink-0 gba:p-0.5 gba:rounded gba:transition-colors ${
-                            isFavorite
-                              ? 'gba:text-warning'
-                              : 'gba:text-muted-foreground/30 hover:gba:text-muted-foreground'
+                          className={`gba:p-1 gba:rounded hover:gba:bg-muted ${
+                            isFavorite ? 'gba:text-warning' : 'gba:text-muted-foreground/40 hover:gba:text-foreground'
                           }`}
                         >
-                          <Star className={`gba:w-3.5 gba:h-3.5 ${isFavorite ? 'gba:fill-current' : ''}`} />
+                          <Star className={`gba:w-4 gba:h-4 ${isFavorite ? 'gba:fill-current' : ''}`} />
                         </button>
                       )}
+                    </div>
 
-                      {/* Icon */}
+                    {/* Name & icon */}
+                    <div className="gba:flex-1 gba:min-w-0 gba:flex gba:items-center gba:gap-3">
                       <div className="gba:w-9 gba:h-9 gba:rounded-xl gba:flex gba:items-center gba:justify-center gba:flex-shrink-0 gba:bg-card-decorative">
                         {isNoteFolder ? (
                           <Folder className="gba:w-4 gba:h-4 gba:text-decorative-foreground" />
@@ -350,9 +402,7 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
                           <FileText className="gba:w-4 gba:h-4 gba:text-decorative-foreground" />
                         )}
                       </div>
-
-                      {/* Title + preview */}
-                      <div className="gba:flex-1 gba:min-w-0">
+                      <div className="gba:min-w-0">
                         <div className="gba:flex gba:items-center gba:gap-1.5">
                           {renamingId === note.id ? (
                             <input
@@ -365,10 +415,10 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
                                 if (e.key === 'Escape') setRenamingId(null)
                               }}
                               onClick={e => e.stopPropagation()}
-                              className="gba:text-[13px] gba:font-medium gba:text-foreground gba:bg-transparent gba:border gba:border-primary/30 gba:rounded gba:px-1.5 gba:py-0.5 gba:outline-none focus:gba:ring-1 focus:gba:ring-primary/40 gba:w-full gba:max-w-[200px]"
+                              className="gba:text-sm gba:font-medium gba:text-foreground gba:bg-transparent gba:border gba:border-primary/30 gba:rounded gba:px-1.5 gba:py-0.5 gba:outline-none focus:gba:ring-1 focus:gba:ring-primary/40 gba:w-full gba:max-w-[200px]"
                             />
                           ) : (
-                            <span className="gba:text-[13px] gba:font-medium gba:text-foreground gba:truncate">
+                            <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">
                               {note.title || t('title-untitled')}
                             </span>
                           )}
@@ -388,122 +438,122 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
                           )}
                         </div>
                         {note.preview && (
-                          <p className="gba:text-xs gba:text-muted-foreground/60 gba:truncate gba:mt-0.5">
-                            {note.preview}
-                          </p>
+                          <p className="gba:text-xs gba:text-muted-foreground/60 gba:truncate">{note.preview}</p>
                         )}
                       </div>
+                    </div>
 
-                      {/* Time */}
-                      <div className="gba:flex-shrink-0 gba:text-[11px] gba:text-muted-foreground/50 gba:tabular-nums gba:hidden gba:sm:block">
-                        {formatRelativeTime(note.updatedAt, t)}
-                      </div>
+                    {/* Modified */}
+                    <div className="gba:w-36 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground gba:hidden gba:sm:block">
+                      {formatRelativeTime(note.updatedAt, t)}
+                    </div>
 
-                      {/* Owner */}
-                      <div className="gba:flex-shrink-0 gba:hidden gba:md:flex gba:items-center gba:gap-1.5 gba:w-28">
-                        <Avatar className="gba:w-5 gba:h-5">
-                          {ownerInfo?.avatar && <AvatarImage src={ownerInfo.avatar} />}
-                          <AvatarFallback className="gba:text-[8px] gba:bg-muted">
-                            {ownerInfo?.name ? getInitials(ownerInfo.name) : '?'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="gba:text-[11px] gba:text-muted-foreground/50 gba:truncate">
-                          {isOwner ? t('owner-you') : ownerInfo?.name || t('owner-unknown')}
-                        </span>
-                      </div>
+                    {/* Owner */}
+                    <div className="gba:w-40 gba:flex-shrink-0 gba:hidden gba:md:flex gba:items-center gba:gap-2">
+                      <Avatar className="gba:w-6 gba:h-6">
+                        {ownerInfo?.avatar && <AvatarImage src={ownerInfo.avatar} />}
+                        <AvatarFallback className="gba:text-[10px] gba:bg-muted">
+                          {ownerInfo?.name ? getInitials(ownerInfo.name) : '?'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="gba:text-sm gba:text-muted-foreground gba:truncate">
+                        {isOwner ? t('owner-you') : ownerInfo?.name || t('owner-unknown')}
+                      </span>
+                    </div>
 
-                      {/* Actions */}
-                      <div
-                        className="gba:flex-shrink-0 gba:opacity-50 group-hover:gba:opacity-100 gba:transition-opacity"
-                        onClick={e => e.stopPropagation()}
-                      >
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="gba:h-7 gba:w-7 gba:text-muted-foreground">
-                              <MoreHorizontal className="gba:w-3.5 gba:h-3.5" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="gba:w-44">
-                            <DropdownMenuItem
-                              onClick={() =>
-                                isNoteFolder && onOpenFolder ? onOpenFolder(note.id) : onOpenNote(note.id)
-                              }
-                            >
-                              {isNoteFolder ? (
-                                <Folder className="gba:w-4 gba:h-4 gba:mr-2" />
-                              ) : (
-                                <FileText className="gba:w-4 gba:h-4 gba:mr-2" />
-                              )}
-                              {t('menu-open')}
+                    {/* Created */}
+                    <div className="gba:w-32 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground gba:hidden gba:lg:block">
+                      {formatRelativeTime(note.createdAt, t)}
+                    </div>
+
+                    {/* Actions */}
+                    <div
+                      className="gba:w-10 gba:flex-shrink-0 gba:flex gba:justify-end"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="gba:h-8 gba:w-8 gba:text-muted-foreground">
+                            <MoreHorizontal className="gba:w-4 gba:h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="gba:w-44">
+                          <DropdownMenuItem
+                            onClick={() => (isNoteFolder && onOpenFolder ? onOpenFolder(note.id) : onOpenNote(note.id))}
+                          >
+                            {isNoteFolder ? (
+                              <Folder className="gba:w-4 gba:h-4 gba:mr-2" />
+                            ) : (
+                              <FileText className="gba:w-4 gba:h-4 gba:mr-2" />
+                            )}
+                            {t('menu-open')}
+                          </DropdownMenuItem>
+                          {onRenameNote && (
+                            <DropdownMenuItem onClick={() => startRename(note.id, note.title || '')}>
+                              <Edit3 className="gba:w-4 gba:h-4 gba:mr-2" />
+                              {t('menu-rename')}
                             </DropdownMenuItem>
-                            {onRenameNote && (
-                              <DropdownMenuItem onClick={() => startRename(note.id, note.title || '')}>
-                                <Edit3 className="gba:w-4 gba:h-4 gba:mr-2" />
-                                {t('menu-rename')}
+                          )}
+                          {!isNoteFolder && capabilities.canManageSharing && (
+                            <DropdownMenuItem onClick={() => onShareNote(note.id)}>
+                              <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
+                              {t('menu-share')}
+                            </DropdownMenuItem>
+                          )}
+                          {!isNoteFolder &&
+                            capabilities.canManageSharing &&
+                            onManageShares &&
+                            hasSharesForNote(note.id) && (
+                              <DropdownMenuItem onClick={() => onManageShares(note.id)}>
+                                <Users className="gba:w-4 gba:h-4 gba:mr-2" />
+                                {t('menu-manage-sharing')}
                               </DropdownMenuItem>
                             )}
-                            {!isNoteFolder && isOwner && (
-                              <DropdownMenuItem onClick={() => onShareNote(note.id)}>
-                                <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                                {t('menu-share')}
-                              </DropdownMenuItem>
-                            )}
-                            {!isNoteFolder && (
-                              <DropdownMenuItem onClick={() => onCopyLink(note)}>
-                                <Link2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                                {t('menu-copy-link')}
-                              </DropdownMenuItem>
-                            )}
-                            {!isNoteFolder && (
-                              <DropdownMenuItem onClick={() => onDuplicateNote(note.id)}>
-                                <Copy className="gba:w-4 gba:h-4 gba:mr-2" />
-                                {t('menu-duplicate')}
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuSeparator />
-                            {!isNoteFolder && (
-                              <DropdownMenuItem onClick={() => onTogglePin(note.id)}>
-                                <Pin
-                                  className={`gba:w-4 gba:h-4 gba:mr-2 ${note.isPinned ? 'gba:fill-current gba:text-primary' : ''}`}
-                                />
-                                {note.isPinned ? t('menu-unpin') : t('menu-pin')}
-                              </DropdownMenuItem>
-                            )}
-                            {!isNoteFolder && (
-                              <DropdownMenuItem onClick={() => onToggleFavorite(note.id)}>
-                                <Star
-                                  className={`gba:w-4 gba:h-4 gba:mr-2 ${isFavorite ? 'gba:fill-current gba:text-warning' : ''}`}
-                                />
-                                {isFavorite ? t('menu-remove-favorite') : t('menu-add-favorite')}
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuSeparator />
+                          {!isNoteFolder && (
+                            <DropdownMenuItem onClick={() => onCopyLink(note)}>
+                              <Link2 className="gba:w-4 gba:h-4 gba:mr-2" />
+                              {t('menu-copy-link')}
+                            </DropdownMenuItem>
+                          )}
+                          {!isNoteFolder && (
+                            <DropdownMenuItem onClick={() => onDuplicateNote(note.id)}>
+                              <Copy className="gba:w-4 gba:h-4 gba:mr-2" />
+                              {t('menu-duplicate')}
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator />
+                          {!isNoteFolder && (
+                            <DropdownMenuItem onClick={() => onTogglePin(note.id)}>
+                              <Pin
+                                className={`gba:w-4 gba:h-4 gba:mr-2 ${note.isPinned ? 'gba:fill-current gba:text-primary' : ''}`}
+                              />
+                              {note.isPinned ? t('menu-unpin') : t('menu-pin')}
+                            </DropdownMenuItem>
+                          )}
+                          {!isNoteFolder && (
+                            <DropdownMenuItem onClick={() => onToggleFavorite(note.id)}>
+                              <Star
+                                className={`gba:w-4 gba:h-4 gba:mr-2 ${isFavorite ? 'gba:fill-current gba:text-warning' : ''}`}
+                              />
+                              {isFavorite ? t('menu-remove-favorite') : t('menu-add-favorite')}
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator />
+                          {capabilities.canDelete && (
                             <DropdownMenuItem className="gba:text-destructive" onClick={() => onDeleteNote(note.id)}>
                               <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
                               {t('menu-delete')}
                             </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-
-                      {isNoteFolder && (
-                        <ChevronRight className="gba:w-4 gba:h-4 gba:text-muted-foreground/40 gba:flex-shrink-0" />
-                      )}
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
-                  </React.Fragment>
+                  </div>
                 )
               })}
             </div>
           </div>
         )}
-
-        {/* Bulk Actions floating bar */}
-        <NoteBulkActions
-          selectedCount={selectedNotes.size}
-          onDelete={onBulkDelete || (() => {})}
-          onPin={onBulkPin}
-          onClearSelection={onClearSelection || (() => {})}
-        />
       </div>
     </div>
   )

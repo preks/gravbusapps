@@ -3,15 +3,24 @@ import {
   detectClearAllRangesFromCellMatrix,
   detectClearFormatRangesFromCellMatrix,
   normalizeCellMatrix,
+  type SheetCellMatrix,
   type SheetRangeShape
 } from './cellMatrixUtils'
 import {
+  peekSpreadsheetAutofillIntent,
   markSpreadsheetAutofillIntent,
   resolveAutofillApplyTypeFromCommandParams,
   resolveAutofillCommandRangesFromParams,
   UNIVER_AUTOFILL_COMMAND_ID,
   UNIVER_REFILL_COMMAND_ID
 } from './univerAutofillIntent'
+import {
+  consumeDimensionUserIntent,
+  isAutoFitDimensionCommand,
+  isDimensionApplyMutation,
+  markDimensionUserIntent,
+  resolveDimensionIntentKindFromCommandId
+} from './univerDimensionUserIntent'
 import { resolveClearAllRanges } from './univerGridRangeSelection'
 import { UNIVER_COMMAND_TYPE_MUTATION } from './univerGridUniverConstants'
 import { handleCommandExecutedColumnInsertsAndFeatureOps } from './univerMountCommandExecutedColumnsAndFeatures'
@@ -25,7 +34,7 @@ import {
 import {
   captureCutSelectionRange,
   isNativeCutPasteCommand,
-  shouldSuppressCutPasteFollowUpCollab
+  resolveCutPasteFollowUpCollab
 } from '../utils/spreadsheetCutPasteMove'
 import { getCommandKind } from './univerCommandClassification'
 import {
@@ -65,8 +74,23 @@ export type RegisterUniverMountCommandExecutedDeps = Pick<
   | 'lastCellValueMutationAtRef'
   | 'pendingCutCellRangeRef'
   | 'cutPasteCollabSuppressUntilMsRef'
+  | 'recentMoveCellRangeFollowUpRef'
+  | 'rowInsertFormulaFollowUpSuppressUntilMsRef'
+  | 'recentInsertRowFormulaFollowUpRef'
+  | 'rowDeleteFormulaFollowUpSuppressUntilMsRef'
+  | 'recentDeleteRowFormulaFollowUpRef'
+  | 'rowMoveFormulaFollowUpSuppressUntilMsRef'
+  | 'recentMoveRowFormulaFollowUpRef'
+  | 'columnInsertFormulaFollowUpSuppressUntilMsRef'
+  | 'recentInsertColumnFormulaFollowUpRef'
+  | 'columnDeleteFormulaFollowUpSuppressUntilMsRef'
+  | 'recentDeleteColumnFormulaFollowUpRef'
+  | 'columnMoveFormulaFollowUpSuppressUntilMsRef'
+  | 'recentMoveColumnFormulaFollowUpRef'
+  | 'recentNativeColumnMoveEmitRef'
   | 'mergeGestureSuppressBySheetRef'
   | 'pendingAutofillIntentRef'
+  | 'pendingDimensionUserIntentRef'
 > & {
   univerAPI: ReturnType<typeof createUniver>['univerAPI']
   insertSheetSourceIds: Map<string, string>
@@ -89,7 +113,11 @@ export type RegisterUniverMountCommandExecutedDeps = Pick<
     worksheetId?: string | null
     preserveUndefinedAsNull: boolean
   }) => boolean | Promise<boolean>
-  updateCellDimensions: () => { changed: boolean; dimensions: SnapshotDimensions | null }
+  updateCellDimensions: (focusRanges?: SheetRangeShape[]) => {
+    changed: boolean
+    dimensions: SnapshotDimensions | null
+    sheetId: string | null
+  }
   toCellDimensionsPayload: UniverWorkbookBootstrapMountContext['toCellDimensionsPayload']
   markDirtyAndScheduleSnapshot: (origin: WorkbookSnapshotLifecycleOrigin) => void
 }
@@ -118,8 +146,23 @@ export function registerUniverMountCommandExecuted(
     lastCellValueMutationAtRef,
     pendingCutCellRangeRef,
     cutPasteCollabSuppressUntilMsRef,
+    recentMoveCellRangeFollowUpRef,
+    rowInsertFormulaFollowUpSuppressUntilMsRef,
+    recentInsertRowFormulaFollowUpRef,
+    rowDeleteFormulaFollowUpSuppressUntilMsRef,
+    recentDeleteRowFormulaFollowUpRef,
+    rowMoveFormulaFollowUpSuppressUntilMsRef,
+    recentMoveRowFormulaFollowUpRef,
+    columnInsertFormulaFollowUpSuppressUntilMsRef,
+    recentInsertColumnFormulaFollowUpRef,
+    columnDeleteFormulaFollowUpSuppressUntilMsRef,
+    recentDeleteColumnFormulaFollowUpRef,
+    columnMoveFormulaFollowUpSuppressUntilMsRef,
+    recentMoveColumnFormulaFollowUpRef,
+    recentNativeColumnMoveEmitRef,
     mergeGestureSuppressBySheetRef,
     pendingAutofillIntentRef,
+    pendingDimensionUserIntentRef,
     insertSheetSourceIds,
     latestNativeSheetCopySourceIdRef,
     getActiveWorksheetIdFromUniver,
@@ -142,15 +185,49 @@ export function registerUniverMountCommandExecuted(
   let pendingDimensionFrame: { cancel: () => void } | null = null
   let pendingDimensionCommandId = ''
   let pendingDimensionCommandType: number | undefined
+  let pendingDimensionFocusRanges: SheetRangeShape[] = []
+  let pendingDeferredDimensionTimeout: ReturnType<typeof setTimeout> | null = null
+  let pendingDeferredDimensionCommandId = ''
+  let pendingDeferredDimensionCommandType: number | undefined
+  let pendingDeferredDimensionFocusRanges: SheetRangeShape[] = []
+  let pendingDeferredDimensionRetriesRemaining = 0
+
+  const runDimensionSnapshot = (
+    commandIdForRun: string,
+    commandTypeForRun: number | undefined,
+    focusRanges: SheetRangeShape[]
+  ): boolean => {
+    debugUniverDimensionSnapshot('run', { commandId: commandIdForRun, commandType: commandTypeForRun })
+    const { changed: dimensionsChanged, dimensions, sheetId } = updateCellDimensions(focusRanges)
+    if (dimensionsChanged) {
+      if (dimensions && sheetId) {
+        callbacksRef.current.onDimensionsChange?.(toCellDimensionsPayload(dimensions, sheetId))
+      }
+      markDirtyAndScheduleSnapshot('workbook')
+    }
+    return dimensionsChanged
+  }
 
   const cancelPendingDimensionFrame = () => {
     pendingDimensionFrame?.cancel()
     pendingDimensionFrame = null
   }
 
-  const scheduleDimensionSnapshot = (sourceCommandId: string, sourceCommandType: number | undefined): void => {
+  const cancelPendingDeferredDimensionTimeout = () => {
+    if (pendingDeferredDimensionTimeout) {
+      globalThis.clearTimeout(pendingDeferredDimensionTimeout)
+      pendingDeferredDimensionTimeout = null
+    }
+  }
+
+  const scheduleDimensionSnapshot = (
+    sourceCommandId: string,
+    sourceCommandType: number | undefined,
+    focusRanges: SheetRangeShape[] = []
+  ): void => {
     pendingDimensionCommandId = sourceCommandId
     pendingDimensionCommandType = sourceCommandType
+    pendingDimensionFocusRanges = focusRanges
     if (pendingDimensionFrame) {
       debugUniverDimensionSnapshot('coalesced', { commandId: sourceCommandId, commandType: sourceCommandType })
       return
@@ -161,14 +238,8 @@ export function registerUniverMountCommandExecuted(
         pendingDimensionFrame = null
         const commandIdForRun = pendingDimensionCommandId
         const commandTypeForRun = pendingDimensionCommandType
-        debugUniverDimensionSnapshot('run', { commandId: commandIdForRun, commandType: commandTypeForRun })
-        const { changed: dimensionsChanged, dimensions } = updateCellDimensions()
-        if (dimensionsChanged) {
-          if (dimensions) {
-            callbacksRef.current.onDimensionsChange?.(toCellDimensionsPayload(dimensions))
-          }
-          markDirtyAndScheduleSnapshot('workbook')
-        }
+        const focusRangesForRun = pendingDimensionFocusRanges
+        runDimensionSnapshot(commandIdForRun, commandTypeForRun, focusRangesForRun)
       })
       pendingDimensionFrame = {
         cancel: () => globalThis.cancelAnimationFrame?.(frameId)
@@ -180,30 +251,83 @@ export function registerUniverMountCommandExecuted(
       pendingDimensionFrame = null
       const commandIdForRun = pendingDimensionCommandId
       const commandTypeForRun = pendingDimensionCommandType
-      debugUniverDimensionSnapshot('run', { commandId: commandIdForRun, commandType: commandTypeForRun })
-      const { changed: dimensionsChanged, dimensions } = updateCellDimensions()
-      if (dimensionsChanged) {
-        if (dimensions) {
-          callbacksRef.current.onDimensionsChange?.(toCellDimensionsPayload(dimensions))
-        }
-        markDirtyAndScheduleSnapshot('workbook')
-      }
+      const focusRangesForRun = pendingDimensionFocusRanges
+      runDimensionSnapshot(commandIdForRun, commandTypeForRun, focusRangesForRun)
     }, 16)
     pendingDimensionFrame = {
       cancel: () => globalThis.clearTimeout(timeoutId)
     }
   }
 
-  const commandEventKey =
-    (univerAPI as { Event?: { CommandExecuted?: string } }).Event?.CommandExecuted ?? 'CommandExecuted'
-  const rawCommandDisposable = (
-    univerAPI as {
-      addEvent?(
-        event: string,
-        cb: (p: { type?: number; id?: string; commandId?: string; params?: unknown }) => void
-      ): { dispose(): void }
+  const scheduleDeferredDimensionSnapshot = (
+    sourceCommandId: string,
+    sourceCommandType: number | undefined,
+    focusRanges: SheetRangeShape[] = [],
+    retryCount = 0
+  ): void => {
+    pendingDeferredDimensionCommandId = sourceCommandId
+    pendingDeferredDimensionCommandType = sourceCommandType
+    pendingDeferredDimensionFocusRanges = focusRanges
+    pendingDeferredDimensionRetriesRemaining = Math.max(pendingDeferredDimensionRetriesRemaining, retryCount)
+    if (pendingDeferredDimensionTimeout) {
+      debugUniverDimensionSnapshot('coalesced_deferred', { commandId: sourceCommandId, commandType: sourceCommandType })
+      return
     }
-  ).addEvent?.(commandEventKey, (event: { type?: number; id?: string; commandId?: string; params?: unknown }) => {
+    debugUniverDimensionSnapshot('scheduled_deferred', { commandId: sourceCommandId, commandType: sourceCommandType })
+    pendingDeferredDimensionTimeout = globalThis.setTimeout(() => {
+      pendingDeferredDimensionTimeout = null
+      const commandIdForRun = pendingDeferredDimensionCommandId
+      const commandTypeForRun = pendingDeferredDimensionCommandType
+      const focusRangesForRun = pendingDeferredDimensionFocusRanges
+      const changed = runDimensionSnapshot(commandIdForRun, commandTypeForRun, focusRangesForRun)
+      if (!changed && pendingDeferredDimensionRetriesRemaining > 0) {
+        pendingDeferredDimensionRetriesRemaining -= 1
+        debugUniverDimensionSnapshot('retry_deferred', {
+          commandId: commandIdForRun,
+          commandType: commandTypeForRun,
+          retriesRemaining: pendingDeferredDimensionRetriesRemaining
+        })
+        scheduleDeferredDimensionSnapshot(
+          commandIdForRun,
+          commandTypeForRun,
+          focusRangesForRun,
+          pendingDeferredDimensionRetriesRemaining
+        )
+      }
+    }, 80)
+  }
+
+  const resolveCommandRanges = (
+    value:
+      | {
+          range?: SheetRangeShape | SheetRangeShape[]
+          ranges?: SheetRangeShape[]
+        }
+      | undefined
+  ): SheetRangeShape[] => {
+    if (Array.isArray(value?.ranges)) return value.ranges
+    if (Array.isArray(value?.range)) return value.range
+    if (value?.range) return [value.range]
+    return []
+  }
+
+  const resolveCommandSheetId = (
+    value:
+      | {
+          sheetId?: string
+          subUnitId?: string
+        }
+      | undefined
+  ): string => {
+    return (
+      (typeof value?.subUnitId === 'string' && value.subUnitId) ||
+      (typeof value?.sheetId === 'string' && value.sheetId) ||
+      getActiveWorksheetIdFromUniver() ||
+      propsRef.current.sheet.id
+    )
+  }
+
+  const handleCommandEvent = (event: { type?: number; id?: string; commandId?: string; params?: unknown }) => {
     const commandId = String(event?.id ?? event?.commandId ?? '').toLowerCase()
     const params = event?.params as
       | {
@@ -222,16 +346,13 @@ export function registerUniverMountCommandExecuted(
           applyType?: unknown
         }
       | undefined
+    const targetSheetId = resolveCommandSheetId(params)
+    const commandRanges = resolveCommandRanges(params)
     if (commandId === UNIVER_AUTOFILL_COMMAND_ID || commandId === UNIVER_REFILL_COMMAND_ID) {
-      const autofillSheetId =
-        (typeof params?.subUnitId === 'string' && params.subUnitId) ||
-        (typeof params?.sheetId === 'string' && params.sheetId) ||
-        getActiveWorksheetIdFromUniver() ||
-        propsRef.current.sheet.id
       const { sourceRanges, targetRanges } = resolveAutofillCommandRangesFromParams(params)
       markSpreadsheetAutofillIntent(
         pendingAutofillIntentRef,
-        autofillSheetId,
+        targetSheetId,
         resolveAutofillApplyTypeFromCommandParams(params),
         { sourceRanges, targetRanges }
       )
@@ -354,6 +475,20 @@ export function registerUniverMountCommandExecuted(
         pendingFreezeClearEmitTimeoutBySheetRef,
         pendingCutCellRangeRef,
         cutPasteCollabSuppressUntilMsRef,
+        recentMoveCellRangeFollowUpRef,
+        rowInsertFormulaFollowUpSuppressUntilMsRef,
+        recentInsertRowFormulaFollowUpRef,
+        rowDeleteFormulaFollowUpSuppressUntilMsRef,
+        recentDeleteRowFormulaFollowUpRef,
+        rowMoveFormulaFollowUpSuppressUntilMsRef,
+        recentMoveRowFormulaFollowUpRef,
+        columnInsertFormulaFollowUpSuppressUntilMsRef,
+        recentInsertColumnFormulaFollowUpRef,
+        columnDeleteFormulaFollowUpSuppressUntilMsRef,
+        recentDeleteColumnFormulaFollowUpRef,
+        columnMoveFormulaFollowUpSuppressUntilMsRef,
+        recentMoveColumnFormulaFollowUpRef,
+        recentNativeColumnMoveEmitRef,
         mergeGestureSuppressBySheetRef
       },
       { t, commandId, params }
@@ -363,12 +498,13 @@ export function registerUniverMountCommandExecuted(
       (typeof params?.subUnitId === 'string' && params.subUnitId) ||
       (typeof params?.sheetId === 'string' && params.sheetId) ||
       propsRef.current.sheet.id
-    const suppressCutPasteFollowUpEarly = shouldSuppressCutPasteFollowUpCollab({
+    const suppressCutPasteFollowUpEarly = resolveCutPasteFollowUpCollab({
       suppressUntilMs: cutPasteCollabSuppressUntilMsRef.current,
       commandId,
       commandKind: getCommandKind(commandId),
-      isRegionReplaceStyleCommand: isRegionReplaceStyleCollaborationCommand(commandId)
-    })
+      isRegionReplaceStyleCommand: isRegionReplaceStyleCollaborationCommand(commandId),
+      recentMove: recentMoveCellRangeFollowUpRef.current
+    }).suppress
     if (!suppressCutPasteFollowUpEarly && isClearAllRangeCommand(commandId)) {
       const clearAllRanges = resolveClearAllRanges(
         univerAPIRef.current?.getActiveWorkbook?.(),
@@ -422,26 +558,32 @@ export function registerUniverMountCommandExecuted(
         })
       }
     }
-    const commandRanges = Array.isArray(params?.range) ? params.range : []
     const commandKind = getCommandKind(commandId)
-    const suppressCutPasteFollowUp = shouldSuppressCutPasteFollowUpCollab({
+    const cutPasteFollowUpDecision = resolveCutPasteFollowUpCollab({
       suppressUntilMs: cutPasteCollabSuppressUntilMsRef.current,
       commandId,
       commandKind,
-      isRegionReplaceStyleCommand: isRegionReplaceStyleCollaborationCommand(commandId)
+      isRegionReplaceStyleCommand: isRegionReplaceStyleCollaborationCommand(commandId),
+      payloadCellValue: commandPayloadCellValue,
+      ranges: commandRanges,
+      worksheetId: params?.subUnitId ?? params?.sheetId ?? propsRef.current.sheet.id,
+      recentMove: recentMoveCellRangeFollowUpRef.current
     })
+    const nextCommandPayloadCellValue: SheetCellMatrix | undefined =
+      cutPasteFollowUpDecision.payloadCellValue ?? commandPayloadCellValue
+    const nextCommandRanges = cutPasteFollowUpDecision.ranges ?? commandRanges
     const commandPreserveUndefinedAsNull =
       commandKind === 'clearLike' ||
       isClearLikeMutationCommand(commandId) ||
       isImplicitClearLikeSetRangeMutation({
         commandId,
-        ranges: commandRanges,
-        payloadCellValue: commandPayloadCellValue
+        ranges: nextCommandRanges,
+        payloadCellValue: nextCommandPayloadCellValue
       })
     const didHandleCellMutation =
-      !suppressCutPasteFollowUp &&
+      !cutPasteFollowUpDecision.suppress &&
       t === UNIVER_COMMAND_TYPE_MUTATION &&
-      (commandPayloadCellValue || commandRanges.length > 0) &&
+      (nextCommandPayloadCellValue || nextCommandRanges.length > 0) &&
       commandKind !== 'structuralRow' &&
       commandKind !== 'structuralColumn' &&
       commandKind !== 'cellRangeMove' &&
@@ -452,8 +594,8 @@ export function registerUniverMountCommandExecuted(
       const result = handleDetectedCellMutation({
         source: 'command-executed',
         commandId,
-        payloadCellValue: commandPayloadCellValue,
-        ranges: commandRanges,
+        payloadCellValue: nextCommandPayloadCellValue,
+        ranges: nextCommandRanges,
         worksheetId: params?.subUnitId ?? params?.sheetId ?? null,
         preserveUndefinedAsNull: commandPreserveUndefinedAsNull
       })
@@ -464,10 +606,27 @@ export function registerUniverMountCommandExecuted(
       }
     }
 
-    if (shouldRunDimensionSnapshotForCommand(commandId, t)) {
-      scheduleDimensionSnapshot(commandId, t)
-    } else {
-      debugUniverDimensionSnapshot('skipped', { commandId, commandType: t })
+    const dimensionIntentKind = resolveDimensionIntentKindFromCommandId(commandId)
+    if (dimensionIntentKind && isAutoFitDimensionCommand(commandId)) {
+      markDimensionUserIntent(pendingDimensionUserIntentRef, targetSheetId, dimensionIntentKind)
+    }
+    const hasAutofillIntent =
+      peekSpreadsheetAutofillIntent(pendingAutofillIntentRef, targetSheetId, { ranges: commandRanges }) != null
+    const consumedDimensionIntent =
+      dimensionIntentKind && isDimensionApplyMutation(commandId)
+        ? consumeDimensionUserIntent(pendingDimensionUserIntentRef, targetSheetId, dimensionIntentKind)
+        : null
+
+    if (!hasAutofillIntent) {
+      if (consumedDimensionIntent) {
+        scheduleDeferredDimensionSnapshot(commandId, t, commandRanges, 2)
+      } else if (shouldRunDimensionSnapshotForCommand(commandId, t)) {
+        if (isAutoFitDimensionCommand(commandId)) {
+          scheduleDeferredDimensionSnapshot(commandId, t, commandRanges, 2)
+        } else {
+          scheduleDimensionSnapshot(commandId, t, commandRanges)
+        }
+      }
     }
     const isSupportedGranularStyleCommand =
       isStyleOnlySheetMutationCommand(commandId) && !isUnsupportedSnapshotOnlyCollaborationCommand(commandId)
@@ -484,13 +643,25 @@ export function registerUniverMountCommandExecuted(
     ) {
       markDirtyAndScheduleSnapshot(didHandleCellMutation ? 'cell' : 'workbook')
     }
-  })
+  }
+
+  const commandEventKey =
+    (univerAPI as { Event?: { CommandExecuted?: string } }).Event?.CommandExecuted ?? 'CommandExecuted'
+  const rawCommandDisposable = (
+    univerAPI as {
+      addEvent?(
+        event: string,
+        cb: (p: { type?: number; id?: string; commandId?: string; params?: unknown }) => void
+      ): { dispose(): void }
+    }
+  ).addEvent?.(commandEventKey, handleCommandEvent)
 
   const commandDisposable = rawCommandDisposable
     ? {
         dispose: () => {
           cancelPendingDimensionFrame()
-          rawCommandDisposable.dispose()
+          cancelPendingDeferredDimensionTimeout()
+          rawCommandDisposable.dispose?.()
         }
       }
     : undefined

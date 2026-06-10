@@ -1,9 +1,10 @@
-import type { ReactNode } from 'react'
+import React, { type ReactNode } from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { SpinnerGapIcon } from '@phosphor-icons/react'
 import { AgentMeshScreen } from './components/agent-mesh/AgentMeshScreen'
 import { EnterpriseWorkforceScreen } from './components/enterprise-workforce/EnterpriseWorkforceScreen'
 import { TraceExplorerScreen } from './components/trace-explorer/TraceExplorerScreen'
+import { TraceLensScreen } from './components/trace-lens/TraceLensScreen'
 import { LandingScreen } from './components/landing/LandingScreen'
 import { ScheduledDispatchesScreen } from './components/scheduled/ScheduledDispatchesScreen'
 import { SettingsScreen } from './components/settings/SettingsScreen'
@@ -88,12 +89,14 @@ export interface EveryFabricMainViewProps {
   accessToken: string
   session: FabricContext['session']
   activeSessions: ActiveSessions
+  devToolsEnabled: boolean
   devModeEnabled: boolean
   displayView: string | null
   showSettings: boolean
   showScheduled: boolean
   showAgentMesh: boolean
   showTraceExplorer: boolean
+  showTraceLens: boolean
   showEnterpriseWorkforce: boolean
   isAnyOverlayShown: boolean
   isLoadingSession: boolean
@@ -105,6 +108,7 @@ export interface EveryFabricMainViewProps {
   onCloseScheduled: () => void
   onCloseAgentMesh: () => void
   onCloseTraceExplorer: () => void
+  onCloseTraceLens: () => void
   onCloseEnterpriseWorkforce: () => void
   onSelectSession: (id: string) => void
   onOpenTraceExplorer: (positionMs?: number) => void
@@ -116,12 +120,14 @@ export function EveryFabricMainView({
   accessToken,
   session,
   activeSessions,
+  devToolsEnabled,
   devModeEnabled,
   displayView,
   showSettings,
   showScheduled,
   showAgentMesh,
   showTraceExplorer,
+  showTraceLens,
   showEnterpriseWorkforce,
   isAnyOverlayShown,
   isLoadingSession,
@@ -133,6 +139,7 @@ export function EveryFabricMainView({
   onCloseScheduled,
   onCloseAgentMesh,
   onCloseTraceExplorer,
+  onCloseTraceLens,
   onCloseEnterpriseWorkforce,
   onSelectSession,
   onOpenTraceExplorer,
@@ -152,26 +159,7 @@ export function EveryFabricMainView({
       <>
         <FadeOverlay visible={showSettings}>
           {displayView === 'settings' && (
-            <SettingsScreen
-              accessToken={accessToken}
-              onBack={onCloseSettings}
-              onRunTask={agent => {
-                onCloseSettings()
-                void onStartSession(`Run task with ${agent.name}: `, {
-                  mode: 'deep',
-                  enable_memory: true,
-                  enable_reflection: undefined,
-                  selectedAgent: {
-                    id: agent.id,
-                    name: agent.name,
-                    display_name: agent.name,
-                    description: agent.description,
-                    domain: agent.specialty ?? agent.domain ?? '',
-                    tags: agent.tags ?? []
-                  }
-                })
-              }}
-            />
+            <SettingsScreen accessToken={accessToken} devToolsEnabled={devToolsEnabled} onBack={onCloseSettings} />
           )}
         </FadeOverlay>
 
@@ -196,8 +184,18 @@ export function EveryFabricMainView({
         </FadeOverlay>
 
         <FadeOverlay visible={showTraceExplorer}>
-          {displayView === 'trace-explorer' && (
+          {devModeEnabled && displayView === 'trace-explorer' && (
             <TraceExplorerScreen onBack={onCloseTraceExplorer} onOpenAgentMesh={onOpenAgentMeshFromTrace} />
+          )}
+        </FadeOverlay>
+
+        <FadeOverlay visible={showTraceLens}>
+          {devModeEnabled && displayView === 'trace-lens' && (
+            <TraceLensScreen
+              accessToken={accessToken}
+              onBack={onCloseTraceLens}
+              initialSessionId={session?.session_id ?? null}
+            />
           )}
         </FadeOverlay>
 

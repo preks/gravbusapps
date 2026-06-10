@@ -97,7 +97,7 @@ const getViewConfig = (filter: ActivityViewFilter) => {
       return {
         category: 'OPPORTUNITY ACTIVITIES',
         icon: HandshakeIcon,
-        subtitle: 'Deal-related activities'
+        subtitle: 'Opportunity-related activities'
       }
     case 'by-general':
       return {

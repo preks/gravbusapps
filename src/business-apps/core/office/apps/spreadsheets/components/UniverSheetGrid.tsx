@@ -17,13 +17,8 @@ import React, {
 } from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import spreadsheetTranslations from '../_i18n'
-import {
-  parseA1Reference,
-  toA1Reference,
-  type SpreadsheetBulkRemoteApplyMeta,
-  type SpreadsheetBulkRemoteCellItem
-} from '../core'
-import type { SpreadsheetColumn, SpreadsheetSheet } from '../types/spreadsheet'
+import { toA1Reference, type SpreadsheetBulkRemoteApplyMeta, type SpreadsheetBulkRemoteCellItem } from '../core'
+import type { SpreadsheetColumn, SpreadsheetMergeRange, SpreadsheetSheet } from '../types/spreadsheet'
 import { buildWorkbookSnapshot, createUniverConversionContext } from '../utils/univerAdapter'
 import type {
   AuthoritativeGridReapplyTarget,
@@ -83,23 +78,44 @@ import {
 import { useUniverGridContextMenuChrome } from './useUniverGridContextMenuChrome'
 import { useUniverGridLocaleRibbonChrome } from './useUniverGridLocaleRibbonChrome'
 import { useUniverGridHyperlinkCapture } from './useUniverGridHyperlinkCapture'
+import {
+  extractWorksheetMergeRangesFromWorkbookSnapshot,
+  normalizeWorksheetMergeRanges,
+  resolveAuthoritativeWorksheetMergeRanges
+} from '../utils/spreadsheetMergeRanges'
+import { tryGetUniverActiveWorkbook, tryGetUniverActiveWorksheet } from './univerSafeFacadeAccess'
 import { useUniverGridEmbeddedShortcuts } from './useUniverGridEmbeddedShortcuts'
 import {
   useUniverGridConversionContextSync,
   useUniverGridSnapshotColumnAndTimerEffects
 } from './useUniverGridWorkbookAuxiliaryEffects'
 import { useUniverGridCollaborationOverlays } from './useUniverGridCollaborationOverlays'
-
-import {
-  CURSOR_OVERLAY_COL_WIDTH_PX,
-  CURSOR_OVERLAY_HEADER_HEIGHT_PX,
-  CURSOR_OVERLAY_ROW_HEIGHT_PX,
-  CURSOR_OVERLAY_ROW_INDEX_WIDTH_PX
-} from './univerGridLayoutConstants'
 import { getSupportedUniverFonts } from './univerGridLocaleChrome'
-import { extractActiveRangePosition } from './univerGridRangeSelection'
+import { extractActiveRangeBounds, extractActiveRangePosition } from './univerGridRangeSelection'
 import { formatCommentTime, getInitials } from './univerGridCommentPresentation'
+import { extractDimensionsFromSnapshot } from './univerGridSnapshotDimensions'
+import {
+  armColumnDeleteFormulaFollowUpSuppression,
+  armColumnInsertFormulaFollowUpSuppression,
+  armColumnMoveFormulaFollowUpSuppression,
+  armMoveCellRangeFollowUpCollabSuppression,
+  armRowMoveFormulaFollowUpSuppression,
+  filterColumnDeleteFormulaReapplyCells,
+  filterColumnInsertFormulaReapplyCells,
+  filterColumnMoveFormulaReapplyCells,
+  filterMoveCellRangeFormulaReapplyCells,
+  filterRowMoveFormulaReapplyCells
+} from '../utils/spreadsheetCutPasteMove'
 import { tryStructuredClone } from '../utils/tryStructuredClone'
+import type { CollaborationOverlayRect } from './univerGridOverlayCellRect'
+import { parseChartRange } from '../utils/chartRangeUtils'
+import { navigateUniverViaNameBox } from './univerGridNameBoxNavigation'
+import {
+  classifyNativeColumnReorderWithMerges,
+  planVisibleColumnReorderMoves
+} from '../utils/spreadsheetColumnReorderMoves'
+
+const SHEET_SCROLL_TO_CELL_COMMAND_ID = 'sheet.command.scroll-to-cell'
 
 /**
  * Classifies a bulk-apply meta `operationType` into a coarse paint-source bucket. Used in
@@ -112,6 +128,99 @@ function derivePaintSourceFromBulkApplyMeta(operationType: string | undefined): 
   if (operationType === 'catch_up_materialized') return 'catch_up_materialized'
   if (operationType === 'add_rows_replay') return 'add_rows_replay'
   return 'collab_replay'
+}
+
+function isOverlayRectVisible(
+  rect: CollaborationOverlayRect | null | undefined,
+  viewport: CollaborationOverlayRect | null,
+  padding = 0
+): rect is CollaborationOverlayRect {
+  if (!rect || !viewport) return false
+
+  return !(
+    rect.left + rect.width < viewport.left - padding ||
+    rect.top + rect.height < viewport.top - padding ||
+    rect.left > viewport.left + viewport.width + padding ||
+    rect.top > viewport.top + viewport.height + padding
+  )
+}
+
+function buildWorksheetMergeRangeKey(range: SpreadsheetMergeRange): string {
+  return `${range.startRow}:${range.endRow}:${range.startColumn}:${range.endColumn}`
+}
+
+function applyCommittedWorksheetMergePatchDelta(params: {
+  applyRemoteSpreadsheetFeatureOperation?:
+    | ((payload: {
+        type: 'merge_ranges' | 'unmerge_ranges'
+        data: { sheetId: string; ranges: SpreadsheetMergeRange[] }
+      }) => void)
+    | null
+  targetSheetId: string
+  previousRanges: SpreadsheetMergeRange[]
+  nextRanges: SpreadsheetMergeRange[]
+}): void {
+  const applyRemoteSpreadsheetFeatureOperation = params.applyRemoteSpreadsheetFeatureOperation
+  if (!applyRemoteSpreadsheetFeatureOperation) return
+  const previous = normalizeWorksheetMergeRanges(params.previousRanges)
+  const next = normalizeWorksheetMergeRanges(params.nextRanges)
+  const nextKeys = new Set(next.map(buildWorksheetMergeRangeKey))
+  const previousKeys = new Set(previous.map(buildWorksheetMergeRangeKey))
+  const removedRanges = previous.filter(range => !nextKeys.has(buildWorksheetMergeRangeKey(range)))
+  const addedRanges = next.filter(range => !previousKeys.has(buildWorksheetMergeRangeKey(range)))
+
+  if (removedRanges.length > 0) {
+    applyRemoteSpreadsheetFeatureOperation({
+      type: 'unmerge_ranges',
+      data: {
+        sheetId: params.targetSheetId,
+        ranges: removedRanges
+      }
+    })
+  }
+  if (addedRanges.length > 0) {
+    applyRemoteSpreadsheetFeatureOperation({
+      type: 'merge_ranges',
+      data: {
+        sheetId: params.targetSheetId,
+        ranges: addedRanges
+      }
+    })
+  }
+}
+
+export function repairAuthoritativeMergeRegistryAfterBootstrap(params: {
+  liveSnapshot: Record<string, unknown> | null | undefined
+  sheet: SpreadsheetSheet
+  initialSnapshot?: Record<string, unknown> | null
+  snapshotSeed?: string
+  applyRemoteSpreadsheetFeatureOperation?:
+    | ((payload: {
+        type: 'merge_ranges' | 'unmerge_ranges'
+        data: { sheetId: string; ranges: SpreadsheetMergeRange[] }
+      }) => void)
+    | null
+}): boolean {
+  const liveMergeRanges = extractWorksheetMergeRangesFromWorkbookSnapshot(params.liveSnapshot ?? null, params.sheet.id)
+  const authoritativeMergeRanges = resolveAuthoritativeWorksheetMergeRanges(params.sheet, params.initialSnapshot)
+  const liveKeys = liveMergeRanges.map(buildWorksheetMergeRangeKey).sort()
+  const authoritativeKeys = authoritativeMergeRanges.map(buildWorksheetMergeRangeKey).sort()
+  const mergeRangesMatch =
+    liveKeys.length === authoritativeKeys.length && liveKeys.every((key, index) => key === authoritativeKeys[index])
+  if (mergeRangesMatch) return false
+  debugRemoteApply('repair_authoritative_merge_registry_after_bootstrap', {
+    sheetId: params.sheet.id,
+    liveMergeCount: liveMergeRanges.length,
+    authoritativeMergeCount: authoritativeMergeRanges.length,
+    snapshotSeed: params.snapshotSeed ?? undefined
+  })
+  applyCommittedWorksheetMergePatchDelta({
+    applyRemoteSpreadsheetFeatureOperation: params.applyRemoteSpreadsheetFeatureOperation,
+    targetSheetId: params.sheet.id,
+    previousRanges: liveMergeRanges,
+    nextRanges: authoritativeMergeRanges
+  })
+  return true
 }
 
 export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGridProps>(
@@ -132,12 +241,15 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     const { containerRef, gridHostEl, gridHostReady, setGridHostRef } = useUniverDomChrome()
     const [authoritativeReapplySeed, setAuthoritativeReapplySeed] = useState(0)
     const gridMountedRef = useRef(false)
+    const firstVisiblePaintTraceKeysRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
     const isMountAlive = useCallback(() => gridMountedRef.current, [])
 
     useEffect(() => {
       gridMountedRef.current = true
       return () => {
         gridMountedRef.current = false
+        firstVisiblePaintTraceKeysRef.current.forEach(handle => clearTimeout(handle))
+        firstVisiblePaintTraceKeysRef.current.clear()
       }
     }, [])
 
@@ -155,6 +267,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       scheduleSnapshotCheckpointRef,
       lastSyncedGridCellSignaturesRef,
       collabPersistedBulkApplyDepthRef,
+      currentBulkApplyOperationTypeRef,
       bulkApplyClearDeferredDirtyCellsRef,
       lastSyncedGridRowCountRef,
       lastSyncedGridColumnCountRef,
@@ -164,6 +277,16 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       lastProcessedAuthoritativeReapplySeedRef,
       skipNextAuthoritativeSyncAfterSnapshotInitRef,
       activeSelectionRef,
+      cutPasteCollabSuppressUntilMsRef,
+      recentMoveCellRangeFollowUpRef,
+      rowMoveFormulaFollowUpSuppressUntilMsRef,
+      recentMoveRowFormulaFollowUpRef,
+      columnInsertFormulaFollowUpSuppressUntilMsRef,
+      recentInsertColumnFormulaFollowUpRef,
+      columnDeleteFormulaFollowUpSuppressUntilMsRef,
+      recentDeleteColumnFormulaFollowUpRef,
+      columnMoveFormulaFollowUpSuppressUntilMsRef,
+      recentMoveColumnFormulaFollowUpRef,
       contextRef,
       propsRef,
       callbacksRef,
@@ -177,6 +300,44 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       refreshCommentRectsRef,
       updateCellDimensionsRef
     } = ctl
+
+    const emitFirstVisiblePaint = useCallback(
+      (
+        meta: {
+          traceSessionId?: string | null
+          traceId?: string | null
+          batchId?: string | null
+          operationType?: string | null
+        },
+        payload: Record<string, unknown>
+      ) => {
+        if (!meta.traceId && !meta.batchId) return
+        const key = [
+          meta.traceSessionId ?? 'no-session',
+          meta.traceId ?? 'no-trace',
+          meta.batchId ?? 'no-batch',
+          meta.operationType ?? 'no-operation'
+        ].join('|')
+        if (firstVisiblePaintTraceKeysRef.current.has(key)) return
+        const cleanupHandle = globalThis.setTimeout(() => {
+          const currentHandle = firstVisiblePaintTraceKeysRef.current.get(key)
+          if (currentHandle === cleanupHandle) {
+            firstVisiblePaintTraceKeysRef.current.delete(key)
+          }
+        }, 60_000)
+        firstVisiblePaintTraceKeysRef.current.set(key, cleanupHandle)
+        callbacksRef.current.onDiagnosticsTraceEvent?.({
+          source: 'client',
+          stage: 'first_visible_paint',
+          traceSessionId: meta.traceSessionId ?? null,
+          traceId: meta.traceId ?? null,
+          batchId: meta.batchId ?? null,
+          operationType: meta.operationType ?? null,
+          payload
+        })
+      },
+      [callbacksRef]
+    )
 
     useUniverGridContextMenuChrome({
       isReadOnly: props.isReadOnly,
@@ -292,13 +453,15 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       () =>
         (props.commentedCells ?? [])
           .map(comment => {
-            const parsed = parseA1Reference(comment.cellReference)
+            const parsed = parseChartRange(comment.cellReference)
             if (!parsed) return null
             return {
               id: comment.cellReference,
               ref: comment.cellReference,
-              row: parsed.row,
-              col: parsed.col,
+              row: parsed.startRow,
+              col: parsed.startCol,
+              endRow: parsed.endRow,
+              endCol: parsed.endCol,
               content: comment.content,
               createdByName: comment.createdByName,
               createdByAvatar: comment.createdByAvatar,
@@ -313,6 +476,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
               ref: string
               row: number
               col: number
+              endRow: number
+              endCol: number
               content: string
               createdByName: string | undefined
               createdByAvatar: string | undefined
@@ -322,18 +487,19 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       [props.commentedCells]
     )
 
-    const { cursorRects, commentRects, hoveredCommentId, setHoveredCommentId } = useUniverGridCollaborationOverlays({
-      containerRef,
-      remoteCursorOverlays,
-      commentOverlays,
-      univerAPIRef,
-      propsRef,
-      cellDimensionsRef,
-      sheetScrollRef,
-      refreshCursorRectsRef,
-      refreshCommentRectsRef,
-      updateCellDimensionsRef
-    })
+    const { cursorRects, commentRects, gridViewportRect, hoveredCommentId, setHoveredCommentId } =
+      useUniverGridCollaborationOverlays({
+        containerRef,
+        remoteCursorOverlays,
+        commentOverlays,
+        univerAPIRef,
+        propsRef,
+        cellDimensionsRef,
+        sheetScrollRef,
+        refreshCursorRectsRef,
+        refreshCommentRectsRef,
+        updateCellDimensionsRef
+      })
 
     // Callers should prefer passing A1-resolved coordinates (from cellRef) directly as rowIndex/colIndex.
     // The rowId fallback attempts to re-resolve via contextRef, but contextRef tracks the data prop
@@ -667,6 +833,20 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
                   hasUniverCell: Boolean(options?.univerCell),
                   hasUniverStyles: Boolean(options?.univerStyles)
                 })
+                emitFirstVisiblePaint(
+                  {
+                    traceSessionId: options?.diagnosticTraceSessionId ?? null,
+                    traceId: options?.diagnosticTraceId ?? null,
+                    batchId: options?.diagnosticBatchId ?? null,
+                    operationType: options?.diagnosticOperationType ?? null
+                  },
+                  {
+                    mode: 'single_cell',
+                    rowIndex: rowForApply,
+                    colIndex: colForApply,
+                    rowId: rowId ?? null
+                  }
+                )
               } catch (e) {
                 console.error('[UniverSheetGrid] applyRemoteCellUpdate error:', e)
                 debugRemoteApply('microtask_error', {
@@ -712,7 +892,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         }
         tryApply(0)
       },
-      []
+      [emitFirstVisiblePaint]
     )
 
     const prepareAuthoritativeRegionSync = useCallback((region: AuthoritativeGridReapplyTarget) => {
@@ -750,7 +930,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         const started = globalThis.performance?.now?.() ?? Date.now()
         const d = propsRef.current.data
 
-        const normalized: SpreadsheetBulkRemoteCellItem[] = items.map(it => {
+        const normalizedBase: SpreadsheetBulkRemoteCellItem[] = items.map(it => {
           let rowIndex = it.rowIndex
           const targetSheetId =
             typeof it.options?.targetSheetId === 'string' && it.options.targetSheetId.trim()
@@ -773,6 +953,77 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           }
           return { ...it, rowIndex }
         })
+        const normalizedTargetSheetId =
+          (typeof normalizedBase[0]?.options?.targetSheetId === 'string' &&
+            normalizedBase[0].options.targetSheetId.trim()) ||
+          propsRef.current.sheet.id
+        let normalized: SpreadsheetBulkRemoteCellItem[] = normalizedBase
+        if (meta?.operationType === 'authoritative_reapply') {
+          const reapplyFilters = [
+            {
+              stage: 'move_row_formula_reapply_skipped',
+              result: filterRowMoveFormulaReapplyCells({
+                suppressUntilMs: rowMoveFormulaFollowUpSuppressUntilMsRef.current,
+                worksheetId: normalizedTargetSheetId,
+                recentMove: recentMoveRowFormulaFollowUpRef.current,
+                cells: normalized
+              })
+            },
+            {
+              stage: 'move_cell_formula_reapply_skipped',
+              result: filterMoveCellRangeFormulaReapplyCells({
+                suppressUntilMs: cutPasteCollabSuppressUntilMsRef.current,
+                worksheetId: normalizedTargetSheetId,
+                recentMove: recentMoveCellRangeFollowUpRef.current,
+                cells: normalized
+              })
+            },
+            {
+              stage: 'column_insert_formula_reapply_skipped',
+              result: filterColumnInsertFormulaReapplyCells({
+                suppressUntilMs: columnInsertFormulaFollowUpSuppressUntilMsRef.current,
+                worksheetId: normalizedTargetSheetId,
+                recentInsert: recentInsertColumnFormulaFollowUpRef.current,
+                cells: normalized
+              })
+            },
+            {
+              stage: 'column_delete_formula_reapply_skipped',
+              result: filterColumnDeleteFormulaReapplyCells({
+                suppressUntilMs: columnDeleteFormulaFollowUpSuppressUntilMsRef.current,
+                worksheetId: normalizedTargetSheetId,
+                recentDelete: recentDeleteColumnFormulaFollowUpRef.current,
+                cells: normalized
+              })
+            },
+            {
+              stage: 'column_move_formula_reapply_skipped',
+              result: filterColumnMoveFormulaReapplyCells({
+                suppressUntilMs: columnMoveFormulaFollowUpSuppressUntilMsRef.current,
+                worksheetId: normalizedTargetSheetId,
+                recentMove: recentMoveColumnFormulaFollowUpRef.current,
+                cells: normalized
+              })
+            }
+          ]
+          for (const filter of reapplyFilters) {
+            if (filter.result.skippedCellCount <= 0) continue
+            callbacksRef.current.onDiagnosticsTraceEvent?.({
+              source: 'client',
+              stage: filter.stage,
+              traceSessionId: meta?.traceSessionId ?? null,
+              traceId: meta?.traceId ?? null,
+              batchId: meta?.batchId ?? null,
+              operationType: meta?.operationType ?? null,
+              payload: {
+                worksheetId: normalizedTargetSheetId,
+                skippedCellCount: filter.result.skippedCellCount,
+                attemptedCellCount: normalized.length
+              }
+            })
+            normalized = filter.result.cells
+          }
+        }
 
         const seededEchoSuppressAt = Date.now()
         const isBacklogDrain = isBacklogBulkApply(meta?.operationType ?? undefined, normalized.length)
@@ -837,11 +1088,13 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             (typeof normalized[0]?.options?.targetSheetId === 'string' ? normalized[0].options.targetSheetId : null) ??
             propsRef.current.sheet.id
 
+          currentBulkApplyOperationTypeRef.current = meta?.operationType ?? 'bulk_remote_cell'
           collabPersistedBulkApplyDepthRef.current += 1
           let bulkApplyFinished = false
           const finishBulkApplyOnce = () => {
             if (bulkApplyFinished) return
             bulkApplyFinished = true
+            currentBulkApplyOperationTypeRef.current = null
             collabPersistedBulkApplyDepthRef.current -= 1
             if (bulkPaintedRegion) {
               bulkApplyClearDeferredDirtyCellsRef.current?.(bulkPaintedWorksheetId, bulkPaintedRegion)
@@ -1052,6 +1305,19 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
                         cellCount: normalized.length,
                         durationMs: Math.round((globalThis.performance?.now?.() ?? Date.now()) - started)
                       })
+                      emitFirstVisiblePaint(
+                        {
+                          traceSessionId: meta?.traceSessionId ?? null,
+                          traceId: meta?.traceId ?? null,
+                          batchId: meta?.batchId ?? null,
+                          operationType: meta?.operationType ?? 'bulk_remote_cell'
+                        },
+                        {
+                          mode: 'dense_setValues',
+                          cellCount: normalized.length,
+                          paintSource
+                        }
+                      )
                       for (const cellItem of byKey.values()) {
                         recordBulkCellSignature(cellItem)
                       }
@@ -1255,13 +1521,27 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
                   : {}),
                 durationMs: Math.round((globalThis.performance?.now?.() ?? Date.now()) - started)
               })
+              emitFirstVisiblePaint(
+                {
+                  traceSessionId: meta?.traceSessionId ?? null,
+                  traceId: meta?.traceId ?? null,
+                  batchId: meta?.batchId ?? null,
+                  operationType: meta?.operationType ?? 'bulk_remote_cell'
+                },
+                {
+                  mode: useStripPaint ? 'chunked_strip_setValues' : noUniverCell ? 'chunked' : 'chunked_mixed_payload',
+                  cellCount: normalized.length,
+                  chunkCount,
+                  paintSource
+                }
+              )
               finishBulkApplyOnce()
             }
           }
           globalThis.requestAnimationFrame(runChunk)
         })
       },
-      [applyRemoteCellUpdate]
+      [applyRemoteCellUpdate, emitFirstVisiblePaint]
     )
 
     useEffect(() => {
@@ -1279,11 +1559,15 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       return () => globalThis.cancelAnimationFrame(raf)
     }, [props.multiSheetWorkbookMode, sheet.id, applyRemoteCellUpdate])
 
+    const workbookSnapshotAccessBlockedUntilRef = useRef(0)
+
     const getWorkbookSnapshot = useCallback((): Record<string, unknown> | null => {
       const api = univerAPIRef.current
       if (!api) return null
       try {
-        const workbook = api.getActiveWorkbook()
+        const workbook = tryGetUniverActiveWorkbook(api, {
+          blockedUntilRef: workbookSnapshotAccessBlockedUntilRef
+        })
         if (!workbook) return null
         const wb = workbook as unknown as {
           save?: () => unknown
@@ -1308,6 +1592,43 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
           const liveStylesKeys = liveStyles ? Object.keys(liveStyles) : []
           if (liveStyles && liveStylesKeys.length > snapshotStylesKeys.length) {
             snapshotObj.styles = { ...(snapshotObj.styles as Record<string, unknown> | undefined), ...liveStyles }
+          }
+          const activeWorksheet = tryGetUniverActiveWorksheet(
+            workbook as { getActiveSheet?: () => unknown } | null | undefined,
+            {
+              blockedUntilRef: workbookSnapshotAccessBlockedUntilRef
+            }
+          ) as { getSheetId?: () => string } | null
+          const activeSheetId = activeWorksheet?.getSheetId?.() ?? sheet.id
+          const trackedDimensions = cellDimensionsRef.current
+          const sheets =
+            snapshotObj.sheets && typeof snapshotObj.sheets === 'object' && !Array.isArray(snapshotObj.sheets)
+              ? (snapshotObj.sheets as Record<string, Record<string, unknown>>)
+              : null
+          const activeSheetSnapshot =
+            activeSheetId && sheets?.[activeSheetId] && typeof sheets[activeSheetId] === 'object'
+              ? sheets[activeSheetId]
+              : null
+          if (trackedDimensions && activeSheetSnapshot) {
+            activeSheetSnapshot.defaultColumnWidth = trackedDimensions.defaultColWidth
+            activeSheetSnapshot.defaultRowHeight = trackedDimensions.defaultRowHeight
+            activeSheetSnapshot.columnData = {
+              ...((activeSheetSnapshot.columnData as Record<string | number, unknown> | undefined) ?? {}),
+              ...trackedDimensions.columnData
+            }
+            activeSheetSnapshot.rowData = {
+              ...((activeSheetSnapshot.rowData as Record<string | number, unknown> | undefined) ?? {}),
+              ...trackedDimensions.rowData
+            }
+            activeSheetSnapshot.rowHeader = {
+              ...((activeSheetSnapshot.rowHeader as Record<string, unknown> | undefined) ?? {}),
+              width: trackedDimensions.rowHeaderWidth
+            }
+            activeSheetSnapshot.columnHeader = {
+              ...((activeSheetSnapshot.columnHeader as Record<string, unknown> | undefined) ?? {}),
+              height: trackedDimensions.columnHeaderHeight
+            }
+            activeSheetSnapshot.zoomRatio = trackedDimensions.zoomRatio
           }
         } catch {
           // Non-fatal; fall back to raw snapshot if style rehydration fails.
@@ -1339,9 +1660,67 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       univerAPIRef,
       cellDimensionsRef,
       isApplyingRemoteUpdateRef,
+      collabPersistedBulkApplyDepthRef,
       refreshCursorRectsRef,
       refreshCommentRectsRef
     })
+    const lastBootstrapMergeRepairKeyRef = useRef<string | null>(null)
+    const applyCommittedWorksheetMergePatch = useCallback(
+      (
+        targetSheetId: string,
+        previousRanges: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>,
+        nextRanges: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }>
+      ) => {
+        applyCommittedWorksheetMergePatchDelta({
+          applyRemoteSpreadsheetFeatureOperation,
+          targetSheetId,
+          previousRanges,
+          nextRanges
+        })
+      },
+      [applyRemoteSpreadsheetFeatureOperation]
+    )
+
+    useEffect(() => {
+      if (!gridHostReady) return
+      const repairKey = `${props.workbookInstanceKey}|${props.snapshotSeed ?? 'no-snapshot-seed'}|${sheet.id}`
+      if (lastBootstrapMergeRepairKeyRef.current === repairKey) return
+      let cancelled = false
+      let animationFrameId = 0
+      let attemptsRemaining = 3
+      const repairIfNeeded = () => {
+        if (cancelled) return
+        const liveSnapshot = getWorkbookSnapshotRef.current?.() ?? null
+        if (!liveSnapshot && attemptsRemaining > 0) {
+          attemptsRemaining -= 1
+          animationFrameId = globalThis.requestAnimationFrame(repairIfNeeded)
+          return
+        }
+        if (!liveSnapshot) return
+        lastBootstrapMergeRepairKeyRef.current = repairKey
+        repairAuthoritativeMergeRegistryAfterBootstrap({
+          liveSnapshot,
+          sheet,
+          initialSnapshot: props.initialSnapshot,
+          snapshotSeed: props.snapshotSeed,
+          applyRemoteSpreadsheetFeatureOperation
+        })
+      }
+      repairIfNeeded()
+      return () => {
+        cancelled = true
+        if (animationFrameId) {
+          globalThis.cancelAnimationFrame(animationFrameId)
+        }
+      }
+    }, [
+      applyRemoteSpreadsheetFeatureOperation,
+      gridHostReady,
+      props.initialSnapshot,
+      props.snapshotSeed,
+      props.workbookInstanceKey,
+      sheet
+    ])
 
     const getVisibleRangeValues = useCallback(
       (rowCount: number, colCount: number): Record<number, Record<number, unknown>> | null => {
@@ -1380,17 +1759,108 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       []
     )
 
-    const getActiveCellReference = useCallback((): string | null => {
+    const getActiveSelectionReference = useCallback((): string | null => {
+      const bounds = extractActiveRangeBounds(univerAPIRef.current?.getActiveWorkbook?.())
+      if (bounds) {
+        const start = toA1Reference(bounds.startRow, bounds.startColumn)
+        const end = toA1Reference(bounds.endRow, bounds.endColumn)
+        if (!start) return null
+        if (!end || start === end) return start
+        return `${start}:${end}`
+      }
+
       const active =
         activeSelectionRef.current ?? extractActiveRangePosition(univerAPIRef.current?.getActiveWorkbook?.())
       if (!active) return null
-      const a1 = toA1Reference(active.row, active.col)
-      return a1 || null
+      return toA1Reference(active.row, active.col) || null
     }, [])
 
+    const getActiveCellReference = useCallback((): string | null => {
+      const selectionReference = getActiveSelectionReference()
+      if (!selectionReference) return null
+      return selectionReference.split(':')[0] ?? null
+    }, [getActiveSelectionReference])
+
+    const focusCellReference = useCallback(
+      (cellReference: string, targetSheetId?: string): boolean => {
+        const parsedReference = parseChartRange(cellReference)
+        const doc = containerRef.current?.ownerDocument ?? document
+        const fallbackToNameBox = () => navigateUniverViaNameBox(cellReference, doc)
+        if (!parsedReference) {
+          return false
+        }
+
+        try {
+          type WorkbookWorksheetHandle = {
+            getSheetId?: () => string
+            getRange?: (...args: unknown[]) => unknown
+            setActiveSelection?: (range: unknown) => unknown
+            setActiveRange?: (range: unknown) => unknown
+          }
+          const workbook = univerAPIRef.current?.getActiveWorkbook?.() as
+            | {
+                getActiveSheet?: () => WorkbookWorksheetHandle | null
+                getSheetBySheetId?: (id: string) => WorkbookWorksheetHandle | null
+                setActiveSheet?: (id: string) => unknown
+              }
+            | undefined
+
+          if (!workbook) {
+            return fallbackToNameBox()
+          }
+
+          const resolvedSheetId = targetSheetId || workbook.getActiveSheet?.()?.getSheetId?.() || sheet.id
+          if (resolvedSheetId) {
+            workbook.setActiveSheet?.(resolvedSheetId)
+          }
+
+          const activeWorksheet = workbook.getActiveSheet?.() ?? null
+          const worksheet =
+            workbook.getSheetBySheetId?.(resolvedSheetId) ??
+            (activeWorksheet?.getSheetId?.() === resolvedSheetId ? activeWorksheet : null)
+          const range =
+            worksheet?.getRange?.(cellReference) ??
+            worksheet?.getRange?.(
+              parsedReference.startRow,
+              parsedReference.startCol,
+              parsedReference.endRow - parsedReference.startRow + 1,
+              parsedReference.endCol - parsedReference.startCol + 1
+            )
+          if (!worksheet || !range) {
+            return fallbackToNameBox()
+          }
+
+          ;(worksheet.setActiveSelection ?? worksheet.setActiveRange)?.(range)
+          const scrollRange =
+            range && typeof range === 'object' && 'getRange' in range && typeof range.getRange === 'function'
+              ? range.getRange()
+              : null
+          if (scrollRange) {
+            univerAPIRef.current?.syncExecuteCommand?.(SHEET_SCROLL_TO_CELL_COMMAND_ID, {
+              range: scrollRange
+            })
+          }
+          activeSelectionRef.current = {
+            sheetId: resolvedSheetId,
+            row: parsedReference.startRow,
+            col: parsedReference.startCol
+          }
+          // Restore DOM focus to the sheet after sidebar-driven navigation so
+          // the active selection is immediately visible and keyboard input
+          // continues in the grid instead of staying on the comment button.
+          containerRef.current?.focus({ preventScroll: true })
+          updateCellDimensionsRef.current?.()
+          return true
+        } catch {
+          return fallbackToNameBox()
+        }
+      },
+      [containerRef, sheet.id, updateCellDimensionsRef]
+    )
+
     const toCellDimensionsPayload = useCallback(
-      (dims: SnapshotDimensions): CellDimensionsPayload => ({
-        sheetId: sheet.id,
+      (dims: SnapshotDimensions, targetSheetId?: string): CellDimensionsPayload => ({
+        sheetId: targetSheetId ?? sheet.id,
         defaultColWidth: dims.defaultColWidth,
         defaultRowHeight: dims.defaultRowHeight,
         columnData: dims.columnData,
@@ -1442,7 +1912,8 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             preferBulk,
             clearAllSignatures,
             reason: options?.reason,
-            pendingLocalFilterPolicy: options?.pendingLocalFilterPolicy
+            pendingLocalFilterPolicy: options?.pendingLocalFilterPolicy,
+            preserveStagedDirectPaint: options?.preserveStagedDirectPaint
           }
           if (regions && regions.length > 1) {
             debugRemoteApply('multi_region_authoritative_reapply', {
@@ -1457,7 +1928,10 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         applyRemoteDimensions,
         applyRemoteClearFormatRange,
         applyRemoteSpreadsheetFeatureOperation,
+        applyCommittedWorksheetMergePatch,
         getActiveCellReference,
+        getActiveSelectionReference,
+        focusCellReference,
         syncGridConversionContext: (nextColumns: SpreadsheetColumn[], nextData?: Record<string, unknown>[]) => {
           if (!univerAPIRef.current) return
           propsRef.current.columns = nextColumns
@@ -1471,20 +1945,43 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             isApplyingRemoteUpdateRef,
             collabPersistedBulkApplyDepthRef
           }),
-        applyRemoteColumnsReorder: ({ previousColumns, nextColumns }) => {
+        applyRemoteColumnsReorder: ({ previousColumns, nextColumns, moves }) => {
           const guardRefs = { isApplyingRemoteUpdateRef, collabPersistedBulkApplyDepthRef }
           acquireRemoteStructuralApplyGuard(guardRefs)
+          const previousBulkApplyOperationType = currentBulkApplyOperationTypeRef.current
+          currentBulkApplyOperationTypeRef.current = 'columns_reorder'
           try {
+            const moveClassification = classifyNativeColumnReorderWithMerges({
+              previousColumns,
+              nextColumns,
+              explicitMoves: moves
+            })
+            const reorderMoves = moveClassification.ok
+              ? moveClassification.moves
+              : planVisibleColumnReorderMoves(previousColumns, nextColumns)
+            if (reorderMoves.length > 0) {
+              armColumnMoveFormulaFollowUpSuppression({
+                suppressionRef: columnMoveFormulaFollowUpSuppressUntilMsRef,
+                recentMoveRef: recentMoveColumnFormulaFollowUpRef,
+                sheetId: sheet.id,
+                moves: reorderMoves.map(move => ({
+                  sourceStartIndex: move.sourceStartColumn,
+                  count: move.count,
+                  destinationStartIndex: move.destinationStartColumn
+                }))
+              })
+            }
             const result = applyRemoteColumnReorderOnGrid({
               api: univerAPIRef.current,
               sheetId: sheet.id,
               previousColumns,
               nextColumns,
-              rows: propsRef.current.data
+              rows: propsRef.current.data,
+              moves: moveClassification.ok ? moveClassification.moves : moves
             })
-            propsRef.current.columns = nextColumns
-            contextRef.current = createUniverConversionContext(nextColumns, propsRef.current.data)
             if (result.ok && result.appliedMoveCount > 0) {
+              propsRef.current.columns = nextColumns
+              contextRef.current = createUniverConversionContext(nextColumns, propsRef.current.data)
               lastSyncedGridCellSignaturesRef.current = buildAuthoritativeCellSignatureMap(
                 propsRef.current.data,
                 nextColumns
@@ -1493,17 +1990,30 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
               return true
             }
             if (result.ok && result.moveCount === 0) {
+              propsRef.current.columns = nextColumns
+              contextRef.current = createUniverConversionContext(nextColumns, propsRef.current.data)
               return true
             }
             return false
           } finally {
+            currentBulkApplyOperationTypeRef.current = previousBulkApplyOperationType
             scheduleReleaseRemoteStructuralApplyGuard(guardRefs)
           }
         },
         applyRemoteRowSlotsMove: ({ sourceStartGridRowIndex, count, destinationGridRowIndex }) => {
           const guardRefs = { isApplyingRemoteUpdateRef, collabPersistedBulkApplyDepthRef }
           acquireRemoteStructuralApplyGuard(guardRefs)
+          const previousBulkApplyOperationType = currentBulkApplyOperationTypeRef.current
+          currentBulkApplyOperationTypeRef.current = 'move_row_slots'
           try {
+            armRowMoveFormulaFollowUpSuppression({
+              suppressionRef: rowMoveFormulaFollowUpSuppressUntilMsRef,
+              recentMoveRef: recentMoveRowFormulaFollowUpRef,
+              sheetId: sheet.id,
+              sourceStartRow: sourceStartGridRowIndex,
+              count,
+              destinationStartRow: destinationGridRowIndex
+            })
             const visibleColumns = propsRef.current.columns.filter(column => column.isVisible !== false)
             const result = applyRemoteRowSlotsOnGrid({
               api: univerAPIRef.current,
@@ -1522,6 +2032,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             }
             return false
           } finally {
+            currentBulkApplyOperationTypeRef.current = previousBulkApplyOperationType
             scheduleReleaseRemoteStructuralApplyGuard(guardRefs)
           }
         },
@@ -1568,7 +2079,17 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         applyRemoteInsertColumnSlots: ({ startGridColumnIndex, count }) => {
           const guardRefs = { isApplyingRemoteUpdateRef, collabPersistedBulkApplyDepthRef }
           acquireRemoteStructuralApplyGuard(guardRefs)
+          const previousBulkApplyOperationType = currentBulkApplyOperationTypeRef.current
+          currentBulkApplyOperationTypeRef.current = 'column_add'
           try {
+            armColumnInsertFormulaFollowUpSuppression({
+              suppressionRef: columnInsertFormulaFollowUpSuppressUntilMsRef,
+              recentInsertRef: recentInsertColumnFormulaFollowUpRef,
+              sheetId: sheet.id,
+              insertIndex: startGridColumnIndex,
+              count,
+              direction: 'lefttop'
+            })
             const result = applyRemoteInsertColumnSlotsOnGrid({
               api: univerAPIRef.current,
               sheetId: sheet.id,
@@ -1583,13 +2104,22 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             }
             return false
           } finally {
+            currentBulkApplyOperationTypeRef.current = previousBulkApplyOperationType
             scheduleReleaseRemoteStructuralApplyGuard(guardRefs)
           }
         },
         applyRemoteDeleteColumnSlots: ({ startGridColumnIndex, count }) => {
           const guardRefs = { isApplyingRemoteUpdateRef, collabPersistedBulkApplyDepthRef }
           acquireRemoteStructuralApplyGuard(guardRefs)
+          const previousBulkApplyOperationType = currentBulkApplyOperationTypeRef.current
+          currentBulkApplyOperationTypeRef.current = 'column_delete'
           try {
+            armColumnDeleteFormulaFollowUpSuppression({
+              suppressionRef: columnDeleteFormulaFollowUpSuppressUntilMsRef,
+              recentDeleteRef: recentDeleteColumnFormulaFollowUpRef,
+              sheetId: sheet.id,
+              deleteStartColumn: startGridColumnIndex
+            })
             const result = applyRemoteDeleteColumnSlotsOnGrid({
               api: univerAPIRef.current,
               sheetId: sheet.id,
@@ -1604,12 +2134,15 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             }
             return false
           } finally {
+            currentBulkApplyOperationTypeRef.current = previousBulkApplyOperationType
             scheduleReleaseRemoteStructuralApplyGuard(guardRefs)
           }
         },
         applyRemoteMoveCellRange: ({ fromRange, toRange }) => {
           const guardRefs = { isApplyingRemoteUpdateRef, collabPersistedBulkApplyDepthRef }
           acquireRemoteStructuralApplyGuard(guardRefs)
+          const previousBulkApplyOperationType = currentBulkApplyOperationTypeRef.current
+          currentBulkApplyOperationTypeRef.current = 'move_cell_range'
           try {
             const visibleColumnCount = propsRef.current.columns.filter(column => column.isVisible !== false).length
             const result = applyRemoteMoveCellRangeOnGrid({
@@ -1624,10 +2157,18 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
                 propsRef.current.data,
                 propsRef.current.columns
               )
+              armMoveCellRangeFollowUpCollabSuppression({
+                suppressionRef: cutPasteCollabSuppressUntilMsRef,
+                recentMoveRef: recentMoveCellRangeFollowUpRef,
+                sheetId: sheet.id,
+                fromRange,
+                toRange
+              })
               return true
             }
             return false
           } finally {
+            currentBulkApplyOperationTypeRef.current = previousBulkApplyOperationType
             scheduleReleaseRemoteStructuralApplyGuard(guardRefs)
           }
         },
@@ -1833,7 +2374,10 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         applyRemoteDimensions,
         applyRemoteClearFormatRange,
         applyRemoteSpreadsheetFeatureOperation,
-        getActiveCellReference
+        applyCommittedWorksheetMergePatch,
+        getActiveCellReference,
+        getActiveSelectionReference,
+        focusCellReference
       ]
     )
 
@@ -1879,6 +2423,11 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       columns,
       univerAPIRef,
       cellDimensionsRef,
+      isApplyingRemoteUpdateRef,
+      collabPersistedBulkApplyDepthRef,
+      columnInsertFormulaFollowUpSuppressUntilMsRef,
+      columnDeleteFormulaFollowUpSuppressUntilMsRef,
+      columnMoveFormulaFollowUpSuppressUntilMsRef,
       isDirtyRef,
       snapshotRequestInFlightRef,
       requestSnapshotCheckpointRef,
@@ -1913,6 +2462,12 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
     ])
 
     useEffect(() => {
+      cellDimensionsRef.current = props.initialSnapshot
+        ? extractDimensionsFromSnapshot(props.initialSnapshot, sheet.id)
+        : null
+    }, [props.initialSnapshot, sheet.id])
+
+    useEffect(() => {
       if (!props.multiSheetWorkbookMode) return
       try {
         const wb = univerAPIRef.current?.getActiveWorkbook?.() as
@@ -1922,8 +2477,10 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             }
           | undefined
         const activeWorksheetId = wb?.getActiveSheet?.()?.getSheetId?.()
-        if (activeWorksheetId === sheet.id) return
-        wb?.setActiveSheet?.(sheet.id)
+        if (activeWorksheetId !== sheet.id) {
+          wb?.setActiveSheet?.(sheet.id)
+        }
+        updateCellDimensionsRef.current?.()
       } catch {
         /* ignore */
       }
@@ -1937,7 +2494,12 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
         style={{ height: props.height ?? '100%', width: props.width ?? '100%' }}
         onKeyDown={onSpreadsheetKeyDown}
       >
-        <div ref={setGridHostRef} className="gba:w-full gba:h-full" data-testid="univer-sheet-grid-container" />
+        <div
+          ref={setGridHostRef}
+          className="gba:w-full gba:h-full"
+          data-testid="univer-sheet-grid-container"
+          tabIndex={-1}
+        />
         {props.isReadOnly && (
           <div
             data-testid="univer-readonly-overlay"
@@ -1946,120 +2508,148 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             aria-hidden="true"
           />
         )}
-        <div className="gba:absolute gba:inset-0 gba:pointer-events-none gba:z-20">
-          {remoteCursorOverlays.map(cursor =>
-            (() => {
-              const rect = cursorRects[cursor.id]
-              if (!rect) return null
+        {gridViewportRect ? (
+          <>
+            <div
+              className="gba:absolute gba:pointer-events-none gba:z-20 gba:overflow-hidden"
+              style={{
+                top: gridViewportRect.top,
+                left: gridViewportRect.left,
+                width: gridViewportRect.width,
+                height: gridViewportRect.height
+              }}
+            >
+              {remoteCursorOverlays.map(cursor => {
+                const rect = cursorRects[cursor.id]
+                if (!isOverlayRectVisible(rect, gridViewportRect, 8)) return null
+
+                return (
+                  <div
+                    key={cursor.id}
+                    className="gba:absolute gba:box-border gba:rounded-sm"
+                    style={{
+                      top: rect.top - gridViewportRect.top,
+                      left: rect.left - gridViewportRect.left,
+                      width: rect.width,
+                      height: rect.height,
+                      border: `2px solid ${cursor.userColor}`,
+                      backgroundColor: `${cursor.userColor}1A`,
+                      boxShadow: `0 0 8px ${cursor.userColor}33`
+                    }}
+                  >
+                    {cursor.avatarUrl ? (
+                      <img
+                        src={cursor.avatarUrl}
+                        alt={cursor.userName}
+                        title={cursor.userName}
+                        className="gba:absolute gba:top-0 gba:right-0 gba:h-5 gba:w-5 gba:rounded-full gba:object-cover gba:shadow-sm"
+                        style={{ border: `2px solid ${cursor.userColor}` }}
+                      />
+                    ) : (
+                      <div
+                        className="gba:absolute gba:top-0 gba:right-0 gba:h-5 gba:min-w-5 gba:px-1 gba:text-[9px] gba:leading-5 gba:font-semibold gba:text-white gba:rounded-full gba:text-center gba:whitespace-nowrap gba:shadow-sm"
+                        style={{ backgroundColor: cursor.userColor }}
+                        title={cursor.userName}
+                      >
+                        {getInitials(cursor.userName)}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            <div
+              className="gba:absolute gba:pointer-events-none gba:z-10 gba:overflow-hidden"
+              style={{
+                top: gridViewportRect.top,
+                left: gridViewportRect.left,
+                width: gridViewportRect.width,
+                height: gridViewportRect.height
+              }}
+            >
+              {commentOverlays.map(marker => {
+                const rect = commentRects[marker.id]
+                if (!isOverlayRectVisible(rect, gridViewportRect, 8)) return null
+
+                const top = rect.top - gridViewportRect.top
+                const leftBase = rect.left - gridViewportRect.left
+                const width = rect.width
+
+                return (
+                  <React.Fragment key={marker.id}>
+                    <div
+                      className="gba:absolute gba:h-2.5 gba:w-2.5 gba:rounded-full gba:bg-blue-500 gba:border gba:border-white gba:shadow-sm"
+                      style={{
+                        top: top + 2,
+                        left: leftBase + width - 12
+                      }}
+                      title={`Comment: ${marker.ref}`}
+                      data-testid="univer-cell-comment-badge"
+                    />
+                    <div
+                      className="gba:absolute gba:pointer-events-auto gba:cursor-pointer"
+                      style={{
+                        top,
+                        left: leftBase + width - 24,
+                        width: 24,
+                        height: 24
+                      }}
+                      onMouseEnter={() => setHoveredCommentId(marker.id)}
+                      onMouseLeave={() => setHoveredCommentId(prev => (prev === marker.id ? null : prev))}
+                    />
+                  </React.Fragment>
+                )
+              })}
+            </div>
+
+            {(() => {
+              if (!hoveredCommentId) return null
+              const marker = commentOverlays.find(entry => entry.id === hoveredCommentId)
+              if (!marker) return null
+              const rect = commentRects[marker.id]
+              if (!isOverlayRectVisible(rect, gridViewportRect, 8)) return null
+
+              const author = marker.createdByName || t('editor-user-fallback')
+              const avatar = marker.createdByAvatar
+              const time = formatCommentTime(marker.createdAt)
+              const hoverCardWidth = Math.min(260, Math.max(200, gridViewportRect.width - 16))
+              const top = Math.max(gridViewportRect.top + 8, rect.top - 164)
+              const left = Math.min(
+                Math.max(gridViewportRect.left + 8, rect.left - 24),
+                gridViewportRect.left + Math.max(8, gridViewportRect.width - hoverCardWidth - 8)
+              )
+
               return (
                 <div
-                  key={cursor.id}
-                  className="gba:absolute gba:box-border gba:rounded-sm"
-                  style={{
-                    top: rect.top,
-                    left: rect.left,
-                    width: rect.width,
-                    height: rect.height,
-                    border: `2px solid ${cursor.userColor}`,
-                    backgroundColor: `${cursor.userColor}1A`,
-                    boxShadow: `0 0 8px ${cursor.userColor}33`
-                  }}
+                  className="gba:absolute gba:z-10 gba:w-[260px] gba:max-w-[65vw] gba:rounded-2xl gba:border gba:bg-card gba:p-4 gba:shadow-xl"
+                  style={{ top, left }}
+                  data-testid="univer-cell-comment-hover-card"
                 >
-                  {cursor.avatarUrl ? (
-                    <img
-                      src={cursor.avatarUrl}
-                      alt={cursor.userName}
-                      title={cursor.userName}
-                      className="gba:absolute gba:-top-2 gba:-right-2 gba:h-5 gba:w-5 gba:rounded-full gba:object-cover gba:shadow-sm"
-                      style={{ border: `2px solid ${cursor.userColor}` }}
-                    />
-                  ) : (
-                    <div
-                      className="gba:absolute gba:-top-2 gba:-right-2 gba:h-5 gba:min-w-5 gba:px-1 gba:text-[9px] gba:leading-5 gba:font-semibold gba:text-white gba:rounded-full gba:text-center gba:whitespace-nowrap gba:shadow-sm"
-                      style={{ backgroundColor: cursor.userColor }}
-                      title={cursor.userName}
-                    >
-                      {getInitials(cursor.userName)}
+                  <div className="gba:flex gba:items-center gba:gap-3">
+                    {avatar ? (
+                      <img
+                        src={avatar}
+                        alt={author}
+                        className="gba:h-9 gba:w-9 gba:rounded-full gba:object-cover gba:border"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="gba:flex gba:h-9 gba:w-9 gba:items-center gba:justify-center gba:rounded-full gba:bg-emerald-800 gba:text-xs gba:font-semibold gba:text-white">
+                        {getInitials(author)}
+                      </div>
+                    )}
+                    <div className="gba:flex gba:flex-col">
+                      <div className="gba:text-sm gba:leading-none gba:font-semibold">{author}</div>
+                      {time && <div className="gba:text-xs gba:leading-none gba:text-muted-foreground">{time}</div>}
                     </div>
-                  )}
+                  </div>
+                  <div className="gba:mt-3 gba:text-sm gba:leading-snug">{marker.content || ''}</div>
                 </div>
               )
-            })()
-          )}
-        </div>
-        <div className="gba:absolute gba:inset-0 gba:pointer-events-none gba:z-10">
-          {commentOverlays.map(marker => {
-            const rect = commentRects[marker.id]
-            const top = rect ? rect.top : CURSOR_OVERLAY_HEADER_HEIGHT_PX + marker.row * CURSOR_OVERLAY_ROW_HEIGHT_PX
-            const leftBase = rect
-              ? rect.left
-              : CURSOR_OVERLAY_ROW_INDEX_WIDTH_PX + marker.col * CURSOR_OVERLAY_COL_WIDTH_PX
-            const width = rect ? rect.width : CURSOR_OVERLAY_COL_WIDTH_PX
-            return (
-              <React.Fragment key={marker.id}>
-                <div
-                  className="gba:absolute gba:h-2.5 gba:w-2.5 gba:rounded-full gba:bg-blue-500 gba:border gba:border-white gba:shadow-sm"
-                  style={{
-                    top: Math.max(0, top + 2),
-                    left: Math.max(0, leftBase + width - 12)
-                  }}
-                  title={`Comment: ${marker.ref}`}
-                  data-testid="univer-cell-comment-badge"
-                />
-                <div
-                  className="gba:absolute gba:pointer-events-auto gba:cursor-pointer"
-                  style={{
-                    top: Math.max(0, top),
-                    left: Math.max(0, leftBase + width - 24),
-                    width: 24,
-                    height: 24
-                  }}
-                  onMouseEnter={() => setHoveredCommentId(marker.id)}
-                  onMouseLeave={() => setHoveredCommentId(prev => (prev === marker.id ? null : prev))}
-                />
-              </React.Fragment>
-            )
-          })}
-          {(() => {
-            if (!hoveredCommentId) return null
-            const marker = commentOverlays.find(entry => entry.id === hoveredCommentId)
-            if (!marker) return null
-            const rect = commentRects[marker.id]
-            if (!rect) return null
-            const top = rect.top
-            const left = rect.left
-            const author = marker.createdByName || t('editor-user-fallback')
-            const avatar = marker.createdByAvatar
-            const time = formatCommentTime(marker.createdAt)
-            return (
-              <div
-                className="gba:absolute gba:w-[260px] gba:max-w-[65vw] gba:rounded-2xl gba:border gba:bg-card gba:p-4 gba:shadow-xl"
-                style={{ top: Math.max(8, top - 164), left: Math.max(8, left - 24) }}
-                data-testid="univer-cell-comment-hover-card"
-              >
-                <div className="gba:flex gba:items-center gba:gap-3">
-                  {avatar ? (
-                    <img
-                      src={avatar}
-                      alt={author}
-                      className="gba:h-9 gba:w-9 gba:rounded-full gba:object-cover gba:border"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <div className="gba:flex gba:h-9 gba:w-9 gba:items-center gba:justify-center gba:rounded-full gba:bg-emerald-800 gba:text-xs gba:font-semibold gba:text-white">
-                      {getInitials(author)}
-                    </div>
-                  )}
-                  <div className="gba:flex gba:flex-col">
-                    <div className="gba:text-sm gba:leading-none gba:font-semibold">{author}</div>
-                    {time && <div className="gba:text-xs gba:leading-none gba:text-muted-foreground">{time}</div>}
-                  </div>
-                </div>
-                <div className="gba:mt-3 gba:text-sm gba:leading-snug">{marker.content || ''}</div>
-              </div>
-            )
-          })()}
-        </div>
+            })()}
+          </>
+        ) : null}
       </div>
     )
   }

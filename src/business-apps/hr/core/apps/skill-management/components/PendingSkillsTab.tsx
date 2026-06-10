@@ -4,20 +4,18 @@ import {
   AlertDescription,
   AlertTitle,
   Button,
-  Card,
-  CardContent,
-  DataTable,
+  DataDisplay,
   Spinner,
   toast,
   useTranslation
 } from '@newwork/nw-design-system'
-import { SortingState } from '@tanstack/react-table'
-import { ClockCountdownIcon, XCircleIcon } from '@phosphor-icons/react'
+import { XCircleIcon } from '@phosphor-icons/react'
 import { ErrorBoundary } from '@/business-apps/core/every/apps/every-box/components/ErrorBoundary'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { EmployeeSkillRecord } from '../types'
 import { useSkillMutations } from '../hooks/useSkillMutations'
 import ConfirmSkillActionDialog from './ConfirmSkillActionDialog'
+import { TabDataTable } from '@/business-apps/hr/core/apps/monthly-compensation-changes/components/TabDataTable'
 import {
   buildPendingSkillsColumns,
   getEmployeeName,
@@ -47,7 +45,7 @@ function PendingSkillsTab({
   onDataChange
 }: Readonly<PendingSkillsTabProps>) {
   const { t } = useTranslation(translations)
-  const [sorting, setSorting] = useState<SortingState>([])
+  const [searchTerm, setSearchTerm] = useState('')
   const [pendingAction, setPendingAction] = useState<PendingSkillActionState | null>(null)
   const { approveEmployeeSkill, rejectEmployeeSkill, isApprovalLoading } = useSkillMutations(accessToken)
 
@@ -85,6 +83,29 @@ function PendingSkillsTab({
     () => buildPendingSkillsColumns(t, prefixDataTestId, handleStartAction, isApprovalLoading),
     [handleStartAction, isApprovalLoading, prefixDataTestId, t]
   )
+
+  const filteredPendingSkills = useMemo(() => {
+    if (!searchTerm.trim()) {
+      return pendingSkills
+    }
+
+    const query = searchTerm.toLowerCase()
+    return pendingSkills.filter(skill => {
+      return getSkillName(skill).toLowerCase().includes(query) || getEmployeeName(skill).toLowerCase().includes(query)
+    })
+  }, [pendingSkills, searchTerm])
+
+  const titleSections = useMemo(
+    () => [
+      {
+        id: 'all',
+        label: t('tab-pending-skills'),
+        metadata: { count: searchTerm.trim() ? filteredPendingSkills.length : totalCount }
+      }
+    ],
+    [filteredPendingSkills.length, searchTerm, totalCount, t]
+  )
+
   const pendingActionDescription = useMemo(() => {
     if (!pendingAction) {
       return ''
@@ -126,34 +147,29 @@ function PendingSkillsTab({
 
   return (
     <>
-      <Card className="gba:rounded-lg gba:border gba:bg-card gba:text-card-foreground gba:shadow-sm gba:overflow-hidden">
-        <div className="gba:p-6 gba:pb-0">
-          <h3 className="gba:text-lg gba:font-semibold">
-            {t('tab-pending-skills')} ({totalCount})
-          </h3>
-          <p className="gba:text-sm gba:text-muted-foreground">{t('pending-description')}</p>
-        </div>
-
-        <CardContent className="gba:pt-4">
-          {pendingSkills.length === 0 ? (
-            <div className="gba:text-center gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8">
-              <ClockCountdownIcon className="gba:h-12 gba:w-12 gba:text-gray-400" />
-              <p className="gba:font-normal gba:text-gray-500 gba:mt-2">{t('pending-no-requests')}</p>
-            </div>
-          ) : (
-            <ErrorBoundary>
-              <DataTable
-                data={pendingSkills}
-                columns={columns}
-                sorting={sorting}
-                onSortingChange={setSorting}
-                enableSorting
-                enablePagination
-              />
-            </ErrorBoundary>
-          )}
-        </CardContent>
-      </Card>
+      <DataDisplay
+        titleSections={titleSections}
+        currentSection="all"
+        onSectionChange={() => {}}
+        searchValue={searchTerm}
+        searchPlaceholder={t('search-skills')}
+        onSearchChange={setSearchTerm}
+        filters={{}}
+        onFilterChange={() => {}}
+        filterSheetTitle={t('tab-pending-skills')}
+        filterSheetDescription={t('pending-description')}
+        toolbarDensity="compact"
+      >
+        <ErrorBoundary>
+          <TabDataTable
+            data={filteredPendingSkills}
+            columns={columns}
+            loading={isLoading}
+            error={null}
+            emptyMessage={searchTerm ? t('empty-no-matching-skills') : t('pending-no-requests')}
+          />
+        </ErrorBoundary>
+      </DataDisplay>
 
       <ConfirmSkillActionDialog
         open={!!pendingAction}

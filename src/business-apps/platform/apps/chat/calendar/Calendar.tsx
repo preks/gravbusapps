@@ -21,7 +21,8 @@ import {
   MonthView,
   CalendarListView,
   CreateMeetingModal,
-  MeetingDetailModal
+  MeetingDetailModal,
+  PendingInvitationsPanel
 } from './components'
 import {
   CalendarEvent,
@@ -29,14 +30,19 @@ import {
   ExternalCalendarSource,
   InternalCalendarSummary,
   InternalCalendarPermission,
-  Meeting,
   CreateMeetingData,
   UpdateMeetingData,
   UpdateSharedCalendarData,
   InvitationStatus,
-  EventParticipant
+  EventParticipant,
+  PendingInvitationGroup
 } from './types'
 import { getDefaultCalendarColor } from './utils/calendarColors'
+import { isSameDay } from './utils/dateHelpers'
+import {
+  collectPendingInvitationUserIds,
+  enrichPendingInvitationGroupsWithAvatars
+} from './utils/enrichPendingInvitationsAvatars'
 import { getDefaultMeetingCalendarId, PERSONAL_CALENDAR_ID } from './utils/defaultMeetingCalendar'
 import type { CalendarEmployee } from './services/employeeSearchService'
 
@@ -81,7 +87,7 @@ function parseCreateMeetingParticipants(rawValue: string | null): CalendarEmploy
         return {
           id: userId,
           userId,
-          displayName: displayName || userId
+          displayName: displayName?.trim() || undefined
         }
       })
       .filter((participant): participant is CalendarEmployee => participant !== null)
@@ -208,7 +214,8 @@ const CalendarInner: React.FC<CalendarProps> = ({
     currentDate,
     timeScope,
     events,
-    pendingInvitations,
+    pendingInvitationGroups,
+    pendingInvitationsCount,
     selectedEvent,
     isLoading,
     error,
@@ -222,6 +229,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
     updateMeeting,
     cancelMeeting,
     respondToInvitation,
+    respondToSeriesInvitation,
     refresh,
     refreshInvitations,
     applyCalendarColorLocally,
@@ -254,6 +262,8 @@ const CalendarInner: React.FC<CalendarProps> = ({
   const [enrichedSelectedEvent, setEnrichedSelectedEvent] = useState<CalendarEvent | null>(null)
   const [updatingCalendarPreferenceId, setUpdatingCalendarPreferenceId] = useState<string | null>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(defaultSidebarOpen)
+  const [isPendingInvitationsDialogOpen, setIsPendingInvitationsDialogOpen] = useState(false)
+  const [enrichedPendingGroups, setEnrichedPendingGroups] = useState<PendingInvitationGroup[]>([])
   const [requestedMeetingCalendarId, setRequestedMeetingCalendarId] = useState<string | undefined>()
 
   const { t } = useTranslation(translations)
@@ -326,8 +336,16 @@ const CalendarInner: React.FC<CalendarProps> = ({
   const eventsRef = useRef<CalendarEvent[]>(events)
   eventsRef.current = events
 
+  // Ref so URL-driven navigation can compare against the latest selected date without
+  // re-running on every render (avoids redundant setCurrentDate that re-triggers effects).
+  const currentDateRef = useRef<Date>(currentDate)
+  currentDateRef.current = currentDate
+
   /** True while meeting detail was opened from the calendar UI and meetingId was written to the URL. Skips URL-driven navigation so event refetches do not change time scope (e.g. 3-day → day). */
   const meetingDetailOpenedInAppRef = useRef(false)
+
+  /** Meeting id the URL-driven navigation has already auto-opened, so repeated effect runs / overlapping events do not open the detail modal twice. Reset when the modal closes. */
+  const autoOpenedMeetingIdRef = useRef<string | null>(null)
 
   const applyLocalCalendarSurfaceColor = useCallback(
     ({ calendarId, color, isPersonal = false }: { calendarId?: string; color: string; isPersonal?: boolean }) => {
@@ -451,6 +469,47 @@ const CalendarInner: React.FC<CalendarProps> = ({
     enrichEventWithMeetingAndAvatars()
   }, [selectedEvent, isDetailModalOpen, apiClient, fetchAvatarsSync, requestAvatars])
 
+  // Resolve real avatar images for pending invitation organizers/participants when the dialog is open
+  useEffect(() => {
+    if (!isPendingInvitationsDialogOpen) {
+      return
+    }
+
+    let cancelled = false
+
+    // Seed with the base groups so the list renders immediately while avatars resolve
+    setEnrichedPendingGroups(pendingInvitationGroups)
+
+    const enrichPendingAvatars = async () => {
+      const userIds = collectPendingInvitationUserIds(pendingInvitationGroups)
+
+      if (userIds.length === 0) {
+        return
+      }
+
+      let employeeInfoMap = requestAvatars(userIds)
+      if (employeeInfoMap.size < userIds.length) {
+        try {
+          employeeInfoMap = await fetchAvatarsSync(userIds)
+        } catch (error) {
+          console.error('Error fetching invitation avatars:', error instanceof Error ? error.message : 'unknown error')
+        }
+      }
+
+      if (cancelled) {
+        return
+      }
+
+      setEnrichedPendingGroups(enrichPendingInvitationGroupsWithAvatars(pendingInvitationGroups, employeeInfoMap))
+    }
+
+    enrichPendingAvatars()
+
+    return () => {
+      cancelled = true
+    }
+  }, [isPendingInvitationsDialogOpen, pendingInvitationGroups, fetchAvatarsSync, requestAvatars])
+
   // Handle URL params to navigate to a specific date/meeting (e.g., from MeetingCard click)
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout> | null = null
@@ -469,19 +528,25 @@ const CalendarInner: React.FC<CalendarProps> = ({
       if (dateParam) {
         const targetDate = new Date(dateParam)
         if (!Number.isNaN(targetDate.getTime())) {
-          setCurrentDate(targetDate)
+          if (!isSameDay(currentDateRef.current, targetDate)) {
+            setCurrentDate(targetDate)
+          }
           void viewPreferences.setTimeScope('day')
 
           // If we have a meetingId, find and select that meeting after events load (URL keeps meetingId for shareable link)
-          if (meetingIdParam) {
+          if (meetingIdParam && autoOpenedMeetingIdRef.current !== meetingIdParam) {
+            // Clear any timer scheduled by a previous invocation so we never open twice
+            if (timeoutId !== null) clearTimeout(timeoutId)
             timeoutId = setTimeout(() => {
               timeoutId = null
               // Only open if URL still has this meetingId (user may have closed modal and cleared URL)
               const currentParams = new URLSearchParams(globalThis.window.location.search)
               if (currentParams.get('meetingId') !== meetingIdParam) return
+              if (autoOpenedMeetingIdRef.current === meetingIdParam) return
               // Use ref so we see events after they load for the new date (e.g. "view in calendar" from card)
               const meetingEvent = eventsRef.current.find(e => e.id === meetingIdParam)
               if (meetingEvent && canOpenEventDetails(meetingEvent)) {
+                autoOpenedMeetingIdRef.current = meetingIdParam
                 selectEvent(meetingEvent)
                 setIsDetailModalOpen(true)
               }
@@ -489,15 +554,24 @@ const CalendarInner: React.FC<CalendarProps> = ({
           }
           // Keep meetingId in URL so the open meeting dialog is reflected and link is shareable
         }
-      } else if (meetingIdParam && events.length > 0 && !meetingDetailOpenedInAppRef.current && !isCreateModalOpen) {
+      } else if (
+        meetingIdParam &&
+        events.length > 0 &&
+        !meetingDetailOpenedInAppRef.current &&
+        !isCreateModalOpen &&
+        autoOpenedMeetingIdRef.current !== meetingIdParam
+      ) {
         // meetingId without date: deep link / external open — go to day and open modal.
         // When opened in-app, meetingDetailOpenedInAppRef is set before the URL is updated so refetches do not force day view.
         const meetingEvent = events.find(e => e.id === meetingIdParam)
         if (meetingEvent && canOpenEventDetails(meetingEvent)) {
           const meetingDate = meetingEvent.start
           if (!Number.isNaN(meetingDate.getTime())) {
-            setCurrentDate(meetingDate)
+            if (!isSameDay(currentDateRef.current, meetingDate)) {
+              setCurrentDate(meetingDate)
+            }
             void viewPreferences.setTimeScope('day')
+            autoOpenedMeetingIdRef.current = meetingIdParam
             selectEvent(meetingEvent)
             setIsDetailModalOpen(true)
           }
@@ -528,11 +602,13 @@ const CalendarInner: React.FC<CalendarProps> = ({
         if (meetingEvent && canOpenEventDetails(meetingEvent)) {
           setCurrentDate(meetingEvent.start)
           void viewPreferences.setTimeScope('day')
+          autoOpenedMeetingIdRef.current = meetingIdParam
           selectEvent(meetingEvent)
           setIsDetailModalOpen(true)
         }
       } else if (!meetingIdParam && isDetailModalOpen) {
         meetingDetailOpenedInAppRef.current = false
+        autoOpenedMeetingIdRef.current = null
         setIsDetailModalOpen(false)
         selectEvent(null)
       }
@@ -559,6 +635,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
   }, [])
   const clearMeetingFromUrl = useCallback(() => {
     meetingDetailOpenedInAppRef.current = false
+    autoOpenedMeetingIdRef.current = null
     const pathAndQuery = getCurrentUrlWithUpdatedSearchParams({ meetingId: null, date: null })
     globalThis.window.history.replaceState({}, '', `${globalThis.window.location.origin}${pathAndQuery}`)
   }, [])
@@ -571,6 +648,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
       }
 
       meetingDetailOpenedInAppRef.current = true
+      autoOpenedMeetingIdRef.current = event.id
       selectEvent(event)
       setIsDetailModalOpen(true)
       setMeetingInUrl(event.id, event.start)
@@ -660,43 +738,13 @@ const CalendarInner: React.FC<CalendarProps> = ({
     [respondToInvitation, selectedEvent]
   )
 
-  // Handle view meeting details from pending invitations
-  const handleViewInvitationDetails = useCallback(
-    (meeting: Meeting) => {
-      // Convert meeting to calendar event format
-      const event: CalendarEvent = {
-        id: meeting.id,
-        title: meeting.title,
-        description: meeting.description,
-        start: new Date(meeting.startTime),
-        end: new Date(meeting.endTime),
-        allDay: meeting.isAllDay,
-        color: meeting.color,
-        status: meeting.status,
-        participantStatus: InvitationStatus.PENDING, // It's pending since it's in pending invitations
-        isOrganizer: false,
-        organizer: {
-          id: meeting.organizer?.id || '',
-          firstName: meeting.organizer?.firstName,
-          lastName: meeting.organizer?.lastName,
-          displayName: meeting.organizer?.displayName,
-          email: meeting.organizer?.email || ''
-        },
-        participantCount: meeting.participants?.length || 0,
-        acceptedCount: meeting.participants?.filter(p => p.status === 'accepted').length || 0,
-        meetingLink: meeting.meetingLink,
-        location: meeting.location,
-        conversationId: meeting.conversationId,
-        calendarId: meeting.calendarId,
-        calendarName: meeting.calendar?.name,
-        calendarType: meeting.calendar?.type
-      }
-      meetingDetailOpenedInAppRef.current = true
-      selectEvent(event)
-      setIsDetailModalOpen(true)
-      setMeetingInUrl(meeting.id, new Date(meeting.startTime))
+  const handleRespondToSeriesInvitation = useCallback(
+    async (seriesRootId: string, status: InvitationStatus) => {
+      await respondToSeriesInvitation(seriesRootId, {
+        status
+      })
     },
-    [selectEvent, setMeetingInUrl]
+    [respondToSeriesInvitation]
   )
 
   // Handle delete meeting
@@ -1172,7 +1220,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
               refreshInvitations()
               refreshCalendars()
             }}
-            pendingInvitationsCount={pendingInvitations.length}
+            pendingInvitationsCount={pendingInvitationsCount}
             showSidebarToggle
             onToggleSidebar={() => setIsSidebarOpen(currentOpen => !currentOpen)}
           />
@@ -1186,20 +1234,16 @@ const CalendarInner: React.FC<CalendarProps> = ({
             {renderCalendarView()}
           </div>
 
-          {pendingInvitations.length > 0 && (
+          {pendingInvitationsCount > 0 && (
             <div className="gba:absolute gba:bottom-3 gba:right-3 gba:z-20">
               <button
-                onClick={() => {
-                  if (pendingInvitations[0]) {
-                    handleViewInvitationDetails(pendingInvitations[0])
-                  }
-                }}
+                onClick={() => setIsPendingInvitationsDialogOpen(true)}
                 className="gba:flex gba:items-center gba:gap-1.5 gba:px-2.5 gba:py-1.5 gba:bg-warning gba:text-warning-foreground gba:rounded-full gba:shadow-md gba:font-medium gba:text-xs"
                 data-testid="calendar-pending-invitations-badge"
                 title={t('calendar-pending-invitations')}
               >
                 <span>
-                  {pendingInvitations.length} {t('calendar-pending-invitations')}
+                  {pendingInvitationsCount} {t('calendar-pending-invitations')}
                 </span>
               </button>
             </div>
@@ -1208,6 +1252,14 @@ const CalendarInner: React.FC<CalendarProps> = ({
       </div>
 
       {/* Modals */}
+      <PendingInvitationsPanel
+        isOpen={isPendingInvitationsDialogOpen}
+        onClose={() => setIsPendingInvitationsDialogOpen(false)}
+        groups={enrichedPendingGroups}
+        onRespond={handleRespondToInvitation}
+        onRespondSeries={handleRespondToSeriesInvitation}
+      />
+
       <CreateMeetingModal
         isOpen={isCreateModalOpen}
         onClose={() => {
@@ -1220,6 +1272,16 @@ const CalendarInner: React.FC<CalendarProps> = ({
         onSubmit={handleCreateMeeting}
         onUpdate={handleUpdateMeeting}
         accessToken={accessToken}
+        currentUser={
+          userInfo?.id
+            ? {
+                id: userInfo.id,
+                displayName: userInfo.displayName?.trim() || undefined,
+                firstName: userInfo.givenName || userInfo.employeeDetails?.firstName || undefined,
+                lastName: userInfo.familyName || userInfo.employeeDetails?.lastName || undefined
+              }
+            : undefined
+        }
         availableCalendars={sharedCalendars}
         includePersonal={includePersonal || defaultMeetingCalendarId === PERSONAL_CALENDAR_ID}
         defaultCalendarId={defaultMeetingCalendarId}

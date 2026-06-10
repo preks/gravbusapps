@@ -53,7 +53,7 @@ const calculateTrend = (
  * Sales Performance KPIs component displaying:
  * - Total Revenue
  * - Opportunities Won
- * - Average Deal Size
+ * - Average Opportunity Size
  * - Win Rate
  *
  * Each KPI includes a trend indicator comparing current 30 days to previous 30 days
@@ -96,17 +96,17 @@ export const SalesKpis: React.FC<SalesKpisProps> = ({ kpis, isLoading = false, e
         title: 'Opportunities Won',
         value: kpis.opportunitiesWon,
         prefix: <TrophyIcon />,
-        description: 'Total number of closed-won deals',
+        description: 'Total number of closed-won opportunities',
         trend: calculateTrend(kpis.trends.opportunitiesWon, formatNumber)
       },
       {
-        key: 'average-deal-size',
-        title: 'Average Deal Size',
-        value: formatCurrency(kpis.averageDealSize, kpis.currencyCode),
+        key: 'average-opportunity-size',
+        title: 'Average Opportunity Size',
+        value: formatCurrency(kpis.averageOpportunitySize, kpis.currencyCode),
         prefix: <FireIcon />,
         valueIsString: true,
         description: 'Average opportunity value',
-        trend: calculateTrend(kpis.trends.averageDealSize, currencyFormatter)
+        trend: calculateTrend(kpis.trends.averageOpportunitySize, currencyFormatter)
       },
       {
         key: 'win-rate',

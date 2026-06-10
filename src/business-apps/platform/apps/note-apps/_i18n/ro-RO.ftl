@@ -3,6 +3,7 @@ nh-parent-label = Every Office
 nh-title = Notițe
 nh-tabs-aria-label = Secțiuni notițe
 nh-tab-my-notes = Notițele mele
+nh-tab-favorites = Favorite
 nh-tab-shared = Partajate
 nh-tab-pinned = Fixate
 nh-tab-recent = Recente
@@ -60,6 +61,7 @@ loading-message = Se încarcă...
 
 menu-open = Deschide
 menu-share = Partajare
+menu-manage-sharing = Gestionați partajarea
 menu-copy-link = Copiază link
 menu-duplicate = Duplicare
 menu-pin = Fixare
@@ -128,22 +130,8 @@ folder-no-folders = Încă nu există foldere
 folder-create-to-start = Creați o notă pentru a începe
 folder-settings = Setări
 
-# ShareNoteDialog
-share-title = Partajați „{ $title }"
-share-description = Partajați această notă cu membrii echipei. Colaborare în timp real.
-share-add-people = Adăugați persoane
-share-search-placeholder = Căutați după nume sau e-mail...
-share-searching = Căutare...
-share-sharing = Se partajează...
-share-no-users = Nu s-au găsit utilizatori
+# Note sharing (legacy keys — shared UI uses office/sharing/_i18n)
 share-selected-count = Selectate ({ $count })
-share-permission-label = Permisiune:
-share-permission-view = Poate vizualiza
-share-permission-view-desc = Poate vizualiza dar nu modifica
-share-permission-comment = Poate comenta
-share-permission-comment-desc = Poate vizualiza și adăuga comentarii
-share-permission-edit = Poate edita
-share-permission-edit-desc = Poate vizualiza și edita
 share-permission-owner = Proprietar
 share-permission-owner-desc = Acces complet inclusiv partajare
 share-success-blink = Partajat cu succes! Notificări Blink trimise.
@@ -151,36 +139,22 @@ share-share-with = Partajat cu { $count } { $count ->
   [one] persoană
  *[other] persoane
 }
-share-people-with-access = Persoane cu acces
 share-label-owner = Proprietar
-share-not-shared = Încă nu e partajat cu nimeni
-share-add-above = Adăugați persoane mai sus pentru partajare
-share-done = Gata
-share-error-select = Selectați cel puțin un utilizator pentru partajare
 share-error-failed = Partajarea notei a eșuat. Încercați din nou.
 share-toast-success = „{ $title }" partajat cu { $count } { $count ->
   [one] persoană
  *[other] persoane
 }!
 
-# ManageSharesDialog
-manage-title = Gestionați partajarea
-manage-description = Gestionați cine are acces la „{ $title }"
-manage-retry = Încercați din nou
-manage-load-failed = Nu s-au putut încărca informațiile de partajare
+# Manage share links (legacy — people tab uses office/sharing/_i18n)
 manage-people-tab = Persoane ({ $count })
 manage-links-tab = Linkuri partajare ({ $count })
-manage-not-shared = Această notă nu a fost partajată încă cu nimeni.
-manage-shared-at = Partajat { $date }
 manage-create-link = Creați link partajare
 manage-permission = Permisiune
 manage-expires-optional = Expiră (opțional)
 manage-permission-view-label = Vizualizare
 manage-permission-comment-label = Comentariu
 manage-permission-edit-label = Editare
-manage-can-view = Poate vizualiza
-manage-can-comment = Poate comenta
-manage-can-edit = Poate edita
 manage-creating = Se creează...
 manage-create-link-btn = Creați link
 manage-no-links = Încă nu există linkuri de partajare.

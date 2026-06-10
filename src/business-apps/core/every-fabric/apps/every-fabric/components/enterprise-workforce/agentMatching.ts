@@ -3,17 +3,24 @@
 //
 // Why not a real LLM call? Two reasons:
 //   - Instant feedback (no network round-trip while typing / on enter).
-//   - The registry surface is small enough (low hundreds at most) that a
-//     weighted token-overlap score works well in practice.
+//   - The workforce surface is small (low tens at most) so a weighted
+//     token-overlap score works well in practice.
 //
 // Weights are tuned so a token hit in the agent's name dominates a tag
 // hit, which in turn dominates a description hit. This matches how
 // people actually phrase tasks ("translate", "summarise", "schedule").
 
-import type { FabricAgent } from '../agents/agentTypes'
+export interface RankableAgent {
+  id: string
+  name: string
+  specialty?: string | null
+  domain?: string | null
+  description?: string | null
+  tags: string[]
+}
 
-export interface AgentMatch {
-  agent: FabricAgent
+export interface AgentMatch<TAgent extends RankableAgent = RankableAgent> {
+  agent: TAgent
   score: number
   /** 0-100 normalised score for UI. */
   confidence: number
@@ -88,7 +95,7 @@ const WEIGHT_SPECIALTY = 4
 const WEIGHT_TAG = 3
 const WEIGHT_DESCRIPTION = 1
 
-export function scoreAgent(agent: FabricAgent, queryTokens: string[]): number {
+export function scoreAgent(agent: RankableAgent, queryTokens: string[]): number {
   if (queryTokens.length === 0) return 0
   const nameTokens = uniqueTokens(agent.name)
   const specialtyTokens = uniqueTokens([agent.specialty ?? '', agent.domain ?? ''].join(' '))
@@ -105,7 +112,7 @@ export function scoreAgent(agent: FabricAgent, queryTokens: string[]): number {
   return score
 }
 
-export function rankAgents(agents: FabricAgent[], query: string): AgentMatch[] {
+export function rankAgents<TAgent extends RankableAgent>(agents: TAgent[], query: string): AgentMatch<TAgent>[] {
   const tokens = tokenize(query)
   if (tokens.length === 0) return []
 

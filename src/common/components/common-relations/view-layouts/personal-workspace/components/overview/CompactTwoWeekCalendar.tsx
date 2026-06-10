@@ -47,6 +47,7 @@ export interface CompactTwoWeekCalendarProps extends Pick<BusinessAppContextProp
   config: PersonalWorkspaceConfig
   refetchActivities?: (dateRange?: { occurredAtFrom?: string; occurredAtTo?: string }) => void | Promise<void>
   refetchTasks?: (dateRange?: { dueDateFrom?: string; dueDateTo?: string }) => void | Promise<void>
+  docuSignEnabled?: boolean
 }
 
 interface CalendarActivity {
@@ -76,7 +77,8 @@ export const CompactTwoWeekCalendar: React.FC<CompactTwoWeekCalendarProps> = ({
   accessToken,
   userInfo,
   refetchActivities,
-  refetchTasks
+  refetchTasks,
+  docuSignEnabled = false
 }) => {
   const [weekOffset, setWeekOffset] = useState(0) // 0 = current week, 1 = next week, -1 = prev week
   const [selectedTask, setSelectedTask] = useState<GenericTask | null>(null)
@@ -461,9 +463,13 @@ export const CompactTwoWeekCalendar: React.FC<CompactTwoWeekCalendarProps> = ({
             data-testid="calendar-task-detail-sheet"
             businessAppContext={{ accessToken, userInfo } as BusinessAppContextProps}
             accessToken={accessToken}
-            assignedUserId={selectedTask?.taskAssignees?.[0]?.assignedUserId}
+            assignedUserId={
+              selectedTask?.taskAssignees?.[0]?.assignedUserId ??
+              selectedTask?.taskAssignees?.[0]?.assignedEmployee?.userId
+            }
             currentUserId={userInfo?.id}
             flowContext={config.myTasksConfig?.flowContexts?.entityContext}
+            docuSignEnabled={docuSignEnabled}
             onTaskCompleted={() => {
               // Refetch calendar data after task completion
               setSelectedTask(null)

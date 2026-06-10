@@ -21,6 +21,25 @@ interface SessionCacheEntry {
   payload: DeepAgentSession
 }
 
+export interface UserProfileBrief {
+  user_id: string
+  tenant_id: string
+  employee_id?: string | null
+  workspace_id?: string | null
+  structure_id?: string | null
+  brief_text: string
+  generated_brief_text: string
+  source_facts: Record<string, unknown>
+  source_hash: string
+  status: 'missing' | 'generating' | 'ready' | 'failed' | 'edited'
+  generation_version: number
+  model?: string | null
+  generated_at?: string | null
+  edited_at?: string | null
+  updated_at?: string | null
+  last_error?: string | null
+}
+
 /**
  * Per-session ETag cache shared across every `useEnterpriseAgentClient`
  * invocation. The FE polls `GET /deep-agent/sessions/{id}` multiple times per
@@ -263,7 +282,9 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
 
   const getMemory = useCallback(
     (query: string) =>
-      client.get<{ key: string; value: string; namespace?: string }[]>('/deep-agent/memory/search', {
+      client.get<
+        { key: string; value: string; namespace?: string; title?: string | null; updated_at?: string | null }[]
+      >('/deep-agent/memory/search', {
         params: { q: query }
       }),
     [client]
@@ -279,6 +300,25 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       client.delete('/deep-agent/memory', {
         params: { key, namespace: namespace ?? 'preferences' }
       }),
+    [client]
+  )
+
+  const getUserProfileBrief = useCallback(() => client.get<UserProfileBrief>('/deep-agent/user-profile'), [client])
+
+  const ensureUserProfileBrief = useCallback(
+    (payload?: { workspaceId?: string; structureId?: string }) =>
+      client.post<UserProfileBrief>('/deep-agent/user-profile/ensure', payload ?? {}),
+    [client]
+  )
+
+  const updateUserProfileBrief = useCallback(
+    (briefText: string) => client.patch<UserProfileBrief>('/deep-agent/user-profile', { briefText }),
+    [client]
+  )
+
+  const regenerateUserProfileBrief = useCallback(
+    (payload?: { workspaceId?: string; structureId?: string }) =>
+      client.post<UserProfileBrief>('/deep-agent/user-profile/regenerate', payload ?? {}),
     [client]
   )
 
@@ -652,6 +692,10 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       getMemory,
       saveMemory,
       deleteMemory,
+      getUserProfileBrief,
+      ensureUserProfileBrief,
+      updateUserProfileBrief,
+      regenerateUserProfileBrief,
       listEnterpriseSkills,
       getSkillDetails,
       installSkill,
@@ -699,6 +743,10 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       getMemory,
       saveMemory,
       deleteMemory,
+      getUserProfileBrief,
+      ensureUserProfileBrief,
+      updateUserProfileBrief,
+      regenerateUserProfileBrief,
       listEnterpriseSkills,
       getSkillDetails,
       installSkill,

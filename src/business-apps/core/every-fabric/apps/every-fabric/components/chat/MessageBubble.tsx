@@ -238,6 +238,7 @@ const renderStructuredInputRequestBubble = (
         <ToolPermissionRequest
           request={formData}
           alreadySubmitted={alreadySubmitted}
+          accessToken={accessToken}
           onSubmit={payload => {
             if (onReply) {
               onReply(undefined, payload)
@@ -420,7 +421,11 @@ const renderMessageBubbleContent = ({
     case 'expert_call': {
       const content = message.content as Parameters<typeof ExpertCallRenderer>[0]
       return (
-        <AnimatedMessageWrapper messageId={message.id} className="gba:py-0.5" data-testid={`msg-${message.id}`}>
+        <AnimatedMessageWrapper
+          messageId={message.id}
+          className="gba:flex gba:justify-start gba:py-1"
+          data-testid={`msg-${message.id}`}
+        >
           <ExpertCallRenderer {...content} />
         </AnimatedMessageWrapper>
       )

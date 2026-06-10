@@ -5,8 +5,8 @@ import { formatCurrency } from '@/common/utils/numberFormatter'
 
 export interface PipelineStatisticsMetrics {
   totalValue: number
-  avgDealSize: number
-  dealsWon: number
+  avgOpportunitySize: number
+  opportunitiesWon: number
   winRate: number // percentage
 }
 
@@ -57,13 +57,13 @@ export const PipelineStatistics: React.FC<PipelineStatisticsProps> = ({
 
       <Card>
         <CardContent className="gba:p-6">
-          <div data-testid={`pipeline-${pipelineId}-avg-deal-size`} className="gba:text-center">
+          <div data-testid={`pipeline-${pipelineId}-avg-opportunity-size`} className="gba:text-center">
             <div className="gba:flex gba:items-center gba:justify-center gba:mb-2">
               <Trophy className="gba:text-green-600 gba:h-5 gba:w-5 gba:mr-2" />
-              <span className="gba:text-green-700 gba:text-sm gba:font-medium">Avg Deal Size</span>
+              <span className="gba:text-green-700 gba:text-sm gba:font-medium">Avg Opportunity Size</span>
             </div>
             <div className="gba:text-2xl gba:font-bold gba:text-green-900">
-              {formatCurrency(metrics.avgDealSize, currency)}
+              {formatCurrency(metrics.avgOpportunitySize, currency)}
             </div>
           </div>
         </CardContent>
@@ -71,12 +71,12 @@ export const PipelineStatistics: React.FC<PipelineStatisticsProps> = ({
 
       <Card>
         <CardContent className="gba:p-6">
-          <div data-testid={`pipeline-${pipelineId}-deals-won`} className="gba:text-center">
+          <div data-testid={`pipeline-${pipelineId}-opportunities-won`} className="gba:text-center">
             <div className="gba:flex gba:items-center gba:justify-center gba:mb-2">
               <Award className="gba:text-orange-600 gba:h-5 gba:w-5 gba:mr-2" />
-              <span className="gba:text-orange-700 gba:text-sm gba:font-medium">Deals Won</span>
+              <span className="gba:text-orange-700 gba:text-sm gba:font-medium">Opportunities Won</span>
             </div>
-            <div className="gba:text-2xl gba:font-bold gba:text-orange-900">{metrics.dealsWon}</div>
+            <div className="gba:text-2xl gba:font-bold gba:text-orange-900">{metrics.opportunitiesWon}</div>
           </div>
         </CardContent>
       </Card>

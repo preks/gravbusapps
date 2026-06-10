@@ -11,6 +11,11 @@ import { studioGraphToTemplate, templateToStudioGraph } from '../utils/templateC
 import { templateRequiresAdvancedMode } from '../utils/aiTemplateValidator'
 import { validateFlow } from './useFlowValidation'
 import type { FlowTemplate } from '@/common/data/flow/types/flowTemplate'
+import {
+  applyPendingWebhookSecretToNodes,
+  mergeWebhookConfigFromSavedTemplate,
+  syncWebhookCredentialDisplayName
+} from '../utils/webhookCredentialUtils'
 
 interface FlowStudioClient {
   /** Save the current flow to the backend */
@@ -76,9 +81,16 @@ export function useFlowStudioClient(accessToken: string): FlowStudioClient {
         )
       }
 
+      // Persist webhook secret draft to FS (best-effort; must not block save).
+      const secretApply = await applyPendingWebhookSecretToNodes(accessToken, state.nodes, state.templateName)
+      const nodesForSave = secretApply.nodes
+      if (secretApply.applied) {
+        useFlowStudioStore.setState({ nodes: secretApply.nodes })
+      }
+
       // Convert studio graph to the backend FlowTemplate format
       const template = studioGraphToTemplate(
-        state.nodes,
+        nodesForSave,
         state.edges,
         state.templateName,
         state.templateDescription,
@@ -87,33 +99,34 @@ export function useFlowStudioClient(accessToken: string): FlowStudioClient {
         templateId
       )
 
+      let savedTemplate: FlowTemplate
       if (templateId) {
-        const updated = await templateClient.updateTemplate(templateId, template)
-        useFlowStudioStore.setState(currentState => ({
-          templateId: updated?.id ?? templateId,
-          templateName: updated?.name ?? currentState.templateName,
-          templateDescription: updated?.description ?? currentState.templateDescription,
-          templateTags: updated?.tags ?? currentState.templateTags,
-          templateVersion:
-            typeof updated?.version === 'number' && Number.isInteger(updated.version) && updated.version >= 1
-              ? updated.version
-              : currentState.templateVersion
-        }))
+        savedTemplate = await templateClient.updateTemplate(templateId, template)
       } else {
-        const created = await templateClient.createTemplate(template)
-        useFlowStudioStore.setState(currentState => ({
-          templateId: created?.id ?? currentState.templateId,
-          templateName: created?.name ?? currentState.templateName,
-          templateDescription: created?.description ?? currentState.templateDescription,
-          templateTags: created?.tags ?? currentState.templateTags,
-          templateVersion:
-            typeof created?.version === 'number' && Number.isInteger(created.version) && created.version >= 1
-              ? created.version
-              : currentState.templateVersion
-        }))
+        savedTemplate = await templateClient.createTemplate(template)
       }
 
-      markClean()
+      const nodesWithWebhook = mergeWebhookConfigFromSavedTemplate(nodesForSave, savedTemplate)
+
+      useFlowStudioStore.setState(currentState => ({
+        nodes: nodesWithWebhook,
+        templateId: savedTemplate?.id ?? templateId ?? currentState.templateId,
+        templateName: savedTemplate?.name ?? currentState.templateName,
+        templateDescription: savedTemplate?.description ?? currentState.templateDescription,
+        templateTags: savedTemplate?.tags ?? currentState.templateTags,
+        templateVersion:
+          typeof savedTemplate?.version === 'number' &&
+          Number.isInteger(savedTemplate.version) &&
+          savedTemplate.version >= 1
+            ? savedTemplate.version
+            : currentState.templateVersion,
+        isDirty: false,
+        webhookConfigRefreshKey: currentState.webhookConfigRefreshKey + 1
+      }))
+
+      // Best-effort FS label sync — must not fail save (see syncWebhookCredentialDisplayName).
+      const latest = useFlowStudioStore.getState()
+      await syncWebhookCredentialDisplayName(accessToken, latest.nodes, latest.templateName)
     } catch (err) {
       if (templateId && isTemplateNotFoundError(err)) {
         useFlowStudioStore.setState({ templateId: undefined })
@@ -125,7 +138,7 @@ export function useFlowStudioClient(accessToken: string): FlowStudioClient {
     } finally {
       setIsLoading(false)
     }
-  }, [templateClient, markClean])
+  }, [accessToken, templateClient, markClean])
 
   const loadFlow = useCallback(
     async (templateId: string) => {

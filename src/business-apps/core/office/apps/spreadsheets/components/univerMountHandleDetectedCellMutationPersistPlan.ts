@@ -5,7 +5,11 @@ import {
   applyAutofillMutationCellPolicy,
   type SpreadsheetLocalMutationIntent
 } from './univerMutationPlanner'
-import { autofillApplyTypeKeepsValueWrites, clearSpreadsheetAutofillIntent } from './univerAutofillIntent'
+import {
+  autofillApplyTypeKeepsValueWrites,
+  autofillApplyTypeReplacesDestinationStyle,
+  clearSpreadsheetAutofillIntent
+} from './univerAutofillIntent'
 import { debugMutationTrace } from './univerGridDebug'
 import { resolveBackendRowUuidPredicateFromGridProps } from './univerBackendRowUuidPredicate'
 import { remoteEchoKey, toEchoSignature, getSpreadsheetRowAtUniverGridIndex } from './univerGridAuthoritativeHelpers'
@@ -106,6 +110,9 @@ export function runDetectedCellMutationPersistPlanPhase(
     source === 'sheet-value-changed' &&
     autofillApplyType != null &&
     autofillApplyTypeKeepsValueWrites(autofillApplyType)
+  const autofillReplaceStyleIntent =
+    source === 'sheet-value-changed' && autofillApplyTypeReplacesDestinationStyle(autofillApplyType)
+  const effectiveReplaceRangeStyleIntent = replaceRangeStyleIntent || pasteIntoNewRows || autofillReplaceStyleIntent
 
   const mutationTraceId = createSpreadsheetTraceId('grid_mutation')
 
@@ -199,7 +206,7 @@ export function runDetectedCellMutationPersistPlanPhase(
     workbookSnapshot: workbookSnapshotForPlanner,
     allowValueCarryingStylePayloads,
     autofillApplyType,
-    replaceRangeStyleIntent: replaceRangeStyleIntent || pasteIntoNewRows || autofillIntoNewRows,
+    replaceRangeStyleIntent: effectiveReplaceRangeStyleIntent,
     shouldSuppress,
     allowRecentlyLocalBlankClear: source !== 'deferred-replay' || preserveUndefinedAsNull,
     userInitiatedValueClear,
@@ -211,7 +218,7 @@ export function runDetectedCellMutationPersistPlanPhase(
     cells:
       authoritativeEnvelope.plan?.cells.filter(cell => cell.valueAction !== 'none' || cell.stylePatch != null) ?? [],
     intent: authoritativeIntent,
-    replaceRangeStyleIntent: replaceRangeStyleIntent || pasteIntoNewRows || autofillIntoNewRows,
+    replaceRangeStyleIntent: effectiveReplaceRangeStyleIntent,
     source,
     mutatedCellCount,
     createsNewRows,
@@ -277,7 +284,7 @@ export function runDetectedCellMutationPersistPlanPhase(
       allowValueCarryingStylePayloads,
       hasPersistableMutation,
       hasStyleOnlyMutation: authoritativeIntent === 'formatOnly',
-      replaceRangeStyleIntent,
+      replaceRangeStyleIntent: effectiveReplaceRangeStyleIntent,
       mutatedCellCount,
       plannedCellCount: plannedCellsFiltered.length,
       payloadMatrix: summarizeCellMatrixForDebug(payloadCellValue),
@@ -290,6 +297,8 @@ export function runDetectedCellMutationPersistPlanPhase(
       rowIdentityStructuralMismatch,
       columnIdentityStructureHealthy,
       columnIdentityStructuralMismatch,
+      autofillIntoNewRows,
+      autofillReplaceStyleIntent,
       pendingNewRowCount: pendingNewRowsUpdate?.nextData.length
         ? Math.max(0, pendingNewRowsUpdate.nextData.length - currentData.length)
         : 0

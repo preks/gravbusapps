@@ -46,7 +46,7 @@ interface DecisionsTimelineListProps {
 }
 
 export const DecisionsTimelineList: FC<DecisionsTimelineListProps> = ({ decisions }) => {
-  const ordered = [...decisions].sort((a, b) => b.seq - a.seq)
+  const ordered = [...decisions].sort((a, b) => a.seq - b.seq)
 
   if (ordered.length === 0) {
     return (

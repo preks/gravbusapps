@@ -37,6 +37,20 @@ export type UniverMountHandleDetectedCellMutationDeps = Pick<
   | 'pendingFormattingPasteIntentRef'
   | 'pendingAutofillIntentRef'
   | 'mergeGestureSuppressBySheetRef'
+  | 'cutPasteCollabSuppressUntilMsRef'
+  | 'recentMoveCellRangeFollowUpRef'
+  | 'rowInsertFormulaFollowUpSuppressUntilMsRef'
+  | 'recentInsertRowFormulaFollowUpRef'
+  | 'rowDeleteFormulaFollowUpSuppressUntilMsRef'
+  | 'recentDeleteRowFormulaFollowUpRef'
+  | 'rowMoveFormulaFollowUpSuppressUntilMsRef'
+  | 'recentMoveRowFormulaFollowUpRef'
+  | 'columnInsertFormulaFollowUpSuppressUntilMsRef'
+  | 'recentInsertColumnFormulaFollowUpRef'
+  | 'columnDeleteFormulaFollowUpSuppressUntilMsRef'
+  | 'recentDeleteColumnFormulaFollowUpRef'
+  | 'columnMoveFormulaFollowUpSuppressUntilMsRef'
+  | 'recentMoveColumnFormulaFollowUpRef'
 > &
   Pick<UniverWorkbookBootstrapMountContext, 'getWorkbookSnapshotRef'> & {
     peekPasteFormattingReplaceIntent: (sheetId: string) => boolean

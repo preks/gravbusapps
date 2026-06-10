@@ -18,6 +18,7 @@ import { CommunicationChannelCode } from '@/common/data/relations/types/relation
 import { COMMUNICATION_CHANNEL } from '@/common/constants/commonCatalogs'
 import translations from './_i18n'
 import CommunicationChannelSelect from './CommunicationChannelSelect'
+import { useCommunicationChannelOptions } from './useCommunicationChannelOptions'
 
 // Default channel codes for different entity types
 export const DEFAULT_ACCOUNT_CHANNELS = [CommunicationChannelCode.EMAIL, CommunicationChannelCode.PHONE]
@@ -54,8 +55,10 @@ interface CommunicationSegmentProps {
 const CommunicationChannelItem: React.FC<{
   channelIndex: number
   businessAppContext?: BusinessAppContextProps
+  channelOptions: ReturnType<typeof useCommunicationChannelOptions>['options']
+  channelOptionsLoading: boolean
   onRemove: () => void
-}> = ({ channelIndex, businessAppContext, onRemove }) => {
+}> = ({ channelIndex, businessAppContext, channelOptions, channelOptionsLoading, onRemove }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
 
@@ -102,6 +105,8 @@ const CommunicationChannelItem: React.FC<{
                 {/* Communication channel selector - Left side */}
                 <InputGroupAddon className="gba:flex-none gba:self-stretch gba:border-r gba:border-input gba:bg-muted/50">
                   <CommunicationChannelSelect
+                    options={channelOptions}
+                    loading={channelOptionsLoading}
                     accessToken={businessAppContext?.accessToken}
                     value={channelRefField.value || ''}
                     onValueChange={v => {
@@ -178,6 +183,9 @@ const CommunicationSegment: React.FC<CommunicationSegmentProps> = ({
 }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
+  const { options: channelOptions, loading: channelOptionsLoading } = useCommunicationChannelOptions(
+    businessAppContext?.accessToken
+  )
 
   // Use field array for multiple communication channels
   const { fields, append, remove } = useFieldArray({
@@ -224,6 +232,8 @@ const CommunicationSegment: React.FC<CommunicationSegmentProps> = ({
             key={field.id}
             channelIndex={channelIndex}
             businessAppContext={businessAppContext}
+            channelOptions={channelOptions}
+            channelOptionsLoading={channelOptionsLoading}
             onRemove={() => handleRemoveChannel(channelIndex)}
           />
         )
