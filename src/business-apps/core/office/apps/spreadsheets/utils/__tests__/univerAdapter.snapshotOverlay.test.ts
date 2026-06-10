@@ -129,6 +129,42 @@ describe('mergeWorkbookFormattingFromDonor', () => {
     expect(cell.v).toBe('hello')
     expect(cell.s).toBe('boldId')
   })
+
+  it('upgrades partially formatted hydration cells with richer donor formatting', () => {
+    const into: Record<string, unknown> = {
+      id: 'wb',
+      sheetOrder: [sheetId],
+      sheets: {
+        [sheetId]: {
+          id: sheetId,
+          cellData: {
+            0: { 0: { v: 'hello', s: { bg: { rgb: '#ffff00' } } } }
+          }
+        }
+      }
+    }
+    const donor: Record<string, unknown> = {
+      id: 'wb2',
+      styles: { richStyle: { bg: { rgb: '#ffff00' }, bl: 1 } },
+      sheetOrder: [sheetId],
+      sheets: {
+        [sheetId]: {
+          id: sheetId,
+          cellData: {
+            0: { 0: { v: 'old', s: 'richStyle' } }
+          }
+        }
+      }
+    }
+
+    const merged = mergeWorkbookFormattingFromDonor(into, donor, sheetId)
+    const cell = (
+      merged.sheets as Record<string, { cellData: Record<number, Record<number, { v?: string; s?: unknown }>> }>
+    )[sheetId].cellData[0][0]
+
+    expect(cell.v).toBe('hello')
+    expect(cell.s).toBe('richStyle')
+  })
 })
 
 describe('stripWorkbookSnapshotValuesPreservingFormatting', () => {

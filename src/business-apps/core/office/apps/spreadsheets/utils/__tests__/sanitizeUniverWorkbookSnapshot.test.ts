@@ -94,6 +94,46 @@ describe('sanitizeUniverWorkbookSnapshotForBootstrap', () => {
     })
   })
 
+  it('keeps a valid style ref when mixed inline keys are redundant and merges true overrides deterministically', () => {
+    const result = sanitizeUniverWorkbookSnapshotForBootstrap({
+      id: 'workbook-sheet-1',
+      name: 'Sheet 1',
+      sheetOrder: ['sheet-1'],
+      styles: {
+        styleA: { bg: { rgb: '#ff0000' } }
+      },
+      sheets: {
+        'sheet-1': {
+          id: 'sheet-1',
+          name: 'Sheet 1',
+          cellData: {
+            0: {
+              0: { v: 'A', s: 'styleA', bg: { rgb: '#ff0000' } },
+              1: { v: 'B', s: 'styleA', bl: 1 }
+            }
+          }
+        }
+      }
+    })
+
+    expect(result.snapshot?.sheets).toMatchObject({
+      'sheet-1': {
+        cellData: {
+          '0': {
+            '0': { v: 'A', s: 'styleA' },
+            '1': {
+              v: 'B',
+              s: {
+                bg: { rgb: '#ff0000' },
+                bl: 1
+              }
+            }
+          }
+        }
+      }
+    })
+  })
+
   it('preserves value cells when hydration payload includes f: null', () => {
     const result = sanitizeUniverWorkbookSnapshotForBootstrap({
       id: 'workbook-sheet-1',

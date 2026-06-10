@@ -208,6 +208,14 @@ function sanitizeStyles(styles: Record<string, unknown> | undefined): {
   return { styles: sanitizedStyles, changed }
 }
 
+function styleValuesEqual(left: unknown, right: unknown): boolean {
+  try {
+    return JSON.stringify(left) === JSON.stringify(right)
+  } catch {
+    return left === right
+  }
+}
+
 function sanitizeDimensionRecord(
   record: Record<string, unknown> | undefined,
   sizeKey: 'w' | 'h'
@@ -295,18 +303,11 @@ function sanitizeCellRecord(rawCell: unknown): Record<string, unknown> | null {
     if (sanitizedInlineStyle && typeof sanitizedInlineStyle === 'object') sanitizedCell.s = sanitizedInlineStyle
     else delete sanitizedCell.s
   }
-  const inlineStyleEntries = INLINE_CELL_STYLE_KEYS.flatMap(key => {
-    if (!Object.prototype.hasOwnProperty.call(sanitizedCell, key)) return []
+  for (const key of INLINE_CELL_STYLE_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(sanitizedCell, key)) continue
     const sanitizedValue = sanitizeStyleValue(sanitizedCell[key])
-    delete sanitizedCell[key]
-    return sanitizedValue !== undefined ? [[key, sanitizedValue] as const] : []
-  })
-  if (inlineStyleEntries.length > 0) {
-    const existingInlineStyle =
-      sanitizedCell.s && typeof sanitizedCell.s === 'object' && !Array.isArray(sanitizedCell.s)
-        ? (sanitizedCell.s as Record<string, unknown>)
-        : {}
-    sanitizedCell.s = { ...existingInlineStyle, ...Object.fromEntries(inlineStyleEntries) }
+    if (sanitizedValue !== undefined) sanitizedCell[key] = sanitizedValue
+    else delete sanitizedCell[key]
   }
   for (const [key, value] of Object.entries(sanitizedCell)) {
     if (value === undefined) delete sanitizedCell[key]
@@ -343,6 +344,67 @@ function sanitizeWorksheet(rawWorksheet: unknown): Record<string, unknown> | nul
   worksheet.columnData = sanitizeDimensionRecord(parsed.data.columnData, 'w')
   worksheet.rowData = sanitizeDimensionRecord(parsed.data.rowData, 'h')
   return worksheet
+}
+
+function canonicalizeWorksheetCellStyles(
+  sheets: Record<string, unknown>,
+  styleDefinitions: Record<string, unknown> | undefined
+): boolean {
+  let changed = false
+  for (const worksheet of Object.values(sheets)) {
+    if (!worksheet || typeof worksheet !== 'object' || Array.isArray(worksheet)) continue
+    const cellData = (worksheet as { cellData?: Record<string, Record<string, Record<string, unknown>>> }).cellData
+    if (!cellData || typeof cellData !== 'object') continue
+    for (const rowCells of Object.values(cellData)) {
+      if (!rowCells || typeof rowCells !== 'object') continue
+      for (const cell of Object.values(rowCells)) {
+        if (!cell || typeof cell !== 'object' || Array.isArray(cell)) continue
+        const nextCell = cloneJson(cell) as Record<string, unknown>
+        const inlineEntries = INLINE_CELL_STYLE_KEYS.flatMap(key => {
+          if (!Object.prototype.hasOwnProperty.call(nextCell, key)) return []
+          return [[key, nextCell[key]] as const]
+        })
+        if (inlineEntries.length === 0) continue
+        for (const [key] of inlineEntries) {
+          delete nextCell[key]
+        }
+        const inlineOverrides = Object.fromEntries(inlineEntries)
+        const baseStyleId = typeof nextCell.s === 'string' ? nextCell.s.trim() : ''
+        const baseStyle =
+          baseStyleId &&
+          styleDefinitions &&
+          typeof styleDefinitions[baseStyleId] === 'object' &&
+          styleDefinitions[baseStyleId] != null &&
+          !Array.isArray(styleDefinitions[baseStyleId])
+            ? (cloneJson(styleDefinitions[baseStyleId]) as Record<string, unknown>)
+            : null
+        if (baseStyle) {
+          const nonRedundantOverrides = Object.fromEntries(
+            Object.entries(inlineOverrides).filter(([key, value]) => !styleValuesEqual(baseStyle[key], value))
+          )
+          nextCell.s =
+            Object.keys(nonRedundantOverrides).length > 0 ? { ...baseStyle, ...nonRedundantOverrides } : baseStyleId
+        } else {
+          const existingInlineStyle =
+            nextCell.s && typeof nextCell.s === 'object' && !Array.isArray(nextCell.s)
+              ? (nextCell.s as Record<string, unknown>)
+              : {}
+          const mergedInlineStyle = { ...existingInlineStyle, ...inlineOverrides }
+          if (Object.keys(mergedInlineStyle).length > 0) {
+            nextCell.s = mergedInlineStyle
+          } else {
+            delete nextCell.s
+          }
+        }
+        if (!styleValuesEqual(cell, nextCell)) {
+          Object.keys(cell).forEach(key => delete cell[key])
+          Object.assign(cell, nextCell)
+          changed = true
+        }
+      }
+    }
+  }
+  return changed
 }
 
 function dropDanglingStyleReferences(
@@ -418,6 +480,9 @@ export function sanitizeUniverWorkbookSnapshotForBootstrap(
 
   clonedSnapshot.sheets = sanitizedSheets
   dropDanglingStyleReferences(sanitizedSheets, sanitizedStyles.styles)
+  if (canonicalizeWorksheetCellStyles(sanitizedSheets, sanitizedStyles.styles)) {
+    changed = true
+  }
 
   return { snapshot: clonedSnapshot, changed }
 }

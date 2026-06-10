@@ -1,6 +1,7 @@
 import {
   buildAuthoritativePaintCellsForMaterializedRows,
   buildAuthoritativePaintCellsFromViewerRows,
+  buildSnapshotStylePaintCellsFromWorkbookSnapshot,
   diffViewerRowsToAuthoritativePaintCells
 } from '../spreadsheetAuthoritativeProjector'
 import type { SpreadsheetColumn } from '../../types'
@@ -82,6 +83,42 @@ describe('spreadsheetAuthoritativeProjector', () => {
     expect(items).toEqual([
       expect.objectContaining({ rowIndex: 1, colIndex: 0, value: 'new-a', rowId: 'row-1' }),
       expect.objectContaining({ rowIndex: 1, colIndex: 1, value: 'new-b', rowId: 'row-1' })
+    ])
+  })
+
+  it('buildSnapshotStylePaintCellsFromWorkbookSnapshot preserves style refs and emits only non-redundant overrides', () => {
+    const columns = [column('A', 0)]
+    const items = buildSnapshotStylePaintCellsFromWorkbookSnapshot(
+      {
+        sheetOrder: ['sheet-1'],
+        styles: {
+          styleA: { bg: { rgb: '#ff0000' } }
+        },
+        sheets: {
+          'sheet-1': {
+            id: 'sheet-1',
+            cellData: {
+              0: {
+                0: { s: 'styleA', bg: { rgb: '#ff0000' }, bl: 1 }
+              }
+            }
+          }
+        }
+      },
+      'sheet-1',
+      [{ _id: 'row-1', _gridRowIndex: 0, A: 'value' }],
+      columns
+    )
+
+    expect(items).toEqual([
+      expect.objectContaining({
+        rowIndex: 0,
+        colIndex: 0,
+        rowId: 'row-1',
+        options: expect.objectContaining({
+          stylePatch: { set: { s: 'styleA', bl: 1 } }
+        })
+      })
     ])
   })
 })

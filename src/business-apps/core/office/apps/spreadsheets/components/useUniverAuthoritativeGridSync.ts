@@ -331,10 +331,14 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
       }
       authoritativeBulkBuffer =
         shouldMergeSessionPaintWithForcedRepair && sessionPaintCells
-          ? mergeAuthoritativePaintCellLists(sessionPaintCells, regionProjectedBuffer)
+          ? mergeAuthoritativePaintCellLists(regionProjectedBuffer, sessionPaintCells)
           : regionProjectedBuffer
     } else if (preferForcedRepairProjection && isForcedAuthoritativeReapply) {
-      authoritativeBulkBuffer = buildAuthoritativePaintCellsFromViewerRows(data, columns)
+      const fullProjectedBuffer = buildAuthoritativePaintCellsFromViewerRows(data, columns)
+      authoritativeBulkBuffer =
+        shouldMergeSessionPaintWithForcedRepair && sessionPaintCells
+          ? mergeAuthoritativePaintCellLists(fullProjectedBuffer, sessionPaintCells)
+          : fullProjectedBuffer
     } else if (requiresPostBootstrapRepair || (!hasCompletedAuthoritativeSyncRef.current && nextToken === 0)) {
       authoritativeBulkBuffer = buildAuthoritativePaintCellsFromViewerRows(data, columns)
     } else {

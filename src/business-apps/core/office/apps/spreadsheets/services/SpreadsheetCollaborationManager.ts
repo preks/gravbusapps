@@ -1445,6 +1445,7 @@ export class SpreadsheetCollaborationManager {
     reason: string
     confirmedPhysicalOrderStrategy?: 'set-next' | 'clear'
     allowValueOnlyGridRepair?: boolean
+    preserveStagedDirectPaint?: boolean
     pendingLocalFilterPolicy?: PendingLocalFilterPolicy
     traceMeta?: { traceSessionId?: string; traceId?: string; batchId?: string; tabId?: string }
   }): void {
@@ -1460,6 +1461,7 @@ export class SpreadsheetCollaborationManager {
         clearAllSignatures: true,
         preferBulk: true,
         reason: params.reason,
+        preserveStagedDirectPaint: params.preserveStagedDirectPaint,
         pendingLocalFilterPolicy: params.pendingLocalFilterPolicy
       })
     } else if (isActiveTargetSheet && params.allowValueOnlyGridRepair === false) {
@@ -6917,6 +6919,7 @@ export class SpreadsheetCollaborationManager {
             reason: 'column_reorder_structural_repair',
             confirmedPhysicalOrderStrategy: 'clear',
             allowValueOnlyGridRepair: params.expectDeferredStyleReplay === true,
+            preserveStagedDirectPaint: params.expectDeferredStyleReplay === true,
             pendingLocalFilterPolicy: 'server_authoritative_repair',
             traceMeta: params.traceMeta
           })

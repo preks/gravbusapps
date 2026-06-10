@@ -738,11 +738,11 @@ describe('useUniverAuthoritativeGridSync', () => {
 
     await waitFor(() => expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledTimes(1))
     expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledWith(
-      [
+      expect.arrayContaining([
         expect.objectContaining({ rowIndex: 0, colIndex: 0, value: 'left' }),
         expect.objectContaining({ rowIndex: 0, colIndex: 1, value: 'middle' }),
         expect.objectContaining({ rowIndex: 0, colIndex: 2, value: 'right' })
-      ],
+      ]),
       expect.objectContaining({ operationType: 'authoritative_reapply', skipRemoteEchoRegistration: false })
     )
   })
@@ -802,6 +802,67 @@ describe('useUniverAuthoritativeGridSync', () => {
             useSenderA1Row: true
           })
         })
+      ],
+      expect.objectContaining({ operationType: 'authoritative_reapply', skipRemoteEchoRegistration: false })
+    )
+  })
+
+  it('merges staged style paint into full-grid forced repair when preserveStagedDirectPaint is set', async () => {
+    const applyRemoteCellUpdatesBulk = jest.fn()
+    const refs = createStableHookRefs()
+    refs.authoritativePaintCellsRef.current = [
+      {
+        rowIndex: 0,
+        colIndex: 0,
+        value: undefined,
+        rowId: 'row-1',
+        options: {
+          stylePatch: { unset: ['s', 'bg'] },
+          targetSheetId: 'sheet-1',
+          useSenderA1Row: true
+        }
+      }
+    ]
+    refs.pendingForcedAuthoritativeReapplyRef.current = {
+      regions: null,
+      preferBulk: true,
+      clearAllSignatures: true,
+      reason: 'column_reorder_structural_repair',
+      pendingLocalFilterPolicy: 'server_authoritative_repair',
+      preserveStagedDirectPaint: true
+    }
+
+    renderHook(() =>
+      useUniverAuthoritativeGridSync({
+        sheet: { id: 'sheet-1' } as any,
+        data: [{ _id: 'row-1', _gridRowIndex: 0, column_a: 'server value', column_b: 'neighbor' }],
+        columns: [
+          { id: 'col-a', name: 'column_a', isVisible: true },
+          { id: 'col-b', name: 'column_b', isVisible: true }
+        ] as any,
+        authoritativeDataSyncToken: 1,
+        authoritativeReapplySeed: 1,
+        collabBulkApplyIdleNonce: 0,
+        applyRemoteCellUpdate: jest.fn(),
+        applyRemoteCellUpdatesBulk,
+        ...refs
+      })
+    )
+
+    await waitFor(() => expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledTimes(1))
+    expect(applyRemoteCellUpdatesBulk).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          rowIndex: 0,
+          colIndex: 0,
+          value: undefined,
+          options: expect.objectContaining({
+            stylePatch: { unset: ['s', 'bg'] },
+            targetSheetId: 'sheet-1',
+            useSenderA1Row: true
+          })
+        }),
+        expect.objectContaining({ rowIndex: 0, colIndex: 1, value: 'neighbor' })
       ],
       expect.objectContaining({ operationType: 'authoritative_reapply', skipRemoteEchoRegistration: false })
     )

@@ -368,7 +368,10 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
           }
         }
 
-        if (!options.currentVisualState.hasMountedSnapshot && nextFormattingScore > 0) {
+        if (
+          !options.currentVisualState.hasMountedSnapshot &&
+          (nextFormattingScore > 0 || prepared.formattingEnriched)
+        ) {
           return {
             decision: 'mount_now',
             mountKind: nextFormattingSource === 'cache' ? 'cache_enriched' : 'remote_enriched',
@@ -377,7 +380,7 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
         }
 
         if (
-          nextFormattingScore > options.currentVisualState.formattingScore &&
+          (nextFormattingScore > options.currentVisualState.formattingScore || prepared.formattingEnriched) &&
           safetyRank(prepared.validation.safety) >= safetyRank(options.currentVisualState.validationSafety)
         ) {
           return {
