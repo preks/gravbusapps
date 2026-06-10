@@ -63,6 +63,9 @@ tickets-untitled = Tichet fără titlu
 tickets-priority = Prioritate: { $priority }
 tickets-empty-title = Niciun tichet de service
 tickets-empty-description = Tichetele deschise pentru acest client vor apărea aici.
+agent-runs-title = Activitate agent din e-mailuri
+agent-runs-empty-title = Încă nu există rulări de agent
+agent-runs-empty-description = Când un agent procesează un e-mail despre acest client, rularea apare aici.
 
 # Cazuri de service și reclamații
 cases-title = Cazuri
