@@ -123,6 +123,25 @@ describe('runDurationLabel', () => {
     })
     expect(runDurationLabel(run, '2026-01-01T00:00:10Z')).toBe('10s')
   })
+
+  it('treats naive (offset-less) backend timestamps as UTC', () => {
+    // Both timestamps lack a trailing "Z"; they must be read as UTC so the
+    // duration is not skewed by the viewer's local offset.
+    const run = buildRun({
+      started_at: '2026-01-01T00:00:00',
+      completed_at: '2026-01-01T00:45:00'
+    })
+    expect(runDurationLabel(run)).toBe('45m')
+  })
+
+  it('does not inflate duration when start is naive and now is UTC-aware', () => {
+    const run = buildRun({
+      status: 'running',
+      started_at: '2026-01-01T00:00:00',
+      completed_at: null
+    })
+    expect(runDurationLabel(run, '2026-01-01T00:45:00Z')).toBe('45m')
+  })
 })
 
 describe('shortenInput', () => {

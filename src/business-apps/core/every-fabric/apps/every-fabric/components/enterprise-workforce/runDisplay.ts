@@ -2,7 +2,7 @@
 // no client) so the run UI components stay small and the helpers can
 // be unit tested in isolation.
 
-import { parseIsoTimestamp } from '../../utils/renderUtils'
+import { parseIsoTimestamp, parseIsoTimestampMs } from '../../utils/renderUtils'
 import type { WorkforceRun, WorkforceRunStatus } from './workforceTypes'
 import { tokensToCredits } from './workforceTypes'
 
@@ -94,11 +94,13 @@ export function runCredits(run: WorkforceRun): number {
 export function runDurationLabel(run: WorkforceRun, nowIso?: string): string | null {
   const startedAt = run.started_at ?? run.created_at
   if (!startedAt) return null
-  const start = Date.parse(startedAt)
-  if (Number.isNaN(start)) return null
-  const endIso = run.completed_at ?? nowIso ?? new Date().toISOString()
-  const end = Date.parse(endIso)
-  if (Number.isNaN(end) || end < start) return null
+  // Backend timestamps are naive UTC (no offset); parse via parseIsoTimestamp
+  // so they are read as UTC. Using raw Date.parse would treat them as local
+  // time and inflate the duration by the viewer's UTC offset.
+  const start = parseIsoTimestampMs(startedAt)
+  if (start === null) return null
+  const end = parseIsoTimestampMs(run.completed_at ?? nowIso) ?? Date.now()
+  if (end < start) return null
   const ms = end - start
   if (ms < 1000) return '<1s'
   const totalSeconds = Math.floor(ms / 1000)
