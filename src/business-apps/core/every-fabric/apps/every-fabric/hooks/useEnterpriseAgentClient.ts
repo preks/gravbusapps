@@ -21,6 +21,22 @@ interface SessionCacheEntry {
   payload: DeepAgentSession
 }
 
+interface AgentSkillLookupRow {
+  skill_id?: string
+  enabled?: boolean
+  follow_latest?: boolean
+  version?: number | null
+}
+
+interface AgentSkillLookupResponse {
+  skill_bindings?: AgentSkillLookupRow[]
+  skills?: AgentSkillLookupRow[]
+}
+
+interface AgentSkillsLookupClient {
+  getAgentSkills: (agentId: string) => Promise<AgentSkillLookupResponse>
+}
+
 export interface UserProfileBrief {
   user_id: string
   tenant_id: string
@@ -57,8 +73,73 @@ export const invalidateDeepAgentSessionEtagCache = (sessionId: string): void => 
 const resolvePromptManagerBase = (): string =>
   PROMPT_MANAGER_API_URL.endsWith('/') ? PROMPT_MANAGER_API_URL.slice(0, -1) : PROMPT_MANAGER_API_URL
 
+const createEnabledSkillBinding = (skillId: string, opts?: { followLatest?: boolean; version?: number | null }) => ({
+  skill_id: skillId,
+  follow_latest: opts?.followLatest !== false,
+  version: opts?.followLatest === false ? (opts?.version ?? null) : null,
+  enabled: true
+})
+
+const resolveExplicitSkillIds = (
+  activeEnterpriseSkillId?: string,
+  fallbackSkillId?: string,
+  config?: SessionConfig
+): string[] =>
+  [activeEnterpriseSkillId, fallbackSkillId, config?.selectedEnterpriseSkill?.skill_id].filter(
+    (value): value is string => Boolean(value)
+  )
+
+const mergeExplicitSkillBindings = (
+  bindingsBySkill: Map<string, AgentSkillBinding>,
+  explicitSkillIds: string[]
+): void => {
+  explicitSkillIds.forEach(skillId => {
+    if (bindingsBySkill.has(skillId)) return
+    bindingsBySkill.set(skillId, createEnabledSkillBinding(skillId))
+  })
+}
+
+const loadAgentSkillBindings = async (
+  client: AgentSkillsLookupClient,
+  selectedExpertId?: string
+): Promise<Map<string, AgentSkillBinding>> => {
+  const bindingsBySkill = new Map<string, AgentSkillBinding>()
+  if (!selectedExpertId) return bindingsBySkill
+
+  try {
+    const agentSkills = await client.getAgentSkills(selectedExpertId)
+    const assignedRows = agentSkills.skill_bindings?.length ? agentSkills.skill_bindings : agentSkills.skills
+    for (const row of assignedRows ?? []) {
+      if (!row.skill_id || row.enabled === false) continue
+      bindingsBySkill.set(
+        row.skill_id,
+        createEnabledSkillBinding(row.skill_id, {
+          followLatest: row.follow_latest,
+          version: row.version
+        })
+      )
+    }
+  } catch {
+    // Session creation should still work if the registry binding lookup is temporarily unavailable.
+  }
+
+  return bindingsBySkill
+}
+
 export const useEnterpriseAgentClient = (accessToken: string) => {
   const client = usePromptManagerClient(accessToken)
+
+  const resolveSkillBindings = useCallback(
+    async (
+      selectedExpertId: string | undefined,
+      explicitSkillIds: string[]
+    ): Promise<AgentSkillBinding[] | undefined> => {
+      const bindingsBySkill = await loadAgentSkillBindings(client, selectedExpertId)
+      mergeExplicitSkillBindings(bindingsBySkill, explicitSkillIds)
+      return bindingsBySkill.size > 0 ? Array.from(bindingsBySkill.values()) : undefined
+    },
+    [client]
+  )
 
   const startSession = useCallback(
     async (
@@ -69,46 +150,16 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       fallbackSkillId?: string
     ) => {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
-      const explicitSkillIds = [
-        activeEnterpriseSkillId,
-        fallbackSkillId,
-        config?.selectedEnterpriseSkill?.skill_id
-      ].filter((value): value is string => Boolean(value))
+      const explicitSkillIds = resolveExplicitSkillIds(activeEnterpriseSkillId, fallbackSkillId, config)
       const selectedToolRefs = Array.from(new Set(config?.selectedEnterpriseSkill?.tool_refs ?? []))
       const selectedExpertId = config?.selectedAgent?.id
       const selectedExpertIds = selectedExpertId ? [selectedExpertId] : undefined
-
-      const bindingsBySkill = new Map<string, AgentSkillBinding>()
-      if (selectedExpertId) {
-        try {
-          const agentSkills = await client.getAgentSkills(selectedExpertId)
-          const assignedRows = agentSkills.skill_bindings?.length ? agentSkills.skill_bindings : agentSkills.skills
-          for (const row of assignedRows ?? []) {
-            if (!row.skill_id || row.enabled === false) continue
-            bindingsBySkill.set(row.skill_id, {
-              skill_id: row.skill_id,
-              follow_latest: row.follow_latest !== false,
-              version: row.follow_latest === false ? (row.version ?? null) : null,
-              enabled: true
-            })
-          }
-        } catch {
-          // Session creation should still work if the registry binding lookup is temporarily unavailable.
-        }
-      }
-
-      for (const skill_id of explicitSkillIds) {
-        if (bindingsBySkill.has(skill_id)) continue
-        bindingsBySkill.set(skill_id, {
-          skill_id,
-          follow_latest: true,
-          version: null,
-          enabled: true
-        })
-      }
-
-      const skill_bindings = bindingsBySkill.size > 0 ? Array.from(bindingsBySkill.values()) : undefined
+      const skill_bindings = await resolveSkillBindings(selectedExpertId, explicitSkillIds)
       const selectedSkillIds = skill_bindings?.map(binding => binding.skill_id) ?? []
+      // When the user explicitly assigns an agent in the composer, mark it
+      // authoritative so the backend lets it own the session (boss subagent,
+      // router LLM skipped) while staying open to escalate.
+      const expert_scope = selectedExpertId ? 'owner' : undefined
       return client.post<StartSessionResponse>('/deep-agent/sessions', {
         task,
         config,
@@ -116,12 +167,13 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
         presentation_mode: 'enterprise_agents',
         active_external_connection_ids: activeExternalConnectionIds,
         expert_ids: selectedExpertIds,
+        expert_scope,
         skill_ids: selectedSkillIds,
         skill_bindings,
         tool_refs: selectedToolRefs
       })
     },
-    [client]
+    [client, resolveSkillBindings]
   )
 
   const activateSession = useCallback(

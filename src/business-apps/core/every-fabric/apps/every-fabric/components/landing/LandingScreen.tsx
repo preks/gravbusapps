@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
-import type { SessionConfig } from '../../types/enterpriseAgent'
+import { useCallback, useEffect, useState } from 'react'
+import type { SessionConfig, SpecialistAgent } from '../../types/enterpriseAgent'
 import { useFabricConnectors } from '../../hooks/useFabricConnectors'
+import { useFabricAgents } from '../../hooks/useFabricAgents'
 import { useFabric } from '../../context/FabricContext'
 import { resolveUserFirstName } from '../../utils/userUtils'
 import { SETTINGS_KEY } from '../settings/agentSettings.types'
@@ -62,9 +63,19 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
     toggleConnector,
     isLoading: isLoadingConnectors
   } = useFabricConnectors(accessToken)
+  const {
+    agents: availableAgents,
+    isLoading: isLoadingAgents,
+    ensureLoaded: ensureAgentsLoaded
+  } = useFabricAgents(accessToken)
+  const [selectedAgent, setSelectedAgent] = useState<SpecialistAgent | undefined>(undefined)
   const [fallbackSkillId, setFallbackSkillId] = useState<string | undefined>(undefined)
 
   const userFirstName = resolveUserFirstName(userInfo)
+
+  const handleOpenAgents = useCallback(() => {
+    void ensureAgentsLoaded()
+  }, [ensureAgentsLoaded])
 
   useEffect(() => {
     try {
@@ -108,8 +119,12 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
                   const connectionIds = activeConnectors.map(c => c.connection_id)
                   return onStartSession(task, config, connectionIds, undefined, fallbackSkillId)
                 }}
-                selectedAgent={undefined}
-                onClearAgent={() => {}}
+                selectedAgent={selectedAgent}
+                onClearAgent={() => setSelectedAgent(undefined)}
+                availableAgents={availableAgents}
+                onSelectAgent={setSelectedAgent}
+                isLoadingAgents={isLoadingAgents}
+                onOpenAgents={handleOpenAgents}
                 availableConnectors={availableConnectors}
                 activeConnectorIds={new Set(activeConnectors.map(c => c.connection_id))}
                 onToggleConnector={toggleConnector}

@@ -48,7 +48,9 @@ function writeUrl(snap: MeshNavSnapshot, fullStack?: MeshNavSnapshot[]): void {
   }
   // Set sessionId when drilling into a session so the URL is correct
   // before FabricContext's own pushState fires. For non-session scopes
-  // leave sessionId untouched — FabricContext clears it via selectSession(null).
+  // leave sessionId untouched (omitted from `updates`) so the active session
+  // is preserved across Company / User scope switches — the app-level session
+  // selection is no longer cleared when viewing an aggregate mesh.
   if (snap.scope === 'session' && snap.sessionId) {
     updates.sessionId = snap.sessionId
   }
@@ -185,12 +187,14 @@ function useAgentMeshScopeImpl(): AgentMeshScopeValue {
 
   const applySessionSideEffect = useCallback(
     (target: MeshNavSnapshot) => {
-      if (target.scope === 'session') {
-        if (target.sessionId && activeSessionId !== target.sessionId) {
-          selectSession(target.sessionId)
-        }
-      } else if (activeSessionId) {
-        selectSession(null)
+      // Mesh scope is a view-only concern. Only adopt a session when the user
+      // explicitly drills into a *different* session mesh. Never clear the
+      // app-level active session just because the user is viewing an aggregate
+      // (company / user / me) mesh — doing so used to deselect the running
+      // session and remove it from the sidebar until a full page refresh
+      // (see plan: Preserve Active Session In Mesh).
+      if (target.scope === 'session' && target.sessionId && activeSessionId !== target.sessionId) {
+        selectSession(target.sessionId)
       }
     },
     [activeSessionId, selectSession]

@@ -1,5 +1,5 @@
 import React from 'react'
-import { CheckIcon, ShareNetworkIcon, SpinnerGapIcon, XIcon } from '@phosphor-icons/react'
+import { CheckIcon, HeadCircuitIcon, SpinnerGapIcon, XIcon } from '@phosphor-icons/react'
 
 type ExpertCallStatus = 'running' | 'done' | 'failed'
 
@@ -89,11 +89,11 @@ export const ExpertCallRenderer = ({
       data-testid={`enterprise-agent-expert-${agentId}`}
       title={title || undefined}
     >
-      <span className="gba:flex gba:h-5 gba:w-5 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-full gba:bg-white/85 gba:text-sky-600 gba:ring-1 gba:ring-sky-500/10 dark:gba:bg-sky-950/60 dark:gba:text-sky-300">
-        <ShareNetworkIcon className="gba:h-3 gba:w-3" />
+      <span className="gba:flex gba:h-5 gba:w-5 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-full gba:bg-white/85 gba:text-foreground/70 gba:ring-1 gba:ring-sky-500/10 dark:gba:bg-sky-950/60 dark:gba:text-foreground/70">
+        <HeadCircuitIcon className="gba:h-3 gba:w-3" weight="regular" />
       </span>
       <span className="gba:min-w-0 gba:truncate gba:text-[11px] gba:font-semibold gba:leading-none">
-        <span className="gba:text-muted-foreground/80">Expert</span>
+        <span className="gba:text-muted-foreground/80">Agent</span>
         <span className="gba:mx-1 gba:text-sky-500/70">/</span>
         <span>{displayName}</span>
       </span>

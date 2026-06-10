@@ -509,6 +509,7 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
     pendingAttachments: pendingSessionAttachments,
     upload: uploadSessionAttachment,
     remove: removeSessionAttachment,
+    clearComposerAttachments,
     flushPendingToSession
   } = useSessionAttachments(activeSessionId, accessToken)
 
@@ -590,6 +591,9 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
         setBootstrapSession(activatedSession)
         writeBootstrapSessionToHistoryState(activatedSession)
       }
+      // The attachments belong to this first turn; drop them from the composer
+      // so they don't cling to (and get re-sent on) follow-up messages.
+      clearComposerAttachments()
       return sessionId
     },
     [
@@ -598,6 +602,7 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       addSession,
       sessionAttachments,
       pendingSessionAttachments,
+      clearComposerAttachments,
       flushPendingToSession,
       urlSessionId,
       activeSessionId
@@ -644,8 +649,11 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
     async (message?: string, structuredInput?: Record<string, any>) => {
       const attachmentSnapshot = snapshotAttachmentsForMessage(sessionAttachments, pendingSessionAttachments)
       await _reply(message, structuredInput, attachmentSnapshot)
+      // The attachments belong to the turn we just sent; drop them from the
+      // composer so they don't cling to (and get re-sent on) follow-up messages.
+      clearComposerAttachments()
     },
-    [_reply, sessionAttachments, pendingSessionAttachments]
+    [_reply, sessionAttachments, pendingSessionAttachments, clearComposerAttachments]
   )
 
   // Build a deterministic lookup of client-only image blob URLs from both

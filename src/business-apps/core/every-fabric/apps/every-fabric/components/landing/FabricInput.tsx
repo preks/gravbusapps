@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, Textarea } from '@newwork/nw-design-system'
-import { ArrowUpIcon, PlugsIcon, SpinnerGapIcon, StopIcon, XIcon } from '@phosphor-icons/react'
+import { ArrowUpIcon, PlugsIcon, SpinnerGapIcon, StopIcon } from '@phosphor-icons/react'
 import type {
   ModelOption,
   PendingComposerAttachment,
@@ -13,6 +13,7 @@ import type { ExternalConnection } from '../../hooks/useFabricConnectors'
 import { AttachmentChipList } from '../chat/AttachmentChipList'
 import { ModelSelector } from './ModelSelector'
 import { ComposerActionMenu } from './ComposerActionMenu'
+import { SelectedAgentChip } from './SelectedAgentChip'
 import { SETTINGS_KEY } from '../settings/agentSettings.types'
 
 export interface FabricInputProps {
@@ -30,6 +31,15 @@ export interface FabricInputProps {
   isDisabled?: boolean
   selectedAgent?: SpecialistAgent
   onClearAgent?: () => void
+  /**
+   * Enterprise agent picker (landing composer only). When `onSelectAgent` is
+   * provided, the plus-menu shows a "Select an enterprise agent" row. Omit in
+   * the workspace variant, where the assigned agent is fixed for the session.
+   */
+  availableAgents?: SpecialistAgent[]
+  onSelectAgent?: (agent: SpecialistAgent) => void
+  isLoadingAgents?: boolean
+  onOpenAgents?: () => void
   autoFocus?: boolean
   /** Connectors integration — drives the plus-menu connector submenu and the condensed summary */
   availableConnectors?: ExternalConnection[]
@@ -118,11 +128,6 @@ function resolveFabricInputPlaceholder(
   return 'Reply or give feedback…'
 }
 
-const buildTaskText = (trimmed: string, selectedAgent?: SpecialistAgent): string => {
-  if (!selectedAgent) return trimmed
-  return `[Working with: ${selectedAgent.display_name} — ${selectedAgent.description}]\n\n${trimmed}`
-}
-
 const getAttachmentBusyHint = (hasUploadingAttachments: boolean, hasIndexingAttachments: boolean): string | null => {
   if (hasUploadingAttachments) return 'Uploading attachment…'
   if (hasIndexingAttachments) return 'Indexing attachment, almost ready…'
@@ -182,13 +187,303 @@ async function submitFabricInputValue(params: {
     return
   }
 
-  await Promise.resolve(
-    onSubmit(buildTaskText(trimmed, selectedAgent), buildSessionConfig(selectedAgent, selectedModelId, selectedEffort))
-  )
+  await Promise.resolve(onSubmit(trimmed, buildSessionConfig(selectedAgent, selectedModelId, selectedEffort)))
 }
 
 const runPromiseSilently = (promise: Promise<unknown>) => {
   promise.catch(() => undefined)
+}
+
+const usePrefillSync = (
+  prefillValue: string | undefined,
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>,
+  setValue: React.Dispatch<React.SetStateAction<string>>
+) => {
+  useEffect(() => {
+    if (prefillValue === undefined || prefillValue === '') return
+    setValue(prefillValue)
+    textareaRef.current?.focus()
+  }, [prefillValue, setValue, textareaRef])
+}
+
+const useFabricSubmitHandlers = (params: {
+  value: string
+  isDisabled: boolean
+  isSubmitting: boolean
+  isReplyMode: boolean
+  onReply?: FabricInputProps['onReply']
+  onSubmit: FabricInputProps['onSubmit']
+  selectedAgent?: SpecialistAgent
+  selectedModelId?: string
+  selectedEffort: ReasoningEffort
+  setValue: React.Dispatch<React.SetStateAction<string>>
+  setIsSubmitting: React.Dispatch<React.SetStateAction<boolean>>
+}) => {
+  const {
+    value,
+    isDisabled,
+    isSubmitting,
+    isReplyMode,
+    onReply,
+    onSubmit,
+    selectedAgent,
+    selectedModelId,
+    selectedEffort,
+    setValue,
+    setIsSubmitting
+  } = params
+
+  const handleSubmit = useCallback(async () => {
+    if (!value.trim() || isDisabled || isSubmitting) return
+
+    setIsSubmitting(true)
+    try {
+      await submitFabricInputValue({
+        value,
+        isReplyMode,
+        onReply,
+        onSubmit,
+        selectedAgent,
+        selectedModelId,
+        selectedEffort
+      })
+      setValue('')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }, [
+    value,
+    isDisabled,
+    isSubmitting,
+    isReplyMode,
+    onReply,
+    onSubmit,
+    selectedAgent,
+    selectedModelId,
+    selectedEffort,
+    setValue,
+    setIsSubmitting
+  ])
+
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return
+      event.preventDefault()
+      handleSubmit().catch(() => undefined)
+    },
+    [handleSubmit]
+  )
+
+  const handleSendClick = useCallback(() => {
+    runPromiseSilently(handleSubmit())
+  }, [handleSubmit])
+
+  return { handleSubmit, handleKeyDown, handleSendClick }
+}
+
+const useFabricAttachmentHandlers = (params: {
+  fileInputRef: React.RefObject<HTMLInputElement | null>
+  onUploadAttachment?: FabricInputProps['onUploadAttachment']
+  onRemoveAttachment?: FabricInputProps['onRemoveAttachment']
+  onRemovePendingAttachment?: FabricInputProps['onRemovePendingAttachment']
+}) => {
+  const { fileInputRef, onUploadAttachment, onRemoveAttachment, onRemovePendingAttachment } = params
+
+  const handleTriggerFileUpload = useCallback(() => {
+    const input = fileInputRef.current
+    if (!input) return
+
+    input.value = ''
+    input.click()
+  }, [fileInputRef])
+
+  const handleFileChange = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(event.target.files || [])
+      event.target.value = ''
+      if (!files.length || !onUploadAttachment) return
+      // The provider hook owns the staging/upload lifecycle. We fire-and-forget;
+      // chip state flows back through `attachments` + `pendingAttachments`.
+      await Promise.all(files.map(file => onUploadAttachment(file).catch(() => null)))
+    },
+    [onUploadAttachment]
+  )
+
+  const handleRemovePending = useCallback(
+    (clientId: string) => {
+      if (onRemovePendingAttachment) {
+        onRemovePendingAttachment(clientId)
+        return
+      }
+
+      if (!onRemoveAttachment) return
+      runPromiseSilently(Promise.resolve(onRemoveAttachment(clientId)))
+    },
+    [onRemoveAttachment, onRemovePendingAttachment]
+  )
+
+  const handleRemoveAttachment = useCallback(
+    async (attachmentId: string) => {
+      if (!onRemoveAttachment) return
+      try {
+        await Promise.resolve(onRemoveAttachment(attachmentId))
+      } catch {
+        // Errors are surfaced via parent state; nothing else to do here.
+      }
+    },
+    [onRemoveAttachment]
+  )
+
+  return {
+    handleTriggerFileUpload,
+    handleFileChange,
+    handleRemovePending,
+    handleRemoveAttachment
+  }
+}
+
+const renderAttachmentChips = (params: {
+  attachments: SessionAttachment[]
+  pendingAttachments: PendingComposerAttachment[]
+  isLanding: boolean
+  onRemoveAttachment?: FabricInputProps['onRemoveAttachment']
+  handleRemoveAttachment: (attachmentId: string) => Promise<void>
+  handleRemovePending: (clientId: string) => void
+}) => {
+  const {
+    attachments,
+    pendingAttachments,
+    isLanding,
+    onRemoveAttachment,
+    handleRemoveAttachment,
+    handleRemovePending
+  } = params
+  if (attachments.length === 0 && pendingAttachments.length === 0) return null
+
+  return (
+    <AttachmentChipList
+      attachments={attachments}
+      pendingAttachments={pendingAttachments}
+      compact={!isLanding}
+      imageVariant={isLanding ? 'block' : 'chip'}
+      onRemoveAttachment={onRemoveAttachment ? id => runPromiseSilently(handleRemoveAttachment(id)) : undefined}
+      onRemovePending={handleRemovePending}
+      testIdPrefix="fabric-input-attachment"
+    />
+  )
+}
+
+const renderModelSelectorNode = (params: {
+  devModeEnabled: boolean
+  modelSelectorModels: ModelOption[]
+  selectedModelId?: string
+  selectedEffort: ReasoningEffort
+  isLoadingModels: boolean
+  variant: FabricInputProps['variant']
+  onModelChange?: FabricInputProps['onModelChange']
+  isDisabled: boolean
+}) => {
+  const {
+    devModeEnabled,
+    modelSelectorModels,
+    selectedModelId,
+    selectedEffort,
+    isLoadingModels,
+    variant,
+    onModelChange,
+    isDisabled
+  } = params
+
+  if (!devModeEnabled || modelSelectorModels.length === 0) return null
+
+  return (
+    <ModelSelector
+      models={modelSelectorModels}
+      selectedModelId={selectedModelId ?? ''}
+      selectedEffort={selectedEffort}
+      isLoading={isLoadingModels}
+      variant={variant}
+      onChange={onModelChange ?? (() => undefined)}
+      disabled={isDisabled}
+    />
+  )
+}
+
+const renderComposerActionMenuNode = (params: {
+  handleTriggerFileUpload: () => void
+  availableConnectors: ExternalConnection[]
+  activeConnectorIds: Set<string>
+  onToggleConnector?: (connectionId: string) => void
+  isLoadingConnectors: boolean
+  variant: FabricInputProps['variant']
+  availableAgents: SpecialistAgent[]
+  selectedAgent?: SpecialistAgent
+  onSelectAgent?: (agent: SpecialistAgent) => void
+  onClearAgent?: () => void
+  isLoadingAgents: boolean
+  onOpenAgents?: () => void
+}) => {
+  const {
+    handleTriggerFileUpload,
+    availableConnectors,
+    activeConnectorIds,
+    onToggleConnector,
+    isLoadingConnectors,
+    variant,
+    availableAgents,
+    selectedAgent,
+    onSelectAgent,
+    onClearAgent,
+    isLoadingAgents,
+    onOpenAgents
+  } = params
+
+  return (
+    <ComposerActionMenu
+      onTriggerFileUpload={handleTriggerFileUpload}
+      availableConnectors={availableConnectors}
+      activeConnectorIds={activeConnectorIds}
+      onToggleConnector={onToggleConnector ?? (() => undefined)}
+      isLoadingConnectors={isLoadingConnectors}
+      variant={variant}
+      availableAgents={availableAgents}
+      selectedAgentId={selectedAgent?.id}
+      onSelectAgent={onSelectAgent}
+      onClearAgent={onClearAgent}
+      isLoadingAgents={isLoadingAgents}
+      onOpenAgents={onOpenAgents}
+    />
+  )
+}
+
+const renderSelectedAgentNode = (
+  selectedAgent: SpecialistAgent | undefined,
+  isLanding: boolean,
+  onClearAgent?: () => void
+) => {
+  if (!selectedAgent) return null
+
+  return (
+    <SelectedAgentChip
+      agent={selectedAgent}
+      onClear={isLanding ? onClearAgent : undefined}
+      size={isLanding ? 'landing' : 'workspace'}
+    />
+  )
+}
+
+const renderConnectorSummaryNode = (activeConnectors: ExternalConnection[]) => {
+  if (activeConnectors.length === 0) return null
+
+  return (
+    <span
+      className="gba:flex gba:shrink-0 gba:select-none gba:items-center gba:gap-1 gba:text-[11px] gba:text-muted-foreground/60"
+      data-testid="fabric-input-connector-summary"
+    >
+      <PlugsIcon className="gba:h-3 gba:w-3" weight="bold" />
+      <span>{activeConnectors.length === 1 ? activeConnectors[0].name : `${activeConnectors.length} connectors`}</span>
+    </span>
+  )
 }
 
 interface BaseInputLayoutProps {
@@ -206,6 +501,8 @@ interface BaseInputLayoutProps {
   onSendClick: () => void
   /** Pre-built composer action menu (plus button + upload/connectors). */
   composerActionMenuNode: React.ReactNode
+  /** Selected enterprise agent chip (clearable on landing, read-only in workspace). */
+  selectedAgentNode?: React.ReactNode
   /** Condensed connector summary shown when connectors are active. */
   connectorSummaryNode?: React.ReactNode
   /** Rendered model selector node — caller owns its state. */
@@ -217,8 +514,6 @@ interface LandingInputLayoutProps extends BaseInputLayoutProps {
 }
 
 interface WorkspaceInputLayoutProps extends BaseInputLayoutProps {
-  selectedAgent?: SpecialistAgent
-  onClearAgent?: () => void
   isRunning: boolean
   isReplyMode: boolean
   onStop?: () => void
@@ -257,6 +552,7 @@ const LandingFabricInput = ({
   sendDisabled,
   onSendClick,
   composerActionMenuNode,
+  selectedAgentNode,
   connectorSummaryNode,
   modelSelectorNode
 }: LandingInputLayoutProps) => (
@@ -280,6 +576,8 @@ const LandingFabricInput = ({
 
       <div className="gba:flex gba:items-center gba:gap-2 gba:bg-white gba:px-3 gba:py-2.5">
         {composerActionMenuNode}
+
+        {selectedAgentNode}
 
         {connectorSummaryNode}
 
@@ -319,8 +617,6 @@ const WorkspaceFabricInput = ({
   resolvedPlaceholder,
   isSubmitting,
   handleFileChange,
-  selectedAgent,
-  onClearAgent,
   attachmentChips,
   attachmentHintText,
   sendDisabled,
@@ -329,6 +625,7 @@ const WorkspaceFabricInput = ({
   isReplyMode,
   onStop,
   composerActionMenuNode,
+  selectedAgentNode,
   connectorSummaryNode,
   modelSelectorNode
 }: WorkspaceInputLayoutProps) => (
@@ -352,19 +649,9 @@ const WorkspaceFabricInput = ({
       <div className="gba:flex gba:items-center gba:gap-2 gba:bg-white gba:px-3 gba:py-2.5">
         {composerActionMenuNode}
 
-        {connectorSummaryNode}
+        {selectedAgentNode}
 
-        {selectedAgent && (
-          <button
-            type="button"
-            onClick={onClearAgent}
-            className="gba:inline-flex gba:items-center gba:gap-1 gba:h-6 gba:px-2 gba:rounded-full gba:bg-primary/10 gba:text-primary gba:text-xs gba:font-medium gba:hover:bg-primary/20 gba:transition-colors"
-            data-testid="fabric-input-selected-agent"
-          >
-            {selectedAgent.display_name}
-            <XIcon className="gba:h-3 gba:w-3" />
-          </button>
-        )}
+        {connectorSummaryNode}
 
         {modelSelectorNode}
 
@@ -413,6 +700,10 @@ export const FabricInput: React.FC<FabricInputProps> = ({
   isDisabled = false,
   selectedAgent,
   onClearAgent,
+  availableAgents = [],
+  onSelectAgent,
+  isLoadingAgents = false,
+  onOpenAgents,
   autoFocus = false,
   availableConnectors = [],
   activeConnectorIds = new Set(),
@@ -434,14 +725,7 @@ export const FabricInput: React.FC<FabricInputProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  // Sync external prefill (chip selection) into the textarea
-  useEffect(() => {
-    if (prefillValue !== undefined && prefillValue !== '') {
-      setValue(prefillValue)
-      textareaRef.current?.focus()
-    }
-  }, [prefillValue])
+  usePrefillSync(prefillValue, textareaRef, setValue)
 
   const isReplyMode = !!activeInterrupt
   const isLanding = variant === 'landing'
@@ -453,79 +737,26 @@ export const FabricInput: React.FC<FabricInputProps> = ({
     isRunning,
     isLanding
   )
-
-  const handleSubmit = useCallback(async () => {
-    if (!value.trim() || isDisabled || isSubmitting) return
-
-    setIsSubmitting(true)
-    try {
-      await submitFabricInputValue({
-        value,
-        isReplyMode,
-        onReply,
-        onSubmit,
-        selectedAgent,
-        selectedModelId,
-        selectedEffort
-      })
-      setValue('')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }, [value, isDisabled, isSubmitting, isReplyMode, onReply, onSubmit, selectedAgent, selectedModelId, selectedEffort])
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return
-      e.preventDefault()
-      handleSubmit().catch(() => undefined)
-    },
-    [handleSubmit]
-  )
-
-  const handleTriggerFileUpload = useCallback(() => {
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
-      fileInputRef.current.click()
-    }
-  }, [])
-
-  const handleFileChange = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(event.target.files || [])
-      event.target.value = ''
-      if (!files.length || !onUploadAttachment) return
-      // The provider hook owns the staging/upload lifecycle. We fire-and-forget;
-      // chip state flows back through `attachments` + `pendingAttachments`.
-      await Promise.all(files.map(file => onUploadAttachment(file).catch(() => null)))
-    },
-    [onUploadAttachment]
-  )
-
-  const handleRemovePending = useCallback(
-    (clientId: string) => {
-      if (onRemovePendingAttachment) {
-        onRemovePendingAttachment(clientId)
-        return
-      }
-
-      if (!onRemoveAttachment) return
-      runPromiseSilently(Promise.resolve(onRemoveAttachment(clientId)))
-    },
-    [onRemoveAttachment, onRemovePendingAttachment]
-  )
-
-  const handleRemoveAttachment = useCallback(
-    async (attachmentId: string) => {
-      if (!onRemoveAttachment) return
-      try {
-        await Promise.resolve(onRemoveAttachment(attachmentId))
-      } catch {
-        // Errors are surfaced via parent state; nothing else to do here.
-      }
-    },
-    [onRemoveAttachment]
-  )
+  const { handleKeyDown, handleSendClick } = useFabricSubmitHandlers({
+    value,
+    isDisabled,
+    isSubmitting,
+    isReplyMode,
+    onReply,
+    onSubmit,
+    selectedAgent,
+    selectedModelId,
+    selectedEffort,
+    setValue,
+    setIsSubmitting
+  })
+  const { handleTriggerFileUpload, handleFileChange, handleRemovePending, handleRemoveAttachment } =
+    useFabricAttachmentHandlers({
+      fileInputRef,
+      onUploadAttachment,
+      onRemoveAttachment,
+      onRemovePendingAttachment
+    })
 
   // Block sending while any attachment is mid-flight (bytes uploading or
   // server-side staging) OR still being indexed by document-service. The
@@ -548,58 +779,41 @@ export const FabricInput: React.FC<FabricInputProps> = ({
     isAttachmentBusy
   })
   const landingHintText = isSubmitting ? 'Starting session...' : attachmentHintText
-  const attachmentChips =
-    attachments.length > 0 || pendingAttachments.length > 0 ? (
-      <AttachmentChipList
-        attachments={attachments}
-        pendingAttachments={pendingAttachments}
-        compact={!isLanding}
-        imageVariant={isLanding ? 'block' : 'chip'}
-        onRemoveAttachment={onRemoveAttachment ? id => runPromiseSilently(handleRemoveAttachment(id)) : undefined}
-        onRemovePending={handleRemovePending}
-        testIdPrefix="fabric-input-attachment"
-      />
-    ) : null
-  const handleSendClick = () => runPromiseSilently(handleSubmit())
-
-  const modelSelectorNode =
-    devModeEnabled && modelSelectorModels.length > 0 ? (
-      <ModelSelector
-        models={modelSelectorModels}
-        selectedModelId={selectedModelId ?? ''}
-        selectedEffort={selectedEffort}
-        isLoading={isLoadingModels}
-        variant={variant}
-        onChange={onModelChange ?? (() => undefined)}
-        disabled={isDisabled}
-      />
-    ) : null
-
-  const composerActionMenuNode = (
-    <ComposerActionMenu
-      onTriggerFileUpload={handleTriggerFileUpload}
-      availableConnectors={availableConnectors}
-      activeConnectorIds={activeConnectorIds}
-      onToggleConnector={onToggleConnector ?? (() => undefined)}
-      isLoadingConnectors={isLoadingConnectors}
-      variant={variant}
-    />
-  )
-
+  const attachmentChips = renderAttachmentChips({
+    attachments,
+    pendingAttachments,
+    isLanding,
+    onRemoveAttachment,
+    handleRemoveAttachment,
+    handleRemovePending
+  })
+  const modelSelectorNode = renderModelSelectorNode({
+    devModeEnabled,
+    modelSelectorModels,
+    selectedModelId,
+    selectedEffort,
+    isLoadingModels,
+    variant,
+    onModelChange,
+    isDisabled
+  })
+  const composerActionMenuNode = renderComposerActionMenuNode({
+    handleTriggerFileUpload,
+    availableConnectors,
+    activeConnectorIds,
+    onToggleConnector,
+    isLoadingConnectors,
+    variant,
+    availableAgents,
+    selectedAgent,
+    onSelectAgent,
+    onClearAgent,
+    isLoadingAgents,
+    onOpenAgents
+  })
+  const selectedAgentNode = renderSelectedAgentNode(selectedAgent, isLanding, onClearAgent)
   const activeConnectors = availableConnectors.filter(c => activeConnectorIds.has(c.connection_id))
-
-  const connectorSummaryNode =
-    activeConnectors.length > 0 ? (
-      <span
-        className="gba:flex gba:items-center gba:gap-1 gba:text-[11px] gba:text-muted-foreground/60 gba:shrink-0 gba:select-none"
-        data-testid="fabric-input-connector-summary"
-      >
-        <PlugsIcon className="gba:h-3 gba:w-3" weight="bold" />
-        <span>
-          {activeConnectors.length === 1 ? activeConnectors[0].name : `${activeConnectors.length} connectors`}
-        </span>
-      </span>
-    ) : null
+  const connectorSummaryNode = renderConnectorSummaryNode(activeConnectors)
 
   if (isLanding) {
     return (
@@ -618,6 +832,7 @@ export const FabricInput: React.FC<FabricInputProps> = ({
         sendDisabled={!canSend}
         onSendClick={handleSendClick}
         composerActionMenuNode={composerActionMenuNode}
+        selectedAgentNode={selectedAgentNode}
         connectorSummaryNode={connectorSummaryNode}
         modelSelectorNode={modelSelectorNode}
       />
@@ -634,8 +849,6 @@ export const FabricInput: React.FC<FabricInputProps> = ({
       resolvedPlaceholder={resolvedPlaceholder}
       isSubmitting={isSubmitting}
       handleFileChange={handleFileChange}
-      selectedAgent={selectedAgent}
-      onClearAgent={onClearAgent}
       attachmentChips={attachmentChips}
       attachmentHintText={attachmentHintText}
       sendDisabled={!canSend}
@@ -644,6 +857,7 @@ export const FabricInput: React.FC<FabricInputProps> = ({
       isReplyMode={isReplyMode}
       onStop={onStop}
       composerActionMenuNode={composerActionMenuNode}
+      selectedAgentNode={selectedAgentNode}
       connectorSummaryNode={connectorSummaryNode}
       modelSelectorNode={modelSelectorNode}
     />
