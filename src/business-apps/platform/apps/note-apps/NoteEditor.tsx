@@ -2533,7 +2533,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           {/* Formatting Toolbar -- sticky inside scroll area for frosted glass blur */}
           {editor && canEditNote && (
             <div className="gba:sticky gba:top-0 gba:z-[9] gba:bg-sidebar/70 gba:backdrop-blur-md gba:backdrop-saturate-125 gba:px-6 gba:py-1.5 gba:border-b gba:border-sidebar-border/10">
-              <div className="gba:max-w-6xl gba:w-full gba:mx-auto gba:flex gba:items-center gba:justify-center gba:gap-1 gba:flex-wrap">
+              <div className="gba:max-w-5xl gba:w-full gba:mx-auto gba:flex gba:items-center gba:justify-center gba:gap-1 gba:flex-wrap">
                 <TooltipProvider delayDuration={300}>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -2819,7 +2819,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
             </div>
           )}
 
-          <div className="gba:max-w-6xl gba:w-full gba:mx-auto gba:px-6 gba:sm:px-8 gba:md:px-10 gba:py-8 gba:md:py-12">
+          <div className="gba:max-w-5xl gba:w-full gba:mx-auto gba:px-6 gba:sm:px-8 gba:md:px-10 gba:py-8 gba:md:py-12">
             {isNoteLocked && (
               <div
                 className="gba:mb-5 gba:flex gba:flex-col gba:gap-3 gba:rounded-lg gba:border gba:border-border gba:bg-muted/40 gba:px-4 gba:py-3 gba:text-sm gba:text-muted-foreground gba:sm:flex-row gba:sm:items-center gba:sm:justify-between"
@@ -2852,7 +2852,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
               onKeyDown={handleTitleKeyDown}
               placeholder={t('editor-title-placeholder')}
               disabled={!canEditNote}
-              className="gba:w-full gba:text-3xl gba:md:text-4xl gba:font-display gba:font-semibold gba:tracking-tight gba:bg-transparent gba:border-0 gba:outline-none gba:mb-6 gba:text-foreground placeholder:gba:text-muted-foreground/30"
+              className="gba:w-full gba:text-3xl gba:md:text-4xl gba:font-display gba:font-semibold gba:tracking-tight gba:bg-transparent gba:border-0 gba:outline-none gba:mb-6 gba:text-center gba:text-foreground placeholder:gba:text-muted-foreground/30"
               data-testid="note-editor-title-input"
             />
 
@@ -2890,7 +2890,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
             {/* Tags area */}
             {note.tags && note.tags.length > 0 && (
-              <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mb-6">
+              <div className="gba:flex gba:flex-wrap gba:justify-center gba:gap-2 gba:mb-6">
                 {note.tags.map(tag => (
                   <Badge key={tag} variant="secondary">
                     {tag}
