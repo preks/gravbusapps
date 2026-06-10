@@ -79,6 +79,39 @@ function employeeToOption(emp: EmployeeLiteOption) {
   }
 }
 
+function unresolvedEmployeeToOption(id: string) {
+  const label = <span className="gba:text-muted-foreground">Employee unavailable</span>
+
+  return {
+    value: id,
+    label,
+    optionLabel: label
+  }
+}
+
+function syncSelectedEmployees(
+  currentById: Map<string, EmployeeLiteOption>,
+  selectedIds: string[],
+  sourceById: Map<string, EmployeeLiteOption>
+) {
+  const nextById = new Map<string, EmployeeLiteOption>()
+  let changed = currentById.size !== selectedIds.length
+
+  selectedIds.forEach(id => {
+    const employee = sourceById.get(id) ?? currentById.get(id)
+
+    if (!employee) return
+
+    nextById.set(id, employee)
+
+    if (currentById.get(id) !== employee) {
+      changed = true
+    }
+  })
+
+  return changed ? nextById : currentById
+}
+
 const MultiEmployeeSelect = React.forwardRef<HTMLDivElement, MultiEmployeeSelectProps>(
   (
     {
@@ -94,8 +127,12 @@ const MultiEmployeeSelect = React.forwardRef<HTMLDivElement, MultiEmployeeSelect
     },
     ref
   ) => {
-    const { employees, loading, hasMore, search, loadMore } = useEmployeeSearch(accessToken)
+    const { employees, loading, hasMore, search, loadMore, hydrateById } = useEmployeeSearch(accessToken)
     const initialSearchDoneRef = React.useRef(false)
+    const hydratedIdsRef = React.useRef(new Set<string>())
+    const [selectedEmployeesById, setSelectedEmployeesById] = React.useState<Map<string, EmployeeLiteOption>>(
+      () => new Map()
+    )
 
     React.useEffect(() => {
       if (!accessToken || initialSearchDoneRef.current) return
@@ -106,9 +143,25 @@ const MultiEmployeeSelect = React.forwardRef<HTMLDivElement, MultiEmployeeSelect
     const mergedById = React.useMemo(() => {
       const map = new Map<string, EmployeeLiteOption>()
       initialEmployees.forEach(e => map.set(e.id, e))
+      selectedEmployeesById.forEach(e => map.set(e.id, e))
       employees.forEach(e => map.set(e.id, e))
       return map
-    }, [initialEmployees, employees])
+    }, [initialEmployees, selectedEmployeesById, employees])
+
+    React.useEffect(() => {
+      setSelectedEmployeesById(currentById => syncSelectedEmployees(currentById, value, mergedById))
+    }, [mergedById, value])
+
+    React.useEffect(() => {
+      if (!accessToken) return
+
+      value.forEach(id => {
+        if (!id || mergedById.has(id) || hydratedIdsRef.current.has(id)) return
+
+        hydratedIdsRef.current.add(id)
+        hydrateById(id)
+      })
+    }, [accessToken, hydrateById, mergedById, value])
 
     const options = React.useMemo(() => {
       const list = Array.from(mergedById.values()).map(employeeToOption)
@@ -116,8 +169,7 @@ const MultiEmployeeSelect = React.forwardRef<HTMLDivElement, MultiEmployeeSelect
       const existingValues = new Set(list.map(o => o.value))
       valueIds.forEach(id => {
         if (!existingValues.has(id)) {
-          const stubLabel = <span className="gba:text-muted-foreground">{id}</span>
-          list.push({ value: id, label: stubLabel, optionLabel: stubLabel })
+          list.push(unresolvedEmployeeToOption(id))
         }
       })
       return list
@@ -125,10 +177,11 @@ const MultiEmployeeSelect = React.forwardRef<HTMLDivElement, MultiEmployeeSelect
 
     const handleValueChange = React.useCallback(
       (ids: string[]) => {
+        setSelectedEmployeesById(currentById => syncSelectedEmployees(currentById, ids, mergedById))
         onValueChange?.(ids)
         if (onEmployeesChange) {
           const resolved = ids
-            .map(id => mergedById.get(id) ?? ({ id, displayName: id } as EmployeeLiteOption))
+            .map(id => mergedById.get(id) ?? ({ id, displayName: 'Employee unavailable' } as EmployeeLiteOption))
             .filter(Boolean)
           onEmployeesChange(resolved)
         }
