@@ -15,7 +15,6 @@ export interface AgentInboxTabProps {
   accessToken: string
   agentId: string
   onOpenRun: (run: WorkforceRun) => void
-  onOpenTrace: (run: WorkforceRun) => void
 }
 
 const PAGE_SIZE = 25
@@ -29,7 +28,7 @@ function readTriggerPayloadField(run: WorkforceRun, field: string): string {
   return ''
 }
 
-export const AgentInboxTab: React.FC<AgentInboxTabProps> = ({ accessToken, agentId, onOpenRun, onOpenTrace }) => {
+export const AgentInboxTab: React.FC<AgentInboxTabProps> = ({ accessToken, agentId, onOpenRun }) => {
   const [q, setQ] = useState('')
   const [page, setPage] = useState(0)
 
@@ -115,7 +114,6 @@ export const AgentInboxTab: React.FC<AgentInboxTabProps> = ({ accessToken, agent
               <th className="gba:px-2 gba:py-2">Received</th>
               <th className="gba:px-2 gba:py-2">Status</th>
               <th className="gba:px-2 gba:py-2">Credits</th>
-              <th />
             </tr>
           </thead>
           <tbody className="gba:divide-y gba:divide-border/60">
@@ -124,7 +122,21 @@ export const AgentInboxTab: React.FC<AgentInboxTabProps> = ({ accessToken, agent
               const from = readTriggerPayloadField(run, 'from') || '—'
               const subject = readTriggerPayloadField(run, 'subject') || shortenInput(run.input, 80) || '—'
               return (
-                <tr key={run.session_id} data-testid="workforce-inbox-row">
+                <tr
+                  key={run.session_id}
+                  onClick={() => onOpenRun(run)}
+                  onKeyDown={event => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      onOpenRun(run)
+                    }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`Open run details for ${subject}`}
+                  className="gba:cursor-pointer gba:transition-colors gba:hover:bg-muted/50 gba:focus:bg-muted/50 gba:focus:outline-none"
+                  data-testid="workforce-inbox-row"
+                >
                   <td className="gba:max-w-[180px] gba:truncate gba:px-2 gba:py-2 gba:text-foreground">{from}</td>
                   <td className="gba:max-w-[260px] gba:truncate gba:px-2 gba:py-2 gba:text-foreground">{subject}</td>
                   <td className="gba:whitespace-nowrap gba:px-2 gba:py-2 gba:text-muted-foreground">
@@ -138,24 +150,6 @@ export const AgentInboxTab: React.FC<AgentInboxTabProps> = ({ accessToken, agent
                     </span>
                   </td>
                   <td className="gba:px-2 gba:py-2 gba:text-muted-foreground">{runCredits(run)}</td>
-                  <td className="gba:flex gba:gap-1 gba:px-2 gba:py-2">
-                    <button
-                      type="button"
-                      onClick={() => onOpenRun(run)}
-                      className="gba:inline-flex gba:h-7 gba:items-center gba:rounded-md gba:border gba:border-border gba:bg-background gba:px-2 gba:text-[11px] gba:text-muted-foreground gba:hover:text-foreground"
-                      data-testid="workforce-inbox-open-drawer"
-                    >
-                      Drawer
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onOpenTrace(run)}
-                      className="gba:inline-flex gba:h-7 gba:items-center gba:rounded-md gba:bg-primary gba:px-2 gba:text-[11px] gba:text-primary-foreground gba:hover:bg-primary/90"
-                      data-testid="workforce-inbox-open-trace"
-                    >
-                      Trace
-                    </button>
-                  </td>
                 </tr>
               )
             })}

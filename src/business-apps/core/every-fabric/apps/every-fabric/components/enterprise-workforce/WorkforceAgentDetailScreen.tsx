@@ -272,12 +272,7 @@ export const WorkforceAgentDetailScreen: React.FC<WorkforceAgentDetailScreenProp
               />
             )}
             {agent && tab === 'inbox' && (
-              <AgentInboxTab
-                accessToken={accessToken}
-                agentId={agentId}
-                onOpenRun={handleOpenRun}
-                onOpenTrace={handleOpenTrace}
-              />
+              <AgentInboxTab accessToken={accessToken} agentId={agentId} onOpenRun={handleOpenRun} />
             )}
             {agent && tab === 'trace' && (
               <AgentTraceTab accessToken={accessToken} agentId={agentId} runId={runId} onSelectRun={onSelectRun} />
