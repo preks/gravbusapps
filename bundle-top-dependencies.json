@@ -80687,20 +80687,20 @@
     ]
   },
   "mdm/apps/job-structure-data": {
-    "bitbucketBuildNumber": 13272,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13272/",
-    "chunkJsBytes": 306207,
+    "bitbucketBuildNumber": 13303,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13303/",
+    "chunkJsBytes": 318134,
     "top": [
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
-        "rendered": 211118,
-        "gzip": 67819,
+        "rendered": 211846,
+        "gzip": 68230,
         "leaves": [
           {
             "name": "node_modules/@newwork/nw-design-system/dist/components/combobox/Combobox.js",
             "rendered": 13398,
-            "gzip": 3645
+            "gzip": 3647
           },
           {
             "name": "node_modules/@newwork/nw-design-system/dist/components/data-table/internal/components/table/TableCore.js",
@@ -80712,8 +80712,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/mdm",
-        "rendered": 165089,
-        "gzip": 46958,
+        "rendered": 188478,
+        "gzip": 52672,
         "leaves": [
           {
             "name": "src/business-apps/mdm/forms/job-profile-form/components/SkillsSection.tsx",
@@ -80722,8 +80722,8 @@
           },
           {
             "name": "src/business-apps/mdm/apps/job-structure-data/components/tabs/JobProfilesTab.tsx",
-            "rendered": 12191,
-            "gzip": 2723
+            "rendered": 12726,
+            "gzip": 2809
           }
         ]
       },
@@ -88419,20 +88419,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 13299,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13299/",
-    "chunkJsBytes": 2010434,
+    "bitbucketBuildNumber": 13303,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13303/",
+    "chunkJsBytes": 2010426,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1723426,
-        "gzip": 110423,
+        "gzip": 110429,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1723426,
-            "gzip": 110423
+            "gzip": 110429
           }
         ]
       },
@@ -116622,7 +116622,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-10T04:42:22.069Z",
+    "generatedAt": "2026-06-10T05:46:08.968Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
