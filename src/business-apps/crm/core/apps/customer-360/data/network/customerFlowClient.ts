@@ -76,3 +76,85 @@ export async function listCustomerFlows(params: {
   const flows = json.data?.flows ?? json.flows ?? []
   return flows.map(normalizeFlow).filter(flow => flow.id)
 }
+
+/** One workflow step of a flow instance, tolerant to engine field aliases. */
+export interface CustomerFlowStep {
+  title?: string
+  status?: string
+  taskId?: string
+  completedAt?: string
+}
+
+/** Detail view of one flow instance: progress + per-step statuses. */
+export interface CustomerFlowDetail {
+  id: string
+  title?: string
+  status?: string
+  progress?: number
+  steps: CustomerFlowStep[]
+}
+
+interface RawFlowStep {
+  title?: string
+  name?: string
+  stepTitle?: string
+  status?: string
+  state?: string
+  taskId?: string
+  task_id?: string
+  completedAt?: string
+  endTime?: string
+}
+
+interface FlowDetailEnvelope {
+  data?: { flow?: Record<string, unknown> } & Record<string, unknown>
+  [key: string]: unknown
+}
+
+function unwrapFlowDetail(json: FlowDetailEnvelope): Record<string, unknown> {
+  if (json.data && typeof json.data === 'object') {
+    const data = json.data as Record<string, unknown>
+    if (data.flow && typeof data.flow === 'object') return data.flow as Record<string, unknown>
+    return data
+  }
+  return json
+}
+
+function normalizeStep(step: RawFlowStep): CustomerFlowStep {
+  return {
+    title: step.title || step.name || step.stepTitle,
+    status: step.status || step.state,
+    taskId: step.taskId || step.task_id,
+    completedAt: step.completedAt || step.endTime
+  }
+}
+
+/**
+ * Loads the detail of a single flow instance (steps, statuses, progress).
+ *   GET /api/flows/{flowId}
+ */
+export async function getCustomerFlowDetail(params: {
+  accessToken: string
+  flowId: string
+}): Promise<CustomerFlowDetail> {
+  const response = await fetch(`${CUSTOM_FLOW_ENGINE_API_URL}/flows/${params.flowId}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${params.accessToken}` }
+  })
+
+  if (!response.ok) {
+    throw new Error(`Flow detail request failed: ${response.status}`)
+  }
+
+  const json = (await response.json()) as FlowDetailEnvelope
+  const flow = unwrapFlowDetail(json)
+  const rawSteps = Array.isArray(flow.steps) ? (flow.steps as RawFlowStep[]) : []
+
+  return {
+    id: String(flow.flowId || flow.id || params.flowId),
+    title: (flow.name || flow.title) as string | undefined,
+    status: flow.status as string | undefined,
+    progress: typeof flow.progress === 'number' ? flow.progress : undefined,
+    steps: rawSteps.map(normalizeStep)
+  }
+}
