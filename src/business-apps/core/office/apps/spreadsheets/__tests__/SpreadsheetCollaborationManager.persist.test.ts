@@ -5518,6 +5518,102 @@ describe('SpreadsheetCollaborationManager persist and receive', () => {
     })
   })
 
+  it('preserves deferred style cleanup when active-sheet column reorder falls back to structural repair', () => {
+    const applyRemoteCellUpdate = jest.fn()
+    const forceGridReapply = jest.fn()
+    const reorderedColumns = [
+      col({ id: 'col-a', name: 'ColumnA', order: 0 }),
+      col({ id: 'col-c', name: 'ColumnC', order: 1 }),
+      col({ id: 'col-b', name: 'ColumnB', order: 2 })
+    ]
+    const callbacks = makeCallbacks({
+      applyRemoteCellUpdate,
+      forceGridReapply,
+      getActiveSheetId: () => 'sheet-2'
+    })
+
+    const manager = new SpreadsheetCollaborationManager(callbacks)
+    ;(
+      manager as unknown as {
+        queueDeferredSetStyleForSheet: (sheetId: string, operation: { data: unknown; fallbackSheetId?: string }) => void
+        repairColumnStructure: (params: {
+          sheetId: string
+          nextColumns: SpreadsheetColumn[]
+          reason: string
+          confirmedPhysicalOrderStrategy?: 'set-next' | 'clear'
+          allowValueOnlyGridRepair?: boolean
+          preserveStagedDirectPaint?: boolean
+          pendingLocalFilterPolicy?: 'protect_in_flight_local_edits' | 'server_authoritative_repair'
+        }) => void
+        flushDeferredSetStyleForSheet: (sheetId: string) => void
+      }
+    ).queueDeferredSetStyleForSheet('sheet-2', {
+      data: {
+        sheetId: 'sheet-2',
+        cells: [
+          { row: 0, col: 1, stylePatch: { unset: ['s', 'bg'] } },
+          { row: 0, col: 2, stylePatch: { unset: ['s', 'bg'] } }
+        ]
+      },
+      fallbackSheetId: 'sheet-2'
+    })
+    ;(
+      manager as unknown as {
+        repairColumnStructure: (params: {
+          sheetId: string
+          nextColumns: SpreadsheetColumn[]
+          reason: string
+          confirmedPhysicalOrderStrategy?: 'set-next' | 'clear'
+          allowValueOnlyGridRepair?: boolean
+          preserveStagedDirectPaint?: boolean
+          pendingLocalFilterPolicy?: 'protect_in_flight_local_edits' | 'server_authoritative_repair'
+        }) => void
+      }
+    ).repairColumnStructure({
+      sheetId: 'sheet-2',
+      nextColumns: reorderedColumns,
+      reason: 'column_reorder_structural_repair',
+      confirmedPhysicalOrderStrategy: 'clear',
+      allowValueOnlyGridRepair: true,
+      preserveStagedDirectPaint: true,
+      pendingLocalFilterPolicy: 'server_authoritative_repair'
+    })
+    ;(
+      manager as unknown as {
+        flushDeferredSetStyleForSheet: (sheetId: string) => void
+      }
+    ).flushDeferredSetStyleForSheet('sheet-2')
+
+    expect(forceGridReapply).toHaveBeenCalledWith(
+      'sheet-2',
+      null,
+      expect.objectContaining({
+        allowFullGridReapply: true,
+        clearAllSignatures: true,
+        preferBulk: true,
+        reason: 'column_reorder_structural_repair',
+        preserveStagedDirectPaint: true,
+        pendingLocalFilterPolicy: 'server_authoritative_repair'
+      })
+    )
+    expect(applyRemoteCellUpdate).toHaveBeenNthCalledWith(
+      1,
+      0,
+      1,
+      undefined,
+      undefined,
+      expect.objectContaining({ stylePatch: { unset: ['s', 'bg'] }, useSenderA1Row: true })
+    )
+    expect(applyRemoteCellUpdate).toHaveBeenNthCalledWith(
+      2,
+      0,
+      2,
+      undefined,
+      undefined,
+      expect.objectContaining({ stylePatch: { unset: ['s', 'bg'] }, useSenderA1Row: true })
+    )
+  })
+
   it('uses snapshot physical order immediately for active-sheet columns_reorder when metadata is already advanced', () => {
     localStorage.setItem('gba.spreadsheets.deltaReplay', 'enabled')
     const reorderedColumns = [

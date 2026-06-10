@@ -6,6 +6,7 @@ import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import translations from '@/business-apps/hr/core/apps/employee-record/_i18n'
+import { useSkillCategories } from '@/business-apps/hr/core/apps/employee-record/hooks/useSkillCategories'
 import FormHeader from '../components/FormHeader'
 import { AddSkillProvider, useAddSkill } from './AddSkillContext'
 import {
@@ -84,6 +85,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = ({ accessToken, addit
   })
 
   const employee = data?.employee
+  const skillCategoriesData = useSkillCategories(accessToken)
   const catalogs = data?.catalogs ?? { documentType: [] }
   const developmentDocumentTypes = useMemo(
     () =>
@@ -378,7 +380,10 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = ({ accessToken, addit
             handleRemoveSkill={controller.handleRemoveSkill}
             handleRemoveSkillToAssign={controller.handleRemoveSkillToAssign}
             handleUpdateSkillToAssignLevel={controller.handleUpdateSkillToAssignLevel}
+            handleUpdateSkillToAssignCategory={controller.handleUpdateSkillToAssignCategory}
             handleUpdateExistingSkillLevel={controller.handleUpdateExistingSkillLevel}
+            skillCategories={skillCategoriesData.categories}
+            isLoadingSkillCategories={skillCategoriesData.isLoading}
             verificationInitialFiles={verificationDocumentSync.initialUploadFiles}
             isLoadingVerificationInitialFiles={verificationDocumentSync.shouldShowInitialDocumentLoading}
             isResolvingVerificationInitialDocuments={verificationDocumentSync.isResolvingInitialDocuments}

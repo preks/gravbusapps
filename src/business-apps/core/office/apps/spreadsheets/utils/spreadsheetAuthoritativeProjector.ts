@@ -8,28 +8,10 @@ import {
 import type { AuthoritativeGridRegion } from './spreadsheetAuthoritativeRegion'
 import { getCanonicalRowId } from './spreadsheetRowIdentity'
 import { getViewerRowVisualIndex } from './spreadsheetPeerRowHydration'
+import { getUniverCellStyleRef, resolveUniverCellFormatting } from './univerAdapter'
 
 const cellValuesEqual = (left: unknown, right: unknown): boolean => toEchoSignature(left) === toEchoSignature(right)
 const projectorOwnedPaintOptions = { useSenderA1Row: true } as const
-const SNAPSHOT_STYLE_INLINE_KEYS = [
-  'bl',
-  'it',
-  'ul',
-  'st',
-  'ol',
-  'ff',
-  'fs',
-  'cl',
-  'bg',
-  'ht',
-  'vt',
-  'tb',
-  'tr',
-  'pd',
-  'bd',
-  'n'
-] as const
-
 const cloneSnapshotValue = <T>(value: T): T => {
   if (value == null) return value
   try {
@@ -52,24 +34,26 @@ const buildSnapshotCellStylePatch = (
   if (!isRecord(cell)) return null
 
   const set: Record<string, unknown> = {}
-  const styleRef = cell.s
-  if (typeof styleRef === 'string' && styleRef.trim().length > 0 && isRecord(workbookStyles[styleRef])) {
-    set.s = styleRef.trim()
-  } else if (isRecord(styleRef)) {
-    for (const key of SNAPSHOT_STYLE_INLINE_KEYS) {
-      if (styleRef[key] !== undefined) {
-        set[key] = cloneSnapshotValue(styleRef[key])
-      }
-    }
+  const preferredStyleRef = getUniverCellStyleRef(cell as never, workbookStyles)
+  if (preferredStyleRef?.id) {
+    set.s = preferredStyleRef.id
   }
-
-  for (const key of SNAPSHOT_STYLE_INLINE_KEYS) {
-    if (cell[key] !== undefined) {
-      set[key] = cloneSnapshotValue(cell[key])
-    }
+  const resolvedFormatting = resolveUniverCellFormatting(cell as never, workbookStyles)
+  for (const [key, value] of Object.entries(resolvedFormatting ?? {})) {
+    if (key === 's' || value === undefined) continue
+    if (preferredStyleRef && stableFormattingValueEqual(preferredStyleRef.definition[key], value)) continue
+    set[key] = cloneSnapshotValue(value)
   }
 
   return Object.keys(set).length > 0 ? { set } : null
+}
+
+const stableFormattingValueEqual = (left: unknown, right: unknown): boolean => {
+  try {
+    return JSON.stringify(left) === JSON.stringify(right)
+  } catch {
+    return left === right
+  }
 }
 
 /**

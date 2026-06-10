@@ -117,7 +117,9 @@ export const useAddSkillFormController = ({
       return initialLevel === currentLevel
     }
 
-    if (skillsToAssign.length > 0) return false
+    if (skillsToAssign.length > 0) {
+      return skillsToAssign.some(skill => skill.isNew && !skill.categoryId)
+    }
 
     const skillsChanged =
       initialSkillMap.size !== currentSkillMap.size ||
@@ -322,6 +324,10 @@ export const useAddSkillFormController = ({
     setSkillsToAssign(prev => prev.map(s => (s.id === id ? { ...s, level } : s)))
   }, [])
 
+  const handleUpdateSkillToAssignCategory = useCallback((id: string, categoryId: string) => {
+    setSkillsToAssign(prev => prev.map(s => (s.id === id ? { ...s, categoryId } : s)))
+  }, [])
+
   const handleUpdateExistingSkillLevel = useCallback((id: string, level: number) => {
     setSelectedSkills(prev => prev.map(s => (s.id === id ? { ...s, level } : s)))
   }, [])
@@ -352,6 +358,7 @@ export const useAddSkillFormController = ({
     handleRemoveSkill,
     handleRemoveSkillToAssign,
     handleUpdateSkillToAssignLevel,
+    handleUpdateSkillToAssignCategory,
     handleUpdateExistingSkillLevel
   }
 }

@@ -1054,7 +1054,7 @@ function convertScreenKeyToUrl(screenKey) {
 }
 
 /**
- * Sync resource URL from dev to prod with same ID
+ * Create missing resource URL in prod from dev data.
  * @param {Object} devResourceUrl - The resource URL object from dev environment
  * @param {string} prodNavigationApi - Production navigation API endpoint
  * @param {Object} prodOauthConfig - Production OAuth configuration
@@ -1074,9 +1074,7 @@ async function syncResourceUrlWithSameId(devResourceUrl, prodNavigationApi, prod
       return { success: true, operation: 'exists', resourceUrl: devResourceUrl }
     }
 
-    // Create payload with same ID as dev
     const payload = {
-      id: devResourceUrl.id, // Use same ID from dev
       code: devResourceUrl.code,
       name: devResourceUrl.name,
       url: devResourceUrl.url,
@@ -1087,8 +1085,8 @@ async function syncResourceUrlWithSameId(devResourceUrl, prodNavigationApi, prod
       isSearchable: devResourceUrl.isSearchable || false
     }
 
-    console.log(`   Creating resource URL in prod with same ID: ${devResourceUrl.id}`)
-    await http.post(`${prodNavigationApi}/resource-url`, payload, {
+    console.log(`   Creating resource URL in prod: ${devResourceUrl.url}`)
+    const response = await http.post(`${prodNavigationApi}/resource-url`, payload, {
       headers: {
         accept: 'application/json',
         authorization: `Bearer ${accessToken}`,
@@ -1096,8 +1094,9 @@ async function syncResourceUrlWithSameId(devResourceUrl, prodNavigationApi, prod
       }
     })
 
-    console.log(`   Resource URL synced to prod with same ID: ${devResourceUrl.url}`)
-    return { success: true, operation: 'created', resourceUrl: devResourceUrl }
+    const createdResourceUrl = response.data?.data || response.data || devResourceUrl
+    console.log(`   Resource URL created in prod: ${devResourceUrl.url}`)
+    return { success: true, operation: 'created', resourceUrl: createdResourceUrl }
   } catch (error) {
     logAxiosError('navigation.syncResourceUrlWithSameId', error, {
       prodNavigationApi,

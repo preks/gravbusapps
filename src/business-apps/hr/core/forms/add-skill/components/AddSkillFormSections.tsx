@@ -51,7 +51,10 @@ interface AddSkillFormSectionsProps {
   handleRemoveSkill: (id: string) => void
   handleRemoveSkillToAssign: (id: string) => void
   handleUpdateSkillToAssignLevel: (id: string, level: number) => void
+  handleUpdateSkillToAssignCategory: (id: string, categoryId: string) => void
   handleUpdateExistingSkillLevel: (id: string, level: number) => void
+  skillCategories: Array<{ id: string; name: string }>
+  isLoadingSkillCategories?: boolean
   verificationInitialFiles: any[]
   isLoadingVerificationInitialFiles?: boolean
   isResolvingVerificationInitialDocuments?: boolean
@@ -76,6 +79,34 @@ const LevelSelect: React.FC<{ value: number; onChange: (value: number) => void; 
       {Array.from({ length: 10 }, (_, i) => i + 1).map(level => (
         <SelectItem key={level} value={level.toString()}>
           {level}
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+)
+
+const CategorySelect: React.FC<{
+  value?: string | null
+  categories: Array<{ id: string; name: string }>
+  isLoading: boolean
+  placeholder: string
+  loadingPlaceholder: string
+  onChange: (value: string) => void
+  dataTestId: string
+}> = ({ value, categories, isLoading, placeholder, loadingPlaceholder, onChange, dataTestId }) => (
+  <Select
+    value={value ?? ''}
+    onValueChange={onChange}
+    disabled={isLoading || categories.length === 0}
+    data-testid={dataTestId}
+  >
+    <SelectTrigger className="gba:w-full" size="default">
+      <SelectValue placeholder={isLoading ? loadingPlaceholder : placeholder} />
+    </SelectTrigger>
+    <SelectContent>
+      {categories.map(category => (
+        <SelectItem key={category.id} value={category.id}>
+          {category.name}
         </SelectItem>
       ))}
     </SelectContent>
@@ -176,7 +207,10 @@ export const AddSkillFormSections: React.FC<AddSkillFormSectionsProps> = ({
   handleRemoveSkill,
   handleRemoveSkillToAssign,
   handleUpdateSkillToAssignLevel,
+  handleUpdateSkillToAssignCategory,
   handleUpdateExistingSkillLevel,
+  skillCategories,
+  isLoadingSkillCategories = false,
   verificationInitialFiles,
   isLoadingVerificationInitialFiles = false,
   isResolvingVerificationInitialDocuments = false,
@@ -420,6 +454,19 @@ export const AddSkillFormSections: React.FC<AddSkillFormSectionsProps> = ({
                     onChange={level => handleUpdateSkillToAssignLevel(skill.id, level)}
                     dataTestId={`skill-level-select-${skill.id}`}
                   />
+                }
+                bottomContent={
+                  <div className="gba:w-full">
+                    <CategorySelect
+                      value={skill.categoryId}
+                      categories={skillCategories}
+                      isLoading={isLoadingSkillCategories}
+                      placeholder={t('add-skill-form-select-skill-category')}
+                      loadingPlaceholder={t('add-skill-form-loading-skill-categories')}
+                      onChange={categoryId => handleUpdateSkillToAssignCategory(skill.id, categoryId)}
+                      dataTestId={`skill-category-select-${skill.id}`}
+                    />
+                  </div>
                 }
                 statusLabel={t('add-skill-form-new-skill-badge')}
               />

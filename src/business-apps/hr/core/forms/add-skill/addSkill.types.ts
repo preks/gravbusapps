@@ -18,4 +18,5 @@ export interface SkillOption {
 export interface SelectedSkill extends SkillOption {
   isNew?: boolean
   level?: number
+  categoryId?: string | null
 }

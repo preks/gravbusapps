@@ -68,7 +68,7 @@ export const buildEmployeeSkillsPayload = (args: {
   skillValidTo?: Record<string, string | null>
   /** Optional: per-skill verification document id (e.g. for attach verification) */
   skillVerificationDocumentId?: Record<string, string | null>
-  newSkills?: { name: string }[]
+  newSkills?: { name: string; category?: { id: string } | null }[]
   event?: string
 }) => {
   const {
@@ -146,7 +146,8 @@ export const buildCreateEmployeeSkillPayload = (args: { employeeId?: string; ski
       name: skill.name,
       levelScale: DEFAULT_SKILL_LEVEL_SCALE,
       level: clampSkillLevel(skill.level),
-      validFrom
+      validFrom,
+      category: skill.categoryId ? { id: skill.categoryId } : null
     }))
 
   return {

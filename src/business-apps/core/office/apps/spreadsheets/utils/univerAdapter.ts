@@ -50,6 +50,7 @@ export type UniverSheetCellData = Record<number, Record<number, UniverCellData>>
 export interface UniverWorksheetData {
   id: string
   name: string
+  hidden?: number
   cellData: UniverSheetCellData
   mergeData?: SpreadsheetMergeRange[]
   rowCount?: number
@@ -482,7 +483,7 @@ function getWorksheetFromWorkbookSnapshot(
     | undefined
 }
 
-const INLINE_FORMATTING_KEYS = new Set([
+export const INLINE_FORMATTING_KEYS = new Set([
   'bg',
   'cl',
   'bd',
@@ -501,10 +502,109 @@ const INLINE_FORMATTING_KEYS = new Set([
   'n'
 ])
 
-function cellHasFormattingSignal(cell: UniverCellData | undefined): boolean {
-  if (!cell || typeof cell !== 'object') return false
-  if (cell.s != null && cell.s !== '') return true
-  return Object.keys(cell as Record<string, unknown>).some(key => INLINE_FORMATTING_KEYS.has(key))
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+function cloneFormattingValue<T>(value: T): T {
+  if (value == null) return value
+  try {
+    if (typeof structuredClone === 'function') {
+      return structuredClone(value)
+    }
+  } catch {
+    // Fall through to JSON clone.
+  }
+  return JSON.parse(JSON.stringify(value)) as T
+}
+
+function stableFormattingSignature(value: unknown): string {
+  if (value == null || typeof value !== 'object') {
+    try {
+      return JSON.stringify(value)
+    } catch {
+      return String(value)
+    }
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(entry => stableFormattingSignature(entry)).join(',')}]`
+  }
+  const record = value as Record<string, unknown>
+  const keys = Object.keys(record).sort()
+  return `{${keys.map(key => `${JSON.stringify(key)}:${stableFormattingSignature(record[key])}`).join(',')}}`
+}
+
+export function getUniverCellStyleRef(
+  cell: UniverCellData | undefined,
+  workbookStyles?: Record<string, unknown> | null
+): { id: string; definition: Record<string, unknown> } | null {
+  if (!cell || typeof cell !== 'object' || typeof cell.s !== 'string') return null
+  const styleId = cell.s.trim()
+  if (!styleId || !workbookStyles || !isPlainRecord(workbookStyles[styleId])) return null
+  return {
+    id: styleId,
+    definition: cloneFormattingValue(workbookStyles[styleId] as Record<string, unknown>)
+  }
+}
+
+export function resolveUniverCellFormatting(
+  cell: UniverCellData | undefined,
+  workbookStyles?: Record<string, unknown> | null
+): Record<string, unknown> | null {
+  if (!cell || typeof cell !== 'object') return null
+  const resolved: Record<string, unknown> = {}
+  const styleRef = getUniverCellStyleRef(cell, workbookStyles)
+  if (styleRef) {
+    Object.assign(resolved, cloneFormattingValue(styleRef.definition))
+  } else if (isPlainRecord(cell.s)) {
+    Object.assign(resolved, cloneFormattingValue(cell.s))
+  }
+  for (const key of Object.keys(cell as Record<string, unknown>)) {
+    if (!INLINE_FORMATTING_KEYS.has(key)) continue
+    resolved[key] = cloneFormattingValue((cell as Record<string, unknown>)[key])
+  }
+  return Object.keys(resolved).length > 0 ? resolved : null
+}
+
+export function countResolvedUniverFormattingKeys(formatting: Record<string, unknown> | null | undefined): number {
+  if (!formatting) return 0
+  return Object.keys(formatting).filter(key => key !== 's').length || (formatting.s != null ? 1 : 0)
+}
+
+function buildCellWithResolvedFormatting(
+  cell: UniverCellData | undefined,
+  formatting: Record<string, unknown> | null,
+  options?: {
+    preferredStyleRefs?: Array<{ id: string; definition: Record<string, unknown> } | null>
+    availableStyles?: Record<string, unknown> | null
+  }
+): UniverCellData {
+  const next: UniverCellData =
+    cell && typeof cell === 'object' && !Array.isArray(cell) ? ({ ...cell } as UniverCellData) : {}
+  for (const key of Object.keys(next as Record<string, unknown>)) {
+    if (INLINE_FORMATTING_KEYS.has(key)) {
+      delete (next as Record<string, unknown>)[key]
+    }
+  }
+  delete next.s
+  if (!formatting || Object.keys(formatting).length === 0) {
+    return next
+  }
+  const availableStyles = options?.availableStyles ?? null
+  const preferredStyleRef = (options?.preferredStyleRefs ?? []).find(candidate => {
+    if (!candidate?.id || !candidate.definition) return false
+    const availableDefinition =
+      availableStyles && isPlainRecord(availableStyles[candidate.id])
+        ? (availableStyles[candidate.id] as Record<string, unknown>)
+        : candidate.definition
+    return stableFormattingSignature(availableDefinition) === stableFormattingSignature(formatting)
+  })
+  if (preferredStyleRef?.id) {
+    next.s = preferredStyleRef.id
+    return next
+  }
+  next.s = cloneFormattingValue(formatting)
+  return next
 }
 
 /** Heuristic: how much formatting exists (workbook `styles` + per-cell `s` refs) for bootstrap fallback. */
@@ -525,7 +625,11 @@ export function workbookFormattingRichnessScore(snapshot: Record<string, unknown
     for (const colKey of Object.keys(row)) {
       const cell = (row as Record<string, UniverCellData | undefined>)[colKey]
       if (!cell || typeof cell !== 'object') continue
-      if (cellHasFormattingSignal(cell)) score += 1
+      const resolvedFormatting = resolveUniverCellFormatting(cell, styles ?? null)
+      score += countResolvedUniverFormattingKeys(resolvedFormatting)
+      if (countResolvedUniverFormattingKeys(resolvedFormatting) === 0 && typeof cell.s === 'string' && cell.s.trim()) {
+        score += 1
+      }
     }
   }
   return score
@@ -548,6 +652,7 @@ export function mergeWorkbookFormattingFromDonor(
   if (donorStyles && typeof donorStyles === 'object') {
     base.styles = { ...donorStyles, ...baseStyles }
   }
+  const mergedStyles = (base.styles as Record<string, unknown> | undefined) ?? {}
 
   const baseWs = getWorksheetFromWorkbookSnapshot(base, sheetId)
   const donorWs = getWorksheetFromWorkbookSnapshot(donor as Record<string, unknown>, sheetId)
@@ -555,25 +660,38 @@ export function mergeWorkbookFormattingFromDonor(
 
   const baseCd = (baseWs.cellData as UniverSheetCellData) ?? {}
   const donorCd = (donorWs.cellData as UniverSheetCellData) ?? {}
+  const rowKeys = new Set<string>([...Object.keys(baseCd), ...Object.keys(donorCd)])
 
-  for (const rowKey of Object.keys(baseCd)) {
+  for (const rowKey of rowKeys) {
     const ri = Number(rowKey)
-    const baseRow = (baseCd[ri] ?? baseCd[Number(rowKey)]) as Record<number, UniverCellData> | undefined
-    if (!baseRow || typeof baseRow !== 'object') continue
+    const baseRow =
+      ((baseCd[ri] ?? baseCd[Number(rowKey)]) as Record<number, UniverCellData> | undefined) ??
+      ({} as Record<number, UniverCellData>)
     const donorRow = (donorCd[ri] ?? donorCd[Number(rowKey)]) as Record<number, UniverCellData> | undefined
     if (!donorRow) continue
+    const nextBaseRow = ((baseCd[ri] ??= {}) as Record<number, UniverCellData>) ?? baseRow
+    const colKeys = new Set<string>([...Object.keys(nextBaseRow), ...Object.keys(donorRow)])
 
-    for (const colKey of Object.keys(baseRow)) {
+    for (const colKey of colKeys) {
       const ci = Number(colKey)
       if (Number.isNaN(ci)) continue
-      const bc = baseRow[ci]
-      if (!bc || typeof bc !== 'object') continue
-      if (cellHasFormattingSignal(bc)) continue
+      const bc = nextBaseRow[ci]
       const dc = donorRow[ci]
       if (!dc || typeof dc !== 'object') continue
-      if (!cellHasFormattingSignal(dc)) continue
-      const donorFormattingOnly = clearSnapshotCellValuePreservingFormatting(dc) ?? {}
-      baseRow[ci] = { ...bc, ...(donorFormattingOnly as Record<string, unknown>) } as UniverCellData
+      const donorFormatting = resolveUniverCellFormatting(dc, donorStyles ?? null)
+      if (!donorFormatting) continue
+      const baseFormatting = resolveUniverCellFormatting(bc, mergedStyles)
+      const mergedFormatting =
+        baseFormatting == null
+          ? donorFormatting
+          : { ...cloneFormattingValue(donorFormatting), ...cloneFormattingValue(baseFormatting) }
+      if (baseFormatting && stableFormattingSignature(mergedFormatting) === stableFormattingSignature(baseFormatting)) {
+        continue
+      }
+      nextBaseRow[ci] = buildCellWithResolvedFormatting(bc, mergedFormatting, {
+        preferredStyleRefs: [getUniverCellStyleRef(bc, mergedStyles), getUniverCellStyleRef(dc, donorStyles ?? null)],
+        availableStyles: mergedStyles
+      })
     }
   }
 

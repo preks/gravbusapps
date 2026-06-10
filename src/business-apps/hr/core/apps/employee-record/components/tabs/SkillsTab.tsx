@@ -43,7 +43,6 @@ interface SkillsTabProps {
  */
 const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken }) => {
   const { t } = useTranslation(translations)
-  const temporaryDisabled = true
   const [searchTerm, setSearchTerm] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState<SkillStatusFilter>('all')
@@ -111,20 +110,18 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken }) => {
             {t('skills-profile-description')}
           </p>
         </div>
-        {!temporaryDisabled && (
-          <div className="gba:flex gba:flex-wrap gba:gap-2" data-testid="skills-profile-actions">
-            <AppAction
-              variant="update-primary"
-              data-testid="employee-skills-add-button"
-              contexts={[createSkillContext]}
-              prefixDataTestId="employee-skills-add"
-              accessToken={accessToken}
-              autoExecute={true}
-            >
-              {t('skills-profile-add-skill')}
-            </AppAction>
-          </div>
-        )}
+        <div className="gba:flex gba:flex-wrap gba:gap-2" data-testid="skills-profile-actions">
+          <AppAction
+            variant="update-primary"
+            data-testid="employee-skills-add-button"
+            contexts={[createSkillContext]}
+            prefixDataTestId="employee-skills-add"
+            accessToken={accessToken}
+            autoExecute={true}
+          >
+            {t('skills-profile-add-skill')}
+          </AppAction>
+        </div>
       </div>
 
       <SkillsSnapshot snapshot={snapshot} t={t}>
@@ -226,7 +223,6 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken }) => {
               accessToken={accessToken}
               updateSkillContext={updateSkillContext}
               t={t}
-              temporaryDisabled={temporaryDisabled}
             />
           ))}
         </div>
