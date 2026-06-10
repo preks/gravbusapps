@@ -10636,20 +10636,20 @@
     ]
   },
   "core/office/apps/notes": {
-    "bitbucketBuildNumber": 13272,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13272/",
-    "chunkJsBytes": 873217,
+    "bitbucketBuildNumber": 13382,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13382/",
+    "chunkJsBytes": 873252,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 832794,
-        "gzip": 188884,
+        "rendered": 832829,
+        "gzip": 188891,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/note-apps/NoteEditor.tsx",
-            "rendered": 123609,
-            "gzip": 22333
+            "rendered": 123644,
+            "gzip": 22340
           },
           {
             "name": "src/business-apps/platform/apps/note-apps/NoteAppsHub.tsx",
@@ -88419,9 +88419,9 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 13369,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13369/",
-    "chunkJsBytes": 2010459,
+    "bitbucketBuildNumber": 13382,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13382/",
+    "chunkJsBytes": 2010462,
     "top": [
       {
         "kind": "bucket",
@@ -92760,20 +92760,20 @@
     ]
   },
   "platform/apps/note-apps": {
-    "bitbucketBuildNumber": 13272,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13272/",
-    "chunkJsBytes": 873223,
+    "bitbucketBuildNumber": 13382,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13382/",
+    "chunkJsBytes": 873258,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 832795,
-        "gzip": 188885,
+        "rendered": 832830,
+        "gzip": 188892,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/note-apps/NoteEditor.tsx",
-            "rendered": 123609,
-            "gzip": 22333
+            "rendered": 123644,
+            "gzip": 22340
           },
           {
             "name": "src/business-apps/platform/apps/note-apps/NoteAppsHub.tsx",
@@ -116622,7 +116622,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-10T14:21:21.500Z",
+    "generatedAt": "2026-06-10T15:23:34.958Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
