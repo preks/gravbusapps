@@ -88419,8 +88419,8 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 13396,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13396/",
+    "bitbucketBuildNumber": 13398,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13398/",
     "chunkJsBytes": 2010478,
     "top": [
       {
@@ -99239,25 +99239,25 @@
     ]
   },
   "ser/apps/service-desk": {
-    "bitbucketBuildNumber": 13272,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13272/",
-    "chunkJsBytes": 909674,
+    "bitbucketBuildNumber": 13398,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13398/",
+    "chunkJsBytes": 912338,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/ser",
-        "rendered": 747446,
-        "gzip": 153849,
+        "rendered": 753344,
+        "gzip": 155431,
         "leaves": [
+          {
+            "name": "src/business-apps/ser/services/ConductorWorkflowEngineAdapter.ts",
+            "rendered": 90341,
+            "gzip": 17477
+          },
           {
             "name": "src/business-apps/ser/apps/service-desk/components/TaskRecord.tsx",
             "rendered": 86437,
             "gzip": 13458
-          },
-          {
-            "name": "src/business-apps/ser/services/ConductorWorkflowEngineAdapter.ts",
-            "rendered": 86373,
-            "gzip": 16341
           }
         ]
       },
@@ -99561,20 +99561,20 @@
     ]
   },
   "ser/apps/service-portal": {
-    "bitbucketBuildNumber": 13272,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13272/",
-    "chunkJsBytes": 758996,
+    "bitbucketBuildNumber": 13398,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13398/",
+    "chunkJsBytes": 760760,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/ser",
-        "rendered": 532480,
-        "gzip": 119217,
+        "rendered": 536448,
+        "gzip": 120353,
         "leaves": [
           {
             "name": "src/business-apps/ser/services/ConductorWorkflowEngineAdapter.ts",
-            "rendered": 86373,
-            "gzip": 16341
+            "rendered": 90341,
+            "gzip": 17477
           },
           {
             "name": "src/business-apps/ser/apps/service-portal/components/RequestForm.tsx",
@@ -99873,9 +99873,9 @@
     ]
   },
   "ser/apps/warranty-service": {
-    "bitbucketBuildNumber": 13272,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13272/",
-    "chunkJsBytes": 548399,
+    "bitbucketBuildNumber": 13398,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13398/",
+    "chunkJsBytes": 550163,
     "top": [
       {
         "kind": "bucket",
@@ -99898,13 +99898,13 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/ser",
-        "rendered": 140539,
-        "gzip": 27849,
+        "rendered": 144507,
+        "gzip": 28985,
         "leaves": [
           {
             "name": "src/business-apps/ser/services/ConductorWorkflowEngineAdapter.ts",
-            "rendered": 86373,
-            "gzip": 16341
+            "rendered": 90341,
+            "gzip": 17477
           },
           {
             "name": "src/business-apps/ser/apps/service-desk/components/webcam-scanner/SerficeFormIq.tsx",
@@ -102022,15 +102022,15 @@
     ]
   },
   "platform/apps/customer-home": {
-    "bitbucketBuildNumber": 13277,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13277/",
-    "chunkJsBytes": 1365455,
+    "bitbucketBuildNumber": 13398,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13398/",
+    "chunkJsBytes": 1375326,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 882555,
-        "gzip": 215731,
+        "rendered": 900351,
+        "gzip": 219925,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/every-ai/hooks/useFlowBot.ts",
@@ -102119,13 +102119,13 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/ser",
-        "rendered": 92600,
-        "gzip": 18601,
+        "rendered": 96568,
+        "gzip": 19737,
         "leaves": [
           {
             "name": "src/business-apps/ser/services/ConductorWorkflowEngineAdapter.ts",
-            "rendered": 86263,
-            "gzip": 16304
+            "rendered": 90231,
+            "gzip": 17440
           },
           {
             "name": "src/business-apps/ser/services/catalog-cache/ServiceDeskCatalogCache.ts",
@@ -115947,9 +115947,9 @@
     ]
   },
   "crm/core/apps/customer-360": {
-    "bitbucketBuildNumber": 13393,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13393/",
-    "chunkJsBytes": 974463,
+    "bitbucketBuildNumber": 13398,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13398/",
+    "chunkJsBytes": 974678,
     "top": [
       {
         "kind": "bucket",
@@ -115972,8 +115972,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/crm",
-        "rendered": 175535,
-        "gzip": 57003,
+        "rendered": 175943,
+        "gzip": 57112,
         "leaves": [
           {
             "name": "src/business-apps/crm/core/apps/customer-360/_i18n/ro-RO.ftl?raw",
@@ -116622,7 +116622,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-10T21:14:30.620Z",
+    "generatedAt": "2026-06-10T22:39:15.564Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
