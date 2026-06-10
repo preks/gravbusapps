@@ -256,7 +256,7 @@ export const EnterpriseWorkforceScreen: React.FC<EnterpriseWorkforceScreenProps>
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid="enterprise-workforce-screen">
       <div className="gba:shrink-0 gba:border-b gba:border-border/60 gba:bg-card/30 gba:backdrop-blur">
-        <div className="gba:mx-auto gba:flex gba:max-w-7xl gba:items-center gba:gap-3 gba:px-6 gba:py-3 gba:lg:px-10">
+        <div className="gba:mx-auto gba:flex gba:max-w-screen-2xl gba:items-center gba:gap-3 gba:px-6 gba:py-3 gba:lg:px-10">
           <button
             type="button"
             onClick={onBack}
@@ -298,7 +298,7 @@ export const EnterpriseWorkforceScreen: React.FC<EnterpriseWorkforceScreenProps>
       </div>
 
       <div className="gba:flex-1 gba:overflow-y-auto">
-        <div className="gba:mx-auto gba:flex gba:max-w-7xl gba:flex-col gba:gap-6 gba:px-6 gba:py-8 gba:lg:px-10">
+        <div className="gba:mx-auto gba:flex gba:max-w-screen-2xl gba:flex-col gba:gap-6 gba:px-6 gba:py-8 gba:lg:px-10">
           {view === 'active' ? (
             <>
               <WorkforceHero
@@ -313,77 +313,86 @@ export const EnterpriseWorkforceScreen: React.FC<EnterpriseWorkforceScreenProps>
               )}
               */}
 
-              {!isAIMatching && <ValueScoreboard accessToken={accessToken} />}
+              <div className="gba:flex gba:flex-col gba:gap-6 gba:lg:flex-row gba:lg:items-start">
+                <div className="gba:flex gba:min-w-0 gba:flex-1 gba:flex-col gba:gap-6">
+                  <div className="gba:flex gba:flex-col gba:gap-3">
+                    <WorkforceAIComposer activeQuery={aiQuery} onSubmit={setAiQuery} onClear={() => setAiQuery(null)} />
 
-              {!isAIMatching && (
-                <LiveCommandCenter
-                  feed={liveActivity.feed}
-                  overview={liveActivity.overview}
-                  completedToday={liveActivity.completedToday}
-                  throughputBuckets={liveActivity.throughputBuckets}
-                  isConnected={liveActivity.isConnected}
-                  nameById={nameById}
-                  onOpenRun={(agentId, runId) => updateUrl({ agentId, tab: 'runs', runId })}
-                />
-              )}
+                    {!isAIMatching && (
+                      <WorkforceFilters
+                        search={search}
+                        onSearchChange={setSearch}
+                        filter={filter}
+                        onFilterChange={setFilter}
+                        counts={counts}
+                      />
+                    )}
+                  </div>
 
-              {!isAIMatching && <WorkforceInsightsRow accessToken={accessToken} nameById={nameById} />}
+                  {error && (
+                    <div
+                      className="gba:flex gba:items-center gba:justify-between gba:rounded-xl gba:border gba:border-destructive/30 gba:bg-destructive/5 gba:px-4 gba:py-3 gba:text-sm gba:text-destructive"
+                      role="alert"
+                      data-testid="workforce-error"
+                    >
+                      <span>{error}</span>
+                      <Button variant="link" size="sm" onClick={() => void refetch()}>
+                        Retry
+                      </Button>
+                    </div>
+                  )}
 
-              <div className="gba:flex gba:flex-col gba:gap-3">
-                <WorkforceAIComposer activeQuery={aiQuery} onSubmit={setAiQuery} onClear={() => setAiQuery(null)} />
+                  {isLoading ? (
+                    <div
+                      className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-3 gba:py-24"
+                      data-testid="workforce-loading"
+                    >
+                      <SpinnerGapIcon className="gba:h-7 gba:w-7 gba:animate-spin gba:text-muted-foreground" />
+                      <p className="gba:text-sm gba:text-muted-foreground">Loading your workforce…</p>
+                    </div>
+                  ) : isAIMatching && aiSummaries.length === 0 ? (
+                    <AINoResults />
+                  ) : !isAIMatching && filtered.length === 0 ? (
+                    <EmptyState hasAgents={counts.total > 0} search={search} onHire={openHireChooser} />
+                  ) : (
+                    <WorkforceDeck
+                      summaries={deckSummaries}
+                      isAgentWorking={liveActivity.isAgentWorking}
+                      currentActivityForAgent={agentId => liveActivity.activeRunForAgent(agentId)?.current_activity}
+                      matchById={isAIMatching ? aiMatchById : undefined}
+                      aiQuery={aiQuery ?? undefined}
+                      activatingAgentId={activatingAgentId}
+                      pausingAgentId={pausingAgentId}
+                      archivingAgentId={archivingAgentId}
+                      onActivate={activate}
+                      onPause={pause}
+                      onArchive={requestArchive}
+                      onConfigure={handleConfigure}
+                    />
+                  )}
+
+                  {!isAIMatching && <ValueScoreboard accessToken={accessToken} />}
+
+                  {!isAIMatching && <WorkforceInsightsRow accessToken={accessToken} nameById={nameById} />}
+                </div>
 
                 {!isAIMatching && (
-                  <WorkforceFilters
-                    search={search}
-                    onSearchChange={setSearch}
-                    filter={filter}
-                    onFilterChange={setFilter}
-                    counts={counts}
-                  />
+                  <aside
+                    className="gba:w-full gba:shrink-0 gba:lg:sticky gba:lg:top-6 gba:lg:w-96 gba:lg:self-start"
+                    data-testid="workforce-command-center-sidebar"
+                  >
+                    <LiveCommandCenter
+                      feed={liveActivity.feed}
+                      overview={liveActivity.overview}
+                      completedToday={liveActivity.completedToday}
+                      throughputBuckets={liveActivity.throughputBuckets}
+                      isConnected={liveActivity.isConnected}
+                      nameById={nameById}
+                      onOpenRun={(agentId, runId) => updateUrl({ agentId, tab: 'runs', runId })}
+                    />
+                  </aside>
                 )}
               </div>
-
-              {error && (
-                <div
-                  className="gba:flex gba:items-center gba:justify-between gba:rounded-xl gba:border gba:border-destructive/30 gba:bg-destructive/5 gba:px-4 gba:py-3 gba:text-sm gba:text-destructive"
-                  role="alert"
-                  data-testid="workforce-error"
-                >
-                  <span>{error}</span>
-                  <Button variant="link" size="sm" onClick={() => void refetch()}>
-                    Retry
-                  </Button>
-                </div>
-              )}
-
-              {isLoading ? (
-                <div
-                  className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-3 gba:py-24"
-                  data-testid="workforce-loading"
-                >
-                  <SpinnerGapIcon className="gba:h-7 gba:w-7 gba:animate-spin gba:text-muted-foreground" />
-                  <p className="gba:text-sm gba:text-muted-foreground">Loading your workforce…</p>
-                </div>
-              ) : isAIMatching && aiSummaries.length === 0 ? (
-                <AINoResults />
-              ) : !isAIMatching && filtered.length === 0 ? (
-                <EmptyState hasAgents={counts.total > 0} search={search} onHire={openHireChooser} />
-              ) : (
-                <WorkforceDeck
-                  summaries={deckSummaries}
-                  isAgentWorking={liveActivity.isAgentWorking}
-                  currentActivityForAgent={agentId => liveActivity.activeRunForAgent(agentId)?.current_activity}
-                  matchById={isAIMatching ? aiMatchById : undefined}
-                  aiQuery={aiQuery ?? undefined}
-                  activatingAgentId={activatingAgentId}
-                  pausingAgentId={pausingAgentId}
-                  archivingAgentId={archivingAgentId}
-                  onActivate={activate}
-                  onPause={pause}
-                  onArchive={requestArchive}
-                  onConfigure={handleConfigure}
-                />
-              )}
             </>
           ) : (
             <ArchivedAgentsPanel
