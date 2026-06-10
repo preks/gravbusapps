@@ -24,6 +24,37 @@ dw-composer-rotate-5 = eine E-Mail zu entwerfen
 dw-composer-rotate-6 = Arbeit für dich zu erledigen
 dw-composer-hint = Mit Enter eine Aufgabe starten
 
+# AI console
+dw-ai-title = Every AI
+dw-ai-subtitle = Starte eine Aufgabe oder wähle unten eine Schnellaktion.
+dw-ai-quick-heading = Schnellaktionen
+dw-ai-edit = Schnellaktionen anpassen
+
+# Quick action defaults
+dw-quick-sales-label = Vertrieb analysieren
+dw-quick-sales-prompt = Analysiere unsere jüngsten Vertriebsaktivitäten und fasse die wichtigsten Trends, Erfolge und Risiken zusammen.
+dw-quick-mail-label = Ungelesene Mails zusammenfassen
+dw-quick-mail-prompt = Fasse meine ungelesenen E-Mails zusammen und hebe hervor, was heute meine Aufmerksamkeit braucht.
+dw-quick-status-label = Status-Update entwerfen
+dw-quick-status-prompt = Entwirf ein kurzes wöchentliches Status-Update aus meiner jüngsten Arbeit und offenen Aufgaben.
+dw-quick-meeting-label = Nächstes Meeting vorbereiten
+dw-quick-meeting-prompt = Bereite ein Briefing für mein nächstes Meeting vor, inklusive Kontext, Teilnehmenden und Gesprächspunkten.
+
+# Quick actions editor
+dw-quick-editor-title = Schnellaktionen anpassen
+dw-quick-editor-desc = Füge die Ein-Klick-Aktionen hinzu, bearbeite oder entferne sie, die eine Every-Aufgabe starten.
+dw-quick-editor-label = Bezeichnung
+dw-quick-editor-label-placeholder = z. B. Vertrieb analysieren
+dw-quick-editor-prompt = Prompt
+dw-quick-editor-prompt-placeholder = Was soll Every tun?
+dw-quick-editor-icon = Symbol ändern
+dw-quick-editor-remove = Aktion entfernen
+dw-quick-editor-add = Aktion hinzufügen
+dw-quick-editor-reset = Auf Standard zurücksetzen
+dw-quick-editor-save = Änderungen speichern
+dw-quick-editor-cancel = Abbrechen
+dw-quick-editor-empty = Noch keine Schnellaktionen. Füge eine hinzu, um zu starten.
+
 # Shared
 dw-open-app = Öffnen
 dw-refresh = Aktualisieren
@@ -31,7 +62,7 @@ dw-error-title = Etwas ist schiefgelaufen
 dw-view-all = Alle ansehen
 
 # Agents panel
-dw-agents-title = Digital Workforce
+dw-agents-title = Autonome Agenten
 dw-agents-open = Digital Workforce öffnen
 dw-agents-waiting-section = Wartet auf dich
 dw-agents-working-section = Aktiv
@@ -42,7 +73,7 @@ dw-agents-no-activity = Arbeitet…
 dw-agents-waiting-default = Benötigt deine Eingabe
 
 # Tasks panel
-dw-tasks-title = EveryBox
+dw-tasks-title = Meine Aufgaben
 dw-tasks-open = EveryBox öffnen
 dw-tasks-empty-title = Posteingang leer
 dw-tasks-empty-desc = Du hast aktuell keine offenen Aufgaben.
@@ -68,7 +99,7 @@ dw-reminders-datetime-required = Bitte wähle Datum und Uhrzeit.
 dw-reminders-create-failed = Erinnerung konnte nicht erstellt werden.
 
 # Messages panel
-dw-messages-title = EveryOne
+dw-messages-title = Kommunikation
 dw-messages-open = EveryOne öffnen
 dw-messages-open-mail = Mail öffnen
 dw-messages-open-chats = Chats öffnen
@@ -113,7 +144,7 @@ dw-mail-mark-unread = Als ungelesen markieren
 dw-mail-mark-read = Als gelesen markieren
 
 # Documents panel
-dw-documents-title = EveryOffice
+dw-documents-title = Office
 dw-documents-open = EveryOffice öffnen
 dw-documents-new = Neu
 dw-documents-empty-title = Keine aktuellen Dokumente

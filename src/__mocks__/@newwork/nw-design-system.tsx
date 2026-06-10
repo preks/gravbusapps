@@ -118,6 +118,56 @@ export const Separator = (props: any) => <hr {...props} />
 export const Label = ({ children, ...props }: any) => <label {...props}>{children}</label>
 export const Badge = ({ children, ...props }: any) => <span {...props}>{children}</span>
 
+export const Combobox = ({
+  options = [],
+  value,
+  onValueChange,
+  placeholder,
+  // Strip non-DOM props so they never reach the underlying <select>.
+  onSearch,
+  onLoadMore,
+  hasMore,
+  loading,
+  error,
+  errorText,
+  loadingText,
+  emptyText,
+  searchPlaceholder,
+  searchDebounce,
+  showClearButton,
+  allowClear,
+  createdOptions,
+  mode,
+  align,
+  ...props
+}: any) => {
+  void onSearch
+  void onLoadMore
+  void hasMore
+  void loading
+  void error
+  void errorText
+  void loadingText
+  void emptyText
+  void searchPlaceholder
+  void searchDebounce
+  void showClearButton
+  void allowClear
+  void createdOptions
+  void mode
+  void align
+  return (
+    <select value={value ?? ''} onChange={e => onValueChange?.(e.target.value)} {...props}>
+      <option value="">{placeholder ?? ''}</option>
+      {options.map((opt: any) => (
+        <option key={opt.value} value={opt.value}>
+          {typeof opt.label === 'string' ? opt.label : opt.value}
+        </option>
+      ))}
+    </select>
+  )
+}
+
 export const Card = ({ children, className, ...props }: any) => (
   <div className={className} {...props}>
     {children}
@@ -243,6 +293,7 @@ export default {
   DateInput,
   Label,
   Badge,
+  Combobox,
   Card,
   CardHeader,
   CardTitle,

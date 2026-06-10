@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useWorkplaceTranslation } from './_i18n/useWorkplaceTranslation'
-import WorkplaceComposer from './components/WorkplaceComposer'
+import WorkplaceAiConsole from './components/WorkplaceAiConsole'
 import WorkplaceKpis from './components/WorkplaceKpis'
 import AgentsPanel from './components/AgentsPanel'
 import TasksPanel from './components/TasksPanel'
@@ -61,21 +61,34 @@ const DigitalWorkplace: React.FC<DigitalWorkplaceProps> = ({ accessToken, userIn
         <p className="gba:truncate gba:text-sm gba:text-muted-foreground">{t('subtitle')}</p>
       </header>
 
-      {/* Right padding reserves a gutter for the dock; the desk fills to the bottom so panels run under the glass composer. */}
+      {/* Right padding reserves a gutter for the dock. */}
       <div className="gba:flex gba:min-h-0 gba:flex-1 gba:flex-col gba:gap-4 gba:overflow-hidden gba:p-4 gba:pr-16">
         <WorkplaceKpis metrics={metrics} />
 
-        {/* Desk: four equal-width, full-height columns — Digital Workforce, EveryBox, EveryOne and EveryOffice. */}
+        {/* Desk: four equal-width columns — Digital Workforce, EveryBox, EveryOne and EveryOffice. */}
         <div className="gba:grid gba:min-h-0 gba:flex-1 gba:grid-cols-1 gba:gap-4 gba:overflow-y-auto gba:md:grid-cols-4 gba:md:overflow-hidden">
-          <div className={DESK_CELL}>
-            <AgentsPanel context={context} onMetric={handleMetric} className={PANEL_SIZING} />
+          {/* Left region (3 columns): the work panels shrink to make room for the
+              Every AI console pinned beneath them. */}
+          <div className="gba:flex gba:min-h-0 gba:flex-col gba:gap-4 gba:md:col-span-3">
+            <div className="gba:grid gba:min-h-0 gba:flex-1 gba:grid-cols-1 gba:gap-4 gba:md:grid-cols-3 gba:md:overflow-hidden">
+              <div className={DESK_CELL}>
+                <AgentsPanel context={context} onMetric={handleMetric} className={PANEL_SIZING} />
+              </div>
+              <div className={DESK_CELL}>
+                <TasksPanel context={context} onMetric={handleMetric} className={PANEL_SIZING} />
+              </div>
+              <div className={DESK_CELL}>
+                <MessagesPanel context={context} onMetric={handleMetric} className={PANEL_SIZING} />
+              </div>
+            </div>
+
+            {/* Prominent Every AI console — prompt field + customizable quick actions. */}
+            <div className="gba:shrink-0">
+              <WorkplaceAiConsole accessToken={accessToken} userId={userInfo?.id} />
+            </div>
           </div>
-          <div className={DESK_CELL}>
-            <TasksPanel context={context} onMetric={handleMetric} className={PANEL_SIZING} />
-          </div>
-          <div className={DESK_CELL}>
-            <MessagesPanel context={context} onMetric={handleMetric} className={PANEL_SIZING} />
-          </div>
+
+          {/* EveryOffice rail stays full height to the right of the console. */}
           <div className={DESK_CELL} data-testid={`${TEST_ID}-office-rail`}>
             <WeekCalendar context={context} />
             <DocumentsPanel context={context} onMetric={handleMetric} className={PANEL_SIZING} />
@@ -85,13 +98,6 @@ const DigitalWorkplace: React.FC<DigitalWorkplaceProps> = ({ accessToken, userIn
 
       {/* Floating reminders dock pinned to the right corner, expandable on hover. */}
       <RemindersDock context={context} />
-
-      {/* Premium glass composer pinned to the bottom; content scrolls behind it. */}
-      <div className="gba:pointer-events-none gba:absolute gba:inset-x-0 gba:bottom-0 gba:z-20 gba:px-4 gba:pb-4 gba:pt-8">
-        <div className="gba:pointer-events-auto">
-          <WorkplaceComposer />
-        </div>
-      </div>
     </div>
   )
 }

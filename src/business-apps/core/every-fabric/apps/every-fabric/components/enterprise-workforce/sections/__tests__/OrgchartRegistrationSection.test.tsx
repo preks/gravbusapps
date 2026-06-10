@@ -17,6 +17,21 @@ jest.mock('@/common/network/flowbot', () => ({
   }
 }))
 
+// The org-unit picker hooks hit GraphQL, which is irrelevant to this section's
+// logic — stub them so the section renders without a live client.
+jest.mock('../useOrgchartUnits', () => ({
+  useOrgchartUnits: () => ({
+    units: [],
+    loading: false,
+    error: null,
+    hasMore: false,
+    search: '',
+    setSearch: jest.fn(),
+    loadMore: jest.fn()
+  }),
+  useOrgchartUnitName: () => 'Virtual Assistants'
+}))
+
 function buildAgent(overrides: Partial<WorkforceAgent> = {}): WorkforceAgent {
   return {
     agent_id: 'a1',
@@ -99,7 +114,8 @@ describe('OrgchartRegistrationSection', () => {
       first_name: 'Claims',
       last_name: 'Bot',
       display_name: 'Claims Bot',
-      job_position_name: 'Claims Analyst'
+      job_position_name: 'Claims Analyst',
+      org_unit_id: undefined
     })
     const patch = onSave.mock.calls[0][0]
     expect(patch.orgchart).toMatchObject({

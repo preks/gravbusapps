@@ -24,6 +24,37 @@ dw-composer-rotate-4 = to generate a document
 dw-composer-rotate-5 = to draft an email
 dw-composer-rotate-6 = to get work done
 
+# AI console
+dw-ai-title = Every AI
+dw-ai-subtitle = Kick off a task, or pick a quick action below.
+dw-ai-quick-heading = Quick actions
+dw-ai-edit = Customize quick actions
+
+# Quick action defaults
+dw-quick-sales-label = Analyze recent sales
+dw-quick-sales-prompt = Analyze our most recent sales activities and summarize the key trends, wins and risks.
+dw-quick-mail-label = Summarize unread mail
+dw-quick-mail-prompt = Summarize my unread emails and highlight anything that needs my attention today.
+dw-quick-status-label = Draft a status update
+dw-quick-status-prompt = Draft a concise weekly status update from my recent work and open tasks.
+dw-quick-meeting-label = Prep my next meeting
+dw-quick-meeting-prompt = Prepare a briefing for my next meeting, including context, attendees and talking points.
+
+# Quick actions editor
+dw-quick-editor-title = Customize quick actions
+dw-quick-editor-desc = Add, edit or remove the one-click actions that start an Every task.
+dw-quick-editor-label = Label
+dw-quick-editor-label-placeholder = e.g. Analyze recent sales
+dw-quick-editor-prompt = Prompt
+dw-quick-editor-prompt-placeholder = What should Every do?
+dw-quick-editor-icon = Change icon
+dw-quick-editor-remove = Remove action
+dw-quick-editor-add = Add action
+dw-quick-editor-reset = Reset to defaults
+dw-quick-editor-save = Save changes
+dw-quick-editor-cancel = Cancel
+dw-quick-editor-empty = No quick actions yet. Add one to get started.
+
 # Shared
 dw-open-app = Open
 dw-refresh = Refresh
