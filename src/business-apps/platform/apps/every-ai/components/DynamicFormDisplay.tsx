@@ -10,9 +10,14 @@ import {
   FormStatusMessages,
   SchemaField,
   SecondaryCollapsible,
-  BulkItemSelector
+  BulkItemSelector,
+  HintAwareSchemaField,
+  extractUiHints,
+  buildUiHintFields,
+  applyUiOverridesToArguments
 } from './forms'
 import { formatFlowName } from './forms/utils/formSchemaUtils'
+import { getNestedValue, immutableSetByPath } from './forms/utils/formFieldUtils'
 import { FlowProposalFormProvider } from '../context/FlowProposalFormContext'
 
 interface DynamicFormDisplayProps {
@@ -408,7 +413,11 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
   }, [conversation, data.uuid, data.flow_name, formKey, setFormState])
 
   // Extract initial form values
-  const { initialValues, objectKey, sourceType } = useMemo(() => {
+  const { initialValues, objectKey, sourceType } = useMemo((): {
+    initialValues: Record<string, any>
+    objectKey: string | null
+    sourceType: 'flow' | 'task'
+  } => {
     const flowData = data.arguments?.flow || {}
     const taskData = data.arguments?.task || {}
 
@@ -488,6 +497,88 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
     }
   }, [data.flow_schema, objectKey, sourceType])
 
+  // x-ui-* hints. Render list comes only from a non-empty `x-ui-allowlist`; submit-time
+  // `omit` / `fixed` still apply when `x-ui-overrides` is present without an allowlist (legacy UI).
+  const hints = useMemo(() => extractUiHints(data.flow_schema), [data.flow_schema])
+  const hasUiHintsSource = hints.source !== 'none'
+  const isHintsRenderMode = hasUiHintsSource && hints.allowlist.length > 0
+  const shouldApplyUiOverridesOnSubmit = hasUiHintsSource && Object.keys(hints.overrides).length > 0
+  const hintFields = useMemo(
+    () =>
+      isHintsRenderMode
+        ? buildUiHintFields({
+            flowSchema: data.flow_schema,
+            objectKey,
+            allowlist: hints.allowlist,
+            overrides: hints.overrides
+          })
+        : [],
+    [isHintsRenderMode, data.flow_schema, objectKey, hints.allowlist, hints.overrides]
+  )
+  const buildSubmissionArguments = useCallback(
+    (argumentsToSubmit: typeof data.arguments) => {
+      if (!shouldApplyUiOverridesOnSubmit) {
+        return argumentsToSubmit
+      }
+
+      return applyUiOverridesToArguments(argumentsToSubmit, hints.overrides, {
+        sourceType,
+        objectKey
+      })
+    },
+    [shouldApplyUiOverridesOnSubmit, hints.overrides, sourceType, objectKey]
+  )
+  const buildUpdatedArguments = useCallback(
+    (currentFormData: Record<string, any>) => {
+      // Merge original proposal entity with current form data so that pre-filled/extracted
+      // values (e.g. opportunity, creatorEmployee) are preserved when the form or select
+      // didn't keep them (e.g. Combobox cleared value when option wasn't in list yet).
+      const originalEntity =
+        objectKey && (sourceType === 'task' ? data.arguments?.task?.[objectKey] : data.arguments?.flow?.[objectKey])
+      const mergedEntity =
+        typeof originalEntity === 'object' && originalEntity !== null
+          ? { ...originalEntity, ...currentFormData }
+          : currentFormData
+
+      const updatedArguments = { ...data.arguments }
+      if (objectKey && sourceType === 'task' && updatedArguments.task?.[objectKey]) {
+        updatedArguments.task = {
+          ...updatedArguments.task,
+          [objectKey]: mergedEntity
+        }
+      } else if (objectKey && sourceType === 'flow' && updatedArguments.flow?.[objectKey]) {
+        updatedArguments.flow = {
+          ...updatedArguments.flow,
+          [objectKey]: mergedEntity
+        }
+      } else {
+        updatedArguments.flow = {
+          ...currentFormData,
+          ...(updatedArguments.flow?.changeMode ? { changeMode: updatedArguments.flow.changeMode } : {})
+        }
+      }
+      return updatedArguments
+    },
+    [data.arguments, objectKey, sourceType]
+  )
+  const buildSubmissionData = useCallback(
+    (submissionArguments: typeof data.arguments) => {
+      const submissionData: Record<string, any> = {
+        flow: submissionArguments?.flow || {},
+        ...(submissionArguments?.task ? { task: submissionArguments.task } : {})
+      }
+
+      if (bulkOperation) {
+        const itemsSource = bulkItemsEdit ?? bulkOperation.items
+        const selectedItems: BulkFlowProposalItem[] = itemsSource.filter(i => selectedBulkKeys.has(i.key))
+        submissionData.bulk = { items: selectedItems }
+      }
+
+      return submissionData
+    },
+    [bulkOperation, bulkItemsEdit, selectedBulkKeys]
+  )
+
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault()
@@ -518,45 +609,11 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
         const currentFormData = formDataRef.current
         console.log('[DynamicFormDisplay] Submitting with formData:', currentFormData)
 
-        // Merge original proposal entity with current form data so that pre-filled/extracted
-        // values (e.g. opportunity, creatorEmployee) are preserved when the form or select
-        // didn't keep them (e.g. Combobox cleared value when option wasn't in list yet).
-        const originalEntity =
-          objectKey && (sourceType === 'task' ? data.arguments?.task?.[objectKey] : data.arguments?.flow?.[objectKey])
-        const mergedEntity =
-          typeof originalEntity === 'object' && originalEntity !== null
-            ? { ...originalEntity, ...currentFormData }
-            : currentFormData
-
-        const updatedArguments = { ...data.arguments }
-        if (objectKey && sourceType === 'task' && updatedArguments.task?.[objectKey]) {
-          updatedArguments.task = {
-            ...updatedArguments.task,
-            [objectKey]: mergedEntity
-          }
-        } else if (objectKey && sourceType === 'flow' && updatedArguments.flow?.[objectKey]) {
-          updatedArguments.flow = {
-            ...updatedArguments.flow,
-            [objectKey]: mergedEntity
-          }
-        } else {
-          updatedArguments.flow = {
-            ...currentFormData,
-            ...(updatedArguments.flow?.changeMode ? { changeMode: updatedArguments.flow.changeMode } : {})
-          }
-        }
+        const updatedArguments = buildUpdatedArguments(currentFormData)
+        const submissionArguments = buildSubmissionArguments(updatedArguments)
 
         if (sendMessage) {
-          const submissionData: Record<string, any> = {
-            flow: updatedArguments?.flow || {},
-            ...(updatedArguments?.task ? { task: updatedArguments.task } : {})
-          }
-
-          if (bulkOperation) {
-            const itemsSource = bulkItemsEdit ?? bulkOperation.items
-            const selectedItems: BulkFlowProposalItem[] = itemsSource.filter(i => selectedBulkKeys.has(i.key))
-            submissionData.bulk = { items: selectedItems }
-          }
+          const submissionData = buildSubmissionData(submissionArguments)
 
           const formDataMessage = JSON.stringify(
             {
@@ -615,12 +672,10 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
       currentFormState,
       setFormState,
       sendMessage,
-      objectKey,
-      sourceType,
       markFormAsSubmitted,
-      bulkOperation,
-      bulkItemsEdit,
-      selectedBulkKeys
+      buildSubmissionArguments,
+      buildUpdatedArguments,
+      buildSubmissionData
     ]
   )
 
@@ -834,7 +889,15 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
     console.debug('[EveryAI][DynamicFormDisplay] schema', schema)
     console.debug('[EveryAI][DynamicFormDisplay] fields', fields)
     console.debug('[EveryAI][DynamicFormDisplay] formData', formData)
-  }, [schema, fields, formData])
+    if (isHintsRenderMode) {
+      console.debug('[EveryAI][DynamicFormDisplay] hints render mode', {
+        source: hints.source,
+        allowlist: hints.allowlist,
+        overrides: hints.overrides,
+        rendered: hintFields.map(f => f.fieldName)
+      })
+    }
+  }, [schema, fields, formData, isHintsRenderMode, hints.source, hints.allowlist, hints.overrides, hintFields])
 
   const isSubmitted = currentFormState.isSubmitted || uiState.isSubmitted
   const isCancelled = currentFormState.isCancelled || uiState.isCancelled
@@ -1066,53 +1129,91 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
                     varyingFieldPath={bulkOperation.varying_field}
                   />
                 )}
-                {primaryFields.map(([fieldName, fieldSchema]) => {
-                  if (fieldSchema == null || typeof fieldSchema !== 'object') {
-                    console.warn(
-                      '[EveryAI][DynamicFormDisplay] skipping non-object schema field',
-                      fieldName,
-                      fieldSchema
-                    )
-                    return null
-                  }
+                {isHintsRenderMode ? (
+                  // Hints render mode: only x-ui-allowlist fields, in x-ui-overrides[*].order order.
+                  hintFields.map(field => {
+                    try {
+                      return (
+                        <HintAwareSchemaField
+                          key={`h-${field.fullPath}`}
+                          field={field}
+                          disabled={isCompleted}
+                          value={
+                            field.nestedFormValue ? getNestedValue(formData, field.fullPath) : formData[field.fieldName]
+                          }
+                          onChange={value =>
+                            setFormData(prev =>
+                              field.nestedFormValue
+                                ? immutableSetByPath(prev, field.fullPath, value)
+                                : { ...prev, [field.fieldName]: value }
+                            )
+                          }
+                          formData={formData}
+                          onFieldValueChange={handleFieldValueChange}
+                          accessToken={accessToken}
+                          moduleName={data.module_name}
+                        />
+                      )
+                    } catch (error) {
+                      console.error('[EveryAI][DynamicFormDisplay] failed to render hint field', field.fieldName, error)
+                      return (
+                        <div key={`hint-error-${field.fullPath}`} className="gba:text-sm gba:text-destructive">
+                          Unable to render field "{field.fieldName}". Please contact support.
+                        </div>
+                      )
+                    }
+                  })
+                ) : (
+                  <>
+                    {primaryFields.map(([fieldName, fieldSchema]) => {
+                      if (fieldSchema == null || typeof fieldSchema !== 'object') {
+                        console.warn(
+                          '[EveryAI][DynamicFormDisplay] skipping non-object schema field',
+                          fieldName,
+                          fieldSchema
+                        )
+                        return null
+                      }
 
-                  try {
-                    return (
-                      <SchemaField
-                        key={fieldName}
-                        name={fieldName}
-                        path=""
-                        schema={fieldSchema}
-                        required={schema.required?.includes(fieldName) || false}
-                        disabled={isCompleted}
-                        value={formData[fieldName]}
-                        onChange={value => setFormData(prev => ({ ...prev, [fieldName]: value }))}
+                      try {
+                        return (
+                          <SchemaField
+                            key={fieldName}
+                            name={fieldName}
+                            path=""
+                            schema={fieldSchema}
+                            required={schema.required?.includes(fieldName) || false}
+                            disabled={isCompleted}
+                            value={formData[fieldName]}
+                            onChange={value => setFormData(prev => ({ ...prev, [fieldName]: value }))}
+                            formData={formData}
+                            onFieldValueChange={handleFieldValueChange}
+                            accessToken={accessToken}
+                            moduleName={data.module_name}
+                          />
+                        )
+                      } catch (error) {
+                        console.error('[EveryAI][DynamicFormDisplay] failed to render field', fieldName, error)
+                        return (
+                          <div key={`field-error-${fieldName}`} className="gba:text-sm gba:text-destructive">
+                            Unable to render field "{fieldName}". Please contact support.
+                          </div>
+                        )
+                      }
+                    })}
+                    {secondaryFields.length > 0 && (
+                      <SecondaryCollapsible
+                        fields={secondaryFields}
+                        requiredFields={requiredFields}
+                        isCompleted={isCompleted}
                         formData={formData}
                         onFieldValueChange={handleFieldValueChange}
+                        onFieldChange={(fieldName, value) => setFormData(prev => ({ ...prev, [fieldName]: value }))}
                         accessToken={accessToken}
                         moduleName={data.module_name}
                       />
-                    )
-                  } catch (error) {
-                    console.error('[EveryAI][DynamicFormDisplay] failed to render field', fieldName, error)
-                    return (
-                      <div key={`field-error-${fieldName}`} className="gba:text-sm gba:text-destructive">
-                        Unable to render field "{fieldName}". Please contact support.
-                      </div>
-                    )
-                  }
-                })}
-                {secondaryFields.length > 0 && (
-                  <SecondaryCollapsible
-                    fields={secondaryFields}
-                    requiredFields={requiredFields}
-                    isCompleted={isCompleted}
-                    formData={formData}
-                    onFieldValueChange={handleFieldValueChange}
-                    onFieldChange={(fieldName, value) => setFormData(prev => ({ ...prev, [fieldName]: value }))}
-                    accessToken={accessToken}
-                    moduleName={data.module_name}
-                  />
+                    )}
+                  </>
                 )}
               </div>
             </FlowProposalFormProvider>

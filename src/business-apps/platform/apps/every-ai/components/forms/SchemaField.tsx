@@ -35,6 +35,11 @@ interface SchemaFieldProps {
   accessToken: string
   /** Flow module name (e.g. customer-relations, investment-relations). Passed to SearchableUuidField for IRM vs CRM label resolution. */
   moduleName?: string
+  /**
+   * When true, bypass the legacy `shouldSkipField` blacklist so fields explicitly whitelisted by
+   * x-ui-allowlist (via HintAwareSchemaField) are still rendered in hints-mode.
+   */
+  skipBlacklist?: boolean
 }
 
 export const SchemaField: React.FC<SchemaFieldProps> = ({
@@ -48,7 +53,8 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
   formData,
   onFieldValueChange,
   accessToken,
-  moduleName
+  moduleName,
+  skipBlacklist = false
 }) => {
   const fieldPath = path ? `${path}.${name}` : name
   const controlId = sanitizeControlId(fieldPath)
@@ -110,8 +116,9 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
   // Check if field is searchable UUID
   const isSearchableUuid = isSearchableUuidField(name, schema)
 
-  // Skip technical fields
-  if (shouldSkipField(name, schema, isSearchableUuid)) {
+  // Skip technical fields, unless the caller has opted out (hints-mode allowlist already
+  // decided exactly which fields are user-facing).
+  if (!skipBlacklist && shouldSkipField(name, schema, isSearchableUuid)) {
     return null
   }
 
@@ -451,6 +458,7 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
                       onFieldValueChange={onFieldValueChange}
                       accessToken={accessToken}
                       moduleName={moduleName}
+                      skipBlacklist={skipBlacklist}
                     />
                   ))}
                 </div>
@@ -504,6 +512,7 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
                 onFieldValueChange={onFieldValueChange}
                 accessToken={accessToken}
                 moduleName={moduleName}
+                skipBlacklist={skipBlacklist}
               />
             ))}
           </div>
