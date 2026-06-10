@@ -394,9 +394,15 @@ export const mapGeoapifyToFormValues = (
     })
     // Try state/region first (covers DE, US); if nothing matches, fall back to county/county_code
     // because providers like Geoapify put Romanian județe under `county`, not `state`.
+    // As a last resort, fall back to the city name: in city-state regions (e.g. Berlin,
+    // Hamburg, Bremen in DE; Vienna in AT) Geoapify often omits `state`/`state_code`
+    // because the city *is* the federal state, but the catalog still has it as a region.
+    // Without this fallback the mandatory Region field would stay empty and the user
+    // could not submit the address change form.
     regionId =
       findMatchingRegion(regions, components.regionCode, components.region) ||
-      findMatchingRegion(regions, components.countyCode, components.county)
+      findMatchingRegion(regions, components.countyCode, components.county) ||
+      findMatchingRegion(regions, undefined, components.city)
 
     if (!regionId && process.env.NODE_ENV !== 'production') {
       // Keep a minimal diagnostic for future failure cases — dumps what Geoapify returned
@@ -409,6 +415,7 @@ export const mapGeoapifyToFormValues = (
           regionCode: components.regionCode,
           county: components.county,
           countyCode: components.countyCode,
+          city: components.city,
           countryId
         },
         'Catalog regions for this country:',
