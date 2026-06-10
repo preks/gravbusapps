@@ -23,6 +23,7 @@ import {
   CameraIcon
 } from '@phosphor-icons/react'
 import WebcamUserIdScanner from './components/webcam-scanner/WebcamUserIdScanner'
+import { createConductorEngine } from '../../services/workflowEngineProvider'
 
 // UI Components
 import { Alert } from '@newwork/nw-design-system'
@@ -53,19 +54,24 @@ const parseUrlParams = () => {
   // Get taskId from URL parameter (new parameter-based approach)
   const taskIdFromParam = searchParams.get('taskId') || null
 
+  // Get flowId from URL parameter (Customer 360 and other flow-level deep links)
+  const flowIdFromUrl = searchParams.get('flowId') || null
+
   return {
     subviewFromUrl,
     ticketIdFromUrl: taskIdFromParam || (taskMatch ? taskMatch[1] : null),
-    ticketTabFromUrl
+    ticketTabFromUrl,
+    flowIdFromUrl
   }
 }
 
 const ServiceDesk: React.FC<ServiceDeskProps> = ({ accessToken, userInfo, deskKey, ticketId }) => {
-  const { subviewFromUrl, ticketIdFromUrl, ticketTabFromUrl } = parseUrlParams()
+  const { subviewFromUrl, ticketIdFromUrl, ticketTabFromUrl, flowIdFromUrl } = parseUrlParams()
 
   // Use tab parameter or component prop for desk key
   const resolvedDeskKey = deskKey || ticketTabFromUrl || ''
   const resolvedTicketId = ticketId || ticketIdFromUrl || null
+  const resolvedFlowId = flowIdFromUrl
 
   // Feature flag guard - check if Services module is enabled
   const servicesFeature = useFeature(Feature.Services.Enabled.Key)
@@ -86,6 +92,8 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({ accessToken, userInfo, deskKe
   // Removed diagnostic state - no longer needed since capability loading is handled by sub-components
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(resolvedTicketId)
   const [lastTicketsTab, setLastTicketsTab] = useState<string>('') // Remember last selected tab in Tickets subview
+  // True when a flowId deep link resolved to a flow with no open Service Desk task yet.
+  const [flowHasNoOpenTask, setFlowHasNoOpenTask] = useState<boolean>(false)
 
   // Note: Capability-based filtering is now handled by the Tickets component
 
@@ -103,6 +111,47 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({ accessToken, userInfo, deskKe
     // Note: URL parameters are handled by the navigation system
     // No need to manually set URL parameters on component load
   }, [resolvedTicketId, activeSubView, activeTab, lastTicketsTab])
+
+  // Resolve a flowId deep link to the task Service Desk should open.
+  // Customer 360 and other callers may pass ?flowId=<id> instead of ?taskId=.
+  useEffect(() => {
+    if (!resolvedFlowId || resolvedTicketId || selectedTaskId || !accessToken) {
+      return
+    }
+
+    let cancelled = false
+    const resolveFlow = async () => {
+      try {
+        const engine = createConductorEngine({ accessToken, userInfo })
+        const taskId = await engine.resolveFlowToCurrentTaskId(resolvedFlowId)
+        if (cancelled) return
+
+        const url = new URL(window.location.href)
+        url.searchParams.delete('flowId')
+        if (taskId) {
+          setFlowHasNoOpenTask(false)
+          setSelectedTaskId(taskId)
+          url.searchParams.set('taskId', taskId)
+        } else {
+          // No open task yet — land on the tickets view with a clear notice.
+          setFlowHasNoOpenTask(true)
+          setActiveSubView('tickets')
+          url.searchParams.set('subview', 'tickets')
+        }
+        window.history.replaceState({}, '', url.toString())
+      } catch (resolveError) {
+        if (!cancelled) {
+          console.error('[ServiceDesk] Failed to resolve flowId deep link:', resolveError)
+          setFlowHasNoOpenTask(true)
+        }
+      }
+    }
+
+    resolveFlow()
+    return () => {
+      cancelled = true
+    }
+  }, [resolvedFlowId, resolvedTicketId, selectedTaskId, accessToken, userInfo])
 
   // Handle browser navigation (back/forward/refresh)
   useEffect(() => {
@@ -268,14 +317,24 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({ accessToken, userInfo, deskKe
         return <Dashboard accessToken={accessToken} userInfo={userInfo} onTaskSelect={handleTaskSelect} />
       case 'tickets':
         return (
-          <Tickets
-            deskKey={activeTab}
-            ticketId={ticketId}
-            accessToken={accessToken}
-            userInfo={userInfo}
-            onTaskSelect={handleTaskSelect}
-            onTabChange={handleTicketTabChange}
-          />
+          <div className="gba:flex gba:h-full gba:flex-col gba:gap-3">
+            {flowHasNoOpenTask ? (
+              <Alert variant="default" data-testid="service-desk-flow-no-open-task">
+                {getTranslationFromI18nKeyAndLabel(
+                  'services.desk.flow.noOpenTask',
+                  'This request has no open service desk task yet. It will appear here once the next step is ready.'
+                )}
+              </Alert>
+            ) : null}
+            <Tickets
+              deskKey={activeTab}
+              ticketId={ticketId}
+              accessToken={accessToken}
+              userInfo={userInfo}
+              onTaskSelect={handleTaskSelect}
+              onTabChange={handleTicketTabChange}
+            />
+          </div>
         )
       case 'templates':
         return <TemplatesTab accessToken={accessToken} userInfo={userInfo} />

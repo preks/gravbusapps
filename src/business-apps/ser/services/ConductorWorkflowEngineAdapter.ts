@@ -24,6 +24,14 @@ const API_BASE = CUSTOM_FLOW_ENGINE_API_URL
 const SERVICES_APP_TAG = 'AppCatalog:1:SVC'
 
 /**
+ * Solution tag used by Customer 360 service flows (tickets/cases/reclamations).
+ * Older flows were created with `tags.app=AppCatalog:1:CRM`, so the Service Desk
+ * queues must also include tasks carrying this solution tag to remain visible
+ * during the transition to the new `AppCatalog:1:SVC` template tags.
+ */
+const CUSTOMER360_SOLUTION_TAG = 'customer360'
+
+/**
  * ConductorWorkflowEngineAdapter - Integrates Services+ with Custom Flow Engine
  *
  * This adapter bridges the Services+ WorkflowEngine interface with the Custom Flow Engine
@@ -358,7 +366,9 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     try {
       console.log(`🔍 [ConductorAdapter] Getting ticket detail for REAL task ID: ${ticketId}`)
 
-      const response = await fetch(`${this.flowEngineBaseUrl}/tasks/${ticketId}?userId=${this.currentUserId}`, {
+      // The flow engine resolves the user from the Bearer token; the legacy
+      // `?userId=` query param is no longer required.
+      const response = await fetch(`${this.flowEngineBaseUrl}/tasks/${encodeURIComponent(ticketId)}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -393,6 +403,54 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     } catch (error) {
       console.error(`[ConductorAdapter] Error getting ticket detail for ${ticketId}:`, error)
       throw new Error(`Failed to get ticket detail: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
+  /**
+   * Resolve a flow id to the task id Service Desk should open.
+   *
+   * A flow contains multiple step tasks; Service Desk navigates by task id, not
+   * flow id. Given a flowId (e.g. a deep link from Customer 360), this returns
+   * the task id of the first open step, falling back to any materialized step
+   * task. Returns null when the flow has no Service Desk task yet (e.g. queued
+   * future steps) so callers can show a non-error "no open task" state.
+   */
+  async resolveFlowToCurrentTaskId(flowId: string): Promise<string | null> {
+    try {
+      const response = await fetch(`${this.flowEngineBaseUrl}/flows/${encodeURIComponent(flowId)}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.accessToken}`
+        }
+      })
+
+      if (!response.ok) {
+        console.warn(`[ConductorAdapter] Could not resolve flow ${flowId}: HTTP ${response.status}`)
+        return null
+      }
+
+      const json = await response.json()
+      // Tolerate response envelope variants.
+      const flow = json?.data?.flow || json?.data || json || {}
+      const steps: any[] = Array.isArray(flow.steps) ? flow.steps : []
+
+      const stepTaskId = (step: any): string | undefined => step?.taskId || step?.taskBusinessId || step?.task_id
+
+      const openStatuses = ['SCHEDULED', 'IN_PROGRESS', 'OPEN', 'QUEUED', 'READY', 'RUNNING']
+      const openStep = steps.find(
+        step => stepTaskId(step) && openStatuses.includes(String(step?.status || '').toUpperCase())
+      )
+      const resolved = stepTaskId(openStep) || steps.map(stepTaskId).find(Boolean)
+
+      if (!resolved) {
+        console.warn(`[ConductorAdapter] Flow ${flowId} has no materialized Service Desk task yet`)
+        return null
+      }
+      return resolved
+    } catch (error) {
+      console.error(`[ConductorAdapter] Error resolving flow ${flowId} to task id:`, error)
+      return null
     }
   }
 
@@ -1235,17 +1293,38 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     try {
       console.log(`[ConductorAdapter] Getting completed tickets for user: ${this.currentUserId}`, options)
 
-      const params = new URLSearchParams()
-      if (options?.limit) params.set('limit', options.limit.toString())
-      if (options?.offset) params.set('offset', options.offset.toString())
-      // Filter by Services app tag at the database level for better performance
-      params.set('tags.app', SERVICES_APP_TAG)
+      const buildParams = (tagKey: string, tagValue: string) => {
+        const params = new URLSearchParams()
+        if (options?.limit) params.set('limit', options.limit.toString())
+        if (options?.offset) params.set('offset', options.offset.toString())
+        // Filter by tag at the database level for better performance
+        params.set(tagKey, tagValue)
+        return params
+      }
 
-      const result = await this.makeRequest(`/tasks/user/${this.currentUserId}/completed?${params.toString()}`)
+      const fetchCompleted = async (tagKey: string, tagValue: string) => {
+        try {
+          return await this.makeRequest(
+            `/tasks/user/${this.currentUserId}/completed?${buildParams(tagKey, tagValue).toString()}`
+          )
+        } catch (error) {
+          console.warn(`[ConductorAdapter] Completed task query failed for ${tagKey}=${tagValue}:`, error)
+          return { tasks: [], totalCount: 0, hasMore: false }
+        }
+      }
 
-      const tasks = result.tasks || []
-      const totalCount = result.totalCount || tasks.length
-      const hasMore = result.hasMore || false
+      // Include both standard Services tasks and Customer 360 service tasks
+      // (legacy CRM-tagged) so completed customer tickets remain discoverable.
+      const [svcResult, customer360Result] = await Promise.all([
+        fetchCompleted('tags.app', SERVICES_APP_TAG),
+        fetchCompleted('tags.solution', CUSTOMER360_SOLUTION_TAG)
+      ])
+
+      const tasks = this.dedupeTasksById([...(svcResult.tasks || []), ...(customer360Result.tasks || [])])
+      const totalCount =
+        (svcResult.totalCount || (svcResult.tasks || []).length) +
+        (customer360Result.totalCount || (customer360Result.tasks || []).length)
+      const hasMore = Boolean(svcResult.hasMore || customer360Result.hasMore)
 
       console.log(
         `[ConductorAdapter] Retrieved ${tasks.length} completed tickets (${totalCount} total, hasMore: ${hasMore})`
@@ -1797,31 +1876,59 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
    * Uses the SAME API as what actually works for claiming
    * Filters by Services app tag to show only service desk tickets
    */
+  /**
+   * Fetch a user's active tasks filtered by a single tag key/value.
+   * Returns an empty array (instead of throwing) so a failure of the optional
+   * compatibility query does not break the primary queue.
+   */
+  private async fetchUserActiveTasksByTag(tagKey: string, tagValue: string): Promise<any[]> {
+    try {
+      const params = new URLSearchParams({ [tagKey]: tagValue })
+      const response = await fetch(`${this.flowEngineBaseUrl}/tasks/user/${this.currentUserId}?${params.toString()}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.accessToken}`
+        }
+      })
+      if (!response.ok) {
+        console.warn(`[ConductorAdapter] Active task query failed for ${tagKey}=${tagValue}: ${response.status}`)
+        return []
+      }
+      const result = await response.json()
+      return result.tasks || []
+    } catch (error) {
+      console.warn(`[ConductorAdapter] Active task query error for ${tagKey}=${tagValue}:`, error)
+      return []
+    }
+  }
+
+  /** De-duplicate tasks by their stable identifier, preserving first occurrence. */
+  private dedupeTasksById(tasks: any[]): any[] {
+    const seen = new Set<string>()
+    const out: any[] = []
+    for (const task of tasks) {
+      const id = String(task?.id || task?.taskBusinessId || task?.taskId || task?.actionId || '')
+      if (!id || seen.has(id)) continue
+      seen.add(id)
+      out.push(task)
+    }
+    return out
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async getDeskTickets(desk: StepReceiver, _userId?: string): Promise<StepInstance[]> {
     try {
-      // Use the actual custom-flow-engine API with tag filtering for Services app
-      // This filters at the database level for better performance
-      const response = await fetch(
-        `${this.flowEngineBaseUrl}/tasks/user/${this.currentUserId}?tags.app=${SERVICES_APP_TAG}`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${this.accessToken}`
-          }
-        }
-      )
-
-      if (!response.ok) {
-        throw new Error(`Failed to get user tasks: ${response.status} ${response.statusText}`)
-      }
-
-      const result = await response.json()
-      const tasks = result.tasks || []
+      // Fetch both the standard Services-tagged tasks and Customer 360 service
+      // tasks (which may still carry the legacy CRM app tag) and merge them so
+      // existing customer service tickets remain visible in the desk queues.
+      const [svcTasks, customer360Tasks] = await Promise.all([
+        this.fetchUserActiveTasksByTag('tags.app', SERVICES_APP_TAG),
+        this.fetchUserActiveTasksByTag('tags.solution', CUSTOMER360_SOLUTION_TAG)
+      ])
 
       // Skip orphan validation - show all tasks
-      const validTasks = tasks
+      const validTasks = this.dedupeTasksById([...svcTasks, ...customer360Tasks])
 
       // DESK FILTERING: Filter tasks by desk before converting
       const deskSpecificTasks = []
@@ -1851,7 +1958,9 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
    * Convert custom-flow-engine task to StepInstance format
    */
   private convertCustomFlowEngineTaskToStepInstance(task: any, desk: StepReceiver): StepInstance {
-    const taskId = task.id
+    // Tolerate backend response shape changes: prefer the stable business id,
+    // then fall back through the other identifier aliases.
+    const taskId = task.id || task.taskBusinessId || task.taskId || task.actionId
 
     // Determine assignedToUserId and claimedByUserId based on assignmentStatus
     const assignmentStatus = task.assignment?.assignmentStatus
@@ -1880,7 +1989,7 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       name: task.title || 'Unnamed Task',
       status: this.mapCustomFlowEngineStatusToStepStatus(task.status),
       desk: desk,
-      requestId: task.flowId || 'unknown', // Use flowId as requestId
+      requestId: task.flowId || task.rootWorkflowId || task.requestId || 'unknown', // Use flowId as requestId
       requesterId: task.requesterId || 'unknown', // Use requesterId from API response
       flowInitiatedById: task.flowInitiatedById, // Flow initiator ID (UUID) from API
       flowInitiatedBy: task.flowInitiatedBy, // Flow initiator display name from API

@@ -81,7 +81,12 @@ export async function listCustomerFlows(params: {
 export interface CustomerFlowStep {
   title?: string
   status?: string
+  /** Stable Service Desk task id (task_business_id) for this step, if materialized. */
   taskId?: string
+  taskBusinessId?: string
+  actionId?: string
+  lifecycleId?: string
+  stepReference?: string
   completedAt?: string
 }
 
@@ -102,6 +107,10 @@ interface RawFlowStep {
   state?: string
   taskId?: string
   task_id?: string
+  taskBusinessId?: string
+  actionId?: string
+  lifecycleId?: string
+  stepReference?: string
   completedAt?: string
   endTime?: string
 }
@@ -121,12 +130,27 @@ function unwrapFlowDetail(json: FlowDetailEnvelope): Record<string, unknown> {
 }
 
 function normalizeStep(step: RawFlowStep): CustomerFlowStep {
+  const taskBusinessId = step.taskBusinessId || step.taskId || step.task_id
   return {
     title: step.title || step.name || step.stepTitle,
     status: step.status || step.state,
-    taskId: step.taskId || step.task_id,
+    taskId: taskBusinessId,
+    taskBusinessId,
+    actionId: step.actionId,
+    lifecycleId: step.lifecycleId,
+    stepReference: step.stepReference,
     completedAt: step.completedAt || step.endTime
   }
+}
+
+/** Extract a 0-100 percentage from either a numeric progress or a FlowProgress object. */
+function normalizeProgress(progress: unknown): number | undefined {
+  if (typeof progress === 'number') return progress
+  if (progress && typeof progress === 'object') {
+    const pct = (progress as Record<string, unknown>).percentage
+    if (typeof pct === 'number') return pct
+  }
+  return undefined
 }
 
 /**
@@ -154,7 +178,7 @@ export async function getCustomerFlowDetail(params: {
     id: String(flow.flowId || flow.id || params.flowId),
     title: (flow.name || flow.title) as string | undefined,
     status: flow.status as string | undefined,
-    progress: typeof flow.progress === 'number' ? flow.progress : undefined,
+    progress: normalizeProgress(flow.progress),
     steps: rawSteps.map(normalizeStep)
   }
 }
