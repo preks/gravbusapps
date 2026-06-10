@@ -5,21 +5,19 @@ import {
   AlertTitle,
   Badge,
   Button,
-  Card,
-  CardContent,
-  DataTable,
-  Input,
+  DataDisplay,
   Spinner,
   toast,
   useTranslation
 } from '@newwork/nw-design-system'
-import { ColumnDef, SortingState } from '@tanstack/react-table'
-import { FolderSimpleIcon, PlusIcon, XCircleIcon } from '@phosphor-icons/react'
-import { SortableHeader, ActionsColumnHeader } from '@/business-apps/mdm/utils/tableUtils'
+import { Column, ColumnDef } from '@tanstack/react-table'
+import { PlusIcon, XCircleIcon } from '@phosphor-icons/react'
+import { ActionsColumnHeader } from '@/business-apps/mdm/utils/tableUtils'
 import { ErrorBoundary } from '@/business-apps/core/every/apps/every-box/components/ErrorBoundary'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { EMPLOYEES_API_URL } from '@/common/utils/serviceResolver'
+import { TabDataTable } from '@/business-apps/hr/core/apps/monthly-compensation-changes/components/TabDataTable'
 import CategoryFormDialog from './CategoryFormDialog'
 import ConfirmSkillActionDialog from './ConfirmSkillActionDialog'
 import type { SkillCategoryWithCount } from '../types'
@@ -56,6 +54,21 @@ function renderCategoryDescriptionCell(value?: string) {
 
 function renderCategorySkillsCountCell(value: number) {
   return <Badge variant="outline">{value}</Badge>
+}
+
+function SortableTextHeader<TData>({
+  column,
+  children
+}: Readonly<{ column: Column<TData>; children: React.ReactNode }>) {
+  return (
+    <Button
+      variant="ghost"
+      onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+      className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+    >
+      {children}
+    </Button>
+  )
 }
 
 function renderCategoryActionsCell(
@@ -104,7 +117,7 @@ function buildCategoryColumns(
   return [
     {
       accessorKey: 'name',
-      header: ({ column }) => SortableHeader({ column, children: t('category-name') }),
+      header: ({ column }) => <SortableTextHeader column={column}>{t('category-name')}</SortableTextHeader>,
       enableSorting: true,
       size: 260,
       maxSize: 320,
@@ -121,7 +134,7 @@ function buildCategoryColumns(
     {
       id: 'skillCount',
       accessorKey: 'skillCount',
-      header: ({ column }) => SortableHeader({ column, children: t('category-skills-count') }),
+      header: ({ column }) => <SortableTextHeader column={column}>{t('category-skills-count')}</SortableTextHeader>,
       enableSorting: true,
       size: 140,
       maxSize: 160,
@@ -149,7 +162,6 @@ function SkillCategoriesTab({
   onDataChange
 }: Readonly<SkillCategoriesTabProps>) {
   const { t } = useTranslation(translations)
-  const [sorting, setSorting] = useState<SortingState>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [editDialogOpen, setEditDialogOpen] = useState<string | null>(null)
   const [deleteConfirmCategory, setDeleteConfirmCategory] = useState<SkillCategoryWithCount | null>(null)
@@ -254,6 +266,11 @@ function SkillCategoriesTab({
     [prefixDataTestId, t]
   )
 
+  const titleSections = useMemo(
+    () => [{ id: 'all', label: t('tab-skill-categories'), metadata: { count: filteredCategories.length } }],
+    [filteredCategories.length, t]
+  )
+
   if (error) {
     return (
       <div className="gba:p-4">
@@ -282,13 +299,18 @@ function SkillCategoriesTab({
 
   return (
     <>
-      <Card className="gba:rounded-lg gba:border gba:bg-card gba:text-card-foreground gba:shadow-sm gba:overflow-hidden">
-        <div className="gba:flex gba:items-center gba:justify-between gba:p-6 gba:pb-0">
-          <div>
-            <h3 className="gba:text-lg gba:font-semibold">
-              {t('tab-skill-categories')} ({categories.length})
-            </h3>
-          </div>
+      <DataDisplay
+        titleSections={titleSections}
+        currentSection="all"
+        onSectionChange={() => {}}
+        searchValue={searchTerm}
+        searchPlaceholder={t('search-categories')}
+        onSearchChange={setSearchTerm}
+        filters={{}}
+        onFilterChange={() => {}}
+        filterSheetTitle={t('tab-skill-categories')}
+        filterSheetDescription=""
+        secondaryActions={
           <ErrorBoundary>
             <CategoryFormDialog
               childAddButton={
@@ -301,37 +323,19 @@ function SkillCategoriesTab({
               prefixDataTestId={prefixDataTestId}
             />
           </ErrorBoundary>
-        </div>
-
-        <CardContent className="gba:pt-4">
-          <div className="gba:mb-6 gba:relative gba:max-w-sm">
-            <Input
-              placeholder={t('search-categories')}
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              data-testid={`${prefixDataTestId}-search-categories`}
-            />
-          </div>
-
-          {filteredCategories.length === 0 && !isLoading ? (
-            <div className="gba:text-center gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8">
-              <FolderSimpleIcon className="gba:h-12 gba:w-12 gba:text-gray-400" />
-              <p className="gba:font-normal gba:text-gray-500 gba:mt-2">{t('category-no-categories')}</p>
-            </div>
-          ) : (
-            <ErrorBoundary>
-              <DataTable
-                data={filteredCategories}
-                columns={columns}
-                sorting={sorting}
-                onSortingChange={setSorting}
-                enableSorting
-                enablePagination
-              />
-            </ErrorBoundary>
-          )}
-        </CardContent>
-      </Card>
+        }
+        toolbarDensity="compact"
+      >
+        <ErrorBoundary>
+          <TabDataTable
+            data={filteredCategories}
+            columns={columns}
+            loading={isLoading}
+            error={null}
+            emptyMessage={t('category-no-categories')}
+          />
+        </ErrorBoundary>
+      </DataDisplay>
 
       {editDialogOpen &&
         (() => {
@@ -371,6 +375,7 @@ function SkillCategoriesTab({
         onConfirm={handleDeleteCategory}
         variant="destructive"
         isLoading={mutationLoading}
+        hideConfirm={Boolean(deleteConfirmCategory && deleteConfirmCategory.skillCount > 0)}
       />
     </>
   )

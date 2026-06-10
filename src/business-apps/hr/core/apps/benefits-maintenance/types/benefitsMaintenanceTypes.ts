@@ -23,6 +23,7 @@ export interface BenefitObjectValue {
 export interface CatalogMutationSource {
   code?: string
   value?: string
+  description?: string
   parentEntryId?: string
   objectValue?: BenefitCatalogObjectValue
 }

@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
 import { Avatar, AvatarFallback, AvatarImage, Badge, Button, Spinner, useTranslation } from '@newwork/nw-design-system'
-import { InfoIcon, UsersIcon } from '@phosphor-icons/react'
-import SheetWrapperComponent from '@/business-apps/mdm/apps/generic-components/sheet-wrapper/SheetWrapperComponent'
+import { UsersIcon } from '@phosphor-icons/react'
+import { DetailSheet } from '@/business-apps/hr/core/apps/monthly-compensation-changes/components/DetailSheet'
+import { DetailPanelField, DetailPanelSection } from '@/business-apps/hr/core/apps/shared/components/DetailPanelLayout'
 import { EmployeeSkillStatus } from '../types'
 import type { SkillRecord, EmployeeSkillRecord } from '../types'
 import translations from '../_i18n'
@@ -93,44 +94,8 @@ export default function SkillDetailsPanel({
 }: Readonly<SkillDetailsPanelProps>) {
   const { t } = useTranslation(translations)
 
-  const drawerItems = useMemo(() => {
-    if (!skill) return []
-    const skillIsActive = isSkillActive(skill)
-
-    return [
-      {
-        icon: <InfoIcon />,
-        title: t('skill-details-title'),
-        verticalTable: true,
-        items: [
-          { label: t('skill-name'), value: skill.name },
-          {
-            label: t('skill-status'),
-            value: (
-              <Badge variant={skillIsActive ? 'success' : 'destructive'}>
-                {skillIsActive ? t('status-active') : t('status-inactive')}
-              </Badge>
-            )
-          },
-          ...(categoryName
-            ? [{ label: t('skill-category'), value: <Badge variant="secondary">{categoryName}</Badge> }]
-            : []),
-          ...(skill.description ? [{ label: t('skill-description'), value: skill.description }] : []),
-          ...(skill.levelScale != null ? [{ label: t('skill-level-scale'), value: `1 – ${skill.levelScale}` }] : []),
-          { label: t('skill-mandatory'), value: skill.mandatory ? t('value-yes') : t('value-no') },
-          { label: t('skill-employees'), value: String(totalEmployees) },
-          ...(skill.createdAt
-            ? [{ label: t('skill-created'), value: new Date(skill.createdAt).toLocaleDateString() }]
-            : []),
-          ...(skill.updatedAt
-            ? [{ label: t('skill-updated'), value: new Date(skill.updatedAt).toLocaleDateString() }]
-            : [])
-        ]
-      }
-    ]
-  }, [skill, categoryName, totalEmployees, t])
-
   const hasMore = totalEmployees > employees.length
+  const skillIsActive = skill ? isSkillActive(skill) : false
 
   const employeesSection = useMemo(() => {
     if (!skill) return null
@@ -158,28 +123,43 @@ export default function SkillDetailsPanel({
   }, [skill, employees, isLoading, t])
 
   return (
-    <SheetWrapperComponent
-      prefixDataTestId={prefixDataTestId ?? ''}
-      isDrawerVisible={isOpen}
-      onOpenChange={openStatus => {
-        if (openStatus) {
-          return
-        }
+    <DetailSheet open={isOpen} onClose={onClose} title={t('skill-details-title')}>
+      {!skill && isLoading && (
+        <div className="gba:flex gba:justify-center gba:py-10">
+          <Spinner />
+        </div>
+      )}
 
-        onClose()
-      }}
-      title={skill?.name ?? t('skill-details-title')}
-      titleIcon={InfoIcon}
-      drawerItems={drawerItems}
-      extraContent={
-        skill && (
-          <div>
-            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
-              <UsersIcon className="gba:h-4 gba:w-4" />
-              <span className="gba:text-sm gba:font-semibold">
-                {t('skill-details-employees-title')} ({totalEmployees})
-              </span>
-            </div>
+      {skill && (
+        <div data-testid={`${prefixDataTestId ?? ''}-skill-details-panel`}>
+          <div className="gba:mb-6 gba:min-w-0">
+            <div className="gba:break-words gba:text-base gba:font-semibold gba:leading-tight">{skill.name}</div>
+          </div>
+
+          <DetailPanelSection title={t('skill-details-title')}>
+            <DetailPanelField label={t('skill-name')}>{skill.name}</DetailPanelField>
+            <DetailPanelField label={t('skill-status')}>
+              <Badge variant={skillIsActive ? 'success' : 'destructive'}>
+                {skillIsActive ? t('status-active') : t('status-inactive')}
+              </Badge>
+            </DetailPanelField>
+            <DetailPanelField label={t('skill-category')}>
+              {categoryName ? <Badge variant="secondary">{categoryName}</Badge> : null}
+            </DetailPanelField>
+            <DetailPanelField label={t('skill-description')}>{skill.description}</DetailPanelField>
+            <DetailPanelField label={t('skill-level-scale')}>
+              {skill.levelScale != null ? `1 - ${skill.levelScale}` : null}
+            </DetailPanelField>
+            <DetailPanelField label={t('skill-mandatory')}>
+              {skill.mandatory ? t('value-yes') : t('value-no')}
+            </DetailPanelField>
+            <DetailPanelField label={t('skill-employees')}>{String(totalEmployees)}</DetailPanelField>
+          </DetailPanelSection>
+
+          <DetailPanelSection
+            title={`${t('skill-details-employees-title')} (${totalEmployees})`}
+            action={<UsersIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
+          >
             {employeesSection}
             {hasMore && (
               <div className="gba:flex gba:flex-col gba:items-center gba:gap-1 gba:pt-3">
@@ -191,10 +171,9 @@ export default function SkillDetailsPanel({
                 </Button>
               </div>
             )}
-          </div>
-        )
-      }
-      isFooterVisible={true}
-    />
+          </DetailPanelSection>
+        </div>
+      )}
+    </DetailSheet>
   )
 }

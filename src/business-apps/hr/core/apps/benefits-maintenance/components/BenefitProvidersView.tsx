@@ -1,16 +1,29 @@
 import React, { useState, useEffect, useCallback, useMemo, useDeferredValue } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Badge, Button, DataDisplay, toast } from '@newwork/nw-design-system'
-import { PencilSimpleIcon, ArchiveIcon, ArrowLeftIcon, PlusIcon } from '@phosphor-icons/react'
+import {
+  PencilSimpleIcon,
+  ArchiveIcon,
+  ArrowLeftIcon,
+  PlusIcon,
+  ArrowCounterClockwiseIcon
+} from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { CatalogEntry, useCatalogEntries } from '@/common/data/catalog'
+import { CatalogEntry } from '@/common/data/catalog'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { toCatalogEntry } from '@/common/data/catalog/mappers/catalogMappers'
+import type { BaseCatalogEntry, CatalogEntryResponse } from '@/common/data/catalog/types/catalogTypes'
+import {
+  DetailPanelField as Field,
+  DetailPanelSection as Section
+} from '@/business-apps/hr/core/apps/shared/components/DetailPanelLayout'
 import {
   BenefitTypeEntry,
   BenefitProviderFormData,
   BenefitsFilterConfiguration,
   BenefitsTranslationFn
 } from '../types/benefitsMaintenanceTypes'
-import { BENEFIT_PROVIDER_CATALOG, BENEFIT_PROVIDER_VERSION } from '../constants/benefitsMaintenanceConstants'
+import { buildProvidersQuery } from '../api/benefitsMaintenanceQueries'
 import { TabDataTable } from '@/business-apps/hr/core/apps/monthly-compensation-changes/components/TabDataTable'
 import { DetailSheet } from '@/business-apps/hr/core/apps/monthly-compensation-changes/components/DetailSheet'
 import useBenefitMutations from '../hooks/useBenefitMutations'
@@ -21,6 +34,7 @@ interface BenefitProvidersViewProps extends BusinessAppContextProps {
   parentBenefitType: BenefitTypeEntry | null
   benefitTypes: BenefitTypeEntry[]
   onBack: () => void
+  onProvidersChanged: () => Promise<void> | void
 }
 
 interface ProviderRow {
@@ -54,7 +68,7 @@ function createProviderColumns(t: BenefitsTranslationFn, hasParentBenefitType: b
       id: 'provider',
       accessorFn: row => row.entry.value,
       header: t('providers-col-provider'),
-      cell: ({ row }) => <span className="gba:text-sm gba:font-medium">{row.original.entry.value}</span>
+      cell: ({ row }) => <span className="gba:text-sm gba:font-medium gba:break-words">{row.original.entry.value}</span>
     },
     {
       id: 'code',
@@ -109,33 +123,16 @@ function createProviderColumns(t: BenefitsTranslationFn, hasParentBenefitType: b
   return baseColumns
 }
 
-const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <div className="gba:flex gba:items-start gba:justify-between gba:gap-3 gba:py-1.5 gba:text-sm">
-    <span className="gba:text-muted-foreground">{label}</span>
-    <span className="gba:max-w-64 gba:text-right gba:font-medium gba:text-foreground">
-      {children || <span className="gba:text-muted-foreground">-</span>}
-    </span>
-  </div>
-)
-
-const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <div className="gba:mb-6">
-    <h4 className="gba:mb-3 gba:border-b gba:border-border gba:pb-2 gba:text-sm gba:font-semibold gba:text-foreground">
-      {title}
-    </h4>
-    <div className="gba:space-y-1">{children}</div>
-  </div>
-)
-
 const BenefitProvidersView: React.FC<BenefitProvidersViewProps> = ({
   t,
   parentBenefitType,
   benefitTypes,
   onBack,
+  onProvidersChanged,
   ...context
 }) => {
   const [search, setSearch] = useState('')
-  const [filters, setFilters] = useState<Record<string, string[]>>({})
+  const [filters, setFilters] = useState<Record<string, string[]>>({ status: ['active'] })
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create')
   const [editingEntry, setEditingEntry] = useState<CatalogEntry | undefined>()
@@ -143,7 +140,7 @@ const BenefitProvidersView: React.FC<BenefitProvidersViewProps> = ({
 
   const deferredSearch = useDeferredValue(search)
 
-  const { fetchCatalogEntries } = useCatalogEntries({ accessToken: context.accessToken })
+  const graphqlClient = useGraphQLClient(context.accessToken)
   const mutations = useBenefitMutations(context)
 
   const [allEntries, setAllEntries] = useState<CatalogEntry[]>([])
@@ -154,20 +151,16 @@ const BenefitProvidersView: React.FC<BenefitProvidersViewProps> = ({
     setLoading(true)
     setError(null)
     try {
-      const { entries: raw } = await fetchCatalogEntries({
-        catalogIdentifier: BENEFIT_PROVIDER_CATALOG,
-        version: BENEFIT_PROVIDER_VERSION,
-        limit: 200,
-        orderBy: [{ field: 'displayOrder', direction: 'ASC_NULLS_LAST' }]
-      })
-      setAllEntries(raw)
+      const result = await graphqlClient.request<CatalogEntryResponse>(buildProvidersQuery())
+      const raw = (result.CatalogEntry || []) as BaseCatalogEntry[]
+      setAllEntries(raw.map(entry => toCatalogEntry(entry, raw)))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch providers')
       setAllEntries([])
     } finally {
       setLoading(false)
     }
-  }, [fetchCatalogEntries])
+  }, [graphqlClient])
 
   useEffect(() => {
     loadProviders()
@@ -221,6 +214,24 @@ const BenefitProvidersView: React.FC<BenefitProvidersViewProps> = ({
       .map(([id, label]) => ({ id, label }))
       .sort((a, b) => a.label.localeCompare(b.label))
   }, [providerRows, parentBenefitType])
+
+  const dialogParentBenefitOptions = useMemo(
+    () =>
+      benefitTypes
+        .filter(benefitType => !benefitType.isDeleted)
+        .map(benefitType => ({
+          id: benefitType.id,
+          value: benefitType.value || benefitType.code || benefitType.id
+        }))
+        .sort((a, b) => a.value.localeCompare(b.value)),
+    [benefitTypes]
+  )
+
+  const openCreateDialog = useCallback(() => {
+    setDialogMode('create')
+    setEditingEntry(undefined)
+    setDialogOpen(true)
+  }, [])
 
   const filterConfig = useMemo<BenefitsFilterConfiguration>(
     () => ({
@@ -281,8 +292,6 @@ const BenefitProvidersView: React.FC<BenefitProvidersViewProps> = ({
         if (statusFilter.includes('archived') && isArchived) return true
         return false
       })
-    } else {
-      rows = rows.filter(r => !r.entry.isDeleted)
     }
 
     const parentFilter: string[] = filters.parent ?? []
@@ -315,17 +324,40 @@ const BenefitProvidersView: React.FC<BenefitProvidersViewProps> = ({
         await mutations.deleteProvider(entry.id, {
           code: entry.code,
           value: entry.value,
+          description: entry.description,
           parentEntryId: entry.parentEntryId,
           objectValue: entry.objectValue
         })
         toast.success(t('toast-provider-deleted', { name: entry.value }))
         setSelectedRow(null)
         await loadProviders()
+        await onProvidersChanged()
       } catch (err) {
         toast.error(t('toast-error', { message: err instanceof Error ? err.message : String(err) }))
       }
     },
-    [mutations, t, loadProviders]
+    [mutations, t, loadProviders, onProvidersChanged]
+  )
+
+  const handleActivate = useCallback(
+    async (entry: CatalogEntry) => {
+      try {
+        await mutations.activateProvider(entry.id, {
+          code: entry.code,
+          value: entry.value,
+          description: entry.description,
+          parentEntryId: entry.parentEntryId,
+          objectValue: entry.objectValue
+        })
+        toast.success(t('toast-provider-activated', { name: entry.value }))
+        setSelectedRow(null)
+        await loadProviders()
+        await onProvidersChanged()
+      } catch (err) {
+        toast.error(t('toast-error', { message: err instanceof Error ? err.message : String(err) }))
+      }
+    },
+    [mutations, t, loadProviders, onProvidersChanged]
   )
 
   const handleSubmit = useCallback(
@@ -343,11 +375,12 @@ const BenefitProvidersView: React.FC<BenefitProvidersViewProps> = ({
           toast.success(t('toast-provider-updated', { name: data.value }))
         }
         await loadProviders()
+        await onProvidersChanged()
       } catch (err) {
         toast.error(t('toast-error', { message: err instanceof Error ? err.message : String(err) }))
       }
     },
-    [dialogMode, editingEntry, mutations, t, loadProviders]
+    [dialogMode, editingEntry, mutations, t, loadProviders, onProvidersChanged]
   )
 
   const titleSections = useMemo(
@@ -380,19 +413,10 @@ const BenefitProvidersView: React.FC<BenefitProvidersViewProps> = ({
                 {t('action-back')}
               </Button>
             )}
-            {parentBenefitType && (
-              <Button
-                size="sm"
-                onClick={() => {
-                  setDialogMode('create')
-                  setEditingEntry(undefined)
-                  setDialogOpen(true)
-                }}
-              >
-                <PlusIcon className="gba:size-4 gba:mr-1.5" />
-                {t('action-create-provider')}
-              </Button>
-            )}
+            <Button size="sm" onClick={openCreateDialog} data-testid="BenefitProvidersView-CreateButton">
+              <PlusIcon className="gba:size-4 gba:mr-1.5" />
+              {t('action-create-provider')}
+            </Button>
           </div>
         }
         toolbarDensity="compact"
@@ -417,13 +441,13 @@ const BenefitProvidersView: React.FC<BenefitProvidersViewProps> = ({
             <Section title={t('detail-section-basic')}>
               <Field label={t('providers-col-provider')}>{selectedRow.entry.value}</Field>
               <Field label={t('col-code')}>
-                <span className="gba:font-mono">{selectedRow.entry.code}</span>
+                <span className="gba:break-all gba:font-mono">{selectedRow.entry.code}</span>
               </Field>
               <Field label={t('col-description')}>{selectedRow.entry.description}</Field>
               <Field label={t('providers-col-parent')}>
                 {selectedRow.parentName ? (
                   <Badge variant="secondary" size="sm">
-                    {selectedRow.parentName}
+                    <span className="gba:break-words">{selectedRow.parentName}</span>
                   </Badge>
                 ) : null}
               </Field>
@@ -442,7 +466,13 @@ const BenefitProvidersView: React.FC<BenefitProvidersViewProps> = ({
               {!selectedRow.entry.isDeleted && (
                 <Button variant="destructive" size="sm" onClick={() => handleDelete(selectedRow.entry)}>
                   <ArchiveIcon className="gba:size-3.5 gba:mr-1.5" />
-                  {t('action-archive-benefit')}
+                  {t('action-archive-provider')}
+                </Button>
+              )}
+              {selectedRow.entry.isDeleted && (
+                <Button variant="outline" size="sm" onClick={() => handleActivate(selectedRow.entry)}>
+                  <ArrowCounterClockwiseIcon className="gba:size-3.5 gba:mr-1.5" />
+                  {t('action-reactivate-provider')}
                 </Button>
               )}
             </div>
@@ -460,6 +490,7 @@ const BenefitProvidersView: React.FC<BenefitProvidersViewProps> = ({
         parentBenefitType={
           parentBenefitType ? { id: parentBenefitType.id, value: parentBenefitType.value || '' } : undefined
         }
+        parentBenefitOptions={dialogParentBenefitOptions}
       />
     </>
   )

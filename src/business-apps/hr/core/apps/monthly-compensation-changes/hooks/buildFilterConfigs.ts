@@ -82,7 +82,8 @@ export function buildBenefitsFilterConfig(
       statusGroup(t, [
         { id: 'Active', label: t('status-active') },
         { id: 'Inactive', label: t('status-inactive') },
-        { id: 'Pending', label: t('status-pending') }
+        { id: 'Pending', label: t('status-pending') },
+        { id: 'Cancelled', label: t('status-cancelled') }
       ])
     ]
   }

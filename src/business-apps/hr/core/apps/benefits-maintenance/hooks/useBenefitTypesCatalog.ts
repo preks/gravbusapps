@@ -1,10 +1,9 @@
 import { useState, useCallback, useEffect } from 'react'
-import { useCatalogEntries, CatalogEntry } from '@/common/data/catalog'
-import {
-  BENEFIT_TYPE_CATALOG,
-  BENEFIT_TYPE_VERSION,
-  ENTRIES_PAGE_SIZE
-} from '../constants/benefitsMaintenanceConstants'
+import { CatalogEntry } from '@/common/data/catalog'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { toCatalogEntry } from '@/common/data/catalog/mappers/catalogMappers'
+import type { BaseCatalogEntry, CatalogEntryResponse } from '@/common/data/catalog/types/catalogTypes'
+import { buildBenefitTypesQuery } from '../api/benefitsMaintenanceQueries'
 import { BenefitTypeEntry, BenefitObjectValue } from '../types/benefitsMaintenanceTypes'
 
 interface UseBenefitTypesCatalogProps {
@@ -46,7 +45,7 @@ const parseObjectValue = (raw: unknown): BenefitObjectValue | undefined => {
 const toBenefitTypeEntry = (entry: CatalogEntry): BenefitTypeEntry => ({
   ...entry,
   parsedObjectValue: parseObjectValue(entry.objectValue),
-  providersCount: entry.childEntries?.length ?? 0
+  providersCount: entry.childEntries?.filter(child => !child.isDeleted).length ?? 0
 })
 
 export const useBenefitTypesCatalog = ({
@@ -58,7 +57,7 @@ export const useBenefitTypesCatalog = ({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const { fetchCatalogEntries } = useCatalogEntries({ accessToken })
+  const graphqlClient = useGraphQLClient(accessToken)
 
   const fetchEntries = useCallback(
     async (options?: { search?: string; parentEntryId?: string }) => {
@@ -66,18 +65,12 @@ export const useBenefitTypesCatalog = ({
       setError(null)
 
       try {
-        const { entries: raw, totalCount: count } = await fetchCatalogEntries({
-          catalogIdentifier: BENEFIT_TYPE_CATALOG,
-          version: BENEFIT_TYPE_VERSION,
-          limit: ENTRIES_PAGE_SIZE,
-          offset: 0,
-          search: options?.search,
-          parentEntryId: options?.parentEntryId,
-          includeChildCatalogEntries: true,
-          orderBy: [{ field: 'displayOrder', direction: 'ASC_NULLS_LAST' }]
-        })
+        const result = await graphqlClient.request<CatalogEntryResponse>(buildBenefitTypesQuery(options))
+        const raw = (result.CatalogEntry || []) as BaseCatalogEntry[]
+        const entries = raw.map(entry => toCatalogEntry(entry, raw, true))
+        const count = result.CatalogEntryAggregate?.aggregate?.count || entries.length || 0
 
-        setEntries(raw.map(toBenefitTypeEntry))
+        setEntries(entries.map(toBenefitTypeEntry))
         setTotalCount(count)
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to fetch benefit types'
@@ -88,7 +81,7 @@ export const useBenefitTypesCatalog = ({
         setLoading(false)
       }
     },
-    [fetchCatalogEntries]
+    [graphqlClient]
   )
 
   useEffect(() => {

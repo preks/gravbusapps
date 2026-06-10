@@ -38,13 +38,14 @@ interface EmployeeAssignmentsViewProps {
 
 const EMPTY_EMPLOYEE_SET = new Set<string>()
 const toExportValue = (value: number | null | undefined) => (value == null ? '' : value.toString())
+const isActiveBenefitAssignment = (row: ActiveBenefitRow) => row.status.toLowerCase() === 'active'
 
 export function EmployeeAssignmentsView({ accessToken, t, onKpiChange }: EmployeeAssignmentsViewProps) {
   const locale = getCurrentActiveUserLocale() ?? 'en-US'
   const [selectedDate, setSelectedDate] = useState(() => startOfMonth(new Date()))
   const [section, setSection] = useState('all')
   const [search, setSearch] = useState('')
-  const [filters, setFilters] = useState<Record<string, string[]>>({})
+  const [filters, setFilters] = useState<Record<string, string[]>>({ status: ['Active'] })
   const [selectedRow, setSelectedRow] = useState<ActiveBenefitRow | null>(null)
   const [isExporting, setIsExporting] = useState(false)
 
@@ -75,26 +76,26 @@ export function EmployeeAssignmentsView({ accessToken, t, onKpiChange }: Employe
 
   const { rows: allRows, loading, error } = useActiveBenefits(accessToken, selectedDate, allowedEmployeeIds)
 
-  const benefitRows = useMemo(() => allRows.filter(r => r.status.toLowerCase() !== 'pending'), [allRows])
+  const activeBenefitRows = useMemo(() => allRows.filter(isActiveBenefitAssignment), [allRows])
 
   useEffect(() => {
     if (!onKpiChange) return
-    const uniqueEmployees = new Set(benefitRows.map(r => r.employeeId)).size
-    const totalBenefits = benefitRows.length
+    const uniqueEmployees = new Set(activeBenefitRows.map(r => r.employeeId)).size
+    const totalBenefits = activeBenefitRows.length
     const avgBenefitsPerEmployee = uniqueEmployees > 0 ? Math.round((totalBenefits / uniqueEmployees) * 10) / 10 : 0
     onKpiChange({ totalBenefits, employeesWithBenefits: uniqueEmployees, avgBenefitsPerEmployee })
-  }, [benefitRows, onKpiChange])
+  }, [activeBenefitRows, onKpiChange])
 
   const columns = useMemo<ColumnDef<ActiveBenefitRow>[]>(() => buildBenefitColumns(t, locale), [t, locale])
 
   const companyFilterOptions = useMemo(() => companies.map(c => ({ id: c.id, label: c.name })), [companies])
 
   const providerOptions = useMemo(() => {
-    const providers = new Set(benefitRows.map(r => r.provider).filter(p => p && p !== '-'))
+    const providers = new Set(allRows.map(r => r.provider).filter(p => p && p !== '-'))
     return Array.from(providers)
       .sort((a, b) => a.localeCompare(b))
       .map(p => ({ id: p, label: p }))
-  }, [benefitRows])
+  }, [allRows])
 
   const filterConfig = useMemo<BenefitsFilterConfiguration>(
     () => buildBenefitsFilterConfig(t, companyFilterOptions, providerOptions),
@@ -103,25 +104,25 @@ export function EmployeeAssignmentsView({ accessToken, t, onKpiChange }: Employe
 
   const benefitTypeCounts = useMemo(() => {
     const counts = new Map<string, number>()
-    for (const row of benefitRows) {
+    for (const row of activeBenefitRows) {
       const key = row.benefitType || '-'
       counts.set(key, (counts.get(key) ?? 0) + 1)
     }
     return counts
-  }, [benefitRows])
+  }, [activeBenefitRows])
 
   const titleSections = useMemo(
     () => [
-      { id: 'all', label: t('assignments-section-all'), metadata: { count: benefitRows.length } },
+      { id: 'all', label: t('assignments-section-all'), metadata: { count: activeBenefitRows.length } },
       ...Array.from(benefitTypeCounts.entries())
         .sort((a, b) => b[1] - a[1])
         .map(([type, count]) => ({ id: type, label: type, metadata: { count } }))
     ],
-    [benefitRows.length, benefitTypeCounts, t]
+    [activeBenefitRows.length, benefitTypeCounts, t]
   )
 
   const filteredRows = useMemo(() => {
-    let rows = benefitRows
+    let rows = allRows
     if (deferredSection !== 'all') rows = rows.filter(r => r.benefitType === deferredSection)
     if (deferredSearch.trim()) {
       const q = deferredSearch.toLowerCase()
@@ -139,7 +140,7 @@ export function EmployeeAssignmentsView({ accessToken, t, onKpiChange }: Employe
       rows = rows.filter(r => statusFilter.some(s => r.status.toLowerCase().includes(s.toLowerCase())))
     }
     return rows
-  }, [benefitRows, deferredSection, deferredSearch, deferredFilters.provider, deferredFilters.status])
+  }, [allRows, deferredSection, deferredSearch, deferredFilters.provider, deferredFilters.status])
 
   const monthLabel = formatMonthYear(selectedDate, locale)
 

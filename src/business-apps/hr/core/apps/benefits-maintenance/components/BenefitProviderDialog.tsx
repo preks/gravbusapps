@@ -8,7 +8,12 @@ import {
   Button,
   Input,
   Label,
-  Textarea
+  Textarea,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
 } from '@newwork/nw-design-system'
 import { BenefitProviderFormData, BenefitsTranslationFn } from '../types/benefitsMaintenanceTypes'
 import { CatalogEntry } from '@/common/data/catalog'
@@ -21,6 +26,7 @@ interface BenefitProviderDialogProps {
   mode: 'create' | 'edit'
   initialData?: CatalogEntry
   parentBenefitType?: { id: string; value: string }
+  parentBenefitOptions?: Array<{ id: string; value: string }>
 }
 
 function getSubmitLabel(isSubmitting: boolean, mode: 'create' | 'edit', t: BenefitsTranslationFn): string {
@@ -45,7 +51,8 @@ const BenefitProviderDialog: React.FC<BenefitProviderDialogProps> = ({
   onSubmit,
   mode,
   initialData,
-  parentBenefitType
+  parentBenefitType,
+  parentBenefitOptions = []
 }) => {
   const [form, setForm] = useState<BenefitProviderFormData>(EMPTY_FORM)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -69,6 +76,8 @@ const BenefitProviderDialog: React.FC<BenefitProviderDialogProps> = ({
       })
     } else if (parentBenefitType) {
       setForm({ ...EMPTY_FORM, parentEntryId: parentBenefitType.id })
+    } else {
+      setForm(EMPTY_FORM)
     }
   }, [open, mode, initialData, parentBenefitType])
 
@@ -88,6 +97,7 @@ const BenefitProviderDialog: React.FC<BenefitProviderDialogProps> = ({
     const newErrors: Record<string, string> = {}
     if (!form.code.trim()) newErrors.code = t('validation-code-required')
     if (!form.value.trim()) newErrors.value = t('validation-name-required')
+    if (!form.parentEntryId.trim()) newErrors.parentEntryId = t('validation-parent-benefit-required')
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -122,6 +132,24 @@ const BenefitProviderDialog: React.FC<BenefitProviderDialogProps> = ({
               <div className="gba:text-sm gba:px-3 gba:py-2 gba:border gba:rounded-md gba:bg-muted">
                 {parentBenefitType.value}
               </div>
+            </div>
+          )}
+          {!parentBenefitType && (
+            <div className="gba:space-y-1">
+              <Label>{t('field-parent-benefit')}</Label>
+              <Select value={form.parentEntryId} onValueChange={value => handleChange('parentEntryId', value)}>
+                <SelectTrigger className="gba:w-full" data-testid="BenefitProviderDialog-ParentBenefit">
+                  <SelectValue placeholder={t('field-parent-benefit-placeholder')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {parentBenefitOptions.map(option => (
+                    <SelectItem key={option.id} value={option.id}>
+                      {option.value}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.parentEntryId && <p className="gba:text-xs gba:text-destructive">{errors.parentEntryId}</p>}
             </div>
           )}
 

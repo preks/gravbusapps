@@ -1,7 +1,6 @@
 import { Badge, Button } from '@newwork/nw-design-system'
 import { CheckIcon, XIcon } from '@phosphor-icons/react'
-import { ColumnDef } from '@tanstack/react-table'
-import { SortableHeader } from '@/business-apps/mdm/utils/tableUtils'
+import { Column, ColumnDef } from '@tanstack/react-table'
 import type { EmployeeSkillRecord } from '../types'
 
 export type PendingSkillAction = 'approve' | 'reject'
@@ -21,6 +20,21 @@ export function getEmployeeName(skill: EmployeeSkillRecord): string {
   const fullName = `${firstName} ${lastName}`.trim()
 
   return skill.employee.displayName || fullName || '-'
+}
+
+function SortableTextHeader<TData>({
+  column,
+  children
+}: Readonly<{ column: Column<TData>; children: React.ReactNode }>) {
+  return (
+    <Button
+      variant="ghost"
+      onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+      className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+    >
+      {children}
+    </Button>
+  )
 }
 
 function renderSkillNameCell(skill: EmployeeSkillRecord) {
@@ -94,7 +108,7 @@ export function buildPendingSkillsColumns(
     {
       id: 'skillName',
       accessorFn: row => getSkillName(row),
-      header: ({ column }) => SortableHeader({ column, children: t('pending-skill-name') }),
+      header: ({ column }) => <SortableTextHeader column={column}>{t('pending-skill-name')}</SortableTextHeader>,
       enableSorting: true,
       size: 240,
       maxSize: 300,
@@ -111,7 +125,7 @@ export function buildPendingSkillsColumns(
     {
       id: 'dateRequested',
       accessorFn: row => row.createdAt ?? null,
-      header: ({ column }) => SortableHeader({ column, children: t('pending-date') }),
+      header: ({ column }) => <SortableTextHeader column={column}>{t('pending-date')}</SortableTextHeader>,
       enableSorting: true,
       size: 150,
       maxSize: 170,

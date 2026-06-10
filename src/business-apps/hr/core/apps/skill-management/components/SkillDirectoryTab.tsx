@@ -6,24 +6,15 @@ import {
   ActionMenu,
   Badge,
   Button,
-  Card,
-  CardContent,
-  DataTable,
+  DataDisplay,
   Icon,
-  Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Spinner,
   toast,
   useTranslation
 } from '@newwork/nw-design-system'
-import type { ActionOption } from '@newwork/nw-design-system'
-import { ColumnDef, SortingState } from '@tanstack/react-table'
-import { DotsThreeIcon, PlusIcon, SparkleIcon, StackIcon, XCircleIcon } from '@phosphor-icons/react'
-import { SortableHeader } from '@/business-apps/mdm/utils/tableUtils'
+import type { ActionOption, FilterConfiguration } from '@newwork/nw-design-system'
+import { Column, ColumnDef } from '@tanstack/react-table'
+import { DotsThreeIcon, PlusIcon, SparkleIcon, XCircleIcon } from '@phosphor-icons/react'
 import { ErrorBoundary } from '@/business-apps/core/every/apps/every-box/components/ErrorBoundary'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useSkillDetails } from '../hooks/useSkillDetails'
@@ -35,7 +26,8 @@ import SkillDetailsPanel from './SkillDetailsPanel'
 import SkillDeduplicationPanel from './SkillDeduplicationPanel'
 import ConfirmSkillActionDialog from './ConfirmSkillActionDialog'
 import SkillActivationDialog from './SkillActivationDialog'
-import type { SkillDirectoryRecord, SkillStatusFilter, SkillCategoryRecord } from '../types'
+import { TabDataTable } from '@/business-apps/hr/core/apps/monthly-compensation-changes/components/TabDataTable'
+import type { SkillDirectoryRecord, SkillCategoryRecord } from '../types'
 import translations from '../_i18n'
 
 export interface SkillDirectoryTabProps extends BusinessAppContextProps {
@@ -48,8 +40,6 @@ export interface SkillDirectoryTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string
   onDataChange: () => void
 }
-
-const ALL_CATEGORIES_FILTER_VALUE = '__all_categories__'
 
 function renderSkillNameCell(value: string) {
   return (
@@ -78,6 +68,21 @@ function renderSkillEmployeeCountCell(count: number) {
 function renderSkillStatusCell(isActive: boolean, t: (key: string) => string) {
   return (
     <Badge variant={isActive ? 'success' : 'destructive'}>{isActive ? t('status-active') : t('status-inactive')}</Badge>
+  )
+}
+
+function SortableTextHeader<TData>({
+  column,
+  children
+}: Readonly<{ column: Column<TData>; children: React.ReactNode }>) {
+  return (
+    <Button
+      variant="ghost"
+      onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+      className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+    >
+      {children}
+    </Button>
   )
 }
 
@@ -117,7 +122,6 @@ function renderSkillDescriptionCell(description?: string) {
 function renderSkillActionsCell(
   skill: SkillDirectoryRecord,
   prefixDataTestId: string | undefined,
-  handleView: (skill: SkillDirectoryRecord) => void,
   setEditDialogOpen: React.Dispatch<React.SetStateAction<string | null>>,
   setDeleteConfirmSkill: React.Dispatch<React.SetStateAction<SkillDirectoryRecord | null>>,
   setActivationSkill: React.Dispatch<React.SetStateAction<SkillDirectoryRecord | null>>,
@@ -125,11 +129,6 @@ function renderSkillActionsCell(
 ) {
   const isActive = isSkillActive(skill, getTodayDateKey())
   const actions: ActionOption[] = [
-    {
-      key: `view-${skill.id}`,
-      label: t('skill-actions-view'),
-      onClick: () => handleView(skill)
-    },
     {
       key: `edit-${skill.id}`,
       label: t('skill-actions-edit'),
@@ -170,18 +169,59 @@ function renderSkillActionsCell(
   )
 }
 
-function toSkillStatusFilter(value: string): SkillStatusFilter {
-  if (value === 'active' || value === 'inactive' || value === 'all') {
-    return value
+function buildSkillDirectoryFilterConfig(
+  t: (key: string) => string,
+  categoryOptions: Array<{ id: string; label: string }>
+): FilterConfiguration {
+  return {
+    id: 'skill-directory-filters',
+    name: t('tab-skills-directory'),
+    groups: [
+      {
+        id: 'status-group',
+        label: t('filter-by-status'),
+        collapsible: true,
+        filters: [
+          {
+            id: 'status',
+            field: 'status',
+            label: t('filter-by-status'),
+            type: 'multi-select' as const,
+            config: {
+              options: [
+                { id: 'active', label: t('filter-status-active') },
+                { id: 'inactive', label: t('filter-status-inactive') }
+              ]
+            }
+          }
+        ]
+      },
+      ...(categoryOptions.length > 0
+        ? [
+            {
+              id: 'category-group',
+              label: t('filter-by-category'),
+              collapsible: true,
+              filters: [
+                {
+                  id: 'category',
+                  field: 'category',
+                  label: t('filter-by-category'),
+                  type: 'multi-select' as const,
+                  config: { options: categoryOptions }
+                }
+              ]
+            }
+          ]
+        : [])
+    ]
   }
-  return 'all'
 }
 
 function buildSkillDirectoryColumns(
   t: (key: string) => string,
   categoryMap: Record<string, string>,
   prefixDataTestId: string | undefined,
-  handleView: (skill: SkillDirectoryRecord) => void,
   setEditDialogOpen: React.Dispatch<React.SetStateAction<string | null>>,
   setDeleteConfirmSkill: React.Dispatch<React.SetStateAction<SkillDirectoryRecord | null>>,
   setActivationSkill: React.Dispatch<React.SetStateAction<SkillDirectoryRecord | null>>
@@ -189,7 +229,7 @@ function buildSkillDirectoryColumns(
   return [
     {
       accessorKey: 'name',
-      header: ({ column }) => SortableHeader({ column, children: t('skill-name') }),
+      header: ({ column }) => <SortableTextHeader column={column}>{t('skill-name')}</SortableTextHeader>,
       enableSorting: true,
       size: 260,
       maxSize: 320,
@@ -197,15 +237,16 @@ function buildSkillDirectoryColumns(
     },
     {
       id: 'category',
-      header: t('skill-category'),
-      enableSorting: false,
+      accessorFn: row => categoryMap[row.id] ?? '',
+      header: ({ column }) => <SortableTextHeader column={column}>{t('skill-category')}</SortableTextHeader>,
+      enableSorting: true,
       size: 180,
       maxSize: 220,
       cell: ({ row }) => renderSkillCategoryCell(categoryMap[row.original.id])
     },
     {
       id: 'employeeCount',
-      header: ({ column }) => SortableHeader({ column, children: t('skill-employees') }),
+      header: ({ column }) => <SortableTextHeader column={column}>{t('skill-employees')}</SortableTextHeader>,
       enableSorting: true,
       size: 140,
       maxSize: 160,
@@ -238,7 +279,6 @@ function buildSkillDirectoryColumns(
         renderSkillActionsCell(
           row.original,
           prefixDataTestId,
-          handleView,
           setEditDialogOpen,
           setDeleteConfirmSkill,
           setActivationSkill,
@@ -260,10 +300,8 @@ function SkillDirectoryTab({
   onDataChange
 }: Readonly<SkillDirectoryTabProps>) {
   const { t } = useTranslation(translations)
-  const [sorting, setSorting] = useState<SortingState>([])
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<SkillStatusFilter>('all')
-  const [categoryFilter, setCategoryFilter] = useState('')
+  const [filters, setFilters] = useState<Record<string, string[]>>({})
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null)
   const [isDetailsPanelOpen, setIsDetailsPanelOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState<string | null>(null)
@@ -360,18 +398,23 @@ function SkillDirectoryTab({
       )
     }
 
-    if (statusFilter === 'active') {
-      filtered = filtered.filter(skill => isSkillActive(skill, todayDateKey))
-    } else if (statusFilter === 'inactive') {
-      filtered = filtered.filter(skill => !isSkillActive(skill, todayDateKey))
+    const statusFilter = filters.status ?? []
+    if (statusFilter.length > 0) {
+      filtered = filtered.filter(skill => {
+        const active = isSkillActive(skill, todayDateKey)
+        if (statusFilter.includes('active') && active) return true
+        if (statusFilter.includes('inactive') && !active) return true
+        return false
+      })
     }
 
-    if (categoryFilter) {
-      filtered = filtered.filter(s => categoryMap[s.id] === categoryFilter)
+    const categoryFilter = filters.category ?? []
+    if (categoryFilter.length > 0) {
+      filtered = filtered.filter(skill => categoryFilter.includes(categoryMap[skill.id] ?? ''))
     }
 
     return filtered
-  }, [skills, searchTerm, statusFilter, categoryFilter, categoryMap])
+  }, [skills, searchTerm, filters.status, filters.category, categoryMap])
 
   useEffect(() => {
     if (selectedSkillId && !skills.some(skill => skill.id === selectedSkillId)) {
@@ -477,12 +520,27 @@ function SkillDirectoryTab({
         t,
         categoryMap,
         prefixDataTestId,
-        handleView,
         setEditDialogOpen,
         setDeleteConfirmSkill,
         setActivationSkill
       ),
-    [categoryMap, handleView, prefixDataTestId, t]
+    [categoryMap, prefixDataTestId, t]
+  )
+
+  const categoryFilterOptions = useMemo(
+    () =>
+      categories.map(category => ({ id: category, label: category })).sort((a, b) => a.label.localeCompare(b.label)),
+    [categories]
+  )
+
+  const filterConfig = useMemo(
+    () => buildSkillDirectoryFilterConfig(t, categoryFilterOptions),
+    [categoryFilterOptions, t]
+  )
+
+  const titleSections = useMemo(
+    () => [{ id: 'all', label: t('tab-skills-directory'), metadata: { count: filteredSkills.length } }],
+    [filteredSkills.length, t]
   )
 
   if (error) {
@@ -518,21 +576,29 @@ function SkillDirectoryTab({
           0%, 100% { box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.35), 0 0 16px rgba(59, 130, 246, 0.12); }
           50% { box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.55), 0 0 24px rgba(59, 130, 246, 0.2); }
         }
+
+        .ai-insights-pulse-glow {
+          animation: aiInsightsPulseGlow 2.5s ease-in-out infinite;
+        }
       `}</style>
-      <Card className="gba:rounded-lg gba:border gba:bg-card gba:text-card-foreground gba:shadow-sm gba:overflow-hidden">
-        <div className="gba:flex gba:items-center gba:justify-between gba:p-6 gba:pb-0">
-          <div>
-            <h3 className="gba:text-lg gba:font-semibold">
-              {t('tab-skills-directory')} ({skills.length})
-            </h3>
-            <p className="gba:text-sm gba:text-muted-foreground">{t('skill-management-description')}</p>
-          </div>
-          <div className="gba:flex gba:items-center gba:gap-2">
+      <DataDisplay
+        titleSections={titleSections}
+        currentSection="all"
+        onSectionChange={() => {}}
+        searchValue={searchTerm}
+        searchPlaceholder={t('search-skills')}
+        onSearchChange={setSearchTerm}
+        filters={filters}
+        filterConfiguration={filterConfig}
+        onFilterChange={setFilters}
+        filterSheetTitle={t('tab-skills-directory')}
+        filterSheetDescription={t('skill-management-description')}
+        secondaryActions={
+          <div className="gba:flex gba:items-center gba:gap-2 gba:pl-1">
             <Button
               variant="outline"
               size="sm"
-              className="gba:flex gba:items-center gba:gap-2"
-              style={{ animation: 'aiInsightsPulseGlow 2.5s ease-in-out infinite' }}
+              className="gba:flex gba:items-center gba:gap-2 ai-insights-pulse-glow"
               onClick={handleFindDuplicates}
               disabled={isAnalyzing || skills.length < 2}
               data-testid={`${prefixDataTestId}-find-duplicates`}
@@ -554,78 +620,24 @@ function SkillDirectoryTab({
               />
             </ErrorBoundary>
           </div>
-        </div>
-
-        <CardContent className="gba:pt-4">
-          <div className="gba:flex gba:gap-3 gba:mb-6 gba:flex-wrap">
-            <div className="gba:relative gba:max-w-sm gba:flex-1 gba:min-w-[200px]">
-              <Input
-                placeholder={t('search-skills')}
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                data-testid={`${prefixDataTestId}-search-input`}
-              />
-            </div>
-
-            <Select value={statusFilter} onValueChange={(value: string) => setStatusFilter(toSkillStatusFilter(value))}>
-              <SelectTrigger className="gba:w-[150px]">
-                <SelectValue placeholder={t('filter-by-status')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t('filter-status-all')}</SelectItem>
-                <SelectItem value="active">{t('filter-status-active')}</SelectItem>
-                <SelectItem value="inactive">{t('filter-status-inactive')}</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {categories.length > 0 && (
-              <Select
-                value={categoryFilter || ALL_CATEGORIES_FILTER_VALUE}
-                onValueChange={value => setCategoryFilter(value === ALL_CATEGORIES_FILTER_VALUE ? '' : value)}
-              >
-                <SelectTrigger className="gba:w-[180px]">
-                  <SelectValue placeholder={t('filter-by-category')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL_CATEGORIES_FILTER_VALUE}>{t('filter-status-all')}</SelectItem>
-                  {categories.map(cat => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-
-          {filteredSkills.length === 0 && !isLoading ? (
-            <div className="gba:text-center gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8">
-              <StackIcon className="gba:h-12 gba:w-12 gba:text-gray-400" />
-              <p className="gba:font-normal gba:text-gray-500 gba:mt-2">
-                {searchTerm || statusFilter !== 'all' || categoryFilter
-                  ? t('empty-no-matching-skills')
-                  : t('empty-no-skills')}
-              </p>
-              <p className="gba:text-sm gba:text-gray-400">
-                {searchTerm || statusFilter !== 'all' || categoryFilter
-                  ? t('empty-no-matching-skills-description')
-                  : t('empty-no-skills-description')}
-              </p>
-            </div>
-          ) : (
-            <ErrorBoundary>
-              <DataTable
-                data={filteredSkills}
-                columns={columns}
-                sorting={sorting}
-                onSortingChange={setSorting}
-                enableSorting
-                enablePagination
-              />
-            </ErrorBoundary>
-          )}
-        </CardContent>
-      </Card>
+        }
+        toolbarDensity="compact"
+      >
+        <ErrorBoundary>
+          <TabDataTable
+            data={filteredSkills}
+            columns={columns}
+            loading={isLoading}
+            error={null}
+            emptyMessage={
+              searchTerm || Object.values(filters).some(value => value.length > 0)
+                ? t('empty-no-matching-skills')
+                : t('empty-no-skills')
+            }
+            onRowClick={handleView}
+          />
+        </ErrorBoundary>
+      </DataDisplay>
 
       {isDetailsPanelOpen && selectedSkillId && (
         <ErrorBoundary>
