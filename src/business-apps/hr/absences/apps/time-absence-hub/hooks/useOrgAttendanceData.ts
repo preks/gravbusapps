@@ -20,7 +20,7 @@ import { LEGAL_ENTITY_NOT_DEFINED_FILTER_ID } from '../constants/routes'
 import { clampDateRangeToPast } from '../components/views/attendance/attendanceUtils'
 
 const EMPLOYEE_ID_BATCH_SIZE = 200
-const ATTENDANCE_DATA_LOADER_VERSION = 3
+const ATTENDANCE_DATA_LOADER_VERSION = 4
 
 const isUuid = (value: string): boolean =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
@@ -97,6 +97,16 @@ const mapHolidayData = (holidayData: Awaited<ReturnType<typeof fetchTeamHolidayD
     })
   })
   return rows
+}
+
+const getEmployeeTimeRelevant = (employee: FilteredEmployee): boolean => {
+  const objectValue = employee.workingCondition?.[0]?.contractType?.objectValue
+
+  if (!objectValue || typeof objectValue !== 'object' || Array.isArray(objectValue)) {
+    return true
+  }
+
+  return objectValue.time_relevant !== false
 }
 
 export interface UseOrgAttendanceDataParams {
@@ -177,7 +187,12 @@ export const useOrgAttendanceData = ({
           { where: buildEmployeeWhereForHubFilters(structureId, filters) }
         )
 
-        const employees = employeesResponse.Employee ?? []
+        const employees = (employeesResponse.Employee ?? [])
+          .map(employee => ({
+            ...employee,
+            timeRelevant: getEmployeeTimeRelevant(employee)
+          }))
+          .filter(employee => employee.timeRelevant)
         const employeeIds = employees.map(e => e.id)
 
         if (cancelled) {
