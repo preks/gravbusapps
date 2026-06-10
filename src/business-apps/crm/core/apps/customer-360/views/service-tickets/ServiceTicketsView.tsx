@@ -8,6 +8,7 @@ import Customer360Section from '../../components/Customer360Section'
 import Customer360List, { type Customer360RowData } from '../../components/Customer360List'
 import { getStatusBadgeVariant } from '../../utils/statusBadge'
 import { formatDate } from '../../utils/format'
+import CustomerAgentRunsSection from './CustomerAgentRunsSection'
 
 export interface ServiceTicketsViewProps extends BusinessAppContextProps {
   subject: Customer360Subject
@@ -19,7 +20,7 @@ export interface ServiceTicketsViewProps extends BusinessAppContextProps {
  * Service Tickets tab — custom-flow-engine flow instances correlated to the
  * customer, rendered as a status-aware list.
  */
-const ServiceTicketsView: React.FC<ServiceTicketsViewProps> = ({ snapshot, loading }) => {
+const ServiceTicketsView: React.FC<ServiceTicketsViewProps> = ({ subject, snapshot, loading, ...props }) => {
   const { t } = useFluentTranslation(customer360I18n)
   const tickets = snapshot.tickets ?? []
 
@@ -62,6 +63,7 @@ const ServiceTicketsView: React.FC<ServiceTicketsViewProps> = ({ snapshot, loadi
       >
         <Customer360List rows={rows} testId="customer-360-service-tickets-list" />
       </Customer360Section>
+      <CustomerAgentRunsSection accessToken={props.accessToken} subject={subject} />
     </div>
   )
 }

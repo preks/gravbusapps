@@ -24,6 +24,37 @@ dw-composer-rotate-5 = să redacteze un e-mail
 dw-composer-rotate-6 = să ducă treaba la capăt
 dw-composer-hint = Apasă Enter pentru a porni o sarcină
 
+# AI console
+dw-ai-title = Every AI
+dw-ai-subtitle = Pornește o sarcină sau alege o acțiune rapidă de mai jos.
+dw-ai-quick-heading = Acțiuni rapide
+dw-ai-edit = Personalizează acțiunile rapide
+
+# Quick action defaults
+dw-quick-sales-label = Analizează vânzările recente
+dw-quick-sales-prompt = Analizează cele mai recente activități de vânzări și rezumă principalele tendințe, reușite și riscuri.
+dw-quick-mail-label = Rezumă mailurile necitite
+dw-quick-mail-prompt = Rezumă e-mailurile mele necitite și evidențiază ce are nevoie de atenția mea astăzi.
+dw-quick-status-label = Redactează un update de status
+dw-quick-status-prompt = Redactează un update săptămânal concis pornind de la munca mea recentă și sarcinile deschise.
+dw-quick-meeting-label = Pregătește următoarea ședință
+dw-quick-meeting-prompt = Pregătește un briefing pentru următoarea mea ședință, inclusiv context, participanți și puncte de discuție.
+
+# Quick actions editor
+dw-quick-editor-title = Personalizează acțiunile rapide
+dw-quick-editor-desc = Adaugă, editează sau elimină acțiunile cu un singur clic care pornesc o sarcină Every.
+dw-quick-editor-label = Etichetă
+dw-quick-editor-label-placeholder = ex. Analizează vânzările recente
+dw-quick-editor-prompt = Prompt
+dw-quick-editor-prompt-placeholder = Ce ar trebui să facă Every?
+dw-quick-editor-icon = Schimbă pictograma
+dw-quick-editor-remove = Elimină acțiunea
+dw-quick-editor-add = Adaugă acțiune
+dw-quick-editor-reset = Revino la valorile implicite
+dw-quick-editor-save = Salvează modificările
+dw-quick-editor-cancel = Anulează
+dw-quick-editor-empty = Încă nu există acțiuni rapide. Adaugă una pentru a începe.
+
 # Shared
 dw-open-app = Deschide
 dw-refresh = Reîmprospătează

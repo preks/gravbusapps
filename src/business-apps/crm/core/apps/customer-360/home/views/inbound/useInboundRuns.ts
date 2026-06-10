@@ -17,19 +17,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
-import {
-  hasCustomer360InboundTag,
-  type WorkforceRun,
-  type WorkforceRunListParams
+import type {
+  WorkforceRun,
+  WorkforceRunListParams
 } from '@/business-apps/core/every-fabric/apps/every-fabric/components/enterprise-workforce/workforceTypes'
-
-/**
- * Fallback agent name (matches `AGENT_NAME` in
- * prompt-manager/scripts/customer_360_defs.py). Used only when no agent has
- * opted into Customer 360 via the toggle in its Enterprise Workforce settings,
- * so the seeded analyst keeps working out of the box.
- */
-const CUSTOMER_360_AGENT_NAME = 'customer_360_analyst'
+import { useCustomer360InboundAgents } from '../../../data/hooks/useCustomer360InboundAgents'
 
 export const INBOUND_PAGE_SIZE = 25
 
@@ -61,43 +53,12 @@ export interface UseInboundRunsResult {
 
 export function useInboundRuns(accessToken: string): UseInboundRunsResult {
   const client = usePromptManagerClient(accessToken)
-  const [agentIds, setAgentIds] = useState<string[]>([])
-  const [agentResolved, setAgentResolved] = useState(false)
-  const [agentError, setAgentError] = useState<string | null>(null)
+  const { agentIds, resolved: agentResolved, error: agentError } = useCustomer360InboundAgents(accessToken)
   const [allRuns, setAllRuns] = useState<WorkforceRun[]>([])
   const [runsLoading, setRunsLoading] = useState(false)
   const [runsError, setRunsError] = useState<string | null>(null)
   const [page, setPage] = useState(0)
   const [search, setSearch] = useState('')
-
-  // 1) Resolve every agent opted into Customer 360 inbound (by tag); fall back
-  //    to the seeded analyst by name so the demo works untouched.
-  useEffect(() => {
-    if (!accessToken) return undefined
-    let cancelled = false
-    setAgentResolved(false)
-    const resolveAgents = async () => {
-      try {
-        const result = await client.listWorkforceAgents({ status: 'active', limit: 200 })
-        if (cancelled) return
-        const agents = result.data ?? []
-        const tagged = agents.filter(hasCustomer360InboundTag)
-        const resolved = tagged.length > 0 ? tagged : agents.filter(agent => agent.name === CUSTOMER_360_AGENT_NAME)
-        setAgentIds(resolved.map(agent => agent.agent_id))
-        setAgentError(null)
-      } catch (err) {
-        if (cancelled) return
-        setAgentIds([])
-        setAgentError(err instanceof Error ? err.message : 'Failed to resolve the Customer 360 agent')
-      } finally {
-        if (!cancelled) setAgentResolved(true)
-      }
-    }
-    void resolveAgents()
-    return () => {
-      cancelled = true
-    }
-  }, [accessToken, client])
 
   const trimmedSearch = search.trim()
 

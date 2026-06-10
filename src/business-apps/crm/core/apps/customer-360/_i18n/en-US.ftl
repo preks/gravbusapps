@@ -63,6 +63,9 @@ tickets-untitled = Untitled ticket
 tickets-priority = Priority: { $priority }
 tickets-empty-title = No service tickets
 tickets-empty-description = Tickets opened for this customer will appear here.
+agent-runs-title = Inbound agent activity
+agent-runs-empty-title = No agent runs yet
+agent-runs-empty-description = When an agent handles an inbound email about this customer, the run appears here.
 
 # Service cases & reclamations
 cases-title = Cases

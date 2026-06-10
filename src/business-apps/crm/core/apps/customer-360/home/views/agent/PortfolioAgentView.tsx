@@ -9,7 +9,7 @@ import {
   useTranslation as useFluentTranslation
 } from '@newwork/nw-design-system'
 import { RobotIcon, SparkleIcon, StorefrontIcon } from '@phosphor-icons/react'
-import { openEveryAI } from '@/common/utils/openEveryAI'
+import { openEveryFabric } from '@/common/utils/openEveryFabric'
 import { navigateTo, buildPlatformUrl, Navigation } from '@/common/utils/navigationUtils'
 import customer360I18n from '../../../_i18n'
 import AttentionList from '../../components/AttentionList'
@@ -32,12 +32,8 @@ const PortfolioAgentView: React.FC<Customer360HomeViewProps> = ({ portfolio, ope
   const topRows = useMemo(() => rows.filter(row => row.attentionReasons.length > 0), [rows])
 
   const handleTriage = useCallback(() => {
-    openEveryAI({
-      prompt: handoff.prompt,
-      additionInfo: handoff.additionInfo,
-      skills: handoff.skills,
-      newSession: true
-    })
+    const prompt = handoff.additionInfo ? `${handoff.prompt}\n\nContext:\n${handoff.additionInfo}` : handoff.prompt
+    openEveryFabric({ prompt })
   }, [handoff])
 
   const handleOpenWorkforce = useCallback(() => {

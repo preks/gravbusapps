@@ -297,7 +297,7 @@ export const EnterpriseWorkforceScreen: React.FC<EnterpriseWorkforceScreenProps>
         </div>
       </div>
 
-      <div className="gba:flex-1 gba:overflow-y-auto">
+      <div className="gba:@container gba:flex-1 gba:overflow-y-auto">
         <div className="gba:mx-auto gba:flex gba:max-w-screen-2xl gba:flex-col gba:gap-6 gba:px-6 gba:py-8 gba:lg:px-10">
           {view === 'active' ? (
             <>
@@ -313,7 +313,7 @@ export const EnterpriseWorkforceScreen: React.FC<EnterpriseWorkforceScreenProps>
               )}
               */}
 
-              <div className="gba:flex gba:flex-col gba:gap-6 gba:lg:flex-row gba:lg:items-start">
+              <div className="gba:flex gba:flex-col gba:gap-6 gba:@2xl:flex-row gba:@2xl:items-start">
                 <div className="gba:flex gba:min-w-0 gba:flex-1 gba:flex-col gba:gap-6">
                   <div className="gba:flex gba:flex-col gba:gap-3">
                     <WorkforceAIComposer activeQuery={aiQuery} onSubmit={setAiQuery} onClear={() => setAiQuery(null)} />
@@ -378,7 +378,7 @@ export const EnterpriseWorkforceScreen: React.FC<EnterpriseWorkforceScreenProps>
 
                 {!isAIMatching && (
                   <aside
-                    className="gba:w-full gba:shrink-0 gba:lg:sticky gba:lg:top-6 gba:lg:w-96 gba:lg:self-start"
+                    className="gba:w-full gba:shrink-0 gba:@2xl:sticky gba:@2xl:top-6 gba:@2xl:w-80 gba:@2xl:self-start"
                     data-testid="workforce-command-center-sidebar"
                   >
                     <LiveCommandCenter

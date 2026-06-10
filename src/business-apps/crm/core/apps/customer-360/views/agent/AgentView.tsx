@@ -10,7 +10,7 @@ import {
 } from '@newwork/nw-design-system'
 import { RobotIcon, SparkleIcon, StorefrontIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { openEveryAI } from '@/common/utils/openEveryAI'
+import { openEveryFabric } from '@/common/utils/openEveryFabric'
 import { navigateTo, buildPlatformUrl, Navigation } from '@/common/utils/navigationUtils'
 import customer360I18n from '../../_i18n'
 import type { Customer360Snapshot, Customer360Subject } from '../../data/types'
@@ -39,12 +39,8 @@ const AgentView: React.FC<AgentViewProps> = ({ subject, snapshot, loading }) => 
   const handoff = useMemo(() => buildCustomer360Handoff(subject, snapshot), [subject, snapshot])
 
   const handleAskAgent = useCallback(() => {
-    openEveryAI({
-      prompt: handoff.prompt,
-      additionInfo: handoff.additionInfo,
-      skills: handoff.skills,
-      newSession: true
-    })
+    const prompt = handoff.additionInfo ? `${handoff.prompt}\n\nContext:\n${handoff.additionInfo}` : handoff.prompt
+    openEveryFabric({ prompt })
   }, [handoff])
 
   const handleOpenWorkforce = useCallback(() => {

@@ -1,16 +1,18 @@
 // "Orgchart identity" section — registers the workforce agent as a virtual
 // assistant in the orgchart via FlowBot's /virtual-assistants API:
 //   1. create (or reuse) a Keycloak user for the agent
-//   2. create the orgchart employee linked to that user
+//   2. create the orgchart employee linked to that user, placed in the
+//      operator-chosen organizational unit (defaults to "Virtual Assistants")
 //   3. persist {keycloak_user_id, employee_id, org_unit_id} on the agent's
 //      workforce profile so headless runs authenticate AS the agent
 //      (token exchange in prompt-manager) instead of the shared service account.
 
-import { Button } from '@newwork/nw-design-system'
+import { Badge, Button, Combobox, Input, Label, type ComboboxOption } from '@newwork/nw-design-system'
 import { SpinnerGapIcon, UserCirclePlusIcon } from '@phosphor-icons/react'
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { flowbotClient } from '@/common/network/flowbot'
 import type { WorkforceAgent, WorkforceAgentUpdateInput } from '../workforceTypes'
+import { useOrgchartUnitName, useOrgchartUnits, type OrgchartUnit } from './useOrgchartUnits'
 
 interface OrgchartRegistrationSectionProps {
   agent: WorkforceAgent
@@ -48,8 +50,14 @@ function describeRegistrationError(err: unknown): string {
   return message
 }
 
-const inputClass =
-  'gba:h-8 gba:w-full gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-2.5 gba:text-xs gba:text-foreground gba:focus:outline-none gba:focus:ring-1 gba:focus:ring-ring'
+/** Secondary line for a unit option (type · company · member count). */
+function describeUnit(unit: OrgchartUnit): string {
+  const parts: string[] = []
+  if (unit.type) parts.push(unit.type.toLowerCase())
+  if (unit.companyName) parts.push(unit.companyName)
+  parts.push(`${unit.memberCount} ${unit.memberCount === 1 ? 'member' : 'members'}`)
+  return parts.join(' · ')
+}
 
 export const OrgchartRegistrationSection: React.FC<OrgchartRegistrationSectionProps> = ({
   agent,
@@ -65,8 +73,39 @@ export const OrgchartRegistrationSection: React.FC<OrgchartRegistrationSectionPr
   const [lastName, setLastName] = useState(defaults.lastName)
   const [jobPosition, setJobPosition] = useState(agent.workforce_profile?.role ?? '')
   const [existingUserId, setExistingUserId] = useState('')
+  const [orgUnitId, setOrgUnitId] = useState('')
+  const [orgUnitLabel, setOrgUnitLabel] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const {
+    units,
+    loading: unitsLoading,
+    error: unitsError,
+    hasMore,
+    setSearch,
+    loadMore
+  } = useOrgchartUnits(accessToken)
+  const registeredUnitName = useOrgchartUnitName(accessToken, registered ? identity?.org_unit_id : null)
+
+  // Keep the chosen unit visible on the trigger even when it scrolls out of
+  // the currently-loaded/searched page.
+  const unitOptions = useMemo<ComboboxOption[]>(() => {
+    const opts = units.map(unit => ({
+      value: unit.id,
+      label: unit.name,
+      optionLabel: (
+        <span className="gba:flex gba:flex-col">
+          <span className="gba:text-sm gba:text-foreground">{unit.name}</span>
+          <span className="gba:text-xs gba:text-muted-foreground">{describeUnit(unit)}</span>
+        </span>
+      )
+    }))
+    if (orgUnitId && !units.some(unit => unit.id === orgUnitId)) {
+      opts.unshift({ value: orgUnitId, label: orgUnitLabel || orgUnitId })
+    }
+    return opts
+  }, [units, orgUnitId, orgUnitLabel])
 
   const register = async () => {
     setBusy(true)
@@ -90,7 +129,8 @@ export const OrgchartRegistrationSection: React.FC<OrgchartRegistrationSectionPr
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         display_name: agent.display_name || undefined,
-        job_position_name: jobPosition.trim() || undefined
+        job_position_name: jobPosition.trim() || undefined,
+        org_unit_id: orgUnitId || undefined
       })
 
       await onSave({
@@ -136,22 +176,28 @@ export const OrgchartRegistrationSection: React.FC<OrgchartRegistrationSectionPr
       <div className="gba:space-y-3 gba:px-5 gba:py-4">
         {registered ? (
           <div
-            className="gba:rounded-lg gba:border gba:border-emerald-200 gba:bg-emerald-50/50 gba:px-3 gba:py-2.5"
+            className="gba:rounded-lg gba:border gba:border-border gba:bg-muted/40 gba:px-3 gba:py-2.5"
             data-testid="workforce-orgchart-registered"
           >
-            <p className="gba:text-xs gba:font-medium gba:text-emerald-800">Registered in orgchart</p>
-            <dl className="gba:mt-1.5 gba:space-y-0.5 gba:text-[11px] gba:text-emerald-900/80">
+            <Badge variant="success" size="sm">
+              Registered in orgchart
+            </Badge>
+            <dl className="gba:mt-2 gba:space-y-0.5 gba:text-[11px] gba:text-muted-foreground">
               <div className="gba:flex gba:gap-1.5">
-                <dt className="gba:font-medium">Employee:</dt>
+                <dt className="gba:font-medium gba:text-foreground">Org unit:</dt>
+                <dd>{registeredUnitName ?? <span className="gba:font-mono">{identity?.org_unit_id ?? '—'}</span>}</dd>
+              </div>
+              <div className="gba:flex gba:gap-1.5">
+                <dt className="gba:font-medium gba:text-foreground">Employee:</dt>
                 <dd className="gba:font-mono">{identity?.employee_id ?? '—'}</dd>
               </div>
               <div className="gba:flex gba:gap-1.5">
-                <dt className="gba:font-medium">Keycloak user:</dt>
+                <dt className="gba:font-medium gba:text-foreground">Keycloak user:</dt>
                 <dd className="gba:font-mono">{identity?.keycloak_user_id}</dd>
               </div>
               {identity?.registered_at && (
                 <div className="gba:flex gba:gap-1.5">
-                  <dt className="gba:font-medium">Since:</dt>
+                  <dt className="gba:font-medium gba:text-foreground">Since:</dt>
                   <dd>{new Date(identity.registered_at).toLocaleString()}</dd>
                 </div>
               )}
@@ -160,53 +206,86 @@ export const OrgchartRegistrationSection: React.FC<OrgchartRegistrationSectionPr
         ) : (
           <>
             <div className="gba:grid gba:grid-cols-2 gba:gap-3">
-              <label className="gba:block">
-                <span className="gba:mb-1 gba:block gba:text-[11px] gba:font-medium gba:text-muted-foreground">
+              <div className="gba:space-y-1">
+                <Label htmlFor="workforce-orgchart-first-name" className="gba:text-[11px] gba:text-muted-foreground">
                   First name
-                </span>
-                <input
+                </Label>
+                <Input
+                  id="workforce-orgchart-first-name"
                   value={firstName}
                   onChange={event => setFirstName(event.target.value)}
-                  className={inputClass}
                   data-testid="workforce-orgchart-first-name"
                 />
-              </label>
-              <label className="gba:block">
-                <span className="gba:mb-1 gba:block gba:text-[11px] gba:font-medium gba:text-muted-foreground">
+              </div>
+              <div className="gba:space-y-1">
+                <Label htmlFor="workforce-orgchart-last-name" className="gba:text-[11px] gba:text-muted-foreground">
                   Last name
-                </span>
-                <input
+                </Label>
+                <Input
+                  id="workforce-orgchart-last-name"
                   value={lastName}
                   onChange={event => setLastName(event.target.value)}
-                  className={inputClass}
                   data-testid="workforce-orgchart-last-name"
                 />
-              </label>
+              </div>
             </div>
-            <label className="gba:block">
-              <span className="gba:mb-1 gba:block gba:text-[11px] gba:font-medium gba:text-muted-foreground">
+
+            <div className="gba:space-y-1">
+              <Label htmlFor="workforce-orgchart-job-position" className="gba:text-[11px] gba:text-muted-foreground">
                 Job position
-              </span>
-              <input
+              </Label>
+              <Input
+                id="workforce-orgchart-job-position"
                 value={jobPosition}
                 onChange={event => setJobPosition(event.target.value)}
                 placeholder="e.g. Customer Service Agent"
-                className={inputClass}
                 data-testid="workforce-orgchart-job-position"
               />
-            </label>
-            <label className="gba:block">
-              <span className="gba:mb-1 gba:block gba:text-[11px] gba:font-medium gba:text-muted-foreground">
+            </div>
+
+            <div className="gba:space-y-1">
+              <Label className="gba:text-[11px] gba:text-muted-foreground">Organizational unit</Label>
+              <Combobox
+                mode="single"
+                value={orgUnitId}
+                options={unitOptions}
+                placeholder="Default: Virtual Assistants team"
+                searchPlaceholder="Search organizational units…"
+                emptyText={unitsError ?? 'No organizational units found'}
+                loading={unitsLoading}
+                error={Boolean(unitsError)}
+                errorText={unitsError ?? undefined}
+                hasMore={hasMore}
+                onLoadMore={loadMore}
+                onSearch={setSearch}
+                searchDebounce={300}
+                showClearButton
+                onValueChange={value => {
+                  setOrgUnitId(value)
+                  setOrgUnitLabel(units.find(unit => unit.id === value)?.name ?? '')
+                }}
+                data-testid="workforce-orgchart-org-unit"
+              />
+              <p className="gba:text-[11px] gba:text-muted-foreground">
+                Where the agent appears in the org chart. Leave empty to use the default “Virtual Assistants” team.
+              </p>
+            </div>
+
+            <div className="gba:space-y-1">
+              <Label
+                htmlFor="workforce-orgchart-existing-user-id"
+                className="gba:text-[11px] gba:text-muted-foreground"
+              >
                 Existing Keycloak user ID (optional)
-              </span>
-              <input
+              </Label>
+              <Input
+                id="workforce-orgchart-existing-user-id"
                 value={existingUserId}
                 onChange={event => setExistingUserId(event.target.value)}
                 placeholder="Leave empty to create a new user automatically"
-                className={inputClass}
                 data-testid="workforce-orgchart-existing-user-id"
               />
-            </label>
+            </div>
           </>
         )}
 
@@ -229,11 +308,11 @@ export const OrgchartRegistrationSection: React.FC<OrgchartRegistrationSectionPr
             Unlink identity
           </Button>
         ) : (
-          <button
-            type="button"
+          <Button
+            variant="default"
+            size="sm"
             disabled={busy || isSaving || !firstName.trim() || !lastName.trim()}
             onClick={() => void register()}
-            className="gba:inline-flex gba:h-8 gba:items-center gba:justify-center gba:gap-1.5 gba:rounded-md gba:bg-primary gba:px-3 gba:text-xs gba:font-medium gba:text-primary-foreground gba:shadow-sm gba:transition-colors gba:hover:bg-primary/90 gba:disabled:cursor-not-allowed gba:disabled:opacity-50"
             data-testid="workforce-orgchart-register"
           >
             {busy || isSaving ? (
@@ -242,7 +321,7 @@ export const OrgchartRegistrationSection: React.FC<OrgchartRegistrationSectionPr
               <UserCirclePlusIcon className="gba:h-3.5 gba:w-3.5" />
             )}
             {busy || isSaving ? 'Registering…' : 'Register in orgchart'}
-          </button>
+          </Button>
         )}
       </footer>
     </section>
