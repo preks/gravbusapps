@@ -1,0 +1,307 @@
+# NEWWORK Billing & Invoicing - English (en-US)
+
+# Generic
+billing-app-title = Billing & Invoicing
+billing-app-description = Create, issue, and reconcile customer invoices
+billing-loading = Loading billing data...
+billing-sample-data-notice = Showing sample data. Connect the Billing Core service to load live invoices.
+billing-connection-detail = Connection detail
+billing-back-to-billing = Back to Billing
+billing-action-export = Export
+billing-action-cancel = Cancel
+billing-action-save = Save
+billing-action-close = Close
+billing-action-failed = Action failed
+billing-search-invoices = Search invoices
+
+# Invoice status labels
+billing-status-draft = Draft
+billing-status-issued = Issued
+billing-status-sent = Sent
+billing-status-partially-paid = Partially paid
+billing-status-paid = Paid
+billing-status-overdue = Overdue
+billing-status-cancelled = Cancelled
+billing-status-written-off = Written off
+
+# Payment method labels
+billing-payment-method-bank-transfer = Bank transfer
+billing-payment-method-sepa = SEPA direct debit
+billing-payment-method-card = Card
+billing-payment-method-cash = Cash
+billing-payment-method-other = Other
+
+# Ledger event labels
+billing-event-issued = Issued
+billing-event-paid = Payment
+billing-event-cancelled = Cancelled
+billing-event-credit-note = Credit note
+billing-event-written-off = Written off
+billing-event-fx = FX difference
+
+# Activity / audit action labels
+billing-audit-issued = Issued
+billing-audit-cancelled = Cancelled
+billing-audit-payment = Payment recorded
+billing-audit-written_off = Written off
+
+# Launcher
+billing-launcher-title = Billing & Invoicing
+billing-launcher-description = Manage invoices, payments, and revenue across legal entities
+billing-launcher-quick-actions = Quick Actions
+billing-launcher-quick-actions-desc = Frequently used billing functions
+billing-kpi-draft = Draft invoices
+billing-kpi-issued = Issued invoices
+billing-kpi-overdue = Overdue amount
+billing-kpi-paid-month = Paid this month
+billing-kpi-unreconciled = Unreconciled payments
+billing-quick-create-invoice = Create invoice
+billing-quick-open-invoices = Open invoices
+billing-quick-reconciliation = Reconciliation
+billing-quick-settings = Finance settings
+billing-quick-transactions = Transactions
+billing-section-workspaces = Workspaces
+billing-section-administration = Administration
+billing-section-reports = Reports
+
+# Transactions workspace
+billing-transactions-title = Transactions
+billing-transactions-description = Browse and post ledger transactions across all accounts.
+billing-transactions-account-filter = Account
+billing-transactions-clear-filter = Clear filter
+
+# Invoice management
+billing-invoices-title = Invoices
+billing-invoices-description = All invoices across legal entities and customers
+billing-invoices-empty = No invoices found. Create your first invoice to get started.
+billing-invoices-create = Create invoice
+billing-column-number = Number
+billing-column-customer = Customer
+billing-column-status = Status
+billing-column-issue-date = Issue date
+billing-column-due-date = Due date
+billing-column-currency = Currency
+billing-column-gross = Gross total
+billing-column-outstanding = Outstanding
+billing-filter-status = Status
+billing-filter-all = All
+
+# Invoice record
+billing-record-title = Invoice
+billing-record-tab-overview = Overview
+billing-record-tab-lines = Lines
+billing-record-tab-payments = Payments
+billing-record-tab-postings = Ledger postings
+billing-record-tab-activity = Activity
+billing-record-summary = Summary
+billing-record-net = Net total
+billing-record-tax = Tax total
+billing-record-gross = Gross total
+billing-record-paid = Paid
+billing-record-outstanding = Outstanding
+billing-record-issue = Issue invoice
+billing-record-cancel = Cancel invoice
+billing-record-record-payment = Record payment
+billing-record-write-off = Write off
+billing-record-credit-note = Create credit note
+billing-credit-note-title = Create credit note
+billing-credit-note-amount = Credit amount
+billing-credit-note-reason = Reason
+billing-credit-note-submit = Create credit note
+billing-credit-note-success = Credit note created
+billing-record-download-pdf = Download PDF
+billing-record-no-payments = No payments recorded yet.
+billing-record-no-postings = No ledger postings yet.
+billing-record-not-found = Invoice not found.
+billing-record-missing-config = Missing legal entity or customer configuration.
+billing-line-description = Description
+billing-line-qty = Qty
+billing-line-unit-price = Unit price
+billing-line-discount = Discount
+billing-line-tax-rate = Tax rate
+billing-line-net = Net
+billing-line-gross = Gross
+
+# Payment dialog
+billing-payment-title = Record payment
+billing-payment-amount = Amount
+billing-payment-method = Payment method
+billing-payment-date = Payment date
+billing-payment-reference = Reference
+billing-payment-submit = Record payment
+
+# Invoice form
+billing-form-create-title = New invoice
+billing-form-edit-title = Edit invoice
+billing-form-legal-entity = Selling legal entity
+billing-form-customer = Billing customer
+billing-form-customer-loading = Loading customers…
+billing-form-customer-placeholder = Select a customer
+billing-form-customer-search = Search customers…
+billing-form-customer-empty = No customers found
+billing-form-currency = Currency
+billing-form-payment-term = Payment term
+billing-form-notes = Notes
+billing-form-add-line = Add line
+billing-form-remove-line = Remove
+billing-form-tax-category = Tax category
+billing-form-save-draft = Save draft
+billing-form-save-draft-success = Draft saved
+billing-form-save-draft-error = Could not save the draft. Please try again.
+billing-form-preview = Preview
+billing-form-validation-errors = Please fix the following before saving:
+
+# Settings
+billing-settings-title = Finance Settings
+billing-settings-description = Configure legal entities, tax, currencies, terms, and numbering
+billing-settings-tab-legal-entities = Legal entities
+billing-settings-tab-tax = Tax categories
+billing-settings-tab-currencies = Currencies
+billing-settings-tab-terms = Payment terms
+billing-settings-tab-numbering = Numbering
+billing-settings-tab-posting = Posting rules
+billing-settings-readonly-notice = You have read-only access to settings.
+billing-settings-vat-id = VAT ID
+billing-settings-accounting-currency = Accounting currency
+billing-settings-default-currency = Default currency
+billing-settings-iban = IBAN
+billing-settings-enabled-currencies = Enabled currencies
+billing-settings-rounding-mode = Rounding mode
+billing-settings-due-days = { $days } days
+billing-settings-numbering-format = Format
+billing-settings-numbering-reset = Reset
+billing-settings-numbering-reset-value = Yearly per legal entity
+billing-settings-account-ar = Accounts receivable
+billing-settings-account-revenue = Revenue
+billing-settings-account-tax = Tax payable
+billing-settings-account-cash = Cash/clearing
+billing-settings-account-fx = FX gain/loss
+billing-settings-account-bad-debt = Bad debt
+billing-settings-account-rounding = Rounding
+billing-settings-save = Save changes
+billing-settings-saved = Settings saved
+billing-settings-save-error = Could not save settings. Please try again.
+billing-settings-load-error = Could not load finance settings from the backend.
+billing-settings-not-seeded = No finance settings found in the backend yet. Ask an administrator to initialize them.
+billing-settings-name = Name
+billing-settings-country = Country
+billing-settings-footer = Invoice footer
+billing-settings-rate = Rate (%)
+billing-settings-due-days-label = Due days
+
+# Reconciliation
+billing-reconciliation-title = Reconciliation
+billing-reconciliation-description = Match incoming payments to outstanding invoices
+billing-reconciliation-import = Import bank statement
+billing-reconciliation-suggested = Suggested matches
+billing-reconciliation-exceptions = Exceptions
+billing-reconciliation-confidence = Confidence
+billing-reconciliation-apply = Apply match
+billing-reconciliation-no-exceptions = No exceptions. Everything is matched.
+
+# Reports
+billing-reports-title = Reports
+billing-reports-ar-aging = AR aging
+billing-reports-bucket = Bucket
+billing-reports-amount = Amount
+billing-reports-count = Invoices
+billing-reports-export-invoices = Export invoices (CSV)
+billing-reports-total-outstanding = Total outstanding
+billing-reports-revenue = Revenue by period
+billing-reports-vat = VAT summary
+billing-reports-period = Period
+billing-reports-currency = Currency
+billing-reports-net = Net
+billing-reports-tax = Tax
+billing-reports-gross = Gross
+
+# Period close
+billing-period-close-tab = Period close
+billing-period-close-title = Reporting periods
+billing-period-close-description = Close a period to block new postings dated within it.
+billing-period-close-key-label = Period (YYYY-MM)
+billing-period-close-action = Close period
+billing-period-reopen-action = Reopen
+billing-period-status-open = Open
+billing-period-status-closed = Closed
+billing-period-close-success = Period closed
+billing-period-reopen-success = Period reopened
+billing-period-close-empty = No periods closed yet.
+
+# Connection health
+billing-health-live = Live backend
+billing-health-degraded = Backend degraded
+billing-health-offline = Sample data
+
+# CRM integration
+billing-crm-tab-invoices = Invoices
+billing-crm-create-invoice = Create invoice
+billing-crm-no-invoices = No invoices for this customer yet.
+billing-crm-view-all = View all invoices
+
+# Ledger Admin
+ledger-admin-title = Ledger Admin
+ledger-admin-description = Manage ledgers, accounts, and transactions in the ledger backend
+ledger-admin-open = Open ledger admin
+ledger-admin-view-all-transactions = View all transactions
+ledger-admin-sample-notice = Showing sample data. Connect the ledger backend to load live ledgers, accounts, and transactions.
+ledger-admin-connection-detail = Connection detail
+ledger-admin-tab-ledgers = Ledgers
+ledger-admin-tab-accounts = Accounts
+ledger-admin-tab-transactions = Transactions
+ledger-admin-search = Search ledger
+ledger-admin-action-refresh = Refresh
+ledger-admin-action-cancel = Cancel
+ledger-admin-action-create = Create
+ledger-admin-create-ledger = New ledger
+ledger-admin-create-account = New account
+ledger-admin-create-transaction = New transaction
+ledger-admin-create-success = Created successfully
+ledger-admin-create-error = Could not create. Please try again.
+ledger-admin-empty-ledgers = No ledgers yet. Create your first ledger.
+ledger-admin-empty-accounts = No accounts yet. Create an account inside a ledger.
+ledger-admin-empty-transactions = No transactions yet.
+ledger-admin-col-name = Name
+ledger-admin-col-id = ID
+ledger-admin-col-created = Created
+ledger-admin-col-currency = Currency
+ledger-admin-col-balance = Balance
+ledger-admin-col-inflight = In-flight
+ledger-admin-col-reference = Reference
+ledger-admin-col-amount = Amount
+ledger-admin-col-source = Source
+ledger-admin-col-destination = Destination
+ledger-admin-col-status = Status
+ledger-admin-field-name = Name
+ledger-admin-field-ledger = Ledger
+ledger-admin-field-currency = Currency
+ledger-admin-field-source = Source account
+ledger-admin-field-destination = Destination account
+ledger-admin-field-amount = Amount
+ledger-admin-field-reference = Reference
+ledger-admin-field-description = Description
+ledger-admin-validation-name = Name is required
+ledger-admin-validation-ledger = Select a ledger
+ledger-admin-validation-accounts = Source and destination are required
+ledger-admin-validation-amount = Enter an amount greater than zero
+ledger-admin-external = External (@World)
+ledger-admin-unnamed-account = Unnamed account
+ledger-admin-field-source-placeholder = Select source account
+ledger-admin-field-destination-placeholder = Select destination account
+ledger-admin-detail-ledger = Ledger details
+ledger-admin-detail-account = Account details
+ledger-admin-detail-transaction = Transaction details
+ledger-admin-detail-ledger-id = Ledger ID
+ledger-admin-detail-balance-id = Balance ID
+ledger-admin-detail-transaction-id = Transaction ID
+ledger-admin-detail-ledger-field = Ledger
+ledger-admin-detail-accounts-in-ledger = Accounts in this ledger
+ledger-admin-detail-related-transactions = Related transactions
+ledger-admin-detail-no-accounts = No accounts in this ledger yet.
+ledger-admin-detail-no-transactions = No transactions for this account yet.
+ledger-admin-detail-new-from-account = New transaction from this account
+ledger-admin-detail-immutable-note = Ledger records are append-only. To correct a balance, post an adjusting transaction.
+ledger-admin-detail-edit-name = Edit name
+ledger-admin-detail-save = Save
+ledger-admin-detail-name-placeholder = Account display name
+ledger-admin-detail-name-local-note = Saved on this device. Connect Billing Core to share names across users.

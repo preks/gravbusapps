@@ -1,0 +1,307 @@
+# NEWWORK Billing & Invoicing - Română (ro-RO)
+
+# Generic
+billing-app-title = Facturare
+billing-app-description = Creați, emiteți și reconciliați facturi pentru clienți
+billing-loading = Se încarcă datele de facturare...
+billing-sample-data-notice = Se afișează date demonstrative. Conectați serviciul Billing Core pentru date reale.
+billing-connection-detail = Detaliu conexiune
+billing-back-to-billing = Înapoi la Facturare
+billing-action-export = Exportă
+billing-action-cancel = Anulează
+billing-action-save = Salvează
+billing-action-close = Închide
+billing-action-failed = Acțiunea a eșuat
+billing-search-invoices = Caută facturi
+
+# Invoice status labels
+billing-status-draft = Ciornă
+billing-status-issued = Emisă
+billing-status-sent = Trimisă
+billing-status-partially-paid = Parțial plătită
+billing-status-paid = Plătită
+billing-status-overdue = Restantă
+billing-status-cancelled = Anulată
+billing-status-written-off = Scoasă din evidență
+
+# Payment method labels
+billing-payment-method-bank-transfer = Transfer bancar
+billing-payment-method-sepa = Debit direct SEPA
+billing-payment-method-card = Card
+billing-payment-method-cash = Numerar
+billing-payment-method-other = Altă metodă
+
+# Ledger event labels
+billing-event-issued = Emisă
+billing-event-paid = Plată
+billing-event-cancelled = Anulată
+billing-event-credit-note = Notă de credit
+billing-event-written-off = Scoasă din evidență
+billing-event-fx = Diferență de curs
+
+# Activity / audit action labels
+billing-audit-issued = Emisă
+billing-audit-cancelled = Anulată
+billing-audit-payment = Plată înregistrată
+billing-audit-written_off = Scoasă din evidență
+
+# Launcher
+billing-launcher-title = Facturare
+billing-launcher-description = Gestionați facturi, plăți și venituri pe entități juridice
+billing-launcher-quick-actions = Acțiuni rapide
+billing-launcher-quick-actions-desc = Funcții de facturare utilizate frecvent
+billing-kpi-draft = Facturi ciornă
+billing-kpi-issued = Facturi emise
+billing-kpi-overdue = Sumă restantă
+billing-kpi-paid-month = Plătit luna aceasta
+billing-kpi-unreconciled = Plăți nereconciliate
+billing-quick-create-invoice = Creează factură
+billing-quick-open-invoices = Deschide facturi
+billing-quick-reconciliation = Reconciliere
+billing-quick-settings = Setări financiare
+billing-quick-transactions = Tranzacții
+billing-section-workspaces = Spații de lucru
+billing-section-administration = Administrare
+billing-section-reports = Rapoarte
+
+# Transactions workspace
+billing-transactions-title = Tranzacții
+billing-transactions-description = Vizualizează și înregistrează tranzacții din registru pentru toate conturile.
+billing-transactions-account-filter = Cont
+billing-transactions-clear-filter = Șterge filtrul
+
+# Invoice management
+billing-invoices-title = Facturi
+billing-invoices-description = Toate facturile pe entități juridice și clienți
+billing-invoices-empty = Nu s-au găsit facturi. Creați prima factură.
+billing-invoices-create = Creează factură
+billing-column-number = Număr
+billing-column-customer = Client
+billing-column-status = Stare
+billing-column-issue-date = Data emiterii
+billing-column-due-date = Data scadenței
+billing-column-currency = Monedă
+billing-column-gross = Total brut
+billing-column-outstanding = Restant
+billing-filter-status = Stare
+billing-filter-all = Toate
+
+# Invoice record
+billing-record-title = Factură
+billing-record-tab-overview = Prezentare
+billing-record-tab-lines = Linii
+billing-record-tab-payments = Plăți
+billing-record-tab-postings = Înregistrări contabile
+billing-record-tab-activity = Activitate
+billing-record-summary = Sumar
+billing-record-net = Total net
+billing-record-tax = Total taxe
+billing-record-gross = Total brut
+billing-record-paid = Plătit
+billing-record-outstanding = Restant
+billing-record-issue = Emite factura
+billing-record-cancel = Anulează factura
+billing-record-record-payment = Înregistrează plată
+billing-record-write-off = Scoate din evidență
+billing-record-credit-note = Creează notă de credit
+billing-credit-note-title = Creează notă de credit
+billing-credit-note-amount = Sumă credit
+billing-credit-note-reason = Motiv
+billing-credit-note-submit = Creează notă de credit
+billing-credit-note-success = Notă de credit creată
+billing-record-download-pdf = Descarcă PDF
+billing-record-no-payments = Nicio plată înregistrată încă.
+billing-record-no-postings = Nicio înregistrare contabilă încă.
+billing-record-not-found = Factura nu a fost găsită.
+billing-record-missing-config = Lipsește configurarea entității juridice sau a clientului.
+billing-line-description = Descriere
+billing-line-qty = Cant.
+billing-line-unit-price = Preț unitar
+billing-line-discount = Reducere
+billing-line-tax-rate = Cotă taxă
+billing-line-net = Net
+billing-line-gross = Brut
+
+# Payment dialog
+billing-payment-title = Înregistrează plată
+billing-payment-amount = Sumă
+billing-payment-method = Metodă de plată
+billing-payment-date = Data plății
+billing-payment-reference = Referință
+billing-payment-submit = Înregistrează plată
+
+# Invoice form
+billing-form-create-title = Factură nouă
+billing-form-edit-title = Editează factura
+billing-form-legal-entity = Entitate juridică emitentă
+billing-form-customer = Client de facturare
+billing-form-customer-loading = Se încarcă clienții…
+billing-form-customer-placeholder = Selectați un client
+billing-form-customer-search = Căutați clienți…
+billing-form-customer-empty = Nu s-au găsit clienți
+billing-form-currency = Monedă
+billing-form-payment-term = Termen de plată
+billing-form-notes = Note
+billing-form-add-line = Adaugă linie
+billing-form-remove-line = Elimină
+billing-form-tax-category = Categorie taxă
+billing-form-save-draft = Salvează ciorna
+billing-form-save-draft-success = Ciornă salvată
+billing-form-save-draft-error = Ciorna nu a putut fi salvată. Încearcă din nou.
+billing-form-preview = Previzualizare
+billing-form-validation-errors = Corectați următoarele înainte de salvare:
+
+# Settings
+billing-settings-title = Setări financiare
+billing-settings-description = Configurați entități juridice, taxe, monede, termene și numerotare
+billing-settings-tab-legal-entities = Entități juridice
+billing-settings-tab-tax = Categorii de taxe
+billing-settings-tab-currencies = Monede
+billing-settings-tab-terms = Termene de plată
+billing-settings-tab-numbering = Numerotare
+billing-settings-tab-posting = Reguli de înregistrare
+billing-settings-readonly-notice = Aveți acces doar pentru citire la setări.
+billing-settings-vat-id = Cod TVA
+billing-settings-accounting-currency = Monedă contabilă
+billing-settings-default-currency = Monedă implicită
+billing-settings-iban = IBAN
+billing-settings-enabled-currencies = Monede activate
+billing-settings-rounding-mode = Mod de rotunjire
+billing-settings-due-days = { $days } zile
+billing-settings-numbering-format = Format
+billing-settings-numbering-reset = Resetare
+billing-settings-numbering-reset-value = Anual per entitate juridică
+billing-settings-account-ar = Creanțe clienți
+billing-settings-account-revenue = Venituri
+billing-settings-account-tax = TVA de plată
+billing-settings-account-cash = Casă/decontare
+billing-settings-account-fx = Câștig/pierdere din curs
+billing-settings-account-bad-debt = Creanțe neîncasabile
+billing-settings-account-rounding = Rotunjire
+billing-settings-save = Salvează modificările
+billing-settings-saved = Setări salvate
+billing-settings-save-error = Setările nu au putut fi salvate. Încercați din nou.
+billing-settings-load-error = Setările financiare nu au putut fi încărcate din backend.
+billing-settings-not-seeded = Nu există încă setări financiare în backend. Cereți unui administrator să le inițializeze.
+billing-settings-name = Nume
+billing-settings-country = Țară
+billing-settings-footer = Subsol factură
+billing-settings-rate = Cotă (%)
+billing-settings-due-days-label = Zile scadență
+
+# Reconciliation
+billing-reconciliation-title = Reconciliere
+billing-reconciliation-description = Asociați plățile primite cu facturile restante
+billing-reconciliation-import = Importă extras bancar
+billing-reconciliation-suggested = Asocieri sugerate
+billing-reconciliation-exceptions = Excepții
+billing-reconciliation-confidence = Încredere
+billing-reconciliation-apply = Aplică asocierea
+billing-reconciliation-no-exceptions = Nicio excepție. Totul este asociat.
+
+# Reports
+billing-reports-title = Rapoarte
+billing-reports-ar-aging = Vechime creanțe
+billing-reports-bucket = Interval
+billing-reports-amount = Sumă
+billing-reports-count = Facturi
+billing-reports-export-invoices = Exportă facturi (CSV)
+billing-reports-total-outstanding = Total restant
+billing-reports-revenue = Venituri pe perioadă
+billing-reports-vat = Sumar TVA
+billing-reports-period = Perioadă
+billing-reports-currency = Monedă
+billing-reports-net = Net
+billing-reports-tax = Taxă
+billing-reports-gross = Brut
+
+# Period close
+billing-period-close-tab = Închidere perioadă
+billing-period-close-title = Perioade de raportare
+billing-period-close-description = Închideți o perioadă pentru a bloca înregistrările datate în acea perioadă.
+billing-period-close-key-label = Perioadă (AAAA-LL)
+billing-period-close-action = Închide perioada
+billing-period-reopen-action = Redeschide
+billing-period-status-open = Deschisă
+billing-period-status-closed = Închisă
+billing-period-close-success = Perioadă închisă
+billing-period-reopen-success = Perioadă redeschisă
+billing-period-close-empty = Nicio perioadă închisă încă.
+
+# Connection health
+billing-health-live = Backend live
+billing-health-degraded = Backend degradat
+billing-health-offline = Date exemplu
+
+# CRM integration
+billing-crm-tab-invoices = Facturi
+billing-crm-create-invoice = Creează factură
+billing-crm-no-invoices = Nicio factură pentru acest client încă.
+billing-crm-view-all = Vezi toate facturile
+
+# Ledger Admin
+ledger-admin-title = Administrare registru
+ledger-admin-description = Gestionează registre, conturi și tranzacții în backendul de registru
+ledger-admin-open = Deschide administrarea registrului
+ledger-admin-view-all-transactions = Vezi toate tranzacțiile
+ledger-admin-sample-notice = Se afișează date de exemplu. Conectează backendul de registru pentru a încărca registre, conturi și tranzacții reale.
+ledger-admin-connection-detail = Detaliu conexiune
+ledger-admin-tab-ledgers = Registre
+ledger-admin-tab-accounts = Conturi
+ledger-admin-tab-transactions = Tranzacții
+ledger-admin-search = Caută în registru
+ledger-admin-action-refresh = Reîmprospătează
+ledger-admin-action-cancel = Anulează
+ledger-admin-action-create = Creează
+ledger-admin-create-ledger = Registru nou
+ledger-admin-create-account = Cont nou
+ledger-admin-create-transaction = Tranzacție nouă
+ledger-admin-create-success = Creat cu succes
+ledger-admin-create-error = Crearea a eșuat. Încearcă din nou.
+ledger-admin-empty-ledgers = Niciun registru încă. Creează primul registru.
+ledger-admin-empty-accounts = Niciun cont încă. Creează un cont într-un registru.
+ledger-admin-empty-transactions = Nicio tranzacție încă.
+ledger-admin-col-name = Nume
+ledger-admin-col-id = ID
+ledger-admin-col-created = Creat
+ledger-admin-col-currency = Monedă
+ledger-admin-col-balance = Sold
+ledger-admin-col-inflight = În tranzit
+ledger-admin-col-reference = Referință
+ledger-admin-col-amount = Sumă
+ledger-admin-col-source = Sursă
+ledger-admin-col-destination = Destinație
+ledger-admin-col-status = Status
+ledger-admin-field-name = Nume
+ledger-admin-field-ledger = Registru
+ledger-admin-field-currency = Monedă
+ledger-admin-field-source = Cont sursă
+ledger-admin-field-destination = Cont destinație
+ledger-admin-field-amount = Sumă
+ledger-admin-field-reference = Referință
+ledger-admin-field-description = Descriere
+ledger-admin-validation-name = Numele este obligatoriu
+ledger-admin-validation-ledger = Selectează un registru
+ledger-admin-validation-accounts = Sursa și destinația sunt obligatorii
+ledger-admin-validation-amount = Introdu o sumă mai mare ca zero
+ledger-admin-external = Extern (@World)
+ledger-admin-unnamed-account = Cont fără nume
+ledger-admin-field-source-placeholder = Selectează contul sursă
+ledger-admin-field-destination-placeholder = Selectează contul destinație
+ledger-admin-detail-ledger = Detalii registru
+ledger-admin-detail-account = Detalii cont
+ledger-admin-detail-transaction = Detalii tranzacție
+ledger-admin-detail-ledger-id = ID registru
+ledger-admin-detail-balance-id = ID sold
+ledger-admin-detail-transaction-id = ID tranzacție
+ledger-admin-detail-ledger-field = Registru
+ledger-admin-detail-accounts-in-ledger = Conturi în acest registru
+ledger-admin-detail-related-transactions = Tranzacții asociate
+ledger-admin-detail-no-accounts = Încă nu există conturi în acest registru.
+ledger-admin-detail-no-transactions = Încă nu există tranzacții pentru acest cont.
+ledger-admin-detail-new-from-account = Tranzacție nouă din acest cont
+ledger-admin-detail-immutable-note = Înregistrările din registru nu pot fi modificate. Pentru a corecta un sold, postează o tranzacție de ajustare.
+ledger-admin-detail-edit-name = Editează numele
+ledger-admin-detail-save = Salvează
+ledger-admin-detail-name-placeholder = Nume afișat al contului
+ledger-admin-detail-name-local-note = Salvat pe acest dispozitiv. Conectează Billing Core pentru a partaja numele între utilizatori.

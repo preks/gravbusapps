@@ -12,6 +12,7 @@ tab-contracts = Verträge
 tab-service-tickets = Service-Tickets
 tab-service-cases = Service-Fälle
 tab-transactions-fibu = Transaktionen & Fibu
+tab-invoices = Rechnungen
 tab-journal = Journal
 tab-agent = Agent
 

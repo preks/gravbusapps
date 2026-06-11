@@ -11,8 +11,10 @@ import {
   ClockCounterClockwiseIcon,
   RobotIcon,
   UserIcon,
-  BankIcon
+  BankIcon,
+  CoinsIcon
 } from '@phosphor-icons/react'
+import { CustomerInvoicesPanel } from '@/business-apps/fin/billing/common/components/CustomerInvoicesPanel'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import customer360I18n from './_i18n'
 import { useCustomerRoot } from './data/useCustomerRoot'
@@ -42,6 +44,7 @@ export const CUSTOMER_360_TABS = [
   'service-tickets',
   'service-cases',
   'transactions-fibu',
+  'invoices',
   'journal',
   'agent'
 ] as const
@@ -144,6 +147,12 @@ const Customer360Content: React.FC<Customer360ContentProps> = ({ subjectType, su
         content: <TransactionsFibuView {...shared} />
       },
       {
+        value: 'invoices',
+        label: t('tab-invoices'),
+        icon: <CoinsIcon className="gba:mr-2" />,
+        content: <CustomerInvoicesPanel {...props} crmAccountId={subjectId} />
+      },
+      {
         value: 'journal',
         label: t('tab-journal'),
         icon: <ClockCounterClockwiseIcon className="gba:mr-2" />,
@@ -156,7 +165,7 @@ const Customer360Content: React.FC<Customer360ContentProps> = ({ subjectType, su
         content: <AgentView {...shared} />
       }
     ]
-  }, [subject, snapshot, snapshotLoading, props, t, handleOpenAgent])
+  }, [subject, snapshot, snapshotLoading, subjectId, props, t, handleOpenAgent])
 
   if (loading) {
     return (

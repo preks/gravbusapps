@@ -12,6 +12,7 @@ tab-contracts = Contracte
 tab-service-tickets = Tichete de service
 tab-service-cases = Cazuri de service
 tab-transactions-fibu = Tranzacții și Fibu
+tab-invoices = Facturi
 tab-journal = Jurnal
 tab-agent = Agent
 

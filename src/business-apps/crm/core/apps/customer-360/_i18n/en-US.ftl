@@ -12,6 +12,7 @@ tab-contracts = Contracts
 tab-service-tickets = Service Tickets
 tab-service-cases = Service Cases
 tab-transactions-fibu = Transactions & Fibu
+tab-invoices = Invoices
 tab-journal = Journal
 tab-agent = Agent
 

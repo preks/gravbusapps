@@ -42,6 +42,15 @@ export const Navigation = {
   FIN_EXPENSES_UNALLOCATED_EXPENSE_ITEMS: `${NAVIGATION_BASE_PATH}/fin/expenses/unallocated-expense-items`,
   FIN_EXPENSES_MANAGER_ROLE: `${NAVIGATION_BASE_PATH}/fin/expenses/manager-expenses`,
   FIN_EXPENSES_BACKOFFICE_ROLE: `${NAVIGATION_BASE_PATH}/fin/expenses/backoffice-expenses`,
+  FIN_BILLING_LAUNCHER: `${NAVIGATION_BASE_PATH}/fin/billing`,
+  FIN_BILLING_INVOICES: `${NAVIGATION_BASE_PATH}/fin/billing/invoices`,
+  FIN_BILLING_INVOICE_RECORD: `${NAVIGATION_BASE_PATH}/fin/billing/invoice-record`,
+  FIN_BILLING_INVOICE_FORM: `${NAVIGATION_BASE_PATH}/fin/billing/invoice-form`,
+  FIN_BILLING_SETTINGS: `${NAVIGATION_BASE_PATH}/fin/billing/settings`,
+  FIN_BILLING_RECONCILIATION: `${NAVIGATION_BASE_PATH}/fin/billing/reconciliation`,
+  FIN_BILLING_REPORTS: `${NAVIGATION_BASE_PATH}/fin/billing/reports`,
+  FIN_BILLING_LEDGER_ADMIN: `${NAVIGATION_BASE_PATH}/fin/billing/ledger-admin`,
+  FIN_BILLING_TRANSACTIONS: `${NAVIGATION_BASE_PATH}/fin/billing/transactions`,
 
   // HR
   HR_EMPLOYEE_RECORD: `${NAVIGATION_BASE_PATH}/employee-record`,
@@ -179,6 +188,15 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   [Navigation.FIN_EXPENSES_UNALLOCATED_EXPENSE_ITEMS]: 'fin/expenses/apps/unallocated-expense-items',
   [Navigation.FIN_EXPENSES_MANAGER_ROLE]: 'fin/expenses/apps/manager-expenses',
   [Navigation.FIN_EXPENSES_BACKOFFICE_ROLE]: 'fin/expenses/apps/backoffice-expenses',
+  [Navigation.FIN_BILLING_LAUNCHER]: 'fin/billing/apps/billing-launcher',
+  [Navigation.FIN_BILLING_INVOICES]: 'fin/billing/apps/invoice-management',
+  [Navigation.FIN_BILLING_INVOICE_RECORD]: 'fin/billing/apps/invoice-record',
+  [Navigation.FIN_BILLING_INVOICE_FORM]: 'fin/billing/forms/invoice-form',
+  [Navigation.FIN_BILLING_SETTINGS]: 'fin/billing/apps/finance-settings',
+  [Navigation.FIN_BILLING_RECONCILIATION]: 'fin/billing/apps/reconciliation',
+  [Navigation.FIN_BILLING_REPORTS]: 'fin/billing/apps/billing-reports',
+  [Navigation.FIN_BILLING_LEDGER_ADMIN]: 'fin/billing/apps/ledger-admin',
+  [Navigation.FIN_BILLING_TRANSACTIONS]: 'fin/billing/apps/ledger-transactions',
 
   // HR
   [Navigation.HR_EMPLOYEE_RECORD]: 'hr/core/apps/employee-record',

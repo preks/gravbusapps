@@ -224,6 +224,51 @@ export const AlertDescription = ({ children, ...props }: any) => <div {...props}
 
 export const Spinner = () => <div>Loading...</div>
 
+export const Toaster = (props: any) => <div data-testid="toaster" {...props} />
+
+export const PageLayout = ({ children, headerTitle, headerSlot, headerIcon, variant, ...props }: any) => {
+  void headerIcon
+  void variant
+  return (
+    <div {...props}>
+      {headerTitle && <h1>{headerTitle}</h1>}
+      {headerSlot}
+      {children}
+    </div>
+  )
+}
+
+export const LauncherLayout = ({ children, title, kpis, quickActions, sections, ...props }: any) => {
+  // Strip launcher-specific props so they never reach the underlying <div>.
+  void kpis
+  void quickActions
+  void sections
+  return (
+    <div {...props}>
+      {title && <h1>{title}</h1>}
+      {children}
+    </div>
+  )
+}
+
+export const DataTable = ({ data = [], columns = [], onRowClick, ...props }: any) => (
+  <table {...props}>
+    <tbody>
+      {data.map((row: any, rowIndex: number) => (
+        <tr key={row?.id ?? rowIndex} onClick={() => onRowClick?.(row)}>
+          {columns.map((column: any, columnIndex: number) => (
+            <td key={column?.id ?? column?.accessorKey ?? columnIndex}>
+              {typeof column?.cell === 'function'
+                ? column.cell({ row: { original: row, getValue: (key: string) => row?.[key] } })
+                : row?.[column?.accessorKey]}
+            </td>
+          ))}
+        </tr>
+      ))}
+    </tbody>
+  </table>
+)
+
 export const SectionHero = ({ children, title, subtitle, extra, ...props }: any) => (
   <div {...props}>
     {title && <h2>{title}</h2>}
@@ -290,10 +335,10 @@ export default {
   SelectValue,
   SelectContent,
   SelectItem,
+  Combobox,
   DateInput,
   Label,
   Badge,
-  Combobox,
   Card,
   CardHeader,
   CardTitle,
@@ -324,6 +369,10 @@ export default {
   Alert,
   AlertDescription,
   Spinner,
+  Toaster,
+  PageLayout,
+  LauncherLayout,
+  DataTable,
   SectionHero,
   Tabs,
   TabsList,

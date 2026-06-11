@@ -1,0 +1,307 @@
+# NEWWORK Billing & Invoicing - Deutsch (de-DE)
+
+# Generic
+billing-app-title = Abrechnung & Rechnungen
+billing-app-description = Kundenrechnungen erstellen, ausstellen und abgleichen
+billing-loading = Abrechnungsdaten werden geladen...
+billing-sample-data-notice = Beispieldaten werden angezeigt. Verbinden Sie den Billing-Core-Dienst, um Echtdaten zu laden.
+billing-connection-detail = Verbindungsdetail
+billing-back-to-billing = Zurück zur Abrechnung
+billing-action-export = Exportieren
+billing-action-cancel = Abbrechen
+billing-action-save = Speichern
+billing-action-close = Schließen
+billing-action-failed = Aktion fehlgeschlagen
+billing-search-invoices = Rechnungen suchen
+
+# Invoice status labels
+billing-status-draft = Entwurf
+billing-status-issued = Ausgestellt
+billing-status-sent = Versendet
+billing-status-partially-paid = Teilweise bezahlt
+billing-status-paid = Bezahlt
+billing-status-overdue = Überfällig
+billing-status-cancelled = Storniert
+billing-status-written-off = Abgeschrieben
+
+# Payment method labels
+billing-payment-method-bank-transfer = Banküberweisung
+billing-payment-method-sepa = SEPA-Lastschrift
+billing-payment-method-card = Karte
+billing-payment-method-cash = Bar
+billing-payment-method-other = Sonstige
+
+# Ledger event labels
+billing-event-issued = Ausgestellt
+billing-event-paid = Zahlung
+billing-event-cancelled = Storniert
+billing-event-credit-note = Gutschrift
+billing-event-written-off = Abgeschrieben
+billing-event-fx = Währungsdifferenz
+
+# Activity / audit action labels
+billing-audit-issued = Ausgestellt
+billing-audit-cancelled = Storniert
+billing-audit-payment = Zahlung erfasst
+billing-audit-written_off = Abgeschrieben
+
+# Launcher
+billing-launcher-title = Abrechnung & Rechnungen
+billing-launcher-description = Rechnungen, Zahlungen und Umsätze über Rechtseinheiten hinweg verwalten
+billing-launcher-quick-actions = Schnellaktionen
+billing-launcher-quick-actions-desc = Häufig genutzte Abrechnungsfunktionen
+billing-kpi-draft = Rechnungsentwürfe
+billing-kpi-issued = Ausgestellte Rechnungen
+billing-kpi-overdue = Überfälliger Betrag
+billing-kpi-paid-month = Bezahlt diesen Monat
+billing-kpi-unreconciled = Nicht abgeglichene Zahlungen
+billing-quick-create-invoice = Rechnung erstellen
+billing-quick-open-invoices = Rechnungen öffnen
+billing-quick-reconciliation = Abgleich
+billing-quick-settings = Finanzeinstellungen
+billing-quick-transactions = Buchungen
+billing-section-workspaces = Arbeitsbereiche
+billing-section-administration = Verwaltung
+billing-section-reports = Berichte
+
+# Transactions workspace
+billing-transactions-title = Buchungen
+billing-transactions-description = Hauptbuchbuchungen über alle Konten hinweg ansehen und erfassen.
+billing-transactions-account-filter = Konto
+billing-transactions-clear-filter = Filter zurücksetzen
+
+# Invoice management
+billing-invoices-title = Rechnungen
+billing-invoices-description = Alle Rechnungen über Rechtseinheiten und Kunden hinweg
+billing-invoices-empty = Keine Rechnungen gefunden. Erstellen Sie Ihre erste Rechnung.
+billing-invoices-create = Rechnung erstellen
+billing-column-number = Nummer
+billing-column-customer = Kunde
+billing-column-status = Status
+billing-column-issue-date = Rechnungsdatum
+billing-column-due-date = Fälligkeitsdatum
+billing-column-currency = Währung
+billing-column-gross = Bruttobetrag
+billing-column-outstanding = Offen
+billing-filter-status = Status
+billing-filter-all = Alle
+
+# Invoice record
+billing-record-title = Rechnung
+billing-record-tab-overview = Übersicht
+billing-record-tab-lines = Positionen
+billing-record-tab-payments = Zahlungen
+billing-record-tab-postings = Buchungen
+billing-record-tab-activity = Aktivität
+billing-record-summary = Zusammenfassung
+billing-record-net = Nettobetrag
+billing-record-tax = Steuerbetrag
+billing-record-gross = Bruttobetrag
+billing-record-paid = Bezahlt
+billing-record-outstanding = Offen
+billing-record-issue = Rechnung ausstellen
+billing-record-cancel = Rechnung stornieren
+billing-record-record-payment = Zahlung erfassen
+billing-record-write-off = Abschreiben
+billing-record-credit-note = Gutschrift erstellen
+billing-credit-note-title = Gutschrift erstellen
+billing-credit-note-amount = Gutschriftbetrag
+billing-credit-note-reason = Grund
+billing-credit-note-submit = Gutschrift erstellen
+billing-credit-note-success = Gutschrift erstellt
+billing-record-download-pdf = PDF herunterladen
+billing-record-no-payments = Noch keine Zahlungen erfasst.
+billing-record-no-postings = Noch keine Buchungen.
+billing-record-not-found = Rechnung nicht gefunden.
+billing-record-missing-config = Rechtseinheit oder Kundenkonfiguration fehlt.
+billing-line-description = Beschreibung
+billing-line-qty = Menge
+billing-line-unit-price = Einzelpreis
+billing-line-discount = Rabatt
+billing-line-tax-rate = Steuersatz
+billing-line-net = Netto
+billing-line-gross = Brutto
+
+# Payment dialog
+billing-payment-title = Zahlung erfassen
+billing-payment-amount = Betrag
+billing-payment-method = Zahlungsart
+billing-payment-date = Zahlungsdatum
+billing-payment-reference = Referenz
+billing-payment-submit = Zahlung erfassen
+
+# Invoice form
+billing-form-create-title = Neue Rechnung
+billing-form-edit-title = Rechnung bearbeiten
+billing-form-legal-entity = Ausstellende Rechtseinheit
+billing-form-customer = Rechnungskunde
+billing-form-customer-loading = Kunden werden geladen…
+billing-form-customer-placeholder = Kunde auswählen
+billing-form-customer-search = Kunden suchen…
+billing-form-customer-empty = Keine Kunden gefunden
+billing-form-currency = Währung
+billing-form-payment-term = Zahlungsbedingung
+billing-form-notes = Notizen
+billing-form-add-line = Position hinzufügen
+billing-form-remove-line = Entfernen
+billing-form-tax-category = Steuerkategorie
+billing-form-save-draft = Entwurf speichern
+billing-form-save-draft-success = Entwurf gespeichert
+billing-form-save-draft-error = Entwurf konnte nicht gespeichert werden. Bitte erneut versuchen.
+billing-form-preview = Vorschau
+billing-form-validation-errors = Bitte korrigieren Sie Folgendes vor dem Speichern:
+
+# Settings
+billing-settings-title = Finanzeinstellungen
+billing-settings-description = Rechtseinheiten, Steuern, Währungen, Bedingungen und Nummerierung konfigurieren
+billing-settings-tab-legal-entities = Rechtseinheiten
+billing-settings-tab-tax = Steuerkategorien
+billing-settings-tab-currencies = Währungen
+billing-settings-tab-terms = Zahlungsbedingungen
+billing-settings-tab-numbering = Nummerierung
+billing-settings-tab-posting = Buchungsregeln
+billing-settings-readonly-notice = Sie haben nur Lesezugriff auf die Einstellungen.
+billing-settings-vat-id = USt-IdNr.
+billing-settings-accounting-currency = Buchungswährung
+billing-settings-default-currency = Standardwährung
+billing-settings-iban = IBAN
+billing-settings-enabled-currencies = Aktivierte Währungen
+billing-settings-rounding-mode = Rundungsmodus
+billing-settings-due-days = { $days } Tage
+billing-settings-numbering-format = Format
+billing-settings-numbering-reset = Zurücksetzen
+billing-settings-numbering-reset-value = Jährlich pro Rechtseinheit
+billing-settings-account-ar = Forderungen
+billing-settings-account-revenue = Erlöse
+billing-settings-account-tax = Umsatzsteuer
+billing-settings-account-cash = Kasse/Verrechnung
+billing-settings-account-fx = Währungsgewinn/-verlust
+billing-settings-account-bad-debt = Forderungsausfall
+billing-settings-account-rounding = Rundung
+billing-settings-save = Änderungen speichern
+billing-settings-saved = Einstellungen gespeichert
+billing-settings-save-error = Einstellungen konnten nicht gespeichert werden. Bitte erneut versuchen.
+billing-settings-load-error = Finanzeinstellungen konnten nicht vom Backend geladen werden.
+billing-settings-not-seeded = Noch keine Finanzeinstellungen im Backend gefunden. Bitte von einem Administrator initialisieren lassen.
+billing-settings-name = Name
+billing-settings-country = Land
+billing-settings-footer = Rechnungsfußzeile
+billing-settings-rate = Satz (%)
+billing-settings-due-days-label = Fälligkeitstage
+
+# Reconciliation
+billing-reconciliation-title = Abgleich
+billing-reconciliation-description = Eingehende Zahlungen offenen Rechnungen zuordnen
+billing-reconciliation-import = Kontoauszug importieren
+billing-reconciliation-suggested = Vorgeschlagene Zuordnungen
+billing-reconciliation-exceptions = Ausnahmen
+billing-reconciliation-confidence = Konfidenz
+billing-reconciliation-apply = Zuordnung anwenden
+billing-reconciliation-no-exceptions = Keine Ausnahmen. Alles ist zugeordnet.
+
+# Reports
+billing-reports-title = Berichte
+billing-reports-ar-aging = Forderungsalter
+billing-reports-bucket = Zeitraum
+billing-reports-amount = Betrag
+billing-reports-count = Rechnungen
+billing-reports-export-invoices = Rechnungen exportieren (CSV)
+billing-reports-total-outstanding = Gesamt offen
+billing-reports-revenue = Umsatz nach Zeitraum
+billing-reports-vat = USt-Übersicht
+billing-reports-period = Zeitraum
+billing-reports-currency = Währung
+billing-reports-net = Netto
+billing-reports-tax = Steuer
+billing-reports-gross = Brutto
+
+# Period close
+billing-period-close-tab = Periodenabschluss
+billing-period-close-title = Buchungsperioden
+billing-period-close-description = Schließen Sie eine Periode, um neue Buchungen mit Datum in dieser Periode zu sperren.
+billing-period-close-key-label = Periode (JJJJ-MM)
+billing-period-close-action = Periode schließen
+billing-period-reopen-action = Wieder öffnen
+billing-period-status-open = Offen
+billing-period-status-closed = Geschlossen
+billing-period-close-success = Periode geschlossen
+billing-period-reopen-success = Periode wieder geöffnet
+billing-period-close-empty = Noch keine Perioden geschlossen.
+
+# Connection health
+billing-health-live = Live-Backend
+billing-health-degraded = Backend eingeschränkt
+billing-health-offline = Beispieldaten
+
+# CRM integration
+billing-crm-tab-invoices = Rechnungen
+billing-crm-create-invoice = Rechnung erstellen
+billing-crm-no-invoices = Noch keine Rechnungen für diesen Kunden.
+billing-crm-view-all = Alle Rechnungen anzeigen
+
+# Ledger Admin
+ledger-admin-title = Hauptbuch-Verwaltung
+ledger-admin-description = Hauptbücher, Konten und Buchungen im Ledger-Backend verwalten
+ledger-admin-open = Hauptbuch-Verwaltung öffnen
+ledger-admin-view-all-transactions = Alle Buchungen anzeigen
+ledger-admin-sample-notice = Beispieldaten werden angezeigt. Verbinden Sie das Ledger-Backend, um echte Hauptbücher, Konten und Buchungen zu laden.
+ledger-admin-connection-detail = Verbindungsdetail
+ledger-admin-tab-ledgers = Hauptbücher
+ledger-admin-tab-accounts = Konten
+ledger-admin-tab-transactions = Buchungen
+ledger-admin-search = Hauptbuch durchsuchen
+ledger-admin-action-refresh = Aktualisieren
+ledger-admin-action-cancel = Abbrechen
+ledger-admin-action-create = Erstellen
+ledger-admin-create-ledger = Neues Hauptbuch
+ledger-admin-create-account = Neues Konto
+ledger-admin-create-transaction = Neue Buchung
+ledger-admin-create-success = Erfolgreich erstellt
+ledger-admin-create-error = Erstellung fehlgeschlagen. Bitte erneut versuchen.
+ledger-admin-empty-ledgers = Noch keine Hauptbücher. Erstellen Sie Ihr erstes Hauptbuch.
+ledger-admin-empty-accounts = Noch keine Konten. Erstellen Sie ein Konto in einem Hauptbuch.
+ledger-admin-empty-transactions = Noch keine Buchungen.
+ledger-admin-col-name = Name
+ledger-admin-col-id = ID
+ledger-admin-col-created = Erstellt
+ledger-admin-col-currency = Währung
+ledger-admin-col-balance = Saldo
+ledger-admin-col-inflight = Vorgemerkt
+ledger-admin-col-reference = Referenz
+ledger-admin-col-amount = Betrag
+ledger-admin-col-source = Quelle
+ledger-admin-col-destination = Ziel
+ledger-admin-col-status = Status
+ledger-admin-field-name = Name
+ledger-admin-field-ledger = Hauptbuch
+ledger-admin-field-currency = Währung
+ledger-admin-field-source = Quellkonto
+ledger-admin-field-destination = Zielkonto
+ledger-admin-field-amount = Betrag
+ledger-admin-field-reference = Referenz
+ledger-admin-field-description = Beschreibung
+ledger-admin-validation-name = Name ist erforderlich
+ledger-admin-validation-ledger = Hauptbuch auswählen
+ledger-admin-validation-accounts = Quelle und Ziel sind erforderlich
+ledger-admin-validation-amount = Betrag größer als null eingeben
+ledger-admin-external = Extern (@World)
+ledger-admin-unnamed-account = Unbenanntes Konto
+ledger-admin-field-source-placeholder = Quellkonto auswählen
+ledger-admin-field-destination-placeholder = Zielkonto auswählen
+ledger-admin-detail-ledger = Ledger-Details
+ledger-admin-detail-account = Kontodetails
+ledger-admin-detail-transaction = Transaktionsdetails
+ledger-admin-detail-ledger-id = Ledger-ID
+ledger-admin-detail-balance-id = Saldo-ID
+ledger-admin-detail-transaction-id = Transaktions-ID
+ledger-admin-detail-ledger-field = Ledger
+ledger-admin-detail-accounts-in-ledger = Konten in diesem Ledger
+ledger-admin-detail-related-transactions = Zugehörige Transaktionen
+ledger-admin-detail-no-accounts = Noch keine Konten in diesem Ledger.
+ledger-admin-detail-no-transactions = Noch keine Transaktionen für dieses Konto.
+ledger-admin-detail-new-from-account = Neue Transaktion von diesem Konto
+ledger-admin-detail-immutable-note = Ledger-Einträge sind unveränderlich. Buche eine Ausgleichstransaktion, um einen Saldo zu korrigieren.
+ledger-admin-detail-edit-name = Name bearbeiten
+ledger-admin-detail-save = Speichern
+ledger-admin-detail-name-placeholder = Anzeigename des Kontos
+ledger-admin-detail-name-local-note = Auf diesem Gerät gespeichert. Verbinde Billing Core, um Namen für alle zu teilen.
