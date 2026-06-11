@@ -22,6 +22,7 @@ export interface SelectOption {
   label?: string // for compatibility
   value?: string // for compatibility
   disabled?: boolean
+  parentEntryId?: string | null
 }
 
 export interface EmployeeContextState {

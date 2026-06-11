@@ -67,10 +67,15 @@ ct-drawer-section-basic-info = Grundlegende Informationen
 ct-drawer-label-name = Name
 ct-drawer-label-code = Code
 ct-drawer-label-description = Beschreibung
+ct-drawer-label-employment-type = Beschäftigungsart
 ct-drawer-label-probation-period = Probezeit
 ct-drawer-label-payroll-relevant = Lohnrelevant
 ct-drawer-label-time-relevant = Zeitrelevant
 ct-sheet-extra-content = Diese Vertragsart kann zur Klassifizierung von Mitarbeitern und Stellen verwendet werden.
+
+# Boolean values
+ct-value-yes = Ja
+ct-value-no = Nein
 
 # Probation period units
 ct-probation-unit-day = Tag(e)

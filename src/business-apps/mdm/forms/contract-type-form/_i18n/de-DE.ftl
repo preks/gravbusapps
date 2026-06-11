@@ -9,14 +9,17 @@ form-description = Details und zusätzliche Informationen zur Vertragsart konfig
 field-name-label = Name
 field-code-label = Code
 field-description-label = Beschreibung
+field-employment-type-label = Beschäftigungsart
 field-probation-period-label = Probezeit
 
 # Field placeholders
 field-name-placeholder = Name eingeben
 field-code-placeholder = Code eingeben
 field-description-placeholder = Beschreibung eingeben (optional)
+field-employment-type-placeholder = Beschäftigungsart auswählen
 field-probation-value-placeholder = Wert eingeben
 field-probation-unit-placeholder = Einheit auswählen
+loading = Wird geladen...
 
 # Probation period unit options
 probation-unit-day = Tag(e)

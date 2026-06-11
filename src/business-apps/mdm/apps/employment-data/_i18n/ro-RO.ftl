@@ -67,10 +67,15 @@ ct-drawer-section-basic-info = Informații de bază
 ct-drawer-label-name = Nume
 ct-drawer-label-code = Cod
 ct-drawer-label-description = Descriere
+ct-drawer-label-employment-type = Tip angajare
 ct-drawer-label-probation-period = Perioadă de probă
 ct-drawer-label-payroll-relevant = Relevant pentru salarizare
 ct-drawer-label-time-relevant = Relevant pentru pontaj
 ct-sheet-extra-content = Acest tip de contract poate fi utilizat pentru clasificarea angajaților și posturilor.
+
+# Boolean values
+ct-value-yes = Da
+ct-value-no = Nu
 
 # Probation period units
 ct-probation-unit-day = Zi(le)

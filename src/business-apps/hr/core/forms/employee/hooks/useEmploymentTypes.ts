@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { isEmploymentTypeMarkedDeleted } from '@/business-apps/mdm/apps/employment-data/utils/catalogEntryMetadata'
+import { getCatalogValue, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { SelectOption } from '../types'
 
 const EMPLOYMENT_TYPE_CATALOG = 'EmploymentType'
@@ -55,17 +56,23 @@ export const useEmploymentTypes = (accessToken: string): UseEmploymentTypesRetur
             offset,
             returnTotalRecords: true,
             includeChildCatalogEntries: true,
+            includeTranslations: true,
+            localeCode: getCurrentActiveUserLocale(),
             ...(search && { searchCriteria: search })
           }
         )
 
         const entries = (response.data || []).filter((entry: any) => !isEmploymentTypeMarkedDeleted(entry))
-        const selectOptions: SelectOption[] = entries.map((entry: any) => ({
-          id: entry.id,
-          name: entry.value || entry.code || 'Unknown',
-          label: entry.value || entry.code || 'Unknown',
-          value: entry.id
-        }))
+        const selectOptions: SelectOption[] = entries.map((entry: any) => {
+          const label = getCatalogValue(entry) || entry.value || entry.code || 'Unknown'
+          return {
+            id: entry.id,
+            name: label,
+            label,
+            value: entry.id,
+            parentEntryId: entry.parentEntryId ?? null
+          }
+        })
 
         if (reset || offset === 0) {
           setEmploymentTypes(selectOptions)

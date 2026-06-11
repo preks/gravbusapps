@@ -9,14 +9,17 @@ form-description = Configurați detaliile și informațiile suplimentare ale tip
 field-name-label = Nume
 field-code-label = Cod
 field-description-label = Descriere
+field-employment-type-label = Tip angajare
 field-probation-period-label = Perioadă de probă
 
 # Field placeholders
 field-name-placeholder = Introduceți numele
 field-code-placeholder = Introduceți codul
 field-description-placeholder = Introduceți descrierea (opțional)
+field-employment-type-placeholder = Selectați tipul de angajare
 field-probation-value-placeholder = Introduceți valoarea
 field-probation-unit-placeholder = Selectați unitatea
+loading = Se încarcă...
 
 # Probation period unit options
 probation-unit-day = Zi(le)

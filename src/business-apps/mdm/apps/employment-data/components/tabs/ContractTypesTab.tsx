@@ -30,7 +30,13 @@ import { DeleteButton } from '../../../generic-components/delete-button/DeleteBu
 import ContractTypeForm from '@/business-apps/mdm/forms/contract-type-form/ContractTypeForm'
 import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent'
 import { useGetContractTypesData } from '../../queries/ContractTypesQueries'
-import { CONTRACT_TYPE_CATALOG, CONTRACT_TYPE_VERSION } from '@/business-apps/mdm/apps/employment-data/types'
+import { useGetEmploymentTypesData } from '../../queries/EmploymentTypesQueries'
+import {
+  CONTRACT_TYPE_CATALOG,
+  CONTRACT_TYPE_VERSION,
+  EMPLOYMENT_TYPE_CATALOG,
+  EMPLOYMENT_TYPE_VERSION
+} from '@/business-apps/mdm/apps/employment-data/types'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 import {
   formatProbationFromJson,
@@ -41,12 +47,14 @@ import {
 import { CatalogLookupDataTableShell } from '../CatalogLookupDataTableShell'
 import { CatalogMultilineCellText } from '../CatalogMultilineCellText'
 import type { CatalogEntry } from '@/common/types/CatalogTypes'
+import type { EmploymentType } from './EmploymentTypesTab'
 
 export interface ContractType {
   id: string
   code: string
   value: string
   alternativeCode?: string
+  parentEntryId?: string
   additionalValue1?: string
   additionalValue2?: string
   additionalValue3?: string
@@ -63,6 +71,7 @@ export interface ContractTypeTable {
   code: string
   value: string
   description: string | undefined
+  parentEntryId?: string
   /** Raw `additionalValue2`: JSON with probation data. */
   probationPeriod?: string
   objectValue?: CatalogEntry['objectValue']
@@ -75,11 +84,18 @@ export interface ContractTypesTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string
 }
 
-const buildBooleanBadgeColumn = (accessorKey: string, header: string): ColumnDef<ContractTypeTable> => ({
+const buildBooleanBadgeColumn = (
+  accessorKey: string,
+  header: string,
+  trueLabel: string,
+  falseLabel: string
+): ColumnDef<ContractTypeTable> => ({
   accessorKey,
   header,
   enableSorting: true,
-  cell: ({ getValue }) => <Badge variant={getValue() ? 'default' : 'secondary'}>{getValue() ? 'Yes' : 'No'}</Badge>
+  cell: ({ getValue }) => (
+    <Badge variant={getValue() ? 'default' : 'secondary'}>{getValue() ? trueLabel : falseLabel}</Badge>
+  )
 })
 
 const DATA_TEST_ID_PREFIX = 'ContractTypesTab'
@@ -91,8 +107,10 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
 
   const { fetchContractTypes } = useGetContractTypesData(catalogClient, userLocale)
+  const { fetchEmploymentTypes } = useGetEmploymentTypesData(catalogClient, userLocale)
 
   const [contractTypes, setContractTypes] = useState<ContractType[]>([])
+  const [employmentTypes, setEmploymentTypes] = useState<EmploymentType[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedType, setSelectedType] = useState<ContractType | null>(null)
@@ -103,8 +121,9 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
     try {
       setLoading(true)
 
-      const types = (await fetchContractTypes()) ?? []
-      setContractTypes(types)
+      const [types, employmentTypeOptions] = await Promise.all([fetchContractTypes(), fetchEmploymentTypes()])
+      setContractTypes(types ?? [])
+      setEmploymentTypes(employmentTypeOptions ?? [])
     } catch {
       toast.error(t('ct-toast-load-error'))
     } finally {
@@ -136,6 +155,38 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
         contractType.code.toLowerCase().includes(searchTerm.toLowerCase())
     )
   }, [contractTypes, searchTerm])
+
+  const employmentTypeLabelsByReference = useMemo(() => {
+    const labels = new Map<string, string>()
+
+    employmentTypes.forEach(employmentType => {
+      const label = employmentType.value || employmentType.code || employmentType.id
+      labels.set(employmentType.id, label)
+
+      if (employmentType.code) {
+        labels.set(employmentType.code, label)
+        labels.set(`${EMPLOYMENT_TYPE_CATALOG}:${EMPLOYMENT_TYPE_VERSION}:${employmentType.code}`, label)
+      }
+    })
+
+    return labels
+  }, [employmentTypes])
+
+  const getEmploymentTypeLabel = (parentEntryId?: string) => {
+    if (!parentEntryId) return '-'
+    if (parentEntryId === EMPLOYMENT_TYPE_CATALOG) return t('tab-employment-types')
+
+    return employmentTypeLabelsByReference.get(parentEntryId) ?? parentEntryId
+  }
+
+  const probationUnitLabels = useMemo(
+    () => ({
+      day: t('ct-probation-unit-day'),
+      week: t('ct-probation-unit-week'),
+      month: t('ct-probation-unit-month')
+    }),
+    [t]
+  )
 
   const handleSoftDelete = async (record: ContractTypeTable) => {
     const fresh = await catalogClient.getCatalogEntryById(record.id)
@@ -177,16 +228,20 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
             value: selectedType.additionalValue1 ?? '-'
           },
           {
+            label: t('ct-drawer-label-employment-type'),
+            value: getEmploymentTypeLabel(selectedType.parentEntryId)
+          },
+          {
             label: t('ct-drawer-label-probation-period'),
-            value: formatProbationFromJson(selectedType.additionalValue2)
+            value: formatProbationFromJson(selectedType.additionalValue2, probationUnitLabels)
           },
           {
             label: t('ct-drawer-label-payroll-relevant'),
-            value: getContractTypePayrollRelevant(selectedType) ? 'Yes' : 'No'
+            value: getContractTypePayrollRelevant(selectedType) ? t('ct-value-yes') : t('ct-value-no')
           },
           {
             label: t('ct-drawer-label-time-relevant'),
-            value: getContractTypeTimeRelevant(selectedType) ? 'Yes' : 'No'
+            value: getContractTypeTimeRelevant(selectedType) ? t('ct-value-yes') : t('ct-value-no')
           }
         ],
         verticalTable: true
@@ -194,7 +249,7 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
     ]
 
     return items
-  }, [selectedType, t])
+  }, [selectedType, t, employmentTypeLabelsByReference, probationUnitLabels])
 
   const renderContractTypesTable = () => {
     const columns: ColumnDef<ContractTypeTable>[] = [
@@ -240,13 +295,18 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
           const probationPeriod = getValue() as string | undefined
           return (
             <div className="gba:flex gba:items-center">
-              <span>{formatProbationFromJson(probationPeriod)}</span>
+              <span>{formatProbationFromJson(probationPeriod, probationUnitLabels)}</span>
             </div>
           )
         }
       },
-      buildBooleanBadgeColumn('payrollRelevant', t('ct-table-header-payroll-relevant')),
-      buildBooleanBadgeColumn('timeRelevant', t('ct-table-header-time-relevant')),
+      buildBooleanBadgeColumn(
+        'payrollRelevant',
+        t('ct-table-header-payroll-relevant'),
+        t('ct-value-yes'),
+        t('ct-value-no')
+      ),
+      buildBooleanBadgeColumn('timeRelevant', t('ct-table-header-time-relevant'), t('ct-value-yes'), t('ct-value-no')),
       {
         id: 'actions',
         header: () => <div className="gba:flex gba:w-[115px]">{t('ct-table-header-actions')}</div>,
@@ -294,6 +354,7 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
       code: contractType.code,
       value: contractType.value,
       description: contractType.additionalValue1,
+      parentEntryId: contractType.parentEntryId,
       probationPeriod: contractType.additionalValue2,
       objectValue: contractType.objectValue,
       isDeleted: contractType.isDeleted,
@@ -410,6 +471,7 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
                   code: selectedType.code,
                   value: selectedType.value,
                   description: selectedType.additionalValue1,
+                  parentEntryId: selectedType.parentEntryId,
                   probationPeriod: selectedType.additionalValue2,
                   objectValue: selectedType.objectValue,
                   isDeleted: selectedType.isDeleted

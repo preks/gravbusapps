@@ -78,10 +78,17 @@ export function serializeContractTypeAdditionalJson(meta: Pick<ContractTypeAddit
   return JSON.stringify(out)
 }
 
-export function formatProbationFromJson(additionalValue2?: string): string {
+export function formatProbationFromJson(
+  additionalValue2?: string,
+  unitLabels: Record<'day' | 'week' | 'month', string> = {
+    day: 'Day(s)',
+    week: 'Week(s)',
+    month: 'Month(s)'
+  }
+): string {
   const { value, unit } = parseContractTypeJson(additionalValue2)
   if (value == null || !unit) return '-'
-  const unitLabel = unit === 'day' ? 'Day(s)' : unit === 'week' ? 'Week(s)' : 'Month(s)'
+  const unitLabel = unitLabels[unit as 'day' | 'week' | 'month'] ?? unit
   return `${value} ${unitLabel}`
 }
 
@@ -117,6 +124,7 @@ export function mergeCatalogEntryForPut(
       | 'additionalValue1'
       | 'additionalValue2'
       | 'additionalValue3'
+      | 'parentEntryId'
       | 'objectValue'
       | 'isDeleted'
       | 'translations'
@@ -136,7 +144,7 @@ export function mergeCatalogEntryForPut(
     additionalValue3: overrides.additionalValue3 ?? existing.additionalValue3,
     objectValue: overrides.objectValue !== undefined ? overrides.objectValue : existing.objectValue,
     isDeleted: overrides.isDeleted ?? existing.isDeleted,
-    parentEntryId: existing.parentEntryId,
+    parentEntryId: overrides.parentEntryId ?? existing.parentEntryId,
     translations: overrides.translations !== undefined ? overrides.translations : (existing.translations ?? [])
   }
 }

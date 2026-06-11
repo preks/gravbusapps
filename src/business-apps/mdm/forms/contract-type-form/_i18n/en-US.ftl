@@ -9,14 +9,17 @@ form-description = Configure contract type details and additional information
 field-name-label = Name
 field-code-label = Code
 field-description-label = Description
+field-employment-type-label = Employment Type
 field-probation-period-label = Probation Period
 
 # Field placeholders
 field-name-placeholder = Enter name
 field-code-placeholder = Enter code
 field-description-placeholder = Enter description (optional)
+field-employment-type-placeholder = Select employment type
 field-probation-value-placeholder = Enter value
 field-probation-unit-placeholder = Select unit
+loading = Loading...
 
 # Probation period unit options
 probation-unit-day = Day(s)

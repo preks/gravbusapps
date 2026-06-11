@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
   Input,
   FormField,
@@ -19,10 +19,16 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { FormWrapperModal } from '@/components/form-wrapper'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
-import { CONTRACT_TYPE_CATALOG, CONTRACT_TYPE_VERSION } from '@/business-apps/mdm/apps/employment-data/types'
+import {
+  CONTRACT_TYPE_CATALOG,
+  CONTRACT_TYPE_VERSION,
+  EMPLOYMENT_TYPE_CATALOG,
+  EMPLOYMENT_TYPE_VERSION
+} from '@/business-apps/mdm/apps/employment-data/types'
 import { useUserLocale } from '@/common/locale/useUserLocale'
 import { useCodeError } from '@/business-apps/mdm/hooks/useCodeError'
 import { ContractTypeTable } from '../../apps/employment-data/components/tabs/ContractTypesTab'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import translations from './_i18n'
@@ -72,6 +78,7 @@ const buildCommonFields = (msgs: {
     .max(100, msgs.descriptionTooLong)
     .refine(val => !val || noLeadingWhitespace(val), msgs.noLeadingWhitespace)
     .optional(),
+  parentEntryId: z.string().optional(),
   probationValue: z
     .string()
     .refine(val => !val || /^[1-9]\d{0,3}$/.test(val), msgs.probationValueInvalid)
@@ -225,6 +232,19 @@ const SwitchToggleField: React.FC<{
   />
 )
 
+type EmploymentTypeOption = {
+  id: string
+  label: string
+}
+
+const getLocalizedCatalogValue = (entry: CatalogEntry, localeCode: string) => {
+  const translation = (entry.translations || []).find(
+    translation => translation.localeCode?.toLowerCase() === localeCode.toLowerCase()
+  )
+
+  return translation?.value?.trim() || entry.value || entry.code || entry.id
+}
+
 const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
   prefixDataTestId,
   contractType,
@@ -239,7 +259,59 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
   const dataTestId = formatDataTestId(prefixDataTestId, 'ContractTypeForm')
   const catalogClient = useCatalogManagerClient(accessToken)
   const userLocale = useUserLocale() ?? 'en-US'
+  const catalogLocale = getCurrentActiveUserLocale() || userLocale
   const { codeError, setCodeError, validateCode } = useCodeError(usedCodes)
+  const [employmentTypeOptions, setEmploymentTypeOptions] = useState<EmploymentTypeOption[]>([])
+  const [employmentTypeOptionsLoading, setEmploymentTypeOptionsLoading] = useState(false)
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadEmploymentTypeOptions = async () => {
+      setEmploymentTypeOptionsLoading(true)
+
+      try {
+        const response = await catalogClient.getCatalogEntriesList(
+          {
+            catalogIdentifier: EMPLOYMENT_TYPE_CATALOG,
+            version: EMPLOYMENT_TYPE_VERSION
+          },
+          {
+            limit: 100,
+            offset: 0,
+            returnTotalRecords: true,
+            includeTranslations: true,
+            localeCode: catalogLocale
+          }
+        )
+
+        if (!isMounted) return
+
+        const options = (response.data || [])
+          .filter(entry => entry.isDeleted !== true)
+          .map(entry => ({
+            id: entry.id,
+            label: getLocalizedCatalogValue(entry, catalogLocale)
+          }))
+
+        setEmploymentTypeOptions(options)
+      } catch {
+        if (isMounted) {
+          setEmploymentTypeOptions([])
+        }
+      } finally {
+        if (isMounted) {
+          setEmploymentTypeOptionsLoading(false)
+        }
+      }
+    }
+
+    loadEmploymentTypeOptions()
+
+    return () => {
+      isMounted = false
+    }
+  }, [catalogClient, catalogLocale])
 
   const validationMsgs = useMemo(
     () => ({
@@ -269,7 +341,8 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
       ...data,
       value: data.value?.trim() || '',
       code: data.code?.trim() || '',
-      description: data.description?.trim() || ''
+      description: data.description?.trim() || '',
+      parentEntryId: data.parentEntryId?.trim() || ''
     }
 
     const codeForSave = contractType?.code?.trim() || trimmedData.code
@@ -304,6 +377,9 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
         isDeleted: isContractTypeMarkedDeleted(fresh),
         translations
       })
+      if (trimmedData.parentEntryId) {
+        payload.parentEntryId = trimmedData.parentEntryId
+      }
       await catalogClient.updateCatalogEntry(
         CONTRACT_TYPE_CATALOG,
         CONTRACT_TYPE_VERSION,
@@ -312,6 +388,7 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
       )
     } else {
       await catalogClient.createCatalogEntry(CONTRACT_TYPE_CATALOG, CONTRACT_TYPE_VERSION, {
+        parentEntryId: trimmedData.parentEntryId || undefined,
         code: codeForSave,
         value: trimmedData.value,
         additionalValue1: trimmedData.description,
@@ -338,6 +415,7 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
       value: contractType?.value || '',
       code: contractType?.code || '',
       description: contractType?.description || '',
+      parentEntryId: contractType?.parentEntryId || '',
       probationValue: existingParsed.value != null && existingParsed.unit ? String(existingParsed.value) : '',
       probationUnit: existingParsed.unit || undefined,
       payrollRelevant: contractType
@@ -421,6 +499,36 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
                 data-testid={`${dataTestId}-description-input`}
               />
             </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        name="parentEntryId"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{t('field-employment-type-label')}</FormLabel>
+            <Select
+              onValueChange={field.onChange}
+              value={field.value || undefined}
+              disabled={employmentTypeOptionsLoading}
+            >
+              <FormControl>
+                <SelectTrigger className="gba:w-full" data-testid={`${dataTestId}-employment-type-select`}>
+                  <SelectValue
+                    placeholder={employmentTypeOptionsLoading ? t('loading') : t('field-employment-type-placeholder')}
+                  />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {employmentTypeOptions.map(option => (
+                  <SelectItem key={option.id} value={option.id}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <FormMessage />
           </FormItem>
         )}

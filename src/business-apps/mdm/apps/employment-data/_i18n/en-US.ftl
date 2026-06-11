@@ -67,10 +67,15 @@ ct-drawer-section-basic-info = Basic Information
 ct-drawer-label-name = Name
 ct-drawer-label-code = Code
 ct-drawer-label-description = Description
+ct-drawer-label-employment-type = Employment Type
 ct-drawer-label-probation-period = Probation Period
 ct-drawer-label-payroll-relevant = Payroll relevant
 ct-drawer-label-time-relevant = Time relevant
 ct-sheet-extra-content = This contract type can be used to classify employees and job positions.
+
+# Boolean values
+ct-value-yes = Yes
+ct-value-no = No
 
 # Probation period units
 ct-probation-unit-day = Day(s)

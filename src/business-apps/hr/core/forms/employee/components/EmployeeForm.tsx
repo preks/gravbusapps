@@ -245,6 +245,18 @@ const EmployeeForm: React.FC = () => {
     () => jobPositions.map(position => ({ value: position.id, label: position.name })).filter(Boolean),
     [jobPositions]
   )
+  const selectedEmploymentType = useMemo(
+    () => employmentTypes.find(type => type.id === formValues.employmentTypeId),
+    [employmentTypes, formValues.employmentTypeId]
+  )
+  const filteredContractTypes = useMemo(() => {
+    const parentContractTypeId = selectedEmploymentType?.parentEntryId
+    if (!parentContractTypeId) {
+      return contractTypes
+    }
+
+    return contractTypes.filter(type => type.id === parentContractTypeId)
+  }, [contractTypes, selectedEmploymentType?.parentEntryId])
 
   const jobPositionEmptyText = (() => {
     if (formValues.organizationalUnitId) {
@@ -291,6 +303,37 @@ const EmployeeForm: React.FC = () => {
     },
     [allJobPositions, form, setFormValues]
   )
+
+  const handleEmploymentTypeChange = useCallback(
+    (value: string) => {
+      const employmentType = employmentTypes.find(type => type.id === value)
+      const parentContractTypeId = employmentType?.parentEntryId
+      const nextContractTypeId =
+        parentContractTypeId && contractTypes.some(type => type.id === parentContractTypeId) ? parentContractTypeId : ''
+
+      form.setValue('employmentTypeId', value, { shouldValidate: true })
+      form.setValue('contractTypeId', nextContractTypeId, { shouldValidate: true })
+      setFormValues({ employmentTypeId: value, contractTypeId: nextContractTypeId })
+    },
+    [contractTypes, employmentTypes, form, setFormValues]
+  )
+
+  const handleContractTypeChange = useCallback(
+    (value: string) => {
+      form.setValue('contractTypeId', value, { shouldValidate: true })
+      setFormValues({ contractTypeId: value })
+    },
+    [form, setFormValues]
+  )
+
+  useEffect(() => {
+    if (!formValues.contractTypeId) return
+    if (contractTypesLoading) return
+    if (filteredContractTypes.some(type => type.id === formValues.contractTypeId)) return
+
+    form.setValue('contractTypeId', '', { shouldValidate: true })
+    setFormValues({ contractTypeId: '' })
+  }, [contractTypesLoading, filteredContractTypes, form, formValues.contractTypeId, setFormValues])
 
   const formatDateToMidnight = (value?: string) => {
     if (!value) return undefined
@@ -668,10 +711,7 @@ const EmployeeForm: React.FC = () => {
                       <RequiredFormLabel>{t('employee-form-employment-type')}</RequiredFormLabel>
                       <Select
                         value={formValues.employmentTypeId || undefined}
-                        onValueChange={value => {
-                          form.setValue('employmentTypeId', value, { shouldValidate: true })
-                          setFormValues({ employmentTypeId: value })
-                        }}
+                        onValueChange={handleEmploymentTypeChange}
                         disabled={!formValues.jobPositionId || employmentTypesLoading}
                       >
                         <FormControl>
@@ -708,11 +748,8 @@ const EmployeeForm: React.FC = () => {
                       <RequiredFormLabel>{t('employee-form-contract-type')}</RequiredFormLabel>
                       <Select
                         value={formValues.contractTypeId || undefined}
-                        onValueChange={value => {
-                          form.setValue('contractTypeId', value, { shouldValidate: true })
-                          setFormValues({ contractTypeId: value })
-                        }}
-                        disabled={!formValues.jobPositionId || contractTypesLoading}
+                        onValueChange={handleContractTypeChange}
+                        disabled={!formValues.jobPositionId || !formValues.employmentTypeId || contractTypesLoading}
                       >
                         <FormControl>
                           <SelectTrigger className="gba:w-full gba:min-w-0">
@@ -722,12 +759,12 @@ const EmployeeForm: React.FC = () => {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {contractTypes.length === 0 ? (
+                          {filteredContractTypes.length === 0 ? (
                             <div className="gba:p-2 gba:text-sm gba:text-muted-foreground gba:text-center">
                               {contractTypesLoading ? t('loading') : t('employee-form-no-results')}
                             </div>
                           ) : (
-                            contractTypes.map(type => (
+                            filteredContractTypes.map(type => (
                               <SelectItem key={type.id} value={type.id}>
                                 {type.name}
                               </SelectItem>
@@ -780,7 +817,7 @@ const EmployeeForm: React.FC = () => {
       organizationalUnitOptions,
       jobPositionOptions,
       employmentTypes,
-      contractTypes,
+      filteredContractTypes,
       legalEntitiesLoading,
       siteLocationsLoading,
       costCentersLoading,
@@ -810,6 +847,8 @@ const EmployeeForm: React.FC = () => {
       loadMoreJobPositions,
       handleLegalEntityChange,
       handleJobPositionChange,
+      handleEmploymentTypeChange,
+      handleContractTypeChange,
       setFormValues,
       jobPositionEmptyText,
       jobPositionsError,
