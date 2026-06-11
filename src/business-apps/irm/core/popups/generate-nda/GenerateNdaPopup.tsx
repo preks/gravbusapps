@@ -14,21 +14,21 @@ import {
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useForm, FormProvider } from 'react-hook-form'
-import { EmployeeSelect } from '@/components/employee-select'
 import { EntitySelect } from '@/common/components/common-relations/selects/reference-select'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { useOpportunityData } from './hooks/useOpportunityData'
 import { useOpportunityAccounts } from './hooks/useOpportunityAccounts'
 import { useOpportunityContacts } from './hooks/useOpportunityContacts'
-import { useTeamEmployees } from './hooks/useTeamEmployees'
+import { useCompanyExecutives } from './hooks/useCompanyExecutives'
 import { useNdaReportGeneration } from './hooks/useNdaReportGeneration'
+import InvestmentCompanyInfo from './components/InvestmentCompanyInfo'
 
 export interface GenerateNdaPopupValues {
   opportunityId: string
   accountId: string
   contactId: string
-  assignedEmployeeId: string
+  executiveId: string
 }
 
 export interface GenerateNdaPopupProps extends BusinessAppContextProps {
@@ -41,7 +41,7 @@ export interface GenerateNdaPopupProps extends BusinessAppContextProps {
 interface FormValues {
   accountId: string
   contactId: string
-  assignedEmployeeId: string
+  executiveId: string
 }
 
 const prefixDataTestId = 'GenerateNdaPopup'
@@ -49,7 +49,7 @@ const prefixDataTestId = 'GenerateNdaPopup'
 const GenerateNdaPopup: React.FC<GenerateNdaPopupProps> = ({ initialValues = {}, ...props }) => {
   const [preselectedAccountId, setPreselectedAccountId] = useState<string | null>(null)
   const [preselectedContactId, setPreselectedContactId] = useState<string | null>(null)
-  const [orgUnitId, setOrgUnitId] = useState<string | null>(null)
+  const [preselectedExecutiveId, setPreselectedExecutiveId] = useState<string | null>(null)
   const [isGeneratingNda, setIsGeneratingNda] = useState(false)
   const [ndaError, setNdaError] = useState<string | null>(null)
 
@@ -57,7 +57,7 @@ const GenerateNdaPopup: React.FC<GenerateNdaPopupProps> = ({ initialValues = {},
     defaultValues: {
       accountId: '',
       contactId: '',
-      assignedEmployeeId: ''
+      executiveId: ''
     }
   })
 
@@ -94,14 +94,14 @@ const GenerateNdaPopup: React.FC<GenerateNdaPopupProps> = ({ initialValues = {},
     loadMore: loadMoreContacts
   } = useOpportunityContacts(opportunity, preselectedContactId)
 
-  // Load team employees with pagination and search
+  // Load investment company executives (employee-backed, or contact-backed when no employee) with local search
   const {
-    employees: teamEmployees,
-    loading: employeesLoading,
-    hasMore: hasMoreEmployees,
-    search: searchEmployees,
-    loadMore: loadMoreEmployees
-  } = useTeamEmployees(props.accessToken || '', orgUnitId)
+    executives,
+    loading: executivesLoading,
+    hasMore: hasMoreExecutives,
+    search: searchExecutives,
+    loadMore: loadMoreExecutives
+  } = useCompanyExecutives(opportunity, preselectedExecutiveId)
 
   // NDA report generation
   const { generateNdaReport } = useNdaReportGeneration(props.accessToken || '')
@@ -127,6 +127,17 @@ const GenerateNdaPopup: React.FC<GenerateNdaPopupProps> = ({ initialValues = {},
     }))
   }, [contacts])
 
+  // Prepare executive entities for EntitySelect (name + job position)
+  const executiveEntities = useMemo(() => {
+    return executives.map(exec => ({
+      id: exec.id,
+      name: exec.name || 'Executive',
+      type: 'employee',
+      subtitle: exec.jobPosition || ' ',
+      pictureThumbnail: exec.pictureThumbnail
+    }))
+  }, [executives])
+
   // Initialize accounts, contacts, and employees when opportunity loads
   useEffect(() => {
     if (!opportunity) return
@@ -148,18 +159,17 @@ const GenerateNdaPopup: React.FC<GenerateNdaPopupProps> = ({ initialValues = {},
       form.setValue('contactId', selectedContactId)
     }
 
-    // Set org unit for employee filtering
-    const ownerOrgUnitId = opportunity.ownerEmployee?.employeePosition?.organizationalUnit?.id
-    if (ownerOrgUnitId) {
-      setOrgUnitId(ownerOrgUnitId)
+    // Preselect the first executive of the investment company, preferring an
+    // employee-backed one but falling back to a contact-backed executive.
+    const companyExecutives = opportunity.investmentCompany?.investmentCompanyExecutive
+    const firstExecutive =
+      companyExecutives?.find(exec => exec.employee) || companyExecutives?.find(exec => exec.investmentContact)
+    if (firstExecutive) {
+      setPreselectedExecutiveId(firstExecutive.id)
+      form.setValue('executiveId', firstExecutive.id)
     }
 
-    // Prefill owner employee
-    if (opportunity.ownerEmployee) {
-      form.setValue('assignedEmployeeId', opportunity.ownerEmployee.id)
-    }
-
-    // Note: accounts and contacts are already loaded from opportunity data
+    // Note: accounts, contacts and executives are already loaded from opportunity data
   }, [opportunity, form])
 
   // Helper: Download and preview NDA file
@@ -221,16 +231,10 @@ const GenerateNdaPopup: React.FC<GenerateNdaPopupProps> = ({ initialValues = {},
         ? contacts.find(cont => cont.id === formValues.contactId) || null
         : null
 
-      // Find selected employee (required)
-      // Check if selected employee is the owner employee first, otherwise find in team list
-      const selectedEmployee =
-        opportunity.ownerEmployee?.id === formValues.assignedEmployeeId
-          ? opportunity.ownerEmployee
-          : teamEmployees.find(emp => emp.id === formValues.assignedEmployeeId)
-
-      if (!selectedEmployee) {
-        throw new Error('Please select an employee')
-      }
+      // Find selected investment company executive (optional)
+      const selectedExecutive = formValues.executiveId
+        ? executives.find(exec => exec.id === formValues.executiveId) || null
+        : null
 
       // Validate that we have the necessary data for selected entities
       if (formValues.accountId && !selectedAccount) {
@@ -245,7 +249,7 @@ const GenerateNdaPopup: React.FC<GenerateNdaPopupProps> = ({ initialValues = {},
         opportunity,
         account: selectedAccount,
         contact: selectedContact,
-        employee: selectedEmployee
+        executive: selectedExecutive
       })
 
       if (!response.success || !response.reportUrl) {
@@ -272,7 +276,7 @@ const GenerateNdaPopup: React.FC<GenerateNdaPopupProps> = ({ initialValues = {},
     } finally {
       setIsGeneratingNda(false)
     }
-  }, [opportunity, accounts, contacts, teamEmployees, form, generateNdaReport, props, handleClose])
+  }, [opportunity, accounts, contacts, executives, form, generateNdaReport, props, handleClose])
 
   // Early validation - must be after all hooks
   if (!opportunityId) {
@@ -388,28 +392,34 @@ const GenerateNdaPopup: React.FC<GenerateNdaPopupProps> = ({ initialValues = {},
             )}
           />
 
-          {/* Employee Selection */}
+          {/* Our Side: Investment Company (fixed) */}
+          <FormItem className="gba:mb-6">
+            <FormLabel className="gba:mb-2 gba:block">Investment Company</FormLabel>
+            <InvestmentCompanyInfo
+              company={opportunity.investmentCompany}
+              dataTestId={formatDataTestId(prefixDataTestId, 'investment-company')}
+            />
+          </FormItem>
+
+          {/* Our Side: Investment Company Executive Selection */}
           <FormField
             control={form.control}
-            name="assignedEmployeeId"
+            name="executiveId"
             render={({ field }) => (
               <FormItem className="gba:mb-6">
-                <FormLabel className="gba:mb-2 gba:block">
-                  Employee <span className="gba:text-destructive">*</span>
-                </FormLabel>
-                <FormControl>
-                  <EmployeeSelect
-                    employees={teamEmployees}
-                    initialEmployee={opportunity.ownerEmployee}
+                <FormLabel className="gba:mb-2 gba:block">Investment Company Executive</FormLabel>
+                <FormControl className="gba:w-full">
+                  <EntitySelect
+                    entities={executiveEntities}
                     value={field.value || ''}
                     onValueChange={(v: string | null) => field.onChange(v || '')}
-                    onSearch={searchEmployees}
-                    loading={employeesLoading}
-                    hasMore={hasMoreEmployees}
-                    onLoadMore={loadMoreEmployees}
-                    placeholder="Select team member..."
-                    searchPlaceholder="Search employees..."
-                    data-testid={formatDataTestId(prefixDataTestId, 'employee-select')}
+                    onSearch={searchExecutives}
+                    loading={executivesLoading}
+                    hasMore={hasMoreExecutives}
+                    onLoadMore={loadMoreExecutives}
+                    placeholder="Select an executive"
+                    searchPlaceholder="Search executives..."
+                    data-testid={formatDataTestId(prefixDataTestId, 'executive-select')}
                   />
                 </FormControl>
                 <FormMessage />
@@ -430,11 +440,7 @@ const GenerateNdaPopup: React.FC<GenerateNdaPopupProps> = ({ initialValues = {},
             <Button
               variant="default"
               onClick={handleSubmit}
-              disabled={
-                (!form.watch('accountId') && !form.watch('contactId')) ||
-                !form.watch('assignedEmployeeId') ||
-                isGeneratingNda
-              }
+              disabled={(!form.watch('accountId') && !form.watch('contactId')) || isGeneratingNda}
               data-testid={formatDataTestId(prefixDataTestId, 'submit-button')}
             >
               {isGeneratingNda ? 'Generating NDA...' : 'Generate NDA'}

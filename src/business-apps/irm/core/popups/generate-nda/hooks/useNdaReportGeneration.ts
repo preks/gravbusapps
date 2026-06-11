@@ -1,12 +1,9 @@
 import { useCallback } from 'react'
 import { useInvestmentReportClient } from '@/common/network/investment-reports'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
-import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
-import type { OpportunityData } from './useOpportunityData'
+import type { InvestmentAddressData, OpportunityData } from './useOpportunityData'
 import type { AccountOption } from './useOpportunityAccounts'
 import type { ContactOption } from './useOpportunityContacts'
-import type { EmployeeOption } from './useTeamEmployees'
+import type { ExecutiveOption } from './useCompanyExecutives'
 
 // Actual API response structure
 interface ActualApiResponse {
@@ -16,28 +13,39 @@ interface ActualApiResponse {
   reportData: any
 }
 
-interface OrgchartCompanyNode {
-  id: string
-  type: string
-  parentNode?: string
-  data?: {
-    companyData?: {
-      name?: string
-    }
-  }
+interface NormalizedAddress {
+  street: string
+  postalCode: string
+  city: string
+  region: string
+  country: string
 }
 
-interface OrgchartStructureResponse {
-  nodes: OrgchartCompanyNode[]
-}
-
-const GET_ACTIVE_STRUCTURE_ID_QUERY = `
-  query GetActiveStructureIdForNda {
-    Structure(where: { isActive: { _eq: true } }, limit: 1) {
-      id
+const extractAddressLine = (addressLine: unknown): string => {
+  if (!addressLine) return ''
+  if (typeof addressLine === 'string') return addressLine
+  if (typeof addressLine === 'object') {
+    const lines = (addressLine as { lines?: unknown }).lines
+    if (Array.isArray(lines) && typeof lines[0] === 'string') {
+      return lines[0]
     }
   }
-`
+  return ''
+}
+
+// Pick the PRIMARY address when available, otherwise the first entry, and
+// flatten it into the flat string fields the NDA template expects.
+const normalizeInvestmentAddress = (addresses?: InvestmentAddressData[] | null): NormalizedAddress => {
+  const primaryAddress = addresses?.find(address => address.addressType === 'PRIMARY_ADDRESS') || addresses?.[0]
+
+  return {
+    street: extractAddressLine(primaryAddress?.addressLine),
+    postalCode: primaryAddress?.postalCode || '',
+    city: primaryAddress?.locality || '',
+    region: primaryAddress?.region?.value || '',
+    country: primaryAddress?.country?.value || ''
+  }
+}
 
 // Standardized response format
 interface NdaReportResponse {
@@ -48,102 +56,66 @@ interface NdaReportResponse {
 }
 
 export interface NdaReportData {
-  investmentOpportunityName: string
-  investmentOpportunityStreet: string
-  investmentOpportunityAddressPostalCode: string
-  investmentOpportunityAddressCity: string
-  investmentOpportunityAddressRegion: string
-  investmentOpportunityAddressCountry: string
-  ourCompanyLegalName: string
-  ourCompanyLegalStreet: string
-  ourCompanyLegalAddressPostalCode: string
-  ourCompanyLegalAddressCity: string
-  ourCompanyLegalAddressRegion: string
-  ourCompanyLegalAddressCountry: string
-  contactFirstName: string
-  contactLastName: string
-  contactJobPosition: string
-  ourCompanyContactFirstName: string
-  ourCompanyContactLastName: string
-  ourCompanyContactJobPosition: string
+  investmentOpportunityAccountName: string
+  investmentOpportunityAccountAddressStreet: string
+  investmentOpportunityAccountAddressPostalCode: string
+  investmentOpportunityAccountAddressCity: string
+  investmentOpportunityAccountAddressRegion: string
+  investmentOpportunityAccountAddressCountry: string
+  investmentCompanyName: string
+  investmentCompanyAddressStreet: string
+  investmentCompanyAddressPostalCode: string
+  investmentCompanyAddressCity: string
+  investmentCompanyAddressRegion: string
+  investmentCompanyAddressCountry: string
+  investmentOpportunityContactFullName: string
+  investmentOpportunityContactJobPosition: string
+  investmentCompanyExecutiveFullName: string
+  investmentCompanyExecutiveJobPosition: string
 }
 
 export interface GenerateNdaReportParams {
   opportunity: OpportunityData
   account: AccountOption | null
   contact: ContactOption | null
-  employee: EmployeeOption
+  executive: ExecutiveOption | null
 }
 
 export const useNdaReportGeneration = (accessToken: string) => {
   const reportClient = useInvestmentReportClient(accessToken)
-  const graphqlClient = useGraphQLClient(accessToken)
-  const orgchartClient = useOrgchartClient(accessToken)
-
-  const getMainOrgchartCompanyName = useCallback(async (): Promise<string | null> => {
-    try {
-      let structureId = getCurrentActiveStructureId()
-
-      if (!structureId) {
-        const activeStructureResult = await graphqlClient.request<{ Structure?: Array<{ id?: string }> }>(
-          GET_ACTIVE_STRUCTURE_ID_QUERY
-        )
-        structureId = activeStructureResult.Structure?.[0]?.id || null
-      }
-
-      if (!structureId) {
-        return null
-      }
-
-      const structure = await orgchartClient.getStructure<OrgchartStructureResponse>(structureId, {
-        nodeType: 'company'
-      })
-      const companyNodes = (structure.nodes || []).filter(node => node.type === 'company')
-      if (!companyNodes.length) {
-        return null
-      }
-
-      const rootCompany = companyNodes.find(node => !node.parentNode)
-      const selectedCompany = rootCompany || companyNodes[0]
-      return selectedCompany.data?.companyData?.name || null
-    } catch (error) {
-      console.error('Failed to load main orgchart company name:', error)
-      return null
-    }
-  }, [graphqlClient, orgchartClient])
 
   const generateNdaReport = useCallback(
     async (params: GenerateNdaReportParams): Promise<NdaReportResponse> => {
-      const { opportunity, account, contact, employee } = params
-      const mainOrgchartCompanyName = await getMainOrgchartCompanyName()
+      const { opportunity, account, contact, executive } = params
+
+      // Our company address comes from the selected opportunity's investmentCompany.
+      const companyAddress = normalizeInvestmentAddress(opportunity.investmentCompany?.investmentAddress)
 
       // Prepare report data matching the required structure
       const reportData: NdaReportData = {
-        // Investment Opportunity Details (using selected account PRIMARY address)
-        investmentOpportunityName: opportunity.name || '',
-        investmentOpportunityStreet: account?.address?.addressLine || '',
-        investmentOpportunityAddressPostalCode: account?.address?.postalCode || '',
-        investmentOpportunityAddressCity: account?.address?.locality || '',
-        investmentOpportunityAddressRegion: account?.address?.region || '',
-        investmentOpportunityAddressCountry: account?.address?.country || '',
+        // Investment Opportunity Account (from the selected account and its PRIMARY address)
+        investmentOpportunityAccountName: account?.name || '',
+        investmentOpportunityAccountAddressStreet: account?.address?.addressLine || '',
+        investmentOpportunityAccountAddressPostalCode: account?.address?.postalCode || '',
+        investmentOpportunityAccountAddressCity: account?.address?.locality || '',
+        investmentOpportunityAccountAddressRegion: account?.address?.region || '',
+        investmentOpportunityAccountAddressCountry: account?.address?.country || '',
 
-        // Our company legal details (from opportunity's company)
-        ourCompanyLegalName: mainOrgchartCompanyName || opportunity.investmentCompany?.name || '',
-        ourCompanyLegalStreet: '', // Company address not available in current schema
-        ourCompanyLegalAddressPostalCode: '',
-        ourCompanyLegalAddressCity: '',
-        ourCompanyLegalAddressRegion: '',
-        ourCompanyLegalAddressCountry: '',
+        // Investment Company (from the selected opportunity's investmentCompany)
+        investmentCompanyName: opportunity.investmentCompany?.name || '',
+        investmentCompanyAddressStreet: companyAddress.street,
+        investmentCompanyAddressPostalCode: companyAddress.postalCode,
+        investmentCompanyAddressCity: companyAddress.city,
+        investmentCompanyAddressRegion: companyAddress.region,
+        investmentCompanyAddressCountry: companyAddress.country,
 
-        // Contact Details (from selected contact)
-        contactFirstName: contact?.firstName || '',
-        contactLastName: contact?.lastName || '',
-        contactJobPosition: contact?.jobPosition || '',
+        // Investment Opportunity Contact (from the selected contact)
+        investmentOpportunityContactFullName: contact?.name || '',
+        investmentOpportunityContactJobPosition: contact?.jobPosition || '',
 
-        // Our company contact details (from selected employee)
-        ourCompanyContactFirstName: employee.firstName || '',
-        ourCompanyContactLastName: employee.lastName || '',
-        ourCompanyContactJobPosition: employee.employeePosition?.jobPosition?.name || ''
+        // Investment Company Executive (from the selected executive)
+        investmentCompanyExecutiveFullName: executive?.name || '',
+        investmentCompanyExecutiveJobPosition: executive?.jobPosition || ''
       }
 
       // Prepare the request payload - NDA API expects investment object + flat structure in reportData
@@ -187,7 +159,7 @@ export const useNdaReportGeneration = (accessToken: string) => {
         throw error
       }
     },
-    [getMainOrgchartCompanyName, reportClient]
+    [reportClient]
   )
 
   return { generateNdaReport }

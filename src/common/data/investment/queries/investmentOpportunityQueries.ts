@@ -196,6 +196,13 @@ export const buildInvestmentOpportunityByIdQuery = (
 
     # IRM-specific Investment fields
     dealType
+
+    # Company relationship (IRM uses investmentCompany; flat id is needed to prefill the form select)
+    investmentCompanyId
+    investmentCompany {
+      ${INVESTMENT_COMPANY_REF}
+    }
+
     investmentGroup {
       ${CATALOG_ENTRY}
     }

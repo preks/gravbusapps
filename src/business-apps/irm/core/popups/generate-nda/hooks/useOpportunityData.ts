@@ -1,6 +1,19 @@
 import { useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
+export interface InvestmentAddressData {
+  addressType?: string | null
+  addressLine?: any // jsonb scalar; actual shape is { lines: string[] }
+  postalCode?: string | null
+  locality?: string | null
+  region?: {
+    value: string
+  } | null
+  country?: {
+    value: string
+  } | null
+}
+
 export interface OpportunityData {
   id: string
   name: string
@@ -24,7 +37,32 @@ export interface OpportunityData {
   investmentCompany?: {
     id: string
     name: string
+    investmentAddress?: InvestmentAddressData[]
+    investmentCompanyExecutive?: Array<{
+      id: string
+      employee?: {
+        id: string
+        firstName?: string
+        lastName?: string
+        displayName?: string
+        pictureThumbnail?: string
+        employeePosition?: {
+          jobPosition?: {
+            name?: string
+          }
+        }
+      } | null
+      investmentContact?: {
+        id: string
+        firstName?: string
+        lastName?: string
+        fullName?: string
+        jobPosition?: string
+        pictureThumbnail?: string
+      } | null
+    }>
   }
+  investmentAddress?: InvestmentAddressData[]
   addresses?: Array<{
     addressLine?: any
     postalCode?: string
@@ -97,6 +135,53 @@ const OPPORTUNITY_QUERY = `
       investmentCompany {
         id
         name
+        investmentAddress(where: { isDeleted: { _eq: false } }) {
+          addressType
+          addressLine
+          postalCode
+          locality
+          region {
+            value
+          }
+          country {
+            value
+          }
+        }
+        investmentCompanyExecutive(where: { isDeleted: { _eq: false } }) {
+          id
+          employee {
+            id
+            firstName
+            lastName
+            displayName
+            pictureThumbnail
+            employeePosition {
+              jobPosition {
+                name
+              }
+            }
+          }
+          investmentContact {
+            id
+            firstName
+            lastName
+            fullName
+            jobPosition
+            pictureThumbnail
+          }
+        }
+      }
+      investmentAddress(where: { isDeleted: { _eq: false } }) {
+        addressType
+        addressLine
+        postalCode
+        locality
+        region {
+          value
+        }
+        country {
+          value
+        }
       }
       addresses(where: { isDeleted: { _eq: false } }, limit: 1) {
         addressLine

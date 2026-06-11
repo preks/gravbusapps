@@ -105,17 +105,9 @@ const InvestmentCompanySelect = React.forwardRef<HTMLButtonElement, InvestmentCo
             </Avatar>
             <div className="gba:flex gba:flex-col gba:min-w-0 gba:flex-1 gba:overflow-hidden">
               <div className="gba:text-sm gba:font-medium gba:truncate gba:text-left">{company.name || ''}</div>
-              {(company.code || company.description) && (
+              {company.code && (
                 <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-left gba:min-w-0">
-                  {company.code && (
-                    <span className="gba:text-muted-foreground gba:truncate gba:shrink-0">{company.code}</span>
-                  )}
-                  {company.code && company.description && (
-                    <span className="gba:text-muted-foreground gba:shrink-0">.</span>
-                  )}
-                  {company.description && (
-                    <span className="gba:text-muted-foreground gba:truncate gba:min-w-0">{company.description}</span>
-                  )}
+                  <span className="gba:text-muted-foreground gba:truncate gba:shrink-0">{company.code}</span>
                 </div>
               )}
             </div>
