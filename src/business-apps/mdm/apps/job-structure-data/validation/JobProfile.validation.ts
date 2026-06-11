@@ -34,7 +34,12 @@ export const jobProfileSchema = z.object({
   description: z.string().max(500, 'Description must be less than 500 characters').optional().or(z.literal('')),
   jobFunction: jobFunctionSchema,
   jobLevel: jobLevelSchema,
-  skills: z.array(skillSchema).optional().default([])
+  skills: z.array(skillSchema).optional().default([]),
+  promotionCriteria: z
+    .string()
+    .max(2000, 'Promotion criteria must be less than 2000 characters')
+    .optional()
+    .or(z.literal(''))
 })
 
 export type JobProfileFormValues = z.infer<typeof jobProfileSchema>

@@ -332,6 +332,7 @@ employee-record-tab-summary = Übersicht
 employee-record-tab-hr-admin = HR-Administration
 employee-record-tab-hr-growth = Personalentwicklung
 hr-growth-skills = Skills
+hr-growth-career = Karriere
 hr-growth-feedback = Feedback-Hub
 hr-growth-performance = Ziele
 
@@ -1042,3 +1043,16 @@ working-hours-standard-full-time-description = Montag bis Freitag mit jeweils 8 
 working-hours-customize-by-day-option = Nach Tag anpassen
 working-hours-customize-by-day-description = Geben Sie die Stunden für jeden Tag manuell ein.
 working-hours-distribute-evenly-action = Gleichmäßig verteilen
+
+# Career Tab
+career-tab-title = Karrierepfad
+career-current-level = Aktuelle Stufe
+career-next-level = Nächste Stufe
+career-months-on-level = {$months} Mo. auf Stufe
+career-skills-gap-title = Kompetenzen zur nächsten Stufe
+career-skills-current-title = Kompetenzen der aktuellen Stufe
+career-skill-missing = Fehlend
+career-skills-empty-description = Keine Kompetenzen für das aktuelle Jobprofil definiert. Bitte kontaktieren Sie Ihren HR-Partner.
+career-promotion-criteria-title = Beförderungskriterien
+career-empty-state-title = Karrierepfad nicht verfügbar
+career-empty-state-description = Stammdaten nicht gepflegt — wir können Ihren Karrierepfad nicht bestimmen. Bitte kontaktieren Sie Ihren HR-Partner.

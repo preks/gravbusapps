@@ -46,6 +46,7 @@ function GET_JOB_PROFILE_DATA(params: JobProfileQueryParameters): string {
         hierarchyOrder
       }
       version
+      additionalProperties
       jobProfileSkills(where: {isDeleted: {_eq: false}}) {
         requiredLevel
         skill {

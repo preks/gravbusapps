@@ -144,6 +144,7 @@ export const EmployeeRecord: React.FC<BusinessAppContextProps> = props => {
         targetTab: TAB_KEYS.hrGrowth,
         subViewMap: {
           skills: 'skills',
+          career: 'career',
           feedback: 'feedback',
           performance: 'performance',
           performanceEvaluation: 'performanceEvaluation'

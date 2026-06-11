@@ -339,6 +339,7 @@ employee-record-tab-summary = Summary
 employee-record-tab-hr-admin = HR Administration
 employee-record-tab-hr-growth = HR Development
 hr-growth-skills = Skills
+hr-growth-career = Career
 hr-growth-feedback = Feedback Hub
 hr-growth-performance = Goals
 
@@ -1055,3 +1056,84 @@ working-hours-standard-full-time-description = Prefill Monday to Friday with 8 h
 working-hours-customize-by-day-option = Customize by day
 working-hours-customize-by-day-description = Enter the hours for each day manually.
 working-hours-distribute-evenly-action = Distribute evenly
+
+# Career Tab
+career-tab-title = Career & Promotion Readiness
+career-current-level = Current Level
+career-next-level = Next Level
+career-months-on-level = {$months} mo. on level
+career-skills-gap-title = Skills Gap to Next Level
+career-skills-current-title = Current Level Skills
+career-skill-missing = Missing
+career-skills-empty-description = No skills defined for the current job profile. Please contact your HR partner.
+career-promotion-criteria-title = Promotion Criteria
+career-empty-state-title = Career path unavailable
+career-empty-state-description = Master Data not maintained — we cannot determine your career ladder. Please contact your HR partner.
+
+# Career - Position Summary
+career-position-summary-title = Current Position Summary
+career-current-position = Current Position
+career-current-level-card = Current Level
+career-next-career-level = Next Career Level
+career-potential-level = Potential Level
+career-potential-not-assessed = Not assessed
+career-promotion-candidate = Promotion Candidate
+career-on-track = On Track
+career-needs-development = Needs Development
+
+# Career - Time Metrics
+career-time-metrics-title = Time Metrics
+career-time-in-role = Time in Role
+career-time-on-level = Time on Level
+career-company-tenure = Company Tenure
+
+# Career - Readiness
+career-readiness-title = Promotion Readiness
+career-readiness-overall = Overall Readiness
+career-readiness-complete = Complete
+career-readiness-in-progress = In Progress
+career-readiness-missing = Missing
+
+# Career - Skills Gap Table
+career-skills-gap-table-title = Skills Gap to Next Level
+career-skills-gap-col-skill = Skill
+career-skills-gap-col-current = Current
+career-skills-gap-col-required = Required
+career-skills-gap-col-gap = Gap
+career-skills-gap-empty = No skills defined for the next level.
+
+# Career - Promotion Criteria Checklist
+career-criteria-self = Self
+career-criteria-manager = Manager
+career-criteria-evidence = Evidence
+career-criteria-no-assessment = No assessment data available yet.
+
+# Career - Next Roles
+career-next-roles-title = Possible Next Roles
+career-next-roles-empty = No next roles configured.
+
+# Career - Development Recommendations
+career-dev-recommendations-title = Development Recommendations
+career-dev-recommendations-empty = No recommendations configured.
+
+# Career - Compensation Overview
+career-compensation-title = Compensation Overview
+career-compensation-current-band = Current Band
+career-compensation-current-salary = Current Salary
+career-compensation-compa-ratio = Compa-Ratio
+career-compensation-next-band = Next Level Band
+career-compensation-potential-increase = Potential Increase
+career-compensation-unavailable = Unavailable
+career-compensation-no-permission = You do not have permission to view compensation data.
+
+# Career - Timeline & Insights
+career-career-path-suffix = Career Path
+career-timeline-current-level = Current Level
+career-timeline-on-role = on role
+career-timeline-on-level = on level
+career-promotion-criteria-empty = No promotion criteria configured.
+career-insights-title = Next Best Actions
+career-insights-description = Suggested next steps based on your career progression gaps.
+career-insight-close-gap = Close gap in {$skill}
+career-insight-close-gap-description = Current level {$current}, required {$required}. Gap of {$gap} levels to close.
+career-insight-tip-title = Career Development Tip

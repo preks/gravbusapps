@@ -111,6 +111,13 @@ export default function JobProfileForm({
         requiredLevel: skill.level ?? null
       }))
 
+    const promotionCriteriaArray = validatedValues.promotionCriteria
+      ? validatedValues.promotionCriteria
+          .split('\n')
+          .map(s => s.trim())
+          .filter(Boolean)
+      : []
+
     const payload: JobProfileMutationPayload = {
       changeMode: 'INSERT',
       jobProfile: {
@@ -121,7 +128,10 @@ export default function JobProfileForm({
         jobLevel: validatedValues.jobLevel?.id || null,
         ...(skills.length > 0 ? { skills } : {}),
         ...filePayloadFragment,
-        ...(jobProfile ? { id: jobProfile.id, version: jobProfile.version } : {})
+        ...(jobProfile ? { id: jobProfile.id, version: jobProfile.version } : {}),
+        additionalProperties: {
+          promotionCriteria: promotionCriteriaArray
+        }
       }
     }
 
@@ -251,6 +261,15 @@ export default function JobProfileForm({
             />
           </>
         )}
+
+        <TextAreaField<JobProfileFormValues>
+          name="promotionCriteria"
+          label="Promotion Criteria"
+          placeholder="Enter promotion criteria (one per line)"
+          rows={4}
+          maxLength={2000}
+          dataTestId={`${prefixDataTestId}-promotion-criteria-textarea`}
+        />
 
         <SkillsSection
           dataTestId={prefixDataTestId}

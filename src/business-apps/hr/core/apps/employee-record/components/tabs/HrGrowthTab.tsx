@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { Tabs, TabsList, TabsTrigger, TabsContent, useTranslation } from '@newwork/nw-design-system'
-import { GraduationCapIcon, ChartBarIcon, ChatCircleIcon } from '@phosphor-icons/react'
+import { GraduationCapIcon, ChartBarIcon, ChatCircleIcon, TrendUpIcon } from '@phosphor-icons/react'
 import SkillsTab from './SkillsTab'
+import CareerTab from './CareerTab'
 import PerformanceTab from './PerformanceTab'
 import FeedbackTab from './FeedbackTab'
 import PerformanceEvaluationTab from './performance-evaluation/PerformanceEvaluationTab'
@@ -26,7 +27,7 @@ interface HrGrowthTabProps extends BusinessAppContextProps {
   urlMode?: HrGrowthUrlMode
 }
 
-const HR_GROWTH_SUBVIEW_VALUES = ['skills', 'feedback', 'performance', 'performanceEvaluation'] as const
+const HR_GROWTH_SUBVIEW_VALUES = ['skills', 'feedback', 'performance', 'performanceEvaluation', 'career'] as const
 type HrGrowthSubView = (typeof HR_GROWTH_SUBVIEW_VALUES)[number]
 
 const getInitialHrGrowthSubView = (): HrGrowthSubView => {
@@ -217,6 +218,12 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
               </div>
             </TabsTrigger>
           )}
+          <TabsTrigger value="career" data-testid="hr-growth-career-subtab" className="gba:flex-1">
+            <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
+              <TrendUpIcon />
+              <span>{t('hr-growth-career')}</span>
+            </div>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="skills" data-testid="hr-growth-skills-content" className="gba:mt-4">
@@ -265,6 +272,10 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
             <PerformanceEvaluationTab employee={employee} accessToken={accessToken} employeeId={employeeId} />
           </TabsContent>
         )}
+
+        <TabsContent value="career" data-testid="hr-growth-career-content" className="gba:mt-4">
+          <CareerTab employee={employee} accessToken={accessToken} />
+        </TabsContent>
       </Tabs>
     </div>
   )

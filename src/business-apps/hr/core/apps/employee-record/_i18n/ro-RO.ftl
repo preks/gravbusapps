@@ -332,6 +332,7 @@ employee-record-tab-summary = Rezumat
 employee-record-tab-hr-admin = Administrare HR
 employee-record-tab-hr-growth = Dezvoltare HR
 hr-growth-skills = Competențe
+hr-growth-career = Carieră
 hr-growth-feedback = Hub Feedback
 hr-growth-performance = Obiective
 
@@ -1042,3 +1043,16 @@ working-hours-standard-full-time-description = Completează de luni până viner
 working-hours-customize-by-day-option = Personalizare pe zi
 working-hours-customize-by-day-description = Introduceți manual orele pentru fiecare zi.
 working-hours-distribute-evenly-action = Distribuie uniform
+
+# Career Tab
+career-tab-title = Traseu de carieră
+career-current-level = Nivel curent
+career-next-level = Nivel următor
+career-months-on-level = {$months} luni pe nivel
+career-skills-gap-title = Competențe pentru nivelul următor
+career-skills-current-title = Competențe nivel curent
+career-skill-missing = Lipsă
+career-skills-empty-description = Nu sunt definite competențe pentru profilul de job curent. Vă rugăm să contactați partenerul HR.
+career-promotion-criteria-title = Criterii de promovare
+career-empty-state-title = Traseu de carieră indisponibil
+career-empty-state-description = Datele de bază nu sunt completate — nu putem determina traseul dvs. de carieră. Vă rugăm să contactați partenerul HR.

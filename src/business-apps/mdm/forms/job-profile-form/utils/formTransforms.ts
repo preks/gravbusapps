@@ -15,9 +15,13 @@ export const transformJobProfileToFormValues = (
       description: '',
       jobFunction: null,
       jobLevel: null,
-      skills: []
+      skills: [],
+      promotionCriteria: ''
     }
   }
+
+  const criteriaArray = jobProfile.additionalProperties?.promotionCriteria ?? []
+  const promotionCriteria = criteriaArray.join('\n')
 
   return {
     name: jobProfile.name || '',
@@ -25,7 +29,8 @@ export const transformJobProfileToFormValues = (
     description: jobProfile.description || '',
     jobFunction: jobProfile.jobFunction || null,
     jobLevel: jobProfile.jobLevel || null,
-    skills: transformJobProfileSkillsToFormSkills(jobProfile.jobProfileSkills || [])
+    skills: transformJobProfileSkillsToFormSkills(jobProfile.jobProfileSkills || []),
+    promotionCriteria
   }
 }
 

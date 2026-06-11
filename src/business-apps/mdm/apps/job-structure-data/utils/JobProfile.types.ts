@@ -11,6 +11,10 @@ export interface JobProfileSkillRow {
   } | null
 }
 
+export interface JobProfileAdditionalProperties {
+  promotionCriteria?: string[]
+}
+
 export interface JobProfileRow {
   id: string
   code: string
@@ -20,6 +24,7 @@ export interface JobProfileRow {
   jobLevel: { id: string; name: string; code: string; hierarchyOrder: number } | null
   version: number | null
   jobProfileSkills: JobProfileSkillRow[]
+  additionalProperties?: JobProfileAdditionalProperties | null
 }
 
 // ─── Simplified domain type ───────────────────────────────────────────────────
@@ -43,6 +48,7 @@ export interface JobProfile {
   isActive: boolean
   version: number | null
   jobProfileSkills: JobProfileSkill[]
+  additionalProperties?: JobProfileAdditionalProperties | null
 }
 
 // ─── Mutation types ────────────────────────────────────────────────────────────
@@ -63,6 +69,7 @@ export interface JobProfileMutation {
   version?: number | null
   jobDescriptionFileId?: string | null
   skills?: JobProfileSkillMutation[]
+  additionalProperties?: JobProfileAdditionalProperties | null
 }
 
 export interface JobProfileMutationPayload {
