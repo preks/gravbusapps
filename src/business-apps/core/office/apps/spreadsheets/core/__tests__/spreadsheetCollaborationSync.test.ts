@@ -31,6 +31,16 @@ describe('sheetDeltaRequiresFullSnapshot', () => {
     ).toBe(true)
   })
 
+  it('returns false for a single version-only advance with no replay changes', () => {
+    expect(
+      sheetDeltaRequiresFullSnapshot(1, {
+        currentVersion: 2,
+        changes: [],
+        requiresSnapshot: false
+      })
+    ).toBe(false)
+  })
+
   it('returns true when min applied version leaves a gap after sinceVersion', () => {
     expect(
       sheetDeltaRequiresFullSnapshot(1, {

@@ -257,6 +257,10 @@ export interface SpreadsheetWorkbookStructureEvent {
   sheet?: Record<string, unknown>
 }
 
+export interface SpreadsheetVersionUpdateMeta {
+  isLocalEcho?: boolean
+}
+
 export interface SpreadsheetCollaborationCallbacks {
   getActiveSheetId: () => string
   getColumns: () => SpreadsheetColumn[]
@@ -339,8 +343,8 @@ export interface SpreadsheetCollaborationCallbacks {
     region?: AuthoritativeGridReapplyTarget,
     options?: ForceAuthoritativeGridReapplyOptions
   ) => void
-  onVersionUpdate: (version: number) => void
-  onSheetVersionUpdate?: (sheetId: string, version: number) => void
+  onVersionUpdate: (version: number, meta?: SpreadsheetVersionUpdateMeta) => void
+  onSheetVersionUpdate?: (sheetId: string, version: number, meta?: SpreadsheetVersionUpdateMeta) => void
   onWorkbookStructureChange?: (event: SpreadsheetWorkbookStructureEvent) => void
   markSheetNeedsGridMaterialization?: (sheetId: string, reason: string) => void
   requestSheetCatchUp?: (

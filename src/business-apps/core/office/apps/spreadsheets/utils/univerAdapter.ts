@@ -1109,8 +1109,15 @@ export function normalizeWorkbookSnapshotToAppSheets(
     if (!matched) continue
     const [sourceKey, worksheet] = matched
     usedSourceKeys.add(sourceKey)
+    const worksheetCopy = cloneUniverSnapshotSlice(worksheet) as Record<string, unknown>
+    const visibleColumnCount = targetSheet.columns.filter(column => column.isVisible !== false).length
+    const sourceColumnCount =
+      typeof worksheetCopy.columnCount === 'number' && Number.isFinite(worksheetCopy.columnCount)
+        ? Math.trunc(worksheetCopy.columnCount)
+        : 0
+    worksheetCopy.columnCount = Math.max(sourceColumnCount, visibleColumnCount, 1)
     nextSheets[targetSheet.id] = {
-      ...(cloneUniverSnapshotSlice(worksheet) as Record<string, unknown>),
+      ...worksheetCopy,
       id: targetSheet.id,
       name: targetSheet.name
     }

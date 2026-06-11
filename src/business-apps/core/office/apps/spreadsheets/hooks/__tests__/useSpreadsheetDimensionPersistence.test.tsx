@@ -3,6 +3,7 @@ import { act, renderHook } from '@testing-library/react'
 import type { SpreadsheetMutationFacade } from '../../core'
 import type { CellDimensionsPayload } from '../../components/UniverSheetGrid.types'
 import type { SpreadsheetApp, SpreadsheetColumn, SpreadsheetSheet } from '../../types'
+import { runDimensionPersistFlush } from '../spreadsheetDimensionPersistenceFlush'
 import { useSpreadsheetDimensionPersistence } from '../useSpreadsheetDimensionPersistence'
 
 function minimalSheet(id: string, columns: SpreadsheetColumn[]): SpreadsheetSheet {
@@ -312,5 +313,39 @@ describe('useSpreadsheetDimensionPersistence', () => {
     expect(submitBatch).not.toHaveBeenCalled()
     expect(applyLocalAppUpdate).not.toHaveBeenCalled()
     expect(enqueueSnapshotCheckpointRef.current).not.toHaveBeenCalled()
+  })
+
+  it('does not submit or checkpoint dimension ops that match the baseline', () => {
+    const submitBatch = jest.fn(() => Promise.resolve())
+    const enqueueSnapshotCheckpoint = jest.fn(() => Promise.resolve())
+
+    runDimensionPersistFlush(
+      null,
+      [],
+      [
+        {
+          operationId: 'op-1',
+          type: 'set_col_width',
+          data: { sheetId: 's1', colIndex: 0, width: 120 }
+        }
+      ],
+      {
+        activeSheetId: 's1',
+        mutationFacadeRef: {
+          current: { submitBatch } as unknown as SpreadsheetMutationFacade
+        },
+        enqueueSnapshotCheckpointRef: { current: enqueueSnapshotCheckpoint },
+        recentLocalColumnResizeRef: { current: new Map() },
+        recentLocalRowHeightRef: { current: new Map() },
+        recentLocalColWidthRef: { current: new Map() },
+        baselineRowHeightsRef: { current: new Map() },
+        baselineColWidthsRef: { current: new Map([[0, 120]]) },
+        applyLocalAppUpdate: jest.fn(),
+        clearPendingWidthOverridesForColumns: jest.fn()
+      }
+    )
+
+    expect(submitBatch).not.toHaveBeenCalled()
+    expect(enqueueSnapshotCheckpoint).not.toHaveBeenCalled()
   })
 })

@@ -35,15 +35,37 @@ export const isVersionRelatedSnapshotFallbackReason = (reason: SpreadsheetSnapsh
 export class SpreadsheetSnapshotFallbackController {
   private scheduledKeys = new Set<string>()
   private releaseTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  private attemptTimesBySheet = new Map<string, number[]>()
 
   constructor(
     private readonly schedule: SpreadsheetSnapshotFallbackSchedule,
-    private readonly coalesceWindowMs = 500
+    private readonly coalesceWindowMs = 500,
+    private readonly maxAttemptsPerWindow = 10,
+    private readonly attemptWindowMs = 10_000
   ) {}
 
   requestFallback(request: SpreadsheetSnapshotFallbackRequest): boolean {
     const key = `${request.sheetId ?? 'active'}:${request.reason}:${request.immediate === true}`
     if (this.scheduledKeys.has(key)) return false
+
+    const now = Date.now()
+    const attemptKey = request.sheetId ?? 'active'
+    const recentAttempts = (this.attemptTimesBySheet.get(attemptKey) ?? []).filter(
+      attemptedAt => now - attemptedAt <= this.attemptWindowMs
+    )
+    if (recentAttempts.length >= this.maxAttemptsPerWindow) {
+      this.attemptTimesBySheet.set(attemptKey, recentAttempts)
+      console.warn('[SpreadsheetAppViewer] snapshot fallback circuit open', {
+        sheetId: request.sheetId ?? null,
+        reason: request.reason,
+        attemptCount: recentAttempts.length,
+        attemptWindowMs: this.attemptWindowMs
+      })
+      return false
+    }
+    recentAttempts.push(now)
+    this.attemptTimesBySheet.set(attemptKey, recentAttempts)
+
     this.scheduledKeys.add(key)
     this.schedule(request)
     const timer = globalThis.setTimeout(() => {
@@ -64,5 +86,6 @@ export class SpreadsheetSnapshotFallbackController {
     }
     this.releaseTimers.clear()
     this.scheduledKeys.clear()
+    this.attemptTimesBySheet.clear()
   }
 }

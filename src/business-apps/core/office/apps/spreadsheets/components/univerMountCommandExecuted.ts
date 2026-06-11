@@ -621,7 +621,9 @@ export function registerUniverMountCommandExecuted(
       if (consumedDimensionIntent) {
         scheduleDeferredDimensionSnapshot(commandId, t, commandRanges, 2)
       } else if (shouldRunDimensionSnapshotForCommand(commandId, t)) {
-        if (isAutoFitDimensionCommand(commandId)) {
+        if (!univerBootstrapCompleteRef.current) {
+          debugUniverDimensionSnapshot('skipped_bootstrap', { commandId, commandType: t })
+        } else if (isAutoFitDimensionCommand(commandId)) {
           scheduleDeferredDimensionSnapshot(commandId, t, commandRanges, 2)
         } else {
           scheduleDimensionSnapshot(commandId, t, commandRanges)

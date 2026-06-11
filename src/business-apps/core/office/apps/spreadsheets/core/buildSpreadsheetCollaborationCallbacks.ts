@@ -342,7 +342,12 @@ export function buildSpreadsheetCollaborationCallbacks(
     }
     scheduleVersionEchoFlush()
   }
-  const routeVersionEcho = (sheetId: string, version: number, knownVersionBefore: number): void => {
+  const routeVersionEcho = (
+    sheetId: string,
+    version: number,
+    knownVersionBefore: number,
+    options?: { isLocalEcho?: boolean }
+  ): void => {
     if (!sheetId || !Number.isFinite(version)) return
     const liveAppliedVersionScope = liveRemoteApplyVersionRef?.current
     const liveVersionAlreadyApplied =
@@ -356,6 +361,28 @@ export function buildSpreadsheetCollaborationCallbacks(
       }
     }
     if (liveVersionAlreadyApplied) {
+      seedQueueVersionEcho(sheetId, version)
+      clearLiveAppliedVersionScope()
+      return
+    }
+    if (options?.isLocalEcho) {
+      debugLog('versionOnlyEcho_local_echo_noop', {
+        sheetId,
+        version,
+        knownVersionBefore
+      })
+      enqueueDiagnosticsTraceEvent({
+        source: 'client',
+        stage: 'client_version_echo_local_echo_noop',
+        severity: 'info',
+        version,
+        payload: {
+          sheetId,
+          incomingVersion: version,
+          knownVersionBefore,
+          diagnostic: 'versionOnlyEcho_local_echo_noop'
+        }
+      })
       seedQueueVersionEcho(sheetId, version)
       clearLiveAppliedVersionScope()
       return
@@ -996,13 +1023,13 @@ export function buildSpreadsheetCollaborationCallbacks(
         }
       }).run(plan)
     },
-    onVersionUpdate: version => {
+    onVersionUpdate: (version, meta) => {
       const sheetId = activeSheetIdRef.current
       const knownVersionBefore = resolveKnownSheetVersion(sheetId)
       updateActiveSheetVersion(version)
-      routeVersionEcho(sheetId, version, knownVersionBefore)
+      routeVersionEcho(sheetId, version, knownVersionBefore, meta)
     },
-    onSheetVersionUpdate: (sheetId, version) => {
+    onSheetVersionUpdate: (sheetId, version, meta) => {
       if (sheetId !== activeSheetIdRef.current) {
         debugLog('inactive_sheet_version_echo_deferred', {
           sheetId,
@@ -1013,7 +1040,7 @@ export function buildSpreadsheetCollaborationCallbacks(
       }
       const knownVersionBefore = resolveKnownSheetVersion(sheetId)
       rememberSheetVersion(sheetId, version)
-      routeVersionEcho(sheetId, version, knownVersionBefore)
+      routeVersionEcho(sheetId, version, knownVersionBefore, meta)
       applyLocalAppUpdate(currentApp => ({
         ...currentApp,
         sheets: currentApp.sheets.map(sheet =>

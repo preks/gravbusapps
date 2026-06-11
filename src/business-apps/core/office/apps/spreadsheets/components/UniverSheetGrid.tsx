@@ -1247,6 +1247,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
 
           const workbook = wbQ as { addStyles?: (s: Record<string, unknown>) => void }
           const worksheet = wsQ as {
+            getMaxColumns?: () => number
             getRange: (
               r: number,
               c: number,
@@ -1257,6 +1258,33 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
               setValue: (v: unknown) => unknown
               setValues?: (v: unknown) => unknown
             } | null
+          }
+
+          const maxIncomingColumn = normalized.reduce((max, item) => Math.max(max, item.colIndex), -1)
+          const currentMaxColumns =
+            typeof worksheet.getMaxColumns === 'function' ? Math.max(0, Math.trunc(worksheet.getMaxColumns())) : 0
+          if (currentMaxColumns > 0 && maxIncomingColumn >= currentMaxColumns) {
+            const resolvedSheetId = bulkPaintedWorksheetId || propsRef.current.sheet.id
+            const result = applyRemoteInsertColumnSlotsOnGrid({
+              api: apiQ,
+              sheetId: resolvedSheetId,
+              insert: {
+                startGridColumnIndex: currentMaxColumns,
+                count: maxIncomingColumn - currentMaxColumns + 1
+              },
+              rowCount: propsRef.current.data.length
+            })
+            if (!result.ok) {
+              traceBulk('grid_bulk_remote_apply_failed', {
+                reason: 'column_capacity_expand_failed',
+                detail: result.reason,
+                currentMaxColumns,
+                maxIncomingColumn,
+                cellCount: normalized.length
+              })
+              failBulkApply(new Error(`column_capacity_expand_failed:${result.reason}`))
+              return
+            }
           }
 
           const mergedStyleReg: Record<string, unknown> = {}

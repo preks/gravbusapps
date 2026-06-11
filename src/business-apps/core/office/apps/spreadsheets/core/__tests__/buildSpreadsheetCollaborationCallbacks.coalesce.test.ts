@@ -366,6 +366,23 @@ describe('buildSpreadsheetCollaborationCallbacks rAF coalescing', () => {
     expect(h.debugLogCalls.some(call => call.message === 'versionEcho_requires_catchup')).toBe(false)
   })
 
+  it('does not request catch-up for same-user local echo version updates', async () => {
+    const h = buildHarness({
+      queueAppliedVersion: 31,
+      resolveKnownSheetVersion: 31
+    })
+
+    h.callbacks.onVersionUpdate(32, { isLocalEcho: true })
+    await h.flushMicrotasks()
+    h.flushRaf()
+    await h.flushMicrotasks()
+
+    expect(h.requestCatchUpCalls).toHaveLength(0)
+    expect(h.versionEchoCalls).toEqual([{ sheetId: ACTIVE_SHEET_ID, version: 32 }])
+    expect(h.debugLogCalls.some(call => call.message === 'versionOnlyEcho_local_echo_noop')).toBe(true)
+    expect(h.debugLogCalls.some(call => call.message === 'versionEcho_requires_catchup')).toBe(false)
+  })
+
   it('does not let queue-applied version state suppress catch-up when the known sheet version is behind', async () => {
     const h = buildHarness({
       queueAppliedVersion: 32,

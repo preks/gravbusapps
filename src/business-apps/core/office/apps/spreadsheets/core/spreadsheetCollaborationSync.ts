@@ -53,6 +53,7 @@ export function sheetDeltaRequiresFullSnapshot(
   if (delta.requiresSnapshot) return true
   if (delta.currentVersion <= sinceVersion) return false
   const changes = delta.changes || []
+  if (delta.currentVersion === sinceVersion + 1 && changes.length === 0) return false
   if (changes.length === 0) return true
   const applied = changes
     .map(c => Number((c as unknown as Record<string, unknown>).appliedVersion))

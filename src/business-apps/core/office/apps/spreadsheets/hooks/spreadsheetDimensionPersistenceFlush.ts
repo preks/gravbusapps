@@ -32,14 +32,30 @@ export function runDimensionPersistFlush(
   dimOps: SpreadsheetBatchOperation[],
   ctx: DimensionPersistFlushContext
 ): void {
-  const hasWorkToDo = (columnsToPersist && changedColumns.length > 0) || dimOps.length > 0
+  const effectiveDimOps = dimOps.filter(op => {
+    const data = op.data as {
+      rowIndex?: number
+      height?: number
+      colIndex?: number
+      width?: number
+    }
+    if (op.type === 'set_row_height' && typeof data.rowIndex === 'number' && typeof data.height === 'number') {
+      return ctx.baselineRowHeightsRef.current.get(data.rowIndex) !== data.height
+    }
+    if (op.type === 'set_col_width' && typeof data.colIndex === 'number' && typeof data.width === 'number') {
+      return ctx.baselineColWidthsRef.current.get(data.colIndex) !== data.width
+    }
+    return true
+  })
+  const hasWorkToDo = (columnsToPersist && changedColumns.length > 0) || effectiveDimOps.length > 0
   if (!hasWorkToDo) return
 
   debugLog('dimension persist flush queued', {
     sheetId: ctx.activeSheetId,
     changedColumnCount: changedColumns.length,
-    dimensionOpCount: dimOps.length,
-    dimensionOpTypes: dimOps.map(op => op.type)
+    dimensionOpCount: effectiveDimOps.length,
+    skippedDimensionOpCount: dimOps.length - effectiveDimOps.length,
+    dimensionOpTypes: effectiveDimOps.map(op => op.type)
   })
 
   if (columnsToPersist && changedColumns.length > 0 && (ctx.onLocalAppUpdate || ctx.onAppUpdate)) {
@@ -85,7 +101,7 @@ export function runDimensionPersistFlush(
       }
     }
 
-    for (const op of dimOps) {
+    for (const op of effectiveDimOps) {
       const data = op.data as {
         rowIndex?: number
         height?: number

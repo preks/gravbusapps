@@ -1030,6 +1030,36 @@ describe('normalizeWorkbookSnapshotToAppSheets', () => {
     expect(normalizedSheets['sheet-2']?.cellData?.[0]?.[0]?.v).toBe('preserved')
   })
 
+  it('widens normalized worksheet columnCount to canonical visible columns', () => {
+    const appSheets = [
+      makeSheet(
+        'sheet-1',
+        'Sheet1',
+        [textCol('c0', 'alpha', 0), textCol('c1', 'beta', 1), textCol('c2', 'gamma', 2)],
+        []
+      )
+    ]
+
+    const normalized = normalizeWorkbookSnapshotToAppSheets(
+      {
+        id: 'wb',
+        sheetOrder: ['sheet-1'],
+        sheets: {
+          'sheet-1': {
+            id: 'sheet-1',
+            name: 'Sheet1',
+            columnCount: 1,
+            cellData: {}
+          }
+        }
+      },
+      appSheets
+    )
+    const normalizedSheets = normalized.sheets as Record<string, { columnCount?: number }>
+
+    expect(normalizedSheets['sheet-1']?.columnCount).toBe(3)
+  })
+
   it('does not map an unmatched single worksheet onto the first app sheet by index', () => {
     const appSheets = [
       makeSheet('sheet-1', 'Sheet1', [textCol('s1c0', 'alpha', 0)], []),

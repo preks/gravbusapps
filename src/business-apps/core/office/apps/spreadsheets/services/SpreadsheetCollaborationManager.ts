@@ -3194,9 +3194,19 @@ export class SpreadsheetCollaborationManager {
       this.appliedCommittedBatchKeys.add(dedupeKey)
       if (committedBatch.sheetId === activeSheetId) {
         this.setLastKnownVersion(Math.max(this.lastKnownVersion, committedBatch.appliedVersion))
-        this.callbacks.onVersionUpdate(committedBatch.appliedVersion)
+        if (isSameUser) {
+          this.callbacks.onVersionUpdate(committedBatch.appliedVersion, { isLocalEcho: true })
+        } else {
+          this.callbacks.onVersionUpdate(committedBatch.appliedVersion)
+        }
       } else {
-        this.callbacks.onSheetVersionUpdate?.(committedBatch.sheetId, committedBatch.appliedVersion)
+        if (isSameUser) {
+          this.callbacks.onSheetVersionUpdate?.(committedBatch.sheetId, committedBatch.appliedVersion, {
+            isLocalEcho: true
+          })
+        } else {
+          this.callbacks.onSheetVersionUpdate?.(committedBatch.sheetId, committedBatch.appliedVersion)
+        }
       }
       return true
     }
