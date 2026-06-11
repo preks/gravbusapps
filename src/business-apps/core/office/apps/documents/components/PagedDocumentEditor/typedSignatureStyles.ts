@@ -1,10 +1,12 @@
 /**
  * Typed (rendered) signature styles using handwriting-oriented web fonts + OS fallbacks.
  *
- * Primary faces (loaded in index.html; also @import’d into exported SVG so snapshots render
- * consistently when opened online). Generic serif/sans options are avoided for “signature” rows —
- * they read as typed text, not pen strokes.
+ * Primary faces load from self-hosted signatures.css on the platform host; the same sheet is
+ * @import’d into exported SVG so snapshots render consistently when opened online. Generic
+ * serif/sans options are avoided for “signature” rows — they read as typed text, not pen strokes.
  */
+
+import { PLATFORM_FONTS_SIGNATURES_CSS } from '@/common/constants/platformFontUrls'
 
 export const TYPED_SIGNATURE_STYLE_IDS = [
   'normal',
@@ -24,9 +26,8 @@ export const TYPED_SVG_HEIGHT = 80
 export const TYPED_INITIALS_WIDTH = 160
 export const TYPED_INITIALS_HEIGHT = 80
 
-/** Same URL as index.html — keep in sync for preview vs saved SVG. */
-export const SIGNATURE_TYPED_FONTS_STYLESHEET_URL =
-  'https://fonts.googleapis.com/css2?family=Allura&family=Caveat:wght@400;600&family=Dancing+Script:wght@400;700&family=Great+Vibes&family=Italianno&family=Sacramento&display=swap'
+/** Self-hosted signatures CSS — keep in sync for preview vs saved SVG. */
+export const SIGNATURE_TYPED_FONTS_STYLESHEET_URL = PLATFORM_FONTS_SIGNATURES_CSS
 
 function isTypedSignatureStyle(v: string): v is TypedSignatureStyle {
   return (TYPED_SIGNATURE_STYLE_IDS as readonly string[]).includes(v)

@@ -72,7 +72,7 @@ export const PageLayout: React.FC<Readonly<PageLayoutProps>> = ({
   const labelClasses = cn(
     'gba:text-xl gba:font-semibold gba:tracking-tight gba:truncate',
     headerLabelClassName,
-    isDisplay ? 'gba:text-4xl gba:font-secondary' : 'gba:text-2xl font-secondary'
+    isDisplay ? 'gba:text-4xl gba:font-secondary' : 'gba:text-2xl gba:font-secondary'
   )
 
   const backgroundStyle = backgroundImage

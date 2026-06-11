@@ -1,3 +1,5 @@
+import { PLATFORM_FONTS_SLIDES_CSS } from '@/common/constants/platformFontUrls'
+
 /**
  * Font family resolution for slide rendering.
  *
@@ -181,32 +183,6 @@ export const FONT_FALLBACK_STACKS = {
  * We use `display=swap` so existing system-fallback text keeps rendering
  * while the webfont downloads, then re-flows when it lands.
  */
-const IMPORTED_WEBFONTS_HREF =
-  'https://fonts.googleapis.com/css2' +
-  '?family=Roboto:wght@300;400;500;700;900' +
-  '&family=Roboto+Condensed:wght@300;400;700' +
-  '&family=Roboto+Mono:wght@300;400;500;700' +
-  '&family=Roboto+Slab:wght@300;400;500;700' +
-  '&family=Funnel+Display:wght@300..800' +
-  '&family=Funnel+Sans:wght@300..800' +
-  '&family=Inter:wght@300..800' +
-  '&family=Poppins:wght@300;400;500;600;700' +
-  '&family=Montserrat:wght@300;400;500;600;700' +
-  '&family=Lato:wght@300;400;700;900' +
-  '&family=Open+Sans:wght@300..800' +
-  '&family=Nunito:wght@300..900' +
-  '&family=Nunito+Sans:wght@300..900' +
-  '&family=Source+Sans+3:wght@300..900' +
-  '&family=Source+Serif+4:wght@300..900' +
-  '&family=Source+Code+Pro:wght@300..900' +
-  '&family=Ubuntu:wght@300;400;500;700' +
-  '&family=Ubuntu+Mono:wght@400;700' +
-  '&family=Raleway:wght@300..900' +
-  '&family=Work+Sans:wght@300..900' +
-  '&family=Fira+Sans:wght@300;400;500;600;700' +
-  '&family=Fira+Code:wght@300..700' +
-  '&display=swap'
-
 const IMPORTED_WEBFONTS_LINK_ID = 'gba-slide-imported-webfonts'
 
 /**
@@ -221,22 +197,9 @@ export function ensureImportedWebFonts(): void {
   const head = document.head
   if (!head) return
 
-  // Preconnect hints cut the TTFB on first load; they're cheap when the link
-  // is already warm from earlier navigations.
-  const preconnects = ['https://fonts.googleapis.com', 'https://fonts.gstatic.com']
-  for (const origin of preconnects) {
-    const existing = head.querySelector(`link[rel="preconnect"][href="${origin}"]`)
-    if (existing) continue
-    const pre = document.createElement('link')
-    pre.rel = 'preconnect'
-    pre.href = origin
-    if (origin.includes('gstatic')) pre.crossOrigin = 'anonymous'
-    head.appendChild(pre)
-  }
-
   const link = document.createElement('link')
   link.id = IMPORTED_WEBFONTS_LINK_ID
   link.rel = 'stylesheet'
-  link.href = IMPORTED_WEBFONTS_HREF
+  link.href = PLATFORM_FONTS_SLIDES_CSS
   head.appendChild(link)
 }

@@ -1,3 +1,4 @@
+import { PLATFORM_FONTS_NOTO_SANS_TTF } from '@/common/constants/platformFontUrls'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { parseDurationToMinutes } from './duration'
 import type { TimeEntry } from '@/business-apps/hr/core/apps/employee-record/components/tabs/hooks/useTimeTrackingData'
@@ -252,31 +253,18 @@ export const exportTimeHistoryPdf = async (params: {
   const margin = 40
   let cursorY = margin
 
-  // Load a Unicode-capable font to properly render diacritics and special characters.
-  // We try a couple of widely available TTFs with permissive CORS. If all fail, we fall back.
-  const fontCandidates = [
-    // Broad Unicode coverage and permissive CDN
-    'https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37/ttf/DejaVuSans.ttf',
-    // Backup
-    'https://fonts.gstatic.com/s/notosans/v38/o-0IIpQlx3QUlC5A4PNr5TRF.ttf',
-    // Another backup
-    'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/fonts/Roboto-Regular.ttf'
-  ]
+  // Self-hosted Noto Sans for Unicode/diacritics; Helvetica if the asset is unavailable.
   let fontLoaded = false
-  for (const url of fontCandidates) {
-    try {
-      const res = await fetch(url, { mode: 'cors' })
-      if (res.ok) {
-        const buf = await res.arrayBuffer()
-        // pdfkit (browser) accepts ArrayBuffer/Uint8Array
-        doc.registerFont('UnicodeRegular', buf as unknown as ArrayBuffer)
-        doc.font('UnicodeRegular')
-        fontLoaded = true
-        break
-      }
-    } catch {
-      // try next
+  try {
+    const res = await fetch(PLATFORM_FONTS_NOTO_SANS_TTF)
+    if (res.ok) {
+      const buf = await res.arrayBuffer()
+      doc.registerFont('UnicodeRegular', buf as unknown as ArrayBuffer)
+      doc.font('UnicodeRegular')
+      fontLoaded = true
     }
+  } catch {
+    // fall through to Helvetica
   }
   if (!fontLoaded) {
     doc.font('Helvetica')

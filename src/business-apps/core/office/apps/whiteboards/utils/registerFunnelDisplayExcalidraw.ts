@@ -1,4 +1,5 @@
 import * as ExcalidrawLib from '@excalidraw/excalidraw'
+import { PLATFORM_WHITEBOARD_FONT_WOFF2 } from '@/common/constants/platformFontUrls'
 
 const FUNNEL_DISPLAY = 'Funnel Display'
 const INTER = 'Inter'
@@ -29,29 +30,29 @@ const NW_FONTS: FontDef[] = [
     family: FUNNEL_DISPLAY,
     id: NW_FUNNEL_DISPLAY_FONT_FAMILY,
     metrics: { unitsPerEm: 1000, ascender: 950, descender: -280, lineHeight: 1.2 },
-    latinWoff2: 'https://fonts.gstatic.com/s/funneldisplay/v3/B50WF7FGv37QNVWgE0ga--4Pbb6dDYs.woff2',
-    latinExtWoff2: 'https://fonts.gstatic.com/s/funneldisplay/v3/B50WF7FGv37QNVWgE0ga--4Pbb6TDYsmgQ.woff2'
+    latinWoff2: PLATFORM_WHITEBOARD_FONT_WOFF2.funnelDisplay.latin,
+    latinExtWoff2: PLATFORM_WHITEBOARD_FONT_WOFF2.funnelDisplay.latinExt
   },
   {
     family: INTER,
     id: NW_INTER_FONT_FAMILY,
     metrics: { unitsPerEm: 1000, ascender: 969, descender: -241, lineHeight: 1.25 },
-    latinWoff2: 'https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2',
-    latinExtWoff2: 'https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa25L7SUc.woff2'
+    latinWoff2: PLATFORM_WHITEBOARD_FONT_WOFF2.inter.latin,
+    latinExtWoff2: PLATFORM_WHITEBOARD_FONT_WOFF2.inter.latinExt
   },
   {
     family: MANROPE,
     id: NW_MANROPE_FONT_FAMILY,
     metrics: { unitsPerEm: 1000, ascender: 1060, descender: -340, lineHeight: 1.28 },
-    latinWoff2: 'https://fonts.gstatic.com/s/manrope/v20/xn7gYHE41ni1AdIRggexSg.woff2',
-    latinExtWoff2: 'https://fonts.gstatic.com/s/manrope/v20/xn7gYHE41ni1AdIRggmxSuXd.woff2'
+    latinWoff2: PLATFORM_WHITEBOARD_FONT_WOFF2.manrope.latin,
+    latinExtWoff2: PLATFORM_WHITEBOARD_FONT_WOFF2.manrope.latinExt
   },
   {
     family: DM_SANS,
     id: NW_DM_SANS_FONT_FAMILY,
     metrics: { unitsPerEm: 1000, ascender: 1015, descender: -350, lineHeight: 1.3 },
-    latinWoff2: 'https://fonts.gstatic.com/s/dmsans/v17/rP2Yp2ywxg089UriI5-g4vlH9VoD8Cmcqbu0-K4.woff2',
-    latinExtWoff2: 'https://fonts.gstatic.com/s/dmsans/v17/rP2Yp2ywxg089UriI5-g4vlH9VoD8Cmcqbu6-K6h9Q.woff2'
+    latinWoff2: PLATFORM_WHITEBOARD_FONT_WOFF2.dmSans.latin,
+    latinExtWoff2: PLATFORM_WHITEBOARD_FONT_WOFF2.dmSans.latinExt
   }
 ]
 

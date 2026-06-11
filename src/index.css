@@ -19,9 +19,6 @@
   utilities,
   all-newwork-tw-utilities;
 
-/* Funnel Display – loaded via CSS so it works when screen is published (host doesn't use our index.html) */
-@import url('https://fonts.googleapis.com/css2?family=Funnel+Display:wght@400;500;600;700&display=swap');
-
 @import '@newwork/gravity-ui-catalog/dist/assets/style.css';
 
 @import '@newwork/nw-design-system/index.css';
@@ -184,9 +181,6 @@
   }
 
   :root {
-    --font-primary: 'Roboto Flex', sans-serif;
-    --font-secondary: 'Roboto Flex', sans-serif;
-
     /* AI Color Tokens - Orange theme for EveryAI */
     --nw-ai: #f59e0b; /* Orange - main AI color */
     --nw-ai-foreground: #ffffff; /* White text on AI backgrounds */
@@ -219,11 +213,11 @@
 }
 
 @utility font-primary {
-  font-family: var(--nw-font-primary, 'Roboto', sans-serif) !important;
+  font-family: var(--nw-font-sans) !important;
 }
 
 @utility font-secondary {
-  font-family: var(--nw-font-secondary, 'Dela Gothic One', sans-serif) !important;
+  font-family: var(--nw-font-secondary) !important;
 }
 
 @layer properties {

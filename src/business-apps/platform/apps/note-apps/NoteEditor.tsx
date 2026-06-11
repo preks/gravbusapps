@@ -6,7 +6,10 @@
  */
 
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import { ensureNotesWebFonts } from './utils/ensureNotesWebFonts'
 import './note-editor.css'
+
+ensureNotesWebFonts()
 import { useEditor, EditorContent } from '@tiptap/react'
 import type { Transaction as ProseMirrorTransaction } from '@tiptap/pm/state'
 import StarterKit from '@tiptap/starter-kit'
@@ -3101,7 +3104,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       <style>{`
         .note-editor-content .ProseMirror {
           outline: none;
-          font-family: 'Inter', var(--font-sans);
+          font-family: 'Inter', var(--nw-font-sans);
           font-size: 1rem;
           line-height: 1.8;
           color: hsl(var(--foreground));
@@ -3123,7 +3126,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         }
 
         .note-editor-content .ProseMirror h1 {
-          font-family: var(--font-display);
+          font-family: var(--nw-font-display);
           font-size: 2rem;
           font-weight: 600;
           letter-spacing: -0.025em;
@@ -3132,7 +3135,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         }
 
         .note-editor-content .ProseMirror h2 {
-          font-family: var(--font-display);
+          font-family: var(--nw-font-display);
           font-size: 1.5rem;
           font-weight: 600;
           letter-spacing: -0.02em;
@@ -3141,7 +3144,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         }
 
         .note-editor-content .ProseMirror h3 {
-          font-family: var(--font-display);
+          font-family: var(--nw-font-display);
           font-size: 1.25rem;
           font-weight: 600;
           margin: 1em 0 0.5em 0;

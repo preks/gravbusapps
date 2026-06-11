@@ -17,7 +17,10 @@ import { SortableNoteTree } from './SortableNoteTree'
 import type { NoteSummary, NoteTreeNode } from '../types'
 import type { UseNoteTreeDragDropReturn } from '../hooks/useNoteTreeDragDrop'
 import translations from '../_i18n'
+import { ensureNotesWebFonts } from '../utils/ensureNotesWebFonts'
 import '../note-editor.css'
+
+ensureNotesWebFonts()
 
 export interface NoteTreeSidebarProps {
   width: number

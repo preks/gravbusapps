@@ -1,14 +1,14 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+/* Inter @font-face: injected at runtime via ensureNotesWebFonts (host /platform/assets/fonts/notes.css). */
 
 .note-sidebar-inter {
-  font-family: 'Inter', var(--font-sans);
+  font-family: 'Inter', var(--nw-font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 .note-editor-content .tiptap {
   outline: none;
-  font-family: 'Inter', var(--font-sans);
+  font-family: 'Inter', var(--nw-font-sans);
   font-size: 1rem;
   line-height: 1.8;
   color: var(--color-foreground);
@@ -21,7 +21,7 @@
 }
 
 .note-editor-content .tiptap h1 {
-  font-family: var(--font-display);
+  font-family: var(--nw-font-display);
   font-size: 2rem;
   font-weight: 600;
   letter-spacing: -0.025em;
@@ -31,7 +31,7 @@
 }
 
 .note-editor-content .tiptap h2 {
-  font-family: var(--font-display);
+  font-family: var(--nw-font-display);
   font-size: 1.5rem;
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -41,7 +41,7 @@
 }
 
 .note-editor-content .tiptap h3 {
-  font-family: var(--font-display);
+  font-family: var(--nw-font-display);
   font-size: 1.25rem;
   font-weight: 600;
   margin-top: 1em;
