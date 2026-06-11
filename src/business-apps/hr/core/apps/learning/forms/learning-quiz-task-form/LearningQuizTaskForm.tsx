@@ -1,12 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Card, CardContent, CardHeader, CardTitle, Spinner, useTranslation } from '@newwork/nw-design-system'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useContentEntry } from '@/common/data/content/hooks/useContentEntry'
+import type { ContentEntryQueryOptions } from '@/common/data/content/queries/contentEntryQueryBuilder'
 import translations from '../../_i18n'
 import { useLearningAttemptResult } from '../../hooks/useLearningAttemptResult'
 import { useLearningQuizQuestions } from '../../hooks/useLearningQuizQuestions'
 import { startLearningAttempt, submitLearningAttempt } from '../../services/learningAttemptApi'
 import { completeLearningQuizTask } from '../../services/learningQuizTaskCompletionApi'
 import type { LearningAttemptCommandResult, LearningQuizQuestion } from '../../types'
+import { DocumentReadStep } from './DocumentReadStep'
+import { extractLearningTaskContentEntryId } from './learningQuizTaskDocument'
 import { QuestionField } from './QuestionField'
 import { ResultState } from './ResultState'
 
@@ -14,6 +18,9 @@ export interface LearningQuizTaskLink {
   name: string
   url: string
   type?: string
+  metadata?: {
+    contentEntryId?: string
+  }
 }
 
 interface LearningQuizTaskPayload {
@@ -27,6 +34,11 @@ interface LearningQuizTaskFormProps extends BusinessAppContextProps {
 }
 
 type AnswersByQuestionId = Record<string, string[]>
+type LearningQuizTaskStep = 'document' | 'quiz'
+
+const CONTENT_ENTRY_QUERY_OPTIONS: ContentEntryQueryOptions = {
+  fields: ['id', 'title', 'preview', 'content', 'timeToRead', 'updatedAt']
+}
 
 function readTaskPayload(additionalData: BusinessAppContextProps['additionalData']): LearningQuizTaskPayload {
   const payload = additionalData?.psi_taskPayload
@@ -57,6 +69,15 @@ export const LearningQuizTaskForm: React.FC<LearningQuizTaskFormProps> = ({
 }) => {
   const { t } = useTranslation(translations)
   const taskPayload = useMemo(() => readTaskPayload(additionalData), [additionalData])
+  const sourceContentEntryId = useMemo(() => extractLearningTaskContentEntryId(sourceLink), [sourceLink])
+  const {
+    entry: sourceArticle,
+    isLoading: sourceArticleLoading,
+    error: sourceArticleError
+  } = useContentEntry(sourceContentEntryId ?? '', {
+    accessToken,
+    queryOptions: CONTENT_ENTRY_QUERY_OPTIONS
+  })
   const {
     questions,
     loading,
@@ -72,6 +93,7 @@ export const LearningQuizTaskForm: React.FC<LearningQuizTaskFormProps> = ({
   const [commandError, setCommandError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [taskCompleted, setTaskCompleted] = useState(false)
+  const [currentStep, setCurrentStep] = useState<LearningQuizTaskStep>('document')
   const startedAtRef = useRef(Date.now())
   const resolvedAttemptKeyRef = useRef('')
   const taskId = typeof additionalData?.psi_taskId === 'string' ? additionalData.psi_taskId : undefined
@@ -104,12 +126,13 @@ export const LearningQuizTaskForm: React.FC<LearningQuizTaskFormProps> = ({
 
   useEffect(() => {
     if (persistedResultLoading || persistedResult) return
+    if (currentStep !== 'quiz') return
     if (resolvedAttemptKeyRef.current === attemptResolutionKey) return
     resolvedAttemptKeyRef.current = attemptResolutionKey
     resolveAttempt().catch(err => {
       setCommandError(err instanceof Error ? err.message : t('learning-quiz-start-error'))
     })
-  }, [attemptResolutionKey, persistedResult, persistedResultLoading, resolveAttempt, t])
+  }, [attemptResolutionKey, currentStep, persistedResult, persistedResultLoading, resolveAttempt, t])
 
   const completeTask = useCallback(
     async (result: LearningAttemptCommandResult) => {
@@ -143,6 +166,11 @@ export const LearningQuizTaskForm: React.FC<LearningQuizTaskFormProps> = ({
       const next = checked ? [...existing, selectedKey] : existing.filter(key => key !== selectedKey)
       return { ...current, [questionId]: next }
     })
+  }
+
+  const handleContinueToQuiz = () => {
+    startedAtRef.current = Date.now()
+    setCurrentStep('quiz')
   }
 
   const handleSubmit = async () => {
@@ -181,6 +209,7 @@ export const LearningQuizTaskForm: React.FC<LearningQuizTaskFormProps> = ({
       setSubmitting(true)
       setAnswers({})
       setCommandError(null)
+      setCurrentStep('quiz')
       const result = await startAttempt()
       setCommandResult(result && isSubmittedStatus(result.status) ? result : null)
       startedAtRef.current = Date.now()
@@ -198,20 +227,8 @@ export const LearningQuizTaskForm: React.FC<LearningQuizTaskFormProps> = ({
       <Card className="gba:flex gba:min-h-0 gba:flex-1 gba:flex-col">
         <CardHeader>
           <CardTitle>{t('learning-quiz-task-title')}</CardTitle>
-          {sourceLink && (
-            <a
-              href={sourceLink.url}
-              target="_blank"
-              rel="noreferrer"
-              className="gba:text-sm gba:font-medium gba:text-primary hover:gba:underline"
-              data-testid="learning-quiz-source-link"
-            >
-              {t('learning-quiz-source-link', { name: sourceLink.name })}
-            </a>
-          )}
         </CardHeader>
-        <CardContent className="gba:flex-1 gba:space-y-5 gba:overflow-y-auto">
-          {loading && <Spinner className="gba:h-5 gba:w-5" data-testid="learning-quiz-loading" />}
+        <CardContent className="gba:flex gba:min-h-0 gba:flex-1 gba:flex-col gba:space-y-5 gba:overflow-y-auto">
           {(persistedResultError || questionsError || commandError) && !resultVisible && (
             <div className="gba:rounded-md gba:bg-destructive/10 gba:p-3 gba:text-sm gba:text-destructive">
               {persistedResultError ?? questionsError ?? commandError}
@@ -219,8 +236,18 @@ export const LearningQuizTaskForm: React.FC<LearningQuizTaskFormProps> = ({
           )}
           {resultVisible ? (
             <ResultState result={commandResult} onRetake={handleRetake} t={t} submitting={submitting} />
+          ) : currentStep === 'document' ? (
+            <DocumentReadStep
+              article={sourceArticle}
+              loading={sourceArticleLoading}
+              error={sourceArticleError?.message}
+              missingDocument={!sourceContentEntryId}
+              onContinue={handleContinueToQuiz}
+              t={t}
+            />
           ) : (
             <>
+              {loading && <Spinner className="gba:h-5 gba:w-5" data-testid="learning-quiz-loading" />}
               <p className="gba:text-sm gba:text-muted-foreground">{t('learning-quiz-task-description')}</p>
               {questions.map(question => (
                 <QuestionField

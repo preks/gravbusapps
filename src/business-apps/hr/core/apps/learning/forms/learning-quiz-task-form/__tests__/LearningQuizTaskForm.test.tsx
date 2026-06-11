@@ -1,6 +1,7 @@
 import React from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { LearningQuizTaskForm } from '../LearningQuizTaskForm'
+import { useContentEntry } from '@/common/data/content/hooks/useContentEntry'
 import { useLearningAttemptResult } from '../../../hooks/useLearningAttemptResult'
 import { useLearningQuizQuestions } from '../../../hooks/useLearningQuizQuestions'
 import { startLearningAttempt, submitLearningAttempt } from '../../../services/learningAttemptApi'
@@ -24,6 +25,10 @@ jest.mock('@newwork/nw-design-system', () => ({
   })
 }))
 
+jest.mock('@/common/data/content/hooks/useContentEntry', () => ({
+  useContentEntry: jest.fn()
+}))
+
 jest.mock('../../../hooks/useLearningQuizQuestions', () => ({
   useLearningQuizQuestions: jest.fn()
 }))
@@ -42,6 +47,7 @@ jest.mock('../../../services/learningQuizTaskCompletionApi', () => ({
 }))
 
 const mockUseLearningQuizQuestions = useLearningQuizQuestions as jest.Mock
+const mockUseContentEntry = useContentEntry as jest.Mock
 const mockUseLearningAttemptResult = useLearningAttemptResult as jest.Mock
 const mockStartLearningAttempt = startLearningAttempt as jest.Mock
 const mockSubmitLearningAttempt = submitLearningAttempt as jest.Mock
@@ -49,6 +55,16 @@ const mockCompleteLearningQuizTask = completeLearningQuizTask as jest.Mock
 
 describe('LearningQuizTaskForm', () => {
   beforeEach(() => {
+    mockUseContentEntry.mockReturnValue({
+      entry: {
+        id: 'content-entry-1',
+        title: 'Security Article',
+        preview: 'Read this before answering.',
+        content: '<p>Security content</p>'
+      },
+      isLoading: false,
+      error: null
+    })
     mockUseLearningAttemptResult.mockReturnValue({
       result: null,
       loading: false,
@@ -116,7 +132,7 @@ describe('LearningQuizTaskForm', () => {
     render(
       <LearningQuizTaskForm
         accessToken="token"
-        sourceLink={{ name: 'Security Article', url: '/article' }}
+        sourceLink={{ name: 'Security Article', url: '/article', type: 'document:content-entry-1' }}
         additionalData={{
           psi_taskId: 'task-1',
           psi_taskPayload: {
@@ -127,7 +143,11 @@ describe('LearningQuizTaskForm', () => {
       />
     )
 
-    expect(screen.getByTestId('learning-quiz-source-link')).toHaveTextContent('Open source article: Security Article')
+    expect(screen.getByTestId('learning-quiz-document-step')).toHaveTextContent('Security Article')
+    expect(screen.queryByTestId('learning-quiz-source-link')).not.toBeInTheDocument()
+    expect(mockUseContentEntry).toHaveBeenCalledWith('content-entry-1', expect.any(Object))
+    await waitFor(() => expect(screen.getByTestId('learning-quiz-document-continue-button')).not.toBeDisabled())
+    fireEvent.click(screen.getByTestId('learning-quiz-document-continue-button'))
 
     await waitFor(() => expect(mockStartLearningAttempt).toHaveBeenCalled())
     fireEvent.click(screen.getByTestId('learning-quiz-answer-question-1-A'))
@@ -166,6 +186,11 @@ describe('LearningQuizTaskForm', () => {
     render(
       <LearningQuizTaskForm
         accessToken="token"
+        sourceLink={{
+          name: 'Security Article',
+          url: '/platform/content/intranet/content-record?contentId=content-entry-1',
+          type: 'document:content-entry-1'
+        }}
         additionalData={{
           psi_taskId: 'task-1',
           psi_taskPayload: {
@@ -176,6 +201,9 @@ describe('LearningQuizTaskForm', () => {
         }}
       />
     )
+
+    await waitFor(() => expect(screen.getByTestId('learning-quiz-document-continue-button')).not.toBeDisabled())
+    fireEvent.click(screen.getByTestId('learning-quiz-document-continue-button'))
 
     await waitFor(() => expect(mockStartLearningAttempt).toHaveBeenCalled())
     expect(mockStartLearningAttempt).toHaveBeenCalledWith(
