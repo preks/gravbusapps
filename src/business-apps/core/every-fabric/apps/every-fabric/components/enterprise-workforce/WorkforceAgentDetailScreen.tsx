@@ -11,12 +11,15 @@
 // `tab` and `runId`, so deep-linking and back/forward Just Work.
 
 import { ArrowLeftIcon, CircleNotchIcon, FlaskIcon, WarningIcon } from '@phosphor-icons/react'
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
+import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { useWorkforceAgentConfig } from './useWorkforceAgentConfig'
 import { useWorkforceLiveActivity } from './useWorkforceLiveActivity'
 import { useWorkforceRuns } from './useWorkforceRuns'
 import { LiveActivityFeed } from './LiveActivityFeed'
 import { TestRunModal } from './TestRunModal'
+import { TestWebhookModal, type WebhookTestOption } from './TestWebhookModal'
+import { notifyWebhookDispatchResult } from './workforceWebhookDispatch'
 import { AgentConfigTab } from './agent-detail/tabs/AgentConfigTab'
 import { AgentInboxTab } from './agent-detail/tabs/AgentInboxTab'
 import { AgentOverviewTab } from './agent-detail/tabs/AgentOverviewTab'
@@ -30,6 +33,8 @@ export interface WorkforceAgentDetailScreenProps {
   agentId: string
   tab: WorkforceDetailTab
   runId: string | null
+  /** When true, show developer-only tools such as Test webhook on triggers. */
+  devModeEnabled?: boolean
   onBack: () => void
   onChangeTab: (tab: WorkforceDetailTab) => void
   onSelectRun: (runId: string | null) => void
@@ -54,6 +59,7 @@ export const WorkforceAgentDetailScreen: React.FC<WorkforceAgentDetailScreenProp
   agentId,
   tab,
   runId,
+  devModeEnabled = false,
   onBack,
   onChangeTab,
   onSelectRun
@@ -69,8 +75,11 @@ export const WorkforceAgentDetailScreen: React.FC<WorkforceAgentDetailScreenProp
     createTrigger,
     updateTrigger,
     deleteTrigger,
+    refetch: refetchAgentConfig,
     clearError
   } = useWorkforceAgentConfig({ accessToken, agentId })
+
+  const promptManagerClient = usePromptManagerClient(accessToken)
 
   const {
     runs,
@@ -88,6 +97,25 @@ export const WorkforceAgentDetailScreen: React.FC<WorkforceAgentDetailScreenProp
   const liveAgentRuns = liveActivity.runsByAgent.get(agentId) ?? []
 
   const [isTestRunOpen, setIsTestRunOpen] = useState(false)
+  const [isTestWebhookOpen, setIsTestWebhookOpen] = useState(false)
+  const [testWebhookPreselected, setTestWebhookPreselected] = useState<{
+    agentId: string
+    triggerId: string
+  } | null>(null)
+  const [isDispatchingWebhook, setIsDispatchingWebhook] = useState(false)
+  const [webhookError, setWebhookError] = useState<string | null>(null)
+
+  const webhookOptions = useMemo((): WebhookTestOption[] => {
+    if (!agent) return []
+    return triggers
+      .filter(trigger => trigger.type === 'webhook' && trigger.enabled)
+      .map(trigger => ({
+        agentId: agent.agent_id,
+        agentName: agent.display_name || agent.name,
+        triggerId: trigger.trigger_id,
+        triggerName: trigger.name || 'Webhook'
+      }))
+  }, [agent, triggers])
 
   const openTestRun = useCallback(() => {
     clearRunsError()
@@ -95,6 +123,49 @@ export const WorkforceAgentDetailScreen: React.FC<WorkforceAgentDetailScreenProp
   }, [clearRunsError])
 
   const closeTestRun = useCallback(() => setIsTestRunOpen(false), [])
+
+  const openTestWebhook = useCallback(
+    (triggerId?: string) => {
+      setWebhookError(null)
+      if (triggerId) {
+        setTestWebhookPreselected({ agentId, triggerId })
+      } else {
+        setTestWebhookPreselected(null)
+      }
+      setIsTestWebhookOpen(true)
+    },
+    [agentId]
+  )
+
+  const closeTestWebhook = useCallback(() => {
+    setIsTestWebhookOpen(false)
+    setTestWebhookPreselected(null)
+    setWebhookError(null)
+  }, [])
+
+  const handleDispatchTestWebhook = useCallback(
+    async (triggerId: string, payload: { subject: string; body: string }) => {
+      setIsDispatchingWebhook(true)
+      setWebhookError(null)
+      try {
+        const result = await promptManagerClient.dispatchWorkforceTestWebhook(triggerId, payload)
+        notifyWebhookDispatchResult(result, sessionId => {
+          onChangeTab('runs')
+          onSelectRun(sessionId)
+        })
+        void refetchAgentConfig()
+        void refetchRuns()
+        return result
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to send webhook.'
+        setWebhookError(message)
+        throw err
+      } finally {
+        setIsDispatchingWebhook(false)
+      }
+    },
+    [onChangeTab, onSelectRun, promptManagerClient, refetchAgentConfig, refetchRuns]
+  )
 
   // Opening a run (started, picked from a list, or the live feed) deep-links to
   // the full-screen run detail via the shared `runId` URL state.
@@ -288,6 +359,7 @@ export const WorkforceAgentDetailScreen: React.FC<WorkforceAgentDetailScreenProp
                 createTrigger={createTrigger}
                 updateTrigger={updateTrigger}
                 deleteTrigger={deleteTrigger}
+                onTestWebhook={devModeEnabled ? openTestWebhook : undefined}
               />
             )}
           </div>
@@ -315,6 +387,18 @@ export const WorkforceAgentDetailScreen: React.FC<WorkforceAgentDetailScreenProp
           errorMessage={runsError}
           onClose={closeTestRun}
           onSubmit={handleStartRun}
+        />
+      )}
+
+      {devModeEnabled && (
+        <TestWebhookModal
+          open={isTestWebhookOpen}
+          options={webhookOptions}
+          preselected={testWebhookPreselected ?? undefined}
+          isDispatching={isDispatchingWebhook}
+          errorMessage={webhookError}
+          onClose={closeTestWebhook}
+          onSubmit={handleDispatchTestWebhook}
         />
       )}
     </div>

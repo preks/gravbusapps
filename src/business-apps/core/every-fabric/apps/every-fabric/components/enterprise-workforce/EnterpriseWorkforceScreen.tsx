@@ -40,6 +40,8 @@ import { useWorkforceData, type WorkforceAgentSummary, type WorkforceFilter } fr
 import { useWorkforceLiveActivity } from './useWorkforceLiveActivity'
 import { useWorkforceUrlState } from './useWorkforceUrlState'
 import { WorkforceDeck, type DeckMatchInfo } from './deck/WorkforceDeck'
+import { TestWebhookModal } from './TestWebhookModal'
+import { notifyWebhookDispatchResult } from './workforceWebhookDispatch'
 import type { WorkforceAgent } from './workforceTypes'
 
 type WorkforceView = 'active' | 'archived'
@@ -51,6 +53,8 @@ type HireFlow = 'closed' | 'chooser' | 'marketplace' | 'create'
 interface EnterpriseWorkforceScreenProps {
   accessToken: string
   onBack: () => void
+  /** When true, show developer-only tools such as Test webhook. */
+  devModeEnabled?: boolean
 }
 
 /** Maximum number of ranked agents to show when an AI query is active. */
@@ -82,7 +86,11 @@ function toRankable(summary: WorkforceAgentSummary): RankableAgent & { __summary
   }
 }
 
-export const EnterpriseWorkforceScreen: React.FC<EnterpriseWorkforceScreenProps> = ({ accessToken, onBack }) => {
+export const EnterpriseWorkforceScreen: React.FC<EnterpriseWorkforceScreenProps> = ({
+  accessToken,
+  onBack,
+  devModeEnabled = false
+}) => {
   const client = usePromptManagerClient(accessToken)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<WorkforceFilter>('all')
@@ -102,12 +110,17 @@ export const EnterpriseWorkforceScreen: React.FC<EnterpriseWorkforceScreenProps>
   const [pendingArchive, setPendingArchive] = useState<WorkforceAgent | null>(null)
   const [archiveError, setArchiveError] = useState<string | null>(null)
 
+  const [isTestWebhookOpen, setIsTestWebhookOpen] = useState(false)
+  const [isDispatchingWebhook, setIsDispatchingWebhook] = useState(false)
+  const [webhookError, setWebhookError] = useState<string | null>(null)
+
   const {
     isLoading,
     error,
     counts,
     filtered,
     agents,
+    webhookOptions,
     refetch,
     activate,
     pause,
@@ -217,6 +230,43 @@ export const EnterpriseWorkforceScreen: React.FC<EnterpriseWorkforceScreenProps>
     }
   }, [archive, pendingArchive])
 
+  const openTestWebhook = useCallback(() => {
+    setWebhookError(null)
+    setIsTestWebhookOpen(true)
+  }, [])
+
+  const closeTestWebhook = useCallback(() => {
+    setIsTestWebhookOpen(false)
+    setWebhookError(null)
+  }, [])
+
+  const handleDispatchTestWebhook = useCallback(
+    async (triggerId: string, payload: { subject: string; body: string }) => {
+      setIsDispatchingWebhook(true)
+      setWebhookError(null)
+      try {
+        const result = await client.dispatchWorkforceTestWebhook(triggerId, payload)
+        const option = webhookOptions.find(item => item.triggerId === triggerId)
+        notifyWebhookDispatchResult(result, sessionId => {
+          if (option) {
+            setUrlAgent(option.agentId)
+            setUrlTab('runs')
+            setUrlRun(sessionId)
+          }
+        })
+        void refetch()
+        return result
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to send webhook.'
+        setWebhookError(message)
+        throw err
+      } finally {
+        setIsDispatchingWebhook(false)
+      }
+    },
+    [client, refetch, setUrlAgent, setUrlRun, setUrlTab, webhookOptions]
+  )
+
   const handleRestore = useCallback(
     async (agent: WorkforceAgent) => {
       try {
@@ -246,6 +296,7 @@ export const EnterpriseWorkforceScreen: React.FC<EnterpriseWorkforceScreenProps>
         agentId={urlAgentId}
         tab={urlTab}
         runId={urlRunId}
+        devModeEnabled={devModeEnabled}
         onBack={handleConfigBack}
         onChangeTab={setUrlTab}
         onSelectRun={setUrlRun}
@@ -304,6 +355,8 @@ export const EnterpriseWorkforceScreen: React.FC<EnterpriseWorkforceScreenProps>
               <WorkforceHero
                 counts={counts}
                 onHireAgent={openHireChooser}
+                onTestWebhook={devModeEnabled ? openTestWebhook : undefined}
+                canTestWebhook={devModeEnabled && webhookOptions.length > 0}
                 workingNow={liveActivity.workingAgentIds.size}
               />
 
@@ -464,6 +517,17 @@ export const EnterpriseWorkforceScreen: React.FC<EnterpriseWorkforceScreenProps>
         onConfirm={confirmArchive}
         testIdPrefix="workforce-archive-confirm"
       />
+
+      {devModeEnabled && (
+        <TestWebhookModal
+          open={isTestWebhookOpen}
+          options={webhookOptions}
+          isDispatching={isDispatchingWebhook}
+          errorMessage={webhookError}
+          onClose={closeTestWebhook}
+          onSubmit={handleDispatchTestWebhook}
+        />
+      )}
     </div>
   )
 }

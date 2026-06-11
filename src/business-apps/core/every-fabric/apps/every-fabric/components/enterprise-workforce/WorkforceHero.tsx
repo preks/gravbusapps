@@ -6,7 +6,14 @@
 // credits consumed in the last seven days.
 
 import { Button } from '@newwork/nw-design-system'
-import { LightningIcon, PauseIcon, PlusIcon, SparkleIcon, UsersThreeIcon } from '@phosphor-icons/react'
+import {
+  LightningIcon,
+  PauseIcon,
+  PlusIcon,
+  SparkleIcon,
+  UsersThreeIcon,
+  WebhooksLogoIcon
+} from '@phosphor-icons/react'
 import type { Icon } from '@phosphor-icons/react'
 import React from 'react'
 import type { WorkforceCounts } from './useWorkforceData'
@@ -14,6 +21,8 @@ import type { WorkforceCounts } from './useWorkforceData'
 interface WorkforceHeroProps {
   counts: WorkforceCounts
   onHireAgent: () => void
+  onTestWebhook?: () => void
+  canTestWebhook?: boolean
   /** Number of agents with an in-flight run right now. */
   workingNow?: number
 }
@@ -40,7 +49,13 @@ const KpiTile: React.FC<KpiTileProps> = ({ icon: IconComponent, label, value, te
   </div>
 )
 
-export const WorkforceHero: React.FC<WorkforceHeroProps> = ({ counts, onHireAgent, workingNow = 0 }) => {
+export const WorkforceHero: React.FC<WorkforceHeroProps> = ({
+  counts,
+  onHireAgent,
+  onTestWebhook,
+  canTestWebhook = false,
+  workingNow = 0
+}) => {
   return (
     <div className="gba:flex gba:flex-col gba:gap-5">
       <div className="gba:flex gba:flex-col gba:items-start gba:justify-between gba:gap-3 gba:sm:flex-row gba:sm:items-center">
@@ -64,10 +79,28 @@ export const WorkforceHero: React.FC<WorkforceHeroProps> = ({ counts, onHireAgen
             Your AI employees. They react to triggers, follow policies, use skills, and escalate to humans when needed.
           </p>
         </div>
-        <Button onClick={onHireAgent} data-testid="workforce-hire-button">
-          <PlusIcon className="gba:mr-1.5 gba:h-4 gba:w-4" />
-          Hire
-        </Button>
+        <div className="gba:flex gba:items-center gba:gap-2">
+          {onTestWebhook && (
+            <Button
+              variant="outline"
+              onClick={onTestWebhook}
+              disabled={!canTestWebhook}
+              title={
+                canTestWebhook
+                  ? 'Fire a webhook trigger with custom message content'
+                  : 'No agents have an enabled webhook trigger'
+              }
+              data-testid="workforce-test-webhook-button"
+            >
+              <WebhooksLogoIcon className="gba:mr-1.5 gba:h-4 gba:w-4" />
+              Test webhook
+            </Button>
+          )}
+          <Button onClick={onHireAgent} data-testid="workforce-hire-button">
+            <PlusIcon className="gba:mr-1.5 gba:h-4 gba:w-4" />
+            Hire
+          </Button>
+        </div>
       </div>
 
       <div className="gba:grid gba:grid-cols-2 gba:gap-2.5 gba:sm:grid-cols-4">

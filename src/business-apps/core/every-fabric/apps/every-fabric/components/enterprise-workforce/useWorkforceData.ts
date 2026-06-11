@@ -11,6 +11,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
+import type { WebhookTestOption } from './TestWebhookModal'
 import { buildWorkforceDemoSummaries, readOrbitDemoCount } from './workforceDemoAgents'
 import { useWorkforceWorkspaceMetrics } from './useWorkforceMetrics'
 import {
@@ -49,6 +50,7 @@ export interface WorkforceData {
   agents: WorkforceAgentSummary[]
   filtered: WorkforceAgentSummary[]
   counts: WorkforceCounts
+  webhookOptions: WebhookTestOption[]
   refetch: () => Promise<void>
   activate: (agent: WorkforceAgent) => Promise<void>
   pause: (agent: WorkforceAgent) => Promise<void>
@@ -265,12 +267,26 @@ export function useWorkforceData({
 
   const combinedError = error ?? metrics.error
 
+  const webhookOptions = useMemo((): WebhookTestOption[] => {
+    return agentTriggers.flatMap(row =>
+      row.triggers
+        .filter(trigger => trigger.type === 'webhook' && trigger.enabled)
+        .map(trigger => ({
+          agentId: row.agent.agent_id,
+          agentName: row.agent.display_name || row.agent.name,
+          triggerId: trigger.trigger_id,
+          triggerName: trigger.name || 'Webhook'
+        }))
+    )
+  }, [agentTriggers])
+
   return {
     isLoading: isLoading || metrics.isLoading,
     error: combinedError,
     agents: allAgents,
     filtered,
     counts,
+    webhookOptions,
     refetch,
     activate,
     pause,

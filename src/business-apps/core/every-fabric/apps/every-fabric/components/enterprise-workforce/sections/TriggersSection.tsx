@@ -34,6 +34,7 @@ interface TriggersSectionProps {
   onCreate: (input: WorkforceTriggerCreateInput) => Promise<void>
   onUpdate: (triggerId: string, input: WorkforceTriggerUpdateInput) => Promise<void>
   onDelete: (triggerId: string) => Promise<void>
+  onTestWebhook?: (triggerId: string) => void
   // Needed by the inbound-email mailbox picker to list the operator's
   // connected mailboxes. Optional so existing render-only tests can omit it.
   accessToken?: string
@@ -187,6 +188,7 @@ export const TriggersSection: React.FC<TriggersSectionProps> = ({
   onCreate,
   onUpdate,
   onDelete,
+  onTestWebhook,
   accessToken = ''
 }) => {
   const [isAdding, setIsAdding] = useState(false)
@@ -449,7 +451,7 @@ export const TriggersSection: React.FC<TriggersSectionProps> = ({
                       </button>
                     </div>
                   </div>
-                  <InboundConnectionDetails trigger={trigger} />
+                  <InboundConnectionDetails trigger={trigger} onTestWebhook={onTestWebhook} />
                 </li>
               )
             })}
@@ -483,16 +485,17 @@ function formatLastFired(iso: string | null | undefined): string | null {
 
 interface InboundConnectionDetailsProps {
   trigger: WorkforceTrigger
+  onTestWebhook?: (triggerId: string) => void
 }
 
-const InboundConnectionDetails: React.FC<InboundConnectionDetailsProps> = ({ trigger }) => {
+const InboundConnectionDetails: React.FC<InboundConnectionDetailsProps> = ({ trigger, onTestWebhook }) => {
   if (trigger.type !== 'webhook' && trigger.type !== 'inbound_email') return null
   return (
     <div
       className="gba:flex gba:flex-col gba:gap-1 gba:rounded-md gba:bg-muted/30 gba:px-3 gba:py-2"
       data-testid={`workforce-trigger-inbound-${trigger.trigger_id}`}
     >
-      {trigger.type === 'webhook' && <WebhookDetails trigger={trigger} />}
+      {trigger.type === 'webhook' && <WebhookDetails trigger={trigger} onTestWebhook={onTestWebhook} />}
       {trigger.type === 'inbound_email' && <InboundEmailDetails trigger={trigger} />}
       <LastFiredHint trigger={trigger} />
     </div>
@@ -501,9 +504,10 @@ const InboundConnectionDetails: React.FC<InboundConnectionDetailsProps> = ({ tri
 
 interface DetailsProps {
   trigger: WorkforceTrigger
+  onTestWebhook?: (triggerId: string) => void
 }
 
-const WebhookDetails: React.FC<DetailsProps> = ({ trigger }) => {
+const WebhookDetails: React.FC<DetailsProps> = ({ trigger, onTestWebhook }) => {
   const absoluteUrl = useMemo(() => resolveAbsoluteWebhookUrl(trigger.webhook_url), [trigger.webhook_url])
   const hasSecret = typeof trigger.config?.secret === 'string' && (trigger.config.secret as string).length > 0
 
@@ -530,6 +534,16 @@ const WebhookDetails: React.FC<DetailsProps> = ({ trigger }) => {
           {absoluteUrl}
         </code>
         <CopyButton value={absoluteUrl} testId={`workforce-trigger-webhook-copy-${trigger.trigger_id}`} />
+        {trigger.enabled && onTestWebhook && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onTestWebhook(trigger.trigger_id)}
+            data-testid={`workforce-trigger-webhook-test-${trigger.trigger_id}`}
+          >
+            Test
+          </Button>
+        )}
       </div>
       <p className="gba:text-[11px] gba:text-muted-foreground">
         {hasSecret

@@ -1947,6 +1947,17 @@ export class PromptManagerClient extends RestClient {
     return this.post<WorkforceInboundDispatchResponse>('/workforce/inbound-email', body)
   }
 
+  /** Operator test dispatch for a webhook trigger (authenticated). */
+  async dispatchWorkforceTestWebhook(
+    triggerId: string,
+    body: WorkforceWebhookTestPayload
+  ): Promise<WorkforceInboundDispatchResponse> {
+    return this.post<WorkforceInboundDispatchResponse>(
+      `/workforce/triggers/${encodeURIComponent(triggerId)}/test-webhook`,
+      body
+    )
+  }
+
   // --- Workforce Agents: credit metrics (Phase 6) ---
   //
   // Metrics aggregate immutable rows in the WorkforceCreditLedger collection,
@@ -2029,6 +2040,11 @@ export interface WorkforceInboundEmailPayload {
   subject: string
   body: string
   message_id?: string | null
+}
+
+export interface WorkforceWebhookTestPayload {
+  subject?: string
+  body: string
 }
 
 export interface WorkforceInboundDispatchResponse {

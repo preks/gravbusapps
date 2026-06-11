@@ -37,4 +37,14 @@ describe('WorkforceHero', () => {
     fireEvent.click(screen.getByTestId('workforce-hire-button'))
     expect(onHire).toHaveBeenCalledTimes(1)
   })
+
+  it('hides the test webhook button when onTestWebhook is omitted', () => {
+    render(<WorkforceHero counts={makeCounts()} onHireAgent={jest.fn()} />)
+    expect(screen.queryByTestId('workforce-test-webhook-button')).toBeNull()
+  })
+
+  it('shows the test webhook button when developer mode passes onTestWebhook', () => {
+    render(<WorkforceHero counts={makeCounts()} onHireAgent={jest.fn()} onTestWebhook={jest.fn()} canTestWebhook />)
+    expect(screen.getByTestId('workforce-test-webhook-button')).toBeInTheDocument()
+  })
 })

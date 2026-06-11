@@ -20,6 +20,7 @@ export interface AgentConfigTabProps {
   createTrigger: (body: WorkforceTriggerCreateInput) => Promise<WorkforceTrigger>
   updateTrigger: (triggerId: string, patch: WorkforceTriggerUpdateInput) => Promise<WorkforceTrigger>
   deleteTrigger: (triggerId: string) => Promise<void>
+  onTestWebhook?: (triggerId: string) => void
 }
 
 export const AgentConfigTab: React.FC<AgentConfigTabProps> = ({
@@ -31,7 +32,8 @@ export const AgentConfigTab: React.FC<AgentConfigTabProps> = ({
   saveSection,
   createTrigger,
   updateTrigger,
-  deleteTrigger
+  deleteTrigger,
+  onTestWebhook
 }) => (
   <WorkforceConfigSectionStack
     agent={agent}
@@ -43,6 +45,7 @@ export const AgentConfigTab: React.FC<AgentConfigTabProps> = ({
     createTrigger={createTrigger}
     updateTrigger={updateTrigger}
     deleteTrigger={deleteTrigger}
+    onTestWebhook={onTestWebhook}
     identityMode="full"
     showSkillsPolicies
     data-testid="workforce-config-tab"

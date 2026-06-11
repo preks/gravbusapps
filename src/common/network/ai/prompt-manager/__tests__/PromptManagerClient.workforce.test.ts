@@ -199,6 +199,36 @@ describe('PromptManagerClient — Workforce Agents', () => {
     })
   })
 
+  describe('dispatchWorkforceTestWebhook', () => {
+    it('POSTs subject and body to the test-webhook path', async () => {
+      fetchMock.mockResolvedValueOnce(
+        makeFetchResponse({
+          body: {
+            session_id: 'sess-1',
+            trigger_id: 'trig-webhook',
+            accepted: true
+          }
+        })
+      )
+      const result = await client.dispatchWorkforceTestWebhook('trig-webhook', {
+        subject: 'Test webhook',
+        body: 'Customer escalation details'
+      })
+      const { url, init } = getFetchCall()
+      expect(init.method).toBe('POST')
+      expect(url.pathname.endsWith('/workforce/triggers/trig-webhook/test-webhook')).toBe(true)
+      expect(JSON.parse(init.body as string)).toEqual({
+        subject: 'Test webhook',
+        body: 'Customer escalation details'
+      })
+      expect(result).toEqual({
+        session_id: 'sess-1',
+        trigger_id: 'trig-webhook',
+        accepted: true
+      })
+    })
+  })
+
   describe('runs', () => {
     it('listWorkforceRuns includes status filter when provided', async () => {
       fetchMock.mockResolvedValueOnce(makeFetchResponse({ body: { data: [], total: 0 } }))

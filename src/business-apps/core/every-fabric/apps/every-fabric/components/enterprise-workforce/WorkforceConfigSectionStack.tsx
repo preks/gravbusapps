@@ -33,6 +33,7 @@ export interface WorkforceConfigSectionStackProps {
   createTrigger: (body: WorkforceTriggerCreateInput) => Promise<void>
   updateTrigger: (triggerId: string, patch: WorkforceTriggerUpdateInput) => Promise<void>
   deleteTrigger: (triggerId: string) => Promise<void>
+  onTestWebhook?: (triggerId: string) => void
   identityMode: WorkforceIdentityMode
   showSkillsPolicies?: boolean
   className?: string
@@ -49,6 +50,7 @@ export const WorkforceConfigSectionStack: React.FC<WorkforceConfigSectionStackPr
   createTrigger,
   updateTrigger,
   deleteTrigger,
+  onTestWebhook,
   identityMode,
   showSkillsPolicies = false,
   className,
@@ -77,6 +79,7 @@ export const WorkforceConfigSectionStack: React.FC<WorkforceConfigSectionStackPr
         triggers={triggers}
         pendingTriggerId={pendingTriggerId}
         accessToken={accessToken}
+        onTestWebhook={onTestWebhook}
         onCreate={createTrigger}
         onUpdate={wrapTriggerUpdate(updateTrigger)}
         onDelete={wrapTriggerDelete(deleteTrigger)}

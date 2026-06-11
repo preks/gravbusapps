@@ -212,6 +212,7 @@ export function EveryFabricMainView({
             <EnterpriseWorkforceScreen
               accessToken={accessToken}
               activeSessions={activeSessions}
+              devModeEnabled={devModeEnabled}
               onBack={onCloseEnterpriseWorkforce}
             />
           )}
