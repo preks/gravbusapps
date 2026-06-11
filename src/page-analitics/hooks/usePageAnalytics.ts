@@ -121,7 +121,7 @@ export function usePageAnalytics(params: UsePageAnalyticsParams): UsePageAnalyti
       const enhancedCurrentPage = {
         ...currentPage,
         type: currentPage.type || (entity.id ? 'entity' : 'unknown'),
-        entity_name: currentPage.entity_name || entity.name,
+        entity_name: currentPage.entity_name || entity.type,
         id: currentPage.id || entity.id
       }
 
