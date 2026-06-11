@@ -1,0 +1,20 @@
+# Employee Termination
+employee-termination-title = Mitarbeiteraustritt
+employee-termination-already-scheduled = Für diesen Mitarbeiter ist bereits ein Austritt zum { $terminationDate } geplant.
+employee-termination-already-scheduled-help = Wenn Sie diese Aktion aktualisieren oder rückgängig machen müssen, wenden Sie sich bitte an Ihren Administrator.
+employee-termination-submit = Absenden
+employee-termination-cancel = Abbrechen
+employee-termination-loading-employee = Mitarbeiterinformationen werden geladen...
+employee-termination-error-loading = Fehler beim Laden des Mitarbeiters
+employee-termination-employee-photo-alt = Mitarbeiterfoto
+employee-termination-no-data = Keine Mitarbeiterdaten gefunden
+employee-termination-exit-date = Austrittsdatum
+employee-termination-select-placeholder = Bitte auswählen
+employee-termination-exit-reason-category = Austrittsgrund-Kategorie
+employee-termination-loading = Wird geladen...
+employee-termination-select-exit-reason-category = Austrittsgrund-Kategorie auswählen
+employee-termination-exit-reason = Austrittsgrund
+employee-termination-select-exit-reason = Austrittsgrund auswählen
+employee-termination-terminate-job-position = Jobposition beenden
+employee-termination-terminate-position-description = Auch die Jobposition des Mitarbeiters beenden
+employee-termination-no-job-position = Diesem Mitarbeiter ist keine Jobposition zugewiesen

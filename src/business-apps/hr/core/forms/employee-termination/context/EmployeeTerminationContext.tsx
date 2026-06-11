@@ -7,6 +7,8 @@ export interface EmployeeTerminationFormValues {
   employeeId: string
   terminationDate: Dayjs
   terminateJobPosition: boolean
+  exitReasonCategory: string
+  exitReason: string
 }
 
 export interface EmployeeTerminationContextState {
@@ -16,6 +18,7 @@ export interface EmployeeTerminationContextState {
   loading: boolean
   error: string | null
   hasJobPosition: boolean
+  accessToken: string
 }
 
 const EmployeeTerminationContext = createContext<EmployeeTerminationContextState | undefined>(undefined)
@@ -39,7 +42,9 @@ export const EmployeeTerminationProvider: React.FC<{
   const [formValuesState, setFormValuesState] = useState<EmployeeTerminationFormValues>({
     employeeId,
     terminationDate: dayjs(),
-    terminateJobPosition: false
+    terminateJobPosition: false,
+    exitReasonCategory: '',
+    exitReason: ''
   })
 
   // Log the employeeId detection (like job-position form)
@@ -96,9 +101,10 @@ export const EmployeeTerminationProvider: React.FC<{
       employee,
       loading: combinedLoading,
       error: combinedError,
-      hasJobPosition
+      hasJobPosition,
+      accessToken
     }),
-    [formValuesState, setFormValues, employee, combinedLoading, combinedError, hasJobPosition]
+    [formValuesState, setFormValues, employee, combinedLoading, combinedError, hasJobPosition, accessToken]
   )
 
   return <EmployeeTerminationContext.Provider value={contextValue}>{children}</EmployeeTerminationContext.Provider>

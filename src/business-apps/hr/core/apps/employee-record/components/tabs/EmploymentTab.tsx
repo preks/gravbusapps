@@ -15,7 +15,9 @@ import { WarningIcon } from '@phosphor-icons/react'
 import { Employee } from '../../hooks/useEmployeeData'
 import { AppAction } from '@/components/app-action/AppAction'
 import translations from '../../_i18n'
-import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { FlowContextName, type FlowItemReduced } from '@/common/types/FlowRegistryTypes'
+import { useFlowRegistryClient } from '@/common/network/flows/useFlowRegistryClient'
+import { startProcess } from '@/common/utils/start-process'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
 import { formatDate, formatNumberFunction, getCatalogValue } from '../../../../../../../common/utils/windowUtils'
 import { parseLocalizedNumber } from '../../../../../../../common/utils/numberFormatter'
@@ -23,6 +25,10 @@ import { useHealthInsuranceTypeCatalog } from '../../hooks/useHealthInsuranceTyp
 import { useTaxBracketCatalog } from '../../hooks/useTaxBracketCatalog'
 import { useTaxableChurchAffiliationCatalog } from '../../hooks/useTaxableChurchAffiliationCatalog'
 import { useEmploymentRegionLabel } from '../../hooks/useEmploymentRegionLabel'
+import {
+  useExitReasonCategoryCatalog,
+  useExitReasonCatalog
+} from '../../../../forms/employee-termination/hooks/useExitReasonCatalogs'
 import useEmployeePermissions, { SECTION_KEYS } from '../../hooks/useEmployeePermissions'
 import { ScopePermissionCheckResult } from '@/common/hooks/useScopePermissionCheck'
 
@@ -52,6 +58,8 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
   const { t } = useTranslation(translations)
   const employeeIdForPermissions = employeeId || employee?.id
   const { isSectionVisible } = useEmployeePermissions(employeeIdForPermissions, accessToken)
+  const flowRegistryClient = useFlowRegistryClient(accessToken)
+  const [terminateActionLoading, setTerminateActionLoading] = React.useState(false)
   const [selectedWorkingConditionIndex, setSelectedWorkingConditionIndex] = React.useState(0)
   const [selectedWorkingHoursIndex, setSelectedWorkingHoursIndex] = React.useState(0)
   const workingConditions = React.useMemo(() => {
@@ -199,6 +207,9 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
   // Fetch taxable church affiliation catalog for translated church affiliation mapping
   const { getTaxableChurchAffiliationValueById, loading: loadingTaxableChurchAffiliation } =
     useTaxableChurchAffiliationCatalog(accessToken)
+  // Fetch exit reason catalogs for employment period section
+  const { options: exitReasonCategoryOptions } = useExitReasonCategoryCatalog(accessToken)
+  const { options: exitReasonOptions } = useExitReasonCatalog(accessToken)
   // Prepare organizational data
   const organizationalData = [
     {
@@ -235,6 +246,97 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
     }
   ]
 
+  const getEmploymentPeriodData = () => {
+    const data: Array<{ label: string; value: string }> = [
+      {
+        label: t('employment-label-hire-date'),
+        value: workingCondition?.hireDate ? formatDate(workingCondition.hireDate, 'date.medium') || '' : ''
+      },
+      {
+        label: t('employment-label-exit-date'),
+        value: workingCondition?.exitDate ? formatDate(workingCondition.exitDate, 'date.medium') || '' : ''
+      }
+    ]
+
+    if (workingCondition?.exitDate) {
+      const categoryLabel =
+        exitReasonCategoryOptions.find(opt => opt.value === workingCondition.exitReasonCategoryRef)?.label ||
+        workingCondition.exitReasonCategoryRef ||
+        ''
+      const reasonLabel =
+        exitReasonOptions.find(opt => opt.value === workingCondition.exitReasonRef)?.label ||
+        workingCondition.exitReasonRef ||
+        ''
+      data.push(
+        {
+          label: t('employment-label-exit-reason-category'),
+          value: categoryLabel
+        },
+        {
+          label: t('employment-label-exit-reason'),
+          value: reasonLabel
+        }
+      )
+    }
+
+    return data
+  }
+
+  const employmentPeriodData = getEmploymentPeriodData()
+
+  const findTerminateEmployeeFlow = (flowItems: FlowItemReduced[]): FlowItemReduced | undefined =>
+    flowItems.find(flowItem => {
+      const processName = flowItem.processName?.toLowerCase() ?? ''
+      const flowName = flowItem.flowName?.toLowerCase() ?? ''
+      return processName === 'terminateemployee' || flowName.includes('terminate employee')
+    })
+
+  const handleOpenTerminateEmployeeFlow = async () => {
+    if (!employee?.id || terminateActionLoading) return
+
+    setTerminateActionLoading(true)
+    try {
+      const mainContexts = await flowRegistryClient.getMainContextData({
+        contextNames: [FlowContextName.employeeEntity]
+      })
+      const employeeContextDataName =
+        mainContexts?.contextData?.find(context => context.contextName === FlowContextName.employeeEntity)
+          ?.mainContextDataName ?? 'employeeId'
+      const externalContextData = {
+        employeeId: employee.id,
+        managerId: employee.employeePosition?.supervisor?.id,
+        organizationalUnitId: employee.employeePosition?.organizationalUnitId
+      }
+      const response = await flowRegistryClient.getPermissionFlowItemsV2({
+        contexts: [
+          {
+            contextName: FlowContextName.employeeEntity,
+            mainContextDataId:
+              externalContextData[employeeContextDataName as keyof typeof externalContextData] ?? employee.id
+          }
+        ]
+      })
+      const terminateFlow = findTerminateEmployeeFlow(response?.flowItems ?? [])
+
+      if (!terminateFlow) {
+        throw new Error(t('employment-terminate-action-unavailable'))
+      }
+
+      startProcess({
+        processName: terminateFlow.processName,
+        domain: terminateFlow.domain,
+        payload: externalContextData,
+        builderType: terminateFlow.builderType?.toUpperCase() === 'NATIVE_SCREEN' ? 'NATIVE_SCREEN' : undefined,
+        targetDesktop: terminateFlow.targetDesktop,
+        targetMobile: terminateFlow.targetMobile
+      })
+    } catch (err) {
+      console.error('Failed to open terminate employee flow:', err)
+    } finally {
+      setTerminateActionLoading(false)
+    }
+  }
+
   const getWorkingConditionsData = () => {
     const regionDisplay = regionLabelLinkedToAddress || ''
 
@@ -250,10 +352,6 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
       {
         label: t('employment-label-employment-end-date'),
         value: workingCondition?.activeTo ? formatDate(workingCondition.activeTo, 'date.medium') || '' : ''
-      },
-      {
-        label: t('employment-label-hire-date'),
-        value: workingCondition?.hireDate ? formatDate(workingCondition.hireDate, 'date.medium') || '' : ''
       },
       {
         label: t('employment-label-contract-type'),
@@ -515,9 +613,9 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
       </div>
 
       <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6" data-testid="employment-cards">
-        {/* Employment Profile Card */}
-        <Card data-testid="employment-section-profile">
-          <CardContent className="gba:p-4">
+        {/* Row 1: Employment Profile (left) | Employment Period (right) */}
+        <Card data-testid="employment-section-profile" className="gba:h-full">
+          <CardContent className="gba:p-4 gba:h-full">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
               <h3 className="gba:text-lg gba:font-semibold">{t('employment-profile')}</h3>
             </div>
@@ -525,7 +623,35 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
           </CardContent>
         </Card>
 
-        {/* Working Conditions Card */}
+        <Card data-testid="employment-section-period" className="gba:h-full">
+          <CardContent className="gba:p-4 gba:h-full">
+            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
+              <h3 className="gba:text-lg gba:font-semibold">{t('employment-period')}</h3>
+              {employeeRecordHrBackoffice.hasPermission && (
+                <AppAction
+                  variant="update-secondary"
+                  data-testid="employee-termination-action-button"
+                  customActions={[
+                    {
+                      key: 'terminate-employee',
+                      label: t('employment-terminate-action'),
+                      onClick: () => {
+                        void handleOpenTerminateEmployeeFlow()
+                      }
+                    }
+                  ]}
+                  prefixDataTestId="employee-termination-action"
+                  accessToken={accessToken}
+                  disabled={terminateActionLoading}
+                  ariaLabel={t('employment-terminate-action')}
+                />
+              )}
+            </div>
+            {renderDataItems(employmentPeriodData)}
+          </CardContent>
+        </Card>
+
+        {/* Row 2: Working Conditions (left) | Working Hours (right) */}
         <Card data-testid="employment-section-conditions">
           <CardContent className="gba:p-4">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
@@ -707,7 +833,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
           </CardContent>
         </Card>
 
-        {/* Bank Account Card */}
+        {/* Row 3: Bank Account (left) | Tax Information (right) */}
         <Card data-testid="employment-section-bank-account">
           <CardContent className="gba:p-4">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
@@ -726,7 +852,6 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
           </CardContent>
         </Card>
 
-        {/* Tax Information Card */}
         <Card data-testid="employment-section-tax">
           <CardContent className="gba:p-4">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">

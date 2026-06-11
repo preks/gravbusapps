@@ -1,0 +1,20 @@
+# Employee Termination
+employee-termination-title = Employee Termination
+employee-termination-already-scheduled = A termination for this employee is already scheduled for { $terminationDate }.
+employee-termination-already-scheduled-help = If you need to update or reverse this action, please contact your administrator.
+employee-termination-submit = Submit
+employee-termination-cancel = Cancel
+employee-termination-loading-employee = Loading employee info...
+employee-termination-error-loading = Error Loading Employee
+employee-termination-employee-photo-alt = Employee photo
+employee-termination-no-data = No employee data found
+employee-termination-exit-date = Exit Date
+employee-termination-select-placeholder = Please Select
+employee-termination-exit-reason-category = Exit Reason Category
+employee-termination-loading = Loading...
+employee-termination-select-exit-reason-category = Select exit reason category
+employee-termination-exit-reason = Exit Reason
+employee-termination-select-exit-reason = Select exit reason
+employee-termination-terminate-job-position = Terminate Job Position
+employee-termination-terminate-position-description = Also terminate the employee's job position
+employee-termination-no-job-position = This employee has no job position assigned

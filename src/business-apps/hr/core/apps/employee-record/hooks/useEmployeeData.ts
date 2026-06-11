@@ -301,6 +301,8 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         hireDate
         vacationDays
         exitDate
+        exitReasonCategoryRef
+        exitReasonRef
         additionalProperties
       }
       workingHours(
@@ -796,6 +798,8 @@ interface WorkingCondition {
   hireDate: string
   vacationDays: number
   exitDate: string
+  exitReasonCategoryRef?: string
+  exitReasonRef?: string
   additionalProperties?: {
     fixedTermReason?: string
   }

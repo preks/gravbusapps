@@ -1,0 +1,20 @@
+# Employee Termination
+employee-termination-title = Incetare angajat
+employee-termination-already-scheduled = O incetare pentru acest angajat este deja planificata pentru { $terminationDate }.
+employee-termination-already-scheduled-help = Daca trebuie sa actualizati sau sa anulati aceasta actiune, va rugam sa contactati administratorul.
+employee-termination-submit = Trimite
+employee-termination-cancel = Anuleaza
+employee-termination-loading-employee = Se incarca informatiile angajatului...
+employee-termination-error-loading = Eroare la incarcarea angajatului
+employee-termination-employee-photo-alt = Fotografia angajatului
+employee-termination-no-data = Nu s-au gasit date despre angajat
+employee-termination-exit-date = Data incetarii
+employee-termination-select-placeholder = Va rugam selectati
+employee-termination-exit-reason-category = Categoria motivului incetarii
+employee-termination-loading = Se incarca...
+employee-termination-select-exit-reason-category = Selectati categoria motivului incetarii
+employee-termination-exit-reason = Motivul incetarii
+employee-termination-select-exit-reason = Selectati motivul incetarii
+employee-termination-terminate-job-position = Inceteaza pozitia
+employee-termination-terminate-position-description = Inceteaza si pozitia angajatului
+employee-termination-no-job-position = Acest angajat nu are o pozitie atribuita
