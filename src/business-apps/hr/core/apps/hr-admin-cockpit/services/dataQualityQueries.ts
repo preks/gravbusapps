@@ -103,40 +103,24 @@ export const DATA_QUALITY_EMPLOYEES = /* GraphQL */ `
 
 /** Scoped to active job definitions within the active structure. */
 export const DATA_QUALITY_JOB_ARCHITECTURE = /* GraphQL */ `
-  query DataQualityJobArchitecture($jpLimit: Int!, $jprofLimit: Int!, $structureId: uuid!) {
-    jobPositionsTotal: JobPositionAggregate(
-      where: {
-        isDeleted: { _eq: false }
-        activeTo: { _isNull: true }
-        organizationalUnitEmployees: { structureId: { _eq: $structureId } }
-      }
-    ) {
+  query DataQualityJobArchitecture(
+    $jpLimit: Int!
+    $jprofLimit: Int!
+    $jobPositionWhere: JobPositionBoolExp!
+    $missingJobPositionWhere: JobPositionBoolExp!
+    $jobProfileWhere: JobProfileBoolExp!
+  ) {
+    jobPositionsTotal: JobPositionAggregate(where: $jobPositionWhere) {
       aggregate {
         count
       }
     }
-    jobPositionsMissingProfile: JobPositionAggregate(
-      where: {
-        isDeleted: { _eq: false }
-        activeTo: { _isNull: true }
-        jobProfileId: { _isNull: true }
-        organizationalUnitEmployees: { structureId: { _eq: $structureId } }
-      }
-    ) {
+    jobPositionsMissingProfile: JobPositionAggregate(where: $missingJobPositionWhere) {
       aggregate {
         count
       }
     }
-    jobPositionsSample: JobPosition(
-      where: {
-        isDeleted: { _eq: false }
-        activeTo: { _isNull: true }
-        jobProfileId: { _isNull: true }
-        organizationalUnitEmployees: { structureId: { _eq: $structureId } }
-      }
-      limit: $jpLimit
-      orderBy: { businessKey: ASC }
-    ) {
+    jobPositionsSample: JobPosition(where: $missingJobPositionWhere, limit: $jpLimit, orderBy: { businessKey: ASC }) {
       id
       name
       version
@@ -184,16 +168,9 @@ export const DATA_QUALITY_JOB_ARCHITECTURE = /* GraphQL */ `
         }
       }
     }
-    jobProfiles: JobProfile(
-      where: {
-        isDeleted: { _eq: false }
-        activeTo: { _isNull: true }
-        jobPosition: { organizationalUnitEmployees: { structureId: { _eq: $structureId } } }
-      }
-      limit: $jprofLimit
-      orderBy: { code: ASC }
-    ) {
+    jobProfiles: JobProfile(where: $jobProfileWhere, limit: $jprofLimit, orderBy: { code: ASC }) {
       id
+      version
       name
       code
       description

@@ -149,6 +149,7 @@ export interface BreakdownMatrix {
 }
 
 export interface JobProfileDetail {
+  version?: number | null
   code?: string | null
   description?: string | null
   jobFunction?: { name?: string | null; code?: string | null } | null

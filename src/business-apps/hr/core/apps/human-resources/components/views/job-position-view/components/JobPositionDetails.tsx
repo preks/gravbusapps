@@ -118,7 +118,7 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({
                   variant="outline"
                   size="sm"
                   type="button"
-                  className="gba:gap-1"
+                  className="gba:gap-1 gba:pr-3"
                   data-testid="job-position-details-action-button"
                   disabled={Boolean(jobPosition.activeTo)}
                 >

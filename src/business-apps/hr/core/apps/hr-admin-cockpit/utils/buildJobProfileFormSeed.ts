@@ -52,7 +52,7 @@ export function buildJobProfileFormSeed(
         }
       : null,
     isActive: true,
-    version: null,
+    version: d?.version,
     jobProfileSkills: (d?.skills ?? []).map(s => ({
       requiredLevel: s.requiredLevel ?? null,
       skill: { id: '', name: s.name }

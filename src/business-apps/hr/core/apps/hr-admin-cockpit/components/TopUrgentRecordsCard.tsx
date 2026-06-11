@@ -27,11 +27,12 @@ import {
   TooltipTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
-import { buildIssueDetail, CATEGORY_I18N_KEY, CHECKLIST_I18N_KEY, HINT_I18N_KEY } from '../services/dataQualityCompute'
+import { buildIssueDetail, CATEGORY_I18N_KEY, HINT_I18N_KEY, ISSUE_I18N_KEY } from '../services/dataQualityCompute'
 import type { DataQualityIssueCode, TopUrgentRecord } from '../types/dataQuality.types'
 import { useDataQualityContext } from '../hooks/dataQualityHooks'
+import { useEmployeeActionRefresh } from '../hooks/useEmployeeActionRefresh'
+import { DataQualityChecklist } from './records/DataQualityChecklist'
 import { EmployeeHeaderPanel } from './records/EmployeeHeaderPanel'
-import { FlowActionRow } from './records/FlowActionRow'
 import { severityToBadgeStatus, severityToLabel } from './records/RecordsTable'
 import translations from '../_i18n'
 
@@ -39,6 +40,10 @@ const ENTITY_ICON: Record<string, ElementType> = {
   employee: UserIcon,
   job_position: BriefcaseIcon,
   job_profile: FileCodeIcon
+}
+
+function getIssueLabelKey(code: DataQualityIssueCode): string {
+  return ISSUE_I18N_KEY[code] ?? CATEGORY_I18N_KEY[code] ?? code
 }
 
 interface TopUrgentRecordsCardProps {
@@ -54,6 +59,7 @@ export function TopUrgentRecordsCard({
 }: Readonly<TopUrgentRecordsCardProps>) {
   const { t } = useTranslation(translations)
   const ctx = useDataQualityContext()
+  const handleActionStarted = useEmployeeActionRefresh()
   const totalIssues = useMemo(() => {
     const employeeIds = new Set(
       ctx.recordsNeedingAttention.filter(record => record.entityKind === 'employee').map(record => record.entityId)
@@ -140,7 +146,7 @@ export function TopUrgentRecordsCard({
                                       size="sm"
                                       className="gba:cursor-help"
                                     >
-                                      {CATEGORY_I18N_KEY[code] ? t(CATEGORY_I18N_KEY[code]) : code}
+                                      {t(getIssueLabelKey(code))}
                                     </Badge>
                                   </TooltipTrigger>
                                   {HINT_I18N_KEY[code] && <TooltipContent>{t(HINT_I18N_KEY[code])}</TooltipContent>}
@@ -214,7 +220,7 @@ export function TopUrgentRecordsCard({
                         variant={code === 'tax' || code === 'payroll_bank' ? 'destructive' : 'warning'}
                         size="sm"
                       >
-                        {CATEGORY_I18N_KEY[code] ? t(CATEGORY_I18N_KEY[code]) : code}
+                        {t(getIssueLabelKey(code))}
                       </Badge>
                     ))}
                   </div>
@@ -226,35 +232,13 @@ export function TopUrgentRecordsCard({
                   <h4 className="gba:text-sm gba:font-semibold gba:text-foreground gba:mb-3 gba:border-b gba:border-border gba:pb-2">
                     {t('detail-completeness-checklist')}
                   </h4>
-                  <div className="gba:space-y-3">
-                    {checklist.map(item => (
-                      <div key={item.id} className="gba:text-sm">
-                        <div className="gba:flex gba:items-center gba:justify-between">
-                          <span className="gba:text-muted-foreground">
-                            {CHECKLIST_I18N_KEY[item.id] ? t(CHECKLIST_I18N_KEY[item.id]) : item.label}
-                          </span>
-                          <Badge variant={item.satisfied ? 'success' : 'destructive'} size="sm">
-                            {item.satisfied ? t('detail-status-ok') : t('detail-status-missing')}
-                          </Badge>
-                        </div>
-                        {!item.satisfied && HINT_I18N_KEY[item.id] && (
-                          <div className="gba:mt-1 gba:text-xs gba:text-muted-foreground">
-                            {t(HINT_I18N_KEY[item.id])}
-                          </div>
-                        )}
-                        {!item.satisfied && selectedEmployeeId && (
-                          <div className="gba:mt-1.5 gba:flex gba:justify-end">
-                            <FlowActionRow
-                              issueCode={item.id as DataQualityIssueCode}
-                              employeeId={selectedEmployeeId}
-                              accessToken={accessToken}
-                              onClose={() => setSelectedEmployeeId(null)}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                  <DataQualityChecklist
+                    checklist={checklist}
+                    employeeId={selectedEmployeeId}
+                    accessToken={accessToken}
+                    onClose={() => setSelectedEmployeeId(null)}
+                    onActionStarted={handleActionStarted}
+                  />
                 </div>
               )}
             </div>

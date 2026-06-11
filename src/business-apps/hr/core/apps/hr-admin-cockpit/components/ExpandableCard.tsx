@@ -7,9 +7,10 @@ const OVERVIEW_CARD_MAX_HEIGHT = 384
 
 interface ExpandableCardProps {
   readonly children: ReactNode
+  readonly canExpand?: boolean
 }
 
-export function ExpandableCard({ children }: Readonly<ExpandableCardProps>) {
+export function ExpandableCard({ children, canExpand = true }: Readonly<ExpandableCardProps>) {
   const { t } = useTranslation(translations)
   const contentRef = useRef<HTMLDivElement>(null)
   const [expanded, setExpanded] = useState(false)
@@ -18,9 +19,15 @@ export function ExpandableCard({ children }: Readonly<ExpandableCardProps>) {
   useLayoutEffect(() => {
     const el = contentRef.current
     if (!el) return
+    if (!canExpand) {
+      setExpanded(false)
+      setOverflows(false)
+      return
+    }
+
     const nowOverflows = el.scrollHeight > OVERVIEW_CARD_MAX_HEIGHT
     setOverflows(prev => (prev === nowOverflows ? prev : nowOverflows))
-  }, [expanded, children])
+  }, [canExpand, children])
 
   const collapsed = !expanded && overflows
 

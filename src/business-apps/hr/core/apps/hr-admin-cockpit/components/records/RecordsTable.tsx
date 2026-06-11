@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import {
   Badge,
@@ -13,15 +13,12 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { UserIcon } from '@phosphor-icons/react'
-import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { buildIssueDetail, CATEGORY_I18N_KEY, HINT_I18N_KEY } from '../../services/dataQualityCompute'
 import type { EmployeeAttentionRow } from '../../types/dataQuality.types'
 import { useDataQualityContext } from '../../hooks/dataQualityHooks'
+import { useEmployeeActionRefresh } from '../../hooks/useEmployeeActionRefresh'
 import { RecordDetailsSheet } from './RecordDetailsSheet'
 import translations from '../../_i18n'
-
-const FOLLOW_UP_EMPLOYEE_REFRESH_DELAY_MS = 1200
-type RefreshTimerId = ReturnType<typeof globalThis.setTimeout>
 
 function getSeverityWeight(severity: EmployeeAttentionRow['severity']): number {
   if (severity === 'critical') return 3
@@ -194,42 +191,7 @@ export function RecordsTable({ accessToken, initialFilters }: Readonly<RecordsTa
   const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([])
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 })
   const [tableFilters, setTableFilters] = useState<Record<string, string[]>>(initialFilters ?? {})
-  const pendingActionEmployeeIdRef = useRef<string | null>(null)
-  const pendingRefreshTimersRef = useRef(new Set<RefreshTimerId>())
-
-  const handleActionStarted = useCallback((employeeId: string) => {
-    pendingActionEmployeeIdRef.current = employeeId
-  }, [])
-
-  const handleProcessSuccess = useCallback(() => {
-    const employeeId = pendingActionEmployeeIdRef.current
-    pendingActionEmployeeIdRef.current = null
-    if (!employeeId) return
-
-    void ctx.refreshEmployee(employeeId)
-    const followUpRefreshTimer = globalThis.setTimeout(() => {
-      pendingRefreshTimersRef.current.delete(followUpRefreshTimer)
-      void ctx.refreshEmployee(employeeId)
-    }, FOLLOW_UP_EMPLOYEE_REFRESH_DELAY_MS)
-    pendingRefreshTimersRef.current.add(followUpRefreshTimer)
-  }, [ctx])
-
-  const handleProcessFailure = useCallback(() => {
-    pendingActionEmployeeIdRef.current = null
-  }, [])
-
-  useProcessCompletion({
-    onSuccess: handleProcessSuccess,
-    onFailure: handleProcessFailure
-  })
-
-  useEffect(() => {
-    const pendingRefreshTimers = pendingRefreshTimersRef.current
-    return () => {
-      pendingRefreshTimers.forEach(timerId => globalThis.clearTimeout(timerId))
-      pendingRefreshTimers.clear()
-    }
-  }, [])
+  const handleActionStarted = useEmployeeActionRefresh()
 
   useEffect(() => {
     setTableFilters(initialFilters ?? {})
@@ -397,11 +359,14 @@ export function RecordsTable({ accessToken, initialFilters }: Readonly<RecordsTa
   const totalCount = sortedData.length
 
   useEffect(() => {
-    setPagination(p => ({ ...p, pageIndex: 0 }))
+    setPagination(p => (p.pageIndex === 0 ? p : { ...p, pageIndex: 0 }))
   }, [tableSearch, tableFilters, sorting])
 
   useEffect(() => {
-    setPagination(p => ({ ...p, pageIndex: clampPageIndex(totalCount, p.pageSize, p.pageIndex) }))
+    setPagination(p => {
+      const pageIndex = clampPageIndex(totalCount, p.pageSize, p.pageIndex)
+      return pageIndex === p.pageIndex ? p : { ...p, pageIndex }
+    })
   }, [totalCount])
 
   const displayedRows = useMemo(() => {
@@ -409,11 +374,6 @@ export function RecordsTable({ accessToken, initialFilters }: Readonly<RecordsTa
     const end = start + pagination.pageSize
     return sortedData.slice(start, end)
   }, [sortedData, pagination.pageIndex, pagination.pageSize])
-
-  const tableDataKey = useMemo(
-    () => displayedRows.map(row => `${row.employeeId}:${row.missingFields.join(',')}`).join('|'),
-    [displayedRows]
-  )
 
   const visibleCols = useMemo(
     () => columns.filter(col => typeof col.id === 'string' && visibleColumns.includes(col.id)),
@@ -460,7 +420,6 @@ export function RecordsTable({ accessToken, initialFilters }: Readonly<RecordsTa
         }
       >
         <DataTable<EmployeeAttentionRow>
-          key={tableDataKey}
           data={displayedRows}
           columns={visibleCols}
           loading={ctx.loading}

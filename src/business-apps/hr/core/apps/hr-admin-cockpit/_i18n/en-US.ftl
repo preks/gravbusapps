@@ -12,11 +12,11 @@ company-filter-label = Company filter
 
 section-key-metrics = Key Metrics
 
-kpi-overall-completion = Overall completion rate
+kpi-overall-completion = Overall Completion Rate
 kpi-overall-footer = Across { $employees } employees and { $areas } required data areas
-kpi-employees-missing = Employees with missing data
+kpi-employees-missing = Employees with Missing Data
 kpi-employees-missing-footer = At least one required field incomplete
-kpi-payroll-blockers = Critical payroll blockers
+kpi-payroll-blockers = Critical Payroll Blockers
 kpi-payroll-blockers-trend = Needs attention
 kpi-payroll-blockers-footer = Unique employees missing tax info and/or bank account
 
@@ -37,7 +37,7 @@ category-working-hours = Working hours
 category-tax = Tax information
 category-payroll-bank = Payroll bank account
 
-section-breakdown = Where data is missing (by Legal Entity & Location)
+section-breakdown = Where Data Is Missing (by Legal Entity & Location)
 breakdown-subtitle = % of employees with missing data
 breakdown-legend-low = 0–25%
 breakdown-legend-medium = 26–50%
@@ -53,6 +53,8 @@ ja-stat-with-profiles = With Job Profiles
 ja-stat-with-descriptions = With Descriptions
 ja-stat-with-skills = With Skills
 ja-stat-sub-total = Total
+ja-stat-sub-of-positions = of positions
+ja-stat-sub-of-profiles = of profiles
 ja-missing-profiles = Missing Profiles
 ja-missing-descriptions = Missing Job Descriptions
 ja-missing-skills = Missing Skills
@@ -65,20 +67,22 @@ section-recommended-actions = Recommended Actions
 recommended-actions-subtitle = Highest-impact cleanup tasks
 recommended-affected = { $count } employees affected
 
-action-bank-title = Complete payroll bank details
+action-bank-title = Complete Payroll Bank Details
 action-bank-desc = Employees cannot be paid without a valid bank account on file.
-action-tax-title = Complete tax identifiers
+action-tax-title = Complete Tax Identifiers
 action-tax-desc = Tax numbers are required for statutory payroll reporting.
-action-location-title = Assign locations
+action-location-title = Assign Locations
 action-location-desc = Site location is missing on active assignments.
-action-jp-profile-title = Link job profiles to positions
+action-cost-center-title = Assign Cost Centers
+action-cost-center-desc = Cost center is missing on active assignments.
+action-jp-profile-title = Link Job Profiles to Positions
 action-jp-profile-desc = Job positions without profiles break job architecture governance.
-action-jprof-desc-title = Add job profile descriptions
+action-jprof-desc-title = Add Job Profile Descriptions
 action-jprof-desc-desc = Profiles in scope are missing narrative descriptions.
-action-jprof-skills-title = Attach skills to job profiles
+action-jprof-skills-title = Attach Skills to Job Profiles
 action-jprof-skills-desc = Skills frameworks require linked skills per profile.
 
-section-top-urgent = Top urgent records
+section-top-urgent = Top Urgent Records
 top-urgent-subtitle = Most urgent items to resolve next
 top-urgent-col-record = Record
 top-urgent-col-legal-entity = Legal Entity
@@ -88,7 +92,7 @@ top-urgent-col-action = Action
 top-urgent-btn-review = Review
 top-urgent-view-all-issues = View all { $count } issues
 
-section-records-attention = Records needing attention
+section-records-attention = Records Needing Attention
 records-search-placeholder = Search employees...
 records-filter-title = Filter Records
 records-filter-description = Narrow down records by severity, missing fields, legal entity, or location.
@@ -121,6 +125,7 @@ flow-update-working-conditions = Update working conditions
 flow-update-working-hours = Update working hours
 flow-update-tax-details = Update tax details
 flow-update-bank-account = Update bank account
+action-open-orgchart = Open in OrgChart
 
 profile-sheet-title = Job Profile Details
 profile-section-basic = Basic Information

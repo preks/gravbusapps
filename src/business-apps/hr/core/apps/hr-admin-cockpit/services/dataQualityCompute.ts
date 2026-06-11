@@ -458,6 +458,7 @@ export function computeJobArchitectureLists(rawJob: RawJobArchitecture) {
     })
 
   const buildProfileDetail = (p: (typeof profiles)[number]): JobArchitectureListItem['profileDetail'] => ({
+    version: p.version,
     code: p.code,
     description: p.description,
     jobFunction: p.jobFunction,
@@ -812,6 +813,17 @@ export function computeRecommendedActionsFromFacts(
       description: 'Site location is missing on active assignments.',
       affectedCount: loc,
       issueFocus: 'location'
+    })
+  }
+
+  const costCenter = countEmp(fact => !fact.flags.cost_center)
+  if (costCenter > 0) {
+    actions.push({
+      id: 'action-cost-center',
+      title: 'Assign cost centers',
+      description: 'Cost center is missing on active assignments.',
+      affectedCount: costCenter,
+      issueFocus: 'cost_center'
     })
   }
 

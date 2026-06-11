@@ -33,6 +33,7 @@ export function RecommendedActionsCard({
       'action-bank': BankIcon,
       'action-tax': IdentificationCardIcon,
       'action-location': MapPinIcon,
+      'action-cost-center': MapPinIcon,
       'action-jp-profile': BriefcaseIcon,
       'action-jprof-desc': FileTextIcon,
       'action-jprof-skills': LightbulbIcon
@@ -53,6 +54,8 @@ export function RecommendedActionsCard({
           <div className="gba:space-y-0.5">
             {ctx.recommendedActions.map(action => {
               const Icon = actionIcons[action.id] ?? ShieldWarningIcon
+              const title = t(`${action.id}-title`)
+              const description = t(`${action.id}-desc`)
               return (
                 <button
                   key={action.id}
@@ -66,9 +69,11 @@ export function RecommendedActionsCard({
                 >
                   <Icon className="gba:size-4 gba:text-muted-foreground gba:shrink-0" />
                   <div className="gba:flex-1 gba:min-w-0">
-                    <span className="gba:text-sm gba:block gba:truncate">{t(`${action.id}-title`)}</span>
-                    <span className="gba:text-xs gba:text-muted-foreground gba:block gba:truncate">
-                      {t(`${action.id}-desc`)}
+                    <span className="gba:text-sm gba:block gba:truncate" title={title}>
+                      {title}
+                    </span>
+                    <span className="gba:text-xs gba:text-muted-foreground gba:block gba:truncate" title={description}>
+                      {description}
                     </span>
                     <span className="gba:text-xs gba:text-muted-foreground">
                       {t('recommended-affected', { count: action.affectedCount })}

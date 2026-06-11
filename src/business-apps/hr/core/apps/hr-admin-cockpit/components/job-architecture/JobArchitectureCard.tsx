@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { BriefcaseIcon, FileTextIcon, LightbulbIcon } from '@phosphor-icons/react'
 import {
   Card,
@@ -13,7 +13,6 @@ import {
   Spinner,
   useTranslation
 } from '@newwork/nw-design-system'
-import { useFileClient } from '@/common/network/files/useFileClient'
 import type { JobArchitectureListItem } from '../../types/dataQuality.types'
 import { useDataQualityContext } from '../../hooks/dataQualityHooks'
 import type { JaDrawerKind } from '../../hooks/useDataQualityDashboardModel'
@@ -44,27 +43,6 @@ function EmptyDrawerSheet({ title, onClose, t }: Readonly<EmptyDrawerSheetProps>
         <div className="gba:flex-1 gba:flex gba:items-center gba:justify-center gba:p-6">
           <EmptyState type="no-data" compact title={t('empty-no-items')} description={t('empty-all-complete')} />
         </div>
-      </SheetContent>
-    </Sheet>
-  )
-}
-
-interface LoadingDrawerSheetProps {
-  readonly onClose: () => void
-}
-
-function LoadingDrawerSheet({ onClose }: Readonly<LoadingDrawerSheetProps>) {
-  return (
-    <Sheet
-      open
-      onOpenChange={open => {
-        if (!open) {
-          onClose()
-        }
-      }}
-    >
-      <SheetContent side="right" className="gba:flex gba:flex-col gba:items-center gba:justify-center">
-        <Spinner />
       </SheetContent>
     </Sheet>
   )
@@ -102,10 +80,6 @@ function buildDrawerContent(args: {
   }
 
   if (drawerKind === 'descriptions' || drawerKind === 'skills') {
-    if (activeDrawer.loading) {
-      return <LoadingDrawerSheet onClose={closeDrawer} />
-    }
-
     if (activeDrawer.items.length === 0) {
       return <EmptyDrawerSheet title={activeDrawer.title} onClose={closeDrawer} t={t} />
     }
@@ -124,55 +98,19 @@ function buildDrawerContent(args: {
   return null
 }
 
-function useProfilesMissingJobDescriptionFile(
-  allProfiles: JobArchitectureListItem[],
-  accessToken: string,
-  enabled: boolean
-) {
-  const fileClient = useFileClient({ accessToken })
-  const [loading, setLoading] = useState(false)
-  const [items, setItems] = useState<JobArchitectureListItem[]>([])
-
-  const check = useCallback(async () => {
-    if (!enabled || allProfiles.length === 0) {
-      setItems([])
-      return
-    }
-    setLoading(true)
-    try {
-      const results = await Promise.all(
-        allProfiles.map(async profile => {
-          try {
-            const res = await fileClient.getAllFiles(
-              { accessScope: 'tenant' },
-              { appName: 'mdm', folderPath: `/job-profiles/${profile.id}/documents` }
-            )
-            const hasFile = Array.isArray(res.files) && res.files.some(f => Boolean(f.fileId))
-            return hasFile ? null : profile
-          } catch {
-            return profile
-          }
-        })
-      )
-      setItems(results.filter((r): r is JobArchitectureListItem => r !== null))
-    } finally {
-      setLoading(false)
-    }
-  }, [allProfiles, enabled, fileClient])
-
-  useEffect(() => {
-    check()
-  }, [check])
-
-  return { items, loading }
-}
-
 interface JobArchitectureCardProps {
   readonly accessToken: string
   readonly drawerKind: JaDrawerKind
   readonly setDrawerKind: (kind: JaDrawerKind) => void
   readonly selectedProfileIdx: number | null
   readonly setSelectedProfileIdx: (idx: number | null) => void
+}
+
+interface ActiveDrawerState {
+  readonly kind: Exclude<JaDrawerKind, null>
+  readonly title: string
+  readonly items: JobArchitectureListItem[]
+  readonly loading?: boolean
 }
 
 export function JobArchitectureCard({
@@ -185,14 +123,7 @@ export function JobArchitectureCard({
   const { t } = useTranslation(translations)
   const ctx = useDataQualityContext()
   const { jobArchitecture: ja, loading } = ctx
-
-  const { items: profilesMissingFile, loading: fileCheckLoading } = useProfilesMissingJobDescriptionFile(
-    ctx.jobProfilesMissingDescriptionList,
-    accessToken,
-    drawerKind === 'descriptions'
-  )
-
-  if (loading) return <Spinner />
+  const [activeDrawerSnapshot, setActiveDrawerSnapshot] = useState<ActiveDrawerState | null>(null)
 
   const jpPercent =
     ja.totalJobPositions > 0 ? Math.round((ja.jobPositionsWithProfile / ja.totalJobPositions) * 100) : 100
@@ -201,17 +132,49 @@ export function JobArchitectureCard({
   const skillPercent =
     ja.totalJobProfiles > 0 ? Math.round((ja.jobProfilesWithSkills / ja.totalJobProfiles) * 100) : 100
 
-  const drawerConfig: Record<
-    Exclude<JaDrawerKind, null>,
-    { title: string; items: typeof ctx.jobPositionsMissingProfileList; loading?: boolean }
-  > = {
-    profiles: { title: t('ja-drawer-positions-title'), items: ctx.jobPositionsMissingProfileList },
-    descriptions: { title: t('ja-drawer-descriptions-title'), items: profilesMissingFile, loading: fileCheckLoading },
-    skills: { title: t('ja-drawer-skills-title'), items: ctx.jobProfilesMissingSkillsList }
-  }
+  const drawerConfig = useMemo<
+    Record<
+      Exclude<JaDrawerKind, null>,
+      { title: string; items: typeof ctx.jobPositionsMissingProfileList; loading?: boolean }
+    >
+  >(
+    () => ({
+      profiles: { title: t('ja-drawer-positions-title'), items: ctx.jobPositionsMissingProfileList },
+      descriptions: {
+        title: t('ja-drawer-descriptions-title'),
+        items: ctx.jobProfilesMissingDescriptionList
+      },
+      skills: { title: t('ja-drawer-skills-title'), items: ctx.jobProfilesMissingSkillsList }
+    }),
+    [t, ctx.jobPositionsMissingProfileList, ctx.jobProfilesMissingDescriptionList, ctx.jobProfilesMissingSkillsList]
+  )
 
-  const activeDrawer = drawerKind ? drawerConfig[drawerKind] : null
+  useEffect(() => {
+    if (!drawerKind) {
+      setActiveDrawerSnapshot(null)
+      return
+    }
+
+    setActiveDrawerSnapshot(prev => {
+      if (prev?.kind === drawerKind) return prev
+
+      const nextDrawer = drawerConfig[drawerKind]
+      return {
+        kind: drawerKind,
+        title: nextDrawer.title,
+        items: nextDrawer.items,
+        loading: nextDrawer.loading
+      }
+    })
+  }, [drawerKind, drawerConfig])
+
+  const activeDrawer = drawerKind
+    ? activeDrawerSnapshot?.kind === drawerKind
+      ? activeDrawerSnapshot
+      : drawerConfig[drawerKind]
+    : null
   const closeDrawer = () => {
+    setActiveDrawerSnapshot(null)
     setDrawerKind(null)
     setSelectedProfileIdx(null)
   }
@@ -225,6 +188,8 @@ export function JobArchitectureCard({
     t
   })
 
+  if (loading && !drawerKind) return <Spinner />
+
   return (
     <>
       <Card className="gba:h-full">
@@ -235,9 +200,21 @@ export function JobArchitectureCard({
           <div className="gba:grid gba:grid-cols-4 gba:gap-2 gba:text-center">
             {[
               { label: t('ja-stat-positions'), value: ja.totalJobPositions, sub: t('ja-stat-sub-total') },
-              { label: t('ja-stat-with-profiles'), value: ja.jobPositionsWithProfile, sub: `${jpPercent}%` },
-              { label: t('ja-stat-with-descriptions'), value: ja.jobProfilesWithDescription, sub: `${descPercent}%` },
-              { label: t('ja-stat-with-skills'), value: ja.jobProfilesWithSkills, sub: `${skillPercent}%` }
+              {
+                label: t('ja-stat-with-profiles'),
+                value: ja.jobPositionsWithProfile,
+                sub: `${jpPercent}% ${t('ja-stat-sub-of-positions')}`
+              },
+              {
+                label: t('ja-stat-with-descriptions'),
+                value: ja.jobProfilesWithDescription,
+                sub: `${descPercent}% ${t('ja-stat-sub-of-profiles')}`
+              },
+              {
+                label: t('ja-stat-with-skills'),
+                value: ja.jobProfilesWithSkills,
+                sub: `${skillPercent}% ${t('ja-stat-sub-of-profiles')}`
+              }
             ].map(s => (
               <div key={s.label}>
                 <p className="gba:text-2xl gba:font-bold gba:tabular-nums">{s.value}</p>
@@ -272,6 +249,13 @@ export function JobArchitectureCard({
                 type="button"
                 onClick={() => {
                   if (g.value > 0) {
+                    const nextDrawer = drawerConfig[g.kind]
+                    setActiveDrawerSnapshot({
+                      kind: g.kind,
+                      title: nextDrawer.title,
+                      items: nextDrawer.items,
+                      loading: nextDrawer.loading
+                    })
                     setSelectedProfileIdx(0)
                     setDrawerKind(g.kind)
                   }

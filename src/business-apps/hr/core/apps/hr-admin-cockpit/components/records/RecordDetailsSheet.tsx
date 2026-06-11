@@ -11,22 +11,16 @@ import {
   TooltipTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
-import { CATEGORY_I18N_KEY, CHECKLIST_I18N_KEY, HINT_I18N_KEY } from '../../services/dataQualityCompute'
-import type { DataQualityIssueCode, EmployeeAttentionRow } from '../../types/dataQuality.types'
+import { CATEGORY_I18N_KEY, HINT_I18N_KEY } from '../../services/dataQualityCompute'
+import type { EmployeeAttentionRow } from '../../types/dataQuality.types'
 import { EmployeeHeaderPanel } from './EmployeeHeaderPanel'
-import { FlowActionRow } from './FlowActionRow'
+import { DataQualityChecklist, type DataQualityChecklistItem } from './DataQualityChecklist'
 import translations from '../../_i18n'
-
-interface ChecklistItem {
-  id: string
-  label: string
-  satisfied: boolean
-}
 
 interface RecordDetailsSheetProps {
   readonly selectedRow: EmployeeAttentionRow | null
   readonly setSelectedEmployeeId: (employeeId: string | null) => void
-  readonly checklist: ChecklistItem[]
+  readonly checklist: DataQualityChecklistItem[]
   readonly accessToken: string
   readonly onActionStarted?: (employeeId: string) => void
 }
@@ -81,36 +75,13 @@ export function RecordDetailsSheet({
                 <h4 className="gba:text-sm gba:font-semibold gba:text-foreground gba:mb-3 gba:border-b gba:border-border gba:pb-2">
                   {t('detail-completeness-checklist')}
                 </h4>
-                <div className="gba:space-y-3">
-                  {checklist.map(item => (
-                    <div key={item.id} className="gba:text-sm">
-                      <div className="gba:flex gba:items-center gba:justify-between">
-                        <span className="gba:text-muted-foreground">
-                          {CHECKLIST_I18N_KEY[item.id] ? t(CHECKLIST_I18N_KEY[item.id]) : item.label}
-                        </span>
-                        <Badge variant={item.satisfied ? 'success' : 'destructive'} size="sm">
-                          {item.satisfied ? t('detail-status-ok') : t('detail-status-missing')}
-                        </Badge>
-                      </div>
-                      {!item.satisfied && HINT_I18N_KEY[item.id] && (
-                        <div className="gba:mt-1 gba:text-xs gba:text-muted-foreground">
-                          {t(HINT_I18N_KEY[item.id])}
-                        </div>
-                      )}
-                      {!item.satisfied && selectedRow && (
-                        <div className="gba:mt-1.5 gba:flex gba:justify-end">
-                          <FlowActionRow
-                            issueCode={item.id as DataQualityIssueCode}
-                            employeeId={selectedRow.employeeId}
-                            accessToken={accessToken}
-                            onClose={() => setSelectedEmployeeId(null)}
-                            onActionStarted={onActionStarted}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                <DataQualityChecklist
+                  checklist={checklist}
+                  employeeId={selectedRow?.employeeId ?? null}
+                  accessToken={accessToken}
+                  onClose={() => setSelectedEmployeeId(null)}
+                  onActionStarted={onActionStarted}
+                />
               </div>
             )}
           </div>

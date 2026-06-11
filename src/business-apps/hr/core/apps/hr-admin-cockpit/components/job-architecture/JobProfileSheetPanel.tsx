@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { CaretLeftIcon, CaretRightIcon, FileCodeIcon, InfoIcon, PencilSimpleLineIcon } from '@phosphor-icons/react'
+import { CaretLeftIcon, CaretRightIcon, FileCodeIcon, PencilSimpleLineIcon } from '@phosphor-icons/react'
 import {
   Badge,
   Button,
@@ -12,9 +12,12 @@ import {
   SheetTitle,
   useTranslation
 } from '@newwork/nw-design-system'
-import { VerticalTable, type VerticalTableProps } from '@/business-apps/mdm/apps/generic-components/table/VerticalTable'
 import JobProfileForm from '@/business-apps/mdm/forms/job-profile-form/JobProfileForm'
 import { ErrorBoundary } from '@/business-apps/core/every/apps/every-box/components/ErrorBoundary'
+import {
+  DetailPanelField as Field,
+  DetailPanelSection as Section
+} from '@/business-apps/hr/core/apps/shared/components/DetailPanelLayout'
 import { useDataQualityContext } from '../../hooks/dataQualityHooks'
 import { useJobReferenceData } from '../../hooks/useJobReferenceData'
 import type { JobArchitectureListItem } from '../../types/dataQuality.types'
@@ -27,67 +30,8 @@ const SHEET_Z_INDEX_STYLE = `
   [data-slot='popover-content'] { z-index: 1002 !important; }
 `
 
-function buildProfileDrawerItems(
-  item: JobArchitectureListItem,
-  t: (key: string, vars?: Record<string, unknown>) => string
-): VerticalTableProps[] {
-  const d = item.profileDetail
-  const translateFallbackValue = (value: string) => (value.startsWith('unknown-') ? t(value) : value)
-  const items: VerticalTableProps[] = [
-    {
-      icon: <InfoIcon />,
-      title: t('profile-section-basic'),
-      verticalTable: true,
-      items: [
-        { label: t('profile-label-name'), value: item.name },
-        { label: t('profile-label-code'), value: d?.code ? <Badge variant="info">{d.code}</Badge> : '-' },
-        { label: t('profile-label-description'), value: d?.description || '-' },
-        {
-          label: t('profile-label-job-function'),
-          value: d?.jobFunction ? (
-            <Badge variant="outline">
-              {d.jobFunction.name} {d.jobFunction.code ? `(${d.jobFunction.code})` : ''}
-            </Badge>
-          ) : (
-            '-'
-          )
-        },
-        {
-          label: t('profile-label-job-level'),
-          value: d?.jobLevel ? (
-            <Badge variant="outline">
-              {d.jobLevel.name} {d.jobLevel.code ? `(${d.jobLevel.code})` : ''}
-              {d.jobLevel.hierarchyOrder == null
-                ? ''
-                : ` - ${t('profile-skill-level', { level: d.jobLevel.hierarchyOrder })}`}
-            </Badge>
-          ) : (
-            '-'
-          )
-        }
-      ]
-    }
-  ]
-
-  const skills = d?.skills ?? []
-  if (skills.length > 0) {
-    items.push({
-      icon: <InfoIcon />,
-      title: t('profile-section-skills'),
-      verticalTable: true,
-      items: skills.map(s => ({
-        label: translateFallbackValue(s.name),
-        value:
-          s.requiredLevel == null ? (
-            <Badge variant="secondary">{t('profile-skill-level-unspecified')}</Badge>
-          ) : (
-            <Badge variant="outline">{t('profile-skill-level', { level: s.requiredLevel })}</Badge>
-          )
-      }))
-    })
-  }
-
-  return items
+function translateFallbackValue(value: string, t: (key: string) => string): string {
+  return value.startsWith('unknown-') ? t(value) : value
 }
 
 interface JobProfileSheetPanelProps {
@@ -113,13 +57,16 @@ export function JobProfileSheetPanel({
   const { jobFunctions, jobFunctionsForForm, jobLevels } = useJobReferenceData(accessToken)
   const ctx = useDataQualityContext()
 
-  const drawerItems = useMemo(() => (item ? buildProfileDrawerItems(item, t) : []), [item, t])
   const selectedJobProfile = useMemo(
     () => (item ? buildJobProfileFormSeed(item, { jobFunctions, jobLevels }) : undefined),
     [item, jobFunctions, jobLevels]
   )
 
   if (item == null) return null
+
+  const profileKey = `${item.id}:${item.profileDetail?.version ?? 'no-version'}`
+  const profileDetail = item.profileDetail
+  const skills = profileDetail?.skills ?? []
 
   return (
     <Sheet
@@ -161,22 +108,59 @@ export function JobProfileSheetPanel({
           </div>
         </SheetHeader>
         <ScrollArea className="gba:flex-1 gba:min-h-0">
-          <div className="gba:px-4 gba:pb-4 gba:space-y-6">
-            {drawerItems.map(section => (
-              <VerticalTable
-                key={section.title}
-                icon={section.icon}
-                title={section.title}
-                items={section.items}
-                verticalTable={section.verticalTable}
-              />
-            ))}
+          <div key={profileKey} className="gba:px-6 gba:py-4">
+            <Section title={t('profile-section-basic')}>
+              <Field label={t('profile-label-name')}>{item.name}</Field>
+              <Field label={t('profile-label-code')}>
+                {profileDetail?.code ? <Badge variant="info">{profileDetail.code}</Badge> : null}
+              </Field>
+              <Field label={t('profile-label-description')}>{profileDetail?.description}</Field>
+              <Field label={t('profile-label-job-function')}>
+                {profileDetail?.jobFunction ? (
+                  <Badge variant="outline">
+                    {profileDetail.jobFunction.name}{' '}
+                    {profileDetail.jobFunction.code ? `(${profileDetail.jobFunction.code})` : ''}
+                  </Badge>
+                ) : null}
+              </Field>
+              <Field label={t('profile-label-job-level')}>
+                {profileDetail?.jobLevel ? (
+                  <Badge variant="outline">
+                    {profileDetail.jobLevel.name}{' '}
+                    {profileDetail.jobLevel.code ? `(${profileDetail.jobLevel.code})` : ''}
+                    {profileDetail.jobLevel.hierarchyOrder == null
+                      ? ''
+                      : ` - ${t('profile-skill-level', { level: profileDetail.jobLevel.hierarchyOrder })}`}
+                  </Badge>
+                ) : null}
+              </Field>
+            </Section>
+
+            <Section title={t('profile-section-skills')}>
+              {skills.length > 0 ? (
+                skills.map(skill => (
+                  <Field
+                    key={`${skill.name}:${skill.requiredLevel ?? 'none'}`}
+                    label={translateFallbackValue(skill.name, t)}
+                  >
+                    {skill.requiredLevel == null ? (
+                      <Badge variant="secondary">{t('profile-skill-level-unspecified')}</Badge>
+                    ) : (
+                      <Badge variant="outline">{t('profile-skill-level', { level: skill.requiredLevel })}</Badge>
+                    )}
+                  </Field>
+                ))
+              ) : (
+                <div className="gba:py-1.5 gba:text-sm gba:text-muted-foreground">{t('empty-no-items')}</div>
+              )}
+            </Section>
           </div>
         </ScrollArea>
         <SheetFooter className="gba:border-t gba:border-border gba:px-6 gba:py-3">
           <div className="gba:flex gba:justify-end gba:gap-2">
             <ErrorBoundary>
               <JobProfileForm
+                key={profileKey}
                 childAddButton={
                   <Button>
                     <PencilSimpleLineIcon /> {t('profile-btn-edit')}
@@ -185,7 +169,10 @@ export function JobProfileSheetPanel({
                 jobProfile={selectedJobProfile}
                 prefixDataTestId="hr-admin-cockpit-ja"
                 accessToken={accessToken}
-                refetch={ctx.refetch}
+                refetch={() => {
+                  onClose()
+                  ctx.refetch()
+                }}
                 isDrawerActive={true}
                 jobFunctions={jobFunctionsForForm}
                 jobLevels={jobLevels}

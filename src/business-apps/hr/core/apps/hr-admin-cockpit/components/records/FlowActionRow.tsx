@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
-import { ActionButton, Spinner, useTranslation } from '@newwork/nw-design-system'
+import { ActionButton, Button, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { useAppActionData } from '@/common/hooks/useAppActionData'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import type { DataQualityIssueCode } from '../../types/dataQuality.types'
 import translations from '../../_i18n'
 
@@ -31,11 +32,64 @@ export function FlowActionRow({
   onActionStarted
 }: Readonly<FlowActionRowProps>) {
   const { t } = useTranslation(translations)
+
+  if (issueCode === 'location' || issueCode === 'cost_center') {
+    return (
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        className="gba:h-auto gba:min-h-9 gba:w-full gba:min-w-0 gba:max-w-full gba:justify-center gba:whitespace-normal gba:break-words gba:py-2 gba:text-center gba:leading-snug"
+        onClick={() => {
+          onClose()
+          navigateTo(
+            buildPlatformUrl('/platform/orgchart/active/organization', {
+              employeeId
+            })
+          )
+        }}
+      >
+        {t('action-open-orgchart')}
+      </Button>
+    )
+  }
+
   const flow = ISSUE_FLOW_MAP[issueCode]
+  if (!flow) return null
+
+  return (
+    <FlowActionButton
+      flow={flow}
+      employeeId={employeeId}
+      accessToken={accessToken}
+      onClose={onClose}
+      onActionStarted={onActionStarted}
+      label={t(flow.labelKey)}
+    />
+  )
+}
+
+interface FlowActionButtonProps {
+  readonly flow: { context: FlowContextName; labelKey: string }
+  readonly employeeId: string
+  readonly accessToken: string
+  readonly onClose: () => void
+  readonly onActionStarted?: (employeeId: string) => void
+  readonly label: string
+}
+
+function FlowActionButton({
+  flow,
+  employeeId,
+  accessToken,
+  onClose,
+  onActionStarted,
+  label
+}: Readonly<FlowActionButtonProps>) {
   const config = useMemo(
     () => ({
-      contextsArray: flow ? [flow.context] : undefined,
-      externalContextData: flow ? { employeeId } : undefined,
+      contextsArray: [flow.context],
+      externalContextData: { employeeId },
       accessToken,
       deferMainContextRequestsUntilClick: false,
       emptyStateBehavior: 'enable' as const
@@ -57,13 +111,24 @@ export function FlowActionRow({
     [combinedData, employeeId, onActionStarted, onClose]
   )
 
-  if (!flow) return null
-  if (shouldShowLoading) return <Spinner size="sm" />
+  if (shouldShowLoading) {
+    return (
+      <div className="gba:flex gba:min-h-9 gba:w-full gba:items-center gba:justify-center">
+        <Spinner size="sm" />
+      </div>
+    )
+  }
   if (actions.length === 0) return null
 
   return (
-    <ActionButton actions={actions} autoExecuteSingleAction={true} emptyStateBehavior="enable" size="sm">
-      {t(flow.labelKey)}
+    <ActionButton
+      actions={actions}
+      autoExecuteSingleAction={true}
+      emptyStateBehavior="enable"
+      size="sm"
+      className="gba:h-auto gba:min-h-9 gba:w-full gba:min-w-0 gba:max-w-full gba:justify-center gba:whitespace-normal gba:break-words gba:py-2 gba:text-center gba:leading-snug"
+    >
+      {label}
     </ActionButton>
   )
 }

@@ -6,6 +6,7 @@ import {
   AlertTitle,
   KpiCard,
   PageLayout,
+  Spinner,
   type KpiCardData,
   useTranslation
 } from '@newwork/nw-design-system'
@@ -37,6 +38,9 @@ export function DataQualityDashboard({ accessToken, model }: Readonly<DataQualit
   const { t } = useTranslation(translations)
   const ctx = useDataQualityContext()
   const d = ctx.dashboard
+  const hasRequirements = ctx.requirements.categories.length > 0
+  const hasBreakdown = ctx.breakdownMatrix.companies.length > 0
+  const hasRecommendedActions = ctx.recommendedActions.length > 0
   const errorMessage = useMemo(() => {
     if (!ctx.error) {
       return null
@@ -112,7 +116,11 @@ export function DataQualityDashboard({ accessToken, model }: Readonly<DataQualit
         onValueChange: model.handleTabChange
       }}
     >
-      {model.activeTab === 'overview' ? (
+      {model.activeTab === 'overview' && ctx.loading ? (
+        <div className="gba:flex gba:min-h-96 gba:items-center gba:justify-center">
+          <Spinner />
+        </div>
+      ) : model.activeTab === 'overview' ? (
         <div className="gba:space-y-6">
           <div>
             <h2 className="gba:text-sm gba:font-semibold gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-2">
@@ -145,13 +153,13 @@ export function DataQualityDashboard({ accessToken, model }: Readonly<DataQualit
           )}
 
           <div className="gba:grid gba:grid-cols-[340px_1fr_320px] gba:gap-4 gba:items-stretch">
-            <ExpandableCard>
+            <ExpandableCard canExpand={hasRequirements}>
               <DataCompletionOverview />
             </ExpandableCard>
-            <ExpandableCard>
+            <ExpandableCard canExpand={hasBreakdown}>
               <BreakdownMatrixCard />
             </ExpandableCard>
-            <ExpandableCard>
+            <ExpandableCard canExpand={hasRecommendedActions}>
               <RecommendedActionsCard
                 onActionClick={issueFocus => model.navigateToIssues({ missingFields: [issueFocus] })}
                 onOpenJaDrawer={model.openJaDrawer}

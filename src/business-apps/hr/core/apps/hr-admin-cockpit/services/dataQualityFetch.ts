@@ -100,6 +100,7 @@ export interface RawJobArchitecture {
   }>
   jobProfiles: Array<{
     id: string
+    version?: number | null
     name?: string | null
     code?: string | null
     description?: string | null
@@ -182,11 +183,65 @@ export async function fetchEmployeeForDataQuality(
   return res.Employee?.[0] ?? null
 }
 
-export async function fetchJobArchitecture(client: GraphQLClient, structureId: string): Promise<RawJobArchitecture> {
+function buildJobPositionWhereClause(filters: DataQualityFilters, structureId: string): Record<string, unknown> {
+  const parts: Record<string, unknown>[] = [
+    { isDeleted: { _eq: false } },
+    { activeTo: { _isNull: true } },
+    { organizationalUnitEmployees: { structureId: { _eq: structureId } } }
+  ]
+
+  if (filters.companyId) {
+    parts.push({
+      organizationalUnitEmployees: {
+        organizationalUnit: {
+          companyId: { _eq: filters.companyId }
+        }
+      }
+    })
+  }
+
+  if (filters.siteLocationId) {
+    parts.push({
+      organizationalUnitEmployees: {
+        siteLocation: {
+          id: { _eq: filters.siteLocationId }
+        }
+      }
+    })
+  }
+
+  if (filters.organizationalUnitId) {
+    parts.push({
+      organizationalUnitEmployees: {
+        organizationalUnit: {
+          id: { _eq: filters.organizationalUnitId }
+        }
+      }
+    })
+  }
+
+  return { _and: parts }
+}
+
+export async function fetchJobArchitecture(
+  client: GraphQLClient,
+  structureId: string,
+  filters: DataQualityFilters
+): Promise<RawJobArchitecture> {
+  const jobPositionWhere = buildJobPositionWhereClause(filters, structureId)
+  const missingJobPositionWhere = {
+    _and: [...((jobPositionWhere._and as Record<string, unknown>[]) ?? []), { jobProfileId: { _isNull: true } }]
+  }
+  const jobProfileWhere = {
+    _and: [{ isDeleted: { _eq: false } }, { activeTo: { _isNull: true } }, { jobPosition: jobPositionWhere }]
+  }
+
   return client.request<RawJobArchitecture>(DATA_QUALITY_JOB_ARCHITECTURE, {
     jpLimit: JOB_POSITION_SAMPLE_LIMIT,
     jprofLimit: JOB_PROFILE_SAMPLE_LIMIT,
-    structureId
+    jobPositionWhere,
+    missingJobPositionWhere,
+    jobProfileWhere
   })
 }
 

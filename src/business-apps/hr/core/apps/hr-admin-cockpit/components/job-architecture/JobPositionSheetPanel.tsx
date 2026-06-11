@@ -1,6 +1,16 @@
 import { useCallback, useMemo, useState } from 'react'
 import { CaretLeftIcon, CaretRightIcon } from '@phosphor-icons/react'
-import { Button, ScrollArea, Sheet, SheetContent, SheetHeader, SheetTitle } from '@newwork/nw-design-system'
+import {
+  Button,
+  ScrollArea,
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { JobPositionDetails } from '@/business-apps/hr/core/apps/human-resources/components/views/job-position-view/components/JobPositionDetails'
 import type { JobPosition as HrJobPosition } from '@/business-apps/hr/core/apps/human-resources/components/views/job-position-view/hooks/useJobPositionListData'
 import { mapJobPositionListRowToFormJobPosition } from '@/business-apps/hr/core/apps/human-resources/components/views/job-position-view/utils/mapJobPositionListRowToFormJobPosition'
@@ -9,11 +19,13 @@ import JobPositionForm from '@/business-apps/hr/core/forms/job-position/JobPosit
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useDataQualityContext } from '../../hooks/dataQualityHooks'
 import type { JobArchitectureListItem, RawPositionForDetail } from '../../types/dataQuality.types'
+import translations from '../../_i18n'
 
 const SHEET_Z_INDEX_STYLE = `
   [data-slot='sheet-overlay'] { z-index: 1000 !important; }
   [data-slot='sheet-content'] { z-index: 1001 !important; }
   [data-slot='popover-content'] { z-index: 1002 !important; }
+  [data-slot='dropdown-menu-content'] { z-index: 1002 !important; }
 `
 
 function mapRawPositionToHr(raw: RawPositionForDetail): HrJobPosition {
@@ -94,6 +106,7 @@ export function JobPositionSheetPanel({
   const hasPrev = currentIndex > 0
   const hasNext = currentIndex < items.length - 1
   const ctx = useDataQualityContext()
+  const { t } = useTranslation(translations)
 
   const contextProps = useMemo(() => ({ accessToken }) as BusinessAppContextProps, [accessToken])
   const { deleteJobPosition, mutationLoading: deleteLoading } = useJobPositions(contextProps)
@@ -133,7 +146,9 @@ export function JobPositionSheetPanel({
         <SheetContent side="right" className="gba:flex gba:flex-col gba:p-0">
           <SheetHeader className="gba:border-b gba:border-border gba:px-6 gba:py-4 gba:pr-14">
             <div className="gba:flex gba:items-center gba:justify-between">
-              <SheetTitle className="gba:text-left gba:truncate">{hrJobPosition.name}</SheetTitle>
+              <SheetTitle className="gba:text-left gba:truncate" title={hrJobPosition.name}>
+                {hrJobPosition.name}
+              </SheetTitle>
               <div className="gba:flex gba:items-center gba:gap-1 gba:shrink-0">
                 <span className="gba:text-xs gba:text-muted-foreground gba:tabular-nums">
                   {currentIndex + 1} / {items.length}
@@ -157,6 +172,13 @@ export function JobPositionSheetPanel({
               terminatingJobPositionId={terminatingId}
             />
           </ScrollArea>
+          <SheetFooter className="gba:border-t gba:border-border gba:px-6 gba:py-3">
+            <div className="gba:flex gba:justify-end">
+              <SheetClose asChild>
+                <Button variant="outline">{t('profile-btn-close')}</Button>
+              </SheetClose>
+            </div>
+          </SheetFooter>
         </SheetContent>
       </Sheet>
 
@@ -169,9 +191,11 @@ export function JobPositionSheetPanel({
           onCancel={() => setEditFormOpen(false)}
           onMutationSuccess={() => {
             setEditFormOpen(false)
+            onClose()
             ctx.refetch()
           }}
           prefixDataTestId="hr-admin-cockpit-jp-edit"
+          isDrawerActive={true}
         />
       )}
     </>

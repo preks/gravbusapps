@@ -66,6 +66,12 @@ const EMPTY_JOB_ARCHITECTURE = {
 
 const EMPTY_BREAKDOWN_MATRIX = { companies: [], locations: [], cells: new Map(), allLocationsColumn: new Map() }
 
+function buildJobArchitectureCacheKey(structureId: string, filters: DataQualityFilters): string {
+  return [structureId, filters.companyId ?? '', filters.siteLocationId ?? '', filters.organizationalUnitId ?? ''].join(
+    ':'
+  )
+}
+
 export interface DataQualityComputedProviderProps {
   readonly accessToken: string
   readonly activeTab?: string
@@ -87,7 +93,7 @@ export function DataQualityComputedProvider({
 
   const [structureId, setStructureId] = useState<string | null>(null)
 
-  const jobArchitectureByStructureIdRef = useRef(new Map<string, RawJobArchitecture>())
+  const jobArchitectureCacheRef = useRef(new Map<string, RawJobArchitecture>())
   const employeesRequestIdRef = useRef(0)
   const jobArchitectureRequestIdRef = useRef(0)
 
@@ -133,7 +139,8 @@ export function DataQualityComputedProvider({
 
       setRawEmployees(emps)
 
-      const cachedJob = jobArchitectureByStructureIdRef.current.get(sid)
+      const cacheKey = buildJobArchitectureCacheKey(sid, debouncedFilters)
+      const cachedJob = jobArchitectureCacheRef.current.get(cacheKey)
       setRawJob(cachedJob ?? EMPTY_RAW_JOB_ARCHITECTURE)
     } catch (e) {
       if (requestId !== employeesRequestIdRef.current) return
@@ -150,7 +157,8 @@ export function DataQualityComputedProvider({
   const loadJobArchitecture = useCallback(async () => {
     if (!structureId) return
 
-    const cached = jobArchitectureByStructureIdRef.current.get(structureId)
+    const cacheKey = buildJobArchitectureCacheKey(structureId, debouncedFilters)
+    const cached = jobArchitectureCacheRef.current.get(cacheKey)
     if (cached) {
       setRawJob(cached)
       return
@@ -158,14 +166,14 @@ export function DataQualityComputedProvider({
 
     const requestId = (jobArchitectureRequestIdRef.current += 1)
     try {
-      const ja = await fetchJobArchitecture(graphqlClient, structureId)
+      const ja = await fetchJobArchitecture(graphqlClient, structureId, debouncedFilters)
       if (requestId !== jobArchitectureRequestIdRef.current) return
-      jobArchitectureByStructureIdRef.current.set(structureId, ja)
+      jobArchitectureCacheRef.current.set(cacheKey, ja)
       setRawJob(ja)
     } catch {
       // Keep page usable with employee data; job architecture can be empty if this fails.
     }
-  }, [graphqlClient, structureId])
+  }, [graphqlClient, structureId, debouncedFilters])
 
   useEffect(() => {
     loadEmployees().catch(() => {
@@ -180,14 +188,14 @@ export function DataQualityComputedProvider({
   const refetch = useCallback(() => {
     ;(async () => {
       if (structureId) {
-        jobArchitectureByStructureIdRef.current.delete(structureId)
+        jobArchitectureCacheRef.current.delete(buildJobArchitectureCacheKey(structureId, debouncedFilters))
       }
       await loadEmployees()
       await loadJobArchitecture()
     })().catch(() => {
       // both functions already manage their own state; this prevents unhandled promise warnings
     })
-  }, [structureId, loadEmployees, loadJobArchitecture])
+  }, [structureId, debouncedFilters, loadEmployees, loadJobArchitecture])
 
   const refreshEmployee = useCallback(
     async (employeeId: string) => {
