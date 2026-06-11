@@ -82,6 +82,7 @@ dayjs.extend(localizedFormat)
 dayjs.extend(isToday)
 dayjs.extend(isYesterday)
 import GlossaryEntryTaskForm from '@/business-apps/core/content/forms/glossary-entry-task-form'
+import LearningQuizTaskForm from '@/business-apps/hr/core/apps/learning/forms/learning-quiz-task-form'
 
 /** Number of participants to show before collapsing the list (expand to see more). */
 const MEETING_PARTICIPANTS_COLLAPSE_THRESHOLD = 10
@@ -160,6 +161,10 @@ const formatAvatarUrl = (pictureThumbnail: string | undefined): string | undefin
   return `data:image/jpeg;base64,${pictureThumbnail}`
 }
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
+}
+
 /**
  * Gets the display value for a form field during loading or with data
  */
@@ -199,6 +204,9 @@ interface MeetingParticipantDisplay {
   status?: string
   isOrganizer: boolean
 }
+
+type TranslationFn = (key: string, opts?: Record<string, unknown>) => string
+type TaskDisplayLink = { name: string; url: string; type?: string; metadata?: any }
 
 interface MeetingParticipantRowProps {
   participant: MeetingParticipantDisplay
@@ -279,6 +287,305 @@ function MeetingParticipantRow({
   )
 }
 
+interface TaskDueDateInfoProps {
+  dueDate?: string | Date
+  t: TranslationFn
+  formatDateTime: (date: string | Date) => string
+}
+
+function TaskDueDateInfo({ dueDate, t, formatDateTime }: Readonly<TaskDueDateInfoProps>): React.ReactElement | null {
+  if (!dueDate) return null
+  const criticality = calculateDueDateCriticality(dueDate, t)
+  if (!criticality) return null
+
+  let Icon = CheckCircle
+  if (criticality.status === 'overdue') Icon = AlertCircle
+  else if (criticality.status === 'warning') Icon = Clock
+
+  let criticalityClass = 'gba:text-success'
+  if (criticality.status === 'overdue') criticalityClass = 'gba:text-destructive'
+  else if (criticality.status === 'warning') criticalityClass = 'gba:text-warning'
+
+  return (
+    <div className="gba:flex gba:items-center gba:gap-2">
+      <Icon className={`gba:w-4 gba:h-4 ${criticalityClass}`} />
+      <span className="gba:text-sm gba:font-medium gba:text-foreground">{t('task-due-date-label')}:</span>
+      <span className="gba:text-sm gba:text-muted-foreground">{formatDateTime(dueDate)}</span>
+      <Badge variant={getCriticalityBadgeVariant(criticality.status)}>{criticality.label}</Badge>
+    </div>
+  )
+}
+
+interface MeetingInviteBodyProps {
+  tags?: Record<string, any>
+  t: TranslationFn
+}
+
+function MeetingInviteBody({ tags, t }: Readonly<MeetingInviteBodyProps>): React.ReactElement | null {
+  if (tags?.app !== 'meeting-invite' || (!tags.meetingDateStr && !tags.meetingTimeStr)) return null
+
+  return (
+    <div
+      className="gba:space-y-4 gba:pb-4 gba:border-b gba:border-border"
+      data-testid="task-details-meeting-invite-body"
+    >
+      <div className="gba:flex gba:flex-col gba:gap-2 gba:text-sm">
+        {tags.meetingDateStr && (
+          <div className="gba:flex gba:items-center gba:gap-2 gba:text-foreground">
+            <Calendar className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:flex-shrink-0" />
+            <span>{tags.meetingDateStr}</span>
+          </div>
+        )}
+        {tags.meetingTimeStr && (
+          <div className="gba:flex gba:items-center gba:gap-2 gba:text-foreground">
+            <Clock className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:flex-shrink-0" />
+            <span>{tags.meetingTimeStr}</span>
+          </div>
+        )}
+      </div>
+      <p className="gba:text-sm gba:text-muted-foreground">
+        {t('task-details-meeting-please-respond', { defaultValue: 'Please respond to this invitation.' })}
+      </p>
+      {tags.transcriptionEnabled === 'true' && (
+        <div
+          className="gba:flex gba:items-center gba:gap-2 gba:mt-4 gba:pt-4 gba:border-t gba:border-border"
+          data-testid="task-details-meeting-recording-notice"
+        >
+          <span
+            className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse gba:flex-shrink-0"
+            aria-hidden
+          />
+          <p className="gba:text-xs gba:text-muted-foreground gba:italic">
+            {t('task-details-meeting-recording-notice', {
+              defaultValue: 'Recording and transcription. By joining, you consent to being included.'
+            })}
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+interface RelatedLinksSectionProps {
+  links: TaskDisplayLink[]
+  title: string
+}
+
+function RelatedLinksSection({ links, title }: Readonly<RelatedLinksSectionProps>): React.ReactElement | null {
+  if (links.length === 0) return null
+
+  return (
+    <div className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30">
+      <div className="gba:text-xs gba:text-muted-foreground gba:mb-3 gba:font-medium">{title}</div>
+      <div className="gba:space-y-2">
+        {links.map(link => {
+          const isInternalLink = link.type?.startsWith('internal:')
+          return (
+            <a
+              key={link.url || link.name}
+              href={link.url}
+              onClick={e => {
+                if (isInternalLink) {
+                  e.preventDefault()
+                  navigateTo(link.url)
+                }
+              }}
+              target={isInternalLink ? undefined : '_blank'}
+              rel={isInternalLink ? undefined : 'noopener noreferrer'}
+              className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline gba:group"
+              data-testid={`task-other-link-${link.name}`}
+            >
+              <LinkIcon className="gba:h-4 gba:w-4 gba:text-primary gba:shrink-0" />
+              <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:flex-1 group-hover:gba:underline">
+                {link.name}
+              </span>
+              <ExternalLink className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
+            </a>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+interface MeetingParticipantsSectionProps {
+  isMeetingInvite: boolean
+  loading: boolean
+  meetingId?: string
+  participants?: MeetingParticipantDisplay[]
+  participantsExpanded: boolean
+  setParticipantsExpanded: React.Dispatch<React.SetStateAction<boolean>>
+  employeeMap: MeetingParticipantRowProps['employeeMap']
+  t: TranslationFn
+}
+
+function MeetingParticipantsSection({
+  isMeetingInvite,
+  loading,
+  meetingId,
+  participants,
+  participantsExpanded,
+  setParticipantsExpanded,
+  employeeMap,
+  t
+}: Readonly<MeetingParticipantsSectionProps>): React.ReactElement | null {
+  if (!isMeetingInvite) return null
+
+  if (loading && meetingId) {
+    return (
+      <div
+        className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30"
+        data-testid="task-details-meeting-participants"
+      >
+        <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">
+          {t('task-details-meeting-participants', { defaultValue: 'Participants' })}
+        </div>
+        <p className="gba:text-sm gba:text-muted-foreground">
+          {t('task-details-form-loading', { defaultValue: 'Loading...' })}
+        </p>
+      </div>
+    )
+  }
+
+  if (!participants || participants.length === 0) return null
+
+  const hasStatus = participants.some(participant => participant.status != null)
+  const showCollapse = participants.length > MEETING_PARTICIPANTS_COLLAPSE_THRESHOLD
+  const visibleList =
+    showCollapse && !participantsExpanded
+      ? participants.slice(0, MEETING_PARTICIPANTS_COLLAPSE_THRESHOLD)
+      : participants
+  const hiddenCount = participants.length - MEETING_PARTICIPANTS_COLLAPSE_THRESHOLD
+
+  return (
+    <div className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30" data-testid="task-details-meeting-participants">
+      <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">
+        {t('task-details-meeting-participants-with-count', {
+          count: participants.length,
+          defaultValue: `Participants (${participants.length})`
+        })}
+      </div>
+      <ul className="gba:flex gba:flex-wrap gba:items-center gba:gap-x-4 gba:gap-y-2 gba:text-sm gba:text-foreground">
+        {visibleList.map((participant, idx) => (
+          <MeetingParticipantRow
+            key={participant.userId || idx}
+            participant={participant}
+            idx={idx}
+            employeeMap={employeeMap}
+            formatAvatarUrl={formatAvatarUrl}
+            getInitials={getInitials}
+            t={t}
+            navigateTo={navigateTo}
+            buildPlatformUrl={buildPlatformUrl}
+            hasStatus={hasStatus}
+          />
+        ))}
+      </ul>
+      {showCollapse && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setParticipantsExpanded(prev => !prev)}
+          className="gba:mt-2 gba:text-muted-foreground hover:gba:text-foreground"
+          data-testid="task-details-meeting-participants-toggle"
+        >
+          {participantsExpanded ? (
+            <>
+              <ChevronUp className="gba:h-4 gba:w-4 gba:mr-1" />
+              {t('task-details-meeting-participants-show-less', { defaultValue: 'Show less' })}
+            </>
+          ) : (
+            <>
+              <ChevronDown className="gba:h-4 gba:w-4 gba:mr-1" />
+              {t('task-details-meeting-participants-show-more', {
+                defaultValue: 'Show {{count}} more',
+                count: hiddenCount
+              })}
+            </>
+          )}
+        </Button>
+      )}
+    </div>
+  )
+}
+
+interface TaskFormCardProps {
+  visibleTaskForm: any[]
+  fieldErrors: Record<string, string>
+  setFieldErrors: React.Dispatch<React.SetStateAction<Record<string, string>>>
+  formValues: Record<string, any>
+  setFormValues: React.Dispatch<React.SetStateAction<Record<string, any>>>
+  formInitialized: boolean
+  isCompleted: boolean
+  t: TranslationFn
+}
+
+function TaskFormCard({
+  visibleTaskForm,
+  fieldErrors,
+  setFieldErrors,
+  formValues,
+  setFormValues,
+  formInitialized,
+  isCompleted,
+  t
+}: Readonly<TaskFormCardProps>): React.ReactElement | null {
+  if (visibleTaskForm.length === 0) return null
+
+  return (
+    <Card>
+      <CardContent>
+        {Object.keys(fieldErrors).length > 0 && (
+          <Alert variant="destructive" className="gba:mb-4">
+            <AlertTitle>{t('task-details-validation-error-title', { defaultValue: 'Validation Error' })}</AlertTitle>
+            <AlertDescription>
+              <ul className="gba:list-disc gba:list-inside gba:space-y-1">
+                {Object.entries(fieldErrors).map(([fieldName, error]) => (
+                  <li key={fieldName}>{error}</li>
+                ))}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <div className="gba:space-y-4">
+          {visibleTaskForm.map((input: any, index: number) => {
+            const fieldName = input.name || input.id || `field_${index}`
+            const fieldValue = formValues[fieldName]
+            const fieldError = fieldErrors[fieldName]
+            const isLoadingData = !formInitialized
+            const displayValue = getFieldDisplayValue(isLoadingData, fieldValue, input.value, input.defaultValue)
+            const isFieldReadOnly = isLoadingData || isCompleted || input.readOnly === true
+
+            return (
+              <div key={fieldName}>
+                <InputRenderer
+                  input={input}
+                  index={index}
+                  readOnly={isFieldReadOnly}
+                  value={displayValue}
+                  onChange={value => {
+                    if (isFieldReadOnly) return
+                    if (fieldError) {
+                      setFieldErrors(prev => {
+                        const next = { ...prev }
+                        delete next[fieldName]
+                        return next
+                      })
+                    }
+                    setFormValues(prev => ({ ...prev, [fieldName]: value }))
+                  }}
+                />
+                {fieldError && <p className="gba:text-sm gba:text-destructive gba:mt-1">{fieldError}</p>}
+              </div>
+            )
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 /**
  * Convert single newlines to markdown hard breaks (two trailing spaces + newline)
  * so they render as visible line breaks. Double newlines (paragraph breaks) and
@@ -347,6 +654,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   const [participantsExpanded, setParticipantsExpanded] = useState(false)
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false)
   const allLinks = (task.links as Array<{ name: string; url: string; type?: string; metadata?: any }>) || []
+  const sourceMetadataRecord = asRecord(task.sourceMetadata)
   const entityLink = allLinks.find(link => link.type?.startsWith('entity:'))
   const documentApprovalRequestId = resolveDocumentApprovalRequestId(task, entityLink)
   const isCurrentDocumentApprovalTask = isDocumentApprovalTaskRecord(task, entityLink)
@@ -1168,7 +1476,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
     task.tags?.app === 'glossary-entry-request' ||
     task.sourceMetadata?.tags?.app === 'glossary-entry-request' ||
     task.workflowMeta?.tags?.app === 'glossary-entry-request' ||
-    (task.sourceMetadata as any)?.app === 'glossary-entry-request'
+    sourceMetadataRecord.app === 'glossary-entry-request'
 
   if (isGlossaryRequestTask || (task.source === 'cflow' && hasGlossaryTag)) {
     // Extract term and contextDescription from task tags, sourceMetadata tags, workflowMeta, or initial parameters
@@ -1176,12 +1484,11 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
       ...task.tags,
       ...task.sourceMetadata?.tags,
       ...task.workflowMeta?.tags,
-      ...((task.sourceMetadata as any)?.tags || {})
+      ...asRecord(sourceMetadataRecord.tags)
     }
-    const term =
-      allTags?.term || task.sourceMetadata?.initialParameters?.term || (task.sourceMetadata as any)?.term || ''
+    const term = allTags?.term || task.sourceMetadata?.initialParameters?.term || sourceMetadataRecord.term || ''
     const contextDescription =
-      allTags?.context || task.sourceMetadata?.initialParameters?.context || (task.sourceMetadata as any)?.context || ''
+      allTags?.context || task.sourceMetadata?.initialParameters?.context || sourceMetadataRecord.context || ''
 
     // Get userInfo from task if available (minimal shape for GlossaryEntryTaskForm; form uses additionalData only)
     const initiatedByName = task.sourceMetadata?.flowInitiatedByName || ''
@@ -1233,6 +1540,38 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
     )
   }
 
+  const learningQuizTags = {
+    ...task.tags,
+    ...task.sourceMetadata?.tags,
+    ...task.workflowMeta?.tags,
+    ...asRecord(sourceMetadataRecord.tags)
+  }
+  const isLearningQuizTask =
+    task.source === 'cflow' &&
+    (learningQuizTags?.app === 'learning-quiz' || sourceMetadataRecord.app === 'learning-quiz')
+
+  if (isLearningQuizTask) {
+    const sourceLink = allLinks.find(link => link.type?.startsWith('document:')) ?? allLinks.find(link => link.url)
+    return (
+      <LearningQuizTaskForm
+        accessToken={accessToken}
+        sourceLink={sourceLink}
+        additionalData={{
+          psi_taskPayload: {
+            courseId: learningQuizTags?.courseId,
+            courseVersionId: learningQuizTags?.courseVersionId,
+            assignmentId: learningQuizTags?.assignmentId
+          },
+          psi_processMetadata: task.sourceMetadata,
+          psi_taskStatus: task.status,
+          psi_availableActions: task.availableActions,
+          psi_taskId: task.id,
+          taskId: task.id
+        }}
+      />
+    )
+  }
+
   // For Blink tasks, use the simple view from every-box
   if (isBlinkTask) {
     return (
@@ -1272,71 +1611,12 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                     <span className="gba:text-sm gba:text-muted-foreground">{formatDateTime(task.scheduledAt)}</span>
                   </div>
                 )}
-                {task.dueDate &&
-                  (() => {
-                    const criticality = calculateDueDateCriticality(task.dueDate, t)
-                    if (!criticality) return null
-                    let Icon = CheckCircle
-                    if (criticality.status === 'overdue') Icon = AlertCircle
-                    else if (criticality.status === 'warning') Icon = Clock
-                    let criticalityClass = 'gba:text-success'
-                    if (criticality.status === 'overdue') criticalityClass = 'gba:text-destructive'
-                    else if (criticality.status === 'warning') criticalityClass = 'gba:text-warning'
-                    return (
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <Icon className={`gba:w-4 gba:h-4 ${criticalityClass}`} />
-                        <span className="gba:text-sm gba:font-medium gba:text-foreground">
-                          {t('task-due-date-label')}:
-                        </span>
-                        <span className="gba:text-sm gba:text-muted-foreground">{formatDateTime(task.dueDate)}</span>
-                        <Badge variant={getCriticalityBadgeVariant(criticality.status)}>{criticality.label}</Badge>
-                      </div>
-                    )
-                  })()}
+                <TaskDueDateInfo dueDate={task.dueDate} t={t} formatDateTime={formatDateTime} />
               </div>
             )}
 
             {/* Meeting invite: meeting name, date, time, Please respond - Blink view */}
-            {task.tags?.app === 'meeting-invite' && (task.tags?.meetingDateStr || task.tags?.meetingTimeStr) && (
-              <div
-                className="gba:space-y-4 gba:pb-4 gba:border-b gba:border-border"
-                data-testid="task-details-meeting-invite-body"
-              >
-                <div className="gba:flex gba:flex-col gba:gap-2 gba:text-sm">
-                  {task.tags?.meetingDateStr && (
-                    <div className="gba:flex gba:items-center gba:gap-2 gba:text-foreground">
-                      <Calendar className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:flex-shrink-0" />
-                      <span>{task.tags.meetingDateStr}</span>
-                    </div>
-                  )}
-                  {task.tags?.meetingTimeStr && (
-                    <div className="gba:flex gba:items-center gba:gap-2 gba:text-foreground">
-                      <Clock className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:flex-shrink-0" />
-                      <span>{task.tags.meetingTimeStr}</span>
-                    </div>
-                  )}
-                </div>
-                <p className="gba:text-sm gba:text-muted-foreground">
-                  {t('task-details-meeting-please-respond', { defaultValue: 'Please respond to this invitation.' })}
-                </p>
-                {task.tags?.transcriptionEnabled === 'true' && (
-                  <div
-                    className="gba:flex gba:items-center gba:gap-2 gba:mt-4 gba:pt-4 gba:border-t gba:border-border"
-                    data-testid="task-details-meeting-recording-notice"
-                  >
-                    <span
-                      className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse gba:flex-shrink-0"
-                      aria-hidden
-                    />
-                    <p className="gba:text-xs gba:text-muted-foreground gba:italic">
-                      {t('task-details-meeting-recording-notice', {
-                        defaultValue: 'Recording and transcription. By joining, you consent to being included.'
-                      })}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
+            <MeetingInviteBody tags={task.tags} t={t} />
 
             {/* AI Summary & Suggestions */}
             <TaskAiSection
@@ -1501,125 +1781,19 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
             )}
 
             {/* Other Links / Meeting Links (meeting-invite: only external:meeting) */}
-            {displayLinks.length > 0 && (
-              <div className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30">
-                <div className="gba:text-xs gba:text-muted-foreground gba:mb-3 gba:font-medium">
-                  {linksSectionTitle}
-                </div>
-                <div className="gba:space-y-2">
-                  {displayLinks.map(link => (
-                    <a
-                      key={link.url || link.name}
-                      href={link.url}
-                      onClick={e => {
-                        // For internal links, use navigateTo instead of opening new tab
-                        if (link.type?.startsWith('internal:')) {
-                          e.preventDefault()
-                          navigateTo(link.url)
-                        }
-                      }}
-                      target={link.type?.startsWith('internal:') ? undefined : '_blank'}
-                      rel={link.type?.startsWith('internal:') ? undefined : 'noopener noreferrer'}
-                      className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline gba:group"
-                      data-testid={`task-other-link-${link.name}`}
-                    >
-                      <LinkIcon className="gba:h-4 gba:w-4 gba:text-primary gba:shrink-0" />
-                      <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:flex-1 group-hover:gba:underline">
-                        {link.name}
-                      </span>
-                      <ExternalLink className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
+            <RelatedLinksSection links={displayLinks} title={linksSectionTitle} />
 
             {/* Meeting participants - separate block for meeting-invite (Blink); uses API when open, with status */}
-            {task.tags?.app === 'meeting-invite' &&
-              ((meetingParticipantsLoading && meetingIdForFetch) ||
-                (meetingParticipantsDisplayList && meetingParticipantsDisplayList.length > 0)) &&
-              (() => {
-                if (meetingParticipantsLoading && meetingIdForFetch) {
-                  return (
-                    <div
-                      className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30"
-                      data-testid="task-details-meeting-participants"
-                    >
-                      <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">
-                        {t('task-details-meeting-participants', { defaultValue: 'Participants' })}
-                      </div>
-                      <p className="gba:text-sm gba:text-muted-foreground">
-                        {t('task-details-form-loading', { defaultValue: 'Loading...' })}
-                      </p>
-                    </div>
-                  )
-                }
-                const list = meetingParticipantsDisplayList
-                if (!list || list.length === 0) return null
-                const hasStatus = list.some((p: { status?: string }) => p.status != null)
-                const showCollapse = list.length > MEETING_PARTICIPANTS_COLLAPSE_THRESHOLD
-                const visibleList =
-                  showCollapse && !participantsExpanded ? list.slice(0, MEETING_PARTICIPANTS_COLLAPSE_THRESHOLD) : list
-                const hiddenCount = list.length - MEETING_PARTICIPANTS_COLLAPSE_THRESHOLD
-                return (
-                  <div
-                    className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30"
-                    data-testid="task-details-meeting-participants"
-                  >
-                    <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">
-                      {t('task-details-meeting-participants-with-count', {
-                        count: list.length,
-                        defaultValue: `Participants (${list.length})`
-                      })}
-                    </div>
-                    <ul className="gba:flex gba:flex-wrap gba:items-center gba:gap-x-4 gba:gap-y-2 gba:text-sm gba:text-foreground">
-                      {visibleList.map((p: MeetingParticipantDisplay, idx: number) => (
-                        <MeetingParticipantRow
-                          key={p.userId || idx}
-                          participant={p}
-                          idx={idx}
-                          employeeMap={meetingParticipantEmployeeMap}
-                          formatAvatarUrl={formatAvatarUrl}
-                          getInitials={getInitials}
-                          t={t}
-                          navigateTo={navigateTo}
-                          buildPlatformUrl={buildPlatformUrl}
-                          hasStatus={hasStatus}
-                        />
-                      ))}
-                    </ul>
-                    {showCollapse && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setParticipantsExpanded(prev => !prev)}
-                        className="gba:mt-2 gba:text-muted-foreground hover:gba:text-foreground"
-                        data-testid="task-details-meeting-participants-toggle"
-                      >
-                        {(() => {
-                          if (participantsExpanded) {
-                            return (
-                              <>
-                                <ChevronUp className="gba:h-4 gba:w-4 gba:mr-1" />
-                                {t('task-details-meeting-participants-show-less', { defaultValue: 'Show less' })}
-                              </>
-                            )
-                          }
-                          return (
-                            <>
-                              <ChevronDown className="gba:h-4 gba:w-4 gba:mr-1" />
-                              {t('task-details-meeting-participants-show-more', {
-                                defaultValue: 'Show {{count}} more',
-                                count: hiddenCount
-                              })}
-                            </>
-                          )
-                        })()}
-                      </Button>
-                    )}
-                  </div>
-                )
-              })()}
+            <MeetingParticipantsSection
+              isMeetingInvite={task.tags?.app === 'meeting-invite'}
+              loading={meetingParticipantsLoading}
+              meetingId={meetingIdForFetch}
+              participants={meetingParticipantsDisplayList ?? undefined}
+              participantsExpanded={participantsExpanded}
+              setParticipantsExpanded={setParticipantsExpanded}
+              employeeMap={meetingParticipantEmployeeMap}
+              t={t}
+            />
 
             {/* Brief description - skip redundant "Complete Meeting Invitation: ..." for meeting-invite */}
             {(task.message || task.description) && renderTaskMessageContent(task, accessToken)}
@@ -1677,81 +1851,12 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                 </div>
               )}
 
-              {task.dueDate &&
-                (() => {
-                  const criticality = calculateDueDateCriticality(task.dueDate, t)
-                  if (!criticality) return null
-
-                  const Icon =
-                    criticality.status === 'overdue'
-                      ? AlertCircle
-                      : criticality.status === 'warning'
-                        ? Clock
-                        : CheckCircle
-
-                  return (
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <Icon
-                        className={`gba:w-4 gba:h-4 ${
-                          criticality.status === 'overdue'
-                            ? 'gba:text-destructive'
-                            : criticality.status === 'warning'
-                              ? 'gba:text-warning'
-                              : 'gba:text-success'
-                        }`}
-                      />
-                      <span className="gba:text-sm gba:font-medium gba:text-foreground">
-                        {t('task-due-date-label')}:
-                      </span>
-                      <span className="gba:text-sm gba:text-muted-foreground">{formatDateTime(task.dueDate)}</span>
-                      <Badge variant={getCriticalityBadgeVariant(criticality.status)}>{criticality.label}</Badge>
-                    </div>
-                  )
-                })()}
+              <TaskDueDateInfo dueDate={task.dueDate} t={t} formatDateTime={formatDateTime} />
             </div>
           )}
 
           {/* Meeting invite: meeting name, date, time, Please respond */}
-          {task.tags?.app === 'meeting-invite' && (task.tags?.meetingDateStr || task.tags?.meetingTimeStr) && (
-            <div
-              className="gba:space-y-4 gba:pb-4 gba:border-b gba:border-border"
-              data-testid="task-details-meeting-invite-body"
-            >
-              <div className="gba:flex gba:flex-col gba:gap-2 gba:text-sm">
-                {task.tags?.meetingDateStr && (
-                  <div className="gba:flex gba:items-center gba:gap-2 gba:text-foreground">
-                    <Calendar className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:flex-shrink-0" />
-                    <span>{task.tags.meetingDateStr}</span>
-                  </div>
-                )}
-                {task.tags?.meetingTimeStr && (
-                  <div className="gba:flex gba:items-center gba:gap-2 gba:text-foreground">
-                    <Clock className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:flex-shrink-0" />
-                    <span>{task.tags.meetingTimeStr}</span>
-                  </div>
-                )}
-              </div>
-              <p className="gba:text-sm gba:text-muted-foreground">
-                {t('task-details-meeting-please-respond', { defaultValue: 'Please respond to this invitation.' })}
-              </p>
-              {task.tags?.transcriptionEnabled === 'true' && (
-                <div
-                  className="gba:flex gba:items-center gba:gap-2 gba:mt-4 gba:pt-4 gba:border-t gba:border-border"
-                  data-testid="task-details-meeting-recording-notice"
-                >
-                  <span
-                    className="gba:inline-block gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:animate-pulse gba:flex-shrink-0"
-                    aria-hidden
-                  />
-                  <p className="gba:text-xs gba:text-muted-foreground gba:italic">
-                    {t('task-details-meeting-recording-notice', {
-                      defaultValue: 'Recording and transcription. By joining, you consent to being included.'
-                    })}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
+          <MeetingInviteBody tags={task.tags} t={t} />
 
           {/* AI Summary & Suggestions */}
           <TaskAiSection
@@ -1922,249 +2027,46 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
           {/* For meeting-invite: Form first, then Related Links. Otherwise: Related Links then Form. */}
           {task.tags?.app === 'meeting-invite' && visibleTaskForm.length > 0 && (
-            <Card>
-              <CardContent>
-                {Object.keys(fieldErrors).length > 0 && (
-                  <Alert variant="destructive" className="gba:mb-4">
-                    <AlertTitle>
-                      {t('task-details-validation-error-title', { defaultValue: 'Validation Error' })}
-                    </AlertTitle>
-                    <AlertDescription>
-                      <ul className="gba:list-disc gba:list-inside gba:space-y-1">
-                        {Object.entries(fieldErrors).map(([fieldName, error]) => (
-                          <li key={fieldName}>{error}</li>
-                        ))}
-                      </ul>
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                <div className="gba:space-y-4">
-                  {visibleTaskForm.map((input: any, index: number) => {
-                    const fieldName = input.name || input.id || `field_${index}`
-                    const fieldValue = formValues[fieldName]
-                    const fieldError = fieldErrors[fieldName]
-                    const isLoadingData = !formInitialized
-                    const displayValue = getFieldDisplayValue(
-                      isLoadingData,
-                      fieldValue,
-                      input.value,
-                      input.defaultValue
-                    )
-                    const isFieldReadOnly = isLoadingData || isCompleted || input.readOnly === true
-
-                    return (
-                      <div key={fieldName}>
-                        <InputRenderer
-                          input={input}
-                          index={index}
-                          readOnly={isFieldReadOnly}
-                          value={displayValue}
-                          onChange={value => {
-                            if (!isFieldReadOnly) {
-                              if (fieldError) {
-                                setFieldErrors(prev => {
-                                  const next = { ...prev }
-                                  delete next[fieldName]
-                                  return next
-                                })
-                              }
-                              setFormValues(prev => ({ ...prev, [fieldName]: value }))
-                            }
-                          }}
-                        />
-                        {fieldError && <p className="gba:text-sm gba:text-destructive gba:mt-1">{fieldError}</p>}
-                      </div>
-                    )
-                  })}
-                </div>
-              </CardContent>
-            </Card>
+            <TaskFormCard
+              visibleTaskForm={visibleTaskForm}
+              fieldErrors={fieldErrors}
+              setFieldErrors={setFieldErrors}
+              formValues={formValues}
+              setFormValues={setFormValues}
+              formInitialized={formInitialized}
+              isCompleted={isCompleted}
+              t={t}
+            />
           )}
 
           {/* Other Links / Meeting Links (meeting-invite: only external:meeting) */}
-          {displayLinks.length > 0 && (
-            <div className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30">
-              <div className="gba:text-xs gba:text-muted-foreground gba:mb-3 gba:font-medium">{linksSectionTitle}</div>
-              <div className="gba:space-y-2">
-                {displayLinks.map(link => (
-                  <a
-                    key={link.url || link.name}
-                    href={link.url}
-                    onClick={e => {
-                      // For internal links, use navigateTo instead of opening new tab
-                      if (link.type?.startsWith('internal:')) {
-                        e.preventDefault()
-                        navigateTo(link.url)
-                      }
-                    }}
-                    target={link.type?.startsWith('internal:') ? undefined : '_blank'}
-                    rel={link.type?.startsWith('internal:') ? undefined : 'noopener noreferrer'}
-                    className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline gba:group"
-                    data-testid={`task-other-link-${link.name}`}
-                  >
-                    <LinkIcon className="gba:h-4 gba:w-4 gba:text-primary gba:shrink-0" />
-                    <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:flex-1 group-hover:gba:underline">
-                      {link.name}
-                    </span>
-                    <ExternalLink className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
+          <RelatedLinksSection links={displayLinks} title={linksSectionTitle} />
 
           {/* Form Section - for non-meeting-invite (or when meeting-invite has no form); no "Form" title */}
           {task.tags?.app !== 'meeting-invite' && visibleTaskForm.length > 0 && (
-            <Card>
-              <CardContent>
-                {Object.keys(fieldErrors).length > 0 && (
-                  <Alert variant="destructive" className="gba:mb-4">
-                    <AlertTitle>
-                      {t('task-details-validation-error-title', { defaultValue: 'Validation Error' })}
-                    </AlertTitle>
-                    <AlertDescription>
-                      <ul className="gba:list-disc gba:list-inside gba:space-y-1">
-                        {Object.values(fieldErrors).map((error, idx) => (
-                          <li key={idx}>{error}</li>
-                        ))}
-                      </ul>
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                <div className="gba:space-y-4">
-                  {visibleTaskForm.map((input: any, index: number) => {
-                    const fieldName = input.name || input.id || `field_${index}`
-                    const fieldValue = formValues[fieldName]
-                    const fieldError = fieldErrors[fieldName]
-                    const isLoadingData = !formInitialized
-                    const displayValue = getFieldDisplayValue(
-                      isLoadingData,
-                      fieldValue,
-                      input.value,
-                      input.defaultValue
-                    )
-                    const isFieldReadOnly = isLoadingData || isCompleted || input.readOnly === true
-
-                    return (
-                      <div key={fieldName}>
-                        <InputRenderer
-                          input={input}
-                          index={index}
-                          readOnly={isFieldReadOnly}
-                          value={displayValue}
-                          onChange={value => {
-                            if (!isFieldReadOnly) {
-                              if (fieldError) {
-                                setFieldErrors(prev => {
-                                  const next = { ...prev }
-                                  delete next[fieldName]
-                                  return next
-                                })
-                              }
-                              setFormValues({
-                                ...formValues,
-                                [fieldName]: value
-                              })
-                            }
-                          }}
-                        />
-                        {fieldError && <p className="gba:text-sm gba:text-destructive gba:mt-1">{fieldError}</p>}
-                      </div>
-                    )
-                  })}
-                </div>
-              </CardContent>
-            </Card>
+            <TaskFormCard
+              visibleTaskForm={visibleTaskForm}
+              fieldErrors={fieldErrors}
+              setFieldErrors={setFieldErrors}
+              formValues={formValues}
+              setFormValues={setFormValues}
+              formInitialized={formInitialized}
+              isCompleted={isCompleted}
+              t={t}
+            />
           )}
 
           {/* Meeting participants - after Form; uses API when open, with latest status */}
-          {task.tags?.app === 'meeting-invite' &&
-            ((meetingParticipantsLoading && meetingIdForFetch) ||
-              (meetingParticipantsDisplayList && meetingParticipantsDisplayList.length > 0)) &&
-            (() => {
-              if (meetingParticipantsLoading && meetingIdForFetch) {
-                return (
-                  <div
-                    className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30"
-                    data-testid="task-details-meeting-participants"
-                  >
-                    <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">
-                      {t('task-details-meeting-participants', { defaultValue: 'Participants' })}
-                    </div>
-                    <p className="gba:text-sm gba:text-muted-foreground">
-                      {t('task-details-form-loading', { defaultValue: 'Loading...' })}
-                    </p>
-                  </div>
-                )
-              }
-              const list = meetingParticipantsDisplayList
-              if (!list || list.length === 0) return null
-              const hasStatus = list.some((p: { status?: string }) => p.status != null)
-              const showCollapse = list.length > MEETING_PARTICIPANTS_COLLAPSE_THRESHOLD
-              const visibleList =
-                showCollapse && !participantsExpanded ? list.slice(0, MEETING_PARTICIPANTS_COLLAPSE_THRESHOLD) : list
-              const hiddenCount = list.length - MEETING_PARTICIPANTS_COLLAPSE_THRESHOLD
-              return (
-                <div
-                  className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30"
-                  data-testid="task-details-meeting-participants"
-                >
-                  <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">
-                    {t('task-details-meeting-participants-with-count', {
-                      count: list.length,
-                      defaultValue: `Participants (${list.length})`
-                    })}
-                  </div>
-                  <ul className="gba:flex gba:flex-wrap gba:items-center gba:gap-x-4 gba:gap-y-2 gba:text-sm gba:text-foreground">
-                    {visibleList.map((p: MeetingParticipantDisplay, idx: number) => (
-                      <MeetingParticipantRow
-                        key={p.userId || idx}
-                        participant={p}
-                        idx={idx}
-                        employeeMap={meetingParticipantEmployeeMap}
-                        formatAvatarUrl={formatAvatarUrl}
-                        getInitials={getInitials}
-                        t={t}
-                        navigateTo={navigateTo}
-                        buildPlatformUrl={buildPlatformUrl}
-                        hasStatus={hasStatus}
-                      />
-                    ))}
-                  </ul>
-                  {showCollapse && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setParticipantsExpanded(prev => !prev)}
-                      className="gba:mt-2 gba:text-muted-foreground hover:gba:text-foreground"
-                      data-testid="task-details-meeting-participants-toggle"
-                    >
-                      {(() => {
-                        if (participantsExpanded) {
-                          return (
-                            <>
-                              <ChevronUp className="gba:h-4 gba:w-4 gba:mr-1" />
-                              {t('task-details-meeting-participants-show-less', { defaultValue: 'Show less' })}
-                            </>
-                          )
-                        }
-                        return (
-                          <>
-                            <ChevronDown className="gba:h-4 gba:w-4 gba:mr-1" />
-                            {t('task-details-meeting-participants-show-more', {
-                              defaultValue: 'Show {{count}} more',
-                              count: hiddenCount
-                            })}
-                          </>
-                        )
-                      })()}
-                    </Button>
-                  )}
-                </div>
-              )
-            })()}
+          <MeetingParticipantsSection
+            isMeetingInvite={task.tags?.app === 'meeting-invite'}
+            loading={meetingParticipantsLoading}
+            meetingId={meetingIdForFetch}
+            participants={meetingParticipantsDisplayList ?? undefined}
+            participantsExpanded={participantsExpanded}
+            setParticipantsExpanded={setParticipantsExpanded}
+            employeeMap={meetingParticipantEmployeeMap}
+            t={t}
+          />
 
           {/* Description - scheduled task markdown; meeting-invite: only location/description (skip redundant "Complete Meeting Invitation: ...") */}
           {(task.message || task.description) && renderTaskMessageContent(task, accessToken)}
