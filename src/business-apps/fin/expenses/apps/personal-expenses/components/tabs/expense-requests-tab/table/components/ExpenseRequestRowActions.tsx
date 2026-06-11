@@ -1,6 +1,7 @@
 import React from 'react'
 import { AppAction } from '@/components/app-action'
 import { RowActionsIcon, RowActionsWrapper } from '../../../../shared/TableSharedComponents'
+import { isDiscardableExpenseEntityStatus } from '@/business-apps/fin/expenses/common/discard/discardConstants'
 import { EXPENSE_REQUESTS_TABLE_DATA_TEST_ID, type ExpenseRequestRow } from '../columns/expenseRequestColumns'
 
 export interface ExpenseRequestRowActionsProps {
@@ -9,6 +10,7 @@ export interface ExpenseRequestRowActionsProps {
   t: (key: string) => string
   updateRequestActionLabel: string
   onEdit: (record: ExpenseRequestRow) => void
+  onDiscard: (record: ExpenseRequestRow) => void
   onPrint: (record: ExpenseRequestRow) => void
   onView: (record: ExpenseRequestRow) => void
 }
@@ -19,6 +21,7 @@ export function ExpenseRequestRowActions({
   t,
   updateRequestActionLabel,
   onEdit,
+  onDiscard,
   onPrint,
   onView
 }: Readonly<ExpenseRequestRowActionsProps>) {
@@ -39,6 +42,20 @@ export function ExpenseRequestRowActions({
           }
         ]
       : []
+
+  const discardAction = isDiscardableExpenseEntityStatus(record.status)
+    ? [
+        {
+          category: actionsCategory,
+          key: 'discard-expense-request',
+          label: t('expense-requests-row-discard-request'),
+          onClick: (e?: React.MouseEvent) => {
+            e?.stopPropagation()
+            onDiscard(record)
+          }
+        }
+      ]
+    : []
 
   const printAction =
     (record.status === 'APPROVED' ||
@@ -74,7 +91,7 @@ export function ExpenseRequestRowActions({
     <RowActionsWrapper>
       <AppAction
         variant="table-row"
-        customActions={[...editAction, ...printAction, viewAction]}
+        customActions={[...editAction, ...discardAction, ...printAction, viewAction]}
         prefixDataTestId={`${EXPENSE_REQUESTS_TABLE_DATA_TEST_ID}-update`}
         accessToken={accessToken}
         data-testid={`expense-request-update-button-${record.id}`}

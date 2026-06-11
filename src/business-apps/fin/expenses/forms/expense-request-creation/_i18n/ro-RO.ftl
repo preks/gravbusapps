@@ -46,6 +46,7 @@ error-missing-user-info = Lipsesc informații despre utilizator
 error-fields-validation = Vă rugăm să verificați toate câmpurile obligatorii
 error-flows-message = Eroare în procesul de flow
 toast-action-canceled = Acțiunea a fost anulată.
+discard-request-error = Nu s-a putut renunța la cererea de cheltuieli
 employee-id-not-found = ID-ul angajatului nu a fost găsit
 structure-not-found = Structura angajatului nu a fost găsită
 process-error-data-fetch = Eroare obținere date

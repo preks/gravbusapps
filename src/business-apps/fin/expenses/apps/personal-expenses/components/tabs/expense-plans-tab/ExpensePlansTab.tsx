@@ -174,6 +174,30 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     }
   }, [selectedFilters, activeWidget])
 
+  const handleForceRefresh = useCallback(() => {
+    const canFetch = props.accessToken && employeeId && (explicitSelectedCurrencyRef || suppressCurrencyAutoSelect)
+
+    if (canFetch) {
+      const statsCurrency = explicitSelectedCurrencyRef || DEFAULT_CURRENCY_REF
+      invalidateCache()
+      fetchOverview(memoizedFilters, currentPage, pageSize, sortField, sortOrder, statsCurrency, { force: true })
+    }
+
+    setTableRefreshTrigger(prev => prev + 1)
+  }, [
+    props.accessToken,
+    employeeId,
+    explicitSelectedCurrencyRef,
+    suppressCurrencyAutoSelect,
+    invalidateCache,
+    fetchOverview,
+    memoizedFilters,
+    currentPage,
+    pageSize,
+    sortField,
+    sortOrder
+  ])
+
   const handleWidgetClick = useCallback(
     (widgetKey: string) => {
       const isDeactivating = activeWidget === widgetKey
@@ -289,6 +313,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       addFilter={addFilter}
       removeFilter={removeFilter}
       tableRefreshTrigger={tableRefreshTrigger}
+      onForceRefresh={handleForceRefresh}
       sortField={sortField}
       sortOrder={sortOrder}
       planDateRange={planDateRange}

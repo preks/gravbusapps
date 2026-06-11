@@ -30,6 +30,15 @@ personal-expenses-to-be-reimbursed = To be reimbursed
 personal-expenses-no-expense-request-statistics = No expense request statistics available.
 personal-expenses-no-expense-requests-found = No expense requests found. Create your first expense request to get started.
 personal-expenses-print-expense-request = Print Expense Request
+expense-requests-row-discard-request = Discard Request
+expense-requests-discard-dialog-title = Discard Expense Request
+expense-requests-discard-dialog-description = Are you sure you want to discard this expense request? This action cannot be undone.
+expense-requests-discard-dialog-description-with-title = Are you sure you want to discard { $requestTitle }? This action cannot be undone.
+expense-requests-discard-cancel-button = Cancel
+expense-requests-discard-confirm-button = Discard
+expense-requests-discard-submitting = Discarding...
+expense-requests-discard-success = Expense request discarded successfully
+expense-requests-discard-error = Failed to discard expense request
 
 # Expense dashboard tab (strings aligned with legacy lowcoder / transl.txt personal_expenses and related keys)
 
@@ -353,6 +362,15 @@ expense-plans-column-paid-advance = Paid Advance
 
 # Row actions (expense_plan_list.expense_plan_flows, employee_list, add_items_to_plan)
 expense-plans-row-update-plan = Update Plan
+expense-plans-row-discard-plan = Discard Plan
+expense-plans-discard-dialog-title = Discard Expense Plan
+expense-plans-discard-dialog-description = Are you sure you want to discard this expense plan? This action cannot be undone.
+expense-plans-discard-dialog-description-with-title = Are you sure you want to discard { $planTitle }? This action cannot be undone.
+expense-plans-discard-cancel-button = Cancel
+expense-plans-discard-confirm-button = Discard
+expense-plans-discard-submitting = Discarding...
+expense-plans-discard-success = Expense plan discarded successfully
+expense-plans-discard-error = Failed to discard expense plan
 expense-plans-row-print = Print
 expense-plans-row-request-advance-payment = Request Advance Payment
 expense-plans-row-view-plan-details = View Plan Details

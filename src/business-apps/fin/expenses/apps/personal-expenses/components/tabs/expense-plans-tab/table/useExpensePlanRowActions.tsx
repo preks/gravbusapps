@@ -1,6 +1,7 @@
 import React, { useCallback } from 'react'
 import { AppAction } from '@/components/app-action'
 import { startProcess } from '@/common/utils/start-process'
+import { isDiscardableExpenseEntityStatus } from '@/business-apps/fin/expenses/common/discard/discardConstants'
 import type { ExpensePlan } from '../../../../hooks/useGetExpensePlans'
 import { RowActionsIcon, RowActionsWrapper } from '../../../shared/TableSharedComponents'
 import { EXPENSE_PLANS_TABLE_DATA_TEST_ID_PREFIX } from './expensePlanColumns'
@@ -11,6 +12,7 @@ export interface UseExpensePlanRowActionsParams {
   onPrintPlan: (record: ExpensePlan) => void
   onViewExpensePlanDetails: (record: ExpensePlan) => void
   onViewExpenseRequestDetails: (record: ExpensePlan) => void
+  onDiscard: (record: ExpensePlan) => void
   t: (key: string) => string
 }
 
@@ -28,6 +30,7 @@ export function useExpensePlanRowActions({
   onPrintPlan,
   onViewExpensePlanDetails,
   onViewExpenseRequestDetails,
+  onDiscard,
   t
 }: Readonly<UseExpensePlanRowActionsParams>) {
   return useCallback(
@@ -57,6 +60,20 @@ export function useExpensePlanRowActions({
               }
             ]
           : []
+
+      const discardAction = isDiscardableExpenseEntityStatus(record.status)
+        ? [
+            {
+              category: actionsCategory,
+              key: 'discard-expense-plan',
+              label: t('expense-plans-row-discard-plan'),
+              onClick: (e?: React.MouseEvent) => {
+                e?.stopPropagation()
+                onDiscard(record)
+              }
+            }
+          ]
+        : []
 
       const printAction =
         (record.status === 'APPROVED' || record.status === 'CLOSED') && record.employeeDocument?.file?.trim()
@@ -144,6 +161,7 @@ export function useExpensePlanRowActions({
             variant="table-row"
             customActions={[
               ...updatePlanAction,
+              ...discardAction,
               ...printAction,
               ...requestAdvanceAction,
               ...createExpenseRequestAction,
@@ -159,6 +177,6 @@ export function useExpensePlanRowActions({
         </RowActionsWrapper>
       )
     },
-    [employeeId, accessToken, onPrintPlan, onViewExpensePlanDetails, onViewExpenseRequestDetails, t]
+    [employeeId, accessToken, onPrintPlan, onViewExpensePlanDetails, onViewExpenseRequestDetails, onDiscard, t]
   )
 }

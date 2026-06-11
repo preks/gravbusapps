@@ -30,8 +30,11 @@ import {
   expenseRequestDefaultVisibleColumnIds
 } from '../config/expenseRequestAvailableColumns'
 import { createExpenseRequestColumns, type ExpenseRequestRow } from '../table/columns/expenseRequestColumns'
+import { useDiscardExpenseEntityAction } from '../../../../common/discard/useDiscardExpenseEntityAction'
+import { discardExpenseRequest } from '@/business-apps/fin/expenses/common/discard/discardExpenseRequestService'
 import { ExpenseRequestRowActions } from '../table/components/ExpenseRequestRowActions'
 import type { ExpenseRequestsDataBodyProps } from '../table/components/ExpenseRequestsDataBody'
+import type { DiscardEntityRecord } from '../../../../common/discard/types'
 import type { ExpenseRequestsTableProps } from '../types/expenseRequestsTable.types'
 
 const DEFAULT_PAGE_SIZE = 20
@@ -57,6 +60,11 @@ export interface UseExpenseRequestsTableModelResult {
   printPdfUrl: string
   accessToken: string | undefined
   userInfo: ExpenseRequestsTableProps['userInfo']
+  discardDialogOpen: boolean
+  discardTarget: DiscardEntityRecord | null
+  isDiscarding: boolean
+  handleDiscardDialogOpenChange: (open: boolean) => void
+  handleConfirmDiscard: () => Promise<void>
 }
 
 export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): UseExpenseRequestsTableModelResult {
@@ -83,6 +91,7 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
     selectedFilters = [],
     filterLabelMap = {},
     onAddExpenseRequest,
+    onForceRefresh,
     tableRefreshTrigger
   } = props
 
@@ -396,6 +405,28 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
     setSelectedItem(null)
   }, [])
 
+  const handleDiscardSuccess = useCallback(() => {
+    setSelectedItem(null)
+    onForceRefresh?.()
+  }, [onForceRefresh])
+
+  const {
+    discardDialogOpen,
+    discardTarget,
+    isDiscarding,
+    handleOpenDiscardDialog,
+    handleDiscardDialogOpenChange,
+    handleConfirmDiscard
+  } = useDiscardExpenseEntityAction({
+    accessToken: contextProps.accessToken,
+    t: tPersonal,
+    onSuccess: handleDiscardSuccess,
+    discardEntity: discardExpenseRequest,
+    successMessageKey: 'expense-requests-discard-success',
+    errorMessageKey: 'expense-requests-discard-error',
+    errorLogContext: 'discard expense request'
+  })
+
   const updateRequestActionLabel = tPersonal('personal-expenses-update-request-action')
 
   const rowActions = useCallback(
@@ -406,6 +437,7 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
         t={tPersonal}
         updateRequestActionLabel={updateRequestActionLabel}
         onEdit={handleEditExpenseRequest}
+        onDiscard={handleOpenDiscardDialog}
         onPrint={handlePrintRequest}
         onView={handleViewExpenseRequestDetails}
       />
@@ -415,6 +447,7 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
       tPersonal,
       updateRequestActionLabel,
       handleEditExpenseRequest,
+      handleOpenDiscardDialog,
       handlePrintRequest,
       handleViewExpenseRequestDetails
     ]
@@ -520,6 +553,11 @@ export function useExpenseRequestsTableModel(props: ExpenseRequestsTableProps): 
     printLoading,
     printPdfUrl,
     accessToken: props.accessToken,
-    userInfo: props.userInfo
+    userInfo: props.userInfo,
+    discardDialogOpen,
+    discardTarget,
+    isDiscarding,
+    handleDiscardDialogOpenChange,
+    handleConfirmDiscard
   }
 }

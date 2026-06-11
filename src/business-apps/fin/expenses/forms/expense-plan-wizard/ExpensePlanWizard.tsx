@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Typography, Input } from 'antd'
 import { Button } from '@newwork/gravity-ui-catalog'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -29,6 +29,9 @@ import { PLAN_TYPES } from '../expense-plan/constants/constants'
 import { TITLE_MAX_LENGTH } from '../expense-request/constants/constants'
 import { createSummaryScreenLogObject } from './utils/summaryScreenUtils'
 import { hasEmployeeOrgchartCostCenter } from '@/business-apps/fin/expenses/common/utils/employeeOrgchartCostCenter'
+import { discardExpensePlanIfDiscardable } from '@/business-apps/fin/expenses/common/discard/discardExpensePlanIfDiscardable'
+import { getErrorMessage } from '@/business-apps/fin/expenses/apps/backoffice-expenses/utils/errorUtils'
+import { showToast } from '../../utils/notificationUtils'
 
 const { Title } = Typography
 
@@ -78,30 +81,43 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
     }
   }, [expensePlanData, setCurrentTitle, additionalData])
 
-  const handleCancel = useMemo(() => {
-    return () => {
-      const logObject = createSummaryScreenLogObject(
-        expensePlanData.ExpensePlanByPk,
-        expensePlanData.ExpensePlanByPk?.expenseRuleId,
-        currentTitle,
-        expensePlanData,
-        EVENTS.DISCARD,
-        false,
-        false // Default to false for cancel
-      )
-      dispatchProcessContinueEventIfEnabled(EVENTS.DISCARD, {
-        event: EVENTS.DISCARD,
-        pso_completeNotification: {
-          type: 'error',
-          messageKey: t('toast-action-canceled')
-        },
-        expensePlan: logObject.expensePlan,
-        expensePlanItems: logObject.expensePlanItems,
-        expenseRequestTrips: logObject.expensePlanTrips,
-        advancePayment: logObject.advancePayment
+  const handleCancel = useCallback(async () => {
+    const initialPlan = expensePlanData?.ExpensePlanByPk
+
+    try {
+      await discardExpensePlanIfDiscardable({
+        accessToken,
+        planId: initialPlan?.id,
+        status: initialPlan?.status
       })
+    } catch (error) {
+      console.error('Failed to discard expense plan on cancel:', getErrorMessage(error))
+      showToast(t('discard-plan-error'), 'error')
+      setPendingFooterAction(null)
+      return
     }
-  }, [expensePlanData?.ExpensePlanByPk, t, currentTitle, dispatchProcessContinueEventIfEnabled])
+
+    const logObject = createSummaryScreenLogObject(
+      initialPlan,
+      initialPlan?.expenseRuleId,
+      currentTitle,
+      expensePlanData,
+      EVENTS.DISCARD,
+      false,
+      false
+    )
+    dispatchProcessContinueEventIfEnabled(EVENTS.DISCARD, {
+      event: EVENTS.DISCARD,
+      pso_completeNotification: {
+        type: 'error',
+        messageKey: t('toast-action-canceled')
+      },
+      expensePlan: logObject.expensePlan,
+      expensePlanItems: logObject.expensePlanItems,
+      expenseRequestTrips: logObject.expensePlanTrips,
+      advancePayment: logObject.advancePayment
+    })
+  }, [accessToken, currentTitle, dispatchProcessContinueEventIfEnabled, expensePlanData, t])
 
   // Update currency when expensePlanData changes: prefer plan currency, fallback to item currency
   useEffect(() => {
@@ -678,7 +694,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
                 disabled={isFooterActionPending}
                 onClick={() => {
                   setPendingFooterAction('cancel')
-                  handleCancel()
+                  void handleCancel()
                 }}
               >
                 <WizardFooterButtonContent isPending={pendingFooterAction === 'cancel'}>

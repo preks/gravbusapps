@@ -16,6 +16,7 @@ export interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   clearFilters?: () => void
   filterLabelMap?: Record<string, string>
   onAddExpenseRequest?: () => void
+  onForceRefresh?: () => void
   tableRefreshTrigger?: number
   addFilter?: (filterId: string) => void
   removeFilter?: (filterId: string) => void

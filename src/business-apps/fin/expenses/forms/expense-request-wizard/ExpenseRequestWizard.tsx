@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Typography, Input } from 'antd'
 import { Button } from '@newwork/gravity-ui-catalog'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -26,6 +26,9 @@ import WizardFooterButtonContent, { WizardFooterAction } from './components/Wiza
 import { setInitialScreen } from './utils/tripScreenUtils'
 import { REQUEST_TYPES } from '../expense-request/constants/constants'
 import { createSummaryScreenLogObject } from './utils/summaryScreenUtils'
+import { discardExpenseRequestIfDiscardable } from '@/business-apps/fin/expenses/common/discard/discardExpenseRequestIfDiscardable'
+import { getErrorMessage } from '@/business-apps/fin/expenses/apps/backoffice-expenses/utils/errorUtils'
+import { showToast } from '../../utils/notificationUtils'
 
 const { Title } = Typography
 
@@ -107,28 +110,40 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
   )
   const isFooterActionPending = pendingFooterAction !== null
 
-  const handleCancel = useMemo(() => {
+  const handleCancel = useCallback(async () => {
     const initialRequest = expenseRequestData?.ExpenseRequestByPk
-    return () => {
-      const logObject = createSummaryScreenLogObject(
-        initialRequest,
-        initialRequest?.expenseRuleId,
-        initialRequest?.title,
-        expenseRequestData,
-        EVENTS.DISCARD
-      )
-      dispatchProcessContinueEventIfEnabled(EVENTS.DISCARD, {
-        event: EVENTS.DISCARD,
-        pso_completeNotification: {
-          type: 'error',
-          messageKey: t('toast-action-canceled')
-        },
-        expenseRequest: logObject.expenseRequest,
-        expenseRequestItems: logObject.expenseRequestItems,
-        expenseRequestTrips: logObject.expenseRequestTrips
+
+    try {
+      await discardExpenseRequestIfDiscardable({
+        accessToken,
+        requestId: initialRequest?.id,
+        status: initialRequest?.status
       })
+    } catch (error) {
+      console.error('Failed to discard expense request on cancel:', getErrorMessage(error))
+      showToast(t('discard-request-error'), 'error')
+      setPendingFooterAction(null)
+      return
     }
-  }, [expenseRequestData?.ExpenseRequestByPk])
+
+    const logObject = createSummaryScreenLogObject(
+      initialRequest,
+      initialRequest?.expenseRuleId,
+      initialRequest?.title,
+      expenseRequestData,
+      EVENTS.DISCARD
+    )
+    dispatchProcessContinueEventIfEnabled(EVENTS.DISCARD, {
+      event: EVENTS.DISCARD,
+      pso_completeNotification: {
+        type: 'error',
+        messageKey: t('toast-action-canceled')
+      },
+      expenseRequest: logObject.expenseRequest,
+      expenseRequestItems: logObject.expenseRequestItems,
+      expenseRequestTrips: logObject.expenseRequestTrips
+    })
+  }, [accessToken, dispatchProcessContinueEventIfEnabled, expenseRequestData, t])
 
   // Single source of truth for "when to overwrite title from server": only when request id changes
   useEffect(() => {
@@ -701,7 +716,7 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
                 disabled={isFooterActionPending}
                 onClick={() => {
                   setPendingFooterAction('cancel')
-                  handleCancel()
+                  void handleCancel()
                 }}
               >
                 <WizardFooterButtonContent isPending={pendingFooterAction === 'cancel'}>

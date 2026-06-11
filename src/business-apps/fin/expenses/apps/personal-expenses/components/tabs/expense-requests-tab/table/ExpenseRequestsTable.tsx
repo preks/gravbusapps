@@ -4,6 +4,8 @@ import ExpenseRequestDetails from '../details/ExpenseRequestDetails'
 import personalTranslations from '../../../../_i18n'
 import { PrintPreviewDialog, DetailsSheet } from '../../../shared/TableSharedComponents'
 import { ExpenseRequestsDataBody } from './components/ExpenseRequestsDataBody'
+import { DiscardExpenseEntityDialog } from '../../../../common/discard/DiscardExpenseEntityDialog'
+import { EXPENSE_REQUEST_DISCARD_DIALOG_LABELS } from '../../../../common/discard/discardDialogLabels'
 import { useExpenseRequestsTableModel } from '../hooks/useExpenseRequestsTableModel'
 import type { ExpenseRequestsTableProps } from '../types/expenseRequestsTable.types'
 
@@ -43,6 +45,17 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
         loading={model.printLoading}
         pdfUrl={model.printPdfUrl}
         testIdPrefix="expense-request"
+      />
+
+      <DiscardExpenseEntityDialog
+        open={model.discardDialogOpen}
+        entityTitle={model.discardTarget?.title}
+        isSubmitting={model.isDiscarding}
+        labels={EXPENSE_REQUEST_DISCARD_DIALOG_LABELS}
+        testIdPrefix="discard-expense-request"
+        t={t}
+        onOpenChange={model.handleDiscardDialogOpenChange}
+        onConfirm={model.handleConfirmDiscard}
       />
     </>
   )

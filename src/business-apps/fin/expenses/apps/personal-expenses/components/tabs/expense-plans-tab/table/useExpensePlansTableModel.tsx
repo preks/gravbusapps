@@ -9,6 +9,8 @@ import { useVisibleColumns } from '@/business-apps/fin/expenses/common/hooks/use
 import { createExpensePlanAvailableColumns, EXPENSE_PLAN_TABLE_COLUMN_IDS } from '../config/expensePlanAvailableColumns'
 import { createExpensePlanSortableColumns } from '../config/expensePlanSortableColumns'
 import { createExpensePlanColumns } from './expensePlanColumns'
+import { useDiscardExpenseEntityAction } from '../../../../common/discard/useDiscardExpenseEntityAction'
+import { discardExpensePlan } from '@/business-apps/fin/expenses/common/discard/discardExpensePlanService'
 import { useExpensePlanRowActions } from './useExpensePlanRowActions'
 import type { ExpensePlansTableDisplayProps } from './ExpensePlansTableDisplay'
 import type { ExpensePlan } from '../../../../hooks/useGetExpensePlans'
@@ -56,6 +58,7 @@ export function useExpensePlansTableModel(props: ExpensePlansTableProps) {
     setPaidAdvanceAmountRange,
     onFiltersChange,
     availableStatuses = [],
+    onForceRefresh,
     ...contextProps
   } = props
 
@@ -275,12 +278,36 @@ export function useExpensePlansTableModel(props: ExpensePlansTableProps) {
     ignorePageSizeStateUpdate
   )
 
+  const handleDiscardSuccess = useCallback(() => {
+    setSelectedItem(null)
+    setSelectedExpenseRequest(null)
+    onForceRefresh?.()
+  }, [onForceRefresh])
+
+  const {
+    discardDialogOpen,
+    discardTarget,
+    isDiscarding,
+    handleOpenDiscardDialog,
+    handleDiscardDialogOpenChange,
+    handleConfirmDiscard
+  } = useDiscardExpenseEntityAction({
+    accessToken: contextProps.accessToken,
+    t: tPersonal,
+    onSuccess: handleDiscardSuccess,
+    discardEntity: discardExpensePlan,
+    successMessageKey: 'expense-plans-discard-success',
+    errorMessageKey: 'expense-plans-discard-error',
+    errorLogContext: 'discard expense plan'
+  })
+
   const rowActions = useExpensePlanRowActions({
     employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
     accessToken: contextProps.accessToken,
     onPrintPlan: handlePrintPlan,
     onViewExpensePlanDetails: handleViewExpensePlanDetails,
     onViewExpenseRequestDetails: handleViewExpenseRequestDetails,
+    onDiscard: handleOpenDiscardDialog,
     t: tPersonal
   })
 
@@ -349,6 +376,11 @@ export function useExpensePlansTableModel(props: ExpensePlansTableProps) {
     setPrintPdfUrl,
     printLoading,
     accessToken: props.accessToken,
-    userInfo: props.userInfo
+    userInfo: props.userInfo,
+    discardDialogOpen,
+    discardTarget,
+    isDiscarding,
+    handleDiscardDialogOpenChange,
+    handleConfirmDiscard
   }
 }

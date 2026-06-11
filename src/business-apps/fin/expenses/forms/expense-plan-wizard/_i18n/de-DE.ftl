@@ -22,6 +22,7 @@ error-fetch-items-payload = Fehler beim Abrufen von Posten aus der Payload
 
 # Wizard shell
 toast-action-canceled = Die Aktion wurde abgebrochen.
+discard-plan-error = Spesenplan konnte nicht verworfen werden
 invalid-profile-title = Problem der Validierung
 wizard-btn-submit = Einreichen
 wizard-back-text = Zurück

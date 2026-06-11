@@ -4,6 +4,8 @@ import personalTranslations from '../../../../_i18n'
 import ExpensePlanDetails from '../details/ExpensePlanDetails'
 import ExpenseRequestDetails from '../../expense-requests-tab/details/ExpenseRequestDetails'
 import { PrintPreviewDialog, DetailsSheet } from '../../../shared/TableSharedComponents'
+import { DiscardExpenseEntityDialog } from '../../../../common/discard/DiscardExpenseEntityDialog'
+import { EXPENSE_PLAN_DISCARD_DIALOG_LABELS } from '../../../../common/discard/discardDialogLabels'
 import { ExpensePlansTableDisplay } from './ExpensePlansTableDisplay'
 import { useExpensePlansTableModel } from './useExpensePlansTableModel'
 import type { ExpensePlansTableProps } from './expensePlansTable.types'
@@ -23,7 +25,12 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
     setPrintPdfUrl,
     printLoading,
     accessToken,
-    userInfo
+    userInfo,
+    discardDialogOpen,
+    discardTarget,
+    isDiscarding,
+    handleDiscardDialogOpenChange,
+    handleConfirmDiscard
   } = useExpensePlansTableModel(props)
 
   return (
@@ -76,6 +83,17 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
         loading={printLoading}
         pdfUrl={printPdfUrl}
         testIdPrefix="print-plan"
+      />
+
+      <DiscardExpenseEntityDialog
+        open={discardDialogOpen}
+        entityTitle={discardTarget?.title}
+        isSubmitting={isDiscarding}
+        labels={EXPENSE_PLAN_DISCARD_DIALOG_LABELS}
+        testIdPrefix="discard-expense-plan"
+        t={t}
+        onOpenChange={handleDiscardDialogOpenChange}
+        onConfirm={handleConfirmDiscard}
       />
     </div>
   )

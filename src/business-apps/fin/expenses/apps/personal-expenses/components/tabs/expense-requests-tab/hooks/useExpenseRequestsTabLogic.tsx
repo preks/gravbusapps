@@ -192,6 +192,25 @@ export function useExpenseRequestsTabLogic(props: ExpenseRequestsTabProps) {
     })
   }, [contextProps.userInfo?.employeeDetails?.employeeId, t])
 
+  const handleForceRefresh = useCallback(() => {
+    if (contextProps.accessToken && employeeId && currenciesInitialized) {
+      const filters = buildExpenseRequestFetchFilters(getFilters, explicitSelectedCurrencyRef)
+      fetchItems(filters, currentPage, pageSize, sortField, sortOrder, { force: true })
+    }
+    setTableRefreshTrigger(prev => prev + 1)
+  }, [
+    contextProps.accessToken,
+    employeeId,
+    currenciesInitialized,
+    getFilters,
+    explicitSelectedCurrencyRef,
+    fetchItems,
+    currentPage,
+    pageSize,
+    sortField,
+    sortOrder
+  ])
+
   const handleTableChange = useCallback(
     (
       pagination: { current: number; pageSize: number },
@@ -287,6 +306,7 @@ export function useExpenseRequestsTabLogic(props: ExpenseRequestsTabProps) {
     clearFilters,
     filterLabelMap: { ...filterLabelMap },
     onAddExpenseRequest: handleAddExpenseRequest,
+    onForceRefresh: handleForceRefresh,
     tableRefreshTrigger,
     addFilter,
     removeFilter,

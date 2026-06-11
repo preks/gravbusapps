@@ -19,6 +19,7 @@ export interface ExpensePlansTableProps extends BusinessAppContextProps {
   addFilter: (filterId: string, selected: boolean) => void
   removeFilter: (filterId: string) => void
   tableRefreshTrigger?: number
+  onForceRefresh?: () => void
   currencyStats?: Array<{ ref: string; code: string; count: number }>
   sortField?: string | null
   sortOrder?: 'ascend' | 'descend' | null

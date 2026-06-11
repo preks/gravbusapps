@@ -30,6 +30,15 @@ personal-expenses-to-be-reimbursed = Zu erstatten
 personal-expenses-no-expense-request-statistics = Keine Statistiken für Ausgabenanfragen verfügbar.
 personal-expenses-no-expense-requests-found = Keine Ausgabenanfragen gefunden. Erstellen Sie die erste Ausgabenanfrage, um zu beginnen.
 personal-expenses-print-expense-request = Ausgabeanfrage drucken
+expense-requests-row-discard-request = Anfrage verwerfen
+expense-requests-discard-dialog-title = Ausgabenanfrage verwerfen
+expense-requests-discard-dialog-description = Möchten Sie diese Ausgabenanfrage wirklich verwerfen? Diese Aktion kann nicht rückgängig gemacht werden.
+expense-requests-discard-dialog-description-with-title = Möchten Sie { $requestTitle } wirklich verwerfen? Diese Aktion kann nicht rückgängig gemacht werden.
+expense-requests-discard-cancel-button = Abbrechen
+expense-requests-discard-confirm-button = Verwerfen
+expense-requests-discard-submitting = Wird verworfen...
+expense-requests-discard-success = Ausgabenanfrage erfolgreich verworfen
+expense-requests-discard-error = Ausgabenanfrage konnte nicht verworfen werden
 
 # Expense dashboard tab (legacy lowcoder / transl.txt)
 
@@ -326,6 +335,15 @@ expense-plans-column-end-date = Enddatum
 expense-plans-column-paid-advance = Bezahlter Vorschuss
 
 expense-plans-row-update-plan = Plan aktualisieren
+expense-plans-row-discard-plan = Plan verwerfen
+expense-plans-discard-dialog-title = Spesenplan verwerfen
+expense-plans-discard-dialog-description = Möchten Sie diesen Spesenplan wirklich verwerfen? Diese Aktion kann nicht rückgängig gemacht werden.
+expense-plans-discard-dialog-description-with-title = Möchten Sie { $planTitle } wirklich verwerfen? Diese Aktion kann nicht rückgängig gemacht werden.
+expense-plans-discard-cancel-button = Abbrechen
+expense-plans-discard-confirm-button = Verwerfen
+expense-plans-discard-submitting = Wird verworfen...
+expense-plans-discard-success = Spesenplan erfolgreich verworfen
+expense-plans-discard-error = Spesenplan konnte nicht verworfen werden
 expense-plans-row-print = Drucken
 expense-plans-row-request-advance-payment = Vorschuss beantragen
 expense-plans-row-view-plan-details = Details zum Spesenplan

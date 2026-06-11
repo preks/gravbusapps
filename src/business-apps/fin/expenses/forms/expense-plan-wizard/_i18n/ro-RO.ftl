@@ -22,6 +22,7 @@ error-fetch-items-payload = Eroare la citirea articolelor din payload
 
 # Wizard shell
 toast-action-canceled = Acțiunea a fost anulată.
+discard-plan-error = Nu s-a putut renunța la planul de cheltuieli
 invalid-profile-title = Problemă de validare
 wizard-btn-submit = Trimiteți
 wizard-back-text = Înapoi

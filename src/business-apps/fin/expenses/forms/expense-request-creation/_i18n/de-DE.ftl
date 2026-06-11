@@ -46,6 +46,7 @@ error-missing-user-info = Fehlende Benutzerinformationen
 error-fields-validation = Bitte überprüfen Sie alle erforderlichen Felder
 error-flows-message = Fehler im Ablaufprozess
 toast-action-canceled = Die Aktion wurde abgebrochen.
+discard-request-error = Spesenantrag konnte nicht verworfen werden
 employee-id-not-found = Mitarbeiter-ID nicht gefunden
 structure-not-found = Mitarbeiterstruktur nicht gefunden
 process-error-data-fetch = Fehler beim Abrufen von Daten

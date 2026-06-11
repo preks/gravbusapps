@@ -46,6 +46,7 @@ error-missing-user-info = Missing user information
 error-fields-validation = Please check all required fields
 error-flows-message = Error in flow process
 toast-action-canceled = The action has been canceled.
+discard-request-error = Failed to discard expense request
 employee-id-not-found = Employee ID not found
 structure-not-found = Employee structure not found
 process-error-data-fetch = Error fetching data

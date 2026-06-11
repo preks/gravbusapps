@@ -22,6 +22,7 @@ error-fetch-items-payload = Error fetching items from payload
 
 # Wizard shell
 toast-action-canceled = The action has been canceled.
+discard-plan-error = Failed to discard expense plan
 invalid-profile-title = Validation Issue
 wizard-btn-submit = Submit
 wizard-back-text = Back

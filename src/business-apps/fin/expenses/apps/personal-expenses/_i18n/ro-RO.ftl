@@ -30,6 +30,15 @@ personal-expenses-to-be-reimbursed = De rambursat
 personal-expenses-no-expense-request-statistics = Nu există statistici pentru cererile de cheltuieli.
 personal-expenses-no-expense-requests-found = Nu s-au găsit cereri de cheltuieli. Creează prima cerere de cheltuieli pentru a începe.
 personal-expenses-print-expense-request = Tipărește cerere cheltuială
+expense-requests-row-discard-request = Renunță la solicitare
+expense-requests-discard-dialog-title = Renunță la solicitarea de decont
+expense-requests-discard-dialog-description = Sigur doriți să renunțați la această solicitare de decont? Această acțiune nu poate fi anulată.
+expense-requests-discard-dialog-description-with-title = Sigur doriți să renunțați la { $requestTitle }? Această acțiune nu poate fi anulată.
+expense-requests-discard-cancel-button = Anulează
+expense-requests-discard-confirm-button = Renunță
+expense-requests-discard-submitting = Se renunță...
+expense-requests-discard-success = Solicitarea de decont a fost renunțată cu succes
+expense-requests-discard-error = Renunțarea la solicitarea de decont a eșuat
 
 # Expense dashboard tab (legacy lowcoder / transl.txt)
 
@@ -326,6 +335,15 @@ expense-plans-column-end-date = Data de Sfârşit
 expense-plans-column-paid-advance = Avans plătit
 
 expense-plans-row-update-plan = Actualizare Plan
+expense-plans-row-discard-plan = Renunță la plan
+expense-plans-discard-dialog-title = Renunță la planul de cheltuieli
+expense-plans-discard-dialog-description = Sigur doriți să renunțați la acest plan de cheltuieli? Această acțiune nu poate fi anulată.
+expense-plans-discard-dialog-description-with-title = Sigur doriți să renunțați la { $planTitle }? Această acțiune nu poate fi anulată.
+expense-plans-discard-cancel-button = Anulează
+expense-plans-discard-confirm-button = Renunță
+expense-plans-discard-submitting = Se renunță...
+expense-plans-discard-success = Planul de cheltuieli a fost renunțat cu succes
+expense-plans-discard-error = Renunțarea la planul de cheltuieli a eșuat
 expense-plans-row-print = Printare
 expense-plans-row-request-advance-payment = Solicitǎ Plata în Avans
 expense-plans-row-view-plan-details = Vizualizați detaliile planului
