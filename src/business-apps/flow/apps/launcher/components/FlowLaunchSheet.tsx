@@ -1203,29 +1203,22 @@ export const FlowLaunchSheet: React.FC<FlowLaunchSheetProps> = ({
     )
   }
 
-  const sheetClassName = isTestMode
-    ? 'gba:fixed gba:right-0 gba:top-0 gba:z-50 gba:h-full gba:w-full gba:sm:max-w-none'
-    : 'gba:w-full gba:sm:max-w-none'
-  const sheetStyle = isTestMode
-    ? {
-        width: `${sheetWidth}px`,
-        maxWidth: 'calc(100vw - 1rem)',
-        position: 'fixed' as const,
-        top: 0,
-        right: 0,
-        zIndex: 50,
-        height: '100vh',
-        transform: 'translateX(0)',
-        opacity: 1,
-        pointerEvents: 'auto' as const
-      }
-    : {
-        width: `${sheetWidth}px`,
-        maxWidth: 'calc(100vw - 1rem)'
-      }
+  const sheetClassName = 'gba:fixed gba:right-0 gba:top-0 gba:z-50 gba:h-full gba:w-full gba:sm:max-w-none'
+  const sheetStyle = {
+    width: `${sheetWidth}px`,
+    maxWidth: 'calc(100vw - 1rem)',
+    position: 'fixed' as const,
+    top: 0,
+    right: 0,
+    zIndex: 50,
+    height: '100vh',
+    transform: 'translateX(0)',
+    opacity: 1,
+    pointerEvents: 'auto' as const
+  }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
+    <Sheet open={open} onOpenChange={onOpenChange} modal={!isTestMode}>
       <SheetContent
         side="right"
         className={`${sheetClassName} gba:relative gba:flex gba:flex-col gba:p-0`}

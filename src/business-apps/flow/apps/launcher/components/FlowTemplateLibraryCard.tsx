@@ -44,28 +44,41 @@ export const FlowTemplateLibraryCard: React.FC<FlowTemplateLibraryCardProps> = (
     return badges
   }, [item.triggerTypes])
 
-  const isClickable = item.isManualLaunchable
+  const handleActivate = () => {
+    if (item.isManualLaunchable) {
+      onStart(item.templateId)
+      return
+    }
+    onViewDetails?.(item.templateId)
+  }
 
-  const body = (
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return
+    event.preventDefault()
+    handleActivate()
+  }
+
+  const handleDetailsClick = (event: React.MouseEvent) => {
+    event.stopPropagation()
+    onViewDetails?.(item.templateId)
+  }
+
+  return (
     <Card
-      className={[
-        'gba:bg-card gba:border gba:border-border gba:hover:bg-accent/10 gba:transition-colors',
-        isClickable ? 'gba:!cursor-pointer' : ''
-      ]
-        .filter(Boolean)
-        .join(' ')}
+      className="gba:bg-card gba:border gba:border-border gba:hover:bg-accent/10 gba:transition-colors gba:cursor-pointer"
+      role="button"
+      tabIndex={0}
+      onClick={handleActivate}
+      onKeyDown={handleKeyDown}
       data-testid={testId}
     >
-      <CardContent
-        className={['gba:p-4 gba:flex gba:items-start gba:gap-3', isClickable ? 'gba:!cursor-pointer' : '']
-          .filter(Boolean)
-          .join(' ')}
-      >
+      <CardContent className="gba:p-4 gba:flex gba:items-start gba:gap-3 gba:cursor-pointer">
         <IconAvatar
           icon={Play}
           variant="decorative"
           size="lg"
-          className={['gba:mt-0.5 gba:shrink-0', isClickable ? 'gba:!cursor-pointer' : ''].filter(Boolean).join(' ')}
+          decorative
+          className="gba:mt-0.5 gba:shrink-0"
           data-testid={`${testId}-avatar`}
         />
 
@@ -98,7 +111,7 @@ export const FlowTemplateLibraryCard: React.FC<FlowTemplateLibraryCardProps> = (
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => onViewDetails?.(item.templateId)}
+                  onClick={handleDetailsClick}
                   data-testid={`${testId}-details`}
                 >
                   Details
@@ -110,21 +123,6 @@ export const FlowTemplateLibraryCard: React.FC<FlowTemplateLibraryCardProps> = (
       </CardContent>
     </Card>
   )
-
-  if (item.isManualLaunchable) {
-    return (
-      <button
-        type="button"
-        onClick={() => onStart(item.templateId)}
-        className="gba:block gba:w-full gba:text-left gba:!cursor-pointer gba:focus-visible:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-ring gba:rounded-lg"
-        data-testid={`${testId}-click`}
-      >
-        {body}
-      </button>
-    )
-  }
-
-  return body
 }
 
 export default FlowTemplateLibraryCard
