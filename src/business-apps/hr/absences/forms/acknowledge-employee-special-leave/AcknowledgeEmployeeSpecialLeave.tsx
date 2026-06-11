@@ -133,8 +133,7 @@ const AcknowledgeEmployeeSpecialLeave: React.FC<AcknowledgeEmployeeSpecialLeaveP
   // Detect if we're in every-box context (has onClose callback)
   const isEveryBoxContext = !!onClose
 
-  // Get submission date (use createdAt or startDate as fallback)
-  const submissionDate = employeeAbsence?.createdAt || employeeAbsence?.startDate || null
+  const submissionDate = requestCreatedAt
 
   return (
     <TaskFormLayout
@@ -209,12 +208,14 @@ const AcknowledgeEmployeeSpecialLeave: React.FC<AcknowledgeEmployeeSpecialLeaveP
               )}
 
               {/* Submission Date */}
-              {submissionDate && (
+              {(isLoadingDates || submissionDate) && (
                 <div className="gba:flex gba:items-start gba:gap-3">
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
                     {t('label-submission-date')}:
                   </span>
-                  <span className="gba:text-sm gba:flex-1">{dayjs(submissionDate).format('MMM D, YYYY')}</span>
+                  <span className="gba:text-sm gba:flex-1">
+                    {isLoadingDates ? <Spinner size="sm" /> : dayjs(submissionDate).format('MMM D, YYYY')}
+                  </span>
                 </div>
               )}
 
