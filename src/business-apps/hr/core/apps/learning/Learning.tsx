@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Button, PageLayout, Spinner, useTranslation } from '@newwork/nw-design-system'
-import { GraduationCap, Plus } from 'lucide-react'
+import { GraduationCapIcon, PlusIcon } from '@phosphor-icons/react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
@@ -25,8 +25,10 @@ const getInitialView = (): LearningTabKey => {
 const renderTab = (
   activeTab: LearningTabKey,
   context: BusinessAppContextProps,
+  onCreateCourse: () => void,
   onEditCourse: (courseId: string) => void,
-  onAssignCourse: (course: LearningCourseListItem) => void
+  onAssignCourse: (course: LearningCourseListItem) => void,
+  onNavigateTab: (tab: LearningTabKey) => void
 ) => {
   switch (activeTab) {
     case LearningTabKey.Library:
@@ -39,7 +41,15 @@ const renderTab = (
       return <AuditTab />
     case LearningTabKey.Dashboard:
     default:
-      return <DashboardTab />
+      return (
+        <DashboardTab
+          {...context}
+          onCreateCourse={onCreateCourse}
+          onEditCourse={onEditCourse}
+          onAssignCourse={onAssignCourse}
+          onNavigateTab={onNavigateTab}
+        />
+      )
   }
 }
 
@@ -101,7 +111,7 @@ export const Learning: React.FC<BusinessAppContextProps> = context => {
     <div data-testid="learning-app">
       <PageLayout
         headerPhosphorIcon={{
-          icon: GraduationCap,
+          icon: GraduationCapIcon,
           variant: 'default',
           size: 'lg',
           label: t('learning-app-title')
@@ -115,14 +125,14 @@ export const Learning: React.FC<BusinessAppContextProps> = context => {
         }}
         headerContent={
           <Button variant="default" size="sm" onClick={handleCreateCourse} data-testid="create-course-button">
-            <Plus className="gba:mr-2 gba:h-4 gba:w-4" />
+            <PlusIcon className="gba:mr-2 gba:h-4 gba:w-4" />
             {t('learning-create-course')}
           </Button>
         }
         className="gba:min-h-screen"
       >
         <div className="gba:h-full gba:overflow-auto">
-          {renderTab(activeTab, context, handleEditCourse, handleAssignCourse)}
+          {renderTab(activeTab, context, handleCreateCourse, handleEditCourse, handleAssignCourse, setActiveTab)}
         </div>
         <CourseBuilderDialog
           open={builderOpen}
