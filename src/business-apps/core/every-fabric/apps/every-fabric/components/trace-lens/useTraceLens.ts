@@ -1,11 +1,12 @@
 // Trace Lens — data hook.
 //
-// Lists Every Fabric runs and, for a selected run, fetches the full trace
+// Lists Every Fabric runs (the caller's chat sessions merged with all agent
+// workforce runs) and, for a selected run, fetches the full trace
 // (`GET /deep-agent/sessions/{id}`) plus the backend debug-trace enrichment
 // (`GET /deep-agent/sessions/{id}/debug-trace` → metadata.timings + diagnostics)
-// and builds the normalized LangSmith-style model. Both endpoints already
-// exist, so this works locally and against deployed environments with no
-// backend changes.
+// and builds the normalized LangSmith-style model. The workforce listing
+// (`GET /workforce/runs`) is best-effort so older backends degrade to
+// chat-only.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { PROMPT_MANAGER_API_URL } from '@/common/utils/serviceResolver'
@@ -13,6 +14,7 @@ import { setAccessTokenToAuthorizationHeader } from '@/common/network/HeaderUtil
 import type { DeepAgentSession } from '../../types/enterpriseAgent'
 import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
 import { buildTraceLensModel, type DebugTracePayload, type TraceLensModel } from './traceLensModel'
+import { chatSessionToRunRow, fetchWorkforceRunRows, mergeRunRows, type TraceLensRunRow } from './traceLensRuns'
 
 const promptManagerBase = (): string =>
   PROMPT_MANAGER_API_URL.endsWith('/') ? PROMPT_MANAGER_API_URL.slice(0, -1) : PROMPT_MANAGER_API_URL
@@ -39,7 +41,7 @@ async function fetchDebugTrace(sessionId: string, accessToken: string): Promise<
 }
 
 export interface UseTraceLensResult {
-  sessions: DeepAgentSession[]
+  runs: TraceLensRunRow[]
   loadingSessions: boolean
   sessionsError: string | null
   refreshSessions: () => void
@@ -57,7 +59,7 @@ export interface UseTraceLensResult {
 export function useTraceLens(accessToken: string, initialSessionId?: string | null): UseTraceLensResult {
   const client = useEnterpriseAgentClient(accessToken)
 
-  const [sessions, setSessions] = useState<DeepAgentSession[]>([])
+  const [runs, setRuns] = useState<TraceLensRunRow[]>([])
   const [loadingSessions, setLoadingSessions] = useState(false)
   const [sessionsError, setSessionsError] = useState<string | null>(null)
 
@@ -72,12 +74,17 @@ export function useTraceLens(accessToken: string, initialSessionId?: string | nu
   const refreshSessions = useCallback(() => {
     setLoadingSessions(true)
     setSessionsError(null)
-    client
+    // Chat sessions are the primary source (errors surface); the workforce
+    // listing is additive and resolves to [] on older backends.
+    const chatPromise = client
       .getSessions({ limit: 100 })
-      .then(rows => setSessions(Array.isArray(rows) ? rows : []))
+      .then((rows: DeepAgentSession[]) => (Array.isArray(rows) ? rows.map(chatSessionToRunRow) : []))
+    const workforcePromise = fetchWorkforceRunRows(accessToken, 100)
+    Promise.all([chatPromise, workforcePromise])
+      .then(([chatRows, workforceRows]) => setRuns(mergeRunRows(chatRows, workforceRows)))
       .catch((err: unknown) => setSessionsError(err instanceof Error ? err.message : 'Failed to load sessions'))
       .finally(() => setLoadingSessions(false))
-  }, [client])
+  }, [client, accessToken])
 
   useEffect(() => {
     refreshSessions()
@@ -132,7 +139,7 @@ export function useTraceLens(accessToken: string, initialSessionId?: string | nu
   }, [selectedId, loadModel])
 
   return {
-    sessions,
+    runs,
     loadingSessions,
     sessionsError,
     refreshSessions,

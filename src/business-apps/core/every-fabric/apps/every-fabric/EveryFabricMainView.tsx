@@ -15,6 +15,14 @@ import type { useFabric } from './context/FabricContext'
 type FabricContext = ReturnType<typeof useFabric>
 type ActiveSessions = ReturnType<typeof useActiveSessions>['activeSessions']
 
+/** Deep-link target for TraceLens (`?view=trace-lens&traceRunId=<sessionId>`).
+ *  Read at render time — kept separate from `sessionId` so a workforce run
+ *  can be inspected without becoming the active chat session. */
+function getTraceRunIdFromUrl(): string | null {
+  if (typeof globalThis.location === 'undefined') return null
+  return new URLSearchParams(globalThis.location.search).get('traceRunId')
+}
+
 interface FadeOverlayProps {
   visible: boolean
   children?: ReactNode
@@ -194,7 +202,7 @@ export function EveryFabricMainView({
             <TraceLensScreen
               accessToken={accessToken}
               onBack={onCloseTraceLens}
-              initialSessionId={session?.session_id ?? null}
+              initialSessionId={getTraceRunIdFromUrl() ?? session?.session_id ?? null}
             />
           )}
         </FadeOverlay>

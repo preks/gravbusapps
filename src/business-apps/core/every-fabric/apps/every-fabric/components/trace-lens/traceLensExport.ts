@@ -27,7 +27,8 @@ function indentBlock(text: string, pad: string): string {
 function renderSpan(span: TraceSpan, lines: string[]): void {
   const indent = '  '.repeat(span.depth)
   const timing = span.marker ? `@${formatMs(span.startMs)}` : `${formatMs(span.durationMs)}`
-  const header = `${indent}- [${span.seq}] ${statusGlyph(span)} ${SPAN_KIND_LABEL[span.kind]}: ${span.name} (${timing})`
+  const errorSuffix = span.errorType ? ` [error_type=${span.errorType}]` : ''
+  const header = `${indent}- [${span.seq}] ${statusGlyph(span)} ${SPAN_KIND_LABEL[span.kind]}: ${span.name} (${timing})${errorSuffix}`
   lines.push(header)
 
   const detailPad = `${indent}    `
@@ -62,14 +63,18 @@ export function formatRunForCursor(model: TraceLensModel): string {
   lines.push('')
   lines.push('## Summary')
   lines.push(`- status: ${s.status}`)
+  lines.push(`- origin: ${s.origin}${s.source ? ` (${s.source})` : ''}`)
+  if (s.agentName) lines.push(`- agent: ${s.agentName}`)
   if (s.route) lines.push(`- route: ${s.route}`)
   if (s.createdAt) lines.push(`- created_at: ${s.createdAt}`)
   if (s.ttftMs !== undefined) lines.push(`- ttft: ${formatMs(s.ttftMs)}`)
   if (s.durationMs !== undefined) lines.push(`- turn_duration: ${formatMs(s.durationMs)}`)
   if (s.totalDurationMs !== undefined) lines.push(`- total_duration: ${formatMs(s.totalDurationMs)}`)
   lines.push(
-    `- counts: tools=${s.toolCount} subagents=${s.subagentCount} experts=${s.expertCount} skills=${s.skillCount} decisions=${s.decisionCount} hitl=${s.hitlCount} failed_tools=${s.failedToolCount} errors=${s.errorCount}`
+    `- counts: tools=${s.toolCount} subagents=${s.subagentCount} experts=${s.expertCount} skills=${s.skillCount} decisions=${s.decisionCount} hitl=${s.hitlCount} llm_calls=${s.llmCallCount} failed_tools=${s.failedToolCount} errors=${s.errorCount}`
   )
+  if (s.llmAvgLatencyMs !== undefined) lines.push(`- llm_avg_latency: ${formatMs(s.llmAvgLatencyMs)}`)
+  if (s.hitlWaitMs !== undefined) lines.push(`- human_wait_total: ${formatMs(s.hitlWaitMs)}`)
   if (s.tokensUsed !== undefined || s.estimatedCostUsd !== undefined) {
     const parts: string[] = []
     if (s.tokensUsed !== undefined) parts.push(`tokens=${s.tokensUsed}`)
@@ -128,6 +133,7 @@ interface ExportSpan {
   start_ms: number
   end_ms: number
   duration_ms: number | null
+  error_type?: string
   input?: unknown
   output?: string
   detail?: Record<string, unknown>
@@ -146,6 +152,7 @@ function spanToExport(span: TraceSpan): ExportSpan {
     duration_ms: span.durationMs,
     children: span.children.map(spanToExport)
   }
+  if (span.errorType !== undefined) out.error_type = span.errorType
   if (span.input !== undefined) out.input = span.input
   if (span.output !== undefined) out.output = span.output
   if (span.detail && Object.keys(span.detail).length > 0) out.detail = span.detail

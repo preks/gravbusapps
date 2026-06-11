@@ -44,6 +44,9 @@ export const useSessionUrlState = () => {
       /** Optional mesh scope param — used by sidebar entries that open Agent Mesh
        *  at a specific scope (Company / Session). Consumed by `useAgentMeshScope`. */
       meshScope?: string | null
+      /** Run to preselect when opening TraceLens (`view=trace-lens`). Kept
+       *  separate from `sessionId` so workforce runs do not hijack the chat. */
+      traceRunId?: string | null
     }) => {
       if (globalThis.history === undefined || globalThis.location === undefined) return
       const next = getCurrentUrlWithUpdatedSearchParams(params)

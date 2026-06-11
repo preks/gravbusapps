@@ -7,11 +7,17 @@ import {
   ClockIcon,
   CoinsIcon,
   IdentificationBadgeIcon,
+  MagnifyingGlassIcon,
   SpinnerGapIcon,
   TimerIcon
 } from '@phosphor-icons/react'
 import type { Icon } from '@phosphor-icons/react'
 import React from 'react'
+import { FeatureHub } from 'featurehub-javascript-client-sdk'
+import { getCurrentUrlWithUpdatedSearchParams } from '@/common/utils/navigationUtils'
+import { Feature } from '@/common/types/constants/FeatureHub'
+import { useAgentSettings } from '../../../hooks/useAgentSettings'
+import { isEveryFabricDevToolsEnabled } from '../../../utils/devToolsGate'
 import { LiveStatusPill } from '../LiveStatusPill'
 import { formatTimestamp, runCredits, runDurationLabel, runStatusVisual } from '../runDisplay'
 import { sourceVisual } from '../workforceSourceDisplay'
@@ -34,6 +40,30 @@ interface FactProps {
   icon: Icon
   label: string
   value: string
+}
+
+/** Read the dev-tools flag without requiring a FeatureHub context (test envs). */
+function readDevToolsFeatureFlag(): boolean | undefined {
+  try {
+    return FeatureHub.feature<boolean>(Feature.EveryFabric.DevTools.Key).value
+  } catch {
+    return undefined
+  }
+}
+
+/** Dev-gated jump into TraceLens preselecting this run (`traceRunId` deep link). */
+function openRunInTraceLens(sessionId: string): void {
+  if (globalThis.history === undefined || globalThis.location === undefined) return
+  const next = getCurrentUrlWithUpdatedSearchParams({
+    view: 'trace-lens',
+    traceRunId: sessionId,
+    agentId: null,
+    tab: null,
+    runId: null
+  })
+  if (!next) return
+  globalThis.history.pushState({ ...(globalThis.history.state ?? {}) }, '', next)
+  globalThis.dispatchEvent(new PopStateEvent('popstate', { state: globalThis.history.state }))
 }
 
 const Fact: React.FC<FactProps> = ({ icon: IconComponent, label, value }) => (
@@ -60,6 +90,9 @@ export const RunDetailHeader: React.FC<RunDetailHeaderProps> = ({
   isRefreshing,
   onBack
 }) => {
+  const { devModeEnabled: localDevModeEnabled } = useAgentSettings()
+  const devModeEnabled = isEveryFabricDevToolsEnabled(readDevToolsFeatureFlag()) && localDevModeEnabled
+
   const visual = runStatusVisual(run.status)
   const source = resolveSource(run)
   const sourceInfo = sourceVisual(source)
@@ -104,6 +137,17 @@ export const RunDetailHeader: React.FC<RunDetailHeaderProps> = ({
           <span className="gba:ml-auto gba:font-mono gba:text-[11px] gba:text-muted-foreground">
             {run.session_id.slice(0, 8)}
           </span>
+          {devModeEnabled && (
+            <button
+              type="button"
+              onClick={() => openRunInTraceLens(run.session_id)}
+              className="gba:inline-flex gba:items-center gba:gap-1 gba:rounded-md gba:border gba:border-border/60 gba:px-2 gba:py-1 gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:hover:bg-muted/60 gba:hover:text-foreground"
+              data-testid="run-detail-open-trace-lens"
+            >
+              <MagnifyingGlassIcon className="gba:h-3 gba:w-3" />
+              TraceLens
+            </button>
+          )}
         </div>
 
         <div className="gba:mt-4 gba:grid gba:grid-cols-2 gba:gap-3 gba:sm:grid-cols-3 gba:lg:grid-cols-5">

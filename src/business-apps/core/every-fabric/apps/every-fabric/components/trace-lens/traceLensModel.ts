@@ -10,6 +10,7 @@
 // reused by the "Copy for Cursor" exporter.
 
 import type { DeepAgentSession } from '../../types/enterpriseAgent'
+import { enrichRawTraceEvents } from './traceLensEnrich'
 
 /** Loose view over a raw trace event — the FE union omits a few persisted fields
  *  (parent_step_id, subagent_id, plan, …) that the backend writer does emit. */
@@ -24,11 +25,14 @@ export type SpanKind =
   | 'decision'
   | 'routing'
   | 'hitl'
+  | 'wait'
   | 'approval'
   | 'capability_missing'
   | 'artifact'
   | 'pack'
   | 'cost'
+  | 'llm'
+  | 'workforce'
   | 'status'
   | 'message'
   | 'terminal'
@@ -53,6 +57,8 @@ export interface TraceSpan {
   timestamp: string | null
   input?: unknown
   output?: string
+  /** Classified failure type (http_5xx, timeout, permission_required, …) for failed tools. */
+  errorType?: string
   /** Event-kind-specific payload (decision rationale, routing plan, skill meta, …). */
   detail?: Record<string, unknown>
   depth: number
@@ -116,6 +122,16 @@ export interface TraceLensSummary {
   tokensUsed?: number
   estimatedCostUsd?: number
   cacheHitRatio?: number
+  /** 'workforce' when the trace carries a workforce_run_started kickoff event. */
+  origin: 'chat' | 'workforce'
+  /** Workforce agent display name (workforce runs only). */
+  agentName?: string
+  /** Run source: manual | schedule | webhook | inbound_email (workforce only). */
+  source?: string
+  llmCallCount: number
+  llmAvgLatencyMs?: number
+  /** Total time spent waiting on humans (synthesized hitl_wait spans). */
+  hitlWaitMs?: number
 }
 
 export interface TraceLensModel {
@@ -171,7 +187,9 @@ const POINT_KIND_BY_TYPE: Record<string, SpanKind> = {
   pack_loaded: 'pack',
   pack_detection_skipped: 'pack',
   policy_applied: 'decision',
-  cost_attribution: 'cost'
+  cost_attribution: 'cost',
+  workforce_run_started: 'workforce',
+  tool_available_summary: 'status'
 }
 
 function markerName(type: string, ev: RawTraceEvent): string {
@@ -225,6 +243,14 @@ function markerName(type: string, ev: RawTraceEvent): string {
     }
     case 'cost_attribution':
       return 'Cost attribution'
+    case 'workforce_run_started': {
+      const agent = readStr(ev.agent_name)
+      const source = readStr(ev.source)
+      const label = agent ? `Run started: ${agent}` : 'Workforce run started'
+      return source ? `${label} (${source})` : label
+    }
+    case 'tool_available_summary':
+      return `Tools bound (${readNum(ev.tool_count) ?? 0})`
     default:
       return type
   }
@@ -248,7 +274,7 @@ export function buildTraceLensSpans(session: DeepAgentSession): {
   const events = ((session.trace ?? []) as unknown[]).filter(
     (e): e is RawTraceEvent => Boolean(e) && typeof e === 'object'
   )
-  const sorted = [...events].sort((a, b) => (readNum(a.seq) ?? 0) - (readNum(b.seq) ?? 0))
+  const sorted = enrichRawTraceEvents([...events].sort((a, b) => (readNum(a.seq) ?? 0) - (readNum(b.seq) ?? 0)))
 
   const startTs = sorted.reduce<number | null>((min, ev) => {
     const ts = parseTs(ev.timestamp)
@@ -294,6 +320,14 @@ export function buildTraceLensSpans(session: DeepAgentSession): {
     return span
   }
 
+  const applyErrorMeta = (span: MutableSpan, ev: RawTraceEvent): void => {
+    const errorType = readStr(ev.error_type)
+    if (!errorType) return
+    span.errorType = errorType
+    span.detail = { ...span.detail, error_type: errorType }
+    if (ev.is_critical === true) span.detail.is_critical = true
+  }
+
   const close = (id: string | undefined, ev: RawTraceEvent): void => {
     if (!id) return
     const span = byId.get(id)
@@ -308,6 +342,7 @@ export function buildTraceLensSpans(session: DeepAgentSession): {
       created._closed = true
       if (durationMs !== null) created.endMs = created.startMs + durationMs
       else created.endMs = offset(ts)
+      applyErrorMeta(created, ev)
       return
     }
     span._closed = true
@@ -316,6 +351,7 @@ export function buildTraceLensSpans(session: DeepAgentSession): {
     if (readStr(ev.name) && !span.name) span.name = readStr(ev.name) as string
     span.durationMs = durationMs ?? (ts !== null && span._startTs !== null ? ts - span._startTs : null)
     span.endMs = durationMs !== null ? span.startMs + durationMs : offset(ts)
+    applyErrorMeta(span, ev)
   }
 
   const addMarker = (type: string, ev: RawTraceEvent): void => {
@@ -326,6 +362,9 @@ export function buildTraceLensSpans(session: DeepAgentSession): {
     span.durationMs = 0
     span._closed = true
     span.detail = { type, ...ev }
+    // The workforce kickoff event is the run's root: surface the task as the
+    // marker output (chat runs get the equivalent via the "User message" row).
+    if (type === 'workforce_run_started') span.output = readStr(ev.task)
   }
 
   for (const ev of sorted) {
@@ -360,6 +399,52 @@ export function buildTraceLensSpans(session: DeepAgentSession): {
       case 'expert_completed':
         close(readStr(ev.step_id), ev)
         break
+      case 'llm_call': {
+        // One span per model call, drained right after the call completes —
+        // the timestamp marks the end, so backdate the start by the latency.
+        const duration = readNum(ev.duration_ms) ?? 0
+        const span = open(
+          readStr(ev.event_id) || `llm-${synthetic++}`,
+          'llm',
+          `LLM · ${readStr(ev.model) || 'model'}`,
+          ev
+        )
+        span.startMs = Math.max(0, span.startMs - duration)
+        span.endMs = span.startMs + duration
+        span.durationMs = duration
+        span.status = 'done'
+        span._closed = true
+        span.output = readStr(ev.completion_preview)
+        span.detail = {
+          type,
+          model: readStr(ev.model),
+          stage: readStr(ev.stage),
+          prompt_tokens: readNum(ev.prompt_tokens),
+          cached_prompt_tokens: readNum(ev.cached_prompt_tokens),
+          completion_tokens: readNum(ev.completion_tokens),
+          total_tokens: readNum(ev.total_tokens),
+          cache_hit_ratio: readNum(ev.cache_hit_ratio),
+          cost_usd: readNum(ev.cost_usd),
+          finish_reason: readStr(ev.finish_reason)
+        }
+        break
+      }
+      case 'hitl_wait': {
+        // Synthesized by traceLensEnrich from hitl_requested → hitl_resolved.
+        const duration = readNum(ev.duration_ms) ?? null
+        const span = open(
+          readStr(ev.event_id) || `wait-${synthetic++}`,
+          'wait',
+          readStr(ev.title) ? `Waiting for human · ${readStr(ev.title)}` : 'Waiting for human',
+          ev
+        )
+        span.durationMs = duration
+        span.endMs = duration !== null ? span.startMs + duration : span.startMs
+        span.status = 'done'
+        span._closed = true
+        span.detail = { type, request_id: readStr(ev.request_id), resolved_by: readStr(ev.resolved_by) }
+        break
+      }
       case 'agent_chunk': {
         const role = readStr(ev.role)
         const chunkKind = readStr(ev.chunk_kind)
@@ -517,6 +602,13 @@ export function buildTraceLensModel(session: DeepAgentSession, debug?: DebugTrac
 
   const cost = (session.cost_summary ?? undefined) as Record<string, unknown> | undefined
 
+  const workforceStart = flat.find(s => s.kind === 'workforce')
+  const llmSpans = flat.filter(s => s.kind === 'llm')
+  const llmLatencies = llmSpans.map(s => s.durationMs).filter((d): d is number => typeof d === 'number' && d > 0)
+  const llmAvgLatencyMs =
+    llmLatencies.length > 0 ? Math.round(llmLatencies.reduce((sum, d) => sum + d, 0) / llmLatencies.length) : undefined
+  const hitlWaitTotal = flat.filter(s => s.kind === 'wait').reduce((sum, s) => sum + (s.durationMs ?? 0), 0)
+
   const summary: TraceLensSummary = {
     sessionId: session.session_id,
     status: session.status,
@@ -537,7 +629,13 @@ export function buildTraceLensModel(session: DeepAgentSession, debug?: DebugTrac
     failedToolCount: diagnostics.failedTools.length || flat.filter(s => s.status === 'failed' && !s.marker).length,
     tokensUsed: cost ? readNum(cost.tokens_used) : undefined,
     estimatedCostUsd: cost ? readNum(cost.estimated_cost_usd) : undefined,
-    cacheHitRatio: cost ? readNum(cost.cache_hit_ratio) : undefined
+    cacheHitRatio: cost ? readNum(cost.cache_hit_ratio) : undefined,
+    origin: workforceStart ? 'workforce' : 'chat',
+    agentName: workforceStart ? readStr(workforceStart.detail?.agent_name) : undefined,
+    source: workforceStart ? readStr(workforceStart.detail?.source) : undefined,
+    llmCallCount: llmSpans.length,
+    llmAvgLatencyMs,
+    hitlWaitMs: hitlWaitTotal > 0 ? hitlWaitTotal : undefined
   }
 
   return { roots, flat, totalMs, startTs, summary, diagnostics, rawEventCount: (session.trace ?? []).length }
@@ -563,11 +661,14 @@ export const SPAN_KIND_LABEL: Record<SpanKind, string> = {
   decision: 'Decision',
   routing: 'Routing',
   hitl: 'Human-in-the-loop',
+  wait: 'Waiting',
   approval: 'Approval',
   capability_missing: 'Capability gap',
   artifact: 'Artifact',
   pack: 'Execution pack',
   cost: 'Cost',
+  llm: 'LLM call',
+  workforce: 'Workforce',
   status: 'Status',
   message: 'Message',
   terminal: 'Terminal',
@@ -584,11 +685,14 @@ export const SPAN_KIND_ACCENT: Record<SpanKind, { text: string; bg: string; bar:
   decision: { text: 'gba:text-amber-600', bg: 'gba:bg-amber-500/10', bar: 'gba:bg-amber-500' },
   routing: { text: 'gba:text-amber-600', bg: 'gba:bg-amber-500/10', bar: 'gba:bg-amber-500' },
   hitl: { text: 'gba:text-orange-600', bg: 'gba:bg-orange-500/10', bar: 'gba:bg-orange-500' },
+  wait: { text: 'gba:text-orange-600', bg: 'gba:bg-orange-500/10', bar: 'gba:bg-orange-400' },
   approval: { text: 'gba:text-orange-600', bg: 'gba:bg-orange-500/10', bar: 'gba:bg-orange-500' },
   capability_missing: { text: 'gba:text-rose-600', bg: 'gba:bg-rose-500/10', bar: 'gba:bg-rose-500' },
   artifact: { text: 'gba:text-indigo-600', bg: 'gba:bg-indigo-500/10', bar: 'gba:bg-indigo-500' },
   pack: { text: 'gba:text-cyan-600', bg: 'gba:bg-cyan-500/10', bar: 'gba:bg-cyan-500' },
   cost: { text: 'gba:text-fuchsia-600', bg: 'gba:bg-fuchsia-500/10', bar: 'gba:bg-fuchsia-500' },
+  llm: { text: 'gba:text-purple-600', bg: 'gba:bg-purple-500/10', bar: 'gba:bg-purple-500' },
+  workforce: { text: 'gba:text-emerald-700', bg: 'gba:bg-emerald-500/10', bar: 'gba:bg-emerald-600' },
   status: { text: 'gba:text-muted-foreground', bg: 'gba:bg-muted', bar: 'gba:bg-muted-foreground/40' },
   message: { text: 'gba:text-foreground', bg: 'gba:bg-muted', bar: 'gba:bg-foreground/30' },
   terminal: { text: 'gba:text-emerald-700', bg: 'gba:bg-emerald-500/10', bar: 'gba:bg-emerald-600' },

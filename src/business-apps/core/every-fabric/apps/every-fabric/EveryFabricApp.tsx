@@ -115,7 +115,7 @@ const EveryFabricInner: React.FC = () => {
     updateUrl({ view: 'trace-explorer', t: positionMs != null ? String(positionMs) : null })
   const handleCloseTraceExplorer = () => updateUrl({ view: null, t: null, focus: null })
   const handleOpenTraceLens = () => updateUrl({ view: 'trace-lens' })
-  const handleCloseTraceLens = () => updateUrl({ view: null })
+  const handleCloseTraceLens = () => updateUrl({ view: null, traceRunId: null })
   const handleOpenAgentMeshFromTrace = (positionMs?: number) =>
     updateUrl({ view: 'agent-mesh', t: positionMs != null ? String(positionMs) : null })
   const handleOpenEnterpriseWorkforce = () => updateUrl({ view: 'enterprise-workforce' })
