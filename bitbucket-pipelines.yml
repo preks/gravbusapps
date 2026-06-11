@@ -434,6 +434,8 @@ pipelines:
       - variables:
           - name: SCREENS_TO_PUBLISH
             default: ""
+          - name: SCREEN_KEYS_TO_PUBLISH
+            default: ""
           - name: PUBLISH_ALL_SCREENS
             default: "false"
             allowed-values:
