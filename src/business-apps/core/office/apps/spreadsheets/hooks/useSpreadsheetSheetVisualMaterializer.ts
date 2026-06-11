@@ -4,6 +4,7 @@ import {
   type BootstrapSnapshotLoaderResult
 } from '../utils/spreadsheetBootstrapSnapshotHelpers'
 import { attachSnapshotCoversVersions, getSheetCoverageVersion } from '../utils/spreadsheetSnapshotCoverage'
+import { INLINE_FORMATTING_KEYS } from '../utils/univerAdapter'
 
 export type SheetVisualFormattingSource = 'hydration' | 'cache' | 'remote' | 'session' | 'missing'
 
@@ -12,6 +13,7 @@ export type SheetVisualReadiness = 'data_only' | 'visual_partial' | 'visual_comp
 export type SheetVisualCandidateDiagnostics = {
   hasWorkbookStyleRegistry: boolean
   worksheetStyleRefCount: number
+  hasResolvableWorksheetStyleSignal: boolean
   hasWorksheetCellData: boolean
   hasWorksheetStructuralVisualSignal: boolean
   hasOrphanStyleRegistry: boolean
@@ -86,6 +88,55 @@ const countWorksheetStyleReferences = (worksheet: Record<string, unknown> | null
   return styleRefCount
 }
 
+const getStyleRefId = (styleRef: unknown): string | null => {
+  if (typeof styleRef === 'string') {
+    const normalized = styleRef.trim()
+    return normalized.length > 0 ? normalized : null
+  }
+  if (typeof styleRef === 'number' && Number.isFinite(styleRef)) {
+    return String(styleRef)
+  }
+  return null
+}
+
+const cellHasResolvableFormattingSignal = (
+  cell: Record<string, unknown>,
+  styles: Record<string, unknown> | null
+): boolean => {
+  const styleRefId = getStyleRefId(cell.s)
+  if (
+    styleRefId &&
+    styles?.[styleRefId] &&
+    typeof styles[styleRefId] === 'object' &&
+    !Array.isArray(styles[styleRefId])
+  ) {
+    return true
+  }
+  if (cell.s && typeof cell.s === 'object' && !Array.isArray(cell.s) && Object.keys(cell.s).length > 0) {
+    return true
+  }
+  return Object.keys(cell).some(key => INLINE_FORMATTING_KEYS.has(key))
+}
+
+const hasResolvableWorksheetStyleSignal = (
+  worksheet: Record<string, unknown> | null,
+  styles: Record<string, unknown> | null
+): boolean => {
+  if (!worksheet) return false
+  const cellData = worksheet.cellData
+  if (!cellData || typeof cellData !== 'object' || Array.isArray(cellData)) return false
+  for (const row of Object.values(cellData as Record<string, unknown>)) {
+    if (!row || typeof row !== 'object' || Array.isArray(row)) continue
+    for (const cell of Object.values(row as Record<string, unknown>)) {
+      if (!cell || typeof cell !== 'object' || Array.isArray(cell)) continue
+      if (cellHasResolvableFormattingSignal(cell as Record<string, unknown>, styles)) {
+        return true
+      }
+    }
+  }
+  return false
+}
+
 const hasWorksheetCellData = (worksheet: Record<string, unknown> | null): boolean => {
   if (!worksheet) return false
   const cellData = worksheet.cellData
@@ -133,7 +184,11 @@ export const classifyPreparedSheetVisualCandidate = (
   }
   const diagnostics = getPreparedSheetVisualCandidateDiagnostics(prepared)
 
-  if (prepared.validation.formattingScore > 0 || prepared.formattingEnriched) {
+  if (
+    prepared.validation.formattingScore > 0 ||
+    prepared.formattingEnriched ||
+    diagnostics.hasResolvableWorksheetStyleSignal
+  ) {
     return 'visual_complete'
   }
   if (diagnostics.hasOrphanStyleRegistry) {
@@ -155,6 +210,7 @@ export const getPreparedSheetVisualCandidateDiagnostics = (
     return {
       hasWorkbookStyleRegistry: false,
       worksheetStyleRefCount: 0,
+      hasResolvableWorksheetStyleSignal: false,
       hasWorksheetCellData: false,
       hasWorksheetStructuralVisualSignal: false,
       hasOrphanStyleRegistry: false
@@ -162,18 +218,25 @@ export const getPreparedSheetVisualCandidateDiagnostics = (
   }
   const worksheet = getWorksheetSnapshot(prepared.snapshotWithCoverage, prepared.activeSheetIdLocal)
   const styles = prepared.snapshotWithCoverage.styles
+  const workbookStyles =
+    styles && typeof styles === 'object' && !Array.isArray(styles) ? (styles as Record<string, unknown>) : null
   const hasWorkbookStyleRegistry = Boolean(
     styles && typeof styles === 'object' && !Array.isArray(styles) && Object.keys(styles).length > 0
   )
   const worksheetStyleRefCount = countWorksheetStyleReferences(worksheet)
+  const hasResolvableWorksheetStyleSignalValue = hasResolvableWorksheetStyleSignal(worksheet, workbookStyles)
   const hasWorksheetCellDataValue = hasWorksheetCellData(worksheet)
   const hasWorksheetStructuralVisualSignalValue = hasWorksheetStructuralVisualSignal(worksheet)
   const hasOrphanStyleRegistry =
-    hasWorkbookStyleRegistry && worksheetStyleRefCount === 0 && prepared.validation.formattingScore <= 0
+    hasWorkbookStyleRegistry &&
+    !hasResolvableWorksheetStyleSignalValue &&
+    worksheetStyleRefCount === 0 &&
+    prepared.validation.formattingScore <= 0
 
   return {
     hasWorkbookStyleRegistry,
     worksheetStyleRefCount,
+    hasResolvableWorksheetStyleSignal: hasResolvableWorksheetStyleSignalValue,
     hasWorksheetCellData: hasWorksheetCellDataValue,
     hasWorksheetStructuralVisualSignal: hasWorksheetStructuralVisualSignalValue,
     hasOrphanStyleRegistry

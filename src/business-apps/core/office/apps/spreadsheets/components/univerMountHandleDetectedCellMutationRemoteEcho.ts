@@ -71,6 +71,17 @@ export function selectionReconcileAllCellsLocallyOwned(
   return true
 }
 
+const toSelectionReconcileEchoSignature = (value: unknown): string => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return toEchoSignature(value)
+  }
+  const cell = value as Record<string, unknown>
+  if (cell.v !== undefined || cell.m !== undefined || cell.f !== undefined) {
+    return toEchoSignature(cell)
+  }
+  return toEchoSignature('')
+}
+
 export function selectionReconcileHasAuthoritativeDiff(
   deps: Pick<UniverMountHandleDetectedCellMutationDeps, 'lastSyncedGridCellSignaturesRef'>,
   cellValue: SheetCellMatrix
@@ -84,7 +95,7 @@ export function selectionReconcileHasAuthoritativeDiff(
     for (const colKey of Object.keys(rowCells)) {
       const colIndex = Number(colKey)
       if (Number.isNaN(colIndex)) continue
-      const nextSignature = normalizeSelectionReconcileSignature(toEchoSignature(rowCells[colIndex]))
+      const nextSignature = normalizeSelectionReconcileSignature(toSelectionReconcileEchoSignature(rowCells[colIndex]))
       const authoritativeSignature = normalizeSelectionReconcileSignature(
         lastSyncedGridCellSignaturesRef.current.get(remoteEchoKey(rowIndex, colIndex))
       )

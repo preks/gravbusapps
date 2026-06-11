@@ -2,12 +2,26 @@ import { SpreadsheetApiService } from '../../services/SpreadsheetApiService'
 import { saveSpreadsheetSnapshotWithRetry } from '../spreadsheetSnapshotSaveWithRetry'
 import { createTestSpreadsheetSheet } from '../test-fixtures/spreadsheetCoreTestFixtures'
 import { persistSpreadsheetSnapshotCheckpointForSheet } from '../spreadsheetSnapshotCheckpointPersistence'
-import { mergeAuthoritativeViewerRowsIntoWorkbookSnapshot } from '../../utils/univerAdapter'
+import {
+  mergeAuthoritativeViewerRowsIntoWorkbookSnapshot,
+  mergeWorkbookFormattingFromDonor
+} from '../../utils/univerAdapter'
+import {
+  protectSpreadsheetPendingLocalMutationCells,
+  releaseSpreadsheetPendingLocalMutationCells,
+  spreadsheetPendingLocalMutationCoordinateCellKey
+} from '../../utils/spreadsheetPendingMaterializationCells'
 
 jest.mock('../../utils/univerAdapter', () => ({
   mergeAuthoritativeViewerRowsIntoWorkbookSnapshot: jest.fn((snapshot: unknown) => snapshot),
+  mergeWorkbookFormattingFromDonor: jest.fn((snapshot: unknown) => snapshot),
   normalizeWorkbookSnapshotToAppSheets: jest.fn((snapshot: unknown) => snapshot),
-  stripWorkbookSnapshotValuesPreservingFormatting: jest.fn((snapshot: unknown) => snapshot)
+  stripWorkbookSnapshotValuesPreservingFormatting: jest.fn((snapshot: unknown) => snapshot),
+  workbookFormattingRichnessScore: jest.fn((snapshot: unknown) =>
+    snapshot && typeof snapshot === 'object' && '__formattingScore' in snapshot
+      ? Number((snapshot as { __formattingScore?: number }).__formattingScore ?? 0)
+      : 0
+  )
 }))
 
 jest.mock('../../utils/univerSnapshotCache', () => ({
@@ -26,6 +40,7 @@ const mockSaveSpreadsheetSnapshotWithRetry = jest.mocked(saveSpreadsheetSnapshot
 const mockMergeAuthoritativeViewerRowsIntoWorkbookSnapshot = jest.mocked(
   mergeAuthoritativeViewerRowsIntoWorkbookSnapshot
 )
+const mockMergeWorkbookFormattingFromDonor = jest.mocked(mergeWorkbookFormattingFromDonor)
 
 const baseSheet = createTestSpreadsheetSheet()
 
@@ -92,6 +107,7 @@ describe('persistSpreadsheetSnapshotCheckpointForSheet', () => {
     jest.restoreAllMocks()
     jest.clearAllMocks()
     mockMergeAuthoritativeViewerRowsIntoWorkbookSnapshot.mockImplementation((snapshot: unknown) => snapshot as never)
+    mockMergeWorkbookFormattingFromDonor.mockImplementation((snapshot: unknown) => snapshot as never)
   })
 
   it('returns early when entity-backed mode is enabled', async () => {
@@ -176,6 +192,39 @@ describe('persistSpreadsheetSnapshotCheckpointForSheet', () => {
     )
   })
 
+  it('persists an active-sheet checkpoint after queue-backed local protection is released', async () => {
+    jest.spyOn(SpreadsheetApiService, 'getUniverSnapshot').mockResolvedValue({
+      version: 2,
+      coversVersions: { 'sheet-1': 2 }
+    } as never)
+    mockSaveSpreadsheetSnapshotWithRetry.mockResolvedValue({
+      savedSnapshot: { ok: true },
+      cacheResult: { stored: true, reason: null }
+    })
+    const pendingLocalMutationCellsRef = { current: new Set<string>() }
+    const protectedKey = spreadsheetPendingLocalMutationCoordinateCellKey('sheet-1', 0, 0)
+    const protectionEntry = {
+      key: protectedKey,
+      ownerId: `queue:sheet-1:${protectedKey}`
+    }
+    protectSpreadsheetPendingLocalMutationCells(pendingLocalMutationCellsRef, [protectionEntry], { ttlMs: 0 })
+    const { ctx } = createContext({ pendingLocalMutationCellsRef })
+
+    await persistSpreadsheetSnapshotCheckpointForSheet('sheet-1', ctx as never)
+
+    expect(mockSaveSpreadsheetSnapshotWithRetry).not.toHaveBeenCalled()
+    expect(ctx.debugLog).toHaveBeenCalledWith(
+      'snapshot checkpoint deferred: sheet not safe',
+      expect.objectContaining({ reason: 'pending_local_mutation_protection' })
+    )
+
+    releaseSpreadsheetPendingLocalMutationCells(pendingLocalMutationCellsRef, [protectionEntry])
+    ctx.pendingSnapshotCheckpointBySheetRef.current.clear()
+    await persistSpreadsheetSnapshotCheckpointForSheet('sheet-1', ctx as never)
+
+    expect(mockSaveSpreadsheetSnapshotWithRetry).toHaveBeenCalledTimes(1)
+  })
+
   it('defers checkpoint persistence while sheet queue work is still busy', async () => {
     jest.spyOn(SpreadsheetApiService, 'getUniverSnapshot').mockResolvedValue({
       version: 2,
@@ -227,6 +276,62 @@ describe('persistSpreadsheetSnapshotCheckpointForSheet', () => {
     expect(ctx.pendingSnapshotClearCellsRef.current.has('sheet-1')).toBe(false)
     expect(ctx.workbookSnapshotVersionRef.current).toBe(8)
     expect(ctx.lastSuccessfulSnapshotCheckpointAtRef.current).toBeGreaterThan(0)
+  })
+
+  it('merges richer remote formatting before saving a style-poor live checkpoint', async () => {
+    jest.spyOn(SpreadsheetApiService, 'getUniverSnapshot').mockResolvedValue({
+      version: 2,
+      snapshot: {
+        __formattingScore: 5,
+        styles: { style1: { bg: { rgb: '#ffff00' } } },
+        sheets: {
+          'sheet-1': {
+            id: 'sheet-1',
+            cellData: { 0: { 0: { s: 'style1' } } }
+          }
+        }
+      },
+      coversVersions: { 'sheet-1': 2 }
+    } as never)
+    mockMergeWorkbookFormattingFromDonor.mockImplementation(
+      () => ({ __formattingScore: 5, mergedStyles: true }) as never
+    )
+    mockSaveSpreadsheetSnapshotWithRetry.mockResolvedValue({
+      savedSnapshot: { ok: true },
+      cacheResult: { stored: true, reason: null }
+    })
+    const localStylePoorSnapshot = {
+      __formattingScore: 0,
+      sheets: {
+        'sheet-1': {
+          id: 'sheet-1',
+          rowCount: 1,
+          columnCount: 1,
+          cellData: {}
+        }
+      }
+    }
+    const { ctx } = createContext({
+      spreadsheetGridRef: {
+        current: {
+          getWorkbookSnapshot: jest.fn(() => localStylePoorSnapshot),
+          getVisibleRangeValues: jest.fn(() => ({}))
+        }
+      }
+    })
+
+    await persistSpreadsheetSnapshotCheckpointForSheet('sheet-1', ctx as never)
+
+    expect(mockMergeWorkbookFormattingFromDonor).toHaveBeenCalledWith(
+      expect.objectContaining({ __formattingScore: 0 }),
+      expect.objectContaining({ __formattingScore: 5 }),
+      'sheet-1'
+    )
+    expect(mockSaveSpreadsheetSnapshotWithRetry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseSnapshot: expect.objectContaining({ mergedStyles: true })
+      })
+    )
   })
 
   it('preserves richer live workbook values for the active sheet instead of downgrading to rows state', async () => {

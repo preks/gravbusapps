@@ -373,6 +373,7 @@ export interface UniverSheetGridWorksheetAdminHandle {
       activate?: boolean
       replaceExisting?: boolean
       worksheetSnapshot?: Record<string, unknown>
+      workbookDependencies?: Record<string, unknown>
       debugSource?: string
       debugReason?: string
     }

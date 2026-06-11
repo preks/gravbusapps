@@ -1,7 +1,9 @@
 import {
   applyStylePatchToUniverCell,
+  mergeWorksheetFormattingWithAuthoritativeValues,
   resolveRemoteStyleFacadeCellData,
-  toUniverFacadeCellDataFromStylePatch
+  toUniverFacadeCellDataFromStylePatch,
+  writeRemoteCellIntoUniverWorksheetSync
 } from '../univerGridWorkbookMutationModule'
 
 describe('applyStylePatchToUniverCell', () => {
@@ -58,5 +60,68 @@ describe('toUniverFacadeCellDataFromStylePatch', () => {
 
     expect(facadeCell.v).toBe(4)
     expect(facadeCell.s).toEqual({ bl: 1 })
+  })
+})
+
+describe('mergeWorksheetFormattingWithAuthoritativeValues', () => {
+  it('preserves workbook style refs while applying authoritative values', () => {
+    const merged = mergeWorksheetFormattingWithAuthoritativeValues(
+      {
+        id: 'sheet-2',
+        name: 'Sheet 2',
+        cellData: {
+          0: {
+            0: { v: 'stale value', s: 'hydrated-style' }
+          }
+        }
+      },
+      {
+        id: 'sheet-2',
+        name: 'Sheet 2',
+        cellData: {
+          0: {
+            0: { v: 'server value' }
+          }
+        }
+      },
+      'sheet-2',
+      'Sheet 2'
+    )
+
+    expect((merged.cellData as Record<string, Record<string, Record<string, unknown>>>)['0']['0']).toEqual({
+      v: 'server value',
+      s: 'hydrated-style'
+    })
+  })
+})
+
+describe('writeRemoteCellIntoUniverWorksheetSync', () => {
+  it('preserves inline formatting when writing scalar values', () => {
+    const setValue = jest.fn()
+    const worksheet = {
+      getRange: jest.fn(() => ({
+        getCellData: () => ({ v: 'old', bg: { rgb: '#ffff00' }, bl: 1 }),
+        setValue
+      }))
+    }
+
+    writeRemoteCellIntoUniverWorksheetSync({
+      workbook: {},
+      worksheet,
+      rowForApply: 0,
+      colForApply: 0,
+      value: 'new',
+      echoKey: '0:0',
+      remoteEchoSuppressionRef: { current: new Map() }
+    })
+
+    expect(setValue).toHaveBeenCalledWith({
+      v: 'new',
+      bg: { rgb: '#ffff00' },
+      bl: 1,
+      f: null,
+      p: null,
+      si: null
+    })
   })
 })

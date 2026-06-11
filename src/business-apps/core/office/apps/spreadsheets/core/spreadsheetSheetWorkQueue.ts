@@ -490,6 +490,7 @@ interface PerSheetState {
   remoteAwaitingSignals: Map<string, RemoteJobRecord>
   // Cell ownership
   cellOwnership: Map<string, { state: QueueCellOwnershipState; submittedAt?: number; ttlHandle?: unknown }>
+  protectedCellRefCounts: Map<string, number>
   // Version tracking (queue-owned)
   queueClientAppliedVersion: number | null
   // Debug telemetry
@@ -548,6 +549,7 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
         remoteInFlight: new Map(),
         remoteAwaitingSignals: new Map(),
         cellOwnership: new Map(),
+        protectedCellRefCounts: new Map(),
         queueClientAppliedVersion: null,
         lastFlushGroupKind: null,
         lastFlushGroupSize: 0,
@@ -603,22 +605,86 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
     }
   }
 
-  const setProtectedCellKeys = (
+  type ProtectionTrackedLocalGroup = Pick<LocalPersistInput, 'ownedCellKeys' | 'protectedCellKeys'> & {
+    activeProtectedCellKeys?: string[]
+  }
+
+  const activateLocalGroupProtection = (state: PerSheetState, group: ProtectionTrackedLocalGroup): void => {
+    if (!group.protectedCellKeys || group.protectedCellKeys.length === 0) return
+    const active = new Set(group.activeProtectedCellKeys ?? [])
+    const newlyProtected: string[] = []
+    for (const key of group.protectedCellKeys) {
+      if (active.has(key)) continue
+      active.add(key)
+      const previousCount = state.protectedCellRefCounts.get(key) ?? 0
+      state.protectedCellRefCounts.set(key, previousCount + 1)
+      if (previousCount === 0) {
+        newlyProtected.push(key)
+      }
+    }
+    group.activeProtectedCellKeys = Array.from(active)
+    if (newlyProtected.length > 0) {
+      deps.onLocalMutationCellProtectionChange?.(state.sheetId, newlyProtected, true)
+    }
+  }
+
+  const deactivateLocalGroupProtection = (state: PerSheetState, group: ProtectionTrackedLocalGroup): void => {
+    const activeKeys = group.activeProtectedCellKeys
+    if (!activeKeys || activeKeys.length === 0) return
+    const released: string[] = []
+    for (const key of activeKeys) {
+      const previousCount = state.protectedCellRefCounts.get(key) ?? 0
+      if (previousCount <= 0) {
+        continue
+      }
+      if (previousCount === 1) {
+        state.protectedCellRefCounts.delete(key)
+        released.push(key)
+      } else {
+        state.protectedCellRefCounts.set(key, previousCount - 1)
+      }
+    }
+    delete group.activeProtectedCellKeys
+    if (released.length > 0) {
+      deps.onLocalMutationCellProtectionChange?.(state.sheetId, released, false)
+    }
+  }
+
+  const releaseAcknowledgedProtectedCellKeys = (
     state: PerSheetState,
-    cellKeys: readonly string[] | undefined,
-    protectedFromRepaint: boolean
+    cellKeys: readonly string[] | undefined
   ): void => {
     if (!cellKeys || cellKeys.length === 0) return
-    deps.onLocalMutationCellProtectionChange?.(state.sheetId, cellKeys, protectedFromRepaint)
+    const released: string[] = []
+    for (const key of cellKeys) {
+      const count = state.protectedCellRefCounts.get(key) ?? 0
+      if (count !== 1) continue
+      state.protectedCellRefCounts.delete(key)
+      released.push(key)
+    }
+    if (released.length > 0) {
+      deps.onLocalMutationCellProtectionChange?.(state.sheetId, released, false)
+    }
+  }
+
+  const releaseAllProtectedCellKeys = (state: PerSheetState): void => {
+    if (state.protectedCellRefCounts.size === 0) return
+    const released = Array.from(state.protectedCellRefCounts.keys())
+    state.protectedCellRefCounts.clear()
+    deps.onLocalMutationCellProtectionChange?.(state.sheetId, released, false)
   }
 
   const setLocalGroupCellState = (
     state: PerSheetState,
-    group: Pick<LocalPersistInput, 'ownedCellKeys' | 'protectedCellKeys'>,
+    group: ProtectionTrackedLocalGroup,
     next: QueueCellOwnershipState
   ): void => {
     setCellStatesBulk(state, group.ownedCellKeys, next)
-    setProtectedCellKeys(state, group.protectedCellKeys, next !== 'submitted' && next !== 'failed' && next !== 'none')
+    if (next === 'submitted' || next === 'failed' || next === 'none') {
+      deactivateLocalGroupProtection(state, group)
+      return
+    }
+    activateLocalGroupProtection(state, group)
   }
 
   const getCellState = (sheetId: string, cellKey: string): QueueCellOwnershipState => {
@@ -631,7 +697,7 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
     const state = sheets.get(sheetId)
     if (!state) return
     setCellStatesBulk(state, params.ownedCellKeys, 'submitted')
-    setProtectedCellKeys(state, params.protectedCellKeys, false)
+    releaseAcknowledgedProtectedCellKeys(state, params.protectedCellKeys)
     debug('acknowledged_cell_ownership_released', {
       sheetId,
       ownedCellCount: params.ownedCellKeys?.length ?? 0,
@@ -673,6 +739,7 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
     if (state.remotePending.length > 0) return
     if (state.remoteInFlight.size > 0) return
     if (state.remoteAwaitingSignals.size > 0) return
+    releaseAllProtectedCellKeys(state)
     if (state.idleWaiters.length === 0) return
     const waiters = state.idleWaiters
     state.idleWaiters = []
@@ -919,7 +986,6 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
     const results = response.results
     if (!results || results.length === 0) {
       setCellStatesBulk(state, group.ownedCellKeys, 'submitted')
-      setProtectedCellKeys(state, group.protectedCellKeys, false)
       return
     }
     const operationIdToCellKey = new Map<string, string>()
@@ -945,7 +1011,6 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
     }
     setCellStatesBulk(state, acceptedKeys, 'submitted')
     setCellStatesBulk(state, rejectedKeys, 'failed')
-    setProtectedCellKeys(state, group.protectedCellKeys, false)
   }
 
   const countResultsByStatus = (
@@ -1298,6 +1363,7 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
         submitBaseVersion = response.newVersion
         applyResponseAwareOwnership(state, { ...group, operations: operationChunk }, response)
       }
+      deactivateLocalGroupProtection(state, group)
       if (!response) {
         throw new Error('sheet_work_queue_submit_missing_response')
       }
@@ -1472,17 +1538,20 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
       throw error
     }
     const state = ensureSheet(sheetId)
-    setLocalGroupCellState(state, item, 'pending')
+    setCellStatesBulk(state, item.ownedCellKeys, 'pending')
     const mergeGroupIndex = findCoalesceMergeGroupIndex(state, item)
     if (mergeGroupIndex >= 0) {
       const target = state.localGroups[mergeGroupIndex]
       if (target) {
         mergeIntoGroup(target, item)
+        activateLocalGroupProtection(state, target)
       } else {
         state.localGroups.push(item)
+        setLocalGroupCellState(state, item, 'pending')
       }
     } else {
       state.localGroups.push(item)
+      setLocalGroupCellState(state, item, 'pending')
     }
     state.syncState = 'pending'
     debug('local_group_enqueued', {
@@ -1681,6 +1750,7 @@ export const createSpreadsheetSheetWorkQueue = (deps: SheetWorkQueueDeps): Sheet
     disposed = true
     for (const state of sheets.values()) {
       cancelCoalesceTimer(state)
+      releaseAllProtectedCellKeys(state)
       for (const entry of state.cellOwnership.values()) {
         if (entry.ttlHandle != null) clearTimeoutFn(entry.ttlHandle)
       }

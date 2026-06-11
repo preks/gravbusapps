@@ -2128,6 +2128,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           rowOverlayChanged: hydrationCandidate.rowOverlayChanged,
           hasWorkbookStyleRegistry: diagnostics.hasWorkbookStyleRegistry,
           worksheetStyleRefCount: diagnostics.worksheetStyleRefCount,
+          hasResolvableWorksheetStyleSignal: diagnostics.hasResolvableWorksheetStyleSignal,
           hasWorksheetCellData: diagnostics.hasWorksheetCellData,
           hasWorksheetStructuralVisualSignal: diagnostics.hasWorksheetStructuralVisualSignal,
           hasOrphanStyleRegistry: diagnostics.hasOrphanStyleRegistry,
@@ -2157,6 +2158,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           rowOverlayChanged: prepared.rowOverlayChanged,
           hasWorkbookStyleRegistry: diagnostics.hasWorkbookStyleRegistry,
           worksheetStyleRefCount: diagnostics.worksheetStyleRefCount,
+          hasResolvableWorksheetStyleSignal: diagnostics.hasResolvableWorksheetStyleSignal,
           hasWorksheetCellData: diagnostics.hasWorksheetCellData,
           hasWorksheetStructuralVisualSignal: diagnostics.hasWorksheetStructuralVisualSignal,
           hasOrphanStyleRegistry: diagnostics.hasOrphanStyleRegistry,
@@ -2190,6 +2192,97 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         })
       }
       chosen = stableChosen
+      if (
+        currentAppliedWinner &&
+        chosen === currentAppliedWinner &&
+        chosen.readiness === 'visual_complete' &&
+        chosen.validation.formattingScore > 0
+      ) {
+        if (reason === 'sheet_switch' && chosen.snapshotWithCoverage) {
+          const worksheetSnapshotRaw = chosen.snapshotWithCoverage.sheets as Record<string, unknown> | undefined
+          const worksheetSnapshot =
+            worksheetSnapshotRaw &&
+            typeof worksheetSnapshotRaw === 'object' &&
+            !Array.isArray(worksheetSnapshotRaw) &&
+            worksheetSnapshotRaw[targetSheetId] &&
+            typeof worksheetSnapshotRaw[targetSheetId] === 'object' &&
+            !Array.isArray(worksheetSnapshotRaw[targetSheetId])
+              ? (worksheetSnapshotRaw[targetSheetId] as Record<string, unknown>)
+              : null
+          if (worksheetSnapshot) {
+            spreadsheetGridRef.current?.mergeWorkbookDependencies?.({
+              ...(chosen.snapshotWithCoverage.styles &&
+              typeof chosen.snapshotWithCoverage.styles === 'object' &&
+              !Array.isArray(chosen.snapshotWithCoverage.styles)
+                ? { styles: chosen.snapshotWithCoverage.styles as Record<string, unknown> }
+                : {})
+            })
+            programmaticWorksheetActivationGuardRef.current = {
+              expectedActiveSheetId: targetSheetId,
+              expiresAt: Date.now() + 1500
+            }
+            debugLog('sheet visual materializer activating preserved styled winner', {
+              sheetId: targetSheetId,
+              reason,
+              formattingSource: chosen.formattingSource,
+              formattingScore: chosen.validation.formattingScore,
+              readiness: chosen.readiness
+            })
+            const ensured = spreadsheetGridRef.current?.ensureWorksheetExists(
+              materializedSheetMeta,
+              canonicalRows,
+              materializedSheetMeta.columns,
+              {
+                activate: true,
+                replaceExisting: false,
+                worksheetSnapshot,
+                workbookDependencies: {
+                  ...(chosen.snapshotWithCoverage.styles &&
+                  typeof chosen.snapshotWithCoverage.styles === 'object' &&
+                  !Array.isArray(chosen.snapshotWithCoverage.styles)
+                    ? { styles: chosen.snapshotWithCoverage.styles as Record<string, unknown> }
+                    : {})
+                },
+                debugSource: 'materializeSheetVisualState',
+                debugReason: reason
+              }
+            )
+            if (ensured) {
+              syncSheetRowsIntoLocalState(targetSheetId, canonicalRows, {
+                persisted: false,
+                syncGrid: false,
+                sessionDiffProjectionMode: 'skip',
+                version: targetKnownSheetVersion,
+                recoveredSheetMeta: materializedSheetMeta
+              })
+              rememberLiveAppliedSheetVersion(targetSheetId, targetKnownSheetVersion)
+              rememberLiveAppliedSheetSnapshotVersion(targetSheetId, targetKnownSheetSnapshotVersion)
+              appliedSheetVisualWinnerRef.current.set(targetSheetId, chosen)
+              return true
+            }
+            programmaticWorksheetActivationGuardRef.current = null
+          }
+        }
+        if (reason === 'focus' || reason === 'visibility') {
+          syncSheetRowsIntoLocalState(targetSheetId, canonicalRows, {
+            persisted: false,
+            syncGrid: false,
+            sessionDiffProjectionMode: 'skip',
+            version: targetKnownSheetVersion,
+            recoveredSheetMeta: materializedSheetMeta
+          })
+          rememberLiveAppliedSheetVersion(targetSheetId, targetKnownSheetVersion)
+          rememberLiveAppliedSheetSnapshotVersion(targetSheetId, targetKnownSheetSnapshotVersion)
+          debugLog('sheet visual materializer skipped redundant styled focus reapply', {
+            sheetId: targetSheetId,
+            reason,
+            formattingSource: chosen.formattingSource,
+            formattingScore: chosen.validation.formattingScore,
+            readiness: chosen.readiness
+          })
+          return true
+        }
+      }
 
       if (!chosen?.snapshotWithCoverage || chosen.readiness === 'data_only') {
         debugLog('sheet visual materializer falling back to rows only', {
@@ -2270,6 +2363,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           activate: true,
           replaceExisting: true,
           worksheetSnapshot,
+          workbookDependencies: {
+            ...(chosen.snapshotWithCoverage.styles &&
+            typeof chosen.snapshotWithCoverage.styles === 'object' &&
+            !Array.isArray(chosen.snapshotWithCoverage.styles)
+              ? { styles: chosen.snapshotWithCoverage.styles as Record<string, unknown> }
+              : {})
+          },
           debugSource: 'materializeSheetVisualState',
           debugReason: reason
         }
@@ -2562,6 +2662,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           activate: shouldActivate,
           replaceExisting: Boolean(hydration.worksheetSnapshot),
           ...(hydration.worksheetSnapshot ? { worksheetSnapshot: hydration.worksheetSnapshot } : {}),
+          workbookDependencies: hydration.workbookDependencies ?? {},
           debugSource: 'hydrateSheetFromBackend',
           debugReason: reason
         }
@@ -3581,6 +3682,15 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
     const timeoutId = globalThis.setTimeout(() => {
       if (activeSheetIdRef.current !== activeSheetId) return
+      const currentMaterializationReason = sheetsNeedingGridMaterializationRef.current.get(activeSheetId)
+      if (currentMaterializationReason !== materializationReason) {
+        debugLog('skipped stale grid materialization for activated sheet', {
+          sheetId: activeSheetId,
+          scheduledReason: materializationReason,
+          currentReason: currentMaterializationReason ?? null
+        })
+        return
+      }
       if (prefersCanonicalReload) {
         void runActivationMaterialization(activeSheetId, materializationReason)
         return

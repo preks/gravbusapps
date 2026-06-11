@@ -1,7 +1,9 @@
 import type { SpreadsheetColumn, SpreadsheetSheet } from '../../types/spreadsheet'
 import {
+  buildHydrationWorkbookSnapshot,
   chooseStableAppliedSheetVisualCandidate,
   choosePreferredSheetVisualCandidate,
+  getPreparedSheetVisualCandidateDiagnostics,
   isWeakSessionVisualCandidate,
   prepareSheetVisualCandidate
 } from '../useSpreadsheetSheetVisualMaterializer'
@@ -35,6 +37,12 @@ const sheet = (): SpreadsheetSheet => ({
     rowsPerPage: 50,
     showRowNumbers: true
   }
+})
+
+const secondarySheet = (): SpreadsheetSheet => ({
+  ...sheet(),
+  id: 'sheet-2',
+  name: 'Sheet 2'
 })
 
 const rows = [{ _id: 'row-1', _gridRowIndex: 0, column_a: 'server value' }]
@@ -177,6 +185,58 @@ describe('useSpreadsheetSheetVisualMaterializer helpers', () => {
     expect(numericStylePrepared.readiness).toBe('visual_complete')
   })
 
+  it('classifies secondary-sheet hydration with workbook style dependencies as visual-complete', () => {
+    const primarySheet = sheet()
+    const targetSheet = secondarySheet()
+    const hydrationWorkbookSnapshot = buildHydrationWorkbookSnapshot({
+      appSheets: [primarySheet, targetSheet],
+      canonicalSheetMeta: targetSheet,
+      activeSheetId: targetSheet.id,
+      operationVersion: 5,
+      sheetSnapshotVersion: 7,
+      workbookSnapshotVersion: 11,
+      worksheetSnapshot: {
+        id: targetSheet.id,
+        name: targetSheet.name,
+        cellData: {
+          0: {
+            0: { v: 'server value', s: 'hydrated-style' }
+          }
+        }
+      },
+      workbookDependencies: {
+        styles: {
+          'hydrated-style': { bg: { rgb: '#ffff00' }, bl: 1 }
+        }
+      }
+    })
+
+    const prepared = prepareSheetVisualCandidate({
+      preferUniverNativeSheetTabs: true,
+      candidate: {
+        snapshot: hydrationWorkbookSnapshot,
+        seed: 'sheet-2-hydration',
+        source: 'remote',
+        version: 11,
+        updatedAt: null,
+        coversVersions: { [targetSheet.id]: 5 }
+      },
+      canonicalSheetMeta: { ...targetSheet, version: 5 },
+      canonicalRows: rows,
+      appId: 'app-1',
+      activeSheetId: targetSheet.id,
+      appSheets: [primarySheet, targetSheet],
+      formattingSourceOverride: 'hydration'
+    })
+    const diagnostics = getPreparedSheetVisualCandidateDiagnostics(prepared)
+
+    expect(prepared.validation.formattingScore).toBeGreaterThan(0)
+    expect(prepared.readiness).toBe('visual_complete')
+    expect(diagnostics.hasWorkbookStyleRegistry).toBe(true)
+    expect(diagnostics.worksheetStyleRefCount).toBe(1)
+    expect(diagnostics.hasResolvableWorksheetStyleSignal).toBe(true)
+  })
+
   it('classifies orphan styles with structural worksheet metadata as visual-partial', () => {
     const canonicalSheet = sheet()
     const orphanPrepared = prepareSheetVisualCandidate({
@@ -304,6 +364,50 @@ describe('useSpreadsheetSheetVisualMaterializer helpers', () => {
     expect(hydrationPrepared.readiness).toBe('visual_partial')
     expect(cachePrepared.readiness).toBe('visual_complete')
     expect(chosen?.result.seed).toBe('cache-visual-ready')
+  })
+
+  it('prefers styled hydration over a weak session candidate on sheet switch', () => {
+    const canonicalSheet = sheet()
+    const weakSession = prepareSheetVisualCandidate({
+      preferUniverNativeSheetTabs: true,
+      candidate: {
+        snapshot: snapshotWithStructuralVisualState(),
+        seed: 'weak-session',
+        source: 'remote',
+        version: 10,
+        updatedAt: null,
+        coversVersions: { 'sheet-1': 3 }
+      },
+      canonicalSheetMeta: canonicalSheet,
+      canonicalRows: rows,
+      appId: 'app-1',
+      activeSheetId: 'sheet-1',
+      appSheets: [canonicalSheet],
+      formattingSourceOverride: 'session'
+    })
+    const hydration = prepareSheetVisualCandidate({
+      preferUniverNativeSheetTabs: true,
+      candidate: {
+        snapshot: snapshotWithStyle('server value', 'hydrated-style'),
+        seed: 'styled-hydration',
+        source: 'remote',
+        version: 9,
+        updatedAt: null,
+        coversVersions: { 'sheet-1': 3 }
+      },
+      canonicalSheetMeta: canonicalSheet,
+      canonicalRows: rows,
+      appId: 'app-1',
+      activeSheetId: 'sheet-1',
+      appSheets: [canonicalSheet],
+      formattingSourceOverride: 'hydration'
+    })
+
+    const chosen = choosePreferredSheetVisualCandidate(weakSession, hydration)
+
+    expect(isWeakSessionVisualCandidate(weakSession)).toBe(true)
+    expect(hydration.readiness).toBe('visual_complete')
+    expect(chosen?.result.seed).toBe('styled-hydration')
   })
 
   it('prefers higher sheet coverage before raw workbook recency', () => {

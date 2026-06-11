@@ -2299,6 +2299,17 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
               | null
               | undefined
             if (!api || !workbook) return false
+            const workbookDependencyStyles =
+              options.workbookDependencies?.styles &&
+              typeof options.workbookDependencies.styles === 'object' &&
+              !Array.isArray(options.workbookDependencies.styles)
+                ? (options.workbookDependencies.styles as Record<string, unknown>)
+                : null
+            if (workbookDependencyStyles && Object.keys(workbookDependencyStyles).length > 0) {
+              ;(workbook as { addStyles?: (styles: Record<string, unknown>) => void }).addStyles?.(
+                workbookDependencyStyles
+              )
+            }
             if (workbook.getSheetBySheetId?.(sheetId)) {
               if (!options.replaceExisting || !options.worksheetSnapshot) {
                 if (options.activate) workbook.setActiveSheet?.(sheetId)
@@ -2409,6 +2420,11 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
               executeCommand.call(api, 'sheet.command.remove-sheet', {
                 subUnitId: sheetId
               })
+            }
+            if (workbookDependencyStyles && Object.keys(workbookDependencyStyles).length > 0) {
+              ;(workbook as { addStyles?: (styles: Record<string, unknown>) => void }).addStyles?.(
+                workbookDependencyStyles
+              )
             }
             recentSheetMutationIdsRef.current.add(`ins:${sheetId}`)
             executeCommand.call(api, 'sheet.command.insert-sheet', {

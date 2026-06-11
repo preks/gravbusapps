@@ -2,9 +2,11 @@ import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import type { SpreadsheetColumn, SpreadsheetSheet } from '../types'
 import type { UniverSheetGridHandle } from '../components/UniverSheetGrid.types'
 import {
+  mergeWorkbookFormattingFromDonor,
   mergeAuthoritativeViewerRowsIntoWorkbookSnapshot,
   normalizeWorkbookSnapshotToAppSheets,
-  stripWorkbookSnapshotValuesPreservingFormatting
+  stripWorkbookSnapshotValuesPreservingFormatting,
+  workbookFormattingRichnessScore
 } from '../utils/univerAdapter'
 import { writeUniverSnapshotCache } from '../utils/univerSnapshotCache'
 import { sortSpreadsheetRowsBySheetSettings } from '../utils/spreadsheetSheetRowSort'
@@ -156,6 +158,7 @@ export async function persistSpreadsheetSnapshotCheckpointForSheet(
 
   if (ctx.entityEnabled) return
 
+  let remoteWorkbookSnapshotForFormatting: Record<string, unknown> | null = null
   try {
     await ctx.socketPersistChainRef.current
   } catch {
@@ -164,6 +167,10 @@ export async function persistSpreadsheetSnapshotCheckpointForSheet(
 
   try {
     const meta = await SpreadsheetApiService.getUniverSnapshot(ctx.appId)
+    remoteWorkbookSnapshotForFormatting =
+      meta.snapshot && typeof meta.snapshot === 'object' && !Array.isArray(meta.snapshot)
+        ? (meta.snapshot as Record<string, unknown>)
+        : null
     const srv = Number(meta.version ?? 0)
     if (Number.isFinite(srv) && srv >= 0) {
       ctx.workbookSnapshotVersionRef.current = Math.max(ctx.workbookSnapshotVersionRef.current, srv)
@@ -376,7 +383,23 @@ export async function persistSpreadsheetSnapshotCheckpointForSheet(
         [targetSheetId]: targetSheetCoverageVersion
       })
     )
-    const visualSnapshotToPersist = stripWorkbookSnapshotValuesPreservingFormatting(snapshotToPersist)
+    const localFormattingScore = workbookFormattingRichnessScore(snapshotToPersist, targetSheetId)
+    const remoteFormattingScore = remoteWorkbookSnapshotForFormatting
+      ? workbookFormattingRichnessScore(remoteWorkbookSnapshotForFormatting, targetSheetId)
+      : 0
+    const formattingPreservedSnapshot =
+      remoteWorkbookSnapshotForFormatting && remoteFormattingScore > localFormattingScore
+        ? mergeWorkbookFormattingFromDonor(snapshotToPersist, remoteWorkbookSnapshotForFormatting, targetSheetId)
+        : snapshotToPersist
+    if (formattingPreservedSnapshot !== snapshotToPersist) {
+      ctx.debugLog('snapshot checkpoint: preserved richer remote workbook formatting', {
+        appId: ctx.appId,
+        sheetId: targetSheetId,
+        localFormattingScore,
+        remoteFormattingScore
+      })
+    }
+    const visualSnapshotToPersist = stripWorkbookSnapshotValuesPreservingFormatting(formattingPreservedSnapshot)
     sizeBytesForSave = getSnapshotSizeBytes(visualSnapshotToPersist)
     if (sizeBytesForSave == null || sizeBytesForSave > 8_500_000) {
       ctx.snapshotSaveMetricsRef.current.failures += 1

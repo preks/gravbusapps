@@ -388,7 +388,7 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
         } = prepared
         if (!snapshotWithCoverage || !validation.valid || options.decision === 'reject') return
         const diagnostics = getPreparedSheetVisualCandidateDiagnostics(prepared)
-        const diagnosticsSummary = `styles=${diagnostics.hasWorkbookStyleRegistry ? 1 : 0};styleRefs=${diagnostics.worksheetStyleRefCount};cellData=${diagnostics.hasWorksheetCellData ? 1 : 0};structural=${diagnostics.hasWorksheetStructuralVisualSignal ? 1 : 0};orphanStyles=${diagnostics.hasOrphanStyleRegistry ? 1 : 0};formattingScore=${validation.formattingScore};readiness=${prepared.readiness}`
+        const diagnosticsSummary = `styles=${diagnostics.hasWorkbookStyleRegistry ? 1 : 0};styleRefs=${diagnostics.worksheetStyleRefCount};resolvedStyle=${diagnostics.hasResolvableWorksheetStyleSignal ? 1 : 0};cellData=${diagnostics.hasWorksheetCellData ? 1 : 0};structural=${diagnostics.hasWorksheetStructuralVisualSignal ? 1 : 0};orphanStyles=${diagnostics.hasOrphanStyleRegistry ? 1 : 0};formattingScore=${validation.formattingScore};readiness=${prepared.readiness}`
 
         workbookSnapshotVersionRef.current = Math.max(workbookSnapshotVersionRef.current, result.version)
         workbookSnapshotCoversVersionsRef.current = mergeSnapshotCoversVersions(
@@ -452,6 +452,7 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
             snapshotHasFormatting: snapshotHasFormattingSignal(snapshotWithCoverage),
             hasWorkbookStyleRegistry: diagnostics.hasWorkbookStyleRegistry,
             worksheetStyleRefCount: diagnostics.worksheetStyleRefCount,
+            hasResolvableWorksheetStyleSignal: diagnostics.hasResolvableWorksheetStyleSignal,
             hasWorksheetCellData: diagnostics.hasWorksheetCellData,
             hasWorksheetStructuralVisualSignal: diagnostics.hasWorksheetStructuralVisualSignal,
             hasOrphanStyleRegistry: diagnostics.hasOrphanStyleRegistry,
@@ -477,6 +478,7 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
           formattingSource: options.formattingSource,
           hasWorkbookStyleRegistry: diagnostics.hasWorkbookStyleRegistry,
           worksheetStyleRefCount: diagnostics.worksheetStyleRefCount,
+          hasResolvableWorksheetStyleSignal: diagnostics.hasResolvableWorksheetStyleSignal,
           hasWorksheetCellData: diagnostics.hasWorksheetCellData,
           hasWorksheetStructuralVisualSignal: diagnostics.hasWorksheetStructuralVisualSignal,
           hasOrphanStyleRegistry: diagnostics.hasOrphanStyleRegistry,
@@ -492,7 +494,7 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
         activeSheetIdLocal: string
       ): void => {
         const diagnostics = getPreparedSheetVisualCandidateDiagnostics(prepared)
-        const diagnosticsSummary = `styles=${diagnostics.hasWorkbookStyleRegistry ? 1 : 0};styleRefs=${diagnostics.worksheetStyleRefCount};cellData=${diagnostics.hasWorksheetCellData ? 1 : 0};structural=${diagnostics.hasWorksheetStructuralVisualSignal ? 1 : 0};orphanStyles=${diagnostics.hasOrphanStyleRegistry ? 1 : 0};formattingScore=${prepared.validation.formattingScore};readiness=${prepared.readiness}`
+        const diagnosticsSummary = `styles=${diagnostics.hasWorkbookStyleRegistry ? 1 : 0};styleRefs=${diagnostics.worksheetStyleRefCount};resolvedStyle=${diagnostics.hasResolvableWorksheetStyleSignal ? 1 : 0};cellData=${diagnostics.hasWorksheetCellData ? 1 : 0};structural=${diagnostics.hasWorksheetStructuralVisualSignal ? 1 : 0};orphanStyles=${diagnostics.hasOrphanStyleRegistry ? 1 : 0};formattingScore=${prepared.validation.formattingScore};readiness=${prepared.readiness}`
         debugLog('bootstrap snapshot candidate rejected', {
           appId,
           sheetId: activeSheetIdLocal,
@@ -505,6 +507,7 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
           hasCoverageForSheet: Object.prototype.hasOwnProperty.call(prepared.result.coversVersions, activeSheetIdLocal),
           hasWorkbookStyleRegistry: diagnostics.hasWorkbookStyleRegistry,
           worksheetStyleRefCount: diagnostics.worksheetStyleRefCount,
+          hasResolvableWorksheetStyleSignal: diagnostics.hasResolvableWorksheetStyleSignal,
           hasWorksheetCellData: diagnostics.hasWorksheetCellData,
           hasWorksheetStructuralVisualSignal: diagnostics.hasWorksheetStructuralVisualSignal,
           hasOrphanStyleRegistry: diagnostics.hasOrphanStyleRegistry,

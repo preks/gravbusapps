@@ -3,6 +3,7 @@ import { writeUniverSnapshotCache } from '../../utils/univerSnapshotCache'
 import { saveSpreadsheetSnapshotWithRetry } from '../spreadsheetSnapshotSaveWithRetry'
 
 jest.mock('../../utils/univerAdapter', () => ({
+  mergeWorkbookFormattingFromDonor: jest.fn((snapshot: unknown) => snapshot),
   stripWorkbookSnapshotValuesPreservingFormatting: jest.fn((snapshot: unknown) => snapshot)
 }))
 

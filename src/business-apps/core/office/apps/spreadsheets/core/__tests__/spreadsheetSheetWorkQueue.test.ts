@@ -42,6 +42,15 @@ const setRangeOp = (
     }
   }) as unknown as SpreadsheetBatchOperation
 
+const setStyleOp = (rowId: string, columnName: string, operationId?: string): SpreadsheetBatchOperation =>
+  ({
+    operationId: operationId ?? nextOpId(),
+    type: 'set_style',
+    data: {
+      cells: [{ rowId, columnName, rowIndex: 0, colIndex: 0, stylePatch: { bold: true } }]
+    }
+  }) as unknown as SpreadsheetBatchOperation
+
 const addRowsOp = (clientRowId: string): SpreadsheetBatchOperation =>
   ({
     operationId: nextOpId(),
@@ -293,6 +302,57 @@ describe('createSpreadsheetSheetWorkQueue', () => {
       const rangeOps = submitCalls[0]?.operations ?? []
       expect(rangeOps.length).toBeGreaterThanOrEqual(1)
       expect(rangeOps.length).toBeLessThanOrEqual(6)
+    })
+
+    it('releases all repaint protection after a burst of rangeValue and style groups settles', async () => {
+      const activeProtectedKeys = new Set<string>()
+      const { queue, submitCalls } = buildHarness({
+        initialClientVersion: 1,
+        idleMs: 800,
+        flushMaxWaitMs: 2000,
+        onLocalMutationCellProtectionChange: (_sheetId, keys, protectedFromRepaint) => {
+          for (const key of keys) {
+            if (protectedFromRepaint) {
+              activeProtectedKeys.add(key)
+            } else {
+              activeProtectedKeys.delete(key)
+            }
+          }
+        }
+      })
+      await seedClientVersion(queue, sheetA, 1)
+
+      for (let i = 0; i < 12; i += 1) {
+        const columnName = `Col${i}`
+        const protectedKey = `semantic-key-${i}`
+        await queue.enqueueLocalPersist(
+          sheetA,
+          makeLocal({
+            kind: 'rangeValue',
+            operations: [setRangeOp('row-1', columnName, `v${i}`)],
+            ownedCellKeys: [cellKey('row-1', columnName)],
+            protectedCellKeys: [protectedKey]
+          })
+        )
+      }
+      for (let i = 0; i < 2; i += 1) {
+        await queue.enqueueLocalPersist(
+          sheetA,
+          makeLocal({
+            kind: 'style',
+            operations: [setStyleOp('row-1', `Col${i}`)],
+            protectedCellKeys: [`semantic-key-${i}`]
+          })
+        )
+      }
+
+      jest.advanceTimersByTime(2_000)
+      await flushMicrotasks()
+      await queue.awaitIdle(sheetA)
+
+      expect(submitCalls.length).toBeGreaterThanOrEqual(2)
+      expect(activeProtectedKeys.size).toBe(0)
+      expect(queue.isSheetPersistenceBusy(sheetA)).toBe(false)
     })
 
     it('coalesces burst add_rows-only structural groups into one merged submit', async () => {
@@ -892,6 +952,64 @@ describe('createSpreadsheetSheetWorkQueue', () => {
         keys: ['semantic-key', 'coord-key'],
         protectedFromRepaint: false
       })
+    })
+
+    it('keeps shared repaint protection until every queued group for that cell settles', async () => {
+      const activeProtectedKeys = new Set<string>()
+      const remoteControllers: RemoteJobController[] = []
+      const { queue, submitCalls } = buildHarness({
+        initialClientVersion: 1,
+        onLocalMutationCellProtectionChange: (_sheetId, keys, protectedFromRepaint) => {
+          for (const key of keys) {
+            if (protectedFromRepaint) {
+              activeProtectedKeys.add(key)
+            } else {
+              activeProtectedKeys.delete(key)
+            }
+          }
+        }
+      })
+      await queue.enqueueRemoteApply(sheetA, 'gridApply', async controller => {
+        remoteControllers.push(controller)
+        controller.markVersionDone(1)
+      })
+      await flushMicrotasks()
+
+      const ownedKey = cellKey('row-1', 'A')
+      const protectedKey = 'semantic-key'
+      await queue.enqueueLocalPersist(
+        sheetA,
+        makeLocal({
+          kind: 'rangeValue',
+          operations: [setRangeOp('row-1', 'A', 'typed-fast')],
+          ownedCellKeys: [ownedKey],
+          protectedCellKeys: [protectedKey]
+        })
+      )
+      await queue.enqueueLocalPersist(
+        sheetA,
+        makeLocal({
+          kind: 'style',
+          operations: [setStyleOp('row-1', 'A')],
+          protectedCellKeys: [protectedKey]
+        })
+      )
+
+      jest.advanceTimersByTime(60)
+      await flushMicrotasks()
+
+      expect(submitCalls).toHaveLength(1)
+      expect(activeProtectedKeys.has(protectedKey)).toBe(true)
+      expect(queue.getDebugState(sheetA).localPending).toBe(1)
+
+      remoteControllers[0]?.markPaintDone()
+      remoteControllers[0]?.markBulkDepthDone()
+      await flushMicrotasks()
+      await queue.awaitIdle(sheetA)
+
+      expect(submitCalls).toHaveLength(2)
+      expect(activeProtectedKeys.has(protectedKey)).toBe(false)
+      expect(queue.isSheetPersistenceBusy(sheetA)).toBe(false)
     })
   })
 
@@ -1941,7 +2059,9 @@ describe('createSpreadsheetSheetWorkQueue', () => {
         },
         submitMutationBatch: async req => {
           attempts += 1
-          capturedBaseVersions.push(req.baseVersion)
+          if (typeof req.baseVersion === 'number') {
+            capturedBaseVersions.push(req.baseVersion)
+          }
           callOrder.push(`submit#${attempts}`)
           if (attempts === 1) {
             // Peer inserted rows: paste base is now stale (server moved to v41).

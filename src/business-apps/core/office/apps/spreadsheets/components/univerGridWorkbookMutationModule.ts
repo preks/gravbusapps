@@ -252,6 +252,12 @@ export function applyStylePatchToUniverCell(
   return next
 }
 
+function cellHasInlineOrReferencedFormatting(cell: Record<string, unknown> | null | undefined): boolean {
+  if (!cell || typeof cell !== 'object' || Array.isArray(cell)) return false
+  if ('s' in cell && cell.s != null) return true
+  return Object.keys(cell).some(key => UNIVER_INLINE_STYLE_KEY_SET.has(key))
+}
+
 /**
  * Univer FRange.setValue expects formatting on `s` as an inline IStyleData object
  * (see facade docs: `{ v, s: { bg: { rgb } } }`). Wire/snapshot patches keep inline
@@ -1704,7 +1710,7 @@ export function writeRemoteCellIntoUniverWorksheetSync(params: {
     const scalar = normalizedGridValue
     try {
       const current = rQ.getCellData?.() as Record<string, unknown> | null | undefined
-      const keepStyle = current && typeof current === 'object' && 's' in current && current.s != null
+      const keepStyle = cellHasInlineOrReferencedFormatting(current)
       if (keepStyle) {
         const merged: Record<string, unknown> = { ...current }
         const shouldClearTextFormat = typeof scalar === 'number' && Number.isFinite(scalar)

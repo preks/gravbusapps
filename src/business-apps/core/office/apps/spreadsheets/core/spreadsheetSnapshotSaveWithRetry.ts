@@ -1,11 +1,14 @@
 import type { MutableRefObject } from 'react'
 import {
+  mergeWorkbookFormattingFromDonor,
+  stripWorkbookSnapshotValuesPreservingFormatting
+} from '../utils/univerAdapter'
+import {
   SpreadsheetApiRequestError,
   SpreadsheetApiService,
   getSpreadsheetBatchConflictServerVersion
 } from '../services/SpreadsheetApiService'
 import type { UniverSheetGridHandle } from '../components/UniverSheetGrid.types'
-import { stripWorkbookSnapshotValuesPreservingFormatting } from '../utils/univerAdapter'
 import { writeUniverSnapshotCache } from '../utils/univerSnapshotCache'
 import {
   attachSnapshotCoversVersions,
@@ -38,7 +41,7 @@ const mergeTargetWorksheetIntoLatestWorkbookSnapshot = (
   const latestStyles = snapshotRecordMap(merged.styles) ?? {}
   const localStyles = snapshotRecordMap(localSnapshot.styles) ?? {}
   merged.styles = { ...latestStyles, ...localStyles }
-  return merged
+  return mergeWorkbookFormattingFromDonor(merged, latestSnapshot, targetSheetId)
 }
 
 const shouldAcceptRemoteWorkbookSnapshotAfterConflict = (useKeepaliveHttp: boolean): boolean => {
