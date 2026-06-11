@@ -38,6 +38,10 @@ export interface UseSpreadsheetViewerSessionModelParams {
   rememberSheetVersion: (sheetId: string, version: number | undefined) => void
   updateActiveSheetVersion: (version: number | undefined, strategy?: 'set' | 'max') => void
   resolveKnownSheetVersion: (sheetId: string) => number
+  resolveKnownSheetSnapshotVersion: (sheetId: string) => number
+  resolveLiveAppliedSheetVersion: (sheetId: string) => number
+  resolveLiveAppliedSheetSnapshotVersion: (sheetId: string) => number
+  rememberLiveAppliedSheetVersion?: (sheetId: string, version: number | undefined) => void
   resolveCanonicalSheetId?: (sheetId: string) => string
   getActiveSessionRows: () => Record<string, unknown>[]
   applyLocalAppUpdate: (updater: (currentApp: SpreadsheetApp) => SpreadsheetApp) => void
@@ -50,7 +54,19 @@ export interface UseSpreadsheetViewerSessionModelParams {
   >
   latestUniverDataRef: MutableRefObject<{ data: Record<string, unknown>[]; sheetId: string } | null>
   sheetsNeedingGridMaterializationRef?: MutableRefObject<Map<string, string>>
-  requestCanonicalGridMaterialization?: (sheetId: string, reason: string) => void
+  requestCanonicalGridMaterialization?: (
+    sheetId: string,
+    reason: 'sheet_switch' | 'focus' | 'visibility' | 'reconnect' | 'prefetch'
+  ) => void
+  requestSheetSnapshotStyleRepair?: (params: {
+    sheet: SpreadsheetSheet
+    sheetId: string
+    rows: Record<string, unknown>[]
+    knownSheetVersion: number
+    knownSheetSnapshotVersion: number
+    reason: 'sheet_switch'
+    allowBackendHydrationFallback?: boolean
+  }) => Promise<boolean> | boolean
   setActiveSheetId: (nextId: string) => void
   onRowsStateUpdated?: (
     sheetId: string,
@@ -346,22 +362,6 @@ export function useSpreadsheetViewerSessionModel(params: UseSpreadsheetViewerSes
     [commitLocalSheetData]
   )
 
-  useSpreadsheetActiveSheetPeerRestore({
-    activeSheet: params.activeSheet,
-    activeSheetId: params.activeSheetId,
-    preferUniverNativeSheetTabs: params.preferUniverNativeSheetTabs,
-    spreadsheetGridRef: params.spreadsheetGridRef,
-    peerSheetDataCacheRef,
-    authoritativePeerSheetDataCacheRef,
-    resolveKnownSheetVersion: params.resolveKnownSheetVersion,
-    resolveCanonicalSheetId,
-    buildFullAuthoritativeGridRegion,
-    getGridMaterializationReason: sheetId =>
-      params.sheetsNeedingGridMaterializationRef?.current.get(resolveCanonicalSheetId(sheetId)),
-    requestCanonicalGridMaterialization: params.requestCanonicalGridMaterialization,
-    commitLocalSheetData
-  })
-
   const syncSheetRowsIntoLocalState = useCallback(
     (
       targetSheetId: string,
@@ -373,6 +373,7 @@ export function useSpreadsheetViewerSessionModel(params: UseSpreadsheetViewerSes
         sessionDiffProjectionMode?: SpreadsheetSessionDiffProjectionMode
         version?: number
         recoveredSheetMeta?: SpreadsheetSheet
+        publishParent?: boolean
         /** When set with syncGrid, limits authoritative Univer re-sync to these bounded regions. */
         authoritativeGridRegion?: AuthoritativeGridReapplyTarget
         authoritativeApplyMeta?: SpreadsheetBulkRemoteApplyMeta | null
@@ -430,7 +431,7 @@ export function useSpreadsheetViewerSessionModel(params: UseSpreadsheetViewerSes
           persisted: options?.persisted,
           syncGrid: options?.syncGrid,
           suppressAuthoritativeDataSyncToken: options?.suppressAuthoritativeDataSyncToken,
-          publishParent: true,
+          publishParent: options?.publishParent,
           peerAuthoritative: Boolean(options?.persisted || typeof options?.version === 'number'),
           authoritativeGridRegion: options?.authoritativeGridRegion
         })
@@ -462,6 +463,44 @@ export function useSpreadsheetViewerSessionModel(params: UseSpreadsheetViewerSes
     ]
   )
 
+  const restoreSwitchedSheetRows = useCallback(
+    (
+      targetSheetId: string,
+      rows: Record<string, unknown>[],
+      options?: {
+        version?: number
+      }
+    ) => {
+      syncSheetRowsIntoLocalState(targetSheetId, rows, {
+        version: options?.version,
+        syncGrid: false,
+        publishParent: false
+      })
+    },
+    [syncSheetRowsIntoLocalState]
+  )
+
+  useSpreadsheetActiveSheetPeerRestore({
+    activeSheet: params.activeSheet,
+    activeSheetId: params.activeSheetId,
+    preferUniverNativeSheetTabs: params.preferUniverNativeSheetTabs,
+    spreadsheetGridRef: params.spreadsheetGridRef,
+    peerSheetDataCacheRef,
+    authoritativePeerSheetDataCacheRef,
+    resolveKnownSheetVersion: params.resolveKnownSheetVersion,
+    resolveKnownSheetSnapshotVersion: params.resolveKnownSheetSnapshotVersion,
+    resolveLiveAppliedSheetVersion: params.resolveLiveAppliedSheetVersion,
+    resolveLiveAppliedSheetSnapshotVersion: params.resolveLiveAppliedSheetSnapshotVersion,
+    rememberLiveAppliedSheetVersion: params.rememberLiveAppliedSheetVersion,
+    resolveCanonicalSheetId,
+    buildFullAuthoritativeGridRegion,
+    getGridMaterializationReason: sheetId =>
+      params.sheetsNeedingGridMaterializationRef?.current.get(resolveCanonicalSheetId(sheetId)),
+    requestCanonicalGridMaterialization: params.requestCanonicalGridMaterialization,
+    requestSheetSnapshotStyleRepair: params.requestSheetSnapshotStyleRepair,
+    restoreSwitchedSheetRows
+  })
+
   return {
     peerSheetDataCacheRef,
     authoritativePeerSheetDataCacheRef,
@@ -477,6 +516,7 @@ export function useSpreadsheetViewerSessionModel(params: UseSpreadsheetViewerSes
     getRichestKnownRowsForSheet,
     commitLocalSheetData,
     commitOptimisticActiveSheetRows,
+    restoreSwitchedSheetRows,
     syncSheetRowsIntoLocalState,
     stageAuthoritativeDirectPaintForSync
   }

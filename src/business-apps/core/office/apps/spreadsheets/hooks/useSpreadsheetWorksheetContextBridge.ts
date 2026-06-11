@@ -1,6 +1,11 @@
 import { useCallback, type MutableRefObject } from 'react'
 
 import type { SpreadsheetColumn, SpreadsheetSheet } from '../types'
+import {
+  useSpreadsheetSheetIdentityBridge,
+  type SpreadsheetActiveWorksheetSyncDecision,
+  type SpreadsheetPersistTargetDecision
+} from './useSpreadsheetSheetIdentityBridge'
 import { resolveReconciledSheetId } from '../utils/reconcileTemporarySheetId'
 import { sortSpreadsheetRowsBySheetSettings } from '../utils/spreadsheetSheetRowSort'
 
@@ -21,99 +26,25 @@ export interface UseSpreadsheetWorksheetContextBridgeParams {
   peerSheetDataCacheRef: MutableRefObject<Map<string, ViewerRow[]>>
   getActiveSessionRows: () => ViewerRow[]
   setActiveSheetIdWithPeerCache: (sheetId: string) => void
+  resolveKnownSheetVersion: (sheetId: string) => number
   debugLog: (message: string, meta?: Record<string, unknown>) => void
 }
 
 export interface UseSpreadsheetWorksheetContextBridgeResult {
-  handleUniverActiveWorksheetChange: (worksheetId: string, worksheetName: string) => void
+  handleUniverActiveWorksheetChange: (
+    worksheetId: string,
+    worksheetName: string
+  ) => SpreadsheetActiveWorksheetSyncDecision
+  resolveMutationPersistTarget: (producerSheetId: string) => SpreadsheetPersistTargetDecision
   resolveSheetContextForGrid: (sheetId: string) => { columns: SpreadsheetColumn[]; data: ViewerRow[] } | null
 }
 
 export function useSpreadsheetWorksheetContextBridge(
   params: UseSpreadsheetWorksheetContextBridgeParams
 ): UseSpreadsheetWorksheetContextBridgeResult {
-  const {
-    sheets,
-    activeSheetIdRef,
-    createdSheetIdAliasesRef,
-    programmaticWorksheetActivationGuardRef,
-    pendingCreatedSheetSelectionRef,
-    peerSheetDataCacheRef,
-    getActiveSessionRows,
-    setActiveSheetIdWithPeerCache,
-    debugLog
-  } = params
+  const { sheets, activeSheetIdRef, createdSheetIdAliasesRef, peerSheetDataCacheRef, getActiveSessionRows } = params
 
-  const handleUniverActiveWorksheetChange = useCallback(
-    (worksheetId: string, worksheetName: string) => {
-      const canonicalWorksheetId = resolveReconciledSheetId(worksheetId, createdSheetIdAliasesRef.current)
-      const canonicalActiveSheetId = resolveReconciledSheetId(
-        activeSheetIdRef.current,
-        createdSheetIdAliasesRef.current
-      )
-      const programmaticWorksheetActivationGuard = programmaticWorksheetActivationGuardRef?.current
-      if (programmaticWorksheetActivationGuard) {
-        const expectedActiveSheetId = resolveReconciledSheetId(
-          programmaticWorksheetActivationGuard.expectedActiveSheetId,
-          createdSheetIdAliasesRef.current
-        )
-        if (Date.now() > programmaticWorksheetActivationGuard.expiresAt) {
-          programmaticWorksheetActivationGuardRef.current = null
-        } else if (canonicalWorksheetId === expectedActiveSheetId) {
-          programmaticWorksheetActivationGuardRef.current = null
-        } else if (canonicalActiveSheetId === expectedActiveSheetId) {
-          debugLog('ignoring worksheet change during programmatic worksheet activation', {
-            worksheetId,
-            canonicalWorksheetId,
-            canonicalActiveSheetId,
-            expectedActiveSheetId
-          })
-          return
-        } else {
-          programmaticWorksheetActivationGuardRef.current = null
-        }
-      }
-      const pendingCreatedSheetSelection = pendingCreatedSheetSelectionRef.current
-      if (pendingCreatedSheetSelection) {
-        const expectedSheetIds = new Set(
-          [pendingCreatedSheetSelection.temporarySheetId, pendingCreatedSheetSelection.persistedSheetId]
-            .filter((sheetId): sheetId is string => Boolean(sheetId))
-            .map(sheetId => resolveReconciledSheetId(sheetId, createdSheetIdAliasesRef.current))
-        )
-        if (expectedSheetIds.has(canonicalWorksheetId)) {
-          if (
-            pendingCreatedSheetSelection.persistedSheetId &&
-            canonicalWorksheetId ===
-              resolveReconciledSheetId(pendingCreatedSheetSelection.persistedSheetId, createdSheetIdAliasesRef.current)
-          ) {
-            pendingCreatedSheetSelectionRef.current = null
-          }
-        } else if (expectedSheetIds.has(canonicalActiveSheetId)) {
-          debugLog('ignoring worksheet change during pending sheet creation', {
-            worksheetId,
-            canonicalWorksheetId,
-            canonicalActiveSheetId,
-            pendingTemporarySheetId: pendingCreatedSheetSelection.temporarySheetId,
-            pendingPersistedSheetId: pendingCreatedSheetSelection.persistedSheetId
-          })
-          return
-        }
-      }
-      const targetSheet =
-        sheets.find(sheet => sheet.id === canonicalWorksheetId) ?? sheets.find(sheet => sheet.name === worksheetName)
-      if (!targetSheet || targetSheet.id === canonicalActiveSheetId) return
-      setActiveSheetIdWithPeerCache(targetSheet.id)
-    },
-    [
-      activeSheetIdRef,
-      createdSheetIdAliasesRef,
-      debugLog,
-      pendingCreatedSheetSelectionRef,
-      programmaticWorksheetActivationGuardRef,
-      setActiveSheetIdWithPeerCache,
-      sheets
-    ]
-  )
+  const { handleUniverActiveWorksheetChange, resolveMutationPersistTarget } = useSpreadsheetSheetIdentityBridge(params)
 
   const resolveSheetContextForGrid = useCallback(
     (sheetId: string): { columns: SpreadsheetColumn[]; data: ViewerRow[] } | null => {
@@ -137,5 +68,5 @@ export function useSpreadsheetWorksheetContextBridge(
     [activeSheetIdRef, createdSheetIdAliasesRef, getActiveSessionRows, peerSheetDataCacheRef, sheets]
   )
 
-  return { handleUniverActiveWorksheetChange, resolveSheetContextForGrid }
+  return { handleUniverActiveWorksheetChange, resolveMutationPersistTarget, resolveSheetContextForGrid }
 }

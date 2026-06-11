@@ -15,6 +15,85 @@ jest.mock('../useSpreadsheetViewerRowResolution', () => ({
 }))
 
 describe('useSpreadsheetViewerSessionModel', () => {
+  it('restores switched-sheet rows without publishing parent updates or capturing a dirty local edit', () => {
+    const replaceSheetState = jest.fn()
+    const clearDirty = jest.fn()
+    const capturePersistedBaseline = jest.fn()
+    const onDataChange = jest.fn()
+    const spreadsheetSession = {
+      getSheetState: jest.fn((sheetId: string) =>
+        sheetId === 'sheet-live' ? { rows: [{ _id: 'row-1', _gridRowIndex: 0, column_a: 'before' }], version: 1 } : null
+      ),
+      getActiveSheetState: jest.fn(() => ({
+        rows: [{ _id: 'row-1', _gridRowIndex: 0, column_a: 'before' }],
+        version: 1
+      })),
+      replaceSheetState,
+      clearDirty,
+      capturePersistedBaseline
+    }
+    const rememberSheetVersion = jest.fn()
+    const updateActiveSheetVersion = jest.fn()
+    const applyLocalAppUpdate = jest.fn()
+    const onRowsStateUpdated = jest.fn()
+    const activeSheet = {
+      id: 'sheet-live',
+      columns: [{ id: 'col-a', name: 'column_a', isVisible: true }]
+    } as any
+
+    const { result } = renderHook(() =>
+      useSpreadsheetViewerSessionModel({
+        app: { id: 'app-1', sheets: [activeSheet] },
+        spreadsheetSession: spreadsheetSession as any,
+        activeSheet,
+        activeSheetId: 'sheet-live',
+        activeSheetIdRef: { current: 'sheet-live' },
+        appSheetsRef: { current: [activeSheet] } as any,
+        sheetVersionRef: { current: 1 },
+        rememberSheetVersion,
+        updateActiveSheetVersion,
+        resolveKnownSheetVersion: jest.fn(() => 1),
+        getActiveSessionRows: jest.fn(() => [{ _id: 'row-1', _gridRowIndex: 0, column_a: 'before' }]),
+        applyLocalAppUpdate,
+        onDataChange,
+        collaborationManagerRef: { current: null },
+        preferUniverNativeSheetTabs: true,
+        spreadsheetGridRef: { current: null },
+        pendingUniverRowsBySheetRef: { current: new Map() },
+        latestUniverDataRef: { current: null },
+        setActiveSheetId: jest.fn(),
+        onRowsStateUpdated
+      })
+    )
+
+    act(() => {
+      result.current.restoreSwitchedSheetRows('sheet-live', [{ _id: 'row-1', _gridRowIndex: 0, column_a: 'after' }], {
+        version: 7
+      })
+    })
+
+    expect(replaceSheetState).toHaveBeenCalledWith(
+      activeSheet,
+      [{ _id: 'row-1', _gridRowIndex: 0, column_a: 'after' }],
+      7
+    )
+    expect(rememberSheetVersion).toHaveBeenCalledWith('sheet-live', 7)
+    expect(updateActiveSheetVersion).toHaveBeenCalledWith(7, 'set')
+    expect(onDataChange).not.toHaveBeenCalled()
+    expect(clearDirty).not.toHaveBeenCalled()
+    expect(capturePersistedBaseline).not.toHaveBeenCalled()
+    expect(onRowsStateUpdated).toHaveBeenCalledWith(
+      'sheet-live',
+      [{ _id: 'row-1', _gridRowIndex: 0, column_a: 'after' }],
+      expect.objectContaining({
+        persisted: true,
+        activeSheet: true,
+        source: 'sync_sheet_rows',
+        version: 7
+      })
+    )
+  })
+
   it('stages authoritative paint cells when the active sheet ref matches even if the render-state sheet id lags', () => {
     const sheetStateById = new Map<string, { rows: Record<string, unknown>[]; version: number }>([
       ['sheet-live', { rows: [{ _id: 'row-1', _gridRowIndex: 0, column_a: 'before' }], version: 1 }]

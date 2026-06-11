@@ -55,7 +55,7 @@ const makeSheet = (
 describe('workbookFormattingRichnessScore', () => {
   const sheetId = 'sheet-1'
 
-  it('counts workbook styles and cell s refs', () => {
+  it('counts workbook styles only when the active sheet references them', () => {
     const snap: Record<string, unknown> = {
       id: 'wb',
       styles: { st1: { bl: 1 }, st2: { it: 1 } },
@@ -69,7 +69,24 @@ describe('workbookFormattingRichnessScore', () => {
         }
       }
     }
-    expect(workbookFormattingRichnessScore(snap, sheetId)).toBe(3)
+    expect(workbookFormattingRichnessScore(snap, sheetId)).toBe(1)
+  })
+
+  it('counts workbook styles when worksheet cells reference numeric style ids', () => {
+    const snap: Record<string, unknown> = {
+      id: 'wb',
+      styles: { '1': { bl: 1 }, '2': { it: 1 } },
+      sheetOrder: [sheetId],
+      sheets: {
+        [sheetId]: {
+          id: sheetId,
+          cellData: {
+            0: { 0: { v: 'x', s: 1 }, 1: { v: 'y' } }
+          }
+        }
+      }
+    }
+    expect(workbookFormattingRichnessScore(snap, sheetId)).toBe(1)
   })
 
   it('counts inline cell formatting even without workbook style ids', () => {
@@ -89,6 +106,22 @@ describe('workbookFormattingRichnessScore', () => {
       }
     }
     expect(workbookFormattingRichnessScore(snap, sheetId)).toBe(2)
+  })
+
+  it('ignores unreferenced workbook styles when the worksheet has no styled cells', () => {
+    const snap: Record<string, unknown> = {
+      id: 'wb',
+      styles: { st1: { bl: 1 }, st2: { it: 1 } },
+      sheetOrder: [sheetId],
+      sheets: {
+        [sheetId]: {
+          id: sheetId,
+          cellData: {}
+        }
+      }
+    }
+
+    expect(workbookFormattingRichnessScore(snap, sheetId)).toBe(0)
   })
 })
 

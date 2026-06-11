@@ -19,7 +19,7 @@ import type { NativeSheetStructureIntent } from '../utils/nativeSheetStructureIn
 import type { SpreadsheetRowSlotIdentityRegistry } from '../utils/spreadsheetRowSlotIdentity'
 import type { ColumnReorderMove } from '../utils/spreadsheetColumnReorderMoves'
 import type { MutableRefObject } from 'react'
-import type { BootstrapVisibleStyleRepair } from '../hooks/useSpreadsheetBootstrapSnapshotPipeline'
+import type { SheetSnapshotStyleRepair } from '../hooks/useSpreadsheetBootstrapSnapshotPipeline'
 
 export type WorkbookSnapshotLifecycleOrigin = 'cell' | 'workbook'
 
@@ -42,6 +42,7 @@ export interface UniverSheetGridInitLifecycleEvent {
   sheetId: string
   workbookInstanceKey: string
   snapshotSeed?: string
+  activeWorksheetId?: string | null
   width?: number
   height?: number
   reason?: string
@@ -57,7 +58,8 @@ export interface UniverSheetGridProps {
   /** One-shot explicit cells to paint after session apply (consumed by authoritative grid sync). */
   authoritativePaintCellsRef?: MutableRefObject<import('../core').SpreadsheetBulkRemoteCellItem[] | null>
   authoritativePaintMetaRef?: MutableRefObject<import('../core').SpreadsheetBulkRemoteApplyMeta | null>
-  pendingBootstrapStyleRepair?: BootstrapVisibleStyleRepair | null
+  pendingSnapshotStyleRepair?: SheetSnapshotStyleRepair | null
+  onSnapshotStyleRepairApplied?: (repair: SheetSnapshotStyleRepair, meta?: { appliedCellCount: number }) => void
   workbookInstanceKey: string
   multiSheetWorkbookMode?: boolean
   pendingLocalMutationCellsRef?: MutableRefObject<Set<string>>
@@ -75,7 +77,7 @@ export interface UniverSheetGridProps {
    */
   apiFirstSheetStructure?: boolean
   onNativeSheetStructureIntent?: (intent: NativeSheetStructureIntent) => void
-  onActiveWorksheetChange?: (sheetId: string, sheetName: string) => void
+  onActiveWorksheetChange?: (sheetId: string, sheetName: string) => boolean | void
   /**
    * Multi-sheet context resolver. In `multiSheetWorkbookMode`, cell mutations
    * can target any worksheet Univer holds in memory, not just `sheet`.
@@ -371,6 +373,8 @@ export interface UniverSheetGridWorksheetAdminHandle {
       activate?: boolean
       replaceExisting?: boolean
       worksheetSnapshot?: Record<string, unknown>
+      debugSource?: string
+      debugReason?: string
     }
   ) => boolean
   renameWorksheet: (sheetId: string, sheetName: string) => boolean

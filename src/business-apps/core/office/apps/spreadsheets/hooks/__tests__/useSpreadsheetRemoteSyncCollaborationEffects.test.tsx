@@ -55,6 +55,7 @@ describe('useSpreadsheetRemoteSyncCollaborationEffects', () => {
       jest.runOnlyPendingTimers()
     })
 
+    expect(params.ensureSheetReady).toHaveBeenCalledTimes(1)
     expect(params.ensureSheetReady).toHaveBeenCalledWith('sheet-2', 'sheet_switch', {
       allowManifestRefresh: true
     })
@@ -69,6 +70,25 @@ describe('useSpreadsheetRemoteSyncCollaborationEffects', () => {
     })
 
     expect(params.ensureSheetReady).toHaveBeenCalledWith('sheet-1', 'focus', {
+      allowManifestRefresh: true
+    })
+  })
+
+  it('dedupes back-to-back visibility and focus foreground catch-up for the same sheet', async () => {
+    const params = baseParams()
+    renderHook(() => useSpreadsheetRemoteSyncCollaborationEffects(params))
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      value: 'visible'
+    })
+
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'))
+      window.dispatchEvent(new Event('focus'))
+    })
+
+    expect(params.ensureSheetReady).toHaveBeenCalledTimes(1)
+    expect(params.ensureSheetReady).toHaveBeenCalledWith('sheet-1', 'visibility', {
       allowManifestRefresh: true
     })
   })

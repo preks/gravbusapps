@@ -18,23 +18,45 @@ import {
 } from './services/SpreadsheetApiService'
 
 import { useSpreadsheetViewerState } from './hooks/useSpreadsheetViewerState'
-import { resolveSpreadsheetKnownSheetRouting } from './utils/spreadsheetKnownSheetRouting'
 import { prefersCanonicalReloadForMaterializationReason } from './utils/spreadsheetGridMaterialization'
 import { sortSpreadsheetRowsBySheetSettings } from './utils/spreadsheetSheetRowSort'
-import { mergeSheetColumnVisibilityFromLocal } from './utils/spreadsheetColumnVisibilityMetadata'
+import {
+  buildColumnVisibilityReplayOperations,
+  mergeSheetColumnVisibilityFromLocal,
+  shouldPreserveLocalColumnVisibilityOnHydration
+} from './utils/spreadsheetColumnVisibilityMetadata'
 import {
   getRecentLocalSnapshotMutation,
   isSnapshotMutatingOperationType,
   markRecentLocalSnapshotMutation,
-  shouldSkipActiveSheetSnapshotHydration,
   shouldDeferHydrationForRecentLocalSnapshotMutation,
   type SheetHydrationReason
 } from './utils/spreadsheetRecentLocalSnapshotMutation'
-import { attachSnapshotCoversVersions, mergeSnapshotCoversVersions } from './utils/spreadsheetSnapshotCoverage'
+import {
+  attachSnapshotCoversVersions,
+  getSnapshotCoversVersions,
+  hasSheetCoverageVersion,
+  mergeSnapshotCoversVersions,
+  normalizeSnapshotCoversVersions
+} from './utils/spreadsheetSnapshotCoverage'
 import {
   useSpreadsheetBootstrapSnapshotPipeline,
-  type BootstrapWorkbookReconcileIssuePhase
+  type BootstrapWorkbookReconcileIssuePhase,
+  type SheetSnapshotStyleRepair
 } from './hooks/useSpreadsheetBootstrapSnapshotPipeline'
+import {
+  tryLoadBootstrapSnapshotFromCache,
+  type BootstrapSnapshotLoaderResult
+} from './utils/spreadsheetBootstrapSnapshotHelpers'
+import {
+  buildHydrationWorkbookSnapshot,
+  chooseStableAppliedSheetVisualCandidate,
+  choosePreferredSheetVisualCandidate,
+  isWeakSessionVisualCandidate,
+  getPreparedSheetVisualCandidateDiagnostics,
+  prepareSheetVisualCandidate,
+  type PreparedSheetVisualCandidate
+} from './hooks/useSpreadsheetSheetVisualMaterializer'
 import { useSpreadsheetSessionBinding } from './hooks/useSpreadsheetSessionBinding'
 import { useSpreadsheetSessionRowsRef } from './hooks/useSpreadsheetSessionRowsRef'
 import { useSpreadsheetMutationPipeline } from './hooks/useSpreadsheetMutationPipeline'
@@ -102,6 +124,21 @@ const readOperationCellIndex = (
 
 const readOperationStylePatch = (value: unknown): SpreadsheetStylePatch | null => {
   return value && typeof value === 'object' ? (value as SpreadsheetStylePatch) : null
+}
+
+const normalizeSheetReadyReason = (
+  reason: string
+): 'sheet_switch' | 'focus' | 'visibility' | 'reconnect' | 'prefetch' => {
+  switch (reason) {
+    case 'focus':
+    case 'visibility':
+    case 'reconnect':
+    case 'prefetch':
+    case 'sheet_switch':
+      return reason
+    default:
+      return 'sheet_switch'
+  }
 }
 
 const mergeAckDirectPaintItems = (
@@ -266,6 +303,10 @@ import { useSpreadsheetAnalyticsActions } from './hooks/useSpreadsheetAnalyticsA
 import { useSpreadsheetUtilityActions } from './hooks/useSpreadsheetUtilityActions'
 import { useSpreadsheetGridDataReaders } from './hooks/useSpreadsheetGridDataReaders'
 import { useSpreadsheetWorksheetContextBridge } from './hooks/useSpreadsheetWorksheetContextBridge'
+import type {
+  SpreadsheetActiveWorksheetSyncDecision,
+  SpreadsheetPersistTargetDecision
+} from './hooks/useSpreadsheetSheetIdentityBridge'
 import { useSpreadsheetNativeSheetStructureIntent } from './hooks/useSpreadsheetNativeSheetStructureIntent'
 import { useSpreadsheetUniverSheetEvents } from './hooks/useSpreadsheetUniverSheetEvents'
 import { useSpreadsheetMainViewRenderer } from './hooks/useSpreadsheetMainViewRenderer'
@@ -337,7 +378,8 @@ import {
   buildMultiSheetWorkbookFromAppSheets,
   normalizeWorkbookSnapshotToAppSheets,
   snapshotTrackingHeaderMatchesColumnLabels,
-  stripWorkbookSnapshotValuesPreservingFormatting
+  stripWorkbookSnapshotValuesPreservingFormatting,
+  workbookFormattingRichnessScore
 } from './utils/univerAdapter'
 import { writeUniverSnapshotCache, clearUniverSnapshotCache } from './utils/univerSnapshotCache'
 import { scheduleCoalescedTimeout } from './utils/collaborationRepairScheduler'
@@ -589,6 +631,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const collaborationManagerRef = useRef<SpreadsheetCollaborationManager | null>(null)
   const spreadsheetGridRef = useRef<UniverSheetGridHandle | null>(null)
   const [gridInitLifecycle, setGridInitLifecycle] = useState<UniverSheetGridInitLifecycleEvent | null>(null)
+  const latestUniverActiveWorksheetIdRef = useRef<string | null>(null)
+  const latestSheetSelectionDecisionRef = useRef<SpreadsheetActiveWorksheetSyncDecision | null>(null)
+  const lastSheetSelectionDiagnosticsKeyRef = useRef<string>('')
+  const latestActiveSheetIdForGridLifecycleRef = useRef<string>('')
   const mutationFacadeRef = useRef<SpreadsheetMutationFacade | null>(null)
   const requireMutationFacade = (): SpreadsheetMutationFacade => {
     const facade = mutationFacadeRef.current
@@ -624,6 +670,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   })
   const activeSheetIdRef = useRef(activeSheetId)
   activeSheetIdRef.current = activeSheetId
+  latestActiveSheetIdForGridLifecycleRef.current = activeSheetId
   const programmaticWorksheetActivationGuardRef = useRef<{
     expectedActiveSheetId: string
     expiresAt: number
@@ -662,6 +709,17 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   })
   const appSheetsRef = useRef(app.sheets)
   appSheetsRef.current = app.sheets
+  const requestSheetSnapshotStyleRepairRef = useRef<
+    | ((params: {
+        sheet: SpreadsheetSheet
+        sheetId: string
+        rows: Record<string, unknown>[]
+        knownSheetVersion: number
+        knownSheetSnapshotVersion: number
+        reason: 'sheet_switch' | 'focus' | 'visibility' | 'reconnect' | 'prefetch'
+      }) => Promise<boolean>)
+    | null
+  >(null)
   const {
     sheetVersionRef,
     workbookSnapshotVersionRef,
@@ -672,8 +730,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     resolveTrackedSheetVersion,
     resolveKnownSheetVersion,
     resolveTrackedSheetSnapshotVersion,
+    resolveKnownSheetSnapshotVersion,
+    resolveLiveAppliedSheetVersion,
+    resolveLiveAppliedSheetSnapshotVersion,
     rememberKnownSheetVersion,
     rememberKnownSheetSnapshotVersion,
+    rememberLiveAppliedSheetVersion,
+    rememberLiveAppliedSheetSnapshotVersion,
     getKnownSheetVersion,
     updateActiveSheetVersion,
     refreshBaseVersionBeforeWrite,
@@ -784,6 +847,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     rememberSheetVersion,
     updateActiveSheetVersion,
     resolveKnownSheetVersion,
+    resolveKnownSheetSnapshotVersion,
+    resolveLiveAppliedSheetVersion,
+    resolveLiveAppliedSheetSnapshotVersion,
+    rememberLiveAppliedSheetVersion,
     resolveCanonicalSheetId: (sheetId: string) => resolveReconciledSheetId(sheetId, createdSheetIdAliasesRef.current),
     getActiveSessionRows,
     applyLocalAppUpdate,
@@ -796,6 +863,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     sheetsNeedingGridMaterializationRef,
     requestCanonicalGridMaterialization: (sheetId, reason) =>
       requestCanonicalGridMaterializationRef.current(sheetId, reason),
+    requestSheetSnapshotStyleRepair: params => requestSheetSnapshotStyleRepairRef.current?.(params) ?? false,
     setActiveSheetId,
     onRowsStateUpdated: syncRowSlotIdentityRegistry
   })
@@ -1084,6 +1152,50 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     [activeSheetId, app.id, enqueueDiagnosticsTraceEvent, sheetT]
   )
 
+  type SharedSheetHydrationSnapshot = Awaited<ReturnType<typeof SpreadsheetApiService.getSheetHydrationSnapshot>>
+  const appliedSheetVisualWinnerRef = useRef<Map<string, PreparedSheetVisualCandidate>>(new Map())
+  const hydrationSnapshotCacheRef = useRef<Map<string, SharedSheetHydrationSnapshot>>(new Map())
+  const hydrationSnapshotInFlightRef = useRef<Map<string, Promise<SharedSheetHydrationSnapshot>>>(new Map())
+
+  useEffect(() => {
+    appliedSheetVisualWinnerRef.current.clear()
+    hydrationSnapshotCacheRef.current.clear()
+    hydrationSnapshotInFlightRef.current.clear()
+  }, [app.id])
+
+  const loadSheetHydrationSnapshot = useCallback(
+    async (
+      sheetId: string,
+      options?: { minOperationVersion?: number; minSheetSnapshotVersion?: number }
+    ): Promise<SharedSheetHydrationSnapshot> => {
+      const minOperationVersion = Math.max(0, Math.trunc(Number(options?.minOperationVersion ?? 0)))
+      const minSheetSnapshotVersion = Math.max(0, Math.trunc(Number(options?.minSheetSnapshotVersion ?? 0)))
+      const cached = hydrationSnapshotCacheRef.current.get(sheetId)
+      if (
+        cached &&
+        Math.max(0, Math.trunc(Number(cached.operationVersion ?? 0))) >= minOperationVersion &&
+        Math.max(0, Math.trunc(Number(cached.sheetSnapshotVersion ?? 0))) >= minSheetSnapshotVersion
+      ) {
+        return cached
+      }
+      const existing = hydrationSnapshotInFlightRef.current.get(sheetId)
+      if (existing) {
+        return existing
+      }
+      const request = SpreadsheetApiService.getSheetHydrationSnapshot(app.id, sheetId)
+        .then(snapshot => {
+          hydrationSnapshotCacheRef.current.set(sheetId, snapshot)
+          return snapshot
+        })
+        .finally(() => {
+          hydrationSnapshotInFlightRef.current.delete(sheetId)
+        })
+      hydrationSnapshotInFlightRef.current.set(sheetId, request)
+      return request
+    },
+    [app.id]
+  )
+
   const {
     bootstrapSnapshot,
     setBootstrapSnapshot,
@@ -1110,9 +1222,41 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     authoritativePeerSheetDataCacheRef,
     seedActiveSheetState,
     mapSnapshotRowsToViewerRows,
+    loadSheetHydrationSnapshot,
     debugLog,
     onBootstrapWorkbookReconcileIssue: handleBootstrapWorkbookReconcileIssue
   })
+  const [pendingSnapshotStyleRepair, setPendingSnapshotStyleRepair] = useState<SheetSnapshotStyleRepair | null>(null)
+  const pendingSnapshotStyleRepairNonceRef = useRef(0)
+  const hydrateSheetFromBackendRef = useRef<
+    | ((
+        targetSheetId: string,
+        reason: SheetHydrationReason,
+        options?: { activate?: boolean; prefetchOnly?: boolean }
+      ) => Promise<boolean>)
+    | null
+  >(null)
+  const handleSnapshotStyleRepairApplied = useCallback(
+    (repair: SheetSnapshotStyleRepair, meta?: { appliedCellCount: number }) => {
+      const appliedCellCount = Math.max(0, Math.trunc(Number(meta?.appliedCellCount ?? 0)))
+      if (typeof repair.sheetVersion === 'number' && appliedCellCount > 0) {
+        rememberLiveAppliedSheetVersion(repair.sheetId, repair.sheetVersion)
+      }
+      if (typeof repair.sheetSnapshotVersion === 'number' && appliedCellCount > 0) {
+        rememberLiveAppliedSheetSnapshotVersion(repair.sheetId, repair.sheetSnapshotVersion)
+      }
+      if (appliedCellCount === 0) {
+        debugLog('sheet snapshot style repair completed without painted cells', {
+          sheetId: repair.sheetId,
+          nonce: repair.nonce,
+          sheetVersion: repair.sheetVersion ?? null,
+          sheetSnapshotVersion: repair.sheetSnapshotVersion ?? null
+        })
+      }
+      setPendingSnapshotStyleRepair(current => (current?.nonce === repair.nonce ? null : current))
+    },
+    [debugLog, rememberLiveAppliedSheetSnapshotVersion, rememberLiveAppliedSheetVersion]
+  )
 
   useEffect(() => {
     debugLog('bootstrap visual contract', {
@@ -1127,6 +1271,53 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       hasMountedSnapshot: visualBootstrapState.hasMountedSnapshot
     })
   }, [debugLog, visualBootstrapState])
+
+  useEffect(() => {
+    if (!bootstrapSnapshot || !visualBootstrapState.hasMountedSnapshot) return
+    if (visualBootstrapState.formattingSource === 'missing') return
+    const bootstrapFormattingSource =
+      visualBootstrapState.formattingSource === 'preview_cache'
+        ? 'cache'
+        : visualBootstrapState.formattingSource === 'entity'
+          ? undefined
+          : visualBootstrapState.formattingSource
+    if (!bootstrapFormattingSource) return
+    const preparedBootstrapWinner = prepareSheetVisualCandidate({
+      preferUniverNativeSheetTabs,
+      candidate: {
+        snapshot: bootstrapSnapshot,
+        seed: String(bootstrapSnapshotSeed),
+        source: 'remote',
+        version: Math.max(0, Math.trunc(Number(workbookSnapshotVersionRef.current ?? 0))),
+        updatedAt: null,
+        coversVersions: getSnapshotCoversVersions(bootstrapSnapshot)
+      },
+      canonicalSheetMeta: { ...activeSheet, version: resolveKnownSheetVersion(activeSheetId) },
+      canonicalRows: getRichestKnownRowsForSheet(activeSheetId),
+      appId: app.id,
+      activeSheetId,
+      appSheets: appSheetsRef.current,
+      formattingSourceOverride: bootstrapFormattingSource
+    })
+    if (!preparedBootstrapWinner.validation.valid || !preparedBootstrapWinner.snapshotWithCoverage) return
+    const currentWinner = appliedSheetVisualWinnerRef.current.get(activeSheetId) ?? null
+    const stableWinner = chooseStableAppliedSheetVisualCandidate(currentWinner, preparedBootstrapWinner)
+    if (stableWinner) {
+      appliedSheetVisualWinnerRef.current.set(activeSheetId, stableWinner)
+    }
+  }, [
+    activeSheet,
+    activeSheetId,
+    app.id,
+    bootstrapSnapshot,
+    bootstrapSnapshotSeed,
+    getRichestKnownRowsForSheet,
+    preferUniverNativeSheetTabs,
+    resolveKnownSheetVersion,
+    visualBootstrapState.formattingSource,
+    visualBootstrapState.hasMountedSnapshot,
+    workbookSnapshotVersionRef
+  ])
 
   const emitDimensionSyncRef = useRef<(payload: CellDimensionsPayload) => void>(() => {})
   const columnStructureStateRef = useRef<{
@@ -1265,7 +1456,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           return [sheet.id, sheet.name, sheet.viewType ?? '', columnsSignature].join('\u0002')
         })
         .join('\u0003'),
-    [app.sheets]
+    []
   )
 
   const tableUniverSnapshot = useMemo((): Record<string, unknown> | null => {
@@ -1692,11 +1883,502 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     [app.id, rememberKnownSheetSnapshotVersion, rememberKnownSheetVersion, workbookSnapshotVersionRef]
   )
 
+  const getCurrentWorkbookSnapshot = useCallback((): Record<string, unknown> | null => {
+    const sessionSnapshot = spreadsheetSession.getState().workbookSnapshot
+    if (sessionSnapshot && typeof sessionSnapshot === 'object') {
+      return sessionSnapshot as Record<string, unknown>
+    }
+    return (spreadsheetGridRef.current?.getWorkbookSnapshot?.() as Record<string, unknown> | null) ?? null
+  }, [spreadsheetSession])
+
+  const materializeSheetVisualState = useCallback(
+    async (params: {
+      sheet: SpreadsheetSheet
+      sheetId: string
+      rows: Record<string, unknown>[]
+      knownSheetVersion: number
+      knownSheetSnapshotVersion: number
+      reason: 'sheet_switch' | 'focus' | 'visibility' | 'reconnect' | 'prefetch'
+      allowBackendHydrationFallback?: boolean
+    }): Promise<boolean> => {
+      const {
+        sheet,
+        sheetId: targetSheetId,
+        rows,
+        knownSheetVersion,
+        knownSheetSnapshotVersion,
+        reason,
+        allowBackendHydrationFallback = false
+      } = params
+      if (!targetSheetId) return false
+      if (!areCanonicalSheetIdsEqual(targetSheetId, activeSheetIdRef.current, createdSheetIdAliasesRef.current)) {
+        return false
+      }
+      const recentLocalSnapshotMutation = getRecentLocalSnapshotMutationForSheet(targetSheetId)
+      if (
+        recentLocalSnapshotMutation &&
+        shouldDeferHydrationForRecentLocalSnapshotMutationForSheet(targetSheetId, reason)
+      ) {
+        debugLog('sheet snapshot style repair deferred due to recent local snapshot mutation', {
+          sheetId: targetSheetId,
+          reason,
+          remainingMs: Math.max(0, recentLocalSnapshotMutation.expiresAt - Date.now()),
+          sources: [...recentLocalSnapshotMutation.sources]
+        })
+        return false
+      }
+      if (hasPendingPersistenceForSheet(targetSheetId) || hasTransientLocalGridStateForSheet(targetSheetId)) {
+        debugLog('sheet snapshot style repair blocked by pending local work', {
+          sheetId: targetSheetId,
+          reason,
+          pendingPersistence: hasPendingPersistenceForSheet(targetSheetId),
+          transientLocalGridState: hasTransientLocalGridStateForSheet(targetSheetId)
+        })
+        return false
+      }
+
+      const hydrateFromBackendIfAllowed = async (failureReason: string): Promise<boolean> => {
+        if (!allowBackendHydrationFallback) return false
+        debugLog('sheet snapshot style repair falling back to backend hydration', {
+          sheetId: targetSheetId,
+          reason,
+          failureReason
+        })
+        return (
+          (await hydrateSheetFromBackendRef.current?.(targetSheetId, reason, {
+            activate: true,
+            prefetchOnly: false
+          })) ?? false
+        )
+      }
+
+      const targetSheetMeta =
+        appSheetsRef.current.find(candidate => candidate.id === targetSheetId) ??
+        appSheetsRef.current.find(candidate => candidate.id === activeSheetIdRef.current) ??
+        sheet
+      let canonicalRows = sortSpreadsheetRowsBySheetSettings(rows, targetSheetMeta)
+      let materializedSheetMeta = targetSheetMeta
+      let targetKnownSheetVersion = Math.max(0, Math.trunc(Number(knownSheetVersion ?? 0)))
+      let targetKnownSheetSnapshotVersion = Math.max(0, Math.trunc(Number(knownSheetSnapshotVersion ?? 0)))
+
+      let hydrationCandidate: PreparedSheetVisualCandidate | null = null
+      try {
+        const hydration = await loadSheetHydrationSnapshot(targetSheetId, {
+          minOperationVersion: targetKnownSheetVersion,
+          minSheetSnapshotVersion: targetKnownSheetSnapshotVersion
+        })
+        const localColumns = targetSheetMeta?.columns ?? []
+        const hydrationSheetMeta = hydration.sheet ?? targetSheetMeta
+        const serverColumns = Array.isArray(hydrationSheetMeta.columns) ? hydrationSheetMeta.columns : []
+        const mergedColumns =
+          serverColumns.length > 0
+            ? mergeSheetColumnVisibilityFromLocal(serverColumns, localColumns, {
+                preserveLocalVisibility: shouldPreserveLocalColumnVisibilityOnHydration({
+                  reason,
+                  hasPendingPersistence: hasPendingPersistenceForSheet(targetSheetId)
+                })
+              })
+            : localColumns
+        materializedSheetMeta = {
+          ...targetSheetMeta,
+          ...hydrationSheetMeta,
+          columns: mergedColumns,
+          sheetSnapshotVersion: hydration.sheetSnapshotVersion,
+          ...(hydration.worksheetSnapshot ? { worksheetSnapshot: hydration.worksheetSnapshot } : {})
+        }
+        canonicalRows = sortSpreadsheetRowsBySheetSettings(
+          mapSnapshotRowsToViewerRows(hydration.rows || []),
+          materializedSheetMeta
+        )
+        targetKnownSheetVersion = Math.max(
+          targetKnownSheetVersion,
+          Math.max(0, Math.trunc(Number(hydration.operationVersion ?? 0)))
+        )
+        targetKnownSheetSnapshotVersion = Math.max(
+          targetKnownSheetSnapshotVersion,
+          Math.max(0, Math.trunc(Number(hydration.sheetSnapshotVersion ?? 0)))
+        )
+        rememberKnownSheetVersion(targetSheetId, targetKnownSheetVersion)
+        rememberSheetVersion(targetSheetId, targetKnownSheetVersion)
+        rememberKnownSheetSnapshotVersion(targetSheetId, targetKnownSheetSnapshotVersion)
+        rememberSheetSnapshotVersion(targetSheetId, targetKnownSheetSnapshotVersion)
+        peerSheetDataCacheRef.current.set(targetSheetId, canonicalRows)
+        authoritativePeerSheetDataCacheRef.current.add(targetSheetId)
+
+        const hydrationWorkbookSnapshot = buildHydrationWorkbookSnapshot({
+          appSheets: appSheetsRef.current,
+          canonicalSheetMeta: materializedSheetMeta,
+          activeSheetId: targetSheetId,
+          operationVersion: targetKnownSheetVersion,
+          sheetSnapshotVersion: targetKnownSheetSnapshotVersion,
+          workbookSnapshotVersion: Math.max(0, Math.trunc(Number(hydration.workbookSnapshotVersion ?? 0))),
+          worksheetSnapshot: hydration.worksheetSnapshot as Record<string, unknown> | null,
+          workbookDependencies: hydration.workbookDependencies as Record<string, unknown> | undefined
+        })
+        if (hydrationWorkbookSnapshot) {
+          hydrationCandidate = prepareSheetVisualCandidate({
+            preferUniverNativeSheetTabs,
+            candidate: {
+              snapshot: hydrationWorkbookSnapshot,
+              seed: `sheet-hydration-v${targetKnownSheetVersion}`,
+              source: 'remote',
+              version: Math.max(0, Math.trunc(Number(hydration.workbookSnapshotVersion ?? 0))),
+              updatedAt: null,
+              coversVersions: { [targetSheetId]: targetKnownSheetVersion }
+            },
+            canonicalSheetMeta: { ...materializedSheetMeta, version: targetKnownSheetVersion },
+            canonicalRows,
+            appId: app.id,
+            activeSheetId: targetSheetId,
+            appSheets: appSheetsRef.current,
+            formattingSourceOverride: 'hydration'
+          })
+        }
+      } catch (error) {
+        debugLog('sheet visual materializer hydration candidate unavailable', {
+          sheetId: targetSheetId,
+          reason,
+          message: error instanceof Error ? error.message : String(error)
+        })
+      }
+
+      const candidates: Array<{
+        candidate: BootstrapSnapshotLoaderResult
+        formattingSource?: 'session' | 'cache' | 'remote'
+      }> = []
+      const sessionSnapshot = getCurrentWorkbookSnapshot()
+      if (sessionSnapshot && typeof sessionSnapshot === 'object') {
+        candidates.push({
+          candidate: {
+            snapshot: sessionSnapshot,
+            seed: `session-${targetSheetId}-${Math.max(0, Math.trunc(Number(workbookSnapshotVersionRef.current ?? 0)))}`,
+            source: 'remote',
+            version: Math.max(0, Math.trunc(Number(workbookSnapshotVersionRef.current ?? 0))),
+            updatedAt: null,
+            coversVersions: mergeSnapshotCoversVersions(
+              workbookSnapshotCoversVersionsRef.current,
+              getSnapshotCoversVersions(sessionSnapshot)
+            )
+          },
+          formattingSource: 'session'
+        })
+      }
+      const cacheCandidate = tryLoadBootstrapSnapshotFromCache(app.id, targetSheetId, knownSheetVersion)
+      if (cacheCandidate?.snapshot) {
+        candidates.push({
+          candidate: cacheCandidate,
+          formattingSource: 'cache'
+        })
+      }
+      try {
+        const remoteWorkbookSnapshot = await SpreadsheetApiService.getUniverSnapshot(app.id)
+        const remoteCoversVersions = normalizeSnapshotCoversVersions(remoteWorkbookSnapshot.coversVersions)
+        const remoteSnapshotHasTargetWorksheet = Boolean(
+          remoteWorkbookSnapshot.snapshot &&
+            typeof remoteWorkbookSnapshot.snapshot === 'object' &&
+            !Array.isArray(remoteWorkbookSnapshot.snapshot) &&
+            (remoteWorkbookSnapshot.snapshot as Record<string, unknown>).sheets &&
+            typeof (remoteWorkbookSnapshot.snapshot as Record<string, unknown>).sheets === 'object' &&
+            !Array.isArray((remoteWorkbookSnapshot.snapshot as Record<string, unknown>).sheets) &&
+            Boolean(
+              ((remoteWorkbookSnapshot.snapshot as Record<string, unknown>).sheets as Record<string, unknown>)[
+                targetSheetId
+              ]
+            )
+        )
+        const shouldAllowRemoteWorkbookCandidate =
+          hasSheetCoverageVersion(remoteCoversVersions, targetSheetId) ||
+          (reason === 'sheet_switch' && remoteSnapshotHasTargetWorksheet)
+        if (
+          remoteWorkbookSnapshot.snapshot &&
+          typeof remoteWorkbookSnapshot.snapshot === 'object' &&
+          shouldAllowRemoteWorkbookCandidate
+        ) {
+          candidates.push({
+            candidate: {
+              snapshot: remoteWorkbookSnapshot.snapshot as Record<string, unknown>,
+              seed: `remote-${targetSheetId}-${Math.max(0, Math.trunc(Number(remoteWorkbookSnapshot.version ?? 0)))}`,
+              source: 'remote',
+              version: Math.max(0, Math.trunc(Number(remoteWorkbookSnapshot.version ?? 0))),
+              updatedAt: typeof remoteWorkbookSnapshot.updatedAt === 'string' ? remoteWorkbookSnapshot.updatedAt : null,
+              coversVersions: remoteCoversVersions
+            },
+            formattingSource: 'remote'
+          })
+        }
+      } catch (error) {
+        debugLog('sheet visual materializer remote workbook candidate unavailable', {
+          sheetId: targetSheetId,
+          reason,
+          message: error instanceof Error ? error.message : String(error)
+        })
+      }
+
+      let chosen = hydrationCandidate
+      const candidateDiagnostics: Array<Record<string, unknown>> = []
+      if (hydrationCandidate) {
+        const diagnostics = getPreparedSheetVisualCandidateDiagnostics(hydrationCandidate)
+        candidateDiagnostics.push({
+          source: 'hydration',
+          seed: hydrationCandidate.result.seed,
+          readiness: hydrationCandidate.readiness,
+          validationValid: hydrationCandidate.validation.valid,
+          validationSafety: hydrationCandidate.validation.safety,
+          formattingScore: hydrationCandidate.validation.formattingScore,
+          rowOverlayChanged: hydrationCandidate.rowOverlayChanged,
+          hasWorkbookStyleRegistry: diagnostics.hasWorkbookStyleRegistry,
+          worksheetStyleRefCount: diagnostics.worksheetStyleRefCount,
+          hasWorksheetCellData: diagnostics.hasWorksheetCellData,
+          hasWorksheetStructuralVisualSignal: diagnostics.hasWorksheetStructuralVisualSignal,
+          hasOrphanStyleRegistry: diagnostics.hasOrphanStyleRegistry,
+          loaderCoverageVersion: hydrationCandidate.loaderCoverageVersion,
+          workbookVersion: hydrationCandidate.result.version
+        })
+      }
+      for (const entry of candidates) {
+        const prepared = prepareSheetVisualCandidate({
+          preferUniverNativeSheetTabs,
+          candidate: entry.candidate,
+          canonicalSheetMeta: { ...materializedSheetMeta, version: targetKnownSheetVersion },
+          canonicalRows,
+          appId: app.id,
+          activeSheetId: targetSheetId,
+          appSheets: appSheetsRef.current,
+          formattingSourceOverride: entry.formattingSource
+        })
+        const diagnostics = getPreparedSheetVisualCandidateDiagnostics(prepared)
+        candidateDiagnostics.push({
+          source: entry.formattingSource ?? entry.candidate.source,
+          seed: prepared.result.seed,
+          readiness: prepared.readiness,
+          validationValid: prepared.validation.valid,
+          validationSafety: prepared.validation.safety,
+          formattingScore: prepared.validation.formattingScore,
+          rowOverlayChanged: prepared.rowOverlayChanged,
+          hasWorkbookStyleRegistry: diagnostics.hasWorkbookStyleRegistry,
+          worksheetStyleRefCount: diagnostics.worksheetStyleRefCount,
+          hasWorksheetCellData: diagnostics.hasWorksheetCellData,
+          hasWorksheetStructuralVisualSignal: diagnostics.hasWorksheetStructuralVisualSignal,
+          hasOrphanStyleRegistry: diagnostics.hasOrphanStyleRegistry,
+          loaderCoverageVersion: prepared.loaderCoverageVersion,
+          workbookVersion: prepared.result.version
+        })
+        if (reason === 'sheet_switch' && isWeakSessionVisualCandidate(prepared)) {
+          debugLog('sheet visual materializer skipped weak session candidate on switch', {
+            sheetId: targetSheetId,
+            reason,
+            seed: prepared.result.seed,
+            readiness: prepared.readiness,
+            formattingScore: prepared.validation.formattingScore
+          })
+          continue
+        }
+        chosen = choosePreferredSheetVisualCandidate(chosen, prepared)
+      }
+      const currentAppliedWinner = appliedSheetVisualWinnerRef.current.get(targetSheetId) ?? null
+      const stableChosen = chooseStableAppliedSheetVisualCandidate(currentAppliedWinner, chosen)
+      if (currentAppliedWinner && stableChosen === currentAppliedWinner && chosen !== currentAppliedWinner) {
+        debugLog('sheet visual winner preserved over weaker reapply candidate', {
+          sheetId: targetSheetId,
+          reason,
+          currentFormattingSource: currentAppliedWinner.formattingSource,
+          currentFormattingScore: currentAppliedWinner.validation.formattingScore,
+          currentReadiness: currentAppliedWinner.readiness,
+          incomingFormattingSource: chosen?.formattingSource ?? null,
+          incomingFormattingScore: chosen?.validation.formattingScore ?? null,
+          incomingReadiness: chosen?.readiness ?? null
+        })
+      }
+      chosen = stableChosen
+
+      if (!chosen?.snapshotWithCoverage || chosen.readiness === 'data_only') {
+        debugLog('sheet visual materializer falling back to rows only', {
+          sheetId: targetSheetId,
+          reason,
+          candidateCount: candidates.length,
+          chosenReadiness: chosen?.readiness ?? null,
+          chosenFormattingSource: chosen?.formattingSource ?? null,
+          chosenSeed: chosen?.result.seed ?? null,
+          candidateDiagnostics
+        })
+        syncSheetRowsIntoLocalState(targetSheetId, canonicalRows, {
+          persisted: false,
+          syncGrid: true,
+          sessionDiffProjectionMode: 'skip',
+          version: targetKnownSheetVersion,
+          recoveredSheetMeta: materializedSheetMeta
+        })
+        rememberLiveAppliedSheetVersion(targetSheetId, targetKnownSheetVersion)
+        return allowBackendHydrationFallback && !chosen ? hydrateFromBackendIfAllowed('rows_only_fallback') : true
+      }
+
+      const worksheetSnapshotRaw = chosen.snapshotWithCoverage.sheets as Record<string, unknown> | undefined
+      const worksheetSnapshot =
+        worksheetSnapshotRaw &&
+        typeof worksheetSnapshotRaw === 'object' &&
+        !Array.isArray(worksheetSnapshotRaw) &&
+        worksheetSnapshotRaw[targetSheetId] &&
+        typeof worksheetSnapshotRaw[targetSheetId] === 'object' &&
+        !Array.isArray(worksheetSnapshotRaw[targetSheetId])
+          ? (worksheetSnapshotRaw[targetSheetId] as Record<string, unknown>)
+          : null
+      if (!worksheetSnapshot) {
+        syncSheetRowsIntoLocalState(targetSheetId, canonicalRows, {
+          persisted: false,
+          syncGrid: true,
+          sessionDiffProjectionMode: 'skip',
+          version: targetKnownSheetVersion,
+          recoveredSheetMeta: materializedSheetMeta
+        })
+        rememberLiveAppliedSheetVersion(targetSheetId, targetKnownSheetVersion)
+        return allowBackendHydrationFallback ? hydrateFromBackendIfAllowed('missing_worksheet_snapshot') : true
+      }
+
+      workbookSnapshotVersionRef.current = Math.max(
+        workbookSnapshotVersionRef.current,
+        chosen.result.version,
+        targetKnownSheetSnapshotVersion
+      )
+      workbookSnapshotCoversVersionsRef.current = mergeSnapshotCoversVersions(
+        workbookSnapshotCoversVersionsRef.current,
+        chosen.result.coversVersions
+      )
+      spreadsheetSession.updateWorkbookSnapshot(chosen.snapshotWithCoverage, workbookSnapshotVersionRef.current)
+      spreadsheetGridRef.current?.mergeWorkbookDependencies?.({
+        ...(chosen.snapshotWithCoverage.styles &&
+        typeof chosen.snapshotWithCoverage.styles === 'object' &&
+        !Array.isArray(chosen.snapshotWithCoverage.styles)
+          ? { styles: chosen.snapshotWithCoverage.styles as Record<string, unknown> }
+          : {})
+      })
+      programmaticWorksheetActivationGuardRef.current = {
+        expectedActiveSheetId: targetSheetId,
+        expiresAt: Date.now() + 1500
+      }
+      debugLog('sheet visual materializer ensureWorksheetExists requested', {
+        sheetId: targetSheetId,
+        reason,
+        formattingSource: chosen.formattingSource,
+        formattingScore: chosen.validation.formattingScore,
+        replaceExisting: true
+      })
+      const ensured = spreadsheetGridRef.current?.ensureWorksheetExists(
+        materializedSheetMeta,
+        canonicalRows,
+        materializedSheetMeta.columns,
+        {
+          activate: true,
+          replaceExisting: true,
+          worksheetSnapshot,
+          debugSource: 'materializeSheetVisualState',
+          debugReason: reason
+        }
+      )
+      if (!ensured) {
+        programmaticWorksheetActivationGuardRef.current = null
+        debugLog('sheet snapshot style repair could not replace worksheet locally', {
+          sheetId: targetSheetId,
+          reason
+        })
+        return hydrateFromBackendIfAllowed('ensure_worksheet_failed')
+      }
+
+      const visibilityReplayOperations = buildColumnVisibilityReplayOperations(
+        targetSheetId,
+        materializedSheetMeta.columns
+      )
+      if (visibilityReplayOperations.length > 0) {
+        queueMicrotask(() => {
+          reapplyColumnVisibilityOnGrid(targetSheetId, visibilityReplayOperations)
+        })
+      }
+
+      syncSheetRowsIntoLocalState(targetSheetId, canonicalRows, {
+        persisted: false,
+        syncGrid: false,
+        sessionDiffProjectionMode: 'skip',
+        version: targetKnownSheetVersion,
+        recoveredSheetMeta: materializedSheetMeta
+      })
+      rememberLiveAppliedSheetVersion(targetSheetId, targetKnownSheetVersion)
+      rememberLiveAppliedSheetSnapshotVersion(targetSheetId, targetKnownSheetSnapshotVersion)
+      appliedSheetVisualWinnerRef.current.set(targetSheetId, chosen)
+      if (chosen.validation.formattingScore > 0) {
+        setPendingSnapshotStyleRepair({
+          sheetId: targetSheetId,
+          snapshot: chosen.snapshotWithCoverage,
+          formattingSource: chosen.formattingSource,
+          formattingScore: chosen.validation.formattingScore,
+          nonce: ++pendingSnapshotStyleRepairNonceRef.current,
+          sheetVersion: targetKnownSheetVersion,
+          sheetSnapshotVersion: targetKnownSheetSnapshotVersion
+        })
+      }
+      debugLog('sheet visual materialized from canonical candidate', {
+        sheetId: targetSheetId,
+        reason,
+        readiness: chosen.readiness,
+        formattingSource: chosen.formattingSource,
+        formattingScore: chosen.validation.formattingScore,
+        validationSafety: chosen.validation.safety,
+        chosenSeed: chosen.result.seed,
+        candidateDiagnostics
+      })
+      return true
+    },
+    [
+      authoritativePeerSheetDataCacheRef,
+      activeSheetIdRef,
+      app.id,
+      appSheetsRef,
+      createdSheetIdAliasesRef,
+      debugLog,
+      loadSheetHydrationSnapshot,
+      mapSnapshotRowsToViewerRows,
+      peerSheetDataCacheRef,
+      getCurrentWorkbookSnapshot,
+      getRecentLocalSnapshotMutationForSheet,
+      hasPendingPersistenceForSheet,
+      hasTransientLocalGridStateForSheet,
+      preferUniverNativeSheetTabs,
+      rememberKnownSheetSnapshotVersion,
+      rememberKnownSheetVersion,
+      rememberLiveAppliedSheetSnapshotVersion,
+      rememberLiveAppliedSheetVersion,
+      rememberSheetSnapshotVersion,
+      rememberSheetVersion,
+      shouldDeferHydrationForRecentLocalSnapshotMutationForSheet,
+      reapplyColumnVisibilityOnGrid,
+      spreadsheetSession,
+      syncSheetRowsIntoLocalState,
+      workbookSnapshotCoversVersionsRef,
+      workbookSnapshotVersionRef
+    ]
+  )
+  const requestSheetSnapshotStyleRepair = useCallback(
+    async (params: {
+      sheet: SpreadsheetSheet
+      sheetId: string
+      rows: Record<string, unknown>[]
+      knownSheetVersion: number
+      knownSheetSnapshotVersion: number
+      reason: 'sheet_switch' | 'focus' | 'visibility' | 'reconnect' | 'prefetch'
+      allowBackendHydrationFallback?: boolean
+    }): Promise<boolean> => materializeSheetVisualState(params),
+    [materializeSheetVisualState]
+  )
+  requestSheetSnapshotStyleRepairRef.current = requestSheetSnapshotStyleRepair
+
   const hydrateSheetFromBackend = useCallback(
     async (
       targetSheetId: string,
       reason: SheetHydrationReason,
-      options?: { activate?: boolean; prefetchOnly?: boolean }
+      options?: {
+        activate?: boolean
+        prefetchOnly?: boolean
+        minOperationVersion?: number
+        minSheetSnapshotVersion?: number
+      }
     ): Promise<boolean> => {
       if (!targetSheetId) return false
       const recentLocalSnapshotMutation = getRecentLocalSnapshotMutationForSheet(targetSheetId)
@@ -1722,7 +2404,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         return false
       }
 
-      const hydration = await SpreadsheetApiService.getSheetHydrationSnapshot(app.id, targetSheetId)
+      const hydration = await loadSheetHydrationSnapshot(targetSheetId, {
+        minOperationVersion: options?.minOperationVersion,
+        minSheetSnapshotVersion: options?.minSheetSnapshotVersion
+      })
       const currentSheets = appSheetsRef.current
       const targetSheetMeta =
         currentSheets.find(sheet => sheet.id === targetSheetId) ??
@@ -1734,7 +2419,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       const mergedColumns =
         serverColumns.length > 0
           ? mergeSheetColumnVisibilityFromLocal(serverColumns, localColumns, {
-              preserveLocalVisibility: hasPendingPersistenceForSheet(targetSheetId)
+              preserveLocalVisibility: shouldPreserveLocalColumnVisibilityOnHydration({
+                reason,
+                hasPendingPersistence: hasPendingPersistenceForSheet(targetSheetId)
+              })
             })
           : localColumns
       const hydratedSheetMeta: SpreadsheetSheet = {
@@ -1837,6 +2525,18 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         return false
       }
 
+      const shouldSkipStaleForegroundApply =
+        (reason === 'focus' || reason === 'visibility') &&
+        !areCanonicalSheetIdsEqual(targetSheetId, activeSheetIdRef.current, createdSheetIdAliasesRef.current)
+      if (shouldSkipStaleForegroundApply) {
+        debugLog('sheet hydration skipped stale foreground apply after fetch', {
+          sheetId: targetSheetId,
+          reason,
+          activeSheetId: activeSheetIdRef.current
+        })
+        return true
+      }
+
       const shouldActivate =
         (options?.activate ?? activeSheetIdRef.current === targetSheetId) && activeSheetIdRef.current === targetSheetId
       if (Boolean(hydration.worksheetSnapshot) && shouldActivate) {
@@ -1848,6 +2548,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         programmaticWorksheetActivationGuardRef.current = null
       }
       spreadsheetGridRef.current?.mergeWorkbookDependencies?.(hydration.workbookDependencies ?? {})
+      debugLog('sheet hydration ensureWorksheetExists requested', {
+        sheetId: targetSheetId,
+        reason,
+        activate: shouldActivate,
+        replaceExisting: Boolean(hydration.worksheetSnapshot)
+      })
       const ensured = spreadsheetGridRef.current?.ensureWorksheetExists(
         hydratedSheetMeta,
         hydratedRows,
@@ -1855,7 +2561,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         {
           activate: shouldActivate,
           replaceExisting: Boolean(hydration.worksheetSnapshot),
-          ...(hydration.worksheetSnapshot ? { worksheetSnapshot: hydration.worksheetSnapshot } : {})
+          ...(hydration.worksheetSnapshot ? { worksheetSnapshot: hydration.worksheetSnapshot } : {}),
+          debugSource: 'hydrateSheetFromBackend',
+          debugReason: reason
         }
       )
       if (!ensured) {
@@ -1868,10 +2576,43 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       }
       sheetsNeedingGridMaterializationRef.current.delete(targetSheetId)
       spreadsheetSessionRef.current?.clearSheetGridMaterialization(targetSheetId)
+      const hydratedWorkbookForFormattingScore =
+        hydration.worksheetSnapshot && typeof hydration.worksheetSnapshot === 'object'
+          ? ({
+              sheetOrder: [targetSheetId],
+              sheets: { [targetSheetId]: hydration.worksheetSnapshot },
+              ...(hydration.workbookDependencies ?? {})
+            } as Record<string, unknown>)
+          : null
+      const hydrationFormattingScore = hydratedWorkbookForFormattingScore
+        ? workbookFormattingRichnessScore(hydratedWorkbookForFormattingScore, targetSheetId)
+        : 0
+      const liveSnapshotAfterHydration = spreadsheetGridRef.current?.getWorkbookSnapshot?.() as Record<
+        string,
+        unknown
+      > | null
+      const liveFormattingScoreAfterHydration =
+        liveSnapshotAfterHydration && typeof liveSnapshotAfterHydration === 'object'
+          ? workbookFormattingRichnessScore(liveSnapshotAfterHydration, targetSheetId)
+          : 0
+      rememberLiveAppliedSheetVersion(targetSheetId, operationVersion)
+      if (Math.max(hydrationFormattingScore, liveFormattingScoreAfterHydration) > 0) {
+        rememberLiveAppliedSheetSnapshotVersion(targetSheetId, sheetSnapshotVersion)
+      } else {
+        debugLog('sheet hydration skipped snapshot trust promotion due to missing formatting signal', {
+          sheetId: targetSheetId,
+          reason,
+          hydrationFormattingScore,
+          liveFormattingScoreAfterHydration,
+          sheetSnapshotVersion
+        })
+      }
       debugLog('sheet hydrated from backend', {
         sheetId: targetSheetId,
         reason,
-        activate: shouldActivate
+        activate: shouldActivate,
+        hydrationFormattingScore,
+        liveFormattingScoreAfterHydration
       })
       return true
     },
@@ -1888,6 +2629,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       reloadSheetFromCanonicalSnapshot,
       rememberKnownSheetSnapshotVersion,
       rememberKnownSheetVersion,
+      rememberLiveAppliedSheetSnapshotVersion,
+      rememberLiveAppliedSheetVersion,
       rememberSheetSnapshotVersion,
       rememberSheetVersion,
       spreadsheetSession,
@@ -1896,6 +2639,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       workbookSnapshotVersionRef
     ]
   )
+  hydrateSheetFromBackendRef.current = hydrateSheetFromBackend
 
   const ensureSheetReady = useCallback(
     async (
@@ -1928,58 +2672,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           activeSheetIdRef.current,
           createdSheetIdAliasesRef.current
         )
-        const isActiveFocusRecovery = isActiveTargetSheet && (reason === 'focus' || reason === 'visibility')
-
-        if (isActiveFocusRecovery) {
-          if (localOperationVersion < server.operationVersion) {
-            if (options?.prefetchOnly) return 'blocked'
-            const applied = await requestSheetDeltaCatchUp(targetSheetId, 'sheet_activation', {
-              sinceVersion: localOperationVersion,
-              incomingVersion: server.operationVersion
-            })
-            return applied ? 'ready' : 'blocked'
-          }
-          if (localSheetSnapshotVersion < server.sheetSnapshotVersion) {
-            debugLog('ensureSheetReady skipped active-sheet focus hydration and trusted live workbook', {
-              sheetId: targetSheetId,
-              reason,
-              localOperationVersion,
-              serverOperationVersion: server.operationVersion,
-              localSheetSnapshotVersion,
-              serverSheetSnapshotVersion: server.sheetSnapshotVersion
-            })
-          }
-          return 'ready'
-        }
-
-        if (
-          shouldSkipActiveSheetSnapshotHydration({
-            reason,
-            isActiveTargetSheet,
-            localOperationVersion,
-            serverOperationVersion: server.operationVersion,
-            localSheetSnapshotVersion,
-            serverSheetSnapshotVersion: server.sheetSnapshotVersion
-          })
-        ) {
-          debugLog('ensureSheetReady skipped active-sheet focus hydration on snapshot drift alone', {
-            sheetId: targetSheetId,
-            reason,
-            localOperationVersion,
-            serverOperationVersion: server.operationVersion,
-            localSheetSnapshotVersion,
-            serverSheetSnapshotVersion: server.sheetSnapshotVersion
-          })
-          return 'ready'
-        }
-
-        if (localSheetSnapshotVersion < server.sheetSnapshotVersion) {
-          const hydrated = await hydrateSheetFromBackend(targetSheetId, reason, {
-            activate: !options?.prefetchOnly,
-            prefetchOnly: options?.prefetchOnly
-          })
-          return hydrated ? 'ready' : 'blocked'
-        }
 
         if (localOperationVersion < server.operationVersion) {
           if (options?.prefetchOnly) return 'blocked'
@@ -1987,7 +2679,36 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             sinceVersion: localOperationVersion,
             incomingVersion: server.operationVersion
           })
-          return applied ? 'ready' : 'blocked'
+          if (!applied) return 'blocked'
+        }
+
+        if (!options?.prefetchOnly && isActiveTargetSheet) {
+          const targetSheetMeta =
+            appSheetsRef.current.find(sheet => sheet.id === targetSheetId) ??
+            appSheetsRef.current.find(sheet => sheet.id === activeSheetIdRef.current) ??
+            activeSheet
+          const materialized = await materializeSheetVisualState({
+            sheet: targetSheetMeta,
+            sheetId: targetSheetId,
+            rows: getRichestKnownRowsForSheet(targetSheetId),
+            knownSheetVersion: Math.max(localOperationVersion, server.operationVersion),
+            knownSheetSnapshotVersion: Math.max(localSheetSnapshotVersion, server.sheetSnapshotVersion),
+            reason,
+            allowBackendHydrationFallback: true
+          })
+          if (materialized) {
+            return 'ready'
+          }
+        }
+
+        if (localSheetSnapshotVersion < server.sheetSnapshotVersion) {
+          const hydrated = await hydrateSheetFromBackend(targetSheetId, reason, {
+            activate: !options?.prefetchOnly,
+            prefetchOnly: options?.prefetchOnly,
+            minOperationVersion: server.operationVersion,
+            minSheetSnapshotVersion: server.sheetSnapshotVersion
+          })
+          return hydrated ? 'ready' : 'blocked'
         }
 
         return 'ready'
@@ -2003,8 +2724,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     [
       debugLog,
       getRecentLocalSnapshotMutationForSheet,
+      getRichestKnownRowsForSheet,
       hydrateSheetFromBackend,
       readSheetManifest,
+      requestSheetSnapshotStyleRepair,
       requestSheetDeltaCatchUp,
       resolveTrackedSheetSnapshotVersion,
       resolveTrackedSheetVersion,
@@ -2019,7 +2742,21 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       options?: { prefetchOnly?: boolean; allowManifestRefresh?: boolean }
     ) => {
       const existing = sheetReadinessInFlightRef.current.get(targetSheetId)
-      if (existing) return existing
+      if (existing) {
+        debugLog('ensureSheetReady joined existing in-flight task', {
+          sheetId: targetSheetId,
+          reason,
+          prefetchOnly: options?.prefetchOnly ?? false,
+          allowManifestRefresh: options?.allowManifestRefresh ?? false
+        })
+        return existing
+      }
+      debugLog('ensureSheetReady starting new task', {
+        sheetId: targetSheetId,
+        reason,
+        prefetchOnly: options?.prefetchOnly ?? false,
+        allowManifestRefresh: options?.allowManifestRefresh ?? false
+      })
       const task = ensureSheetReady(targetSheetId, reason, options).finally(() => {
         sheetReadinessInFlightRef.current.delete(targetSheetId)
       })
@@ -2034,7 +2771,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     (sheetId: string, reason: string) => {
       const existing = activationMaterializationInFlightRef.current.get(sheetId)
       if (existing) return existing
-      const task = runEnsureSheetReady(sheetId, 'sheet_switch', { allowManifestRefresh: true })
+      const task = runEnsureSheetReady(sheetId, normalizeSheetReadyReason(reason), {
+        allowManifestRefresh: true
+      })
         .then(status => {
           if (status === 'ready' && activeSheetIdRef.current === sheetId) {
             sheetsNeedingGridMaterializationRef.current.delete(sheetId)
@@ -2424,6 +3163,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       const maxAttempts = 12
       const delayMs = 75
       const tryEnsure = (attempt: number) => {
+        debugLog('remote sheet ensureWorksheetExists requested', {
+          sheetId,
+          attempt,
+          replaceExisting: Boolean(worksheetSnapshot),
+          requestedIndex: requestedIndex ?? appSheetsRef.current.length
+        })
         const ensured = spreadsheetGridRef.current?.ensureWorksheetExists?.(
           {
             ...sheet,
@@ -2438,7 +3183,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             index: requestedIndex ?? appSheetsRef.current.length,
             activate: false,
             replaceExisting: Boolean(worksheetSnapshot),
-            worksheetSnapshot
+            worksheetSnapshot,
+            debugSource: 'ensureRemoteSheetInLiveWorkbook',
+            debugReason: 'remote_sheet_create'
           }
         )
         if (ensured) {
@@ -2555,13 +3302,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const isRowMaterializationInFlightRef = useRef<(sheetId: string) => boolean>(() => false)
   const releaseRowMaterializationInFlightRef = useRef<(sheetId: string) => void>(() => undefined)
   const applyCommittedCommentAnchorPatchesRef = useRef<(patches: Array<{ id: string }>) => void>(() => undefined)
-  const getCurrentWorkbookSnapshot = useCallback((): Record<string, unknown> | null => {
-    const sessionSnapshot = spreadsheetSession.getState().workbookSnapshot
-    if (sessionSnapshot && typeof sessionSnapshot === 'object') {
-      return sessionSnapshot as Record<string, unknown>
-    }
-    return (spreadsheetGridRef.current?.getWorkbookSnapshot?.() as Record<string, unknown> | null) ?? null
-  }, [spreadsheetSession])
   const applyCommittedWorksheetMetadataPatch = useCallback(
     (patch: { sheetId: string; keys: Record<string, unknown> }) => {
       const currentSnapshot = getCurrentWorkbookSnapshot()
@@ -4206,17 +4946,124 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     sheetDataLength: sheetData.length
   })
 
-  const { handleUniverActiveWorksheetChange, resolveSheetContextForGrid } = useSpreadsheetWorksheetContextBridge({
-    sheets: app.sheets,
-    activeSheetIdRef,
-    createdSheetIdAliasesRef,
-    programmaticWorksheetActivationGuardRef,
-    pendingCreatedSheetSelectionRef,
-    peerSheetDataCacheRef,
-    getActiveSessionRows,
-    setActiveSheetIdWithPeerCache,
-    debugLog
-  })
+  const { handleUniverActiveWorksheetChange, resolveMutationPersistTarget, resolveSheetContextForGrid } =
+    useSpreadsheetWorksheetContextBridge({
+      sheets: app.sheets,
+      activeSheetIdRef,
+      createdSheetIdAliasesRef,
+      programmaticWorksheetActivationGuardRef,
+      pendingCreatedSheetSelectionRef,
+      peerSheetDataCacheRef,
+      getActiveSessionRows,
+      setActiveSheetIdWithPeerCache,
+      resolveKnownSheetVersion,
+      debugLog
+    })
+
+  const buildSheetIdentityDiagnosticsPayload = useCallback(
+    ({
+      producerSheetId = null,
+      resolvedTargetSheetId = null,
+      selectionDecision = null,
+      persistDecision = null,
+      operationCount = null,
+      firstOperationType = null,
+      traceId = null
+    }: {
+      producerSheetId?: string | null
+      resolvedTargetSheetId?: string | null
+      selectionDecision?: SpreadsheetActiveWorksheetSyncDecision['decision'] | null
+      persistDecision?: SpreadsheetPersistTargetDecision['decision'] | null
+      operationCount?: number | null
+      firstOperationType?: string | null
+      traceId?: string | null
+    }) => {
+      const currentSheets = appSheetsRef.current
+      const aliases = createdSheetIdAliasesRef.current
+      const reactActiveSheetId = activeSheetIdRef.current
+      const univerActiveSheetId = latestUniverActiveWorksheetIdRef.current
+      const pendingCreatedSheetSelection = pendingCreatedSheetSelectionRef.current
+      const canonicalReactActiveSheetId = resolveReconciledSheetId(reactActiveSheetId, aliases)
+      const canonicalUniverActiveSheetId = univerActiveSheetId
+        ? resolveReconciledSheetId(univerActiveSheetId, aliases)
+        : null
+      const canonicalProducerSheetId = producerSheetId ? resolveReconciledSheetId(producerSheetId, aliases) : null
+      const canonicalTargetSheetId = resolvedTargetSheetId
+        ? resolveReconciledSheetId(resolvedTargetSheetId, aliases)
+        : canonicalProducerSheetId
+
+      return {
+        reactActiveSheetId,
+        canonicalReactActiveSheetId,
+        univerActiveSheetId,
+        canonicalUniverActiveSheetId,
+        producerSheetId,
+        canonicalProducerSheetId,
+        resolvedTargetSheetId,
+        canonicalTargetSheetId,
+        knownSheetIds: currentSheets.map(sheet => resolveReconciledSheetId(sheet.id, aliases)),
+        pendingCreatedSheetSelection: pendingCreatedSheetSelection
+          ? {
+              temporarySheetId: pendingCreatedSheetSelection.temporarySheetId,
+              persistedSheetId: pendingCreatedSheetSelection.persistedSheetId,
+              canonicalTemporarySheetId: resolveReconciledSheetId(
+                pendingCreatedSheetSelection.temporarySheetId,
+                aliases
+              ),
+              canonicalPersistedSheetId: pendingCreatedSheetSelection.persistedSheetId
+                ? resolveReconciledSheetId(pendingCreatedSheetSelection.persistedSheetId, aliases)
+                : null
+            }
+          : null,
+        aliases: Object.fromEntries(createdSheetIdAliasesRef.current.entries()),
+        selectionDecision,
+        persistDecision,
+        operationCount,
+        firstOperationType,
+        traceId
+      }
+    },
+    [app.sheets]
+  )
+
+  const handleGridActiveWorksheetChange = useCallback(
+    (worksheetId: string, worksheetName: string): boolean => {
+      latestUniverActiveWorksheetIdRef.current = worksheetId
+      const decision = handleUniverActiveWorksheetChange(worksheetId, worksheetName)
+      latestSheetSelectionDecisionRef.current = decision
+
+      const diagnosticsKey = [
+        worksheetId,
+        decision.decision,
+        decision.canonicalActiveSheetId,
+        decision.targetSheetId ?? ''
+      ].join(':')
+      if (diagnosticsKey !== lastSheetSelectionDiagnosticsKeyRef.current) {
+        lastSheetSelectionDiagnosticsKeyRef.current = diagnosticsKey
+        const diagnosticsPayload = buildSheetIdentityDiagnosticsPayload({
+          resolvedTargetSheetId: decision.targetSheetId,
+          selectionDecision: decision.decision
+        })
+
+        debugLog('sheet identity selection decision', diagnosticsPayload)
+        enqueueDiagnosticsTraceEvent({
+          source: 'client',
+          stage: 'viewer_sheet_identity_selection',
+          severity:
+            decision.decision === 'unknown_sheet' ||
+            decision.decision === 'blocked_pending_sheet_creation' ||
+            decision.decision === 'blocked_programmatic_activation'
+              ? 'warning'
+              : 'info',
+          sheetId: decision.targetSheetId ?? activeSheetIdRef.current,
+          payload: diagnosticsPayload
+        })
+      }
+
+      return decision.accepted
+    },
+    [buildSheetIdentityDiagnosticsPayload, enqueueDiagnosticsTraceEvent, handleUniverActiveWorksheetChange]
+  )
 
   const { handleNativeSheetStructureIntent } = useSpreadsheetNativeSheetStructureIntent({
     preferUniverNativeSheetTabs,
@@ -4333,67 +5180,33 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       if (!Array.isArray(batchData.operations) || batchData.operations.length === 0) {
         return
       }
-      const routingDecision = resolveSpreadsheetKnownSheetRouting({
+      const persistTargetDecision = resolveMutationPersistTarget(batchData.sheetId)
+      const targetSheetId = persistTargetDecision.targetSheetId
+      const diagnosticsPayload = buildSheetIdentityDiagnosticsPayload({
         producerSheetId: batchData.sheetId,
-        reactActiveSheetId: activeSheetIdRef.current,
-        sheets: app.sheets,
-        aliases: createdSheetIdAliasesRef.current
+        resolvedTargetSheetId: targetSheetId,
+        selectionDecision: latestSheetSelectionDecisionRef.current?.decision ?? null,
+        persistDecision: persistTargetDecision.decision,
+        operationCount: batchData.operations.length,
+        firstOperationType: batchData.operations[0]?.type ?? null,
+        traceId: batchData.traceId ?? null
       })
-      const targetSheetId = routingDecision.targetSheetId
+      const hasRoutingMismatch =
+        persistTargetDecision.canonicalProducerSheetId !== persistTargetDecision.canonicalReactActiveSheetId &&
+        persistTargetDecision.canonicalReactActiveSheetId !== ''
 
-      // Diagnostic: detect Univer / React active-sheet routing mismatch. The
-      // batch's `sheetId` is the producer's view of which sheet the user
-      // edited (usually derived from Univer's active subUnitId); the React
-      // active sheet is what we display in the tab strip. If they disagree
-      // the write is about to land on the wrong sheet — log enough context
-      // to root-cause without spamming the happy path.
-      const reactActiveSheetId = activeSheetIdRef.current
-      if (routingDecision.hasRoutingMismatch) {
-        console.warn('[SheetRoutingMismatch] batch target sheet differs from React active sheet', {
-          rawProducerSheetId: batchData.sheetId,
-          resolvedTargetSheetId: targetSheetId,
-          reactActiveSheetId,
-          canonicalReactActiveSheetId: routingDecision.canonicalActiveSheetId,
-          firstOperationType: batchData.operations[0]?.type,
-          operationCount: batchData.operations.length,
-          traceId: batchData.traceId ?? null,
-          knownSheetIds: app.sheets.map(sheet => sheet.id),
-          routingOutcome: routingDecision.outcome
-        })
+      if (hasRoutingMismatch) {
+        console.warn('[SheetRoutingMismatch] batch target sheet differs from React active sheet', diagnosticsPayload)
       }
-      if (!routingDecision.knownTargetSheet) {
-        console.warn('[SheetRoutingDrop] dropping mutation batch for unknown target sheet', {
-          rawProducerSheetId: batchData.sheetId,
-          resolvedTargetSheetId: targetSheetId,
-          reactActiveSheetId,
-          canonicalReactActiveSheetId: routingDecision.canonicalActiveSheetId,
-          firstOperationType: batchData.operations[0]?.type,
-          operationCount: batchData.operations.length,
-          traceId: batchData.traceId ?? null,
-          knownSheetIds: app.sheets.map(sheet => sheet.id),
-          routingOutcome: routingDecision.outcome
-        })
-        debugLog('unified mutation batch dropped for unknown sheet', {
-          traceId: batchData.traceId ?? null,
-          rawProducerSheetId: batchData.sheetId,
-          resolvedTargetSheetId: targetSheetId,
-          routingOutcome: routingDecision.outcome
-        })
+      if (!persistTargetDecision.submit || !targetSheetId) {
+        console.warn('[SheetRoutingDrop] dropping mutation batch for unresolved target sheet', diagnosticsPayload)
+        debugLog('unified mutation batch dropped by sheet identity bridge', diagnosticsPayload)
         enqueueDiagnosticsTraceEvent({
           source: 'client',
           stage: 'viewer_unified_mutation_drop_unknown_sheet',
           traceId: batchData.traceId ?? null,
           severity: 'warning',
-          payload: {
-            rawProducerSheetId: batchData.sheetId,
-            resolvedTargetSheetId: targetSheetId,
-            reactActiveSheetId,
-            canonicalReactActiveSheetId: routingDecision.canonicalActiveSheetId,
-            operationCount: batchData.operations.length,
-            firstOperationType: batchData.operations[0]?.type ?? null,
-            knownSheetIds: app.sheets.map(sheet => sheet.id),
-            routingOutcome: routingDecision.outcome
-          }
+          payload: diagnosticsPayload
         })
         return
       }
@@ -4733,6 +5546,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     [
       app.sheets,
       activeSheetIdRef,
+      buildSheetIdentityDiagnosticsPayload,
       sheetWorkQueue,
       createOperationId,
       chainOnOperationQueue,
@@ -4748,6 +5562,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       operationQueueRef,
       pendingCellChangesRef,
       persistPendingCellJournal,
+      resolveMutationPersistTarget,
       rowMaterializationReadiness,
       schedulePendingCellPersist
     ]
@@ -4755,10 +5570,15 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
   const handleGridInitLifecycle = useCallback(
     (event: UniverSheetGridInitLifecycleEvent) => {
+      const activeSheetIdForLifecycle = latestActiveSheetIdForGridLifecycleRef.current
+      if (typeof event.activeWorksheetId === 'string') {
+        latestUniverActiveWorksheetIdRef.current = event.activeWorksheetId
+      }
       setGridInitLifecycle(event)
       debugLog('grid init lifecycle', {
         appId: app.id,
-        activeSheetId,
+        activeSheetId: activeSheetIdForLifecycle,
+        activeWorksheetId: event.activeWorksheetId ?? null,
         phase: event.phase,
         sheetId: event.sheetId,
         workbookInstanceKey: event.workbookInstanceKey,
@@ -4774,7 +5594,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         sheetId: event.sheetId,
         payload: {
           phase: event.phase,
-          activeSheetId,
+          activeSheetId: activeSheetIdForLifecycle,
+          activeWorksheetId: event.activeWorksheetId ?? null,
           workbookInstanceKey: event.workbookInstanceKey,
           snapshotSeed: event.snapshotSeed ?? null,
           reason: event.reason ?? null,
@@ -4783,8 +5604,29 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           height: event.height ?? null
         }
       })
+      if (event.phase === 'bootstrap_succeeded' || event.phase === 'canvas_ready') {
+        if (areCanonicalSheetIdsEqual(event.sheetId, activeSheetIdForLifecycle, createdSheetIdAliasesRef.current)) {
+          rememberLiveAppliedSheetVersion(event.sheetId, resolveKnownSheetVersion(event.sheetId))
+          rememberLiveAppliedSheetSnapshotVersion(event.sheetId, resolveKnownSheetSnapshotVersion(event.sheetId))
+        }
+        debugLog(
+          'sheet identity bootstrap checkpoint',
+          buildSheetIdentityDiagnosticsPayload({
+            resolvedTargetSheetId: event.activeWorksheetId ?? event.sheetId,
+            selectionDecision: latestSheetSelectionDecisionRef.current?.decision ?? null
+          })
+        )
+      }
     },
-    [activeSheetId, app.id, enqueueDiagnosticsTraceEvent]
+    [
+      app.id,
+      buildSheetIdentityDiagnosticsPayload,
+      enqueueDiagnosticsTraceEvent,
+      rememberLiveAppliedSheetSnapshotVersion,
+      rememberLiveAppliedSheetVersion,
+      resolveKnownSheetSnapshotVersion,
+      resolveKnownSheetVersion
+    ]
   )
 
   const structuralMutations = useSpreadsheetGridStructuralMutations({
@@ -4834,6 +5676,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const mainView = useSpreadsheetMainViewRenderer({
     viewType,
     isBootstrapCanonicalReady,
+    isBootstrapSnapshotLoading,
     isBootstrapWorkbookEnriching,
     workbookSnapshotSyncFailed: isBootstrapWorkbookSyncFailed,
     preferUniverNativeSheetTabs,
@@ -4848,7 +5691,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     authoritativeDataSyncToken: authoritativeDataSyncToken as any,
     authoritativePaintCellsRef,
     authoritativePaintMetaRef,
-    pendingBootstrapStyleRepair,
+    pendingSnapshotStyleRepair: pendingSnapshotStyleRepair ?? pendingBootstrapStyleRepair,
+    onSnapshotStyleRepairApplied: handleSnapshotStyleRepairApplied,
     workbookInstanceKey: tableWorkbookInstanceKey as any,
     pendingLocalMutationCellsRef,
     spreadsheetIntentJournalRef,
@@ -4857,7 +5701,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     spreadsheetColumnsForGrid,
     testId,
     onNativeSheetStructureIntent: handleNativeSheetStructureIntent as any,
-    onActiveWorksheetChange: handleUniverActiveWorksheetChange,
+    onActiveWorksheetChange: handleGridActiveWorksheetChange,
     onUniverSheetInserted: handleUniverSheetInserted as any,
     onUniverSheetRemoved: handleUniverSheetRemoved as any,
     onUniverSheetRenamed: handleUniverSheetRenamed as any,

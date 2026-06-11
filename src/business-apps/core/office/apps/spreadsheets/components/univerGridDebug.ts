@@ -13,7 +13,11 @@ export const isSpreadsheetGridRemoteApplyDebug = (): boolean => {
 
 export const isSpreadsheetInitDebug = (): boolean => {
   try {
-    return globalThis.localStorage?.getItem('debug:spreadsheet-univer-init') === '1'
+    return (
+      globalThis.localStorage?.getItem('debug:spreadsheet-univer-init') === '1' ||
+      globalThis.localStorage?.getItem('spreadsheetAppsDebug') === '1' ||
+      globalThis.localStorage?.getItem('debug:spreadsheet-apps') === '1'
+    )
   } catch {
     return false
   }
@@ -40,6 +44,7 @@ export const debugMutationTrace = (phase: string, detail: Record<string, unknown
 
 export const debugUniverDimensionSnapshot = (phase: string, detail: Record<string, unknown>) => {
   if (!isSpreadsheetGridRemoteApplyDebug()) return
+  if (phase === 'coalesced' || phase === 'coalesced_deferred') return
   console.debug('[UniverSheetGrid][dimension-snapshot]', phase, detail)
 }
 

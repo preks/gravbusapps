@@ -183,6 +183,17 @@ function sanitizeStyleValue(value: unknown): unknown | undefined {
   return Object.keys(sanitizedObject).length > 0 ? sanitizedObject : undefined
 }
 
+function normalizeStyleRefId(value: unknown): string | null {
+  if (typeof value === 'string') {
+    const normalized = trimControlCharacters(value)
+    return normalized.length > 0 ? normalized : null
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value)
+  }
+  return null
+}
+
 function sanitizeStyles(styles: Record<string, unknown> | undefined): {
   styles?: Record<string, unknown>
   changed: boolean
@@ -277,7 +288,7 @@ function sanitizeCellRecord(rawCell: unknown): Record<string, unknown> | null {
     .object({
       v: cellScalarSchema.optional(),
       f: z.union([z.string(), z.null()]).optional(),
-      s: z.union([z.string(), z.record(z.string(), z.unknown())]).optional(),
+      s: z.union([z.string(), finiteNumberSchema, z.record(z.string(), z.unknown())]).optional(),
       t: finiteNumberSchema.optional()
     })
     .passthrough()
@@ -296,8 +307,10 @@ function sanitizeCellRecord(rawCell: unknown): Record<string, unknown> | null {
   } else if (sanitizedCell.f === null) {
     delete sanitizedCell.f
   }
-  if (typeof sanitizedCell.s === 'string') {
-    if (!SAFE_STYLE_ID_REGEXP.test(sanitizedCell.s)) delete sanitizedCell.s
+  const styleRefId = normalizeStyleRefId(sanitizedCell.s)
+  if (styleRefId) {
+    if (!SAFE_STYLE_ID_REGEXP.test(styleRefId)) delete sanitizedCell.s
+    else sanitizedCell.s = styleRefId
   } else if (sanitizedCell.s && typeof sanitizedCell.s === 'object') {
     const sanitizedInlineStyle = sanitizeStyleValue(sanitizedCell.s)
     if (sanitizedInlineStyle && typeof sanitizedInlineStyle === 'object') sanitizedCell.s = sanitizedInlineStyle
@@ -369,7 +382,7 @@ function canonicalizeWorksheetCellStyles(
           delete nextCell[key]
         }
         const inlineOverrides = Object.fromEntries(inlineEntries)
-        const baseStyleId = typeof nextCell.s === 'string' ? nextCell.s.trim() : ''
+        const baseStyleId = normalizeStyleRefId(nextCell.s) ?? ''
         const baseStyle =
           baseStyleId &&
           styleDefinitions &&
@@ -421,8 +434,10 @@ function dropDanglingStyleReferences(
       if (!rowCells || typeof rowCells !== 'object') continue
       for (const [colKey, cell] of Object.entries(rowCells)) {
         if (!cell || typeof cell !== 'object') continue
-        if (typeof cell.s === 'string' && !validStyleIds.has(cell.s)) {
-          delete cell.s
+        const styleId = normalizeStyleRefId(cell.s)
+        if (styleId) {
+          if (!validStyleIds.has(styleId)) delete cell.s
+          else cell.s = styleId
         }
         for (const [key, value] of Object.entries(cell)) {
           if (value === undefined) delete cell[key]

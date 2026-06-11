@@ -13,6 +13,7 @@ jest.mock('@univerjs/preset-sheets-core/locales/en-US', () => ({}), { virtual: t
 
 export let lastPresetContainer: unknown
 export let lastSetNumfmtLocalMock: jest.Mock | undefined
+export let lastWorkbookSetActiveSheetMock: jest.Mock | undefined
 export let lastRangeGetValueMock: jest.Mock | undefined
 export let lastRangeGetCellDataMock: jest.Mock | undefined
 export let lastRangeSetValueMock: jest.Mock | undefined
@@ -22,10 +23,9 @@ export let lastCancelFreezeMock: jest.Mock | undefined
 export let lastRequestedRangeCoords:
   | { sheetId: 'sheet-1' | 'sheet-2'; row: number | undefined; col: number | undefined }
   | undefined
-export let univerMockActiveSheetId: 'sheet-1' | 'sheet-2' = 'sheet-1'
-
 /** Mutable test overrides; assign via this object (not namespace imports) from test files. */
 export const gridTestMockState = {
+  activeSheetId: 'sheet-1' as 'sheet-1' | 'sheet-2',
   worksheetValueByCoord: null as Map<string, unknown> | null,
   worksheetCellDataByCoord: null as Map<string, unknown> | null,
   worksheetCellRectByCoord: null as Map<
@@ -218,10 +218,10 @@ jest.mock(
         getUnitId: () => 'unit-test',
         getId: () => 'unit-test',
         setNumfmtLocal: jest.fn(),
-        getActiveSheet: () => (univerMockActiveSheetId === 'sheet-2' ? inactiveSheet : activeSheet),
+        getActiveSheet: () => (gridTestMockState.activeSheetId === 'sheet-2' ? inactiveSheet : activeSheet),
         setActiveSheet: jest.fn((id: string) => {
-          if (id === 'sheet-2') univerMockActiveSheetId = 'sheet-2'
-          if (id === 'sheet-1') univerMockActiveSheetId = 'sheet-1'
+          if (id === 'sheet-2') gridTestMockState.activeSheetId = 'sheet-2'
+          if (id === 'sheet-1') gridTestMockState.activeSheetId = 'sheet-1'
         }),
         getSheets: () => [activeSheet, inactiveSheet],
         getSheetBySheetId: (sheetId: string) =>
@@ -240,6 +240,7 @@ jest.mock(
           }
       }
       lastSetNumfmtLocalMock = workbook.setNumfmtLocal
+      lastWorkbookSetActiveSheetMock = workbook.setActiveSheet
       executeCommandMock = jest.fn()
       createWorkbookSnapshots = []
       createWorkbookMock = jest.fn((snapshot?: Record<string, unknown>) => {
@@ -277,6 +278,7 @@ export function resetUniverSheetGridTestMocks(): void {
   Object.keys(eventHandlers).forEach(key => delete eventHandlers[key])
   lastPresetContainer = undefined
   lastSetNumfmtLocalMock = undefined
+  lastWorkbookSetActiveSheetMock = undefined
   lastRangeGetValueMock = undefined
   lastRangeGetCellDataMock = undefined
   lastRangeSetValueMock = undefined
@@ -284,7 +286,7 @@ export function resetUniverSheetGridTestMocks(): void {
   lastSetFreezeMock = undefined
   lastCancelFreezeMock = undefined
   lastRequestedRangeCoords = undefined
-  univerMockActiveSheetId = 'sheet-1'
+  gridTestMockState.activeSheetId = 'sheet-1'
   gridTestMockState.worksheetValueByCoord = null
   gridTestMockState.worksheetCellDataByCoord = null
   gridTestMockState.worksheetCellRectByCoord = null

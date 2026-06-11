@@ -138,10 +138,12 @@ export function createUniverMountWorksheetSelectionChrome(refs: UniverMountWorks
           suppressWorksheetSelectionEmitRef.current = null
         }
       }
-      lastEmittedWorksheetIdRef.current = worksheetId
       const worksheetName = typeof activeWorksheet?.getSheetName === 'function' ? activeWorksheet.getSheetName() : ''
       restoreCopiedSelectionAnchorOnSheetSwitch(worksheetId)
-      callbacksRef.current.onActiveWorksheetChange?.(worksheetId, worksheetName)
+      const accepted = callbacksRef.current.onActiveWorksheetChange?.(worksheetId, worksheetName) !== false
+      if (accepted) {
+        lastEmittedWorksheetIdRef.current = worksheetId
+      }
     } catch {
       /* ignore */
     }

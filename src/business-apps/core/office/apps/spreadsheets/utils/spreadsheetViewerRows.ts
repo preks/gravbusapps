@@ -201,26 +201,28 @@ export const buildAddRowPayloadsFromUniverRows = (
   rows: Array<Record<string, unknown>>,
   columns: SpreadsheetColumn[] = []
 ): Array<Record<string, unknown>> =>
-  mergeDuplicateClientRows(rows).map(row => {
-    const payload: Record<string, unknown> = {}
-    const clientRowId = getClientRowIdentity(row)
-    if (clientRowId) payload._clientRowId = clientRowId
-    const gridRowIndex = getFiniteNonNegativeGridRowIndex(row)
-    if (gridRowIndex !== undefined) payload._gridRowIndex = gridRowIndex
-    ;(columns ?? []).forEach(col => {
-      const value = row[col.name]
-      if (value === undefined) return
-      const normalized = normalizeUniverCellForRowPersistence(value, col)
-      if (normalized !== undefined) {
-        payload[col.name] = normalized
-        return
-      }
-      if (typeof value !== 'object' || value === null) {
-        payload[col.name] = value
-      }
+  mergeDuplicateClientRows(rows)
+    .map(row => {
+      const payload: Record<string, unknown> = {}
+      const clientRowId = getClientRowIdentity(row)
+      if (clientRowId) payload._clientRowId = clientRowId
+      const gridRowIndex = getFiniteNonNegativeGridRowIndex(row)
+      if (gridRowIndex !== undefined) payload._gridRowIndex = gridRowIndex
+      ;(columns ?? []).forEach(col => {
+        const value = row[col.name]
+        if (value === undefined) return
+        const normalized = normalizeUniverCellForRowPersistence(value, col)
+        if (normalized !== undefined) {
+          payload[col.name] = normalized
+          return
+        }
+        if (typeof value !== 'object' || value === null) {
+          payload[col.name] = value
+        }
+      })
+      return payload
     })
-    return payload
-  })
+    .filter(payload => Object.keys(payload).some(key => key !== '_clientRowId' && key !== '_gridRowIndex'))
 
 export const buildCreatedRowsFromBatch = (
   rowPayloads: Array<Record<string, unknown>>,

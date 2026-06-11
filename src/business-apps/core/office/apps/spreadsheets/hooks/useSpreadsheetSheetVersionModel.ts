@@ -29,7 +29,10 @@ export function useSpreadsheetSheetVersionModel(params: UseSpreadsheetSheetVersi
   const workbookSnapshotCoversVersionsRef = useRef<SpreadsheetSnapshotCoversVersions>({})
   const sheetVersionsRef = useRef<Map<string, number>>(new Map())
   const sheetSnapshotVersionsRef = useRef<Map<string, number>>(new Map())
+  const liveAppliedSheetVersionsRef = useRef<Map<string, number>>(new Map())
+  const liveAppliedSheetSnapshotVersionsRef = useRef<Map<string, number>>(new Map())
   const sheetVersionSyncSheetIdRef = useRef<string>('')
+  const seededInitialLiveAppliedStateRef = useRef(false)
   const knownSheetVersionsRef = useRef<Map<string, { version: number; fetchedAt: number }>>(new Map())
   const knownSheetSnapshotVersionsRef = useRef<Map<string, { version: number; fetchedAt: number }>>(new Map())
   const inFlightSheetVersionRefreshesRef = useRef<Map<string, Promise<number>>>(new Map())
@@ -114,6 +117,15 @@ export function useSpreadsheetSheetVersionModel(params: UseSpreadsheetSheetVersi
     })
   }, [])
 
+  const rememberLiveAppliedSheetVersion = useCallback((sheetId: string, version: number | undefined) => {
+    if (typeof version !== 'number' || !Number.isFinite(version) || version < 0) return
+    const normalizedVersion = Math.trunc(version)
+    const currentVersion = liveAppliedSheetVersionsRef.current.get(sheetId)
+    if (currentVersion == null || normalizedVersion > currentVersion) {
+      liveAppliedSheetVersionsRef.current.set(sheetId, normalizedVersion)
+    }
+  }, [])
+
   const updateActiveSheetVersion = useCallback(
     (version: number | undefined, strategy: 'set' | 'max' = 'max') => {
       if (typeof version !== 'number' || !Number.isFinite(version) || version < 0) return
@@ -158,6 +170,15 @@ export function useSpreadsheetSheetVersionModel(params: UseSpreadsheetSheetVersi
     })
   }, [])
 
+  const rememberLiveAppliedSheetSnapshotVersion = useCallback((sheetId: string, version: number | undefined) => {
+    if (typeof version !== 'number' || !Number.isFinite(version) || version < 0) return
+    const normalizedVersion = Math.trunc(version)
+    const currentVersion = liveAppliedSheetSnapshotVersionsRef.current.get(sheetId)
+    if (currentVersion == null || normalizedVersion > currentVersion) {
+      liveAppliedSheetSnapshotVersionsRef.current.set(sheetId, normalizedVersion)
+    }
+  }, [])
+
   const resolveTrackedSheetSnapshotVersion = useCallback(
     (sheetId: string): number => {
       const trackedVersion = sheetSnapshotVersionsRef.current.get(sheetId)
@@ -185,6 +206,34 @@ export function useSpreadsheetSheetVersionModel(params: UseSpreadsheetSheetVersi
       return Math.max(trackedVersion, knownNetworkVersion)
     },
     [resolveTrackedSheetSnapshotVersion]
+  )
+
+  const resolveLiveAppliedSheetVersion = useCallback((sheetId: string): number => {
+    const liveAppliedVersion = liveAppliedSheetVersionsRef.current.get(sheetId)
+    return typeof liveAppliedVersion === 'number' && Number.isFinite(liveAppliedVersion)
+      ? Math.max(0, Math.trunc(liveAppliedVersion))
+      : 0
+  }, [])
+
+  const resolveLiveAppliedSheetSnapshotVersion = useCallback((sheetId: string): number => {
+    const liveAppliedVersion = liveAppliedSheetSnapshotVersionsRef.current.get(sheetId)
+    return typeof liveAppliedVersion === 'number' && Number.isFinite(liveAppliedVersion)
+      ? Math.max(0, Math.trunc(liveAppliedVersion))
+      : 0
+  }, [])
+
+  const rememberLiveAppliedSheetState = useCallback(
+    (
+      sheetId: string,
+      versions: {
+        version?: number
+        sheetSnapshotVersion?: number
+      }
+    ) => {
+      rememberLiveAppliedSheetVersion(sheetId, versions.version)
+      rememberLiveAppliedSheetSnapshotVersion(sheetId, versions.sheetSnapshotVersion)
+    },
+    [rememberLiveAppliedSheetSnapshotVersion, rememberLiveAppliedSheetVersion]
   )
 
   const getKnownSheetVersion = useCallback((targetSheetId: string, fallbackVersion: number): number => {
@@ -242,6 +291,14 @@ export function useSpreadsheetSheetVersionModel(params: UseSpreadsheetSheetVersi
     resolveKnownSheetVersion,
     updateActiveSheetVersion
   ])
+
+  useEffect(() => {
+    if (seededInitialLiveAppliedStateRef.current) return
+    params.sheets.forEach(sheet => {
+      rememberLiveAppliedSheetVersion(sheet.id, Number(sheet.version ?? 0))
+    })
+    seededInitialLiveAppliedStateRef.current = true
+  }, [params.sheets, rememberLiveAppliedSheetVersion])
 
   const rememberLocalCommittedVersion = useCallback((version: number | undefined) => {
     if (typeof version !== 'number' || !Number.isFinite(version) || version < 0) return
@@ -326,14 +383,21 @@ export function useSpreadsheetSheetVersionModel(params: UseSpreadsheetSheetVersi
     knownSheetVersionsRef,
     sheetSnapshotVersionsRef,
     knownSheetSnapshotVersionsRef,
+    liveAppliedSheetVersionsRef,
+    liveAppliedSheetSnapshotVersionsRef,
     rememberSheetVersion,
     rememberSheetSnapshotVersion,
     resolveTrackedSheetVersion,
     resolveKnownSheetVersion,
     resolveTrackedSheetSnapshotVersion,
     resolveKnownSheetSnapshotVersion,
+    resolveLiveAppliedSheetVersion,
+    resolveLiveAppliedSheetSnapshotVersion,
     rememberKnownSheetVersion,
     rememberKnownSheetSnapshotVersion,
+    rememberLiveAppliedSheetVersion,
+    rememberLiveAppliedSheetSnapshotVersion,
+    rememberLiveAppliedSheetState,
     getKnownSheetVersion,
     updateActiveSheetVersion,
     refreshBaseVersionBeforeWrite,

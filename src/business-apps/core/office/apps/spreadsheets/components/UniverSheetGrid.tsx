@@ -46,9 +46,14 @@ import type {
 import type { SnapshotDimensions } from './univerGridInternalTypes'
 import { syncUniverGridUiSession } from './univerGridUiSession'
 import { useUniverGridController } from './useUniverGridController'
-import { debugRemoteApply } from './univerGridDebug'
+import { debugRemoteApply, debugUniverInit } from './univerGridDebug'
 import { useUniverDomChrome } from './useUniverDomChrome'
-import { buildAuthoritativeCellSignatureMap, remoteEchoKey, toEchoSignature } from './univerGridAuthoritativeHelpers'
+import {
+  buildAuthoritativeCellSignatureMap,
+  getAuthoritativeGridRowExtent,
+  remoteEchoKey,
+  toEchoSignature
+} from './univerGridAuthoritativeHelpers'
 import { applyRemoteColumnReorderOnGrid } from './applyRemoteColumnReorderOnGrid'
 import { applyRemoteDeleteColumnSlotsOnGrid } from './applyRemoteDeleteColumnSlotsOnGrid'
 import { applyRemoteInsertColumnSlotsOnGrid } from './applyRemoteInsertColumnSlotsOnGrid'
@@ -276,6 +281,7 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       pendingForcedAuthoritativeReapplyRef,
       lastProcessedAuthoritativeReapplySeedRef,
       skipNextAuthoritativeSyncAfterSnapshotInitRef,
+      skipNextAuthoritativeSyncAfterImperativeSnapshotReplaceRef,
       activeSelectionRef,
       cutPasteCollabSuppressUntilMsRef,
       recentMoveCellRangeFollowUpRef,
@@ -2350,6 +2356,14 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
                 : Math.max(0, existingIndex >= 0 ? existingIndex : (existingCount ?? 0))
             const executeCommand = (api as { executeCommand?: (id: string, params: unknown) => unknown }).executeCommand
             if (typeof executeCommand !== 'function') return false
+            debugUniverInit('ensure_worksheet_exists_begin', {
+              sheetId,
+              activate: options.activate === true,
+              replaceExisting: options.replaceExisting === true,
+              hasWorksheetSnapshot: Boolean(options.worksheetSnapshot),
+              debugSource: options.debugSource ?? 'unknown',
+              debugReason: options.debugReason ?? 'unknown'
+            })
 
             let previousActiveSheetId: string | undefined
             try {
@@ -2358,6 +2372,29 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
             } catch {
               previousActiveSheetId = undefined
             }
+            const shouldReplaceExistingWorksheet =
+              options.replaceExisting && Boolean(workbook.getSheetBySheetId?.(sheetId))
+            const fallbackSheetIdForReplace =
+              shouldReplaceExistingWorksheet && previousActiveSheetId === sheetId
+                ? Array.isArray(existingSheets)
+                  ? existingSheets.find(entry => {
+                      if (entry == null || typeof entry !== 'object') return false
+                      const getSheetId = (entry as { getSheetId?: () => string }).getSheetId
+                      if (typeof getSheetId !== 'function') return false
+                      try {
+                        const existingSheetId = getSheetId.call(entry)
+                        return typeof existingSheetId === 'string' && existingSheetId !== sheetId
+                      } catch {
+                        return false
+                      }
+                    })
+                  : undefined
+                : undefined
+            const fallbackActiveSheetId =
+              fallbackSheetIdForReplace &&
+              typeof (fallbackSheetIdForReplace as { getSheetId?: () => string }).getSheetId === 'function'
+                ? (fallbackSheetIdForReplace as { getSheetId: () => string }).getSheetId()
+                : undefined
             if (options.replaceExisting && options.activate) {
               suppressWorksheetSelectionEmitRef.current = {
                 expectedSheetId: sheetId,
@@ -2365,6 +2402,9 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
               }
             }
             if (options.replaceExisting && workbook.getSheetBySheetId?.(sheetId)) {
+              if (fallbackActiveSheetId) {
+                workbook.setActiveSheet?.(fallbackActiveSheetId)
+              }
               recentSheetMutationIdsRef.current.add(`rm:${sheetId}`)
               executeCommand.call(api, 'sheet.command.remove-sheet', {
                 subUnitId: sheetId
@@ -2375,13 +2415,42 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
               index,
               sheet: worksheet
             })
+            if (options.worksheetSnapshot) {
+              const nextAuthoritativeDataSyncToken = props.authoritativeDataSyncToken ?? 0
+              lastSyncedGridCellSignaturesRef.current = buildAuthoritativeCellSignatureMap(targetData, targetColumns)
+              lastSyncedGridRowCountRef.current = getAuthoritativeGridRowExtent(targetData)
+              lastSyncedGridColumnCountRef.current = targetColumns.filter(column => column.isVisible !== false).length
+              lastProcessedAuthoritativeDataSyncTokenRef.current = nextAuthoritativeDataSyncToken
+              lastProcessedAuthoritativeReapplySeedRef.current = authoritativeReapplySeed
+              skipNextAuthoritativeSyncAfterSnapshotInitRef.current = true
+              skipNextAuthoritativeSyncAfterImperativeSnapshotReplaceRef.current = {
+                sheetId,
+                token: nextAuthoritativeDataSyncToken
+              }
+            }
             if (options.activate) {
               workbook.setActiveSheet?.(sheetId)
             } else if (previousActiveSheetId && previousActiveSheetId !== sheetId) {
               workbook.setActiveSheet?.(previousActiveSheetId)
             }
+            debugUniverInit('ensure_worksheet_exists_done', {
+              sheetId,
+              activate: options.activate === true,
+              replaceExisting: options.replaceExisting === true,
+              index,
+              debugSource: options.debugSource ?? 'unknown',
+              debugReason: options.debugReason ?? 'unknown'
+            })
             return true
           } catch (error) {
+            debugUniverInit('ensure_worksheet_exists_failed', {
+              sheetId,
+              activate: options.activate === true,
+              replaceExisting: options.replaceExisting === true,
+              debugSource: options.debugSource ?? 'unknown',
+              debugReason: options.debugReason ?? 'unknown',
+              message: error instanceof Error ? error.message : String(error)
+            })
             console.warn('[UniverSheetGrid] ensureWorksheetExists failed:', error)
             return false
           }
@@ -2514,13 +2583,15 @@ export const UniverSheetGrid = forwardRef<UniverSheetGridHandle, UniverSheetGrid
       univerAPIRef,
       authoritativePaintCellsRef: props.authoritativePaintCellsRef,
       authoritativePaintMetaRef: props.authoritativePaintMetaRef,
-      pendingBootstrapStyleRepair: props.pendingBootstrapStyleRepair,
+      pendingSnapshotStyleRepair: props.pendingSnapshotStyleRepair,
+      onSnapshotStyleRepairApplied: props.onSnapshotStyleRepairApplied,
       lastSyncedGridRowCountRef,
       lastSyncedGridColumnCountRef,
       lastProcessedAuthoritativeDataSyncTokenRef,
       lastProcessedAuthoritativeReapplySeedRef,
       collabPersistedBulkApplyDepthRef,
       skipNextAuthoritativeSyncAfterSnapshotInitRef,
+      skipNextAuthoritativeSyncAfterImperativeSnapshotReplaceRef,
       getWorkbookSnapshotRef,
       pendingAuthoritativeRegionRef,
       pendingForcedAuthoritativeReapplyRef,

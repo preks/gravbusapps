@@ -1,7 +1,8 @@
 import {
   applyColumnVisibilityRangesToSpreadsheetColumns,
   buildColumnVisibilityReplayOperations,
-  mergeSheetColumnVisibilityFromLocal
+  mergeSheetColumnVisibilityFromLocal,
+  shouldPreserveLocalColumnVisibilityOnHydration
 } from '../spreadsheetColumnVisibilityMetadata'
 import type { SpreadsheetColumn } from '../../types'
 
@@ -70,5 +71,23 @@ describe('spreadsheetColumnVisibilityMetadata', () => {
         }
       }
     ])
+  })
+
+  it('preserves local visibility on focus hydration even without pending persistence', () => {
+    expect(
+      shouldPreserveLocalColumnVisibilityOnHydration({
+        reason: 'focus',
+        hasPendingPersistence: false
+      })
+    ).toBe(true)
+  })
+
+  it('uses server visibility on reconnect hydration when there is no pending persistence', () => {
+    expect(
+      shouldPreserveLocalColumnVisibilityOnHydration({
+        reason: 'reconnect',
+        hasPendingPersistence: false
+      })
+    ).toBe(false)
   })
 })

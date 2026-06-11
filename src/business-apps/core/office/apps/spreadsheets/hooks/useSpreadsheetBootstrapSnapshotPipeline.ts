@@ -5,22 +5,25 @@ import type { SpreadsheetSession } from '../core'
 import { sortSpreadsheetRowsBySheetSettings } from '../utils/spreadsheetSheetRowSort'
 import { stripWorkbookSnapshotValuesPreservingFormatting } from '../utils/univerAdapter'
 import {
-  attachSnapshotCoversVersions,
-  getSheetCoverageVersion,
   mergeSnapshotCoversVersions,
   snapshotHasFormattingSignal,
   type SpreadsheetSnapshotCoversVersions
 } from '../utils/spreadsheetSnapshotCoverage'
 import {
   chooseBootstrapWorkbookCandidate,
-  computeBootstrapSnapshotMergeOutcome,
   fetchBootstrapSnapshotRemoteComparedToBaseline,
   loadBootstrapSnapshotData,
   tryLoadBootstrapSnapshotFromCache,
-  type BootstrapSnapshotLoaderResult,
-  validateActiveSheetBootstrapSnapshot
+  type BootstrapSnapshotLoaderResult
 } from '../utils/spreadsheetBootstrapSnapshotHelpers'
 import { readUniverSnapshotCacheForBootstrap, writeUniverSnapshotCache } from '../utils/univerSnapshotCache'
+import {
+  buildHydrationWorkbookSnapshot,
+  choosePreferredSheetVisualCandidate,
+  getPreparedSheetVisualCandidateDiagnostics,
+  prepareSheetVisualCandidate,
+  type PreparedSheetVisualCandidate
+} from './useSpreadsheetSheetVisualMaterializer'
 
 export type BootstrapWorkbookReconcileIssuePhase = 'reconcile' | 'fallback' | 'canonical'
 
@@ -35,17 +38,28 @@ export type BootstrapVisualMountKind =
 
 export type BootstrapVisualValueSource = 'hydration' | 'rows_built' | 'preview_cache' | 'entity'
 
-export type BootstrapVisualFormattingSource = 'hydration' | 'cache' | 'remote' | 'preview_cache' | 'missing' | 'entity'
+export type BootstrapVisualFormattingSource =
+  | 'hydration'
+  | 'cache'
+  | 'remote'
+  | 'session'
+  | 'preview_cache'
+  | 'missing'
+  | 'entity'
 
 export type BootstrapVisibleApplyDecision = 'mount_now' | 'visible_style_repair' | 'session_only' | 'reject'
 
-export interface BootstrapVisibleStyleRepair {
+export interface SheetSnapshotStyleRepair {
   sheetId: string
   snapshot: Record<string, unknown>
   formattingSource: BootstrapVisualFormattingSource
   formattingScore: number
   nonce: number
+  sheetVersion?: number
+  sheetSnapshotVersion?: number
 }
+
+export type BootstrapVisibleStyleRepair = SheetSnapshotStyleRepair
 
 export interface VisualBootstrapState {
   sheetId: string
@@ -89,6 +103,10 @@ export interface UseSpreadsheetBootstrapSnapshotPipelineParams {
     }
   ) => void
   mapSnapshotRowsToViewerRows: (snapshotRows: unknown[]) => Record<string, unknown>[]
+  loadSheetHydrationSnapshot: (
+    sheetId: string,
+    options?: { minOperationVersion?: number; minSheetSnapshotVersion?: number }
+  ) => Promise<Awaited<ReturnType<typeof SpreadsheetApiService.getSheetHydrationSnapshot>>>
   debugLog: (message: string, meta?: Record<string, unknown>) => void
   /** Invoked when workbook bootstrap cannot fully reconcile with remote or canonical sheet fetch fails. */
   onBootstrapWorkbookReconcileIssue?: (detail: { phase: BootstrapWorkbookReconcileIssuePhase; error: unknown }) => void
@@ -101,14 +119,14 @@ export interface UseSpreadsheetBootstrapSnapshotPipelineResult {
   setBootstrapSnapshotSeed: Dispatch<SetStateAction<string>>
   isBootstrapSnapshotLoading: boolean
   setIsBootstrapSnapshotLoading: Dispatch<SetStateAction<boolean>>
-  /** Canonical rows + version seeded from `getSheetSnapshot` — safe for edits / delta catch-up. */
+  /** Canonical rows + version seeded from `getSheetSnapshot` even if the first visual mount is still pending. */
   isBootstrapCanonicalReady: boolean
   /** Remote workbook snapshot is still catching up after a cache-first paint. */
   isBootstrapWorkbookEnriching: boolean
   /** True after reconcile + remote fallback both failed, or canonical sheet snapshot failed. */
   isBootstrapWorkbookSyncFailed: boolean
   visualBootstrapState: VisualBootstrapState
-  pendingBootstrapStyleRepair: BootstrapVisibleStyleRepair | null
+  pendingBootstrapStyleRepair: SheetSnapshotStyleRepair | null
   hasBootstrappedForAppIdRef: MutableRefObject<{ appId: string | null; done: boolean }>
 }
 
@@ -129,6 +147,7 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
     authoritativePeerSheetDataCacheRef,
     seedActiveSheetState,
     mapSnapshotRowsToViewerRows,
+    loadSheetHydrationSnapshot,
     debugLog,
     onBootstrapWorkbookReconcileIssue
   } = params
@@ -150,9 +169,7 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
     needsVisibleStyleRepair: false,
     hasMountedSnapshot: false
   })
-  const [pendingBootstrapStyleRepair, setPendingBootstrapStyleRepair] = useState<BootstrapVisibleStyleRepair | null>(
-    null
-  )
+  const [pendingBootstrapStyleRepair, setPendingBootstrapStyleRepair] = useState<SheetSnapshotStyleRepair | null>(null)
   const hasBootstrappedForAppIdRef = useRef<{ appId: string | null; done: boolean }>({
     appId: null,
     done: false
@@ -235,6 +252,22 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
         })
       }
 
+      const applyDegradedRowsFallback = (seed: string): void => {
+        if (cancelled) return
+        setBootstrapState(null, seed)
+        applyVisualBootstrapState({
+          sheetId: activeSheetId,
+          mountKind: 'rows_built',
+          valueSource: 'rows_built',
+          formattingSource: 'missing',
+          formattingScore: 0,
+          validationSafety: null,
+          visibleDecision: 'mount_now',
+          needsVisibleStyleRepair: false,
+          hasMountedSnapshot: false
+        })
+      }
+
       const safetyRank = (safety: VisualBootstrapState['validationSafety']): number => {
         if (safety === 'safe') return 2
         if (safety === 'repairable') return 1
@@ -250,80 +283,17 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
         result: BootstrapSnapshotLoaderResult,
         activeSheetIdLocal: string,
         formattingSourceOverride?: BootstrapVisualFormattingSource
-      ) => {
-        const canonicalMin = Math.trunc(minVersion)
-        const loaderCoverageVersion = getSheetCoverageVersion(result.coversVersions, activeSheetIdLocal)
-        const loaderMeetsCanonicalSheet =
-          Number.isFinite(canonicalMin) &&
-          Number.isFinite(loaderCoverageVersion) &&
-          loaderCoverageVersion >= canonicalMin
-        const formattingDonorMinWorkbookVersion = loaderMeetsCanonicalSheet ? result.version : undefined
-
-        const mergeOutcome = computeBootstrapSnapshotMergeOutcome({
+      ): PreparedSheetVisualCandidate =>
+        prepareSheetVisualCandidate({
           preferUniverNativeSheetTabs,
-          loaderSnapshot: result.snapshot,
-          canonicalSheetMeta,
+          candidate: result,
+          canonicalSheetMeta: { ...canonicalSheetMeta, version: minVersion },
           canonicalRows,
           appId,
           activeSheetId: activeSheetIdLocal,
           appSheets,
-          formattingDonorMinWorkbookVersion
+          formattingSourceOverride
         })
-        const { snapshotForBootstrap, rowOverlayChanged, formattingEnriched } = mergeOutcome
-        const snapshotWithCoverage =
-          snapshotForBootstrap && typeof snapshotForBootstrap === 'object'
-            ? attachSnapshotCoversVersions(snapshotForBootstrap as Record<string, unknown>, result.coversVersions)
-            : null
-        const validation = validateActiveSheetBootstrapSnapshot({
-          snapshot: snapshotWithCoverage,
-          activeSheetId: activeSheetIdLocal,
-          canonicalSheetMeta,
-          canonicalRows
-        })
-
-        return {
-          result,
-          activeSheetIdLocal,
-          formattingSource:
-            formattingSourceOverride ??
-            (result.source === 'cache' ? 'cache' : result.source === 'remote' ? 'remote' : 'missing'),
-          canonicalMin,
-          loaderCoverageVersion,
-          rowOverlayChanged,
-          formattingEnriched,
-          snapshotWithCoverage,
-          validation
-        }
-      }
-
-      const choosePreferredPreparedCandidate = (
-        current: ReturnType<typeof prepareBootstrapLoaderCandidate> | null,
-        candidate: ReturnType<typeof prepareBootstrapLoaderCandidate> | null
-      ): ReturnType<typeof prepareBootstrapLoaderCandidate> | null => {
-        if (!candidate || !candidate.validation.valid) return current
-        if (!current || !current.validation.valid) return candidate
-        const candidateSafety = safetyRank(candidate.validation.safety)
-        const currentSafety = safetyRank(current.validation.safety)
-        if (candidateSafety !== currentSafety) {
-          return candidateSafety > currentSafety ? candidate : current
-        }
-        if (candidate.validation.formattingScore !== current.validation.formattingScore) {
-          return candidate.validation.formattingScore > current.validation.formattingScore ? candidate : current
-        }
-        if (current.formattingSource === 'hydration' && candidate.formattingSource !== 'hydration') {
-          return current
-        }
-        if (candidate.formattingSource === 'hydration' && current.formattingSource !== 'hydration') {
-          return candidate
-        }
-        if (candidate.loaderCoverageVersion !== current.loaderCoverageVersion) {
-          return candidate.loaderCoverageVersion > current.loaderCoverageVersion ? candidate : current
-        }
-        if (candidate.result.version !== current.result.version) {
-          return candidate.result.version > current.result.version ? candidate : current
-        }
-        return current
-      }
 
       const decidePreparedBootstrapCandidateApplication = (
         prepared: ReturnType<typeof prepareBootstrapLoaderCandidate>,
@@ -346,9 +316,10 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
         }
 
         const nextFormattingSource = prepared.formattingSource
+        const nextReadiness = prepared.readiness
         const nextFormattingScore = prepared.validation.formattingScore
         if (options.initialMount) {
-          if (nextFormattingSource !== 'hydration' && nextFormattingScore <= 0) {
+          if (nextReadiness === 'data_only') {
             return {
               decision: 'session_only',
               mountKind: options.currentVisualState.mountKind,
@@ -368,10 +339,7 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
           }
         }
 
-        if (
-          !options.currentVisualState.hasMountedSnapshot &&
-          (nextFormattingScore > 0 || prepared.formattingEnriched)
-        ) {
+        if (!options.currentVisualState.hasMountedSnapshot && nextReadiness !== 'data_only') {
           return {
             decision: 'mount_now',
             mountKind: nextFormattingSource === 'cache' ? 'cache_enriched' : 'remote_enriched',
@@ -380,6 +348,7 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
         }
 
         if (
+          nextReadiness === 'visual_complete' &&
           (nextFormattingScore > options.currentVisualState.formattingScore || prepared.formattingEnriched) &&
           safetyRank(prepared.validation.safety) >= safetyRank(options.currentVisualState.validationSafety)
         ) {
@@ -418,6 +387,8 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
           validation
         } = prepared
         if (!snapshotWithCoverage || !validation.valid || options.decision === 'reject') return
+        const diagnostics = getPreparedSheetVisualCandidateDiagnostics(prepared)
+        const diagnosticsSummary = `styles=${diagnostics.hasWorkbookStyleRegistry ? 1 : 0};styleRefs=${diagnostics.worksheetStyleRefCount};cellData=${diagnostics.hasWorksheetCellData ? 1 : 0};structural=${diagnostics.hasWorksheetStructuralVisualSignal ? 1 : 0};orphanStyles=${diagnostics.hasOrphanStyleRegistry ? 1 : 0};formattingScore=${validation.formattingScore};readiness=${prepared.readiness}`
 
         workbookSnapshotVersionRef.current = Math.max(workbookSnapshotVersionRef.current, result.version)
         workbookSnapshotCoversVersionsRef.current = mergeSnapshotCoversVersions(
@@ -428,12 +399,14 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
         spreadsheetSession.updateWorkbookSnapshot(snapshotWithCoverage, result.version)
         if (cancelled) return
         if (options.decision === 'mount_now') {
-          const nextSeed =
-            options.initialMount === true
-              ? result.seed
-              : `${result.seed}-visible-${(visibleSnapshotRemountCounterRef.current += 1)}`
+          const isFirstVisualMount =
+            options.initialMount === true || !visualBootstrapStateRef.current.hasMountedSnapshot
+          const nextSeed = isFirstVisualMount
+            ? result.seed
+            : `${result.seed}-visible-${(visibleSnapshotRemountCounterRef.current += 1)}`
           setBootstrapSnapshot(snapshotWithCoverage)
           setBootstrapSnapshotSeed(nextSeed)
+          setIsBootstrapSnapshotLoading(false)
         } else if (options.decision === 'visible_style_repair') {
           setBootstrapSnapshot(snapshotWithCoverage)
           setPendingBootstrapStyleRepair({
@@ -476,7 +449,13 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
             checkpointCoverageVersion: loaderCoverageVersion,
             workbookSnapshotVersion: result.version,
             hasCoverageForSheet: Object.prototype.hasOwnProperty.call(result.coversVersions, activeSheetIdLocal),
-            snapshotHasFormatting: snapshotHasFormattingSignal(snapshotWithCoverage)
+            snapshotHasFormatting: snapshotHasFormattingSignal(snapshotWithCoverage),
+            hasWorkbookStyleRegistry: diagnostics.hasWorkbookStyleRegistry,
+            worksheetStyleRefCount: diagnostics.worksheetStyleRefCount,
+            hasWorksheetCellData: diagnostics.hasWorksheetCellData,
+            hasWorksheetStructuralVisualSignal: diagnostics.hasWorksheetStructuralVisualSignal,
+            hasOrphanStyleRegistry: diagnostics.hasOrphanStyleRegistry,
+            diagnosticsSummary
           })
         }
         debugLog('bootstrap snapshot candidate selected', {
@@ -492,9 +471,16 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
           rowOverlayChanged,
           validationSafety: validation.safety,
           validationReason: validation.reason,
+          readiness: prepared.readiness,
           visibleDecision: options.decision,
           valueSource: options.valueSource,
           formattingSource: options.formattingSource,
+          hasWorkbookStyleRegistry: diagnostics.hasWorkbookStyleRegistry,
+          worksheetStyleRefCount: diagnostics.worksheetStyleRefCount,
+          hasWorksheetCellData: diagnostics.hasWorksheetCellData,
+          hasWorksheetStructuralVisualSignal: diagnostics.hasWorksheetStructuralVisualSignal,
+          hasOrphanStyleRegistry: diagnostics.hasOrphanStyleRegistry,
+          diagnosticsSummary,
           cacheStored: result.cacheWrite?.stored,
           cacheReason: result.cacheWrite?.reason,
           minVersion
@@ -505,6 +491,8 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
         prepared: ReturnType<typeof prepareBootstrapLoaderCandidate>,
         activeSheetIdLocal: string
       ): void => {
+        const diagnostics = getPreparedSheetVisualCandidateDiagnostics(prepared)
+        const diagnosticsSummary = `styles=${diagnostics.hasWorkbookStyleRegistry ? 1 : 0};styleRefs=${diagnostics.worksheetStyleRefCount};cellData=${diagnostics.hasWorksheetCellData ? 1 : 0};structural=${diagnostics.hasWorksheetStructuralVisualSignal ? 1 : 0};orphanStyles=${diagnostics.hasOrphanStyleRegistry ? 1 : 0};formattingScore=${prepared.validation.formattingScore};readiness=${prepared.readiness}`
         debugLog('bootstrap snapshot candidate rejected', {
           appId,
           sheetId: activeSheetIdLocal,
@@ -515,6 +503,12 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
           validationSafety: prepared.validation.safety,
           validationReason: prepared.validation.reason,
           hasCoverageForSheet: Object.prototype.hasOwnProperty.call(prepared.result.coversVersions, activeSheetIdLocal),
+          hasWorkbookStyleRegistry: diagnostics.hasWorkbookStyleRegistry,
+          worksheetStyleRefCount: diagnostics.worksheetStyleRefCount,
+          hasWorksheetCellData: diagnostics.hasWorksheetCellData,
+          hasWorksheetStructuralVisualSignal: diagnostics.hasWorksheetStructuralVisualSignal,
+          hasOrphanStyleRegistry: diagnostics.hasOrphanStyleRegistry,
+          diagnosticsSummary,
           minVersion
         })
       }
@@ -555,7 +549,9 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
         }
 
       try {
-        const canonicalSnapshot = await SpreadsheetApiService.getSheetHydrationSnapshot(appId, activeSheetId)
+        const canonicalSnapshot = await loadSheetHydrationSnapshot(activeSheetId, {
+          minOperationVersion: minVersion
+        })
         if (cancelled) return
 
         const canonicalSheetMeta = (canonicalSnapshot.sheet as unknown as SpreadsheetSheet | undefined) ?? activeSheet
@@ -585,26 +581,16 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
         let prefetchedBootstrapResult: BootstrapSnapshotLoaderResult | null = null
         let bestInitialPrepared: ReturnType<typeof prepareBootstrapLoaderCandidate> | null = null
         if (canonicalSnapshot.worksheetSnapshot) {
-          const hydratedBootstrapSnapshot = attachSnapshotCoversVersions(
-            {
-              sheetOrder: (appSheets ?? [canonicalSheetMeta]).map(sheet => sheet.id),
-              sheets: {
-                [activeSheetId]: canonicalSnapshot.worksheetSnapshot
-              },
-              ...(canonicalSnapshot.workbookDependencies ?? {}),
-              __meta: {
-                workbookSnapshotVersion: canonicalSnapshot.workbookSnapshotVersion,
-                sheetSnapshots: {
-                  [activeSheetId]: {
-                    snapshotVersion: canonicalSnapshot.sheetSnapshotVersion,
-                    coversOperationVersion: canonicalVersion,
-                    persistedInWorkbookSnapshotVersion: canonicalSnapshot.workbookSnapshotVersion
-                  }
-                }
-              }
-            } as Record<string, unknown>,
-            { [activeSheetId]: canonicalVersion }
-          )
+          const hydratedBootstrapSnapshot = buildHydrationWorkbookSnapshot({
+            appSheets,
+            canonicalSheetMeta,
+            activeSheetId,
+            operationVersion: canonicalVersion,
+            sheetSnapshotVersion: Math.trunc(Number(canonicalSnapshot.sheetSnapshotVersion ?? 0)),
+            workbookSnapshotVersion: Math.trunc(Number(canonicalSnapshot.workbookSnapshotVersion ?? 0)),
+            worksheetSnapshot: canonicalSnapshot.worksheetSnapshot as Record<string, unknown> | null,
+            workbookDependencies: canonicalSnapshot.workbookDependencies as Record<string, unknown> | undefined
+          })
           if (hydratedBootstrapSnapshot) {
             const hydrationPrepared = prepareBootstrapLoaderCandidate(
               canonicalSheetMeta,
@@ -621,7 +607,7 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
               'hydration'
             )
             if (hydrationPrepared.validation.valid) {
-              bestInitialPrepared = choosePreferredPreparedCandidate(bestInitialPrepared, hydrationPrepared)
+              bestInitialPrepared = choosePreferredSheetVisualCandidate(bestInitialPrepared, hydrationPrepared)
             } else {
               rejectPreparedBootstrapCandidate(hydrationPrepared, activeSheetId)
             }
@@ -636,11 +622,11 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
             activeSheetId
           )
           if (preparedCacheFirst.validation.valid) {
-            bestInitialPrepared = choosePreferredPreparedCandidate(bestInitialPrepared, preparedCacheFirst)
+            bestInitialPrepared = choosePreferredSheetVisualCandidate(bestInitialPrepared, preparedCacheFirst)
           }
         }
 
-        if (!bestInitialPrepared || bestInitialPrepared.validation.formattingScore === 0) {
+        if (!bestInitialPrepared || bestInitialPrepared.readiness !== 'visual_complete') {
           prefetchedBootstrapResult = await loadBootstrapSnapshotData(appId, activeSheetId, minVersion, {
             selectCandidate: validatedCandidateSelector
           })
@@ -652,7 +638,7 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
             activeSheetId
           )
           if (preparedPrefetched.validation.valid) {
-            bestInitialPrepared = choosePreferredPreparedCandidate(bestInitialPrepared, preparedPrefetched)
+            bestInitialPrepared = choosePreferredSheetVisualCandidate(bestInitialPrepared, preparedPrefetched)
           } else {
             rejectPreparedBootstrapCandidate(preparedPrefetched, activeSheetId)
           }
@@ -672,27 +658,8 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
               formattingSource: initialDecision.formattingSource,
               initialMount: true
             })
-            if (!cancelled) {
-              setIsBootstrapSnapshotLoading(false)
-              establishedInitialMount = true
-            }
+            establishedInitialMount = true
           }
-        }
-
-        if (!establishedInitialMount && !cancelled) {
-          setBootstrapState(null, `rows-hydration-v${canonicalVersion}`)
-          applyVisualBootstrapState({
-            sheetId: activeSheetId,
-            mountKind: 'rows_built',
-            valueSource: 'hydration',
-            formattingSource: 'missing',
-            formattingScore: 0,
-            validationSafety: null,
-            visibleDecision: 'mount_now',
-            needsVisibleStyleRepair: false,
-            hasMountedSnapshot: false
-          })
-          establishedInitialMount = true
         }
 
         if (!cancelled) {
@@ -725,6 +692,9 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
                 valueSource: 'hydration',
                 formattingSource: decision.formattingSource
               })
+              if (decision.decision === 'mount_now') {
+                establishedInitialMount = true
+              }
             } else {
               rejectPreparedBootstrapCandidate(preparedReconciled, activeSheetId)
             }
@@ -758,6 +728,9 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
                   valueSource: 'hydration',
                   formattingSource: decision.formattingSource
                 })
+                if (decision.decision === 'mount_now') {
+                  establishedInitialMount = true
+                }
               } else {
                 rejectPreparedBootstrapCandidate(preparedFallback, activeSheetId)
               }
@@ -797,10 +770,25 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
               valueSource: 'hydration',
               formattingSource: decision.formattingSource
             })
+            if (decision.decision === 'mount_now') {
+              establishedInitialMount = true
+            }
           } else {
             rejectPreparedBootstrapCandidate(preparedResult, activeSheetId)
           }
           setIsBootstrapWorkbookEnriching(false)
+        }
+
+        if (!establishedInitialMount) {
+          debugLog('bootstrap visual candidate unavailable after reconcile; degrading to rows fallback', {
+            appId,
+            sheetId: activeSheetId,
+            canonicalVersion,
+            hasCacheFirst: Boolean(cacheFirst),
+            prefetchedBootstrapSeed: prefetchedBootstrapResult?.seed ?? null
+          })
+          applyDegradedRowsFallback(`rows-degraded-v${canonicalVersion}`)
+          establishedInitialMount = true
         }
 
         if (preferUniverNativeSheetTabs) {
@@ -828,18 +816,7 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
             hasMountedSnapshot: true
           })
         } else {
-          setBootstrapState(null, `rows-fallback-error-v${minVersion}`)
-          applyVisualBootstrapState({
-            sheetId: activeSheetId,
-            mountKind: 'rows_built',
-            valueSource: 'rows_built',
-            formattingSource: 'missing',
-            formattingScore: 0,
-            validationSafety: null,
-            visibleDecision: 'mount_now',
-            needsVisibleStyleRepair: false,
-            hasMountedSnapshot: false
-          })
+          applyDegradedRowsFallback(`rows-fallback-error-v${minVersion}`)
         }
         setIsBootstrapCanonicalReady(true)
         setIsBootstrapWorkbookEnriching(false)
@@ -860,6 +837,7 @@ export function useSpreadsheetBootstrapSnapshotPipeline(
     debugLog,
     entityEnabled,
     mapSnapshotRowsToViewerRows,
+    loadSheetHydrationSnapshot,
     peerSheetDataCacheRef,
     preferUniverNativeSheetTabs,
     seedActiveSheetState,

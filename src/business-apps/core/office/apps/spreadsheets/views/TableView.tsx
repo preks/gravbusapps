@@ -25,7 +25,7 @@ import type { SpreadsheetTraceEventInput } from '../services/spreadsheetDiagnost
 import type { NativeSheetStructureIntent } from '../utils/nativeSheetStructureIntent'
 import type { SpreadsheetRowSlotIdentityRegistry } from '../utils/spreadsheetRowSlotIdentity'
 import type { SpreadsheetRowMaterializationReadiness } from '../hooks/spreadsheetRowMaterializationReadiness'
-import type { BootstrapVisibleStyleRepair } from '../hooks/useSpreadsheetBootstrapSnapshotPipeline'
+import type { SheetSnapshotStyleRepair } from '../hooks/useSpreadsheetBootstrapSnapshotPipeline'
 
 export interface TableViewProps {
   sheet: SpreadsheetSheet
@@ -35,7 +35,8 @@ export interface TableViewProps {
   authoritativeDataSyncToken?: number
   authoritativePaintCellsRef?: MutableRefObject<import('../core').SpreadsheetBulkRemoteCellItem[] | null>
   authoritativePaintMetaRef?: MutableRefObject<import('../core').SpreadsheetBulkRemoteApplyMeta | null>
-  pendingBootstrapStyleRepair?: BootstrapVisibleStyleRepair | null
+  pendingSnapshotStyleRepair?: SheetSnapshotStyleRepair | null
+  onSnapshotStyleRepairApplied?: (repair: SheetSnapshotStyleRepair, meta?: { appliedCellCount: number }) => void
   workbookInstanceKey: string
   multiSheetWorkbookMode?: boolean
   pendingLocalMutationCellsRef?: MutableRefObject<Set<string>>
@@ -52,7 +53,7 @@ export interface TableViewProps {
   /** Workbook layout could not be synced from server after retries (shown when syncing finishes). */
   workbookSnapshotSyncFailed?: boolean
   onNativeSheetStructureIntent?: (intent: NativeSheetStructureIntent) => void
-  onActiveWorksheetChange?: (sheetId: string, sheetName: string) => void
+  onActiveWorksheetChange?: (sheetId: string, sheetName: string) => boolean | void
   onUniverSheetInserted?: (payload: {
     kind: 'blank' | 'duplicate'
     sheetId: string
@@ -157,7 +158,8 @@ export const TableView = memo<TableViewProps>(function TableView({
   authoritativeDataSyncToken,
   authoritativePaintCellsRef,
   authoritativePaintMetaRef,
-  pendingBootstrapStyleRepair,
+  pendingSnapshotStyleRepair,
+  onSnapshotStyleRepairApplied,
   workbookInstanceKey,
   multiSheetWorkbookMode,
   pendingLocalMutationCellsRef,
@@ -455,7 +457,8 @@ export const TableView = memo<TableViewProps>(function TableView({
           authoritativeDataSyncToken={authoritativeDataSyncToken}
           authoritativePaintCellsRef={authoritativePaintCellsRef}
           authoritativePaintMetaRef={authoritativePaintMetaRef}
-          pendingBootstrapStyleRepair={pendingBootstrapStyleRepair}
+          pendingSnapshotStyleRepair={pendingSnapshotStyleRepair}
+          onSnapshotStyleRepairApplied={onSnapshotStyleRepairApplied}
           workbookInstanceKey={workbookInstanceKey}
           multiSheetWorkbookMode={multiSheetWorkbookMode}
           pendingLocalMutationCellsRef={pendingLocalMutationCellsRef}

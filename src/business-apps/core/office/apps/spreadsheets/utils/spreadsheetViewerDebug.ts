@@ -8,6 +8,7 @@ export const REMOTE_SHEET_CATCHUP_DEBOUNCE_MS = 150
 
 /** With spreadsheet debug on (`spreadsheetAppsDebug` localStorage), periodic sheet/workbook version log interval (ms). */
 export const SPREADSHEET_VERSION_DEBUG_HEARTBEAT_MS = 5000
+const DEBUG_LOG_DEDUPE_WINDOW_MS = 750
 
 /**
  * Optional: periodically remount Univer (`requestGridRefresh`). **Off by default** — full remount flickers badly.
@@ -31,9 +32,40 @@ export const isSpreadsheetAppsDebugEnabled = (): boolean => {
   }
 }
 
+const debugLogDedupState = new Map<string, { signature: string; at: number }>()
+
+const getDebugDedupKey = (channel: 'viewer' | 'multisheet', message: string): string | null => {
+  if (channel === 'viewer' && message === 'grid init lifecycle') {
+    return `${channel}:${message}`
+  }
+  if (channel === 'multisheet' && message === 'richest_rows_selected_before_sheet_create') {
+    return `${channel}:${message}`
+  }
+  return null
+}
+
+const shouldSkipDuplicateDebugLog = (
+  channel: 'viewer' | 'multisheet',
+  message: string,
+  meta: Record<string, unknown>
+): boolean => {
+  const dedupeKey = getDebugDedupKey(channel, message)
+  if (!dedupeKey) return false
+  const signature = JSON.stringify(meta)
+  const now = Date.now()
+  const previous = debugLogDedupState.get(dedupeKey)
+  if (previous && previous.signature === signature && now - previous.at < DEBUG_LOG_DEDUPE_WINDOW_MS) {
+    return true
+  }
+  debugLogDedupState.set(dedupeKey, { signature, at: now })
+  return false
+}
+
 export const debugLog = (message: string, meta?: Record<string, unknown>): void => {
   if (!isSpreadsheetAppsDebugEnabled()) return
-  console.debug(`[SpreadsheetAppViewer] ${message}`, meta ?? {})
+  const payload = meta ?? {}
+  if (shouldSkipDuplicateDebugLog('viewer', message, payload)) return
+  console.debug(`[SpreadsheetAppViewer] ${message}`, payload)
 }
 
 export const multiSheetDebugLog = (
@@ -41,7 +73,9 @@ export const multiSheetDebugLog = (
   meta?: Record<string, unknown> | (() => Record<string, unknown>)
 ): void => {
   if (!isSpreadsheetAppsDebugEnabled()) return
-  console.info(`[SpreadsheetMultiSheetDebug] ${event}`, typeof meta === 'function' ? meta() : (meta ?? {}))
+  const payload = typeof meta === 'function' ? meta() : (meta ?? {})
+  if (shouldSkipDuplicateDebugLog('multisheet', event, payload)) return
+  console.info(`[SpreadsheetMultiSheetDebug] ${event}`, payload)
 }
 
 export const summarizeRowsForDebug = (rows: Record<string, unknown>[] | undefined): Record<string, unknown> => {

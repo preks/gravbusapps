@@ -74,6 +74,17 @@ export interface UniverWorkbookSnapshot {
   sheets: Record<string, UniverWorksheetData>
 }
 
+function normalizeUniverStyleRefId(styleRef: unknown): string | null {
+  if (typeof styleRef === 'string') {
+    const normalized = styleRef.trim()
+    return normalized.length > 0 ? normalized : null
+  }
+  if (typeof styleRef === 'number' && Number.isFinite(styleRef)) {
+    return String(styleRef)
+  }
+  return null
+}
+
 /**
  * Get cell value from our row/column format
  */
@@ -538,8 +549,8 @@ export function getUniverCellStyleRef(
   cell: UniverCellData | undefined,
   workbookStyles?: Record<string, unknown> | null
 ): { id: string; definition: Record<string, unknown> } | null {
-  if (!cell || typeof cell !== 'object' || typeof cell.s !== 'string') return null
-  const styleId = cell.s.trim()
+  if (!cell || typeof cell !== 'object') return null
+  const styleId = normalizeUniverStyleRefId(cell.s)
   if (!styleId || !workbookStyles || !isPlainRecord(workbookStyles[styleId])) return null
   return {
     id: styleId,
@@ -607,14 +618,11 @@ function buildCellWithResolvedFormatting(
   return next
 }
 
-/** Heuristic: how much formatting exists (workbook `styles` + per-cell `s` refs) for bootstrap fallback. */
+/** Heuristic: how much sheet-applied formatting exists for bootstrap fallback. */
 export function workbookFormattingRichnessScore(snapshot: Record<string, unknown>, sheetId: string): number {
   if (!snapshot || typeof snapshot !== 'object') return 0
   const styles = snapshot.styles as Record<string, unknown> | undefined
   let score = 0
-  if (styles && typeof styles === 'object') {
-    score += Object.keys(styles).length
-  }
   const worksheet = getWorksheetFromWorkbookSnapshot(snapshot, sheetId)
   if (!worksheet) return score
   const cellData = worksheet.cellData as UniverSheetCellData | undefined
@@ -627,7 +635,7 @@ export function workbookFormattingRichnessScore(snapshot: Record<string, unknown
       if (!cell || typeof cell !== 'object') continue
       const resolvedFormatting = resolveUniverCellFormatting(cell, styles ?? null)
       score += countResolvedUniverFormattingKeys(resolvedFormatting)
-      if (countResolvedUniverFormattingKeys(resolvedFormatting) === 0 && typeof cell.s === 'string' && cell.s.trim()) {
+      if (countResolvedUniverFormattingKeys(resolvedFormatting) === 0 && normalizeUniverStyleRefId(cell.s)) {
         score += 1
       }
     }
@@ -1058,9 +1066,15 @@ export function normalizeWorkbookSnapshotToAppSheets(
   const takeSourceEntry = (
     targetSheet: SpreadsheetSheet
   ): [string, UniverWorksheetData | Record<string, unknown>] | null => {
-    const keyed = sourceSheets[targetSheet.id]
-    if (keyed && !usedSourceKeys.has(targetSheet.id)) {
-      return [targetSheet.id, keyed]
+    const targetSheetId = targetSheet.id
+    if (targetSheetId === '__proto__' || targetSheetId === 'constructor' || targetSheetId === 'prototype') {
+      return null
+    }
+    const keyed = Object.prototype.hasOwnProperty.call(sourceSheets, targetSheetId)
+      ? sourceSheets[targetSheetId]
+      : undefined
+    if (keyed && !usedSourceKeys.has(targetSheetId)) {
+      return [targetSheetId, keyed]
     }
 
     const byWorksheetId = sourceEntries.find(([sourceKey, worksheet]) => {
@@ -1088,6 +1102,9 @@ export function normalizeWorkbookSnapshotToAppSheets(
   }
 
   for (const targetSheet of appSheets) {
+    if (targetSheet.id === '__proto__' || targetSheet.id === 'constructor' || targetSheet.id === 'prototype') {
+      continue
+    }
     const matched = takeSourceEntry(targetSheet)
     if (!matched) continue
     const [sourceKey, worksheet] = matched
@@ -1114,14 +1131,21 @@ function pickWorksheetFromSingleSheetBootstrap(
 ): UniverWorksheetData | null {
   const sheets = snapshot.sheets as Record<string, UniverWorksheetData> | undefined
   if (!sheets || Object.keys(sheets).length === 0) return null
+  if (preferSheetId === '__proto__' || preferSheetId === 'constructor' || preferSheetId === 'prototype') {
+    return null
+  }
 
-  const keyedMatch = sheets[preferSheetId]
+  const keyedMatch = Object.prototype.hasOwnProperty.call(sheets, preferSheetId) ? sheets[preferSheetId] : undefined
   if (keyedMatch) {
     return cloneUniverSnapshotSlice(keyedMatch)
   }
 
   const orderedSheetId = Array.isArray(snapshot.sheetOrder) ? String(snapshot.sheetOrder[0] ?? '') : ''
-  if (orderedSheetId && orderedSheetId === preferSheetId && sheets[orderedSheetId]) {
+  if (
+    orderedSheetId &&
+    orderedSheetId === preferSheetId &&
+    Object.prototype.hasOwnProperty.call(sheets, orderedSheetId)
+  ) {
     return cloneUniverSnapshotSlice(sheets[orderedSheetId])
   }
 
@@ -1174,6 +1198,9 @@ export function buildMultiSheetWorkbookFromAppSheets(options: {
   const sheetOrder: string[] = []
 
   for (const sheet of appSheets) {
+    if (sheet.id === '__proto__' || sheet.id === 'constructor' || sheet.id === 'prototype') {
+      continue
+    }
     const visibleColumns = sheet.columns.filter(column => column.isVisible !== false)
     const sheetRows = getRowsForSheet(sheet.id)
     // If the bootstrap is actually a workbook-shaped blob (the common case now —
@@ -1228,11 +1255,17 @@ export function buildMultiSheetWorkbookFromAppSheets(options: {
   // keep their style-id strings but Univer can no longer resolve them — the cell
   // renders unstyled and subsequent `getWorkbookSnapshot()` saves only capture
   // newly-added styles, permanently losing pre-existing formatting on reload.
+  // Copy style entries key-by-key instead of Object.assign: a remote snapshot
+  // carrying an own `__proto__` property would otherwise hit the prototype
+  // setter during assignment and pollute Object.prototype (CWE-1321).
   const preservedStyles: Record<string, unknown> = {}
   if (normalizedBootstrap && typeof normalizedBootstrap === 'object') {
     const srcStyles = (normalizedBootstrap as Record<string, unknown>).styles
     if (srcStyles && typeof srcStyles === 'object') {
-      Object.assign(preservedStyles, srcStyles as Record<string, unknown>)
+      for (const [styleKey, styleValue] of Object.entries(srcStyles as Record<string, unknown>)) {
+        if (styleKey === '__proto__' || styleKey === 'constructor' || styleKey === 'prototype') continue
+        preservedStyles[styleKey] = styleValue
+      }
     }
   }
 
@@ -1261,20 +1294,24 @@ function upgradeImageFormula(cell: UniverCellData): void {
 }
 
 function processAvatarCellsInRow(rowCells: Record<number, UniverCellData>, avatarColIndices: Set<number>): void {
-  for (const colIdx of avatarColIndices) {
-    const cell = rowCells[colIdx]
+  // Iterate entries instead of indexing into the snapshot-derived object so no
+  // remote-influenced key is ever used for a member access (CWE-1321).
+  for (const [colKey, cell] of Object.entries(rowCells)) {
+    if (!avatarColIndices.has(Number(colKey))) continue
     if (cell?.f && typeof cell.f === 'string') upgradeImageFormula(cell)
   }
 }
 
 function processAvatarColumnConfig(sheetData: UniverWorksheetData, avatarColIndices: Set<number>): void {
   const columnData = sheetData.columnData
-  if (columnData !== undefined && typeof columnData === 'object') {
-    for (const colIdx of avatarColIndices) {
-      const colConfig = columnData[colIdx]
-      if (colConfig && typeof colConfig === 'object') colConfig.w = AVATAR_COL_WIDTH
-      else columnData[colIdx] = { w: AVATAR_COL_WIDTH }
-    }
+  if (columnData === undefined || typeof columnData !== 'object') return
+  for (const [colKey, colConfig] of Object.entries(columnData)) {
+    if (!avatarColIndices.has(Number(colKey))) continue
+    if (colConfig && typeof colConfig === 'object') colConfig.w = AVATAR_COL_WIDTH
+  }
+  for (const colIdx of avatarColIndices) {
+    const hasConfig = Object.prototype.hasOwnProperty.call(columnData, colIdx)
+    if (!hasConfig) columnData[colIdx] = { w: AVATAR_COL_WIDTH }
   }
 }
 

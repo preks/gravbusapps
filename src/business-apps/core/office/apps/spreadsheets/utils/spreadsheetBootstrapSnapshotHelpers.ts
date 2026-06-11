@@ -16,6 +16,7 @@ import {
   writeUniverSnapshotCache
 } from './univerSnapshotCache'
 import {
+  attachSnapshotCoversVersions,
   getSheetCoverageVersion,
   hasSheetCoverageVersion,
   normalizeSnapshotCoversVersions,
@@ -402,6 +403,18 @@ export type BootstrapSnapshotMergeOutcome = {
   formattingEnriched: boolean
 }
 
+export type SheetScopedSnapshotRepairArtifactParams = BootstrapSnapshotMergeParams & {
+  coversVersions: SpreadsheetSnapshotCoversVersions
+}
+
+export type SheetScopedSnapshotRepairArtifact = {
+  snapshotWithCoverage: Record<string, unknown> | null
+  loaderCoverageVersion: number
+  validation: BootstrapSnapshotValidationResult
+  rowOverlayChanged: boolean
+  formattingEnriched: boolean
+}
+
 /** Pure merge steps shared with the bootstrap pipeline (test seam). */
 export const computeBootstrapSnapshotMergeOutcome = (
   params: BootstrapSnapshotMergeParams
@@ -443,6 +456,51 @@ export const computeBootstrapSnapshotMergeOutcome = (
     singleSheetSnapshot,
     normalizedSnapshot,
     snapshotForBootstrap,
+    rowOverlayChanged,
+    formattingEnriched
+  }
+}
+
+export const buildSheetScopedSnapshotRepairArtifact = (
+  params: SheetScopedSnapshotRepairArtifactParams
+): SheetScopedSnapshotRepairArtifact => {
+  const {
+    preferUniverNativeSheetTabs,
+    loaderSnapshot,
+    canonicalSheetMeta,
+    canonicalRows,
+    appId,
+    activeSheetId,
+    appSheets,
+    formattingDonorMinWorkbookVersion,
+    coversVersions
+  } = params
+  const mergeOutcome = computeBootstrapSnapshotMergeOutcome({
+    preferUniverNativeSheetTabs,
+    loaderSnapshot,
+    canonicalSheetMeta,
+    canonicalRows,
+    appId,
+    activeSheetId,
+    appSheets,
+    formattingDonorMinWorkbookVersion
+  })
+  const { snapshotForBootstrap, rowOverlayChanged, formattingEnriched } = mergeOutcome
+  const snapshotWithCoverage =
+    snapshotForBootstrap && typeof snapshotForBootstrap === 'object'
+      ? attachSnapshotCoversVersions(snapshotForBootstrap as Record<string, unknown>, coversVersions)
+      : null
+  const validation = validateActiveSheetBootstrapSnapshot({
+    snapshot: snapshotWithCoverage,
+    activeSheetId,
+    canonicalSheetMeta,
+    canonicalRows
+  })
+
+  return {
+    snapshotWithCoverage,
+    loaderCoverageVersion: getSheetCoverageVersion(coversVersions, activeSheetId),
+    validation,
     rowOverlayChanged,
     formattingEnriched
   }

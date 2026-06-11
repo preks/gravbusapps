@@ -234,6 +234,32 @@ describe('useSpreadsheetSheetVersionModel', () => {
     expect(result.current.resolveKnownSheetSnapshotVersion('sheet-a')).toBe(10)
   })
 
+  it('does not pre-trust inactive sheet snapshot state before any visual apply occurs', () => {
+    const spreadsheetSessionRef = { current: null as SpreadsheetSession | null }
+    const activeSheetIdRef = { current: 'sheet-a' }
+    const appSheetsRef = {
+      current: [
+        { ...createMinimalSheet('sheet-a', 5), sheetSnapshotVersion: 2 },
+        { ...createMinimalSheet('sheet-b', 48), sheetSnapshotVersion: 85 }
+      ]
+    }
+
+    const { result } = renderHook(() =>
+      useSpreadsheetSheetVersionModel({
+        appId: 'app-1',
+        spreadsheetSessionRef,
+        activeSheetIdRef,
+        appSheetsRef,
+        sheets: appSheetsRef.current,
+        activeSheetId: 'sheet-a',
+        activeSheetVersion: 5
+      })
+    )
+
+    expect(result.current.resolveLiveAppliedSheetVersion('sheet-b')).toBe(48)
+    expect(result.current.resolveLiveAppliedSheetSnapshotVersion('sheet-b')).toBe(0)
+  })
+
   it('never downgrades known sheet version on refreshBaseVersionBeforeWrite', async () => {
     const spreadsheetSessionRef = { current: null as SpreadsheetSession | null }
     const activeSheetIdRef = { current: 'sheet-a' }

@@ -1,9 +1,15 @@
 import type { SpreadsheetColumn } from '../types'
 
 export type ColumnVisibilityRange = { start: number; end: number }
+export type ColumnVisibilityHydrationReason = 'sheet_switch' | 'focus' | 'visibility' | 'reconnect' | 'prefetch'
 
 const sortColumnsByOrder = (columns: SpreadsheetColumn[]): SpreadsheetColumn[] =>
   [...columns].sort((left, right) => left.order - right.order)
+
+export const shouldPreserveLocalColumnVisibilityOnHydration = (params: {
+  reason: ColumnVisibilityHydrationReason
+  hasPendingPersistence: boolean
+}): boolean => params.hasPendingPersistence || params.reason === 'focus' || params.reason === 'visibility'
 
 /**
  * Univer `visibility_update` column ranges use **physical sheet column indices**

@@ -14,7 +14,7 @@ import {
   buildSnapshotStylePaintCellsFromWorkbookSnapshot,
   mergeAuthoritativePaintCellLists
 } from '../utils/spreadsheetAuthoritativeProjector'
-import type { BootstrapVisibleStyleRepair } from '../hooks/useSpreadsheetBootstrapSnapshotPipeline'
+import type { SheetSnapshotStyleRepair } from '../hooks/useSpreadsheetBootstrapSnapshotPipeline'
 import {
   shouldBlockSpreadsheetPendingLocalMutationCellProtection,
   spreadsheetPendingLocalMutationCoordinateCellKey,
@@ -42,13 +42,18 @@ export interface UniverAuthoritativeGridSyncParams {
   authoritativePaintCellsRef?: MutableRefObject<SpreadsheetBulkRemoteCellItem[] | null>
   /** Optional one-shot meta chained to the same session-derived paint wave. */
   authoritativePaintMetaRef?: MutableRefObject<SpreadsheetBulkRemoteApplyMeta | null>
-  pendingBootstrapStyleRepair?: BootstrapVisibleStyleRepair | null
+  pendingSnapshotStyleRepair?: SheetSnapshotStyleRepair | null
+  onSnapshotStyleRepairApplied?: (repair: SheetSnapshotStyleRepair, meta?: { appliedCellCount: number }) => void
   lastSyncedGridRowCountRef: MutableRefObject<number>
   lastSyncedGridColumnCountRef: MutableRefObject<number>
   lastProcessedAuthoritativeDataSyncTokenRef: MutableRefObject<number>
   lastProcessedAuthoritativeReapplySeedRef: MutableRefObject<number>
   collabPersistedBulkApplyDepthRef: MutableRefObject<number>
   skipNextAuthoritativeSyncAfterSnapshotInitRef: MutableRefObject<boolean>
+  skipNextAuthoritativeSyncAfterImperativeSnapshotReplaceRef: MutableRefObject<{
+    sheetId: string
+    token: number
+  } | null>
   getWorkbookSnapshotRef: MutableRefObject<(() => Record<string, unknown> | null) | null>
   pendingAuthoritativeRegionRef: MutableRefObject<AuthoritativeGridRegion[] | null>
   pendingForcedAuthoritativeReapplyRef: MutableRefObject<{
@@ -92,13 +97,15 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
     univerAPIRef,
     authoritativePaintCellsRef,
     authoritativePaintMetaRef,
-    pendingBootstrapStyleRepair,
+    pendingSnapshotStyleRepair,
+    onSnapshotStyleRepairApplied,
     lastSyncedGridRowCountRef,
     lastSyncedGridColumnCountRef,
     lastProcessedAuthoritativeDataSyncTokenRef,
     lastProcessedAuthoritativeReapplySeedRef,
     collabPersistedBulkApplyDepthRef,
     skipNextAuthoritativeSyncAfterSnapshotInitRef,
+    skipNextAuthoritativeSyncAfterImperativeSnapshotReplaceRef,
     getWorkbookSnapshotRef,
     pendingAuthoritativeRegionRef,
     pendingForcedAuthoritativeReapplyRef,
@@ -175,10 +182,9 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
     const api = univerAPIRef.current
     if (!api) return
     const nextToken = authoritativeDataSyncToken ?? 0
+    const pendingImperativeSnapshotReplace = skipNextAuthoritativeSyncAfterImperativeSnapshotReplaceRef.current
     const styleRepairForSheet =
-      pendingBootstrapStyleRepair && pendingBootstrapStyleRepair.sheetId === sheet.id
-        ? pendingBootstrapStyleRepair
-        : null
+      pendingSnapshotStyleRepair && pendingSnapshotStyleRepair.sheetId === sheet.id ? pendingSnapshotStyleRepair : null
     const nextBootstrapStyleRepairNonce = styleRepairForSheet?.nonce ?? 0
     const shouldSyncWorkbook =
       nextToken !== lastProcessedAuthoritativeDataSyncTokenRef.current ||
@@ -189,6 +195,24 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
       return
     }
     const visibleColumns = columns.filter(column => column.isVisible !== false)
+    const shouldTrustImperativeSnapshotReplaceSkip =
+      pendingImperativeSnapshotReplace?.sheetId === sheet.id && pendingImperativeSnapshotReplace.token === nextToken
+    if (shouldTrustImperativeSnapshotReplaceSkip) {
+      skipNextAuthoritativeSyncAfterImperativeSnapshotReplaceRef.current = null
+      lastSyncedGridRowCountRef.current = getAuthoritativeGridRowExtent(data)
+      lastSyncedGridColumnCountRef.current = visibleColumns.length
+      lastProcessedAuthoritativeDataSyncTokenRef.current = nextToken
+      lastProcessedAuthoritativeReapplySeedRef.current = authoritativeReapplySeed
+      lastProcessedBootstrapStyleRepairNonceRef.current = nextBootstrapStyleRepairNonce
+      hasCompletedAuthoritativeSyncRef.current = true
+      debugRemoteApply('skip_authoritative_reapply_after_imperative_snapshot_replace', {
+        sheetId: sheet.id,
+        token: nextToken,
+        rowCount: data.length,
+        columnCount: visibleColumns.length
+      })
+      return
+    }
     const columnStructureState = columnStructureStateRef?.current ?? null
     const hasPendingBootstrapStyleRepair =
       styleRepairForSheet != null && nextBootstrapStyleRepairNonce !== lastProcessedBootstrapStyleRepairNonceRef.current
@@ -501,6 +525,14 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
       skipRemoteEchoRegistration:
         authoritativePaintMeta?.skipRemoteEchoRegistration ??
         (hasPendingBootstrapStyleRepair ? true : isViewerStateReprojection),
+      onApplyComplete: () => {
+        authoritativePaintMeta?.onApplyComplete?.()
+        if (hasPendingBootstrapStyleRepair && styleRepairForSheet) {
+          onSnapshotStyleRepairApplied?.(styleRepairForSheet, {
+            appliedCellCount: authoritativeBulkBuffer.length
+          })
+        }
+      },
       onApplyError: error => {
         debugRemoteApply('authoritative_reapply_failed', {
           sheetId: sheet.id,
@@ -554,9 +586,11 @@ export function useUniverAuthoritativeGridSync(params: UniverAuthoritativeGridSy
     data,
     authoritativeDataSyncToken,
     collabBulkApplyIdleNonce,
-    pendingBootstrapStyleRepair,
+    pendingSnapshotStyleRepair,
     pendingLocalMutationCellsRef,
     onAuthoritativeReapplyError,
-    sheet.id
+    onSnapshotStyleRepairApplied,
+    sheet.id,
+    skipNextAuthoritativeSyncAfterImperativeSnapshotReplaceRef
   ])
 }

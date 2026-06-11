@@ -9,6 +9,7 @@ import {
   executeCommandMock,
   gridTestMockState,
   inactiveSheetSetValueMock,
+  lastWorkbookSetActiveSheetMock,
   lastPresetContainer,
   lastRangeGetCellDataMock,
   lastRangeGetValueMock,
@@ -789,6 +790,62 @@ describe('UniverSheetGrid read-only behavior', () => {
         })
       })
     )
+  })
+
+  it('switches away from the active worksheet before replacing it', () => {
+    const gridRef = React.createRef<UniverSheetGridHandle>()
+    gridTestMockState.activeSheetId = 'sheet-2'
+
+    render(
+      <UniverSheetGrid
+        ref={gridRef}
+        sheet={sheet}
+        data={data}
+        columns={columns}
+        isReadOnly={false}
+        multiSheetWorkbookMode={true}
+        onCellChange={jest.fn()}
+        onCellsChange={jest.fn()}
+        onDataChange={jest.fn()}
+      />
+    )
+
+    const worksheetSnapshot = {
+      id: 'sheet-2',
+      name: 'Copied Sheet',
+      cellData: { 0: { 0: { s: 'style-red' } } }
+    }
+
+    const ensured = gridRef.current?.ensureWorksheetExists(
+      {
+        ...sheet,
+        id: 'sheet-2',
+        name: 'Copied Sheet',
+        columns,
+        data: [{ name: 'Copied value' }],
+        viewType: 'table',
+        views: [],
+        settings: {
+          allowAdd: true,
+          allowEdit: true,
+          allowDelete: true,
+          allowExport: true,
+          allowImport: true,
+          rowsPerPage: 25,
+          showRowNumbers: true
+        }
+      },
+      [{ name: 'Copied value' }],
+      columns,
+      { replaceExisting: true, activate: true, worksheetSnapshot }
+    )
+
+    expect(ensured).toBe(true)
+    expect(lastWorkbookSetActiveSheetMock).toHaveBeenNthCalledWith(1, 'sheet-1')
+    expect(executeCommandMock).toHaveBeenCalledWith('sheet.command.remove-sheet', {
+      subUnitId: 'sheet-2'
+    })
+    expect(lastWorkbookSetActiveSheetMock).toHaveBeenNthCalledWith(2, 'sheet-2')
   })
 
   it('rewrites copied worksheet insert mutations to a UUID while preserving copied sheet payload', () => {

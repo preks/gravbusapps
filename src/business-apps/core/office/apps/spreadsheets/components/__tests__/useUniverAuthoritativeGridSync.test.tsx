@@ -19,6 +19,9 @@ const createStableHookRefs = () => ({
   lastProcessedAuthoritativeReapplySeedRef: { current: 0 },
   collabPersistedBulkApplyDepthRef: { current: 0 },
   skipNextAuthoritativeSyncAfterSnapshotInitRef: { current: false },
+  skipNextAuthoritativeSyncAfterImperativeSnapshotReplaceRef: {
+    current: null as { sheetId: string; token: number } | null
+  },
   getWorkbookSnapshotRef: { current: null as (() => Record<string, unknown> | null) | null },
   pendingAuthoritativeRegionRef: {
     current: null as import('../../utils/spreadsheetAuthoritativeRegion').AuthoritativeGridRegion[] | null
@@ -1187,7 +1190,7 @@ describe('useUniverAuthoritativeGridSync', () => {
       [expect.objectContaining({ rowIndex: 0, colIndex: 0, value: 'local' })],
       expect.objectContaining({
         operationType: 'cells_changed',
-        onApplyComplete,
+        onApplyComplete: expect.any(Function),
         skipRemoteEchoRegistration: false
       })
     )
@@ -1324,8 +1327,78 @@ describe('useUniverAuthoritativeGridSync', () => {
     snapshotMismatchSpy.mockRestore()
   })
 
-  it('applies pending bootstrap style repair through the stylePatch lane', async () => {
+  it('skips token-driven repaint after a sheet switch when the newly inserted snapshot already matches rows', async () => {
     const applyRemoteCellUpdatesBulk = jest.fn()
+    const refs = createStableHookRefs()
+    refs.lastProcessedAuthoritativeDataSyncTokenRef.current = 1
+    refs.skipNextAuthoritativeSyncAfterSnapshotInitRef.current = true
+    refs.getWorkbookSnapshotRef.current = () => ({
+      sheets: { 'sheet-2': { cellData: { 0: { 0: { v: 'switched value', s: 'style-1' } } } } }
+    })
+
+    const snapshotConflictSpy = jest
+      .spyOn(univerAdapter, 'workbookSnapshotConflictsWithViewerRows')
+      .mockReturnValue(false)
+    const trackingHeaderSpy = jest
+      .spyOn(univerAdapter, 'snapshotTrackingHeaderMatchesColumnLabels')
+      .mockReturnValue(true)
+
+    renderHook(() =>
+      useUniverAuthoritativeGridSync({
+        sheet: { id: 'sheet-2' } as any,
+        data: [{ _id: 'row-2', _gridRowIndex: 0, column_a: 'switched value' }],
+        columns: [{ id: 'col-a', name: 'column_a', isVisible: true }] as any,
+        authoritativeDataSyncToken: 2,
+        authoritativeReapplySeed: 0,
+        collabBulkApplyIdleNonce: 0,
+        applyRemoteCellUpdate: jest.fn(),
+        applyRemoteCellUpdatesBulk,
+        ...refs
+      })
+    )
+
+    await waitFor(() => undefined)
+    expect(applyRemoteCellUpdatesBulk).not.toHaveBeenCalled()
+    expect(refs.lastProcessedAuthoritativeDataSyncTokenRef.current).toBe(2)
+    expect(refs.skipNextAuthoritativeSyncAfterSnapshotInitRef.current).toBe(false)
+
+    trackingHeaderSpy.mockRestore()
+    snapshotConflictSpy.mockRestore()
+  })
+
+  it('skips authoritative repaint after an imperative snapshot replace for the same sheet token', async () => {
+    const applyRemoteCellUpdatesBulk = jest.fn()
+    const applyRemoteCellUpdate = jest.fn()
+    const refs = createStableHookRefs()
+    refs.skipNextAuthoritativeSyncAfterImperativeSnapshotReplaceRef.current = {
+      sheetId: 'sheet-2',
+      token: 1
+    }
+
+    renderHook(() =>
+      useUniverAuthoritativeGridSync({
+        sheet: { id: 'sheet-2' } as any,
+        data: [{ _id: 'row-2', _gridRowIndex: 0, column_a: 'switched value' }],
+        columns: [{ id: 'col-a', name: 'column_a', isVisible: true }] as any,
+        authoritativeDataSyncToken: 1,
+        authoritativeReapplySeed: 0,
+        collabBulkApplyIdleNonce: 0,
+        applyRemoteCellUpdate,
+        applyRemoteCellUpdatesBulk,
+        ...refs
+      })
+    )
+
+    await waitFor(() => undefined)
+    expect(applyRemoteCellUpdatesBulk).not.toHaveBeenCalled()
+    expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
+    expect(refs.lastProcessedAuthoritativeDataSyncTokenRef.current).toBe(1)
+    expect(refs.skipNextAuthoritativeSyncAfterImperativeSnapshotReplaceRef.current).toBeNull()
+  })
+
+  it('applies pending bootstrap style repair through the stylePatch lane', async () => {
+    const applyRemoteCellUpdatesBulk = jest.fn((_items, meta) => meta?.onApplyComplete?.())
+    const onSnapshotStyleRepairApplied = jest.fn()
     const refs = createStableHookRefs()
     refs.skipNextAuthoritativeSyncAfterSnapshotInitRef.current = true
     refs.getWorkbookSnapshotRef.current = () => ({ sheets: { 'sheet-1': { cellData: {} } } })
@@ -1344,7 +1417,7 @@ describe('useUniverAuthoritativeGridSync', () => {
         authoritativeDataSyncToken: 1,
         authoritativeReapplySeed: 0,
         collabBulkApplyIdleNonce: 0,
-        pendingBootstrapStyleRepair: {
+        pendingSnapshotStyleRepair: {
           sheetId: 'sheet-1',
           snapshot: {
             sheetOrder: ['sheet-1'],
@@ -1360,8 +1433,10 @@ describe('useUniverAuthoritativeGridSync', () => {
           },
           formattingSource: 'remote',
           formattingScore: 1,
-          nonce: 1
+          nonce: 1,
+          sheetSnapshotVersion: 4
         },
+        onSnapshotStyleRepairApplied,
         applyRemoteCellUpdate: jest.fn(),
         applyRemoteCellUpdatesBulk,
         ...refs
@@ -1384,6 +1459,68 @@ describe('useUniverAuthoritativeGridSync', () => {
         })
       ],
       expect.objectContaining({ operationType: 'bootstrap_style_repair', skipRemoteEchoRegistration: true })
+    )
+    expect(onSnapshotStyleRepairApplied).toHaveBeenCalledWith(
+      expect.objectContaining({ sheetId: 'sheet-1', sheetSnapshotVersion: 4, nonce: 1 }),
+      expect.objectContaining({ appliedCellCount: 1 })
+    )
+
+    trackingHeaderSpy.mockRestore()
+    snapshotMismatchSpy.mockRestore()
+  })
+
+  it('reports zero painted cells for an empty snapshot style repair', async () => {
+    const applyRemoteCellUpdatesBulk = jest.fn()
+    const onSnapshotStyleRepairApplied = jest.fn()
+    const applyRemoteCellUpdate = jest.fn()
+    const refs = createStableHookRefs()
+    refs.skipNextAuthoritativeSyncAfterSnapshotInitRef.current = true
+    refs.getWorkbookSnapshotRef.current = () => ({ sheets: { 'sheet-1': { cellData: {} } } })
+    const snapshotMismatchSpy = jest
+      .spyOn(univerAdapter, 'workbookSnapshotConflictsWithViewerRows')
+      .mockReturnValue(false)
+    const trackingHeaderSpy = jest
+      .spyOn(univerAdapter, 'snapshotTrackingHeaderMatchesColumnLabels')
+      .mockReturnValue(true)
+
+    renderHook(() =>
+      useUniverAuthoritativeGridSync({
+        sheet: { id: 'sheet-1' } as any,
+        data: [{ _id: 'row-1', _gridRowIndex: 0, column_a: 'local' }],
+        columns: [{ id: 'col-a', name: 'column_a', isVisible: true }] as any,
+        authoritativeDataSyncToken: 1,
+        authoritativeReapplySeed: 0,
+        collabBulkApplyIdleNonce: 0,
+        pendingSnapshotStyleRepair: {
+          sheetId: 'sheet-1',
+          snapshot: {
+            sheetOrder: ['sheet-1'],
+            sheets: {
+              'sheet-1': {
+                id: 'sheet-1',
+                cellData: {}
+              }
+            },
+            styles: { 'style-1': { bg: { rgb: '#ffff00' } } }
+          },
+          formattingSource: 'remote',
+          formattingScore: 1,
+          nonce: 2,
+          sheetSnapshotVersion: 5
+        },
+        onSnapshotStyleRepairApplied,
+        applyRemoteCellUpdate,
+        applyRemoteCellUpdatesBulk,
+        ...refs
+      })
+    )
+
+    await waitFor(() => expect(onSnapshotStyleRepairApplied).toHaveBeenCalledTimes(1))
+    expect(applyRemoteCellUpdatesBulk).not.toHaveBeenCalled()
+    expect(applyRemoteCellUpdate).not.toHaveBeenCalled()
+    expect(onSnapshotStyleRepairApplied).toHaveBeenCalledWith(
+      expect.objectContaining({ sheetId: 'sheet-1', sheetSnapshotVersion: 5, nonce: 2 }),
+      expect.objectContaining({ appliedCellCount: 0 })
     )
 
     trackingHeaderSpy.mockRestore()

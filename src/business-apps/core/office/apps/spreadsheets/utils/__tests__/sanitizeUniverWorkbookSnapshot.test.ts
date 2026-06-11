@@ -134,6 +134,38 @@ describe('sanitizeUniverWorkbookSnapshotForBootstrap', () => {
     })
   })
 
+  it('preserves numeric style refs by canonicalizing them to string ids', () => {
+    const result = sanitizeUniverWorkbookSnapshotForBootstrap({
+      id: 'workbook-sheet-1',
+      name: 'Sheet 1',
+      sheetOrder: ['sheet-1'],
+      styles: {
+        '1': { bg: { rgb: '#00ff00' } }
+      },
+      sheets: {
+        'sheet-1': {
+          id: 'sheet-1',
+          name: 'Sheet 1',
+          cellData: {
+            0: {
+              0: { v: 'A', s: 1 }
+            }
+          }
+        }
+      }
+    })
+
+    expect(result.snapshot?.sheets).toMatchObject({
+      'sheet-1': {
+        cellData: {
+          '0': {
+            '0': { v: 'A', s: '1' }
+          }
+        }
+      }
+    })
+  })
+
   it('preserves value cells when hydration payload includes f: null', () => {
     const result = sanitizeUniverWorkbookSnapshotForBootstrap({
       id: 'workbook-sheet-1',

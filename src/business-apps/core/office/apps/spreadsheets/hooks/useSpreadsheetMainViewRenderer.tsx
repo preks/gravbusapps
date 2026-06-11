@@ -1,4 +1,4 @@
-import { useMemo, type MutableRefObject, type ReactNode } from 'react'
+import React, { useMemo, type MutableRefObject, type ReactNode } from 'react'
 
 import { useTranslation } from '@newwork/nw-design-system'
 
@@ -9,17 +9,21 @@ import { TableView } from '../views/TableView'
 import type { UniverSheetGridInitLifecycleEvent } from '../components/UniverSheetGrid.types'
 import type { SpreadsheetRowSlotIdentityRegistry } from '../utils/spreadsheetRowSlotIdentity'
 import type { SpreadsheetRowMaterializationReadiness } from './spreadsheetRowMaterializationReadiness'
-import type { BootstrapVisibleStyleRepair } from './useSpreadsheetBootstrapSnapshotPipeline'
+import type { SheetSnapshotStyleRepair } from './useSpreadsheetBootstrapSnapshotPipeline'
 import translations from '../_i18n'
 
 type ViewerRow = Record<string, unknown>
+
+void React
 
 const BOOTSTRAP_GRID_SHELL_ROWS = ['r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8'] as const
 
 export interface UseSpreadsheetMainViewRendererParams {
   viewType: ViewType
-  /** Canonical rows/version seeded — unblock grid shell while workbook enrichment continues. */
+  /** Canonical rows/version seeded, but the first visual workbook mount may still be pending. */
   isBootstrapCanonicalReady: boolean
+  /** Initial bootstrap snapshot decision still pending. */
+  isBootstrapSnapshotLoading: boolean
   /** Background remote workbook reconcile after cache-first paint. */
   isBootstrapWorkbookEnriching: boolean
   /** Workbook remote reconcile failed after retry, or canonical sheet load failed. */
@@ -36,7 +40,8 @@ export interface UseSpreadsheetMainViewRendererParams {
   authoritativeDataSyncToken: number | string
   authoritativePaintCellsRef?: MutableRefObject<import('../core').SpreadsheetBulkRemoteCellItem[] | null>
   authoritativePaintMetaRef?: MutableRefObject<import('../core').SpreadsheetBulkRemoteApplyMeta | null>
-  pendingBootstrapStyleRepair?: BootstrapVisibleStyleRepair | null
+  pendingSnapshotStyleRepair?: SheetSnapshotStyleRepair | null
+  onSnapshotStyleRepairApplied?: (repair: SheetSnapshotStyleRepair, meta?: { appliedCellCount: number }) => void
   workbookInstanceKey: string
   pendingLocalMutationCellsRef: MutableRefObject<Set<string>>
   spreadsheetIntentJournalRef?: MutableRefObject<import('../core/spreadsheetIntentJournal').SpreadsheetIntentJournal>
@@ -47,7 +52,7 @@ export interface UseSpreadsheetMainViewRendererParams {
   spreadsheetColumnsForGrid: SpreadsheetColumn[]
   testId: string
   onNativeSheetStructureIntent: (intent: unknown) => void
-  onActiveWorksheetChange: (worksheetId: string, worksheetName: string) => void
+  onActiveWorksheetChange: (worksheetId: string, worksheetName: string) => boolean | void
   onUniverSheetInserted: (payload: unknown) => void
   onUniverSheetRemoved: (payload: unknown) => void
   onUniverSheetRenamed: (payload: unknown) => void
@@ -108,6 +113,7 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
   const {
     viewType,
     isBootstrapCanonicalReady,
+    isBootstrapSnapshotLoading,
     isBootstrapWorkbookEnriching,
     workbookSnapshotSyncFailed = false,
     preferUniverNativeSheetTabs,
@@ -122,7 +128,8 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
     authoritativeDataSyncToken,
     authoritativePaintCellsRef,
     authoritativePaintMetaRef,
-    pendingBootstrapStyleRepair,
+    pendingSnapshotStyleRepair,
+    onSnapshotStyleRepairApplied,
     workbookInstanceKey,
     pendingLocalMutationCellsRef,
     spreadsheetIntentJournalRef,
@@ -181,9 +188,10 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
 
   return useMemo(() => {
     if (viewType === 'table') {
-      const shouldWaitForCanonicalBootstrap =
-        !isBootstrapCanonicalReady && (!preferUniverNativeSheetTabs || sheetCount <= 1 || !hasBootstrappedDone)
-      if (shouldWaitForCanonicalBootstrap) {
+      const shouldHoldBootstrapShell =
+        (!isBootstrapCanonicalReady || isBootstrapSnapshotLoading) &&
+        (!preferUniverNativeSheetTabs || sheetCount <= 1 || !hasBootstrappedDone)
+      if (shouldHoldBootstrapShell) {
         return (
           <div
             className="gba:flex gba:h-full gba:w-full gba:flex-col gba:bg-background"
@@ -211,7 +219,8 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
           authoritativeDataSyncToken={authoritativeDataSyncToken as any}
           authoritativePaintCellsRef={authoritativePaintCellsRef}
           authoritativePaintMetaRef={authoritativePaintMetaRef}
-          pendingBootstrapStyleRepair={pendingBootstrapStyleRepair}
+          pendingSnapshotStyleRepair={pendingSnapshotStyleRepair}
+          onSnapshotStyleRepairApplied={onSnapshotStyleRepairApplied}
           workbookInstanceKey={workbookInstanceKey as any}
           pendingLocalMutationCellsRef={pendingLocalMutationCellsRef}
           spreadsheetIntentJournalRef={spreadsheetIntentJournalRef}
@@ -317,13 +326,15 @@ export function useSpreadsheetMainViewRenderer(params: UseSpreadsheetMainViewRen
     initialSnapshot,
     initialSnapshotSeed,
     isBootstrapCanonicalReady,
+    isBootstrapSnapshotLoading,
     isBootstrapWorkbookEnriching,
     workbookSnapshotSyncFailed,
     onActiveWorksheetChange,
     onCellChange,
     onCellsChange,
     onColumnAdd,
-    pendingBootstrapStyleRepair,
+    onSnapshotStyleRepairApplied,
+    pendingSnapshotStyleRepair,
     pendingLocalMutationCellsRef,
     onColumnsDelete,
     onColumnsInsert,

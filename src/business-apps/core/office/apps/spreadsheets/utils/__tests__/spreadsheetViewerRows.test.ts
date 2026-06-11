@@ -263,6 +263,33 @@ describe('spreadsheetViewerRows', () => {
         }
       ])
     })
+
+    it('filters purely visual placeholder rows that carry no meaningful cell payload', () => {
+      const payloads = buildAddRowPayloadsFromUniverRows(
+        [
+          {
+            _id: 'client_row_12',
+            _clientRowId: 'client_row_12',
+            _gridRowIndex: 12
+          }
+        ],
+        [
+          {
+            id: 'col-a',
+            name: 'column_a',
+            label: 'A',
+            type: 'text',
+            isVisible: true,
+            isEditable: true,
+            isRequired: false,
+            isUnique: false,
+            order: 0
+          }
+        ]
+      )
+
+      expect(payloads).toEqual([])
+    })
   })
 
   describe('snapshot coordinate helpers', () => {

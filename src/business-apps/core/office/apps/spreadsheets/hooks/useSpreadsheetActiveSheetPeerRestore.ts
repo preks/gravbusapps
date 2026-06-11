@@ -1,19 +1,12 @@
 import { useEffect, useRef, type MutableRefObject } from 'react'
 
-import { countLiveWorksheetSnapshotValues, getKnownCellValueCount } from '../core'
 import type { UniverSheetGridHandle } from '../components/UniverSheetGrid.types'
 import type { SpreadsheetSheet } from '../types'
-import { workbookSnapshotMismatchesViewerRows } from '../utils/univerAdapter'
 import { hydrateCachedRowsWithServerIdentities } from '../utils/spreadsheetPeerRowHydration'
 import { sortSpreadsheetRowsBySheetSettings } from '../utils/spreadsheetSheetRowSort'
-import {
-  multiSheetDebugLog,
-  summarizeLiveWorksheetSnapshotForDebug,
-  summarizeRowsForDebug
-} from '../utils/spreadsheetViewerDebug'
-import { prefersCanonicalReloadForMaterializationReason } from '../utils/spreadsheetGridMaterialization'
+import { multiSheetDebugLog, summarizeRowsForDebug } from '../utils/spreadsheetViewerDebug'
 
-import type { CommitLocalSheetDataOptions } from './spreadsheetViewerSessionTypes'
+import type { AuthoritativeGridReapplyTarget } from '../core/SpreadsheetCollaborationContract'
 
 export interface UseSpreadsheetActiveSheetPeerRestoreParams {
   activeSheet: SpreadsheetSheet
@@ -23,14 +16,30 @@ export interface UseSpreadsheetActiveSheetPeerRestoreParams {
   peerSheetDataCacheRef: MutableRefObject<Map<string, Record<string, unknown>[]>>
   authoritativePeerSheetDataCacheRef: MutableRefObject<Set<string>>
   resolveKnownSheetVersion: (sheetId: string) => number
+  resolveKnownSheetSnapshotVersion: (sheetId: string) => number
+  resolveLiveAppliedSheetVersion: (sheetId: string) => number
+  resolveLiveAppliedSheetSnapshotVersion: (sheetId: string) => number
+  rememberLiveAppliedSheetVersion?: (sheetId: string, version: number | undefined) => void
   resolveCanonicalSheetId: (sheetId: string) => string
   buildFullAuthoritativeGridRegion: (
     rows: readonly Record<string, unknown>[],
     columns: readonly SpreadsheetSheet['columns']
-  ) => CommitLocalSheetDataOptions['authoritativeGridRegion']
+  ) => AuthoritativeGridReapplyTarget
   getGridMaterializationReason?: (sheetId: string) => string | null | undefined
-  requestCanonicalGridMaterialization?: (sheetId: string, reason: string) => void
-  commitLocalSheetData: (next: Record<string, unknown>[], options?: CommitLocalSheetDataOptions) => void
+  requestCanonicalGridMaterialization?: (
+    sheetId: string,
+    reason: 'sheet_switch' | 'focus' | 'visibility' | 'reconnect' | 'prefetch'
+  ) => void
+  requestSheetSnapshotStyleRepair?: (params: {
+    sheet: SpreadsheetSheet
+    sheetId: string
+    rows: Record<string, unknown>[]
+    knownSheetVersion: number
+    knownSheetSnapshotVersion: number
+    reason: 'sheet_switch'
+    allowBackendHydrationFallback?: boolean
+  }) => Promise<boolean> | boolean
+  restoreSwitchedSheetRows: (sheetId: string, rows: Record<string, unknown>[], options?: { version?: number }) => void
 }
 
 /**
@@ -52,87 +61,63 @@ export function useSpreadsheetActiveSheetPeerRestore(params: UseSpreadsheetActiv
     const cachedOrServerRows = cached
       ? hydrateCachedRowsWithServerIdentities(cached, params.activeSheet.data)
       : (params.activeSheet.data ?? [])
-    const liveSnapshot = params.spreadsheetGridRef.current?.getWorkbookSnapshot?.()
     const sourceRows = cachedOrServerRows
     const sortedSourceRows = sortSpreadsheetRowsBySheetSettings(sourceRows, params.activeSheet)
+    const knownSheetVersion = params.resolveKnownSheetVersion(params.activeSheetId)
+    const knownSheetSnapshotVersion = params.resolveKnownSheetSnapshotVersion(params.activeSheetId)
+    const materializationReason = params.getGridMaterializationReason?.(params.activeSheetId)
     multiSheetDebugLog('active_sheet_peer_restore', () => ({
       previousSheetId: prev,
       activeSheetId: params.activeSheetId,
       usedCache: Boolean(cached),
       cachedRows: summarizeRowsForDebug(cached),
       activeSheetData: summarizeRowsForDebug(params.activeSheet.data ?? []),
-      sourceRows: summarizeRowsForDebug(sourceRows)
+      sourceRows: summarizeRowsForDebug(sourceRows),
+      knownSheetVersion,
+      knownSheetSnapshotVersion,
+      materializationReason
     }))
-    const sourceValueCount = sourceRows.reduce((total, row) => total + getKnownCellValueCount(row), 0)
-    const liveSnapshotValueCount =
-      liveSnapshot && typeof liveSnapshot === 'object'
-        ? countLiveWorksheetSnapshotValues(liveSnapshot as Record<string, unknown>, params.activeSheetId)
-        : 0
-    const authoritativeCacheHasLiveMismatch =
-      params.authoritativePeerSheetDataCacheRef.current.has(params.activeSheetId) &&
-      liveSnapshot &&
-      typeof liveSnapshot === 'object' &&
-      workbookSnapshotMismatchesViewerRows(
-        liveSnapshot as Record<string, unknown>,
+    multiSheetDebugLog('active_sheet_peer_restore_switch_decision', () => ({
+      activeSheetId: params.activeSheetId,
+      decision: 'canonical_materialization_dispatch',
+      snapshotValidationUsed: false,
+      canonicalMaterializationUsed: true,
+      knownSheetVersion,
+      knownSheetSnapshotVersion,
+      materializationReason
+    }))
+
+    params.restoreSwitchedSheetRows(params.activeSheetId, sortedSourceRows, {
+      version: knownSheetVersion
+    })
+    if (params.requestCanonicalGridMaterialization) {
+      params.requestCanonicalGridMaterialization(
         params.activeSheetId,
-        sortedSourceRows,
-        params.activeSheet.columns
-      )
-    const needsReapplyBecauseWorkbookSheetIsStale =
-      (sourceValueCount > 0 && liveSnapshotValueCount < sourceValueCount) || Boolean(authoritativeCacheHasLiveMismatch)
-    const materializationReason = params.getGridMaterializationReason?.(params.activeSheetId)
-    const shouldWaitForCanonicalMaterialization = prefersCanonicalReloadForMaterializationReason(materializationReason)
-    if (shouldWaitForCanonicalMaterialization) {
-      multiSheetDebugLog('active_sheet_peer_restore_deferred_for_materialization', () => ({
-        activeSheetId: params.activeSheetId,
-        materializationReason,
-        usedCache: Boolean(cached),
-        cachedRows: summarizeRowsForDebug(cached),
-        activeSheetData: summarizeRowsForDebug(params.activeSheet.data ?? [])
-      }))
-      params.requestCanonicalGridMaterialization?.(
-        params.activeSheetId,
-        typeof materializationReason === 'string' ? materializationReason : 'grid_materialization'
+        typeof materializationReason === 'string' && materializationReason.length > 0
+          ? (materializationReason as 'sheet_switch' | 'focus' | 'visibility' | 'reconnect' | 'prefetch')
+          : 'sheet_switch'
       )
       return
     }
-    const shouldSyncGrid = needsReapplyBecauseWorkbookSheetIsStale && !shouldWaitForCanonicalMaterialization
-    const authoritativeGridRegion = shouldSyncGrid
-      ? params.buildFullAuthoritativeGridRegion(sortedSourceRows, params.activeSheet.columns)
-      : null
-    params.commitLocalSheetData(sortedSourceRows, {
-      persisted: false,
-      syncGrid: shouldSyncGrid,
-      publishParent: false,
-      peerAuthoritative: true,
-      replaceSheetVersion: params.resolveKnownSheetVersion(params.activeSheetId),
-      authoritativeGridRegion
+    void params.requestSheetSnapshotStyleRepair?.({
+      sheet: params.activeSheet,
+      sheetId: params.activeSheetId,
+      rows: sortedSourceRows,
+      knownSheetVersion,
+      knownSheetSnapshotVersion,
+      reason: 'sheet_switch',
+      allowBackendHydrationFallback: true
     })
-    if (needsReapplyBecauseWorkbookSheetIsStale) {
-      multiSheetDebugLog('active_sheet_token_reapply_after_restore', () => ({
-        activeSheetId: params.activeSheetId,
-        needsReapplyBecauseWorkbookSheetIsStale,
-        authoritativeCacheHasLiveMismatch: Boolean(authoritativeCacheHasLiveMismatch),
-        sourceValueCount,
-        liveSnapshotValueCount,
-        materializationReason,
-        deferredForCanonicalMaterialization: shouldWaitForCanonicalMaterialization,
-        liveSnapshot: summarizeLiveWorksheetSnapshotForDebug(
-          liveSnapshot as Record<string, unknown> | null,
-          params.activeSheetId
-        ),
-        authoritativeGridRegion
-      }))
-    }
   }, [
     params.activeSheet,
     params.activeSheetId,
-    params.buildFullAuthoritativeGridRegion,
-    params.commitLocalSheetData,
     params.getGridMaterializationReason,
     params.preferUniverNativeSheetTabs,
     params.requestCanonicalGridMaterialization,
+    params.requestSheetSnapshotStyleRepair,
+    params.restoreSwitchedSheetRows,
     params.resolveCanonicalSheetId,
+    params.resolveKnownSheetSnapshotVersion,
     params.resolveKnownSheetVersion,
     params.spreadsheetGridRef
   ])

@@ -88,6 +88,10 @@ export function useUniverGridController(props: UniverSheetGridProps) {
   } | null>(null)
   const lastProcessedAuthoritativeReapplySeedRef = useRef(0)
   const skipNextAuthoritativeSyncAfterSnapshotInitRef = useRef(false)
+  const skipNextAuthoritativeSyncAfterImperativeSnapshotReplaceRef = useRef<{
+    sheetId: string
+    token: number
+  } | null>(null)
   const newRowClientIdByIndexRef = useRef<Map<number, string>>(new Map())
   const recentLocalMutationSignaturesRef = useRef<Map<string, number>>(new Map())
   const lastClearAllEmitAtBySignatureRef = useRef<Map<string, number>>(new Map())
@@ -307,6 +311,7 @@ export function useUniverGridController(props: UniverSheetGridProps) {
     pendingForcedAuthoritativeReapplyRef,
     lastProcessedAuthoritativeReapplySeedRef,
     skipNextAuthoritativeSyncAfterSnapshotInitRef,
+    skipNextAuthoritativeSyncAfterImperativeSnapshotReplaceRef,
     newRowClientIdByIndexRef,
     recentLocalMutationSignaturesRef,
     lastClearAllEmitAtBySignatureRef,

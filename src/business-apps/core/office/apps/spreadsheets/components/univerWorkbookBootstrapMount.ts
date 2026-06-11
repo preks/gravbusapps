@@ -116,6 +116,7 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     readOnlyRef,
     lastEmittedCursorPathRef,
     lastEmittedWorksheetIdRef,
+    suppressWorksheetSelectionEmitRef,
     univerBootstrapCompleteRef,
     recentSheetMutationIdsRef,
     recentlyDuplicatedWorksheetIdsRef,
@@ -142,11 +143,20 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     detail?: { reason?: string; message?: string; width?: number; height?: number }
   ): void => {
     const box = gridHostEl.getBoundingClientRect()
+    const activeWorksheetId =
+      (
+        univerAPIRef.current?.getActiveWorkbook?.() as {
+          getActiveSheet?: () => { getSheetId?: () => string } | null
+        } | null
+      )
+        ?.getActiveSheet?.()
+        ?.getSheetId?.() ?? null
     props.onInitLifecycle?.({
       phase,
       sheetId: sheet.id,
       workbookInstanceKey: props.workbookInstanceKey,
       snapshotSeed: props.snapshotSeed,
+      activeWorksheetId,
       width: detail?.width ?? box.width,
       height: detail?.height ?? box.height,
       reason: detail?.reason,
@@ -352,6 +362,7 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
     copiedSelectionAnchorRef,
     pendingFormattingPasteIntentRef,
     lastEmittedWorksheetIdRef,
+    suppressWorksheetSelectionEmitRef,
     callbacksRef
   })
 
@@ -359,9 +370,14 @@ export function mountUniverWorkbookBootstrap(ctx: UniverWorkbookBootstrapMountCo
   queueMicrotask(() => {
     if (!isBootstrapAlive()) return
     try {
+      suppressWorksheetSelectionEmitRef.current = {
+        expectedSheetId: s.id,
+        untilMs: Date.now() + 1500
+      }
       const wb = univerAPI.getActiveWorkbook?.() as { setActiveSheet?: (id: string) => void } | undefined
       wb?.setActiveSheet?.(s.id)
     } catch {
+      suppressWorksheetSelectionEmitRef.current = null
       /* ignore */
     }
     emitWorksheetFromUniver()

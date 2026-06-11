@@ -6,6 +6,8 @@ import { resolveReconciledSheetId } from '../utils/reconcileTemporarySheetId'
 import type { SpreadsheetSheet } from '../types'
 import type { SheetDeltaCatchUpReason } from './spreadsheetRemoteSyncTypes'
 
+const FOREGROUND_SHEET_READY_DEDUPE_MS = 400
+
 export interface UseSpreadsheetRemoteSyncCollaborationEffectsParams {
   preferUniverNativeSheetTabs: boolean
   entityEnabled: boolean
@@ -46,9 +48,14 @@ export interface UseSpreadsheetRemoteSyncCollaborationEffectsParams {
 export function useSpreadsheetRemoteSyncCollaborationEffects(
   params: UseSpreadsheetRemoteSyncCollaborationEffectsParams
 ): void {
+  const prevActiveSheetIdForImmediateCatchupRef = useRef(params.activeSheetId)
   const prevActiveSheetIdForRemoteCatchupRef = useRef(params.activeSheetId)
   const remoteSheetCatchupTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const remoteSheetCatchupSequenceRef = useRef(0)
+  const lastForegroundSheetReadyRef = useRef<{
+    sheetId: string
+    at: number
+  } | null>(null)
 
   const previousCollaborationJoinedRef = useRef(params.collaborationJoined)
   const previousCollaborationConnectedRef = useRef(params.collaborationConnected)
@@ -68,20 +75,34 @@ export function useSpreadsheetRemoteSyncCollaborationEffects(
   }, [params.activeSheetId, params.collaborationConnected, params.collaborationJoined, params.ensureSheetReady])
 
   useEffect(() => {
-    const previousSheetId = prevActiveSheetIdForRemoteCatchupRef.current
-    prevActiveSheetIdForRemoteCatchupRef.current = params.activeSheetId
+    const previousSheetId = prevActiveSheetIdForImmediateCatchupRef.current
+    prevActiveSheetIdForImmediateCatchupRef.current = params.activeSheetId
     if (previousSheetId === params.activeSheetId || !params.collaborationJoined) return
+    if (params.preferUniverNativeSheetTabs) return
     void params.ensureSheetReady(params.activeSheetId, 'sheet_switch', { allowManifestRefresh: true })
-  }, [params.activeSheetId, params.collaborationJoined, params.ensureSheetReady])
+  }, [params.activeSheetId, params.collaborationJoined, params.ensureSheetReady, params.preferUniverNativeSheetTabs])
 
   useEffect(() => {
     if (!params.collaborationJoined || typeof window === 'undefined') return
+    const shouldSkipForegroundCatchUp = (sheetId: string): boolean => {
+      const now = Date.now()
+      const previous = lastForegroundSheetReadyRef.current
+      if (previous && previous.sheetId === sheetId && now - previous.at < FOREGROUND_SHEET_READY_DEDUPE_MS) {
+        return true
+      }
+      lastForegroundSheetReadyRef.current = { sheetId, at: now }
+      return false
+    }
     const catchUpOnFocus = () => {
-      void params.ensureSheetReady(params.activeSheetIdRef.current, 'focus', { allowManifestRefresh: true })
+      const targetSheetId = params.activeSheetIdRef.current
+      if (!targetSheetId || shouldSkipForegroundCatchUp(targetSheetId)) return
+      void params.ensureSheetReady(targetSheetId, 'focus', { allowManifestRefresh: true })
     }
     const catchUpOnVisibility = () => {
       if (document.visibilityState !== 'visible') return
-      void params.ensureSheetReady(params.activeSheetIdRef.current, 'visibility', { allowManifestRefresh: true })
+      const targetSheetId = params.activeSheetIdRef.current
+      if (!targetSheetId || shouldSkipForegroundCatchUp(targetSheetId)) return
+      void params.ensureSheetReady(targetSheetId, 'visibility', { allowManifestRefresh: true })
     }
     window.addEventListener('focus', catchUpOnFocus)
     document.addEventListener('visibilitychange', catchUpOnVisibility)

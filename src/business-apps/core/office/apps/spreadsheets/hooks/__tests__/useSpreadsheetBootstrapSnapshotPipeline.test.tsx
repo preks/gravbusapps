@@ -44,6 +44,11 @@ const createStablePipelineDeps = () => ({
   authoritativePeerSheetDataCacheRef: { current: new Set<string>() }
 })
 
+const loadSheetHydrationSnapshot = (
+  sheetId: string
+): ReturnType<typeof SpreadsheetApiService.getSheetHydrationSnapshot> =>
+  SpreadsheetApiService.getSheetHydrationSnapshot('app-1', sheetId)
+
 describe('useSpreadsheetBootstrapSnapshotPipeline', () => {
   beforeEach(() => {
     jest.spyOn(SpreadsheetApiService, 'getUniverSnapshot').mockResolvedValue({
@@ -90,6 +95,7 @@ describe('useSpreadsheetBootstrapSnapshotPipeline', () => {
         authoritativePeerSheetDataCacheRef: stableDeps.authoritativePeerSheetDataCacheRef,
         seedActiveSheetState,
         mapSnapshotRowsToViewerRows,
+        loadSheetHydrationSnapshot,
         debugLog,
         onBootstrapWorkbookReconcileIssue
       })
@@ -105,7 +111,7 @@ describe('useSpreadsheetBootstrapSnapshotPipeline', () => {
     )
   })
 
-  it('keeps a row-built first mount when hydration has no worksheet snapshot', async () => {
+  it('degrades to a rows fallback only after bootstrap visual sources settle', async () => {
     jest.spyOn(SpreadsheetApiService, 'getSheetHydrationSnapshot').mockResolvedValue({
       sheet: minimalSheet(),
       rows: [{ _id: 'row-1', foo: 'fresh' }],
@@ -171,6 +177,7 @@ describe('useSpreadsheetBootstrapSnapshotPipeline', () => {
         authoritativePeerSheetDataCacheRef: stableDeps.authoritativePeerSheetDataCacheRef,
         seedActiveSheetState,
         mapSnapshotRowsToViewerRows,
+        loadSheetHydrationSnapshot,
         debugLog
       })
     )
@@ -179,10 +186,184 @@ describe('useSpreadsheetBootstrapSnapshotPipeline', () => {
     await waitFor(() => expect(result.current.isBootstrapWorkbookEnriching).toBe(false))
 
     expect(result.current.bootstrapSnapshot).toBeNull()
-    expect(result.current.bootstrapSnapshotSeed).toBe('rows-hydration-v3')
+    expect(result.current.bootstrapSnapshotSeed).toBe('rows-degraded-v3')
+    expect(result.current.visualBootstrapState).toEqual(
+      expect.objectContaining({
+        mountKind: 'rows_built',
+        valueSource: 'rows_built',
+        formattingSource: 'missing'
+      })
+    )
   })
 
-  it('canonicalizes hydration worksheet snapshot values before first mount', async () => {
+  it('does not let a data-only hydration candidate win the first visual mount', async () => {
+    jest.spyOn(SpreadsheetApiService, 'getSheetHydrationSnapshot').mockResolvedValue({
+      sheet: minimalSheet(),
+      rows: [{ _id: 'row-1', foo: 'fresh' }],
+      operationVersion: 7,
+      sheetSnapshotVersion: 7,
+      worksheetSnapshot: {
+        id: 'sh1',
+        name: 'Sheet 1',
+        rowData: {
+          0: { h: 30 }
+        },
+        columnData: {
+          0: { w: 120 }
+        },
+        cellData: {}
+      },
+      workbookDependencies: {
+        styles: {
+          orphan: { bg: { rgb: '#ffff00' } }
+        }
+      },
+      workbookSnapshotVersion: 17
+    })
+    jest.spyOn(SpreadsheetApiService, 'getUniverSnapshot').mockResolvedValue({
+      appId: 'app-1',
+      version: 18,
+      snapshot: {
+        sheetOrder: ['sh1'],
+        sheets: {
+          sh1: {
+            id: 'sh1',
+            name: 'Sheet 1',
+            cellData: {
+              0: { 0: { v: 'fresh', s: 'style-1' } }
+            }
+          }
+        },
+        styles: {
+          'style-1': { bg: { rgb: '#00ff00' } }
+        }
+      },
+      updatedAt: '2025-01-01T00:00:00.000Z',
+      coversVersions: { sh1: 18 }
+    })
+    const spreadsheetSession = { updateWorkbookSnapshot: jest.fn() }
+    const stableDeps = createStablePipelineDeps()
+    const seedActiveSheetState = jest.fn()
+    const debugLog = jest.fn()
+
+    const { result } = renderHook(() =>
+      useSpreadsheetBootstrapSnapshotPipeline({
+        appId: 'app-1',
+        activeSheetId: 'sh1',
+        activeSheet: minimalSheet(),
+        entityEnabled: false,
+        preferUniverNativeSheetTabs: false,
+        spreadsheetSession: spreadsheetSession as any,
+        workbookSnapshotVersionRef: stableDeps.workbookSnapshotVersionRef,
+        workbookSnapshotCoversVersionsRef: stableDeps.workbookSnapshotCoversVersionsRef,
+        peerSheetDataCacheRef: stableDeps.peerSheetDataCacheRef,
+        authoritativePeerSheetDataCacheRef: stableDeps.authoritativePeerSheetDataCacheRef,
+        seedActiveSheetState,
+        mapSnapshotRowsToViewerRows,
+        loadSheetHydrationSnapshot,
+        debugLog
+      })
+    )
+
+    await waitFor(() => expect(result.current.isBootstrapCanonicalReady).toBe(true))
+
+    expect(result.current.bootstrapSnapshotSeed).toBe('remote-cov18-blob18')
+    expect(result.current.visualBootstrapState).toEqual(
+      expect.objectContaining({
+        mountKind: 'remote_enriched',
+        formattingSource: 'remote',
+        visibleDecision: 'mount_now'
+      })
+    )
+    expect(debugLog).toHaveBeenCalledWith(
+      'bootstrap snapshot candidate selected',
+      expect.objectContaining({
+        formattingSource: 'remote',
+        readiness: 'visual_complete',
+        visibleDecision: 'mount_now'
+      })
+    )
+  })
+
+  it('mounts a structural visual candidate without degrading to rows fallback', async () => {
+    jest.spyOn(SpreadsheetApiService, 'getSheetHydrationSnapshot').mockResolvedValue({
+      sheet: minimalSheet(),
+      rows: [{ _id: 'row-1', foo: 'fresh' }],
+      operationVersion: 12,
+      sheetSnapshotVersion: 12,
+      worksheetSnapshot: null,
+      workbookDependencies: {},
+      workbookSnapshotVersion: 0
+    })
+    jest.spyOn(SpreadsheetApiService, 'getUniverSnapshot').mockResolvedValue({
+      appId: 'app-1',
+      version: 13,
+      snapshot: {
+        sheetOrder: ['sh1'],
+        sheets: {
+          sh1: {
+            id: 'sh1',
+            name: 'Sheet 1',
+            rowData: {
+              0: { h: 30 }
+            },
+            columnData: {
+              0: { w: 120 }
+            },
+            mergeData: [{ startRow: 0, endRow: 0, startColumn: 0, endColumn: 1 }],
+            cellData: {}
+          }
+        }
+      },
+      updatedAt: '2025-01-01T00:00:00.000Z',
+      coversVersions: { sh1: 12 }
+    })
+    const spreadsheetSession = { updateWorkbookSnapshot: jest.fn() }
+    const stableDeps = createStablePipelineDeps()
+    const seedActiveSheetState = jest.fn()
+    const debugLog = jest.fn()
+
+    const { result } = renderHook(() =>
+      useSpreadsheetBootstrapSnapshotPipeline({
+        appId: 'app-1',
+        activeSheetId: 'sh1',
+        activeSheet: minimalSheet(),
+        entityEnabled: false,
+        preferUniverNativeSheetTabs: false,
+        spreadsheetSession: spreadsheetSession as any,
+        workbookSnapshotVersionRef: stableDeps.workbookSnapshotVersionRef,
+        workbookSnapshotCoversVersionsRef: stableDeps.workbookSnapshotCoversVersionsRef,
+        peerSheetDataCacheRef: stableDeps.peerSheetDataCacheRef,
+        authoritativePeerSheetDataCacheRef: stableDeps.authoritativePeerSheetDataCacheRef,
+        seedActiveSheetState,
+        mapSnapshotRowsToViewerRows,
+        loadSheetHydrationSnapshot,
+        debugLog
+      })
+    )
+
+    await waitFor(() => expect(result.current.isBootstrapSnapshotLoading).toBe(false))
+
+    expect(result.current.bootstrapSnapshotSeed).toBe('remote-cov12-blob13')
+    expect(result.current.visualBootstrapState).toEqual(
+      expect.objectContaining({
+        mountKind: 'remote_enriched',
+        formattingSource: 'remote',
+        visibleDecision: 'mount_now',
+        formattingScore: 0
+      })
+    )
+    expect(debugLog).toHaveBeenCalledWith(
+      'bootstrap snapshot candidate selected',
+      expect.objectContaining({
+        readiness: 'visual_partial',
+        visibleDecision: 'mount_now',
+        hasWorksheetStructuralVisualSignal: true
+      })
+    )
+  })
+
+  it('waits for a visual candidate instead of treating value-only hydration as a first mount', async () => {
     jest.spyOn(SpreadsheetApiService, 'getSheetHydrationSnapshot').mockResolvedValue({
       sheet: minimalSheet(),
       rows: [{ _id: 'row-1', foo: 'fresh' }],
@@ -217,28 +398,98 @@ describe('useSpreadsheetBootstrapSnapshotPipeline', () => {
         authoritativePeerSheetDataCacheRef: stableDeps.authoritativePeerSheetDataCacheRef,
         seedActiveSheetState,
         mapSnapshotRowsToViewerRows,
+        loadSheetHydrationSnapshot,
         debugLog
       })
     )
 
     await waitFor(() => expect(result.current.isBootstrapCanonicalReady).toBe(true))
 
-    expect(result.current.bootstrapSnapshotSeed).toBe('sheet-hydration-v2')
-    expect(result.current.bootstrapSnapshot).toEqual(
+    expect(result.current.bootstrapSnapshot).toBeNull()
+    expect(result.current.bootstrapSnapshotSeed).toBe('rows-degraded-v2')
+    expect(result.current.visualBootstrapState).toEqual(
       expect.objectContaining({
-        sheets: {
-          sh1: expect.objectContaining({
-            cellData: {
-              0: { 0: { v: 'fresh' } }
-            }
-          })
-        }
+        mountKind: 'rows_built',
+        valueSource: 'rows_built',
+        formattingSource: 'missing'
       })
     )
-    expect(debugLog).toHaveBeenCalledWith(
-      'bootstrap snapshot candidate selected',
-      expect.objectContaining({ source: 'remote', visibleDecision: 'mount_now', formattingSource: 'hydration' })
+  })
+
+  it('keeps bootstrap loading active while waiting for a visual candidate', async () => {
+    const remoteControl: { resolve: (value: any) => void } = {
+      resolve: () => undefined
+    }
+    const remotePromise = new Promise<any>(resolve => {
+      remoteControl.resolve = resolve
+    })
+
+    jest.spyOn(SpreadsheetApiService, 'getSheetHydrationSnapshot').mockResolvedValue({
+      sheet: minimalSheet(),
+      rows: [{ _id: 'row-1', foo: 'fresh' }],
+      operationVersion: 9,
+      sheetSnapshotVersion: 9,
+      worksheetSnapshot: {
+        id: 'sh1',
+        name: 'Sheet 1',
+        cellData: {}
+      },
+      workbookDependencies: {},
+      workbookSnapshotVersion: 20
+    })
+    jest.spyOn(SpreadsheetApiService, 'getUniverSnapshot').mockReturnValue(remotePromise as any)
+
+    const spreadsheetSession = { updateWorkbookSnapshot: jest.fn() }
+    const stableDeps = createStablePipelineDeps()
+    const seedActiveSheetState = jest.fn()
+    const debugLog = jest.fn()
+
+    const { result } = renderHook(() =>
+      useSpreadsheetBootstrapSnapshotPipeline({
+        appId: 'app-1',
+        activeSheetId: 'sh1',
+        activeSheet: minimalSheet(),
+        entityEnabled: false,
+        preferUniverNativeSheetTabs: false,
+        spreadsheetSession: spreadsheetSession as any,
+        workbookSnapshotVersionRef: stableDeps.workbookSnapshotVersionRef,
+        workbookSnapshotCoversVersionsRef: stableDeps.workbookSnapshotCoversVersionsRef,
+        peerSheetDataCacheRef: stableDeps.peerSheetDataCacheRef,
+        authoritativePeerSheetDataCacheRef: stableDeps.authoritativePeerSheetDataCacheRef,
+        seedActiveSheetState,
+        mapSnapshotRowsToViewerRows,
+        loadSheetHydrationSnapshot,
+        debugLog
+      })
     )
+
+    await waitFor(() => expect(result.current.isBootstrapCanonicalReady).toBe(true))
+
+    expect(result.current.isBootstrapSnapshotLoading).toBe(true)
+    expect(result.current.bootstrapSnapshot).toBeNull()
+    expect(result.current.bootstrapSnapshotSeed).toBe('none')
+
+    remoteControl.resolve({
+      appId: 'app-1',
+      version: 21,
+      snapshot: {
+        sheetOrder: ['sh1'],
+        sheets: {
+          sh1: {
+            id: 'sh1',
+            name: 'Sheet 1',
+            cellData: {
+              0: { 0: { v: 'remote without styles' } }
+            }
+          }
+        }
+      },
+      updatedAt: '2025-01-01T00:00:00.000Z',
+      coversVersions: { sh1: 21 }
+    })
+
+    await waitFor(() => expect(result.current.isBootstrapSnapshotLoading).toBe(false))
+    expect(result.current.bootstrapSnapshotSeed).toBe('rows-degraded-v9')
   })
 
   it('preserves unresolved hydration snapshot values during the first no-degrade mount', async () => {
@@ -279,6 +530,7 @@ describe('useSpreadsheetBootstrapSnapshotPipeline', () => {
         authoritativePeerSheetDataCacheRef: stableDeps.authoritativePeerSheetDataCacheRef,
         seedActiveSheetState,
         mapSnapshotRowsToViewerRows,
+        loadSheetHydrationSnapshot,
         debugLog
       })
     )
@@ -372,6 +624,7 @@ describe('useSpreadsheetBootstrapSnapshotPipeline', () => {
         authoritativePeerSheetDataCacheRef: stableDeps.authoritativePeerSheetDataCacheRef,
         seedActiveSheetState,
         mapSnapshotRowsToViewerRows,
+        loadSheetHydrationSnapshot,
         debugLog
       })
     )
@@ -400,7 +653,7 @@ describe('useSpreadsheetBootstrapSnapshotPipeline', () => {
     )
   })
 
-  it('schedules a visible style repair when a richer remote candidate arrives after hydration-first mount', async () => {
+  it('does not schedule a visible style repair when the remote candidate only adds unreferenced workbook styles', async () => {
     jest.spyOn(SpreadsheetApiService, 'getSheetHydrationSnapshot').mockResolvedValue({
       sheet: minimalSheet(),
       rows: [{ _id: 'row-1', foo: 'fresh' }],
@@ -462,6 +715,7 @@ describe('useSpreadsheetBootstrapSnapshotPipeline', () => {
         authoritativePeerSheetDataCacheRef: stableDeps.authoritativePeerSheetDataCacheRef,
         seedActiveSheetState,
         mapSnapshotRowsToViewerRows,
+        loadSheetHydrationSnapshot,
         debugLog
       })
     )
@@ -469,25 +723,19 @@ describe('useSpreadsheetBootstrapSnapshotPipeline', () => {
     await waitFor(() => expect(result.current.isBootstrapWorkbookEnriching).toBe(false))
 
     expect(result.current.bootstrapSnapshotSeed).toBe('sheet-hydration-v6')
-    expect(result.current.pendingBootstrapStyleRepair).toEqual(
-      expect.objectContaining({
-        sheetId: 'sh1',
-        formattingSource: 'remote',
-        formattingScore: expect.any(Number)
-      })
-    )
+    expect(result.current.pendingBootstrapStyleRepair).toBeNull()
     expect(result.current.visualBootstrapState).toEqual(
       expect.objectContaining({
         mountKind: 'hydration_snapshot',
         valueSource: 'hydration',
-        formattingSource: 'remote',
-        visibleDecision: 'visible_style_repair',
-        needsVisibleStyleRepair: true
+        formattingSource: 'hydration',
+        visibleDecision: 'mount_now',
+        needsVisibleStyleRepair: false
       })
     )
     expect(debugLog).toHaveBeenCalledWith(
       'bootstrap snapshot candidate selected',
-      expect.objectContaining({ source: 'remote', visibleDecision: 'visible_style_repair' })
+      expect.objectContaining({ source: 'remote', visibleDecision: 'session_only' })
     )
   })
 })

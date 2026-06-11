@@ -2,6 +2,7 @@ import { act, renderHook } from '@testing-library/react'
 
 import { SpreadsheetApiRequestError } from '../../services/SpreadsheetApiService'
 import type { SpreadsheetColumn } from '../../types'
+import { buildAddRowPayloadsFromUniverRows } from '../../utils/spreadsheetViewerRows'
 import { useSpreadsheetUniverRowCreatePipeline } from '../useSpreadsheetUniverRowCreatePipeline'
 
 const column = (id: string, name: string): SpreadsheetColumn => ({
@@ -47,13 +48,20 @@ function renderPipeline({
   persistedRows,
   lastProcessedLength = persistedRows.length,
   persistAddedRowsWithBatch,
-  recoverFromVersionConflict = jest.fn(async () => false)
+  recoverFromVersionConflict = jest.fn(async () => false),
+  buildAddRowPayloads = (rows: Array<Record<string, unknown>>) =>
+    rows.map(row => ({
+      _clientRowId: row._id,
+      _gridRowIndex: row._gridRowIndex,
+      ColumnA: row.ColumnA
+    }))
 }: {
   latestRows: Array<Record<string, unknown>>
   persistedRows: Array<Record<string, unknown>>
   lastProcessedLength?: number
   persistAddedRowsWithBatch?: jest.Mock
   recoverFromVersionConflict?: jest.Mock<Promise<boolean>, []>
+  buildAddRowPayloads?: (rows: Array<Record<string, unknown>>) => Array<Record<string, unknown>>
 }) {
   const activeSheetIdRef = { current: 'sheet-1' }
   const latestUniverDataRef = { current: { sheetId: 'sheet-1', data: latestRows } }
@@ -112,12 +120,7 @@ function renderPipeline({
       markVersionAsSaved: jest.fn(),
       onPersistRowsErrorMessage: 'failed',
       getActiveSessionRows: () => persistedRowsRef.current,
-      buildAddRowPayloadsFromUniverRows: rows =>
-        rows.map(row => ({
-          _clientRowId: row._id,
-          _gridRowIndex: row._gridRowIndex,
-          ColumnA: row.ColumnA
-        })),
+      buildAddRowPayloadsFromUniverRows: buildAddRowPayloads,
       persistAddedRowsWithBatch: persistBatch,
       persistSingleAddedRow: jest.fn(),
       recoverFromVersionConflict,
@@ -322,5 +325,25 @@ describe('useSpreadsheetUniverRowCreatePipeline sparse row materialization', () 
         visualIndexPlannerFoundMissingRows: false
       })
     )
+  })
+
+  it('skips add_rows for visual placeholder rows with no meaningful values', async () => {
+    const latestRows = [
+      {
+        _id: 'client-row-12',
+        _clientRowId: 'client-row-12',
+        _gridRowIndex: 12
+      }
+    ]
+    const { result, persistAddedRowsWithBatch } = renderPipeline({
+      latestRows,
+      persistedRows: [],
+      lastProcessedLength: latestRows.length,
+      buildAddRowPayloads: rows => buildAddRowPayloadsFromUniverRows(rows, [column('col-a', 'ColumnA')])
+    })
+
+    await runProcessUniverDataChange(result)
+
+    expect(persistAddedRowsWithBatch).not.toHaveBeenCalled()
   })
 })

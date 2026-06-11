@@ -12,8 +12,7 @@ import {
   lastRangeSetValueMock,
   lastSetFreezeMock,
   resetUniverSheetGridTestMocks,
-  TestUniverSheetGrid,
-  univerMockActiveSheetId
+  TestUniverSheetGrid
 } from './setupUniverSheetGridTestMocks'
 
 describe('UniverSheetGrid remote apply', () => {
@@ -381,7 +380,7 @@ describe('UniverSheetGrid remote apply', () => {
     const ref = React.createRef<UniverSheetGridHandle>()
     const visibleSheet = { ...sheet, id: 'sheet-2', name: 'Sheet 2' }
     const activeSheetIdsDuringCommand: string[] = []
-    univerMockActiveSheetId = 'sheet-2'
+    gridTestMockState.activeSheetId = 'sheet-2'
     render(
       <TestUniverSheetGrid
         ref={ref}
@@ -398,7 +397,7 @@ describe('UniverSheetGrid remote apply', () => {
     await waitFor(() => expect(executeCommandMock).toBeDefined())
     executeCommandMock?.mockClear()
     executeCommandMock?.mockImplementation(() => {
-      activeSheetIdsDuringCommand.push(univerMockActiveSheetId)
+      activeSheetIdsDuringCommand.push(gridTestMockState.activeSheetId)
     })
 
     act(() => {
@@ -425,7 +424,7 @@ describe('UniverSheetGrid remote apply', () => {
       })
     )
     expect(activeSheetIdsDuringCommand).toContain('sheet-1')
-    expect(univerMockActiveSheetId).toBe('sheet-2')
+    expect(gridTestMockState.activeSheetId).toBe('sheet-2')
     expect(executeCommandMock).not.toHaveBeenCalledWith(
       'sheet.command.set-col-hidden',
       expect.objectContaining({
