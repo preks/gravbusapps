@@ -10,6 +10,19 @@ import timeTrackingTranslations from './_i18n'
 import TimeHistory from './components/TimeHistory'
 import SmartBooking from '../employee-record/components/tabs/components/SmartBooking'
 import { InterventionsTable } from '../employee-record/components/tabs/components/InterventionsTable'
+import { getActiveWorkingHours } from '@/business-apps/hr/core/utils/workingHoursUtils'
+
+type WeeklyWorkingHours = {
+  activeFrom?: string | null
+  activeTo?: string | null
+  sundayHours?: number
+  mondayHours?: number
+  tuesdayHours?: number
+  wednesdayHours?: number
+  thursdayHours?: number
+  fridayHours?: number
+  saturdayHours?: number
+}
 
 enum MyTimeTabEnum {
   TimeTracking = 'time-tracking',
@@ -43,6 +56,10 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
   const employeeId = userInfo?.employeeDetails?.employeeId || ''
 
   const { employee, loading } = useMyTimeEmployeeData(accessToken, employeeId)
+  const activeWorkingHours = React.useMemo(
+    () => getActiveWorkingHours<WeeklyWorkingHours>(employee?.workingHours),
+    [employee?.workingHours]
+  )
   const { t } = useTranslation(timeTrackingTranslations)
 
   const timeRelevant = useMemo(() => isContractTimeRelevant(employee), [employee])
@@ -125,7 +142,7 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
                 <InterventionsTable
                   employeeId={employeeId}
                   accessToken={accessToken}
-                  workingHours={employee?.workingHours?.[0]}
+                  workingHours={activeWorkingHours}
                   defaultExpanded
                 />
               </div>
@@ -147,7 +164,7 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
                   employeeCode={employee?.code}
                   employeeFirstName={employee?.firstName}
                   employeeLastName={employee?.lastName}
-                  workingHours={employee?.workingHours?.[0]}
+                  workingHours={employee?.workingHours}
                 />
               </div>
             )}

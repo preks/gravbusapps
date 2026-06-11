@@ -35,6 +35,7 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { cn } from '@/common/utils/cn'
 import { formatDate, getCatalogValue } from '@/common/utils/windowUtils'
 import { getAbsenceStatusLabel } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+import { getActiveWorkingHours } from '@/business-apps/hr/core/utils/workingHoursUtils'
 
 interface SummaryTabProps {
   employee: Employee
@@ -129,21 +130,21 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
       position: member.jobPosition?.name ?? ''
     }))
   }, [employee.employeePosition])
+  const activeWorkingHours = useMemo(() => getActiveWorkingHours(employee.workingHours), [employee.workingHours])
 
   // Calculate total weekly working hours from daily hours data
   const computedWorkingHours = useMemo(() => {
-    const wh = employee.workingHours?.[0]
     const hours = [
-      wh?.mondayHours,
-      wh?.tuesdayHours,
-      wh?.wednesdayHours,
-      wh?.thursdayHours,
-      wh?.fridayHours,
-      wh?.saturdayHours,
-      wh?.sundayHours
+      activeWorkingHours?.mondayHours,
+      activeWorkingHours?.tuesdayHours,
+      activeWorkingHours?.wednesdayHours,
+      activeWorkingHours?.thursdayHours,
+      activeWorkingHours?.fridayHours,
+      activeWorkingHours?.saturdayHours,
+      activeWorkingHours?.sundayHours
     ].reduce((sum, val) => sum + (typeof val === 'number' ? val : 0), 0)
     return hours > 0 ? t('summary-hours-per-week', { hours }) : t('summary-not-specified')
-  }, [employee.workingHours, t])
+  }, [activeWorkingHours, t])
 
   return (
     <div className="gba:summary-tab gba:space-y-8" data-testid="summary-tab-container">
@@ -479,9 +480,9 @@ const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentU
                     { day: 'sunday', key: 'sun' }
                   ].map(({ day, key }) => {
                     // Use actual working hours from employee data
-                    const hoursKey = `${day}Hours` as keyof (typeof employee.workingHours)[0]
-                    const dayHours = employee.workingHours?.[0]?.[hoursKey] as number
-                    const isWorkDay = dayHours > 0
+                    const hoursKey = `${day}Hours` as keyof NonNullable<typeof activeWorkingHours>
+                    const dayHours = activeWorkingHours?.[hoursKey]
+                    const isWorkDay = typeof dayHours === 'number' && dayHours > 0
                     return (
                       <div key={day} className="gba:text-center">
                         <div className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase">

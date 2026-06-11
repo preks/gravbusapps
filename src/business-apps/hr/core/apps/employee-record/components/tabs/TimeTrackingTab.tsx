@@ -4,6 +4,7 @@ import React from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import TimeHistory from '@/business-apps/hr/core/apps/my-time/components/TimeHistory'
+import { getActiveWorkingHours } from '@/business-apps/hr/core/utils/workingHoursUtils'
 import { useTimeTrackingData } from './hooks/useTimeTrackingData'
 import TimeSummaryCards from './components/TimeSummaryCards'
 
@@ -14,7 +15,23 @@ interface TimeTrackingTabProps extends BusinessAppContextProps {
   userId: string
 }
 
+type WeeklyWorkingHours = {
+  activeFrom?: string | null
+  activeTo?: string | null
+  sundayHours?: number
+  mondayHours?: number
+  tuesdayHours?: number
+  wednesdayHours?: number
+  thursdayHours?: number
+  fridayHours?: number
+  saturdayHours?: number
+}
+
 const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ employee, accessToken, employeeId, userId }) => {
+  const activeWorkingHours = React.useMemo(
+    () => getActiveWorkingHours<WeeklyWorkingHours>(employee?.workingHours),
+    [employee?.workingHours]
+  )
   const {
     monthlyRequiredUntilYesterdayMinutes,
     monthlyWorkedUntilYesterdayMinutes,
@@ -24,7 +41,7 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ employee, accessToken
   } = useTimeTrackingData({
     employeeId,
     accessToken,
-    workingHours: employee?.workingHours?.[0]
+    workingHours: activeWorkingHours
   })
 
   return (
@@ -58,7 +75,7 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ employee, accessToken
           accessToken={accessToken}
           userId={userId}
           employeeCode={employee?.code}
-          workingHours={employee?.workingHours?.[0]}
+          workingHours={activeWorkingHours}
         />
       </div>
     </div>

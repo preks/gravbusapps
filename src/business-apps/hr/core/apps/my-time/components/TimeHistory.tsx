@@ -13,6 +13,7 @@ import { parseDurationToMinutes } from '../utils/duration'
 import timeTrackingTranslations from '../_i18n'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { getActiveWorkingHours } from '@/business-apps/hr/core/utils/workingHoursUtils'
 import {
   employeeRegionLookupQuery,
   employmentRegionHolidaysQuery
@@ -28,15 +29,19 @@ interface TimeHistoryProps {
   employeeCode?: string
   employeeFirstName?: string
   employeeLastName?: string
-  workingHours?: {
-    sundayHours?: number
-    mondayHours?: number
-    tuesdayHours?: number
-    wednesdayHours?: number
-    thursdayHours?: number
-    fridayHours?: number
-    saturdayHours?: number
-  }
+  workingHours?: WorkingHoursSchedule | WorkingHoursSchedule[]
+}
+
+type WorkingHoursSchedule = {
+  activeFrom?: string | null
+  activeTo?: string | null
+  sundayHours?: number
+  mondayHours?: number
+  tuesdayHours?: number
+  wednesdayHours?: number
+  thursdayHours?: number
+  fridayHours?: number
+  saturdayHours?: number
 }
 
 const TimeHistory: React.FC<TimeHistoryProps> = ({
@@ -51,6 +56,10 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
 }) => {
   const locale = getCurrentActiveUserLocale()
   const employeeHireDate = employee?.workingCondition?.[0]?.hireDate
+  const activeWorkingHours = React.useMemo(
+    () => (Array.isArray(workingHours) ? getActiveWorkingHours(workingHours) : workingHours),
+    [workingHours]
+  )
   const {
     currentMonth,
     prevMonth,
@@ -220,7 +229,7 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
         t,
         holidayDates,
         vacationDates,
-        workingHours,
+        workingHours: activeWorkingHours,
         entries: entriesForReport ?? entries,
         monthDate: currentMonth,
         locale,

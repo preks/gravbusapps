@@ -67,7 +67,7 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({
     accessToken,
     hireDate: employeeHireDate,
     clockInBeforeHireDateMessage,
-    workingHours
+    workingHours: employee?.workingHours
   })
 
   const [isLocationModalOpen, setIsLocationModalOpen] = React.useState(false)
@@ -123,7 +123,7 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({
             <InterventionsTable
               employeeId={employeeId}
               accessToken={accessToken}
-              workingHours={employee?.workingHours?.[0]}
+              workingHours={workingHours}
               onReviewClick={onNavigateToEveryAI}
             />
           </div>

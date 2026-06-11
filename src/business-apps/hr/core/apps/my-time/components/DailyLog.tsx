@@ -7,7 +7,6 @@ import { useTimeTrackingData } from '../../employee-record/components/tabs/hooks
 import { useAbsenceData } from '../../employee-record/hooks/useAbsenceData'
 import AbsenceCalendar from '../../employee-record/components/tabs/components/AbsenceCalendar'
 import type { AbsenceListCardAbsence } from '../../employee-record/queries/types'
-import { useEmployeeWorkingHours } from '../utils/useEmployeeWorkingHours'
 import dayjs, { Dayjs } from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
@@ -32,7 +31,6 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken, 
 
   const { absenceList } = useAbsenceData(employeeId, accessToken, EMPTY_ABSENCE_ENTITLEMENTS)
 
-  const workingHours = useEmployeeWorkingHours(employee)
   const employeeHireDate = employee?.workingCondition?.[0]?.hireDate
 
   const {
@@ -48,7 +46,7 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken, 
     employeeId,
     accessToken,
     hireDate: employeeHireDate,
-    workingHours
+    workingHours: employee?.workingHours
   })
 
   const calendarAbsences = React.useMemo<AbsenceListCardAbsence[]>(() => {
@@ -70,6 +68,7 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken, 
       const label = formatDurationToHHMM(e.effectiveTime || e.recordedTime || '0h')
       const status = mapStatus(e.status)
       return {
+        id: e.id,
         type: label,
         typeId: 'TIME',
         status,
@@ -83,6 +82,15 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken, 
         typeColor: '',
         statusColor: '',
         requestDate: dayKey,
+        employeeAbsence: {
+          id: e.id,
+          version: e.version ?? 0,
+          employeeId,
+          typeRef: 'TIME',
+          startDate: dayKey,
+          endDate: dayKey,
+          status
+        },
         plannedMinutes: parseDurationToMinutes(e.plannedTime),
         effectiveMinutes: parseDurationToMinutes(e.effectiveTime)
       }

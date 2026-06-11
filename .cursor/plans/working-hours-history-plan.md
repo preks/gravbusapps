@@ -9,13 +9,13 @@ overview: >
 todos:
   - id: step-1-form
     content: 'Step 1 — Fix the change-working-hours form'
-    status: pending
+    status: completed
   - id: step-2-employee-record-display
     content: 'Step 2 — Display active working hours on Employee Record tabs'
-    status: pending
+    status: completed
   - id: step-3-my-time
     content: 'Step 3 — Fix My Time (useEmployeeWorkingHours + all consumer components)'
-    status: pending
+    status: completed
   - id: step-4-absence-correction-forms
     content: 'Step 4 — Fix absence and correction forms'
     status: pending
@@ -62,13 +62,13 @@ This is the primary source-of-truth form, the direct analogue of `update-working
   - Remove `limit: 1` / implicit first-only assumption; fetch all non-deleted records with `orderBy: [{activeFrom: DESC}, {createdAt: DESC}]`.
   - Add a `workingHoursValidationRecords` alias that fetches only `id`, `version`, `activeFrom`, `activeTo` (used for overlap validation, mirrors `workingConditionValidationRecords`).
 
-* **Context** (`ChangeWorkingHoursContext.tsx`)
+- **Context** (`ChangeWorkingHoursContext.tsx`)
   - Add `changeMode: 'INSERT' | 'UPDATE'` (read from `additionalData` / `externalContextData` / task payload, same extraction pattern as working conditions).
   - Add `getCurrentWorkingHours(records, today, workingHoursId?, changeMode?)` helper — same logic as `getCurrentWorkingCondition`.
   - Add `workingHoursValidationRecords` state.
   - Replace `res?.employee?.[0]?.workingHours?.[0]` with the helper result.
   - Expose `workingHoursValidationRecords` and `changeMode` from context.
-  * Update `buildSubmitPayload` to include `activeFrom`, `activeTo`, `changeMode`, and the open-ended record to close (same as working conditions).
+  - Update `buildSubmitPayload` to include `activeFrom`, `activeTo`, `changeMode`, and the open-ended record to close (same as working conditions).
 
 - **Constants** (`changeWorkingHoursConstants.ts`)
   - Add `activeFrom?: string` and `activeTo?: string` to `WorkingHoursFormValues`.
@@ -96,8 +96,11 @@ This is the primary source-of-truth form, the direct analogue of `update-working
 
 ## Step 2 — Display active working hours on Employee Record tabs
 
-The central employee-record fetch (`useEmployeeData.ts`) already includes `workingHours` but without `activeFrom` / `activeTo`.
-All tabs blindly use `workingHours?.[0]`.
+The central employee-record fetch (`useEmployeeData.ts`) includes `workingHours` with `activeFrom` / `activeTo`.
+Employee Record tabs use the active working-hours record instead of blindly using `workingHours?.[0]`.
+
+- Manually verified: `EmploymentTab.tsx` displays the working-hours entries correctly.
+- Manually verified: Employee Record `TimeTrackingTab.tsx` displays working hours correctly.
 
 ### What needs to change
 
@@ -113,7 +116,7 @@ All tabs blindly use `workingHours?.[0]`.
   - `SummaryTab.tsx`
   - `TimeTrackingTab.tsx`
   - `MonthlySummary.tsx`
-  - `hooks/useTimeTrackingData.ts`
+  - `hooks/useTimeTrackingData.ts` selects the applicable working-hours record per calculation date.
 
 ### Files to edit
 
@@ -132,7 +135,12 @@ All tabs blindly use `workingHours?.[0]`.
 ## Step 3 — Fix My Time
 
 `useEmployeeWorkingHours` is the single hook that feeds all My Time components.
-Fixing it here cascades to all consumers automatically.
+Fixing it here cascades to most consumers automatically. `MyTime.tsx` and `TimeTracking.tsx`
+also pass active/full working-hours data to shared history/intervention components.
+
+Status: completed.
+
+- Manually verified: My Time displays working-hours based planned values correctly.
 
 ### What needs to change
 
@@ -140,17 +148,33 @@ Fixing it here cascades to all consumers automatically.
   - Accept `workingHours[]` (array) instead of a single entry.
   - Apply `getActiveWorkingHours(records, today)` internally.
 
+- **`TimeTracking.tsx`**
+  - Keep using `useEmployeeWorkingHours(employee)` for components that expect a single active schedule (`HeroClockCard`, `ThisWeekCard`, `InterventionsTable`).
+  - Pass the full `employee?.workingHours` array into `useTimeTrackingData` so monthly/history calculations select the applicable record per date.
+  - Replace the direct `employee?.workingHours?.[0]` passed to `InterventionsTable`.
+
+- **`DailyLog.tsx`**
+  - Pass the full `employee?.workingHours` array into `useTimeTrackingData`.
+
+- **`TimeHistory.tsx`**
+  - Allow `workingHours` to be either a single schedule or the full schedule array, matching `useTimeTrackingData`.
+
 - **`MyTime.tsx`**
-  - Pass the full `employee?.workingHours` array instead of `[0]`.
+  - Select the active working-hours record once for shared components that expect a single schedule.
+  - Pass the active record to `InterventionsTable`.
+  - Pass the full `employee?.workingHours` array to `TimeHistory`.
 
 ### Files to edit
 
-| File                                                                      | Change                               |
-| ------------------------------------------------------------------------- | ------------------------------------ |
-| `src/business-apps/hr/core/apps/my-time/utils/useEmployeeWorkingHours.ts` | Accept array, apply active selection |
-| `src/business-apps/hr/core/apps/my-time/MyTime.tsx`                       | Pass array instead of [0]            |
+| File                                                                      | Change                                                   |
+| ------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `src/business-apps/hr/core/apps/my-time/utils/useEmployeeWorkingHours.ts` | Accept array, apply active selection                     |
+| `src/business-apps/hr/core/apps/my-time/components/TimeTracking.tsx`      | Pass full history to `useTimeTrackingData`; remove `[0]` |
+| `src/business-apps/hr/core/apps/my-time/components/DailyLog.tsx`          | Pass full history to `useTimeTrackingData`               |
+| `src/business-apps/hr/core/apps/my-time/components/TimeHistory.tsx`       | Accept single schedule or schedule array                 |
+| `src/business-apps/hr/core/apps/my-time/MyTime.tsx`                       | Replace direct `[0]` usage                               |
 
-> `TimeTracking.tsx`, `DailyLog.tsx`, `HeroClockCard.tsx`, `ThisWeekCard.tsx`, `TimeHistory.tsx`, `exportTimeHistoryPdf.ts` should need no changes if they consume `useEmployeeWorkingHours`.
+> `HeroClockCard.tsx`, `ThisWeekCard.tsx`, and `exportTimeHistoryPdf.ts` needed no direct changes.
 
 ---
 

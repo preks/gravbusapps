@@ -1,6 +1,9 @@
 import React from 'react'
+import { getActiveWorkingHours } from '@/business-apps/hr/core/utils/workingHoursUtils'
 
 type WeeklyWorkingHours = {
+  activeFrom?: string | null
+  activeTo?: string | null
   sundayHours?: number
   mondayHours?: number
   tuesdayHours?: number
@@ -11,29 +14,8 @@ type WeeklyWorkingHours = {
 }
 
 export const useEmployeeWorkingHours = (employee: any): WeeklyWorkingHours | undefined => {
-  const wh = employee?.workingHours?.[0]
-
   return React.useMemo(
-    () =>
-      wh
-        ? {
-            sundayHours: wh.sundayHours,
-            mondayHours: wh.mondayHours,
-            tuesdayHours: wh.tuesdayHours,
-            wednesdayHours: wh.wednesdayHours,
-            thursdayHours: wh.thursdayHours,
-            fridayHours: wh.fridayHours,
-            saturdayHours: wh.saturdayHours
-          }
-        : undefined,
-    [
-      wh?.sundayHours,
-      wh?.mondayHours,
-      wh?.tuesdayHours,
-      wh?.wednesdayHours,
-      wh?.thursdayHours,
-      wh?.fridayHours,
-      wh?.saturdayHours
-    ]
+    () => getActiveWorkingHours<WeeklyWorkingHours>(employee?.workingHours),
+    [employee?.workingHours]
   )
 }

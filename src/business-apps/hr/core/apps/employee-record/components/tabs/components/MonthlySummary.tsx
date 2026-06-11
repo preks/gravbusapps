@@ -31,6 +31,7 @@ import { InterventionsTable } from './InterventionsTable'
 import { LiveClock } from './LiveClock'
 import timeTrackingTranslations from './_i18n'
 import { AbsenceRequestMenuButton } from './AbsenceRequestMenuButton'
+import { getActiveWorkingHours } from '@/business-apps/hr/core/utils/workingHoursUtils'
 
 interface MonthlySummaryProps {
   employee: any
@@ -39,7 +40,23 @@ interface MonthlySummaryProps {
   isSelfView: boolean
 }
 
+type WeeklyWorkingHours = {
+  activeFrom?: string | null
+  activeTo?: string | null
+  sundayHours?: number
+  mondayHours?: number
+  tuesdayHours?: number
+  wednesdayHours?: number
+  thursdayHours?: number
+  fridayHours?: number
+  saturdayHours?: number
+}
+
 const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, accessToken, isSelfView }) => {
+  const activeWorkingHours = React.useMemo(
+    () => getActiveWorkingHours<WeeklyWorkingHours>(employee?.workingHours),
+    [employee?.workingHours]
+  )
   const {
     isClockedIn,
     clockInSince,
@@ -54,7 +71,7 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
     hasTodayAttendanceRecord,
     updateLocationSelection,
     locationBanner
-  } = useTimeTrackingData({ employeeId, accessToken, workingHours: employee?.workingHours?.[0] })
+  } = useTimeTrackingData({ employeeId, accessToken, workingHours: activeWorkingHours })
 
   const { t } = useTranslation(timeTrackingTranslations)
 
@@ -397,11 +414,7 @@ const MonthlySummary: React.FC<MonthlySummaryProps> = ({ employee, employeeId, a
       )}
 
       {/* Interventions table */}
-      <InterventionsTable
-        employeeId={employeeId}
-        accessToken={accessToken}
-        workingHours={employee?.workingHours?.[0]}
-      />
+      <InterventionsTable employeeId={employeeId} accessToken={accessToken} workingHours={activeWorkingHours} />
     </div>
   )
 }

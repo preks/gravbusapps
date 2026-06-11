@@ -23,6 +23,7 @@ import {
   minutesToHHMM,
   minutesToSignedHHMM
 } from '@/business-apps/hr/core/apps/my-time/utils/duration'
+import { getActiveWorkingHours } from '@/business-apps/hr/core/utils/workingHoursUtils'
 
 export type TimeEntry = {
   id: string
@@ -56,19 +57,23 @@ export type TimeEntry = {
 
 export type SortDirection = 'asc' | 'desc'
 
+type WorkingHoursSchedule = {
+  activeFrom?: string | null
+  activeTo?: string | null
+  sundayHours?: number
+  mondayHours?: number
+  tuesdayHours?: number
+  wednesdayHours?: number
+  thursdayHours?: number
+  fridayHours?: number
+  saturdayHours?: number
+}
+
 export interface UseTimeTrackingDataOptions extends Pick<BusinessAppContextProps, 'accessToken'> {
   employeeId: string
   hireDate?: string
   clockInBeforeHireDateMessage?: string
-  workingHours?: {
-    sundayHours?: number
-    mondayHours?: number
-    tuesdayHours?: number
-    wednesdayHours?: number
-    thursdayHours?: number
-    fridayHours?: number
-    saturdayHours?: number
-  }
+  workingHours?: WorkingHoursSchedule | WorkingHoursSchedule[]
 }
 
 export const useTimeTrackingData = ({
@@ -168,16 +173,21 @@ export const useTimeTrackingData = ({
 
   const getPlannedMinutesForDate = (dateIso: string): number => {
     if (!workingHours) return 0
+    const workingHoursForDate = Array.isArray(workingHours)
+      ? getActiveWorkingHours(workingHours, dateIso)
+      : workingHours
+    if (!workingHoursForDate) return 0
+
     const d = new Date(dateIso)
     const day = d.getDay() // 0..6
     const hoursByDay = [
-      workingHours.sundayHours,
-      workingHours.mondayHours,
-      workingHours.tuesdayHours,
-      workingHours.wednesdayHours,
-      workingHours.thursdayHours,
-      workingHours.fridayHours,
-      workingHours.saturdayHours
+      workingHoursForDate.sundayHours,
+      workingHoursForDate.mondayHours,
+      workingHoursForDate.tuesdayHours,
+      workingHoursForDate.wednesdayHours,
+      workingHoursForDate.thursdayHours,
+      workingHoursForDate.fridayHours,
+      workingHoursForDate.saturdayHours
     ]
     const hours = hoursByDay[day] ?? 0
     return typeof hours === 'number' ? Math.max(0, Math.round(hours * 60)) : 0
