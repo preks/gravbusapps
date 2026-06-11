@@ -8,6 +8,7 @@ export interface TeamMember {
   pictureThumbnail?: string
   orgUnit?: string
   workingHours?: WeeklyWorkingHours
+  timeRelevant: boolean
 }
 
 export interface WeeklyWorkingHours {

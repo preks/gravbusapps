@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_TEAM_MEMBERS, GET_TEAM_MEMBER_THUMBNAILS } from '../queries/queries'
+import { GET_TEAM_MEMBERS, GET_TEAM_MEMBER_THUMBNAILS, GET_TEAM_MEMBER_CONTRACT_FLAGS } from '../queries/queries'
 import { TeamMember } from '../types/types'
+import { toLocalDateKey, toComparableDateKey } from '../utils/timeUtils'
 
 interface UseTeamMembersReturn {
   members: TeamMember[]
@@ -14,26 +15,30 @@ interface UseTeamMembersReturn {
   refetch: () => Promise<void>
 }
 
-const toLocalDateKey = (date: Date): string =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+interface WorkingConditionRaw {
+  hireDate?: string | null
+  activeFrom?: string | null
+  activeTo?: string | null
+  contractType?: { objectValue?: Record<string, unknown> | null } | null
+}
 
-const toComparableDateKey = (value?: string | null): string | null => {
-  if (!value) {
-    return null
-  }
+const isContractTimeRelevant = (workingConditions: WorkingConditionRaw[] | undefined): boolean => {
+  if (!workingConditions || workingConditions.length === 0) return true
 
-  const normalized = String(value).trim()
-  const datePrefix = /^(\d{4})-(\d{2})-(\d{2})/.exec(normalized)
-  if (datePrefix) {
-    return `${datePrefix[1]}-${datePrefix[2]}-${datePrefix[3]}`
-  }
+  const todayKey = toLocalDateKey(new Date())
+  const activeCondition = workingConditions.find(wc => {
+    const from = toComparableDateKey(wc.activeFrom)
+    const to = toComparableDateKey(wc.activeTo)
+    if (from && from > todayKey) return false
+    if (to && to < todayKey) return false
+    return true
+  })
 
-  const parsed = new Date(normalized)
-  if (Number.isNaN(parsed.getTime())) {
-    return null
-  }
+  const condition = activeCondition ?? workingConditions[workingConditions.length - 1]
+  const objectValue = condition?.contractType?.objectValue
+  if (!objectValue || typeof objectValue !== 'object') return true
 
-  return toLocalDateKey(parsed)
+  return objectValue.time_relevant !== false
 }
 
 const getEarliestHireDate = (
@@ -66,9 +71,11 @@ export const useTeamMembers = (context: BusinessAppContextProps): UseTeamMembers
 
   const [coreMembers, setCoreMembers] = useState<TeamMember[]>([])
   const [thumbnailMap, setThumbnailMap] = useState<Map<string, string>>(new Map())
+  const [timeRelevantMap, setTimeRelevantMap] = useState<Map<string, boolean>>(new Map())
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const thumbnailsFetched = useRef(false)
+  const contractFlagsFetched = useRef(false)
 
   const fetchMembers = useCallback(async () => {
     if (!supervisorId || !graphqlClient) {
@@ -80,6 +87,7 @@ export const useTeamMembers = (context: BusinessAppContextProps): UseTeamMembers
     setIsLoading(true)
     setError(null)
     thumbnailsFetched.current = false
+    contractFlagsFetched.current = false
 
     try {
       const result = await graphqlClient.request<any>(GET_TEAM_MEMBERS, { supervisorId })
@@ -91,6 +99,7 @@ export const useTeamMembers = (context: BusinessAppContextProps): UseTeamMembers
         lastName: emp.lastName,
         hireDate: getEarliestHireDate(emp.workingCondition),
         orgUnit: emp.employeePosition?.organizationalUnit?.name,
+        timeRelevant: true,
         workingHours: emp.workingHours?.[0]
           ? {
               mondayHours: emp.workingHours[0].mondayHours ?? 0,
@@ -140,33 +149,47 @@ export const useTeamMembers = (context: BusinessAppContextProps): UseTeamMembers
       })
   }, [graphqlClient, coreMembers.length])
 
+  useEffect(() => {
+    if (!graphqlClient || coreMembers.length === 0 || contractFlagsFetched.current) return
+    contractFlagsFetched.current = true
+
+    const ids = coreMembers.map(m => m.id)
+    graphqlClient
+      .request<any>(GET_TEAM_MEMBER_CONTRACT_FLAGS, { employeeIds: ids })
+      .then(result => {
+        const newMap = new Map<string, boolean>()
+        ;(result?.Employee ?? []).forEach((emp: any) => {
+          newMap.set(emp.id, isContractTimeRelevant(emp.workingCondition))
+        })
+        if (newMap.size > 0) setTimeRelevantMap(newMap)
+      })
+      .catch(() => {
+        // contract flags are non-critical, default to true
+      })
+  }, [graphqlClient, coreMembers.length])
+
+  const enrichMember = useCallback(
+    (m: TeamMember): TeamMember => {
+      const thumb = thumbnailMap.get(m.id)
+      const timeRelevant = timeRelevantMap.get(m.id) ?? true
+      if (!thumb && timeRelevant === m.timeRelevant) return m
+      return { ...m, ...(thumb ? { pictureThumbnail: thumb } : {}), timeRelevant }
+    },
+    [thumbnailMap, timeRelevantMap]
+  )
+
   const members = useMemo(() => {
     const todayKey = toLocalDateKey(new Date())
-    const activeMembers = coreMembers.filter(member => {
-      const hireDateKey = toComparableDateKey(member.hireDate)
-      if (!hireDateKey) {
-        return true
-      }
-      return hireDateKey <= todayKey
-    })
+    return coreMembers
+      .filter(member => {
+        const hireDateKey = toComparableDateKey(member.hireDate)
+        if (!hireDateKey) return true
+        return hireDateKey <= todayKey
+      })
+      .map(enrichMember)
+  }, [coreMembers, enrichMember])
 
-    if (thumbnailMap.size === 0) return activeMembers
-    return activeMembers.map(m => {
-      const thumb = thumbnailMap.get(m.id)
-      return thumb ? { ...m, pictureThumbnail: thumb } : m
-    })
-  }, [coreMembers, thumbnailMap])
-
-  const allMembers = useMemo(() => {
-    if (thumbnailMap.size === 0) {
-      return coreMembers
-    }
-
-    return coreMembers.map(member => {
-      const thumb = thumbnailMap.get(member.id)
-      return thumb ? { ...member, pictureThumbnail: thumb } : member
-    })
-  }, [coreMembers, thumbnailMap])
+  const allMembers = useMemo(() => coreMembers.map(enrichMember), [coreMembers, enrichMember])
 
   const memberIds = useMemo(() => members.map(m => m.id), [members])
   const allMemberIds = useMemo(() => allMembers.map(m => m.id), [allMembers])

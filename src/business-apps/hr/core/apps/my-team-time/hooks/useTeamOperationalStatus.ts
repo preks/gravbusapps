@@ -140,33 +140,42 @@ export const useTeamOperationalStatus = (
         if (entry.startTime && !clockedInIds.has(entry.employeeId)) {
           clockedInIds.add(entry.employeeId)
           const member = memberMap.get(entry.employeeId)
-          if (member && !entry.endTime) {
+          if (member?.timeRelevant && !entry.endTime) {
             workingNow.push(member)
           }
         }
       })
 
       const notClockedIn: TeamMember[] = currentMembers.filter(m => {
+        if (!m.timeRelevant) return false
         if (clockedInIds.has(m.id)) return false
         if (absentEmployeeIds.has(m.id)) return false
         return isWorkingDay(todayStr, m.workingHours)
       })
 
-      const onLeaveToday = Array.from(absentEmployeeIds)
+      const onLeaveToday: TeamMember[] = Array.from(absentEmployeeIds)
         .filter(id => {
           if (sickEmployeeIds.has(id)) return false
           const employeeAbsences = absences.filter(absence => absence.employeeId === id)
           return employeeAbsences.some(absence => !isWorkAbsence(absence))
         })
-        .map(id => memberMap.get(id))
-        .filter(Boolean) as TeamMember[]
+        .reduce<TeamMember[]>((acc, id) => {
+          const member = memberMap.get(id)
+          if (member) acc.push(member)
+          return acc
+        }, [])
 
-      const sickToday = Array.from(sickEmployeeIds)
-        .map(id => memberMap.get(id))
-        .filter(Boolean) as TeamMember[]
+      const sickToday: TeamMember[] = Array.from(sickEmployeeIds).reduce<TeamMember[]>((acc, id) => {
+        const member = memberMap.get(id)
+        if (member) acc.push(member)
+        return acc
+      }, [])
+
+      const timeRelevantIds = new Set(currentMembers.filter(m => m.timeRelevant).map(m => m.id))
 
       let overtimeMinutesMTD = 0
       allAttendance.forEach(entry => {
+        if (!timeRelevantIds.has(entry.employeeId)) return
         const diff = parseDurationToMinutes(entry.differenceTime)
         if (diff > 0) overtimeMinutesMTD += diff
       })
@@ -174,6 +183,7 @@ export const useTeamOperationalStatus = (
       const anomalies: Anomaly[] = []
 
       currentMembers.forEach(m => {
+        if (!m.timeRelevant) return
         if (!isWorkingDay(yesterdayStr, m.workingHours)) return
         if (holidayData.datesByEmployeeId.get(m.id)?.has(yesterdayStr)) return
 
@@ -223,7 +233,7 @@ export const useTeamOperationalStatus = (
     } finally {
       setIsLoading(false)
     }
-  }, [getAnomalyDescription, graphqlClient, memberIds.join(',')])
+  }, [getAnomalyDescription, graphqlClient, memberIds])
 
   useEffect(() => {
     if (!accessToken) {

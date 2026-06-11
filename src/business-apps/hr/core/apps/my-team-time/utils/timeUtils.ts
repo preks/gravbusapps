@@ -62,6 +62,22 @@ export const toLocalDateKey = (d: Date): string =>
 
 export const toDateString = (d: Date): string => toLocalDateKey(d)
 
+const DATE_PREFIX_PATTERN = /^(\d{4})-(\d{2})-(\d{2})/
+
+/**
+ * Normalizes any date-like string (date-only or full ISO timestamp) to a
+ * comparable `YYYY-MM-DD` key. Returns `null` for falsy or unparseable input.
+ */
+export const toComparableDateKey = (value?: string | null): string | null => {
+  if (!value) return null
+  const normalized = String(value).trim()
+  const prefix = DATE_PREFIX_PATTERN.exec(normalized)
+  if (prefix) return `${prefix[1]}-${prefix[2]}-${prefix[3]}`
+  const parsed = new Date(normalized)
+  if (Number.isNaN(parsed.getTime())) return null
+  return toLocalDateKey(parsed)
+}
+
 export const getPlannedMinutesForDate = (dateIso: string, workingHours?: WeeklyWorkingHours): number => {
   if (!workingHours) return 0
   const d = parseDateInput(dateIso)

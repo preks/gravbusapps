@@ -44,6 +44,24 @@ export const GET_TEAM_MEMBER_THUMBNAILS = `
   }
 `
 
+export const GET_TEAM_MEMBER_CONTRACT_FLAGS = `
+  query GetTeamMemberContractFlags($employeeIds: [uuid!]!) {
+    Employee(where: { id: { _in: $employeeIds }, isDeleted: { _eq: false } }) {
+      id
+      workingCondition(
+        where: { isDeleted: { _eq: false } }
+        orderBy: [{ activeFrom: ASC }, { createdAt: ASC }]
+      ) {
+        activeFrom
+        activeTo
+        contractType {
+          objectValue
+        }
+      }
+    }
+  }
+`
+
 export const GET_TEAM_MEMBER_REGIONS = `
   query GetTeamMemberRegions($employeeIds: [uuid!]!, $activeUserLocale: String!) {
     Employee(where: { id: { _in: $employeeIds }, isDeleted: { _eq: false } }) {

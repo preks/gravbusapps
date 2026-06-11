@@ -51,11 +51,11 @@ const formatDaysLabel = (count: number): string => {
 
 const formatDifferenceLabel = (diffMinutes: number): string => {
   if (diffMinutes > 0) {
-    return t('overtime_value', '{{value}} overtime', { value: `+${formatMinutes(diffMinutes)}` })
+    return `+${formatMinutes(diffMinutes)} ${t('overtime', 'overtime')}`
   }
 
   if (diffMinutes < 0) {
-    return t('deficit_value', '{{value}} deficit', { value: formatMinutes(diffMinutes) })
+    return `${formatMinutes(diffMinutes)} ${t('deficit', 'deficit')}`
   }
 
   return t('on_track', 'On track')
@@ -143,11 +143,13 @@ interface PeriodSummary {
   diffMinutes: number
 }
 
-const PeriodEmployeeRow: React.FC<{ member: TeamMember; periodSummary: PeriodSummary }> = ({
+const EMPTY_PERIOD: PeriodSummary = { targetMinutes: 0, actualMinutes: 0, daysOff: 0, diffMinutes: 0 }
+
+const PeriodEmployeeRow: React.FC<{ member: TeamMember; periodSummary?: PeriodSummary }> = ({
   member,
   periodSummary
 }) => {
-  const { targetMinutes, actualMinutes, daysOff, diffMinutes } = periodSummary
+  const { targetMinutes, actualMinutes, daysOff, diffMinutes } = periodSummary ?? EMPTY_PERIOD
 
   let diffColor = 'gba:text-success'
   if (diffMinutes < 0) diffColor = 'gba:text-destructive'
@@ -224,7 +226,8 @@ const DayEmployeeRow: React.FC<{
 }
 
 export const AttendanceTab: React.FC<BusinessAppContextProps> = props => {
-  const { members, memberIds, isLoading: membersLoading } = useTeamMembers(props)
+  const { members: allMembers, memberIds, isLoading: membersLoading } = useTeamMembers(props)
+  const members = useMemo(() => allMembers.filter(m => m.timeRelevant !== false), [allMembers])
   const { mapType } = useAbsenceTypeCatalog(props.accessToken)
   const {
     attendance,

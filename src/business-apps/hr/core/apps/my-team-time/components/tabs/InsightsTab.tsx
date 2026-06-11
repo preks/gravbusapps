@@ -922,6 +922,18 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
     return map
   }, [rows])
 
+  const nonTimeRelevantIds = useMemo(() => {
+    const ids = new Set<string>()
+    members.forEach(m => {
+      if (m.timeRelevant === false) ids.add(m.id)
+    })
+    return ids
+  }, [members])
+  const timeRelevantRows = useMemo(
+    () => rows.filter(r => !nonTimeRelevantIds.has(r.employee.id)),
+    [rows, nonTimeRelevantIds]
+  )
+
   const ptoHealthIndexFromApprovedVacation = useMemo(() => {
     const approvedVacationDaysYtd = approvedVacationYtdFacts.data
       .filter(group => group.parentEntryId === VACATION_ABSENCE_GROUP_ID)
@@ -946,18 +958,21 @@ export const InsightsTab: React.FC<BusinessAppContextProps> = props => {
   }, [approvedVacationYtdFacts.data, approvedVacationYearFacts.data, now])
 
   const kpis = useMemo(
-    () => computeKpis(rows, workingDaysMap, ptoHealthIndexFromApprovedVacation),
-    [rows, workingDaysMap, ptoHealthIndexFromApprovedVacation]
+    () => computeKpis(timeRelevantRows, workingDaysMap, ptoHealthIndexFromApprovedVacation),
+    [timeRelevantRows, workingDaysMap, ptoHealthIndexFromApprovedVacation]
   )
 
   // ── Sustainability signals & compliance alerts ──────────────────────────────
 
   const sustainabilitySignals = useMemo(
-    () => computeSustainabilitySignals(rows, workingDaysMap, recentPtoEmployeeIds),
-    [rows, workingDaysMap, recentPtoEmployeeIds]
+    () => computeSustainabilitySignals(timeRelevantRows, workingDaysMap, recentPtoEmployeeIds),
+    [timeRelevantRows, workingDaysMap, recentPtoEmployeeIds]
   )
 
-  const complianceAlerts = useMemo(() => computeComplianceAlerts(rows, workingDaysMap), [rows, workingDaysMap])
+  const complianceAlerts = useMemo(
+    () => computeComplianceAlerts(timeRelevantRows, workingDaysMap),
+    [timeRelevantRows, workingDaysMap]
+  )
 
   // ── Memoized coverage card data ────────────────────────────────────────────
 
