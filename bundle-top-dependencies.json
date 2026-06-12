@@ -88434,20 +88434,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 13520,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13520/",
-    "chunkJsBytes": 2052202,
+    "bitbucketBuildNumber": 13522,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13522/",
+    "chunkJsBytes": 2052194,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1769261,
-        "gzip": 113107,
+        "gzip": 113152,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1769261,
-            "gzip": 113107
+            "gzip": 113152
           }
         ]
       },
@@ -100765,15 +100765,15 @@
     ]
   },
   "core/every-fabric/apps/every-fabric": {
-    "bitbucketBuildNumber": 13520,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13520/",
-    "chunkJsBytes": 2618458,
+    "bitbucketBuildNumber": 13522,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13522/",
+    "chunkJsBytes": 2622789,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 2190913,
-        "gzip": 581352,
+        "rendered": 2200998,
+        "gzip": 583776,
         "leaves": [
           {
             "name": "src/business-apps/core/every-fabric/apps/every-fabric/components/workspace/WorkspaceRightPanel.tsx",
@@ -116307,15 +116307,15 @@
     ]
   },
   "platform/apps/digital-workplace": {
-    "bitbucketBuildNumber": 13499,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13499/",
-    "chunkJsBytes": 2947535,
+    "bitbucketBuildNumber": 13522,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13522/",
+    "chunkJsBytes": 2947765,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 1829362,
-        "gzip": 414333,
+        "rendered": 1829900,
+        "gzip": 414474,
         "leaves": [
           {
             "name": "src/business-apps/core/every/apps/every-box/components/UniversalCflowTaskDetails.tsx",
@@ -119745,7 +119745,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-12T08:08:52.054Z",
+    "generatedAt": "2026-06-12T08:19:36.970Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
