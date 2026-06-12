@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { CaretLeftIcon, CaretRightIcon } from '@phosphor-icons/react'
-import { Calendar, Tag, Typography, Tabs } from 'antd'
+import { Badge, Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
 import { AbsenceListDisplay } from './components/AbsenceListDisplay'
 import dayjs, { Dayjs } from 'dayjs'
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter'
@@ -14,9 +14,6 @@ import { useAbsenceTypeCatalog } from '../../hooks/useAbsenceTypeCatalog'
 dayjs.extend(weekday)
 dayjs.extend(localeData)
 dayjs.extend(isSameOrAfter)
-
-const { Paragraph } = Typography
-const { TabPane } = Tabs
 
 interface AbsenceCalendarProps extends BusinessAppContextProps {
   showIconTitle?: boolean
@@ -109,28 +106,74 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = ({
     [filteredAbsences, now]
   )
 
-  const dateCellRender = (value: any) => {
+  const getAbsencesForDate = (value: Dayjs) => {
     const dateStr = value.format('YYYY-MM-DD')
-    const items = filteredAbsences.filter(absence => {
+    return filteredAbsences.filter(absence => {
       if (!absence.startDate || !absence.endDate) return false
       const startDate = dayjs(absence.startDate).format('YYYY-MM-DD')
       const endDate = dayjs(absence.endDate).format('YYYY-MM-DD')
       return dateStr >= startDate && dateStr <= endDate
     })
-    return items.length ? (
-      <ul data-testid={`absence-calendar-cell-list-${dateStr}`}>
-        {items.map(item => (
-          <li key={item.id} data-testid={`absence-calendar-cell-list-item-${item.id}`}>
-            <Tag
-              color={item.tagColor || getAbsenceStatusConfig(item.originalStatus).color}
-              className={`gba:absence-calendar-tag${getAbsenceStatusConfig(item.originalStatus).type === 'pending' ? ' gba:absence-pending' : ''}`}
-            >
-              <div className="gba:absence-calendar-type">{item.type}</div>
-            </Tag>
-          </li>
-        ))}
-      </ul>
-    ) : null
+  }
+
+  const renderCalendarDay = (date: Dayjs) => {
+    const dateStr = date.format('YYYY-MM-DD')
+    const items = getAbsencesForDate(date)
+    const isCurrentMonth = date.isSame(calendarValue, 'month')
+    const isToday = date.isSame(dayjs(), 'day')
+
+    return (
+      <div
+        key={dateStr}
+        className={`gba:min-h-24 gba:border gba:border-border gba:p-2 ${isCurrentMonth ? 'gba:bg-card' : 'gba:bg-muted/40'} ${isToday ? 'gba:ring-2 gba:ring-primary' : ''}`}
+        data-testid={`absence-calendar-day-${dateStr}`}
+      >
+        <div className="gba:mb-1 gba:text-sm gba:font-medium">{date.format('D')}</div>
+        {items.length > 0 && (
+          <ul className="gba:flex gba:flex-col gba:gap-1" data-testid={`absence-calendar-cell-list-${dateStr}`}>
+            {items.map(item => {
+              const statusType = getAbsenceStatusConfig(item.originalStatus).type
+
+              return (
+                <li key={item.id} data-testid={`absence-calendar-cell-list-item-${item.id}`}>
+                  <Badge
+                    variant={statusType === 'rejected' ? 'destructive' : statusType === 'pending' ? 'warning' : 'secondary'}
+                    className="gba:w-full gba:justify-start gba:truncate"
+                  >
+                    <span className="gba:absence-calendar-type">{item.type}</span>
+                  </Badge>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
+    )
+  }
+
+  const renderCalendarGrid = () => {
+    const startDate = calendarValue.startOf('month').startOf('week')
+    const endDate = calendarValue.endOf('month').endOf('week')
+    const days: Dayjs[] = []
+    let currentDate = startDate
+
+    while (currentDate.isBefore(endDate) || currentDate.isSame(endDate, 'day')) {
+      days.push(currentDate)
+      currentDate = currentDate.add(1, 'day')
+    }
+
+    return (
+      <div className="gba:absence-calendar gba:overflow-hidden gba:rounded-lg gba:border gba:border-border">
+        <div className="gba:grid gba:grid-cols-7 gba:bg-muted gba:text-center gba:text-sm gba:font-semibold">
+          {dayjs.weekdaysShort().map(day => (
+            <div key={day} className="gba:p-2">
+              {day}
+            </div>
+          ))}
+        </div>
+        <div className="gba:grid gba:grid-cols-7">{days.map(renderCalendarDay)}</div>
+      </div>
+    )
   }
 
   if (loading) {
@@ -170,8 +213,13 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = ({
       )}
 
       {showTabsSwitch ? (
-        <Tabs defaultActiveKey="calendar" className="gba:absence-calendar-tabs">
-          <TabPane tab="Month" key="calendar">
+        <Tabs defaultValue="calendar" className="gba:absence-calendar-tabs">
+          <TabsList>
+            <TabsTrigger value="calendar">Month</TabsTrigger>
+            <TabsTrigger value="upcoming">Upcoming Absences</TabsTrigger>
+            <TabsTrigger value="past">Past Absences</TabsTrigger>
+          </TabsList>
+          <TabsContent value="calendar">
             <div className="gba:calendar-controls-bar">
               <div className="gba:calendar-controls-leftbar">
                 <button className="gba:calendar-toggle-btn" onClick={handlePrevMonth}>
@@ -186,20 +234,12 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = ({
                 <span className="gba:calendar-toggle-group-label">{calendarValue.format('MMMM YYYY')}</span>
               </div>
             </div>
-            <Calendar
-              className="gba:absence-calendar"
-              cellRender={dateCellRender}
-              fullscreen={true}
-              value={calendarValue}
-              onPanelChange={setCalendarValue}
-              onChange={setCalendarValue}
-              headerRender={() => null}
-            />
-          </TabPane>
-          <TabPane tab="Upcoming Absences" key="upcoming">
-            <Paragraph className="gba:font-semibold gba:text-lg gba:mb-6">
+            {renderCalendarGrid()}
+          </TabsContent>
+          <TabsContent value="upcoming">
+            <p className="gba:font-semibold gba:text-lg gba:mb-6">
               These are your upcoming absences as recorded in the system.
-            </Paragraph>
+            </p>
             <AbsenceListDisplay
               absences={upcomingAbsences}
               title={undefined}
@@ -213,11 +253,11 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = ({
               accessToken={accessToken}
               userInfo={userInfo}
             />
-          </TabPane>
-          <TabPane tab="Past Absences" key="past">
-            <Paragraph className="gba:font-semibold gba:text-lg gba:mb-6">
+          </TabsContent>
+          <TabsContent value="past">
+            <p className="gba:font-semibold gba:text-lg gba:mb-6">
               These are your past absences as recorded in the system.
-            </Paragraph>
+            </p>
             <AbsenceListDisplay
               absences={pastAbsences}
               title={undefined}
@@ -231,7 +271,7 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = ({
               accessToken={accessToken}
               userInfo={userInfo}
             />
-          </TabPane>
+          </TabsContent>
         </Tabs>
       ) : (
         <>
@@ -249,15 +289,7 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = ({
               <span className="gba:calendar-toggle-group-label">{calendarValue.format('MMMM YYYY')}</span>
             </div>
           </div>
-          <Calendar
-            className="gba:absence-calendar"
-            cellRender={dateCellRender}
-            fullscreen={true}
-            value={calendarValue}
-            onPanelChange={setCalendarValue}
-            onChange={setCalendarValue}
-            headerRender={() => null}
-          />
+          {renderCalendarGrid()}
         </>
       )}
     </div>

@@ -1,8 +1,8 @@
 import React from 'react'
-import { List, Tag } from 'antd'
-import { formatDate } from '@/common/utils/windowUtils'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getAbsenceStatusConfig } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+import { Badge, Button } from '@newwork/nw-design-system'
+import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getAbsenceStatusBadgeVariant } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 
 export interface AbsenceListDisplayItem {
   id: string
@@ -32,6 +32,22 @@ export const AbsenceListDisplay: React.FC<AbsenceListDisplayProps> = ({
   total,
   onPageChange
 }) => {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+  const hasPreviousPage = page > 1
+  const hasNextPage = page < totalPages
+
+  const handlePreviousPage = () => {
+    if (hasPreviousPage) {
+      onPageChange(page - 1, pageSize)
+    }
+  }
+
+  const handleNextPage = () => {
+    if (hasNextPage) {
+      onPageChange(page + 1, pageSize)
+    }
+  }
+
   return (
     <div className="gba:absence-list-root" data-testid="absence-calendar-list-root">
       {title && (
@@ -39,24 +55,19 @@ export const AbsenceListDisplay: React.FC<AbsenceListDisplayProps> = ({
           {title}
         </div>
       )}
-      <List
-        itemLayout="vertical"
-        dataSource={absences}
-        pagination={{
-          current: page,
-          pageSize,
-          total,
-          onChange: onPageChange,
-          showSizeChanger: false
-        }}
-        locale={{ emptyText: 'No absences.' }}
-        data-testid="absence-calendar-list"
-        renderItem={item => {
+      <div className="gba:flex gba:flex-col gba:gap-3" data-testid="absence-calendar-list">
+        {absences.length === 0 && (
+          <div className="gba:rounded-md gba:border gba:border-border gba:p-4 gba:text-sm gba:text-muted-foreground">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.no_absence_data_available', 'No absences.')}
+          </div>
+        )}
+        {absences.map(item => {
           const isSameDay = item.startDate === item.endDate
+
           return (
-            <List.Item
+            <div
               key={item.id}
-              className="gba:absence-event-item"
+              className="gba:absence-event-item gba:rounded-md gba:border gba:border-border gba:p-4"
               data-testid={`absence-calendar-list-item-${item.id}`}
             >
               <div className="gba:absence-event-row">
@@ -66,13 +77,13 @@ export const AbsenceListDisplay: React.FC<AbsenceListDisplayProps> = ({
                     : `From: ${formatDate(item.startDate, 'date.long')} - To: ${formatDate(item.endDate, 'date.long')}`}
                 </div>
                 <span>Type: </span>
-                <Tag
-                  color={item.tagColor || getAbsenceStatusConfig(item.originalStatus).color}
-                  className={`gba:absence-event-tag${getAbsenceStatusConfig(item.originalStatus).type === 'pending' ? ' gba:absence-pending' : ''}`}
+                <Badge
+                  variant={getAbsenceStatusBadgeVariant(item.originalStatus)}
+                  className="gba:absence-event-tag"
                   data-testid={`absence-calendar-list-item-type-${item.id}`}
                 >
                   {item.type}
-                </Tag>
+                </Badge>
                 <div className="gba:absence-event-status" data-testid={`absence-calendar-list-item-status-${item.id}`}>
                   Status: {item.status}
                 </div>
@@ -85,10 +96,37 @@ export const AbsenceListDisplay: React.FC<AbsenceListDisplayProps> = ({
                   </div>
                 )}
               </div>
-            </List.Item>
+            </div>
           )
-        }}
-      />
+        })}
+      </div>
+      {totalPages > 1 && (
+        <div className="gba:mt-4 gba:flex gba:items-center gba:justify-end gba:gap-3" data-testid="absence-calendar-list-pagination">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handlePreviousPage}
+            disabled={!hasPreviousPage}
+            data-testid="absence-calendar-list-previous-button"
+          >
+            {getTranslationFromI18nKeyAndLabel('lowcoder:common.previous', 'Previous')}
+          </Button>
+          <span className="gba:text-sm gba:text-muted-foreground" data-testid="absence-calendar-list-page-indicator">
+            {page} / {totalPages}
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleNextPage}
+            disabled={!hasNextPage}
+            data-testid="absence-calendar-list-next-button"
+          >
+            {getTranslationFromI18nKeyAndLabel('lowcoder:common.next', 'Next')}
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
