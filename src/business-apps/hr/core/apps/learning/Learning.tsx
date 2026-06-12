@@ -36,7 +36,7 @@ const renderTab = (
     case LearningTabKey.Assignments:
       return <AssignmentsTab accessToken={context.accessToken} />
     case LearningTabKey.Analytics:
-      return <AnalyticsTab />
+      return <AnalyticsTab accessToken={context.accessToken} />
     case LearningTabKey.Audit:
       return <AuditTab />
     case LearningTabKey.Dashboard:

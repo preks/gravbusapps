@@ -23,6 +23,9 @@ export const GET_LEARNING_ASSIGNMENTS = /* GraphQL */ `
         id
         version
         versionNo
+        generatorAgentId
+        generatorModelId
+        generatorPromptVersion
         publishedAt
       }
       learningAssignmentTargets(where: { isDeleted: { _eq: false } }) {
