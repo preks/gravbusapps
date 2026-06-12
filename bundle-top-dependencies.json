@@ -88434,20 +88434,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 13568,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13568/",
-    "chunkJsBytes": 2052281,
+    "bitbucketBuildNumber": 13573,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13573/",
+    "chunkJsBytes": 2059954,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1769223,
-        "gzip": 112735,
+        "rendered": 1777610,
+        "gzip": 113286,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1769223,
-            "gzip": 112735
+            "rendered": 1777610,
+            "gzip": 113286
           }
         ]
       },
@@ -100765,15 +100765,15 @@
     ]
   },
   "core/every-fabric/apps/every-fabric": {
-    "bitbucketBuildNumber": 13568,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13568/",
-    "chunkJsBytes": 2720865,
+    "bitbucketBuildNumber": 13573,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13573/",
+    "chunkJsBytes": 2724734,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 2225324,
-        "gzip": 592438,
+        "rendered": 2229498,
+        "gzip": 593460,
         "leaves": [
           {
             "name": "src/business-apps/core/every-fabric/apps/every-fabric/components/workspace/WorkspaceRightPanel.tsx",
@@ -100782,8 +100782,8 @@
           },
           {
             "name": "src/business-apps/core/every-fabric/apps/every-fabric/components/agents/AgentsScreen.tsx",
-            "rendered": 38149,
-            "gzip": 7173
+            "rendered": 38400,
+            "gzip": 7213
           }
         ]
       },
@@ -100901,8 +100901,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 88095,
-        "gzip": 22757,
+        "rendered": 91698,
+        "gzip": 23785,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/every-ai/components/links/constants/entityConfig.ts",
@@ -120328,7 +120328,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-12T16:28:54.219Z",
+    "generatedAt": "2026-06-12T16:43:17.040Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
