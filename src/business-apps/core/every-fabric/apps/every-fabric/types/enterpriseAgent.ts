@@ -49,6 +49,7 @@ export interface DeepAgentSession {
   /** Full rows from the API and/or client bootstrap refs (see `MessageAttachmentRef`). */
   session_attachments?: Array<SessionAttachment | MessageAttachmentRef>
   workspace_documents?: WorkspaceDocument[]
+  references?: EntityReference[]
   reflection?: ReflectionResult
   quality_score?: number
   cost_summary?: CostSummary
@@ -122,6 +123,20 @@ export interface AgentChunkEvent {
   metadata?: Record<string, unknown>
 }
 
+/**
+ * A clickable business-record reference extracted from the final answer.
+ * `href` is the verbatim `entity_type://id[#fragment][?query]` string and is
+ * what the frontend `EntityLink` resolver consumes; `id` has fragment/query
+ * stripped and `category` only drives grouping in the references rail.
+ */
+export interface EntityReference {
+  type: string
+  id: string
+  href: string
+  label: string
+  category: string
+}
+
 export interface AgentTerminalEvent {
   type: 'terminal'
   seq: number
@@ -140,6 +155,7 @@ export interface AgentTerminalEvent {
   artifacts?: SessionArtifactMeta[]
   session_attachments?: Array<SessionAttachment | MessageAttachmentRef>
   workspace_documents?: WorkspaceDocument[]
+  references?: EntityReference[]
 }
 
 /** Durable copy of a prior turn's terminal payload; survives follow-up pruning. */

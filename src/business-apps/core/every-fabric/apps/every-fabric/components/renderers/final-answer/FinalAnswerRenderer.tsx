@@ -8,6 +8,7 @@ import { ArtifactsList } from './ArtifactsList'
 import { ChartArtifactPreviewCard } from './ChartArtifactPreviewCard'
 import { HtmlArtifactPreviewCard } from './HtmlArtifactPreviewCard'
 import { PdfExportCard } from './PdfExportCard'
+import { ReferencesRail } from './ReferencesRail'
 import { StatusIndicator } from './StatusIndicator'
 import { WorkspaceDocCard } from './WorkspaceDocCard'
 import { buildCompactSummary, compactOutputForChartDeliverable, pdfAttachmentsFromSession } from './finalAnswerOutput'
@@ -21,6 +22,7 @@ export const FinalAnswerRenderer = ({
   artifacts,
   workspaceDocuments,
   sessionAttachments,
+  references,
   isInstant,
   sessionId,
   accessToken,
@@ -125,7 +127,7 @@ export const FinalAnswerRenderer = ({
               </button>
               {fullOutputVisible && (
                 <div className="gba:pt-2">
-                  <MarkdownWithChipsRenderer content={output} variant={markdownVariant} />
+                  <MarkdownWithChipsRenderer content={output} variant={markdownVariant} accessToken={accessToken} />
                 </div>
               )}
             </div>
@@ -145,9 +147,11 @@ export const FinalAnswerRenderer = ({
         </>
       ) : (
         <div className={markdownTopSpacingClass}>
-          <MarkdownWithChipsRenderer content={displayOutput} variant={markdownVariant} />
+          <MarkdownWithChipsRenderer content={displayOutput} variant={markdownVariant} accessToken={accessToken} />
         </div>
       )}
+
+      <ReferencesRail references={references} accessToken={accessToken} />
 
       {htmlArtifacts.length > 0 &&
         sessionId &&

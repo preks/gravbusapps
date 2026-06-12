@@ -35,6 +35,7 @@ jest.mock('react-markdown', () => ({
         {C.blockquote ? <C.blockquote>quoted</C.blockquote> : null}
         {C.a ? <C.a href="https://example.com">Visit</C.a> : null}
         {C.a ? <C.a href="/platform/content/intranet/content-record?contentId=abc">Open policy</C.a> : null}
+        {C.a ? <C.a href="employee://emp-1">Denis Prekrat</C.a> : null}
         {C.table ? (
           <C.table>
             {C.thead ? <C.thead>{C.tr ? <C.tr>{C.th ? <C.th>Metric</C.th> : null}</C.tr> : null}</C.thead> : null}
@@ -53,8 +54,8 @@ jest.mock('remark-gfm', () => ({
 
 jest.mock('@/business-apps/platform/apps/every-ai/components/links/EntityLink', () => ({
   __esModule: true,
-  default: ({ href, children }: any) => (
-    <span data-testid="entity-link" data-href={href}>
+  default: ({ href, children, appearance }: any) => (
+    <span data-testid="entity-link" data-href={href} data-appearance={appearance}>
       {children}
     </span>
   ),
@@ -124,7 +125,27 @@ describe('MarkdownWithChipsRenderer (enterprise variant)', () => {
     expect(link).toHaveAttribute('target', '_blank')
     expect(link).toHaveAttribute('rel', 'noopener noreferrer')
     expect(link).toHaveAttribute('data-testid', 'markdown-platform-link')
-    expect(screen.queryByTestId('entity-link')).not.toBeInTheDocument()
+    // The root-relative link must not be turned into an entity chip (other
+    // genuine entity:// anchors in the fixture may still render as entity links).
+    const entityLinks = screen.queryAllByTestId('entity-link')
+    expect(
+      entityLinks.some(el => el.getAttribute('data-href') === '/platform/content/intranet/content-record?contentId=abc')
+    ).toBe(false)
+  })
+
+  it('renders entity mentions as lightweight inline links under the enterprise variant', () => {
+    render(<MarkdownWithChipsRenderer content="ignored" variant="enterprise" />)
+
+    const entity = screen.getByText('Denis Prekrat')
+    expect(entity).toHaveAttribute('data-href', 'employee://emp-1')
+    expect(entity).toHaveAttribute('data-appearance', 'inline')
+  })
+
+  it('keeps entity mentions as rich chips under the default variant', () => {
+    render(<MarkdownWithChipsRenderer content="ignored" />)
+
+    const entity = screen.getByText('Denis Prekrat')
+    expect(entity).toHaveAttribute('data-appearance', 'chip')
   })
 
   it('renders enterprise paragraphs with the larger leading scale', () => {

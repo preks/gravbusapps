@@ -15,7 +15,7 @@ import EmployeeLinkChip from './EmployeeLinkChip'
 import SandboxFileLinkChip from './SandboxFileLinkChip'
 import { BaseEntityLinkChip } from './BaseEntityLinkChip'
 import IrmDocumentLinkChip from './IrmDocumentLinkChip'
-import { Navigation, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { Navigation, buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { SUPPORTED_PROTOCOLS, ENTITY_CONFIG, PROTOCOL_REDIRECTS } from './constants'
 import { parseEntityUrl, decodeUrlFragment } from './utils'
 
@@ -209,7 +209,43 @@ interface EntityLinkProps {
   accessToken: string
   /** Link content to display */
   children: React.ReactNode
+  /**
+   * Visual treatment:
+   * - `'chip'` (default): rich pill with avatar/icon. Best in lists and the
+   *   references rail where scanning matters.
+   * - `'inline'`: lightweight colored text link with no avatar/pill. Best inside
+   *   prose so the mention reads like the surrounding sentence and punctuation
+   *   hugs it. Functional download chips (sandbox / investment_document) keep
+   *   their rich rendering even in inline mode because a plain link cannot
+   *   replicate their behavior.
+   */
+  appearance?: 'chip' | 'inline'
 }
+
+/**
+ * Lightweight inline entity mention: a colored text link, no avatar, no pill.
+ * Mirrors the navigation behavior of the chips (in-app SPA nav, or a new tab
+ * for cross-surface targets) so only the appearance changes.
+ */
+const InlineEntityLink: React.FC<{ url: string; newTab?: boolean; children: React.ReactNode }> = ({
+  url,
+  newTab = false,
+  children
+}) => (
+  <a
+    href={url}
+    target={newTab ? '_blank' : undefined}
+    rel={newTab ? 'noopener noreferrer' : undefined}
+    className="gba:text-primary gba:font-medium gba:underline gba:decoration-primary/30 gba:underline-offset-2 hover:gba:decoration-primary gba:transition-colors gba:cursor-pointer"
+    onClick={e => {
+      if (newTab) return
+      e.preventDefault()
+      navigateTo(url)
+    }}
+  >
+    {children}
+  </a>
+)
 
 /**
  * Renders an entity protocol link as an appropriate chip component.
@@ -217,7 +253,7 @@ interface EntityLinkProps {
  * Handles special protocols (employee, sandbox, investment_document) with custom
  * components, and uses BaseEntityLinkChip for all other entity types.
  */
-const EntityLink: React.FC<EntityLinkProps> = ({ href, accessToken, children }) => {
+const EntityLink: React.FC<EntityLinkProps> = ({ href, accessToken, children, appearance = 'chip' }) => {
   // Parse the link to extract protocol, id, and metadata
   const parsed = parseEntityUrl(href || '')
   const metadata = parsed ? decodeUrlFragment(parsed.fragment) : null
@@ -228,6 +264,30 @@ const EntityLink: React.FC<EntityLinkProps> = ({ href, accessToken, children }) 
     effectiveProtocol = PROTOCOL_REDIRECTS[effectiveProtocol]
   }
   const effectiveId = metadata?.alternateId || parsed?.id || null
+
+  // Inline appearance: render a lightweight text link for navigation-only entity
+  // types. We keep sandbox / investment_document on their functional chips (they
+  // do real file downloads, not plain navigation), and let http / root-relative
+  // links fall through to the existing plain-anchor branches below.
+  if (appearance === 'inline') {
+    if (effectiveProtocol === 'employee' && effectiveId) {
+      return (
+        <InlineEntityLink url={`/platform/employee-record?tab=assets&employeeId=${effectiveId}`}>
+          {children}
+        </InlineEntityLink>
+      )
+    }
+    if (href && effectiveProtocol && effectiveProtocol !== 'sandbox' && effectiveProtocol !== 'investment_document') {
+      const resolvedInline = resolveEntityLink(href)
+      if (resolvedInline?.url) {
+        return (
+          <InlineEntityLink url={resolvedInline.url} newTab>
+            {children}
+          </InlineEntityLink>
+        )
+      }
+    }
+  }
 
   // Special protocol handlers that need custom rendering
 

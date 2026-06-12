@@ -4,7 +4,8 @@ import type {
   ActionSummary,
   WorkspaceDocument,
   SessionAttachment,
-  MessageAttachmentRef
+  MessageAttachmentRef,
+  EntityReference
 } from '../../../types/enterpriseAgent'
 
 export interface FinalAnswerArtifact {
@@ -23,6 +24,7 @@ export interface FinalAnswerRendererProps {
   artifacts?: FinalAnswerArtifact[]
   workspaceDocuments?: WorkspaceDocument[]
   sessionAttachments?: Array<SessionAttachment | MessageAttachmentRef>
+  references?: EntityReference[]
   isInstant?: boolean
   sessionId?: string
   accessToken?: string

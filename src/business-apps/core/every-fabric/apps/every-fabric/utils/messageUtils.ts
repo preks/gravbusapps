@@ -373,6 +373,7 @@ function terminalCompletedToChatMessage(
       artifacts: toArtifactRefsFromMeta(turnArtifacts),
       workspaceDocuments: event.workspace_documents,
       sessionAttachments: event.session_attachments,
+      references: event.references,
       isInstant
     }
   }
@@ -997,9 +998,11 @@ export function sessionToMessages(session: DeepAgentSession): ChatMessage[] {
   // `final_answer` message so `FinalAnswerRenderer` can render the cards.
   const fullSessionAttachments = session.session_attachments
   const fullWorkspaceDocs = (session as { workspace_documents?: unknown }).workspace_documents
+  const fullReferences = (session as { references?: unknown }).references
   const hasFullAttachments = Array.isArray(fullSessionAttachments) && fullSessionAttachments.length > 0
   const hasFullWorkspaceDocs = Array.isArray(fullWorkspaceDocs) && fullWorkspaceDocs.length > 0
-  if (hasFullAttachments || hasFullWorkspaceDocs) {
+  const hasFullReferences = Array.isArray(fullReferences) && fullReferences.length > 0
+  if (hasFullAttachments || hasFullWorkspaceDocs || hasFullReferences) {
     messages = messages.map(msg => {
       if (msg.type !== 'final_answer') return msg
       const content = (msg.content ?? {}) as Record<string, unknown>
@@ -1014,6 +1017,12 @@ export function sessionToMessages(session: DeepAgentSession): ChatMessage[] {
         const existing = content.workspaceDocuments
         if (!Array.isArray(existing) || existing.length === 0) {
           patch.workspaceDocuments = fullWorkspaceDocs
+        }
+      }
+      if (hasFullReferences) {
+        const existing = content.references
+        if (!Array.isArray(existing) || existing.length === 0) {
+          patch.references = fullReferences
         }
       }
       if (Object.keys(patch).length === 0) return msg

@@ -234,6 +234,7 @@ const renderMarkdownLink = (
   children: React.ReactNode,
   accessToken: string,
   renderHttpLinksAsChips: boolean,
+  entityAppearance: 'chip' | 'inline',
   props: Record<string, unknown>
 ) => {
   if (!href) {
@@ -291,14 +292,14 @@ const renderMarkdownLink = (
   const isEntityLink = /^\w+:\/\//.test(href)
   if (isEntityLink) {
     return (
-      <EntityLink href={href} accessToken={accessToken} {...props}>
+      <EntityLink href={href} accessToken={accessToken} appearance={entityAppearance} {...props}>
         {children}
       </EntityLink>
     )
   }
 
   return (
-    <EntityLink href={href} accessToken={accessToken} {...props}>
+    <EntityLink href={href} accessToken={accessToken} appearance={entityAppearance} {...props}>
       {children}
     </EntityLink>
   )
@@ -309,8 +310,12 @@ const MarkdownLinkRenderer: React.FC<{ href?: string; children?: React.ReactNode
   children,
   ...props
 }) => {
-  const { accessToken, renderHttpLinksAsChips } = React.useContext(MarkdownRenderContext)
-  return renderMarkdownLink(href, children, accessToken, renderHttpLinksAsChips, props)
+  const { accessToken, renderHttpLinksAsChips, variant } = React.useContext(MarkdownRenderContext)
+  // Inside the enterprise final-answer surface, entity mentions live in prose,
+  // so render them as lightweight inline links instead of heavy avatar pills.
+  // Other surfaces keep the rich chip treatment.
+  const entityAppearance = variant === 'enterprise' ? 'inline' : 'chip'
+  return renderMarkdownLink(href, children, accessToken, renderHttpLinksAsChips, entityAppearance, props)
 }
 
 const MarkdownTableCellRenderer: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
