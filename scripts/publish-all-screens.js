@@ -8,14 +8,17 @@
 
 import path from 'node:path'
 import fs from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { execSync } from 'node:child_process'
 import { getScreenDirectories } from './utils/screenDiscovery.js'
 import { logPhase } from './utils/logPhase.js'
 
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const projectRootDir = path.resolve(__dirname, '..')
+
 async function findAllScreenDirectories() {
   const uniqueDirs = new Set()
-
-  const projectRootDir = path.resolve(__dirname, '..')
   const screenDirs = await getScreenDirectories({ cwd: projectRootDir })
 
   for (const dir of screenDirs) {
@@ -44,7 +47,7 @@ async function main() {
   const skipped = []
 
   for (const publishPath of allScreens) {
-    const indexFile = path.join('src', 'business-apps', publishPath, 'index.ts')
+    const indexFile = path.join(projectRootDir, 'src', 'business-apps', publishPath, 'index.ts')
     if (!fs.existsSync(indexFile)) {
       console.log(`WARNING: Skipping removed screen: ${publishPath} (${indexFile} not found)`)
       skipped.push(publishPath)
@@ -54,7 +57,8 @@ async function main() {
     console.log(`Publishing: ${publishPath}`)
     try {
       execSync(`npm run publish:screen -- "${publishPath}" --ci`, {
-        stdio: 'inherit'
+        stdio: 'inherit',
+        cwd: projectRootDir
       })
     } catch {
       console.log(`Publish failed for: ${publishPath}`)
