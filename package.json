@@ -32,6 +32,7 @@
     "test:hr": "jest src/business-apps/hr --maxWorkers=50%",
     "lint": "eslint .",
     "typecheck": "cross-env NODE_OPTIONS=--max-old-space-size=7168 tsc --noEmit --pretty false",
+    "typecheck:app": "cross-env NODE_OPTIONS=--max-old-space-size=7168 node ./scripts/typecheck-app.js",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "commit": "dotenvx run -- czg ai",
