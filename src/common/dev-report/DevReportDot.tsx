@@ -322,10 +322,13 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
       </Tooltip>
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="gba:max-w-[520px] gba:gap-0 gba:p-0" data-testid="dev-report-dialog">
+        <DialogContent
+          className="gba:max-w-[520px] gba:max-h-[90vh] gba:gap-0 gba:p-0 gba:flex gba:flex-col gba:overflow-hidden"
+          data-testid="dev-report-dialog"
+        >
           {phase === 'form' && (
             <>
-              <div className="gba:px-6 gba:pt-6 gba:pb-4">
+              <div className="gba:shrink-0 gba:px-6 gba:pt-6 gba:pb-4">
                 <DialogHeader className="gba:pb-0">
                   <div className="gba:flex gba:items-center gba:gap-3">
                     <div
@@ -369,7 +372,7 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
 
               <Separator />
 
-              <div className="gba:space-y-4 gba:px-6 gba:py-5">
+              <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:space-y-4 gba:px-6 gba:py-5">
                 {!hasBaseUrl && (
                   <div
                     className="gba:space-y-2 gba:rounded-lg gba:border gba:border-warning gba:bg-warning-secondary gba:p-3"
@@ -594,7 +597,7 @@ export function DevReportDot(props: Readonly<DevReportDotProps>) {
 
               <Separator />
 
-              <div className="gba:flex gba:items-center gba:justify-end gba:gap-2 gba:px-6 gba:py-4">
+              <div className="gba:shrink-0 gba:flex gba:items-center gba:justify-end gba:gap-2 gba:px-6 gba:py-4">
                 <Button
                   type="button"
                   variant="ghost"
