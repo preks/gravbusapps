@@ -8,12 +8,41 @@ const NON_RESTORABLE_USER_DISPLAY_MESSAGES = new Set([
   CLARIFICATION_CANCEL_MESSAGE
 ])
 
-type StructuredUserAction = 'form_submission' | 'clarification_response' | 'clarification_cancel' | (string & {})
+type StructuredUserAction =
+  | 'form_submission'
+  | 'form_cancel'
+  | 'clarification_response'
+  | 'clarification_cancel'
+  | (string & {})
 
 interface StructuredUserPayload {
   action?: StructuredUserAction
   userMessage?: string
   uuid?: string
+}
+
+const STRUCTURED_CHAT_ACTIONS = new Set<StructuredUserAction>([
+  'form_submission',
+  'form_cancel',
+  'clarification_response',
+  'clarification_cancel'
+])
+
+/**
+ * True when the message is a structured EveryAI payload that must go to /v2/chat
+ * (flow submission, clarification, etc.), not document live-edit.
+ */
+export function isStructuredChatAction(text: string): boolean {
+  if (!text) return false
+
+  try {
+    const parsed = JSON.parse(text) as StructuredUserPayload
+    if (!parsed || typeof parsed !== 'object') return false
+    const action = parsed.action
+    return typeof action === 'string' && STRUCTURED_CHAT_ACTIONS.has(action)
+  } catch {
+    return false
+  }
 }
 
 /**

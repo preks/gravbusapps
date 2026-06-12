@@ -126,7 +126,7 @@ function formatModelLabel(provider: UserSelectableLlmProvider, model: string): s
  * appended when the model is the provider's pick for that kind.
  */
 const PROVIDER_MODEL_IDS: Record<UserSelectableLlmProvider, ReadonlyArray<UserSelectableLlmModel>> = {
-  azure: ['gpt-4.1', 'gpt-4.1-mini', 'gpt-4o', 'gpt-4o-mini', 'o4-mini', 'gpt-5', 'Mistral-Large-3'],
+  azure: ['gpt-4.1', 'gpt-4.1-mini', 'gpt-4o', 'gpt-4o-mini', 'o4-mini', 'gpt-5', 'gpt-5.3-chat', 'Mistral-Large-3'],
   stackit: [
     'openai/gpt-oss-120b',
     'openai/gpt-oss-20b',

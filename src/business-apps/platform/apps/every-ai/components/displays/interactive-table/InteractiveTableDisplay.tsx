@@ -6,7 +6,12 @@ import { formatCurrencyCell } from './formatCurrencyCell'
 import { formatDateCell, isIsoDateLike } from './formatDateCell'
 import { mapGraphqlRowsToExistingColumns } from './graphqlRowsToTableData'
 import { renderInteractiveTableCell } from './interactiveTableCells'
-import { ensureDataTableRowIds, sortableValueForColumn, type TableRow } from './interactiveTableRowUtils'
+import {
+  ensureDataTableRowIds,
+  dataTableRowId,
+  sortableValueForColumn,
+  type TableRow
+} from './interactiveTableRowUtils'
 
 export interface InteractiveTableDisplayProps {
   data: InteractiveTableData
@@ -173,6 +178,7 @@ export const InteractiveTableDisplay: React.FC<InteractiveTableDisplayProps> = (
           <DataTable<TableRow>
             data={filteredRows}
             columns={columns}
+            getRowId={dataTableRowId}
             sorting={sorting}
             onSortingChange={setSorting}
             pagination={pagination}

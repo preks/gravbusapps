@@ -23,7 +23,11 @@ import { prepareCurrentPageContext } from '@/page-analitics/send/page-analytics'
 import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 import { env } from '@/common/env/EnvUtils'
 import { decodeAccessTokenSub } from '@/common/utils/decodeJwtSub'
-import { isNonRestorableUserDisplayMessage, resolveUserMessageDisplayText } from '../utils/userMessageDisplay'
+import {
+  isNonRestorableUserDisplayMessage,
+  isStructuredChatAction,
+  resolveUserMessageDisplayText
+} from '../utils/userMessageDisplay'
 
 export type WebSearchMode = 'off' | 'on'
 
@@ -254,6 +258,9 @@ function resolveRealtimeDocumentId(params: {
 }): string | null {
   const { userInputText, currentPagePayload, hasFiles, isThinking, webSearchMode } = params
   if (hasFiles || isThinking || webSearchMode === 'on') return null
+  // Form/clarification JSON can contain "UPDATE" and UUIDs that falsely match
+  // document-edit heuristics; always route those through /v2/chat.
+  if (isStructuredChatAction(userInputText)) return null
   if (!DOCUMENT_REALTIME_EDIT_INTENT_PATTERN.test(userInputText || '')) return null
   if (
     currentPagePayload?.type === 'entity' &&

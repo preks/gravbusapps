@@ -3,6 +3,9 @@ import { isIsoDateLike, sortKeyForDateCell } from './formatDateCell'
 
 export type TableRow = Record<string, unknown>
 
+/** Internal row key for TanStack DataTable — never overlaps with a data column named `id`. */
+export const DATA_TABLE_ROW_ID_KEY = '__dataTableRowId'
+
 function chipId(value: unknown): string | undefined {
   if (typeof value !== 'object' || value === null || !('id' in value)) {
     return undefined
@@ -11,8 +14,12 @@ function chipId(value: unknown): string | undefined {
   return id ? String(id) : undefined
 }
 
+function hasIdDataColumn(columns: InteractiveTableColumn[]): boolean {
+  return columns.some(column => column.id === 'id')
+}
+
 /**
- * nw-design-system DataTable requires each row to have a stable `id` (see getRowId in TableStateManager).
+ * nw-design-system DataTable requires each row to have a stable id (see getRowId in TableStateManager).
  * GraphQL-flattened interactive rows often only expose entity ids inside chip columns.
  */
 function resolveBaseRowId(
@@ -23,9 +30,17 @@ function resolveBaseRowId(
     columns: InteractiveTableColumn[]
   }
 ): string {
-  const existing = row.id
-  if (existing !== null && existing !== undefined && String(existing) !== '') {
-    return String(existing)
+  const idIsDataColumn = hasIdDataColumn(options.columns)
+
+  if (!idIsDataColumn) {
+    const existing = row.id
+    if (typeof existing === 'string' && existing !== '') {
+      return existing
+    }
+    const fromExistingChip = chipId(existing)
+    if (fromExistingChip) {
+      return fromExistingChip
+    }
   }
 
   const entityCol = options.rowEntityIdColumn
@@ -33,6 +48,13 @@ function resolveBaseRowId(
     const fromEntityCol = chipId(row[entityCol]) ?? (typeof row[entityCol] === 'string' ? row[entityCol] : undefined)
     if (fromEntityCol) {
       return String(fromEntityCol)
+    }
+  }
+
+  if (idIsDataColumn) {
+    const fromIdColumn = chipId(row.id) ?? (typeof row.id === 'string' ? row.id : undefined)
+    if (fromIdColumn) {
+      return String(fromIdColumn)
     }
   }
 
@@ -46,8 +68,11 @@ function resolveBaseRowId(
 }
 
 /**
- * Ensures each row has a unique `id` for DataTable (getRowId). Duplicate entity ids in
- * query results would otherwise produce duplicate React keys and break row identity.
+ * Ensures each row has a unique DataTable row id. Duplicate entity ids in query results would
+ * otherwise produce duplicate React keys and break row identity.
+ *
+ * When a visible data column is named `id`, the row id is stored in {@link DATA_TABLE_ROW_ID_KEY}
+ * so chip payloads in the `id` column are not overwritten.
  */
 export function ensureDataTableRowIds(
   rows: TableRow[],
@@ -56,6 +81,7 @@ export function ensureDataTableRowIds(
     columns: InteractiveTableColumn[]
   }
 ): TableRow[] {
+  const idIsDataColumn = hasIdDataColumn(options.columns)
   const seen = new Set<string>()
   return rows.map((row, index) => {
     const baseId = resolveBaseRowId(row, index, options)
@@ -66,12 +92,36 @@ export function ensureDataTableRowIds(
       uniqueId = `${baseId}::${suffix}`
     }
     seen.add(uniqueId)
-    if (uniqueId === baseId && row.id === baseId) {
+
+    const existingRowId = idIsDataColumn ? row[DATA_TABLE_ROW_ID_KEY] : row.id
+    if (uniqueId === baseId && existingRowId === baseId) {
       return row
     }
+
+    if (idIsDataColumn) {
+      return { ...row, [DATA_TABLE_ROW_ID_KEY]: uniqueId }
+    }
+
     return { ...row, id: uniqueId }
   })
 }
+
+export function dataTableRowId(row: TableRow): string {
+  const internal = row[DATA_TABLE_ROW_ID_KEY]
+  if (internal !== null && internal !== undefined && String(internal) !== '') {
+    return String(internal)
+  }
+  const existing = row.id
+  if (typeof existing === 'string' && existing !== '') {
+    return existing
+  }
+  const fromChip = chipId(existing)
+  if (fromChip) {
+    return fromChip
+  }
+  return String(existing ?? '')
+}
+
 /** Scalar sort key for TanStack client-side sorting (chips sort by label). */
 export function sortableValueForColumn(column: InteractiveTableColumn, value: unknown): string | number {
   if (value === null || value === undefined) {

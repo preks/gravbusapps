@@ -200,6 +200,153 @@ export const formatFlowName = (flowName: string): string => {
     .replace(/\w\S*/g, txt => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase())
 }
 
+const FLOW_OBJECT_KEY_EXCLUSIONS = new Set(['changeMode', 'id', 'version', 'businessKey'])
+
+type FlowProposalSourceType = 'flow' | 'task'
+
+export type FlowProposalFormResolution = {
+  initialValues: Record<string, unknown>
+  objectKey: string | null
+  sourceType: FlowProposalSourceType | null
+}
+
+export type ResolvedFlowProposalSchema = {
+  type: 'object'
+  properties: Record<string, unknown>
+  required?: string[]
+}
+
+/**
+ * Find the primary nested entity object inside flow/task arguments.
+ */
+export const findNestedFlowObjectKey = (data: Record<string, unknown>): string | null => {
+  return (
+    Object.keys(data).find(
+      key =>
+        typeof data[key] === 'object' &&
+        data[key] !== null &&
+        !Array.isArray(data[key]) &&
+        !FLOW_OBJECT_KEY_EXCLUSIONS.has(key)
+    ) ?? null
+  )
+}
+
+/**
+ * Resolve initial form values and the nested entity key from a flow proposal payload.
+ */
+export const resolveFlowProposalFormResolution = (
+  argumentsData:
+    | {
+        flow?: Record<string, unknown>
+        task?: Record<string, unknown>
+      }
+    | null
+    | undefined
+): FlowProposalFormResolution => {
+  const flowData = (argumentsData?.flow ?? {}) as Record<string, unknown>
+  const taskData = (argumentsData?.task ?? {}) as Record<string, unknown>
+
+  const taskObjectKey = findNestedFlowObjectKey(taskData)
+  if (taskObjectKey && taskData[taskObjectKey] && typeof taskData[taskObjectKey] === 'object') {
+    return {
+      initialValues: { ...(taskData[taskObjectKey] as Record<string, unknown>) },
+      objectKey: taskObjectKey,
+      sourceType: 'task'
+    }
+  }
+
+  const flowObjectKey = findNestedFlowObjectKey(flowData)
+  if (flowObjectKey && flowData[flowObjectKey] && typeof flowData[flowObjectKey] === 'object') {
+    return {
+      initialValues: { ...(flowData[flowObjectKey] as Record<string, unknown>) },
+      objectKey: flowObjectKey,
+      sourceType: 'flow'
+    }
+  }
+
+  const restFlowData = { ...flowData }
+  delete restFlowData.changeMode
+
+  return {
+    initialValues: restFlowData,
+    objectKey: null,
+    sourceType: 'flow'
+  }
+}
+
+/**
+ * Resolve the JSON schema used to render a flow proposal form.
+ * Nested entities live under flow.properties.<objectKey>, not at the wrapper root.
+ */
+export const resolveFlowProposalSchema = (
+  flowSchema: { properties?: Record<string, unknown>; required?: string[] } | null | undefined,
+  objectKey: string | null,
+  sourceType: FlowProposalSourceType | null
+): ResolvedFlowProposalSchema => {
+  if (!flowSchema?.properties) {
+    return { type: 'object', properties: {} }
+  }
+
+  const schemaProps = flowSchema.properties
+
+  if (objectKey && sourceType === 'task') {
+    const taskSection = schemaProps.task as { properties?: Record<string, unknown> } | undefined
+    const nested = taskSection?.properties?.[objectKey] as
+      | { properties?: Record<string, unknown>; required?: string[] }
+      | undefined
+    if (nested?.properties) {
+      return {
+        type: 'object',
+        properties: nested.properties,
+        required: nested.required
+      }
+    }
+  }
+
+  if (objectKey && sourceType === 'flow') {
+    const flowSection = schemaProps.flow as { properties?: Record<string, unknown> } | undefined
+    const nested = flowSection?.properties?.[objectKey] as
+      | { properties?: Record<string, unknown>; required?: string[] }
+      | undefined
+    if (nested?.properties) {
+      return {
+        type: 'object',
+        properties: { ...nested.properties },
+        required: nested.required
+      }
+    }
+  }
+
+  const restProps = { ...schemaProps }
+  delete restProps.changeMode
+  delete restProps.reason
+  delete restProps.meta
+  return {
+    type: 'object',
+    properties: restProps,
+    required: flowSchema.required
+  }
+}
+
+/**
+ * Enrich nested-entity initial values with sibling flow fields referenced by the schema.
+ */
+export const enrichNestedFlowInitialValues = (
+  initialValues: Record<string, unknown>,
+  objectKey: string,
+  flowData: Record<string, unknown>,
+  schema: ResolvedFlowProposalSchema
+): Record<string, unknown> => {
+  const enriched = { ...initialValues }
+  for (const fieldName of Object.keys(schema.properties ?? {})) {
+    if (enriched[fieldName] !== undefined) continue
+    if (flowData[fieldName] !== undefined) {
+      enriched[fieldName] = flowData[fieldName]
+    }
+  }
+  return enriched
+}
+
 /**
  * Extract operation type from flow name (Create, Update, Delete)
  */

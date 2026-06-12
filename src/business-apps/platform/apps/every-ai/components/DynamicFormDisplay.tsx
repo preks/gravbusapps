@@ -16,7 +16,12 @@ import {
   buildUiHintFields,
   applyUiOverridesToArguments
 } from './forms'
-import { formatFlowName } from './forms/utils/formSchemaUtils'
+import {
+  enrichNestedFlowInitialValues,
+  formatFlowName,
+  resolveFlowProposalFormResolution,
+  resolveFlowProposalSchema
+} from './forms/utils/formSchemaUtils'
 import { getNestedValue, immutableSetByPath } from './forms/utils/formFieldUtils'
 import { FlowProposalFormProvider } from '../context/FlowProposalFormContext'
 
@@ -412,90 +417,29 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
     setInitialCheckComplete(true)
   }, [conversation, data.uuid, data.flow_name, formKey, setFormState])
 
-  // Extract initial form values
-  const { initialValues, objectKey, sourceType } = useMemo((): {
-    initialValues: Record<string, any>
-    objectKey: string | null
-    sourceType: 'flow' | 'task'
-  } => {
-    const flowData = data.arguments?.flow || {}
-    const taskData = data.arguments?.task || {}
+  const { initialValues, objectKey, sourceType } = useMemo(
+    () => resolveFlowProposalFormResolution(data.arguments),
+    [data.arguments]
+  )
 
-    const taskObjectKey = Object.keys(taskData).find(
-      key =>
-        typeof taskData[key] === 'object' &&
-        !Array.isArray(taskData[key]) &&
-        !['changeMode', 'id', 'version', 'businessKey'].includes(key)
-    )
+  const schema = useMemo(
+    () => resolveFlowProposalSchema(data.flow_schema, objectKey, sourceType),
+    [data.flow_schema, objectKey, sourceType]
+  )
 
-    if (taskObjectKey && taskData[taskObjectKey]) {
-      return {
-        initialValues: { ...taskData[taskObjectKey] },
-        objectKey: taskObjectKey,
-        sourceType: 'task'
-      }
+  const resolvedInitialValues = useMemo(() => {
+    if (!objectKey || sourceType !== 'flow') {
+      return initialValues
     }
-
-    const flowObjectKey = Object.keys(flowData).find(
-      key =>
-        typeof flowData[key] === 'object' &&
-        !Array.isArray(flowData[key]) &&
-        !['changeMode', 'id', 'version', 'businessKey'].includes(key)
-    )
-
-    if (flowObjectKey && flowData[flowObjectKey]) {
-      return {
-        initialValues: { ...flowData[flowObjectKey] },
-        objectKey: flowObjectKey,
-        sourceType: 'flow'
-      }
-    }
-
-    const restFlowData = { ...flowData }
-    delete restFlowData.changeMode
-    return {
-      initialValues: restFlowData,
-      objectKey: null,
-      sourceType: 'flow'
-    }
-  }, [data.arguments?.flow, data.arguments?.task])
+    const flowData = (data.arguments?.flow ?? {}) as Record<string, unknown>
+    return enrichNestedFlowInitialValues(initialValues, objectKey, flowData, schema)
+  }, [initialValues, objectKey, sourceType, data.arguments?.flow, schema])
 
   useEffect(() => {
-    if (Object.keys(initialValues).length > 0) {
-      setFormData(initialValues)
+    if (Object.keys(resolvedInitialValues).length > 0) {
+      setFormData(resolvedInitialValues)
     }
-  }, [initialValues])
-
-  const schema = useMemo(() => {
-    if (!data.flow_schema || !data.flow_schema.properties) {
-      return { type: 'object', properties: {} }
-    }
-
-    const schemaProps = data.flow_schema.properties
-
-    if (objectKey && sourceType === 'task' && schemaProps.task?.properties?.[objectKey]?.properties) {
-      return {
-        type: 'object',
-        properties: schemaProps.task.properties[objectKey].properties,
-        required: schemaProps.task.properties[objectKey].required
-      }
-    }
-
-    if (objectKey && sourceType === 'flow' && schemaProps[objectKey]?.properties) {
-      return {
-        type: 'object',
-        properties: schemaProps[objectKey].properties,
-        required: schemaProps[objectKey].required
-      }
-    }
-
-    const restProps = { ...schemaProps }
-    delete restProps.changeMode
-    return {
-      type: 'object',
-      properties: restProps
-    }
-  }, [data.flow_schema, objectKey, sourceType])
+  }, [resolvedInitialValues])
 
   // x-ui-* hints. Render list comes only from a non-empty `x-ui-allowlist`; submit-time
   // `omit` / `fixed` still apply when `x-ui-overrides` is present without an allowlist (legacy UI).
@@ -547,10 +491,25 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
           [objectKey]: mergedEntity
         }
       } else if (objectKey && sourceType === 'flow' && updatedArguments.flow?.[objectKey]) {
-        updatedArguments.flow = {
-          ...updatedArguments.flow,
-          [objectKey]: mergedEntity
+        const flowSection = { ...updatedArguments.flow }
+        const siblingKeys = Object.keys(flowSection).filter(
+          key =>
+            key !== objectKey &&
+            (typeof flowSection[key] !== 'object' || flowSection[key] === null || Array.isArray(flowSection[key]))
+        )
+        const nestedPayload =
+          typeof originalEntity === 'object' && originalEntity !== null ? { ...originalEntity } : {}
+
+        for (const [fieldName, fieldValue] of Object.entries(currentFormData)) {
+          if (siblingKeys.includes(fieldName)) {
+            flowSection[fieldName] = fieldValue
+          } else {
+            nestedPayload[fieldName] = fieldValue
+          }
         }
+
+        flowSection[objectKey] = nestedPayload
+        updatedArguments.flow = flowSection
       } else {
         updatedArguments.flow = {
           ...currentFormData,
@@ -867,7 +826,7 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
       if (uiP === 'primary' || uiP === 'secondary') return uiP
       const xP = fieldSchema?.['x-priority']
       if (xP === 'primary' || xP === 'secondary') return xP
-      if (extractedFields.includes(fieldKey)) return 'primary'
+      if (extractedFields.some(path => path === fieldKey || path.endsWith(`.${fieldKey}`))) return 'primary'
       return 'primary'
     },
     [extractedFields]
