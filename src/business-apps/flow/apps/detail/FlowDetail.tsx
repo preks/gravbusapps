@@ -8,11 +8,19 @@ interface FlowDetailProps extends BusinessAppContextProps {
   'data-testid'?: string
 }
 
-function getFlowIdFromUrl(): string | null {
-  if (typeof window === 'undefined') return null
+function getFlowDetailUrlParams(): { flowId: string | null; taskId: string | null } {
+  if (typeof window === 'undefined') {
+    return { flowId: null, taskId: null }
+  }
+
   const urlParams = new URLSearchParams(window.location.search)
-  const id = urlParams.get('flowId')?.trim() ?? ''
-  return id || null
+  const flowId = urlParams.get('flowId')?.trim() ?? ''
+  const taskId = urlParams.get('taskId')?.trim() ?? ''
+
+  return {
+    flowId: flowId || null,
+    taskId: taskId || null
+  }
 }
 
 export const FlowDetail: React.FC<FlowDetailProps> = ({
@@ -28,9 +36,9 @@ export const FlowDetail: React.FC<FlowDetailProps> = ({
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
 
-  const flowId = useMemo(() => {
+  const { flowId, taskId: focusTaskId } = useMemo(() => {
     void urlTick
-    return getFlowIdFromUrl()
+    return getFlowDetailUrlParams()
   }, [urlTick])
 
   const handleBack = () => {
@@ -66,9 +74,11 @@ export const FlowDetail: React.FC<FlowDetailProps> = ({
   return (
     <FlowDetailView
       flowId={flowId}
+      focusTaskId={focusTaskId ?? undefined}
       accessToken={accessToken}
       userInfo={userInfo}
       showBackButton={true}
+      layoutVariant="unified"
       onBack={handleBack}
       data-testid={testId}
     />

@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react'
 import { Badge, Button } from '@newwork/nw-design-system'
-import { ArrowLeft, Calendar, CheckCircle, Clock, RefreshCw, User, UserCheck } from 'lucide-react'
+import { ArrowLeft, Calendar, CheckCircle, Clock, ExternalLink, RefreshCw, User, UserCheck } from 'lucide-react'
 import { formatDisplayText } from '@/common/utils/displayText'
+import { Navigation, buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import type { FlowDetailData, FlowStep } from './types'
 import { useResolvedActorNames } from './useResolvedActorNames'
 import { calculateRunningTimeFromStart, formatFlowDuration, getFlowStatusBadgeClass, getStatusEndLabel } from './utils'
@@ -12,6 +13,7 @@ interface FlowDetailHeaderProps {
   accessToken?: string
   onBack?: () => void
   showBackButton?: boolean
+  showFlowId?: boolean
   onRefresh: () => Promise<void>
   isRefreshing?: boolean
 }
@@ -35,6 +37,7 @@ export const FlowDetailHeader: React.FC<FlowDetailHeaderProps> = ({
   accessToken,
   onBack,
   showBackButton = true,
+  showFlowId = true,
   onRefresh,
   isRefreshing = false
 }) => {
@@ -65,6 +68,11 @@ export const FlowDetailHeader: React.FC<FlowDetailHeaderProps> = ({
     ? actorNames[initiatorActorId] || flowData.initiatedBy || initiatorActorId
     : 'System'
   const currentAssignee = currentAssigneeId ? actorNames[currentAssigneeId] || currentAssigneeId : undefined
+  const flowStudioUrl = useMemo(() => {
+    if (!flowData.templateId) return null
+
+    return `${buildPlatformUrl(Navigation.CREATE_FLOW_CREATOR, { flowId: flowData.templateId })}#flows`
+  }, [flowData.templateId])
 
   return (
     <div className="gba:border-b gba:border-border gba:bg-background gba:px-0 gba:py-4">
@@ -134,7 +142,15 @@ export const FlowDetailHeader: React.FC<FlowDetailHeaderProps> = ({
                 value={formatTimestamp(flowData.endTime)}
               />
             ) : null}
-            <MetaChip label="Flow ID" value={flowData.flowId} isCode />
+            {showFlowId ? <MetaChip label="Flow ID" value={flowData.flowId} isCode /> : null}
+            {flowStudioUrl ? (
+              <MetaLinkChip
+                icon={<ExternalLink className="gba:h-4 gba:w-4" />}
+                label="Flow template"
+                href={flowStudioUrl}
+                value="Open in Flow Studio"
+              />
+            ) : null}
           </div>
         </div>
       </div>
@@ -161,4 +177,31 @@ const MetaChip: React.FC<MetaChipProps> = ({ icon, label, value, isCode = false 
       </div>
     </div>
   </div>
+)
+
+interface MetaLinkChipProps {
+  icon?: React.ReactNode
+  label: string
+  href: string
+  value: string
+}
+
+const MetaLinkChip: React.FC<MetaLinkChipProps> = ({ icon, label, href, value }) => (
+  <a
+    href={href}
+    onClick={event => {
+      event.preventDefault()
+      navigateTo(href, { forceReload: true })
+    }}
+    className="gba:flex gba:min-w-[160px] gba:max-w-full gba:items-start gba:gap-2 gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2.5 gba:no-underline gba:transition-colors gba:hover:bg-muted/40"
+    data-testid="flow-detail-flow-studio-link"
+  >
+    {icon ? <div className="gba:mt-0.5 gba:text-primary">{icon}</div> : null}
+    <div className="gba:min-w-0">
+      <div className="gba:text-xs gba:font-medium gba:uppercase gba:tracking-wide gba:text-muted-foreground">
+        {label}
+      </div>
+      <div className="gba:truncate gba:text-sm gba:font-medium gba:text-primary">{value}</div>
+    </div>
+  </a>
 )

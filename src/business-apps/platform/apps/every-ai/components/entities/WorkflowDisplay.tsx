@@ -113,8 +113,7 @@ export const WorkflowDisplay: React.FC<WorkflowDisplayProps> = ({
     }
 
     navigateTo(
-      buildPlatformUrl(Navigation.FLOW_LAUNCHER, {
-        tab: 'my-launches',
+      buildPlatformUrl(Navigation.FLOW_DETAIL, {
         flowId: workflowId
       }),
       { forceReload: true }

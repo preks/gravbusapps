@@ -55,7 +55,6 @@ export const FlowManagement: React.FC<FlowManagementProps> = ({
     return (
       <FlowDetailView
         flowId={selectedFlowId}
-        variant={variant}
         onBack={showBackButton ? handleBack : undefined}
         onAction={handleFlowAction}
         showActions={showActions}
@@ -70,7 +69,7 @@ export const FlowManagement: React.FC<FlowManagementProps> = ({
   // Show the flow list
   return (
     <FlowList
-      prefixDataTestId={`${prefixDataTestId}-list`}
+      prefixDataTestId={`${prefixDataTestId}-${variant}-list`}
       title={listTitle}
       filterType={filterType}
       hideFilters={hideFilters}

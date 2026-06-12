@@ -142,19 +142,16 @@ export const ReadonlyTemplateFlowCanvas: React.FC<ReadonlyTemplateFlowCanvasProp
     previewGraphDefinition?.edges?.length ?? 0,
     compact ? 'compact' : 'full'
   ].join('-')
-  const contentMinHeightClass = compact ? 'gba:min-h-[320px]' : 'gba:min-h-[560px]'
+  const canvasHeightClass = compact ? 'gba:h-[320px]' : 'gba:h-[560px]'
   const emptyStateMinHeightClass = compact ? 'gba:min-h-[280px]' : 'gba:min-h-[520px]'
 
   return (
-    <Card
-      className="gba:flex gba:h-full gba:flex-col gba:overflow-hidden gba:border-border gba:bg-card"
-      data-testid={testId}
-    >
+    <Card className="gba:flex gba:flex-col gba:overflow-hidden gba:border-border gba:bg-card" data-testid={testId}>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
-      <CardContent className={`gba:flex gba:flex-1 gba:flex-col gba:overflow-hidden gba:p-0 ${contentMinHeightClass}`}>
+      <CardContent className={`gba:flex gba:shrink-0 gba:flex-col gba:overflow-hidden gba:p-0 ${canvasHeightClass}`}>
         {!templateId && !templateDefinition ? (
           <div
             className={`gba:flex gba:flex-1 gba:flex-col gba:items-center gba:justify-center gba:gap-2 gba:px-6 gba:text-center ${emptyStateMinHeightClass}`}
@@ -173,21 +170,23 @@ export const ReadonlyTemplateFlowCanvas: React.FC<ReadonlyTemplateFlowCanvasProp
             </Alert>
           </div>
         ) : hasGraphContent && previewGraphDefinition ? (
-          <div className={`gba:h-full gba:w-full gba:flex-1 ${contentMinHeightClass}`}>
-            <FlowCanvasProvider
-              key={canvasMountKey}
-              isInteractive={false}
-              executionState={resolvedExecutionState}
-              selectedNodeId={resolvedSelectedNodeId}
-            >
-              <FlowCanvas
-                definition={previewGraphDefinition}
-                useForwardEdgesOnlyForRanking={true}
-                fitViewOptions={{ padding: 0.26, minZoom: 0.65, maxZoom: 0.95 }}
-                showMiniMap={false}
-                showControls={showControls}
-              />
-            </FlowCanvasProvider>
+          <div className={`gba:relative gba:w-full ${canvasHeightClass}`}>
+            <div className="gba:absolute gba:inset-0">
+              <FlowCanvasProvider
+                key={canvasMountKey}
+                isInteractive={false}
+                executionState={resolvedExecutionState}
+                selectedNodeId={resolvedSelectedNodeId}
+              >
+                <FlowCanvas
+                  definition={previewGraphDefinition}
+                  useForwardEdgesOnlyForRanking={true}
+                  fitViewOptions={{ padding: 0.26, minZoom: 0.65, maxZoom: 0.95 }}
+                  showMiniMap={false}
+                  showControls={showControls}
+                />
+              </FlowCanvasProvider>
+            </div>
           </div>
         ) : (
           <div

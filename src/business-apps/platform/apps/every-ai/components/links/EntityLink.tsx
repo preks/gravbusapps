@@ -109,12 +109,12 @@ export function resolveEntityLink(link: string): ResolvedEntityLink | null {
     }
   }
 
-  // Running workflow instances open in Flow Launcher (My launches detail).
+  // Running workflow instances open on the dedicated flow detail page.
   if (effectiveProtocol === 'service_workflow') {
     const instanceFlowId = embeddedParams.get('flowId') || embeddedParams.get('templateId') || effectiveId
     if (instanceFlowId) {
       return {
-        url: buildPlatformUrl(Navigation.FLOW_LAUNCHER, { tab: 'my-launches', flowId: instanceFlowId }),
+        url: buildPlatformUrl(Navigation.FLOW_DETAIL, { flowId: instanceFlowId }),
         protocol: effectiveProtocol,
         id: instanceFlowId,
         alternateId: metadata?.alternateId,

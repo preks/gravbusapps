@@ -32,6 +32,7 @@ const PAGE_CONTEXT_SKILL_MAP: Record<string, string[]> = {
   slide: ['Slides', 'Documents'],
   spreadsheet: ['Spreadsheets', 'Data'],
   // Workflows
+  service_workflow: ['Flows', 'WorkflowManagement', 'Services'],
   workflow_template: ['Flows', 'WorkflowManagement'],
   flow: ['Flows', 'WorkflowManagement'],
   // Service desk

@@ -164,6 +164,8 @@ export function transformAuditEntry(entry: Record<string, any>, index: number): 
     action: entry.action,
     userId: entry.userId,
     userName: entry.userName || entry.userId,
+    taskId: typeof entry.taskId === 'string' ? entry.taskId : undefined,
+    taskName: typeof entry.taskName === 'string' ? entry.taskName : stepTitle,
     comment: entry.details?.comment,
     metadata: entry.details || {}
   }

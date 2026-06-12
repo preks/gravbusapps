@@ -31,7 +31,7 @@ const FIN_PERSONAL_URL = '/platform/fin/expenses/personal-expenses'
 const HR_MANAGER_ABSENCES_URL = '/platform/hr/absences/manager-absences'
 const HR_SKILL_MANAGEMENT_URL = '/platform/hr/core/apps/skill-management'
 const SERVICE_DESK_URL = '/platform/sales-demo/service-desk'
-const FLOW_LAUNCHER_URL = '/platform/apps/flow/apps/launcher'
+const FLOW_DETAIL_URL = '/platform/apps/flow/apps/detail'
 
 const orgDataUrl = (tab: string) => `${ORG_DATA_URL}?tab=${tab}&entityId={id}`
 
@@ -321,8 +321,14 @@ export const ENTITY_CONFIG: Record<string, EntityChipConfig> = {
       'M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4v-3a2 2 0 00-2-2H5z'
     )
   },
+  cflow_task: {
+    urlTemplate: '/platform/task-manager?view=inbox&taskId={id}',
+    icon: createSvgIcon(
+      'M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4v-3a2 2 0 00-2-2H5z'
+    )
+  },
   service_workflow: {
-    urlTemplate: `${FLOW_LAUNCHER_URL}?tab=my-launches&flowId={id}`,
+    urlTemplate: `${FLOW_DETAIL_URL}?flowId={id}`,
     icon: DEFAULT_ICON
   },
   workflow_template: {

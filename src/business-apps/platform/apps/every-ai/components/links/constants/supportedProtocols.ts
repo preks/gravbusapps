@@ -40,6 +40,7 @@ export const SUPPORTED_PROTOCOLS = [
   'sales_task',
   'sales_task_template',
   'service_ticket',
+  'cflow_task',
   'expense_request',
   'expense_plan',
   'expense_plan_comment',

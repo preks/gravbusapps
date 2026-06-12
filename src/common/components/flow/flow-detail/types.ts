@@ -98,6 +98,8 @@ export interface HistoryEvent {
   action?: string
   userId?: string
   userName?: string
+  taskId?: string
+  taskName?: string
   comment?: string
   metadata?: Record<string, unknown>
 }
