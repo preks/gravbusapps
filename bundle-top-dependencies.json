@@ -37463,15 +37463,15 @@
     ]
   },
   "hr/absences/apps/manager-absences": {
-    "bitbucketBuildNumber": 13499,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13499/",
-    "chunkJsBytes": 607499,
+    "bitbucketBuildNumber": 13511,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13511/",
+    "chunkJsBytes": 634932,
     "top": [
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
-        "rendered": 407521,
-        "gzip": 208287,
+        "rendered": 448934,
+        "gzip": 219701,
         "leaves": [
           {
             "name": "node_modules/@newwork/nw-design-system/dist/assets/images/branded-bg/fallback/decorative-dark.jpg.js",
@@ -37488,13 +37488,13 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 297237,
-        "gzip": 65576,
+        "rendered": 297283,
+        "gzip": 65575,
         "leaves": [
           {
             "name": "src/business-apps/hr/absences/apps/manager-absences/components/pages/TeamCoverageOptimizerPage.tsx",
             "rendered": 42695,
-            "gzip": 4847
+            "gzip": 4848
           },
           {
             "name": "src/business-apps/hr/absences/apps/manager-absences/components/AbsenceTable.tsx",
@@ -37507,12 +37507,12 @@
         "kind": "bucket",
         "name": "(src)/common/dev-report",
         "rendered": 41539,
-        "gzip": 10133,
+        "gzip": 10134,
         "leaves": [
           {
             "name": "src/common/dev-report/DevReportDot.tsx",
             "rendered": 27345,
-            "gzip": 5052
+            "gzip": 5053
           },
           {
             "name": "src/common/dev-report/screenshot.ts",
@@ -37543,7 +37543,7 @@
         "kind": "bucket",
         "name": "(src)/components/dataController",
         "rendered": 20671,
-        "gzip": 4749,
+        "gzip": 4750,
         "leaves": [
           {
             "name": "src/components/dataController/DataController.tsx",
@@ -37553,7 +37553,7 @@
           {
             "name": "src/components/dataController/DataControllerActions.tsx",
             "rendered": 7540,
-            "gzip": 1812
+            "gzip": 1813
           }
         ]
       },
@@ -88434,20 +88434,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 13504,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13504/",
+    "bitbucketBuildNumber": 13511,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13511/",
     "chunkJsBytes": 2052199,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1769261,
-        "gzip": 113094,
+        "gzip": 113093,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1769261,
-            "gzip": 113094
+            "gzip": 113093
           }
         ]
       },
@@ -119745,7 +119745,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-12T06:34:22.183Z",
+    "generatedAt": "2026-06-12T07:19:54.207Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
