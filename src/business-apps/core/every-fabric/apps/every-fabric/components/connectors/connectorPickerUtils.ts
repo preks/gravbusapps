@@ -12,7 +12,7 @@ export function resolveConnectorScope(connection: {
   internal?: boolean | null
   managed?: boolean | null
 }): ConnectorScope {
-  if (connection.internal === true || connection.managed === true) {
+  if (connection.internal === true) {
     return 'platform'
   }
   return 'custom'
@@ -46,8 +46,7 @@ export function getSortedLanesWithConnectors(grouped: Record<string, ConnectorLa
 export function getPlatformBadgeKey(
   conn: ExternalConnection
 ): 'connect-badge-internal' | 'connect-badge-managed' | null {
-  if (conn.scope !== 'platform') return null
   if (conn.internal) return 'connect-badge-internal'
   if (conn.managed) return 'connect-badge-managed'
-  return 'connect-badge-managed'
+  return null
 }
