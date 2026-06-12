@@ -1,0 +1,57 @@
+import React from 'react'
+import { EntityCard } from '@/business-apps/platform/apps/every-ai/components/entities/EntityCard'
+import { AvatarWithInitials } from '@/business-apps/platform/apps/every-ai/components/shared/AvatarWithInitials'
+import { useCustomerAccount } from '@/common/data/customer/hooks/useCustomerAccount'
+import { getEntityUrl } from '@/business-apps/platform/apps/every-ai/components/links/EntityLink'
+import { navigateTo } from '@/common/utils/navigationUtils'
+import { catalogValue, getField, getStr, intentLabel, personName, type ReferenceCardProps } from './referenceCardUtils'
+
+/**
+ * Rich account/company card: logo, name, industry, owner, priority — fetched
+ * by id via the shared `useCustomerAccount` hook (also used by Customer-360).
+ */
+export const AccountReferenceCard: React.FC<ReferenceCardProps> = ({ reference, accessToken }) => {
+  const { account, loading } = useCustomerAccount(accessToken, reference.id)
+
+  const url = getEntityUrl(reference.type, reference.id, reference.href)
+  const open = url ? () => navigateTo(url) : undefined
+  const context = intentLabel(reference.intent)
+
+  if (loading) {
+    return (
+      <EntityCard
+        title={reference.label || reference.id}
+        isLoading
+        onClick={open}
+        data-testid="reference-card-account"
+      />
+    )
+  }
+
+  const name = getStr(account, 'name') ?? reference.label ?? reference.id
+  const industry = catalogValue(getField(account, 'industryClass'))
+  const priority = catalogValue(getField(account, 'accountPriority'))
+  const owner = personName(getField(account, 'ownerEmployee'))
+  const website = getStr(account, 'website')
+  const logo = getStr(account, 'pictureThumbnail') ?? getStr(account, 'picture')
+
+  const fields: Array<{ label: string; value: string }> = []
+  if (owner) fields.push({ label: 'Owner', value: owner })
+  if (website) fields.push({ label: 'Website', value: website })
+
+  const subtitleParts = [context, industry].filter(Boolean)
+
+  return (
+    <EntityCard
+      title={name}
+      subtitle={subtitleParts.length ? subtitleParts.join(' · ') : undefined}
+      status={priority}
+      icon={<AvatarWithInitials firstName={name} lastName="" pictureThumbnail={logo} size={44} />}
+      fields={fields.length ? fields : undefined}
+      onClick={open}
+      data-testid="reference-card-account"
+    />
+  )
+}
+
+export default AccountReferenceCard

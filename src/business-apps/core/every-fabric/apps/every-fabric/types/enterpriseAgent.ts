@@ -135,6 +135,23 @@ export interface EntityReference {
   href: string
   label: string
   category: string
+  /**
+   * Optional backend hint describing this reference's role in the answer
+   * (e.g. `'manager'`, `'subject'`, or an org_qa operation). Drives a small
+   * context label on the rendered card. Absent on legacy payloads.
+   */
+  intent?: string
+  /**
+   * Optional backend hint to prioritise / highlight a card in the rail
+   * (e.g. `'answer_focus'`, `'primary'`). Cards with emphasis sort first.
+   */
+  emphasis?: string
+  /**
+   * Optional pre-resolved fields (e.g. `team`, `role`, `work_email`) so a card
+   * can render instantly while its by-id fetch is in flight, and as a fallback
+   * when that fetch fails. Trust-grounded: only set by tool-backed paths.
+   */
+  data?: Record<string, unknown>
 }
 
 export interface AgentTerminalEvent {

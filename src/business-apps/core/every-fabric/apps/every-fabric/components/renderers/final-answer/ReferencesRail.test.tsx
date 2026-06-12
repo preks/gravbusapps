@@ -1,25 +1,41 @@
 /**
  * Tests for ReferencesRail: filtering of unrenderable protocols, grouping by
- * category, and propagation of href + accessToken into EntityLink chips.
+ * category, emphasis-first ordering, the MAX_VISIBLE_CARDS cap, and propagation
+ * of each reference + accessToken into the EntityReferenceCard dispatcher.
  */
 
 import React from 'react'
 import { render, screen } from '@testing-library/react'
 
-const mockEntityLink = jest.fn()
-
 jest.mock('@/business-apps/platform/apps/every-ai/components/links/EntityLink', () => ({
   __esModule: true,
-  default: (props: any) => {
-    mockEntityLink(props)
-    return (
-      <a data-testid="entity-link-chip" data-href={props.href} data-token={props.accessToken}>
-        {props.children}
-      </a>
-    )
-  },
+  // Chip fallback used for large groups.
+  default: (props: any) => (
+    <a data-testid="entity-link-chip" data-href={props.href} data-token={props.accessToken}>
+      {props.children}
+    </a>
+  ),
   // Only these two protocols are "renderable" for the purpose of this test.
   SUPPORTED_PROTOCOLS: ['employee', 'account']
+}))
+
+const mockCard = jest.fn()
+
+jest.mock('./reference-cards', () => ({
+  __esModule: true,
+  EntityReferenceCard: (props: any) => {
+    mockCard(props)
+    return (
+      <div
+        data-testid="reference-card"
+        data-type={props.reference.type}
+        data-id={props.reference.id}
+        data-token={props.accessToken}
+      >
+        {props.reference.label}
+      </div>
+    )
+  }
 }))
 
 import { ReferencesRail } from './ReferencesRail'
@@ -35,7 +51,7 @@ const ref = (over: Partial<EntityReference>): EntityReference => ({
 })
 
 describe('ReferencesRail', () => {
-  beforeEach(() => mockEntityLink.mockClear())
+  beforeEach(() => mockCard.mockClear())
 
   it('renders nothing when there are no references', () => {
     const { container } = render(<ReferencesRail references={[]} accessToken="tok" />)
@@ -68,20 +84,20 @@ describe('ReferencesRail', () => {
         accessToken="tok"
       />
     )
-    const chips = screen.getAllByTestId('entity-link-chip')
-    expect(chips).toHaveLength(2)
-    expect(chips.map(c => c.getAttribute('data-href'))).toEqual(['employee://emp-1', 'employee://emp-2'])
+    const cards = screen.getAllByTestId('reference-card')
+    expect(cards).toHaveLength(2)
+    expect(cards.map(c => c.getAttribute('data-id'))).toEqual(['emp-1', 'emp-2'])
   })
 
-  it('passes href and accessToken into each chip', () => {
+  it('passes each reference and accessToken into the card dispatcher', () => {
     render(
       <ReferencesRail
         references={[ref({}), ref({ id: 'emp-2', href: 'employee://emp-2', label: 'Bob Stone' })]}
         accessToken="secret-token"
       />
     )
-    const call = mockEntityLink.mock.calls.at(0)?.[0]
-    expect(call?.href).toBe('employee://emp-1')
+    const call = mockCard.mock.calls.at(0)?.[0]
+    expect(call?.reference.href).toBe('employee://emp-1')
     expect(call?.accessToken).toBe('secret-token')
   })
 
@@ -99,5 +115,53 @@ describe('ReferencesRail', () => {
     expect(screen.getByText('CRM')).toBeInTheDocument()
     expect(screen.getByText('Anna')).toBeInTheDocument()
     expect(screen.getByText('Acme')).toBeInTheDocument()
+  })
+
+  it('orders emphasized (answer_focus) references first', () => {
+    render(
+      <ReferencesRail
+        references={[
+          ref({ id: 'emp-1', href: 'employee://emp-1', label: 'Subject' }),
+          ref({ id: 'emp-2', href: 'employee://emp-2', label: 'Manager', emphasis: 'answer_focus' })
+        ]}
+        accessToken="tok"
+      />
+    )
+    const cards = screen.getAllByTestId('reference-card')
+    expect(cards.map(c => c.getAttribute('data-id'))).toEqual(['emp-2', 'emp-1'])
+  })
+
+  it('renders a small group as cards', () => {
+    const references = Array.from({ length: 5 }, (_, i) =>
+      ref({ id: `emp-${i}`, href: `employee://emp-${i}`, label: `Person ${i}` })
+    )
+    render(<ReferencesRail references={references} accessToken="tok" />)
+
+    expect(screen.getAllByTestId('reference-card')).toHaveLength(5)
+    expect(screen.queryByTestId('entity-link-chip')).toBeNull()
+  })
+
+  it('degrades a large group (over the card limit) to chips, no card fetches', () => {
+    const references = Array.from({ length: 13 }, (_, i) =>
+      ref({ id: `emp-${i}`, href: `employee://emp-${i}`, label: `Person ${i}` })
+    )
+    render(<ReferencesRail references={references} accessToken="tok" />)
+
+    expect(screen.getAllByTestId('entity-link-chip')).toHaveLength(13)
+    expect(screen.queryByTestId('reference-card')).toBeNull()
+    expect(mockCard).not.toHaveBeenCalled()
+  })
+
+  it('mixes layouts: small group as cards, large group as chips', () => {
+    const people = Array.from({ length: 13 }, (_, i) =>
+      ref({ id: `emp-${i}`, href: `employee://emp-${i}`, label: `Person ${i}`, category: 'person' })
+    )
+    const accounts = Array.from({ length: 2 }, (_, i) =>
+      ref({ type: 'account', id: `acc-${i}`, href: `account://acc-${i}`, label: `Acme ${i}`, category: 'crm' })
+    )
+    render(<ReferencesRail references={[...people, ...accounts]} accessToken="tok" />)
+
+    expect(screen.getAllByTestId('entity-link-chip')).toHaveLength(13)
+    expect(screen.getAllByTestId('reference-card')).toHaveLength(2)
   })
 })
