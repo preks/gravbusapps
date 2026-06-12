@@ -256,8 +256,34 @@ export function useBusinessAuth(): UseBusinessAuthResult {
       window.localStorage.removeItem(STORAGE_KEY_USER_INFO)
       window.localStorage.removeItem(STORAGE_KEY_ACCESS_TOKEN)
       window.localStorage.removeItem(STORAGE_KEY_ADDITIONAL_DATA)
-      window.localStorage.removeItem('newwork_every_ai')
       window.localStorage.removeItem('everyai-submitted-forms')
+      // EveryAI owns several per-session keys (the session pointer, every
+      // ``newwork_every_ai:conversation:<sessionId>`` snapshot, and the
+      // streamStore active-runs envelope). Removing only the pointer
+      // here left snapshots / run state behind, which then leaked into
+      // the next user's session on the same origin. ``useFlowBot``
+      // exposes a sweep helper on ``window`` so we can clear all of
+      // them without taking on an import dependency on the EveryAI
+      // module from the auth layer.
+      const sweep = (window as unknown as { __clearAllEveryAiStorage?: () => void }).__clearAllEveryAiStorage
+      if (typeof sweep === 'function') {
+        sweep()
+      } else {
+        // Fallback in case EveryAI never mounted in this session (e.g.
+        // logout from a page that doesn't render the chat surface).
+        window.localStorage.removeItem('newwork_every_ai')
+        window.localStorage.removeItem('newwork_every_ai_active_runs')
+        const keysToRemove: string[] = []
+        for (let i = 0; i < window.localStorage.length; i++) {
+          const key = window.localStorage.key(i)
+          if (key && key.startsWith('newwork_every_ai:conversation:')) {
+            keysToRemove.push(key)
+          }
+        }
+        for (const key of keysToRemove) {
+          window.localStorage.removeItem(key)
+        }
+      }
     } catch {
       // ignore storage errors
     }

@@ -22,6 +22,7 @@ import { usePageAnalytics } from '@/page-analitics/hooks/usePageAnalytics'
 import { prepareCurrentPageContext } from '@/page-analitics/send/page-analytics'
 import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 import { env } from '@/common/env/EnvUtils'
+import { decodeAccessTokenSub } from '@/common/utils/decodeJwtSub'
 import { isNonRestorableUserDisplayMessage, resolveUserMessageDisplayText } from '../utils/userMessageDisplay'
 
 export type WebSearchMode = 'off' | 'on'
@@ -421,6 +422,14 @@ function getCurrentRealm(): string | undefined {
 const CONVERSATION_STORAGE_PREFIX = 'newwork_every_ai:conversation:'
 
 /**
+ * StreamStore (per-run pointers) localStorage key — duplicated here as a
+ * string literal so the cross-user sweep in :func:`clearAllEveryAiStorage`
+ * can wipe it on user switch without creating an import cycle with the
+ * streaming module. Keep this in sync with ``streamStore.ts``.
+ */
+const ACTIVE_RUNS_STORAGE_KEY = 'newwork_every_ai_active_runs'
+
+/**
  * Hard cap on the per-session snapshot size. localStorage quotas are
  * ~5MB origin-wide; a long agentic conversation with embedded tables /
  * scatter plots can balloon, so we drop the snapshot for that session
@@ -428,12 +437,54 @@ const CONVERSATION_STORAGE_PREFIX = 'newwork_every_ai:conversation:'
  */
 const CONVERSATION_SNAPSHOT_MAX_BYTES = 1_500_000
 
+/**
+ * Sweep every localStorage artifact owned by this hook (the session
+ * pointer, every per-session conversation snapshot, and the
+ * streamStore active-runs envelope). Called when we detect that the
+ * cached state belongs to a different user than the one currently
+ * authenticated — see ``loadState`` / ``useEffect`` user-change guard
+ * below — and also exposed via the ``__clearAllEveryAiStorage`` window
+ * hook so the auth layer's ``logout()`` can do a thorough clean even
+ * when it doesn't itself know every per-session key we wrote.
+ *
+ * We intentionally do a prefix sweep instead of removing known keys
+ * one-by-one so any future per-session key we add automatically gets
+ * cleaned up. The sweep is scoped to the ``newwork_every_ai`` namespace
+ * to keep unrelated app storage intact.
+ */
+function clearAllEveryAiStorage(): void {
+  if (typeof window === 'undefined') return
+  try {
+    const keysToRemove: string[] = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (
+        key &&
+        (key === STORAGE_KEY || key.startsWith(CONVERSATION_STORAGE_PREFIX) || key === ACTIVE_RUNS_STORAGE_KEY)
+      ) {
+        keysToRemove.push(key)
+      }
+    }
+    for (const key of keysToRemove) {
+      localStorage.removeItem(key)
+    }
+  } catch {
+    /* noop — storage may be unavailable */
+  }
+}
+
+// Expose the sweep to the auth layer (useBusinessAuth.logout) without
+// creating an import cycle. Safe no-op outside the browser.
+if (typeof window !== 'undefined') {
+  ;(window as unknown as { __clearAllEveryAiStorage?: () => void }).__clearAllEveryAiStorage = clearAllEveryAiStorage
+}
+
 function conversationStorageKey(sessionId: string | null): string | null {
   if (!sessionId || !isValidSessionId(sessionId)) return null
   return `${CONVERSATION_STORAGE_PREFIX}${sessionId}`
 }
 
-function persistConversationSnapshot(state: ConversationState): void {
+function persistConversationSnapshot(state: ConversationState, sub: string | undefined): void {
   if (typeof window === 'undefined') return
   const key = conversationStorageKey(state.sessionId)
   if (!key) return
@@ -442,6 +493,7 @@ function persistConversationSnapshot(state: ConversationState): void {
       conversation: state.conversation,
       oldestMessageId: state.oldestMessageId,
       hasMoreHistory: state.hasMoreHistory,
+      sub: sub ?? null,
       savedAt: Date.now()
     })
     if (payload.length > CONVERSATION_SNAPSHOT_MAX_BYTES) {
@@ -461,7 +513,10 @@ function persistConversationSnapshot(state: ConversationState): void {
   }
 }
 
-function readConversationSnapshot(sessionId: string | null): {
+function readConversationSnapshot(
+  sessionId: string | null,
+  expectedSub: string | undefined
+): {
   conversation: ConversationState['conversation']
   oldestMessageId: ConversationState['oldestMessageId']
   hasMoreHistory: ConversationState['hasMoreHistory']
@@ -476,8 +531,22 @@ function readConversationSnapshot(sessionId: string | null): {
       conversation?: ConversationState['conversation']
       oldestMessageId?: ConversationState['oldestMessageId']
       hasMoreHistory?: ConversationState['hasMoreHistory']
+      sub?: string | null
     }
     if (!Array.isArray(parsed.conversation)) return null
+    // Reject snapshots that belong to a different user. The pointer key
+    // (``newwork_every_ai``) is also gated by sub, but we double-check
+    // here so a stray snapshot left over from a previous user can
+    // never rehydrate this session — even if the pointer was somehow
+    // forged or the sweep on logout failed.
+    if (expectedSub && parsed.sub && parsed.sub !== expectedSub) {
+      try {
+        localStorage.removeItem(key)
+      } catch {
+        /* noop */
+      }
+      return null
+    }
     return {
       conversation: parsed.conversation,
       oldestMessageId: parsed.oldestMessageId ?? null,
@@ -499,11 +568,11 @@ function clearConversationSnapshot(sessionId: string | null): void {
   }
 }
 
-function saveState(state: ConversationState) {
+function saveState(state: ConversationState, sub: string | undefined) {
   if (typeof window !== 'undefined') {
     try {
       const realm = getCurrentRealm()
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ sessionId: state.sessionId, realm }))
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ sessionId: state.sessionId, realm, sub: sub ?? null }))
       if (state.sessionId) {
         console.log('[FlowBot] Saved session to localStorage:', state.sessionId)
       }
@@ -512,8 +581,10 @@ function saveState(state: ConversationState) {
     }
     // Always mirror the visible transcript to a per-session snapshot
     // alongside the sessionId pointer. The snapshot is keyed by
-    // sessionId so we never confuse two concurrent sessions.
-    persistConversationSnapshot(state)
+    // sessionId so we never confuse two concurrent sessions, and the
+    // payload carries the writer's sub so a different user can never
+    // rehydrate from it.
+    persistConversationSnapshot(state, sub)
   }
 }
 
@@ -532,7 +603,7 @@ function clearInvalidSession(): void {
   }
 }
 
-function getInitialSessionId(): string | null {
+function getInitialSessionId(currentSub: string | undefined): string | null {
   if (typeof window === 'undefined') return null
 
   // Check environment variable first (for development/testing)
@@ -552,12 +623,41 @@ function getInitialSessionId(): string | null {
       console.log('[FlowBot] No session found in localStorage, starting fresh')
       return null
     }
-    const parsed = JSON.parse(raw)
+    const parsed = JSON.parse(raw) as {
+      sessionId?: string | null
+      realm?: string | null
+      sub?: string | null
+    }
 
     const currentRealm = getCurrentRealm()
     if (currentRealm && parsed.realm && parsed.realm !== currentRealm) {
       console.log('[FlowBot] Stored session belongs to different tenant, discarding')
-      localStorage.removeItem(STORAGE_KEY)
+      clearAllEveryAiStorage()
+      return null
+    }
+
+    // Reject sessions that belong to a different user. This is the
+    // primary defence against a logout/login cycle (or a Keycloak SSO
+    // silent re-auth) that lands a different user on the same origin
+    // without our explicit ``logout()`` path having fired — without it
+    // the previous user's session pointer + conversation snapshot
+    // would hydrate this user's view, even though the backend would
+    // 403 on any subsequent request (the symptom reported in the bug
+    // where opening EveryAI shows the previous user's transcript and
+    // it sticks across navigations until the user picks a new
+    // session that overwrites the pointer).
+    if (currentSub && parsed.sub && parsed.sub !== currentSub) {
+      console.log('[FlowBot] Stored session belongs to different user, discarding')
+      clearAllEveryAiStorage()
+      return null
+    }
+
+    // Snapshots saved before the user-binding rollout have no ``sub``.
+    // Don't restore them once we know who's logged in — we can't prove
+    // ownership and the cost of a fresh history fetch is minimal.
+    if (currentSub && !parsed.sub) {
+      console.log('[FlowBot] Stored session has no user binding, discarding')
+      clearAllEveryAiStorage()
       return null
     }
 
@@ -575,15 +675,15 @@ function getInitialSessionId(): string | null {
   }
 }
 
-function loadState(): ConversationState {
-  const sessionId = getInitialSessionId()
+function loadState(currentSub: string | undefined): ConversationState {
+  const sessionId = getInitialSessionId(currentSub)
   // If we have a persisted snapshot for this session (written by
   // ``saveState`` on every mutation), hydrate from it synchronously so
   // a resize-induced remount doesn't flash the empty-state hero or
   // lose the user turn that the live SSE manager is about to append
   // to. The async history fetch will still run as a fallback when
   // there's no snapshot (e.g. fresh tab on a different machine).
-  const snapshot = readConversationSnapshot(sessionId)
+  const snapshot = readConversationSnapshot(sessionId, currentSub)
   if (snapshot) {
     return {
       conversation: snapshot.conversation,
@@ -1015,7 +1115,19 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
   const prechatContextKey = useMemo(() => buildPrechatContextKey(currentPageContext), [currentPageContext])
   const isActive = options.isActive ?? true
 
-  const [state, setState] = useState<ConversationState>(loadState)
+  // Bind every persisted artifact (session pointer + per-session
+  // conversation snapshots) to the authenticated user's ``sub`` so a
+  // logout/login that lands a different user on the same origin can
+  // never hydrate user B's chat from user A's leftovers. The decoded
+  // sub is also tracked in a ref so all the ``saveState`` callbacks
+  // below can stamp it without taking on a fresh dependency.
+  const userSub = useMemo(() => decodeAccessTokenSub(accessToken), [accessToken])
+  const userSubRef = useRef<string | undefined>(userSub)
+  useEffect(() => {
+    userSubRef.current = userSub
+  }, [userSub])
+
+  const [state, setState] = useState<ConversationState>(() => loadState(userSub))
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
@@ -1090,7 +1202,34 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
     sessionId: state.sessionId ?? undefined
   })
 
-  useEffect(() => saveState(state), [state])
+  useEffect(() => saveState(state, userSubRef.current), [state])
+
+  // Detect a user switch after this hook is already mounted (e.g. a
+  // Keycloak silent refresh that hands us a different ``sub`` without
+  // tearing the React tree down, or a multi-tab login). When the token
+  // owner changes we sweep every per-session artifact we wrote on
+  // behalf of the previous user and reset to a blank conversation —
+  // otherwise the previous user's transcript would remain visible
+  // until the new user explicitly clicks "New chat" or picks another
+  // session from the sidebar.
+  const lastSeenUserSubRef = useRef<string | undefined>(userSub)
+  useEffect(() => {
+    if (!userSub) return
+    if (lastSeenUserSubRef.current && lastSeenUserSubRef.current !== userSub) {
+      console.log('[FlowBot] Detected user switch, clearing cached chat state')
+      clearAllEveryAiStorage()
+      navigationEpochRef.current += 1
+      currentRunIdRef.current = null
+      inFlightRef.current = false
+      sessionIdRef.current = null
+      lastFetchedSessionIdRef.current = null
+      setState({ conversation: [], sessionId: null, oldestMessageId: null, hasMoreHistory: false })
+      setIsLoading(false)
+      setIsGenerating(false)
+      setPrechatSuggestions([])
+    }
+    lastSeenUserSubRef.current = userSub
+  }, [userSub])
 
   useEffect(() => {
     sessionIdRef.current = state.sessionId
@@ -1238,7 +1377,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         conversation: newConversation
       }
 
-      saveState(newState)
+      saveState(newState, userSubRef.current)
 
       return newState
     })
@@ -1263,7 +1402,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
       }
 
       const newState = { ...prevState, conversation: newConversation }
-      saveState(newState)
+      saveState(newState, userSubRef.current)
       return newState
     })
   }, [])
@@ -1358,7 +1497,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
 
       newConversation[lastAgentIdx] = { ...turn, outputs }
       const newState = { ...prevState, conversation: newConversation }
-      saveState(newState)
+      saveState(newState, userSubRef.current)
       return newState
     })
   }, [])
@@ -1415,7 +1554,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
 
       newConversation[lastAgentIdx] = { ...turn, outputs: replaceInOutputs(outputs) }
       const newState = { ...prevState, conversation: newConversation }
-      saveState(newState)
+      saveState(newState, userSubRef.current)
       return newState
     })
   }, [])
@@ -1519,7 +1658,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
 
       newConversation[lastAgentIdx] = { ...turn, outputs }
       const newState = { ...prevState, conversation: newConversation }
-      saveState(newState)
+      saveState(newState, userSubRef.current)
       return newState
     })
   }, [])
@@ -1546,7 +1685,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
       if (lastAgentIdx < 0 || newConversation[lastAgentIdx].side !== 'agent') {
         newConversation.push({ side: 'agent', outputs: [answer] })
         const s = { ...prevState, conversation: newConversation }
-        saveState(s)
+        saveState(s, userSubRef.current)
         return s
       }
 
@@ -1571,7 +1710,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
 
       newConversation[lastAgentIdx] = { ...turn, outputs }
       const newState = { ...prevState, conversation: newConversation }
-      saveState(newState)
+      saveState(newState, userSubRef.current)
       return newState
     })
   }, [])
@@ -1654,7 +1793,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
 
       newConversation[lastAgentIdx] = { ...turn, outputs }
       const newState = { ...prevState, conversation: newConversation }
-      saveState(newState)
+      saveState(newState, userSubRef.current)
       return newState
     })
   }, [])
@@ -2235,7 +2374,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
       }
 
       const newState = { ...prevState, conversation: newConversation }
-      saveState(newState)
+      saveState(newState, userSubRef.current)
       return newState
     })
 
@@ -2468,7 +2607,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
           ...prev,
           conversation: prev.conversation.slice(0, turnIndex)
         }
-        saveState(newState)
+        saveState(newState, userSubRef.current)
         return newState
       })
 
@@ -2546,7 +2685,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
       inFlightRef.current = false
       setIsGenerating(false)
 
-      saveState({ conversation: [], sessionId, oldestMessageId: null, hasMoreHistory: false })
+      saveState({ conversation: [], sessionId, oldestMessageId: null, hasMoreHistory: false }, userSubRef.current)
       sessionIdRef.current = sessionId
       lastFetchedSessionIdRef.current = sessionId
       setIsLoading(true)

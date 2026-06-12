@@ -803,13 +803,12 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
 
   const handleSessionSelect = useCallback(
     async (sessionIdToLoad: string) => {
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('newwork_every_ai', JSON.stringify({ sessionId: sessionIdToLoad }))
-        } catch (error) {
-          console.warn('Failed to save session ID:', error)
-        }
-      }
+      // Persistence is handled inside ``loadSession`` (which calls
+      // ``saveState`` with the authenticated user's ``sub``). The previous
+      // direct ``localStorage.setItem`` here wrote a payload without
+      // ``realm`` / ``sub``, which short-circuited the user-binding
+      // check on next mount and let a different user inherit this
+      // pointer — see useFlowBot's ``getInitialSessionId``.
       setShowHistory(false)
       await loadSession(sessionIdToLoad)
     },
