@@ -88434,20 +88434,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 13525,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13525/",
-    "chunkJsBytes": 2052200,
+    "bitbucketBuildNumber": 13532,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13532/",
+    "chunkJsBytes": 2052197,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1769261,
-        "gzip": 113161,
+        "rendered": 1769259,
+        "gzip": 113194,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1769261,
-            "gzip": 113161
+            "rendered": 1769259,
+            "gzip": 113194
           }
         ]
       },
@@ -110059,9 +110059,9 @@
     ]
   },
   "hr/core/apps/skill-management": {
-    "bitbucketBuildNumber": 13499,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13499/",
-    "chunkJsBytes": 748634,
+    "bitbucketBuildNumber": 13532,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13532/",
+    "chunkJsBytes": 744411,
     "top": [
       {
         "kind": "bucket",
@@ -110084,13 +110084,13 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 138974,
-        "gzip": 37040,
+        "rendered": 129357,
+        "gzip": 34738,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/skill-management/components/SkillDirectoryTab.tsx",
-            "rendered": 21164,
-            "gzip": 4809
+            "rendered": 17341,
+            "gzip": 4085
           },
           {
             "name": "src/business-apps/hr/core/apps/skill-management/components/SkillCategoriesTab.tsx",
@@ -119745,7 +119745,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-12T08:30:31.848Z",
+    "generatedAt": "2026-06-12T10:06:05.226Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
