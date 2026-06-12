@@ -24,6 +24,8 @@ const PROSE_KEYS = new Set([
   'message',
   'content',
   'task',
+  'task_summary',
+  'agent_description',
   'output',
   'completion_preview',
   'title',
@@ -31,7 +33,20 @@ const PROSE_KEYS = new Set([
   'plan_summary'
 ])
 
-const BADGE_KEYS = new Set(['mode', 'status', 'route', 'stage', 'finish_reason', 'error_type', 'step_type', 'type'])
+const BADGE_KEYS = new Set([
+  'mode',
+  'status',
+  'route',
+  'stage',
+  'finish_reason',
+  'error_type',
+  'step_type',
+  'type',
+  'agent_name',
+  'expert_name'
+])
+
+const STAT_KEYS = new Set(['nested_tool_count', 'duration_ms', 'total_tokens', 'cost_usd'])
 
 const TAG_LIST_KEYS = new Set([
   'experts',
@@ -102,6 +117,7 @@ export function parseJsonish(value: unknown): unknown {
 
 function pickVariant(key: string, value: unknown, depth: number): DisplayFieldVariant {
   if (typeof value === 'boolean') return 'boolean'
+  if (STAT_KEYS.has(key) && typeof value === 'number' && Number.isFinite(value)) return 'stat'
   if (typeof value === 'number' && Number.isFinite(value)) return 'stat'
   if (PROSE_KEYS.has(key) && typeof value === 'string') return 'prose'
   if (BADGE_KEYS.has(key) && (typeof value === 'string' || typeof value === 'number')) return 'badge'

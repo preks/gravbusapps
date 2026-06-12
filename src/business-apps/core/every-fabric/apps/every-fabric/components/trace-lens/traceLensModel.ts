@@ -285,8 +285,39 @@ export function buildTraceLensSpans(session: DeepAgentSession): {
   const offset = (ts: number | null): number => (ts === null || startTs === null ? 0 : Math.max(0, ts - startTs))
 
   const byId = new Map<string, MutableSpan>()
+  /** Maps ``subagent_id`` (and other aliases) → ``step_id`` for tree nesting. */
+  const stepAliases = new Map<string, string>()
   const order: MutableSpan[] = []
   let synthetic = 0
+
+  const resolveParentId = (raw: string | null | undefined): string | null => {
+    if (!raw) return null
+    if (byId.has(raw)) return raw
+    const aliased = stepAliases.get(raw)
+    if (aliased && byId.has(aliased)) return aliased
+    return null
+  }
+
+  const registerStepAlias = (stepId: string, ev: RawTraceEvent): void => {
+    const subId = readStr(ev.subagent_id)
+    if (subId) stepAliases.set(subId, stepId)
+  }
+
+  const delegationInput = (ev: RawTraceEvent): Record<string, unknown> | undefined => {
+    const task = readStr(ev.task_summary)
+    const agent = readStr(ev.agent_name) ?? readStr(ev.expert_name)
+    const description = readStr(ev.agent_description)
+    if (!task && !agent && !description) return undefined
+    return { task, agent, description }
+  }
+
+  const delegationSpanName = (kind: 'subagent' | 'expert', ev: RawTraceEvent): string => {
+    const label =
+      kind === 'expert'
+        ? readStr(ev.expert_name) || readStr(ev.name) || 'expert'
+        : readStr(ev.agent_name) || readStr(ev.name) || 'sub-agent'
+    return `Delegated → ${label}`
+  }
 
   const open = (
     id: string,
@@ -298,7 +329,7 @@ export function buildTraceLensSpans(session: DeepAgentSession): {
     const ts = parseTs(ev.timestamp)
     const span: MutableSpan = {
       id,
-      parentId: readStr(ev.parent_step_id) || readStr(ev.subagent_id) || null,
+      parentId: resolveParentId(readStr(ev.parent_step_id) || readStr(ev.subagent_id)),
       kind,
       marker: false,
       name,
@@ -328,7 +359,24 @@ export function buildTraceLensSpans(session: DeepAgentSession): {
     if (ev.is_critical === true) span.detail.is_critical = true
   }
 
-  const close = (id: string | undefined, ev: RawTraceEvent): void => {
+  const applyDelegationMeta = (span: MutableSpan, ev: RawTraceEvent, eventType: string): void => {
+    if (eventType !== 'subagent_completed' && eventType !== 'expert_completed') return
+    const nested = readNum(ev.nested_tool_count)
+    if (nested !== undefined) {
+      span.detail = { ...span.detail, nested_tool_count: nested }
+      if (nested > 0) {
+        span.name = `${span.name} · ${nested} nested tool${nested === 1 ? '' : 's'}`
+      }
+    }
+    const taskSummary = readStr(ev.task_summary)
+    if (taskSummary) span.detail = { ...span.detail, task_summary: taskSummary }
+    const agentDescription = readStr(ev.agent_description)
+    if (agentDescription) span.detail = { ...span.detail, agent_description: agentDescription }
+    const agentName = readStr(ev.agent_name) || readStr(ev.expert_name)
+    if (agentName) span.detail = { ...span.detail, agent_name: agentName }
+  }
+
+  const close = (id: string | undefined, ev: RawTraceEvent, eventType = ''): void => {
     if (!id) return
     const span = byId.get(id)
     const ts = parseTs(ev.timestamp)
@@ -343,6 +391,7 @@ export function buildTraceLensSpans(session: DeepAgentSession): {
       if (durationMs !== null) created.endMs = created.startMs + durationMs
       else created.endMs = offset(ts)
       applyErrorMeta(created, ev)
+      applyDelegationMeta(created, ev, eventType)
       return
     }
     span._closed = true
@@ -352,6 +401,7 @@ export function buildTraceLensSpans(session: DeepAgentSession): {
     span.durationMs = durationMs ?? (ts !== null && span._startTs !== null ? ts - span._startTs : null)
     span.endMs = durationMs !== null ? span.startMs + durationMs : offset(ts)
     applyErrorMeta(span, ev)
+    applyDelegationMeta(span, ev, eventType)
   }
 
   const addMarker = (type: string, ev: RawTraceEvent): void => {
@@ -376,28 +426,36 @@ export function buildTraceLensSpans(session: DeepAgentSession): {
         open(readStr(ev.step_id) || `step-${synthetic++}`, kind, readStr(ev.name) || stepType || 'step', ev)
         break
       }
-      case 'subagent_spawned':
-        open(
-          readStr(ev.step_id) || `sub-${synthetic++}`,
-          'subagent',
-          readStr(ev.agent_name) || readStr(ev.name) || readStr(ev.task_summary) || 'Sub-agent',
-          ev,
-          { detail: { task_summary: readStr(ev.task_summary), agent_description: readStr(ev.agent_description) } }
-        )
+      case 'subagent_spawned': {
+        const stepId = readStr(ev.step_id) || `sub-${synthetic++}`
+        registerStepAlias(stepId, ev)
+        open(stepId, 'subagent', delegationSpanName('subagent', ev), ev, {
+          input: delegationInput(ev),
+          detail: {
+            task_summary: readStr(ev.task_summary),
+            agent_description: readStr(ev.agent_description),
+            agent_name: readStr(ev.agent_name)
+          }
+        })
         break
-      case 'expert_called':
-        open(
-          readStr(ev.step_id) || `exp-${synthetic++}`,
-          'expert',
-          readStr(ev.expert_name) || readStr(ev.name) || 'Expert',
-          ev,
-          { detail: { task_summary: readStr(ev.task_summary), agent_description: readStr(ev.agent_description) } }
-        )
+      }
+      case 'expert_called': {
+        const stepId = readStr(ev.step_id) || `exp-${synthetic++}`
+        registerStepAlias(stepId, ev)
+        open(stepId, 'expert', delegationSpanName('expert', ev), ev, {
+          input: delegationInput(ev),
+          detail: {
+            task_summary: readStr(ev.task_summary),
+            agent_description: readStr(ev.agent_description),
+            expert_name: readStr(ev.expert_name)
+          }
+        })
         break
+      }
       case 'step_completed':
       case 'subagent_completed':
       case 'expert_completed':
-        close(readStr(ev.step_id), ev)
+        close(readStr(ev.step_id), ev, type)
         break
       case 'llm_call': {
         // One span per model call, drained right after the call completes —

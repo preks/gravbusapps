@@ -179,6 +179,73 @@ describe('buildTraceLensModel — workforce trace', () => {
   })
 })
 
+describe('buildTraceLensModel — subagent delegation', () => {
+  const model = buildTraceLensModel(
+    sessionWithTrace([
+      {
+        seq: 1,
+        event_id: 'd:1',
+        type: 'subagent_spawned',
+        timestamp: iso(0),
+        step_id: 'sub-1',
+        subagent_id: 'abc12345',
+        agent_name: 'CRMAgent',
+        task_summary: 'Look up the customer record',
+        agent_description: 'CRM specialist for account lookups'
+      },
+      {
+        seq: 2,
+        event_id: 'd:2',
+        type: 'step_started',
+        timestamp: iso(500),
+        step_id: 'tool-1',
+        step_type: 'tool',
+        name: 'crm_search',
+        parent_step_id: 'sub-1',
+        input: { query: 'Acme Corp' }
+      },
+      {
+        seq: 3,
+        event_id: 'd:3',
+        type: 'step_completed',
+        timestamp: iso(1500),
+        step_id: 'tool-1',
+        status: 'done',
+        duration_ms: 1000,
+        output: 'Found Acme Corp'
+      },
+      {
+        seq: 4,
+        event_id: 'd:4',
+        type: 'subagent_completed',
+        timestamp: iso(2000),
+        step_id: 'sub-1',
+        status: 'done',
+        duration_ms: 2000,
+        nested_tool_count: 3,
+        output: 'Customer record retrieved successfully.'
+      }
+    ])
+  )
+
+  it('renders delegation as a nested subagent span with task input', () => {
+    const subagent = model.flat.find(s => s.kind === 'subagent')
+    expect(subagent?.name).toBe('Delegated → CRMAgent · 3 nested tools')
+    expect(subagent?.input).toMatchObject({ task: 'Look up the customer record', agent: 'CRMAgent' })
+    expect(subagent?.detail?.nested_tool_count).toBe(3)
+    expect(subagent?.output).toBe('Customer record retrieved successfully.')
+  })
+
+  it('nests parent-level tool steps under the delegated subagent span', () => {
+    const tool = model.flat.find(s => s.id === 'tool-1')
+    const subagent = model.flat.find(s => s.id === 'sub-1')
+    expect(tool?.parentId).toBe('sub-1')
+    expect(tool?.depth).toBe(1)
+    expect(subagent?.depth).toBe(0)
+    expect(subagent?.children.map(c => c.id)).toEqual(['tool-1'])
+  })
+})
+
 describe('buildTraceLensModel — chat trace', () => {
   it('marks runs without a workforce kickoff as chat origin', () => {
     const model = buildTraceLensModel(
