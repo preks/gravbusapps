@@ -51959,20 +51959,20 @@
     ]
   },
   "hr/core/forms/employee": {
-    "bitbucketBuildNumber": 13499,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13499/",
-    "chunkJsBytes": 265592,
+    "bitbucketBuildNumber": 13520,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13520/",
+    "chunkJsBytes": 266185,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 162773,
-        "gzip": 37586,
+        "rendered": 164029,
+        "gzip": 37881,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/forms/employee/components/EmployeeForm.tsx",
-            "rendered": 36028,
-            "gzip": 5706
+            "rendered": 37250,
+            "gzip": 5996
           },
           {
             "name": "src/business-apps/hr/core/forms/_i18n/ro-RO.ftl?raw",
@@ -80395,9 +80395,9 @@
     ]
   },
   "mdm/apps/employment-data": {
-    "bitbucketBuildNumber": 13499,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13499/",
-    "chunkJsBytes": 212555,
+    "bitbucketBuildNumber": 13520,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13520/",
+    "chunkJsBytes": 212709,
     "top": [
       {
         "kind": "bucket",
@@ -80420,13 +80420,13 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/mdm",
-        "rendered": 89044,
-        "gzip": 25373,
+        "rendered": 89392,
+        "gzip": 25442,
         "leaves": [
           {
             "name": "src/business-apps/mdm/forms/contract-type-form/ContractTypeForm.tsx",
-            "rendered": 16524,
-            "gzip": 3577
+            "rendered": 16872,
+            "gzip": 3646
           },
           {
             "name": "src/business-apps/mdm/apps/employment-data/components/tabs/ContractTypesTab.tsx",
@@ -83689,9 +83689,9 @@
     ]
   },
   "mdm/forms/contract-type-form": {
-    "bitbucketBuildNumber": 13488,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13488/",
-    "chunkJsBytes": 110322,
+    "bitbucketBuildNumber": 13520,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13520/",
+    "chunkJsBytes": 110487,
     "top": [
       {
         "kind": "bucket",
@@ -83750,13 +83750,13 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/mdm",
-        "rendered": 26262,
-        "gzip": 7176,
+        "rendered": 26610,
+        "gzip": 7247,
         "leaves": [
           {
             "name": "src/business-apps/mdm/forms/contract-type-form/ContractTypeForm.tsx",
-            "rendered": 16490,
-            "gzip": 3565
+            "rendered": 16838,
+            "gzip": 3636
           },
           {
             "name": "src/business-apps/mdm/apps/employment-data/utils/catalogEntryMetadata.ts",
@@ -88434,9 +88434,9 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 13519,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13519/",
-    "chunkJsBytes": 2052191,
+    "bitbucketBuildNumber": 13520,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13520/",
+    "chunkJsBytes": 2052202,
     "top": [
       {
         "kind": "bucket",
@@ -100765,9 +100765,9 @@
     ]
   },
   "core/every-fabric/apps/every-fabric": {
-    "bitbucketBuildNumber": 13519,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13519/",
-    "chunkJsBytes": 2618447,
+    "bitbucketBuildNumber": 13520,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13520/",
+    "chunkJsBytes": 2618458,
     "top": [
       {
         "kind": "bucket",
@@ -119745,7 +119745,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-12T08:07:03.680Z",
+    "generatedAt": "2026-06-12T08:08:52.054Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
