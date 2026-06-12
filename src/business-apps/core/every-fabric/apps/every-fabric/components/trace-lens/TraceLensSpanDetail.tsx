@@ -2,7 +2,13 @@
 
 import { useState } from 'react'
 import { CheckIcon, CopyIcon } from '@phosphor-icons/react'
-import { formatMs, prettyValue, SPAN_KIND_ACCENT, SPAN_KIND_LABEL, type TraceSpan } from './traceLensModel'
+import {
+  copyTextForValue,
+  detailWithoutLlmMeta,
+  isStructuredDisplayable,
+  StructuredValueView
+} from './traceLensDetailView'
+import { formatMs, SPAN_KIND_ACCENT, SPAN_KIND_LABEL, type TraceSpan } from './traceLensModel'
 
 interface TraceLensSpanDetailProps {
   span: TraceSpan | null
@@ -54,7 +60,7 @@ function LlmCallStats({ span }: Readonly<{ span: TraceSpan }>) {
   const stage = detailStr(detail, 'stage')
   const finishReason = detailStr(detail, 'finish_reason')
   return (
-    <div className="gba:grid gba:grid-cols-3 gba:gap-x-4 gba:gap-y-2 gba:rounded-md gba:bg-muted/60 gba:p-2.5">
+    <div className="gba:grid gba:grid-cols-3 gba:gap-x-4 gba:gap-y-2 gba:rounded-md gba:border gba:border-border/40 gba:bg-muted/40 gba:p-2.5">
       <LlmStat label="Latency" value={formatMs(span.durationMs)} />
       {promptTokens !== undefined && <LlmStat label="Prompt" value={String(promptTokens)} />}
       {completionTokens !== undefined && <LlmStat label="Completion" value={String(completionTokens)} />}
@@ -67,19 +73,27 @@ function LlmCallStats({ span }: Readonly<{ span: TraceSpan }>) {
   )
 }
 
-function Section({ title, value }: Readonly<{ title: string; value: string }>) {
-  if (!value.trim()) return null
+function ReadableSection({ title, value }: Readonly<{ title: string; value: unknown }>) {
+  const copyText = copyTextForValue(value)
+  if (!copyText.trim()) return null
+
+  const structured = isStructuredDisplayable(value)
+
   return (
     <div className="gba:flex gba:flex-col gba:gap-1.5">
       <div className="gba:flex gba:items-center gba:justify-between">
         <span className="gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground">
           {title}
         </span>
-        <CopyButton text={value} />
+        <CopyButton text={copyText} />
       </div>
-      <pre className="gba:max-h-72 gba:overflow-auto gba:rounded-md gba:bg-muted/60 gba:p-2.5 gba:text-[12px] gba:leading-relaxed gba:text-foreground gba:whitespace-pre-wrap gba:break-words">
-        {value}
-      </pre>
+      {structured ? (
+        <StructuredValueView value={value} />
+      ) : (
+        <pre className="gba:max-h-72 gba:overflow-auto gba:rounded-md gba:border gba:border-border/40 gba:bg-muted/40 gba:p-2.5 gba:text-[12px] gba:leading-relaxed gba:text-foreground gba:whitespace-pre-wrap gba:break-words">
+          {copyText}
+        </pre>
+      )}
     </div>
   )
 }
@@ -94,8 +108,16 @@ export const TraceLensSpanDetail: React.FC<TraceLensSpanDetailProps> = ({ span }
   }
 
   const accent = SPAN_KIND_ACCENT[span.kind]
-  const detail = span.detail ? { ...span.detail } : undefined
-  if (detail) delete (detail as Record<string, unknown>).type
+  const detail =
+    span.kind === 'llm'
+      ? detailWithoutLlmMeta(span.detail)
+      : span.detail
+        ? (() => {
+            const copy = { ...span.detail }
+            delete copy.type
+            return Object.keys(copy).length > 0 ? copy : undefined
+          })()
+        : undefined
 
   return (
     <div
@@ -137,9 +159,9 @@ export const TraceLensSpanDetail: React.FC<TraceLensSpanDetailProps> = ({ span }
 
       <LlmCallStats span={span} />
 
-      <Section title="Input" value={span.input !== undefined ? prettyValue(span.input) : ''} />
-      <Section title="Output" value={span.output ? prettyValue(span.output) : ''} />
-      {detail && Object.keys(detail).length > 0 && <Section title="Details" value={prettyValue(detail)} />}
+      <ReadableSection title="Input" value={span.input} />
+      <ReadableSection title="Output" value={span.output} />
+      {detail && <ReadableSection title="Details" value={detail} />}
     </div>
   )
 }
