@@ -24,6 +24,7 @@ export interface FlowContextBrowserDialogProps {
     entities: EntityOption[]
     entitiesLoading: boolean
     entitiesError: string | null
+    loadEntities: () => Promise<void>
   }
   'data-testid'?: string
 }

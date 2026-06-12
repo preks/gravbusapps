@@ -46,6 +46,7 @@ import { studioGraphToTemplate, templateToStudioGraph } from './utils/templateCo
 import { FlowStudioCreateView } from './views/FlowStudioCreateView'
 import { FlowStudioListView } from './views/FlowStudioListView'
 import type { FlowTemplate } from '@/common/network/flows/FlowTemplateClient'
+import { AssignmentMode, FlowStepType } from '@/common/data/flow/types/flowTemplate'
 
 const FLOW_ID_PARAM = 'flowId'
 const DRAFT_ID_PARAM = 'draftId'
@@ -201,6 +202,10 @@ function isUntitledTemplateName(value: string): boolean {
   return trimmed.length === 0 || trimmed === UNTITLED_FLOW_NAME
 }
 
+function getPatternClaimCapability(role: string | undefined): string {
+  return String(role || '').trim() || 'Flow participant'
+}
+
 interface FlowStudioProps extends BusinessAppContextProps {
   /** Optional template ID to load for editing */
   templateId?: string
@@ -321,6 +326,46 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
       setView('designer')
     },
     [resetStore]
+  )
+
+  const createNewFlowFromPattern = useCallback(
+    (pattern: { name: string; description: string; steps: string[]; roles: string[] }) => {
+      setSaveError(null)
+      updateUrlWithFlowId(FLOW_ID_NEW)
+      setDesignerInitialPrompt('')
+
+      const template: any = {
+        type: 'TEMPLATE',
+        name: pattern.name,
+        description: pattern.description,
+        version: 1,
+        start: {
+          triggers: [{ id: 'start_manual', type: 'MANUAL_FORM', active: true, config: {} }]
+        },
+        steps: pattern.steps.map((stepName, i) => ({
+          id: `step_${i}`,
+          reference: `step_${i}`,
+          type: FlowStepType.TASK,
+          title: stepName,
+          assignment: {
+            targets: { capabilities: [getPatternClaimCapability(pattern.roles[i])] },
+            assignmentMode: AssignmentMode.CLAIM
+          }
+        }))
+      }
+
+      const graph = templateToStudioGraph(template)
+      loadTemplateIntoStore(undefined, graph.nodes, graph.edges, {
+        name: pattern.name,
+        description: pattern.description,
+        version: 1,
+        tags: {}
+      })
+      useFlowStudioStore.setState({ isDirty: false, templateId: undefined })
+      setShowValidationIssues(false)
+      setView('designer')
+    },
+    [loadTemplateIntoStore]
   )
 
   const backToList = useCallback(() => {
@@ -704,6 +749,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
                   userInfo={userInfo}
                   onCreateNewFlow={createNewFlow}
                   onOpenDesignerWithAI={openDesignerWithAI}
+                  onCreateFromPattern={createNewFlowFromPattern}
                   onTemplateCreated={openTemplateAfterCreate}
                   data-testid={`${testId}-create-view`}
                 />

@@ -53,7 +53,8 @@ export const UserDecisionConfig: React.FC<UserDecisionConfigProps> = ({
       loadMoreCatalogs: studioData.loadMoreCatalogs,
       entities: studioData.entities,
       entitiesLoading: studioData.entitiesLoading,
-      entitiesError: studioData.entitiesError
+      entitiesError: studioData.entitiesError,
+      loadEntities: studioData.loadEntities
     }),
     [
       studioData.catalogs,
@@ -64,6 +65,7 @@ export const UserDecisionConfig: React.FC<UserDecisionConfigProps> = ({
       studioData.entities,
       studioData.entitiesError,
       studioData.entitiesLoading,
+      studioData.loadEntities,
       studioData.loadMoreCatalogs,
       studioData.searchCatalogs
     ]

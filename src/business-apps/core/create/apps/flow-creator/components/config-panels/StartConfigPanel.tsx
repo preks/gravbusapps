@@ -83,7 +83,8 @@ export const StartConfigPanel: React.FC<StartConfigPanelProps> = ({
       loadMoreCatalogs: studioData.loadMoreCatalogs,
       entities: studioData.entities,
       entitiesLoading: studioData.entitiesLoading,
-      entitiesError: studioData.entitiesError
+      entitiesError: studioData.entitiesError,
+      loadEntities: studioData.loadEntities
     }),
     [
       studioData.catalogs,
@@ -94,6 +95,7 @@ export const StartConfigPanel: React.FC<StartConfigPanelProps> = ({
       studioData.entities,
       studioData.entitiesError,
       studioData.entitiesLoading,
+      studioData.loadEntities,
       studioData.loadMoreCatalogs,
       studioData.searchCatalogs
     ]
@@ -179,6 +181,7 @@ export const StartConfigPanel: React.FC<StartConfigPanelProps> = ({
               entities={studioData.entities}
               entitiesLoading={studioData.entitiesLoading}
               entitiesError={studioData.entitiesError}
+              loadEntities={studioData.loadEntities}
               title={t('config-form')}
               description="Configure the form that initiators fill out to start this flow."
               data-testid={`${testId}-form-builder`}

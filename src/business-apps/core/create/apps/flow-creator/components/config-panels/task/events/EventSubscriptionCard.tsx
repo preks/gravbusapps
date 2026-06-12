@@ -93,7 +93,8 @@ export const EventSubscriptionCard: React.FC<EventSubscriptionCardProps> = ({
       loadMoreCatalogs: studioData.loadMoreCatalogs,
       entities: studioData.entities,
       entitiesLoading: studioData.entitiesLoading,
-      entitiesError: studioData.entitiesError
+      entitiesError: studioData.entitiesError,
+      loadEntities: studioData.loadEntities
     }),
     [
       studioData.catalogs,
@@ -104,6 +105,7 @@ export const EventSubscriptionCard: React.FC<EventSubscriptionCardProps> = ({
       studioData.entities,
       studioData.entitiesError,
       studioData.entitiesLoading,
+      studioData.loadEntities,
       studioData.loadMoreCatalogs,
       studioData.searchCatalogs
     ]

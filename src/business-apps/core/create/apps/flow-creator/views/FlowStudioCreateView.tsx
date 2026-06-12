@@ -17,6 +17,8 @@ interface FlowStudioCreateViewProps extends Pick<BusinessAppContextProps, 'acces
   onCreateNewFlow: () => void
   /** Opens the designer with optional AI prompt pre-filled (e.g. from "Create with AI"). */
   onOpenDesignerWithAI?: (prompt: string) => void
+  /** Opens the designer with a graph constructed from the template definition. */
+  onCreateFromPattern?: (pattern: { name: string; description: string; steps: string[]; roles: string[] }) => void
   onTemplateCreated?: (templateId: string) => void
   'data-testid'?: string
 }
@@ -26,6 +28,7 @@ export const FlowStudioCreateView: React.FC<FlowStudioCreateViewProps> = ({
   userInfo,
   onCreateNewFlow,
   onOpenDesignerWithAI,
+  onCreateFromPattern,
   onTemplateCreated,
   'data-testid': testId = 'flow-studio-create-view'
 }) => {
@@ -45,9 +48,15 @@ export const FlowStudioCreateView: React.FC<FlowStudioCreateViewProps> = ({
     }
   }
 
-  const handleSubPatternSelect = () => {
-    useWizardStore.getState().initializeForCreate()
-    setWizardOpen(true)
+  const handleSubPatternSelect = (sub: { name: string; description: string; steps: string[]; roles: string[] }) => {
+    if (onCreateFromPattern) {
+      onCreateFromPattern(sub)
+    } else if (onOpenDesignerWithAI) {
+      onOpenDesignerWithAI(`${sub.name}: ${sub.description}`)
+    } else {
+      useWizardStore.getState().initializeForCreate()
+      setWizardOpen(true)
+    }
   }
 
   const handleWizardComplete = async (payload: { template?: unknown }) => {
@@ -192,12 +201,12 @@ export const FlowStudioCreateView: React.FC<FlowStudioCreateViewProps> = ({
                             className="gba:p-3 gba:rounded-lg gba:bg-background gba:border gba:border-border gba:cursor-pointer gba:transition-all gba:hover:border-primary/50"
                             onClick={e => {
                               e.stopPropagation()
-                              handleSubPatternSelect()
+                              handleSubPatternSelect(sub)
                             }}
                             onKeyDown={e => {
                               if (e.key === 'Enter') {
                                 e.stopPropagation()
-                                handleSubPatternSelect()
+                                handleSubPatternSelect(sub)
                               }
                             }}
                             role="button"

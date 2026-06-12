@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
   Combobox,
   Label,
@@ -45,12 +45,13 @@ export const EntitySourceSection: React.FC<{
   entities?: EntityOption[]
   entitiesLoading?: boolean
   entitiesError?: string | null
+  loadEntities?: () => Promise<void>
   showFieldMapping?: boolean
   sourceType: 'CUSTOM_ENTITY' | 'INTERNAL_ENTITY'
   index: number
   onChange: (updated: InputBlock) => void
   testId: string
-}> = ({ field, entities, entitiesLoading, entitiesError, sourceType, index, onChange, testId }) => {
+}> = ({ field, entities, entitiesLoading, entitiesError, loadEntities, sourceType, index, onChange, testId }) => {
   const [search, setSearch] = useState('')
   const entityTypeLabel = sourceType === 'INTERNAL_ENTITY' ? 'Internal entity type' : 'Custom entity type'
   const list = useMemo(
@@ -73,6 +74,10 @@ export const EntitySourceSection: React.FC<{
         : ''
       : ''
   const selectedType = getCurrentSelectionValue(field, sourceType)
+
+  useEffect(() => {
+    void loadEntities?.()
+  }, [loadEntities])
 
   const sortedEntities = useMemo(
     () => list.slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))),

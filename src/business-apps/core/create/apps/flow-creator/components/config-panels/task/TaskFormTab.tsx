@@ -39,6 +39,7 @@ export const TaskFormTab: React.FC<TaskFormTabProps> = ({
       entities={studioData.entities}
       entitiesLoading={studioData.entitiesLoading}
       entitiesError={studioData.entitiesError}
+      loadEntities={studioData.loadEntities}
       title={title}
       description="Define the fields that the assignee fills in when working on this task."
       data-testid={`${testId}-form-builder`}

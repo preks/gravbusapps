@@ -4,7 +4,7 @@
  * Centralizes data that multiple config panels need.
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import type { PromptODM } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import {
@@ -59,6 +59,7 @@ export interface FlowStudioData {
   entities: EntityOption[]
   entitiesLoading: boolean
   entitiesError: string | null
+  loadEntities: () => Promise<void>
 
   /** Load versions for a specific agent */
   loadAgentVersions: (agentId: string) => Promise<PromptODM[]>
@@ -263,17 +264,31 @@ export function useFlowStudioData(accessToken: string): FlowStudioData {
   const [entities, setEntities] = useState<EntityOption[]>([])
   const [entitiesLoading, setEntitiesLoading] = useState(false)
   const [entitiesError, setEntitiesError] = useState<string | null>(null)
+  const entitiesLoadedRef = useRef(false)
+  const entitiesRequestRef = useRef<Promise<void> | null>(null)
 
   useEffect(() => {
-    const fetchEntities = async () => {
-      if (!accessToken) {
-        setEntities([])
-        setEntitiesLoading(false)
-        return
-      }
+    entitiesLoadedRef.current = false
+    entitiesRequestRef.current = null
+    setEntities([])
+    setEntitiesError(null)
+    setEntitiesLoading(false)
+  }, [accessToken])
 
-      setEntitiesLoading(true)
-      setEntitiesError(null)
+  const loadEntities = useCallback(async () => {
+    if (!accessToken) {
+      setEntities([])
+      setEntitiesLoading(false)
+      return
+    }
+
+    if (entitiesLoadedRef.current) return
+    if (entitiesRequestRef.current) return entitiesRequestRef.current
+
+    setEntitiesLoading(true)
+    setEntitiesError(null)
+
+    const request = (async () => {
       try {
         const [customResult, internalResult] = await Promise.allSettled([
           fetchCustomEntityOptions(accessToken),
@@ -296,6 +311,7 @@ export function useFlowStudioData(accessToken: string): FlowStudioData {
           )
         )
         setEntitiesError(errors.length === 2 ? errors.join('; ') : null)
+        entitiesLoadedRef.current = true
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to load entities'
         console.error('Entities fetch failed:', message)
@@ -303,9 +319,12 @@ export function useFlowStudioData(accessToken: string): FlowStudioData {
         setEntitiesError(message)
       } finally {
         setEntitiesLoading(false)
+        entitiesRequestRef.current = null
       }
-    }
-    fetchEntities()
+    })()
+
+    entitiesRequestRef.current = request
+    return request
   }, [accessToken])
 
   return useMemo(
@@ -328,6 +347,7 @@ export function useFlowStudioData(accessToken: string): FlowStudioData {
       entities,
       entitiesLoading,
       entitiesError,
+      loadEntities,
       loadAgentVersions,
       loadAgentParameters,
       loadFunctionVersions
@@ -351,6 +371,7 @@ export function useFlowStudioData(accessToken: string): FlowStudioData {
       entities,
       entitiesLoading,
       entitiesError,
+      loadEntities,
       loadAgentVersions,
       loadAgentParameters,
       loadFunctionVersions

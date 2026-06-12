@@ -12,7 +12,7 @@ import type {
   FlowTrigger,
   FlowTriggerType
 } from '@/common/network/flows/FlowTemplateClient'
-import { AssignmentMode } from '@/common/data/flow/types/flowTemplate'
+import { AssignmentMode, FlowStepType } from '@/common/data/flow/types/flowTemplate'
 import type { FlowTags } from '@/business-apps/flow/types'
 import { END_ID, START_ID, normalizeGraph } from './graphStoreUtils'
 import { orderNodesForTemplate } from './studioStepOrder'
@@ -46,6 +46,55 @@ function normalizeInputType(value: unknown): string {
   if (raw === 'RADIO') return 'SELECT'
   if (raw === 'SIGNATURE') return 'FILE'
   return BACKEND_INPUT_TYPES.has(raw) ? raw : 'TEXT'
+}
+
+function normalizeTaskStepTypeForStudio(value: unknown): FlowStepType {
+  const raw = safeString(value).trim().toUpperCase()
+  if (raw === 'USER_TASK') return FlowStepType.TASK
+  if (raw === 'INFO') return FlowStepType.INFORMATION
+  if (raw in FlowStepType) return FlowStepType[raw as keyof typeof FlowStepType]
+  return FlowStepType.TASK
+}
+
+function normalizeAssignmentTargetsForStudio(targets: unknown): unknown {
+  if (!Array.isArray(targets)) return targets
+
+  const normalized: Record<string, string[]> = {}
+  const targetFieldByLegacyType: Record<string, string> = {
+    USER: 'users',
+    USERS: 'users',
+    ROLE: 'capabilities',
+    CAPABILITY: 'capabilities',
+    CAPABILITIES: 'capabilities',
+    DEPARTMENT: 'organizationalUnits',
+    ORGANIZATIONAL_UNIT: 'organizationalUnits',
+    COMPANY: 'companies',
+    COST_CENTER: 'costCenters',
+    MATRIX_TEAM: 'matrixTeams'
+  }
+
+  for (const target of targets) {
+    if (!target || typeof target !== 'object') continue
+    const raw = target as Record<string, unknown>
+    const type = safeString(raw.type || raw.kind)
+      .trim()
+      .toUpperCase()
+    const value = safeString(raw.value || raw.id || raw.key).trim()
+    const field = targetFieldByLegacyType[type] ?? 'capabilities'
+    if (!value) continue
+    normalized[field] = [...(normalized[field] ?? []), value]
+  }
+
+  return Object.keys(normalized).length > 0 ? normalized : null
+}
+
+function normalizeAssignmentForStudio(assignment: unknown): unknown {
+  if (!assignment || typeof assignment !== 'object') return assignment
+  const raw = assignment as Record<string, unknown>
+  return {
+    ...raw,
+    targets: normalizeAssignmentTargetsForStudio(raw.targets)
+  }
 }
 
 function normalizeInputOptions(options: unknown): Array<{ value: string; label: string }> | undefined {
@@ -274,7 +323,10 @@ export function studioGraphToTemplate(
         message: cfg.message,
         form: normalizeInputBlocks(cfg.form),
         links: Array.isArray(cfg.links) ? cfg.links : undefined,
-        assignment: cfg.assignment ?? { targets: null, assignmentMode: AssignmentMode.CLAIM },
+        assignment: normalizeAssignmentForStudio(cfg.assignment) ?? {
+          targets: null,
+          assignmentMode: AssignmentMode.CLAIM
+        },
         dueInMinutes: cfg.dueInMinutes,
         defaultPriority: cfg.defaultPriority,
         customStates: cfg.customStates,
@@ -533,6 +585,7 @@ export function templateToStudioGraph(template: FlowTemplate): {
     stepNodeIdByIndex.set(i, nodeId)
 
     const type = safeString(step.type || 'TASK')
+    const studioStepType = normalizeTaskStepTypeForStudio(type)
 
     if (type === 'DECISION') {
       const node: StudioNode = {
@@ -626,21 +679,28 @@ export function templateToStudioGraph(template: FlowTemplate): {
     }
 
     // Task-like node (includes system tasks)
+    const defaultKind =
+      ([FlowStepType.FUNCTION, FlowStepType.AI_AGENT, FlowStepType.AI_TASK_EXPERT] as string[]).includes(
+        studioStepType
+      ) || type === 'CUSTOM_DATA_MUTATION'
+        ? 'SYSTEM'
+        : 'USER'
     const node: StudioNode = {
       id: nodeId,
       type: 'task',
       label: safeString(step.title || `Step ${i + 1}`),
       config: {
         nodeType: 'task',
-        stepType: step.type,
-        kind:
-          step.kind ??
-          (['FUNCTION', 'AI_AGENT', 'AI_TASK_EXPERT', 'CUSTOM_DATA_MUTATION'].includes(type) ? 'SYSTEM' : 'USER'),
+        stepType: studioStepType,
+        kind: step.kind ?? defaultKind,
         title: step.title,
         message: step.message,
         form: step.form ?? [],
         links: Array.isArray(step.links) ? step.links : [],
-        assignment: step.assignment ?? { targets: null, assignmentMode: AssignmentMode.CLAIM },
+        assignment: normalizeAssignmentForStudio(step.assignment) ?? {
+          targets: null,
+          assignmentMode: AssignmentMode.CLAIM
+        },
         dueInMinutes: step.dueInMinutes,
         defaultPriority: step.defaultPriority,
         customStates: step.customStates,

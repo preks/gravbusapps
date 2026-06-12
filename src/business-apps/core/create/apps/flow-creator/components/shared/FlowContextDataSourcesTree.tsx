@@ -149,6 +149,11 @@ export const FlowContextDataSourcesTree: React.FC<FlowContextDataSourcesTreeProp
     return () => clearTimeout(handle)
   }, [dataSources.searchCatalogs, expanded, query])
 
+  useEffect(() => {
+    if (!expanded.has('root/entities') && !query.trim()) return
+    void dataSources.loadEntities()
+  }, [dataSources, expanded, query])
+
   const filteredEntities = useMemo(() => {
     const q = normalize(String(query || ''))
     const list = dataSources.entities ?? []

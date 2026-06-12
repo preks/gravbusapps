@@ -25,6 +25,7 @@ interface FormFieldOptionsSectionProps {
   entities?: EntityOption[]
   entitiesLoading?: boolean
   entitiesError?: string | null
+  loadEntities?: () => Promise<void>
   index: number
   mode: DesignerMode
   onChange: (updated: InputBlock) => void
@@ -47,6 +48,7 @@ export const FormFieldOptionsSection: React.FC<FormFieldOptionsSectionProps> = (
   entities,
   entitiesLoading,
   entitiesError,
+  loadEntities,
   index,
   mode,
   onChange,
@@ -206,6 +208,7 @@ export const FormFieldOptionsSection: React.FC<FormFieldOptionsSectionProps> = (
           entities={entities}
           entitiesLoading={entitiesLoading}
           entitiesError={entitiesError}
+          loadEntities={loadEntities}
           showFieldMapping={mode === 'advanced'}
           sourceType={source === 'internal_entity' ? 'INTERNAL_ENTITY' : 'CUSTOM_ENTITY'}
           index={index}

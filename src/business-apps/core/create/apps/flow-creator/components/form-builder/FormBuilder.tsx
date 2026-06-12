@@ -180,6 +180,7 @@ interface FormBuilderProps {
   entities?: EntityOption[]
   entitiesLoading?: boolean
   entitiesError?: string | null
+  loadEntities?: () => Promise<void>
   /** Label shown above the builder */
   title?: string
   /** Description shown below the title */
@@ -202,6 +203,7 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
   entities,
   entitiesLoading,
   entitiesError,
+  loadEntities,
   title = 'Form Fields',
   description,
   'data-testid': testId = 'form-builder'
@@ -348,6 +350,7 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
             entities={entities}
             entitiesLoading={entitiesLoading}
             entitiesError={entitiesError}
+            loadEntities={loadEntities}
             onChange={updated => updateField(index, updated)}
             onRemove={() => removeField(index)}
             onMoveUp={() => moveField(index, index - 1)}

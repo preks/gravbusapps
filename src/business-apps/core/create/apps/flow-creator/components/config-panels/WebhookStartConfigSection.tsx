@@ -228,6 +228,7 @@ export const WebhookStartConfigSection: React.FC<WebhookStartConfigSectionProps>
         entities={studioData.entities}
         entitiesLoading={studioData.entitiesLoading}
         entitiesError={studioData.entitiesError}
+        loadEntities={studioData.loadEntities}
         title={t('webhook-payload-schema')}
         description={t('webhook-payload-schema-desc')}
         data-testid={`${testId}-webhook-form-builder`}

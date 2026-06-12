@@ -21,6 +21,7 @@ import type { DesignerMode } from '../../types/studioTypes'
 import { FormFieldDefaultValueSection } from './FormFieldDefaultValueSection'
 import { NEUTRAL_SWITCH_CLASSNAME } from '../../utils/neutralSwitchClassName'
 import { FormFieldOptionsSection } from './FormFieldOptionsSection'
+import type { EntityOption } from '../../hooks/useFlowStudioData'
 
 /** Field types available in simple mode */
 const SIMPLE_TYPES = [
@@ -72,9 +73,10 @@ interface FormFieldEditorProps {
   catalogsHasMore?: boolean
   searchCatalogs?: (query: string) => Promise<void>
   loadMoreCatalogs?: () => Promise<void>
-  entities?: Array<{ type: string; name: string; fields: string[] }>
+  entities?: EntityOption[]
   entitiesLoading?: boolean
   entitiesError?: string | null
+  loadEntities?: () => Promise<void>
   onChange: (updated: InputBlock) => void
   onRemove: () => void
   onMoveUp: () => void
@@ -97,6 +99,7 @@ export const FormFieldEditor: React.FC<FormFieldEditorProps> = ({
   entities,
   entitiesLoading,
   entitiesError,
+  loadEntities,
   onChange,
   onRemove,
   onMoveUp,
@@ -123,7 +126,8 @@ export const FormFieldEditor: React.FC<FormFieldEditorProps> = ({
     loadMoreCatalogs: loadMoreCatalogs ?? (async () => {}),
     entities: entities ?? [],
     entitiesLoading: Boolean(entitiesLoading),
-    entitiesError: entitiesError ?? null
+    entitiesError: entitiesError ?? null,
+    loadEntities: loadEntities ?? (async () => {})
   }
 
   const addOption = () => {
@@ -264,6 +268,7 @@ export const FormFieldEditor: React.FC<FormFieldEditorProps> = ({
           entities={entities}
           entitiesLoading={entitiesLoading}
           entitiesError={entitiesError}
+          loadEntities={loadEntities}
           index={index}
           mode={mode}
           onChange={onChange}
