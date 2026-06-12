@@ -96,6 +96,15 @@ const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }) => {
     []
   )
 
+  const documentPrivacyActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.investmentFolderPrivacy],
+      buildExternalContextData: (document: any) => ({ documentId: document.id }),
+      prefixDataTestId: 'account-document-privacy'
+    }),
+    []
+  )
+
   return (
     <DocumentSection
       entityId={accountId}
@@ -109,6 +118,7 @@ const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }) => {
       uploadActionProps={documentUploadActionProps}
       updateActionProps={documentUpdateActionProps}
       deleteActionProps={documentDeleteActionProps}
+      privacyActionProps={documentPrivacyActionProps}
       aiOrganizeConfig={{ moduleType: 'IRM', entityType: 'ACCOUNT', domain: 'investment' }}
       toolbarActions={uploadToolbarActions}
       data-testid="account-document-section"

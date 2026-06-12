@@ -22,6 +22,11 @@ document-folder-name-placeholder = Introdu numele dosarului...
 document-folder-parent-label = Dosar Părinte
 document-folder-parent-placeholder = Selectează dosarul părinte...
 document-folder-root = Nivel Rădăcină
+document-folder-manage-privacy = Gestionează confidențialitatea dosarului
+document-folder-roles-label = Roluri curente
+document-folder-roles-none = Nicio rol atribuit
+document-folder-add-role-label = Adaugă rol
+document-folder-add-role-placeholder = Tastează pentru a căuta...
 
 # Drop Zones
 document-drop-root-active = Eliberează pentru a muta la nivel rădăcină
@@ -58,6 +63,7 @@ document-dialog-creating-root = Se creează dosarul la nivel rădăcină
 
 # Common Actions
 common-cancel = Anulează
+common-save = Salvează
 document-action-confirm = Confirmă
 document-action-confirm-title = Confirmă { $action }
 document-action-delete = Șterge
@@ -65,6 +71,7 @@ document-action-download = Descarcă
 document-action-retry = Reîncearcă
 document-action-upload = Încarcă
 document-action-update = Actualizează
+document-action-privacy = Confidențialitate
 
 # Error States
 document-error-loading-title = Eroare la Încărcarea Documentelor

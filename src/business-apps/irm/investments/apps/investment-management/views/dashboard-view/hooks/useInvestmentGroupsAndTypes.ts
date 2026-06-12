@@ -54,6 +54,11 @@ const GET_INVESTMENT_GROUPS_AND_TYPES = `
       displayOrder
       parentEntryId
     }
+    
+    # Get investment group permissions to determine which groups are allowed
+    investmentGroupPermissions: InvestmentGroupPermission {
+      investmentGroupRef
+    }
   }
 `
 
@@ -78,10 +83,18 @@ export const useInvestmentGroupsAndTypes = (accessToken: string) => {
       setIsLoading(true)
       setError(null)
 
+      // Process investment groups directly from catalog
       const result = await graphqlClient.request(GET_INVESTMENT_GROUPS_AND_TYPES)
 
-      // Process investment groups directly from catalog
+      // Compute permitted group set from permissions
+      const investmentGroupPermissionMap: Record<string, boolean> = {}
+      ;(result.investmentGroupPermissions || []).forEach((p: any) => {
+        investmentGroupPermissionMap[p?.investmentGroupRef] = true
+      })
+
+      // Process and filter investment groups directly from catalog
       const groups: InvestmentGroup[] = (result.investmentGroups || [])
+        .filter((g: any) => !!investmentGroupPermissionMap[g.id])
         .map((group: any) => ({
           id: group.id,
           code: group.code,
@@ -92,6 +105,7 @@ export const useInvestmentGroupsAndTypes = (accessToken: string) => {
         .sort((a: InvestmentGroup, b: InvestmentGroup) => a.displayOrder - b.displayOrder)
 
       // Process investment types and group them by parent
+      // Process investment types and filter to permitted parent groups only
       const allTypes: InvestmentType[] = (result.investmentTypes || [])
         .map((type: any) => ({
           id: type.id,
@@ -106,7 +120,7 @@ export const useInvestmentGroupsAndTypes = (accessToken: string) => {
       const typesByGroup: Record<string, InvestmentType[]> = {}
 
       allTypes.forEach(type => {
-        if (type.parentGroupId) {
+        if (type.parentGroupId && !!investmentGroupPermissionMap[type.parentGroupId]) {
           if (!typesByGroup[type.parentGroupId]) {
             typesByGroup[type.parentGroupId] = []
           }

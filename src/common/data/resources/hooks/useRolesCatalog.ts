@@ -18,11 +18,18 @@ export interface UseRolesCatalogResult {
   totalCount: number
 }
 
+export interface UseRolesCatalogOptions {
+  includeRoles?: 'ALL' | 'BASE' | 'STANDARD'
+}
+
 /**
  * Hook to fetch roles/groups from User Management Service
  * (Not from catalog - roles come from user-management service)
  */
-export const useRolesCatalog = (context: BusinessAppContextProps): UseRolesCatalogResult => {
+export const useRolesCatalog = (
+  context: BusinessAppContextProps,
+  options?: UseRolesCatalogOptions
+): UseRolesCatalogResult => {
   const resourceClient = useResourceClient(context.accessToken)
   const [roles, setRoles] = useState<RoleOption[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -61,16 +68,17 @@ export const useRolesCatalog = (context: BusinessAppContextProps): UseRolesCatal
         const response = await resourceClient.action.getRoles({
           limit: 50,
           offset: append ? currentOffsetRef.current : 0,
-          name: searchToUse || undefined
+          name: searchToUse || undefined,
+          includeRoles: options?.includeRoles
         })
 
         const rolesData = response.data || []
-        const processedRoles = rolesData
+        const processedRoles = (rolesData as any[])
           .map((role: any) => ({
             id: role.id || role.code || role.name,
             name: role.name || role.code || role.id
           }))
-          .toSorted((a, b) => a.name.localeCompare(b.name))
+          .sort((a: RoleOption, b: RoleOption) => a.name.localeCompare(b.name))
 
         if (append) {
           setRoles(prev => [...prev, ...processedRoles])

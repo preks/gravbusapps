@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
   ActionMenu,
-  useTranslation
+  useTranslation,
 } from '@newwork/nw-design-system'
 import { FolderNotchIcon, DownloadSimpleIcon, EyeIcon } from '@phosphor-icons/react'
 import { DocumentItem, ConfirmationModalState, NewFolderDialogState } from '../types'
@@ -60,6 +60,11 @@ interface DocumentSectionModalsProps {
     buildExternalContextData: (document: DocumentItem) => Record<string, any>
     prefixDataTestId: string
   }
+  readonly privacyActionProps?: {
+    contextsArray: any[]
+    buildExternalContextData: (document: DocumentItem) => Record<string, any>
+    prefixDataTestId: string
+  }
   readonly accessToken?: string
 }
 
@@ -82,11 +87,13 @@ export function DocumentSectionModals({
   customMenuActions,
   updateActionProps,
   deleteActionProps,
+  privacyActionProps,
   accessToken
 }: DocumentSectionModalsProps) {
   const { t } = useTranslation(translations)
   const updateActionLabel = t('document-action-update')
   const deleteActionLabel = t('document-action-delete')
+  const privacyActionLabel = t('document-action-privacy')
 
   // Get update action data from flow registry
   const updateActionData = useAppActionData(
@@ -124,6 +131,25 @@ export function DocumentSectionModals({
           prefixDataTestId: 'document-delete'
         },
     deleteActionLabel
+  )
+
+  // Get privacy action data from flow registry (permission gating only)
+  const privacyActionData = useAppActionData(
+    privacyActionProps && selectedDocument && accessToken
+      ? {
+          contextsArray: privacyActionProps.contextsArray,
+          externalContextData: privacyActionProps.buildExternalContextData(selectedDocument),
+          accessToken,
+          deferMainContextRequestsUntilClick: false,
+          prefixDataTestId: `${privacyActionProps.prefixDataTestId}-${selectedDocument?.id}`
+        }
+      : {
+          contextsArray: [],
+          accessToken: accessToken || '',
+          deferMainContextRequestsUntilClick: false,
+          prefixDataTestId: 'document-privacy'
+        },
+    privacyActionLabel
   )
 
   // Build complete menu actions: custom actions + update + delete
@@ -177,14 +203,33 @@ export function DocumentSectionModals({
       })
     }
 
+    // Add folder privacy actions from flow registry (only for folders)
+    if (selectedDocument?.folder && privacyActionData?.combinedData && privacyActionData.combinedData.length > 0) {
+      privacyActionData.combinedData.forEach(action => {
+        if (action?.onClick) {
+          actions.push({
+            key: `privacy-${actions.length}`,
+            label: action.label || privacyActionLabel,
+            icon: action.icon,
+            onClick: () => {
+              setMenuOpen(false)
+              action.onClick?.()
+            }
+          })
+        }
+      })
+    }
+
     return actions
   }, [
     customMenuActions,
     updateActionData?.combinedData,
     deleteActionData?.combinedData,
+    privacyActionData?.combinedData,
     setMenuOpen,
     updateActionLabel,
-    deleteActionLabel
+    deleteActionLabel,
+    privacyActionLabel
   ])
 
   return (

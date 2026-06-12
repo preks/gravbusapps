@@ -108,6 +108,15 @@ const InvestmentDocuments: React.FC<InvestmentDocumentsProps> = ({
     []
   )
 
+  const documentPrivacyActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.investmentFolderPrivacy],
+      buildExternalContextData: (document: any) => ({ documentId: document.id }),
+      prefixDataTestId: 'investment-portal-document-privacy'
+    }),
+    []
+  )
+
   return (
     <DocumentSection
       entityId={investmentId}
@@ -121,6 +130,7 @@ const InvestmentDocuments: React.FC<InvestmentDocumentsProps> = ({
       uploadActionProps={documentUploadActionProps}
       updateActionProps={documentUpdateActionProps}
       deleteActionProps={documentDeleteActionProps}
+      privacyActionProps={documentPrivacyActionProps}
       aiOrganizeConfig={{
         moduleType: 'IRM',
         entityType: 'INVESTMENT',

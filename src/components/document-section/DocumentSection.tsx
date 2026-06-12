@@ -17,6 +17,7 @@ import { DocumentSectionModals } from './components/DocumentSectionModals'
 import { useDocumentOrganize } from './hooks/useDocumentOrganize'
 import { useDocumentSorting } from './hooks/useDocumentSorting'
 import { OrganizeWithAiDialog } from './components/OrganizeWithAiDialog'
+import { useFolderPrivacy } from './hooks/useFolderPrivacy'
 import translations from './_i18n'
 
 export const DocumentSection: React.FC<DocumentSectionProps> = ({
@@ -42,6 +43,7 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
   downloadActionProps,
   updateActionProps,
   deleteActionProps,
+  privacyActionProps,
   accessToken,
   aiOrganizeConfig,
   'data-testid': dataTestId = 'document-section'
@@ -150,12 +152,17 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
     setConfirmationModal: state.setConfirmationModal
   })
 
+  // Initialize folder privacy dialog state (roles read from selected document)
+  const privacy = useFolderPrivacy()
+
+  // Initialize menu
   const menu = useDocumentMenu({
     selectedDocument: state.selectedDocument,
     setSelectedDocument: state.setSelectedDocument,
     downloadActionProps,
     updateActionProps,
     deleteActionProps,
+    privacyActionProps,
     customActions,
     accessToken,
     apiConfig,
@@ -307,7 +314,22 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
           customMenuActions={menu.customMenuActions}
           updateActionProps={updateActionProps}
           deleteActionProps={deleteActionProps}
+          privacyActionProps={privacyActionProps}
           accessToken={accessToken}
+          // Folder privacy dialog
+          privacyDialog={{
+            open: privacy.dialog.open,
+            folderName: privacy.dialog.folderName,
+            documentId: privacy.dialog.documentId,
+            documentVersion: privacy.dialog.documentVersion,
+            roles: privacy.dialog.roles,
+            loading: privacy.dialog.loading,
+            saving: privacy.dialog.saving,
+            onPrivacyClose: () => privacy.dialog.setOpen(false),
+            onPrivacyAddRole: privacy.addRole,
+            onPrivacyRemoveRole: privacy.removeRole,
+            onPrivacySave: privacy.save
+          }}
         />
       </div>
 

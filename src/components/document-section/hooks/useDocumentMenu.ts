@@ -22,6 +22,11 @@ interface UseDocumentMenuProps {
     buildExternalContextData: (document: DocumentItem) => Record<string, any>
     prefixDataTestId: string
   }
+  privacyActionProps?: {
+    contextsArray: any[]
+    buildExternalContextData: (document: DocumentItem) => Record<string, any>
+    prefixDataTestId: string
+  }
   customActions?: Array<{
     key: string
     label: string | ((document: DocumentItem) => string)
@@ -53,6 +58,7 @@ export function useDocumentMenu({
   downloadActionProps,
   updateActionProps,
   deleteActionProps,
+  privacyActionProps,
   customActions = [],
   accessToken,
   apiConfig,
@@ -119,6 +125,8 @@ export function useDocumentMenu({
 
     // NOTE: Update and delete actions are now rendered using useAppActionData hooks
     // in DocumentSectionModals.tsx, not as plain menu items here
+
+    // Note: Manage Folder Privacy is now provided via Flow actions only.
 
     // Add custom actions from configuration (deprecated but still supported for backward compatibility)
     if (customActions && customActions.length > 0 && accessToken && apiConfig) {
@@ -190,6 +198,7 @@ export function useDocumentMenu({
     // Pass through props for AppActionMenu rendering
     updateActionProps,
     deleteActionProps,
+    privacyActionProps,
     accessToken
   }
 }

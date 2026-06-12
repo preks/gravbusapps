@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useCatalogEntries } from '@/common/data/catalog/hooks/useCatalogEntries'
+import { useInvestmentGroupPermissions } from './useInvestmentGroupPermissions'
 import type { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
 import type { FormFieldsDefinition } from '@/common/data/investment/hooks/useInvestmentCatalogs'
 import type { RequiredSubtypeKey } from '@/business-apps/irm/core/apps/investment-settings/pages/investment-data/types'
@@ -68,6 +69,7 @@ const toInvestmentCatalogEntry = (entry: CatalogEntry): InvestmentCatalogEntry =
  */
 export const useInvestmentGroups = (accessToken: string) => {
   const { fetchCatalogEntriesByIdentifier } = useCatalogEntries({ accessToken })
+  const { fetchInvestmentGroupPermissionsMap } = useInvestmentGroupPermissions(accessToken)
   const [catalogData, setCatalogData] = useState<InvestmentListCatalogData>({
     investmentGroups: [],
     investmentTypes: [],
@@ -86,6 +88,7 @@ export const useInvestmentGroups = (accessToken: string) => {
       try {
         setIsLoading(true)
         setError(null)
+        const permsMap = await fetchInvestmentGroupPermissionsMap()
         const [groupsResult, typesResult, liquidFundTypesResult] = await Promise.all([
           fetchCatalogEntriesByIdentifier('InvestmentGroup', { limit: 1000 }),
           fetchCatalogEntriesByIdentifier('InvestmentType', { includeParentCatalogEntry: true, limit: 1000 }),
@@ -93,7 +96,9 @@ export const useInvestmentGroups = (accessToken: string) => {
         ])
 
         setCatalogData({
-          investmentGroups: (groupsResult.entries || []).map(toInvestmentCatalogEntry),
+          investmentGroups: (groupsResult.entries || [])
+            .filter(entry => permsMap[entry.id])
+            .map(toInvestmentCatalogEntry),
           investmentTypes: (typesResult.entries || []).map(toInvestmentCatalogEntry),
           investmentLiquidFundTypes: (liquidFundTypesResult.entries || []).map(toInvestmentCatalogEntry)
         })
@@ -106,7 +111,7 @@ export const useInvestmentGroups = (accessToken: string) => {
     }
 
     loadGroups()
-  }, [accessToken, fetchCatalogEntriesByIdentifier])
+  }, [accessToken, fetchCatalogEntriesByIdentifier, fetchInvestmentGroupPermissionsMap])
 
   const investmentGroups = useMemo<InvestmentGroup[]>(() => {
     if (catalogData.investmentGroups.length === 0) return []

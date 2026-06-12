@@ -22,6 +22,11 @@ document-folder-name-placeholder = Ordnername eingeben...
 document-folder-parent-label = Übergeordneter Ordner
 document-folder-parent-placeholder = Übergeordneten Ordner auswählen...
 document-folder-root = Stammebene
+document-folder-manage-privacy = Ordnerberechtigungen verwalten
+document-folder-roles-label = Aktuelle Rollen
+document-folder-roles-none = Keine Rollen zugewiesen
+document-folder-add-role-label = Rolle hinzufügen
+document-folder-add-role-placeholder = Zum Suchen tippen...
 
 # Drop Zones
 document-drop-root-active = Loslassen, um zur Stammebene zu verschieben
@@ -58,6 +63,7 @@ document-dialog-creating-root = Ordner wird auf Stammebene erstellt
 
 # Common Actions
 common-cancel = Abbrechen
+common-save = Speichern
 document-action-confirm = Bestätigen
 document-action-confirm-title = { $action } bestätigen
 document-action-delete = Löschen
@@ -65,6 +71,7 @@ document-action-download = Herunterladen
 document-action-retry = Erneut versuchen
 document-action-upload = Hochladen
 document-action-update = Aktualisieren
+document-action-privacy = Datenschutz
 
 # Error States
 document-error-loading-title = Fehler beim Laden der Dokumente

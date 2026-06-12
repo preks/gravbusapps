@@ -44,6 +44,8 @@ export interface DocumentItem {
   authenticationDate?: string | null
   mandatory?: boolean
   version?: number
+  // Optional security roles for folder privacy
+  securityRoles?: string[]
 }
 
 export interface DocumentSectionProps extends BusinessAppContextProps {
@@ -125,6 +127,11 @@ export interface DocumentSectionProps extends BusinessAppContextProps {
     buildExternalContextData: (document: DocumentItem) => Record<string, any>
     prefixDataTestId: string
   }
+  privacyActionProps?: {
+    contextsArray: FlowContextName[]
+    buildExternalContextData: (document: DocumentItem) => Record<string, any>
+    prefixDataTestId: string
+  }
   aiOrganizeConfig?: AiOrganizeConfig
   'data-testid'?: string
 }
@@ -151,6 +158,8 @@ export interface NewFolderDialogState {
   open: boolean
   parentId: string | null
   parentName?: string
+  // Optional security roles for folder privacy (comma-separated UI, stored as list here)
+  securityRoles?: string[]
 }
 
 // REST Client interface

@@ -22,6 +22,11 @@ document-folder-name-placeholder = Enter folder name...
 document-folder-parent-label = Parent Folder
 document-folder-parent-placeholder = Select parent folder...
 document-folder-root = Root Level
+document-folder-manage-privacy = Manage Folder Privacy
+document-folder-roles-label = Current Roles
+document-folder-roles-none = No roles assigned
+document-folder-add-role-label = Add Role
+document-folder-add-role-placeholder = Type to search...
 
 # Drop Zones
 document-drop-root-active = Release to move to root level
@@ -58,6 +63,7 @@ document-dialog-creating-root = Creating folder at root level
 
 # Common Actions
 common-cancel = Cancel
+common-save = Save
 document-action-confirm = Confirm
 document-action-confirm-title = Confirm { $action }
 document-action-delete = Delete
@@ -65,6 +71,7 @@ document-action-download = Download
 document-action-retry = Retry
 document-action-upload = Upload
 document-action-update = Update
+document-action-privacy = Privacy
 
 # Error States
 document-error-loading-title = Error Loading Documents

@@ -1,20 +1,35 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { PageLayout, Button, ButtonGroup, DataTable } from '@newwork/nw-design-system'
-import type { ColumnDef } from '@tanstack/react-table'
-import { ShieldCheckIcon } from '@phosphor-icons/react'
+import {
+  PageLayout,
+  Button,
+  Card,
+  EmptyState,
+  Alert,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  Badge,
+  Combobox
+} from '@newwork/nw-design-system'
+import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
+import { ShieldCheckIcon, FolderIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from '@phosphor-icons/react'
 import { useInvestmentGroupPermissions } from '../../hooks'
 import { useRolesCatalog } from '@/common/data/resources/hooks/useRolesCatalog'
-import { EditableComboboxCell } from '@/components/editable-cell'
-import { Save, X, Trash, Columns3 } from 'lucide-react'
 
 export interface InvestmentGroupPermissionsPageProps extends BusinessAppContextProps {
   className?: string
   prefixDataTestId?: string
   onBack?: () => void
 }
-
-type BucketKey = 'adminRoles' | 'viewerRoles' | 'managerRelationsRoles' | 'managerManagementRoles'
 
 const InvestmentGroupPermissionsPage: React.FC<InvestmentGroupPermissionsPageProps> = ({
   className,
@@ -24,152 +39,158 @@ const InvestmentGroupPermissionsPage: React.FC<InvestmentGroupPermissionsPagePro
 }) => {
   const testId = (s: string) => `${prefixDataTestId}-${s}`
 
-  const {
-    groups,
-    groupsLoading,
-    groupsError,
-    error,
-    fetchGroups,
-    savePermission,
-    deletePermission,
-    permissionsByGroup
-  } = useInvestmentGroupPermissions(context)
+  const { groups, groupsLoading, groupsError, error, fetchGroups, savePermission, permissionsByGroup } =
+    useInvestmentGroupPermissions(context)
 
-  // Local edits per groupRef for grid editing
-  const [edits, setEdits] = useState<
-    Record<
-      string,
-      {
-        adminRoles: string[]
-        viewerRoles: string[]
-        managerRelationsRoles: string[]
-        managerManagementRoles: string[]
-      }
-    >
-  >({})
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
+  const [groupSearchTerm, setGroupSearchTerm] = useState('')
+  const [roleSearchTerm, setRoleSearchTerm] = useState('')
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [dialogMode, setDialogMode] = useState<'add' | 'edit'>('add')
+  const [editingIndex, setEditingIndex] = useState<number | null>(null)
+  const [tempRoles, setTempRoles] = useState<string[] | string>([])
+  const [pickerValue, setPickerValue] = useState<string>('')
 
-  const rolesCatalog = useRolesCatalog(context)
+  const rolesCatalog = useRolesCatalog(context, { includeRoles: 'STANDARD' })
+
+  // Infinite load configuration for the Add Roles combobox
+  const TARGET_VISIBLE_OPTIONS = 50
+  const MAX_EXTRA_LOADS = 5
 
   useEffect(() => {
     fetchGroups()
   }, [fetchGroups])
 
-  // Helpers to read/write bucket values for a given group
-  const getBucketValue = useCallback(
-    (groupRef: string, bucket: BucketKey): string[] => {
-      const fromEdit = edits[groupRef]?.[bucket]
-      if (fromEdit) return fromEdit
+  const getSecurityRoles = useCallback(
+    (groupRef: string): string[] => {
       const baseline = permissionsByGroup[groupRef]
-      return baseline?.[bucket] ?? []
+      return baseline?.securityRoles ?? []
     },
-    [edits, permissionsByGroup]
+    [permissionsByGroup]
   )
 
-  const setBucketValue = useCallback(
-    (groupRef: string, bucket: BucketKey, next: string[]) => {
-      setEdits(prev => {
-        const current = {
-          adminRoles: prev[groupRef]?.adminRoles ?? getBucketValue(groupRef, 'adminRoles'),
-          viewerRoles: prev[groupRef]?.viewerRoles ?? getBucketValue(groupRef, 'viewerRoles'),
-          managerRelationsRoles:
-            prev[groupRef]?.managerRelationsRoles ?? getBucketValue(groupRef, 'managerRelationsRoles'),
-          managerManagementRoles:
-            prev[groupRef]?.managerManagementRoles ?? getBucketValue(groupRef, 'managerManagementRoles')
-        }
-        return { ...prev, [groupRef]: { ...current, [bucket]: next } }
-      })
-    },
-    [getBucketValue]
-  )
-
-  const arraysEqual = useCallback((a: string[] = [], b: string[] = []) => JSON.stringify(a) === JSON.stringify(b), [])
-
-  const isRowDirty = useCallback(
-    (groupRef: string) => {
+  // Helpers to persist roles and manage dialog
+  const persistRoles = useCallback(
+    async (groupRef: string, roles: string[]) => {
       const base = permissionsByGroup[groupRef]
-      return (
-        !arraysEqual(getBucketValue(groupRef, 'adminRoles'), base?.adminRoles || []) ||
-        !arraysEqual(getBucketValue(groupRef, 'viewerRoles'), base?.viewerRoles || []) ||
-        !arraysEqual(getBucketValue(groupRef, 'managerRelationsRoles'), base?.managerRelationsRoles || []) ||
-        !arraysEqual(getBucketValue(groupRef, 'managerManagementRoles'), base?.managerManagementRoles || [])
-      )
-    },
-    [getBucketValue, permissionsByGroup]
-  )
-
-  const hasAnyRoles = useCallback(
-    (groupRef: string) => {
-      const buckets: BucketKey[] = ['adminRoles', 'viewerRoles', 'managerRelationsRoles', 'managerManagementRoles']
-      return buckets.some(b => getBucketValue(groupRef, b).length > 0)
-    },
-    [getBucketValue]
-  )
-
-  // Hidden columns controller: Admin/Viewer hidden by default
-  const [showAdminCol, setShowAdminCol] = useState(false)
-  const [showViewerCol, setShowViewerCol] = useState(false)
-  const [pickerOpen, setPickerOpen] = useState(false)
-
-  const onSaveRow = useCallback(
-    async (groupRef: string) => {
-      const base = permissionsByGroup[groupRef]
-      // Convert any selected role IDs to role names for payload compatibility
       const localMap = new Map(roleOptionsRef.current.map(o => [o.id, o.name]))
       const toNames = (arr: string[] = []) => arr.map(v => roleNameByIdRef.current.get(v) ?? localMap.get(v) ?? v)
       await savePermission({
         id: base?.id,
         version: base?.version,
         investmentGroupRef: groupRef,
-        adminRoles: toNames(getBucketValue(groupRef, 'adminRoles')),
-        viewerRoles: toNames(getBucketValue(groupRef, 'viewerRoles')),
-        managerRelationsRoles: toNames(getBucketValue(groupRef, 'managerRelationsRoles')),
-        managerManagementRoles: toNames(getBucketValue(groupRef, 'managerManagementRoles'))
-      })
-      // Clear local edits for this row after successful save
-      setEdits(prev => {
-        const rest = { ...prev }
-        delete rest[groupRef]
-        return rest
+        securityRoles: toNames(roles)
       })
     },
-    [getBucketValue, permissionsByGroup, savePermission]
+    [permissionsByGroup, savePermission]
   )
 
-  const onDeleteRow = useCallback(
-    async (groupRef: string) => {
-      const base = permissionsByGroup[groupRef]
-      if (!base?.id) return
-      await deletePermission({ id: base.id, version: base.version, investmentGroupRef: groupRef })
-      setEdits(prev => {
-        const rest = { ...prev }
-        delete rest[groupRef]
-        return rest
-      })
+  const onDeleteRole = useCallback(
+    async (groupRef: string, index: number) => {
+      const current = getSecurityRoles(groupRef)
+      const next = current.filter((_, i) => i !== index)
+      await persistRoles(groupRef, next)
     },
-    [deletePermission, permissionsByGroup]
+    [getSecurityRoles, persistRoles]
   )
 
-  const onResetRow = useCallback((groupRef: string) => {
-    setEdits(prev => {
-      const rest = { ...prev }
-      delete rest[groupRef]
-      return rest
+  const openAddDialog = useCallback(() => {
+    setDialogMode('add')
+    setEditingIndex(null)
+    setTempRoles([])
+    setIsDialogOpen(true)
+    // Seed options to ensure chip labels resolve to role names immediately
+    if (typeof rolesOnSearchRef.current === 'function') {
+      rolesOnSearchRef.current('')
+    }
+  }, [])
+
+  const openEditDialog = useCallback(
+    (index: number, groupRef: string) => {
+      setDialogMode('edit')
+      setEditingIndex(index)
+      const current = getSecurityRoles(groupRef)
+      setTempRoles(current[index] ?? '')
+      setIsDialogOpen(true)
+      // Seed options so the single-select label resolves quickly
+      if (typeof rolesOnSearchRef.current === 'function') {
+        rolesOnSearchRef.current('')
+      }
+    },
+    [getSecurityRoles]
+  )
+
+  const closeDialog = useCallback(() => {
+    setIsDialogOpen(false)
+    setTempRoles([])
+    setEditingIndex(null)
+  }, [])
+
+  const toRoleDisplay = useCallback((val: string): string => {
+    const localMap = new Map(roleOptionsRef.current.map(o => [o.id, o.name]))
+    return roleNameByIdRef.current.get(val) ?? localMap.get(val) ?? val
+  }, [])
+
+  const addTempRole = useCallback((val: string) => {
+    if (!val) return
+    setTempRoles(prev => {
+      const list = Array.isArray(prev) ? prev.slice() : []
+      if (!list.includes(val)) list.push(val)
+      return list
     })
   }, [])
 
-  // Build DataTable rows and columns
-  type GridRow = { id: string; groupRef: string; groupLabel: string }
+  const removeTempRole = useCallback((idx: number) => {
+    setTempRoles(prev => {
+      const list = Array.isArray(prev) ? prev.slice() : []
+      return list.filter((_, i) => i !== idx)
+    })
+  }, [])
 
-  const rows: GridRow[] = useMemo(
+  const onDialogSave = useCallback(async () => {
+    if (!selectedGroupId) return
+    const base = getSecurityRoles(selectedGroupId)
+    let next: string[] = []
+    if (dialogMode === 'add') {
+      const addList = Array.isArray(tempRoles) ? tempRoles : [tempRoles].filter(Boolean)
+      next = Array.from(new Set([...base, ...addList]))
+    } else {
+      const replacement = Array.isArray(tempRoles) ? tempRoles[0] : tempRoles
+      next = base.map((r, i) => (i === (editingIndex ?? -1) ? replacement || r : r))
+    }
+    await persistRoles(selectedGroupId, next)
+    closeDialog()
+  }, [closeDialog, dialogMode, editingIndex, getSecurityRoles, persistRoles, selectedGroupId, tempRoles])
+
+  // Build sidebar items
+  const groupItems = useMemo(
     () =>
       (groups || []).map((g: { id: string; value?: string; code?: string }) => ({
         id: g.id,
-        groupRef: g.id,
-        groupLabel: `${g.value || g.code || g.id}`
+        label: g.value || g.code || g.id,
+        code: g.code || '',
+        value: g.value || ''
       })),
-    // Re-render after save/delete via permissionsByGroup without tying to roles search lifecycle
-    [groups, permissionsByGroup]
+    [groups]
   )
+
+  const filteredGroupItems = useMemo(() => {
+    const term = groupSearchTerm.trim().toLowerCase()
+    if (!term) return groupItems
+    return groupItems.filter(
+      g =>
+        g.label.toLowerCase().includes(term) ||
+        g.code.toLowerCase().includes(term) ||
+        g.value.toLowerCase().includes(term)
+    )
+  }, [groupItems, groupSearchTerm])
+
+  // Auto-select first group when available
+  useEffect(() => {
+    if (!selectedGroupId && filteredGroupItems.length > 0) {
+      setSelectedGroupId(filteredGroupItems[0].id)
+    }
+  }, [filteredGroupItems, selectedGroupId])
 
   const roleOptions = useMemo(() => rolesCatalog.roles.map(r => ({ id: r.id, name: r.name })), [rolesCatalog.roles])
 
@@ -179,12 +200,8 @@ const InvestmentGroupPermissionsPage: React.FC<InvestmentGroupPermissionsPagePro
   const rolesHasMoreRef = useRef(rolesCatalog.hasMore)
   const rolesOnSearchRef = useRef(rolesCatalog.onSearch)
   const rolesLoadMoreRef = useRef(rolesCatalog.loadMore)
-  const rolesRefetchRef = useRef(rolesCatalog.refetch)
-  const rolesErrorRef = useRef(rolesCatalog.error)
   // Accumulate a stable id->name cache across searches for reliable save mapping
   const roleNameByIdRef = useRef(new Map<string, string>())
-
-  type CellCtx = { row: { original: GridRow } }
 
   // Keep refs in sync synchronously so cells see latest data during render
   roleOptionsRef.current = roleOptions
@@ -200,241 +217,326 @@ const InvestmentGroupPermissionsPage: React.FC<InvestmentGroupPermissionsPagePro
   rolesHasMoreRef.current = rolesCatalog.hasMore
   rolesOnSearchRef.current = rolesCatalog.onSearch
   rolesLoadMoreRef.current = rolesCatalog.loadMore
-  rolesRefetchRef.current = rolesCatalog.refetch
-  rolesErrorRef.current = rolesCatalog.error
 
-  // Common renderer for role bucket cells to avoid duplication
-  const renderBucketCell = useCallback(
-    (row: GridRow, bucket: BucketKey, key: BucketKey) => (
-      <EditableComboboxCell
-        value={getBucketValue(row.groupRef, bucket)}
-        onChange={(next: string[] | string) => {
-          rolesOnSearchRef.current('')
-          setBucketValue(row.groupRef, bucket, (next as string[]) || [])
-        }}
-        options={roleOptionsRef.current}
-        isLoading={rolesIsLoadingRef.current}
-        onSearch={rolesOnSearchRef.current}
-        onLoadMore={rolesLoadMoreRef.current}
-        hasMore={rolesHasMoreRef.current}
-        placeholder="Select roles..."
-        mode="multiple"
-        isEdited={!arraysEqual(getBucketValue(row.groupRef, bucket), permissionsByGroup[row.groupRef]?.[bucket] || [])}
-        testId={testId(`row-${row.groupRef}-${key}`)}
-      />
-    ),
-    [arraysEqual, getBucketValue, permissionsByGroup, setBucketValue]
-  )
-
-  const renderManagerRelationsCell = useCallback(
-    ({ row }: CellCtx) => renderBucketCell(row.original, 'managerRelationsRoles', 'managerRelationsRoles'),
-    [renderBucketCell]
-  )
-
-  const renderManagerManagementCell = useCallback(
-    ({ row }: CellCtx) => renderBucketCell(row.original, 'managerManagementRoles', 'managerManagementRoles'),
-    [renderBucketCell]
-  )
-
-  const renderAdminRolesCell = useCallback(
-    ({ row }: CellCtx) => renderBucketCell(row.original, 'adminRoles', 'adminRoles'),
-    [renderBucketCell]
-  )
-
-  const renderViewerRolesCell = useCallback(
-    ({ row }: CellCtx) => renderBucketCell(row.original, 'viewerRoles', 'viewerRoles'),
-    [renderBucketCell]
-  )
-
-  const renderActionsHeader = useCallback(
-    () => (
-      <div className="gba:flex gba:items-center gba:justify-end gba:w-full gba:relative">
-        <Button
-          size="iconSm"
-          variant="secondary"
-          className="gba:h-6"
-          onClick={e => {
-            e.stopPropagation()
-            setPickerOpen(v => !v)
-          }}
-          title="Show/Hide columns"
-          data-testid={testId('toggle-hidden-columns')}
-        >
-          <Columns3 className="gba:h-4 gba:w-4" />
-        </Button>
-        {pickerOpen && (
-          <div
-            className="gba:absolute gba:right-0 gba:top-7 gba:z-20 gba:bg-white gba:border gba:border-gray-200 gba:rounded-md gba:shadow-md gba:p-2"
-            onMouseDown={e => e.stopPropagation()}
-          >
-            <div className="gba:flex gba:items-center gba:gap-2 gba:py-1">
-              <input
-                id="show-admin-col"
-                type="checkbox"
-                checked={showAdminCol}
-                onChange={e => setShowAdminCol(e.target.checked)}
-              />
-              <label htmlFor="show-admin-col" className="gba:text-xs">
-                Admin Roles
-              </label>
-            </div>
-            <div className="gba:flex gba:items-center gba:gap-2 gba:py-1">
-              <input
-                id="show-viewer-col"
-                type="checkbox"
-                checked={showViewerCol}
-                onChange={e => setShowViewerCol(e.target.checked)}
-              />
-              <label htmlFor="show-viewer-col" className="gba:text-xs">
-                Viewer Roles
-              </label>
-            </div>
-            <div className="gba:flex gba:justify-end gba:pt-1">
-              <Button size="sm" variant="secondary" className="gba:h-6" onClick={() => setPickerOpen(false)}>
-                Close
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
-    ),
-    [pickerOpen, showAdminCol, showViewerCol]
-  )
-
-  const renderRowActions = useCallback(
-    ({ row }: CellCtx) => {
-      const groupRef = row.original.groupRef
-      const base = permissionsByGroup[groupRef]
-      const dirty = isRowDirty(groupRef)
-      const canDelete = !!base?.id
-      const anySelected = hasAnyRoles(groupRef)
-      const canSave = dirty || (!base?.id && anySelected)
-      return (
-        <div className="gba:flex gba:justify-end gba:w-full">
-          <ButtonGroup onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()} className="gba:h-6">
-            <Button
-              size="iconSm"
-              variant="secondary"
-              className="gba:h-6"
-              onClick={() => onSaveRow(groupRef)}
-              disabled={!canSave}
-              title="Save changes"
-            >
-              <Save className="gba:h-4 gba:w-4" />
-            </Button>
-            <Button
-              size="iconSm"
-              variant="secondary"
-              className="gba:h-6"
-              onClick={() => onResetRow(groupRef)}
-              disabled={!dirty}
-              title="Discard changes"
-            >
-              <X className="gba:h-4 gba:w-4" />
-            </Button>
-            <Button
-              size="iconSm"
-              variant="secondary"
-              className="gba:h-6"
-              onClick={() => onDeleteRow(groupRef)}
-              disabled={!canDelete}
-              title="Delete"
-            >
-              <Trash className="gba:h-4 gba:w-4" />
-            </Button>
-          </ButtonGroup>
-        </div>
-      )
-    },
-    [hasAnyRoles, isRowDirty, onDeleteRow, onResetRow, onSaveRow, permissionsByGroup]
-  )
-
-  const columns = useMemo<ColumnDef<GridRow>[]>(() => {
-    const cols: ColumnDef<GridRow>[] = [
-      {
-        id: 'group',
-        header: 'Investment Group',
-        accessorKey: 'groupLabel',
-        size: 260,
-        minSize: 220,
-        maxSize: 360,
-        enableResizing: false
-      },
-      {
-        id: 'managerRelationsRoles',
-        header: 'Manager (Relations) Roles',
-        cell: renderManagerRelationsCell
-      },
-      {
-        id: 'managerManagementRoles',
-        header: 'Manager (Management) Roles',
-        cell: renderManagerManagementCell
+  // Compute how many options remain visible after excluding saved and currently selected
+  const computeFilteredCount = useCallback(() => {
+    try {
+      const selectedIds = new Set(Array.isArray(tempRoles) ? tempRoles : [])
+      const savedNames = selectedGroupId ? getSecurityRoles(selectedGroupId) : []
+      let count = 0
+      for (const o of roleOptionsRef.current) {
+        if (!selectedIds.has(o.id) && !savedNames.includes(o.name)) count++
       }
-    ]
-
-    if (showAdminCol) {
-      cols.push({ id: 'adminRoles', header: 'Admin Roles', cell: renderAdminRolesCell })
+      return count
+    } catch {
+      return 0
     }
+  }, [selectedGroupId, tempRoles, getSecurityRoles])
 
-    if (showViewerCol) {
-      cols.push({ id: 'viewerRoles', header: 'Viewer Roles', cell: renderViewerRolesCell })
+  // Progressively load more pages until we reach the target or exhaust pages
+  const progressiveFill = useCallback(async () => {
+    let loads = 0
+    while (computeFilteredCount() < TARGET_VISIBLE_OPTIONS && rolesHasMoreRef.current && loads < MAX_EXTRA_LOADS) {
+      try {
+        await rolesLoadMoreRef.current?.()
+      } catch {
+        break
+      }
+      loads += 1
+      // allow state to settle before the next check
+      await new Promise(resolve => setTimeout(resolve, 0))
     }
+  }, [computeFilteredCount])
 
-    cols.push({
-      id: 'actions',
-      header: renderActionsHeader,
-      size: 96,
-      minSize: 84,
-      maxSize: 120,
-      enableResizing: false,
-      meta: { align: 'right' },
-      cell: renderRowActions
-    })
+  const scheduleProgressiveFill = useCallback(() => {
+    setTimeout(() => progressiveFill(), 0)
+  }, [progressiveFill])
 
-    return cols
-  }, [
-    renderManagerRelationsCell,
-    renderManagerManagementCell,
-    renderAdminRolesCell,
-    renderViewerRolesCell,
-    renderActionsHeader,
-    renderRowActions,
-    showAdminCol,
-    showViewerCol
-  ])
+  // When dialog opens or selection/search context changes, try to fill to target
+  useEffect(() => {
+    if (isDialogOpen && dialogMode === 'add') {
+      scheduleProgressiveFill()
+    }
+  }, [isDialogOpen, dialogMode, tempRoles, selectedGroupId, scheduleProgressiveFill])
 
-  // removed unused rowActions useMemo to satisfy lints
+  // Right panel renders a roles grid with search and an add/edit dialog
 
   return (
     <PageLayout
       headerIcon={ShieldCheckIcon}
       headerTitle="Investment Group Permissions"
-      headerDescription="Manage role buckets per Investment Group using roles from User Management"
+      headerDescription="Manage security roles per Investment Group using roles from User Management"
       onBack={onBack}
       className={className}
       data-testid={testId('container')}
     >
-      <div className="gba:flex gba:flex-col gba:gap-4">
-        <DataTable<GridRow>
-          data={rows}
-          columns={columns}
-          loading={groupsLoading}
-          enablePagination={false}
-          enableSorting={false}
-          enableSelection={false}
-          enableColumnPinning
-          enableResizing={false}
-          tableLayout="fixed"
-          emptyMessage={groupsLoading ? 'Loading...' : 'No investment groups found'}
-          data-testid={testId('permissions-grid')}
-        />
-
-        {(groupsError || error) && (
-          <div className="gba:text-destructive gba:text-sm" data-testid={testId('error')}>
-            {groupsError || error}
+      {groupsLoading ? (
+        <div className="gba:py-12">Loading...</div>
+      ) : (
+        <div className="gba:flex gba:gap-6 gba:h-full">
+          {/* Left Sidebar - Investment Groups (read-only) */}
+          <div className="gba:w-80 gba:flex-shrink-0">
+            <Card>
+              <div className="gba:p-4 gba:border-b gba:flex gba:items-center gba:justify-between">
+                <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">Investment Groups</h3>
+              </div>
+              <div className="gba:p-4 gba:border-b">
+                <DebouncedInput
+                  value={groupSearchTerm}
+                  onChange={(v: string) => setGroupSearchTerm(v)}
+                  placeholder="Search groups..."
+                  debounceDelay={300}
+                  data-testid={testId('group-search')}
+                />
+              </div>
+              <div className="gba:overflow-y-auto" style={{ maxHeight: 'calc(100vh - 350px)' }}>
+                {filteredGroupItems.length === 0 ? (
+                  <div className="gba:p-4">
+                    <EmptyState title="No investment groups" description="No groups available" />
+                  </div>
+                ) : (
+                  filteredGroupItems.map(g => (
+                    <div
+                      key={g.id}
+                      tabIndex={0}
+                      className={`gba:flex gba:items-center gba:justify-between gba:p-3 gba:cursor-pointer gba:border-b gba:transition-colors ${
+                        selectedGroupId === g.id ? 'gba:bg-accent gba:text-accent-foreground' : 'hover:gba:bg-muted'
+                      }`}
+                      onClick={() => setSelectedGroupId(g.id)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          setSelectedGroupId(g.id)
+                        }
+                      }}
+                      data-testid={testId(`group-${g.id}`)}
+                    >
+                      <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
+                        <FolderIcon className="gba:w-4 gba:h-4" />
+                        <div>
+                          <div className="gba:text-sm gba:font-medium">{g.label}</div>
+                          <div className="gba:text-xs gba:text-muted-foreground">{g.code}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Card>
           </div>
-        )}
-      </div>
+
+          {/* Right Panel - Security Roles Editor */}
+          <div className="gba:flex-1">
+            {selectedGroupId ? (
+              <div className="gba:space-y-4">
+                <div className="gba:flex gba:justify-between gba:items-center">
+                  <div>
+                    <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">
+                      {groupItems.find(g => g.id === selectedGroupId)?.label}
+                    </h2>
+                    <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">
+                      Manage security roles for this investment group
+                    </p>
+                  </div>
+                  <Button onClick={openAddDialog} data-testid={testId('add-roles-button')}>
+                    <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" /> Add Roles
+                  </Button>
+                </div>
+
+                <div className="gba:rounded-md gba:border gba:p-4">
+                  <div className="gba:mb-4">
+                    <DebouncedInput
+                      value={roleSearchTerm}
+                      onChange={(v: string) => setRoleSearchTerm(v)}
+                      placeholder="Search roles..."
+                      debounceDelay={300}
+                      data-testid={testId('role-search')}
+                    />
+                  </div>
+
+                  <Table data-testid={testId('roles-table')}>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(() => {
+                        const all = getSecurityRoles(selectedGroupId)
+                        const filtered = roleSearchTerm
+                          ? all.filter(r => r.toLowerCase().includes(roleSearchTerm.toLowerCase()))
+                          : all
+                        if (filtered.length === 0) {
+                          return (
+                            <TableRow>
+                              <TableCell colSpan={2} className="gba:text-center gba:py-8">
+                                <EmptyState
+                                  title={roleSearchTerm ? 'No roles found' : 'No roles yet'}
+                                  description={
+                                    roleSearchTerm ? 'Try adjusting your search' : 'Click "Add Roles" to assign roles'
+                                  }
+                                />
+                              </TableCell>
+                            </TableRow>
+                          )
+                        }
+                        return filtered.map((role, idx) => (
+                          <TableRow key={`${role}-${idx}`}>
+                            <TableCell>
+                              <span className="gba:inline-flex gba:items-center gba:gap-2">
+                                <span className="gba:text-xs gba:font-medium gba:px-2 gba:py-0.5 gba:border gba:rounded-full">
+                                  {role}
+                                </span>
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <div className="gba:flex gba:gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openEditDialog(idx, selectedGroupId)}
+                                  data-testid={testId(`role-edit-${idx}`)}
+                                >
+                                  <PencilSimpleIcon className="gba:w-4 gba:h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => onDeleteRole(selectedGroupId, idx)}
+                                  data-testid={testId(`role-delete-${idx}`)}
+                                >
+                                  <TrashIcon className="gba:w-4 gba:h-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      })()}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            ) : (
+              <div className="gba:py-12">
+                <EmptyState
+                  title="Select an investment group"
+                  description="Choose a group from the sidebar to edit roles"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {(groupsError || error) && (
+        <Alert variant="destructive" data-testid={testId('error')}>
+          {groupsError || error}
+        </Alert>
+      )}
+
+      {/* Dialog for adding/editing roles */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent data-testid={testId('roles-dialog')}>
+          <DialogHeader>
+            <DialogTitle>{dialogMode === 'add' ? 'Add Roles' : 'Edit Role'}</DialogTitle>
+          </DialogHeader>
+
+          <div className="gba:space-y-4 gba:py-2">
+            {dialogMode === 'add' ? (
+              <>
+                {/* Chip cloud of selected roles (wraps and scrolls if long) */}
+                <div className="gba:flex gba:flex-wrap gba:gap-2 gba:max-h-48 gba:overflow-y-auto gba:p-2 gba:border gba:rounded-md">
+                  {(Array.isArray(tempRoles) ? tempRoles : []).map((val, idx) => (
+                    <Badge
+                      key={`${val}-${idx}`}
+                      variant="secondary"
+                      className="gba:flex gba:items-center gba:gap-1 gba:pr-1"
+                      title={toRoleDisplay(val)}
+                    >
+                      <span>{toRoleDisplay(val)}</span>
+                      <button
+                        type="button"
+                        className="gba:ml-0.5 gba:rounded gba:p-0.5 gba:hover:bg-muted gba:transition-colors"
+                        aria-label="Remove role"
+                        onClick={() => removeTempRole(idx)}
+                      >
+                        ×
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+
+                {/* Single-add picker to add roles one-by-one */}
+                <div className="gba:w-full">
+                  {(() => {
+                    const selectedIds = new Set(Array.isArray(tempRoles) ? tempRoles : [])
+                    const savedNames = selectedGroupId ? getSecurityRoles(selectedGroupId) : []
+                    const filteredOptions = roleOptionsRef.current
+                      .filter(o => !selectedIds.has(o.id) && !savedNames.includes(o.name))
+                      .map(o => ({ value: o.id, label: o.name }))
+                    return (
+                      <Combobox
+                        value={pickerValue}
+                        onValueChange={val => {
+                          setPickerValue(val)
+                          if (val) {
+                            addTempRole(val)
+                            setPickerValue('')
+                          }
+                        }}
+                        options={filteredOptions}
+                        placeholder="Type to search..."
+                        loading={rolesIsLoadingRef.current}
+                        onSearch={q => {
+                          if (typeof rolesOnSearchRef.current === 'function') {
+                            rolesOnSearchRef.current(q)
+                          }
+                          scheduleProgressiveFill()
+                        }}
+                        onLoadMore={() => rolesLoadMoreRef.current?.()}
+                        hasMore={rolesHasMoreRef.current}
+                        searchDebounce={300}
+                        className="gba:w-full gba:text-sm"
+                        data-testid={testId('roles-dialog-combobox')}
+                      />
+                    )
+                  })()}
+                </div>
+              </>
+            ) : (
+              <div className="gba:w-full">
+                <Combobox
+                  value={typeof tempRoles === 'string' ? tempRoles : ''}
+                  onValueChange={val => setTempRoles(val || '')}
+                  options={roleOptionsRef.current.map(o => ({ value: o.id, label: o.name }))}
+                  placeholder="Select role..."
+                  loading={rolesIsLoadingRef.current}
+                  onSearch={q => {
+                    if (typeof rolesOnSearchRef.current === 'function') {
+                      rolesOnSearchRef.current(q)
+                    }
+                  }}
+                  onLoadMore={() => rolesLoadMoreRef.current?.()}
+                  hasMore={rolesHasMoreRef.current}
+                  searchDebounce={300}
+                  className="gba:w-full gba:text-sm"
+                  data-testid={testId('roles-dialog-combobox')}
+                />
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={closeDialog} data-testid={testId('roles-dialog-cancel')}>
+              Cancel
+            </Button>
+            <Button onClick={onDialogSave} data-testid={testId('roles-dialog-save')} disabled={!selectedGroupId}>
+              {dialogMode === 'add' ? 'Add' : 'Update'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PageLayout>
   )
 }

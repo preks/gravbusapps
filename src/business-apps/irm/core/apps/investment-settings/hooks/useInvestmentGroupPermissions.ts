@@ -14,10 +14,8 @@ export type InvestmentGroupPermissionRecord = {
   id?: string
   version?: number
   investmentGroupRef: string
-  adminRoles: string[]
-  viewerRoles: string[]
-  managerRelationsRoles: string[]
-  managerManagementRoles: string[]
+  securityRoles: string[]
+  securityGroupId?: string | null
 }
 
 const GET_INVESTMENT_GROUPS_AND_PERMISSIONS = `
@@ -42,10 +40,8 @@ const GET_INVESTMENT_GROUPS_AND_PERMISSIONS = `
       id
       version
       investmentGroupRef
-      adminRoles
-      viewerRoles
-      managerRelationsRoles
-      managerManagementRoles
+      securityRoles
+      securityGroupId
     }
   }
 `
@@ -104,10 +100,8 @@ export const useInvestmentGroupPermissions = (context: BusinessAppContextProps) 
             id: row.id,
             version: row.version,
             investmentGroupRef: row.investmentGroupRef,
-            adminRoles: normalizeRoleArray(row.adminRoles),
-            viewerRoles: normalizeRoleArray(row.viewerRoles),
-            managerRelationsRoles: normalizeRoleArray(row.managerRelationsRoles),
-            managerManagementRoles: normalizeRoleArray(row.managerManagementRoles)
+            securityRoles: normalizeRoleArray(row.securityRoles),
+            securityGroupId: row.securityGroupId ?? null
           }
           if (norm.investmentGroupRef) {
             permsMap[norm.investmentGroupRef] = norm
@@ -118,10 +112,8 @@ export const useInvestmentGroupPermissions = (context: BusinessAppContextProps) 
           if (!permsMap[g.id]) {
             permsMap[g.id] = {
               investmentGroupRef: g.id,
-              adminRoles: [],
-              viewerRoles: [],
-              managerRelationsRoles: [],
-              managerManagementRoles: []
+              securityRoles: [],
+              securityGroupId: null
             }
           }
         }
@@ -144,10 +136,8 @@ export const useInvestmentGroupPermissions = (context: BusinessAppContextProps) 
         const existing = permissionsByGroup[groupRef]
         const result: InvestmentGroupPermissionRecord = existing ?? {
           investmentGroupRef: groupRef,
-          adminRoles: [],
-          viewerRoles: [],
-          managerRelationsRoles: [],
-          managerManagementRoles: []
+          securityRoles: [],
+          securityGroupId: null
         }
         setPermission(result)
         return result
@@ -173,10 +163,7 @@ export const useInvestmentGroupPermissions = (context: BusinessAppContextProps) 
           ...(record.id ? { id: record.id } : {}),
           ...(record.version != null ? { version: record.version } : {}),
           investmentGroupRef: record.investmentGroupRef,
-          adminRoles: toPayloadRoles(record.adminRoles),
-          viewerRoles: toPayloadRoles(record.viewerRoles),
-          managerRelationsRoles: toPayloadRoles(record.managerRelationsRoles),
-          managerManagementRoles: toPayloadRoles(record.managerManagementRoles)
+          securityRoles: toPayloadRoles(record.securityRoles)
         }
       }
 
@@ -197,10 +184,8 @@ export const useInvestmentGroupPermissions = (context: BusinessAppContextProps) 
             id: row.id,
             version: row.version,
             investmentGroupRef: row.investmentGroupRef,
-            adminRoles: normalizeRoleArray(row.adminRoles),
-            viewerRoles: normalizeRoleArray(row.viewerRoles),
-            managerRelationsRoles: normalizeRoleArray(row.managerRelationsRoles),
-            managerManagementRoles: normalizeRoleArray(row.managerManagementRoles)
+            securityRoles: normalizeRoleArray(row.securityRoles),
+            securityGroupId: row.securityGroupId ?? null
           }
           if (norm.investmentGroupRef) permsMap[norm.investmentGroupRef] = norm
         }
@@ -208,10 +193,8 @@ export const useInvestmentGroupPermissions = (context: BusinessAppContextProps) 
 
         const updated = permsMap[record.investmentGroupRef] || {
           investmentGroupRef: record.investmentGroupRef,
-          adminRoles: record.adminRoles || [],
-          viewerRoles: record.viewerRoles || [],
-          managerRelationsRoles: record.managerRelationsRoles || [],
-          managerManagementRoles: record.managerManagementRoles || []
+          securityRoles: record.securityRoles || [],
+          securityGroupId: null
         }
         setPermission(updated)
         return updated
@@ -223,10 +206,8 @@ export const useInvestmentGroupPermissions = (context: BusinessAppContextProps) 
           id: record.id,
           version: record.version,
           investmentGroupRef: record.investmentGroupRef,
-          adminRoles: record.adminRoles || [],
-          viewerRoles: record.viewerRoles || [],
-          managerRelationsRoles: record.managerRelationsRoles || [],
-          managerManagementRoles: record.managerManagementRoles || []
+          securityRoles: record.securityRoles || [],
+          securityGroupId: record.securityGroupId ?? null
         }
         setPermissionsByGroup(prev => ({ ...prev, [record.investmentGroupRef]: fallback }))
         setPermission(fallback)
@@ -258,10 +239,8 @@ export const useInvestmentGroupPermissions = (context: BusinessAppContextProps) 
       })
       setPermission({
         investmentGroupRef: record.investmentGroupRef,
-        adminRoles: [],
-        viewerRoles: [],
-        managerRelationsRoles: [],
-        managerManagementRoles: []
+        securityRoles: [],
+        securityGroupId: null
       })
     },
     [context.accessToken, restClient]

@@ -217,6 +217,7 @@ export enum FlowContextName {
   createInvestmentDocument = 'createInvestmentDocument',
   investmentDocumentUpdate = 'investmentDocumentUpdate',
   investmentDocumentDelete = 'investmentDocumentDelete',
+  investmentFolderPrivacy = 'investmentFolderPrivacy',
   investmentFolderUpload = 'investmentFolderUpload',
 
   /// Investment Companies

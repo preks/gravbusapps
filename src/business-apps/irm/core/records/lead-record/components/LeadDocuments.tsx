@@ -96,6 +96,15 @@ const LeadDocuments: React.FC<LeadDocumentsProps> = ({ leadId, context }) => {
     []
   )
 
+  const documentPrivacyActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.investmentFolderPrivacy],
+      buildExternalContextData: (document: any) => ({ documentId: document.id }),
+      prefixDataTestId: 'lead-document-privacy'
+    }),
+    []
+  )
+
   return (
     <DocumentSection
       entityId={leadId}
@@ -109,6 +118,7 @@ const LeadDocuments: React.FC<LeadDocumentsProps> = ({ leadId, context }) => {
       uploadActionProps={documentUploadActionProps}
       updateActionProps={documentUpdateActionProps}
       deleteActionProps={documentDeleteActionProps}
+      privacyActionProps={documentPrivacyActionProps}
       aiOrganizeConfig={{ moduleType: 'IRM', entityType: 'LEAD', domain: 'investment' }}
       toolbarActions={uploadToolbarActions}
       data-testid="lead-document-section"
