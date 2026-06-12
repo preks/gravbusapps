@@ -11,6 +11,7 @@ import { createRequire } from 'module'
 import dotenv from '@dotenvx/dotenvx'
 import { execSync, spawn } from 'child_process'
 import { isRemoteBundleExternal } from './remoteBundleExternals'
+import { stripPlatformHostedFontFacesVitePlugin } from './scripts/postcss/strip-platform-hosted-font-faces.mjs'
 
 const require = createRequire(import.meta.url)
 let visualizer: ((options?: Record<string, unknown>) => PluginOption) | undefined
@@ -1124,6 +1125,7 @@ export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatal
     plugins: [
       ...(command === 'serve' ? [spaHistoryFallbackPlugin] : []),
       omitPublicPlatformAssetsPlugin,
+      ...(isBuildCommand ? [stripPlatformHostedFontFacesVitePlugin()] : []),
       react(),
       tailwindCSS(),
       // Virtual module plugin for the wrapped entries
