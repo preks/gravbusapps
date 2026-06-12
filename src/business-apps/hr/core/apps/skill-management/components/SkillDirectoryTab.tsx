@@ -25,7 +25,6 @@ import SkillFormDialog from './SkillFormDialog'
 import SkillDetailsPanel from './SkillDetailsPanel'
 import SkillDeduplicationPanel from './SkillDeduplicationPanel'
 import ConfirmSkillActionDialog from './ConfirmSkillActionDialog'
-import SkillActivationDialog from './SkillActivationDialog'
 import { TabDataTable } from '@/business-apps/hr/core/apps/monthly-compensation-changes/components/TabDataTable'
 import type { SkillDirectoryRecord, SkillCategoryRecord } from '../types'
 import translations from '../_i18n'
@@ -65,12 +64,6 @@ function renderSkillEmployeeCountCell(count: number) {
   return <Badge variant="outline">{count}</Badge>
 }
 
-function renderSkillStatusCell(isActive: boolean, t: (key: string) => string) {
-  return (
-    <Badge variant={isActive ? 'success' : 'destructive'}>{isActive ? t('status-active') : t('status-inactive')}</Badge>
-  )
-}
-
 function SortableTextHeader<TData>({
   column,
   children
@@ -84,28 +77,6 @@ function SortableTextHeader<TData>({
       {children}
     </Button>
   )
-}
-
-function getTodayDateKey(): string {
-  const today = new Date()
-  const year = today.getFullYear()
-  const month = String(today.getMonth() + 1).padStart(2, '0')
-  const day = String(today.getDate()).padStart(2, '0')
-
-  return `${year}-${month}-${day}`
-}
-
-function isSkillActive(skill: SkillDirectoryRecord, todayDateKey: string): boolean {
-  const activeFromDate = toDateKey(skill.activeFrom)
-  const activeToDate = toDateKey(skill.activeTo)
-  const hasStarted = !activeFromDate || activeFromDate <= todayDateKey
-  const hasNotEnded = !activeToDate || activeToDate > todayDateKey
-
-  return hasStarted && hasNotEnded
-}
-
-function toDateKey(value?: string | null): string {
-  return value?.split('T')[0] ?? ''
 }
 
 function renderSkillDescriptionCell(description?: string) {
@@ -124,10 +95,8 @@ function renderSkillActionsCell(
   prefixDataTestId: string | undefined,
   setEditDialogOpen: React.Dispatch<React.SetStateAction<string | null>>,
   setDeleteConfirmSkill: React.Dispatch<React.SetStateAction<SkillDirectoryRecord | null>>,
-  setActivationSkill: React.Dispatch<React.SetStateAction<SkillDirectoryRecord | null>>,
   t: (key: string) => string
 ) {
-  const isActive = isSkillActive(skill, getTodayDateKey())
   const actions: ActionOption[] = [
     {
       key: `edit-${skill.id}`,
@@ -140,14 +109,6 @@ function renderSkillActionsCell(
       onClick: () => setDeleteConfirmSkill(skill)
     }
   ]
-
-  if (isActive) {
-    actions.splice(2, 0, {
-      key: `deactivate-${skill.id}`,
-      label: t('skill-actions-deactivate'),
-      onClick: () => setActivationSkill(skill)
-    })
-  }
 
   return (
     <ActionMenu actions={actions} emptyStateBehavior="enable">
@@ -177,25 +138,6 @@ function buildSkillDirectoryFilterConfig(
     id: 'skill-directory-filters',
     name: t('tab-skills-directory'),
     groups: [
-      {
-        id: 'status-group',
-        label: t('filter-by-status'),
-        collapsible: true,
-        filters: [
-          {
-            id: 'status',
-            field: 'status',
-            label: t('filter-by-status'),
-            type: 'multi-select' as const,
-            config: {
-              options: [
-                { id: 'active', label: t('filter-status-active') },
-                { id: 'inactive', label: t('filter-status-inactive') }
-              ]
-            }
-          }
-        ]
-      },
       ...(categoryOptions.length > 0
         ? [
             {
@@ -223,8 +165,7 @@ function buildSkillDirectoryColumns(
   categoryMap: Record<string, string>,
   prefixDataTestId: string | undefined,
   setEditDialogOpen: React.Dispatch<React.SetStateAction<string | null>>,
-  setDeleteConfirmSkill: React.Dispatch<React.SetStateAction<SkillDirectoryRecord | null>>,
-  setActivationSkill: React.Dispatch<React.SetStateAction<SkillDirectoryRecord | null>>
+  setDeleteConfirmSkill: React.Dispatch<React.SetStateAction<SkillDirectoryRecord | null>>
 ): ColumnDef<SkillDirectoryRecord>[] {
   return [
     {
@@ -254,14 +195,6 @@ function buildSkillDirectoryColumns(
       cell: ({ getValue }) => renderSkillEmployeeCountCell(getValue() as number)
     },
     {
-      id: 'status',
-      header: t('skill-status'),
-      enableSorting: false,
-      size: 140,
-      maxSize: 160,
-      cell: ({ row }) => renderSkillStatusCell(isSkillActive(row.original, getTodayDateKey()), t)
-    },
-    {
       accessorKey: 'description',
       header: t('skill-description'),
       enableSorting: false,
@@ -276,14 +209,7 @@ function buildSkillDirectoryColumns(
       size: 56,
       maxSize: 64,
       cell: ({ row }) =>
-        renderSkillActionsCell(
-          row.original,
-          prefixDataTestId,
-          setEditDialogOpen,
-          setDeleteConfirmSkill,
-          setActivationSkill,
-          t
-        )
+        renderSkillActionsCell(row.original, prefixDataTestId, setEditDialogOpen, setDeleteConfirmSkill, t)
     }
   ]
 }
@@ -306,7 +232,6 @@ function SkillDirectoryTab({
   const [isDetailsPanelOpen, setIsDetailsPanelOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState<string | null>(null)
   const [deleteConfirmSkill, setDeleteConfirmSkill] = useState<SkillDirectoryRecord | null>(null)
-  const [activationSkill, setActivationSkill] = useState<SkillDirectoryRecord | null>(null)
 
   const {
     skill: selectedSkill,
@@ -389,7 +314,6 @@ function SkillDirectoryTab({
 
   const filteredSkills = useMemo(() => {
     let filtered = skills
-    const todayDateKey = getTodayDateKey()
 
     if (searchTerm.trim()) {
       const lower = searchTerm.toLowerCase()
@@ -398,23 +322,13 @@ function SkillDirectoryTab({
       )
     }
 
-    const statusFilter = filters.status ?? []
-    if (statusFilter.length > 0) {
-      filtered = filtered.filter(skill => {
-        const active = isSkillActive(skill, todayDateKey)
-        if (statusFilter.includes('active') && active) return true
-        if (statusFilter.includes('inactive') && !active) return true
-        return false
-      })
-    }
-
     const categoryFilter = filters.category ?? []
     if (categoryFilter.length > 0) {
       filtered = filtered.filter(skill => categoryFilter.includes(categoryMap[skill.id] ?? ''))
     }
 
     return filtered
-  }, [skills, searchTerm, filters.status, filters.category, categoryMap])
+  }, [skills, searchTerm, filters.category, categoryMap])
 
   useEffect(() => {
     if (selectedSkillId && !skills.some(skill => skill.id === selectedSkillId)) {
@@ -487,43 +401,8 @@ function SkillDirectoryTab({
     }
   }, [deleteConfirmSkill, deleteSkill, onDataChange, selectedSkillId, t])
 
-  const handleUpdateSkillActivation = useCallback(
-    async (activeFrom: string | null, activeTo: string | null) => {
-      if (!activationSkill) return
-
-      if (activeFrom && activeTo && toDateKey(activeTo) < toDateKey(activeFrom)) {
-        toast.error(t('skill-activation-date-error'))
-        return
-      }
-
-      try {
-        await updateSkill(activationSkill.id, {
-          name: activationSkill.name,
-          description: activationSkill.description ?? undefined,
-          activeFrom,
-          activeTo,
-          version: activationSkill.version ?? undefined
-        })
-        toast.success(t('toast-skill-updated', { name: activationSkill.name }))
-        setActivationSkill(null)
-        onDataChange()
-      } catch {
-        toast.error(t('toast-skill-error'))
-      }
-    },
-    [activationSkill, onDataChange, t, updateSkill]
-  )
-
   const columns = useMemo(
-    () =>
-      buildSkillDirectoryColumns(
-        t,
-        categoryMap,
-        prefixDataTestId,
-        setEditDialogOpen,
-        setDeleteConfirmSkill,
-        setActivationSkill
-      ),
+    () => buildSkillDirectoryColumns(t, categoryMap, prefixDataTestId, setEditDialogOpen, setDeleteConfirmSkill),
     [categoryMap, prefixDataTestId, t]
   )
 
@@ -689,18 +568,6 @@ function SkillDirectoryTab({
         onConfirm={handleDeleteSkill}
         variant="destructive"
         isLoading={mutationLoading}
-      />
-
-      <SkillActivationDialog
-        skill={activationSkill}
-        isActive={activationSkill ? isSkillActive(activationSkill, getTodayDateKey()) : false}
-        open={!!activationSkill}
-        onOpenChange={open => {
-          if (!open) setActivationSkill(null)
-        }}
-        onSubmit={handleUpdateSkillActivation}
-        isLoading={mutationLoading}
-        prefixDataTestId={prefixDataTestId}
       />
 
       {isDedupPanelOpen && (

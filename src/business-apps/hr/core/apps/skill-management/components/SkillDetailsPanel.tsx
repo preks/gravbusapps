@@ -19,29 +19,6 @@ interface SkillDetailsPanelProps {
   prefixDataTestId?: string
 }
 
-function getTodayDateKey(): string {
-  const today = new Date()
-  const year = today.getFullYear()
-  const month = String(today.getMonth() + 1).padStart(2, '0')
-  const day = String(today.getDate()).padStart(2, '0')
-
-  return `${year}-${month}-${day}`
-}
-
-function toDateKey(value?: string | null): string {
-  return value?.split('T')[0] ?? ''
-}
-
-function isSkillActive(skill: SkillRecord): boolean {
-  const todayDateKey = getTodayDateKey()
-  const activeFromDate = toDateKey(skill.activeFrom)
-  const activeToDate = toDateKey(skill.activeTo)
-  const hasStarted = !activeFromDate || activeFromDate <= todayDateKey
-  const hasNotEnded = !activeToDate || activeToDate > todayDateKey
-
-  return hasStarted && hasNotEnded
-}
-
 function getEmployeeName(emp: EmployeeSkillRecord['employee']): string {
   if (emp?.displayName) return emp.displayName
   return `${emp?.firstName ?? ''} ${emp?.lastName ?? ''}`.trim()
@@ -95,7 +72,6 @@ export default function SkillDetailsPanel({
   const { t } = useTranslation(translations)
 
   const hasMore = totalEmployees > employees.length
-  const skillIsActive = skill ? isSkillActive(skill) : false
 
   const employeesSection = useMemo(() => {
     if (!skill) return null
@@ -138,11 +114,6 @@ export default function SkillDetailsPanel({
 
           <DetailPanelSection title={t('skill-details-title')}>
             <DetailPanelField label={t('skill-name')}>{skill.name}</DetailPanelField>
-            <DetailPanelField label={t('skill-status')}>
-              <Badge variant={skillIsActive ? 'success' : 'destructive'}>
-                {skillIsActive ? t('status-active') : t('status-inactive')}
-              </Badge>
-            </DetailPanelField>
             <DetailPanelField label={t('skill-category')}>
               {categoryName ? <Badge variant="secondary">{categoryName}</Badge> : null}
             </DetailPanelField>

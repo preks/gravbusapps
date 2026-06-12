@@ -1,13 +1,6 @@
 import React, { useCallback, useMemo, useRef } from 'react'
 import { PageLayout, SectionKpiCards, Spinner, type KpiCardData, Icon, useTranslation } from '@newwork/nw-design-system'
-import {
-  BookOpenTextIcon,
-  ClockCountdownIcon,
-  FolderSimpleIcon,
-  HammerIcon,
-  StackIcon,
-  UsersIcon
-} from '@phosphor-icons/react'
+import { ClockCountdownIcon, FolderSimpleIcon, HammerIcon, StackIcon, UsersIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useScopePermissionCheck } from '@/common/hooks/useScopePermissionCheck'
 import { ErrorAlert } from '@/components/error-alert/ErrorAlert'
@@ -70,13 +63,6 @@ const SkillManagement: React.FC<SkillManagementProps> = ({ className, prefixData
         iconColor: 'var(--nw-info)'
       },
       {
-        id: 'active-skills',
-        title: t('kpi-active-skills'),
-        value: String(catalogData.kpi.activeSkills),
-        icon: <Icon icon={BookOpenTextIcon} size="sm" decorative />,
-        iconColor: 'var(--nw-success)'
-      },
-      {
         id: 'employees-with-skills',
         title: t('kpi-total-employees-with-skills'),
         value: String(catalogData.kpi.employeesWithSkills),
@@ -127,7 +113,7 @@ const SkillManagement: React.FC<SkillManagementProps> = ({ className, prefixData
     >
       <div className="gba:mx-auto gba:w-full gba:max-w-[1600px] gba:space-y-6">
         {!catalogData.isLoading && (
-          <SectionKpiCards cards={kpiCards} className="gba:w-full gba:md:grid-cols-4 nw:md:grid-cols-4" />
+          <SectionKpiCards cards={kpiCards} className="gba:w-full gba:md:grid-cols-3 nw:md:grid-cols-3" />
         )}
 
         {activeTab === SkillManagementTabs.DIRECTORY && (
