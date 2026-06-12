@@ -35,7 +35,13 @@ import {
   OrgUnitCoverage,
   CoverageOverview
 } from '../../types/types'
-import { formatMinutes, toDateString, toLocalDateKey, getPlannedMinutesForDate } from '../../utils/timeUtils'
+import {
+  formatMinutes,
+  toDateString,
+  toLocalDateKey,
+  getPlannedMinutesForDate,
+  getWorkingHoursForDate
+} from '../../utils/timeUtils'
 import { InsightsAbsenceAnalytics } from './InsightsAbsenceAnalytics'
 import { fetchTeamDetailedAbsences, getActiveLocale, isVacationAbsence } from '../../utils/teamTimeDomain'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -77,16 +83,18 @@ const INSIGHT_TONE_CLASSES: Record<InsightTone, { icon: string; value: string }>
   }
 }
 
-const getEmployeeSchedule = (wh?: WeeklyWorkingHours) => {
-  if (!wh) return { dailyMinutes: 480, workingDaysPerWeek: 5, weeklyMinutes: 2400 }
+const getEmployeeSchedule = (wh?: WeeklyWorkingHours | WeeklyWorkingHours[]) => {
+  const todayKey = toLocalDateKey(new Date())
+  const workingHours = getWorkingHoursForDate(todayKey, wh)
+  if (!workingHours) return { dailyMinutes: 480, workingDaysPerWeek: 5, weeklyMinutes: 2400 }
   const days = [
-    wh.mondayHours,
-    wh.tuesdayHours,
-    wh.wednesdayHours,
-    wh.thursdayHours,
-    wh.fridayHours,
-    wh.saturdayHours,
-    wh.sundayHours
+    workingHours.mondayHours,
+    workingHours.tuesdayHours,
+    workingHours.wednesdayHours,
+    workingHours.thursdayHours,
+    workingHours.fridayHours,
+    workingHours.saturdayHours,
+    workingHours.sundayHours
   ]
   const workingDays = days.filter(h => h > 0)
   const weeklyMinutes = days.reduce((s, h) => s + (h || 0), 0) * 60
@@ -95,7 +103,7 @@ const getEmployeeSchedule = (wh?: WeeklyWorkingHours) => {
   return { dailyMinutes, workingDaysPerWeek, weeklyMinutes }
 }
 
-const countWorkingDaysSoFar = (workingHours?: WeeklyWorkingHours): number => {
+const countWorkingDaysSoFar = (workingHours?: WeeklyWorkingHours | WeeklyWorkingHours[]): number => {
   const today = new Date()
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
   let count = 0

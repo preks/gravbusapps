@@ -7,11 +7,13 @@ export interface TeamMember {
   hireDate?: string
   pictureThumbnail?: string
   orgUnit?: string
-  workingHours?: WeeklyWorkingHours
+  workingHours?: WeeklyWorkingHours | WeeklyWorkingHours[]
   timeRelevant: boolean
 }
 
 export interface WeeklyWorkingHours {
+  activeFrom?: string | null
+  activeTo?: string | null
   mondayHours: number
   tuesdayHours: number
   wednesdayHours: number

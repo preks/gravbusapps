@@ -13,7 +13,9 @@ export const GET_TEAM_MEMBERS = `
       workingCondition {
         hireDate
       }
-      workingHours {
+      workingHours(where: { isDeleted: { _eq: false } }, orderBy: [{ activeFrom: DESC }, { createdAt: DESC }]) {
+        activeFrom
+        activeTo
         mondayHours
         tuesdayHours
         wednesdayHours

@@ -60,10 +60,6 @@ export const GET_COMPENSATION_TEAM_MEMBERS = `
             objectValue
           }
         }
-        workingHours(orderBy: [{ activeFrom: DESC }], limit: 1) {
-          weeklyHours
-          fullTimeEquivalent
-        }
       }
     }
     OrganizationalUnitRelationship(where: $relationshipWhere) {

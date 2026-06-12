@@ -30,10 +30,15 @@ import {
   employeeRegionLookupQuery,
   employmentRegionHolidaysQuery
 } from '@/business-apps/hr/core/apps/employee-record/queries/attendanceQueries'
-import { getEmployeeAbsences } from '@/business-apps/hr/core/forms/create-new-absence/queries/getEmployeeAbsences'
-import { GET_EMPLOYEE_WEEKLY_SCHEDULE } from '@/business-apps/hr/core/apps/employee-record/queries/queries'
+import {
+  employeeWorkingHoursQuery,
+  getEmployeeAbsences
+} from '@/business-apps/hr/core/forms/create-new-absence/queries/getEmployeeAbsences'
+import { getActiveWorkingHours } from '@/business-apps/hr/core/utils/workingHoursUtils'
 
 type WeeklyWorkingHours = {
+  activeFrom?: string | null
+  activeTo?: string | null
   sundayHours?: number
   mondayHours?: number
   tuesdayHours?: number
@@ -165,22 +170,6 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
   useEffect(() => {
     fetchEmployeeHeaderInfo()
   }, [fetchEmployeeHeaderInfo])
-
-  useEffect(() => {
-    if (!accessToken || !resolvedEmployeeId) return
-    const fetchWorkingHours = async () => {
-      try {
-        const res = await graphqlClient.request<any>(GET_EMPLOYEE_WEEKLY_SCHEDULE, {
-          employeeId: resolvedEmployeeId
-        })
-        const wh = res?.Employee?.[0]?.workingHours?.[0]
-        if (wh) setWorkingHours(wh)
-      } catch {
-        // Non-critical: planned time will fall back to 0
-      }
-    }
-    fetchWorkingHours()
-  }, [accessToken, resolvedEmployeeId, graphqlClient])
 
   // Extract platform/flow-provided parameters (supports nested psi_taskPayload as well as externalContextData)
   const platformParams = React.useMemo(() => {
@@ -338,6 +327,26 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     string,
     string
   ]
+
+  useEffect(() => {
+    if (!accessToken || !resolvedEmployeeId) return
+
+    const fetchWorkingHours = async () => {
+      try {
+        const res = await graphqlClient.request<any>(employeeWorkingHoursQuery, {
+          employeeId: resolvedEmployeeId
+        })
+        const targetDate = dateVal || platformParams.attendanceDateISO || new Date()
+        const wh = getActiveWorkingHours<WeeklyWorkingHours>(res?.employee?.[0]?.workingHours, targetDate)
+        setWorkingHours(wh)
+      } catch {
+        // Non-critical: planned time will fall back to 0
+        setWorkingHours(undefined)
+      }
+    }
+
+    fetchWorkingHours()
+  }, [accessToken, resolvedEmployeeId, dateVal, platformParams.attendanceDateISO, graphqlClient])
 
   // Re-validate date when blocked date data is loaded so pre-selected or chosen dates show the error
   useEffect(() => {

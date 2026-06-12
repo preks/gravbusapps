@@ -18,13 +18,13 @@ todos:
     status: completed
   - id: step-4-absence-correction-forms
     content: 'Step 4 — Fix absence and correction forms'
-    status: pending
+    status: completed
   - id: step-5-weekly-schedule-hooks
     content: 'Step 5 — Fix weekly schedule hooks'
-    status: pending
+    status: completed
   - id: step-6-team-manager-views
     content: 'Step 6 — Fix team / manager views'
-    status: pending
+    status: completed
   - id: step-7-payroll-compensation-absences
     content: 'Step 7 — Fix payroll, compensation planning, and absences insights'
     status: pending
@@ -180,21 +180,34 @@ Status: completed.
 
 ## Step 4 — Fix absence and correction forms
 
-These forms do their own fetches and then take `[0]`.
+Status: completed.
+
+`CreateRequestCorrectionForm.tsx` now selects the active working-hours record for the correction date when
+it needs to calculate fallback planned time.
+
+Create Absence is intentionally de-scoped from this working-hours history step:
+
+- The active Create Absence flow uses backend `/employee-time/api/v1/absences/prevalidate`.
+- `useAbsenceValidation` is only called from `CreateNewAbsence.tsx` with `disableCalendarValidation: true`.
+- A separate ticket tracks whether absence-side working-hours integration is needed at all.
 
 ### Files to edit
 
-| File                                                                                        | Change                                                                |
-| ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `src/business-apps/hr/core/forms/create-new-absence/hooks/useAbsenceValidation.ts`          | After fetch, apply `getActiveWorkingHours` instead of `[0]`           |
-| `src/business-apps/hr/core/forms/create-new-absence/queries/getEmployeeAbsences.ts`         | Add `activeFrom`, `activeTo` to `workingHours` selection; add orderBy |
-| `src/business-apps/hr/core/forms/create-request-correction/CreateRequestCorrectionForm.tsx` | After fetch, apply `getActiveWorkingHours` instead of `[0]`           |
+| File                                                                                        | Change                                                      |
+| ------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `src/business-apps/hr/core/forms/create-request-correction/CreateRequestCorrectionForm.tsx` | After fetch, apply `getActiveWorkingHours` instead of `[0]` |
 
 ---
 
 ## Step 5 — Fix weekly schedule hooks
 
-These do their own fetches. `GET_EMPLOYEE_WEEKLY_SCHEDULE` already uses `limit: 1` + `orderBy: activeFrom DESC` which is safe for now but does not yet expose `activeFrom` / `activeTo` to callers.
+Status: completed.
+
+These do their own fetches. Weekly schedule consumers now fetch dated working-hours records and select
+the record active for the UI period they render.
+
+- Manually verified: SmartBooking updates non-working day styling correctly when switching weeks.
+- Manually verified: Employee Record Absences calendar updates non-working day painting correctly when switching months.
 
 ### Files to edit
 
@@ -208,13 +221,24 @@ These do their own fetches. `GET_EMPLOYEE_WEEKLY_SCHEDULE` already uses `limit: 
 
 ## Step 6 — Fix team / manager views
 
+Status: completed.
+
+My Team Time now keeps dated working-hours history for each team member and resolves the applicable
+record per rendered date for attendance, dashboard, capacity, operational status, and insights calculations.
+
+Compensation manager planning was intentionally de-scoped after investigation:
+
+- `fte` / `weeklyHours` are carried in the compensation data model but are not rendered or used in current
+  manager planning calculations.
+- Salary-cost distribution uses `currentAnnualSalary`, not working hours or FTE.
+
 ### Files to edit
 
-| File                                                                                       | Change                                                                        |
-| ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
-| `src/business-apps/hr/core/apps/my-team-time/queries/queries.ts`                           | Add `activeFrom`/`activeTo` + orderBy to `workingHours` in `GET_TEAM_MEMBERS` |
-| `src/business-apps/hr/core/apps/my-team-time/hooks/useTeamMembers.ts`                      | Replace `workingHours[0]` with `getActiveWorkingHours`                        |
-| `src/business-apps/hr/compensation/apps/manager-planning/hooks/useTeamCompensationData.ts` | Replace `workingHours?.[0]` with `getActiveWorkingHours`                      |
+| File                                                                  | Change                                                                        |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `src/business-apps/hr/core/apps/my-team-time/queries/queries.ts`      | Add `activeFrom`/`activeTo` + orderBy to `workingHours` in `GET_TEAM_MEMBERS` |
+| `src/business-apps/hr/core/apps/my-team-time/hooks/useTeamMembers.ts` | Keep dated working-hours history on team members                              |
+| `src/business-apps/hr/core/apps/my-team-time/utils/timeUtils.ts`      | Resolve active working hours per rendered date                                |
 
 ---
 

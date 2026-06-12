@@ -119,6 +119,7 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
     isSubmitting,
     error: allocationsError,
     refetch,
+    fetchWorkingHoursPerDay,
     fetchBookedHours,
     submitWorkingHours
   } = useEmployeeTeamAllocations({ accessToken, employeeId })
@@ -158,6 +159,10 @@ const SmartBooking: React.FC<SmartBookingProps> = ({ prefixDataTestId, accessTok
     setFormInitializedForWeek(null)
     form.reset({})
   }, [weekKey, form])
+
+  useEffect(() => {
+    fetchWorkingHoursPerDay(weekStart)
+  }, [fetchWorkingHoursPerDay, weekStart])
 
   // Fetch booked hours when week changes
   useEffect(() => {

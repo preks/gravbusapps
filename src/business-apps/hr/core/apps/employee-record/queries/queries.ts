@@ -57,11 +57,11 @@ export const GET_EMPLOYEE_ABSENCES = `
   }
 `
 
-// Weekly schedule (per-day planned hours) for an employee - most recent record
+// Weekly schedule (per-day planned hours) for an employee
 export const GET_EMPLOYEE_WEEKLY_SCHEDULE = `
   query GetEmployeeWeeklySchedule($employeeId: uuid!) {
     Employee(where: { id: { _eq: $employeeId } }) {
-      workingHours(orderBy: [{ activeFrom: DESC }], limit: 1) {
+      workingHours(where: { isDeleted: { _eq: false } }, orderBy: [{ activeFrom: DESC }, { createdAt: DESC }]) {
         activeFrom
         activeTo
         mondayHours

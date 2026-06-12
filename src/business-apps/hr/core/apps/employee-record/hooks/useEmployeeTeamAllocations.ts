@@ -7,6 +7,7 @@ import dayjs from 'dayjs'
 import { env } from '@/common/env/EnvUtils'
 import { setAccessTokenToAuthorizationHeader } from '@/common/network/HeaderUtils'
 import { toast } from '@newwork/nw-design-system'
+import { getActiveWorkingHours } from '@/business-apps/hr/core/utils/workingHoursUtils'
 
 interface EmployeeMatrixUnitResponse {
   EmployeeMatrixUnit: Array<{
@@ -214,6 +215,8 @@ export interface WorkingHoursPerDay {
 interface EmployeeWorkingHoursResponse {
   Employee: Array<{
     workingHours: Array<{
+      activeFrom?: string | null
+      activeTo?: string | null
       mondayHours: number
       tuesdayHours: number
       wednesdayHours: number
@@ -231,7 +234,9 @@ interface EmployeeWorkingHoursResponse {
 const GET_EMPLOYEE_WORKING_HOURS = `
   query GetEmployeeWorkingHours($employeeId: uuid!) {
     Employee(where: {id: {_eq: $employeeId}}) {
-      workingHours {
+      workingHours(where: {isDeleted: {_eq: false}}, orderBy: [{activeFrom: DESC}, {createdAt: DESC}]) {
+        activeFrom
+        activeTo
         mondayHours
         tuesdayHours
         wednesdayHours
@@ -339,29 +344,43 @@ export const useEmployeeTeamAllocations = ({
   /**
    * Fetch employee's working hours schedule (hours per day of week)
    */
-  const fetchWorkingHoursPerDay = useCallback(async () => {
-    if (!employeeId) {
-      return
-    }
+  const fetchWorkingHoursPerDay = useCallback(
+    async (targetDate: Date = new Date()) => {
+      if (!employeeId) {
+        return
+      }
 
-    try {
-      const response = await graphqlClient.request<EmployeeWorkingHoursResponse>(GET_EMPLOYEE_WORKING_HOURS, {
-        employeeId
-      })
-
-      const workingHours = response.Employee?.[0]?.workingHours?.[0]
-      if (workingHours) {
-        setWorkingHoursPerDay({
-          monday: workingHours.mondayHours ?? 0,
-          tuesday: workingHours.tuesdayHours ?? 0,
-          wednesday: workingHours.wednesdayHours ?? 0,
-          thursday: workingHours.thursdayHours ?? 0,
-          friday: workingHours.fridayHours ?? 0,
-          saturday: workingHours.saturdayHours ?? 0,
-          sunday: workingHours.sundayHours ?? 0
+      try {
+        const response = await graphqlClient.request<EmployeeWorkingHoursResponse>(GET_EMPLOYEE_WORKING_HOURS, {
+          employeeId
         })
-      } else {
-        // No working hours configured - set all to 0 (will show all days as non-working)
+
+        const workingHours = getActiveWorkingHours(response.Employee?.[0]?.workingHours, targetDate)
+        if (workingHours) {
+          setWorkingHoursPerDay({
+            monday: workingHours.mondayHours ?? 0,
+            tuesday: workingHours.tuesdayHours ?? 0,
+            wednesday: workingHours.wednesdayHours ?? 0,
+            thursday: workingHours.thursdayHours ?? 0,
+            friday: workingHours.fridayHours ?? 0,
+            saturday: workingHours.saturdayHours ?? 0,
+            sunday: workingHours.sundayHours ?? 0
+          })
+        } else {
+          // No working hours configured - set all to 0 (will show all days as non-working)
+          setWorkingHoursPerDay({
+            monday: 0,
+            tuesday: 0,
+            wednesday: 0,
+            thursday: 0,
+            friday: 0,
+            saturday: 0,
+            sunday: 0
+          })
+        }
+      } catch (err) {
+        console.error('Error fetching employee working hours:', err)
+        // On error, set all to 0 (will show all days as non-working)
         setWorkingHoursPerDay({
           monday: 0,
           tuesday: 0,
@@ -372,20 +391,9 @@ export const useEmployeeTeamAllocations = ({
           sunday: 0
         })
       }
-    } catch (err) {
-      console.error('Error fetching employee working hours:', err)
-      // On error, set all to 0 (will show all days as non-working)
-      setWorkingHoursPerDay({
-        monday: 0,
-        tuesday: 0,
-        wednesday: 0,
-        thursday: 0,
-        friday: 0,
-        saturday: 0,
-        sunday: 0
-      })
-    }
-  }, [employeeId, graphqlClient])
+    },
+    [employeeId, graphqlClient]
+  )
 
   /**
    * Fetch booked working hours and attendance for a specific week
@@ -516,7 +524,7 @@ export const useEmployeeTeamAllocations = ({
     }
   }, [employeeId, structureId, fetchTeamAllocations])
 
-  // Fetch working hours schedule on mount
+  // Fetch working hours schedule on mount; week-specific refreshes come from SmartBooking.
   useEffect(() => {
     if (employeeId) {
       fetchWorkingHoursPerDay()
@@ -604,6 +612,7 @@ export const useEmployeeTeamAllocations = ({
     isSubmitting,
     error,
     refetch: fetchTeamAllocations,
+    fetchWorkingHoursPerDay,
     fetchBookedHours,
     submitWorkingHours
   }

@@ -22,6 +22,20 @@ interface WorkingConditionRaw {
   contractType?: { objectValue?: Record<string, unknown> | null } | null
 }
 
+interface WorkingHoursRaw {
+  activeFrom?: string | null
+  activeTo?: string | null
+  mondayHours?: number | null
+  tuesdayHours?: number | null
+  wednesdayHours?: number | null
+  thursdayHours?: number | null
+  fridayHours?: number | null
+  saturdayHours?: number | null
+  sundayHours?: number | null
+  weeklyHours?: number
+  weeklyDays?: number
+}
+
 const isContractTimeRelevant = (workingConditions: WorkingConditionRaw[] | undefined): boolean => {
   if (!workingConditions || workingConditions.length === 0) return true
 
@@ -93,27 +107,31 @@ export const useTeamMembers = (context: BusinessAppContextProps): UseTeamMembers
       const result = await graphqlClient.request<any>(GET_TEAM_MEMBERS, { supervisorId })
       const employees = result?.Employee ?? []
 
-      const mapped: TeamMember[] = employees.map((emp: any) => ({
-        id: emp.id,
-        firstName: emp.firstName,
-        lastName: emp.lastName,
-        hireDate: getEarliestHireDate(emp.workingCondition),
-        orgUnit: emp.employeePosition?.organizationalUnit?.name,
-        timeRelevant: true,
-        workingHours: emp.workingHours?.[0]
-          ? {
-              mondayHours: emp.workingHours[0].mondayHours ?? 0,
-              tuesdayHours: emp.workingHours[0].tuesdayHours ?? 0,
-              wednesdayHours: emp.workingHours[0].wednesdayHours ?? 0,
-              thursdayHours: emp.workingHours[0].thursdayHours ?? 0,
-              fridayHours: emp.workingHours[0].fridayHours ?? 0,
-              saturdayHours: emp.workingHours[0].saturdayHours ?? 0,
-              sundayHours: emp.workingHours[0].sundayHours ?? 0,
-              weeklyHours: emp.workingHours[0].weeklyHours,
-              weeklyDays: emp.workingHours[0].weeklyDays
-            }
-          : undefined
-      }))
+      const mapped: TeamMember[] = employees.map((emp: any) => {
+        const workingHoursRecords = emp.workingHours as WorkingHoursRaw[] | undefined
+
+        return {
+          id: emp.id,
+          firstName: emp.firstName,
+          lastName: emp.lastName,
+          hireDate: getEarliestHireDate(emp.workingCondition),
+          orgUnit: emp.employeePosition?.organizationalUnit?.name,
+          timeRelevant: true,
+          workingHours: workingHoursRecords?.map(workingHours => ({
+            activeFrom: workingHours.activeFrom,
+            activeTo: workingHours.activeTo,
+            mondayHours: workingHours.mondayHours ?? 0,
+            tuesdayHours: workingHours.tuesdayHours ?? 0,
+            wednesdayHours: workingHours.wednesdayHours ?? 0,
+            thursdayHours: workingHours.thursdayHours ?? 0,
+            fridayHours: workingHours.fridayHours ?? 0,
+            saturdayHours: workingHours.saturdayHours ?? 0,
+            sundayHours: workingHours.sundayHours ?? 0,
+            weeklyHours: workingHours.weeklyHours,
+            weeklyDays: workingHours.weeklyDays
+          }))
+        }
+      })
 
       setCoreMembers(mapped)
     } catch (err) {

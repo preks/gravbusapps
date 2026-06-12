@@ -1,5 +1,6 @@
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { WeeklyWorkingHours } from '../types/types'
+import { getActiveWorkingHours } from '@/business-apps/hr/core/utils/workingHoursUtils'
 
 const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/
 
@@ -78,24 +79,40 @@ export const toComparableDateKey = (value?: string | null): string | null => {
   return toLocalDateKey(parsed)
 }
 
-export const getPlannedMinutesForDate = (dateIso: string, workingHours?: WeeklyWorkingHours): number => {
-  if (!workingHours) return 0
+type WorkingHoursInput = WeeklyWorkingHours | WeeklyWorkingHours[]
+
+export const getWorkingHoursForDate = (
+  dateIso: string,
+  workingHours?: WorkingHoursInput
+): WeeklyWorkingHours | undefined => {
+  if (!workingHours) return undefined
+  if (Array.isArray(workingHours)) {
+    return getActiveWorkingHours<WeeklyWorkingHours>(workingHours, dateIso)
+  }
+
+  return workingHours
+}
+
+export const getPlannedMinutesForDate = (dateIso: string, workingHours?: WorkingHoursInput): number => {
+  const workingHoursForDate = getWorkingHoursForDate(dateIso, workingHours)
+  if (!workingHoursForDate) return 0
+
   const d = parseDateInput(dateIso)
   const day = d.getDay()
   const hoursByDay = [
-    workingHours.sundayHours,
-    workingHours.mondayHours,
-    workingHours.tuesdayHours,
-    workingHours.wednesdayHours,
-    workingHours.thursdayHours,
-    workingHours.fridayHours,
-    workingHours.saturdayHours
+    workingHoursForDate.sundayHours,
+    workingHoursForDate.mondayHours,
+    workingHoursForDate.tuesdayHours,
+    workingHoursForDate.wednesdayHours,
+    workingHoursForDate.thursdayHours,
+    workingHoursForDate.fridayHours,
+    workingHoursForDate.saturdayHours
   ]
   const hours = hoursByDay[day] ?? 0
   return typeof hours === 'number' ? Math.max(0, Math.round(hours * 60)) : 0
 }
 
-export const isWorkingDay = (dateIso: string, workingHours?: WeeklyWorkingHours): boolean => {
+export const isWorkingDay = (dateIso: string, workingHours?: WorkingHoursInput): boolean => {
   return getPlannedMinutesForDate(dateIso, workingHours) > 0
 }
 

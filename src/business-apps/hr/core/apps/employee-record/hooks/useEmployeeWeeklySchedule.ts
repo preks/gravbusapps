@@ -2,6 +2,19 @@ import { useEffect, useState } from 'react'
 import dayjs from 'dayjs'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEE_WEEKLY_SCHEDULE } from '../queries/queries'
+import { getActiveWorkingHours } from '@/business-apps/hr/core/utils/workingHoursUtils'
+
+type WeeklyWorkingHours = {
+  activeFrom?: string | null
+  activeTo?: string | null
+  sundayHours?: number | null
+  mondayHours?: number | null
+  tuesdayHours?: number | null
+  wednesdayHours?: number | null
+  thursdayHours?: number | null
+  fridayHours?: number | null
+  saturdayHours?: number | null
+}
 
 /**
  * Compute non-working dates for the visible month from the employee's weekly schedule.
@@ -23,7 +36,8 @@ export function useEmployeeWeeklySchedule(
           return
         }
         const res: any = await client.request(GET_EMPLOYEE_WEEKLY_SCHEDULE as any, { employeeId })
-        const wh = res?.Employee?.[0]?.workingHours?.[0]
+        const monthStart = currentDate.startOf('month')
+        const wh = getActiveWorkingHours<WeeklyWorkingHours>(res?.Employee?.[0]?.workingHours, monthStart.toDate())
         if (!wh) {
           setNonWorkingDates(null)
           return
@@ -37,7 +51,7 @@ export function useEmployeeWeeklySchedule(
           Number(wh.fridayHours ?? 0),
           Number(wh.saturdayHours ?? 0)
         ]
-        const start = currentDate.startOf('month')
+        const start = monthStart
         const end = currentDate.endOf('month')
         const set = new Set<string>()
         let d = start
