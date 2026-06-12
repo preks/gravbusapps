@@ -730,7 +730,7 @@ class ModelBuilder {
     })
   }
 
-  private updateToolNodeOnCompletion(toolNode: MeshNode | undefined, event: AgentStepCompletedEvent): void {
+  private updateToolNodeOnCompletion(toolNode: NodeAcc | undefined, event: AgentStepCompletedEvent): void {
     if (!toolNode) return
     toolNode.status = event.status === 'failed' ? 'failed' : 'done'
     toolNode.lastSeenAt = event.timestamp
@@ -738,7 +738,7 @@ class ModelBuilder {
     if (typeof event.duration_ms === 'number') toolNode.totalDurationMs += event.duration_ms
   }
 
-  private extractSkillsFromToolOutput(toolNode: MeshNode | undefined, event: AgentStepCompletedEvent): void {
+  private extractSkillsFromToolOutput(toolNode: NodeAcc | undefined, event: AgentStepCompletedEvent): void {
     if (!toolNode || !event.output) return
     if (toolNode.label === 'newwork_find_expert') {
       this.extractSkillsFromFindExpert(event.output, event)
@@ -939,74 +939,116 @@ class ModelBuilder {
     })
   }
 
+  /**
+   * One expert name must map to one mesh node. ``expert_called`` keys nodes by
+   * subagent/step id while ``expert_selected`` keys by registry id — reuse any
+   * existing node for the same display name before creating a second expert.
+   */
+  private resolveExpertNodeId(expertName: string, registryExpertId: string): string {
+    const fromMap = this.expertNodeByName.get(expertName)
+    if (fromMap) return fromMap
+    for (const [id, node] of this.nodes) {
+      if (node.kind === 'expert' && node.label === expertName) return id
+    }
+    return `expert:${registryExpertId}`
+  }
+
   private handleEnterpriseRuntime(event: EnterpriseRuntimeTraceEvent): void {
     if (event.type === 'expert_selected' && event.expert_id) {
-      const expertNodeId = `expert:${event.expert_id}`
-      const expertName = (event.payload?.name as string) || event.expert_id
-      this.expertNodeByName.set(expertName, expertNodeId)
-      this.upsertNode({
-        id: expertNodeId,
-        kind: 'expert',
-        label: expertName,
-        description: event.payload?.description as string | undefined,
-        firstSeenAt: event.timestamp,
-        lastSeenAt: event.timestamp,
-        firstSeenSeq: event.seq,
-        lastSeenSeq: event.seq,
-        status: 'idle',
-        totalDurationMs: 0,
-        invocationCount: 0
-      })
-
-      // Create skill nodes from the expert's skill_ids when present
-      const skillIds = event.payload?.skill_ids
-      if (Array.isArray(skillIds) && skillIds.length > 0) {
-        for (const sid of skillIds) {
-          if (!sid) continue
-          this.skillOwnerBySkillId.set(String(sid), expertNodeId)
-          const skillNodeId = `skill:${sid}`
-          if (!this.nodes.has(skillNodeId)) {
-            this.upsertNode({
-              id: skillNodeId,
-              kind: 'skill',
-              label: String(sid),
-              firstSeenAt: event.timestamp,
-              lastSeenAt: event.timestamp,
-              firstSeenSeq: event.seq,
-              lastSeenSeq: event.seq,
-              status: 'done',
-              totalDurationMs: 0,
-              invocationCount: 1,
-              metadata: { category: 'enterprise', was_auto_detected: false }
-            })
-          }
-          this.edges.push({
-            id: `${expertNodeId}->${skillNodeId}@${event.seq}`,
-            source: expertNodeId,
-            target: skillNodeId,
-            kind: 'skill_load',
-            seq: event.seq,
-            timestamp: event.timestamp,
-            label: String(sid),
-            resolvedAt: event.timestamp
-          })
-        }
-      }
-    } else if (event.type === 'tool_available' && event.tool_ref) {
-      const nodeId = `tool:${event.tool_ref}`
-      this.upsertNode({
-        id: nodeId,
-        kind: 'tool',
-        label: event.tool_ref,
-        firstSeenAt: event.timestamp,
-        lastSeenAt: event.timestamp,
-        firstSeenSeq: event.seq,
-        lastSeenSeq: event.seq,
-        status: 'idle',
-        totalDurationMs: 0,
-        invocationCount: 0
-      })
+      this.handleExpertSelectedRuntime(event)
+      return
     }
+
+    if (event.type === 'tool_available' && event.tool_ref) {
+      this.handleToolAvailableRuntime(event)
+    }
+  }
+
+  private handleExpertSelectedRuntime(event: EnterpriseRuntimeTraceEvent): void {
+    if (!event.expert_id) return
+
+    const expertName = (event.payload?.name as string) || event.expert_id
+    const expertNodeId = this.resolveExpertNodeId(expertName, event.expert_id)
+    this.expertNodeByName.set(expertName, expertNodeId)
+    this.upsertNode({
+      id: expertNodeId,
+      kind: 'expert',
+      label: expertName,
+      description: event.payload?.description as string | undefined,
+      firstSeenAt: event.timestamp,
+      lastSeenAt: event.timestamp,
+      firstSeenSeq: event.seq,
+      lastSeenSeq: event.seq,
+      status: 'idle',
+      totalDurationMs: 0,
+      invocationCount: 0,
+      metadata: { registry_expert_id: event.expert_id }
+    })
+
+    const skillIds = event.payload?.skill_ids
+    if (Array.isArray(skillIds) && skillIds.length > 0) {
+      this.linkExpertSkillsFromSelection(expertNodeId, skillIds, event)
+    }
+  }
+
+  private linkExpertSkillsFromSelection(
+    expertNodeId: string,
+    skillIds: unknown[],
+    event: EnterpriseRuntimeTraceEvent
+  ): void {
+    for (const sid of skillIds) {
+      if (!sid) continue
+      this.skillOwnerBySkillId.set(String(sid), expertNodeId)
+      const skillNodeId = `skill:${sid}`
+      if (!this.nodes.has(skillNodeId)) {
+        this.upsertNode({
+          id: skillNodeId,
+          kind: 'skill',
+          label: String(sid),
+          firstSeenAt: event.timestamp,
+          lastSeenAt: event.timestamp,
+          firstSeenSeq: event.seq,
+          lastSeenSeq: event.seq,
+          status: 'done',
+          totalDurationMs: 0,
+          invocationCount: 1,
+          metadata: { category: 'enterprise', was_auto_detected: false }
+        })
+      }
+      const hasDuplicateEdge = this.edges.some(
+        e => e.source === expertNodeId && e.target === skillNodeId && e.kind === 'skill_load'
+      )
+      if (!hasDuplicateEdge) {
+        this.edges.push({
+          id: `${expertNodeId}->${skillNodeId}@${event.seq}`,
+          source: expertNodeId,
+          target: skillNodeId,
+          kind: 'skill_load',
+          seq: event.seq,
+          timestamp: event.timestamp,
+          label: String(sid),
+          resolvedAt: event.timestamp
+        })
+      }
+    }
+  }
+
+  private handleToolAvailableRuntime(event: EnterpriseRuntimeTraceEvent): void {
+    if (!event.tool_ref) return
+
+    const nodeId = `tool:${event.tool_ref}`
+    this.upsertNode({
+      id: nodeId,
+      kind: 'tool',
+      label: event.tool_ref,
+      firstSeenAt: event.timestamp,
+      lastSeenAt: event.timestamp,
+      firstSeenSeq: event.seq,
+      lastSeenSeq: event.seq,
+      status: 'idle',
+      totalDurationMs: 0,
+      invocationCount: 0
+    })
   }
 
   private handleToolChunk(event: AgentChunkEvent): void {

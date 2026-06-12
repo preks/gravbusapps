@@ -38,6 +38,12 @@ const EveryFabricInner: React.FC = () => {
     newSession,
     startSession,
     sessionsLoading,
+    sessionsLoadingMore,
+    sessionsSearching,
+    hasMoreSessions,
+    sessionSearchQuery,
+    setSessionSearchQuery,
+    loadMoreSessions,
     sessionLoadError,
     retrySessionLoad
   } = useFabric()
@@ -157,6 +163,13 @@ const EveryFabricInner: React.FC = () => {
         activeSessionId={activeSessionId}
         activeSessions={activeSessions}
         historySessions={sessions}
+        historySessionsLoading={sessionsLoading}
+        historySessionsLoadingMore={sessionsLoadingMore}
+        historySessionsSearching={sessionsSearching}
+        hasMoreHistorySessions={hasMoreSessions}
+        historySearchQuery={sessionSearchQuery}
+        onHistorySearchQueryChange={setSessionSearchQuery}
+        onLoadMoreHistorySessions={loadMoreSessions}
         userInfo={userInfo}
         accessToken={accessToken}
         showNewSessionCta={Boolean(session) || isAnyOverlayShown}

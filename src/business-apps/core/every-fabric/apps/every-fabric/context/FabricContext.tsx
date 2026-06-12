@@ -43,6 +43,12 @@ interface FabricContextValue {
   sessions: FabricSessionSummary[]
   /** True while the initial session history is still being fetched. */
   sessionsLoading: boolean
+  /** True while an additional page of session history is being fetched. */
+  sessionsLoadingMore: boolean
+  /** True while the sidebar search query is debouncing or fetching results. */
+  sessionsSearching: boolean
+  hasMoreSessions: boolean
+  sessionSearchQuery: string
 
   // Active session
   activeSessionId: string | null
@@ -132,6 +138,8 @@ interface FabricContextValue {
   selectSession: (id: string | null) => void
   newSession: () => void
   deleteSession: (id: string) => void
+  setSessionSearchQuery: (query: string) => void
+  loadMoreSessions: () => Promise<void>
   retrySessionLoad: () => Promise<void>
   reply: (message?: string, structuredInput?: Record<string, any>) => Promise<void>
   stopSession: () => Promise<void>
@@ -407,7 +415,19 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
   }, [activeSessionId, userInfo?.id])
 
   // Session list management
-  const { sessions, loading: sessionsLoading, addSession, updateSession, removeSession } = useAgentSessions(accessToken)
+  const {
+    sessions,
+    loading: sessionsLoading,
+    loadingMore: sessionsLoadingMore,
+    searching: sessionsSearching,
+    hasMore: hasMoreSessions,
+    searchQuery: sessionSearchQuery,
+    setSearchQuery: setSessionSearchQuery,
+    loadMore: loadMoreSessions,
+    addSession,
+    updateSession,
+    removeSession
+  } = useAgentSessions(accessToken)
 
   // Active session — streaming, messages, events
   const {
@@ -722,6 +742,10 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       userInfo,
       sessions: sessions as FabricSessionSummary[],
       sessionsLoading,
+      sessionsLoadingMore,
+      sessionsSearching,
+      hasMoreSessions,
+      sessionSearchQuery,
       activeSessionId,
       session,
       messages: enrichedMessages,
@@ -772,6 +796,8 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       selectSession,
       newSession,
       deleteSession,
+      setSessionSearchQuery,
+      loadMoreSessions,
       retrySessionLoad,
       reply,
       stopSession,
@@ -787,6 +813,10 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       userInfo,
       sessions,
       sessionsLoading,
+      sessionsLoadingMore,
+      sessionsSearching,
+      hasMoreSessions,
+      sessionSearchQuery,
       activeSessionId,
       session,
       enrichedMessages,
@@ -830,6 +860,8 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       selectSession,
       newSession,
       deleteSession,
+      setSessionSearchQuery,
+      loadMoreSessions,
       retrySessionLoad,
       reply,
       stopSession,

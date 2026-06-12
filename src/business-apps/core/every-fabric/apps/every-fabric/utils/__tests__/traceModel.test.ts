@@ -145,6 +145,59 @@ describe('traceModel', () => {
     expect(model.summary.terminalStatus).toBe('failed')
   })
 
+  it('merges expert_selected into the expert_called node for the same expert name', () => {
+    const events: AgentStreamEvent[] = [
+      {
+        type: 'expert_called',
+        seq: 16,
+        event_id: 'e16',
+        step_id: 'step-call-vgaKtKm2vEV',
+        subagent_id: 'b38cba83',
+        expert_name: 'HR_General_Agent',
+        task_summary: 'Start offboarding for Mohamed Masoud',
+        timestamp: ts(0)
+      },
+      {
+        type: 'expert_selected',
+        seq: 27,
+        event_id: 'e27',
+        expert_id: '6a1f159eceaf2e155e2f25f8',
+        timestamp: ts(5),
+        payload: {
+          name: 'HR_General_Agent',
+          description: 'HR Operations expert',
+          skill_ids: ['employee-offboarding', 'hr-letter']
+        }
+      },
+      {
+        type: 'expert_selected',
+        seq: 114,
+        event_id: 'e114',
+        expert_id: '6a1f159eceaf2e155e2f25f8',
+        timestamp: ts(10),
+        payload: {
+          name: 'HR_General_Agent',
+          skill_ids: ['employee-offboarding', 'hr-letter']
+        }
+      }
+    ]
+
+    const model = buildTraceModel(events)
+    const hrNodes = model.nodes.filter(n => n.kind === 'expert' && n.label === 'HR_General_Agent')
+    expect(hrNodes).toHaveLength(1)
+    expect(hrNodes[0].id).toBe('expert:b38cba83')
+
+    const skillNodes = model.nodes.filter(n => n.kind === 'skill')
+    expect(skillNodes.map(n => n.label).sort()).toEqual(['employee-offboarding', 'hr-letter'])
+
+    const skillEdges = model.edges.filter(e => e.kind === 'skill_load' && e.source === hrNodes[0].id)
+    expect(skillEdges).toHaveLength(2)
+
+    const delegation = model.edges.find(e => e.kind === 'expert_call')
+    expect(delegation?.target).toBe(hrNodes[0].id)
+    expect(model.summary.expertCount).toBe(1)
+  })
+
   it('is order-independent (sorts by seq)', () => {
     const events: AgentStreamEvent[] = [
       {

@@ -1,4 +1,5 @@
 import { CaretRightIcon } from '@phosphor-icons/react'
+import React from 'react'
 import { SIDEBAR_SECTION_LABEL_CLASS } from './sidebarLayout.constants'
 
 interface SidebarSectionHeaderProps {

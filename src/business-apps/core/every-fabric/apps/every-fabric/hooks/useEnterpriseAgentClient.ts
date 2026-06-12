@@ -12,7 +12,7 @@ import type {
   StartSessionResponse,
   AgentSkillBinding
 } from '../types/enterpriseAgent'
-import type { ArtifactFile } from '../types/fabric'
+import type { ArtifactFile, FabricSessionSummary } from '../types/fabric'
 import { resolveRendererType } from '../types/fabric'
 import type { ActiveSessionsListResponse, ActiveSessionsSummaryResponse } from '../types/activeSession'
 
@@ -54,6 +54,52 @@ export interface UserProfileBrief {
   edited_at?: string | null
   updated_at?: string | null
   last_error?: string | null
+}
+
+export interface SessionHistoryPage {
+  items: FabricSessionSummary[]
+  next_cursor: string | null
+  has_more: boolean
+}
+
+interface GetSessionsParams {
+  limit?: number
+  status?: string
+}
+
+interface GetSessionSummariesParams extends GetSessionsParams {
+  summary: true
+  cursor?: string | null
+  q?: string
+}
+
+type GetSessions = {
+  (params?: GetSessionsParams): Promise<DeepAgentSession[]>
+  (params: GetSessionSummariesParams): Promise<SessionHistoryPage>
+}
+
+interface SessionsApiClient {
+  get: <T>(path: string, opts?: { params?: Record<string, string | number | boolean> }) => Promise<T>
+}
+
+const createGetSessions = (client: SessionsApiClient): GetSessions => {
+  function getSessions(params?: GetSessionsParams): Promise<DeepAgentSession[]>
+  function getSessions(params: GetSessionSummariesParams): Promise<SessionHistoryPage>
+  function getSessions(
+    params?: GetSessionsParams | GetSessionSummariesParams
+  ): Promise<DeepAgentSession[] | SessionHistoryPage> {
+    const queryParams: Record<string, string | number | boolean> = {}
+    if (params?.limit) queryParams.limit = params.limit
+    if (params?.status) queryParams.status = params.status
+    if (params && 'summary' in params && params.summary) queryParams.summary = true
+    if (params && 'cursor' in params && params.cursor) queryParams.cursor = params.cursor
+    if (params && 'q' in params && params.q?.trim()) queryParams.q = params.q.trim()
+    return client.get<DeepAgentSession[] | SessionHistoryPage>('/deep-agent/sessions', {
+      params: queryParams
+    })
+  }
+
+  return getSessions
 }
 
 /**
@@ -234,13 +280,7 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
     [client, accessToken]
   )
 
-  const getSessions = useCallback(
-    (params?: { limit?: number; status?: string }) =>
-      client.get<DeepAgentSession[]>('/deep-agent/sessions', {
-        params: params as Record<string, string>
-      }),
-    [client]
-  )
+  const getSessions = useMemo(() => createGetSessions(client), [client])
 
   const getMeshSessions = useCallback(
     (params: {

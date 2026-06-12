@@ -43,6 +43,13 @@ export interface SidebarProps {
   activeSessionId: string | null
   activeSessions: ActiveSessionSnapshot[]
   historySessions: FabricSessionSummary[]
+  historySessionsLoading?: boolean
+  historySessionsLoadingMore?: boolean
+  historySessionsSearching?: boolean
+  hasMoreHistorySessions?: boolean
+  historySearchQuery: string
+  onHistorySearchQueryChange: (query: string) => void
+  onLoadMoreHistorySessions: () => Promise<void>
 
   userInfo?: UserInfoProps
   accessToken?: string
@@ -100,6 +107,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeSessionId,
   activeSessions,
   historySessions,
+  historySessionsLoading = false,
+  historySessionsLoadingMore = false,
+  historySessionsSearching = false,
+  hasMoreHistorySessions = false,
+  historySearchQuery,
+  onHistorySearchQueryChange,
+  onLoadMoreHistorySessions,
   userInfo,
   accessToken = '',
   showNewSessionCta = true,
@@ -121,22 +135,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isTraceExplorerActive = false,
   devModeEnabled = false
 }) => {
-  const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<Set<RecentsStatusFilter> | null>(null)
+  const [searchFocusRequest, setSearchFocusRequest] = useState(0)
 
   const { active, recents } = useMemo(
     () => splitSessions(historySessions, activeSessions),
     [historySessions, activeSessions]
   )
 
-  const filteredActive = useMemo(() => filterActiveByQuery(active, query), [active, query])
+  const filteredActive = useMemo(() => filterActiveByQuery(active, historySearchQuery), [active, historySearchQuery])
   const filteredRecents = useMemo(() => {
-    const byQuery = filterRecentsByQuery(recents, query)
+    const byQuery = filterRecentsByQuery(recents, historySearchQuery)
     return filterRecentsByStatus(byQuery, statusFilter)
-  }, [recents, query, statusFilter])
+  }, [recents, historySearchQuery, statusFilter])
 
   const widthClass = isCollapsed ? SIDEBAR_COLLAPSED_WIDTH_CLASS : SIDEBAR_EXPANDED_WIDTH_CLASS
   const hasActiveSession = Boolean(activeSessionId)
+  const hasActiveHistorySearch = historySearchQuery.trim().length > 0
+  const forceSessionsExpanded = hasActiveHistorySearch || statusFilter !== null
+  const handleSearchRequestExpand = () => {
+    setSearchFocusRequest(value => value + 1)
+    onExpand()
+  }
 
   return (
     <aside
@@ -212,7 +232,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         <div className="gba:mx-3 gba:my-1.5 gba:border-t gba:border-border/40" />
 
-        <SidebarSearchBar isCollapsed={isCollapsed} query={query} onChange={setQuery} onRequestExpand={onExpand} />
+        <SidebarSearchBar
+          isCollapsed={isCollapsed}
+          query={historySearchQuery}
+          onChange={onHistorySearchQueryChange}
+          onRequestExpand={handleSearchRequestExpand}
+          isSearching={historySessionsSearching}
+          resultCount={hasActiveHistorySearch ? filteredActive.length + filteredRecents.length : undefined}
+          focusRequestId={searchFocusRequest}
+        />
         {!isCollapsed && <SidebarFilterBar activeFilters={statusFilter} onChange={setStatusFilter} />}
 
         {!isCollapsed && (
@@ -222,15 +250,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
               activeSessionId={activeSessionId}
               onSelect={onSelectSession}
               onStop={onStopSession}
-              forceExpanded={query.trim().length > 0 || statusFilter !== null}
+              forceExpanded={forceSessionsExpanded}
             />
             <SidebarRecentsSection
               sessions={filteredRecents}
               activeSessionId={activeSessionId}
               onSelect={onSelectSession}
               onDelete={onDeleteSession}
-              emptyHint={query || statusFilter ? 'No sessions match your search or filters.' : undefined}
-              forceExpanded={query.trim().length > 0 || statusFilter !== null}
+              emptyHint={
+                hasActiveHistorySearch || statusFilter ? 'No sessions match your search or filters.' : undefined
+              }
+              forceExpanded={forceSessionsExpanded}
+              isLoading={historySessionsLoading}
+              isLoadingMore={historySessionsLoadingMore}
+              hasMore={hasMoreHistorySessions}
+              onLoadMore={onLoadMoreHistorySessions}
+              searchActive={hasActiveHistorySearch}
             />
           </div>
         )}
