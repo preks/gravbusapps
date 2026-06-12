@@ -67,6 +67,7 @@ export const useEmploymentTypes = (accessToken: string): UseEmploymentTypesRetur
           const label = getCatalogValue(entry) || entry.value || entry.code || 'Unknown'
           return {
             id: entry.id,
+            code: entry.code,
             name: label,
             label,
             value: entry.id,

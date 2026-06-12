@@ -507,21 +507,24 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
       <FormField
         name="parentEntryId"
         render={({ field }) => (
-          <FormItem>
+          <FormItem className="gba:w-full">
             <FormLabel>{t('field-employment-type-label')}</FormLabel>
             <Select
               onValueChange={field.onChange}
               value={field.value || undefined}
               disabled={employmentTypeOptionsLoading}
             >
-              <FormControl>
-                <SelectTrigger className="gba:w-full" data-testid={`${dataTestId}-employment-type-select`}>
+              <FormControl className="gba:w-full">
+                <SelectTrigger
+                  className="gba:w-full! gba:min-w-full"
+                  data-testid={`${dataTestId}-employment-type-select`}
+                >
                   <SelectValue
                     placeholder={employmentTypeOptionsLoading ? t('loading') : t('field-employment-type-placeholder')}
                   />
                 </SelectTrigger>
               </FormControl>
-              <SelectContent>
+              <SelectContent className="gba:w-[var(--radix-select-trigger-width)] gba:max-w-[var(--radix-select-trigger-width)]">
                 {employmentTypeOptions.map(option => (
                   <SelectItem key={option.id} value={option.id}>
                     {option.label}

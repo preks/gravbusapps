@@ -18,6 +18,7 @@ export interface EmployeeFormValues {
 
 export interface SelectOption {
   id: string
+  code?: string
   name: string
   label?: string // for compatibility
   value?: string // for compatibility
