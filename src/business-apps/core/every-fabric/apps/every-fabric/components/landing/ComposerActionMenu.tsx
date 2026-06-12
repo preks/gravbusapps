@@ -23,13 +23,10 @@ import {
   SpinnerGapIcon,
   XIcon
 } from '@phosphor-icons/react'
-import { useTranslation } from '@newwork/nw-design-system'
-import { ConnectorLogo } from '@/business-apps/core/create/apps/newwork-connect/components/ConnectorLogo'
-import { CONNECT_LANES, LANE_CONFIG } from '@/business-apps/core/create/apps/newwork-connect/components/connectCatalog'
 import { buildPlatformUrl, Navigation, navigateTo } from '@/common/utils/navigationUtils'
-import translations from '@/business-apps/core/create/apps/newwork-connect/_i18n'
 import type { ExternalConnection } from '../../hooks/useFabricConnectors'
 import type { SpecialistAgent } from '../../types/enterpriseAgent'
+import { ConnectorPickerLaneList } from '../connectors/ConnectorPickerLaneList'
 import { useFloatingPanel } from './useFloatingPanel'
 
 // ── Positioning ───────────────────────────────────────────────────────────────
@@ -150,8 +147,6 @@ export const ComposerActionMenu: React.FC<ComposerActionMenuProps> = ({
   const [agentSearch, setAgentSearch] = useState('')
   const [coords, setCoords] = useState<PanelCoords>({ top: 0, left: 0 })
   const scrollContainerRef = useRef<HTMLDivElement | null>(null)
-  const { t } = useTranslation(translations)
-
   const isSmall = variant === 'workspace'
   const activeCount = availableConnectors.filter(c => activeConnectorIds.has(c.connection_id)).length
   const agentsEnabled = typeof onSelectAgent === 'function'
@@ -167,14 +162,6 @@ export const ComposerActionMenu: React.FC<ComposerActionMenuProps> = ({
       return haystack.includes(query)
     })
   }, [availableAgents, agentSearch])
-
-  const grouped = availableConnectors.reduce<Record<string, ExternalConnection[]>>((acc, conn) => {
-    const lane = conn.lane || 'mcp_servers'
-    if (!acc[lane]) acc[lane] = []
-    acc[lane].push(conn)
-    return acc
-  }, {})
-  const sortedLanes = CONNECT_LANES.filter(lane => grouped[lane]?.length > 0)
 
   const close = useCallback(() => {
     setIsOpen(false)
@@ -216,7 +203,7 @@ export const ComposerActionMenu: React.FC<ComposerActionMenuProps> = ({
     })
 
     return () => browserWindow.cancelAnimationFrame(frame)
-  }, [connectorsExpanded, sortedLanes.length, isLoadingConnectors])
+  }, [connectorsExpanded, availableConnectors.length, isLoadingConnectors])
 
   const panel = isOpen
     ? createPortal(
@@ -382,46 +369,15 @@ export const ComposerActionMenu: React.FC<ComposerActionMenuProps> = ({
                         </p>
                       )}
 
-                      {!isLoadingConnectors &&
-                        sortedLanes.map(lane => {
-                          const laneConfig = LANE_CONFIG[lane]
-                          return (
-                            <div key={lane}>
-                              <h3 className="gba:mb-1 gba:px-1.5 gba:text-[9.5px] gba:font-semibold gba:uppercase gba:tracking-[0.07em] gba:text-muted-foreground/50">
-                                {t(laneConfig.titleKey)}
-                              </h3>
-                              <div className="gba:space-y-0.5">
-                                {grouped[lane].map(conn => {
-                                  const isActive = activeConnectorIds.has(conn.connection_id)
-                                  return (
-                                    <button
-                                      key={conn.connection_id}
-                                      type="button"
-                                      onClick={() => onToggleConnector(conn.connection_id)}
-                                      className="gba:flex gba:w-full gba:items-center gba:gap-2.5 gba:rounded-lg gba:px-2 gba:py-1.5 gba:text-left gba:transition-colors gba:hover:bg-foreground/5"
-                                      data-testid={`composer-connector-${conn.connection_id}`}
-                                    >
-                                      <ConnectorLogo providerId={conn.providerIdForLogo} size="sm" />
-                                      <span className="gba:flex-1 gba:line-clamp-1 gba:text-[12px] gba:font-medium gba:text-foreground">
-                                        {conn.name}
-                                      </span>
-                                      <div
-                                        className={`gba:flex gba:h-4 gba:w-8 gba:shrink-0 gba:items-center gba:rounded-full gba:p-0.5 gba:transition-colors ${
-                                          isActive
-                                            ? 'gba:justify-end gba:bg-foreground/80'
-                                            : 'gba:justify-start gba:bg-foreground/20'
-                                        }`}
-                                        aria-hidden="true"
-                                      >
-                                        <div className="gba:h-3 gba:w-3 gba:rounded-full gba:bg-white gba:shadow-sm" />
-                                      </div>
-                                    </button>
-                                  )
-                                })}
-                              </div>
-                            </div>
-                          )
-                        })}
+                      {!isLoadingConnectors && (
+                        <ConnectorPickerLaneList
+                          connectors={availableConnectors}
+                          activeConnectorIds={activeConnectorIds}
+                          onToggle={onToggleConnector}
+                          variant="menu"
+                          testIdPrefix="composer-connector"
+                        />
+                      )}
                     </div>
 
                     <div className="gba:mt-1 gba:border-t gba:border-foreground/8 gba:px-2 gba:pt-2">

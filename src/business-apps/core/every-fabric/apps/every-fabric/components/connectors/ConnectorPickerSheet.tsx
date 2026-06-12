@@ -1,10 +1,8 @@
-import { Button, useTranslation } from '@newwork/nw-design-system'
-import { CheckIcon, PlugIcon, XIcon } from '@phosphor-icons/react'
+import { Button } from '@newwork/nw-design-system'
+import { PlugIcon, XIcon } from '@phosphor-icons/react'
 import type { ExternalConnection } from '../../hooks/useFabricConnectors'
-import { ConnectorLogo } from '@/business-apps/core/create/apps/newwork-connect/components/ConnectorLogo'
-import { CONNECT_LANES, LANE_CONFIG } from '@/business-apps/core/create/apps/newwork-connect/components/connectCatalog'
-import translations from '@/business-apps/core/create/apps/newwork-connect/_i18n'
 import { buildPlatformUrl, Navigation, navigateTo } from '@/common/utils/navigationUtils'
+import { ConnectorPickerLaneList } from './ConnectorPickerLaneList'
 
 export interface ConnectorPickerSheetProps {
   isOpen: boolean
@@ -23,20 +21,6 @@ export const ConnectorPickerSheet: React.FC<ConnectorPickerSheetProps> = ({
   onToggle,
   isLoading
 }) => {
-  const { t } = useTranslation(translations)
-
-  const grouped = connectors.reduce(
-    (acc, conn) => {
-      const lane = conn.lane || 'mcp_servers'
-      if (!acc[lane]) acc[lane] = []
-      acc[lane].push(conn)
-      return acc
-    },
-    {} as Record<string, ExternalConnection[]>
-  )
-
-  const sortedLanes = CONNECT_LANES.filter(lane => grouped[lane]?.length > 0)
-
   return (
     <div
       className={`gba:fixed gba:bottom-20 sm:gba:bottom-24 gba:left-18 sm:gba:left-20 gba:z-40 gba:w-[18rem] gba:transition-all gba:duration-200 ${
@@ -76,42 +60,12 @@ export const ConnectorPickerSheet: React.FC<ConnectorPickerSheetProps> = ({
           )}
           {!isLoading && connectors.length > 0 && (
             <div className="gba:space-y-4">
-              {sortedLanes.map(lane => {
-                const laneConfig = LANE_CONFIG[lane]
-                return (
-                  <div key={lane}>
-                    <h3 className="gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-wider gba:text-muted-foreground/75 gba:mb-2 gba:px-1">
-                      {t(laneConfig.titleKey)}
-                    </h3>
-                    <div className="gba:space-y-1">
-                      {grouped[lane].map(conn => {
-                        const isActive = activeConnectorIds.has(conn.connection_id)
-                        return (
-                          <button
-                            key={conn.connection_id}
-                            onClick={() => onToggle(conn.connection_id)}
-                            className={`gba:w-full gba:flex gba:items-center gba:gap-2.5 gba:p-2.5 gba:rounded-xl gba:transition-all gba:text-left ${
-                              isActive ? 'gba:bg-primary/8 gba:ring-1 gba:ring-primary/20' : 'gba:hover:bg-muted/45'
-                            }`}
-                            title={conn.description || conn.name}
-                            data-testid={`connector-${conn.connection_id}`}
-                          >
-                            <ConnectorLogo providerId={conn.providerIdForLogo} size="sm" />
-                            <div className="gba:flex-1 gba:min-w-0">
-                              <div className="gba:text-xs gba:font-medium gba:text-foreground gba:line-clamp-1">
-                                {conn.name}
-                              </div>
-                            </div>
-                            {isActive && (
-                              <CheckIcon className="gba:h-3.5 gba:w-3.5 gba:text-primary gba:shrink-0" weight="bold" />
-                            )}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )
-              })}
+              <ConnectorPickerLaneList
+                connectors={connectors}
+                activeConnectorIds={activeConnectorIds}
+                onToggle={onToggle}
+                variant="sheet"
+              />
             </div>
           )}
         </div>

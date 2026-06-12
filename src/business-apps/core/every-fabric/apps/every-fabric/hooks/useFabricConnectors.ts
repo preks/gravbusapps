@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import {
   CONNECT_LANES,
@@ -6,6 +6,7 @@ import {
   inferProviderIdFromConnection
 } from '@/business-apps/core/create/apps/newwork-connect/components/connectCatalog'
 import { isFlowBotFabricRuntime } from '../utils/fabricRuntime'
+import { resolveConnectorScope, type ConnectorScope } from '../components/connectors/connectorPickerUtils'
 
 export interface ExternalConnection {
   connection_id: string
@@ -15,6 +16,9 @@ export interface ExternalConnection {
   lane: 'mcp_servers' | 'anypoint_connect' | 'data_bridge'
   providerIdForLogo: string
   active: boolean
+  scope: ConnectorScope
+  managed?: boolean
+  internal?: boolean
 }
 
 export interface UseFabricConnectorsReturn {
@@ -36,6 +40,7 @@ export const useFabricConnectors = (accessToken: string): UseFabricConnectorsRet
   const [activeConnectionIds, setActiveConnectionIds] = useState<Set<string>>(new Set())
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
+  const hasHydratedActiveIdsRef = useRef(false)
 
   const fetchConnectors = useCallback(async () => {
     if (flowBotRuntime) {
@@ -53,20 +58,23 @@ export const useFabricConnectors = (accessToken: string): UseFabricConnectorsRet
 
       const connections = result?.data || []
 
-      const userConfigurable = connections.filter(c => {
-        const internal = c.internal === true || c.managed === true
-        return !internal
-      })
+      const visible = connections.filter(c => c.active !== false)
 
-      const mapped: ExternalConnection[] = userConfigurable.map(c => ({
-        connection_id: getConnectionId(c),
-        name: c.name,
-        description: c.description,
-        kind: c.kind,
-        lane: c.lane,
-        providerIdForLogo: inferProviderIdFromConnection(c),
-        active: c.active ?? true
-      }))
+      const mapped: ExternalConnection[] = visible.map(c => {
+        const scope = resolveConnectorScope(c)
+        return {
+          connection_id: getConnectionId(c),
+          name: c.name,
+          description: c.description,
+          kind: c.kind,
+          lane: c.lane,
+          providerIdForLogo: inferProviderIdFromConnection(c),
+          active: c.active ?? true,
+          scope,
+          managed: c.managed === true,
+          internal: c.internal === true
+        }
+      })
 
       const sorted = [...mapped]
       sorted.sort((a, b) => {
@@ -75,6 +83,9 @@ export const useFabricConnectors = (accessToken: string): UseFabricConnectorsRet
         const laneA = laneIndexA >= 0 ? laneIndexA : 99
         const laneB = laneIndexB >= 0 ? laneIndexB : 99
         if (laneA !== laneB) return laneA - laneB
+        if (a.scope !== b.scope) {
+          return a.scope === 'custom' ? -1 : 1
+        }
         return a.name.localeCompare(b.name)
       })
 
@@ -91,22 +102,55 @@ export const useFabricConnectors = (accessToken: string): UseFabricConnectorsRet
     fetchConnectors().catch(() => undefined)
   }, [fetchConnectors])
 
-  const toggleConnector = useCallback((connectionId: string) => {
+  useEffect(() => {
+    const platformIds = availableConnectors.filter(c => c.scope === 'platform').map(c => c.connection_id)
+    if (platformIds.length === 0) return
+
     setActiveConnectionIds(prev => {
       const next = new Set(prev)
-      if (next.has(connectionId)) {
-        next.delete(connectionId)
-      } else {
-        next.add(connectionId)
+      let changed = false
+      for (const id of platformIds) {
+        if (!next.has(id)) {
+          next.add(id)
+          changed = true
+        }
       }
-      return next
+      return changed ? next : prev
     })
-  }, [])
+  }, [availableConnectors])
+
+  const toggleConnector = useCallback(
+    (connectionId: string) => {
+      const connector = availableConnectors.find(c => c.connection_id === connectionId)
+      if (connector?.scope === 'platform') return
+
+      setActiveConnectionIds(prev => {
+        const next = new Set(prev)
+        if (next.has(connectionId)) {
+          next.delete(connectionId)
+        } else {
+          next.add(connectionId)
+        }
+        return next
+      })
+    },
+    [availableConnectors]
+  )
 
   const hydrateActiveIds = useCallback((ids: string[]) => {
+    if (ids.length === 0 || hasHydratedActiveIdsRef.current) return
+    hasHydratedActiveIdsRef.current = true
+
     setActiveConnectionIds(prev => {
-      if (prev.size > 0) return prev
-      return new Set(ids)
+      const next = new Set(prev)
+      let changed = false
+      for (const id of ids) {
+        if (!next.has(id)) {
+          next.add(id)
+          changed = true
+        }
+      }
+      return changed ? next : prev
     })
   }, [])
 
