@@ -139,7 +139,7 @@ export const ReferencesRail: React.FC<ReferencesRailProps> = ({ references, acce
                 </div>
               ) : (
                 <div
-                  className="gba:grid gba:grid-cols-1 sm:gba:grid-cols-2 gba:gap-3"
+                  className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:gap-2.5"
                   data-testid="references-card-group"
                 >
                   {refs.map(ref => (

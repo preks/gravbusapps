@@ -20,7 +20,7 @@ const humanizeType = (type: string): string =>
 // use, so document/workflow/note/ticket cards get a meaningful icon instead of
 // the generic fallback bolt.
 const wrapGlyph = (glyph: React.ReactNode): React.ReactNode => (
-  <div className="gba:h-12 gba:w-12 gba:rounded-full gba:bg-muted/40 gba:flex gba:items-center gba:justify-center gba:text-foreground">
+  <div className="gba:h-10 gba:w-10 gba:rounded-full gba:bg-muted/40 gba:flex gba:items-center gba:justify-center gba:text-foreground">
     {glyph}
   </div>
 )
@@ -43,6 +43,8 @@ export const GenericReferenceCard: React.FC<ReferenceCardProps> = ({ reference }
       title={reference.label || reference.id}
       subtitle={context ? `${context} · ${humanizeType(effectiveType)}` : humanizeType(effectiveType)}
       icon={icon}
+      size="compact"
+      surface="glass"
       onClick={url ? () => navigateTo(url) : undefined}
       data-testid={`reference-card-generic-${effectiveType}`}
     />

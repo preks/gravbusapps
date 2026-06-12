@@ -86,8 +86,10 @@ export const FinalAnswerRenderer = ({
   }
 
   return (
+    // No overflow-hidden on the root: the references rail cards scale/tilt on
+    // hover and must not be clipped. Wide markdown is contained per-section.
     <div
-      className="gba:w-full gba:overflow-hidden"
+      className="gba:w-full"
       data-testid="enterprise-agent-final-answer"
       data-instant={isInstant ? 'true' : 'false'}
       data-presentation-mode={presentationMode}
@@ -126,7 +128,7 @@ export const FinalAnswerRenderer = ({
                 {fullOutputVisible ? 'Hide full response' : 'Show full response'}
               </button>
               {fullOutputVisible && (
-                <div className="gba:pt-2">
+                <div className="gba:pt-2 gba:overflow-hidden">
                   <MarkdownWithChipsRenderer content={output} variant={markdownVariant} accessToken={accessToken} />
                 </div>
               )}
@@ -146,7 +148,7 @@ export const FinalAnswerRenderer = ({
           </div>
         </>
       ) : (
-        <div className={markdownTopSpacingClass}>
+        <div className={`${markdownTopSpacingClass} gba:overflow-hidden`}>
           <MarkdownWithChipsRenderer content={displayOutput} variant={markdownVariant} accessToken={accessToken} />
         </div>
       )}

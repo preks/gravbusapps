@@ -22,6 +22,8 @@ export const ContactReferenceCard: React.FC<ReferenceCardProps> = ({ reference, 
       <EntityCard
         title={reference.label || reference.id}
         isLoading
+        size="compact"
+        surface="glass"
         onClick={open}
         data-testid="reference-card-contact"
       />
@@ -49,8 +51,10 @@ export const ContactReferenceCard: React.FC<ReferenceCardProps> = ({ reference, 
     <EntityCard
       title={name}
       subtitle={subtitleParts.length ? subtitleParts.join(' · ') : undefined}
-      icon={<AvatarWithInitials firstName={firstName} lastName={lastName} pictureThumbnail={photo} size={44} />}
+      icon={<AvatarWithInitials firstName={firstName} lastName={lastName} pictureThumbnail={photo} size={40} />}
       fields={fields.length ? fields : undefined}
+      size="compact"
+      surface="glass"
       onClick={open}
       data-testid="reference-card-contact"
     />

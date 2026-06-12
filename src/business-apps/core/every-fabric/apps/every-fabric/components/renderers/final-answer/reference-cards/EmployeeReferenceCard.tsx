@@ -28,6 +28,8 @@ export const EmployeeReferenceCard: React.FC<ReferenceCardProps> = ({ reference,
       <EntityCard
         title={reference.label || reference.id}
         isLoading
+        size="compact"
+        surface="glass"
         onClick={open}
         data-testid="reference-card-employee"
       />
@@ -66,10 +68,12 @@ export const EmployeeReferenceCard: React.FC<ReferenceCardProps> = ({ reference,
           firstName={firstName || (reference.label ?? '')}
           lastName={lastName}
           pictureThumbnail={employee?.pictureThumbnail}
-          size={44}
+          size={40}
         />
       }
       fields={fields.length ? fields : undefined}
+      size="compact"
+      surface="glass"
       onClick={open}
       data-testid="reference-card-employee"
     />

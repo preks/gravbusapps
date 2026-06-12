@@ -22,6 +22,8 @@ export const AccountReferenceCard: React.FC<ReferenceCardProps> = ({ reference, 
       <EntityCard
         title={reference.label || reference.id}
         isLoading
+        size="compact"
+        surface="glass"
         onClick={open}
         data-testid="reference-card-account"
       />
@@ -46,8 +48,10 @@ export const AccountReferenceCard: React.FC<ReferenceCardProps> = ({ reference, 
       title={name}
       subtitle={subtitleParts.length ? subtitleParts.join(' · ') : undefined}
       status={priority}
-      icon={<AvatarWithInitials firstName={name} lastName="" pictureThumbnail={logo} size={44} />}
+      icon={<AvatarWithInitials firstName={name} lastName="" pictureThumbnail={logo} size={40} />}
       fields={fields.length ? fields : undefined}
+      size="compact"
+      surface="glass"
       onClick={open}
       data-testid="reference-card-account"
     />

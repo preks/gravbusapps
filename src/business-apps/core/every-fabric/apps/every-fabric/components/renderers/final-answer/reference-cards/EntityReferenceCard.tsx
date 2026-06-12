@@ -44,7 +44,9 @@ export const EntityReferenceCard: React.FC<ReferenceCardProps> = ({ reference, a
   const card = <Card reference={reference} accessToken={accessToken} />
 
   if (isEmphasized(reference)) {
-    return <div className="gba:rounded-xl gba:ring-2 gba:ring-primary/40">{card}</div>
+    // Answer-focus entries get a quiet sky ring matching the card radius —
+    // visible emphasis without any glow.
+    return <div className="gba:rounded-xl gba:ring-1 gba:ring-sky-400/60">{card}</div>
   }
   return card
 }

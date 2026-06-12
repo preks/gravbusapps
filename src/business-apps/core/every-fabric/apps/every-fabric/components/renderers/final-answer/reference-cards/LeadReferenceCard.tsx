@@ -27,7 +27,14 @@ export const LeadReferenceCard: React.FC<ReferenceCardProps> = ({ reference, acc
 
   if (loading) {
     return (
-      <EntityCard title={reference.label || reference.id} isLoading onClick={open} data-testid="reference-card-lead" />
+      <EntityCard
+        title={reference.label || reference.id}
+        isLoading
+        size="compact"
+        surface="glass"
+        onClick={open}
+        data-testid="reference-card-lead"
+      />
     )
   }
 
@@ -55,8 +62,10 @@ export const LeadReferenceCard: React.FC<ReferenceCardProps> = ({ reference, acc
       title={name}
       subtitle={subtitleParts.length ? subtitleParts.join(' · ') : undefined}
       status={status}
-      icon={<AvatarWithInitials firstName={firstName} lastName={lastName} size={44} />}
+      icon={<AvatarWithInitials firstName={firstName} lastName={lastName} size={40} />}
       fields={fields.length ? fields : undefined}
+      size="compact"
+      surface="glass"
       onClick={open}
       data-testid="reference-card-lead"
     />

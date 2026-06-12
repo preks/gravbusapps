@@ -55,11 +55,11 @@ describe('EntityReferenceCard dispatcher', () => {
     const { container } = render(
       <EntityReferenceCard reference={ref({ emphasis: 'answer_focus' })} accessToken="tok" />
     )
-    expect(container.querySelector('.gba\\:ring-2')).not.toBeNull()
+    expect(container.querySelector('.gba\\:ring-1')).not.toBeNull()
   })
 
   it('does not wrap a non-emphasized reference', () => {
     const { container } = render(<EntityReferenceCard reference={ref({})} accessToken="tok" />)
-    expect(container.querySelector('.gba\\:ring-2')).toBeNull()
+    expect(container.querySelector('.gba\\:ring-1')).toBeNull()
   })
 })

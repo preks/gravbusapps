@@ -36,6 +36,8 @@ export const OpportunityReferenceCard: React.FC<ReferenceCardProps> = ({ referen
       <EntityCard
         title={reference.label || reference.id}
         isLoading
+        size="compact"
+        surface="glass"
         onClick={open}
         data-testid="reference-card-opportunity"
       />
@@ -65,6 +67,8 @@ export const OpportunityReferenceCard: React.FC<ReferenceCardProps> = ({ referen
       status={status}
       icon={icon}
       fields={fields.length ? fields : undefined}
+      size="compact"
+      surface="glass"
       onClick={open}
       data-testid="reference-card-opportunity"
     />
