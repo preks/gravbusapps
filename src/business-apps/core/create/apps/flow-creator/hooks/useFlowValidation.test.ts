@@ -152,6 +152,21 @@ describe('validateFlow', () => {
     expect(issues.some(issue => issue.rule === 'decision-taskexpert-param-mapping')).toBe(false)
   })
 
+  it('skips task assignment validation for deactivated tasks', () => {
+    const task = makeTaskNode('task-disabled', 'Disabled Task')
+    ;(task.config as any).enabled = false
+
+    const issues = validateFlow(
+      [makeStartNode(), task, makeEndNode()],
+      [
+        { id: 'e-start-task', source: START_ID, target: 'task-disabled', direction: 'forward' } as any,
+        { id: 'e-task-end', source: 'task-disabled', target: END_ID, direction: 'forward' } as any
+      ]
+    )
+
+    expect(issues.some(issue => issue.rule === 'claim-needs-target')).toBe(false)
+  })
+
   it('blocks logic decisions without conditions', () => {
     const issues = validateFlow(
       [makeStartNode(), makeLogicDecisionNode(), makeEndNode()],

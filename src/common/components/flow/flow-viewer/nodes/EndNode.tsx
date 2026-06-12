@@ -4,7 +4,8 @@ import { Badge } from '@newwork/nw-design-system'
 import { CheckCircle, BarChart3 } from 'lucide-react'
 import { HANDLE_OFFSET } from './nodeDimensions'
 import { NODE_META_BADGE_STANDARD_CLASS } from './nodeBadgeStyles'
-import type { StepStatus } from '../types/viewerTypes'
+import { NodeOutcomeBadge } from './NodeOutcomeBadge'
+import type { StepStatus, FlowNodeOutcome } from '../types/viewerTypes'
 
 interface EndNodeData {
   label?: string
@@ -13,6 +14,7 @@ interface EndNodeData {
   summaryFieldsCount?: number
   isSelected?: boolean
   status?: StepStatus
+  outcome?: FlowNodeOutcome
   isOnActivePath?: boolean
   onSelect?: () => void
   testId?: string
@@ -49,7 +51,7 @@ export const EndNode: React.FC<{ data: EndNodeData }> = ({ data }) => {
   return (
     <button
       type="button"
-      className={`nopan nodrag gba:rounded-full gba:w-[140px] gba:h-[140px] gba:border-2 gba:transition-all gba:duration-200 gba:cursor-pointer gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-1 gba:shadow-sm hover:gba:shadow-md hover:gba:scale-105 ${borderClass} ${bgClass}`}
+      className={`nopan nodrag gba:relative gba:overflow-visible gba:rounded-full gba:w-[140px] gba:h-[140px] gba:border-2 gba:transition-all gba:duration-200 gba:cursor-pointer gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-1 gba:shadow-sm hover:gba:shadow-md hover:gba:scale-105 ${borderClass} ${bgClass}`}
       onClick={() => data.onSelect?.()}
       data-testid={data.testId ?? 'flow-viewer-end-node'}
     >
@@ -99,6 +101,7 @@ export const EndNode: React.FC<{ data: EndNodeData }> = ({ data }) => {
       ) : (
         <span className="gba:text-muted-foreground gba:text-xs gba:italic">End</span>
       )}
+      <NodeOutcomeBadge outcome={data.outcome} className="gba:absolute gba:bottom-0 gba:right-0" />
     </button>
   )
 }

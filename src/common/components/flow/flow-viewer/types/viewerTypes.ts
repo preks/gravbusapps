@@ -25,6 +25,20 @@ export type TaskVariant =
 
 export type StepStatus = 'pending' | 'active' | 'completed' | 'failed' | 'skipped'
 
+export interface FlowNodeOutcome {
+  title?: string
+  status?: string
+  timestamp?: string
+  taskType?: string
+  fields?: Array<{ label: string; value: unknown }>
+  inputData?: Record<string, unknown>
+  formData?: Record<string, unknown>
+  outputData?: unknown
+  executionDetails?: Record<string, unknown>
+  error?: string
+  durationMs?: number
+}
+
 export interface FlowGraphNode {
   id: string
   type: FlowNodeType
@@ -42,12 +56,21 @@ export interface FlowGraphNode {
     assignmentMode?: string
     /** Whether this is a system step */
     isSystem?: boolean
+    /** Whether this task is deactivated in the editor */
+    isDeactivated?: boolean
     /** Step number for display */
     stepNumber?: number
     /** Secondary label / message */
     description?: string
     /** Summary fields count for end nodes */
     summaryFieldsCount?: number
+    /** Validation issues associated with this node */
+    validationIssues?: Array<{ severity: 'error' | 'warning' | 'info'; message: string }>
+    /** Optional node action handlers */
+    actions?: {
+      onTest?: () => void
+      onToggleActive?: () => void
+    }
     /** Any additional data */
     [key: string]: unknown
   }
@@ -84,8 +107,14 @@ export interface FlowExecutionState {
   pathNodeIds?: string[]
   /** Edge IDs that belong to the currently highlighted path */
   pathEdgeIds?: string[]
+  /** Pending task nodes that are expected next and are waiting for input. */
+  pendingInputNodeIds?: string[]
+  /** Active task nodes that have accepted input and are waiting for output. */
+  pendingOutputNodeIds?: string[]
   /** Iteration counts per node (for rework loops) */
   iterations?: Record<string, number>
+  /** Full test/runtime outcome data by node ID */
+  nodeOutcomes?: Record<string, FlowNodeOutcome>
 }
 
 /** Edge actions for edit mode: insert node on edge, open insert panel. */
@@ -127,6 +156,12 @@ export interface FlowCanvasViewProps {
   nodesDraggable?: boolean
   /** When true, nodes and edges are selectable. Default from provider isInteractive when no edit callbacks. */
   elementsSelectable?: boolean
+  /** When false, disables panning by dragging the canvas. Defaults to true. */
+  panOnDrag?: boolean
+  /** When false, disables mouse-wheel zooming. Defaults to true. */
+  zoomOnScroll?: boolean
+  /** When false, disables pinch zooming. Defaults to true. */
+  zoomOnPinch?: boolean
   /** Vertical alignment used after fitView. Defaults to top so flows open with the start node visible. */
   fitViewVerticalAlign?: 'top' | 'center'
   /** When false, hides the minimap. Defaults to true. */

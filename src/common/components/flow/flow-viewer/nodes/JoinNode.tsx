@@ -39,7 +39,7 @@ export const JoinNode: React.FC<{ data: JoinNodeData }> = ({ data }) => {
   return (
     <button
       type="button"
-      className={`nopan nodrag gba:cursor-pointer gba:transition-all gba:duration-200 hover:gba:scale-[1.02]`}
+      className={`nopan nodrag gba:relative gba:overflow-visible gba:cursor-pointer gba:transition-all gba:duration-200 hover:gba:scale-[1.02]`}
       onClick={() => data.onSelect?.()}
       data-testid={data.testId ?? 'flow-viewer-join-node'}
     >
@@ -92,7 +92,6 @@ export const JoinNode: React.FC<{ data: JoinNodeData }> = ({ data }) => {
           {condition === 'ALL' ? 'Wait All' : 'Wait Any'}
         </Badge>
       </div>
-
       <Handle
         type="source"
         position={Position.Bottom}

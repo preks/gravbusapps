@@ -102,7 +102,7 @@ export const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
       ) : null}
 
       {onTestFlow ? (
-        <Button variant="outline" size="sm" onClick={onTestFlow} data-testid={`${testId}-test-flow`}>
+        <Button variant="outline" size="sm" onClick={() => onTestFlow()} data-testid={`${testId}-test-flow`}>
           <Play className="gba:h-4 gba:w-4 gba:mr-1" />
           <span className="gba:text-xs">{t('studio-test-flow')}</span>
         </Button>

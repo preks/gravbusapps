@@ -3,7 +3,7 @@
  * Provides the visual flow designer with Simple/Advanced mode toggle.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,11 +28,13 @@ import {
 } from '@newwork/nw-design-system'
 import { FileText, Sparkles, Workflow } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { FlowCanvas, FlowCanvasProvider } from '@/common/components/flow'
 import { PremiumHeroBackground } from '@/common/components/premium-hero-background'
-import { FlowLaunchSheet } from '@/business-apps/flow/apps/launcher/components/FlowLaunchSheet'
+import { FlowLaunchSheet, type TestScope } from '@/business-apps/flow/apps/launcher/components/FlowLaunchSheet'
 import translations from './_i18n'
 import { FlowStudioCanvas } from './components/canvas/FlowStudioCanvas'
 import { FlowStudioChatPanel } from './components/FlowStudioChatPanel'
+import { ConfigPanelContainer } from './components/config-panels/ConfigPanelContainer'
 import { NodeContextMenu } from './components/shared/NodeContextMenu'
 import { PendingDeleteDialog } from './components/shared/PendingDeleteDialog'
 import { TemplateLabelsDialog } from './components/shared/TemplateLabelsDialog'
@@ -41,11 +43,15 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import type { DesignerMode } from './types/studioTypes'
 import { MockDataProvider } from '@/business-apps/flow/providers'
 import { useFlowStudioClient } from './hooks/useFlowStudioClient'
+import { useFlowStudioData } from './hooks/useFlowStudioData'
 import { validateFlow } from './hooks/useFlowValidation'
 import { studioGraphToTemplate, templateToStudioGraph } from './utils/templateConverter'
+import { buildFlowTestExecutionState } from './utils/flowTestExecutionMapper'
+import { buildStepIndexByNodeId } from './utils/studioStepOrder'
 import { FlowStudioCreateView } from './views/FlowStudioCreateView'
 import { FlowStudioListView } from './views/FlowStudioListView'
 import type { FlowTemplate } from '@/common/network/flows/FlowTemplateClient'
+import type { FlowTestExecutionSnapshot } from '@/common/network/flows/flowTestExecutionTypes'
 import { AssignmentMode, FlowStepType } from '@/common/data/flow/types/flowTemplate'
 
 const FLOW_ID_PARAM = 'flowId'
@@ -235,12 +241,16 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
   const isDirty = useFlowStudioStore(s => s.isDirty)
   const nodes = useFlowStudioStore(s => s.nodes)
   const edges = useFlowStudioStore(s => s.edges)
+  const selectedNodeId = useFlowStudioStore(s => s.selectedNodeId)
+  const selectedEdgeId = useFlowStudioStore(s => s.selectedEdgeId)
   const resetStore = useFlowStudioStore(s => s.resetStore)
   const selectNode = useFlowStudioStore(s => s.selectNode)
   const selectEdge = useFlowStudioStore(s => s.selectEdge)
   const loadTemplateIntoStore = useFlowStudioStore(s => s.loadTemplate)
+  const toGraphDefinition = useFlowStudioStore(s => s.toGraphDefinition)
 
   const { saveFlow, loadFlow, loadDraft, isLoading } = useFlowStudioClient(accessToken)
+  const studioData = useFlowStudioData(accessToken)
   const urlFlowIdOnMount = getFlowIdFromUrl()
   const urlDraftIdOnMount = getDraftIdFromUrl()
   const [view, setView] = useState<'list' | 'designer'>(
@@ -258,9 +268,32 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
   const [saveError, setSaveError] = useState<string | null>(null)
   const [showValidationIssues, setShowValidationIssues] = useState(false)
   const [testSheetOpen, setTestSheetOpen] = useState(false)
+  const [testSheetKey, setTestSheetKey] = useState(0)
+  const [canvasResetKey, setCanvasResetKey] = useState(0)
   const [testTemplateDefinition, setTestTemplateDefinition] = useState<any | null>(null)
+  const [initialTestStepKey, setInitialTestStepKey] = useState<string | null>(null)
+  const [singleStepSelectionRequest, setSingleStepSelectionRequest] = useState<{
+    stepKey: string | null
+    requestId: number
+  } | null>(null)
+  const [testSheetScope, setTestSheetScope] = useState<TestScope>('flow')
+  const [testExecutionSnapshot, setTestExecutionSnapshot] = useState<FlowTestExecutionSnapshot | null>(null)
+  const handleTestExecutionSnapshot = useCallback((snapshot: FlowTestExecutionSnapshot | null) => {
+    setTestExecutionSnapshot(current => {
+      if (!snapshot) return null
+      if (!current || current.workflowId !== snapshot.workflowId) return snapshot
+      return {
+        ...snapshot,
+        outcomes: { ...current.outcomes, ...snapshot.outcomes },
+        summaryData: snapshot.summaryData.length > 0 ? snapshot.summaryData : current.summaryData
+      }
+    })
+  }, [])
   const importFileInputRef = useRef<HTMLInputElement | null>(null)
-
+  const testExecutionState = useMemo(
+    () => buildFlowTestExecutionState(nodes, edges, testExecutionSnapshot),
+    [edges, nodes, testExecutionSnapshot]
+  )
   useEffect(() => {
     if (view !== 'list') return
     const onHashChange = () => setListSubView(getListSubViewFromHash())
@@ -286,9 +319,19 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
     []
   )
 
+  const resetTestFlowState = useCallback(() => {
+    setTestSheetOpen(false)
+    setTestTemplateDefinition(null)
+    setSingleStepSelectionRequest(null)
+    setTestExecutionSnapshot(null)
+    setTestSheetScope('flow')
+    setCanvasResetKey(current => current + 1)
+  }, [])
+
   const openTemplateFromList = useCallback(
     async (id: string) => {
       setSaveError(null)
+      resetTestFlowState()
       updateUrlWithFlowId(id, true)
       setView('designer')
       try {
@@ -297,35 +340,38 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
         // ignore; list view shows its own errors
       }
     },
-    [loadFlow]
+    [loadFlow, resetTestFlowState]
   )
 
   const openTemplateAfterCreate = useCallback(
     (templateId: string) => {
+      resetTestFlowState()
       updateUrlWithFlowId(templateId, true)
       setView('designer')
       loadFlow(templateId).catch(() => undefined)
     },
-    [loadFlow]
+    [loadFlow, resetTestFlowState]
   )
 
   const createNewFlow = useCallback(() => {
     setSaveError(null)
+    resetTestFlowState()
     updateUrlWithFlowId(FLOW_ID_NEW)
     setDesignerInitialPrompt('')
     resetStore()
     setView('designer')
-  }, [resetStore])
+  }, [resetStore, resetTestFlowState])
 
   const openDesignerWithAI = useCallback(
     (prompt: string) => {
+      resetTestFlowState()
       updateUrlWithFlowId(FLOW_ID_NEW)
       initialPromptConsumedRef.current = false
       setDesignerInitialPrompt(prompt)
       resetStore()
       setView('designer')
     },
-    [resetStore]
+    [resetStore, resetTestFlowState]
   )
 
   const createNewFlowFromPattern = useCallback(
@@ -370,12 +416,13 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
 
   const backToList = useCallback(() => {
     setSaveError(null)
+    resetTestFlowState()
     updateUrlWithFlowId(null)
     selectNode(null)
     selectEdge(null)
     setView('list')
     onCancel?.()
-  }, [onCancel, selectEdge, selectNode])
+  }, [onCancel, resetTestFlowState, selectEdge, selectNode])
 
   const requestCloseToList = useCallback(() => {
     if (isDirty) {
@@ -420,36 +467,160 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
     setSaveNameDialogOpen(true)
   }, [executeSave, getSaveErrorMessage, templateName, view])
 
-  const requestTestFlow = useCallback(() => {
-    if (view !== 'designer') return
+  const requestTestFlow = useCallback(
+    (singleStepKey?: string | null) => {
+      if (view !== 'designer') return
+      const rawSingleStepKey = typeof singleStepKey === 'string' && singleStepKey.trim() ? singleStepKey : null
+      const state = useFlowStudioStore.getState()
+      const stepIndexByNodeId = rawSingleStepKey ? buildStepIndexByNodeId(state.nodes, state.edges) : null
+      const requestedSingleStepKey =
+        rawSingleStepKey && /^step_\d+$/.test(rawSingleStepKey)
+          ? rawSingleStepKey
+          : rawSingleStepKey && stepIndexByNodeId?.has(rawSingleStepKey)
+            ? `step_${stepIndexByNodeId.get(rawSingleStepKey)}`
+            : rawSingleStepKey
 
-    setShowValidationIssues(true)
-    setSaveError(null)
+      setShowValidationIssues(true)
+      setSaveError(null)
+      setInitialTestStepKey(requestedSingleStepKey)
 
-    const state = useFlowStudioStore.getState()
-    const validationErrors = validateFlow(state.nodes, state.edges).filter(issue => issue.severity === 'error')
-    if (validationErrors.length > 0) {
-      setSaveError(
-        `Validation failed: ${validationErrors
-          .slice(0, 3)
-          .map(issue => issue.message)
-          .join('; ')}${validationErrors.length > 3 ? '...' : ''}`
+      const validationErrors = validateFlow(state.nodes, state.edges).filter(issue => issue.severity === 'error')
+      if (validationErrors.length > 0) {
+        setSaveError(
+          `Validation failed: ${validationErrors
+            .slice(0, 3)
+            .map(issue => issue.message)
+            .join('; ')}${validationErrors.length > 3 ? '...' : ''}`
+        )
+        return
+      }
+
+      if (testSheetOpen) {
+        setTestExecutionSnapshot(null)
+        return
+      }
+
+      setTestExecutionSnapshot(null)
+      setTestTemplateDefinition(null)
+      selectNode(null)
+      selectEdge(null)
+
+      const template = studioGraphToTemplate(
+        state.nodes,
+        state.edges,
+        state.templateName,
+        state.templateDescription,
+        { ...(state.templateTags ?? {}), execution: 'test' } as any,
+        state.templateVersion
       )
-      return
+
+      setTestTemplateDefinition(template)
+      setTestSheetKey(current => current + 1)
+      setTestSheetOpen(true)
+    },
+    [selectEdge, selectNode, testSheetOpen, view]
+  )
+
+  const testOverlayGraphDefinition = useMemo(() => {
+    const definition = toGraphDefinition()
+    const issues = validateFlow(nodes, edges)
+    const issuesByNode = new Map<string, typeof issues>()
+    for (const issue of issues) {
+      if (!issue.nodeId) continue
+      issuesByNode.set(issue.nodeId, [...(issuesByNode.get(issue.nodeId) ?? []), issue])
     }
+    return {
+      ...definition,
+      nodes: definition.nodes.map(node => {
+        return {
+          ...node,
+          metadata: {
+            ...(node.metadata ?? {}),
+            validationIssues: issuesByNode.get(node.id)?.map(issue => ({
+              severity: issue.severity,
+              message: issue.message
+            })),
+            actions:
+              node.type === 'task'
+                ? {
+                    onTest: () => requestTestFlow(node.id)
+                  }
+                : undefined
+          }
+        }
+      })
+    }
+  }, [edges, nodes, requestTestFlow, toGraphDefinition])
 
-    const template = studioGraphToTemplate(
-      state.nodes,
-      state.edges,
-      state.templateName,
-      state.templateDescription,
-      { ...(state.templateTags ?? {}), execution: 'test' } as any,
-      state.templateVersion
-    )
+  const testPreviewRightPanel =
+    selectedNodeId || selectedEdgeId ? (
+      <ConfigPanelContainer
+        mode={mode}
+        accessToken={accessToken}
+        studioData={studioData}
+        onTestStep={requestTestFlow}
+        readOnly
+        data-testid={`${testId}-test-preview-config-panel`}
+      />
+    ) : null
 
-    setTestTemplateDefinition(template)
-    setTestSheetOpen(true)
-  }, [view])
+  const handleTestSheetOpenChange = useCallback((open: boolean) => {
+    setTestSheetOpen(open)
+    if (!open) {
+      setTestTemplateDefinition(null)
+      setInitialTestStepKey(null)
+      setSingleStepSelectionRequest(null)
+      setTestExecutionSnapshot(null)
+      setTestSheetScope('flow')
+    }
+  }, [])
+
+  const handleTestPreviewNodeClick = useCallback(
+    (_: React.MouseEvent, node: { id: string }) => {
+      selectNode(node.id)
+      if (testSheetScope !== 'single-step') return
+
+      const state = useFlowStudioStore.getState()
+      if (state.nodes.find(item => item.id === node.id)?.type !== 'task') return
+
+      const stepIndex = buildStepIndexByNodeId(state.nodes, state.edges).get(node.id)
+      if (typeof stepIndex !== 'number') return
+
+      setSingleStepSelectionRequest(current => ({
+        stepKey: `step_${stepIndex}`,
+        requestId: (current?.requestId ?? 0) + 1
+      }))
+    },
+    [selectNode, testSheetScope]
+  )
+
+  const handleSingleStepSelectionChange = useCallback(
+    (stepKey: string | null) => {
+      if (!stepKey) {
+        selectNode(null)
+        selectEdge(null)
+        return
+      }
+
+      const match = /^step_(\d+)$/.exec(stepKey)
+      if (!match) return
+
+      const selectedStepIndex = Number(match[1])
+      if (!Number.isInteger(selectedStepIndex)) return
+
+      const state = useFlowStudioStore.getState()
+      const stepIndexByNodeId = buildStepIndexByNodeId(state.nodes, state.edges)
+      const selectedNodeEntry = Array.from(stepIndexByNodeId.entries()).find(
+        ([, stepIndex]) => stepIndex === selectedStepIndex
+      )
+      const selectedNodeIdFromStep = selectedNodeEntry?.[0]
+      if (!selectedNodeIdFromStep) return
+
+      selectEdge(null)
+      selectNode(selectedNodeIdFromStep)
+    },
+    [selectEdge, selectNode]
+  )
 
   const exportFlow = useCallback(() => {
     if (view !== 'designer') return
@@ -501,6 +672,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
           version: template.version || 1,
           tags: template.tags
         })
+        resetTestFlowState()
         useFlowStudioStore.setState({ isDirty: true, templateId: undefined })
         updateUrlWithFlowId(FLOW_ID_NEW, true)
         setDesignerInitialPrompt('')
@@ -511,12 +683,14 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
         setSaveError(t('studio-import-failed'))
       }
     },
-    [loadTemplateIntoStore, t]
+    [loadTemplateIntoStore, resetTestFlowState, t]
   )
 
   useEffect(() => {
     setShowValidationIssues(false)
-  }, [edges, nodes])
+    if (testSheetOpen) return
+    setTestExecutionSnapshot(null)
+  }, [edges, nodes, testSheetOpen])
 
   const confirmSaveWithName = useCallback(async () => {
     const trimmedName = pendingTemplateName.trim()
@@ -564,29 +738,33 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
   // Load flow when templateId prop is set (parent control)
   useEffect(() => {
     if (!templateId) return
+    resetTestFlowState()
     setView('designer')
     loadFlow(templateId).catch(() => undefined)
-  }, [loadFlow, templateId])
+  }, [loadFlow, resetTestFlowState, templateId])
 
   // Load flow from URL on mount when no templateId prop (direct link / bookmark)
   useEffect(() => {
     if (templateId || !urlFlowIdOnMount) return
+    resetTestFlowState()
     setView('designer')
     loadFlowOrDraft(urlFlowIdOnMount).catch(() => updateUrlWithFlowId(null))
-  }, [loadFlowOrDraft, templateId, urlFlowIdOnMount])
+  }, [loadFlowOrDraft, resetTestFlowState, templateId, urlFlowIdOnMount])
 
   // Load draft from URL on mount when no persisted flow id is present.
   useEffect(() => {
     if (templateId || urlFlowIdOnMount || !urlDraftIdOnMount) return
+    resetTestFlowState()
     setView('designer')
     loadDraft(urlDraftIdOnMount).catch(() => updateUrlWithFlowId(null))
-  }, [loadDraft, templateId, urlDraftIdOnMount, urlFlowIdOnMount])
+  }, [loadDraft, resetTestFlowState, templateId, urlDraftIdOnMount, urlFlowIdOnMount])
 
   // React to browser back/forward (URL change)
   useEffect(() => {
     const handlePopState = () => {
       const flowId = getFlowIdFromUrl()
       const draftId = getDraftIdFromUrl()
+      resetTestFlowState()
       if (flowId) {
         setView('designer')
         loadFlowOrDraft(flowId).catch(() => updateUrlWithFlowId(null))
@@ -599,7 +777,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
     }
     globalThis.addEventListener('popstate', handlePopState)
     return () => globalThis.removeEventListener('popstate', handlePopState)
-  }, [loadDraft, loadFlowOrDraft])
+  }, [loadDraft, loadFlowOrDraft, resetTestFlowState])
 
   useKeyboardShortcuts({ onSave: requestSave, enabled: view === 'designer' })
 
@@ -697,6 +875,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
             }
             canvasPanel={
               <FlowStudioCanvas
+                key={canvasResetKey}
                 accessToken={accessToken}
                 userInfo={userInfo}
                 mode={mode}
@@ -705,6 +884,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
                 onTestFlow={requestTestFlow}
                 onImportFlow={importFlow}
                 onExportFlow={exportFlow}
+                testExecutionState={testExecutionState}
                 showValidationIssues={showValidationIssues}
                 data-testid={`${testId}-canvas`}
               />
@@ -788,13 +968,54 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
       )}
 
       <FlowLaunchSheet
+        key={testSheetKey}
         open={testSheetOpen}
-        onOpenChange={setTestSheetOpen}
+        onOpenChange={handleTestSheetOpenChange}
         accessToken={accessToken}
         userInfo={userInfo}
         templateId={null}
         templateDefinition={testTemplateDefinition}
         mode="test"
+        initialSingleStepKey={initialTestStepKey}
+        singleStepSelectionRequest={singleStepSelectionRequest}
+        onTestScopeChange={setTestSheetScope}
+        onSingleStepSelectionChange={handleSingleStepSelectionChange}
+        onTestExecutionSnapshot={handleTestExecutionSnapshot}
+        testPreview={
+          <div className="gba:flex gba:h-full gba:min-h-0 gba:flex-col" data-testid={`${testId}-test-preview`}>
+            <div className="gba:shrink-0 gba:border-b gba:border-border gba:bg-background/95 gba:px-5 gba:py-3">
+              <div className="gba:text-sm gba:font-semibold">Live test preview</div>
+              <div className="gba:text-xs gba:text-muted-foreground">
+                This preview mirrors the current flow while the editor canvas stays unchanged underneath.
+              </div>
+            </div>
+            <div className="gba:min-h-0 gba:flex-1">
+              <FlowCanvasProvider
+                isInteractive={false}
+                selectedNodeId={selectedNodeId}
+                onNodeSelect={selectNode}
+                selectedEdgeId={selectedEdgeId}
+                onEdgeSelect={selectEdge}
+                executionState={testExecutionState}
+              >
+                <FlowCanvas
+                  definition={testOverlayGraphDefinition}
+                  rightPanel={testPreviewRightPanel}
+                  onNodeClick={handleTestPreviewNodeClick}
+                  onPaneClick={() => {
+                    selectNode(null)
+                    selectEdge(null)
+                  }}
+                  useForwardEdgesOnlyForRanking={true}
+                  fitViewOptions={{ padding: 0.26, minZoom: 0.65, maxZoom: 0.95 }}
+                  showMiniMap={false}
+                  elementsSelectable={false}
+                  data-testid={`${testId}-test-preview-canvas`}
+                />
+              </FlowCanvasProvider>
+            </div>
+          </div>
+        }
         data-testid={`${testId}-test-flow-sheet`}
       />
 

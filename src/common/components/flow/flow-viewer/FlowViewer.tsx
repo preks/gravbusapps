@@ -43,6 +43,7 @@ import type {
   FlowGraphNode,
   FlowGraphEdge,
   StepStatus,
+  FlowNodeOutcome,
   FlowCanvasThemeColors
 } from './types/viewerTypes'
 
@@ -52,7 +53,10 @@ function buildNodeData(
   node: FlowGraphNode,
   isSelected: boolean,
   status: StepStatus | undefined,
+  outcome: FlowNodeOutcome | undefined,
   isOnActivePath: boolean,
+  isAwaitingInput: boolean,
+  isAwaitingOutput: boolean,
   iteration: number | undefined,
   onSelect: () => void
 ): Record<string, unknown> {
@@ -62,7 +66,12 @@ function buildNodeData(
     label: node.label,
     isSelected,
     status,
+    outcome,
     isOnActivePath,
+    isAwaitingInput,
+    isAwaitingOutput,
+    validationIssues: meta.validationIssues,
+    actions: meta.actions,
     onSelect
   }
 
@@ -77,6 +86,7 @@ function buildNodeData(
         taskVariant: meta.taskVariant,
         assignmentMode: meta.assignmentMode,
         isSystem: meta.isSystem,
+        isDeactivated: meta.isDeactivated,
         stepNumber: meta.stepNumber,
         iteration
       }
@@ -139,6 +149,9 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
   nodesConnectable = false,
   nodesDraggable = false,
   elementsSelectable: elementsSelectableProp,
+  panOnDrag = true,
+  zoomOnScroll = true,
+  zoomOnPinch = true,
   fitViewVerticalAlign = 'top',
   showMiniMap = true,
   showControls = true,
@@ -262,7 +275,10 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
     return definition.nodes.map((node, index) => {
       const dims = getNodeDimensions(node.type)
       const status = executionState?.nodeStates[node.id]
+      const outcome = executionState?.nodeOutcomes?.[node.id]
       const isOnActivePath = executionState?.pathNodeIds?.includes(node.id) ?? false
+      const isAwaitingInput = executionState?.pendingInputNodeIds?.includes(node.id) ?? false
+      const isAwaitingOutput = executionState?.pendingOutputNodeIds?.includes(node.id) ?? false
       const iteration = executionState?.iterations?.[node.id]
       const isSelected = selectedNodeId === node.id
       const pos = layoutNodes[node.id] ?? layoutCentroid ?? { x: 20, y: index * 140 + 40 }
@@ -271,7 +287,17 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
         id: node.id,
         type: node.type,
         position: pos,
-        data: buildNodeData(node, isSelected, status, isOnActivePath, iteration, () => selectNode(node.id)),
+        data: buildNodeData(
+          node,
+          isSelected,
+          status,
+          outcome,
+          isOnActivePath,
+          isAwaitingInput,
+          isAwaitingOutput,
+          iteration,
+          () => selectNode(node.id)
+        ),
         style: {
           background: 'transparent',
           border: 'none',
@@ -595,9 +621,9 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
         nodesDraggable={nodesDraggable}
         nodesConnectable={nodesConnectable}
         elementsSelectable={elementsSelectable}
-        panOnDrag={true}
-        zoomOnScroll={true}
-        zoomOnPinch={true}
+        panOnDrag={panOnDrag}
+        zoomOnScroll={zoomOnScroll}
+        zoomOnPinch={zoomOnPinch}
         onNodeClick={
           onNodeClick ??
           ((_, node) => {

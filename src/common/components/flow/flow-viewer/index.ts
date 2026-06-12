@@ -21,6 +21,7 @@ export type {
   TriggerType,
   TaskVariant,
   StepStatus,
+  FlowNodeOutcome,
   FlowGraphNode,
   FlowGraphEdge,
   FlowGraphDefinition,

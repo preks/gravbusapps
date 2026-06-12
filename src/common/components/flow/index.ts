@@ -16,6 +16,10 @@ export { FlowCanvas, FlowViewer, useRightPanelExiting } from './flow-viewer/Flow
 export { FlowCanvasProvider, useFlowCanvasContext } from './flow-viewer/FlowViewerProvider'
 export type {
   FlowGraphDefinition,
+  FlowGraphEdge,
+  FlowExecutionState,
+  FlowNodeOutcome,
+  StepStatus,
   FlowCanvasViewProps,
   FlowCanvasEdgeActions,
   FlowCanvasProps,

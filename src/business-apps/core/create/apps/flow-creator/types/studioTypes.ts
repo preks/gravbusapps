@@ -70,6 +70,7 @@ export interface TaskNodeConfig {
   nodeType: 'task'
   stepType: FlowStepType
   kind: 'USER' | 'SYSTEM'
+  enabled?: boolean
   title: string
   message?: string
   form?: InputBlock[]

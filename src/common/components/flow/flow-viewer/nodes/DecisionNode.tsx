@@ -1,17 +1,20 @@
 import React from 'react'
 import { Handle, Position } from '@xyflow/react'
-import { Badge } from '@newwork/nw-design-system'
+import { Badge, Spinner } from '@newwork/nw-design-system'
 import { GitBranch, User, Bot, Calculator } from 'lucide-react'
 import { HANDLE_OFFSET } from './nodeDimensions'
 import { NODE_META_BADGE_COMPACT_CLASS } from './nodeBadgeStyles'
-import type { DecisionMode, StepStatus } from '../types/viewerTypes'
+import { NodeOutcomeBadge } from './NodeOutcomeBadge'
+import type { DecisionMode, FlowNodeOutcome, StepStatus } from '../types/viewerTypes'
 
 interface DecisionNodeData {
   label: string
   decisionMode?: DecisionMode
   isSelected?: boolean
   status?: StepStatus
+  outcome?: FlowNodeOutcome
   isOnActivePath?: boolean
+  isAwaitingInput?: boolean
   onSelect?: () => void
   testId?: string
 }
@@ -50,6 +53,7 @@ const VISUAL_SIZE = Math.ceil(DIAMOND_SIZE * Math.SQRT2) // ~170
 export const DecisionNode: React.FC<{ data: DecisionNodeData }> = ({ data }) => {
   const mode = data.decisionMode ?? 'LOGIC'
   const ModeIcon = MODE_ICONS[mode]
+  const showInputSpinner = !data.outcome && (data.isAwaitingInput === true || data.status === 'active')
 
   const borderClass = getStatusBorder(data.status, data.isSelected, data.isOnActivePath)
   const bgClass = getStatusBg(data.status, data.isSelected, data.isOnActivePath)
@@ -115,6 +119,17 @@ export const DecisionNode: React.FC<{ data: DecisionNodeData }> = ({ data }) => 
       />
 
       {/* Diamond shape centered in the visual bounding box */}
+      {showInputSpinner ? (
+        <span
+          className="gba:pointer-events-none gba:absolute gba:left-1/2 gba:top-3 gba:z-20 gba:inline-flex gba:h-6 gba:w-6 gba:-translate-x-1/2 gba:items-center gba:justify-center gba:rounded-md gba:border gba:border-info/60 gba:bg-card gba:text-info gba:shadow-sm"
+          title="Waiting for switch input"
+          aria-label="Waiting for switch input"
+          data-testid="flow-decision-input-loading-icon"
+        >
+          <Spinner size="sm" />
+        </span>
+      ) : null}
+      <NodeOutcomeBadge outcome={data.outcome} placement="edge" className="gba:-translate-y-8" />
       <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center">
         <div
           className={`gba:rotate-45 gba:border-2 gba:rounded-md gba:shadow-sm gba:flex gba:items-center gba:justify-center ${borderClass} ${bgClass}`}

@@ -160,6 +160,24 @@ describe('templateConverter', () => {
     ])
   })
 
+  it('persists deactivated task steps through template conversion', () => {
+    const task = makeTaskNode('task_1', 'Optional Task')
+    ;(task.config as any).enabled = false
+    const nodes: StudioNode[] = [makeStartNode(), task, makeEndNode()]
+    const edges: FlowGraphEdge[] = [
+      { id: 'e-start-task', source: START_ID, target: 'task_1', direction: 'forward' } as any,
+      { id: 'e-task-end', source: 'task_1', target: END_ID, direction: 'forward' } as any
+    ]
+
+    const template = studioGraphToTemplate(nodes, edges, 'Deactivate Flow') as any
+    expect(template.steps[0].enabled).toBe(false)
+
+    const rebuilt = templateToStudioGraph(template)
+    const rebuiltTask = rebuilt.nodes.find(node => node.id === 'task_1')
+    expect(rebuiltTask?.config.nodeType).toBe('task')
+    expect((rebuiltTask?.config as any).enabled).toBe(false)
+  })
+
   it('serializes DECISION nodes into template.steps', () => {
     const nodes: StudioNode[] = [
       makeStartNode(),

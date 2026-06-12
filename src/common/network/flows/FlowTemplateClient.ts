@@ -337,6 +337,31 @@ export interface FlowTemplate {
   eventSubscriptions?: EventSubscription[]
 }
 
+export interface InteractiveFlowTestSession {
+  workflowId: string
+  status: 'RUNNING' | 'PAUSED' | 'COMPLETED' | 'FAILED' | 'TIMED_OUT'
+  completedTasks: Array<{ taskId: string; stepReference?: string; stepTitle?: string }>
+  warnings: string[]
+  pause: null | {
+    type: 'TASK' | 'AGENT' | 'COMPLETED'
+    workflowId: string
+    taskId?: string
+    stepReference?: string
+    stepIndex?: number | null
+    stepTitle?: string
+    assignmentMode?: string
+    claimRequired?: boolean
+    claimSimulated?: boolean
+    claimUserId?: string
+    agentMode?: string
+    form?: InputBlock[]
+    inputData?: Record<string, unknown>
+    status?: string
+  }
+  createdAt: string
+  updatedAt: string
+}
+
 /**
  * Backend API response format
  */
@@ -566,10 +591,15 @@ export class FlowTemplateClient extends RestClient {
     runtimeParameters?: any
     context?: any
     testOptions?: {
+      interactive?: boolean
       agentResponses?: Record<string, unknown>
       agentResponseModes?: Record<string, 'REAL_WITH_TEST_FALLBACK' | 'TEST_RESPONSE' | 'REAL_ONLY'>
       userTaskResponses?: Record<string, unknown>
       expectedBranches?: Record<string, string>
+      singleStepReference?: string
+      singleStepIndex?: number
+      initialFormStepReference?: string
+      initialFormStepIndex?: number
     }
     validateWithConductor?: boolean
   }): Promise<{
@@ -586,9 +616,36 @@ export class FlowTemplateClient extends RestClient {
       timedOut: boolean
       warnings: string[]
     }
+    interactiveTest?: InteractiveFlowTestSession | null
     executionInput: any
   }> {
     const response = await this.post<ApiResponse<any>>(`/execute-dynamic`, params)
+    return response.data
+  }
+
+  async getInteractiveTestSession(workflowId: string): Promise<InteractiveFlowTestSession> {
+    const response = await this.get<ApiResponse<InteractiveFlowTestSession>>(
+      `/interactive-test/${encodeURIComponent(workflowId)}`
+    )
+    return response.data
+  }
+
+  async continueInteractiveTest(
+    workflowId: string,
+    body: {
+      userId?: string
+      formData?: Record<string, unknown>
+      assignment?: Record<string, unknown>
+      claimOnly?: boolean
+      agentResponse?: Record<string, unknown>
+      agentMode?: 'REAL_WITH_TEST_FALLBACK' | 'TEST_RESPONSE' | 'REAL_ONLY'
+      skipAgent?: boolean
+    }
+  ): Promise<InteractiveFlowTestSession> {
+    const response = await this.post<ApiResponse<InteractiveFlowTestSession>>(
+      `/interactive-test/${encodeURIComponent(workflowId)}/continue`,
+      body
+    )
     return response.data
   }
 }

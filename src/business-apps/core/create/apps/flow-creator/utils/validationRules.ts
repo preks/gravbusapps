@@ -106,6 +106,7 @@ export const VALIDATION_RULES: ValidationRule[] = [
     validate: nodes => {
       // Simplified: ensure rework targets reference existing earlier nodes
       for (const node of nodes) {
+        if (node.type === 'task' && node.config.nodeType === 'task' && node.config.enabled === false) continue
         if (node.config.nodeType === 'task' && node.config.reworkConfig?.enabled) {
           for (const target of node.config.reworkConfig.targets) {
             if (!nodes.some(n => n.id === target.targetStepReference)) {

@@ -38,7 +38,7 @@ export const ForkNode: React.FC<{ data: ForkNodeData }> = ({ data }) => {
   return (
     <button
       type="button"
-      className={`nopan nodrag gba:cursor-pointer gba:transition-all gba:duration-200 hover:gba:scale-[1.02]`}
+      className={`nopan nodrag gba:relative gba:overflow-visible gba:cursor-pointer gba:transition-all gba:duration-200 hover:gba:scale-[1.02]`}
       onClick={() => data.onSelect?.()}
       data-testid={data.testId ?? 'flow-viewer-fork-node'}
     >
@@ -66,7 +66,6 @@ export const ForkNode: React.FC<{ data: ForkNodeData }> = ({ data }) => {
           </Badge>
         )}
       </div>
-
       {/* Multiple source handles for branches */}
       <Handle
         type="source"

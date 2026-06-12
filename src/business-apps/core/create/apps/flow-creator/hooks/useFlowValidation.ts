@@ -28,6 +28,10 @@ export interface ValidationIssue {
 
 type PartialIssue = Omit<ValidationIssue, 'id'>
 
+function isDeactivatedTask(node: StudioNode): boolean {
+  return node.type === 'task' && node.config.nodeType === 'task' && node.config.enabled === false
+}
+
 function validateStartAndEndNodes(nodes: StudioNode[]): PartialIssue[] {
   const issues: PartialIssue[] = []
   const startNodes = nodes.filter(n => n.type === 'start')
@@ -207,6 +211,7 @@ function validateClaimAssignments(nodes: StudioNode[]): PartialIssue[] {
   const issues: PartialIssue[] = []
 
   for (const node of nodes) {
+    if (isDeactivatedTask(node)) continue
     if (node.type === 'task' && node.config.nodeType === 'task' && node.config.kind === 'USER') {
       const assignment = node.config.assignment
       if (assignment?.assignmentMode === AssignmentMode.CLAIM && !hasSpecificAssignmentTargets(assignment.targets)) {
@@ -271,7 +276,7 @@ function validateForkJoinPairs(nodes: StudioNode[]): PartialIssue[] {
 function validateReworkTargets(nodes: StudioNode[], nodeMap: Map<string, StudioNode>): PartialIssue[] {
   const issues: PartialIssue[] = []
   for (const node of nodes) {
-    if (node.config.nodeType !== 'task' || !node.config.reworkConfig?.enabled) continue
+    if (isDeactivatedTask(node) || node.config.nodeType !== 'task' || !node.config.reworkConfig?.enabled) continue
     const nodeIndex = nodes.indexOf(node)
     for (const target of node.config.reworkConfig.targets) {
       const targetNode = nodeMap.get(target.targetStepReference)

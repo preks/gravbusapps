@@ -6,7 +6,7 @@ import { CanvasToolbar } from './CanvasToolbar'
 import { ConfigPanelContainer } from '../config-panels/ConfigPanelContainer'
 import { useFlowValidation } from '../../hooks/useFlowValidation'
 import { useFlowStudioData } from '../../hooks/useFlowStudioData'
-import { FlowCanvasProvider, FlowCanvas } from '@/common/components/flow'
+import { FlowCanvasProvider, FlowCanvas, type FlowExecutionState } from '@/common/components/flow'
 import type { FlowStepType } from '@/common/data/flow/types/flowTemplate'
 import type { FunctionVersionMeta } from '@/common/network/functions/FunctionsServiceClient'
 import type { PromptODM } from '@/common/network/ai/prompt-manager/PromptManagerClient'
@@ -15,9 +15,10 @@ interface FlowStudioCanvasProps extends BusinessAppContextProps {
   mode: DesignerMode
   onModeChange?: (mode: DesignerMode) => void
   onSave?: () => Promise<void> | void
-  onTestFlow?: () => void
+  onTestFlow?: (singleStepKey?: string | null) => void
   onImportFlow?: () => void
   onExportFlow?: () => void
+  testExecutionState?: FlowExecutionState
   showValidationIssues?: boolean
   'data-testid'?: string
 }
@@ -30,6 +31,7 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
   onTestFlow,
   onImportFlow,
   onExportFlow,
+  testExecutionState,
   showValidationIssues = false,
   'data-testid': testId = 'flow-studio-canvas'
 }) => {
@@ -43,6 +45,7 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
   const selectEdge = useFlowStudioStore(s => s.selectEdge)
   const openEdgeDetails = useFlowStudioStore(s => s.openEdgeDetails)
   const openEdgeInsert = useFlowStudioStore(s => s.openEdgeInsert)
+  const updateNodeConfig = useFlowStudioStore(s => s.updateNodeConfig)
   const toGraphDefinition = useFlowStudioStore(s => s.toGraphDefinition)
   const studioData = useFlowStudioData(accessToken)
   const { issues, errors, warnings } = useFlowValidation()
@@ -56,9 +59,40 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
 
   const definition = useMemo(() => {
     const next = toGraphDefinition()
+    const issuesByNode = new Map<string, typeof issues>()
+    for (const issue of issues) {
+      if (!issue.nodeId) continue
+      issuesByNode.set(issue.nodeId, [...(issuesByNode.get(issue.nodeId) ?? []), issue])
+    }
+    const withNodeUi = {
+      ...next,
+      nodes: next.nodes.map(node => {
+        return {
+          ...node,
+          metadata: {
+            ...(node.metadata ?? {}),
+            validationIssues: issuesByNode.get(node.id)?.map(issue => ({
+              severity: issue.severity,
+              message: issue.message
+            })),
+            actions:
+              node.type === 'task'
+                ? {
+                    onTest: () => onTestFlow?.(node.id),
+                    onToggleActive: () => {
+                      const storeNode = useFlowStudioStore.getState().nodes.find(item => item.id === node.id)
+                      if (!storeNode || storeNode.config.nodeType !== 'task') return
+                      updateNodeConfig(node.id, { enabled: storeNode.config.enabled === false } as any)
+                    }
+                  }
+                : undefined
+          }
+        }
+      })
+    }
     const contentKey = JSON.stringify({
-      nodes: next.nodes.map(n => ({ id: n.id, type: n.type, label: n.label, metadata: n.metadata })),
-      edges: next.edges.map(e => ({
+      nodes: withNodeUi.nodes.map(n => ({ id: n.id, type: n.type, label: n.label, metadata: n.metadata })),
+      edges: withNodeUi.edges.map(e => ({
         id: e.id,
         source: e.source,
         target: e.target,
@@ -71,9 +105,9 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
       return prevDefinitionRef.current
     }
     prevContentKeyRef.current = contentKey
-    prevDefinitionRef.current = next
-    return next
-  }, [toGraphDefinition, storeNodes, storeEdges])
+    prevDefinitionRef.current = withNodeUi
+    return withNodeUi
+  }, [toGraphDefinition, storeNodes, storeEdges, issues, onTestFlow, updateNodeConfig])
 
   useEffect(() => {
     let cancelled = false
@@ -326,6 +360,7 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
         mode={mode}
         accessToken={accessToken}
         studioData={studioData}
+        onTestStep={onTestFlow}
         data-testid={`${testId}-config-panel`}
       />
     ) : null
@@ -366,6 +401,7 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
           onNodeSelect={selectNode}
           selectedEdgeId={selectedEdgeId}
           onEdgeSelect={selectEdge}
+          executionState={testExecutionState}
         >
           <FlowCanvas
             definition={definition}

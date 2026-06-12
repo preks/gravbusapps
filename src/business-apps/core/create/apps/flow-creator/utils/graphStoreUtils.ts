@@ -233,6 +233,7 @@ export function nodeToMetadata(node: StudioNode): Record<string, unknown> {
         taskVariant: config.stepType,
         assignmentMode: config.assignment.assignmentMode,
         isSystem: config.kind === 'SYSTEM',
+        isDeactivated: config.enabled === false,
         description: config.message,
         permissionContext: config.permissionContext
       }
