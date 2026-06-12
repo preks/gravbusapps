@@ -5,7 +5,8 @@ import {
   TreeStructureIcon,
   BuildingsIcon,
   TrashIcon,
-  ClockIcon
+  ClockIcon,
+  PackageIcon
 } from '@phosphor-icons/react'
 import { HrSettingsCardProps } from '../components/HrSettingsCard'
 
@@ -25,6 +26,25 @@ export function useHrSettingsCards(): HrSettingsCardProps[] {
         {
           label: t('hr.contract_types', 'Contract Types'),
           url: '/platform/mdm/employment-data?tab=contract-types'
+        }
+      ]
+    },
+    {
+      title: t('hr.assets_master_data', 'Assets Master Data'),
+      description: t('hr.assets_master_data_description', 'Manage asset brands, categories, and conditions'),
+      icon: <PackageIcon size={24} />,
+      entries: [
+        {
+          label: t('hr.asset_brands', 'Asset Brands'),
+          url: '/platform/mdm/assets-master-data?tab=asset-brands'
+        },
+        {
+          label: t('hr.asset_categories', 'Asset Categories'),
+          url: '/platform/mdm/assets-master-data?tab=asset-categories'
+        },
+        {
+          label: t('hr.asset_conditions', 'Asset Conditions'),
+          url: '/platform/mdm/assets-master-data?tab=asset-conditions'
         }
       ]
     },

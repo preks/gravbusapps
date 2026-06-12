@@ -15,6 +15,7 @@ export const hrAreas: HrArea[] = [
       { label: 'Organizational Data', path: '/platform/mdm/organizational-data' },
       { label: 'Job Structures', path: '/platform/mdm/job-structure-data' },
       { label: 'Employee Records', path: '/platform/mdm/employment-data' },
+      { label: 'Assets Master Data', path: '/platform/mdm/assets-master-data' },
       { label: 'Employee Data Import', path: '/platform/hr/data-import' },
       { label: 'Skill Management', path: '/platform/hr/core/apps/skill-management' }
     ]

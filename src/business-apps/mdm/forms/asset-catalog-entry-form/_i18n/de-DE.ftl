@@ -1,0 +1,20 @@
+# Asset Catalog Entry Form - Deutsch
+
+form-title-create = Asset-Katalogeintrag erstellen
+form-title-edit = Asset-Katalogeintrag bearbeiten
+form-description = Details zum Asset-Katalogeintrag konfigurieren für
+
+field-name-label = Name
+field-code-label = Code
+field-description-label = Beschreibung
+
+field-name-placeholder = Name eingeben
+field-code-placeholder = Code eingeben
+field-description-placeholder = Beschreibung eingeben (optional)
+
+validation-name-required = Bitte geben Sie den Namen des Asset-Katalogeintrags ein
+validation-name-too-long = Der Name des Asset-Katalogeintrags darf maximal 64 Zeichen lang sein
+validation-code-required = Bitte geben Sie den Code des Asset-Katalogeintrags ein
+validation-code-too-long = Der Code des Asset-Katalogeintrags darf maximal 10 Zeichen lang sein
+validation-description-too-long = Die Beschreibung darf maximal 100 Zeichen lang sein
+validation-no-leading-whitespace = Darf nicht mit einem Leerzeichen beginnen
