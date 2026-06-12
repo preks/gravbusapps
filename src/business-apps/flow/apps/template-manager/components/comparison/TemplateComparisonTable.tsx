@@ -3,7 +3,7 @@
  * Table displaying template comparisons with search and filter
  */
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import {
   Table,
   TableHeader,
@@ -18,7 +18,13 @@ import {
   SelectContent,
   SelectItem,
   Button,
-  Checkbox
+  Checkbox,
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationPrevious,
+  PaginationNext
 } from '@newwork/nw-design-system'
 import { TemplateComparison, ComparisonStatus } from '../../types/comparison'
 import { StatusBadge } from '../common/StatusBadge'
@@ -51,6 +57,8 @@ export const TemplateComparisonTable: React.FC<TemplateComparisonTableProps> = (
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [appFilter, setAppFilter] = useState<string>('all')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(50)
 
   // Load app catalog for filtering by tags.app
   const { categories: appCategories, isLoading: loadingApps } = useAppCategories(accessToken)
@@ -90,9 +98,32 @@ export const TemplateComparisonTable: React.FC<TemplateComparisonTableProps> = (
     })
   }, [comparisons, searchTerm, statusFilter, appFilter])
 
+  const totalPages = Math.max(1, Math.ceil(filteredComparisons.length / pageSize))
+  const safePage = Math.min(currentPage, totalPages)
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, statusFilter, appFilter, pageSize])
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
+
+  const paginatedComparisons = useMemo(() => {
+    const start = (safePage - 1) * pageSize
+    return filteredComparisons.slice(start, start + pageSize)
+  }, [filteredComparisons, safePage, pageSize])
+
+  const rangeStart = filteredComparisons.length === 0 ? 0 : (safePage - 1) * pageSize + 1
+  const rangeEnd = Math.min(safePage * pageSize, filteredComparisons.length)
+
   const canSync = (status: ComparisonStatus) => {
     return status !== 'IDENTICAL' && status !== 'NEW_IN_TARGET'
   }
+
+  const syncableOnPage = paginatedComparisons.filter(c => canSync(c.status))
 
   // Helper function to determine if diff should be shown
   const canShowDiff = (status: ComparisonStatus): boolean => {
@@ -162,18 +193,14 @@ export const TemplateComparisonTable: React.FC<TemplateComparisonTableProps> = (
                 <TableHead className="gba:w-12">
                   <Checkbox
                     checked={
-                      filteredComparisons.filter(c => canSync(c.status)).length > 0 &&
-                      filteredComparisons
-                        .filter(c => canSync(c.status))
-                        .every(c => selectedTemplateIds.has(c.templateId))
+                      syncableOnPage.length > 0 && syncableOnPage.every(c => selectedTemplateIds.has(c.templateId))
                     }
                     onCheckedChange={checked => {
-                      const syncableTemplates = filteredComparisons.filter(c => canSync(c.status))
-                      syncableTemplates.forEach(c => {
+                      syncableOnPage.forEach(c => {
                         onSelectionChange?.(c.templateId, !!checked)
                       })
                     }}
-                    aria-label="Select all templates"
+                    aria-label="Select all templates on this page"
                   />
                 </TableHead>
               )}
@@ -192,7 +219,7 @@ export const TemplateComparisonTable: React.FC<TemplateComparisonTableProps> = (
                 </TableCell>
               </TableRow>
             ) : (
-              filteredComparisons.map(comparison => (
+              paginatedComparisons.map(comparison => (
                 <TableRow key={comparison.templateId}>
                   {bulkMode && (
                     <TableCell>
@@ -297,10 +324,61 @@ export const TemplateComparisonTable: React.FC<TemplateComparisonTableProps> = (
         </Table>
       </div>
 
-      {/* Results count */}
-      <div className="gba:text-sm gba:text-muted-foreground">
-        Showing {filteredComparisons.length} of {comparisons.length} templates
-      </div>
+      {/* Pagination */}
+      {filteredComparisons.length > 0 && (
+        <div className="gba:flex gba:flex-col gba:sm:flex-row gba:items-center gba:justify-between gba:gap-4">
+          <div className="gba:text-sm gba:text-muted-foreground">
+            Showing {rangeStart}-{rangeEnd} of {filteredComparisons.length} templates
+            {filteredComparisons.length !== comparisons.length && ` (${comparisons.length} total)`}
+          </div>
+
+          <div className="gba:flex gba:items-center gba:gap-4">
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <span className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">Rows per page</span>
+              <Select value={String(pageSize)} onValueChange={value => setPageSize(Number(value))}>
+                <SelectTrigger className="gba:w-20" data-testid="template-comparison-page-size">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {totalPages > 1 && (
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={() => setCurrentPage(Math.max(1, safePage - 1))}
+                      className={safePage === 1 ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}
+                      data-testid="template-comparison-prev-page"
+                    />
+                  </PaginationItem>
+
+                  <PaginationItem>
+                    <PaginationLink isActive className="gba:cursor-default">
+                      {safePage} / {totalPages}
+                    </PaginationLink>
+                  </PaginationItem>
+
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() => setCurrentPage(Math.min(totalPages, safePage + 1))}
+                      className={
+                        safePage === totalPages ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'
+                      }
+                      data-testid="template-comparison-next-page"
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

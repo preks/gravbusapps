@@ -87,8 +87,8 @@ export const useTemplateSync = (accessToken: string) => {
           }
         }
 
-        // Determine target version
-        const targetTemplate = { ...sourceTemplate }
+        // Determine target version — always preserve source template id for matching
+        const targetTemplate = { ...sourceTemplate, id: templateId }
 
         if (mode === 'create_version') {
           // Check if template exists in target
@@ -144,6 +144,11 @@ export const useTemplateSync = (accessToken: string) => {
 
         return result
       } catch (err) {
+        // Preserve EnhancedError from templateApi so ComparisonDashboard shows actionable details
+        if (err && typeof err === 'object' && 'category' in err) {
+          throw err
+        }
+
         const error = err instanceof Error ? err.message : 'Unknown error'
 
         const result: SyncResult = {

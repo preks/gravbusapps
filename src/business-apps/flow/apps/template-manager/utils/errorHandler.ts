@@ -176,10 +176,12 @@ const createAxiosEnhancedError = (error: AxiosError, context: ErrorContext, time
   // 400 Bad Request (Validation)
   if (status === 400) {
     const errorMessage = responseData?.message || responseData?.error || error.message
+    const isDetailedMessage =
+      typeof errorMessage === 'string' && errorMessage.length > 0 && errorMessage !== 'Bad Request'
     return {
       category: ErrorCategory.VALIDATION,
       severity: ErrorSeverity.MEDIUM,
-      message: 'Invalid request',
+      message: isDetailedMessage ? errorMessage : 'Invalid request',
       technicalDetails: `${context.operation}: 400 Bad Request - ${errorMessage}`,
       originalError: error,
       timestamp,

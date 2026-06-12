@@ -109,16 +109,35 @@ export const templateApi = {
   },
 
   /**
-   * Create or update a template
+   * Create or update a template (PUT when id exists on target, POST otherwise)
    */
   async createOrUpdateTemplate(baseUrl: string, template: FlowTemplate, apiKey: string): Promise<FlowTemplate> {
+    const headers = {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    }
+
     try {
-      const response = await axios.post(`${baseUrl}/api/templates`, template, {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        }
-      })
+      const templateId = template.id?.trim()
+      let response
+
+      if (templateId) {
+        const existsOnTarget = await axios
+          .get(`${baseUrl}/api/templates/${templateId}`, { headers })
+          .then(() => true)
+          .catch(error => {
+            if (axios.isAxiosError(error) && error.response?.status === 404) {
+              return false
+            }
+            throw error
+          })
+
+        response = existsOnTarget
+          ? await axios.put(`${baseUrl}/api/templates/${templateId}`, template, { headers })
+          : await axios.post(`${baseUrl}/api/templates`, template, { headers })
+      } else {
+        response = await axios.post(`${baseUrl}/api/templates`, template, { headers })
+      }
 
       // Handle different response formats
       if (response.data.template) {
