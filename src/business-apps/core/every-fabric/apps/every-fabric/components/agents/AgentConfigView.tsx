@@ -28,6 +28,7 @@ import {
 import { AgentPoliciesEditor } from './AgentPoliciesEditor'
 import { WorkforceConfigSections } from './WorkforceConfigSections'
 import type { FabricAgent } from './agentTypes'
+import { agentDisplayLabel } from './agentTypes'
 
 interface SkillOption {
   skill_id: string
@@ -49,11 +50,19 @@ interface AgentConfigViewProps {
   onSkillsSaved: (agentId: string, skillIds: string[]) => void
   onAgentUpdated?: (
     agentId: string,
-    updates: { name: string; description: string; tags: string[]; specialty: string }
+    updates: {
+      name: string
+      display_name: string
+      description: string
+      tags: string[]
+      specialty: string
+    }
   ) => void
 }
 
 const formatAgentName = (name: string) => name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+
+const initialAgentLabel = (agent: FabricAgent) => agent.display_name?.trim() || formatAgentName(agent.name)
 
 type AgentSkillsResponse = Awaited<ReturnType<PromptManagerClient['getAgentSkills']>>
 type AgentDetailResponse = Awaited<ReturnType<PromptManagerClient['getAgentDetail']>>
@@ -110,7 +119,7 @@ function computeDetailsResult(
   return {
     detail: {
       systemPrompt: detail.system_prompt ?? null,
-      name: detail.name ?? agent.name,
+      name: detail.display_name ?? detail.name ?? agentDisplayLabel(agent),
       description: detail.description ?? agent.description,
       tags: (detail.tags ?? agent.tags).join(', '),
       specialty: detail.specialty ?? agent.specialty ?? ''
@@ -165,7 +174,7 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
   const systemPromptDirty = (systemPrompt ?? '') !== (savedSystemPrompt ?? '')
 
   // Details state
-  const [detailsName, setDetailsName] = useState(agent.name)
+  const [detailsName, setDetailsName] = useState(initialAgentLabel(agent))
   const [detailsDescription, setDetailsDescription] = useState(agent.description)
   const [detailsTags, setDetailsTags] = useState(agent.tags.join(', '))
   const [detailsSpecialty, setDetailsSpecialty] = useState(agent.specialty ?? '')
@@ -173,7 +182,7 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
   const [detailsSaving, setDetailsSaving] = useState(false)
   const [detailsSaved, setDetailsSaved] = useState(false)
   const [detailsError, setDetailsError] = useState<string | null>(null)
-  const [savedName, setSavedName] = useState(agent.name)
+  const [savedName, setSavedName] = useState(initialAgentLabel(agent))
   const [savedDescription, setSavedDescription] = useState(agent.description)
   const [savedTags, setSavedTags] = useState(agent.tags.join(', '))
   const [savedSpecialty, setSavedSpecialty] = useState(agent.specialty ?? '')
@@ -347,18 +356,26 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
         .map(s => s.trim())
         .filter(Boolean)
       const specialty = detailsSpecialty.trim()
-      await client.updateAgentDetails(agent.id, {
+      const response = await client.updateAgentDetails(agent.id, {
         name: detailsName,
         description: detailsDescription,
         tags,
         specialty
       })
+      const nextSlug = response.name ?? agent.name
+      const nextDisplayName = response.display_name ?? detailsName
       setSavedName(detailsName)
       setSavedDescription(detailsDescription)
       setSavedTags(detailsTags)
       setSavedSpecialty(detailsSpecialty)
       setDetailsSaved(true)
-      onAgentUpdated?.(agent.id, { name: detailsName, description: detailsDescription, tags, specialty })
+      onAgentUpdated?.(agent.id, {
+        name: nextSlug,
+        display_name: nextDisplayName,
+        description: detailsDescription,
+        tags,
+        specialty
+      })
     } catch (err) {
       setDetailsError(err instanceof Error ? err.message : 'Failed to save details')
     } finally {
@@ -379,7 +396,7 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
           >
             <ArrowLeftIcon className="gba:h-5 gba:w-5" />
           </button>
-          <h1 className="gba:text-xl gba:font-semibold gba:text-foreground">{formatAgentName(agent.name)}</h1>
+          <h1 className="gba:text-xl gba:font-semibold gba:text-foreground">{agentDisplayLabel(agent)}</h1>
         </div>
       </div>
 

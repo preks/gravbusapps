@@ -22,6 +22,7 @@ import { ConfirmDialog } from './ConfirmDialog'
 import { getAllSourceTypes, getSourceDisplay } from './agentSourceUtils'
 import { evaluateAgentReadiness } from './agentStandard'
 import type { BuiltinSubagent, FabricAgent } from './agentTypes'
+import { agentDisplayLabel } from './agentTypes'
 import type { WorkforceAgent } from '../enterprise-workforce/workforceTypes'
 
 function mapRegistryEntryToFabricAgent(
@@ -38,6 +39,7 @@ function mapRegistryEntryToFabricAgent(
   return {
     id: e.id,
     name: e.name,
+    display_name: e.display_name ?? null,
     description: e.description,
     agent_type: e.agent_type,
     specialty: e.specialty,
@@ -72,6 +74,7 @@ function mapWorkforceAgentToFabricAgent(wf: WorkforceAgent, skillToolMap: Map<st
   return {
     id: wf.agent_id,
     name: wf.name,
+    display_name: wf.display_name ?? null,
     description: wf.description,
     agent_type: null,
     specialty: wf.workforce_profile?.role ?? null,
@@ -125,7 +128,9 @@ function isSelectableAgent(agent: FabricAgent): boolean {
 
 function agentMatchesSearch(agent: FabricAgent, query: string): boolean {
   const q = query.toLowerCase()
+  const label = agentDisplayLabel(agent)
   return (
+    label.toLowerCase().includes(q) ||
     agent.name.toLowerCase().includes(q) ||
     agent.description.toLowerCase().includes(q) ||
     (agent.specialty ?? '').toLowerCase().includes(q) ||
@@ -358,7 +363,7 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({
     (agent: FabricAgent) => {
       setConfirm({
         title: 'Archive agent',
-        description: `Archive "${agent.name.replace(/_/g, ' ')}"? It will be hidden from agent selection and orchestration, but its history is preserved.`,
+        description: `Archive "${agentDisplayLabel(agent)}"? It will be hidden from agent selection and orchestration, but its history is preserved.`,
         confirmLabel: 'Archive',
         destructive: true,
         onConfirm: () => runArchiveAgent(agent)
@@ -529,6 +534,7 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({
                 ? {
                     ...a,
                     name: updates.name,
+                    display_name: updates.display_name,
                     description: updates.description,
                     tags: updates.tags,
                     specialty: updates.specialty
@@ -543,6 +549,7 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({
                 ? {
                     ...prev,
                     name: updates.name,
+                    display_name: updates.display_name,
                     description: updates.description,
                     tags: updates.tags,
                     specialty: updates.specialty
@@ -838,13 +845,11 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({
                           checked={selectedArchivedIds.has(agent.id)}
                           onChange={() => toggleArchivedSelect(agent)}
                           className="gba:h-4 gba:w-4 gba:shrink-0 gba:rounded gba:border-border gba:text-primary gba:focus:ring-primary"
-                          aria-label={`Select ${agent.name.replace(/_/g, ' ')}`}
+                          aria-label={`Select ${agentDisplayLabel(agent)}`}
                           data-testid={`archived-select-${agent.id}`}
                         />
                       )}
-                      <h4 className="gba:text-sm gba:font-semibold gba:text-foreground">
-                        {agent.name.replace(/_/g, ' ')}
-                      </h4>
+                      <h4 className="gba:text-sm gba:font-semibold gba:text-foreground">{agentDisplayLabel(agent)}</h4>
                       <span className="gba:shrink-0 gba:rounded-full gba:bg-muted gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium gba:text-muted-foreground">
                         archived
                       </span>

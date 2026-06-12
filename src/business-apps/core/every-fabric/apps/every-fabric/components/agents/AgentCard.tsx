@@ -5,6 +5,7 @@ import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from
 import { WrenchIcon, LightbulbIcon, WarningCircleIcon } from '@phosphor-icons/react'
 import { evaluateAgentReadiness } from './agentStandard'
 import type { FabricAgent } from './agentTypes'
+import { agentDisplayLabel } from './agentTypes'
 
 interface AgentCardProps {
   agent: FabricAgent
@@ -23,10 +24,6 @@ function resolveInitial(name: string): string {
   return name.slice(0, 2).toUpperCase()
 }
 
-function formatAgentName(name: string): string {
-  return name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-}
-
 export const AgentCard: React.FC<AgentCardProps> = ({
   agent,
   onConfigure,
@@ -36,7 +33,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({
   selected = false,
   onToggleSelect
 }) => {
-  const displayName = formatAgentName(agent.name)
+  const displayName = agentDisplayLabel(agent)
   const canArchive = agent.source === 'prompt_odm' || agent.source === 'autonomous_agent'
 
   const distinctSkillTools = new Set<string>()
@@ -69,7 +66,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({
             />
           )}
           <div className="gba:flex gba:h-10 gba:w-10 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-lg gba:border gba:border-border gba:bg-muted gba:text-sm gba:font-bold gba:text-muted-foreground">
-            {resolveInitial(agent.name)}
+            {resolveInitial(displayName)}
           </div>
           <div className="gba:flex-1 gba:min-w-0">
             <div className="gba:flex gba:items-center gba:gap-1.5">

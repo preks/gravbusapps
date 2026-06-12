@@ -1527,7 +1527,15 @@ export class PromptManagerClient extends RestClient {
   async updateAgentDetails(
     agentId: string,
     body: { name?: string; description?: string; tags?: string[]; specialty?: string; system_prompt?: string }
-  ): Promise<unknown> {
+  ): Promise<{
+    agent_id: string
+    source: string
+    name: string
+    display_name: string
+    description: string
+    tags?: string[]
+    specialty?: string | null
+  }> {
     return this.patch(`/agents/registry/${encodeURIComponent(agentId)}`, body)
   }
 

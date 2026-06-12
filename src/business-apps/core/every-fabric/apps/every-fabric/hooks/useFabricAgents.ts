@@ -23,7 +23,7 @@ export interface UseFabricAgentsReturn {
 const mapRegistryEntryToSpecialist = (entry: AgentRegistryEntry): SpecialistAgent => ({
   id: entry.id,
   name: entry.name,
-  display_name: entry.name,
+  display_name: entry.display_name ?? entry.name,
   description: entry.description ?? '',
   domain: entry.specialty ?? entry.agent_card?.division ?? 'General',
   tags: entry.tags ?? [],

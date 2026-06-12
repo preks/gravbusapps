@@ -24,6 +24,7 @@ export interface KnowledgeSourceEntry {
 export interface AgentRegistryEntry {
   id: string
   name: string
+  display_name?: string | null
   description: string
   agent_type: string | null
   specialty: string | null

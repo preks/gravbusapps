@@ -3,6 +3,8 @@
 export interface FabricAgent {
   id: string
   name: string
+  /** Human-friendly label when distinct from the machine slug in ``name``. */
+  display_name?: string | null
   description: string
   agent_type: string | null
   specialty: string | null
@@ -27,6 +29,13 @@ export interface FabricAgent {
   categories?: string[]
   status?: string
   created_at: string | null
+}
+
+/** Prefer ``display_name``; otherwise title-case the slug ``name``. */
+export function agentDisplayLabel(agent: { display_name?: string | null; name: string }): string {
+  const display = agent.display_name?.trim()
+  if (display) return display
+  return agent.name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
 export interface BuiltinSubagent {
