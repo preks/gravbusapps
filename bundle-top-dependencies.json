@@ -88434,20 +88434,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 13545,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13545/",
-    "chunkJsBytes": 2052341,
+    "bitbucketBuildNumber": 13551,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13551/",
+    "chunkJsBytes": 2052290,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1769283,
-        "gzip": 113375,
+        "rendered": 1769223,
+        "gzip": 112727,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1769283,
-            "gzip": 113375
+            "rendered": 1769223,
+            "gzip": 112727
           }
         ]
       },
@@ -119745,7 +119745,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-12T12:23:02.278Z",
+    "generatedAt": "2026-06-12T13:14:26.785Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
