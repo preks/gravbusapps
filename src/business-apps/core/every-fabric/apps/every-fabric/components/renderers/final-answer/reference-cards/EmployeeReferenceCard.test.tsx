@@ -1,6 +1,7 @@
 /**
- * EmployeeReferenceCard: extracts name/role/team/manager from useEmployeeDetails,
- * uses reference.data while loading, and surfaces the intent context label.
+ * EmployeeReferenceCard: extracts name/role/org context/manager from
+ * useEmployeeDetails, uses reference.data while loading, and surfaces the
+ * intent context label.
  */
 
 import React from 'react'
@@ -17,6 +18,10 @@ jest.mock('@/business-apps/platform/apps/every-ai/components/links/EntityLink', 
   getEntityUrl: () => '/platform/employee-record?employeeId=emp-1'
 }))
 jest.mock('@/common/utils/navigationUtils', () => ({ __esModule: true, navigateTo: jest.fn() }))
+jest.mock('@/business-apps/platform/apps/every-ai/components/shared/AvatarWithInitials', () => ({
+  __esModule: true,
+  AvatarWithInitials: (props: any) => <span data-testid="avatar">{`${props.firstName} ${props.lastName}`}</span>
+}))
 
 jest.mock('@/business-apps/platform/apps/every-ai/components/entities/EntityCard', () => ({
   __esModule: true,
@@ -29,6 +34,7 @@ jest.mock('@/business-apps/platform/apps/every-ai/components/entities/EntityCard
           <li key={i}>{`${f.label}=${f.value}`}</li>
         ))}
       </ul>
+      <div data-testid="footer">{props.footer}</div>
     </div>
   )
 }))
@@ -48,7 +54,7 @@ const ref = (over: Partial<EntityReference> = {}): EntityReference => ({
 describe('EmployeeReferenceCard', () => {
   beforeEach(() => mockUseEmployeeDetails.mockReset())
 
-  it('renders the fetched name, job title, and manager', () => {
+  it('renders fetched name, job title, org-chart fields, and manager person-row', () => {
     mockUseEmployeeDetails.mockReturnValue({
       state: {
         state: 'success',
@@ -56,18 +62,29 @@ describe('EmployeeReferenceCard', () => {
           firstName: 'Anna',
           lastName: 'Müller',
           jobPositionName: 'Engineer',
-          pictureThumbnail: null
+          pictureThumbnail: null,
+          department: 'Platform',
+          location: 'Hamburg',
+          company: 'NEW WORK SE',
+          hireDate: '2021-04-01T00:00:00Z'
         },
-        manager: { firstName: 'Bob', lastName: 'Stone' }
+        manager: { id: 'mgr-1', firstName: 'Bob', lastName: 'Stone', jobPositionName: 'Lead' }
       }
     })
 
-    render(<EmployeeReferenceCard reference={ref({ data: { team: 'Platform' } })} accessToken="tok" />)
+    render(<EmployeeReferenceCard reference={ref()} accessToken="tok" />)
 
     expect(screen.getByTestId('title')).toHaveTextContent('Anna Müller')
     expect(screen.getByTestId('subtitle')).toHaveTextContent('Engineer')
-    expect(screen.getByTestId('fields')).toHaveTextContent('Team=Platform')
-    expect(screen.getByTestId('fields')).toHaveTextContent('Manager=Bob Stone')
+    const fields = screen.getByTestId('fields')
+    expect(fields).toHaveTextContent('Department=Platform')
+    expect(fields).toHaveTextContent('Location=Hamburg')
+    expect(fields).toHaveTextContent('Company=NEW WORK SE')
+    expect(fields).toHaveTextContent('Joined=2021')
+    const footer = screen.getByTestId('footer')
+    expect(footer).toHaveTextContent('Reports to')
+    expect(footer).toHaveTextContent('Bob Stone')
+    expect(footer).toHaveTextContent('Lead')
   })
 
   it('prepends the intent context label to the subtitle', () => {
@@ -99,7 +116,12 @@ describe('EmployeeReferenceCard', () => {
     )
     expect(screen.getByTestId('title')).toHaveTextContent('Anna Müller')
     expect(screen.getByTestId('subtitle')).toHaveTextContent('Designer')
-    expect(screen.getByTestId('fields')).toHaveTextContent('Team=Brand')
+    expect(screen.getByTestId('fields')).toHaveTextContent('Department=Brand')
+  })
+
+  it('shows the work email as a fallback field when no org-chart data exists', () => {
+    mockUseEmployeeDetails.mockReturnValue({ state: { state: 'error', message: 'boom' } })
+    render(<EmployeeReferenceCard reference={ref({ data: { work_email: 'a@x.com' } })} accessToken="tok" />)
     expect(screen.getByTestId('fields')).toHaveTextContent('Email=a@x.com')
   })
 })

@@ -9,8 +9,19 @@ query employeeById($id: uuid) {
     lastName
     pictureThumbnail
     employeePosition {
+      hireDate
       jobPosition {
         name
+      }
+      company {
+        name
+      }
+      organizationalUnit {
+        name
+      }
+      siteLocation {
+        name
+        locality
       }
       supervisorEmployee {
         id
@@ -53,8 +64,19 @@ type EmployeeWithSupervisorInfo = {
   lastName: string
   pictureThumbnail: string | null
   employeePosition: {
+    hireDate: string | null
     jobPosition: {
       name: string
+    } | null
+    company: {
+      name: string | null
+    } | null
+    organizationalUnit: {
+      name: string | null
+    } | null
+    siteLocation: {
+      name: string | null
+      locality: string | null
     } | null
     supervisorEmployee: {
       id: string
@@ -80,6 +102,11 @@ type Employee = {
   lastName: string
   pictureThumbnail: string | null
   jobPositionName: string | null
+  /** Org-chart context (best-effort; any may be null for partial records). */
+  company?: string | null
+  department?: string | null
+  location?: string | null
+  hireDate?: string | null
   profileUrl: string
 }
 
@@ -138,13 +165,18 @@ export function useEmployeeDetails(employeeId: string, accessToken: string) {
           throw new Error('Employee not found.')
         }
         const employeeWithSupervisor = employees[0]
+        const position = employeeWithSupervisor.employeePosition
 
         const employee = {
           id: employeeWithSupervisor.id,
           firstName: employeeWithSupervisor.firstName,
           lastName: employeeWithSupervisor.lastName,
           pictureThumbnail: employeeWithSupervisor.pictureThumbnail,
-          jobPositionName: employeeWithSupervisor.employeePosition?.jobPosition?.name || null,
+          jobPositionName: position?.jobPosition?.name || null,
+          company: position?.company?.name || null,
+          department: position?.organizationalUnit?.name || null,
+          location: position?.siteLocation?.name || position?.siteLocation?.locality || null,
+          hireDate: position?.hireDate || null,
           profileUrl: idToProfileUrl(employeeId)
         }
 

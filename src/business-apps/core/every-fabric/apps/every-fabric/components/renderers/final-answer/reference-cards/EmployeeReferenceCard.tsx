@@ -7,9 +7,10 @@ import { navigateTo } from '@/common/utils/navigationUtils'
 import { dataStr, intentLabel, type ReferenceCardProps } from './referenceCardUtils'
 
 /**
- * Rich employee card for the references rail: avatar, name, job title, team,
- * and manager — fetched client-side by id via `useEmployeeDetails` (the same
- * hook the inline employee chip uses, so its 5-minute cache is shared).
+ * Rich employee card for the references rail: avatar, name, job title, org
+ * context, and manager — fetched client-side by id via `useEmployeeDetails`
+ * (the same hook the inline employee chip uses, so its 5-minute cache is
+ * shared).
  *
  * Progressive enhancement: the backend-provided `reference.data` (team, role,
  * work_email) renders immediately and is the fallback when the fetch errors,
@@ -45,19 +46,62 @@ export const EmployeeReferenceCard: React.FC<ReferenceCardProps> = ({ reference,
   const title = fetchedName || reference.label || reference.id
 
   const role = employee?.jobPositionName ?? dataStr(reference.data, 'role') ?? dataStr(reference.data, 'position_title')
-  const team = dataStr(reference.data, 'team')
-  const email = dataStr(reference.data, 'work_email')
 
+  // Org-chart context from the fetch, with backend-provided `reference.data` as
+  // the fallback so the card still has substance if the by-id fetch is thin.
+  const department = employee?.department ?? dataStr(reference.data, 'team') ?? dataStr(reference.data, 'department')
+  const location = employee?.location ?? dataStr(reference.data, 'location')
+  const company = employee?.company ?? dataStr(reference.data, 'company')
+  const email = dataStr(reference.data, 'work_email')
+  const hireYear = employee?.hireDate ? new Date(employee.hireDate).getFullYear() : undefined
+
+  // Highest-signal facts inline; the manager relationship renders as its own
+  // person-row footer rather than a flat label/value field.
   const fields: Array<{ label: string; value: string }> = []
-  if (team) fields.push({ label: 'Team', value: team })
-  if (manager) {
-    const managerName = `${manager.firstName ?? ''} ${manager.lastName ?? ''}`.trim()
-    if (managerName) fields.push({ label: 'Manager', value: managerName })
-  } else if (email) {
-    fields.push({ label: 'Email', value: email })
-  }
+  if (department) fields.push({ label: 'Department', value: department })
+  if (location) fields.push({ label: 'Location', value: location })
+  if (company) fields.push({ label: 'Company', value: company })
+  if (hireYear && Number.isFinite(hireYear)) fields.push({ label: 'Joined', value: String(hireYear) })
+  if (!fields.length && email) fields.push({ label: 'Email', value: email })
 
   const subtitleParts = [context, role].filter(Boolean)
+
+  const managerName = manager ? `${manager.firstName ?? ''} ${manager.lastName ?? ''}`.trim() : ''
+  const openManager = manager
+    ? (event: React.MouseEvent) => {
+        event.stopPropagation()
+        navigateTo(getEntityUrl('employee', manager.id) ?? manager.profileUrl)
+      }
+    : undefined
+
+  const footer =
+    manager && managerName ? (
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={openManager}
+        onKeyDown={event => {
+          if (event.key === 'Enter' || event.key === ' ') openManager?.(event as unknown as React.MouseEvent)
+        }}
+        className="gba:flex gba:items-center gba:gap-2.5 gba:-m-1 gba:p-1 gba:rounded-lg gba:cursor-pointer hover:gba:bg-muted/50 gba:transition-colors"
+      >
+        <AvatarWithInitials
+          firstName={manager.firstName ?? ''}
+          lastName={manager.lastName ?? ''}
+          pictureThumbnail={manager.pictureThumbnail}
+          size={28}
+        />
+        <div className="gba:min-w-0 gba:flex gba:items-baseline gba:gap-1.5 gba:flex-wrap">
+          <span className="gba:text-[10px] gba:font-medium gba:uppercase gba:tracking-wide gba:text-muted-foreground">
+            Reports to
+          </span>
+          <span className="gba:text-xs gba:font-semibold gba:text-foreground gba:truncate">{managerName}</span>
+          {manager.jobPositionName && (
+            <span className="gba:text-xs gba:text-muted-foreground gba:truncate">· {manager.jobPositionName}</span>
+          )}
+        </div>
+      </div>
+    ) : undefined
 
   return (
     <EntityCard
@@ -72,6 +116,7 @@ export const EmployeeReferenceCard: React.FC<ReferenceCardProps> = ({ reference,
         />
       }
       fields={fields.length ? fields : undefined}
+      footer={footer}
       size="compact"
       surface="glass"
       onClick={open}
