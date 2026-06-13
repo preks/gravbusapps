@@ -8278,8 +8278,8 @@
     ]
   },
   "core/every/apps/every-box": {
-    "bitbucketBuildNumber": 13583,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13583/",
+    "bitbucketBuildNumber": 13585,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13585/",
     "chunkJsBytes": 2129318,
     "top": [
       {
@@ -9708,8 +9708,8 @@
     ]
   },
   "core/office/apps/documents": {
-    "bitbucketBuildNumber": 13583,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13583/",
+    "bitbucketBuildNumber": 13585,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13585/",
     "chunkJsBytes": 1839742,
     "top": [
       {
@@ -10030,8 +10030,8 @@
     ]
   },
   "core/office/apps/drive": {
-    "bitbucketBuildNumber": 13570,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13570/",
+    "bitbucketBuildNumber": 13585,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13585/",
     "chunkJsBytes": 861779,
     "top": [
       {
@@ -88434,20 +88434,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 13583,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13583/",
+    "bitbucketBuildNumber": 13585,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13585/",
     "chunkJsBytes": 2059996,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1777652,
-        "gzip": 113361,
+        "gzip": 113422,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1777652,
-            "gzip": 113361
+            "gzip": 113422
           }
         ]
       },
@@ -100765,15 +100765,15 @@
     ]
   },
   "core/every-fabric/apps/every-fabric": {
-    "bitbucketBuildNumber": 13583,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13583/",
-    "chunkJsBytes": 2726453,
+    "bitbucketBuildNumber": 13585,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13585/",
+    "chunkJsBytes": 2869279,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 2231639,
-        "gzip": 594062,
+        "rendered": 2356401,
+        "gzip": 622833,
         "leaves": [
           {
             "name": "src/business-apps/core/every-fabric/apps/every-fabric/components/workspace/WorkspaceRightPanel.tsx",
@@ -100781,9 +100781,9 @@
             "gzip": 9856
           },
           {
-            "name": "src/business-apps/core/every-fabric/apps/every-fabric/components/agents/AgentsScreen.tsx",
-            "rendered": 38400,
-            "gzip": 7213
+            "name": "src/business-apps/core/office/apps/spreadsheets/services/SpreadsheetApiService.ts",
+            "rendered": 45153,
+            "gzip": 8225
           }
         ]
       },
@@ -100833,6 +100833,24 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/business-apps/platform",
+        "rendered": 163483,
+        "gzip": 38097,
+        "leaves": [
+          {
+            "name": "src/business-apps/platform/apps/note-apps/services/NoteApiService.ts",
+            "rendered": 29874,
+            "gzip": 5583
+          },
+          {
+            "name": "src/business-apps/platform/apps/slide-apps/services/SlidesApiService.ts",
+            "rendered": 26635,
+            "gzip": 5262
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "postprocessing",
         "rendered": 158571,
         "gzip": 27434,
@@ -100859,6 +100877,24 @@
             "name": "node_modules/three-stdlib/controls/OrbitControls.js",
             "rendered": 32241,
             "gzip": 6122
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
+        "name": "(src)/common/network",
+        "rendered": 140834,
+        "gzip": 32041,
+        "leaves": [
+          {
+            "name": "src/common/network/ai/prompt-manager/PromptManagerClient.ts",
+            "rendered": 29434,
+            "gzip": 7190
+          },
+          {
+            "name": "src/common/network/chat/ChatClient.ts",
+            "rendered": 20887,
+            "gzip": 4217
           }
         ]
       },
@@ -100895,42 +100931,6 @@
             "name": "node_modules/@newwork/nw-design-system/dist/components/select/Select.js",
             "rendered": 9164,
             "gzip": 2379
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/business-apps/platform",
-        "rendered": 92364,
-        "gzip": 23872,
-        "leaves": [
-          {
-            "name": "src/business-apps/platform/apps/every-ai/components/links/constants/entityConfig.ts",
-            "rendered": 21762,
-            "gzip": 3786
-          },
-          {
-            "name": "src/business-apps/platform/apps/email-apps/services/EmailApiService.ts",
-            "rendered": 10114,
-            "gzip": 2425
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/common/network",
-        "rendered": 68551,
-        "gzip": 18127,
-        "leaves": [
-          {
-            "name": "src/common/network/ai/prompt-manager/PromptManagerClient.ts",
-            "rendered": 29434,
-            "gzip": 7190
-          },
-          {
-            "name": "src/common/network/auth/installGlobalAuthExpiryInterceptors.ts",
-            "rendered": 9004,
-            "gzip": 2181
           }
         ]
       },
@@ -120328,7 +120328,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-13T06:43:23.742Z",
+    "generatedAt": "2026-06-13T10:33:56.206Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
