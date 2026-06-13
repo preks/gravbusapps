@@ -15,6 +15,7 @@ import {
   getNum,
   getStr,
   intentLabel,
+  personName,
   type ReferenceCardProps
 } from './referenceCardUtils'
 
@@ -51,12 +52,27 @@ export const OpportunityReferenceCard: React.FC<ReferenceCardProps> = ({ referen
   const closeDate = formatDate(getStr(opportunity, 'closeDate'))
   const winChance = getNum(opportunity, 'winningChance')
   const aiGrade = getStr(opportunity, 'aiOpportunityGrade')
+  const aiScore = getNum(opportunity, 'aiOpportunityScore')
+  const owner = personName(getField(opportunity, 'ownerEmployee'))
+  const forecast = catalogValue(getField(opportunity, 'forecastCategory'))
 
-  const fields: Array<{ label: string; value: string }> = []
-  if (amount) fields.push({ label: 'Amount', value: amount })
-  if (closeDate) fields.push({ label: 'Close', value: closeDate })
-  if (winChance !== undefined) fields.push({ label: 'Win', value: `${winChance}%` })
-  if (aiGrade) fields.push({ label: 'AI grade', value: aiGrade })
+  const opportunityAccounts = getField(opportunity, 'opportunityAccounts')
+  const firstAccount = Array.isArray(opportunityAccounts) ? opportunityAccounts[0] : undefined
+  const accountName =
+    getStr(getField(firstAccount, 'account'), 'name') ?? getStr(getField(opportunity, 'account'), 'name')
+
+  const candidates: Array<{ label: string; value: string }> = []
+  if (accountName) candidates.push({ label: 'Account', value: accountName })
+  if (amount) candidates.push({ label: 'Amount', value: amount })
+  if (closeDate) candidates.push({ label: 'Close', value: closeDate })
+  if (winChance !== undefined) candidates.push({ label: 'Win', value: `${winChance}%` })
+  if (owner) candidates.push({ label: 'Owner', value: owner })
+  if (forecast) candidates.push({ label: 'Forecast', value: forecast })
+  if (aiGrade || aiScore !== undefined) {
+    const value = [aiGrade, aiScore !== undefined ? `${aiScore}` : undefined].filter(Boolean).join(' · ')
+    candidates.push({ label: 'AI grade', value })
+  }
+  const fields = candidates.slice(0, 4)
 
   const subtitleParts = [context, stage].filter(Boolean)
 

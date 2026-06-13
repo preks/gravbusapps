@@ -6,6 +6,7 @@ import { getEntityUrl } from '@/business-apps/platform/apps/every-ai/components/
 import { navigateTo } from '@/common/utils/navigationUtils'
 import {
   catalogValue,
+  commChannelValue,
   getField,
   getNum,
   getStr,
@@ -44,16 +45,33 @@ export const LeadReferenceCard: React.FC<ReferenceCardProps> = ({ reference, acc
   const lastName = getStr(lead, 'lastName') ?? ''
   const status = catalogValue(getField(lead, 'leadStatus'))
   const source = catalogValue(getField(lead, 'leadSource'))
+  const rating = catalogValue(getField(lead, 'leadRating'))
   const aiScore = getNum(lead, 'aiLeadScore')
   const aiGrade = getStr(lead, 'aiLeadGrade')
+  const owner = personName(getField(lead, 'ownerEmployee'))
+  const channels = getField(lead, 'communicationChannels')
+  const email = commChannelValue(channels, 'email')
+  const phone = commChannelValue(channels, 'mobile') ?? commChannelValue(channels, 'phone')
+  const geography = [
+    catalogValue(getField(lead, 'region')) ?? getStr(lead, 'region'),
+    catalogValue(getField(lead, 'country')) ?? getStr(lead, 'country')
+  ]
+    .filter(Boolean)
+    .join(', ')
 
-  const fields: Array<{ label: string; value: string }> = []
-  if (company) fields.push({ label: 'Company', value: company })
-  if (source) fields.push({ label: 'Source', value: source })
+  const candidates: Array<{ label: string; value: string }> = []
+  if (company) candidates.push({ label: 'Company', value: company })
+  if (owner) candidates.push({ label: 'Owner', value: owner })
+  if (source) candidates.push({ label: 'Source', value: source })
+  if (rating) candidates.push({ label: 'Rating', value: rating })
+  if (geography) candidates.push({ label: 'Region', value: geography })
+  if (email) candidates.push({ label: 'Email', value: email })
+  else if (phone) candidates.push({ label: 'Phone', value: phone })
   if (aiScore !== undefined || aiGrade) {
     const value = [aiGrade, aiScore !== undefined ? `${aiScore}` : undefined].filter(Boolean).join(' · ')
-    fields.push({ label: 'AI score', value })
+    candidates.push({ label: 'AI score', value })
   }
+  const fields = candidates.slice(0, 4)
 
   const subtitleParts = [context, company].filter(Boolean)
 

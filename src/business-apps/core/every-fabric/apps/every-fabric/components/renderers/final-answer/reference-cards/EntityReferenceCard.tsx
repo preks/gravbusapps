@@ -4,6 +4,14 @@ import { AccountReferenceCard } from './AccountReferenceCard'
 import { ContactReferenceCard } from './ContactReferenceCard'
 import { LeadReferenceCard } from './LeadReferenceCard'
 import { OpportunityReferenceCard } from './OpportunityReferenceCard'
+import { DocumentReferenceCard } from './DocumentReferenceCard'
+import { SlideReferenceCard } from './SlideReferenceCard'
+import { NoteReferenceCard } from './NoteReferenceCard'
+import { SpreadsheetReferenceCard } from './SpreadsheetReferenceCard'
+import { ServiceWorkflowReferenceCard } from './ServiceWorkflowReferenceCard'
+import { WorkflowTemplateReferenceCard } from './WorkflowTemplateReferenceCard'
+import { ChatConversationReferenceCard } from './ChatConversationReferenceCard'
+import { MeetingReferenceCard } from './MeetingReferenceCard'
 import { GenericReferenceCard } from './GenericReferenceCard'
 import { isEmphasized, resolveEffectiveType, type ReferenceCardProps } from './referenceCardUtils'
 
@@ -33,6 +41,22 @@ const pickCard = (effectiveType: string): React.FC<ReferenceCardProps> => {
       return LeadReferenceCard
     case 'opportunity':
       return OpportunityReferenceCard
+    case 'document':
+      return DocumentReferenceCard
+    case 'slide':
+      return SlideReferenceCard
+    case 'note':
+      return NoteReferenceCard
+    case 'spreadsheet':
+      return SpreadsheetReferenceCard
+    case 'service_workflow':
+      return ServiceWorkflowReferenceCard
+    case 'workflow_template':
+      return WorkflowTemplateReferenceCard
+    case 'chat_conversation':
+      return ChatConversationReferenceCard
+    case 'meetings':
+      return MeetingReferenceCard
     default:
       return GenericReferenceCard
   }

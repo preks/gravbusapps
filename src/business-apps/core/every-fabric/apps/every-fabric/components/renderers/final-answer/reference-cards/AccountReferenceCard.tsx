@@ -4,7 +4,15 @@ import { AvatarWithInitials } from '@/business-apps/platform/apps/every-ai/compo
 import { useCustomerAccount } from '@/common/data/customer/hooks/useCustomerAccount'
 import { getEntityUrl } from '@/business-apps/platform/apps/every-ai/components/links/EntityLink'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import { catalogValue, getField, getStr, intentLabel, personName, type ReferenceCardProps } from './referenceCardUtils'
+import {
+  catalogValue,
+  commChannelValue,
+  getField,
+  getStr,
+  intentLabel,
+  personName,
+  type ReferenceCardProps
+} from './referenceCardUtils'
 
 /**
  * Rich account/company card: logo, name, industry, owner, priority — fetched
@@ -37,9 +45,29 @@ export const AccountReferenceCard: React.FC<ReferenceCardProps> = ({ reference, 
   const website = getStr(account, 'website')
   const logo = getStr(account, 'pictureThumbnail') ?? getStr(account, 'picture')
 
-  const fields: Array<{ label: string; value: string }> = []
-  if (owner) fields.push({ label: 'Owner', value: owner })
-  if (website) fields.push({ label: 'Website', value: website })
+  const size = catalogValue(getField(account, 'companySize')) ?? catalogValue(getField(account, 'numberOfEmployees'))
+  const revenue =
+    catalogValue(getField(account, 'accountAnnualRevenueBand')) ?? catalogValue(getField(account, 'annualRevenue'))
+  const addresses = getField(account, 'addresses')
+  const firstAddress = Array.isArray(addresses) ? addresses[0] : undefined
+  const location = [
+    getStr(firstAddress, 'city') ?? getStr(firstAddress, 'locality'),
+    catalogValue(getField(firstAddress, 'country')) ?? getStr(firstAddress, 'country')
+  ]
+    .filter(Boolean)
+    .join(', ')
+  const channels = getField(account, 'communicationChannels')
+  const phone = commChannelValue(channels, 'phone')
+
+  // Keep the card compact: surface the four most useful facts.
+  const candidates: Array<{ label: string; value: string }> = []
+  if (owner) candidates.push({ label: 'Owner', value: owner })
+  if (location) candidates.push({ label: 'Location', value: location })
+  if (size) candidates.push({ label: 'Size', value: size })
+  if (revenue) candidates.push({ label: 'Revenue', value: revenue })
+  if (phone) candidates.push({ label: 'Phone', value: phone })
+  if (website) candidates.push({ label: 'Website', value: website })
+  const fields = candidates.slice(0, 4)
 
   const subtitleParts = [context, industry].filter(Boolean)
 

@@ -103,3 +103,99 @@ export function formatDate(value: string | undefined): string | undefined {
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
 }
+
+/**
+ * Compact "time ago" for recency facts (e.g. `Updated`). Falls back to the
+ * short absolute date for anything older than ~a month, and passes the raw
+ * value through on parse failure so we never render `Invalid Date`.
+ */
+export function relativeOrShortDate(value: string | undefined): string | undefined {
+  if (!value) return undefined
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  const diffMs = Date.now() - date.getTime()
+  const diffMin = Math.round(diffMs / 60000)
+  if (diffMin < 1) return 'just now'
+  if (diffMin < 60) return `${diffMin}m ago`
+  const diffHours = Math.round(diffMin / 60)
+  if (diffHours < 24) return `${diffHours}h ago`
+  const diffDays = Math.round(diffHours / 24)
+  if (diffDays === 1) return 'yesterday'
+  if (diffDays < 30) return `${diffDays}d ago`
+  return formatDate(value)
+}
+
+/** `Jun 12, 14:30` style label for meeting time ranges. */
+export function formatDateTime(value: string | undefined): string | undefined {
+  if (!value) return undefined
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+/** `14:30` style clock label, used for a meeting's end time after the start. */
+export function formatClock(value: string | undefined): string | undefined {
+  if (!value) return undefined
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+}
+
+/** Pluralised count chip, e.g. `3 sheets`, `1 page`. Hidden for falsy counts. */
+export function countChip(count: number | undefined, singular: string, plural = `${singular}s`): string | undefined {
+  if (!count || count < 1) return undefined
+  return `${count} ${count === 1 ? singular : plural}`
+}
+
+/** Title-case a snake/kebab status token, e.g. `pending_approval` -> `Pending Approval`. */
+export function humanizeToken(value: string | undefined): string | undefined {
+  if (!value) return undefined
+  return value
+    .split(/[_\-\s]+/)
+    .filter(Boolean)
+    .map(part => part[0].toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ')
+}
+
+/**
+ * Strip HTML tags and collapse whitespace into a short plain-text preview,
+ * for content entities (documents/notes) whose `content` is rich HTML.
+ */
+export function plainTextPreview(value: string | undefined, maxLength = 160): string | undefined {
+  if (!value) return undefined
+  const text = value
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!text) return undefined
+  return text.length > maxLength ? `${text.slice(0, maxLength).trimEnd()}…` : text
+}
+
+/**
+ * Extract a communication-channel value (email / phone / mobile) from a CRM
+ * `communicationChannels` array. Each entry is shaped
+ * `{ value, communicationChannel: { value | code } }`; we match the channel
+ * type loosely (case-insensitive substring) so backend label drift never
+ * breaks the lookup. Returns the first matching channel's value.
+ */
+export function commChannelValue(channels: unknown, kind: 'email' | 'phone' | 'mobile'): string | undefined {
+  if (!Array.isArray(channels)) return undefined
+  const matches = (channel: unknown): boolean => {
+    const ref = getField(channel, 'communicationChannel')
+    const label = (catalogValue(ref) ?? getStr(channel, 'communicationChannelRef') ?? '').toLowerCase()
+    if (kind === 'email') return label.includes('mail')
+    if (kind === 'mobile') return label.includes('mobile') || label.includes('cell')
+    return label.includes('phone') || label.includes('tel')
+  }
+  for (const channel of channels) {
+    if (matches(channel)) {
+      const value = getStr(channel, 'value')
+      if (value) return value
+    }
+  }
+  return undefined
+}

@@ -17,6 +17,26 @@ jest.mock('./OpportunityReferenceCard', () => ({
   __esModule: true,
   OpportunityReferenceCard: stub('card-opportunity')
 }))
+jest.mock('./DocumentReferenceCard', () => ({ __esModule: true, DocumentReferenceCard: stub('card-document') }))
+jest.mock('./SlideReferenceCard', () => ({ __esModule: true, SlideReferenceCard: stub('card-slide') }))
+jest.mock('./NoteReferenceCard', () => ({ __esModule: true, NoteReferenceCard: stub('card-note') }))
+jest.mock('./SpreadsheetReferenceCard', () => ({
+  __esModule: true,
+  SpreadsheetReferenceCard: stub('card-spreadsheet')
+}))
+jest.mock('./ServiceWorkflowReferenceCard', () => ({
+  __esModule: true,
+  ServiceWorkflowReferenceCard: stub('card-service-workflow')
+}))
+jest.mock('./WorkflowTemplateReferenceCard', () => ({
+  __esModule: true,
+  WorkflowTemplateReferenceCard: stub('card-workflow-template')
+}))
+jest.mock('./ChatConversationReferenceCard', () => ({
+  __esModule: true,
+  ChatConversationReferenceCard: stub('card-chat-conversation')
+}))
+jest.mock('./MeetingReferenceCard', () => ({ __esModule: true, MeetingReferenceCard: stub('card-meeting') }))
 jest.mock('./GenericReferenceCard', () => ({ __esModule: true, GenericReferenceCard: stub('card-generic') }))
 
 import { EntityReferenceCard } from './EntityReferenceCard'
@@ -39,8 +59,15 @@ describe('EntityReferenceCard dispatcher', () => {
     ['contact', 'card-contact'],
     ['lead', 'card-lead'],
     ['opportunity', 'card-opportunity'],
-    ['service_workflow', 'card-generic'],
-    ['document', 'card-generic']
+    ['document', 'card-document'],
+    ['slide', 'card-slide'],
+    ['note', 'card-note'],
+    ['spreadsheet', 'card-spreadsheet'],
+    ['service_workflow', 'card-service-workflow'],
+    ['workflow_template', 'card-workflow-template'],
+    ['chat_conversation', 'card-chat-conversation'],
+    ['meetings', 'card-meeting'],
+    ['some_unmapped_type', 'card-generic']
   ])('routes %s to %s', (type, testid) => {
     render(<EntityReferenceCard reference={ref({ type })} accessToken="tok" />)
     expect(screen.getByTestId(testid)).toBeInTheDocument()
