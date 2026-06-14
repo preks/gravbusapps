@@ -55,13 +55,13 @@ const categoryRank = (category: string): number => {
 }
 
 /**
- * Minimum number of renderable references before the rail is shown. References
- * are extracted from the answer's own inline links, so the rail is always a
- * deduped echo of what is already in the prose. With a single entity that echo
- * is pure duplication (see the "who is my manager" case); the rail only earns
- * its weight as a consolidated jump-list once several entities are referenced.
+ * Minimum number of renderable references before the rail is shown. Set to 1:
+ * a single key entity (e.g. "who owns the CocaCola account") should still get
+ * its rich card — the card carries data the inline mention does not (owner,
+ * status, logo, amount, ...), so it is a high-signal affordance rather than
+ * pure duplication. Only the empty case (0 renderable references) hides the rail.
  */
-const MIN_REFERENCES_TO_SHOW = 2
+const MIN_REFERENCES_TO_SHOW = 1
 
 /**
  * Per-category threshold for the rich-card layout. Cards are a high-signal

@@ -58,19 +58,21 @@ describe('ReferencesRail', () => {
     expect(container.firstChild).toBeNull()
   })
 
-  it('renders nothing for a single reference (already shown inline)', () => {
-    const { container } = render(<ReferencesRail references={[ref({})]} accessToken="tok" />)
-    expect(container.firstChild).toBeNull()
+  it('renders a card for a single reference', () => {
+    render(<ReferencesRail references={[ref({})]} accessToken="tok" />)
+    expect(screen.getByTestId('reference-card')).toBeInTheDocument()
   })
 
-  it('renders nothing when only one reference survives protocol filtering', () => {
-    const { container } = render(
+  it('renders the one reference that survives protocol filtering', () => {
+    render(
       <ReferencesRail
         references={[ref({}), ref({ type: 'mystery', href: 'mystery://x', id: 'x', category: 'other' })]}
         accessToken="tok"
       />
     )
-    expect(container.firstChild).toBeNull()
+    const cards = screen.getAllByTestId('reference-card')
+    expect(cards).toHaveLength(1)
+    expect(cards[0].getAttribute('data-id')).toBe('emp-1')
   })
 
   it('filters out references whose protocol is not frontend-renderable', () => {
