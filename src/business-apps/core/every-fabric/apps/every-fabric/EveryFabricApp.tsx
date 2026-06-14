@@ -124,7 +124,16 @@ const EveryFabricInner: React.FC = () => {
   const handleCloseTraceLens = () => updateUrl({ view: null, traceRunId: null })
   const handleOpenAgentMeshFromTrace = (positionMs?: number) =>
     updateUrl({ view: 'agent-mesh', t: positionMs != null ? String(positionMs) : null })
-  const handleOpenEnterpriseWorkforce = () => updateUrl({ view: 'enterprise-workforce' })
+  const handleOpenEnterpriseWorkforce = () =>
+    updateUrl({
+      view: 'enterprise-workforce',
+      // Settings → Agents uses the same `agentId` query param; clear it so
+      // Digital Workforce does not open an enterprise-only agent detail view.
+      agentId: null,
+      tab: null,
+      runId: null,
+      skillId: null
+    })
   const handleCloseEnterpriseWorkforce = () => updateUrl({ view: null })
   const handleSelectSession = (id: string) => {
     updateUrl({ view: null })

@@ -47,6 +47,11 @@ export const useSessionUrlState = () => {
       /** Run to preselect when opening TraceLens (`view=trace-lens`). Kept
        *  separate from `sessionId` so workforce runs do not hijack the chat. */
       traceRunId?: string | null
+      /** Shared with Settings / Workforce overlays — pass null to clear. */
+      agentId?: string | null
+      tab?: string | null
+      runId?: string | null
+      skillId?: string | null
     }) => {
       if (globalThis.history === undefined || globalThis.location === undefined) return
       const next = getCurrentUrlWithUpdatedSearchParams(params)

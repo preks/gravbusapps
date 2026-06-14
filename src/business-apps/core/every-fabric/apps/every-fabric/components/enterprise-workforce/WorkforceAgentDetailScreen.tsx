@@ -11,7 +11,7 @@
 // `tab` and `runId`, so deep-linking and back/forward Just Work.
 
 import { ArrowLeftIcon, CircleNotchIcon, FlaskIcon, StorefrontIcon, WarningIcon } from '@phosphor-icons/react'
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { PublishAgentDialog } from './marketplace/PublishAgentDialog'
 import { useAgentMarketplace } from './marketplace/useAgentMarketplace'
@@ -80,6 +80,13 @@ export const WorkforceAgentDetailScreen: React.FC<WorkforceAgentDetailScreenProp
     refetch: refetchAgentConfig,
     clearError
   } = useWorkforceAgentConfig({ accessToken, agentId })
+
+  useEffect(() => {
+    if (isLoading || !error) return
+    if (error.includes('not a workforce agent') || error.includes('not found')) {
+      onBack()
+    }
+  }, [error, isLoading, onBack])
 
   const promptManagerClient = usePromptManagerClient(accessToken)
   const { publishAgentToTenant } = useAgentMarketplace({ client: promptManagerClient, enabled: devModeEnabled })

@@ -40,4 +40,31 @@ describe('useSessionUrlState', () => {
     expect(result.current.urlSessionId).toBeNull()
     expect(result.current.urlView).toBeNull()
   })
+
+  it('clears settings agent selection when opening Digital Workforce', () => {
+    window.history.pushState(
+      {},
+      '',
+      '/platform/every-fabric?view=settings&tab=agents&agentId=agent-from-settings&skillId=skill-1'
+    )
+
+    const { result } = renderHook(() => useSessionUrlState())
+
+    act(() => {
+      result.current.updateUrl({
+        view: 'enterprise-workforce',
+        agentId: null,
+        tab: null,
+        runId: null,
+        skillId: null
+      })
+    })
+
+    const params = new URLSearchParams(window.location.search)
+    expect(params.get('view')).toBe('enterprise-workforce')
+    expect(params.get('agentId')).toBeNull()
+    expect(params.get('tab')).toBeNull()
+    expect(params.get('skillId')).toBeNull()
+    expect(result.current.urlView).toBe('enterprise-workforce')
+  })
 })
