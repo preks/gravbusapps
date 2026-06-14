@@ -7,7 +7,7 @@
  * reporting periods, and reports are computed/persisted by BLNK.
  */
 import { invokeLedgerTool, ledgerAdminEnabled } from './ledgerAdminClient'
-import type { BankStatementLine } from '../types'
+import type { BankStatementLine, ReconciliationMatch } from '../types'
 import type { BillingSettings } from '../queries/billingCoreApi'
 import type { PostingAccounts } from '../constants'
 
@@ -52,6 +52,15 @@ function toStatementLine(row: Record<string, unknown>): BankStatementLine {
   }
 }
 
+function toReconciliationMatch(row: Record<string, unknown>): ReconciliationMatch {
+  return {
+    bankStatementLineId: str(row.bank_statement_line_id ?? row.line_id ?? row.bankStatementLineId),
+    invoiceId: str(row.invoice_id ?? row.invoiceId),
+    confidence: num(row.confidence),
+    matchedAmount: num(row.matched_amount ?? row.matchedAmount ?? row.amount)
+  }
+}
+
 export interface ImportStatementLine {
   amount: number
   currency: string
@@ -83,6 +92,12 @@ export async function importBankStatement(accessToken: string, lines: ImportStat
 export async function listBankStatementLines(accessToken: string, status?: string): Promise<BankStatementLine[]> {
   const rows = await invokeLedgerTool(accessToken, AdminTools.listStatementLines, { status, limit: 500 })
   return rows.map(toStatementLine)
+}
+
+/** Load backend-computed bank statement match suggestions. */
+export async function suggestBankStatementMatches(accessToken: string): Promise<ReconciliationMatch[]> {
+  const rows = await invokeLedgerTool(accessToken, AdminTools.suggestMatches, { limit: 500 })
+  return rows.map(toReconciliationMatch).filter(match => match.bankStatementLineId && match.invoiceId)
 }
 
 /** Apply a statement line to an invoice (records payment + marks matched). */

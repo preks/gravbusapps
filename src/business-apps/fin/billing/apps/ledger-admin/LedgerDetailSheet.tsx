@@ -1,11 +1,17 @@
 import React, { useMemo, useState } from 'react'
 import { Sheet, SheetContent, SheetTitle, Badge, Button, Input, Separator } from '@newwork/nw-design-system'
 import { PlusIcon, PencilSimpleIcon, ArrowSquareOutIcon } from '@phosphor-icons/react'
+import { toast } from 'sonner'
 import { formatCurrency } from '../../common/utils/currency'
 import { getTransactionStatusLabel } from '../../common/utils/billingLabels'
 import { displayAccountName, resolveRefName } from '../../common/utils/ledgerNames'
 import { formatDate } from '@/common/utils/windowUtils'
-import type { Ledger, LedgerAccount, LedgerTransaction } from '../../common/network/ledgerAdminClient'
+import type {
+  Ledger,
+  LedgerAccount,
+  LedgerTransaction,
+  UpdateInflightTransactionInput
+} from '../../common/network/ledgerAdminClient'
 
 type TranslateFn = (key: string) => string
 
@@ -24,6 +30,7 @@ interface LedgerDetailSheetProps {
   onSelect: (selection: LedgerSelection) => void
   onAdjustAccount: (account: LedgerAccount) => void
   onRenameAccount: (balanceId: string, name: string) => void
+  onUpdateInflight?: (input: UpdateInflightTransactionInput) => Promise<LedgerTransaction | null>
   /** When provided, shows a "View all transactions" action on the account view. */
   onViewAccountTransactions?: (account: LedgerAccount) => void
   t: TranslateFn
@@ -44,6 +51,19 @@ function Field({ label, value, mono }: { label: string; value: React.ReactNode; 
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h3 className="gba:text-sm gba:font-semibold gba:mb-2 gba:mt-1">{children}</h3>
+}
+
+function parseOptionalNumber(value: string): number | undefined {
+  const trimmed = value.trim()
+  if (!trimmed) return undefined
+  const parsed = Number(trimmed)
+  if (!Number.isFinite(parsed)) throw new Error('Amount must be a valid number')
+  return parsed
+}
+
+function isInflightTransaction(transaction: LedgerTransaction): boolean {
+  const status = transaction.status?.toLowerCase() ?? ''
+  return status.includes('inflight') || status.includes('in_flight')
 }
 
 /** A clickable row used in the "related" lists. */
@@ -150,10 +170,37 @@ const LedgerDetailSheet: React.FC<LedgerDetailSheetProps> = ({
   onSelect,
   onAdjustAccount,
   onRenameAccount,
+  onUpdateInflight,
   onViewAccountTransactions,
   t
 }) => {
+  const [inflightAmount, setInflightAmount] = useState('')
+  const [inflightPreciseAmount, setInflightPreciseAmount] = useState('')
+  const [inflightSubmitting, setInflightSubmitting] = useState(false)
   const ledgerById = useMemo(() => new Map(ledgers.map(l => [l.ledgerId, l])), [ledgers])
+
+  const updateInflight = async (status: 'commit' | 'void') => {
+    if (!onUpdateInflight || selection?.kind !== 'transaction') return
+
+    setInflightSubmitting(true)
+    try {
+      await onUpdateInflight({
+        transactionId: selection.item.transactionId,
+        status,
+        amount: parseOptionalNumber(inflightAmount),
+        preciseAmount: parseOptionalNumber(inflightPreciseAmount)
+      })
+      toast.success(
+        t(status === 'commit' ? 'ledger-admin-inflight-commit-success' : 'ledger-admin-inflight-void-success')
+      )
+      setInflightAmount('')
+      setInflightPreciseAmount('')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t('ledger-admin-inflight-update-error'))
+    } finally {
+      setInflightSubmitting(false)
+    }
+  }
 
   const ledgerAccounts = useMemo(() => {
     if (selection?.kind !== 'ledger') return []
@@ -317,6 +364,58 @@ const LedgerDetailSheet: React.FC<LedgerDetailSheetProps> = ({
                   value={selection.item.createdAt ? formatDate(selection.item.createdAt, 'date.medium') : '—'}
                 />
                 <Field label={t('ledger-admin-detail-transaction-id')} value={selection.item.transactionId} mono />
+                {onUpdateInflight && isInflightTransaction(selection.item) && (
+                  <>
+                    <Separator />
+                    <div className="gba:flex gba:flex-col gba:gap-3" data-testid="ledger-inflight-actions">
+                      <SectionTitle>{t('ledger-admin-inflight-actions')}</SectionTitle>
+                      <div className="gba:grid gba:grid-cols-2 gba:gap-3">
+                        <div className="gba:flex gba:flex-col gba:gap-1">
+                          <span className="gba:text-xs gba:text-muted-foreground">
+                            {t('ledger-admin-inflight-amount')}
+                          </span>
+                          <Input
+                            type="number"
+                            value={inflightAmount}
+                            onChange={event => setInflightAmount(event.target.value)}
+                            data-testid="ledger-inflight-amount"
+                          />
+                        </div>
+                        <div className="gba:flex gba:flex-col gba:gap-1">
+                          <span className="gba:text-xs gba:text-muted-foreground">
+                            {t('ledger-admin-inflight-precise-amount')}
+                          </span>
+                          <Input
+                            type="number"
+                            value={inflightPreciseAmount}
+                            onChange={event => setInflightPreciseAmount(event.target.value)}
+                            data-testid="ledger-inflight-precise-amount"
+                          />
+                        </div>
+                      </div>
+                      <p className="gba:text-xs gba:text-muted-foreground">{t('ledger-admin-inflight-empty-note')}</p>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => void updateInflight('commit')}
+                          disabled={inflightSubmitting}
+                          data-testid="ledger-inflight-commit"
+                        >
+                          {t('ledger-admin-inflight-commit')}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => void updateInflight('void')}
+                          disabled={inflightSubmitting}
+                          data-testid="ledger-inflight-void"
+                        >
+                          {t('ledger-admin-inflight-void')}
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>

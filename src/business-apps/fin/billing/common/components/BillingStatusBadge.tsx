@@ -3,10 +3,10 @@ import { Badge, useTranslation } from '@newwork/nw-design-system'
 import billingTranslations from '../_i18n'
 import { getInvoiceStatusBadgeVariant } from '../utils/invoiceStatus'
 import { getInvoiceStatusLabel } from '../utils/billingLabels'
-import type { InvoiceStatus } from '../types'
+import type { InvoiceDisplayStatus } from '../types'
 
 interface BillingStatusBadgeProps {
-  status: InvoiceStatus
+  status: InvoiceDisplayStatus
   dataTestId?: string
 }
 

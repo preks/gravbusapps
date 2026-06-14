@@ -2,16 +2,17 @@
 
 app-title = Client 360
 overline-account = COMPANIE
-overline-contact = CONTACT
+overline-retention = RETENȚIE CLIENȚI
+retention-badge = Modul de retenție
 
 # Tabs
 tab-overview = Prezentare generală
-tab-details = Detalii
 tab-scoring-satisfaction = Scoring și satisfacție
 tab-contracts = Contracte
 tab-service-tickets = Tichete de service
 tab-service-cases = Cazuri de service
-tab-transactions-fibu = Tranzacții și Fibu
+tab-custom-feedback = Sondaje de feedback
+tab-transactions-fibu = Tranzacții
 tab-invoices = Facturi
 tab-journal = Jurnal
 tab-agent = Agent
@@ -31,27 +32,18 @@ no-customer = Niciun client selectat
 back = Înapoi
 error-title = A apărut o eroare
 
-# Prezentare generală
-overview-snapshot-title = Pe scurt
-overview-open-cases = Cazuri deschise
-overview-recent-activity = Activitate recentă
-overview-ask-agent-title = Întreabă agentul
-overview-ask-agent-description = Transmite acest client agentului Every Fabric pentru analiză și pașii următori.
-overview-ask-agent-cta = Deschide agentul
-
 # Jurnal
 journal-title = Jurnal
 journal-untitled = Intrare fără titlu
 journal-empty-title = Nicio activitate încă
 journal-empty-description = Activitățile, notițele și sarcinile acestui client vor apărea aici.
-
-# Detalii / Relații
-relationships-contacts-title = Contacte
-relationships-accounts-title = Companii
-relationships-unknown-contact = Contact necunoscut
-relationships-unknown-account = Companie necunoscută
-relationships-empty-title = Nicio relație
-relationships-empty-description = Contactele și companiile asociate vor apărea aici.
+journal-type-entry = Intrare
+journal-type-activity = Activitate
+journal-type-note = Notiță
+journal-type-task = Sarcină
+journal-type-document = Document
+journal-type-ticket = Tichet
+journal-type-case = Caz
 
 # Contracte
 contracts-untitled = Contract fără titlu
@@ -59,11 +51,11 @@ contracts-expires = Expiră la { $date }
 contracts-empty-title = Niciun contract
 contracts-empty-description = Documentele clasificate drept contracte vor apărea aici.
 
-# Tichete de service
+# Tichete Customer Support
 tickets-untitled = Tichet fără titlu
 tickets-priority = Prioritate: { $priority }
-tickets-empty-title = Niciun tichet de service
-tickets-empty-description = Tichetele deschise pentru acest client vor apărea aici.
+tickets-empty-title = Niciun tichet Customer Support
+tickets-empty-description = Tichetele Customer Support din Services pentru acest client vor apărea aici.
 tickets-step-untitled = Pas fără titlu
 tickets-no-steps = Nu există detalii despre pași pentru acest tichet.
 tickets-open-in-service-desk = Deschide în Service Desk
@@ -71,15 +63,43 @@ agent-runs-title = Activitate agent din e-mailuri
 agent-runs-empty-title = Încă nu există rulări de agent
 agent-runs-empty-description = Când un agent procesează un e-mail despre acest client, rularea apare aici.
 
-# Cazuri de service și reclamații
-cases-title = Cazuri
+# Cazuri Customer Support și reclamații
+cases-title = Cazuri Customer Support
 cases-untitled = Caz fără titlu
-cases-empty-title = Niciun caz
-cases-empty-description = Cazurile de service care grupează mai multe fluxuri vor apărea aici.
+cases-empty-title = Niciun caz Customer Support
+cases-empty-description = Cazurile Customer Support din Services pentru acest client vor apărea aici.
 reclamations-title = Reclamații
 reclamations-untitled = Reclamație fără titlu
 reclamations-empty-title = Nicio reclamație
-reclamations-empty-description = Plângerile și reclamațiile vor apărea aici.
+reclamations-empty-description = Reclamațiile clienților din Services pentru acest client vor apărea aici.
+
+# Sondaje CRM custom feedback
+feedback-title = Sondaje CRM custom feedback
+feedback-description = Creați sondaje Customer Support deschise pentru unul sau mai multe conturi de client. Backendul creează câte un flux corelat cu fiecare cont.
+feedback-survey-name = Nume sondaj
+feedback-template-id = ID șablon
+feedback-account-ids = ID-uri cont
+feedback-account-ids-help = Folosiți doar ID-uri de cont. Separați mai multe conturi prin virgulă, spații sau linii noi.
+feedback-assignees = Responsabili / respondenți
+feedback-namespace = Namespace
+feedback-campaign-id = ID campanie
+feedback-metadata = Metadate suplimentare JSON
+feedback-fields-title = Câmpuri sondaj
+feedback-add-field = Adaugă câmp
+feedback-field-label = Etichetă câmp
+feedback-field-type = Tip câmp
+feedback-field-required = Obligatoriu
+feedback-field-options = Opțiuni
+feedback-run = Rulează sondajul
+feedback-save-template = Salvează șablon
+feedback-save-draft = Salvează schiță
+feedback-save-and-run = Salvează și rulează
+feedback-success-title = Cerere acceptată
+feedback-success = Cererea custom feedback a fost finalizată.
+feedback-error = Cererea custom feedback nu a putut fi trimisă.
+feedback-results-title = Rezultate per cont
+feedback-result-success = Creat
+feedback-result-unknown-account = Cont necunoscut
 
 # Scoring și satisfacție
 scoring-title = Scoring
@@ -94,21 +114,20 @@ satisfaction-nps = NPS
 satisfaction-last-survey = Ultimul sondaj
 satisfaction-empty-title = Nicio dată de satisfacție
 satisfaction-empty-description = CSAT / NPS vor apărea aici după conectarea metricii din backend.
+satisfaction-survey-results-title = Rezultate sondaje
+satisfaction-survey-untitled = Sondaj fără titlu
 
-# Tranzacții și Fibu
-fibu-awaiting-description = În așteptarea integrării NewWork Connect (Fibu). Datele vor apărea aici după activare.
+# Tranzacții
 fibu-balance-title = Prezentare financiară
 fibu-balance-empty-title = Nicio dată de sold
 fibu-balance-empty-description = Sumele deschise, restante și valoarea totală vor apărea aici.
 fibu-open-amount = Sumă deschisă
 fibu-overdue-amount = Restant
 fibu-lifetime-value = Valoare totală
-fibu-invoices-title = Facturi
-fibu-invoices-empty-title = Nicio factură
-fibu-invoices-empty-description = Facturile din Fibu vor apărea aici.
 fibu-transactions-title = Tranzacții
 fibu-transactions-empty-title = Nicio tranzacție
-fibu-transactions-empty-description = Istoricul tranzacțiilor din Fibu va apărea aici.
+fibu-transactions-empty-description = Tranzacțiile financiare asociate acestui cont vor apărea aici.
+fibu-create-transaction = Creează tranzacție
 
 # Agent handoff
 agent-panel-title = Întreabă agentul AI
@@ -122,7 +141,6 @@ agent-workforce-button = Deschide Enterprise Workforce
 home-title = Client 360
 home-description = Întregul tău portofoliu de clienți — sănătate, risc și ce necesită atenție acum.
 home-tab-cockpit = Cockpit
-home-tab-worklist = Atenție
 home-tab-explorer = Clienți
 home-tab-inbound = Intrări
 home-tab-renewals = Reînnoiri
@@ -133,7 +151,7 @@ home-provisional-note = Scorurile de sănătate sunt provizorii — derivate din
 # Home — hero
 home-hero-eyebrow = Acasă pentru clienți
 home-hero-title = Bun venit la Client 360
-home-hero-subtitle = Te ocupi de { $total } clienți — { $accounts } companii și { $contacts } contacte, dintre care { $attention } necesită atenție acum.
+home-hero-subtitle = Te ocupi de { $total } companii client, dintre care { $attention } necesită atenție acum.
 home-hero-explore = Explorează clienții
 home-hero-attention = Ce necesită atenție
 home-hero-agent = Întreabă agentul
@@ -141,7 +159,6 @@ home-hero-agent = Întreabă agentul
 # Home — cockpit
 cockpit-total-customers = Clienți
 cockpit-accounts = Companii
-cockpit-contacts = Contacte
 cockpit-needs-attention = Necesită atenție
 cockpit-needs-attention-footer = În tot portofoliul
 cockpit-unassigned = Neatribuiți
@@ -152,16 +169,14 @@ cockpit-view-worklist = Vezi lista de lucru
 cockpit-insights-renewals-title = Reînnoiri și ciclu de viață
 cockpit-insights-renewals-description = Contracte care expiră și prospecți de cultivat către activare.
 cockpit-insights-renewals-action = Vezi reînnoirile
-cockpit-insights-composition-title = Compoziția portofoliului
-cockpit-insights-composition-description = Cum se împarte portofoliul tău între companii și contacte.
+cockpit-insights-composition-title = Companii client
+cockpit-insights-composition-description = Companii client active în portofoliul tău.
 cockpit-insights-composition-action = Deschide analizele
 cockpit-insights-agent-title = Întreabă agentul de portofoliu
 cockpit-insights-agent-description = Predă întregul portofoliu de clienți către IA pentru triere și pașii următori.
 cockpit-insights-agent-action = Deschide agentul
 
 # Home — listă de atenție
-worklist-intro = Clienți clasificați după risc combinat — satisfacție scăzută, reclamații deschise, facturi restante, contracte care expiră, tichete deschise și lipsa proprietarului.
-worklist-title = Listă de atenție
 worklist-empty-title = Nimic nu necesită atenție
 worklist-empty-description = Clienții care depășesc pragul de risc vor apărea aici, cu prioritate maximă primii.
 
@@ -172,12 +187,10 @@ attention-reason-overdue-invoice = Factură restantă
 attention-reason-expiring-contract = Contract care expiră
 attention-reason-open-tickets = Tichete deschise
 attention-reason-no-owner = Fără proprietar
-attention-reason-prospective = Potențial client
 
 # Home — explorer
 explorer-column-customer = Client
 explorer-column-email = E-mail
-explorer-column-type = Tip
 explorer-column-status = Stare
 explorer-column-owner = Proprietar
 explorer-column-health = Sănătate
@@ -185,9 +198,8 @@ explorer-column-attention = Atenție
 explorer-column-reasons = Motive
 explorer-owner-assigned = Atribuit
 explorer-owner-unassigned = Neatribuit
+explorer-filter-title = Filtre pentru companii
 explorer-segment-all = Toți
-explorer-segment-accounts = Companii
-explorer-segment-contacts = Contacte
 explorer-segment-attention = Necesită atenție
 explorer-search-placeholder = Caută clienți…
 
@@ -222,17 +234,12 @@ inbound-pagination = Pagina { $page } din { $total }
 renewals-expiring-title = Contracte care expiră
 renewals-expiring-empty-title = Niciun contract care expiră
 renewals-expiring-empty-description = Contractele care se apropie de data de încheiere vor apărea aici după ce backendul de contracte furnizează datele de expirare.
-renewals-lifecycle-title = Potențiali clienți de activat
-renewals-lifecycle-empty-title = Niciun potențial client
-renewals-lifecycle-empty-description = Potențialii clienți de dezvoltat spre activare vor apărea aici.
 
 # Home — analize
 analytics-customers = Clienți
 analytics-band-high = Ridicat
 analytics-band-medium = Mediu
 analytics-band-low = Scăzut
-analytics-composition-title = Compoziția portofoliului
-analytics-composition-hint = Companii vs. contacte în tot portofoliul.
 analytics-attention-title = Distribuția atenției
 analytics-attention-hint = Câți clienți se încadrează în fiecare nivel de risc.
 

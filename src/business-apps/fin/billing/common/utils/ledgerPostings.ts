@@ -47,6 +47,21 @@ function resolve(options?: PostingOptions): {
   }
 }
 
+function invoicePostingMetaData(invoice: Invoice, extra?: Record<string, unknown>): Record<string, unknown> {
+  const customerRef = invoice.crmAccountId ? `account:${invoice.crmAccountId}` : undefined
+
+  return {
+    source: 'newwork-billing',
+    crmAccountId: invoice.crmAccountId ?? undefined,
+    crmOpportunityId: invoice.crmOpportunityId ?? undefined,
+    customerType: invoice.crmAccountId ? 'account' : undefined,
+    customerRef,
+    invoiceId: invoice.id,
+    invoiceNumber: invoice.invoiceNumber ?? undefined,
+    ...extra
+  }
+}
+
 /** Issued: debit AR, credit revenue (per rate) and credit tax payable. */
 export function buildIssuedPosting(invoice: Invoice, options?: PostingOptions): LedgerPostingRequest {
   const { accounts, currency, rate, date } = resolve(options)
@@ -77,7 +92,8 @@ export function buildIssuedPosting(invoice: Invoice, options?: PostingOptions): 
     currency: acctCurrency,
     reference: invoice.invoiceNumber ?? invoice.id,
     postingDate: date,
-    entries: balanced(entries)
+    entries: balanced(entries),
+    metaData: invoicePostingMetaData(invoice, { ledgerEventType: 'INVOICE_ISSUED' })
   }
 }
 
@@ -102,7 +118,12 @@ export function buildPaidPosting(
     currency: acctCurrency,
     reference: payment.externalReference ?? invoice.invoiceNumber ?? invoice.id,
     postingDate: payment.paymentDate ?? date,
-    entries: balanced(entries)
+    entries: balanced(entries),
+    metaData: invoicePostingMetaData(invoice, {
+      ledgerEventType: 'INVOICE_PAID',
+      paymentId: payment.id,
+      paymentMethod: payment.method ?? undefined
+    })
   }
 }
 
@@ -128,7 +149,8 @@ export function buildCancelledPosting(invoice: Invoice, options?: PostingOptions
     currency: acctCurrency,
     reference: invoice.invoiceNumber ?? invoice.id,
     postingDate: date,
-    entries: balanced(entries)
+    entries: balanced(entries),
+    metaData: invoicePostingMetaData(invoice, { ledgerEventType: 'INVOICE_CANCELLED' })
   }
 }
 
@@ -157,7 +179,11 @@ export function buildCreditNotePosting(
     currency: acctCurrency,
     reference: invoice.invoiceNumber ?? invoice.id,
     postingDate: date,
-    entries: balanced(entries)
+    entries: balanced(entries),
+    metaData: invoicePostingMetaData(invoice, {
+      ledgerEventType: 'CREDIT_NOTE_ISSUED',
+      creditNoteId
+    })
   }
 }
 
@@ -182,7 +208,8 @@ export function buildWriteOffPosting(
     currency: acctCurrency,
     reference: invoice.invoiceNumber ?? invoice.id,
     postingDate: date,
-    entries: balanced(entries)
+    entries: balanced(entries),
+    metaData: invoicePostingMetaData(invoice, { ledgerEventType: 'INVOICE_WRITTEN_OFF' })
   }
 }
 
@@ -216,7 +243,8 @@ export function buildFxDifferencePosting(
     currency: acctCurrency,
     reference: invoice.invoiceNumber ?? invoice.id,
     postingDate: date,
-    entries: balanced(entries)
+    entries: balanced(entries),
+    metaData: invoicePostingMetaData(invoice, { ledgerEventType: 'FX_DIFFERENCE' })
   }
 }
 

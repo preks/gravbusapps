@@ -23,7 +23,6 @@ function statsLines(stats: CustomerPortfolioStats): string[] {
   const lines = [
     `- Total customers: ${stats.totalCustomers}`,
     `- Accounts: ${stats.totalAccounts}`,
-    `- Contacts: ${stats.totalContacts}`,
     `- Needs attention: ${stats.needsAttention}`,
     `- Unassigned: ${stats.unassigned}`
   ]

@@ -2,11 +2,11 @@
  * getCustomerPortfolio — Provider tool definition (Customer360 Home enablement).
  *
  * Returns the book-of-business portfolio the Customer360 Home product renders:
- * every CRM account + contact unified into ranked `CustomerPortfolioRow`s plus
- * aggregate `CustomerPortfolioStats`. Attention scoring mirrors the FE
+ * every CRM customer account ranked as `CustomerPortfolioRow`s plus aggregate
+ * `CustomerPortfolioStats`. Attention scoring mirrors the FE
  * `computeAttention` / `deriveProvisionalSummary` logic EXACTLY so the agent and
  * the UI rank customers identically. Health summaries are provisional (derived
- * from real CRM fields — owner assignment + prospective flag) until the CSAT /
+ * from real CRM fields — owner assignment) until the CSAT /
  * finance backend lands; `provisional: true` is surfaced so consumers disclose it.
  *
  * This is a READ tool with no required inputs (optional `limit`). It reads the
@@ -20,7 +20,7 @@ export const GET_CUSTOMER_PORTFOLIO_SCHEMA = {
   properties: {
     limit: {
       type: 'number',
-      description: 'Max accounts and contacts to load per type (default 100, max 200).'
+      description: 'Max customer accounts to load (default 100, max 200).'
     }
   },
   required: []
@@ -38,7 +38,7 @@ export const GET_CUSTOMER_PORTFOLIO_OUTPUT_SCHEMA = {
         type: 'object',
         properties: {
           id: { type: 'string' },
-          type: { type: 'string', enum: ['account', 'contact'] },
+          type: { type: 'string', enum: ['account'] },
           displayName: { type: 'string' },
           secondary: { type: ['string', 'null'] },
           ownerId: { type: ['string', 'null'] },
@@ -60,7 +60,6 @@ export const GET_CUSTOMER_PORTFOLIO_OUTPUT_SCHEMA = {
       properties: {
         totalCustomers: { type: 'number' },
         totalAccounts: { type: 'number' },
-        totalContacts: { type: 'number' },
         needsAttention: { type: 'number' },
         unassigned: { type: 'number' },
         avgCsat: { type: ['number', 'null'] },
@@ -71,10 +70,11 @@ export const GET_CUSTOMER_PORTFOLIO_OUTPUT_SCHEMA = {
 }
 
 /**
- * Runtime handler (executes in the Functions Service sandbox). Lists accounts +
- * contacts from the platform GraphQL, derives a provisional health summary and
- * a deterministic attention score per row (identical weights to the FE), and
- * returns ranked rows + portfolio stats. Never logs tokens or customer PII.
+ * Runtime handler (executes in the Functions Service sandbox). Lists CRM
+ * customer accounts from the platform GraphQL, derives a provisional health
+ * summary and a deterministic attention score per row (identical weights to the
+ * FE), and returns ranked rows + portfolio stats. Never logs tokens or customer
+ * PII.
  */
 export const GET_CUSTOMER_PORTFOLIO_SOURCE = `async function handler(event, context) {
   const token = (context.user && context.user.accessToken) || (context.config && context.config.accessToken);
@@ -96,9 +96,8 @@ export const GET_CUSTOMER_PORTFOLIO_SOURCE = `async function handler(event, cont
   }
 
   const clamp = function (v) { return Math.max(0, Math.min(100, Math.round(v))); };
-  function deriveSummary(ownerId, prospective) {
+  function deriveSummary(ownerId) {
     let health = 82;
-    if (prospective) health -= 45;
     if (!ownerId) health -= 20;
     return { health: Math.max(0, Math.min(100, health)), provisional: true };
   }
@@ -111,22 +110,20 @@ export const GET_CUSTOMER_PORTFOLIO_SOURCE = `async function handler(event, cont
     if ((summary.expiringContracts || 0) > 0) { score += 15; reasons.push('expiring-contract'); }
     if ((summary.openTickets || 0) > 0) { score += 10 * Math.min(summary.openTickets || 0, 3); reasons.push('open-tickets'); }
     if (!ownerId) { score += 15; reasons.push('no-owner'); }
-    if (status === 'prospective') { score += 10; reasons.push('prospective'); }
     return { score: clamp(score), reasons: reasons };
   }
 
   const THRESHOLD = 40;
   const rows = [];
   let accountTotal = 0;
-  let contactTotal = 0;
 
   try {
-    const data = await gql('query A($limit: Int!) { Account(where: { isDeleted: { _eq: false } }, limit: $limit, orderBy: [{ name: ASC }]) { id name website prospective ownerEmployeeId } AccountAggregate(where: { isDeleted: { _eq: false } }) { aggregate { count } } }', { limit: limit });
+    const data = await gql('query A($limit: Int!) { Account(where: { isDeleted: { _eq: false }, prospective: { _eq: false } }, limit: $limit, orderBy: [{ name: ASC }]) { id name website prospective ownerEmployeeId } AccountAggregate(where: { isDeleted: { _eq: false }, prospective: { _eq: false } }) { aggregate { count } } }', { limit: limit });
     accountTotal = (data.AccountAggregate && data.AccountAggregate.aggregate && data.AccountAggregate.aggregate.count) || 0;
     (data.Account || []).forEach(function (a) {
-      if (!a.id) return;
-      const status = a.prospective ? 'prospective' : 'active';
-      const summary = deriveSummary(a.ownerEmployeeId, a.prospective);
+      if (!a.id || a.prospective) return;
+      const status = 'active';
+      const summary = deriveSummary(a.ownerEmployeeId);
       const r = computeAttention(summary, a.ownerEmployeeId, status);
       rows.push({ id: a.id, type: 'account', displayName: a.name || 'Unknown account', secondary: a.website || undefined, ownerId: a.ownerEmployeeId, status: status, summary: summary, attentionScore: r.score, attentionReasons: r.reasons });
     });
@@ -134,24 +131,11 @@ export const GET_CUSTOMER_PORTFOLIO_SOURCE = `async function handler(event, cont
     return { success: false, error: 'Failed to load accounts: ' + (e.message || String(e)) };
   }
 
-  try {
-    const data = await gql('query C($limit: Int!) { Contact(where: { isDeleted: { _eq: false } }, limit: $limit, orderBy: [{ lastName: ASC }]) { id firstName lastName fullName jobPosition ownerEmployeeId } ContactAggregate(where: { isDeleted: { _eq: false } }) { aggregate { count } } }', { limit: limit });
-    contactTotal = (data.ContactAggregate && data.ContactAggregate.aggregate && data.ContactAggregate.aggregate.count) || 0;
-    (data.Contact || []).forEach(function (c) {
-      if (!c.id) return;
-      const summary = deriveSummary(c.ownerEmployeeId, false);
-      const r = computeAttention(summary, c.ownerEmployeeId, 'active');
-      const name = c.fullName || [c.firstName, c.lastName].filter(Boolean).join(' ').trim() || 'Unknown contact';
-      rows.push({ id: c.id, type: 'contact', displayName: name, secondary: c.jobPosition || undefined, ownerId: c.ownerEmployeeId, status: 'active', summary: summary, attentionScore: r.score, attentionReasons: r.reasons });
-    });
-  } catch (e) { /* contacts optional */ }
-
   rows.sort(function (a, b) { return b.attentionScore - a.attentionScore; });
   const csatValues = rows.map(function (r) { return r.summary.csat; }).filter(function (v) { return typeof v === 'number'; });
   const stats = {
-    totalCustomers: accountTotal + contactTotal,
+    totalCustomers: accountTotal,
     totalAccounts: accountTotal,
-    totalContacts: contactTotal,
     needsAttention: rows.filter(function (r) { return r.attentionScore >= THRESHOLD; }).length,
     unassigned: rows.filter(function (r) { return !r.ownerId; }).length,
     avgCsat: csatValues.length ? Math.round(csatValues.reduce(function (a, b) { return a + b; }, 0) / csatValues.length) : undefined,
@@ -165,7 +149,7 @@ export const GET_CUSTOMER_PORTFOLIO_TOOL: InternalToolDefinition = {
   id: 'get_customer_portfolio',
   name: 'Get Customer Portfolio',
   description:
-    'Returns the Customer360 book-of-business portfolio: every CRM account and contact ranked by a deterministic attention score (with reason codes) plus aggregate stats (total customers, needs-attention, unassigned). Mirrors the Customer 360 Home cockpit and attention worklist.',
+    'Returns the Customer360 book-of-business portfolio: every CRM customer account ranked by a deterministic attention score (with reason codes) plus aggregate stats (total customers, needs-attention, unassigned). Mirrors the Customer 360 Home cockpit and attention worklist.',
   category: 'customer-360',
   operation: 'read',
   schema: GET_CUSTOMER_PORTFOLIO_SCHEMA,

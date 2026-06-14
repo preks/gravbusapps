@@ -21,7 +21,7 @@ import type {
   WorkforceRun,
   WorkforceRunListParams
 } from '@/business-apps/core/every-fabric/apps/every-fabric/components/enterprise-workforce/workforceTypes'
-import { useCustomer360InboundAgents } from '../../../data/hooks/useCustomer360InboundAgents'
+import { useCustomer360InboundAgents } from '../../../data/record/hooks/useCustomer360InboundAgents'
 
 export const INBOUND_PAGE_SIZE = 25
 

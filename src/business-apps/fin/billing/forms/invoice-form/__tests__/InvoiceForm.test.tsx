@@ -2,6 +2,7 @@
 import React from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import InvoiceForm from '../InvoiceForm'
+import type { BillingCustomer } from '../../../common/types'
 
 const navigateToMock = jest.fn()
 
@@ -13,6 +14,26 @@ jest.mock('@/common/network/flows/useFlowClient', () => ({
 }))
 
 jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn() } }))
+
+jest.mock('../components/CustomerSelect', () => ({
+  CustomerSelect: ({
+    customers,
+    value,
+    onChange
+  }: {
+    customers: BillingCustomer[]
+    value: string
+    onChange: (value: string) => void
+  }) => (
+    <select data-testid="form-customer" value={value} onChange={event => onChange(event.target.value)}>
+      {customers.map(customer => (
+        <option key={customer.id} value={customer.id}>
+          {customer.name}
+        </option>
+      ))}
+    </select>
+  )
+}))
 
 // Invoices persist through the native BLNK invoice client. Mock it so the form
 // test stays focused on validation/navigation without a real connector lane.
@@ -29,8 +50,20 @@ jest.mock('../../../common/hooks/useBillingCustomers', () => ({
   useBillingCustomers: () => ({
     customers: [
       {
+        id: 'cust-decoy',
+        crmAccountId: 'acc-decoy',
+        name: 'Decoy Corporation',
+        billingAddressLines: [],
+        countryCode: 'DE',
+        vatId: null,
+        taxExempt: false,
+        defaultPaymentTermId: null,
+        defaultCurrency: null,
+        preferredLocale: null
+      },
+      {
         id: 'cust-1',
-        crmAccountId: 'cust-1',
+        crmAccountId: 'acc-acme',
         name: 'Acme Corporation',
         billingAddressLines: [],
         countryCode: 'DE',
@@ -53,7 +86,10 @@ jest.mock('@/common/utils/navigationUtils', () => ({
 }))
 
 describe('InvoiceForm validation', () => {
-  beforeEach(() => navigateToMock.mockReset())
+  beforeEach(() => {
+    navigateToMock.mockReset()
+    window.history.replaceState({}, '', '/')
+  })
 
   it('shows validation errors and does not navigate when the draft is incomplete', () => {
     render(<InvoiceForm accessToken="token" />)
@@ -79,5 +115,13 @@ describe('InvoiceForm validation', () => {
 
     await waitFor(() => expect(navigateToMock).toHaveBeenCalledWith('/platform/fin/billing/invoices'))
     expect(screen.queryByTestId('invoice-form-errors')).not.toBeInTheDocument()
+  })
+
+  it('prefills the billing customer from the CRM account id in the URL', async () => {
+    window.history.replaceState({}, '', '/?accountId=acc-acme')
+
+    render(<InvoiceForm accessToken="token" />)
+
+    await waitFor(() => expect(screen.getByTestId('form-customer')).toHaveValue('cust-1'))
   })
 })

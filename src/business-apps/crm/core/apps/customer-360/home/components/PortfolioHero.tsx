@@ -47,7 +47,6 @@ const PortfolioHero: React.FC<PortfolioHeroProps> = ({ stats, loading = false, o
               {t('home-hero-subtitle', {
                 total: stats.totalCustomers,
                 accounts: stats.totalAccounts,
-                contacts: stats.totalContacts,
                 attention: stats.needsAttention
               })}
             </CardDescription>
@@ -66,7 +65,7 @@ const PortfolioHero: React.FC<PortfolioHeroProps> = ({ stats, loading = false, o
           </Button>
           <Button
             variant="outline"
-            onClick={() => onNavigateView('worklist')}
+            onClick={() => onNavigateView('explorer', { attentionFilter: true })}
             disabled={loading}
             data-testid={`${TEST_ID}-attention`}
           >

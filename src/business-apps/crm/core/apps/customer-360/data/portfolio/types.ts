@@ -1,16 +1,14 @@
 /**
  * Customer360 portfolio data contracts (Home product surface).
  *
- * The portfolio layer unifies CRM Accounts and Contacts into a single
- * book-of-business view with per-customer health summaries. Health metrics
+ * The portfolio layer lists CRM customer accounts in a book-of-business view
+ * with per-customer health summaries. Health metrics
  * (CSAT, open tickets, overdue amounts, contracts) are sourced from the
  * planned `customer-summary-list` aggregation endpoint. Until that backend
  * lands, `useCustomerPortfolio` fills a *provisional* summary derived only
- * from real CRM fields (owner assignment, prospective flag) — never fabricated
+ * from real CRM fields (owner assignment) — never fabricated
  * counts — and flags it via `provisional: true` so the UI can disclose it.
  */
-
-import type { CustomerSubjectType } from '../types'
 
 /** Reason codes contributing to a customer's attention score. UI translates them. */
 export type AttentionReasonCode =
@@ -20,7 +18,6 @@ export type AttentionReasonCode =
   | 'expiring-contract'
   | 'open-tickets'
   | 'no-owner'
-  | 'prospective'
 
 /** Per-customer health summary. All fields optional — partial data renders fine. */
 export interface CustomerPortfolioSummary {
@@ -41,10 +38,10 @@ export interface CustomerPortfolioSummary {
   provisional?: boolean
 }
 
-/** A single customer (account or contact) in the portfolio. */
+/** A single customer account in the portfolio. */
 export interface CustomerPortfolioRow {
   id: string
-  type: CustomerSubjectType
+  type: 'account'
   displayName: string
   secondary?: string
   /** Primary email address (from communication channels), if known. */
@@ -52,7 +49,9 @@ export interface CustomerPortfolioRow {
   /** Primary phone/mobile number (from communication channels), if known. */
   phone?: string
   ownerId?: string
-  /** Normalized lifecycle status, e.g. 'active' | 'prospective'. */
+  ownerName?: string
+  ownerPictureThumbnail?: string
+  /** Normalized lifecycle status, e.g. 'active'. */
   status?: string
   summary: CustomerPortfolioSummary
   /** Computed 0–100 (higher = needs more attention). */
@@ -65,7 +64,6 @@ export interface CustomerPortfolioRow {
 export interface CustomerPortfolioStats {
   totalCustomers: number
   totalAccounts: number
-  totalContacts: number
   /** Rows at/above the attention threshold. */
   needsAttention: number
   unassigned: number
@@ -87,5 +85,5 @@ export interface UseCustomerPortfolioResult {
   provisional: boolean
 }
 
-/** Rows scoring at/above this threshold are surfaced on the attention worklist. */
+/** Rows scoring at/above this threshold are considered attention-worthy. */
 export const ATTENTION_THRESHOLD = 40

@@ -2,16 +2,17 @@
 
 app-title = Customer 360
 overline-account = ACCOUNT
-overline-contact = CONTACT
+overline-retention = CUSTOMER RETENTION
+retention-badge = Retention module
 
 # Tabs
 tab-overview = Overview
-tab-details = Details
 tab-scoring-satisfaction = Scoring & Satisfaction
 tab-contracts = Contracts
 tab-service-tickets = Service Tickets
 tab-service-cases = Service Cases
-tab-transactions-fibu = Transactions & Fibu
+tab-custom-feedback = Feedback Surveys
+tab-transactions-fibu = Transactions
 tab-invoices = Invoices
 tab-journal = Journal
 tab-agent = Agent
@@ -31,39 +32,49 @@ no-customer = No customer selected
 back = Back
 error-title = Something went wrong
 
-# Overview
-overview-snapshot-title = At a glance
-overview-open-cases = Open Cases
-overview-recent-activity = Recent activity
-overview-ask-agent-title = Ask the agent
-overview-ask-agent-description = Hand this customer over to the Every Fabric agent for analysis and next-best actions.
-overview-ask-agent-cta = Open agent
-
 # Journal
 journal-title = Journal
 journal-untitled = Untitled entry
 journal-empty-title = No activity yet
 journal-empty-description = Activities, notes and tasks for this customer will appear here.
-
-# Details / Relationships
-relationships-contacts-title = Contacts
-relationships-accounts-title = Accounts
-relationships-unknown-contact = Unknown contact
-relationships-unknown-account = Unknown account
-relationships-empty-title = No relationships
-relationships-empty-description = Linked contacts and accounts will appear here.
+journal-type-entry = Entry
+journal-type-activity = Activity
+journal-type-note = Note
+journal-type-task = Task
+journal-type-document = Document
+journal-type-ticket = Ticket
+journal-type-case = Case
 
 # Contracts
 contracts-untitled = Untitled contract
 contracts-expires = Expires { $date }
 contracts-empty-title = No contracts
-contracts-empty-description = Documents typed as contracts will appear here.
+contracts-empty-description = Document-service assets assigned as contracts will appear here.
+contracts-attach-action = Attach contract
+contracts-open-action = Open
+contracts-edit-action = Edit metadata
+contracts-delete-action = Delete contract
+contracts-show-metadata = Show metadata
+contracts-hide-metadata = Hide metadata
+contracts-status = Status
+contracts-contract-number = Number
+contracts-contract-type = Type
+contracts-effective-date = Effective
+contracts-signed-date = Signed
+contracts-expiry-date = Expiry
+contracts-renewal-date = Renewal
+contracts-termination-date = Termination
+contracts-reminder-deadline-date = Reminder deadline
+contracts-notice-period = Notice period
+contracts-notice-period-days = { $days } days
+contracts-next-reminder = Next reminder
+contracts-reminder = Reminder
 
-# Service tickets
+# Customer Support tickets
 tickets-untitled = Untitled ticket
 tickets-priority = Priority: { $priority }
-tickets-empty-title = No service tickets
-tickets-empty-description = Tickets opened for this customer will appear here.
+tickets-empty-title = No customer support tickets
+tickets-empty-description = Customer Support tickets from Services for this customer will appear here.
 tickets-step-untitled = Untitled step
 tickets-no-steps = No step details available for this ticket.
 tickets-open-in-service-desk = Open in Service Desk
@@ -71,15 +82,43 @@ agent-runs-title = Inbound agent activity
 agent-runs-empty-title = No agent runs yet
 agent-runs-empty-description = When an agent handles an inbound email about this customer, the run appears here.
 
-# Service cases & reclamations
-cases-title = Cases
+# Customer Support cases & reclamations
+cases-title = Customer Support Cases
 cases-untitled = Untitled case
-cases-empty-title = No cases
-cases-empty-description = Service cases grouping multiple flows will appear here.
+cases-empty-title = No customer support cases
+cases-empty-description = Customer Support cases from Services for this customer will appear here.
 reclamations-title = Reclamations
 reclamations-untitled = Untitled reclamation
 reclamations-empty-title = No reclamations
-reclamations-empty-description = Complaints and reclamations will appear here.
+reclamations-empty-description = Customer reclamations from Services for this customer will appear here.
+
+# CRM custom feedback surveys
+feedback-title = CRM custom feedback surveys
+feedback-description = Create open-ended Customer Support surveys for one or more customer accounts. The backend creates one account-correlated workflow per account.
+feedback-survey-name = Survey name
+feedback-template-id = Template ID
+feedback-account-ids = Account IDs
+feedback-account-ids-help = Use account IDs only. Separate multiple accounts with commas, spaces or new lines.
+feedback-assignees = Assignees / responders
+feedback-namespace = Namespace
+feedback-campaign-id = Campaign ID
+feedback-metadata = Additional metadata JSON
+feedback-fields-title = Survey fields
+feedback-add-field = Add field
+feedback-field-label = Field label
+feedback-field-type = Field type
+feedback-field-required = Required
+feedback-field-options = Options
+feedback-run = Run survey
+feedback-save-template = Save template
+feedback-save-draft = Save draft
+feedback-save-and-run = Save and run
+feedback-success-title = Request accepted
+feedback-success = Custom feedback request completed.
+feedback-error = Failed to submit custom feedback request.
+feedback-results-title = Per-account results
+feedback-result-success = Created
+feedback-result-unknown-account = Unknown account
 
 # Scoring & satisfaction
 scoring-title = Scoring
@@ -94,21 +133,20 @@ satisfaction-nps = NPS
 satisfaction-last-survey = Last survey
 satisfaction-empty-title = No satisfaction data
 satisfaction-empty-description = CSAT / NPS will appear here once the backend metric is connected.
+satisfaction-survey-results-title = Survey results
+satisfaction-survey-untitled = Untitled survey
 
-# Transactions & Fibu
-fibu-awaiting-description = Awaiting the NewWork Connect (Fibu) integration. Data will appear here once it is enabled.
+# Transactions
 fibu-balance-title = Financial overview
 fibu-balance-empty-title = No balance data
 fibu-balance-empty-description = Open, overdue and lifetime value will appear here.
 fibu-open-amount = Open amount
 fibu-overdue-amount = Overdue
 fibu-lifetime-value = Lifetime value
-fibu-invoices-title = Invoices
-fibu-invoices-empty-title = No invoices
-fibu-invoices-empty-description = Invoices from Fibu will appear here.
 fibu-transactions-title = Transactions
 fibu-transactions-empty-title = No transactions
-fibu-transactions-empty-description = Transaction history from Fibu will appear here.
+fibu-transactions-empty-description = Finance transactions linked to this account will appear here.
+fibu-create-transaction = Create transaction
 
 # Agent handoff
 agent-panel-title = Ask the AI agent
@@ -122,7 +160,6 @@ agent-workforce-button = Open Enterprise Workforce
 home-title = Customer 360
 home-description = Your whole book of business — health, risk and what needs attention now.
 home-tab-cockpit = Cockpit
-home-tab-worklist = Attention
 home-tab-explorer = Customers
 home-tab-inbound = Inbound
 home-tab-renewals = Renewals
@@ -133,7 +170,7 @@ home-provisional-note = Health scores are provisional — derived from CRM field
 # Home — hero
 home-hero-eyebrow = Customer home
 home-hero-title = Welcome to Customer 360
-home-hero-subtitle = You're looking after { $total } customers — { $accounts } accounts and { $contacts } contacts, with { $attention } needing attention now.
+home-hero-subtitle = You're looking after { $total } customer accounts, with { $attention } needing attention now.
 home-hero-explore = Explore customers
 home-hero-attention = What needs attention
 home-hero-agent = Ask the agent
@@ -141,7 +178,6 @@ home-hero-agent = Ask the agent
 # Home — cockpit
 cockpit-total-customers = Customers
 cockpit-accounts = Accounts
-cockpit-contacts = Contacts
 cockpit-needs-attention = Needs attention
 cockpit-needs-attention-footer = Across your portfolio
 cockpit-unassigned = Unassigned
@@ -152,16 +188,14 @@ cockpit-view-worklist = View worklist
 cockpit-insights-renewals-title = Renewals & lifecycle
 cockpit-insights-renewals-description = Expiring contracts and prospects to nurture toward activation.
 cockpit-insights-renewals-action = View renewals
-cockpit-insights-composition-title = Portfolio composition
-cockpit-insights-composition-description = How your book splits across accounts and contacts.
+cockpit-insights-composition-title = Customer accounts
+cockpit-insights-composition-description = Active customer accounts in your book of business.
 cockpit-insights-composition-action = Open analytics
 cockpit-insights-agent-title = Ask the portfolio agent
 cockpit-insights-agent-description = Hand your whole book of business to the AI for triage and next steps.
 cockpit-insights-agent-action = Open agent
 
-# Home — attention worklist
-worklist-intro = Customers ranked by composite risk — low satisfaction, open complaints, overdue invoices, expiring contracts, open tickets and ownership gaps.
-worklist-title = Attention worklist
+# Home — attention preview
 worklist-empty-title = Nothing needs attention
 worklist-empty-description = Customers that cross the risk threshold will appear here, highest priority first.
 
@@ -172,12 +206,10 @@ attention-reason-overdue-invoice = Overdue invoice
 attention-reason-expiring-contract = Expiring contract
 attention-reason-open-tickets = Open tickets
 attention-reason-no-owner = No owner
-attention-reason-prospective = Prospect
 
 # Home — explorer
 explorer-column-customer = Customer
 explorer-column-email = Email
-explorer-column-type = Type
 explorer-column-status = Status
 explorer-column-owner = Owner
 explorer-column-health = Health
@@ -185,9 +217,8 @@ explorer-column-attention = Attention
 explorer-column-reasons = Reasons
 explorer-owner-assigned = Assigned
 explorer-owner-unassigned = Unassigned
+explorer-filter-title = Account filters
 explorer-segment-all = All
-explorer-segment-accounts = Accounts
-explorer-segment-contacts = Contacts
 explorer-segment-attention = Needs attention
 explorer-search-placeholder = Search customers…
 
@@ -222,17 +253,12 @@ inbound-pagination = Page { $page } of { $total }
 renewals-expiring-title = Expiring contracts
 renewals-expiring-empty-title = No expiring contracts
 renewals-expiring-empty-description = Contracts approaching their end date will appear here once the contract aggregation backend provides expiry dates.
-renewals-lifecycle-title = Prospects to activate
-renewals-lifecycle-empty-title = No prospects
-renewals-lifecycle-empty-description = Prospective customers to nurture toward activation will appear here.
 
 # Home — analytics
 analytics-customers = Customers
 analytics-band-high = High
 analytics-band-medium = Medium
 analytics-band-low = Low
-analytics-composition-title = Portfolio composition
-analytics-composition-hint = Accounts vs contacts across your book of business.
 analytics-attention-title = Attention distribution
 analytics-attention-hint = How many customers fall into each risk band.
 

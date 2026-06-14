@@ -8,20 +8,18 @@ import {
 } from '@/business-apps/core/every-fabric/apps/every-fabric/components/enterprise-workforce/runDisplay'
 import type { WorkforceRun } from '@/business-apps/core/every-fabric/apps/every-fabric/components/enterprise-workforce/workforceTypes'
 import customer360I18n from '../../../_i18n'
-import type { CustomerSubjectType } from '../../../data/types'
 import { readInputMeta, readSenderEmail, readTriggerField } from './inboundRunFields'
 import type { InboundCustomerMatch } from './resolveCustomersByEmail'
 
 export interface InboundStreamProps {
   runs: WorkforceRun[]
   onOpenRun: (run: WorkforceRun) => void
-  onOpenCustomer: (type: CustomerSubjectType, id: string) => void
+  onOpenCustomer: (id: string) => void
   /** View-time fallback matches keyed by lowercased sender email. */
   emailMatches?: Record<string, InboundCustomerMatch>
 }
 
 interface MatchedCustomer {
-  type: CustomerSubjectType
   id: string
   label: string
 }
@@ -38,9 +36,8 @@ function readMatchedCustomer(
   emailMatches?: Record<string, InboundCustomerMatch>
 ): MatchedCustomer | null {
   const customerRef = run.customer_ref
-  if (customerRef?.customerId && (customerRef.customerType === 'account' || customerRef.customerType === 'contact')) {
+  if (customerRef?.customerId && customerRef.customerType === 'account') {
     return {
-      type: customerRef.customerType,
       id: customerRef.customerId,
       label: customerRef.displayName || customerRef.customerId
     }
@@ -48,15 +45,15 @@ function readMatchedCustomer(
   const caseRef = run.case_ref
   if (caseRef?.record_id) {
     const entity = (caseRef.entity_type ?? '').trim().toLowerCase()
-    if (entity === 'account' || entity === 'contact') {
+    if (entity === 'account') {
       const label = caseRef.record_labels?.[caseRef.record_id]
-      return { type: entity, id: caseRef.record_id, label: label || caseRef.record_id }
+      return { id: caseRef.record_id, label: label || caseRef.record_id }
     }
   }
   if (emailMatches) {
     const sender = readSenderEmail(run)
     const fallback = sender ? emailMatches[sender] : undefined
-    if (fallback) return { type: fallback.type, id: fallback.id, label: fallback.label }
+    if (fallback?.type === 'account') return { id: fallback.id, label: fallback.label }
   }
   return null
 }
@@ -92,7 +89,7 @@ const InboundStream: React.FC<InboundStreamProps> = ({ runs, onOpenRun, onOpenCu
                   {customer ? (
                     <button
                       type="button"
-                      onClick={() => onOpenCustomer(customer.type, customer.id)}
+                      onClick={() => onOpenCustomer(customer.id)}
                       className="gba:flex gba:items-center gba:gap-1.5 gba:text-left gba:text-sm gba:text-foreground gba:hover:underline"
                       data-testid={`customer-360-inbound-open-customer-${run.session_id}`}
                     >

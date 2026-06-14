@@ -7,7 +7,7 @@
  * (src/business-apps/crm/core/apps/customer-360/data/types.ts) — keep the two
  * in sync; do not diverge the shapes.
  *
- * This is a READ tool: given `customerType` (account|contact) + `customerId`,
+ * This is a READ tool: given `customerType=account` + `customerId`,
  * it resolves the aggregated post-sales view (scores, satisfaction, contracts,
  * tickets, cases, reclamations, invoices, balance, transactions, journal).
  */
@@ -19,12 +19,12 @@ export const GET_CUSTOMER_360_SCHEMA = {
   properties: {
     customerType: {
       type: 'string',
-      enum: ['account', 'contact'],
-      description: 'Polymorphic customer subject kind (required). Matches the Customer360 `?type=` param.'
+      enum: ['account'],
+      description: 'Customer subject kind (required). Customer-support workflows are account-only.'
     },
     customerId: {
       type: 'string',
-      description: 'UUID of the account or contact to load the 360° snapshot for (required).'
+      description: 'UUID of the account to load the 360° snapshot for (required).'
     }
   },
   required: ['customerType', 'customerId']
@@ -180,9 +180,10 @@ export const GET_CUSTOMER_360_OUTPUT_SCHEMA = {
  *
  * Aggregates the Customer360 snapshot directly from the platform sources the
  * Customer360 UI already reads — no Kogito endpoint required:
- *   - Platform GraphQL (Hasura): account/contact scores, contracts (CrmDocument),
+ *   - Platform GraphQL (Hasura): account scores, contracts (CrmDocument),
  *     journal (SalesActivity + CrmNote + SalesTask).
- *   - custom-flow-engine REST: tickets + reclamations correlated to the subject.
+ *   - custom-flow-engine REST: customer-support tickets, cases and reclamations
+ *     correlated to the subject.
  * Satisfaction, invoices, balance and transactions are returned empty until the
  * deferred backend (CSAT store + Fibu connection) lands, so the agent reasons
  * over partial data exactly like the UI renders it. Every slice is isolated in
@@ -196,7 +197,7 @@ export const GET_CUSTOMER_360_SOURCE = `async function handler(event, context) {
   const type = event && event.customerType;
   const id = event && event.customerId;
   if (!type || !id) return { success: false, error: 'customerType and customerId are required' };
-  if (type !== 'account' && type !== 'contact') return { success: false, error: 'customerType must be account or contact' };
+  if (type !== 'account') return { success: false, error: 'customerType must be account' };
 
   const services = (context.newwork && context.newwork.services) || {};
   const graphqlUrl = services.graphql;
@@ -221,22 +222,20 @@ export const GET_CUSTOMER_360_SOURCE = `async function handler(event, context) {
 
   // Scores — averaged from the account's related opportunity AI scores.
   try {
-    if (type === 'account') {
-      const data = await gql('query S($id: uuid!) { Account(where: { id: { _eq: $id } }) { id opportunities { aiOpportunityScore aiOpportunityGrade } } }', { id: id });
-      const acc = data && data.Account && data.Account[0];
-      const opps = (acc && acc.opportunities) || [];
-      const scores = opps.map(function (o) { return o.aiOpportunityScore; }).filter(function (s) { return typeof s === 'number' && !isNaN(s); });
-      if (scores.length) {
-        const ai = scores.reduce(function (a, b) { return a + b; }, 0) / scores.length;
-        const graded = opps.find(function (o) { return o.aiOpportunityGrade; });
-        snapshot.scores = { aiScore: ai, scoreLabel: (graded && graded.aiOpportunityGrade) || undefined };
-      }
+    const data = await gql('query S($id: uuid!) { Account(where: { id: { _eq: $id } }) { id opportunities { aiOpportunityScore aiOpportunityGrade } } }', { id: id });
+    const acc = data && data.Account && data.Account[0];
+    const opps = (acc && acc.opportunities) || [];
+    const scores = opps.map(function (o) { return o.aiOpportunityScore; }).filter(function (s) { return typeof s === 'number' && !isNaN(s); });
+    if (scores.length) {
+      const ai = scores.reduce(function (a, b) { return a + b; }, 0) / scores.length;
+      const graded = opps.find(function (o) { return o.aiOpportunityGrade; });
+      snapshot.scores = { aiScore: ai, scoreLabel: (graded && graded.aiOpportunityGrade) || undefined };
     }
   } catch (e) { /* scores optional */ }
 
   // Contracts — CrmDocument rows classified as CONTRACT via document type.
   try {
-    const data = await gql('query D($id: uuid!) { CrmDocument(where: { ' + type + ': { id: { _eq: $id } }, isDeleted: { _eq: false } }, orderBy: [{ createdAt: DESC }]) { id name mimeType fileSize createdAt fileInfo documentType { code value } } }', { id: id });
+    const data = await gql('query D($id: uuid!) { CrmDocument(where: { account: { id: { _eq: $id } }, isDeleted: { _eq: false } }, orderBy: [{ createdAt: DESC }]) { id name mimeType fileSize createdAt fileInfo documentType { code value } } }', { id: id });
     const docs = (data && data.CrmDocument) || [];
     snapshot.contracts = docs.filter(function (d) {
       const t = ((d.documentType && (d.documentType.code || d.documentType.value)) || '').toLowerCase();
@@ -254,9 +253,9 @@ export const GET_CUSTOMER_360_SOURCE = `async function handler(event, context) {
   try {
     const data = await gql(
       'query J($id: uuid!) {' +
-      ' SalesActivity(where: { ' + type + ': { id: { _eq: $id } } }, orderBy: [{ createdAt: DESC_NULLS_LAST }], limit: 50) { id title description occurredAt completedAt createdAt activityType { value } }' +
-      ' CrmNote(where: { ' + type + ': { id: { _eq: $id } } }, orderBy: [{ createdAt: DESC_NULLS_LAST }], limit: 50) { id noteTitle noteText createdAt }' +
-      ' SalesTask(where: { ' + type + ': { id: { _eq: $id } } }, orderBy: [{ createdAt: DESC_NULLS_LAST }], limit: 50) { id name description createdAt dueDate }' +
+      ' SalesActivity(where: { account: { id: { _eq: $id } } }, orderBy: [{ createdAt: DESC_NULLS_LAST }], limit: 50) { id title description occurredAt completedAt createdAt activityType { value } }' +
+      ' CrmNote(where: { account: { id: { _eq: $id } } }, orderBy: [{ createdAt: DESC_NULLS_LAST }], limit: 50) { id noteTitle noteText createdAt }' +
+      ' SalesTask(where: { account: { id: { _eq: $id } } }, orderBy: [{ createdAt: DESC_NULLS_LAST }], limit: 50) { id name description createdAt dueDate }' +
       ' }', { id: id });
     const entries = [];
     if (data) {
@@ -268,23 +267,38 @@ export const GET_CUSTOMER_360_SOURCE = `async function handler(event, context) {
     snapshot.journal = entries.slice(0, 100);
   } catch (e) { /* journal optional */ }
 
-  // Tickets + reclamations — flow-engine instances correlated to the subject.
+  // Customer Support workflows — Services-owned flow instances correlated to the subject.
   try {
     if (flowBase) {
-      const q = new URLSearchParams({ correlationEntity: type, correlationEntityId: id, limit: '100', offset: '0' });
-      const res = await fetch(flowBase.replace(/\\/$/, '') + '/api/flows/list?' + q.toString(), { headers: { 'Authorization': 'Bearer ' + token } });
-      if (res.ok) {
+      const flowRoot = flowBase.replace(/\\/$/, '');
+      const listByLifecycle = async function (lifecycleType) {
+        const q = new URLSearchParams({
+          correlationEntity: 'account',
+          correlationEntityId: id,
+          limit: '100',
+          offset: '0',
+          'tag.app': 'AppCatalog:1:SVC',
+          'tag.serviceCategory': 'ServicePortalCategory:1:CUSTOMER_SUPPORT',
+          'tag.sourceApp': 'AppCatalog:1:CRM',
+          'tag.solution': 'customer360',
+          'tag.lifecycleType': lifecycleType
+        });
+        const res = await fetch(flowRoot + '/api/flows/list?' + q.toString(), { headers: { 'Authorization': 'Bearer ' + token } });
+        if (!res.ok) return [];
         const json = await res.json().catch(function () { return null; });
         const flows = (json && ((json.data && json.data.flows) || json.flows)) || [];
-        const norm = flows.map(function (f) {
-          return { id: f.flowId || f.workflowId || f.id || '', title: f.flowName || f.name || f.title, status: f.status, priority: f.priority, createdAt: f.startTime || f.createdAt, templateName: f.templateName };
+        return flows.map(function (f) {
+          return { id: f.flowId || f.workflowId || f.id || '', title: f.flowName || f.name || f.title || f.templateName, status: f.status, priority: f.priority, createdAt: f.startTime || f.createdAt };
         }).filter(function (f) { return f.id; });
-        const isReclamation = function (f) { return /reclamation|complaint/.test((String(f.templateName || '') + ' ' + String(f.title || '')).toLowerCase()); };
-        snapshot.reclamations = norm.filter(isReclamation).map(function (f) { return { id: f.id, title: f.title, status: f.status, createdAt: f.createdAt }; });
-        snapshot.tickets = norm.filter(function (f) { return !isReclamation(f); }).map(function (f) { return { id: f.id, title: f.title, status: f.status, priority: f.priority, createdAt: f.createdAt }; });
-      }
+      };
+      const ticketFlows = await listByLifecycle('service-ticket');
+      const caseFlows = await listByLifecycle('service-case');
+      const reclamationFlows = await listByLifecycle('reclamation');
+      snapshot.tickets = ticketFlows.map(function (f) { return { id: f.id, title: f.title || 'Customer Support Ticket', status: f.status, priority: f.priority, createdAt: f.createdAt }; });
+      snapshot.cases = caseFlows.map(function (f) { return { id: f.id, title: f.title || 'Customer Support Case', status: f.status, type: 'service-case', createdAt: f.createdAt }; });
+      snapshot.reclamations = reclamationFlows.map(function (f) { return { id: f.id, title: f.title || 'Customer Reclamation', status: f.status, createdAt: f.createdAt }; });
     }
-  } catch (e) { /* tickets optional */ }
+  } catch (e) { /* customer support workflows optional */ }
 
   // satisfaction / invoices / balance / transactions: awaiting backend (CSAT store + Fibu connection).
   return { success: true, customerType: type, customerId: id, snapshot: snapshot };
@@ -315,7 +329,7 @@ export const GET_CUSTOMER_360_TOOL: InternalToolDefinition = {
   id: 'get_customer_360',
   name: 'Get Customer 360',
   description:
-    'Returns the normalized Customer360 snapshot (scores, satisfaction, contracts, tickets, cases, reclamations, invoices, balance, transactions, journal) for an account or contact. Mirrors exactly what the Customer 360 UI shows.',
+    'Returns the normalized Customer360 snapshot (scores, satisfaction, contracts, tickets, cases, reclamations, invoices, balance, transactions, journal) for an account. Mirrors exactly what the Customer 360 UI shows.',
   category: 'customer-360',
   operation: 'read',
   schema: GET_CUSTOMER_360_SCHEMA,

@@ -101,6 +101,8 @@ export interface LedgerPostingRequest {
   reference: string
   postingDate: string
   entries: LedgerPostingEntry[]
+  /** Correlation metadata copied to each BLNK transaction generated from this posting. */
+  metaData?: Record<string, unknown>
 }
 
 export interface LedgerPostingEntry {

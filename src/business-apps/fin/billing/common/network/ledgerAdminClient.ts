@@ -76,27 +76,85 @@ export interface CreateAccountInput {
 export interface CreateTransactionInput {
   /** Major units (e.g. 100.50); the connector converts to the engine's precision. */
   amount: number
+  preciseAmount?: number | null
+  precision?: number
+  rate?: number
+  overdraftLimit?: number
   currency: string
   /** Account name/email or balance id, or '@World' to mint/burn external funds. */
   source: string
   destination: string
+  sources?: Array<Record<string, unknown>>
+  destinations?: Array<Record<string, unknown>>
   reference?: string
   description?: string
+  allowOverdraft?: boolean
+  inflight?: boolean
   /** Settle immediately (recommended for interactive use). */
   skipQueue?: boolean
+  atomic?: boolean
+  scheduledFor?: string
+  inflightExpiryDate?: string
+  inflightCommitDate?: string
+  effectiveDate?: string
   /** Free-form metadata stored on the transaction. */
   metaData?: Record<string, unknown>
 }
 
-/** MCP tool names exposed by the BLNK Ledger connection. */
+export interface CreateSplitTransactionInput extends Omit<CreateTransactionInput, 'destination'> {
+  destinations: Array<{ identifier: string; amount: number; description?: string }>
+}
+
+export interface RefundTransactionInput {
+  transactionId: string
+  amount?: number
+  reason?: string
+  reference?: string
+  metaData?: Record<string, unknown>
+}
+
+export interface UpdateInflightTransactionInput {
+  transactionId: string
+  status: 'commit' | 'void'
+  amount?: number
+  preciseAmount?: number
+}
+
+export interface ReimburseExpenseInput {
+  expenseId: string
+  amount: number
+  currency: string
+  source: string
+  destination: string
+  reference?: string
+  metaData?: Record<string, unknown>
+}
+
+/**
+ * MCP tool names exposed by the BLNK Ledger connection.
+ *
+ * The MCP adapter accepts convenience references (account name, email, customer
+ * id, balance id, or @World) for transaction/balance inputs and resolves them
+ * to REST-level balance ids before calling Blnk. Direct REST callers must not
+ * rely on that name resolution.
+ */
 const LedgerTools = {
   health: 'blnk_health',
   listLedgers: 'blnk_list_ledgers',
   createLedger: 'blnk_create_ledger',
+  getLedger: 'blnk_get_ledger',
   findAccount: 'blnk_find_account',
   createBalance: 'blnk_create_balance',
+  getBalance: 'blnk_get_balance',
+  getBalanceAtTime: 'blnk_get_balance_at_time',
   listTransactions: 'blnk_list_transactions',
-  createTransaction: 'blnk_create_transaction'
+  createTransaction: 'blnk_create_transaction',
+  createSplitTransaction: 'blnk_create_split_transaction',
+  updateInflightTransaction: 'blnk_update_inflight_transaction',
+  refundTransaction: 'blnk_refund_transaction',
+  getTransaction: 'blnk_get_transaction',
+  getTransactionByReference: 'blnk_get_transaction_by_reference',
+  reimburseExpense: 'blnk_reimburse_expense'
 } as const
 
 const CONNECTOR_BASE = `${PROMPT_MANAGER_API_URL}/external-connections`
@@ -156,7 +214,7 @@ async function invoke(accessToken: string, action: string, args: Record<string, 
   const json = text ? JSON.parse(text) : {}
   if (!response.ok || json?.success === false) {
     const detail = json?.detail ?? json?.message ?? `${response.status}`
-    throw new Error(`Ledger action "${action}" failed: ${detail}`)
+    throw new Error(`Ledger action "${action}" failed: ${normalizeConnectorError(detail)}`)
   }
   const result = json?.result ?? {}
   return {
@@ -164,6 +222,14 @@ async function invoke(accessToken: string, action: string, args: Record<string, 
     fields: result.fields,
     totalEstimate: result.totalEstimate
   }
+}
+
+function normalizeConnectorError(detail: unknown): string {
+  const message = typeof detail === 'string' ? detail : JSON.stringify(detail)
+  if (/failure to get a peer from the ring-balancer/i.test(message)) {
+    return 'Finance backend is temporarily unavailable: no healthy backend peer is available'
+  }
+  return message
 }
 
 // ---------------------------------------------------------------------------
@@ -295,9 +361,14 @@ export async function listLedgers(accessToken: string): Promise<Ledger[]> {
 export async function createLedger(accessToken: string, input: CreateLedgerInput): Promise<Ledger> {
   const result = await invoke(accessToken, LedgerTools.createLedger, {
     name: input.name,
-    meta_data: input.metaData ?? {}
+    meta_data: input.metaData
   })
   return mapLedger(result.rows[0] ?? {})
+}
+
+export async function getLedger(accessToken: string, ledgerId: string): Promise<Ledger | null> {
+  const result = await invoke(accessToken, LedgerTools.getLedger, { ledger_id: ledgerId })
+  return result.rows[0] ? mapLedger(result.rows[0]) : null
 }
 
 export async function listAccounts(accessToken: string): Promise<LedgerAccount[]> {
@@ -309,9 +380,26 @@ export async function createAccount(accessToken: string, input: CreateAccountInp
   const result = await invoke(accessToken, LedgerTools.createBalance, {
     ledger_id: input.ledgerId,
     currency: input.currency,
-    meta_data: { name: input.name, ...(input.metaData ?? {}) }
+    meta_data: { name: input.name, ...input.metaData }
   })
   return mapAccount(result.rows[0] ?? {})
+}
+
+export async function getBalance(accessToken: string, balanceId: string): Promise<LedgerAccount | null> {
+  const result = await invoke(accessToken, LedgerTools.getBalance, { balance_id: balanceId })
+  return result.rows[0] ? mapAccount(result.rows[0]) : null
+}
+
+export async function getBalanceAtTime(
+  accessToken: string,
+  balanceId: string,
+  timestamp: string
+): Promise<LedgerAccount | null> {
+  const result = await invoke(accessToken, LedgerTools.getBalanceAtTime, {
+    balance_id: balanceId,
+    timestamp
+  })
+  return result.rows[0] ? mapAccount(result.rows[0]) : null
 }
 
 /**
@@ -331,15 +419,105 @@ export async function createTransaction(
 ): Promise<LedgerTransaction> {
   const result = await invoke(accessToken, LedgerTools.createTransaction, {
     amount: input.amount,
+    precise_amount: input.preciseAmount ?? null,
+    precision: input.precision,
+    rate: input.rate,
+    overdraft_limit: input.overdraftLimit,
     currency: input.currency,
     source: input.source,
     destination: input.destination,
+    sources: input.sources ?? [],
+    destinations: input.destinations ?? [],
+    reference: input.reference,
+    description: input.description,
+    allow_overdraft: input.allowOverdraft,
+    inflight: input.inflight,
+    skip_queue: input.skipQueue ?? true,
+    atomic: input.atomic,
+    scheduled_for: input.scheduledFor,
+    inflight_expiry_date: input.inflightExpiryDate,
+    inflight_commit_date: input.inflightCommitDate,
+    effective_date: input.effectiveDate,
+    ...(input.metaData ? { meta_data: input.metaData } : {})
+  })
+  return mapTransaction(result.rows[0] ?? {})
+}
+
+export async function createSplitTransaction(
+  accessToken: string,
+  input: CreateSplitTransactionInput
+): Promise<LedgerTransaction[]> {
+  const result = await invoke(accessToken, LedgerTools.createSplitTransaction, {
+    amount: input.amount,
+    currency: input.currency,
+    source: input.source,
+    destinations: input.destinations.map(destination => ({
+      identifier: destination.identifier,
+      amount: destination.amount,
+      description: destination.description
+    })),
     reference: input.reference,
     description: input.description,
     skip_queue: input.skipQueue ?? true,
     ...(input.metaData ? { meta_data: input.metaData } : {})
   })
-  return mapTransaction(result.rows[0] ?? {})
+  return result.rows.map(mapTransaction)
+}
+
+export async function updateInflightTransaction(
+  accessToken: string,
+  input: UpdateInflightTransactionInput
+): Promise<LedgerTransaction | null> {
+  const result = await invoke(accessToken, LedgerTools.updateInflightTransaction, {
+    transaction_id: input.transactionId,
+    status: input.status,
+    amount: input.amount,
+    precise_amount: input.preciseAmount
+  })
+  return result.rows[0] ? mapTransaction(result.rows[0]) : null
+}
+
+export async function refundTransaction(
+  accessToken: string,
+  input: RefundTransactionInput
+): Promise<LedgerTransaction | null> {
+  const result = await invoke(accessToken, LedgerTools.refundTransaction, {
+    transaction_id: input.transactionId,
+    amount: input.amount,
+    reason: input.reason,
+    reference: input.reference,
+    ...(input.metaData ? { meta_data: input.metaData } : {})
+  })
+  return result.rows[0] ? mapTransaction(result.rows[0]) : null
+}
+
+export async function getTransaction(accessToken: string, transactionId: string): Promise<LedgerTransaction | null> {
+  const result = await invoke(accessToken, LedgerTools.getTransaction, { transaction_id: transactionId })
+  return result.rows[0] ? mapTransaction(result.rows[0]) : null
+}
+
+export async function getTransactionByReference(
+  accessToken: string,
+  reference: string
+): Promise<LedgerTransaction | null> {
+  const result = await invoke(accessToken, LedgerTools.getTransactionByReference, { reference })
+  return result.rows[0] ? mapTransaction(result.rows[0]) : null
+}
+
+export async function reimburseExpense(
+  accessToken: string,
+  input: ReimburseExpenseInput
+): Promise<LedgerTransaction | null> {
+  const result = await invoke(accessToken, LedgerTools.reimburseExpense, {
+    expense_id: input.expenseId,
+    amount: input.amount,
+    currency: input.currency,
+    source: input.source,
+    destination: input.destination,
+    reference: input.reference,
+    ...(input.metaData ? { meta_data: input.metaData } : {})
+  })
+  return result.rows[0] ? mapTransaction(result.rows[0]) : null
 }
 
 // ---------------------------------------------------------------------------
@@ -433,7 +611,14 @@ export async function postLedgerTransaction(
       destination: transfer.destination,
       reference: `${request.eventId}#${index}`,
       description: transfer.description ? `${request.eventType}: ${transfer.description}` : request.eventType,
-      skipQueue: true
+      skipQueue: true,
+      metaData: {
+        ...request.metaData,
+        ledgerEventType: request.eventType,
+        ledgerEventId: request.eventId,
+        ledgerPostingReference: request.reference,
+        ledgerTransferIndex: index
+      }
     })
     if (transaction.transactionId) {
       transactionIds.push(transaction.transactionId)

@@ -5,11 +5,11 @@
  * of the UI by mapping each value to an i18n key. Falls back to the raw value
  * if a key is somehow missing so nothing renders blank.
  */
-import type { InvoiceStatus, LedgerEventType, PaymentMethod } from '../types'
+import type { InvoiceDisplayStatus, LedgerEventType, PaymentMethod } from '../types'
 
 type TranslateFn = (key: string) => string
 
-const INVOICE_STATUS_KEYS: Record<InvoiceStatus, string> = {
+const INVOICE_STATUS_KEYS: Record<InvoiceDisplayStatus, string> = {
   DRAFT: 'billing-status-draft',
   ISSUED: 'billing-status-issued',
   SENT: 'billing-status-sent',
@@ -45,7 +45,7 @@ function translate(t: TranslateFn, key: string | undefined, fallback: string): s
   return label && label !== key ? label : fallback
 }
 
-export function getInvoiceStatusLabel(status: InvoiceStatus, t: TranslateFn): string {
+export function getInvoiceStatusLabel(status: InvoiceDisplayStatus, t: TranslateFn): string {
   return translate(t, INVOICE_STATUS_KEYS[status], status)
 }
 

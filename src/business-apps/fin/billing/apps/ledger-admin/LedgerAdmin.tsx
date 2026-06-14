@@ -19,6 +19,7 @@ import { Navigation, buildPlatformUrl, navigateTo } from '@/common/utils/navigat
 import billingTranslations from '../../common/_i18n'
 import { useLedgerAdmin } from '../../common/hooks/useLedgerAdmin'
 import { useBillingPermissions } from '../../common/hooks/useBillingPermissions'
+import { useBillingData } from '../../common/hooks/useBillingData'
 import { buildAccountIndex } from '../../common/utils/ledgerNames'
 import { buildAccountColumns, buildLedgerColumns } from './ledgerColumns'
 import LedgerCreateDialog, { type LedgerDialogKind } from './LedgerCreateDialog'
@@ -31,6 +32,7 @@ const LedgerAdmin: React.FC<LedgerAdminProps> = props => {
   const { accessToken } = props
   const { t } = useTranslation(billingTranslations)
   const ledgerAdmin = useLedgerAdmin(props)
+  const billing = useBillingData(props)
   const permissions = useBillingPermissions(props)
   const [dialogKind, setDialogKind] = useState<LedgerDialogKind | null>(null)
   const [activeTab, setActiveTab] = useState('ledgers')
@@ -128,10 +130,10 @@ const LedgerAdmin: React.FC<LedgerAdminProps> = props => {
       variant="default"
       data-testid="ledger-admin"
     >
-      {ledgerAdmin.usingSampleData && (
+      {(ledgerAdmin.usingSampleData || ledgerAdmin.error) && (
         <Alert className="gba:mb-4" data-testid="ledger-admin-sample-notice">
           <AlertDescription>
-            {t('ledger-admin-sample-notice')}
+            {ledgerAdmin.usingSampleData ? t('ledger-admin-sample-notice') : t('ledger-admin-backend-error-notice')}
             {ledgerAdmin.error && (
               <span className="gba:block gba:mt-1 gba:text-muted-foreground" data-testid="ledger-admin-error-detail">
                 {`${t('ledger-admin-connection-detail')}: ${ledgerAdmin.error}`}
@@ -214,6 +216,7 @@ const LedgerAdmin: React.FC<LedgerAdminProps> = props => {
         onSelect={setSelection}
         onAdjustAccount={adjustAccount}
         onRenameAccount={renameAccount}
+        onUpdateInflight={ledgerAdmin.updateInflight}
         onViewAccountTransactions={viewAccountTransactions}
         t={t}
       />
@@ -222,6 +225,7 @@ const LedgerAdmin: React.FC<LedgerAdminProps> = props => {
         kind={dialogKind}
         ledgers={ledgerAdmin.ledgers}
         accounts={ledgerAdmin.accounts}
+        invoices={billing.invoices}
         initialSource={prefillSource}
         onClose={closeDialog}
         onCreateLedger={ledgerAdmin.addLedger}

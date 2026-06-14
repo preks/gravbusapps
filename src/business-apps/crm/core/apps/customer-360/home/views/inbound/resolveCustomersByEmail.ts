@@ -8,10 +8,11 @@
  * beats domain; contact beats account.
  */
 import { GraphQLClient } from '@/common/network/graphql/GraphQLClient'
-import type { CustomerSubjectType } from '../../../data/types'
+
+type InboundCustomerMatchType = 'account' | 'contact'
 
 export interface InboundCustomerMatch {
-  type: CustomerSubjectType
+  type: InboundCustomerMatchType
   id: string
   label: string
   matchType: 'email' | 'domain'

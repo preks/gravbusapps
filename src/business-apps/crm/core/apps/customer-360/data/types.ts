@@ -8,25 +8,17 @@
  */
 
 import type { CustomerAccount } from '@/common/data/customer/types/customerAccountTypes'
-import type { CustomerContact } from '@/common/data/customer/types/customerContactTypes'
+import type { CrmCustomFeedbackSurveyResult } from './record/crmCustomFeedbackClient'
+import type { CustomerSupportLifecycleType } from './network/customerFlowClient'
 
-/** Polymorphic customer subject kind, driven by the `?type=` URL param. */
-export type CustomerSubjectType = 'account' | 'contact'
-
-/**
- * Normalized customer subject. Both `account` and `contact` raw refs are kept
- * so feature tabs can read domain-specific fields without re-fetching.
- */
+/** Normalized customer account subject for the Customer 360 record surface. */
 export interface Customer360Subject {
   id: string
-  type: CustomerSubjectType
+  type: 'account'
   displayName: string
   status?: string
   ownerId?: string
-  /** Present when `type === 'account'`. */
-  account?: CustomerAccount
-  /** Present when `type === 'contact'`. */
-  contact?: CustomerContact
+  account: CustomerAccount
 }
 
 /** Generic per-domain hook result. All domain hooks share this shape. */
@@ -48,6 +40,7 @@ export interface CustomerSatisfaction {
   csat?: number
   nps?: number
   lastSurveyDate?: string
+  surveyResults?: CrmCustomFeedbackSurveyResult[]
 }
 
 /** File-service handle used for document preview / download. */
@@ -59,47 +52,69 @@ export interface CustomerFileRef {
 /** Contract document slice. */
 export interface CustomerContract {
   id: string
+  assignmentId?: string
+  spaceId?: string
+  assetType?: 'document' | 'drive_file' | 'spreadsheet_app' | 'slide' | 'whiteboard' | 'note'
+  assetId?: string
   name?: string
   status?: string
   startDate?: string
   endDate?: string
+  effectiveDate?: string
+  signedDate?: string
+  expiryDate?: string
+  renewalDate?: string
+  reminderDeadlineDate?: string
+  terminationDate?: string
+  contractNumber?: string
+  contractType?: string
+  noticePeriodDays?: number
+  contractMetadataId?: string
+  updatedAt?: string
+  nextReminder?: {
+    id?: string
+    dueDate?: string
+    label?: string
+  }
   documentId?: string
-  /** Phase 2 extensions: derived from the underlying CrmDocument. */
   documentType?: string
   mimeType?: string | null
   fileSize?: number | null
   createdAt?: string
-  /** Present when the binary can be previewed/downloaded via the file service. */
+  /** Legacy file-service handle; contracts now prefer document-service asset refs. */
   fileInfo?: CustomerFileRef | null
 }
 
-/** Service ticket (custom-flow-engine flow instance). */
+/** Customer Support ticket surfaced from Services-owned workflow instances. */
 export interface CustomerTicket {
   id: string
   title?: string
   status?: string
   priority?: string
   createdAt?: string
+  lifecycleType?: CustomerSupportLifecycleType
 }
 
-/** Service case (flow-engine Cases module grouping). */
+/** Customer Support case surfaced from Services-owned workflow instances. */
 export interface CustomerCase {
   id: string
   title?: string
   status?: string
   type?: string
   createdAt?: string
+  lifecycleType?: CustomerSupportLifecycleType
 }
 
-/** Reclamation / complaint (dedicated case type). */
+/** Customer Support reclamation surfaced from Services-owned workflow instances. */
 export interface CustomerReclamation {
   id: string
   title?: string
   status?: string
   createdAt?: string
+  lifecycleType?: CustomerSupportLifecycleType
 }
 
-/** Invoice (NewWork Connect / Fibu). */
+/** Invoice snapshot sourced from Finance Billing / BLNK. */
 export interface CustomerInvoice {
   id: string
   number?: string
@@ -118,7 +133,7 @@ export interface CustomerBalance {
   currency?: string
 }
 
-/** Transaction (NewWork Connect / Fibu). */
+/** Transaction snapshot sourced from Finance Billing / BLNK. */
 export interface CustomerTransaction {
   id: string
   description?: string

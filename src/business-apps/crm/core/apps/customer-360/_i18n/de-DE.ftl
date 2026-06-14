@@ -2,16 +2,17 @@
 
 app-title = Kunde 360
 overline-account = FIRMA
-overline-contact = KONTAKT
+overline-retention = KUNDENBINDUNG
+retention-badge = Retention-Modul
 
 # Tabs
 tab-overview = Übersicht
-tab-details = Details
 tab-scoring-satisfaction = Bewertung & Zufriedenheit
 tab-contracts = Verträge
 tab-service-tickets = Service-Tickets
 tab-service-cases = Service-Fälle
-tab-transactions-fibu = Transaktionen & Fibu
+tab-custom-feedback = Feedback-Umfragen
+tab-transactions-fibu = Transaktionen
 tab-invoices = Rechnungen
 tab-journal = Journal
 tab-agent = Agent
@@ -31,27 +32,18 @@ no-customer = Kein Kunde ausgewählt
 back = Zurück
 error-title = Ein Fehler ist aufgetreten
 
-# Overview
-overview-snapshot-title = Auf einen Blick
-overview-open-cases = Offene Fälle
-overview-recent-activity = Letzte Aktivitäten
-overview-ask-agent-title = Agent fragen
-overview-ask-agent-description = Übergeben Sie diesen Kunden an den Every-Fabric-Agenten für Analysen und nächste Schritte.
-overview-ask-agent-cta = Agent öffnen
-
 # Journal
 journal-title = Journal
 journal-untitled = Eintrag ohne Titel
 journal-empty-title = Noch keine Aktivität
 journal-empty-description = Aktivitäten, Notizen und Aufgaben zu diesem Kunden erscheinen hier.
-
-# Details / Beziehungen
-relationships-contacts-title = Kontakte
-relationships-accounts-title = Firmen
-relationships-unknown-contact = Unbekannter Kontakt
-relationships-unknown-account = Unbekannte Firma
-relationships-empty-title = Keine Beziehungen
-relationships-empty-description = Verknüpfte Kontakte und Firmen erscheinen hier.
+journal-type-entry = Eintrag
+journal-type-activity = Aktivität
+journal-type-note = Notiz
+journal-type-task = Aufgabe
+journal-type-document = Dokument
+journal-type-ticket = Ticket
+journal-type-case = Fall
 
 # Verträge
 contracts-untitled = Vertrag ohne Titel
@@ -59,11 +51,11 @@ contracts-expires = Läuft ab am { $date }
 contracts-empty-title = Keine Verträge
 contracts-empty-description = Als Verträge klassifizierte Dokumente erscheinen hier.
 
-# Service-Tickets
+# Customer-Support-Tickets
 tickets-untitled = Ticket ohne Titel
 tickets-priority = Priorität: { $priority }
-tickets-empty-title = Keine Service-Tickets
-tickets-empty-description = Für diesen Kunden eröffnete Tickets erscheinen hier.
+tickets-empty-title = Keine Customer-Support-Tickets
+tickets-empty-description = Customer-Support-Tickets aus Services für diesen Kunden erscheinen hier.
 tickets-step-untitled = Schritt ohne Titel
 tickets-no-steps = Für dieses Ticket sind keine Schrittdetails verfügbar.
 tickets-open-in-service-desk = Im Service Desk öffnen
@@ -71,15 +63,43 @@ agent-runs-title = Eingehende Agent-Aktivität
 agent-runs-empty-title = Noch keine Agent-Läufe
 agent-runs-empty-description = Wenn ein Agent eine eingehende E-Mail zu diesem Kunden bearbeitet, erscheint der Lauf hier.
 
-# Service-Fälle & Reklamationen
-cases-title = Fälle
+# Customer-Support-Fälle & Reklamationen
+cases-title = Customer-Support-Fälle
 cases-untitled = Fall ohne Titel
-cases-empty-title = Keine Fälle
-cases-empty-description = Service-Fälle, die mehrere Abläufe bündeln, erscheinen hier.
+cases-empty-title = Keine Customer-Support-Fälle
+cases-empty-description = Customer-Support-Fälle aus Services für diesen Kunden erscheinen hier.
 reclamations-title = Reklamationen
 reclamations-untitled = Reklamation ohne Titel
 reclamations-empty-title = Keine Reklamationen
-reclamations-empty-description = Beschwerden und Reklamationen erscheinen hier.
+reclamations-empty-description = Kundenreklamationen aus Services für diesen Kunden erscheinen hier.
+
+# CRM Custom-Feedback-Umfragen
+feedback-title = CRM Custom-Feedback-Umfragen
+feedback-description = Erstellen Sie offene Customer-Support-Umfragen für ein oder mehrere Kundenkonten. Das Backend erstellt pro Konto einen konto-korrelierten Workflow.
+feedback-survey-name = Umfragename
+feedback-template-id = Template-ID
+feedback-account-ids = Konto-IDs
+feedback-account-ids-help = Nur Konto-IDs verwenden. Mehrere Konten mit Kommas, Leerzeichen oder Zeilenumbrüchen trennen.
+feedback-assignees = Bearbeiter / Antwortende
+feedback-namespace = Namespace
+feedback-campaign-id = Kampagnen-ID
+feedback-metadata = Zusätzliche Metadaten als JSON
+feedback-fields-title = Umfragefelder
+feedback-add-field = Feld hinzufügen
+feedback-field-label = Feldbezeichnung
+feedback-field-type = Feldtyp
+feedback-field-required = Pflichtfeld
+feedback-field-options = Optionen
+feedback-run = Umfrage starten
+feedback-save-template = Template speichern
+feedback-save-draft = Entwurf speichern
+feedback-save-and-run = Speichern und starten
+feedback-success-title = Anfrage angenommen
+feedback-success = Custom-Feedback-Anfrage abgeschlossen.
+feedback-error = Custom-Feedback-Anfrage konnte nicht gesendet werden.
+feedback-results-title = Ergebnisse pro Konto
+feedback-result-success = Erstellt
+feedback-result-unknown-account = Unbekanntes Konto
 
 # Bewertung & Zufriedenheit
 scoring-title = Bewertung
@@ -94,21 +114,20 @@ satisfaction-nps = NPS
 satisfaction-last-survey = Letzte Umfrage
 satisfaction-empty-title = Keine Zufriedenheitsdaten
 satisfaction-empty-description = CSAT / NPS erscheinen hier, sobald die Backend-Metrik verbunden ist.
+satisfaction-survey-results-title = Umfrageergebnisse
+satisfaction-survey-untitled = Umfrage ohne Titel
 
-# Transaktionen & Fibu
-fibu-awaiting-description = Wartet auf die NewWork-Connect-Integration (Fibu). Daten erscheinen hier, sobald sie aktiviert ist.
+# Transaktionen
 fibu-balance-title = Finanzübersicht
 fibu-balance-empty-title = Keine Saldodaten
 fibu-balance-empty-description = Offene Beträge, überfällige Beträge und Kundenwert erscheinen hier.
 fibu-open-amount = Offener Betrag
 fibu-overdue-amount = Überfällig
 fibu-lifetime-value = Kundenwert
-fibu-invoices-title = Rechnungen
-fibu-invoices-empty-title = Keine Rechnungen
-fibu-invoices-empty-description = Rechnungen aus der Fibu erscheinen hier.
 fibu-transactions-title = Transaktionen
 fibu-transactions-empty-title = Keine Transaktionen
-fibu-transactions-empty-description = Transaktionsverlauf aus der Fibu erscheint hier.
+fibu-transactions-empty-description = Mit dieser Firma verknüpfte Finanztransaktionen erscheinen hier.
+fibu-create-transaction = Transaktion erstellen
 
 # Agent handoff
 agent-panel-title = KI-Agent fragen
@@ -122,7 +141,6 @@ agent-workforce-button = Enterprise Workforce öffnen
 home-title = Kunde 360
 home-description = Ihr gesamtes Kundenportfolio — Gesundheit, Risiko und was jetzt Aufmerksamkeit braucht.
 home-tab-cockpit = Cockpit
-home-tab-worklist = Aufmerksamkeit
 home-tab-explorer = Kunden
 home-tab-inbound = Posteingang
 home-tab-renewals = Verlängerungen
@@ -133,7 +151,7 @@ home-provisional-note = Gesundheitswerte sind vorläufig — aus CRM-Feldern (In
 # Home — Hero
 home-hero-eyebrow = Kunden-Home
 home-hero-title = Willkommen bei Kunde 360
-home-hero-subtitle = Sie betreuen { $total } Kunden — { $accounts } Firmen und { $contacts } Kontakte, davon { $attention } mit aktuellem Handlungsbedarf.
+home-hero-subtitle = Sie betreuen { $total } Kundenfirmen, davon { $attention } mit aktuellem Handlungsbedarf.
 home-hero-explore = Kunden erkunden
 home-hero-attention = Was Aufmerksamkeit braucht
 home-hero-agent = Agent fragen
@@ -141,7 +159,6 @@ home-hero-agent = Agent fragen
 # Home — Cockpit
 cockpit-total-customers = Kunden
 cockpit-accounts = Firmen
-cockpit-contacts = Kontakte
 cockpit-needs-attention = Braucht Aufmerksamkeit
 cockpit-needs-attention-footer = Über Ihr Portfolio hinweg
 cockpit-unassigned = Ohne Inhaber
@@ -152,16 +169,14 @@ cockpit-view-worklist = Arbeitsliste anzeigen
 cockpit-insights-renewals-title = Verlängerungen & Lebenszyklus
 cockpit-insights-renewals-description = Auslaufende Verträge und Interessenten, die zur Aktivierung gepflegt werden sollten.
 cockpit-insights-renewals-action = Verlängerungen anzeigen
-cockpit-insights-composition-title = Portfolio-Zusammensetzung
-cockpit-insights-composition-description = Wie sich Ihr Portfolio auf Firmen und Kontakte verteilt.
+cockpit-insights-composition-title = Kundenfirmen
+cockpit-insights-composition-description = Aktive Kundenfirmen in Ihrem Portfolio.
 cockpit-insights-composition-action = Analysen öffnen
 cockpit-insights-agent-title = Den Portfolio-Agenten fragen
 cockpit-insights-agent-description = Übergeben Sie Ihr gesamtes Kundenportfolio zur Triage und für nächste Schritte an die KI.
 cockpit-insights-agent-action = Agent öffnen
 
 # Home — Aufmerksamkeitsliste
-worklist-intro = Kunden nach kombiniertem Risiko sortiert — niedrige Zufriedenheit, offene Beschwerden, überfällige Rechnungen, auslaufende Verträge, offene Tickets und fehlende Zuständigkeit.
-worklist-title = Aufmerksamkeitsliste
 worklist-empty-title = Nichts braucht Aufmerksamkeit
 worklist-empty-description = Kunden über der Risikoschwelle erscheinen hier, höchste Priorität zuerst.
 
@@ -172,12 +187,10 @@ attention-reason-overdue-invoice = Überfällige Rechnung
 attention-reason-expiring-contract = Auslaufender Vertrag
 attention-reason-open-tickets = Offene Tickets
 attention-reason-no-owner = Kein Inhaber
-attention-reason-prospective = Interessent
 
 # Home — Explorer
 explorer-column-customer = Kunde
 explorer-column-email = E-Mail
-explorer-column-type = Typ
 explorer-column-status = Status
 explorer-column-owner = Inhaber
 explorer-column-health = Gesundheit
@@ -185,9 +198,8 @@ explorer-column-attention = Aufmerksamkeit
 explorer-column-reasons = Gründe
 explorer-owner-assigned = Zugewiesen
 explorer-owner-unassigned = Nicht zugewiesen
+explorer-filter-title = Firmenfilter
 explorer-segment-all = Alle
-explorer-segment-accounts = Firmen
-explorer-segment-contacts = Kontakte
 explorer-segment-attention = Braucht Aufmerksamkeit
 explorer-search-placeholder = Kunden suchen…
 
@@ -222,17 +234,12 @@ inbound-pagination = Seite { $page } von { $total }
 renewals-expiring-title = Auslaufende Verträge
 renewals-expiring-empty-title = Keine auslaufenden Verträge
 renewals-expiring-empty-description = Verträge mit nahendem Enddatum erscheinen hier, sobald das Vertrags-Backend Enddaten liefert.
-renewals-lifecycle-title = Zu aktivierende Interessenten
-renewals-lifecycle-empty-title = Keine Interessenten
-renewals-lifecycle-empty-description = Interessenten, die zur Aktivierung entwickelt werden sollen, erscheinen hier.
 
 # Home — Analysen
 analytics-customers = Kunden
 analytics-band-high = Hoch
 analytics-band-medium = Mittel
 analytics-band-low = Niedrig
-analytics-composition-title = Portfolio-Zusammensetzung
-analytics-composition-hint = Firmen vs. Kontakte über Ihr Portfolio hinweg.
 analytics-attention-title = Aufmerksamkeitsverteilung
 analytics-attention-hint = Wie viele Kunden in jede Risikostufe fallen.
 

@@ -67,8 +67,14 @@ export interface FlowStep {
   title: string
   status: string
   stepIndex: number
+  taskId?: string
+  taskBusinessId?: string
+  actionId?: string
+  lifecycleId?: string
+  assignmentStatus?: string
   assignedTo?: string
   assignedToIds?: string[]
+  assignedUserId?: string
   eligibleUserIds?: string[]
   completedBy?: string
   totalForks?: number

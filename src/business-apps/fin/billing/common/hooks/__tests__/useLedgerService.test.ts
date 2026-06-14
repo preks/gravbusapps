@@ -67,13 +67,12 @@ describe('useLedgerService', () => {
     expect(postLedgerTransactionMock).not.toHaveBeenCalled()
   })
 
-  it('falls back gracefully when the lane throws', async () => {
+  it('fails live postings when the configured lane throws', async () => {
     postLedgerTransactionMock.mockRejectedValue(new Error('no balances'))
     const { result } = renderHook(() => useLedgerService({ accessToken: 'token' }))
     const request = buildIssuedPosting(makeInvoice())
-    const response = await result.current.post(request)
 
-    expect(response.ledgerTransactionRef).toBe(`local:${request.eventId}`)
+    await expect(result.current.post(request)).rejects.toThrow('no balances')
   })
 
   it('dedupes retries with the same eventId (idempotent)', async () => {

@@ -31,7 +31,8 @@ const BillingReports: React.FC<BillingReportsProps> = props => {
   const permissions = useBillingPermissions(props)
   const reports = useBillingReports(props)
 
-  const aging = useMemo(() => computeArAging(billing.invoices), [billing.invoices])
+  const fallbackAging = useMemo(() => computeArAging(billing.invoices), [billing.invoices])
+  const aging = reports.available && reports.arAging.length > 0 ? reports.arAging : fallbackAging
   const totalOutstanding = useMemo(() => aging.reduce((sum, bucket) => sum + bucket.amount, 0), [aging])
 
   const chartConfig = useMemo(

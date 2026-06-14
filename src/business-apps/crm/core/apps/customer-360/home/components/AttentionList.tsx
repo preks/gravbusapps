@@ -1,15 +1,14 @@
 import React, { useCallback } from 'react'
 import { Badge, useTranslation as useFluentTranslation } from '@newwork/nw-design-system'
-import { BankIcon, UserIcon } from '@phosphor-icons/react'
+import { BankIcon } from '@phosphor-icons/react'
 import customer360I18n from '../../_i18n'
 import type { CustomerPortfolioRow } from '../../data/portfolio/types'
-import type { CustomerSubjectType } from '../../data/types'
-import Customer360List, { type Customer360RowData } from '../../components/Customer360List'
+import Customer360List, { type Customer360RowData } from '../../shared/Customer360List'
 import { ATTENTION_REASON_KEYS, attentionBadgeVariant } from '../attention'
 
 export interface AttentionListProps {
   rows: CustomerPortfolioRow[]
-  openCustomer: (type: CustomerSubjectType, id: string) => void
+  openCustomer: (id: string) => void
   /** Limit the number of rows rendered (e.g. cockpit preview). */
   limit?: number
   testId?: string
@@ -35,7 +34,7 @@ const AttentionList: React.FC<AttentionListProps> = ({ rows, openCustomer, limit
 
   const listRows: Customer360RowData[] = visible.map(row => ({
     id: `${row.type}:${row.id}`,
-    icon: row.type === 'account' ? BankIcon : UserIcon,
+    icon: BankIcon,
     primary: row.displayName,
     secondary: buildReasonText(row) || row.secondary,
     trailing: (
@@ -43,7 +42,7 @@ const AttentionList: React.FC<AttentionListProps> = ({ rows, openCustomer, limit
         {row.attentionScore}
       </Badge>
     ),
-    onClick: () => openCustomer(row.type, row.id),
+    onClick: () => openCustomer(row.id),
     testId: `customer-360-attention-row-${row.type}-${row.id}`
   }))
 

@@ -7,7 +7,8 @@ import {
   BankIcon,
   EnvelopeIcon,
   PhoneIcon,
-  CalendarIcon
+  CalendarIcon,
+  ClockCounterClockwiseIcon
 } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -21,6 +22,7 @@ import { useAccountAiSummary } from './hooks/useAccountAiSummary'
 import { OpportunityView } from '@/business-apps/crm/core/apps/customer-relations/views/opportunity-view'
 import { DocumentView } from './views/document-view/DocumentView'
 import { HomeView } from './views/home-view/HomeView'
+import { JournalView } from './views/journal-view/JournalView'
 import { getEmailChannel, getPhoneChannel } from '@/common/data/common/utils/communicationChannelHelpers'
 import { getAccountPriorityBadgeVariant, getProspectiveBadgeConfig } from '@/common/utils/badgeUtils'
 
@@ -30,7 +32,7 @@ interface AccountRecordContentProps extends BusinessAppContextProps {
 }
 
 const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, onBack, ...props }) => {
-  const ALLOWED_TABS = ['overview', 'opportunities', 'documents'] as const
+  const ALLOWED_TABS = ['overview', 'opportunities', 'documents', 'journal'] as const
   type TabKey = (typeof ALLOWED_TABS)[number]
   const [activeTab, setActiveTab] = useState<TabKey>(() => {
     if (typeof window === 'undefined') return 'overview'
@@ -219,6 +221,12 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
               <DocumentView accountId={accountId} context={props} />
             </div>
           )
+        },
+        {
+          value: 'journal',
+          label: getTranslationFromI18nKeyAndLabel('crm.common.journal', 'Journal'),
+          icon: <ClockCounterClockwiseIcon className="gba:mr-2" />,
+          content: <JournalView {...props} accountId={accountId} />
         }
       ]
     }),

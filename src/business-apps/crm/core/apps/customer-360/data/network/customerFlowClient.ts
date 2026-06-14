@@ -1,5 +1,19 @@
 import { CUSTOM_FLOW_ENGINE_API_URL } from '@/common/utils/serviceResolver'
-import type { CustomerSubjectType } from '../types'
+
+export const CUSTOMER_SUPPORT_FLOW_TAGS = {
+  app: 'AppCatalog:1:SVC',
+  serviceCategory: 'ServicePortalCategory:1:CUSTOMER_SUPPORT',
+  sourceApp: 'AppCatalog:1:CRM',
+  solution: 'customer360'
+} as const
+
+export const CUSTOMER_SUPPORT_LIFECYCLE = {
+  serviceTicket: 'service-ticket',
+  serviceCase: 'service-case',
+  reclamation: 'reclamation'
+} as const
+
+export type CustomerSupportLifecycleType = (typeof CUSTOMER_SUPPORT_LIFECYCLE)[keyof typeof CUSTOMER_SUPPORT_LIFECYCLE]
 
 /** Normalized flow instance shape, tolerant to the flow-engine response envelope. */
 export interface CustomerFlowInstance {
@@ -10,6 +24,7 @@ export interface CustomerFlowInstance {
   createdAt?: string
   templateName?: string
   templateId?: string
+  lifecycleType?: CustomerSupportLifecycleType
 }
 
 interface RawFlow {
@@ -25,12 +40,32 @@ interface RawFlow {
   createdAt?: string
   templateName?: string
   templateId?: string
+  lifecycleType?: string
+  tags?: Record<string, unknown>
 }
 
 interface FlowListEnvelope {
   status?: string
   data?: { flows?: RawFlow[]; totalCount?: number }
   flows?: RawFlow[]
+}
+
+function normalizeString(value: unknown): string | undefined {
+  if (typeof value === 'string') return value
+  if (Array.isArray(value)) return value.find(item => typeof item === 'string') as string | undefined
+  return undefined
+}
+
+function normalizeLifecycleType(value: unknown): CustomerSupportLifecycleType | undefined {
+  const lifecycleType = normalizeString(value)
+  if (
+    lifecycleType === CUSTOMER_SUPPORT_LIFECYCLE.serviceTicket ||
+    lifecycleType === CUSTOMER_SUPPORT_LIFECYCLE.serviceCase ||
+    lifecycleType === CUSTOMER_SUPPORT_LIFECYCLE.reclamation
+  ) {
+    return lifecycleType
+  }
+  return undefined
 }
 
 function normalizeFlow(flow: RawFlow): CustomerFlowInstance {
@@ -41,27 +76,46 @@ function normalizeFlow(flow: RawFlow): CustomerFlowInstance {
     priority: flow.priority,
     createdAt: flow.startTime || flow.createdAt,
     templateName: flow.templateName,
-    templateId: flow.templateId
+    templateId: flow.templateId,
+    lifecycleType: normalizeLifecycleType(flow.lifecycleType || flow.tags?.lifecycleType)
   }
 }
 
+export function buildCustomerFlowListQuery(params: {
+  subjectId: string
+  lifecycleType?: CustomerSupportLifecycleType
+  limit?: number
+}): URLSearchParams {
+  const query = new URLSearchParams({
+    correlationEntity: 'account',
+    correlationEntityId: params.subjectId,
+    limit: String(params.limit ?? 100),
+    offset: '0',
+    'tag.app': CUSTOMER_SUPPORT_FLOW_TAGS.app,
+    'tag.serviceCategory': CUSTOMER_SUPPORT_FLOW_TAGS.serviceCategory,
+    'tag.sourceApp': CUSTOMER_SUPPORT_FLOW_TAGS.sourceApp,
+    'tag.solution': CUSTOMER_SUPPORT_FLOW_TAGS.solution
+  })
+
+  if (params.lifecycleType) {
+    query.set('tag.lifecycleType', params.lifecycleType)
+  }
+
+  return query
+}
+
 /**
- * Lists custom-flow-engine flow instances correlated to a customer subject.
+ * Lists custom-flow-engine flow instances correlated to a customer account.
  * Follows the documented contract:
- *   GET /api/flows/list?correlationEntity=account|contact&correlationEntityId=<id>
+ *   GET /api/flows/list?correlationEntity=account&correlationEntityId=<id>
  */
 export async function listCustomerFlows(params: {
   accessToken: string
-  subjectType: CustomerSubjectType
   subjectId: string
+  lifecycleType?: CustomerSupportLifecycleType
   limit?: number
 }): Promise<CustomerFlowInstance[]> {
-  const query = new URLSearchParams({
-    correlationEntity: params.subjectType,
-    correlationEntityId: params.subjectId,
-    limit: String(params.limit ?? 100),
-    offset: '0'
-  })
+  const query = buildCustomerFlowListQuery(params)
 
   const response = await fetch(`${CUSTOM_FLOW_ENGINE_API_URL}/flows/list?${query.toString()}`, {
     method: 'GET',
@@ -74,7 +128,14 @@ export async function listCustomerFlows(params: {
 
   const json = (await response.json()) as FlowListEnvelope
   const flows = json.data?.flows ?? json.flows ?? []
-  return flows.map(normalizeFlow).filter(flow => flow.id)
+  const normalizedFlows = flows.map(normalizeFlow).filter(flow => flow.id)
+  const responseIncludesLifecycle = normalizedFlows.some(flow => flow.lifecycleType)
+
+  if (params.lifecycleType && responseIncludesLifecycle) {
+    return normalizedFlows.filter(flow => flow.lifecycleType === params.lifecycleType)
+  }
+
+  return normalizedFlows
 }
 
 /** One workflow step of a flow instance, tolerant to engine field aliases. */

@@ -4,13 +4,13 @@
  * Owns invoice and settings state, posting through the Ledger Service for
  * issued/paid/cancelled/written-off events. Invoices are persisted in the
  * native BLNK invoices domain (the only finance backend) via the invoice
- * client, so every screen shares real data. Falls back to sample data when the
- * ledger lane is unavailable so the UI stays usable in local dev.
+ * client, so every screen shares real data. Backend failures surface as errors
+ * with empty data instead of falling back to demo records.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { type BillingSettings } from '../queries/billingCoreApi'
-import { SAMPLE_INVOICES, SAMPLE_SETTINGS } from '../data/sampleBillingData'
+import { SAMPLE_SETTINGS } from '../data/sampleBillingData'
 import {
   billingApiEnabled,
   cancelInvoice as apiCancelInvoice,
@@ -25,7 +25,6 @@ import { getFinanceSettings } from '../network/financeAdminClient'
 import { useLedgerService } from './useLedgerService'
 import { assertTransition, derivePaymentStatus } from '../utils/invoiceStatus'
 import { calculateInvoice, calculateOutstanding } from '../utils/invoiceCalculations'
-import { formatNextInvoiceNumber } from '../utils/invoiceNumbering'
 import {
   buildCancelledPosting,
   buildIssuedPosting,
@@ -51,6 +50,12 @@ function generateId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 }
 
+function assertBillingBackend(accessToken: string | undefined): asserts accessToken is string {
+  if (!billingApiEnabled() || !accessToken) {
+    throw new Error('Billing backend is not configured')
+  }
+}
+
 export function useBillingData(context: BusinessAppContextProps) {
   const ledger = useLedgerService(context)
   const [state, setState] = useState<BillingState>({
@@ -61,20 +66,26 @@ export function useBillingData(context: BusinessAppContextProps) {
     usingSampleData: false
   })
   // Per-legal-entity numbering sequence (server-owned in production).
-  const [sequences, setSequences] = useState<Record<string, InvoiceNumberSequence>>({})
+  const [sequences] = useState<Record<string, InvoiceNumberSequence>>({})
 
   const refresh = useCallback(async () => {
     if (!context.accessToken) {
+      setState({
+        invoices: [],
+        settings: SAMPLE_SETTINGS,
+        loading: false,
+        error: 'Billing backend requires a valid access token',
+        usingSampleData: false
+      })
       return
     }
     if (!billingApiEnabled()) {
-      // No ledger lane on this environment: use sample data without a network call.
       setState({
-        invoices: SAMPLE_INVOICES,
+        invoices: [],
         settings: SAMPLE_SETTINGS,
         loading: false,
-        error: null,
-        usingSampleData: true
+        error: 'Billing backend is not configured',
+        usingSampleData: false
       })
       return
     }
@@ -92,15 +103,13 @@ export function useBillingData(context: BusinessAppContextProps) {
       }
       setState({ invoices, settings, loading: false, error: null, usingSampleData: false })
     } catch (err) {
-      // Ledger reachable lane configured but the call failed: fall back to
-      // sample data for previews, but keep the message so the UI can surface it.
       const message = err instanceof Error ? err.message : 'Unknown error reaching the ledger backend'
       setState({
-        invoices: SAMPLE_INVOICES,
+        invoices: [],
         settings: SAMPLE_SETTINGS,
         loading: false,
         error: message,
-        usingSampleData: true
+        usingSampleData: false
       })
     }
   }, [context.accessToken])
@@ -152,10 +161,10 @@ export function useBillingData(context: BusinessAppContextProps) {
       const invoice = state.invoices.find(item => item.id === invoiceId)
       if (!invoice) throw new Error('Invoice not found')
       assertTransition(invoice.status, 'ISSUED')
+      assertBillingBackend(context.accessToken)
 
       const sequence = getSequence(invoice.legalEntityId)
       const issueDate = new Date()
-      const serverMode = billingApiEnabled() && !!context.accessToken && !state.usingSampleData
 
       // Post the double-entry ledger transaction first (idempotent by eventId).
       const posting = buildIssuedPosting(
@@ -165,26 +174,18 @@ export function useBillingData(context: BusinessAppContextProps) {
       const response = await ledger.post(posting)
 
       // Server-owned path: BLNK assigns the authoritative, gap-free number.
-      let invoiceNumber: string
       let resolvedIssueDate = issueDate.toISOString()
-      if (serverMode) {
-        const updated = await apiIssueInvoice(context.accessToken!, invoiceId, {
-          idempotencyKey: posting.eventId,
-          numberPrefix: sequence.prefix,
-          numberPadding: sequence.padding,
-          ledgerTransactionRef: response.ledgerTransactionRef
-        })
-        if (!updated?.invoiceNumber) {
-          throw new Error('The backend did not return an invoice number')
-        }
-        invoiceNumber = updated.invoiceNumber
-        resolvedIssueDate = updated.issueDate ?? resolvedIssueDate
-      } else {
-        // Local/sample path: client-side numbering sequence.
-        const next = formatNextInvoiceNumber(sequence, issueDate)
-        invoiceNumber = next.invoiceNumber
-        setSequences(prev => ({ ...prev, [invoice.legalEntityId]: next.nextSequence }))
+      const updated = await apiIssueInvoice(context.accessToken, invoiceId, {
+        idempotencyKey: posting.eventId,
+        numberPrefix: sequence.prefix,
+        numberPadding: sequence.padding,
+        ledgerTransactionRef: response.ledgerTransactionRef
+      })
+      if (!updated?.invoiceNumber) {
+        throw new Error('The backend did not return an invoice number')
       }
+      const invoiceNumber = updated.invoiceNumber
+      resolvedIssueDate = updated.issueDate ?? resolvedIssueDate
 
       const final: Invoice = {
         ...invoice,
@@ -210,7 +211,7 @@ export function useBillingData(context: BusinessAppContextProps) {
       await persistInvoice(final)
       return invoiceNumber
     },
-    [state.invoices, state.usingSampleData, getSequence, ledger, updateInvoice, persistInvoice, context.accessToken]
+    [state.invoices, getSequence, ledger, updateInvoice, persistInvoice, context.accessToken]
   )
 
   const cancelInvoice = useCallback(
@@ -218,21 +219,19 @@ export function useBillingData(context: BusinessAppContextProps) {
       const invoice = state.invoices.find(item => item.id === invoiceId)
       if (!invoice) throw new Error('Invoice not found')
       assertTransition(invoice.status, 'CANCELLED')
+      assertBillingBackend(context.accessToken)
 
-      const serverMode = billingApiEnabled() && !!context.accessToken && !state.usingSampleData
       let ref: string | undefined
       if (invoice.status !== 'DRAFT') {
         const posting = buildCancelledPosting(invoice, { fxRate: invoice.fxRate?.rate ?? 1 })
         const response = await ledger.post(posting)
         ref = response.ledgerTransactionRef
       }
-      if (serverMode) {
-        await apiCancelInvoice(context.accessToken!, invoiceId, {
-          idempotencyKey: `cancel:${invoiceId}`,
-          reason,
-          ledgerTransactionRef: ref
-        })
-      }
+      await apiCancelInvoice(context.accessToken, invoiceId, {
+        idempotencyKey: `cancel:${invoiceId}`,
+        reason,
+        ledgerTransactionRef: ref
+      })
       const final: Invoice = {
         ...invoice,
         status: 'CANCELLED',
@@ -253,31 +252,29 @@ export function useBillingData(context: BusinessAppContextProps) {
       updateInvoice(invoiceId, () => final)
       await persistInvoice(final)
     },
-    [state.invoices, state.usingSampleData, ledger, updateInvoice, persistInvoice, context.accessToken]
+    [state.invoices, ledger, updateInvoice, persistInvoice, context.accessToken]
   )
 
   const recordPayment = useCallback(
     async (invoiceId: string, input: Omit<PaymentAllocation, 'id' | 'invoiceId' | 'ledgerTransactionRef'>) => {
       const invoice = state.invoices.find(item => item.id === invoiceId)
       if (!invoice) throw new Error('Invoice not found')
+      assertBillingBackend(context.accessToken)
 
-      const serverMode = billingApiEnabled() && !!context.accessToken && !state.usingSampleData
       const payment: PaymentAllocation = { ...input, id: generateId('pay'), invoiceId }
       const posting = buildPaidPosting(invoice, payment, { fxRate: invoice.fxRate?.rate ?? 1 })
       const response = await ledger.post(posting)
       payment.ledgerTransactionRef = response.ledgerTransactionRef
 
-      if (serverMode) {
-        await apiRecordInvoicePayment(context.accessToken!, invoiceId, {
-          idempotencyKey: posting.eventId,
-          amount: payment.amount,
-          currency: payment.currency,
-          method: payment.method,
-          reference: payment.externalReference ?? undefined,
-          ledgerTransactionRef: response.ledgerTransactionRef,
-          paidAt: payment.paymentDate
-        })
-      }
+      await apiRecordInvoicePayment(context.accessToken, invoiceId, {
+        idempotencyKey: posting.eventId,
+        amount: payment.amount,
+        currency: payment.currency,
+        method: payment.method,
+        reference: payment.externalReference ?? undefined,
+        ledgerTransactionRef: response.ledgerTransactionRef,
+        paidAt: payment.paymentDate
+      })
 
       const paidAmount = invoice.paidAmount + payment.amount
       const withPayment: Invoice = {
@@ -309,7 +306,7 @@ export function useBillingData(context: BusinessAppContextProps) {
       await persistInvoice(final)
       return payment
     },
-    [state.invoices, state.usingSampleData, ledger, updateInvoice, persistInvoice, context.accessToken]
+    [state.invoices, ledger, updateInvoice, persistInvoice, context.accessToken]
   )
 
   const writeOffInvoice = useCallback(
@@ -317,16 +314,14 @@ export function useBillingData(context: BusinessAppContextProps) {
       const invoice = state.invoices.find(item => item.id === invoiceId)
       if (!invoice) throw new Error('Invoice not found')
       assertTransition(invoice.status, 'WRITTEN_OFF')
-      const serverMode = billingApiEnabled() && !!context.accessToken && !state.usingSampleData
+      assertBillingBackend(context.accessToken)
       const outstanding = calculateOutstanding(invoice.totals.grossTotal, invoice.paidAmount)
       const posting = buildWriteOffPosting(invoice, outstanding, { fxRate: invoice.fxRate?.rate ?? 1 })
       const response = await ledger.post(posting)
-      if (serverMode) {
-        await apiWriteOffInvoice(context.accessToken!, invoiceId, {
-          idempotencyKey: `writeoff:${invoiceId}`,
-          ledgerTransactionRef: response.ledgerTransactionRef
-        })
-      }
+      await apiWriteOffInvoice(context.accessToken, invoiceId, {
+        idempotencyKey: `writeoff:${invoiceId}`,
+        ledgerTransactionRef: response.ledgerTransactionRef
+      })
       const final: Invoice = {
         ...invoice,
         status: 'WRITTEN_OFF',
@@ -345,11 +340,12 @@ export function useBillingData(context: BusinessAppContextProps) {
       updateInvoice(invoiceId, () => final)
       await persistInvoice(final)
     },
-    [state.invoices, state.usingSampleData, ledger, updateInvoice, persistInvoice, context.accessToken]
+    [state.invoices, ledger, updateInvoice, persistInvoice, context.accessToken]
   )
 
   const createInvoice = useCallback(
     async (draft: InvoiceDraftInput): Promise<Invoice> => {
+      assertBillingBackend(context.accessToken)
       const legalEntity = state.settings.legalEntities.find(entity => entity.id === draft.legalEntityId)
       const { lines, totals } = calculateInvoice(
         draft.lines.map((line, index) => ({ id: `line-${index}`, ...line })),
@@ -383,9 +379,7 @@ export function useBillingData(context: BusinessAppContextProps) {
         updatedAt: timestamp
       }
       // Persist first so form-level errors surface; reconcile state on success.
-      if (billingApiEnabled() && context.accessToken) {
-        await apiCreateInvoice(context.accessToken, invoice)
-      }
+      await apiCreateInvoice(context.accessToken, invoice)
       setState(prev => ({ ...prev, invoices: [invoice, ...prev.invoices] }))
       return invoice
     },

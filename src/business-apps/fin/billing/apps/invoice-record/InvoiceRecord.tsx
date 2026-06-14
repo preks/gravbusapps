@@ -31,7 +31,7 @@ import { CreditNoteDialog } from './components/CreditNoteDialog'
 import { createCreditNote, financeAdminEnabled } from '../../common/network/financeAdminClient'
 import { formatCurrency } from '../../common/utils/currency'
 import { calculateOutstanding } from '../../common/utils/invoiceCalculations'
-import { canTransition } from '../../common/utils/invoiceStatus'
+import { canTransition, getInvoiceDisplayStatus } from '../../common/utils/invoiceStatus'
 import { buildInvoicePdfModel } from '../../common/utils/invoicePdf'
 import { printInvoiceDocument } from '../../common/utils/invoicePrint'
 import { invoiceCustomerName } from '../../common/utils/customers'
@@ -137,7 +137,7 @@ const InvoiceRecord: React.FC<InvoiceRecordProps> = props => {
           <div className="gba:flex gba:flex-col gba:gap-1">
             <div className="gba:flex gba:items-center gba:gap-3">
               <h1 className="gba:text-xl gba:font-semibold">{invoice.invoiceNumber ?? t('billing-record-title')}</h1>
-              <BillingStatusBadge status={invoice.status} />
+              <BillingStatusBadge status={getInvoiceDisplayStatus(invoice)} />
             </div>
             <span className="gba:text-sm gba:text-muted-foreground">{invoiceCustomerName(invoice, customers)}</span>
           </div>

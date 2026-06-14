@@ -12,7 +12,6 @@ import type { AttentionReasonCode, CustomerPortfolioSummary } from './types'
 export interface AttentionSignals {
   summary: CustomerPortfolioSummary
   ownerId?: string
-  status?: string
 }
 
 export interface AttentionResult {
@@ -26,7 +25,7 @@ const clamp = (value: number): number => Math.max(0, Math.min(100, Math.round(va
  * Weighted contributions. Health (when known) sets the baseline; explicit
  * service/finance signals add on top. The result is clamped to 0–100.
  */
-export function computeAttention({ summary, ownerId, status }: AttentionSignals): AttentionResult {
+export function computeAttention({ summary, ownerId }: AttentionSignals): AttentionResult {
   const reasons: AttentionReasonCode[] = []
   let score = typeof summary.health === 'number' ? 100 - summary.health : 0
 
@@ -54,10 +53,5 @@ export function computeAttention({ summary, ownerId, status }: AttentionSignals)
     score += 15
     reasons.push('no-owner')
   }
-  if (status === 'prospective') {
-    score += 10
-    reasons.push('prospective')
-  }
-
   return { score: clamp(score), reasons }
 }

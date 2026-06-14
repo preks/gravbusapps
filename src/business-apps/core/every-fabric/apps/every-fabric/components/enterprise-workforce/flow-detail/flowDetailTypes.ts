@@ -17,10 +17,16 @@ export interface FlowDetailStep {
   title: string
   type?: string
   status: string
+  taskId?: string
+  taskBusinessId?: string
+  actionId?: string
+  lifecycleId?: string
+  assignmentStatus?: string
   assignmentMode?: string
   // Actor ids / sentinels (MULTIPLE / UNASSIGNED / AVAILABLE / PENDING).
   // The overview never returns display names; those are backfilled from history.
   assignedTo?: string
+  assignedUserId?: string
   completedBy?: string
   totalTasks?: number
   completedTasks?: number

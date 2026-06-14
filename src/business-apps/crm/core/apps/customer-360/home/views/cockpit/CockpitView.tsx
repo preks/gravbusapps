@@ -9,7 +9,7 @@ import {
 } from '@phosphor-icons/react'
 import customer360I18n from '../../../_i18n'
 import WidgetGroup, { type WidgetItem } from '@/components/widget-group'
-import Customer360Section from '../../../components/Customer360Section'
+import Customer360Section from '../../../shared/Customer360Section'
 import { formatCurrency } from '../../../utils/format'
 import AttentionList from '../../components/AttentionList'
 import ProvisionalNote from '../../components/ProvisionalNote'
@@ -21,7 +21,7 @@ const COCKPIT_PREVIEW_LIMIT = 5
 
 /**
  * Portfolio cockpit — the Customer 360 home landing. Welcomes with a hero,
- * surfaces book-of-business KPIs, previews the attention worklist and offers a
+ * surfaces book-of-business KPIs, previews attention accounts and offers a
  * navigable insight hub into renewals, analytics and the portfolio agent.
  */
 const CockpitView: React.FC<Customer360HomeViewProps> = ({ portfolio, openCustomer, onNavigateView }) => {
@@ -33,7 +33,6 @@ const CockpitView: React.FC<Customer360HomeViewProps> = ({ portfolio, openCustom
     return [
       { key: 'total', title: t('cockpit-total-customers'), value: stats.totalCustomers },
       { key: 'accounts', title: t('cockpit-accounts'), value: stats.totalAccounts },
-      { key: 'contacts', title: t('cockpit-contacts'), value: stats.totalContacts },
       {
         key: 'attention',
         title: t('cockpit-needs-attention'),
@@ -60,12 +59,10 @@ const CockpitView: React.FC<Customer360HomeViewProps> = ({ portfolio, openCustom
   const topAttention = useMemo(() => rows.filter(row => row.attentionReasons.length > 0), [rows])
 
   const renewalsCount = useMemo(() => {
-    const expiring = rows.filter(row => (row.summary.expiringContracts ?? 0) > 0).length
-    const prospects = rows.filter(row => row.status === 'prospective').length
-    return expiring + prospects
+    return rows.filter(row => (row.summary.expiringContracts ?? 0) > 0).length
   }, [rows])
 
-  const compositionMetric = `${stats.totalAccounts} · ${stats.totalContacts}`
+  const compositionMetric = stats.totalCustomers
 
   return (
     <div className="gba:flex gba:flex-col gba:gap-4" data-testid="customer-360-cockpit-view">
@@ -95,7 +92,7 @@ const CockpitView: React.FC<Customer360HomeViewProps> = ({ portfolio, openCustom
             emptyDescription={t('worklist-empty-description')}
             testId="customer-360-cockpit-attention"
             action={
-              <Button variant="ghost" size="sm" onClick={() => onNavigateView('worklist')}>
+              <Button variant="ghost" size="sm" onClick={() => onNavigateView('explorer', { attentionFilter: true })}>
                 <ListChecksIcon className="gba:mr-2 gba:size-4" />
                 {t('cockpit-view-worklist')}
               </Button>

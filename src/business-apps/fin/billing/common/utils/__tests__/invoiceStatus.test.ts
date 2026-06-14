@@ -2,10 +2,11 @@ import {
   canTransition,
   assertTransition,
   derivePaymentStatus,
+  getInvoiceDisplayStatus,
   isOverdue,
   getInvoiceStatusBadgeVariant
 } from '../invoiceStatus'
-import type { Invoice, InvoiceStatus } from '../../types'
+import type { Invoice, InvoiceDisplayStatus } from '../../types'
 
 function makeInvoice(overrides: Partial<Invoice>): Invoice {
   return {
@@ -34,7 +35,7 @@ describe('transitions', () => {
   it('allows valid transitions', () => {
     expect(canTransition('DRAFT', 'ISSUED')).toBe(true)
     expect(canTransition('ISSUED', 'PAID')).toBe(true)
-    expect(canTransition('OVERDUE', 'WRITTEN_OFF')).toBe(true)
+    expect(canTransition('PARTIALLY_PAID', 'WRITTEN_OFF')).toBe(true)
   })
 
   it('rejects invalid transitions', () => {
@@ -53,27 +54,28 @@ describe('derivePaymentStatus', () => {
 
   it('keeps an unpaid not-yet-due invoice as ISSUED', () => {
     const invoice = makeInvoice({ status: 'ISSUED', paidAmount: 0 })
-    expect(derivePaymentStatus(invoice, now)).toBe('ISSUED')
+    expect(derivePaymentStatus(invoice)).toBe('ISSUED')
   })
 
   it('returns PARTIALLY_PAID when partially settled and not overdue', () => {
     const invoice = makeInvoice({ status: 'ISSUED', paidAmount: 40 })
-    expect(derivePaymentStatus(invoice, now)).toBe('PARTIALLY_PAID')
+    expect(derivePaymentStatus(invoice)).toBe('PARTIALLY_PAID')
   })
 
   it('returns PAID when fully settled', () => {
     const invoice = makeInvoice({ status: 'ISSUED', paidAmount: 100 })
-    expect(derivePaymentStatus(invoice, now)).toBe('PAID')
+    expect(derivePaymentStatus(invoice)).toBe('PAID')
   })
 
-  it('returns OVERDUE when past due and unpaid', () => {
+  it('keeps backend status when past due and unpaid', () => {
     const invoice = makeInvoice({ status: 'ISSUED', paidAmount: 0, dueDate: '2026-01-05T00:00:00Z' })
-    expect(derivePaymentStatus(invoice, now)).toBe('OVERDUE')
+    expect(derivePaymentStatus(invoice)).toBe('ISSUED')
+    expect(getInvoiceDisplayStatus(invoice, now)).toBe('OVERDUE')
   })
 
   it('does not change DRAFT or CANCELLED', () => {
-    expect(derivePaymentStatus(makeInvoice({ status: 'DRAFT' }), now)).toBe('DRAFT')
-    expect(derivePaymentStatus(makeInvoice({ status: 'CANCELLED' }), now)).toBe('CANCELLED')
+    expect(derivePaymentStatus(makeInvoice({ status: 'DRAFT' }))).toBe('DRAFT')
+    expect(derivePaymentStatus(makeInvoice({ status: 'CANCELLED' }))).toBe('CANCELLED')
   })
 })
 
@@ -84,11 +86,15 @@ describe('isOverdue', () => {
   it('is true when outstanding and past due', () => {
     expect(isOverdue(makeInvoice({ paidAmount: 0 }), new Date('2026-02-01T00:00:00Z'))).toBe(true)
   })
+  it('is false for terminal invoices', () => {
+    expect(isOverdue(makeInvoice({ status: 'CANCELLED' }), new Date('2026-02-01T00:00:00Z'))).toBe(false)
+    expect(isOverdue(makeInvoice({ status: 'WRITTEN_OFF' }), new Date('2026-02-01T00:00:00Z'))).toBe(false)
+  })
 })
 
 describe('getInvoiceStatusBadgeVariant', () => {
   it('maps statuses to variants', () => {
-    const cases: Array<[InvoiceStatus, string]> = [
+    const cases: Array<[InvoiceDisplayStatus, string]> = [
       ['PAID', 'paid'],
       ['OVERDUE', 'overdue'],
       ['DRAFT', 'secondary'],

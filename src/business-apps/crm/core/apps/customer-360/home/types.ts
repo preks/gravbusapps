@@ -8,27 +8,22 @@
  */
 
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { CustomerSubjectType } from '../data/types'
 import type { UseCustomerPortfolioResult } from '../data/portfolio/types'
 
-export const CUSTOMER_360_HOME_VIEWS = [
-  'cockpit',
-  'worklist',
-  'explorer',
-  'inbound',
-  'renewals',
-  'analytics',
-  'agent'
-] as const
+export const CUSTOMER_360_HOME_VIEWS = ['cockpit', 'explorer', 'inbound', 'renewals', 'analytics', 'agent'] as const
 
 export type Customer360HomeViewKey = (typeof CUSTOMER_360_HOME_VIEWS)[number]
 
 export const DEFAULT_HOME_VIEW: Customer360HomeViewKey = 'cockpit'
 
+export interface Customer360HomeNavigateOptions {
+  attentionFilter?: boolean
+}
+
 export interface Customer360HomeViewProps extends BusinessAppContextProps {
   portfolio: UseCustomerPortfolioResult
-  /** Opens the 360° detail for a given customer (account or contact). */
-  openCustomer: (type: CustomerSubjectType, id: string) => void
+  /** Opens the 360° detail for a customer account. */
+  openCustomer: (id: string) => void
   /** Switches the active Home sub-view (used by cockpit CTAs). */
-  onNavigateView: (view: Customer360HomeViewKey) => void
+  onNavigateView: (view: Customer360HomeViewKey, options?: Customer360HomeNavigateOptions) => void
 }

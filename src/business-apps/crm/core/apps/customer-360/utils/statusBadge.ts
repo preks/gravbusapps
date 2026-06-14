@@ -31,6 +31,8 @@ const CLOSED_STATUSES = new Set([
   'canceled',
   'terminated',
   'paid',
+  'written_off',
+  'written off',
   'expired',
   'rejected'
 ])

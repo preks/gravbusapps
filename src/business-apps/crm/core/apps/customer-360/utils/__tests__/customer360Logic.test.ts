@@ -1,7 +1,13 @@
 import { formatNumber, formatCurrency, parseDate, formatDate, byTimestampDesc } from '../format'
 import { getStatusBadgeVariant, isOpenStatus } from '../statusBadge'
-import { deriveBalance } from '../../data/deriveBalance'
+import { deriveBalance } from '../../data/record/deriveBalance'
 import type { CustomerInvoice } from '../../data/types'
+import {
+  buildCustomerFlowListQuery,
+  CUSTOMER_SUPPORT_FLOW_TAGS,
+  CUSTOMER_SUPPORT_LIFECYCLE,
+  listCustomerFlows
+} from '../../data/network/customerFlowClient'
 
 describe('format utils', () => {
   it('formats numbers and returns empty string for invalid input', () => {
@@ -70,5 +76,61 @@ describe('deriveBalance', () => {
     // Only the past-due open invoice (#1) counts as overdue; the paid one is excluded.
     expect(balance?.overdueAmount).toBe(100)
     expect(balance?.currency).toBe('EUR')
+  })
+})
+
+describe('customerFlowClient', () => {
+  const originalFetch = global.fetch
+
+  afterEach(() => {
+    global.fetch = originalFetch
+    jest.restoreAllMocks()
+  })
+
+  it('builds Customer Support flow queries with Services ownership tags', () => {
+    const query = buildCustomerFlowListQuery({
+      subjectId: 'account-123',
+      lifecycleType: CUSTOMER_SUPPORT_LIFECYCLE.serviceTicket
+    })
+
+    expect(query.get('correlationEntity')).toBe('account')
+    expect(query.get('correlationEntityId')).toBe('account-123')
+    expect(query.get('tag.app')).toBe(CUSTOMER_SUPPORT_FLOW_TAGS.app)
+    expect(query.get('tag.serviceCategory')).toBe(CUSTOMER_SUPPORT_FLOW_TAGS.serviceCategory)
+    expect(query.get('tag.sourceApp')).toBe(CUSTOMER_SUPPORT_FLOW_TAGS.sourceApp)
+    expect(query.get('tag.solution')).toBe(CUSTOMER_SUPPORT_FLOW_TAGS.solution)
+    expect(query.get('tag.lifecycleType')).toBe(CUSTOMER_SUPPORT_LIFECYCLE.serviceTicket)
+  })
+
+  it('filters returned flows by lifecycle metadata when the response includes it', async () => {
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      json: jest.fn().mockResolvedValue({
+        flows: [
+          {
+            flowId: 'ticket-flow',
+            title: 'Ticket',
+            tags: { lifecycleType: CUSTOMER_SUPPORT_LIFECYCLE.serviceTicket }
+          },
+          {
+            flowId: 'reclamation-flow',
+            title: 'Reclamation',
+            lifecycleType: CUSTOMER_SUPPORT_LIFECYCLE.reclamation
+          }
+        ]
+      })
+    })
+    global.fetch = fetchMock as unknown as typeof fetch
+
+    const flows = await listCustomerFlows({
+      accessToken: 'token',
+      subjectId: 'account-123',
+      lifecycleType: CUSTOMER_SUPPORT_LIFECYCLE.reclamation
+    })
+
+    expect(flows).toHaveLength(1)
+    expect(flows[0].id).toBe('reclamation-flow')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(String(fetchMock.mock.calls[0][0])).toContain('tag.lifecycleType=reclamation')
   })
 })

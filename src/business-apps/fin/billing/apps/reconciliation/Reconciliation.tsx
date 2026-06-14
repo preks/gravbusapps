@@ -32,7 +32,11 @@ const Reconciliation: React.FC<ReconciliationProps> = props => {
   const statementLines = recon.lines
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const matches = useMemo(() => suggestMatches(statementLines, billing.invoices), [statementLines, billing.invoices])
+  const localMatches = useMemo(
+    () => suggestMatches(statementLines, billing.invoices),
+    [statementLines, billing.invoices]
+  )
+  const matches = recon.suggestionsAvailable ? recon.matches : localMatches
   const exceptions = useMemo(() => findExceptions(statementLines, matches), [statementLines, matches])
   const invoiceById = useMemo(() => new Map(billing.invoices.map(invoice => [invoice.id, invoice])), [billing.invoices])
 
@@ -60,21 +64,8 @@ const Reconciliation: React.FC<ReconciliationProps> = props => {
   }
 
   const handleApply = async (bankLineId: string, invoiceId: string, amount: number) => {
-    const line = statementLines.find(item => item.id === bankLineId)
-    if (!line) return
     try {
-      // Live mode: the backend records the payment and marks the line matched.
-      const appliedServerSide = await recon.applyMatch(bankLineId, invoiceId, amount)
-      if (!appliedServerSide) {
-        // Sample/local mode: record the payment through the local billing flow.
-        await billing.recordPayment(invoiceId, {
-          amount,
-          currency: line.currency,
-          method: 'BANK_TRANSFER',
-          paymentDate: line.bookingDate,
-          externalReference: line.reference ?? null
-        })
-      }
+      await recon.applyMatch(bankLineId, invoiceId, amount)
       toast.success(t('billing-reconciliation-apply'))
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to apply match')
@@ -88,9 +79,18 @@ const Reconciliation: React.FC<ReconciliationProps> = props => {
       headerDescription={t('billing-reconciliation-description')}
       variant="default"
     >
-      {(billing.usingSampleData || recon.usingSampleData) && (
+      {(billing.usingSampleData || recon.usingSampleData || billing.error || recon.error) && (
         <Alert className="gba:mb-4">
-          <AlertDescription>{t('billing-sample-data-notice')}</AlertDescription>
+          <AlertDescription>
+            {billing.usingSampleData || recon.usingSampleData
+              ? t('billing-sample-data-notice')
+              : t('billing-backend-error-notice')}
+            {(billing.error || recon.error) && (
+              <span className="gba:block gba:mt-1 gba:text-muted-foreground">
+                {`${t('billing-connection-detail')}: ${billing.error ?? recon.error}`}
+              </span>
+            )}
+          </AlertDescription>
         </Alert>
       )}
 

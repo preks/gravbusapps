@@ -25,7 +25,7 @@
        └───┬───────────────┬───────────────────┬───────────────────┬────────────────────┘
            │               │                   │                   │
    custom-flow-engine   document-service   NewWork Connect       CRM core
-   tickets/cases/        contracts          (Fibu) invoices/      accounts/contacts/
+  tickets/cases/        contracts          (Fibu) invoices/      accounts/
    reclamations          (CrmDocument)      transactions/balance  scoring/journal
 ```
 
@@ -39,7 +39,7 @@ The agent reaches the **same** aggregator via the `getCustomer360` provider tool
 
 ### 1.1 `GET /customer-relations/getCustomer360` (single customer) — **already referenced by the agent tool**
 
-Query params: `type` = `account|contact` (required), `id` = UUID (required).
+Query params: `id` = account UUID (required). Customer 360 records are account-only.
 
 Response: the normalized **`Customer360Snapshot`** (frozen contract in `data/types.ts`). All slices optional; arrays default to `[]`.
 
@@ -64,7 +64,7 @@ Aggregation responsibilities (fan-out, then normalize — never leak upstream sh
 
 | Slice                               | Source                                   | Notes                            |
 | ----------------------------------- | ---------------------------------------- | -------------------------------- |
-| `scores`                            | CRM scoring (account/contact AI/ICP)     | passthrough                      |
+| `scores`                            | CRM account scoring                      | passthrough                      |
 | `satisfaction`                      | **§1.3 (new)**                           | CSAT/NPS store                   |
 | `contracts`                         | document-service via **§1.4**            | filter `documentType = CONTRACT` |
 | `tickets`/`cases`/`reclamations`    | custom-flow-engine via **§2**            | correlationId match              |
@@ -75,13 +75,14 @@ Errors: `400` (bad/missing params), `401` (no token), `404` (subject not found).
 
 ### 1.2 `GET /customer-relations/customer-summary-list` (portfolio) — **NEW, powers Home**
 
-Backs `useCustomerPortfolio` (cockpit, attention worklist, explorer, renewals, analytics). Returns a **lightweight** per-customer health summary for the whole book of business — NOT the full snapshot.
+Backs `useCustomerPortfolio` (cockpit, explorer, renewals, analytics). Returns a **lightweight** per-customer health summary for the whole book of business — NOT the full snapshot.
+
+CRM customer portfolios are **account-only**. Contacts are contact people linked to accounts and must not be returned as portfolio customers. Only accounts with `prospective = false` are considered customers.
 
 Query params:
 
 | Param             | Type                                     | Default     | Notes                 |
 | ----------------- | ---------------------------------------- | ----------- | --------------------- |
-| `type`            | `account\|contact\|all`                  | `all`       | filter subject kind   |
 | `ownerEmployeeId` | UUID                                     | —           | scope to a rep's book |
 | `search`          | string                                   | —           | name/company          |
 | `limit`           | int (1–200)                              | 100         |                       |
@@ -97,9 +98,9 @@ Response:
       "id": "uuid",
       "type": "account",
       "displayName": "Acme GmbH",
-      "secondary": "acme.example", // industry/website/job title
+      "secondary": "acme.example", // industry/website
       "ownerEmployeeId": "uuid|null",
-      "status": "active|prospective|churned",
+      "status": "active|churned",
       "summary": {
         "health": 0, // 0–100, server-computed
         "csat": 0,
@@ -130,17 +131,17 @@ Response:
 
 **Attention scoring parity:** the FE computes attention from `summary` via `data/portfolio/computeAttention.ts` (deterministic). The backend MAY also return a precomputed `attentionScore`/`reasons`; if so it MUST use the same weights so UI and BE agree. Until then the FE owns scoring.
 
-> **Provisional fallback (today):** until §1.2 ships, `useCustomerPortfolio` derives a _provisional_ `health` from real CRM fields only (owner present, prospective flag) and flags `provisional: true`. No ticket/finance counts are invented. The cockpit/worklist disclose this via `home-provisional-note`.
+> **Provisional fallback (today):** until §1.2 ships, `useCustomerPortfolio` derives a _provisional_ `health` from real CRM fields only (owner present) and flags `provisional: true`. No ticket/finance counts are invented. The cockpit and explorer disclose this via `home-provisional-note`.
 
 ### 1.3 Satisfaction store (CSAT / NPS) — **NEW**
 
-- Persist survey responses linked to `subjectType`+`subjectId`.
+- Persist survey responses linked to account id.
 - Expose latest `csat` (0–100), `nps` (−100..100), `lastSurveyDate` for §1.1 and rolled-up `avgCsat` for §1.2.
 - Source of truth for the `low-csat` attention reason (threshold: CSAT < 60).
 
 ### 1.4 Contract document type — **document-service extension**
 
-- Add/confirm a `documentType = CONTRACT` classification on `CrmDocument` linked to account/contact.
+- Add/confirm a `documentType = CONTRACT` classification on `CrmDocument` linked to account.
 - Surface `documentType`, `mimeType`, `fileSize`, `createdAt`, and a `fileInfo { path, fileMetadata }` handle for preview/download.
 - `expiringContracts` = contracts with `endDate` within 60 days and `status = active`.
 
@@ -157,7 +158,7 @@ Response:
       "receivedAt": "ISO-8601",
       "subject": "string",
       "preview": "string",
-      "matchedCustomer": { "type": "account|contact", "id": "uuid", "displayName": "string", "confidence": 0.0 },
+      "matchedCustomer": { "type": "account", "id": "uuid", "displayName": "string", "confidence": 0.0 },
       "status": "new|triaged|replied"
     }
   ],
@@ -171,11 +172,11 @@ Matching: resolve sender email → communication channel → contact → account
 
 ## 2. custom-flow-engine — tickets, cases, reclamations
 
-### 2.1 Contact-level correlation
+### 2.1 Account-level correlation
 
 - Today flows correlate via `correlationId` in the form `entity:entityId` (e.g. `account:<uuid>`).
-- **Add `contact:<uuid>`** correlation so a ticket/case can attach to either an account or a contact (Customer 360 is polymorphic).
-- `getCustomer360` queries the engine by the subject's `entity:id` and returns matching flows.
+- Customer 360 queries account correlations only; tickets/cases linked to contacts should be rolled up to the owning account by the aggregation layer.
+- `getCustomer360` queries the engine by `account:<id>` and returns matching flows.
 
 ### 2.2 Flow templates (process definitions)
 
@@ -205,7 +206,7 @@ Matching: resolve sender email → communication channel → contact → account
 | balance by customer             | `balance` (`openAmount`, `overdueAmount`, `lifetimeValue`, `currency`)           |
 
 - `overdueAmount > 0` drives the `overdue-invoice` attention reason and the cockpit `overdue` KPI.
-- A Fibu customer-id mapping (CRM account/contact → Fibu debtor) is required; expose it in the summary refresh job.
+- A Fibu customer-id mapping (CRM account → Fibu debtor) is required; expose it in the summary refresh job.
 - Until wired, the Transactions & Fibu detail tab and the cockpit `overdue` KPI show awaiting/`—` states.
 
 ---
@@ -242,5 +243,5 @@ Matching: resolve sender email → communication channel → contact → account
 1. **§1.4 contract type** + **§2 flow templates/correlation** → unlocks real contracts/tickets/cases in the 360° detail.
 2. **§1.1 getCustomer360** aggregator hardening → agent + detail fully live.
 3. **§1.3 satisfaction** + **§3 Fibu** → CSAT + finances (real attention reasons).
-4. **§1.2 customer-summary-list** (materialized) → Home cockpit/worklist/explorer drop the provisional flag.
+4. **§1.2 customer-summary-list** (materialized) → Home cockpit/explorer drop the provisional flag.
 5. **§1.5 inbound** → Inbound triage stream goes live.

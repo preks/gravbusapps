@@ -17,11 +17,13 @@ export const INVOICE_STATUSES = [
   'SENT',
   'PARTIALLY_PAID',
   'PAID',
-  'OVERDUE',
   'CANCELLED',
   'WRITTEN_OFF'
 ] as const
 export type InvoiceStatus = (typeof INVOICE_STATUSES)[number]
+
+/** UI-only status derived from due date and outstanding amount; never persisted to Blnk. */
+export type InvoiceDisplayStatus = InvoiceStatus | 'OVERDUE'
 
 /** How a tax category behaves for calculation and reporting. */
 export const TAX_TREATMENTS = ['STANDARD', 'REDUCED', 'ZERO_RATED', 'EXEMPT', 'REVERSE_CHARGE', 'INTRA_EU'] as const

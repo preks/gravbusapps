@@ -186,9 +186,13 @@ const BillingLauncher: React.FC<BillingLauncherProps> = props => {
       <div className="gba:flex gba:justify-end gba:px-4 gba:pt-4">
         <BillingHealthChip context={props} />
       </div>
-      {billing.usingSampleData && (
+      {(billing.usingSampleData || billing.error) && (
         <div className="gba:px-4 gba:pt-4">
-          <BillingSampleNotice show error={billing.error} dataTestId="billing-launcher-sample-notice" />
+          <BillingSampleNotice
+            show={billing.usingSampleData}
+            error={billing.error}
+            dataTestId="billing-launcher-sample-notice"
+          />
         </div>
       )}
       <LauncherLayout

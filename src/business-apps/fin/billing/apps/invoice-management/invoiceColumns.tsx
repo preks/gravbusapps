@@ -2,6 +2,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { BillingStatusBadge } from '../../common/components/BillingStatusBadge'
 import { formatCurrency } from '../../common/utils/currency'
 import { calculateOutstanding } from '../../common/utils/invoiceCalculations'
+import { getInvoiceDisplayStatus } from '../../common/utils/invoiceStatus'
 import { invoiceCustomerName } from '../../common/utils/customers'
 import { formatDate } from '@/common/utils/windowUtils'
 import type { Invoice } from '../../common/types'
@@ -32,7 +33,7 @@ export function buildInvoiceColumns(labels: ColumnLabels): ColumnDef<Invoice>[] 
     {
       accessorKey: 'status',
       header: labels.status,
-      cell: ({ row }) => <BillingStatusBadge status={row.original.status} />
+      cell: ({ row }) => <BillingStatusBadge status={getInvoiceDisplayStatus(row.original)} />
     },
     {
       accessorKey: 'issueDate',

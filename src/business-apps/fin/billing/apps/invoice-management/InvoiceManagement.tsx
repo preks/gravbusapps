@@ -20,9 +20,10 @@ import { useBillingPermissions } from '../../common/hooks/useBillingPermissions'
 import { BillingSampleNotice } from '../../common/components/BillingSampleNotice'
 import { invoiceCustomerName } from '../../common/utils/customers'
 import { getInvoiceStatusLabel } from '../../common/utils/billingLabels'
+import { getInvoiceDisplayStatus } from '../../common/utils/invoiceStatus'
 import { ExpenseDataTable } from '@/business-apps/fin/expenses/common/components/table/ExpenseDataTable'
 import { buildInvoiceColumns } from './invoiceColumns'
-import { INVOICE_STATUSES, type Invoice, type InvoiceStatus } from '../../common/types'
+import { INVOICE_STATUSES, type Invoice, type InvoiceDisplayStatus } from '../../common/types'
 import { invoicesToCsv, downloadCsv } from '../../common/utils/invoiceExport'
 
 type InvoiceManagementProps = BusinessAppContextProps
@@ -32,7 +33,7 @@ const InvoiceManagement: React.FC<InvoiceManagementProps> = props => {
   const { t } = useTranslation(billingTranslations)
   const billing = useBillingData(props)
   const permissions = useBillingPermissions(props)
-  const [statusFilter, setStatusFilter] = useState<InvoiceStatus | 'ALL'>('ALL')
+  const [statusFilter, setStatusFilter] = useState<InvoiceDisplayStatus | 'ALL'>('ALL')
   const [search, setSearch] = useState('')
 
   const isContextReady = Boolean(accessToken && userInfo)
@@ -55,7 +56,7 @@ const InvoiceManagement: React.FC<InvoiceManagementProps> = props => {
   const filteredInvoices = useMemo(() => {
     const term = search.trim().toLowerCase()
     return billing.invoices.filter(invoice => {
-      if (statusFilter !== 'ALL' && invoice.status !== statusFilter) {
+      if (statusFilter !== 'ALL' && getInvoiceDisplayStatus(invoice) !== statusFilter) {
         return false
       }
       if (!term) {
@@ -121,7 +122,10 @@ const InvoiceManagement: React.FC<InvoiceManagementProps> = props => {
             />
           </div>
           <div className="gba:w-56">
-            <Select value={statusFilter} onValueChange={value => setStatusFilter(value as InvoiceStatus | 'ALL')}>
+            <Select
+              value={statusFilter}
+              onValueChange={value => setStatusFilter(value as InvoiceDisplayStatus | 'ALL')}
+            >
               <SelectTrigger data-testid="invoice-status-filter">
                 <SelectValue placeholder={t('billing-filter-status')} />
               </SelectTrigger>
@@ -132,6 +136,7 @@ const InvoiceManagement: React.FC<InvoiceManagementProps> = props => {
                     {getInvoiceStatusLabel(status, t)}
                   </SelectItem>
                 ))}
+                <SelectItem value="OVERDUE">{getInvoiceStatusLabel('OVERDUE', t)}</SelectItem>
               </SelectContent>
             </Select>
           </div>

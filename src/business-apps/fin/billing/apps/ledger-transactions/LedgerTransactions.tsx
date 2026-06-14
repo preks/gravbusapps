@@ -14,12 +14,13 @@ import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ExpenseDataTable } from '@/business-apps/fin/expenses/common/components/table/ExpenseDataTable'
 import billingTranslations from '../../common/_i18n'
 import { useLedgerAdmin } from '../../common/hooks/useLedgerAdmin'
+import { useBillingData } from '../../common/hooks/useBillingData'
 import { useBillingPermissions } from '../../common/hooks/useBillingPermissions'
 import { buildAccountIndex, displayAccountName } from '../../common/utils/ledgerNames'
 import { buildTransactionColumns } from '../ledger-admin/ledgerColumns'
 import LedgerCreateDialog, { type LedgerDialogKind } from '../ledger-admin/LedgerCreateDialog'
 import LedgerDetailSheet, { type LedgerSelection } from '../ledger-admin/LedgerDetailSheet'
-import type { LedgerAccount } from '../../common/network/ledgerAdminClient'
+import type { CreateTransactionInput, LedgerAccount } from '../../common/network/ledgerAdminClient'
 
 type LedgerTransactionsProps = BusinessAppContextProps
 
@@ -28,12 +29,30 @@ function readQueryParam(name: string): string | null {
   return new URLSearchParams(window.location.search).get(name)
 }
 
+function transactionMatchesCustomer(
+  item: { metaData?: Record<string, unknown> },
+  crmAccountId: string | null,
+  customerRef: string | null
+): boolean {
+  const metadata = item.metaData ?? {}
+  return (
+    metadata.crmAccountId === crmAccountId ||
+    metadata.invoiceAccountId === crmAccountId ||
+    metadata.customerRef === customerRef
+  )
+}
+
 const LedgerTransactions: React.FC<LedgerTransactionsProps> = props => {
   const { accessToken } = props
   const { t } = useTranslation(billingTranslations)
   const ledgerAdmin = useLedgerAdmin(props)
+  const billing = useBillingData(props)
   const permissions = useBillingPermissions(props)
-  const [dialogKind, setDialogKind] = useState<LedgerDialogKind | null>(null)
+  const crmAccountId = readQueryParam('crmAccountId')
+  const customerRef = readQueryParam('customerRef') ?? (crmAccountId ? `account:${crmAccountId}` : null)
+  const [dialogKind, setDialogKind] = useState<LedgerDialogKind | null>(() =>
+    readQueryParam('create') === 'transaction' ? 'transaction' : null
+  )
   const [search, setSearch] = useState('')
   const [selection, setSelection] = useState<LedgerSelection | null>(null)
   const [prefillSource, setPrefillSource] = useState('')
@@ -68,6 +87,9 @@ const LedgerTransactions: React.FC<LedgerTransactionsProps> = props => {
   const term = search.trim().toLowerCase()
   const filteredTransactions = useMemo(() => {
     let rows = ledgerAdmin.transactions
+    if (crmAccountId || customerRef) {
+      rows = rows.filter(item => transactionMatchesCustomer(item, crmAccountId, customerRef))
+    }
     if (accountFilter) {
       const refs = new Set([accountFilter, filterAccount?.id].filter(Boolean) as string[])
       rows = rows.filter(
@@ -82,7 +104,7 @@ const LedgerTransactions: React.FC<LedgerTransactionsProps> = props => {
       )
     }
     return rows
-  }, [ledgerAdmin.transactions, accountFilter, filterAccount, term])
+  }, [ledgerAdmin.transactions, crmAccountId, customerRef, accountFilter, filterAccount, term])
 
   const openCreate = () => {
     setPrefillSource(accountFilter ?? '')
@@ -110,6 +132,22 @@ const LedgerTransactions: React.FC<LedgerTransactionsProps> = props => {
     )
   }
 
+  const createTransaction = (input: CreateTransactionInput) =>
+    ledgerAdmin.addTransaction({
+      ...input,
+      metaData: {
+        ...input.metaData,
+        ...(crmAccountId
+          ? {
+              crmAccountId,
+              customerType: 'account',
+              customerRef: customerRef ?? `account:${crmAccountId}`,
+              sourceApp: 'customer-360'
+            }
+          : {})
+      }
+    })
+
   if (!accessToken || ledgerAdmin.loading) {
     return (
       <div
@@ -129,10 +167,10 @@ const LedgerTransactions: React.FC<LedgerTransactionsProps> = props => {
       variant="default"
       data-testid="ledger-transactions"
     >
-      {ledgerAdmin.usingSampleData && (
+      {(ledgerAdmin.usingSampleData || ledgerAdmin.error) && (
         <Alert className="gba:mb-4" data-testid="ledger-transactions-sample-notice">
           <AlertDescription>
-            {t('ledger-admin-sample-notice')}
+            {ledgerAdmin.usingSampleData ? t('ledger-admin-sample-notice') : t('ledger-admin-backend-error-notice')}
             {ledgerAdmin.error && (
               <span
                 className="gba:block gba:mt-1 gba:text-muted-foreground"
@@ -145,19 +183,21 @@ const LedgerTransactions: React.FC<LedgerTransactionsProps> = props => {
         </Alert>
       )}
 
-      {filterAccount && (
+      {(filterAccount || crmAccountId) && (
         <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4" data-testid="ledger-transactions-account-filter">
           <span className="gba:text-sm gba:text-muted-foreground">{t('billing-transactions-account-filter')}:</span>
-          <Badge variant="secondary">{displayAccountName(filterAccount, t)}</Badge>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setAccountFilter(null)}
-            data-testid="ledger-transactions-clear-filter"
-          >
-            <XIcon size={14} className="gba:mr-1" />
-            {t('billing-transactions-clear-filter')}
-          </Button>
+          <Badge variant="secondary">{filterAccount ? displayAccountName(filterAccount, t) : customerRef}</Badge>
+          {filterAccount ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setAccountFilter(null)}
+              data-testid="ledger-transactions-clear-filter"
+            >
+              <XIcon size={14} className="gba:mr-1" />
+              {t('billing-transactions-clear-filter')}
+            </Button>
+          ) : null}
         </div>
       )}
 
@@ -212,6 +252,7 @@ const LedgerTransactions: React.FC<LedgerTransactionsProps> = props => {
         onSelect={setSelection}
         onAdjustAccount={adjustAccount}
         onRenameAccount={renameAccount}
+        onUpdateInflight={ledgerAdmin.updateInflight}
         t={t}
       />
 
@@ -219,11 +260,12 @@ const LedgerTransactions: React.FC<LedgerTransactionsProps> = props => {
         kind={dialogKind}
         ledgers={ledgerAdmin.ledgers}
         accounts={ledgerAdmin.accounts}
+        invoices={billing.invoices}
         initialSource={prefillSource}
         onClose={closeDialog}
         onCreateLedger={ledgerAdmin.addLedger}
         onCreateAccount={ledgerAdmin.addAccount}
-        onCreateTransaction={ledgerAdmin.addTransaction}
+        onCreateTransaction={createTransaction}
         t={t}
       />
     </PageLayout>

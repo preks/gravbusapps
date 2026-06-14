@@ -28,6 +28,8 @@ export const billingApiEnabled = (): boolean => ledgerAdminEnabled()
 
 /** Build the BLNK invoice request body (promoted columns + full document). */
 function toBlnkInvoiceBody(invoice: Invoice): Record<string, unknown> {
+  const customerRef = invoice.crmAccountId ? `account:${invoice.crmAccountId}` : undefined
+
   return {
     invoice_id: invoice.id,
     reference: invoice.invoiceNumber ?? undefined,
@@ -40,7 +42,13 @@ function toBlnkInvoiceBody(invoice: Invoice): Record<string, unknown> {
     issue_date: invoice.issueDate ?? undefined,
     due_date: invoice.dueDate ?? undefined,
     data: invoice,
-    meta_data: { source: 'newwork-billing' }
+    meta_data: {
+      source: 'newwork-billing',
+      crmAccountId: invoice.crmAccountId ?? undefined,
+      crmOpportunityId: invoice.crmOpportunityId ?? undefined,
+      customerType: invoice.crmAccountId ? 'account' : undefined,
+      customerRef
+    }
   }
 }
 

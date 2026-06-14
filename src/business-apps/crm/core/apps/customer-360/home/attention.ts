@@ -14,8 +14,7 @@ export const ATTENTION_REASON_KEYS: Record<AttentionReasonCode, string> = {
   'overdue-invoice': 'attention-reason-overdue-invoice',
   'expiring-contract': 'attention-reason-expiring-contract',
   'open-tickets': 'attention-reason-open-tickets',
-  'no-owner': 'attention-reason-no-owner',
-  prospective: 'attention-reason-prospective'
+  'no-owner': 'attention-reason-no-owner'
 }
 
 export function attentionBand(score: number): AttentionBand {

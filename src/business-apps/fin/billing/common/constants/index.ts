@@ -125,14 +125,7 @@ export const DEFAULT_POSTING_ACCOUNTS = {
 export type PostingAccounts = typeof DEFAULT_POSTING_ACCOUNTS
 
 /** Statuses that represent a finalized (immutable) invoice. */
-export const FINALIZED_STATUSES: InvoiceStatus[] = [
-  'ISSUED',
-  'SENT',
-  'PARTIALLY_PAID',
-  'PAID',
-  'OVERDUE',
-  'WRITTEN_OFF'
-]
+export const FINALIZED_STATUSES: InvoiceStatus[] = ['ISSUED', 'SENT', 'PARTIALLY_PAID', 'PAID', 'WRITTEN_OFF']
 
 /** Statuses that can still be freely edited. */
 export const EDITABLE_STATUSES: InvoiceStatus[] = ['DRAFT']

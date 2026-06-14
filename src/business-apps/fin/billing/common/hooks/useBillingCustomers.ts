@@ -6,14 +6,13 @@
  * CRM `Account` list (name + primary address + country + email) and maps each
  * to a `BillingCustomer`, so the invoice form never invents customers.
  *
- * Falls back to the bundled sample customers when there is no access token or
- * the query fails, so local/offline dev keeps a usable dropdown.
+ * Backend failures surface as errors with an empty customer list instead of
+ * falling back to bundled demo customers.
  */
 import { useCallback, useEffect, useState } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { BillingCustomer } from '../types'
-import { getSampleCustomers } from '../utils/customers'
 
 interface CrmAddress {
   addressType?: string | null
@@ -113,8 +112,10 @@ export function useBillingCustomers(context: BusinessAppContextProps): UseBillin
 
   const load = useCallback(async () => {
     if (!context.accessToken) {
-      setCustomers(getSampleCustomers())
-      setUsingSampleData(true)
+      setCustomers([])
+      setError('Billing customer lookup requires a valid access token')
+      setUsingSampleData(false)
+      setLoading(false)
       return
     }
     setLoading(true)
@@ -129,8 +130,8 @@ export function useBillingCustomers(context: BusinessAppContextProps): UseBillin
       setUsingSampleData(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load CRM customers')
-      setCustomers(getSampleCustomers())
-      setUsingSampleData(true)
+      setCustomers([])
+      setUsingSampleData(false)
     } finally {
       setLoading(false)
     }

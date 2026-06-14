@@ -2,8 +2,8 @@
  * Ledger Admin data + actions for the Ledger Admin screen.
  *
  * Loads ledgers, accounts, and transactions from the real ledger backend
- * through the NEWWORK Connect lane. Falls back to sample data when the lane is
- * not configured or unreachable, so the UI stays usable in local dev.
+ * through the NEWWORK Connect lane. Backend failures surface as errors with
+ * empty data instead of falling back to bundled demo records.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -15,14 +15,15 @@ import {
   listAccounts,
   listLedgers,
   listTransactions,
+  updateInflightTransaction,
   type CreateAccountInput,
   type CreateLedgerInput,
   type CreateTransactionInput,
   type Ledger,
   type LedgerAccount,
-  type LedgerTransaction
+  type LedgerTransaction,
+  type UpdateInflightTransactionInput
 } from '../network/ledgerAdminClient'
-import { SAMPLE_ACCOUNTS, SAMPLE_LEDGERS, SAMPLE_LEDGER_TRANSACTIONS } from '../data/sampleLedgerData'
 import { getAccountNameOverrides, setAccountNameOverride } from '../utils/accountNameStore'
 
 /** Merge local display-name overrides into freshly loaded accounts. */
@@ -43,14 +44,6 @@ interface LedgerAdminState {
   usingSampleData: boolean
 }
 
-const SAMPLE_STATE: Omit<LedgerAdminState, 'loading'> = {
-  ledgers: SAMPLE_LEDGERS,
-  accounts: SAMPLE_ACCOUNTS,
-  transactions: SAMPLE_LEDGER_TRANSACTIONS,
-  error: null,
-  usingSampleData: true
-}
-
 export function useLedgerAdmin(context: Pick<BusinessAppContextProps, 'accessToken'>) {
   const accessToken = context.accessToken
   const [state, setState] = useState<LedgerAdminState>({
@@ -63,32 +56,46 @@ export function useLedgerAdmin(context: Pick<BusinessAppContextProps, 'accessTok
   })
 
   const load = useCallback(async () => {
-    if (!accessToken || !ledgerAdminEnabled()) {
-      setState({ ...SAMPLE_STATE, accounts: applyNameOverrides(SAMPLE_ACCOUNTS), loading: false })
+    if (accessToken && ledgerAdminEnabled()) {
+      setState(prev => ({ ...prev, loading: true }))
+      try {
+        const [ledgers, accounts, transactions] = await Promise.all([
+          listLedgers(accessToken),
+          listAccounts(accessToken),
+          listTransactions(accessToken)
+        ])
+        const resolvedAccounts = applyNameOverrides(accounts)
+        setState({
+          ledgers,
+          accounts: resolvedAccounts,
+          transactions,
+          loading: false,
+          error: null,
+          usingSampleData: false
+        })
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error reaching the ledger backend'
+        setState({
+          ledgers: [],
+          accounts: [],
+          transactions: [],
+          loading: false,
+          error: message,
+          usingSampleData: false
+        })
+      }
       return
     }
-    setState(prev => ({ ...prev, loading: true }))
-    try {
-      const [ledgers, accounts, transactions] = await Promise.all([
-        listLedgers(accessToken),
-        listAccounts(accessToken),
-        listTransactions(accessToken)
-      ])
-      setState({
-        ledgers,
-        accounts: applyNameOverrides(accounts),
-        transactions,
-        loading: false,
-        error: null,
-        usingSampleData: false
-      })
-    } catch (err) {
-      // Lane configured but unreachable: keep the UI usable with samples, but
-      // surface the real failure (status + path) so the connector route can be
-      // confirmed/corrected without opening devtools.
-      const message = err instanceof Error ? err.message : 'Unknown error reaching the ledger backend'
-      setState({ ...SAMPLE_STATE, accounts: applyNameOverrides(SAMPLE_ACCOUNTS), loading: false, error: message })
-    }
+
+    const error = accessToken ? 'Ledger backend is not configured' : 'Ledger Admin requires a valid access token'
+    setState({
+      ledgers: [],
+      accounts: [],
+      transactions: [],
+      loading: false,
+      error,
+      usingSampleData: false
+    })
   }, [accessToken])
 
   useEffect(() => {
@@ -133,6 +140,21 @@ export function useLedgerAdmin(context: Pick<BusinessAppContextProps, 'accessTok
     [accessToken]
   )
 
+  const updateInflight = useCallback(
+    async (input: UpdateInflightTransactionInput) => {
+      if (!accessToken) throw new Error('Ledger Admin requires a valid access token')
+      const transaction = await updateInflightTransaction(accessToken, input)
+      if (transaction) {
+        setState(prev => ({
+          ...prev,
+          transactions: prev.transactions.map(item => (item.id === transaction.id ? transaction : item))
+        }))
+      }
+      return transaction
+    },
+    [accessToken]
+  )
+
   const renameAccount = useCallback((balanceId: string, name: string) => {
     setAccountNameOverride(balanceId, name)
     const trimmed = name.trim()
@@ -145,7 +167,7 @@ export function useLedgerAdmin(context: Pick<BusinessAppContextProps, 'accessTok
   }, [])
 
   return useMemo(
-    () => ({ ...state, reload: load, addLedger, addAccount, addTransaction, renameAccount }),
-    [state, load, addLedger, addAccount, addTransaction, renameAccount]
+    () => ({ ...state, reload: load, addLedger, addAccount, addTransaction, updateInflight, renameAccount }),
+    [state, load, addLedger, addAccount, addTransaction, updateInflight, renameAccount]
   )
 }

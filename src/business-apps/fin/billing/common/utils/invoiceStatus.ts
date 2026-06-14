@@ -2,15 +2,14 @@
  * Invoice lifecycle: allowed transitions, derived status, and badge variants.
  */
 import { calculateOutstanding } from './invoiceCalculations'
-import type { Invoice, InvoiceStatus } from '../types'
+import type { Invoice, InvoiceDisplayStatus, InvoiceStatus } from '../types'
 
 /** Allowed direct transitions per status. */
 const TRANSITIONS: Record<InvoiceStatus, InvoiceStatus[]> = {
   DRAFT: ['ISSUED', 'CANCELLED'],
-  ISSUED: ['SENT', 'PARTIALLY_PAID', 'PAID', 'OVERDUE', 'CANCELLED'],
-  SENT: ['PARTIALLY_PAID', 'PAID', 'OVERDUE', 'CANCELLED'],
-  PARTIALLY_PAID: ['PAID', 'OVERDUE', 'WRITTEN_OFF'],
-  OVERDUE: ['PARTIALLY_PAID', 'PAID', 'WRITTEN_OFF', 'CANCELLED'],
+  ISSUED: ['SENT', 'PARTIALLY_PAID', 'PAID', 'CANCELLED'],
+  SENT: ['PARTIALLY_PAID', 'PAID', 'CANCELLED'],
+  PARTIALLY_PAID: ['PAID', 'WRITTEN_OFF'],
   PAID: [],
   CANCELLED: [],
   WRITTEN_OFF: []
@@ -28,9 +27,9 @@ export function assertTransition(from: InvoiceStatus, to: InvoiceStatus): void {
 
 /**
  * Derive the payment-driven status of an issued invoice from amounts and due
- * date. Does not move terminal/draft/cancelled invoices.
+ * date. OVERDUE is display-only in Blnk, so this never returns it.
  */
-export function derivePaymentStatus(invoice: Invoice, now: Date = new Date()): InvoiceStatus {
+export function derivePaymentStatus(invoice: Invoice): InvoiceStatus {
   if (invoice.status === 'DRAFT' || invoice.status === 'CANCELLED' || invoice.status === 'WRITTEN_OFF') {
     return invoice.status
   }
@@ -40,15 +39,23 @@ export function derivePaymentStatus(invoice: Invoice, now: Date = new Date()): I
     return 'PAID'
   }
   if (invoice.paidAmount > 0 && outstanding > 0) {
-    return isOverdue(invoice, now) ? 'OVERDUE' : 'PARTIALLY_PAID'
-  }
-  if (isOverdue(invoice, now)) {
-    return 'OVERDUE'
+    return 'PARTIALLY_PAID'
   }
   return invoice.status === 'PAID' ? 'ISSUED' : invoice.status
 }
 
+/** Return the UI status, deriving OVERDUE from backend status + due date. */
+export function getInvoiceDisplayStatus(invoice: Invoice, now: Date = new Date()): InvoiceDisplayStatus {
+  if (isOverdue(invoice, now)) {
+    return 'OVERDUE'
+  }
+  return invoice.status
+}
+
 export function isOverdue(invoice: Invoice, now: Date = new Date()): boolean {
+  if (!['ISSUED', 'SENT', 'PARTIALLY_PAID'].includes(invoice.status)) {
+    return false
+  }
   if (!invoice.dueDate) {
     return false
   }
@@ -73,7 +80,7 @@ export type BadgeVariant =
   | 'outline'
 
 /** Map a status to a design-system Badge variant. */
-export function getInvoiceStatusBadgeVariant(status: InvoiceStatus): BadgeVariant {
+export function getInvoiceStatusBadgeVariant(status: InvoiceDisplayStatus): BadgeVariant {
   switch (status) {
     case 'PAID':
       return 'paid'

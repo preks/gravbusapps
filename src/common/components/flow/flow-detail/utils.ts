@@ -53,7 +53,21 @@ export const getFlowStatusBadgeClass = (status: string): string => {
   return 'gba:bg-offline gba:text-offline-foreground'
 }
 
+function primitiveText(value: unknown): string | undefined {
+  if (typeof value === 'string' && value.trim()) return value.trim()
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  return undefined
+}
+
 export function transformFlowStep(step: Record<string, unknown>): FlowStep {
+  const taskId = typeof step.taskId === 'string' && step.taskId.trim() ? step.taskId.trim() : undefined
+  const taskBusinessId =
+    typeof step.taskBusinessId === 'string' && step.taskBusinessId.trim() ? step.taskBusinessId.trim() : undefined
+  const actionId = typeof step.actionId === 'string' && step.actionId.trim() ? step.actionId.trim() : undefined
+  const lifecycleId =
+    typeof step.lifecycleId === 'string' && step.lifecycleId.trim() ? step.lifecycleId.trim() : undefined
+  const assignedUserId =
+    typeof step.assignedUserId === 'string' && step.assignedUserId.trim() ? step.assignedUserId.trim() : undefined
   const rawAssignedTo = step.assignedTo
   const assignedToIds = Array.isArray(rawAssignedTo)
     ? rawAssignedTo.map(value => String(value || '').trim()).filter(Boolean)
@@ -65,14 +79,22 @@ export function transformFlowStep(step: Record<string, unknown>): FlowStep {
   const eligibleUserIds = Array.isArray(rawEligibleUsers)
     ? rawEligibleUsers.map(value => String(value || '').trim()).filter(Boolean)
     : []
+  const stepIndex = Number(step.stepIndex || 0)
+  const fallbackId = primitiveText(step.id) ?? `step-${stepIndex}`
 
   return {
-    id: String(step.id || `step-${step.stepIndex || 0}`),
+    id: taskId || fallbackId,
     title: String(step.title || 'Untitled Step'),
     status: String(step.status || 'QUEUED'),
-    stepIndex: Number(step.stepIndex || 0),
-    assignedTo: assignedToIds[0],
+    stepIndex,
+    taskId,
+    taskBusinessId,
+    actionId,
+    lifecycleId,
+    assignmentStatus: typeof step.assignmentStatus === 'string' ? step.assignmentStatus : undefined,
+    assignedTo: assignedUserId || assignedToIds[0],
     assignedToIds: assignedToIds.length ? assignedToIds : undefined,
+    assignedUserId,
     eligibleUserIds: eligibleUserIds.length ? eligibleUserIds : undefined,
     completedBy: typeof step.completedBy === 'string' ? step.completedBy : undefined,
     totalForks: typeof step.totalForks === 'number' ? step.totalForks : undefined,

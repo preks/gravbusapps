@@ -11,9 +11,9 @@ interface BillingSampleNoticeProps {
 }
 
 /**
- * Consistent sample-data notice used across billing screens. Shows a short
- * explanation that data is illustrative, plus the underlying connection error
- * (when a backend was configured but failed) so issues are diagnosable in-app.
+ * Consistent backend state notice used across billing screens. It can show the
+ * legacy sample-data notice, or just surface backend errors when no fallback is
+ * used.
  */
 export const BillingSampleNotice: React.FC<BillingSampleNoticeProps> = ({
   show,
@@ -21,13 +21,13 @@ export const BillingSampleNotice: React.FC<BillingSampleNoticeProps> = ({
   dataTestId = 'billing-sample-notice'
 }) => {
   const { t } = useTranslation(billingTranslations)
-  if (!show) {
+  if (!show && !error) {
     return null
   }
   return (
     <Alert className="gba:mb-4" data-testid={dataTestId}>
       <AlertDescription>
-        {t('billing-sample-data-notice')}
+        {show ? t('billing-sample-data-notice') : t('billing-backend-error-notice')}
         {error && (
           <span className="gba:block gba:mt-1 gba:text-muted-foreground" data-testid={`${dataTestId}-error`}>
             {`${t('billing-connection-detail')}: ${error}`}
