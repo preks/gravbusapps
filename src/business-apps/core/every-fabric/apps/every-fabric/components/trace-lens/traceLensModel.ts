@@ -264,6 +264,46 @@ function statusFrom(raw: unknown): SpanStatus {
   return 'done'
 }
 
+/** Tool error prefixes used by tools that return a plain error STRING (not a
+ *  JSON envelope), e.g. newwork_global_search. Kept anchored to the start of
+ *  the output so an answer merely *mentioning* an error is never misflagged. */
+const TOOL_ERROR_STRING_PREFIXES = ['Error running ', 'Global search failed', 'Error:']
+
+/** Derive a failure from a tool span's OUTPUT when the raw event status did not
+ *  already mark it failed. Tools commonly return their error in-band:
+ *   - a JSON envelope ``{"status":"error","error_code":...}`` (provider /
+ *     delegate tools — service_unavailable, provider_timeout, validation_error,
+ *     tool_invocation_failed), or
+ *   - a plain error string (global search transport failures).
+ *  Surfacing these flips the span to ``failed`` (red in the waterfall) and
+ *  exposes the error code, so the trace stops showing a deceptive green "done"
+ *  for a call that actually failed. Returns null for healthy output. */
+function deriveToolError(output: string | undefined): { errorType?: string } | null {
+  if (!output) return null
+  const trimmed = output.trim()
+  if (!trimmed) return null
+
+  if (trimmed.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(trimmed) as Record<string, unknown>
+      const status = readStr(parsed.status)
+      const type = readStr(parsed.type)
+      if (status === 'error' || type === 'error') {
+        const code = readStr(parsed.error_code) || type || 'error'
+        return { errorType: code }
+      }
+    } catch {
+      // Not JSON — fall through to the string-prefix check.
+    }
+    return null
+  }
+
+  if (TOOL_ERROR_STRING_PREFIXES.some(prefix => trimmed.startsWith(prefix))) {
+    return { errorType: 'tool_error' }
+  }
+  return null
+}
+
 /** Build the LangSmith-style span tree from a session's raw trace. */
 export function buildTraceLensSpans(session: DeepAgentSession): {
   roots: TraceSpan[]
@@ -359,6 +399,20 @@ export function buildTraceLensSpans(session: DeepAgentSession): {
     if (ev.is_critical === true) span.detail.is_critical = true
   }
 
+  // Tools frequently report failure in-band (error envelope or error string)
+  // while the raw event status stays "done". Reconcile the span status from
+  // its output so TraceLens flags the failure instead of showing green.
+  const applyOutputError = (span: MutableSpan): void => {
+    if (span.kind !== 'tool' || span.status === 'failed') return
+    const derived = deriveToolError(span.output)
+    if (!derived) return
+    span.status = 'failed'
+    if (!span.errorType && derived.errorType) {
+      span.errorType = derived.errorType
+      span.detail = { ...span.detail, error_type: derived.errorType }
+    }
+  }
+
   const applyDelegationMeta = (span: MutableSpan, ev: RawTraceEvent, eventType: string): void => {
     if (eventType !== 'subagent_completed' && eventType !== 'expert_completed') return
     const nested = readNum(ev.nested_tool_count)
@@ -391,6 +445,7 @@ export function buildTraceLensSpans(session: DeepAgentSession): {
       if (durationMs !== null) created.endMs = created.startMs + durationMs
       else created.endMs = offset(ts)
       applyErrorMeta(created, ev)
+      applyOutputError(created)
       applyDelegationMeta(created, ev, eventType)
       return
     }
@@ -401,6 +456,7 @@ export function buildTraceLensSpans(session: DeepAgentSession): {
     span.durationMs = durationMs ?? (ts !== null && span._startTs !== null ? ts - span._startTs : null)
     span.endMs = durationMs !== null ? span.startMs + durationMs : offset(ts)
     applyErrorMeta(span, ev)
+    applyOutputError(span)
     applyDelegationMeta(span, ev, eventType)
   }
 
