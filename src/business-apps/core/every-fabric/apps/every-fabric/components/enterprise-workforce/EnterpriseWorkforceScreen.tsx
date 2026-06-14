@@ -475,8 +475,14 @@ export const EnterpriseWorkforceScreen: React.FC<EnterpriseWorkforceScreenProps>
 
       <AgentMarketplaceModal
         open={hireFlow === 'marketplace'}
+        client={client}
+        devModeEnabled={devModeEnabled}
         onClose={closeHireFlow}
-        onHire={handleHireFromMarketplace}
+        onHireLegacy={handleHireFromMarketplace}
+        onInstalled={() => {
+          void refetch()
+          closeHireFlow()
+        }}
       />
 
       {hireFlow === 'create' && (

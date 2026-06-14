@@ -1,9 +1,4 @@
-// Detail / profile panel for a marketplace agent template.
-//
-// Shows the full pitch: what the agent does, its skills, tools/integrations,
-// governance posture, sample triggers and the (display-only) pricing model.
-// The primary action hires the agent, which hands the template back up to be
-// prefilled into the existing create flow.
+// Detail / profile panel for a marketplace catalog agent.
 
 import { Button } from '@newwork/nw-design-system'
 import {
@@ -16,12 +11,13 @@ import {
   StarIcon
 } from '@phosphor-icons/react'
 import React from 'react'
-import { autonomyDisplay, formatMonthlyFee, valuePackLabel, type MarketplaceAgentTemplate } from './marketplaceAgents'
+import { formatMonthlyFee } from './marketplaceAgents'
+import { type MarketplaceCatalogItem, valuePackLabel } from './marketplaceCatalogTypes'
 
 interface MarketplaceAgentDetailProps {
-  agent: MarketplaceAgentTemplate
+  agent: MarketplaceCatalogItem
   onBack: () => void
-  onHire: (agent: MarketplaceAgentTemplate) => void
+  onHire: (agent: MarketplaceCatalogItem) => void
 }
 
 interface SectionProps {
@@ -55,7 +51,8 @@ const Chips: React.FC<{ items: string[]; testId: string }> = ({ items, testId })
 
 export const MarketplaceAgentDetail: React.FC<MarketplaceAgentDetailProps> = ({ agent, onBack, onHire }) => {
   const Icon = agent.icon
-  const { pricing } = agent
+  const legacy = agent.legacyTemplate
+
   return (
     <div className="gba:flex gba:h-full gba:flex-col" data-testid={`marketplace-detail-${agent.id}`}>
       <div className="gba:border-b gba:border-border/60 gba:px-5 gba:py-4">
@@ -70,7 +67,11 @@ export const MarketplaceAgentDetail: React.FC<MarketplaceAgentDetailProps> = ({ 
         </button>
         <div className="gba:flex gba:items-start gba:gap-4">
           <div className="gba:flex gba:h-14 gba:w-14 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-2xl gba:bg-primary/10 gba:text-primary">
-            <Icon className="gba:h-8 gba:w-8" weight="duotone" />
+            {agent.iconEmoji ? (
+              <span className="gba:text-2xl">{agent.iconEmoji}</span>
+            ) : (
+              <Icon className="gba:h-8 gba:w-8" weight="duotone" />
+            )}
           </div>
           <div className="gba:min-w-0 gba:flex-1">
             <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">{agent.displayName}</h2>
@@ -83,7 +84,7 @@ export const MarketplaceAgentDetail: React.FC<MarketplaceAgentDetailProps> = ({ 
               </span>
               <span className="gba:inline-flex gba:items-center gba:gap-0.5 gba:text-[11px] gba:font-medium gba:text-muted-foreground">
                 <StarIcon className="gba:h-3 gba:w-3 gba:text-amber-500" weight="fill" />
-                {agent.rating.toFixed(1)} · {agent.hires.toLocaleString('en-US')} hires
+                {agent.rating.toFixed(1)} · {agent.installCount.toLocaleString('en-US')} installs
               </span>
             </div>
           </div>
@@ -95,54 +96,63 @@ export const MarketplaceAgentDetail: React.FC<MarketplaceAgentDetailProps> = ({ 
           <p className="gba:text-sm gba:leading-relaxed gba:text-foreground">{agent.description}</p>
 
           <Section title="Skills" icon={<SparkleIcon className="gba:h-3.5 gba:w-3.5" />}>
-            <Chips items={agent.skills} testId="marketplace-detail-skills" />
+            {agent.isLegacyTemplate ? (
+              <Chips items={agent.skills} testId="marketplace-detail-skills" />
+            ) : (
+              <p className="gba:text-xs gba:text-muted-foreground">{agent.skillCount} bundled skills included</p>
+            )}
           </Section>
 
           <Section title="Tools & integrations" icon={<PlugsConnectedIcon className="gba:h-3.5 gba:w-3.5" />}>
-            <Chips items={agent.tools} testId="marketplace-detail-tools" />
+            {agent.isLegacyTemplate ? (
+              <Chips items={agent.tools} testId="marketplace-detail-tools" />
+            ) : (
+              <p className="gba:text-xs gba:text-muted-foreground">{agent.toolCount} tools wired via skills</p>
+            )}
           </Section>
 
-          <Section title="Governance" icon={<ShieldCheckIcon className="gba:h-3.5 gba:w-3.5" />}>
-            <p className="gba:text-xs gba:font-medium gba:text-foreground">
-              Default autonomy: {autonomyDisplay(agent.governance.autonomy)}
-            </p>
-            <ul className="gba:flex gba:flex-col gba:gap-1.5">
-              {agent.governance.highlights.map(highlight => (
-                <li
-                  key={highlight}
-                  className="gba:flex gba:items-start gba:gap-1.5 gba:text-xs gba:text-muted-foreground"
-                >
-                  <CheckCircleIcon
-                    className="gba:mt-0.5 gba:h-3.5 gba:w-3.5 gba:shrink-0 gba:text-emerald-600"
-                    weight="fill"
-                  />
-                  {highlight}
-                </li>
-              ))}
-            </ul>
-          </Section>
+          {legacy ? (
+            <>
+              <Section title="Governance" icon={<ShieldCheckIcon className="gba:h-3.5 gba:w-3.5" />}>
+                <ul className="gba:flex gba:flex-col gba:gap-1.5">
+                  {legacy.governance.highlights.map(highlight => (
+                    <li
+                      key={highlight}
+                      className="gba:flex gba:items-start gba:gap-1.5 gba:text-xs gba:text-muted-foreground"
+                    >
+                      <CheckCircleIcon
+                        className="gba:mt-0.5 gba:h-3.5 gba:w-3.5 gba:shrink-0 gba:text-emerald-600"
+                        weight="fill"
+                      />
+                      {highlight}
+                    </li>
+                  ))}
+                </ul>
+              </Section>
 
-          <Section title="Reacts to" icon={<LightningIcon className="gba:h-3.5 gba:w-3.5" />}>
-            <Chips items={agent.sampleTriggers} testId="marketplace-detail-triggers" />
-          </Section>
+              <Section title="Reacts to" icon={<LightningIcon className="gba:h-3.5 gba:w-3.5" />}>
+                <Chips items={legacy.sampleTriggers} testId="marketplace-detail-triggers" />
+              </Section>
 
-          <div className="gba:rounded-2xl gba:border gba:border-border gba:bg-muted/20 gba:p-4">
-            <div className="gba:flex gba:items-baseline gba:justify-between">
-              <span className="gba:text-xs gba:font-semibold gba:uppercase gba:tracking-wider gba:text-muted-foreground">
-                Pricing
-              </span>
-              <span className="gba:text-lg gba:font-semibold gba:text-foreground">{formatMonthlyFee(pricing)}</span>
-            </div>
-            <p className="gba:mt-1 gba:text-xs gba:text-muted-foreground">
-              Includes {pricing.includedRunsPerMonth.toLocaleString('en-US')} runs / month, then {pricing.creditsPerRun}{' '}
-              credits per run. Hire like an employee — billed as a monthly fee.
-            </p>
-          </div>
+              <div className="gba:rounded-2xl gba:border gba:border-border gba:bg-muted/20 gba:p-4">
+                <div className="gba:flex gba:items-baseline gba:justify-between">
+                  <span className="gba:text-xs gba:font-semibold gba:uppercase gba:tracking-wider gba:text-muted-foreground">
+                    Pricing
+                  </span>
+                  <span className="gba:text-lg gba:font-semibold gba:text-foreground">
+                    {formatMonthlyFee(legacy.pricing)}
+                  </span>
+                </div>
+              </div>
+            </>
+          ) : null}
         </div>
       </div>
 
       <div className="gba:flex gba:items-center gba:justify-between gba:gap-2 gba:border-t gba:border-border/60 gba:bg-muted/20 gba:px-5 gba:py-3">
-        <span className="gba:text-xs gba:text-muted-foreground">Starts paused for your review.</span>
+        <span className="gba:text-xs gba:text-muted-foreground">
+          {agent.isLegacyTemplate ? 'Starts paused for your review.' : 'Installs agent, skills and tools immediately.'}
+        </span>
         <Button onClick={() => onHire(agent)} data-testid="marketplace-detail-hire">
           Hire {agent.displayName}
         </Button>

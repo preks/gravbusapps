@@ -10,9 +10,11 @@
 // callbacks. URL state is the single source of truth for
 // `tab` and `runId`, so deep-linking and back/forward Just Work.
 
-import { ArrowLeftIcon, CircleNotchIcon, FlaskIcon, WarningIcon } from '@phosphor-icons/react'
+import { ArrowLeftIcon, CircleNotchIcon, FlaskIcon, StorefrontIcon, WarningIcon } from '@phosphor-icons/react'
 import React, { useCallback, useMemo, useState } from 'react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
+import { PublishAgentDialog } from './marketplace/PublishAgentDialog'
+import { useAgentMarketplace } from './marketplace/useAgentMarketplace'
 import { useWorkforceAgentConfig } from './useWorkforceAgentConfig'
 import { useWorkforceLiveActivity } from './useWorkforceLiveActivity'
 import { useWorkforceRuns } from './useWorkforceRuns'
@@ -80,6 +82,11 @@ export const WorkforceAgentDetailScreen: React.FC<WorkforceAgentDetailScreenProp
   } = useWorkforceAgentConfig({ accessToken, agentId })
 
   const promptManagerClient = usePromptManagerClient(accessToken)
+  const { publishAgentToTenant } = useAgentMarketplace({ client: promptManagerClient, enabled: devModeEnabled })
+
+  const [isPublishOpen, setIsPublishOpen] = useState(false)
+  const [isPublishing, setIsPublishing] = useState(false)
+  const [publishError, setPublishError] = useState<string | null>(null)
 
   const {
     runs,
@@ -243,15 +250,31 @@ export const WorkforceAgentDetailScreen: React.FC<WorkforceAgentDetailScreenProp
             {agent?.status ?? '—'}
           </span>
           {agent && (
-            <button
-              type="button"
-              onClick={openTestRun}
-              className="gba:inline-flex gba:h-8 gba:items-center gba:gap-1.5 gba:rounded-md gba:bg-primary gba:px-3 gba:text-xs gba:font-medium gba:text-primary-foreground gba:hover:bg-primary/90"
-              data-testid="workforce-detail-test-run"
-            >
-              <FlaskIcon className="gba:h-3.5 gba:w-3.5" />
-              Test run
-            </button>
+            <>
+              {devModeEnabled ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPublishError(null)
+                    setIsPublishOpen(true)
+                  }}
+                  className="gba:inline-flex gba:h-8 gba:items-center gba:gap-1.5 gba:rounded-md gba:border gba:border-border gba:bg-background gba:px-3 gba:text-xs gba:font-medium gba:text-foreground gba:hover:bg-muted/60"
+                  data-testid="workforce-detail-publish-marketplace"
+                >
+                  <StorefrontIcon className="gba:h-3.5 gba:w-3.5" />
+                  Publish to tenant
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={openTestRun}
+                className="gba:inline-flex gba:h-8 gba:items-center gba:gap-1.5 gba:rounded-md gba:bg-primary gba:px-3 gba:text-xs gba:font-medium gba:text-primary-foreground gba:hover:bg-primary/90"
+                data-testid="workforce-detail-test-run"
+              >
+                <FlaskIcon className="gba:h-3.5 gba:w-3.5" />
+                Test run
+              </button>
+            </>
           )}
         </div>
       </header>
@@ -401,6 +424,29 @@ export const WorkforceAgentDetailScreen: React.FC<WorkforceAgentDetailScreenProp
           onSubmit={handleDispatchTestWebhook}
         />
       )}
+
+      {devModeEnabled && agent ? (
+        <PublishAgentDialog
+          open={isPublishOpen}
+          agentId={agent.agent_id}
+          agentName={agent.display_name}
+          isBusy={isPublishing}
+          errorMessage={publishError}
+          onClose={() => setIsPublishOpen(false)}
+          onPublish={async options => {
+            setIsPublishing(true)
+            setPublishError(null)
+            try {
+              return await publishAgentToTenant(agent.agent_id, options)
+            } catch (err) {
+              setPublishError(err instanceof Error ? err.message : 'Publish failed')
+              return null
+            } finally {
+              setIsPublishing(false)
+            }
+          }}
+        />
+      ) : null}
     </div>
   )
 }

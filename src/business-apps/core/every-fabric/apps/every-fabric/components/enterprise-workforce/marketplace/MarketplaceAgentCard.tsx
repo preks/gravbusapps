@@ -1,29 +1,64 @@
-// Grid card for a single marketplace agent template.
-//
-// Presentational only: clicking the card surfaces the detail panel where
-// the customer reviews skills, tools, governance and fees before hiring.
+// Grid card for a single marketplace catalog agent.
 
-import { StarIcon } from '@phosphor-icons/react'
+import { CheckIcon, StarIcon } from '@phosphor-icons/react'
 import React from 'react'
-import { formatMonthlyFee, valuePackLabel, type MarketplaceAgentTemplate } from './marketplaceAgents'
+import { type MarketplaceCatalogItem, valuePackLabel } from './marketplaceCatalogTypes'
 
 interface MarketplaceAgentCardProps {
-  agent: MarketplaceAgentTemplate
-  onSelect: (agent: MarketplaceAgentTemplate) => void
+  agent: MarketplaceCatalogItem
+  selected: boolean
+  selectionMode: boolean
+  onSelect: (agent: MarketplaceCatalogItem) => void
+  onToggleSelect: (agent: MarketplaceCatalogItem) => void
 }
 
-export const MarketplaceAgentCard: React.FC<MarketplaceAgentCardProps> = ({ agent, onSelect }) => {
+export const MarketplaceAgentCard: React.FC<MarketplaceAgentCardProps> = ({
+  agent,
+  selected,
+  selectionMode,
+  onSelect,
+  onToggleSelect
+}) => {
   const Icon = agent.icon
+
+  const handleClick = () => {
+    if (selectionMode) {
+      onToggleSelect(agent)
+      return
+    }
+    onSelect(agent)
+  }
+
   return (
     <button
       type="button"
-      onClick={() => onSelect(agent)}
-      className="gba:group gba:flex gba:h-full gba:flex-col gba:gap-3 gba:rounded-2xl gba:border gba:border-border gba:bg-card gba:p-4 gba:text-left gba:transition-colors gba:hover:border-foreground/30 gba:hover:bg-muted/30"
+      onClick={handleClick}
+      className={`gba:group gba:relative gba:flex gba:h-full gba:flex-col gba:gap-3 gba:rounded-2xl gba:border gba:bg-card gba:p-4 gba:text-left gba:transition-colors ${
+        selected
+          ? 'gba:border-primary gba:bg-primary/5'
+          : 'gba:border-border gba:hover:border-foreground/30 gba:hover:bg-muted/30'
+      }`}
       data-testid={`marketplace-card-${agent.id}`}
     >
+      {selectionMode ? (
+        <span
+          className={`gba:absolute gba:right-3 gba:top-3 gba:flex gba:h-5 gba:w-5 gba:items-center gba:justify-center gba:rounded-full gba:border ${
+            selected
+              ? 'gba:border-primary gba:bg-primary gba:text-primary-foreground'
+              : 'gba:border-border gba:bg-background'
+          }`}
+        >
+          {selected ? <CheckIcon className="gba:h-3 gba:w-3" weight="bold" /> : null}
+        </span>
+      ) : null}
+
       <div className="gba:flex gba:items-start gba:gap-3">
         <div className="gba:flex gba:h-11 gba:w-11 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-xl gba:bg-primary/10 gba:text-primary">
-          <Icon className="gba:h-6 gba:w-6" weight="duotone" />
+          {agent.iconEmoji ? (
+            <span className="gba:text-xl">{agent.iconEmoji}</span>
+          ) : (
+            <Icon className="gba:h-6 gba:w-6" weight="duotone" />
+          )}
         </div>
         <div className="gba:min-w-0 gba:flex-1">
           <div className="gba:flex gba:items-center gba:gap-1.5">
@@ -45,19 +80,34 @@ export const MarketplaceAgentCard: React.FC<MarketplaceAgentCardProps> = ({ agen
         <span className="gba:inline-flex gba:items-center gba:rounded-full gba:bg-muted gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-muted-foreground">
           {valuePackLabel(agent.valuePack)}
         </span>
-        {agent.skills.slice(0, 2).map(skill => (
-          <span
-            key={skill}
-            className="gba:inline-flex gba:items-center gba:rounded-full gba:border gba:border-border gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-foreground"
-          >
-            {skill}
-          </span>
-        ))}
+        {agent.isLegacyTemplate ? (
+          agent.skills.slice(0, 2).map(skill => (
+            <span
+              key={skill}
+              className="gba:inline-flex gba:items-center gba:rounded-full gba:border gba:border-border gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-foreground"
+            >
+              {skill}
+            </span>
+          ))
+        ) : (
+          <>
+            <span className="gba:inline-flex gba:items-center gba:rounded-full gba:border gba:border-border gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-foreground">
+              {agent.skillCount} skills
+            </span>
+            <span className="gba:inline-flex gba:items-center gba:rounded-full gba:border gba:border-border gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-foreground">
+              {agent.toolCount} tools
+            </span>
+          </>
+        )}
       </div>
 
       <div className="gba:mt-auto gba:flex gba:items-center gba:justify-between gba:border-t gba:border-border/60 gba:pt-2.5">
-        <span className="gba:text-xs gba:font-semibold gba:text-foreground">{formatMonthlyFee(agent.pricing)}</span>
-        <span className="gba:text-[11px] gba:font-medium gba:text-primary gba:group-hover:underline">View profile</span>
+        <span className="gba:text-[11px] gba:text-muted-foreground">
+          {agent.installCount.toLocaleString('en-US')} installs
+        </span>
+        <span className="gba:text-[11px] gba:font-medium gba:text-primary gba:group-hover:underline">
+          {selectionMode ? (selected ? 'Selected' : 'Select') : 'View profile'}
+        </span>
       </div>
     </button>
   )

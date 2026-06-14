@@ -43,7 +43,8 @@ jest.mock('@/common/network/ai/prompt-manager/usePromptManagerClient', () => {
     // Config tab policies: benign empty sets so useAgentPolicies resolves
     // without hitting the network when the Config tab mounts.
     getAgentPolicies: () => Promise.resolve({ policies: [], excluded_policy_refs: [], supported: true }),
-    getWorkspacePolicies: () => Promise.resolve({ workspace_id: null, workspace_name: null, policies: [] })
+    getWorkspacePolicies: () => Promise.resolve({ workspace_id: null, workspace_name: null, policies: [] }),
+    listMarketplacePackages: () => Promise.reject(new Error('offline'))
   }
   return {
     usePromptManagerClient: () => stableClient
@@ -290,10 +291,10 @@ describe('EnterpriseWorkforceScreen', () => {
 
     fireEvent.click(screen.getByTestId('workforce-hire-button'))
     fireEvent.click(screen.getByTestId('hire-options-marketplace'))
-    expect(screen.getByTestId('agent-marketplace-modal')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByTestId('agent-marketplace-modal')).toBeInTheDocument())
 
     // Open a known template, then hire it.
-    fireEvent.click(screen.getByTestId('marketplace-card-recruiting-coordinator'))
+    await waitFor(() => expect(screen.getByTestId('marketplace-card-recruiting-coordinator')).toBeInTheDocument())
     fireEvent.click(screen.getByTestId('marketplace-detail-hire'))
 
     // The create dialog opens prefilled with the template's role.

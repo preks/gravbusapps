@@ -2040,6 +2040,67 @@ export class PromptManagerClient extends RestClient {
   async deleteScheduledTaskTemplate(templateId: string): Promise<void> {
     await this.delete<void>(`/scheduled-task-templates/${encodeURIComponent(templateId)}`)
   }
+
+  // --- Agent Marketplace ---
+
+  async listMarketplacePackages(params?: {
+    category?: string
+    isActive?: boolean
+    limit?: number
+    offset?: number
+  }): Promise<MarketplacePackagePage> {
+    const query: Record<string, string | number | boolean> = {}
+    if (params?.category) query.category = params.category
+    if (params?.isActive !== undefined) query.isActive = params.isActive
+    if (params?.limit !== undefined) query.limit = params.limit
+    if (params?.offset !== undefined) query.offset = params.offset
+    return this.get<MarketplacePackagePage>('/marketplace/packages', { params: query })
+  }
+
+  async getMarketplacePackage(packageId: string, version?: string): Promise<MarketplacePackageSummary> {
+    const params = version ? { version } : undefined
+    return this.get<MarketplacePackageSummary>(`/marketplace/packages/${encodeURIComponent(packageId)}`, { params })
+  }
+
+  async getMarketplacePackageBundle(packageId: string, version?: string): Promise<{ bundle: AgentPackageV1 }> {
+    const params = version ? { version } : undefined
+    return this.get<{ bundle: AgentPackageV1 }>(`/marketplace/packages/${encodeURIComponent(packageId)}/bundle`, {
+      params
+    })
+  }
+
+  async buildMarketplacePackage(body: {
+    agentId: string
+    packageId?: string
+    publisher?: string
+    category?: string
+    publish?: boolean
+  }): Promise<{ bundle: AgentPackageV1; published?: MarketplacePackageSummary | null }> {
+    return this.post('/marketplace/packages/build', body)
+  }
+
+  async publishMarketplacePackage(
+    packageId: string,
+    body: { bundle: AgentPackageV1; version?: string }
+  ): Promise<{ success: boolean; package: MarketplacePackageSummary }> {
+    return this.post(`/marketplace/packages/${encodeURIComponent(packageId)}/publish`, body)
+  }
+
+  async marketplaceUnpublish(
+    packageId: string,
+    version?: string
+  ): Promise<{ success: boolean; package: MarketplacePackageSummary }> {
+    const params = version ? { version } : undefined
+    return this.post(`/marketplace/packages/${encodeURIComponent(packageId)}/unpublish`, undefined, { params })
+  }
+
+  async marketplacePreflight(body: MarketplacePreflightRequest): Promise<MarketplacePreflightReport> {
+    return this.post<MarketplacePreflightReport>('/marketplace/preflight', body)
+  }
+
+  async marketplaceInstall(body: MarketplaceInstallRequest): Promise<MarketplaceBatchInstallReport> {
+    return this.post<MarketplaceBatchInstallReport>('/marketplace/install', body)
+  }
 }
 
 export interface WorkforceInboundEmailPayload {
@@ -2063,6 +2124,129 @@ export interface WorkforceInboundDispatchResponse {
 }
 
 export const promptManagerClient = new PromptManagerClient()
+
+/** Client pointed at an arbitrary tenant deployment (push-to-tenant). */
+export function createTargetPromptManagerClient(baseUrl: string, accessToken: string): PromptManagerClient {
+  const normalizedBase = baseUrl.replace(/\/+$/, '')
+  const apiBase = normalizedBase.includes('/api/v1') ? normalizedBase : `${normalizedBase}/api/v1`
+  const client = new PromptManagerClient(apiBase)
+  client.setAccessToken(accessToken)
+  return client
+}
+
+export interface MarketplaceRequirementsSummary {
+  flowbot_tools?: number
+  builtin_tools?: number
+  custom_functions?: number
+  skills?: number
+  needs_credentials?: boolean
+  needs_connections?: boolean
+}
+
+export interface MarketplacePackageSummary {
+  package_id: string
+  version: string
+  name: string
+  description: string
+  category: string
+  icon?: string | null
+  publisher: string
+  skill_count: number
+  tool_count: number
+  requirements_summary?: MarketplaceRequirementsSummary
+  install_count: number
+  rating?: number | null
+  is_active: boolean
+  source_agent_id?: string | null
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export interface MarketplacePackagePage {
+  data: MarketplacePackageSummary[]
+  paging: Paging
+}
+
+export interface AgentPackageV1 {
+  manifest: {
+    package_id: string
+    version: string
+    name: string
+    description: string
+    publisher: string
+    category: string
+    icon?: string | null
+  }
+  agent: Record<string, unknown>
+  skills: Array<Record<string, unknown>>
+  skill_bindings: SkillBinding[]
+  functions: Array<Record<string, unknown>>
+  policies: Array<Record<string, unknown>>
+  requirements: {
+    flowbot_tool_refs?: string[]
+    builtin_tool_refs?: string[]
+    custom_functions?: string[]
+    required_credentials?: string[]
+    required_connection_bindings?: string[]
+  }
+}
+
+export interface MarketplacePreflightRequest {
+  bundle?: AgentPackageV1
+  packageId?: string
+  catalogUrl?: string
+  version?: string
+  strict?: boolean
+}
+
+export interface MarketplacePreflightIssue {
+  code: string
+  severity: 'error' | 'warning' | 'info'
+  message: string
+  resource?: string | null
+}
+
+export interface MarketplacePreflightReport {
+  package_id: string
+  package_name: string
+  ready: boolean
+  issues: MarketplacePreflightIssue[]
+  missing_tools: string[]
+  missing_functions: string[]
+  needs_configuration: string[]
+}
+
+export interface MarketplaceInstallRequest {
+  bundles?: AgentPackageV1[]
+  packageIds?: string[]
+  catalogUrl?: string
+  version?: string
+  skipPreflightErrors?: boolean
+}
+
+export interface MarketplaceInstallAction {
+  resource_type: string
+  resource_id: string
+  action: 'created' | 'updated' | 'skipped' | 'failed'
+  detail?: string | null
+}
+
+export interface MarketplaceInstallReport {
+  package_id: string
+  package_name: string
+  success: boolean
+  agent_id?: string | null
+  actions: MarketplaceInstallAction[]
+  needs_configuration: string[]
+  errors: string[]
+}
+
+export interface MarketplaceBatchInstallReport {
+  total: number
+  succeeded: number
+  failed: number
+  reports: MarketplaceInstallReport[]
+}
 
 // --- Scheduled Dispatches ---
 
