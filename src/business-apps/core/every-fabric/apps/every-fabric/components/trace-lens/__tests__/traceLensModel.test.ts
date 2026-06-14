@@ -259,6 +259,85 @@ describe('buildTraceLensModel — chat trace', () => {
   })
 })
 
+describe('buildTraceLensModel — in-band tool errors', () => {
+  // Tools report failure in their OUTPUT while the raw event status stays
+  // "done" (newwork_global_search returns an error string; delegate/provider
+  // tools return a JSON error envelope). TraceLens must flag these as failed.
+  const completed = (over: Partial<RawTraceEvent>): RawTraceEvent => ({
+    seq: 2,
+    event_id: 's:2',
+    type: 'step_completed',
+    timestamp: iso(1000),
+    step_id: 'tool-x',
+    name: 'a_tool',
+    status: 'done',
+    duration_ms: 500,
+    ...over
+  })
+  const started: RawTraceEvent = {
+    seq: 1,
+    event_id: 's:1',
+    type: 'step_started',
+    timestamp: iso(0),
+    step_id: 'tool-x',
+    step_type: 'tool',
+    name: 'a_tool'
+  }
+
+  it('flags a JSON error envelope (service_unavailable) as failed with its code', () => {
+    const model = buildTraceLensModel(
+      sessionWithTrace([
+        started,
+        completed({
+          name: 'newwork_get_crm_entity',
+          output: JSON.stringify({
+            status: 'error',
+            error_code: 'service_unavailable',
+            error: 'ConnectError: All connection attempts failed'
+          })
+        })
+      ])
+    )
+    const span = model.flat.find(s => s.id === 'tool-x')
+    expect(span?.status).toBe('failed')
+    expect(span?.errorType).toBe('service_unavailable')
+    expect(model.summary.failedToolCount).toBe(1)
+  })
+
+  it('flags a global-search transport error STRING as failed', () => {
+    const model = buildTraceLensModel(
+      sessionWithTrace([
+        started,
+        completed({
+          name: 'newwork_global_search',
+          output:
+            'Global search failed: search-service unreachable — ConnectTimeout [http://search-service:3000/api/v1/results]'
+        })
+      ])
+    )
+    const span = model.flat.find(s => s.id === 'tool-x')
+    expect(span?.status).toBe('failed')
+    expect(span?.errorType).toBe('tool_error')
+  })
+
+  it('does not misflag healthy output that merely mentions the word error', () => {
+    const model = buildTraceLensModel(
+      sessionWithTrace([started, completed({ output: 'No results found; there was no error in the lookup.' })])
+    )
+    const span = model.flat.find(s => s.id === 'tool-x')
+    expect(span?.status).toBe('done')
+    expect(span?.errorType).toBeUndefined()
+  })
+
+  it('does not flag a successful JSON payload', () => {
+    const model = buildTraceLensModel(
+      sessionWithTrace([started, completed({ output: JSON.stringify({ results: [{ id: 1 }] }) })])
+    )
+    const span = model.flat.find(s => s.id === 'tool-x')
+    expect(span?.status).toBe('done')
+  })
+})
+
 describe('enrichRawTraceEvents', () => {
   it('is a no-op for traces without tool_available or HITL events', () => {
     const events: RawTraceEvent[] = [{ seq: 1, type: 'step_started', step_id: 'a', timestamp: iso(0) }]
