@@ -1,5 +1,5 @@
 import React from 'react'
-import { Card, Row, Col, Typography, Tag } from 'antd'
+import { Badge, Card, Spinner, useTranslation } from '@newwork/nw-design-system'
 import {
   LineChart,
   Line,
@@ -16,10 +16,7 @@ import {
   ResponsiveContainer
 } from 'recharts'
 import { AbsenceChartData } from '../../../../hooks/useAbsenceDataIntegration'
-import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
-
-const { Text } = Typography
 
 interface AbsenceChartsViewProps {
   chartData: AbsenceChartData
@@ -52,18 +49,14 @@ const AbsenceChartsView: React.FC<AbsenceChartsViewProps> = ({ chartData, isLoad
 
   return (
     <div data-testid={`${dataTestId}-charts-view`}>
-      <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
-        <Col xs={24} lg={12}>
-          <Card
-            title={
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>{t('hr-analytics-absence-monthly-usage-trend')}</span>
-                <Tag color="var(--nw-info)">{t('hr-analytics-months', { count: chartData.monthlyUsageByGroup.length })}</Tag>
-              </div>
-            }
-            loading={isLoading}
-            data-testid={`${dataTestId}-monthly-usage-chart`}
-          >
+      <div className="gba:mb-6 gba:grid gba:grid-cols-1 gba:gap-4 lg:gba:grid-cols-2">
+        <div>
+          <Card className="gba:p-4" data-testid={`${dataTestId}-monthly-usage-chart`}>
+            <div className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:font-semibold">
+              <span>{t('hr-analytics-absence-monthly-usage-trend')}</span>
+              <Badge variant="secondary">{t('hr-analytics-months', { count: chartData.monthlyUsageByGroup.length })}</Badge>
+            </div>
+            {isLoading ? <Spinner /> : (
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={transformedMonthlyData}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -83,21 +76,18 @@ const AbsenceChartsView: React.FC<AbsenceChartsViewProps> = ({ chartData, isLoad
                 <Line type="monotone" dataKey={t('hr-analytics-absence-other')} stroke={colors.success} strokeWidth={2} dot={{ r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
+            )}
           </Card>
-        </Col>
-        <Col xs={24} lg={12}>
-          <Card
-            title={
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        </div>
+        <div>
+          <Card className="gba:p-4" data-testid={`${dataTestId}-total-absence-chart`}>
+            <div className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:font-semibold">
                 <span>{t('hr-analytics-absence-total-days-title')}</span>
-                <Tag color="var(--nw-success)">
+                <Badge variant="secondary">
                   {chartData.totalAbsenceDays.reduce((sum, item) => sum + item.days, 0)} {t('hr-analytics-days')}
-                </Tag>
-              </div>
-            }
-            loading={isLoading}
-            data-testid={`${dataTestId}-total-absence-chart`}
-          >
+                </Badge>
+            </div>
+            {isLoading ? <Spinner /> : (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={chartData.totalAbsenceDays}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -107,22 +97,19 @@ const AbsenceChartsView: React.FC<AbsenceChartsViewProps> = ({ chartData, isLoad
                 <Bar dataKey="days" fill={colors.primary} />
               </BarChart>
             </ResponsiveContainer>
+            )}
           </Card>
-        </Col>
-      </Row>
+        </div>
+      </div>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
-        <Col xs={24} lg={12}>
-          <Card
-            title={
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div className="gba:mb-6 gba:grid gba:grid-cols-1 gba:gap-4 lg:gba:grid-cols-2">
+        <div>
+          <Card className="gba:p-4" data-testid={`${dataTestId}-absence-by-group-chart`}>
+              <div className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:font-semibold">
                 <span>{t('hr-analytics-absence-by-group')}</span>
-                <Tag color="var(--nw-info)">{t('hr-analytics-groups', { count: chartData.absenceByGroup.length })}</Tag>
+                <Badge variant="secondary">{t('hr-analytics-groups', { count: chartData.absenceByGroup.length })}</Badge>
               </div>
-            }
-            loading={isLoading}
-            data-testid={`${dataTestId}-absence-by-group-chart`}
-          >
+            {isLoading ? <Spinner /> : (
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
@@ -143,19 +130,16 @@ const AbsenceChartsView: React.FC<AbsenceChartsViewProps> = ({ chartData, isLoad
                 <Tooltip />
               </PieChart>
             </ResponsiveContainer>
+            )}
           </Card>
-        </Col>
-        <Col xs={24} lg={12}>
-          <Card
-            title={
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        </div>
+        <div>
+          <Card className="gba:p-4" data-testid={`${dataTestId}-absence-by-type-chart`}>
+              <div className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:font-semibold">
                 <span>{t('hr-analytics-top-absence-types')}</span>
-                <Tag color="var(--nw-warning)">{t('hr-analytics-types', { count: chartData.absenceByType.length })}</Tag>
+                <Badge variant="warning">{t('hr-analytics-types', { count: chartData.absenceByType.length })}</Badge>
               </div>
-            }
-            loading={isLoading}
-            data-testid={`${dataTestId}-absence-by-type-chart`}
-          >
+            {isLoading ? <Spinner /> : (
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
@@ -176,22 +160,18 @@ const AbsenceChartsView: React.FC<AbsenceChartsViewProps> = ({ chartData, isLoad
                 <Tooltip />
               </PieChart>
             </ResponsiveContainer>
+            )}
           </Card>
-        </Col>
-      </Row>
+        </div>
+      </div>
 
-      <Row gutter={[16, 16]}>
-        <Col xs={24}>
-          <Card
-            title={
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div>
+          <Card className="gba:p-4" data-testid={`${dataTestId}-department-breakdown-chart`}>
+              <div className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:font-semibold">
                 <span>{t('hr-analytics-department-breakdown')}</span>
-                <Tag color="var(--nw-destructive)">{t('hr-analytics-departments', { count: chartData.departmentBreakdown.length })}</Tag>
+                <Badge variant="destructive">{t('hr-analytics-departments', { count: chartData.departmentBreakdown.length })}</Badge>
               </div>
-            }
-            loading={isLoading}
-            data-testid={`${dataTestId}-department-breakdown-chart`}
-          >
+            {isLoading ? <Spinner /> : (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={chartData.departmentBreakdown}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -202,51 +182,48 @@ const AbsenceChartsView: React.FC<AbsenceChartsViewProps> = ({ chartData, isLoad
                 <Bar dataKey="days" fill={colors.primary} />
               </BarChart>
             </ResponsiveContainer>
+            )}
           </Card>
-        </Col>
-      </Row>
+      </div>
 
       {/* Summary Statistics */}
-      <Row gutter={[16, 16]} style={{ marginTop: '24px' }}>
-        <Col xs={24}>
-          <Card title={t('hr-analytics-chart-summary')} data-testid={`${dataTestId}-chart-summary`}>
-            <Row gutter={[16, 16]}>
-              <Col xs={24} sm={12} md={6}>
+      <div className="gba:mt-6">
+          <Card className="gba:p-4" data-testid={`${dataTestId}-chart-summary`}>
+            <h4 className="gba:mb-4 gba:text-lg gba:font-semibold">{t('hr-analytics-chart-summary')}</h4>
+            <div className="gba:grid gba:grid-cols-1 gba:gap-4 sm:gba:grid-cols-2 md:gba:grid-cols-4">
+              <div>
                 <div className="gba:text-center gba:p-4">
-                  <div className="gba:text-2xl gba:font-semibold" style={{ color: colors.primary }}>
-                    {chartData.absenceByGroup.length}
-                  </div>
-                  <Text type="secondary">{t('hr-analytics-active-groups')}</Text>
+                  <div className="gba:text-2xl gba:font-semibold gba:text-info">{chartData.absenceByGroup.length}</div>
+                  <span className="gba:text-sm gba:text-muted-foreground">{t('hr-analytics-active-groups')}</span>
                 </div>
-              </Col>
-              <Col xs={24} sm={12} md={6}>
+              </div>
+              <div>
                 <div className="gba:text-center gba:p-4">
-                  <div className="gba:text-2xl gba:font-semibold" style={{ color: colors.error }}>
+                  <div className="gba:text-2xl gba:font-semibold gba:text-destructive">
                     {chartData.absenceByType.length}
                   </div>
-                  <Text type="secondary">{t('hr-analytics-absence-types')}</Text>
+                  <span className="gba:text-sm gba:text-muted-foreground">{t('hr-analytics-absence-types')}</span>
                 </div>
-              </Col>
-              <Col xs={24} sm={12} md={6}>
+              </div>
+              <div>
                 <div className="gba:text-center gba:p-4">
-                  <div className="gba:text-2xl gba:font-semibold" style={{ color: colors.secondary }}>
+                  <div className="gba:text-2xl gba:font-semibold gba:text-warning">
                     {chartData.departmentBreakdown.length}
                   </div>
-                  <Text type="secondary">{t('hr-analytics-departments-label')}</Text>
+                  <span className="gba:text-sm gba:text-muted-foreground">{t('hr-analytics-departments-label')}</span>
                 </div>
-              </Col>
-              <Col xs={24} sm={12} md={6}>
+              </div>
+              <div>
                 <div className="gba:text-center gba:p-4">
-                  <div className="gba:text-2xl gba:font-semibold" style={{ color: colors.success }}>
+                  <div className="gba:text-2xl gba:font-semibold gba:text-success">
                     {chartData.totalAbsenceDays.reduce((sum, item) => sum + item.days, 0)}
                   </div>
-                  <Text type="secondary">{t('hr-analytics-total-days')}</Text>
+                  <span className="gba:text-sm gba:text-muted-foreground">{t('hr-analytics-total-days')}</span>
                 </div>
-              </Col>
-            </Row>
+              </div>
+            </div>
           </Card>
-        </Col>
-      </Row>
+      </div>
     </div>
   )
 }

@@ -1,14 +1,22 @@
 import React, { useState, useEffect } from 'react'
-import { Tabs, Card, Row, Col, Typography, Space, Spin, Alert, Button } from 'antd'
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Button,
+  Card,
+  Spinner,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from '@newwork/nw-design-system'
 import { CalendarIcon, ChartBarIcon, TableIcon, ArrowsClockwiseIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useAbsenceDataIntegration } from '../../../hooks/useAbsenceDataIntegration'
 import AbsenceStatisticsDashboard from './components/AbsenceStatisticsDashboard'
 import AbsenceChartsView from './components/AbsenceChartsView'
 import AbsenceDetailsTable from './components/AbsenceDetailsTable'
-
-const { TabPane } = Tabs
-const { Text, Title } = Typography
 
 const AbsenceReport: React.FC<BusinessAppContextProps> = context => {
   // Define valid tabs
@@ -72,17 +80,16 @@ const AbsenceReport: React.FC<BusinessAppContextProps> = context => {
   if (error) {
     return (
       <div data-testid={`${prefixDataTestId}-error`} className="gba:bg-muted gba:min-h-full gba:p-6 gba:rounded-lg">
-        <Alert
-          message="Failed to Load Absence Data"
-          description={error}
-          type="error"
-          showIcon
-          action={
-            <Button size="small" onClick={refetch} icon={<ArrowsClockwiseIcon size={16} />}>
+        <Alert variant="destructive">
+          <AlertTitle>Failed to Load Absence Data</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+          <div className="gba:mt-3">
+            <Button type="button" size="sm" variant="outline" onClick={refetch}>
+              <ArrowsClockwiseIcon size={16} className="gba:mr-2" />
               Retry
             </Button>
-          }
-        />
+          </div>
+        </Alert>
       </div>
     )
   }
@@ -93,8 +100,8 @@ const AbsenceReport: React.FC<BusinessAppContextProps> = context => {
         data-testid={`${prefixDataTestId}-loading`}
         className="gba:bg-muted gba:min-h-full gba:p-6 gba:rounded-lg gba:flex gba:justify-center gba:items-center gba:flex-col"
       >
-        <Spin size="large" />
-        <Text className="gba:mt-4 gba:text-muted-foreground">Loading absence data and analytics...</Text>
+        <Spinner />
+        <span className="gba:mt-4 gba:text-muted-foreground">Loading absence data and analytics...</span>
       </div>
     )
   }
@@ -110,95 +117,81 @@ const AbsenceReport: React.FC<BusinessAppContextProps> = context => {
       {/* Header */}
       <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
         <div className="gba:flex gba:items-center gba:gap-4">
-          <Title level={3} className="gba:m-0 gba:text-foreground">
+          <h3 className="gba:m-0 gba:text-xl gba:font-semibold gba:text-foreground">
             Absence Report & Analytics
-          </Title>
+          </h3>
           <div className="gba:flex gba:gap-2">
-            <Card size="small" className="gba:py-1 gba:px-2">
-              <Text strong className="gba:text-info">
+            <Card className="gba:py-1 gba:px-2">
+              <span className="gba:font-semibold gba:text-info">
                 {statistics?.totalEmployees || 0} Employees
-              </Text>
+              </span>
             </Card>
-            <Card size="small" className="gba:py-1 gba:px-2">
-              <Text strong className="gba:text-info">
+            <Card className="gba:py-1 gba:px-2">
+              <span className="gba:font-semibold gba:text-info">
                 {safeAbsenceTypes.length} Absence Types
-              </Text>
+              </span>
             </Card>
-            <Card size="small" className="gba:py-1 gba:px-2">
-              <Text strong className="gba:text-success">
+            <Card className="gba:py-1 gba:px-2">
+              <span className="gba:font-semibold gba:text-success">
                 {statistics?.totalAbsenceDays || 0} Total Days
-              </Text>
+              </span>
             </Card>
           </div>
         </div>
         <Button
-          type="primary"
-          icon={<ArrowsClockwiseIcon size={16} />}
+          type="button"
           onClick={refetch}
           data-testid={`${prefixDataTestId}-refresh-button`}
         >
+          <ArrowsClockwiseIcon size={16} className="gba:mr-2" />
           Refresh Data
         </Button>
       </div>
 
       {/* Main Content */}
       <Tabs
-        activeKey={activeTab}
-        onChange={handleTabChange}
-        type="card"
-        size="large"
+        value={activeTab}
+        onValueChange={handleTabChange}
         className="gba:bg-primary-foreground gba:rounded-lg gba:p-4"
       >
-        <TabPane
-          tab={
-            <Space>
+        <TabsList>
+          <TabsTrigger value="overview">
               <CalendarIcon size={16} />
               <span data-testid={`${prefixDataTestId}-overview-tab`}>Overview & Statistics</span>
-            </Space>
-          }
-          key="overview"
-        >
-          <AbsenceStatisticsDashboard statistics={statistics as any} isLoading={isLoading} />
-        </TabPane>
-
-        <TabPane
-          tab={
-            <Space>
+          </TabsTrigger>
+          <TabsTrigger value="charts">
               <ChartBarIcon size={16} />
               <span data-testid={`${prefixDataTestId}-charts-tab`}>Charts & Trends</span>
-            </Space>
-          }
-          key="charts"
-        >
-          <AbsenceChartsView chartData={chartData as any} isLoading={isLoading} dataTestId={prefixDataTestId} />
-        </TabPane>
-
-        <TabPane
-          tab={
-            <Space>
+          </TabsTrigger>
+          <TabsTrigger value="details">
               <TableIcon size={16} />
               <span data-testid={`${prefixDataTestId}-details-tab`}>Detailed Analysis</span>
-            </Space>
-          }
-          key="details"
-        >
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="overview">
+          <AbsenceStatisticsDashboard statistics={statistics as any} isLoading={isLoading} />
+        </TabsContent>
+
+        <TabsContent value="charts">
+          <AbsenceChartsView chartData={chartData as any} isLoading={isLoading} dataTestId={prefixDataTestId} />
+        </TabsContent>
+
+        <TabsContent value="details">
           <AbsenceDetailsTable tableData={tableData as any} dataTestId={prefixDataTestId} />
-        </TabPane>
+        </TabsContent>
       </Tabs>
 
       {/* Footer Summary */}
-      <Row gutter={[16, 16]} style={{ marginTop: '24px' }}>
-        <Col span={24}>
-          <Card size="small" className="gba:bg-muted">
-            <Row gutter={[16, 8]} justify="space-between" align="middle">
-              <Col>
-                <Text type="secondary">
+      <div className="gba:mt-6">
+          <Card className="gba:bg-muted">
+            <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
+              <div>
+                <span className="gba:text-sm gba:text-muted-foreground">
                   Last Updated: {new Date().toLocaleDateString()} • Data includes {safeAbsenceData.length} absence
                   records and {safeBalanceData.length} balance entries
-                </Text>
-              </Col>
-              <Col>
-                <Space>
+                </span>
+              </div>
+              <div className="gba:flex gba:gap-4">
                   {safeAbsenceGroups.length > 0 ? (
                     safeAbsenceGroups.map((group, index: number) => (
                       <div key={group?.code || `group-${index}`} className="gba:text-center">
@@ -209,14 +202,12 @@ const AbsenceReport: React.FC<BusinessAppContextProps> = context => {
                       </div>
                     ))
                   ) : (
-                    <Text type="secondary">No absence group data available</Text>
+                    <span className="gba:text-sm gba:text-muted-foreground">No absence group data available</span>
                   )}
-                </Space>
-              </Col>
-            </Row>
+              </div>
+            </div>
           </Card>
-        </Col>
-      </Row>
+      </div>
     </div>
   )
 }
