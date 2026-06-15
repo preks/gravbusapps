@@ -77,7 +77,9 @@ export const DATA_QUALITY_EMPLOYEES = /* GraphQL */ `
         employmentTypeRef
         hireDate
       }
-      workingHours(where: { isDeleted: { _eq: false } }, limit: 1, orderBy: { updatedAt: DESC }) {
+      workingHours(where: { isDeleted: { _eq: false } }, orderBy: [{ activeFrom: DESC }, { createdAt: DESC }]) {
+        activeFrom
+        activeTo
         weeklyHours
         mondayHours
         tuesdayHours

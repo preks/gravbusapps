@@ -15,6 +15,7 @@ import type {
 } from '../types/dataQuality.types'
 import type { RawEmployeeRow, RawJobArchitecture } from './dataQualityFetch'
 import { DATA_QUALITY_EMPLOYEE_LIMIT } from './dataQualityFetch'
+import { getActiveWorkingHours } from '@/business-apps/hr/core/utils/workingHoursUtils'
 
 /** Maps category codes to i18n keys - resolve via `t(key)` in the UI layer. */
 export const CATEGORY_I18N_KEY: Record<string, string> = {
@@ -152,7 +153,7 @@ function getMissingEmployeeIssueCodes(flags: CategoryFlags): EmployeeCategoryIss
 
 export function evaluateEmployeeCategories(emp: RawEmployeeRow): CategoryFlags {
   const pos = primaryPosition(emp)
-  const whRow = emp.workingHours[0]
+  const whRow = getActiveWorkingHours(emp.workingHours)
   const taxRow = emp.taxDetails[0]
 
   return {

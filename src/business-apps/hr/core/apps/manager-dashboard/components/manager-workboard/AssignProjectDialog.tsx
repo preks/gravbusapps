@@ -24,6 +24,7 @@ import { ProjectStatusBE, ProjectStatusUI } from '@/business-apps/mdm/apps/proje
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
+import { getActiveWorkingHours } from '@/business-apps/hr/core/utils/workingHoursUtils'
 
 interface Project {
   id: string
@@ -165,11 +166,12 @@ export const AssignProjectDialog: React.FC<AssignProjectDialogProps> = ({
           EmployeeWorkingHours(
             where: {
               employeeId: { _eq: $employeeId }
-              isDeleted: { _neq: true }
+              isDeleted: { _eq: false }
             }
-            orderBy: [{ activeFrom: DESC }]
-            limit: 1
+            orderBy: [{ activeFrom: DESC }, { createdAt: DESC }]
           ) {
+            activeFrom
+            activeTo
             id
             version
             totalAllocationPercent
@@ -179,6 +181,8 @@ export const AssignProjectDialog: React.FC<AssignProjectDialogProps> = ({
 
       const response = await graphqlClient.request<{
         EmployeeWorkingHours: Array<{
+          activeFrom: string | null
+          activeTo: string | null
           id: string
           version: number
           totalAllocationPercent: number | null
@@ -186,7 +190,11 @@ export const AssignProjectDialog: React.FC<AssignProjectDialogProps> = ({
       }>(query, { employeeId: employee.id })
 
       if (response.EmployeeWorkingHours.length > 0) {
-        const wh = response.EmployeeWorkingHours[0]
+        const wh = getActiveWorkingHours(response.EmployeeWorkingHours)
+        if (!wh) {
+          return
+        }
+
         setWorkingHoursData({
           id: wh.id,
           version: wh.version,

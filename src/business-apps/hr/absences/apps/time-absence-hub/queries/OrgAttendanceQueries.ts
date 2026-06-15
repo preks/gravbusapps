@@ -51,7 +51,9 @@ export const GET_FILTERED_EMPLOYEE_IDS = `
           name
         }
       }
-      workingHours(where: { isDeleted: { _eq: false } }, orderBy: [{ updatedAt: DESC }], limit: 1) {
+      workingHours(where: { isDeleted: { _eq: false } }, orderBy: [{ activeFrom: DESC }, { createdAt: DESC }]) {
+        activeFrom
+        activeTo
         mondayHours
         tuesdayHours
         wednesdayHours
@@ -87,6 +89,8 @@ export interface FilteredEmployee {
     siteLocation?: { id: string; name: string } | null
   } | null
   workingHours?: Array<{
+    activeFrom?: string | null
+    activeTo?: string | null
     mondayHours?: number | null
     tuesdayHours?: number | null
     wednesdayHours?: number | null

@@ -5,6 +5,10 @@ import type {
   FilteredEmployee,
   PublicHolidayDay
 } from '../../../queries/OrgAttendanceQueries'
+import {
+  getActiveWeeklyWorkingHours,
+  type NormalizedWeeklyWorkingHours
+} from '@/business-apps/hr/core/utils/workingHoursUtils'
 import { toMinutes, type AttendanceDateRange } from './attendanceUtils'
 
 const WORK_ABSENCE_GROUP_ID = 'AbsenceGroup:v1:WORK'
@@ -32,18 +36,6 @@ export interface AttendanceEmployeeMetrics {
   missingLogCount: number
 }
 
-interface WeeklyWorkingHours {
-  mondayHours: number
-  tuesdayHours: number
-  wednesdayHours: number
-  thursdayHours: number
-  fridayHours: number
-  saturdayHours: number
-  sundayHours: number
-  weeklyHours?: number
-  weeklyDays?: number
-}
-
 const toDateKey = (date: Date): string => date.toISOString().slice(0, 10)
 
 const isCompletedDay = (dateIso: string, today = todayDateKey()): boolean => dateIso < today
@@ -61,27 +53,7 @@ export const eachDateInRange = (dateRange: AttendanceDateRange): string[] => {
   return dates
 }
 
-const getWorkingHours = (employee: FilteredEmployee): WeeklyWorkingHours | undefined => {
-  const workingHours = employee.workingHours?.[0]
-
-  if (!workingHours) {
-    return undefined
-  }
-
-  return {
-    mondayHours: workingHours.mondayHours ?? 0,
-    tuesdayHours: workingHours.tuesdayHours ?? 0,
-    wednesdayHours: workingHours.wednesdayHours ?? 0,
-    thursdayHours: workingHours.thursdayHours ?? 0,
-    fridayHours: workingHours.fridayHours ?? 0,
-    saturdayHours: workingHours.saturdayHours ?? 0,
-    sundayHours: workingHours.sundayHours ?? 0,
-    weeklyHours: workingHours.weeklyHours ?? undefined,
-    weeklyDays: workingHours.weeklyDays ?? undefined
-  }
-}
-
-const getPlannedMinutesForDate = (dateIso: string, workingHours?: WeeklyWorkingHours): number => {
+const getPlannedMinutesForDate = (dateIso: string, workingHours?: NormalizedWeeklyWorkingHours): number => {
   if (!workingHours) {
     return 0
   }
@@ -210,12 +182,12 @@ export const computeAttendanceEmployeeMetrics = ({
   let missingLogCount = 0
 
   if (dateRange) {
-    const workingHours = getWorkingHours(employee)
     eachDateInRange(dateRange).forEach(date => {
       if (!isCompletedDay(date, today)) {
         return
       }
 
+      const workingHours = getActiveWeeklyWorkingHours(employee.workingHours, date)
       const plannedForDay = getPlannedMinutesForDate(date, workingHours)
       if (plannedForDay === 0 || employeeHolidays.has(date)) {
         return

@@ -3,6 +3,7 @@ import { env } from '@/common/env/EnvUtils'
 import { useCallback } from 'react'
 import { useOrgchartClient } from '@/common/network/orgchart/useOrgchartClient'
 import { useRestClient } from '@/common/network/rest/useRestClient'
+import { getActiveWorkingHours } from '@/business-apps/hr/core/utils/workingHoursUtils'
 
 const EMPLOYEES_BASE_URL = `${env('NEXT_PUBLIC_BASE_URL')}/processes/employee`
 
@@ -67,6 +68,14 @@ export interface AssignEmployeePayload {
   } | null
 }
 
+interface EmployeeWorkingHoursAllocation {
+  activeFrom?: string | null
+  activeTo?: string | null
+  totalAllocationPercent: number | null
+  id: string
+  version: number
+}
+
 /**
  * Hook for managing team employee assignments
  */
@@ -87,7 +96,9 @@ export const useTeamAssignments = (accessToken: string) => {
           Employee(where: {employeePosition: {matrixUnitEmployees: {matrixUnitId: {_eq: $teamId}}}}) {
             id
             displayName
-            workingHours {
+            workingHours(where: { isDeleted: { _eq: false } }, orderBy: [{ activeFrom: DESC }, { createdAt: DESC }]) {
+              activeFrom
+              activeTo
               totalAllocationPercent
               id
               version
@@ -114,11 +125,7 @@ export const useTeamAssignments = (accessToken: string) => {
         Employee: Array<{
           id: string
           displayName: string
-          workingHours: Array<{
-            totalAllocationPercent: number | null
-            id: string
-            version: number
-          }>
+          workingHours: EmployeeWorkingHoursAllocation[]
           employeePosition: {
             matrixUnitEmployees: Array<{
               id: string
@@ -146,7 +153,7 @@ export const useTeamAssignments = (accessToken: string) => {
       const enrichedEmployees: TeamEmployee[] = employees.map(employee => {
         const matrixUnitEmployee = employee.employeePosition?.matrixUnitEmployees?.[0]
         const jobPosition = employee.employeePosition?.jobPosition
-        const workingHours = employee.workingHours?.[0]
+        const workingHours = getActiveWorkingHours(employee.workingHours)
 
         return {
           id: employee.id,
@@ -284,7 +291,9 @@ export const useTeamAssignments = (accessToken: string) => {
                   pictureThumbnail
                 }
               }
-              workingHours {
+              workingHours(where: { isDeleted: { _eq: false } }, orderBy: [{ activeFrom: DESC }, { createdAt: DESC }]) {
+                activeFrom
+                activeTo
                 id
                 version
                 totalAllocationPercent
@@ -316,11 +325,7 @@ export const useTeamAssignments = (accessToken: string) => {
                 pictureThumbnail: string | null
               } | null
             } | null
-            workingHours: Array<{
-              totalAllocationPercent: number | null
-              id: string
-              version: number
-            }>
+            workingHours: EmployeeWorkingHoursAllocation[]
           }>
         }>(query, {
           where: whereCondition,
@@ -336,6 +341,7 @@ export const useTeamAssignments = (accessToken: string) => {
             const firstName = employeePosition.firstName || ''
             const lastName = employeePosition.lastName || ''
             const fullName = `${firstName} ${lastName}`.trim()
+            const workingHours = getActiveWorkingHours(emp.workingHours)
 
             return {
               id: emp.id,
@@ -349,7 +355,7 @@ export const useTeamAssignments = (accessToken: string) => {
                     id: employeePosition.jobPosition.id
                   }
                 : undefined,
-              totalAllocationPercent: emp.workingHours?.[0]
+              totalAllocationPercent: workingHours
             }
           })
 

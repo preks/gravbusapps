@@ -27,13 +27,13 @@ todos:
     status: completed
   - id: step-7-payroll-compensation-absences
     content: 'Step 7 — Fix payroll, compensation planning, and absences insights'
-    status: pending
+    status: completed
   - id: step-8-admin-quality
     content: 'Step 8 — Fix HR Admin Cockpit data-quality checks'
-    status: pending
+    status: completed
   - id: step-9-mdm-project
     content: 'Step 9 — Fix MDM project management allocation'
-    status: pending
+    status: completed
 isProject: true
 ---
 
@@ -244,8 +244,16 @@ Compensation manager planning was intentionally de-scoped after investigation:
 
 ## Step 7 — Fix payroll, compensation planning, and absences insights
 
-These need a team decision on the **target date** (payroll month vs today) before changing behaviour.
-Do not implement until the target date semantics are agreed.
+Status: **completed**.
+
+Payroll and Time & Absence Hub were updated after agreeing the target-date semantics:
+
+- Payroll capacity resolves working hours per payroll-period day.
+- Payroll display values such as FTE / weekly hours use the working-hours record active at the payroll period start.
+- Time & Absence Hub attendance metrics and insights resolve working hours per report-range day.
+- Compensation planning was intentionally de-scoped because current manager planning UI/calculations do not use fetched working-hours values.
+
+Manual verification completed for Payroll Grid with an in-progress April payroll run and Teodor's working-hours history.
 
 ### Files to discuss / edit
 
@@ -262,26 +270,30 @@ Do not implement until the target date semantics are agreed.
 
 ## Step 8 — Fix HR Admin Cockpit data-quality checks
 
-`dataQualityCompute.ts` uses `emp.workingHours[0]` (no optional chaining, no active selection).
+Status: **completed**.
+
+HR Admin Cockpit data-quality checks now use the working-hours record active today instead of the most recently updated record. Manual verification completed in HR Admin Cockpit by comparing local and dev counts for the `Working hours` completion row.
 
 ### Files to edit
 
 | File                                                                             | Change                                                                        |
 | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
 | `src/business-apps/hr/core/apps/hr-admin-cockpit/services/dataQualityQueries.ts` | Add `activeFrom`/`activeTo` to working hours selection                        |
+| `src/business-apps/hr/core/apps/hr-admin-cockpit/services/dataQualityFetch.ts`   | Add `activeFrom`/`activeTo` to the raw working-hours type                     |
 | `src/business-apps/hr/core/apps/hr-admin-cockpit/services/dataQualityCompute.ts` | Replace `workingHours[0]` with `getActiveWorkingHours`; add optional chaining |
 
 ---
 
 ## Step 9 — Fix MDM project management allocation
 
-These use both a GraphQL fetch and a REST write (`POST /updateEmployeeWorkingHours`).
-The REST write is a process trigger and likely does not need a date range on its payload unless the backend process requires it — confirm with backend first.
+Status: **completed**.
+
+Project allocation flows now select the active working-hours record instead of assuming `workingHours[0]` / `EmployeeWorkingHours[0]`. Existing `POST /updateEmployeeWorkingHours` payload semantics were intentionally left unchanged because allocation ownership is outside the working-hours active-record scope. Manual smoke verification completed.
 
 ### Files to edit
 
-| File                                                                                                                 | Change                                                                                |
-| -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `src/business-apps/mdm/apps/project-management/hooks/useTeamAssignments.ts`                                          | Replace `workingHours?.[0]` with `getActiveWorkingHours`                              |
-| `src/business-apps/core/every-platform/apps/manager-dashboard/components/views/project-view/AssignProjectDialog.tsx` | Add orderBy to inline query; replace `EmployeeWorkingHours[0]` with index-safe access |
-| `src/business-apps/mdm/forms/employee-allocation-form/EmployeeAllocationForm.tsx`                                    | Confirm REST payload does not need activeFrom/activeTo or add if required             |
+| File                                                                                                    | Change                                                                               |
+| ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `src/business-apps/mdm/apps/project-management/hooks/useTeamAssignments.ts`                             | Replace `workingHours?.[0]` with `getActiveWorkingHours`                             |
+| `src/business-apps/hr/core/apps/manager-dashboard/components/manager-workboard/AssignProjectDialog.tsx` | Add orderBy to inline query; replace `EmployeeWorkingHours[0]` with active selection |
+| `src/business-apps/mdm/forms/employee-allocation-form/EmployeeAllocationForm.tsx`                       | Confirm REST payload does not need activeFrom/activeTo or add if required            |

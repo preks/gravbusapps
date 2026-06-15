@@ -53,6 +53,8 @@ export interface RawEmployeeRow {
     hireDate?: string | null
   }>
   workingHours: Array<{
+    activeFrom?: string | null
+    activeTo?: string | null
     weeklyHours?: RawHourValue
     mondayHours?: RawHourValue
     tuesdayHours?: RawHourValue

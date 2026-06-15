@@ -2,6 +2,7 @@ import { useEffect, useCallback, useState, useMemo } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getActiveWorkingHours } from '@/business-apps/hr/core/utils/workingHoursUtils'
 import {
   GET_PAYROLL_EMPLOYEES,
   GET_PAYROLL_SALARIES,
@@ -63,6 +64,8 @@ interface RawEmployeePosition {
       updatedBy: string | null
     }>
     workingHours: Array<{
+      activeFrom: string | null
+      activeTo: string | null
       weeklyHours: number | null
       fullTimeEquivalent: number | null
       mondayHours: number | null
@@ -236,6 +239,7 @@ function resolvePayrollRelevant(contractObjectValue: unknown): boolean | null {
 }
 
 type RawWorkingCondition = RawEmployeePosition['employee']['workingCondition'][number]
+type RawWorkingHours = RawEmployeePosition['employee']['workingHours'][number]
 
 interface PayrollWorkingConditionDisplayContext {
   hasMultiplePayrollConditions: boolean
@@ -348,9 +352,7 @@ function computeLeaveMetrics(absences: RawAbsence[], weeklyHours: number | null 
   }
 }
 
-function buildWorkingHoursForCapacity(
-  workingHours: RawEmployeePosition['employee']['workingHours'][number] | undefined
-) {
+function buildWorkingHoursForCapacity(workingHours: RawWorkingHours | undefined) {
   if (!workingHours) {
     return undefined
   }
@@ -369,17 +371,7 @@ function buildWorkingHoursForCapacity(
 function computeContractTargetMinutes(
   monthStart: Date,
   monthEnd: Date,
-  workingHoursForCapacity:
-    | {
-        mondayHours: number
-        tuesdayHours: number
-        wednesdayHours: number
-        thursdayHours: number
-        fridayHours: number
-        saturdayHours: number
-        sundayHours: number
-      }
-    | undefined
+  workingHoursRecords: RawWorkingHours[]
 ): { contractTargetMinutes: number; scheduledWorkingDays: string[] } {
   let contractTargetMinutes = 0
   const cursor = new Date(monthStart)
@@ -387,6 +379,7 @@ function computeContractTargetMinutes(
 
   while (cursor <= monthEnd) {
     const dateKey = toLocalDateKey(cursor)
+    const workingHoursForCapacity = buildWorkingHoursForCapacity(getActiveWorkingHours(workingHoursRecords, dateKey))
     const planned = getPlannedMinutesForDate(dateKey, workingHoursForCapacity)
     contractTargetMinutes += planned
     if (planned > 0) {
@@ -452,18 +445,17 @@ function countMissingPresenceDays(
 function computeCapacityMetrics(
   attendance: RawAttendance[],
   absences: RawAbsence[],
-  workingHours: RawEmployeePosition['employee']['workingHours'][number] | undefined,
+  workingHoursRecords: RawWorkingHours[],
   payrollMonth: number,
   payrollYear: number
 ): CapacityMetrics {
   const approvedAbsences = absences.filter(a => a.status === 'APPROVED')
   const monthStart = new Date(payrollYear, payrollMonth - 1, 1)
   const monthEnd = new Date(payrollYear, payrollMonth, 0)
-  const workingHoursForCapacity = buildWorkingHoursForCapacity(workingHours)
   const { contractTargetMinutes, scheduledWorkingDays } = computeContractTargetMinutes(
     monthStart,
     monthEnd,
-    workingHoursForCapacity
+    workingHoursRecords
   )
   const { workedMinutes, attendanceDateSet } = computeWorkedMinutesAndAttendanceDates(attendance)
   const absenceDateSet = computeAbsenceDateSet(approvedAbsences, monthStart, monthEnd)
@@ -667,7 +659,9 @@ function buildPayrollEmployee(
   translateIssue: IssueTranslator
 ): PayrollEmployee {
   const emp = pos.employee
-  const wh = emp.workingHours?.[0]
+  const periodStart = buildPayrollPeriod(payrollMonth, payrollYear).periodStart
+  const workingHoursRecords = emp.workingHours || []
+  const wh = getActiveWorkingHours(workingHoursRecords, periodStart)
   const bank = emp.bankAccounts?.[0]
   const tax = emp.taxDetails?.[0]
   const salaries = salaryMap.get(emp.id) || []
@@ -676,7 +670,7 @@ function buildPayrollEmployee(
   const attendance = attendanceMap.get(emp.id) || []
   const bonuses = bonusMap.get(emp.id) || []
   const leaveMetrics = computeLeaveMetrics(absences, wh?.weeklyHours)
-  const capacityMetrics = computeCapacityMetrics(attendance, absences, wh, payrollMonth, payrollYear)
+  const capacityMetrics = computeCapacityMetrics(attendance, absences, workingHoursRecords, payrollMonth, payrollYear)
 
   const contractTypeLabel = wc?.contractType?.translations?.[0]?.value || wc?.contractType?.value || ''
   const employmentTypeLabel = wc?.employmentType?.translations?.[0]?.value || wc?.employmentType?.value || ''

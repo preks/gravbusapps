@@ -3,6 +3,32 @@ type WorkingHoursPeriod = {
   activeTo?: string | null
 }
 
+type WeeklyWorkingHoursPeriod = WorkingHoursPeriod & {
+  mondayHours?: number | null
+  tuesdayHours?: number | null
+  wednesdayHours?: number | null
+  thursdayHours?: number | null
+  fridayHours?: number | null
+  saturdayHours?: number | null
+  sundayHours?: number | null
+  weeklyHours?: number | null
+  weeklyDays?: number | null
+}
+
+export interface NormalizedWeeklyWorkingHours {
+  activeFrom?: string | null
+  activeTo?: string | null
+  mondayHours: number
+  tuesdayHours: number
+  wednesdayHours: number
+  thursdayHours: number
+  fridayHours: number
+  saturdayHours: number
+  sundayHours: number
+  weeklyHours?: number
+  weeklyDays?: number
+}
+
 const toDateKey = (value?: string | Date | null): string | null => {
   if (!value) return null
 
@@ -49,4 +75,28 @@ export const getActiveWorkingHours = <T extends WorkingHoursPeriod>(
   if (!targetDateKey) return records.find(isLegacyWorkingHours)
 
   return records.find(record => isActiveOnDate(record, targetDateKey)) ?? records.find(isLegacyWorkingHours)
+}
+
+export const getActiveWeeklyWorkingHours = <T extends WeeklyWorkingHoursPeriod>(
+  records?: T[] | null,
+  targetDate: string | Date = new Date()
+): NormalizedWeeklyWorkingHours | undefined => {
+  const workingHours = getActiveWorkingHours(records, targetDate)
+  if (!workingHours) {
+    return undefined
+  }
+
+  return {
+    activeFrom: workingHours.activeFrom,
+    activeTo: workingHours.activeTo,
+    mondayHours: workingHours.mondayHours ?? 0,
+    tuesdayHours: workingHours.tuesdayHours ?? 0,
+    wednesdayHours: workingHours.wednesdayHours ?? 0,
+    thursdayHours: workingHours.thursdayHours ?? 0,
+    fridayHours: workingHours.fridayHours ?? 0,
+    saturdayHours: workingHours.saturdayHours ?? 0,
+    sundayHours: workingHours.sundayHours ?? 0,
+    weeklyHours: workingHours.weeklyHours ?? undefined,
+    weeklyDays: workingHours.weeklyDays ?? undefined
+  }
 }

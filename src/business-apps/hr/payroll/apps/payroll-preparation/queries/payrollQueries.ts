@@ -143,7 +143,14 @@ export const GET_PAYROLL_EMPLOYEES = `
           updatedAt
           updatedBy
         }
-        workingHours(orderBy: [{ activeFrom: DESC }], limit: 1) {
+        workingHours(
+          where: {
+            isDeleted: { _eq: false }
+          }
+          orderBy: [{ activeFrom: DESC }, { createdAt: DESC }]
+        ) {
+          activeFrom
+          activeTo
           weeklyHours
           fullTimeEquivalent
           mondayHours

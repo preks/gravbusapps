@@ -12,6 +12,10 @@ import {
   FilteredEmployee,
   PublicHolidayDay
 } from '../queries/OrgAttendanceQueries'
+import {
+  getActiveWeeklyWorkingHours,
+  type NormalizedWeeklyWorkingHours
+} from '@/business-apps/hr/core/utils/workingHoursUtils'
 import { eachDateInRange } from '../components/views/attendance/attendanceMetrics'
 import { toMinutes, type AttendanceDateRange } from '../components/views/attendance/attendanceUtils'
 
@@ -74,16 +78,6 @@ const formatDayLabel = (date: Date): string => {
   return `${month} ${date.getUTCDate()}`
 }
 
-interface WeeklyWorkingHours {
-  mondayHours: number
-  tuesdayHours: number
-  wednesdayHours: number
-  thursdayHours: number
-  fridayHours: number
-  saturdayHours: number
-  sundayHours: number
-}
-
 export interface InsightsAggregationInput {
   attendance: AttendanceRow[]
   employees: FilteredEmployee[]
@@ -108,24 +102,7 @@ const todayDateKey = (): string => new Date().toISOString().slice(0, 10)
 
 const isCompletedDay = (dateIso: string, today = todayDateKey()): boolean => dateIso < today
 
-const getWorkingHours = (employee: FilteredEmployee): WeeklyWorkingHours | undefined => {
-  const workingHours = employee.workingHours?.[0]
-  if (!workingHours) {
-    return undefined
-  }
-
-  return {
-    mondayHours: workingHours.mondayHours ?? 0,
-    tuesdayHours: workingHours.tuesdayHours ?? 0,
-    wednesdayHours: workingHours.wednesdayHours ?? 0,
-    thursdayHours: workingHours.thursdayHours ?? 0,
-    fridayHours: workingHours.fridayHours ?? 0,
-    saturdayHours: workingHours.saturdayHours ?? 0,
-    sundayHours: workingHours.sundayHours ?? 0
-  }
-}
-
-const getPlannedMinutesForDate = (dateIso: string, workingHours?: WeeklyWorkingHours): number => {
+const getPlannedMinutesForDate = (dateIso: string, workingHours?: NormalizedWeeklyWorkingHours): number => {
   if (!workingHours) {
     return 0
   }
@@ -197,13 +174,13 @@ const buildEmployeeDayMetrics = ({
   const absenceFractionByEmployeeAndDay = buildAbsenceFractionByEmployeeAndDay(absenceNet)
 
   return employees.flatMap(employee => {
-    const workingHours = getWorkingHours(employee)
     const attendanceByDay = attendanceByEmployeeAndDay.get(employee.id) ?? new Map<string, AttendanceRow[]>()
     const holidayDates = holidaysByEmployee.get(employee.id) ?? new Set<string>()
     const absenceFractionByDay = absenceFractionByEmployeeAndDay.get(employee.id) ?? new Map<string, number>()
 
     return dates.map(dayKey => {
       const dayAttendance = attendanceByDay.get(dayKey) ?? []
+      const workingHours = getActiveWeeklyWorkingHours(employee.workingHours, dayKey)
       const plannedForDay = holidayDates.has(dayKey) ? 0 : getPlannedMinutesForDate(dayKey, workingHours)
       const absenceFraction = absenceFractionByDay.get(dayKey) ?? 0
       const plannedMinutes = Math.round(plannedForDay * (1 - absenceFraction))
