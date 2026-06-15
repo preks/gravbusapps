@@ -273,6 +273,9 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
   // <Form> subtree and the disabled-CatalogSelect trigger loop returns. See CompanyFormView.
   const coreProps = useMemo(
     () => ({
+      businessAppContext: addressBusinessAppContext,
+      dataTestId,
+      ownerEmployee: resolvedInvestmentCompany?.ownerEmployee,
       groupOptions,
       groupsLoading: groups.loading,
       picturePreview,
@@ -280,7 +283,17 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
       onPictureUpload: handlePictureUpload,
       onRemovePicture: handleRemovePicture
     }),
-    [groupOptions, groups.loading, picturePreview, setGroupSearch, handlePictureUpload, handleRemovePicture]
+    [
+      addressBusinessAppContext,
+      dataTestId,
+      resolvedInvestmentCompany?.ownerEmployee,
+      groupOptions,
+      groups.loading,
+      picturePreview,
+      setGroupSearch,
+      handlePictureUpload,
+      handleRemovePicture
+    ]
   )
 
   const executivesProps = useMemo(

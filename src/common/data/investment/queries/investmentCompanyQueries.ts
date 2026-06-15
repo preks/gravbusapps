@@ -17,6 +17,8 @@ export interface InvestmentCompanyQueryVariables extends BaseQueryVariables {
   groupIds?: string[]
   investmentContactIds?: string[]
   ownerInvestmentCompanyIds?: string[]
+  ownerEmployeeIds?: string[]
+  ownsProperty?: boolean
 }
 
 export const buildInvestmentCompanyQuery = (): string => `

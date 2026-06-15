@@ -96,6 +96,48 @@ export const companyFilterConfig: FilterConfiguration = {
   name: 'Investment Company Filters',
   groups: [
     {
+      id: 'owner-group',
+      label: 'Owner',
+      collapsible: true,
+      defaultExpanded: true,
+      filters: [
+        {
+          id: 'ownerEmployeeIds',
+          field: 'ownerEmployeeIds',
+          label: 'Owner',
+          type: 'multi-select',
+          config: {
+            options: [],
+            searchPlaceholder: 'Search owners...',
+            totalCount: 0,
+            hasMore: false
+          }
+        }
+      ]
+    },
+    {
+      id: 'owns-property-group',
+      label: 'Owns Property',
+      collapsible: true,
+      defaultExpanded: false,
+      filters: [
+        {
+          id: 'ownsProperty',
+          field: 'ownsProperty',
+          label: 'Owns Property',
+          type: 'multi-select',
+          config: {
+            options: [
+              { id: 'true', label: 'Yes' },
+              { id: 'false', label: 'No' }
+            ],
+            totalCount: 2,
+            hasMore: false
+          }
+        }
+      ]
+    },
+    {
       id: 'currency-group',
       label: 'Currency',
       collapsible: true,

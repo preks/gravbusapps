@@ -20,6 +20,32 @@ import translations from '../_i18n'
 
 export type CompanyListViewProps = BusinessAppContextProps
 
+const getBooleanFilterValue = (value: unknown): boolean | undefined => {
+  const normalizedValue = Array.isArray(value) ? (value.length === 1 ? value[0] : undefined) : value
+
+  if (typeof normalizedValue === 'boolean') return normalizedValue
+  if (normalizedValue === 'true') return true
+  if (normalizedValue === 'false') return false
+  return undefined
+}
+
+const normalizeCompanyFilters = (filters: Record<string, any>): Record<string, any> => {
+  if (!('ownsProperty' in filters)) {
+    return filters
+  }
+
+  const ownsProperty = getBooleanFilterValue(filters.ownsProperty)
+  const normalizedFilters = { ...filters }
+
+  if (ownsProperty === undefined) {
+    delete normalizedFilters.ownsProperty
+    return normalizedFilters
+  }
+
+  normalizedFilters.ownsProperty = ownsProperty
+  return normalizedFilters
+}
+
 export const CompanyListView: React.FC<CompanyListViewProps> = context => {
   const { t } = useTranslation(translations)
   const { initialFilters, saveFilters, initialSorting, saveSorting, initialVisibleColumns, saveVisibleColumns } =
@@ -42,7 +68,7 @@ export const CompanyListView: React.FC<CompanyListViewProps> = context => {
 
   const queryVariables = useMemo<InvestmentCompanyQueryVariables>(
     () => ({
-      ...selectedFilters,
+      ...normalizeCompanyFilters(selectedFilters),
       limit: pagination.pageSize,
       offset: pagination.pageIndex * pagination.pageSize,
       search: searchTerm.trim() || undefined,

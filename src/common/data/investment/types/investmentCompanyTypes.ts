@@ -7,6 +7,7 @@ import type {
   InvestmentCompanyGroupAssociation,
   InvestmentCompanyOwnership
 } from './investmentCompanyAssociationTypes'
+import type { EmployeeRef } from '@/common/data/employee/types/employeeBaseTypes'
 import type { InvestmentAddress } from './investmentAddressTypes'
 import type { InvestmentDocument } from './investmentDocumentTypes'
 
@@ -22,8 +23,11 @@ export interface InvestmentCompany extends BaseEntity {
   picture?: unknown
   pictureThumbnail?: string
   currencyRef?: string
+  ownerEmployeeId?: string
+  ownsProperty?: boolean
 
   currency?: CatalogEntry
+  ownerEmployee?: EmployeeRef
   addresses?: InvestmentAddress[]
   documents?: InvestmentDocument[]
   executives?: InvestmentCompanyExecutive[]
@@ -44,6 +48,9 @@ export const InvestmentCompanyFields = {
   pictureThumbnail: 'pictureThumbnail',
   currencyRef: 'currencyRef',
   currency: 'currency',
+  ownerEmployeeId: 'ownerEmployeeId',
+  ownerEmployee: 'ownerEmployee',
+  ownsProperty: 'ownsProperty',
   // Addresses/documents live on InvestmentAddress / InvestmentDocument (via investmentCompanyId), not on InvestmentCompany
   addresses: 'investmentAddress',
   documents: 'investmentDocument',
@@ -65,6 +72,8 @@ export const investmentCompanyFormFields = {
   picture: 'picture',
   pictureThumbnail: 'pictureThumbnail',
   currencyRef: 'currencyRef',
+  ownerEmployeeId: 'ownerEmployeeId',
+  ownsProperty: 'ownsProperty',
   addresses: 'addresses'
 } as const
 
@@ -116,6 +125,41 @@ export const INVESTMENT_COMPANY_DESCRIPTORS: Descriptor[] = [
     optionSearchPaths: [`${InvestmentCompanyFields.currency}.value`, `${InvestmentCompanyFields.currency}.code`],
     optionDistinctOn: [InvestmentCompanyFields.currencyRef],
     kind: 'inIds'
+  },
+  {
+    key: 'ownerEmployee',
+    searchPaths: [
+      `${InvestmentCompanyFields.ownerEmployee}.displayName`,
+      `${InvestmentCompanyFields.ownerEmployee}.firstName`,
+      `${InvestmentCompanyFields.ownerEmployee}.lastName`
+    ],
+    sortPath: `${InvestmentCompanyFields.ownerEmployee}.displayName`,
+    type: 'text'
+  },
+  {
+    key: 'ownerEmployeeIds',
+    path: InvestmentCompanyFields.ownerEmployeeId,
+    filterLabel: 'Owner',
+    optionSelectPaths: [
+      `${InvestmentCompanyFields.ownerEmployee}.id`,
+      `${InvestmentCompanyFields.ownerEmployee}.displayName`
+    ],
+    optionSearchPaths: [
+      `${InvestmentCompanyFields.ownerEmployee}.displayName`,
+      `${InvestmentCompanyFields.ownerEmployee}.firstName`,
+      `${InvestmentCompanyFields.ownerEmployee}.lastName`
+    ],
+    optionDistinctOn: [InvestmentCompanyFields.ownerEmployeeId],
+    kind: 'inIds'
+  },
+  {
+    key: 'ownsProperty',
+    searchPaths: [InvestmentCompanyFields.ownsProperty],
+    sortPath: InvestmentCompanyFields.ownsProperty,
+    path: InvestmentCompanyFields.ownsProperty,
+    filterLabel: 'Owns Property',
+    type: 'boolean',
+    kind: 'eqBool'
   },
   {
     key: 'executiveTypeIds',

@@ -68,6 +68,11 @@ export const INVESTMENT_COMPANY_REF = `
   valueAddedTaxNumber
   picture
   pictureThumbnail
+  ownerEmployeeId
+  ownerEmployee {
+    ${EMPLOYEE_REF}
+  }
+  ownsProperty
   currency {
     ${CATALOG_ENTRY}
   }

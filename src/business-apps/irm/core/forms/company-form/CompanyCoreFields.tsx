@@ -12,14 +12,22 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-  Input
+  Input,
+  Switch
 } from '@newwork/nw-design-system'
+import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import type { EmployeeRef } from '@/common/data/employee/types/employeeBaseTypes'
 import { CatalogSelect } from '@/components/catalog-select'
+import { EmployeeSelect } from '@/components/employee-select'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { CURRENCY_CATALOG, type CompanyFormData } from './companyFormTypes'
 
 type CompanyCoreFieldsProps = Readonly<{
   form: UseFormReturn<CompanyFormData>
   t: (key: string) => string
+  businessAppContext: BusinessAppContextProps
+  dataTestId: string
+  ownerEmployee?: EmployeeRef
   groupOptions: Array<{ value: string; label: string }>
   groupsLoading: boolean
   picturePreview: string | null
@@ -31,6 +39,9 @@ type CompanyCoreFieldsProps = Readonly<{
 export function CompanyCoreFields({
   form,
   t,
+  businessAppContext,
+  dataTestId,
+  ownerEmployee,
   groupOptions,
   groupsLoading,
   picturePreview,
@@ -40,6 +51,28 @@ export function CompanyCoreFields({
 }: CompanyCoreFieldsProps) {
   return (
     <>
+      <FormField
+        control={form.control}
+        name="ownerEmployeeId"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{t('owner-label')}</FormLabel>
+            <FormControl>
+              <EmployeeSelect
+                value={field.value || null}
+                onValueChange={(value: string | null) => field.onChange(value || '')}
+                businessAppContext={businessAppContext}
+                initialEmployee={ownerEmployee}
+                autoSelect={form.watch('id') ? undefined : 'current-user'}
+                placeholder={t('owner-placeholder')}
+                data-testid={formatDataTestId(dataTestId, 'OwnerSelect')}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
       <FormField
         name="investmentCompanyGroupId"
         render={({ field }) => (
@@ -153,6 +186,25 @@ export function CompanyCoreFields({
               <FormControl>
                 <Input {...field} value={field.value || ''} />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="ownsProperty"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('owns-property-label')}</FormLabel>
+              <div className="gba:flex gba:h-10 gba:items-center">
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    data-testid={formatDataTestId(dataTestId, 'OwnsPropertySwitch')}
+                  />
+                </FormControl>
+              </div>
               <FormMessage />
             </FormItem>
           )}

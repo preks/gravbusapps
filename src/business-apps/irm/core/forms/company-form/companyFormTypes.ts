@@ -57,6 +57,8 @@ export const createCompanySchema = (t: (key: string) => string) => {
     taxNumber: z.string().optional(),
     valueAddedTaxNumber: z.string().optional(),
     currencyRef: z.string().optional(),
+    ownerEmployeeId: z.string().optional(),
+    ownsProperty: z.boolean(),
     investmentCompanyGroupAssociationId: z.string().optional(),
     investmentCompanyGroupAssociationVersion: z.number().optional(),
     investmentCompanyGroupId: z.string().optional(),
@@ -390,6 +392,8 @@ export const getCompanyDefaultValues = (company?: InvestmentCompanyFormSource): 
     taxNumber: company?.taxNumber || '',
     valueAddedTaxNumber: company?.valueAddedTaxNumber || '',
     currencyRef: company?.currencyRef || '',
+    ownerEmployeeId: company?.ownerEmployeeId || company?.ownerEmployee?.id || '',
+    ownsProperty: company?.ownsProperty ?? false,
     investmentCompanyGroupAssociationId: groupAssociation?.id,
     investmentCompanyGroupAssociationVersion: groupAssociation?.version,
     investmentCompanyGroupId:
