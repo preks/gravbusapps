@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { Button, DataDisplay, DataTable, TooltipProvider, useTranslation } from '@newwork/nw-design-system'
+import { useDataTablePaginationLabels } from '@/business-apps/hr/core/apps/shared/utils/dataTablePaginationLabels'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { COMPENSATION_BUDGET_REST_BASE_URL } from '../../../api/compensationBudgetRestConfig'
 import type { CompensationBudgetPlanEmployeeRestRow } from '../../../types/compensationBudgetPlanEmployeeRestRow'
@@ -36,6 +37,7 @@ export function ManagerTeamSubmittedProposalsPanel({
   onSentBackRevisionSaved
 }: Readonly<ManagerTeamSubmittedProposalsPanelProps>) {
   const { t } = useTranslation(translations)
+  const paginationLabels = useDataTablePaginationLabels()
   const restClient = useRestClient(COMPENSATION_BUDGET_REST_BASE_URL)
   const [editSentBackRow, setEditSentBackRow] = useState<SentBackProposalTableRow | null>(null)
 
@@ -150,6 +152,7 @@ export function ManagerTeamSubmittedProposalsPanel({
             rowsPerPageOptions={[10, 20, 50, 100]}
             showPageNumbers
             maxVisiblePages={7}
+            paginationLabels={paginationLabels}
             emptyMessage={emptyMessage}
             data-testid="manager-team-submitted-proposals-table"
           />

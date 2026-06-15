@@ -1,0 +1,11 @@
+table-pagination-rows-per-page-aria = { $pageSize } rânduri pe pagină din { $totalCount }
+table-pagination-row-count = din { $totalCount }
+table-pagination-page-button-aria = Mergi la pagina { $page }
+table-pagination-first-page-aria = Mergi la prima pagină
+table-pagination-previous-page-aria = Mergi la pagina anterioară
+table-pagination-next-page-aria = Mergi la pagina următoare
+table-pagination-last-page-aria = Mergi la ultima pagină
+table-pagination-go-to-page = Mergi la
+table-pagination-page-placeholder = Pagina
+table-pagination-go-to-page-input-aria = Numărul paginii
+table-pagination-go-to-page-button-aria = Mergi la pagină

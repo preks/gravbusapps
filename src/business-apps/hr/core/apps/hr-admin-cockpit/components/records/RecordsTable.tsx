@@ -18,6 +18,7 @@ import type { EmployeeAttentionRow } from '../../types/dataQuality.types'
 import { useDataQualityContext } from '../../hooks/dataQualityHooks'
 import { useEmployeeActionRefresh } from '../../hooks/useEmployeeActionRefresh'
 import { RecordDetailsSheet } from './RecordDetailsSheet'
+import { useDataTablePaginationLabels } from '@/business-apps/hr/core/apps/shared/utils/dataTablePaginationLabels'
 import translations from '../../_i18n'
 
 function getSeverityWeight(severity: EmployeeAttentionRow['severity']): number {
@@ -303,6 +304,7 @@ export function RecordsTable({ accessToken, initialFilters }: Readonly<RecordsTa
   }, [ctx.employeeAttentionRows, t])
 
   const columns = useMemo<ColumnDef<EmployeeAttentionRow>[]>(() => buildRecordsTableColumns(t), [t])
+  const paginationLabels = useDataTablePaginationLabels()
 
   const sortableColumns = useMemo(
     () => [
@@ -445,6 +447,7 @@ export function RecordsTable({ accessToken, initialFilters }: Readonly<RecordsTa
           density="compact"
           emptyMessage={t('records-empty')}
           onRowClick={record => setSelectedEmployeeId(record.employeeId)}
+          paginationLabels={paginationLabels}
         />
       </DataDisplay>
 

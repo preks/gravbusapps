@@ -3,6 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useJobPostings } from '@/common/data/recruiting/hooks/useJobPostings'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { DataDisplay, DataTable, Avatar, AvatarFallback, Badge } from '@newwork/nw-design-system'
+import { useDataTablePaginationLabels } from '@/business-apps/hr/core/apps/shared/utils/dataTablePaginationLabels'
 import type { ColumnDef, PaginationState, SortingState, ExpandedState, CellContext } from '@tanstack/react-table'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -210,6 +211,7 @@ const ExpandedApplicationsContent: React.FC<{
 }
 
 export const JobPostingView: React.FC<JobPostingViewProps> = context => {
+  const paginationLabels = useDataTablePaginationLabels()
   const [search, setSearch] = useState('')
   const [sorting, setSorting] = useState<SortingState>([{ id: 'createdAt', desc: true }])
   const [pagination, setPagination] = useState<PaginationState>({
@@ -381,6 +383,7 @@ export const JobPostingView: React.FC<JobPostingViewProps> = context => {
           rowsPerPageOptions={[10, 20, 50, 100]}
           showPageNumbers
           maxVisiblePages={7}
+          paginationLabels={paginationLabels}
           emptyMessage={getTranslationFromI18nKeyAndLabel('recruiting.noJobPostingsFound', 'No job postings found')}
           actions={rowActions}
           onRowClick={handleRowClick}

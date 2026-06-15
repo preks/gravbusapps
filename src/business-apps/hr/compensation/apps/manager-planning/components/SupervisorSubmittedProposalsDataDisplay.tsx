@@ -1,5 +1,6 @@
 import type { ColumnDef, SortingState } from '@tanstack/react-table'
 import { Button, DataDisplay, DataTable, TooltipProvider } from '@newwork/nw-design-system'
+import { useDataTablePaginationLabels } from '@/business-apps/hr/core/apps/shared/utils/dataTablePaginationLabels'
 import type { TranslateFn } from '../../planning/components/views/budgetSetupDisplayUtils'
 import type { SupervisorProposalTableRow } from './supervisorProposalTableRow'
 
@@ -45,6 +46,8 @@ export function SupervisorSubmittedProposalsDataDisplay({
   onApproveSelected,
   onSendBackOpen
 }: Readonly<SupervisorSubmittedProposalsDataDisplayProps>) {
+  const paginationLabels = useDataTablePaginationLabels()
+
   return (
     <div className="gba:mt-4">
       <DataDisplay
@@ -113,6 +116,7 @@ export function SupervisorSubmittedProposalsDataDisplay({
             rowsPerPageOptions={[10, 20, 50, 100]}
             showPageNumbers
             maxVisiblePages={7}
+            paginationLabels={paginationLabels}
             emptyMessage={emptyMessage}
             data-testid="supervisor-submitted-proposals-table"
           />

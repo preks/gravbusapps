@@ -1,5 +1,6 @@
 import React from 'react'
 import { DataDisplay, DataTable, TooltipProvider, useTranslation } from '@newwork/nw-design-system'
+import { useDataTablePaginationLabels } from '@/business-apps/hr/core/apps/shared/utils/dataTablePaginationLabels'
 import type {
   CompensationBudgetPlanCompanyRow,
   CompensationBudgetPlanListItem
@@ -50,6 +51,7 @@ export const BudgetSetupPlansTable: React.FC<BudgetSetupPlansTableProps> = ({
   currentSalaryCostByCompanyId = new Map()
 }) => {
   const { t } = useTranslation(translations)
+  const paginationLabels = useDataTablePaginationLabels()
   const {
     searchInput,
     setSearchInput,
@@ -135,6 +137,7 @@ export const BudgetSetupPlansTable: React.FC<BudgetSetupPlansTableProps> = ({
           rowsPerPageOptions={[10, 20, 50, 100]}
           showPageNumbers
           maxVisiblePages={7}
+          paginationLabels={paginationLabels}
           emptyMessage={emptyMessage}
           onRowClick={onOpenDepartmentsBreakdown}
           data-testid="budget-setup-plans-table"

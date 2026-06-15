@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react'
 import { Button, DataDisplay, DataTable, TooltipProvider, useTranslation } from '@newwork/nw-design-system'
+import { useDataTablePaginationLabels } from '@/business-apps/hr/core/apps/shared/utils/dataTablePaginationLabels'
 import type { CompensationBudgetPlanRow } from '../../hooks/useBudgetPlansTable'
 import translations from '../../_i18n'
 import { useOverviewPlansTableModel } from './useOverviewPlansTableModel'
@@ -20,6 +21,7 @@ export function OverviewPlansTable({
   onOpenPlan
 }: Readonly<OverviewPlansTableProps>) {
   const { t } = useTranslation(translations)
+  const paginationLabels = useDataTablePaginationLabels()
   const {
     searchInput,
     setSearchInput,
@@ -105,6 +107,7 @@ export function OverviewPlansTable({
             rowsPerPageOptions={[10, 20, 50, 100]}
             showPageNumbers
             maxVisiblePages={7}
+            paginationLabels={paginationLabels}
             emptyMessage={emptyMessage}
             onRowClick={handleRowClick}
             data-testid="overview-plans-table"

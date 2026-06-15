@@ -1,0 +1,11 @@
+table-pagination-rows-per-page-aria = { $pageSize } Zeilen pro Seite von { $totalCount }
+table-pagination-row-count = von { $totalCount }
+table-pagination-page-button-aria = Zu Seite { $page } gehen
+table-pagination-first-page-aria = Zur ersten Seite gehen
+table-pagination-previous-page-aria = Zur vorherigen Seite gehen
+table-pagination-next-page-aria = Zur nächsten Seite gehen
+table-pagination-last-page-aria = Zur letzten Seite gehen
+table-pagination-go-to-page = Gehe zu
+table-pagination-page-placeholder = Seite
+table-pagination-go-to-page-input-aria = Seitenzahl eingeben
+table-pagination-go-to-page-button-aria = Zur Seite gehen

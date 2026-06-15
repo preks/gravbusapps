@@ -91,6 +91,8 @@ grid-salary = Gehalt
 grid-weekly-hours = Wochenstunden
 grid-pagination-prev = Zurück
 grid-pagination-next = Weiter
+grid-pagination-showing = Zeige { $start }-{ $end } von { $total }
+grid-pagination-page-size = { $size } / Seite
 
 filter-all = Alle
 filter-search = Nach Mitarbeiter oder Code suchen...

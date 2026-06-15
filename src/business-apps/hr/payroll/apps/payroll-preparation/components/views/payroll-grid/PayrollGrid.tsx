@@ -291,6 +291,7 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
   refreshing,
   t
 }) => {
+  const tWithValues = t as (key: string, values?: Record<string, string | number>) => string
   const [sortField, setSortField] = useState<SortField>('fullName')
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
   const [currentPage, setCurrentPage] = useState(1)
@@ -438,8 +439,11 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
           <div className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-3 gba:border-t gba:border-border gba:text-sm gba:text-muted-foreground">
             <div className="gba:flex gba:items-center gba:gap-2">
               <span>
-                Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, sorted.length)} of{' '}
-                {sorted.length}
+                {tWithValues('grid-pagination-showing', {
+                  start: (currentPage - 1) * pageSize + 1,
+                  end: Math.min(currentPage * pageSize, sorted.length),
+                  total: sorted.length
+                })}
               </span>
               <Select
                 value={String(pageSize)}
@@ -454,7 +458,7 @@ export const PayrollGridView: React.FC<PayrollGridViewProps> = ({
                 <SelectContent>
                   {PAGE_SIZE_OPTIONS.map(size => (
                     <SelectItem key={size} value={String(size)}>
-                      {size} / page
+                      {tWithValues('grid-pagination-page-size', { size })}
                     </SelectItem>
                   ))}
                 </SelectContent>

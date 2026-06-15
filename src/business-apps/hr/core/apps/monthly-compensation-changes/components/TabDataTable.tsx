@@ -1,5 +1,6 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { DataTable } from '@newwork/nw-design-system'
+import { useDataTablePaginationLabels } from '@/business-apps/hr/core/apps/shared/utils/dataTablePaginationLabels'
 
 interface TabDataTableProps<TData> {
   readonly data: TData[]
@@ -18,6 +19,8 @@ export function TabDataTable<TData>({
   emptyMessage,
   onRowClick
 }: TabDataTableProps<TData>) {
+  const paginationLabels = useDataTablePaginationLabels()
+
   return (
     <div className="gba:p-4">
       <DataTable<TData>
@@ -32,6 +35,7 @@ export function TabDataTable<TData>({
         density="compact"
         emptyMessage={emptyMessage}
         onRowClick={onRowClick}
+        paginationLabels={paginationLabels}
       />
     </div>
   )

@@ -1,0 +1,11 @@
+table-pagination-rows-per-page-aria = { $pageSize } rows per page of { $totalCount }
+table-pagination-row-count = of { $totalCount }
+table-pagination-page-button-aria = Go to page { $page }
+table-pagination-first-page-aria = Go to first page
+table-pagination-previous-page-aria = Go to previous page
+table-pagination-next-page-aria = Go to next page
+table-pagination-last-page-aria = Go to last page
+table-pagination-go-to-page = Go to
+table-pagination-page-placeholder = Page
+table-pagination-go-to-page-input-aria = Go to page number
+table-pagination-go-to-page-button-aria = Go to page

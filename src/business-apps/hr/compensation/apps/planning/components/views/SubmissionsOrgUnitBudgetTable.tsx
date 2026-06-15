@@ -8,6 +8,7 @@ import {
   TooltipProvider,
   useTranslation
 } from '@newwork/nw-design-system'
+import { useDataTablePaginationLabels } from '@/business-apps/hr/core/apps/shared/utils/dataTablePaginationLabels'
 import type { SubmissionsOrgUnitTableRow } from './submissionsOrgUnitTableRows'
 import { useSubmissionsOrgUnitTableModel } from './useSubmissionsOrgUnitTableModel'
 import type { SubmissionsOrgUnitSelectionParams } from './buildSubmissionsOrgUnitTableColumns'
@@ -50,6 +51,7 @@ export function SubmissionsOrgUnitBudgetTable({
   onExecuteSalaryAdjustments
 }: Readonly<SubmissionsOrgUnitBudgetTableProps>) {
   const { t } = useTranslation(translations)
+  const paginationLabels = useDataTablePaginationLabels()
   const {
     searchInput,
     setSearchInput,
@@ -150,6 +152,7 @@ export function SubmissionsOrgUnitBudgetTable({
             rowsPerPageOptions={[10, 20, 50, 100]}
             showPageNumbers
             maxVisiblePages={7}
+            paginationLabels={paginationLabels}
             emptyMessage={emptyMessage}
             onRowClick={onReviewTeam}
             data-testid="submissions-org-unit-budget-table"

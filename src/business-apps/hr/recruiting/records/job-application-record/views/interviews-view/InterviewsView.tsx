@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useJobInterviews } from '@/common/data/recruiting/hooks/useJobInterviews'
 import { DataDisplay, DataTable } from '@newwork/nw-design-system'
+import { useDataTablePaginationLabels } from '@/business-apps/hr/core/apps/shared/utils/dataTablePaginationLabels'
 import type { ColumnDef, PaginationState, SortingState, CellContext } from '@tanstack/react-table'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -67,6 +68,7 @@ const createInterviewRowActions = (accessToken: string) => {
 }
 
 export const InterviewsView: React.FC<InterviewsViewProps> = ({ jobApplicationId, accessToken }) => {
+  const paginationLabels = useDataTablePaginationLabels()
   const [search, setSearch] = useState('')
   const [sorting, setSorting] = useState<SortingState>([{ id: 'scheduledAt', desc: true }])
   const [pagination, setPagination] = useState<PaginationState>({
@@ -164,6 +166,7 @@ export const InterviewsView: React.FC<InterviewsViewProps> = ({ jobApplicationId
           rowsPerPageOptions={[10, 20, 50, 100]}
           showPageNumbers
           maxVisiblePages={7}
+          paginationLabels={paginationLabels}
           emptyMessage={getTranslationFromI18nKeyAndLabel(
             'recruiting.noInterviewsFound',
             'No interviews found for this application'

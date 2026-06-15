@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useJobApplications } from '@/common/data/recruiting/hooks/useJobApplications'
 import { DataDisplay, DataTable, Badge, Avatar, AvatarFallback } from '@newwork/nw-design-system'
+import { useDataTablePaginationLabels } from '@/business-apps/hr/core/apps/shared/utils/dataTablePaginationLabels'
 import type { ColumnDef, PaginationState, SortingState, CellContext } from '@tanstack/react-table'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -117,6 +118,7 @@ const createCandidateLinkCellWrapper = (onCandidateClick: (jobCandidateId: strin
 }
 
 export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ jobPostingId, accessToken }) => {
+  const paginationLabels = useDataTablePaginationLabels()
   const [search, setSearch] = useState('')
   const [sorting, setSorting] = useState<SortingState>([{ id: 'applicationDate', desc: true }])
   const [pagination, setPagination] = useState<PaginationState>({
@@ -232,6 +234,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ jobPostingId
           rowsPerPageOptions={[10, 20, 50, 100]}
           showPageNumbers
           maxVisiblePages={7}
+          paginationLabels={paginationLabels}
           emptyMessage={getTranslationFromI18nKeyAndLabel(
             'recruiting.noApplicationsFound',
             'No applications found for this job posting'

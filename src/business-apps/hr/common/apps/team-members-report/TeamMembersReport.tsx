@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { PageLayout, DataDisplay, DataTable, Badge, Spinner, Alert } from '@newwork/nw-design-system'
+import { useDataTablePaginationLabels } from '@/business-apps/hr/core/apps/shared/utils/dataTablePaginationLabels'
 import { Users, Download } from '@phosphor-icons/react'
 import { useGetTeamMembers, TeamMember } from './queries/TeamMembersQueries'
 
 const TeamMembersReport: React.FC<BusinessAppContextProps> = context => {
+  const paginationLabels = useDataTablePaginationLabels()
   const [data, setData] = useState<TeamMember[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 25 })
   const [sorting, setSorting] = useState([{ id: 'lastName', desc: false }])
   const [visibleColumns, setVisibleColumns] = useState([
     'name',
@@ -284,6 +286,7 @@ const TeamMembersReport: React.FC<BusinessAppContextProps> = context => {
           enablePagination
           enableSorting
           totalCount={sortedData.length}
+          paginationLabels={paginationLabels}
         />
       </DataDisplay>
     </PageLayout>

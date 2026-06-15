@@ -1,5 +1,6 @@
 import React from 'react'
 import { DataDisplay, DataTable, TooltipProvider, useTranslation } from '@newwork/nw-design-system'
+import { useDataTablePaginationLabels } from '@/business-apps/hr/core/apps/shared/utils/dataTablePaginationLabels'
 import type { CompensationBudgetPlanRow } from '../../hooks/useBudgetPlansTable'
 import { useBudgetPlanTableModel } from './useBudgetPlanTableModel'
 import translations from '../../_i18n'
@@ -20,6 +21,7 @@ export const BudgetPlanTable: React.FC<BudgetPlanTableProps> = ({
   toolbarEnd
 }) => {
   const { t } = useTranslation(translations)
+  const paginationLabels = useDataTablePaginationLabels()
   const {
     searchInput,
     setSearchInput,
@@ -92,6 +94,7 @@ export const BudgetPlanTable: React.FC<BudgetPlanTableProps> = ({
           rowsPerPageOptions={[10, 20, 50, 100]}
           showPageNumbers
           maxVisiblePages={7}
+          paginationLabels={paginationLabels}
           emptyMessage={emptyMessage}
           data-testid="budget-plan-table"
         />

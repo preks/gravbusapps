@@ -91,6 +91,8 @@ grid-salary = Salariu
 grid-weekly-hours = Ore săptămânale
 grid-pagination-prev = Anterior
 grid-pagination-next = Următor
+grid-pagination-showing = Se afișează { $start }-{ $end } din { $total }
+grid-pagination-page-size = { $size } / pagină
 
 filter-all = Toate
 filter-search = Caută angajat sau cod...

@@ -5,6 +5,7 @@ import { useJobCandidate } from '@/common/data/recruiting/hooks/useJobCandidate'
 import { useCompany } from '@/common/data/orgchart/hooks/useCompany'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { DataDisplay, DataTable, Avatar, AvatarFallback, Badge } from '@newwork/nw-design-system'
+import { useDataTablePaginationLabels } from '@/business-apps/hr/core/apps/shared/utils/dataTablePaginationLabels'
 import type { ColumnDef, PaginationState, SortingState, ExpandedState, CellContext } from '@tanstack/react-table'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -253,6 +254,7 @@ const ExpandedCandidateApplicationsContent: React.FC<{
 }
 
 export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
+  const paginationLabels = useDataTablePaginationLabels()
   const [search, setSearch] = useState('')
   const [sorting, setSorting] = useState<SortingState>([{ id: 'createdAt', desc: true }])
   const [pagination, setPagination] = useState<PaginationState>({
@@ -486,6 +488,7 @@ export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
           rowsPerPageOptions={[10, 20, 50, 100]}
           showPageNumbers
           maxVisiblePages={7}
+          paginationLabels={paginationLabels}
           emptyMessage={getTranslationFromI18nKeyAndLabel('recruiting.noJobCandidatesFound', 'No job candidates found')}
           actions={rowActions}
           onRowClick={handleRowClick}
