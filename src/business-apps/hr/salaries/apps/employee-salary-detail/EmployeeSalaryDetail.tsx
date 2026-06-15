@@ -1,7 +1,19 @@
 import React, { useState } from 'react'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { Card, Row, Col, Descriptions, Button, Divider, Spin, Alert, Empty, Tabs } from 'antd'
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Button,
+  Card,
+  CardContent,
+  Spinner,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from '@newwork/nw-design-system'
 import { PencilIcon, ClockCounterClockwiseIcon, PlusIcon } from '@phosphor-icons/react'
 import { useFeature } from '@/common/hooks/useFeature'
 import SalaryHistoryChart from '../../components/SalaryHistoryChart'
@@ -72,6 +84,13 @@ const EmployeeSalaryDetail: React.FC<EmployeeSalaryDetailProps> = ({ accessToken
     setActiveTab(key)
   }
 
+  const renderDetailItem = (label: string, value: React.ReactNode, testId?: string) => (
+    <div className="gba:rounded-md gba:border gba:border-border gba:p-3" data-testid={testId}>
+      <dt className="gba:text-xs gba:font-medium gba:text-muted-foreground">{label}</dt>
+      <dd className="gba:mt-1 gba:text-sm gba:text-foreground">{value}</dd>
+    </div>
+  )
+
   // Loading state
   if (isLoading) {
     return (
@@ -79,7 +98,7 @@ const EmployeeSalaryDetail: React.FC<EmployeeSalaryDetailProps> = ({ accessToken
         data-testid="employee-salary-detail-loading"
         className="gba:p-6 gba:flex gba:justify-center gba:items-center"
       >
-        <Spin size="large" />
+        <Spinner />
       </div>
     )
   }
@@ -88,20 +107,20 @@ const EmployeeSalaryDetail: React.FC<EmployeeSalaryDetailProps> = ({ accessToken
   if (error) {
     return (
       <div data-testid="employee-salary-detail-error" className="gba:p-6">
-        <Alert
-          message={getTranslationFromI18nKeyAndLabel('salary.error.title', 'Error')}
-          description={getTranslationFromI18nKeyAndLabel(
+        <Alert variant="destructive">
+          <AlertTitle>{getTranslationFromI18nKeyAndLabel('salary.error.title', 'Error')}</AlertTitle>
+          <AlertDescription>
+            {getTranslationFromI18nKeyAndLabel(
             'salary.error.description',
             'Failed to load salary data. Please try again.'
-          )}
-          type="error"
-          showIcon
-          action={
-            <Button size="small" onClick={refetch}>
+            )}
+          </AlertDescription>
+          <div className="gba:mt-3">
+            <Button type="button" size="sm" variant="outline" onClick={refetch} data-testid="employee-salary-detail-retry-button">
               {getTranslationFromI18nKeyAndLabel('common.retry', 'Retry')}
             </Button>
-          }
-        />
+          </div>
+        </Alert>
       </div>
     )
   }
@@ -110,16 +129,19 @@ const EmployeeSalaryDetail: React.FC<EmployeeSalaryDetailProps> = ({ accessToken
   if (!salary) {
     return (
       <div data-testid="employee-salary-detail-empty" className="gba:p-6">
-        <Empty
-          description={getTranslationFromI18nKeyAndLabel('salary.empty', 'No salary data available')}
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-        >
+        <Card>
+          <CardContent className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-3 gba:py-12 gba:text-center">
+            <p className="gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel('salary.empty', 'No salary data available')}
+            </p>
           {isAdvancedSalaryEnabled && (
-            <Button type="primary" icon={<PlusIcon />} data-testid="add-salary-button-empty">
+              <Button type="button" data-testid="add-salary-button-empty">
+                <PlusIcon size={16} className="gba:mr-2" />
               {getTranslationFromI18nKeyAndLabel('salary.button.add', 'Add Salary')}
             </Button>
           )}
-        </Empty>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -140,134 +162,116 @@ const EmployeeSalaryDetail: React.FC<EmployeeSalaryDetailProps> = ({ accessToken
         </div>
 
         {isAdvancedSalaryEnabled && (
-          <Button type="primary" icon={<PencilIcon size={16} />} data-testid="edit-salary-button">
+          <Button type="button" data-testid="edit-salary-button">
+            <PencilIcon size={16} className="gba:mr-2" />
             {getTranslationFromI18nKeyAndLabel('salary.button.edit', 'Edit Salary')}
           </Button>
         )}
       </div>
 
-      <Tabs
-        activeKey={activeTab}
-        onChange={handleTabChange}
-        items={[
-          {
-            key: 'details',
-            label: getTranslationFromI18nKeyAndLabel('salary.tabs.details', 'Salary Details'),
-            children: (
-              <Card data-testid="salary-details-card">
-                <Row gutter={[24, 24]}>
-                  <Col xs={24} md={12}>
-                    <Descriptions
-                      title={getTranslationFromI18nKeyAndLabel('salary.details.basic', 'Basic Information')}
-                      bordered
-                      column={{ xs: 1, sm: 2 }}
-                      size="small"
-                      data-testid="salary-basic-info"
-                    >
-                      <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('salary.details.type', 'Type')}>
-                        {formatSalaryType(salary.salaryType)}
-                      </Descriptions.Item>
-                      <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('salary.details.amount', 'Amount')}>
-                        {formatCurrency(salary.amount, salary.currency, locale)}
-                      </Descriptions.Item>
-                      <Descriptions.Item
-                        label={getTranslationFromI18nKeyAndLabel('salary.details.frequency', 'Frequency')}
-                      >
-                        {formatFrequency(salary.paymentFrequency)}
-                      </Descriptions.Item>
-                      <Descriptions.Item
-                        label={getTranslationFromI18nKeyAndLabel('salary.details.effectiveDate', 'Effective Date')}
-                      >
-                        {new Date(salary.effectiveDate).toLocaleDateString(locale)}
-                      </Descriptions.Item>
-                      <Descriptions.Item label={getTranslationFromI18nKeyAndLabel('salary.details.status', 'Status')}>
-                        <span className={salary.isActive ? 'gba:text-success' : 'gba:text-muted-foreground'}>
-                          {salary.isActive
-                            ? getTranslationFromI18nKeyAndLabel('salary.status.active', 'Active')
-                            : getTranslationFromI18nKeyAndLabel('salary.status.inactive', 'Inactive')}
-                        </span>
-                      </Descriptions.Item>
-                    </Descriptions>
-                  </Col>
-
-                  <Col xs={24} md={12}>
-                    <Descriptions
-                      title={getTranslationFromI18nKeyAndLabel('salary.details.compensation', 'Total Compensation')}
-                      bordered
-                      column={{ xs: 1, sm: 1 }}
-                      size="small"
-                      data-testid="salary-total-compensation"
-                    >
-                      <Descriptions.Item
-                        label={getTranslationFromI18nKeyAndLabel('salary.details.baseSalary', 'Base Salary')}
-                      >
-                        {formatCurrency(salary.amount, salary.currency, locale)}
-                      </Descriptions.Item>
-                      <Descriptions.Item
-                        label={getTranslationFromI18nKeyAndLabel(
-                          'salary.details.additionalComponents',
-                          'Additional Components'
-                        )}
-                      >
-                        {formatCurrency(totalMonthlyCompensation - salary.amount, salary.currency, locale)}
-                      </Descriptions.Item>
-                      <Descriptions.Item
-                        label={getTranslationFromI18nKeyAndLabel('salary.details.totalMonthly', 'Total Monthly')}
-                        className="gba:font-bold"
-                      >
-                        <span className="gba:text-info gba:font-bold">
-                          {formatCurrency(totalMonthlyCompensation, salary.currency, locale)}
-                        </span>
-                      </Descriptions.Item>
-                    </Descriptions>
-                  </Col>
-                </Row>
-
-                <Divider />
-
-                <div className="gba:mt-6">
-                  <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
-                    <h3 className="gba:text-lg gba:font-medium">
-                      {getTranslationFromI18nKeyAndLabel('salary.components.title', 'Compensation Components')}
-                    </h3>
-
-                    {isAdvancedSalaryEnabled && (
-                      <Button icon={<PlusIcon />} data-testid="add-component-button">
-                        {getTranslationFromI18nKeyAndLabel('salary.components.add', 'Add Component')}
-                      </Button>
+      <Tabs value={activeTab} onValueChange={handleTabChange} data-testid="salary-detail-tabs">
+        <TabsList className="gba:mb-4">
+          <TabsTrigger value="details">
+            {getTranslationFromI18nKeyAndLabel('salary.tabs.details', 'Salary Details')}
+          </TabsTrigger>
+          <TabsTrigger value="history">
+            <ClockCounterClockwiseIcon size={16} className="gba:mr-2" />
+            {getTranslationFromI18nKeyAndLabel('salary.tabs.history', 'Salary History')}
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="details">
+          <Card data-testid="salary-details-card">
+            <CardContent className="gba:p-6">
+              <div className="gba:grid gba:grid-cols-1 gba:gap-6 md:gba:grid-cols-2">
+                <section data-testid="salary-basic-info">
+                  <h2 className="gba:mb-3 gba:text-base gba:font-semibold">
+                    {getTranslationFromI18nKeyAndLabel('salary.details.basic', 'Basic Information')}
+                  </h2>
+                  <dl className="gba:grid gba:grid-cols-1 gba:gap-3 sm:gba:grid-cols-2">
+                    {renderDetailItem(getTranslationFromI18nKeyAndLabel('salary.details.type', 'Type'), formatSalaryType(salary.salaryType))}
+                    {renderDetailItem(
+                      getTranslationFromI18nKeyAndLabel('salary.details.amount', 'Amount'),
+                      formatCurrency(salary.amount, salary.currency, locale)
                     )}
-                  </div>
+                    {renderDetailItem(
+                      getTranslationFromI18nKeyAndLabel('salary.details.frequency', 'Frequency'),
+                      formatFrequency(salary.paymentFrequency)
+                    )}
+                    {renderDetailItem(
+                      getTranslationFromI18nKeyAndLabel('salary.details.effectiveDate', 'Effective Date'),
+                      new Date(salary.effectiveDate).toLocaleDateString(locale)
+                    )}
+                    {renderDetailItem(
+                      getTranslationFromI18nKeyAndLabel('salary.details.status', 'Status'),
+                      <span className={salary.isActive ? 'gba:text-success' : 'gba:text-muted-foreground'}>
+                        {salary.isActive
+                          ? getTranslationFromI18nKeyAndLabel('salary.status.active', 'Active')
+                          : getTranslationFromI18nKeyAndLabel('salary.status.inactive', 'Inactive')}
+                      </span>
+                    )}
+                  </dl>
+                </section>
 
-                  <CompensationComponentsTable
-                    components={components || []}
-                    loading={false}
-                    accessToken={accessToken}
-                    pagination={{ pageSize: 5 }}
-                  />
+                <section data-testid="salary-total-compensation">
+                  <h2 className="gba:mb-3 gba:text-base gba:font-semibold">
+                    {getTranslationFromI18nKeyAndLabel('salary.details.compensation', 'Total Compensation')}
+                  </h2>
+                  <dl className="gba:grid gba:grid-cols-1 gba:gap-3">
+                    {renderDetailItem(
+                      getTranslationFromI18nKeyAndLabel('salary.details.baseSalary', 'Base Salary'),
+                      formatCurrency(salary.amount, salary.currency, locale)
+                    )}
+                    {renderDetailItem(
+                      getTranslationFromI18nKeyAndLabel('salary.details.additionalComponents', 'Additional Components'),
+                      formatCurrency(totalMonthlyCompensation - salary.amount, salary.currency, locale)
+                    )}
+                    {renderDetailItem(
+                      getTranslationFromI18nKeyAndLabel('salary.details.totalMonthly', 'Total Monthly'),
+                      <span className="gba:font-bold gba:text-info">
+                        {formatCurrency(totalMonthlyCompensation, salary.currency, locale)}
+                      </span>
+                    )}
+                  </dl>
+                </section>
+              </div>
+
+              <div className="gba:my-6 gba:border-t gba:border-border" />
+
+              <div className="gba:mt-6">
+                <div className="gba:mb-4 gba:flex gba:items-center gba:justify-between">
+                  <h3 className="gba:text-lg gba:font-medium">
+                    {getTranslationFromI18nKeyAndLabel('salary.components.title', 'Compensation Components')}
+                  </h3>
+
+                  {isAdvancedSalaryEnabled && (
+                    <Button type="button" data-testid="add-component-button">
+                      <PlusIcon size={16} className="gba:mr-2" />
+                      {getTranslationFromI18nKeyAndLabel('salary.components.add', 'Add Component')}
+                    </Button>
+                  )}
                 </div>
-              </Card>
-            )
-          },
-          {
-            key: 'history',
-            label: (
-              <span>
-                <ClockCounterClockwiseIcon size={16} />
-                {getTranslationFromI18nKeyAndLabel('salary.tabs.history', 'Salary History')}
-              </span>
-            ),
-            children: (
-              <Card data-testid="salary-history-card">
-                <SalaryHistoryChart
-                  historyData={[]} // This would be populated with real data
+
+                <CompensationComponentsTable
+                  components={components || []}
                   loading={false}
+                  accessToken={accessToken}
+                  pagination={{ pageSize: 5 }}
                 />
-              </Card>
-            )
-          }
-        ]}
-        data-testid="salary-detail-tabs"
-      />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="history">
+          <Card data-testid="salary-history-card">
+            <CardContent>
+              <SalaryHistoryChart
+                historyData={[]} // This would be populated with real data
+                loading={false}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
