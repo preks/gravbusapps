@@ -3297,7 +3297,7 @@ export const FlowLaunchSheet: React.FC<FlowLaunchSheetProps> = ({
         bottom: '2rem',
         left: '2rem',
         right: 'auto',
-        zIndex: 50,
+        zIndex: 60,
         height: 'calc(100vh - 5rem)',
         display: 'flex',
         flexDirection: 'row' as const,
@@ -3310,7 +3310,13 @@ export const FlowLaunchSheet: React.FC<FlowLaunchSheetProps> = ({
       }
     : {
         width: `${sheetWidth}px`,
-        maxWidth: 'calc(100vw - 1rem)'
+        maxWidth: 'calc(100vw - 1rem)',
+        position: 'fixed' as const,
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 'auto',
+        zIndex: 60
       }
 
   return (
