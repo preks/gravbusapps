@@ -1,11 +1,8 @@
 import { useMemo } from 'react'
-import { Typography } from 'antd'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@newwork/nw-design-system'
 import type { StructureDepartment } from '../../../../queries/useActiveStructureDepartmentsQueries'
 import { formatSalary, getRiskLevel, sortCompressionRisksByScore } from '../../../../utils/compensationAnalysisUtils.ts'
 import { CompressionRiskItem } from '../../../../types/compensationAnalysis.types.ts'
-
-const { Text } = Typography
 
 const SKELETON_ROW_KEYS = Array.from({ length: 32 }, (_, i) => `compression-alerts-skeleton-${i}`)
 
@@ -56,7 +53,7 @@ function CompressionRiskAlertsCard({
       <Card data-testid={`${prefixDataTestId}-compression-alerts`} className="gba:h-full">
         <CardContent className="gba:p-4">
           <div className="gba:flex gba:items-center gba:justify-center gba:h-32">
-            <Text type="danger">Error loading compression risk data</Text>
+            <span className="gba:text-destructive">Error loading compression risk data</span>
           </div>
         </CardContent>
       </Card>
@@ -72,7 +69,7 @@ function CompressionRiskAlertsCard({
         </CardHeader>
         <CardContent className="gba:p-4">
           <div className="gba:flex gba:items-center gba:justify-center gba:h-32">
-            <Text className="gba:text-muted-foreground">No compression risks found</Text>
+            <span className="gba:text-muted-foreground">No compression risks found</span>
           </div>
         </CardContent>
       </Card>
@@ -107,10 +104,10 @@ function CompressionRiskAlertsCard({
                       </span>
                       <span className={`gba:text-sm gba:font-medium ${riskLevel.color}`}>{riskLevel.label}</span>
                     </div>
-                    <Text className="gba:text-sm gba:text-muted-foreground">
+                    <p className="gba:text-sm gba:text-muted-foreground">
                       {risk.newHireName} ({formatSalary(risk.newHireSalary)}) vs {risk.veteranName} (
                       {formatSalary(risk.veteranSalary)}) • {resolveDepartmentName(risk.department)}
-                    </Text>
+                    </p>
                   </div>
                 </div>
               )
