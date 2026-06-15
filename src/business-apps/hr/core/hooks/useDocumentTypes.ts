@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
-import { message } from 'antd'
+import { toast } from '@newwork/nw-design-system'
 import { DocumentType } from '@/common/types/DocumentTypeObjectTypes'
 import { DocumentTypeObjectValue } from '@/common/types/DocumentTypeObjectTypes'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
@@ -101,7 +101,7 @@ const useDocumentTypes = (accessToken: string, moduleFilter?: string, searchTerm
               return docType
             } catch (mapError: any) {
               console.error(`Error mapping CatalogEntry (id: ${entry.id || 'N/A'}) to DocumentType:`, mapError)
-              message.error(
+              toast.error(
                 `Error processing document entry: ${entry.value || entry.code || entry.id || 'Unknown Entry'}`
               )
               return null
@@ -111,7 +111,7 @@ const useDocumentTypes = (accessToken: string, moduleFilter?: string, searchTerm
         setDocumentTypes(mappedDocumentTypes)
       } catch (e: any) {
         setError(e)
-        message.error(e.message || 'Failed to fetch document types')
+        toast.error(e.message || 'Failed to fetch document types')
       } finally {
         setLoading(false)
       }
@@ -193,12 +193,12 @@ const useDocumentTypes = (accessToken: string, moduleFilter?: string, searchTerm
         // Refresh the list to include the new entry
         setDocumentTypes(prev => [...prev, newType])
 
-        message.success('Document type created successfully')
+        toast.success('Document type created successfully')
 
         return newType
       } catch (err: any) {
         console.error('Failed to create document type:', err)
-        message.error(err.message || 'Failed to create document type')
+        toast.error(err.message || 'Failed to create document type')
         throw err
       } finally {
       }
@@ -295,11 +295,11 @@ const useDocumentTypes = (accessToken: string, moduleFilter?: string, searchTerm
           )
         )
 
-        message.success('Document type updated successfully')
+        toast.success('Document type updated successfully')
         return updatedEntry
       } catch (err: any) {
         console.error('Failed to update document type:', err)
-        message.error(err.message || 'Failed to update document type')
+        toast.error(err.message || 'Failed to update document type')
         throw err
       } finally {
         setLoading(false)
@@ -353,10 +353,10 @@ const useDocumentTypes = (accessToken: string, moduleFilter?: string, searchTerm
           setCurrentPage(prev => Math.max(1, prev - 1))
         }
 
-        message.success('Document type deleted successfully')
+        toast.success('Document type deleted successfully')
       } catch (err: any) {
         console.error('Failed to delete document type:', err)
-        message.error(err.message || 'Failed to delete document type')
+        toast.error(err.message || 'Failed to delete document type')
         throw err
       } finally {
         setLoading(false)

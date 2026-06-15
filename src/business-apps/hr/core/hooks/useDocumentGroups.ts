@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { CatalogEntry, GetCatalogEntriesParams, GetCatalogsParams } from '@/common/types/CatalogTypes'
-import { message } from 'antd'
+import { toast } from '@newwork/nw-design-system'
 
 export type DocumentGroup = CatalogEntry
 
@@ -47,7 +47,7 @@ const useDocumentGroups = (accessToken: string) => {
       } catch (e: any) {
         console.error('[useDocumentGroups] Failed to fetch document groups:', e)
         setError(e)
-        message.error(e.message || 'Failed to fetch document groups.')
+        toast.error(e.message || 'Failed to fetch document groups.')
         setDocumentGroups([])
       } finally {
         setLoading(false)

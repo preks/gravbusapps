@@ -1,13 +1,30 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { Button, Card, Col, Input, message, Row, Select, Table, Tag, Typography } from 'antd'
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Spinner,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  toast
+} from '@newwork/nw-design-system'
 import { PlusIcon, TrashIcon, PencilIcon, MagnifyingGlassIcon } from '@phosphor-icons/react'
 import { useTranslation } from 'react-i18next'
 import AddDocumentModal from './modals/AddDocumentTypeModal'
 import useDocumentTypes from '@/business-apps/hr/core/hooks/useDocumentTypes'
 import { DocumentType } from '@/common/types/DocumentTypeObjectTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-
-const { Title, Text } = Typography
 
 const DocumentManagementSetup: React.FC<BusinessAppContextProps> = props => {
   const { t } = useTranslation()
@@ -111,7 +128,7 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = props => {
         })
       }
 
-      message.success(
+      toast.success(
         editingDocType
           ? t('documentManagement.messages.updateSuccess', 'Document type updated successfully')
           : t('documentManagement.messages.createSuccess', 'Document type created successfully')
@@ -119,7 +136,7 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = props => {
       handleCancel()
     } catch (error) {
       console.error('Error saving document type:', error)
-      message.error(
+      toast.error(
         editingDocType
           ? t('documentManagement.errors.updateFailed', 'Failed to update document type')
           : t('documentManagement.errors.createFailed', 'Failed to create document type')
@@ -142,126 +159,19 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = props => {
     }))
   }, [allPossibleModules])
 
-  // Use server-side filtering with the search term and module filter
-  // The actual filtering is done in the useDocumentTypes hook
-  const columns = [
-    {
-      title: t('documentManagement.columns.name', 'Name'),
-      dataIndex: 'value',
-      key: 'value',
-      render: (text: string, record: DocumentType) => (
-        <div>
-          <div className="gba:font-semibold">{text}</div>
-          {record.objectValue?.description && (
-            <div className="gba:text-muted-foreground gba:text-xs">{record.objectValue.description}</div>
-          )}
-        </div>
-      )
-    },
-    {
-      title: t('documentManagement.columns.module', 'Module'),
-      dataIndex: 'parentEntryId',
-      key: 'module',
-      render: (parentEntryId: string) => {
-        if (!parentEntryId) return <Tag>{t('documentManagement.unknown', 'Unknown')}</Tag>
-        const parts = parentEntryId.split(':')
-        let moduleName = parts.length > 0 ? parts[parts.length - 1] : parentEntryId
-        moduleName = moduleName.toLowerCase()
-        return <Tag>{moduleName.charAt(0).toUpperCase() + moduleName.slice(1)}</Tag>
-      }
-    },
-    {
-      title: t('documentManagement.columns.fileTypes', 'File Types'),
-      key: 'fileTypes',
-      render: (_: any, record: DocumentType) => {
-        const fileTypes = Array.isArray(record.objectValue?.fileTypes)
-          ? record.objectValue.fileTypes
-          : record.objectValue?.fileTypes
-            ? [record.objectValue.fileTypes]
-            : []
-        return (
-          <div className="gba:flex gba:flex-wrap gba:gap-1">
-            {fileTypes.map((type: string, index: number) => (
-              <Tag
-                key={index}
-                color="var(--nw-primary-foreground)"
-                style={{
-                  borderColor: 'var(--nw-border)',
-                  color: 'var(--nw-foreground)',
-                  fontWeight: 500
-                }}
-              >
-                {type.toUpperCase()}
-              </Tag>
-            ))}
-            {fileTypes.length === 0 && <span>-</span>}
-          </div>
-        )
-      }
-    },
-    {
-      title: t('documentManagement.columns.maxSize', 'Max Size (MB)'),
-      key: 'maxSize',
-      render: (_: any, record: DocumentType) => <span>{record.objectValue?.maxSize || '-'}</span>
-    },
-    {
-      title: t('documentManagement.columns.gdpr', 'GDPR'),
-      key: 'gdpr',
-      render: (_: any, record: DocumentType) => {
-        const isGdpr = record.objectValue?.gdprRelevant === true
-        return isGdpr ? (
-          <Tag
-            color="var(--nw-warning-secondary)"
-            style={{
-              backgroundColor: 'var(--nw-warning-secondary)',
-              borderColor: 'var(--nw-warning)',
-              color: 'var(--nw-warning-on-card)',
-              fontWeight: 500
-            }}
-          >
-            GDPR
-          </Tag>
-        ) : (
-          <span>-</span>
-        )
-      }
-    },
-    {
-      title: t('documentManagement.columns.status', 'Status'),
-      key: 'status',
-      render: (_: any, record: DocumentType) => {
-        const isActive = record.objectValue?.isActive !== false // Default to true if not set
-        return (
-          <Tag color={isActive ? 'green' : 'red'}>
-            {isActive ? t('common.active', 'Active') : t('common.inactive', 'Inactive')}
-          </Tag>
-        )
-      }
-    },
-    {
-      title: t('common.actions', 'Actions'),
-      key: 'actions',
-      fixed: 'right' as const,
-      width: 120,
-      render: (_: any, record: DocumentType) => (
-        <div className="gba:flex gba:gap-2">
-          <Button
-            type="text"
-            icon={<PencilIcon />}
-            onClick={() => showModal(record)}
-            className="gba:text-muted-foreground gba:hover:text-info"
-          />
-          <Button
-            type="text"
-            danger
-            icon={<TrashIcon size={16} />}
-            onClick={() => handleDelete(record.id)}
-            className="gba:hover:text-destructive"
-          />
-        </div>
-      )
-    }
-  ]
+  const getModuleLabel = (parentEntryId: string) => {
+    if (!parentEntryId) return t('documentManagement.unknown', 'Unknown')
+    const parts = parentEntryId.split(':')
+    const moduleName = (parts.length > 0 ? parts[parts.length - 1] : parentEntryId).toLowerCase()
+    return moduleName.charAt(0).toUpperCase() + moduleName.slice(1)
+  }
+
+  const getFileTypes = (record: DocumentType) => {
+    if (Array.isArray(record.objectValue?.fileTypes)) return record.objectValue.fileTypes
+    return record.objectValue?.fileTypes ? [record.objectValue.fileTypes] : []
+  }
+
+  const totalPages = Math.max(1, Math.ceil(totalDocumentTypes / PAGE_SIZE))
 
   if (hookLoading) {
     return <div className="gba:p-6">{t('documentManagement.loading', 'Loading document types...')}</div>
@@ -279,21 +189,19 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = props => {
 
   return (
     <div className="gba:p-6 gba:document-management-container">
-      <Row justify="space-between" align="middle" className="gba:mb-6 gba:header-row">
-        <Col>
-          <Title level={3} className="gba:m-0 gba:page-title">
-            {t('documentManagement.title', 'Document Type Management')}
-          </Title>
-          <Text type="secondary">
-            {t('documentManagement.subtitle', 'Manage document types and their permissions')}
-          </Text>
-        </Col>
-      </Row>
+      <div className="gba:mb-6 gba:header-row">
+        <h3 className="gba:m-0 gba:text-xl gba:font-semibold gba:page-title">
+          {t('documentManagement.title', 'Document Type Management')}
+        </h3>
+        <p className="gba:text-sm gba:text-muted-foreground">
+          {t('documentManagement.subtitle', 'Manage document types and their permissions')}
+        </p>
+      </div>
 
       {/* KPI and Search Card */}
       <Card className="gba:mb-6">
-        <Row gutter={16} align="middle" justify="space-between">
-          <Col span={10}>
+        <CardContent className="gba:flex gba:items-center gba:justify-between gba:p-6">
+          <div>
             <div>
               <div className="gba:text-sm gba:text-muted-foreground">
                 {moduleFilter
@@ -308,68 +216,171 @@ const DocumentManagementSetup: React.FC<BusinessAppContextProps> = props => {
                 )}
               </div>
             </div>
-          </Col>
-          <Col>
-            <Button type="primary" icon={<PlusIcon />} onClick={() => showModal()} className="gba:create-button">
+          </div>
+          <div>
+            <Button type="button" onClick={() => showModal()} className="gba:create-button">
+              <PlusIcon size={16} className="gba:mr-2" />
               {t('documentManagement.actions.addDocumentType', 'Add Document Type')}
             </Button>
-          </Col>
-        </Row>
+          </div>
+        </CardContent>
       </Card>
 
       {/* Filter and Table Card */}
       <Card>
-        <Row gutter={16} justify="space-between" align="middle" className="gba:mb-2">
-          <Col span={5}>
+        <CardContent className="gba:p-6">
+          <div className="gba:mb-4 gba:flex gba:items-center gba:justify-between gba:gap-4">
             <Select
-              placeholder={t('documentManagement.filters.module', 'Filter by Module')}
-              className="gba:w-full"
-              value={moduleFilter}
-              onChange={value => {
-                setModuleFilter(value)
+              value={moduleFilter ?? 'all'}
+              onValueChange={value => {
+                setModuleFilter(value === 'all' ? undefined : value)
                 if (currentPage !== 1) {
                   handlePageChange(1)
                 }
               }}
-              allowClear
-              style={{ width: '100%' }}
             >
-              <Select.Option value={undefined}>
-                {t('documentManagement.filters.allModules', 'All Modules')}
-              </Select.Option>
+              <SelectTrigger className="gba:w-56" data-testid="document-management-module-filter">
+                <SelectValue placeholder={t('documentManagement.filters.module', 'Filter by Module')} />
+              </SelectTrigger>
+              <SelectContent>
+              <SelectItem value="all">{t('documentManagement.filters.allModules', 'All Modules')}</SelectItem>
               {moduleOptions.map(opt => (
-                <Select.Option key={opt.value} value={opt.value}>
+                <SelectItem key={opt.value} value={opt.value}>
                   {opt.label}
-                </Select.Option>
+                </SelectItem>
               ))}
+              </SelectContent>
             </Select>
-          </Col>
-          <Col>
+          <div className="gba:relative gba:w-80">
+            <MagnifyingGlassIcon
+              size={16}
+              className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:text-muted-foreground"
+            />
             <Input
               placeholder={t('documentManagement.search.placeholder', 'Search document types...')}
-              prefix={<MagnifyingGlassIcon size={16} />}
               value={searchInput}
               onChange={e => setSearchInput(e.target.value)}
-              allowClear
-              className="gba:w-full"
+              className="gba:w-full gba:pl-9"
+              data-testid="document-management-search-input"
             />
-          </Col>
-        </Row>
+          </div>
+        </div>
 
-        <Table
-          columns={columns}
-          dataSource={documentTypes}
-          loading={hookLoading}
-          rowKey="id"
-          pagination={{
-            current: currentPage,
-            pageSize: PAGE_SIZE,
-            total: totalDocumentTypes,
-            onChange: handlePageChange,
-            showSizeChanger: false,
-            showTotal: undefined
-          }}
-        />
+        {hookLoading ? (
+          <div className="gba:flex gba:justify-center gba:p-8" data-testid="document-management-table-loading">
+            <Spinner />
+          </div>
+        ) : (
+          <div className="gba:overflow-x-auto">
+            <Table data-testid="document-management-table">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t('documentManagement.columns.name', 'Name')}</TableHead>
+                  <TableHead>{t('documentManagement.columns.module', 'Module')}</TableHead>
+                  <TableHead>{t('documentManagement.columns.fileTypes', 'File Types')}</TableHead>
+                  <TableHead>{t('documentManagement.columns.maxSize', 'Max Size (MB)')}</TableHead>
+                  <TableHead>{t('documentManagement.columns.gdpr', 'GDPR')}</TableHead>
+                  <TableHead>{t('documentManagement.columns.status', 'Status')}</TableHead>
+                  <TableHead>{t('common.actions', 'Actions')}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {documentTypes.map(record => {
+                  const fileTypes = getFileTypes(record)
+                  const isGdpr = record.objectValue?.gdprRelevant === true
+                  const isActive = record.objectValue?.isActive !== false
+
+                  return (
+                    <TableRow key={record.id} data-testid={`document-management-row-${record.id}`}>
+                      <TableCell>
+                        <div className="gba:font-semibold">{record.value}</div>
+                        {record.objectValue?.description && (
+                          <div className="gba:text-muted-foreground gba:text-xs">{record.objectValue.description}</div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{getModuleLabel(record.parentEntryId)}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="gba:flex gba:flex-wrap gba:gap-1">
+                          {fileTypes.map((type: string) => (
+                            <Badge key={type} variant="outline">
+                              {type.toUpperCase()}
+                            </Badge>
+                          ))}
+                          {fileTypes.length === 0 && <span>-</span>}
+                        </div>
+                      </TableCell>
+                      <TableCell>{record.objectValue?.maxSize || '-'}</TableCell>
+                      <TableCell>{isGdpr ? <Badge variant="warning">GDPR</Badge> : <span>-</span>}</TableCell>
+                      <TableCell>
+                        <Badge variant={isActive ? 'success' : 'destructive'}>
+                          {isActive ? t('common.active', 'Active') : t('common.inactive', 'Inactive')}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="gba:flex gba:gap-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => showModal(record)}
+                            className="gba:text-muted-foreground hover:gba:text-info"
+                            data-testid={`document-management-edit-${record.id}`}
+                          >
+                            <PencilIcon size={16} />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(record.id)}
+                            className="hover:gba:text-destructive"
+                            data-testid={`document-management-delete-${record.id}`}
+                          >
+                            <TrashIcon size={16} />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+            {documentTypes.length === 0 && (
+              <div className="gba:p-4 gba:text-center gba:text-sm gba:text-muted-foreground">
+                {t('documentManagement.empty', 'No document types found')}
+              </div>
+            )}
+          </div>
+        )}
+
+        {totalPages > 1 && (
+          <div className="gba:mt-4 gba:flex gba:items-center gba:justify-end gba:gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage <= 1}
+            >
+              {t('common.previous', 'Previous')}
+            </Button>
+            <span className="gba:text-sm gba:text-muted-foreground">
+              {currentPage} / {totalPages}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage >= totalPages}
+            >
+              {t('common.next', 'Next')}
+            </Button>
+          </div>
+        )}
+        </CardContent>
       </Card>
 
       <AddDocumentModal

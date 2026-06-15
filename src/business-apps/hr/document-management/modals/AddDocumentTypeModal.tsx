@@ -1,10 +1,28 @@
-import React, { useEffect, useState, useMemo } from 'react'
-import { Modal, Form, Input, Select, Switch, Button, Tag, Row, Col, Tabs } from 'antd'
-import type { TabsProps } from 'antd'
+import React, { useEffect, useMemo, useState } from 'react'
+import {
+  Alert,
+  AlertDescription,
+  Badge,
+  Button,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Switch,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  Textarea
+} from '@newwork/nw-design-system'
 import { useTranslation } from 'react-i18next'
-
-const { Option } = Select
-const { TextArea } = Input
 
 import useDocumentGroups, { DocumentGroup } from '@/business-apps/hr/core/hooks/useDocumentGroups' // Import the new hook
 
@@ -30,11 +48,12 @@ const fileTypes = [
 
 const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = props => {
   const { t } = useTranslation()
-  const [form] = Form.useForm()
   const [selectedFileTypes, setSelectedFileTypes] = useState<string[]>([])
   const [initialValuesSet, setInitialValuesSet] = useState(false)
   const [initialFormValues, setInitialFormValues] = useState<any>(null)
   const [formValues, setFormValues] = useState<any>({})
+  const [activeTab, setActiveTab] = useState('basic')
+  const [validationError, setValidationError] = useState<string | null>(null)
 
   // Destructure props
   const { accessToken, initialValues, isEditing = false, onCancel, onOk, visible } = props
@@ -42,16 +61,15 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = props => {
   // Reset form when visibility changes
   useEffect(() => {
     if (visible) {
-      form.resetFields()
+      setActiveTab('basic')
+      setValidationError(null)
     }
-  }, [visible, form])
+  }, [visible])
 
   // Handle form values change
-  const handleValuesChange = (_: any, allValues: any) => {
-    setFormValues((prev: any) => ({
-      ...prev,
-      ...allValues
-    }))
+  const handleFieldChange = (field: string, value: unknown) => {
+    setFormValues((prev: any) => ({ ...prev, [field]: value }))
+    setValidationError(null)
   }
 
   // Check if form has been modified
@@ -105,7 +123,7 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = props => {
       const deName = initialValues.translations?.find((t: any) => t.localeCode === 'de-DE')?.value || ''
       const roName = initialValues.translations?.find((t: any) => t.localeCode === 'ro-RO')?.value || ''
 
-      const formValues = {
+      const nextFormValues = {
         name: enName,
         name_de: deName,
         name_ro: roName,
@@ -117,15 +135,14 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = props => {
         fileTypes: fileTypes
       }
 
-      form.setFieldsValue(formValues)
       // Update selected file types state
       setSelectedFileTypes(fileTypes)
 
       // Store initial values for dirty checking - clone the object to avoid reference issues
-      setInitialFormValues(JSON.parse(JSON.stringify(formValues)))
+      setInitialFormValues(JSON.parse(JSON.stringify(nextFormValues)))
       setInitialValuesSet(true)
       // Also set the current form values
-      setFormValues(JSON.parse(JSON.stringify(formValues)))
+      setFormValues(JSON.parse(JSON.stringify(nextFormValues)))
     } else {
       // Default values for new document type
       const defaultValues = {
@@ -134,7 +151,6 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = props => {
         maxSize: 5,
         fileTypes: []
       }
-      form.setFieldsValue(defaultValues)
       setSelectedFileTypes([])
 
       // Store initial values for dirty checking - clone the object to avoid reference issues
@@ -143,11 +159,34 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = props => {
       // Also set the current form values
       setFormValues(JSON.parse(JSON.stringify(defaultValues)))
     }
-  }, [isEditing, initialValues, form])
+  }, [isEditing, initialValues])
 
   const handleOk = async () => {
-    try {
-      const values = await form.validateFields()
+    const values = formValues
+
+    if (!values.name?.trim()) {
+      setValidationError(t('documentType.name_required', 'Please enter document type name'))
+      setActiveTab('basic')
+      return
+    }
+
+    if (!values.description?.trim()) {
+      setValidationError(t('documentType.description_required', 'Please enter a description'))
+      setActiveTab('basic')
+      return
+    }
+
+    if (!values.documentGroup) {
+      setValidationError(t('documentType.module_required', 'Please select a module'))
+      setActiveTab('basic')
+      return
+    }
+
+    if (!values.maxSize || Number(values.maxSize) < 1) {
+      setValidationError(t('documentType.max_size_required', 'Please enter maximum file size'))
+      setActiveTab('file-settings')
+      return
+    }
 
       // Prepare translations array for document type name
       // Always include English as the first item
@@ -164,17 +203,15 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = props => {
       }
 
       // Convert GDPR relevance to string 'true'/'false' if it's a boolean
-      const formValues = {
+      const nextFormValues = {
         ...values,
-        gdprRelevant: values.gdprRelevant ? 'true' : 'false',
+        gdprRelevant: Boolean(values.gdprRelevant),
         fileTypes: selectedFileTypes,
         isActive: values.isActive !== false, // Ensure isActive defaults to true
+        maxSize: Number(values.maxSize),
         translations: translations
       }
-      onOk(formValues)
-    } catch (info) {
-      console.log('Validate Failed:', info)
-    }
+      onOk(nextFormValues)
   }
 
   const toggleFileType = (fileType: string) => {
@@ -185,150 +222,135 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = props => {
     setSelectedFileTypes(newFileTypes)
 
     // Update form values to trigger dirty check
-    form.setFieldsValue({ fileTypes: newFileTypes })
-    handleValuesChange({}, { ...form.getFieldsValue(), fileTypes: newFileTypes })
+    handleFieldChange('fileTypes', newFileTypes)
   }
 
+  const renderFieldLabel = (label: string, required = false) => (
+    <label className="gba:text-sm gba:font-medium">
+      {label}
+      {required && <span className="gba:text-destructive"> *</span>}
+    </label>
+  )
+
   const renderBasicInfoTab = () => (
-    <Row gutter={[16, 6]}>
-      <Col span={24}>
-        <Form.Item
-          name="name"
-          label={t('documentType.name_label', 'Document Type Name (Default: EN)')}
-          rules={[{ required: true, message: t('documentType.name_required', 'Please enter document type name') }]}
+    <div className="gba:grid gba:grid-cols-1 gba:gap-4 md:gba:grid-cols-2">
+      <div className="gba:space-y-2 md:gba:col-span-2">
+        {renderFieldLabel(t('documentType.name_label', 'Document Type Name (Default: EN)'), true)}
+        <Input
+          value={formValues.name ?? ''}
+          placeholder={t('documentType.name_placeholder', 'e.g., Employee Contract')}
+          disabled={isEditing}
+          onChange={event => handleFieldChange('name', event.target.value)}
+        />
+      </div>
+
+      <div className="gba:space-y-2">
+        {renderFieldLabel(t('documentType.name_de_label', 'Document Type Name (German - DE)'))}
+        <Input
+          value={formValues.name_de ?? ''}
+          placeholder={t('documentType.name_de_placeholder', 'e.g., Arbeitsvertrag')}
+          onChange={event => handleFieldChange('name_de', event.target.value)}
+        />
+      </div>
+
+      <div className="gba:space-y-2">
+        {renderFieldLabel(t('documentType.name_ro_label', 'Document Type Name (Romanian - RO)'))}
+        <Input
+          value={formValues.name_ro ?? ''}
+          placeholder={t('documentType.name_ro_placeholder', 'e.g., Contract de muncă')}
+          onChange={event => handleFieldChange('name_ro', event.target.value)}
+        />
+      </div>
+
+      <div className="gba:space-y-2 md:gba:col-span-2">
+        {renderFieldLabel(t('documentType.description_label', 'Description'), true)}
+        <Textarea
+          rows={2}
+          value={formValues.description ?? ''}
+          placeholder={t('documentType.description_placeholder', 'Enter a brief description')}
+          onChange={event => handleFieldChange('description', event.target.value)}
+        />
+      </div>
+
+      <div className="gba:space-y-2 md:gba:col-span-2">
+        {renderFieldLabel(t('documentType.module_label', 'Module'), true)}
+        <Select
+          value={formValues.documentGroup ?? ''}
+          onValueChange={value => handleFieldChange('documentGroup', value)}
+          disabled={documentGroupsLoading || !!documentGroupsError}
         >
-          <Input placeholder={t('documentType.name_placeholder', 'e.g., Employee Contract')} disabled={isEditing} />
-        </Form.Item>
-      </Col>
-
-      <Col span={12}>
-        <Form.Item name="name_de" label={t('documentType.name_de_label', 'Document Type Name (German - DE)')}>
-          <Input placeholder={t('documentType.name_de_placeholder', 'e.g., Arbeitsvertrag')} />
-        </Form.Item>
-      </Col>
-
-      <Col span={12}>
-        <Form.Item name="name_ro" label={t('documentType.name_ro_label', 'Document Type Name (Romanian - RO)')}>
-          <Input placeholder={t('documentType.name_ro_placeholder', 'e.g., Contract de muncă')} />
-        </Form.Item>
-      </Col>
-
-      <Col span={24}>
-        <Form.Item
-          name="description"
-          label={t('documentType.description_label', 'Description')}
-          rules={[{ required: true, message: t('documentType.description_required', 'Please enter a description') }]}
-        >
-          <TextArea rows={2} placeholder={t('documentType.description_placeholder', 'Enter a brief description')} />
-        </Form.Item>
-      </Col>
-
-      <Col span={24}>
-        <Form.Item
-          name="documentGroup"
-          label={t('documentType.module_label', 'Module')}
-          rules={[{ required: true, message: t('documentType.module_required', 'Please select a module') }]}
-        >
-          <Select
-            placeholder={t('documentType.module_placeholder', 'Select module')}
-            loading={documentGroupsLoading}
-            disabled={documentGroupsLoading || !!documentGroupsError}
-          >
+          <SelectTrigger>
+            <SelectValue placeholder={t('documentType.module_placeholder', 'Select module')} />
+          </SelectTrigger>
+          <SelectContent>
             {documentGroups.map((group: DocumentGroup) => (
-              <Option key={group.id} value={group.code}>
+              <SelectItem key={group.id} value={group.code}>
                 {group.value}
-              </Option>
+              </SelectItem>
             ))}
-          </Select>
-        </Form.Item>
-      </Col>
+          </SelectContent>
+        </Select>
+      </div>
 
-      <Col span={24}>
-        <Form.Item
-          name="gdprRelevant"
-          label={t('documentType.gdpr_label', 'GDPR Relevance')}
-          valuePropName="checked"
-          className="gba:mb-0"
-        >
-          <div className="gba:flex items-center gba:justify-between">
-            <div>
-              <div className="gba:text-xs gba:text-muted-foreground">
-                {t('documentType.gdpr_help', 'This document contains personal data')}
-              </div>
-            </div>
-            <Form.Item name="gdprRelevant" valuePropName="checked" noStyle>
-              <Switch
-                checked={form.getFieldValue('gdprRelevant') || false}
-                onChange={checked => {
-                  form.setFieldsValue({ gdprRelevant: checked })
-                  handleValuesChange({}, { ...form.getFieldsValue(), gdprRelevant: checked })
-                }}
-                className={form.getFieldValue('gdprRelevant') ? 'gba:bg-info' : 'gba:bg-muted'}
-              />
-            </Form.Item>
+      <div className="gba:flex gba:items-center gba:justify-between md:gba:col-span-2">
+        <div>
+          {renderFieldLabel(t('documentType.gdpr_label', 'GDPR Relevance'))}
+          <div className="gba:text-xs gba:text-muted-foreground">
+            {t('documentType.gdpr_help', 'This document contains personal data')}
           </div>
-        </Form.Item>
-      </Col>
-    </Row>
+        </div>
+        <Switch
+          checked={Boolean(formValues.gdprRelevant)}
+          onCheckedChange={checked => handleFieldChange('gdprRelevant', checked)}
+        />
+      </div>
+    </div>
   )
 
   const renderFileSettingsTab = () => (
-    <Row gutter={[16, 16]}>
-      <Col span={24}>
-        <Form.Item
-          name="isActive"
-          label={t('documentType.status_label', 'Status')}
-          valuePropName="checked"
-          className="gba:mb-0"
-        >
-          <div className="gba:flex items-center gba:justify-between">
-            <div>
-              <div className="gba:text-medium">{t('documentType.active_label', 'Active')}</div>
-              <div className="gba:text-xs gba:text-muted-foreground">
-                {t('documentType.active_help', 'Document type will be available for use')}
-              </div>
-            </div>
-            <Form.Item name="isActive" valuePropName="checked" noStyle>
-              <Switch
-                checked={form.getFieldValue('isActive')}
-                onChange={checked => {
-                  form.setFieldsValue({ isActive: checked })
-                  handleValuesChange({}, { ...form.getFieldsValue(), isActive: checked })
-                }}
-                className={form.getFieldValue('isActive') ? 'gba:bg-info' : 'gba:bg-muted'}
-              />
-            </Form.Item>
+    <div className="gba:space-y-4">
+      <div className="gba:flex gba:items-center gba:justify-between">
+        <div>
+          {renderFieldLabel(t('documentType.status_label', 'Status'))}
+          <div className="gba:text-medium">{t('documentType.active_label', 'Active')}</div>
+          <div className="gba:text-xs gba:text-muted-foreground">
+            {t('documentType.active_help', 'Document type will be available for use')}
           </div>
-        </Form.Item>
-      </Col>
+        </div>
+        <Switch checked={formValues.isActive !== false} onCheckedChange={checked => handleFieldChange('isActive', checked)} />
+      </div>
 
-      <Col span={24}>
-        <Form.Item label={t('documentType.allowed_file_types', 'Allowed File Types')} required>
-          <div className="gba:flex gba:flex-wrap gba:gap-2">
-            {fileTypes.map(type => (
-              <Tag.CheckableTag
-                key={type.value}
-                checked={selectedFileTypes.includes(type.value)}
-                onChange={() => toggleFileType(type.value)}
-                className="gba:px-3 gba:py-1 gba:border gba:rounded-md"
-              >
-                {type.label}
-              </Tag.CheckableTag>
-            ))}
-          </div>
-        </Form.Item>
-      </Col>
+      <div className="gba:space-y-2">
+        {renderFieldLabel(t('documentType.allowed_file_types', 'Allowed File Types'), true)}
+        <div className="gba:flex gba:flex-wrap gba:gap-2">
+          {fileTypes.map(type => {
+            const selected = selectedFileTypes.includes(type.value)
 
-      <Col span={24}>
-        <Form.Item
-          name="maxSize"
-          label={t('documentType.max_size_label', 'Maximum File Size (MB)')}
-          rules={[{ required: true, message: t('documentType.max_size_required', 'Please enter maximum file size') }]}
-        >
-          <Input type="number" min={1} max={100} addonAfter={t('documentType.mb', 'MB')} />
-        </Form.Item>
-      </Col>
-    </Row>
+            return (
+              <button key={type.value} type="button" onClick={() => toggleFileType(type.value)}>
+                <Badge variant={selected ? 'default' : 'outline'} className="gba:px-3 gba:py-1">
+                  {type.label}
+                </Badge>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="gba:space-y-2">
+        {renderFieldLabel(t('documentType.max_size_label', 'Maximum File Size (MB)'), true)}
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <Input
+            type="number"
+            min={1}
+            max={100}
+            value={formValues.maxSize ?? 5}
+            onChange={event => handleFieldChange('maxSize', event.target.value)}
+          />
+          <span className="gba:text-sm gba:text-muted-foreground">{t('documentType.mb', 'MB')}</span>
+        </div>
+      </div>
+    </div>
   )
 
   const renderPermissionsTab = () => (
@@ -337,53 +359,45 @@ const AddDocumentTypeModal: React.FC<AddDocumentTypeModalProps> = props => {
     </div>
   )
 
-  const items: TabsProps['items'] = [
-    {
-      key: '1',
-      label: t('documentType.tab_basic_info', 'Basic Info'),
-      children: renderBasicInfoTab()
-    },
-    {
-      key: '2',
-      label: t('documentType.tab_file_settings', 'File Settings'),
-      children: renderFileSettingsTab()
-    },
-    {
-      key: '3',
-      label: t('documentType.tab_permissions', 'Permissions'),
-      children: renderPermissionsTab()
-    }
-  ]
-
   return (
-    <Modal
-      title={
-        isEditing
-          ? t('documentType.edit_title', 'Edit Document Type')
-          : t('documentType.add_title', 'Add New Document Type')
-      }
-      open={visible}
-      onCancel={onCancel}
-      width={700}
-      footer={[
-        <Button key="back" onClick={onCancel}>
-          {t('common.cancel', 'Cancel')}
-        </Button>,
-        <Button
-          key="submit"
-          type="primary"
-          onClick={handleOk}
-          disabled={isEditing && (!initialValuesSet || !isFormDirty)}
-        >
-          {isEditing ? t('common.update', 'Update') : t('common.create', 'Create')}{' '}
-          {t('documentType.document_type', 'Document Type')}
-        </Button>
-      ]}
-    >
-      <Form form={form} layout="vertical" className="gba:document-type-form" onValuesChange={handleValuesChange}>
-        <Tabs defaultActiveKey="1" items={items} />
-      </Form>
-    </Modal>
+    <Dialog open={visible} onOpenChange={open => !open && onCancel()}>
+      <DialogContent className="gba:max-w-2xl" data-testid="document-type-modal">
+        <DialogHeader>
+          <DialogTitle>
+            {isEditing
+              ? t('documentType.edit_title', 'Edit Document Type')
+              : t('documentType.add_title', 'Add New Document Type')}
+          </DialogTitle>
+        </DialogHeader>
+
+        {validationError && (
+          <Alert variant="destructive">
+            <AlertDescription>{validationError}</AlertDescription>
+          </Alert>
+        )}
+
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="gba:mb-4">
+            <TabsTrigger value="basic">{t('documentType.tab_basic_info', 'Basic Info')}</TabsTrigger>
+            <TabsTrigger value="file-settings">{t('documentType.tab_file_settings', 'File Settings')}</TabsTrigger>
+            <TabsTrigger value="permissions">{t('documentType.tab_permissions', 'Permissions')}</TabsTrigger>
+          </TabsList>
+          <TabsContent value="basic">{renderBasicInfoTab()}</TabsContent>
+          <TabsContent value="file-settings">{renderFileSettingsTab()}</TabsContent>
+          <TabsContent value="permissions">{renderPermissionsTab()}</TabsContent>
+        </Tabs>
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onCancel}>
+            {t('common.cancel', 'Cancel')}
+          </Button>
+          <Button type="button" onClick={handleOk} disabled={isEditing && (!initialValuesSet || !isFormDirty)}>
+            {isEditing ? t('common.update', 'Update') : t('common.create', 'Create')}{' '}
+            {t('documentType.document_type', 'Document Type')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 
