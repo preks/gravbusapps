@@ -76,6 +76,30 @@ describe('resolveDomainActions', () => {
     const legacy = buildRun({ crm_actions: [{ tool_ref: 't', action: 'search', record_ids: {}, succeeded: true }] })
     expect(resolveDomainActions(legacy)[0].domain).toBe('crm')
   })
+
+  it('merges flow actions from trace when REST actions are empty', () => {
+    const trace = [
+      {
+        seq: 1,
+        type: 'step_completed',
+        tool_name: 'newwork_trigger_flow',
+        output: JSON.stringify({
+          ui: { kind: 'action_card', version: 1 },
+          card: {
+            title: 'flow_test',
+            status: { code: 'RUNNING', label: 'In progress', variant: 'running' },
+            primaryAction: { label: 'Open', href: '/flows/wf-trace' },
+            entity: { type: 'service_workflow', id: 'wf-trace' }
+          },
+          refs: { template_id: 'flow_test' }
+        })
+      }
+    ]
+    const actions = resolveDomainActions(buildRun(), trace)
+    expect(actions).toHaveLength(1)
+    expect(actions[0].domain).toBe('flow')
+    expect(actions[0].record_ids.workflow_id).toBe('wf-trace')
+  })
 })
 
 describe('formatBytes', () => {

@@ -5,6 +5,7 @@ import { Play, Zap, Calendar, Link as LinkIcon } from 'lucide-react'
 import { EnvelopeIcon } from '@phosphor-icons/react'
 import { HANDLE_OFFSET } from './nodeDimensions'
 import { NODE_META_BADGE_STANDARD_CLASS } from './nodeBadgeStyles'
+import { activeNodeHighlightClass } from './activeNodeStyles'
 import { NodeOutcomeBadge } from './NodeOutcomeBadge'
 import type { TriggerType, StepStatus, FlowNodeOutcome } from '../types/viewerTypes'
 
@@ -49,11 +50,12 @@ export const StartNode: React.FC<{ data: StartNodeData }> = ({ data }) => {
 
   const borderClass = isSelected ? 'gba:border-primary' : getStatusRing(data.status, data.isOnActivePath)
   const bgClass = 'gba:bg-card'
+  const activeClass = activeNodeHighlightClass(data.status, isSelected)
 
   return (
     <button
       type="button"
-      className={`nopan nodrag gba:relative gba:overflow-visible gba:rounded-full gba:w-[140px] gba:h-[140px] gba:border-2 gba:transition-all gba:duration-200 gba:cursor-pointer gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-1.5 gba:shadow-sm hover:gba:shadow-md hover:gba:scale-105 ${borderClass} ${bgClass}`}
+      className={`nopan nodrag gba:relative gba:overflow-visible gba:rounded-full gba:w-[140px] gba:h-[140px] gba:border-2 gba:transition-all gba:duration-200 gba:cursor-pointer gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-1.5 gba:shadow-sm hover:gba:shadow-md hover:gba:scale-105 ${borderClass} ${bgClass} ${activeClass}`}
       onClick={() => data.onSelect?.()}
       data-testid={data.testId ?? 'flow-viewer-start-node'}
     >

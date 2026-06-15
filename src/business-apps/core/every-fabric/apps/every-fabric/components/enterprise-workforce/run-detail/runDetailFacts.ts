@@ -6,7 +6,13 @@
 // shape here so the run detail header and the command center agree on "who" and
 // "what caused it" without a second request.
 
-import type { WorkforceRun, WorkforceRunDomainAction, WorkforceRunSource } from '../workforceTypes'
+import type {
+  WorkforceRun,
+  WorkforceRunDomainAction,
+  WorkforceRunSource,
+  WorkforceRunTraceEvent
+} from '../workforceTypes'
+import { mergeDomainActions, resolveFlowActionsFromTrace } from './flowTraceActions'
 
 function asText(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null
@@ -67,9 +73,17 @@ export function extractDraftSubject(payload: Record<string, unknown> | null | un
 
 // Prefer the generalized `actions` summary; fall back to the legacy CRM-only
 // list (tagging it with the `crm` domain) so older runs still render links.
-export function resolveDomainActions(run: WorkforceRun): WorkforceRunDomainAction[] {
-  if (run.actions && run.actions.length > 0) return run.actions
-  return (run.crm_actions ?? []).map(action => ({ ...action, domain: 'crm' }))
+// When a trace is available, also surface flow rows as soon as
+// `newwork_trigger_flow` completes — before REST `run.actions` catches up.
+export function resolveDomainActions(
+  run: WorkforceRun,
+  trace?: readonly WorkforceRunTraceEvent[]
+): WorkforceRunDomainAction[] {
+  const fromRun =
+    run.actions && run.actions.length > 0
+      ? run.actions
+      : (run.crm_actions ?? []).map(action => ({ ...action, domain: 'crm' }))
+  return mergeDomainActions(fromRun, resolveFlowActionsFromTrace(trace))
 }
 
 export function formatBytes(size: number): string {

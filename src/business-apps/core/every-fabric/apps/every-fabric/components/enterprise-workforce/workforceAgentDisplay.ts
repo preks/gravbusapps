@@ -5,7 +5,7 @@
 // initials, status pills, and relative timestamps stay identical across every
 // surface that renders an agent.
 
-import { formatDateOnly } from './runDisplay'
+import { formatLastRunLabel } from './runDisplay'
 
 export type WorkforceTileStatus = 'active' | 'paused'
 
@@ -55,16 +55,5 @@ export function statusPill(status: WorkforceTileStatus): { label: string; classN
 
 /** Human-friendly "x minutes/hours/days ago" relative timestamp. */
 export function formatRelative(iso: string | null | undefined): string {
-  if (!iso) return 'No runs yet'
-  const ts = Date.parse(iso)
-  if (Number.isNaN(ts)) return 'No runs yet'
-  const diffMs = Date.now() - ts
-  const minutes = Math.round(diffMs / 60_000)
-  if (minutes < 1) return 'Just now'
-  if (minutes < 60) return `${minutes}m ago`
-  const hours = Math.round(minutes / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.round(hours / 24)
-  if (days < 7) return `${days}d ago`
-  return formatDateOnly(iso)
+  return formatLastRunLabel(iso)
 }

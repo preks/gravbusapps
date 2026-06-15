@@ -12,7 +12,7 @@ import {
 import { FlowCanvas } from './flow-viewer/FlowViewer'
 import { FlowCanvasProvider } from './flow-viewer/FlowViewerProvider'
 import type { FlowExecutionState } from './flow-viewer/types/viewerTypes'
-import type { FlowGraphDefinition } from './flow-viewer/types/viewerTypes'
+import { enrichExecutionStateWithActivePath, enrichExecutionStateWithCompletedPath } from './flowPathEnrichment'
 import { templateToFlowGraphDefinition } from '@/common/data/flow/templateToFlowGraph'
 import { useFlowTemplateClient } from '@/common/network/flows/useFlowTemplateClient'
 
@@ -29,8 +29,19 @@ interface ReadonlyTemplateFlowCanvasProps {
   executionState?: FlowExecutionState
   selectedNodeId?: string | null
   selectedStepReference?: string | null
+  /** When provided, nodes become clickable and report their id (null on pane click). */
+  onNodeSelect?: (nodeId: string | null) => void
   compact?: boolean
   showControls?: boolean
+  showMiniMap?: boolean
+  /** Interactive zoom-out floor for the canvas. Defaults to React Flow's 0.5. */
+  minZoom?: number
+  /** Interactive zoom-in ceiling for the canvas. Defaults to React Flow's 2. */
+  maxZoom?: number
+  /** Hide the card header (title/description) so the flow fills the full height. */
+  hideHeader?: boolean
+  /** Override the outer Card className (e.g. for a borderless full-bleed canvas). */
+  className?: string
   'data-testid'?: string
 }
 
@@ -47,8 +58,14 @@ export const ReadonlyTemplateFlowCanvas: React.FC<ReadonlyTemplateFlowCanvasProp
   executionState,
   selectedNodeId,
   selectedStepReference,
+  onNodeSelect,
   compact = false,
   showControls = true,
+  showMiniMap = false,
+  minZoom,
+  maxZoom,
+  hideHeader = false,
+  className,
   'data-testid': testId = 'readonly-template-flow-canvas'
 }) => {
   const templateClient = useFlowTemplateClient(accessToken)
@@ -129,29 +146,54 @@ export const ReadonlyTemplateFlowCanvas: React.FC<ReadonlyTemplateFlowCanvasProp
     return matchedIndex >= 0 ? `step-${matchedIndex}` : null
   }, [selectedNodeId, selectedStepReference, template])
   const resolvedExecutionState = useMemo(() => {
-    if (!previewGraphDefinition || !executionState?.activeNodeId) return executionState
-    return enrichExecutionStateWithActivePath(previewGraphDefinition, executionState)
+    if (!previewGraphDefinition || !executionState) return executionState
+    if (executionState.activeNodeId) {
+      return enrichExecutionStateWithActivePath(previewGraphDefinition, executionState)
+    }
+    // No active node means the flow has settled (e.g. the end of a replay):
+    // bold the full route it took instead of leaving the path unhighlighted.
+    const hasExecuted = Object.values(executionState.nodeStates).some(
+      status => status === 'completed' || status === 'failed'
+    )
+    if (hasExecuted) {
+      return enrichExecutionStateWithCompletedPath(previewGraphDefinition, executionState)
+    }
+    return executionState
   }, [executionState, previewGraphDefinition])
   const hasGraphContent = Boolean(previewGraphDefinition?.nodes?.length)
+  // Interactive selection is controlled at runtime (node clicks) and must not
+  // remount/relayout the canvas on each click; only fold selection into the
+  // mount key for deep-link (non-interactive) selection.
+  const selectionKeyPart = onNodeSelect ? 'interactive' : (resolvedSelectedNodeId ?? 'no-selection')
   const canvasMountKey = [
     templateId ?? 'none',
     templateVersion ?? 'latest',
     isVisible ? 'visible' : 'hidden',
-    resolvedSelectedNodeId ?? 'no-selection',
+    selectionKeyPart,
     previewGraphDefinition?.nodes?.length ?? 0,
     previewGraphDefinition?.edges?.length ?? 0,
     compact ? 'compact' : 'full'
   ].join('-')
   const canvasHeightClass = compact ? 'gba:h-[320px]' : 'gba:h-[560px]'
   const emptyStateMinHeightClass = compact ? 'gba:min-h-[280px]' : 'gba:min-h-[520px]'
+  const isFullBleed = hideHeader || Boolean(className?.includes('gba:h-full'))
 
   return (
-    <Card className="gba:flex gba:flex-col gba:overflow-hidden gba:border-border gba:bg-card" data-testid={testId}>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent className={`gba:flex gba:shrink-0 gba:flex-col gba:overflow-hidden gba:p-0 ${canvasHeightClass}`}>
+    <Card
+      className={className ?? 'gba:flex gba:flex-col gba:overflow-hidden gba:border-border gba:bg-card'}
+      data-testid={testId}
+    >
+      {!hideHeader && (
+        <CardHeader>
+          <CardTitle>{title}</CardTitle>
+          <CardDescription>{description}</CardDescription>
+        </CardHeader>
+      )}
+      <CardContent
+        className={`gba:flex gba:flex-col gba:overflow-hidden gba:p-0 ${
+          isFullBleed ? 'gba:flex-1' : 'gba:shrink-0'
+        } ${isFullBleed ? '' : canvasHeightClass}`}
+      >
         {!templateId && !templateDefinition ? (
           <div
             className={`gba:flex gba:flex-1 gba:flex-col gba:items-center gba:justify-center gba:gap-2 gba:px-6 gba:text-center ${emptyStateMinHeightClass}`}
@@ -170,8 +212,12 @@ export const ReadonlyTemplateFlowCanvas: React.FC<ReadonlyTemplateFlowCanvasProp
             </Alert>
           </div>
         ) : hasGraphContent && previewGraphDefinition ? (
-          <div className={`gba:relative gba:w-full ${canvasHeightClass}`}>
-            <div className="gba:absolute gba:inset-0">
+          <div
+            className={
+              isFullBleed ? 'gba:h-full gba:w-full gba:flex-1' : `gba:relative gba:w-full ${canvasHeightClass}`
+            }
+          >
+            <div className={isFullBleed ? 'gba:h-full gba:w-full' : 'gba:absolute gba:inset-0'}>
               <FlowCanvasProvider
                 key={canvasMountKey}
                 isInteractive={false}
@@ -182,8 +228,17 @@ export const ReadonlyTemplateFlowCanvas: React.FC<ReadonlyTemplateFlowCanvasProp
                   definition={previewGraphDefinition}
                   useForwardEdgesOnlyForRanking={true}
                   fitViewOptions={{ padding: 0.26, minZoom: 0.65, maxZoom: 0.95 }}
-                  showMiniMap={false}
+                  minZoom={minZoom}
+                  maxZoom={maxZoom}
+                  showMiniMap={showMiniMap}
                   showControls={showControls}
+                  {...(onNodeSelect
+                    ? {
+                        elementsSelectable: true,
+                        onNodeClick: (_event: React.MouseEvent, node: { id: string }) => onNodeSelect(node.id),
+                        onPaneClick: () => onNodeSelect(null)
+                      }
+                    : {})}
                 />
               </FlowCanvasProvider>
             </div>
@@ -199,52 +254,4 @@ export const ReadonlyTemplateFlowCanvas: React.FC<ReadonlyTemplateFlowCanvasProp
       </CardContent>
     </Card>
   )
-}
-
-const enrichExecutionStateWithActivePath = (
-  definition: FlowGraphDefinition,
-  executionState: FlowExecutionState
-): FlowExecutionState => {
-  const activeNodeId = executionState.activeNodeId
-  if (!activeNodeId) return executionState
-
-  const incomingEdges = new Map<string, Array<{ id: string; source: string }>>()
-  definition.edges.forEach(edge => {
-    const current = incomingEdges.get(edge.target) ?? []
-    current.push({ id: edge.id, source: edge.source })
-    incomingEdges.set(edge.target, current)
-  })
-
-  const pathNodeIds = new Set<string>([activeNodeId])
-  const pathEdgeIds = new Set<string>()
-  const queue = [activeNodeId]
-
-  while (queue.length > 0) {
-    const targetNodeId = queue.shift()
-    if (!targetNodeId) continue
-
-    const parents = incomingEdges.get(targetNodeId) ?? []
-    parents.forEach(parent => {
-      const parentStatus = executionState.nodeStates[parent.source]
-      const shouldIncludeParent =
-        parent.source === 'start' ||
-        parentStatus === 'completed' ||
-        parentStatus === 'active' ||
-        parent.source === activeNodeId
-
-      if (!shouldIncludeParent) return
-
-      pathEdgeIds.add(parent.id)
-      if (!pathNodeIds.has(parent.source)) {
-        pathNodeIds.add(parent.source)
-        queue.push(parent.source)
-      }
-    })
-  }
-
-  return {
-    ...executionState,
-    pathNodeIds: Array.from(pathNodeIds),
-    pathEdgeIds: Array.from(pathEdgeIds)
-  }
 }

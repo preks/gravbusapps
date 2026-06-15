@@ -4,6 +4,7 @@ import { Badge } from '@newwork/nw-design-system'
 import { CheckCircle, BarChart3 } from 'lucide-react'
 import { HANDLE_OFFSET } from './nodeDimensions'
 import { NODE_META_BADGE_STANDARD_CLASS } from './nodeBadgeStyles'
+import { activeNodeHighlightClass } from './activeNodeStyles'
 import { NodeOutcomeBadge } from './NodeOutcomeBadge'
 import type { StepStatus, FlowNodeOutcome } from '../types/viewerTypes'
 
@@ -47,11 +48,12 @@ export const EndNode: React.FC<{ data: EndNodeData }> = ({ data }) => {
   const title = data.title ?? data.label ?? 'Summary'
   const borderClass = getBorderClass(data.status, data.isSelected, hasFields, data.isOnActivePath)
   const bgClass = getBgClass(data.status, data.isSelected, hasFields)
+  const activeClass = activeNodeHighlightClass(data.status, data.isSelected)
 
   return (
     <button
       type="button"
-      className={`nopan nodrag gba:relative gba:overflow-visible gba:rounded-full gba:w-[140px] gba:h-[140px] gba:border-2 gba:transition-all gba:duration-200 gba:cursor-pointer gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-1 gba:shadow-sm hover:gba:shadow-md hover:gba:scale-105 ${borderClass} ${bgClass}`}
+      className={`nopan nodrag gba:relative gba:overflow-visible gba:rounded-full gba:w-[140px] gba:h-[140px] gba:border-2 gba:transition-all gba:duration-200 gba:cursor-pointer gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-1 gba:shadow-sm hover:gba:shadow-md hover:gba:scale-105 ${borderClass} ${bgClass} ${activeClass}`}
       onClick={() => data.onSelect?.()}
       data-testid={data.testId ?? 'flow-viewer-end-node'}
     >

@@ -35,13 +35,13 @@ const flowAction: WorkforceRunDomainAction = {
 
 describe('ActionsRecordsTab', () => {
   it('renders an empty message when the run touched no records', () => {
-    render(<ActionsRecordsTab run={buildRun([])} accessToken="" onOpenFlow={jest.fn()} />)
+    render(<ActionsRecordsTab run={buildRun([])} accessToken="" trace={[]} onOpenFlow={jest.fn()} />)
     expect(screen.getByTestId('actions-records-empty')).toBeInTheDocument()
   })
 
   it('invokes onOpenFlow when a flow row is opened', () => {
     const onOpenFlow = jest.fn()
-    render(<ActionsRecordsTab run={buildRun([flowAction])} accessToken="" onOpenFlow={onOpenFlow} />)
+    render(<ActionsRecordsTab run={buildRun([flowAction])} accessToken="" trace={[]} onOpenFlow={onOpenFlow} />)
 
     fireEvent.click(screen.getByTestId('entity-open-workflow'))
     expect(onOpenFlow).toHaveBeenCalledWith('wf-123')

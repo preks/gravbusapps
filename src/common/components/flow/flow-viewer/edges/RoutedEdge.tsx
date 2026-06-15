@@ -37,6 +37,12 @@ const hasRenderablePoints = (
   return Boolean(pts && pts.length >= 2 && pts.every(point => Number.isFinite(point.x) && Number.isFinite(point.y)))
 }
 
+// Respect the user's reduced-motion preference for the animated active overlay.
+const prefersReducedMotion = (): boolean =>
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
 /* ─── insertable node types ───────────────────────────────────────── */
 
 type InsertableType = 'task' | 'decision' | 'fork'
@@ -121,6 +127,31 @@ export const RoutedEdge: React.FC<EdgeProps> = ({ id, sourceX, sourceY, targetX,
     )
   }
 
+  // Animated overlay drawn on top of an active-path edge: a flowing dash plus a
+  // travelling "comet" dot, so the customer can follow the current path. Static
+  // when the user prefers reduced motion (the base stroke already conveys state).
+  const renderActiveFlow = (edgePath: string) => {
+    if (edgeState !== 'active' || prefersReducedMotion()) return null
+    return (
+      <g className="gba:pointer-events-none" data-testid={`flow-edge-active-${id}`}>
+        <path
+          d={edgePath}
+          fill="none"
+          stroke={strokeActive}
+          strokeWidth={2.5}
+          strokeLinecap="round"
+          strokeDasharray="2 10"
+          style={{ opacity: 0.9 }}
+        >
+          <animate attributeName="stroke-dashoffset" values="24;0" dur="0.9s" repeatCount="indefinite" />
+        </path>
+        <circle r={3} fill={strokeActive}>
+          <animateMotion dur="1.6s" repeatCount="indefinite" path={edgePath} rotate="auto" />
+        </circle>
+      </g>
+    )
+  }
+
   const renderEdgeAction = (x: number, y: number) => {
     // Only show the "+" control when an insertion action exists.
     // (Backward/rework edges should be selectable by clicking the edge line.)
@@ -202,6 +233,7 @@ export const RoutedEdge: React.FC<EdgeProps> = ({ id, sourceX, sourceY, targetX,
           }}
           markerEnd={markerEnd}
         />
+        {renderActiveFlow(edgePath)}
         {renderEdgeLabel(mid.x, mid.y)}
         {renderEdgeAction(mid.x, mid.y)}
       </>
@@ -232,6 +264,7 @@ export const RoutedEdge: React.FC<EdgeProps> = ({ id, sourceX, sourceY, targetX,
         }}
         markerEnd={markerEnd}
       />
+      {renderActiveFlow(edgePath)}
       {renderEdgeLabel(midX, midY)}
       {renderEdgeAction(midX, midY)}
     </>

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { TASK_NODE_WIDTH, TASK_NODE_HEIGHT, HANDLE_OFFSET } from './nodeDimensions'
 import { NODE_META_BADGE_STANDARD_CLASS } from './nodeBadgeStyles'
+import { activeNodeHighlightClass } from './activeNodeStyles'
 import { NodeOutcomeBadge } from './NodeOutcomeBadge'
 import type { TaskVariant, StepStatus, FlowNodeOutcome } from '../types/viewerTypes'
 
@@ -91,6 +92,7 @@ export const TaskNode: React.FC<{ data: TaskNodeData }> = ({ data }) => {
   const meta = variant === 'AI_TASK_EXPERT' ? { ...baseMeta, label: t('task-node-label-enterprise-agent') } : baseMeta
   const borderClass = getStatusBorder(data.status, data.isSelected, data.isOnActivePath)
   const bgClass = getStatusBg(data.status, data.isSelected, data.isOnActivePath)
+  const activeClass = activeNodeHighlightClass(data.status, data.isSelected)
   const isAI = meta.isAI === true
   const isFunction = variant === 'FUNCTION'
   const isDeactivated = data.isDeactivated === true
@@ -141,7 +143,7 @@ export const TaskNode: React.FC<{ data: TaskNodeData }> = ({ data }) => {
       <div
         role="button"
         tabIndex={0}
-        className={`nopan nodrag gba:group gba:relative gba:z-10 gba:h-full gba:w-full gba:border-2 gba:rounded-lg gba:p-3 gba:transition-all gba:duration-200 gba:shadow-sm gba:cursor-pointer gba:focus-visible:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-ring ${borderClass} ${bgClass} ${
+        className={`nopan nodrag gba:group gba:relative gba:z-10 gba:h-full gba:w-full gba:border-2 gba:rounded-lg gba:p-3 gba:transition-all gba:duration-200 gba:shadow-sm gba:cursor-pointer gba:focus-visible:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-ring ${borderClass} ${bgClass} ${activeClass} ${
           isDeactivated ? 'gba:opacity-60 gba:saturate-50' : ''
         }`}
         onClick={selectNode}

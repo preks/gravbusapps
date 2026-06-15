@@ -131,6 +131,10 @@ export interface FlowCanvasViewProps {
   themeColors?: FlowCanvasThemeColors
   /** Options for fitView (padding, minZoom, maxZoom). Used for initial fit when nodes are initialized (orgchart-style). */
   fitViewOptions?: { padding?: number; minZoom?: number; maxZoom?: number }
+  /** Interactive zoom-out floor. Defaults to React Flow's 0.5; lower it for very large flows. */
+  minZoom?: number
+  /** Interactive zoom-in ceiling. Defaults to React Flow's 2. */
+  maxZoom?: number
   /** When true, only forward edges are used for ELK layer ranking (backward/rework edges do not affect layout). */
   useForwardEdgesOnlyForRanking?: boolean
   /** Optional content rendered in React Flow Panel (center-right). Use for detail/sidebar. */

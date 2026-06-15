@@ -48,13 +48,14 @@ export const RunDetailTabs: React.FC<RunDetailTabsProps> = ({
 
   const renderActivePanel = () => {
     if (activeTab === 'actions') {
-      return <ActionsRecordsTab run={run} accessToken={accessToken} onOpenFlow={handleOpenFlow} />
+      return <ActionsRecordsTab run={run} accessToken={accessToken} trace={trace} onOpenFlow={handleOpenFlow} />
     }
     if (activeTab === 'flows') {
       return (
         <FlowsTab
           run={run}
           accessToken={accessToken}
+          trace={trace}
           selectedFlowId={selectedFlowId}
           onSelectFlow={setSelectedFlowId}
         />

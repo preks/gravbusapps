@@ -12,6 +12,10 @@ export interface FlowProgressBarProps {
   totalSteps?: number
   percentage?: number
   variant: ActionCardStatusVariant
+  // A completed flow can finish via a single fork branch, so the backend's
+  // completedSteps/percentage only count the path taken (e.g. 7/19). When the
+  // flow has terminated successfully the progress is full regardless.
+  isComplete?: boolean
 }
 
 const BAR_COLOR: Record<ActionCardStatusVariant, string> = {
@@ -32,16 +36,18 @@ export const FlowProgressBar: React.FC<FlowProgressBarProps> = ({
   completedSteps,
   totalSteps,
   percentage,
-  variant
+  variant,
+  isComplete = false
 }) => {
   if (!totalSteps || totalSteps <= 0) return null
-  const pct = resolvePercentage(completedSteps, totalSteps, percentage)
+  const pct = isComplete ? 100 : resolvePercentage(completedSteps, totalSteps, percentage)
   const clamped = Math.min(Math.max(pct, 0), 100)
+  const displayedCompleted = isComplete ? totalSteps : (completedSteps ?? 0)
   return (
     <div className="gba:space-y-1" data-testid="flow-progress-bar">
       <div className="gba:flex gba:items-center gba:justify-between gba:text-[11px]">
         <span className="gba:text-muted-foreground">
-          {completedSteps ?? 0}/{totalSteps} steps
+          {displayedCompleted}/{totalSteps} steps
         </span>
         <span className="gba:font-medium gba:text-foreground">{Math.round(pct)}%</span>
       </div>

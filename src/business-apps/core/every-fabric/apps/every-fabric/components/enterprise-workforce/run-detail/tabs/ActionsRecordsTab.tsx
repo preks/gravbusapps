@@ -6,18 +6,19 @@ import { ListChecksIcon } from '@phosphor-icons/react'
 import React from 'react'
 
 import { RunEntityLinks } from '../../RunEntityLinks'
-import type { WorkforceRun } from '../../workforceTypes'
+import type { WorkforceRun, WorkforceRunTraceEvent } from '../../workforceTypes'
 import { resolveDomainActions } from '../runDetailFacts'
 import { SectionTitle } from '../RunDetailSection'
 
 export interface ActionsRecordsTabProps {
   run: WorkforceRun
   accessToken: string
+  trace: readonly WorkforceRunTraceEvent[]
   onOpenFlow: (workflowId: string) => void
 }
 
-export const ActionsRecordsTab: React.FC<ActionsRecordsTabProps> = ({ run, accessToken, onOpenFlow }) => {
-  const domainActions = resolveDomainActions(run)
+export const ActionsRecordsTab: React.FC<ActionsRecordsTabProps> = ({ run, accessToken, trace, onOpenFlow }) => {
+  const domainActions = resolveDomainActions(run, trace)
   const hasContent = domainActions.length > 0 || Boolean(run.case_ref)
 
   return (

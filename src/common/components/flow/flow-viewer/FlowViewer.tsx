@@ -139,6 +139,8 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
   definition,
   themeColors: themeColorsProp,
   fitViewOptions: fitViewOptionsProp,
+  minZoom,
+  maxZoom,
   useForwardEdgesOnlyForRanking = true,
   rightPanel,
   onConnect,
@@ -594,6 +596,8 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
         style={{ opacity: layoutReady ? 1 : 0.35, transition: 'opacity 200ms' }}
         nodes={flowNodes}
         edges={flowEdges}
+        minZoom={minZoom}
+        maxZoom={maxZoom}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={

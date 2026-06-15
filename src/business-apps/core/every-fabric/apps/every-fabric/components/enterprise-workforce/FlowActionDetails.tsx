@@ -10,6 +10,9 @@ import React from 'react'
 
 import { labelForStatusCode, variantForStatusCode, STATUS_BADGE_CLASS } from '../../utils/actionCardTrace'
 import { useLiveFlowProgress } from '../../hooks/useLiveFlowProgress'
+import { FlowLiveBadge } from './flow-detail/FlowLiveBadge'
+
+const RUNNING_FLOW_POLL_MS = 8_000
 
 export interface FlowActionDetailsProps {
   workflowId?: string
@@ -66,9 +69,11 @@ export const FlowActionDetails: React.FC<FlowActionDetailsProps> = ({
       label: labelForStatusCode(initialCode),
       variant: variantForStatusCode(initialCode)
     },
-    enabled: Boolean(workflowId)
+    enabled: Boolean(workflowId),
+    pollIntervalMs: RUNNING_FLOW_POLL_MS
   })
 
+  const isLive = live.status.variant === 'running'
   const isComplete = live.status.variant === 'success'
   const stepSummary = buildStepSummary({
     currentStep: live.currentStep,
@@ -108,14 +113,12 @@ export const FlowActionDetails: React.FC<FlowActionDetailsProps> = ({
             {workflowName}
           </span>
         )}
+        {isLive && <FlowLiveBadge />}
         <span
           className={`gba:inline-flex gba:items-center gba:gap-1.5 gba:rounded-full gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium ${STATUS_BADGE_CLASS[live.status.variant]}`}
           data-testid="flow-status-badge"
           data-status-code={live.status.code}
         >
-          {live.status.variant === 'running' && (
-            <span className="gba:h-1.5 gba:w-1.5 gba:rounded-full gba:bg-current gba:animate-pulse" aria-hidden />
-          )}
           {live.status.label}
         </span>
         {templateId && (

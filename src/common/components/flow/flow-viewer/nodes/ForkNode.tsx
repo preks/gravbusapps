@@ -4,6 +4,7 @@ import { Badge } from '@newwork/nw-design-system'
 import { GitFork } from 'lucide-react'
 import { HANDLE_OFFSET } from './nodeDimensions'
 import { NODE_META_BADGE_COMPACT_CLASS } from './nodeBadgeStyles'
+import { activeNodeHighlightClass } from './activeNodeStyles'
 import type { StepStatus } from '../types/viewerTypes'
 
 interface ForkNodeData {
@@ -34,6 +35,7 @@ function getStatusBg(status?: StepStatus, isSelected?: boolean, isOnActivePath?:
 export const ForkNode: React.FC<{ data: ForkNodeData }> = ({ data }) => {
   const borderClass = getStatusBorder(data.status, data.isSelected, data.isOnActivePath)
   const bgClass = getStatusBg(data.status, data.isSelected, data.isOnActivePath)
+  const activeClass = activeNodeHighlightClass(data.status, data.isSelected)
 
   return (
     <button
@@ -56,7 +58,7 @@ export const ForkNode: React.FC<{ data: ForkNodeData }> = ({ data }) => {
       />
 
       <div
-        className={`gba:flex gba:items-center gba:justify-center gba:gap-2 gba:rounded-lg gba:border-2 gba:px-6 gba:py-2 gba:min-w-[200px] gba:shadow-sm ${borderClass} ${bgClass}`}
+        className={`gba:flex gba:items-center gba:justify-center gba:gap-2 gba:rounded-lg gba:border-2 gba:px-6 gba:py-2 gba:min-w-[200px] gba:shadow-sm ${borderClass} ${bgClass} ${activeClass}`}
       >
         <GitFork className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
         <span className="gba:text-xs gba:font-semibold gba:text-foreground">{data.label || 'Parallel Split'}</span>

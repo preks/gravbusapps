@@ -4,6 +4,7 @@ import { Badge, Spinner } from '@newwork/nw-design-system'
 import { GitBranch, User, Bot, Calculator } from 'lucide-react'
 import { HANDLE_OFFSET } from './nodeDimensions'
 import { NODE_META_BADGE_COMPACT_CLASS } from './nodeBadgeStyles'
+import { activeNodeHighlightClass } from './activeNodeStyles'
 import { NodeOutcomeBadge } from './NodeOutcomeBadge'
 import type { DecisionMode, FlowNodeOutcome, StepStatus } from '../types/viewerTypes'
 
@@ -57,6 +58,7 @@ export const DecisionNode: React.FC<{ data: DecisionNodeData }> = ({ data }) => 
 
   const borderClass = getStatusBorder(data.status, data.isSelected, data.isOnActivePath)
   const bgClass = getStatusBg(data.status, data.isSelected, data.isOnActivePath)
+  const activeClass = activeNodeHighlightClass(data.status, data.isSelected)
 
   return (
     <button
@@ -132,7 +134,7 @@ export const DecisionNode: React.FC<{ data: DecisionNodeData }> = ({ data }) => 
       <NodeOutcomeBadge outcome={data.outcome} placement="edge" className="gba:-translate-y-8" />
       <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center">
         <div
-          className={`gba:rotate-45 gba:border-2 gba:rounded-md gba:shadow-sm gba:flex gba:items-center gba:justify-center ${borderClass} ${bgClass}`}
+          className={`gba:rotate-45 gba:border-2 gba:rounded-md gba:shadow-sm gba:flex gba:items-center gba:justify-center ${borderClass} ${bgClass} ${activeClass}`}
           style={{ width: DIAMOND_SIZE, height: DIAMOND_SIZE }}
         >
           <div className="gba:-rotate-45 gba:flex gba:flex-col gba:items-center gba:gap-1">

@@ -7,7 +7,9 @@ import React from 'react'
 
 import { RunEmailApprovalSection } from '../../RunEmailApprovalSection'
 import { RunMarkdown } from '../../RunMarkdown'
+import { RunStructuredApprovalSection } from '../../RunStructuredApprovalSection'
 import { getComposeEmailPending } from '../../workforceComposeEmail'
+import { getStructuredInputPending } from '../../workforceStructuredInput'
 import type { WorkforceRun, WorkforceRunArtifactSummary } from '../../workforceTypes'
 import { extractDraftBody, extractDraftSubject, formatBytes } from '../runDetailFacts'
 import { SectionTitle } from '../RunDetailSection'
@@ -21,10 +23,11 @@ export interface OverviewTabProps {
 
 export const OverviewTab: React.FC<OverviewTabProps> = ({ run, accessToken, errorMessage, onRefreshRun }) => {
   const composePending = getComposeEmailPending(run.pending_structured_input)
+  const structuredPending = composePending ? null : getStructuredInputPending(run.pending_structured_input)
   const draftBody = composePending ? null : extractDraftBody(run.pending_structured_input)
   const draftSubject = composePending ? null : extractDraftSubject(run.pending_structured_input)
   const artifacts: WorkforceRunArtifactSummary[] = run.artifacts ?? []
-  const showGenericApproval = !composePending && (draftBody || run.pending_human_question)
+  const showGenericApproval = !composePending && !structuredPending && (draftBody || run.pending_human_question)
 
   return (
     <div className="gba:space-y-6">
@@ -62,6 +65,14 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ run, accessToken, erro
 
       {composePending && accessToken && (
         <RunEmailApprovalSection
+          run={run}
+          accessToken={accessToken}
+          onRefreshAfterSubmit={onRefreshRun ?? (() => Promise.resolve())}
+        />
+      )}
+
+      {structuredPending && accessToken && (
+        <RunStructuredApprovalSection
           run={run}
           accessToken={accessToken}
           onRefreshAfterSubmit={onRefreshRun ?? (() => Promise.resolve())}

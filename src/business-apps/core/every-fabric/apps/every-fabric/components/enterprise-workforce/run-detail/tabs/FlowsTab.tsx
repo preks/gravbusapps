@@ -1,11 +1,11 @@
 // Flows tab: lists every workflow the run triggered (with a live status badge
-// and step progress) and renders the full FlowDetailPanel for the selected one.
-// Offers two views, a list+detail layout and a timeline (Gantt) reusing the
-// shared case-management FlowGanttChart. Selection is controlled by the parent
-// so the Actions & Records tab can deep-link into a specific flow via
-// `onOpenFlow`.
+// and step progress) for the selected one. Offers three views: an animated
+// Flow Map (default) showing the executed path, a list+detail layout, and a
+// timeline (Gantt) reusing the shared case-management FlowGanttChart. Selection
+// is controlled by the parent so the Actions & Records tab can deep-link into a
+// specific flow via `onOpenFlow`.
 
-import { ChartBarHorizontalIcon, FlowArrowIcon, ListBulletsIcon } from '@phosphor-icons/react'
+import { ChartBarHorizontalIcon, FlowArrowIcon, ListBulletsIcon, TreeStructureIcon } from '@phosphor-icons/react'
 import React, { useState } from 'react'
 
 import { FlowGanttChart } from '@/business-apps/common/apps/case-management/components/FlowGanttChart'
@@ -13,20 +13,25 @@ import { FlowGanttChart } from '@/business-apps/common/apps/case-management/comp
 import { labelForStatusCode, variantForStatusCode, STATUS_BADGE_CLASS } from '../../../../utils/actionCardTrace'
 import { useLiveFlowProgress } from '../../../../hooks/useLiveFlowProgress'
 import { FlowDetailPanel } from '../../flow-detail/FlowDetailPanel'
+import { FlowLiveBadge } from '../../flow-detail/FlowLiveBadge'
 import { FlowProgressBar } from '../../flow-detail/FlowProgressBar'
+import { WorkforceFlowMap } from '../../flow-detail/WorkforceFlowMap'
 import { useFlowGanttData, type FlowEntry } from '../../flow-detail/useFlowGanttData'
-import type { WorkforceRun, WorkforceRunDomainAction } from '../../workforceTypes'
+import type { WorkforceRun, WorkforceRunDomainAction, WorkforceRunTraceEvent } from '../../workforceTypes'
 import { resolveDomainActions } from '../runDetailFacts'
 import { SectionTitle } from '../RunDetailSection'
 
 export interface FlowsTabProps {
   run: WorkforceRun
   accessToken: string
+  trace: readonly WorkforceRunTraceEvent[]
   selectedFlowId: string | null
   onSelectFlow: (workflowId: string) => void
 }
 
-type FlowsViewMode = 'list' | 'timeline'
+const RUNNING_FLOW_POLL_MS = 8_000
+
+type FlowsViewMode = 'list' | 'timeline' | 'map'
 
 function toFlowEntries(actions: readonly WorkforceRunDomainAction[]): FlowEntry[] {
   const entries: FlowEntry[] = []
@@ -50,8 +55,9 @@ const FlowListItem: React.FC<{
   entry: FlowEntry
   isSelected: boolean
   accessToken: string
+  compact?: boolean
   onSelect: (workflowId: string) => void
-}> = ({ entry, isSelected, accessToken, onSelect }) => {
+}> = ({ entry, isSelected, accessToken, compact = false, onSelect }) => {
   const initialCode = entry.succeeded ? 'RUNNING' : 'FAILED'
   const live = useLiveFlowProgress({
     workflowId: entry.workflowId,
@@ -61,8 +67,10 @@ const FlowListItem: React.FC<{
       label: labelForStatusCode(initialCode),
       variant: variantForStatusCode(initialCode)
     },
-    enabled: Boolean(entry.workflowId)
+    enabled: Boolean(entry.workflowId) && !compact,
+    pollIntervalMs: RUNNING_FLOW_POLL_MS
   })
+  const isLive = !compact && live.status.variant === 'running'
   return (
     <li>
       <button
@@ -75,23 +83,28 @@ const FlowListItem: React.FC<{
         }`}
         data-testid="flow-list-item"
         data-selected={isSelected}
+        data-compact={compact}
       >
         <span className="gba:truncate gba:font-medium gba:text-foreground">{entry.name}</span>
-        <span
-          className={`gba:inline-flex gba:w-fit gba:items-center gba:gap-1.5 gba:rounded-full gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium ${STATUS_BADGE_CLASS[live.status.variant]}`}
-          data-status-code={live.status.code}
-        >
-          {live.status.variant === 'running' && (
-            <span className="gba:h-1.5 gba:w-1.5 gba:rounded-full gba:bg-current gba:animate-pulse" aria-hidden />
-          )}
-          {live.status.label}
-        </span>
-        <FlowProgressBar
-          completedSteps={live.completedSteps}
-          totalSteps={live.totalSteps}
-          percentage={live.percentage}
-          variant={live.status.variant}
-        />
+        {!compact && (
+          <>
+            <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-1.5">
+              {isLive && <FlowLiveBadge />}
+              <span
+                className={`gba:inline-flex gba:w-fit gba:items-center gba:gap-1.5 gba:rounded-full gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium ${STATUS_BADGE_CLASS[live.status.variant]}`}
+                data-status-code={live.status.code}
+              >
+                {live.status.label}
+              </span>
+            </div>
+            <FlowProgressBar
+              completedSteps={live.completedSteps}
+              totalSteps={live.totalSteps}
+              percentage={live.percentage}
+              variant={live.status.variant}
+            />
+          </>
+        )}
       </button>
     </li>
   )
@@ -110,6 +123,16 @@ const ViewToggle: React.FC<{ value: FlowsViewMode; onChange: (mode: FlowsViewMod
       className="gba:inline-flex gba:items-center gba:gap-0.5 gba:rounded-md gba:bg-muted gba:p-0.5"
       data-testid="flows-view-toggle"
     >
+      <button
+        type="button"
+        onClick={() => onChange('map')}
+        className={buttonClass(value === 'map')}
+        aria-pressed={value === 'map'}
+        data-testid="flows-view-map"
+      >
+        <TreeStructureIcon className="gba:h-3.5 gba:w-3.5" weight="bold" />
+        Map
+      </button>
       <button
         type="button"
         onClick={() => onChange('list')}
@@ -134,9 +157,9 @@ const ViewToggle: React.FC<{ value: FlowsViewMode; onChange: (mode: FlowsViewMod
   )
 }
 
-export const FlowsTab: React.FC<FlowsTabProps> = ({ run, accessToken, selectedFlowId, onSelectFlow }) => {
-  const flows = toFlowEntries(resolveDomainActions(run))
-  const [viewMode, setViewMode] = useState<FlowsViewMode>('list')
+export const FlowsTab: React.FC<FlowsTabProps> = ({ run, accessToken, trace, selectedFlowId, onSelectFlow }) => {
+  const flows = toFlowEntries(resolveDomainActions(run, trace))
+  const [viewMode, setViewMode] = useState<FlowsViewMode>('map')
   const ganttFlows = useFlowGanttData(flows, accessToken, viewMode === 'timeline')
 
   if (flows.length === 0) {
@@ -156,6 +179,10 @@ export const FlowsTab: React.FC<FlowsTabProps> = ({ run, accessToken, selectedFl
     ? selectedFlowId
     : flows[0].workflowId
   const selected = flows.find(flow => flow.workflowId === effectiveSelectedId) ?? flows[0]
+  // The selector only exists to switch between flows; with a single flow it just
+  // duplicates the detail panel / map below, so hide it in every view.
+  const showFlowSelector = flows.length > 1
+  const compactFlowSelector = viewMode === 'map'
 
   const handleOpenDetail = (workflowId: string): void => {
     onSelectFlow(workflowId)
@@ -174,26 +201,40 @@ export const FlowsTab: React.FC<FlowsTabProps> = ({ run, accessToken, selectedFl
         </div>
       ) : (
         <div className="gba:flex gba:flex-col gba:gap-4 lg:gba:flex-row">
-          <ul className="gba:space-y-1.5 lg:gba:w-60 lg:gba:shrink-0" data-testid="flows-tab-list">
-            {flows.map(flow => (
-              <FlowListItem
-                key={flow.workflowId}
-                entry={flow}
-                isSelected={flow.workflowId === selected.workflowId}
-                accessToken={accessToken}
-                onSelect={onSelectFlow}
-              />
-            ))}
-          </ul>
+          {showFlowSelector ? (
+            <ul className="gba:space-y-1.5 lg:gba:w-60 lg:gba:shrink-0" data-testid="flows-tab-list">
+              {flows.map(flow => (
+                <FlowListItem
+                  key={flow.workflowId}
+                  entry={flow}
+                  isSelected={flow.workflowId === selected.workflowId}
+                  accessToken={accessToken}
+                  compact={compactFlowSelector}
+                  onSelect={onSelectFlow}
+                />
+              ))}
+            </ul>
+          ) : null}
           <div className="gba:min-w-0 gba:flex-1">
-            <FlowDetailPanel
-              key={selected.workflowId}
-              workflowId={selected.workflowId}
-              templateId={selected.templateId}
-              workflowName={selected.name}
-              accessToken={accessToken}
-              succeeded={selected.succeeded}
-            />
+            {viewMode === 'map' ? (
+              <WorkforceFlowMap
+                key={selected.workflowId}
+                workflowId={selected.workflowId}
+                templateId={selected.templateId}
+                workflowName={selected.name}
+                accessToken={accessToken}
+                succeeded={selected.succeeded}
+              />
+            ) : (
+              <FlowDetailPanel
+                key={selected.workflowId}
+                workflowId={selected.workflowId}
+                templateId={selected.templateId}
+                workflowName={selected.name}
+                accessToken={accessToken}
+                succeeded={selected.succeeded}
+              />
+            )}
           </div>
         </div>
       )}

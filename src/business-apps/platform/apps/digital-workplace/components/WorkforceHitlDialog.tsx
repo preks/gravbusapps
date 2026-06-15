@@ -14,8 +14,10 @@ import { ArrowSquareOutIcon, CheckCircleIcon, RobotIcon } from '@phosphor-icons/
 import { navigateTo, buildPlatformUrl, Navigation } from '@/common/utils/navigationUtils'
 import { useEnterpriseAgentClient } from '@/business-apps/core/every-fabric/apps/every-fabric/hooks/useEnterpriseAgentClient'
 import { RunEmailApprovalSection } from '@/business-apps/core/every-fabric/apps/every-fabric/components/enterprise-workforce/RunEmailApprovalSection'
+import { RunStructuredApprovalSection } from '@/business-apps/core/every-fabric/apps/every-fabric/components/enterprise-workforce/RunStructuredApprovalSection'
 import { RunMarkdown } from '@/business-apps/core/every-fabric/apps/every-fabric/components/enterprise-workforce/RunMarkdown'
 import { getComposeEmailPending } from '@/business-apps/core/every-fabric/apps/every-fabric/components/enterprise-workforce/workforceComposeEmail'
+import { getStructuredInputPending } from '@/business-apps/core/every-fabric/apps/every-fabric/components/enterprise-workforce/workforceStructuredInput'
 import { runStatusVisual } from '@/business-apps/core/every-fabric/apps/every-fabric/components/enterprise-workforce/runDisplay'
 import {
   extractDraftBody,
@@ -133,6 +135,7 @@ const DialogBody: React.FC<{
 }> = ({ run, accessToken, refresh }) => {
   const { t } = useWorkplaceTranslation()
   const composePending = getComposeEmailPending(run.pending_structured_input)
+  const structuredPending = composePending ? null : getStructuredInputPending(run.pending_structured_input)
   const isWaiting = run.status === 'waiting_for_human'
   const onRefresh = useCallback(async () => {
     await refresh()
@@ -151,6 +154,8 @@ const DialogBody: React.FC<{
 
       {composePending && accessToken ? (
         <RunEmailApprovalSection run={run} accessToken={accessToken} onRefreshAfterSubmit={onRefresh} />
+      ) : structuredPending && accessToken ? (
+        <RunStructuredApprovalSection run={run} accessToken={accessToken} onRefreshAfterSubmit={onRefresh} />
       ) : isWaiting ? (
         <FreeTextResponse run={run} accessToken={accessToken} onSubmitted={onRefresh} />
       ) : (
