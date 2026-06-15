@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -38,6 +38,9 @@ interface EntityItem {
   subtitle?: string
   avatar?: string
 }
+
+// Number of records fetched per page (initial load + each infinite-scroll step)
+const PAGE_SIZE = 20
 
 // Entity configurations
 const getEntityConfig = (type: ActivityViewFilter) => {
@@ -98,11 +101,25 @@ const buildQuery = (type: ActivityViewFilter, search?: string) => {
   // Sales Associate capability name for filtering (consistent with Sales Performance module)
   const SALES_ASSOCIATE_CAPABILITY = 'Sales Associate'
 
+  // Only list entities that actually have at least one Sales-Associate activity,
+  // so the picker matches the "By X" counts shown on the explore chips.
+  const hasSalesAssociateActivity = `activities: {
+    ownerEmployee: {
+      employeePosition: {
+        employeeCapabilities: {
+          capability: {
+            name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" }
+          }
+        }
+      }
+    }
+  }`
+
   switch (type) {
     case 'by-employee':
       return search?.trim()
         ? `
-        query GetEmployeesSearch {
+        query GetEmployeesSearch($limit: Int, $offset: Int) {
           Employee(
             where: {
               _and: [
@@ -123,7 +140,8 @@ const buildQuery = (type: ActivityViewFilter, search?: string) => {
                 ] }
               ]
             }
-            limit: 50
+            limit: $limit
+            offset: $offset
             orderBy: { fullName: ASC_NULLS_LAST }
           ) {
             id
@@ -140,7 +158,7 @@ const buildQuery = (type: ActivityViewFilter, search?: string) => {
         }
       `
         : `
-        query GetEmployees {
+        query GetEmployees($limit: Int, $offset: Int) {
           Employee(
             where: { 
               isDeleted: { _eq: false }
@@ -152,7 +170,8 @@ const buildQuery = (type: ActivityViewFilter, search?: string) => {
                 }
               }
             }
-            limit: 50
+            limit: $limit
+            offset: $offset
             orderBy: { fullName: ASC_NULLS_LAST }
           ) {
             id
@@ -171,18 +190,20 @@ const buildQuery = (type: ActivityViewFilter, search?: string) => {
     case 'by-account':
       return search?.trim()
         ? `
-        query GetAccountsSearch {
+        query GetAccountsSearch($limit: Int, $offset: Int) {
           Account(
             where: {
               _and: [
                 { isDeleted: { _eq: false } }
+                { ${hasSalesAssociateActivity} }
                 { _or: [
                   { name: { _ilike: "%${search}%" } }
                   { email: { _ilike: "%${search}%" } }
                 ] }
               ]
             }
-            limit: 50
+            limit: $limit
+            offset: $offset
             orderBy: { name: ASC_NULLS_LAST }
           ) {
             id
@@ -193,10 +214,11 @@ const buildQuery = (type: ActivityViewFilter, search?: string) => {
         }
       `
         : `
-        query GetAccounts {
+        query GetAccounts($limit: Int, $offset: Int) {
           Account(
-            where: { isDeleted: { _eq: false } }
-            limit: 50
+            where: { isDeleted: { _eq: false } ${hasSalesAssociateActivity} }
+            limit: $limit
+            offset: $offset
             orderBy: { name: ASC_NULLS_LAST }
           ) {
             id
@@ -209,11 +231,12 @@ const buildQuery = (type: ActivityViewFilter, search?: string) => {
     case 'by-contact':
       return search?.trim()
         ? `
-        query GetContactsSearch {
+        query GetContactsSearch($limit: Int, $offset: Int) {
           Contact(
             where: {
               _and: [
                 { isDeleted: { _eq: false } }
+                { ${hasSalesAssociateActivity} }
                 { _or: [
                   { firstName: { _ilike: "%${search}%" } }
                   { lastName: { _ilike: "%${search}%" } }
@@ -221,7 +244,8 @@ const buildQuery = (type: ActivityViewFilter, search?: string) => {
                 ] }
               ]
             }
-            limit: 50
+            limit: $limit
+            offset: $offset
             orderBy: { lastName: ASC_NULLS_LAST }
           ) {
             id
@@ -233,10 +257,11 @@ const buildQuery = (type: ActivityViewFilter, search?: string) => {
         }
       `
         : `
-        query GetContacts {
+        query GetContacts($limit: Int, $offset: Int) {
           Contact(
-            where: { isDeleted: { _eq: false } }
-            limit: 50
+            where: { isDeleted: { _eq: false } ${hasSalesAssociateActivity} }
+            limit: $limit
+            offset: $offset
             orderBy: { lastName: ASC_NULLS_LAST }
           ) {
             id
@@ -250,18 +275,20 @@ const buildQuery = (type: ActivityViewFilter, search?: string) => {
     case 'by-lead':
       return search?.trim()
         ? `
-        query GetLeadsSearch {
+        query GetLeadsSearch($limit: Int, $offset: Int) {
           Lead(
             where: {
               _and: [
                 { isDeleted: { _eq: false } }
+                { ${hasSalesAssociateActivity} }
                 { _or: [
                   { name: { _ilike: "%${search}%" } }
                   { companyEmail: { _ilike: "%${search}%" } }
                 ] }
               ]
             }
-            limit: 50
+            limit: $limit
+            offset: $offset
             orderBy: { name: ASC_NULLS_LAST }
           ) {
             id
@@ -271,10 +298,11 @@ const buildQuery = (type: ActivityViewFilter, search?: string) => {
         }
       `
         : `
-        query GetLeads {
+        query GetLeads($limit: Int, $offset: Int) {
           Lead(
-            where: { isDeleted: { _eq: false } }
-            limit: 50
+            where: { isDeleted: { _eq: false } ${hasSalesAssociateActivity} }
+            limit: $limit
+            offset: $offset
             orderBy: { name: ASC_NULLS_LAST }
           ) {
             id
@@ -286,15 +314,17 @@ const buildQuery = (type: ActivityViewFilter, search?: string) => {
     case 'by-opportunity':
       return search?.trim()
         ? `
-        query GetOpportunitiesSearch {
+        query GetOpportunitiesSearch($limit: Int, $offset: Int) {
           Opportunity(
             where: {
               _and: [
                 { isDeleted: { _eq: false } }
+                { ${hasSalesAssociateActivity} }
                 { name: { _ilike: "%${search}%" } }
               ]
             }
-            limit: 50
+            limit: $limit
+            offset: $offset
             orderBy: { name: ASC_NULLS_LAST }
           ) {
             id
@@ -303,10 +333,11 @@ const buildQuery = (type: ActivityViewFilter, search?: string) => {
         }
       `
         : `
-        query GetOpportunities {
+        query GetOpportunities($limit: Int, $offset: Int) {
           Opportunity(
-            where: { isDeleted: { _eq: false } }
-            limit: 50
+            where: { isDeleted: { _eq: false } ${hasSalesAssociateActivity} }
+            limit: $limit
+            offset: $offset
             orderBy: { name: ASC_NULLS_LAST }
           ) {
             id
@@ -370,12 +401,17 @@ export const EntitySelectorOverlay: React.FC<EntitySelectorOverlayProps> = ({
   onSelect
 }) => {
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [entities, setEntities] = useState<EntityItem[]>([])
   const [loading, setLoading] = useState(false)
-  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [offset, setOffset] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
 
   const graphqlClient = useGraphQLClient(accessToken)
   const config = getEntityConfig(entityType)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const sentinelRef = useRef<HTMLDivElement>(null)
 
   // Debounce search
   useEffect(() => {
@@ -385,42 +421,139 @@ export const EntitySelectorOverlay: React.FC<EntitySelectorOverlayProps> = ({
     return () => clearTimeout(timer)
   }, [search])
 
-  // Fetch entities
-  const fetchEntities = useCallback(async () => {
-    setLoading(true)
-    try {
-      const query = buildQuery(entityType, debouncedSearch)
+  // Fetch a single page. When append is true, results are added (infinite scroll);
+  // otherwise they replace the current list (initial load / new search).
+  const fetchPage = useCallback(
+    async (term: string, pageOffset: number, append: boolean) => {
+      const query = buildQuery(entityType, term)
       if (!query) return
 
-      const result = await graphqlClient.request(query)
-      const items = transformResults(entityType, result)
-      setEntities(items)
-    } catch (err) {
-      console.error('Failed to fetch entities:', err)
-      setEntities([])
-    } finally {
-      setLoading(false)
-    }
-  }, [graphqlClient, entityType, debouncedSearch])
+      if (append) {
+        setLoadingMore(true)
+      } else {
+        setLoading(true)
+      }
 
-  // Fetch on open or search change
+      try {
+        const result = await graphqlClient.request(query, { limit: PAGE_SIZE, offset: pageOffset })
+        const items = transformResults(entityType, result)
+
+        setEntities(prev => {
+          if (!append) return items
+          const existingIds = new Set(prev.map(entity => entity.id))
+          return [...prev, ...items.filter(item => !existingIds.has(item.id))]
+        })
+        setHasMore(items.length >= PAGE_SIZE)
+        setOffset(pageOffset)
+      } catch (err) {
+        console.error('Failed to fetch entities:', err)
+        if (!append) setEntities([])
+        setHasMore(false)
+      } finally {
+        if (append) {
+          setLoadingMore(false)
+        } else {
+          setLoading(false)
+        }
+      }
+    },
+    [graphqlClient, entityType]
+  )
+
+  // Initial load + reload whenever the search term or entity type changes while open
   useEffect(() => {
-    if (open) {
-      fetchEntities()
-    }
-  }, [open, fetchEntities])
+    if (!open) return
+    fetchPage(debouncedSearch, 0, false).catch(() => undefined)
+  }, [open, debouncedSearch, entityType, fetchPage])
 
-  // Reset on close
+  // Reset state when the overlay closes
   useEffect(() => {
     if (!open) {
       setSearch('')
+      setDebouncedSearch('')
       setEntities([])
+      setOffset(0)
+      setHasMore(false)
     }
   }, [open])
+
+  const loadMore = useCallback(() => {
+    if (loading || loadingMore || !hasMore) return
+    fetchPage(debouncedSearch, offset + PAGE_SIZE, true).catch(() => undefined)
+  }, [loading, loadingMore, hasMore, fetchPage, debouncedSearch, offset])
+
+  // Infinite scroll: load the next page when the bottom sentinel enters the viewport
+  useEffect(() => {
+    if (!open || !hasMore || loading) return
+    const sentinel = sentinelRef.current
+    if (!sentinel) return
+
+    const viewport =
+      scrollContainerRef.current?.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]') ?? null
+
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0]?.isIntersecting) {
+          loadMore()
+        }
+      },
+      { root: viewport, rootMargin: '120px' }
+    )
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [open, hasMore, loading, loadMore])
 
   const handleSelect = (entity: EntityItem) => {
     onSelect(entity.id, entity.name)
     onOpenChange(false)
+  }
+
+  let resultsContent: React.ReactNode
+  if (loading) {
+    resultsContent = (
+      <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
+        <Spinner size="md" />
+        <span className="gba:ml-3 gba:text-muted-foreground">Loading...</span>
+      </div>
+    )
+  } else if (entities.length === 0) {
+    resultsContent = (
+      <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
+        {debouncedSearch ? 'No results found' : 'No results'}
+      </div>
+    )
+  } else {
+    resultsContent = (
+      <div className="gba:space-y-1">
+        {entities.map(entity => (
+          <button
+            key={entity.id}
+            type="button"
+            onClick={() => handleSelect(entity)}
+            className="gba:flex gba:items-center gba:gap-3 gba:w-full gba:p-3 gba:rounded-lg gba:text-left gba:border-0 gba:bg-transparent hover:gba:bg-accent/50 gba:transition-colors gba:cursor-pointer"
+          >
+            <Avatar className="gba:h-10 gba:w-10 gba:shrink-0">
+              {entity.avatar ? <AvatarImage src={entity.avatar} /> : null}
+              <AvatarFallback className="gba:text-sm">{entity.name.charAt(0).toUpperCase()}</AvatarFallback>
+            </Avatar>
+            <div className="gba:flex-1 gba:min-w-0">
+              <p className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">{entity.name}</p>
+              {entity.subtitle && (
+                <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{entity.subtitle}</p>
+              )}
+            </div>
+          </button>
+        ))}
+
+        {/* Sentinel + spinner for infinite scroll */}
+        {hasMore && <div ref={sentinelRef} className="gba:h-px gba:w-full" aria-hidden="true" />}
+        {loadingMore && (
+          <div className="gba:flex gba:items-center gba:justify-center gba:py-3">
+            <Spinner size="sm" />
+          </div>
+        )}
+      </div>
+    )
   }
 
   return (
@@ -458,42 +591,11 @@ export const EntitySelectorOverlay: React.FC<EntitySelectorOverlayProps> = ({
         </div>
 
         {/* Results */}
-        <ScrollArea className="gba:h-[400px]">
-          <div className="gba:p-2">
-            {loading ? (
-              <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
-                <Spinner size="md" />
-                <span className="gba:ml-3 gba:text-muted-foreground">Loading...</span>
-              </div>
-            ) : entities.length === 0 ? (
-              <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
-                {search ? 'No results found' : 'Start typing to search'}
-              </div>
-            ) : (
-              <div className="gba:space-y-1">
-                {entities.map(entity => (
-                  <button
-                    key={entity.id}
-                    type="button"
-                    onClick={() => handleSelect(entity)}
-                    className="gba:flex gba:items-center gba:gap-3 gba:w-full gba:p-3 gba:rounded-lg gba:text-left gba:border-0 gba:bg-transparent hover:gba:bg-accent/50 gba:transition-colors gba:cursor-pointer"
-                  >
-                    <Avatar className="gba:h-10 gba:w-10 gba:shrink-0">
-                      {entity.avatar ? <AvatarImage src={entity.avatar} /> : null}
-                      <AvatarFallback className="gba:text-sm">{entity.name.charAt(0).toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                    <div className="gba:flex-1 gba:min-w-0">
-                      <p className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">{entity.name}</p>
-                      {entity.subtitle && (
-                        <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{entity.subtitle}</p>
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </ScrollArea>
+        <div ref={scrollContainerRef}>
+          <ScrollArea className="gba:h-[400px]">
+            <div className="gba:p-2">{resultsContent}</div>
+          </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   )

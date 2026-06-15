@@ -99,6 +99,13 @@ export const useCeoHubStats = (accessToken: string): UseCeoHubStatsResult => {
           ) {
             aggregate { count }
           }
+
+          # Total sales activities
+          TotalSalesActivities: SalesActivityAggregate(
+            where: {isDeleted: {_eq: false}}
+          ) {
+            aggregate { count }
+          }
         }
       `
 
@@ -109,6 +116,7 @@ export const useCeoHubStats = (accessToken: string): UseCeoHubStatsResult => {
         OpenPipeline: { aggregate: { count: number; sum: { estimatedAmount: number } } }
         TotalLeads: { aggregate: { count: number } }
         TotalAccounts: { aggregate: { count: number } }
+        TotalSalesActivities: { aggregate: { count: number } }
       }>(query)
 
       const totalOpportunities = result.TotalOpportunities?.aggregate?.count || 0
@@ -119,10 +127,8 @@ export const useCeoHubStats = (accessToken: string): UseCeoHubStatsResult => {
       const pipelineValue = result.OpenPipeline?.aggregate?.sum?.estimatedAmount || 0
       const totalLeads = result.TotalLeads?.aggregate?.count || 0
       const totalAccounts = result.TotalAccounts?.aggregate?.count || 0
+      const totalActivities = result.TotalSalesActivities?.aggregate?.count || 0
       const winRate = closedCount > 0 ? (wonCount / closedCount) * 100 : 0
-
-      // Use total activities as a combined metric
-      const totalActivities = totalOpportunities + totalLeads + totalAccounts
 
       setStats({
         totalActivities,

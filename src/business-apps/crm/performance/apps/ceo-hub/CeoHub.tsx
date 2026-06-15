@@ -13,7 +13,8 @@ import {
   Button
 } from '@newwork/nw-design-system'
 import { useCeoHubStats } from './hooks/useCeoHubStats'
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { navigateTo, buildPlatformUrl, Navigation } from '@/common/utils/navigationUtils'
+import { buildActivity360PlatformUrl } from '@/business-apps/crm/performance/apps/sales-activity-360/utils/activity360UrlHelpers'
 import {
   ChartLineUpIcon,
   LightningIcon,
@@ -98,30 +99,41 @@ const CeoHub: React.FC<CeoHubProps> = ({ accessToken }) => {
           {
             label: 'Activity Timeline',
             onClick: () => {
-              const url = buildPlatformUrl('/platform/crm/sales-activity-360', { view: 'timeline' })
-              navigateTo(url)
+              navigateTo(
+                buildActivity360PlatformUrl({
+                  appScreen: { screen: 'activity-view', filter: 'all' },
+                  tab: 'calendar'
+                })
+              )
             }
           },
           {
             label: 'Team Overview',
             onClick: () => {
-              const url = buildPlatformUrl('/platform/crm/sales-activity-360', { view: 'team' })
-              navigateTo(url)
+              navigateTo(
+                buildActivity360PlatformUrl({
+                  appScreen: { screen: 'activity-view', filter: 'all' },
+                  tab: 'comparison'
+                })
+              )
             }
           },
           {
             label: 'Activity Analytics',
             onClick: () => {
-              const url = buildPlatformUrl('/platform/crm/sales-activity-360', { view: 'analytics' })
-              navigateTo(url)
+              navigateTo(
+                buildActivity360PlatformUrl({
+                  appScreen: { screen: 'activity-view', filter: 'all' },
+                  tab: 'comparison'
+                })
+              )
             }
           }
         ],
         primaryAction: {
           label: 'Open Activity Dashboard',
           onClick: () => {
-            const url = buildPlatformUrl('/platform/crm/sales-activity-360')
-            navigateTo(url)
+            navigateTo(Navigation.CRM_PERFORMANCE_SALES_ACTIVITY_360)
           }
         },
         variant: 'info'
@@ -140,21 +152,21 @@ const CeoHub: React.FC<CeoHubProps> = ({ accessToken }) => {
           {
             label: 'Revenue Trends',
             onClick: () => {
-              const url = buildPlatformUrl('/platform/crm/sale-performance', { view: 'overview' })
+              const url = buildPlatformUrl('/platform/crm/sales-performance', { view: 'overview' })
               navigateTo(url)
             }
           },
           {
             label: 'Team Comparison',
             onClick: () => {
-              const url = buildPlatformUrl('/platform/crm/sale-performance', { view: 'teams' })
+              const url = buildPlatformUrl('/platform/crm/sales-performance', { view: 'teams' })
               navigateTo(url)
             }
           },
           {
             label: 'Employee Rankings',
             onClick: () => {
-              const url = buildPlatformUrl('/platform/crm/sale-performance', { view: 'employees' })
+              const url = buildPlatformUrl('/platform/crm/sales-performance', { view: 'employees' })
               navigateTo(url)
             }
           }
@@ -162,7 +174,7 @@ const CeoHub: React.FC<CeoHubProps> = ({ accessToken }) => {
         primaryAction: {
           label: 'Open Performance Dashboard',
           onClick: () => {
-            const url = buildPlatformUrl('/platform/crm/sale-performance')
+            const url = buildPlatformUrl('/platform/crm/sales-performance')
             navigateTo(url)
           }
         },
@@ -188,7 +200,7 @@ const CeoHub: React.FC<CeoHubProps> = ({ accessToken }) => {
         label: 'Team Performance',
         icon: UsersThreeIcon,
         onClick: () => {
-          const url = buildPlatformUrl('/platform/crm/sale-performance', { view: 'teams' })
+          const url = buildPlatformUrl('/platform/crm/sales-performance', { view: 'teams' })
           navigateTo(url)
         },
         variant: 'secondary'
@@ -198,8 +210,7 @@ const CeoHub: React.FC<CeoHubProps> = ({ accessToken }) => {
         label: 'Activity Overview',
         icon: LightningIcon,
         onClick: () => {
-          const url = buildPlatformUrl('/platform/crm/sales-activity-360')
-          navigateTo(url)
+          navigateTo(Navigation.CRM_PERFORMANCE_SALES_ACTIVITY_360)
         },
         variant: 'secondary'
       }
@@ -255,6 +266,8 @@ const CeoHub: React.FC<CeoHubProps> = ({ accessToken }) => {
       title="Executive Hub"
       description="Executive-level insights and strategic sales intelligence for data-driven decision making"
       icon={LightbulbIcon}
+      // Disable the default header back arrow (LauncherLayout falls back to window.history.back()).
+      onBack={null as unknown as (() => void) | undefined}
       headerKpis={headerKpis}
       sections={sections}
       quickActions={quickActions}

@@ -54,6 +54,20 @@ const EMPLOYEE_FIELDS = `
 // Sales Associate capability name for filtering (consistent with Sales Performance module)
 const SALES_ASSOCIATE_CAPABILITY = 'Sales Associate'
 
+// Only list entities that actually have at least one Sales-Associate activity,
+// so the picker matches the "By X" counts shown on the explore chips.
+const HAS_SALES_ASSOCIATE_ACTIVITY = `activities: {
+  ownerEmployee: {
+    employeePosition: {
+      employeeCapabilities: {
+        capability: {
+          name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" }
+        }
+      }
+    }
+  }
+}`
+
 const EMPLOYEES_QUERY = `
   query GetEmployees($limit: Int, $offset: Int) {
     Employee(
@@ -110,7 +124,7 @@ const EMPLOYEES_SEARCH_QUERY = `
 const ACCOUNTS_QUERY = `
   query GetAccounts($limit: Int, $offset: Int) {
     Account(
-      where: { isDeleted: { _eq: false } }
+      where: { isDeleted: { _eq: false } ${HAS_SALES_ASSOCIATE_ACTIVITY} }
       orderBy: [{ name: ASC_NULLS_LAST }]
       limit: $limit
       offset: $offset
@@ -129,6 +143,7 @@ const ACCOUNTS_SEARCH_QUERY = `
       where: {
         _and: [
           { isDeleted: { _eq: false } }
+          { ${HAS_SALES_ASSOCIATE_ACTIVITY} }
           { _or: [
             { name: { _ilike: $search } }
             { email: { _ilike: $search } }
@@ -150,7 +165,7 @@ const ACCOUNTS_SEARCH_QUERY = `
 const CONTACTS_QUERY = `
   query GetContacts($limit: Int, $offset: Int) {
     Contact(
-      where: { isDeleted: { _eq: false } }
+      where: { isDeleted: { _eq: false } ${HAS_SALES_ASSOCIATE_ACTIVITY} }
       orderBy: [{ lastName: ASC_NULLS_LAST }]
       limit: $limit
       offset: $offset
@@ -170,6 +185,7 @@ const CONTACTS_SEARCH_QUERY = `
       where: {
         _and: [
           { isDeleted: { _eq: false } }
+          { ${HAS_SALES_ASSOCIATE_ACTIVITY} }
           { _or: [
             { firstName: { _ilike: $search } }
             { lastName: { _ilike: $search } }
@@ -193,7 +209,7 @@ const CONTACTS_SEARCH_QUERY = `
 const LEADS_QUERY = `
   query GetLeads($limit: Int, $offset: Int) {
     Lead(
-      where: { isDeleted: { _eq: false } }
+      where: { isDeleted: { _eq: false } ${HAS_SALES_ASSOCIATE_ACTIVITY} }
       orderBy: [{ name: ASC_NULLS_LAST }]
       limit: $limit
       offset: $offset
@@ -211,6 +227,7 @@ const LEADS_SEARCH_QUERY = `
       where: {
         _and: [
           { isDeleted: { _eq: false } }
+          { ${HAS_SALES_ASSOCIATE_ACTIVITY} }
           { _or: [
             { name: { _ilike: $search } }
             { companyEmail: { _ilike: $search } }
@@ -231,7 +248,7 @@ const LEADS_SEARCH_QUERY = `
 const OPPORTUNITIES_QUERY = `
   query GetOpportunities($limit: Int, $offset: Int) {
     Opportunity(
-      where: { isDeleted: { _eq: false } }
+      where: { isDeleted: { _eq: false } ${HAS_SALES_ASSOCIATE_ACTIVITY} }
       orderBy: [{ name: ASC_NULLS_LAST }]
       limit: $limit
       offset: $offset
@@ -249,6 +266,7 @@ const OPPORTUNITIES_SEARCH_QUERY = `
       where: {
         _and: [
           { isDeleted: { _eq: false } }
+          { ${HAS_SALES_ASSOCIATE_ACTIVITY} }
           { name: { _ilike: $search } }
         ]
       }

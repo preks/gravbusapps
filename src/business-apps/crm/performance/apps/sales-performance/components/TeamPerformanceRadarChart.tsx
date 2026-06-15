@@ -6,8 +6,6 @@ import {
   CardTitle,
   ChartContainer,
   ChartTooltip,
-  ChartLegend,
-  ChartLegendContent,
   Spinner,
   Alert,
   AlertDescription,
@@ -17,25 +15,26 @@ import {
 } from '@newwork/nw-design-system'
 import { RadarChart, PolarGrid, PolarAngleAxis, Radar } from 'recharts'
 import { TargetIcon } from '@phosphor-icons/react'
-import { type TeamComparisonData, TEAM_COLORS } from '../types'
+import { type TeamComparisonData } from '../types'
+import { getComparisonChartLabels, type ComparisonChartVariant } from '../utils/comparisonChartLabels'
+import { ComparisonChartLegend } from './ComparisonChartLegend'
 
 interface TeamPerformanceRadarChartProps {
   teams: TeamComparisonData[]
   isLoading?: boolean
   error?: string | null
   onRetry?: () => void
+  variant?: ComparisonChartVariant
 }
 
 const DATA_TEST_ID_PREFIX = 'team-performance-radar-chart'
 
-// Radar chart metrics
-const METRICS = [
-  { key: 'winRate', label: 'Win Rate', unit: '%' },
-  { key: 'revenue', label: 'Revenue', unit: '' },
-  { key: 'opportunitiesPerMember', label: 'Opportunities/Member', unit: '' },
-  { key: 'winsPerMember', label: 'Wins/Member', unit: '' },
-  { key: 'teamSize', label: 'Team Size', unit: '' }
-] as const
+type RadarMetricKey = 'winRate' | 'revenue' | 'opportunitiesPerMember' | 'winsPerMember' | 'teamSize'
+
+interface RadarMetric {
+  key: RadarMetricKey
+  label: string
+}
 
 interface RadarDataPoint {
   metric: string
@@ -88,8 +87,26 @@ export const TeamPerformanceRadarChart: React.FC<TeamPerformanceRadarChartProps>
   teams,
   isLoading = false,
   error = null,
-  onRetry
+  onRetry,
+  variant = 'team'
 }) => {
+  const labels = getComparisonChartLabels(variant)
+
+  const metrics = useMemo<RadarMetric[]>(() => {
+    const baseMetrics: RadarMetric[] = [
+      { key: 'winRate', label: 'Win Rate' },
+      { key: 'revenue', label: 'Revenue' },
+      { key: 'opportunitiesPerMember', label: labels.opportunitiesPerMemberLabel },
+      { key: 'winsPerMember', label: labels.winsPerMemberLabel }
+    ]
+
+    if (labels.includeTeamSizeMetric) {
+      baseMetrics.push({ key: 'teamSize', label: labels.teamSizeLabel })
+    }
+
+    return baseMetrics
+  }, [labels])
+
   // Calculate derived metrics and prepare radar data
   const { radarData, chartConfig } = useMemo(() => {
     if (teams.length === 0) {
@@ -121,7 +138,7 @@ export const TeamPerformanceRadarChart: React.FC<TeamPerformanceRadarChartProps>
     const maxTeamSize = Math.max(...teamMetrics.map(t => t.teamSize), 1)
 
     // Build radar data (one object per metric, with each team's normalized value)
-    const data: RadarDataPoint[] = METRICS.map(metric => {
+    const data: RadarDataPoint[] = metrics.map(metric => {
       const point: RadarDataPoint = {
         metric: metric.label,
         fullMark: 100
@@ -165,7 +182,7 @@ export const TeamPerformanceRadarChart: React.FC<TeamPerformanceRadarChartProps>
     })
 
     return { radarData: data, chartConfig: config }
-  }, [teams])
+  }, [teams, metrics])
 
   if (isLoading) {
     return (
@@ -173,7 +190,7 @@ export const TeamPerformanceRadarChart: React.FC<TeamPerformanceRadarChartProps>
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
             <IconAvatar icon={TargetIcon} variant="default" size="md" decorative />
-            Team Performance Profile
+            {labels.radarTitle}
           </CardTitle>
         </CardHeader>
         <CardContent className="gba:flex gba:items-center gba:justify-center gba:h-[350px]">
@@ -189,7 +206,7 @@ export const TeamPerformanceRadarChart: React.FC<TeamPerformanceRadarChartProps>
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
             <IconAvatar icon={TargetIcon} variant="default" size="md" decorative />
-            Team Performance Profile
+            {labels.radarTitle}
           </CardTitle>
         </CardHeader>
         <CardContent className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-[350px] gba:gap-4">
@@ -212,13 +229,13 @@ export const TeamPerformanceRadarChart: React.FC<TeamPerformanceRadarChartProps>
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
             <IconAvatar icon={TargetIcon} variant="default" size="md" decorative />
-            Team Performance Profile
+            {labels.radarTitle}
           </CardTitle>
         </CardHeader>
         <CardContent className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-[350px] gba:text-muted-foreground">
           <TargetIcon className="gba:h-12 gba:w-12 gba:mb-4" />
-          <h3 className="gba:text-sm gba:font-medium">No teams selected</h3>
-          <p className="gba:text-sm gba:mt-1">Select teams to view their performance profile.</p>
+          <h3 className="gba:text-sm gba:font-medium">{labels.radarEmptyTitle}</h3>
+          <p className="gba:text-sm gba:mt-1">{labels.radarEmptyDescription}</p>
         </CardContent>
       </Card>
     )
@@ -229,15 +246,15 @@ export const TeamPerformanceRadarChart: React.FC<TeamPerformanceRadarChartProps>
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2">
           <IconAvatar icon={TargetIcon} variant="default" size="md" decorative />
-          Team Performance Profile
+          {labels.radarTitle}
           <span className="gba:text-sm gba:font-normal gba:text-muted-foreground">
-            ({teams.length} team{teams.length > 1 ? 's' : ''})
+            ({labels.selectionCountLabel(teams.length)})
           </span>
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="gba:mx-auto gba:h-[300px] gba:w-full">
-          <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="75%">
+        <ChartContainer config={chartConfig} className="gba:mx-auto gba:h-[320px] gba:w-full">
+          <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="80%">
             <PolarGrid stroke="hsl(var(--border))" />
             <PolarAngleAxis
               dataKey="metric"
@@ -246,20 +263,24 @@ export const TeamPerformanceRadarChart: React.FC<TeamPerformanceRadarChartProps>
               dy={4}
             />
             <ChartTooltip content={<CustomTooltip />} />
-            {teams.map((team, index) => (
+            {teams.map(team => (
               <Radar
                 key={team.id}
                 name={team.name}
                 dataKey={team.id}
-                stroke={TEAM_COLORS[index % TEAM_COLORS.length]}
-                fill={TEAM_COLORS[index % TEAM_COLORS.length]}
+                stroke={team.color}
+                fill={team.color}
                 fillOpacity={teams.length === 1 ? 0.4 : 0.2}
                 strokeWidth={2}
               />
             ))}
-            <ChartLegend content={<ChartLegendContent />} className="gba:flex-wrap gba:gap-2 gba:justify-center" />
           </RadarChart>
         </ChartContainer>
+
+        <ComparisonChartLegend
+          items={teams.map(team => ({ id: team.id, name: team.name, color: team.color }))}
+          dataTestId={`${DATA_TEST_ID_PREFIX}-legend`}
+        />
 
         {/* Metrics explanation */}
         <div className="gba:mt-2 gba:pt-2 gba:border-t gba:text-xs gba:text-muted-foreground gba:text-center">

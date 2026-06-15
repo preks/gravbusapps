@@ -21,14 +21,12 @@ interface TeamSelectionCardProps {
 const DATA_TEST_ID_PREFIX = 'team-selection-card'
 
 /**
- * Formats currency value in compact notation (e.g., $890k)
+ * Formats a currency value at full precision with its symbol (e.g. €1,850,000.00).
  */
 const formatCurrency = (value: number, currencyCode: string = 'EUR'): string => {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: currencyCode,
-    notation: 'compact',
-    maximumFractionDigits: 0
+    currency: currencyCode
   }).format(value)
 }
 

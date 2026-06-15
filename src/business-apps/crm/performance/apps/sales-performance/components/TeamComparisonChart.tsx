@@ -7,8 +7,6 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
   Spinner,
   Alert,
   AlertDescription,
@@ -24,6 +22,8 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { ChartLineIcon, CalendarIcon, ArrowClockwiseIcon } from '@phosphor-icons/react'
 import { type TeamComparisonData, type TeamRevenueTrendPoint, type TimeFilter } from '../types'
 import { type Pipeline } from '../hooks'
+import { getComparisonChartLabels, type ComparisonChartVariant } from '../utils/comparisonChartLabels'
+import { ComparisonChartLegend } from './ComparisonChartLegend'
 
 interface TeamComparisonChartProps {
   teams: TeamComparisonData[]
@@ -31,6 +31,7 @@ interface TeamComparisonChartProps {
   isLoading?: boolean
   error?: string | null
   onRetry?: () => void
+  variant?: ComparisonChartVariant
   // Filter props
   timeFilter: TimeFilter
   onTimeFilterChange: (filter: TimeFilter) => void
@@ -78,8 +79,11 @@ export const TeamComparisonChart: React.FC<TeamComparisonChartProps> = ({
   pipelines,
   selectedPipelineId,
   onPipelineChange,
-  pipelinesLoading = false
+  pipelinesLoading = false,
+  variant = 'team'
 }) => {
+  const labels = getComparisonChartLabels(variant)
+
   // Build chart config from teams
   const chartConfig = useMemo(() => {
     const config: Record<string, { label: string; color: string }> = {}
@@ -118,7 +122,7 @@ export const TeamComparisonChart: React.FC<TeamComparisonChartProps> = ({
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
             <IconAvatar icon={ChartLineIcon} variant="info" size="md" decorative />
-            Team Comparison
+            {labels.comparisonTitle}
           </CardTitle>
         </CardHeader>
         <CardContent className="gba:flex gba:items-center gba:justify-center gba:h-[400px]">
@@ -135,7 +139,7 @@ export const TeamComparisonChart: React.FC<TeamComparisonChartProps> = ({
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
             <IconAvatar icon={ChartLineIcon} variant="info" size="md" decorative />
-            Team Comparison
+            {labels.comparisonTitle}
           </CardTitle>
         </CardHeader>
         <CardContent className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-[400px] gba:gap-4">
@@ -161,7 +165,7 @@ export const TeamComparisonChart: React.FC<TeamComparisonChartProps> = ({
           <div className="gba:flex gba:items-center gba:justify-between gba:flex-wrap gba:gap-4">
             <CardTitle className="gba:flex gba:items-center gba:gap-2">
               <IconAvatar icon={ChartLineIcon} variant="info" size="md" decorative />
-              Team Comparison ({currentFilterLabel})
+              {labels.comparisonTitle} ({currentFilterLabel})
               {selectedPipelineId && (
                 <span className="gba:text-sm gba:font-normal gba:text-muted-foreground">
                   - {pipelines.find(p => p.id === selectedPipelineId)?.name || 'Selected Pipeline'}
@@ -208,56 +212,63 @@ export const TeamComparisonChart: React.FC<TeamComparisonChartProps> = ({
               </div>
             </div>
           </div>
-          <p className="gba:text-sm gba:text-muted-foreground">Revenue performance across selected teams</p>
+          <p className="gba:text-sm gba:text-muted-foreground">{labels.comparisonDescription}</p>
         </div>
       </CardHeader>
       <CardContent>
         {teams.length === 0 ? (
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-[400px] gba:gap-2">
-            <p className="gba:text-muted-foreground gba:text-center">No teams visible in chart</p>
-            <p className="gba:text-sm gba:text-muted-foreground gba:text-center">
-              Click on team cards above to show their data in the chart
-            </p>
+            <p className="gba:text-muted-foreground gba:text-center">{labels.comparisonEmptyMessage}</p>
+            <p className="gba:text-sm gba:text-muted-foreground gba:text-center">{labels.comparisonEmptyHint}</p>
           </div>
         ) : (
-          <ChartContainer config={chartConfig} className="gba:h-[400px] gba:w-full">
-            <AreaChart data={revenueTrends} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-              <defs>{gradientDefs}</defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis
-                dataKey="month"
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
-              />
-              <YAxis
-                tickFormatter={formatCurrency}
-                tickLine={false}
-                axisLine={false}
-                tickMargin={8}
-                tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
-              />
-              <ChartTooltip
-                content={
-                  <ChartTooltipContent labelKey="month" valueFormatter={value => formatCurrency(value as number)} />
-                }
-              />
-              <ChartLegend content={<ChartLegendContent />} />
-              {teams.map(team => (
-                <Area
-                  key={team.id}
-                  type="monotone"
-                  dataKey={team.id}
-                  name={team.name}
-                  stroke={team.color}
-                  fillOpacity={1}
-                  fill={`url(#gradient-${team.id})`}
-                  strokeWidth={2}
+          <>
+            <ChartContainer config={chartConfig} className="gba:h-[400px] gba:w-full">
+              <AreaChart data={revenueTrends} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <defs>{gradientDefs}</defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis
+                  dataKey="month"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                 />
-              ))}
-            </AreaChart>
-          </ChartContainer>
+                <YAxis
+                  tickFormatter={formatCurrency}
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                />
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      className="gba:min-w-48"
+                      labelKey="month"
+                      valueFormatter={value => formatCurrency(value as number)}
+                    />
+                  }
+                />
+                {teams.map(team => (
+                  <Area
+                    key={team.id}
+                    type="monotone"
+                    dataKey={team.id}
+                    name={team.name}
+                    stroke={team.color}
+                    fillOpacity={1}
+                    fill={`url(#gradient-${team.id})`}
+                    strokeWidth={2}
+                  />
+                ))}
+              </AreaChart>
+            </ChartContainer>
+            <ComparisonChartLegend
+              items={teams.map(team => ({ id: team.id, name: team.name, color: team.color }))}
+              dataTestId={`${DATA_TEST_ID_PREFIX}-legend`}
+            />
+          </>
         )}
       </CardContent>
     </Card>

@@ -1,19 +1,14 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ActivityViewFilter } from '../../types'
-import { useCalendarActivitiesData } from '@/business-apps/crm/performance/apps/sales-team-performance/components/team-performance-view/hooks/useCalendarActivitiesData'
-import {
-  SharedActivitiesCalendar,
-  CalendarActivity,
-  CalendarAbsence
-} from '@/business-apps/crm/performance/apps/sales-team-performance/components/shared/SharedActivitiesCalendar'
-import { calculateActivityScore } from '@/business-apps/crm/performance/apps/sales-team-performance/utils/activityScoreCalculator'
+import { useCalendarActivitiesData } from '../../hooks/useCalendarActivitiesData'
+import { SharedActivitiesCalendar, CalendarActivity, CalendarAbsence } from '../shared/SharedActivitiesCalendar'
+import { calculateActivityScore } from '../../utils/activityScoreCalculator'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import {
   buildCustomerActivityOrderBy,
   buildCustomerActivityQuery
 } from '@/common/data/customer/queries/customerActivityQueries'
-import { Spinner } from '@newwork/nw-design-system'
 import dayjs from 'dayjs'
 
 interface Activity360CalendarTabProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {
@@ -21,31 +16,6 @@ interface Activity360CalendarTabProps extends Pick<BusinessAppContextProps, 'acc
   entityId?: string
   compact?: boolean
 }
-
-// Sales Associate capability name for filtering (consistent with Sales Performance module)
-const SALES_ASSOCIATE_CAPABILITY = 'Sales Associate'
-
-// Query to get sales associates only - consistent with Sales Performance module
-const GET_ALL_EMPLOYEES = `
-  query GetAllEmployees {
-    Employee(
-      where: { 
-        isDeleted: { _eq: false }
-        employeePosition: {
-          employeeCapabilities: {
-            capability: {
-              name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" }
-            }
-          }
-        }
-      }
-      limit: 1000
-    ) {
-      id
-      fullName
-    }
-  }
-`
 
 // Query to get employee absences for a date range
 const GET_EMPLOYEE_ABSENCES = `
@@ -80,8 +50,6 @@ export const Activity360CalendarTab: React.FC<Activity360CalendarTabProps> = ({
   compact = false
 }) => {
   const [currentDate, setCurrentDate] = useState(dayjs())
-  const [allEmployeeIds, setAllEmployeeIds] = useState<string[]>([])
-  const [loadingEmployees, setLoadingEmployees] = useState(filter === 'all' || filter === 'by-general')
   const [entityActivities, setEntityActivities] = useState<any[]>([])
   const [entityLoading, setEntityLoading] = useState(false)
   const [entityError, setEntityError] = useState<string | null>(null)
@@ -97,27 +65,6 @@ export const Activity360CalendarTab: React.FC<Activity360CalendarTabProps> = ({
       dateTo: currentDate.endOf('month').toISOString()
     }
   }, [currentDate])
-
-  // For aggregate views, fetch all employee IDs
-  useEffect(() => {
-    if (filter === 'all' || filter === 'by-general' || filter === 'by-employee') {
-      if (filter === 'all' || filter === 'by-general') {
-        setLoadingEmployees(true)
-        graphqlClient
-          .request<{ Employee: Array<{ id: string; fullName: string }> }>(GET_ALL_EMPLOYEES)
-          .then(result => {
-            setAllEmployeeIds(result.Employee?.map(e => e.id) || [])
-          })
-          .catch(err => {
-            console.error('Failed to load employees:', err)
-            setAllEmployeeIds([])
-          })
-          .finally(() => {
-            setLoadingEmployees(false)
-          })
-      }
-    }
-  }, [filter, graphqlClient])
 
   // Fetch absences for employee view
   useEffect(() => {
@@ -205,17 +152,18 @@ export const Activity360CalendarTab: React.FC<Activity360CalendarTabProps> = ({
     }
   }, [filter, entityId, dateFrom, dateTo, entityRefreshKey, graphqlClient])
 
-  // Determine employeeIds for calendar hook
+  // Determine employeeIds for calendar hook. For aggregate views ("all"/"by-general")
+  // we scope to Sales Associates via a nested filter instead of pre-fetching ids.
   const employeeIds = useMemo(() => {
-    if (filter === 'all' || filter === 'by-general') return allEmployeeIds
     if (filter === 'by-employee' && entityId) return [entityId]
-    return [] // Entity-based filters don't use this hook
-  }, [filter, entityId, allEmployeeIds])
+    return [] // "all"/"by-general" use scopeToSalesAssociates; entity views don't use this hook
+  }, [filter, entityId])
 
   // Use calendar hook for employee-based views
   const shouldUseHook = filter === 'all' || filter === 'by-general' || filter === 'by-employee'
   const hookResult = useCalendarActivitiesData({
     employeeIds: shouldUseHook ? employeeIds : [],
+    scopeToSalesAssociates: filter === 'all' || filter === 'by-general',
     dateFrom,
     dateTo,
     accessToken,
@@ -224,7 +172,7 @@ export const Activity360CalendarTab: React.FC<Activity360CalendarTabProps> = ({
   })
 
   // Determine which data source to use
-  const isLoading = loadingEmployees || (shouldUseHook ? hookResult.loading : entityLoading)
+  const isLoading = shouldUseHook ? hookResult.loading : entityLoading
   const error = shouldUseHook ? hookResult.error : entityError
   const rawActivities = shouldUseHook ? hookResult.activities : entityActivities
   const retry = useCallback(() => {
@@ -258,15 +206,6 @@ export const Activity360CalendarTab: React.FC<Activity360CalendarTabProps> = ({
       }
     })
   }, [rawActivities])
-
-  // Show loading while fetching employee IDs for "all" view
-  if (loadingEmployees) {
-    return (
-      <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
-        <Spinner size="lg" />
-      </div>
-    )
-  }
 
   return (
     <SharedActivitiesCalendar

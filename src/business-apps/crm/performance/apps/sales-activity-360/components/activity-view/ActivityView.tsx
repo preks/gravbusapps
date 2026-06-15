@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react'
-import { PageLayout, Spinner } from '@newwork/nw-design-system'
+import { PageLayout, Spinner, Button } from '@newwork/nw-design-system'
 import {
   ListBulletsIcon,
   CalendarIcon,
@@ -9,9 +9,10 @@ import {
   HandshakeIcon,
   UserCircleIcon,
   ChartLineUpIcon,
-  UsersThreeIcon
+  UsersThreeIcon,
+  ArrowLeftIcon
 } from '@phosphor-icons/react'
-import { ActivityViewProps, ActivityViewFilter, ActivityTabType } from '../../types'
+import { ActivityViewProps, ActivityViewFilter } from '../../types'
 import { Activity360ListTab } from '../tabs/Activity360ListTab'
 import { Activity360CalendarTab } from '../tabs/Activity360CalendarTab'
 import { Activity360ComparisonTab } from '../tabs/Activity360ComparisonTab'
@@ -122,23 +123,16 @@ interface EmployeeHeaderData {
   businessUnit?: string
 }
 
-export const ActivityView: React.FC<ActivityViewProps> = ({ accessToken, userInfo, filter, entityId, entityName }) => {
-  // Get initial tab from URL or default
-  // Note: 'comparison' tab is only available for 'all' filter
-  const getInitialTab = (): ActivityTabType => {
-    const urlParams = new URLSearchParams(globalThis.location.search)
-    const subViewFromUrl = urlParams.get('tab')
-    if (subViewFromUrl === 'list' || subViewFromUrl === 'calendar') {
-      return subViewFromUrl
-    }
-    // Comparison tab only allowed for 'all' filter
-    if (subViewFromUrl === 'comparison' && filter === 'all') {
-      return 'comparison'
-    }
-    return 'list'
-  }
-
-  const [activeTab, setActiveTab] = useState<ActivityTabType>(getInitialTab())
+export const ActivityView: React.FC<ActivityViewProps> = ({
+  accessToken,
+  userInfo,
+  filter,
+  entityId,
+  entityName,
+  activeTab,
+  onTabChange,
+  onBack
+}) => {
   const [employeeData, setEmployeeData] = useState<EmployeeHeaderData | null>(null)
   // Start loading true if we're viewing by-employee to prevent flash of no-avatar
   const [employeeLoading, setEmployeeLoading] = useState(filter === 'by-employee' && !!entityId)
@@ -167,7 +161,8 @@ export const ActivityView: React.FC<ActivityViewProps> = ({ accessToken, userInf
           }
         })
         .catch(err => {
-          console.error('Failed to load employee data:', err)
+          const errorMessage = err instanceof Error ? err.message : 'Failed to load employee data'
+          console.error(errorMessage)
         })
         .finally(() => {
           setEmployeeLoading(false)
@@ -177,29 +172,12 @@ export const ActivityView: React.FC<ActivityViewProps> = ({ accessToken, userInf
     }
   }, [filter, entityId, graphqlClient])
 
-  // Update URL when tab changes
-  const updateUrl = useCallback((tab: string) => {
-    const urlParams = new URLSearchParams(globalThis.location.search)
-    urlParams.set('tab', tab)
-    globalThis.history.replaceState({}, '', `${globalThis.location.pathname}?${urlParams.toString()}`)
-  }, [])
-
-  // Handle tab change
   const handleTabChange = useCallback(
     (newTab: string) => {
-      setActiveTab(newTab as ActivityTabType)
-      updateUrl(newTab)
+      onTabChange(newTab)
     },
-    [updateUrl]
+    [onTabChange]
   )
-
-  // Ensure URL always has tab parameter on initial load
-  useEffect(() => {
-    const urlParams = new URLSearchParams(globalThis.location.search)
-    if (!urlParams.has('tab')) {
-      updateUrl(activeTab)
-    }
-  }, [activeTab, updateUrl])
 
   const headerDescription = useMemo(() => {
     if (filter === 'by-employee' && employeeData) {
@@ -261,9 +239,8 @@ export const ActivityView: React.FC<ActivityViewProps> = ({ accessToken, userInf
       return
     }
 
-    setActiveTab('list')
-    updateUrl('list')
-  }, [activeTab, tabItems, updateUrl])
+    onTabChange('list')
+  }, [activeTab, tabItems, onTabChange])
 
   const activeTabContent = tabItems.find(item => item.value === activeTab)?.content
   const headerSubViews = useMemo(
@@ -297,10 +274,26 @@ export const ActivityView: React.FC<ActivityViewProps> = ({ accessToken, userInf
       headerTitle={headerTitle}
       headerDescription={headerDescription}
       headerSubViews={headerSubViews}
+      // Disable the default header back arrow; the explicit "Back" button below handles navigation.
+      onBack={null as unknown as (() => void) | undefined}
       variant={moduleColor}
       className="gba:min-h-screen"
     >
-      <div className="gba:h-full gba:overflow-auto">{activeTabContent}</div>
+      <div className="gba:h-full gba:overflow-auto">
+        {onBack && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onBack}
+            className="gba:gap-2 gba:mb-4"
+            data-testid={`${DATA_TEST_ID_PREFIX}-back-button`}
+          >
+            <ArrowLeftIcon className="gba:h-4 gba:w-4" />
+            {getTranslationFromI18nKeyAndLabel('crm.salesActivity360.back', 'Back')}
+          </Button>
+        )}
+        {activeTabContent}
+      </div>
     </PageLayout>
   )
 }

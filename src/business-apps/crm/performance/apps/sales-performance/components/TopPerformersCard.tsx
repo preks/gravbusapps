@@ -71,8 +71,8 @@ export const TopPerformersCard: React.FC<TopPerformersCardProps> = ({
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: currencyCode,
-      notation: 'compact',
-      maximumFractionDigits: 1
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
     }).format(amount)
   }
 

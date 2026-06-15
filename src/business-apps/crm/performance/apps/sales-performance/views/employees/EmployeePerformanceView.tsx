@@ -1,10 +1,10 @@
 import React, { useMemo } from 'react'
-import { Spinner, RecordLayout, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
-import { UserIcon, EnvelopeIcon, PhoneIcon, DeviceMobileIcon, MapPinIcon } from '@phosphor-icons/react'
+import { Button, Spinner, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
+import { EnvelopeIcon, PhoneIcon, DeviceMobileIcon, MapPinIcon, ArrowLeftIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useEmployeePerformanceData } from '@/business-apps/crm/performance/apps/sales-team-performance/components/sales-member-performance/hooks/useEmployeePerformanceData'
-import { SalesPerformanceTab } from '@/business-apps/crm/performance/apps/sales-team-performance/components/sales-member-performance/components/tabs'
+import { useEmployeePerformanceData } from './employee-overview/hooks/useEmployeePerformanceData'
+import { SalesPerformanceTab } from './employee-overview/components/tabs'
 
 const DATA_TEST_ID_PREFIX = 'EmployeePerformanceView'
 
@@ -13,7 +13,6 @@ interface EmployeePerformanceViewProps extends BusinessAppContextProps {
   onBack: () => void
 }
 
-// Helper to get initials from name
 const getManagerInitials = (name: string): string => {
   return name
     .split(' ')
@@ -23,10 +22,8 @@ const getManagerInitials = (name: string): string => {
     .substring(0, 2)
 }
 
-// Separator component for header sections
 const HeaderSeparator: React.FC = () => <div className="gba:h-8 gba:w-px gba:bg-border" />
 
-// Contact info item component
 interface ContactInfoItemProps {
   icon: React.ElementType
   label: string
@@ -44,8 +41,9 @@ const ContactInfoItem: React.FC<ContactInfoItemProps> = ({ icon: Icon, label, va
 )
 
 /**
- * Employee Performance View - Simplified version showing only Sales Performance
- * This is a streamlined view without the Activities and Calendar tabs
+ * Employee Performance View - Simplified version showing only Sales Performance.
+ * Uses the embedded drill-down layout (same as TeamPerformanceView) so KPI cards
+ * render on the white PageLayout background instead of RecordLayout's grey shell.
  */
 export const EmployeePerformanceView: React.FC<EmployeePerformanceViewProps> = ({
   employeeId,
@@ -53,10 +51,17 @@ export const EmployeePerformanceView: React.FC<EmployeePerformanceViewProps> = (
   accessToken,
   userInfo
 }) => {
-  // Fetch employee performance data
-  const { headerData, trends, isLoading, error } = useEmployeePerformanceData(accessToken, employeeId)
+  const { headerData, isLoading, error } = useEmployeePerformanceData(accessToken, employeeId)
 
-  // Prepare header meta information
+  const displayName = useMemo(() => {
+    if (!headerData) return 'Employee'
+
+    return (
+      headerData.displayName ||
+      (headerData.firstName && headerData.lastName ? `${headerData.firstName} ${headerData.lastName}` : 'Employee')
+    )
+  }, [headerData])
+
   const headerMeta = useMemo(() => {
     if (!headerData) return null
 
@@ -69,16 +74,13 @@ export const EmployeePerformanceView: React.FC<EmployeePerformanceViewProps> = (
     )
   }, [headerData])
 
-  // Prepare header content with contact info and manager
-  const headerContent = useMemo(() => {
+  const headerDetails = useMemo(() => {
     if (!headerData) return null
 
-    // Check if employee has a valid manager (not themselves)
     const hasValidManager = headerData.managerName && headerData.managerId && headerData.managerId !== headerData.id
 
     return (
-      <div className="gba:flex gba:items-center gba:gap-6 gba:flex-wrap gba:mt-4 gba:pl-4">
-        {/* Manager Info with Avatar - only show if manager exists and is not the employee themselves */}
+      <div className="gba:flex gba:items-center gba:gap-6 gba:flex-wrap gba:pt-2">
         {hasValidManager && (
           <>
             <div className="gba:flex gba:items-center gba:gap-2">
@@ -100,7 +102,6 @@ export const EmployeePerformanceView: React.FC<EmployeePerformanceViewProps> = (
           </>
         )}
 
-        {/* Country */}
         {headerData.country && (
           <>
             <ContactInfoItem icon={MapPinIcon} label="Country" value={headerData.country} />
@@ -108,7 +109,6 @@ export const EmployeePerformanceView: React.FC<EmployeePerformanceViewProps> = (
           </>
         )}
 
-        {/* Contact Info */}
         {headerData.email && <ContactInfoItem icon={EnvelopeIcon} label="Email" value={headerData.email} />}
         {headerData.phone && <ContactInfoItem icon={PhoneIcon} label="Phone" value={headerData.phone} />}
         {headerData.mobile && <ContactInfoItem icon={DeviceMobileIcon} label="Mobile" value={headerData.mobile} />}
@@ -116,41 +116,10 @@ export const EmployeePerformanceView: React.FC<EmployeePerformanceViewProps> = (
     )
   }, [headerData])
 
-  // Custom wide content className
-  const wideContentClassName = 'gba:py-4 gba:w-full gba:max-w-full'
-
-  // Single tab configuration - only Sales Performance
-  const subViewsConfig = useMemo(
-    () => ({
-      defaultValue: 'performance',
-      items: [
-        {
-          value: 'performance',
-          label: getTranslationFromI18nKeyAndLabel('crm.performance.salesPerformance', 'Sales Performance'),
-          contentClassName: wideContentClassName,
-          content: (
-            <div data-testid={`${DATA_TEST_ID_PREFIX}-performance-content`}>
-              <SalesPerformanceTab
-                employeeId={employeeId}
-                accessToken={accessToken}
-                userInfo={userInfo}
-                isLoading={false}
-                showComparisons={false}
-                trends={trends}
-              />
-            </div>
-          )
-        }
-      ]
-    }),
-    [employeeId, accessToken, userInfo, trends]
-  )
-
-  // Loading state
   if (isLoading) {
     return (
       <div
-        className="gba:flex gba:justify-center gba:items-center gba:h-96"
+        className="gba:flex gba:flex-col gba:justify-center gba:items-center gba:h-64"
         data-testid={`${DATA_TEST_ID_PREFIX}-loading`}
       >
         <Spinner size="lg" />
@@ -158,51 +127,70 @@ export const EmployeePerformanceView: React.FC<EmployeePerformanceViewProps> = (
     )
   }
 
-  // Error state
   if (error) {
     return (
-      <div className="gba:p-6" data-testid={`${DATA_TEST_ID_PREFIX}-error`}>
+      <div className="gba:space-y-4" data-testid={`${DATA_TEST_ID_PREFIX}-error`}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onBack}
+          className="gba:gap-2"
+          data-testid={`${DATA_TEST_ID_PREFIX}-back-button`}
+        >
+          <ArrowLeftIcon className="gba:h-4 gba:w-4" />
+          Back to Employee Insights
+        </Button>
         <div className="gba:text-destructive">Error loading employee data: {error}</div>
       </div>
     )
   }
 
   return (
-    <>
-      <style>
-        {String.raw`
-          .gba\:record-layout-no-padding .layout-content {
-            padding-left: 0 !important;
-            padding-right: 0 !important;
-            max-width: 100% !important;
-          }
-        `}
-      </style>
-      <RecordLayout
-        data-testid={`${DATA_TEST_ID_PREFIX}-container`}
-        className="gba:record-layout-no-padding"
-        headerOrientation="horizontal"
-        headerIcon={UserIcon}
-        headerImageSrc={
-          headerData?.pictureThumbnail ? `data:image/jpeg;base64,${headerData.pictureThumbnail}` : undefined
-        }
-        headerImageAlt={headerData?.displayName || 'Employee'}
-        headerCategory={getTranslationFromI18nKeyAndLabel(
-          'crm.performance.employeePerformance',
-          'EMPLOYEE PERFORMANCE'
-        )}
-        onBack={onBack}
-        headerTitle={
-          headerData?.displayName ||
-          (headerData?.firstName && headerData?.lastName
-            ? `${headerData.firstName} ${headerData.lastName}`
-            : 'Employee')
-        }
-        headerMeta={headerMeta}
-        headerContent={headerContent}
-        subViews={subViewsConfig}
-      />
-    </>
+    <div className="gba:space-y-6" data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={onBack}
+        className="gba:gap-2"
+        data-testid={`${DATA_TEST_ID_PREFIX}-back-button`}
+      >
+        <ArrowLeftIcon className="gba:h-4 gba:w-4" />
+        Back to Employee Insights
+      </Button>
+
+      <div className="gba:space-y-2">
+        <p className="gba:text-xs gba:font-medium gba:uppercase gba:tracking-wide gba:text-muted-foreground">
+          {getTranslationFromI18nKeyAndLabel('crm.performance.employeePerformance', 'Employee Performance')}
+        </p>
+        <div className="gba:flex gba:items-start gba:gap-4">
+          {headerData?.pictureThumbnail && (
+            <Avatar size="lg" data-testid={`${DATA_TEST_ID_PREFIX}-avatar`}>
+              <AvatarImage src={`data:image/jpeg;base64,${headerData.pictureThumbnail}`} alt={displayName} />
+              <AvatarFallback>{displayName.substring(0, 2).toUpperCase()}</AvatarFallback>
+            </Avatar>
+          )}
+          <div className="gba:space-y-1">
+            <h2
+              className="gba:text-2xl gba:font-semibold gba:text-foreground"
+              data-testid={`${DATA_TEST_ID_PREFIX}-name`}
+            >
+              {displayName}
+            </h2>
+            {headerMeta}
+            {headerDetails}
+          </div>
+        </div>
+      </div>
+
+      <div data-testid={`${DATA_TEST_ID_PREFIX}-performance-content`}>
+        <SalesPerformanceTab
+          employeeId={employeeId}
+          accessToken={accessToken}
+          userInfo={userInfo}
+          showComparisons={false}
+        />
+      </div>
+    </div>
   )
 }
 

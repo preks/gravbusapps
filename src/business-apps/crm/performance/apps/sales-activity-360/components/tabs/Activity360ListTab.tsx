@@ -1,13 +1,9 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ActivityViewFilter } from '../../types'
-import {
-  useTeamActivitiesData,
-  TeamActivitiesFilters,
-  TeamSalesActivity
-} from '@/business-apps/crm/performance/apps/sales-team-performance/components/team-performance-view/hooks/useTeamActivitiesData'
+import { useTeamActivitiesData, TeamActivitiesFilters, TeamSalesActivity } from '../../hooks/useTeamActivitiesData'
 import { createActivity360Columns } from './activity360Columns'
-import { Button, DataDisplay, type FilterConfiguration, Spinner } from '@newwork/nw-design-system'
+import { Button, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import {
   ActivityListLayout,
   activitySortableColumns,
@@ -19,7 +15,6 @@ import { useFilterGroups } from '@/common/data/common/hooks/useFilterGroups'
 import { createActivityDescriptors } from '@/common/data/relations/types/activityTypes'
 import { buildDynamicFilterConfig } from '@/common/components/common-relations/view-layouts/lead-layout/utils/filterHelpers'
 import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { DownloadIcon, FileXlsIcon } from '@phosphor-icons/react'
 import { ActivityDetailSheet } from '@/common/components/common-relations/detail-sheets/activity-detail-sheet'
 import { buildCrmRelatedEntityRecordUrl } from '@/common/utils/relatedEntityRecordUrls'
@@ -28,32 +23,6 @@ interface Activity360ListTabProps extends Pick<BusinessAppContextProps, 'accessT
   filter: ActivityViewFilter
   entityId?: string
 }
-
-// Sales Associate capability name for filtering (consistent with Sales Performance module)
-const SALES_ASSOCIATE_CAPABILITY = 'Sales Associate'
-
-// Query to get sales associates only - consistent with Sales Performance module
-// This ensures Sales Activity 360 shows the same employees as Sales Performance dashboards
-const GET_ALL_EMPLOYEES = `
-  query GetAllEmployees {
-    Employee(
-      where: { 
-        isDeleted: { _eq: false }
-        employeePosition: {
-          employeeCapabilities: {
-            capability: {
-              name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" }
-            }
-          }
-        }
-      }
-      limit: 1000
-    ) {
-      id
-      fullName
-    }
-  }
-`
 
 const getExportButtonTitle = (isExporting: boolean, totalCount: number, format: string): string => {
   if (isExporting) return 'Exporting…'
@@ -73,40 +42,21 @@ export const Activity360ListTab: React.FC<Activity360ListTabProps> = ({ accessTo
     'activityType.value',
     'title'
   ])
-  const [allEmployeeIds, setAllEmployeeIds] = useState<string[]>([])
-  const [loadingEmployees, setLoadingEmployees] = useState(true)
   const [selectedActivity, setSelectedActivity] = useState<TeamSalesActivity | null>(null)
 
-  const graphqlClient = useGraphQLClient(accessToken)
-
-  // Fetch all employee IDs for all views (needed for the team activities hook)
-  useEffect(() => {
-    setLoadingEmployees(true)
-    graphqlClient
-      .request<{ Employee: Array<{ id: string; fullName: string }> }>(GET_ALL_EMPLOYEES)
-      .then(result => {
-        const ids = result.Employee?.map(e => e.id) || []
-        setAllEmployeeIds(ids)
-      })
-      .catch(err => {
-        console.error('Failed to load employees:', err)
-        setAllEmployeeIds([])
-      })
-      .finally(() => {
-        setLoadingEmployees(false)
-      })
-  }, [graphqlClient])
-
-  // Determine employeeIds based on filter type
+  // Determine employeeIds based on filter type.
+  // - "By Employee" targets a single employee via explicit id.
+  // - All other views scope to the sales team via the owner's capability (handled in the hook),
+  //   so no explicit employee ids are needed.
   const employeeIds = useMemo(() => {
     if (filter === 'by-employee' && entityId) {
-      // Filter by specific employee
       return [entityId]
     }
-    // For "all" and entity-based filters, we need all employee IDs
-    // (the entity filters will narrow down the results)
-    return allEmployeeIds
-  }, [filter, entityId, allEmployeeIds])
+    return []
+  }, [filter, entityId])
+
+  // For non "By Employee" views, scope server-side to Sales Associate owners.
+  const scopeToSalesAssociates = !(filter === 'by-employee' && entityId)
 
   // Build entity-specific filters
   const entityFilters: TeamActivitiesFilters = useMemo(() => {
@@ -193,11 +143,9 @@ export const Activity360ListTab: React.FC<Activity360ListTabProps> = ({ accessTo
     return (sorting[0].desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST') as any
   }, [sorting])
 
-  // Use team activities hook - skip if we don't have employee IDs loaded yet
-  const shouldFetch = allEmployeeIds.length > 0
-
   const { activities, total, loading, error, retry, fetchActivities } = useTeamActivitiesData({
-    employeeIds: shouldFetch ? employeeIds : [],
+    employeeIds,
+    scopeToSalesAssociates,
     accessToken,
     userInfo,
     search,
@@ -271,15 +219,6 @@ export const Activity360ListTab: React.FC<Activity360ListTabProps> = ({ accessTo
       setSelectedActivity(null)
     }
   }, [])
-
-  // Show loading while fetching employee IDs for "all" view
-  if (loadingEmployees) {
-    return (
-      <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
-        <Spinner size="lg" />
-      </div>
-    )
-  }
 
   return (
     <div className="gba:space-y-4">

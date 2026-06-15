@@ -42,6 +42,11 @@ interface OrganizationalUnit {
   organizationalUnitEmployee: OrganizationalUnitEmployee[]
 }
 
+type TeamAggregateResponse = Record<
+  string,
+  { aggregate?: { count?: number; sum?: { estimatedAmount?: number | null } } }
+>
+
 // Generate time periods based on filter
 function generateTimePeriods(timeFilter: TimeFilter): { start: string; end: string; label: string }[] {
   const currentDate = new Date()
@@ -240,107 +245,70 @@ const buildTeamsQuery = (): string => `
   }
 `
 
-const buildTeamMetricsQuery = (
-  teamMemberIds: string[],
-  _dateStart: string,
-  _dateEnd: string,
-  selectedCurrencyId?: string,
-  selectedPipelineId?: string
-): string => {
-  const memberIdsJson = JSON.stringify(teamMemberIds)
-
-  // Base filter for opportunities owned by team members
-  let baseWhere = `isDeleted: {_eq: false}
-          ownerEmployeeId: {_in: ${memberIdsJson}}`
-
-  if (selectedCurrencyId) {
-    baseWhere += `\n          currencyRef: {_eq: "${selectedCurrencyId}"}`
-  }
-  if (selectedPipelineId) {
-    baseWhere += `\n          salesPipelineRef: {_eq: "${selectedPipelineId}"}`
-  }
-
-  return `
-    query GetTeamMetrics {
-      # Total opportunities owned by team (all statuses)
-      totalOpportunities: OpportunityAggregate(
-        where: {
-          ${baseWhere}
-        }
-      ) {
-        aggregate {
-          count
-        }
-      }
-      # Won opportunities (status = WON, regardless of closeDate)
-      wonOpportunities: OpportunityAggregate(
-        where: {
-          ${baseWhere}
-          opportunityStatus: {code: {_eq: "WON"}}
-        }
-      ) {
-        aggregate {
-          count
-          sum { estimatedAmount }
-        }
-      }
-      # All closed opportunities (won + lost) for win rate calculation
-      allClosedOpportunities: OpportunityAggregate(
-        where: {
-          ${baseWhere}
-          opportunityStatus: {code: {_in: ["WON", "LOST"]}}
-        }
-      ) {
-        aggregate {
-          count
-        }
-      }
-    }
-  `
+interface TeamQueryInput {
+  index: number
+  memberIds: string[]
 }
 
-const buildTrendsQuery = (
-  teamMemberIds: string[],
+// Build a single query that returns metrics + per-period trends for every
+// selected team at once (aliased per team index), so adding/removing a team
+// triggers exactly one network request instead of one request per team.
+const buildSelectedTeamsQuery = (
+  teams: TeamQueryInput[],
   periods: { start: string; end: string }[],
   selectedCurrencyId?: string,
   selectedPipelineId?: string
 ): string => {
-  const memberIdsJson = JSON.stringify(teamMemberIds)
+  const currencyFilter = selectedCurrencyId ? `\n          currencyRef: {_eq: "${selectedCurrencyId}"}` : ''
+  const pipelineFilter = selectedPipelineId ? `\n          salesPipelineRef: {_eq: "${selectedPipelineId}"}` : ''
 
-  // Build base where clause
-  let baseWhere = `isDeleted: {_eq: false}
-        opportunityStatus: {code: {_eq: "WON"}}
-        ownerEmployeeId: {_in: ${memberIdsJson}}
-        estimatedAmount: {_isNull: false}`
+  const teamBlocks = teams
+    .map(({ index, memberIds }) => {
+      const memberIdsJson = JSON.stringify(memberIds)
 
-  if (selectedCurrencyId) {
-    baseWhere += `\n        currencyRef: {_eq: "${selectedCurrencyId}"}`
-  }
-  if (selectedPipelineId) {
-    baseWhere += `\n        salesPipelineRef: {_eq: "${selectedPipelineId}"}`
-  }
+      const metricsBase = `isDeleted: {_eq: false}
+          ownerEmployeeId: {_in: ${memberIdsJson}}${currencyFilter}${pipelineFilter}`
 
-  const periodQueries = periods
-    .map(
-      (period, index) => `
-    period${index}: OpportunityAggregate(
-      where: {
-        ${baseWhere}
-        closeDate: {_gte: "${period.start}", _lt: "${period.end}"}
+      const trendsBase = `isDeleted: {_eq: false}
+          opportunityStatus: {code: {_eq: "WON"}}
+          ownerEmployeeId: {_in: ${memberIdsJson}}
+          estimatedAmount: {_isNull: false}${currencyFilter}${pipelineFilter}`
+
+      const periodBlocks = periods
+        .map(
+          (period, periodIndex) => `
+      t${index}_p${periodIndex}: OpportunityAggregate(where: {
+          ${trendsBase}
+          closeDate: {_gte: "${period.start}", _lt: "${period.end}"}
+        }) {
+        aggregate { sum { estimatedAmount } }
+      }`
+        )
+        .join('\n')
+
+      return `
+      t${index}_total: OpportunityAggregate(where: { ${metricsBase} }) {
+        aggregate { count }
       }
-    ) {
-      aggregate {
-        count
-        sum { estimatedAmount }
+      t${index}_won: OpportunityAggregate(where: {
+          ${metricsBase}
+          opportunityStatus: {code: {_eq: "WON"}}
+        }) {
+        aggregate { count sum { estimatedAmount } }
       }
-    }
-  `
-    )
+      t${index}_closed: OpportunityAggregate(where: {
+          ${metricsBase}
+          opportunityStatus: {code: {_in: ["WON", "LOST"]}}
+        }) {
+        aggregate { count }
+      }
+${periodBlocks}`
+    })
     .join('\n')
 
   return `
     query GetTeamTrends {
-      ${periodQueries}
+${teamBlocks}
     }
   `
 }
@@ -452,7 +420,8 @@ export const useTeamComparison = (
     }
   }, [accessToken, graphqlClient, structureId])
 
-  // Fetch detailed metrics for selected teams
+  // Fetch metrics + trends for ALL selected teams in a single batched query.
+  // Adding/removing a team triggers exactly one request (not one per team).
   const fetchSelectedTeamsData = useCallback(async () => {
     if (selectedTeamIds.length === 0 || teamsData.length === 0) {
       setSelectedTeams([])
@@ -464,104 +433,57 @@ export const useTeamComparison = (
 
     try {
       const periods = generateTimePeriods(timeFilter)
-      const teamsWithData: TeamComparisonData[] = []
-      const trendsMap: Map<string, Map<string, number>> = new Map()
 
-      // Get the full date range (same as chart)
-      const dateStart = periods[0].start
-      const dateEnd = periods[periods.length - 1].end
-
-      // Initialize trends map with period labels
-      periods.forEach(period => {
-        trendsMap.set(period.label, new Map())
+      // Resolve each selected team and its members, preserving selection order.
+      const resolvedTeams = selectedTeamIds.map((teamId, index) => {
+        const team = teamsData.find(t => t.id === teamId) ?? null
+        const memberIds = team ? team.organizationalUnitEmployee.filter(e => e.employee).map(e => e.employeeId) : []
+        return { teamId, index, team, memberIds }
       })
 
-      // Fetch data for each selected team
-      for (let i = 0; i < selectedTeamIds.length; i++) {
-        const teamId = selectedTeamIds[i]
-        const team = teamsData.find(t => t.id === teamId)
-        if (!team) continue
+      const teamsToQuery = resolvedTeams.filter(entry => entry.team && entry.memberIds.length > 0)
 
-        const memberIds = team.organizationalUnitEmployee.filter(e => e.employee).map(e => e.employeeId)
-
-        if (memberIds.length === 0) {
-          teamsWithData.push({
-            id: team.id,
-            name: team.name,
-            leadName: findTeamLead(team.organizationalUnitEmployee),
-            revenue: 0,
-            memberCount: 0,
-            opportunitiesCount: 0,
-            wonOpportunitiesCount: 0,
-            winRate: 0,
-            currencyCode: selectedCurrencyCode,
-            color: TEAM_COLORS[i % TEAM_COLORS.length]
-          })
-          continue
-        }
-
-        // Fetch metrics with SAME filters as chart (date range, estimatedAmount not null)
-        const metricsQuery = buildTeamMetricsQuery(
-          memberIds,
-          dateStart,
-          dateEnd,
+      let response: TeamAggregateResponse = {}
+      if (teamsToQuery.length > 0) {
+        const query = buildSelectedTeamsQuery(
+          teamsToQuery.map(entry => ({ index: entry.index, memberIds: entry.memberIds })),
+          periods,
           selectedCurrencyId,
           selectedPipelineId
         )
-        const metricsResult = await graphqlClient.request<{
-          totalOpportunities: { aggregate: { count: number } }
-          wonOpportunities: { aggregate: { count: number; sum: { estimatedAmount: number | null } } }
-          allClosedOpportunities: { aggregate: { count: number } }
-        }>(metricsQuery)
+        response = await graphqlClient.request<TeamAggregateResponse>(query)
+      }
 
-        const totalCount = metricsResult.totalOpportunities.aggregate.count || 0
-        const wonCount = metricsResult.wonOpportunities.aggregate.count || 0
-        const totalClosed = metricsResult.allClosedOpportunities.aggregate.count || 0
-        const revenue = metricsResult.wonOpportunities.aggregate.sum.estimatedAmount || 0
+      const teamsWithData: TeamComparisonData[] = []
+      resolvedTeams.forEach(({ index, team, memberIds }) => {
+        if (!team) return
+
+        const wonCount = response[`t${index}_won`]?.aggregate?.count || 0
+        const totalClosed = response[`t${index}_closed`]?.aggregate?.count || 0
 
         teamsWithData.push({
           id: team.id,
           name: team.name,
           leadName: findTeamLead(team.organizationalUnitEmployee),
-          revenue,
+          revenue: response[`t${index}_won`]?.aggregate?.sum?.estimatedAmount || 0,
           memberCount: memberIds.length,
-          opportunitiesCount: totalCount,
+          opportunitiesCount: response[`t${index}_total`]?.aggregate?.count || 0,
           wonOpportunitiesCount: wonCount,
           winRate: totalClosed > 0 ? (wonCount / totalClosed) * 100 : 0,
           currencyCode: selectedCurrencyCode,
-          color: TEAM_COLORS[i % TEAM_COLORS.length]
+          color: TEAM_COLORS[index % TEAM_COLORS.length]
         })
+      })
 
-        // Fetch trends for this team
-        const trendsQuery = buildTrendsQuery(memberIds, periods, selectedCurrencyId, selectedPipelineId)
-        const trendsResult =
-          await graphqlClient.request<Record<string, { aggregate: { sum: { estimatedAmount: number | null } } }>>(
-            trendsQuery
-          )
-
-        periods.forEach((period, periodIndex) => {
-          const periodData = trendsResult[`period${periodIndex}`]
-          const value = periodData?.aggregate?.sum?.estimatedAmount || 0
-          trendsMap.get(period.label)?.set(teamId, value)
-        })
-      }
-
-      setSelectedTeams(teamsWithData)
-
-      // Convert trends map to array format for chart
-      const trendsArray: TeamRevenueTrendPoint[] = periods.map(period => {
+      const trendsArray: TeamRevenueTrendPoint[] = periods.map((period, periodIndex) => {
         const point: TeamRevenueTrendPoint = { month: period.label }
-        const periodTrends = trendsMap.get(period.label)
-
-        if (periodTrends) {
-          selectedTeamIds.forEach(teamId => {
-            point[teamId] = periodTrends.get(teamId) || 0
-          })
-        }
-
+        resolvedTeams.forEach(({ teamId, index }) => {
+          point[teamId] = response[`t${index}_p${periodIndex}`]?.aggregate?.sum?.estimatedAmount || 0
+        })
         return point
       })
 
+      setSelectedTeams(teamsWithData)
       setRevenueTrends(trendsArray)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch team data')
@@ -600,7 +522,7 @@ export const useTeamComparison = (
 
   // Initial fetch of available teams
   useEffect(() => {
-    void fetchAvailableTeams()
+    fetchAvailableTeams().catch(() => undefined)
   }, [fetchAvailableTeams])
 
   // Auto-select user's team on first load (only if no teams are selected yet)
@@ -617,7 +539,7 @@ export const useTeamComparison = (
 
   // Fetch data when selected teams change or filters change
   useEffect(() => {
-    void fetchSelectedTeamsData()
+    fetchSelectedTeamsData().catch(() => undefined)
   }, [fetchSelectedTeamsData])
 
   return {
@@ -631,7 +553,7 @@ export const useTeamComparison = (
     deselectTeam,
     selectedTeamIds,
     refetch: () => {
-      void fetchAvailableTeams()
+      fetchAvailableTeams().catch(() => undefined)
     },
     teamsData
   }

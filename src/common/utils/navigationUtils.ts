@@ -17,7 +17,8 @@ export const Navigation = {
   CRM_CUSTOMER_OPPORTUNITY_RECORD: `${NAVIGATION_BASE_PATH}/crm/opportunity-record`,
   CRM_CAMPAIGN_MANAGEMENT: `${NAVIGATION_BASE_PATH}/crm/campaign-management`,
   CRM_CAMPAIGN_RECORD: `${NAVIGATION_BASE_PATH}/crm/campaign-record`,
-  CRM_PERFORMANCE_TEAM_PERFORMANCE: `${NAVIGATION_BASE_PATH}/crm/team-performance`,
+  CRM_PERFORMANCE_TEAM_PERFORMANCE: `${NAVIGATION_BASE_PATH}/crm/sales-performance`,
+  CRM_PERFORMANCE_SALES_ACTIVITY_360: `${NAVIGATION_BASE_PATH}/crm/sales-activity-360`,
   CRM_PERFORMANCE_TEAM_MEMBER_RECORD: `${NAVIGATION_BASE_PATH}/crm/team-member-record`,
 
   // IRM
@@ -163,7 +164,8 @@ export const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   [Navigation.CRM_CUSTOMER_OPPORTUNITY_RECORD]: 'crm/core/records/opportunity-record',
   [Navigation.CRM_CAMPAIGN_MANAGEMENT]: 'crm/campaigns/apps/campaign-management',
   [Navigation.CRM_CAMPAIGN_RECORD]: 'crm/campaigns/records/campaign-record',
-  [Navigation.CRM_PERFORMANCE_TEAM_PERFORMANCE]: 'crm/performance/apps/sales-team-performance',
+  [Navigation.CRM_PERFORMANCE_TEAM_PERFORMANCE]: 'crm/performance/apps/sales-performance',
+  [Navigation.CRM_PERFORMANCE_SALES_ACTIVITY_360]: 'crm/performance/apps/sales-activity-360',
   [Navigation.CRM_PERFORMANCE_TEAM_MEMBER_RECORD]: 'crm/common/apps/customer-member-record',
 
   // IRM

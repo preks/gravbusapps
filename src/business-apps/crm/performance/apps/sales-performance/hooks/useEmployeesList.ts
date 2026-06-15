@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface EmployeeListItem {
@@ -35,38 +35,57 @@ interface UseEmployeesListResult {
   currentPage: number
   pageSize: number
   search: string
-  departmentFilter: string
-  positionFilter: string
+  departmentFilter: string[]
+  positionFilter: string[]
   departments: FilterOption[]
   positions: FilterOption[]
   setSearch: (search: string) => void
-  setDepartmentFilter: (department: string) => void
-  setPositionFilter: (position: string) => void
+  setDepartmentFilter: (departmentIds: string[]) => void
+  setPositionFilter: (positionIds: string[]) => void
   setCurrentPage: (page: number) => void
   setPageSize: (size: number) => void
   setSorting: (sorting: SortingItem[]) => void
   refetch: () => void
 }
 
-// Query to get won opportunities per employee for revenue - with optional currency filter
-const buildEmployeeRevenuesQuery = (currencyId?: string) => {
-  const currencyFilter = currencyId ? `, currencyRef: { _eq: "${currencyId}" }` : ''
-  return `
-    query GetEmployeeRevenues {
-      Opportunity(
-        where: {
-          isDeleted: { _eq: false }
-          ownerEmployeeId: { _isNull: false }
-          estimatedAmount: { _isNull: false }
-          opportunityStatus: { code: { _eq: "WON" } }${currencyFilter}
-        }
-      ) {
-        ownerEmployeeId
-        estimatedAmount
-        currencyRef
+// Build a single batched request with one aliased WON-revenue aggregate per
+// employee, scoped to just the employees on the current page. Avoids pulling
+// every WON opportunity in the company to sum them client-side.
+const buildEmployeeRevenuesQuery = (employeeIds: string[], currencyId?: string) => {
+  const currencyFilter = currencyId ? `\n          currencyRef: {_eq: "${currencyId}"}` : ''
+
+  const aggregates = employeeIds
+    .map(
+      (employeeId, index) => `
+    e${index}: OpportunityAggregate(
+      where: {
+        isDeleted: {_eq: false}
+        opportunityStatus: {code: {_eq: "WON"}}
+        estimatedAmount: {_isNull: false}
+        ownerEmployeeId: {_eq: "${employeeId}"}${currencyFilter}
+      }
+    ) {
+      aggregate {
+        sum { estimatedAmount }
+        max { currencyRef }
       }
     }
   `
+    )
+    .join('\n')
+
+  return `
+  query GetEmployeeRevenues {
+    ${aggregates}
+  }
+`
+}
+
+interface RevenueAggregateResult {
+  aggregate: {
+    sum: { estimatedAmount: number | null } | null
+    max: { currencyRef: string | null } | null
+  } | null
 }
 
 // Sales Associate capability name for filtering
@@ -143,25 +162,47 @@ const buildOrderBy = (sorting: SortingItem[]): any[] => {
   })
 }
 
-// Query to get filter options (all unique departments and positions)
+// Query the positions/departments actually held by Sales Associates, so the
+// filter options match the table contents (instead of every JobPosition /
+// OrganizationalUnit in the org, most of which return no rows here).
 const GET_FILTER_OPTIONS = `
   query GetFilterOptions {
-    OrganizationalUnit(
-      where: { isDeleted: { _eq: false } }
-      orderBy: { name: ASC }
+    Employee(
+      where: {
+        isDeleted: { _eq: false }
+        employeePosition: {
+          employeeCapabilities: {
+            capability: { name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" } }
+          }
+        }
+      }
     ) {
-      id
-      name
-    }
-    JobPosition(
-      where: { isDeleted: { _eq: false } }
-      orderBy: { name: ASC }
-    ) {
-      id
-      name
+      employeePosition {
+        jobPosition {
+          id
+          name
+          isDeleted
+        }
+        organizationalUnit {
+          id
+          name
+          isDeleted
+        }
+      }
     }
   }
 `
+
+interface FilterOptionsEmployee {
+  employeePosition?: {
+    jobPosition?: { id: string; name: string; isDeleted?: boolean } | null
+    organizationalUnit?: { id: string; name: string; isDeleted?: boolean } | null
+  } | null
+}
+
+// Dedupe an id->label map into sorted filter options.
+const toSortedFilterOptions = (entries: Map<string, string>): FilterOption[] =>
+  Array.from(entries, ([id, label]) => ({ id, label })).sort((a, b) => a.label.localeCompare(b.label))
 
 interface EmployeeResponse {
   id: string
@@ -191,15 +232,18 @@ interface EmployeeResponse {
  * @param currencyId - Optional currency ID to filter revenues (e.g., "Currency:v1:EUR")
  */
 export const useEmployeesList = (accessToken: string, currencyId?: string): UseEmployeesListResult => {
-  const [employees, setEmployees] = useState<EmployeeListItem[]>([])
+  // Base employee list (currency-independent) and per-employee revenue kept
+  // separately so a currency change only re-fetches revenue, not the list.
+  const [baseEmployees, setBaseEmployees] = useState<EmployeeListItem[]>([])
+  const [revenueMap, setRevenueMap] = useState<Map<string, { total: number; currencyId: string }>>(new Map())
   const [total, setTotal] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [search, setSearch] = useState('')
-  const [departmentFilter, setDepartmentFilter] = useState('')
-  const [positionFilter, setPositionFilter] = useState('')
+  const [departmentFilter, setDepartmentFilter] = useState<string[]>([])
+  const [positionFilter, setPositionFilter] = useState<string[]>([])
   const [departments, setDepartments] = useState<FilterOption[]>([])
   const [positions, setPositions] = useState<FilterOption[]>([])
   const [sorting, setSorting] = useState<SortingItem[]>([])
@@ -213,14 +257,26 @@ export const useEmployeesList = (accessToken: string, currencyId?: string): UseE
 
     try {
       const result = await graphqlClient.request<{
-        OrganizationalUnit: Array<{ id: string; name: string }>
-        JobPosition: Array<{ id: string; name: string }>
+        Employee: FilterOptionsEmployee[]
       }>(GET_FILTER_OPTIONS)
 
-      setDepartments(
-        (result.OrganizationalUnit || []).filter(d => d.id && d.name).map(d => ({ id: d.id, label: d.name }))
-      )
-      setPositions((result.JobPosition || []).filter(p => p.id && p.name).map(p => ({ id: p.id, label: p.name })))
+      const departmentMap = new Map<string, string>()
+      const positionMap = new Map<string, string>()
+
+      result.Employee?.forEach(emp => {
+        const jobPosition = emp.employeePosition?.jobPosition
+        const organizationalUnit = emp.employeePosition?.organizationalUnit
+
+        if (jobPosition?.id && jobPosition.name && !jobPosition.isDeleted) {
+          positionMap.set(jobPosition.id, jobPosition.name)
+        }
+        if (organizationalUnit?.id && organizationalUnit.name && !organizationalUnit.isDeleted) {
+          departmentMap.set(organizationalUnit.id, organizationalUnit.name)
+        }
+      })
+
+      setDepartments(toSortedFilterOptions(departmentMap))
+      setPositions(toSortedFilterOptions(positionMap))
       setFilterOptionsLoaded(true)
     } catch (err) {
       console.error('Failed to fetch filter options:', err)
@@ -261,64 +317,41 @@ export const useEmployeesList = (accessToken: string, currencyId?: string): UseE
         ]
       }
 
-      // Add department filter (also ensure org unit is not deleted)
-      if (departmentFilter) {
+      // Add department filter (supports multiple selected org units)
+      if (departmentFilter.length > 0) {
         whereCondition.employeePosition = {
           ...whereCondition.employeePosition,
-          organizationalUnit: { id: { _eq: departmentFilter }, isDeleted: { _eq: false } }
+          organizationalUnit: { id: { _in: departmentFilter }, isDeleted: { _eq: false } }
         }
       }
 
-      // Add position filter (also ensure job position is not deleted)
-      if (positionFilter) {
+      // Add position filter (supports multiple selected job positions)
+      if (positionFilter.length > 0) {
         whereCondition.employeePosition = {
           ...whereCondition.employeePosition,
-          jobPosition: { id: { _eq: positionFilter }, isDeleted: { _eq: false } }
+          jobPosition: { id: { _in: positionFilter }, isDeleted: { _eq: false } }
         }
       }
 
       // Build orderBy clause
       const orderBy = buildOrderBy(sorting)
 
-      // Fetch employees and revenues in parallel
-      const [employeesResult, revenuesResult] = await Promise.all([
-        graphqlClient.request<{
-          Employee: EmployeeResponse[]
-          EmployeeAggregate: { aggregate: { count: number } }
-        }>(GET_ALL_EMPLOYEES, {
-          limit: pageSize,
-          offset: (currentPage - 1) * pageSize,
-          where: whereCondition,
-          orderBy
-        }),
-        graphqlClient.request<{
-          Opportunity: Array<{
-            ownerEmployeeId: string
-            estimatedAmount: number
-            currencyRef: string
-          }>
-        }>(buildEmployeeRevenuesQuery(currencyId))
-      ])
-
-      // Build revenue map by employee
-      const revenueMap = new Map<string, { total: number; currencyId: string }>()
-      revenuesResult.Opportunity?.forEach(opp => {
-        const existing = revenueMap.get(opp.ownerEmployeeId)
-        if (existing) {
-          existing.total += opp.estimatedAmount
-        } else {
-          revenueMap.set(opp.ownerEmployeeId, {
-            total: opp.estimatedAmount,
-            currencyId: opp.currencyRef?.split(':').pop() || 'EUR'
-          })
-        }
+      // Fetch the page of employees. This is currency-independent, so changing
+      // the currency filter never re-runs this query.
+      const employeesResult = await graphqlClient.request<{
+        Employee: EmployeeResponse[]
+        EmployeeAggregate: { aggregate: { count: number } }
+      }>(GET_ALL_EMPLOYEES, {
+        limit: pageSize,
+        offset: (currentPage - 1) * pageSize,
+        where: whereCondition,
+        orderBy
       })
 
-      // Transform employee data
+      // Transform employee data (revenue is merged in separately via revenueMap)
       const transformedEmployees: EmployeeListItem[] = employeesResult.Employee.map(emp => {
         const orgUnit = emp.employeePosition?.organizationalUnit
         const jobPos = emp.employeePosition?.jobPosition
-        const revenue = revenueMap.get(emp.id)
 
         return {
           id: emp.id,
@@ -326,8 +359,8 @@ export const useEmployeesList = (accessToken: string, currencyId?: string): UseE
           position: jobPos?.name || 'Unknown Position',
           department: orgUnit?.name || 'Unknown Department',
           departmentId: orgUnit?.id || '',
-          totalRevenue: revenue?.total || 0,
-          currencyId: revenue?.currencyId,
+          totalRevenue: 0,
+          currencyId: undefined,
           avatar: emp.pictureThumbnail,
           manager: emp.employeePosition?.supervisor
             ? {
@@ -341,24 +374,85 @@ export const useEmployeesList = (accessToken: string, currencyId?: string): UseE
         }
       })
 
-      setEmployees(transformedEmployees)
+      setBaseEmployees(transformedEmployees)
       setTotal(employeesResult.EmployeeAggregate?.aggregate?.count || transformedEmployees.length)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch employees')
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, graphqlClient, currentPage, pageSize, search, departmentFilter, positionFilter, currencyId, sorting])
+  }, [accessToken, graphqlClient, currentPage, pageSize, search, departmentFilter, positionFilter, sorting])
+
+  // Stable, order-independent key for the current page's employees. Re-sorting
+  // the same page (same employees, different order) keeps this key unchanged, so
+  // revenue isn't re-fetched just because the row order changed.
+  const pageEmployeeIdsKey = useMemo(
+    () =>
+      baseEmployees
+        .map(emp => emp.id)
+        .sort((a, b) => a.localeCompare(b))
+        .join(','),
+    [baseEmployees]
+  )
+
+  // Fetch per-employee revenue for the current page. Keyed off the page's
+  // employee set + currency, so it re-runs only when the visible employees or
+  // the currency actually change (not on column re-sort of the same page).
+  const fetchRevenues = useCallback(async () => {
+    const pageEmployeeIds = pageEmployeeIdsKey ? pageEmployeeIdsKey.split(',') : []
+    if (!accessToken || pageEmployeeIds.length === 0) {
+      setRevenueMap(new Map())
+      return
+    }
+
+    try {
+      const revenuesResult = await graphqlClient.request<Record<string, RevenueAggregateResult>>(
+        buildEmployeeRevenuesQuery(pageEmployeeIds, currencyId)
+      )
+
+      const fallbackCurrencyCode = currencyId?.split(':').pop() || 'EUR'
+      const nextRevenueMap = new Map<string, { total: number; currencyId: string }>()
+      pageEmployeeIds.forEach((employeeId, index) => {
+        const aggregate = revenuesResult[`e${index}`]?.aggregate
+        const total = aggregate?.sum?.estimatedAmount ?? 0
+        const currencyCode = aggregate?.max?.currencyRef?.split(':').pop() || fallbackCurrencyCode
+        nextRevenueMap.set(employeeId, { total, currencyId: currencyCode })
+      })
+      setRevenueMap(nextRevenueMap)
+    } catch (err) {
+      // Revenue is non-critical for the list; keep employees visible without it.
+      console.error('Failed to fetch employee revenues:', err instanceof Error ? err.message : err)
+    }
+  }, [accessToken, graphqlClient, pageEmployeeIdsKey, currencyId])
+
+  // Merge the currency-independent employee list with the per-employee revenue.
+  const employees = useMemo<EmployeeListItem[]>(
+    () =>
+      baseEmployees.map(emp => {
+        const revenue = revenueMap.get(emp.id)
+        return {
+          ...emp,
+          totalRevenue: revenue?.total ?? 0,
+          currencyId: revenue?.currencyId ?? emp.currencyId
+        }
+      }),
+    [baseEmployees, revenueMap]
+  )
 
   // Fetch filter options on initial load
   useEffect(() => {
-    void fetchFilterOptions()
+    fetchFilterOptions().catch(() => undefined)
   }, [fetchFilterOptions])
 
   // Fetch employees when filters/pagination change
   useEffect(() => {
-    void fetchEmployees()
+    fetchEmployees().catch(() => undefined)
   }, [fetchEmployees])
+
+  // Fetch revenues when the page's employees or the currency change
+  useEffect(() => {
+    fetchRevenues().catch(() => undefined)
+  }, [fetchRevenues])
 
   return {
     employees,

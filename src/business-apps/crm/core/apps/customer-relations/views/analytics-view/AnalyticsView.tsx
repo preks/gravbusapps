@@ -14,7 +14,7 @@ import { useCountryAccountsState } from '@/common/components/common-relations/vi
 import { CountryAccountsPanel } from '@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/CountryAccountsPanel'
 import { AccountLayout } from '@/common/components/common-relations/view-layouts/account-layout'
 import type { AccountViewConfig } from '@/common/components/common-relations/view-layouts/account-layout'
-import { useCustomerAccountsList } from '@/common/data/customer/hooks/useCustomerAccounts'
+import { useCustomerAccounts } from '@/common/data/customer/hooks/useCustomerAccounts'
 import { CUSTOMER_ACCOUNT_DESCRIPTORS } from '@/common/data/customer/types/customerAccountTypes'
 import {
   commonAccountColumns,
@@ -36,7 +36,7 @@ import { useLeadDrillDownState } from '@/common/components/common-relations/view
 import { LeadDrillDownPanel } from '@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/LeadDrillDownPanel'
 import { LeadLayout } from '@/common/components/common-relations/view-layouts/lead-layout'
 import type { LeadViewConfig } from '@/common/components/common-relations/view-layouts/lead-layout'
-import { useCustomerLeadsList } from '@/common/data/customer/hooks/useCustomerLeads'
+import { useCustomerLeads } from '@/common/data/customer/hooks/useCustomerLeads'
 import { CUSTOMER_LEAD_DESCRIPTORS } from '@/common/data/customer/types/customerLeadTypes'
 import {
   commonLeadColumns,
@@ -52,7 +52,7 @@ import type { StatusBucket } from '@/common/components/common-relations/view-lay
 import { AnalyticsOpportunityDrillDown } from '@/common/components/common-relations/view-layouts/analytics-layout/shared/AnalyticsOpportunityDrillDown'
 import type { OpportunityModuleConfig } from '@/common/components/common-relations/view-layouts/analytics-layout/shared/AnalyticsOpportunityDrillDown'
 import { AnalyticsContactDrillDown } from '@/common/components/common-relations/view-layouts/analytics-layout/shared/AnalyticsContactDrillDown'
-import { useCustomerOpportunitiesList } from '@/common/data/customer/hooks/useCustomerOpportunities'
+import { useCustomerOpportunities } from '@/common/data/customer/hooks/useCustomerOpportunities'
 import { useCustomerOpportunityFilters } from '../opportunity-view/hooks/useCustomerOpportunityFilters'
 import { CUSTOMER_OPPORTUNITY_DESCRIPTORS } from '@/common/data/customer/types/customerOpportunityTypes'
 import type { CustomerOpportunity } from '@/common/data/customer/types/customerOpportunityTypes'
@@ -63,7 +63,7 @@ import {
   CUSTOMER_OPPORTUNITY_SORTABLE_COLUMNS
 } from '@/common/components/customer/view-layouts/opportunity-layout/config/opportunityColumns'
 import type { ColumnDef } from '@tanstack/react-table'
-import { useCustomerContactsList } from '@/common/data/customer/hooks/useCustomerContacts'
+import { useCustomerContacts } from '@/common/data/customer/hooks/useCustomerContacts'
 import { CUSTOMER_CONTACT_DESCRIPTORS } from '@/common/data/customer/types/customerContactTypes'
 import type { CustomerContactQueryVariables } from '@/common/data/customer/queries/customerContactQueries'
 import {
@@ -256,9 +256,11 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
     },
     [handleCountryClose, rawStageClick]
   )
-  const { fetchCustomerAccounts } = useCustomerAccountsList(context)
-  const { fetchCustomerOpportunities } = useCustomerOpportunitiesList(context)
-  const { fetchCustomerContacts } = useCustomerContactsList(context)
+  // Use the function-only hooks so entering the Analytics tab does not trigger any
+  // list queries. The imperative fetchers below only run when a chart drill-down is opened.
+  const { fetchCustomerAccounts } = useCustomerAccounts(context)
+  const { fetchCustomerOpportunities } = useCustomerOpportunities(context)
+  const { fetchCustomerContacts } = useCustomerContacts(context)
 
   const opportunityModuleConfig: OpportunityModuleConfig = useMemo(
     () => ({
@@ -365,7 +367,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
 
   // Lead drill-down state (source / status pie chart)
   const { selectedLeadFilter, handleSourceClick, handleStatusClick, handleLeadFilterClose } = useLeadDrillDownState()
-  const { fetchCustomerLeads } = useCustomerLeadsList(context)
+  const { fetchCustomerLeads } = useCustomerLeads(context)
 
   // Lead lifecycle chart drill-down state
   const { selectedLeadLifecyclePoint, handleLeadLifecyclePointClick, handleLeadLifecyclePointClose } =

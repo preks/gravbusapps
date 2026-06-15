@@ -3,7 +3,15 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ActivityViewFilter } from '../../types'
 import { useEmployeeComparisonData, EmployeeComparison } from './hooks/useEmployeeComparisonData'
 import { Button, Spinner, Avatar, AvatarImage, AvatarFallback, Badge, Card, Combobox } from '@newwork/nw-design-system'
-import { UsersThreeIcon, XIcon, TrendUpIcon, TrendDownIcon, MinusIcon } from '@phosphor-icons/react'
+import {
+  UsersThreeIcon,
+  XIcon,
+  TrendUpIcon,
+  TrendDownIcon,
+  MinusIcon,
+  BuildingsIcon,
+  BriefcaseIcon
+} from '@phosphor-icons/react'
 import { getEmployeeAvatarSrc } from '../utils/avatarUtils'
 
 interface Activity360ComparisonTabProps extends Pick<BusinessAppContextProps, 'accessToken'> {
@@ -75,7 +83,6 @@ export const Activity360ComparisonTab: React.FC<Activity360ComparisonTabProps> =
   entityId
 }) => {
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([])
-  const [searchQuery, setSearchQuery] = useState('')
 
   // Determine entity type for filtering
   const entityType = useMemo(() => {
@@ -86,57 +93,79 @@ export const Activity360ComparisonTab: React.FC<Activity360ComparisonTabProps> =
     return undefined
   }, [filter, entityId])
 
-  // Fetch employee comparison data
-  const { employees, loading, error, refetch } = useEmployeeComparisonData({
+  // Paginated employee list + on-demand metrics
+  const {
+    employeeOptions,
+    optionsById,
+    optionsLoading,
+    hasMore,
+    error,
+    loadMore,
+    search,
+    metricsById,
+    metricsLoadingById,
+    loadEmployeeMetrics
+  } = useEmployeeComparisonData({
     accessToken,
     entityId,
     entityType
   })
 
-  // Get selected employee data
+  // Selected employees combine cached display info + metrics (when loaded)
   const selectedEmployees = useMemo(() => {
-    return selectedEmployeeIds.map(id => employees.find(emp => emp.id === id)).filter(Boolean) as EmployeeComparison[]
-  }, [selectedEmployeeIds, employees])
+    return selectedEmployeeIds
+      .map(id => optionsById[id])
+      .filter(Boolean)
+      .map(option => {
+        const metrics = metricsById[option.id]
+        if (metrics) {
+          return { ...option, ...metrics }
+        }
+        return { ...option }
+      }) as EmployeeComparison[]
+  }, [selectedEmployeeIds, optionsById, metricsById])
 
-  // Filter available employees (not selected) for combobox
-  const availableEmployees = useMemo(() => {
-    return employees
-      .filter(emp => !selectedEmployeeIds.includes(emp.id))
-      .filter(emp => {
-        if (!searchQuery.trim()) return true
-        const query = searchQuery.toLowerCase()
-        return (
-          emp.displayName.toLowerCase().includes(query) ||
-          emp.jobPosition?.toLowerCase().includes(query) ||
-          emp.organizationalUnit?.toLowerCase().includes(query)
-        )
-      })
-      .sort((a, b) => b.totalActivities - a.totalActivities)
-  }, [employees, selectedEmployeeIds, searchQuery])
-
-  // Combobox options
+  // Combobox options exclude already-selected employees
   const comboboxOptions = useMemo(() => {
-    return availableEmployees.map(emp => ({
-      value: emp.id,
-      label: emp.displayName,
-      content: (
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <Avatar size="sm" className="gba:shrink-0">
-            {getEmployeeAvatarSrc(emp.pictureThumbnail) && (
-              <AvatarImage src={getEmployeeAvatarSrc(emp.pictureThumbnail)} alt={emp.displayName} />
-            )}
-            <AvatarFallback className="gba:text-xs">{getInitials(emp.displayName)}</AvatarFallback>
-          </Avatar>
-          <div className="gba:flex-1 gba:min-w-0">
-            <div className="gba:text-sm gba:font-medium gba:truncate">{emp.displayName}</div>
-            <div className="gba:text-xs gba:text-muted-foreground gba:truncate">
-              {emp.totalActivities} activities • {emp.jobPosition || 'No position'}
+    return employeeOptions
+      .filter(emp => !selectedEmployeeIds.includes(emp.id))
+      .map(emp => {
+        const positionParts = [emp.organizationalUnit, emp.jobPosition].filter(Boolean)
+        return {
+          value: emp.id,
+          label: (
+            <div className="gba:flex gba:items-center gba:gap-2 gba:w-full">
+              <Avatar size="sm" className="gba:shrink-0">
+                {getEmployeeAvatarSrc(emp.pictureThumbnail) && (
+                  <AvatarImage src={getEmployeeAvatarSrc(emp.pictureThumbnail)} alt={emp.displayName} />
+                )}
+                <AvatarFallback className="gba:text-xs">{getInitials(emp.displayName)}</AvatarFallback>
+              </Avatar>
+              <div className="gba:flex-1 gba:min-w-0 gba:text-left">
+                <div className="gba:text-sm gba:font-medium gba:truncate">{emp.displayName}</div>
+                {positionParts.length > 0 && (
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground gba:truncate">
+                    {emp.organizationalUnit && (
+                      <span className="gba:flex gba:items-center gba:gap-1 gba:truncate">
+                        <BuildingsIcon className="gba:w-3 gba:h-3 gba:shrink-0" />
+                        {emp.organizationalUnit}
+                      </span>
+                    )}
+                    {emp.organizationalUnit && emp.jobPosition && <span>·</span>}
+                    {emp.jobPosition && (
+                      <span className="gba:flex gba:items-center gba:gap-1 gba:truncate">
+                        <BriefcaseIcon className="gba:w-3 gba:h-3 gba:shrink-0" />
+                        {emp.jobPosition}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </div>
-      )
-    }))
-  }, [availableEmployees])
+          )
+        }
+      })
+  }, [employeeOptions, selectedEmployeeIds])
 
   // Handlers
   const handleAddEmployee = useCallback(
@@ -147,9 +176,10 @@ export const Activity360ComparisonTab: React.FC<Activity360ComparisonTabProps> =
         selectedEmployeeIds.length < MAX_COMPARISON_EMPLOYEES
       ) {
         setSelectedEmployeeIds(prev => [...prev, employeeId])
+        loadEmployeeMetrics(employeeId)
       }
     },
-    [selectedEmployeeIds]
+    [selectedEmployeeIds, loadEmployeeMetrics]
   )
 
   const handleRemoveEmployee = useCallback((employeeId: string) => {
@@ -160,42 +190,15 @@ export const Activity360ComparisonTab: React.FC<Activity360ComparisonTabProps> =
     setSelectedEmployeeIds([])
   }, [])
 
-  // Loading state
-  if (loading) {
-    return (
-      <div
-        className="gba:flex gba:items-center gba:justify-center gba:py-12"
-        data-testid={`${DATA_TEST_ID_PREFIX}-loading`}
-      >
-        <Spinner size="lg" />
-      </div>
-    )
-  }
-
   // Error state
   if (error) {
     return (
       <div className="gba:flex gba:justify-center gba:p-8" data-testid={`${DATA_TEST_ID_PREFIX}-error`}>
         <div className="gba:text-center gba:max-w-md">
           <p className="gba:text-destructive gba:text-sm gba:mb-4">{error}</p>
-          <Button variant="outline" size="sm" onClick={refetch}>
+          <Button variant="outline" size="sm" onClick={() => search('')}>
             Retry
           </Button>
-        </div>
-      </div>
-    )
-  }
-
-  // Empty state
-  if (employees.length === 0) {
-    return (
-      <div className="gba:flex gba:justify-center gba:p-8" data-testid={`${DATA_TEST_ID_PREFIX}-empty`}>
-        <div className="gba:text-center gba:max-w-md">
-          <UsersThreeIcon className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-4 gba:text-muted-foreground" />
-          <h3 className="gba:text-lg gba:font-semibold gba:mb-2">No Employee Data</h3>
-          <p className="gba:text-sm gba:text-muted-foreground">
-            No employees with activities found for the current filters.
-          </p>
         </div>
       </div>
     )
@@ -258,14 +261,19 @@ export const Activity360ComparisonTab: React.FC<Activity360ComparisonTabProps> =
             {selectedEmployeeIds.length < MAX_COMPARISON_EMPLOYEES && (
               <div className="gba:w-64">
                 <Combobox
+                  className="gba:[&&]:h-auto"
                   value=""
                   onValueChange={handleAddEmployee}
                   options={comboboxOptions}
                   placeholder={selectedEmployees.length === 0 ? 'Select employees to compare...' : 'Add another...'}
                   searchPlaceholder="Search employees..."
-                  emptyText="No employees found"
-                  onSearch={setSearchQuery}
-                  searchDebounce={200}
+                  emptyText={optionsLoading ? 'Loading...' : 'No employees found'}
+                  onSearch={search}
+                  searchDebounce={300}
+                  loading={optionsLoading}
+                  hasMore={hasMore}
+                  onLoadMore={loadMore}
+                  align="start"
                   data-testid={`${DATA_TEST_ID_PREFIX}-employee-select`}
                 />
               </div>
@@ -304,20 +312,26 @@ export const Activity360ComparisonTab: React.FC<Activity360ComparisonTabProps> =
               </div>
 
               {/* Metrics */}
-              <div className="gba:p-3 gba:space-y-2">
-                <MetricRow label="Total" value={employee.totalActivities} highlight />
-                <MetricRow label="This Week" value={employee.thisWeekActivities} />
-                <MetricRow label="This Month" value={employee.thisMonthActivities} />
-                <MetricRow label="Last 30 Days" value={employee.last30DaysActivities} />
+              {metricsLoadingById[employee.id] || !metricsById[employee.id] ? (
+                <div className="gba:flex gba:items-center gba:justify-center gba:py-10">
+                  <Spinner size="sm" />
+                </div>
+              ) : (
+                <div className="gba:p-3 gba:space-y-2">
+                  <MetricRow label="Total" value={employee.totalActivities} highlight />
+                  <MetricRow label="This Week" value={employee.thisWeekActivities} />
+                  <MetricRow label="This Month" value={employee.thisMonthActivities} />
+                  <MetricRow label="Last 30 Days" value={employee.last30DaysActivities} />
 
-                {/* Trend */}
-                <div className="gba:pt-2 gba:border-t gba:border-border">
-                  <div className="gba:flex gba:justify-between gba:items-center">
-                    <span className="gba:text-xs gba:text-muted-foreground">30-Day Trend</span>
-                    <TrendDisplay trend={employee.trend} />
+                  {/* Trend */}
+                  <div className="gba:pt-2 gba:border-t gba:border-border">
+                    <div className="gba:flex gba:justify-between gba:items-center">
+                      <span className="gba:text-xs gba:text-muted-foreground">30-Day Trend</span>
+                      <TrendDisplay trend={employee.trend} />
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </Card>
           ))}
         </div>

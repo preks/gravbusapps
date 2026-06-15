@@ -178,7 +178,7 @@ export const GET_ACTIVITY_STATS = `
     ) {
       aggregate { count }
     }
-    # By type counts (Sales Associates only)
+    # Distinct entity counts that have Sales-Associate activities
     accountActivities: SalesActivityAggregate(
       where: { 
         _and: [
@@ -198,7 +198,7 @@ export const GET_ACTIVITY_STATS = `
         ]
       }
     ) {
-      aggregate { count }
+      aggregate { count(columns: accountId, distinct: true) }
     }
     contactActivities: SalesActivityAggregate(
       where: { 
@@ -219,7 +219,7 @@ export const GET_ACTIVITY_STATS = `
         ]
       }
     ) {
-      aggregate { count }
+      aggregate { count(columns: contactId, distinct: true) }
     }
     leadActivities: SalesActivityAggregate(
       where: { 
@@ -240,7 +240,7 @@ export const GET_ACTIVITY_STATS = `
         ]
       }
     ) {
-      aggregate { count }
+      aggregate { count(columns: leadId, distinct: true) }
     }
     opportunityActivities: SalesActivityAggregate(
       where: { 
@@ -261,7 +261,7 @@ export const GET_ACTIVITY_STATS = `
         ]
       }
     ) {
-      aggregate { count }
+      aggregate { count(columns: opportunityId, distinct: true) }
     }
     generalActivities: SalesActivityAggregate(
       where: { 

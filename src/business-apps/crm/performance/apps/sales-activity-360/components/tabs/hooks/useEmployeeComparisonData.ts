@@ -1,23 +1,33 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import dayjs from 'dayjs'
 
-// Employee with aggregated activity statistics
-export interface EmployeeComparison {
+const SALES_ASSOCIATE_CAPABILITY = 'Sales Associate'
+const EMPLOYEES_PAGE_SIZE = 20
+
+// Lightweight employee entry for the comparison picker
+export interface EmployeeOption {
   id: string
   displayName: string
   fullName: string
   pictureThumbnail?: string
   jobPosition?: string
   organizationalUnit?: string
+}
+
+// Aggregated activity statistics for a single employee
+export interface EmployeeMetrics {
   totalActivities: number
   thisWeekActivities: number
   thisMonthActivities: number
   last30DaysActivities: number
   prev30DaysActivities: number
-  trend: number // Percentage change from previous 30 days
+  trend: number // Percentage change vs previous 30 days
   lastActivityDate?: string
 }
+
+// Full comparison entry combining display info + metrics
+export interface EmployeeComparison extends EmployeeOption, EmployeeMetrics {}
 
 interface UseEmployeeComparisonDataProps {
   accessToken: string
@@ -26,280 +36,314 @@ interface UseEmployeeComparisonDataProps {
 }
 
 interface UseEmployeeComparisonDataResult {
-  employees: EmployeeComparison[]
-  loading: boolean
+  employeeOptions: EmployeeOption[]
+  optionsById: Record<string, EmployeeOption>
+  optionsLoading: boolean
+  hasMore: boolean
   error: string | null
-  refetch: () => void
+  loadMore: () => void
+  search: (query: string) => void
+  metricsById: Record<string, EmployeeMetrics>
+  metricsLoadingById: Record<string, boolean>
+  loadEmployeeMetrics: (employeeId: string) => void
 }
 
-// Query to get employee comparison data
-const GET_EMPLOYEE_COMPARISON_QUERY = (entityFilter?: { field: string; id: string }) => `
-  query GetEmployeeComparison(
+interface EmployeeRow {
+  id: string
+  displayName?: string
+  firstName?: string
+  lastName?: string
+  pictureThumbnail?: string
+  employeePosition?: Array<{
+    jobPosition?: { name?: string }
+    organizationalUnit?: { name?: string }
+  }>
+}
+
+// Paginated, searchable list of sales-associate employees for the picker
+const GET_COMPARISON_EMPLOYEES_QUERY = `
+  query GetComparisonEmployees($limit: Int!, $offset: Int!, $searchPattern: String!) {
+    Employee(
+      where: {
+        isDeleted: { _eq: false }
+        employeePosition: {
+          employeeCapabilities: { capability: { name: { _eq: "${SALES_ASSOCIATE_CAPABILITY}" } } }
+        }
+        _or: [
+          { displayName: { _ilike: $searchPattern } }
+          { firstName: { _ilike: $searchPattern } }
+          { lastName: { _ilike: $searchPattern } }
+        ]
+      }
+      orderBy: { displayName: ASC_NULLS_LAST }
+      limit: $limit
+      offset: $offset
+    ) {
+      id
+      displayName
+      firstName
+      lastName
+      pictureThumbnail
+      employeePosition {
+        jobPosition { name }
+        organizationalUnit { name }
+      }
+    }
+  }
+`
+
+// Aggregated activity metrics for a single employee (executed on selection only)
+const GET_EMPLOYEE_METRICS_QUERY = (entityFilter?: { field: string; id: string }) => {
+  const entityClause = entityFilter ? `{ ${entityFilter.field}: { _eq: "${entityFilter.id}" } }` : ''
+  return `
+  query GetEmployeeActivityMetrics(
+    $employeeId: uuid!,
     $thisWeekStart: timestamptz!,
     $thisMonthStart: timestamptz!,
     $last30DaysStart: timestamptz!,
     $prev30DaysStart: timestamptz!,
     $prev30DaysEnd: timestamptz!
   ) {
-    # Get all employees who have activities
-    allActiveEmployees: SalesActivity(
-      where: {
-        _and: [
-          { isDeleted: { _eq: false } }
-          ${entityFilter ? `{ ${entityFilter.field}: { _eq: "${entityFilter.id}" } }` : ''}
-        ]
-      }
-      distinctOn: [ownerEmployeeId]
-      orderBy: [{ ownerEmployeeId: ASC }, { createdAt: DESC }]
+    total: SalesActivityAggregate(
+      where: { _and: [ { isDeleted: { _eq: false } } { ownerEmployeeId: { _eq: $employeeId } } ${entityClause} ] }
     ) {
-      ownerEmployeeId
-      createdAt
-      ownerEmployee {
-        id
-        displayName
-        firstName
-        lastName
-        pictureThumbnail
-        employeePosition {
-          jobPosition { name }
-          organizationalUnit { name }
-        }
-      }
+      aggregate { count max { createdAt } }
     }
-    
-    # Total activities per employee
-    totalActivities: SalesActivity(
-      where: {
-        _and: [
-          { isDeleted: { _eq: false } }
-          ${entityFilter ? `{ ${entityFilter.field}: { _eq: "${entityFilter.id}" } }` : ''}
-        ]
-      }
+    thisWeek: SalesActivityAggregate(
+      where: { _and: [ { isDeleted: { _eq: false } } { ownerEmployeeId: { _eq: $employeeId } } { createdAt: { _gte: $thisWeekStart } } ${entityClause} ] }
     ) {
-      ownerEmployeeId
+      aggregate { count }
     }
-    
-    # This week activities
-    thisWeekActivities: SalesActivity(
-      where: {
-        _and: [
-          { isDeleted: { _eq: false } }
-          { createdAt: { _gte: $thisWeekStart } }
-          ${entityFilter ? `{ ${entityFilter.field}: { _eq: "${entityFilter.id}" } }` : ''}
-        ]
-      }
+    thisMonth: SalesActivityAggregate(
+      where: { _and: [ { isDeleted: { _eq: false } } { ownerEmployeeId: { _eq: $employeeId } } { createdAt: { _gte: $thisMonthStart } } ${entityClause} ] }
     ) {
-      ownerEmployeeId
+      aggregate { count }
     }
-    
-    # This month activities
-    thisMonthActivities: SalesActivity(
-      where: {
-        _and: [
-          { isDeleted: { _eq: false } }
-          { createdAt: { _gte: $thisMonthStart } }
-          ${entityFilter ? `{ ${entityFilter.field}: { _eq: "${entityFilter.id}" } }` : ''}
-        ]
-      }
+    last30: SalesActivityAggregate(
+      where: { _and: [ { isDeleted: { _eq: false } } { ownerEmployeeId: { _eq: $employeeId } } { createdAt: { _gte: $last30DaysStart } } ${entityClause} ] }
     ) {
-      ownerEmployeeId
+      aggregate { count }
     }
-    
-    # Last 30 days activities
-    last30DaysActivities: SalesActivity(
-      where: {
-        _and: [
-          { isDeleted: { _eq: false } }
-          { createdAt: { _gte: $last30DaysStart } }
-          ${entityFilter ? `{ ${entityFilter.field}: { _eq: "${entityFilter.id}" } }` : ''}
-        ]
-      }
+    prev30: SalesActivityAggregate(
+      where: { _and: [ { isDeleted: { _eq: false } } { ownerEmployeeId: { _eq: $employeeId } } { createdAt: { _gte: $prev30DaysStart, _lt: $prev30DaysEnd } } ${entityClause} ] }
     ) {
-      ownerEmployeeId
-    }
-    
-    # Previous 30 days activities (for trend calculation)
-    prev30DaysActivities: SalesActivity(
-      where: {
-        _and: [
-          { isDeleted: { _eq: false } }
-          { createdAt: { _gte: $prev30DaysStart, _lt: $prev30DaysEnd } }
-          ${entityFilter ? `{ ${entityFilter.field}: { _eq: "${entityFilter.id}" } }` : ''}
-        ]
-      }
-    ) {
-      ownerEmployeeId
+      aggregate { count }
     }
   }
 `
+}
+
+interface AggregateCount {
+  aggregate?: { count?: number; max?: { createdAt?: string } }
+}
+
+interface MetricsResponse {
+  total: AggregateCount
+  thisWeek: AggregateCount
+  thisMonth: AggregateCount
+  last30: AggregateCount
+  prev30: AggregateCount
+}
+
+const toOption = (row: EmployeeRow): EmployeeOption => {
+  const fullName = `${row.firstName || ''} ${row.lastName || ''}`.trim()
+  const position = row.employeePosition?.[0]
+  return {
+    id: row.id,
+    displayName: row.displayName || fullName || 'Unknown Employee',
+    fullName: fullName || 'Unknown',
+    pictureThumbnail: row.pictureThumbnail,
+    jobPosition: position?.jobPosition?.name,
+    organizationalUnit: position?.organizationalUnit?.name
+  }
+}
+
+const mapMetrics = (res: MetricsResponse): EmployeeMetrics => {
+  const totalActivities = res.total.aggregate?.count ?? 0
+  const thisWeekActivities = res.thisWeek.aggregate?.count ?? 0
+  const thisMonthActivities = res.thisMonth.aggregate?.count ?? 0
+  const last30DaysActivities = res.last30.aggregate?.count ?? 0
+  const prev30DaysActivities = res.prev30.aggregate?.count ?? 0
+
+  let trend = 0
+  if (prev30DaysActivities > 0) {
+    trend = ((last30DaysActivities - prev30DaysActivities) / prev30DaysActivities) * 100
+  } else if (last30DaysActivities > 0) {
+    trend = 100
+  }
+
+  return {
+    totalActivities,
+    thisWeekActivities,
+    thisMonthActivities,
+    last30DaysActivities,
+    prev30DaysActivities,
+    trend,
+    lastActivityDate: res.total.aggregate?.max?.createdAt
+  }
+}
 
 export const useEmployeeComparisonData = ({
   accessToken,
   entityId,
   entityType
 }: UseEmployeeComparisonDataProps): UseEmployeeComparisonDataResult => {
-  const [employees, setEmployees] = useState<EmployeeComparison[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
   const graphqlClient = useGraphQLClient(accessToken)
 
-  const loadData = useCallback(async () => {
-    if (!accessToken) {
-      setLoading(false)
-      return
-    }
+  const [employeeOptions, setEmployeeOptions] = useState<EmployeeOption[]>([])
+  const [optionsById, setOptionsById] = useState<Record<string, EmployeeOption>>({})
+  const [optionsLoading, setOptionsLoading] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
+  const [offset, setOffset] = useState(0)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [error, setError] = useState<string | null>(null)
 
-    setLoading(true)
-    setError(null)
+  const [metricsById, setMetricsById] = useState<Record<string, EmployeeMetrics>>({})
+  const [metricsLoadingById, setMetricsLoadingById] = useState<Record<string, boolean>>({})
 
-    try {
-      // Calculate date ranges
-      const now = dayjs()
-      const thisWeekStart = now.startOf('week').format('YYYY-MM-DDTHH:mm:ss')
-      const thisMonthStart = now.startOf('month').format('YYYY-MM-DDTHH:mm:ss')
-      const last30DaysStart = now.subtract(30, 'day').format('YYYY-MM-DDTHH:mm:ss')
-      const prev30DaysStart = now.subtract(60, 'day').format('YYYY-MM-DDTHH:mm:ss')
-      const prev30DaysEnd = last30DaysStart
+  // Refs mirror cache state so callbacks stay stable and can short-circuit duplicates
+  const metricsByIdRef = useRef<Record<string, EmployeeMetrics>>({})
+  const metricsLoadingRef = useRef<Record<string, boolean>>({})
+  const listRequestRef = useRef<{ key: string; promise: Promise<unknown> } | null>(null)
 
-      // Build entity filter if provided
-      const entityFilter = entityId && entityType ? { field: entityType, id: entityId } : undefined
-
-      // Build and execute query
-      const query = GET_EMPLOYEE_COMPARISON_QUERY(entityFilter)
-      const result = await graphqlClient.request<{
-        allActiveEmployees: Array<{
-          ownerEmployeeId: string
-          createdAt: string
-          ownerEmployee: {
-            id: string
-            displayName: string
-            firstName: string
-            lastName: string
-            pictureThumbnail?: string
-            employeePosition?: Array<{
-              jobPosition?: { name: string }
-              organizationalUnit?: { name: string }
-            }>
-          }
-        }>
-        totalActivities: Array<{ ownerEmployeeId: string }>
-        thisWeekActivities: Array<{ ownerEmployeeId: string }>
-        thisMonthActivities: Array<{ ownerEmployeeId: string }>
-        last30DaysActivities: Array<{ ownerEmployeeId: string }>
-        prev30DaysActivities: Array<{ ownerEmployeeId: string }>
-      }>(query, {
-        thisWeekStart,
-        thisMonthStart,
-        last30DaysStart,
-        prev30DaysStart,
-        prev30DaysEnd
+  const registerOptions = useCallback((rows: EmployeeOption[]) => {
+    setOptionsById(prev => {
+      const next = { ...prev }
+      rows.forEach(row => {
+        next[row.id] = row
       })
+      return next
+    })
+  }, [])
 
-      // Aggregate activities by employee
-      const employeeMap = new Map<string, EmployeeComparison>()
+  const fetchPage = useCallback(
+    async (term: string, pageOffset: number, append: boolean) => {
+      if (!accessToken) {
+        setOptionsLoading(false)
+        return
+      }
 
-      // Initialize employees from allActiveEmployees
-      result.allActiveEmployees.forEach(item => {
-        const emp = item.ownerEmployee
-        if (!emp) return
+      setOptionsLoading(true)
+      setError(null)
+      try {
+        const searchPattern = term ? `%${term.trim()}%` : '%%'
+        const key = `${searchPattern}|${pageOffset}`
 
-        const fullName = `${emp.firstName || ''} ${emp.lastName || ''}`.trim()
-        const position = emp.employeePosition?.[0]
+        if (listRequestRef.current?.key === key) {
+          await listRequestRef.current.promise
+          return
+        }
 
-        employeeMap.set(emp.id, {
-          id: emp.id,
-          displayName: emp.displayName || fullName || 'Unknown Employee',
-          fullName: fullName || 'Unknown',
-          pictureThumbnail: emp.pictureThumbnail,
-          jobPosition: position?.jobPosition?.name,
-          organizationalUnit: position?.organizationalUnit?.name,
-          totalActivities: 0,
-          thisWeekActivities: 0,
-          thisMonthActivities: 0,
-          last30DaysActivities: 0,
-          prev30DaysActivities: 0,
-          trend: 0,
-          lastActivityDate: item.createdAt
+        const promise = graphqlClient.request<{ Employee: EmployeeRow[] }>(GET_COMPARISON_EMPLOYEES_QUERY, {
+          limit: EMPLOYEES_PAGE_SIZE,
+          offset: pageOffset,
+          searchPattern
         })
-      })
+        listRequestRef.current = { key, promise }
 
-      // Count total activities per employee
-      result.totalActivities.forEach(item => {
-        if (item.ownerEmployeeId && employeeMap.has(item.ownerEmployeeId)) {
-          const emp = employeeMap.get(item.ownerEmployeeId)!
-          emp.totalActivities++
-        }
-      })
+        const result = await promise
+        const rows = (result?.Employee || []).map(toOption)
 
-      // Count this week activities
-      result.thisWeekActivities.forEach(item => {
-        if (item.ownerEmployeeId && employeeMap.has(item.ownerEmployeeId)) {
-          const emp = employeeMap.get(item.ownerEmployeeId)!
-          emp.thisWeekActivities++
-        }
-      })
+        registerOptions(rows)
+        setEmployeeOptions(prev => {
+          if (!append) return rows
+          const map = new Map<string, EmployeeOption>()
+          prev.forEach(p => map.set(p.id, p))
+          rows.forEach(r => map.set(r.id, r))
+          return Array.from(map.values())
+        })
+        setHasMore(rows.length === EMPLOYEES_PAGE_SIZE)
+        setOffset(pageOffset)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to load employees'
+        setError(message)
+        console.error('Error loading comparison employees:', message)
+      } finally {
+        listRequestRef.current = null
+        setOptionsLoading(false)
+      }
+    },
+    [accessToken, graphqlClient, registerOptions]
+  )
 
-      // Count this month activities
-      result.thisMonthActivities.forEach(item => {
-        if (item.ownerEmployeeId && employeeMap.has(item.ownerEmployeeId)) {
-          const emp = employeeMap.get(item.ownerEmployeeId)!
-          emp.thisMonthActivities++
-        }
-      })
+  const search = useCallback(
+    (query: string) => {
+      const term = (query || '').trim()
+      setSearchTerm(term)
+      fetchPage(term, 0, false).catch(() => undefined)
+    },
+    [fetchPage]
+  )
 
-      // Count last 30 days activities
-      result.last30DaysActivities.forEach(item => {
-        if (item.ownerEmployeeId && employeeMap.has(item.ownerEmployeeId)) {
-          const emp = employeeMap.get(item.ownerEmployeeId)!
-          emp.last30DaysActivities++
-        }
-      })
+  const loadMore = useCallback(() => {
+    if (!hasMore || optionsLoading) return
+    fetchPage(searchTerm, offset + EMPLOYEES_PAGE_SIZE, true).catch(() => undefined)
+  }, [fetchPage, hasMore, optionsLoading, offset, searchTerm])
 
-      // Count previous 30 days activities
-      result.prev30DaysActivities.forEach(item => {
-        if (item.ownerEmployeeId && employeeMap.has(item.ownerEmployeeId)) {
-          const emp = employeeMap.get(item.ownerEmployeeId)!
-          emp.prev30DaysActivities++
-        }
-      })
+  const loadEmployeeMetrics = useCallback(
+    (employeeId: string) => {
+      if (!accessToken || !employeeId) return
+      if (metricsByIdRef.current[employeeId] || metricsLoadingRef.current[employeeId]) return
 
-      // Calculate trends
-      employeeMap.forEach(emp => {
-        if (emp.prev30DaysActivities > 0) {
-          emp.trend = ((emp.last30DaysActivities - emp.prev30DaysActivities) / emp.prev30DaysActivities) * 100
-        } else if (emp.last30DaysActivities > 0) {
-          emp.trend = 100 // New activities from 0
-        } else {
-          emp.trend = 0
-        }
-      })
+      metricsLoadingRef.current = { ...metricsLoadingRef.current, [employeeId]: true }
+      setMetricsLoadingById(prev => ({ ...prev, [employeeId]: true }))
 
-      // Convert to array and sort by total activities (descending)
-      const employeeList = Array.from(employeeMap.values()).sort((a, b) => b.totalActivities - a.totalActivities)
+      const now = dayjs()
+      const variables = {
+        employeeId,
+        thisWeekStart: now.startOf('week').format('YYYY-MM-DDTHH:mm:ss'),
+        thisMonthStart: now.startOf('month').format('YYYY-MM-DDTHH:mm:ss'),
+        last30DaysStart: now.subtract(30, 'day').format('YYYY-MM-DDTHH:mm:ss'),
+        prev30DaysStart: now.subtract(60, 'day').format('YYYY-MM-DDTHH:mm:ss'),
+        prev30DaysEnd: now.subtract(30, 'day').format('YYYY-MM-DDTHH:mm:ss')
+      }
 
-      setEmployees(employeeList)
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load employee comparison data'
-      setError(errorMessage)
-      console.error('Error loading employee comparison:', err)
-    } finally {
-      setLoading(false)
-    }
-  }, [accessToken, entityId, entityType, graphqlClient])
+      const entityFilter = entityId && entityType ? { field: entityType, id: entityId } : undefined
+      const query = GET_EMPLOYEE_METRICS_QUERY(entityFilter)
 
-  const refetch = useCallback(() => {
-    loadData()
-  }, [loadData])
+      graphqlClient
+        .request<MetricsResponse>(query, variables)
+        .then(res => {
+          const metrics = mapMetrics(res)
+          metricsByIdRef.current = { ...metricsByIdRef.current, [employeeId]: metrics }
+          setMetricsById(prev => ({ ...prev, [employeeId]: metrics }))
+        })
+        .catch(err => {
+          const message = err instanceof Error ? err.message : 'Failed to load employee metrics'
+          console.error('Error loading employee metrics:', message)
+        })
+        .finally(() => {
+          metricsLoadingRef.current = { ...metricsLoadingRef.current, [employeeId]: false }
+          setMetricsLoadingById(prev => ({ ...prev, [employeeId]: false }))
+        })
+    },
+    [accessToken, entityId, entityType, graphqlClient]
+  )
 
+  // Reset metric cache whenever the entity scope changes
   useEffect(() => {
-    loadData()
-  }, [loadData])
+    metricsByIdRef.current = {}
+    metricsLoadingRef.current = {}
+    setMetricsById({})
+    setMetricsLoadingById({})
+  }, [entityId, entityType])
+
+  // Initial load of the first employee page
+  useEffect(() => {
+    if (!accessToken) return
+    fetchPage('', 0, false).catch(() => undefined)
+  }, [accessToken, fetchPage])
 
   return {
-    employees,
-    loading,
+    employeeOptions,
+    optionsById,
+    optionsLoading,
+    hasMore,
     error,
-    refetch
+    loadMore,
+    search,
+    metricsById,
+    metricsLoadingById,
+    loadEmployeeMetrics
   }
 }

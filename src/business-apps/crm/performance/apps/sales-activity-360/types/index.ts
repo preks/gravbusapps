@@ -36,6 +36,8 @@ export interface ActivityViewProps extends BusinessAppContextProps {
   filter: ActivityViewFilter
   entityId?: string
   entityName?: string
+  activeTab: ActivityTabType
+  onTabChange: (tab: ActivityTabType) => void
   onBack: () => void
 }
 

@@ -18,13 +18,10 @@ import {
   UsersIcon,
   ListChecksIcon
 } from '@phosphor-icons/react'
-import type { TeamSalesActivity } from '@/business-apps/crm/performance/apps/sales-team-performance/components/team-performance-view/hooks/useTeamActivitiesData'
-import { getActivityTypeVariant } from '@/business-apps/crm/performance/apps/sales-team-performance/utils/activityHelpers'
+import type { TeamSalesActivity } from '../../hooks/useTeamActivitiesData'
+import { getActivityTypeVariant } from '../../utils/activityHelpers'
 import { ActivityTableReferenceCell } from '@/common/components/common-relations/view-layouts/activity-layout/config/ActivityTableReferenceCell'
-import {
-  calculateActivityScore,
-  getScoreBadgeVariant
-} from '@/business-apps/crm/performance/apps/sales-team-performance/utils/activityScoreCalculator'
+import { calculateActivityScore, getScoreBadgeVariant } from '../../utils/activityScoreCalculator'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { buildCrmRelatedEntityRecordUrl } from '@/common/utils/relatedEntityRecordUrls'
 import { getEmployeeAvatarSrc } from '../utils/avatarUtils'

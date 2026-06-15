@@ -27,72 +27,52 @@ interface TeamData {
   color: string
 }
 
+interface EntityCountTeamInput {
+  index: number
+  memberIds: string[]
+}
+
+type EntityCountResponse = Record<string, { aggregate?: { count?: number } }>
+
 /**
- * Builds GraphQL query to count entities owned by team members
+ * Builds a single GraphQL query that counts entities for every active team at
+ * once (aliased per team index), so selecting N teams triggers one request
+ * instead of one request per team.
  */
-const buildEntityCountsQuery = (memberIds: string[]): string => {
-  const memberIdsJson = JSON.stringify(memberIds)
+const buildEntityCountsQuery = (teams: EntityCountTeamInput[]): string => {
+  const teamBlocks = teams
+    .map(({ index, memberIds }) => {
+      const memberIdsJson = JSON.stringify(memberIds)
+      const baseWhere = `isDeleted: {_eq: false}
+          ownerEmployeeId: {_in: ${memberIdsJson}}`
+
+      return `
+      t${index}_leads: LeadAggregate(where: { ${baseWhere} }) { aggregate { count } }
+      t${index}_opportunities: OpportunityAggregate(where: { ${baseWhere} }) { aggregate { count } }
+      t${index}_accounts: AccountAggregate(where: { ${baseWhere} }) { aggregate { count } }
+      t${index}_contacts: ContactAggregate(where: { ${baseWhere} }) { aggregate { count } }`
+    })
+    .join('\n')
 
   return `
     query GetTeamEntityCounts {
-      leads: LeadAggregate(
-        where: {
-          isDeleted: {_eq: false}
-          ownerEmployeeId: {_in: ${memberIdsJson}}
-        }
-      ) {
-        aggregate {
-          count
-        }
-      }
-      opportunities: OpportunityAggregate(
-        where: {
-          isDeleted: {_eq: false}
-          ownerEmployeeId: {_in: ${memberIdsJson}}
-        }
-      ) {
-        aggregate {
-          count
-        }
-      }
-      accounts: AccountAggregate(
-        where: {
-          isDeleted: {_eq: false}
-          ownerEmployeeId: {_in: ${memberIdsJson}}
-        }
-      ) {
-        aggregate {
-          count
-        }
-      }
-      contacts: ContactAggregate(
-        where: {
-          isDeleted: {_eq: false}
-          ownerEmployeeId: {_in: ${memberIdsJson}}
-        }
-      ) {
-        aggregate {
-          count
-        }
-      }
+${teamBlocks}
     }
   `
 }
 
 /**
- * Hook to fetch entity counts (leads, opportunities, accounts, contacts) for selected teams
+ * Hook to fetch entity counts (leads, opportunities, accounts, contacts) for selected teams.
+ *
+ * Counts are fetched for ALL selected teams (one batched request), and the chart
+ * decides which teams to display. Keying off the selected teams (rather than the
+ * "active"/visible set, which updates a render later) avoids a redundant fetch
+ * whenever a team is added.
  *
  * @param accessToken - The access token for API authentication
- * @param teamsData - Array of team data with member IDs
- * @param selectedTeamIds - Array of selected team IDs
- * @param activeTeamIds - Set of team IDs that should be visible in the chart
+ * @param teamsData - Array of selected team data with member IDs
  */
-export const useTeamEntityCounts = (
-  accessToken: string,
-  teamsData: TeamData[],
-  selectedTeamIds: string[],
-  activeTeamIds: Set<string>
-): UseTeamEntityCountsResult => {
+export const useTeamEntityCounts = (accessToken: string, teamsData: TeamData[]): UseTeamEntityCountsResult => {
   const [entityCounts, setEntityCounts] = useState<TeamEntityCountsPoint[]>([])
   const [teamEntityCounts, setTeamEntityCounts] = useState<TeamEntityCount[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -101,10 +81,7 @@ export const useTeamEntityCounts = (
   const graphqlClient = useGraphQLClient(accessToken)
 
   const fetchEntityCounts = useCallback(async () => {
-    // Only fetch if we have active teams
-    const activeTeamsList = teamsData.filter(team => activeTeamIds.has(team.id))
-
-    if (activeTeamsList.length === 0) {
+    if (teamsData.length === 0) {
       setEntityCounts([])
       setTeamEntityCounts([])
       return
@@ -114,43 +91,27 @@ export const useTeamEntityCounts = (
     setError(null)
 
     try {
-      const teamCounts: TeamEntityCount[] = []
+      const teamsToQuery = teamsData
+        .map((team, index) => ({ team, index }))
+        .filter(entry => entry.team.memberIds.length > 0)
 
-      // Fetch entity counts for each active team
-      for (let i = 0; i < activeTeamsList.length; i++) {
-        const team = activeTeamsList[i]
-
-        if (team.memberIds.length === 0) {
-          teamCounts.push({
-            teamId: team.id,
-            teamName: team.name,
-            color: team.color,
-            leads: 0,
-            opportunities: 0,
-            accounts: 0,
-            contacts: 0
-          })
-          continue
-        }
-
-        const query = buildEntityCountsQuery(team.memberIds)
-        const result = await graphqlClient.request<{
-          leads: { aggregate: { count: number } }
-          opportunities: { aggregate: { count: number } }
-          accounts: { aggregate: { count: number } }
-          contacts: { aggregate: { count: number } }
-        }>(query)
-
-        teamCounts.push({
-          teamId: team.id,
-          teamName: team.name,
-          color: team.color,
-          leads: result.leads.aggregate.count || 0,
-          opportunities: result.opportunities.aggregate.count || 0,
-          accounts: result.accounts.aggregate.count || 0,
-          contacts: result.contacts.aggregate.count || 0
-        })
+      let response: EntityCountResponse = {}
+      if (teamsToQuery.length > 0) {
+        const query = buildEntityCountsQuery(
+          teamsToQuery.map(entry => ({ index: entry.index, memberIds: entry.team.memberIds }))
+        )
+        response = await graphqlClient.request<EntityCountResponse>(query)
       }
+
+      const teamCounts: TeamEntityCount[] = teamsData.map((team, index) => ({
+        teamId: team.id,
+        teamName: team.name,
+        color: team.color,
+        leads: response[`t${index}_leads`]?.aggregate?.count || 0,
+        opportunities: response[`t${index}_opportunities`]?.aggregate?.count || 0,
+        accounts: response[`t${index}_accounts`]?.aggregate?.count || 0,
+        contacts: response[`t${index}_contacts`]?.aggregate?.count || 0
+      }))
 
       setTeamEntityCounts(teamCounts)
 
@@ -180,10 +141,10 @@ export const useTeamEntityCounts = (
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, graphqlClient, teamsData, activeTeamIds])
+  }, [accessToken, graphqlClient, teamsData])
 
   useEffect(() => {
-    void fetchEntityCounts()
+    fetchEntityCounts().catch(() => undefined)
   }, [fetchEntityCounts])
 
   return {

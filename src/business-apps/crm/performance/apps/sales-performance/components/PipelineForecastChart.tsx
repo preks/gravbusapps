@@ -44,6 +44,28 @@ const CHART_COLORS = {
   forecastedRevenue: '#06b6d4' // Cyan for forecasted revenue (OPEN opportunities)
 }
 
+const TOOLTIP_LABELS: Record<string, string> = {
+  forecastedRevenue: 'Forecasted Revenue'
+}
+
+const formatTooltipCurrency = (value: number): string =>
+  new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'EUR',
+    maximumFractionDigits: 0
+  }).format(value)
+
+// Defined at module scope (not nested in the component) to satisfy SonarQube S6478.
+const renderForecastTooltipItem: NonNullable<React.ComponentProps<typeof ChartTooltipContent>['formatter']> = (
+  value,
+  name
+) => (
+  <div className="gba:flex gba:w-full gba:items-center gba:justify-between gba:gap-4">
+    <span className="gba:text-muted-foreground">{TOOLTIP_LABELS[String(name)] ?? name}</span>
+    <span className="gba:text-foreground gba:font-medium">{formatTooltipCurrency(Number(value))}</span>
+  </div>
+)
+
 /**
  * Pipeline Forecast Chart component showing forecasted revenue for the next 3 months
  * Only includes OPEN opportunities (not WON - those go to Revenue Trends)
@@ -248,7 +270,11 @@ export const PipelineForecastChart: React.FC<PipelineForecastChartProps> = ({
               />
               <ChartTooltip
                 content={
-                  <ChartTooltipContent labelKey="month" valueFormatter={value => formatCurrency(value as number)} />
+                  <ChartTooltipContent
+                    className="gba:min-w-48"
+                    labelKey="month"
+                    formatter={renderForecastTooltipItem}
+                  />
                 }
               />
               <ChartLegend content={<ChartLegendContent />} />

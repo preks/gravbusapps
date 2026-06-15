@@ -81,6 +81,22 @@ export const TEAM_COLORS = [
   '#a855f7' // Purple
 ] as const
 
+// Extended palette for comparisons with more than 4 entries (e.g. employee comparison)
+export const COMPARISON_CHART_COLORS = [
+  '#3b82f6',
+  '#22c55e',
+  '#f59e0b',
+  '#a855f7',
+  '#ef4444',
+  '#06b6d4',
+  '#ec4899',
+  '#84cc16',
+  '#6366f1',
+  '#14b8a6',
+  '#f97316',
+  '#8b5cf6'
+] as const
+
 // Team Entity Counts Chart Types
 export interface TeamEntityCountsPoint {
   entity: string
