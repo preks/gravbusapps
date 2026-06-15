@@ -1,5 +1,5 @@
 import React from 'react'
-import { Modal } from 'antd'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@newwork/nw-design-system'
 import FeedbackFormComponent from './FeedbackFormComponent'
 import { FeedbackFormValues } from '../types'
 
@@ -14,25 +14,21 @@ interface FeedbackFormModalProps {
 const FeedbackFormModal: React.FC<FeedbackFormModalProps> = ({
   visible,
   onCancel,
-  title = 'Feedback Form',
-  width = 800
+  title = 'Feedback Form'
 }) => {
   const handleCancel = () => {
     onCancel()
   }
 
   return (
-    <Modal
-      title={title}
-      open={visible}
-      onCancel={handleCancel}
-      footer={null}
-      width={width}
-      destroyOnHidden={false}
-      data-testid="feedback-form-modal"
-    >
-      <FeedbackFormComponent />
-    </Modal>
+    <Dialog open={visible} onOpenChange={open => !open && handleCancel()}>
+      <DialogContent className="gba:max-w-3xl" data-testid="feedback-form-modal">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        <FeedbackFormComponent />
+      </DialogContent>
+    </Dialog>
   )
 }
 

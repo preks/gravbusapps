@@ -13,8 +13,6 @@ import {
 } from '@newwork/nw-design-system'
 import { AbsenceDateRangePicker } from './components/AbsenceDateRangePicker'
 import { AlertCircle } from 'lucide-react'
-import { Upload } from 'antd'
-import type { UploadFile } from 'antd'
 import { UploadIcon } from '@phosphor-icons/react'
 import { useForm } from 'react-hook-form'
 
@@ -64,6 +62,13 @@ type LaunchContext = {
   absenceType?: string
   flowType?: string
   processName?: string
+}
+
+type SelectedAttachmentFile = {
+  uid: string
+  name: string
+  type?: string
+  originFileObj: File
 }
 
 const toLaunchContextValue = (value: unknown): LaunchContextValue => {
@@ -249,7 +254,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
   const [isUpdateMode, setIsUpdateMode] = useState(false)
   const [showSickLeaveOptions, setShowSickLeaveOptions] = useState(false)
 
-  const [fileList, setFileList] = useState<UploadFile[]>([])
+  const [fileList, setFileList] = useState<SelectedAttachmentFile[]>([])
   const fileClient = useFileClient({ accessToken })
 
   useEffect(() => {
@@ -349,12 +354,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
     setShowSickLeaveOptions(false)
   }, [])
 
-  const handleFileChange = useCallback(({ fileList: newFileList }: { fileList: UploadFile[] }) => {
-    const limitedFileList = newFileList.slice(-5)
-    setFileList(limitedFileList)
-  }, [])
-
-  const beforeUpload = useCallback((file: File) => {
+  const isValidAttachmentFile = useCallback((file: File) => {
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png']
     const isValidType = allowedTypes.includes(file.type)
 
@@ -368,7 +368,29 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
       return false
     }
 
-    return false
+    return true
+  }, [])
+
+  const handleFileChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const selectedFiles = Array.from(event.target.files ?? [])
+        .filter(file => isValidAttachmentFile(file))
+        .slice(0, 5)
+        .map(file => ({
+          uid: `${file.name}-${file.lastModified}`,
+          name: file.name,
+          type: file.type,
+          originFileObj: file
+        }))
+
+      setFileList(selectedFiles)
+      event.target.value = ''
+    },
+    [isValidAttachmentFile]
+  )
+
+  const handleRemoveFile = useCallback((uid: string) => {
+    setFileList(currentFiles => currentFiles.filter(file => file.uid !== uid))
   }, [])
 
   const handleFormSubmit = useCallback(
@@ -678,29 +700,47 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
                   <Label className="gba:block gba:mb-2 gba:font-medium" data-testid="attachments-label">
                     {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.attachments', 'Attachments')}
                   </Label>
-                  <Upload
-                    fileList={fileList}
-                    onChange={handleFileChange}
-                    beforeUpload={beforeUpload}
+                  <input
+                    id="sick-leave-attachment-input"
+                    type="file"
                     multiple
-                    maxCount={5}
                     accept=".pdf,.jpg,.jpeg,.png"
+                    className="gba:sr-only"
+                    onChange={handleFileChange}
                     data-testid="file-upload"
-                    className="gba:w-full"
+                  />
+                  <label
+                    htmlFor="sick-leave-attachment-input"
+                    className="gba:flex gba:h-12 gba:w-full gba:cursor-pointer gba:items-center gba:justify-center gba:rounded-md gba:border-2 gba:border-dashed gba:border-border hover:gba:border-info"
+                    data-testid="upload-button"
                   >
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="gba:w-full gba:h-12 gba:border-dashed gba:border-2 gba:border-border hover:gba:border-info"
-                      data-testid="upload-button"
-                    >
-                      <UploadIcon size={16} className="gba:mr-2" />
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:absence_form.upload_button',
-                        'Click or drag files to upload'
-                      )}
-                    </Button>
-                  </Upload>
+                    <UploadIcon size={16} className="gba:mr-2" />
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:absence_form.upload_button',
+                      'Click or drag files to upload'
+                    )}
+                  </label>
+                  {fileList.length > 0 && (
+                    <div className="gba:mt-2 gba:flex gba:flex-col gba:gap-2">
+                      {fileList.map(file => (
+                        <div
+                          key={file.uid}
+                          className="gba:flex gba:items-center gba:justify-between gba:rounded-md gba:border gba:border-border gba:px-3 gba:py-2 gba:text-sm"
+                        >
+                          <span>{file.name}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleRemoveFile(file.uid)}
+                            data-testid={`remove-upload-${file.uid}`}
+                          >
+                            {getTranslationFromI18nKeyAndLabel('lowcoder:common.remove', 'Remove')}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
                     {getTranslationFromI18nKeyAndLabel(
                       'lowcoder:absence_form.upload_hint',

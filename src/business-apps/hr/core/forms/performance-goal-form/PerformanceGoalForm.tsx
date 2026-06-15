@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { message } from 'antd'
+import { toast } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import dayjs from 'dayjs'
 import { useTranslation } from 'react-i18next'
@@ -447,7 +447,7 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
       ? 'Performance goal was successfully updated'
       : 'Performance goal was successfully created'
 
-    message.success(successMessage)
+    toast.success(successMessage)
     form.reset()
     onSuccess?.()
     onClose()

@@ -17,7 +17,6 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
-import type { UploadFile } from 'antd'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useUploadDocumentLookups } from './queries/UploadDocumentQueries'
 import { useFileClient } from '@/common/network/files/useFileClient'
@@ -26,6 +25,13 @@ import { EmployeeDocumentUploadField } from '../document-sync/EmployeeDocumentUp
 import translations from '../_i18n'
 
 // Extracted submit logic for re-use and testing
+type SelectedUploadFile = {
+  uid: string
+  name: string
+  type?: string
+  originFileObj?: File
+}
+
 export async function submitUploadDocument(
   values: {
     documentName: string
@@ -35,7 +41,7 @@ export async function submitUploadDocument(
     expiryDate?: string
     description?: string
   },
-  deps: { employeeId?: string; files: UploadFile[]; fileClient: ReturnType<typeof useFileClient> }
+  deps: { employeeId?: string; files: SelectedUploadFile[]; fileClient: ReturnType<typeof useFileClient> }
 ) {
   const { employeeId, files, fileClient } = deps
   if (!employeeId) {
@@ -348,8 +354,8 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
                       type: selectedFile.type,
                       originFileObj: selectedFile
                     } as any
-                  ] as UploadFile[])
-                : ([] as UploadFile[]),
+                  ] as SelectedUploadFile[])
+                : ([] as SelectedUploadFile[]),
               fileClient
             })
           }}
