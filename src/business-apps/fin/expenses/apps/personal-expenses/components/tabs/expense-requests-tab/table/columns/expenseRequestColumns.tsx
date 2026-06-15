@@ -8,6 +8,7 @@ export const EXPENSE_REQUESTS_TABLE_DATA_TEST_ID = 'expense-requests'
 
 export type ExpenseRequestRow = {
   id: string
+  employeeId?: string
   code?: string
   title?: string
   requestDate?: string

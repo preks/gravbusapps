@@ -1,3 +1,4 @@
+import React from 'react'
 import Pill, { type PillType } from '@/components/pill'
 
 interface ExpenseRecordHeaderSummaryProps {
@@ -9,6 +10,7 @@ interface ExpenseRecordHeaderSummaryProps {
   statusLabel: string
   costCenterTestId: string
   statusTestId: string
+  titleActions?: React.ReactNode
 }
 
 /**
@@ -23,11 +25,17 @@ export function ExpenseRecordHeaderSummary({
   statusType,
   statusLabel,
   costCenterTestId,
-  statusTestId
+  statusTestId,
+  titleActions
 }: Readonly<ExpenseRecordHeaderSummaryProps>) {
   return (
     <div className="gba:mb-4 gba:w-full">
-      <h4 className="gba:mb-1 gba:text-lg gba:font-semibold gba:leading-snug gba:line-clamp-3">{title ?? '-'}</h4>
+      <div className="gba:mb-1 gba:flex gba:items-start gba:justify-between gba:gap-2">
+        <h4 className="gba:m-0 gba:min-w-0 gba:flex-1 gba:text-lg gba:font-semibold gba:leading-snug gba:line-clamp-3">
+          {title ?? '-'}
+        </h4>
+        {titleActions ? <div className="gba:shrink-0 gba:-mt-1">{titleActions}</div> : null}
+      </div>
 
       <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
         {code ? (

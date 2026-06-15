@@ -24,6 +24,7 @@ export const getExpensePlanRecordQuery = `
         }
         status
         employee{
+         id
          fullName
          firstName
          lastName

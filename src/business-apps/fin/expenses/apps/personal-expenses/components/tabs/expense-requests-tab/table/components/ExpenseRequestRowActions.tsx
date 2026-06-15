@@ -2,6 +2,7 @@ import React from 'react'
 import { AppAction } from '@/components/app-action'
 import { RowActionsIcon, RowActionsWrapper } from '../../../../shared/TableSharedComponents'
 import { isDiscardableExpenseEntityStatus } from '@/business-apps/fin/expenses/common/discard/discardConstants'
+import { isEditableExpenseRequestStatus } from '@/business-apps/fin/expenses/common/utils/expenseRequestActionEligibility'
 import { EXPENSE_REQUESTS_TABLE_DATA_TEST_ID, type ExpenseRequestRow } from '../columns/expenseRequestColumns'
 
 export interface ExpenseRequestRowActionsProps {
@@ -28,20 +29,19 @@ export function ExpenseRequestRowActions({
   const actionsCategory = t('expense-items-row-category-actions')
   const navigationsCategory = t('expense-items-row-category-navigations')
 
-  const editAction =
-    record.status === 'CREATED' || record.status === 'REJECTED' || record.status === 'PENDING'
-      ? [
-          {
-            category: actionsCategory,
-            key: 'edit-expense-request',
-            label: updateRequestActionLabel,
-            onClick: (e?: React.MouseEvent) => {
-              e?.stopPropagation()
-              onEdit(record)
-            }
+  const editAction = isEditableExpenseRequestStatus(record.status)
+    ? [
+        {
+          category: actionsCategory,
+          key: 'edit-expense-request',
+          label: updateRequestActionLabel,
+          onClick: (e?: React.MouseEvent) => {
+            e?.stopPropagation()
+            onEdit(record)
           }
-        ]
-      : []
+        }
+      ]
+    : []
 
   const discardAction = isDiscardableExpenseEntityStatus(record.status)
     ? [

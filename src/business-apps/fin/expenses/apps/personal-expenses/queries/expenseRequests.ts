@@ -20,6 +20,7 @@ export const GET_EXPENSE_REQUESTS_BY_EMPLOYEE = `
       where: $where
     ) {
       id
+      employeeId
       code
       title
       description
@@ -86,6 +87,7 @@ export const GET_EXPENSE_REQUEST_BY_ID = `
   query GetExpenseRequestById($id: uuid!) {
     ExpenseRequest(where: {id: {_eq: $id}}) {
       id
+      employeeId
       code
       title
       description

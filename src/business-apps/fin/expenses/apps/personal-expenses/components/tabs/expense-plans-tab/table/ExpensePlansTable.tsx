@@ -47,6 +47,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
           <ExpensePlanDetails
             selectedItem={selectedItem}
             onClose={handleCloseDetails}
+            onAfterDiscard={props.onForceRefresh}
             accessToken={accessToken}
             userInfo={userInfo}
           />
@@ -65,6 +66,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
           <ExpenseRequestDetails
             selectedItem={selectedExpenseRequest}
             onClose={handleCloseDetails}
+            onAfterDiscard={props.onForceRefresh}
             accessToken={accessToken}
             userInfo={userInfo}
           />

@@ -23,6 +23,7 @@ export const GET_EXPENSE_PLANS_BY_EMPLOYEE = `
       }
     ) {
       id
+      employeeId
       code
       reimbursableAmount
       startDate
@@ -39,6 +40,7 @@ export const GET_EXPENSE_PLANS_BY_EMPLOYEE = `
       advancePaymentInTransitAmount 
       expenseRequest {
         id
+        employeeId
         code
         title
         description
@@ -150,6 +152,7 @@ export const GET_EXPENSE_PLANS_BY_EMPLOYEE = `
       }  
       expenseRequest {
         id
+        employeeId
         code
         title
         description

@@ -23,6 +23,7 @@ export interface CatalogEntry {
 // Type for expense plan data
 export interface ExpensePlan {
   id: string
+  employeeId: string
   code: string
   reimbursableAmount: number
   startDate: string | null
@@ -55,6 +56,7 @@ export interface ExpensePlan {
   }
   expenseRequest: Array<{
     id: string
+    employeeId: string
     code: string
     title: string
     description: string

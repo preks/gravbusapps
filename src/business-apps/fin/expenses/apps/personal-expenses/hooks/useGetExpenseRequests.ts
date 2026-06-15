@@ -13,6 +13,7 @@ type SortOrder = 'ascend' | 'descend' | null
 
 export interface ExpenseRequest {
   id: string
+  employeeId: string
   code: string
   title: string
   description: string

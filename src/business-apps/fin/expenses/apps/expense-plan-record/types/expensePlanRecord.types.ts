@@ -134,6 +134,7 @@ export interface ExpensePlanRecord {
   }
   status: string
   employee: {
+    id: string
     fullName: string
     firstName: string
     lastName: string

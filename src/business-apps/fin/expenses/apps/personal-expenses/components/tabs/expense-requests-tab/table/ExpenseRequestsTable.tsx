@@ -29,6 +29,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
           <ExpenseRequestDetails
             selectedItem={model.selectedItem}
             onClose={model.handleCloseDetails}
+            onAfterDiscard={props.onForceRefresh}
             accessToken={model.accessToken ?? ''}
             userInfo={model.userInfo}
           />

@@ -21,6 +21,8 @@ import {
   CalendarIcon
 } from '@phosphor-icons/react'
 import { formatDate } from '@/common/utils/windowUtils'
+import { navigateTo } from '@/common/utils/navigationUtils'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetExpenseRequestRecord } from './hooks/useGetExpenseRequestRecord'
@@ -37,6 +39,9 @@ import ExpenseRequestAllowances from './components/ExpenseRequestAllowances.tsx'
 import ExpenseRequestTrip from './components/ExpenseRequestTrip.tsx'
 import ExpenseRequestAdvancePayments from './components/ExpenseRequestAdvancePayments.tsx'
 import ExpenseRequestComments from './components/ExpenseRequestComments.tsx'
+import { useExpenseRequestRecordActions } from './hooks/useExpenseRequestRecordActions'
+import { ExpenseOwnerActionMenu } from '../../common/components/owner-actions/ExpenseOwnerActionMenu'
+import { ExpenseEntityOwnerDiscardDialog } from '../../common/components/owner-actions/ExpenseEntityOwnerDiscardDialog'
 import expenseRequestRecordTranslations from './_i18n'
 
 // Using DS-styled markup instead of antd Typography
@@ -79,6 +84,10 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
 
   const backUrl = getBackUrl()
 
+  const handleDiscardSuccess = useCallback(() => {
+    navigateTo(backUrl)
+  }, [backUrl])
+
   // Helper function to get initial tab from URL or available tabs
   const getInitialTab = () => {
     const urlParams = new URLSearchParams(window.location.search)
@@ -114,9 +123,25 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
   const [activeTab, setActiveTab] = useState<string>('items')
 
   // Use the custom hook to fetch expense request data
-  const { expenseRequest, loading, error } = useGetExpenseRequestRecord({
+  const { expenseRequest, loading, error, fetchExpenseRequest } = useGetExpenseRequestRecord({
     accessToken,
     expenseRequestId
+  })
+
+  useProcessCompletion({
+    onSuccess: () => {
+      if (expenseRequestId) {
+        void fetchExpenseRequest(expenseRequestId, { silent: true })
+      }
+    }
+  })
+
+  const requestOwnerActions = useExpenseRequestRecordActions({
+    expenseRequest,
+    expenseRequestId,
+    accessToken,
+    userInfo,
+    onDiscardSuccess: handleDiscardSuccess
   })
 
   // Fetch PDF for travel order preview
@@ -323,6 +348,14 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
           statusLabel={getExpenseRequestStatusDisplayT(t, expenseRequest.status).label}
           costCenterTestId="expense-request-record-header-cost-center"
           statusTestId="expense-request-status-pill"
+          titleActions={
+            <ExpenseOwnerActionMenu
+              actions={requestOwnerActions.actions}
+              accessToken={accessToken}
+              placement="record-header"
+              testIdPrefix="expense-request-record-action"
+            />
+          }
         />
         {expenseRequest?.startDate && expenseRequest?.endDate && (
           <div className="gba:flex gba:items-center gba:mb-2">
@@ -466,38 +499,51 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
   }
 
   return (
-    <PageLayout
-      headerIcon={<WalletIcon weight="duotone" className="gba:text-primary" />}
-      headerLabel={t('expense-request-record-title')}
-      headerTopLeft={<BackButton dataTestId="expense-request-record-back-button" backUrl={backUrl} />}
-      contentContainer={
-        <div className="gba:overflow-y-auto gba:overflow-x-hidden" style={{ maxHeight: 'calc(100vh - 160px)' }}>
-          <div className="gba:p-3 gba:flex gba:flex-row gba:gap-3" data-testid="expense-request-record-container">
-            <Card className="gba:w-1/4">{renderHeader()}</Card>
-            <Card className="gba:w-3/4">
-              <div className="gba:mt-2" data-testid="expense-request-record-tabs">
-                <Tabs value={activeTab} onValueChange={handleTabChange}>
-                  <TabsList className="gba:inline-flex gba:w-auto gba:mx-6">
+    <>
+      <PageLayout
+        headerIcon={<WalletIcon weight="duotone" className="gba:text-primary" />}
+        headerLabel={t('expense-request-record-title')}
+        headerTopLeft={<BackButton dataTestId="expense-request-record-back-button" backUrl={backUrl} />}
+        contentContainer={
+          <div className="gba:overflow-y-auto gba:overflow-x-hidden" style={{ maxHeight: 'calc(100vh - 160px)' }}>
+            <div className="gba:p-3 gba:flex gba:flex-row gba:gap-3" data-testid="expense-request-record-container">
+              <Card className="gba:w-1/4">{renderHeader()}</Card>
+              <Card className="gba:w-3/4">
+                <div className="gba:mt-2" data-testid="expense-request-record-tabs">
+                  <Tabs value={activeTab} onValueChange={handleTabChange}>
+                    <TabsList className="gba:inline-flex gba:w-auto gba:mx-6">
+                      {tabItems.map(t => (
+                        <TabsTrigger key={t.key} value={t.key}>
+                          {t.label}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
                     {tabItems.map(t => (
-                      <TabsTrigger key={t.key} value={t.key}>
-                        {t.label}
-                      </TabsTrigger>
+                      <TabsContent key={t.key} value={t.key} className="gba:mt-4 gba:mx-6">
+                        <div className="gba:overflow-y-auto gba:overflow-x-hidden" style={{ maxHeight: 600 }}>
+                          {t.children}
+                        </div>
+                      </TabsContent>
                     ))}
-                  </TabsList>
-                  {tabItems.map(t => (
-                    <TabsContent key={t.key} value={t.key} className="gba:mt-4 gba:mx-6">
-                      <div className="gba:overflow-y-auto gba:overflow-x-hidden" style={{ maxHeight: 600 }}>
-                        {t.children}
-                      </div>
-                    </TabsContent>
-                  ))}
-                </Tabs>
-              </div>
-            </Card>
+                  </Tabs>
+                </div>
+              </Card>
+            </div>
           </div>
-        </div>
-      }
-    />
+        }
+      />
+
+      <ExpenseEntityOwnerDiscardDialog
+        open={requestOwnerActions.discardDialogOpen}
+        entityTitle={requestOwnerActions.discardTarget?.title}
+        isSubmitting={requestOwnerActions.isDiscarding}
+        labels={requestOwnerActions.discardDialogLabels}
+        testIdPrefix="discard-expense-request-record"
+        t={requestOwnerActions.t}
+        onOpenChange={requestOwnerActions.handleDiscardDialogOpenChange}
+        onConfirm={requestOwnerActions.handleConfirmDiscard}
+      />
+    </>
   )
 }
 

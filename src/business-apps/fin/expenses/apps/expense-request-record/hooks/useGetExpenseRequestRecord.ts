@@ -9,11 +9,15 @@ interface UseGetExpenseRequestRecordProps extends Pick<BusinessAppContextProps, 
   expenseRequestId?: string
 }
 
+interface FetchExpenseRequestOptions {
+  silent?: boolean
+}
+
 interface UseGetExpenseRequestRecordResult {
   expenseRequest: ExpenseRequestRecord | null
   loading: boolean
   error: string | null
-  fetchExpenseRequest: (id: string) => Promise<void>
+  fetchExpenseRequest: (id: string, options?: FetchExpenseRequestOptions) => Promise<void>
 }
 
 export const useGetExpenseRequestRecord = ({
@@ -28,14 +32,18 @@ export const useGetExpenseRequestRecord = ({
   const graphqlClient = useGraphqlClient(accessToken)
 
   const fetchExpenseRequest = useCallback(
-    async (id: string) => {
+    async (id: string, options?: FetchExpenseRequestOptions) => {
       if (!accessToken) {
         setError('No access token provided')
         return
       }
 
+      const silent = options?.silent ?? false
+
       try {
-        setLoading(true)
+        if (!silent) {
+          setLoading(true)
+        }
         setError(null)
 
         const activeUserLocale = getCurrentActiveUserLocale()
@@ -52,7 +60,9 @@ export const useGetExpenseRequestRecord = ({
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch expense request')
       } finally {
-        setLoading(false)
+        if (!silent) {
+          setLoading(false)
+        }
       }
     },
     [accessToken, graphqlClient]

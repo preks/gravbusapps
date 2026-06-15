@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   Card,
   Tabs,
@@ -21,6 +21,8 @@ import {
   CalendarIcon
 } from '@phosphor-icons/react'
 import { formatDate } from '@/common/utils/windowUtils'
+import { navigateTo } from '@/common/utils/navigationUtils'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatCurrencyDisplay } from './utils/currency'
@@ -35,6 +37,9 @@ import ExpensePlanAllowances from './components/ExpensePlanAllowances.tsx'
 import ExpensePlanTrip from './components/ExpensePlanTrip.tsx'
 import ExpensePlanAdvancePayments from './components/ExpensePlanAdvancePayments.tsx'
 import ExpensePlanComments from './components/ExpensePlanComments.tsx'
+import { useExpensePlanRecordActions } from './hooks/useExpensePlanRecordActions'
+import { ExpenseOwnerActionMenu } from '../../common/components/owner-actions/ExpenseOwnerActionMenu'
+import { ExpenseEntityOwnerDiscardDialog } from '../../common/components/owner-actions/ExpenseEntityOwnerDiscardDialog'
 import expensePlanRecordTranslations from './_i18n'
 
 // Helper function to check if expense plan has comments
@@ -52,7 +57,7 @@ const hasComments = (expensePlan: any): boolean => {
   return hasPlanComments || hasAdvancePaymentComments
 }
 
-const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, additionalData = {} }) => {
+const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo, additionalData = {} }) => {
   const { t } = useTranslation(expensePlanRecordTranslations)
   const expensePlanId =
     additionalData.expensePlanId || new URLSearchParams(window.location.search).get('expensePlanId') || ''
@@ -88,6 +93,10 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
 
   const backUrl = getBackUrl()
 
+  const handleDiscardSuccess = useCallback(() => {
+    navigateTo(backUrl)
+  }, [backUrl])
+
   // Helper function to get initial tab from URL or available tabs
   const getInitialTab = () => {
     const urlParams = new URLSearchParams(window.location.search)
@@ -121,9 +130,25 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
   const [activeTab, setActiveTab] = useState<string>('items')
 
   // Use the custom hook to fetch expense plan data
-  const { expensePlan, loading, error } = useGetExpensePlanRecord({
+  const { expensePlan, loading, error, fetchExpensePlan } = useGetExpensePlanRecord({
     accessToken,
     expensePlanId
+  })
+
+  useProcessCompletion({
+    onSuccess: () => {
+      if (expensePlanId) {
+        void fetchExpensePlan(expensePlanId, { silent: true })
+      }
+    }
+  })
+
+  const planOwnerActions = useExpensePlanRecordActions({
+    expensePlan,
+    expensePlanId,
+    accessToken,
+    userInfo,
+    onDiscardSuccess: handleDiscardSuccess
   })
 
   // Update active tab when expense plan data is loaded
@@ -297,6 +322,14 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
           statusLabel={getExpensePlanStatusDisplayT(t, expensePlan.status).label}
           costCenterTestId="expense-plan-record-header-cost-center"
           statusTestId="expense-plan-status-pill"
+          titleActions={
+            <ExpenseOwnerActionMenu
+              actions={planOwnerActions.actions}
+              accessToken={accessToken}
+              placement="record-header"
+              testIdPrefix="expense-plan-record-action"
+            />
+          }
         />
         {expensePlan?.startDate && expensePlan?.endDate && (
           <div className="gba:flex gba:items-center gba:mb-2">
@@ -432,44 +465,57 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
   }
 
   return (
-    <PageLayout
-      headerIcon={<WalletIcon weight="duotone" className="gba:text-primary" />}
-      headerLabel={t('expense-plan-record-title')}
-      headerTopLeft={
-        <BackButton
-          dataTestId="expense-plan-record-back-button"
-          customBackText={t('expense-plan-record-back')}
-          backUrl={backUrl}
-        />
-      }
-      contentContainer={
-        <div className="gba:overflow-y-auto gba:overflow-x-hidden" style={{ maxHeight: 'calc(100vh - 160px)' }}>
-          <div className="gba:p-3 gba:flex gba:flex-row gba:gap-3" data-testid="expense-plan-record-container">
-            <Card className="gba:w-1/4">{renderHeader()}</Card>
-            <Card className="gba:w-3/4">
-              <div className="gba:mt-2" data-testid="expense-plan-record-tabs">
-                <Tabs value={activeTab} onValueChange={handleTabChange}>
-                  <TabsList className="gba:inline-flex gba:w-auto gba:mx-6">
+    <>
+      <PageLayout
+        headerIcon={<WalletIcon weight="duotone" className="gba:text-primary" />}
+        headerLabel={t('expense-plan-record-title')}
+        headerTopLeft={
+          <BackButton
+            dataTestId="expense-plan-record-back-button"
+            customBackText={t('expense-plan-record-back')}
+            backUrl={backUrl}
+          />
+        }
+        contentContainer={
+          <div className="gba:overflow-y-auto gba:overflow-x-hidden" style={{ maxHeight: 'calc(100vh - 160px)' }}>
+            <div className="gba:p-3 gba:flex gba:flex-row gba:gap-3" data-testid="expense-plan-record-container">
+              <Card className="gba:w-1/4">{renderHeader()}</Card>
+              <Card className="gba:w-3/4">
+                <div className="gba:mt-2" data-testid="expense-plan-record-tabs">
+                  <Tabs value={activeTab} onValueChange={handleTabChange}>
+                    <TabsList className="gba:inline-flex gba:w-auto gba:mx-6">
+                      {tabItems.map(t => (
+                        <TabsTrigger key={t.key} value={t.key}>
+                          {t.label}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
                     {tabItems.map(t => (
-                      <TabsTrigger key={t.key} value={t.key}>
-                        {t.label}
-                      </TabsTrigger>
+                      <TabsContent key={t.key} value={t.key} className="gba:mt-4 gba:mx-6">
+                        <div className="gba:overflow-y-auto gba:overflow-x-hidden" style={{ maxHeight: 600 }}>
+                          {t.children}
+                        </div>
+                      </TabsContent>
                     ))}
-                  </TabsList>
-                  {tabItems.map(t => (
-                    <TabsContent key={t.key} value={t.key} className="gba:mt-4 gba:mx-6">
-                      <div className="gba:overflow-y-auto gba:overflow-x-hidden" style={{ maxHeight: 600 }}>
-                        {t.children}
-                      </div>
-                    </TabsContent>
-                  ))}
-                </Tabs>
-              </div>
-            </Card>
+                  </Tabs>
+                </div>
+              </Card>
+            </div>
           </div>
-        </div>
-      }
-    />
+        }
+      />
+
+      <ExpenseEntityOwnerDiscardDialog
+        open={planOwnerActions.discardDialogOpen}
+        entityTitle={planOwnerActions.discardTarget?.title}
+        isSubmitting={planOwnerActions.isDiscarding}
+        labels={planOwnerActions.discardDialogLabels}
+        testIdPrefix="discard-expense-plan-record"
+        t={planOwnerActions.t}
+        onOpenChange={planOwnerActions.handleDiscardDialogOpenChange}
+        onConfirm={planOwnerActions.handleConfirmDiscard}
+      />
+    </>
   )
 }
 
