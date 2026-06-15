@@ -61,19 +61,17 @@ const HrSettings: React.FC<HrSettingsProps> = ({ className, prefixDataTestId }) 
       contentContainer={
         <div
           data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
-          className="no-scrollbar gba:w-full gba:h-full gba:overflow-y-auto gba:bg-muted/30 gba:p-6 gba:pb-8"
+          className="no-scrollbar gba:h-full gba:w-full gba:overflow-auto gba:bg-muted/30 gba:p-4 gba:pb-6"
         >
           {filteredCards.length === 0 ? (
             <div className="gba:flex gba:h-64 gba:flex-col gba:items-center gba:justify-center gba:text-center">
               <h4 className="gba:mb-2 gba:text-lg gba:font-semibold gba:text-muted-foreground">
                 {t('common.no_results_found')}
               </h4>
-              <p className="gba:m-0 gba:text-muted-foreground">
-                {t('common.try_different_search')}
-              </p>
+              <p className="gba:m-0 gba:text-muted-foreground">{t('common.try_different_search')}</p>
             </div>
           ) : (
-            <div className="gba:grid gba:grid-cols-1 gba:gap-6 md:gba:grid-cols-2 xl:gba:grid-cols-3">
+            <div className="gba:grid gba:grid-cols-6 gba:gap-4">
               {filteredCards.map((card: HrSettingsCardProps) => (
                 <HrSettingsCard
                   key={card.title}

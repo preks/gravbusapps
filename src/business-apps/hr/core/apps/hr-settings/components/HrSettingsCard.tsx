@@ -24,38 +24,38 @@ export const HrSettingsCard = ({ title, description, icon, entries, prefixDataTe
 
   return (
     <Card
-      className="gba:shadow-md gba:rounded-xl gba:overflow-hidden gba:border gba:border-border"
+      className="gba:h-full gba:overflow-hidden gba:rounded-lg gba:border gba:border-border gba:shadow-sm"
       data-testid={dataTestId}
     >
-      <CardHeader>
-        <div className="gba:flex gba:items-center gba:gap-3">
+      <CardHeader className="gba:p-4 gba:pb-2">
+        <div className="gba:flex gba:items-center gba:gap-2">
           {icon && (
             <div
-              className="gba:flex gba:items-center gba:justify-center gba:p-2 gba:rounded-lg gba:bg-decorative-secondary gba:text-info"
+              className="gba:flex gba:items-center gba:justify-center gba:rounded-md gba:bg-decorative-secondary gba:p-1.5 gba:text-info"
               data-testid={`${dataTestId}-Title-Icon`}
             >
               {isValidElement(icon)
                 ? cloneElement(icon as ReactElement, {
-                    size: 24,
+                    size: 20,
                     className: 'gba:text-info'
                   })
                 : icon}
             </div>
           )}
-          <CardTitle className="gba:text-base gba:text-info">{title}</CardTitle>
+          <CardTitle className="gba:text-sm gba:font-semibold gba:text-info">{title}</CardTitle>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="gba:p-4 gba:pt-0">
         {typeof description === 'string' && description.trim().length > 0 && (
-          <p className="gba:mb-4 gba:text-sm gba:text-muted-foreground">{description}</p>
+          <p className="gba:mb-3 gba:text-xs gba:leading-5 gba:text-muted-foreground">{description}</p>
         )}
 
         {entries && entries.length > 0 && (
-          <div className="gba:relative gba:text-xs">
+          <div className="gba:relative gba:flex gba:flex-col gba:gap-2 gba:text-xs">
             {entries.map(entry => (
-              <div key={`${entry.url}-${entry.label}`} className="gba:mb-2">
+              <div key={`${entry.url}-${entry.label}`}>
                 {entry.disabled ? (
-                  <div className="gba:flex gba:cursor-not-allowed gba:items-center gba:justify-between gba:rounded-lg gba:bg-muted gba:px-4 gba:py-3 gba:text-muted-foreground gba:opacity-60">
+                  <div className="gba:flex gba:cursor-not-allowed gba:items-center gba:justify-between gba:rounded-md gba:bg-muted gba:px-3 gba:py-2 gba:text-muted-foreground gba:opacity-60">
                     <span className="gba:font-medium">{entry.label}</span>
                     <CaretRightIcon size={16} className="gba:text-base gba:opacity-50" />
                   </div>
@@ -63,7 +63,7 @@ export const HrSettingsCard = ({ title, description, icon, entries, prefixDataTe
                   <button
                     type="button"
                     data-testid={`${dataTestId}-Navigation-Item`}
-                    className="gba:flex gba:w-full gba:items-center gba:justify-between gba:rounded-lg gba:border gba:border-transparent gba:bg-muted gba:px-4 gba:py-3 gba:text-left gba:text-foreground gba:transition-colors hover:gba:border-info-secondary hover:gba:bg-decorative-secondary hover:gba:text-info"
+                    className="gba:flex gba:w-full gba:items-center gba:justify-between gba:rounded-md gba:border gba:border-transparent gba:bg-muted gba:px-3 gba:py-2 gba:text-left gba:text-foreground gba:transition-colors hover:gba:border-info-secondary hover:gba:bg-decorative-secondary hover:gba:text-info"
                     onClick={() => {
                       navigateTo(entry.url)
                     }}
