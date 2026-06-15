@@ -41420,9 +41420,9 @@
     ]
   },
   "hr/core/apps/hr-launcher": {
-    "bitbucketBuildNumber": 13627,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13627/",
-    "chunkJsBytes": 87778,
+    "bitbucketBuildNumber": 13654,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13654/",
+    "chunkJsBytes": 87891,
     "top": [
       {
         "kind": "bucket",
@@ -41494,8 +41494,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 12545,
-        "gzip": 3243,
+        "rendered": 12726,
+        "gzip": 3328,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/hr-launcher/components/HrAreaCard.tsx",
@@ -41625,6 +41625,19 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/common/types",
+        "rendered": 225,
+        "gzip": 133,
+        "leaves": [
+          {
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 225,
+            "gzip": 133
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/wrapped-entries/hr",
         "rendered": 152,
         "gzip": 130,
@@ -41633,19 +41646,6 @@
             "name": "src/wrapped-entries/hr/core/apps/hr-launcher.ts",
             "rendered": 152,
             "gzip": 130
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/common/types",
-        "rendered": 148,
-        "gzip": 113,
-        "leaves": [
-          {
-            "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
           }
         ]
       },
@@ -58215,9 +58215,9 @@
     ]
   },
   "hr/recruiting/apps/recruiting-manager": {
-    "bitbucketBuildNumber": 13627,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13627/",
-    "chunkJsBytes": 1305753,
+    "bitbucketBuildNumber": 13654,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13654/",
+    "chunkJsBytes": 1306025,
     "top": [
       {
         "kind": "bucket",
@@ -58312,8 +58312,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 50234,
-        "gzip": 12358,
+        "rendered": 50762,
+        "gzip": 12681,
         "leaves": [
           {
             "name": "src/business-apps/hr/recruiting/apps/recruiting-manager/views/job-candidate-view/JobCandidateView.tsx",
@@ -58379,8 +58379,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/types",
-        "rendered": 16103,
-        "gzip": 2054,
+        "rendered": 16180,
+        "gzip": 2074,
         "leaves": [
           {
             "name": "src/common/types/FlowRegistryTypes.ts",
@@ -58389,8 +58389,8 @@
           },
           {
             "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
+            "rendered": 225,
+            "gzip": 133
           }
         ]
       },
@@ -58537,15 +58537,15 @@
     ]
   },
   "hr/recruiting/apps/recruiting-portal": {
-    "bitbucketBuildNumber": 13627,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13627/",
-    "chunkJsBytes": 188316,
+    "bitbucketBuildNumber": 13654,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13654/",
+    "chunkJsBytes": 188594,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 66109,
-        "gzip": 11470,
+        "rendered": 66635,
+        "gzip": 11792,
         "leaves": [
           {
             "name": "src/business-apps/hr/recruiting/apps/recruiting-portal/components/CandidateProfileSection.tsx",
@@ -58652,8 +58652,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/types",
-        "rendered": 16103,
-        "gzip": 2054,
+        "rendered": 16180,
+        "gzip": 2074,
         "leaves": [
           {
             "name": "src/common/types/FlowRegistryTypes.ts",
@@ -58662,8 +58662,8 @@
           },
           {
             "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
+            "rendered": 225,
+            "gzip": 133
           }
         ]
       },
@@ -58823,9 +58823,9 @@
     ]
   },
   "hr/recruiting/forms/job-application-form": {
-    "bitbucketBuildNumber": 13627,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13627/",
-    "chunkJsBytes": 248205,
+    "bitbucketBuildNumber": 13654,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13654/",
+    "chunkJsBytes": 248399,
     "top": [
       {
         "kind": "bucket",
@@ -58951,13 +58951,18 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 12006,
-        "gzip": 2177,
+        "rendered": 12531,
+        "gzip": 2517,
         "leaves": [
           {
             "name": "src/business-apps/hr/recruiting/forms/job-application-form/JobApplicationForm.tsx",
             "rendered": 12006,
             "gzip": 2177
+          },
+          {
+            "name": "src/business-apps/hr/recruiting/components/RecruitingDevFeatureGate.tsx",
+            "rendered": 450,
+            "gzip": 247
           }
         ]
       },
@@ -59113,36 +59118,36 @@
       },
       {
         "kind": "bucket",
-        "name": "(src)/wrapped-entries/hr",
-        "rendered": 184,
-        "gzip": 147,
+        "name": "(src)/common/types",
+        "rendered": 225,
+        "gzip": 133,
         "leaves": [
           {
-            "name": "src/wrapped-entries/hr/recruiting/forms/job-application-form.ts",
-            "rendered": 184,
-            "gzip": 147
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 225,
+            "gzip": 133
           }
         ]
       },
       {
         "kind": "bucket",
-        "name": "(src)/common/types",
-        "rendered": 148,
-        "gzip": 113,
+        "name": "(src)/wrapped-entries/hr",
+        "rendered": 183,
+        "gzip": 151,
         "leaves": [
           {
-            "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
+            "name": "src/wrapped-entries/hr/recruiting/forms/job-application-form.ts",
+            "rendered": 183,
+            "gzip": 151
           }
         ]
       }
     ]
   },
   "hr/recruiting/forms/job-candidate-form": {
-    "bitbucketBuildNumber": 13627,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13627/",
-    "chunkJsBytes": 300151,
+    "bitbucketBuildNumber": 13654,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13654/",
+    "chunkJsBytes": 300345,
     "top": [
       {
         "kind": "bucket",
@@ -59183,8 +59188,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 69857,
-        "gzip": 11347,
+        "rendered": 70380,
+        "gzip": 11685,
         "leaves": [
           {
             "name": "src/business-apps/hr/recruiting/forms/job-candidate-form/JobCandidateForm.tsx",
@@ -59417,27 +59422,27 @@
       },
       {
         "kind": "bucket",
-        "name": "(src)/wrapped-entries/hr",
-        "rendered": 178,
-        "gzip": 146,
+        "name": "(src)/common/types",
+        "rendered": 225,
+        "gzip": 133,
         "leaves": [
           {
-            "name": "src/wrapped-entries/hr/recruiting/forms/job-candidate-form.ts",
-            "rendered": 178,
-            "gzip": 146
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 225,
+            "gzip": 133
           }
         ]
       },
       {
         "kind": "bucket",
-        "name": "(src)/common/types",
-        "rendered": 148,
-        "gzip": 113,
+        "name": "(src)/wrapped-entries/hr",
+        "rendered": 179,
+        "gzip": 149,
         "leaves": [
           {
-            "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
+            "name": "src/wrapped-entries/hr/recruiting/forms/job-candidate-form.ts",
+            "rendered": 179,
+            "gzip": 149
           }
         ]
       },
@@ -59457,9 +59462,9 @@
     ]
   },
   "hr/recruiting/forms/job-interview-form": {
-    "bitbucketBuildNumber": 13627,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13627/",
-    "chunkJsBytes": 203928,
+    "bitbucketBuildNumber": 13654,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13654/",
+    "chunkJsBytes": 204122,
     "top": [
       {
         "kind": "bucket",
@@ -59536,13 +59541,18 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 26175,
-        "gzip": 4860,
+        "rendered": 26698,
+        "gzip": 5198,
         "leaves": [
           {
             "name": "src/business-apps/hr/recruiting/forms/job-interview-form/JobInterviewForm.tsx",
             "rendered": 26175,
             "gzip": 4860
+          },
+          {
+            "name": "src/business-apps/hr/recruiting/components/RecruitingDevFeatureGate.tsx",
+            "rendered": 450,
+            "gzip": 247
           }
         ]
       },
@@ -59719,27 +59729,27 @@
       },
       {
         "kind": "bucket",
-        "name": "(src)/wrapped-entries/hr",
-        "rendered": 178,
-        "gzip": 146,
+        "name": "(src)/common/types",
+        "rendered": 225,
+        "gzip": 133,
         "leaves": [
           {
-            "name": "src/wrapped-entries/hr/recruiting/forms/job-interview-form.ts",
-            "rendered": 178,
-            "gzip": 146
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 225,
+            "gzip": 133
           }
         ]
       },
       {
         "kind": "bucket",
-        "name": "(src)/common/types",
-        "rendered": 148,
-        "gzip": 113,
+        "name": "(src)/wrapped-entries/hr",
+        "rendered": 179,
+        "gzip": 150,
         "leaves": [
           {
-            "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
+            "name": "src/wrapped-entries/hr/recruiting/forms/job-interview-form.ts",
+            "rendered": 179,
+            "gzip": 150
           }
         ]
       },
@@ -59759,9 +59769,9 @@
     ]
   },
   "hr/recruiting/forms/job-offer-form": {
-    "bitbucketBuildNumber": 13627,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13627/",
-    "chunkJsBytes": 181292,
+    "bitbucketBuildNumber": 13654,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13654/",
+    "chunkJsBytes": 181486,
     "top": [
       {
         "kind": "bucket",
@@ -59887,13 +59897,18 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 11862,
-        "gzip": 2104,
+        "rendered": 12380,
+        "gzip": 2431,
         "leaves": [
           {
             "name": "src/business-apps/hr/recruiting/forms/job-offer-form/JobOfferForm.tsx",
-            "rendered": 11862,
-            "gzip": 2104
+            "rendered": 11864,
+            "gzip": 2108
+          },
+          {
+            "name": "src/business-apps/hr/recruiting/components/RecruitingDevFeatureGate.tsx",
+            "rendered": 450,
+            "gzip": 247
           }
         ]
       },
@@ -60013,6 +60028,19 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/common/types",
+        "rendered": 225,
+        "gzip": 133,
+        "leaves": [
+          {
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 225,
+            "gzip": 133
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/wrapped-entries/hr",
         "rendered": 166,
         "gzip": 143,
@@ -60021,19 +60049,6 @@
             "name": "src/wrapped-entries/hr/recruiting/forms/job-offer-form.ts",
             "rendered": 166,
             "gzip": 143
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/common/types",
-        "rendered": 148,
-        "gzip": 113,
-        "leaves": [
-          {
-            "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
           }
         ]
       },
@@ -60053,9 +60068,9 @@
     ]
   },
   "hr/recruiting/forms/job-posting-form": {
-    "bitbucketBuildNumber": 13627,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13627/",
-    "chunkJsBytes": 240744,
+    "bitbucketBuildNumber": 13654,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13654/",
+    "chunkJsBytes": 240938,
     "top": [
       {
         "kind": "bucket",
@@ -60150,13 +60165,18 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 30123,
-        "gzip": 5707,
+        "rendered": 30644,
+        "gzip": 6043,
         "leaves": [
           {
             "name": "src/business-apps/hr/recruiting/forms/job-posting-form/JobPostingForm.tsx",
             "rendered": 30123,
             "gzip": 5707
+          },
+          {
+            "name": "src/business-apps/hr/recruiting/components/RecruitingDevFeatureGate.tsx",
+            "rendered": 450,
+            "gzip": 247
           }
         ]
       },
@@ -60338,36 +60358,36 @@
       },
       {
         "kind": "bucket",
-        "name": "(src)/wrapped-entries/hr",
-        "rendered": 172,
-        "gzip": 143,
+        "name": "(src)/common/types",
+        "rendered": 225,
+        "gzip": 133,
         "leaves": [
           {
-            "name": "src/wrapped-entries/hr/recruiting/forms/job-posting-form.ts",
-            "rendered": 172,
-            "gzip": 143
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 225,
+            "gzip": 133
           }
         ]
       },
       {
         "kind": "bucket",
-        "name": "(src)/common/types",
-        "rendered": 148,
-        "gzip": 113,
+        "name": "(src)/wrapped-entries/hr",
+        "rendered": 175,
+        "gzip": 148,
         "leaves": [
           {
-            "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
+            "name": "src/wrapped-entries/hr/recruiting/forms/job-posting-form.ts",
+            "rendered": 175,
+            "gzip": 148
           }
         ]
       }
     ]
   },
   "hr/recruiting/forms/job-request-approve-form": {
-    "bitbucketBuildNumber": 13627,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13627/",
-    "chunkJsBytes": 112943,
+    "bitbucketBuildNumber": 13654,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13654/",
+    "chunkJsBytes": 113137,
     "top": [
       {
         "kind": "bucket",
@@ -60438,6 +60458,24 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/business-apps/hr",
+        "rendered": 15351,
+        "gzip": 2440,
+        "leaves": [
+          {
+            "name": "src/business-apps/hr/recruiting/forms/job-request-approve-form/JobRequestApproveForm.tsx",
+            "rendered": 14823,
+            "gzip": 2098
+          },
+          {
+            "name": "src/business-apps/hr/recruiting/components/RecruitingDevFeatureGate.tsx",
+            "rendered": 450,
+            "gzip": 247
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/common/network",
         "rendered": 15308,
         "gzip": 4696,
@@ -60451,19 +60489,6 @@
             "name": "src/common/network/graphql/GraphQLClient.ts",
             "rendered": 2094,
             "gzip": 781
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/business-apps/hr",
-        "rendered": 14823,
-        "gzip": 2098,
-        "leaves": [
-          {
-            "name": "src/business-apps/hr/recruiting/forms/job-request-approve-form/JobRequestApproveForm.tsx",
-            "rendered": 14823,
-            "gzip": 2098
           }
         ]
       },
@@ -60583,27 +60608,27 @@
       },
       {
         "kind": "bucket",
-        "name": "(src)/wrapped-entries/hr",
-        "rendered": 194,
-        "gzip": 152,
+        "name": "(src)/common/types",
+        "rendered": 225,
+        "gzip": 133,
         "leaves": [
           {
-            "name": "src/wrapped-entries/hr/recruiting/forms/job-request-approve-form.ts",
-            "rendered": 194,
-            "gzip": 152
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 225,
+            "gzip": 133
           }
         ]
       },
       {
         "kind": "bucket",
-        "name": "(src)/common/types",
-        "rendered": 148,
-        "gzip": 113,
+        "name": "(src)/wrapped-entries/hr",
+        "rendered": 190,
+        "gzip": 157,
         "leaves": [
           {
-            "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
+            "name": "src/wrapped-entries/hr/recruiting/forms/job-request-approve-form.ts",
+            "rendered": 190,
+            "gzip": 157
           }
         ]
       },
@@ -60623,9 +60648,9 @@
     ]
   },
   "hr/recruiting/forms/job-request-form": {
-    "bitbucketBuildNumber": 13627,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13627/",
-    "chunkJsBytes": 248084,
+    "bitbucketBuildNumber": 13654,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13654/",
+    "chunkJsBytes": 248278,
     "top": [
       {
         "kind": "bucket",
@@ -60701,6 +60726,24 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/business-apps/hr",
+        "rendered": 16548,
+        "gzip": 2566,
+        "leaves": [
+          {
+            "name": "src/business-apps/hr/recruiting/forms/job-request-form/JobRequestForm.tsx",
+            "rendered": 16027,
+            "gzip": 2228
+          },
+          {
+            "name": "src/business-apps/hr/recruiting/components/RecruitingDevFeatureGate.tsx",
+            "rendered": 450,
+            "gzip": 247
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/common/components",
         "rendered": 16465,
         "gzip": 4726,
@@ -60714,19 +60757,6 @@
             "name": "src/common/components/recruiting/form-components/job-profile-select/useJobProfileSelect.ts",
             "rendered": 4566,
             "gzip": 1319
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/business-apps/hr",
-        "rendered": 16027,
-        "gzip": 2228,
-        "leaves": [
-          {
-            "name": "src/business-apps/hr/recruiting/forms/job-request-form/JobRequestForm.tsx",
-            "rendered": 16027,
-            "gzip": 2228
           }
         ]
       },
@@ -60931,23 +60961,23 @@
       },
       {
         "kind": "bucket",
-        "name": "(src)/wrapped-entries/hr",
-        "rendered": 172,
-        "gzip": 145,
+        "name": "(src)/common/types",
+        "rendered": 225,
+        "gzip": 133,
         "leaves": [
           {
-            "name": "src/wrapped-entries/hr/recruiting/forms/job-request-form.ts",
-            "rendered": 172,
-            "gzip": 145
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 225,
+            "gzip": 133
           }
         ]
       }
     ]
   },
   "hr/recruiting/forms/job-request-review-form": {
-    "bitbucketBuildNumber": 13627,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13627/",
-    "chunkJsBytes": 106515,
+    "bitbucketBuildNumber": 13654,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13654/",
+    "chunkJsBytes": 106783,
     "top": [
       {
         "kind": "bucket",
@@ -61086,13 +61116,18 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 2276,
-        "gzip": 622,
+        "rendered": 2803,
+        "gzip": 963,
         "leaves": [
           {
             "name": "src/business-apps/hr/recruiting/forms/job-request-review-form/JobRequestReviewForm.tsx",
             "rendered": 2276,
             "gzip": 622
+          },
+          {
+            "name": "src/business-apps/hr/recruiting/components/RecruitingDevFeatureGate.tsx",
+            "rendered": 450,
+            "gzip": 247
           }
         ]
       },
@@ -61163,27 +61198,27 @@
       },
       {
         "kind": "bucket",
-        "name": "(src)/wrapped-entries/hr",
-        "rendered": 191,
-        "gzip": 151,
+        "name": "(src)/common/types",
+        "rendered": 225,
+        "gzip": 133,
         "leaves": [
           {
-            "name": "src/wrapped-entries/hr/recruiting/forms/job-request-review-form.ts",
-            "rendered": 191,
-            "gzip": 151
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 225,
+            "gzip": 133
           }
         ]
       },
       {
         "kind": "bucket",
-        "name": "(src)/common/types",
-        "rendered": 148,
-        "gzip": 113,
+        "name": "(src)/wrapped-entries/hr",
+        "rendered": 188,
+        "gzip": 156,
         "leaves": [
           {
-            "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
+            "name": "src/wrapped-entries/hr/recruiting/forms/job-request-review-form.ts",
+            "rendered": 188,
+            "gzip": 156
           }
         ]
       },
@@ -61203,9 +61238,9 @@
     ]
   },
   "hr/recruiting/forms/job-request-submit-form": {
-    "bitbucketBuildNumber": 13627,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13627/",
-    "chunkJsBytes": 272308,
+    "bitbucketBuildNumber": 13654,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13654/",
+    "chunkJsBytes": 272502,
     "top": [
       {
         "kind": "bucket",
@@ -61300,13 +61335,18 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 22035,
-        "gzip": 2983,
+        "rendered": 22562,
+        "gzip": 3325,
         "leaves": [
           {
             "name": "src/business-apps/hr/recruiting/forms/job-request-submit-form/JobRequestSubmitForm.tsx",
             "rendered": 22035,
             "gzip": 2983
+          },
+          {
+            "name": "src/business-apps/hr/recruiting/components/RecruitingDevFeatureGate.tsx",
+            "rendered": 450,
+            "gzip": 247
           }
         ]
       },
@@ -61525,9 +61565,9 @@
     ]
   },
   "hr/recruiting/popups/job-application-delete-popup": {
-    "bitbucketBuildNumber": 13627,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13627/",
-    "chunkJsBytes": 107563,
+    "bitbucketBuildNumber": 13654,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13654/",
+    "chunkJsBytes": 107831,
     "top": [
       {
         "kind": "bucket",
@@ -61666,13 +61706,18 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 3427,
-        "gzip": 1023,
+        "rendered": 3971,
+        "gzip": 1362,
         "leaves": [
           {
             "name": "src/business-apps/hr/recruiting/popups/job-application-delete-popup/JobApplicationDeletePopup.tsx",
-            "rendered": 3427,
-            "gzip": 1023
+            "rendered": 3429,
+            "gzip": 1026
+          },
+          {
+            "name": "src/business-apps/hr/recruiting/components/RecruitingDevFeatureGate.tsx",
+            "rendered": 450,
+            "gzip": 247
           }
         ]
       },
@@ -61761,6 +61806,19 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/common/types",
+        "rendered": 225,
+        "gzip": 133,
+        "leaves": [
+          {
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 225,
+            "gzip": 133
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/wrapped-entries/hr",
         "rendered": 207,
         "gzip": 153,
@@ -61769,19 +61827,6 @@
             "name": "src/wrapped-entries/hr/recruiting/popups/job-application-delete-popup.ts",
             "rendered": 207,
             "gzip": 153
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/common/types",
-        "rendered": 148,
-        "gzip": 113,
-        "leaves": [
-          {
-            "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
           }
         ]
       },
@@ -61801,9 +61846,9 @@
     ]
   },
   "hr/recruiting/popups/job-application-feedback-delete-popup": {
-    "bitbucketBuildNumber": 13627,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13627/",
-    "chunkJsBytes": 97444,
+    "bitbucketBuildNumber": 13654,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13654/",
+    "chunkJsBytes": 97712,
     "top": [
       {
         "kind": "bucket",
@@ -61942,13 +61987,18 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 4800,
-        "gzip": 1341,
+        "rendered": 5364,
+        "gzip": 1690,
         "leaves": [
           {
             "name": "src/business-apps/hr/recruiting/popups/job-application-feedback-delete-popup/JobApplicationFeedbackDeletePopup.tsx",
-            "rendered": 4800,
-            "gzip": 1341
+            "rendered": 4802,
+            "gzip": 1343
+          },
+          {
+            "name": "src/business-apps/hr/recruiting/components/RecruitingDevFeatureGate.tsx",
+            "rendered": 450,
+            "gzip": 247
           }
         ]
       },
@@ -62051,13 +62101,13 @@
       {
         "kind": "bucket",
         "name": "(src)/common/types",
-        "rendered": 148,
-        "gzip": 113,
+        "rendered": 225,
+        "gzip": 133,
         "leaves": [
           {
             "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
+            "rendered": 225,
+            "gzip": 133
           }
         ]
       },
@@ -62077,9 +62127,9 @@
     ]
   },
   "hr/recruiting/popups/job-candidate-delete-popup": {
-    "bitbucketBuildNumber": 13627,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13627/",
-    "chunkJsBytes": 114740,
+    "bitbucketBuildNumber": 13654,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13654/",
+    "chunkJsBytes": 115008,
     "top": [
       {
         "kind": "bucket",
@@ -62218,13 +62268,18 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 3194,
-        "gzip": 998,
+        "rendered": 3734,
+        "gzip": 1334,
         "leaves": [
           {
             "name": "src/business-apps/hr/recruiting/popups/job-candidate-delete-popup/JobCandidateDeletePopup.tsx",
-            "rendered": 3194,
-            "gzip": 998
+            "rendered": 3196,
+            "gzip": 1000
+          },
+          {
+            "name": "src/business-apps/hr/recruiting/components/RecruitingDevFeatureGate.tsx",
+            "rendered": 450,
+            "gzip": 247
           }
         ]
       },
@@ -62313,6 +62368,19 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/common/types",
+        "rendered": 225,
+        "gzip": 133,
+        "leaves": [
+          {
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 225,
+            "gzip": 133
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/wrapped-entries/hr",
         "rendered": 201,
         "gzip": 152,
@@ -62321,19 +62389,6 @@
             "name": "src/wrapped-entries/hr/recruiting/popups/job-candidate-delete-popup.ts",
             "rendered": 201,
             "gzip": 152
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/common/types",
-        "rendered": 148,
-        "gzip": 113,
-        "leaves": [
-          {
-            "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
           }
         ]
       },
@@ -62353,9 +62408,9 @@
     ]
   },
   "hr/recruiting/popups/job-candidate-document-delete-popup": {
-    "bitbucketBuildNumber": 13627,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13627/",
-    "chunkJsBytes": 97334,
+    "bitbucketBuildNumber": 13654,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13654/",
+    "chunkJsBytes": 97602,
     "top": [
       {
         "kind": "bucket",
@@ -62494,13 +62549,18 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 4627,
-        "gzip": 1313,
+        "rendered": 5183,
+        "gzip": 1657,
         "leaves": [
           {
             "name": "src/business-apps/hr/recruiting/popups/job-candidate-document-delete-popup/JobCandidateDocumentDeletePopup.tsx",
-            "rendered": 4627,
-            "gzip": 1313
+            "rendered": 4629,
+            "gzip": 1315
+          },
+          {
+            "name": "src/business-apps/hr/recruiting/components/RecruitingDevFeatureGate.tsx",
+            "rendered": 450,
+            "gzip": 247
           }
         ]
       },
@@ -62603,13 +62663,13 @@
       {
         "kind": "bucket",
         "name": "(src)/common/types",
-        "rendered": 148,
-        "gzip": 113,
+        "rendered": 225,
+        "gzip": 133,
         "leaves": [
           {
             "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
+            "rendered": 225,
+            "gzip": 133
           }
         ]
       },
@@ -62629,9 +62689,9 @@
     ]
   },
   "hr/recruiting/popups/job-interview-cancel-popup": {
-    "bitbucketBuildNumber": 13627,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13627/",
-    "chunkJsBytes": 114955,
+    "bitbucketBuildNumber": 13654,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13654/",
+    "chunkJsBytes": 115149,
     "top": [
       {
         "kind": "bucket",
@@ -62770,13 +62830,18 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 3675,
-        "gzip": 1144,
+        "rendered": 4215,
+        "gzip": 1480,
         "leaves": [
           {
             "name": "src/business-apps/hr/recruiting/popups/job-interview-cancel-popup/JobInterviewCancelPopup.tsx",
-            "rendered": 3675,
-            "gzip": 1144
+            "rendered": 3677,
+            "gzip": 1146
+          },
+          {
+            "name": "src/business-apps/hr/recruiting/components/RecruitingDevFeatureGate.tsx",
+            "rendered": 450,
+            "gzip": 247
           }
         ]
       },
@@ -62865,6 +62930,19 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/common/types",
+        "rendered": 225,
+        "gzip": 133,
+        "leaves": [
+          {
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 225,
+            "gzip": 133
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/wrapped-entries/hr",
         "rendered": 201,
         "gzip": 153,
@@ -62873,19 +62951,6 @@
             "name": "src/wrapped-entries/hr/recruiting/popups/job-interview-cancel-popup.ts",
             "rendered": 201,
             "gzip": 153
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/common/types",
-        "rendered": 148,
-        "gzip": 113,
-        "leaves": [
-          {
-            "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
           }
         ]
       },
@@ -62905,9 +62970,9 @@
     ]
   },
   "hr/recruiting/popups/job-interview-delete-popup": {
-    "bitbucketBuildNumber": 13627,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13627/",
-    "chunkJsBytes": 101039,
+    "bitbucketBuildNumber": 13654,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13654/",
+    "chunkJsBytes": 101307,
     "top": [
       {
         "kind": "bucket",
@@ -63046,13 +63111,18 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 3166,
-        "gzip": 996,
+        "rendered": 3706,
+        "gzip": 1332,
         "leaves": [
           {
             "name": "src/business-apps/hr/recruiting/popups/job-interview-delete-popup/JobInterviewDeletePopup.tsx",
-            "rendered": 3166,
-            "gzip": 996
+            "rendered": 3168,
+            "gzip": 998
+          },
+          {
+            "name": "src/business-apps/hr/recruiting/components/RecruitingDevFeatureGate.tsx",
+            "rendered": 450,
+            "gzip": 247
           }
         ]
       },
@@ -63141,6 +63211,19 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/common/types",
+        "rendered": 225,
+        "gzip": 133,
+        "leaves": [
+          {
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 225,
+            "gzip": 133
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/wrapped-entries/hr",
         "rendered": 201,
         "gzip": 152,
@@ -63149,19 +63232,6 @@
             "name": "src/wrapped-entries/hr/recruiting/popups/job-interview-delete-popup.ts",
             "rendered": 201,
             "gzip": 152
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/common/types",
-        "rendered": 148,
-        "gzip": 113,
-        "leaves": [
-          {
-            "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
           }
         ]
       },
@@ -63181,9 +63251,9 @@
     ]
   },
   "hr/recruiting/popups/job-offer-delete-popup": {
-    "bitbucketBuildNumber": 13627,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13627/",
-    "chunkJsBytes": 99594,
+    "bitbucketBuildNumber": 13654,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13654/",
+    "chunkJsBytes": 99862,
     "top": [
       {
         "kind": "bucket",
@@ -63322,13 +63392,18 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 3014,
-        "gzip": 984,
+        "rendered": 3546,
+        "gzip": 1316,
         "leaves": [
           {
             "name": "src/business-apps/hr/recruiting/popups/job-offer-delete-popup/JobOfferDeletePopup.tsx",
-            "rendered": 3014,
-            "gzip": 984
+            "rendered": 3016,
+            "gzip": 986
+          },
+          {
+            "name": "src/business-apps/hr/recruiting/components/RecruitingDevFeatureGate.tsx",
+            "rendered": 450,
+            "gzip": 247
           }
         ]
       },
@@ -63417,6 +63492,19 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/common/types",
+        "rendered": 225,
+        "gzip": 133,
+        "leaves": [
+          {
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 225,
+            "gzip": 133
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/wrapped-entries/hr",
         "rendered": 189,
         "gzip": 150,
@@ -63425,19 +63513,6 @@
             "name": "src/wrapped-entries/hr/recruiting/popups/job-offer-delete-popup.ts",
             "rendered": 189,
             "gzip": 150
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/common/types",
-        "rendered": 148,
-        "gzip": 113,
-        "leaves": [
-          {
-            "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
           }
         ]
       },
@@ -63457,9 +63532,9 @@
     ]
   },
   "hr/recruiting/popups/job-posting-delete-popup": {
-    "bitbucketBuildNumber": 13627,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13627/",
-    "chunkJsBytes": 113146,
+    "bitbucketBuildNumber": 13654,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13654/",
+    "chunkJsBytes": 113414,
     "top": [
       {
         "kind": "bucket",
@@ -63598,13 +63673,18 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 3023,
-        "gzip": 960,
+        "rendered": 3559,
+        "gzip": 1290,
         "leaves": [
           {
             "name": "src/business-apps/hr/recruiting/popups/job-posting-delete-popup/JobPostingDeletePopup.tsx",
-            "rendered": 3023,
-            "gzip": 960
+            "rendered": 3025,
+            "gzip": 962
+          },
+          {
+            "name": "src/business-apps/hr/recruiting/components/RecruitingDevFeatureGate.tsx",
+            "rendered": 450,
+            "gzip": 247
           }
         ]
       },
@@ -63693,6 +63773,19 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/common/types",
+        "rendered": 225,
+        "gzip": 133,
+        "leaves": [
+          {
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 225,
+            "gzip": 133
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/wrapped-entries/hr",
         "rendered": 195,
         "gzip": 151,
@@ -63701,19 +63794,6 @@
             "name": "src/wrapped-entries/hr/recruiting/popups/job-posting-delete-popup.ts",
             "rendered": 195,
             "gzip": 151
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/common/types",
-        "rendered": 148,
-        "gzip": 113,
-        "leaves": [
-          {
-            "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
           }
         ]
       },
@@ -63733,9 +63813,9 @@
     ]
   },
   "hr/recruiting/popups/job-posting-publication-delete-popup": {
-    "bitbucketBuildNumber": 13627,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13627/",
-    "chunkJsBytes": 97445,
+    "bitbucketBuildNumber": 13654,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13654/",
+    "chunkJsBytes": 97713,
     "top": [
       {
         "kind": "bucket",
@@ -63874,13 +63954,18 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 4881,
-        "gzip": 1342,
+        "rendered": 5439,
+        "gzip": 1686,
         "leaves": [
           {
             "name": "src/business-apps/hr/recruiting/popups/job-posting-publication-delete-popup/JobPostingPublicationDeletePopup.tsx",
-            "rendered": 4881,
-            "gzip": 1342
+            "rendered": 4883,
+            "gzip": 1345
+          },
+          {
+            "name": "src/business-apps/hr/recruiting/components/RecruitingDevFeatureGate.tsx",
+            "rendered": 450,
+            "gzip": 247
           }
         ]
       },
@@ -63983,13 +64068,13 @@
       {
         "kind": "bucket",
         "name": "(src)/common/types",
-        "rendered": 148,
-        "gzip": 113,
+        "rendered": 225,
+        "gzip": 133,
         "leaves": [
           {
             "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
+            "rendered": 225,
+            "gzip": 133
           }
         ]
       },
@@ -64009,9 +64094,9 @@
     ]
   },
   "hr/recruiting/popups/job-request-delete-popup": {
-    "bitbucketBuildNumber": 13627,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13627/",
-    "chunkJsBytes": 117537,
+    "bitbucketBuildNumber": 13654,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13654/",
+    "chunkJsBytes": 117805,
     "top": [
       {
         "kind": "bucket",
@@ -64150,13 +64235,18 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 3022,
-        "gzip": 964,
+        "rendered": 3558,
+        "gzip": 1298,
         "leaves": [
           {
             "name": "src/business-apps/hr/recruiting/popups/job-request-delete-popup/JobRequestDeletePopup.tsx",
-            "rendered": 3022,
-            "gzip": 964
+            "rendered": 3024,
+            "gzip": 966
+          },
+          {
+            "name": "src/business-apps/hr/recruiting/components/RecruitingDevFeatureGate.tsx",
+            "rendered": 450,
+            "gzip": 247
           }
         ]
       },
@@ -64245,6 +64335,19 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/common/types",
+        "rendered": 225,
+        "gzip": 133,
+        "leaves": [
+          {
+            "name": "src/common/types/constants/FeatureHub.ts",
+            "rendered": 225,
+            "gzip": 133
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/wrapped-entries/hr",
         "rendered": 195,
         "gzip": 151,
@@ -64253,19 +64356,6 @@
             "name": "src/wrapped-entries/hr/recruiting/popups/job-request-delete-popup.ts",
             "rendered": 195,
             "gzip": 151
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/common/types",
-        "rendered": 148,
-        "gzip": 113,
-        "leaves": [
-          {
-            "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
           }
         ]
       },
@@ -64285,9 +64375,9 @@
     ]
   },
   "hr/recruiting/records/job-application-record": {
-    "bitbucketBuildNumber": 13627,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13627/",
-    "chunkJsBytes": 419681,
+    "bitbucketBuildNumber": 13654,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13654/",
+    "chunkJsBytes": 419949,
     "top": [
       {
         "kind": "bucket",
@@ -64390,8 +64480,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 18900,
-        "gzip": 4312,
+        "rendered": 19435,
+        "gzip": 4644,
         "leaves": [
           {
             "name": "src/business-apps/hr/recruiting/records/job-application-record/JobApplicationRecord.tsx",
@@ -64426,8 +64516,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/types",
-        "rendered": 16103,
-        "gzip": 2054,
+        "rendered": 16180,
+        "gzip": 2074,
         "leaves": [
           {
             "name": "src/common/types/FlowRegistryTypes.ts",
@@ -64436,8 +64526,8 @@
           },
           {
             "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
+            "rendered": 225,
+            "gzip": 133
           }
         ]
       },
@@ -64558,13 +64648,13 @@
       {
         "kind": "bucket",
         "name": "(src)/wrapped-entries/hr",
-        "rendered": 192,
-        "gzip": 148,
+        "rendered": 197,
+        "gzip": 151,
         "leaves": [
           {
             "name": "src/wrapped-entries/hr/recruiting/records/job-application-record.ts",
-            "rendered": 192,
-            "gzip": 148
+            "rendered": 197,
+            "gzip": 151
           }
         ]
       },
@@ -64584,9 +64674,9 @@
     ]
   },
   "hr/recruiting/records/job-candidate-record": {
-    "bitbucketBuildNumber": 13627,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13627/",
-    "chunkJsBytes": 437389,
+    "bitbucketBuildNumber": 13654,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13654/",
+    "chunkJsBytes": 437583,
     "top": [
       {
         "kind": "bucket",
@@ -64658,8 +64748,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 32358,
-        "gzip": 5882,
+        "rendered": 32889,
+        "gzip": 6212,
         "leaves": [
           {
             "name": "src/business-apps/hr/recruiting/records/job-candidate-record/views/home-view/HomeView.tsx",
@@ -64725,8 +64815,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/types",
-        "rendered": 16103,
-        "gzip": 2054,
+        "rendered": 16180,
+        "gzip": 2074,
         "leaves": [
           {
             "name": "src/common/types/FlowRegistryTypes.ts",
@@ -64735,8 +64825,8 @@
           },
           {
             "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
+            "rendered": 225,
+            "gzip": 133
           }
         ]
       },
@@ -64857,13 +64947,13 @@
       {
         "kind": "bucket",
         "name": "(src)/wrapped-entries/hr",
-        "rendered": 186,
-        "gzip": 146,
+        "rendered": 191,
+        "gzip": 149,
         "leaves": [
           {
             "name": "src/wrapped-entries/hr/recruiting/records/job-candidate-record.ts",
-            "rendered": 186,
-            "gzip": 146
+            "rendered": 191,
+            "gzip": 149
           }
         ]
       },
@@ -64883,9 +64973,9 @@
     ]
   },
   "hr/recruiting/records/job-posting-record": {
-    "bitbucketBuildNumber": 13627,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13627/",
-    "chunkJsBytes": 422721,
+    "bitbucketBuildNumber": 13654,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13654/",
+    "chunkJsBytes": 422989,
     "top": [
       {
         "kind": "bucket",
@@ -65006,8 +65096,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/types",
-        "rendered": 16103,
-        "gzip": 2054,
+        "rendered": 16180,
+        "gzip": 2074,
         "leaves": [
           {
             "name": "src/common/types/FlowRegistryTypes.ts",
@@ -65016,8 +65106,8 @@
           },
           {
             "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
+            "rendered": 225,
+            "gzip": 133
           }
         ]
       },
@@ -65037,8 +65127,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 13611,
-        "gzip": 3683,
+        "rendered": 14138,
+        "gzip": 4009,
         "leaves": [
           {
             "name": "src/business-apps/hr/recruiting/records/job-posting-record/views/applications-view/ApplicationsView.tsx",
@@ -65156,13 +65246,13 @@
       {
         "kind": "bucket",
         "name": "(src)/wrapped-entries/hr",
-        "rendered": 180,
-        "gzip": 144,
+        "rendered": 185,
+        "gzip": 148,
         "leaves": [
           {
             "name": "src/wrapped-entries/hr/recruiting/records/job-posting-record.ts",
-            "rendered": 180,
-            "gzip": 144
+            "rendered": 185,
+            "gzip": 148
           }
         ]
       },
@@ -88457,20 +88547,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 13648,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13648/",
-    "chunkJsBytes": 2060457,
+    "bitbucketBuildNumber": 13654,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13654/",
+    "chunkJsBytes": 2060455,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1778152,
-        "gzip": 113472,
+        "rendered": 1778153,
+        "gzip": 113563,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1778152,
-            "gzip": 113472
+            "rendered": 1778153,
+            "gzip": 113563
           }
         ]
       },
@@ -120361,7 +120451,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-15T10:32:15.270Z",
+    "generatedAt": "2026-06-15T11:08:53.064Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
