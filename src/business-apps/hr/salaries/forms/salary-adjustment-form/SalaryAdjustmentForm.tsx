@@ -1,6 +1,6 @@
 import React from 'react'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Form, Button } from 'antd'
+import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { Button } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 /**
@@ -20,11 +20,11 @@ const SalaryAdjustmentForm: React.FC<SalaryAdjustmentFormProps> = ({
   initialValues,
   isLoading = false
 }) => {
-  const [form] = Form.useForm()
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
 
-  const handleSubmit = async (values: any) => {
     if (onSubmit) {
-      await onSubmit(values)
+      await onSubmit(initialValues ?? {})
     }
   }
 
@@ -34,28 +34,24 @@ const SalaryAdjustmentForm: React.FC<SalaryAdjustmentFormProps> = ({
         {getTranslationFromI18nKeyAndLabel('salary.adjustment.form.title', 'Salary Adjustment')}
       </h2>
 
-      <Form
-        form={form}
-        layout="vertical"
-        initialValues={initialValues}
-        onFinish={handleSubmit}
+      <form
+        onSubmit={handleSubmit}
         data-testid="salary-adjustment-form"
       >
         {/* Form fields will be implemented during component conversion */}
         <div className="gba:flex gba:justify-end gba:mt-6 gba:gap-3">
-          <Button data-testid="salary-adjustment-form-cancel-button" onClick={onCancel}>
+          <Button type="button" variant="outline" data-testid="salary-adjustment-form-cancel-button" onClick={onCancel}>
             {getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
           </Button>
           <Button
-            type="primary"
-            htmlType="submit"
-            loading={isLoading}
+            type="submit"
+            disabled={isLoading}
             data-testid="salary-adjustment-form-submit-button"
           >
             {getTranslationFromI18nKeyAndLabel('common.save', 'Save')}
           </Button>
         </div>
-      </Form>
+      </form>
     </div>
   )
 }

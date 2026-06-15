@@ -1,7 +1,16 @@
 import React, { useState } from 'react'
-import { Tabs, Alert, Button } from 'antd'
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Button,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from '@newwork/nw-design-system'
 import { PlusIcon } from '@phosphor-icons/react'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useFeature } from '@/common/hooks/useFeature'
 import SalaryStatistics from '../../components/SalaryStatistics'
@@ -101,11 +110,11 @@ const SalaryAdministration: React.FC<BusinessAppContextProps> = ({ accessToken, 
         </div>
 
         <Button
-          type="primary"
-          icon={<PlusIcon size={16} />}
+          type="button"
           data-testid="add-salary-button"
           disabled={!isAdvancedSalaryEnabled}
         >
+          <PlusIcon size={16} className="gba:mr-2" />
           {getTranslationFromI18nKeyAndLabel('salary.button.add', 'Add Salary')}
         </Button>
       </div>
@@ -119,78 +128,55 @@ const SalaryAdministration: React.FC<BusinessAppContextProps> = ({ accessToken, 
 
       {/* Error handling */}
       {error && (
-        <Alert
-          message={getTranslationFromI18nKeyAndLabel('salary.error.title', 'Error')}
-          description={getTranslationFromI18nKeyAndLabel(
-            'salary.error.description',
-            'Failed to load salary data. Please try again.'
-          )}
-          type="error"
-          showIcon
-          className="gba:mb-6"
-          data-testid="salary-error-alert"
-          action={
-            <Button size="small" onClick={refetch}>
+        <Alert variant="destructive" className="gba:mb-6" data-testid="salary-error-alert">
+          <AlertTitle>{getTranslationFromI18nKeyAndLabel('salary.error.title', 'Error')}</AlertTitle>
+          <AlertDescription>
+            {getTranslationFromI18nKeyAndLabel(
+              'salary.error.description',
+              'Failed to load salary data. Please try again.'
+            )}
+          </AlertDescription>
+          <div className="gba:mt-3">
+            <Button type="button" size="sm" variant="outline" onClick={refetch} data-testid="salary-error-retry-button">
               {getTranslationFromI18nKeyAndLabel('common.retry', 'Retry')}
             </Button>
-          }
-        />
+          </div>
+        </Alert>
       )}
 
       {/* Tabs Navigation */}
-      <Tabs
-        activeKey={activeTab}
-        onChange={handleTabChange}
-        items={[
-          {
-            key: 'salaries',
-            label: getTranslationFromI18nKeyAndLabel('salary.tabs.salaries', 'Salaries'),
-            children: (
-              <div>
-                <SalarySearch
-                  onSearch={handleSearch}
-                  onFilterChange={handleFilterChange}
-                  onReset={handleReset}
-                  loading={isLoading}
-                />
-                <SalaryTable
-                  salaries={[]} // This would be populated with real data
-                  loading={isLoading}
-                  accessToken={accessToken}
-                  pagination={{ pageSize: 10 }}
-                />
-              </div>
-            )
-          },
-          {
-            key: 'components',
-            label: getTranslationFromI18nKeyAndLabel('salary.tabs.components', 'Compensation Components'),
-            children: (
-              <div>
-                <CompensationComponentsTable
-                  components={components || []}
-                  loading={isLoading}
-                  accessToken={accessToken}
-                  pagination={{ pageSize: 10 }}
-                />
-              </div>
-            )
-          },
-          {
-            key: 'history',
-            label: getTranslationFromI18nKeyAndLabel('salary.tabs.history', 'Salary History'),
-            children: (
-              <div>
-                <SalaryHistoryChart
-                  historyData={[]} // This would be populated with real data
-                  loading={isLoading}
-                />
-              </div>
-            )
-          }
-        ]}
-        data-testid="salary-tabs"
-      />
+      <Tabs value={activeTab} onValueChange={handleTabChange} data-testid="salary-tabs">
+        <TabsList className="gba:mb-4">
+          <TabsTrigger value="salaries">{getTranslationFromI18nKeyAndLabel('salary.tabs.salaries', 'Salaries')}</TabsTrigger>
+          <TabsTrigger value="components">
+            {getTranslationFromI18nKeyAndLabel('salary.tabs.components', 'Compensation Components')}
+          </TabsTrigger>
+          <TabsTrigger value="history">{getTranslationFromI18nKeyAndLabel('salary.tabs.history', 'Salary History')}</TabsTrigger>
+        </TabsList>
+        <TabsContent value="salaries">
+          <SalarySearch onSearch={handleSearch} onFilterChange={handleFilterChange} onReset={handleReset} loading={isLoading} />
+          <SalaryTable
+            salaries={[]} // This would be populated with real data
+            loading={isLoading}
+            accessToken={accessToken}
+            pagination={{ pageSize: 10 }}
+          />
+        </TabsContent>
+        <TabsContent value="components">
+          <CompensationComponentsTable
+            components={components || []}
+            loading={isLoading}
+            accessToken={accessToken}
+            pagination={{ pageSize: 10 }}
+          />
+        </TabsContent>
+        <TabsContent value="history">
+          <SalaryHistoryChart
+            historyData={[]} // This would be populated with real data
+            loading={isLoading}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

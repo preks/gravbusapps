@@ -1,5 +1,12 @@
 import React from 'react'
-import { Select, Space, Button } from 'antd'
+import {
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@newwork/nw-design-system'
 import { MagnifyingGlassIcon, FunnelIcon, ArrowsClockwiseIcon } from '@phosphor-icons/react'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import { SalaryType, PaymentFrequency } from '../types/salaryTypes'
@@ -43,6 +50,19 @@ const SalarySearch: React.FC<SalarySearchProps> = ({ onSearch, onFilterChange, o
     onReset()
   }
 
+  const handleSalaryTypeChange = (value: string) => {
+    handleFilterChange({ salaryType: value === 'all' ? undefined : (value as SalaryType) })
+  }
+
+  const handlePaymentFrequencyChange = (value: string) => {
+    handleFilterChange({ paymentFrequency: value === 'all' ? undefined : (value as PaymentFrequency) })
+  }
+
+  const handleStatusChange = (value: string) => {
+    const isActive = value === 'all' ? undefined : value === 'active'
+    handleFilterChange({ isActive })
+  }
+
   return (
     <div
       data-testid="salary-search-container"
@@ -61,75 +81,78 @@ const SalarySearch: React.FC<SalarySearchProps> = ({ onSearch, onFilterChange, o
         />
       </div>
 
-      <Space wrap>
+      <div className="gba:flex gba:flex-wrap gba:gap-2">
         <Select
-          placeholder={getTranslationFromI18nKeyAndLabel('salary.filter.type', 'Salary Type')}
-          onChange={value => handleFilterChange({ salaryType: value })}
-          value={filters.salaryType}
-          allowClear
-          style={{ width: 140 }}
-          data-testid="salary-type-filter"
+          value={filters.salaryType ?? 'all'}
+          onValueChange={handleSalaryTypeChange}
           disabled={loading}
         >
-          <Select.Option value={SalaryType.MONTHLY}>
-            {getTranslationFromI18nKeyAndLabel('salary.type.monthly', 'Monthly')}
-          </Select.Option>
-          <Select.Option value={SalaryType.HOURLY}>
-            {getTranslationFromI18nKeyAndLabel('salary.type.hourly', 'Hourly')}
-          </Select.Option>
+          <SelectTrigger className="gba:w-36" data-testid="salary-type-filter">
+            <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('salary.filter.type', 'Salary Type')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{getTranslationFromI18nKeyAndLabel('common.all', 'All')}</SelectItem>
+            <SelectItem value={SalaryType.MONTHLY}>
+              {getTranslationFromI18nKeyAndLabel('salary.type.monthly', 'Monthly')}
+            </SelectItem>
+            <SelectItem value={SalaryType.HOURLY}>
+              {getTranslationFromI18nKeyAndLabel('salary.type.hourly', 'Hourly')}
+            </SelectItem>
+          </SelectContent>
         </Select>
 
         <Select
-          placeholder={getTranslationFromI18nKeyAndLabel('salary.filter.frequency', 'Frequency')}
-          onChange={value => handleFilterChange({ paymentFrequency: value })}
-          value={filters.paymentFrequency}
-          allowClear
-          style={{ width: 140 }}
-          data-testid="salary-frequency-filter"
+          value={filters.paymentFrequency ?? 'all'}
+          onValueChange={handlePaymentFrequencyChange}
           disabled={loading}
         >
-          {Object.values(PaymentFrequency).map(frequency => (
-            <Select.Option key={frequency} value={frequency}>
-              {frequency.replace('_', ' ')}
-            </Select.Option>
-          ))}
+          <SelectTrigger className="gba:w-36" data-testid="salary-frequency-filter">
+            <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('salary.filter.frequency', 'Frequency')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{getTranslationFromI18nKeyAndLabel('common.all', 'All')}</SelectItem>
+            {Object.values(PaymentFrequency).map(frequency => (
+              <SelectItem key={frequency} value={frequency}>
+                {frequency.replace('_', ' ')}
+              </SelectItem>
+            ))}
+          </SelectContent>
         </Select>
 
-        <Select
-          placeholder={getTranslationFromI18nKeyAndLabel('salary.filter.status', 'Status')}
-          onChange={value => handleFilterChange({ isActive: value })}
-          value={filters.isActive}
-          allowClear
-          style={{ width: 140 }}
-          data-testid="salary-status-filter"
-          disabled={loading}
-        >
-          <Select.Option value={true}>
-            {getTranslationFromI18nKeyAndLabel('salary.status.active', 'Active')}
-          </Select.Option>
-          <Select.Option value={false}>
-            {getTranslationFromI18nKeyAndLabel('salary.status.inactive', 'Inactive')}
-          </Select.Option>
+        <Select value={filters.isActive === undefined ? 'all' : filters.isActive ? 'active' : 'inactive'} onValueChange={handleStatusChange} disabled={loading}>
+          <SelectTrigger className="gba:w-36" data-testid="salary-status-filter">
+            <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('salary.filter.status', 'Status')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{getTranslationFromI18nKeyAndLabel('common.all', 'All')}</SelectItem>
+            <SelectItem value="active">{getTranslationFromI18nKeyAndLabel('salary.status.active', 'Active')}</SelectItem>
+            <SelectItem value="inactive">
+              {getTranslationFromI18nKeyAndLabel('salary.status.inactive', 'Inactive')}
+            </SelectItem>
+          </SelectContent>
         </Select>
 
         <Button
-          icon={<FunnelIcon />}
+          type="button"
           onClick={() => onFilterChange(filters)}
           data-testid="salary-apply-filters-button"
           disabled={loading}
         >
+          <FunnelIcon size={16} className="gba:mr-2" />
           {getTranslationFromI18nKeyAndLabel('salary.filter.apply', 'Apply')}
         </Button>
 
         <Button
-          icon={<ArrowsClockwiseIcon size={16} />}
+          type="button"
+          variant="outline"
           onClick={handleReset}
           data-testid="salary-reset-filters-button"
           disabled={loading}
         >
+          <ArrowsClockwiseIcon size={16} className="gba:mr-2" />
           {getTranslationFromI18nKeyAndLabel('salary.filter.reset', 'Reset')}
         </Button>
-      </Space>
+      </div>
     </div>
   )
 }
