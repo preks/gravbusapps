@@ -1,4 +1,7 @@
 import JobApplicationRecord from './JobApplicationRecord'
+import { withRecruitingDevFeatureGate } from '../../components/RecruitingDevFeatureGate'
 
-export { JobApplicationRecord }
-export default JobApplicationRecord
+const GatedJobApplicationRecord = withRecruitingDevFeatureGate(JobApplicationRecord)
+
+export { GatedJobApplicationRecord as JobApplicationRecord }
+export default GatedJobApplicationRecord

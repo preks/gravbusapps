@@ -1,3 +1,6 @@
-export { JobCandidateDocumentDeletePopup } from './JobCandidateDocumentDeletePopup'
-export { JobCandidateDocumentDeletePopup as default } from './JobCandidateDocumentDeletePopup'
+import { JobCandidateDocumentDeletePopup as JobCandidateDocumentDeletePopupComponent } from './JobCandidateDocumentDeletePopup'
+import { withRecruitingDevFeatureGate } from '../../components/RecruitingDevFeatureGate'
+
+export const JobCandidateDocumentDeletePopup = withRecruitingDevFeatureGate(JobCandidateDocumentDeletePopupComponent)
+export default JobCandidateDocumentDeletePopup
 export type { JobCandidateDocumentDeletePopupProps } from './JobCandidateDocumentDeletePopup'

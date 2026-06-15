@@ -1,5 +1,7 @@
 import { useCallback } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 import { hrAreas } from './utils/hrAreas'
 import { HrAreaCard } from './components/HrAreaCard'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -7,6 +9,9 @@ import { UsersThreeIcon } from '@phosphor-icons/react'
 
 const HrLauncher: React.FC<BusinessAppContextProps> = props => {
   void props
+
+  const isDevEnabled = useFeature<boolean>(Feature.Dev.Enabled.Key)
+  const visibleHrAreas = hrAreas.filter(area => isDevEnabled === true || area.id !== 'recruitment-onboarding')
 
   const handleNavigate = useCallback((path?: string) => {
     if (!path) return
@@ -31,7 +36,7 @@ const HrLauncher: React.FC<BusinessAppContextProps> = props => {
         </div>
 
         <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:md:grid-cols-2 gba:xl:grid-cols-3">
-          {hrAreas.map(area => (
+          {visibleHrAreas.map(area => (
             <HrAreaCard
               key={area.id}
               title={area.title}
