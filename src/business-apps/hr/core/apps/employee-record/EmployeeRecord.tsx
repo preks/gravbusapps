@@ -502,6 +502,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
                       userInfo={userInfo}
                       isSelfView={isSelfView}
                       changeLogTabFeatureFlag={changeLogFeatureFlag as boolean}
+                      documentsTabFeatureFlag={devFeatureFlag === true}
                       hasHrNotesAccess={hasHrNotesAccess}
                       scopePermissionLoading={scopePermissionLoading || employeeRecordHrBackoffice.loading}
                       employeeRecordHrBackoffice={employeeRecordHrBackoffice}
