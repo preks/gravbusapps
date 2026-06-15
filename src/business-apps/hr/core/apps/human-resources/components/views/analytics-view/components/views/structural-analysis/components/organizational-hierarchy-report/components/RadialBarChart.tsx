@@ -1,5 +1,16 @@
 import React, { useState, useMemo } from 'react'
-import { Card, Alert, Spin } from 'antd'
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Button,
+  Card,
+  Icon,
+  KpiCardData,
+  SectionKpiCards,
+  Spinner,
+  useTranslation
+} from '@newwork/nw-design-system'
 import {
   ArrowsClockwiseIcon,
   UsersIcon,
@@ -23,7 +34,6 @@ import {
 } from 'recharts'
 import { SunburstVisualizationProps } from '../types/hierarchyTypes'
 import { AlternativeViewDatasetRow, ViewMode } from '../hooks/useHierarchyData'
-import { useTranslation, SectionKpiCards, KpiCardData, Icon, Button } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import {
   exportTableToExcel,
@@ -460,26 +470,23 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
         data-testid="OrganizationalHierarchyReport-RadialBarChart-Loading"
         className="gba:flex gba:justify-center gba:items-center gba:min-h-96"
       >
-        <Spin size="large" />
+        <Spinner />
       </div>
     )
   }
 
   if (error) {
     return (
-      <Alert
-        data-testid="OrganizationalHierarchyReport-RadialBarChart-Error"
-        message={t('hr-analytics-error-loading-hierarchy-data')}
-        description={error}
-        type="error"
-        showIcon
-        action={
+      <Alert variant="destructive" data-testid="OrganizationalHierarchyReport-RadialBarChart-Error">
+        <AlertTitle>{t('hr-analytics-error-loading-hierarchy-data')}</AlertTitle>
+        <AlertDescription>{error}</AlertDescription>
+        <div className="gba:mt-3">
           <Button size="sm" onClick={onRefresh}>
             <ArrowsClockwiseIcon size={16} className="gba:mr-1" />
             {t('common-retry')}
           </Button>
-        }
-      />
+        </div>
+      </Alert>
     )
   }
 
@@ -548,14 +555,12 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
 
       {/* Main Chart Visualization */}
       <Card
-        className={STRUCTURAL_ANALYSIS_CHART_SURFACE_CLASS}
-        title={
-          <div className="gba:flex gba:items-center">
-            <ChartBarIcon size={16} className="gba:mr-2" />
-            {t('hr-analytics-organizational-hierarchy')} - {byViewModeLabel(viewMode, t)}
-          </div>
-        }
+        className={`gba:p-4 ${STRUCTURAL_ANALYSIS_CHART_SURFACE_CLASS}`}
       >
+        <div className="gba:mb-4 gba:flex gba:items-center gba:font-semibold">
+          <ChartBarIcon size={16} className="gba:mr-2" />
+          {t('hr-analytics-organizational-hierarchy')} - {byViewModeLabel(viewMode, t)}
+        </div>
         {alternativeChart.data.length > 0 && (
           <div className="gba:pt-2">
             <div className="gba:h-[420px]">
@@ -586,9 +591,7 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
           </div>
         )}
 
-        {alternativeChart.data.length === 0 && (
-          <Alert message={t('hr-analytics-no-data-available')} type="info" showIcon />
-        )}
+        {alternativeChart.data.length === 0 && <Alert>{t('hr-analytics-no-data-available')}</Alert>}
       </Card>
 
       <AnalyticsDataTable

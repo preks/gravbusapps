@@ -1,13 +1,16 @@
 import React from 'react'
-import { Typography, Table, Tag, List, Avatar } from 'antd'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts'
 import { UserIcon, SirenIcon } from '@phosphor-icons/react'
 import { ReportingChainData, ReportingChainSummary } from '../types/structuralTypes'
-import { useTranslation, SectionKpiCards, type KpiCardData } from '@newwork/nw-design-system'
+import { Badge, Card, TableCell, TableRow, type KpiCardData, useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
-import { STRUCTURAL_ANALYSIS_CHART_SURFACE_CLASS } from '../../../shared/analyticsChartSurfaceStyles'
-
-const { Text } = Typography
+import {
+  StructuralAnalysisChartSurface,
+  StructuralAnalysisKpiSection,
+  StructuralAnalysisSection,
+  StructuralAnalysisTableSection
+} from './StructuralAnalysisSection'
+import { calculateKpiShareProgress } from '../utils/structuralAnalysisKpis'
 
 interface ReportingChainAnalysisProps {
   chains: ReportingChainData[]
@@ -26,7 +29,7 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
   const minChainLength = Number.isFinite(summary.minChainLength) ? summary.minChainLength : 0
   const bottlenecksCount = Array.isArray(summary.bottlenecks) ? summary.bottlenecks.length : 0
   const chainTotal = Array.isArray(chains) ? chains.length : 0
-  const bottleneckPercent = chainTotal > 0 ? Math.round((bottlenecksCount / chainTotal) * 100) : 0
+  const bottleneckProgress = calculateKpiShareProgress(bottlenecksCount, chainTotal)
 
   const summaryCards: KpiCardData[] = [
     {
@@ -51,99 +54,40 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
       id: 'reporting-chain-bottlenecks',
       title: t('hr-analytics-bottlenecks-identified'),
       value: bottlenecksCount,
-      footer: `${bottleneckPercent}% ${t('hr-analytics-of')} ${t('hr-analytics-reporting-chains').toLowerCase()}`,
+      footer: `${bottleneckProgress.roundedPercentage}% ${t('hr-analytics-of')} ${t('hr-analytics-reporting-chains').toLowerCase()}`,
       progress: {
         label: `${t('hr-analytics-of')} ${t('hr-analytics-reporting-chains').toLowerCase()}`,
-        target: Math.max(chainTotal, 1),
-        value: bottleneckPercent
+        target: bottleneckProgress.progressTarget,
+        value: bottleneckProgress.roundedPercentage
       }
     }
   ]
 
-  // Table columns for reporting chains
-  const chainColumns = [
-    {
-      title: t('hr-analytics-top-org-unit'),
-      dataIndex: 'topManager',
-      key: 'topManager',
-      width: 200,
-      render: (text: string) => <Text strong>{text}</Text>
-    },
-    {
-      title: t('hr-analytics-levels-title'),
-      dataIndex: 'levels',
-      key: 'levels',
-      width: 100,
-      align: 'center' as const,
-      render: (levels: number) => {
-        let color = 'green'
-        if (levels > 6) color = 'red'
-        else if (levels > 4) color = 'orange'
-
-        return (
-          <Tag color={color}>
-            {levels} {t('hr-analytics-levels')}
-          </Tag>
-        )
-      }
-    },
-    {
-      title: t('hr-analytics-reporting-chains'),
-      dataIndex: 'chainPath',
-      key: 'chainPath',
-      width: 420,
-      render: (path?: string) => {
-        const displayPath = path?.trim() ?? ''
-        if (displayPath.length === 0) {
-          return <Text className="gba:text-muted-foreground">-</Text>
-        }
-        return (
-          <Text className="gba:text-xs gba:text-muted-foreground" title={displayPath}>
-            {displayPath}
-          </Text>
-        )
-      }
-    },
-    {
-      title: t('hr-analytics-bottlenecks'),
-      dataIndex: 'bottlenecks',
-      key: 'bottlenecks',
-      render: (bottlenecks: string[]) => (
-        <div className="gba:max-w-[200px]">
-          {bottlenecks.length > 0 ? (
-            <div>
-              {bottlenecks.slice(0, 2).map((bottleneck, index) => (
-                <div key={index} className="gba:text-xs gba:text-muted-foreground">
-                  {bottleneck}
-                </div>
-              ))}
-              {bottlenecks.length > 2 && (
-                <div className="gba:text-xs gba:text-muted-foreground">
-                  +{bottlenecks.length - 2} {t('hr-analytics-more')}
-                </div>
-              )}
-            </div>
-          ) : (
-            <Text className="gba:text-muted-foreground">{t('hr-analytics-none')}</Text>
-          )}
-        </div>
+  const renderLevelBadge = (levels: number) => {
+    if (levels > 6)
+      return (
+        <Badge variant="destructive">
+          {levels} {t('hr-analytics-levels')}
+        </Badge>
       )
-    },
-    {
-      title: t('hr-analytics-efficiency'),
-      dataIndex: 'efficiency',
-      key: 'efficiency',
-      width: 100,
-      align: 'center' as const,
-      render: (efficiency: number) => {
-        let color = 'green'
-        if (efficiency < 60) color = 'red'
-        else if (efficiency < 80) color = 'orange'
+    if (levels > 4)
+      return (
+        <Badge variant="warning">
+          {levels} {t('hr-analytics-levels')}
+        </Badge>
+      )
+    return (
+      <Badge variant="success">
+        {levels} {t('hr-analytics-levels')}
+      </Badge>
+    )
+  }
 
-        return <Tag color={color}>{efficiency}%</Tag>
-      }
-    }
-  ]
+  const renderEfficiencyBadge = (efficiency: number) => {
+    if (efficiency < 60) return <Badge variant="destructive">{efficiency}%</Badge>
+    if (efficiency < 80) return <Badge variant="warning">{efficiency}%</Badge>
+    return <Badge variant="success">{efficiency}%</Badge>
+  }
 
   // Prepare data for chain distribution chart
   const distributionData = summary.chainDistribution.map(item => ({
@@ -151,23 +95,20 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
     count: item.count,
     percentage: item.percentage
   }))
+  const tableHeaders = [
+    { id: 'top-org-unit', label: t('hr-analytics-top-org-unit') },
+    { id: 'levels', label: t('hr-analytics-levels-title') },
+    { id: 'reporting-chains', label: t('hr-analytics-reporting-chains') },
+    { id: 'bottlenecks', label: t('hr-analytics-bottlenecks') },
+    { id: 'efficiency', label: t('hr-analytics-efficiency') }
+  ]
 
   return (
     <div data-testid={`${prefixDataTestId}-ReportingChainAnalysis`} className="gba:grid gba:gap-6">
-      {/* Summary Statistics */}
-      <div>
-        <h3 className="gba:m-0 gba:mb-6 gba:text-foreground gba:text-xl gba:font-semibold">
-          {t('hr-analytics-reporting-chain-summary')}
-        </h3>
-        <SectionKpiCards cards={summaryCards} />
-      </div>
+      <StructuralAnalysisKpiSection title={t('hr-analytics-reporting-chain-summary')} cards={summaryCards} />
 
-      {/* Chain Distribution Chart */}
-      <div>
-        <h3 className="gba:m-0 gba:mb-6 gba:text-foreground gba:text-xl gba:font-semibold">
-          {t('hr-analytics-chain-length-distribution')}
-        </h3>
-        <div className={`gba:border gba:rounded-lg gba:shadow-sm gba:p-4 ${STRUCTURAL_ANALYSIS_CHART_SURFACE_CLASS}`}>
+      <StructuralAnalysisSection title={t('hr-analytics-chain-length-distribution')}>
+        <StructuralAnalysisChartSurface>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart
               data={distributionData}
@@ -181,65 +122,80 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
               <Bar dataKey="count" fill="var(--nw-chart-1)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </div>
-      </div>
+        </StructuralAnalysisChartSurface>
+      </StructuralAnalysisSection>
 
-      {/* Bottlenecks Analysis */}
-      <div>
-        <h3 className="gba:m-0 gba:mb-6 gba:text-foreground gba:text-xl gba:font-semibold gba:flex gba:items-center">
-          <SirenIcon size={16} className="gba:mr-2 gba:text-warning" />
-          {t('hr-analytics-bottlenecks')}
-        </h3>
-        <p className="gba:mb-4 gba:text-sm gba:text-muted-foreground">{t('hr-analytics-bottlenecks-description')}</p>
-        <List
-          dataSource={summary.bottlenecks}
-          renderItem={bottleneck => (
-            <List.Item>
-              <List.Item.Meta
-                avatar={<Avatar icon={<UserIcon size={16} />} />}
-                title={bottleneck.managerName}
-                description={
-                  <div>
-                    <Text>
-                      {bottleneck.chainsThroughManager} {t('hr-analytics-reporting-chains')}
-                    </Text>
-                    <br />
-                    <Tag color="var(--nw-warning)">
-                      {t('hr-analytics-impact-score')}: {bottleneck.impact}
-                    </Tag>
+      <StructuralAnalysisSection
+        title={t('hr-analytics-bottlenecks')}
+        description={t('hr-analytics-bottlenecks-description')}
+        icon={<SirenIcon size={16} className="gba:mr-2 gba:text-warning" />}
+      >
+        {summary.bottlenecks.length > 0 ? (
+          <div className="gba:grid gba:gap-3">
+            {summary.bottlenecks.map(bottleneck => (
+              <Card key={bottleneck.managerName} className="gba:p-4">
+                <div className="gba:flex gba:items-start gba:gap-3">
+                  <div className="gba:flex gba:h-9 gba:w-9 gba:items-center gba:justify-center gba:rounded-full gba:bg-muted">
+                    <UserIcon size={16} />
                   </div>
-                }
-              />
-            </List.Item>
-          )}
-          locale={{ emptyText: t('hr-analytics-no-significant-bottlenecks') }}
-        />
-      </div>
+                  <div>
+                    <div className="gba:font-semibold">{bottleneck.managerName}</div>
+                    <div className="gba:text-sm gba:text-muted-foreground">
+                      {bottleneck.chainsThroughManager} {t('hr-analytics-reporting-chains')}
+                    </div>
+                    <Badge variant="warning" className="gba:mt-2">
+                      {t('hr-analytics-impact-score')}: {bottleneck.impact}
+                    </Badge>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <p className="gba:text-sm gba:text-muted-foreground">{t('hr-analytics-no-significant-bottlenecks')}</p>
+        )}
+      </StructuralAnalysisSection>
 
-      {/* Detailed Reporting Chains Table */}
-      <div>
-        <h3 className="gba:m-0 gba:mb-6 gba:text-foreground gba:text-xl gba:font-semibold">
-          {t('hr-analytics-detailed-reporting-chains')}
-        </h3>
-        <Table
-          dataSource={chains}
-          columns={chainColumns}
-          rowKey="chainId"
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            showTotal: (total, range) =>
-              `${range[0]}-${range[1]} ${t('hr-analytics-of')} ${total} ${t('hr-analytics-reporting-chains')}`
-          }}
-          size="small"
-          scroll={{ x: 1000 }}
-          rowClassName={record => {
-            if (record.levels > 6) return 'gba:bg-destructive-secondary/40'
-            if (record.levels > 4) return 'gba:bg-warning-secondary/40'
-            return ''
-          }}
-        />
-      </div>
+      <StructuralAnalysisTableSection title={t('hr-analytics-detailed-reporting-chains')} headers={tableHeaders}>
+        {chains.map(chain => {
+          const displayPath = chain.chainPath?.trim() ?? ''
+
+          return (
+            <TableRow key={chain.chainId}>
+              <TableCell className="gba:font-semibold">{chain.topManager}</TableCell>
+              <TableCell>{renderLevelBadge(chain.levels)}</TableCell>
+              <TableCell>
+                {displayPath.length > 0 ? (
+                  <span className="gba:text-xs gba:text-muted-foreground" title={displayPath}>
+                    {displayPath}
+                  </span>
+                ) : (
+                  <span className="gba:text-muted-foreground">-</span>
+                )}
+              </TableCell>
+              <TableCell>
+                {chain.bottlenecks.length > 0 ? (
+                  <div className="gba:max-w-52">
+                    {chain.bottlenecks.slice(0, 2).map(bottleneck => (
+                      <div key={`${chain.chainId}-${bottleneck}`} className="gba:text-xs gba:text-muted-foreground">
+                        {bottleneck}
+                      </div>
+                    ))}
+                    {chain.bottlenecks.length > 2 && (
+                      <div className="gba:text-xs gba:text-muted-foreground">
+                        +{chain.bottlenecks.length - 2} {t('hr-analytics-more')}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <span className="gba:text-muted-foreground">{t('hr-analytics-none')}</span>
+                )}
+              </TableCell>
+              <TableCell>{renderEfficiencyBadge(chain.efficiency)}</TableCell>
+            </TableRow>
+          )
+        })}
+      </StructuralAnalysisTableSection>
     </div>
   )
 }
