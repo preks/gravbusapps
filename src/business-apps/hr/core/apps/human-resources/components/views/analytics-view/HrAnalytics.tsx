@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Alert, Button } from 'antd'
-import { PageLayout } from '@newwork/nw-design-system'
+import { Alert, AlertDescription, AlertTitle, Button, PageLayout } from '@newwork/nw-design-system'
 import {
   GaugeIcon,
   UserIcon,
@@ -127,18 +126,15 @@ export const HrAnalytics: React.FC<BusinessAppContextProps> = context => {
     if (error) {
       return (
         <div className="gba:p-6">
-          <Alert
-            message={`Error Loading ${viewName}`}
-            description={error}
-            type="error"
-            showIcon
-            action={
-              <Button size="small" onClick={() => setError(null)} type="primary">
+          <Alert variant="destructive" className="gba:shadow-sm">
+            <AlertTitle>{`Error Loading ${viewName}`}</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+            <div className="gba:mt-3">
+              <Button type="button" size="sm" variant="outline" onClick={() => setError(null)}>
                 Retry
               </Button>
-            }
-            className="gba:shadow-sm"
-          />
+            </div>
+          </Alert>
         </div>
       )
     }

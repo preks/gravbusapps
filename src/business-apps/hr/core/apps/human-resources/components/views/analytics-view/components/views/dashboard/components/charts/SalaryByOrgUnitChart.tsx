@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react'
-import { Card, useTranslation } from '@newwork/nw-design-system'
-import { Typography, Spin, Empty, Tooltip, Statistic } from 'antd'
+import { Card, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { InfoIcon, TrendUpIcon, UsersIcon } from '@phosphor-icons/react'
 import {
   BarChart,
@@ -16,8 +15,6 @@ import {
 } from 'recharts'
 import { OrganizationalUnitSalary } from '../../../../../hooks/useSalaryByOrgUnit'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
-
-const { Title, Text } = Typography
 
 interface SalaryByOrgUnitChartProps {
   data: OrganizationalUnitSalary[]
@@ -137,8 +134,8 @@ const SalaryByOrgUnitChart: React.FC<SalaryByOrgUnitChartProps> = ({ data, loadi
   if (loading) {
     chartStateContent = (
       <div className="gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-muted gba:rounded-lg gba:border">
-        <Spin size="large" data-testid="salary-by-org-unit-chart-loading" />
-        <Text className="gba:text-muted-foreground gba:mt-4">{t('hr-analytics-loading-data')}</Text>
+        <Spinner data-testid="salary-by-org-unit-chart-loading" />
+        <span className="gba:text-muted-foreground gba:mt-4">{t('hr-analytics-loading-data')}</span>
       </div>
     )
   } else if (error) {
@@ -166,30 +163,23 @@ const SalaryByOrgUnitChart: React.FC<SalaryByOrgUnitChartProps> = ({ data, loadi
         >
           {t('hr-analytics-error-message')}
         </div>
-        <Text
+        <span
           className="gba:text-muted-foreground gba:text-center gba:max-w-md"
           data-testid="salary-by-org-unit-chart-error-details"
         >
           {error.message}
-        </Text>
+        </span>
       </div>
     )
   } else if (data.length === 0) {
     chartStateContent = (
       <div className="gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-muted gba:rounded-lg gba:border">
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          imageStyle={{ height: 80 }}
-          description={
-            <div className="gba:flex gba:flex-col gba:items-center">
-              <Text className="gba:text-muted-foreground gba:font-medium">{t('hr-analytics-no-data')}</Text>
-              <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">
-                {t('hr-analytics-no-data-description')}
-              </Text>
-            </div>
-          }
-          data-testid="salary-by-org-unit-chart-empty"
-        />
+        <div className="gba:flex gba:flex-col gba:items-center" data-testid="salary-by-org-unit-chart-empty">
+          <span className="gba:text-muted-foreground gba:font-medium">{t('hr-analytics-no-data')}</span>
+          <span className="gba:text-muted-foreground gba:text-sm gba:mt-1">
+            {t('hr-analytics-no-data-description')}
+          </span>
+        </div>
       </div>
     )
   } else if (chartData.length > 0) {
@@ -265,7 +255,7 @@ const SalaryByOrgUnitChart: React.FC<SalaryByOrgUnitChartProps> = ({ data, loadi
   } else {
     chartStateContent = (
       <div className="gba:h-full gba:flex gba:items-center gba:justify-center gba:bg-muted gba:rounded-lg gba:p-6 gba:border">
-        <Text className="gba:text-muted-foreground">{t('hr-analytics-no-data')}</Text>
+        <span className="gba:text-muted-foreground">{t('hr-analytics-no-data')}</span>
       </div>
     )
   }
@@ -279,16 +269,15 @@ const SalaryByOrgUnitChart: React.FC<SalaryByOrgUnitChartProps> = ({ data, loadi
       <div className="gba:border-b gba:border-border gba:p-6 gba:bg-card">
         <div className="gba:flex gba:justify-between gba:items-center gba:flex-wrap">
           <div className="gba:flex gba:items-center">
-            <Title
-              level={4}
+            <h4
               className="gba:m-0 gba:text-lg gba:font-medium gba:text-foreground"
               data-testid="salary-by-org-unit-chart-title"
             >
               {t('hr-analytics-salary-by-org-unit')}
-            </Title>
-            <Tooltip title={t('hr-analytics-salary-by-org-unit-tooltip')}>
+            </h4>
+            <span title={t('hr-analytics-salary-by-org-unit-tooltip')}>
               <InfoIcon size={16} className="gba:ml-2 gba:text-muted-foreground" />
-            </Tooltip>
+            </span>
           </div>
         </div>
       </div>
@@ -298,25 +287,23 @@ const SalaryByOrgUnitChart: React.FC<SalaryByOrgUnitChartProps> = ({ data, loadi
           className="gba:flex-1 gba:min-w-[200px] gba:shadow-sm gba:rounded-lg gba:border-border gba:transition-all gba:duration-300 hover:gba:shadow-md hover:gba:border-primary gba:p-4"
           data-testid="salary-by-org-unit-total-employees"
         >
-          <Statistic
-            title={t('hr-analytics-total-employees')}
-            value={totalEmployees}
-            prefix={<UsersIcon size={16} />}
-            className="gba:text-foreground"
-          />
+          <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
+            <UsersIcon size={16} />
+            {t('hr-analytics-total-employees')}
+          </div>
+          <div className="gba:mt-2 gba:text-2xl gba:font-semibold gba:text-foreground">{totalEmployees}</div>
         </Card>
         <Card
           className="gba:flex-1 gba:min-w-[200px] gba:shadow-sm gba:rounded-lg gba:border-border gba:transition-all gba:duration-300 hover:gba:shadow-md hover:gba:border-primary gba:p-4"
           data-testid="salary-by-org-unit-highest-avg-salary"
         >
-          <Statistic
-            title={t('hr-analytics-highest-salary')}
-            value={highestSalary}
-            precision={0}
-            prefix={<TrendUpIcon size={16} />}
-            formatter={(value: number | string) => `$${Number(value).toLocaleString()}`}
-            valueStyle={{ color: 'var(--nw-info)' }}
-          />
+          <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
+            <TrendUpIcon size={16} />
+            {t('hr-analytics-highest-salary')}
+          </div>
+          <div className="gba:mt-2 gba:text-2xl gba:font-semibold gba:text-info">
+            ${highestSalary.toLocaleString()}
+          </div>
         </Card>
       </div>
 

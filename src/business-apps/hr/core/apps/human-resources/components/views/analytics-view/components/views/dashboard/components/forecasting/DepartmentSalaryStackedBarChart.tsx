@@ -1,11 +1,20 @@
 import React from 'react'
-import { Card } from 'antd'
+import { Card, CardContent, CardHeader, CardTitle, Spinner } from '@newwork/nw-design-system'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useTranslation } from '@newwork/nw-design-system'
 import translations from './_i18n'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useDepartmentMonthlySalaryStack } from '../../../../../hooks/useDepartmentMonthlySalaryStack'
+
+const DOT_COLOR_CLASSES = [
+  'gba:bg-chart-1',
+  'gba:bg-chart-2',
+  'gba:bg-chart-3',
+  'gba:bg-chart-4',
+  'gba:bg-chart-5',
+  'gba:bg-chart-6'
+]
 
 const DepartmentSalaryStackedBarChart: React.FC<BusinessAppContextProps> = props => {
   const year = new Date().getFullYear()
@@ -58,13 +67,12 @@ const DepartmentSalaryStackedBarChart: React.FC<BusinessAppContextProps> = props
               : ''}
           </span>
         </div>
-        {monthData.departments.map(dep => {
+        {monthData.departments.map((dep, index) => {
           const depChange = dep.change
           return (
             <div key={dep.id} className="gba:flex gba:items-center gba:mb-1">
               <span
-                className="gba:inline-block gba:w-3 gba:h-3 gba:rounded-full gba:mr-2"
-                style={{ background: dep.color }}
+                className={`gba:inline-block gba:w-3 gba:h-3 gba:rounded-full gba:mr-2 ${DOT_COLOR_CLASSES[index % DOT_COLOR_CLASSES.length]}`}
               ></span>
               <span className="gba:font-medium gba:mr-2">{dep.name}:</span>
               <span className="gba:mr-2">
@@ -86,27 +94,38 @@ const DepartmentSalaryStackedBarChart: React.FC<BusinessAppContextProps> = props
 
   return (
     <Card
-      className="gba:shadow gba:rounded gba:p-4 gba:mb-6"
+      className="gba:shadow gba:rounded gba:mb-6"
       data-testid="department-salary-stacked-bar-chart"
-      title={t('department-salary-stacked-bar-chart-title')}
-      loading={loading}
     >
-      <div className="gba:w-full gba:h-80">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ top: 16, right: 24, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="month" className="gba:text-xs" />
-            <YAxis
-              className="gba:text-xs"
-              tickFormatter={v => `${(v / 1e6).toLocaleString(locale, { maximumFractionDigits: 1 })}${millionSuffix}`}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            {departments.map(dep => (
-              <Bar key={dep.id} dataKey={dep.id} stackId="a" fill={dep.color} name={dep.name} />
-            ))}
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+      <CardHeader>
+        <CardTitle>{t('department-salary-stacked-bar-chart-title')}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="gba:flex gba:h-80 gba:items-center gba:justify-center">
+            <Spinner />
+          </div>
+        ) : (
+          <div className="gba:w-full gba:h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 16, right: 24, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" className="gba:text-xs" />
+                <YAxis
+                  className="gba:text-xs"
+                  tickFormatter={v =>
+                    `${(v / 1e6).toLocaleString(locale, { maximumFractionDigits: 1 })}${millionSuffix}`
+                  }
+                />
+                <Tooltip content={<CustomTooltip />} />
+                {departments.map(dep => (
+                  <Bar key={dep.id} dataKey={dep.id} stackId="a" fill={dep.color} name={dep.name} />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </CardContent>
     </Card>
   )
 }

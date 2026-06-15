@@ -1,16 +1,29 @@
 import React from 'react'
-import { Card, Spin } from 'antd'
+import { Card, CardContent, CardHeader, CardTitle, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useDepartmentMonthlySalaryStack } from '../../../../../hooks/useDepartmentMonthlySalaryStack'
 import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
+
+const DOT_COLOR_CLASSES = [
+  'gba:bg-chart-1',
+  'gba:bg-chart-2',
+  'gba:bg-chart-3',
+  'gba:bg-chart-4',
+  'gba:bg-chart-5',
+  'gba:bg-chart-6'
+]
 
 const DepartmentContributionAnalysis: React.FC<BusinessAppContextProps> = props => {
   const year = new Date().getFullYear()
   const { data, loading } = useDepartmentMonthlySalaryStack(props, year)
   const { t } = useTranslation(hrTranslations)
   if (loading) {
-    return <Spin data-testid="department-contribution-analysis-loading" />
+    return (
+      <div className="gba:flex gba:justify-center gba:p-4" data-testid="department-contribution-analysis-loading">
+        <Spinner />
+      </div>
+    )
   }
   if (!data.length) {
     return <div data-testid="department-contribution-analysis-empty">{t('hr-analytics-no-data')}</div>
@@ -23,26 +36,25 @@ const DepartmentContributionAnalysis: React.FC<BusinessAppContextProps> = props 
 
   return (
     <Card
-      className="gba:shadow gba:rounded gba:p-4 gba:mb-6"
+      className="gba:shadow gba:rounded gba:mb-6"
       data-testid="department-contribution-analysis"
-      title={t('hr-analytics-department-contribution-analysis')}
     >
-      <div className="gba:flex gba:flex-row gba:gap-16 gba:w-full gba:py-2">
+      <CardHeader>
+        <CardTitle>{t('hr-analytics-department-contribution-analysis')}</CardTitle>
+      </CardHeader>
+      <CardContent className="gba:flex gba:flex-row gba:gap-16 gba:w-full gba:py-2">
         {/* Current Month Breakdown */}
         <div className="gba:w-1/2">
           <div className="gba:text-xs gba:text-muted-foreground gba:mb-2">
             {t('hr-analytics-current-month-breakdown')}
           </div>
-          {sorted.map(dep => (
+          {sorted.map((dep, index) => (
             <div
               key={dep.id}
               className="gba:flex gba:items-center gba:mb-2"
               data-testid={`department-breakdown-${dep.id}`}
             >
-              <span
-                className="gba:inline-block gba:w-3 gba:h-3 gba:rounded-full gba:mr-2"
-                style={{ background: dep.color }}
-              ></span>
+              <span className={`gba:inline-block gba:w-3 gba:h-3 gba:rounded-full gba:mr-2 ${DOT_COLOR_CLASSES[index % DOT_COLOR_CLASSES.length]}`}></span>
               <span className="gba:w-32 gba:text-xs gba:text-foreground">{dep.name}</span>
               <span className="gba:w-20 gba:text-right gba:font-medium">${(dep.salary / 1e3).toFixed(0)}K</span>
               <span className="gba:w-12 gba:text-xs gba:text-muted-foreground gba:text-right">
@@ -56,7 +68,7 @@ const DepartmentContributionAnalysis: React.FC<BusinessAppContextProps> = props 
           <div className="gba:text-xs gba:text-muted-foreground gba:mb-2">
             {t('hr-analytics-growth-trends')}
           </div>
-          {sorted.map(dep => {
+          {sorted.map((dep, index) => {
             const first = firstMonth.departments.find(d => d.id === dep.id)
             const growth = first && first.salary > 0 ? ((dep.salary - first.salary) / first.salary) * 100 : 0
             return (
@@ -65,10 +77,7 @@ const DepartmentContributionAnalysis: React.FC<BusinessAppContextProps> = props 
                 className="gba:flex gba:items-center gba:mb-2"
                 data-testid={`department-growth-${dep.id}`}
               >
-                <span
-                  className="gba:inline-block gba:w-3 gba:h-3 gba:rounded-full gba:mr-2"
-                  style={{ background: dep.color }}
-                ></span>
+                <span className={`gba:inline-block gba:w-3 gba:h-3 gba:rounded-full gba:mr-2 ${DOT_COLOR_CLASSES[index % DOT_COLOR_CLASSES.length]}`}></span>
                 <span className="gba:w-32 gba:text-xs gba:text-foreground">{dep.name}</span>
                 <span
                   className={`gba:w-20 gba:text-right gba:font-semibold ${growth >= 0 ? 'gba:text-success' : 'gba:text-destructive'}`}
@@ -83,7 +92,7 @@ const DepartmentContributionAnalysis: React.FC<BusinessAppContextProps> = props 
             )
           })}
         </div>
-      </div>
+      </CardContent>
     </Card>
   )
 }

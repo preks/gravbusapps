@@ -8,6 +8,15 @@ import { useMonthlySalaryByDepartment } from '../../../../hooks/useMonthlySalary
 import { ChartStateOverlay } from './ChartStateOverlay'
 import dayjs from 'dayjs'
 
+const DOT_COLOR_CLASSES = [
+  'gba:bg-chart-1',
+  'gba:bg-chart-2',
+  'gba:bg-chart-3',
+  'gba:bg-chart-4',
+  'gba:bg-chart-5',
+  'gba:bg-chart-6'
+]
+
 const DepartmentSalaryStackedBarChart: React.FC<BusinessAppContextProps> = props => {
   const year = new Date().getFullYear()
   const startDate = dayjs(`${year}-01-01`).format('YYYY-MM-DD')
@@ -87,13 +96,12 @@ const DepartmentSalaryStackedBarChart: React.FC<BusinessAppContextProps> = props
               : ''}
           </span>
         </div>
-        {monthData.departments.map(dep => {
+        {monthData.departments.map((dep, index) => {
           const depChange = dep.change
           return (
             <div key={dep.id} className="gba:flex gba:items-center gba:mb-1">
               <span
-                className="gba:inline-block gba:w-3 gba:h-3 gba:rounded-full gba:mr-2"
-                style={{ background: dep.color }}
+                className={`gba:inline-block gba:w-3 gba:h-3 gba:rounded-full gba:mr-2 ${DOT_COLOR_CLASSES[index % DOT_COLOR_CLASSES.length]}`}
               ></span>
               <span className="gba:font-medium gba:mr-2">{dep.name}:</span>
               <span className="gba:mr-2">

@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react'
-import { useTranslation } from '@newwork/nw-design-system'
-import { Spin, Empty, Result } from 'antd'
+import { Spinner, useTranslation } from '@newwork/nw-design-system'
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { YearlyHireData } from '../../../../../hooks/useHiresPerYear'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
@@ -70,20 +69,23 @@ const HiresPerYearChart: React.FC<HiresPerYearChartProps> = ({ data, loading, er
   if (loading) {
     chartBody = (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-full" data-testid="hires-chart-loading">
-        <Spin size="large" />
+        <Spinner />
       </div>
     )
   } else if (error) {
     const errorSubTitle = error.toString().includes('CORS') ? 'API access blocked by CORS policy' : error.toString()
     chartBody = (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-full" data-testid="hires-chart-error">
-        <Result status="warning" title={t('hr-analytics-data-error')} subTitle={errorSubTitle} />
+        <div className="gba:text-center">
+          <div className="gba:font-semibold gba:text-warning">{t('hr-analytics-data-error')}</div>
+          <div className="gba:text-sm gba:text-muted-foreground">{errorSubTitle}</div>
+        </div>
       </div>
     )
   } else if (chartData.length === 0) {
     chartBody = (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-full" data-testid="hires-chart-empty">
-        <Empty description={t('hr-analytics-no-data')} />
+        <span className="gba:text-sm gba:text-muted-foreground">{t('hr-analytics-no-data')}</span>
       </div>
     )
   } else {

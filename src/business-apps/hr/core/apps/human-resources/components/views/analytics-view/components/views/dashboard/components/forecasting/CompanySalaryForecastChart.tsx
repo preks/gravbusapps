@@ -1,5 +1,5 @@
 import React from 'react'
-import { Card } from 'antd'
+import { Card, CardContent, CardHeader, CardTitle, Spinner } from '@newwork/nw-design-system'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { useTranslation } from '@newwork/nw-design-system'
 import translations from './_i18n'
@@ -34,22 +34,31 @@ const CompanySalaryForecastChart: React.FC<CompanySalaryForecastChartProps> = ({
 
   return (
     <Card
-      className="gba:shadow gba:rounded gba:p-4 gba:mb-6 gba:border gba:border-border"
+      className="gba:shadow gba:rounded gba:mb-6 gba:border gba:border-border"
       data-testid="company-salary-forecast-chart"
-      title={t('company-salary-forecast-title')}
-      loading={loading}
     >
-      <div className="gba:w-full gba:h-72">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 16, right: 24, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="month" className="gba:text-xs" />
-            <YAxis className="gba:text-xs" tickFormatter={v => `${v.toLocaleString()}`} />
-            <Tooltip formatter={(v: any) => `${(Number(v) || 0).toLocaleString()}`} />
-            <Line type="monotone" dataKey="salary" stroke="var(--nw-chart-1)" strokeWidth={2} dot={false} />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+      <CardHeader>
+        <CardTitle>{t('company-salary-forecast-title')}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="gba:flex gba:h-72 gba:items-center gba:justify-center">
+            <Spinner />
+          </div>
+        ) : (
+          <div className="gba:w-full gba:h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData} margin={{ top: 16, right: 24, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" className="gba:text-xs" />
+                <YAxis className="gba:text-xs" tickFormatter={v => `${v.toLocaleString()}`} />
+                <Tooltip formatter={(v: any) => `${(Number(v) || 0).toLocaleString()}`} />
+                <Line type="monotone" dataKey="salary" stroke="var(--nw-chart-1)" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </CardContent>
     </Card>
   )
 }

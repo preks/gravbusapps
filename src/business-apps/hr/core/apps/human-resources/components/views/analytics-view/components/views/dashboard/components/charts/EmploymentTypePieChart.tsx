@@ -1,11 +1,8 @@
 import React from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts'
-import { Card, Spin, Empty, Tooltip, Typography } from 'antd'
+import { Card, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { InfoIcon } from '@phosphor-icons/react'
-import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
-
-const { Title } = Typography
 
 // Using the imported type from useEmploymentTypeDistribution hook
 import { EmploymentTypeDistribution } from '../../../../../hooks/useEmploymentTypeDistribution'
@@ -102,20 +99,15 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, l
 
   return (
     <Card
-      className="gba:shadow-lg gba:rounded-lg gba:mb-6 gba:overflow-hidden gba:border-0"
-      style={{ background: 'var(--gradient-decorative-1)' }}
-      title={
-        <div>
-          <Title level={4} className="gba:m-0">{t('hr-analytics-employment-type')}</Title>
-          <Tooltip
-            title={t('hr-analytics-employment-tooltip')}
-          >
-            <InfoIcon size={16} className="gba:ml-2" />
-          </Tooltip>
-        </div>
-      }
+      className="gba:shadow-lg gba:rounded-lg gba:mb-6 gba:overflow-hidden gba:border-0 gba:bg-card"
       data-testid="employment-type-pie-chart"
     >
+        <div className="gba:flex gba:items-center gba:mb-4">
+          <h4 className="gba:m-0 gba:text-lg gba:font-semibold">{t('hr-analytics-employment-type')}</h4>
+          <span title={t('hr-analytics-employment-tooltip')}>
+            <InfoIcon size={16} className="gba:ml-2" />
+          </span>
+        </div>
       <div
         className="gba:flex gba:flex-col gba:w-full gba:relative gba:m-0 gba:py-[30px] gba:px-5 gba:transition-all gba:duration-500 gba:bg-card gba:border gba:rounded-xl"
         data-testid="employment-type-pie-chart-container"
@@ -124,7 +116,7 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, l
         <div className="gba:h-[400px] gba:w-full">
           {loading ? (
             <div className="gba:h-full gba:flex gba:items-center gba:justify-center">
-              <Spin size="large" data-testid="employment-type-pie-chart-loading" />
+              <Spinner data-testid="employment-type-pie-chart-loading" />
             </div>
           ) : error ? (
             <div className="gba:h-full gba:flex gba:items-center gba:justify-center gba:text-destructive">
@@ -132,7 +124,9 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, l
             </div>
           ) : data.length === 0 ? (
             <div className="gba:h-full gba:flex gba:items-center gba:justify-center">
-              <Empty description={t('hr-analytics-no-data')} data-testid="employment-type-pie-chart-empty" />
+              <span className="gba:text-sm gba:text-muted-foreground" data-testid="employment-type-pie-chart-empty">
+                {t('hr-analytics-no-data')}
+              </span>
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">

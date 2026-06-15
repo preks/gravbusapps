@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react'
-import { Typography } from 'antd'
 import { SectionKpiCards, KpiCardData, useTranslation, Icon } from '@newwork/nw-design-system'
 import { UsersIcon, CurrencyDollarIcon } from '@phosphor-icons/react'
 import { DashboardProps, AnalyticsKpiData } from './types/analyticsTypes'
@@ -19,8 +18,6 @@ import AnalyticsDataTable, { DIFFERENT_BADGE, HIGHLIGHT_BADGE } from '../../shar
 import SelectableChartCard from '../../shared/SelectableChartCard'
 import AnalyticsTabErrorCard from '../../shared/AnalyticsTabErrorCard'
 import AnalyticsTabLoadingState from '../../shared/AnalyticsTabLoadingState'
-
-const { Title, Text } = Typography
 
 interface TableDataRow {
   period: string
@@ -261,10 +258,10 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
     <div className="gba:w-full" data-testid="hr-analytics-dashboard">
       <div className="gba:p-6 gba:pb-0">
         <div className="gba:mb-6">
-          <Title level={2} className="gba:m-0 gba:text-foreground">
+          <h2 className="gba:m-0 gba:text-2xl gba:font-semibold gba:text-foreground">
             {t('hr-analytics-dashboard-title')}
-          </Title>
-          <Text className="gba:text-muted-foreground">{t('hr-analytics-dashboard-subtitle')}</Text>
+          </h2>
+          <p className="gba:text-muted-foreground">{t('hr-analytics-dashboard-subtitle')}</p>
         </div>
 
         {/* KPI Cards Section - Using SectionKpiCards component */}

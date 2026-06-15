@@ -1,5 +1,5 @@
 import React from 'react'
-import { Card } from 'antd'
+import { Card, CardContent, CardHeader, CardTitle, Spinner } from '@newwork/nw-design-system'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { useMonthlyHeadcountChanges } from '../../../../../hooks/useMonthlyHeadcountChanges'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -43,33 +43,42 @@ const HeadcountChangesChart: React.FC<BusinessAppContextProps> = props => {
 
   return (
     <Card
-      className="gba:shadow gba:rounded gba:p-4 gba:mb-6"
+      className="gba:shadow gba:rounded gba:mb-6"
       data-testid="headcount-changes-chart"
-      title={t('hr-analytics-headcount-changes-chart')}
-      loading={loading}
     >
-      <div className="gba:w-full gba:h-72">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 16, right: 24, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="month" className="gba:text-xs" />
-            <YAxis className="gba:text-xs" domain={[0, 'dataMax + 2']} />
-            <Tooltip content={<CustomTooltip />} />
-            <Bar
-              dataKey="newHires"
-              fill="var(--nw-chart-1)"
-              name={t('hr-analytics-new-hires')}
-              data-testid="bar-new-hires"
-            />
-            <Bar
-              dataKey="departures"
-              fill="var(--nw-chart-2)"
-              name={t('hr-analytics-departures')}
-              data-testid="bar-departures"
-            />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+      <CardHeader>
+        <CardTitle>{t('hr-analytics-headcount-changes-chart')}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="gba:flex gba:h-72 gba:items-center gba:justify-center">
+            <Spinner />
+          </div>
+        ) : (
+          <div className="gba:w-full gba:h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data} margin={{ top: 16, right: 24, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" className="gba:text-xs" />
+                <YAxis className="gba:text-xs" domain={[0, 'dataMax + 2']} />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar
+                  dataKey="newHires"
+                  fill="var(--nw-chart-1)"
+                  name={t('hr-analytics-new-hires')}
+                  data-testid="bar-new-hires"
+                />
+                <Bar
+                  dataKey="departures"
+                  fill="var(--nw-chart-2)"
+                  name={t('hr-analytics-departures')}
+                  data-testid="bar-departures"
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </CardContent>
     </Card>
   )
 }

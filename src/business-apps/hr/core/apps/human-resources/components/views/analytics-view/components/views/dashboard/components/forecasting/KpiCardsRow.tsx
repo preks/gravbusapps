@@ -1,5 +1,5 @@
 import React from 'react'
-import { Card, Spin } from 'antd'
+import { Card, CardContent, Spinner } from '@newwork/nw-design-system'
 import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { WorkingConditionKpi, WorkingConditionKpiResult } from '../../../../../hooks/useWorkingConditionForecast'
@@ -43,9 +43,15 @@ const KpiCardsRow: React.FC<KpiCardsRowProps> = ({ kpiData }) => {
   const sixMonthForecast = totalMonthlySalary * 1.17
 
   return (
-    <Spin spinning={loading}>
-      <div className="gba:flex gba:flex-row gba:w-full gba:gap-4 gba:mb-6" data-testid="forecasting-kpi-row">
-        <Card className="gba:shadow gba:rounded gba:p-4 gba:flex-1" data-testid="kpi-total-annual-payroll">
+    <div className="gba:relative" data-testid="forecasting-kpi-row-wrapper">
+      {loading && (
+        <div className="gba:absolute gba:inset-0 gba:z-10 gba:flex gba:items-center gba:justify-center gba:bg-background/70">
+          <Spinner />
+        </div>
+      )}
+      <div className="gba:flex gba:flex-row gba:w-full gba:gap-4 gba:mb-6">
+        <Card className="gba:shadow gba:rounded gba:flex-1" data-testid="kpi-total-annual-payroll">
+          <CardContent className="gba:p-4">
           <div className="gba:text-xs gba:text-muted-foreground gba:mb-1">
             {getTranslationFromI18nKeyAndLabel('forecasting_kpi_total_annual_payroll', 'Total Annual Payroll')}
           </div>
@@ -58,8 +64,10 @@ const KpiCardsRow: React.FC<KpiCardsRowProps> = ({ kpiData }) => {
               </>
             )}
           </div>
+          </CardContent>
         </Card>
-        <Card className="gba:shadow gba:rounded gba:p-4 gba:flex-1" data-testid="kpi-total-salary">
+        <Card className="gba:shadow gba:rounded gba:flex-1" data-testid="kpi-total-salary">
+          <CardContent className="gba:p-4">
           <div className="gba:text-xs gba:text-muted-foreground gba:mb-1">
             {getTranslationFromI18nKeyAndLabel('forecasting_kpi_total_salary', 'Total Monthly Salary')}
           </div>
@@ -72,26 +80,34 @@ const KpiCardsRow: React.FC<KpiCardsRowProps> = ({ kpiData }) => {
               </>
             )}
           </div>
+          </CardContent>
         </Card>
-        <Card className="gba:shadow gba:rounded gba:p-4 gba:flex-1" data-testid="kpi-headcount">
+        <Card className="gba:shadow gba:rounded gba:flex-1" data-testid="kpi-headcount">
+          <CardContent className="gba:p-4">
           <div className="gba:text-xs gba:text-muted-foreground gba:mb-1">
             {getTranslationFromI18nKeyAndLabel('forecasting_kpi_headcount', 'Current Headcount')}
           </div>
           <div className="gba:text-2xl gba:font-bold gba:mb-1">{headcount}</div>
+          </CardContent>
         </Card>
-        <Card className="gba:shadow gba:rounded gba:p-4 gba:flex-1" data-testid="kpi-ytd-hires">
+        <Card className="gba:shadow gba:rounded gba:flex-1" data-testid="kpi-ytd-hires">
+          <CardContent className="gba:p-4">
           <div className="gba:text-xs gba:text-muted-foreground gba:mb-1">
             {getTranslationFromI18nKeyAndLabel('forecasting_kpi_ytd_hires', 'YTD Hires')}
           </div>
           <div className="gba:text-2xl gba:font-bold gba:text-success gba:mb-1">+{ytdHires}</div>
+          </CardContent>
         </Card>
-        <Card className="gba:shadow gba:rounded gba:p-4 gba:flex-1" data-testid="kpi-ytd-departures">
+        <Card className="gba:shadow gba:rounded gba:flex-1" data-testid="kpi-ytd-departures">
+          <CardContent className="gba:p-4">
           <div className="gba:text-xs gba:text-muted-foreground gba:mb-1">
             {getTranslationFromI18nKeyAndLabel('forecasting_kpi_ytd_departures', 'YTD Departures')}
           </div>
           <div className="gba:text-2xl gba:font-bold gba:text-destructive gba:mb-1">-{ytdDepartures}</div>
+          </CardContent>
         </Card>
-        <Card className="gba:shadow gba:rounded gba:p-4 gba:flex-1" data-testid="kpi-next-month-forecast">
+        <Card className="gba:shadow gba:rounded gba:flex-1" data-testid="kpi-next-month-forecast">
+          <CardContent className="gba:p-4">
           <div className="gba:text-xs gba:text-muted-foreground gba:mb-1">
             {getTranslationFromI18nKeyAndLabel('forecasting_kpi_next_month_forecast', 'Next Month Forecast')}
           </div>
@@ -116,8 +132,10 @@ const KpiCardsRow: React.FC<KpiCardsRowProps> = ({ kpiData }) => {
               </>
             )}
           </div>
+          </CardContent>
         </Card>
-        <Card className="gba:shadow gba:rounded gba:p-4 gba:flex-1" data-testid="kpi-six-month-forecast">
+        <Card className="gba:shadow gba:rounded gba:flex-1" data-testid="kpi-six-month-forecast">
+          <CardContent className="gba:p-4">
           <div className="gba:text-xs gba:text-muted-foreground gba:mb-1">
             {getTranslationFromI18nKeyAndLabel('forecasting_kpi_six_month_forecast', '6-Month Forecast')}
           </div>
@@ -130,9 +148,10 @@ const KpiCardsRow: React.FC<KpiCardsRowProps> = ({ kpiData }) => {
               </>
             )}
           </div>
+          </CardContent>
         </Card>
       </div>
-    </Spin>
+    </div>
   )
 }
 

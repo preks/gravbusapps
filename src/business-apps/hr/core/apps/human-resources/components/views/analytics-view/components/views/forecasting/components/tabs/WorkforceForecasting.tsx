@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { Typography } from 'antd'
 import { SectionKpiCards, KpiCardData, useTranslation, Icon } from '@newwork/nw-design-system'
 import { UsersIcon, CalendarIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -15,8 +14,6 @@ import { useHrAnalyticsFilters } from '../../../../../context/HrAnalyticsFilters
 import SelectableChartCard from '../../../../shared/SelectableChartCard'
 import AnalyticsTabErrorCard from '../../../../shared/AnalyticsTabErrorCard'
 import AnalyticsTabLoadingState from '../../../../shared/AnalyticsTabLoadingState'
-
-const { Title, Text } = Typography
 
 interface WorkforceForecastingProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -249,10 +246,10 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
       {/* Header */}
       <div className="gba:flex gba:justify-between gba:items-center">
         <div>
-          <Title level={4} className="gba:m-0 gba:text-foreground">
+          <h4 className="gba:m-0 gba:text-lg gba:font-semibold gba:text-foreground">
             {t('hr-analytics-workforce-forecasting')}
-          </Title>
-          <Text className="gba:text-muted-foreground">{t('hr-analytics-workforce-forecasting-description')}</Text>
+          </h4>
+          <p className="gba:text-muted-foreground">{t('hr-analytics-workforce-forecasting-description')}</p>
         </div>
       </div>
 

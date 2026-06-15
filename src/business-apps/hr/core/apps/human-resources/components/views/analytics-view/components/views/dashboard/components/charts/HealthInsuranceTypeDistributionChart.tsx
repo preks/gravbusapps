@@ -1,13 +1,10 @@
 import React from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts'
-import { Card, Typography, Spin, Empty } from 'antd'
+import { Card, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { InfoIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/business-apps/types'
-import { useTranslation } from '@newwork/nw-design-system'
 import { useHealthInsuranceTypeDistribution } from '../../../../../hooks/useHealthInsuranceTypeDistribution'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
-
-const { Title } = Typography
 
 /**
  * HealthInsuranceTypeDistributionChart component shows the distribution of employee health insurance types
@@ -90,10 +87,9 @@ export const HealthInsuranceTypeDistributionChart: React.FC<BusinessAppContextPr
   }
 
   return (
-    <Card
-      title={
-        <div className="gba:flex gba:justify-between gba:items-center">
-          <Title level={4} style={{ margin: 0 }}>{t('hr-analytics-health-insurance-type-distribution')}</Title>
+    <Card className="gba:h-full" data-testid="health-insurance-type-distribution-chart">
+      <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
+          <h4 className="gba:m-0 gba:text-lg gba:font-semibold">{t('hr-analytics-health-insurance-type-distribution')}</h4>
           <div className="gba:flex gba:items-center">
             <InfoIcon
               size={16}
@@ -102,23 +98,22 @@ export const HealthInsuranceTypeDistributionChart: React.FC<BusinessAppContextPr
             />
           </div>
         </div>
-      }
-      bordered={false}
-      style={{ height: '100%' }}
-      data-testid="health-insurance-type-distribution-chart"
-    >
       <div className="gba:h-[450px] gba:flex gba:justify-center gba:items-center">
         {loading ? (
           <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
-            <Spin size="large" data-testid="health-insurance-type-distribution-loading" />
+            <Spinner data-testid="health-insurance-type-distribution-loading" />
           </div>
         ) : error ? (
           <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
-            <Empty description={t('hr-analytics-error-loading')} data-testid="health-insurance-type-distribution-error" />
+            <span className="gba:text-sm gba:text-destructive" data-testid="health-insurance-type-distribution-error">
+              {t('hr-analytics-error-loading')}
+            </span>
           </div>
         ) : data.length === 0 ? (
           <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
-            <Empty description={t('hr-analytics-no-data')} data-testid="health-insurance-type-distribution-empty" />
+            <span className="gba:text-sm gba:text-muted-foreground" data-testid="health-insurance-type-distribution-empty">
+              {t('hr-analytics-no-data')}
+            </span>
           </div>
         ) : (
           <ResponsiveContainer

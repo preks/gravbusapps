@@ -1,11 +1,8 @@
 import React, { useMemo } from 'react'
-import { useTranslation } from '@newwork/nw-design-system'
-import { Typography, Spin, Empty } from 'antd'
+import { Spinner, useTranslation } from '@newwork/nw-design-system'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { OrganizationalUnitSalary } from '../../../../../hooks/useSalaryByOrgUnit'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
-
-const { Text } = Typography
 
 interface SalaryByOrgUnitChartProps {
   data: OrganizationalUnitSalary[]
@@ -68,19 +65,19 @@ const SalaryByOrgUnitChart: React.FC<SalaryByOrgUnitChartProps> = ({ data, loadi
   if (loading) {
     chartBody = (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
-        <Spin size="large" />
+        <Spinner />
       </div>
     )
   } else if (error) {
     chartBody = (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
-        <Text type="danger">{error.message}</Text>
+        <span className="gba:text-destructive">{error.message}</span>
       </div>
     )
   } else if (!chartData || chartData.length === 0) {
     chartBody = (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
-        <Empty description={t('hr-analytics-no-data')} />
+        <span className="gba:text-sm gba:text-muted-foreground">{t('hr-analytics-no-data')}</span>
       </div>
     )
   } else {

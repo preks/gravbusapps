@@ -1,7 +1,4 @@
 import React from 'react'
-import { Typography } from 'antd'
-
-const { Text } = Typography
 
 export type ChartState = 'loading' | 'error' | 'empty'
 
@@ -18,7 +15,7 @@ export const ChartStateOverlay: React.FC<ChartStateOverlayProps> = ({ state, mes
   const textClassName = state === 'error' ? 'gba:text-destructive' : 'gba:text-muted-foreground'
   return (
     <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
-      <Text className={textClassName}>{message}</Text>
+      <span className={textClassName}>{message}</span>
     </div>
   )
 }

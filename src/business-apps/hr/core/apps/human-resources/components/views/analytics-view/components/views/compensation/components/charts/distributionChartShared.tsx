@@ -1,8 +1,6 @@
 import React from 'react'
-import { Spin, Empty, Typography } from 'antd'
+import { Spinner } from '@newwork/nw-design-system'
 import { PieChart, Pie, ResponsiveContainer, Tooltip, Legend } from 'recharts'
-
-const { Text } = Typography
 
 export const CHART_COLORS = [
   'var(--nw-chart-1)',
@@ -82,21 +80,23 @@ export const DistributionChartStateContent: React.FC<{
   if (loading) {
     return (
       <div className={containerClass}>
-        <Spin size="large" data-testid={loadingTestId} />
+        <Spinner data-testid={loadingTestId} />
       </div>
     )
   }
   if (error) {
     return (
       <div className={containerClass}>
-        <Text type="danger">{errorMessage}</Text>
+        <span className="gba:text-destructive">{errorMessage}</span>
       </div>
     )
   }
   if (!hasData) {
     return (
       <div className={containerClass}>
-        <Empty description={emptyMessage} data-testid={emptyTestId} />
+        <span className="gba:text-sm gba:text-muted-foreground" data-testid={emptyTestId}>
+          {emptyMessage}
+        </span>
       </div>
     )
   }

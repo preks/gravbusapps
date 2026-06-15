@@ -2,7 +2,6 @@ import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Icon, KpiCardData, SectionKpiCards, useTranslation } from '@newwork/nw-design-system'
 import { CurrencyDollarIcon } from '@phosphor-icons/react'
-import { Col, Row, Typography } from 'antd'
 import { useMemo } from 'react'
 import { useAnalyticsTableExport } from '../../../hooks/useAnalyticsTableExport'
 import { useChartTableSelection } from '../../../hooks/useChartTableSelection'
@@ -18,8 +17,6 @@ import HealthInsuranceTypeDistributionChart from './components/charts/HealthInsu
 import HealthInsurerDistributionChart from './components/charts/HealthInsurerDistributionChart'
 import SalaryByOrgUnitChart from './components/charts/SalaryByOrgUnitChart'
 import YearlyPayrollChart from './components/charts/YearlyPayrollChart'
-
-const { Title, Text } = Typography
 
 interface CompensationProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -170,10 +167,10 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
       {/* Header */}
       <div className="gba:flex gba:justify-between gba:items-center">
         <div>
-          <Title level={3} className="gba:m-0 gba:text-foreground">
+          <h3 className="gba:m-0 gba:text-xl gba:font-semibold gba:text-foreground">
             {t('hr-analytics-compensation-analysis')}
-          </Title>
-          <Text className="gba:text-muted-foreground">{t('hr-analytics-compensation-description')}</Text>
+          </h3>
+          <p className="gba:text-muted-foreground">{t('hr-analytics-compensation-description')}</p>
         </div>
       </div>
 
@@ -187,7 +184,7 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
 
       <div className="gba:mb-2">
         <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{t('hr-analytics-workforce-charts')}</h3>
-        <Text className="gba:text-muted-foreground">{t('hr-analytics-click-to-view-table')}</Text>
+        <p className="gba:text-muted-foreground">{t('hr-analytics-click-to-view-table')}</p>
       </div>
 
       <SelectableChartCard
@@ -203,8 +200,8 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
       </SelectableChartCard>
 
       <div className="gba:mt-4">
-        <Row gutter={16} className="gba:w-full">
-          <Col span={12}>
+        <div className="gba:grid gba:w-full gba:grid-cols-1 gba:gap-4 md:gba:grid-cols-2">
+          <div>
             <SelectableChartCard
               testId="health-insurer-chart"
               isSelected={selectedChart === 'health-insurer-chart'}
@@ -216,8 +213,8 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
             >
               <HealthInsurerDistributionChart accessToken={accessToken} />
             </SelectableChartCard>
-          </Col>
-          <Col span={12}>
+          </div>
+          <div>
             <SelectableChartCard
               testId="health-insurance-type-chart"
               isSelected={selectedChart === 'health-insurance-type-chart'}
@@ -229,8 +226,8 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
             >
               <HealthInsuranceTypeDistributionChart accessToken={accessToken} />
             </SelectableChartCard>
-          </Col>
-        </Row>
+          </div>
+        </div>
       </div>
 
       <AnalyticsTableSection<TableDataRow>

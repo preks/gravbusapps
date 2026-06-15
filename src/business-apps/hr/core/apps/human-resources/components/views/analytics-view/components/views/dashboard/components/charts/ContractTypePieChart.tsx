@@ -1,20 +1,16 @@
 import React from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts'
-import { Card, Typography, Spin, Empty, Tooltip, theme } from 'antd'
+import { Card, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { InfoIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/business-apps/types'
-import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import { useContractTypeDistribution } from '../../../../../hooks/useContractTypeDistribution'
-
-const { Title } = Typography
 
 /**
  * ContractTypePieChart component shows the distribution of employee contract types as a pie chart
  * With a center statistic showing total employee count and custom tooltips
  */
 export const ContractTypePieChart: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
-  const { token } = theme.useToken()
   const { t } = useTranslation(hrTranslations)
 
   // Fetch contract type distribution data
@@ -73,13 +69,13 @@ export const ContractTypePieChart: React.FC<BusinessAppContextProps> = ({ access
           outerRadius={innerRadius - 2}
           fill={fill}
         />
-        <text x={cx} y={cy - 20} textAnchor="middle" fill={token.colorText} fontSize={20} fontWeight="600">
+        <text x={cx} y={cy - 20} textAnchor="middle" fill="var(--nw-foreground)" fontSize={20} fontWeight="600">
           {payload.name}
         </text>
-        <text x={cx} y={cy + 10} textAnchor="middle" fill={token.colorTextSecondary} fontSize={16}>
+        <text x={cx} y={cy + 10} textAnchor="middle" fill="var(--nw-muted-foreground)" fontSize={16}>
           {value.toLocaleString()} {t('hr-analytics-employees')}
         </text>
-        <text x={cx} y={cy + 35} textAnchor="middle" fill={token.colorPrimary} fontSize={16} fontWeight="600">
+        <text x={cx} y={cy + 35} textAnchor="middle" fill="var(--nw-primary)" fontSize={16} fontWeight="600">
           {payload.percentage}%
         </text>
       </g>
@@ -90,20 +86,15 @@ export const ContractTypePieChart: React.FC<BusinessAppContextProps> = ({ access
 
   return (
     <Card
-      title={
-        <div>
-          <Title level={4} className="gba:m-0">{t('hr-analytics-contract-types')}</Title>
-          <Tooltip
-            title={t('hr-analytics-contract-types-tooltip')}
-          >
-            <InfoIcon size={16} className="gba:ml-2" />
-          </Tooltip>
-        </div>
-      }
-      className="gba:shadow-lg gba:rounded-lg gba:mb-6 gba:overflow-hidden gba:border-0"
-      style={{ background: 'var(--gradient-decorative-1)' }}
+      className="gba:shadow-lg gba:rounded-lg gba:mb-6 gba:overflow-hidden gba:border-0 gba:bg-card"
       data-testid="contract-type-pie-chart"
     >
+        <div className="gba:flex gba:items-center gba:mb-4">
+          <h4 className="gba:m-0 gba:text-lg gba:font-semibold">{t('hr-analytics-contract-types')}</h4>
+          <span title={t('hr-analytics-contract-types-tooltip')}>
+            <InfoIcon size={16} className="gba:ml-2" />
+          </span>
+        </div>
       <div
         className="gba:flex gba:flex-col gba:w-full gba:transition-all gba:duration-500 gba:relative gba:m-0 gba:rounded-xl gba:px-5 gba:py-8 gba:bg-card gba:shadow-lg gba:border gba:border-border"
         data-testid="contract-type-pie-chart-container"
@@ -112,7 +103,7 @@ export const ContractTypePieChart: React.FC<BusinessAppContextProps> = ({ access
         <div className="gba:h-[400px] gba:w-full">
           {loading ? (
             <div className="gba:h-full gba:flex gba:items-center gba:justify-center">
-              <Spin size="large" data-testid="contract-type-pie-chart-loading" />
+              <Spinner data-testid="contract-type-pie-chart-loading" />
             </div>
           ) : error ? (
             <div className="gba:h-full gba:flex gba:items-center gba:justify-center gba:text-destructive">
@@ -120,7 +111,9 @@ export const ContractTypePieChart: React.FC<BusinessAppContextProps> = ({ access
             </div>
           ) : data.length === 0 ? (
             <div className="gba:h-full gba:flex gba:items-center gba:justify-center">
-              <Empty description={t('hr-analytics-no-data')} data-testid="contract-type-pie-chart-empty" />
+              <span className="gba:text-sm gba:text-muted-foreground" data-testid="contract-type-pie-chart-empty">
+                {t('hr-analytics-no-data')}
+              </span>
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%" data-testid="contract-type-pie-chart-rendered">
@@ -143,7 +136,7 @@ export const ContractTypePieChart: React.FC<BusinessAppContextProps> = ({ access
                     <Cell
                       key={`cell-${index}`}
                       fill={COLORS[index % COLORS.length]}
-                      stroke={token.colorBgContainer}
+                      stroke="var(--nw-card)"
                       strokeWidth={2}
                     />
                   ))}
@@ -153,7 +146,7 @@ export const ContractTypePieChart: React.FC<BusinessAppContextProps> = ({ access
                     y="47%"
                     textAnchor="middle"
                     dominantBaseline="middle"
-                    style={{ fontSize: '20px', fill: token.colorText, fontWeight: 600 }}
+                    style={{ fontSize: '20px', fill: 'var(--nw-foreground)', fontWeight: 600 }}
                   >
                     {t('hr-analytics-contract-types')}
                   </text>
@@ -162,7 +155,7 @@ export const ContractTypePieChart: React.FC<BusinessAppContextProps> = ({ access
                     y="57%"
                     textAnchor="middle"
                     dominantBaseline="middle"
-                    style={{ fontSize: '28px', fontWeight: 'bold', fill: token.colorTextHeading }}
+                    style={{ fontSize: '28px', fontWeight: 'bold', fill: 'var(--nw-foreground)' }}
                   >
                     {totalEmployees.toLocaleString()}
                   </text>

@@ -1,10 +1,7 @@
 import React from 'react'
-import { Typography } from 'antd'
 import { Card, useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/business-apps/types'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
-
-const { Text } = Typography
 
 /**
  * A bar chart component that displays the yearly payroll data for the last 5 years
@@ -24,7 +21,7 @@ const YearlyPayrollChart: React.FC<BusinessAppContextProps> = () => {
 
       {/* Chart Content */}
       <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-64">
-        <Text className="gba:text-muted-foreground gba:text-lg">{t('hr-analytics-coming-soon')}</Text>
+        <span className="gba:text-muted-foreground gba:text-lg">{t('hr-analytics-coming-soon')}</span>
       </div>
     </Card>
   )

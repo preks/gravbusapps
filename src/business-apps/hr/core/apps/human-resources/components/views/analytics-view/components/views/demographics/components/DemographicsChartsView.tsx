@@ -1,6 +1,5 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, Badge, useTranslation } from '@newwork/nw-design-system'
-import { Typography } from 'antd'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import type { DemographicsData } from '../../../../hooks/useDemographicsDataIntegration'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
@@ -8,8 +7,6 @@ import { useAnalyticsTableExport } from '../../../../hooks/useAnalyticsTableExpo
 import { useChartTableSelection } from '../../../../hooks/useChartTableSelection'
 import AnalyticsDataTable, { HIGHLIGHT_BADGE } from '../../../shared/AnalyticsDataTable'
 import { DEMOGRAPHICS_CHART_SURFACE_CLASS } from '../../../shared/analyticsChartSurfaceStyles'
-
-const { Title, Text } = Typography
 
 interface DemographicsChartsViewProps {
   demographicsData: DemographicsData
@@ -223,15 +220,15 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
               <CardHeader className="gba:border-b">
                 <div className="gba:flex gba:items-center gba:justify-between">
                   <div className="gba:flex gba:items-center gba:gap-2">
-                    <Title level={4} className="gba:m-0 gba:text-foreground">
+                    <h4 className="gba:m-0 gba:text-lg gba:font-semibold gba:text-foreground">
                       {config.title}
-                    </Title>
+                    </h4>
                   </div>
                   <Badge variant="outline" className="gba:text-xs">
                     {config.tag}
                   </Badge>
                 </div>
-                <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">{config.description}</Text>
+                <p className="gba:text-muted-foreground gba:text-sm gba:mt-1">{config.description}</p>
                 {isSelected && (
                   <p className="gba:text-xs gba:text-info gba:mt-1">
                     ✓ {t('common-selected')} - {t('hr-analytics-table-shown-below')}

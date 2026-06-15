@@ -1,7 +1,6 @@
 import React from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts'
-import { useTranslation } from '@newwork/nw-design-system'
-import { Spin, Empty } from 'antd'
+import { Spinner, useTranslation } from '@newwork/nw-design-system'
 import type { OrgUnitEmployeeData } from '../../../../../hooks/useEmployeesByOrgUnit'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
@@ -64,7 +63,7 @@ const EmployeesByOrgUnitChart: React.FC<EmployeesByOrgUnitChartProps> = ({ data,
   if (loading) {
     chartBody = (
       <div className="gba:h-full gba:flex gba:items-center gba:justify-center">
-        <Spin size="large" data-testid="employees-by-org-unit-chart-loading" />
+        <Spinner data-testid="employees-by-org-unit-chart-loading" />
       </div>
     )
   } else if (error) {
@@ -76,7 +75,9 @@ const EmployeesByOrgUnitChart: React.FC<EmployeesByOrgUnitChartProps> = ({ data,
   } else if (data.length === 0) {
     chartBody = (
       <div className="gba:h-full gba:flex gba:items-center gba:justify-center">
-        <Empty description={t('hr-analytics-no-data')} data-testid="employees-by-org-unit-chart-empty" />
+        <span className="gba:text-sm gba:text-muted-foreground" data-testid="employees-by-org-unit-chart-empty">
+          {t('hr-analytics-no-data')}
+        </span>
       </div>
     )
   } else {

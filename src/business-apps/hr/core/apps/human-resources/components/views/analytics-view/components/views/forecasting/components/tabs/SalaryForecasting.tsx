@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react'
-import { Typography } from 'antd'
 import { SectionKpiCards, KpiCardData, useTranslation, Icon } from '@newwork/nw-design-system'
 import { UsersIcon, CalendarIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -25,8 +24,6 @@ import AnalyticsDataTable, {
 import SelectableChartCard from '../../../../shared/SelectableChartCard'
 import AnalyticsTabErrorCard from '../../../../shared/AnalyticsTabErrorCard'
 import AnalyticsTabLoadingState from '../../../../shared/AnalyticsTabLoadingState'
-
-const { Title, Text } = Typography
 
 interface SalaryForecastingProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -333,10 +330,10 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
       {/* Header */}
       <div className="gba:flex gba:justify-between gba:items-center">
         <div>
-          <Title level={4} className="gba:m-0 gba:text-foreground">
+          <h4 className="gba:m-0 gba:text-lg gba:font-semibold gba:text-foreground">
             {t('hr-analytics-salary-forecasting')}
-          </Title>
-          <Text className="gba:text-muted-foreground">{t('hr-analytics-salary-forecasting-description')}</Text>
+          </h4>
+          <p className="gba:text-muted-foreground">{t('hr-analytics-salary-forecasting-description')}</p>
         </div>
       </div>
 
@@ -348,7 +345,7 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
       {/* Salary Charts */}
       <div className="gba:mb-2">
         <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{t('hr-analytics-workforce-charts')}</h3>
-        <Text className="gba:text-muted-foreground">{t('hr-analytics-click-to-view-table')}</Text>
+        <p className="gba:text-muted-foreground">{t('hr-analytics-click-to-view-table')}</p>
       </div>
 
       <div className="gba:space-y-6">

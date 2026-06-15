@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import { Card, Typography, Spin, Empty } from 'antd'
+import { Card, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { InfoIcon } from '@phosphor-icons/react'
 import {
   BarChart,
@@ -12,12 +12,9 @@ import {
   Cell,
   LabelList
 } from 'recharts'
-import { useTranslation } from '@newwork/nw-design-system'
 import { useGapRateByOrgUnit } from '../../../../../hooks/useGapRateByOrgUnit'
 import { mapValueToColor } from '@/common/utils/chartColorMapper'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
-
-const { Title } = Typography
 
 interface GapRateByOrgUnitChartProps {
   accessToken: string
@@ -116,21 +113,15 @@ const GapRateByOrgUnitChart: React.FC<GapRateByOrgUnitChartProps> = ({ accessTok
   }
 
   return (
-    <Card
-      title={
-        <div className="gba:flex gba:justify-between gba:items-center">
-          <Title level={4} className="gba:m-0">
+    <Card className="gba:h-full" data-testid="gap-rate-by-org-unit-chart">
+      <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
+          <h4 className="gba:m-0 gba:text-lg gba:font-semibold">
             {t('hr-analytics-gap-rate-by-org-unit')}
-          </Title>
+          </h4>
           <div className="gba:flex gba:items-center">
             <InfoIcon size={16} className="gba:text-base" data-testid="gap-rate-by-org-unit-info-icon" />
           </div>
         </div>
-      }
-      bordered={false}
-      className="gba:h-full"
-      data-testid="gap-rate-by-org-unit-chart"
-    >
       <div
         className="gba:flex gba:flex-col gba:w-full gba:h-[450px] gba:relative"
         data-testid="gap-rate-by-org-unit-chart-container"
@@ -139,7 +130,7 @@ const GapRateByOrgUnitChart: React.FC<GapRateByOrgUnitChartProps> = ({ accessTok
         <div className="gba:h-full gba:w-full gba:flex-grow">
           {loading ? (
             <div className="gba:h-full gba:flex gba:items-center gba:justify-center">
-              <Spin size="large" data-testid="gap-rate-by-org-unit-chart-loading" />
+              <Spinner data-testid="gap-rate-by-org-unit-chart-loading" />
             </div>
           ) : error ? (
             <div className="gba:h-full gba:flex gba:items-center gba:justify-center gba:text-destructive">
@@ -147,7 +138,9 @@ const GapRateByOrgUnitChart: React.FC<GapRateByOrgUnitChartProps> = ({ accessTok
             </div>
           ) : data.length === 0 ? (
             <div className="gba:h-full gba:flex gba:items-center gba:justify-center">
-              <Empty description={t('hr-analytics-no-data')} data-testid="gap-rate-by-org-unit-chart-empty" />
+              <span className="gba:text-sm gba:text-muted-foreground" data-testid="gap-rate-by-org-unit-chart-empty">
+                {t('hr-analytics-no-data')}
+              </span>
             </div>
           ) : (
             <ResponsiveContainer

@@ -1,9 +1,6 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, Badge } from '@newwork/nw-design-system'
-import { Typography } from 'antd'
 import { DEFAULT_CHART_SURFACE_CLASS } from './analyticsChartSurfaceStyles'
-
-const { Title, Text } = Typography
 
 export interface SelectableChartCardProps {
   testId: string
@@ -40,15 +37,15 @@ const SelectableChartCard: React.FC<SelectableChartCardProps> = ({
     <CardHeader className="gba:border-b">
       <div className="gba:flex gba:items-center gba:justify-between">
         <div className="gba:flex gba:items-center gba:gap-2">
-          <Title level={4} className="gba:m-0 gba:text-foreground">
+          <h4 className="gba:m-0 gba:text-lg gba:font-semibold gba:text-foreground">
             {title}
-          </Title>
+          </h4>
         </div>
         <Badge variant="outline" className="gba:text-xs">
           {tag}
         </Badge>
       </div>
-      <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">{description}</Text>
+      <p className="gba:text-muted-foreground gba:text-sm gba:mt-1">{description}</p>
       {isSelected && selectedHint && <p className="gba:text-xs gba:text-info gba:mt-1">{selectedHint}</p>}
     </CardHeader>
     <CardContent>

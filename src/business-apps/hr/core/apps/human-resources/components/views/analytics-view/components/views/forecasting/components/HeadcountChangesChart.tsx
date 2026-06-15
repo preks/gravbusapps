@@ -1,6 +1,6 @@
 import React from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { Spin } from 'antd'
+import { Spinner } from '@newwork/nw-design-system'
 import { useMonthlyHeadcountChanges } from '../../../../hooks/useMonthlyHeadcountChanges'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTranslation } from '@newwork/nw-design-system'
@@ -45,7 +45,7 @@ const HeadcountChangesChart: React.FC<BusinessAppContextProps> = props => {
 
   return loading ? (
     <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
-      <Spin size="large" />
+      <Spinner />
     </div>
   ) : (
     <div className="gba:h-full">

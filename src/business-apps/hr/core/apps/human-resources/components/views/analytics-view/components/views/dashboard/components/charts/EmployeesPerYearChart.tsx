@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react'
-import { useTranslation } from '@newwork/nw-design-system'
-import { Spin, Empty, Result } from 'antd'
+import { Spinner, useTranslation } from '@newwork/nw-design-system'
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { YearlyEmployeeData } from '../../../../../hooks/useEmployeesPerYear'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
@@ -73,7 +72,7 @@ const EmployeesPerYearChart: React.FC<EmployeesPerYearChartProps> = ({ data, loa
         className="gba:flex gba:items-center gba:justify-center gba:h-full"
         data-testid="employees-per-year-chart-loading"
       >
-        <Spin size="large" />
+        <Spinner />
       </div>
     )
   } else if (error) {
@@ -83,7 +82,10 @@ const EmployeesPerYearChart: React.FC<EmployeesPerYearChartProps> = ({ data, loa
         className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full"
         data-testid="employees-per-year-chart-error"
       >
-        <Result status="warning" title={t('hr-analytics-data-error')} subTitle={errorSubTitle} />
+        <div className="gba:text-center">
+          <div className="gba:font-semibold gba:text-warning">{t('hr-analytics-data-error')}</div>
+          <div className="gba:text-sm gba:text-muted-foreground">{errorSubTitle}</div>
+        </div>
       </div>
     )
   } else if (chartData.length === 0) {
@@ -92,7 +94,7 @@ const EmployeesPerYearChart: React.FC<EmployeesPerYearChartProps> = ({ data, loa
         className="gba:flex gba:items-center gba:justify-center gba:h-full"
         data-testid="employees-per-year-chart-empty"
       >
-        <Empty description={t('hr-analytics-no-data')} />
+        <span className="gba:text-sm gba:text-muted-foreground">{t('hr-analytics-no-data')}</span>
       </div>
     )
   } else {

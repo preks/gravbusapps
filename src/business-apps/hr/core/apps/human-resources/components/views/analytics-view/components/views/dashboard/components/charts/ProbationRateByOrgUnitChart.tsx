@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import { Card, Typography, Spin, Empty, theme } from 'antd'
+import { Card, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { InfoIcon } from '@phosphor-icons/react'
 import {
   BarChart,
@@ -12,13 +12,10 @@ import {
   Cell,
   LabelList
 } from 'recharts'
-import { useTranslation } from '@newwork/nw-design-system'
 import { useProbationRateByOrgUnit } from '../../../../../hooks/useProbationRateByOrgUnit'
 import { BusinessAppContextProps } from '@/business-apps/types'
 import { mapValueToColor } from '@/common/utils/chartColorMapper'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
-
-const { Title } = Typography
 
 type ProbationRateByOrgUnitChartProps = BusinessAppContextProps
 
@@ -29,7 +26,6 @@ type ProbationRateByOrgUnitChartProps = BusinessAppContextProps
 const ProbationRateByOrgUnitChart: React.FC<ProbationRateByOrgUnitChartProps> = ({ accessToken }) => {
   // Use the hook to fetch probation rate data
   const { data, loading, error } = useProbationRateByOrgUnit(accessToken)
-  const { token } = theme.useToken()
   const { t } = useTranslation(hrTranslations)
 
   // Transform data for the bar chart - limit to top 10 org units with highest probation rates
@@ -103,7 +99,7 @@ const ProbationRateByOrgUnitChart: React.FC<ProbationRateByOrgUnitChartProps> = 
       <text
         x={x + width + labelOffset}
         y={y + height / 2}
-        fill={token.colorText}
+        fill="var(--nw-foreground)"
         textAnchor="start"
         dominantBaseline="middle"
         fontSize={12}
@@ -116,12 +112,11 @@ const ProbationRateByOrgUnitChart: React.FC<ProbationRateByOrgUnitChartProps> = 
   }
 
   return (
-    <Card
-      title={
-        <div className="gba:flex gba:justify-between gba:items-center">
-          <Title level={4} style={{ margin: 0 }}>
+    <Card className="gba:h-full" data-testid="probation-rate-by-org-unit-chart">
+      <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
+          <h4 className="gba:m-0 gba:text-lg gba:font-semibold">
             {t('hr-analytics-probation-rate-by-org-unit')}
-          </Title>
+          </h4>
           <div className="gba:flex gba:items-center">
             <InfoIcon
               size={16}
@@ -130,23 +125,14 @@ const ProbationRateByOrgUnitChart: React.FC<ProbationRateByOrgUnitChartProps> = 
             />
           </div>
         </div>
-      }
-      bordered={false}
-      style={{ height: '100%' }}
-      data-testid="probation-rate-by-org-unit-chart"
-    >
       <div
-        className="gba:h-full gba:flex gba:flex-col gba:w-full"
-        style={{
-          height: '450px',
-          position: 'relative'
-        }}
+        className="gba:h-[450px] gba:flex gba:flex-col gba:w-full gba:relative"
         data-testid="probation-rate-by-org-unit-chart-container"
       >
         <div className="gba:h-full gba:w-full gba:flex-grow">
           {loading ? (
             <div className="gba:h-full gba:flex gba:items-center gba:justify-center">
-              <Spin size="large" data-testid="probation-rate-by-org-unit-chart-loading" />
+              <Spinner data-testid="probation-rate-by-org-unit-chart-loading" />
             </div>
           ) : error ? (
             <div className="gba:h-full gba:flex gba:items-center gba:justify-center gba:text-destructive">
@@ -156,7 +142,9 @@ const ProbationRateByOrgUnitChart: React.FC<ProbationRateByOrgUnitChartProps> = 
             </div>
           ) : data.length === 0 ? (
             <div className="gba:h-full gba:flex gba:items-center gba:justify-center">
-              <Empty description={t('hr-analytics-no-data')} data-testid="probation-rate-by-org-unit-chart-empty" />
+              <span className="gba:text-sm gba:text-muted-foreground" data-testid="probation-rate-by-org-unit-chart-empty">
+                {t('hr-analytics-no-data')}
+              </span>
             </div>
           ) : (
             <ResponsiveContainer
