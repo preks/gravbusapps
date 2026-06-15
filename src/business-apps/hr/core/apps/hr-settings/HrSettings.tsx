@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Input, Typography } from 'antd'
+import { Input } from '@newwork/nw-design-system'
 import { MagnifyingGlassIcon, UsersThreeIcon } from '@phosphor-icons/react'
 import { HrSettingsCard, HrSettingsCardProps } from './components/HrSettingsCard'
 import { useHrSettingsCards } from './hooks/useHrSettingsCards'
@@ -40,56 +40,43 @@ const HrSettings: React.FC<HrSettingsProps> = ({ className, prefixDataTestId }) 
 
   return (
     <PageLayout
-      headerIcon={<UsersThreeIcon weight="duotone" color="var(--nw-decorative)" />}
+      headerIcon={<UsersThreeIcon weight="duotone" className="gba:text-decorative" />}
       headerLabel={getTranslationFromI18nKeyAndLabel('translation:hr.hr_settings', 'HR Settings')}
       className={`${className ?? ''} gba:!overflow-y-visible`}
       pageHeaderRight={
-        <Input
-          prefix={<MagnifyingGlassIcon size={16} className="gba:text-muted-foreground" />}
-          placeholder={getTranslationFromI18nKeyAndLabel('translation:actions.search', 'Search')}
-          style={{ maxWidth: '320px' }}
-          allowClear
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-          data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Search-Input`}
-        />
+        <div className="gba:relative gba:w-80">
+          <MagnifyingGlassIcon
+            size={16}
+            className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:text-muted-foreground"
+          />
+          <Input
+            placeholder={getTranslationFromI18nKeyAndLabel('translation:actions.search', 'Search')}
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="gba:pl-9"
+            data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Search-Input`}
+          />
+        </div>
       }
       contentContainer={
         <div
           data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
-          className="no-scrollbar gba:w-full gba:h-full gba:overflow-y-auto gba:bg-muted/30 gba:pb-8"
-          style={{ padding: '24px' }}
+          className="no-scrollbar gba:w-full gba:h-full gba:overflow-y-auto gba:bg-muted/30 gba:p-6 gba:pb-8"
         >
           {filteredCards.length === 0 ? (
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: '256px',
-                textAlign: 'center'
-              }}
-            >
-              <Typography.Title level={4} className="gba:text-muted-foreground" style={{ marginBottom: '8px' }}>
+            <div className="gba:flex gba:h-64 gba:flex-col gba:items-center gba:justify-center gba:text-center">
+              <h4 className="gba:mb-2 gba:text-lg gba:font-semibold gba:text-muted-foreground">
                 {t('common.no_results_found')}
-              </Typography.Title>
-              <Typography.Paragraph className="gba:text-muted-foreground" style={{ margin: 0 }}>
+              </h4>
+              <p className="gba:m-0 gba:text-muted-foreground">
                 {t('common.try_different_search')}
-              </Typography.Paragraph>
+              </p>
             </div>
           ) : (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-                gap: '24px',
-                gridAutoRows: 'min-content'
-              }}
-            >
-              {filteredCards.map((card: HrSettingsCardProps, idx: number) => (
+            <div className="gba:grid gba:grid-cols-1 gba:gap-6 md:gba:grid-cols-2 xl:gba:grid-cols-3">
+              {filteredCards.map((card: HrSettingsCardProps) => (
                 <HrSettingsCard
-                  key={`${idx}-${card.title}`}
+                  key={card.title}
                   {...card}
                   prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
                 />

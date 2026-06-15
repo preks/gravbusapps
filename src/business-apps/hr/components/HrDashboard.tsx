@@ -1,78 +1,110 @@
-import React from 'react'
-import { Card, Row, Col, Typography } from 'antd'
-import { UsersIcon, FileTextIcon, UserIcon, IdentificationCardIcon } from '@phosphor-icons/react'
+import React, { type ComponentType } from 'react'
+import { Card, CardContent } from '@newwork/nw-design-system'
+import {
+  UsersIcon,
+  FileTextIcon,
+  UserIcon,
+  IdentificationCardIcon,
+  type IconProps
+} from '@phosphor-icons/react'
 
-const { Title, Text } = Typography
+interface DashboardItem {
+  title: string
+  value?: string
+  Icon: ComponentType<IconProps>
+  iconClassName: string
+  iconBackgroundClassName?: string
+}
 
 const HrDashboard: React.FC = () => {
-  const stats = [
-    { title: 'Total Employees', value: '124', icon: <UsersIcon size={24} />, color: 'var(--nw-info)' },
-    { title: 'Active Documents', value: '856', icon: <FileTextIcon size={24} />, color: 'var(--nw-success)' },
-    { title: 'Open Positions', value: '12', icon: <IdentificationCardIcon size={24} />, color: 'var(--nw-warning)' },
-    { title: 'On Leave', value: '8', icon: <UserIcon size={24} />, color: 'var(--nw-destructive)' }
+  const stats: DashboardItem[] = [
+    {
+      title: 'Total Employees',
+      value: '124',
+      Icon: UsersIcon,
+      iconClassName: 'gba:text-info',
+      iconBackgroundClassName: 'gba:bg-info-secondary'
+    },
+    {
+      title: 'Active Documents',
+      value: '856',
+      Icon: FileTextIcon,
+      iconClassName: 'gba:text-success',
+      iconBackgroundClassName: 'gba:bg-success-secondary'
+    },
+    {
+      title: 'Open Positions',
+      value: '12',
+      Icon: IdentificationCardIcon,
+      iconClassName: 'gba:text-warning',
+      iconBackgroundClassName: 'gba:bg-warning-secondary'
+    },
+    {
+      title: 'On Leave',
+      value: '8',
+      Icon: UserIcon,
+      iconClassName: 'gba:text-destructive',
+      iconBackgroundClassName: 'gba:bg-destructive-secondary'
+    }
+  ]
+
+  const quickActions: DashboardItem[] = [
+    { title: 'Manage Documents', Icon: FileTextIcon, iconClassName: 'gba:text-info' },
+    { title: 'Add Employee', Icon: UserIcon, iconClassName: 'gba:text-success' },
+    { title: 'Post Job', Icon: IdentificationCardIcon, iconClassName: 'gba:text-warning' },
+    { title: 'Team Overview', Icon: UsersIcon, iconClassName: 'gba:text-info' }
   ]
 
   return (
     <div className="gba:p-6">
-      <Title level={2} className="gba:mb-6">
+      <h2 className="gba:mb-6 gba:text-2xl gba:font-semibold">
         HR Dashboard
-      </Title>
+      </h2>
 
-      <Row gutter={[16, 16]} className="gba:mb-8">
-        {stats.map((stat, index) => (
-          <Col xs={24} sm={12} lg={6} key={index}>
-            <Card className="gba:h-full">
-              <div className="gba:flex gba:items-center">
+      <div className="gba:mb-8 gba:grid gba:grid-cols-1 gba:gap-4 sm:gba:grid-cols-2 lg:gba:grid-cols-4">
+        {stats.map(stat => {
+          const { Icon } = stat
+
+          return (
+            <Card key={stat.title} className="gba:h-full">
+              <CardContent className="gba:flex gba:items-center gba:p-6">
                 <div
-                  className="gba:flex gba:items-center gba:justify-center gba:rounded-full gba:w-12 gba:h-12 gba:mr-4"
-                  style={{ backgroundColor: `${stat.color}20`, color: stat.color }}
+                  className={`gba:mr-4 gba:flex gba:h-12 gba:w-12 gba:items-center gba:justify-center gba:rounded-full ${stat.iconBackgroundClassName}`}
                 >
-                  {React.cloneElement(stat.icon, { style: { fontSize: '24px' } })}
+                  <Icon size={24} className={stat.iconClassName} />
                 </div>
                 <div>
-                  <Text type="secondary" className="gba:block">
+                  <span className="gba:block gba:text-sm gba:text-muted-foreground">
                     {stat.title}
-                  </Text>
-                  <Title level={3} className="gba:mt-1 gba:mb-0">
+                  </span>
+                  <h3 className="gba:mb-0 gba:mt-1 gba:text-xl gba:font-semibold">
                     {stat.value}
-                  </Title>
+                  </h3>
                 </div>
-              </div>
+              </CardContent>
             </Card>
-          </Col>
-        ))}
-      </Row>
+          )
+        })}
+      </div>
 
       <div className="gba:bg-primary-foreground gba:p-6 gba:rounded-lg gba:shadow">
-        <Title level={4} className="gba:mb-4">
+        <h4 className="gba:mb-4 gba:text-lg gba:font-semibold">
           Quick Actions
-        </Title>
-        <Row gutter={[16, 16]}>
-          <Col xs={24} sm={12} md={6}>
-            <Card hoverable className="gba:text-center">
-              <FileTextIcon style={{ fontSize: '32px', color: 'var(--nw-info)' }} />
-              <div className="gba:mt-2">Manage Documents</div>
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card hoverable className="gba:text-center">
-              <UserIcon style={{ fontSize: '32px', color: 'var(--nw-success)' }} />
-              <div className="gba:mt-2">Add Employee</div>
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card hoverable className="gba:text-center">
-              <IdentificationCardIcon style={{ fontSize: '32px', color: 'var(--nw-warning)' }} />
-              <div className="gba:mt-2">Post Job</div>
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card hoverable className="gba:text-center">
-              <UsersIcon style={{ fontSize: '32px', color: 'var(--nw-info)' }} />
-              <div className="gba:mt-2">Team Overview</div>
-            </Card>
-          </Col>
-        </Row>
+        </h4>
+        <div className="gba:grid gba:grid-cols-1 gba:gap-4 sm:gba:grid-cols-2 md:gba:grid-cols-4">
+          {quickActions.map(action => {
+            const { Icon } = action
+
+            return (
+              <Card key={action.title} className="gba:text-center gba:transition-shadow hover:gba:shadow-md">
+                <CardContent className="gba:p-6">
+                  <Icon size={32} className={action.iconClassName} />
+                  <div className="gba:mt-2">{action.title}</div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
       </div>
     </div>
   )
