@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
   FormControl,
   FormField,
@@ -10,7 +10,6 @@ import {
 } from '@newwork/nw-design-system'
 import type { FieldValues, Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import * as z from 'zod'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { FormWrapperModal } from '@/components/form-wrapper'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -20,48 +19,18 @@ import { useCodeError } from '@/business-apps/mdm/hooks/useCodeError'
 import { ASSET_CATALOG_VERSION, type AssetCatalogIdentifier } from '@/business-apps/mdm/apps/assets-master-data/types'
 import {
   isAssetCatalogEntryMarkedDeleted,
-  mergeAssetCatalogEntryForPut,
-  upsertAssetCatalogTranslationForLocale
+  mergeAssetCatalogEntryForPut
 } from '@/business-apps/mdm/apps/assets-master-data/utils/catalogEntryMetadata'
+import type { CatalogEntry } from '@/common/types/CatalogTypes'
+import { AssetCatalogTranslationFields } from './AssetCatalogTranslationFields'
+import {
+  buildAssetCatalogEntryFormSchema,
+  buildCreateAssetCatalogEntryFormSchema,
+  buildCreateTranslations,
+  buildUpdateTranslations,
+  getTranslationValue
+} from './assetCatalogTranslationUtils'
 import translations from './_i18n'
-
-const noLeadingWhitespace = (value: string) => value === value.trimStart()
-
-const buildAssetCatalogEntryFormSchema = (msgs: {
-  nameRequired: string
-  nameTooLong: string
-  descriptionTooLong: string
-  noLeadingWhitespace: string
-}) =>
-  z.object({
-    value: z
-      .string({ message: msgs.nameRequired })
-      .min(1, msgs.nameRequired)
-      .max(64, msgs.nameTooLong)
-      .refine(noLeadingWhitespace, msgs.noLeadingWhitespace),
-    code: z.string().optional(),
-    description: z
-      .string()
-      .max(100, msgs.descriptionTooLong)
-      .refine(val => !val || noLeadingWhitespace(val), msgs.noLeadingWhitespace)
-      .optional()
-  })
-
-const buildCreateAssetCatalogEntryFormSchema = (msgs: {
-  nameRequired: string
-  nameTooLong: string
-  codeRequired: string
-  codeTooLong: string
-  descriptionTooLong: string
-  noLeadingWhitespace: string
-}) =>
-  buildAssetCatalogEntryFormSchema(msgs).extend({
-    code: z
-      .string({ message: msgs.codeRequired })
-      .min(1, msgs.codeRequired)
-      .max(10, msgs.codeTooLong)
-      .refine(noLeadingWhitespace, msgs.noLeadingWhitespace)
-  })
 
 export interface AssetCatalogEntryFormProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -73,6 +42,7 @@ export interface AssetCatalogEntryFormProps extends BusinessAppContextProps {
     value: string
     code: string
     description?: string
+    translations?: CatalogEntry['translations']
   }
   onCancel?: () => void
   childAddButton: React.ReactNode
@@ -100,6 +70,46 @@ const AssetCatalogEntryForm: React.FC<AssetCatalogEntryFormProps> = ({
   const { codeError, setCodeError, validateCode } = useCodeError(usedCodes)
   const catalogClient = useCatalogManagerClient(accessToken)
   const userLocale = useUserLocale() ?? 'en-US'
+  const [isOpen, setIsOpen] = useState(false)
+  const [translationUpdateValues, setTranslationUpdateValues] = useState<FieldValues>({})
+
+  useEffect(() => {
+    if (!isOpen || !assetCatalogEntry) {
+      setTranslationUpdateValues({})
+      return
+    }
+
+    let isMounted = true
+
+    const loadTranslations = async () => {
+      try {
+        const fresh = await catalogClient.getCatalogEntryById(assetCatalogEntry.id, {
+          params: {
+            localeCode: userLocale,
+            includeTranslations: true
+          }
+        })
+
+        if (!isMounted) return
+
+        setTranslationUpdateValues({
+          translationEnUs: getTranslationValue(fresh.translations, 'en-US'),
+          translationDeDe: getTranslationValue(fresh.translations, 'de-DE'),
+          translationRoRo: getTranslationValue(fresh.translations, 'ro-RO')
+        })
+      } catch {
+        if (isMounted) {
+          setTranslationUpdateValues({})
+        }
+      }
+    }
+
+    loadTranslations()
+
+    return () => {
+      isMounted = false
+    }
+  }, [assetCatalogEntry, catalogClient, isOpen, userLocale])
 
   const validationMsgs = useMemo(
     () => ({
@@ -130,11 +140,19 @@ const AssetCatalogEntryForm: React.FC<AssetCatalogEntryFormProps> = ({
     }
 
     if (assetCatalogEntry) {
-      const fresh = await catalogClient.getCatalogEntryById(assetCatalogEntry.id)
-      const translations = upsertAssetCatalogTranslationForLocale(fresh.translations, userLocale, {
-        value: trimmedData.value,
-        additionalValue1: trimmedData.description
+      const fresh = await catalogClient.getCatalogEntryById(assetCatalogEntry.id, {
+        params: {
+          localeCode: userLocale,
+          includeTranslations: true
+        }
       })
+      const translations = buildUpdateTranslations(
+        fresh.translations,
+        data,
+        userLocale,
+        trimmedData.description,
+        trimmedData.value
+      )
       const payload = mergeAssetCatalogEntryForPut(fresh, {
         value: trimmedData.value,
         additionalValue1: trimmedData.description,
@@ -149,7 +167,7 @@ const AssetCatalogEntryForm: React.FC<AssetCatalogEntryFormProps> = ({
         value: trimmedData.value,
         additionalValue1: trimmedData.description,
         isDeleted: false,
-        translations: []
+        translations: buildCreateTranslations(data)
       })
     }
 
@@ -160,7 +178,10 @@ const AssetCatalogEntryForm: React.FC<AssetCatalogEntryFormProps> = ({
     () => ({
       value: assetCatalogEntry?.value || '',
       code: assetCatalogEntry?.code || '',
-      description: assetCatalogEntry?.description || ''
+      description: assetCatalogEntry?.description || '',
+      translationEnUs: getTranslationValue(assetCatalogEntry?.translations, 'en-US'),
+      translationDeDe: getTranslationValue(assetCatalogEntry?.translations, 'de-DE'),
+      translationRoRo: getTranslationValue(assetCatalogEntry?.translations, 'ro-RO')
     }),
     [assetCatalogEntry]
   )
@@ -175,6 +196,8 @@ const AssetCatalogEntryForm: React.FC<AssetCatalogEntryFormProps> = ({
       onSubmit={handleSubmit}
       onCancel={onCancel}
       defaultValues={defaultValues}
+      open={isOpen}
+      setOpen={setIsOpen}
       isEditing={!!assetCatalogEntry}
       dataTestId={dataTestId}
       isDrawerActive={isDrawerActive}
@@ -182,6 +205,7 @@ const AssetCatalogEntryForm: React.FC<AssetCatalogEntryFormProps> = ({
       setCodeError={setCodeError}
       resolver={resolver}
       schema={activeSchema}
+      updateValues={translationUpdateValues}
     >
       <FormField
         name="value"
@@ -195,6 +219,8 @@ const AssetCatalogEntryForm: React.FC<AssetCatalogEntryFormProps> = ({
           </FormItem>
         )}
       />
+
+      <AssetCatalogTranslationFields dataTestId={dataTestId} t={t} />
 
       {!assetCatalogEntry && (
         <FormField

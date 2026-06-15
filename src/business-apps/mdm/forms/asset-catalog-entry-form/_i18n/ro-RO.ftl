@@ -12,6 +12,15 @@ field-name-placeholder = Introduceți numele
 field-code-placeholder = Introduceți codul
 field-description-placeholder = Introduceți descrierea (opțional)
 
+translations-section-label = Traduceri
+translations-section-description = Adăugați nume traduse pentru limbile acceptate.
+field-translation-en-us-label = Engleză
+field-translation-de-de-label = Germană
+field-translation-ro-ro-label = Română
+field-translation-en-us-placeholder = Please enter...
+field-translation-de-de-placeholder = Please enter...
+field-translation-ro-ro-placeholder = Please enter...
+
 validation-name-required = Introduceți numele intrării din catalogul de active
 validation-name-too-long = Numele intrării din catalogul de active trebuie să aibă mai puțin de 64 de caractere
 validation-code-required = Introduceți codul intrării din catalogul de active

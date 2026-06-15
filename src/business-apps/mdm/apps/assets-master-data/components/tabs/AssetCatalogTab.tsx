@@ -28,6 +28,7 @@ interface AssetCatalogEntryTable {
   code: string
   value: string
   description?: string
+  translations?: AssetCatalogEntry['translations']
 }
 
 const DATA_TEST_ID_PREFIX = 'AssetCatalogTab'
@@ -227,7 +228,8 @@ const AssetCatalogTab: React.FC<AssetCatalogTabProps> = ({ accessToken, config, 
         id: entry.id,
         code: entry.code,
         value: entry.value,
-        description: entry.additionalValue1
+        description: entry.additionalValue1,
+        translations: entry.translations
       })),
     [filteredEntries]
   )

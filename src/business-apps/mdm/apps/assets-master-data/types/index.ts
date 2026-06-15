@@ -1,3 +1,5 @@
+import type { CatalogEntry } from '@/common/types/CatalogTypes'
+
 export const ASSET_CATALOG_VERSION = 'v1'
 
 export const ASSET_BRAND_CATALOG = 'AssetBrand'
@@ -18,11 +20,7 @@ export interface AssetCatalogEntry {
   additionalValue2?: string
   additionalValue3?: string
   isDeleted?: boolean
-  translations: Array<{
-    localeCode?: string
-    value?: string
-    additionalValue1?: string
-  }>
+  translations: CatalogEntry['translations']
 }
 
 export interface AssetCatalogConfig {

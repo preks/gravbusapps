@@ -83,7 +83,8 @@ const AssetCatalogDetailDrawer: React.FC<AssetCatalogDetailDrawerProps> = ({
             id: selectedEntry.id,
             code: selectedEntry.code,
             value: selectedEntry.value,
-            description: selectedEntry.additionalValue1 ?? ''
+            description: selectedEntry.additionalValue1 ?? '',
+            translations: selectedEntry.translations
           }}
           isDrawerActive
           usedCodes={usedCodes}

@@ -12,6 +12,15 @@ field-name-placeholder = Enter name
 field-code-placeholder = Enter code
 field-description-placeholder = Enter description (optional)
 
+translations-section-label = Translations
+translations-section-description = Add translated names for the supported languages.
+field-translation-en-us-label = English
+field-translation-de-de-label = German
+field-translation-ro-ro-label = Romanian
+field-translation-en-us-placeholder = Please enter...
+field-translation-de-de-placeholder = Please enter...
+field-translation-ro-ro-placeholder = Please enter...
+
 validation-name-required = Please enter asset catalog entry name
 validation-name-too-long = Asset catalog entry name must be less than 64 characters
 validation-code-required = Please enter asset catalog entry code
