@@ -8,6 +8,7 @@ export interface BrandOption {
   value: string
   label: string
   code: string
+  parentEntryId?: string | null
 }
 
 const GET_ASSET_BRANDS = (activeUserLocale: string): string => {
@@ -23,6 +24,7 @@ const GET_ASSET_BRANDS = (activeUserLocale: string): string => {
         id
         code
         value
+        parentEntryId
         translations(where: { localeCode: { _eq: "${activeUserLocale}" } }) {
           localeCode
           value
@@ -56,6 +58,7 @@ export const useBrandsCatalog = (context: BusinessAppContextProps) => {
           id: string
           code?: string
           value?: string
+          parentEntryId?: string | null
           translations?: Array<{ localeCode: string; value: string; objectValue?: any }>
         }>
       }>(query)
@@ -66,7 +69,8 @@ export const useBrandsCatalog = (context: BusinessAppContextProps) => {
           id: entry.id,
           value: entry.id,
           label: translatedValue,
-          code: entry.code || ''
+          code: entry.code || '',
+          parentEntryId: entry.parentEntryId
         }
       })
 

@@ -329,11 +329,41 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
   })
 
   const watchedValues = form.watch()
+  const selectedCategory = watchedValues.category
+  const selectedBrand = watchedValues.brand
+  const filteredBrandOptions = useMemo(
+    () => brandOptions.filter(brand => brand.parentEntryId === selectedCategory),
+    [brandOptions, selectedCategory]
+  )
+  const visibleBrandOptions = useMemo(() => {
+    if (!isEditMode || !selectedBrand) {
+      return filteredBrandOptions
+    }
+
+    const selectedOption = brandOptions.find(brand => brand.id === selectedBrand)
+    const selectedOptionIsVisible = filteredBrandOptions.some(brand => brand.id === selectedBrand)
+
+    if (selectedOption && !selectedOptionIsVisible) {
+      return [selectedOption, ...filteredBrandOptions]
+    }
+
+    return filteredBrandOptions
+  }, [brandOptions, filteredBrandOptions, isEditMode, selectedBrand])
   const initialValuesRef = React.useRef<FormValues>(buildFormValues(existingAsset))
 
   const isUnchangedNow = useMemo(() => {
     return JSON.stringify(watchedValues) === JSON.stringify(initialValuesRef.current)
   }, [watchedValues])
+
+  useEffect(() => {
+    if (isEditMode) return
+
+    const selectedBrandMatchesCategory = filteredBrandOptions.some(brand => brand.id === selectedBrand)
+
+    if (selectedBrand && !selectedBrandMatchesCategory) {
+      form.setValue('brand', '', { shouldDirty: true, shouldValidate: true })
+    }
+  }, [filteredBrandOptions, form, isEditMode, selectedBrand])
 
   React.useEffect(() => {
     const loadAsset = async () => {
@@ -405,6 +435,18 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
     () => getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initiate_cancel_button', 'Cancel'),
     [currentLocale]
   )
+
+  const brandPlaceholder = useMemo(() => {
+    if (brandsLoading) {
+      return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.loading_brands', 'Loading brands...')
+    }
+
+    if (!selectedCategory) {
+      return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.select_category_first', 'Select category first')
+    }
+
+    return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.select_brand', 'Select brand')
+  }, [brandsLoading, currentLocale, selectedCategory])
 
   const isSubmitDisabled = useMemo(() => {
     const hasValidationErrors = Object.keys(form.formState.errors || {}).length > 0
@@ -615,18 +657,16 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
               <Label htmlFor="brand" data-testid="brand-label">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.producer', 'Producer')} *
               </Label>
-              <Select onValueChange={field.onChange} value={field.value} disabled={brandsLoading || isEditMode}>
+              <Select
+                onValueChange={field.onChange}
+                value={field.value}
+                disabled={brandsLoading || isEditMode || !selectedCategory}
+              >
                 <SelectTrigger id="brand" data-testid="brand-select">
-                  <SelectValue
-                    placeholder={
-                      brandsLoading
-                        ? getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.loading_brands', 'Loading brands...')
-                        : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.select_brand', 'Select brand')
-                    }
-                  />
+                  <SelectValue placeholder={brandPlaceholder} />
                 </SelectTrigger>
                 <SelectContent>
-                  {brandOptions.map(brand => (
+                  {visibleBrandOptions.map(brand => (
                     <SelectItem key={brand.id} value={brand.id} data-testid={`brand-option-${brand.code}`}>
                       {brand.label}
                     </SelectItem>

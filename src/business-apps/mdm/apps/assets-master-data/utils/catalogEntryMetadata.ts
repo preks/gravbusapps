@@ -21,21 +21,24 @@ export function upsertAssetCatalogTranslationForLocale(
   return list
 }
 
+type AssetCatalogEntryPutOverrides = Partial<
+  Pick<
+    CatalogEntry,
+    | 'value'
+    | 'additionalValue1'
+    | 'additionalValue2'
+    | 'additionalValue3'
+    | 'objectValue'
+    | 'isDeleted'
+    | 'translations'
+  >
+> & {
+  parentEntryId?: string | null
+}
+
 export function mergeAssetCatalogEntryForPut(
   existing: CatalogEntry,
-  overrides: Partial<
-    Pick<
-      CatalogEntry,
-      | 'value'
-      | 'additionalValue1'
-      | 'additionalValue2'
-      | 'additionalValue3'
-      | 'parentEntryId'
-      | 'objectValue'
-      | 'isDeleted'
-      | 'translations'
-    >
-  >
+  overrides: AssetCatalogEntryPutOverrides
 ): Record<string, unknown> {
   return {
     id: existing.id,
@@ -50,7 +53,7 @@ export function mergeAssetCatalogEntryForPut(
     additionalValue3: overrides.additionalValue3 ?? existing.additionalValue3,
     objectValue: overrides.objectValue ?? existing.objectValue,
     isDeleted: overrides.isDeleted ?? existing.isDeleted,
-    parentEntryId: overrides.parentEntryId ?? existing.parentEntryId,
+    parentEntryId: 'parentEntryId' in overrides ? overrides.parentEntryId : existing.parentEntryId,
     translations: overrides.translations ?? existing.translations ?? []
   }
 }

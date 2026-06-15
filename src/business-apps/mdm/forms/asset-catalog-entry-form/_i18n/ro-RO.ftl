@@ -6,11 +6,15 @@ form-description = Configurați detaliile intrării din catalogul de active pent
 
 field-name-label = Nume
 field-code-label = Cod
+field-asset-category-label = Categorie activ
 field-description-label = Descriere
 
 field-name-placeholder = Introduceți numele
 field-code-placeholder = Introduceți codul
+field-asset-category-placeholder = Selectați categoria activului
+field-asset-category-none = Fără categorie de activ
 field-description-placeholder = Introduceți descrierea (opțional)
+loading = Se încarcă...
 
 translations-section-label = Traduceri
 translations-section-description = Adăugați nume traduse pentru limbile acceptate.

@@ -16,12 +16,17 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { useUserLocale } from '@/common/locale/useUserLocale'
 import { useCodeError } from '@/business-apps/mdm/hooks/useCodeError'
-import { ASSET_CATALOG_VERSION, type AssetCatalogIdentifier } from '@/business-apps/mdm/apps/assets-master-data/types'
+import {
+  ASSET_BRAND_CATALOG,
+  ASSET_CATALOG_VERSION,
+  type AssetCatalogIdentifier
+} from '@/business-apps/mdm/apps/assets-master-data/types'
 import {
   isAssetCatalogEntryMarkedDeleted,
   mergeAssetCatalogEntryForPut
 } from '@/business-apps/mdm/apps/assets-master-data/utils/catalogEntryMetadata'
 import type { CatalogEntry } from '@/common/types/CatalogTypes'
+import { AssetCategoryParentField } from './AssetCategoryParentField'
 import { AssetCatalogTranslationFields } from './AssetCatalogTranslationFields'
 import {
   buildAssetCatalogEntryFormSchema,
@@ -30,6 +35,7 @@ import {
   buildUpdateTranslations,
   getTranslationValue
 } from './assetCatalogTranslationUtils'
+import { useAssetCategoryOptions } from './useAssetCategoryOptions'
 import translations from './_i18n'
 
 export interface AssetCatalogEntryFormProps extends BusinessAppContextProps {
@@ -41,6 +47,7 @@ export interface AssetCatalogEntryFormProps extends BusinessAppContextProps {
     id: string
     value: string
     code: string
+    parentEntryId?: string
     description?: string
     translations?: CatalogEntry['translations']
   }
@@ -70,8 +77,14 @@ const AssetCatalogEntryForm: React.FC<AssetCatalogEntryFormProps> = ({
   const { codeError, setCodeError, validateCode } = useCodeError(usedCodes)
   const catalogClient = useCatalogManagerClient(accessToken)
   const userLocale = useUserLocale() ?? 'en-US'
+  const isAssetBrandForm = catalogIdentifier === ASSET_BRAND_CATALOG
   const [isOpen, setIsOpen] = useState(false)
   const [translationUpdateValues, setTranslationUpdateValues] = useState<FieldValues>({})
+  const { loading: assetCategoryOptionsLoading, options: assetCategoryOptions } = useAssetCategoryOptions({
+    catalogClient,
+    enabled: isOpen && isAssetBrandForm,
+    userLocale
+  })
 
   useEffect(() => {
     if (!isOpen || !assetCatalogEntry) {
@@ -93,6 +106,7 @@ const AssetCatalogEntryForm: React.FC<AssetCatalogEntryFormProps> = ({
         if (!isMounted) return
 
         setTranslationUpdateValues({
+          parentEntryId: fresh.parentEntryId ?? '',
           translationEnUs: getTranslationValue(fresh.translations, 'en-US'),
           translationDeDe: getTranslationValue(fresh.translations, 'de-DE'),
           translationRoRo: getTranslationValue(fresh.translations, 'ro-RO')
@@ -131,6 +145,7 @@ const AssetCatalogEntryForm: React.FC<AssetCatalogEntryFormProps> = ({
     const trimmedData = {
       value: String(data.value ?? '').trim(),
       code: String(data.code ?? '').trim(),
+      parentEntryId: String(data.parentEntryId ?? '').trim(),
       description: String(data.description ?? '').trim()
     }
     const codeForSave = assetCatalogEntry?.code?.trim() || trimmedData.code
@@ -153,9 +168,11 @@ const AssetCatalogEntryForm: React.FC<AssetCatalogEntryFormProps> = ({
         trimmedData.description,
         trimmedData.value
       )
+      const parentEntryIdOverride = trimmedData.parentEntryId || (fresh.parentEntryId ? null : undefined)
       const payload = mergeAssetCatalogEntryForPut(fresh, {
         value: trimmedData.value,
         additionalValue1: trimmedData.description,
+        ...(isAssetBrandForm ? { parentEntryId: parentEntryIdOverride } : {}),
         isDeleted: isAssetCatalogEntryMarkedDeleted(fresh),
         translations
       })
@@ -165,6 +182,7 @@ const AssetCatalogEntryForm: React.FC<AssetCatalogEntryFormProps> = ({
       await catalogClient.createCatalogEntry(catalogIdentifier, catalogVersion, {
         code: codeForSave,
         value: trimmedData.value,
+        ...(isAssetBrandForm ? { parentEntryId: trimmedData.parentEntryId || undefined } : {}),
         additionalValue1: trimmedData.description,
         isDeleted: false,
         translations: buildCreateTranslations(data)
@@ -178,6 +196,7 @@ const AssetCatalogEntryForm: React.FC<AssetCatalogEntryFormProps> = ({
     () => ({
       value: assetCatalogEntry?.value || '',
       code: assetCatalogEntry?.code || '',
+      parentEntryId: assetCatalogEntry?.parentEntryId || '',
       description: assetCatalogEntry?.description || '',
       translationEnUs: getTranslationValue(assetCatalogEntry?.translations, 'en-US'),
       translationDeDe: getTranslationValue(assetCatalogEntry?.translations, 'de-DE'),
@@ -221,6 +240,15 @@ const AssetCatalogEntryForm: React.FC<AssetCatalogEntryFormProps> = ({
       />
 
       <AssetCatalogTranslationFields dataTestId={dataTestId} t={t} />
+
+      {isAssetBrandForm && (
+        <AssetCategoryParentField
+          dataTestId={dataTestId}
+          loading={assetCategoryOptionsLoading}
+          options={assetCategoryOptions}
+          t={t}
+        />
+      )}
 
       {!assetCatalogEntry && (
         <FormField

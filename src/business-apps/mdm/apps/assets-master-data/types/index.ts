@@ -16,6 +16,7 @@ export interface AssetCatalogEntry {
   code: string
   value: string
   alternativeCode?: string
+  parentEntryId?: string
   additionalValue1?: string
   additionalValue2?: string
   additionalValue3?: string

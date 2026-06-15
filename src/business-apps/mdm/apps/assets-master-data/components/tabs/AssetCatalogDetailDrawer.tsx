@@ -4,6 +4,7 @@ import { InfoIcon, PencilSimpleLineIcon, TagIcon } from '@phosphor-icons/react'
 import SheetWrapperComponent from '@/business-apps/mdm/apps/generic-components/sheet-wrapper/SheetWrapperComponent'
 import AssetCatalogEntryForm from '@/business-apps/mdm/forms/asset-catalog-entry-form/AssetCatalogEntryForm'
 import type { AssetCatalogConfig, AssetCatalogEntry } from '../../types'
+import { ASSET_BRAND_CATALOG } from '../../types'
 import translations from '../../_i18n'
 
 interface AssetCatalogDetailDrawerProps {
@@ -39,11 +40,14 @@ const AssetCatalogDetailDrawer: React.FC<AssetCatalogDetailDrawerProps> = ({
         items: [
           { label: t('drawer-label-name'), value: selectedEntry.value },
           { label: t('drawer-label-code'), value: selectedEntry.code || '-' },
+          ...(config.catalogIdentifier === ASSET_BRAND_CATALOG
+            ? [{ label: t('drawer-label-asset-category'), value: selectedEntry.parentEntryId ?? '-' }]
+            : []),
           { label: t('drawer-label-description'), value: selectedEntry.additionalValue1 ?? '-' }
         ]
       }
     ],
-    [selectedEntry, t]
+    [config.catalogIdentifier, selectedEntry, t]
   )
 
   return (
@@ -83,6 +87,7 @@ const AssetCatalogDetailDrawer: React.FC<AssetCatalogDetailDrawerProps> = ({
             id: selectedEntry.id,
             code: selectedEntry.code,
             value: selectedEntry.value,
+            parentEntryId: selectedEntry.parentEntryId,
             description: selectedEntry.additionalValue1 ?? '',
             translations: selectedEntry.translations
           }}

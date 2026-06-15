@@ -6,11 +6,15 @@ form-description = Configure asset catalog entry details for
 
 field-name-label = Name
 field-code-label = Code
+field-asset-category-label = Asset category
 field-description-label = Description
 
 field-name-placeholder = Enter name
 field-code-placeholder = Enter code
+field-asset-category-placeholder = Select asset category
+field-asset-category-none = No asset category
 field-description-placeholder = Enter description (optional)
+loading = Loading...
 
 translations-section-label = Translations
 translations-section-description = Add translated names for the supported languages.

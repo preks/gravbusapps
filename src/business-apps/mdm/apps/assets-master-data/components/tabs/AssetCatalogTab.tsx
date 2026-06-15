@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Badge, Button, Card, CardContent, DataTable, Spinner, toast, useTranslation } from '@newwork/nw-design-system'
 import { EyeIcon, MagnifyingGlassIcon, PencilSimpleLineIcon, PlusIcon } from '@phosphor-icons/react'
-import type { ColumnDef, SortingState } from '@tanstack/react-table'
+import type { ColumnDef, PaginationState, SortingState } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useUserLocale } from '@/common/locale/useUserLocale'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
@@ -27,11 +27,44 @@ interface AssetCatalogEntryTable {
   id: string
   code: string
   value: string
+  parentEntryId?: string
   description?: string
   translations?: AssetCatalogEntry['translations']
 }
 
 const DATA_TEST_ID_PREFIX = 'AssetCatalogTab'
+const DEFAULT_PAGE_SIZE = 10
+
+const clampPageIndex = (totalCount: number, pageSize: number, pageIndex: number) => {
+  const lastPageIndex = Math.max(Math.ceil(totalCount / pageSize) - 1, 0)
+  return Math.min(pageIndex, lastPageIndex)
+}
+
+const getSortableAssetValue = (entry: AssetCatalogEntryTable, columnId: string) => {
+  if (columnId === 'description') {
+    return entry.description ?? ''
+  }
+
+  if (columnId === 'code') {
+    return entry.code
+  }
+
+  return entry.value
+}
+
+const sortAssetCatalogRows = (rows: AssetCatalogEntryTable[], sorting: SortingState) => {
+  const activeSort = sorting[0]
+  if (!activeSort) {
+    return rows
+  }
+
+  return [...rows].sort((first, second) => {
+    const firstValue = getSortableAssetValue(first, activeSort.id)
+    const secondValue = getSortableAssetValue(second, activeSort.id)
+    const result = firstValue.localeCompare(secondValue)
+    return activeSort.desc ? -result : result
+  })
+}
 
 interface AssetActionsCellProps extends BusinessAppContextProps {
   config: AssetCatalogConfig
@@ -185,6 +218,7 @@ const AssetCatalogTab: React.FC<AssetCatalogTabProps> = ({ accessToken, config, 
   const [selectedEntry, setSelectedEntry] = useState<AssetCatalogEntry | null>(null)
   const [isDrawerVisible, setIsDrawerVisible] = useState(false)
   const [sorting, setSorting] = useState<SortingState>([])
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE })
 
   const loadEntries = useCallback(async () => {
     try {
@@ -222,17 +256,52 @@ const AssetCatalogTab: React.FC<AssetCatalogTabProps> = ({ accessToken, config, 
     )
   }, [entries, searchTerm])
 
+  useEffect(() => {
+    setPagination(prev => {
+      const pageIndex = clampPageIndex(filteredEntries.length, prev.pageSize, prev.pageIndex)
+      return pageIndex === prev.pageIndex ? prev : { ...prev, pageIndex }
+    })
+  }, [filteredEntries.length])
+
   const dataTable = useMemo(
     () =>
       filteredEntries.map(entry => ({
         id: entry.id,
         code: entry.code,
         value: entry.value,
+        parentEntryId: entry.parentEntryId,
         description: entry.additionalValue1,
         translations: entry.translations
       })),
     [filteredEntries]
   )
+
+  const sortedDataTable = useMemo(() => sortAssetCatalogRows(dataTable, sorting), [dataTable, sorting])
+
+  const paginatedDataTable = useMemo(() => {
+    const start = pagination.pageIndex * pagination.pageSize
+    return sortedDataTable.slice(start, start + pagination.pageSize)
+  }, [pagination.pageIndex, pagination.pageSize, sortedDataTable])
+
+  const handlePaginationChange = useCallback(
+    (nextPagination: PaginationState) => {
+      setPagination(prev => {
+        const pageSizeChanged = nextPagination.pageSize !== prev.pageSize
+        const nextPageIndex = pageSizeChanged ? 0 : nextPagination.pageIndex
+
+        return {
+          pageIndex: clampPageIndex(sortedDataTable.length, nextPagination.pageSize, nextPageIndex),
+          pageSize: nextPagination.pageSize
+        }
+      })
+    },
+    [sortedDataTable.length]
+  )
+
+  const handleSortingChange = useCallback((nextSorting: SortingState) => {
+    setSorting(nextSorting)
+    setPagination(prev => ({ ...prev, pageIndex: 0 }))
+  }, [])
 
   const handleSoftDelete = useCallback(
     async (record: AssetCatalogEntryTable) => {
@@ -307,7 +376,10 @@ const AssetCatalogTab: React.FC<AssetCatalogTabProps> = ({ accessToken, config, 
           <DebouncedInput
             key={`${config.formName}-search-input`}
             value={searchTerm}
-            onChange={value => setSearchTerm(value)}
+            onChange={value => {
+              setSearchTerm(value)
+              setPagination(prev => ({ ...prev, pageIndex: 0 }))
+            }}
             placeholder={t(config.searchPlaceholderKey)}
             className="gba:w-full gba:pr-10"
             debounceDelay={300}
@@ -325,10 +397,13 @@ const AssetCatalogTab: React.FC<AssetCatalogTabProps> = ({ accessToken, config, 
           <div className="gba:overflow-hidden">
             <CatalogLookupDataTableShell>
               <DataTable
-                data={dataTable}
+                data={paginatedDataTable}
                 columns={columns}
                 sorting={sorting}
-                onSortingChange={setSorting}
+                onSortingChange={handleSortingChange}
+                pagination={pagination}
+                onPaginationChange={handlePaginationChange}
+                totalCount={sortedDataTable.length}
                 enableSorting
                 enablePagination
                 enableResizing={false}

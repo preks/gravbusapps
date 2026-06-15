@@ -15,6 +15,7 @@ edit-button = Editează
 drawer-section-basic-info = Informații de bază
 drawer-label-name = Nume
 drawer-label-code = Cod
+drawer-label-asset-category = Categorie activ
 drawer-label-description = Descriere
 
 # Asset Brands

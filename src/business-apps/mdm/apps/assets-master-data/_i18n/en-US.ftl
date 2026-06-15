@@ -15,6 +15,7 @@ edit-button = Edit
 drawer-section-basic-info = Basic Information
 drawer-label-name = Name
 drawer-label-code = Code
+drawer-label-asset-category = Asset Category
 drawer-label-description = Description
 
 # Asset Brands

@@ -43,6 +43,7 @@ export const buildAssetCatalogEntryFormSchema = (msgs: {
       .max(64, msgs.nameTooLong)
       .refine(noLeadingWhitespace, msgs.noLeadingWhitespace),
     code: z.string().optional(),
+    parentEntryId: z.string().optional(),
     description: z
       .string()
       .max(100, msgs.descriptionTooLong)

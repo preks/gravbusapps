@@ -21,6 +21,7 @@ const getLocalizedAssetCatalogEntry = (entry: CatalogEntry, catalogLocale: strin
     code: entry.code,
     value,
     alternativeCode: entry.alternativeCode,
+    parentEntryId: entry.parentEntryId,
     additionalValue1,
     additionalValue2: entry.additionalValue2,
     additionalValue3: entry.additionalValue3,

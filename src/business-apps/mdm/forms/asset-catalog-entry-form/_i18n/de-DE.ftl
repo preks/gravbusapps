@@ -6,11 +6,15 @@ form-description = Details zum Asset-Katalogeintrag konfigurieren für
 
 field-name-label = Name
 field-code-label = Code
+field-asset-category-label = Asset-Kategorie
 field-description-label = Beschreibung
 
 field-name-placeholder = Name eingeben
 field-code-placeholder = Code eingeben
+field-asset-category-placeholder = Asset-Kategorie auswählen
+field-asset-category-none = Keine Asset-Kategorie
 field-description-placeholder = Beschreibung eingeben (optional)
+loading = Wird geladen...
 
 translations-section-label = Übersetzungen
 translations-section-description = Übersetzte Namen für die unterstützten Sprachen hinzufügen.
