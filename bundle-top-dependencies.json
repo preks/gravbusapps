@@ -41665,9 +41665,9 @@
     ]
   },
   "hr/core/apps/hr-settings": {
-    "bitbucketBuildNumber": 13627,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13627/",
-    "chunkJsBytes": 89524,
+    "bitbucketBuildNumber": 13641,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13641/",
+    "chunkJsBytes": 89068,
     "top": [
       {
         "kind": "bucket",
@@ -41739,18 +41739,18 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 11615,
-        "gzip": 3057,
+        "rendered": 10949,
+        "gzip": 2985,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/hr-settings/hooks/useHrSettingsCards.tsx",
-            "rendered": 5212,
-            "gzip": 1054
+            "rendered": 4472,
+            "gzip": 949
           },
           {
             "name": "src/business-apps/hr/core/apps/hr-settings/components/HrSettingsCard.tsx",
-            "rendered": 3301,
-            "gzip": 945
+            "rendered": 3415,
+            "gzip": 987
           }
         ]
       },
@@ -88457,20 +88457,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 13634,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13634/",
-    "chunkJsBytes": 2060448,
+    "bitbucketBuildNumber": 13641,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13641/",
+    "chunkJsBytes": 2060455,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1778143,
-        "gzip": 113453,
+        "rendered": 1778153,
+        "gzip": 113462,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1778143,
-            "gzip": 113453
+            "rendered": 1778153,
+            "gzip": 113462
           }
         ]
       },
@@ -120361,7 +120361,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-15T08:31:40.850Z",
+    "generatedAt": "2026-06-15T09:05:11.190Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
