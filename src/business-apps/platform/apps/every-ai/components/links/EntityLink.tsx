@@ -16,6 +16,7 @@ import SandboxFileLinkChip from './SandboxFileLinkChip'
 import { BaseEntityLinkChip } from './BaseEntityLinkChip'
 import IrmDocumentLinkChip from './IrmDocumentLinkChip'
 import { Navigation, buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
+import { buildFlowDetailPath } from '@/common/components/flow/flow-detail/flowDetailShareLinks'
 import { SUPPORTED_PROTOCOLS, ENTITY_CONFIG, PROTOCOL_REDIRECTS } from './constants'
 import { parseEntityUrl, decodeUrlFragment } from './utils'
 
@@ -114,7 +115,7 @@ export function resolveEntityLink(link: string): ResolvedEntityLink | null {
     const instanceFlowId = embeddedParams.get('flowId') || embeddedParams.get('templateId') || effectiveId
     if (instanceFlowId) {
       return {
-        url: buildPlatformUrl(Navigation.FLOW_DETAIL, { flowId: instanceFlowId }),
+        url: buildFlowDetailPath(instanceFlowId),
         protocol: effectiveProtocol,
         id: instanceFlowId,
         alternateId: metadata?.alternateId,
@@ -220,6 +221,12 @@ interface EntityLinkProps {
    *   replicate their behavior.
    */
   appearance?: 'chip' | 'inline'
+  /**
+   * When true, resolved entity links open in a new browser tab instead of
+   * in-app SPA navigation. Used by every-fabric so workspace links never
+   * replace the active chat session.
+   */
+  openInNewTab?: boolean
 }
 
 /**
@@ -253,7 +260,13 @@ const InlineEntityLink: React.FC<{ url: string; newTab?: boolean; children: Reac
  * Handles special protocols (employee, sandbox, investment_document) with custom
  * components, and uses BaseEntityLinkChip for all other entity types.
  */
-const EntityLink: React.FC<EntityLinkProps> = ({ href, accessToken, children, appearance = 'chip' }) => {
+const EntityLink: React.FC<EntityLinkProps> = ({
+  href,
+  accessToken,
+  children,
+  appearance = 'chip',
+  openInNewTab = false
+}) => {
   // Parse the link to extract protocol, id, and metadata
   const parsed = parseEntityUrl(href || '')
   const metadata = parsed ? decodeUrlFragment(parsed.fragment) : null
@@ -281,7 +294,7 @@ const EntityLink: React.FC<EntityLinkProps> = ({ href, accessToken, children, ap
       const resolvedInline = resolveEntityLink(href)
       if (resolvedInline?.url) {
         return (
-          <InlineEntityLink url={resolvedInline.url} newTab>
+          <InlineEntityLink url={resolvedInline.url} newTab={openInNewTab}>
             {children}
           </InlineEntityLink>
         )
@@ -330,7 +343,7 @@ const EntityLink: React.FC<EntityLinkProps> = ({ href, accessToken, children, ap
           variant={resolved.variant}
           showBorder={resolved.showBorder}
           forceReload={forceWorkflowReload}
-          newTab
+          newTab={openInNewTab}
         >
           {children}
         </BaseEntityLinkChip>
@@ -354,12 +367,27 @@ const EntityLink: React.FC<EntityLinkProps> = ({ href, accessToken, children, ap
 
   // Root-relative platform links are valid app navigation targets too.
   if (href && href.startsWith('/')) {
+    if (openInNewTab) {
+      return (
+        <a
+          href={href}
+          className="gba:text-primary gba:underline hover:gba:opacity-80"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {children}
+        </a>
+      )
+    }
+
     return (
       <a
         href={href}
         className="gba:text-primary gba:underline hover:gba:opacity-80"
-        target="_blank"
-        rel="noopener noreferrer"
+        onClick={e => {
+          e.preventDefault()
+          navigateTo(href)
+        }}
       >
         {children}
       </a>

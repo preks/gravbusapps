@@ -6,6 +6,8 @@ export interface LinkFragmentMetadata {
   alternateId?: string
   /** Message ID for deep-linking into a chat conversation */
   messageId?: string
+  /** Running workflow instance id for service_ticket / cflow_task deep links */
+  flowId?: string
 }
 
 /**
@@ -75,7 +77,8 @@ export function decodeUrlFragment(fragment: string | null): LinkFragmentMetadata
 
     return {
       alternateId: typeof parsed.alternateId === 'string' ? parsed.alternateId : undefined,
-      messageId: typeof parsed.messageId === 'string' ? parsed.messageId : undefined
+      messageId: typeof parsed.messageId === 'string' ? parsed.messageId : undefined,
+      flowId: typeof parsed.flowId === 'string' ? parsed.flowId : undefined
     }
   } catch {
     return null

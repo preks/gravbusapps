@@ -4,6 +4,8 @@ import { ChevronDown, ChevronRight, PlayCircle } from 'lucide-react'
 import { useFlowProgressClient } from '@/common/network/flows/useFlowProgressClient'
 import type { FlowDetailData, FlowTriggerData } from '../types'
 import { KeyValueFormData } from '../tabs/taskStepDataRendering'
+import { CopyFlowShareLinkButton } from '../CopyFlowShareLinkButton'
+import { buildFlowTriggerFocusTaskId } from '../flowDetailShareLinks'
 
 const TRIGGER_TYPE_LABELS: Record<string, string> = {
   MANUAL_FORM: 'Manual form',
@@ -116,41 +118,51 @@ export const FlowTriggerTaskCard: React.FC<FlowTriggerTaskCardProps> = ({
   return (
     <Collapsible open={isOpen} onOpenChange={handleOpenChange} data-testid="flow-trigger-task-card">
       <div ref={cardRef} className="gba:rounded-xl gba:border gba:border-border gba:bg-card">
-        <CollapsibleTrigger asChild>
-          <button
-            type="button"
-            className="gba:flex gba:w-full gba:items-start gba:justify-between gba:gap-3 gba:p-4 gba:text-left"
-            data-testid="flow-trigger-task-card-toggle"
-          >
-            <div className="gba:flex gba:min-w-0 gba:flex-1 gba:items-start gba:gap-3">
-              <div className="gba:mt-0.5 gba:text-muted-foreground">
-                {isOpen ? <ChevronDown className="gba:h-4 gba:w-4" /> : <ChevronRight className="gba:h-4 gba:w-4" />}
-              </div>
-              <div className="gba:min-w-0 gba:flex-1 gba:space-y-2">
-                <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
-                  <PlayCircle className="gba:h-4 gba:w-4 gba:text-primary" />
-                  <span className="gba:text-xs gba:font-medium gba:uppercase gba:tracking-wide gba:text-muted-foreground">
-                    Start
-                  </span>
-                  <h3 className="gba:text-base gba:font-semibold gba:text-foreground">Input trigger</h3>
-                  <Badge
-                    variant="outline"
-                    className="gba:border-none gba:bg-success gba:text-xs gba:font-semibold gba:text-success-foreground"
-                  >
-                    COMPLETED
-                  </Badge>
+        <div className="gba:flex gba:items-start gba:gap-2 gba:p-4 gba:pb-0">
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="gba:flex gba:min-w-0 gba:flex-1 gba:items-start gba:justify-between gba:gap-3 gba:pb-4 gba:text-left"
+              data-testid="flow-trigger-task-card-toggle"
+            >
+              <div className="gba:flex gba:min-w-0 gba:flex-1 gba:items-start gba:gap-3">
+                <div className="gba:mt-0.5 gba:text-muted-foreground">
+                  {isOpen ? <ChevronDown className="gba:h-4 gba:w-4" /> : <ChevronRight className="gba:h-4 gba:w-4" />}
                 </div>
-                <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-3 gba:text-xs gba:text-muted-foreground">
-                  <span>{formatTriggerTypeLabel(flowData.triggerData?.triggerType)}</span>
-                  {flowData.triggerData?.initiatedBy || flowData.initiatedBy ? (
-                    <span>Initiated by {flowData.triggerData?.initiatedBy || flowData.initiatedBy}</span>
-                  ) : null}
-                  {flowData.startTime ? <span>{new Date(flowData.startTime).toLocaleString()}</span> : null}
+                <div className="gba:min-w-0 gba:flex-1 gba:space-y-2">
+                  <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
+                    <PlayCircle className="gba:h-4 gba:w-4 gba:text-primary" />
+                    <span className="gba:text-xs gba:font-medium gba:uppercase gba:tracking-wide gba:text-muted-foreground">
+                      Start
+                    </span>
+                    <h3 className="gba:text-base gba:font-semibold gba:text-foreground">Input trigger</h3>
+                    <Badge
+                      variant="outline"
+                      className="gba:border-none gba:bg-success gba:text-xs gba:font-semibold gba:text-success-foreground"
+                    >
+                      COMPLETED
+                    </Badge>
+                  </div>
+                  <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-3 gba:text-xs gba:text-muted-foreground">
+                    <span>{formatTriggerTypeLabel(flowData.triggerData?.triggerType)}</span>
+                    {flowData.triggerData?.initiatedBy || flowData.initiatedBy ? (
+                      <span>Initiated by {flowData.triggerData?.initiatedBy || flowData.initiatedBy}</span>
+                    ) : null}
+                    {flowData.startTime ? <span>{new Date(flowData.startTime).toLocaleString()}</span> : null}
+                  </div>
                 </div>
               </div>
-            </div>
-          </button>
-        </CollapsibleTrigger>
+            </button>
+          </CollapsibleTrigger>
+          <CopyFlowShareLinkButton
+            flowId={flowData.flowId}
+            taskId={buildFlowTriggerFocusTaskId(flowData.flowId)}
+            size="icon"
+            variant="ghost"
+            tooltip="Copy link to trigger input"
+            data-testid="flow-trigger-task-card-copy-link"
+          />
+        </div>
 
         <CollapsibleContent>
           <div className="gba:space-y-3 gba:border-t gba:border-border gba:px-4 gba:pb-4 gba:pt-4">

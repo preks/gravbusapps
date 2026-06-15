@@ -38,6 +38,31 @@ describe('resolveEntityLink', () => {
     })
   })
 
+  describe('service_ticket protocol', () => {
+    const taskId = 'f65965fb-5953-3c20-8857-2589bc9a4782'
+
+    it('opens flow detail with taskId only', () => {
+      const resolved = resolveEntityLink(`service_ticket://${taskId}`)
+
+      expect(resolved).not.toBeNull()
+      expect(resolved?.protocol).toBe('service_ticket')
+      expect(resolved?.id).toBe(taskId)
+      expect(resolved?.url).toBe(`/platform/apps/flow/apps/detail?taskId=${taskId}`)
+      expect(resolved?.url).not.toContain('service-desk')
+      expect(resolved?.url).not.toContain('flowId=')
+    })
+  })
+
+  describe('cflow_task protocol', () => {
+    it('opens flow detail with taskId only', () => {
+      const taskId = '4694a31c-5f5f-30a7-992b-a13cc9f7f8ad'
+      const resolved = resolveEntityLink(`cflow_task://${taskId}`)
+
+      expect(resolved?.url).toBe(`/platform/apps/flow/apps/detail?taskId=${taskId}`)
+      expect(resolved?.url).not.toContain('task-manager')
+    })
+  })
+
   describe('service_workflow protocol', () => {
     it('resolves running instances to the flow detail page', () => {
       const id = 'bed7f6c4-7172-45aa-b952-f97f577a18be'

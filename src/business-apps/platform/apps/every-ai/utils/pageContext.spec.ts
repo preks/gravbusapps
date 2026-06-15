@@ -25,6 +25,18 @@ describe('parsePageContext document routes', () => {
     })
   })
 
+  it('maps task-only flow detail route to cflow_task entity', () => {
+    const result = parsePageContext(
+      'https://newwork-dev.newwork.com/platform/apps/flow/apps/detail?taskId=4694a31c-5f5f-30a7-992b-a13cc9f7f8ad'
+    )
+
+    expect(result).toEqual({
+      type: 'entity',
+      entity_name: 'cflow_task',
+      id: '4694a31c-5f5f-30a7-992b-a13cc9f7f8ad'
+    })
+  })
+
   it('maps document-apps editor route to document entity', () => {
     const result = parsePageContext(
       'https://app.example.com/platform/apps/document-apps?docId=8f7a2d90-1c4b-4f7a-9e2a-5c6b7d8e9f01&view=editor'

@@ -6,6 +6,7 @@ import { Navigation, buildPlatformUrl, navigateTo } from '@/common/utils/navigat
 import type { FlowDetailData, FlowStep } from './types'
 import { useResolvedActorNames } from './useResolvedActorNames'
 import { calculateRunningTimeFromStart, formatFlowDuration, getFlowStatusBadgeClass, getStatusEndLabel } from './utils'
+import { CopyFlowShareLinkButton } from './CopyFlowShareLinkButton'
 
 interface FlowDetailHeaderProps {
   flowData: FlowDetailData
@@ -105,16 +106,24 @@ export const FlowDetailHeader: React.FC<FlowDetailHeaderProps> = ({
               </div>
             </div>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void onRefresh()}
-              className="gba:flex gba:items-center gba:gap-2"
-              data-testid="flow-detail-refresh"
-            >
-              <RefreshCw className={`gba:h-4 gba:w-4 ${isRefreshing ? 'gba:animate-spin' : ''}`} />
-              Refresh
-            </Button>
+            <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
+              <CopyFlowShareLinkButton
+                flowId={flowData.flowId}
+                label="Copy link"
+                tooltip="Copy link to this flow"
+                data-testid="flow-detail-copy-flow-link"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void onRefresh()}
+                className="gba:flex gba:items-center gba:gap-2"
+                data-testid="flow-detail-refresh"
+              >
+                <RefreshCw className={`gba:h-4 gba:w-4 ${isRefreshing ? 'gba:animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
           </div>
 
           <div className="gba:flex gba:flex-wrap gba:items-stretch gba:gap-2">

@@ -54,8 +54,8 @@ jest.mock('remark-gfm', () => ({
 
 jest.mock('@/business-apps/platform/apps/every-ai/components/links/EntityLink', () => ({
   __esModule: true,
-  default: ({ href, children, appearance }: any) => (
-    <span data-testid="entity-link" data-href={href} data-appearance={appearance}>
+  default: ({ href, children, appearance, openInNewTab }: any) => (
+    <span data-testid="entity-link" data-href={href} data-appearance={appearance} data-open-in-new-tab={openInNewTab}>
       {children}
     </span>
   ),
@@ -133,6 +133,16 @@ describe('MarkdownWithChipsRenderer (enterprise variant)', () => {
     ).toBe(false)
   })
 
+  it('navigates root-relative platform links in-app for non-enterprise variants', () => {
+    render(<MarkdownWithChipsRenderer content="ignored" variant="chat" />)
+
+    const link = screen.getByText('Open policy')
+    expect(link.tagName).toBe('A')
+    expect(link).toHaveAttribute('href', '/platform/content/intranet/content-record?contentId=abc')
+    expect(link).not.toHaveAttribute('target', '_blank')
+    expect(link).not.toHaveAttribute('rel', 'noopener noreferrer')
+  })
+
   it('renders entity mentions as lightweight inline links under the enterprise variant', () => {
     render(<MarkdownWithChipsRenderer content="ignored" variant="enterprise" />)
 
@@ -141,11 +151,19 @@ describe('MarkdownWithChipsRenderer (enterprise variant)', () => {
     expect(entity).toHaveAttribute('data-appearance', 'inline')
   })
 
+  it('passes openInNewTab to entity links under the enterprise variant', () => {
+    render(<MarkdownWithChipsRenderer content="ignored" variant="enterprise" />)
+
+    const entity = screen.getByText('Denis Prekrat')
+    expect(entity).toHaveAttribute('data-open-in-new-tab', 'true')
+  })
+
   it('keeps entity mentions as rich chips under the default variant', () => {
     render(<MarkdownWithChipsRenderer content="ignored" />)
 
     const entity = screen.getByText('Denis Prekrat')
     expect(entity).toHaveAttribute('data-appearance', 'chip')
+    expect(entity).toHaveAttribute('data-open-in-new-tab', 'false')
   })
 
   it('renders enterprise paragraphs with the larger leading scale', () => {

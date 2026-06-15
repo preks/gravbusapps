@@ -7,6 +7,7 @@ import EntityLink, {
   markdownUrlTransform,
   SUPPORTED_PROTOCOLS
 } from '@/business-apps/platform/apps/every-ai/components/links/EntityLink'
+import { navigateTo } from '@/common/utils/navigationUtils'
 import { buildMarkdownTableCellBody } from './markdownTableCellUtils'
 
 // Match bare entity URLs (e.g. `employee://uuid` or `account://uuid#fragment`) in raw text.
@@ -68,12 +69,14 @@ interface MarkdownRenderContextValue {
   accessToken: string
   variant: 'chat' | 'ai' | 'default' | 'enterprise'
   renderHttpLinksAsChips: boolean
+  openInNewTab: boolean
 }
 
 const MarkdownRenderContext = React.createContext<MarkdownRenderContextValue>({
   accessToken: '',
   variant: 'default',
-  renderHttpLinksAsChips: false
+  renderHttpLinksAsChips: false,
+  openInNewTab: false
 })
 
 const MarkdownTableWrapper: React.FC<{ children?: React.ReactNode }> = ({ children }) => (
@@ -235,6 +238,7 @@ const renderMarkdownLink = (
   accessToken: string,
   renderHttpLinksAsChips: boolean,
   entityAppearance: 'chip' | 'inline',
+  openInNewTab: boolean,
   props: Record<string, unknown>
 ) => {
   if (!href) {
@@ -242,13 +246,30 @@ const renderMarkdownLink = (
   }
 
   if (href.startsWith('/')) {
+    if (openInNewTab) {
+      return (
+        <a
+          href={href}
+          className="gba:text-primary gba:underline hover:gba:opacity-80"
+          target="_blank"
+          rel="noopener noreferrer"
+          data-testid="markdown-platform-link"
+          {...props}
+        >
+          {children}
+        </a>
+      )
+    }
+
     return (
       <a
         href={href}
         className="gba:text-primary gba:underline hover:gba:opacity-80"
-        target="_blank"
-        rel="noopener noreferrer"
         data-testid="markdown-platform-link"
+        onClick={e => {
+          e.preventDefault()
+          navigateTo(href)
+        }}
         {...props}
       >
         {children}
@@ -292,14 +313,26 @@ const renderMarkdownLink = (
   const isEntityLink = /^\w+:\/\//.test(href)
   if (isEntityLink) {
     return (
-      <EntityLink href={href} accessToken={accessToken} appearance={entityAppearance} {...props}>
+      <EntityLink
+        href={href}
+        accessToken={accessToken}
+        appearance={entityAppearance}
+        openInNewTab={openInNewTab}
+        {...props}
+      >
         {children}
       </EntityLink>
     )
   }
 
   return (
-    <EntityLink href={href} accessToken={accessToken} appearance={entityAppearance} {...props}>
+    <EntityLink
+      href={href}
+      accessToken={accessToken}
+      appearance={entityAppearance}
+      openInNewTab={openInNewTab}
+      {...props}
+    >
       {children}
     </EntityLink>
   )
@@ -310,12 +343,12 @@ const MarkdownLinkRenderer: React.FC<{ href?: string; children?: React.ReactNode
   children,
   ...props
 }) => {
-  const { accessToken, renderHttpLinksAsChips, variant } = React.useContext(MarkdownRenderContext)
+  const { accessToken, renderHttpLinksAsChips, variant, openInNewTab } = React.useContext(MarkdownRenderContext)
   // Inside the enterprise final-answer surface, entity mentions live in prose,
   // so render them as lightweight inline links instead of heavy avatar pills.
   // Other surfaces keep the rich chip treatment.
   const entityAppearance = variant === 'enterprise' ? 'inline' : 'chip'
-  return renderMarkdownLink(href, children, accessToken, renderHttpLinksAsChips, entityAppearance, props)
+  return renderMarkdownLink(href, children, accessToken, renderHttpLinksAsChips, entityAppearance, openInNewTab, props)
 }
 
 const MarkdownTableCellRenderer: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
@@ -439,7 +472,14 @@ export const MarkdownWithChipsRenderer: React.FC<MarkdownWithChipsRendererProps>
   'data-testid': testId
 }) => {
   const markdownContextValue = useMemo(
-    () => ({ accessToken, variant, renderHttpLinksAsChips }),
+    () => ({
+      accessToken,
+      variant,
+      renderHttpLinksAsChips,
+      // every-fabric keeps chat open by launching workspace targets in a new tab;
+      // every-ai and other in-app chat surfaces navigate the main shell instead.
+      openInNewTab: variant === 'enterprise'
+    }),
     [accessToken, variant, renderHttpLinksAsChips]
   )
 

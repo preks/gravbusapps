@@ -14,6 +14,7 @@ import { TaskStepDataView } from '../tabs/taskStepDataRendering'
 import { FlowTaskActivity, filterEventsForStep } from './FlowTaskActivity'
 import { FlowTaskComments } from './FlowTaskComments'
 import { flowCommentsForStep, mergeTaskComments, resolveStepTaskId, stepMatchesTaskId } from './taskCommentUtils'
+import { CopyFlowShareLinkButton } from '../CopyFlowShareLinkButton'
 
 interface FlowTaskCardProps {
   step: FlowStep
@@ -111,6 +112,11 @@ export const FlowTaskCard: React.FC<FlowTaskCardProps> = ({
   )
 
   const displayCommentCount = comments.length > 0 ? comments.length : stepFlowComments.length
+
+  const shareTaskId = useMemo(
+    () => resolvedTaskId || resolveStepTaskId(step, stepData, historyEvents, flowData.flowId),
+    [flowData.flowId, historyEvents, resolvedTaskId, step, stepData]
+  )
 
   const reloadStepComments = useCallback(
     async (nextStepData?: StepDataResponse | null, sourceFlowComments?: FlowComment[]) => {
@@ -221,49 +227,61 @@ export const FlowTaskCard: React.FC<FlowTaskCardProps> = ({
   return (
     <Collapsible open={isOpen} onOpenChange={handleOpenChange} data-testid={`flow-task-card-${step.stepIndex}`}>
       <div ref={cardRef} className="gba:rounded-xl gba:border gba:border-border gba:bg-card">
-        <CollapsibleTrigger asChild>
-          <button
-            type="button"
-            className="gba:flex gba:w-full gba:items-start gba:justify-between gba:gap-3 gba:p-4 gba:text-left"
-            data-testid={`flow-task-card-toggle-${step.stepIndex}`}
-          >
-            <div className="gba:flex gba:min-w-0 gba:flex-1 gba:items-start gba:gap-3">
-              <div className="gba:mt-0.5 gba:text-muted-foreground">
-                {isOpen ? <ChevronDown className="gba:h-4 gba:w-4" /> : <ChevronRight className="gba:h-4 gba:w-4" />}
-              </div>
-              <div className="gba:min-w-0 gba:flex-1 gba:space-y-2">
-                <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
-                  <span className="gba:text-xs gba:font-medium gba:uppercase gba:tracking-wide gba:text-muted-foreground">
-                    Step {stepNumber}
-                  </span>
-                  <h3 className="gba:text-base gba:font-semibold gba:text-foreground">{step.title}</h3>
-                  <Badge
-                    className={`gba:border-none gba:text-xs gba:font-semibold ${getFlowStatusBadgeClass(step.status)}`}
-                  >
-                    {step.status}
-                  </Badge>
+        <div className="gba:flex gba:items-start gba:gap-2 gba:p-4 gba:pb-0">
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="gba:flex gba:min-w-0 gba:flex-1 gba:items-start gba:justify-between gba:gap-3 gba:pb-4 gba:text-left"
+              data-testid={`flow-task-card-toggle-${step.stepIndex}`}
+            >
+              <div className="gba:flex gba:min-w-0 gba:flex-1 gba:items-start gba:gap-3">
+                <div className="gba:mt-0.5 gba:text-muted-foreground">
+                  {isOpen ? <ChevronDown className="gba:h-4 gba:w-4" /> : <ChevronRight className="gba:h-4 gba:w-4" />}
                 </div>
-                <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-3 gba:text-xs gba:text-muted-foreground">
-                  {assigneeLabel ? (
-                    <span className="gba:inline-flex gba:items-center gba:gap-1">
-                      <User className="gba:h-3.5 gba:w-3.5" />
-                      {assigneeLabel}
+                <div className="gba:min-w-0 gba:flex-1 gba:space-y-2">
+                  <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
+                    <span className="gba:text-xs gba:font-medium gba:uppercase gba:tracking-wide gba:text-muted-foreground">
+                      Step {stepNumber}
                     </span>
-                  ) : null}
-                  {startedLabel ? (
-                    <span className="gba:inline-flex gba:items-center gba:gap-1">
-                      <Clock className="gba:h-3.5 gba:w-3.5" />
-                      Started {startedLabel}
-                    </span>
-                  ) : null}
-                  {completedLabel ? <span>Completed {completedLabel}</span> : null}
-                  {taskProgressLabel ? <span>{taskProgressLabel}</span> : null}
-                  {displayCommentCount > 0 ? <span>{displayCommentCount} comments</span> : null}
+                    <h3 className="gba:text-base gba:font-semibold gba:text-foreground">{step.title}</h3>
+                    <Badge
+                      className={`gba:border-none gba:text-xs gba:font-semibold ${getFlowStatusBadgeClass(step.status)}`}
+                    >
+                      {step.status}
+                    </Badge>
+                  </div>
+                  <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-3 gba:text-xs gba:text-muted-foreground">
+                    {assigneeLabel ? (
+                      <span className="gba:inline-flex gba:items-center gba:gap-1">
+                        <User className="gba:h-3.5 gba:w-3.5" />
+                        {assigneeLabel}
+                      </span>
+                    ) : null}
+                    {startedLabel ? (
+                      <span className="gba:inline-flex gba:items-center gba:gap-1">
+                        <Clock className="gba:h-3.5 gba:w-3.5" />
+                        Started {startedLabel}
+                      </span>
+                    ) : null}
+                    {completedLabel ? <span>Completed {completedLabel}</span> : null}
+                    {taskProgressLabel ? <span>{taskProgressLabel}</span> : null}
+                    {displayCommentCount > 0 ? <span>{displayCommentCount} comments</span> : null}
+                  </div>
                 </div>
               </div>
-            </div>
-          </button>
-        </CollapsibleTrigger>
+            </button>
+          </CollapsibleTrigger>
+          {shareTaskId ? (
+            <CopyFlowShareLinkButton
+              flowId={flowData.flowId}
+              taskId={shareTaskId}
+              size="icon"
+              variant="ghost"
+              tooltip="Copy link to this step"
+              data-testid={`flow-task-card-copy-link-${step.stepIndex}`}
+            />
+          ) : null}
+        </div>
 
         <CollapsibleContent>
           <div className="gba:space-y-6 gba:border-t gba:border-border gba:px-4 gba:pb-4 gba:pt-4">

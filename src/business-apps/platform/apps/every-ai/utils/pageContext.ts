@@ -63,6 +63,10 @@ const ENTITY_URL_PATTERNS = [
 
   // Flow/Workflow entities
   { pattern: /\/platform\/task-manager\?[^#]*taskId=([^&]+)/, entity_name: 'cflow_task' },
+  {
+    pattern: /\/platform\/apps\/flow\/apps\/detail\?(?=[^#]*taskId=)(?![^#]*flowId=)[^#]*taskId=([^&]+)/,
+    entity_name: 'cflow_task'
+  },
   { pattern: /\/platform\/apps\/flow\/apps\/detail\?[^#]*flowId=([^&]+)/, entity_name: 'service_workflow' },
   { pattern: /\/platform\/create\/flow-studio\?[^#]*flowId=([^&#]+)/, entity_name: 'workflow_template' },
   { pattern: /\/platform\/create\/flow-studio\?[^#]*draftId=([^&#]+)/, entity_name: 'workflow_template' },

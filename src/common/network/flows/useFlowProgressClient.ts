@@ -101,6 +101,14 @@ export interface AddTaskCommentRequest {
   commentVisibility?: TaskCommentVisibility
 }
 
+export interface FlowEngineTask {
+  id: string
+  flowId?: string
+  workflowMeta?: {
+    rootWorkflowId?: string
+  }
+}
+
 /**
  * Hook for flow progress and data management
  */
@@ -228,6 +236,29 @@ export const useFlowProgressClient = (context: BusinessAppContextProps) => {
     [apiBaseUrl]
   )
 
+  const getTask = useCallback(
+    async (taskId: string, userId: string): Promise<FlowEngineTask> => {
+      const response = await fetch(
+        `${apiBaseUrl}/tasks/${encodeURIComponent(taskId)}?userId=${encodeURIComponent(userId)}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`
+          }
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch task: ${response.status} ${response.statusText}`)
+      }
+
+      const payload = await response.json()
+      return payload.task ?? payload
+    },
+    [accessToken, apiBaseUrl]
+  )
+
   const getTaskComments = useCallback(
     async (taskId: string): Promise<TaskCommentsResponse> => {
       const response = await fetch(`${apiBaseUrl}/tasks/${encodeURIComponent(taskId)}/comments`, {
@@ -277,6 +308,7 @@ export const useFlowProgressClient = (context: BusinessAppContextProps) => {
       getStepDataByReference,
       getExportUrl,
       getExportUrlByReference,
+      getTask,
       getTaskComments,
       addTaskComment
     }),
@@ -288,6 +320,7 @@ export const useFlowProgressClient = (context: BusinessAppContextProps) => {
       getFlowOverview,
       getStepDataByReference,
       getStepDataJson,
+      getTask,
       getTaskComments
     ]
   )
