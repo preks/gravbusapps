@@ -141,6 +141,8 @@ export const buildTaskFragment = (fields: Record<keyof typeof TaskFields, string
   }
     assignedEmployeeId
     assignedUserId
+    taskStatus
+    completedAt
     ${AUDIT_FIELDS}
   }
   ${fields.taskAssigneesAggregate}(where: { isDeleted: { _eq: false } }) {

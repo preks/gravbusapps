@@ -3,7 +3,6 @@ import {
   Button,
   Form,
   FormField,
-  FormFieldGroup,
   FormItem,
   FormLabel,
   FormControl,
@@ -60,6 +59,8 @@ interface TaskInputProps {
   typeCatalogConfig?: CatalogSelectConfig
   /** When true, assignee is multi-select; when false, single EmployeeSelect. */
   multiAssigneeMode?: boolean
+  /** Quick-add is record-scoped; block creation when no related entity context is available. */
+  hasRelatedEntityContext?: boolean
   /** Zod schema for the form (passed to DS Form for required/validation UI if supported). */
   schema?: ZodType<any>
 }
@@ -95,22 +96,31 @@ export const TaskInput: React.FC<TaskInputProps> = ({
   hideTypeSelection = false,
   typeCatalogConfig,
   multiAssigneeMode = false,
+  hasRelatedEntityContext = true,
   schema
 }) => {
   const { t } = useTranslation(translations)
   const isBusy = isProcessing || isSubmitting
   if (!showQuickAdd) {
     return (
-      <Button
-        onClick={() => onShowQuickAddChange(true)}
-        variant="outline"
-        size="sm"
-        className="gba:w-full gba:gap-2"
-        data-testid="task-quick-add-trigger"
-      >
-        <PlusIcon size={16} weight="bold" />
-        {t('tasks-addQuick')}
-      </Button>
+      <>
+        <Button
+          onClick={() => onShowQuickAddChange(true)}
+          variant="outline"
+          size="sm"
+          className="gba:w-full gba:gap-2"
+          data-testid="task-quick-add-trigger"
+          disabled={!hasRelatedEntityContext}
+        >
+          <PlusIcon size={16} weight="bold" />
+          {t('tasks-addQuick')}
+        </Button>
+        {!hasRelatedEntityContext && (
+          <p className="gba:mt-2 gba:text-xs gba:text-destructive" role="alert">
+            {t('tasks-relatedEntityRequired')}
+          </p>
+        )}
+      </>
     )
   }
 
@@ -141,6 +151,12 @@ export const TaskInput: React.FC<TaskInputProps> = ({
           })}
           className="gba:space-y-2"
         >
+          {!hasRelatedEntityContext && (
+            <p className="gba:text-sm gba:text-destructive" role="alert">
+              {t('tasks-relatedEntityRequired')}
+            </p>
+          )}
+
           {/* Type first (hidden in Approval tab) */}
           {!hideTypeSelection && (
             <FormField
@@ -211,13 +227,13 @@ export const TaskInput: React.FC<TaskInputProps> = ({
             )}
           />
 
-          {/* Priority | Timing | Deadline — flex-wrap prevents overlapping on narrow panels */}
-          <FormFieldGroup className="gba:w-full gba:flex-wrap gba:gap-y-2">
+          {/* Priority | Timing | Deadline — equal-width grid columns; force DS select trigger shells to fill their column */}
+          <div className="gba:grid gba:grid-cols-3 gba:gap-4 gba:**:data-[slot=select-trigger-shell]:w-full gba:**:data-[slot=select-trigger]:w-full">
             <FormField
               control={form.control}
               name="taskPriorityRef"
               render={({ field }) => (
-                <FormItem className="gba:min-w-24 gba:flex-1">
+                <FormItem className="gba:min-w-0">
                   <FormLabel>{t('tasks-priority')}</FormLabel>
                   <FormControl>
                     <CatalogSelect.Provider accessToken={accessToken}>
@@ -239,7 +255,7 @@ export const TaskInput: React.FC<TaskInputProps> = ({
               control={form.control}
               name="taskTiming"
               render={({ field }) => (
-                <FormItem className="gba:min-w-28 gba:flex-1">
+                <FormItem className="gba:min-w-0">
                   <FormLabel>{t('tasks-timingType')}</FormLabel>
                   <FormControl>
                     <Select onValueChange={field.onChange} value={field.value}>
@@ -274,10 +290,10 @@ export const TaskInput: React.FC<TaskInputProps> = ({
               control={form.control}
               name="deadline"
               render={({ field }) => (
-                <FormItem className="gba:min-w-36 gba:flex-1">
+                <FormItem className="gba:min-w-0">
                   <FormLabel>{t('tasks-deadline')}</FormLabel>
                   <FormControl>
-                    <div className="gba:min-w-0 gba:w-full gba:max-w-full gba:overflow-hidden">
+                    <div className="gba:min-w-0 gba:w-full gba:max-w-full">
                       <DateInput
                         type="date"
                         value={field.value || ''}
@@ -287,7 +303,7 @@ export const TaskInput: React.FC<TaskInputProps> = ({
                         captionLayout="dropdown"
                         outputFormat="iso"
                         data-testid="task-quick-add-deadline"
-                        className="gba:w-full gba:max-w-full gba:min-w-0"
+                        className="gba:w-full gba:max-w-full gba:min-w-0 gba:[&_input]:min-w-0"
                       />
                     </div>
                   </FormControl>
@@ -295,7 +311,7 @@ export const TaskInput: React.FC<TaskInputProps> = ({
                 </FormItem>
               )}
             />
-          </FormFieldGroup>
+          </div>
 
           {/* Title + description only — submit is in footer below attachments */}
           <FormItem>
@@ -378,7 +394,7 @@ export const TaskInput: React.FC<TaskInputProps> = ({
             <Button
               type="submit"
               variant="default"
-              disabled={isBusy}
+              disabled={isBusy || !hasRelatedEntityContext}
               className="gba:w-full gba:gap-2"
               data-testid="task-quick-add-submit"
             >

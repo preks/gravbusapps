@@ -13,6 +13,7 @@ import { useDocuSignIntegration } from './hooks/useDocuSignIntegration'
 import { TaskDetailsCard } from './components/TaskDetailsCard'
 import { TaskDocumentsCard } from './components/TaskDocumentsCard'
 import { TaskInstancesCard } from './components/TaskInstancesCard'
+import { TaskAssigneesCard } from './components/TaskAssigneesCard'
 
 const DATA_TEST_ID_PREFIX = 'TaskDetailSheet'
 
@@ -122,6 +123,8 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
             className="gba:bg-background"
           />
         )}
+
+        <TaskAssigneesCard task={task} dataTestId={dataTestId || DATA_TEST_ID_PREFIX} />
 
         <TaskDocumentsCard
           documents={documentsWithStatus}

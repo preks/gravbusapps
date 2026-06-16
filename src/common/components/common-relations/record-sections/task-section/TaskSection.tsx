@@ -354,6 +354,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
     }),
     [accessToken, userInfo, additionalData]
   )
+  const hasRelatedEntityContext = Boolean(accountId || contactId || opportunityId || leadId || investmentId)
 
   // Form schema for quick add
   const defaultAssigneeIds = useMemo(
@@ -686,6 +687,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
                         }
                       }),
                       _creatorEmployee: userInfo?.id ? { userId: userInfo.id } : undefined,
+                      creatorEmployeeId: userInfo?.employeeDetails?.employeeId,
                       creatorUserId: userInfo?.id,
                       _pendingFiles:
                         data._pendingFiles && data._pendingFiles.length > 0 ? data._pendingFiles : undefined,
@@ -696,7 +698,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
                       ...(investmentId && { investmentId })
                     }
                     let toBuild: Record<string, any> = task
-                    if (preSubmit && task._pendingFiles?.length) {
+                    if (preSubmit) {
                       toBuild = await preSubmit(task)
                     }
                     const payload = buildTaskPayload ? buildTaskPayload(toBuild) : toBuild
@@ -727,6 +729,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
                       isApprovalTaskSection ? undefined : { code: { mode: 'omit', values: ['APPROVAL'] } }
                     }
                     multiAssigneeMode={isApprovalTaskSection}
+                    hasRelatedEntityContext={hasRelatedEntityContext}
                     schema={quickTaskSchema}
                   />
                 )

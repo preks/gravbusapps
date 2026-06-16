@@ -14,6 +14,9 @@ export interface TaskAssignee extends BaseEntity {
   assignedEmployee?: Employee
   assignedEmployeeId?: string
   assignedUserId?: string
+  // Per-assignee status (from the TaskAssignee table, independent of the main task status)
+  taskStatus?: string
+  completedAt?: string | null
 }
 
 export interface Task extends BaseEntity {
