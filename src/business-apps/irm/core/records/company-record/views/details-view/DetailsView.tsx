@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, useTranslation } from '@newwork/nw-design-system'
+import { Badge, Card, CardContent, CardHeader, CardTitle, useTranslation } from '@newwork/nw-design-system'
 import {
   ArticleIcon,
   CaretLeftIcon,
@@ -17,6 +17,12 @@ const EMPTY_VALUE = '-'
 const formatCatalogValue = (value?: { value?: string; code?: string } | null): string => {
   return value?.value || value?.code || EMPTY_VALUE
 }
+
+const formatOwnerName = (ownerEmployee: DetailsViewProps['investmentCompany']['ownerEmployee']): string =>
+  ownerEmployee?.displayName ||
+  ownerEmployee?.fullName ||
+  `${ownerEmployee?.firstName || ''} ${ownerEmployee?.lastName || ''}`.trim() ||
+  EMPTY_VALUE
 
 const formatAddressPart = (value: unknown): string | undefined => {
   if (typeof value === 'string') return value
@@ -120,6 +126,16 @@ export const DetailsView: React.FC<DetailsViewProps> = ({ investmentCompany, acc
               value={investmentCompany.valueAddedTaxNumber}
               dataTestId="investment-company-vat-number"
             />
+            <DetailItem
+              label={t('owner-label')}
+              value={formatOwnerName(investmentCompany.ownerEmployee)}
+              dataTestId="investment-company-owner"
+            />
+            {investmentCompany.ownsProperty && (
+              <div className="gba:flex" data-testid="investment-company-owns-property">
+                <Badge variant="success">{t('owns-property-label')}</Badge>
+              </div>
+            )}
           </CardContent>
         </Card>
 

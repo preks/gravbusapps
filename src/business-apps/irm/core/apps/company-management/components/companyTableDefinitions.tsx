@@ -1,11 +1,16 @@
 import React from 'react'
 import type { CellContext, ColumnDef } from '@tanstack/react-table'
-import type { FilterConfiguration } from '@newwork/nw-design-system'
+import { Avatar, AvatarFallback, AvatarImage, Badge, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { InvestmentCompany } from '@/common/data/investment/types/investmentCompanyTypes'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { navigateTo } from '@/common/utils/navigationUtils'
 
 interface CompanyNameCellProps extends CellContext<InvestmentCompany, unknown> {
+  t: (key: string) => string
+}
+
+interface OwnsPropertyCellProps extends CellContext<InvestmentCompany, unknown> {
   t: (key: string) => string
 }
 
@@ -16,12 +21,77 @@ const formatDate = (value?: string): string => {
   return new Date(value).toLocaleDateString()
 }
 
+const formatOwnerName = (company: InvestmentCompany): string =>
+  company.ownerEmployee?.displayName ||
+  company.ownerEmployee?.fullName ||
+  `${company.ownerEmployee?.firstName || ''} ${company.ownerEmployee?.lastName || ''}`.trim() ||
+  '-'
+
+const getOwnerInitials = (ownerName: string): string => {
+  if (ownerName === '-') return 'O'
+
+  const initials = ownerName
+    .split(' ')
+    .map(namePart => namePart[0] || '')
+    .join('')
+    .toUpperCase()
+
+  return initials || 'O'
+}
+
 const CompanyNameCell = ({ row, t }: CompanyNameCellProps) => (
   <div className="gba:min-w-0">
     <div className="gba:truncate gba:font-medium">{row.original.name || t('unnamed-investment-company')}</div>
     <div className="gba:text-xs gba:text-muted-foreground">{row.original.code || t('no-code')}</div>
   </div>
 )
+
+const OwnerEmployeeCell = ({ row }: CellContext<InvestmentCompany, unknown>) => {
+  if (!row.original.ownerEmployee) {
+    return <span className="gba:text-sm gba:text-muted-foreground">No owner</span>
+  }
+
+  const ownerName = formatOwnerName(row.original)
+
+  const handleClick = (event: React.MouseEvent) => {
+    event.stopPropagation()
+    const employeeId = row.original.ownerEmployee?.id
+    if (employeeId) {
+      navigateTo(`/platform/employee-record?employeeId=${employeeId}`)
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:group gba:bg-transparent gba:border-0 gba:p-0 gba:w-full gba:text-left"
+      data-testid={`owner-link-${row.original.id}`}
+    >
+      <Avatar className="gba:w-8 gba:h-8 gba:outline gba:outline-2 gba:outline-offset-2 gba:outline-transparent gba:group-hover:[outline-color:var(--nw-color-primary-500)] gba:transition-all">
+        {row.original.ownerEmployee.pictureThumbnail && (
+          <AvatarImage src={`data:image/gif;base64,${row.original.ownerEmployee.pictureThumbnail}`} alt={ownerName} />
+        )}
+        <AvatarFallback>{getOwnerInitials(ownerName)}</AvatarFallback>
+      </Avatar>
+      <div className="gba:min-w-0 gba:flex-1">
+        <div className="gba:font-medium gba:truncate gba:text-sm gba:group-hover:gba:text-primary gba:transition-colors">
+          {ownerName}
+        </div>
+      </div>
+    </button>
+  )
+}
+
+const OwnsPropertyCell = ({ row, t }: OwnsPropertyCellProps) => {
+  const ownsProperty = row.original.ownsProperty === true
+
+  return (
+    <Badge variant={ownsProperty ? 'success' : 'secondary'} data-testid={`owns-property-badge-${row.original.id}`}>
+      {ownsProperty ? t('yes-label') : t('no-label')}
+    </Badge>
+  )
+}
 
 const CompanyRowActions: React.FC<{ company: InvestmentCompany; accessToken?: string }> = ({
   company,
@@ -74,6 +144,18 @@ export const createCompanyColumns = (t: (key: string) => string): Array<ColumnDe
     header: t('tax-id-column'),
     accessorKey: 'taxIdentificationNumber',
     cell: ({ row }) => row.original.taxIdentificationNumber || '-'
+  },
+  {
+    id: 'ownerEmployee',
+    header: t('owner-column'),
+    accessorKey: 'ownerEmployee.displayName',
+    cell: OwnerEmployeeCell
+  },
+  {
+    id: 'ownsProperty',
+    header: t('owns-property-column'),
+    accessorKey: 'ownsProperty',
+    cell: cellContext => <OwnsPropertyCell {...cellContext} t={t} />
   },
   {
     id: 'currency',

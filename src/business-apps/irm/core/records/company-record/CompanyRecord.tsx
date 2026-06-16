@@ -3,6 +3,7 @@ import {
   Avatar,
   AvatarFallback,
   AvatarImage,
+  Badge,
   Button,
   HeaderSlot,
   IconAvatar,
@@ -10,7 +11,13 @@ import {
   Spinner,
   useTranslation
 } from '@newwork/nw-design-system'
-import { BuildingsIcon, CurrencyDollarIcon, FileTextIcon, IdentificationCardIcon } from '@phosphor-icons/react'
+import {
+  BuildingsIcon,
+  CurrencyDollarIcon,
+  FileTextIcon,
+  IdentificationCardIcon,
+  UserIcon
+} from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useInvestmentCompany } from '@/common/data/investment/hooks/useInvestmentCompany'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
@@ -31,6 +38,21 @@ const isAllowedTab = (value?: string | null): value is TabKey => {
 const getCompanyAvatarSource = (pictureThumbnail?: string, picture?: unknown): string | undefined => {
   if (pictureThumbnail) return `data:image/jpeg;base64,${pictureThumbnail}`
   return typeof picture === 'string' ? `data:image/jpeg;base64,${picture}` : undefined
+}
+
+const getOwnerName = (
+  ownerEmployee?: {
+    displayName?: string
+    fullName?: string
+    firstName?: string
+    lastName?: string
+  } | null
+): string => {
+  return (
+    ownerEmployee?.displayName ||
+    ownerEmployee?.fullName ||
+    `${ownerEmployee?.firstName || ''} ${ownerEmployee?.lastName || ''}`.trim()
+  )
 }
 
 export const CompanyRecordContent: React.FC<CompanyRecordContentProps> = ({
@@ -132,6 +154,18 @@ export const CompanyRecordContent: React.FC<CompanyRecordContentProps> = ({
     [investmentCompanyId, investmentCompanyName, props.accessToken]
   )
 
+  const headerMeta = useMemo(() => {
+    if (!investmentCompany?.ownsProperty) {
+      return null
+    }
+
+    return (
+      <Badge variant="success" data-testid="investment-company-owns-property-badge">
+        {t('owns-property-label')}
+      </Badge>
+    )
+  }, [investmentCompany?.ownsProperty, t])
+
   const headerDetailGroups = useMemo(
     () => [
       {
@@ -155,6 +189,11 @@ export const CompanyRecordContent: React.FC<CompanyRecordContentProps> = ({
             label: t('registration-number-label'),
             value: investmentCompany?.commercialRegistrationNumber || t('not-set'),
             icon: IdentificationCardIcon
+          },
+          {
+            label: t('owner-label'),
+            value: getOwnerName(investmentCompany?.ownerEmployee) || t('not-set'),
+            icon: UserIcon
           }
         ]
       }
@@ -164,6 +203,7 @@ export const CompanyRecordContent: React.FC<CompanyRecordContentProps> = ({
       investmentCompany?.commercialRegistrationNumber,
       investmentCompany?.currency,
       investmentCompany?.currencyRef,
+      investmentCompany?.ownerEmployee,
       t
     ]
   )
@@ -230,6 +270,7 @@ export const CompanyRecordContent: React.FC<CompanyRecordContentProps> = ({
       headerOverline={t('record-overline')}
       onBack={onBack}
       headerTitle={investmentCompanyName}
+      headerMeta={headerMeta}
       headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
       headerActions={headerActions}
       views={subViewsConfig.items}

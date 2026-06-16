@@ -108,6 +108,8 @@ export const CompanyListView: React.FC<CompanyListViewProps> = context => {
           name: t('investment-company-column'),
           commercialRegistrationNumber: t('registration-number-column'),
           taxIdentificationNumber: t('tax-id-column'),
+          ownerEmployee: t('owner-column'),
+          ownsProperty: t('owns-property-column'),
           currency: t('currency-column'),
           createdAt: t('created-column')
         },
