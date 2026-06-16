@@ -4,6 +4,8 @@ import { ListChecks } from 'lucide-react'
 import { useEmployeeAvatarsBatch } from '@/business-apps/core/every/apps/every-box/hooks/useEmployeeAvatarsBatch'
 import type { FlowComment } from '@/common/network/flows/useFlowProgressClient'
 import { useFlowProgressClient } from '@/common/network/flows/useFlowProgressClient'
+import type { FlowStep as TemplateFlowStep } from '@/common/network/flows/FlowTemplateClient'
+import { getTemplateStepMessage } from '../tabs/taskStepDataRendering'
 import type { FlowDetailData, FlowStep, HistoryEvent, StepAssignmentInfo } from '../types'
 import { useResolvedActorNames } from '../useResolvedActorNames'
 import { findStepIndexForTaskId } from './taskCommentUtils'
@@ -13,6 +15,7 @@ import { FlowTriggerTaskCard } from './FlowTriggerTaskCard'
 interface FlowTasksSectionProps {
   flowData: FlowDetailData
   flowSteps: FlowStep[]
+  templateSteps?: TemplateFlowStep[]
   stepAssignmentsByStepIndex: Record<number, StepAssignmentInfo>
   historyEvents: HistoryEvent[]
   focusTaskId?: string
@@ -24,6 +27,7 @@ interface FlowTasksSectionProps {
 export const FlowTasksSection: React.FC<FlowTasksSectionProps> = ({
   flowData,
   flowSteps,
+  templateSteps,
   stepAssignmentsByStepIndex,
   historyEvents,
   focusTaskId,
@@ -99,7 +103,7 @@ export const FlowTasksSection: React.FC<FlowTasksSectionProps> = ({
         </CardTitle>
         <CardDescription>
           Track this request through {sortedSteps.length} workflow step{sortedSteps.length === 1 ? '' : 's'}. Expand a
-          step to view captured data, comments, and activity.
+          step to view task input, captured output, comments, and activity.
         </CardDescription>
       </CardHeader>
       <CardContent className="gba:space-y-3">
@@ -122,6 +126,7 @@ export const FlowTasksSection: React.FC<FlowTasksSectionProps> = ({
             actorNames={actorNames}
             employeeMap={employeeMap}
             accessToken={accessToken}
+            stepMessage={getTemplateStepMessage(templateSteps?.[step.stepIndex])}
             userId={userId}
             onRefreshHistory={onRefreshHistory}
             onRefreshFlowComments={loadFlowComments}

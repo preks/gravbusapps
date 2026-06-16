@@ -10,7 +10,7 @@ import type {
 import { useFlowProgressClient } from '@/common/network/flows/useFlowProgressClient'
 import type { FlowDetailData, FlowStep, HistoryEvent, StepAssignmentInfo } from '../types'
 import { getFlowStatusBadgeClass } from '../utils'
-import { TaskStepDataView } from '../tabs/taskStepDataRendering'
+import { TaskStepDataView, TaskStepMessageSection } from '../tabs/taskStepDataRendering'
 import { FlowTaskActivity, filterEventsForStep } from './FlowTaskActivity'
 import { FlowTaskComments } from './FlowTaskComments'
 import { flowCommentsForStep, mergeTaskComments, resolveStepTaskId, stepMatchesTaskId } from './taskCommentUtils'
@@ -28,6 +28,7 @@ interface FlowTaskCardProps {
   actorNames: Record<string, string>
   employeeMap: Map<string, { displayName?: string; avatarUrl?: string }>
   accessToken?: string
+  stepMessage?: string
   userId?: string
   onRefreshHistory?: () => Promise<void>
   onRefreshFlowComments?: () => Promise<FlowComment[]>
@@ -66,6 +67,7 @@ export const FlowTaskCard: React.FC<FlowTaskCardProps> = ({
   actorNames,
   employeeMap,
   accessToken,
+  stepMessage,
   userId,
   onRefreshHistory,
   onRefreshFlowComments
@@ -285,6 +287,7 @@ export const FlowTaskCard: React.FC<FlowTaskCardProps> = ({
 
         <CollapsibleContent>
           <div className="gba:space-y-6 gba:border-t gba:border-border gba:px-4 gba:pb-4 gba:pt-4">
+            <TaskStepMessageSection message={stepMessage} flowId={flowData.flowId} accessToken={accessToken} />
             {isLoading ? (
               <div className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:py-8 gba:text-sm gba:text-muted-foreground">
                 <Spinner className="gba:h-5 gba:w-5" />

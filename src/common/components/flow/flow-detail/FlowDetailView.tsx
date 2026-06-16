@@ -31,6 +31,7 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
   const {
     flowData,
     flowSteps,
+    templateSteps,
     stepAssignmentsByStepIndex,
     executionState,
     isLoading,
@@ -112,6 +113,7 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
             <FlowTasksSection
               flowData={flowData}
               flowSteps={flowSteps}
+              templateSteps={templateSteps}
               stepAssignmentsByStepIndex={stepAssignmentsByStepIndex}
               historyEvents={historyEvents}
               focusTaskId={focusTaskId}

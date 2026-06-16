@@ -1,4 +1,5 @@
 import type { FlowExecutionState } from '../flow-viewer/types/viewerTypes'
+import type { FlowStep as TemplateFlowStep } from '@/common/network/flows/FlowTemplateClient'
 
 export interface StepStatusSummary {
   completed: number
@@ -125,6 +126,7 @@ export interface StepAssignmentInfo {
 export interface FlowDetailState {
   flowData: FlowDetailData | null
   flowSteps: FlowStep[]
+  templateSteps: TemplateFlowStep[]
   stepAssignmentsByStepIndex: Record<number, StepAssignmentInfo>
   executionState: FlowExecutionState
   isLoading: boolean

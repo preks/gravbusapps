@@ -1,5 +1,12 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@newwork/nw-design-system'
+import { ChevronDown, ChevronRight } from 'lucide-react'
+import type { FlowStep as TemplateFlowStep } from '@/common/network/flows/FlowTemplateClient'
 import type { StepDataResponse } from '@/common/network/flows/useFlowProgressClient'
+import {
+  containsFlowTemplateExpressions,
+  resolveFlowTemplateText
+} from '@/common/network/flows/resolveFlowTemplateText'
 import type { FlowStep, StepAssignmentInfo } from '../types'
 import { FieldValueDisplay, buildStepDataTableRows, generateFieldLabel, isFileLikeValue } from './stepDataRendering'
 
@@ -9,6 +16,19 @@ function hasVisibleFormValue(value: unknown): boolean {
   if (Array.isArray(value)) return value.length > 0
   if (typeof value === 'object') return Object.keys(value as object).length > 0
   return true
+}
+
+/** Task message from template JSON — same field Flow Studio edits as `config.message`. */
+export function getTemplateStepMessage(step?: TemplateFlowStep | null): string | undefined {
+  if (!step) return undefined
+  const message = typeof step.message === 'string' ? step.message.trim() : ''
+  if (message) return message
+  const humanInstructions =
+    typeof step.aiConfig?.humanInstructions === 'string' ? step.aiConfig.humanInstructions.trim() : ''
+  if (humanInstructions) return humanInstructions
+  const userMessage = typeof step.userConfig?.message === 'string' ? step.userConfig.message.trim() : ''
+  if (userMessage) return userMessage
+  return undefined
 }
 
 export function getCapturedDataRows(args: {
@@ -68,6 +88,67 @@ export interface TaskStepDataViewProps {
   actorNames: Record<string, string>
   employeeMap: Map<string, { displayName?: string; avatarUrl?: string }>
   accessToken?: string
+}
+
+interface TaskStepMessageSectionProps {
+  message?: string
+  flowId?: string
+  accessToken?: string
+}
+
+/** Collapsible task message — matches Flow Launcher / Flow Studio preview (`step.message`). */
+export const TaskStepMessageSection: React.FC<TaskStepMessageSectionProps> = ({ message, flowId, accessToken }) => {
+  const [isOpen, setIsOpen] = useState(false)
+  const rawText = typeof message === 'string' ? message.trim() : ''
+  const [displayText, setDisplayText] = useState(rawText)
+
+  useEffect(() => {
+    setDisplayText(rawText)
+
+    if (!rawText || !flowId || !accessToken || !containsFlowTemplateExpressions(rawText)) {
+      return
+    }
+
+    let cancelled = false
+    void resolveFlowTemplateText({ text: rawText, flowId, accessToken }).then(resolved => {
+      if (!cancelled) {
+        setDisplayText(resolved)
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [rawText, flowId, accessToken])
+
+  if (!rawText) return null
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} data-testid="flow-task-step-message">
+      <CollapsibleTrigger asChild>
+        <button
+          type="button"
+          className="gba:flex gba:w-full gba:items-center gba:justify-between gba:gap-2 gba:rounded-md gba:border gba:border-border gba:bg-muted/20 gba:px-3 gba:py-2 gba:text-left"
+          data-testid="flow-task-step-message-toggle"
+        >
+          <span className="gba:text-sm gba:font-semibold gba:text-foreground">Message</span>
+          <span className="gba:inline-flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
+            {isOpen ? 'Hide' : 'Show'}
+            {isOpen ? (
+              <ChevronDown className="gba:h-3.5 gba:w-3.5" />
+            ) : (
+              <ChevronRight className="gba:h-3.5 gba:w-3.5" />
+            )}
+          </span>
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="gba:mt-2 gba:rounded-md gba:border gba:border-border gba:bg-card gba:px-4 gba:py-3 gba:text-sm gba:leading-relaxed gba:text-foreground gba:whitespace-pre-wrap">
+          {displayText}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  )
 }
 
 export const TaskStepDataView: React.FC<TaskStepDataViewProps> = props => {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
-import { FlowTemplateClient } from '@/common/network/flows/FlowTemplateClient'
+import { FlowTemplateClient, type FlowStep as TemplateFlowStep } from '@/common/network/flows/FlowTemplateClient'
 import type {
   FlowDetailData,
   FlowDetailState,
@@ -98,6 +98,7 @@ function extractTriggerData(
 export function useFlowDetailData({ flowId, accessToken }: UseFlowDetailDataArgs): FlowDetailState {
   const [flowData, setFlowData] = useState<FlowDetailData | null>(null)
   const [flowSteps, setFlowSteps] = useState<ReturnType<typeof transformFlowStep>[]>([])
+  const [templateSteps, setTemplateSteps] = useState<TemplateFlowStep[]>([])
   const [stepAssignmentsByStepIndex, setStepAssignmentsByStepIndex] = useState<Record<number, StepAssignmentInfo>>({})
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -258,6 +259,7 @@ export function useFlowDetailData({ flowId, accessToken }: UseFlowDetailDataArgs
 
         const parsedTemplateVersion = Number(progress.templateVersion)
         let supportTags: FlowDetailData['supportTags']
+        let nextTemplateSteps: TemplateFlowStep[] = []
         if (progress.templateId) {
           try {
             const flowTemplateClient = new FlowTemplateClient(accessToken)
@@ -266,6 +268,7 @@ export function useFlowDetailData({ flowId, accessToken }: UseFlowDetailDataArgs
               Number.isFinite(parsedTemplateVersion) ? parsedTemplateVersion : undefined
             )
             supportTags = extractSupportTags(flowTemplate.tags)
+            nextTemplateSteps = flowTemplate.steps ?? []
           } catch (templateError) {
             console.warn('Failed to load template tags for flow detail support chips:', templateError)
           }
@@ -382,6 +385,7 @@ export function useFlowDetailData({ flowId, accessToken }: UseFlowDetailDataArgs
 
         setFlowData(normalizedFlowData)
         setFlowSteps([...nextFlowSteps].sort((left, right) => left.stepIndex - right.stepIndex))
+        setTemplateSteps(nextTemplateSteps)
         setStepAssignmentsByStepIndex(nextStepAssignmentsByStepIndex)
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : 'Failed to load flow details')
@@ -409,6 +413,7 @@ export function useFlowDetailData({ flowId, accessToken }: UseFlowDetailDataArgs
   return {
     flowData,
     flowSteps,
+    templateSteps,
     stepAssignmentsByStepIndex,
     executionState,
     isLoading,
