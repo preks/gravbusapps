@@ -1,4 +1,4 @@
-import { invoicesToCsv, parseBankStatementCsv } from '../invoiceExport'
+import { downloadCsv, invoicesToCsv, parseBankStatementCsv } from '../invoiceExport'
 import type { Invoice } from '../../types'
 
 function makeInvoice(overrides: Partial<Invoice> = {}): Invoice {
@@ -67,5 +67,32 @@ describe('parseBankStatementCsv', () => {
     const csv = ['date,amount,currency,counterparty,reference', '2026-01-12,100,EUR,"ACME, Inc.",REF'].join('\n')
     const lines = parseBankStatementCsv(csv)
     expect(lines[0].counterparty).toBe('ACME, Inc.')
+  })
+})
+
+describe('downloadCsv', () => {
+  const originalCreateObjectUrl = URL.createObjectURL
+  const originalRevokeObjectUrl = URL.revokeObjectURL
+
+  afterEach(() => {
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: originalCreateObjectUrl })
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: originalRevokeObjectUrl })
+    jest.restoreAllMocks()
+  })
+
+  it('downloads via a blob URL without appending CSV content to the DOM', () => {
+    const createObjectURL = jest.fn(() => 'blob:invoice-csv')
+    const revokeObjectURL = jest.fn()
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectURL })
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revokeObjectURL })
+    const click = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation()
+    const appendChild = jest.spyOn(document.body, 'appendChild')
+
+    downloadCsv('invoices.csv', 'invoiceNumber\n<script>alert(1)</script>')
+
+    expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob))
+    expect(click).toHaveBeenCalledTimes(1)
+    expect(appendChild).not.toHaveBeenCalled()
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:invoice-csv')
   })
 })
