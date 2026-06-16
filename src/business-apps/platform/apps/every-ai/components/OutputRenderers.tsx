@@ -62,8 +62,12 @@ import {
   extractCodeHint,
   extractStepReason,
   formatReasoningDuration,
-  prettifyJson
+  prettifyJson,
+  resolveFriendlySummary,
+  resolveFriendlyTitle,
+  shouldRenderInFriendlyMode
 } from './reasoningStepUtils'
+import { useShowTechnicalReasoning } from '../hooks/useShowTechnicalReasoning'
 
 interface FlowProposalBoundaryProps {
   data: FlowProposalOutput
@@ -1335,6 +1339,61 @@ const ReasoningSection: React.FC<{ title: string; payload: unknown; kind: Reason
 }
 
 /**
+ * Friendly-mode expansion body for a reasoning step.
+ *
+ * The collapsed row already shows the friendly title + (truncated)
+ * subtitle. When the user opens a step in friendly mode we have a tight
+ * budget: we MUST NOT leak raw tool args, raw tool results, error
+ * stacks, or LLM "thinking out loud" — those are the very things the
+ * mode was created to hide. What's left is small but should never feel
+ * empty: a wrapping version of the backend-curated summary, the
+ * duration, and a soft status line.
+ */
+const FriendlyStepBody: React.FC<{
+  step: ReasoningStepOutput
+  description: string | null
+  /**
+   * When ``true`` the same ``description`` is ALREADY rendered above the
+   * expand toggle (e.g. for running / error steps). In that case the body
+   * skips its own copy and shows only the status line + duration so we
+   * don't render the exact same sentence twice on screen.
+   */
+  hideDescriptionWhenInline?: boolean
+}> = ({ step, description, hideDescriptionWhenInline = false }) => {
+  const duration = formatReasoningDuration(step.started_at, step.ended_at)
+  const statusLine =
+    step.status === 'error'
+      ? 'Something went wrong here — moving on.'
+      : step.status === 'running'
+        ? 'Still working on it…'
+        : 'Done'
+
+  const showBodyDescription = !hideDescriptionWhenInline && !!description
+
+  return (
+    <div className="gba:flex gba:flex-col gba:gap-1.5" data-testid="reasoning-step-friendly-body">
+      {showBodyDescription && (
+        <div
+          className="gba:text-xs gba:text-foreground/80 gba:whitespace-pre-wrap gba:break-words"
+          data-testid="reasoning-step-friendly-summary"
+        >
+          {description}
+        </div>
+      )}
+      <div className="gba:flex gba:items-center gba:gap-2 gba:text-[11px] gba:text-muted-foreground">
+        <span data-testid="reasoning-step-friendly-status">{statusLine}</span>
+        {duration && (
+          <>
+            <span aria-hidden>·</span>
+            <span data-testid="reasoning-step-friendly-duration">{duration}</span>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/**
  * Cursor-style collapsible row for a single reasoning step. Collapsed by
  * default; expand state is kept per mounted row so reloading the page
  * returns to the default collapsed state (users treat them as debug-ish
@@ -1350,10 +1409,16 @@ export const ReasoningStepDisplay: React.FC<{
   depth?: number
 }> = ({ step, children, depth = 0 }) => {
   const [expanded, setExpanded] = useState(false)
-  const kindLabel = REASONING_KIND_LABEL[step.kind] ?? 'Step'
+  const showTechnical = useShowTechnicalReasoning()
+  // In friendly mode, suppress filler steps (e.g. the supervisor's
+  // auto-emitted "Thinking through the next step" rows that only existed
+  // to host narration we now hide). Without this, the trail looks like
+  // an empty conveyor belt of identical generic pills.
+  if (!showTechnical && !shouldRenderInFriendlyMode(step)) {
+    return null
+  }
   const statusClass = REASONING_STATUS_STYLE[step.status] ?? 'gba:text-muted-foreground'
   const duration = formatReasoningDuration(step.started_at, step.ended_at)
-  const description = extractStepReason(step)
   const statusIcon =
     step.status === 'running' ? (
       <span
@@ -1366,11 +1431,33 @@ export const ReasoningStepDisplay: React.FC<{
       <span className="gba:inline-block gba:h-2 gba:w-2 gba:rounded-full gba:bg-destructive" aria-hidden />
     )
 
+  // Pick what the header reads. In technical mode we keep the legacy view —
+  // a [KIND] badge plus the raw tool/operation title — so developers can
+  // still eyeball which Python function ran. In friendly mode we collapse
+  // both into a single, plain-language headline backed by the backend's
+  // `user_facing_title` (or a kind fallback).
+  const technicalKindLabel = REASONING_KIND_LABEL[step.kind] ?? 'Step'
+  const friendlyTitle = resolveFriendlyTitle(step)
+  const friendlySummary = resolveFriendlySummary(step)
+  // In technical mode the inline subtitle is always shown (parity with the
+  // pre-refactor UI). In friendly mode the subtitle migrates between two
+  // homes depending on lifecycle, so we never show the same text twice:
+  //   - while the step is RUNNING: show inline, so the user can read what
+  //     the agent is currently doing without having to click anything.
+  //   - once the step is DONE: hide the inline copy and surface the same
+  //     text inside the expanded body. The trail stays visually tight —
+  //     completed steps render as a single title row — and expanding a
+  //     step now actually reveals something the user couldn't already see.
+  //   - on ERROR: keep it inline so the user notices the context for the
+  //     soft error message without having to click around.
+  const inlineDescription = showTechnical ? extractStepReason(step) : step.status === 'done' ? null : friendlySummary
+
   return (
     <div
       className="gba:flex gba:flex-col gba:gap-1 gba:text-xs"
       style={depth > 0 ? { marginLeft: `${depth * 14}px` } : undefined}
       data-testid={`reasoning-step-${step.kind}`}
+      data-mode={showTechnical ? 'technical' : 'friendly'}
     >
       <button
         type="button"
@@ -1379,10 +1466,16 @@ export const ReasoningStepDisplay: React.FC<{
         aria-expanded={expanded}
       >
         <span className={`gba:flex gba:items-center ${statusClass}`}>{statusIcon}</span>
-        <span className="gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:text-[10px] gba:font-semibold">
-          {kindLabel}
-        </span>
-        <span className="gba:text-foreground gba:font-medium gba:truncate">{step.title}</span>
+        {showTechnical ? (
+          <>
+            <span className="gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:text-[10px] gba:font-semibold">
+              {technicalKindLabel}
+            </span>
+            <span className="gba:text-foreground gba:font-medium gba:truncate">{step.title}</span>
+          </>
+        ) : (
+          <span className="gba:text-foreground gba:font-medium gba:truncate">{friendlyTitle}</span>
+        )}
         {duration && <span className="gba:text-muted-foreground gba:text-[11px] gba:ml-auto">{duration}</span>}
         <span
           className="gba:text-muted-foreground gba:transition-transform"
@@ -1392,12 +1485,12 @@ export const ReasoningStepDisplay: React.FC<{
           ›
         </span>
       </button>
-      {description && (
+      {inlineDescription && (
         <div
           className="gba:text-xs gba:italic gba:text-muted-foreground gba:font-medium gba:pl-6 gba:pr-2 gba:break-words"
           data-testid="reasoning-step-description"
         >
-          {description}
+          {inlineDescription}
         </div>
       )}
       {expanded && (
@@ -1405,20 +1498,44 @@ export const ReasoningStepDisplay: React.FC<{
           className="gba:flex gba:flex-col gba:gap-2 gba:pl-6 gba:pr-2 gba:py-2 gba:border-l gba:border-border/60"
           data-testid="reasoning-step-body"
         >
-          {step.narration && (
-            <div
-              className="gba:text-xs gba:italic gba:text-muted-foreground gba:whitespace-pre-wrap gba:break-words"
-              data-testid="reasoning-step-narration"
-            >
-              {step.narration}
-            </div>
-          )}
-          <ReasoningSection title="Input" payload={step.args} kind={step.kind} />
-          <ReasoningSection title="Output" payload={step.result} kind={step.kind} />
-          {step.error && (
-            <div className="gba:text-xs gba:text-destructive gba:font-mono gba:whitespace-pre-wrap gba:break-words">
-              {step.error}
-            </div>
+          {showTechnical ? (
+            <>
+              {/* Narration (raw supervisor "thinking out loud" text) is a
+                  developer-oriented artifact — useful for debugging the
+                  agent loop but it routinely contains internal
+                  tool_call_id references, function signatures, and
+                  instructions aimed at other tools. We only surface it in
+                  technical mode for the same reason we show raw
+                  Input/Output JSON. */}
+              {step.narration && (
+                <div
+                  className="gba:text-xs gba:italic gba:text-muted-foreground gba:whitespace-pre-wrap gba:break-words"
+                  data-testid="reasoning-step-narration"
+                >
+                  {step.narration}
+                </div>
+              )}
+              <ReasoningSection title="Input" payload={step.args} kind={step.kind} />
+              <ReasoningSection title="Output" payload={step.result} kind={step.kind} />
+              {step.error && (
+                <div className="gba:text-xs gba:text-destructive gba:font-mono gba:whitespace-pre-wrap gba:break-words">
+                  {step.error}
+                </div>
+              )}
+            </>
+          ) : (
+            // Friendly mode: never show raw inputs/outputs, narration, or
+            // a technical error string. Instead build a small card with
+            // the backend-curated friendly subtitle plus a soft status
+            // line. We deliberately pass `friendlySummary` (not the
+            // inline one, which is suppressed for `done` steps so the
+            // trail stays compact): the body is precisely where the
+            // subtitle is supposed to live for completed steps.
+            <FriendlyStepBody
+              step={step}
+              description={friendlySummary}
+              hideDescriptionWhenInline={inlineDescription !== null}
+            />
           )}
         </div>
       )}
@@ -1460,11 +1577,18 @@ export const ReasoningStepsGroup: React.FC<{
   variant?: 'final' | 'live'
 }> = ({ steps, defaultExpanded = false, variant = 'final' }) => {
   const [expanded, setExpanded] = useState(defaultExpanded)
-  if (steps.length === 0) return null
+  const showTechnical = useShowTechnicalReasoning()
+  // Filter out friendly-mode-hidden steps from the group too so the
+  // visible count, aggregate duration, and status icon all reflect what
+  // the user actually sees once the group is expanded. Without this, the
+  // header would advertise "Show reasoning · 23 steps" and then only
+  // render 5 of them.
+  const visibleSteps = showTechnical ? steps : steps.filter(shouldRenderInFriendlyMode)
+  if (visibleSteps.length === 0) return null
 
-  const hasError = steps.some(s => s.status === 'error')
-  const stillRunning = steps.some(s => s.status === 'running')
-  const totalDuration = computeGroupDuration(steps)
+  const hasError = visibleSteps.some(s => s.status === 'error')
+  const stillRunning = visibleSteps.some(s => s.status === 'running')
+  const totalDuration = computeGroupDuration(visibleSteps)
   const noun = variant === 'live' ? 'previous step' : 'step'
   const showLabel = variant === 'live' ? 'Show previous steps' : 'Show reasoning'
   const hideLabel = variant === 'live' ? 'Hide previous steps' : 'Hide reasoning'
@@ -1488,7 +1612,9 @@ export const ReasoningStepsGroup: React.FC<{
       >
         <span className="gba:flex gba:items-center">{summaryIcon}</span>
         <span className="gba:text-[11px] gba:font-medium">
-          {expanded ? hideLabel : `${showLabel} · ${steps.length} ${noun}${steps.length === 1 ? '' : 's'}`}
+          {expanded
+            ? hideLabel
+            : `${showLabel} · ${visibleSteps.length} ${noun}${visibleSteps.length === 1 ? '' : 's'}`}
         </span>
         {totalDuration && !expanded && (
           <span className="gba:text-[11px] gba:text-muted-foreground/80">· {totalDuration}</span>
@@ -1506,7 +1632,7 @@ export const ReasoningStepsGroup: React.FC<{
           className="gba:flex gba:flex-col gba:gap-1 gba:pl-2 gba:border-l gba:border-border/60 gba:ml-1"
           data-testid="reasoning-steps-group-body"
         >
-          {steps.map(step => (
+          {visibleSteps.map(step => (
             <ReasoningStepDisplay key={step.id} step={step} />
           ))}
         </div>

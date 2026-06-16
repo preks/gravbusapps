@@ -41,6 +41,13 @@ export interface UserPreferencesSettings {
    * provider's canonical default model.
    */
   llm_model?: UserSelectableLlmModel | null
+  /**
+   * Show the raw, developer-style reasoning trail in chat (tool names,
+   * GraphQL queries, RAG hits, JSON inputs/outputs, raw errors). Off by
+   * default for everyone; only surfaced in Developer Settings on dev
+   * tenants so most users see the user-friendly reasoning trail instead.
+   */
+  show_technical_reasoning?: boolean
 }
 
 export interface UserPreferences {

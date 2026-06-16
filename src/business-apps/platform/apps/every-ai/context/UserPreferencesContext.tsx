@@ -5,7 +5,7 @@
  * a way for users to view and edit their personalization settings.
  */
 
-import React, { createContext, useContext, useState, useCallback } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import {
   useUserPreferences,
   UserPreferences,
@@ -57,12 +57,27 @@ export function UserPreferencesProvider({ children, accessToken }: UserPreferenc
     clearPreferences: hookClearPreferences
   } = useUserPreferences(accessToken)
 
-  // Fetch preferences on mount (lazy load - only fetch when modal opens for the first time)
+  // Fetch preferences on mount so chat-level consumers (e.g. the
+  // `show_technical_reasoning` dev flag wired into the reasoning trail
+  // renderer) can read settings before the user ever opens the modal.
+  // Without this, the first agent turn after a hard reload would always
+  // render with the default flag value until the user opened "My
+  // Preferences", which defeats the point of a persisted setting.
   const [hasFetched, setHasFetched] = useState(false)
 
   const refresh = useCallback(async () => {
     await Promise.all([fetchPreferences(), fetchSummary()])
   }, [fetchPreferences, fetchSummary])
+
+  useEffect(() => {
+    if (hasFetched) return
+    setHasFetched(true)
+    refresh().catch(() => {
+      // Errors are surfaced via the `error` field on the hook; we
+      // deliberately swallow here so a transient backend hiccup doesn't
+      // bubble up as an unhandled promise rejection in the console.
+    })
+  }, [hasFetched, refresh])
 
   const openModal = useCallback(() => {
     setIsModalOpen(true)

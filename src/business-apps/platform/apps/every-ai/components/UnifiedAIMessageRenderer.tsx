@@ -105,24 +105,30 @@ export const UnifiedAIMessageRenderer: React.FC<UnifiedAIMessageRendererProps> =
     return null
   }
 
-  // When grouping kicks in we render the group at the position of the FIRST
-  // reasoning step and skip the rest, so the relative ordering (reasoning
-  // before the final answer) is preserved.
-  let firstReasoningRendered = false
-
   const content = (
     <div className={`gba:flex-1 gba:flex gba:flex-col ${isThinkingOnly ? 'gba:gap-1' : 'gba:gap-4'}`}>
       {latestPlan ? (
         <AgentPlanPanel planId={latestPlan.planId} items={latestPlan.items} defaultExpanded={!turnIsComplete} />
       ) : null}
+      {/* Once the turn is complete we always anchor the collapsed reasoning
+          trail at the very TOP of the AI message, regardless of where the
+          underlying ``reasoning_step`` events sit in the output stream.
+          Some flows (notably direct form submissions and tool results that
+          short-circuit the supervisor loop) emit their entity card or
+          success text BEFORE any reasoning step is registered; anchoring
+          the group at "the position of the first reasoning step" would
+          then push it below the deliverable, contradicting the user's
+          mental model of "reasoning happened first, then the final
+          result". Rendering at the top fixes that for all flow shapes. */}
+      {shouldGroupReasoning && <ReasoningStepsGroup key="reasoning-group" steps={reasoningSteps} />}
       {filteredOutputs.map((output: any, outputIdx: number) => {
         const outputType = output?.type ?? 'unknown'
         const outputKey = `output-${outputIdx}-${outputType}`
 
+        // Reasoning steps are owned by the top-anchored group once the
+        // turn is complete — skip them here so they don't render twice.
         if (shouldGroupReasoning && outputType === 'reasoning_step') {
-          if (firstReasoningRendered) return null
-          firstReasoningRendered = true
-          return <ReasoningStepsGroup key="reasoning-group" steps={reasoningSteps} />
+          return null
         }
 
         if (!turnIsComplete && outputType === 'reasoning_step') {

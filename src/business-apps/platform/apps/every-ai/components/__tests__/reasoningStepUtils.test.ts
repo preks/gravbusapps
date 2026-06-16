@@ -1,14 +1,18 @@
-import type { OutputItem, ReasoningStepOutput } from '../../types/models'
+import type { OutputItem, ReasoningStepKind, ReasoningStepOutput } from '../../types/models'
 import {
   REASONING_KIND_LABEL,
   REASONING_STATUS_STYLE,
+  USER_FACING_KIND_LABEL,
   extractCodeHint,
   extractStepReason,
   formatReasoningDuration,
   isTurnComplete,
   prettifyJson,
+  resolveFriendlySummary,
+  resolveFriendlyTitle,
   selectInlineReasoningStepIds,
-  selectPreviousReasoningSteps
+  selectPreviousReasoningSteps,
+  shouldRenderInFriendlyMode
 } from '../reasoningStepUtils'
 
 describe('REASONING_KIND_LABEL', () => {
@@ -347,5 +351,212 @@ describe('selectPreviousReasoningSteps', () => {
     const items = [null, mkStep('a'), undefined, mkStep('b')]
     const result = selectPreviousReasoningSteps(items as OutputItem[], false)
     expect(result.map(s => s.id)).toEqual(['a'])
+  })
+})
+
+describe('USER_FACING_KIND_LABEL', () => {
+  it('exposes a friendly label for every reasoning step kind', () => {
+    const expectedKinds: ReasoningStepKind[] = [
+      'tool_call',
+      'handoff',
+      'graphql_generate',
+      'graphql_execute',
+      'internal_search',
+      'rag_lookup',
+      'thought'
+    ]
+    expectedKinds.forEach(kind => {
+      expect(USER_FACING_KIND_LABEL[kind]).toBeTruthy()
+    })
+  })
+
+  it('never leaks developer-y vocabulary into the friendly label set', () => {
+    // Sanity check: friendly labels should not contain words a regular user
+    // wouldn't recognise. Specifically the technical kind labels we hide
+    // when the dev flag is OFF.
+    Object.values(USER_FACING_KIND_LABEL).forEach(label => {
+      expect(label).not.toMatch(/\bRAG\b/)
+      expect(label).not.toMatch(/\bGraphQL\b/i)
+    })
+  })
+})
+
+describe('resolveFriendlyTitle', () => {
+  const baseStep: ReasoningStepOutput = {
+    type: 'reasoning_step',
+    id: 'rs_1',
+    kind: 'rag_lookup',
+    title: 'retrieve_information_from_documents',
+    status: 'running'
+  } as ReasoningStepOutput
+
+  it('prefers an explicit user_facing_title from the backend', () => {
+    const step = {
+      ...baseStep,
+      user_facing_title: 'Picking the right tool for the task'
+    } as ReasoningStepOutput
+    expect(resolveFriendlyTitle(step)).toBe('Picking the right tool for the task')
+  })
+
+  it('trims surrounding whitespace on explicit titles', () => {
+    const step = {
+      ...baseStep,
+      user_facing_title: '  Looking up data  '
+    } as ReasoningStepOutput
+    expect(resolveFriendlyTitle(step)).toBe('Looking up data')
+  })
+
+  it('falls back to the kind label when user_facing_title is missing', () => {
+    expect(resolveFriendlyTitle(baseStep)).toBe(USER_FACING_KIND_LABEL.rag_lookup)
+  })
+
+  it('falls back to the kind label when user_facing_title is empty/whitespace', () => {
+    const step = {
+      ...baseStep,
+      user_facing_title: '   '
+    } as ReasoningStepOutput
+    expect(resolveFriendlyTitle(step)).toBe(USER_FACING_KIND_LABEL.rag_lookup)
+  })
+
+  it('never returns the raw snake_case backend title in friendly mode', () => {
+    expect(resolveFriendlyTitle(baseStep)).not.toBe('retrieve_information_from_documents')
+  })
+
+  it('uses a generic safety guard when both user_facing_title and kind label are absent', () => {
+    const step = {
+      ...baseStep,
+      kind: 'unknown_kind_xyz'
+    } as unknown as ReasoningStepOutput
+    expect(resolveFriendlyTitle(step)).toBe('Working on your request')
+  })
+})
+
+describe('resolveFriendlySummary', () => {
+  const baseStep: ReasoningStepOutput = {
+    type: 'reasoning_step',
+    id: 'rs_1',
+    kind: 'internal_search',
+    title: 'run_internal_search',
+    status: 'running'
+  } as ReasoningStepOutput
+
+  it('prefers an explicit user_facing_summary from the backend', () => {
+    const step = {
+      ...baseStep,
+      user_facing_summary: 'Looking for "Mike\'s team"',
+      narration: 'Let me check the records first.'
+    } as ReasoningStepOutput
+    expect(resolveFriendlySummary(step)).toBe('Looking for "Mike\'s team"')
+  })
+
+  it('trims whitespace on explicit summaries', () => {
+    const step = {
+      ...baseStep,
+      user_facing_summary: '  hello  '
+    } as ReasoningStepOutput
+    expect(resolveFriendlySummary(step)).toBe('hello')
+  })
+
+  it('returns null when no user_facing_summary is present (does NOT fall back to narration)', () => {
+    // Narration is the supervisor's raw "thinking out loud" text and
+    // routinely leaks internal tool_call_id references / inline tool
+    // instructions. Friendly mode must never surface it as the always-
+    // visible subtitle — an empty subtitle is far safer than a leaked one.
+    const step = {
+      ...baseStep,
+      narration:
+        'GraphQL query succeeded (Employee=12, 13 rows). tool_call_id="tool_01NQ..." call build_interactive_table(...)'
+    } as ReasoningStepOutput
+    expect(resolveFriendlySummary(step)).toBeNull()
+  })
+
+  it('returns null when only args.reason is present (does NOT fall back)', () => {
+    const step = {
+      ...baseStep,
+      args: { reason: 'Finding teammates of Mike' }
+    } as ReasoningStepOutput
+    expect(resolveFriendlySummary(step)).toBeNull()
+  })
+
+  it('returns null when no friendly summary can be derived', () => {
+    expect(resolveFriendlySummary(baseStep)).toBeNull()
+  })
+})
+
+describe('shouldRenderInFriendlyMode', () => {
+  // Anything that is not a thought step always passes — these include
+  // tool calls, handoffs, RAG lookups, GraphQL etc. They carry real
+  // semantic content even when their subtitle is empty.
+  it.each<ReasoningStepKind>([
+    'tool_call',
+    'handoff',
+    'graphql_generate',
+    'graphql_execute',
+    'internal_search',
+    'rag_lookup'
+  ])('always keeps %s steps in friendly mode', kind => {
+    const step: ReasoningStepOutput = {
+      type: 'reasoning_step',
+      id: 'rs',
+      kind,
+      title: 'whatever',
+      status: 'done'
+    }
+    expect(shouldRenderInFriendlyMode(step)).toBe(true)
+  })
+
+  it('hides a thought step whose title is only the generic kind fallback', () => {
+    // This is the noise pattern from the user's screenshot: many rows
+    // of identical "Thinking through the next step" pills with nothing
+    // behind them once narration is hidden.
+    const filler: ReasoningStepOutput = {
+      type: 'reasoning_step',
+      id: 'rs_filler',
+      kind: 'thought',
+      title: 'Reasoning',
+      status: 'done',
+      user_facing_title: 'Thinking through the next step',
+      narration: 'I will now look up the calendar.'
+    }
+    expect(shouldRenderInFriendlyMode(filler)).toBe(false)
+  })
+
+  it('hides a thought step that carries no friendly metadata at all', () => {
+    const empty: ReasoningStepOutput = {
+      type: 'reasoning_step',
+      id: 'rs_empty',
+      kind: 'thought',
+      title: 'Reasoning',
+      status: 'done'
+    }
+    expect(shouldRenderInFriendlyMode(empty)).toBe(false)
+  })
+
+  it('keeps a thought step that has a meaningful friendly summary', () => {
+    // Workflow-creator emits structured thought steps for each high-level
+    // operation it took ("Save workflow", "Open node" …). They are not
+    // narration fillers and should remain visible.
+    const semantic: ReasoningStepOutput = {
+      type: 'reasoning_step',
+      id: 'rs_semantic',
+      kind: 'thought',
+      title: 'Save workflow',
+      status: 'done',
+      user_facing_title: 'Save workflow',
+      user_facing_summary: 'Saved the substitute-finder workflow'
+    }
+    expect(shouldRenderInFriendlyMode(semantic)).toBe(true)
+  })
+
+  it('keeps a thought step whose user_facing_title overrides the kind fallback', () => {
+    const labeled: ReasoningStepOutput = {
+      type: 'reasoning_step',
+      id: 'rs_labeled',
+      kind: 'thought',
+      title: 'Save workflow',
+      status: 'done',
+      user_facing_title: 'Save workflow'
+    }
+    expect(shouldRenderInFriendlyMode(labeled)).toBe(true)
   })
 })

@@ -299,6 +299,7 @@ export function UserPreferences({ darkMode = false, onPrintSession, canPrintSess
   const showDeveloperSettings = isDevTenant()
   const settings = preferences?.settings ?? {}
   const chatCacheEnabled = settings.chat_cache_enabled === true
+  const showTechnicalReasoning = settings.show_technical_reasoning === true
   const llmProviderChoice: LlmProviderChoice = settings.llm_provider ?? 'default'
   const settingsDisabled = isLoading || isSaving || preferences === null
 
@@ -323,6 +324,18 @@ export function UserPreferences({ darkMode = false, onPrintSession, canPrintSess
       setIsSaving(true)
       const success = await updatePreferences({
         settings: { chat_cache_enabled: next }
+      })
+      setIsSaving(false)
+      if (success) refresh()
+    },
+    [updatePreferences, refresh]
+  )
+
+  const handleToggleTechnicalReasoning = useCallback(
+    async (next: boolean) => {
+      setIsSaving(true)
+      const success = await updatePreferences({
+        settings: { show_technical_reasoning: next }
       })
       setIsSaving(false)
       if (success) refresh()
@@ -757,6 +770,20 @@ export function UserPreferences({ darkMode = false, onPrintSession, canPrintSess
                       disabled={settingsDisabled}
                       ariaLabel="Toggle chat answer caching"
                       onChange={handleToggleChatCache}
+                    />
+                  }
+                />
+                <SettingRow
+                  darkMode={darkMode}
+                  label="Show technical reasoning"
+                  description="Show raw tool names, queries, inputs/outputs, and errors in chat reasoning. For debugging only."
+                  control={
+                    <SettingToggle
+                      darkMode={darkMode}
+                      checked={showTechnicalReasoning}
+                      disabled={settingsDisabled}
+                      ariaLabel="Toggle technical reasoning display"
+                      onChange={handleToggleTechnicalReasoning}
                     />
                   }
                 />

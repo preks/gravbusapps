@@ -587,6 +587,17 @@ export type ReasoningStepOutput = {
    * streaming text bubble is reclassified as narration of this step.
    */
   narration?: string | null
+  /**
+   * Friendly headline shown in non-technical mode (e.g. "Picking the
+   * right tool for the task"). When absent, the renderer falls back to a
+   * kind-level label so users never see raw `snake_case` tool names.
+   */
+  user_facing_title?: string | null
+  /**
+   * Friendly one-liner description (e.g. `Looking for "Mike's team"`).
+   * Preferred over `narration` / `args.reason` in non-technical mode.
+   */
+  user_facing_summary?: string | null
 }
 
 /**
@@ -602,6 +613,8 @@ export type ReasoningStepUpdateOutput = {
   error?: string | null
   ended_at?: number | null
   narration?: string | null
+  user_facing_title?: string | null
+  user_facing_summary?: string | null
 }
 
 /**

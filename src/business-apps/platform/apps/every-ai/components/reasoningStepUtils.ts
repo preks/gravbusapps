@@ -28,6 +28,85 @@ export const REASONING_KIND_LABEL: Record<ReasoningStepKind, string> = {
   thought: 'Thought'
 }
 
+/**
+ * Friendly per-`kind` headline used in non-technical mode when the backend
+ * hasn't supplied a more specific `user_facing_title` on the step. Mirrors
+ * the server-side fallback in `langgraph_stream_utils._USER_FACING_KIND_LABEL`
+ * so the chat reads consistently regardless of where the label was decided.
+ */
+export const USER_FACING_KIND_LABEL: Record<ReasoningStepKind, string> = {
+  tool_call: 'Performing an action',
+  handoff: 'Asking a specialist agent for help',
+  graphql_generate: 'Preparing a data lookup',
+  graphql_execute: 'Looking up data',
+  internal_search: 'Searching across your workspace',
+  rag_lookup: 'Picking the right tool for the task',
+  thought: 'Thinking through the next step'
+}
+
+/**
+ * Pick the headline shown above a reasoning chip when the user has NOT
+ * opted into the developer-style technical reasoning trail.
+ *
+ * Lookup order:
+ *   1. `step.user_facing_title` (populated server-side per tool/operation),
+ *   2. `USER_FACING_KIND_LABEL[step.kind]` (kind-level fallback),
+ *   3. `'Working on your request'` as a final guard so a misbehaving event
+ *      with neither field never exposes a raw `snake_case` tool name.
+ */
+export function resolveFriendlyTitle(step: ReasoningStepOutput): string {
+  const explicit = step.user_facing_title
+  if (typeof explicit === 'string' && explicit.trim()) return explicit.trim()
+  const kindLabel = USER_FACING_KIND_LABEL[step.kind]
+  if (kindLabel) return kindLabel
+  return 'Working on your request'
+}
+
+/**
+ * Pick the friendly one-line description for a reasoning chip.
+ *
+ * Strictly returns only the backend-curated `user_facing_summary`. We
+ * deliberately do NOT fall back to `step.narration` / `step.args.reason`
+ * here: those fields are populated by the supervisor model "thinking out
+ * loud", which routinely leaks internal references (raw `tool_call_id`
+ * tokens, function-call signatures like `build_interactive_table(...)`,
+ * instructions to other tools, etc.). In non-technical mode the whole
+ * point is that the user sees only the labels the backend deliberately
+ * chose to show them; an empty subtitle is far better than a leaked one.
+ */
+export function resolveFriendlySummary(step: ReasoningStepOutput): string | null {
+  const explicit = step.user_facing_summary
+  if (typeof explicit === 'string' && explicit.trim()) return explicit.trim()
+  return null
+}
+
+/**
+ * Decide whether a reasoning step should be rendered at all in friendly
+ * (non-technical) mode.
+ *
+ * The supervisor's auto-emitted ``thought`` steps are repackaged LLM
+ * narration — useful in dev mode for tracing the agent loop, but in
+ * friendly mode they contribute zero information (narration is hidden)
+ * and create noise like a row of identical "Thinking through the next
+ * step" pills between every tool call. We hide those.
+ *
+ * We KEEP thought steps that carry a meaningful backend-curated subtitle
+ * (e.g. workflow-creator tool steps whose ``user_facing_summary`` names
+ * the actual operation that ran).
+ */
+export function shouldRenderInFriendlyMode(step: ReasoningStepOutput): boolean {
+  if (step.kind !== 'thought') return true
+  const summary = step.user_facing_summary
+  if (typeof summary === 'string' && summary.trim()) return true
+  // Thought steps whose title is also the generic kind fallback ("Thinking
+  // through the next step") are pure narration fillers — drop them.
+  const title = step.user_facing_title
+  if (typeof title !== 'string' || !title.trim() || title.trim() === USER_FACING_KIND_LABEL.thought) {
+    return false
+  }
+  return true
+}
+
 export const REASONING_STATUS_STYLE: Record<ReasoningStepStatus, string> = {
   running: 'gba:text-primary',
   done: 'gba:text-emerald-600 dark:gba:text-emerald-400',
