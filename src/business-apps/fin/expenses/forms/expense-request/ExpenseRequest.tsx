@@ -23,6 +23,7 @@ import {
 } from './constants/constants'
 import { EVENTS } from '../../utils/constants'
 import { FormHeaderTitle } from './components'
+import { MANUAL_MAIN_COST_CENTER_ID_KEY } from '../shared/utils/effectiveCostCenter'
 
 function getExpenseFormHeaderTitle(
   step: FormStepType,
@@ -282,6 +283,14 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
     expenseTypeRef: string,
     selectedPlanCurrency: string
   ): any => {
+    const additionalProperties: Record<string, unknown> = {
+      [MANUAL_MAIN_COST_CENTER_ID_KEY]: values.costCenter
+    }
+
+    if (isTrip && values.transportationMeans) {
+      additionalProperties.transportationMeans = values.transportationMeans
+    }
+
     const baseRequest = {
       requestTypeRef: expenseTypeRef,
       title: values.title,
@@ -292,17 +301,13 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
       description: values.comment || '',
       expensePlan: selectedPlan?.id || '',
       requestDate: formatDateToISO(new Date()),
-      currencyRef: selectedPlanCurrency || ''
+      currencyRef: selectedPlanCurrency || '',
+      additionalProperties
     }
 
     return {
       expenseRequest: {
-        ...baseRequest,
-        ...(isTrip && values.transportationMeans
-          ? {
-              additionalProperties: { transportationMeans: values.transportationMeans }
-            }
-          : {})
+        ...baseRequest
       },
       event: EVENTS.SUBMIT
     }

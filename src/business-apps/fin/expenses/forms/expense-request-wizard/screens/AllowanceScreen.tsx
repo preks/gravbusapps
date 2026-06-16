@@ -27,7 +27,7 @@ import { createAllowanceScreenLogObject } from '../utils/allowanceScreenUtils'
 import { EVENTS } from '../../../utils/constants'
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
 import { showToast } from '../../../utils/notificationUtils'
-import { resolveEffectiveCostCenterId } from '../../shared/utils/effectiveCostCenter'
+import { resolveEffectiveCostCenterId, resolveManualMainCostCenterId } from '../../shared/utils/effectiveCostCenter'
 
 const { Title } = Typography
 
@@ -116,9 +116,12 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
         )
         setTravelRegionsData(travelRegionsResponse)
         const positions = travelRegionsResponse?.EmployeePosition ?? []
+        const requestData = expenseRequestData?.ExpenseRequestByPk
         const primaryPosition = resolvePrimaryEmployeePosition(positions, getCurrentActiveStructureId())
         const structureId = primaryPosition?.structureId ?? positions[0]?.structureId ?? getCurrentActiveStructureId()
-        const primaryCostCenterId = resolveEffectiveCostCenterId(positions)
+        const savedRequestCostCenterId =
+          resolveManualMainCostCenterId(requestData?.additionalProperties) || requestData?.costCenterId || ''
+        const defaultAllowanceCostCenterId = savedRequestCostCenterId || resolveEffectiveCostCenterId(positions)
 
         if (positions.length > 0 && structureId) {
           const costCentersCacheKey = `userCostCenters:${structureId}`
@@ -129,8 +132,8 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
           setCostCentersData(costCentersResponse)
 
           if (costCentersResponse?.userCostCenters && costCentersResponse.userCostCenters.length > 0) {
-            if (primaryCostCenterId) {
-              setDefaultCostCenter(primaryCostCenterId)
+            if (defaultAllowanceCostCenterId) {
+              setDefaultCostCenter(defaultAllowanceCostCenterId)
             }
             const formattedCostCenters = costCentersResponse.userCostCenters.map((cc: any) => ({
               id: cc.id || cc,
@@ -146,7 +149,15 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
     }
 
     fetchTravelRegionsAndCostCenters()
-  }, [accessToken, employeeRuleId, graphQLClient, getCachedOrFetch, userInfo?.employeeDetails?.employeeId])
+  }, [
+    accessToken,
+    employeeRuleId,
+    expenseRequestData?.ExpenseRequestByPk?.additionalProperties,
+    expenseRequestData?.ExpenseRequestByPk?.costCenterId,
+    graphQLClient,
+    getCachedOrFetch,
+    userInfo?.employeeDetails?.employeeId
+  ])
 
   useEffect(() => {
     const fetchAllowanceData = async () => {
