@@ -27,7 +27,8 @@ export const FinalAnswerRenderer = ({
   sessionId,
   accessToken,
   onViewArtifact,
-  presentationMode = 'default'
+  presentationMode = 'default',
+  devModeEnabled = false
 }: FinalAnswerRendererProps) => {
   const markdownVariant = presentationMode === 'enterprise_agents' ? 'enterprise' : 'default'
   const markdownTopSpacingClass = presentationMode === 'enterprise_agents' ? 'gba:pt-6' : 'gba:pt-5'
@@ -203,7 +204,7 @@ export const FinalAnswerRenderer = ({
               Tasks: <strong>{todoCount}</strong>
             </span>
           )}
-          {!isInstant && (
+          {!isInstant && devModeEnabled && (
             <Button
               variant="ghost"
               size="sm"

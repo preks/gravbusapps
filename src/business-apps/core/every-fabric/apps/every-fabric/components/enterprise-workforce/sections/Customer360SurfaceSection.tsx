@@ -3,6 +3,7 @@
 // (CUSTOMER_360_INBOUND_TAG), saved through the standard agent update payload.
 
 import React, { useEffect, useState } from 'react'
+import { UsersThreeIcon } from '@phosphor-icons/react'
 import {
   CUSTOMER_360_INBOUND_TAG,
   hasCustomer360InboundTag,
@@ -32,6 +33,7 @@ export const Customer360SurfaceSection: React.FC<Customer360SurfaceSectionProps>
     <SectionShell
       id="customer-360-surface"
       title="Customer 360"
+      icon={UsersThreeIcon}
       description="Surface this agent's inbound-email runs in the CRM Customer 360 Inbound tab, matched to the customer who wrote in."
       isDirty={dirty}
       isSaving={isSaving}

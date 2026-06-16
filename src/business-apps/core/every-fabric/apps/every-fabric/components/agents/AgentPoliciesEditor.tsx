@@ -53,7 +53,10 @@ export const AgentPoliciesEditor: React.FC<AgentPoliciesEditorProps> = ({
   return (
     <section data-testid={testId}>
       <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
-        <h2 className="gba:text-base gba:font-semibold gba:text-foreground">{title}</h2>
+        <h2 className="gba:flex gba:items-center gba:gap-2 gba:text-base gba:font-semibold gba:text-foreground">
+          <ShieldCheckIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+          {title}
+        </h2>
       </div>
       <p className="gba:text-xs gba:text-muted-foreground gba:mb-4">{description}</p>
 

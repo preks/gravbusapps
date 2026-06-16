@@ -196,6 +196,7 @@ interface MessageBubbleProps {
   onViewArtifact?: (artifactName: string) => void
   accessToken?: string
   presentationMode?: EnterprisePresentationMode
+  devModeEnabled?: boolean
 }
 
 const getMarkdownVariant = (presentationMode: EnterprisePresentationMode): 'default' | 'enterprise' =>
@@ -357,7 +358,8 @@ const renderMessageBubbleContent = ({
   onReply,
   onViewArtifact,
   accessToken,
-  presentationMode = 'default'
+  presentationMode = 'default',
+  devModeEnabled = false
 }: MessageBubbleProps) => {
   switch (message.type) {
     case 'user_input':
@@ -470,6 +472,7 @@ const renderMessageBubbleContent = ({
             accessToken={accessToken}
             onViewArtifact={onViewArtifact}
             presentationMode={presentationMode}
+            devModeEnabled={devModeEnabled}
           />
         </AnimatedMessageWrapper>
       )
@@ -490,7 +493,8 @@ export const MessageBubble = ({
   onReply,
   onViewArtifact,
   accessToken,
-  presentationMode = 'default'
+  presentationMode = 'default',
+  devModeEnabled = false
 }: MessageBubbleProps) =>
   renderMessageBubbleContent({
     message,
@@ -499,5 +503,6 @@ export const MessageBubble = ({
     onReply,
     onViewArtifact,
     accessToken,
-    presentationMode
+    presentationMode,
+    devModeEnabled
   })

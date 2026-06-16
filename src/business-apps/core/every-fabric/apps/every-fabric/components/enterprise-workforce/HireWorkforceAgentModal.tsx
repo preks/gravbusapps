@@ -63,23 +63,23 @@ interface AutonomyOption {
 const AUTONOMY_OPTIONS: AutonomyOption[] = [
   {
     value: 'draft_only',
-    label: 'Draft only',
-    hint: 'Always produces a draft for a human to send or apply.'
+    label: 'Assistive',
+    hint: 'Searches, summarizes, classifies, and drafts. Makes no system changes.'
   },
   {
     value: 'approval_required',
-    label: 'Approval required',
-    hint: 'Acts but pauses for human approval before each external action.'
+    label: 'Approval Required',
+    hint: 'Prepares actions and routes them to a human before execution.'
   },
   {
     value: 'auto_low_risk',
-    label: 'Auto for low-risk',
-    hint: 'Handles low-risk actions autonomously; escalates the rest.'
+    label: 'Delegated',
+    hint: 'Executes low-risk actions within thresholds and escalates exceptions.'
   },
   {
     value: 'full_auto',
-    label: 'Full auto',
-    hint: 'Operates end-to-end. Only escalates on hard blockers.'
+    label: 'Autonomous',
+    hint: 'Runs end-to-end inside validated boundaries. Requires an escalation channel.'
   }
 ]
 
@@ -163,12 +163,10 @@ export const HireWorkforceAgentModal: React.FC<HireWorkforceAgentModalProps> = (
               <SparkleIcon className="gba:h-5 gba:w-5" weight="duotone" />
             </div>
             <div>
-              <h2 className="gba:text-base gba:font-semibold gba:text-foreground">
-                {title ?? 'Hire a workforce agent'}
-              </h2>
+              <h2 className="gba:text-base gba:font-semibold gba:text-foreground">{title ?? 'Activate a Worker'}</h2>
               <p className="gba:text-xs gba:text-muted-foreground">
                 {subtitle ??
-                  'Provision a proactive AI employee. You can wire up triggers, skills, escalation and budget in the next step.'}
+                  'Activate a proactive Worker. You can wire up triggers, skills, escalation and budget in the next step.'}
               </p>
             </div>
           </div>

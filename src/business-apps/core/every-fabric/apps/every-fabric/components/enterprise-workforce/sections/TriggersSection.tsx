@@ -11,6 +11,7 @@ import {
   CheckIcon,
   CopyIcon,
   EnvelopeIcon,
+  FlowArrowIcon,
   LightningIcon,
   PlusIcon,
   TrashIcon,
@@ -223,11 +224,17 @@ export const TriggersSection: React.FC<TriggersSectionProps> = ({
       className="gba:rounded-2xl gba:border gba:border-border gba:bg-card"
     >
       <header className="gba:flex gba:items-start gba:justify-between gba:gap-4 gba:border-b gba:border-border/60 gba:px-5 gba:py-3">
-        <div>
-          <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">Triggers</h3>
-          <p className="gba:mt-0.5 gba:text-xs gba:text-muted-foreground">
-            What makes this agent start working without a chat.
-          </p>
+        <div className="gba:flex gba:items-start gba:gap-2.5">
+          <FlowArrowIcon
+            className="gba:mt-0.5 gba:h-4 gba:w-4 gba:shrink-0 gba:text-muted-foreground"
+            weight="duotone"
+          />
+          <div>
+            <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">Triggers</h3>
+            <p className="gba:mt-0.5 gba:text-xs gba:text-muted-foreground">
+              What makes this agent start working without a chat.
+            </p>
+          </div>
         </div>
         <Button
           size="sm"

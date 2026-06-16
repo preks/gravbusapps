@@ -1,6 +1,7 @@
 // Autonomy section - how much the agent may decide on its own + custom instructions.
 
 import React, { useEffect, useState } from 'react'
+import { GaugeIcon } from '@phosphor-icons/react'
 import type { WorkforceAgent, WorkforceAgentUpdateInput, WorkforceAutonomyLevel } from '../workforceTypes'
 import { SectionShell } from './SectionShell'
 
@@ -29,17 +30,25 @@ interface AutonomyOption {
 }
 
 const OPTIONS: AutonomyOption[] = [
-  { value: 'draft_only', label: 'Draft only', hint: 'Always produces a draft for a human to send.' },
+  {
+    value: 'draft_only',
+    label: 'Assistive',
+    hint: 'Searches, summarizes, classifies, and drafts. Makes no system changes.'
+  },
   {
     value: 'approval_required',
-    label: 'Approval required',
-    hint: 'Acts but pauses for human approval before any external action.'
+    label: 'Approval Required',
+    hint: 'Prepares actions and routes them to a human before execution.'
   },
-  { value: 'auto_low_risk', label: 'Auto for low-risk', hint: 'Handles low-risk actions; escalates the rest.' },
+  {
+    value: 'auto_low_risk',
+    label: 'Delegated',
+    hint: 'Executes low-risk actions within thresholds and escalates exceptions.'
+  },
   {
     value: 'full_auto',
-    label: 'Full auto',
-    hint: 'Operates end-to-end. Requires at least one escalation channel.'
+    label: 'Autonomous',
+    hint: 'Runs end-to-end inside validated boundaries. Requires at least one escalation channel.'
   }
 ]
 
@@ -57,6 +66,7 @@ export const AutonomySection: React.FC<AutonomySectionProps> = ({ agent, isSavin
     <SectionShell
       id="autonomy"
       title="Autonomy"
+      icon={GaugeIcon}
       description="How much the agent may decide on its own + the custom system instructions it follows."
       isDirty={dirty}
       isSaving={isSaving}

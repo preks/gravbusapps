@@ -76,7 +76,8 @@ export const WorkforceHero: React.FC<WorkforceHeroProps> = ({
             )}
           </div>
           <p className="gba:mt-1 gba:text-sm gba:text-muted-foreground">
-            Your AI employees. They react to triggers, follow policies, use skills, and escalate to humans when needed.
+            Your governed Workers. They react to triggers, follow policies, use skills, and escalate to humans when
+            needed.
           </p>
         </div>
         <div className="gba:flex gba:items-center gba:gap-2">

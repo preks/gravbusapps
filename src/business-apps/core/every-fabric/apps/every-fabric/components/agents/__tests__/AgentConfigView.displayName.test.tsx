@@ -17,7 +17,8 @@ const mockClient = {
   get: (...a: unknown[]) => mockGet(...a),
   getAgentPolicies: (...a: unknown[]) => mockGetAgentPolicies(...a),
   getWorkspacePolicies: (...a: unknown[]) => mockGetWorkspacePolicies(...a),
-  updateAgentDetails: jest.fn()
+  updateAgentDetails: jest.fn(),
+  generateAgentAvatar: jest.fn()
 }
 
 jest.mock('@/common/network/ai/prompt-manager/usePromptManagerClient', () => ({

@@ -12,7 +12,7 @@ import {
   WarningCircleIcon,
   WrenchIcon
 } from '@phosphor-icons/react'
-import { type FC, type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
+import React, { type FC, type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
 import type { AgentRegistryEntry } from '@/business-apps/platform/apps/agent-mesh/types/agentMesh'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { AgentCard } from './AgentCard'
@@ -22,7 +22,7 @@ import { ConfirmDialog } from './ConfirmDialog'
 import { getAllSourceTypes, getSourceDisplay } from './agentSourceUtils'
 import { evaluateAgentReadiness } from './agentStandard'
 import type { BuiltinSubagent, FabricAgent } from './agentTypes'
-import { agentDisplayLabel } from './agentTypes'
+import { agentDisplayLabel, hasWorkforceDeployment } from './agentTypes'
 import type { WorkforceAgent } from '../enterprise-workforce/workforceTypes'
 
 function mapRegistryEntryToFabricAgent(
@@ -144,6 +144,22 @@ function filterAgentsBySearch(agents: FabricAgent[], search: string): FabricAgen
   return agents.filter(a => agentMatchesSearch(a, q))
 }
 
+function countToolsInSkills(agent: FabricAgent): number {
+  const distinctSkillTools = new Set<string>()
+  for (const refs of Object.values(agent.skill_tools_by_id ?? {})) {
+    for (const ref of refs) distinctSkillTools.add(ref)
+  }
+  return distinctSkillTools.size
+}
+
+function isAgentReady(agent: FabricAgent): boolean {
+  return evaluateAgentReadiness({
+    skillCount: agent.skills_count ?? 0,
+    toolsInSkillsCount: countToolsInSkills(agent),
+    systemPromptLength: agent.system_prompt_length
+  }).ready
+}
+
 /** Run an async worker over items with a concurrency cap. Returns the failure count. */
 async function runWithConcurrency<T>(items: T[], worker: (item: T) => Promise<void>, concurrency = 8): Promise<number> {
   let failures = 0
@@ -205,6 +221,31 @@ const CollapsibleFabricSection: FC<CollapsibleFabricSectionProps> = ({
     )}
   </div>
 )
+
+interface AgentListSectionProps {
+  sectionTestId: string
+  title: string
+  count: number
+  description: string
+  children: ReactNode
+}
+
+const AgentListSection: FC<AgentListSectionProps> = ({ sectionTestId, title, count, description, children }) => {
+  if (count === 0) return null
+
+  return (
+    <section className="gba:space-y-3" data-testid={sectionTestId}>
+      <div>
+        <div className="gba:flex gba:items-baseline gba:gap-2">
+          <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">{title}</h3>
+          <span className="gba:text-xs gba:text-muted-foreground">({count})</span>
+        </div>
+        <p className="gba:mt-1 gba:max-w-2xl gba:text-xs gba:text-muted-foreground">{description}</p>
+      </div>
+      <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:md:grid-cols-2 gba:xl:grid-cols-3">{children}</div>
+    </section>
+  )
+}
 
 interface AgentsScreenProps {
   accessToken: string
@@ -469,6 +510,23 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({
 
   const filtered = useMemo(() => filterAgentsBySearch(agents, search), [agents, search])
   const filteredArchived = useMemo(() => filterAgentsBySearch(archivedAgents, search), [archivedAgents, search])
+  const activeGroups = useMemo(() => {
+    const needsSetup: FabricAgent[] = []
+    const workers: FabricAgent[] = []
+    const standardAgents: FabricAgent[] = []
+
+    for (const agent of filtered) {
+      if (!isAgentReady(agent)) {
+        needsSetup.push(agent)
+      } else if (hasWorkforceDeployment(agent)) {
+        workers.push(agent)
+      } else {
+        standardAgents.push(agent)
+      }
+    }
+
+    return { needsSetup, workers, standardAgents }
+  }, [filtered])
 
   const selectableFiltered = useMemo(() => filtered.filter(isSelectableAgent), [filtered])
   const selectableArchived = useMemo(() => filteredArchived.filter(isSelectableAgent), [filteredArchived])
@@ -533,11 +591,12 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({
               a.id === agentId
                 ? {
                     ...a,
-                    name: updates.name,
-                    display_name: updates.display_name,
-                    description: updates.description,
-                    tags: updates.tags,
-                    specialty: updates.specialty
+                    name: updates.name ?? a.name,
+                    display_name: updates.display_name ?? a.display_name,
+                    description: updates.description ?? a.description,
+                    tags: updates.tags ?? a.tags,
+                    specialty: updates.specialty ?? a.specialty,
+                    avatar: updates.avatar ?? a.avatar
                   }
                 : a
             )
@@ -548,11 +607,12 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({
               prev && prev.id === agentId
                 ? {
                     ...prev,
-                    name: updates.name,
-                    display_name: updates.display_name,
-                    description: updates.description,
-                    tags: updates.tags,
-                    specialty: updates.specialty
+                    name: updates.name ?? prev.name,
+                    display_name: updates.display_name ?? prev.display_name,
+                    description: updates.description ?? prev.description,
+                    tags: updates.tags ?? prev.tags,
+                    specialty: updates.specialty ?? prev.specialty,
+                    avatar: updates.avatar ?? prev.avatar
                   }
                 : prev
             )
@@ -570,7 +630,7 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({
             <div>
               <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">Agents</h2>
               <p className="gba:text-sm gba:text-muted-foreground">
-                Create agents, give them instructions, and attach skills, tools, and company policies.
+                Create agents, configure their capabilities, and choose where they run.
               </p>
             </div>
             {renderHireAgentButton()}
@@ -621,7 +681,7 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({
                   </div>
                 </div>
                 <p className="gba:text-sm gba:text-muted-foreground">
-                  Specialists on your team. Click to inspect tools, policies, and memory.
+                  Create agents, configure their capabilities, and choose where they run.
                 </p>
               </div>
             </div>
@@ -702,21 +762,72 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({
             </div>
           )}
 
-          <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:xl:grid-cols-3 gba:gap-4">
-            {filtered.map(agent => (
-              <AgentCard
-                key={agent.id}
-                agent={agent}
-                onConfigure={handleSetConfiguringAgent}
-                onArchive={agent => {
-                  handleArchiveAgent(agent)
-                }}
-                isArchiving={archivingAgentId === agent.id}
-                selectable={isSelectableAgent(agent)}
-                selected={selectedActiveIds.has(agent.id)}
-                onToggleSelect={toggleActiveSelect}
-              />
-            ))}
+          <div className="gba:space-y-8">
+            <AgentListSection
+              sectionTestId="worker-agents-section"
+              title="Workers"
+              count={activeGroups.workers.length}
+              description="Agents deployed as governed Workers with Passport, ownership, and runtime controls."
+            >
+              {activeGroups.workers.map(agent => (
+                <AgentCard
+                  key={agent.id}
+                  agent={agent}
+                  onConfigure={handleSetConfiguringAgent}
+                  onArchive={agent => {
+                    handleArchiveAgent(agent)
+                  }}
+                  isArchiving={archivingAgentId === agent.id}
+                  selectable={isSelectableAgent(agent)}
+                  selected={selectedActiveIds.has(agent.id)}
+                  onToggleSelect={toggleActiveSelect}
+                />
+              ))}
+            </AgentListSection>
+
+            <AgentListSection
+              sectionTestId="standard-agents-section"
+              title="Agents"
+              count={activeGroups.standardAgents.length}
+              description="Agents available as Assistants or ready to be activated as Workers."
+            >
+              {activeGroups.standardAgents.map(agent => (
+                <AgentCard
+                  key={agent.id}
+                  agent={agent}
+                  onConfigure={handleSetConfiguringAgent}
+                  onArchive={agent => {
+                    handleArchiveAgent(agent)
+                  }}
+                  isArchiving={archivingAgentId === agent.id}
+                  selectable={isSelectableAgent(agent)}
+                  selected={selectedActiveIds.has(agent.id)}
+                  onToggleSelect={toggleActiveSelect}
+                />
+              ))}
+            </AgentListSection>
+
+            <AgentListSection
+              sectionTestId="needs-setup-agents-section"
+              title="Needs setup"
+              count={activeGroups.needsSetup.length}
+              description="Agents missing important setup before they are ready to use."
+            >
+              {activeGroups.needsSetup.map(agent => (
+                <AgentCard
+                  key={agent.id}
+                  agent={agent}
+                  onConfigure={handleSetConfiguringAgent}
+                  onArchive={agent => {
+                    handleArchiveAgent(agent)
+                  }}
+                  isArchiving={archivingAgentId === agent.id}
+                  selectable={isSelectableAgent(agent)}
+                  selected={selectedActiveIds.has(agent.id)}
+                  onToggleSelect={toggleActiveSelect}
+                />
+              ))}
+            </AgentListSection>
           </div>
 
           {builtins.length > 0 && (

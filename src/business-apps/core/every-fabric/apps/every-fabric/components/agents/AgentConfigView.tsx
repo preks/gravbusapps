@@ -3,32 +3,20 @@ import { Button } from '@newwork/nw-design-system'
 import {
   ArrowLeftIcon,
   CheckCircleIcon,
+  IdentificationCardIcon,
   LightbulbIcon,
-  MagnifyingGlassIcon,
-  PlusIcon,
-  SpinnerGapIcon,
-  WarningCircleIcon,
-  WrenchIcon,
-  XCircleIcon,
-  XIcon
+  LightningIcon,
+  TagIcon,
+  type Icon as PhosphorIcon
 } from '@phosphor-icons/react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import type { PromptManagerClient } from '@/common/network/ai/prompt-manager/PromptManagerClient'
-import {
-  evaluateAgentCompliance,
-  evaluateDescription,
-  evaluateSystemPrompt,
-  DESCRIPTION_EXAMPLE,
-  DESCRIPTION_MIN_LENGTH,
-  NAME_HINT,
-  SPECIALTY_HINT,
-  SYSTEM_PROMPT_MIN_LENGTH,
-  type ComplianceLevel
-} from './agentStandard'
-import { AgentPoliciesEditor } from './AgentPoliciesEditor'
-import { WorkforceConfigSections } from './WorkforceConfigSections'
-import type { FabricAgent } from './agentTypes'
-import { agentDisplayLabel } from './agentTypes'
+import { evaluateAgentCompliance, evaluateDescription, DESCRIPTION_MIN_LENGTH } from './agentStandard'
+import type { DeploymentBadgeTone, FabricAgent } from './agentTypes'
+import { agentDisplayLabel, deriveDeploymentBadges } from './agentTypes'
+import { useWorkforceAgentConfig } from '../enterprise-workforce/useWorkforceAgentConfig'
+import { AgentConfigActiveTab } from './AgentConfigActiveTab'
+import { AgentAvatarPreview } from './agentConfigViewParts'
 
 interface SkillOption {
   skill_id: string
@@ -48,16 +36,39 @@ interface AgentConfigViewProps {
   isWorkforceEnabled?: boolean
   onBack: () => void
   onSkillsSaved: (agentId: string, skillIds: string[]) => void
+  /** Called after a Workforce deployment is added so the list can refresh. */
+  onWorkforceDeployed?: () => void
+  /** Deep-link into the Digital Workforce activity views for this Worker.
+   *  When omitted, the "View live activity" affordance renders disabled. */
+  onViewActivity?: (agentId: string) => void
   onAgentUpdated?: (
     agentId: string,
-    updates: {
+    updates: Partial<{
       name: string
       display_name: string
       description: string
       tags: string[]
       specialty: string
-    }
+      avatar: string | null
+    }>
   ) => void
+}
+
+type AgentConfigTab = 'profile' | 'capabilities' | 'deployment' | 'passport' | 'activation'
+
+const TAB_DEFS: ReadonlyArray<{ value: AgentConfigTab; label: string; icon: PhosphorIcon }> = [
+  { value: 'profile', label: 'Profile', icon: TagIcon },
+  { value: 'capabilities', label: 'Capabilities', icon: LightbulbIcon },
+  { value: 'deployment', label: 'Deployment', icon: LightningIcon },
+  { value: 'passport', label: 'Passport', icon: IdentificationCardIcon },
+  { value: 'activation', label: 'Activation', icon: CheckCircleIcon }
+]
+
+const HEADER_BADGE_CLASS: Record<DeploymentBadgeTone, string> = {
+  enterprise: 'gba:bg-sky-100 gba:text-sky-700',
+  workforce: 'gba:bg-indigo-100 gba:text-indigo-700',
+  paused: 'gba:bg-amber-100 gba:text-amber-700',
+  archived: 'gba:bg-muted gba:text-muted-foreground'
 }
 
 const formatAgentName = (name: string) => name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
@@ -72,6 +83,10 @@ type SkillsPromiseResult = PromiseSettledResult<[AgentSkillsResponse, SkillOptio
 type SkillsComputation = { error: string } | { available: SkillOption[]; selectedIds: Set<string> }
 
 interface DetailsComputation {
+  /** False when the registry detail endpoint had nothing for this agent
+   *  (e.g. a workforce-only record). Profile falls back to the agent props
+   *  and the System Prompt editor shows a short note instead. */
+  available: boolean
   systemPrompt: string | null
   name: string
   description: string
@@ -107,17 +122,32 @@ function computeSkillsResult(result: SkillsPromiseResult): SkillsComputation {
   }
 }
 
-/** Resolve the editable detail fields, falling back to the values already on the agent. */
+/** Resolve the editable detail fields, falling back to the values already on the agent.
+ *  ``detail`` is ``null`` when the (PromptODM-only) registry endpoint had nothing for
+ *  this agent — we still render the Profile from the agent props, just without a prompt. */
 function computeDetailsResult(
-  result: PromiseSettledResult<AgentDetailResponse>,
+  result: PromiseSettledResult<AgentDetailResponse | null>,
   agent: FabricAgent
 ): DetailsComputationResult {
   if (result.status !== 'fulfilled') {
     return { error: errorMessage(result.reason, 'Failed to load agent details') }
   }
   const detail = result.value
+  if (!detail) {
+    return {
+      detail: {
+        available: false,
+        systemPrompt: null,
+        name: agentDisplayLabel(agent),
+        description: agent.description,
+        tags: agent.tags.join(', '),
+        specialty: agent.specialty ?? ''
+      }
+    }
+  }
   return {
     detail: {
+      available: true,
       systemPrompt: detail.system_prompt ?? null,
       name: detail.display_name ?? detail.name ?? agentDisplayLabel(agent),
       description: detail.description ?? agent.description,
@@ -127,35 +157,38 @@ function computeDetailsResult(
   }
 }
 
-const SaveButtonContent: React.FC<{ saving: boolean; saved: boolean; label: string }> = ({ saving, saved, label }) => {
-  if (saving) {
-    return (
-      <>
-        <SpinnerGapIcon className="gba:mr-1.5 gba:h-3.5 gba:w-3.5 gba:animate-spin" />
-        Saving…
-      </>
-    )
-  }
-  if (saved) {
-    return (
-      <>
-        <CheckCircleIcon className="gba:mr-1.5 gba:h-3.5 gba:w-3.5" weight="fill" />
-        Saved
-      </>
-    )
-  }
-  return <>{label}</>
-}
-
 export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
   agent,
   accessToken,
   isWorkforceEnabled = false,
   onBack,
   onSkillsSaved,
+  onWorkforceDeployed,
+  onViewActivity,
   onAgentUpdated
 }) => {
   const client = usePromptManagerClient(accessToken)
+
+  const [activeTab, setActiveTab] = useState<AgentConfigTab>('profile')
+
+  // Becomes true the moment a Workforce deployment is added from this screen,
+  // so the full Workforce configuration appears inline immediately — without
+  // waiting for the parent list to reload and flip ``isWorkforceEnabled``.
+  const [workforceJustDeployed, setWorkforceJustDeployed] = useState(false)
+  const workforceConfigEnabled = isWorkforceEnabled || workforceJustDeployed
+
+  const deploymentBadges = useMemo(
+    () => deriveDeploymentBadges(agent).filter(badge => badge.tone !== 'enterprise'),
+    [agent]
+  )
+
+  // One shared worker-config instance for the Passport + Activation tabs, so
+  // switching tabs neither refetches nor loses unsaved edits in the other tab.
+  // Passes ``null`` until the agent is a Worker so it does not fetch.
+  const workforceConfig = useWorkforceAgentConfig({
+    accessToken,
+    agentId: workforceConfigEnabled ? agent.id : null
+  })
 
   // Skills state
   const [availableSkills, setAvailableSkills] = useState<SkillOption[]>([])
@@ -166,6 +199,9 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
   const [skillSearchQuery, setSkillSearchQuery] = useState('')
 
   // System prompt — editable; loaded from the detail endpoint.
+  // ``detailAvailable`` is false for records the registry endpoint can't serve
+  // (workforce-only), in which case we show a note instead of the editor.
+  const [detailAvailable, setDetailAvailable] = useState(false)
   const [systemPrompt, setSystemPrompt] = useState<string | null>(null)
   const [savedSystemPrompt, setSavedSystemPrompt] = useState<string | null>(null)
   const [systemPromptSaving, setSystemPromptSaving] = useState(false)
@@ -182,16 +218,25 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
   const [detailsSaving, setDetailsSaving] = useState(false)
   const [detailsSaved, setDetailsSaved] = useState(false)
   const [detailsError, setDetailsError] = useState<string | null>(null)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(agent.avatar ?? null)
+  const [avatarGenerating, setAvatarGenerating] = useState(false)
+  const [avatarError, setAvatarError] = useState<string | null>(null)
   const [savedName, setSavedName] = useState(initialAgentLabel(agent))
   const [savedDescription, setSavedDescription] = useState(agent.description)
   const [savedTags, setSavedTags] = useState(agent.tags.join(', '))
   const [savedSpecialty, setSavedSpecialty] = useState(agent.specialty ?? '')
+  const canGenerateAvatar = agent.source === 'prompt_odm'
   const detailsDirty =
     detailsName !== savedName ||
     detailsDescription !== savedDescription ||
     detailsTags !== savedTags ||
     detailsSpecialty !== savedSpecialty
   const descriptionSignals = evaluateDescription(detailsDescription, detailsName)
+
+  useEffect(() => {
+    setAvatarPreview(agent.avatar ?? null)
+    setAvatarError(null)
+  }, [agent.id, agent.avatar])
 
   // Load skills, policies, details and tools in parallel on mount
   useEffect(() => {
@@ -207,13 +252,14 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
       setSelectedSkillIds(computed.selectedIds)
     }
 
-    const applyDetailsResult = (result: PromiseSettledResult<AgentDetailResponse>) => {
+    const applyDetailsResult = (result: PromiseSettledResult<AgentDetailResponse | null>) => {
       const computed = computeDetailsResult(result, agent)
       if ('error' in computed) {
         setDetailsError(computed.error)
         return
       }
-      const { systemPrompt: loadedPrompt, name, description, tags, specialty } = computed.detail
+      const { available, systemPrompt: loadedPrompt, name, description, tags, specialty } = computed.detail
+      setDetailAvailable(available)
       setSystemPrompt(loadedPrompt)
       setSavedSystemPrompt(loadedPrompt)
       setDetailsName(name)
@@ -238,19 +284,13 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
         client.get<Array<Omit<SkillOption, 'status' | 'is_active'>>>('/skills/manifest').catch(() => [])
       ])
 
-      // The registry detail endpoint is PromptODM-only and 404s for workforce
-      // agents (they live in AutonomousAgentODM). Skip it for them and use the
-      // name/description/tags already passed in; tools are surfaced via skills.
-      if (isWorkforceEnabled) {
-        const [skillsResult] = await Promise.allSettled([skillsPromise])
-        if (cancelled) return
-        applySkillsResult(skillsResult)
-        setSkillsLoading(false)
-        setDetailsLoading(false)
-        return
-      }
+      // The registry detail endpoint is PromptODM-only and 404s for some
+      // workforce-only records. Tolerate that (``null``) so the Capabilities
+      // tab is consistent for every agent — Profile falls back to the agent
+      // props and the System Prompt editor shows a note when unavailable.
+      const detailPromise = client.getAgentDetail(agent.id).catch(() => null)
 
-      const [skillsResult, detailResult] = await Promise.allSettled([skillsPromise, client.getAgentDetail(agent.id)])
+      const [skillsResult, detailResult] = await Promise.allSettled([skillsPromise, detailPromise])
       if (cancelled) return
       applySkillsResult(skillsResult)
       setSkillsLoading(false)
@@ -262,7 +302,7 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
     return () => {
       cancelled = true
     }
-  }, [client, agent.id, isWorkforceEnabled])
+  }, [client, agent.id])
 
   const assignedSkills = useMemo(
     () => availableSkills.filter(s => selectedSkillIds.has(s.skill_id)),
@@ -292,6 +332,24 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
       }),
     [systemPrompt, assignedSkills, skillsLoading]
   )
+  const setupSteps = useMemo(() => {
+    const profileComplete = !detailsLoading && detailsName.trim().length > 0 && descriptionSignals.isValid
+    const capabilitiesComplete = !detailsLoading && !skillsLoading && compliance.level !== 'fail'
+    const deploymentComplete = true
+    const passportComplete = workforceConfigEnabled
+    const activationComplete = workforceConfigEnabled
+    const completedByStep: Record<AgentConfigTab, boolean> = {
+      profile: profileComplete,
+      capabilities: capabilitiesComplete,
+      deployment: deploymentComplete,
+      passport: passportComplete,
+      activation: activationComplete
+    }
+    const completed = TAB_DEFS.filter(step => completedByStep[step.value]).length
+    const nextStep = TAB_DEFS.find(step => !completedByStep[step.value]) ?? TAB_DEFS[TAB_DEFS.length - 1]
+
+    return { completedByStep, completed, total: TAB_DEFS.length, nextStep }
+  }, [compliance.level, descriptionSignals.isValid, detailsLoading, detailsName, skillsLoading, workforceConfigEnabled])
 
   // Auto-clear the "Saved" confirmations after a short moment.
   useEffect(() => {
@@ -383,10 +441,24 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
     }
   }
 
+  const handleGenerateAvatar = async () => {
+    setAvatarGenerating(true)
+    setAvatarError(null)
+    try {
+      const response = await client.generateAgentAvatar(agent.id)
+      setAvatarPreview(response.avatar)
+      onAgentUpdated?.(agent.id, { avatar: response.avatar })
+    } catch (err) {
+      setAvatarError(err instanceof Error ? err.message : 'Failed to generate avatar')
+    } finally {
+      setAvatarGenerating(false)
+    }
+  }
+
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid="agent-config-view">
       {/* Header */}
-      <div className="gba:shrink-0 gba:px-6 gba:lg:px-10 gba:pt-6 gba:pb-4 gba:border-b gba:border-border/50">
+      <div className="gba:shrink-0 gba:border-b gba:border-border/60 gba:px-6 gba:py-4 gba:lg:px-10">
         <div className="gba:flex gba:items-center gba:gap-3">
           <button
             type="button"
@@ -396,482 +468,151 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
           >
             <ArrowLeftIcon className="gba:h-5 gba:w-5" />
           </button>
+          <AgentAvatarPreview
+            avatar={avatarPreview}
+            label={agentDisplayLabel(agent)}
+            className="gba:h-11 gba:w-11 gba:rounded-xl"
+          />
           <h1 className="gba:text-xl gba:font-semibold gba:text-foreground">{agentDisplayLabel(agent)}</h1>
+          {deploymentBadges.length > 0 && (
+            <div className="gba:flex gba:items-center gba:gap-1.5">
+              {deploymentBadges.map(badge => (
+                <span
+                  key={badge.key}
+                  className={`gba:rounded-full gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium ${HEADER_BADGE_CLASS[badge.tone]}`}
+                  data-testid={`agent-config-badge-${badge.key}`}
+                >
+                  {badge.label}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Content */}
       <div className="gba:flex-1 gba:overflow-y-auto">
-        <div className="gba:max-w-3xl gba:mx-auto gba:px-6 gba:lg:px-10 gba:py-8 gba:space-y-10">
-          {/* Standard compliance — pushes authors toward a real prompt + skills + tools */}
-          {!isWorkforceEnabled && !detailsLoading && !skillsLoading && <ComplianceBanner compliance={compliance} />}
-
-          {/* Identity: Name, Description, Tags, Specialty — the fields that drive discovery/selection */}
-          <section data-testid="agent-config-details">
-            <h2 className="gba:text-base gba:font-semibold gba:text-foreground gba:mb-1">Identity</h2>
-            <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">
-              Name, description, and specialty are how this agent gets discovered and chosen for a task.
-            </p>
-
-            {detailsError && (
-              <div className="gba:rounded-lg gba:border gba:border-destructive/30 gba:bg-destructive/5 gba:p-3 gba:text-sm gba:text-destructive gba:mb-3">
-                {detailsError}
-              </div>
-            )}
-
-            {detailsLoading ? (
-              <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
-                <SpinnerGapIcon className="gba:h-6 gba:w-6 gba:animate-spin gba:text-muted-foreground" />
-              </div>
-            ) : (
-              <div className="gba:space-y-4">
-                <div>
-                  <label
-                    htmlFor="details-name"
-                    className="gba:block gba:text-sm gba:font-medium gba:text-foreground gba:mb-1"
-                  >
-                    Name
-                  </label>
-                  <input
-                    id="details-name"
-                    type="text"
-                    value={detailsName}
-                    onChange={e => setDetailsName(e.target.value)}
-                    className="gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring"
-                    data-testid="details-name-input"
-                  />
-                  <p className="gba:mt-1 gba:text-[11px] gba:text-muted-foreground">{NAME_HINT}</p>
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="details-description"
-                    className="gba:block gba:text-sm gba:font-medium gba:text-foreground gba:mb-1"
-                  >
-                    Description
-                  </label>
-                  <p className="gba:mb-1.5 gba:text-[11px] gba:text-muted-foreground">
-                    The single biggest factor in whether this agent gets picked. Describe what it does using the words
-                    people will actually type.
-                  </p>
-                  <textarea
-                    id="details-description"
-                    value={detailsDescription}
-                    onChange={e => setDetailsDescription(e.target.value)}
-                    rows={3}
-                    placeholder={DESCRIPTION_EXAMPLE}
-                    className="gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:leading-relaxed gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring gba:resize-y"
-                    data-testid="details-description-input"
-                  />
-                  <DescriptionSignals signals={descriptionSignals} />
-                  <p className="gba:mt-1.5 gba:text-[11px] gba:text-muted-foreground">
-                    Example: <span className="gba:italic">{DESCRIPTION_EXAMPLE}</span>
-                  </p>
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="details-tags"
-                    className="gba:block gba:text-sm gba:font-medium gba:text-foreground gba:mb-1"
-                  >
-                    Tags
-                  </label>
-                  <input
-                    id="details-tags"
-                    type="text"
-                    value={detailsTags}
-                    onChange={e => setDetailsTags(e.target.value)}
-                    className="gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring"
-                    placeholder="Comma-separated, e.g. support, tickets, internal-ops"
-                    data-testid="details-tags-input"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="details-specialty"
-                    className="gba:block gba:text-sm gba:font-medium gba:text-foreground gba:mb-1"
-                  >
-                    Specialty
-                  </label>
-                  <input
-                    id="details-specialty"
-                    type="text"
-                    value={detailsSpecialty}
-                    onChange={e => setDetailsSpecialty(e.target.value)}
-                    className="gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring"
-                    placeholder="e.g. Employee support, procurement"
-                    data-testid="details-specialty-input"
-                  />
-                  <p className="gba:mt-1 gba:text-[11px] gba:text-muted-foreground">{SPECIALTY_HINT}</p>
-                </div>
-
-                <div className="gba:pt-2 gba:flex gba:items-center gba:justify-end gba:gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() => void handleSaveDetails()}
-                    disabled={!detailsDirty || detailsSaving || !descriptionSignals.isValid}
-                    data-testid="details-save"
-                  >
-                    <SaveButtonContent
-                      saving={detailsSaving}
-                      saved={detailsSaved && !detailsDirty}
-                      label="Save Changes"
-                    />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </section>
-
-          {/* System Prompt Section (editable) — defines who the agent is */}
-          {!isWorkforceEnabled && (
-            <section data-testid="agent-config-system-prompt">
-              <h2 className="gba:text-base gba:font-semibold gba:text-foreground gba:mb-1">System Prompt</h2>
-              <p className="gba:text-sm gba:text-muted-foreground gba:mb-3">
-                Define the agent&apos;s identity, capabilities, and hard constraints (MUST / NEVER). This is the single
-                biggest driver of how the agent behaves.
+        <div className="gba:mx-auto gba:flex gba:max-w-7xl gba:flex-col gba:gap-6 gba:px-6 gba:py-6 gba:lg:flex-row gba:lg:px-10">
+          <aside className="gba:w-full gba:shrink-0 gba:lg:sticky gba:lg:top-6 gba:lg:w-72 gba:lg:self-start">
+            <div
+              className="gba:rounded-xl gba:border gba:border-border gba:bg-card gba:p-4 gba:shadow-sm"
+              data-testid="agent-config-progress"
+            >
+              <p className="gba:text-xs gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground">
+                Studio setup
               </p>
-              {detailsLoading ? (
-                <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
-                  <SpinnerGapIcon className="gba:h-6 gba:w-6 gba:animate-spin gba:text-muted-foreground" />
-                </div>
-              ) : (
-                <div className="gba:flex gba:flex-col gba:gap-2">
-                  <textarea
-                    value={systemPrompt ?? ''}
-                    onChange={e => setSystemPrompt(e.target.value)}
-                    rows={14}
-                    spellCheck={false}
-                    placeholder={
-                      'You are <name>, an expert in <domain>. Your mission is to ...\n\n' +
-                      'Capabilities:\n- ...\n\nConstraints:\n- IMPORTANT: You MUST ...\n- You NEVER ...\n\nOutput:\n- ...'
-                    }
-                    className="gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-background gba:p-4 gba:text-sm gba:text-foreground gba:font-mono gba:leading-relaxed gba:outline-none gba:focus:ring-2 gba:focus:ring-ring"
-                    data-testid="agent-config-system-prompt-input"
-                  />
+              <p className="gba:mt-1 gba:text-sm gba:font-medium gba:text-foreground">
+                {setupSteps.completed} of {setupSteps.total} steps complete
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gba:mt-3 gba:w-full"
+                onClick={() => setActiveTab(setupSteps.nextStep.value)}
+                data-testid="agent-config-next-step"
+              >
+                Continue: {setupSteps.nextStep.label}
+              </Button>
+            </div>
 
-                  <SystemPromptSignals value={systemPrompt ?? ''} />
-
-                  {systemPromptError && (
-                    <div
-                      className="gba:rounded-lg gba:border gba:border-destructive/30 gba:bg-destructive/5 gba:p-3 gba:text-sm gba:text-destructive"
-                      data-testid="system-prompt-error"
-                    >
-                      {systemPromptError}
-                    </div>
-                  )}
-
-                  <div className="gba:flex gba:items-center gba:justify-end gba:gap-2 gba:pt-1">
-                    {systemPromptDirty && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSystemPrompt(savedSystemPrompt)
-                          setSystemPromptError(null)
-                        }}
-                        disabled={systemPromptSaving}
-                        className="gba:text-sm gba:text-muted-foreground gba:hover:text-foreground gba:disabled:opacity-50"
-                        data-testid="system-prompt-reset"
-                      >
-                        Reset
-                      </button>
-                    )}
-                    <Button
-                      size="sm"
-                      onClick={() => void handleSaveSystemPrompt()}
-                      disabled={!systemPromptDirty || systemPromptSaving}
-                      data-testid="system-prompt-save"
-                    >
-                      <SaveButtonContent
-                        saving={systemPromptSaving}
-                        saved={systemPromptSaved && !systemPromptDirty}
-                        label="Save System Prompt"
-                      />
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </section>
-          )}
-
-          {/* Skills Section */}
-          <section data-testid="agent-config-skills">
-            <h2 className="gba:text-base gba:font-semibold gba:text-foreground gba:mb-4">Skills</h2>
-
-            {skillsError && (
-              <div className="gba:rounded-lg gba:border gba:border-destructive/30 gba:bg-destructive/5 gba:p-3 gba:text-sm gba:text-destructive gba:mb-3">
-                {skillsError}
-              </div>
-            )}
-
-            {skillsLoading ? (
-              <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
-                <SpinnerGapIcon className="gba:h-6 gba:w-6 gba:animate-spin gba:text-muted-foreground" />
-              </div>
-            ) : (
-              <>
-                {/* Assigned skills */}
-                {assignedSkills.length === 0 ? (
-                  <p className="gba:text-sm gba:text-muted-foreground gba:py-4">No skills assigned.</p>
-                ) : (
-                  <div className="gba:space-y-2">
-                    {assignedSkills.map(skill => (
-                      <div
-                        key={skill.skill_id}
-                        className="gba:rounded-lg gba:border gba:border-primary gba:bg-primary/5 gba:p-3"
-                        data-testid={`config-skill-${skill.skill_id}`}
-                      >
-                        <div className="gba:flex gba:items-center gba:gap-3">
-                          <LightbulbIcon className="gba:h-3.5 gba:w-3.5 gba:text-amber-600 gba:shrink-0" />
-                          <span className="gba:flex-1 gba:text-sm gba:font-medium gba:text-foreground gba:truncate">
-                            {skill.name || skill.skill_id}
-                          </span>
-                          {skill.status === 'built_in' && (
-                            <span className="gba:shrink-0 gba:rounded gba:bg-blue-100 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-blue-800">
-                              Built-in
-                            </span>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => toggleSkill(skill.skill_id)}
-                            className="gba:inline-flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:rounded gba:text-muted-foreground gba:hover:text-destructive gba:hover:bg-destructive/10 gba:transition-colors"
-                            data-testid={`config-skill-remove-${skill.skill_id}`}
-                          >
-                            <XIcon className="gba:h-3.5 gba:w-3.5" />
-                          </button>
-                        </div>
-                        {skill.tool_refs && skill.tool_refs.length > 0 && (
-                          <div className="gba:mt-2 gba:ml-6.5 gba:flex gba:flex-wrap gba:gap-1.5">
-                            {skill.tool_refs.map(tool => (
-                              <span
-                                key={tool}
-                                className="gba:inline-flex gba:items-center gba:gap-1 gba:rounded gba:bg-muted/60 gba:px-2 gba:py-0.5 gba:text-xs gba:text-muted-foreground"
-                              >
-                                <WrenchIcon className="gba:h-3 gba:w-3" />
-                                {tool}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Add Skill button / picker */}
-                {!showSkillPicker ? (
+            <nav className="gba:mt-3 gba:space-y-2" data-testid="agent-config-tabs">
+              {TAB_DEFS.map((tab, index) => {
+                const TabIcon = tab.icon
+                const complete = setupSteps.completedByStep[tab.value]
+                const active = activeTab === tab.value
+                return (
                   <button
+                    key={tab.value}
                     type="button"
-                    onClick={() => setShowSkillPicker(true)}
-                    className="gba:mt-3 gba:inline-flex gba:items-center gba:gap-1.5 gba:text-sm gba:font-medium gba:text-primary gba:hover:text-primary/80 gba:transition-colors"
-                    data-testid="config-skill-add-button"
+                    onClick={() => {
+                      setActiveTab(tab.value)
+                    }}
+                    className={`gba:flex gba:w-full gba:items-center gba:gap-3 gba:rounded-lg gba:border gba:px-3 gba:py-2.5 gba:text-left gba:transition-colors ${
+                      active
+                        ? 'gba:border-primary gba:bg-primary/5 gba:text-foreground gba:shadow-sm'
+                        : 'gba:border-border/70 gba:bg-card gba:text-muted-foreground gba:hover:border-border gba:hover:text-foreground'
+                    }`}
+                    data-testid={`agent-config-tab-${tab.value}`}
                   >
-                    <PlusIcon className="gba:h-4 gba:w-4" />
-                    Add Skill
+                    <span
+                      className={`gba:flex gba:h-6 gba:w-6 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-full gba:text-[11px] gba:font-semibold ${
+                        complete ? 'gba:bg-emerald-100 gba:text-emerald-700' : 'gba:bg-muted gba:text-muted-foreground'
+                      }`}
+                    >
+                      {complete ? <CheckCircleIcon className="gba:h-3.5 gba:w-3.5" weight="fill" /> : index + 1}
+                    </span>
+                    <span className="gba:min-w-0 gba:flex-1">
+                      <span className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:font-semibold">
+                        <TabIcon className="gba:h-4 gba:w-4" />
+                        {tab.label}
+                      </span>
+                    </span>
                   </button>
-                ) : (
-                  <div className="gba:mt-3 gba:rounded-lg gba:border gba:border-border gba:p-3">
-                    <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
-                      <span className="gba:text-xs gba:font-medium gba:text-muted-foreground">Available skills</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowSkillPicker(false)
-                          setSkillSearchQuery('')
-                        }}
-                        className="gba:text-xs gba:font-medium gba:text-primary gba:hover:text-primary/80"
-                        data-testid="config-skill-picker-done"
-                      >
-                        Done
-                      </button>
-                    </div>
-                    <div className="gba:relative gba:mb-2">
-                      <MagnifyingGlassIcon className="gba:absolute gba:left-2.5 gba:top-1/2 gba:-translate-y-1/2 gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
-                      <input
-                        type="text"
-                        value={skillSearchQuery}
-                        onChange={e => setSkillSearchQuery(e.target.value)}
-                        placeholder="Search skills…"
-                        className="gba:w-full gba:rounded-md gba:border gba:border-border gba:bg-background gba:pl-8 gba:pr-2.5 gba:py-1.5 gba:text-sm gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring placeholder:gba:text-muted-foreground/50"
-                        data-testid="config-skill-search"
-                      />
-                    </div>
-                    {unassignedSkills.length === 0 ? (
-                      <p className="gba:text-xs gba:text-muted-foreground gba:py-2">
-                        {skillSearchQuery.trim() ? 'No matching skills found.' : 'All skills are already assigned.'}
-                      </p>
-                    ) : (
-                      <div className="gba:space-y-1.5">
-                        {unassignedSkills.map(skill => (
-                          <button
-                            key={skill.skill_id}
-                            type="button"
-                            onClick={() => toggleSkill(skill.skill_id)}
-                            className="gba:w-full gba:flex gba:items-center gba:gap-3 gba:rounded-lg gba:border gba:border-border gba:p-2.5 gba:text-left gba:hover:border-primary/50 gba:hover:bg-muted/30 gba:transition-colors"
-                            data-testid={`config-skill-pick-${skill.skill_id}`}
-                          >
-                            <LightbulbIcon className="gba:h-3.5 gba:w-3.5 gba:text-amber-600 gba:shrink-0" />
-                            <div className="gba:flex-1 gba:min-w-0">
-                              <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">
-                                {skill.name || skill.skill_id}
-                              </span>
-                              {skill.description && (
-                                <p className="gba:text-xs gba:text-muted-foreground gba:line-clamp-1">
-                                  {skill.description}
-                                </p>
-                              )}
-                            </div>
-                            {skill.status === 'built_in' && (
-                              <span className="gba:shrink-0 gba:rounded gba:bg-blue-100 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-blue-800">
-                                Built-in
-                              </span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-          </section>
+                )
+              })}
+            </nav>
+          </aside>
 
-          {/* Policies Section (agent-level intranet policy allow-list).
-              Self-managed by AgentPoliciesEditor; renders nothing when the
-              agent's ODM does not support per-agent policy_refs. */}
-          <AgentPoliciesEditor agentId={agent.id} accessToken={accessToken} />
-
-          {/* Workforce-only config (autonomy, triggers, escalation, budget,
-              knowledge, role/ownership). Shown only for agents that also live
-              on the Workforce surface; saves via the /workforce endpoints. */}
-          {isWorkforceEnabled && <WorkforceConfigSections agentId={agent.id} accessToken={accessToken} />}
+          <main className="gba:min-w-0 gba:flex-1">
+            <div
+              className="gba:mx-auto gba:max-w-3xl gba:rounded-xl gba:border gba:border-border/70 gba:bg-card gba:p-6 gba:shadow-sm"
+              data-testid={`agent-config-tab-panel-${activeTab}`}
+            >
+              <AgentConfigActiveTab
+                activeTab={activeTab}
+                agent={agent}
+                accessToken={accessToken}
+                workforceConfigEnabled={workforceConfigEnabled}
+                workforceConfig={workforceConfig}
+                avatarPreview={avatarPreview}
+                avatarGenerating={avatarGenerating}
+                avatarError={avatarError}
+                canGenerateAvatar={canGenerateAvatar}
+                detailsName={detailsName}
+                detailsDescription={detailsDescription}
+                detailsTags={detailsTags}
+                detailsSpecialty={detailsSpecialty}
+                detailsLoading={detailsLoading}
+                detailsSaving={detailsSaving}
+                detailsSaved={detailsSaved}
+                detailsDirty={detailsDirty}
+                detailsError={detailsError}
+                descriptionSignals={descriptionSignals}
+                detailAvailable={detailAvailable}
+                systemPrompt={systemPrompt}
+                savedSystemPrompt={savedSystemPrompt}
+                systemPromptError={systemPromptError}
+                systemPromptDirty={systemPromptDirty}
+                systemPromptSaving={systemPromptSaving}
+                systemPromptSaved={systemPromptSaved}
+                skillsLoading={skillsLoading}
+                skillsError={skillsError}
+                assignedSkills={assignedSkills}
+                unassignedSkills={unassignedSkills}
+                showSkillPicker={showSkillPicker}
+                skillSearchQuery={skillSearchQuery}
+                compliance={compliance}
+                onViewActivity={onViewActivity}
+                onWorkforceDeployed={onWorkforceDeployed}
+                setActiveTab={setActiveTab}
+                setDetailsName={setDetailsName}
+                setDetailsDescription={setDetailsDescription}
+                setDetailsTags={setDetailsTags}
+                setDetailsSpecialty={setDetailsSpecialty}
+                setSystemPrompt={setSystemPrompt}
+                setSystemPromptError={setSystemPromptError}
+                setShowSkillPicker={setShowSkillPicker}
+                setSkillSearchQuery={setSkillSearchQuery}
+                setWorkforceJustDeployed={setWorkforceJustDeployed}
+                handleGenerateAvatar={handleGenerateAvatar}
+                handleSaveDetails={handleSaveDetails}
+                handleSaveSystemPrompt={handleSaveSystemPrompt}
+                toggleSkill={toggleSkill}
+              />
+            </div>
+          </main>
         </div>
       </div>
     </div>
-  )
-}
-
-const LEVEL_STYLES: Record<ComplianceLevel, { wrap: string; title: string; text: string }> = {
-  pass: {
-    wrap: 'gba:border-emerald-500/30 gba:bg-emerald-500/5',
-    title: 'Meets the Agent Authoring Standard',
-    text: 'gba:text-emerald-700'
-  },
-  warn: {
-    wrap: 'gba:border-amber-500/30 gba:bg-amber-500/5',
-    title: 'Almost there — a few improvements recommended',
-    text: 'gba:text-amber-700'
-  },
-  fail: {
-    wrap: 'gba:border-destructive/30 gba:bg-destructive/5',
-    title: 'This agent is incomplete and may not work',
-    text: 'gba:text-destructive'
-  }
-}
-
-const DescriptionSignals: React.FC<{ signals: ReturnType<typeof evaluateDescription> }> = ({ signals }) => {
-  const chips: Array<{ ok: boolean; label: string }> = [
-    { ok: signals.meetsMinimum, label: `At least ${DESCRIPTION_MIN_LENGTH} chars` },
-    { ok: signals.notJustName, label: 'More than the name' },
-    { ok: signals.isSpecific, label: 'Specific' }
-  ]
-  return (
-    <div className="gba:mt-2 gba:space-y-1.5" data-testid="description-signals">
-      {!signals.isValid && (
-        <p className="gba:flex gba:items-center gba:gap-1.5 gba:text-[11px] gba:font-medium gba:text-destructive">
-          <WarningCircleIcon className="gba:h-3.5 gba:w-3.5" />A real description is required — it&apos;s how this agent
-          gets discovered and chosen.
-        </p>
-      )}
-      <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
-        <span className={`gba:text-xs ${signals.meetsMinimum ? 'gba:text-muted-foreground' : 'gba:text-amber-700'}`}>
-          {signals.length} chars{signals.meetsMinimum ? '' : ` (min ${DESCRIPTION_MIN_LENGTH})`}
-        </span>
-        {chips.map(chip => (
-          <span
-            key={chip.label}
-            className={`gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium ${
-              chip.ok ? 'gba:bg-emerald-100 gba:text-emerald-700' : 'gba:bg-muted gba:text-muted-foreground'
-            }`}
-          >
-            {chip.ok ? (
-              <CheckCircleIcon className="gba:h-3 gba:w-3" weight="fill" />
-            ) : (
-              <WarningCircleIcon className="gba:h-3 gba:w-3" />
-            )}
-            {chip.label}
-          </span>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-const SystemPromptSignals: React.FC<{ value: string }> = ({ value }) => {
-  const signals = evaluateSystemPrompt(value)
-  const belowMin = signals.length < SYSTEM_PROMPT_MIN_LENGTH
-  const chips: Array<{ ok: boolean; label: string }> = [
-    { ok: signals.hasIdentity, label: 'Identity ("You are …")' },
-    { ok: signals.hasConstraints, label: 'Constraints (MUST / NEVER)' },
-    { ok: signals.isSubstantial, label: 'Enough detail' }
-  ]
-  return (
-    <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2" data-testid="system-prompt-signals">
-      <span className={`gba:text-xs ${belowMin ? 'gba:text-amber-700' : 'gba:text-muted-foreground'}`}>
-        {signals.length} chars{belowMin ? ` (min ${SYSTEM_PROMPT_MIN_LENGTH})` : ''}
-      </span>
-      {chips.map(chip => (
-        <span
-          key={chip.label}
-          className={`gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium ${
-            chip.ok ? 'gba:bg-emerald-100 gba:text-emerald-700' : 'gba:bg-muted gba:text-muted-foreground'
-          }`}
-        >
-          {chip.ok ? (
-            <CheckCircleIcon className="gba:h-3 gba:w-3" weight="fill" />
-          ) : (
-            <WarningCircleIcon className="gba:h-3 gba:w-3" />
-          )}
-          {chip.label}
-        </span>
-      ))}
-    </div>
-  )
-}
-
-const CheckIcon: React.FC<{ level: ComplianceLevel }> = ({ level }) => {
-  if (level === 'pass')
-    return <CheckCircleIcon className="gba:h-4 gba:w-4 gba:text-emerald-600 gba:shrink-0" weight="fill" />
-  if (level === 'warn') return <WarningCircleIcon className="gba:h-4 gba:w-4 gba:text-amber-600 gba:shrink-0" />
-  return <XCircleIcon className="gba:h-4 gba:w-4 gba:text-destructive gba:shrink-0" />
-}
-
-const ComplianceBanner: React.FC<{ compliance: ReturnType<typeof evaluateAgentCompliance> }> = ({ compliance }) => {
-  const style = LEVEL_STYLES[compliance.level]
-  return (
-    <section
-      className={`gba:rounded-xl gba:border gba:p-4 ${style.wrap}`}
-      data-testid="agent-config-compliance"
-      data-level={compliance.level}
-    >
-      <div className="gba:mb-3 gba:flex gba:items-center gba:justify-between">
-        <h2 className={`gba:text-sm gba:font-semibold ${style.text}`}>{style.title}</h2>
-        <span className="gba:text-xs gba:text-muted-foreground">
-          {compliance.passed}/{compliance.total} checks
-        </span>
-      </div>
-      <ul className="gba:space-y-2">
-        {compliance.checks.map(check => (
-          <li key={check.id} className="gba:flex gba:items-start gba:gap-2">
-            <CheckIcon level={check.level} />
-            <div className="gba:min-w-0">
-              <p className="gba:text-sm gba:font-medium gba:text-foreground">{check.label}</p>
-              <p className="gba:text-xs gba:text-muted-foreground">{check.hint}</p>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </section>
   )
 }

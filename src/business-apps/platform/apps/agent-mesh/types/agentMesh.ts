@@ -21,6 +21,31 @@ export interface KnowledgeSourceEntry {
   createdAt?: string
 }
 
+/** Derived state of a single product deployment for an agent. */
+export interface AgentDeploymentState {
+  /** True when the agent is live on this surface (active or paused, not archived). */
+  enabled: boolean
+}
+
+/** Workforce deployment state, derived server-side from surfaces + workforce_profile. */
+export interface WorkforceDeploymentState extends AgentDeploymentState {
+  /** active | paused | archived, or null when there is no workforce deployment. */
+  status: 'active' | 'paused' | 'archived' | null
+  role?: string | null
+  department?: string | null
+}
+
+/**
+ * Unified per-agent deployment view. Phase 1 derives this from the existing
+ * ``surfaces`` / ``workforce_profile`` / ``is_active`` fields on the backend;
+ * the frontend treats it as the single source of truth for "where is this
+ * agent deployed and in what state".
+ */
+export interface AgentDeployments {
+  enterprise: AgentDeploymentState
+  workforce: WorkforceDeploymentState
+}
+
 export interface AgentRegistryEntry {
   id: string
   name: string
@@ -46,6 +71,8 @@ export interface AgentRegistryEntry {
   workspaceId?: string | null
   source?: string
   status?: string
+  /** Unified deployment view (Enterprise / Workforce). Present on registry list + detail. */
+  deployments?: AgentDeployments
   // Detail-only fields (returned by GET /registry/{id}, not by list)
   tools?: string[]
   knowledge_sources?: KnowledgeSourceEntry[]

@@ -21,7 +21,7 @@ jest.mock('@/common/network/ai/prompt-manager/usePromptManagerClient', () => ({
   usePromptManagerClient: () => mockClient
 }))
 
-function registryEntry(id: string, name: string) {
+function registryEntry(id: string, name: string, overrides: Record<string, unknown> = {}) {
   return {
     id,
     name,
@@ -38,7 +38,8 @@ function registryEntry(id: string, name: string) {
     skills_count: 0,
     source: 'prompt_odm',
     status: 'active',
-    created_at: null
+    created_at: null,
+    ...overrides
   }
 }
 
@@ -88,11 +89,64 @@ describe('AgentsScreen workforce merge', () => {
     expect(mockGetAgentRegistry).toHaveBeenCalledWith(expect.objectContaining({ surface: 'all' }))
   })
 
-  it('shows the Workforce badge only on workforce-enabled agents', async () => {
+  it('shows the Worker marker only on workforce-enabled agents', async () => {
     render(<AgentsScreen accessToken="tok" onBack={() => {}} embedded />)
 
-    expect(await screen.findByTestId('agent-workforce-badge-wf-1')).toBeInTheDocument()
-    expect(screen.queryByTestId('agent-workforce-badge-ent-1')).toBeNull()
+    expect(await screen.findByTestId('agent-worker-label-wf-1')).toBeInTheDocument()
+    expect(screen.queryByTestId('agent-worker-label-ent-1')).toBeNull()
+  })
+
+  it('groups ready workers, ready agents, and agents that need setup', async () => {
+    mockGet.mockResolvedValue([{ skill_id: 'ready-skill', tool_refs: ['ready-tool'] }])
+    mockGetAgentRegistry.mockImplementation((params: { status?: string }) =>
+      params?.status === 'archived'
+        ? Promise.resolve([])
+        : Promise.resolve([
+            registryEntry('ready-agent', 'ready_agent', {
+              skill_ids: ['ready-skill'],
+              skills_count: 1,
+              system_prompt_length: 240
+            }),
+            registryEntry('draft-agent', 'draft_agent')
+          ])
+    )
+    mockListWorkforceAgents.mockResolvedValue({
+      data: [
+        {
+          agent_id: 'ready-worker',
+          name: 'ready_worker',
+          display_name: 'Ready Worker',
+          description: 'Handles governed work',
+          domain: 'Operations',
+          surfaces: ['workforce'],
+          is_active: true,
+          status: 'active',
+          tags: [],
+          skill_ids: ['ready-skill'],
+          policy_refs: [],
+          workforce_profile: { role: 'Operations', knowledge_refs: [] },
+          created_at: null,
+          updated_at: null
+        }
+      ],
+      total: 1
+    })
+
+    render(<AgentsScreen accessToken="tok" onBack={() => {}} embedded />)
+
+    const needsSetupSection = await screen.findByTestId('needs-setup-agents-section')
+    const workersSection = await screen.findByTestId('worker-agents-section')
+    const standardAgentsSection = await screen.findByTestId('standard-agents-section')
+
+    expect(needsSetupSection).toHaveTextContent('Draft Agent')
+    expect(workersSection).toHaveTextContent('Ready Worker')
+    expect(standardAgentsSection).toHaveTextContent('Ready Agent')
+    expect(
+      Boolean(workersSection.compareDocumentPosition(standardAgentsSection) & Node.DOCUMENT_POSITION_FOLLOWING)
+    ).toBe(true)
+    expect(
+      Boolean(standardAgentsSection.compareDocumentPosition(needsSetupSection) & Node.DOCUMENT_POSITION_FOLLOWING)
+    ).toBe(true)
   })
 
   it('searches archived agents and expands the archived section on match', async () => {

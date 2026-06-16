@@ -1,6 +1,7 @@
 // Budget section - soft credit limits with explicit overrun behaviour.
 
 import React, { useEffect, useState } from 'react'
+import { CoinsIcon } from '@phosphor-icons/react'
 import type { WorkforceAgent, WorkforceAgentUpdateInput, WorkforceBudget } from '../workforceTypes'
 import { SectionShell } from './SectionShell'
 
@@ -71,6 +72,7 @@ export const BudgetSection: React.FC<BudgetSectionProps> = ({ agent, isSaving, o
     <SectionShell
       id="budget"
       title="Budget"
+      icon={CoinsIcon}
       description="Soft credit limits enforced at run time. 1 credit = 1,000 total tokens."
       isDirty={dirty}
       isSaving={isSaving}

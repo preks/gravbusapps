@@ -40,6 +40,7 @@ interface ConversationPanelProps {
   composer?: React.ReactNode
   accessToken?: string
   presentationMode?: EnterprisePresentationMode
+  devModeEnabled?: boolean
 }
 
 const isTranscriptMessage = (message: ChatMessage) =>
@@ -147,7 +148,8 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
   onViewArtifact,
   composer,
   accessToken,
-  presentationMode = 'default'
+  presentationMode = 'default',
+  devModeEnabled = false
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
@@ -232,6 +234,7 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
               onViewArtifact={onViewArtifact}
               accessToken={accessToken}
               presentationMode={msg.presentationMode ?? presentationMode}
+              devModeEnabled={devModeEnabled}
             />
           ))}
 
@@ -257,6 +260,7 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
               onViewArtifact={onViewArtifact}
               accessToken={accessToken}
               presentationMode={msg.presentationMode ?? presentationMode}
+              devModeEnabled={devModeEnabled}
             />
           ))}
 

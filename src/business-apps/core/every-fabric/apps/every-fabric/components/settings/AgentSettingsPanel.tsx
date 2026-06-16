@@ -44,7 +44,7 @@ export const AgentSettingsPanel: React.FC<AgentSettingsPanelProps> = ({ isOpen, 
         <div className="gba:flex gba:items-center gba:justify-between gba:px-4 sm:gba:px-5 gba:py-3 sm:gba:py-4 gba:border-b gba:border-border/60">
           <div className="gba:flex gba:items-center gba:gap-2.5">
             <GearIcon className="gba:h-[18px] gba:w-[18px] gba:text-foreground" />
-            <span className="gba:text-[15px] gba:font-semibold gba:text-foreground">Agent Settings</span>
+            <span className="gba:text-[15px] gba:font-semibold gba:text-foreground">Settings</span>
           </div>
           <Button
             variant="ghost"

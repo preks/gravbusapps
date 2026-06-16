@@ -1,5 +1,9 @@
 // Local agent type for the Fabric agents screen.
 
+import type { AgentDeployments } from '@/business-apps/platform/apps/agent-mesh/types/agentMesh'
+
+export type { AgentDeployments } from '@/business-apps/platform/apps/agent-mesh/types/agentMesh'
+
 export interface FabricAgent {
   id: string
   name: string
@@ -26,6 +30,8 @@ export interface FabricAgent {
    *  contains "workforce"). Drives the Workforce badge and the
    *  workforce-only config cards in the per-agent editor. */
   isWorkforce?: boolean
+  /** Unified deployment view (Enterprise / Workforce) derived from the backend. */
+  deployments?: AgentDeployments
   categories?: string[]
   status?: string
   created_at: string | null
@@ -36,6 +42,52 @@ export function agentDisplayLabel(agent: { display_name?: string | null; name: s
   const display = agent.display_name?.trim()
   if (display) return display
   return agent.name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+
+export type DeploymentBadgeTone = 'enterprise' | 'workforce' | 'paused' | 'archived'
+
+export interface DeploymentBadge {
+  key: string
+  label: string
+  tone: DeploymentBadgeTone
+}
+
+/**
+ * Derive the deployment badges shown on an agent card from its unified
+ * ``deployments`` view. Falls back to the legacy ``isWorkforce`` flag when the
+ * backend has not yet supplied ``deployments`` (rollout compatibility).
+ *
+ * One agent can carry multiple badges (e.g. both Assistant and Worker).
+ */
+export function deriveDeploymentBadges(agent: Pick<FabricAgent, 'deployments' | 'isWorkforce'>): DeploymentBadge[] {
+  const badges: DeploymentBadge[] = []
+  const deployments = agent.deployments
+
+  if (deployments) {
+    if (deployments.enterprise.enabled) {
+      badges.push({ key: 'enterprise', label: 'Assistant', tone: 'enterprise' })
+    }
+    const wf = deployments.workforce
+    if (wf.status === 'active') {
+      badges.push({ key: 'workforce', label: 'Worker', tone: 'workforce' })
+    } else if (wf.status === 'paused') {
+      badges.push({ key: 'workforce-paused', label: 'Worker paused', tone: 'paused' })
+    }
+    return badges
+  }
+
+  // Legacy fallback: no deployments block yet.
+  badges.push({ key: 'enterprise', label: 'Assistant', tone: 'enterprise' })
+  if (agent.isWorkforce) {
+    badges.push({ key: 'workforce', label: 'Worker', tone: 'workforce' })
+  }
+  return badges
+}
+
+/** True when the agent has a live (active or paused) Workforce deployment. */
+export function hasWorkforceDeployment(agent: Pick<FabricAgent, 'deployments' | 'isWorkforce'>): boolean {
+  if (agent.deployments) return agent.deployments.workforce.enabled
+  return Boolean(agent.isWorkforce)
 }
 
 export interface BuiltinSubagent {

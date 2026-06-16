@@ -23,6 +23,14 @@ import type {
 
 export type WorkforceIdentityMode = 'full' | 'role-only'
 
+/**
+ * Which subset of the worker config cards to render.
+ * - `passport`: identity/accountability cards (role + ownership, orgchart, escalation, budget)
+ * - `activation`: runtime cards (autonomy, knowledge, triggers, customer 360)
+ * - `all`: every card in the legacy single-scroll order (Workforce detail Config tab)
+ */
+export type WorkforceConfigGroup = 'passport' | 'activation' | 'all'
+
 export interface WorkforceConfigSectionStackProps {
   agent: WorkforceAgent
   accessToken: string
@@ -36,6 +44,7 @@ export interface WorkforceConfigSectionStackProps {
   onTestWebhook?: (triggerId: string) => void
   identityMode: WorkforceIdentityMode
   showSkillsPolicies?: boolean
+  group?: WorkforceConfigGroup
   className?: string
   'data-testid'?: string
 }
@@ -53,20 +62,26 @@ export const WorkforceConfigSectionStack: React.FC<WorkforceConfigSectionStackPr
   onTestWebhook,
   identityMode,
   showSkillsPolicies = false,
+  group = 'all',
   className,
   'data-testid': dataTestId
 }) => {
   const makeSaver = makeSwallowingSaver(saveSection)
+  const inPassport = group === 'all' || group === 'passport'
+  const inActivation = group === 'all' || group === 'activation'
 
   return (
     <div className={className ?? 'gba:space-y-4'} data-testid={dataTestId}>
-      {identityMode === 'full' ? (
-        <IdentitySection agent={agent} isSaving={savingSection === 'identity'} onSave={makeSaver('identity')} />
-      ) : (
-        <RoleOwnershipSection agent={agent} isSaving={savingSection === 'identity'} onSave={makeSaver('identity')} />
+      {inPassport &&
+        (identityMode === 'full' ? (
+          <IdentitySection agent={agent} isSaving={savingSection === 'identity'} onSave={makeSaver('identity')} />
+        ) : (
+          <RoleOwnershipSection agent={agent} isSaving={savingSection === 'identity'} onSave={makeSaver('identity')} />
+        ))}
+      {inActivation && (
+        <AutonomySection agent={agent} isSaving={savingSection === 'autonomy'} onSave={makeSaver('autonomy')} />
       )}
-      <AutonomySection agent={agent} isSaving={savingSection === 'autonomy'} onSave={makeSaver('autonomy')} />
-      {showSkillsPolicies && (
+      {inPassport && showSkillsPolicies && (
         <SkillsAndPoliciesSection
           agent={agent}
           accessToken={accessToken}
@@ -74,29 +89,39 @@ export const WorkforceConfigSectionStack: React.FC<WorkforceConfigSectionStackPr
           onSave={makeSaver('skills-policies')}
         />
       )}
-      <KnowledgeSection agent={agent} isSaving={savingSection === 'knowledge'} onSave={makeSaver('knowledge')} />
-      <TriggersSection
-        triggers={triggers}
-        pendingTriggerId={pendingTriggerId}
-        accessToken={accessToken}
-        onTestWebhook={onTestWebhook}
-        onCreate={createTrigger}
-        onUpdate={wrapTriggerUpdate(updateTrigger)}
-        onDelete={wrapTriggerDelete(deleteTrigger)}
-      />
-      <Customer360SurfaceSection
-        agent={agent}
-        isSaving={savingSection === 'customer-360-surface'}
-        onSave={makeSaver('customer-360-surface')}
-      />
-      <OrgchartRegistrationSection
-        agent={agent}
-        accessToken={accessToken}
-        isSaving={savingSection === 'orgchart'}
-        onSave={makeSaver('orgchart')}
-      />
-      <EscalationSection agent={agent} isSaving={savingSection === 'escalation'} onSave={makeSaver('escalation')} />
-      <BudgetSection agent={agent} isSaving={savingSection === 'budget'} onSave={makeSaver('budget')} />
+      {inActivation && (
+        <KnowledgeSection agent={agent} isSaving={savingSection === 'knowledge'} onSave={makeSaver('knowledge')} />
+      )}
+      {inActivation && (
+        <TriggersSection
+          triggers={triggers}
+          pendingTriggerId={pendingTriggerId}
+          accessToken={accessToken}
+          onTestWebhook={onTestWebhook}
+          onCreate={createTrigger}
+          onUpdate={wrapTriggerUpdate(updateTrigger)}
+          onDelete={wrapTriggerDelete(deleteTrigger)}
+        />
+      )}
+      {inActivation && (
+        <Customer360SurfaceSection
+          agent={agent}
+          isSaving={savingSection === 'customer-360-surface'}
+          onSave={makeSaver('customer-360-surface')}
+        />
+      )}
+      {inPassport && (
+        <OrgchartRegistrationSection
+          agent={agent}
+          accessToken={accessToken}
+          isSaving={savingSection === 'orgchart'}
+          onSave={makeSaver('orgchart')}
+        />
+      )}
+      {inPassport && (
+        <EscalationSection agent={agent} isSaving={savingSection === 'escalation'} onSave={makeSaver('escalation')} />
+      )}
+      {inPassport && <BudgetSection agent={agent} isSaving={savingSection === 'budget'} onSave={makeSaver('budget')} />}
     </div>
   )
 }

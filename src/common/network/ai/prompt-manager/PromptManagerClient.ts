@@ -28,6 +28,7 @@ import type {
   WorkforceAgentPage,
   WorkforceAgentStatus,
   WorkforceAgentUpdateInput,
+  WorkforceDeployInput,
   WorkforceLedgerPage,
   WorkforceMetricsWindow,
   WorkforceRun,
@@ -1524,6 +1525,17 @@ export class PromptManagerClient extends RestClient {
     return this.post(`/agents/registry/${encodeURIComponent(agentId)}/activate`, {})
   }
 
+  async generateAgentAvatar(agentId: string): Promise<{
+    agent_id: string
+    source: string
+    avatar: string
+    model: string
+    size: string
+    quality: string
+  }> {
+    return this.post(`/agents/registry/${encodeURIComponent(agentId)}/avatar/generate`, {})
+  }
+
   async updateAgentDetails(
     agentId: string,
     body: { name?: string; description?: string; tags?: string[]; specialty?: string; system_prompt?: string }
@@ -1846,6 +1858,13 @@ export class PromptManagerClient extends RestClient {
 
   async createWorkforceAgent(body: WorkforceAgentCreateInput): Promise<WorkforceAgent> {
     return this.post<WorkforceAgent>('/workforce/agents', body)
+  }
+
+  // Adds a Workforce deployment to an EXISTING agent (by PromptODM id). Keeps
+  // the same record — and therefore the same id, triggers, runs, and ledger —
+  // adding the workforce surface + profile. Created paused for review.
+  async deployWorkforce(agentId: string, body: WorkforceDeployInput): Promise<WorkforceAgent> {
+    return this.post<WorkforceAgent>(`/workforce/agents/${encodeURIComponent(agentId)}/deploy`, body)
   }
 
   async getWorkforceAgent(agentId: string): Promise<WorkforceAgent> {

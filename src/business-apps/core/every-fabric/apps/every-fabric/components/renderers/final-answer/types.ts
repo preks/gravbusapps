@@ -30,4 +30,5 @@ export interface FinalAnswerRendererProps {
   accessToken?: string
   onViewArtifact?: (artifactName: string) => void
   presentationMode?: EnterprisePresentationMode
+  devModeEnabled?: boolean
 }

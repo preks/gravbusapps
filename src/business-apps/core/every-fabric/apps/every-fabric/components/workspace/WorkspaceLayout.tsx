@@ -491,6 +491,7 @@ export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({ devModeEnabled
           onViewArtifact={setActiveArtifactId}
           accessToken={accessToken}
           presentationMode={session.presentation_mode}
+          devModeEnabled={devModeEnabled}
         />
 
         {showClarification && (

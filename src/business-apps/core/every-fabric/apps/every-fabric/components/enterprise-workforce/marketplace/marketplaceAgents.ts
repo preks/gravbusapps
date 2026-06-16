@@ -85,13 +85,13 @@ export interface MarketplaceAgentTemplate {
 function autonomyLabel(level: WorkforceAutonomyLevel): string {
   switch (level) {
     case 'draft_only':
-      return 'Draft only'
+      return 'Assistive'
     case 'approval_required':
-      return 'Approval required'
+      return 'Approval Required'
     case 'auto_low_risk':
-      return 'Auto for low-risk'
+      return 'Delegated'
     case 'full_auto':
-      return 'Full auto'
+      return 'Autonomous'
   }
 }
 

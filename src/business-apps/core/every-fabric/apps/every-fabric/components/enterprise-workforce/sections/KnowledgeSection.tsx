@@ -1,7 +1,7 @@
 // Knowledge section - typed references to policies, contracts, sources.
 
 import { Button } from '@newwork/nw-design-system'
-import { ArrowSquareOutIcon, TrashIcon } from '@phosphor-icons/react'
+import { ArrowSquareOutIcon, BookOpenIcon, TrashIcon } from '@phosphor-icons/react'
 import React, { useEffect, useState } from 'react'
 import { buildPolicyDetailUrl, isPolicyUuid } from '../policyLink'
 import type { WorkforceAgent, WorkforceAgentUpdateInput, WorkforceKnowledgeRef } from '../workforceTypes'
@@ -87,6 +87,7 @@ export const KnowledgeSection: React.FC<KnowledgeSectionProps> = ({ agent, isSav
     <SectionShell
       id="knowledge"
       title="Knowledge"
+      icon={BookOpenIcon}
       description="Policies, contracts, and other references the agent may read while working."
       isDirty={dirty}
       isSaving={isSaving}

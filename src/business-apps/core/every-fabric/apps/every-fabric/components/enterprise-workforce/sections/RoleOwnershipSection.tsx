@@ -1,6 +1,7 @@
 // Workforce role / department / owner card (without display name or description).
 
 import React, { useEffect, useState } from 'react'
+import { IdentificationBadgeIcon } from '@phosphor-icons/react'
 import type { WorkforceAgent, WorkforceAgentUpdateInput } from '../workforceTypes'
 import { RoleOwnershipFields } from './RoleOwnershipFields'
 import {
@@ -35,7 +36,8 @@ export const RoleOwnershipSection: React.FC<RoleOwnershipSectionProps> = ({ agen
     <SectionShell
       id="role-ownership"
       title="Role & ownership"
-      description="Workforce role, department, and the person accountable for this agent."
+      icon={IdentificationBadgeIcon}
+      description="The Worker's role, department, and the person accountable for it."
       isDirty={dirty}
       isSaving={isSaving}
       onSave={() => void handleSave()}

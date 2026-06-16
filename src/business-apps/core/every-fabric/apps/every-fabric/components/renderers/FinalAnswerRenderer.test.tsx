@@ -67,4 +67,14 @@ describe('FinalAnswerRenderer presentation mode wiring', () => {
     const lastCall = mockMarkdownWithChipsRenderer.mock.calls.at(-1)?.[0]
     expect(lastCall?.variant).toBe('default')
   })
+
+  it('shows the export button only when dev mode is enabled', () => {
+    const props = { output: SAMPLE_OUTPUT, durationMs: 1200 }
+
+    const { rerender } = render(<FinalAnswerRenderer {...props} devModeEnabled={false} />)
+    expect(screen.queryByTestId('enterprise-agent-final-export')).not.toBeInTheDocument()
+
+    rerender(<FinalAnswerRenderer {...props} devModeEnabled />)
+    expect(screen.getByTestId('enterprise-agent-final-export')).toBeInTheDocument()
+  })
 })

@@ -5,7 +5,7 @@
 // hit a surprise 400 on save.
 
 import { Button } from '@newwork/nw-design-system'
-import { TrashIcon } from '@phosphor-icons/react'
+import { BellIcon, TrashIcon } from '@phosphor-icons/react'
 import React, { useEffect, useState } from 'react'
 import type { WorkforceAgent, WorkforceAgentUpdateInput } from '../workforceTypes'
 import { SectionShell } from './SectionShell'
@@ -98,6 +98,7 @@ export const EscalationSection: React.FC<EscalationSectionProps> = ({ agent, isS
     <SectionShell
       id="escalation"
       title="Escalation"
+      icon={BellIcon}
       description="How the agent hands work back to humans. Full-auto agents and 'escalate' budgets need at least one channel."
       isDirty={dirty}
       isSaving={isSaving}

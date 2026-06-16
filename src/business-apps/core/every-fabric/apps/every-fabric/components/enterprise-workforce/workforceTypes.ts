@@ -157,6 +157,24 @@ export type WorkforceAgentUpdateInput = Partial<Omit<WorkforceAgentCreateInput, 
 }
 
 /**
+ * Payload for adding a Workforce deployment to an EXISTING agent.
+ *
+ * Unlike {@link WorkforceAgentCreateInput}, there is no `name`: the agent
+ * already exists on the enterprise surface. We only attach the employee-style
+ * profile; the shared core (system prompt, model, skills, policies) is kept.
+ */
+export interface WorkforceDeployInput {
+  role?: string
+  department?: string | null
+  owner_user_id?: string | null
+  autonomy_level?: WorkforceAutonomyLevel
+  knowledge_refs?: WorkforceKnowledgeRef[]
+  instructions?: string
+  escalation?: WorkforceEscalationPolicy
+  budget?: WorkforceBudget
+}
+
+/**
  * Agent tag that opts a workforce agent into the CRM Customer 360 Inbound tab.
  *
  * When present in `WorkforceAgent.tags`, the agent's inbound-email runs are

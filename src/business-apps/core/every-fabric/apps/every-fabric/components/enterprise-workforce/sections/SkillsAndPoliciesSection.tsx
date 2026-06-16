@@ -252,6 +252,7 @@ export const SkillsAndPoliciesSection: React.FC<SkillsAndPoliciesSectionProps> =
     <SectionShell
       id="skills-policies"
       title="Skills & policies"
+      icon={LightbulbIcon}
       description="Skills and intranet policies attached to this agent."
       isDirty={dirty}
       isSaving={isSaving}

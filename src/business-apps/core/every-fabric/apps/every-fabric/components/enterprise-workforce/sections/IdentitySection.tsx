@@ -5,6 +5,7 @@
 // department, description and owner are all editable.
 
 import React, { useEffect, useState } from 'react'
+import { IdentificationCardIcon } from '@phosphor-icons/react'
 import type { WorkforceAgent, WorkforceAgentUpdateInput } from '../workforceTypes'
 import { RoleOwnershipFields } from './RoleOwnershipFields'
 import { roleOwnershipDirty, roleOwnershipFromAgent, roleOwnershipToPatch } from './roleOwnershipForm'
@@ -62,7 +63,8 @@ export const IdentitySection: React.FC<IdentitySectionProps> = ({ agent, isSavin
     <SectionShell
       id="identity"
       title="Identity"
-      description="How this AI employee appears across the workforce surface."
+      icon={IdentificationCardIcon}
+      description="How this Worker is identified across its deployments."
       isDirty={dirty}
       isSaving={isSaving}
       onSave={() => void handleSave()}

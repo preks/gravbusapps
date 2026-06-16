@@ -8,7 +8,7 @@
 //      (token exchange in prompt-manager) instead of the shared service account.
 
 import { Badge, Button, Combobox, Input, Label, type ComboboxOption } from '@newwork/nw-design-system'
-import { SpinnerGapIcon, UserCirclePlusIcon } from '@phosphor-icons/react'
+import { SpinnerGapIcon, TreeStructureIcon, UserCirclePlusIcon } from '@phosphor-icons/react'
 import React, { useMemo, useState } from 'react'
 import { flowbotClient } from '@/common/network/flowbot'
 import type { WorkforceAgent, WorkforceAgentUpdateInput } from '../workforceTypes'
@@ -165,12 +165,18 @@ export const OrgchartRegistrationSection: React.FC<OrgchartRegistrationSectionPr
       data-testid="workforce-config-section-orgchart"
       className="gba:rounded-2xl gba:border gba:border-border gba:bg-card"
     >
-      <header className="gba:border-b gba:border-border/60 gba:px-5 gba:py-3">
-        <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">Orgchart identity</h3>
-        <p className="gba:mt-0.5 gba:text-xs gba:text-muted-foreground">
-          Register this agent as a virtual assistant in the orgchart. Registered agents run inbound and scheduled work
-          under their own identity instead of the shared service account.
-        </p>
+      <header className="gba:flex gba:items-start gba:gap-2.5 gba:border-b gba:border-border/60 gba:px-5 gba:py-3">
+        <TreeStructureIcon
+          className="gba:mt-0.5 gba:h-4 gba:w-4 gba:shrink-0 gba:text-muted-foreground"
+          weight="duotone"
+        />
+        <div>
+          <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">Orgchart identity</h3>
+          <p className="gba:mt-0.5 gba:text-xs gba:text-muted-foreground">
+            Attach this Worker to the orgchart. Registered Workers run inbound and scheduled work under their own
+            identity instead of the shared service account.
+          </p>
+        </div>
       </header>
 
       <div className="gba:space-y-3 gba:px-5 gba:py-4">

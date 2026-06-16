@@ -20,6 +20,10 @@ const TABS: { key: SettingsTab; label: string; icon: Icon }[] = [
   { key: 'tools', label: 'Tools', icon: WrenchIcon }
 ]
 
+const PAGE_TITLES: Partial<Record<SettingsTab, string>> = {
+  agents: 'Agent Studio'
+}
+
 interface SettingsScreenProps {
   accessToken: string
   devToolsEnabled: boolean
@@ -34,6 +38,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ accessToken, dev
   const { tab, agentId, skillId, setTab, setAgent, setSkill } = useSettingsUrlState()
   const visibleTabs = devToolsEnabled ? TABS : TABS.filter(tab => tab.key !== 'tools')
   const activeSettingsTab = devToolsEnabled || tab !== 'tools' ? tab : 'settings'
+  const pageTitle =
+    PAGE_TITLES[activeSettingsTab] ?? TABS.find(tab => tab.key === activeSettingsTab)?.label ?? 'Settings'
 
   // Each tab/section loads its own data (MemorySection, SkillsSection, MetricsSection,
   // SkillsScreen). A global preload here blocked the whole screen when any single
@@ -52,7 +58,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ accessToken, dev
           >
             <ArrowLeftIcon className="gba:h-5 gba:w-5" />
           </Button>
-          <h1 className="gba:text-xl sm:gba:text-2xl gba:font-semibold gba:text-foreground">Agent Settings</h1>
+          <h1 className="gba:text-xl sm:gba:text-2xl gba:font-semibold gba:text-foreground">{pageTitle}</h1>
         </div>
 
         <nav className="gba:flex gba:gap-1 gba:mt-4 gba:border-b gba:border-border/50" data-testid="settings-tabs">
