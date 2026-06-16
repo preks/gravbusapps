@@ -110,11 +110,11 @@ export const handleTripSubmitAction = (
   event: string,
   requestAdvancePayment?: boolean,
   dispatchProcessContinueEventIfEnabled?: (event: string, payload: any) => boolean,
-  t: ExpensePlanWizardTranslateFn
+  t?: ExpensePlanWizardTranslateFn
 ): boolean => {
   const initialPlan = expensePlanData?.ExpensePlanByPk
   if (!initialPlan) {
-    showToast(t('missing-plan-data'), 'error')
+    showToast(t ? t('missing-plan-data') : 'Missing plan data', 'error')
     return false
   }
   const logObject = createTripLogObject(
@@ -339,11 +339,120 @@ export const checkTripExists = (
   checkTripExistsWithEntityPredicate(array, pointType, objectToCheck, (item, o) => item.expensePlanId === o.expensePlan)
 
 /**
- * Check if a travel region is abroad
- * @param travelRegionRef - Travel region reference
- * @param expenseRulesData - Expense rules data
- * @returns True if region is abroad, false otherwise
+ * Parse an ISO date-time string into a local date-only Date at midnight.
  */
+const parseDateOnlyLocal = (isoDateTime?: string): Date | undefined => {
+  if (!isoDateTime) return undefined
+  try {
+    const datePart = isoDateTime.split('T')[0]
+    const [year, month, day] = datePart.split('-').map(value => Number.parseInt(value, 10))
+    if (!year || !month || !day) return undefined
+    return new Date(year, month - 1, day, 0, 0, 0, 0)
+  } catch {
+    return undefined
+  }
+}
+
+const isPlanTripPointAbroad = (tripPoint: any, expenseRulesData: any): boolean => {
+  const travelRegionRef = tripPoint?.travelRegionRef
+  const allowanceRegionRuleDetailId = tripPoint?.allowanceRegionRuleDetailId || tripPoint?.allowanceRegionRuleDetail
+  const countryRef = tripPoint?.countryRef
+  const ruleDetails = Array.isArray(expenseRulesData?.AllowanceRegionRuleDetail)
+    ? expenseRulesData.AllowanceRegionRuleDetail
+    : []
+  const homeRegionRules = Array.isArray(expenseRulesData?.homeRegionRule) ? expenseRulesData.homeRegionRule : []
+
+  if (!travelRegionRef && !allowanceRegionRuleDetailId && !countryRef) {
+    return false
+  }
+
+  const persistedDetail = allowanceRegionRuleDetailId
+    ? ruleDetails.find((detail: any) => detail.id === allowanceRegionRuleDetailId)
+    : undefined
+
+  if (persistedDetail?.home === true) return false
+  if (persistedDetail?.home === false) return true
+
+  const homeRuleDetails = ruleDetails.filter((detail: any) => detail.home === true)
+  const hasKnownHomeRegion =
+    (travelRegionRef && homeRegionRules.some((rule: any) => rule.travelRegionRef === travelRegionRef)) ||
+    (countryRef && homeRegionRules.some((rule: any) => rule.countryRef === countryRef)) ||
+    (countryRef && homeRuleDetails.some((detail: any) => detail.countryRef === countryRef)) ||
+    (travelRegionRef &&
+      ruleDetails.some((region: any) => region.travelRegionRef === travelRegionRef && region.home === true))
+
+  if (hasKnownHomeRegion) {
+    return false
+  }
+
+  // Avoid classifying a local saved point as abroad when validation reloads with a different rule set.
+  return false
+}
+
+export const setPlanTripDataFromSavedTrip = (
+  expensePlanData: any,
+  expenseRulesData: any,
+  setStartLocation: React.Dispatch<React.SetStateAction<LocationData>>,
+  setDestinations: React.Dispatch<React.SetStateAction<LocationData[]>>,
+  setEndLocation: React.Dispatch<React.SetStateAction<LocationData>>,
+  t?: ExpensePlanWizardTranslateFn
+) => {
+  const tripData = expensePlanData?.ExpensePlanByPk?.expenseRequestTrip
+
+  if (!Array.isArray(tripData) || tripData.length === 0) {
+    return
+  }
+
+  try {
+    const startPoint = tripData.find((trip: any) => trip.pointType === 'START_POINT')
+    if (startPoint) {
+      setStartLocation(prev => ({
+        ...prev,
+        location: startPoint.address || '',
+        departureDate: parseDateOnlyLocal(startPoint.tripDateTime),
+        departureTime: startPoint.tripDateTime ? new Date(startPoint.tripDateTime) : undefined,
+        travelRegionRef: startPoint.travelRegionRef || '',
+        isAbroad: isPlanTripPointAbroad(startPoint, expenseRulesData)
+      }))
+    }
+
+    const destinationPoints = tripData
+      .filter((trip: any) => trip.pointType === 'DESTINATION_POINT')
+      .sort((a: any, b: any) => a.tripOrder - b.tripOrder)
+
+    if (destinationPoints.length > 0) {
+      setDestinations(
+        destinationPoints.map((destination: any, index: number) => ({
+          id: `destination-${index}`,
+          name: '',
+          location: destination.address || '',
+          departureDate: destinationPoints.length === 1 ? undefined : parseDateOnlyLocal(destination.tripDateTime),
+          departureTime:
+            destinationPoints.length === 1 || !destination.tripDateTime
+              ? undefined
+              : new Date(destination.tripDateTime),
+          isCollapsed: false,
+          travelRegionRef: destination.travelRegionRef || '',
+          isAbroad: isPlanTripPointAbroad(destination, expenseRulesData)
+        }))
+      )
+    }
+
+    const endPoint = tripData.find((trip: any) => trip.pointType === 'END_POINT')
+    if (endPoint) {
+      setEndLocation(prev => ({
+        ...prev,
+        location: endPoint.address || '',
+        departureDate: parseDateOnlyLocal(endPoint.tripDateTime),
+        departureTime: endPoint.tripDateTime ? new Date(endPoint.tripDateTime) : undefined,
+        travelRegionRef: endPoint.travelRegionRef || '',
+        isAbroad: isPlanTripPointAbroad(endPoint, expenseRulesData)
+      }))
+    }
+  } catch {
+    showToast(t ? t('error-load-trip-data') : 'Error loading trip data', 'error')
+  }
+}
 
 /**
  * Set localities default

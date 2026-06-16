@@ -580,9 +580,15 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
 
         const employeeRuleData = await fetchEmployeeRule(employeeId, formattedDate, accessToken, t)
         const ruleIdForTripDate = employeeRuleData?.expenseRuleId ?? employeeRuleData?.id
+        const requestRuleId = expenseRequestData?.ExpenseRequestByPk?.expenseRuleId
+        const ruleIdForDisplay = requestRuleId || ruleIdForTripDate
 
-        if (ruleIdForTripDate) {
-          const canReuseRules = rulesAlreadyFetched && employeeRuleId && ruleIdForTripDate === employeeRuleId
+        if (ruleIdForDisplay) {
+          if (ruleIdForTripDate && ruleIdForTripDate !== employeeRuleId) {
+            setEmployeeRuleId(ruleIdForTripDate)
+          }
+
+          const canReuseRules = rulesAlreadyFetched && employeeRuleId && ruleIdForDisplay === employeeRuleId
 
           if (canReuseRules) {
             setByExternalCustomComponent(
@@ -594,9 +600,8 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
               t
             )
           } else {
-            setEmployeeRuleId(ruleIdForTripDate)
             const activeUserLocale = getCurrentActiveUserLocale()
-            const rulesResponse = await getExpenseRulesDataCached(ruleIdForTripDate, activeUserLocale)
+            const rulesResponse = await getExpenseRulesDataCached(ruleIdForDisplay, activeUserLocale)
             setExpenseRulesData(rulesResponse)
             setByExternalCustomComponent(
               expenseRequestData,

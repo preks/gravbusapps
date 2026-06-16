@@ -20,6 +20,7 @@ import { createAdvancePaymentColumns } from '../table/columns/advancePaymentColu
 import { AdvancePaymentRowActions } from '../table/components/AdvancePaymentRowActions'
 import type { AdvancePaymentsDataBodyProps } from '../table/components/AdvancePaymentsDataBody'
 import type { AdvancePaymentsTableProps } from '../types/advancePaymentsTable.types'
+import { useAdvancePaymentsProcessCompletionRefresh } from './useAdvancePaymentsProcessCompletionRefresh'
 
 const DEFAULT_PAGE_SIZE = 20
 
@@ -243,6 +244,17 @@ export function useAdvancePaymentsTableModel(props: AdvancePaymentsTableProps): 
     ]
   )
 
+  const employeeId = contextProps.userInfo?.employeeDetails?.employeeId
+
+  useAdvancePaymentsProcessCompletionRefresh({
+    fetchItems,
+    fetchParams,
+    accessToken: contextProps.accessToken,
+    employeeId,
+    isCurrencyReady,
+    onProcessComplete: props.onProcessComplete
+  })
+
   useEffect(() => {
     if (props.search !== undefined && props.search !== searchText) {
       setSearchText(props.search)
@@ -274,32 +286,6 @@ export function useAdvancePaymentsTableModel(props: AdvancePaymentsTableProps): 
     fetchItems,
     fetchParams,
     isCurrencyReady
-  ])
-
-  useEffect(() => {
-    if (props.tableRefreshTrigger && props.tableRefreshTrigger > 0) {
-      if (contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId) {
-        fetchItems({
-          searchTerm: fetchParams.searchText,
-          page: fetchParams.currentPage,
-          pageSize: fetchParams.pageSize,
-          statusFilter: fetchParams.currentStatusFilter,
-          amountRange: fetchParams.currentAmountRange,
-          advanceRange: fetchParams.currentAdvanceRange,
-          createdAtRange: fetchParams.cardCreatedAtRange,
-          sortField: fetchParams.sortField,
-          sortOrder: fetchParams.sortOrder,
-          currencyRef: fetchParams.selectedCurrencyRef,
-          force: true
-        })
-      }
-    }
-  }, [
-    props.tableRefreshTrigger,
-    contextProps.accessToken,
-    contextProps.userInfo?.employeeDetails?.employeeId,
-    fetchItems,
-    fetchParams
   ])
 
   const handleSearchChange = useCallback(

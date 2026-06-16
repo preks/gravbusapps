@@ -496,14 +496,13 @@ export const setByExternalCustomComponent = (
     // Find start point
     const startPoint = tripData.find((trip: any) => trip.pointType === 'START_POINT')
     if (startPoint) {
-      const isAbroad = checkIfAbroad(startPoint.travelRegionRef, expenseRulesData)
       setStartLocation(prev => ({
         ...prev,
         location: startPoint.address || '',
         departureDate: parseDateOnlyLocal(startPoint.tripDateTime),
         departureTime: startPoint.tripDateTime ? new Date(startPoint.tripDateTime) : undefined,
         travelRegionRef: startPoint.travelRegionRef || '',
-        isAbroad
+        isAbroad: isRequestTripPointAbroad(startPoint, expenseRulesData)
       }))
     }
 
@@ -514,7 +513,6 @@ export const setByExternalCustomComponent = (
 
     if (destinationPoints.length === 1) {
       const singleDestination = destinationPoints[0]
-      const isAbroad = checkIfAbroad(singleDestination.travelRegionRef, expenseRulesData)
       const formattedSingleDestination = {
         id: `destination-${0}`,
         name: '',
@@ -523,12 +521,11 @@ export const setByExternalCustomComponent = (
         departureTime: undefined,
         isCollapsed: false,
         travelRegionRef: singleDestination.travelRegionRef || '',
-        isAbroad
+        isAbroad: isRequestTripPointAbroad(singleDestination, expenseRulesData)
       }
       setDestinations([formattedSingleDestination])
     } else if (destinationPoints.length > 0) {
       const formattedDestinations = destinationPoints.map((destination: any, index: number) => {
-        const isAbroad = checkIfAbroad(destination.travelRegionRef, expenseRulesData)
         return {
           id: `destination-${index}`,
           name: '',
@@ -537,7 +534,7 @@ export const setByExternalCustomComponent = (
           departureTime: destination.tripDateTime ? new Date(destination.tripDateTime) : undefined,
           isCollapsed: false,
           travelRegionRef: destination.travelRegionRef || '',
-          isAbroad
+          isAbroad: isRequestTripPointAbroad(destination, expenseRulesData)
         }
       })
 
@@ -547,14 +544,13 @@ export const setByExternalCustomComponent = (
     // Find end point
     const endPoint = tripData.find((trip: any) => trip.pointType === 'END_POINT')
     if (endPoint) {
-      const isAbroad = checkIfAbroad(endPoint.travelRegionRef, expenseRulesData)
       setEndLocation(prev => ({
         ...prev,
         location: endPoint.address || '',
         departureDate: parseDateOnlyLocal(endPoint.tripDateTime),
         departureTime: endPoint.tripDateTime ? new Date(endPoint.tripDateTime) : undefined,
         travelRegionRef: endPoint.travelRegionRef || '',
-        isAbroad
+        isAbroad: isRequestTripPointAbroad(endPoint, expenseRulesData)
       }))
     }
   } catch {
@@ -563,20 +559,53 @@ export const setByExternalCustomComponent = (
 }
 
 /**
- * Check if a travel region is abroad
- * @param travelRegionRef - Travel region reference
+ * Check if a persisted trip point is abroad.
+ * Unknown or stale persisted regions remain local instead of being inferred as abroad.
+ * @param tripPoint - Saved trip point
  * @param expenseRulesData - Expense rules data
  * @returns True if region is abroad, false otherwise
  */
-const checkIfAbroad = (travelRegionRef: string, expenseRulesData: any): boolean => {
-  if (!travelRegionRef || !expenseRulesData?.homeRegionRule || !Array.isArray(expenseRulesData.homeRegionRule)) {
+const isRequestTripPointAbroad = (tripPoint: any, expenseRulesData: any): boolean => {
+  const travelRegionRef = tripPoint?.travelRegionRef
+  const allowanceRegionRuleDetailId = tripPoint?.allowanceRegionRuleDetailId || tripPoint?.allowanceRegionRuleDetail
+  const countryRef = tripPoint?.countryRef
+  const ruleDetails = Array.isArray(expenseRulesData?.AllowanceRegionRuleDetail)
+    ? expenseRulesData.AllowanceRegionRuleDetail
+    : []
+  const homeRegionRules = Array.isArray(expenseRulesData?.homeRegionRule) ? expenseRulesData.homeRegionRule : []
+
+  if (!travelRegionRef && !allowanceRegionRuleDetailId && !countryRef) {
     return false
   }
 
-  // If the travel region is found in home region rules, it's not abroad
-  const isHomeRegion = expenseRulesData.homeRegionRule.some((rule: any) => rule.travelRegionRef === travelRegionRef)
+  const persistedDetail = allowanceRegionRuleDetailId
+    ? ruleDetails.find((detail: any) => detail.id === allowanceRegionRuleDetailId)
+    : undefined
 
-  return !isHomeRegion
+  if (persistedDetail?.home === true) return false
+  if (persistedDetail?.home === false) return true
+
+  const homeRuleDetails = ruleDetails.filter((detail: any) => detail.home === true)
+  const hasKnownHomeRegion =
+    (travelRegionRef && homeRegionRules.some((rule: any) => rule.travelRegionRef === travelRegionRef)) ||
+    (countryRef && homeRegionRules.some((rule: any) => rule.countryRef === countryRef)) ||
+    (countryRef && homeRuleDetails.some((detail: any) => detail.countryRef === countryRef)) ||
+    (travelRegionRef &&
+      ruleDetails.some((region: any) => region.travelRegionRef === travelRegionRef && region.home === true))
+
+  if (hasKnownHomeRegion) {
+    return false
+  }
+
+  const hasExplicitAbroadDetail =
+    !!allowanceRegionRuleDetailId &&
+    ruleDetails.some((detail: any) => detail.id === allowanceRegionRuleDetailId && detail.home === false)
+  if (hasExplicitAbroadDetail) {
+    return true
+  }
+
+  // Avoid classifying a local saved point as abroad when validation reloads with a different rule set.
+  return false
 }
 
 export const setLocalitiesDefault = (

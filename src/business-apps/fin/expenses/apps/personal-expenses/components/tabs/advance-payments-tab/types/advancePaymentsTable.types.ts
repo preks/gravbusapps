@@ -14,7 +14,7 @@ export interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   setAdvanceRange?: (range: { min?: number; max?: number } | null) => void
   selectedFilters?: string[]
   removeFilter?: (filterId: string) => void
-  tableRefreshTrigger?: number
+  onProcessComplete?: () => void
   /** Current calendar month bounds on createdAt (statistics cards 1–2); not shown in sidebar filters. */
   cardCreatedAtRange?: { gte: string; lte: string } | null
   setCardCreatedAtRange?: (range: { gte: string; lte: string } | null) => void

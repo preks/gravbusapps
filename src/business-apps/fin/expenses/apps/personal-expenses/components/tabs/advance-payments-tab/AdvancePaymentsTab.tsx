@@ -5,7 +5,6 @@ import AdvancePaymentsTable from './table/AdvancePaymentsTable'
 import { useAdvancePaymentFilters } from '../../../hooks/useAdvancePaymentFilters'
 import { useAdvancePaymentCurrencies } from '../../../hooks/useAdvancePaymentCurrencies'
 import { getSelectedCurrencyRef, pickMostUsedCurrencyRef, type CurrencyStat } from '../../../utils/currencyUtils'
-import { useProcessRefresh } from '@/business-apps/fin/expenses/common/hooks/useProcessRefresh'
 import { useSyncContentHeader } from '@/business-apps/fin/expenses/common/hooks/useSharedTabState'
 import { preserveCurrencyAndResetAdvancePayments } from './utils/cardStrategies'
 import { TOTAL_PAYMENTS_CARD_STATUSES } from '../../../utils/totalPaymentsCardStatuses'
@@ -66,12 +65,12 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
     [props.accessToken, props.userInfo]
   )
 
-  const [tableRefreshTrigger, setTableRefreshTrigger] = useState(0)
   const [activeWidget, setActiveWidget] = useState<string | null>(null)
-  const bumpTableRefresh = useCallback(() => {
-    setTableRefreshTrigger(prev => prev + 1)
+  const [statisticsRefreshKey, setStatisticsRefreshKey] = useState(0)
+  const handleProcessComplete = useCallback(() => {
+    setActiveWidget(null)
+    setStatisticsRefreshKey(prev => prev + 1)
   }, [])
-  useProcessRefresh(bumpTableRefresh)
 
   const {
     searchTerm,
@@ -126,7 +125,8 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
       amountRange,
       advanceRange,
       cardCreatedAtRange,
-      selectedCurrencyRef
+      selectedCurrencyRef,
+      statisticsRefreshKey
     })
     return (
       <AdvancePaymentStatistics
@@ -148,7 +148,8 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
     advanceRange,
     cardCreatedAtRange,
     handleWidgetClick,
-    activeWidget
+    activeWidget,
+    statisticsRefreshKey
   ])
 
   useSyncContentHeader(contentHeader, props.onContentHeaderChange)
@@ -195,7 +196,7 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
       setCardCreatedAtRange={setCardCreatedAtRange}
       selectedFilters={selectedFilters}
       removeFilter={removeFilter}
-      tableRefreshTrigger={tableRefreshTrigger}
+      onProcessComplete={handleProcessComplete}
     />
   )
 }

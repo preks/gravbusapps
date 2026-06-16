@@ -104,6 +104,8 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
   const [error, setError] = useState<Error | null>(null)
   const [totalCount, setTotalCount] = useState(0)
   const graphqlClient = useGraphQLClient(context?.accessToken || '')
+  const contextRef = useRef(context)
+  contextRef.current = context
   const lastCallSignatureRef = useRef<string>('')
   const abortControllerRef = useRef<AbortController | null>(null)
   const pageCacheRef = useRef<Map<string, { items: AdvancePayment[]; totalCount: number }>>(new Map())
@@ -141,17 +143,16 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     []
   )
 
-  // Helper function to validate and get required values
-  const validateAndGetValues = (): { employeeId: string; accessToken: string } | null => {
-    const employeeId = context?.userInfo?.employeeDetails?.employeeId
-    const accessToken = context?.accessToken
+  const validateAndGetValues = useCallback((): { employeeId: string; accessToken: string } | null => {
+    const employeeId = contextRef.current?.userInfo?.employeeDetails?.employeeId
+    const accessToken = contextRef.current?.accessToken
 
     if (!employeeId || !accessToken) {
       return null
     }
 
     return { employeeId, accessToken }
-  }
+  }, [])
 
   // Helper function to handle cached data
   const handleCachedData = useCallback((cacheKey: string, options?: { force?: boolean }): boolean => {
@@ -166,17 +167,15 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     )
   }, [])
 
-  // Helper function to check and update call signature
-  const checkCallSignature = (callSignature: string, options?: { force?: boolean }): boolean => {
+  const checkCallSignature = useCallback((callSignature: string, options?: { force?: boolean }): boolean => {
     if (!options?.force && callSignature === lastCallSignatureRef.current) {
       return true
     }
     lastCallSignatureRef.current = callSignature
     return false
-  }
+  }, [])
 
-  // Helper function to handle inflight requests
-  const handleInflightRequest = async (requestKey: string, cacheKey: string): Promise<boolean> => {
+  const handleInflightRequest = useCallback(async (requestKey: string, cacheKey: string): Promise<boolean> => {
     if (!inflightRef.current.has(requestKey)) {
       return false
     }
@@ -194,7 +193,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
       // Continue with new request if in-flight request failed
     }
     return true
-  }
+  }, [])
 
   // Helper function to build sort order (maps UI column ids to AdvancePaymentOrderBy field names)
   const buildOrderBy = (sortField?: SortField, sortOrder?: SortOrder): any[] => {
@@ -334,14 +333,14 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     }
   }
 
-  const processResponseData = (result: GraphQLResponse, cacheKey: string): void => {
+  const processResponseData = useCallback((result: GraphQLResponse, cacheKey: string): void => {
     const fetchedItems = result?.AdvancePayment ?? []
     const count = result?.AdvancePaymentAggregate?.aggregate?.count ?? 0
 
     pageCacheRef.current.set(cacheKey, { items: fetchedItems, totalCount: count })
     setTotalCount(count)
     setItems(fetchedItems)
-  }
+  }, [])
 
   const performRequest = useCallback(
     async (
@@ -473,8 +472,6 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
       await performRequest(controller, requestKey, cacheKey, query, variables)
     },
     [
-      context?.userInfo?.employeeDetails?.employeeId,
-      context?.accessToken,
       generateCacheKey,
       validateAndGetValues,
       handleCachedData,

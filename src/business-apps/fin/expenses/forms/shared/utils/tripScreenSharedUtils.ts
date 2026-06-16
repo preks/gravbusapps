@@ -1,8 +1,23 @@
 import dayjs from 'dayjs'
 import type { Dispatch, SetStateAction } from 'react'
 
-import type { LocationData, TripData } from '../../expense-request-wizard/utils/types'
+import type { LocationData } from '../../expense-request-wizard/utils/types'
 import { ADDRESS_TYPES_ENUM, PointTypeEnum } from '../../expense-request-wizard/constants/constants'
+
+export interface SharedTripData {
+  id?: string
+  version?: string | number
+  address: string
+  tripDateTime: string
+  pointType: string
+  tripDirection: string
+  costCenter: string
+  tripOrder: number
+  travelRegionRef: string
+  countryRef: string
+  allowanceRegionRuleDetail: string
+  [key: string]: any
+}
 
 /**
  * Prepares trip data for saving (request & plan wizards).
@@ -42,9 +57,9 @@ export const prepareTripData = (
  * Border-crossing segments for trip legs when country changes between points.
  */
 export const createBorderCrossingTransformer = () => {
-  return function addBorderCrossing(locations: TripData[]): TripData[] {
-    const locationsWithBorderCrossing: TripData[] = []
-    let previousLocation: TripData | null = null
+  return function addBorderCrossing<T extends SharedTripData>(locations: T[]): T[] {
+    const locationsWithBorderCrossing: T[] = []
+    let previousLocation: T | null = null
 
     for (const location of locations) {
       if (!location?.tripDateTime) {
@@ -89,9 +104,9 @@ export const createBorderCrossingTransformer = () => {
  * Preserve existing trip ids/versions when the number of computed trips matches existing trips.
  */
 export const preserveTripIdsIfCountsMatch = (
-  existingTrips: TripData[] | undefined,
-  newTrips: TripData[]
-): TripData[] => {
+  existingTrips: SharedTripData[] | undefined,
+  newTrips: SharedTripData[]
+): SharedTripData[] => {
   if (!existingTrips || !Array.isArray(existingTrips)) return newTrips
   if (!Array.isArray(newTrips) || newTrips.length === 0) return newTrips
   if (existingTrips.length !== newTrips.length) return newTrips
@@ -122,17 +137,17 @@ export const preserveTripIdsIfCountsMatch = (
   return result
 }
 
-export type TripExistsEntityIdPredicate = (item: any, objectToCheck: TripData) => boolean
+export type TripExistsEntityIdPredicate<T extends SharedTripData> = (item: any, objectToCheck: T) => boolean
 
 /**
  * Match an existing backend trip row to a computed trip; entity id field differs for request vs plan.
  */
-export const checkTripExistsWithEntityPredicate = (
+export const checkTripExistsWithEntityPredicate = <T extends SharedTripData>(
   array: any[] | undefined,
   pointType: string,
-  objectToCheck: TripData,
-  entityIdMatches: TripExistsEntityIdPredicate
-): TripData | null => {
+  objectToCheck: T,
+  entityIdMatches: TripExistsEntityIdPredicate<T>
+): T | null => {
   if (!array) return null
 
   const filteredArray = array.filter(item => item.pointType === pointType)
@@ -155,11 +170,11 @@ export const checkTripExistsWithEntityPredicate = (
       )
     }) || null
   if (found) {
-    const merged: TripData = {
+    const merged: T = {
       ...objectToCheck,
       id: found.id,
       version: found.version
-    } as TripData
+    }
     return merged
   }
 

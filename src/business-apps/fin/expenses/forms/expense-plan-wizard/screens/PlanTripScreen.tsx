@@ -30,8 +30,7 @@ import {
 } from '../../expense-request-wizard/constants/constants'
 import RejectionComment from '../../expense-request-wizard/components/RejectionComment'
 import { EVENTS } from '../../../utils/constants'
-import { getLatestRejectComment, setLocalitiesDefault } from '../utils/tripScreenUtils'
-import { setByExternalCustomComponent } from '../../expense-request-wizard/utils/tripScreenUtils'
+import { getLatestRejectComment, setLocalitiesDefault, setPlanTripDataFromSavedTrip } from '../utils/tripScreenUtils'
 import { combineDateTimeToISOString } from '../../expense-request-wizard/utils/locationTimeUtils'
 import { tripLocationPointsEqual } from '../../expense-request-wizard/utils/tripLocationPointEquality'
 import { filterTravelRegionsByExpenseItemsCurrency } from '../../shared/utils/filterTravelRegionsByExpenseItemsCurrency'
@@ -295,7 +294,17 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
     )
   }
 
-  const fetchAndSetEmployeeRule = async (formattedDate: string) => {
+  const fetchExpenseRulesData = async (expenseRuleId: string) => {
+    const activeUserLocale = getCurrentActiveUserLocale()
+    const rulesResponse = await graphqlClient.request(getExpenseRulesDataQuery, {
+      expenseRuleId,
+      activeUserLocale
+    })
+    setExpenseRulesData(rulesResponse)
+    return rulesResponse
+  }
+
+  const fetchAndSetEmployeeRule = async (formattedDate: string): Promise<string | null> => {
     const employeeId = userInfo?.employeeDetails?.employeeId
     if (!employeeId) {
       showToast(t('missing-employee-id'), 'error')
@@ -305,13 +314,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
     const employeeRuleData = await fetchEmployeeRule(employeeId, formattedDate, accessToken)
     if (employeeRuleData?.expenseRuleId) {
       setEmployeeRuleId(employeeRuleData.expenseRuleId)
-      const activeUserLocale = getCurrentActiveUserLocale()
-      const rulesResponse = await graphqlClient.request(getExpenseRulesDataQuery, {
-        expenseRuleId: employeeRuleData.expenseRuleId,
-        activeUserLocale
-      })
-      setExpenseRulesData(rulesResponse)
-      return rulesResponse
+      return employeeRuleData.expenseRuleId
     }
     return null
   }
@@ -329,15 +332,27 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
 
       if (hasValidStartDate) {
         const formattedDate = dayjs(startObject.tripDateTime).format('YYYY-MM-DDTHH:mm:ss.SSSZZ')
-        const rulesResponse = await fetchAndSetEmployeeRule(formattedDate)
-        setByExternalCustomComponent(expensePlanData, rulesResponse, setStartLocation, setDestinations, setEndLocation)
-      } else {
-        setByExternalCustomComponent(
+        const ruleIdForTripDate = await fetchAndSetEmployeeRule(formattedDate)
+        const ruleIdForDisplay = expensePlanData?.ExpensePlanByPk?.expenseRuleId || ruleIdForTripDate
+        const rulesResponse = ruleIdForDisplay ? await fetchExpenseRulesData(ruleIdForDisplay) : null
+        setPlanTripDataFromSavedTrip(
           expensePlanData,
-          expenseRulesData,
+          rulesResponse,
           setStartLocation,
           setDestinations,
-          setEndLocation
+          setEndLocation,
+          t
+        )
+      } else {
+        const planRuleId = expensePlanData?.ExpensePlanByPk?.expenseRuleId
+        const rulesResponse = planRuleId ? await fetchExpenseRulesData(planRuleId) : expenseRulesData
+        setPlanTripDataFromSavedTrip(
+          expensePlanData,
+          rulesResponse,
+          setStartLocation,
+          setDestinations,
+          setEndLocation,
+          t
         )
       }
     } catch {

@@ -1,8 +1,73 @@
-export {
-  useEmployeeRuleQuery,
-  fetchEmployeeRule,
-  getExpenseRulesDataQuery
-} from '../../expense-request-wizard/ExpenseRequestWizardQueries'
+export { useEmployeeRuleQuery, fetchEmployeeRule } from '../../expense-request-wizard/ExpenseRequestWizardQueries'
+
+export const getExpenseRulesDataQuery = `query getTravelRegionRules($expenseRuleId: uuid!,$activeUserLocale: String) {
+    ExpenseRuleByPk(id: $expenseRuleId) {
+      useSingleCurrency
+    currency {
+      code
+      id
+       value
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+    catalog {
+      defaultLocale
+    }
+    }
+  }
+  AllowanceRegionRuleDetail(where: {isDeleted:{_eq:false},allowanceRegionRule: {expenseRuleAllowanceCode: {expenseRuleId: {_eq: $expenseRuleId}}}}, distinctOn: travelRegionRef) {
+    id
+    travelRegionRef
+    home
+    countryRef
+    
+     amount
+    currency {
+      id
+      code
+      value
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+    catalog {
+      defaultLocale
+    }
+    }
+    travelRegion {
+       value
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+    catalog {
+      defaultLocale
+    }
+      
+    }
+  }
+ homeRegionRule: AllowanceRegionRuleDetail(where: {allowanceRegionRule: {expenseRuleAllowanceCode: {expenseRuleId: {_eq: $expenseRuleId}}}, home: {_eq: true},isDeleted: {_eq: false}}, distinctOn: travelRegionRef) {
+    id
+    travelRegionRef
+    home
+    countryRef
+    travelRegion {
+       translations(where: { localeCode: { _eq: $activeUserLocale } }) {
+        value
+      }
+    }
+    amount
+    currency {
+      id
+      code
+       translations(where: { localeCode: { _eq: $activeUserLocale } }) {
+        value
+      }
+    }
+  }
+}
+`
 
 export const fetchExpensePlanAndItems = `
 query MyQuery($expenseId: uuid!, $activeUserLocale: String, $employeeId: uuid!) {
