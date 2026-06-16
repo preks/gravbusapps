@@ -368,10 +368,6 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
       {
         label: t('employment-label-region'),
         value: regionDisplay || '-'
-      },
-      {
-        label: t('employment-label-vacation-entitlement-days'),
-        value: workingCondition?.vacationDays?.toString() || ''
       }
     ]
   }
