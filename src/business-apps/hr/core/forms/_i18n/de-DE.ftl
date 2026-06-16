@@ -355,6 +355,7 @@ notification-feedback-request-sent-success = Ihre Feedbackanfrage wurde gesendet
 notification-feedback-request-sent-success-on-behalf = Die Feedbackanfrage wurde gesendet
 feedback-request-missing-user-id = Einige ausgewaehlte Mitarbeiter haben keine User-ID. Bitte waehlen Sie sie erneut aus und versuchen Sie es erneut.
 entitlements-valid-from-month-start-hint = Es kann nur der erste Tag eines Monats ausgewählt werden.
+entitlements-valid-from-month-start-or-hire-date-hint = Das Eintrittsdatum des Mitarbeiters oder der erste Tag eines Monats kann ausgewählt werden.
 entitlements-valid-from-minimum-hint = Der Anspruch kann ab { $monthYear } oder später beginnen.
 entitlements-valid-from = Gültig ab
 entitlements-update-title = Ansprüche anpassen

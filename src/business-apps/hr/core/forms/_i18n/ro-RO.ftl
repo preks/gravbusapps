@@ -354,6 +354,7 @@ notification-feedback-request-sent-success = Cererea ta de feedback a fost trimi
 notification-feedback-request-sent-success-on-behalf = Cererea de feedback a fost trimisă
 feedback-request-missing-user-id = Unii angajati selectati nu au user ID. Selectati-i din nou si incercati din nou.
 entitlements-valid-from-month-start-hint = Se poate selecta doar prima zi a lunii.
+entitlements-valid-from-month-start-or-hire-date-hint = Se poate selecta data angajării angajatului sau prima zi a lunii.
 entitlements-valid-from-minimum-hint = Dreptul poate începe din { $monthYear } sau mai târziu.
 entitlements-valid-from = Valabil de la
 entitlements-update-title = Actualizează drepturile

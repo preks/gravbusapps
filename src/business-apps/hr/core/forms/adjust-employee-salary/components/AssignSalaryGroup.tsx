@@ -15,6 +15,7 @@ export interface AssignSalaryGroupProps {
   isCurrencyReadonly?: boolean
   /** Employee's weekly working hours - used to calculate expected monthly wage for hourly workers */
   weeklyHours?: number | null
+  hireDate?: string
 }
 
 const AssignSalaryGroup: React.FC<AssignSalaryGroupProps> = ({
@@ -23,7 +24,8 @@ const AssignSalaryGroup: React.FC<AssignSalaryGroupProps> = ({
   currencyCode,
   locale,
   isCurrencyReadonly = false,
-  weeklyHours = null
+  weeklyHours = null,
+  hireDate
 }) => {
   return (
     <div className="gba:space-y-4" data-testid="assign-employee-salary-details-group">
@@ -37,7 +39,7 @@ const AssignSalaryGroup: React.FC<AssignSalaryGroupProps> = ({
       <DirectSalaryInputs control={control} currencyCode={currencyCode} locale={locale} weeklyHours={weeklyHours} />
 
       {/* Start Date and Notes */}
-      <AssignSalaryFields control={control} />
+      <AssignSalaryFields control={control} hireDate={hireDate} />
     </div>
   )
 }

@@ -477,6 +477,7 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ access
                 locale={locale}
                 isCurrencyReadonly={isCurrencyReadonly}
                 weeklyHours={weeklyHours}
+                hireDate={hireDate}
               />
             ) : (
               /* Salary Adjustment Group - for existing employees */

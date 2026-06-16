@@ -17,9 +17,10 @@ import EffectiveDateField from './EffectiveDateField'
 
 interface AssignSalaryFieldsProps {
   control: Control<AdjustEmployeeSalaryFormValues>
+  hireDate?: string
 }
 
-const AssignSalaryFields: React.FC<AssignSalaryFieldsProps> = ({ control }) => {
+const AssignSalaryFields: React.FC<AssignSalaryFieldsProps> = ({ control, hireDate }) => {
   const { t } = useTranslation(translations)
   const placeholderSelect = t('action-select-placeholder', { defaultValue: 'Please Select' })
   const placeholderEnter = t('action-enter-placeholder', { defaultValue: 'Please Enter' })
@@ -39,6 +40,7 @@ const AssignSalaryFields: React.FC<AssignSalaryFieldsProps> = ({ control }) => {
         placeholder={placeholderSelect}
         labelTestId="assign-employee-salary-start-date-label"
         inputTestId="assign-employee-salary-start-date-input"
+        allowedNonMonthStartDate={hireDate}
       />
 
       {/* Notes */}

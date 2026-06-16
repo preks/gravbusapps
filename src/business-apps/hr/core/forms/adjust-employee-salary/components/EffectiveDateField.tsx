@@ -14,10 +14,19 @@ interface EffectiveDateFieldProps {
   inputTestId: string
   min?: string
   helperText?: string
+  allowedNonMonthStartDate?: string
   extraValidate?: (value: string) => true | string
 }
 
 const isCompleteIsoDate = (value: string): boolean => /^\d{4}-\d{2}-\d{2}$/.test(value)
+
+const toDateInputValue = (date: Date): string => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
 
 const EffectiveDateField: React.FC<EffectiveDateFieldProps> = ({
   control,
@@ -29,14 +38,15 @@ const EffectiveDateField: React.FC<EffectiveDateFieldProps> = ({
   inputTestId,
   min,
   helperText,
+  allowedNonMonthStartDate,
   extraValidate
 }) => {
   const { trigger } = useFormContext<AdjustEmployeeSalaryFormValues>()
   const effectiveDate = useWatch({ control, name: 'effectiveDate' }) || ''
   const [effectiveDateDraft, setEffectiveDateDraft] = useState<string>(String(effectiveDate))
   const disabledDates = useMemo(() => {
-    return (date: Date) => date.getDate() !== 1
-  }, [])
+    return (date: Date) => date.getDate() !== 1 && toDateInputValue(date) !== allowedNonMonthStartDate
+  }, [allowedNonMonthStartDate])
 
   const triggerEffectiveDateValidation = () => {
     trigger('effectiveDate').catch(() => undefined)
@@ -62,7 +72,7 @@ const EffectiveDateField: React.FC<EffectiveDateFieldProps> = ({
           if (!value) return true
 
           const day = Number(String(value).split('-')[2] || '')
-          if (day !== 1) {
+          if (day !== 1 && value !== allowedNonMonthStartDate) {
             return monthStartMessage
           }
 
