@@ -17,6 +17,7 @@ export interface UseAbsencePrevalidateParams {
   typeRef: string | undefined
   startDate: string | null
   endDate: string | null
+  absenceRequestId?: string
 }
 
 const IDLE_RESULT: PrevalidateResult = {
@@ -111,7 +112,8 @@ export const useAbsencePrevalidateShared = ({
   employeeId,
   typeRef,
   startDate,
-  endDate
+  endDate,
+  absenceRequestId
 }: UseAbsencePrevalidateParams): PrevalidateResult => {
   const [result, setResult] = useState<PrevalidateResult>(IDLE_RESULT)
 
@@ -129,12 +131,14 @@ export const useAbsencePrevalidateShared = ({
         const baseUrl = trimTrailingSlashes(
           env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT') ?? env('NEXT_PUBLIC_BASE_URL') ?? ''
         )
-        const requestBody = JSON.stringify({
+        const requestPayload = {
           employeeId,
           typeRef,
           startDate,
-          endDate
-        })
+          endDate,
+          ...(absenceRequestId ? { absenceRequestId } : {})
+        }
+        const requestBody = JSON.stringify(requestPayload)
 
         let response: Response | null = null
         for (const path of PREVALIDATE_PATHS) {
@@ -209,7 +213,7 @@ export const useAbsencePrevalidateShared = ({
       clearTimeout(timer)
       controller.abort()
     }
-  }, [accessToken, employeeId, typeRef, startDate, endDate])
+  }, [accessToken, employeeId, typeRef, startDate, endDate, absenceRequestId])
 
   return result
 }

@@ -5,13 +5,15 @@ export const useAbsencePrevalidate = (
   employeeId: string | undefined,
   typeRef: string | undefined,
   startDate: string | null,
-  endDate: string | null
+  endDate: string | null,
+  absenceRequestId?: string
 ): PrevalidateResult => {
   return useAbsencePrevalidateShared({
     accessToken,
     employeeId,
     typeRef,
     startDate,
-    endDate
+    endDate,
+    absenceRequestId
   })
 }

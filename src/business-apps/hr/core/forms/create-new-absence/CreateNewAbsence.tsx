@@ -207,6 +207,8 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
   })
 
   const formValuesState = form.watch()
+  const [isUpdateMode, setIsUpdateMode] = useState(false)
+  const [showSickLeaveOptions, setShowSickLeaveOptions] = useState(false)
 
   const { existingSickLeave, hasExistingSickLeave } = useAbsenceValidation({
     accessToken,
@@ -227,7 +229,8 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
     employeeId || undefined,
     formValuesState.selectedType || undefined,
     prevalidateStartDateStr,
-    prevalidateEndDateStr
+    prevalidateEndDateStr,
+    isUpdateMode ? existingSickLeave?.id : undefined
   )
   const hasPrevalidateError = !!prevalidate.errorCode
   const duplicatedPrevalidateError = useMemo(() => {
@@ -250,9 +253,6 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
       form.setValue('endDate', start)
     }
   }, [formValuesState.startDate, formValuesState.endDate, form])
-
-  const [isUpdateMode, setIsUpdateMode] = useState(false)
-  const [showSickLeaveOptions, setShowSickLeaveOptions] = useState(false)
 
   const [fileList, setFileList] = useState<SelectedAttachmentFile[]>([])
   const fileClient = useFileClient({ accessToken })
