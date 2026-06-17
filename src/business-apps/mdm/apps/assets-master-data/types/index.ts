@@ -5,11 +5,15 @@ export const ASSET_CATALOG_VERSION = 'v1'
 export const ASSET_BRAND_CATALOG = 'AssetBrand'
 export const ASSET_CATEGORY_CATALOG = 'AssetCategory'
 export const ASSET_CONDITION_CATALOG = 'AssetCondition'
+export const SANITIZATION_METHOD_CATALOG = 'SanitizationMethod'
+export const DISPOSAL_OUTCOME_CATALOG = 'DisposalOutcome'
 
 export type AssetCatalogIdentifier =
   | typeof ASSET_BRAND_CATALOG
   | typeof ASSET_CATEGORY_CATALOG
   | typeof ASSET_CONDITION_CATALOG
+  | typeof SANITIZATION_METHOD_CATALOG
+  | typeof DISPOSAL_OUTCOME_CATALOG
 
 export interface AssetCatalogEntry {
   id: string
@@ -44,5 +48,7 @@ export interface AssetCatalogConfig {
 export enum AssetsMasterDataTab {
   ASSET_BRANDS = 'asset-brands',
   ASSET_CATEGORIES = 'asset-categories',
-  ASSET_CONDITIONS = 'asset-conditions'
+  ASSET_CONDITIONS = 'asset-conditions',
+  SANITIZATION_METHODS = 'sanitization-methods',
+  DISPOSAL_OUTCOMES = 'disposal-outcomes'
 }

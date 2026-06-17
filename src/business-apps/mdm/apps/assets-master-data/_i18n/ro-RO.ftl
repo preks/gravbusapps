@@ -3,6 +3,8 @@ page-title = Date principale active
 tab-asset-brands = Mărci active
 tab-asset-categories = Categorii active
 tab-asset-conditions = Stări active
+tab-sanitization-methods = Metode de sanitizare
+tab-disposal-outcomes = Rezultate eliminare
 
 # Shared table
 table-header-code = Cod
@@ -47,3 +49,23 @@ asset-condition-delete-title = Stare activ
 asset-condition-sheet-title = Detalii stare activ
 asset-condition-sheet-extra-content = Această stare poate fi utilizată pentru descrierea stării unui activ IT.
 asset-condition-load-error = Nu s-au putut încărca stările activelor
+
+# Sanitization Methods
+sanitization-method-title = Metode de sanitizare
+sanitization-method-description = Gestionați datele de referință pentru metodele de sanitizare a datelor la activele retrase.
+sanitization-method-search-placeholder = Căutare metode de sanitizare...
+sanitization-method-add-button = Adaugă metodă de sanitizare
+sanitization-method-delete-title = Metodă de sanitizare
+sanitization-method-sheet-title = Detalii metodă de sanitizare
+sanitization-method-sheet-extra-content = Această metodă poate fi utilizată la retragerea activelor IT care necesită sanitizare de date.
+sanitization-method-load-error = Nu s-au putut încărca metodele de sanitizare
+
+# Disposal Outcomes
+disposal-outcome-title = Rezultate eliminare
+disposal-outcome-description = Gestionați datele de referință pentru rezultatele finale ale eliminării activelor retrase.
+disposal-outcome-search-placeholder = Căutare rezultate eliminare...
+disposal-outcome-add-button = Adaugă rezultat eliminare
+disposal-outcome-delete-title = Rezultat eliminare
+disposal-outcome-sheet-title = Detalii rezultat eliminare
+disposal-outcome-sheet-extra-content = Acest rezultat poate fi utilizat pentru a descrie modul în care a fost eliminat un activ IT retras.
+disposal-outcome-load-error = Nu s-au putut încărca rezultatele eliminării

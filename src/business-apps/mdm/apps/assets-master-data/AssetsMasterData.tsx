@@ -11,6 +11,8 @@ import {
   ASSET_CATALOG_VERSION,
   ASSET_CATEGORY_CATALOG,
   ASSET_CONDITION_CATALOG,
+  DISPOSAL_OUTCOME_CATALOG,
+  SANITIZATION_METHOD_CATALOG,
   AssetsMasterDataTab,
   type AssetCatalogConfig
 } from './types'
@@ -70,6 +72,38 @@ const ASSET_CATALOGS: AssetCatalogConfig[] = [
     loadErrorKey: 'asset-condition-load-error',
     viewActionPrefix: 'asset-condition',
     formName: 'AssetCondition'
+  },
+  {
+    catalogIdentifier: SANITIZATION_METHOD_CATALOG,
+    version: ASSET_CATALOG_VERSION,
+    tabValue: AssetsMasterDataTab.SANITIZATION_METHODS,
+    titleKey: 'sanitization-method-title',
+    descriptionKey: 'sanitization-method-description',
+    searchPlaceholderKey: 'sanitization-method-search-placeholder',
+    addButtonKey: 'sanitization-method-add-button',
+    editButtonKey: 'edit-button',
+    deleteTitleKey: 'sanitization-method-delete-title',
+    sheetTitleKey: 'sanitization-method-sheet-title',
+    sheetExtraContentKey: 'sanitization-method-sheet-extra-content',
+    loadErrorKey: 'sanitization-method-load-error',
+    viewActionPrefix: 'sanitization-method',
+    formName: 'SanitizationMethod'
+  },
+  {
+    catalogIdentifier: DISPOSAL_OUTCOME_CATALOG,
+    version: ASSET_CATALOG_VERSION,
+    tabValue: AssetsMasterDataTab.DISPOSAL_OUTCOMES,
+    titleKey: 'disposal-outcome-title',
+    descriptionKey: 'disposal-outcome-description',
+    searchPlaceholderKey: 'disposal-outcome-search-placeholder',
+    addButtonKey: 'disposal-outcome-add-button',
+    editButtonKey: 'edit-button',
+    deleteTitleKey: 'disposal-outcome-delete-title',
+    sheetTitleKey: 'disposal-outcome-sheet-title',
+    sheetExtraContentKey: 'disposal-outcome-sheet-extra-content',
+    loadErrorKey: 'disposal-outcome-load-error',
+    viewActionPrefix: 'disposal-outcome',
+    formName: 'DisposalOutcome'
   }
 ]
 
