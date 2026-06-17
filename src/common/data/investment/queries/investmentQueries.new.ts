@@ -537,4 +537,6 @@ export interface InvestmentQueryVariables extends BaseQueryVariables {
   realEstateInvestment?: Record<string, any>
   equityInvestment?: Record<string, any>
   planedExit?: boolean
+  // Scopes free-text search to the given descriptor keys (visible columns) instead of all descriptors.
+  searchDescriptorKeys?: string[]
 }

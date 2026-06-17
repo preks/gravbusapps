@@ -78,10 +78,25 @@ export const CustomerAccountFields = {
 export const CUSTOMER_ACCOUNT_DESCRIPTORS: Descriptor[] = [
   // Filter out descriptors that need structural overrides
   ...createAccountDescriptors(CustomerAccountFields as Record<keyof typeof AccountFields, string>).filter(
-    d => !['activities', 'leads', 'locality', 'notes', 'opportunities'].includes(d.key)
+    d => !['activities', 'addresses', 'leads', 'locality', 'notes', 'opportunities'].includes(d.key)
   ),
 
   // CRM-specific structural overrides
+  {
+    // The Location column renders the street (addressLine). In CRM, addressLine is a String
+    // column (stored as a JSON string), so _ilike can match it — include it so searching for a
+    // street name (e.g. "sunset") returns results. IRM stores addressLine as jsonb and cannot.
+    key: 'addresses',
+    searchPaths: [
+      'addresses.addressLine',
+      'addresses.locality',
+      'addresses.postalCode',
+      'addresses.region.value',
+      'addresses.country.value'
+    ],
+    sortPaths: ['addresses.locality', 'addresses.postalCode', 'addresses.region.value', 'addresses.country.value'],
+    type: 'text'
+  },
   {
     key: 'leads',
     searchPaths: ['lead.firstName', 'lead.lastName', 'lead.companyName'], // CRM uses singular "lead"

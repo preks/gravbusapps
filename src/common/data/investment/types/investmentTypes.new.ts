@@ -315,7 +315,14 @@ export const createInvestmentDescriptors = (
     optionDistinctOn: [fields.isin]
   },
   { key: 'acquisitionDate', searchPaths: [fields.acquisitionDate], sortPath: fields.acquisitionDate, type: 'date' },
-  { key: 'planedExit', searchPaths: [fields.planedExit], sortPath: fields.planedExit, type: 'boolean' },
+  {
+    key: 'planedExit',
+    searchPaths: [fields.planedExit],
+    sortPath: fields.planedExit,
+    type: 'boolean',
+    // Column is displayed as 'Planned' / 'Not planned'; let free-text search match those labels.
+    searchBooleanLabels: { true: 'Planned', false: 'Not planned' }
+  },
   { key: 'plannedExitDate', searchPaths: [fields.plannedExitDate], sortPath: fields.plannedExitDate, type: 'date' },
   { key: 'exitDate', searchPaths: [fields.exitDate], sortPath: fields.exitDate, type: 'date' },
 
@@ -444,13 +451,19 @@ export const createInvestmentDescriptors = (
     key: 'investmentGroup',
     searchPaths: [`${fields.investmentGroup}.value`, `${fields.investmentGroup}.code`],
     sortPath: `${fields.investmentGroup}.value`,
-    type: 'text'
+    type: 'text',
+    // Column renders 'Unknown' when no group is set; let free-text search match that fallback.
+    searchNullLabel: 'Unknown',
+    searchNullPath: fields.investmentGroupRef
   },
   {
     key: 'investmentType',
     searchPaths: [`${fields.investmentType}.value`, `${fields.investmentType}.code`],
     sortPath: `${fields.investmentType}.value`,
-    type: 'text'
+    type: 'text',
+    // Column renders 'Unknown' when no type is set; let free-text search match that fallback.
+    searchNullLabel: 'Unknown',
+    searchNullPath: fields.investmentTypeRef
   },
   {
     key: 'investmentStakeType',
@@ -468,7 +481,10 @@ export const createInvestmentDescriptors = (
     key: 'investmentStatus',
     searchPaths: [`${fields.investmentStatus}.value`, `${fields.investmentStatus}.code`],
     sortPath: `${fields.investmentStatus}.value`,
-    type: 'text'
+    type: 'text',
+    // Column renders 'Unknown' when no status is set; let free-text search match that fallback.
+    searchNullLabel: 'Unknown',
+    searchNullPath: fields.investmentStatusRef
   },
   {
     key: 'investmentRiskLevel',

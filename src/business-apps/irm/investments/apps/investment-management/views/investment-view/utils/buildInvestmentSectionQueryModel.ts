@@ -1,7 +1,7 @@
 import { INVESTMENT_DESCRIPTORS } from '@/common/data/investment/types/investmentTypes.new'
 import type { InvestmentQueryVariables } from '@/common/data/investment/queries/investmentQueries.new'
 import { INVESTMENT_QUERY_CONFIGS } from '@/common/data/investment/queries/investmentQueries.new'
-import type { Descriptor, SortInput } from '@/common/network/graphql/queryHelpers'
+import type { Descriptor, JsonbContainsTarget, SortInput } from '@/common/network/graphql/queryHelpers'
 import type { InvestmentDynamicFilterCondition } from './investmentListColumnTransformer'
 
 type SortOrder = 'ASC' | 'DESC'
@@ -19,6 +19,9 @@ interface InvestmentSectionGroupMetadata {
 interface InvestmentSectionColumnConfig {
   queryFields?: string[]
   sortDescriptors?: Descriptor[]
+  searchDescriptors?: Descriptor[]
+  /** jsonb `additionalProperties` search targets keyed by table column id. */
+  jsonbSearchByColumnId?: Record<string, JsonbContainsTarget>
   filterConditionByFilterId?: Record<string, InvestmentDynamicFilterCondition>
 }
 
@@ -33,12 +36,38 @@ export interface BuildInvestmentSectionQueryModelOptions {
   offset?: number
   group?: InvestmentSectionGroupMetadata | null
   columnConfig?: InvestmentSectionColumnConfig
+  visibleColumns?: string[]
 }
+
+/**
+ * Column ids that don't match their descriptor key 1:1 (the table id differs from the search path root).
+ */
+const COLUMN_ID_TO_DESCRIPTOR_KEY: Record<string, string> = {
+  account: 'investmentAccounts'
+}
+
+/**
+ * Resolve visible column ids to descriptor keys for free-text search. Column ids may be nested
+ * accessors (e.g. 'investmentGroup.value' → 'investmentGroup'); the descriptor key is the root segment.
+ */
+export const resolveSearchDescriptorKeys = (visibleColumns: string[]): string[] =>
+  Array.from(
+    new Set(
+      visibleColumns.map(columnId => {
+        const root = columnId.split('.')[0]
+        return COLUMN_ID_TO_DESCRIPTOR_KEY[root] ?? root
+      })
+    )
+  )
 
 export interface InvestmentSectionQueryModel {
   queryVariables: InvestmentSectionQueryVariables
   queryFields: string[]
   sortDescriptors: Descriptor[]
+  /** Extra search descriptors for dynamic catalog/relation columns (keyed by table column id). */
+  searchDescriptors: Descriptor[]
+  /** jsonb `additionalProperties` search targets for the currently visible columns only. */
+  jsonbSearchColumns: JsonbContainsTarget[]
   exportMetadata: {
     filenamePrefix: string
     groupLabel?: string
@@ -218,7 +247,8 @@ export const buildInvestmentSectionQueryModel = ({
   limit,
   offset,
   group,
-  columnConfig
+  columnConfig,
+  visibleColumns
 }: BuildInvestmentSectionQueryModelOptions): InvestmentSectionQueryModel => {
   const normalizedSelectedFilters = normalizeFixedFilters(selectedFilters)
   const existingConditions: Record<string, any>[] = normalizedSelectedFilters.customConditions ?? []
@@ -241,10 +271,24 @@ export const buildInvestmentSectionQueryModel = ({
     ...dynamicFilterConditions
   ]
   const sortDirection: SortInput['direction'] = sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST'
+  const trimmedSearch = search.trim()
+  // Scope free-text search to the visible table columns to keep the generated _or small.
+  const searchDescriptorKeys =
+    trimmedSearch && visibleColumns?.length ? resolveSearchDescriptorKeys(visibleColumns) : undefined
+  // Resolve jsonb (`additionalProperties`) search targets for the visible columns only, so
+  // values like Opening Balance participate in search even though they carry no DB descriptor.
+  const jsonbSearchByColumnId = columnConfig?.jsonbSearchByColumnId ?? {}
+  const jsonbSearchColumns =
+    trimmedSearch && visibleColumns?.length
+      ? visibleColumns
+          .map(columnId => jsonbSearchByColumnId[columnId])
+          .filter((target): target is JsonbContainsTarget => Boolean(target))
+      : []
   const queryVariables: InvestmentSectionQueryVariables = {
     limit: limit ?? pageSize,
     offset: offset ?? (currentPage - 1) * pageSize,
-    search: search.trim() || undefined,
+    search: trimmedSearch || undefined,
+    ...(searchDescriptorKeys?.length ? { searchDescriptorKeys } : {}),
     orderBy: sortField
       ? [{ field: sortField, direction: sortDirection }]
       : [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' as const }],
@@ -257,6 +301,8 @@ export const buildInvestmentSectionQueryModel = ({
     queryVariables,
     queryFields: getQueryFields(columnConfig),
     sortDescriptors: columnConfig?.sortDescriptors ?? INVESTMENT_DESCRIPTORS,
+    searchDescriptors: columnConfig?.searchDescriptors ?? [],
+    jsonbSearchColumns,
     exportMetadata: {
       filenamePrefix: isOverview ? 'investments' : group?.label?.toLowerCase().replace(/\s+/g, '-') || 'investments',
       groupLabel: group?.label,

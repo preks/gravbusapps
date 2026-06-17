@@ -12,7 +12,11 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { createCampaignColumns, createCampaignSortableColumns } from './config/campaignColumns'
+import {
+  createCampaignColumns,
+  createCampaignSortableColumns,
+  CAMPAIGN_STATUS_DISPLAY_LABEL_BY_CODE
+} from './config/campaignColumns'
 import { campaignFilterConfig } from './config/campaignFilters'
 import type { TimelinePeriod } from './components/campaigns-analytics/types/CampaignsAnalyticsTypes'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
@@ -126,7 +130,7 @@ const createAnalyticsProps = (
 // Helper to build dynamic filter configuration
 const buildDynamicFilterConfig = (
   campaignTypeOptions: Array<{ id: string; label: string }>,
-  campaignStatusOptions: Array<{ id: string; label: string }>
+  campaignStatusOptions: Array<{ id: string; label: string; code?: string }>
 ) => {
   const config = structuredClone(campaignFilterConfig)
   const typeGroup = config.groups.find((g: { id: string }) => g.id === 'type-group')
@@ -147,7 +151,7 @@ const buildDynamicFilterConfig = (
     if (statusFilter?.config && 'options' in statusFilter.config) {
       statusFilter.config.options = campaignStatusOptions.map(status => ({
         id: status.id,
-        label: status.label
+        label: CAMPAIGN_STATUS_DISPLAY_LABEL_BY_CODE[status.code ?? ''] ?? status.label
       }))
     }
   }
@@ -200,6 +204,21 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
   // Use the centralized campaign filters hook
   const campaignFilters = useCampaignFilters(props)
   const { search, setSearch, filtersInitialized } = campaignFilters
+
+  // Debounce the term that drives the query so typing fires a single request instead of one per
+  // keystroke. Clearing the input (the X button) bypasses the debounce so results reset instantly.
+  // The design system DataDisplay/DataToolbar already debounces search (300ms) before
+  // firing onSearchChange, so we only normalize whitespace here (no extra debounce).
+  const effectiveSearch = search.trim() === '' ? '' : search
+
+  // Visible table columns reported by the layout. Free-text search is scoped to these columns.
+  // The initial value is derived from the stored preference (if any) or the column definitions,
+  // then kept in sync by the layout via onVisibleColumnsChange.
+  const [searchColumns, setSearchColumns] = useState<string[]>(() =>
+    initialVisibleColumns && initialVisibleColumns.length > 0
+      ? initialVisibleColumns
+      : createCampaignColumns().map(col => col.id as string)
+  )
 
   // Fetch campaign data
   const {
@@ -284,7 +303,8 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
     const campaignTypesArray = selectedFilters._processedCampaignTypes || []
 
     processFiltersAndFetch({
-      search: search,
+      search: effectiveSearch,
+      searchColumns: effectiveSearch.trim() ? searchColumns : undefined,
       selectedFilters: campaignTypesArray,
       startDateAfter,
       startDateBefore,
@@ -298,7 +318,8 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
       limit: pagination.pageSize
     })
   }, [
-    search,
+    effectiveSearch,
+    searchColumns,
     selectedFilters,
     sortField,
     sortOrder,
@@ -487,6 +508,7 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
         initialSorting={initialSorting ?? undefined}
         initialVisibleColumns={initialVisibleColumns ?? undefined}
         onSaveVisibleColumns={saveVisibleColumns}
+        onVisibleColumnsChange={setSearchColumns}
         // Actions
         onRefetch={refetch}
         onRefetchStatistics={refetchStatistics}

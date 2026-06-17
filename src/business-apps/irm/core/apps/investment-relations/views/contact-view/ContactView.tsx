@@ -47,12 +47,14 @@ export const ContactView: React.FC<ContactViewProps> = context => {
         searchTerm: string
         selectedFilters: Record<string, any>
         sorting: Array<{ id: string; desc: boolean }>
+        visibleColumns?: string[]
       }) =>
         buildContactQueryVariables<InvestmentContactQueryVariables>({
           pagination: params.pagination,
           searchTerm: params.searchTerm,
           selectedFilters: params.selectedFilters,
-          sorting: params.sorting
+          sorting: params.sorting,
+          visibleColumns: params.visibleColumns
         }),
       flowContexts: {
         entityContext: FlowContextName.investmentContactEntity,

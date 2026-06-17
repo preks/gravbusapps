@@ -25,7 +25,7 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
         <AllInvestmentsList
           {...context}
           data={model.overviewState.investments}
-          loading={model.overviewState.isInitialLoading}
+          loading={model.overviewState.isListLoading}
           error={model.overviewState.error}
           totalCount={model.overviewState.totalCount}
           sorting={model.overviewState.sorting}
@@ -54,7 +54,7 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
         }}
         catalogColumns={model.activeColumnConfig?.columns}
         data={model.activeDynamicState.investments}
-        loading={model.activeDynamicState.isInitialLoading}
+        loading={model.activeDynamicState.isListLoading}
         error={model.activeDynamicState.error}
         totalCount={model.activeDynamicState.totalCount}
         sorting={model.activeDynamicState.sorting}

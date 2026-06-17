@@ -94,6 +94,8 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
     limit: pageSize,
     offset: (currentPage - 1) * pageSize,
     search,
+    // Scope free-text search to the visible columns only while a search is active.
+    searchColumns: search.trim() ? visibleColumns : undefined,
     orderBy: hookSorting
   })
 

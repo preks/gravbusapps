@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useInvestments } from '@/common/data/investment/hooks/useInvestments.new'
 import type { InvestmentDynamicFilterCondition } from '../utils/investmentListColumnTransformer'
-import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import type { Descriptor, JsonbContainsTarget } from '@/common/network/graphql/queryHelpers'
 import { buildInvestmentSectionQueryModel } from '../utils/buildInvestmentSectionQueryModel'
 import type { InvestmentGroup } from './useInvestmentGroups'
 
@@ -23,6 +23,9 @@ export interface GenericInvestmentSectionStateProps {
   onVisibleColumnsChange?: (columns: string[]) => void
   queryFields?: string[]
   sortDescriptors?: Descriptor[]
+  searchDescriptors?: Descriptor[]
+  /** jsonb `additionalProperties` search targets keyed by table column id. */
+  jsonbSearchByColumnId?: Record<string, JsonbContainsTarget>
   sortFieldByColumnId?: Record<string, string>
   filterConditionByFilterId?: Record<string, InvestmentDynamicFilterCondition>
 }
@@ -73,6 +76,8 @@ export const useGenericInvestmentSectionState = ({
   onVisibleColumnsChange,
   queryFields,
   sortDescriptors,
+  searchDescriptors,
+  jsonbSearchByColumnId,
   sortFieldByColumnId = {},
   filterConditionByFilterId = {}
 }: GenericInvestmentSectionStateProps) => {
@@ -112,9 +117,12 @@ export const useGenericInvestmentSectionState = ({
         currentPage,
         pageSize,
         group,
+        visibleColumns,
         columnConfig: {
           ...(queryFields ? { queryFields } : {}),
           ...(sortDescriptors ? { sortDescriptors } : {}),
+          ...(searchDescriptors ? { searchDescriptors } : {}),
+          ...(jsonbSearchByColumnId ? { jsonbSearchByColumnId } : {}),
           filterConditionByFilterId
         }
       }),
@@ -122,13 +130,16 @@ export const useGenericInvestmentSectionState = ({
       currentPage,
       filterConditionByFilterId,
       group,
+      jsonbSearchByColumnId,
       pageSize,
       queryFields,
       search,
+      searchDescriptors,
       selectedFilters,
       sortDescriptors,
       sortField,
-      sortOrder
+      sortOrder,
+      visibleColumns
     ]
   )
 
@@ -139,7 +150,14 @@ export const useGenericInvestmentSectionState = ({
     loading,
     error,
     refetch
-  } = useInvestments(accessToken, queryModel.queryVariables, queryModel.queryFields, queryModel.sortDescriptors)
+  } = useInvestments(
+    accessToken,
+    queryModel.queryVariables,
+    queryModel.queryFields,
+    queryModel.sortDescriptors,
+    queryModel.searchDescriptors,
+    queryModel.jsonbSearchColumns
+  )
 
   useEffect(() => {
     if (loading === false && !initialLoadDone.current) {
@@ -147,6 +165,29 @@ export const useGenericInvestmentSectionState = ({
     }
   }, [loading])
   const isInitialLoading = loading && !initialLoadDone.current
+
+  // Show the loading skeleton for search/filter/pagination changes; keep the current rows for
+  // sort-only reloads to avoid a jarring full re-render. A reload is flagged "pending" whenever a
+  // non-sort input changes, and cleared only once loading transitions back to false (fetch done).
+  const nonSortKey = useMemo(
+    () => JSON.stringify({ search, selectedFilters, currentPage, pageSize }),
+    [currentPage, pageSize, search, selectedFilters]
+  )
+  const [nonSortReloadPending, setNonSortReloadPending] = useState(false)
+  const previousNonSortKeyRef = useRef(nonSortKey)
+  useEffect(() => {
+    if (previousNonSortKeyRef.current !== nonSortKey) {
+      previousNonSortKeyRef.current = nonSortKey
+      setNonSortReloadPending(true)
+    }
+  }, [nonSortKey])
+  const previousLoadingRef = useRef(loading)
+  useEffect(() => {
+    const wasLoading = previousLoadingRef.current
+    previousLoadingRef.current = loading
+    if (wasLoading && !loading) setNonSortReloadPending(false)
+  }, [loading])
+  const isListLoading = loading && (isInitialLoading || nonSortReloadPending)
 
   const sorting = useMemo(() => {
     if (!sortField) return []
@@ -215,6 +256,7 @@ export const useGenericInvestmentSectionState = ({
     sorting,
     pagination,
     isInitialLoading,
+    isListLoading,
     handleSortingChange,
     handlePaginationChange
   }

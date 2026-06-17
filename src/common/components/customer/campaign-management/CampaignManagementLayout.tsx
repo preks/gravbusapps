@@ -204,6 +204,7 @@ const useCampaignManagementLayoutModel = (props: CampaignManagementLayoutProps) 
     initialSorting,
     initialVisibleColumns,
     onSaveVisibleColumns,
+    onVisibleColumnsChange,
     pagination,
     onPaginationChange
   } = props
@@ -217,6 +218,10 @@ const useCampaignManagementLayoutModel = (props: CampaignManagementLayoutProps) 
   const [visibleColumns, setVisibleColumns] = useState<string[]>(normalizeVisibleColumns(initialVisibleColumns))
   const hasInitializedTabFetch = React.useRef(false)
   const previousTabRef = React.useRef<MainActiveTab>(mainActiveTab)
+
+  React.useEffect(() => {
+    onVisibleColumnsChange?.(visibleColumns)
+  }, [visibleColumns, onVisibleColumnsChange])
 
   React.useEffect(() => {
     if (search !== searchTerm) {

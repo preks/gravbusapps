@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { buildWhere } from '@/common/network/graphql/queryHelpers'
+import { buildWhere, buildJsonbContainsConditions } from '@/common/network/graphql/queryHelpers'
 import {
   buildInvestmentReportFragment,
   INVESTMENT_REPORT_QUERY_CONFIGS
@@ -21,6 +21,7 @@ import {
   investmentLiquidFundType as INVESTMENT_LIQUID_FUND_TYPE_CATALOG
 } from '@/common/data/investment/constants/investmentCatalogs'
 import type { ReportSectionKind } from '../../utils/subSectionHelpers'
+import type { JsonbSearchTarget } from '../../utils/reportListColumnTransformer'
 
 export interface UseInvestmentReportDataConfig {
   // Investment group code - any string (dynamically determined from catalog)
@@ -28,6 +29,17 @@ export interface UseInvestmentReportDataConfig {
   filters: Record<string, any>
   investmentType?: string
   sectionKind?: ReportSectionKind
+  /**
+   * Optional allowlist of `InvestmentReport` descriptor keys to scope free-text
+   * search to the currently visible columns. When omitted, search runs against
+   * every searchable descriptor (legacy behavior).
+   */
+  searchDescriptorKeys?: string[]
+  /**
+   * Optional jsonb `additionalProperties` search targets for the visible dynamic
+   * columns, so free-text search can match their values via `_contains`.
+   */
+  jsonbSearchColumns?: JsonbSearchTarget[]
   accessToken: string
   userInfo?: any
   onCurrenciesChange?: (currencies: string[]) => void
@@ -155,7 +167,9 @@ export const buildInvestmentReportBaseWhereParts = (
 export const buildInvestmentReportWhereClause = (
   investmentGroup: string,
   filters: Record<string, any>,
-  sectionKind?: ReportSectionKind
+  sectionKind?: ReportSectionKind,
+  searchDescriptorKeys?: string[],
+  jsonbSearchColumns?: JsonbSearchTarget[]
 ): Record<string, any> => {
   const activeSection =
     filters.investmentType && filters.investmentType !== 'all' && filters.investmentType !== investmentGroup
@@ -164,11 +178,22 @@ export const buildInvestmentReportWhereClause = (
 
   const customConditions = buildScopeConditions(investmentGroup, activeSection, sectionKind)
 
+  const searchTerm = typeof filters.search === 'string' ? filters.search : ''
+  const extraSearchConditions =
+    jsonbSearchColumns && jsonbSearchColumns.length > 0
+      ? buildJsonbContainsConditions(jsonbSearchColumns, searchTerm)
+      : []
+
   return buildWhere({
     variables: filters,
     descriptors: INVESTMENT_REPORT_DESCRIPTORS,
     isDeleted: true,
-    customConditions
+    customConditions,
+    // Scope free-text search to the currently visible columns when provided
+    // (keeps the generated _or small, matching the Investments-tab behavior).
+    ...(searchDescriptorKeys && searchDescriptorKeys.length > 0 ? { searchDescriptorKeys } : {}),
+    // Make visible jsonb `additionalProperties` columns searchable via `_contains`.
+    ...(extraSearchConditions.length > 0 ? { extraSearchConditions } : {})
   })
 }
 
@@ -183,6 +208,8 @@ export const useInvestmentReportData = (config: UseInvestmentReportDataConfig): 
     filters,
     investmentType,
     sectionKind,
+    searchDescriptorKeys,
+    jsonbSearchColumns,
     accessToken,
     onCurrenciesChange,
     enabled = true,
@@ -191,6 +218,11 @@ export const useInvestmentReportData = (config: UseInvestmentReportDataConfig): 
     sortField,
     sortOrder = 'DESC'
   } = config
+
+  // Stable keys so the search-scope inputs can participate in callback deps
+  // without retriggering on referentially-new-but-equal arrays.
+  const searchDescriptorKeysKey = (searchDescriptorKeys ?? []).join('|')
+  const jsonbSearchColumnsKey = JSON.stringify(jsonbSearchColumns ?? [])
 
   // State management
   const [data, setData] = useState<any[]>([])
@@ -243,7 +275,13 @@ export const useInvestmentReportData = (config: UseInvestmentReportDataConfig): 
       const fragment = buildInvestmentReportFragment(INVESTMENT_REPORT_QUERY_CONFIGS.record)
 
       // Build where using the shared helper
-      const whereObj = buildInvestmentReportWhereClause(investmentGroup, filters, sectionKind)
+      const whereObj = buildInvestmentReportWhereClause(
+        investmentGroup,
+        filters,
+        sectionKind,
+        searchDescriptorKeys,
+        jsonbSearchColumns
+      )
 
       // Map column IDs to sortable field paths
       // Some columns need mapping (e.g., 'investment' -> 'investment.name')
@@ -389,6 +427,8 @@ export const useInvestmentReportData = (config: UseInvestmentReportDataConfig): 
     investmentGroup,
     investmentType,
     sectionKind,
+    searchDescriptorKeysKey,
+    jsonbSearchColumnsKey,
     filterKey,
     page,
     pageSize,
@@ -401,7 +441,13 @@ export const useInvestmentReportData = (config: UseInvestmentReportDataConfig): 
     if (!accessToken) return []
 
     const fragment = buildInvestmentReportFragment(INVESTMENT_REPORT_QUERY_CONFIGS.record)
-    const whereObj = buildInvestmentReportWhereClause(investmentGroup, filters, sectionKind)
+    const whereObj = buildInvestmentReportWhereClause(
+      investmentGroup,
+      filters,
+      sectionKind,
+      searchDescriptorKeys,
+      jsonbSearchColumns
+    )
 
     const query = `
       query GetAllInvestmentReportsForExport(
@@ -426,7 +472,16 @@ export const useInvestmentReportData = (config: UseInvestmentReportDataConfig): 
     })
 
     return result.InvestmentReport || []
-  }, [accessToken, graphqlClient, investmentGroup, sectionKind, filterKey, totalCount])
+  }, [
+    accessToken,
+    graphqlClient,
+    investmentGroup,
+    sectionKind,
+    searchDescriptorKeysKey,
+    jsonbSearchColumnsKey,
+    filterKey,
+    totalCount
+  ])
 
   // Reset to page 1 when filters, investment type, or page size changes
   useEffect(() => {

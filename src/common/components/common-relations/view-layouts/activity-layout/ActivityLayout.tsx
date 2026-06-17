@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react'
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { Button, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Plus } from 'lucide-react'
@@ -16,7 +16,6 @@ import { ActivityDetailSheet } from '@/common/components/common-relations/detail
 import { useFilterGroups } from '@/common/data/common/hooks/useFilterGroups'
 import { buildDynamicFilterConfig } from '../task-layout/utils/filterHelpers'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
-
 export interface ActivityViewConfig<TActivity extends Activity = Activity, TQueryVariables = any> {
   fetchActivities: (variables: TQueryVariables) => Promise<{
     activities?: TActivity[]
@@ -35,6 +34,8 @@ export interface ActivityViewConfig<TActivity extends Activity = Activity, TQuer
     searchTerm: string
     selectedFilters: Record<string, any>
     sorting: Array<{ id: string; desc: boolean }>
+    /** Column ids currently visible in the table; used to scope free-text search. */
+    visibleColumns?: string[]
   }) => TQueryVariables
 
   sortableColumns: Array<{ id: string; label: string }>
@@ -112,6 +113,12 @@ function ConfigActivityLayout<TActivity extends Activity = Activity, TQueryVaria
 
   // View State
   const [searchTerm, setSearchTerm] = useState('')
+
+  // Debounce the term that drives the query so typing fires a single request instead of one per
+  // keystroke. Clearing the input (the X button) bypasses the debounce so results reset instantly.
+  // The design system DataDisplay/DataToolbar already debounces search (300ms) before
+  // firing onSearchChange, so we only normalize whitespace here (no extra debounce).
+  const effectiveSearchTerm = searchTerm.trim() === '' ? '' : searchTerm
   const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>(initialFilters)
   const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>(
     () => initialSorting ?? [{ id: 'createdAt', desc: true }]
@@ -125,6 +132,16 @@ function ConfigActivityLayout<TActivity extends Activity = Activity, TQueryVaria
   const [totalCount, setTotalCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
+
+  // Monotonically increasing id used to discard stale responses: a slow request started earlier
+  // must never overwrite the results of a newer one that already resolved.
+  const latestRequestIdRef = useRef(0)
+  // Track previous search/pagination/filters so reloads triggered by them show the loading
+  // skeleton, while sort-only reloads keep the current rows visible.
+  const previousSearchRef = useRef(effectiveSearchTerm)
+  const previousPaginationRef = useRef(pagination)
+  const previousFiltersRef = useRef(selectedFilters)
 
   // Use centralized filter groups hook
   const filterGroups = useFilterGroups(context, config.entityName, config.descriptors, { limit: 100 })
@@ -142,16 +159,22 @@ function ConfigActivityLayout<TActivity extends Activity = Activity, TQueryVaria
     }
   }, [config.availableColumns, visibleColumns.length])
 
+  // Scope search to the visible columns only while a search is active. Passing `undefined`
+  // when there is no search term keeps the reference stable, so toggling column visibility
+  // does not retrigger the query.
+  const searchVisibleColumns = effectiveSearchTerm.trim() ? visibleColumns : undefined
+
   // Query Variables
   const queryVariables = useMemo(
     () =>
       config.buildQueryVariables({
         pagination,
-        searchTerm,
+        searchTerm: effectiveSearchTerm,
         selectedFilters,
-        sorting
+        sorting,
+        visibleColumns: searchVisibleColumns
       }),
-    [config, pagination, searchTerm, selectedFilters, sorting]
+    [config, pagination, effectiveSearchTerm, searchVisibleColumns, selectedFilters, sorting]
   )
 
   // Load Activities
@@ -159,28 +182,57 @@ function ConfigActivityLayout<TActivity extends Activity = Activity, TQueryVaria
     async (showLoading: boolean = true) => {
       if (!context.accessToken) return
 
+      const requestId = latestRequestIdRef.current + 1
+      latestRequestIdRef.current = requestId
+
       if (showLoading) setIsLoading(true)
       setError(null)
 
       try {
         const result = await config.fetchActivities(queryVariables)
+        // Ignore responses superseded by a newer request.
+        if (requestId !== latestRequestIdRef.current) return
         setActivities(result.activities || [])
         setTotalCount(result.total || 0)
       } catch (err) {
+        if (requestId !== latestRequestIdRef.current) return
         setError(err instanceof Error ? err.message : 'Failed to load activities')
         setActivities([])
         setTotalCount(0)
       } finally {
-        if (showLoading) setIsLoading(false)
+        if (requestId === latestRequestIdRef.current) {
+          if (showLoading) setIsLoading(false)
+          setIsInitialLoad(false)
+        }
       }
     },
     [context.accessToken, config, queryVariables]
   )
 
-  // Load activities on mount and when dependencies change
+  // Initial load
   useEffect(() => {
-    loadActivities()
-  }, [loadActivities])
+    if (!context.accessToken || !isInitialLoad) return
+    loadActivities(true)
+  }, [context.accessToken, isInitialLoad])
+
+  // Reload when filters/search/sort/pagination change (skip initial load).
+  // Show the loading skeleton for search, pagination and filter changes; keep current rows for
+  // sort-only reloads to avoid a jarring full re-render.
+  useEffect(() => {
+    if (isInitialLoad || !context.accessToken) return
+
+    const searchChanged = previousSearchRef.current !== effectiveSearchTerm
+    const paginationChanged =
+      previousPaginationRef.current.pageIndex !== pagination.pageIndex ||
+      previousPaginationRef.current.pageSize !== pagination.pageSize
+    const filtersChanged = previousFiltersRef.current !== selectedFilters
+
+    previousSearchRef.current = effectiveSearchTerm
+    previousPaginationRef.current = pagination
+    previousFiltersRef.current = selectedFilters
+
+    loadActivities(searchChanged || paginationChanged || filtersChanged)
+  }, [queryVariables, context.accessToken])
 
   // Process Completion Handlers
   const handleProcessComplete = useCallback(() => {
@@ -191,23 +243,22 @@ function ConfigActivityLayout<TActivity extends Activity = Activity, TQueryVaria
 
   useProcessCompletion({ onSuccess: handleProcessComplete })
 
-  // Handle search change
-  const handleSearchChange = useCallback(
-    (value: string) => {
-      setSearchTerm(value)
-      setPagination({ pageIndex: 0, pageSize: pagination.pageSize })
-    },
-    [pagination.pageSize]
-  )
+  // Handle search change.
+  // Reset to page 0 only when not already there, so a keystroke does not create a new pagination
+  // object (which would rebuild queryVariables and fire a query with the pre-debounce term).
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchTerm(value)
+    setPagination(prev => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }))
+  }, [])
 
   // Handle filter change
   const handleFilterChange = useCallback(
     (filters: Record<string, any>) => {
       setSelectedFilters(filters)
-      setPagination({ pageIndex: 0, pageSize: pagination.pageSize })
+      setPagination(prev => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }))
       onFilterChange?.(filters)
     },
-    [pagination.pageSize, onFilterChange]
+    [onFilterChange]
   )
 
   const handleSortingChange = useCallback(
@@ -250,23 +301,23 @@ function ConfigActivityLayout<TActivity extends Activity = Activity, TQueryVaria
   )
 
   // Row actions
-  const rowActions = useMemo(
-    () =>
-      config.rowActionsContextArray && config.buildRowActionsExternalContextData
-        ? (row: { original: TActivity }) => {
-            const contextData = config.buildRowActionsExternalContextData!(row)
-            return (
-              <AppAction
-                variant="table-row"
-                contexts={config.rowActionsContextArray.map(ctx => ({ context: ctx, contextData }))}
-                accessToken={context.accessToken}
-                data-testid={`activity-${row.original.id}-actions`}
-              />
-            )
-          }
-        : undefined,
-    [config, context.accessToken]
-  )
+  const rowActions = useMemo(() => {
+    const contextArray = config.rowActionsContextArray
+    const buildContextData = config.buildRowActionsExternalContextData
+    if (!contextArray || !buildContextData) return undefined
+
+    return (row: { original: TActivity }) => {
+      const contextData = buildContextData(row)
+      return (
+        <AppAction
+          variant="table-row"
+          contexts={contextArray.map(ctx => ({ context: ctx, contextData }))}
+          accessToken={context.accessToken}
+          data-testid={`activity-${row.original.id}-actions`}
+        />
+      )
+    }
+  }, [config, context.accessToken])
 
   // Export hook — always called (hooks must not be conditional)
   const { isExporting, handleExportCsv, handleExportExcel } = useActivityExport({

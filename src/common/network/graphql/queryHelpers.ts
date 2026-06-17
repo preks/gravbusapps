@@ -43,6 +43,21 @@ export interface Descriptor {
   searchPaths?: string[]
   enableSearch?: boolean
   type?: 'text' | 'number' | 'date' | 'boolean'
+  /**
+   * For boolean columns that are displayed as text labels (e.g. 'Planned' / 'Not planned'),
+   * maps each boolean value to its visible label(s) so free-text search can match the label and
+   * resolve to `_eq true/false`. A term matches when it is a case-insensitive substring of any label;
+   * if it matches both values, both are searched. Multiple labels per value are supported for columns
+   * whose label varies by context (e.g. Account category 'Customer' in CRM vs 'Portfolio Company' in IRM).
+   */
+  searchBooleanLabels?: { true?: string | string[]; false?: string | string[] }
+  /**
+   * For columns that render a fallback label (e.g. 'Unknown') when the related value is null,
+   * lets free-text search match that label and resolve to an `_isNull` check on `searchNullPath`.
+   * A term matches when it is a case-insensitive substring of `searchNullLabel`.
+   */
+  searchNullLabel?: string
+  searchNullPath?: string
 
   // Filters
   path?: string
@@ -73,7 +88,7 @@ export const buildOrderBy = (orderBy: SortInput[] = [], descriptors: Descriptor[
       paths = d.sortPaths
     } else if (d.sortPath) {
       paths = [d.sortPath]
-    } else if (d.searchPaths?.length > 0) {
+    } else if (d.searchPaths && d.searchPaths.length > 0) {
       paths = [d.searchPaths[0]]
     } else {
       paths = [o.field]
@@ -109,6 +124,83 @@ const buildNestedObjectPath = (dotPath: string, leaf: any): any => {
   return result
 }
 
+const utcDayRange = (year: number, monthIndex: number, day: number): { start: Date; end: Date } => ({
+  start: new Date(Date.UTC(year, monthIndex, day, 0, 0, 0, 0)),
+  end: new Date(Date.UTC(year, monthIndex, day, 23, 59, 59, 999))
+})
+
+/**
+ * Parse a free-text search term into an inclusive [gte, lte] range for date/timestamp columns.
+ *
+ * Date columns are not text, so `_ilike` cannot be used; instead the term is matched as a range.
+ * Returns null when the term is not clearly a date so that bare numbers (e.g. "130", "150") never
+ * generate spurious date predicates. Supported inputs:
+ *  - `YYYY`            → whole year
+ *  - `YYYY-MM`         → whole month
+ *  - `YYYY-MM-DD`      → that day
+ *  - month-name / slash dates (`Jun 30, 2026`, `June 2026`, `06/30/2026`) → that day
+ */
+const parseSearchDateRange = (term: string): { gte: string; lte: string } | null => {
+  let range: { start: Date; end: Date } | null = null
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(term)) {
+    const [y, m, d] = term.split('-').map(n => Number.parseInt(n, 10))
+    range = utcDayRange(y, m - 1, d)
+  } else if (/^\d{4}-\d{2}$/.test(term)) {
+    const [y, m] = term.split('-').map(n => Number.parseInt(n, 10))
+    range = { start: new Date(Date.UTC(y, m - 1, 1, 0, 0, 0, 0)), end: new Date(Date.UTC(y, m, 0, 23, 59, 59, 999)) }
+  } else if (/^\d{4}$/.test(term)) {
+    const y = Number.parseInt(term, 10)
+    range = { start: new Date(Date.UTC(y, 0, 1, 0, 0, 0, 0)), end: new Date(Date.UTC(y, 11, 31, 23, 59, 59, 999)) }
+  } else if (/[a-zA-Z]/.test(term) || term.includes('/')) {
+    // Month-name or slash dates only — never bare numbers, which JS would mis-parse as a year.
+    const parsed = new Date(term)
+    if (!Number.isNaN(parsed.getTime())) {
+      range = utcDayRange(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate())
+    }
+  }
+
+  if (!range) return null
+  return { gte: range.start.toISOString(), lte: range.end.toISOString() }
+}
+
+/**
+ * Resolve a free-text term to the boolean value(s) it should match for a boolean descriptor.
+ * Supports literal keywords (true/false/yes/no/1/0) and, when `searchBooleanLabels` is provided,
+ * matches the term as a case-insensitive substring of the displayed labels (e.g. 'Planned').
+ */
+const labelMatchesTerm = (labels: string | string[] | undefined, term: string): boolean => {
+  if (!labels) return false
+  const list = Array.isArray(labels) ? labels : [labels]
+  return list.some(label => label.toLowerCase().includes(term))
+}
+
+const resolveBooleanSearchValues = (term: string, d: Descriptor): boolean[] => {
+  const t = term.toLowerCase()
+
+  if (d.searchBooleanLabels) {
+    const matches: boolean[] = []
+    if (labelMatchesTerm(d.searchBooleanLabels.true, t)) matches.push(true)
+    if (labelMatchesTerm(d.searchBooleanLabels.false, t)) matches.push(false)
+    if (matches.length > 0) return matches
+  }
+
+  if (t === 'true' || t === '1' || t === 'yes') return [true]
+  if (t === 'false' || t === '0' || t === 'no') return [false]
+  return []
+}
+
+/**
+ * Parse a user-typed search term as a number, tolerating grouped formatting as it appears in the
+ * UI. Commas are treated as thousands separators and stripped (e.g. "123,123" → 123123), while the
+ * dot stays the decimal separator (e.g. "5.24" → 5.24). Returns `NaN` for non-numeric input.
+ */
+export const parseSearchNumber = (term: string): number => {
+  const normalized = term.replace(/,/g, '').trim()
+  if (normalized === '') return Number.NaN
+  return Number(normalized)
+}
+
 /** Build _or search conditions from descriptors (returns object) */
 export const buildSearch = (search: string, descriptors: Descriptor[] = []): Record<string, any> | null => {
   const term = search?.trim()
@@ -122,64 +214,47 @@ export const buildSearch = (search: string, descriptors: Descriptor[] = []): Rec
       let leaf: any = null
 
       if (d.type === 'number') {
-        const num = Number(term)
+        const num = parseSearchNumber(term)
         if (!Number.isNaN(num) && Number.isFinite(num)) {
           leaf = { _eq: num }
         } else {
           continue // skip invalid numeric input for number fields
         }
       } else if (d.type === 'boolean') {
-        const t = term.toLowerCase()
-        const bool =
-          t === 'true' || t === '1' || t === 'yes' ? true : t === 'false' || t === '0' || t === 'no' ? false : null
-        if (bool === null) {
-          continue // skip invalid boolean input
+        const boolValues = resolveBooleanSearchValues(term, d)
+        if (boolValues.length === 0) {
+          continue // term doesn't match any boolean value/label
         }
-        leaf = { _eq: bool }
+        for (const bool of boolValues) {
+          conds.push(buildNestedObjectPath(path, { _eq: bool }))
+        }
+        continue
       } else if (d.type === 'date') {
-        // Accept YYYY, YYYY-MM, YYYY-MM-DD, or parseable date; build a day/month/year range
-        const ymd = term.match(/^\d{4}-\d{2}-\d{2}$/)
-        const ym = term.match(/^\d{4}-\d{2}$/)
-        const y = term.match(/^\d{4}$/)
-        let start: Date | null = null
-        let end: Date | null = null
-        if (ymd) {
-          const [Y, M, D] = term.split('-').map((n: string) => Number.parseInt(n, 10))
-          start = new Date(Date.UTC(Y, M - 1, D, 0, 0, 0, 0))
-          end = new Date(Date.UTC(Y, M - 1, D, 23, 59, 59, 999))
-        } else if (ym) {
-          const [Y, M] = term.split('-').map((n: string) => Number.parseInt(n, 10))
-          start = new Date(Date.UTC(Y, M - 1, 1, 0, 0, 0, 0))
-          end = new Date(Date.UTC(Y, M, 0, 23, 59, 59, 999))
-        } else if (y) {
-          const Y = Number.parseInt(term, 10)
-          start = new Date(Date.UTC(Y, 0, 1, 0, 0, 0, 0))
-          end = new Date(Date.UTC(Y, 11, 31, 23, 59, 59, 999))
-        } else {
-          const dParsed = new Date(term)
-          if (!Number.isNaN(dParsed.getTime())) {
-            start = new Date(
-              Date.UTC(dParsed.getUTCFullYear(), dParsed.getUTCMonth(), dParsed.getUTCDate(), 0, 0, 0, 0)
-            )
-            end = new Date(
-              Date.UTC(dParsed.getUTCFullYear(), dParsed.getUTCMonth(), dParsed.getUTCDate(), 23, 59, 59, 999)
-            )
-          }
+        // Date/timestamp columns can't be `_ilike`'d, so match the term as a range. Bare numbers
+        // (e.g. "130", "150") return null here and are skipped, instead of being mis-parsed as a
+        // year and producing useless predicates.
+        const dateRange = parseSearchDateRange(term)
+        if (!dateRange) {
+          continue
         }
-        if (!start || !end) {
-          continue // skip invalid date-like input for date fields
-        }
-        const startIso = start.toISOString()
-        const endIso = end.toISOString()
-        leaf = { _gte: startIso, _lte: endIso }
+        leaf = { _gte: dateRange.gte, _lte: dateRange.lte }
       } else {
         // Default: text search with _ilike
-        const escape = (s: string) => String(s).replaceAll('\\', '\\\\').replaceAll('"', '\\"')
+        const escape = (s: string) =>
+          String(s)
+            .replace(/\\/g, String.raw`\\`)
+            .replace(/"/g, String.raw`\"`)
         const like = `%${escape(term)}%`
         leaf = { _ilike: like }
       }
 
       conds.push(buildNestedObjectPath(path, leaf))
+    }
+
+    // Fallback "null label" search: e.g. a Status column rendered as 'Unknown' when the relation
+    // is null. Matching the label resolves to an `_isNull` check on the configured FK/ref path.
+    if (d.searchNullLabel && d.searchNullPath && d.searchNullLabel.toLowerCase().includes(term.toLowerCase())) {
+      conds.push(buildNestedObjectPath(d.searchNullPath, { _isNull: true }))
     }
   }
   return conds.length > 0 ? { _or: conds } : null
@@ -643,6 +718,87 @@ export interface BuildWhereOptions {
   customConditions?: Record<string, any>[]
   /** Optional: Skip isDeleted check (default: false) */
   isDeleted?: boolean
+  /**
+   * Optional: Restrict free-text search to descriptors whose `key` is in this allowlist.
+   * When omitted, search runs against every searchable descriptor (previous behavior).
+   * Used to limit the generated `_or` to the columns currently visible in a list view,
+   * which dramatically reduces the number of `_ilike` predicates (and expensive relation
+   * subqueries) sent to the database.
+   */
+  searchDescriptorKeys?: string[]
+  /**
+   * Optional extra GraphQL `where` fragments to OR into the free-text search predicate.
+   * Only applied when a search term is present. Used for predicates that cannot be expressed
+   * as standard descriptors (e.g. jsonb `additionalProperties` `_contains` matches), so they
+   * participate in the same search `_or` as the regular column search.
+   */
+  extraSearchConditions?: Record<string, any>[]
+}
+
+/**
+ * Target describing how to reach a jsonb `additionalProperties` value in a where clause.
+ * - `relation`: relation field wrapping the jsonb column (e.g. `liquidFundInvestment`),
+ *   or `undefined` when the column lives on the queried entity root.
+ * - `jsonKey`: dot-path of the property inside `additionalProperties`.
+ */
+export interface JsonbContainsTarget {
+  relation?: string
+  jsonKey: string
+}
+
+/** Build a nested object from a dot-path key, e.g. ('a.b', 5) → { a: { b: 5 } }. */
+const buildNestedJsonbValue = (jsonKey: string, value: number | string): Record<string, any> => {
+  const segments = jsonKey.split('.').filter(Boolean)
+  return segments.reduceRight<Record<string, any> | number | string>(
+    (acc, segment) => ({ [segment]: acc }),
+    value
+  ) as Record<string, any>
+}
+
+/**
+ * Resolve the value variant(s) to match against jsonb. Investment data is stored inconsistently —
+ * the same metric can be a raw JSON number (`123123`, seed/snapshot data) or a 2-decimal string
+ * (`"123123.00"`, data entered through the app) within the *same* entity. So for a numeric term we
+ * emit both forms. The bare-string form (`"123123"`) is intentionally omitted: no row stores that.
+ * A non-numeric term keeps its raw value for exact text matches.
+ */
+const resolveJsonbSearchValues = (term: string): Array<number | string> => {
+  const numericValue = parseSearchNumber(term)
+  const isNumeric = !Number.isNaN(numericValue) && Number.isFinite(numericValue)
+
+  if (!isNumeric) return [term]
+
+  const values: Array<number | string> = [numericValue]
+  // Also match the 2-decimal string storage form (e.g. "123123.00"), but only when padding to two
+  // decimals doesn't round the value — so "123.123" never falsely matches a stored "123.12".
+  const twoDecimal = numericValue.toFixed(2)
+  if (Number(twoDecimal) === numericValue) {
+    values.push(twoDecimal)
+  }
+  return values
+}
+
+/**
+ * Build jsonb `additionalProperties._contains` search predicates for a free-text term.
+ *
+ * jsonb values can only be matched exactly (Postgres containment, no `_ilike`). Because the same
+ * metric may be stored as a number or a 2-decimal string, a numeric term emits both forms.
+ */
+export const buildJsonbContainsConditions = (
+  targets: JsonbContainsTarget[],
+  term: string | undefined
+): Record<string, any>[] => {
+  const trimmed = (term ?? '').trim()
+  if (!trimmed || targets.length === 0) return []
+
+  const values = resolveJsonbSearchValues(trimmed)
+
+  return targets.flatMap(({ relation, jsonKey }) =>
+    values.map(value => {
+      const leaf = { additionalProperties: { _contains: buildNestedJsonbValue(jsonKey, value) } }
+      return relation ? { [relation]: leaf } : leaf
+    })
+  )
 }
 
 /**
@@ -651,7 +807,15 @@ export interface BuildWhereOptions {
  * Returns GraphQL object (for use with GraphQL variables).
  */
 export const buildWhere = (options: BuildWhereOptions): Record<string, any> => {
-  const { variables, descriptors, ids, customConditions = [], isDeleted = true } = options
+  const {
+    variables,
+    descriptors,
+    ids,
+    customConditions = [],
+    isDeleted = true,
+    searchDescriptorKeys,
+    extraSearchConditions = []
+  } = options
 
   // Normalize date range variables: Convert *Range variables (comma-separated strings or arrays) to *From/*To pairs
   // Dynamically find matching descriptors to determine the From/To keys
@@ -726,13 +890,32 @@ export const buildWhere = (options: BuildWhereOptions): Record<string, any> => {
     }
   }
 
-  // Search via descriptors (using buildSearch)
-  const searchObj = buildSearch(normalizedVariables.search, descriptors)
-  if (searchObj?._or) {
+  // Search via descriptors (using buildSearch).
+  // Optionally restrict to an allowlist of descriptor keys (e.g. visible list columns)
+  // to keep the generated _or small and avoid scanning unused columns/relations.
+  const searchDescriptors =
+    searchDescriptorKeys && searchDescriptorKeys.length > 0
+      ? descriptors.filter(d => searchDescriptorKeys.includes(d.key))
+      : descriptors
+  const searchObj = buildSearch(normalizedVariables.search, searchDescriptors)
+  const searchOrParts: Record<string, any>[] = [...(searchObj?._or ?? [])]
+
+  // Merge in non-descriptor search predicates (e.g. jsonb `_contains`) so they are OR'd
+  // alongside the regular column search rather than narrowing it via AND.
+  const hasSearchTerm = typeof normalizedVariables.search === 'string' && normalizedVariables.search.trim() !== ''
+  if (hasSearchTerm && extraSearchConditions.length > 0) {
+    searchOrParts.push(...extraSearchConditions)
+  }
+
+  if (searchOrParts.length > 0) {
+    const combinedSearch = { _or: searchOrParts }
     if (whereObj._and) {
-      whereObj._and.push(searchObj)
+      whereObj._and.push(combinedSearch)
+    } else if (whereObj._or) {
+      whereObj._and = [{ _or: whereObj._or }, combinedSearch]
+      delete whereObj._or
     } else {
-      whereObj._or = searchObj._or
+      whereObj._or = searchOrParts
     }
   }
 

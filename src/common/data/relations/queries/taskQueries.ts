@@ -38,6 +38,8 @@ export interface TaskRelationFields {
 }
 
 export interface CommonTaskQueryVariables extends BaseQueryVariables {
+  /** Restricts free-text search to this allowlist of descriptor keys (e.g. visible list columns). */
+  searchDescriptorKeys?: string[]
   accountIds?: string[]
   assignedEmployeeIds?: string[]
   contactIds?: string[]
@@ -406,7 +408,8 @@ export const buildTaskWhereCondition = (
     descriptors,
     ids: modifiedVariables.ids,
     customConditions: modifiedCustomConditions,
-    isDeleted: true
+    isDeleted: true,
+    searchDescriptorKeys: modifiedVariables.searchDescriptorKeys
   })
 }
 

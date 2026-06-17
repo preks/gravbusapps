@@ -9,6 +9,7 @@ import type {
 
 export interface ProcessFiltersParams {
   search: string
+  searchColumns?: string[]
   selectedFilters: string[]
   startDateAfter?: string
   startDateBefore?: string
@@ -72,6 +73,7 @@ export const useSalesCampaignManagementData = (context: BusinessAppContextProps)
   const [isStatisticsLoading, setIsStatisticsLoading] = useState(true)
   const [statisticsError, setStatisticsError] = useState<string | null>(null)
   const lastCampaignQueryVariablesRef = useRef<SalesCampaignQueryVariables>({})
+  const latestCampaignRequestIdRef = useRef(0)
 
   const { fetchSalesCampaignsWithCount, fetchSalesCampaignStatistics } = useSalesCampaignManagementQueries({
     accessToken: context.accessToken
@@ -88,6 +90,10 @@ export const useSalesCampaignManagementData = (context: BusinessAppContextProps)
       setIsLoading(true)
       setError(null)
 
+      const requestId = latestCampaignRequestIdRef.current + 1
+      latestCampaignRequestIdRef.current = requestId
+      const isStale = () => requestId !== latestCampaignRequestIdRef.current
+
       try {
         const orderBy = buildOrderByClause(variables.sortField, variables.sortOrder)
         const queryVariables = {
@@ -97,14 +103,18 @@ export const useSalesCampaignManagementData = (context: BusinessAppContextProps)
         lastCampaignQueryVariablesRef.current = variables
 
         const result = await fetchSalesCampaignsWithCount(queryVariables)
+        if (isStale()) return
         setCampaigns(result.SalesCampaign || [])
         setTotalCount(result.SalesCampaignAggregate?.aggregate?.count || 0)
       } catch (err) {
+        if (isStale()) return
         setError(err instanceof Error ? err.message : 'Unknown error')
         setCampaigns([])
         setTotalCount(0)
       } finally {
-        setIsLoading(false)
+        if (!isStale()) {
+          setIsLoading(false)
+        }
       }
     },
     [context.accessToken, fetchSalesCampaignsWithCount]
@@ -114,6 +124,7 @@ export const useSalesCampaignManagementData = (context: BusinessAppContextProps)
     async (params: ProcessFiltersParams) => {
       const {
         search,
+        searchColumns,
         selectedFilters,
         startDateAfter,
         startDateBefore,
@@ -136,6 +147,7 @@ export const useSalesCampaignManagementData = (context: BusinessAppContextProps)
 
       await fetchCampaigns({
         search,
+        searchColumns,
         campaignTypes: campaignTypes.length > 0 ? campaignTypes : undefined,
         campaignStatuses: campaignStatuses.length > 0 ? campaignStatuses : undefined,
         startDateAfter,

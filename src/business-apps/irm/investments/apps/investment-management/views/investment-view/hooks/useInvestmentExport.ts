@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { buildWhere, buildOrderBy } from '@/common/network/graphql/queryHelpers'
+import { buildWhere, buildOrderBy, buildJsonbContainsConditions } from '@/common/network/graphql/queryHelpers'
 import { INVESTMENT_DESCRIPTORS, type Investment } from '@/common/data/investment/types/investmentTypes.new'
 import { buildInvestmentFragment } from '@/common/data/investment/queries/investmentQueries.new'
 import { formatExportDate } from '@/common/utils/excelExportUtils'
@@ -74,7 +74,10 @@ interface UseInvestmentExportOptions {
   filenamePrefix?: string
   displayCurrencyCode?: string
   columnConfig?: Partial<
-    Pick<InvestmentListColumnConfiguration, 'queryFields' | 'sortDescriptors' | 'filterConditionByFilterId'>
+    Pick<
+      InvestmentListColumnConfiguration,
+      'queryFields' | 'sortDescriptors' | 'searchDescriptors' | 'jsonbSearchByColumnId' | 'filterConditionByFilterId'
+    >
   >
 }
 
@@ -119,6 +122,7 @@ export function useInvestmentExport({
         limit: totalCount,
         offset: 0,
         group: activeGroup,
+        visibleColumns: currentState.visibleColumns,
         columnConfig
       }),
     [
@@ -127,6 +131,7 @@ export function useInvestmentExport({
       currentState.search,
       currentState.sortField,
       currentState.sortOrder,
+      currentState.visibleColumns,
       selectedFilters,
       totalCount
     ]
@@ -143,13 +148,21 @@ export function useInvestmentExport({
 
     const filteredVars = { ...varsWithFilters }
     delete filteredVars.customConditions
+    const searchDescriptorKeys = filteredVars.searchDescriptorKeys
+    delete filteredVars.searchDescriptorKeys
+
+    const extraSearchConditions = buildJsonbContainsConditions(queryModel.jsonbSearchColumns, filteredVars.search)
 
     const whereObj = buildWhere({
       variables: filteredVars,
-      descriptors: INVESTMENT_DESCRIPTORS,
+      descriptors: queryModel.searchDescriptors.length
+        ? [...INVESTMENT_DESCRIPTORS, ...queryModel.searchDescriptors]
+        : INVESTMENT_DESCRIPTORS,
       ids: filteredVars.ids,
       isDeleted: true,
-      customConditions
+      customConditions,
+      searchDescriptorKeys,
+      ...(extraSearchConditions.length > 0 ? { extraSearchConditions } : {})
     })
 
     const orderByInput =

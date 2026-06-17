@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react'
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { Button, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Plus } from 'lucide-react'
@@ -18,7 +18,6 @@ import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { buildDynamicFilterConfig } from './utils/filterHelpers'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import { useFilterGroups } from '@/common/data/common/hooks/useFilterGroups'
-
 export interface QuickFiltersRenderProps {
   selectedFilters: Record<string, any>
   onFilterChange: (filters: Record<string, any>) => void
@@ -42,6 +41,8 @@ export interface AccountViewConfig<TAccount extends Account = Account, TQueryVar
     searchTerm: string
     selectedFilters: Record<string, any>
     sorting: Array<{ id: string; desc: boolean }>
+    /** Column ids currently visible in the table; used to scope free-text search. */
+    visibleColumns?: string[]
   }) => TQueryVariables
 
   flowContexts: {
@@ -150,6 +151,13 @@ function ConfigAccountLayout<TAccount extends Account = Account, TQueryVariables
 
   // View State
   const [searchTerm, setSearchTerm] = useState('')
+
+  // Debounce the term that drives the query so typing "Test" fires a single request instead
+  // of one per keystroke. Clearing the input (the X button) bypasses the debounce so results
+  // reset immediately instead of after the debounce window.
+  // The design system DataDisplay/DataToolbar already debounces search (300ms) before
+  // firing onSearchChange, so we only normalize whitespace here (no extra debounce).
+  const effectiveSearchTerm = searchTerm.trim() === '' ? '' : searchTerm
   const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>(initialFilters)
   const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>(
     () => initialSortingProp ?? [{ id: 'createdAt', desc: true }]
@@ -177,35 +185,53 @@ function ConfigAccountLayout<TAccount extends Account = Account, TQueryVariables
     return buildDynamicFilterConfig(config.baseFilterConfig, config.descriptors, filterGroups)
   }, [config.baseFilterConfig, config.descriptors, filterGroups])
 
+  // Scope search to the visible columns only while a search is active. Passing `undefined`
+  // when there is no search term keeps the reference stable, so toggling column visibility
+  // does not recompute queryVariables and therefore does not trigger an unnecessary refetch.
+  const searchVisibleColumns = effectiveSearchTerm.trim() ? visibleColumns : undefined
+
   // Query Variables
   const queryVariables = useMemo(
     () =>
       config.buildQueryVariables({
         pagination,
-        searchTerm,
+        searchTerm: effectiveSearchTerm,
         selectedFilters,
-        sorting
+        sorting,
+        visibleColumns: searchVisibleColumns
       }),
-    [pagination, searchTerm, selectedFilters, sorting, config]
+    [pagination, effectiveSearchTerm, selectedFilters, sorting, config, searchVisibleColumns]
   )
+
+  // Tracks the most recent fetch so out-of-order responses can be discarded. A broad,
+  // slow query (e.g. "T") must never overwrite the result of a newer, faster query (e.g.
+  // "Test") that already populated the table.
+  const latestRequestIdRef = useRef(0)
 
   // Load Data
   const loadData = useCallback(
     async (showLoading: boolean = true) => {
       if (!context?.accessToken) return
 
+      const requestId = ++latestRequestIdRef.current
+
       if (showLoading) setIsLoading(true)
       setError(null)
 
       try {
         const result = await config.fetchAccounts(queryVariables)
+        // Ignore responses that have been superseded by a newer request.
+        if (requestId !== latestRequestIdRef.current) return
         setAccounts(result.accounts || [])
         setTotalCount(result.total || 0)
       } catch (err) {
+        if (requestId !== latestRequestIdRef.current) return
         setError(err instanceof Error ? err.message : 'Unknown error occurred')
       } finally {
-        if (showLoading) setIsLoading(false)
-        setIsInitialLoad(false)
+        if (requestId === latestRequestIdRef.current) {
+          if (showLoading) setIsLoading(false)
+          setIsInitialLoad(false)
+        }
       }
     },
     [context?.accessToken, config, queryVariables]
@@ -220,10 +246,25 @@ function ConfigAccountLayout<TAccount extends Account = Account, TQueryVariables
   // Reload data when filters/search/sort change (skip initial load).
   // loadData is intentionally omitted from deps: it is derived from queryVariables,
   // so including it would cause the effect to fire twice on every query change.
+  //
+  // Show the loading skeleton when the search term changes (including clearing it) or when
+  // the page/page-size changes, so the table reflects that new results are being fetched.
+  // Filter/sort reloads keep the existing rows visible (non-blocking) as before.
+  const previousSearchRef = useRef(effectiveSearchTerm)
+  const previousPaginationRef = useRef(pagination)
+  const previousFiltersRef = useRef(selectedFilters)
   useEffect(() => {
     if (isInitialLoad || !context?.accessToken) return
-    loadData(false)
-  }, [queryVariables, context?.accessToken])
+    const searchChanged = previousSearchRef.current !== effectiveSearchTerm
+    const paginationChanged =
+      previousPaginationRef.current.pageIndex !== pagination.pageIndex ||
+      previousPaginationRef.current.pageSize !== pagination.pageSize
+    const filtersChanged = previousFiltersRef.current !== selectedFilters
+    previousSearchRef.current = effectiveSearchTerm
+    previousPaginationRef.current = pagination
+    previousFiltersRef.current = selectedFilters
+    loadData(searchChanged || paginationChanged || filtersChanged)
+  }, [queryVariables, context?.accessToken, effectiveSearchTerm, pagination])
 
   // Process Completion Handlers
   const handleProcessComplete = useCallback(() => {
@@ -236,13 +277,13 @@ function ConfigAccountLayout<TAccount extends Account = Account, TQueryVariables
   // Event Handlers
   const handleSearch = useCallback((value: string) => {
     setSearchTerm(value)
-    setPagination(prev => ({ ...prev, pageIndex: 0 }))
+    setPagination(prev => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }))
   }, [])
 
   const handleFilterUpdate = useCallback(
     (filters: Record<string, any>) => {
       setSelectedFilters(filters)
-      setPagination(prev => ({ ...prev, pageIndex: 0 }))
+      setPagination(prev => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }))
       onFilterChangeProp?.(filters)
     },
     [onFilterChangeProp]

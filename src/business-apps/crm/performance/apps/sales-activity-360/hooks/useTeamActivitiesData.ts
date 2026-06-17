@@ -36,6 +36,8 @@ interface UseTeamActivitiesDataProps extends Pick<BusinessAppContextProps, 'acce
   // Associate owners via a nested where clause instead of an `ownerEmployeeId _in [...]` list.
   scopeToSalesAssociates?: boolean
   search?: string
+  /** Visible column ids the free-text search is scoped to; undefined searches all columns. */
+  searchColumns?: string[]
   sortField?: 'createdAt' | 'occurredAt' | 'title' | 'ownerEmployee.fullName' | 'activityType.value'
   sortOrder?: 'ASC' | 'DESC' | 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST'
   limit?: number
@@ -73,6 +75,7 @@ export const useTeamActivitiesData = ({
   employeeIds,
   scopeToSalesAssociates = false,
   search = '',
+  searchColumns,
   sortField = 'createdAt',
   sortOrder = 'DESC_NULLS_LAST',
   limit = 20,
@@ -90,6 +93,11 @@ export const useTeamActivitiesData = ({
   // Stabilize arrays and objects to prevent unnecessary re-renders
   const stableEmployeeIds = useMemo(() => employeeIds, [JSON.stringify(employeeIds)])
   const stableFilters = useMemo(() => filters, [JSON.stringify(filters)])
+  // Only scope to columns while a search is active so toggling columns alone does not refetch.
+  const stableSearchColumns = useMemo(
+    () => (search.trim() ? searchColumns : undefined),
+    [search, JSON.stringify(searchColumns)]
+  )
 
   // Helper: Build base where conditions for team activities.
   // - With explicit employeeIds (e.g. "By Employee"): filter by ownerEmployeeId _in [...].
@@ -112,29 +120,41 @@ export const useTeamActivitiesData = ({
     }
   }, [])
 
-  // Helper: Add search conditions
-  const addSearchConditions = useCallback((baseWhere: any, search?: string) => {
-    if (search?.trim()) {
-      const searchPattern = { _ilike: `%${search.trim()}%` }
-      baseWhere._and.push({
-        _or: [
-          { title: searchPattern },
-          { description: searchPattern },
-          { source: searchPattern },
-          { account: { name: searchPattern } },
-          { contact: { firstName: searchPattern } },
-          { contact: { lastName: searchPattern } },
-          { lead: { companyName: searchPattern } },
-          { lead: { firstName: searchPattern } },
-          { lead: { lastName: searchPattern } },
-          { lead: { code: searchPattern } },
-          { opportunity: { name: searchPattern } },
-          { ownerEmployee: { displayName: searchPattern } },
-          { ownerEmployee: { fullName: searchPattern } },
-          { ownerEmployee: { firstName: searchPattern } },
-          { ownerEmployee: { lastName: searchPattern } }
-        ]
-      })
+  // Helper: Add search conditions scoped to the visible table columns.
+  const addSearchConditions = useCallback((baseWhere: any, search?: string, searchColumns?: string[]) => {
+    if (!search?.trim()) return
+
+    const searchPattern = { _ilike: `%${search.trim()}%` }
+    const ownerPredicates = [
+      { ownerEmployee: { displayName: searchPattern } },
+      { ownerEmployee: { fullName: searchPattern } },
+      { ownerEmployee: { firstName: searchPattern } },
+      { ownerEmployee: { lastName: searchPattern } }
+    ]
+    const predicateMap: Record<string, any[]> = {
+      title: [{ title: searchPattern }],
+      'activityType.value': [{ activityType: { value: searchPattern } }],
+      // The owner column is keyed as fullName in Activity 360 (displayName elsewhere).
+      'ownerEmployee.fullName': ownerPredicates,
+      'ownerEmployee.displayName': ownerPredicates,
+      // The "reference" column renders the related account/contact/lead/opportunity.
+      reference: [
+        { account: { name: searchPattern } },
+        { contact: { firstName: searchPattern } },
+        { contact: { lastName: searchPattern } },
+        { lead: { companyName: searchPattern } },
+        { lead: { firstName: searchPattern } },
+        { lead: { lastName: searchPattern } },
+        { lead: { code: searchPattern } },
+        { opportunity: { name: searchPattern } }
+      ]
+    }
+
+    const columns = searchColumns && searchColumns.length > 0 ? searchColumns : Object.keys(predicateMap)
+    const orConditions = columns.flatMap(column => predicateMap[column] || [])
+
+    if (orConditions.length > 0) {
+      baseWhere._and.push({ _or: orConditions })
     }
   }, [])
 
@@ -198,7 +218,7 @@ export const useTeamActivitiesData = ({
   const fetchActivities = useCallback(
     async (vars: { limit?: number; offset?: number; enforceLimit?: boolean } = {}) => {
       const baseWhere: any = buildBaseWhereConditions(stableEmployeeIds)
-      addSearchConditions(baseWhere, search)
+      addSearchConditions(baseWhere, search, stableSearchColumns)
       addFilterConditions(baseWhere, stableFilters)
       addDateRangeFilters(baseWhere, stableFilters)
 
@@ -233,6 +253,7 @@ export const useTeamActivitiesData = ({
     [
       stableEmployeeIds,
       search,
+      stableSearchColumns,
       stableFilters,
       sortField,
       sortOrder,

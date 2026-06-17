@@ -58,6 +58,12 @@ export interface CommonLeadQueryVariables extends BaseQueryVariables {
   salutationIds?: string[]
   conversionDateFrom?: string
   conversionDateTo?: string
+  /**
+   * Optional allowlist of descriptor keys to restrict free-text search to.
+   * Used by the list view to search only the columns currently visible in the table.
+   * When omitted, search runs against every searchable descriptor.
+   */
+  searchDescriptorKeys?: string[]
 }
 
 /**
@@ -400,7 +406,8 @@ export const buildLeadWhereCondition = (
     descriptors,
     ids: variables.ids,
     customConditions,
-    isDeleted: true
+    isDeleted: true,
+    searchDescriptorKeys: variables.searchDescriptorKeys
   })
 }
 

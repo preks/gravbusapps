@@ -65,12 +65,18 @@ export const CampaignAccountEntitiesView: React.FC<CampaignAccountEntitiesViewPr
         createdAt: 'Created Date'
       },
       baseFilterConfig: campaignAccountFilterConfig,
-      buildQueryVariables: ({ pagination, searchTerm, selectedFilters, sorting }) => {
+      buildQueryVariables: ({ pagination, searchTerm, selectedFilters, sorting, visibleColumns }) => {
+        const trimmedSearch = searchTerm.trim()
         const vars: CustomerAccountQueryVariables = {
           limit: pagination.pageSize,
           offset: pagination.pageIndex * pagination.pageSize,
-          search: searchTerm.trim() || undefined,
+          search: trimmedSearch || undefined,
           campaignIds: [campaignId]
+        }
+
+        // Scope free-text search to the visible table columns to keep the generated _or small.
+        if (trimmedSearch && visibleColumns && visibleColumns.length > 0) {
+          vars.searchDescriptorKeys = visibleColumns
         }
 
         processDateRangeFilters(selectedFilters, vars)

@@ -149,6 +149,7 @@ export const Activity360ListTab: React.FC<Activity360ListTabProps> = ({ accessTo
     accessToken,
     userInfo,
     search,
+    searchColumns: visibleColumns,
     sortField,
     sortOrder,
     limit: pagination.pageSize,

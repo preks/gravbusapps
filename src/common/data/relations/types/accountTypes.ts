@@ -225,7 +225,15 @@ export const createAccountDescriptors = (
   },
   { key: 'picture', searchPaths: [fields.picture], sortPath: fields.picture, type: 'text' },
   { key: 'pictureThumbnail', searchPaths: [fields.pictureThumbnail], sortPath: fields.pictureThumbnail, type: 'text' },
-  { key: 'prospective', searchPaths: [fields.prospective], sortPath: fields.prospective, type: 'boolean' },
+  {
+    key: 'prospective',
+    searchPaths: [fields.prospective],
+    sortPath: fields.prospective,
+    type: 'boolean',
+    // 'Category' column: true → 'Prospect'; false → 'Customer' (CRM) / 'Portfolio Company' (IRM).
+    // Let free-text search match those labels and resolve to _eq true/false.
+    searchBooleanLabels: { true: 'Prospect', false: ['Customer', 'Portfolio Company', 'Established'] }
+  },
   {
     key: 'tasks',
     searchPaths: [`${fields.tasks}.name`, `${fields.tasks}.description`],

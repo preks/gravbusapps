@@ -124,14 +124,8 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
   const [visibleColumns, setVisibleColumns] = useState<string[]>(availableColumns.filter(c => c.visible).map(c => c.id))
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: DEFAULT_PAGE_SIZE })
 
-  // Debounce the search term so each keystroke does not trigger a new query.
-  const [debouncedSearch, setDebouncedSearch] = useState('')
-
-  useEffect(() => {
-    const timeout = setTimeout(() => setDebouncedSearch(search), 300)
-    return () => clearTimeout(timeout)
-  }, [search])
-
+  // The design system DataDisplay/DataToolbar already debounces search (300ms) before
+  // firing onSearchChange, so we use the search value directly (no extra debounce).
   const sort = sorting[0]
   const sortColumn: TeamsListSortColumn = (sort?.id as TeamsListSortColumn) ?? 'memberCount'
   const sortDesc = sort?.desc ?? true
@@ -141,14 +135,14 @@ export const TeamsListView: React.FC<TeamsListViewProps> = ({
     currencyCode: selectedCurrencyCode,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
-    search: debouncedSearch,
+    search,
     sortColumn,
     sortDesc
   })
 
   useEffect(() => {
     setPagination(prev => ({ ...prev, pageIndex: 0 }))
-  }, [selectedCurrencyCode, debouncedSearch])
+  }, [selectedCurrencyCode, search])
 
   const handleSearchChange = useCallback((value: string) => {
     setSearch(value)

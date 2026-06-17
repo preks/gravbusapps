@@ -55,19 +55,29 @@ const buildDescriptorIndex = (): Map<string, Descriptor> => {
   const index = new Map<string, Descriptor>()
 
   for (const d of INVESTMENT_REPORT_DESCRIPTORS) {
-    if (!d.path) continue
-
-    let catalogPath = d.path
-    for (const [reportPrefix, catalogPrefix] of REPORT_TO_CATALOG_PREFIX) {
-      if (d.path.startsWith(reportPrefix)) {
-        catalogPath = catalogPrefix + d.path.slice(reportPrefix.length)
-        break
+    if (d.path) {
+      let catalogPath = d.path
+      for (const [reportPrefix, catalogPrefix] of REPORT_TO_CATALOG_PREFIX) {
+        if (d.path.startsWith(reportPrefix)) {
+          catalogPath = catalogPrefix + d.path.slice(reportPrefix.length)
+          break
+        }
       }
+
+      // Only set if not already present (first descriptor wins for duplicate paths)
+      if (!index.has(catalogPath)) {
+        index.set(catalogPath, d)
+      }
+      continue
     }
 
-    // Only set if not already present (first descriptor wins for duplicate paths)
-    if (!index.has(catalogPath)) {
-      index.set(catalogPath, d)
+    // Searchable descriptors without an explicit `path` (catalog references like
+    // "Stake Type", entity refs, and certain date fields) are catalog-referenced as
+    // `investment.<key>`. Index them by `key` so the `investment.`-stripping fallback
+    // in `resolveReportDescriptor` can resolve them instead of dropping the column
+    // out of free-text search.
+    if (d.searchPaths && d.searchPaths.length > 0 && !index.has(d.key)) {
+      index.set(d.key, d)
     }
   }
 
@@ -81,6 +91,28 @@ const buildDescriptorIndex = (): Map<string, Descriptor> => {
  * Values are the matching `InvestmentReport` descriptor.
  */
 const REPORT_DESCRIPTOR_BY_CATALOG_PATH = buildDescriptorIndex()
+
+/**
+ * Resolve the searchable/sortable descriptor for a catalog `property`.
+ *
+ * Most properties match a descriptor directly. Report-snapshot amount fields
+ * (e.g. "Closing Balance", "Opening Balance", "Time-Weighted Performance") are
+ * catalog-referenced with an `investment.` prefix (`investment.totalInvestmentAmount`)
+ * but are stored on the report root, so their descriptor path is the bare field
+ * name (`totalInvestmentAmount`). When the prefixed lookup misses, retry with the
+ * `investment.` prefix stripped so these columns become searchable instead of
+ * silently dropping out of the generated `_or`.
+ */
+const resolveReportDescriptor = (property: string): Descriptor | undefined => {
+  const direct = REPORT_DESCRIPTOR_BY_CATALOG_PATH.get(property)
+  if (direct) return direct
+
+  if (property.startsWith('investment.')) {
+    return REPORT_DESCRIPTOR_BY_CATALOG_PATH.get(property.slice('investment.'.length))
+  }
+
+  return undefined
+}
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -147,6 +179,43 @@ const isAdditionalPropertiesPath = (propertyPath: string): boolean => {
     ''
   )
   return normalizedPath === 'additionalProperties' || normalizedPath.startsWith('additionalProperties.')
+}
+
+/**
+ * Catalog subtype prefixes → report subtype relation used in the GraphQL where clause.
+ * `investment.` and bare paths resolve to the report root (no relation).
+ */
+const CATALOG_PREFIX_TO_REPORT_RELATION: Array<[string, string]> = [
+  ['equityInvestment.', 'equityInvestmentReport'],
+  ['liquidFundInvestment.', 'liquidFundInvestmentReport'],
+  ['realEstateInvestment.', 'realEstateInvestmentReport']
+]
+
+/**
+ * Resolve a catalog `additionalProperties` property to its jsonb search target
+ * (report relation + key path inside `additionalProperties`). Returns null when
+ * the property is not an `additionalProperties` value.
+ */
+const resolveJsonbSearchTarget = (property: string): JsonbSearchTarget | null => {
+  let relation: string | undefined
+  let rest = property
+
+  const relationMatch = CATALOG_PREFIX_TO_REPORT_RELATION.find(([prefix]) => property.startsWith(prefix))
+  if (relationMatch) {
+    relation = relationMatch[1]
+    rest = property.slice(relationMatch[0].length)
+  } else if (property.startsWith('investment.')) {
+    rest = property.slice('investment.'.length)
+  }
+
+  const marker = 'additionalProperties.'
+  const markerIndex = rest.indexOf(marker)
+  if (markerIndex === -1) return null
+
+  const jsonKey = rest.slice(markerIndex + marker.length)
+  if (!jsonKey) return null
+
+  return relation ? { relation, jsonKey } : { jsonKey }
 }
 
 // ---------------------------------------------------------------------------
@@ -401,6 +470,33 @@ export interface ReportListConfiguration {
   sortableColumns: Array<{ id: string; label: string }>
   /** Filter sheet configuration populated with live options. */
   filterConfiguration: FilterConfiguration
+  /**
+   * Map of column id → searchable `InvestmentReport` descriptor key.
+   * Used to scope free-text search to the currently visible columns
+   * (mirrors the Investments-tab behavior), keeping the generated `_or`
+   * small instead of scanning every descriptor/relation.
+   */
+  searchKeyByColumnId: Record<string, string>
+  /**
+   * Map of column id → jsonb `additionalProperties` search target for dynamic
+   * (catalog-defined) columns that are not backed by a real DB descriptor.
+   * Lets free-text search match these values via jsonb `_contains`
+   * (e.g. "Unrealized Gains/Losses Share Price" stored under
+   * `liquidFundInvestmentReport.additionalProperties.unrealizedGainsLossesSharePrice`).
+   */
+  jsonbSearchByColumnId: Record<string, JsonbSearchTarget>
+}
+
+/**
+ * Describes how to reach a jsonb `additionalProperties` value in an
+ * `InvestmentReport` where-clause:
+ * - `relation`: the report subtype relation (e.g. `liquidFundInvestmentReport`),
+ *   or `undefined` for values stored on the report root `additionalProperties`.
+ * - `jsonKey`: the dot-path of the property inside `additionalProperties`.
+ */
+export interface JsonbSearchTarget {
+  relation?: string
+  jsonKey: string
 }
 
 interface BuildReportConfigurationOptions {
@@ -447,6 +543,9 @@ export const buildReportConfigurationFromFields = (
 ): ReportListConfiguration => {
   const columnConfig: ColumnConfig[] = [...BASE_COLUMN_CONFIG]
   const sortableColumns: Array<{ id: string; label: string }> = [...BASE_SORTABLE_COLUMNS]
+  // Base columns map 1:1 to searchable descriptors of the same key.
+  const searchKeyByColumnId: Record<string, string> = { investment: 'investment', date: 'date' }
+  const jsonbSearchByColumnId: Record<string, JsonbSearchTarget> = {}
   const filterGroupsList: FilterGroup[] = getBaseFilterGroups(options)
   const seenFilterIds = new Set<string>([
     ...(options.includeInvestmentTypeFilter ? ['investmentTypeIds'] : []),
@@ -472,12 +571,24 @@ export const buildReportConfigurationFromFields = (
     columnConfig.push({ id: columnId, label: field.label, visible: true })
 
     if (isAdditionalPropertiesPath(field.property)) {
+      // jsonb columns have no DB descriptor; enable search via `additionalProperties._contains`.
+      const jsonbTarget = resolveJsonbSearchTarget(field.property)
+      if (jsonbTarget) {
+        jsonbSearchByColumnId[columnId] = jsonbTarget
+      }
       continue
     }
 
-    // Descriptor lookup — drives sort + filter
-    const descriptor = REPORT_DESCRIPTOR_BY_CATALOG_PATH.get(field.property)
+    // Descriptor lookup — drives search + sort + filter
+    const descriptor = resolveReportDescriptor(field.property)
     if (!descriptor) continue
+
+    // Searchable column — only descriptors that actually declare search paths
+    // contribute to free-text search. Map this column id to its descriptor key
+    // so visible-column scoping can resolve it.
+    if (descriptor.searchPaths && descriptor.searchPaths.length > 0) {
+      searchKeyByColumnId[columnId] = descriptor.key
+    }
 
     // Sortable column — only if the descriptor declares a sort path
     const isSortable = Boolean(descriptor.sortPath ?? descriptor.sortPaths?.length)
@@ -511,7 +622,9 @@ export const buildReportConfigurationFromFields = (
   return {
     columnConfig,
     sortableColumns,
-    filterConfiguration: buildDynamicFilterConfig(baseFilterConfig, INVESTMENT_REPORT_DESCRIPTORS, filterGroups)
+    filterConfiguration: buildDynamicFilterConfig(baseFilterConfig, INVESTMENT_REPORT_DESCRIPTORS, filterGroups),
+    searchKeyByColumnId,
+    jsonbSearchByColumnId
   }
 }
 

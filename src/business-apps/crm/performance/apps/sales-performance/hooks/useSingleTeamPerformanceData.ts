@@ -5,6 +5,8 @@ import dayjs from 'dayjs'
 export interface SingleTeamPerformanceDataProps {
   accessToken: string
   teamMemberIds: string[]
+  /** Visible column ids the free-text search is scoped to; undefined searches the default fields. */
+  searchColumns?: string[]
   currencyCode?: string
   limit?: number
   offset?: number
@@ -59,6 +61,7 @@ export const useSingleTeamPerformanceData = ({
   limit = 20,
   offset = 0,
   search = '',
+  searchColumns,
   orderBy = []
 }: SingleTeamPerformanceDataProps): UseSingleTeamPerformanceDataResult => {
   const graphqlClient = useGraphQLClient(accessToken)
@@ -286,41 +289,60 @@ export const useSingleTeamPerformanceData = ({
     fetchAvailableCurrencies().catch(() => undefined)
   }, [fetchAvailableCurrencies])
 
-  // Helper: Build where clause for team members query
-  const buildMemberWhereClause = useCallback((memberIds: string[], searchTerm?: string) => {
-    const quotedIds = memberIds.map(id => `"${id}"`).join(', ')
-    const whereConditions: string[] = [`id: { _in: [${quotedIds}] }`, `isDeleted: { _eq: false }`]
+  // Helper: Build the where clause object for the team members query, scoped to the visible columns.
+  // Returned as an object so it can be passed as a GraphQL `$where` variable (no string interpolation).
+  const buildMemberWhereClause = useCallback(
+    (memberIds: string[], searchTerm?: string, searchCols?: string[]): Record<string, any> => {
+      const where: Record<string, any> = {
+        id: { _in: memberIds },
+        isDeleted: { _eq: false }
+      }
 
-    if (searchTerm?.trim()) {
-      const searchPattern = `%${searchTerm.trim()}%`
-      whereConditions.push(`_or: [
-        { firstName: { _ilike: "${searchPattern}" } },
-        { lastName: { _ilike: "${searchPattern}" } },
-        { displayName: { _ilike: "${searchPattern}" } },
-        { employeePosition: { jobPosition: { name: { _ilike: "${searchPattern}" } } } }
-      ]`)
-    }
+      if (searchTerm?.trim()) {
+        const searchPattern = `%${searchTerm.trim()}%`
+        const predicateMap: Record<string, Array<Record<string, any>>> = {
+          name: [
+            { firstName: { _ilike: searchPattern } },
+            { lastName: { _ilike: searchPattern } },
+            { displayName: { _ilike: searchPattern } }
+          ],
+          position: [{ employeePosition: { jobPosition: { name: { _ilike: searchPattern } } } }]
+        }
 
-    return `{ ${whereConditions.join(', ')} }`
-  }, [])
+        const columns = searchCols && searchCols.length > 0 ? searchCols : Object.keys(predicateMap)
+        const orConditions = columns.flatMap(column => predicateMap[column] || [])
 
-  // Helper: Build orderBy clause for team members query
-  const buildMemberOrderByClause = useCallback((sortConfig?: Array<{ id: string; desc: boolean }>) => {
-    if (!sortConfig || sortConfig.length === 0) {
-      return '{ displayName: ASC }'
-    }
+        if (orConditions.length > 0) {
+          where._or = orConditions
+        }
+      }
 
-    const sort = sortConfig[0]
-    const direction = sort.desc ? 'DESC' : 'ASC'
+      return where
+    },
+    []
+  )
 
-    if (sort.id === 'name' || sort.id === 'displayName') {
-      return `{ displayName: ${direction} }`
-    } else if (sort.id === 'position') {
-      return `{ employeePosition: { jobPosition: { name: ${direction} } } }`
-    }
+  // Helper: Build the orderBy clause for the team members query.
+  // Returned as an array so it can be passed as a GraphQL `$orderBy` variable.
+  const buildMemberOrderByClause = useCallback(
+    (sortConfig?: Array<{ id: string; desc: boolean }>): Array<Record<string, any>> => {
+      if (!sortConfig || sortConfig.length === 0) {
+        return [{ displayName: 'ASC' }]
+      }
 
-    return '{ displayName: ASC }' // Default for computed fields
-  }, [])
+      const sort = sortConfig[0]
+      const direction = sort.desc ? 'DESC' : 'ASC'
+
+      if (sort.id === 'name' || sort.id === 'displayName') {
+        return [{ displayName: direction }]
+      } else if (sort.id === 'position') {
+        return [{ employeePosition: { jobPosition: { name: direction } } }]
+      }
+
+      return [{ displayName: 'ASC' }] // Default for computed fields
+    },
+    []
+  )
 
   // Fetch team members with server-side pagination and search
   const fetchTeamMembers = useCallback(async () => {
@@ -336,25 +358,25 @@ export const useSingleTeamPerformanceData = ({
     try {
       const currencyFilter = currencyCode ? `, currencyRef: { _ilike: "%${currencyCode}" }` : ''
 
-      const whereClause = buildMemberWhereClause(teamMemberIds, search)
+      const whereClause = buildMemberWhereClause(teamMemberIds, search, searchColumns)
       const orderByClause = buildMemberOrderByClause(orderBy)
 
       const employeeQuery = `
-        query GetTeamMembersWithPagination {
+        query GetTeamMembersWithPagination(
+          $where: EmployeeBoolExp
+          $orderBy: [EmployeeOrderBy!]
+          $limit: Int
+          $offset: Int
+        ) {
           # Get total count (respects search filter)
-          totalCount: EmployeeAggregate(where: ${whereClause}) {
+          totalCount: EmployeeAggregate(where: $where) {
             aggregate {
               count
             }
           }
 
           # Get paginated employees with server-side search
-          employees: Employee(
-            where: ${whereClause}
-            orderBy: ${orderByClause}
-            limit: ${limit}
-            offset: ${offset}
-          ) {
+          employees: Employee(where: $where, orderBy: $orderBy, limit: $limit, offset: $offset) {
             id
             firstName
             lastName
@@ -367,7 +389,12 @@ export const useSingleTeamPerformanceData = ({
         }
       `
 
-      const response = await graphqlClient.request<any>(employeeQuery)
+      const response = await graphqlClient.request<any>(employeeQuery, {
+        where: whereClause,
+        orderBy: orderByClause,
+        limit,
+        offset
+      })
 
       const allEmployees = response.employees || []
       const totalCount = response.totalCount?.aggregate?.count || 0
@@ -443,6 +470,7 @@ export const useSingleTeamPerformanceData = ({
     limit,
     offset,
     search,
+    searchColumns,
     orderBy,
     graphqlClient,
     buildMemberWhereClause,

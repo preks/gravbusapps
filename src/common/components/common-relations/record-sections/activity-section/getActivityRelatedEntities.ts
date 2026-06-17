@@ -44,14 +44,12 @@ function leadDisplayName(
     companyName?: string | null
     firstName?: string | null
     lastName?: string | null
-    code?: string | null
   } | null
 ): string {
   if (!lead) return ''
   if (lead.companyName?.trim()) return lead.companyName.trim()
-  const person = `${lead.firstName || ''} ${lead.lastName || ''}`.trim()
-  if (person) return person
-  return lead.code?.trim() || ''
+  // No `code` fallback: an unnamed lead renders as "Unnamed Lead" in the reference cell.
+  return `${lead.firstName || ''} ${lead.lastName || ''}`.trim()
 }
 
 function shouldHideKind(

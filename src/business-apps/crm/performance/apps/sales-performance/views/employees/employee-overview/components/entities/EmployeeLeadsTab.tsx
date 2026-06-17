@@ -82,12 +82,19 @@ export const EmployeeLeadsTab: React.FC<EmployeeLeadsTabProps> = ({
       searchTerm: string
       selectedFilters: Record<string, any>
       sorting: Array<{ id: string; desc: boolean }>
+      visibleColumns?: string[]
     }) => {
+      const trimmedSearch = params.searchTerm.trim()
       const vars: CustomerLeadQueryVariables = {
         limit: params.pagination.pageSize,
         offset: params.pagination.pageIndex * params.pagination.pageSize,
-        search: params.searchTerm.trim() || undefined,
+        search: trimmedSearch || undefined,
         ownerEmployeeIds: [employeeId]
+      }
+
+      // Scope free-text search to the visible table columns to keep the generated _or small.
+      if (trimmedSearch && params.visibleColumns && params.visibleColumns.length > 0) {
+        vars.searchDescriptorKeys = params.visibleColumns
       }
 
       const dateRangeKeys = ['createdAtRange', 'updatedAtRange']

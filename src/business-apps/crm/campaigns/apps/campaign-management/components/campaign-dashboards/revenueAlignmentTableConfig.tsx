@@ -1,5 +1,6 @@
 import { Badge, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { RevenueAlignmentRow } from '@/common/data/customer/queries/campaignDashboardQueries'
+import type { CampaignCatalogOption } from '@/common/data/customer/hooks/useCampaignCatalogOptions'
 
 const REVENUE_ALIGNMENT_COLUMN_LABELS: Record<string, string> = {
   name: 'Campaign',
@@ -53,54 +54,40 @@ export const createRevenueAlignmentExportColumns = (visibleColumns: string[]) =>
     .filter(column => visibleColumns.includes(column.id))
     .map(column => ({ key: column.id, title: column.label }))
 
+/**
+ * Builds filter options from catalog entries (all possible values) rather than the loaded page.
+ * Option ids use the catalog `code` because the table's where-clause filters by `code` (`_in`).
+ * Any already-selected value that is missing from the catalog list is preserved so selections
+ * never silently disappear.
+ */
+const buildCatalogFilterOptions = (
+  catalogOptions: CampaignCatalogOption[],
+  selectedValues: unknown
+): Array<{ id: string; label: string }> => {
+  const optionsMap = new Map<string, { id: string; label: string }>()
+
+  catalogOptions.forEach(option => {
+    const id = getCatalogFilterValue(option)
+    if (!id) return
+    optionsMap.set(id, { id, label: option.label || option.value || option.code || 'Unknown' })
+  })
+
+  const selected = Array.isArray(selectedValues) ? selectedValues : []
+  selected.forEach(value => {
+    if (typeof value !== 'string' || optionsMap.has(value)) return
+    optionsMap.set(value, { id: value, label: value })
+  })
+
+  return Array.from(optionsMap.values())
+}
+
 export const createRevenueAlignmentFilterConfiguration = (
-  rows: RevenueAlignmentRow[],
+  statusCatalogOptions: CampaignCatalogOption[],
+  segmentCatalogOptions: CampaignCatalogOption[],
   selectedFilters: Record<string, unknown>
 ): FilterConfiguration => {
-  const statusOptionsMap = new Map<string, { id: string; label: string }>()
-  rows
-    .filter(row => row.customerCampaignStatus)
-    .forEach(row => {
-      const id = getCatalogFilterValue(row.customerCampaignStatus)
-      if (!id) return
-      statusOptionsMap.set(id, {
-        id,
-        label: row.customerCampaignStatus?.value || row.customerCampaignStatus?.code || 'Unknown'
-      })
-    })
-
-  const selectedStatusValues = Array.isArray(selectedFilters.status) ? selectedFilters.status : []
-  selectedStatusValues.forEach(status => {
-    if (typeof status !== 'string' || statusOptionsMap.has(status)) return
-    statusOptionsMap.set(status, {
-      id: status,
-      label: status
-    })
-  })
-
-  const segmentOptionsMap = new Map<string, { id: string; label: string }>()
-  rows
-    .filter(row => row.customerCampaignSegment)
-    .forEach(row => {
-      const id = getCatalogFilterValue(row.customerCampaignSegment)
-      if (!id) return
-      segmentOptionsMap.set(id, {
-        id,
-        label: row.customerCampaignSegment?.value || row.customerCampaignSegment?.code || 'Unknown'
-      })
-    })
-
-  const selectedSegmentValues = Array.isArray(selectedFilters.segment) ? selectedFilters.segment : []
-  selectedSegmentValues.forEach(segment => {
-    if (typeof segment !== 'string' || segmentOptionsMap.has(segment)) return
-    segmentOptionsMap.set(segment, {
-      id: segment,
-      label: segment
-    })
-  })
-
-  const statusOptions = Array.from(statusOptionsMap.values())
-  const segmentOptions = Array.from(segmentOptionsMap.values())
+  const statusOptions = buildCatalogFilterOptions(statusCatalogOptions, selectedFilters.status)
+  const segmentOptions = buildCatalogFilterOptions(segmentCatalogOptions, selectedFilters.segment)
 
   return {
     id: 'revenue-alignment-filters',

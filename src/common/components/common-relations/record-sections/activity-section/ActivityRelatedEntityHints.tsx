@@ -44,7 +44,7 @@ const CHIP_CLASS =
 export type ActivityRelatedEntityHintsProps = {
   activityId: string
   entities: ActivityRelatedEntity[]
-  t: (key: string) => string
+  t: (key: string, params?: Record<string, string | number>) => string
 }
 
 export function ActivityRelatedEntityHints({ activityId, entities, t }: Readonly<ActivityRelatedEntityHintsProps>) {
@@ -59,7 +59,9 @@ export function ActivityRelatedEntityHints({ activityId, entities, t }: Readonly
         {entities.map(entity => {
           const Icon = KIND_ICONS[entity.kind]
           const typeLabel = t(KIND_LABEL_KEY[entity.kind])
-          const displayName = entity.name.trim() ? entity.name.trim() : typeLabel
+          const displayName = entity.name.trim()
+            ? entity.name.trim()
+            : t('activities-reference-unnamed', { entityType: typeLabel })
           const avatarSrc =
             entity.pictureThumbnail &&
             (entity.pictureThumbnail.startsWith('data:') || entity.pictureThumbnail.startsWith('http')

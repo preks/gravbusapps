@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
   Label,
+  Skeleton,
   type FilterConfiguration
 } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
@@ -35,7 +36,6 @@ import {
 import { OpportunityStatisticsLayout, type OpportunityStatisticsData } from './components/OpportunityStatisticsLayout'
 import { OpportunityAggregatesBar, type OpportunityAggregates } from './components/OpportunityAggregatesBar'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
-
 // Helper: Update filter options
 const updateFilterOptions = (
   filterConfig: FilterConfiguration,
@@ -122,6 +122,8 @@ export interface OpportunityViewConfig<TOpportunity extends { id: string }, TQue
     searchTerm: string
     selectedFilters: Record<string, any>
     sorting: Array<{ id: string; desc: boolean }>
+    /** Column ids currently visible in the table; used to scope free-text search. */
+    visibleColumns?: string[]
   }) => TQueryVariables
 
   flowContexts: {
@@ -225,14 +227,27 @@ interface CurrencyFilterProps {
   currencies: Array<{ code: string; label: string }>
   onCurrencyChange: (currencyCode: string) => void
   showAllOption?: boolean
+  isLoading?: boolean
 }
 
 const CurrencyFilter: React.FC<CurrencyFilterProps> = ({
   selectedCurrency,
   currencies,
   onCurrencyChange,
-  showAllOption = true
+  showAllOption = true,
+  isLoading = false
 }) => {
+  // While currencies are still being fetched, show a skeleton in place of the selector
+  // so the toolbar keeps its layout instead of popping the filter in once data arrives.
+  if (isLoading) {
+    return (
+      <div className="gba:flex gba:items-center gba:gap-2" data-testid="currency-filter-skeleton">
+        <Label className="gba:text-sm gba:font-medium gba:whitespace-nowrap">Currency:</Label>
+        <Skeleton className="gba:h-9 gba:w-32" />
+      </div>
+    )
+  }
+
   if (currencies.length === 0) return null
 
   // Get display label for selected currency
@@ -271,6 +286,7 @@ interface BoardSecondaryActionsProps {
   currencies: Array<{ code: string; label: string }>
   onCurrencyChange: (currencyCode: string) => void
   showAllCurrencyOption?: boolean
+  currenciesLoading?: boolean
 }
 
 const BoardSecondaryActions: React.FC<BoardSecondaryActionsProps> = ({
@@ -281,7 +297,8 @@ const BoardSecondaryActions: React.FC<BoardSecondaryActionsProps> = ({
   selectedCurrency,
   currencies,
   onCurrencyChange,
-  showAllCurrencyOption = true
+  showAllCurrencyOption = true,
+  currenciesLoading = false
 }) => {
   if (currentSection !== 'board') return undefined
 
@@ -307,6 +324,7 @@ const BoardSecondaryActions: React.FC<BoardSecondaryActionsProps> = ({
         currencies={currencies}
         onCurrencyChange={onCurrencyChange}
         showAllOption={showAllCurrencyOption}
+        isLoading={currenciesLoading}
       />
     </div>
   )
@@ -318,6 +336,7 @@ interface ListSecondaryActionsProps {
   currencies: Array<{ code: string; label: string }>
   onCurrencyChange: (currencyCode: string) => void
   showAllCurrencyOption?: boolean
+  currenciesLoading?: boolean
 }
 
 const ListSecondaryActions: React.FC<ListSecondaryActionsProps> = ({
@@ -325,7 +344,8 @@ const ListSecondaryActions: React.FC<ListSecondaryActionsProps> = ({
   selectedCurrency,
   currencies,
   onCurrencyChange,
-  showAllCurrencyOption = true
+  showAllCurrencyOption = true,
+  currenciesLoading = false
 }) => {
   if (currentSection !== 'list') return undefined
 
@@ -335,6 +355,7 @@ const ListSecondaryActions: React.FC<ListSecondaryActionsProps> = ({
       currencies={currencies}
       onCurrencyChange={onCurrencyChange}
       showAllOption={showAllCurrencyOption}
+      isLoading={currenciesLoading}
     />
   )
 }
@@ -552,6 +573,13 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
 
   // List View State
   const [searchTerm, setSearchTerm] = useState('')
+
+  // Debounce the term that drives the list query so typing "Test" fires a single request instead
+  // of one per keystroke. Clearing the input (the X button) bypasses the debounce so results
+  // reset immediately instead of after the debounce window.
+  // The design system DataDisplay/DataToolbar already debounces search (300ms) before
+  // firing onSearchChange, so we only normalize whitespace here (no extra debounce).
+  const effectiveSearchTerm = searchTerm.trim() === '' ? '' : searchTerm
   const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>(initialFilters)
   const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>(
     () => initialSortingProp ?? [{ id: 'createdAt', desc: true }]
@@ -606,7 +634,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
       : { min: 0, max: 1000000 }
 
   // Fetch available currencies efficiently using distinctOn
-  const { currencies: currencyOptions } = useAvailableCurrencies(context, {
+  const { currencies: currencyOptions, isLoading: currenciesLoading } = useAvailableCurrencies(context, {
     filters: {
       entity: config.contextType === 'customer' ? 'Opportunity' : 'InvestmentOpportunity',
       ...(config.boardConfig && 'dealType' in config.boardConfig
@@ -648,15 +676,27 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     [owners, stages, pipelines, accounts, statuses, forecasts, amountRange, config.baseFilterConfig]
   )
 
+  // Scope search to the visible columns only while a search is active. Passing `undefined`
+  // when there is no search term keeps the reference stable, so toggling column visibility
+  // does not retrigger the list query.
+  const searchVisibleColumns = effectiveSearchTerm.trim() ? visibleColumns : undefined
+
   // List Query Variables — config is read via ref so parent config reference churn does not retrigger fetches.
   const listQueryVariables = useMemo(() => {
-    const baseVars = configRef.current.buildQueryVariables({ pagination, searchTerm, selectedFilters, sorting })
+    const baseVars = configRef.current.buildQueryVariables({
+      pagination,
+      searchTerm: effectiveSearchTerm,
+      selectedFilters,
+      sorting,
+      visibleColumns: searchVisibleColumns
+    })
     const withScope = { ...baseVars, ...scopedQueryFilters }
     return applyCurrencyToVars(withScope, selectedCurrency, availableCurrencies)
   }, [
     pagination.pageIndex,
     pagination.pageSize,
-    searchTerm,
+    effectiveSearchTerm,
+    searchVisibleColumns,
     selectedFilters,
     sorting,
     selectedCurrency,
@@ -674,13 +714,15 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     () => availableCurrencies.map(currency => `${currency.code}:${currency.id}`).join('|'),
     [availableCurrencies]
   )
+  const searchVisibleColumnsKey = useMemo(() => (searchVisibleColumns ?? []).join(','), [searchVisibleColumns])
 
   const listQuerySignature = useMemo(
     () =>
       JSON.stringify({
         pageIndex: pagination.pageIndex,
         pageSize: pagination.pageSize,
-        searchTerm,
+        searchTerm: effectiveSearchTerm,
+        searchVisibleColumnsKey,
         selectedFiltersKey,
         sortingKey,
         selectedCurrency,
@@ -690,7 +732,8 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     [
       pagination.pageIndex,
       pagination.pageSize,
-      searchTerm,
+      effectiveSearchTerm,
+      searchVisibleColumnsKey,
       selectedFiltersKey,
       sortingKey,
       selectedCurrency,
@@ -710,26 +753,38 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     displayCurrencyCode: selectedCurrency === 'ALL' ? 'EUR' : selectedCurrency
   })
 
+  // Tracks the most recent list fetch so out-of-order responses can be discarded. A broad,
+  // slow query (e.g. "T") must never overwrite the result of a newer, faster query (e.g.
+  // "Test") that already populated the table.
+  const latestListRequestIdRef = useRef(0)
+
   // Load List Data
   const loadListData = useCallback(
     async (showLoading: boolean = true) => {
       if (!accessToken) return
+
+      const requestId = ++latestListRequestIdRef.current
 
       if (showLoading) setIsLoading(true)
       setError(null)
 
       try {
         const result = await configRef.current.fetchOpportunities(listQueryVariablesRef.current)
+        // Ignore responses that have been superseded by a newer request.
+        if (requestId !== latestListRequestIdRef.current) return
         setOpportunities(result.opportunities || [])
         setTotalCount(result.total || 0)
         if (result.aggregates) {
           setListAggregates(result.aggregates)
         }
       } catch (err) {
+        if (requestId !== latestListRequestIdRef.current) return
         setError(err instanceof Error ? err.message : 'Unknown error occurred')
       } finally {
-        if (showLoading) setIsLoading(false)
-        setIsInitialLoad(false)
+        if (requestId === latestListRequestIdRef.current) {
+          if (showLoading) setIsLoading(false)
+          setIsInitialLoad(false)
+        }
       }
     },
     [accessToken]
@@ -790,12 +845,37 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
   }, [accessToken, isInitialLoad])
 
   // Reload list data when filters/search/sort change (only when list is active, skip initial load).
-  // loadListData is intentionally omitted from deps: it is derived from listQueryVariables,
-  // so including it would cause the effect to fire twice on every query change.
+  //
+  // Show the loading skeleton when the search term changes (including clearing it), when the
+  // page/page-size changes, or when filters change, so the table reflects that new results are
+  // being fetched. Sort-only reloads keep the existing rows visible (non-blocking) as before.
+  const previousSearchRef = useRef(effectiveSearchTerm)
+  const previousPaginationRef = useRef(pagination)
+  const previousFiltersRef = useRef(selectedFilters)
+  const previousCurrencyRef = useRef(selectedCurrency)
   useEffect(() => {
     if (isInitialLoad || !accessToken || currentSection !== 'list') return
-    loadListData(false)
-  }, [listQuerySignature, accessToken, currentSection, loadListData])
+    const searchChanged = previousSearchRef.current !== effectiveSearchTerm
+    const paginationChanged =
+      previousPaginationRef.current.pageIndex !== pagination.pageIndex ||
+      previousPaginationRef.current.pageSize !== pagination.pageSize
+    const filtersChanged = previousFiltersRef.current !== selectedFilters
+    const currencyChanged = previousCurrencyRef.current !== selectedCurrency
+    previousSearchRef.current = effectiveSearchTerm
+    previousPaginationRef.current = pagination
+    previousFiltersRef.current = selectedFilters
+    previousCurrencyRef.current = selectedCurrency
+    loadListData(searchChanged || paginationChanged || filtersChanged || currencyChanged)
+  }, [
+    listQuerySignature,
+    accessToken,
+    currentSection,
+    loadListData,
+    effectiveSearchTerm,
+    pagination,
+    selectedFilters,
+    selectedCurrency
+  ])
 
   // Reload board data when filters/search/currency change (only when board is active, skip initial load).
   // loadBoardData is intentionally omitted from deps: it is derived from the other deps listed,
@@ -826,13 +906,13 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
 
   const handleSearch = useCallback((value: string) => {
     setSearchTerm(value)
-    setPagination(prev => ({ ...prev, pageIndex: 0 }))
+    setPagination(prev => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }))
   }, [])
 
   const handleFilterUpdate = useCallback(
     (filters: Record<string, any>) => {
       setSelectedFilters(filters)
-      setPagination(prev => ({ ...prev, pageIndex: 0 }))
+      setPagination(prev => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }))
       onFilterChangeProp?.(filters)
     },
     [onFilterChangeProp]
@@ -887,9 +967,18 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
         currencies={availableCurrencies}
         onCurrencyChange={setSelectedCurrency}
         showAllCurrencyOption={showAllCurrencyOption}
+        currenciesLoading={currenciesLoading}
       />
     ),
-    [currentSection, boardPipelineId, pipelines, selectedCurrency, availableCurrencies, showAllCurrencyOption]
+    [
+      currentSection,
+      boardPipelineId,
+      pipelines,
+      selectedCurrency,
+      availableCurrencies,
+      showAllCurrencyOption,
+      currenciesLoading
+    ]
   )
 
   // List secondary actions: Currency filter + optional export buttons
@@ -902,6 +991,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
           currencies={availableCurrencies}
           onCurrencyChange={setSelectedCurrency}
           showAllCurrencyOption={showAllCurrencyOption}
+          currenciesLoading={currenciesLoading}
         />
         {enableExport && currentSection === 'list' && (
           <>
@@ -936,6 +1026,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
       selectedCurrency,
       availableCurrencies,
       showAllCurrencyOption,
+      currenciesLoading,
       enableExport,
       isExporting,
       totalCount,

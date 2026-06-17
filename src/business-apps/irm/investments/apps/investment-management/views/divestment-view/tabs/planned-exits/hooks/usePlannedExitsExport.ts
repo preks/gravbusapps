@@ -60,7 +60,13 @@ const buildPlannedExitsSummaryRows = (
 
 interface UsePlannedExitsExportOptions {
   accessToken: string
-  sectionState: { search: string; sortField: string; sortOrder: 'ASC' | 'DESC' }
+  sectionState: {
+    search: string
+    sortField: string
+    sortOrder: 'ASC' | 'DESC'
+    /** Visible-column descriptor keys the search is scoped to (keeps export in sync with the list). */
+    searchDescriptorKeys?: string[]
+  }
   selectedFilters: Record<string, any>
   totalCount: number
   listAggregates?: InvestmentListAggregates
@@ -96,6 +102,7 @@ export function usePlannedExitsExport({
       limit: totalCount,
       offset: 0,
       search: sectionState.search?.trim() || undefined,
+      ...(sectionState.searchDescriptorKeys?.length ? { searchDescriptorKeys: sectionState.searchDescriptorKeys } : {}),
       orderBy: sectionState.sortField
         ? [{ field: sectionState.sortField, direction: sortDirection }]
         : [{ field: 'plannedExitDate', direction: 'ASC_NULLS_LAST' as const }],
@@ -108,13 +115,16 @@ export function usePlannedExitsExport({
     const allConditions = [...(varsAny.customConditions || [])]
     const filteredVars = { ...varsAny }
     delete filteredVars.customConditions
+    const searchDescriptorKeys = filteredVars.searchDescriptorKeys
+    delete filteredVars.searchDescriptorKeys
 
     const whereObj = buildWhere({
       variables: filteredVars,
       descriptors: INVESTMENT_DESCRIPTORS,
       ids: filteredVars.ids,
       isDeleted: true,
-      customConditions: allConditions
+      customConditions: allConditions,
+      ...(searchDescriptorKeys?.length ? { searchDescriptorKeys } : {})
     })
 
     const orderByInput =

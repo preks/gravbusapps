@@ -128,10 +128,16 @@ export const buildIrmMyTasksConfig = (
     baseFilterConfig: taskFilterConfig,
 
     buildQueryVariables: params => {
+      const trimmedSearch = params.searchTerm.trim()
       const vars: InvestmentTaskQueryVariables = {
         limit: params.pagination.pageSize,
         offset: params.pagination.pageIndex * params.pagination.pageSize,
-        search: params.searchTerm.trim() || undefined
+        search: trimmedSearch || undefined
+      }
+
+      // Scope free-text search to the visible table columns to keep the generated _or small.
+      if (trimmedSearch && params.visibleColumns?.length) {
+        vars.searchDescriptorKeys = params.visibleColumns
       }
 
       const dateRangeKeys = ['createdAtRange', 'updatedAtRange', 'dueDateRange', 'startDateRange', 'endDateRange']

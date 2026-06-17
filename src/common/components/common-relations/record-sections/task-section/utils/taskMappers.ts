@@ -61,7 +61,7 @@ export const buildTaskReference = (item: TaskOrApprovalSource): TaskReference | 
     return {
       type: 'lead' as const,
       id: item.lead.id,
-      name: `${item.lead.firstName || ''} ${item.lead.lastName || ''}`.trim() || item.lead.code || 'Lead'
+      name: `${item.lead.firstName || ''} ${item.lead.lastName || ''}`.trim() || 'Unnamed Lead'
     }
   }
 
@@ -69,7 +69,7 @@ export const buildTaskReference = (item: TaskOrApprovalSource): TaskReference | 
     return {
       type: 'account' as const,
       id: item.account.id,
-      name: item.account.name || item.account.code || 'Account'
+      name: item.account.name || 'Unnamed Account'
     }
   }
 
@@ -77,7 +77,7 @@ export const buildTaskReference = (item: TaskOrApprovalSource): TaskReference | 
     return {
       type: 'contact' as const,
       id: item.contact.id,
-      name: `${item.contact.firstName || ''} ${item.contact.lastName || ''}`.trim() || item.contact.code || 'Contact'
+      name: `${item.contact.firstName || ''} ${item.contact.lastName || ''}`.trim() || 'Unnamed Contact'
     }
   }
 
@@ -85,7 +85,7 @@ export const buildTaskReference = (item: TaskOrApprovalSource): TaskReference | 
     return {
       type: 'opportunity' as const,
       id: item.opportunity.id,
-      name: item.opportunity.name || item.opportunity.code || 'Opportunity'
+      name: item.opportunity.name || 'Unnamed Opportunity'
     }
   }
 
@@ -93,7 +93,7 @@ export const buildTaskReference = (item: TaskOrApprovalSource): TaskReference | 
     return {
       type: 'investment' as const,
       id: item.investment.id,
-      name: item.investment.name || item.investment.code || 'Investment'
+      name: item.investment.name || 'Unnamed Investment'
     }
   }
 

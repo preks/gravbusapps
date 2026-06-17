@@ -144,6 +144,9 @@ export const INVESTMENT_TASK_DESCRIPTORS: Descriptor[] = [
     }),
   {
     key: 'reference',
+    // The Reference column can point to an account, contact, lead, opportunity or investment.
+    // Search the name fields each entity exposes. Entities without a name render as
+    // "Unnamed <Type>", so there is intentionally no `code` search path here.
     searchPaths: [
       'account.name',
       'contact.firstName',

@@ -20,7 +20,7 @@ export function toCustomerTask(base: CustomerTask): CustomerTask {
   let taskReference: any = undefined
 
   if (base.opportunity?.id) {
-    const opportunityDisplayName = base.opportunity?.name || base.opportunity?.code
+    const opportunityDisplayName = base.opportunity?.name || 'Unnamed Opportunity'
     taskReference = {
       type: 'opportunity',
       id: base.opportunity.id,
@@ -29,7 +29,7 @@ export function toCustomerTask(base: CustomerTask): CustomerTask {
       pictureThumbnail: (base.opportunity as any).pictureThumbnail
     }
   } else if (base.account?.id) {
-    const accountDisplayName = base.account?.name || base.account?.code
+    const accountDisplayName = base.account?.name || 'Unnamed Account'
     taskReference = {
       type: 'account',
       id: base.account.id,
@@ -39,7 +39,7 @@ export function toCustomerTask(base: CustomerTask): CustomerTask {
     }
   } else if (base.lead?.id) {
     const leadDisplayName =
-      base.lead?.firstName && base.lead?.lastName ? `${base.lead.firstName} ${base.lead.lastName}` : base.lead?.code
+      base.lead?.firstName && base.lead?.lastName ? `${base.lead.firstName} ${base.lead.lastName}` : 'Unnamed Lead'
     taskReference = {
       type: 'lead',
       id: base.lead.id,
@@ -49,7 +49,9 @@ export function toCustomerTask(base: CustomerTask): CustomerTask {
     }
   } else if (base.contact?.id) {
     const contactDisplayName =
-      base.contact?.fullName || `${base.contact?.firstName || ''} ${base.contact?.lastName || ''}`.trim()
+      base.contact?.fullName ||
+      `${base.contact?.firstName || ''} ${base.contact?.lastName || ''}`.trim() ||
+      'Unnamed Contact'
     taskReference = {
       type: 'contact',
       id: base.contact.id,

@@ -26,7 +26,7 @@ export const PerformanceCell = ({ row }: CellContext<Investment, unknown>) => {
     style: 'currency',
     currency: row.original.currency?.code || 'EUR',
     minimumFractionDigits: 0,
-    maximumFractionDigits: 0
+    maximumFractionDigits: 20
   }).format(Math.abs(performanceAmount))
 
   const sign = getPerformanceSign(isZero, isPositive)

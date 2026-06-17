@@ -1,10 +1,12 @@
 import dayjs from 'dayjs'
-import type { SalesCampaignQueryVariables } from '../types/salesCampaignManagementTypes'
+import { type SalesCampaignQueryVariables, createSalesCampaignDescriptors } from '../types/salesCampaignManagementTypes'
 import {
   CAMPAIGN_STATUS_CODE_ACTIVE,
   CAMPAIGN_STATUS_CODE_COMPLETED,
   CAMPAIGN_STATUS_CODE_PLANNED
 } from '@/common/data/customer/constants/customerCatalogs'
+import { CAMPAIGN_STATUS_DISPLAY_LABEL_BY_CODE } from '@/business-apps/crm/campaigns/apps/campaign-management/config/campaignColumns'
+import { buildSearch } from '@/common/network/graphql/queryHelpers'
 
 const SALES_CAMPAIGN_FIELDS = `
   id
@@ -121,34 +123,49 @@ const buildCampaignStatusCondition = (campaignStatuses: string[]): SearchConditi
   }
 }
 
-const buildSearchConditions = (search: string): { _or: SearchCondition[] } => {
-  const searchPattern = { _ilike: `%${search.trim()}%` }
-  const possibleDate = dayjs(search.trim())
-  const dateFilters: SearchCondition[] = []
+// The Status column shows a date-derived fallback (Active/Completed/Planned) when a campaign has no
+// stored `customerCampaignStatus`, so matching a status term must replicate that fallback — the
+// same way the status filter does. The displayed label differs from the catalog code (CLOSED →
+// "Completed", DRAFT → "Planned"), so match the term against the displayed label and return codes.
+const matchStatusCodesByTerm = (search: string): string[] => {
+  const term = search.trim().toLowerCase()
+  if (!term) return []
+  return Object.entries(CAMPAIGN_STATUS_DISPLAY_LABEL_BY_CODE)
+    .filter(([, label]) => label.toLowerCase().includes(term))
+    .map(([code]) => code)
+}
 
-  if (possibleDate.isValid()) {
-    const startIso = possibleDate.startOf('day').toISOString()
-    const endIso = possibleDate.endOf('day').toISOString()
-    dateFilters.push(
-      { startDate: { _gte: startIso, _lte: endIso } },
-      { endDate: { _gte: startIso, _lte: endIso } },
-      { createdAt: { _gte: startIso, _lte: endIso } }
-    )
+// Free-text search reuses the shared `buildSearch` helper and the descriptor factory defined in the
+// types file (same pattern as the lead/account/contact/activity views). Search is scoped to the
+// currently visible columns by filtering descriptors on their `key`.
+const CAMPAIGN_SEARCH_DESCRIPTORS = createSalesCampaignDescriptors()
+
+const buildSearchConditions = (search: string, searchColumns?: string[]): { _or: SearchCondition[] } => {
+  const descriptors =
+    searchColumns && searchColumns.length > 0
+      ? CAMPAIGN_SEARCH_DESCRIPTORS.filter(descriptor => searchColumns.includes(descriptor.key))
+      : CAMPAIGN_SEARCH_DESCRIPTORS
+
+  const searchObj = buildSearch(search, descriptors)
+  const orConditions: SearchCondition[] = [...((searchObj?._or as SearchCondition[]) ?? [])]
+
+  // The displayed status label differs from the stored catalog value (code CLOSED shows "Completed",
+  // DRAFT shows "Planned"), so the value-based `_ilike` can miss stored rows. When the term matches a
+  // displayed status label we add both: a code match for stored statuses, and the same date-derived
+  // fallback the status filter uses for rows without a stored status.
+  const statusVisible = !searchColumns || searchColumns.length === 0 || searchColumns.includes('status')
+  if (statusVisible) {
+    const nowIso = dayjs().toISOString()
+    for (const code of matchStatusCodesByTerm(search)) {
+      orConditions.push({ customerCampaignStatus: { code: { _eq: code } } })
+      const fallbackCondition = buildFallbackStatusCondition(code, nowIso)
+      if (fallbackCondition) {
+        orConditions.push(fallbackCondition)
+      }
+    }
   }
 
-  return {
-    _or: [
-      { name: searchPattern },
-      { description: searchPattern },
-      { businessKey: searchPattern },
-      { type: { value: searchPattern } },
-      { type: { code: searchPattern } },
-      { customerCampaignStatus: { value: searchPattern } },
-      { customerCampaignStatus: { code: searchPattern } },
-      ...dateFilters,
-      { typeRef: searchPattern }
-    ]
-  }
+  return { _or: orConditions }
 }
 
 const addDateRangeFilter = (
@@ -172,6 +189,7 @@ export const GET_SALES_CAMPAIGNS_WITH_COUNT = (
     limit = 20,
     offset = 0,
     search,
+    searchColumns,
     orderBy,
     campaignTypes,
     campaignStatuses,
@@ -186,7 +204,10 @@ export const GET_SALES_CAMPAIGNS_WITH_COUNT = (
   const conditions: SearchCondition[] = [{ isDeleted: { _eq: false } }]
 
   if (search?.trim()) {
-    conditions.push(buildSearchConditions(search))
+    const searchCondition = buildSearchConditions(search, searchColumns)
+    if (searchCondition._or.length > 0) {
+      conditions.push(searchCondition)
+    }
   }
 
   if (campaignTypes && campaignTypes.length > 0) {

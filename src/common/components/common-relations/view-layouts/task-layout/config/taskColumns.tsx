@@ -17,7 +17,11 @@ import { TaskPriority, TaskStatus } from '@/common/data/relations/constants/task
 import { getEmployeeName } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/utils'
 import dayjs from 'dayjs'
 
-const formatDate = (dateString: string) => dayjs(dateString).format('MM/DD/YYYY')
+const formatDate = (dateString: string) => {
+  if (!dateString) return '-'
+  const date = dayjs(dateString)
+  return date.isValid() ? date.format('MMM D, YYYY') : '-'
+}
 
 // Helper function to get employee display name from taskAssignees
 const getAssigneeDisplay = (taskAssignees?: Task['taskAssignees']): { name: string; employee?: any; count: number } => {

@@ -90,26 +90,6 @@ export const commonLeadFilterConfig: FilterConfiguration = {
       ]
     },
     {
-      id: 'salutation-group',
-      label: 'Salutation',
-      collapsible: true,
-      defaultExpanded: false,
-      filters: [
-        {
-          id: 'salutationIds',
-          field: 'salutationIds',
-          label: 'Salutation',
-          type: 'multi-select',
-          config: {
-            options: [],
-            searchPlaceholder: 'Search salutation...',
-            totalCount: 0,
-            hasMore: false
-          }
-        }
-      ]
-    },
-    {
       id: 'industry-group',
       label: 'Industry',
       collapsible: true,

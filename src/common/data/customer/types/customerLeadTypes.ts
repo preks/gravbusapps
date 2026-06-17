@@ -74,7 +74,7 @@ export const CustomerLeadFields = {
 export const CUSTOMER_LEAD_DESCRIPTORS: Descriptor[] = [
   // Filter out descriptors that need structural overrides
   ...createLeadDescriptors(CustomerLeadFields as Record<keyof typeof LeadFields, string>).filter(
-    d => !['notes', 'rejectionReasons'].includes(d.key)
+    d => !['notes', 'rejectionReasons', 'address'].includes(d.key)
   ),
 
   // CRM-specific structural overrides
@@ -82,6 +82,26 @@ export const CUSTOMER_LEAD_DESCRIPTORS: Descriptor[] = [
     key: 'notes',
     searchPaths: ['notes.noteTitle', 'notes.noteText'], // CRM uses "noteTitle"/"noteText"
     sortPaths: ['notes.noteTitle', 'notes.noteText'],
+    type: 'text'
+  },
+  {
+    // CRM "Address" column shows the street (addressLine, a String), so include it in
+    // search. The base descriptor omits addressLine because IRM stores it as jsonb where
+    // _ilike is invalid; in CRM it is a plain String and safe to search.
+    key: 'address',
+    searchPaths: [
+      CustomerLeadFields.addressLine,
+      CustomerLeadFields.postalCode,
+      CustomerLeadFields.locality,
+      `${CustomerLeadFields.region}.value`,
+      `${CustomerLeadFields.country}.value`
+    ],
+    sortPaths: [
+      CustomerLeadFields.postalCode,
+      CustomerLeadFields.locality,
+      `${CustomerLeadFields.region}.value`,
+      `${CustomerLeadFields.country}.value`
+    ],
     type: 'text'
   },
   {

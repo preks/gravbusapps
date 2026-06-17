@@ -68,6 +68,12 @@ const applyDateRangeFilters = (
   }
 }
 
+// Resolve visible column ids to descriptor keys for free-text search (same logic as activityConfig.ts).
+// Column ids may be nested accessors (e.g. 'activityType.value' → 'activityType'); the descriptor key
+// is the root segment. Keeps the generated search _or scoped to the columns shown in the table.
+const resolveSearchDescriptorKeys = (visibleColumns: string[]): string[] =>
+  Array.from(new Set(visibleColumns.map(columnId => columnId.split('.')[0])))
+
 // Helper: Build orderBy configuration
 const buildOrderByConfig = (sorting: Array<{ id: string; desc: boolean }>): any[] => {
   if (sorting.length > 0) {
@@ -205,6 +211,14 @@ export const useMyActivities = (context: BusinessAppContextProps): MyActivitiesV
       applyActivityTypeFilter(variables, selectedFilters)
       applyDateRangeFilters(variables, selectedFilters)
 
+      // Scope free-text search to the visible table columns to keep the generated _or small.
+      if (searchTerm.trim() && visibleColumns.length > 0) {
+        const searchDescriptorKeys = resolveSearchDescriptorKeys(visibleColumns)
+        if (searchDescriptorKeys.length > 0) {
+          variables.searchDescriptorKeys = searchDescriptorKeys
+        }
+      }
+
       // Build orderBy
       variables.orderBy = buildOrderByConfig(sorting)
 
@@ -241,7 +255,7 @@ export const useMyActivities = (context: BusinessAppContextProps): MyActivitiesV
     } finally {
       setIsLoading(false)
     }
-  }, [context.accessToken, employeeId, pagination, sorting, searchTerm, selectedFilters, graphqlClient])
+  }, [context.accessToken, employeeId, pagination, sorting, searchTerm, selectedFilters, visibleColumns, graphqlClient])
 
   // Load on mount and when dependencies change
   useEffect(() => {
@@ -272,6 +286,13 @@ export const useMyActivities = (context: BusinessAppContextProps): MyActivitiesV
       applyActivityTypeFilter(variables, selectedFilters)
       applyDateRangeFilters(variables, selectedFilters)
 
+      if (searchTerm.trim() && visibleColumns.length > 0) {
+        const searchDescriptorKeys = resolveSearchDescriptorKeys(visibleColumns)
+        if (searchDescriptorKeys.length > 0) {
+          variables.searchDescriptorKeys = searchDescriptorKeys
+        }
+      }
+
       const query = buildInvestmentActivityQuery()
       let whereCondition = buildInvestmentActivityWhereCondition(variables)
       const orderBy = buildInvestmentActivityOrderBy(variables.orderBy || [])
@@ -296,7 +317,7 @@ export const useMyActivities = (context: BusinessAppContextProps): MyActivitiesV
         total: result.InvestmentActivityAggregate?.aggregate?.count || 0
       }
     },
-    [context.accessToken, employeeId, searchTerm, sorting, selectedFilters, graphqlClient]
+    [context.accessToken, employeeId, searchTerm, sorting, selectedFilters, visibleColumns, graphqlClient]
   )
 
   // Handle search change

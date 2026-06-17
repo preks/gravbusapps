@@ -109,6 +109,8 @@ export interface CampaignManagementLayoutProps extends BusinessAppContextProps {
   initialSorting?: Array<{ id: string; desc: boolean }>
   initialVisibleColumns?: string[]
   onSaveVisibleColumns?: (columns: string[]) => void
+  // Notifies the parent of the current visible columns so it can scope free-text search to them.
+  onVisibleColumnsChange?: (columns: string[]) => void
 
   // Date range filters
   startDateAfter?: string

@@ -16,6 +16,9 @@ import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeF
  * Common Account Query Variables Interface
  */
 export interface AccountQueryVariables extends BaseQueryVariables {
+  /** Restricts free-text search to this allowlist of descriptor keys (e.g. visible list columns). */
+  searchDescriptorKeys?: string[]
+
   // Filter fields
   ownerEmployeeIds?: string[]
   industryIds?: string[]
@@ -289,7 +292,8 @@ export const buildAccountWhereCondition = (
     variables,
     descriptors,
     ids: variables.ids,
-    isDeleted: true
+    isDeleted: true,
+    searchDescriptorKeys: variables.searchDescriptorKeys
   })
 }
 

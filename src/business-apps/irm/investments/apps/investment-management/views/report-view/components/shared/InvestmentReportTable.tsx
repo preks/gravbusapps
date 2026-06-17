@@ -12,6 +12,7 @@ import { useInvestmentReportData } from './useInvestmentReportData'
 import { InvestmentReportTableConfig } from './types'
 import { INVESTMENT_REPORT_DESCRIPTORS } from '@/common/data/investment/types/investmentReportTypes'
 import type { ReportSectionKind } from '../../utils/subSectionHelpers'
+import type { JsonbSearchTarget } from '../../utils/reportListColumnTransformer'
 
 export interface ExportColumnDef {
   key: string
@@ -37,6 +38,10 @@ interface InvestmentReportTableProps extends BusinessAppContextProps {
   investmentTypeValue: string
   catalogData: any
   visibleColumns?: string[]
+  /** Allowlist of report descriptor keys to scope free-text search to visible columns. */
+  searchDescriptorKeys?: string[]
+  /** jsonb `additionalProperties` search targets for the visible dynamic columns. */
+  jsonbSearchColumns?: JsonbSearchTarget[]
   onCurrenciesChange?: (currencies: string[]) => void
   onExportReady?: (helpers: InvestmentReportExportHelpers) => void
   enabled?: boolean
@@ -61,6 +66,8 @@ export const InvestmentReportTable: React.FC<InvestmentReportTableProps> = ({
   investmentTypeValue,
   catalogData,
   visibleColumns = ['investment', 'date'],
+  searchDescriptorKeys,
+  jsonbSearchColumns,
   onCurrenciesChange,
   onExportReady,
   enabled = true,
@@ -87,6 +94,8 @@ export const InvestmentReportTable: React.FC<InvestmentReportTableProps> = ({
     filters,
     investmentType,
     sectionKind,
+    searchDescriptorKeys,
+    jsonbSearchColumns,
     accessToken,
     userInfo,
     onCurrenciesChange,

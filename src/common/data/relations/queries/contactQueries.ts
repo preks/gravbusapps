@@ -44,6 +44,8 @@ export interface ContactRelationFields {
 }
 
 export interface CommonContactQueryVariables extends BaseQueryVariables {
+  /** Restricts free-text search to this allowlist of descriptor keys (e.g. visible list columns). */
+  searchDescriptorKeys?: string[]
   academicTitleIds?: string[]
   departmentIds?: string[]
   jobPositions?: string[]
@@ -327,7 +329,8 @@ export const buildContactWhereCondition = (
     descriptors,
     ids: variables.ids,
     customConditions,
-    isDeleted: true
+    isDeleted: true,
+    searchDescriptorKeys: variables.searchDescriptorKeys
   })
 }
 

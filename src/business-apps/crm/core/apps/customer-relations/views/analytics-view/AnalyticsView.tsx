@@ -319,10 +319,15 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
       },
       baseFilterConfig: commonContactFilterConfig,
       buildQueryVariables: (params: any) => {
+        const trimmedSearch = params.searchTerm.trim()
         const vars: CustomerContactQueryVariables = {
           limit: params.pagination.pageSize,
           offset: params.pagination.pageIndex * params.pagination.pageSize,
-          search: params.searchTerm.trim() || undefined
+          search: trimmedSearch || undefined
+        }
+        // Scope free-text search to the visible table columns to keep the generated _or small.
+        if (trimmedSearch && params.visibleColumns && params.visibleColumns.length > 0) {
+          vars.searchDescriptorKeys = params.visibleColumns
         }
         for (const key of Object.keys(params.selectedFilters)) {
           if (params.selectedFilters[key] !== undefined && params.selectedFilters[key] !== null) {
@@ -431,12 +436,18 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
         searchTerm: string
         selectedFilters: Record<string, any>
         sorting: Array<{ id: string; desc: boolean }>
+        visibleColumns?: string[]
       }) => {
+        const trimmedSearch = params.searchTerm.trim()
         const vars: CustomerAccountQueryVariables = {
           limit: params.pagination.pageSize,
           offset: params.pagination.pageIndex * params.pagination.pageSize,
-          search: params.searchTerm.trim() || undefined,
+          search: trimmedSearch || undefined,
           ...params.selectedFilters
+        }
+        // Scope free-text search to the visible table columns to keep the generated _or small.
+        if (trimmedSearch && params.visibleColumns && params.visibleColumns.length > 0) {
+          vars.searchDescriptorKeys = params.visibleColumns
         }
         if (params.sorting.length > 0) {
           vars.orderBy = [
@@ -593,13 +604,19 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
           searchTerm: string
           selectedFilters: Record<string, any>
           sorting: Array<{ id: string; desc: boolean }>
+          visibleColumns?: string[]
         }) => {
+          const trimmedSearch = params.searchTerm.trim()
           const vars: CustomerLeadQueryVariables = {
             limit: params.pagination.pageSize,
             offset: params.pagination.pageIndex * params.pagination.pageSize,
-            search: params.searchTerm.trim() || undefined
+            search: trimmedSearch || undefined
           }
           Object.assign(vars, params.selectedFilters)
+          // Scope free-text search to the visible table columns to keep the generated _or small.
+          if (trimmedSearch && params.visibleColumns && params.visibleColumns.length > 0) {
+            vars.searchDescriptorKeys = params.visibleColumns
+          }
           if (params.sorting.length > 0) {
             vars.orderBy = [
               {
@@ -668,13 +685,19 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ moduleColor = 'def
               searchTerm: string
               selectedFilters: Record<string, any>
               sorting: Array<{ id: string; desc: boolean }>
+              visibleColumns?: string[]
             }) => {
+              const trimmedSearch = params.searchTerm.trim()
               const vars: CustomerLeadQueryVariables = {
                 limit: params.pagination.pageSize,
                 offset: params.pagination.pageIndex * params.pagination.pageSize,
-                search: params.searchTerm.trim() || undefined
+                search: trimmedSearch || undefined
               }
               Object.assign(vars, params.selectedFilters)
+              // Scope free-text search to the visible table columns to keep the generated _or small.
+              if (trimmedSearch && params.visibleColumns && params.visibleColumns.length > 0) {
+                vars.searchDescriptorKeys = params.visibleColumns
+              }
               if (params.sorting.length > 0) {
                 vars.orderBy = [
                   {

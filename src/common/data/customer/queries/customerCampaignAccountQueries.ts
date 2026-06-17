@@ -18,7 +18,15 @@ export const GET_CAMPAIGN_ACCOUNTS = (): string => {
         where: {
           customerCampaignId: { _eq: $campaignId }
           isDeleted: { _eq: false }
-          customerAccount: { name: { _ilike: $search } }
+          _or: [
+            { customerAccount: { name: { _ilike: $search } } }
+            { customerAccount: { legalForm: { value: { _ilike: $search } } } }
+            { customerAccount: { legalForm: { code: { _ilike: $search } } } }
+            { customerAccount: { industry: { value: { _ilike: $search } } } }
+            { customerAccount: { industry: { code: { _ilike: $search } } } }
+            { customerEngagementLevel: { value: { _ilike: $search } } }
+            { customerEngagementLevel: { code: { _ilike: $search } } }
+          ]
         }
         orderBy: $orderBy
         limit: $limit
@@ -42,7 +50,15 @@ export const GET_CAMPAIGN_ACCOUNTS = (): string => {
         where: {
           customerCampaignId: { _eq: $campaignId }
           isDeleted: { _eq: false }
-          customerAccount: { name: { _ilike: $search } }
+          _or: [
+            { customerAccount: { name: { _ilike: $search } } }
+            { customerAccount: { legalForm: { value: { _ilike: $search } } } }
+            { customerAccount: { legalForm: { code: { _ilike: $search } } } }
+            { customerAccount: { industry: { value: { _ilike: $search } } } }
+            { customerAccount: { industry: { code: { _ilike: $search } } } }
+            { customerEngagementLevel: { value: { _ilike: $search } } }
+            { customerEngagementLevel: { code: { _ilike: $search } } }
+          ]
         }
       ) {
         aggregate {

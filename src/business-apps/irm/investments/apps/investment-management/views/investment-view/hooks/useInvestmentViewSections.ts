@@ -120,6 +120,10 @@ export const useInvestmentViewSections = ({
     onVisibleColumnsChange: saveDynamicVisibleColumns,
     ...(activeColumnConfig?.queryFields ? { queryFields: activeColumnConfig.queryFields } : {}),
     ...(activeColumnConfig?.sortDescriptors ? { sortDescriptors: activeColumnConfig.sortDescriptors } : {}),
+    ...(activeColumnConfig?.searchDescriptors ? { searchDescriptors: activeColumnConfig.searchDescriptors } : {}),
+    ...(activeColumnConfig?.jsonbSearchByColumnId
+      ? { jsonbSearchByColumnId: activeColumnConfig.jsonbSearchByColumnId }
+      : {}),
     ...(activeColumnConfig?.sortFieldByColumnId ? { sortFieldByColumnId: activeColumnConfig.sortFieldByColumnId } : {}),
     ...(activeColumnConfig?.filterConditionByFilterId
       ? { filterConditionByFilterId: activeColumnConfig.filterConditionByFilterId }

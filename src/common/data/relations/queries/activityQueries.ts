@@ -38,6 +38,8 @@ export interface ActivityRelationFields {
 }
 
 export interface CommonActivityQueryVariables extends BaseQueryVariables {
+  /** Restricts free-text search to this allowlist of descriptor keys (e.g. visible list columns). */
+  searchDescriptorKeys?: string[]
   accountIds?: string[]
   activityTypeIds?: string[]
   contactIds?: string[]
@@ -300,7 +302,8 @@ export const buildActivityWhereCondition = (
     descriptors,
     ids: variables.ids,
     customConditions,
-    isDeleted: true
+    isDeleted: true,
+    searchDescriptorKeys: variables.searchDescriptorKeys
   })
 }
 

@@ -230,8 +230,13 @@ interface EmployeeResponse {
  * Hook to fetch employees list with department information and revenue
  * @param accessToken - Access token for API calls
  * @param currencyId - Optional currency ID to filter revenues (e.g., "Currency:v1:EUR")
+ * @param visibleColumns - Visible column ids the free-text search is scoped to; undefined searches default fields
  */
-export const useEmployeesList = (accessToken: string, currencyId?: string): UseEmployeesListResult => {
+export const useEmployeesList = (
+  accessToken: string,
+  currencyId?: string,
+  visibleColumns?: string[]
+): UseEmployeesListResult => {
   // Base employee list (currency-independent) and per-employee revenue kept
   // separately so a currency change only re-fetches revenue, not the list.
   const [baseEmployees, setBaseEmployees] = useState<EmployeeListItem[]>([])
@@ -250,6 +255,9 @@ export const useEmployeesList = (accessToken: string, currencyId?: string): UseE
 
   const graphqlClient = useGraphQLClient(accessToken)
   const [filterOptionsLoaded, setFilterOptionsLoaded] = useState(false)
+
+  // Only re-fetch on column changes while a search is active, so toggling columns alone does not refetch.
+  const scopedSearchColumnsKey = search.trim() ? JSON.stringify(visibleColumns ?? null) : 'none'
 
   // Fetch filter options (departments and positions) once on initial load
   const fetchFilterOptions = useCallback(async () => {
@@ -305,16 +313,38 @@ export const useEmployeesList = (accessToken: string, currencyId?: string): UseE
         }
       }
 
-      // Add search filter if provided
+      // Add search filter if provided, scoped to the visible table columns.
       if (search?.trim()) {
         const searchPattern = `%${search.trim()}%`
-        whereCondition._or = [
-          { firstName: { _ilike: searchPattern } },
-          { lastName: { _ilike: searchPattern } },
-          { displayName: { _ilike: searchPattern } },
-          { employeePosition: { jobPosition: { name: { _ilike: searchPattern }, isDeleted: { _eq: false } } } },
-          { employeePosition: { organizationalUnit: { name: { _ilike: searchPattern }, isDeleted: { _eq: false } } } }
-        ]
+        const predicateMap: Record<string, any[]> = {
+          name: [
+            { firstName: { _ilike: searchPattern } },
+            { lastName: { _ilike: searchPattern } },
+            { displayName: { _ilike: searchPattern } }
+          ],
+          position: [
+            { employeePosition: { jobPosition: { name: { _ilike: searchPattern }, isDeleted: { _eq: false } } } }
+          ],
+          department: [
+            {
+              employeePosition: {
+                organizationalUnit: { name: { _ilike: searchPattern }, isDeleted: { _eq: false } }
+              }
+            }
+          ],
+          manager: [
+            { employeePosition: { supervisor: { firstName: { _ilike: searchPattern } } } },
+            { employeePosition: { supervisor: { lastName: { _ilike: searchPattern } } } },
+            { employeePosition: { supervisor: { displayName: { _ilike: searchPattern } } } }
+          ]
+        }
+
+        const columns = visibleColumns && visibleColumns.length > 0 ? visibleColumns : Object.keys(predicateMap)
+        const orConditions = columns.flatMap(column => predicateMap[column] || [])
+
+        if (orConditions.length > 0) {
+          whereCondition._or = orConditions
+        }
       }
 
       // Add department filter (supports multiple selected org units)
@@ -381,7 +411,17 @@ export const useEmployeesList = (accessToken: string, currencyId?: string): UseE
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, graphqlClient, currentPage, pageSize, search, departmentFilter, positionFilter, sorting])
+  }, [
+    accessToken,
+    graphqlClient,
+    currentPage,
+    pageSize,
+    search,
+    scopedSearchColumnsKey,
+    departmentFilter,
+    positionFilter,
+    sorting
+  ])
 
   // Stable, order-independent key for the current page's employees. Re-sorting
   // the same page (same employees, different order) keeps this key unchanged, so

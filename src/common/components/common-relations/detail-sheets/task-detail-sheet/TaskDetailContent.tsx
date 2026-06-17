@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { ScrollArea } from '@newwork/nw-design-system'
+import { CardDefaultVariantProvider, ScrollArea } from '@newwork/nw-design-system'
 import { Task, TaskReference, TaskDocument } from './types'
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
 import { handleDocumentClick as handleDocumentClickUtil } from '@/common/utils/documentClickHandler'
@@ -12,7 +12,6 @@ import { buildInvestmentTaskFormDataFromTask } from '@/common/components/docusig
 import { useDocuSignIntegration } from './hooks/useDocuSignIntegration'
 import { TaskDetailsCard } from './components/TaskDetailsCard'
 import { TaskDocumentsCard } from './components/TaskDocumentsCard'
-import { TaskInstancesCard } from './components/TaskInstancesCard'
 import { TaskAssigneesCard } from './components/TaskAssigneesCard'
 
 const DATA_TEST_ID_PREFIX = 'TaskDetailSheet'
@@ -104,46 +103,43 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
 
   return (
     <ScrollArea className="gba:h-full gba:w-full" data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-scroll-area`}>
-      <div className="gba:space-y-4 gba:p-1" data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-container`}>
-        <TaskDetailsCard
-          task={task}
-          taskStatus={taskStatus}
-          taskPriority={taskPriority}
-          taskType={taskType}
-          buildReferenceUrl={buildReferenceUrl}
-          dataTestId={dataTestId || DATA_TEST_ID_PREFIX}
-          hasSignableDocs={hasSignableDocs}
-          docuSignButtonLabel={docuSignButtonLabel}
-          onOpenDocuSignModal={() => openDocuSignModal()}
-        />
-
-        {docuSignEnabled && isDocuSignAuthenticated === false && (
-          <DigitalReferralBanner
-            onStartReferral={() => openDocuSignModal({ focusReferral: true })}
-            className="gba:bg-background"
+      {/* Force the same card variant the record screen gets from RecordLayout so task-view
+          and record-view detail sheets render identically (clean surface cards, not flat bg-card). */}
+      <CardDefaultVariantProvider variant="surface">
+        <div className="gba:space-y-4 gba:p-1" data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-container`}>
+          <TaskDetailsCard
+            task={task}
+            taskStatus={taskStatus}
+            taskPriority={taskPriority}
+            taskType={taskType}
+            buildReferenceUrl={buildReferenceUrl}
+            dataTestId={dataTestId || DATA_TEST_ID_PREFIX}
+            hasSignableDocs={hasSignableDocs}
+            docuSignButtonLabel={docuSignButtonLabel}
+            onOpenDocuSignModal={() => openDocuSignModal()}
           />
-        )}
 
-        <TaskAssigneesCard task={task} dataTestId={dataTestId || DATA_TEST_ID_PREFIX} />
+          {docuSignEnabled && isDocuSignAuthenticated === false && (
+            <DigitalReferralBanner
+              onStartReferral={() => openDocuSignModal({ focusReferral: true })}
+              className="gba:bg-background"
+            />
+          )}
 
-        <TaskDocumentsCard
-          documents={documentsWithStatus}
-          statusMap={statusMap}
-          dataTestId={dataTestId || DATA_TEST_ID_PREFIX}
-          onDocumentClick={handleDocumentClick}
-          onCheckEnvelopeStatus={checkEnvelopeStatus}
-          showDocuSignEnvelopeStatus={docuSignEnabled}
-        />
+          <TaskAssigneesCard task={task} dataTestId={dataTestId || DATA_TEST_ID_PREFIX} />
 
-        <TaskInstancesCard
-          task={task}
-          taskType={taskType}
-          currentUserId={currentUserId}
-          dataTestId={dataTestId || DATA_TEST_ID_PREFIX}
-        />
+          <TaskDocumentsCard
+            documents={documentsWithStatus}
+            statusMap={statusMap}
+            dataTestId={dataTestId || DATA_TEST_ID_PREFIX}
+            onDocumentClick={handleDocumentClick}
+            onCheckEnvelopeStatus={checkEnvelopeStatus}
+            showDocuSignEnvelopeStatus={docuSignEnabled}
+          />
 
-        <div className="gba:h-4" />
-      </div>
+          <div className="gba:h-4" />
+        </div>
+      </CardDefaultVariantProvider>
 
       {docuSignEnabled && (
         <DocuSignSignatureModal

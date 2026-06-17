@@ -265,7 +265,10 @@ export const createLeadDescriptors = (fields: Record<keyof typeof LeadFields, st
   },
   {
     key: 'rejectionReasons',
-    searchPaths: [`${fields.rejectionReasons}.rejectionReason.value`],
+    searchPaths: [
+      `${fields.rejectionReasons}.rejectionReason.value`,
+      `${fields.rejectionReasons}.rejectionReason.code`
+    ],
     sortPath: `${fields.rejectionReasons}.rejectionReason.value`,
     type: 'text'
   },

@@ -2,12 +2,19 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { Badge } from '@newwork/nw-design-system'
 import { CalendarIcon, TagIcon } from '@phosphor-icons/react'
 import type { SalesCampaign } from '../components/campaign-list/types/SalesCampaignTypes'
-import { getBadgeVariantFromCatalog } from '@/common/utils/badgeUtils'
 import {
   CAMPAIGN_STATUS_CODE_ACTIVE,
   CAMPAIGN_STATUS_CODE_COMPLETED,
   CAMPAIGN_STATUS_CODE_PLANNED
 } from '@/common/data/customer/constants/customerCatalogs'
+
+// Unified status wording shown in the UI (table + filter), keyed by catalog code. Most campaigns
+// have no stored status and render a date-derived label, so the stored values are relabeled to match.
+export const CAMPAIGN_STATUS_DISPLAY_LABEL_BY_CODE: Record<string, string> = {
+  [CAMPAIGN_STATUS_CODE_ACTIVE]: 'Active',
+  [CAMPAIGN_STATUS_CODE_COMPLETED]: 'Completed',
+  [CAMPAIGN_STATUS_CODE_PLANNED]: 'Planned'
+}
 
 // Helper to safely convert values to strings
 // Returns empty string for objects to avoid '[object Object]' stringification
@@ -51,24 +58,28 @@ const formatCampaignStatusLabel = (statusCode: string): string => {
   return 'Planned'
 }
 
+// Same status always renders the same badge color, whether it comes from the stored catalog entry
+// or the date-derived fallback.
+const getCampaignStatusVariant = (statusCode: string): 'success' | 'default' | 'secondary' => {
+  if (statusCode === CAMPAIGN_STATUS_CODE_ACTIVE) return 'success'
+  if (statusCode === CAMPAIGN_STATUS_CODE_COMPLETED) return 'default'
+  return 'secondary'
+}
+
 const getCampaignStatusDisplay = (campaign: SalesCampaign) => {
   if (campaign.customerCampaignStatus) {
+    const { code, value } = campaign.customerCampaignStatus
+    const unifiedLabel = (code && CAMPAIGN_STATUS_DISPLAY_LABEL_BY_CODE[code]) || safeString(value || code)
     return {
-      value: safeString(campaign.customerCampaignStatus.value || campaign.customerCampaignStatus.code),
-      variant: getBadgeVariantFromCatalog(campaign.customerCampaignStatus)
+      value: unifiedLabel,
+      variant: getCampaignStatusVariant(code)
     }
   }
 
   const fallbackStatusCode = getFallbackCampaignStatusCode(campaign)
-  let fallbackVariant: 'success' | 'default' | 'secondary' = 'secondary'
-  if (fallbackStatusCode === CAMPAIGN_STATUS_CODE_ACTIVE) {
-    fallbackVariant = 'success'
-  } else if (fallbackStatusCode === CAMPAIGN_STATUS_CODE_COMPLETED) {
-    fallbackVariant = 'default'
-  }
   return {
     value: formatCampaignStatusLabel(fallbackStatusCode),
-    variant: fallbackVariant
+    variant: getCampaignStatusVariant(fallbackStatusCode)
   }
 }
 

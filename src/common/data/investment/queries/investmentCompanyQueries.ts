@@ -17,6 +17,8 @@ export interface InvestmentCompanyQueryVariables extends BaseQueryVariables {
   groupIds?: string[]
   investmentContactIds?: string[]
   ownerInvestmentCompanyIds?: string[]
+  /** Descriptor keys (visible column ids) the free-text search is scoped to; undefined searches all. */
+  searchDescriptorKeys?: string[]
   ownerEmployeeIds?: string[]
   ownsProperty?: boolean
 }
@@ -125,7 +127,8 @@ export const buildInvestmentCompanyWhereCondition = (
     descriptors: [...INVESTMENT_COMPANY_DESCRIPTORS, ...additionalDescriptors],
     ids: variables.ids,
     isDeleted: true,
-    customConditions
+    customConditions,
+    searchDescriptorKeys: variables.searchDescriptorKeys
   })
 
 export const buildInvestmentCompanyOrderBy = (

@@ -8,6 +8,11 @@ export interface BuildLeadQueryVariablesParams {
   searchTerm?: string
   selectedFilters: Record<string, unknown>
   sorting?: Array<{ id: string; desc: boolean }>
+  /**
+   * Currently visible table column ids. When provided alongside a search term, free-text
+   * search is restricted to the descriptors backing these columns.
+   */
+  visibleColumns?: string[]
 }
 
 export interface BuildLeadQueryVariablesOptions {
@@ -98,7 +103,7 @@ export function buildLeadQueryVariables<T extends CommonLeadQueryVariables>(
   params: BuildLeadQueryVariablesParams,
   options: BuildLeadQueryVariablesOptions = {}
 ): T {
-  const { pagination, searchTerm = '', selectedFilters, sorting } = params
+  const { pagination, searchTerm = '', selectedFilters, sorting, visibleColumns } = params
   const nonSortableColumns = options.nonSortableColumns ?? []
 
   const vars = {} as T
@@ -111,6 +116,13 @@ export function buildLeadQueryVariables<T extends CommonLeadQueryVariables>(
   const trimmedSearch = searchTerm.trim()
   if (trimmedSearch) {
     vars.search = trimmedSearch
+    // Restrict the generated search `_or` to the visible columns. The column ids line up
+    // with descriptor keys, so they are used directly as the allowlist: buildWhere matches
+    // them against the real descriptors (descriptors.filter(d => keys.includes(d.key))) and
+    // non-text descriptors (date/number) self-skip in buildSearch. No static map needed.
+    if (visibleColumns && visibleColumns.length > 0) {
+      vars.searchDescriptorKeys = visibleColumns
+    }
   }
 
   const excludeKeys = [...LEAD_DATE_RANGE_FILTER_KEYS, 'sensitive']

@@ -316,9 +316,14 @@ export const createTaskDescriptors = (fields: Record<keyof typeof TaskFields, st
   },
   {
     key: 'reference',
+    // The Reference column can point to an account, contact, lead or opportunity. Search the
+    // name fields each entity exposes — contacts/leads by first AND last name so a term like
+    // "david" matches the given name, not only the surname.
     searchPaths: [
       `${fields.account}.name`,
+      `${fields.contact}.firstName`,
       `${fields.contact}.lastName`,
+      `${fields.lead}.firstName`,
       `${fields.lead}.lastName`,
       `${fields.opportunity}.name`
     ],

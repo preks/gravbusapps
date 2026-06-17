@@ -33,6 +33,7 @@ export interface UseInvestmentSectionStateReturn {
   sorting: Array<{ id: string; desc: boolean }>
   pagination: { pageIndex: number; pageSize: number }
   isInitialLoading: boolean
+  isListLoading: boolean
   // Handlers
   handleSortingChange: (sorting: Array<{ id: string; desc: boolean }>) => void
   handlePaginationChange: (pagination: { pageIndex: number; pageSize: number }) => void
@@ -75,9 +76,10 @@ export const useInvestmentSectionState = ({
         sortField,
         sortOrder,
         currentPage,
-        pageSize
+        pageSize,
+        visibleColumns
       }),
-    [currentPage, pageSize, search, selectedFilters, sortField, sortOrder]
+    [currentPage, pageSize, search, selectedFilters, sortField, sortOrder, visibleColumns]
   )
 
   // Fetch data
@@ -88,7 +90,13 @@ export const useInvestmentSectionState = ({
     loading,
     error,
     refetch
-  } = useInvestments(accessToken, queryModel.queryVariables, queryModel.queryFields, queryModel.sortDescriptors)
+  } = useInvestments(
+    accessToken,
+    queryModel.queryVariables,
+    queryModel.queryFields,
+    queryModel.sortDescriptors,
+    queryModel.searchDescriptors
+  )
 
   // Track initial load
   useEffect(() => {
@@ -97,6 +105,29 @@ export const useInvestmentSectionState = ({
     }
   }, [loading])
   const isInitialLoading = loading && !initialLoadDone.current
+
+  // Show the loading skeleton for search/filter/pagination changes; keep the current rows for
+  // sort-only reloads to avoid a jarring full re-render. A reload is flagged "pending" whenever a
+  // non-sort input changes, and cleared only once loading transitions back to false (fetch done).
+  const nonSortKey = useMemo(
+    () => JSON.stringify({ search, selectedFilters, currentPage, pageSize }),
+    [currentPage, pageSize, search, selectedFilters]
+  )
+  const [nonSortReloadPending, setNonSortReloadPending] = useState(false)
+  const previousNonSortKeyRef = useRef(nonSortKey)
+  useEffect(() => {
+    if (previousNonSortKeyRef.current !== nonSortKey) {
+      previousNonSortKeyRef.current = nonSortKey
+      setNonSortReloadPending(true)
+    }
+  }, [nonSortKey])
+  const previousLoadingRef = useRef(loading)
+  useEffect(() => {
+    const wasLoading = previousLoadingRef.current
+    previousLoadingRef.current = loading
+    if (wasLoading && !loading) setNonSortReloadPending(false)
+  }, [loading])
+  const isListLoading = loading && (isInitialLoading || nonSortReloadPending)
 
   // Convert sorting format
   const sorting = useMemo(() => {
@@ -168,6 +199,7 @@ export const useInvestmentSectionState = ({
     sorting,
     pagination,
     isInitialLoading,
+    isListLoading,
     handleSortingChange,
     handlePaginationChange
   }

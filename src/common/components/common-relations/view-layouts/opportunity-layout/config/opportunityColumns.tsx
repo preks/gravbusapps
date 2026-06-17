@@ -184,7 +184,7 @@ export function createOpportunityColumns<T extends GenericOpportunityForColumns>
           style: 'currency',
           currency: row.original.currency?.code || 'EUR',
           minimumFractionDigits: 0,
-          maximumFractionDigits: 0
+          maximumFractionDigits: 20
         }).format(row.original.estimatedAmount)
 
         return (

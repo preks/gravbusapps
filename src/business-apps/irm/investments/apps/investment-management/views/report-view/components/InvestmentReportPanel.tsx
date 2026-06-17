@@ -152,7 +152,9 @@ export const InvestmentReportPanel: React.FC<InvestmentReportPanelProps> = ({
   const {
     columnConfig: cascadeColumnConfig,
     sortableColumns,
-    filterConfiguration
+    filterConfiguration,
+    searchKeyByColumnId,
+    jsonbSearchByColumnId
   } = useMemo(
     () =>
       buildReportConfiguration(
@@ -210,6 +212,22 @@ export const InvestmentReportPanel: React.FC<InvestmentReportPanelProps> = ({
   const localReportFilters = useReportFilters(initialColumnsWithCache)
 
   const { columnConfig, visibleColumns, handleColumnVisibilityChange } = localReportFilters
+
+  // Scope free-text search to the currently visible columns: resolve each
+  // visible column id to its searchable report descriptor key.
+  const searchDescriptorKeys = useMemo(() => {
+    const keys = visibleColumns
+      .map(columnId => searchKeyByColumnId[columnId])
+      .filter((key): key is string => Boolean(key))
+    return Array.from(new Set(keys))
+  }, [visibleColumns, searchKeyByColumnId])
+
+  // Visible jsonb `additionalProperties` columns (e.g. Unrealized Gains/Losses,
+  // Opening Balance) so free-text search can match their values via `_contains`.
+  const jsonbSearchColumns = useMemo(
+    () => visibleColumns.map(columnId => jsonbSearchByColumnId[columnId]).filter(Boolean),
+    [visibleColumns, jsonbSearchByColumnId]
+  )
 
   // Column picker entries (excludes the locked "investment" column)
   const availableColumns = useMemo(
@@ -388,6 +406,8 @@ export const InvestmentReportPanel: React.FC<InvestmentReportPanelProps> = ({
           investmentTypeValue={activeSection?.label || ''}
           catalogData={catalogData}
           visibleColumns={visibleColumns}
+          searchDescriptorKeys={searchDescriptorKeys}
+          jsonbSearchColumns={jsonbSearchColumns}
           onCurrenciesChange={onCurrenciesUpdate}
           onExportReady={setExportHelpers}
           enabled={enabled}

@@ -89,26 +89,6 @@ export const commonContactFilterConfig: FilterConfiguration = {
       ]
     },
     {
-      id: 'salutation-group',
-      label: 'Salutation',
-      collapsible: true,
-      defaultExpanded: false,
-      filters: [
-        {
-          id: 'salutationIds',
-          field: 'salutationIds',
-          label: 'Salutation',
-          type: 'multi-select',
-          config: {
-            options: [],
-            searchPlaceholder: 'Search salutations...',
-            totalCount: 0,
-            hasMore: false
-          }
-        }
-      ]
-    },
-    {
       id: 'language-group',
       label: 'Language',
       collapsible: true,

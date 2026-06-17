@@ -63,7 +63,8 @@ export const LeadView: React.FC<LeadViewProps> = context => {
             pagination: params.pagination,
             searchTerm: params.searchTerm,
             selectedFilters: params.selectedFilters,
-            sorting: params.sorting
+            sorting: params.sorting,
+            visibleColumns: params.visibleColumns
           },
           { nonSortableColumns: ['communicationChannels', 'location'] }
         ),

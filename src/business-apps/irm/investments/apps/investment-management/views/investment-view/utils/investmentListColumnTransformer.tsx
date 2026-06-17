@@ -6,7 +6,7 @@ import { INVESTMENT_DESCRIPTORS, type Investment } from '@/common/data/investmen
 import { EQUITY_INVESTMENT_DESCRIPTORS } from '@/common/data/investment/types/equityInvestmentTypes'
 import { REAL_ESTATE_INVESTMENT_DESCRIPTORS } from '@/common/data/investment/types/realEstateInvestmentTypes'
 import { LIQUID_FUND_INVESTMENT_DESCRIPTORS } from '@/common/data/investment/types/liquidFundInvestmentTypes'
-import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import type { Descriptor, JsonbContainsTarget } from '@/common/network/graphql/queryHelpers'
 import { formatDate } from '@/common/data/investment/utils/formatters'
 import { getValueByPath } from '@/common/utils/objectUtils'
 import type {
@@ -38,6 +38,19 @@ export interface InvestmentListColumnConfiguration {
   defaultVisibleColumns: string[]
   queryFields: string[]
   sortDescriptors: Descriptor[]
+  /**
+   * Free-text search descriptors for the dynamic (catalog/relation) columns, keyed by their table
+   * column id so the visible-column search scope can match them. Covers real DB fields only
+   * (e.g. Proprietor, Liquid Fund Type); jsonb `additionalProperties` columns are excluded because
+   * their values aren't queryable through the GraphQL schema.
+   */
+  searchDescriptors: Descriptor[]
+  /**
+   * Map of column id → jsonb `additionalProperties` search target for dynamic columns that
+   * carry no DB descriptor `searchPaths` (e.g. Opening Balance, Unrealized Gains/Losses). Lets
+   * free-text search match these values via jsonb `_contains` rather than skipping them.
+   */
+  jsonbSearchByColumnId: Record<string, JsonbContainsTarget>
   sortFieldByColumnId: Record<string, string>
   dynamicFilterConfig: FilterConfiguration
   filterConditionByFilterId: Record<string, InvestmentDynamicFilterCondition>
@@ -274,7 +287,7 @@ const formatFieldValue = (value: unknown, fieldType: string, currencyCode: strin
             style: 'currency',
             currency: currencyCode,
             minimumFractionDigits: 0,
-            maximumFractionDigits: 0
+            maximumFractionDigits: 20
           }).format(value)
         : '-'
     case 'NUMBER':
@@ -419,6 +432,57 @@ const buildRelationSortDescriptor = (
 
 const isSupportedCatalogField = (field: FormFieldDefinition): boolean => {
   return Boolean(getCatalogDescriptorMapping(field.property))
+}
+
+/**
+ * Build a free-text search descriptor for a dynamic catalog column so it participates in the
+ * list's `_or` search. Returns null for columns without a queryable DB path — notably jsonb
+ * `additionalProperties` fields (e.g. Opening Balance), whose descriptor carries no `searchPaths`.
+ */
+const buildColumnSearchDescriptor = (
+  columnId: string,
+  mapping: ReturnType<typeof getCatalogDescriptorMapping>
+): Descriptor | null => {
+  const basePaths = mapping?.descriptor.searchPaths
+  if (!mapping || mapping.descriptor.enableSearch === false || !basePaths?.length) {
+    return null
+  }
+
+  const searchPaths = mapping.relationField ? basePaths.map(path => `${mapping.relationField}.${path}`) : basePaths
+
+  return {
+    key: columnId,
+    searchPaths,
+    type: mapping.descriptor.type,
+    enableSort: false,
+    enableFilter: false
+  }
+}
+
+/**
+ * Build a jsonb `additionalProperties` search target for a dynamic column whose value lives in
+ * jsonb (e.g. Opening Balance, Unrealized Gains/Losses) so free-text search can match it via
+ * `_contains`. Returns null for non-jsonb columns.
+ */
+const buildColumnJsonbSearchTarget = (
+  mapping: ReturnType<typeof getCatalogDescriptorMapping>
+): JsonbContainsTarget | null => {
+  if (!mapping || !isAdditionalPropertiesPath(mapping.fieldPath)) {
+    return null
+  }
+
+  const marker = 'additionalProperties.'
+  const markerIndex = mapping.fieldPath.indexOf(marker)
+  if (markerIndex === -1) {
+    return null
+  }
+
+  const jsonKey = mapping.fieldPath.slice(markerIndex + marker.length)
+  if (!jsonKey) {
+    return null
+  }
+
+  return mapping.relationField ? { relation: mapping.relationField, jsonKey } : { jsonKey }
 }
 
 const getDisplayFields = (formFieldsDefinition?: FormFieldsDefinition | null): FormFieldDefinition[] => {
@@ -640,6 +704,8 @@ const buildInvestmentListColumnConfigurationFromFields = (
   )
   const queryFields = new Set<string>(UNIVERSAL_QUERY_FIELDS)
   const sortDescriptors: Descriptor[] = [...INVESTMENT_DESCRIPTORS]
+  const searchDescriptors: Descriptor[] = []
+  const jsonbSearchByColumnId: Record<string, JsonbContainsTarget> = {}
   const sortFieldByColumnId: Record<string, string> = {}
   const { dynamicFilterConfig, filterConditionByFilterId, relationFilterOptionSources } =
     buildDynamicFilterConfiguration(fieldsWithoutUniversalCollisions)
@@ -648,8 +714,18 @@ const buildInvestmentListColumnConfigurationFromFields = (
     const id = propertyToColumnId(field.property)
     const descriptorMapping = getCatalogDescriptorMapping(field.property)
     const relationSortDescriptor = buildRelationSortDescriptor(id, descriptorMapping)
+    const columnSearchDescriptor = buildColumnSearchDescriptor(id, descriptorMapping)
+    const columnJsonbSearchTarget = buildColumnJsonbSearchTarget(descriptorMapping)
     const queryField = descriptorMapping?.queryField || getQueryFieldForProperty(field.property)
     let sortField = getSortFieldForProperty(field.property)
+
+    if (columnSearchDescriptor) {
+      searchDescriptors.push(columnSearchDescriptor)
+    }
+
+    if (columnJsonbSearchTarget) {
+      jsonbSearchByColumnId[id] = columnJsonbSearchTarget
+    }
 
     if (descriptorMapping?.canSort) {
       sortField = descriptorMapping.descriptor.key
@@ -747,6 +823,8 @@ const buildInvestmentListColumnConfigurationFromFields = (
     defaultVisibleColumns: [...UNIVERSAL_VISIBLE_COLUMNS, ...availableColumns.map(column => column.id), 'actions'],
     queryFields: Array.from(queryFields),
     sortDescriptors,
+    searchDescriptors,
+    jsonbSearchByColumnId,
     sortFieldByColumnId,
     dynamicFilterConfig,
     filterConditionByFilterId,

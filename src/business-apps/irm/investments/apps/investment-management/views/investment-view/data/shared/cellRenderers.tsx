@@ -51,7 +51,7 @@ export const renderAmount = (amount: number | undefined, currencyCode?: string) 
     style: 'currency',
     currency: currencyCode || 'EUR',
     minimumFractionDigits: 0,
-    maximumFractionDigits: 0
+    maximumFractionDigits: 20
   }).format(amount)
 
   return <div className="gba:text-right gba:text-sm gba:font-mono gba:truncate">{formattedValue}</div>

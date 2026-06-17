@@ -15,6 +15,8 @@ export interface BuildContactQueryVariablesParams {
   searchTerm?: string
   selectedFilters: Record<string, unknown>
   sorting?: Array<{ id: string; desc: boolean }>
+  /** Column ids currently visible in the table; used to scope free-text search. */
+  visibleColumns?: string[]
 }
 
 const processDateRangeFilters = (
@@ -97,7 +99,7 @@ const processSorting = (
 export function buildContactQueryVariables<T extends CommonContactQueryVariables & ContactCommunicationFilterVariables>(
   params: BuildContactQueryVariablesParams
 ): T {
-  const { pagination, searchTerm = '', selectedFilters, sorting } = params
+  const { pagination, searchTerm = '', selectedFilters, sorting, visibleColumns } = params
 
   const vars = {} as T
 
@@ -109,6 +111,10 @@ export function buildContactQueryVariables<T extends CommonContactQueryVariables
   const trimmedSearch = searchTerm.trim()
   if (trimmedSearch) {
     vars.search = trimmedSearch
+    // Scope free-text search to the visible table columns to keep the generated _or small.
+    if (visibleColumns && visibleColumns.length > 0) {
+      vars.searchDescriptorKeys = visibleColumns
+    }
   }
 
   const excludeKeys = [...CONTACT_DATE_RANGE_FILTER_KEYS, 'communicationChannels']

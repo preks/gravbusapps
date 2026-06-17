@@ -24,6 +24,15 @@ const COLUMN_TO_SORT_FIELD: Record<string, string> = {
 }
 
 /**
+ * Resolve visible column ids to descriptor keys for free-text search. Column ids may be nested
+ * accessors (e.g. 'activityType.value' → 'activityType'); the descriptor key is the root segment.
+ * The composite 'reference' column maps to the dedicated 'reference' descriptor that spans the
+ * related entities (see createActivityDescriptors), so no per-column expansion is needed here.
+ */
+const resolveSearchDescriptorKeys = (visibleColumns: string[]): string[] =>
+  Array.from(new Set(visibleColumns.map(columnId => columnId.split('.')[0])))
+
+/**
  * Helper: Build sorting configuration
  */
 const buildSortingConfig = (sorting: Array<{ id: string; desc: boolean }>) => {
@@ -81,13 +90,23 @@ const buildQueryVariables = (params: {
   searchTerm: string
   selectedFilters: Record<string, any>
   sorting: Array<{ id: string; desc: boolean }>
+  visibleColumns?: string[]
 }): InvestmentActivityQueryVariables => {
-  const { pagination, searchTerm, selectedFilters, sorting } = params
+  const { pagination, searchTerm, selectedFilters, sorting, visibleColumns } = params
+  const trimmedSearch = searchTerm.trim()
 
   const variables: InvestmentActivityQueryVariables = {
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
-    search: searchTerm || undefined
+    search: trimmedSearch || undefined
+  }
+
+  // Scope free-text search to the visible table columns to keep the generated _or small.
+  if (trimmedSearch && visibleColumns && visibleColumns.length > 0) {
+    const searchDescriptorKeys = resolveSearchDescriptorKeys(visibleColumns)
+    if (searchDescriptorKeys.length > 0) {
+      variables.searchDescriptorKeys = searchDescriptorKeys
+    }
   }
 
   variables.orderBy = buildSortingConfig(sorting)

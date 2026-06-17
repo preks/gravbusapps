@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useInvestments, type InvestmentListAggregates } from '@/common/data/investment/hooks/useInvestments.new'
 import type { InvestmentQueryVariables } from '@/common/data/investment/queries/investmentQueries.new'
 import type { Investment } from '@/common/data/investment/types/investmentTypes.new'
+import { resolveSearchDescriptorKeys } from '../../../../investment-view/utils/buildInvestmentSectionQueryModel'
 
 export interface UsePlannedExitsSectionStateParams {
   accessToken: string
@@ -23,6 +24,8 @@ export interface UsePlannedExitsSectionStateReturn {
   sortOrder: 'ASC' | 'DESC'
   visibleColumns: string[]
   setVisibleColumns: (columns: string[]) => void
+  /** Descriptor keys the active search is scoped to (visible columns); undefined when no search term. */
+  searchDescriptorKeys?: string[]
   sorting: Array<{ id: string; desc: boolean }>
   pagination: { pageIndex: number; pageSize: number }
   isInitialLoading: boolean
@@ -52,6 +55,13 @@ export const usePlannedExitsSectionState = ({
   ])
   const initialLoadDone = useRef(false)
 
+  // Scope free-text search to the visible table columns (mirrors the Investments tab) so the
+  // generated `_or` only targets displayed columns instead of every descriptor.
+  const searchDescriptorKeys = useMemo(
+    () => (search.trim() && visibleColumns.length ? resolveSearchDescriptorKeys(visibleColumns) : undefined),
+    [search, visibleColumns]
+  )
+
   const queryVariables: InvestmentQueryVariables = useMemo(() => {
     const baseConditions: Record<string, any>[] = [{ planedExit: { _eq: true } }]
     const extraConditions: Record<string, any>[] = selectedFilters.customConditions ?? []
@@ -62,13 +72,14 @@ export const usePlannedExitsSectionState = ({
       limit: pageSize,
       offset: (currentPage - 1) * pageSize,
       search: search.trim() || undefined,
+      ...(searchDescriptorKeys?.length ? { searchDescriptorKeys } : {}),
       orderBy: sortField
         ? [{ field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }]
         : [{ field: 'plannedExitDate', direction: 'ASC_NULLS_LAST' }],
       customConditions: [...baseConditions, ...extraConditions],
       ...restFilters
     }
-  }, [currentPage, pageSize, search, sortField, sortOrder, selectedFilters])
+  }, [currentPage, pageSize, search, searchDescriptorKeys, sortField, sortOrder, selectedFilters])
 
   const {
     investments,
@@ -132,6 +143,7 @@ export const usePlannedExitsSectionState = ({
     sortOrder,
     visibleColumns,
     setVisibleColumns,
+    searchDescriptorKeys,
     sorting,
     pagination,
     isInitialLoading,

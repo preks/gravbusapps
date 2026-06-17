@@ -30,9 +30,10 @@ export const MARKETING_CHANNEL = 'MarketingChannel:v1'
 export const MARKETING_DISTRIBUTION_TYPE = 'MarketingDistributionType:v1'
 export const CUSTOMER_ENGAGEMENT_LEVEL = 'CustomerEngagementLevel:v1'
 
+// Real codes stored in the CustomerCampaignStatus catalog (catalog values: Active / Closed / Draft).
 export const CAMPAIGN_STATUS_CODE_ACTIVE = 'ACTIVE'
-export const CAMPAIGN_STATUS_CODE_COMPLETED = 'COMPLETED'
-export const CAMPAIGN_STATUS_CODE_PLANNED = 'PLANNED'
+export const CAMPAIGN_STATUS_CODE_COMPLETED = 'CLOSED'
+export const CAMPAIGN_STATUS_CODE_PLANNED = 'DRAFT'
 export const CAMPAIGN_SEGMENT_CODE_ENTERPRISE = 'ENTERPRISE'
 export const CAMPAIGN_SEGMENT_CODE_MID_MARKET = 'MID_MARKET'
 export const MARKETING_OPT_IN_SOURCE = 'MarketingOptInSource:v1'

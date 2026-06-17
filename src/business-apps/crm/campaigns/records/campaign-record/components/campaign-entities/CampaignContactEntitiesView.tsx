@@ -107,11 +107,16 @@ export const CampaignContactEntitiesView: React.FC<CampaignContactEntitiesViewPr
         createdAt: 'Created Date'
       },
       baseFilterConfig: commonContactFilterConfig,
-      buildQueryVariables: ({ pagination, searchTerm, selectedFilters, sorting }) => {
+      buildQueryVariables: ({ pagination, searchTerm, selectedFilters, sorting, visibleColumns }) => {
+        const trimmedSearch = searchTerm.trim()
         const vars: CustomerContactQueryVariables = {
           limit: pagination.pageSize,
           offset: pagination.pageIndex * pagination.pageSize,
-          search: searchTerm.trim() || undefined
+          search: trimmedSearch || undefined
+        }
+        // Scope free-text search to the visible table columns to keep the generated _or small.
+        if (trimmedSearch && visibleColumns && visibleColumns.length > 0) {
+          vars.searchDescriptorKeys = visibleColumns
         }
         processDateRangeFilters(selectedFilters, vars)
         addCommunicationFilters(selectedFilters, vars)

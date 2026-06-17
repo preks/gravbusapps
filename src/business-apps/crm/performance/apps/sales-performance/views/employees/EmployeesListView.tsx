@@ -208,7 +208,7 @@ export const EmployeesListView: React.FC<EmployeesListViewProps> = ({
     setCurrentPage,
     setPageSize,
     setSorting: setHookSorting
-  } = useEmployeesList(accessToken, selectedCurrencyId)
+  } = useEmployeesList(accessToken, selectedCurrencyId, visibleColumns)
 
   const filterConfiguration: FilterConfiguration = useMemo(
     () => ({

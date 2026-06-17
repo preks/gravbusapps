@@ -66,21 +66,25 @@ export const CompanyListView: React.FC<CompanyListViewProps> = context => {
     initialVisibleColumns && initialVisibleColumns.length > 0 ? initialVisibleColumns : defaultVisibleColumns
   )
 
-  const queryVariables = useMemo<InvestmentCompanyQueryVariables>(
-    () => ({
-      ...normalizeCompanyFilters(selectedFilters),
+  const queryVariables = useMemo<InvestmentCompanyQueryVariables>(() => {
+    const trimmedSearch = searchTerm.trim()
+    return {
+      ...selectedFilters,
       limit: pagination.pageSize,
       offset: pagination.pageIndex * pagination.pageSize,
-      search: searchTerm.trim() || undefined,
+      search: trimmedSearch || undefined,
+      // Scope free-text search to the visible table columns (mirrors the other list views) so the
+      // generated `_or` only targets displayed columns. Left unset without a search term so toggling
+      // columns alone does not trigger a refetch.
+      ...(trimmedSearch && visibleColumns.length > 0 ? { searchDescriptorKeys: visibleColumns } : {}),
       orderBy: sorting.length
         ? sorting.map(sort => ({
             field: sort.id,
             direction: sort.desc ? ('DESC_NULLS_LAST' as const) : ('ASC_NULLS_LAST' as const)
           }))
         : [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' as const }]
-    }),
-    [pagination.pageIndex, pagination.pageSize, searchTerm, selectedFilters, sorting]
-  )
+    }
+  }, [pagination.pageIndex, pagination.pageSize, searchTerm, selectedFilters, sorting, visibleColumns])
 
   const { companies, total, loading, error, refetch } = useInvestmentCompanies(
     context.accessToken || '',

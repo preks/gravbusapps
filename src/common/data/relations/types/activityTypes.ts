@@ -122,6 +122,21 @@ export const createActivityDescriptors = (
   },
   { key: 'description', searchPaths: [fields.description], sortPath: fields.description, type: 'text' },
   {
+    // Composite "Reference" column: an activity points at one related entity (account, contact,
+    // lead or opportunity). Mirror the task layout by exposing a single descriptor that spans
+    // them, so the visible 'reference' column maps to it directly (no config-level expansion).
+    key: 'reference',
+    searchPaths: [
+      `${fields.account}.name`,
+      `${fields.contact}.firstName`,
+      `${fields.contact}.lastName`,
+      `${fields.lead}.firstName`,
+      `${fields.lead}.lastName`,
+      `${fields.opportunity}.name`
+    ],
+    type: 'text'
+  },
+  {
     key: 'documents',
     searchPaths: [`${fields.documents}.name`, `${fields.documents}.description`],
     sortPath: `${fields.documents}.name`,
@@ -148,10 +163,13 @@ export const createActivityDescriptors = (
       `${fields.ownerEmployee}.lastName`
     ],
     sortPath: `${fields.ownerEmployee}.displayName`,
-    type: 'text'
+    type: 'text',
+    // Column renders 'Unknown' when no owner is set; let free-text search match that fallback.
+    searchNullLabel: 'Unknown',
+    searchNullPath: fields.ownerEmployeeId
   },
   { key: 'source', searchPaths: [fields.source], sortPath: fields.source, type: 'text' },
-  { key: 'title', searchPaths: [fields.title], sortPath: fields.title, type: 'text' },
+  { key: 'title', searchPaths: [fields.title, fields.description], sortPath: fields.title, type: 'text' },
 
   // Filter IDs
   { key: 'accountIds', path: fields.accountId, kind: 'inIds' },

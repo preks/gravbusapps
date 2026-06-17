@@ -44,6 +44,7 @@ export interface MyTasksViewConfig<TTask extends Task = Task, TQueryVariables = 
     selectedFilters: Record<string, any>
     sorting: Array<{ id: string; desc: boolean }>
     userInfo?: any
+    visibleColumns?: string[]
   }) => TQueryVariables
 
   flowContexts: {
@@ -162,6 +163,12 @@ function MyTasksViewComponent<TTask extends Task = Task, TQueryVariables = any>(
   const [error, setError] = useState<string | null>(null)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
 
+  // Track previous search/pagination/filters so reloads triggered by them show the loading
+  // skeleton, while sort-only reloads keep the current rows visible.
+  const previousSearchRef = useRef(searchTerm)
+  const previousPaginationRef = useRef(pagination)
+  const previousFiltersRef = useRef(selectedFilters)
+
   // Detail Sheet State
   const [selectedTask, setSelectedTask] = useState<TTask | null>(null)
 
@@ -184,6 +191,11 @@ function MyTasksViewComponent<TTask extends Task = Task, TQueryVariables = any>(
     return buildDynamicFilterConfig(config.baseFilterConfig, config.descriptors, filterGroups)
   }, [config.baseFilterConfig, config.descriptors, filterGroups])
 
+  // Scope search to the visible columns only while a search is active. Passing `undefined`
+  // when there is no search term keeps the reference stable, so toggling column visibility
+  // does not retrigger the query.
+  const searchVisibleColumns = searchTerm.trim() ? visibleColumns : undefined
+
   // Query Variables
   const queryVariables = useMemo(
     () =>
@@ -192,9 +204,10 @@ function MyTasksViewComponent<TTask extends Task = Task, TQueryVariables = any>(
         searchTerm,
         selectedFilters,
         sorting,
-        userInfo
+        userInfo,
+        visibleColumns: searchVisibleColumns
       }),
-    [pagination, searchTerm, selectedFilters, sorting, userInfo]
+    [pagination, searchTerm, selectedFilters, sorting, userInfo, searchVisibleColumns]
   )
 
   // Load Tasks
@@ -234,7 +247,20 @@ function MyTasksViewComponent<TTask extends Task = Task, TQueryVariables = any>(
   // Reload data when filters/search/sort change (skip initial load)
   useEffect(() => {
     if (isInitialLoad || !accessToken) return
-    loadTasksRef.current(false)
+
+    const searchChanged = previousSearchRef.current !== searchTerm
+    const paginationChanged =
+      previousPaginationRef.current.pageIndex !== pagination.pageIndex ||
+      previousPaginationRef.current.pageSize !== pagination.pageSize
+    const filtersChanged = previousFiltersRef.current !== selectedFilters
+
+    previousSearchRef.current = searchTerm
+    previousPaginationRef.current = pagination
+    previousFiltersRef.current = selectedFilters
+
+    // Show the loading skeleton for search, pagination and filter changes; keep current rows
+    // for sort-only reloads to avoid a jarring full re-render.
+    loadTasksRef.current(searchChanged || paginationChanged || filtersChanged)
   }, [queryVariables, accessToken])
 
   // Process Completion Handlers
@@ -248,13 +274,13 @@ function MyTasksViewComponent<TTask extends Task = Task, TQueryVariables = any>(
   // Event Handlers
   const handleSearch = useCallback((value: string) => {
     setSearchTerm(value)
-    setPagination(prev => ({ ...prev, pageIndex: 0 }))
+    setPagination(prev => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }))
   }, [])
 
   const handleFilterUpdate = useCallback(
     (filters: Record<string, any>) => {
       setSelectedFilters(filters)
-      setPagination(prev => ({ ...prev, pageIndex: 0 }))
+      setPagination(prev => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }))
       onFilterChange?.(filters)
     },
     [onFilterChange]

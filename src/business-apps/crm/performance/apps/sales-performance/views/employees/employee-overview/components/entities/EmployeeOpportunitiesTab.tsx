@@ -104,6 +104,14 @@ export const EmployeeOpportunitiesTab: React.FC<EmployeeOpportunitiesTabProps> =
     'created'
   ])
 
+  // Scope search to the visible columns only while a search is active. Resolving to `undefined`
+  // when there is no search term keeps the reference stable, so toggling column visibility alone
+  // does not retrigger the list query.
+  const searchVisibleColumns = useMemo(
+    () => (searchTerm.trim() ? visibleColumns : undefined),
+    [searchTerm, visibleColumns]
+  )
+
   // Dynamic filter data
   const filterData = useCustomerOpportunityFilters(context)
   const { stages, pipelines, accounts, statuses } = filterData
@@ -222,6 +230,11 @@ export const EmployeeOpportunitiesTab: React.FC<EmployeeOpportunitiesTabProps> =
         currencyCode: selectedCurrency // Filter by selected currency
       }
 
+      // Scope free-text search to the visible table columns to keep the generated _or small.
+      if (searchVisibleColumns && searchVisibleColumns.length > 0) {
+        variables.searchDescriptorKeys = searchVisibleColumns
+      }
+
       // Apply user-selected filters
       applyBasicFilters(variables, selectedFilters)
       applyAmountFilter(variables, selectedFilters.amount)
@@ -265,7 +278,17 @@ export const EmployeeOpportunitiesTab: React.FC<EmployeeOpportunitiesTabProps> =
     } finally {
       setLoading(false)
     }
-  }, [accessToken, employeeId, pagination, searchTerm, selectedFilters, sorting, selectedCurrency, graphqlClient])
+  }, [
+    accessToken,
+    employeeId,
+    pagination,
+    searchTerm,
+    selectedFilters,
+    sorting,
+    selectedCurrency,
+    graphqlClient,
+    searchVisibleColumns
+  ])
 
   // Fetch available currencies from employee's opportunities
   const fetchAvailableCurrencies = useCallback(async () => {

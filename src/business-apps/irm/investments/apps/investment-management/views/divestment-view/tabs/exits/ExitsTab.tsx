@@ -130,12 +130,21 @@ export const ExitsTab: React.FC<ExitsTabProps> = ({ enabled = true, ...context }
     }
   }, [availableColumns, visibleColumns.length])
 
+  // Scope free-text search to the visible table columns (mirrors the Exit Opportunities tab) so the
+  // generated `_or` only targets displayed columns. Stays `undefined` when no search term, so toggling
+  // columns without an active search does not trigger a refetch.
+  const searchDescriptorKeys = useMemo(
+    () => (searchTerm.trim() && visibleColumns.length > 0 ? visibleColumns : undefined),
+    [searchTerm, visibleColumns]
+  )
+
   // Build query variables from UI state
   const queryVariables = useMemo(() => {
     const vars: InvestmentOpportunityQueryVariables = {
       limit: pagination.pageSize,
       offset: pagination.pageIndex * pagination.pageSize,
       search: searchTerm.trim() || undefined,
+      ...(searchDescriptorKeys ? { searchDescriptorKeys } : {}),
       estimatedAmountRanges: buildAmountRanges(selectedFilters.amount),
       orderBy: buildSortingVars(sorting),
       ...buildDateFilterVars(selectedFilters.closeDateRange)
@@ -149,7 +158,7 @@ export const ExitsTab: React.FC<ExitsTabProps> = ({ enabled = true, ...context }
     }
 
     return vars
-  }, [pagination, searchTerm, selectedFilters, sorting])
+  }, [pagination, searchTerm, selectedFilters, sorting, searchDescriptorKeys])
 
   // Load data using descriptor-driven where builder
   const loadData = useCallback(async () => {

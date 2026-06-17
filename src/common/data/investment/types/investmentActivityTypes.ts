@@ -58,6 +58,15 @@ export const INVESTMENT_ACTIVITY_DESCRIPTORS: Descriptor[] = [
         searchPaths: [`${InvestmentActivityFields.opportunity}.name`] // Only name, no description
       }
     }
+    // IRM activities can also reference an Investment, so the composite "Reference" column must
+    // search the investment name too (CRM has no investment relation, so the shared descriptor
+    // intentionally omits it).
+    if (descriptor.key === 'reference') {
+      return {
+        ...descriptor,
+        searchPaths: [...(descriptor.searchPaths ?? []), `${InvestmentActivityFields.investment}.name`]
+      }
+    }
     return descriptor
   }),
   // Add investment descriptor (IRM-specific)

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react'
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { Button, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Plus } from 'lucide-react'
@@ -19,7 +19,6 @@ import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { useFilterGroups } from '@/common/data/common/hooks/useFilterGroups'
 import { buildDynamicFilterConfig } from './utils/filterHelpers'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
-
 export type { TaskStatisticsData } from './components/TaskStatisticsCard'
 
 /**
@@ -47,6 +46,8 @@ export interface TaskViewConfig<TTask extends Task = Task, TQueryVariables = any
     selectedFilters: Record<string, any>
     sorting: Array<{ id: string; desc: boolean }>
     userInfo?: any
+    /** Column ids currently visible in the table; used to scope free-text search. */
+    visibleColumns?: string[]
   }) => TQueryVariables
 
   flowContexts: {
@@ -158,6 +159,12 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
   // View State (Single Tab - Team Tasks Only)
   const [selectedTask, setSelectedTask] = useState<TTask | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
+
+  // Debounce the term that drives the query so typing fires a single request instead of one per
+  // keystroke. Clearing the input (the X button) bypasses the debounce so results reset instantly.
+  // The design system DataDisplay/DataToolbar already debounces search (300ms) before
+  // firing onSearchChange, so we only normalize whitespace here (no extra debounce).
+  const effectiveSearchTerm = searchTerm.trim() === '' ? '' : searchTerm
   const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>(initialFilters)
   const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>(
     () => initialSortingProp ?? [{ id: 'createdAt', desc: true }]
@@ -186,6 +193,15 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
   const [error, setError] = useState<string | null>(null)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
 
+  // Monotonically increasing id used to discard stale responses: a slow request started earlier
+  // must never overwrite the results of a newer one that already resolved.
+  const latestRequestIdRef = useRef(0)
+  // Track previous search/pagination/filters so reloads triggered by them show the loading
+  // skeleton, while sort-only reloads keep the current rows visible.
+  const previousSearchRef = useRef(effectiveSearchTerm)
+  const previousPaginationRef = useRef(pagination)
+  const previousFiltersRef = useRef(selectedFilters)
+
   // Use centralized filter groups hook
   const filterGroups = useFilterGroups(context, config.entityName, config.descriptors, { limit: 100 })
 
@@ -194,20 +210,29 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
     return buildDynamicFilterConfig(config.baseFilterConfig, config.descriptors, filterGroups)
   }, [config.baseFilterConfig, config.descriptors, filterGroups])
 
+  // Scope search to the visible columns only while a search is active. Passing `undefined`
+  // when there is no search term keeps the reference stable, so toggling column visibility
+  // does not retrigger the query.
+  const searchVisibleColumns = effectiveSearchTerm.trim() ? visibleColumns : undefined
+
   // Query Variables
   // Build query variables from filter state
   // NOTE: Deliberately NOT including config.buildQueryVariables in deps - function is stable
   // We only want to rebuild when actual query params (pagination, filters, etc.) change
+  // NOTE: `userInfo` is deliberately NOT passed here. It is an unstable reference from the
+  // platform context (often a new object per parent render); including it would rebuild
+  // queryVariables and refetch on every render, racing with the search debounce. The task
+  // query builders don't use it anyway. This mirrors the lead/account/contact layouts.
   const queryVariables = useMemo(
     () =>
       config.buildQueryVariables({
         pagination,
-        searchTerm,
+        searchTerm: effectiveSearchTerm,
         selectedFilters,
         sorting,
-        userInfo
+        visibleColumns: searchVisibleColumns
       }),
-    [pagination, searchTerm, selectedFilters, sorting, userInfo]
+    [pagination, effectiveSearchTerm, searchVisibleColumns, selectedFilters, sorting]
   )
 
   // Load Tasks
@@ -217,18 +242,25 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
     async (showLoading: boolean = true) => {
       if (!accessToken) return
 
+      const requestId = latestRequestIdRef.current + 1
+      latestRequestIdRef.current = requestId
+
       if (showLoading) setIsLoading(true)
       setError(null)
 
       try {
         const result = await config.fetchTasks(queryVariables)
+        if (requestId !== latestRequestIdRef.current) return
         setTasks(result.tasks || [])
         setTotalCount(result.total || 0)
       } catch (err) {
+        if (requestId !== latestRequestIdRef.current) return
         setError(err instanceof Error ? err.message : 'Unknown error occurred')
       } finally {
-        if (showLoading) setIsLoading(false)
-        setIsInitialLoad(false)
+        if (requestId === latestRequestIdRef.current) {
+          if (showLoading) setIsLoading(false)
+          setIsInitialLoad(false)
+        }
       }
     },
     [accessToken, queryVariables]
@@ -246,7 +278,20 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
   // isInitialLoad is used as a guard but shouldn't trigger re-runs
   useEffect(() => {
     if (isInitialLoad || !accessToken) return
-    loadTasks(false)
+
+    const searchChanged = previousSearchRef.current !== effectiveSearchTerm
+    const paginationChanged =
+      previousPaginationRef.current.pageIndex !== pagination.pageIndex ||
+      previousPaginationRef.current.pageSize !== pagination.pageSize
+    const filtersChanged = previousFiltersRef.current !== selectedFilters
+
+    previousSearchRef.current = effectiveSearchTerm
+    previousPaginationRef.current = pagination
+    previousFiltersRef.current = selectedFilters
+
+    // Show the loading skeleton for search, pagination and filter changes; keep current rows
+    // for sort-only reloads to avoid a jarring full re-render.
+    loadTasks(searchChanged || paginationChanged || filtersChanged)
   }, [queryVariables, accessToken])
 
   // Process Completion Handlers
@@ -261,13 +306,13 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
   // Event Handlers
   const handleSearch = useCallback((value: string) => {
     setSearchTerm(value)
-    setPagination(prev => ({ ...prev, pageIndex: 0 }))
+    setPagination(prev => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }))
   }, [])
 
   const handleFilterUpdate = useCallback(
     (filters: Record<string, any>) => {
       setSelectedFilters(filters)
-      setPagination(prev => ({ ...prev, pageIndex: 0 }))
+      setPagination(prev => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }))
       onFilterChangeProp?.(filters)
     },
     [onFilterChangeProp]

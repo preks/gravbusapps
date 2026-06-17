@@ -10,6 +10,10 @@ import type {
 } from '@/common/data/customer/queries/campaignDashboardQueries'
 import { calculateCustomerRevenueAchievementPercentage } from '@/common/data/customer/utils/customerRevenueCalculations'
 import { getBadgeVariantFromCatalog } from '@/common/utils/badgeUtils'
+import { buildSearch, type Descriptor } from '@/common/network/graphql/queryHelpers'
+import { createSalesCampaignDescriptors } from '@/common/data/customer/types/salesCampaignManagementTypes'
+import { useCampaignCatalogOptions } from '@/common/data/customer/hooks/useCampaignCatalogOptions'
+import { CAMPAIGN_STATUS, CAMPAIGN_SEGMENT } from '@/common/data/customer/constants/customerCatalogs'
 import translations from '../../../../_i18n'
 import {
   createRevenueAlignmentAvailableColumns,
@@ -24,23 +28,43 @@ import { useRevenueAlignmentExport } from './useRevenueAlignmentExport'
 type RevenueAlignmentProps = BusinessAppContextProps
 type RevenueAlignmentSorting = Array<{ id: string; desc: boolean }>
 
+/**
+ * Search descriptors for the Revenue Alignment table. Reuses the shared campaign descriptors
+ * (name/description, status, type, dates) — exactly like the main Campaign Management list — and
+ * adds the columns unique to this dashboard so search goes through the same `buildSearch` helper
+ * as every other view (text → `_ilike`, catalog → value+code, number → exact `_eq`).
+ */
+const REVENUE_ALIGNMENT_SEARCH_DESCRIPTORS: Descriptor[] = [
+  ...createSalesCampaignDescriptors(),
+  {
+    key: 'segment',
+    searchPaths: ['customerCampaignSegment.value', 'customerCampaignSegment.code'],
+    sortPath: 'customerCampaignSegment.value',
+    type: 'text'
+  },
+  { key: 'budgetAllocated', searchPaths: ['budgetAllocated'], sortPath: 'budgetAllocated', type: 'number' },
+  { key: 'pipelineTarget', searchPaths: ['pipelineTarget'], sortPath: 'pipelineTarget', type: 'number' }
+]
+
 const buildRevenueAlignmentWhere = (
   searchTerm: string,
-  selectedFilters: Record<string, unknown>
+  selectedFilters: Record<string, unknown>,
+  visibleColumns?: string[]
 ): Record<string, unknown> => {
   const conditions: Array<Record<string, unknown>> = [{ isDeleted: { _eq: false } }]
   const normalizedSearch = searchTerm.trim()
 
   if (normalizedSearch.length > 0) {
-    conditions.push({
-      _or: [
-        { name: { _ilike: `%${normalizedSearch}%` } },
-        { customerCampaignStatus: { value: { _ilike: `%${normalizedSearch}%` } } },
-        { customerCampaignStatus: { code: { _ilike: `%${normalizedSearch}%` } } },
-        { customerCampaignSegment: { value: { _ilike: `%${normalizedSearch}%` } } },
-        { customerCampaignSegment: { code: { _ilike: `%${normalizedSearch}%` } } }
-      ]
-    })
+    // Scope free-text search to the visible table columns by filtering descriptors on `key`,
+    // mirroring the `searchColumns` allowlist used by Campaign Management.
+    const scopedDescriptors =
+      visibleColumns && visibleColumns.length > 0
+        ? REVENUE_ALIGNMENT_SEARCH_DESCRIPTORS.filter(descriptor => visibleColumns.includes(descriptor.key))
+        : REVENUE_ALIGNMENT_SEARCH_DESCRIPTORS
+    const searchObj = buildSearch(normalizedSearch, scopedDescriptors)
+    if (Array.isArray(searchObj?._or) && searchObj._or.length > 0) {
+      conditions.push(searchObj)
+    }
   }
 
   const selectedStatuses = Array.isArray(selectedFilters.status) ? selectedFilters.status : []
@@ -98,8 +122,8 @@ const RevenueAlignment: React.FC<RevenueAlignmentProps> = context => {
 
   const graphqlClient = useGraphQLClient(context.accessToken)
   const whereCondition = useMemo(
-    () => buildRevenueAlignmentWhere(searchTerm, selectedFilters),
-    [searchTerm, selectedFilters]
+    () => buildRevenueAlignmentWhere(searchTerm, selectedFilters, visibleColumns),
+    [searchTerm, selectedFilters, visibleColumns]
   )
   const orderBy = useMemo(() => mapRevenueAlignmentSortingToOrderBy(sorting), [sorting])
 
@@ -182,9 +206,14 @@ const RevenueAlignment: React.FC<RevenueAlignmentProps> = context => {
     setPagination(prev => ({ ...prev, pageIndex: 0 }))
   }, [])
 
+  // Filter options come from the catalogs (all possible values), not the loaded page, so the
+  // Status/Segment filters always populate even when the visible rows have no value set.
+  const { options: statusCatalogOptions } = useCampaignCatalogOptions(context, CAMPAIGN_STATUS)
+  const { options: segmentCatalogOptions } = useCampaignCatalogOptions(context, CAMPAIGN_SEGMENT)
+
   const filterConfiguration = useMemo(
-    () => createRevenueAlignmentFilterConfiguration(rows, selectedFilters),
-    [rows, selectedFilters]
+    () => createRevenueAlignmentFilterConfiguration(statusCatalogOptions, segmentCatalogOptions, selectedFilters),
+    [statusCatalogOptions, segmentCatalogOptions, selectedFilters]
   )
   const availableColumns = useMemo(() => createRevenueAlignmentAvailableColumns(), [])
   const sortableColumns = useMemo(() => createRevenueAlignmentSortableColumns(), [])

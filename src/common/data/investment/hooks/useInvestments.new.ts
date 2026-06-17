@@ -3,7 +3,14 @@
  */
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { buildWhere, buildOrderBy, type Descriptor, type SortInput } from '@/common/network/graphql/queryHelpers'
+import {
+  buildWhere,
+  buildOrderBy,
+  buildJsonbContainsConditions,
+  type Descriptor,
+  type JsonbContainsTarget,
+  type SortInput
+} from '@/common/network/graphql/queryHelpers'
 import { INVESTMENT_DESCRIPTORS, type Investment } from '../types/investmentTypes.new'
 import {
   buildInvestmentFragment,
@@ -166,13 +173,19 @@ export function useInvestments(
   accessToken: string,
   variables: InvestmentQueryVariables = {},
   config: string | string[] = 'list',
-  sortDescriptors: Descriptor[] = INVESTMENT_DESCRIPTORS
+  sortDescriptors: Descriptor[] = INVESTMENT_DESCRIPTORS,
+  searchDescriptors: Descriptor[] = [],
+  jsonbSearchColumns: JsonbContainsTarget[] = []
 ): UseInvestmentsResult {
   const graphqlClient = useGraphQLClient(accessToken)
 
   // ⚠️ CRITICAL: Memoize variables to prevent infinite loops when object is recreated on each render
   // This is necessary because inline objects like { limit: 20 } create new references on every render
   const stableVariables = useMemo(() => variables, [JSON.stringify(variables)])
+  // Stabilize the extra search descriptors the same way so a fresh array reference doesn't refetch.
+  const stableSearchDescriptors = useMemo(() => searchDescriptors, [JSON.stringify(searchDescriptors)])
+  // Stabilize jsonb `additionalProperties` search targets so a fresh array reference doesn't refetch.
+  const stableJsonbSearchColumns = useMemo(() => jsonbSearchColumns, [JSON.stringify(jsonbSearchColumns)])
 
   const [state, setState] = useState<Omit<UseInvestmentsResult, 'refetch'>>({
     investments: [],
@@ -207,13 +220,21 @@ export function useInvestments(
         delete filteredVars.realEstateInvestment
         delete filteredVars.equityInvestment
         delete filteredVars.planedExit
+        const searchDescriptorKeys = filteredVars.searchDescriptorKeys
+        delete filteredVars.searchDescriptorKeys
+
+        const extraSearchConditions = buildJsonbContainsConditions(stableJsonbSearchColumns, filteredVars.search)
 
         const whereObj = buildWhere({
           variables: filteredVars,
-          descriptors: INVESTMENT_DESCRIPTORS,
+          descriptors: stableSearchDescriptors.length
+            ? [...INVESTMENT_DESCRIPTORS, ...stableSearchDescriptors]
+            : INVESTMENT_DESCRIPTORS,
           ids: filteredVars.ids,
           isDeleted: true,
-          customConditions
+          customConditions,
+          searchDescriptorKeys,
+          ...(extraSearchConditions.length > 0 ? { extraSearchConditions } : {})
         })
 
         const orderByArray = buildOrderBy(resolveOrderBy(vars), sortDescriptors)
@@ -268,7 +289,15 @@ export function useInvestments(
         })
       }
     },
-    [accessToken, graphqlClient, config, stableVariables, sortDescriptors] // Use stableVariables, not variables!
+    [
+      accessToken,
+      graphqlClient,
+      config,
+      stableVariables,
+      sortDescriptors,
+      stableSearchDescriptors,
+      stableJsonbSearchColumns
+    ] // Use stableVariables, not variables!
   )
 
   // Auto-fetch on mount and when dependencies change
