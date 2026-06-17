@@ -36,8 +36,8 @@ const AgentCardSelectCheckbox: React.FC<{
     onChange={() => onToggleSelect?.(agent)}
     className={
       isWorker
-        ? 'gba:mt-1 gba:h-4 gba:w-4 gba:shrink-0 gba:rounded gba:border-slate-400 gba:bg-white/70 gba:text-slate-700 gba:focus:ring-slate-400'
-        : 'gba:mt-1 gba:h-4 gba:w-4 gba:shrink-0 gba:rounded gba:border-border gba:text-primary gba:focus:ring-primary'
+        ? 'gba:h-4 gba:w-4 gba:shrink-0 gba:rounded gba:border-slate-400 gba:bg-white/70 gba:text-slate-700 gba:focus:ring-slate-400'
+        : 'gba:h-4 gba:w-4 gba:shrink-0 gba:rounded gba:border-border gba:text-primary gba:focus:ring-primary'
     }
     aria-label={`Select ${displayName}`}
     data-testid={`agent-select-${agent.id}`}
@@ -78,25 +78,19 @@ function resolveCardClass(isWorker: boolean, ready: boolean): string {
   return 'gba:border-red-200 gba:bg-gradient-to-br gba:from-red-50/40 gba:via-card gba:to-card'
 }
 
-function resolveAvatarClass(ready: boolean, isWorker: boolean): string {
-  if (ready) {
-    if (isWorker) return 'gba:border-indigo-200 gba:bg-indigo-100 gba:text-indigo-700'
-    return 'gba:border-sky-200 gba:bg-sky-50 gba:text-sky-700'
-  }
-  return 'gba:border-red-200 gba:bg-red-50 gba:text-red-700'
-}
-
-function resolvePrimaryActionLabel(ready: boolean, isWorker: boolean): string {
-  if (ready) return isWorker ? 'Open Studio' : 'Configure'
+function resolvePrimaryActionLabel(ready: boolean): string {
+  if (ready) return 'Configure'
   return 'Continue setup'
 }
 
 function resolveConfigureButtonClass(isWorker: boolean, ready: boolean): string {
   if (isWorker) {
-    return 'gba:border-slate-300 gba:bg-slate-950 gba:text-white gba:shadow-[0_8px_18px_-14px_rgba(15,23,42,0.9)] gba:hover:bg-slate-800'
+    return 'gba:border-slate-500 gba:bg-slate-600 gba:text-white gba:hover:bg-slate-500 gba:hover:text-white gba:hover:border-slate-400'
   }
-  if (ready) return 'gba:border-sky-200 gba:text-sky-700 gba:hover:bg-sky-50'
-  return 'gba:border-red-200 gba:text-red-700 gba:hover:bg-red-50'
+  if (ready) {
+    return 'gba:border-slate-400 gba:text-slate-900 gba:hover:bg-muted gba:hover:text-slate-950 gba:hover:border-slate-500'
+  }
+  return 'gba:border-red-200 gba:text-red-700 gba:hover:bg-red-50 gba:hover:text-red-800'
 }
 
 const AgentNotReadyBadge: React.FC<{ agentId: string; setupLabel: string; reasons: string[] }> = ({
@@ -182,22 +176,13 @@ const AgentCardWorkerHeader: React.FC<{
   onToggleSelect
 }) => (
   <div className="gba:relative gba:overflow-hidden gba:p-4 gba:pb-3">
-    <div className="gba:pointer-events-none gba:absolute gba:left-12 gba:top-2 gba:h-12 gba:w-36 gba:rotate-[-18deg] gba:rounded-full gba:bg-white/34 gba:blur-xl" />
+    <div className="gba:pointer-events-none gba:absolute gba:left-16 gba:top-2 gba:h-14 gba:w-40 gba:rotate-[-18deg] gba:rounded-full gba:bg-white/34 gba:blur-xl" />
     <div className="gba:pointer-events-none gba:absolute gba:bottom-0 gba:right-0 gba:h-px gba:w-44 gba:bg-linear-to-l gba:from-slate-500/80 gba:to-transparent" />
     <div className="gba:relative gba:flex gba:items-start gba:gap-3">
-      {selectable && (
-        <AgentCardSelectCheckbox
-          agent={agent}
-          displayName={displayName}
-          selected={selected}
-          isWorker
-          onToggleSelect={onToggleSelect}
-        />
-      )}
       <AvatarFrame
         avatar={agent.avatar}
         displayName={displayName}
-        className="gba:flex gba:h-16 gba:w-16 gba:shrink-0 gba:items-center gba:justify-center gba:overflow-hidden gba:rounded-2xl gba:border gba:border-white/80 gba:bg-white/65 gba:text-base gba:font-bold gba:text-slate-700 gba:shadow-[inset_0_1px_0_rgba(255,255,255,0.9),inset_0_-1px_0_rgba(15,23,42,0.18),0_12px_26px_-16px_rgba(15,23,42,0.85)] gba:ring-1 gba:ring-slate-500/25"
+        className="gba:flex gba:h-24 gba:w-24 gba:shrink-0 gba:items-center gba:justify-center gba:overflow-hidden gba:rounded-2xl gba:border gba:border-white/80 gba:bg-white/65 gba:text-lg gba:font-bold gba:text-slate-700 gba:shadow-[inset_0_1px_0_rgba(255,255,255,0.9),inset_0_-1px_0_rgba(15,23,42,0.18),0_12px_26px_-16px_rgba(15,23,42,0.85)] gba:ring-1 gba:ring-slate-500/25"
         imageClassName="gba:h-full gba:w-full gba:object-cover"
       />
       <div className="gba:min-w-0 gba:flex-1">
@@ -228,6 +213,15 @@ const AgentCardWorkerHeader: React.FC<{
           className="gba:mt-2 gba:flex gba:flex-wrap gba:items-center gba:gap-x-3 gba:gap-y-1 gba:text-[11px] gba:font-medium gba:text-slate-600"
         />
       </div>
+      {selectable ? (
+        <AgentCardSelectCheckbox
+          agent={agent}
+          displayName={displayName}
+          selected={selected}
+          isWorker
+          onToggleSelect={onToggleSelect}
+        />
+      ) : null}
     </div>
   </div>
 )
@@ -236,7 +230,6 @@ const AgentCardStandardHeader: React.FC<{
   agent: FabricAgent
   displayName: string
   cardDescriptor: string
-  avatarClass: string
   toolsInSkillsCount: number
   setupLabel: string
   readinessReasons: string[]
@@ -248,7 +241,6 @@ const AgentCardStandardHeader: React.FC<{
   agent,
   displayName,
   cardDescriptor,
-  avatarClass,
   toolsInSkillsCount,
   setupLabel,
   readinessReasons,
@@ -259,22 +251,7 @@ const AgentCardStandardHeader: React.FC<{
 }) => (
   <div className="gba:p-3">
     <div className="gba:flex gba:items-start gba:gap-2.5">
-      {selectable && (
-        <AgentCardSelectCheckbox
-          agent={agent}
-          displayName={displayName}
-          selected={selected}
-          isWorker={false}
-          onToggleSelect={onToggleSelect}
-        />
-      )}
-      <AvatarFrame
-        avatar={agent.avatar}
-        displayName={displayName}
-        className={`gba:flex gba:h-9 gba:w-9 gba:shrink-0 gba:items-center gba:justify-center gba:overflow-hidden gba:rounded-lg gba:border gba:text-xs gba:font-bold ${avatarClass}`}
-        imageClassName="gba:h-full gba:w-full gba:object-cover"
-      />
-      <div className="gba:flex-1 gba:min-w-0">
+      <div className="gba:min-w-0 gba:flex-1">
         <div className="gba:flex gba:items-start gba:gap-2">
           <div className="gba:min-w-0 gba:flex-1">
             <h3 className="gba:truncate gba:text-sm gba:font-semibold gba:text-foreground">{displayName}</h3>
@@ -295,6 +272,15 @@ const AgentCardStandardHeader: React.FC<{
           className="gba:mt-2 gba:flex gba:flex-wrap gba:items-center gba:gap-x-3 gba:gap-y-1 gba:text-[11px] gba:font-medium gba:text-muted-foreground"
         />
       </div>
+      {selectable ? (
+        <AgentCardSelectCheckbox
+          agent={agent}
+          displayName={displayName}
+          selected={selected}
+          isWorker={false}
+          onToggleSelect={onToggleSelect}
+        />
+      ) : null}
     </div>
   </div>
 )
@@ -435,9 +421,8 @@ export const AgentCard: React.FC<AgentCardProps> = ({
   const cardDescriptor = agent.specialty || agent.domain || (isWorker ? 'Governed worker' : 'Configurable agent')
   const workerPassId = agent.id.slice(0, 8).toUpperCase()
   const setupLabel = readiness.reasons[0] ?? 'Needs setup'
-  const primaryActionLabel = resolvePrimaryActionLabel(readiness.ready, isWorker)
+  const primaryActionLabel = resolvePrimaryActionLabel(readiness.ready)
   const cardClass = resolveCardClass(isWorker, readiness.ready)
-  const avatarClass = resolveAvatarClass(readiness.ready, isWorker)
   const configureButtonClass = resolveConfigureButtonClass(isWorker, readiness.ready)
 
   return (
@@ -465,7 +450,6 @@ export const AgentCard: React.FC<AgentCardProps> = ({
           agent={agent}
           displayName={displayName}
           cardDescriptor={cardDescriptor}
-          avatarClass={avatarClass}
           toolsInSkillsCount={toolsInSkillsCount}
           setupLabel={setupLabel}
           readinessReasons={readiness.reasons}
@@ -487,11 +471,11 @@ export const AgentCard: React.FC<AgentCardProps> = ({
       <div
         className={`gba:relative gba:mt-auto gba:border-t ${isWorker ? 'gba:border-slate-300/70 gba:px-4 gba:bg-white/25' : 'gba:border-border/50 gba:px-3'} gba:py-2.5`}
       >
-        <div className="gba:flex gba:items-center gba:gap-2">
+        <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
           <Button
-            variant="outline"
+            variant={isWorker ? 'default' : 'outline'}
             size="sm"
-            className={`gba:flex-1 ${configureButtonClass}`}
+            className={`gba:w-fit gba:shrink-0 ${configureButtonClass}`}
             onClick={() => onConfigure?.(agent)}
             data-testid={`agent-configure-${agent.id}`}
           >
@@ -502,7 +486,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({
             size="sm"
             className={`gba:px-2 ${
               isWorker
-                ? 'gba:text-slate-500 gba:hover:bg-slate-200/70 gba:hover:text-slate-900'
+                ? 'gba:text-slate-800 gba:font-medium gba:hover:bg-white/55 gba:hover:text-slate-950'
                 : 'gba:text-muted-foreground gba:hover:bg-destructive/10 gba:hover:text-destructive'
             }`}
             disabled={!canArchive || isArchiving}

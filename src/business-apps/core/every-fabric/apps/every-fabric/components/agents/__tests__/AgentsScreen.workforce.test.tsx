@@ -14,7 +14,13 @@ const mockClient = {
   getAgentRegistry: (...args: unknown[]) => mockGetAgentRegistry(...args),
   getBuiltinSubagents: (...args: unknown[]) => mockGetBuiltinSubagents(...args),
   listWorkforceAgents: (...args: unknown[]) => mockListWorkforceAgents(...args),
-  get: (...args: unknown[]) => mockGet(...args)
+  get: (...args: unknown[]) => mockGet(...args),
+  getWorkspaces: jest.fn().mockResolvedValue({
+    data: [{ _id: 'workspace-1', name: 'Default workspace', default: true }]
+  }),
+  getAiModels: jest.fn().mockResolvedValue({
+    data: [{ _id: 'model-1' }]
+  })
 }
 
 jest.mock('@/common/network/ai/prompt-manager/usePromptManagerClient', () => ({
@@ -166,5 +172,27 @@ describe('AgentsScreen workforce merge', () => {
 
     expect(await screen.findByTestId('archived-card-arch-1')).toBeInTheDocument()
     expect(screen.queryByTestId('agent-card-ent-1')).toBeNull()
+  })
+
+  it('shows a prominent create CTA without a plus icon in embedded mode', async () => {
+    render(<AgentsScreen accessToken="tok" onBack={() => {}} embedded />)
+
+    const createButton = await screen.findByTestId('agents-hire-button')
+    expect(createButton).toHaveTextContent('Create agent or worker')
+    expect(createButton).not.toHaveTextContent('+')
+  })
+
+  it('does not repeat an Agents page title when embedded', async () => {
+    render(<AgentsScreen accessToken="tok" onBack={() => {}} embedded />)
+
+    await waitFor(() => expect(screen.getByTestId('agents-tab-toolbar')).toBeInTheDocument())
+    expect(screen.queryByRole('heading', { level: 2, name: 'Agents' })).not.toBeInTheDocument()
+  })
+
+  it('opens the create flow when the CTA is clicked', async () => {
+    render(<AgentsScreen accessToken="tok" onBack={() => {}} embedded />)
+
+    await userEvent.click(await screen.findByTestId('agents-hire-button'))
+    expect(await screen.findByTestId('create-agent-screen')).toBeInTheDocument()
   })
 })

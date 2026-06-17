@@ -24,9 +24,11 @@ import { AgentWorkerSections } from './AgentWorkerSections'
 import { DeploymentsSection } from './DeploymentsSection'
 import type { FabricAgent } from './agentTypes'
 import { agentDisplayLabel } from './agentTypes'
+import { isImageAvatar } from './agentAvatarUtils'
 import type { WorkforceAgentConfigState } from '../enterprise-workforce/useWorkforceAgentConfig'
 import {
   AgentAvatarPreview,
+  AvatarClearButtonContent,
   AvatarGenerateButtonContent,
   ComplianceBanner,
   ConfigFormError,
@@ -57,6 +59,7 @@ export interface AgentConfigActiveTabProps {
   workforceConfig: WorkforceAgentConfigState
   avatarPreview: string | null
   avatarGenerating: boolean
+  avatarClearing: boolean
   avatarError: string | null
   canGenerateAvatar: boolean
   detailsName: string
@@ -96,6 +99,7 @@ export interface AgentConfigActiveTabProps {
   setSkillSearchQuery: (value: string) => void
   setWorkforceJustDeployed: (value: boolean) => void
   handleGenerateAvatar: () => void | Promise<void>
+  handleClearAvatar: () => void | Promise<void>
   handleSaveDetails: () => void | Promise<void>
   handleSaveSystemPrompt: () => void | Promise<void>
   toggleSkill: (skillId: string) => void
@@ -110,6 +114,7 @@ export function AgentConfigActiveTab(props: AgentConfigActiveTabProps): React.Re
     workforceConfig,
     avatarPreview,
     avatarGenerating,
+    avatarClearing,
     avatarError,
     canGenerateAvatar,
     detailsName,
@@ -149,10 +154,14 @@ export function AgentConfigActiveTab(props: AgentConfigActiveTabProps): React.Re
     setSkillSearchQuery,
     setWorkforceJustDeployed,
     handleGenerateAvatar,
+    handleClearAvatar,
     handleSaveDetails,
     handleSaveSystemPrompt,
     toggleSkill
   } = props
+
+  const hasImageAvatar = isImageAvatar(avatarPreview)
+  const avatarBusy = avatarGenerating || avatarClearing
 
   return (
     <>
@@ -189,15 +198,29 @@ export function AgentConfigActiveTab(props: AgentConfigActiveTabProps): React.Re
                   </p>
                 )}
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void handleGenerateAvatar()}
-                disabled={!canGenerateAvatar || avatarGenerating}
-                data-testid="agent-avatar-generate"
-              >
-                <AvatarGenerateButtonContent avatarGenerating={avatarGenerating} hasAvatar={Boolean(avatarPreview)} />
-              </Button>
+              <div className="gba:flex gba:shrink-0 gba:flex-col gba:items-stretch gba:gap-2 sm:gba:items-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void handleGenerateAvatar()}
+                  disabled={!canGenerateAvatar || avatarBusy}
+                  data-testid="agent-avatar-generate"
+                >
+                  <AvatarGenerateButtonContent avatarGenerating={avatarGenerating} hasAvatar={hasImageAvatar} />
+                </Button>
+                {canGenerateAvatar && hasImageAvatar ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => void handleClearAvatar()}
+                    disabled={avatarBusy}
+                    className="gba:text-muted-foreground gba:hover:text-destructive"
+                    data-testid="agent-avatar-clear"
+                  >
+                    <AvatarClearButtonContent avatarClearing={avatarClearing} />
+                  </Button>
+                ) : null}
+              </div>
             </div>
             {!canGenerateAvatar && (
               <p className="gba:-mt-2 gba:mb-4 gba:text-xs gba:text-muted-foreground">

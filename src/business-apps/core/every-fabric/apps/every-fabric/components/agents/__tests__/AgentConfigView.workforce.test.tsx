@@ -15,6 +15,7 @@ const mockGetWorkforceAgent = jest.fn()
 const mockListWorkforceTriggers = jest.fn()
 const mockDeployWorkforce = jest.fn()
 const mockGenerateAgentAvatar = jest.fn()
+const mockClearAgentAvatar = jest.fn()
 
 const mockClient = {
   getAgentSkills: (...a: unknown[]) => mockGetAgentSkills(...a),
@@ -25,7 +26,8 @@ const mockClient = {
   getWorkforceAgent: (...a: unknown[]) => mockGetWorkforceAgent(...a),
   listWorkforceTriggers: (...a: unknown[]) => mockListWorkforceTriggers(...a),
   deployWorkforce: (...a: unknown[]) => mockDeployWorkforce(...a),
-  generateAgentAvatar: (...a: unknown[]) => mockGenerateAgentAvatar(...a)
+  generateAgentAvatar: (...a: unknown[]) => mockGenerateAgentAvatar(...a),
+  clearAgentAvatar: (...a: unknown[]) => mockClearAgentAvatar(...a)
 }
 
 jest.mock('@/common/network/ai/prompt-manager/usePromptManagerClient', () => ({
@@ -99,6 +101,14 @@ describe('AgentConfigView guided setup', () => {
       size: '1024x1024',
       quality: 'low'
     })
+    mockClearAgentAvatar.mockResolvedValue({
+      agent_id: 'ent-1',
+      source: 'prompt_odm',
+      name: 'billing_assistant',
+      display_name: 'Billing Assistant',
+      description: 'Handles claims',
+      avatar: null
+    })
   })
 
   it('renders guided steps with Profile active by default', async () => {
@@ -157,6 +167,32 @@ describe('AgentConfigView guided setup', () => {
       })
     })
     expect(screen.getAllByAltText('Billing Assistant avatar').length).toBeGreaterThan(0)
+  })
+
+  it('clears a generated avatar and reports the removal to the parent list', async () => {
+    const onAgentUpdated = jest.fn()
+    const agentWithAvatar: FabricAgent = {
+      ...enterpriseAgent,
+      avatar: 'data:image/png;base64,ZmFrZS1wbmc='
+    }
+
+    render(
+      <AgentConfigView
+        agent={agentWithAvatar}
+        accessToken="tok"
+        onBack={() => {}}
+        onSkillsSaved={() => {}}
+        onAgentUpdated={onAgentUpdated}
+      />
+    )
+
+    await userEvent.click(await screen.findByTestId('agent-avatar-clear'))
+
+    await waitFor(() => {
+      expect(mockClearAgentAvatar).toHaveBeenCalledWith('ent-1')
+      expect(onAgentUpdated).toHaveBeenCalledWith('ent-1', { avatar: null })
+    })
+    expect(screen.queryByAltText('Billing Assistant avatar')).toBeNull()
   })
 
   it('reveals the worker runtime config in the Activation tab right after deploying', async () => {

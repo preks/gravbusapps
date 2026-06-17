@@ -7,7 +7,6 @@ import {
   CaretRightIcon,
   InfoIcon,
   LightbulbIcon,
-  MagnifyingGlassIcon,
   SpinnerGapIcon,
   WarningCircleIcon,
   WrenchIcon
@@ -17,6 +16,7 @@ import type { AgentRegistryEntry } from '@/business-apps/platform/apps/agent-mes
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { AgentCard } from './AgentCard'
 import { AgentConfigView } from './AgentConfigView'
+import { AgentsCreateButton, AgentsTabToolbar, AGENTS_TAB_SUBTITLE } from './AgentsTabToolbar'
 import { CreateAgentScreen } from './CreateAgentScreen'
 import { ConfirmDialog } from './ConfirmDialog'
 import { getAllSourceTypes, getSourceDisplay } from './agentSourceUtils'
@@ -319,16 +319,9 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
   const [confirmBusy, setConfirmBusy] = useState(false)
 
-  const renderHireAgentButton = () => (
-    <button
-      type="button"
-      onClick={() => setCreating(true)}
-      className="gba:inline-flex gba:h-8 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-md gba:bg-primary gba:px-3 gba:text-sm gba:font-medium gba:text-primary-foreground gba:shadow-sm gba:transition-colors gba:hover:bg-primary/90 gba:focus-visible:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-ring gba:focus-visible:ring-offset-2"
-      data-testid="agents-hire-button"
-    >
-      + Create agent
-    </button>
-  )
+  const handleCreateAgent = useCallback(() => {
+    setCreating(true)
+  }, [])
 
   const loadAgents = useCallback(async () => {
     setIsLoading(true)
@@ -596,7 +589,7 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({
                     description: updates.description ?? a.description,
                     tags: updates.tags ?? a.tags,
                     specialty: updates.specialty ?? a.specialty,
-                    avatar: updates.avatar ?? a.avatar
+                    avatar: 'avatar' in updates ? (updates.avatar ?? null) : a.avatar
                   }
                 : a
             )
@@ -612,7 +605,7 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({
                     description: updates.description ?? prev.description,
                     tags: updates.tags ?? prev.tags,
                     specialty: updates.specialty ?? prev.specialty,
-                    avatar: updates.avatar ?? prev.avatar
+                    avatar: 'avatar' in updates ? (updates.avatar ?? null) : prev.avatar
                   }
                 : prev
             )
@@ -626,80 +619,70 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid="agents-screen">
       <div className={`gba:shrink-0 gba:px-6 gba:lg:px-10 ${embedded ? 'gba:pt-4' : 'gba:pt-8'} gba:pb-4`}>
         {embedded ? (
-          <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
-            <div>
-              <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">Agents</h2>
-              <p className="gba:text-sm gba:text-muted-foreground">
-                Create agents, configure their capabilities, and choose where they run.
-              </p>
-            </div>
-            {renderHireAgentButton()}
-          </div>
+          <AgentsTabToolbar search={search} onSearchChange={setSearch} onCreate={handleCreateAgent} />
         ) : (
-          <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
-            <div className="gba:flex gba:items-center gba:gap-3">
-              <button
-                type="button"
-                onClick={onBack}
-                className="gba:inline-flex gba:items-center gba:justify-center gba:h-8 gba:w-8 gba:rounded-lg gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
-                data-testid="agents-back-button"
-              >
-                <ArrowLeftIcon className="gba:h-5 gba:w-5" />
-              </button>
-              <div>
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <h1 className="gba:text-2xl gba:font-bold gba:text-foreground">Agents</h1>
-                  <div className="gba:relative">
-                    <button
-                      type="button"
-                      onClick={() => setShowLegend(prev => !prev)}
-                      className="gba:inline-flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
-                      data-testid="agents-info-button"
-                      aria-label="Agent source types"
-                    >
-                      <InfoIcon className="gba:h-4 gba:w-4" />
-                    </button>
-                    {showLegend && (
-                      <div className="gba:absolute gba:left-0 gba:top-full gba:mt-2 gba:z-50 gba:w-80 gba:rounded-lg gba:border gba:border-border gba:bg-popover gba:p-4 gba:shadow-lg">
-                        <h4 className="gba:text-xs gba:font-semibold gba:uppercase gba:tracking-wider gba:text-muted-foreground gba:mb-3">
-                          Agent sources
-                        </h4>
-                        <div className="gba:space-y-2.5">
-                          {getAllSourceTypes().map(st => (
-                            <div key={st.key} className="gba:flex gba:items-start gba:gap-2">
-                              <span
-                                className={`gba:mt-0.5 gba:shrink-0 gba:rounded-full gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium ${st.badgeClass}`}
-                              >
-                                {st.label}
-                              </span>
-                              <p className="gba:text-xs gba:text-muted-foreground">{st.description}</p>
-                            </div>
-                          ))}
+          <>
+            <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
+              <div className="gba:flex gba:items-center gba:gap-3">
+                <button
+                  type="button"
+                  onClick={onBack}
+                  className="gba:inline-flex gba:items-center gba:justify-center gba:h-8 gba:w-8 gba:rounded-lg gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
+                  data-testid="agents-back-button"
+                >
+                  <ArrowLeftIcon className="gba:h-5 gba:w-5" />
+                </button>
+                <div>
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <h1 className="gba:text-2xl gba:font-bold gba:text-foreground">Agents</h1>
+                    <div className="gba:relative">
+                      <button
+                        type="button"
+                        onClick={() => setShowLegend(prev => !prev)}
+                        className="gba:inline-flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
+                        data-testid="agents-info-button"
+                        aria-label="Agent source types"
+                      >
+                        <InfoIcon className="gba:h-4 gba:w-4" />
+                      </button>
+                      {showLegend && (
+                        <div className="gba:absolute gba:left-0 gba:top-full gba:mt-2 gba:z-50 gba:w-80 gba:rounded-lg gba:border gba:border-border gba:bg-popover gba:p-4 gba:shadow-lg">
+                          <h4 className="gba:text-xs gba:font-semibold gba:uppercase gba:tracking-wider gba:text-muted-foreground gba:mb-3">
+                            Agent sources
+                          </h4>
+                          <div className="gba:space-y-2.5">
+                            {getAllSourceTypes().map(st => (
+                              <div key={st.key} className="gba:flex gba:items-start gba:gap-2">
+                                <span
+                                  className={`gba:mt-0.5 gba:shrink-0 gba:rounded-full gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium ${st.badgeClass}`}
+                                >
+                                  {st.label}
+                                </span>
+                                <p className="gba:text-xs gba:text-muted-foreground">{st.description}</p>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
+                  <p className="gba:text-sm gba:text-muted-foreground">{AGENTS_TAB_SUBTITLE}</p>
                 </div>
-                <p className="gba:text-sm gba:text-muted-foreground">
-                  Create agents, configure their capabilities, and choose where they run.
-                </p>
               </div>
+              <AgentsCreateButton onClick={handleCreateAgent} className="gba:shrink-0" />
             </div>
-            {renderHireAgentButton()}
-          </div>
-        )}
 
-        <div className="gba:mt-5 gba:relative gba:max-w-sm">
-          <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search active and archived agents..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-background gba:py-2 gba:pl-9 gba:pr-3 gba:text-sm gba:text-foreground gba:placeholder-muted-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring"
-            data-testid="agents-search-input"
-          />
-        </div>
+            <div className="gba:mt-5">
+              <AgentsTabToolbar
+                search={search}
+                onSearchChange={setSearch}
+                onCreate={handleCreateAgent}
+                showSubtitle={false}
+                showCreateAction={false}
+              />
+            </div>
+          </>
+        )}
       </div>
 
       <div className="gba:flex-1 gba:overflow-y-auto">

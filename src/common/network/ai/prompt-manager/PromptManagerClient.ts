@@ -1538,7 +1538,14 @@ export class PromptManagerClient extends RestClient {
 
   async updateAgentDetails(
     agentId: string,
-    body: { name?: string; description?: string; tags?: string[]; specialty?: string; system_prompt?: string }
+    body: {
+      name?: string
+      description?: string
+      tags?: string[]
+      specialty?: string
+      system_prompt?: string
+      avatar?: string | null
+    }
   ): Promise<{
     agent_id: string
     source: string
@@ -1547,8 +1554,22 @@ export class PromptManagerClient extends RestClient {
     description: string
     tags?: string[]
     specialty?: string | null
+    avatar?: string | null
   }> {
     return this.patch(`/agents/registry/${encodeURIComponent(agentId)}`, body)
+  }
+
+  async clearAgentAvatar(agentId: string): Promise<{
+    agent_id: string
+    source: string
+    name: string
+    display_name: string
+    description: string
+    tags?: string[]
+    specialty?: string | null
+    avatar?: string | null
+  }> {
+    return this.updateAgentDetails(agentId, { avatar: null })
   }
 
   async updateAgentCard(

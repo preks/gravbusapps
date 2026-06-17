@@ -220,6 +220,7 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
   const [detailsError, setDetailsError] = useState<string | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(agent.avatar ?? null)
   const [avatarGenerating, setAvatarGenerating] = useState(false)
+  const [avatarClearing, setAvatarClearing] = useState(false)
   const [avatarError, setAvatarError] = useState<string | null>(null)
   const [savedName, setSavedName] = useState(initialAgentLabel(agent))
   const [savedDescription, setSavedDescription] = useState(agent.description)
@@ -455,6 +456,20 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
     }
   }
 
+  const handleClearAvatar = async () => {
+    setAvatarClearing(true)
+    setAvatarError(null)
+    try {
+      await client.clearAgentAvatar(agent.id)
+      setAvatarPreview(null)
+      onAgentUpdated?.(agent.id, { avatar: null })
+    } catch (err) {
+      setAvatarError(err instanceof Error ? err.message : 'Failed to remove avatar')
+    } finally {
+      setAvatarClearing(false)
+    }
+  }
+
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid="agent-config-view">
       {/* Header */}
@@ -566,6 +581,7 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
                 workforceConfig={workforceConfig}
                 avatarPreview={avatarPreview}
                 avatarGenerating={avatarGenerating}
+                avatarClearing={avatarClearing}
                 avatarError={avatarError}
                 canGenerateAvatar={canGenerateAvatar}
                 detailsName={detailsName}
@@ -605,6 +621,7 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
                 setSkillSearchQuery={setSkillSearchQuery}
                 setWorkforceJustDeployed={setWorkforceJustDeployed}
                 handleGenerateAvatar={handleGenerateAvatar}
+                handleClearAvatar={handleClearAvatar}
                 handleSaveDetails={handleSaveDetails}
                 handleSaveSystemPrompt={handleSaveSystemPrompt}
                 toggleSkill={toggleSkill}

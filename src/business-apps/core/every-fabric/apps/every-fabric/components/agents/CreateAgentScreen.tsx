@@ -360,6 +360,7 @@ export const CreateAgentScreen: React.FC<CreateAgentScreenProps> = ({ client, ac
   let submitLabel = 'Create agent'
   if (creating) submitLabel = 'Creating…'
   else if (isLoadingDefaults) submitLabel = 'Loading setup…'
+  else if (deployWorkforce) submitLabel = 'Create agent or worker'
 
   let defaultsHint: ReactNode
   if (isLoadingDefaults) {
@@ -817,18 +818,17 @@ export const CreateAgentScreen: React.FC<CreateAgentScreenProps> = ({ client, ac
           <Button variant="ghost" size="sm" onClick={onBack} data-testid="create-agent-cancel">
             Cancel
           </Button>
-          <button
+          <Button
             type="button"
             disabled={creating || !isValid}
             onClick={() => {
               handleCreate()
             }}
-            className="gba:inline-flex gba:h-9 gba:items-center gba:justify-center gba:gap-1.5 gba:rounded-md gba:bg-primary gba:px-4 gba:text-sm gba:font-medium gba:text-primary-foreground gba:shadow-sm gba:transition-colors gba:hover:bg-primary/90 gba:disabled:cursor-not-allowed gba:disabled:opacity-50"
             data-testid="create-agent-submit"
           >
             {creating && <SpinnerGapIcon className="gba:h-3.5 gba:w-3.5 gba:animate-spin" />}
             {submitLabel}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

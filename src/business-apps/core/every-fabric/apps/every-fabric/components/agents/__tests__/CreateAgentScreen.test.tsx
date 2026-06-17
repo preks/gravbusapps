@@ -62,4 +62,18 @@ describe('CreateAgentScreen', () => {
 
     expect(screen.getByTestId('create-agent-workforce-autonomy')).toBeInTheDocument()
   })
+
+  it('uses the combined submit label when Worker deployment is selected', async () => {
+    const user = userEvent.setup()
+    render(<CreateAgentScreen client={client as never} accessToken="tok" onBack={() => {}} onCreated={() => {}} />)
+
+    await act(async () => {
+      await user.click(await screen.findByTestId('create-agent-step-3'))
+    })
+    await act(async () => {
+      await user.click(await screen.findByTestId('create-agent-workforce-checkbox'))
+    })
+
+    expect(screen.getByTestId('create-agent-submit')).toHaveTextContent('Create agent or worker')
+  })
 })

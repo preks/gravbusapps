@@ -15,6 +15,7 @@ describe('useSettingsUrlState', () => {
     setUrl('?view=settings')
     const { result } = renderHook(() => useSettingsUrlState())
     expect(result.current.tab).toBe('settings')
+    expect(result.current.section).toBe('configuration')
     expect(result.current.agentId).toBeNull()
     expect(result.current.skillId).toBeNull()
   })
@@ -25,10 +26,22 @@ describe('useSettingsUrlState', () => {
     expect(result.current.tab).toBe('agents')
   })
 
+  it('initializes with section from URL', () => {
+    setUrl('?view=settings&section=memory')
+    const { result } = renderHook(() => useSettingsUrlState())
+    expect(result.current.section).toBe('memory')
+  })
+
   it('defaults to settings tab for invalid tab values', () => {
     setUrl('?view=settings&tab=invalid')
     const { result } = renderHook(() => useSettingsUrlState())
     expect(result.current.tab).toBe('settings')
+  })
+
+  it('defaults to configuration section for invalid section values', () => {
+    setUrl('?view=settings&section=invalid')
+    const { result } = renderHook(() => useSettingsUrlState())
+    expect(result.current.section).toBe('configuration')
   })
 
   it('reads agentId from URL', () => {
@@ -54,6 +67,15 @@ describe('useSettingsUrlState', () => {
     expect(globalThis.location.search).toContain('tab=agents')
   })
 
+  it('updates section via setSection', () => {
+    const { result } = renderHook(() => useSettingsUrlState())
+    act(() => {
+      result.current.setSection('memory')
+    })
+    expect(result.current.section).toBe('memory')
+    expect(globalThis.location.search).toContain('section=memory')
+  })
+
   it('clears agentId and skillId when switching tabs', () => {
     setUrl('?view=settings&tab=agents&agentId=agent-123')
     const { result } = renderHook(() => useSettingsUrlState())
@@ -66,6 +88,16 @@ describe('useSettingsUrlState', () => {
     expect(globalThis.location.search).not.toContain('agentId=')
   })
 
+  it('clears section when switching away from settings tab', () => {
+    setUrl('?view=settings&section=memory')
+    const { result } = renderHook(() => useSettingsUrlState())
+    act(() => {
+      result.current.setTab('agents')
+    })
+    expect(result.current.tab).toBe('agents')
+    expect(globalThis.location.search).not.toContain('section=')
+  })
+
   it('removes default tab from URL to keep links clean', () => {
     setUrl('?view=settings&tab=agents')
     const { result } = renderHook(() => useSettingsUrlState())
@@ -74,6 +106,16 @@ describe('useSettingsUrlState', () => {
     })
     expect(result.current.tab).toBe('settings')
     expect(globalThis.location.search).not.toContain('tab=')
+  })
+
+  it('removes default section from URL to keep links clean', () => {
+    setUrl('?view=settings&section=memory')
+    const { result } = renderHook(() => useSettingsUrlState())
+    act(() => {
+      result.current.setSection('configuration')
+    })
+    expect(result.current.section).toBe('configuration')
+    expect(globalThis.location.search).not.toContain('section=')
   })
 
   it('updates agentId via setAgent', () => {

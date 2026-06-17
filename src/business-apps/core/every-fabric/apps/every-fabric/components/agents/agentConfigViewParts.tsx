@@ -82,6 +82,18 @@ export const AvatarGenerateButtonContent: React.FC<{ avatarGenerating: boolean; 
   return <>Generate avatar</>
 }
 
+export const AvatarClearButtonContent: React.FC<{ avatarClearing: boolean }> = ({ avatarClearing }) => {
+  if (avatarClearing) {
+    return (
+      <>
+        <SpinnerGapIcon className="gba:mr-1.5 gba:h-3.5 gba:w-3.5 gba:animate-spin" />
+        Removing…
+      </>
+    )
+  }
+  return <>Remove avatar</>
+}
+
 const LEVEL_STYLES: Record<ComplianceLevel, { wrap: string; title: string; text: string }> = {
   pass: {
     wrap: 'gba:border-emerald-500/30 gba:bg-emerald-500/5',
