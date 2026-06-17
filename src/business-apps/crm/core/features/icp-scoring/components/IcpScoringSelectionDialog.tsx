@@ -24,6 +24,7 @@ import {
   IcpScoringOpportunityWeighingSection,
   useBulkIcpScore,
   useOpportunityIcpScoringWeighing,
+  applyOpportunityModePayloadToBulkRequest,
   type BulkIcpScoreRequest,
   type IcpScoringEntityConfig,
   type IcpScoringEntityType
@@ -160,7 +161,7 @@ const IcpScoringSelectionDialogContent: React.FC<IcpScoringSelectionDialogConten
   const { labels, entityType } = entityConfig
   const isOpportunityScoring = entityType === 'opportunity'
   const { t } = useTranslation(icpScoringI18n)
-  const opportunityWeighing = useOpportunityIcpScoringWeighing()
+  const opportunityWeighing = useOpportunityIcpScoringWeighing({ allowOptionalWeights: true })
   const resetOpportunityWeighing = opportunityWeighing.reset
   const { loadFirstPage, loadMore, items, loading: candidatesLoading, error: candidatesError } = candidates
   const { fetchCatalogEntries } = useCatalogEntries({ accessToken })
@@ -336,12 +337,14 @@ const IcpScoringSelectionDialogContent: React.FC<IcpScoringSelectionDialogConten
         return
       }
 
-      request = {
-        entity_type: 'opportunity',
-        icp_id: icpId.trim(),
-        entity_ids: entityIds,
-        ...modePayload
-      }
+      request = applyOpportunityModePayloadToBulkRequest(
+        {
+          entity_type: 'opportunity',
+          icp_id: icpId.trim(),
+          entity_ids: entityIds
+        },
+        modePayload
+      )
     } else {
       request = {
         entity_type: 'lead',
@@ -395,8 +398,6 @@ const IcpScoringSelectionDialogContent: React.FC<IcpScoringSelectionDialogConten
           {isOpportunityScoring ? (
             <IcpScoringOpportunityWeighingSection
               testIdPrefix={selectionTestIdPrefix}
-              weighingMethod={opportunityWeighing.weighingMethod}
-              onWeighingMethodChange={opportunityWeighing.setWeighingMethod}
               weightInputs={opportunityWeighing.weightInputs}
               onWeightInputChange={opportunityWeighing.setWeightInput}
               weightsValidationErrorKey={opportunityWeighing.weightsValidationErrorKey}

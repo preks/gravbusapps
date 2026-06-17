@@ -1,17 +1,14 @@
 import { useCallback, useState } from 'react'
 import {
   buildOpportunityIcpScoringModePayload,
-  EMPTY_OPPORTUNITY_ICP_WEIGHT_INPUTS,
+  DEFAULT_OPPORTUNITY_ICP_WEIGHT_INPUTS,
   type OpportunityIcpScoringModePayload,
-  type OpportunityIcpWeightInputs,
-  type OpportunityWeighingMethod
+  type OpportunityIcpWeightInputs
 } from '../utils/opportunityIcpScoringWeights'
 
 export type OpportunityIcpWeightValidationErrorKey = 'required' | 'invalid' | 'exceeds-sum'
 
 export interface UseOpportunityIcpScoringWeighingReturn {
-  weighingMethod: OpportunityWeighingMethod
-  setWeighingMethod: (method: OpportunityWeighingMethod) => void
   weightInputs: OpportunityIcpWeightInputs
   setWeightInput: (key: keyof OpportunityIcpWeightInputs, value: string) => void
   weightsValidationErrorKey: OpportunityIcpWeightValidationErrorKey | null
@@ -20,9 +17,16 @@ export interface UseOpportunityIcpScoringWeighingReturn {
   reset: () => void
 }
 
-export function useOpportunityIcpScoringWeighing(): UseOpportunityIcpScoringWeighingReturn {
-  const [weighingMethod, setWeighingMethod] = useState<OpportunityWeighingMethod>('ai')
-  const [weightInputs, setWeightInputs] = useState<OpportunityIcpWeightInputs>(EMPTY_OPPORTUNITY_ICP_WEIGHT_INPUTS)
+export interface UseOpportunityIcpScoringWeighingOptions {
+  allowOptionalWeights?: boolean
+}
+
+export function useOpportunityIcpScoringWeighing(
+  options: UseOpportunityIcpScoringWeighingOptions = {}
+): UseOpportunityIcpScoringWeighingReturn {
+  const allowOptionalWeights = options.allowOptionalWeights === true
+  const payloadOptions = { allowOptionalWeights }
+  const [weightInputs, setWeightInputs] = useState<OpportunityIcpWeightInputs>(DEFAULT_OPPORTUNITY_ICP_WEIGHT_INPUTS)
   const [weightsValidationErrorKey, setWeightsValidationErrorKey] =
     useState<OpportunityIcpWeightValidationErrorKey | null>(null)
 
@@ -32,13 +36,12 @@ export function useOpportunityIcpScoringWeighing(): UseOpportunityIcpScoringWeig
   }, [])
 
   const reset = useCallback(() => {
-    setWeighingMethod('ai')
-    setWeightInputs(EMPTY_OPPORTUNITY_ICP_WEIGHT_INPUTS)
+    setWeightInputs(DEFAULT_OPPORTUNITY_ICP_WEIGHT_INPUTS)
     setWeightsValidationErrorKey(null)
   }, [])
 
   const validateWeights = useCallback((): boolean => {
-    const built = buildOpportunityIcpScoringModePayload(weighingMethod, weightInputs)
+    const built = buildOpportunityIcpScoringModePayload(weightInputs, payloadOptions)
     if ('errorKey' in built) {
       setWeightsValidationErrorKey(built.errorKey)
       return false
@@ -46,10 +49,10 @@ export function useOpportunityIcpScoringWeighing(): UseOpportunityIcpScoringWeig
 
     setWeightsValidationErrorKey(null)
     return true
-  }, [weighingMethod, weightInputs])
+  }, [allowOptionalWeights, weightInputs])
 
   const buildModePayload = useCallback((): OpportunityIcpScoringModePayload | null => {
-    const built = buildOpportunityIcpScoringModePayload(weighingMethod, weightInputs)
+    const built = buildOpportunityIcpScoringModePayload(weightInputs, payloadOptions)
     if ('errorKey' in built) {
       setWeightsValidationErrorKey(built.errorKey)
       return null
@@ -57,11 +60,9 @@ export function useOpportunityIcpScoringWeighing(): UseOpportunityIcpScoringWeig
 
     setWeightsValidationErrorKey(null)
     return built.payload
-  }, [weighingMethod, weightInputs])
+  }, [allowOptionalWeights, weightInputs])
 
   return {
-    weighingMethod,
-    setWeighingMethod,
     weightInputs,
     setWeightInput,
     weightsValidationErrorKey,

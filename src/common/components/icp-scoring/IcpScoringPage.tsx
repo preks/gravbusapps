@@ -11,6 +11,10 @@ import { useIcpScore } from './hooks/useIcpScore'
 import { useIcpScoringProfiles } from './hooks/useIcpScoringProfiles'
 import { useOpportunityIcpScoringWeighing } from './hooks/useOpportunityIcpScoringWeighing'
 import type { BulkIcpScoreRequest, IcpScoreRequest } from './types/icpScoringTypes'
+import {
+  applyOpportunityModePayloadToBulkRequest,
+  applyOpportunityModePayloadToSingleRequest
+} from './utils/opportunityIcpScoringWeights'
 import type { IcpScoringEntityConfig } from './types/icpScoringEntityConfig'
 
 type IcpScoringMode = 'single' | 'bulk' | 'both'
@@ -71,7 +75,8 @@ export const IcpScoringPage: React.FC<IcpScoringPageProps> = ({
   const isOpportunityScoring = entityType === 'opportunity'
   const bulkEnabled = entityConfig.bulkEnabled !== false
   const mode: IcpScoringMode = bulkEnabled ? requestedMode : 'single'
-  const opportunityWeighing = useOpportunityIcpScoringWeighing()
+  const singleOpportunityWeighing = useOpportunityIcpScoringWeighing()
+  const bulkOpportunityWeighing = useOpportunityIcpScoringWeighing({ allowOptionalWeights: true })
 
   const {
     data: singleResult,
@@ -129,17 +134,19 @@ export const IcpScoringPage: React.FC<IcpScoringPageProps> = ({
 
     let request: IcpScoreRequest
     if (isOpportunityScoring) {
-      const modePayload = opportunityWeighing.buildModePayload()
+      const modePayload = singleOpportunityWeighing.buildModePayload()
       if (!modePayload) {
         return
       }
 
-      request = {
-        entity_type: 'opportunity',
-        icp_id: icpId.trim(),
-        entity_id: singleEntityId.trim(),
-        ...modePayload
-      }
+      request = applyOpportunityModePayloadToSingleRequest(
+        {
+          entity_type: 'opportunity',
+          icp_id: icpId.trim(),
+          entity_id: singleEntityId.trim()
+        },
+        modePayload
+      )
     } else {
       request = {
         entity_type: 'lead',
@@ -166,17 +173,19 @@ export const IcpScoringPage: React.FC<IcpScoringPageProps> = ({
 
     let request: BulkIcpScoreRequest
     if (isOpportunityScoring) {
-      const modePayload = opportunityWeighing.buildModePayload()
+      const modePayload = bulkOpportunityWeighing.buildModePayload()
       if (!modePayload) {
         return
       }
 
-      request = {
-        entity_type: 'opportunity',
-        icp_id: icpId.trim(),
-        entity_ids: entityIds,
-        ...modePayload
-      }
+      request = applyOpportunityModePayloadToBulkRequest(
+        {
+          entity_type: 'opportunity',
+          icp_id: icpId.trim(),
+          entity_ids: entityIds
+        },
+        modePayload
+      )
     } else {
       request = {
         entity_type: 'lead',
@@ -219,14 +228,21 @@ export const IcpScoringPage: React.FC<IcpScoringPageProps> = ({
         }}
       />
 
-      {isOpportunityScoring ? (
+      {isOpportunityScoring && activeSection === 'single' ? (
         <IcpScoringOpportunityWeighingSection
           testIdPrefix={testId}
-          weighingMethod={opportunityWeighing.weighingMethod}
-          onWeighingMethodChange={opportunityWeighing.setWeighingMethod}
-          weightInputs={opportunityWeighing.weightInputs}
-          onWeightInputChange={opportunityWeighing.setWeightInput}
-          weightsValidationErrorKey={opportunityWeighing.weightsValidationErrorKey}
+          weightInputs={singleOpportunityWeighing.weightInputs}
+          onWeightInputChange={singleOpportunityWeighing.setWeightInput}
+          weightsValidationErrorKey={singleOpportunityWeighing.weightsValidationErrorKey}
+        />
+      ) : null}
+
+      {isOpportunityScoring && activeSection === 'bulk' ? (
+        <IcpScoringOpportunityWeighingSection
+          testIdPrefix={testId}
+          weightInputs={bulkOpportunityWeighing.weightInputs}
+          onWeightInputChange={bulkOpportunityWeighing.setWeightInput}
+          weightsValidationErrorKey={bulkOpportunityWeighing.weightsValidationErrorKey}
         />
       ) : null}
 

@@ -10,13 +10,6 @@ const leadIcpScoreRequestSchema = z.object({
   icp_id: z.string().trim().min(1, 'ICP ID is required')
 })
 
-const opportunityAiIcpScoreRequestSchema = z.object({
-  entity_type: z.literal('opportunity'),
-  entity_id: z.string().trim().min(1, 'Entity ID is required'),
-  icp_id: z.string().trim().min(1, 'ICP ID is required'),
-  mode: z.literal('ai')
-})
-
 const opportunityCustomIcpScoreRequestSchema = z.object({
   entity_type: z.literal('opportunity'),
   entity_id: z.string().trim().min(1, 'Entity ID is required'),
@@ -25,11 +18,7 @@ const opportunityCustomIcpScoreRequestSchema = z.object({
   weights: opportunityIcpWeightsSchema
 })
 
-export const icpScoreRequestSchema = z.union([
-  leadIcpScoreRequestSchema,
-  opportunityAiIcpScoreRequestSchema,
-  opportunityCustomIcpScoreRequestSchema
-])
+export const icpScoreRequestSchema = z.union([leadIcpScoreRequestSchema, opportunityCustomIcpScoreRequestSchema])
 
 const leadBulkIcpScoreRequestSchema = z.object({
   entity_type: z.literal('lead'),
@@ -37,11 +26,10 @@ const leadBulkIcpScoreRequestSchema = z.object({
   icp_id: z.string().trim().min(1, 'ICP ID is required')
 })
 
-const opportunityAiBulkIcpScoreRequestSchema = z.object({
+const opportunityDefaultBulkIcpScoreRequestSchema = z.object({
   entity_type: z.literal('opportunity'),
   entity_ids: z.array(z.string().trim().min(1, 'Entity ID is required')).min(1, 'At least one entity ID is required'),
-  icp_id: z.string().trim().min(1, 'ICP ID is required'),
-  mode: z.literal('ai')
+  icp_id: z.string().trim().min(1, 'ICP ID is required')
 })
 
 const opportunityCustomBulkIcpScoreRequestSchema = z.object({
@@ -54,7 +42,7 @@ const opportunityCustomBulkIcpScoreRequestSchema = z.object({
 
 export const bulkIcpScoreRequestSchema = z.union([
   leadBulkIcpScoreRequestSchema,
-  opportunityAiBulkIcpScoreRequestSchema,
+  opportunityDefaultBulkIcpScoreRequestSchema,
   opportunityCustomBulkIcpScoreRequestSchema
 ])
 

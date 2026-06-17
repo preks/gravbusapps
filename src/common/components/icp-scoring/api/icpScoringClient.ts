@@ -36,11 +36,10 @@ export async function scoreEntity(
 
   if (parsedRequest.entity_type === 'opportunity') {
     const { entity_id: opportunityId, icp_id: icpId, ...scoring } = parsedRequest
-    const body = toCompositeScoreRequest(
-      opportunityId,
-      icpId,
-      scoring.mode === 'ai' ? { mode: 'ai' } : { mode: 'custom', weights: scoring.weights }
-    )
+    const body = toCompositeScoreRequest(opportunityId, icpId, {
+      mode: 'custom',
+      weights: scoring.weights
+    })
     return scoreCompositeOpportunity(body, accessToken, signal)
   }
 
@@ -76,7 +75,9 @@ export async function scoreBulk(
   if (parsedRequest.entity_type === 'opportunity') {
     const { entity_ids: opportunityIds, icp_id: icpId, ...scoring } = parsedRequest
     const scoringFields =
-      scoring.mode === 'ai' ? { mode: 'ai' as const } : { mode: 'custom' as const, weights: scoring.weights }
+      'mode' in scoring && scoring.mode === 'custom'
+        ? { mode: 'custom' as const, weights: scoring.weights }
+        : { mode: 'custom' as const }
     return scoreCompositeOpportunities(opportunityIds, icpId, scoringFields, accessToken, signal)
   }
 

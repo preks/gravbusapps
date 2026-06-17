@@ -15,13 +15,6 @@ const compositeScorePersistField = {
   persist: z.literal(true)
 } as const
 
-const compositeScoreAiRequestSchema = z.object({
-  opportunity_id: opportunityIdSchema,
-  icp_id: z.string().trim().min(1, 'ICP ID is required'),
-  mode: z.literal('ai'),
-  ...compositeScorePersistField
-})
-
 const compositeScoreCustomRequestSchema = z.object({
   opportunity_id: opportunityIdSchema,
   icp_id: z.string().trim().min(1, 'ICP ID is required'),
@@ -30,12 +23,12 @@ const compositeScoreCustomRequestSchema = z.object({
   ...compositeScorePersistField
 })
 
-const compositeScoreRequestSchema = z.union([compositeScoreAiRequestSchema, compositeScoreCustomRequestSchema])
+const compositeScoreRequestSchema = compositeScoreCustomRequestSchema
 
-const compositeScoreBulkAiRequestSchema = z.object({
+const compositeScoreBulkDefaultRequestSchema = z.object({
   opportunity_ids: z.array(opportunityIdSchema).min(1, 'At least one opportunity ID is required'),
   icp_id: z.string().trim().min(1, 'ICP ID is required'),
-  mode: z.literal('ai'),
+  mode: z.literal('custom'),
   ...compositeScorePersistField
 })
 
@@ -48,16 +41,16 @@ const compositeScoreBulkCustomRequestSchema = z.object({
 })
 
 const compositeScoreBulkRequestSchema = z.union([
-  compositeScoreBulkAiRequestSchema,
+  compositeScoreBulkDefaultRequestSchema,
   compositeScoreBulkCustomRequestSchema
 ])
 
 export type CompositeScoreRequest = z.infer<typeof compositeScoreRequestSchema>
 export type CompositeScoreBulkRequest = z.infer<typeof compositeScoreBulkRequestSchema>
 
-type OpportunityIcpScoreFields =
-  | { mode: 'ai' }
-  | { mode: 'custom'; weights: z.infer<typeof opportunityIcpWeightsSchema> }
+type OpportunityIcpScoreFields = { mode: 'custom'; weights: z.infer<typeof opportunityIcpWeightsSchema> }
+
+type OpportunityIcpBulkScoreFields = { mode: 'custom'; weights?: z.infer<typeof opportunityIcpWeightsSchema> }
 
 export function toCompositeScoreRequest(
   opportunityId: string,
@@ -70,17 +63,13 @@ export function toCompositeScoreRequest(
     persist: true as const
   }
 
-  if (scoring.mode === 'ai') {
-    return { ...base, mode: 'ai' }
-  }
-
   return { ...base, mode: 'custom', weights: scoring.weights }
 }
 
 export function toCompositeScoreBulkRequest(
   opportunityIds: string[],
   icpId: string,
-  scoring: OpportunityIcpScoreFields
+  scoring: OpportunityIcpBulkScoreFields
 ): CompositeScoreBulkRequest {
   const uniqueIds = Array.from(new Set(opportunityIds.map(id => id.trim()).filter(Boolean)))
   const base = {
@@ -89,11 +78,11 @@ export function toCompositeScoreBulkRequest(
     persist: true as const
   }
 
-  if (scoring.mode === 'ai') {
-    return { ...base, mode: 'ai' }
+  if (scoring.weights) {
+    return { ...base, mode: 'custom', weights: scoring.weights }
   }
 
-  return { ...base, mode: 'custom', weights: scoring.weights }
+  return { ...base, mode: 'custom' }
 }
 
 function createCompositeScoreClient(): RestClient {
@@ -145,7 +134,7 @@ export async function scoreCompositeOpportunity(
 export async function scoreCompositeOpportunities(
   opportunityIds: string[],
   icpId: string,
-  scoring: OpportunityIcpScoreFields,
+  scoring: OpportunityIcpBulkScoreFields,
   accessToken: string,
   signal?: AbortSignal
 ): Promise<IcpScoreCommandResult> {
