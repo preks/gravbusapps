@@ -32,7 +32,8 @@ liquid-fund-type-label = Tip fond lichid (Opțional)
 # Import template
 download-template-button = Descarcă șablonul de import
 download-template-button-loading = Se pregătește șablonul...
-download-template-hint = Descărcați șablonul, introduceți datele, apoi încărcați fișierul mai jos. Setările de pe acest ecran se aplică fiecărui rând importat.
+download-template-info-label = Despre șablonul de import
+download-template-hint = Acest șablon include lista completă a câmpurilor disponibile pentru acest import. Completați înainte de încărcare doar câmpurile relevante pentru datele dvs.
 download-template-error = Șablonul de import nu a putut fi descărcat. Vă rugăm încercați din nou.
 
 # Button Labels

@@ -41,9 +41,9 @@ export-success-excel-title = Excel exported successfully
 export-success-description = { $count } { $entityLabel } exported.
 export-failed-title = Export failed
 
-# External IDs export dialog
-external-ids-dialog-title = Include external IDs?
-external-ids-dialog-description = Internal identifiers are excluded from the column list. Select any external IDs to include in this export, or continue without them.
+# Internal IDs export dialog
+external-ids-dialog-title = Include internal IDs
+external-ids-dialog-description = Database identifiers are excluded from the column list. Select any internal IDs to include in this export, or continue without them.
 external-ids-dialog-cancel = Cancel
 external-ids-dialog-confirm = Export
 

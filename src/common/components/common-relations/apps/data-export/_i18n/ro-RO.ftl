@@ -41,9 +41,9 @@ export-success-excel-title = Excel exportat cu succes
 export-success-description = { $count } { $entityLabel } exportate.
 export-failed-title = Export eșuat
 
-# External IDs export dialog
-external-ids-dialog-title = Includeți ID-uri externe?
-external-ids-dialog-description = Identificatorii interni nu apar în lista de coloane. Selectați ID-urile externe de inclus în acest export sau continuați fără ele.
+# Internal IDs export dialog
+external-ids-dialog-title = Includeți ID-uri interne
+external-ids-dialog-description = Identificatorii din baza de date nu apar în lista de coloane. Selectați ID-urile interne de inclus în acest export sau continuați fără ele.
 external-ids-dialog-cancel = Anulare
 external-ids-dialog-confirm = Exportă
 

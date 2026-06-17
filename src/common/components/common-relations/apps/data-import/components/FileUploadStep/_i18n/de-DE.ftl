@@ -32,7 +32,8 @@ liquid-fund-type-label = Fondstyp (Optional)
 # Import template
 download-template-button = Importvorlage herunterladen
 download-template-button-loading = Vorlage wird erstellt...
-download-template-hint = Laden Sie die Vorlage herunter, tragen Sie Ihre Daten ein und laden Sie die Datei unten hoch. Die Einstellungen auf diesem Bildschirm gelten für jede importierte Zeile.
+download-template-info-label = Informationen zur Importvorlage
+download-template-hint = Diese Vorlage enthält die vollständige Liste der für diesen Import verfügbaren Felder. Füllen Sie vor dem Hochladen nur die für Ihre Daten relevanten Felder aus.
 download-template-error = Die Importvorlage konnte nicht heruntergeladen werden. Bitte versuchen Sie es erneut.
 
 # Button Labels

@@ -32,10 +32,14 @@ import {
   Input,
   Label,
   Spinner,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
 import { useFormContext } from 'react-hook-form'
-import { SparkleIcon, CheckCircleIcon, DownloadSimpleIcon } from '@phosphor-icons/react'
+import { SparkleIcon, CheckCircleIcon, DownloadSimpleIcon, InfoIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import CampaignSelect from '@/common/components/customer/selects/campaign-select/CampaignSelect'
 import { CatalogSelect } from '@/components/catalog-select'
@@ -163,30 +167,48 @@ export const FileUploadStep: React.FC<FileUploadStepProps> = ({
       </CardHeader>
       <CardContent>
         <div className="gba:space-y-4">
-          <Button
-            type="button"
-            variant="default"
-            onClick={onDownloadTemplate}
-            disabled={isLoading || isDownloadingTemplate}
-            className="gba:w-full"
-            data-testid={`${testId}-download-template-button`}
-          >
-            {isDownloadingTemplate ? (
-              <>
-                <Spinner className="gba:w-4 gba:h-4 gba:mr-2" />
-                {t('download-template-button-loading')}
-              </>
-            ) : (
-              <>
-                <DownloadSimpleIcon className="gba:w-4 gba:h-4 gba:mr-2" />
-                {t('download-template-button')}
-              </>
-            )}
-          </Button>
+          <TooltipProvider>
+            <div className="gba:flex gba:items-center gba:justify-end gba:gap-2">
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                onClick={onDownloadTemplate}
+                disabled={isLoading || isDownloadingTemplate}
+                className="gba:w-auto"
+                data-testid={`${testId}-download-template-button`}
+              >
+                {isDownloadingTemplate ? (
+                  <>
+                    <Spinner className="gba:w-4 gba:h-4 gba:mr-2" />
+                    {t('download-template-button-loading')}
+                  </>
+                ) : (
+                  <>
+                    <DownloadSimpleIcon className="gba:w-4 gba:h-4 gba:mr-2" />
+                    {t('download-template-button')}
+                  </>
+                )}
+              </Button>
 
-          <p className="gba:text-xs gba:text-muted-foreground" data-testid={`${testId}-download-template-hint`}>
-            {t('download-template-hint')}
-          </p>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={t('download-template-info-label')}
+                    data-testid={`${testId}-download-template-info`}
+                  >
+                    <InfoIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left" data-testid={`${testId}-download-template-hint`}>
+                  <p>{t('download-template-hint')}</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </TooltipProvider>
 
           {downloadTemplateError && (
             <p className="gba:text-xs gba:text-destructive" data-testid={`${testId}-download-template-error`}>

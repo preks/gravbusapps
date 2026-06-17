@@ -32,7 +32,8 @@ liquid-fund-type-label = Liquid Fund Type (Optional)
 # Import template
 download-template-button = Download import template
 download-template-button-loading = Preparing template...
-download-template-hint = Download the template, enter your data, then upload the file below. Settings on this screen apply to every imported row.
+download-template-info-label = About the import template
+download-template-hint = This template includes the full list of fields available for this import. Fill in only the fields relevant to your data before uploading.
 download-template-error = Could not download the import template. Please try again.
 
 # Button Labels
