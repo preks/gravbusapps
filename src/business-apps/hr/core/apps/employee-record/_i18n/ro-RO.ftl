@@ -834,6 +834,7 @@ hr-admin-subtab-employment = Angajare
 hr-admin-subtab-documents = Documente
 hr-admin-subtab-change-log = Jurnal modificări
 hr-admin-subtab-hr-notes = Note HR
+hr-admin-subtab-hr-notes-with-count = Note HR ({ $count })
 
 # Details Tab
 details-overview = Detalii angajat

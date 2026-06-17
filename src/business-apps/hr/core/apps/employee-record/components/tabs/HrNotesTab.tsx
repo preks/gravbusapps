@@ -43,10 +43,11 @@ const toAvatarSrc = (thumb?: string | null): string | undefined => {
 interface HrNotesTabProps extends BusinessAppContextProps {
   employeeId: string
   employeeName: string
+  onNotesCountChange?: (count: number) => void
 }
 
 export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
-  const { employeeId, employeeName } = props
+  const { employeeId, employeeName, onNotesCountChange } = props
   const [notes, setNotes] = useState<NoteItem[]>([])
   const [employees, setEmployees] = useState<any[]>([])
   const [, setLoading] = useState(true)
@@ -89,12 +90,13 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
 
       setNotes(transformedNotes)
       setEmployees(result.Employee || [])
+      onNotesCountChange?.(transformedNotes.length)
     } catch (err) {
       console.error('Failed to load notes:', err)
     } finally {
       setLoading(false)
     }
-  }, [employeeId, fetchEmployeeNotes])
+  }, [employeeId, fetchEmployeeNotes, onNotesCountChange])
 
   useEffect(() => {
     loadNotes()

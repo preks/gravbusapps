@@ -847,6 +847,7 @@ hr-admin-subtab-employment = Employment
 hr-admin-subtab-documents = Documents
 hr-admin-subtab-change-log = Change Log
 hr-admin-subtab-hr-notes = HR Notes
+hr-admin-subtab-hr-notes-with-count = HR Notes ({ $count })
 
 # Details Tab
 details-overview = Employee Details

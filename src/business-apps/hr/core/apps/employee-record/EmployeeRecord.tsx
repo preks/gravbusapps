@@ -46,6 +46,7 @@ import { useFeature } from '@/common/hooks/useFeature'
 import TimeTrackingTab from './components/tabs/TimeTrackingTab'
 import { Feature } from '@/common/types/constants/FeatureHub'
 import PersonalAbsences from '@/business-apps/hr/absences/apps/personal-absences'
+import { useEmployeeNotesCount } from './hooks/useEmployeeNotesCount'
 
 const EMPLOYEE_RECORD_RESOURCE_URL = '/platform/employee-record'
 const DEFAULT_ICON_SIZE = 20
@@ -105,6 +106,43 @@ const NotFoundUI: React.FC<NotFoundUIProps> = ({ title, message }) => (
     <p>{message}</p>
   </div>
 )
+
+interface ResolveHasHrNotesAccessOptions {
+  readonly scopePermissionLoading: boolean
+  readonly isSelfView: boolean
+  readonly tabPermissions?: Record<string, { hasAccess?: boolean }>
+  readonly hasNotesScopePermission: boolean
+  readonly scopePermissionError: unknown
+  readonly isDirectManagerWithPermission: boolean
+}
+
+const resolveHasHrNotesAccess = ({
+  scopePermissionLoading,
+  isSelfView,
+  tabPermissions,
+  hasNotesScopePermission,
+  scopePermissionError,
+  isDirectManagerWithPermission
+}: ResolveHasHrNotesAccessOptions): boolean => {
+  let hasHrNotesAccess = false
+
+  if (!scopePermissionLoading && !isSelfView) {
+    const hasRegularPermission = tabPermissions?.['hrNotes']?.hasAccess === true
+    const hasScope = hasNotesScopePermission === true
+
+    if (scopePermissionError && hasRegularPermission) {
+      hasHrNotesAccess = true
+    } else {
+      hasHrNotesAccess = hasRegularPermission && hasScope
+    }
+  }
+
+  if (isDirectManagerWithPermission) {
+    hasHrNotesAccess = true
+  }
+
+  return hasHrNotesAccess
+}
 
 export const EmployeeRecord: React.FC<BusinessAppContextProps> = props => {
   const urlParams = getUrlParams()
@@ -447,6 +485,23 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     employeeGrowthPermission.hasPermission === true
   )
 
+  const hasHrNotesAccess = resolveHasHrNotesAccess({
+    scopePermissionLoading,
+    isSelfView,
+    tabPermissions,
+    hasNotesScopePermission: hasNotesScopePermission === true,
+    scopePermissionError,
+    isDirectManagerWithPermission
+  })
+
+  const shouldPrefetchHrNotesCount = hrAdminFeatureFlag && hasHrNotesAccess && !!employeeIdToShow
+
+  const { count: hrNotesCount, setCount: setHrNotesCount } = useEmployeeNotesCount(
+    accessToken,
+    employeeIdToShow,
+    shouldPrefetchHrNotesCount
+  )
+
   // Centralized compensation permissions
   // SECURITY: Only managers with employee-growth OR HR with employee-record-all-hr-backoffice can access
   // employee-record-all-employees is NOT used for compensation (it's for basic profile access only)
@@ -478,39 +533,25 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
               value: TAB_KEYS.hrAdmin,
               label: t('employee-record-tab-hr-admin'),
               icon: <BriefcaseIcon className="gba:mr-2" size={DEFAULT_ICON_SIZE} />,
-              content: (() => {
-                let hasHrNotesAccess = false
-                if (!scopePermissionLoading && !isSelfView) {
-                  const hasRegularPermission = tabPermissions?.['hrNotes']?.hasAccess === true
-                  const hasScope = hasNotesScopePermission === true
-                  if (scopePermissionError && hasRegularPermission) {
-                    hasHrNotesAccess = true
-                  } else {
-                    hasHrNotesAccess = hasRegularPermission && hasScope
-                  }
-                }
-                if (isDirectManagerWithPermission) {
-                  hasHrNotesAccess = true
-                }
-
-                return (
-                  <div className="gba:col-span-full">
-                    <HrAdminTab
-                      employee={employee}
-                      employeeId={employeeIdToShow}
-                      accessToken={accessToken}
-                      userInfo={userInfo}
-                      isSelfView={isSelfView}
-                      changeLogTabFeatureFlag={changeLogFeatureFlag as boolean}
-                      documentsTabFeatureFlag={devFeatureFlag === true}
-                      hasHrNotesAccess={hasHrNotesAccess}
-                      scopePermissionLoading={scopePermissionLoading || employeeRecordHrBackoffice.loading}
-                      employeeRecordHrBackoffice={employeeRecordHrBackoffice}
-                      additionalData={additionalData}
-                    />
-                  </div>
-                )
-              })()
+              content: (
+                <div className="gba:col-span-full">
+                  <HrAdminTab
+                    employee={employee}
+                    employeeId={employeeIdToShow}
+                    accessToken={accessToken}
+                    userInfo={userInfo}
+                    isSelfView={isSelfView}
+                    changeLogTabFeatureFlag={changeLogFeatureFlag as boolean}
+                    documentsTabFeatureFlag={devFeatureFlag === true}
+                    hasHrNotesAccess={hasHrNotesAccess}
+                    scopePermissionLoading={scopePermissionLoading || employeeRecordHrBackoffice.loading}
+                    employeeRecordHrBackoffice={employeeRecordHrBackoffice}
+                    additionalData={additionalData}
+                    hrNotesCount={hrNotesCount}
+                    onHrNotesCountChange={setHrNotesCount}
+                  />
+                </div>
+              )
             }
           ]
         : []),

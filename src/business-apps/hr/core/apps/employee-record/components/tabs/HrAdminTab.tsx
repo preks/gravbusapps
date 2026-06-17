@@ -29,6 +29,8 @@ interface HrAdminTabProps extends BusinessAppContextProps {
   hasHrNotesAccess: boolean
   scopePermissionLoading: boolean
   employeeRecordHrBackoffice: ScopePermissionCheckResult
+  hrNotesCount: number | null
+  onHrNotesCountChange: (count: number) => void
 }
 
 const HR_ADMIN_SUBVIEW_VALUES = ['details', 'employment', 'documents', 'changeLog', 'hrNotes'] as const
@@ -130,7 +132,9 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
   hasHrNotesAccess,
   scopePermissionLoading,
   additionalData,
-  employeeRecordHrBackoffice
+  employeeRecordHrBackoffice,
+  hrNotesCount,
+  onHrNotesCountChange
 }) => {
   const { t } = useTranslation(translations)
   const [activeSubView, setActiveSubView] = useState<HrAdminSubView>(getInitialHrAdminSubView())
@@ -275,7 +279,11 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
             <TabsTrigger value="hrNotes" data-testid="hr-admin-hrnotes-subtab" className="gba:flex-1">
               <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
                 <NotebookIcon />
-                <span>{t('hr-admin-subtab-hr-notes')}</span>
+                <span>
+                  {hrNotesCount === null
+                    ? t('hr-admin-subtab-hr-notes')
+                    : t('hr-admin-subtab-hr-notes-with-count', { count: hrNotesCount })}
+                </span>
               </div>
             </TabsTrigger>
           )}
@@ -358,6 +366,7 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
               employeeName={employee?.displayName || t('employee-record-not-assigned')}
               userInfo={userInfo}
               additionalData={additionalData}
+              onNotesCountChange={onHrNotesCountChange}
             />
           </TabsContent>
         )}
