@@ -63,9 +63,9 @@ const AddressSelector: React.FC<AddressSelectorProps> = ({
   }
 
   return (
-    <FormItem>
-      <div className="gba:flex gba:gap-2">
-        <div className="gba:flex-1">
+    <FormItem className="gba:w-full">
+      <div className="gba:flex gba:w-full gba:gap-2">
+        <div className="gba:flex-1 gba:min-w-0">
           <Select value={selectValue} onValueChange={v => onChange(v || addSentinel)}>
             <FormControl>
               <SelectTrigger

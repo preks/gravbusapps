@@ -1054,6 +1054,31 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   // Disabled as soon as the user manually changes the zoom.
   const slideCanvasWidth = currentSlide?.canvasSize?.width ?? 1280
   const slideCanvasHeight = currentSlide?.canvasSize?.height ?? 720
+  const visibleCanvasSize = useMemo(() => {
+    const contentBounds = (currentSlide?.elements ?? []).reduce(
+      (bounds, element) => {
+        const x = Number(element?.position?.x)
+        const y = Number(element?.position?.y)
+        const width = Number(element?.size?.width)
+        const height = Number(element?.size?.height)
+
+        if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(width) || !Number.isFinite(height)) {
+          return bounds
+        }
+
+        return {
+          width: Math.max(bounds.width, x + width),
+          height: Math.max(bounds.height, y + height)
+        }
+      },
+      { width: slideCanvasWidth, height: slideCanvasHeight }
+    )
+
+    return {
+      width: Math.ceil(contentBounds.width),
+      height: Math.ceil(contentBounds.height)
+    }
+  }, [currentSlide?.elements, slideCanvasWidth, slideCanvasHeight])
 
   useLayoutEffect(() => {
     if (!autoFitZoom) return
@@ -1068,8 +1093,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       const availableWidth = Math.max(0, rect.width - FIT_PADDING * 2)
       const availableHeight = Math.max(0, rect.height - FIT_PADDING * 2)
       if (availableWidth <= 0 || availableHeight <= 0) return
-      const scaleW = availableWidth / slideCanvasWidth
-      const scaleH = availableHeight / slideCanvasHeight
+      const scaleW = availableWidth / visibleCanvasSize.width
+      const scaleH = availableHeight / visibleCanvasSize.height
       const next = Math.min(scaleW, scaleH)
       const clamped = Math.max(0.1, Math.min(3, next))
       setCanvasScale(prev => (Math.abs(prev - clamped) < 0.005 ? prev : clamped))
@@ -1081,7 +1106,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     const observer = new ResizeObserver(() => computeFitScale())
     observer.observe(el)
     return () => observer.disconnect()
-  }, [autoFitZoom, slideCanvasWidth, slideCanvasHeight])
+  }, [autoFitZoom, visibleCanvasSize.width, visibleCanvasSize.height])
 
   // For property panel, use the first selected element when multiple are selected
   const selectedElementId = selectedElementIds.size > 0 ? [...selectedElementIds][0] : null
@@ -5094,10 +5119,10 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                   ref={canvasContainerRef}
                   role="application"
                   aria-label={t('editor-canvas-aria-label')}
-                  className="gba:shadow-2xl gba:rounded-lg gba:overflow-hidden gba:relative gba:flex-shrink-0"
+                  className="gba:shadow-2xl gba:rounded-lg gba:overflow-visible gba:relative gba:flex-shrink-0"
                   style={{
-                    width: (currentSlide?.canvasSize?.width ?? 1280) * canvasScale,
-                    height: (currentSlide?.canvasSize?.height ?? 720) * canvasScale
+                    width: visibleCanvasSize.width * canvasScale,
+                    height: visibleCanvasSize.height * canvasScale
                   }}
                   onDragOver={handleCanvasDragOver}
                   onDrop={handleCanvasDrop}
@@ -5131,7 +5156,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                     onDragStart={handleDragStart}
                     onDragEnd={handleDragEnd}
                     scale={canvasScale}
-                    canvasSize={currentSlide.canvasSize}
+                    canvasSize={visibleCanvasSize}
                     inlineEditing={{
                       editingTextId,
                       editorElement: activeEditingTextElement,

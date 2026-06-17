@@ -45,19 +45,18 @@ const AddressCommonFields: React.FC<AddressCommonFieldsProps> = ({
 }) => {
   const isDevEnabled = useFeature<boolean>(Feature.Dev.Enabled.Key)
   const showAddressAutocompleteMap = !isDeleteMode && Boolean(isDevEnabled)
-  // When the autocomplete map is available, lock ALL structured address fields so the
-  // only way to set them is via the autocomplete tools (search pick, pin drag, "Use my
-  // location"). Country is included: the autocomplete search is global (not filtered by
-  // country), so the tool itself determines the country from the picked result. Only
-  // address lines 2-4 remain editable because providers don't return apartment / floor /
-  // door-code data.
-  const isAddressReadonly = showAddressAutocompleteMap
+  const [isGeoapifyUnavailable, setIsGeoapifyUnavailable] = React.useState(false)
+  // When Geoapify is healthy, lock structured address fields so the autocomplete
+  // is the source of truth. If the provider fails, keep the user's values and
+  // allow manual editing so the form is not blocked.
+  const isAddressReadonly = showAddressAutocompleteMap && !isGeoapifyUnavailable
   return (
     <>
       {showAddressAutocompleteMap && (
         <AddressAutocomplete
           form={form}
           catalogs={{ countries: catalogs?.countries || [], regions: catalogs?.regions || [] }}
+          onProviderUnavailable={() => setIsGeoapifyUnavailable(true)}
         />
       )}
 
@@ -70,6 +69,37 @@ const AddressCommonFields: React.FC<AddressCommonFieldsProps> = ({
         suspendRegionRender={isSwitchingSelection}
         countryReadonly={isAddressReadonly}
         regionReadonly={isAddressReadonly}
+      />
+
+      <FormField
+        control={form.control}
+        name={'city' as any}
+        rules={{
+          required: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:employee_profile.details_layout.address_container.city_validation_message',
+            'The City field is required. Please select a city.'
+          )
+        }}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:employee_profile.details_layout.address_container.city',
+                'City'
+              )}
+              <span className="gba:text-destructive"> *</span>
+            </FormLabel>
+            <FormControl>
+              <Input
+                {...field}
+                placeholder={`${getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.enter_placeholder', 'Please Enter')} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.city', 'City')}`}
+                readOnly={isAddressReadonly}
+                data-testid="flw_changeEmployeeAddressList_locality"
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
       />
 
       <AddressLines
@@ -136,37 +166,6 @@ const AddressCommonFields: React.FC<AddressCommonFieldsProps> = ({
             </FormItem>
           )
         }}
-      />
-
-      <FormField
-        control={form.control}
-        name={'city' as any}
-        rules={{
-          required: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:employee_profile.details_layout.address_container.city_validation_message',
-            'The City field is required. Please select a city.'
-          )
-        }}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:employee_profile.details_layout.address_container.city',
-                'City'
-              )}
-              <span className="gba:text-destructive"> *</span>
-            </FormLabel>
-            <FormControl>
-              <Input
-                {...field}
-                placeholder={`${getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.enter_placeholder', 'Please Enter')} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.city', 'City')}`}
-                readOnly={isAddressReadonly}
-                data-testid="flw_changeEmployeeAddressList_locality"
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
       />
 
       <FormField

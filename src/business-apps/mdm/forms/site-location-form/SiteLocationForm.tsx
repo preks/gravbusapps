@@ -74,10 +74,12 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
 }) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
   const { t } = useTranslation('master-data')
+  const optionalLabel = t('forms.common.optional', { defaultValue: 'optional' })
   const orgchartClient = useOrgchartClient(accessToken)
   const isDevEnabled = useFeature<boolean>(Feature.Dev.Enabled.Key)
   const showAddressAutocompleteMap = Boolean(isDevEnabled)
-  const isAddressReadonly = showAddressAutocompleteMap
+  const [isGeoapifyUnavailable, setIsGeoapifyUnavailable] = useState(false)
+  const isAddressReadonly = showAddressAutocompleteMap && !isGeoapifyUnavailable
   const [regions, setRegions] = useState<Array<{ value: string; label: string; code: string }>>([])
   const [isLoadingRegions, setIsLoadingRegions] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -367,6 +369,7 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
             }}
             testIdPrefix={`${dataTestId}-address-autocomplete`}
             resolveMappedAddress={resolveMappedAddress}
+            onProviderUnavailable={() => setIsGeoapifyUnavailable(true)}
           />
         )}
 
@@ -426,7 +429,10 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
             name="region"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t('forms.siteLocation.fields.region.label', { defaultValue: 'Region' })}</FormLabel>
+                <FormLabel>
+                  {t('forms.siteLocation.fields.region.label', { defaultValue: 'Region' })}{' '}
+                  <span className="gba:text-muted-foreground">({optionalLabel})</span>
+                </FormLabel>
                 <FormControl>
                   <Combobox
                     options={regions}
@@ -447,7 +453,7 @@ const SiteLocationForm: React.FC<SiteLocationFormProps> = ({
                     emptyText={t('forms.siteLocation.fields.region.emptyText', {
                       defaultValue: 'No regions found.'
                     })}
-                    disabled={isAddressReadonly || isLoadingRegions}
+                    disabled={isLoadingRegions || (isAddressReadonly && Boolean(field.value))}
                     data-testid={`${dataTestId}-region-combobox`}
                   />
                 </FormControl>

@@ -40,6 +40,30 @@ const GEOAPIFY_BASE = 'https://api.geoapify.com/v1/geocode'
 const GEOAPIFY_TILE_URL = 'https://maps.geoapify.com/v1/tile/osm-bright/{z}/{x}/{y}.png?apiKey={apiKey}'
 const OSM_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
 
+export type GeoapifyProviderErrorReason = 'missing-api-key' | 'unauthorized' | 'rate-limited' | 'server-error'
+
+export class GeoapifyProviderError extends Error {
+  readonly status?: number
+  readonly reason: GeoapifyProviderErrorReason
+
+  constructor(reason: GeoapifyProviderErrorReason, status?: number) {
+    super(`Geoapify provider unavailable: ${reason}`)
+    this.name = 'GeoapifyProviderError'
+    this.reason = reason
+    this.status = status
+  }
+}
+
+export const isGeoapifyProviderError = (error: unknown): error is GeoapifyProviderError =>
+  error instanceof GeoapifyProviderError
+
+const getProviderErrorReason = (status: number): GeoapifyProviderErrorReason | null => {
+  if (status === 401 || status === 403) return 'unauthorized'
+  if (status === 429) return 'rate-limited'
+  if (status >= 500) return 'server-error'
+  return null
+}
+
 /**
  * Resolves the Geoapify API key from `NEXT_PUBLIC_GEOAPIFY_API_KEY`. Returns undefined
  * when the key is missing or still set to a placeholder template, so callers can fall
@@ -186,7 +210,7 @@ export const getAutocompleteSuggestions = async (
   }
 ): Promise<AddressSuggestion[]> => {
   const apiKey = getApiKey()
-  if (!apiKey) return []
+  if (!apiKey) throw new GeoapifyProviderError('missing-api-key')
   const trimmed = (text || '').trim()
   if (trimmed.length < 3) return []
 
@@ -200,7 +224,11 @@ export const getAutocompleteSuggestions = async (
   if (options?.lang) params.set('lang', options.lang)
 
   const response = await fetch(`${GEOAPIFY_BASE}/autocomplete?${params.toString()}`, { signal: options?.signal })
-  if (!response.ok) return []
+  if (!response.ok) {
+    const reason = getProviderErrorReason(response.status)
+    if (reason) throw new GeoapifyProviderError(reason, response.status)
+    return []
+  }
   const data = (await response.json()) as { results?: GeoapifyProperties[]; features?: GeoapifyFeature[] }
 
   const rawResults = extractFeatures(data)
@@ -269,7 +297,7 @@ export const reverseGeocode = async (
   options?: { lang?: string; signal?: AbortSignal }
 ): Promise<ReverseGeocodeResult | null> => {
   const apiKey = getApiKey()
-  if (!apiKey) return null
+  if (!apiKey) throw new GeoapifyProviderError('missing-api-key')
   const params = new URLSearchParams({
     lat: String(lat),
     lon: String(lng),
@@ -279,7 +307,11 @@ export const reverseGeocode = async (
   if (options?.lang) params.set('lang', options.lang)
 
   const response = await fetch(`${GEOAPIFY_BASE}/reverse?${params.toString()}`, { signal: options?.signal })
-  if (!response.ok) return null
+  if (!response.ok) {
+    const reason = getProviderErrorReason(response.status)
+    if (reason) throw new GeoapifyProviderError(reason, response.status)
+    return null
+  }
   const data = (await response.json()) as { results?: GeoapifyProperties[]; features?: GeoapifyFeature[] }
 
   const first: GeoapifyFeature | null = extractFeatures(data)[0] ?? null
@@ -311,8 +343,8 @@ const normalizeText = (value: string | undefined | null): string =>
  * Try to find a catalog region entry given a provider-supplied code and/or name.
  *
  * Match order (first hit wins):
- * 1. Exact (case-insensitive) match on `alternativeCode` or `code`.
- * 2. Suffix match on `code` (handles `RO-BV` in catalog vs `BV` from Geoapify and vice versa).
+ * 1. Exact (case-insensitive) match on `alternativeCode`, `code`, or `additionalValue1`.
+ * 2. Suffix match on code-like fields (handles `RO-BV` in catalog vs `BV` from Geoapify and vice versa).
  * 3. Normalized (diacritic-insensitive) match on `value` or `additionalValue1` (RO uses the latter).
  * 4. Normalized substring match — catches "Brasov" against "județul Brașov" style catalog entries.
  */
@@ -323,15 +355,17 @@ const findMatchingRegion = (
 ): string | null => {
   const codeUpper = regionCode?.toUpperCase()
   if (codeUpper) {
-    const byExactCode = regions.find(
-      r =>
-        String(r?.alternativeCode || '').toUpperCase() === codeUpper ||
-        String(r?.code || '').toUpperCase() === codeUpper
-    )
+    const getCatalogCodes = (region: any) =>
+      [region?.alternativeCode, region?.code, region?.additionalValue1]
+        .map(value => String(value || '').toUpperCase())
+        .filter(Boolean)
+    const byExactCode = regions.find(r => getCatalogCodes(r).includes(codeUpper))
     if (byExactCode) return byExactCode.id
     const bySuffixCode = regions.find(r => {
-      const catalogCode = String(r?.code || '').toUpperCase()
-      return catalogCode.endsWith(`-${codeUpper}`) || codeUpper.endsWith(`-${catalogCode}`)
+      const catalogCodes = getCatalogCodes(r)
+      return catalogCodes.some(
+        catalogCode => catalogCode.endsWith(`-${codeUpper}`) || codeUpper.endsWith(`-${catalogCode}`)
+      )
     })
     if (bySuffixCode) return bySuffixCode.id
   }

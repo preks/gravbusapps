@@ -66,16 +66,6 @@ export const validateAddressForm = (
       )
     )
   }
-  if (countryVal === 'Country:v1:DE' || countryVal === 'Country:v1:US' || countryVal === 'Country:v1:RO') {
-    if (!values.regionId) {
-      errors.push(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:employee_profile.details_layout.address_container.region_validation_message',
-          'Please select a value.'
-        )
-      )
-    }
-  }
   return errors.length ? errors : null
 }
 

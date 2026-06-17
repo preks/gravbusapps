@@ -12,7 +12,7 @@ import leafletCssInline from 'leaflet/dist/leaflet.css?inline'
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
 import markerIcon from 'leaflet/dist/images/marker-icon.png'
 import markerShadow from 'leaflet/dist/images/marker-shadow.png'
-import { Button, FormItem, FormLabel, Input, useTranslation } from '@newwork/nw-design-system'
+import { Alert, AlertDescription, Button, FormItem, FormLabel, Input, useTranslation } from '@newwork/nw-design-system'
 import { MapPinIcon, CrosshairIcon, SpinnerIcon } from '@phosphor-icons/react'
 import translations from './_i18n'
 // Scoped fallback for Leaflet control positioning. See the file header for the full story.
@@ -24,6 +24,7 @@ import {
   forwardGeocode,
   getAutocompleteSuggestions,
   getMapTileUrl,
+  isGeoapifyProviderError,
   mapGeoapifyToFormValues,
   reverseGeocode
 } from './addressAutocompleteService'
@@ -95,6 +96,8 @@ export interface AddressAutocompleteProps {
    * Defaults to `address-autocomplete`. Useful when multiple instances are on the same page.
    */
   testIdPrefix?: string
+  /** Called when Geoapify is unavailable due to auth, quota, server, or network failure. */
+  onProviderUnavailable?: () => void
 }
 
 interface LatLng {
@@ -160,7 +163,8 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
   fieldNames,
   resolveMappedAddress,
   mapHeightPx = 220,
-  testIdPrefix = 'address-autocomplete'
+  testIdPrefix = 'address-autocomplete',
+  onProviderUnavailable
 }) => {
   const names = useMemo<AddressAutocompleteFieldNames>(
     () => ({ ...DEFAULT_ADDRESS_AUTOCOMPLETE_FIELD_NAMES, ...fieldNames }),
@@ -173,6 +177,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
   const [isOpen, setIsOpen] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
   const [isLocating, setIsLocating] = useState(false)
+  const [isProviderUnavailable, setIsProviderUnavailable] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const suppressNextSearchRef = useRef(false)
@@ -217,6 +222,15 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
   const pinHintLabel = t('address-autocomplete-pin-hint')
   const searchLabel = t('address-autocomplete-search-label')
   const noResultsLabel = t('address-autocomplete-no-results')
+  const providerUnavailableLabel = t('address-autocomplete-provider-unavailable')
+
+  const handleProviderUnavailable = useCallback(() => {
+    if (!onProviderUnavailable) return
+    setIsProviderUnavailable(true)
+    setSuggestions([])
+    setIsOpen(false)
+    onProviderUnavailable()
+  }, [onProviderUnavailable])
 
   // Close dropdown on outside click.
   useEffect(() => {
@@ -369,13 +383,18 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
           signal: controller.signal
         })
         setSuggestions(results)
+        setIsProviderUnavailable(false)
         // Always open the dropdown so the user gets feedback. When `results` is empty
         // the dropdown renders the localized "no results" message instead of suggestions.
         setIsOpen(true)
       } catch (err) {
         if ((err as any)?.name !== 'AbortError') {
+          const providerFailure = isGeoapifyProviderError(err) || err instanceof TypeError
+          if (providerFailure) {
+            handleProviderUnavailable()
+          }
           setSuggestions([])
-          setIsOpen(true)
+          setIsOpen(!providerFailure || !onProviderUnavailable)
         }
       } finally {
         setIsSearching(false)
@@ -385,7 +404,7 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
-  }, [query, form, names])
+  }, [query, form, names, handleProviderUnavailable])
 
   const handlePickSuggestion = useCallback(
     async (suggestion: AddressSuggestion) => {
@@ -403,16 +422,22 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
 
   const handleReverseForCoords = useCallback(
     async (coords: LatLng) => {
-      const result = await reverseGeocode(coords.lat, coords.lng)
-      const geocodeResult = result ?? { components: {}, ...coords }
-      const initialMapped = mapGeoapifyToFormValues(geocodeResult, catalogs)
-      const mapped = resolveMappedAddress
-        ? await resolveMappedAddress({ result: geocodeResult, mapped: initialMapped })
-        : initialMapped
-      applyAddressToForm({ ...mapped, lat: coords.lat, lng: coords.lng })
-      if (result?.formattedAddress) setQuery(result.formattedAddress)
+      try {
+        const result = await reverseGeocode(coords.lat, coords.lng)
+        const geocodeResult = result ?? { components: {}, ...coords }
+        const initialMapped = mapGeoapifyToFormValues(geocodeResult, catalogs)
+        const mapped = resolveMappedAddress
+          ? await resolveMappedAddress({ result: geocodeResult, mapped: initialMapped })
+          : initialMapped
+        applyAddressToForm({ ...mapped, lat: coords.lat, lng: coords.lng })
+        if (result?.formattedAddress) setQuery(result.formattedAddress)
+      } catch (err) {
+        if (isGeoapifyProviderError(err) || err instanceof TypeError) {
+          handleProviderUnavailable()
+        }
+      }
     },
-    [catalogs, resolveMappedAddress, applyAddressToForm]
+    [catalogs, resolveMappedAddress, applyAddressToForm, handleProviderUnavailable]
   )
 
   const handleUseMyLocation = useCallback(() => {
@@ -460,6 +485,11 @@ const AddressAutocomplete: React.FC<AddressAutocompleteProps> = ({
     <div ref={containerRef} className="gba:space-y-2" data-testid={testIdPrefix}>
       <FormItem>
         <FormLabel>{searchLabel}</FormLabel>
+        {isProviderUnavailable && (
+          <Alert className="gba:mb-2" data-testid={`${testIdPrefix}-provider-unavailable`}>
+            <AlertDescription>{providerUnavailableLabel}</AlertDescription>
+          </Alert>
+        )}
         <div className="gba:relative">
           <div className="gba:flex gba:gap-2">
             <div className="gba:flex-1 gba:relative">

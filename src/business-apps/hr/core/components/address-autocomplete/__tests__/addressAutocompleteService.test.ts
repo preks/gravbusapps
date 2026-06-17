@@ -13,6 +13,7 @@ import { mapGeoapifyToFormValues } from '../addressAutocompleteService'
 
 const germanyCountry = { id: 'Country:v1:DE' }
 const usaCountry = { id: 'Country:v1:US' }
+const romaniaCountry = { id: 'Country:v1:RO' }
 
 const germanRegions = [
   { id: 'Region:v1:DE-BE', alternativeCode: 'BE', code: 'DE-BE', value: 'Berlin', additionalValue2: 'Country:v1:DE' },
@@ -22,9 +23,28 @@ const germanRegions = [
   { id: 'Region:v1:DE-BY', alternativeCode: 'BY', code: 'DE-BY', value: 'Bavaria', additionalValue2: 'Country:v1:DE' }
 ]
 
+const romanianRegions = [
+  {
+    id: 'CountryRegion:v1:RO322',
+    alternativeCode: '1',
+    code: 'RO322',
+    value: 'Ilfov',
+    additionalValue1: 'IF',
+    additionalValue2: 'Country:v1:RO'
+  },
+  {
+    id: 'CountryRegion:v1:RO122',
+    alternativeCode: '68',
+    code: 'RO122',
+    value: 'Brașov',
+    additionalValue1: 'BV',
+    additionalValue2: 'Country:v1:RO'
+  }
+]
+
 const catalogs = {
-  countries: [germanyCountry, usaCountry],
-  regions: germanRegions
+  countries: [germanyCountry, usaCountry, romaniaCountry],
+  regions: [...germanRegions, ...romanianRegions]
 }
 
 describe('mapGeoapifyToFormValues', () => {
@@ -96,6 +116,30 @@ describe('mapGeoapifyToFormValues', () => {
     )
 
     expect(result.regionId).toBe('Region:v1:DE-HH')
+  })
+
+  it('resolves Romanian counties via additionalValue1 code when GeoApify returns county_code', () => {
+    const result = mapGeoapifyToFormValues(
+      {
+        components: {
+          line1: 'Bulevardul Pipera 17',
+          city: 'Voluntari',
+          postalCode: '077191',
+          region: undefined,
+          regionCode: undefined,
+          county: undefined,
+          countyCode: 'IF',
+          countryCode: 'RO',
+          countryName: 'Romania'
+        },
+        lat: 44.49,
+        lng: 26.17
+      },
+      catalogs
+    )
+
+    expect(result.countryId).toBe('Country:v1:RO')
+    expect(result.regionId).toBe('CountryRegion:v1:RO322')
   })
 
   it('does NOT use city fallback when state already resolves a different region', () => {
