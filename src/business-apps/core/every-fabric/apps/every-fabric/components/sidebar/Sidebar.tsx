@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import {
+  BrainIcon,
   BuildingsIcon,
   GraphIcon,
   ListMagnifyingGlassIcon,
@@ -77,6 +78,9 @@ export interface SidebarProps {
   /** Trace Lens — a global LangSmith-style run debugger (dev-mode only). */
   onOpenTraceLens: () => void
   isTraceLensActive?: boolean
+  /** Memory Lens — overview of what the agent remembers about the user (dev-mode only). */
+  onOpenMemoryLens: () => void
+  isMemoryLensActive?: boolean
 
   /**
    * Session-scoped destinations under the "Active session" header. These
@@ -129,6 +133,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isCompanyMeshActive = false,
   onOpenTraceLens,
   isTraceLensActive = false,
+  onOpenMemoryLens,
+  isMemoryLensActive = false,
   onOpenSessionMesh,
   isSessionMeshActive = false,
   onOpenTraceExplorer,
@@ -198,6 +204,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
             isCollapsed={isCollapsed}
             onClick={onOpenTraceLens}
             testId="sidebar-nav-trace-lens"
+          />
+        )}
+        {devModeEnabled && (
+          <SidebarNavItem
+            icon={BrainIcon}
+            label="Memory Lens"
+            isActive={isMemoryLensActive}
+            isCollapsed={isCollapsed}
+            onClick={onOpenMemoryLens}
+            testId="sidebar-nav-memory-lens"
           />
         )}
 

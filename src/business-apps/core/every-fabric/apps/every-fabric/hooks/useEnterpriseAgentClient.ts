@@ -373,17 +373,40 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
   }, [])
 
   const getMemory = useCallback(
-    (query: string) =>
-      client.get<
-        { key: string; value: string; namespace?: string; title?: string | null; updated_at?: string | null }[]
-      >('/deep-agent/memory/search', {
-        params: { q: query }
-      }),
+    (
+      query: string,
+      filters?: { namespace?: string; tags?: string[]; dateFrom?: string; dateTo?: string; limit?: number }
+    ) => {
+      // Only forward scalar filters: RestClient serializes params via String(value),
+      // so it cannot emit the repeated `tags=` params FastAPI's list[str] expects.
+      // Topic filtering is handled client-side (MemorySection.availableTopics /
+      // filteredMemories), so the tags array is intentionally not sent on the wire.
+      const params: Record<string, string | number> = { q: query }
+      if (filters?.namespace) params.namespace = filters.namespace
+      if (filters?.dateFrom) params.date_from = filters.dateFrom
+      if (filters?.dateTo) params.date_to = filters.dateTo
+      if (filters?.limit) params.limit = filters.limit
+      return client.get<
+        {
+          key: string
+          value: string
+          namespace?: string
+          title?: string | null
+          tags?: string[] | null
+          entities?: string[] | null
+          occurred_at?: string | null
+          salience?: number | null
+          score?: number | null
+          updated_at?: string | null
+        }[]
+      >('/deep-agent/memory/search', { params })
+    },
     [client]
   )
 
   const saveMemory = useCallback(
-    (key: string, value: string, namespace?: string) => client.post('/deep-agent/memory', { key, value, namespace }),
+    (key: string, value: string, namespace?: string, tags?: string[]) =>
+      client.post('/deep-agent/memory', { key, value, namespace, ...(tags && tags.length ? { tags } : {}) }),
     [client]
   )
 

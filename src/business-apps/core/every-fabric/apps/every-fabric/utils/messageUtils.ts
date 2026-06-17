@@ -750,11 +750,12 @@ export function deriveMessagesFromEvents(events: AgentStreamEvent[]): ChatMessag
   return messages
 }
 
-const MEMORY_TOOLS = new Set(['save_memory', 'search_memory'])
+const MEMORY_TOOLS = new Set(['save_memory', 'search_memory', 'forget_memory', 'forget_about'])
 
 function memoryActivitySummary(toolName?: string): string {
-  const action = toolName === 'save_memory' ? 'Saved to' : 'Searched'
-  return `${action} memory`
+  if (toolName === 'save_memory') return 'Saved to memory'
+  if (toolName === 'forget_memory' || toolName === 'forget_about') return 'Removed from memory'
+  return 'Searched memory'
 }
 
 function toolActivitySummary(toolName: string | undefined, hasCompleted: boolean): string {

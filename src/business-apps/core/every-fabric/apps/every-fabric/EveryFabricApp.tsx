@@ -122,6 +122,8 @@ const EveryFabricInner: React.FC = () => {
   const handleCloseTraceExplorer = () => updateUrl({ view: null, t: null, focus: null })
   const handleOpenTraceLens = () => updateUrl({ view: 'trace-lens' })
   const handleCloseTraceLens = () => updateUrl({ view: null, traceRunId: null })
+  const handleOpenMemoryLens = () => updateUrl({ view: 'memory-lens' })
+  const handleCloseMemoryLens = () => updateUrl({ view: null })
   const handleOpenAgentMeshFromTrace = (positionMs?: number) =>
     updateUrl({ view: 'agent-mesh', t: positionMs != null ? String(positionMs) : null })
   const handleOpenEnterpriseWorkforce = () =>
@@ -154,6 +156,7 @@ const EveryFabricInner: React.FC = () => {
   const showAgentMesh = urlView === 'agent-mesh'
   const showTraceExplorer = devModeEnabled && urlView === 'trace-explorer'
   const showTraceLens = devModeEnabled && urlView === 'trace-lens'
+  const showMemoryLens = devModeEnabled && urlView === 'memory-lens'
   const showEnterpriseWorkforce = urlView === 'enterprise-workforce'
   // For sidebar highlighting, split the single agent-mesh URL into
   // "company mesh" vs "session mesh" by inspecting the meshScope param.
@@ -162,7 +165,13 @@ const EveryFabricInner: React.FC = () => {
   const isCompanyMeshActive = showAgentMesh && meshScopeParam === 'company'
   const isSessionMeshActive = showAgentMesh && meshScopeParam !== 'company'
   const isAnyOverlayShown =
-    showSettings || showScheduled || showAgentMesh || showTraceExplorer || showTraceLens || showEnterpriseWorkforce
+    showSettings ||
+    showScheduled ||
+    showAgentMesh ||
+    showTraceExplorer ||
+    showTraceLens ||
+    showMemoryLens ||
+    showEnterpriseWorkforce
   return (
     <div className="gba:flex gba:h-full gba:min-h-full gba:w-full gba:min-w-0">
       <Sidebar
@@ -198,6 +207,8 @@ const EveryFabricInner: React.FC = () => {
         isTraceExplorerActive={showTraceExplorer}
         onOpenTraceLens={handleOpenTraceLens}
         isTraceLensActive={showTraceLens}
+        onOpenMemoryLens={handleOpenMemoryLens}
+        isMemoryLensActive={showMemoryLens}
         devModeEnabled={devModeEnabled}
       />
       <main className="gba:relative gba:flex-1 gba:min-w-0 gba:h-full">
@@ -213,6 +224,7 @@ const EveryFabricInner: React.FC = () => {
           showAgentMesh={showAgentMesh}
           showTraceExplorer={showTraceExplorer}
           showTraceLens={showTraceLens}
+          showMemoryLens={showMemoryLens}
           showEnterpriseWorkforce={showEnterpriseWorkforce}
           isAnyOverlayShown={isAnyOverlayShown}
           isLoadingSession={isLoadingSession}
@@ -225,6 +237,7 @@ const EveryFabricInner: React.FC = () => {
           onCloseAgentMesh={handleCloseAgentMesh}
           onCloseTraceExplorer={handleCloseTraceExplorer}
           onCloseTraceLens={handleCloseTraceLens}
+          onCloseMemoryLens={handleCloseMemoryLens}
           onCloseEnterpriseWorkforce={handleCloseEnterpriseWorkforce}
           onSelectSession={handleSelectSession}
           onOpenTraceExplorer={handleOpenTraceExplorer}

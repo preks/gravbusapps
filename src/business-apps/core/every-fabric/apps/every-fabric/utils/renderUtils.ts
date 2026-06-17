@@ -57,7 +57,13 @@ export function toolCategoryColor(toolName: string): string {
     return 'gba:bg-muted gba:text-foreground'
   if (toolName.startsWith('knowledge_') || toolName === 'newwork.knowledge') return 'gba:bg-muted gba:text-foreground'
   if (toolName === 'write_todos') return 'gba:bg-muted gba:text-muted-foreground'
-  if (toolName === 'save_memory' || toolName === 'search_memory') return 'gba:bg-muted gba:text-foreground'
+  if (
+    toolName === 'save_memory' ||
+    toolName === 'search_memory' ||
+    toolName === 'forget_memory' ||
+    toolName === 'forget_about'
+  )
+    return 'gba:bg-muted gba:text-foreground'
   if (toolName === 'task') return 'gba:bg-muted gba:text-foreground'
   return 'gba:bg-muted gba:text-muted-foreground'
 }

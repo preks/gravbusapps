@@ -151,19 +151,23 @@ export const MemorySection: React.FC<MemorySectionProps> = ({ client, isOpen }) 
   const [memories, setMemories] = useState<MemoryEntry[]>([])
   const [memoryQuery, setMemoryQuery] = useState('')
   const [activeNamespace, setActiveNamespace] = useState<MemoryNamespace>('preferences')
+  const [activeTopic, setActiveTopic] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
   const searchMemories = useCallback(
     async (query?: string) => {
       setIsLoading(true)
       try {
-        const results = await client.getMemory(query || '*')
+        const results = await client.getMemory(query || '*', { namespace: activeNamespace })
         setMemories(
           (results ?? []).map(r => ({
             key: r.key,
             value: r.value,
             namespace: r.namespace,
             title: r.title ?? undefined,
+            tags: r.tags ?? undefined,
+            entities: r.entities ?? undefined,
+            occurredAt: r.occurred_at ?? undefined,
             updatedAt: r.updated_at ?? undefined
           }))
         )
@@ -173,7 +177,7 @@ export const MemorySection: React.FC<MemorySectionProps> = ({ client, isOpen }) 
         setIsLoading(false)
       }
     },
-    [client]
+    [client, activeNamespace]
   )
 
   useEffect(() => {
@@ -198,10 +202,33 @@ export const MemorySection: React.FC<MemorySectionProps> = ({ client, isOpen }) 
     [client]
   )
 
-  const filteredMemories = useMemo(
+  // Reset the topic filter whenever the active tab changes so a stale topic from
+  // the diary does not hide entries in another namespace.
+  useEffect(() => {
+    setActiveTopic(null)
+  }, [activeNamespace])
+
+  const namespaceMemories = useMemo(
     () => memories.filter(m => !m.namespace || m.namespace === activeNamespace),
     [memories, activeNamespace]
   )
+
+  // Available topics for the diary, derived from the loaded entries' tags.
+  const availableTopics = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const entry of namespaceMemories) {
+      for (const tag of entry.tags ?? []) {
+        const clean = tag.trim()
+        if (clean) counts.set(clean, (counts.get(clean) ?? 0) + 1)
+      }
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([tag]) => tag)
+  }, [namespaceMemories])
+
+  const filteredMemories = useMemo(() => {
+    if (!activeTopic) return namespaceMemories
+    return namespaceMemories.filter(m => (m.tags ?? []).includes(activeTopic))
+  }, [namespaceMemories, activeTopic])
 
   const renderMemoryList = () => {
     if (isLoading) {
@@ -217,7 +244,8 @@ export const MemorySection: React.FC<MemorySectionProps> = ({ client, isOpen }) 
     }
 
     return filteredMemories.map(entry => {
-      const when = relativeDate(entry.updatedAt)
+      const when = relativeDate(entry.occurredAt || entry.updatedAt)
+      const tags = entry.tags ?? []
       return (
         <div
           key={`${entry.namespace}-${entry.key}`}
@@ -234,6 +262,18 @@ export const MemorySection: React.FC<MemorySectionProps> = ({ client, isOpen }) 
               <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5 gba:line-clamp-2">
                 {cleanMemoryBody(entry.value)}
               </p>
+              {tags.length > 0 && (
+                <div className="gba:mt-1.5 gba:flex gba:flex-wrap gba:gap-1">
+                  {tags.slice(0, 6).map(tag => (
+                    <span
+                      key={tag}
+                      className="gba:rounded-full gba:bg-muted/60 gba:px-2 gba:py-0.5 gba:text-[10px] gba:text-muted-foreground"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
             <button
               onClick={() => handleDeleteMemory(entry.key, entry.namespace)}
@@ -289,10 +329,41 @@ export const MemorySection: React.FC<MemorySectionProps> = ({ client, isOpen }) 
                 data-testid="settings-memory-search"
               />
             </div>
+            {!isLoading && availableTopics.length > 0 && (
+              <div className="gba:mb-2.5 gba:flex gba:flex-wrap gba:gap-1.5" data-testid="settings-memory-topics">
+                <button
+                  type="button"
+                  onClick={() => setActiveTopic(null)}
+                  className={`gba:rounded-full gba:px-2.5 gba:py-0.5 gba:text-[11px] gba:transition-colors ${
+                    activeTopic === null
+                      ? 'gba:bg-foreground gba:text-background'
+                      : 'gba:bg-muted/50 gba:text-muted-foreground gba:hover:bg-muted/70'
+                  }`}
+                >
+                  All topics
+                </button>
+                {availableTopics.slice(0, 12).map(topic => (
+                  <button
+                    key={topic}
+                    type="button"
+                    onClick={() => setActiveTopic(prev => (prev === topic ? null : topic))}
+                    className={`gba:rounded-full gba:px-2.5 gba:py-0.5 gba:text-[11px] gba:transition-colors ${
+                      activeTopic === topic
+                        ? 'gba:bg-foreground gba:text-background'
+                        : 'gba:bg-muted/50 gba:text-muted-foreground gba:hover:bg-muted/70'
+                    }`}
+                  >
+                    {topic}
+                  </button>
+                ))}
+              </div>
+            )}
             {!isLoading && filteredMemories.length > 0 && (
               <p className="gba:mb-2 gba:px-1 gba:text-[11px] gba:text-muted-foreground/70">
-                {filteredMemories.length} {filteredMemories.length === 1 ? 'entry' : 'entries'} · learned automatically
-                after sessions
+                {filteredMemories.length} {filteredMemories.length === 1 ? 'entry' : 'entries'}
+                {activeNamespace === 'episodes'
+                  ? ' · diary of past sessions'
+                  : ' · learned automatically after sessions'}
               </p>
             )}
             <div className="gba:space-y-1.5 gba:max-h-80 gba:overflow-y-auto gba:pr-0.5">{renderMemoryList()}</div>

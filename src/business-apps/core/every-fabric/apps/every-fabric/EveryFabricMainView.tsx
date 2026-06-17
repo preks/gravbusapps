@@ -5,6 +5,7 @@ import { AgentMeshScreen } from './components/agent-mesh/AgentMeshScreen'
 import { EnterpriseWorkforceScreen } from './components/enterprise-workforce/EnterpriseWorkforceScreen'
 import { TraceExplorerScreen } from './components/trace-explorer/TraceExplorerScreen'
 import { TraceLensScreen } from './components/trace-lens/TraceLensScreen'
+import { MemoryLensScreen } from './components/memory-lens/MemoryLensScreen'
 import { LandingScreen } from './components/landing/LandingScreen'
 import { ScheduledDispatchesScreen } from './components/scheduled/ScheduledDispatchesScreen'
 import { SettingsScreen } from './components/settings/SettingsScreen'
@@ -105,6 +106,7 @@ export interface EveryFabricMainViewProps {
   showAgentMesh: boolean
   showTraceExplorer: boolean
   showTraceLens: boolean
+  showMemoryLens: boolean
   showEnterpriseWorkforce: boolean
   isAnyOverlayShown: boolean
   isLoadingSession: boolean
@@ -117,6 +119,7 @@ export interface EveryFabricMainViewProps {
   onCloseAgentMesh: () => void
   onCloseTraceExplorer: () => void
   onCloseTraceLens: () => void
+  onCloseMemoryLens: () => void
   onCloseEnterpriseWorkforce: () => void
   onSelectSession: (id: string) => void
   onOpenTraceExplorer: (positionMs?: number) => void
@@ -136,6 +139,7 @@ export function EveryFabricMainView({
   showAgentMesh,
   showTraceExplorer,
   showTraceLens,
+  showMemoryLens,
   showEnterpriseWorkforce,
   isAnyOverlayShown,
   isLoadingSession,
@@ -148,6 +152,7 @@ export function EveryFabricMainView({
   onCloseAgentMesh,
   onCloseTraceExplorer,
   onCloseTraceLens,
+  onCloseMemoryLens,
   onCloseEnterpriseWorkforce,
   onSelectSession,
   onOpenTraceExplorer,
@@ -204,6 +209,12 @@ export function EveryFabricMainView({
               onBack={onCloseTraceLens}
               initialSessionId={getTraceRunIdFromUrl() ?? session?.session_id ?? null}
             />
+          )}
+        </FadeOverlay>
+
+        <FadeOverlay visible={showMemoryLens}>
+          {devModeEnabled && displayView === 'memory-lens' && (
+            <MemoryLensScreen accessToken={accessToken} onBack={onCloseMemoryLens} />
           )}
         </FadeOverlay>
 
