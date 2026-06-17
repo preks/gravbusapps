@@ -40,6 +40,7 @@ export const EmployeeProvider: React.FC<{
     firstName: '',
     lastName: '',
     email: '',
+    birthDate: '',
     legalEntityId: '',
     siteLocationId: '',
     costCenterId: '',

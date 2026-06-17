@@ -40,6 +40,7 @@ const createEmployeeFormSchema = (t: (key: string) => string) =>
     firstName: z.string().min(1, t('employee-form-required-first-name')),
     lastName: z.string().min(1, t('employee-form-required-last-name')),
     email: z.string().min(1, t('employee-form-required-email')).email(t('employee-form-email-invalid')),
+    birthDate: z.string(),
     preferredName: z.string(),
     organizationalUnitId: z.string().min(1, t('employee-form-required-org-unit')),
     jobPositionId: z.string().min(1, t('employee-form-required-job-position')),
@@ -198,6 +199,7 @@ const EmployeeForm: React.FC = () => {
       firstName: formValues.firstName || '',
       lastName: formValues.lastName || '',
       email: formValues.email || '',
+      birthDate: formValues.birthDate || '',
       preferredName: formValues.preferredName || '',
       organizationalUnitId: formValues.organizationalUnitId || '',
       jobPositionId: formValues.jobPositionId || '',
@@ -378,6 +380,7 @@ const EmployeeForm: React.FC = () => {
       const hireDateFormatted = formatDateToMidnight(hireDateToUse)
       const fixedTermUntilFormatted = formatDateToMidnight(data.fixedTermUntil)
       const fixedTermReason = data.fixedTermUntil ? 'Fixed-Term Employment' : data.fixedTermReason
+      const birthDateFormatted = formatDateToMidnight(data.birthDate)
 
       const payload: any = {
         employee: {
@@ -385,6 +388,7 @@ const EmployeeForm: React.FC = () => {
           lastName: data.lastName,
           preferredName: data.preferredName,
           fullName: `${data.firstName} ${data.lastName}`,
+          ...(birthDateFormatted ? { birthDate: birthDateFormatted } : {}),
           communication: [
             {
               purpose: 'INTERNAL',
@@ -682,19 +686,45 @@ const EmployeeForm: React.FC = () => {
                 />
               </FormFieldGroup>
 
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <RequiredFormLabel>{t('employee-form-email')}</RequiredFormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder={t('action-enter-placeholder')} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <FormFieldGroup>
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem className="gba:flex-1 gba:min-w-[150px]">
+                      <RequiredFormLabel>{t('employee-form-email')}</RequiredFormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder={t('action-enter-placeholder')} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="birthDate"
+                  render={() => (
+                    <FormItem className="gba:flex-1 gba:min-w-[150px]">
+                      <FormLabel>{t('label-birth-date')}</FormLabel>
+                      <FormControl>
+                        <DateInput
+                          type="date"
+                          value={formValues.birthDate || ''}
+                          onChange={value => {
+                            const nextValue = typeof value === 'string' ? value : ''
+                            form.setValue('birthDate', nextValue, { shouldValidate: true })
+                            setFormValues({ birthDate: nextValue })
+                          }}
+                          placeholder={t('action-select-placeholder')}
+                          className="gba:w-full"
+                          captionLayout="dropdown"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </FormFieldGroup>
             </FormSection>
           </WizardFormStep>
         )

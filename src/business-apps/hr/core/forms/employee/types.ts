@@ -3,6 +3,7 @@ export interface EmployeeFormValues {
   firstName: string
   lastName: string
   email: string
+  birthDate: string
   legalEntityId: string
   siteLocationId: string
   costCenterId: string
