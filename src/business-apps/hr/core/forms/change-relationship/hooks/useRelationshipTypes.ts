@@ -13,7 +13,6 @@ export interface SelectOption {
 export interface EmployeeRelationship {
   id: string
   version?: number
-  birthDate?: string | null
   email?: string | null
   employeeId?: string
   firstName?: string | null
@@ -44,7 +43,6 @@ export const GET_RELATIONSHIP_TYPES = `
    relationship {
     id
     version
-    birthDate
     email
     employeeId
     firstName

@@ -17,7 +17,6 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { TrashIcon } from '@phosphor-icons/react'
-import dayjs from 'dayjs'
 import { Employee } from '../../../hooks/useEmployeeData'
 import { formatPhoneNumberWithCountryCode } from '../../../utils/formatters'
 import translations from '../../../_i18n'
@@ -67,7 +66,6 @@ const RelationshipsCard: React.FC<RelationshipsCardProps> = ({
       firstName: rel.firstName,
       lastName: rel.lastName,
       typeRef: rel.typeRef,
-      birthDate: rel.birthDate,
       phoneNumber: rel.phoneNumber,
       isEmergencyContact: rel.isEmergencyContact
     }
@@ -94,7 +92,6 @@ const RelationshipsCard: React.FC<RelationshipsCardProps> = ({
             phoneNumber: deleteTarget.phoneNumber || '',
             email: deleteTarget.email || '',
             typeRef: deleteTarget.typeRef || '',
-            birthDate: deleteTarget.birthDate || '',
             emergencyContact: deleteTarget.isEmergencyContact
           }
         })
@@ -158,12 +155,6 @@ const RelationshipsCard: React.FC<RelationshipsCardProps> = ({
                       <span className="gba:text-xs gba:text-muted-foreground">
                         {t('details-label-phone-number')}:{' '}
                         {masked ? MASK_PLACEHOLDER : formatPhoneNumberWithCountryCode(rel.phoneNumber)}
-                      </span>
-                    ) : null}
-                    {rel.birthDate ? (
-                      <span className="gba:text-xs gba:text-muted-foreground">
-                        {t('details-label-relationship-birth-date')}:{' '}
-                        {masked ? MASK_PLACEHOLDER : dayjs(rel.birthDate).format('MMM D, YYYY')}
                       </span>
                     ) : null}
                     {rel.email ? (

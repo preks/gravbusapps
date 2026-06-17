@@ -15,7 +15,7 @@ import {
   CollapsibleContent,
   useTranslation
 } from '@newwork/nw-design-system'
-import { Users, CheckCircle, User, Phone, Mail, Calendar, FileText, Shield, ChevronDown } from 'lucide-react'
+import { Users, CheckCircle, User, Phone, Mail, FileText, Shield, ChevronDown } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
@@ -52,19 +52,8 @@ interface EmployeeRelationshipData {
   email?: string | null
   notes?: string | null
   typeRef?: string | null
-  birthDate?: string | null
   emergencyContact?: boolean | null
   relationshipDocument?: string | null
-}
-
-// Helper formatter for birth date
-const formatBirthDate = (date?: string | null, locale?: string): string => {
-  if (!date) return 'N/A'
-  const d = new Date(date)
-  if (Number.isNaN(d.getTime())) {
-    return String(date)
-  }
-  return d.toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
 const ChangeRelationshipReviewContent: React.FC<ChangeRelationshipReviewProps> = ({
@@ -74,7 +63,7 @@ const ChangeRelationshipReviewContent: React.FC<ChangeRelationshipReviewProps> =
   onClose
 }) => {
   // Translation hook
-  const { t, locale } = useTranslation(translations)
+  const { t } = useTranslation(translations)
 
   // Cast additionalData to extended interface for proper typing
   const extendedAdditionalData = additionalData as ExtendedAdditionalData | undefined
@@ -126,11 +115,6 @@ const ChangeRelationshipReviewContent: React.FC<ChangeRelationshipReviewProps> =
     return t('value-na')
   }
 
-  const formatBirthDateWithFallback = (date?: string | null): string => {
-    const formatted = formatBirthDate(date, locale)
-    return formatted === 'N/A' ? t('value-na') : formatted
-  }
-
   // Use shared hook for review form data
   const { changesCount, isInsertMode, compareField } = useReviewFormData<EmployeeRelationshipData>({
     newData: newRelationship,
@@ -142,13 +126,11 @@ const ChangeRelationshipReviewContent: React.FC<ChangeRelationshipReviewProps> =
       'email',
       'notes',
       'typeRef',
-      'birthDate',
       'emergencyContact',
       'relationshipDocument'
     ],
     formatters: {
       typeRef: getCatalogValue,
-      birthDate: formatBirthDateWithFallback,
       emergencyContact: formatEmergencyContact
     },
     defaultFormatter: (v: any) => String(v || t('value-na')),
@@ -334,13 +316,6 @@ const ChangeRelationshipReviewContent: React.FC<ChangeRelationshipReviewProps> =
               isNewData={isInsertMode}
               t={t}
             />
-            <RenderComparisonField
-              label={t('label-birth-date')}
-              comparison={compareField('birthDate')}
-              icon={<Calendar className="gba:h-4 gba:w-4" />}
-              isNewData={isInsertMode}
-              t={t}
-            />
           </div>
 
           <Separator />
@@ -470,20 +445,6 @@ const ChangeRelationshipReviewContent: React.FC<ChangeRelationshipReviewProps> =
                           label={t('label-relationship-type')}
                           value={comparison.newValue}
                           icon={<Users className="gba:h-4 gba:w-4" />}
-                          t={t}
-                        />
-                      )
-                    )
-                  })()}
-
-                  {(() => {
-                    const comparison = compareField('birthDate')
-                    return (
-                      !comparison.changed && (
-                        <RenderUnchangedField
-                          label={t('label-birth-date')}
-                          value={comparison.newValue}
-                          icon={<Calendar className="gba:h-4 gba:w-4" />}
                           t={t}
                         />
                       )

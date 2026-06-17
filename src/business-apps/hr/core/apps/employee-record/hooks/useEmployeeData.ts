@@ -228,7 +228,6 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         }
         firstName
         lastName
-        birthDate
         phoneNumber
         email
       }
@@ -758,7 +757,6 @@ interface Relationship {
   type: CodeValue
   firstName: string
   lastName: string
-  birthDate: string
   phoneNumber: string
   email: string
 }

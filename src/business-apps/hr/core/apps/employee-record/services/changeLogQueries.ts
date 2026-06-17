@@ -134,7 +134,6 @@ export const CHANGE_LOG_QUERIES = {
         relationship {
           id
           version
-          birthDate
           email
           employeeId
           firstName

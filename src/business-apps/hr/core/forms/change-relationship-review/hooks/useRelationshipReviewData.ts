@@ -9,7 +9,6 @@ interface EmployeeRelationshipData {
   email?: string | null
   notes?: string | null
   typeRef?: string | null
-  birthDate?: string | null
   emergencyContact?: boolean | null
   relationshipDocument?: string | null
 }

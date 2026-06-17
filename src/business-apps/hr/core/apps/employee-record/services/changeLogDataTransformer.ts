@@ -226,7 +226,6 @@ export class ChangeLogDataTransformer {
     if (rel.isEmergencyContact) parts.push('Emergency Contact')
     if (rel.phoneNumber) parts.push(`Phone: ${rel.phoneNumber}`)
     if (rel.email) parts.push(`Email: ${rel.email}`)
-    if (rel.birthDate) parts.push(`Birth: ${rel.birthDate}`)
     return parts.join(' | ') || 'N/A'
   }
 

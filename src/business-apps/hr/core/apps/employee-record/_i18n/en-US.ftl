@@ -893,7 +893,6 @@ details-relationships = Relationships
 details-relationships-no-entries = No relationships registered
 details-relationships-emergency = Emergency Contact
 details-label-relationship-type = Type
-details-label-relationship-birth-date = Date of Birth
 details-label-relationship-email = Email
 delete-relationship-confirm-title = Delete relationship
 delete-relationship-confirm-description = Are you sure you want to delete this relationship? This action cannot be undone.

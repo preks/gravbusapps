@@ -5,7 +5,6 @@ import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 const RELATIONSHIP_CONGRATULATIONS_PROMPT_NAME = 'relationship_change_congratulations'
 
 interface GenerateRelationshipCongratulationsMessageParams {
-  birthDate: string
   companyName: string
   personName: string
   relationshipType: string
@@ -53,7 +52,6 @@ export function useRelationshipCongratulationsMessage(accessToken: string) {
 
   const generateMessage = useCallback(
     async ({
-      birthDate,
       companyName,
       personName,
       relationshipType
@@ -77,7 +75,7 @@ export function useRelationshipCongratulationsMessage(accessToken: string) {
 
         const response = await client.executePromptWithOptions(taskExpertId, {
           userParams: {
-            birthDate,
+            birthDate: '',
             companyName,
             language: getActiveLanguage(),
             personName,

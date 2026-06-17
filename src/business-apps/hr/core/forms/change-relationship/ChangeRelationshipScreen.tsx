@@ -8,16 +8,14 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
-  DateInput,
   useTranslation
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel, formatDateToISO } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import flowSmall from '@/assets/icons/flowSmall.svg'
 import FormHeader from '../components/FormHeader'
 import AppActionForm from '@/components/app-action-form/AppActionForm'
-import dayjs from 'dayjs'
 import translations from '../../apps/employee-record/_i18n'
 
 import { useRelationshipTypes } from './hooks/useRelationshipTypes'
@@ -48,7 +46,6 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [relationshipTypeId, setRelationshipTypeId] = useState<string>('')
-  const [birthDate, setBirthDate] = useState<string>('')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [isEmergencyContact, setIsEmergencyContact] = useState(false)
   const [selectedRelationshipId, setSelectedRelationshipId] = useState<string>('new')
@@ -126,17 +123,12 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
   // Determine if form values equal the prefilled values for an existing relationship
   const isUnchanged = useMemo(() => {
     if (!selectedExisting) return false
-    const normalizedCurrentBirth = birthDate ? dayjs(birthDate).format('YYYY-MM-DD') : ''
-    const normalizedOriginalBirth = selectedExisting.birthDate
-      ? dayjs(selectedExisting.birthDate).format('YYYY-MM-DD')
-      : ''
     return (
       (firstName || '') === (selectedExisting.firstName || '') &&
       (lastName || '') === (selectedExisting.lastName || '') &&
       (phoneNumber || '') === (selectedExisting.phoneNumber || '') &&
       Boolean(isEmergencyContact) === Boolean(selectedExisting.isEmergencyContact) &&
       (relationshipTypeId || '') === (selectedExisting.typeRef || '') &&
-      normalizedCurrentBirth === normalizedOriginalBirth &&
       !relationshipDocumentSync.hasPendingNewUpload &&
       !relationshipDocumentSync.hasRemovedInitialFiles
     )
@@ -147,7 +139,6 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
     phoneNumber,
     isEmergencyContact,
     relationshipTypeId,
-    birthDate,
     relationshipDocumentSync.hasPendingNewUpload,
     relationshipDocumentSync.hasRemovedInitialFiles
   ])
@@ -251,7 +242,6 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       setFirstName(loaded.firstName || '')
       setLastName(loaded.lastName || '')
       setRelationshipTypeId(loaded.typeRef || '')
-      setBirthDate(loaded.birthDate ? dayjs(loaded.birthDate).format('YYYY-MM-DD') : '')
       setPhoneNumber(loaded.phoneNumber || '')
       setIsEmergencyContact(Boolean(loaded.isEmergencyContact))
     } else {
@@ -259,7 +249,6 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       setFirstName(relPayload.firstName || '')
       setLastName(relPayload.lastName || '')
       setRelationshipTypeId(relPayload.typeRef || '')
-      setBirthDate(relPayload.birthDate ? dayjs(relPayload.birthDate).format('YYYY-MM-DD') : '')
       setPhoneNumber(relPayload.phoneNumber || '')
       setIsEmergencyContact(Boolean(relPayload.isEmergencyContact))
     }
@@ -273,7 +262,6 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       setFirstName('')
       setLastName('')
       setRelationshipTypeId('')
-      setBirthDate('')
       setPhoneNumber('')
       setIsEmergencyContact(false)
       return
@@ -283,7 +271,6 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       setFirstName(selected.firstName || '')
       setLastName(selected.lastName || '')
       setRelationshipTypeId(selected.typeRef || '')
-      setBirthDate(selected.birthDate ? dayjs(selected.birthDate).format('YYYY-MM-DD') : '')
       setPhoneNumber(selected.phoneNumber || '')
       setIsEmergencyContact(Boolean(selected.isEmergencyContact))
     }
@@ -325,7 +312,6 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       lastName: lastName.trim() || undefined,
       phoneNumber: normalizePhoneNumber(phoneNumber) || undefined,
       typeRef: relationshipTypeId || undefined,
-      birthDate: birthDate ? (formatDateToISO(new Date(birthDate)) as string) : undefined,
       emergencyContact: isEmergencyContact,
       relationshipDocument: uploadedDocumentId || null
     } as any
@@ -344,7 +330,6 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
             lastName: selectedExisting.lastName || '',
             phoneNumber: selectedExisting.phoneNumber || '',
             typeRef: selectedExisting.typeRef || '',
-            birthDate: selectedExisting.birthDate || '',
             emergencyContact: Boolean(selectedExisting.isEmergencyContact),
             relationshipDocumentId: selectedExisting.relationshipDocumentId || '',
             relationshipDocument: selectedExisting.relationshipDocumentId || ''
@@ -362,7 +347,6 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
     if (shouldShowCongrats) {
       relationshipCongratulationsMessage.clear()
       void relationshipCongratulationsMessage.generateMessage({
-        birthDate,
         companyName: employee?.companyName || '',
         personName: `${firstName.trim()} ${lastName.trim()}`.trim(),
         relationshipType:
@@ -535,25 +519,6 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
                 {lastNameError}
               </div>
             )}
-          </div>
-
-          {/* Birth Date */}
-          <div>
-            <Label>{getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.birth_date', 'Birth Date')}</Label>
-            <div className="gba:mt-2">
-              <div data-testid="flw_changeRelationship_currentBirthDate">
-                <DateInput
-                  type="date"
-                  value={birthDate || ''}
-                  onChange={value => setBirthDate(Array.isArray(value) ? (value?.[0] ?? '') : (value ?? ''))}
-                  placeholder={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:relationship_form.birth_date_placeholder',
-                    'YYYY-MM-DD'
-                  )}
-                  className="gba:w-full"
-                />
-              </div>
-            </div>
           </div>
 
           {/* Phone Number */}
