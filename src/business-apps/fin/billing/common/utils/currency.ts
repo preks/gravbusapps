@@ -2,14 +2,17 @@
  * Currency display helpers (locale-aware, multi-currency from MVP).
  */
 import { DEFAULT_CURRENCY } from '../constants'
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { getPrecision } from './money'
+
+function getCurrentLocale(): string {
+  return globalThis.navigator?.language || 'en-US'
+}
 
 /** Format an amount with its currency for display. */
 export function formatCurrency(
   amount: number,
   currency: string = DEFAULT_CURRENCY,
-  locale: string = getCurrentActiveUserLocale()
+  locale: string = getCurrentLocale()
 ): string {
   const value = Number.isFinite(amount) ? amount : 0
   try {
@@ -25,7 +28,7 @@ export function formatCurrency(
 }
 
 /** Format a tax rate percentage for display, e.g. "19%". */
-export function formatPercent(value: number, locale: string = getCurrentActiveUserLocale()): string {
+export function formatPercent(value: number, locale: string = getCurrentLocale()): string {
   const safe = Number.isFinite(value) ? value : 0
   try {
     return new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(safe) + '%'

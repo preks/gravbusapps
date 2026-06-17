@@ -14,7 +14,7 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import billingTranslations from '../../../common/_i18n'
-import { PAYMENT_METHODS, type PaymentAllocation, type PaymentMethod } from '../../../common/types'
+import { PAYMENT_METHODS, type PaymentAllocation, type PaymentMethod } from '../../../common/invoices/types'
 
 interface RecordPaymentDialogProps {
   open: boolean

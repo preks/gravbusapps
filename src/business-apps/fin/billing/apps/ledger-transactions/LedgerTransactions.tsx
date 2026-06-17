@@ -11,16 +11,16 @@ import {
 } from '@newwork/nw-design-system'
 import { PlusIcon, ListBulletsIcon, ArrowsClockwiseIcon, MagnifyingGlassIcon, XIcon } from '@phosphor-icons/react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { ExpenseDataTable } from '@/business-apps/fin/expenses/common/components/table/ExpenseDataTable'
 import billingTranslations from '../../common/_i18n'
-import { useLedgerAdmin } from '../../common/hooks/useLedgerAdmin'
-import { useBillingData } from '../../common/hooks/useBillingData'
+import { useLedgerAdmin } from '../../common/ledger/hooks/useLedgerAdmin'
+import { useBillingData } from '../../common/invoices/hooks/useBillingData'
 import { useBillingPermissions } from '../../common/hooks/useBillingPermissions'
-import { buildAccountIndex, displayAccountName } from '../../common/utils/ledgerNames'
-import { buildTransactionColumns } from '../ledger-admin/ledgerColumns'
-import LedgerCreateDialog, { type LedgerDialogKind } from '../ledger-admin/LedgerCreateDialog'
-import LedgerDetailSheet, { type LedgerSelection } from '../ledger-admin/LedgerDetailSheet'
-import type { CreateTransactionInput, LedgerAccount } from '../../common/network/ledgerAdminClient'
+import { balanceLabel, buildBalanceIndex } from '../../common/ledger/utils/ledgerNames'
+import { transactionFamily } from '../../common/ledger/utils/ledgerTransactionStatus'
+import LedgerCreateDialog, { type LedgerDialogKind } from '../../common/ledger/components/LedgerCreateDialog'
+import LedgerDetailSheet, { type LedgerSelection } from '../../common/ledger/components/LedgerDetailSheet'
+import { ExpandableTransactionTable } from './components/ExpandableTransactionTable'
+import type { CreateTransactionInput, LedgerBalance } from '../../common/ledger/network/ledgerAdminClient'
 
 type LedgerTransactionsProps = BusinessAppContextProps
 
@@ -35,11 +35,16 @@ function transactionMatchesCustomer(
   customerRef: string | null
 ): boolean {
   const metadata = item.metaData ?? {}
-  return (
-    metadata.crmAccountId === crmAccountId ||
-    metadata.invoiceAccountId === crmAccountId ||
-    metadata.customerRef === customerRef
-  )
+  const accountRefs = [
+    metadata.crmAccountId,
+    metadata.invoiceAccountId,
+    metadata.invoice_account_id,
+    metadata.customerAccountId,
+    metadata.customer_account_id,
+    metadata.accountId,
+    metadata.account_id
+  ]
+  return (crmAccountId !== null && accountRefs.includes(crmAccountId)) || metadata.customerRef === customerRef
 }
 
 const LedgerTransactions: React.FC<LedgerTransactionsProps> = props => {
@@ -60,60 +65,53 @@ const LedgerTransactions: React.FC<LedgerTransactionsProps> = props => {
 
   const canManage = permissions.canEditSettings || permissions.canCreateDraft
 
-  const accountIndex = useMemo(() => buildAccountIndex(ledgerAdmin.accounts), [ledgerAdmin.accounts])
+  const balanceIndex = useMemo(() => buildBalanceIndex(ledgerAdmin.balances), [ledgerAdmin.balances])
 
-  const filterAccount = useMemo(
-    () => (accountFilter ? (ledgerAdmin.accounts.find(account => account.balanceId === accountFilter) ?? null) : null),
-    [accountFilter, ledgerAdmin.accounts]
-  )
-
-  const transactionColumns = useMemo(
-    () =>
-      buildTransactionColumns(
-        {
-          reference: t('ledger-admin-col-reference'),
-          amount: t('ledger-admin-col-amount'),
-          source: t('ledger-admin-col-source'),
-          destination: t('ledger-admin-col-destination'),
-          status: t('ledger-admin-col-status'),
-          created: t('ledger-admin-col-created')
-        },
-        t,
-        accountIndex
-      ),
-    [t, accountIndex]
+  const filterBalance = useMemo(
+    () => (accountFilter ? (ledgerAdmin.balances.find(balance => balance.balanceId === accountFilter) ?? null) : null),
+    [accountFilter, ledgerAdmin.balances]
   )
 
   const term = search.trim().toLowerCase()
   const filteredTransactions = useMemo(() => {
     let rows = ledgerAdmin.transactions
     if (crmAccountId || customerRef) {
-      rows = rows.filter(item => transactionMatchesCustomer(item, crmAccountId, customerRef))
+      rows = rows.filter(item =>
+        transactionFamily(item).some(transaction => transactionMatchesCustomer(transaction, crmAccountId, customerRef))
+      )
     }
     if (accountFilter) {
-      const refs = new Set([accountFilter, filterAccount?.id].filter(Boolean) as string[])
-      rows = rows.filter(
-        item => (item.source && refs.has(item.source)) || (item.destination && refs.has(item.destination))
+      const refs = new Set([accountFilter, filterBalance?.id].filter(Boolean) as string[])
+      rows = rows.filter(item =>
+        transactionFamily(item).some(
+          transaction =>
+            (transaction.source && refs.has(transaction.source)) ||
+            (transaction.destination && refs.has(transaction.destination))
+        )
       )
     }
     if (term) {
       rows = rows.filter(item =>
-        `${item.reference ?? ''} ${item.source ?? ''} ${item.destination ?? ''} ${item.status ?? ''}`
-          .toLowerCase()
-          .includes(term)
+        transactionFamily(item).some(transaction =>
+          `${transaction.reference ?? ''} ${transaction.source ?? ''} ${transaction.destination ?? ''} ${
+            transaction.status ?? ''
+          } ${transaction.effectiveStatus ?? ''}`
+            .toLowerCase()
+            .includes(term)
+        )
       )
     }
     return rows
-  }, [ledgerAdmin.transactions, crmAccountId, customerRef, accountFilter, filterAccount, term])
+  }, [ledgerAdmin.transactions, crmAccountId, customerRef, accountFilter, filterBalance, term])
 
   const openCreate = () => {
     setPrefillSource(accountFilter ?? '')
     setDialogKind('transaction')
   }
 
-  const adjustAccount = (account: LedgerAccount) => {
+  const adjustAccount = (balance: LedgerBalance) => {
     setSelection(null)
-    setPrefillSource(account.balanceId)
+    setPrefillSource(balance.balanceId)
     setDialogKind('transaction')
   }
 
@@ -183,11 +181,11 @@ const LedgerTransactions: React.FC<LedgerTransactionsProps> = props => {
         </Alert>
       )}
 
-      {(filterAccount || crmAccountId) && (
+      {(filterBalance || crmAccountId) && (
         <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4" data-testid="ledger-transactions-account-filter">
           <span className="gba:text-sm gba:text-muted-foreground">{t('billing-transactions-account-filter')}:</span>
-          <Badge variant="secondary">{filterAccount ? displayAccountName(filterAccount, t) : customerRef}</Badge>
-          {filterAccount ? (
+          <Badge variant="secondary">{filterBalance ? balanceLabel(filterBalance, t) : customerRef}</Badge>
+          {filterBalance ? (
             <Button
               variant="ghost"
               size="sm"
@@ -232,22 +230,20 @@ const LedgerTransactions: React.FC<LedgerTransactionsProps> = props => {
         )}
       </div>
 
-      <ExpenseDataTable
-        data={filteredTransactions}
-        totalCount={filteredTransactions.length}
-        columns={transactionColumns}
+      <ExpandableTransactionTable
+        balanceIndex={balanceIndex}
         emptyMessage={t('ledger-admin-empty-transactions')}
-        dataTestId="ledger-transactions-table"
-        tableLayout="auto"
         onRowClick={item => setSelection({ kind: 'transaction', item })}
+        rows={filteredTransactions}
+        t={t}
       />
 
       <LedgerDetailSheet
         selection={selection}
         ledgers={ledgerAdmin.ledgers}
-        accounts={ledgerAdmin.accounts}
+        balances={ledgerAdmin.balances}
         transactions={ledgerAdmin.transactions}
-        accountIndex={accountIndex}
+        balanceIndex={balanceIndex}
         onClose={() => setSelection(null)}
         onSelect={setSelection}
         onAdjustAccount={adjustAccount}
@@ -259,7 +255,7 @@ const LedgerTransactions: React.FC<LedgerTransactionsProps> = props => {
       <LedgerCreateDialog
         kind={dialogKind}
         ledgers={ledgerAdmin.ledgers}
-        accounts={ledgerAdmin.accounts}
+        balances={ledgerAdmin.balances}
         invoices={billing.invoices}
         initialSource={prefillSource}
         onClose={closeDialog}

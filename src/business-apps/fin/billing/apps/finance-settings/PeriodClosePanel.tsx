@@ -1,15 +1,15 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { Card, Button, Badge, useTranslation } from '@newwork/nw-design-system'
+import { Card, Button, Badge, Input, useTranslation } from '@newwork/nw-design-system'
 import { toast } from 'sonner'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import billingTranslations from '../../common/_i18n'
 import {
   closeReportingPeriod,
-  financeAdminEnabled,
   listReportingPeriods,
   reopenReportingPeriod,
   type ReportingPeriod
-} from '../../common/network/financeAdminClient'
+} from '../../common/reports/network/financeReportsClient'
+import { financeAdminEnabled } from '../../common/network/financeHealthClient'
 
 interface PeriodClosePanelProps {
   context: BusinessAppContextProps
@@ -80,12 +80,11 @@ export const PeriodClosePanel: React.FC<PeriodClosePanelProps> = ({ context, can
         <div className="gba:flex gba:items-end gba:gap-2 gba:flex-wrap">
           <label className="gba:flex gba:flex-col gba:gap-1 gba:text-sm">
             <span className="gba:text-muted-foreground">{t('billing-period-close-key-label')}</span>
-            <input
+            <Input
               type="text"
               value={periodKey}
               placeholder="2026-05"
               onChange={event => setPeriodKey(event.target.value)}
-              className="gba:border gba:border-input gba:rounded-md gba:px-3 gba:py-2 gba:text-sm gba:bg-background"
               data-testid="period-close-input"
             />
           </label>

@@ -2,8 +2,9 @@
  * Reconciliation matching: suggest links between bank statement lines and
  * outstanding invoices by reference, amount, currency, and recency.
  */
-import { calculateOutstanding } from './invoiceCalculations'
-import type { BankStatementLine, Invoice, ReconciliationMatch } from '../types'
+import { calculateOutstanding } from '../invoices/utils/invoiceCalculations'
+import type { Invoice } from '../invoices/types'
+import type { BankStatementLine, ReconciliationMatch } from '../reconciliation/types'
 
 const AMOUNT_TOLERANCE = 0.01
 

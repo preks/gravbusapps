@@ -2,8 +2,8 @@
 
 app-title = Customer 360
 overline-account = ACCOUNT
-overline-retention = CUSTOMER RETENTION
-retention-badge = Retention module
+overline-retention = CUSTOMER 360
+retention-badge = Customer 360
 
 # Tabs
 tab-overview = Overview

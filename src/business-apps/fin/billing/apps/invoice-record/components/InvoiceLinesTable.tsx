@@ -2,7 +2,7 @@ import React from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import billingTranslations from '../../../common/_i18n'
 import { formatCurrency, formatPercent } from '../../../common/utils/currency'
-import type { Invoice } from '../../../common/types'
+import type { Invoice } from '../../../common/invoices/types'
 
 interface InvoiceLinesTableProps {
   invoice: Invoice

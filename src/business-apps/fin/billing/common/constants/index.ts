@@ -4,7 +4,8 @@
  * Geography defaults target EU / Germany VAT but everything is configurable
  * per tenant via Finance Settings. Currency support is multi-currency from MVP.
  */
-import type { CurrencySettings, InvoiceStatus, PaymentTerm, RoundingMode, TaxCategory } from '../types'
+import type { InvoiceStatus, PaymentTerm, TaxCategory } from '../invoices/types'
+import type { CurrencySettings, RoundingMode } from '../settings/types'
 
 export const MODULE_DOMAIN = 'billing'
 

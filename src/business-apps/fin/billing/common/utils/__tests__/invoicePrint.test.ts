@@ -1,5 +1,5 @@
-import type { InvoicePdfModel } from '../invoicePdf'
-import { printInvoiceDocument, renderInvoiceHtml } from '../invoicePrint'
+import type { InvoicePdfModel } from '../../invoices/utils/invoicePdf'
+import { printInvoiceDocument, renderInvoiceHtml } from '../../invoices/utils/invoicePrint'
 
 function makeModel(overrides: Partial<InvoicePdfModel> = {}): InvoicePdfModel {
   return {

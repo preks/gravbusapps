@@ -14,13 +14,13 @@ import { ChartBarIcon, DownloadSimpleIcon } from '@phosphor-icons/react'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import billingTranslations from '../../common/_i18n'
-import { useBillingData } from '../../common/hooks/useBillingData'
+import { useBillingData } from '../../common/invoices/hooks/useBillingData'
 import { useBillingPermissions } from '../../common/hooks/useBillingPermissions'
-import { useBillingReports } from '../../common/hooks/useBillingReports'
+import { useBillingReports } from '../../common/invoices/hooks/useBillingReports'
 import { BillingSampleNotice } from '../../common/components/BillingSampleNotice'
-import { computeArAging } from '../../common/utils/arAging'
+import { computeArAging } from '../../common/invoices/utils/arAging'
 import { formatCurrency } from '../../common/utils/currency'
-import { invoicesToCsv, downloadCsv } from '../../common/utils/invoiceExport'
+import { invoicesToCsv, downloadCsv } from '../../common/invoices/utils/invoiceExport'
 import { DEFAULT_CURRENCY } from '../../common/constants'
 
 type BillingReportsProps = BusinessAppContextProps
@@ -100,7 +100,9 @@ const BillingReports: React.FC<BillingReportsProps> = props => {
               tickFormatter={(value: number) => formatCurrency(value, DEFAULT_CURRENCY)}
             />
             <ChartTooltip
-              content={<ChartTooltipContent formatter={(value: number) => formatCurrency(value, DEFAULT_CURRENCY)} />}
+              content={
+                <ChartTooltipContent formatter={value => formatCurrency(Number(value ?? 0), DEFAULT_CURRENCY)} />
+              }
             />
             <Bar dataKey="amount" fill="var(--color-amount)" radius={[4, 4, 0, 0]} />
           </BarChart>

@@ -3,7 +3,7 @@ import {
   ledgerAdminEnabled,
   listTransactions,
   type LedgerTransaction
-} from '@/business-apps/fin/billing/common/network/ledgerAdminClient'
+} from '@/business-apps/fin/billing/common/ledger/network/ledgerAdminClient'
 import type { Customer360Subject, CustomerTransaction, DomainHookResult } from '../../types'
 
 function metadataValue(metadata: Record<string, unknown>, key: string): string | undefined {
@@ -16,7 +16,11 @@ function matchesAccount(transaction: LedgerTransaction, accountId: string): bool
   const accountRefs = [
     metadataValue(metadata, 'crmAccountId'),
     metadataValue(metadata, 'invoiceAccountId'),
-    metadataValue(metadata, 'accountId')
+    metadataValue(metadata, 'invoice_account_id'),
+    metadataValue(metadata, 'customerAccountId'),
+    metadataValue(metadata, 'customer_account_id'),
+    metadataValue(metadata, 'accountId'),
+    metadataValue(metadata, 'account_id')
   ]
   return accountRefs.includes(accountId) || metadata.customerRef === `account:${accountId}`
 }

@@ -10,17 +10,16 @@
  */
 import type {
   CreditNote,
-  CurrencySettings,
   Invoice,
   InvoiceLine,
   LedgerEventType,
   LegalEntity,
   PaymentAllocation,
   PaymentTerm,
-  ReconciliationMatch,
-  TaxCategory,
-  Uuid
-} from '../types'
+  TaxCategory
+} from '../invoices/types'
+import type { ReconciliationMatch } from '../reconciliation/types'
+import type { CurrencySettings } from '../settings/types'
 
 /** Base path for Billing Core (served behind the platform gateway). */
 export const BILLING_API_VERSION = 'v1'
@@ -35,11 +34,11 @@ export const LEDGER_SERVICE_BASE = `/connect/fin/ledger/${BILLING_API_VERSION}`
 
 export const BillingEndpoints = {
   invoices: `${BILLING_API_BASE}/invoices`,
-  invoiceById: (id: Uuid) => `${BILLING_API_BASE}/invoices/${id}`,
-  invoiceIssue: (id: Uuid) => `${BILLING_API_BASE}/invoices/${id}/issue`,
-  invoiceCancel: (id: Uuid) => `${BILLING_API_BASE}/invoices/${id}/cancel`,
-  invoicePdf: (id: Uuid) => `${BILLING_API_BASE}/invoices/${id}/pdf`,
-  invoicePayments: (id: Uuid) => `${BILLING_API_BASE}/invoices/${id}/payments`,
+  invoiceById: (id: string) => `${BILLING_API_BASE}/invoices/${id}`,
+  invoiceIssue: (id: string) => `${BILLING_API_BASE}/invoices/${id}/issue`,
+  invoiceCancel: (id: string) => `${BILLING_API_BASE}/invoices/${id}/cancel`,
+  invoicePdf: (id: string) => `${BILLING_API_BASE}/invoices/${id}/pdf`,
+  invoicePayments: (id: string) => `${BILLING_API_BASE}/invoices/${id}/payments`,
   creditNotes: `${BILLING_API_BASE}/credit-notes`,
   settingsLegalEntities: `${BILLING_API_BASE}/settings/legal-entities`,
   settingsTaxCategories: `${BILLING_API_BASE}/settings/tax-categories`,
@@ -51,14 +50,14 @@ export const BillingEndpoints = {
 
 /** Draft creation/patch payload (totals are computed server-side and locally). */
 export interface InvoiceDraftInput {
-  legalEntityId: Uuid
-  billingCustomerId: Uuid
+  legalEntityId: string
+  billingCustomerId: string
   /** CRM Account display name captured at creation for invoice snapshots. */
   customerName?: string | null
-  crmAccountId?: Uuid | null
-  crmOpportunityId?: Uuid | null
+  crmAccountId?: string | null
+  crmOpportunityId?: string | null
   currency: string
-  paymentTermId?: Uuid | null
+  paymentTermId?: string | null
   issueDate?: string | null
   notes?: string | null
   locale?: string | null
@@ -70,10 +69,10 @@ export interface InvoiceLineInput {
   quantity: number
   unitPrice: number
   discountPercent?: number
-  taxCategoryId: Uuid
+  taxCategoryId: string
   revenueAccountCode?: string | null
-  costCenterId?: Uuid | null
-  projectId?: Uuid | null
+  costCenterId?: string | null
+  projectId?: string | null
 }
 
 export interface IssueInvoiceInput {

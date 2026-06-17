@@ -1,11 +1,11 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { BillingStatusBadge } from '../../common/components/BillingStatusBadge'
+import { BillingStatusBadge } from '../../common/invoices/components/BillingStatusBadge'
 import { formatCurrency } from '../../common/utils/currency'
-import { calculateOutstanding } from '../../common/utils/invoiceCalculations'
-import { getInvoiceDisplayStatus } from '../../common/utils/invoiceStatus'
-import { invoiceCustomerName } from '../../common/utils/customers'
-import { formatDate } from '@/common/utils/windowUtils'
-import type { Invoice } from '../../common/types'
+import { calculateOutstanding } from '../../common/invoices/utils/invoiceCalculations'
+import { getInvoiceDisplayStatus } from '../../common/invoices/utils/invoiceStatus'
+import { invoiceCustomerName } from '../../common/invoices/utils/customers'
+import { formatDate } from '../../common/utils/date'
+import type { Invoice } from '../../common/invoices/types'
 
 interface ColumnLabels {
   number: string

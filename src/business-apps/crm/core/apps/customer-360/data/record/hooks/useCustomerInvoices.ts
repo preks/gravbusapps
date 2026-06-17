@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { billingApiEnabled, listInvoices } from '@/business-apps/fin/billing/common/network/invoiceClient'
+import { billingApiEnabled, listInvoices } from '@/business-apps/fin/billing/common/invoices/network/invoiceClient'
 import type { Invoice } from '@/business-apps/fin/billing/common/types'
 import type { Customer360Subject, CustomerInvoice, DomainHookResult } from '../../types'
 

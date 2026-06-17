@@ -2,7 +2,6 @@ import React, { useMemo } from 'react'
 import {
   LauncherLayout,
   Spinner,
-  type KpiData,
   type LauncherSectionConfig,
   type QuickActionData,
   useTranslation
@@ -20,20 +19,26 @@ import {
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, Navigation } from '@/common/utils/navigationUtils'
 import billingTranslations from '../../common/_i18n'
-import { useBillingData } from '../../common/hooks/useBillingData'
+import { useBillingData } from '../../common/invoices/hooks/useBillingData'
 import { BillingSampleNotice } from '../../common/components/BillingSampleNotice'
 import { BillingHealthChip } from '../../common/components/BillingHealthChip'
 import { formatCurrency } from '../../common/utils/currency'
-import { calculateOutstanding } from '../../common/utils/invoiceCalculations'
-import { isOverdue } from '../../common/utils/invoiceStatus'
+import { calculateOutstanding } from '../../common/invoices/utils/invoiceCalculations'
+import { isOverdue } from '../../common/invoices/utils/invoiceStatus'
 
 type BillingLauncherProps = BusinessAppContextProps
+type BillingKpiData = {
+  id: string
+  title: string
+  value: string | number
+  color?: 'default' | 'primary' | 'success'
+}
 
 const BillingLauncher: React.FC<BillingLauncherProps> = props => {
   const { t } = useTranslation(billingTranslations)
   const billing = useBillingData(props)
 
-  const kpis = useMemo((): KpiData[] => {
+  const kpis = useMemo((): BillingKpiData[] => {
     const invoices = billing.invoices
     const draftCount = invoices.filter(invoice => invoice.status === 'DRAFT').length
     const issuedCount = invoices.filter(invoice => ['ISSUED', 'SENT', 'PARTIALLY_PAID'].includes(invoice.status)).length

@@ -5,7 +5,7 @@
  * of the UI by mapping each value to an i18n key. Falls back to the raw value
  * if a key is somehow missing so nothing renders blank.
  */
-import type { InvoiceDisplayStatus, LedgerEventType, PaymentMethod } from '../types'
+import type { InvoiceDisplayStatus, LedgerEventType, PaymentMethod } from '../invoices/types'
 
 type TranslateFn = (key: string) => string
 

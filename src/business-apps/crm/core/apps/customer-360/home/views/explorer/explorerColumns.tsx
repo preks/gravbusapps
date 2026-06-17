@@ -27,7 +27,9 @@ export function createExplorerColumns({ t, openCustomer }: ExplorerColumnsDeps):
   return [
     {
       id: 'displayName',
+      accessorFn: row => row.displayName,
       header: t('explorer-column-customer'),
+      enableSorting: true,
       size: 360,
       minSize: 280,
       cell: ({ row }) => {
@@ -54,7 +56,9 @@ export function createExplorerColumns({ t, openCustomer }: ExplorerColumnsDeps):
     },
     {
       id: 'email',
+      accessorFn: row => row.email ?? '',
       header: t('explorer-column-email'),
+      enableSorting: true,
       size: 180,
       minSize: 140,
       cell: ({ row }) => {
@@ -74,7 +78,9 @@ export function createExplorerColumns({ t, openCustomer }: ExplorerColumnsDeps):
     },
     {
       id: 'status',
+      accessorFn: row => row.status ?? '',
       header: t('explorer-column-status'),
+      enableSorting: true,
       size: 120,
       minSize: 100,
       cell: ({ row }) => {
@@ -89,7 +95,9 @@ export function createExplorerColumns({ t, openCustomer }: ExplorerColumnsDeps):
     },
     {
       id: 'owner',
+      accessorFn: row => row.ownerName ?? '',
       header: t('explorer-column-owner'),
+      enableSorting: true,
       size: 220,
       minSize: 180,
       cell: ({ row }) => {
@@ -125,7 +133,9 @@ export function createExplorerColumns({ t, openCustomer }: ExplorerColumnsDeps):
     },
     {
       id: 'health',
+      accessorFn: row => row.summary.health ?? -1,
       header: t('explorer-column-health'),
+      enableSorting: true,
       size: 110,
       minSize: 90,
       cell: ({ row }) => {
@@ -139,7 +149,9 @@ export function createExplorerColumns({ t, openCustomer }: ExplorerColumnsDeps):
     },
     {
       id: 'attentionScore',
+      accessorFn: row => row.attentionScore,
       header: t('explorer-column-attention'),
+      enableSorting: true,
       size: 120,
       minSize: 100,
       cell: ({ row }) => (
@@ -150,7 +162,9 @@ export function createExplorerColumns({ t, openCustomer }: ExplorerColumnsDeps):
     },
     {
       id: 'reasons',
+      accessorFn: row => row.attentionReasons.join(' '),
       header: t('explorer-column-reasons'),
+      enableSorting: true,
       size: 220,
       minSize: 160,
       cell: ({ row }) => {
@@ -171,7 +185,10 @@ export function createExplorerColumns({ t, openCustomer }: ExplorerColumnsDeps):
 
 export const EXPLORER_SORTABLE_COLUMNS = [
   { id: 'displayName', label: 'Customer' },
+  { id: 'email', label: 'Email' },
   { id: 'status', label: 'Status' },
+  { id: 'owner', label: 'Owner' },
   { id: 'health', label: 'Health' },
-  { id: 'attentionScore', label: 'Attention' }
+  { id: 'attentionScore', label: 'Attention' },
+  { id: 'reasons', label: 'Reasons' }
 ]

@@ -11,6 +11,7 @@ import type { Customer360HomeViewProps } from '../../types'
 import { createExplorerColumns, EXPLORER_SORTABLE_COLUMNS } from './explorerColumns'
 
 type SortState = Array<{ id: string; desc: boolean }>
+type SortStateUpdater = SortState | ((previous: SortState) => SortState)
 
 const DEFAULT_PAGE_SIZE = 20
 const OWNER_ASSIGNED_FILTER = 'assigned'
@@ -23,10 +24,16 @@ function compareRows(a: CustomerPortfolioRow, b: CustomerPortfolioRow, sort: { i
   switch (sort.id) {
     case 'displayName':
       return a.displayName.localeCompare(b.displayName) * direction
+    case 'email':
+      return (a.email ?? '').localeCompare(b.email ?? '') * direction
     case 'status':
       return (a.status ?? '').localeCompare(b.status ?? '') * direction
+    case 'owner':
+      return (a.ownerName ?? '').localeCompare(b.ownerName ?? '') * direction
     case 'health':
       return ((a.summary.health ?? -1) - (b.summary.health ?? -1)) * direction
+    case 'reasons':
+      return a.attentionReasons.join(' ').localeCompare(b.attentionReasons.join(' ')) * direction
     default:
       return (a.attentionScore - b.attentionScore) * direction
   }
@@ -174,6 +181,11 @@ const ExplorerView: React.FC<Customer360HomeViewProps> = ({ portfolio, openCusto
     setPagination(prev => ({ ...prev, pageIndex: 0 }))
   }, [])
 
+  const handleSortingChange = useCallback((updater: SortStateUpdater) => {
+    setSorting(previous => (typeof updater === 'function' ? updater(previous) : updater))
+    setPagination(prev => ({ ...prev, pageIndex: 0 }))
+  }, [])
+
   const titleSections = useMemo(
     () => [{ id: 'all', label: t('explorer-segment-all'), metadata: { count: filtered.length, isLoading: loading } }],
     [filtered.length, loading, t]
@@ -192,7 +204,10 @@ const ExplorerView: React.FC<Customer360HomeViewProps> = ({ portfolio, openCusto
         onFilterChange={handleFilterChange}
         sorting={sorting}
         sortableColumns={EXPLORER_SORTABLE_COLUMNS}
-        onSortingChange={setSorting}
+        onSortingChange={handleSortingChange}
+        toolbarDensity="default"
+        enableLiveFiltering={true}
+        filterSheetTitle={t('explorer-filter-title')}
       >
         <DataTable<CustomerPortfolioRow>
           data={pageRows}
@@ -202,7 +217,7 @@ const ExplorerView: React.FC<Customer360HomeViewProps> = ({ portfolio, openCusto
           pagination={pagination}
           sorting={sorting}
           onPaginationChange={setPagination}
-          onSortingChange={setSorting}
+          onSortingChange={handleSortingChange}
           enablePagination
           enableSorting
           enableSelection={false}

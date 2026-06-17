@@ -1,5 +1,6 @@
 import { suggestMatches, findExceptions } from '../reconciliation'
-import type { BankStatementLine, Invoice } from '../../types'
+import type { Invoice } from '../../invoices/types'
+import type { BankStatementLine } from '../../reconciliation/types'
 
 function makeInvoice(overrides: Partial<Invoice> = {}): Invoice {
   return {

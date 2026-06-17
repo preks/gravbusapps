@@ -9,11 +9,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
-  financeAdminEnabled,
   getFinanceSettings,
   saveFinanceSettings,
   type FinanceSettingsDocument
-} from '../network/financeAdminClient'
+} from '../settings/network/financeSettingsClient'
+import { financeAdminEnabled } from '../network/financeHealthClient'
 
 export interface FinanceSettingsState {
   settings: FinanceSettingsDocument | null

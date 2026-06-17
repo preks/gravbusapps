@@ -10,13 +10,13 @@ import { useCallback, useEffect, useState } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   applyBankStatementMatch,
-  financeAdminEnabled,
   importBankStatement,
   listBankStatementLines,
   suggestBankStatementMatches,
   type ImportStatementLine
-} from '../network/financeAdminClient'
-import type { BankStatementLine, ReconciliationMatch } from '../types'
+} from '../reconciliation/network/reconciliationClient'
+import { financeAdminEnabled } from '../network/financeHealthClient'
+import type { BankStatementLine, ReconciliationMatch } from '../reconciliation/types'
 
 interface ReconciliationState {
   lines: BankStatementLine[]

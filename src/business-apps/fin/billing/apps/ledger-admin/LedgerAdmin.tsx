@@ -17,14 +17,14 @@ import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ExpenseDataTable } from '@/business-apps/fin/expenses/common/components/table/ExpenseDataTable'
 import { Navigation, buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import billingTranslations from '../../common/_i18n'
-import { useLedgerAdmin } from '../../common/hooks/useLedgerAdmin'
+import { useLedgerAdmin } from '../../common/ledger/hooks/useLedgerAdmin'
 import { useBillingPermissions } from '../../common/hooks/useBillingPermissions'
-import { useBillingData } from '../../common/hooks/useBillingData'
-import { buildAccountIndex } from '../../common/utils/ledgerNames'
-import { buildAccountColumns, buildLedgerColumns } from './ledgerColumns'
-import LedgerCreateDialog, { type LedgerDialogKind } from './LedgerCreateDialog'
-import LedgerDetailSheet, { type LedgerSelection } from './LedgerDetailSheet'
-import type { Ledger, LedgerAccount } from '../../common/network/ledgerAdminClient'
+import { useBillingData } from '../../common/invoices/hooks/useBillingData'
+import { buildBalanceIndex } from '../../common/ledger/utils/ledgerNames'
+import { buildAccountColumns, buildLedgerColumns } from '../../common/ledger/components/ledgerColumns'
+import LedgerCreateDialog, { type LedgerDialogKind } from '../../common/ledger/components/LedgerCreateDialog'
+import LedgerDetailSheet, { type LedgerSelection } from '../../common/ledger/components/LedgerDetailSheet'
+import type { Ledger, LedgerBalance } from '../../common/ledger/network/ledgerAdminClient'
 
 type LedgerAdminProps = BusinessAppContextProps
 
@@ -42,7 +42,7 @@ const LedgerAdmin: React.FC<LedgerAdminProps> = props => {
 
   const canManage = permissions.canEditSettings || permissions.canCreateDraft
 
-  const accountIndex = useMemo(() => buildAccountIndex(ledgerAdmin.accounts), [ledgerAdmin.accounts])
+  const balanceIndex = useMemo(() => buildBalanceIndex(ledgerAdmin.balances), [ledgerAdmin.balances])
 
   const ledgerColumns = useMemo(
     () => buildLedgerColumns({ name: t('ledger-admin-col-name'), created: t('ledger-admin-col-created') }),
@@ -69,14 +69,14 @@ const LedgerAdmin: React.FC<LedgerAdminProps> = props => {
         : ledgerAdmin.ledgers,
     [ledgerAdmin.ledgers, term]
   )
-  const filteredAccounts = useMemo(
+  const filteredBalances = useMemo(
     () =>
       term
-        ? ledgerAdmin.accounts.filter(item =>
+        ? ledgerAdmin.balances.filter(item =>
             `${item.name} ${item.currency} ${item.balanceId}`.toLowerCase().includes(term)
           )
-        : ledgerAdmin.accounts,
-    [ledgerAdmin.accounts, term]
+        : ledgerAdmin.balances,
+    [ledgerAdmin.balances, term]
   )
   const createLabel = activeTab === 'accounts' ? t('ledger-admin-create-account') : t('ledger-admin-create-ledger')
 
@@ -85,14 +85,14 @@ const LedgerAdmin: React.FC<LedgerAdminProps> = props => {
     setDialogKind(activeTab === 'accounts' ? 'account' : 'ledger')
   }
 
-  const viewAccountTransactions = (account: LedgerAccount) => {
+  const viewAccountTransactions = (balance: LedgerBalance) => {
     setSelection(null)
-    navigateTo(buildPlatformUrl(Navigation.FIN_BILLING_TRANSACTIONS, { accountId: account.balanceId }))
+    navigateTo(buildPlatformUrl(Navigation.FIN_BILLING_TRANSACTIONS, { accountId: balance.balanceId }))
   }
 
-  const adjustAccount = (account: LedgerAccount) => {
+  const adjustAccount = (balance: LedgerBalance) => {
     setSelection(null)
-    setPrefillSource(account.balanceId)
+    setPrefillSource(balance.balanceId)
     setDialogKind('transaction')
   }
 
@@ -194,9 +194,9 @@ const LedgerAdmin: React.FC<LedgerAdminProps> = props => {
           />
         </TabsContent>
         <TabsContent value="accounts">
-          <ExpenseDataTable<LedgerAccount>
-            data={filteredAccounts}
-            totalCount={filteredAccounts.length}
+          <ExpenseDataTable<LedgerBalance>
+            data={filteredBalances}
+            totalCount={filteredBalances.length}
             columns={accountColumns}
             emptyMessage={t('ledger-admin-empty-accounts')}
             dataTestId="ledger-table-accounts"
@@ -209,9 +209,9 @@ const LedgerAdmin: React.FC<LedgerAdminProps> = props => {
       <LedgerDetailSheet
         selection={selection}
         ledgers={ledgerAdmin.ledgers}
-        accounts={ledgerAdmin.accounts}
+        balances={ledgerAdmin.balances}
         transactions={ledgerAdmin.transactions}
-        accountIndex={accountIndex}
+        balanceIndex={balanceIndex}
         onClose={() => setSelection(null)}
         onSelect={setSelection}
         onAdjustAccount={adjustAccount}
@@ -224,7 +224,7 @@ const LedgerAdmin: React.FC<LedgerAdminProps> = props => {
       <LedgerCreateDialog
         kind={dialogKind}
         ledgers={ledgerAdmin.ledgers}
-        accounts={ledgerAdmin.accounts}
+        balances={ledgerAdmin.balances}
         invoices={billing.invoices}
         initialSource={prefillSource}
         onClose={closeDialog}

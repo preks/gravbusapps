@@ -4,7 +4,7 @@
  */
 import { DEFAULT_CURRENCY_SETTINGS, DEFAULT_PAYMENT_TERMS, DEFAULT_TAX_CATEGORIES } from '../constants'
 import type { BillingSettings } from '../queries/billingCoreApi'
-import type { LegalEntity } from '../types'
+import type { LegalEntity } from '../invoices/types'
 
 export const SAMPLE_LEGAL_ENTITY: LegalEntity = {
   id: 'le-newwork-gmbh',

@@ -2,7 +2,7 @@
 import React from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import InvoiceForm from '../InvoiceForm'
-import type { BillingCustomer } from '../../../common/types'
+import type { BillingCustomer } from '../../../common/invoices/types'
 
 const navigateToMock = jest.fn()
 
@@ -15,7 +15,7 @@ jest.mock('@/common/network/flows/useFlowClient', () => ({
 
 jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn() } }))
 
-jest.mock('../components/CustomerSelect', () => ({
+jest.mock('../../../common/invoices/components/CustomerSelect', () => ({
   CustomerSelect: ({
     customers,
     value,
@@ -37,8 +37,8 @@ jest.mock('../components/CustomerSelect', () => ({
 
 // Invoices persist through the native BLNK invoice client. Mock it so the form
 // test stays focused on validation/navigation without a real connector lane.
-jest.mock('../../../common/network/invoiceClient', () => ({
-  billingApiEnabled: () => false,
+jest.mock('../../../common/invoices/network/invoiceClient', () => ({
+  billingApiEnabled: () => true,
   listInvoices: jest.fn().mockResolvedValue([]),
   createInvoice: jest.fn().mockResolvedValue(undefined),
   updateInvoice: jest.fn().mockResolvedValue(undefined)
@@ -46,7 +46,7 @@ jest.mock('../../../common/network/invoiceClient', () => ({
 
 // Billing customers come from the CRM at runtime; mock the hook so the form
 // test has a deterministic, pre-selected customer without a GraphQL lane.
-jest.mock('../../../common/hooks/useBillingCustomers', () => ({
+jest.mock('../../../common/invoices/hooks/useBillingCustomers', () => ({
   useBillingCustomers: () => ({
     customers: [
       {

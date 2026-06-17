@@ -2,8 +2,8 @@
 
 app-title = Client 360
 overline-account = COMPANIE
-overline-retention = RETENȚIE CLIENȚI
-retention-badge = Modul de retenție
+overline-retention = CUSTOMER 360
+retention-badge = Customer 360
 
 # Tabs
 tab-overview = Prezentare generală

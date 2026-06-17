@@ -10,7 +10,7 @@ import {
   RobotIcon,
   SquaresFourIcon
 } from '@phosphor-icons/react'
-import { CustomerInvoicesPanel } from '@/business-apps/fin/billing/common/components/CustomerInvoicesPanel'
+import { CustomerInvoicesPanel } from '@/business-apps/fin/billing/common/invoices/components/CustomerInvoicesPanel'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import customer360I18n from '../../_i18n'
 import type { Customer360Snapshot, Customer360Subject } from '../../data/types'

@@ -5,7 +5,7 @@
  * testable across calculations, totals, FX conversion, and ledger postings.
  */
 import { CURRENCY_PRECISION, DEFAULT_ROUNDING_MODE } from '../constants'
-import type { RoundingMode } from '../types'
+import type { RoundingMode } from '../settings/types'
 
 export function getPrecision(currency: string, overrides?: Record<string, number>): number {
   const fromOverride = overrides?.[currency]

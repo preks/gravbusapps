@@ -1,9 +1,9 @@
 import React from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import billingTranslations from '../../../common/_i18n'
-import { formatDate } from '@/common/utils/windowUtils'
+import { formatDate } from '../../../common/utils/date'
 import { getLedgerEventLabel } from '../../../common/utils/billingLabels'
-import type { Invoice } from '../../../common/types'
+import type { Invoice } from '../../../common/invoices/types'
 
 interface InvoicePostingsListProps {
   invoice: Invoice

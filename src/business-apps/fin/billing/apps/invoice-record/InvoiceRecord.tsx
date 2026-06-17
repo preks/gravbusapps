@@ -16,26 +16,26 @@ import { toast } from 'sonner'
 import { ArrowLeftIcon } from '@phosphor-icons/react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, Navigation } from '@/common/utils/navigationUtils'
-import { formatDate } from '@/common/utils/windowUtils'
+import { formatDate } from '../../common/utils/date'
 import billingTranslations from '../../common/_i18n'
-import { useBillingData } from '../../common/hooks/useBillingData'
-import { useBillingCustomers } from '../../common/hooks/useBillingCustomers'
+import { useBillingData } from '../../common/invoices/hooks/useBillingData'
+import { useBillingCustomers } from '../../common/invoices/hooks/useBillingCustomers'
 import { useBillingPermissions } from '../../common/hooks/useBillingPermissions'
-import { BillingStatusBadge } from '../../common/components/BillingStatusBadge'
 import { BillingSampleNotice } from '../../common/components/BillingSampleNotice'
-import { InvoiceTotalsSummary } from '../../common/components/InvoiceTotalsSummary'
+import { InvoiceFinancialSummary } from '../../common/invoices/components/InvoiceFinancialSummary'
+import { InvoiceRecordHeader } from '../../common/invoices/components/InvoiceRecordHeader'
 import { InvoiceLinesTable } from './components/InvoiceLinesTable'
 import { InvoicePostingsList } from './components/InvoicePostingsList'
 import { RecordPaymentDialog } from './components/RecordPaymentDialog'
 import { CreditNoteDialog } from './components/CreditNoteDialog'
-import { createCreditNote, financeAdminEnabled } from '../../common/network/financeAdminClient'
+import { createCreditNote } from '../../common/invoices/network/creditNoteClient'
+import { financeAdminEnabled } from '../../common/network/financeHealthClient'
 import { formatCurrency } from '../../common/utils/currency'
-import { calculateOutstanding } from '../../common/utils/invoiceCalculations'
-import { canTransition, getInvoiceDisplayStatus } from '../../common/utils/invoiceStatus'
-import { buildInvoicePdfModel } from '../../common/utils/invoicePdf'
-import { printInvoiceDocument } from '../../common/utils/invoicePrint'
-import { invoiceCustomerName } from '../../common/utils/customers'
-import type { BillingCustomer } from '../../common/types'
+import { calculateOutstanding } from '../../common/invoices/utils/invoiceCalculations'
+import { buildInvoicePdfModel } from '../../common/invoices/utils/invoicePdf'
+import { printInvoiceDocument } from '../../common/invoices/utils/invoicePrint'
+import { invoiceCustomerName } from '../../common/invoices/utils/customers'
+import type { BillingCustomer } from '../../common/invoices/types'
 import { getAuditActionLabel, getPaymentMethodLabel } from '../../common/utils/billingLabels'
 
 type InvoiceRecordProps = BusinessAppContextProps
@@ -132,81 +132,21 @@ const InvoiceRecord: React.FC<InvoiceRecordProps> = props => {
         dataTestId="invoice-record-sample-notice"
       />
 
-      <Card className="gba:p-6 gba:mb-4">
-        <div className="gba:flex gba:items-start gba:justify-between gba:gap-4 gba:flex-wrap">
-          <div className="gba:flex gba:flex-col gba:gap-1">
-            <div className="gba:flex gba:items-center gba:gap-3">
-              <h1 className="gba:text-xl gba:font-semibold">{invoice.invoiceNumber ?? t('billing-record-title')}</h1>
-              <BillingStatusBadge status={getInvoiceDisplayStatus(invoice)} />
-            </div>
-            <span className="gba:text-sm gba:text-muted-foreground">{invoiceCustomerName(invoice, customers)}</span>
-          </div>
-          <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
-            {permissions.canIssue && canTransition(invoice.status, 'ISSUED') && (
-              <Button
-                size="sm"
-                onClick={() => runAction(() => billing.issueInvoice(invoice.id), t('billing-record-issue'))}
-                data-testid="invoice-issue-button"
-              >
-                {t('billing-record-issue')}
-              </Button>
-            )}
-            {permissions.canMarkPaid &&
-              outstanding > 0 &&
-              invoice.status !== 'DRAFT' &&
-              invoice.status !== 'CANCELLED' && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setPaymentOpen(true)}
-                  data-testid="invoice-record-payment-button"
-                >
-                  {t('billing-record-record-payment')}
-                </Button>
-              )}
-            {permissions.canCancel && canTransition(invoice.status, 'CANCELLED') && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  runAction(
-                    () => billing.cancelInvoice(invoice.id, 'Cancelled from record'),
-                    t('billing-record-cancel')
-                  )
-                }
-                data-testid="invoice-cancel-button"
-              >
-                {t('billing-record-cancel')}
-              </Button>
-            )}
-            {permissions.canCancel && canTransition(invoice.status, 'WRITTEN_OFF') && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => runAction(() => billing.writeOffInvoice(invoice.id), t('billing-record-write-off'))}
-                data-testid="invoice-writeoff-button"
-              >
-                {t('billing-record-write-off')}
-              </Button>
-            )}
-            {permissions.canCreateCreditNote &&
-              financeAdminEnabled() &&
-              ['ISSUED', 'SENT', 'PARTIALLY_PAID', 'PAID'].includes(invoice.status) && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setCreditNoteOpen(true)}
-                  data-testid="invoice-credit-note-button"
-                >
-                  {t('billing-record-credit-note')}
-                </Button>
-              )}
-            <Button size="sm" variant="outline" onClick={handleDownloadPdf} data-testid="invoice-download-pdf-button">
-              {t('billing-record-download-pdf')}
-            </Button>
-          </div>
-        </div>
-      </Card>
+      <InvoiceRecordHeader
+        invoice={invoice}
+        customers={customers}
+        permissions={permissions}
+        outstanding={outstanding}
+        creditNoteEnabled={financeAdminEnabled()}
+        onIssue={() => runAction(() => billing.issueInvoice(invoice.id), t('billing-record-issue'))}
+        onRecordPayment={() => setPaymentOpen(true)}
+        onCancel={() =>
+          runAction(() => billing.cancelInvoice(invoice.id, 'Cancelled from record'), t('billing-record-cancel'))
+        }
+        onWriteOff={() => runAction(() => billing.writeOffInvoice(invoice.id), t('billing-record-write-off'))}
+        onCreateCreditNote={() => setCreditNoteOpen(true)}
+        onDownloadPdf={handleDownloadPdf}
+      />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="gba:inline-flex gba:w-auto">
@@ -218,23 +158,7 @@ const InvoiceRecord: React.FC<InvoiceRecordProps> = props => {
         </TabsList>
 
         <TabsContent value="overview" className="gba:mt-4">
-          <Card className="gba:p-6 gba:flex gba:flex-wrap gba:gap-8 gba:justify-between">
-            <div className="gba:flex gba:flex-col gba:gap-2 gba:text-sm">
-              <div>
-                <span className="gba:text-muted-foreground">{t('billing-column-issue-date')}: </span>
-                {invoice.issueDate ? formatDate(invoice.issueDate, 'date.medium') : '—'}
-              </div>
-              <div>
-                <span className="gba:text-muted-foreground">{t('billing-column-due-date')}: </span>
-                {invoice.dueDate ? formatDate(invoice.dueDate, 'date.medium') : '—'}
-              </div>
-              <div>
-                <span className="gba:text-muted-foreground">{t('billing-column-currency')}: </span>
-                {invoice.currency}
-              </div>
-            </div>
-            <InvoiceTotalsSummary invoice={invoice} />
-          </Card>
+          <InvoiceFinancialSummary invoice={invoice} />
         </TabsContent>
 
         <TabsContent value="lines" className="gba:mt-4">

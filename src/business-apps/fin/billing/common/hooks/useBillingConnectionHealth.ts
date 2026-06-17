@@ -9,7 +9,7 @@
  */
 import { useEffect, useState } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { fetchDetailedHealth, financeAdminEnabled } from '../network/financeAdminClient'
+import { fetchDetailedHealth, financeAdminEnabled } from '../network/financeHealthClient'
 
 export type ConnectionHealthStatus = 'unknown' | 'offline' | 'live' | 'degraded'
 
