@@ -40454,15 +40454,15 @@
     ]
   },
   "hr/core/apps/assets": {
-    "bitbucketBuildNumber": 13697,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13697/",
-    "chunkJsBytes": 812305,
+    "bitbucketBuildNumber": 13759,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13759/",
+    "chunkJsBytes": 835570,
     "top": [
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
-        "rendered": 648305,
-        "gzip": 275957,
+        "rendered": 666988,
+        "gzip": 281598,
         "leaves": [
           {
             "name": "node_modules/@newwork/nw-design-system/dist/assets/images/branded-bg/fallback/decorative-dark.jpg.js",
@@ -40479,18 +40479,18 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 314969,
-        "gzip": 69746,
+        "rendered": 328843,
+        "gzip": 73697,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/forms/equipment-registration/EquipmentRegistration.tsx",
-            "rendered": 40808,
-            "gzip": 6620
+            "rendered": 40717,
+            "gzip": 6632
           },
           {
             "name": "src/business-apps/hr/core/forms/allocate-asset/AllocateAsset.tsx",
-            "rendered": 34558,
-            "gzip": 6259
+            "rendered": 34576,
+            "gzip": 6260
           }
         ]
       },
@@ -40595,8 +40595,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/utils",
-        "rendered": 14525,
-        "gzip": 4956,
+        "rendered": 14979,
+        "gzip": 5163,
         "leaves": [
           {
             "name": "src/common/utils/windowUtils.ts",
@@ -40614,17 +40614,17 @@
         "kind": "bucket",
         "name": "(src)/components/app-action-form",
         "rendered": 13725,
-        "gzip": 3727,
+        "gzip": 3729,
         "leaves": [
           {
             "name": "src/components/app-action-form/AppActionForm.tsx",
             "rendered": 11981,
-            "gzip": 2780
+            "gzip": 2781
           },
           {
             "name": "src/components/app-action-form/_i18n/de-DE.ftl?raw",
             "rendered": 587,
-            "gzip": 305
+            "gzip": 306
           }
         ]
       },
@@ -52529,38 +52529,38 @@
     ]
   },
   "hr/core/forms/equipment-registration": {
-    "bitbucketBuildNumber": 13697,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13697/",
-    "chunkJsBytes": 172191,
+    "bitbucketBuildNumber": 13759,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13759/",
+    "chunkJsBytes": 203689,
     "top": [
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
-        "rendered": 98345,
-        "gzip": 30179,
+        "rendered": 130273,
+        "gzip": 39464,
         "leaves": [
+          {
+            "name": "node_modules/@newwork/nw-design-system/dist/components/combobox/Combobox.js",
+            "rendered": 13820,
+            "gzip": 3698
+          },
           {
             "name": "node_modules/@newwork/nw-design-system/dist/components/date-input/DateInput.js",
             "rendered": 12764,
-            "gzip": 3326
-          },
-          {
-            "name": "node_modules/@newwork/nw-design-system/dist/components/select/Select.js",
-            "rendered": 9138,
-            "gzip": 2373
+            "gzip": 3328
           }
         ]
       },
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 77426,
-        "gzip": 14769,
+        "rendered": 91234,
+        "gzip": 18696,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/forms/equipment-registration/EquipmentRegistration.tsx",
-            "rendered": 40700,
-            "gzip": 6607
+            "rendered": 40607,
+            "gzip": 6615
           },
           {
             "name": "src/business-apps/hr/core/apps/assets/services/useAssetService.ts",
@@ -52621,26 +52621,26 @@
       {
         "kind": "bucket",
         "name": "(src)/components/app-action-form",
-        "rendered": 13691,
-        "gzip": 3705,
+        "rendered": 13709,
+        "gzip": 3723,
         "leaves": [
           {
             "name": "src/components/app-action-form/AppActionForm.tsx",
-            "rendered": 11961,
-            "gzip": 2773
+            "rendered": 11965,
+            "gzip": 2776
           },
           {
             "name": "src/components/app-action-form/_i18n/de-DE.ftl?raw",
-            "rendered": 585,
-            "gzip": 302
+            "rendered": 587,
+            "gzip": 305
           }
         ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/utils",
-        "rendered": 6146,
-        "gzip": 1762,
+        "rendered": 6127,
+        "gzip": 1818,
         "leaves": [
           {
             "name": "src/common/utils/serviceResolver.ts",
@@ -52649,8 +52649,8 @@
           },
           {
             "name": "src/common/utils/windowUtils.ts",
-            "rendered": 1137,
-            "gzip": 414
+            "rendered": 664,
+            "gzip": 263
           }
         ]
       },
@@ -88547,20 +88547,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 13754,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13754/",
-    "chunkJsBytes": 2062369,
+    "bitbucketBuildNumber": 13759,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13759/",
+    "chunkJsBytes": 2062404,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1780170,
-        "gzip": 114852,
+        "rendered": 1780202,
+        "gzip": 114917,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1780170,
-            "gzip": 114852
+            "rendered": 1780202,
+            "gzip": 114917
           }
         ]
       },
@@ -120451,7 +120451,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-17T11:03:08.138Z",
+    "generatedAt": "2026-06-17T12:13:29.864Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
