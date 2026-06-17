@@ -1,35 +1,66 @@
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { useMemo, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   Form,
   FormField,
   FormItem,
+  FormControl,
   Label,
   Input,
   Button,
+  Combobox,
   Select,
   SelectTrigger,
   SelectValue,
   SelectContent,
   SelectItem,
   Textarea,
-  DateInput
+  DateInput,
+  LocalizationProvider,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { useForm, UseFormReturn, Control } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { extractCurrencyCode } from '@/common/utils/numberFormatter'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { useCurrencyCatalog } from './hooks/useCurrencyCatalog'
+import type { CurrencyOption } from './hooks/useCurrencyCatalog'
+import { useActiveStructureCurrencies } from './hooks/useActiveStructureCurrencies'
 import { useAssetsCatalog } from './hooks/useAssetsCatalog'
 import { useBrandsCatalog } from './hooks/useBrandsCatalog'
 import { useSiteLocations } from './hooks/useSiteLocations'
 import { AssetProcessClient } from '../../apps/assets/services/AssetProcessClient'
 import { useAssetService } from '../../apps/assets/services/useAssetService'
 import { AssetStatus } from '../../apps/assets/types'
+import translations from './_i18n'
+
+type SupportedLocale = 'en-US' | 'de-DE' | 'ro-RO'
+
+const createEquipmentFormSchema = (t: (key: string) => string) =>
+  z.object({
+    category: z.string().min(1, t('equipment-registration-validation-category-required')),
+    brand: z.string().min(1, t('equipment-registration-validation-producer-required')),
+    model: z.string().min(2, t('equipment-registration-validation-model-min-length')),
+    serialNumber: z
+      .string()
+      .transform(s => (s ?? '').trim())
+      .refine(
+        val => val.length === 0 || val.length >= 3,
+        t('equipment-registration-validation-serial-number-min-length')
+      ),
+    location: z.string().optional(),
+    acquisitionDate: z.string().optional(),
+    warrantyPeriodMonths: z.number().min(0, t('equipment-registration-validation-warranty-min')),
+    inventoryValue: z.number().min(0, t('equipment-registration-validation-inventory-value-min')),
+    currency: z.string().min(1, t('equipment-registration-validation-currency-required')),
+    status: z.nativeEnum(AssetStatus),
+    notes: z.string().optional()
+  })
 
 type FormValues = {
   category: string
@@ -73,15 +104,62 @@ const buildFormValues = (asset?: AssetFormSource | null): FormValues => ({
   notes: asset?.notes || ''
 })
 
+function currencyOptionMatchesRefs(option: CurrencyOption, structureCurrencyRefs: string[]): boolean {
+  return structureCurrencyRefs.some(ref => {
+    const currencyCode = extractCurrencyCode(ref)
+    return option.id === ref || option.value === ref || option.code === currencyCode || option.label === currencyCode
+  })
+}
+
+type FullWidthSelectProps = {
+  id: string
+  'data-testid': string
+  value: string | undefined
+  onValueChange: (value: string) => void
+  disabled?: boolean
+  placeholder?: React.ReactNode
+  children: React.ReactNode
+}
+
+// DS SelectTrigger renders an inner shell with nw:w-fit; override so triggers fill their column.
+const SELECT_FULL_WIDTH_CLASSES =
+  'gba:w-full gba:**:data-[slot=select-trigger-shell]:w-full gba:**:data-[slot=select-trigger]:w-full'
+
+const FORM_FIELD_GRID_CLASSES = `gba:grid gba:grid-cols-2 gba:gap-4 ${SELECT_FULL_WIDTH_CLASSES}`
+
+function FullWidthSelect({
+  id,
+  'data-testid': dataTestId,
+  value,
+  onValueChange,
+  disabled,
+  placeholder,
+  children
+}: FullWidthSelectProps) {
+  return (
+    <div className={SELECT_FULL_WIDTH_CLASSES}>
+      <Select onValueChange={onValueChange} value={value ?? ''} disabled={disabled}>
+        <FormControl className="gba:w-full">
+          <SelectTrigger id={id} className="gba:w-full! gba:min-w-full" data-testid={dataTestId}>
+            <SelectValue placeholder={placeholder} />
+          </SelectTrigger>
+        </FormControl>
+        <SelectContent>{children}</SelectContent>
+      </Select>
+    </div>
+  )
+}
+
 type SerialNumberFieldProps = {
   form: UseFormReturn<FormValues>
   control: Control<FormValues>
   isEditMode: boolean
   assetId: string | null
   getAssets: (variables: { where?: { _and: unknown[] }; limit?: number }) => Promise<{ assets: unknown[] }>
+  t: (key: string) => string
 }
 
-const SerialNumberField: React.FC<SerialNumberFieldProps> = ({ form, control, isEditMode, assetId, getAssets }) => {
+const SerialNumberField: React.FC<SerialNumberFieldProps> = ({ form, control, isEditMode, assetId, getAssets, t }) => {
   const [isCheckingDuplicate, setIsCheckingDuplicate] = React.useState(false)
   const [duplicateError, setDuplicateError] = React.useState<string | null>(null)
   const category = form.watch('category')
@@ -123,10 +201,7 @@ const SerialNumberField: React.FC<SerialNumberFieldProps> = ({ form, control, is
         })
 
         if (result.assets.length > 0) {
-          const errorMsg = getTranslationFromI18nKeyAndLabel(
-            'lowcoder:hr_assets.serial_number_duplicate',
-            'A serial number with this combination of category and producer already exists'
-          )
+          const errorMsg = t('equipment-registration-serial-number-duplicate')
           setDuplicateError(errorMsg)
           form.setError('serialNumber', { type: 'manual', message: errorMsg })
         } else {
@@ -140,7 +215,7 @@ const SerialNumberField: React.FC<SerialNumberFieldProps> = ({ form, control, is
         setIsCheckingDuplicate(false)
       }
     },
-    [form, getAssets, isEditMode, assetId]
+    [form, getAssets, isEditMode, assetId, t]
   )
 
   React.useEffect(() => {
@@ -166,16 +241,14 @@ const SerialNumberField: React.FC<SerialNumberFieldProps> = ({ form, control, is
         }
 
         return (
-          <FormItem>
+          <FormItem className="gba:w-full">
             <Label htmlFor="serialNumber" data-testid="serial-number-label">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.serial_number', 'Serial Number')}
+              {t('equipment-registration-serial-number')}
             </Label>
             <Input
               id="serialNumber"
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:hr_assets.serial_number_placeholder',
-                'Unique serial number'
-              )}
+              className="gba:w-full"
+              placeholder={t('equipment-registration-serial-number-placeholder')}
               value={field.value || ''}
               onChange={handleChange}
               onBlur={handleBlur}
@@ -196,6 +269,7 @@ const SerialNumberField: React.FC<SerialNumberFieldProps> = ({ form, control, is
 
 const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context: BusinessAppContextProps) => {
   const { additionalData } = context
+  const { t } = useTranslation(translations)
   const assetId =
     additionalData?.assetId ||
     additionalData?.psi_taskPayload?.assetId ||
@@ -231,7 +305,24 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
 
   const isEditMode = !!assetId
 
-  const { options: currencyOptions, isLoading: currenciesLoading } = useCurrencyCatalog(context)
+  const { options: allCurrencyOptions, isLoading: currenciesLoading } = useCurrencyCatalog(context)
+  const { structureCurrencyRefs, isLoading: structureCurrencyLoading } = useActiveStructureCurrencies(
+    context.accessToken
+  )
+  const currencyFieldsLoading = currenciesLoading || structureCurrencyLoading
+  const currencyOptions = useMemo(() => {
+    if (allCurrencyOptions.length === 0) {
+      return []
+    }
+
+    if (structureCurrencyRefs.length === 0) {
+      return allCurrencyOptions
+    }
+
+    const matchedOptions = allCurrencyOptions.filter(option => currencyOptionMatchesRefs(option, structureCurrencyRefs))
+
+    return matchedOptions.length > 0 ? matchedOptions : allCurrencyOptions
+  }, [allCurrencyOptions, structureCurrencyRefs])
   const { options: assetOptions, isLoading: assetsLoading } = useAssetsCatalog(context)
   const { options: brandOptions, isLoading: brandsLoading } = useBrandsCatalog(context)
   const { options: locationOptions, isLoading: locationsLoading } = useSiteLocations(context)
@@ -247,80 +338,8 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
   }, [context.accessToken])
 
   const [isSubmitting, setIsSubmitting] = React.useState(false)
-  const [currentLocale, setCurrentLocale] = useState(getCurrentActiveUserLocale())
 
-  useEffect(() => {
-    const checkLocale = () => {
-      const newLocale = getCurrentActiveUserLocale()
-      if (newLocale !== currentLocale) {
-        setCurrentLocale(newLocale)
-      }
-    }
-
-    checkLocale()
-    const interval = setInterval(checkLocale, 500)
-    return () => clearInterval(interval)
-  }, [currentLocale])
-
-  const formSchema = useMemo(
-    () =>
-      z.object({
-        category: z
-          .string()
-          .min(
-            1,
-            getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.please_select_category', 'Please select a category')
-          ),
-        brand: z
-          .string()
-          .min(1, getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.please_select_brand', 'Please select a brand')),
-        model: z
-          .string()
-          .min(
-            2,
-            getTranslationFromI18nKeyAndLabel(
-              'lowcoder:hr_assets.model_min_length',
-              'Model must be at least 2 characters'
-            )
-          ),
-        serialNumber: z
-          .string()
-          .transform(s => (s ?? '').trim())
-          .refine(
-            val => val.length === 0 || val.length >= 3,
-            getTranslationFromI18nKeyAndLabel(
-              'lowcoder:hr_assets.serial_number_min_length',
-              'Serial number must be at least 3 characters'
-            )
-          ),
-        location: z.string().optional(),
-        acquisitionDate: z.string().optional(),
-        warrantyPeriodMonths: z
-          .number()
-          .min(
-            0,
-            getTranslationFromI18nKeyAndLabel(
-              'lowcoder:hr_assets.warranty_period_min',
-              'Warranty period must be 0 or greater'
-            )
-          ),
-        inventoryValue: z
-          .number()
-          .min(
-            0,
-            getTranslationFromI18nKeyAndLabel(
-              'lowcoder:hr_assets.inventory_value_min',
-              'Inventory value must be 0 or greater'
-            )
-          ),
-        currency: z
-          .string()
-          .min(1, getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.currency_required', 'Currency is required')),
-        status: z.nativeEnum(AssetStatus),
-        notes: z.string().optional()
-      }),
-    [currentLocale]
-  )
+  const formSchema = useMemo(() => createEquipmentFormSchema(t), [t])
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -331,6 +350,34 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
   const watchedValues = form.watch()
   const selectedCategory = watchedValues.category
   const selectedBrand = watchedValues.brand
+  const visibleCurrencyOptions = useMemo(() => {
+    const selectedCurrency = watchedValues.currency
+
+    if (!isEditMode || !selectedCurrency) {
+      return currencyOptions
+    }
+
+    const selectedOption = allCurrencyOptions.find(
+      option => option.value === selectedCurrency || option.id === selectedCurrency
+    )
+    const selectedOptionIsVisible = currencyOptions.some(
+      option => option.value === selectedCurrency || option.id === selectedCurrency
+    )
+
+    if (selectedOption && !selectedOptionIsVisible) {
+      return [selectedOption, ...currencyOptions]
+    }
+
+    return currencyOptions
+  }, [allCurrencyOptions, currencyOptions, isEditMode, watchedValues.currency])
+  const currencyComboboxOptions = useMemo(
+    () =>
+      visibleCurrencyOptions.map(currency => ({
+        value: currency.value,
+        label: currency.label
+      })),
+    [visibleCurrencyOptions]
+  )
   const filteredBrandOptions = useMemo(
     () => brandOptions.filter(brand => brand.parentEntryId === selectedCategory),
     [brandOptions, selectedCategory]
@@ -364,6 +411,17 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
       form.setValue('brand', '', { shouldDirty: true, shouldValidate: true })
     }
   }, [filteredBrandOptions, form, isEditMode, selectedBrand])
+
+  useEffect(() => {
+    if (isEditMode || currencyFieldsLoading || currencyOptions.length !== 1) {
+      return
+    }
+
+    const currentCurrency = form.getValues('currency')
+    if (!currentCurrency) {
+      form.setValue('currency', currencyOptions[0].value, { shouldValidate: true })
+    }
+  }, [currencyFieldsLoading, currencyOptions, form, isEditMode])
 
   React.useEffect(() => {
     const loadAsset = async () => {
@@ -413,47 +471,34 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
   const defaultValues: FormValues = useMemo(() => buildFormValues(existingAsset), [existingAsset])
 
   const title = useMemo(
-    () =>
-      isEditMode
-        ? getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.update_equipment', 'Update Equipment')
-        : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.register_equipment_form', 'Register Equipment'),
-    [isEditMode, currentLocale]
+    () => (isEditMode ? t('equipment-registration-title-edit') : t('equipment-registration-title')),
+    [isEditMode, t]
   )
 
-  // Memoize button texts with locale dependency
-  const updateButtonText = useMemo(
-    () => getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.update_equipment', 'Update Equipment'),
-    [currentLocale]
-  )
+  const updateButtonText = useMemo(() => t('equipment-registration-submit-edit'), [t])
 
-  const registerButtonText = useMemo(
-    () => getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.register_equipment', 'Register Equipment'),
-    [currentLocale]
-  )
+  const registerButtonText = useMemo(() => t('equipment-registration-submit'), [t])
 
-  const cancelButtonText = useMemo(
-    () => getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initiate_cancel_button', 'Cancel'),
-    [currentLocale]
-  )
+  const cancelButtonText = useMemo(() => t('equipment-registration-cancel'), [t])
 
   const brandPlaceholder = useMemo(() => {
     if (brandsLoading) {
-      return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.loading_brands', 'Loading brands...')
+      return t('equipment-registration-loading-brands')
     }
 
     if (!selectedCategory) {
-      return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.select_category_first', 'Select category first')
+      return t('equipment-registration-select-category-first')
     }
 
-    return getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.select_brand', 'Select brand')
-  }, [brandsLoading, currentLocale, selectedCategory])
+    return t('equipment-registration-select-producer')
+  }, [brandsLoading, selectedCategory, t])
 
   const isSubmitDisabled = useMemo(() => {
     const hasValidationErrors = Object.keys(form.formState.errors || {}).length > 0
 
     return (
       isSubmitting ||
-      currenciesLoading ||
+      currencyFieldsLoading ||
       assetsLoading ||
       brandsLoading ||
       locationsLoading ||
@@ -463,7 +508,7 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
     )
   }, [
     isSubmitting,
-    currenciesLoading,
+    currencyFieldsLoading,
     assetsLoading,
     brandsLoading,
     locationsLoading,
@@ -516,21 +561,11 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
 
   const handleEditSubmit = async (values: FormValues) => {
     if (!assetId) {
-      throw new Error(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:hr_assets.asset_id_required_editing',
-          'Asset ID is required for editing'
-        )
-      )
+      throw new Error(t('equipment-registration-asset-id-required'))
     }
 
     if (assetVersion === undefined || assetVersion === null) {
-      throw new Error(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:hr_assets.asset_version_required',
-          'Asset version is required for editing. Please ensure the asset is loaded correctly.'
-        )
-      )
+      throw new Error(t('equipment-registration-asset-version-required'))
     }
 
     try {
@@ -611,68 +646,62 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
   }
 
   const formFields = (
-    <div className="gba:flex-1 gba:space-y-4">
-      <FormField
-        control={form.control}
-        name="category"
-        render={({ field }) => (
-          <FormItem>
-            <Label htmlFor="category" data-testid="category-label">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.category', 'Category')} *
-            </Label>
-            <Select onValueChange={field.onChange} value={field.value} disabled={assetsLoading || isEditMode}>
-              <SelectTrigger id="category" data-testid="category-select">
-                <SelectValue
-                  placeholder={
-                    assetsLoading
-                      ? getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:hr_assets.loading_categories',
-                          'Loading categories...'
-                        )
-                      : getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:hr_assets.select_equipment_category',
-                          'Select equipment category'
-                        )
-                  }
-                />
-              </SelectTrigger>
-              <SelectContent>
+    <div className={`gba:w-full gba:flex-1 gba:space-y-4 ${SELECT_FULL_WIDTH_CLASSES}`}>
+      <div className={FORM_FIELD_GRID_CLASSES}>
+        <FormField
+          control={form.control}
+          name="category"
+          render={({ field }) => (
+            <FormItem className="gba:w-full gba:min-w-0">
+              <Label htmlFor="category" data-testid="category-label">
+                {t('equipment-registration-category')} *
+              </Label>
+              <FullWidthSelect
+                id="category"
+                data-testid="category-select"
+                value={field.value}
+                onValueChange={field.onChange}
+                disabled={assetsLoading || isEditMode}
+                placeholder={
+                  assetsLoading
+                    ? t('equipment-registration-loading-categories')
+                    : t('equipment-registration-select-category')
+                }
+              >
                 {assetOptions.map(asset => (
                   <SelectItem key={asset.id} value={asset.value} data-testid={`category-option-${asset.code}`}>
                     {asset.label}
                   </SelectItem>
                 ))}
-              </SelectContent>
-            </Select>
-          </FormItem>
-        )}
-      />
+              </FullWidthSelect>
+            </FormItem>
+          )}
+        />
+      </div>
 
-      <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+      <div className={FORM_FIELD_GRID_CLASSES}>
         <FormField
           control={form.control}
           name="brand"
           render={({ field }) => (
-            <FormItem>
+            <FormItem className="gba:w-full gba:min-w-0">
               <Label htmlFor="brand" data-testid="brand-label">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.producer', 'Producer')} *
+                {t('equipment-registration-producer')} *
               </Label>
-              <Select
-                onValueChange={field.onChange}
+              <FullWidthSelect
+                id="brand"
+                data-testid="brand-select"
                 value={field.value}
+                onValueChange={field.onChange}
                 disabled={brandsLoading || isEditMode || !selectedCategory}
+                placeholder={brandPlaceholder}
               >
-                <SelectTrigger id="brand" data-testid="brand-select">
-                  <SelectValue placeholder={brandPlaceholder} />
-                </SelectTrigger>
-                <SelectContent>
-                  {visibleBrandOptions.map(brand => (
-                    <SelectItem key={brand.id} value={brand.id} data-testid={`brand-option-${brand.code}`}>
-                      {brand.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                {visibleBrandOptions.map(brand => (
+                  <SelectItem key={brand.id} value={brand.id} data-testid={`brand-option-${brand.code}`}>
+                    {brand.label}
+                  </SelectItem>
+                ))}
+              </FullWidthSelect>
             </FormItem>
           )}
         />
@@ -681,16 +710,14 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
           control={form.control}
           name="model"
           render={({ field }) => (
-            <FormItem>
+            <FormItem className="gba:w-full gba:min-w-0">
               <Label htmlFor="model" data-testid="model-label">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.model', 'Model')} *
+                {t('equipment-registration-model')} *
               </Label>
               <Input
                 id="model"
-                placeholder={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:hr_assets.model_placeholder',
-                  'e.g., MacBook Pro 14'
-                )}
+                className="gba:w-full"
+                placeholder={t('equipment-registration-model-placeholder')}
                 value={field.value || ''}
                 onChange={field.onChange}
                 onBlur={field.onBlur}
@@ -707,49 +734,49 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
         isEditMode={isEditMode}
         assetId={assetId}
         getAssets={getAssets}
+        t={t}
       />
 
-      <FormField
-        control={form.control}
-        name="location"
-        render={({ field }) => (
-          <FormItem>
-            <Label htmlFor="location" data-testid="location-label">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.location', 'Location')}
-            </Label>
-            <Select onValueChange={field.onChange} value={field.value} disabled={locationsLoading}>
-              <SelectTrigger id="location" data-testid="location-select">
-                <SelectValue
-                  placeholder={
-                    locationsLoading
-                      ? getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:hr_assets.loading_locations',
-                          'Loading locations...'
-                        )
-                      : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.select_location', 'Select location')
-                  }
-                />
-              </SelectTrigger>
-              <SelectContent>
+      <div className={FORM_FIELD_GRID_CLASSES}>
+        <FormField
+          control={form.control}
+          name="location"
+          render={({ field }) => (
+            <FormItem className="gba:w-full gba:min-w-0">
+              <Label htmlFor="location" data-testid="location-label">
+                {t('equipment-registration-location')}
+              </Label>
+              <FullWidthSelect
+                id="location"
+                data-testid="location-select"
+                value={field.value}
+                onValueChange={field.onChange}
+                disabled={locationsLoading}
+                placeholder={
+                  locationsLoading
+                    ? t('equipment-registration-loading-locations')
+                    : t('equipment-registration-select-location')
+                }
+              >
                 {locationOptions.map(location => (
                   <SelectItem key={location.id} value={location.value} data-testid={`location-option-${location.code}`}>
                     {location.label}
                   </SelectItem>
                 ))}
-              </SelectContent>
-            </Select>
-          </FormItem>
-        )}
-      />
+              </FullWidthSelect>
+            </FormItem>
+          )}
+        />
+      </div>
 
-      <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+      <div className={FORM_FIELD_GRID_CLASSES}>
         <FormField
           control={form.control}
           name="acquisitionDate"
           render={({ field }) => (
-            <FormItem>
+            <FormItem className="gba:w-full gba:min-w-0">
               <Label htmlFor="acquisitionDate" data-testid="acquisition-date-label">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.acquisition_date', 'Acquisition Date')}
+                {t('equipment-registration-acquisition-date')}
               </Label>
               <DateInput
                 type="date"
@@ -761,10 +788,7 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
                     field.onChange('')
                   }
                 }}
-                placeholder={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:employee_profile.details_layout.personal_information_container.select_placeholder',
-                  'Please Select'
-                )}
+                placeholder={t('equipment-registration-select-placeholder')}
                 className="gba:w-full"
                 disabled={isEditMode}
                 data-testid="acquisition-date-input"
@@ -782,12 +806,13 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
             const displayValue = isFocused && field.value === 0 ? '' : (field.value ?? '')
 
             return (
-              <FormItem>
+              <FormItem className="gba:w-full gba:min-w-0">
                 <Label htmlFor="warrantyPeriodMonths" data-testid="warranty-period-label">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.warranty_months', 'Warranty (months)')}
+                  {t('equipment-registration-warranty-months')}
                 </Label>
                 <Input
                   id="warrantyPeriodMonths"
+                  className="gba:w-full"
                   type="number"
                   min="0"
                   value={displayValue}
@@ -824,7 +849,7 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
         />
       </div>
 
-      <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:items-start">
+      <div className={`${FORM_FIELD_GRID_CLASSES} gba:items-start`}>
         <FormField
           control={form.control}
           name="inventoryValue"
@@ -834,12 +859,13 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
             const displayValue = isFocused && field.value === 0 ? '' : (field.value ?? '')
 
             return (
-              <FormItem>
+              <FormItem className="gba:w-full gba:min-w-0">
                 <Label htmlFor="inventoryValue" data-testid="inventory-value-label">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.inventory_value', 'Inventory Value')} *
+                  {t('equipment-registration-inventory-value')} *
                 </Label>
                 <Input
                   id="inventoryValue"
+                  className="gba:w-full"
                   type="number"
                   min="0"
                   step="0.01"
@@ -881,32 +907,30 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
           control={form.control}
           name="currency"
           render={({ field }) => (
-            <FormItem>
+            <FormItem className="gba:w-full gba:min-w-0">
               <Label htmlFor="currency" data-testid="currency-label">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.currency', 'Currency')} *
+                {t('equipment-registration-currency')} *
               </Label>
-              <Select onValueChange={field.onChange} value={field.value} disabled={currenciesLoading}>
-                <SelectTrigger id="currency" data-testid="currency-select">
-                  <SelectValue
-                    placeholder={
-                      currenciesLoading
-                        ? getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.loading', 'Loading...')
-                        : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.select_currency', 'Select currency')
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {currencyOptions.map(currency => (
-                    <SelectItem
-                      key={currency.id}
-                      value={currency.value}
-                      data-testid={`currency-option-${currency.name}`}
-                    >
-                      {currency.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <FormControl>
+                <Combobox
+                  className="gba:[&&]:h-auto gba:w-full"
+                  options={currencyComboboxOptions}
+                  value={field.value || ''}
+                  onValueChange={field.onChange}
+                  disabled={currencyFieldsLoading}
+                  loading={currencyFieldsLoading}
+                  placeholder={
+                    currencyFieldsLoading
+                      ? t('equipment-registration-loading')
+                      : t('equipment-registration-select-currency')
+                  }
+                  searchPlaceholder={t('equipment-registration-search-currency')}
+                  emptyText={t('equipment-registration-no-currencies-found')}
+                  loadingText={t('equipment-registration-loading')}
+                  data-testid="currency-select"
+                  align="start"
+                />
+              </FormControl>
             </FormItem>
           )}
         />
@@ -952,42 +976,39 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
               control={form.control}
               name="status"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="gba:w-full">
                   <Label htmlFor="status" data-testid="status-label">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status', 'Status')} *
+                    {t('equipment-registration-status')} *
                   </Label>
-                  <Select onValueChange={field.onChange} value={field.value} disabled={isPending}>
-                    <SelectTrigger id="status" data-testid="status-select">
-                      <SelectValue
-                        placeholder={getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:hr_assets.select_status',
-                          'Select status'
-                        )}
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableStatuses.includes(AssetStatus.PENDING) && (
-                        <SelectItem value={AssetStatus.PENDING} data-testid="status-pending">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.pending', 'Pending')}
-                        </SelectItem>
-                      )}
-                      {availableStatuses.includes(AssetStatus.AVAILABLE) && (
-                        <SelectItem value={AssetStatus.AVAILABLE} data-testid="status-available">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_available', 'Available')}
-                        </SelectItem>
-                      )}
-                      {availableStatuses.includes(AssetStatus.ALLOCATED) && (
-                        <SelectItem value={AssetStatus.ALLOCATED} data-testid="status-allocated">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_allocated', 'Allocated')}
-                        </SelectItem>
-                      )}
-                      {availableStatuses.includes(AssetStatus.UNDER_REPAIR) && (
-                        <SelectItem value={AssetStatus.UNDER_REPAIR} data-testid="status-under-repair">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.status_in_repair', 'In Repair')}
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
+                  <FullWidthSelect
+                    id="status"
+                    data-testid="status-select"
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    disabled={isPending}
+                    placeholder={t('equipment-registration-select-status')}
+                  >
+                    {availableStatuses.includes(AssetStatus.PENDING) && (
+                      <SelectItem value={AssetStatus.PENDING} data-testid="status-pending">
+                        {t('equipment-registration-status-pending')}
+                      </SelectItem>
+                    )}
+                    {availableStatuses.includes(AssetStatus.AVAILABLE) && (
+                      <SelectItem value={AssetStatus.AVAILABLE} data-testid="status-available">
+                        {t('equipment-registration-status-available')}
+                      </SelectItem>
+                    )}
+                    {availableStatuses.includes(AssetStatus.ALLOCATED) && (
+                      <SelectItem value={AssetStatus.ALLOCATED} data-testid="status-allocated">
+                        {t('equipment-registration-status-allocated')}
+                      </SelectItem>
+                    )}
+                    {availableStatuses.includes(AssetStatus.UNDER_REPAIR) && (
+                      <SelectItem value={AssetStatus.UNDER_REPAIR} data-testid="status-under-repair">
+                        {t('equipment-registration-status-in-repair')}
+                      </SelectItem>
+                    )}
+                  </FullWidthSelect>
                 </FormItem>
               )}
             />
@@ -1000,14 +1021,11 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
         render={({ field }) => (
           <FormItem>
             <Label htmlFor="notes" data-testid="notes-label">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.notes', 'Notes')}
+              {t('equipment-registration-notes')}
             </Label>
             <Textarea
               id="notes"
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:hr_assets.equipment_notes_placeholder',
-                'Additional information about this equipment...'
-              )}
+              placeholder={t('equipment-registration-notes-placeholder')}
               className="gba:min-h-[80px] gba:w-full"
               value={field.value || ''}
               onChange={field.onChange}
@@ -1180,7 +1198,13 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
 }
 
 export const EquipmentRegistration: React.FC<BusinessAppContextProps> = context => {
-  return <EquipmentRegistrationContent {...context} />
+  const locale = useMemo(() => getCurrentActiveUserLocale() as SupportedLocale, [])
+
+  return (
+    <LocalizationProvider locale={locale}>
+      <EquipmentRegistrationContent {...context} />
+    </LocalizationProvider>
+  )
 }
 
 export default EquipmentRegistration
