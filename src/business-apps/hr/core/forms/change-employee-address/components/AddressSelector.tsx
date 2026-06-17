@@ -69,7 +69,7 @@ const AddressSelector: React.FC<AddressSelectorProps> = ({
           <Select value={selectValue} onValueChange={v => onChange(v || addSentinel)}>
             <FormControl>
               <SelectTrigger
-                className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none"
+                className="gba:!w-full gba:min-w-0 gba:!max-w-none"
                 data-testid="flw_changeEmployeeAddressList_selectAddress"
               >
                 <SelectValue placeholder={placeholder} />

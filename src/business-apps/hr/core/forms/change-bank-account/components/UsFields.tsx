@@ -48,10 +48,13 @@ const UsFields: React.FC<UsFieldsProps> = ({
               )}
               <span className="gba:text-destructive"> *</span>
             </FormLabel>
-            <Select value={field.value == null ? '' : String(field.value)} onValueChange={v => field.onChange(v || null)}>
+            <Select
+              value={field.value == null ? '' : String(field.value)}
+              onValueChange={v => field.onChange(v || null)}
+            >
               <FormControl>
                 <SelectTrigger
-                  className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none"
+                  className="gba:!w-full gba:min-w-0 gba:!max-w-none"
                   data-testid="flw_changeBankAccount_routingNumberType"
                 >
                   <SelectValue
@@ -163,10 +166,13 @@ const UsFields: React.FC<UsFieldsProps> = ({
               )}
               <span className="gba:text-destructive"> *</span>
             </FormLabel>
-            <Select value={field.value == null ? '' : String(field.value)} onValueChange={v => field.onChange(v || null)}>
+            <Select
+              value={field.value == null ? '' : String(field.value)}
+              onValueChange={v => field.onChange(v || null)}
+            >
               <FormControl>
                 <SelectTrigger
-                  className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none"
+                  className="gba:!w-full gba:min-w-0 gba:!max-w-none"
                   data-testid="flw_changeBankAccount_address"
                 >
                   <SelectValue

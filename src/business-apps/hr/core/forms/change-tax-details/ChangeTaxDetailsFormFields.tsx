@@ -124,7 +124,7 @@ export const ChangeTaxDetailsFormFields: React.FC<ChangeTaxDetailsFormFieldsProp
             <FormControl>
               <Select value={field.value || ''} onValueChange={val => field.onChange(val || null)}>
                 <SelectTrigger
-                  className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none"
+                  className="gba:!w-full gba:min-w-0 gba:!max-w-none"
                   data-testid="flw_changeTaxDetails_taxBracket"
                 >
                   <SelectValue placeholder={placeholderSelect} />
@@ -186,7 +186,7 @@ export const ChangeTaxDetailsFormFields: React.FC<ChangeTaxDetailsFormFieldsProp
                 }}
               >
                 <SelectTrigger
-                  className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none"
+                  className="gba:!w-full gba:min-w-0 gba:!max-w-none"
                   data-testid="flw_changeTaxDetails_healthInsuranceType"
                 >
                   <SelectValue placeholder={placeholderSelect} />
@@ -322,7 +322,7 @@ export const ChangeTaxDetailsFormFields: React.FC<ChangeTaxDetailsFormFieldsProp
             <FormControl>
               <Select value={field.value || ''} onValueChange={val => field.onChange(val || null)}>
                 <SelectTrigger
-                  className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none"
+                  className="gba:!w-full gba:min-w-0 gba:!max-w-none"
                   data-testid="flw_changeTaxDetails_taxableChurchAffiliation"
                 >
                   <SelectValue placeholder={placeholderSelect} />

@@ -50,14 +50,12 @@ const DefaultFields: React.FC<DefaultFieldsProps> = ({
               <span className="gba:text-destructive"> *</span>
             </FormLabel>
             <Select
-              value={
-                field.value === null || field.value === undefined || field.value === '' ? '' : String(field.value)
-              }
+              value={field.value === null || field.value === undefined || field.value === '' ? '' : String(field.value)}
               onValueChange={v => field.onChange(v || null)}
             >
               <FormControl>
                 <SelectTrigger
-                  className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none"
+                  className="gba:!w-full gba:min-w-0 gba:!max-w-none"
                   data-testid="flw_changeBankAccount_country"
                 >
                   <SelectValue
@@ -116,14 +114,12 @@ const DefaultFields: React.FC<DefaultFieldsProps> = ({
               <span className="gba:text-destructive"> *</span>
             </FormLabel>
             <Select
-              value={
-                field.value === null || field.value === undefined || field.value === '' ? '' : String(field.value)
-              }
+              value={field.value === null || field.value === undefined || field.value === '' ? '' : String(field.value)}
               onValueChange={v => field.onChange(v || null)}
             >
               <FormControl>
                 <SelectTrigger
-                  className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none"
+                  className="gba:!w-full gba:min-w-0 gba:!max-w-none"
                   data-testid="flw_changeBankAccount_currency"
                 >
                   <SelectValue
@@ -203,14 +199,12 @@ const DefaultFields: React.FC<DefaultFieldsProps> = ({
               <span className="gba:text-destructive"> *</span>
             </FormLabel>
             <Select
-              value={
-                field.value === null || field.value === undefined || field.value === '' ? '' : String(field.value)
-              }
+              value={field.value === null || field.value === undefined || field.value === '' ? '' : String(field.value)}
               onValueChange={v => field.onChange(v || '')}
             >
               <FormControl>
                 <SelectTrigger
-                  className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none"
+                  className="gba:!w-full gba:min-w-0 gba:!max-w-none"
                   data-testid="flw_changeBankAccount_bankName_accountType"
                 >
                   <SelectValue

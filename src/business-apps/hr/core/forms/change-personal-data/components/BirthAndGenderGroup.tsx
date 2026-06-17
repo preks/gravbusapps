@@ -138,7 +138,7 @@ const BirthAndGenderGroup: React.FC<BirthAndGenderGroupProps> = ({ control, cata
             >
               <FormControl>
                 <SelectTrigger
-                  className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none"
+                  className="gba:!w-full gba:min-w-0 gba:!max-w-none"
                   data-testid="flw_changePersonalData_currentGender"
                 >
                   <SelectValue placeholder={placeholderSelect} />

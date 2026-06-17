@@ -56,7 +56,7 @@ const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupPro
             >
               <FormControl>
                 <SelectTrigger
-                  className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none"
+                  className="gba:!w-full gba:min-w-0 gba:!max-w-none"
                   data-testid="flw_changePersonalData_currentNationality"
                 >
                   <SelectValue placeholder={placeholderSelect} />
@@ -101,7 +101,7 @@ const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupPro
             >
               <FormControl>
                 <SelectTrigger
-                  className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none"
+                  className="gba:!w-full gba:min-w-0 gba:!max-w-none"
                   data-testid="flw_changePersonalData_currentLanguage"
                 >
                   <SelectValue placeholder={placeholderSelect} />
@@ -153,7 +153,7 @@ const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupPro
             >
               <FormControl>
                 <SelectTrigger
-                  className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none"
+                  className="gba:!w-full gba:min-w-0 gba:!max-w-none"
                   data-testid="flw_changePersonalData_currentMaritalStatus"
                 >
                   <SelectValue placeholder={placeholderSelect} />

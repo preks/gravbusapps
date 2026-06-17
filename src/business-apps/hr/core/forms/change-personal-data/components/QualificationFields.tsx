@@ -60,7 +60,7 @@ const QualificationFields: React.FC<QualificationFieldsProps> = ({ control, cata
             >
               <FormControl>
                 <SelectTrigger
-                  className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none"
+                  className="gba:!w-full gba:min-w-0 gba:!max-w-none"
                   data-testid="flw_changePersonalData_schoolInput"
                 >
                   <SelectValue placeholder={placeholderSelect} />
@@ -116,7 +116,7 @@ const QualificationFields: React.FC<QualificationFieldsProps> = ({ control, cata
               <Select value={''} onValueChange={v => addValue(v)} open={open} onOpenChange={setOpen}>
                 <FormControl>
                   <SelectTrigger
-                    className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none gba:!h-auto"
+                    className="gba:!w-full gba:min-w-0 gba:!max-w-none gba:!h-auto"
                     data-testid="change-personal-data-academic-titles-select"
                     onMouseDownCapture={evt => {
                       const target = evt.target as HTMLElement
