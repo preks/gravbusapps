@@ -4,13 +4,13 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useCommunicationLookups } from './queries/ChangeCommunicationQueries'
-import { parseNumber, formatNumber, isValidPhoneNumber, getCountryCallingCode } from 'libphonenumber-js'
 import { FormHeader } from './components/FormHeader'
 import { ChannelTypeField } from './components/ChannelTypeField'
 import { TypeField } from './components/TypeField'
 import { ValueField } from './components/ValueField'
 import { useCommunicationFormState } from './hooks/useCommunicationFormState'
 import { useCommunicationValidation } from './hooks/useCommunicationValidation'
+import { buildPhoneNumberWithCountryCode } from '@/common/utils/validation/phoneNumberValidation'
 import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../../apps/employee-record/_i18n'
 import { DeleteLayout } from '@/components/delete-layout/DeleteLayout'
@@ -49,16 +49,7 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
     if (!formState.baseline) return false
     let currentValue = formState.value.trim()
     if (formState.isPhoneType) {
-      if (formState.selectedCountryCode && formState.phoneNumber.trim()) {
-        try {
-          const callingCode = getCountryCallingCode(formState.selectedCountryCode)
-          currentValue = `+${callingCode}${formState.phoneNumber.trim()}`
-        } catch {
-          currentValue = formState.phoneNumber.trim()
-        }
-      } else {
-        currentValue = formState.phoneNumber.trim()
-      }
+      currentValue = buildPhoneNumberWithCountryCode(formState.phoneNumber, formState.selectedCountryCode)
     }
     return (
       formState.channelType !== formState.baseline.channelRef ||
@@ -108,22 +99,7 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
     let formattedValue = formState.value.trim()
 
     if (formState.isPhoneType) {
-      if (formState.selectedCountryCode && formState.phoneNumber.trim()) {
-        try {
-          const callingCode = getCountryCallingCode(formState.selectedCountryCode)
-          const fullNumber = `+${callingCode}${formState.phoneNumber.trim()}`
-          const parsed = parseNumber(fullNumber)
-          if (parsed && 'phone' in parsed && isValidPhoneNumber(fullNumber)) {
-            formattedValue = formatNumber(parsed, 'E.164')
-          } else {
-            formattedValue = fullNumber
-          }
-        } catch {
-          formattedValue = formState.phoneNumber.trim()
-        }
-      } else {
-        formattedValue = formState.phoneNumber.trim()
-      }
+      formattedValue = buildPhoneNumberWithCountryCode(formState.phoneNumber, formState.selectedCountryCode)
     }
 
     return {

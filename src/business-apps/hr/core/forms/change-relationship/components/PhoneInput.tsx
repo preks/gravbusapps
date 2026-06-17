@@ -8,6 +8,7 @@ import {
   type CountryCode,
   type CountryCallingCode
 } from 'libphonenumber-js'
+import { normalizeLocalPhoneNumber } from '@/common/utils/validation/phoneNumberValidation'
 
 interface Country {
   code: CountryCode
@@ -128,7 +129,7 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
   }
 
   const handleLocalNumberChange = (number: string) => {
-    const cleanNumber = number.replace(/[^\d]/g, '')
+    const cleanNumber = normalizeLocalPhoneNumber(number)
     setLocalNumber(cleanNumber)
 
     skipNextParseRef.current = true

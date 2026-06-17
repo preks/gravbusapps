@@ -26,6 +26,7 @@ import { PhoneInput } from './components/PhoneInput'
 import { useEmployeeDocumentSync } from '../document-sync/useEmployeeDocumentSync'
 import { EmployeeDocumentUploadField } from '../document-sync/EmployeeDocumentUploadField'
 import { useRelationshipCongratulationsMessage } from './hooks/useRelationshipCongratulationsMessage'
+import { isValidPhoneNumberWithMetadata, normalizePhoneNumber } from '@/common/utils/validation/phoneNumberValidation'
 
 const prefixDataTestId = 'ChangeRelationshipScreen'
 
@@ -172,9 +173,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
         'The Phone Number field is required. Please enter a phone number.'
       )
     }
-    // Allow international format: +countrycode followed by digits
-    const regexTest = /^\+?\d{6,}$/
-    if (!regexTest.test(trimmed)) {
+    if (!isValidPhoneNumberWithMetadata(trimmed)) {
       return getTranslationFromI18nKeyAndLabel(
         'lowcoder:change_relationship.container_relationship.phone_only_numbers_error',
         'The Phone Number field is invalid. Please enter a valid phone number.'
@@ -324,7 +323,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       employeeId,
       firstName: firstName.trim() || undefined,
       lastName: lastName.trim() || undefined,
-      phoneNumber: phoneNumber.trim() || undefined,
+      phoneNumber: normalizePhoneNumber(phoneNumber) || undefined,
       typeRef: relationshipTypeId || undefined,
       birthDate: birthDate ? (formatDateToISO(new Date(birthDate)) as string) : undefined,
       emergencyContact: isEmergencyContact,

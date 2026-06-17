@@ -8,6 +8,7 @@ import {
 } from 'libphonenumber-js'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { normalizePhoneNumber } from '../utils/phoneUtils'
+import { normalizeLocalPhoneNumber } from '@/common/utils/validation/phoneNumberValidation'
 
 interface Baseline {
   channelRef?: string
@@ -372,7 +373,7 @@ export const useCommunicationFormState = ({
         if (valueWithoutPlus.startsWith(callingCode)) {
           const remaining = valueWithoutPlus.substring(callingCode.length).trim()
           setSelectedCountryCode(country.code)
-          setPhoneNumber(remaining)
+          setPhoneNumber(normalizeLocalPhoneNumber(remaining))
           return
         }
       }
@@ -380,7 +381,7 @@ export const useCommunicationFormState = ({
 
     if (!selectedCountryCode) {
       setSelectedCountryCode('')
-      setPhoneNumber(value)
+      setPhoneNumber(normalizeLocalPhoneNumber(value))
     }
   }, [isPhoneType, value, countries])
 
@@ -427,7 +428,7 @@ export const useCommunicationFormState = ({
     setValueTouched,
     setPhoneNumber: (num: string) => {
       skipNextParseRef.current = true
-      setPhoneNumber(num)
+      setPhoneNumber(normalizeLocalPhoneNumber(num))
     },
     setSelectedCountryCode: (code: CountryCode | '') => {
       if (code) {

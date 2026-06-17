@@ -1,7 +1,11 @@
 import { useMemo } from 'react'
-import { isValidPhoneNumber, getCountryCallingCode } from 'libphonenumber-js'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { CountryCode } from 'libphonenumber-js'
+import {
+  isValidPhoneNumberForCountry,
+  isValidPhoneNumberWithMetadata,
+  normalizeLocalPhoneNumber
+} from '@/common/utils/validation/phoneNumberValidation'
 
 interface UseCommunicationValidationProps {
   normalizedChannelType: string
@@ -25,21 +29,14 @@ export const useCommunicationValidation = ({
   const valueValidationMessage = useMemo(() => {
     const type = normalizedChannelType
     if (isPhoneType) {
-      const v = (phoneNumber || '').trim()
+      const v = normalizeLocalPhoneNumber(phoneNumber || '')
       if (!v) {
         return getTranslationFromI18nKeyAndLabel(
           'lowcoder:create_expense_request.add_request_trip_details.valid_number',
           'Please enter a valid number'
         )
       }
-      try {
-        let phoneToValidate = v
-        if (selectedCountryCode) {
-          const callingCode = getCountryCallingCode(selectedCountryCode)
-          phoneToValidate = `+${callingCode}${v}`
-        }
-        if (isValidPhoneNumber(phoneToValidate)) return ''
-      } catch {}
+      if (isValidPhoneNumberForCountry(v, selectedCountryCode)) return ''
       return getTranslationFromI18nKeyAndLabel(
         'lowcoder:create_expense_request.add_request_trip_details.valid_number',
         'Please enter a valid number'
@@ -57,9 +54,7 @@ export const useCommunicationValidation = ({
             'Please enter a valid number'
           )
         }
-        try {
-          if (isValidPhoneNumber(v)) return ''
-        } catch {}
+        if (isValidPhoneNumberWithMetadata(v)) return ''
         return getTranslationFromI18nKeyAndLabel(
           'lowcoder:create_expense_request.add_request_trip_details.valid_number',
           'Please enter a valid number'
@@ -124,7 +119,7 @@ export const useCommunicationValidation = ({
     if (!channelType || !valueType) return false
     if (channelRequiredMessage || typeRequiredMessage || valueValidationMessage) return false
     if (isPhoneType) {
-      return phoneNumber.trim().length > 0
+      return normalizeLocalPhoneNumber(phoneNumber).length > 0
     }
     return value.trim().length > 0
   }, [
