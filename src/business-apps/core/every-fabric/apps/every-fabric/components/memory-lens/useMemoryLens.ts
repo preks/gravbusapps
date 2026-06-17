@@ -53,6 +53,7 @@ export interface UseMemoryLensResult {
   refresh: () => Promise<void>
   remove: (key: string, namespace: MemoryNamespace) => Promise<void>
   regenerate: () => Promise<void>
+  fetchRange: (dateFrom: string, dateTo: string) => Promise<MemoryLensEntry[]>
 }
 
 export const useMemoryLens = (accessToken: string): UseMemoryLensResult => {
@@ -69,6 +70,14 @@ export const useMemoryLens = (accessToken: string): UseMemoryLensResult => {
   const fetchEntries = useCallback(
     async (rawQuery: string): Promise<MemoryLensEntry[]> => {
       const results = await client.getMemory(rawQuery.trim() || '*', { limit: FETCH_LIMIT })
+      return (results ?? []).map(normalizeEntry)
+    },
+    [client]
+  )
+
+  const fetchRange = useCallback(
+    async (dateFrom: string, dateTo: string): Promise<MemoryLensEntry[]> => {
+      const results = await client.getMemory('*', { dateFrom, dateTo, limit: FETCH_LIMIT })
       return (results ?? []).map(normalizeEntry)
     },
     [client]
@@ -148,6 +157,7 @@ export const useMemoryLens = (accessToken: string): UseMemoryLensResult => {
     search,
     refresh,
     remove,
-    regenerate
+    regenerate,
+    fetchRange
   }
 }

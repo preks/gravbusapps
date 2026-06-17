@@ -6,7 +6,12 @@ import { MemoryProfileCard } from './MemoryProfileCard'
 import { MemoryStatsRow } from './MemoryStatsRow'
 import { MemoryInsights } from './MemoryInsights'
 import { MemoryBrowser } from './MemoryBrowser'
+import { MemoryDimensionTabs, type MemoryLensView } from './MemoryDimensionTabs'
+import { MemoryDiary } from './MemoryDiary'
+import { MemoryCalendar } from './MemoryCalendar'
+import { MemoryFacetBrowser } from './MemoryFacetBrowser'
 import { MemoryListSkeleton } from '../settings/components/SkeletonLoader'
+import type { MemoryNamespace } from '../settings/agentSettings.types'
 
 interface MemoryLensScreenProps {
   accessToken: string
@@ -27,11 +32,14 @@ export const MemoryLensScreen: React.FC<MemoryLensScreenProps> = ({ accessToken,
     search,
     refresh,
     remove,
-    regenerate
+    regenerate,
+    fetchRange
   } = useMemoryLens(accessToken)
 
   const [activeTopic, setActiveTopic] = useState<string | null>(null)
+  const [activeView, setActiveView] = useState<MemoryLensView>('overview')
   const hasQuery = query.trim().length > 0 && query.trim() !== '*'
+  const onRemove = (key: string, namespace: MemoryNamespace) => void remove(key, namespace)
 
   return (
     <div
@@ -85,20 +93,35 @@ export const MemoryLensScreen: React.FC<MemoryLensScreenProps> = ({ accessToken,
           </div>
         ) : (
           <div className="gba:space-y-4">
-            <MemoryProfileCard profile={profile} regenerating={regenerating} onRegenerate={() => void regenerate()} />
-            <MemoryStatsRow stats={stats} />
-            <MemoryInsights stats={stats} activeTopic={activeTopic} onSelectTopic={setActiveTopic} />
-            <MemoryBrowser
-              entries={entries}
-              query={query}
-              searching={searching}
-              hasQuery={hasQuery}
-              activeTopic={activeTopic}
-              onSelectTopic={setActiveTopic}
-              onQueryChange={setQuery}
-              onSearch={value => void search(value)}
-              onDelete={(key, namespace) => void remove(key, namespace)}
-            />
+            <MemoryDimensionTabs active={activeView} onChange={setActiveView} />
+
+            {activeView === 'overview' && (
+              <div className="gba:space-y-4">
+                <MemoryProfileCard
+                  profile={profile}
+                  regenerating={regenerating}
+                  onRegenerate={() => void regenerate()}
+                />
+                <MemoryStatsRow stats={stats} />
+                <MemoryInsights stats={stats} activeTopic={activeTopic} onSelectTopic={setActiveTopic} />
+                <MemoryBrowser
+                  entries={entries}
+                  query={query}
+                  searching={searching}
+                  hasQuery={hasQuery}
+                  activeTopic={activeTopic}
+                  onSelectTopic={setActiveTopic}
+                  onQueryChange={setQuery}
+                  onSearch={value => void search(value)}
+                  onDelete={onRemove}
+                />
+              </div>
+            )}
+
+            {activeView === 'diary' && <MemoryDiary entries={entries} onDelete={onRemove} />}
+            {activeView === 'calendar' && <MemoryCalendar fetchRange={fetchRange} onDelete={onRemove} />}
+            {activeView === 'topics' && <MemoryFacetBrowser entries={entries} kind="topic" onDelete={onRemove} />}
+            {activeView === 'people' && <MemoryFacetBrowser entries={entries} kind="entity" onDelete={onRemove} />}
           </div>
         )}
       </div>
