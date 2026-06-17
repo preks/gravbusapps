@@ -47372,15 +47372,15 @@
     ]
   },
   "hr/core/forms/change-communication": {
-    "bitbucketBuildNumber": 13627,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13627/",
-    "chunkJsBytes": 275949,
+    "bitbucketBuildNumber": 13733,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13733/",
+    "chunkJsBytes": 275709,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 202373,
-        "gzip": 50962,
+        "rendered": 201244,
+        "gzip": 50743,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/employee-record/_i18n/ro-RO.ftl?raw",
@@ -47481,6 +47481,24 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/common/utils",
+        "rendered": 7433,
+        "gzip": 2204,
+        "leaves": [
+          {
+            "name": "src/common/utils/serviceResolver.ts",
+            "rendered": 4529,
+            "gzip": 1036
+          },
+          {
+            "name": "src/common/utils/validation/phoneNumberValidation.ts",
+            "rendered": 1651,
+            "gzip": 438
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/common/data",
         "rendered": 5943,
         "gzip": 1995,
@@ -47507,24 +47525,6 @@
             "name": "src/common/env/EnvUtils.ts",
             "rendered": 5857,
             "gzip": 1091
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/common/utils",
-        "rendered": 5782,
-        "gzip": 1766,
-        "leaves": [
-          {
-            "name": "src/common/utils/serviceResolver.ts",
-            "rendered": 4529,
-            "gzip": 1036
-          },
-          {
-            "name": "src/common/utils/windowUtils.ts",
-            "rendered": 661,
-            "gzip": 299
           }
         ]
       },
@@ -49407,15 +49407,15 @@
     ]
   },
   "hr/core/forms/change-relationship": {
-    "bitbucketBuildNumber": 13627,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13627/",
-    "chunkJsBytes": 361488,
+    "bitbucketBuildNumber": 13733,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13733/",
+    "chunkJsBytes": 361926,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 225710,
-        "gzip": 55544,
+        "rendered": 225709,
+        "gzip": 55534,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/employee-record/_i18n/ro-RO.ftl?raw",
@@ -49450,13 +49450,13 @@
       {
         "kind": "bucket",
         "name": "(src)/common/network",
-        "rendered": 59808,
-        "gzip": 15752,
+        "rendered": 60310,
+        "gzip": 15891,
         "leaves": [
           {
             "name": "src/common/network/ai/prompt-manager/PromptManagerClient.ts",
-            "rendered": 30931,
-            "gzip": 7432
+            "rendered": 31433,
+            "gzip": 7571
           },
           {
             "name": "src/common/network/auth/installGlobalAuthExpiryInterceptors.ts",
@@ -49517,8 +49517,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/utils",
-        "rendered": 6207,
-        "gzip": 1912,
+        "rendered": 6970,
+        "gzip": 2214,
         "leaves": [
           {
             "name": "src/common/utils/serviceResolver.ts",
@@ -88547,20 +88547,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 13730,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13730/",
-    "chunkJsBytes": 2062442,
+    "bitbucketBuildNumber": 13733,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13733/",
+    "chunkJsBytes": 2062433,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1780245,
-        "gzip": 114367,
+        "gzip": 114397,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1780245,
-            "gzip": 114367
+            "gzip": 114397
           }
         ]
       },
@@ -120451,7 +120451,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-17T05:31:26.402Z",
+    "generatedAt": "2026-06-17T06:13:07.369Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
