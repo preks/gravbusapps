@@ -21,7 +21,7 @@ function formatRunTimestamp(value: string | null): string {
   if (!value) {
     return '—'
   }
-  return formatDateTime(value, 'de') || value
+  return formatDateTime(value, 'en-RO') || value
 }
 
 function getStatusBadgeVariant(status: string): 'default' | 'secondary' | 'destructive' | 'outline' {

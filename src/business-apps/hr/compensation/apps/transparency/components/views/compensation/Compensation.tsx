@@ -19,9 +19,9 @@ import { useActiveStructureDepartments } from '../../../hooks/useActiveStructure
 import { useCompensationMetrics } from '../../../hooks/useCompensationMetrics'
 import { useRequestCompensationAnalysis } from '../../../hooks/useRequestCompensationAnalysis'
 import {
-  getHighRiskCasesCount,
   getMarketAlignmentColor,
-  getPayGapRiskColor
+  getPayGapRiskColor,
+  getTopCompressionRiskDisplay
 } from '../../../utils/compensationAnalysisUtils'
 import CompensationAnalysisRequestButton from './components/CompensationAnalysisRequestButton.tsx'
 import CompensationAnalysisRunsCard from './components/CompensationAnalysisRunsCard'
@@ -67,7 +67,18 @@ export function Compensation({ accessToken, prefixDataTestId = 'Compensation' }:
     if (compressionAnalysis.loading) return t('hr-data-filter-loading')
     if (compressionAnalysis.error) return 'Error'
     if (!compressionAnalysis.data) return 'N/A'
-    return `${getHighRiskCasesCount(compressionAnalysis.data.compressionRisks)} High Risk`
+
+    const { tier, amount } = getTopCompressionRiskDisplay(compressionAnalysis.data.compressionRisks)
+    switch (tier) {
+      case 'high':
+        return t('hr-analytics-compression-risk-high', { amount })
+      case 'medium':
+        return t('hr-analytics-compression-risk-medium', { amount })
+      case 'low':
+        return t('hr-analytics-compression-risk-low', { amount })
+      case 'none':
+        return t('hr-analytics-compression-risk-none')
+    }
   }, [compressionAnalysis, t])
 
   const getCompressionRiskIcon = useCallback(() => {

@@ -165,11 +165,33 @@ export const sortCompressionRisksByScore = (risks: CompressionRiskItem[]): Compr
   return [...risks].sort((a, b) => b.compressionScore - a.compressionScore)
 }
 
+export type CompressionRiskTier = 'high' | 'medium' | 'low' | 'none'
+
+export interface CompressionRiskDisplay {
+  tier: CompressionRiskTier
+  amount: number
+}
+
 /**
- * Get high risk compression cases count
+ * Get the highest non-zero compression risk tier and its case count
  */
-export const getHighRiskCasesCount = (risks: CompressionRiskItem[]): number => {
-  return risks.filter(risk => risk.compressionScore >= 40).length
+export const getTopCompressionRiskDisplay = (risks: CompressionRiskItem[]): CompressionRiskDisplay => {
+  const highCount = risks.filter(risk => risk.compressionScore >= 40).length
+  if (highCount > 0) {
+    return { tier: 'high', amount: highCount }
+  }
+
+  const mediumCount = risks.filter(risk => risk.compressionScore >= 20 && risk.compressionScore < 40).length
+  if (mediumCount > 0) {
+    return { tier: 'medium', amount: mediumCount }
+  }
+
+  const lowCount = risks.filter(risk => risk.compressionScore < 20).length
+  if (lowCount > 0) {
+    return { tier: 'low', amount: lowCount }
+  }
+
+  return { tier: 'none', amount: 0 }
 }
 
 /**
