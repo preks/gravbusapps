@@ -19,22 +19,8 @@ import DefaultFields from './components/DefaultFields'
 import UsFields from './components/UsFields'
 import NonUsFields from './components/NonUsFields'
 import { buildBankAccountPayload, isUnchangedExistingBankAccount } from './utils'
+import type { BankAccountFormValues } from './types'
 import appTranslations from '../../apps/employee-record/_i18n'
-
-interface BankAccountFormValues {
-  countryId?: string | null
-  currencyId?: string | null
-  bankName?: string
-  accountType?: 'CHECKINGS' | 'SAVINGS' | ''
-  accountHolder?: string
-  iban?: string
-  swift?: string
-  routingNumberTypeId?: string | null
-  accountNumber?: string
-  routingNumber?: string
-  employeeAddressId?: string | null
-  comment?: string
-}
 
 const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo, additionalData }) => {
   const { data } = useChangeBankAccount()
@@ -265,7 +251,7 @@ const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo,
                   selectedEmployeeAddress={selectedEmployeeAddress}
                 />
               ) : (
-                <NonUsFields form={form} />
+                <NonUsFields form={form} selectedCountryId={selectedCountryId} />
               )}
             </div>
 

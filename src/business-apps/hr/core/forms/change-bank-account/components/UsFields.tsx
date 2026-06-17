@@ -14,6 +14,7 @@ import {
 } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
 import type { BankAccountForm, CatalogEntry, EmployeeAddress } from '../types'
+import { normalizeBankIdentifier, normalizeDigits, validateUsRoutingNumber } from '../utils'
 
 interface UsFieldsProps {
   form: BankAccountForm
@@ -28,6 +29,11 @@ const UsFields: React.FC<UsFieldsProps> = ({
   employeeAddresses,
   selectedEmployeeAddress
 }) => {
+  const accountNumberRequiredMessage = getTranslationFromI18nKeyAndLabel(
+    'lowcoder:employee_profile.details_layout.bank_account_form.account_number_select_error_message',
+    'The Account Number field is required. Please enter an account number.'
+  )
+
   return (
     <div className="gba:space-y-4">
       <FormField
@@ -86,10 +92,8 @@ const UsFields: React.FC<UsFieldsProps> = ({
         control={form.control as any}
         name={'accountNumber' as any}
         rules={{
-          required: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:employee_profile.details_layout.bank_account_form.account_number_select_error_message',
-            'The Account Number field is required. Please enter an account number.'
-          )
+          required: accountNumberRequiredMessage,
+          validate: value => Boolean(normalizeBankIdentifier(value)) || accountNumberRequiredMessage
         }}
         render={({ field }) => (
           <FormItem>
@@ -103,6 +107,8 @@ const UsFields: React.FC<UsFieldsProps> = ({
             <FormControl>
               <Input
                 {...field}
+                value={field.value ?? ''}
+                onChange={event => field.onChange(normalizeBankIdentifier(event.target.value))}
                 placeholder={getTranslationFromI18nKeyAndLabel(
                   'lowcoder:employee_profile.details_layout.bank_account_form.account_number_select_placeholder',
                   'Enter Account Number'
@@ -122,7 +128,13 @@ const UsFields: React.FC<UsFieldsProps> = ({
           required: getTranslationFromI18nKeyAndLabel(
             'lowcoder:employee_profile.details_layout.bank_account_form.routing_number_select_error_message',
             'The Routing Number field is required. Please enter a routing number.'
-          )
+          ),
+          validate: value =>
+            validateUsRoutingNumber(value) ||
+            getTranslationFromI18nKeyAndLabel(
+              'lowcoder:employee_profile.details_layout.bank_account_form.routing_number_validation_error_message',
+              'Routing Number must be a valid 9-digit ABA routing number.'
+            )
         }}
         render={({ field }) => (
           <FormItem>
@@ -136,6 +148,8 @@ const UsFields: React.FC<UsFieldsProps> = ({
             <FormControl>
               <Input
                 {...field}
+                value={field.value ?? ''}
+                onChange={event => field.onChange(normalizeDigits(event.target.value))}
                 placeholder={getTranslationFromI18nKeyAndLabel(
                   'lowcoder:employee_profile.details_layout.bank_account_form.routing_number_select_placeholder',
                   'Enter Routing Number'
