@@ -62,6 +62,7 @@ const LIST_VIEW_CREATE = 'create'
 const LIST_VIEW_FLOWS = 'flows'
 const FLOW_HEADER_MAX_TAG_PILLS = 4
 const FLOW_HEADER_PRIORITY_TAG_KEYS = ['app', 'serviceCategory', 'digitalWorkplaceCategory'] as const
+const FLOW_CREATOR_CHAT_OPEN_STORAGE_KEY = 'flow-creator-chat-open'
 type ListSubView = typeof LIST_VIEW_CREATE | typeof LIST_VIEW_FLOWS
 
 function getExportFileName(name: string): string {
@@ -203,6 +204,27 @@ function setHashForListSubView(subView: ListSubView): void {
   globalThis.location.hash = subView
 }
 
+function readStoredChatOpenPreference(): boolean {
+  if (globalThis.localStorage === undefined) return true
+  try {
+    const storedValue = globalThis.localStorage.getItem(FLOW_CREATOR_CHAT_OPEN_STORAGE_KEY)
+    if (storedValue === 'true') return true
+    if (storedValue === 'false') return false
+  } catch {
+    // Ignore storage access failures and fall back to the default open state.
+  }
+  return true
+}
+
+function writeStoredChatOpenPreference(isChatOpen: boolean): void {
+  if (globalThis.localStorage === undefined) return
+  try {
+    globalThis.localStorage.setItem(FLOW_CREATOR_CHAT_OPEN_STORAGE_KEY, isChatOpen ? 'true' : 'false')
+  } catch {
+    // Ignore storage quota / privacy mode failures.
+  }
+}
+
 function isUntitledTemplateName(value: string): boolean {
   const trimmed = String(value || '').trim()
   return trimmed.length === 0 || trimmed === UNTITLED_FLOW_NAME
@@ -261,7 +283,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
   const [discardOpen, setDiscardOpen] = useState(false)
   const [designerInitialPrompt, setDesignerInitialPrompt] = useState('')
   const initialPromptConsumedRef = useRef(false)
-  const [chatPanelCollapsed, setChatPanelCollapsed] = useState(false)
+  const [isChatOpen, setIsChatOpen] = useState(() => readStoredChatOpenPreference())
   const [saveNameDialogOpen, setSaveNameDialogOpen] = useState(false)
   const [pendingTemplateName, setPendingTemplateName] = useState('')
   const [saveNameError, setSaveNameError] = useState<string | null>(null)
@@ -313,6 +335,10 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
     },
     [setMode]
   )
+  const setChatOpenPreference = useCallback((nextIsChatOpen: boolean) => {
+    setIsChatOpen(nextIsChatOpen)
+    writeStoredChatOpenPreference(nextIsChatOpen)
+  }, [])
   const templateTagPills = getTemplateTagPills(templateTags as Record<string, unknown>)
   const getSaveErrorMessage = useCallback(
     (error: unknown) => (error instanceof Error ? error.message : 'Failed to save flow'),
@@ -368,6 +394,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
       updateUrlWithFlowId(FLOW_ID_NEW)
       initialPromptConsumedRef.current = false
       setDesignerInitialPrompt(prompt)
+      setIsChatOpen(true)
       resetStore()
       setView('designer')
     },
@@ -799,11 +826,11 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
             heroIcon={<Workflow className="gba:w-5 gba:h-5 gba:text-white" />}
             heroBackground={<PremiumHeroBackground />}
             heroTitle={
-              <input
+              <Input
                 type="text"
                 value={templateName}
                 onChange={event => setTemplateMetadata({ name: event.target.value })}
-                className="gba:w-[min(72vw,72rem)] gba:max-w-none gba:text-xl gba:sm:text-3xl gba:font-semibold gba:bg-transparent gba:border-none gba:outline-none gba:p-0 gba:leading-tight gba:text-white placeholder:gba:text-white/50"
+                className="gba:w-[min(72vw,72rem)] gba:max-w-none gba:h-auto gba:text-xl gba:sm:text-3xl gba:font-semibold gba:bg-transparent gba:border-none gba:shadow-none gba:ring-0 gba:focus-visible:ring-0 gba:p-0 gba:leading-tight gba:text-white placeholder:gba:text-white/50"
                 placeholder={t('app-title')}
                 aria-label={t('app-title')}
                 data-testid={`${testId}-name-input`}
@@ -869,7 +896,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
                   initialPromptConsumedRef.current = true
                   setDesignerInitialPrompt('')
                 }}
-                onClose={() => setChatPanelCollapsed(true)}
+                onClose={() => setChatOpenPreference(false)}
                 data-testid={`${testId}-chat-panel`}
               />
             }
@@ -889,8 +916,8 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
                 data-testid={`${testId}-canvas`}
               />
             }
-            chatPanelCollapsed={chatPanelCollapsed}
-            onChatPanelCollapseChange={setChatPanelCollapsed}
+            chatPanelCollapsed={!isChatOpen}
+            onChatPanelCollapseChange={nextIsCollapsed => setChatOpenPreference(!nextIsCollapsed)}
             data-testid={`${testId}-create-layout`}
           />
         </>
@@ -1019,7 +1046,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
         data-testid={`${testId}-test-flow-sheet`}
       />
 
-      <input
+      <Input
         ref={importFileInputRef}
         type="file"
         accept="application/json,.json,.flow.json"

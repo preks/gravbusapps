@@ -3,8 +3,6 @@
  * Expression pills represent dynamic data references like {{$steps.step_0.formData.amount}}.
  */
 
-import type { ReactNode } from 'react'
-
 export type ExpressionSourceType = 'trigger' | 'workflow' | 'steps' | 'catalog' | 'entity' | 'orgchart'
 
 export type ExpressionValueType = 'string' | 'number' | 'boolean' | 'date' | 'datetime' | 'unknown'
@@ -48,11 +46,6 @@ export interface ExpressionEditorProps {
   onChange: (value: string) => void
   /** Available suggestion items */
   suggestions?: ExpressionSuggestionItem[]
-  /**
-   * Optional UI affordance for Flow Creator to open a Flow context explorer.
-   * The editor only renders this node; insertion behavior should be handled by the consumer.
-   */
-  flowContextExplorer?: ReactNode
   /** Placeholder text */
   placeholder?: string
   /** Whether to allow free-text mixed with expressions (Advanced mode) */

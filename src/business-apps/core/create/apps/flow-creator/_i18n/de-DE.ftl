@@ -121,6 +121,7 @@ config-panel-title = Konfiguration
 config-general = Allgemein
 config-form = Formular
 config-assignment = Zuweisung
+config-outcomes = Ergebnisse
 config-conditions = Bedingungen
 config-branches = Zweige
 config-events = Automatisierung
@@ -158,9 +159,20 @@ webhook-secret-flow-name-required = Benennen Sie diesen Flow oben in Flow Studio
 start-trigger-event = Ereignis
 start-trigger-schedule = Zeitplan
 
+# Shared step fields (tasks & user decisions)
+step-title = Titel
+step-message = Nachricht
+step-title-placeholder = Titel eingeben… Tippe @, um Flow-Daten einzufügen.
+step-message-placeholder = Nachricht hinzufügen… Tippe @, um Flow-Daten einzufügen.
+step-instruction-placeholder = Beschreiben Sie, was der Agent tun soll… Tippe @, um Flow-Daten einzufügen.
+step-due-label = Fälligkeitszeit
+step-due-description = Legen Sie fest, wie lange Bearbeiter haben, diesen Schritt abzuschließen.
+step-due-placeholder = Anzahl eingeben
+step-due-unit-minutes = Minuten
+step-due-unit-hours = Stunden
+step-due-unit-days = Tage
+
 # Task Node Config
-task-title = Aufgabentitel
-task-message = Aufgabentext
 task-instruction = KI-Anweisung
 task-switch-type = Schritt-Typ wechseln
 task-type = Aufgabentyp
@@ -200,7 +212,7 @@ task-links-name-placeholder = z. B. Vertrag, Richtlinie, FAQ
 task-links-url = URL
 task-links-url-placeholder = https://beispiel.de
 task-links-document-url = Dokument-Referenz (Expression)
-task-links-document-url-placeholder = {{ $steps.step_0.formData.fileField }}
+task-links-document-url-placeholder = {"{"}{"{"} $steps.step_0.formData.fileField {"}"}{"}"}
 
 # Enterprise Agent parameter mapping
 task-input-params = Eingabeparameter
@@ -209,7 +221,7 @@ task-input-params-empty = Keine Parameter gefunden.
 task-input-params-system = Systemparameter
 task-input-params-user = Benutzerparameter
 task-input-params-pick = Wert auswählen
-task-input-params-expression-placeholder = Tippen Sie {{, um Flow-Daten zuzuordnen.
+task-input-params-expression-placeholder = Tippe @, um Flow-Daten einzufügen.
 task-input-params-unmapped = Nicht zugeordnet
 
 # EveryAI Agent output schema
@@ -221,12 +233,6 @@ task-type-group-human = Benutzer-Schritte
 task-type-group-ai = KI & Automatisierung
 
 # Assignment
-assignment-due-label = Fälligkeitszeit
-assignment-due-description = Legen Sie fest, wie lange die Aufgabe bis zur Fälligkeit hat.
-assignment-due-placeholder = z. B. 2
-assignment-due-unit-minutes = Minuten
-assignment-due-unit-hours = Stunden
-assignment-due-unit-days = Tage
 assignment-mode-label = Zuweisungsmodus
 assignment-mode-claim = Beanspruchen
 assignment-mode-assign = Zuweisen
@@ -263,19 +269,9 @@ flow-context-search = Flow-Kontext durchsuchen...
 flow-context-group = Flow-Kontext
 logic-operator-label = Operator
 
-# User decisions (USER mode)
-decision-user-task-title-label = Aufgabentitel
-decision-user-task-message-label = Aufgabentext
-decision-user-task-message-placeholder = Fügen Sie eine kurze Nachricht hinzu… Tippe {{, um Daten einzufügen.
-
 logic-value-label = Vergleichen mit
 logic-value-placeholder = z. B. 1000 oder 'approved'
 logic-preview = Bedingung:
-
-# User decisions (USER mode)
-decision-user-task-title-label = Aufgabentitel
-decision-user-task-message-label = Aufgabentext
-decision-user-task-message-placeholder = Füge eine kurze Nachricht hinzu… Tippe {{, um Daten einzufügen.
 
 # Decision Node Config
 decision-mode = Entscheidungsmodus
@@ -320,11 +316,6 @@ decision-ai-taskexpert-reasoning-label = Reasoning-Output-Mapping
 decision-ai-taskexpert-reasoning-desc = Optional. Wählen Sie das Ausgabefeld, das als Begründung für den menschlichen Fallback verwendet wird.
 decision-ai-taskexpert-reasoning-placeholder = Ausgabefeld auswählen (optional)
 decision-ai-taskexpert-reasoning-none = Keine
-decision-due-label = Entscheidung fällig in
-decision-due-placeholder = z. B. 2
-decision-due-unit-minutes = Minuten
-decision-due-unit-hours = Stunden
-decision-due-unit-days = Tage
 
 # Fork/Join Config
 fork-branches = Parallele Zweige
@@ -364,7 +355,38 @@ validation-decision-must-select-agent = Entscheidung "{ $label }" muss einen Ent
 validation-decision-unmapped-agent-params = Entscheidung "{ $label }" muss alle Agent-Parameter vor der Veröffentlichung zuordnen: { $params }
 
 # Add step panel
+step-panel-add-step = Schritt hinzufügen
+step-panel-change-step = Schritt ändern
+step-panel-back-to-config = Zurück zur Konfiguration
 add-step-tip-advanced-mode = Wechseln Sie in den Erweitert-Modus, um Function Tasks und Enterprise Agent-Schritte freizuschalten.
+step-kind-group-user-tasks = Benutzeraufgaben
+step-kind-group-ai-tasks = KI-Aufgaben
+step-kind-group-automation = Automatisierung
+step-kind-group-decisions = Entscheidungen
+step-kind-group-control-flow = Ablaufsteuerung
+step-kind-custom-task = Benutzerdefinierte Aufgabe
+step-kind-custom-decision = Benutzerdefinierte Entscheidung
+step-kind-desc-custom-task = Eigenes Formular
+step-kind-desc-information = Info teilen
+step-kind-desc-acknowledge = Gelesen bestätigen
+step-kind-desc-approval = Genehmigen oder ablehnen
+step-kind-desc-custom-decision = Eigene Pfade
+step-kind-desc-decision-ai = KI entscheidet
+step-kind-desc-decision-logic = Regeln routen
+step-kind-desc-ai-agent = KI-Agent
+step-kind-desc-ai-task-expert = Enterprise Agent
+step-kind-desc-function = Funktion ausführen
+step-kind-desc-connector = Connector aufrufen
+step-kind-desc-parallelize = Parallele Pfade
+step-kind-connector = Connector
+step-kind-parallelize = Aufgaben parallelisieren
+
+step-kind-switch-confirm-soft-title = Schritttyp ändern?
+step-kind-switch-confirm-soft-desc = Der Schritt-Titel wird zurückgesetzt. Andere Einstellungen bleiben wo möglich erhalten.
+step-kind-switch-confirm-destructive-title = Schrittkonfiguration ersetzen?
+step-kind-switch-confirm-destructive-desc = Beim Wechsel zu diesem Schritttyp werden nicht zutreffende Einstellungen gelöscht (Formularfelder, Zuweisung, Automatisierung usw.).
+step-kind-switch-confirm-cancel = Abbrechen
+step-kind-switch-confirm-action = Schritttyp ändern
 
 # Task step type selector descriptions
 task-step-type-ai-task-expert-description = Enterprise Agent Prompt-Schritt.

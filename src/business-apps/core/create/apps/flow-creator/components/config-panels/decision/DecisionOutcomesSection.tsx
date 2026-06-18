@@ -1,18 +1,19 @@
 import React, { useMemo } from 'react'
-import { Button, Input, Label, Switch } from '@newwork/nw-design-system'
+import { Button, Input, Label } from '@newwork/nw-design-system'
 import { Plus, X } from 'lucide-react'
-import type { DecisionNodeConfig } from '../../../types/studioTypes'
-import { NEUTRAL_SWITCH_CLASSNAME } from '../../../utils/neutralSwitchClassName'
+import type { DecisionNodeConfig, DesignerMode } from '../../../types/studioTypes'
+import { isApprovalUserDecision } from '../../step-picker/decisionUserKind'
+import { DecisionRejectBehaviorSection } from './DecisionRejectBehaviorSection'
 
 type BranchEdge = { id: string; label?: string }
+type RoutingBranchEdge = { id: string; source: string; target: string; label?: string }
 
-const isApprovalLabel = (s: string) =>
-  s.trim().toLowerCase().startsWith('approve') || s.trim().toLowerCase() === 'approve'
-const isRejectLabel = (s: string) => s.trim().toLowerCase().startsWith('reject') || s.trim().toLowerCase() === 'reject'
-
-interface DecisionOutcomesSectionProps {
+export interface DecisionOutcomesSectionProps {
   config: DecisionNodeConfig
+  mode: DesignerMode
   branchEdges: BranchEdge[]
+  routingBranchEdges?: RoutingBranchEdge[]
+  eligibleSendBackTargets?: Array<{ id: string; label: string }>
   syncBranches: (labels: string[]) => void
   update: (partial: Partial<DecisionNodeConfig>) => void
   onUpdateEdgeLabel: (edgeId: string, label: string) => void
@@ -25,7 +26,10 @@ function buildOptionLabel(index: number): string {
 
 export const DecisionOutcomesSection: React.FC<DecisionOutcomesSectionProps> = ({
   config,
+  mode,
   branchEdges,
+  routingBranchEdges,
+  eligibleSendBackTargets = [],
   syncBranches,
   update,
   onUpdateEdgeLabel,
@@ -40,110 +44,100 @@ export const DecisionOutcomesSection: React.FC<DecisionOutcomesSectionProps> = (
     [branchEdges]
   )
 
-  const approvalSelected = useMemo(() => {
-    if (branchEdges.length !== 2) return false
-    const a = String(branchEdges[0]?.label || '')
-    const b = String(branchEdges[1]?.label || '')
-    return (isApprovalLabel(a) && isRejectLabel(b)) || (isApprovalLabel(b) && isRejectLabel(a))
-  }, [branchEdges])
+  const approvalSelected = useMemo(() => isApprovalUserDecision(config), [config])
+  const canRemoveOutcome = branchEdges.length > 2
 
-  const setApprovalOutcomes = () => {
-    syncBranches(['Approve', 'Reject'])
+  const removeOutcomeAt = (index: number) => {
+    syncBranches(labels.filter((_, labelIndex) => labelIndex !== index))
   }
-
-  const setCustomOutcomes = () => {
-    // Keep the standard approval outcomes and add an editable third choice.
-    syncBranches(['Approve', 'Reject', buildOptionLabel(2)])
-    update({
-      rejectRework: undefined,
-      userConfig: config.userConfig ? ({ ...(config.userConfig as any), rejectRework: undefined } as any) : undefined
-    })
-  }
-
-  const canRemoveLast = branchEdges.length > 2
-  const multipleChoices = !approvalSelected
 
   return (
-    <div className="gba:flex gba:flex-col gba:gap-2" data-testid={`${testId}-outcomes`}>
-      <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
-        <div className="gba:flex gba:flex-col gba:gap-0.5">
-          <Label className="gba:text-xs gba:font-medium">Outcomes</Label>
-          <p className="gba:text-xs gba:text-muted-foreground">Used by all decision kinds.</p>
-        </div>
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <div className="gba:flex gba:items-center gba:gap-2" data-testid={`${testId}-outcomes-multiple-toggle`}>
-            <Label className="gba:text-[10px] gba:font-medium gba:text-muted-foreground">Multiple choices</Label>
-            <Switch
-              checked={multipleChoices}
-              onCheckedChange={checked => (checked ? setCustomOutcomes() : setApprovalOutcomes())}
-              className={NEUTRAL_SWITCH_CLASSNAME}
-              data-testid={`${testId}-outcomes-multiple-toggle-switch`}
-            />
+    <section className="gba:flex gba:flex-col gba:gap-3" data-testid={`${testId}-outcomes`}>
+      <div className="gba:flex gba:flex-col gba:gap-0.5">
+        <Label className="gba:text-xs gba:font-semibold gba:text-foreground">Outcomes</Label>
+        <p className="gba:text-xs gba:text-muted-foreground">Branches created when someone completes this decision.</p>
+      </div>
+
+      {approvalSelected ? (
+        <div className="gba:flex gba:flex-col gba:gap-2" data-testid={`${testId}-outcomes-fixed`}>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <span className="gba:text-xs gba:text-muted-foreground gba:w-8 gba:flex-shrink-0">#1</span>
+            <div
+              className="gba:flex-1 gba:px-3 gba:py-2 gba:rounded-md gba:bg-success-secondary"
+              data-testid={`${testId}-outcome-label-0`}
+            >
+              <span className="gba:text-xs gba:font-medium gba:text-success-secondary-foreground">Approve</span>
+            </div>
           </div>
-          {multipleChoices ? (
+
+          <div className="gba:flex gba:gap-2">
+            <span className="gba:text-xs gba:text-muted-foreground gba:w-8 gba:pt-2 gba:flex-shrink-0">#2</span>
+            <div className="gba:flex-1 gba:rounded-lg gba:border gba:border-border gba:overflow-hidden">
+              <div className="gba:px-3 gba:py-2 gba:bg-destructive-secondary" data-testid={`${testId}-outcome-label-1`}>
+                <span className="gba:text-xs gba:font-semibold gba:text-destructive-secondary-foreground">Reject</span>
+              </div>
+              {routingBranchEdges ? (
+                <div className="gba:p-3 gba:bg-background">
+                  <DecisionRejectBehaviorSection
+                    config={config}
+                    update={update}
+                    mode={mode}
+                    testId={testId}
+                    branchEdges={routingBranchEdges}
+                    eligibleSendBackTargets={eligibleSendBackTargets}
+                  />
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="gba:flex gba:flex-col gba:gap-2" data-testid={`${testId}-outcomes-list`}>
+          {branchEdges.map((edge, index) => {
+            const value = String(edge.label || '')
+            return (
+              <div key={edge.id} className="gba:flex gba:items-center gba:gap-2">
+                <span className="gba:text-xs gba:text-muted-foreground gba:w-8 gba:flex-shrink-0">#{index + 1}</span>
+                <Input
+                  value={value}
+                  onChange={event => onUpdateEdgeLabel(edge.id, event.target.value)}
+                  placeholder={`Outcome ${index + 1}`}
+                  className="gba:flex-1 gba:min-w-0 gba:h-9"
+                  data-testid={`${testId}-outcome-label-${index}`}
+                />
+                {canRemoveOutcome ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="gba:h-9 gba:w-9 gba:shrink-0"
+                    onClick={() => removeOutcomeAt(index)}
+                    data-testid={`${testId}-outcome-remove-${index}`}
+                  >
+                    <X className="gba:h-3.5 gba:w-3.5" />
+                  </Button>
+                ) : (
+                  <span className="gba:h-9 gba:w-9 gba:shrink-0" aria-hidden="true" />
+                )}
+              </div>
+            )
+          })}
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <span className="gba:w-8 gba:flex-shrink-0" aria-hidden="true" />
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              className="gba:flex-1 gba:h-9"
               onClick={() => syncBranches([...labels, buildOptionLabel(labels.length)])}
               data-testid={`${testId}-outcomes-add`}
             >
               <Plus className="gba:h-3 gba:w-3 gba:mr-1" />
               Add
             </Button>
-          ) : null}
-        </div>
-      </div>
-
-      {!multipleChoices ? (
-        <div
-          className="gba:flex gba:flex-col gba:gap-2 gba:p-3 gba:rounded-lg gba:bg-muted"
-          data-testid={`${testId}-outcomes-fixed`}
-        >
-          <span className="gba:text-[10px] gba:font-medium gba:uppercase gba:tracking-wider gba:text-muted-foreground">
-            Fixed outcomes
-          </span>
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <div className="gba:px-3 gba:py-1.5 gba:rounded-md gba:bg-success-secondary">
-              <span className="gba:text-xs gba:font-medium gba:text-success-secondary-foreground">Approve</span>
-            </div>
-            <div className="gba:px-3 gba:py-1.5 gba:rounded-md gba:bg-destructive-secondary">
-              <span className="gba:text-xs gba:font-medium gba:text-destructive-secondary-foreground">Reject</span>
-            </div>
+            <span className="gba:h-9 gba:w-9 gba:shrink-0" aria-hidden="true" />
           </div>
         </div>
-      ) : (
-        <div className="gba:flex gba:flex-col gba:gap-2" data-testid={`${testId}-outcomes-list`}>
-          {branchEdges.map((edge, i) => {
-            const value = String(edge.label || '')
-            const isLast = i === branchEdges.length - 1
-            return (
-              <div key={edge.id} className="gba:flex gba:items-center gba:gap-2">
-                <span className="gba:text-xs gba:text-muted-foreground gba:w-10">#{i + 1}</span>
-                <Input
-                  value={value}
-                  onChange={e => onUpdateEdgeLabel(edge.id, e.target.value)}
-                  placeholder={`Outcome ${i + 1}`}
-                  data-testid={`${testId}-outcome-label-${i}`}
-                />
-                {isLast && canRemoveLast ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => syncBranches(labels.slice(0, -1))}
-                    data-testid={`${testId}-outcome-remove-${i}`}
-                  >
-                    <X className="gba:h-3 gba:w-3" />
-                  </Button>
-                ) : (
-                  <span className="gba:w-9" />
-                )}
-              </div>
-            )
-          })}
-        </div>
       )}
-    </div>
+    </section>
   )
 }

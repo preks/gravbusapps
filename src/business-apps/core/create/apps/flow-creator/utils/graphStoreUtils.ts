@@ -107,6 +107,37 @@ export function createEdge(
   return { id: uuid(), source, target, direction, ...(label ? { label } : {}) }
 }
 
+/** When a branching node becomes a task, keep one forward edge to the preferred continuation target. */
+export function collapseOutgoingEdgesForTaskNode(
+  node: StudioNode,
+  edges: FlowGraphEdge[],
+  endNodeId: string = END_ID
+): FlowGraphEdge[] {
+  const outgoing = edges.filter(edge => edge.source === node.id)
+  if (outgoing.length <= 1 && node.type === 'task') return edges
+
+  const remaining = edges.filter(edge => edge.source !== node.id)
+  const forwardOutgoing = outgoing.filter(edge => edge.direction === 'forward')
+
+  let preferredTarget = endNodeId
+  if (node.type === 'decision' && node.config.nodeType === 'decision') {
+    const defaultBranchId = node.config.defaultBranch
+    const defaultEdge = outgoing.find(edge => edge.id === defaultBranchId)
+    const approveEdge = forwardOutgoing.find(edge =>
+      String(edge.label || '')
+        .trim()
+        .toLowerCase()
+        .startsWith('approve')
+    )
+    const firstForward = forwardOutgoing[0]
+    preferredTarget = (defaultEdge ?? approveEdge ?? firstForward ?? outgoing[0])?.target ?? endNodeId
+  } else {
+    preferredTarget = forwardOutgoing[0]?.target ?? outgoing[0]?.target ?? endNodeId
+  }
+
+  return [...remaining, createEdge(node.id, preferredTarget)]
+}
+
 function normalizeEdgeDirection(value: unknown): 'forward' | 'backward' {
   const v = (typeof value === 'string' ? value : 'forward').toLowerCase()
   return v === 'backward' ? 'backward' : 'forward'

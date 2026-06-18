@@ -1,6 +1,6 @@
 import React from 'react'
 import { Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
-import type { FlowStudioData } from '../../../../hooks/useFlowStudioData'
+import type { FlowStudioData } from '../../../hooks/useFlowStudioData'
 import { EventHandlerType, type FunctionHandlerConfig } from '@/common/data/flow/types/flowTemplate'
 
 interface FunctionHandlerSectionProps {

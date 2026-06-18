@@ -6,6 +6,7 @@
  */
 
 import React, { useEffect, useImperativeHandle, useMemo, useRef } from 'react'
+import { cn } from '@newwork/nw-design-system'
 import { EditorContent, ReactNodeViewRenderer, ReactRenderer, useEditor } from '@tiptap/react'
 import { mergeAttributes } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
@@ -122,7 +123,6 @@ export const ExpressionEditor = React.forwardRef<ExpressionEditorHandle, Express
       value,
       onChange,
       suggestions = [],
-      flowContextExplorer,
       placeholder = 'Type {{ to insert an expression...',
       allowFreeText = true,
       multiline = false,
@@ -154,6 +154,7 @@ export const ExpressionEditor = React.forwardRef<ExpressionEditorHandle, Express
         }),
         Placeholder.configure({ placeholder }),
         Mention.extend({
+          atom: true,
           addAttributes() {
             return {
               id: { default: null },
@@ -185,7 +186,7 @@ export const ExpressionEditor = React.forwardRef<ExpressionEditorHandle, Express
             ]
           },
           addNodeView() {
-            return ReactNodeViewRenderer(({ node }) => <ExpressionPillView node={node} />)
+            return ReactNodeViewRenderer(ExpressionPillView)
           }
         }).configure({
           suggestion
@@ -194,12 +195,11 @@ export const ExpressionEditor = React.forwardRef<ExpressionEditorHandle, Express
       editable: !disabled,
       editorProps: {
         attributes: {
-          class: `gba:outline-none gba:text-sm ${
-            multiline ? 'gba:min-h-24' : 'gba:min-h-10'
-          } ${isSingleLine ? 'gba:h-10 gba:overflow-hidden' : ''} gba:px-3 gba:py-2 ${
-            allowFreeText ? '' : 'gba:cursor-pointer'
-          }`,
-          'data-testid': testId
+          class: cn(
+            'gba:w-full gba:outline-none',
+            isSingleLine && 'gba:overflow-hidden',
+            !allowFreeText && 'gba:cursor-pointer'
+          )
         },
         handleKeyDown: (_view, event) => {
           if (!isSingleLine) return false
@@ -275,19 +275,19 @@ export const ExpressionEditor = React.forwardRef<ExpressionEditorHandle, Express
     }, [editor, disabled])
 
     return (
-      <div
-        className={`gba:rounded-md gba:border gba:border-border gba:bg-card gba:transition-colors gba:focus-within:border-primary ${
-          flowContextExplorer ? 'gba:relative gba:pr-10' : ''
-        } ${className}`}
-        data-testid={`${testId}-wrapper`}
-      >
-        {flowContextExplorer ? (
-          <div className="gba:absolute gba:right-1.5 gba:top-1.5 gba:z-10" data-testid={`${testId}-flow-context`}>
-            {flowContextExplorer}
-          </div>
-        ) : null}
-        <EditorContent editor={editor} />
-      </div>
+      <EditorContent
+        editor={editor}
+        data-slot="input-group-control"
+        data-testid={testId}
+        className={cn(
+          multiline
+            ? 'gba:flex-1 gba:w-full gba:min-w-0 gba:resize-none gba:rounded-none gba:border-0 gba:bg-transparent gba:px-3 gba:py-3 gba:text-base gba:shadow-none gba:outline-none gba:md:text-sm'
+            : 'gba:flex-1 gba:h-full gba:w-full gba:min-w-0 gba:rounded-none gba:border-0 gba:bg-transparent gba:px-3 gba:py-1 gba:text-base gba:shadow-none gba:outline-none gba:md:text-sm',
+          'gba:[&_.ProseMirror_p]:m-0',
+          isSingleLine && 'gba:[&_.ProseMirror]:flex gba:[&_.ProseMirror]:items-center',
+          className
+        )}
+      />
     )
   }
 )

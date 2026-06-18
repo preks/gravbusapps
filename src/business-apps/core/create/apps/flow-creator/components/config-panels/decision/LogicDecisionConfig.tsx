@@ -47,7 +47,7 @@ export const LogicDecisionConfig: React.FC<LogicDecisionConfigProps> = ({
     update({ logicConfig: { conditions: next } })
 
   return (
-    <>
+    <div className="gba:flex gba:flex-col gba:gap-4">
       <p className="gba:text-xs gba:text-muted-foreground">
         {mode === 'simple' ? t('logic-description-simple') : t('logic-description-advanced')}
       </p>
@@ -97,6 +97,6 @@ export const LogicDecisionConfig: React.FC<LogicDecisionConfigProps> = ({
           </Select>
         </div>
       </div>
-    </>
+    </div>
   )
 }

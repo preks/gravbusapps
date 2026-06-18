@@ -8,9 +8,29 @@ interface DecisionRejectBehaviorSectionProps {
   update: (partial: Partial<DecisionNodeConfig>) => void
   mode: DesignerMode
   testId: string
-  nodeId: string
   branchEdges: Array<{ id: string; source: string; target: string; label?: string }>
   eligibleSendBackTargets: Array<{ id: string; label: string }>
+}
+
+function readRejectRework(config: DecisionNodeConfig): RejectReworkConfig | undefined {
+  return (config.rejectRework ??
+    (config.userConfig as { rejectRework?: RejectReworkConfig } | undefined)?.rejectRework) as
+    | RejectReworkConfig
+    | undefined
+}
+
+function hasRejectBehavior(rework: RejectReworkConfig | undefined): boolean {
+  if (!rework) return false
+  return Boolean(rework.requireReason) || Boolean(String(rework.targetNodeId || '').trim())
+}
+
+function defaultRejectRework(partial?: Partial<RejectReworkConfig>): RejectReworkConfig {
+  return {
+    requireReason: partial?.requireReason ?? false,
+    preserveData: partial?.preserveData ?? true,
+    maxIterations: partial?.maxIterations,
+    targetNodeId: partial?.targetNodeId
+  }
 }
 
 export const DecisionRejectBehaviorSection: React.FC<DecisionRejectBehaviorSectionProps> = ({
@@ -28,60 +48,92 @@ export const DecisionRejectBehaviorSection: React.FC<DecisionRejectBehaviorSecti
   const rejectEdge = useMemo(
     () =>
       branchEdges.find(
-        e =>
-          String(e.label || '')
+        edge =>
+          String(edge.label || '')
             .trim()
             .toLowerCase() === 'reject'
       ) ?? branchEdges[1],
     [branchEdges]
   )
 
-  const endNodeId = useMemo(() => nodes.find(n => n.type === 'end')?.id, [nodes])
+  const endNodeId = useMemo(() => nodes.find(node => node.type === 'end')?.id, [nodes])
 
-  const rework: RejectReworkConfig | undefined = (config.rejectRework ?? (config.userConfig as any)?.rejectRework) as
-    | RejectReworkConfig
-    | undefined
-  const enabled = Boolean(rework)
-  const selectedTargetId = rework?.targetNodeId
+  const rework = readRejectRework(config)
+  const sendBackEnabled = Boolean(String(rework?.targetNodeId || '').trim())
+  const requireReason = Boolean(rework?.requireReason)
+
+  const persistRejectRework = useCallback(
+    (next: RejectReworkConfig | undefined) => {
+      update({ rejectRework: next } as Partial<DecisionNodeConfig>)
+      if (config.decisionMode === 'USER' && config.userConfig) {
+        update({
+          userConfig: { ...(config.userConfig as object), rejectRework: next } as DecisionNodeConfig['userConfig']
+        })
+      }
+    },
+    [config.decisionMode, config.userConfig, update]
+  )
 
   const applyRejectEdge = useCallback(
-    (nextEnabled: boolean, nextRework?: RejectReworkConfig) => {
+    (nextRework: RejectReworkConfig | undefined) => {
       if (!rejectEdge?.id) return
 
-      const rejectEdgeFull = edges.find(e => e.id === rejectEdge.id)
-      const meta: any = { ...(rejectEdgeFull as any)?.metadata }
+      const rejectEdgeFull = edges.find(edge => edge.id === rejectEdge.id)
+      const meta: Record<string, unknown> = {
+        ...((rejectEdgeFull as { metadata?: Record<string, unknown> })?.metadata ?? {})
+      }
+      const previousRework =
+        meta.rework && typeof meta.rework === 'object' ? (meta.rework as Record<string, unknown>) : {}
 
-      const previous = meta?.rework && typeof meta.rework === 'object' ? meta.rework : {}
+      const nextTargetNodeId = String(nextRework?.targetNodeId || '').trim()
+      const sendBackActive = Boolean(nextTargetNodeId)
 
-      if (!nextEnabled) {
+      if (!hasRejectBehavior(nextRework)) {
         const restoreTarget =
-          String(previous?.originalTarget || '').trim() || String(rejectEdgeFull?.target || '').trim() || endNodeId
+          String(previousRework.originalTarget || '').trim() ||
+          String(rejectEdgeFull?.target || '').trim() ||
+          endNodeId ||
+          ''
         const nextMeta = { ...meta }
-        if (nextMeta?.rework) delete nextMeta.rework
+        delete nextMeta.rework
+        delete nextMeta.reworkReason
         updateEdge(rejectEdge.id, { direction: 'forward', target: restoreTarget, metadata: nextMeta })
         return
       }
 
-      const target = String(nextRework?.targetNodeId || '').trim()
-      if (!target) return
-
-      const currentDirection = String((rejectEdgeFull as any)?.direction || 'forward').toLowerCase()
+      const currentDirection = String((rejectEdgeFull as { direction?: string })?.direction || 'forward').toLowerCase()
       const originalTarget =
-        String(previous?.originalTarget || '').trim() ||
+        String(previousRework.originalTarget || '').trim() ||
         (currentDirection !== 'backward' ? String(rejectEdgeFull?.target || '').trim() : '')
+
+      const sharedRework = {
+        originalTarget,
+        requireReason: Boolean(nextRework?.requireReason),
+        preserveData: nextRework?.preserveData !== false,
+        maxIterations: nextRework?.maxIterations
+      }
+
+      if (!sendBackActive) {
+        const nextMeta = {
+          ...meta,
+          reworkReason: 'Rejected',
+          rework: sharedRework
+        }
+        const restoreTarget =
+          String(originalTarget || '').trim() || String(rejectEdgeFull?.target || '').trim() || endNodeId || ''
+        updateEdge(rejectEdge.id, { direction: 'forward', target: restoreTarget, metadata: nextMeta })
+        return
+      }
 
       updateEdge(rejectEdge.id, {
         direction: 'backward',
-        target,
+        target: nextTargetNodeId,
         metadata: {
           ...meta,
           reworkReason: 'Rejected',
           rework: {
-            originalTarget,
-            targetNodeId: target,
-            requireReason: nextRework?.requireReason ?? false,
-            preserveData: nextRework?.preserveData ?? true,
-            maxIterations: nextRework?.maxIterations
+            ...sharedRework,
+            targetNodeId: nextTargetNodeId
           }
         }
       })
@@ -91,47 +143,61 @@ export const DecisionRejectBehaviorSection: React.FC<DecisionRejectBehaviorSecti
 
   const updateRejectRework = useCallback(
     (partial: Partial<RejectReworkConfig>) => {
-      const base = (rework ?? { requireReason: false, preserveData: true }) as RejectReworkConfig
+      const base = rework ?? defaultRejectRework()
       const next = { ...base, ...partial }
-      update({ rejectRework: next } as any)
-      if (config.decisionMode === 'USER' && config.userConfig) {
-        update({ userConfig: { ...(config.userConfig as any), rejectRework: next } as any })
-      }
-      applyRejectEdge(true, next)
+      const normalized = hasRejectBehavior(next) ? next : undefined
+      persistRejectRework(normalized)
+      applyRejectEdge(normalized)
     },
-    [applyRejectEdge, config.decisionMode, config.userConfig, rework, update]
+    [applyRejectEdge, persistRejectRework, rework]
   )
 
   return (
     <RejectBehaviorSection
       mode={mode}
-      enabled={enabled}
-      disabled={!rejectEdge?.id || eligibleSendBackTargets.length === 0}
-      selectedTargetId={selectedTargetId}
+      sendBackEnabled={sendBackEnabled}
+      sendBackDisabled={!rejectEdge?.id || eligibleSendBackTargets.length === 0}
+      requireReason={requireReason}
+      selectedTargetId={rework?.targetNodeId}
       eligibleTargets={eligibleSendBackTargets}
       rework={rework}
-      onToggle={checked => {
+      onToggleSendBack={checked => {
         if (!checked) {
-          update({ rejectRework: undefined } as any)
-          if (config.decisionMode === 'USER' && config.userConfig) {
-            update({ userConfig: { ...(config.userConfig as any), rejectRework: undefined } as any })
-          }
-          applyRejectEdge(false)
+          const next = rework?.requireReason
+            ? defaultRejectRework({
+                requireReason: true,
+                preserveData: rework?.preserveData ?? true,
+                maxIterations: rework?.maxIterations
+              })
+            : undefined
+          persistRejectRework(next)
+          applyRejectEdge(next)
           return
         }
-        const defaultTarget = selectedTargetId ?? eligibleSendBackTargets[eligibleSendBackTargets.length - 1]?.id
-        const next: RejectReworkConfig = { targetNodeId: defaultTarget, requireReason: false, preserveData: true }
-        update({ rejectRework: next } as any)
-        if (config.decisionMode === 'USER' && config.userConfig) {
-          update({ userConfig: { ...(config.userConfig as any), rejectRework: next } as any })
-        }
-        applyRejectEdge(true, next)
+
+        const defaultTarget = rework?.targetNodeId ?? eligibleSendBackTargets[eligibleSendBackTargets.length - 1]?.id
+        const next = defaultRejectRework({
+          requireReason: rework?.requireReason ?? false,
+          preserveData: rework?.preserveData ?? true,
+          maxIterations: rework?.maxIterations,
+          targetNodeId: defaultTarget
+        })
+        persistRejectRework(next)
+        applyRejectEdge(next)
       }}
-      onChangeTarget={v => updateRejectRework({ targetNodeId: v })}
-      onChangeRequireReason={checked => updateRejectRework({ requireReason: checked })}
+      onChangeRequireReason={checked => {
+        if (!checked && !sendBackEnabled) {
+          persistRejectRework(undefined)
+          applyRejectEdge(undefined)
+          return
+        }
+
+        updateRejectRework({ requireReason: checked })
+      }}
+      onChangeTarget={targetNodeId => updateRejectRework({ targetNodeId })}
       onChangePreserveData={checked => updateRejectRework({ preserveData: checked })}
-      onChangeMaxIterations={v => updateRejectRework({ maxIterations: v })}
-      data-testid={`${testId}-reject-send-back`}
+      onChangeMaxIterations={value => updateRejectRework({ maxIterations: value })}
+      data-testid={`${testId}-reject-behavior`}
     />
   )
 }

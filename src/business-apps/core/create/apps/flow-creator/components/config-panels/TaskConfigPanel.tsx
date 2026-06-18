@@ -3,34 +3,18 @@
  * Includes General, Form, Assignment, and Rework Actions tabs.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { Tabs, TabsList, TabsTrigger, TabsContent, Badge, useTranslation } from '@newwork/nw-design-system'
-import {
-  Bot,
-  Brain,
-  CheckCircle2,
-  ClipboardList,
-  Cloud,
-  Code2,
-  FileText,
-  FolderOpen,
-  Info,
-  Repeat2,
-  Settings2,
-  UserCheck,
-  Users,
-  Zap
-} from 'lucide-react'
+import React, { useCallback, useMemo } from 'react'
+import { FileText, Settings2, Users, Zap } from 'lucide-react'
+import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../../_i18n'
 import { useFlowStudioStore } from '../../hooks/useFlowStudioStore'
 import type { TaskNodeConfig, DesignerMode, FlowStudioUpdateOptions } from '../../types/studioTypes'
-import { AssignmentMode, FlowStepType } from '@/common/data/flow/types/flowTemplate'
 import type { FlowStudioData } from '../../hooks/useFlowStudioData'
 import { TaskGeneralTab } from './task/TaskGeneralTab'
 import { TaskFormTab } from './task/TaskFormTab'
 import { TaskAssignmentTab } from './task/TaskAssignmentTab'
 import { TaskEventsTab } from './task/TaskEventsTab'
-import { TaskSwitchTypePanel } from './task/TaskSwitchTypePanel'
+import { StepConfigTabShell, type StepConfigTabItem } from './shared/StepConfigTabShell'
 
 interface TaskConfigPanelProps {
   nodeId: string
@@ -53,65 +37,9 @@ export const TaskConfigPanel: React.FC<TaskConfigPanelProps> = ({
   const updateNodeConfig = useFlowStudioStore(s => s.updateNodeConfig)
   const updateNode = useFlowStudioStore(s => s.updateNode)
   const rewriteExpressionsForTaskFieldRename = useFlowStudioStore(s => s.rewriteExpressionsForTaskFieldRename)
-  const [activeTab, setActiveTab] = useState('general')
-  const [view, setView] = useState<'config' | 'switchType'>('config')
   const showFormTab = config.kind === 'USER'
   const showAssignmentTab = config.kind === 'USER'
   const showAutomationTab = mode === 'advanced' && config.kind === 'USER'
-  const visibleTabs = useMemo(
-    () =>
-      [
-        'general',
-        showAssignmentTab ? 'assignment' : null,
-        showFormTab ? 'form' : null,
-        showAutomationTab ? 'events' : null
-      ].filter(Boolean) as string[],
-    [showAssignmentTab, showAutomationTab, showFormTab]
-  )
-  const showTabBar = visibleTabs.length > 1
-  const contentPaddingClassName = showTabBar ? 'gba:p-5' : 'gba:px-5 gba:py-4'
-
-  useEffect(() => {
-    if (!showFormTab && activeTab === 'form') setActiveTab('general')
-    if (!showAssignmentTab && activeTab === 'assignment') setActiveTab('general')
-    if (!showAutomationTab && activeTab === 'events') setActiveTab('general')
-  }, [activeTab, showAssignmentTab, showAutomationTab, showFormTab])
-  const header = useMemo(() => {
-    if (config.stepType === FlowStepType.AI_TASK_EXPERT) {
-      return { Icon: Bot, bg: 'gba:bg-muted', fg: 'gba:text-foreground', badge: 'AI' }
-    }
-    if (config.stepType === FlowStepType.AI_AGENT) {
-      return { Icon: Brain, bg: 'gba:bg-muted', fg: 'gba:text-foreground', badge: 'AI' }
-    }
-    if (config.stepType === FlowStepType.FUNCTION) {
-      // Connector step = FUNCTION + categoryHint 'connectors' OR selected function is a connector.
-      const hint = config.functionConfig?.categoryHint
-      const selectedFn = config.functionConfig?.functionId
-        ? studioData.functions.find(f => f.id === config.functionConfig?.functionId)
-        : undefined
-      const isConnectorStep = hint === 'connectors' || selectedFn?.connectorEnabled === true
-      if (isConnectorStep) {
-        const ConnectorIcon = selectedFn?.connectorKind === 'unstructured' ? FolderOpen : Cloud
-        return { Icon: ConnectorIcon, bg: 'gba:bg-muted', fg: 'gba:text-foreground', badge: 'Connector' }
-      }
-      return { Icon: Code2, bg: 'gba:bg-muted', fg: 'gba:text-foreground', badge: 'Automation' }
-    }
-    if (config.stepType === FlowStepType.APPROVAL) {
-      return {
-        Icon: UserCheck,
-        bg: 'gba:bg-warning-secondary',
-        fg: 'gba:text-warning-secondary-foreground',
-        badge: 'User'
-      }
-    }
-    if (config.stepType === FlowStepType.INFORMATION) {
-      return { Icon: Info, bg: 'gba:bg-muted', fg: 'gba:text-foreground', badge: 'User' }
-    }
-    if (config.stepType === FlowStepType.ACKNOWLEDGE) {
-      return { Icon: CheckCircle2, bg: 'gba:bg-muted', fg: 'gba:text-foreground', badge: 'User' }
-    }
-    return { Icon: ClipboardList, bg: 'gba:bg-accent', fg: 'gba:text-accent-foreground', badge: 'User' }
-  }, [config.stepType, config.functionConfig?.categoryHint, config.functionConfig?.functionId, studioData.functions])
 
   const update = useCallback(
     (partial: Partial<TaskNodeConfig>, options?: FlowStudioUpdateOptions) => {
@@ -120,286 +48,104 @@ export const TaskConfigPanel: React.FC<TaskConfigPanelProps> = ({
     [nodeId, updateNodeConfig]
   )
 
-  const applyStepType = useCallback(
-    (nextType: FlowStepType, categoryHint?: 'connectors' | 'functions') => {
-      const isAutomation = [FlowStepType.FUNCTION, FlowStepType.AI_AGENT, FlowStepType.AI_TASK_EXPERT].includes(
-        nextType
-      )
-      const keepFunctionConfig = nextType === FlowStepType.FUNCTION && config.stepType === FlowStepType.FUNCTION
-      const keepTaskExpertConfig =
-        nextType === FlowStepType.AI_TASK_EXPERT && config.stepType === FlowStepType.AI_TASK_EXPERT
-      const neutralSystemAssignment = {
-        targets: null,
-        assignmentMode: AssignmentMode.ASSIGN,
-        allowReassignment: true
+  const tabs = useMemo((): StepConfigTabItem[] => {
+    const items: StepConfigTabItem[] = [
+      {
+        id: 'general',
+        label: t('config-general'),
+        icon: Settings2,
+        content: (
+          <TaskGeneralTab
+            nodeId={nodeId}
+            mode={mode}
+            config={config}
+            accessToken={accessToken}
+            studioData={studioData}
+            update={update}
+            onUpdateLabel={title => updateNode(nodeId, { label: title })}
+            t={t}
+            testId={testId}
+          />
+        )
       }
+    ]
 
-      // Build the next functionConfig so the studio-only categoryHint carries the user's
-      // intent ("this is a Connector step" vs "this is a Function step") across reopens.
-      // The hint lives purely in studio state; it is not serialized to the saved template.
-      let nextFunctionConfig: typeof config.functionConfig
-      if (nextType === FlowStepType.FUNCTION) {
-        if (keepFunctionConfig) {
-          nextFunctionConfig = {
-            ...config.functionConfig,
-            ...(categoryHint !== undefined ? { categoryHint } : {})
-          } as typeof config.functionConfig
-        } else if (categoryHint !== undefined) {
-          // Seed a minimal config so the hint survives even before a function is picked.
-          nextFunctionConfig = { functionId: '', categoryHint } as typeof config.functionConfig
-        } else {
-          nextFunctionConfig = undefined
-        }
-      } else {
-        nextFunctionConfig = undefined
-      }
-
-      update({
-        stepType: nextType,
-        kind: isAutomation ? 'SYSTEM' : 'USER',
-        assignment: isAutomation ? (neutralSystemAssignment as any) : config.assignment,
-        form: isAutomation ? [] : config.form,
-        links: nextType === FlowStepType.FUNCTION || nextType === FlowStepType.AI_TASK_EXPERT ? [] : config.links,
-        dueInMinutes: isAutomation ? undefined : config.dueInMinutes,
-        defaultPriority: isAutomation ? undefined : config.defaultPriority,
-        customStates: isAutomation ? undefined : config.customStates,
-        eventSubscriptions: isAutomation ? undefined : config.eventSubscriptions,
-        reworkConfig: isAutomation ? undefined : config.reworkConfig,
-        functionConfig: nextFunctionConfig,
-        agentConfig: keepTaskExpertConfig ? config.agentConfig : undefined,
-        permissionContext:
-          nextType === FlowStepType.AI_AGENT
-            ? (config.permissionContext ?? { contextType: 'USER', permissions: ['read', 'write', 'execute'] })
-            : undefined,
-        ...(mode === 'simple' && nextType === FlowStepType.AI_TASK_EXPERT
-          ? { simpleAIConfig: { instruction: config.simpleAIConfig?.instruction ?? '' } }
-          : {})
+    if (showAssignmentTab) {
+      items.push({
+        id: 'assignment',
+        label: t('config-assignment'),
+        icon: Users,
+        content: (
+          <TaskAssignmentTab
+            nodeId={nodeId}
+            mode={mode}
+            config={config}
+            update={update}
+            accessToken={accessToken}
+            testId={testId}
+          />
+        )
       })
-    },
-    [
-      config.assignment,
-      config.customStates,
-      config.defaultPriority,
-      config.dueInMinutes,
-      config.eventSubscriptions,
-      config.form,
-      config.functionConfig,
-      config.links,
-      config.permissionContext,
-      config.reworkConfig,
-      config.simpleAIConfig?.instruction,
-      config.stepType,
-      mode,
-      update
-    ]
-  )
+    }
 
-  // NOTE: Task-level rework/return is intentionally not configured here.
-  // For send-back / return flows, use a Decision node (Approval mode).
+    if (showFormTab) {
+      items.push({
+        id: 'form',
+        label: t('config-form'),
+        icon: FileText,
+        content: (
+          <TaskFormTab
+            mode={mode}
+            config={config}
+            studioData={studioData}
+            update={update}
+            title={t('config-form')}
+            testId={testId}
+            onFieldKeyRename={({ oldKey, newKey }, options) =>
+              rewriteExpressionsForTaskFieldRename(nodeId, oldKey, newKey, options)
+            }
+          />
+        )
+      })
+    }
 
-  const stepTypeOptions = useMemo(() => {
-    const userTypes: FlowStepType[] = [
-      FlowStepType.TASK,
-      FlowStepType.APPROVAL,
-      FlowStepType.INFORMATION,
-      FlowStepType.ACKNOWLEDGE
-    ]
-    const systemTypes: FlowStepType[] =
-      mode === 'simple' ? [FlowStepType.AI_AGENT] : [FlowStepType.AI_AGENT, FlowStepType.AI_TASK_EXPERT]
+    if (showAutomationTab) {
+      items.push({
+        id: 'events',
+        label: t('config-events'),
+        icon: Zap,
+        content: (
+          <TaskEventsTab
+            config={config}
+            studioData={studioData}
+            update={update}
+            title={t('config-events')}
+            testId={testId}
+          />
+        )
+      })
+    }
 
-    // Signature UX: always show the full set of step types (no "Execution" dropdown).
-    // Choosing a type implicitly switches between USER and SYSTEM.
-    return [...userTypes, ...systemTypes]
-  }, [mode])
+    return items
+  }, [
+    accessToken,
+    config,
+    mode,
+    nodeId,
+    rewriteExpressionsForTaskFieldRename,
+    showAssignmentTab,
+    showAutomationTab,
+    showFormTab,
+    studioData,
+    t,
+    testId,
+    update,
+    updateNode
+  ])
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
-      <div className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:px-5 gba:py-3 gba:border-b gba:border-border gba:bg-background">
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <div className={`gba:flex gba:items-center gba:justify-center gba:w-7 gba:h-7 gba:rounded-md ${header.bg}`}>
-            <header.Icon className={`gba:h-4 gba:w-4 ${header.fg}`} />
-          </div>
-          <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">
-            {view === 'switchType' ? t('task-switch-type') : 'Task Configuration'}
-          </h3>
-        </div>
-        <div className="gba:flex gba:items-center gba:gap-2">
-          {view !== 'switchType' && (
-            <button
-              type="button"
-              className="gba:inline-flex gba:items-center gba:gap-1.5 gba:text-xs gba:font-semibold gba:text-muted-foreground gba:hover:text-foreground gba:transition-colors"
-              onClick={() => {
-                setView('switchType')
-                setActiveTab('general')
-              }}
-              data-testid={`${testId}-switch-open`}
-            >
-              <Repeat2 className="gba:h-4 gba:w-4" />
-              {t('task-switch-type')}
-            </button>
-          )}
-
-          <Badge variant="secondary" data-testid={`${testId}-header-badge`}>
-            {header.badge}
-          </Badge>
-        </div>
-      </div>
-
-      {view === 'switchType' ? (
-        <div className="gba:flex-1 gba:overflow-y-auto gba:px-5 gba:py-4">
-          <TaskSwitchTypePanel
-            mode={mode}
-            config={config}
-            onSwitch={next => {
-              applyStepType(next)
-              setView('config')
-            }}
-            t={t}
-            data-testid={`${testId}-switch-panel`}
-          />
-        </div>
-      ) : (
-        <Tabs
-          value={activeTab}
-          onValueChange={setActiveTab}
-          className="gba:flex gba:flex-col gba:flex-1 gba:overflow-hidden"
-        >
-          {showTabBar && (
-            <div className="gba:px-5 gba:pt-3">
-              <TabsList className="gba:w-full gba:bg-muted gba:p-1 gba:rounded-lg">
-                <TabsTrigger
-                  value="general"
-                  startIcon={<Settings2 className="gba:h-3.5 gba:w-3.5" />}
-                  className={
-                    activeTab === 'general'
-                      ? 'gba:bg-background gba:text-foreground gba:font-semibold gba:shadow-sm'
-                      : 'gba:text-muted-foreground'
-                  }
-                  data-testid={`${testId}-tab-general`}
-                >
-                  {t('config-general')}
-                </TabsTrigger>
-                {showAssignmentTab && (
-                  <TabsTrigger
-                    value="assignment"
-                    startIcon={<Users className="gba:h-3.5 gba:w-3.5" />}
-                    className={
-                      activeTab === 'assignment'
-                        ? 'gba:bg-background gba:text-foreground gba:font-semibold gba:shadow-sm'
-                        : 'gba:text-muted-foreground'
-                    }
-                    data-testid={`${testId}-tab-assignment`}
-                  >
-                    {t('config-assignment')}
-                  </TabsTrigger>
-                )}
-                {showFormTab && (
-                  <TabsTrigger
-                    value="form"
-                    startIcon={<FileText className="gba:h-3.5 gba:w-3.5" />}
-                    className={
-                      activeTab === 'form'
-                        ? 'gba:bg-background gba:text-foreground gba:font-semibold gba:shadow-sm'
-                        : 'gba:text-muted-foreground'
-                    }
-                    data-testid={`${testId}-tab-form`}
-                  >
-                    {t('config-form')}
-                  </TabsTrigger>
-                )}
-                {showAutomationTab && (
-                  <TabsTrigger
-                    value="events"
-                    startIcon={<Zap className="gba:h-3.5 gba:w-3.5" />}
-                    className={
-                      activeTab === 'events'
-                        ? 'gba:bg-background gba:text-foreground gba:font-semibold gba:shadow-sm'
-                        : 'gba:text-muted-foreground'
-                    }
-                    data-testid={`${testId}-tab-events`}
-                  >
-                    {t('config-events')}
-                  </TabsTrigger>
-                )}
-              </TabsList>
-            </div>
-          )}
-
-          <div className="gba:flex-1 gba:overflow-y-auto">
-            {/* General Tab */}
-            <TabsContent
-              value="general"
-              className={`gba:flex gba:flex-col gba:gap-4 gba:mt-0 ${contentPaddingClassName}`}
-            >
-              <TaskGeneralTab
-                nodeId={nodeId}
-                mode={mode}
-                config={config}
-                accessToken={accessToken}
-                studioData={studioData}
-                stepTypeOptions={stepTypeOptions}
-                update={update}
-                onUpdateLabel={title => updateNode(nodeId, { label: title })}
-                t={t}
-                testId={testId}
-              />
-            </TabsContent>
-
-            {/* Assignment Tab */}
-            {showAssignmentTab && (
-              <TabsContent
-                value="assignment"
-                className={`gba:flex gba:flex-col gba:gap-4 gba:mt-0 ${contentPaddingClassName}`}
-              >
-                <TaskAssignmentTab
-                  nodeId={nodeId}
-                  mode={mode}
-                  config={config}
-                  update={update}
-                  accessToken={accessToken}
-                  testId={testId}
-                />
-              </TabsContent>
-            )}
-
-            {/* Form Tab */}
-            {showFormTab && (
-              <TabsContent
-                value="form"
-                className={`gba:flex gba:flex-col gba:gap-4 gba:mt-0 ${contentPaddingClassName}`}
-              >
-                <TaskFormTab
-                  mode={mode}
-                  config={config}
-                  studioData={studioData}
-                  update={update}
-                  title={t('config-form')}
-                  testId={testId}
-                  onFieldKeyRename={({ oldKey, newKey }, options) =>
-                    rewriteExpressionsForTaskFieldRename(nodeId, oldKey, newKey, options)
-                  }
-                />
-              </TabsContent>
-            )}
-
-            {/* Automation Tab (Advanced only, user tasks only) */}
-            {showAutomationTab && (
-              <TabsContent
-                value="events"
-                className={`gba:flex gba:flex-col gba:gap-4 gba:mt-0 ${contentPaddingClassName}`}
-              >
-                <TaskEventsTab
-                  config={config}
-                  studioData={studioData}
-                  update={update}
-                  title={t('config-events')}
-                  testId={testId}
-                />
-              </TabsContent>
-            )}
-          </div>
-        </Tabs>
-      )}
+      <StepConfigTabShell tabs={tabs} testId={testId} defaultTabId="general" />
     </div>
   )
 }

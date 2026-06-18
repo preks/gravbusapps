@@ -8,6 +8,7 @@ import { DecisionExecutorTabs } from './ai/DecisionExecutorTabs'
 import { EveryAiDecisionSection } from './ai/EveryAiDecisionSection'
 import { TaskExpertDecisionSection } from './ai/TaskExpertDecisionSection'
 import { useAIDecisionConfigState } from './ai/useAIDecisionConfigState'
+import { DecisionOutcomesSection, type DecisionOutcomesSectionProps } from './DecisionOutcomesSection'
 
 interface AIDecisionConfigProps {
   nodeId: string
@@ -18,6 +19,7 @@ interface AIDecisionConfigProps {
   accessToken: string
   studioData: FlowStudioData
   availableStartFields: Array<{ name: string; label: string }>
+  outcomes: Omit<DecisionOutcomesSectionProps, 'config' | 'mode' | 'update' | 'testId'>
 }
 
 export const AIDecisionConfig: React.FC<AIDecisionConfigProps> = ({
@@ -28,7 +30,8 @@ export const AIDecisionConfig: React.FC<AIDecisionConfigProps> = ({
   testId,
   accessToken,
   studioData,
-  availableStartFields
+  availableStartFields,
+  outcomes
 }) => {
   const { t } = useTranslation(translations)
   const expressionSuggestions = useStudioExpressionSuggestions()
@@ -83,8 +86,8 @@ export const AIDecisionConfig: React.FC<AIDecisionConfigProps> = ({
     onChangeReasoningPath
   } = useAIDecisionConfigState({ config, update, studioData })
 
-  if (mode === 'simple') {
-    return (
+  const executorContent =
+    mode === 'simple' ? (
       <>
         <div className="gba:flex gba:flex-col gba:gap-1.5">
           <Label className="gba:text-xs gba:font-medium">{t('decision-ai-executor-label')}</Label>
@@ -141,70 +144,75 @@ export const AIDecisionConfig: React.FC<AIDecisionConfigProps> = ({
           />
         )}
       </>
+    ) : (
+      <>
+        <div className="gba:flex gba:flex-col gba:gap-1.5">
+          <Label className="gba:text-xs gba:font-medium">{t('decision-ai-executor-label')}</Label>
+          <DecisionExecutorTabs
+            value={advancedExecutor}
+            variant="advanced"
+            testIdPrefix={testId}
+            onValueChange={next => changeExecutor(next, 'advanced')}
+          />
+          <p className="gba:text-xs gba:text-muted-foreground">
+            {advancedExecutor === 'EVERYAI'
+              ? t('decision-ai-executor-everyai-desc')
+              : t('decision-ai-executor-taskexpert-desc')}
+          </p>
+        </div>
+
+        {advancedExecutor === 'EVERYAI' ? (
+          <EveryAiDecisionSection
+            mode={mode}
+            variant="advanced"
+            aiConfig={getAiConfigOrDefault('EVERYAI')}
+            accessToken={accessToken}
+            availableStartFields={availableStartFields}
+            expressionSuggestions={expressionSuggestions}
+            dataSources={dataSources}
+            onChangeAiConfig={next => update({ aiConfig: next })}
+            onSelectPolicy={onSelectPolicy}
+            links={config.links ?? []}
+            onChangeLinks={next => update({ links: next })}
+            nodeId={nodeId}
+            testId={testId}
+          />
+        ) : (
+          <TaskExpertDecisionSection
+            mode={mode}
+            variant="advanced"
+            aiConfig={getAiConfigOrDefault('TASK_EXPERT')}
+            studioAgentsLoading={Boolean(studioData.agentsLoading)}
+            selectedTaskExpert={selectedTaskExpert}
+            candidates={decisionTaskExperts}
+            onSelectTaskExpert={onSelectTaskExpert}
+            onChangeTaskExpertVersion={onChangeTaskExpertVersion}
+            availablePromptVersions={taskExpertVersions}
+            promptVersionsLoading={taskExpertVersionsLoading}
+            mappingWrapperConfig={mappingWrapperConfig}
+            mappingWrapperUpdate={mappingWrapperUpdate}
+            mappingSuggestions={taskExpertMappingExpressionSuggestions}
+            promptParams={promptParams}
+            promptParamsLoading={promptParamsLoading}
+            decisionResultEnumOptions={decisionResultEnumOptions}
+            schemaPaths={taskExpertSchemaPaths}
+            onChangeReasoningPath={onChangeReasoningPath}
+            accessToken={accessToken}
+            availableStartFields={availableStartFields}
+            expressionSuggestions={expressionSuggestions}
+            dataSources={dataSources}
+            onChangeAiConfig={next => update({ aiConfig: next })}
+            testId={testId}
+          />
+        )}
+      </>
     )
-  }
 
   return (
-    <>
-      <div className="gba:flex gba:flex-col gba:gap-1.5">
-        <Label className="gba:text-xs gba:font-medium">{t('decision-ai-executor-label')}</Label>
-        <DecisionExecutorTabs
-          value={advancedExecutor}
-          variant="advanced"
-          testIdPrefix={testId}
-          onValueChange={next => changeExecutor(next, 'advanced')}
-        />
-        <p className="gba:text-xs gba:text-muted-foreground">
-          {advancedExecutor === 'EVERYAI'
-            ? t('decision-ai-executor-everyai-desc')
-            : t('decision-ai-executor-taskexpert-desc')}
-        </p>
-      </div>
-
-      {advancedExecutor === 'EVERYAI' ? (
-        <EveryAiDecisionSection
-          mode={mode}
-          variant="advanced"
-          aiConfig={getAiConfigOrDefault('EVERYAI')}
-          accessToken={accessToken}
-          availableStartFields={availableStartFields}
-          expressionSuggestions={expressionSuggestions}
-          dataSources={dataSources}
-          onChangeAiConfig={next => update({ aiConfig: next })}
-          onSelectPolicy={onSelectPolicy}
-          links={config.links ?? []}
-          onChangeLinks={next => update({ links: next })}
-          nodeId={nodeId}
-          testId={testId}
-        />
-      ) : (
-        <TaskExpertDecisionSection
-          mode={mode}
-          variant="advanced"
-          aiConfig={getAiConfigOrDefault('TASK_EXPERT')}
-          studioAgentsLoading={Boolean(studioData.agentsLoading)}
-          selectedTaskExpert={selectedTaskExpert}
-          candidates={decisionTaskExperts}
-          onSelectTaskExpert={onSelectTaskExpert}
-          onChangeTaskExpertVersion={onChangeTaskExpertVersion}
-          availablePromptVersions={taskExpertVersions}
-          promptVersionsLoading={taskExpertVersionsLoading}
-          mappingWrapperConfig={mappingWrapperConfig}
-          mappingWrapperUpdate={mappingWrapperUpdate}
-          mappingSuggestions={taskExpertMappingExpressionSuggestions}
-          promptParams={promptParams}
-          promptParamsLoading={promptParamsLoading}
-          decisionResultEnumOptions={decisionResultEnumOptions}
-          schemaPaths={taskExpertSchemaPaths}
-          onChangeReasoningPath={onChangeReasoningPath}
-          accessToken={accessToken}
-          availableStartFields={availableStartFields}
-          expressionSuggestions={expressionSuggestions}
-          dataSources={dataSources}
-          onChangeAiConfig={next => update({ aiConfig: next })}
-          testId={testId}
-        />
-      )}
-    </>
+    <div className="gba:flex gba:flex-col gba:gap-4">
+      <DecisionOutcomesSection config={config} mode={mode} testId={testId} update={update} {...outcomes} />
+      <div className="gba:h-px gba:bg-border" />
+      {executorContent}
+    </div>
   )
 }

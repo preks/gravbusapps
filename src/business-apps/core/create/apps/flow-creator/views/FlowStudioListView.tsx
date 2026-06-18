@@ -210,13 +210,18 @@ export const FlowStudioListView: React.FC<FlowStudioListViewProps> = ({
           setPagination(prev => ({ ...prev, pageIndex: 0 }))
         }}
         primaryAction={
-          onCreateFlow
-            ? {
-                label: t('list-create'),
-                onClick: onCreateFlow,
-                icon: ListPlus
-              }
-            : undefined
+          onCreateFlow ? (
+            <Button
+              type="button"
+              size="sm"
+              onClick={onCreateFlow}
+              className="gba:inline-flex gba:items-center gba:gap-2 gba:shrink-0"
+              data-testid={`${testId}-create`}
+            >
+              <ListPlus className="gba:h-4 gba:w-4" />
+              {t('list-create')}
+            </Button>
+          ) : undefined
         }
         secondaryActions={
           onImportFlow ? (

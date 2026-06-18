@@ -4,9 +4,9 @@
  */
 
 import React, { useMemo, useRef, useState } from 'react'
-import { Ban, ChevronLeft, ChevronRight, FlaskConical, RotateCcw, X } from 'lucide-react'
+import { Ban, ChevronLeft, ChevronRight, CircleHelp, FlaskConical, Repeat2, RotateCcw, X } from 'lucide-react'
 import { useRightPanelExiting } from '@/common/components/flow'
-import { Button, Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
+import { Button, Popover, PopoverContent, PopoverTrigger, useTranslation } from '@newwork/nw-design-system'
 import { useFlowStudioStore } from '../../hooks/useFlowStudioStore'
 import { StartConfigPanel } from './StartConfigPanel'
 import { TaskConfigPanel } from './TaskConfigPanel'
@@ -14,7 +14,15 @@ import { DecisionConfigPanel } from './DecisionConfigPanel'
 import { ForkConfigPanel, JoinConfigPanel } from './ForkJoinConfigPanel'
 import { EndConfigPanel } from './EndConfigPanel'
 import { EdgeDetailsPanel } from './EdgeDetailsPanel'
-import { AddStepPanel } from './AddStepPanel'
+import { StepKindPanel } from '../step-picker/StepKindPanel'
+import { getStepKindOption } from '../step-picker/stepKindOptions'
+import { resolveStepKindFromStudioNode } from '../step-picker/resolveStepKind'
+import {
+  canSwitchStepKind,
+  resolveConfigPanelHeaderIcon,
+  resolveConfigPanelHeaderTitle
+} from './resolveConfigPanelHeader'
+import translations from '../../_i18n'
 import {
   getNearestDownstreamTaskCandidates,
   getNearestUpstreamTaskCandidates,
@@ -55,14 +63,103 @@ export const ConfigPanelContainer: React.FC<ConfigPanelContainerProps> = ({
   const selectedNodeId = useFlowStudioStore(s => s.selectedNodeId)
   const selectedEdgeId = useFlowStudioStore(s => s.selectedEdgeId)
   const selectedEdgePanel = useFlowStudioStore(s => s.selectedEdgePanel)
+  const configPanelView = useFlowStudioStore(s => s.configPanelView)
   const nodes = useFlowStudioStore(s => s.nodes)
   const edges = useFlowStudioStore(s => s.edges)
   const selectNode = useFlowStudioStore(s => s.selectNode)
   const selectEdge = useFlowStudioStore(s => s.selectEdge)
+  const closeChangeStepKind = useFlowStudioStore(s => s.closeChangeStepKind)
+  const openChangeStepKind = useFlowStudioStore(s => s.openChangeStepKind)
   const updateNodeConfig = useFlowStudioStore(s => s.updateNodeConfig)
   const [navigationPicker, setNavigationPicker] = useState<'previous' | 'next' | null>(null)
+  const { t } = useTranslation(translations)
 
   const selectedNode = selectedNodeId ? nodes.find(n => n.id === selectedNodeId) : null
+  const isAddStep = !selectedNode && Boolean(selectedEdgeId) && selectedEdgePanel === 'insert'
+  const isChangeStep = Boolean(selectedNode) && configPanelView === 'change-step'
+  const isStepKindPanel = isAddStep || isChangeStep
+
+  const changeStepKindId = useMemo(() => {
+    if (!isChangeStep || !selectedNode) return undefined
+    return resolveStepKindFromStudioNode(selectedNode, studioData.functions)
+  }, [isChangeStep, selectedNode, studioData.functions])
+
+  const changeStepKindOption = changeStepKindId ? getStepKindOption(changeStepKindId) : undefined
+  const nodeConfigHeaderIcon = useMemo(() => {
+    if (!selectedNode) return undefined
+    return resolveConfigPanelHeaderIcon(selectedNode, studioData.functions)
+  }, [selectedNode, studioData.functions])
+
+  const configPanelHeaderTitle = useMemo(() => {
+    if (!selectedNode) return null
+    return resolveConfigPanelHeaderTitle(selectedNode, studioData.functions, t)
+  }, [selectedNode, studioData.functions, t])
+
+  const renderHeaderIcon = () => {
+    const iconButtonClassName =
+      'gba:group gba:relative gba:flex gba:shrink-0 gba:items-center gba:justify-center gba:w-7 gba:h-7 gba:rounded-md gba:bg-muted gba:hover:bg-accent gba:transition-colors'
+    const iconClassName = 'gba:h-4 gba:w-4 gba:text-foreground'
+    const hoverIconClassName =
+      'gba:pointer-events-none gba:absolute gba:h-4 gba:w-4 gba:text-foreground gba:opacity-0 gba:transition-opacity gba:group-hover:opacity-100'
+
+    if (isAddStep) {
+      return (
+        <div className="gba:flex gba:shrink-0 gba:items-center gba:justify-center gba:w-7 gba:h-7 gba:rounded-md gba:bg-muted">
+          <CircleHelp className={iconClassName} />
+        </div>
+      )
+    }
+
+    if (isChangeStep) {
+      const BackHoverIcon = nodeConfigHeaderIcon ?? changeStepKindOption?.Icon
+      return (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={iconButtonClassName}
+          onClick={() => closeChangeStepKind()}
+          aria-label={t('step-panel-back-to-config')}
+          title={t('step-panel-back-to-config')}
+          data-testid={`${testId}-back`}
+        >
+          <Repeat2 className={`${iconClassName} gba:transition-opacity gba:group-hover:opacity-0`} />
+          {BackHoverIcon ? <BackHoverIcon className={hoverIconClassName} /> : null}
+        </Button>
+      )
+    }
+
+    if (showSwitchStepKind && nodeConfigHeaderIcon) {
+      const StepIcon = nodeConfigHeaderIcon
+      return (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={iconButtonClassName}
+          onClick={() => openChangeStepKind()}
+          aria-label={t('task-switch-type')}
+          title={t('task-switch-type')}
+          data-testid={`${testId}-switch-step-type`}
+        >
+          <StepIcon className={`${iconClassName} gba:transition-opacity gba:group-hover:opacity-0`} />
+          <Repeat2 className={hoverIconClassName} />
+        </Button>
+      )
+    }
+
+    if (nodeConfigHeaderIcon) {
+      const StaticIcon = nodeConfigHeaderIcon
+      return (
+        <div className="gba:flex gba:shrink-0 gba:items-center gba:justify-center gba:w-7 gba:h-7 gba:rounded-md gba:bg-muted">
+          <StaticIcon className={iconClassName} />
+        </div>
+      )
+    }
+
+    return null
+  }
+
   const previousTaskCandidates = useMemo(() => {
     if (!selectedNode || selectedNode.config.nodeType !== 'task') return []
     return getNearestUpstreamTaskCandidates(nodes, edges, selectedNode.id)
@@ -82,6 +179,10 @@ export const ConfigPanelContainer: React.FC<ConfigPanelContainerProps> = ({
   const canToggleTaskActive = Boolean(!readOnly && selectedNode?.config.nodeType === 'task')
   const selectedTaskDeactivated =
     selectedNode?.config.nodeType === 'task' ? selectedNode.config.enabled === false : false
+  const showSwitchStepKind = !readOnly && !isStepKindPanel && canSwitchStepKind(selectedNode)
+  const showPanelFooter =
+    !isStepKindPanel &&
+    (previousTaskCandidates.length > 0 || nextTaskCandidates.length > 0 || canTestSelectedNode || canToggleTaskActive)
   const isExiting = useRightPanelExiting()
   const lastContentRef = useRef<React.ReactNode>(null)
 
@@ -98,13 +199,32 @@ export const ConfigPanelContainer: React.FC<ConfigPanelContainerProps> = ({
   }
 
   const renderPanel = () => {
+    if (isAddStep && selectedEdgeId) {
+      return (
+        <StepKindPanel
+          designerMode={mode}
+          pickerMode="insert"
+          edgeId={selectedEdgeId}
+          data-testid="flow-studio-add-step"
+        />
+      )
+    }
+
+    if (isChangeStep && selectedNodeId) {
+      return (
+        <StepKindPanel
+          designerMode={mode}
+          pickerMode="change"
+          nodeId={selectedNodeId}
+          studioData={studioData}
+          data-testid="flow-studio-change-step-kind"
+        />
+      )
+    }
+
     if (!selectedNode) {
       if (!selectedEdgeId) return null
-      return selectedEdgePanel === 'insert' ? (
-        <AddStepPanel edgeId={selectedEdgeId} mode={mode} />
-      ) : (
-        <EdgeDetailsPanel edgeId={selectedEdgeId} />
-      )
+      return <EdgeDetailsPanel edgeId={selectedEdgeId} />
     }
     const config = selectedNode.config
 
@@ -218,43 +338,17 @@ export const ConfigPanelContainer: React.FC<ConfigPanelContainerProps> = ({
       data-testid={testId}
     >
       <div className="gba:flex gba:shrink-0 gba:items-center gba:justify-between gba:px-5 gba:py-3 gba:border-b gba:border-border">
-        <span className="gba:text-sm gba:font-semibold gba:text-foreground">
-          {selectedNode?.label ?? (selectedEdgePanel === 'insert' ? 'Add step' : 'Edge')}
-        </span>
-        <div className="gba:flex gba:items-center gba:gap-2">
-          {renderTaskNavigationButton('previous', previousTaskCandidates, ChevronLeft)}
-          {renderTaskNavigationButton('next', nextTaskCandidates, ChevronRight)}
-          {canTestSelectedNode ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => selectedNode && onTestStep?.(selectedNode.id)}
-              data-testid={`${testId}-test-step`}
-            >
-              <FlaskConical className="gba:h-4 gba:w-4 gba:mr-1" />
-              Test step
-            </Button>
-          ) : null}
-          {canToggleTaskActive ? (
-            <Button
-              type="button"
-              variant={selectedTaskDeactivated ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => {
-                if (!selectedNode || selectedNode.config.nodeType !== 'task') return
-                updateNodeConfig(selectedNode.id, { enabled: selectedNode.config.enabled === false } as any)
-              }}
-              data-testid={`${testId}-${selectedTaskDeactivated ? 'activate' : 'deactivate'}-task`}
-            >
-              {selectedTaskDeactivated ? (
-                <RotateCcw className="gba:h-4 gba:w-4 gba:mr-1" />
-              ) : (
-                <Ban className="gba:h-4 gba:w-4 gba:mr-1" />
-              )}
-              {selectedTaskDeactivated ? 'Activate' : 'Deactivate'}
-            </Button>
-          ) : null}
+        <div className="gba:flex gba:min-w-0 gba:items-center gba:gap-2">
+          {renderHeaderIcon()}
+          <span className="gba:truncate gba:text-sm gba:font-semibold gba:text-foreground">
+            {isAddStep
+              ? t('step-panel-add-step')
+              : isChangeStep
+                ? t('step-panel-change-step')
+                : (configPanelHeaderTitle ?? (selectedEdgePanel === 'insert' ? t('step-panel-add-step') : 'Edge'))}
+          </span>
+        </div>
+        <div className="gba:flex gba:shrink-0 gba:items-center gba:gap-2">
           <Button
             variant="ghost"
             size="sm"
@@ -290,6 +384,47 @@ export const ConfigPanelContainer: React.FC<ConfigPanelContainerProps> = ({
       >
         {renderPanel()}
       </div>
+
+      {showPanelFooter ? (
+        <div
+          className="gba:shrink-0 gba:flex gba:items-center gba:justify-end gba:gap-2 gba:border-t gba:border-border gba:bg-background gba:px-5 gba:py-3"
+          data-testid={`${testId}-footer`}
+        >
+          {renderTaskNavigationButton('previous', previousTaskCandidates, ChevronLeft)}
+          {renderTaskNavigationButton('next', nextTaskCandidates, ChevronRight)}
+          {canTestSelectedNode ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => selectedNode && onTestStep?.(selectedNode.id)}
+              data-testid={`${testId}-test-step`}
+            >
+              <FlaskConical className="gba:h-4 gba:w-4 gba:mr-1" />
+              Test step
+            </Button>
+          ) : null}
+          {canToggleTaskActive ? (
+            <Button
+              type="button"
+              variant={selectedTaskDeactivated ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => {
+                if (!selectedNode || selectedNode.config.nodeType !== 'task') return
+                updateNodeConfig(selectedNode.id, { enabled: selectedNode.config.enabled === false } as any)
+              }}
+              data-testid={`${testId}-${selectedTaskDeactivated ? 'activate' : 'deactivate'}-task`}
+            >
+              {selectedTaskDeactivated ? (
+                <RotateCcw className="gba:h-4 gba:w-4 gba:mr-1" />
+              ) : (
+                <Ban className="gba:h-4 gba:w-4 gba:mr-1" />
+              )}
+              {selectedTaskDeactivated ? 'Activate' : 'Deactivate'}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   )
   lastContentRef.current = content

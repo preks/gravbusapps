@@ -221,6 +221,70 @@ describe('templateConverter', () => {
     expect(template.summaryFields).toHaveLength(1)
   })
 
+  it('roundtrips approval rejectRework with requireReason and without send-back target', () => {
+    const nodes: StudioNode[] = [
+      makeStartNode(),
+      makeTaskNode('taskA', 'Task A'),
+      {
+        ...makeDecisionNode('dec1', 'Approval'),
+        config: {
+          ...makeDecisionNode('dec1', 'Approval').config,
+          userConfig: {
+            userDecisionType: 'APPROVAL',
+            assignment: { targets: null, assignmentMode: AssignmentMode.CLAIM },
+            options: [
+              { id: 'approve', label: 'Approve' },
+              { id: 'reject', label: 'Reject' }
+            ]
+          },
+          rejectRework: {
+            requireReason: true,
+            preserveData: true
+          }
+        } as any
+      },
+      makeTaskNode('taskB', 'Task B'),
+      makeEndNode()
+    ]
+
+    const edges: FlowGraphEdge[] = [
+      { id: 'e-start-a', source: START_ID, target: 'taskA', direction: 'forward' } as any,
+      { id: 'e-a-dec', source: 'taskA', target: 'dec1', direction: 'forward' } as any,
+      { id: 'b1', source: 'dec1', target: 'taskB', direction: 'forward', label: 'Approve' } as any,
+      {
+        id: 'b2',
+        source: 'dec1',
+        target: END_ID,
+        direction: 'forward',
+        label: 'Reject',
+        metadata: {
+          reworkReason: 'Rejected',
+          rework: { requireReason: true, preserveData: true, originalTarget: END_ID }
+        }
+      } as any,
+      { id: 'e-b-end', source: 'taskB', target: END_ID, direction: 'forward' } as any
+    ]
+
+    const template = studioGraphToTemplate(nodes, edges, 'Approval Flow') as any
+    const decision = template.steps.find((step: { type: string }) => step.type === 'DECISION')
+    expect(decision.rejectRework).toEqual({
+      requireReason: true,
+      preserveData: true
+    })
+
+    const rebuilt = templateToStudioGraph(template)
+    const rebuiltDecision = rebuilt.nodes.find(node => node.id === 'dec1') as StudioNode
+    expect(
+      (rebuiltDecision.config as { rejectRework?: { requireReason: boolean; preserveData: boolean } }).rejectRework
+    ).toEqual({
+      requireReason: true,
+      preserveData: true
+    })
+
+    const rejectEdge = rebuilt.edges.find(edge => edge.id === 'b2')
+    expect(rejectEdge?.direction).toBe('forward')
+  })
+
   it('serializes FORK/JOIN nodes into template.steps', () => {
     const forkId = 'fork1'
     const joinId = 'join1'

@@ -4,7 +4,7 @@
  */
 
 import React, { type DragEvent, useCallback } from 'react'
-import { useTranslation } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { Play, ClipboardList, GitBranch, GitFork, Merge, Flag } from 'lucide-react'
 import translations from '../../_i18n'
 import type { FlowNodeType } from '@/common/components/flow/flow-viewer'
@@ -40,7 +40,7 @@ export const NodePalette: React.FC<NodePaletteProps> = ({
 
   const visibleItems = mode === 'simple' ? PALETTE_ITEMS.filter(item => !item.advancedOnly) : PALETTE_ITEMS
 
-  const onDragStart = useCallback((event: DragEvent<HTMLDivElement>, nodeType: FlowNodeType) => {
+  const onDragStart = useCallback((event: DragEvent<HTMLButtonElement>, nodeType: FlowNodeType) => {
     event.dataTransfer.setData('application/flow-studio-node', nodeType)
     event.dataTransfer.effectAllowed = 'move'
   }, [])
@@ -57,19 +57,20 @@ export const NodePalette: React.FC<NodePaletteProps> = ({
       {visibleItems.map(item => {
         const Icon = item.icon
         return (
-          <button
+          <Button
             key={item.type}
             type="button"
+            variant="ghost"
             draggable
-            onDragStart={e => onDragStart(e, item.type)}
+            onDragStart={event => onDragStart(event, item.type)}
             data-testid={`${testId}-item-${item.type}`}
-            className="gba:flex gba:items-center gba:gap-2 gba:px-2.5 gba:py-2 gba:rounded-md gba:cursor-grab gba:border gba:border-transparent gba:transition-all gba:hover:bg-accent/50 gba:hover:border-border gba:active:cursor-grabbing gba:select-none gba:w-full gba:text-left"
+            className="gba:flex gba:items-center gba:gap-2 gba:px-2.5 gba:py-2 gba:h-auto gba:cursor-grab gba:border gba:border-transparent gba:hover:border-border gba:active:cursor-grabbing gba:select-none gba:w-full gba:justify-start"
           >
             <div className="gba:flex gba:items-center gba:justify-center gba:w-7 gba:h-7 gba:rounded-md gba:bg-muted">
               <Icon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
             </div>
-            <span className="gba:text-sm gba:font-medium gba:text-foreground">{t(item.label)}</span>
-          </button>
+            <span className="gba:text-sm gba:font-medium">{t(item.label)}</span>
+          </Button>
         )
       })}
     </div>

@@ -2,8 +2,8 @@ import React, { useMemo } from 'react'
 import { Checkbox, Label } from '@newwork/nw-design-system'
 import { EventHandlerType, type NotifyHandlerConfig } from '@/common/data/flow/types/flowTemplate'
 import { NOTIFY_CHANNEL_OPTIONS } from './eventConstants'
-import { useStudioExpressionSuggestions } from '../../../../hooks/useStudioExpressionSuggestions'
-import { FlowContextExpressionEditor } from '../../../shared/FlowContextExpressionEditor'
+import { useStudioExpressionSuggestions } from '../../../hooks/useStudioExpressionSuggestions'
+import { FlowContextExpressionEditor } from '../../shared/FlowContextExpressionEditor'
 
 interface NotifyHandlerSectionProps {
   handler: NotifyHandlerConfig
@@ -70,9 +70,7 @@ export const NotifyHandlerSection: React.FC<NotifyHandlerSectionProps> = ({
             onChange={value => onChange({ ...handler, type: EventHandlerType.NOTIFY, recipientsExpression: value })}
             suggestions={suggestions}
             dataSources={dataSources}
-            placeholder="Type {{ to insert recipients from workflow data…"
-            allowFreeText
-            singleLine
+            placeholder="Type @ to insert recipients from workflow data…"
             data-testid={`${testId}-events-notify-recipients-${subscriptionId}`}
           />
         </div>
@@ -83,9 +81,7 @@ export const NotifyHandlerSection: React.FC<NotifyHandlerSectionProps> = ({
             onChange={value => onChange({ ...handler, type: EventHandlerType.NOTIFY, subjectExpression: value })}
             suggestions={suggestions}
             dataSources={dataSources}
-            placeholder="Task updated — type {{ to insert fields…"
-            allowFreeText
-            singleLine
+            placeholder="Task updated — type @ to insert fields…"
             data-testid={`${testId}-events-notify-subject-${subscriptionId}`}
           />
         </div>
@@ -98,8 +94,7 @@ export const NotifyHandlerSection: React.FC<NotifyHandlerSectionProps> = ({
           onChange={value => onChange({ ...handler, type: EventHandlerType.NOTIFY, bodyExpression: value })}
           suggestions={suggestions}
           dataSources={dataSources}
-          placeholder="Message template — type {{ to insert fields…"
-          allowFreeText
+          placeholder="Message template — type @ to insert fields…"
           multiline
           data-testid={`${testId}-events-notify-body-${subscriptionId}`}
         />

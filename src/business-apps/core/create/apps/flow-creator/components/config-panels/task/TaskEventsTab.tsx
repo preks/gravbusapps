@@ -5,7 +5,7 @@ import { v4 as uuid } from 'uuid'
 import type { TaskNodeConfig } from '../../../types/studioTypes'
 import type { FlowStudioData } from '../../../hooks/useFlowStudioData'
 import { EventHandlerType, type EventSubscription } from '@/common/data/flow/types/flowTemplate'
-import { EventSubscriptionCard } from './events/EventSubscriptionCard'
+import { EventSubscriptionCard } from '../../step-fields/events/EventSubscriptionCard'
 
 interface TaskEventsTabProps {
   config: TaskNodeConfig

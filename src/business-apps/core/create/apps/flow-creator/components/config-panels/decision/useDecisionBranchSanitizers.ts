@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import type { DecisionNodeConfig, FlowStudioUpdateOptions } from '../../../types/studioTypes'
+import { isApprovalUserDecision } from '../../step-picker/decisionUserKind'
 
 const sameOptionList = (
   a: Array<{ id: string; label: string }> | undefined,
@@ -26,22 +27,6 @@ export function useDecisionBranchSanitizers(
     if (!fallbackBranchId) return
 
     const next: Partial<DecisionNodeConfig> = {}
-
-    const labelsLower = branches.map(b =>
-      String(b.label || '')
-        .trim()
-        .toLowerCase()
-    )
-    const isApprovalOutcomes =
-      branches.length === 2 &&
-      ((labelsLower[0] &&
-        labelsLower[1] &&
-        labelsLower[0].startsWith('approve') &&
-        labelsLower[1].startsWith('reject')) ||
-        (labelsLower[0] &&
-          labelsLower[1] &&
-          labelsLower[1].startsWith('approve') &&
-          labelsLower[0].startsWith('reject')))
 
     // defaultBranch must always exist and point to a branch id.
     const def = String(config.defaultBranch || '').trim()
@@ -95,19 +80,9 @@ export function useDecisionBranchSanitizers(
       next.rejectRework = legacyReject
     }
 
-    // Auto-derive userDecisionType from outcomes (approval vs custom).
-    if (config.userConfig) {
-      const desired = isApprovalOutcomes ? 'APPROVAL' : 'CUSTOM'
-      const current = String((config.userConfig as any)?.userDecisionType || '')
-        .trim()
-        .toUpperCase()
-      if (current !== desired) {
-        next.userConfig = { ...(next.userConfig ?? config.userConfig), userDecisionType: desired } as any
-      }
-    }
-
-    // Reject behavior only makes sense for approval outcomes.
-    if (!isApprovalOutcomes) {
+    // Reject behavior only makes sense for approval decisions.
+    const isApprovalDecision = isApprovalUserDecision(config as DecisionNodeConfig)
+    if (!isApprovalDecision) {
       if (config.rejectRework) next.rejectRework = undefined
       if ((config.userConfig as any)?.rejectRework) {
         next.userConfig = { ...(next.userConfig ?? config.userConfig), rejectRework: undefined } as any

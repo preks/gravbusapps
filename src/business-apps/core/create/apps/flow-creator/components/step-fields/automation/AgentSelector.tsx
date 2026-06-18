@@ -8,8 +8,8 @@ import {
   hasPromptParameterMetadata,
   syncPromptParamMap
 } from '../../../utils/promptParameterUtils'
-import { AgentParamMappingSection } from '../shared/AgentParamMappingSection'
-import { TaskExpertSelectorSection } from '../shared/TaskExpertSelectorSection'
+import { AgentParamMappingSection } from '../../config-panels/shared/AgentParamMappingSection'
+import { TaskExpertSelectorSection } from '../../config-panels/shared/TaskExpertSelectorSection'
 
 interface AgentSelectorProps {
   config: TaskNodeConfig

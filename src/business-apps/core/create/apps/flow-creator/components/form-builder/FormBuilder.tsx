@@ -4,7 +4,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo } from 'react'
-import { Button, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
+import { Button, Label } from '@newwork/nw-design-system'
 import { FileText, Plus } from 'lucide-react'
 import { InputType, type InputBlock } from '@/common/data/flow/types/flowTemplate'
 import type { DesignerMode, FlowStudioUpdateOptions } from '../../types/studioTypes'
@@ -208,8 +208,6 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
   description,
   'data-testid': testId = 'form-builder'
 }) => {
-  const [addType, setAddType] = React.useState<InputType>(InputType.TEXT)
-
   const existingNames = useMemo(() => new Set(fields.map(f => f.name).filter(Boolean)), [fields])
 
   useEffect(() => {
@@ -242,10 +240,10 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
   }, [fields, onChange, onFieldKeyRename])
 
   const addField = useCallback(
-    (type: InputType = addType) => {
+    (type: InputType) => {
       onChange([...fields, createField(type, existingNames)])
     },
-    [addType, existingNames, fields, onChange]
+    [existingNames, fields, onChange]
   )
 
   const updateField = useCallback(
@@ -310,29 +308,7 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
       {description && <p className="gba:text-xs gba:text-muted-foreground">{description}</p>}
 
       {/* Content */}
-      <div className="gba:flex gba:flex-col gba:gap-3 gba:pb-20">
-        {/* Quick-add preset buttons */}
-        {fields.length === 0 && (
-          <div className="gba:flex gba:flex-col gba:gap-2 gba:p-4 gba:border gba:border-dashed gba:border-border gba:rounded-lg gba:bg-muted gba:text-center">
-            <p className="gba:text-xs gba:text-muted-foreground">No fields yet. Add your first field:</p>
-            <div className="gba:flex gba:flex-wrap gba:gap-1.5 gba:justify-center">
-              {PRESETS.map(preset => (
-                <Button
-                  key={preset.type}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => addField(preset.type)}
-                  data-testid={`${testId}-preset-${preset.type.toLowerCase()}`}
-                >
-                  <Plus className="gba:h-3 gba:w-3 gba:mr-1" />
-                  <span className="gba:text-xs">{preset.label}</span>
-                </Button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Field list */}
+      <div className="gba:flex gba:flex-col gba:gap-3">
         {fields.map((field, index) => (
           <FormFieldEditor
             key={`field-row-${index}`}
@@ -358,27 +334,20 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
             data-testid={`${testId}-field`}
           />
         ))}
-      </div>
 
-      {/* Add field controls (sticky footer within sidebar scroll) */}
-      <div className="gba:sticky gba:bottom-0 gba:z-10 gba:bg-background gba:border-t gba:border-border gba:pt-3 gba:pb-2">
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <Select value={addType} onValueChange={v => setAddType(v as InputType)}>
-            <SelectTrigger className="gba:flex-1" data-testid={`${testId}-add-type`}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(mode === 'simple' ? PRESETS.map(p => p.type) : Object.values(InputType)).map(t => (
-                <SelectItem key={t} value={t}>
-                  {t.charAt(0) + t.slice(1).toLowerCase().replace('_', ' ')}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button variant="outline" size="sm" onClick={() => addField()} data-testid={`${testId}-add`}>
-            <Plus className="gba:h-4 gba:w-4 gba:mr-1" />
-            Add
-          </Button>
+        <div className="gba:flex gba:flex-wrap gba:justify-center gba:gap-1.5">
+          {PRESETS.map(preset => (
+            <Button
+              key={preset.type}
+              variant="outline"
+              size="sm"
+              onClick={() => addField(preset.type)}
+              data-testid={`${testId}-preset-${preset.type.toLowerCase()}`}
+            >
+              <Plus className="gba:h-3 gba:w-3 gba:mr-1" />
+              <span className="gba:text-xs">{preset.label}</span>
+            </Button>
+          ))}
         </div>
       </div>
     </div>

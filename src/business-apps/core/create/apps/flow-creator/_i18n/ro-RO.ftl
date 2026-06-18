@@ -117,6 +117,7 @@ config-panel-title = Configurare
 config-general = General
 config-form = Formular
 config-assignment = Atribuire
+config-outcomes = Rezultate
 config-conditions = Condiții
 config-branches = Ramuri
 config-events = Automatizare
@@ -154,9 +155,20 @@ webhook-secret-flow-name-required = Denumiți acest flux în partea de sus a Flo
 start-trigger-event = Eveniment
 start-trigger-schedule = Programare
 
+# Shared step fields (tasks & user decisions)
+step-title = Titlu
+step-message = Mesaj
+step-title-placeholder = Introduceți titlul… Tastează @ pentru a insera date din flux.
+step-message-placeholder = Adăugați un mesaj… Tastează @ pentru a insera date din flux.
+step-instruction-placeholder = Descrieți ce ar trebui să facă agentul… Tastează @ pentru a insera date din flux.
+step-due-label = Timp limită
+step-due-description = Stabiliți cât timp au destinatarii să finalizeze acest pas.
+step-due-placeholder = Introduceți valoarea
+step-due-unit-minutes = Minute
+step-due-unit-hours = Ore
+step-due-unit-days = Zile
+
 # Task Node Config
-task-title = Titlu sarcină
-task-message = Mesaj sarcină
 task-instruction = Instrucțiune AI
 task-switch-type = Schimbă tipul pasului
 task-type = Tip sarcină
@@ -196,7 +208,7 @@ task-links-name-placeholder = ex. Contract, Politică, FAQ
 task-links-url = URL
 task-links-url-placeholder = https://exemplu.ro
 task-links-document-url = Referință document (expresie)
-task-links-document-url-placeholder = {{ $steps.step_0.formData.fileField }}
+task-links-document-url-placeholder = {"{"}{"{"} $steps.step_0.formData.fileField {"}"}{"}"}
 
 # Enterprise Agent parameter mapping
 task-input-params = Parametri de intrare
@@ -205,7 +217,7 @@ task-input-params-empty = Nu au fost găsiți parametri.
 task-input-params-system = Parametri de sistem
 task-input-params-user = Parametri utilizator
 task-input-params-pick = Selectați valoarea
-task-input-params-expression-placeholder = Tastați {{ pentru a mapa date din flux.
+task-input-params-expression-placeholder = Tastați @ pentru a insera date din flux.
 task-input-params-unmapped = Nemapat
 
 # EveryAI Agent output schema
@@ -217,12 +229,6 @@ task-type-group-human = Pași utilizator
 task-type-group-ai = AI & Automatizări
 
 # Assignment
-assignment-due-label = Timp limită
-assignment-due-description = Stabiliți cât timp au destinatarii să finalizeze această sarcină.
-assignment-due-placeholder = ex. 2
-assignment-due-unit-minutes = Minute
-assignment-due-unit-hours = Ore
-assignment-due-unit-days = Zile
 assignment-mode-label = Mod de atribuire
 assignment-mode-claim = Preluare
 assignment-mode-assign = Atribuire
@@ -259,19 +265,9 @@ flow-context-search = Căutați în contextul flow-ului...
 flow-context-group = Context flow
 logic-operator-label = Operator
 
-# User decisions (USER mode)
-decision-user-task-title-label = Titlu sarcină
-decision-user-task-message-label = Mesaj sarcină
-decision-user-task-message-placeholder = Adăugați un mesaj scurt… Tastează {{ pentru a insera date.
-
 logic-value-label = Compară cu
 logic-value-placeholder = ex. 1000 sau 'approved'
 logic-preview = Condiție:
-
-# User decisions (USER mode)
-decision-user-task-title-label = Titlu sarcină
-decision-user-task-message-label = Mesaj sarcină
-decision-user-task-message-placeholder = Adăugați un mesaj scurt… Tastează {{ pentru a insera date.
 
 # Decision Node Config
 decision-mode = Mod decizie
@@ -316,11 +312,6 @@ decision-ai-taskexpert-reasoning-label = Mapare ieșire pentru justificare
 decision-ai-taskexpert-reasoning-desc = Opțional. Selectează câmpul din ieșire care va fi folosit ca justificare pentru fallback-ul uman.
 decision-ai-taskexpert-reasoning-placeholder = Selectează câmpul (opțional)
 decision-ai-taskexpert-reasoning-none = Niciunul
-decision-due-label = Decizia este scadentă în
-decision-due-placeholder = ex. 2
-decision-due-unit-minutes = Minute
-decision-due-unit-hours = Ore
-decision-due-unit-days = Zile
 
 # Fork/Join Config
 fork-branches = Ramuri paralele
@@ -360,7 +351,38 @@ validation-decision-must-select-agent = Decizia "{ $label }" trebuie să selecte
 validation-decision-unmapped-agent-params = Decizia "{ $label }" trebuie să mapeze toți parametrii agentului înainte de publicare: { $params }
 
 # Add step panel
+step-panel-add-step = Adaugă pas
+step-panel-change-step = Schimbă pasul
+step-panel-back-to-config = Înapoi la configurare
 add-step-tip-advanced-mode = Comutați la modul Avansat pentru a debloca pașii Function Tasks și Enterprise Agent.
+step-kind-group-user-tasks = Sarcini utilizator
+step-kind-group-ai-tasks = Sarcini AI
+step-kind-group-automation = Automatizare
+step-kind-group-decisions = Decizii
+step-kind-group-control-flow = Control flux
+step-kind-custom-task = Sarcină personalizată
+step-kind-custom-decision = Decizie personalizată
+step-kind-desc-custom-task = Formular propriu
+step-kind-desc-information = Distribuie info
+step-kind-desc-acknowledge = Confirmă citirea
+step-kind-desc-approval = Aprobă sau respinge
+step-kind-desc-custom-decision = Căi personalizate
+step-kind-desc-decision-ai = AI decide
+step-kind-desc-decision-logic = Rutare reguli
+step-kind-desc-ai-agent = Agent AI
+step-kind-desc-ai-task-expert = Agent enterprise
+step-kind-desc-function = Rulează funcție
+step-kind-desc-connector = Apelează conector
+step-kind-desc-parallelize = Căi paralele
+step-kind-connector = Conector
+step-kind-parallelize = Paralelizare sarcini
+
+step-kind-switch-confirm-soft-title = Schimbați tipul pasului?
+step-kind-switch-confirm-soft-desc = Titlul pasului va fi resetat. Alte setări sunt păstrate unde este posibil.
+step-kind-switch-confirm-destructive-title = Înlocuiți configurația pasului?
+step-kind-switch-confirm-destructive-desc = Schimbarea la acest tip de pas va șterge setările care nu se aplică (câmpuri formular, atribuire, automatizare etc.).
+step-kind-switch-confirm-cancel = Anulare
+step-kind-switch-confirm-action = Schimbă tipul pasului
 
 # Task step type selector descriptions
 task-step-type-ai-task-expert-description = Pas prompt Enterprise Agent.

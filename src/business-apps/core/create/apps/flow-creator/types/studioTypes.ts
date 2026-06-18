@@ -14,6 +14,7 @@ import type {
   Link
 } from '@/common/data/flow/types/flowTemplate'
 import type { FlowTags } from '@/business-apps/flow/types'
+import type { StepKindId } from '../components/step-picker/stepKindTypes'
 
 export type DesignerMode = 'simple' | 'advanced'
 
@@ -180,12 +181,12 @@ export interface DecisionNodeConfig {
     policyDocumentVersion?: string
     /**
      * Decision instruction used for EveryAI decisions.
-     * Supports expressions (type {{ ... }}).
+     * Supports expressions (type @ to insert flow data).
      */
     instructions?: string
     /**
      * Required message shown to the human when the decision falls back to a user pick.
-     * Supports expressions (type {{ ... }}).
+     * Supports expressions (type @ to insert flow data).
      */
     humanInstructions: string
     /**
@@ -302,6 +303,8 @@ export interface FlowStudioState {
   selectedEdgeId: string | null
   /** Which edge panel should be shown when an edge is selected */
   selectedEdgePanel: 'details' | 'insert'
+  /** Side panel view when a node is selected (change-step = step kind picker) */
+  configPanelView: 'config' | 'change-step'
   /**
    * Short-lived lock to prevent a plus-click "Add step" action from being
    * immediately overwritten by a subsequent edge click selection event.
@@ -359,6 +362,8 @@ export interface FlowStudioActions {
   duplicateNode: (nodeId: string) => string | null
   selectNode: (nodeId: string | null) => void
   selectEdge: (edgeId: string | null) => void
+  openChangeStepKind: () => void
+  closeChangeStepKind: () => void
   openEdgeDetails: (edgeId: string) => void
   openEdgeInsert: (edgeId: string) => void
 
@@ -373,6 +378,8 @@ export interface FlowStudioActions {
     type: FlowNodeType,
     taskStepType?: FlowStepType | { stepType: FlowStepType; preset?: 'HYBRID' }
   ) => string | null
+  insertNodeOnEdgeByKind: (edgeId: string, kindId: StepKindId) => string | null
+  changeNodeStepKind: (nodeId: string, kindId: StepKindId) => void
   addNodeAfter: (sourceNodeId: string, type: FlowNodeType) => string | null
 
   // Template

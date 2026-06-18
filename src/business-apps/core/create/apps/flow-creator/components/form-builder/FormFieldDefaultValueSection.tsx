@@ -49,9 +49,7 @@ export const FormFieldDefaultValueSection: React.FC<FormFieldDefaultValueSection
           onChange={value => onChange({ value })}
           suggestions={suggestions}
           dataSources={dataSources}
-          placeholder="Type {{ to insert flow context…"
-          allowFreeText
-          singleLine
+          placeholder="Type @ to insert flow context…"
           data-testid={`${testId}-${index}-default`}
         />
       )}

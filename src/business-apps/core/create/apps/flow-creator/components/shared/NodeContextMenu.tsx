@@ -4,6 +4,7 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { Button } from '@newwork/nw-design-system'
 import { Copy, Trash2, Settings2, Play } from 'lucide-react'
 import { useFlowStudioStore } from '../../hooks/useFlowStudioStore'
 
@@ -27,10 +28,9 @@ export const NodeContextMenu: React.FC<NodeContextMenuProps> = ({
   const requestDeleteNode = useFlowStudioStore(s => s.requestDeleteNode)
   const duplicateNode = useFlowStudioStore(s => s.duplicateNode)
 
-  // Listen for custom context menu events from the canvas
   useEffect(() => {
-    const handleContextMenu = (e: Event) => {
-      const detail = (e as CustomEvent).detail
+    const handleContextMenu = (event: Event) => {
+      const detail = (event as CustomEvent).detail
       if (detail?.nodeId) {
         setPosition({ x: detail.x, y: detail.y, nodeId: detail.nodeId })
       }
@@ -40,12 +40,11 @@ export const NodeContextMenu: React.FC<NodeContextMenuProps> = ({
     return () => document.removeEventListener('flow-studio-node-context', handleContextMenu)
   }, [])
 
-  // Close on click outside
   useEffect(() => {
     if (!position) return
 
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setPosition(null)
       }
     }
@@ -54,12 +53,11 @@ export const NodeContextMenu: React.FC<NodeContextMenuProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [position])
 
-  // Close on Escape
   useEffect(() => {
     if (!position) return
 
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setPosition(null)
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setPosition(null)
     }
 
     document.addEventListener('keydown', handleEscape)
@@ -81,7 +79,6 @@ export const NodeContextMenu: React.FC<NodeContextMenuProps> = ({
           requestDeleteNode(position.nodeId)
           break
         case 'test':
-          // Will be wired in the testing/simulation phase
           selectNode(position.nodeId)
           break
       }
@@ -110,18 +107,19 @@ export const NodeContextMenu: React.FC<NodeContextMenuProps> = ({
       {items.map(item => {
         const Icon = item.icon
         return (
-          <button
+          <Button
             key={item.action}
             type="button"
+            variant="ghost"
             onClick={() => handleAction(item.action)}
             data-testid={`${testId}-${item.action}`}
-            className={`gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:text-sm gba:text-left gba:transition-colors gba:hover:bg-accent ${
-              item.destructive ? 'gba:text-destructive' : 'gba:text-foreground'
+            className={`gba:w-full gba:h-auto gba:justify-start gba:gap-2 gba:rounded-none gba:px-3 gba:py-2 gba:text-sm gba:font-normal ${
+              item.destructive ? 'gba:text-destructive hover:gba:text-destructive' : ''
             }`}
           >
             <Icon className="gba:h-3.5 gba:w-3.5" />
             {item.label}
-          </button>
+          </Button>
         )
       })}
     </div>

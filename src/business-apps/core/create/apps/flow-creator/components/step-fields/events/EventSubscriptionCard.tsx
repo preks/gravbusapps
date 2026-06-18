@@ -16,7 +16,7 @@ import {
   Switch
 } from '@newwork/nw-design-system'
 import { Bell, Bot, ChevronDown, ChevronUp, Code, Trash2 } from 'lucide-react'
-import type { FlowStudioData } from '../../../../hooks/useFlowStudioData'
+import type { FlowStudioData } from '../../../hooks/useFlowStudioData'
 import {
   EventHandlerType,
   type EventHandlerConfig,
@@ -26,7 +26,7 @@ import { EVENT_TYPE_OPTIONS } from './eventConstants'
 import { AgentHandlerSection } from './AgentHandlerSection'
 import { FunctionHandlerSection } from './FunctionHandlerSection'
 import { NotifyHandlerSection } from './NotifyHandlerSection'
-import { NEUTRAL_SWITCH_CLASSNAME } from '../../../../utils/neutralSwitchClassName'
+import { NEUTRAL_SWITCH_CLASSNAME } from '../../../utils/neutralSwitchClassName'
 
 interface EventSubscriptionCardProps {
   subscription: EventSubscription

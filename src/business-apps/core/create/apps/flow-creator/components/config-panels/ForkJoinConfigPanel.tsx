@@ -5,7 +5,7 @@
 
 import React, { useCallback, useEffect, useMemo } from 'react'
 import { Button, Input, Label, Separator, useTranslation } from '@newwork/nw-design-system'
-import { GitFork, Merge, Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import translations from '../../_i18n'
 import { useFlowStudioStore } from '../../hooks/useFlowStudioStore'
 import type { JoinNodeConfig } from '../../types/studioTypes'
@@ -115,14 +115,7 @@ export const ForkConfigPanel: React.FC<ForkConfigPanelProps> = ({
 
   return (
     <div className="gba:flex gba:flex-col gba:gap-4 gba:bg-background" data-testid={testId}>
-      <div className="gba:flex gba:items-center gba:gap-2 gba:px-5 gba:py-3 gba:border-b gba:border-border">
-        <div className="gba:flex gba:items-center gba:justify-center gba:w-7 gba:h-7 gba:rounded-md gba:bg-accent">
-          <GitFork className="gba:h-4 gba:w-4 gba:text-accent-foreground" />
-        </div>
-        <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">Parallelize Tasks</h3>
-      </div>
-
-      <div className="gba:flex gba:flex-col gba:gap-4 gba:px-5 gba:pb-5">
+      <div className="gba:flex gba:flex-col gba:gap-4 gba:px-5 gba:pt-4 gba:pb-5">
         <p className="gba:text-xs gba:text-muted-foreground">
           Configure the parallel branches that execute simultaneously.
         </p>
@@ -228,14 +221,7 @@ export const JoinConfigPanel: React.FC<JoinConfigPanelProps> = ({
 
   return (
     <div className="gba:flex gba:flex-col gba:gap-4 gba:bg-background" data-testid={testId}>
-      <div className="gba:flex gba:items-center gba:gap-2 gba:px-5 gba:py-3 gba:border-b gba:border-border">
-        <div className="gba:flex gba:items-center gba:justify-center gba:w-7 gba:h-7 gba:rounded-md gba:bg-accent">
-          <Merge className="gba:h-4 gba:w-4 gba:text-accent-foreground" />
-        </div>
-        <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">Merge Parallel Tasks</h3>
-      </div>
-
-      <div className="gba:flex gba:flex-col gba:gap-4 gba:px-5 gba:pb-5">
+      <div className="gba:flex gba:flex-col gba:gap-4 gba:px-5 gba:pt-4 gba:pb-5">
         <div className="gba:flex gba:flex-col gba:gap-1.5">
           <Label className="gba:text-xs gba:font-semibold gba:text-foreground">{t('join-condition')}</Label>
           <div

@@ -12,6 +12,15 @@ import type {
   StudioNodeConfig
 } from '../types/studioTypes'
 import { createEdge, createNode, END_ID, nodeToMetadata, normalizeGraph, START_ID } from '../utils/graphStoreUtils'
+import {
+  applyStepKindChange,
+  applyStepKindToNode,
+  buildDecisionConfigForPayload,
+  payloadForStepKind
+} from '../components/step-picker/applyStepKind'
+import { resolveStepKind } from '../components/step-picker/resolveStepKind'
+import { isStepKindChangeAllowed } from '../components/step-picker/stepKindSwitchImpact'
+import type { StepKindId } from '../components/step-picker/stepKindTypes'
 import { buildLegacyTaskIndexByNodeId, buildStepIndexByNodeId } from '../utils/studioStepOrder'
 
 const MAX_UNDO = 50
@@ -25,6 +34,7 @@ const initialState: FlowStudioState = {
   selectedNodeId: null,
   selectedEdgeId: null,
   selectedEdgePanel: 'details',
+  configPanelView: 'config',
   edgePanelLock: null,
   templateId: undefined,
   templateName: 'Untitled Flow',
@@ -285,9 +295,29 @@ export const useFlowStudioStore = create<FlowStudioState & FlowStudioActions>((s
     return clone.id
   },
   selectNode: (nodeId: string | null) =>
-    set({ selectedNodeId: nodeId, selectedEdgeId: null, selectedEdgePanel: 'details', edgePanelLock: null }),
+    set({
+      selectedNodeId: nodeId,
+      selectedEdgeId: null,
+      selectedEdgePanel: 'details',
+      configPanelView: 'config',
+      edgePanelLock: null
+    }),
   selectEdge: (edgeId: string | null) =>
-    set({ selectedEdgeId: edgeId, selectedNodeId: null, selectedEdgePanel: 'details', edgePanelLock: null }),
+    set({
+      selectedEdgeId: edgeId,
+      selectedNodeId: null,
+      selectedEdgePanel: 'details',
+      configPanelView: 'config',
+      edgePanelLock: null
+    }),
+  openChangeStepKind: () => {
+    const state = get()
+    if (!state.selectedNodeId) return
+    const node = state.nodes.find(n => n.id === state.selectedNodeId)
+    if (!node || node.type === 'start' || node.type === 'end' || node.type === 'join') return
+    set({ configPanelView: 'change-step' })
+  },
+  closeChangeStepKind: () => set({ configPanelView: 'config' }),
   openEdgeDetails: (edgeId: string) =>
     set(state => {
       const lock = state.edgePanelLock
@@ -309,6 +339,7 @@ export const useFlowStudioStore = create<FlowStudioState & FlowStudioActions>((s
       selectedEdgeId: edgeId,
       selectedNodeId: null,
       selectedEdgePanel: 'insert',
+      configPanelView: 'config',
       edgePanelLock: { edgeId, until: Date.now() + 600 }
     }),
   addEdge: (source: string, target: string, label?: string, direction: 'forward' | 'backward' = 'forward') => {
@@ -386,7 +417,18 @@ export const useFlowStudioStore = create<FlowStudioState & FlowStudioActions>((s
       state.nodes.filter(n => !nodeIds.includes(n.id)),
       state.edges.filter(e => !edgeIds.includes(e.id) && !nodeIds.includes(e.source) && !nodeIds.includes(e.target))
     )
-    setDirtyGraph(set, next, { pendingDelete: null, selectedEdgeId: null, selectedNodeId: null })
+    const selectedNodeId = state.selectedNodeId
+    const keepNodeSelection =
+      selectedNodeId != null &&
+      !nodeIds.includes(selectedNodeId) &&
+      edgeIds.every(edgeId => state.edges.find(edge => edge.id === edgeId)?.source === selectedNodeId)
+    const nextSelectedEdgeId =
+      state.selectedEdgeId && edgeIds.includes(state.selectedEdgeId) ? null : state.selectedEdgeId
+    setDirtyGraph(set, next, {
+      pendingDelete: null,
+      selectedEdgeId: nextSelectedEdgeId,
+      selectedNodeId: keepNodeSelection ? selectedNodeId : null
+    })
   },
   cancelPendingDelete: () => set({ pendingDelete: null }),
   insertNodeOnEdge: (
@@ -459,6 +501,68 @@ export const useFlowStudioStore = create<FlowStudioState & FlowStudioActions>((s
     )
     setDirtyGraph(set, next, { selectedNodeId: node.id, selectedEdgeId: null })
     return node.id
+  },
+  insertNodeOnEdgeByKind: (edgeId: string, kindId: StepKindId) => {
+    const payload = payloadForStepKind(kindId)
+    if (payload.nodeType === 'fork') {
+      return get().insertNodeOnEdge(edgeId, 'fork')
+    }
+    if (payload.nodeType === 'decision') {
+      const state = get()
+      const edge = state.edges.find(e => e.id === edgeId)
+      if (!edge) return null
+      state.pushSnapshot()
+      const remainingEdges = state.edges.filter(e => e.id !== edgeId)
+      const decisionNode = createNode('decision')
+      const decisionConfig = buildDecisionConfigForPayload(payload)
+      decisionNode.config = decisionConfig
+      decisionNode.label = payload.userDecisionPreset === 'APPROVAL' ? 'Approval' : 'Decision'
+      const branchLabels = decisionConfig.branches.map(branch => branch.label ?? 'Outcome')
+      const newNodes = [...state.nodes, decisionNode]
+      const newEdges = [
+        ...remainingEdges,
+        createEdge(edge.source, decisionNode.id, edge.label, edge.direction),
+        createEdge(decisionNode.id, edge.target, branchLabels[0] ?? 'Approve'),
+        createEdge(decisionNode.id, edge.target, branchLabels[1] ?? 'Reject')
+      ]
+      const next = normalizeGraph(newNodes, newEdges)
+      setDirtyGraph(set, next, { selectedNodeId: decisionNode.id, selectedEdgeId: null })
+      return decisionNode.id
+    }
+    const taskPayload = payload
+    const insertArg =
+      taskPayload.preset !== undefined
+        ? { stepType: taskPayload.stepType, preset: taskPayload.preset }
+        : taskPayload.stepType
+    const nodeId = get().insertNodeOnEdge(edgeId, 'task', insertArg)
+    if (!nodeId) return null
+    const state = get()
+    const node = state.nodes.find(n => n.id === nodeId)
+    if (!node || node.config.nodeType !== 'task') return nodeId
+    const { node: nextNode } = applyStepKindToNode(node, kindId, state.mode)
+    const nodes = state.nodes.map(n => (n.id === nodeId ? nextNode : n))
+    set({ nodes, isDirty: true })
+    return nodeId
+  },
+  changeNodeStepKind: (nodeId: string, kindId: StepKindId) => {
+    const state = get()
+    const node = state.nodes.find(n => n.id === nodeId)
+    if (!node || node.type === 'start' || node.type === 'end' || node.type === 'fork' || node.type === 'join') {
+      return
+    }
+    const currentKind = resolveStepKind(node)
+    if (currentKind && !isStepKindChangeAllowed(currentKind, kindId)) return
+    const payload = payloadForStepKind(kindId)
+    if (payload.nodeType === 'fork') return
+
+    state.pushSnapshot()
+
+    const endNodeId = state.nodes.find(n => n.type === 'end')?.id ?? END_ID
+    const { node: nextNode, edges: nextEdges } = applyStepKindChange(node, state.edges, kindId, state.mode, {
+      endNodeId
+    })
+    const nextNodes = state.nodes.map(n => (n.id === nodeId ? nextNode : n))
+    setDirtyGraph(set, normalizeGraph(nextNodes, nextEdges), { configPanelView: 'config' })
   },
   addNodeAfter: (sourceNodeId: string, type: FlowNodeType) => {
     const state = get()

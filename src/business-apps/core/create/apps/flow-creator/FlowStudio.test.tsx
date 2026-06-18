@@ -1,4 +1,3 @@
-import React from 'react'
 import { render, screen, waitFor } from '@testing-library/react'
 import { FlowStudio } from './FlowStudio'
 
@@ -6,6 +5,7 @@ const createLayoutMock = jest.fn()
 const useFlowStudioClientMock = jest.fn()
 const loadFlowMock = jest.fn()
 const loadDraftMock = jest.fn()
+const FLOW_CREATOR_CHAT_OPEN_STORAGE_KEY = 'flow-creator-chat-open'
 
 const mockFlowStudioStoreState = {
   mode: 'simple',
@@ -19,7 +19,10 @@ const mockFlowStudioStoreState = {
   edges: [],
   resetStore: jest.fn(),
   selectNode: jest.fn(),
-  selectEdge: jest.fn()
+  selectEdge: jest.fn(),
+  toGraphDefinition: jest.fn(() => ({ nodes: [], edges: [] })),
+  insertNodeOnEdgeByKind: jest.fn(),
+  changeNodeStepKind: jest.fn()
 }
 
 jest.mock('@newwork/nw-design-system', () => ({
@@ -110,7 +113,19 @@ jest.mock('./hooks/useFlowStudioClient', () => ({
 }))
 
 jest.mock('./views/FlowStudioCreateView', () => ({
-  FlowStudioCreateView: () => <div data-testid="flow-studio-create-view" />
+  FlowStudioCreateView: ({ onOpenDesignerWithAI }: any) => (
+    <div data-testid="flow-studio-create-view">
+      {typeof onOpenDesignerWithAI === 'function' ? (
+        <button
+          type="button"
+          data-testid="flow-studio-create-view-open-ai"
+          onClick={() => onOpenDesignerWithAI('AI flow')}
+        >
+          Open with AI
+        </button>
+      ) : null}
+    </div>
+  )
 }))
 
 jest.mock('./views/FlowStudioListView', () => ({
@@ -143,6 +158,7 @@ describe('FlowStudio', () => {
         views,
         currentView,
         canvasPanel,
+        chatPanelCollapsed,
         'data-testid': dataTestId
       }: any) => (
         <div
@@ -152,6 +168,7 @@ describe('FlowStudio', () => {
           data-hero-title-type={typeof heroTitle}
           data-current-view={currentView}
           data-views={Array.isArray(views) ? views.map(view => view.value).join(',') : ''}
+          data-chat-collapsed={typeof chatPanelCollapsed === 'boolean' ? String(chatPanelCollapsed) : ''}
         >
           <div data-testid="mock-create-layout-subtitle">{heroSubtitle}</div>
           <div data-testid="mock-create-layout-extra">{heroExtra}</div>
@@ -168,6 +185,7 @@ describe('FlowStudio', () => {
     })
 
     globalThis.history.replaceState({}, '', '/')
+    globalThis.localStorage.removeItem(FLOW_CREATOR_CHAT_OPEN_STORAGE_KEY)
   })
 
   afterEach(() => {
@@ -221,5 +239,22 @@ describe('FlowStudio', () => {
       expect(globalThis.location.search).toBe('?draftId=draft-123')
       expect(globalThis.location.hash).toBe('#manage')
     })
+  })
+
+  it('uses the persisted chat preference when opening the designer', () => {
+    globalThis.localStorage.setItem(FLOW_CREATOR_CHAT_OPEN_STORAGE_KEY, 'false')
+
+    render(<FlowStudio accessToken="token" templateId="flow-123" />)
+
+    expect(screen.getByTestId('mock-create-layout')).toHaveAttribute('data-chat-collapsed', 'true')
+  })
+
+  it('opens the chat when AI prompt opens the designer despite a persisted closed preference', () => {
+    globalThis.localStorage.setItem(FLOW_CREATOR_CHAT_OPEN_STORAGE_KEY, 'false')
+
+    render(<FlowStudio accessToken="token" />)
+    screen.getByTestId('flow-studio-create-view-open-ai').click()
+
+    expect(screen.getByTestId('mock-create-layout')).toHaveAttribute('data-chat-collapsed', 'false')
   })
 })

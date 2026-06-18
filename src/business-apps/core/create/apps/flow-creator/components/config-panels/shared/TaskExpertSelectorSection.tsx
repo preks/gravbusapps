@@ -15,7 +15,7 @@ import {
 } from '@newwork/nw-design-system'
 import { Bot, Check, ChevronsUpDown, Loader2 } from 'lucide-react'
 import translations from '../../../_i18n'
-import { AutomationVersionSelect } from '../task/AutomationVersionSelect'
+import { AutomationVersionSelect } from '../../step-fields/automation/AutomationVersionSelect'
 
 interface TaskExpertOption {
   _id?: string

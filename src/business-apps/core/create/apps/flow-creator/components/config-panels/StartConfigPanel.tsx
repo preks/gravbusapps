@@ -126,12 +126,6 @@ export const StartConfigPanel: React.FC<StartConfigPanelProps> = ({
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
-      <div className="gba:flex gba:items-center gba:gap-2 gba:px-5 gba:py-3 gba:border-b gba:border-border">
-        <div className="gba:flex gba:items-center gba:justify-center gba:w-7 gba:h-7 gba:rounded-md gba:bg-muted">
-          <Play className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-        </div>
-        <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">Start Trigger</h3>
-      </div>
       <div className="gba:flex-1 gba:overflow-y-auto">
         <div className="gba:flex gba:flex-col gba:gap-4 gba:px-5 gba:py-4 gba:pb-5">
           {/* Trigger Type Selection */}
@@ -236,8 +230,7 @@ export const StartConfigPanel: React.FC<StartConfigPanelProps> = ({
                   }
                   suggestions={suggestions}
                   dataSources={dataSources}
-                  placeholder="Optional condition — type {{ to insert fields…"
-                  allowFreeText
+                  placeholder="Optional condition — type @ to insert fields…"
                   data-testid={`${testId}-event-filter`}
                 />
               </div>

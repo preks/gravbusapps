@@ -134,6 +134,7 @@ function toReactFlowEdge(edge: FlowGraphEdge, sourceHandle?: string, targetHandl
 // ---- FlowCanvas (view; must be used inside FlowCanvasProvider) ----
 
 const DEFAULT_FIT_VIEW_OPTIONS = { padding: 0.2, minZoom: 0.2, maxZoom: 1.5 }
+const PANEL_TRANSITION_MS = 300
 
 export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
   definition,
@@ -560,24 +561,18 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
 
       const v = getViewport()
       // Decrease x => move graph left, away from right panel overlay.
-      setViewport({ x: v.x - shiftPx, y: v.y, zoom: v.zoom }, { duration: 250 })
+      setViewport({ x: v.x - shiftPx, y: v.y, zoom: v.zoom }, { duration: PANEL_TRANSITION_MS })
       return
     }
 
-    // Panel is not visible: shift back once the close transition finished,
-    // without undoing user panning/zooming while the panel was open.
     const shiftPx = panelShiftPxRef.current
     if (!panelShiftAppliedRef.current || shiftPx <= 0) return
 
-    const t = window.setTimeout(() => {
-      const v = getViewport()
-      panelShiftAppliedRef.current = false
-      panelShiftPxRef.current = 0
-      setViewport({ x: v.x + shiftPx, y: v.y, zoom: v.zoom }, { duration: 250 })
-    }, 300)
-
-    return () => window.clearTimeout(t)
-  }, [panelVisible, getViewport, setViewport])
+    const v = getViewport()
+    panelShiftAppliedRef.current = false
+    panelShiftPxRef.current = 0
+    setViewport({ x: v.x + shiftPx, y: v.y, zoom: v.zoom }, { duration: PANEL_TRANSITION_MS })
+  }, [panelVisible, getViewport, setViewport, wasInitiallyCentered])
 
   const handlePanelTransitionEnd = () => {
     if (rightPanel == null && prevPanelContentRef.current != null) {

@@ -4,7 +4,7 @@ import type { DesignerMode, TaskNodeConfig } from '../../../types/studioTypes'
 import translations from '../../../_i18n'
 import { useFlowStudioStore } from '../../../hooks/useFlowStudioStore'
 import { collectAssignmentPersonFieldOptions } from '../../../utils/assignmentPersonFieldUtils'
-import { AssignmentConfigSection } from './AssignmentConfigSection'
+import { AssignmentConfigSection } from '../../step-fields/assignment/AssignmentConfigSection'
 
 interface TaskAssignmentTabProps {
   nodeId: string

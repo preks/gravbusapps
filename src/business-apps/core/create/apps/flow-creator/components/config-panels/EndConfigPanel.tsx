@@ -14,7 +14,7 @@ import {
   SelectValue,
   Separator
 } from '@newwork/nw-design-system'
-import { Flag, Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import { v4 as uuid } from 'uuid'
 import { useFlowStudioStore } from '../../hooks/useFlowStudioStore'
 import { useStudioExpressionSuggestions } from '../../hooks/useStudioExpressionSuggestions'
@@ -102,13 +102,6 @@ export const EndConfigPanel: React.FC<EndConfigPanelProps> = ({
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
-      <div className="gba:flex gba:items-center gba:gap-2 gba:px-5 gba:py-3 gba:border-b gba:border-border">
-        <div className="gba:flex gba:items-center gba:justify-center gba:w-7 gba:h-7 gba:rounded-md gba:bg-success-secondary">
-          <Flag className="gba:h-4 gba:w-4 gba:text-success-secondary-foreground" />
-        </div>
-        <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">End / Summary</h3>
-      </div>
-
       <div className="gba:flex-1 gba:overflow-y-auto">
         <div className="gba:flex gba:flex-col gba:gap-4 gba:px-5 gba:py-4 gba:pb-5">
           <p className="gba:text-xs gba:text-muted-foreground">
@@ -152,8 +145,7 @@ export const EndConfigPanel: React.FC<EndConfigPanelProps> = ({
                   onChange={v => updateField(index, { value: v })}
                   suggestions={suggestions}
                   dataSources={dataSources}
-                  placeholder="Type {{ to insert flow context…"
-                  allowFreeText={mode === 'advanced'}
+                  placeholder="Type @ to insert flow context…"
                   data-testid={`${testId}-field-value-${index}`}
                 />
               </div>

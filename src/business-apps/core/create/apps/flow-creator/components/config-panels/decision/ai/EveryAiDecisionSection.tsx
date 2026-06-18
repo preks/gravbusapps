@@ -6,7 +6,7 @@ import type { ExpressionSuggestionItem } from '@/common/components/flow/expressi
 import { FlowContextExpressionEditor } from '../../../shared/FlowContextExpressionEditor'
 import { DecisionHumanFallbackSection } from './DecisionHumanFallbackSection'
 import { DecisionPolicyPicker } from './DecisionPolicyPicker'
-import { TaskLinksSection } from '../../task/TaskLinksSection'
+import { TaskLinksSection } from '../../../step-fields/links/TaskLinksSection'
 import type { Link } from '@/common/data/flow/types/flowTemplate'
 
 interface EveryAiDecisionSectionProps {
@@ -56,7 +56,6 @@ export const EveryAiDecisionSection: React.FC<EveryAiDecisionSectionProps> = ({
           suggestions={expressionSuggestions}
           dataSources={dataSources}
           placeholder={t('decision-ai-instructions-placeholder')}
-          allowFreeText
           multiline
           data-testid={instructionsTestId}
         />

@@ -120,6 +120,7 @@ export const FunctionSelector: React.FC<FunctionSelectorProps> = ({ config, upda
   const hintFromConfig = config.functionConfig?.categoryHint
   const categoryFromHint: CategoryFilter =
     hintFromConfig === 'connectors' ? 'connectors' : hintFromConfig === 'functions' ? 'functions' : 'all'
+  const isCategoryLocked = categoryFromHint === 'connectors' || categoryFromHint === 'functions'
   const [category, setCategory] = useState<CategoryFilter>(categoryFromHint)
   const { functions, functionsLoading } = studioData
 
@@ -134,16 +135,11 @@ export const FunctionSelector: React.FC<FunctionSelectorProps> = ({ config, upda
    * local state already matches. Safe loop.
    */
   useEffect(() => {
-    setCategory(prev => (prev === categoryFromHint ? prev : categoryFromHint))
+    setCategory(categoryFromHint)
   }, [categoryFromHint])
 
-  /**
-   * When the user clicks a pill in the local segmented control, persist the hint
-   * back into functionConfig so the Task Type sub-tile above, the segmented
-   * control, and the dropdown filter all share a single source of truth.
-   * 'all' clears the hint so the step isn't locked into a category.
-   */
   const setCategoryAndPersist = (next: CategoryFilter) => {
+    if (isCategoryLocked) return
     setCategory(next)
     const current = config.functionConfig ?? { functionId: '' }
     const nextHint = next === 'connectors' ? 'connectors' : next === 'functions' ? 'functions' : undefined
@@ -372,59 +368,58 @@ export const FunctionSelector: React.FC<FunctionSelectorProps> = ({ config, upda
     <div className="gba:flex gba:flex-col gba:gap-2 gba:p-3 gba:rounded-lg gba:bg-muted">
       <Label className="gba:text-xs gba:font-semibold gba:text-foreground gba:flex gba:items-center gba:gap-1">
         <Code2 className="gba:h-3.5 gba:w-3.5" />
-        Function
+        {category === 'connectors' ? 'Connector' : category === 'functions' ? 'Function' : 'Function'}
         <span className="gba:text-[10px] gba:font-normal gba:text-muted-foreground">
-          · call a <span className="gba:text-primary">connector</span> or a function
+          {category === 'connectors' && (
+            <>
+              · call a <span className="gba:text-primary">connector</span>
+            </>
+          )}
+          {category === 'functions' && (
+            <>
+              · call a <span className="gba:text-primary">function</span>
+            </>
+          )}
+          {category === 'all' && (
+            <>
+              · call a <span className="gba:text-primary">connector</span> or a function
+            </>
+          )}
         </span>
       </Label>
-      {/**
-       * Segmented category filter: promotes "Connectors" to a first-class, always-visible
-       * concept so users don't have to open the dropdown to learn that connectors exist.
-       * Pure UI filter — the underlying step type stays FUNCTION and the selection
-       * payload is identical across categories.
-       */}
-      <div
-        className="gba:inline-flex gba:items-center gba:gap-0.5 gba:p-0.5 gba:rounded-md gba:bg-background gba:border gba:border-border gba:self-start"
-        role="tablist"
-        aria-label="Filter by category"
-        data-testid={`${testId}-function-category-filter`}
-      >
-        {(
-          [
-            { id: 'all', label: 'All', count: totalConnectors + totalBusinessFunctions, icon: Code2 },
-            { id: 'connectors', label: 'Connectors', count: totalConnectors, icon: Cloud },
-            { id: 'functions', label: 'Functions', count: totalBusinessFunctions, icon: Code2 }
-          ] as const
-        ).map(opt => {
-          const Icon = opt.icon
-          const active = category === opt.id
-          return (
-            <button
-              key={opt.id}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => setCategoryAndPersist(opt.id)}
-              className={`gba:flex gba:items-center gba:gap-1 gba:text-[11px] gba:font-medium gba:px-2 gba:py-1 gba:rounded gba:transition-colors ${
-                active
-                  ? 'gba:bg-primary/10 gba:text-primary'
-                  : 'gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted'
-              }`}
-              data-testid={`${testId}-function-category-${opt.id}`}
-            >
-              <Icon className="gba:h-3 gba:w-3" />
-              {opt.label}
-              <span
-                className={`gba:text-[10px] gba:px-1 gba:rounded ${
-                  active ? 'gba:bg-primary/20 gba:text-primary' : 'gba:bg-muted gba:text-muted-foreground'
-                }`}
-              >
-                {opt.count}
-              </span>
-            </button>
-          )
-        })}
-      </div>
+      {!isCategoryLocked ? (
+        <Tabs
+          value={category}
+          onValueChange={next => setCategoryAndPersist(next as CategoryFilter)}
+          data-testid={`${testId}-function-category-filter`}
+        >
+          <TabsList className="gba:h-auto gba:self-start gba:gap-0.5 gba:p-0.5" aria-label="Filter by category">
+            {(
+              [
+                { id: 'all', label: 'All', count: totalConnectors + totalBusinessFunctions, icon: Code2 },
+                { id: 'connectors', label: 'Connectors', count: totalConnectors, icon: Cloud },
+                { id: 'functions', label: 'Functions', count: totalBusinessFunctions, icon: Code2 }
+              ] as const
+            ).map(option => {
+              const Icon = option.icon
+              return (
+                <TabsTrigger
+                  key={option.id}
+                  value={option.id}
+                  className="gba:gap-1 gba:px-2 gba:py-1 gba:text-[11px] gba:data-[state=active]:bg-primary/10 gba:data-[state=active]:text-primary"
+                  data-testid={`${testId}-function-category-${option.id}`}
+                >
+                  <Icon className="gba:h-3 gba:w-3" />
+                  {option.label}
+                  <span className="gba:text-[10px] gba:px-1 gba:rounded gba:bg-muted gba:text-muted-foreground gba:data-[state=active]:bg-primary/20 gba:data-[state=active]:text-primary">
+                    {option.count}
+                  </span>
+                </TabsTrigger>
+              )
+            })}
+          </TabsList>
+        </Tabs>
+      ) : null}
 
       <div className={selectedFunction ? 'gba:grid gba:grid-cols-[minmax(0,1fr)_9rem] gba:gap-2 gba:items-end' : ''}>
         <div className="gba:flex gba:flex-col gba:gap-1.5">

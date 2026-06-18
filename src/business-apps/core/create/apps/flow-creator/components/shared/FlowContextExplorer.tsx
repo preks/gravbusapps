@@ -1,27 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@newwork/nw-design-system'
-import { Workflow, Footprints, BookOpen, Database, Building2, Zap } from 'lucide-react'
-import type { ExpressionSuggestionItem, ExpressionSourceType } from '@/common/components/flow/expression-editor'
-
-const SOURCE_ORDER: ExpressionSourceType[] = ['trigger', 'workflow', 'steps', 'catalog', 'entity', 'orgchart']
-
-const SOURCE_LABEL: Record<ExpressionSourceType, string> = {
-  trigger: 'Trigger',
-  workflow: 'Workflow',
-  steps: 'Steps',
-  catalog: 'Catalog',
-  entity: 'Entity',
-  orgchart: 'Org Chart'
-}
-
-const SOURCE_ICON: Record<ExpressionSourceType, React.ElementType> = {
-  trigger: Zap,
-  workflow: Workflow,
-  steps: Footprints,
-  catalog: BookOpen,
-  entity: Database,
-  orgchart: Building2
-}
+import type { ExpressionSuggestionItem } from '@/common/components/flow/expression-editor'
+import { FLOW_CONTEXT_SOURCE_ICON, FLOW_CONTEXT_SOURCE_LABEL, FLOW_CONTEXT_SOURCE_ORDER } from './flowContextSourceMeta'
 
 interface FlowContextExplorerProps {
   items: ExpressionSuggestionItem[]
@@ -52,8 +32,8 @@ export const FlowContextExplorer: React.FC<FlowContextExplorerProps> = ({
   }, [items, query])
 
   const grouped = useMemo(() => {
-    const map = new Map<ExpressionSourceType, ExpressionSuggestionItem[]>()
-    for (const source of SOURCE_ORDER) map.set(source, [])
+    const map = new Map<ExpressionSuggestionItem['source'], ExpressionSuggestionItem[]>()
+    for (const source of FLOW_CONTEXT_SOURCE_ORDER) map.set(source, [])
     for (const item of filtered) {
       const list = map.get(item.source) ?? []
       list.push(item)
@@ -71,12 +51,12 @@ export const FlowContextExplorer: React.FC<FlowContextExplorerProps> = ({
       <CommandInput placeholder={placeholder} value={query} onValueChange={setQuery} data-testid={`${testId}-search`} />
       <CommandList className="gba:max-h-80 gba:overflow-y-auto" data-testid={`${testId}-list`}>
         <CommandEmpty>No results.</CommandEmpty>
-        {SOURCE_ORDER.map(source => {
+        {FLOW_CONTEXT_SOURCE_ORDER.map(source => {
           const list = grouped.get(source) ?? []
           if (!list.length) return null
-          const Icon = SOURCE_ICON[source]
+          const Icon = FLOW_CONTEXT_SOURCE_ICON[source]
           return (
-            <CommandGroup key={source} heading={SOURCE_LABEL[source]}>
+            <CommandGroup key={source} heading={FLOW_CONTEXT_SOURCE_LABEL[source]}>
               {list.map(item => (
                 <CommandItem
                   key={item.id}

@@ -1,45 +1,42 @@
 /**
- * ExpressionPill - Rendered inside Tiptap as a ReactNodeView.
- * Displays a colored inline chip for each expression reference.
+ * Inline expression chip inside the Tiptap editor (InputGroup control).
  */
 
-import React from 'react'
-import { NodeViewWrapper } from '@tiptap/react'
-import { Workflow, Footprints, BookOpen, Database, Building2, Zap } from 'lucide-react'
-import type { ExpressionSourceType } from './types/expressionTypes'
-import { SOURCE_COLOR_MAP } from './types/expressionTypes'
+import React, { useCallback } from 'react'
+import { Chip } from '@newwork/nw-design-system'
+import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react'
 
-const ICON_MAP: Record<ExpressionSourceType, React.ElementType> = {
-  trigger: Zap,
-  workflow: Workflow,
-  steps: Footprints,
-  catalog: BookOpen,
-  entity: Database,
-  orgchart: Building2
-}
+export const ExpressionPillView: React.FC<NodeViewProps> = ({ node, editor, getPos, deleteNode }) => {
+  const label = node.attrs.label || node.attrs.expression || node.attrs.id
 
-interface ExpressionPillNodeAttrs {
-  id: string
-  label: string
-  mentionType: ExpressionSourceType
-  expression: string
-}
+  const removeChip = useCallback(() => {
+    if (typeof deleteNode === 'function') {
+      deleteNode()
+      return
+    }
 
-export const ExpressionPillView: React.FC<{ node: { attrs: ExpressionPillNodeAttrs } }> = ({ node }) => {
-  const source = node.attrs.mentionType || 'workflow'
-  const Icon = ICON_MAP[source] || Workflow
-  const colors = SOURCE_COLOR_MAP[source]
+    const pos = getPos()
+    if (typeof pos !== 'number') return
+
+    editor
+      .chain()
+      .focus()
+      .deleteRange({ from: pos, to: pos + node.nodeSize })
+      .run()
+  }, [deleteNode, editor, getPos, node.nodeSize])
+
+  const handleRemovePointerDown = useCallback((event: React.MouseEvent) => {
+    if ((event.target as HTMLElement).closest('[aria-label^="Remove"]')) {
+      event.preventDefault()
+      event.stopPropagation()
+    }
+  }, [])
 
   return (
-    <NodeViewWrapper as="span" className="gba:inline">
-      <span
-        contentEditable={false}
-        data-testid="expression-pill"
-        className={`gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:px-2 gba:py-0.5 gba:text-xs gba:font-medium gba:mx-0.5 gba:whitespace-nowrap gba:border ${colors.bg} ${colors.text} ${colors.border}`}
-      >
-        <Icon className="gba:h-3 gba:w-3" />
-        {node.attrs.label || node.attrs.expression || node.attrs.id}
-      </span>
+    <NodeViewWrapper as="span" onMouseDown={handleRemovePointerDown}>
+      <Chip size="sm" variant="default" removable onRemove={removeChip} data-testid="expression-chip">
+        {label}
+      </Chip>
     </NodeViewWrapper>
   )
 }
