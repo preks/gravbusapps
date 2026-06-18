@@ -654,6 +654,8 @@ export interface SessionConfig {
   reasoning_effort?: 'none' | 'low' | 'medium' | 'high'
   enable_memory: boolean
   enable_reflection: boolean | undefined
+  /** When true, bypass HITL approval gates for this session (backend: auto_approve_tools). */
+  auto_approve_tools?: boolean
   max_iterations?: number
   selectedAgent?: SpecialistAgent
   selectedEnterpriseSkill?: EnterpriseSkill

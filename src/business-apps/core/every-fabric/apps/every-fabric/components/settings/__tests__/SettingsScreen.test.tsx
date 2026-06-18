@@ -48,7 +48,8 @@ describe('SettingsScreen layout', () => {
       settings: {
         enableMemory: true,
         enableReflection: 'adaptive',
-        devModeEnabled: true
+        devModeEnabled: true,
+        autoApproveModeEnabled: false
       },
       updateSetting: jest.fn()
     })
@@ -81,7 +82,8 @@ describe('SettingsScreen devtools gate', () => {
       settings: {
         enableMemory: true,
         enableReflection: 'adaptive',
-        devModeEnabled: true
+        devModeEnabled: true,
+        autoApproveModeEnabled: false
       },
       updateSetting: jest.fn()
     })
@@ -92,6 +94,7 @@ describe('SettingsScreen devtools gate', () => {
 
     expect(screen.queryByTestId('settings-dev-mode-toggle')).not.toBeInTheDocument()
     expect(screen.queryByText('Reflection Mode')).not.toBeInTheDocument()
+    expect(screen.getByTestId('settings-auto-approve-mode-toggle')).toBeInTheDocument()
     expect(screen.queryByTestId('settings-tab-tools')).not.toBeInTheDocument()
     expect(screen.queryByTestId('settings-section-nav-metrics')).not.toBeInTheDocument()
     expect(screen.queryByTestId('settings-memory-section')).not.toBeInTheDocument()
@@ -117,7 +120,8 @@ describe('SettingsScreen URL state', () => {
       settings: {
         enableMemory: true,
         enableReflection: 'adaptive',
-        devModeEnabled: true
+        devModeEnabled: true,
+        autoApproveModeEnabled: false
       },
       updateSetting: jest.fn()
     })

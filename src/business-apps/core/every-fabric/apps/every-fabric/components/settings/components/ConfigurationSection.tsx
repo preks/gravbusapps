@@ -28,6 +28,13 @@ export const ConfigurationSection: React.FC<ConfigurationSectionProps> = ({
         enabled={settings.enableMemory}
         onToggle={() => updateSetting('enableMemory', !settings.enableMemory)}
       />
+      <ToggleRow
+        label="Auto-Approve Mode"
+        description="Let the agent proceed without asking for confirmation on actions that normally require approval"
+        enabled={settings.autoApproveModeEnabled}
+        onToggle={() => updateSetting('autoApproveModeEnabled', !settings.autoApproveModeEnabled)}
+        data-testid="settings-auto-approve-mode-toggle"
+      />
       {devToolsEnabled && (
         <>
           <ToggleRow

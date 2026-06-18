@@ -9,12 +9,15 @@ export interface AgentSettings {
   defaultSkillId?: string
   /** When true, show model picker, trace explorer, and debug trace tools. */
   devModeEnabled: boolean
+  /** When true, the agent proceeds without approval prompts (maps to auto_approve_tools). */
+  autoApproveModeEnabled: boolean
 }
 
 export const DEFAULT_SETTINGS: AgentSettings = {
   enableMemory: true,
   enableReflection: 'adaptive',
-  devModeEnabled: false
+  devModeEnabled: false,
+  autoApproveModeEnabled: false
 }
 
 export interface MemoryEntry {

@@ -10,6 +10,10 @@ describe('agentSettings.utils', () => {
     expect(loadSettings().devModeEnabled).toBe(false)
   })
 
+  it('defaults autoApproveModeEnabled to false', () => {
+    expect(loadSettings().autoApproveModeEnabled).toBe(false)
+  })
+
   it('merges persisted settings with defaults', () => {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify({ enableMemory: false, devModeEnabled: true }))
     expect(loadSettings()).toEqual({

@@ -96,6 +96,7 @@ function buildSessionConfig(
       enable_memory: parsed.enableMemory ?? DEFAULT_CONFIG.enable_memory,
       enable_reflection:
         parsed.enableReflection === 'always' ? true : parsed.enableReflection === 'disabled' ? false : undefined,
+      auto_approve_tools: Boolean(parsed.autoApproveModeEnabled),
       ...(parsed.maxIterations ? { max_iterations: parsed.maxIterations } : {}),
       selectedAgent,
       ...(modelId ? { model: modelId } : {}),
