@@ -41088,8 +41088,8 @@
     ]
   },
   "hr/core/apps/employee-record": {
-    "bitbucketBuildNumber": 13834,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13834/",
+    "bitbucketBuildNumber": 13837,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13837/",
     "chunkJsBytes": 1617872,
     "top": [
       {
@@ -88560,20 +88560,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 13834,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13834/",
-    "chunkJsBytes": 2062662,
+    "bitbucketBuildNumber": 13837,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13837/",
+    "chunkJsBytes": 2062664,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1780476,
-        "gzip": 115551,
+        "rendered": 1780479,
+        "gzip": 115443,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1780476,
-            "gzip": 115551
+            "rendered": 1780479,
+            "gzip": 115443
           }
         ]
       },
@@ -100891,15 +100891,15 @@
     ]
   },
   "core/every-fabric/apps/every-fabric": {
-    "bitbucketBuildNumber": 13834,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13834/",
-    "chunkJsBytes": 3092578,
+    "bitbucketBuildNumber": 13837,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13837/",
+    "chunkJsBytes": 3100200,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 2629978,
-        "gzip": 695943,
+        "rendered": 2643234,
+        "gzip": 699690,
         "leaves": [
           {
             "name": "src/business-apps/core/every-fabric/apps/every-fabric/components/workspace/WorkspaceRightPanel.tsx",
@@ -120464,7 +120464,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-18T13:59:34.409Z",
+    "generatedAt": "2026-06-18T13:59:49.678Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
