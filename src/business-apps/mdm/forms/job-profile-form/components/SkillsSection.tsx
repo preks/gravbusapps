@@ -19,6 +19,8 @@ import { SEARCH_SKILLS_QUERY, GET_SKILLS_BY_NAMES } from '@/business-apps/hr/cor
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { hybridSearchSkills } from '@/common/network/flowbot/hybridSearchSkills'
 import { env } from '@/common/env/EnvUtils'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 import { useSuggestedSkills } from '../hooks/useSuggestedSkills'
 import { SuggestedSkillsTable } from './SuggestedSkillsTable'
 import translations from '../_i18n'
@@ -69,6 +71,7 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({
   const form = useFormContext()
   const graphqlClient = useGraphQLClient(accessToken)
   const restClient = useRestClient(env('NEXT_PUBLIC_BASE_URL'))
+  const isDevEnabled = useFeature<boolean>(Feature.Dev.Enabled.Key)
   const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
     name: 'skills'
@@ -294,6 +297,8 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({
     jobDescriptionFile,
     jobTitle
   })
+
+  const isAiAssistEnabled = useMemo(() => hasFile && Boolean(isDevEnabled), [isDevEnabled, hasFile])
 
   const showNoResults = !isSearching && filteredResults.length === 0 && searchTerm.trim().length > 0
 
@@ -522,7 +527,7 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({
           />
         )}
 
-        {hasFile && (
+        {isAiAssistEnabled && (
           <div className="gba:space-y-2 gba:pt-1">
             <Button
               type="button"
