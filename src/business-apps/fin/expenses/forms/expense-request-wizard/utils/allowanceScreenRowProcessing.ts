@@ -10,29 +10,38 @@ export type AllowanceRowProcessContext = {
   visibleDeductionKeys: string[]
 }
 
+function getRequestProjectIdForAllowanceDate(requestProject: any, expenseDate: string | null | undefined) {
+  const project = requestProject?.project
+  if (!project?.id) {
+    return undefined
+  }
+
+  if (project.validTo && expenseDate && new Date(project.validTo) <= new Date(expenseDate)) {
+    return undefined
+  }
+
+  return project.id
+}
+
 function applyCostCenterAndProjectToAllowanceRow(updatedElement: any, requestProject: any, defaultCostCenter: string) {
   const resolvedCostCenterId = resolveInheritedOrSelectedCostCenterId(
     updatedElement.costCenterId,
     defaultCostCenter,
     requestProject.costCenterId || ''
   )
+
   if (defaultCostCenter && updatedElement.costCenterId !== resolvedCostCenterId) {
     updatedElement.costCenterId = resolvedCostCenterId
     updatedElement.projectId = undefined
   }
 
-  if (!updatedElement.projectId && requestProject.project) {
-    updatedElement.projectId = requestProject.project.id || ''
+  if (updatedElement.projectId) {
+    return
   }
 
-  if (
-    !updatedElement.projectId &&
-    requestProject &&
-    updatedElement.expenseDate &&
-    requestProject.validTo &&
-    updatedElement.expenseDate <= requestProject.validTo
-  ) {
-    updatedElement.projectId = requestProject.id || ''
+  const requestProjectId = getRequestProjectIdForAllowanceDate(requestProject, updatedElement.expenseDate)
+  if (requestProjectId) {
+    updatedElement.projectId = requestProjectId
   }
 }
 
