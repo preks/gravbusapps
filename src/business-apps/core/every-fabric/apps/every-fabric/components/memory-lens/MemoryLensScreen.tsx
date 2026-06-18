@@ -11,6 +11,7 @@ import { MemoryDiary } from './MemoryDiary'
 import { MemoryCalendar } from './MemoryCalendar'
 import { MemoryFacetBrowser } from './MemoryFacetBrowser'
 import { MemoryListSkeleton } from '../settings/components/SkeletonLoader'
+import { MemoryGraph2D } from './MemoryGraph2D'
 import type { MemoryNamespace } from '../settings/agentSettings.types'
 
 interface MemoryLensScreenProps {
@@ -122,6 +123,7 @@ export const MemoryLensScreen: React.FC<MemoryLensScreenProps> = ({ accessToken,
             {activeView === 'calendar' && <MemoryCalendar fetchRange={fetchRange} onDelete={onRemove} />}
             {activeView === 'topics' && <MemoryFacetBrowser entries={entries} kind="topic" onDelete={onRemove} />}
             {activeView === 'people' && <MemoryFacetBrowser entries={entries} kind="entity" onDelete={onRemove} />}
+            {activeView === 'graph' && <MemoryGraph2D accessToken={accessToken} />}
           </div>
         )}
       </div>

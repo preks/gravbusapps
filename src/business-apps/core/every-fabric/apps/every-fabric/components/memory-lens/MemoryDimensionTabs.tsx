@@ -1,14 +1,23 @@
 import React from 'react'
-import { CalendarBlankIcon, HashIcon, NotebookIcon, SquaresFourIcon, UsersIcon, type Icon } from '@phosphor-icons/react'
+import {
+  CalendarBlankIcon,
+  GraphIcon,
+  HashIcon,
+  NotebookIcon,
+  SquaresFourIcon,
+  UsersIcon,
+  type Icon
+} from '@phosphor-icons/react'
 
-export type MemoryLensView = 'overview' | 'diary' | 'calendar' | 'topics' | 'people'
+export type MemoryLensView = 'overview' | 'diary' | 'calendar' | 'topics' | 'people' | 'graph'
 
 const VIEWS: Array<{ id: MemoryLensView; label: string; icon: Icon }> = [
   { id: 'overview', label: 'Overview', icon: SquaresFourIcon },
   { id: 'diary', label: 'Diary', icon: NotebookIcon },
   { id: 'calendar', label: 'Calendar', icon: CalendarBlankIcon },
   { id: 'topics', label: 'Topics', icon: HashIcon },
-  { id: 'people', label: 'People & things', icon: UsersIcon }
+  { id: 'people', label: 'People & things', icon: UsersIcon },
+  { id: 'graph', label: 'Mind map', icon: GraphIcon }
 ]
 
 interface MemoryDimensionTabsProps {

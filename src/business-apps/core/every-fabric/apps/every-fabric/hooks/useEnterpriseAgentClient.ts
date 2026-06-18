@@ -375,17 +375,32 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
   const getMemory = useCallback(
     (
       query: string,
-      filters?: { namespace?: string; tags?: string[]; dateFrom?: string; dateTo?: string; limit?: number }
+      filters?: {
+        namespace?: string
+        /** Single topic tag (server-side exact filter); FastAPI parses `tags=foo` as a 1-item list. */
+        tag?: string
+        /** Single referenced person/thing (server-side exact filter). */
+        entity?: string
+        tags?: string[]
+        dateFrom?: string
+        dateTo?: string
+        limit?: number
+        /** Skip this many entries per namespace, for on-demand neighborhood paging. */
+        offset?: number
+      }
     ) => {
       // Only forward scalar filters: RestClient serializes params via String(value),
       // so it cannot emit the repeated `tags=` params FastAPI's list[str] expects.
-      // Topic filtering is handled client-side (MemorySection.availableTopics /
-      // filteredMemories), so the tags array is intentionally not sent on the wire.
+      // Multi-tag filtering is handled client-side; a single `tag`/`entity` is
+      // safe to send because `tags=foo` is parsed as a one-item list server-side.
       const params: Record<string, string | number> = { q: query }
       if (filters?.namespace) params.namespace = filters.namespace
+      if (filters?.tag) params.tags = filters.tag
+      if (filters?.entity) params.entities = filters.entity
       if (filters?.dateFrom) params.date_from = filters.dateFrom
       if (filters?.dateTo) params.date_to = filters.dateTo
       if (filters?.limit) params.limit = filters.limit
+      if (filters?.offset) params.offset = filters.offset
       return client.get<
         {
           key: string
@@ -401,6 +416,18 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
         }[]
       >('/deep-agent/memory/search', { params })
     },
+    [client]
+  )
+
+  /** Lightweight aggregate of memory hubs (topics / entities + counts) for the mind-map. */
+  const getMemoryGraphOverview = useCallback(
+    (top?: number) =>
+      client.get<{
+        topics: Array<{ label: string; count: number }>
+        entities: Array<{ label: string; count: number }>
+        namespaces: Array<{ namespace: string; count: number }>
+        totalMemories: number
+      }>('/deep-agent/memory/graph-overview', top ? { params: { top } } : undefined),
     [client]
   )
 
@@ -805,6 +832,7 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       getActiveSessionsSummary,
       buildActiveSessionsStreamUrl,
       getMemory,
+      getMemoryGraphOverview,
       saveMemory,
       deleteMemory,
       getUserProfileBrief,
@@ -856,6 +884,7 @@ export const useEnterpriseAgentClient = (accessToken: string) => {
       getActiveSessionsSummary,
       buildActiveSessionsStreamUrl,
       getMemory,
+      getMemoryGraphOverview,
       saveMemory,
       deleteMemory,
       getUserProfileBrief,
