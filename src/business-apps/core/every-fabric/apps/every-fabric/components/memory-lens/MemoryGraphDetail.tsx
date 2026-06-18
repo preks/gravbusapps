@@ -6,6 +6,7 @@ import { ArrowSquareOutIcon, ChatCircleTextIcon, HashIcon, NotebookIcon, UsersIc
 import EntityLink, { markdownUrlTransform } from '@/business-apps/platform/apps/every-ai/components/links/EntityLink'
 import { MEMORY_NAMESPACE_LABELS } from '../settings/agentSettings.types'
 import { formatMemoryTitle, relativeDate } from './memoryLensModel'
+import { memoryMarkdownComponents } from './MemoryMarkdownBody'
 import { extractReferences, sanitizeMemoryBody } from './memoryReferences'
 import type { GraphNode } from './memoryGraphModel'
 
@@ -26,37 +27,6 @@ const SALIENCE_LABEL = (value: number): string => {
   if (value >= 4) return 'Notable'
   return 'Routine'
 }
-
-const markdownComponents = (accessToken: string) => ({
-  p: ({ children }: { children?: React.ReactNode }) => (
-    <p className="gba:my-1.5 gba:text-[13px] gba:leading-relaxed gba:text-foreground">{children}</p>
-  ),
-  ul: ({ children }: { children?: React.ReactNode }) => (
-    <ul className="gba:my-1.5 gba:list-disc gba:space-y-1 gba:pl-4 gba:text-[13px] gba:text-foreground">{children}</ul>
-  ),
-  ol: ({ children }: { children?: React.ReactNode }) => (
-    <ol className="gba:my-1.5 gba:list-decimal gba:space-y-1 gba:pl-4 gba:text-[13px] gba:text-foreground">
-      {children}
-    </ol>
-  ),
-  li: ({ children }: { children?: React.ReactNode }) => (
-    <li className="gba:text-[13px] gba:leading-relaxed">{children}</li>
-  ),
-  strong: ({ children }: { children?: React.ReactNode }) => (
-    <strong className="gba:font-semibold gba:text-foreground">{children}</strong>
-  ),
-  em: ({ children }: { children?: React.ReactNode }) => <em className="gba:italic">{children}</em>,
-  code: ({ children }: { children?: React.ReactNode }) => (
-    <code className="gba:rounded gba:bg-muted gba:px-1 gba:py-0.5 gba:font-mono gba:text-[11px] gba:text-foreground">
-      {children}
-    </code>
-  ),
-  a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
-    <EntityLink href={href} accessToken={accessToken} appearance="inline" openInNewTab>
-      {children}
-    </EntityLink>
-  )
-})
 
 const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <p className="gba:mb-1.5 gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground/70">
@@ -119,7 +89,7 @@ const MemoryView: React.FC<{
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             urlTransform={markdownUrlTransform}
-            components={markdownComponents(accessToken)}
+            components={memoryMarkdownComponents(accessToken)}
           >
             {body}
           </ReactMarkdown>

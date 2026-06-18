@@ -8,7 +8,6 @@ import { MemoryInsights } from './MemoryInsights'
 import { MemoryBrowser } from './MemoryBrowser'
 import { MemoryDimensionTabs, type MemoryLensView } from './MemoryDimensionTabs'
 import { MemoryDiary } from './MemoryDiary'
-import { MemoryCalendar } from './MemoryCalendar'
 import { MemoryFacetBrowser } from './MemoryFacetBrowser'
 import { MemoryListSkeleton } from '../settings/components/SkeletonLoader'
 import { MemoryGraph2D } from './MemoryGraph2D'
@@ -119,8 +118,9 @@ export const MemoryLensScreen: React.FC<MemoryLensScreenProps> = ({ accessToken,
               </div>
             )}
 
-            {activeView === 'diary' && <MemoryDiary entries={entries} onDelete={onRemove} />}
-            {activeView === 'calendar' && <MemoryCalendar fetchRange={fetchRange} onDelete={onRemove} />}
+            {activeView === 'diary' && (
+              <MemoryDiary fetchRange={fetchRange} accessToken={accessToken} onDelete={onRemove} />
+            )}
             {activeView === 'topics' && <MemoryFacetBrowser entries={entries} kind="topic" onDelete={onRemove} />}
             {activeView === 'people' && <MemoryFacetBrowser entries={entries} kind="entity" onDelete={onRemove} />}
             {activeView === 'graph' && <MemoryGraph2D accessToken={accessToken} />}

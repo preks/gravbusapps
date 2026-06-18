@@ -201,6 +201,28 @@ export const formatMemoryTitle = (entry: MemoryLensEntry): string => {
   return words.charAt(0).toUpperCase() + words.slice(1)
 }
 
+/** Time-of-day label ("14:32") for diary rows; empty when unparseable. */
+export const timeLabel = (iso?: string): string => {
+  if (!iso) return ''
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+}
+
+/** Full, human date+time for the detail panel ("Wed, Jun 11, 14:32"). */
+export const fullDateTime = (iso?: string): string => {
+  if (!iso) return ''
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
 /** Compact relative date label ("Today", "3 days ago", "Mar 4"). */
 export const relativeDate = (iso?: string): string => {
   if (!iso) return ''
