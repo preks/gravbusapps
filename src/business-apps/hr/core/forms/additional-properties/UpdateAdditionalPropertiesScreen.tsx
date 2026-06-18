@@ -6,8 +6,10 @@ import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { useForm } from 'react-hook-form'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { AdditionalPropertiesProvider, useAdditionalProperties } from './AdditionalPropertiesContext'
-import { Badge, Button, Input } from '@newwork/nw-design-system'
-import { XCircleIcon } from 'lucide-react'
+import { Alert, AlertDescription, Badge, Button, Input, useTranslation } from '@newwork/nw-design-system'
+import { XCircleIcon } from '@phosphor-icons/react'
+import appTranslations from '../../apps/employee-record/_i18n'
+import { getFormContextErrorMessage } from '@/business-apps/hr/core/utils/getFormContextErrorMessage'
 
 interface AdditionalPropertiesFormValues {
   targetEmployeeId?: string
@@ -19,8 +21,18 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = props => {
     existingProps,
     existingPropsMap,
     employeeVersion,
-    employeeHeaderInfo
+    employeeHeaderInfo,
+    error
   } = useAdditionalProperties()
+  const { t } = useTranslation(appTranslations)
+  const employeeIdForContext = useMemo(
+    () => ctxEmployeeId || props.userInfo?.employeeDetails?.employeeId || '',
+    [ctxEmployeeId, props.userInfo?.employeeDetails?.employeeId]
+  )
+  const contextErrorMessage = useMemo(
+    () => getFormContextErrorMessage({ error, employeeId: employeeIdForContext, accessToken: props.accessToken }, t),
+    [employeeIdForContext, error, props.accessToken, t]
+  )
 
   // New property inputs and list
   const [propName, setPropName] = useState('')
@@ -146,6 +158,12 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = props => {
         className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='add-skill-form']]:!py-0"
         data-testid="add-skill-form-content"
       >
+        {contextErrorMessage && (
+          <Alert variant="destructive" data-testid="additional-properties-context-error">
+            <AlertDescription>{contextErrorMessage}</AlertDescription>
+          </Alert>
+        )}
+
         <AppActionForm
           processType="update"
           form={form as any}
@@ -154,7 +172,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = props => {
           cancelEventType="pse_abort"
           submitButtonTestId="flw_addSkills_submitButton"
           cancelButtonTestId="flw_addSkills_cancelButton"
-          isSubmitDisabled={isSubmitDisabled}
+          isSubmitDisabled={Boolean(contextErrorMessage) || isSubmitDisabled}
           submitButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')}
           cancelButtonText={getTranslationFromI18nKeyAndLabel(
             'lowcoder:create_expense_request.initiate_cancel_button',

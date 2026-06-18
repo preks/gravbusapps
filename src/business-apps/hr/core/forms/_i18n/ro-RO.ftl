@@ -1,4 +1,6 @@
 adjust-salary-title = Ajustare salariu angajat
+form-error-missing-employee-context = Contextul angajatului lipsește. Acest formular nu poate fi trimis.
+form-error-missing-access-token = Contextul de autentificare lipsește. Reîmprospătați pagina și încercați din nou.
 adjust-salary-adjustment-type = Tip ajustare
 adjust-salary-adjustment-type-amount = Ajustare sumă
 adjust-salary-adjustment-type-percentage = Ajustare procentuală
@@ -278,6 +280,12 @@ modal-deactivate-submit-button = Dezactivează beneficiu
 error-end-date-required = Data de încheiere este obligatorie. Vă rugăm să selectați o dată de încheiere.
 error-end-date-today-or-later = Data de încheiere trebuie să fie astăzi sau ulterior.
 error-end-date-after-start-date = Data de încheiere nu poate fi înaintea datei de început a beneficiului.
+deactivate-benefit-missing-employee-context = Contextul angajatului lipsește. Beneficiul nu poate fi dezactivat.
+deactivate-benefit-missing-benefit = Detaliile beneficiului lipsesc. Beneficiul nu poate fi dezactivat.
+deactivate-benefit-missing-employee-benefit = Detaliile beneficiului angajatului lipsesc. Beneficiul nu poate fi dezactivat.
+deactivate-benefit-version-loading = Se verifică versiunea curentă a beneficiului...
+deactivate-benefit-version-missing = Versiunea curentă a beneficiului lipsește. Beneficiul nu poate fi dezactivat.
+deactivate-benefit-version-load-error = Versiunea curentă a beneficiului nu a putut fi verificată. Vă rugăm să încercați din nou.
 
 # ============================================
 # Pending Submission Status Messages
@@ -347,6 +355,7 @@ working-conditions-unit-year = { $count ->
 complete-notification = Cererea este trimisă către manager pentru aprobare
 request-correction-date-absence-error = Această dată este o sărbătoare sau o absență și nu poate fi folosită pentru o cerere de corectare.
 request-correction-date-before-hire-error = Această dată este înainte de data angajării și nu poate fi folosită pentru o cerere de corectare.
+request-correction-missing-employee-context = Contextul angajatului lipsește. Cererea de corectare nu poate fi trimisă.
 request-correction-zero-planned-warning = Această dată nu are ore de lucru planificate. Timpul introdus va fi considerat ore suplimentare.
 notification-working-conditions-updated-success = Actualizările condițiilor de muncă au fost trimise spre aprobare departamentului HR
 notification-working-hours-updated-success = Actualizările programului de lucru au fost trimise spre aprobare departamentului HR

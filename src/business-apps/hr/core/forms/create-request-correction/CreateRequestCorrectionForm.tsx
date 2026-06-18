@@ -2,6 +2,8 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import {
+  Alert,
+  AlertDescription,
   Input,
   Calendar,
   DateInput,
@@ -146,6 +148,8 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     (dateKey: string) => Boolean(employeeHireDateKey && dateKey < employeeHireDateKey),
     [employeeHireDateKey]
   )
+  const missingEmployeeContextMessage = t('request-correction-missing-employee-context')
+  const isEmployeeContextMissing = !resolvedEmployeeId
 
   // Fetch employee header info
   const fetchEmployeeHeaderInfo = useCallback(async () => {
@@ -461,7 +465,7 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
     const base = new Date(baseDateIso)
     if (Number.isNaN(base.getTime())) return ''
     const [hh, mm] = hhmm.split(':').map(v => parseInt(v, 10))
-    if (isNaN(hh) || isNaN(mm)) return ''
+    if (Number.isNaN(hh) || Number.isNaN(mm)) return ''
     // Use UTC parts for the calendar date (to preserve the selected date),
     // but construct a LOCAL date/time with the entered hours/minutes.
     const local = new Date(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate(), hh, mm, 0, 0)
@@ -541,6 +545,10 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
   )
 
   const handleSubmit = async () => {
+    if (isEmployeeContextMissing) {
+      throw new Error(missingEmployeeContextMessage)
+    }
+
     if (isDateBeforeHireDate) {
       form.setError('date', { message: t('request-correction-date-before-hire-error') })
       return
@@ -564,7 +572,7 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
 
       const payloadObject = additionalData?.psi_taskPayload?.psi_initialParameters
       const externalContext = additionalData?.externalContextData || {}
-      const requestEmployeeId = payloadObject?.employeeId
+      const requestEmployeeId = resolvedEmployeeId
 
       const recordedMinutes = Math.max(
         0,
@@ -644,9 +652,15 @@ export const CreateRequestCorrectionForm: React.FC<RequestCorrectionFormProps> =
         formData={form.getValues()}
         data-testid="request-correction-app-action-form"
         submitButtonText="Submit"
-        isSubmitDisabled={!isValid || submitting}
+        isSubmitDisabled={isEmployeeContextMissing || !isValid || submitting}
       >
         <div className="gba:flex-1 gba:space-y-4">
+          {isEmployeeContextMissing && (
+            <Alert variant="destructive" data-testid="request-correction-context-error">
+              <AlertDescription>{missingEmployeeContextMessage}</AlertDescription>
+            </Alert>
+          )}
+
           <div className="gba:grid gba:grid-cols-1 gba:gap-4">
             <FormField
               control={form.control as any}

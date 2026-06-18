@@ -95,6 +95,7 @@ benefit-request-again = Erneut anfordern
 benefit-pending-request-info = Sie haben diese Zusatzleistung bereits angefordert. Sie können nur eine aktive Anfrage gleichzeitig haben. Die Anfrage wartet auf Genehmigung.
 benefit-pending-request-notice = Eine Anfrage für diese Zusatzleistung wartet derzeit auf Genehmigung
 benefit-request-employee-id-missing = Mitarbeiter-ID nicht verfügbar. Kann Leistungsanfrage nicht initiieren.
+benefit-request-benefit-missing = Leistungsdetails sind nicht verfügbar. Kann Leistungsanfrage nicht initiieren.
 benefit-already-scheduled = Geplant
 benefit-deactivate-button = Deaktivieren
 benefit-deactivated-button = Deaktiviert
@@ -307,12 +308,15 @@ notification-special-leave-requested-success = Sonderurlaub erfolgreich beantrag
 notification-vacation-requested-success = Urlaub erfolgreich beantragt
 notification-working-hours-updated-success = Aktualisierungen der Arbeitszeiten zur Genehmigung an die Personalabteilung gesendet
 notification-communication-deleted-success = Kommunikationseintrag erfolgreich gelöscht.
+communication-employee-context-missing = Mitarbeiterkontext fehlt. Kommunikationsdaten können nicht aktualisiert oder gelöscht werden.
 
 # Employee Record - Errors and states
 employee-record-error-title = Fehler
 employee-record-error-loading-data = Fehler beim Laden der Mitarbeiterdaten.
 employee-record-not-found-title = Nicht gefunden
 employee-record-not-found-message = Mitarbeiter nicht gefunden.
+form-error-missing-employee-context = Mitarbeiterkontext fehlt. Dieses Formular kann nicht gesendet werden.
+form-error-missing-access-token = Authentifizierungskontext fehlt. Bitte aktualisieren Sie die Seite und versuchen Sie es erneut.
 employee-record-not-assigned = Nicht zugewiesen
 employee-record-edit-picture = Bild bearbeiten
 
@@ -1043,6 +1047,7 @@ working-hours-standard-full-time-description = Montag bis Freitag mit jeweils 8 
 working-hours-customize-by-day-option = Nach Tag anpassen
 working-hours-customize-by-day-description = Geben Sie die Stunden für jeden Tag manuell ein.
 working-hours-distribute-evenly-action = Gleichmäßig verteilen
+working-hours-active-period-overlap = Der aktive Zeitraum der Arbeitszeiten überschneidet sich mit bestehenden Arbeitszeiten.
 
 # Career Tab
 career-tab-title = Karrierepfad

@@ -37,3 +37,7 @@ ssn-check-digit-invalid-text = Die Prüfziffer der Sozialversicherungsnummer ist
 invalid-cnp-text = Bitte geben Sie eine gültige 13-stellige rumänische CNP (Cod Numeric Personal) ein.
 invalid-localized-number-text = Bitte geben Sie eine gültige Zahl im lokalen Format ein (z. B. 1.234,56 oder 1,234.56).
 required-health-insurance-type-text = Das Feld Art der Krankenversicherung ist erforderlich.
+tax-details-context-warning-title = Erforderliche Mitarbeiterdaten für die Steuerprüfung fehlen.
+tax-details-missing-employment-region-warning = Für diesen Mitarbeitenden muss eine Beschäftigungsregion hinterlegt sein, um länderspezifische Steuerregeln zu bestimmen. Bitte pflegen Sie die Beschäftigungsregion im Mitarbeiterdatensatz.
+tax-details-missing-birth-date-warning = Das Geburtsdatum des Mitarbeitenden ist erforderlich, um die deutsche Sozialversicherungsnummer zu validieren. Bitte pflegen Sie es im Mitarbeiterdatensatz.
+tax-details-missing-birth-name-warning = Der Geburtsname oder Nachname des Mitarbeitenden ist erforderlich, um die deutsche Sozialversicherungsnummer zu validieren. Bitte pflegen Sie ihn im Mitarbeiterdatensatz.

@@ -1,4 +1,6 @@
 adjust-salary-title = Adjust Employee Salary
+form-error-missing-employee-context = Employee context is missing. This form cannot be submitted.
+form-error-missing-access-token = Authentication context is missing. Please refresh and try again.
 adjust-salary-adjustment-type = Adjustment Type
 adjust-salary-adjustment-type-amount = Amount Adjustment
 adjust-salary-adjustment-type-percentage = Percentage Adjustment
@@ -281,6 +283,12 @@ modal-deactivate-submit-button = Deactivate Benefit
 error-end-date-required = End date is required. Please select an end date.
 error-end-date-today-or-later = End date must be today or later.
 error-end-date-after-start-date = End date cannot be before the benefit start date.
+deactivate-benefit-missing-employee-context = Employee context is missing. The benefit cannot be deactivated.
+deactivate-benefit-missing-benefit = Benefit details are missing. The benefit cannot be deactivated.
+deactivate-benefit-missing-employee-benefit = Employee benefit details are missing. The benefit cannot be deactivated.
+deactivate-benefit-version-loading = Checking the current benefit version...
+deactivate-benefit-version-missing = Current benefit version is missing. The benefit cannot be deactivated.
+deactivate-benefit-version-load-error = Current benefit version could not be verified. Please try again.
 
 # ============================================
 # Pending Submission Status Messages
@@ -350,6 +358,7 @@ working-conditions-unit-year = { $count ->
 complete-notification = The request is sent to be approved by the manager
 request-correction-date-absence-error = This date is a bank holiday or absence and cannot be used for a correction request.
 request-correction-date-before-hire-error = This date is before the employee's hire date and cannot be used for a correction request.
+request-correction-missing-employee-context = Employee context is missing. The correction request cannot be submitted.
 request-correction-zero-planned-warning = This date has no planned working hours. Any time entered will count as overtime.
 notification-working-conditions-updated-success = Working conditions updates are sent for HR approval
 notification-working-hours-updated-success = Working hours updates are sent for HR approval

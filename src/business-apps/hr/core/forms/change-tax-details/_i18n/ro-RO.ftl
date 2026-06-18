@@ -37,3 +37,7 @@ ssn-check-digit-invalid-text = Cifra de control a numărului de asigurare social
 invalid-cnp-text = Introduceți un CNP (Cod Numeric Personal) românesc valid de 13 cifre.
 invalid-localized-number-text = Introduceți un număr valid folosind formatul local (ex.: 1.234,56 sau 1,234.56).
 required-health-insurance-type-text = Câmpul Tipul asigurării de sănătate este obligatoriu.
+tax-details-context-warning-title = Lipsesc date obligatorii ale angajatului pentru validarea fiscală.
+tax-details-missing-employment-region-warning = Pentru acest angajat trebuie setată o regiune de angajare pentru a determina regulile fiscale specifice țării. Vă rugăm să setați regiunea de angajare în fișa angajatului.
+tax-details-missing-birth-date-warning = Data nașterii angajatului este necesară pentru validarea numărului german de asigurare socială. Vă rugăm să o completați în fișa angajatului.
+tax-details-missing-birth-name-warning = Numele la naștere sau numele de familie al angajatului este necesar pentru validarea numărului german de asigurare socială. Vă rugăm să îl completați în fișa angajatului.

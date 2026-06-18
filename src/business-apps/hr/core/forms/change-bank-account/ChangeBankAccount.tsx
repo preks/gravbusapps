@@ -11,6 +11,8 @@ import {
   FormControl,
   FormMessage,
   Textarea,
+  Alert,
+  AlertDescription,
   useTranslation
 } from '@newwork/nw-design-system'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
@@ -21,10 +23,17 @@ import NonUsFields from './components/NonUsFields'
 import { buildBankAccountPayload, isUnchangedExistingBankAccount } from './utils'
 import type { BankAccountFormValues } from './types'
 import appTranslations from '../../apps/employee-record/_i18n'
+import { getFormContextErrorMessage } from '@/business-apps/hr/core/utils/getFormContextErrorMessage'
+import { extractEmployeeId } from '@/business-apps/hr/core/utils/employeeIdUtils'
 
-const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo, additionalData }) => {
-  const { data } = useChangeBankAccount()
+const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo, additionalData }) => {
+  const { data, error } = useChangeBankAccount()
   const { t: tApp } = useTranslation(appTranslations)
+  const employeeId = useMemo(() => extractEmployeeId(additionalData, userInfo), [additionalData, userInfo])
+  const contextErrorMessage = useMemo(
+    () => getFormContextErrorMessage({ error, employeeId, accessToken }, tApp),
+    [accessToken, employeeId, error, tApp]
+  )
 
   const employee = useMemo(() => (data?.employee as any)?.Employee?.[0], [data])
   const employeePosition = useMemo(() => (data?.employee as any)?.EmployeePosition?.[0], [data])
@@ -170,12 +179,27 @@ const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo,
   const hasValidationErrors = Object.keys((form.formState as any)?.errors ?? {}).length > 0
   const isFormInvalid = !form.formState.isValid
   const isSubmitDisabledFinal = useMemo(() => {
-    const disabled = isUSAndNoAddress || isFormInvalid || hasValidationErrors || isUnchangedExisting
+    const disabled =
+      Boolean(contextErrorMessage) || isUSAndNoAddress || isFormInvalid || hasValidationErrors || isUnchangedExisting
     return disabled
-  }, [isUSAndNoAddress, isFormInvalid, hasValidationErrors, isUnchangedExisting])
+  }, [contextErrorMessage, isUSAndNoAddress, isFormInvalid, hasValidationErrors, isUnchangedExisting])
 
   if (!data) {
-    return null
+    if (!contextErrorMessage) {
+      return null
+    }
+
+    return (
+      <div
+        className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full gba:max-w-[800px]"
+        data-testid="change-bank-account-form-container"
+      >
+        <FormHeader title={title} flowIconUrl={flowIconUrl} employee={undefined} />
+        <Alert variant="destructive" data-testid="change-bank-account-context-error">
+          <AlertDescription>{contextErrorMessage}</AlertDescription>
+        </Alert>
+      </div>
+    )
   }
 
   return (
@@ -202,6 +226,11 @@ const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo,
         className="gba:flex gba:flex-col gba:[&>div[data-testid='change-bank-account']]:pt-0!"
         data-testid="change-bank-account-form-content"
       >
+        {contextErrorMessage && (
+          <Alert variant="destructive" className="gba:mb-4" data-testid="change-bank-account-context-error">
+            <AlertDescription>{contextErrorMessage}</AlertDescription>
+          </Alert>
+        )}
         <AppActionForm
           processType="update"
           form={form as any}
@@ -217,11 +246,6 @@ const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo,
             'Cancel'
           )}
           onSubmit={async (values: BankAccountFormValues) => {
-            const employeeId =
-              (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId ||
-              userInfo?.employeeDetails?.employeeId ||
-              (data?.employee as any)?.Employee?.[0]?.id ||
-              ''
             const existing = (data?.employee?.EmployeeBankAccount || [])?.[0] || null
             const payload = buildBankAccountPayload({ values, existingAccount: existing, employeeId })
             return {

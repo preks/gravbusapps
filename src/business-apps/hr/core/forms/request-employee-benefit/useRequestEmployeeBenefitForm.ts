@@ -119,18 +119,30 @@ export const useRequestEmployeeBenefitForm = ({
     }
   }, [translatedPeriod])
 
-  const validateForm = useCallback(
-    () =>
+  const validateForm = useCallback(() => {
+    const errors =
       validateBenefitForm({
         startDate,
         justification,
         t
-      }),
-    [startDate, justification, t]
-  )
+      }) ?? []
+
+    if (!employeeId) {
+      errors.push(t('benefit-request-employee-id-missing'))
+    }
+
+    if (!selectedBenefit) {
+      errors.push(t('benefit-request-benefit-missing'))
+    }
+
+    return errors.length > 0 ? errors : null
+  }, [employeeId, justification, selectedBenefit, startDate, t])
 
   const isFormValid = useMemo(() => {
     const trimmedJustification = justification.trim()
+
+    if (!employeeId || !selectedBenefit) return false
+
     // Start date is required
     if (startDate.length === 0) return false
 
@@ -144,7 +156,7 @@ export const useRequestEmployeeBenefitForm = ({
 
     // Form is valid if start date is present and justification is empty or meets requirements
     return true
-  }, [startDate, justification])
+  }, [employeeId, justification, selectedBenefit, startDate])
 
   const buildSubmitPayload = useCallback(
     async ({ markAsSubmitted }: { markAsSubmitted: () => void }) =>

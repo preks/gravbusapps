@@ -462,6 +462,39 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
     [hasActivePeriodOverlap, t, workingConditionValidationRecords]
   )
 
+  const activePeriodOverlapError = useMemo(() => {
+    const workingConditionToClose = getOpenEndedWorkingConditionToClose(effectiveStartDate)
+    const submittedRecord: EmployeeWorkingConditionSubmitPayload = {
+      id: changeMode === 'INSERT' ? workingConditionToClose?.id : current?.id,
+      activeFrom: toInstantDate(effectiveStartDate),
+      activeTo: toInstantDate(effectiveEndDate),
+      employmentTypeRef: selectedEmploymentType,
+      contractTypeRef: selectedContractType,
+      remoteRef: selectedRemote,
+      regionRef: selectedRegion,
+      contractStatus: 'ACTIVE'
+    }
+
+    const hasOverlap = workingConditionValidationRecords.some(record =>
+      hasActivePeriodOverlap(submittedRecord, record, changeMode)
+    )
+
+    return hasOverlap ? t('working-conditions-active-period-overlap') : null
+  }, [
+    changeMode,
+    current?.id,
+    effectiveEndDate,
+    effectiveStartDate,
+    getOpenEndedWorkingConditionToClose,
+    hasActivePeriodOverlap,
+    selectedContractType,
+    selectedEmploymentType,
+    selectedRegion,
+    selectedRemote,
+    t,
+    workingConditionValidationRecords
+  ])
+
   const clearDateRelatedValidationError = useCallback(() => {
     setValidationError(null)
   }, [])
@@ -475,6 +508,9 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
     }
     if (!effectiveStartDate || !selectedEmploymentType || !selectedContractType || !selectedRemote || !selectedRegion) {
       return [t('working-conditions-required')]
+    }
+    if (activePeriodOverlapError) {
+      return [activePeriodOverlapError]
     }
     return null
   }
@@ -544,14 +580,16 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
 
     setValidationError(null)
     const payload = buildSubmitPayload()
-    const overlapErrors = getActivePeriodOverlapErrors(payload, changeMode)
+    const overlapErrors = activePeriodOverlapError
+      ? [activePeriodOverlapError]
+      : getActivePeriodOverlapErrors(payload, changeMode)
     if (overlapErrors && overlapErrors.length > 0) {
       setValidationError(overlapErrors.join(', '))
       return
     }
 
     dispatchProcessContinueEvent('pse_submit', payload)
-  }, [buildSubmitPayload, changeMode, getActivePeriodOverlapErrors, validateForm])
+  }, [activePeriodOverlapError, buildSubmitPayload, changeMode, getActivePeriodOverlapErrors, validateForm])
 
   const handleCancelClick = useCallback(() => {
     dispatchProcessContinueEvent('pse_abort', {})
@@ -624,7 +662,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               <Button
                 type="button"
                 onClick={handleSubmitClick}
-                disabled={!isValid || !hasChanges}
+                disabled={!isValid || !hasChanges || Boolean(activePeriodOverlapError)}
                 data-testid="flw_updateWorkingConditions_submitBtn"
               >
                 {t('action-submit')}
@@ -657,6 +695,14 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
                 outputFormat="iso"
                 data-testid="flw_updateWorkingConditions_effectiveStartDatePicker"
               />
+              {activePeriodOverlapError && !isEffectiveEndBeforeStart && (
+                <div
+                  className="gba:text-sm gba:text-destructive"
+                  data-testid="flw_updateWorkingConditions_activePeriodOverlapError"
+                >
+                  {activePeriodOverlapError}
+                </div>
+              )}
             </div>
 
             <div className="gba:space-y-2 gba:overflow-hidden">

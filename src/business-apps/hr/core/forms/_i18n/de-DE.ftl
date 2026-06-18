@@ -1,4 +1,6 @@
 adjust-salary-title = Gehalt anpassen
+form-error-missing-employee-context = Mitarbeiterkontext fehlt. Dieses Formular kann nicht gesendet werden.
+form-error-missing-access-token = Authentifizierungskontext fehlt. Bitte aktualisieren Sie die Seite und versuchen Sie es erneut.
 adjust-salary-adjustment-type = Anpassungstyp
 adjust-salary-adjustment-type-amount = Betragsanpassung
 adjust-salary-adjustment-type-percentage = Prozentsatzanpassung
@@ -279,6 +281,12 @@ modal-deactivate-submit-button = Zusatzleistung deaktivieren
 error-end-date-required = Enddatum ist erforderlich. Bitte wählen Sie ein Enddatum aus.
 error-end-date-today-or-later = Das Enddatum muss heute oder später sein.
 error-end-date-after-start-date = Das Enddatum kann nicht vor dem Startdatum der Zusatzleistung liegen.
+deactivate-benefit-missing-employee-context = Mitarbeiterkontext fehlt. Die Zusatzleistung kann nicht deaktiviert werden.
+deactivate-benefit-missing-benefit = Leistungsdetails fehlen. Die Zusatzleistung kann nicht deaktiviert werden.
+deactivate-benefit-missing-employee-benefit = Mitarbeiter-Leistungsdetails fehlen. Die Zusatzleistung kann nicht deaktiviert werden.
+deactivate-benefit-version-loading = Die aktuelle Version der Zusatzleistung wird geprüft...
+deactivate-benefit-version-missing = Die aktuelle Version der Zusatzleistung fehlt. Die Zusatzleistung kann nicht deaktiviert werden.
+deactivate-benefit-version-load-error = Die aktuelle Version der Zusatzleistung konnte nicht geprüft werden. Bitte versuchen Sie es erneut.
 
 # ============================================
 # Pending Submission Status Messages
@@ -348,6 +356,7 @@ working-conditions-unit-year = { $count ->
 complete-notification = Die Anfrage wird zur Genehmigung an den Manager gesendet
 request-correction-date-absence-error = Dieses Datum ist ein Feiertag oder eine Abwesenheit und kann nicht für eine Korrekturanfrage verwendet werden.
 request-correction-date-before-hire-error = Dieses Datum liegt vor dem Eintrittsdatum des Mitarbeiters und kann nicht für eine Korrekturanfrage verwendet werden.
+request-correction-missing-employee-context = Mitarbeiterkontext fehlt. Die Korrekturanfrage kann nicht gesendet werden.
 request-correction-zero-planned-warning = Für dieses Datum sind keine Arbeitsstunden geplant. Eingetragene Zeiten werden als Überstunden gewertet.
 notification-working-conditions-updated-success = Aktualisierungen der Arbeitsbedingungen zur Genehmigung an die Personalabteilung gesendet
 notification-working-hours-updated-success = Aktualisierungen der Arbeitszeiten zur Genehmigung an die Personalabteilung gesendet

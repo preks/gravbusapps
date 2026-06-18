@@ -37,3 +37,7 @@ ssn-check-digit-invalid-text = Social Security Number check digit is invalid.
 invalid-cnp-text = Please enter a valid 13-digit Romanian CNP (Cod Numeric Personal).
 invalid-localized-number-text = Please enter a valid number using your locale format (e.g., 1,234.56 or 1.234,56).
 required-health-insurance-type-text = The Type of Health Insurance field is required.
+tax-details-context-warning-title = Required employee data is missing for tax validation.
+tax-details-missing-employment-region-warning = An employment region must be set for this employee to determine country-specific tax rules. Please set the employment region in the employee record.
+tax-details-missing-birth-date-warning = The employee birth date is required to validate the German Social Security Number. Please maintain it in the employee record.
+tax-details-missing-birth-name-warning = The employee birth name or last name is required to validate the German Social Security Number. Please maintain it in the employee record.

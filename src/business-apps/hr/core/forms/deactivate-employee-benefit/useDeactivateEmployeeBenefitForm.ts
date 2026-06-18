@@ -26,6 +26,8 @@ interface UseDeactivateEmployeeBenefitFormReturn {
   endDate: string
   setEndDate: (value: string) => void
   minEndDate: string
+  blockerMessages: string[]
+  isVersionLoading: boolean
   isFormValid: boolean
   validateForm: () => string[] | null
   buildSubmitPayload: () => Promise<any>
@@ -40,15 +42,11 @@ export const useDeactivateEmployeeBenefitForm = ({
   accessToken,
   t
 }: UseDeactivateEmployeeBenefitFormParams): UseDeactivateEmployeeBenefitFormReturn => {
-  // Validate accessToken before initializing GraphQL client
-  if (!accessToken || accessToken.trim().length === 0) {
-    throw new Error('Access token is required for form initialization')
-  }
-
   const graphqlClient = useGraphQLClient(accessToken)
   const employeeProfile = useMemo(() => data?.employee?.EmployeeByPk ?? null, [data])
   const employeePosition = useMemo(() => data?.employee?.EmployeePosition?.[0], [data])
   const selectedBenefit = useMemo(() => data?.selectedBenefit ?? null, [data])
+  const employeeBenefitId = selectedBenefit?.employeeBenefitId
 
   // IDs
   const employeeId = useMemo(
@@ -61,6 +59,9 @@ export const useDeactivateEmployeeBenefitForm = ({
 
   // Form state
   const [endDate, setEndDate] = useState<string>('')
+  const [benefitVersion, setBenefitVersion] = useState<number | null>(null)
+  const [versionError, setVersionError] = useState<string | null>(null)
+  const [isVersionLoading, setIsVersionLoading] = useState(false)
 
   // Calculate minimum allowed end date (later of today or benefit start date)
   const minEndDate = useMemo(() => {
@@ -68,18 +69,68 @@ export const useDeactivateEmployeeBenefitForm = ({
     if (!selectedBenefit?.startDate) {
       return today
     }
-    const benefitStart = selectedBenefit.startDate
-    return benefitStart > today ? benefitStart : today
+    const benefitStart = selectedBenefit.startDate.split('T')[0]
+    return new Date(Math.max(Date.parse(benefitStart), Date.parse(today))).toISOString().split('T')[0]
   }, [selectedBenefit])
 
-  // Initialize end date on mount
+  // Initialize end date to the earliest valid date so submit is not silently disabled.
   useEffect(() => {
-    if (!endDate) {
-      setEndDate(getDefaultEndDate())
-    }
-  }, [endDate])
+    const defaultEndDate = getDefaultEndDate()
+    const nextEndDate = defaultEndDate > minEndDate ? defaultEndDate : minEndDate
 
-  const validateForm = useCallback(() => {
+    if (!endDate || endDate < minEndDate) {
+      setEndDate(nextEndDate)
+    }
+  }, [endDate, minEndDate])
+
+  useEffect(() => {
+    if (!employeeBenefitId || !accessToken) {
+      setBenefitVersion(null)
+      setVersionError(null)
+      setIsVersionLoading(false)
+      return
+    }
+
+    let isMounted = true
+
+    const fetchBenefitVersion = async () => {
+      setIsVersionLoading(true)
+      setVersionError(null)
+
+      try {
+        const response = await graphqlClient.request<{
+          EmployeeBenefit: Array<{ id: string; version: number }>
+        }>(FETCH_BENEFIT_VERSION_QUERY, { benefitId: employeeBenefitId })
+        const resolvedVersion = response.EmployeeBenefit?.[0]?.version
+
+        if (!isMounted) return
+
+        if (typeof resolvedVersion === 'number') {
+          setBenefitVersion(resolvedVersion)
+          return
+        }
+
+        setBenefitVersion(null)
+        setVersionError(t('deactivate-benefit-version-missing'))
+      } catch {
+        if (!isMounted) return
+        setBenefitVersion(null)
+        setVersionError(t('deactivate-benefit-version-load-error'))
+      } finally {
+        if (isMounted) {
+          setIsVersionLoading(false)
+        }
+      }
+    }
+
+    fetchBenefitVersion()
+
+    return () => {
+      isMounted = false
+    }
+  }, [accessToken, employeeBenefitId, graphqlClient, t])
+
+  const dateValidationErrors = useMemo(() => {
     const errors: string[] = []
 
     // Check end date
@@ -105,10 +156,40 @@ export const useDeactivateEmployeeBenefitForm = ({
       }
     }
 
-    return errors.length > 0 ? errors : null
+    return errors
   }, [endDate, selectedBenefit, t])
 
+  const blockerMessages = useMemo(() => {
+    const messages: string[] = []
+
+    if (!employeeId) {
+      messages.push(t('deactivate-benefit-missing-employee-context'))
+    }
+
+    if (!selectedBenefit) {
+      messages.push(t('deactivate-benefit-missing-benefit'))
+    } else if (!employeeBenefitId) {
+      messages.push(t('deactivate-benefit-missing-employee-benefit'))
+    }
+
+    if (isVersionLoading) {
+      messages.push(t('deactivate-benefit-version-loading'))
+    } else if (versionError) {
+      messages.push(versionError)
+    }
+
+    return [...messages, ...dateValidationErrors]
+  }, [dateValidationErrors, employeeBenefitId, employeeId, isVersionLoading, selectedBenefit, t, versionError])
+
+  const validateForm = useCallback(() => {
+    return blockerMessages.length > 0 ? blockerMessages : null
+  }, [blockerMessages])
+
   const isFormValid = useMemo(() => {
+    if (blockerMessages.length > 0) {
+      return false
+    }
+
     if (!endDate || endDate.length === 0) {
       return false
     }
@@ -131,8 +212,8 @@ export const useDeactivateEmployeeBenefitForm = ({
       }
     }
 
-    return true
-  }, [endDate, selectedBenefit])
+    return typeof benefitVersion === 'number'
+  }, [benefitVersion, blockerMessages.length, endDate, selectedBenefit])
 
   const buildSubmitPayload = useCallback(async () => {
     if (!selectedBenefit) {
@@ -143,27 +224,8 @@ export const useDeactivateEmployeeBenefitForm = ({
       throw new Error('Employee benefit ID is missing')
     }
 
-    // Fetch current version from database for optimistic locking
-    let benefitVersion: number
-    try {
-      const response = await graphqlClient.request<{
-        EmployeeBenefit: Array<{ id: string; version: number }>
-      }>(FETCH_BENEFIT_VERSION_QUERY, { benefitId: selectedBenefit.employeeBenefitId })
-
-      if (!response.EmployeeBenefit || response.EmployeeBenefit.length === 0) {
-        throw new Error(`Employee benefit with ID ${selectedBenefit.employeeBenefitId} not found`)
-      }
-
-      benefitVersion = response.EmployeeBenefit[0].version
-
-      if (typeof benefitVersion !== 'number') {
-        throw new TypeError('Benefit version is invalid or missing')
-      }
-    } catch (error) {
-      console.error('Error fetching benefit version: ' + (error instanceof Error ? error.message : 'Unknown error'))
-      throw new Error(
-        `Failed to fetch current benefit version: ${error instanceof Error ? error.message : 'Unknown error'}`
-      )
+    if (typeof benefitVersion !== 'number') {
+      throw new TypeError('Benefit version is invalid or missing')
     }
 
     // Build and return payload for Kogito process
@@ -179,7 +241,7 @@ export const useDeactivateEmployeeBenefitForm = ({
         endDate: formattedEndDate
       }
     }
-  }, [employeeId, selectedBenefit, endDate, graphqlClient])
+  }, [benefitVersion, employeeId, selectedBenefit, endDate])
 
   return {
     employeeProfile,
@@ -189,6 +251,8 @@ export const useDeactivateEmployeeBenefitForm = ({
     endDate,
     setEndDate,
     minEndDate,
+    blockerMessages,
+    isVersionLoading,
     isFormValid,
     validateForm,
     buildSubmitPayload,

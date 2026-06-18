@@ -1,7 +1,15 @@
 'use client'
 
 import React, { useCallback, useMemo } from 'react'
-import { Label, DateInput, useTranslation, LocalizationProvider, type SupportedLocale } from '@newwork/nw-design-system'
+import {
+  Alert,
+  AlertDescription,
+  DateInput,
+  Label,
+  LocalizationProvider,
+  type SupportedLocale,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import AppActionForm from '@/components/app-action-form/AppActionForm'
@@ -11,6 +19,8 @@ import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { DeactivateEmployeeBenefitProvider, useDeactivateEmployeeBenefit } from './DeactivateEmployeeBenefitContext'
 import { useDeactivateEmployeeBenefitForm } from './useDeactivateEmployeeBenefitForm'
+import { getFormContextErrorMessage } from '@/business-apps/hr/core/utils/getFormContextErrorMessage'
+import { extractEmployeeId } from '@/business-apps/hr/core/utils/employeeIdUtils'
 
 /**
  * Form for deactivating an active employee benefit.
@@ -26,8 +36,13 @@ const DeactivateEmployeeBenefitContent: React.FC<BusinessAppContextProps> = ({
   userInfo,
   accessToken
 }) => {
-  const { data } = useDeactivateEmployeeBenefit()
+  const { data, error } = useDeactivateEmployeeBenefit()
   const { t } = useTranslation(translations)
+  const employeeId = useMemo(() => extractEmployeeId(additionalData, userInfo), [additionalData, userInfo])
+  const contextErrorMessage = useMemo(
+    () => getFormContextErrorMessage({ error, employeeId, accessToken }, t),
+    [accessToken, employeeId, error, t]
+  )
 
   // Extract currency code from benefit's currency (catalog is the single source of truth)
   const currencyCode = useMemo(() => {
@@ -50,6 +65,7 @@ const DeactivateEmployeeBenefitContent: React.FC<BusinessAppContextProps> = ({
     endDate,
     setEndDate,
     minEndDate,
+    blockerMessages,
     isFormValid,
     validateForm,
     buildSubmitPayload,
@@ -58,6 +74,10 @@ const DeactivateEmployeeBenefitContent: React.FC<BusinessAppContextProps> = ({
   } = useDeactivateEmployeeBenefitForm({ data, additionalData, userInfo, accessToken, t })
 
   const title = useMemo(() => t('modal-deactivate-title'), [t])
+  const visibleBlockerMessages = useMemo(
+    () => (contextErrorMessage ? [contextErrorMessage, ...blockerMessages] : blockerMessages),
+    [blockerMessages, contextErrorMessage]
+  )
 
   // Submission handler that builds payload and marks as submitted after successful build
   // This ensures markAsSubmitted() is called immediately after payload is ready,
@@ -108,12 +128,22 @@ const DeactivateEmployeeBenefitContent: React.FC<BusinessAppContextProps> = ({
           cancelEventType="pse_abort"
           submitButtonText={t('modal-deactivate-submit-button')}
           submitButtonVariant="destructive"
-          isSubmitDisabled={!isFormValid}
+          isSubmitDisabled={Boolean(contextErrorMessage) || !isFormValid}
           submitButtonTestId="deactivate-employee-benefit-submit-button"
           onCancel={markAsCancelled}
           data-testid="deactivate-employee-benefit"
         >
           <div className="gba:flex-1 gba:space-y-4" data-testid="deactivate-employee-benefit-fields">
+            {visibleBlockerMessages.length > 0 && (
+              <Alert variant="destructive" data-testid="deactivate-employee-benefit-context-error">
+                <AlertDescription>
+                  {visibleBlockerMessages.map(message => (
+                    <div key={message}>{message}</div>
+                  ))}
+                </AlertDescription>
+              </Alert>
+            )}
+
             {/* Benefit Summary Card */}
             {selectedBenefit && <BenefitSummaryCard t={t} benefit={selectedBenefit} currencyCode={currencyCode} />}
 

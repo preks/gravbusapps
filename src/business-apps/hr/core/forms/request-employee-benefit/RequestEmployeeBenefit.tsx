@@ -24,6 +24,7 @@ import { RequestEmployeeBenefitProvider, useRequestEmployeeBenefit } from './Req
 import { useTaskCancellation } from '../../hooks/useTaskCancellation'
 import { useRequestEmployeeBenefitForm } from './useRequestEmployeeBenefitForm'
 import { BENEFIT_FORM_VALIDATION } from '@/business-apps/hr/core/apps/employee-record/components/tabs/compensation/constants/benefitFormValidation'
+import { getFormContextErrorMessage } from '@/business-apps/hr/core/utils/getFormContextErrorMessage'
 
 type SupportedLocale = 'en-US' | 'de-DE' | 'ro-RO'
 
@@ -36,7 +37,11 @@ type SupportedLocale = 'en-US' | 'de-DE' | 'ro-RO'
  * - Domain: COMPENSATION_FLOW_DOMAIN
  * - Approval: Required (manager approval)
  */
-const RequestEmployeeBenefitContent: React.FC<BusinessAppContextProps> = ({ additionalData, userInfo }) => {
+const RequestEmployeeBenefitContent: React.FC<BusinessAppContextProps> = ({
+  accessToken,
+  additionalData,
+  userInfo
+}) => {
   const { data, isLoading, error, refetch } = useRequestEmployeeBenefit()
   const { t } = useTranslation(translations)
   const locale = getCurrentActiveUserLocale()
@@ -47,6 +52,7 @@ const RequestEmployeeBenefitContent: React.FC<BusinessAppContextProps> = ({ addi
     employeeProfile,
     employeePosition,
     selectedBenefit,
+    employeeId,
     benefitProviders,
     provider,
     setProvider,
@@ -61,11 +67,26 @@ const RequestEmployeeBenefitContent: React.FC<BusinessAppContextProps> = ({ addi
     validateForm,
     buildSubmitPayload
   } = useRequestEmployeeBenefitForm({ data, additionalData, userInfo, t })
+  const contextErrorMessage = useMemo(
+    () => getFormContextErrorMessage({ error, employeeId, accessToken }, t),
+    [accessToken, employeeId, error, t]
+  )
 
   // Handle task cancellation when form closes without submission
   const { markAsSubmitted, markAsCancelled } = useTaskCancellation('pse_abort')
 
   const title = useMemo(() => t('modal-request-title'), [t])
+  const requestBlockerMessage = useMemo(() => {
+    if (!employeeId) {
+      return t('benefit-request-employee-id-missing')
+    }
+
+    if (!selectedBenefit) {
+      return t('benefit-request-benefit-missing')
+    }
+
+    return null
+  }, [employeeId, selectedBenefit, t])
 
   const handleSubmit = useCallback(() => {
     setIsSubmitting(true)
@@ -103,7 +124,7 @@ const RequestEmployeeBenefitContent: React.FC<BusinessAppContextProps> = ({ addi
   }
 
   // Show error state if data fetch failed
-  if (error) {
+  if (contextErrorMessage) {
     return (
       <div
         className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full gba:max-w-[800px] gba:min-h-[400px] gba:items-center gba:justify-center gba:p-6"
@@ -111,7 +132,7 @@ const RequestEmployeeBenefitContent: React.FC<BusinessAppContextProps> = ({ addi
       >
         <Alert variant="destructive" className="gba:mb-4">
           <AlertTitle>{t('compensation-error-title')}</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>{contextErrorMessage}</AlertDescription>
         </Alert>
         <Button onClick={() => refetch()} variant="default" data-testid="request-employee-benefit-retry-button">
           {t('action-retry')}
@@ -163,6 +184,12 @@ const RequestEmployeeBenefitContent: React.FC<BusinessAppContextProps> = ({ addi
           data-testid="request-employee-benefit"
         >
           <div className="gba:flex-1 gba:space-y-4" data-testid="request-employee-benefit-fields">
+            {requestBlockerMessage && (
+              <Alert variant="destructive" data-testid="request-employee-benefit-context-error">
+                <AlertDescription>{requestBlockerMessage}</AlertDescription>
+              </Alert>
+            )}
+
             {/* Benefit Type (Read-only) */}
             <div className="gba:space-y-2">
               <Label className="gba:text-sm gba:font-medium gba:text-foreground">

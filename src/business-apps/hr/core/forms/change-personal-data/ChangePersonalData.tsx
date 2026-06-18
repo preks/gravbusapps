@@ -7,6 +7,8 @@ import {
 } from '@/common/utils/windowUtils'
 import FormHeader from '../components/FormHeader'
 import {
+  Alert,
+  AlertDescription,
   FormField,
   FormItem,
   LocalizationProvider,
@@ -29,6 +31,8 @@ import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import translations from '../../apps/employee-record/_i18n'
 import { useEmployeeDocumentSync } from '../document-sync/useEmployeeDocumentSync'
 import { EmployeeDocumentUploadField } from '../document-sync/EmployeeDocumentUploadField'
+import { getFormContextErrorMessage } from '@/business-apps/hr/core/utils/getFormContextErrorMessage'
+import { extractEmployeeId } from '@/business-apps/hr/core/utils/employeeIdUtils'
 
 function toValidEmployeeDocumentId(value: unknown): string {
   if (typeof value !== 'string') {
@@ -270,8 +274,27 @@ function ChangePersonalDataPendingView(props: Readonly<ChangePersonalDataPending
   )
 }
 
-const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessToken, additionalData }) => {
-  const { data, isLoading } = useChangePersonalData()
+const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessToken, additionalData, userInfo }) => {
+  const { data, isLoading, error } = useChangePersonalData()
+  const { t } = useTranslation(translations)
+  const employeeId = useMemo(() => extractEmployeeId(additionalData, userInfo), [additionalData, userInfo])
+  const contextErrorMessage = useMemo(
+    () => getFormContextErrorMessage({ error, employeeId, accessToken }, t),
+    [accessToken, employeeId, error, t]
+  )
+
+  if (contextErrorMessage) {
+    return (
+      <div
+        className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]"
+        data-testid="change-personal-data-context-error"
+      >
+        <Alert variant="destructive">
+          <AlertDescription>{contextErrorMessage}</AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
 
   if (isLoading || !data?.employee?.EmployeeByPk || !data?.catalogs?.salutation) {
     return (

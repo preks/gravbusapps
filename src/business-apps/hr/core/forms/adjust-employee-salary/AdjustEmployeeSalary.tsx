@@ -16,10 +16,12 @@ import { findActiveSalary } from './utils/findActiveSalary'
 import { useTaskCancellation } from '../../hooks/useTaskCancellation'
 import { useExistingSalaryAdjustmentForMonth } from './hooks/useExistingSalaryAdjustmentForMonth'
 import translations from '../_i18n'
+import { getFormContextErrorMessage } from '@/business-apps/hr/core/utils/getFormContextErrorMessage'
+import { extractEmployeeId } from '@/business-apps/hr/core/utils/employeeIdUtils'
 
 const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ accessToken, additionalData, userInfo }) => {
   const { t } = useTranslation(translations)
-  const { data, isLoading } = useAdjustEmployeeSalary()
+  const { data, isLoading, error } = useAdjustEmployeeSalary()
 
   const employee = useMemo(() => data?.employee?.EmployeeByPk, [data])
   const employeePosition = useMemo(() => data?.employee?.EmployeePosition?.[0], [data])
@@ -236,16 +238,14 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ access
     return (currentCurrency as any)?.code || 'EUR'
   }, [formMode, currency, currencies, currentCurrency])
 
-  // Extract employeeId with priority: externalContextData (from AppAction) > process payload > direct > employee data
-  const externalContext = (additionalData as any)?.externalContextData || {}
-  const employeeId =
-    externalContext?.employeeId || // From AppAction externalContextData (highest priority)
-    additionalData?.psi_taskPayload?.employeeId ||
-    additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
-    additionalData?.employeeId ||
-    employee?.id ||
-    employee?.code ||
-    ''
+  const employeeId = useMemo(
+    () => extractEmployeeId(additionalData, userInfo, employee),
+    [additionalData, employee, userInfo]
+  )
+  const contextErrorMessage = useMemo(
+    () => getFormContextErrorMessage({ error, employeeId, accessToken }, t),
+    [accessToken, employeeId, error, t]
+  )
 
   const duplicateCheckEffectiveDate = formMode === 'adjust' ? effectiveDate : ''
   const {
@@ -288,6 +288,20 @@ const AdjustEmployeeSalaryContent: React.FC<BusinessAppContextProps> = ({ access
         <div className="gba:flex gba:justify-center gba:items-center gba:min-h-[400px]">
           <Spinner size="lg" />
         </div>
+      </div>
+    )
+  }
+
+  if (contextErrorMessage) {
+    return (
+      <div
+        className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full gba:max-w-[800px]"
+        data-testid="adjust-employee-salary-context-error"
+      >
+        <FormHeader title={title} flowIconUrl={flowIconUrl} employee={undefined} />
+        <Alert variant="destructive">
+          <AlertDescription>{contextErrorMessage}</AlertDescription>
+        </Alert>
       </div>
     )
   }

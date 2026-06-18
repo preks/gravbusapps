@@ -95,6 +95,7 @@ benefit-request-again = Solicită din nou
 benefit-pending-request-info = Ați solicitat deja acest beneficiu. Puteți avea doar o solicitare activă la un moment dat. Solicitarea este în așteptare de aprobare.
 benefit-pending-request-notice = O solicitare pentru acest beneficiu este în așteptare de aprobare
 benefit-request-employee-id-missing = ID-ul angajatului nu este disponibil. Nu se poate iniția solicitarea de beneficiu.
+benefit-request-benefit-missing = Detaliile beneficiului nu sunt disponibile. Nu se poate iniția solicitarea de beneficiu.
 benefit-already-scheduled = Programat
 benefit-deactivate-button = Dezactivează
 benefit-deactivated-button = Dezactivat
@@ -307,12 +308,15 @@ notification-special-leave-requested-success = Concediul special a fost solicita
 notification-vacation-requested-success = Concediul de odihnă a fost solicitat cu succes
 notification-working-hours-updated-success = Actualizările programului de lucru au fost trimise spre aprobare departamentului HR
 notification-communication-deleted-success = Înregistrarea de comunicare a fost ștearsă cu succes.
+communication-employee-context-missing = Contextul angajatului lipsește. Detaliile de comunicare nu pot fi actualizate sau șterse.
 
 # Employee Record - Errors and states
 employee-record-error-title = Eroare
 employee-record-error-loading-data = Eroare la încărcarea datelor angajatului.
 employee-record-not-found-title = Negăsit
 employee-record-not-found-message = Angajatul nu a fost găsit.
+form-error-missing-employee-context = Contextul angajatului lipsește. Acest formular nu poate fi trimis.
+form-error-missing-access-token = Contextul de autentificare lipsește. Reîmprospătați pagina și încercați din nou.
 employee-record-not-assigned = Neatribuit
 employee-record-edit-picture = Editează imaginea
 
@@ -1043,6 +1047,7 @@ working-hours-standard-full-time-description = Completează de luni până viner
 working-hours-customize-by-day-option = Personalizare pe zi
 working-hours-customize-by-day-description = Introduceți manual orele pentru fiecare zi.
 working-hours-distribute-evenly-action = Distribuie uniform
+working-hours-active-period-overlap = Perioada activă a programului de lucru se suprapune cu o înregistrare existentă a programului de lucru.
 
 # Career Tab
 career-tab-title = Traseu de carieră

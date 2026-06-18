@@ -1,9 +1,10 @@
-import React, { useCallback, useMemo, useRef } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
-import { Spinner, useTranslation } from '@newwork/nw-design-system'
+import { Alert, AlertDescription, Spinner, useTranslation } from '@newwork/nw-design-system'
+import { WarningCircleIcon } from '@phosphor-icons/react'
 import { useForm } from 'react-hook-form'
 import translations from './_i18n'
 import { useChangeTaxDetailsData } from './useChangeTaxDetailsData'
@@ -67,6 +68,7 @@ export const ChangeTaxDetails: React.FC<BusinessAppContextProps> = ({ accessToke
     isReady,
     isEmployeeInGermany,
     isEmployeeInRomania,
+    employeeCountryCode,
     employeeGender,
     employeeBirthDate,
     employeeBirthName,
@@ -84,6 +86,24 @@ export const ChangeTaxDetails: React.FC<BusinessAppContextProps> = ({ accessToke
   const title = useMemo(() => t('change-tax-details-title'), [t])
 
   const labels = useMemo(() => getChangeTaxDetailsLabels(t), [t])
+  const taxContextWarnings = useMemo(() => {
+    const warnings: string[] = []
+
+    if (!employeeCountryCode) {
+      warnings.push(t('tax-details-missing-employment-region-warning'))
+    }
+
+    if (isEmployeeInGermany && !employeeBirthDate) {
+      warnings.push(t('tax-details-missing-birth-date-warning'))
+    }
+
+    if (isEmployeeInGermany && !employeeBirthName && !employeeLastName) {
+      warnings.push(t('tax-details-missing-birth-name-warning'))
+    }
+
+    return warnings
+  }, [employeeBirthDate, employeeBirthName, employeeCountryCode, employeeLastName, isEmployeeInGermany, t])
+  const hasBlockingTaxContextWarning = taxContextWarnings.length > 0
 
   const employeeId = getEmployeeId(additionalData, userInfo)
   const existingHealthInsuranceDocumentIdRaw =
@@ -145,7 +165,31 @@ export const ChangeTaxDetails: React.FC<BusinessAppContextProps> = ({ accessToke
   const { formState } = form
   const { isValid, isDirty, errors } = formState
   const hasValidationErrors = Object.keys(errors || {}).length > 0
-  const isSubmitDisabledFinal = !isValid || hasValidationErrors || (!isDirty && !isDocumentChanged) || isUnchangedNow
+  const isSubmitDisabledFinal =
+    hasBlockingTaxContextWarning ||
+    !isValid ||
+    hasValidationErrors ||
+    (!isDirty && !isDocumentChanged) ||
+    isUnchangedNow
+
+  useEffect(() => {
+    if (!isReady) {
+      return
+    }
+
+    form.trigger(['taxNumber', 'taxIdentificationNumber', 'socialSecurityNumber']).catch(() => {
+      // Field validation errors are already reflected in form state.
+    })
+  }, [
+    employeeBirthDate,
+    employeeBirthName,
+    employeeGender,
+    employeeLastName,
+    form,
+    isEmployeeInGermany,
+    isEmployeeInRomania,
+    isReady
+  ])
 
   const handlePreSubmit = async (values: TaxInfoFormValues) => {
     const syncResult = await healthInsuranceDocumentSync.syncDocuments({
@@ -199,6 +243,19 @@ export const ChangeTaxDetails: React.FC<BusinessAppContextProps> = ({ accessToke
       data-testid="change-tax-details-form-container"
     >
       <FormHeader title={title} flowIconUrl={flowIconUrl} className="gba:px-6" />
+      {hasBlockingTaxContextWarning && (
+        <Alert variant="default" className="gba:mb-4" data-testid="change-tax-details-context-warning">
+          <WarningCircleIcon className="gba:h-4 gba:w-4" />
+          <AlertDescription>
+            <div className="gba:flex gba:flex-col gba:gap-1">
+              <span>{t('tax-details-context-warning-title')}</span>
+              {taxContextWarnings.map(warning => (
+                <span key={warning}>{warning}</span>
+              ))}
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
       <div className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-tax-details']]:!pt-0">
         <AppActionForm
           processType="update"

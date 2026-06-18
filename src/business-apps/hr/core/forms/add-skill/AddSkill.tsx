@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
-import { Spinner, useTranslation } from '@newwork/nw-design-system'
+import { Alert, AlertDescription, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -18,6 +18,7 @@ import { AddSkillFormSections } from './components/AddSkillFormSections'
 import { useAddSkillFormController } from './hooks/useAddSkillFormController'
 import { ACCEPTED_VERIFICATION_FILE_TYPES, AddSkillFormValues, DOCUMENT_GROUP_DEVELOPMENT } from './addSkill.types'
 import { useEmployeeDocumentSync } from '../document-sync/useEmployeeDocumentSync'
+import { getFormContextErrorMessage } from '@/business-apps/hr/core/utils/getFormContextErrorMessage'
 
 const getFormTitle = (
   t: (key: string, args?: Record<string, unknown>) => string,
@@ -77,6 +78,10 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = ({ accessToken, addit
     error: contextError,
     isLoading: contextLoading
   } = useAddSkill()
+  const contextErrorMessage = useMemo(
+    () => getFormContextErrorMessage({ error: contextError, employeeId: ctxEmployeeId, accessToken }, t),
+    [accessToken, contextError, ctxEmployeeId, t]
+  )
 
   const form = useForm<AddSkillFormValues>({
     defaultValues: { targetEmployeeId: undefined, documentTypeId: null, validTo: '' },
@@ -221,15 +226,15 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = ({ accessToken, addit
     )
   }
 
-  if (!contextLoading && contextError) {
+  if (!contextLoading && contextErrorMessage) {
     return (
       <div
         className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full gba:p-4"
         data-testid="flw_addSkills_addSkillsContainer"
       >
-        <div className="gba:text-destructive gba:text-sm" data-testid="add-skill-context-error">
-          {contextError}
-        </div>
+        <Alert variant="destructive" data-testid="add-skill-context-error">
+          <AlertDescription>{contextErrorMessage}</AlertDescription>
+        </Alert>
       </div>
     )
   }

@@ -95,6 +95,7 @@ benefit-request-again = Request again
 benefit-pending-request-info = You have already requested this benefit. You can only have one active request at a time. The request is pending approval.
 benefit-pending-request-notice = A request for this benefit is currently pending approval
 benefit-request-employee-id-missing = Employee ID not available. Cannot initiate benefit request.
+benefit-request-benefit-missing = Benefit details are not available. Cannot initiate benefit request.
 benefit-already-scheduled = Scheduled
 benefit-deactivate-button = Deactivate
 benefit-deactivated-button = Deactivated
@@ -314,12 +315,15 @@ notification-bank-account-updated-success = Bank account updates are done.
 notification-personal-data-updated-success = Personal data updates sent to be approved by the HR department.
 notification-communication-updated-success = Communication details updated. HR has been notified.
 notification-communication-deleted-success = Communication entry deleted successfully.
+communication-employee-context-missing = Employee context is missing. Communication details cannot be updated or deleted.
 
 # Employee Record - Errors and states
 employee-record-error-title = Error
 employee-record-error-loading-data = Error loading employee data.
 employee-record-not-found-title = Not Found
 employee-record-not-found-message = Employee not found.
+form-error-missing-employee-context = Employee context is missing. This form cannot be submitted.
+form-error-missing-access-token = Authentication context is missing. Please refresh and try again.
 employee-record-not-assigned = Not assigned
 employee-record-edit-picture = Edit Picture
 
@@ -1056,6 +1060,7 @@ working-hours-standard-full-time-description = Prefill Monday to Friday with 8 h
 working-hours-customize-by-day-option = Customize by day
 working-hours-customize-by-day-description = Enter the hours for each day manually.
 working-hours-distribute-evenly-action = Distribute evenly
+working-hours-active-period-overlap = Employee working hours active period overlaps with an existing working hours entry.
 
 # Career Tab
 career-tab-title = Career & Promotion Readiness

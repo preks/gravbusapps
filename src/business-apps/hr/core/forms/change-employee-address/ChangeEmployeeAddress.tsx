@@ -5,7 +5,7 @@ import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { ChangeEmployeeAddressProvider, useChangeEmployeeAddress } from './ChangeEmployeeAddressContext'
 import { useForm, useFormState } from 'react-hook-form'
-import { Button, FormField, Spinner, useTranslation } from '@newwork/nw-design-system'
+import { Alert, AlertDescription, Button, FormField, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import AddressCommonFields from './components/AddressCommonFields'
@@ -20,6 +20,8 @@ import {
 import { populateFormFromRecord, buildDeletePayloadFromRecord, restoreSelectionFromId } from './helpers'
 import translations from '../../apps/employee-record/_i18n'
 import { useEmployeeDocumentSync } from '../document-sync/useEmployeeDocumentSync'
+import { getFormContextErrorMessage } from '@/business-apps/hr/core/utils/getFormContextErrorMessage'
+import { extractEmployeeId } from '@/business-apps/hr/core/utils/employeeIdUtils'
 interface AddressFormValues {
   selectedAddressId?: string | null // null means Add Address
   countryId?: string | null
@@ -40,12 +42,54 @@ interface AddressFormValues {
   } | null
 }
 
+interface AddressFormContentStateProps {
+  contextErrorMessage: string | null
+  isLoading: boolean
+  isInitialFormHydrated: boolean
+  loadingAddressFormText: string
+  children: React.ReactNode
+}
+
+function AddressFormContentState({
+  contextErrorMessage,
+  isLoading,
+  isInitialFormHydrated,
+  loadingAddressFormText,
+  children
+}: AddressFormContentStateProps) {
+  if (contextErrorMessage) {
+    return (
+      <Alert variant="destructive" data-testid="change-employee-address-context-error">
+        <AlertDescription>{contextErrorMessage}</AlertDescription>
+      </Alert>
+    )
+  }
+
+  if (isLoading || !isInitialFormHydrated) {
+    return (
+      <div
+        className="gba:flex gba:items-center gba:justify-center gba:py-20"
+        data-testid="change-employee-address-initial-loading"
+      >
+        <Spinner size="xl" srText={loadingAddressFormText} />
+      </div>
+    )
+  }
+
+  return <>{children}</>
+}
+
 const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo, additionalData }) => {
   const { t } = useTranslation(translations)
   const [addressLineCount, setAddressLineCount] = useState<number>(1)
   const [addressLinesError, setAddressLinesError] = useState<string | null>(null)
-  const { data, isLoading, refetchAddresses } = useChangeEmployeeAddress()
+  const { data, isLoading, error, refetchAddresses } = useChangeEmployeeAddress()
   const [isInitialFormHydrated, setIsInitialFormHydrated] = useState(false)
+  const contextEmployeeId = useMemo(() => extractEmployeeId(additionalData, userInfo), [additionalData, userInfo])
+  const contextErrorMessage = useMemo(
+    () => getFormContextErrorMessage({ error, employeeId: contextEmployeeId, accessToken }, t),
+    [accessToken, contextEmployeeId, error, t]
+  )
 
   const employee = useMemo(() => (data?.address as any)?.Employee?.[0], [data])
   const employeePosition = useMemo(() => (data?.address as any)?.EmployeePosition?.[0], [data])
@@ -133,6 +177,7 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
   }, [watchedValues, data?.address?.EmployeeAddress, data?.catalogs?.countries])
 
   const employeeId =
+    contextEmployeeId ||
     (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId ||
     userInfo?.employeeDetails?.employeeId ||
     addresses?.[0]?.employeeId ||
@@ -298,14 +343,12 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
         className="gba:flex gba:flex-col gba:[&>div[data-testid='change-employee-address']]:pt-0!"
         data-testid="change-employee-address-form-content"
       >
-        {isLoading || !isInitialFormHydrated ? (
-          <div
-            className="gba:flex gba:items-center gba:justify-center gba:py-20"
-            data-testid="change-employee-address-initial-loading"
-          >
-            <Spinner size="xl" srText={loadingAddressFormText} />
-          </div>
-        ) : (
+        <AddressFormContentState
+          contextErrorMessage={contextErrorMessage}
+          isLoading={isLoading}
+          isInitialFormHydrated={isInitialFormHydrated}
+          loadingAddressFormText={loadingAddressFormText}
+        >
           <AppActionForm
             processType="update"
             form={form as any}
@@ -343,10 +386,6 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
             onSubmit={async (values: AddressFormValues) => {
               // ensure 4 address lines
               const lines = ensureFourLines(values.addressLines)
-              const hasPrimary = addresses.some((obj: any) => obj.type === 'PRIMARY')
-              const hasSecondary = addresses.some((obj: any) => obj.type === 'SECONDARY')
-              void hasPrimary
-              void hasSecondary
               const addingNew = !values.selectedAddressId || values.selectedAddressId === ADD_SENTINEL
               const selected = addingNew
                 ? null
@@ -420,10 +459,6 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
                     const addresses = (data?.address?.EmployeeAddress || []) as any[]
                     const selectedAddr = addresses.find((a: any) => String(a.id) === String(field.value))
                     const isSecondary = selectedAddr?.type === 'SECONDARY'
-                    const linkedBank = (data?.address?.EmployeeBankAccount || []).some(
-                      (b: any) => String(b.employeeAddressId) === String(selectedAddr?.id)
-                    )
-                    void linkedBank
                     return (
                       <AddressSelector
                         value={String(field.value)}
@@ -624,7 +659,7 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
               </div>
             </div>
           </AppActionForm>
-        )}
+        </AddressFormContentState>
       </div>
     </div>
   )

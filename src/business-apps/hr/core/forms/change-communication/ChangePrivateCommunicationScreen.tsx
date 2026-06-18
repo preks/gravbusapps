@@ -11,7 +11,7 @@ import { ValueField } from './components/ValueField'
 import { useCommunicationFormState } from './hooks/useCommunicationFormState'
 import { useCommunicationValidation } from './hooks/useCommunicationValidation'
 import { buildPhoneNumberWithCountryCode } from '@/common/utils/validation/phoneNumberValidation'
-import { useTranslation } from '@newwork/nw-design-system'
+import { Alert, AlertDescription, useTranslation } from '@newwork/nw-design-system'
 import translations from '../../apps/employee-record/_i18n'
 import { DeleteLayout } from '@/components/delete-layout/DeleteLayout'
 
@@ -26,6 +26,9 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
   const { t } = useTranslation(translations)
   const initialParams = getInitialParams(context)
   const isDeleteMode = initialParams.mode === 'delete'
+  const employeeId = initialParams.employeeId || context.userInfo?.employeeDetails?.employeeId
+  const isEmployeeContextMissing = !employeeId
+  const employeeContextError = t('communication-employee-context-missing')
 
   const formState = useCommunicationFormState({
     channels,
@@ -66,8 +69,10 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
     formState.selectedCountryCode,
     formState.phoneNumber
   ])
+  const shouldShowLoadedRecordValidation = Boolean(formState.baseline?.id && !validation.isValid)
 
   const validateForm = () => {
+    if (isEmployeeContextMissing) return [employeeContextError]
     if (isDeleteMode) return null
     const errors: string[] = []
     if (!formState.channelType) errors.push(validation.channelRequiredMessage)
@@ -77,8 +82,6 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
   }
 
   const handlePreSubmit = async () => {
-    const employeeId = initialParams.employeeId || context.userInfo?.employeeDetails?.employeeId
-
     if (isDeleteMode) {
       return {
         employeeId,
@@ -137,6 +140,7 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
         submitButtonVariant="destructive"
         submitButtonTestId="flw_changeCommunication_btnDelete"
         cancelButtonTestId="flw_changeCommunication_btnCancel"
+        isSubmitDisabled={isEmployeeContextMissing}
         data-testid={formatDataTestId(prefixDataTestId, 'DeleteContainer')}
       >
         <div className="gba:bg-white gba:max-w-xl gba:w-full gba:p-6">
@@ -152,6 +156,11 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
                 : undefined
             }
           />
+          {isEmployeeContextMissing && (
+            <Alert variant="destructive" className="gba:mb-4" data-testid="change-communication-context-error">
+              <AlertDescription>{employeeContextError}</AlertDescription>
+            </Alert>
+          )}
           <DeleteLayout
             itemType={t('details-private-communication')}
             itemTitle={initialParams.value || ''}
@@ -169,7 +178,7 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
       onSubmit={data => data}
       validateForm={validateForm}
       handlePreSubmit={handlePreSubmit}
-      isSubmitDisabled={!validation.isValid || !hasChanges}
+      isSubmitDisabled={isEmployeeContextMissing || !validation.isValid || !hasChanges}
       submitEventType="pse_submit"
       cancelEventType="pse_abort"
       submitButtonTestId="flw_changeRelationship_btnSubmit"
@@ -193,13 +202,18 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
         />
 
         <div className="gba:px-0 gba:py-6 gba:space-y-4 gba:overflow-y-auto gba:max-h-[calc(90vh-160px)]">
+          {isEmployeeContextMissing && (
+            <Alert variant="destructive" data-testid="change-communication-context-error">
+              <AlertDescription>{employeeContextError}</AlertDescription>
+            </Alert>
+          )}
           <ChannelTypeField
             value={formState.channelType}
             onChange={formState.setChannelType}
             channels={channels}
             loading={loading}
             error={validation.channelRequiredMessage}
-            touched={formState.channelTouched}
+            touched={formState.channelTouched || shouldShowLoadedRecordValidation}
           />
 
           <TypeField
@@ -208,7 +222,7 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
             types={types}
             loading={loading}
             error={validation.typeRequiredMessage}
-            touched={formState.typeTouched}
+            touched={formState.typeTouched || shouldShowLoadedRecordValidation}
             secondaryTypeId={formState.secondaryTypeId}
             hasPrimaryForSelection={formState.hasPrimaryForSelection}
           />
@@ -224,7 +238,7 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
             onCountryCodeChange={formState.setSelectedCountryCode}
             onTouched={() => formState.setValueTouched(true)}
             error={validation.valueValidationMessage}
-            touched={formState.valueTouched}
+            touched={formState.valueTouched || shouldShowLoadedRecordValidation}
           />
         </div>
       </div>

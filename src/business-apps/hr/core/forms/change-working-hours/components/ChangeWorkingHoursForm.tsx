@@ -217,6 +217,27 @@ export const ChangeWorkingHoursForm: React.FC = () => {
   const exceedsWeeklyLimit = (weeklySum ?? 0) > 48
   const exceedsWorkingDaysLimit = (workingDays ?? 0) > 6
   const isEmployeeSelectionMissing = !isFixedEmployeeId && !selectedEmployeeId
+  const activePeriodOverlapError = useMemo(() => {
+    const submittedRecord = {
+      id: changeMode === 'UPDATE' ? existingWorkingMeta?.id : undefined,
+      activeFrom: watchedValues?.activeFrom,
+      activeTo: watchedValues?.activeTo
+    }
+    const hasOverlap = workingHoursValidationRecords.some(record => hasActivePeriodOverlap(submittedRecord, record))
+
+    if (!hasOverlap) {
+      return ''
+    }
+
+    return t('working-hours-active-period-overlap')
+  }, [
+    changeMode,
+    existingWorkingMeta?.id,
+    t,
+    watchedValues?.activeFrom,
+    watchedValues?.activeTo,
+    workingHoursValidationRecords
+  ])
   const parsedWeeklyHoursInput = parsePositiveNumber(weeklyHoursInput)
   const parsedWorkingDaysInput = parsePositiveNumber(workingDaysInput)
   const canDistributeEvenly =
@@ -303,20 +324,8 @@ export const ChangeWorkingHoursForm: React.FC = () => {
       ]
     }
 
-    const submittedRecord = {
-      id: changeMode === 'UPDATE' ? existingWorkingMeta?.id : undefined,
-      activeFrom: values.activeFrom,
-      activeTo: values.activeTo
-    }
-    const hasOverlap = workingHoursValidationRecords.some(record => hasActivePeriodOverlap(submittedRecord, record))
-
-    if (hasOverlap) {
-      return [
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:working_hours_form.active_period_overlap',
-          'Employee working hours active period overlaps with an existing working hours entry.'
-        )
-      ]
+    if (activePeriodOverlapError) {
+      return [activePeriodOverlapError]
     }
 
     return null
@@ -480,6 +489,7 @@ export const ChangeWorkingHoursForm: React.FC = () => {
         exceedsWorkingDaysLimit ||
         isActiveFromMissing ||
         isActiveToBeforeActiveFrom ||
+        Boolean(activePeriodOverlapError) ||
         isEmployeeSelectionMissing
       }
       validateForm={validateWorkingHoursForm}
@@ -562,6 +572,14 @@ export const ChangeWorkingHoursForm: React.FC = () => {
                 ) : null}
               </div>
             </div>
+            {activePeriodOverlapError ? (
+              <div
+                className="gba:text-sm gba:text-destructive"
+                data-testid="flw_updateWorkingHours_activePeriodOverlapError"
+              >
+                {activePeriodOverlapError}
+              </div>
+            ) : null}
 
             <div className="gba:flex gba:flex-col gba:gap-3 sm:gba:flex-row">
               {renderModeButton(

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { Button, Alert, Label, useTranslation } from '@newwork/nw-design-system'
+import { Alert, AlertDescription, Button, Label, useTranslation } from '@newwork/nw-design-system'
 import { UserIcon } from '@phosphor-icons/react'
 import { useFeedbackRequestForm } from '../context/FeedbackRequestFormContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -67,10 +67,57 @@ const FeedbackRequestFormComponent: React.FC = () => {
 
   // request message is optional; UI currently does not expose a field
 
+  const selectedIds = useMemo(() => {
+    if (formValues.employeeIds && formValues.employeeIds.length > 0) {
+      return formValues.employeeIds
+    }
+
+    return formValues.employeeId ? [formValues.employeeId] : []
+  }, [formValues.employeeId, formValues.employeeIds])
+
+  const feedbackBlockerMessage = useMemo(() => {
+    if (selectedIds.length === 0) {
+      return null
+    }
+
+    const currentUserEmployeeId = businessAppContext.userInfo?.employeeDetails?.employeeId
+    const targetSubjectUserId = resolveSubjectUserId(
+      businessAppContext.additionalData,
+      businessAppContext.userInfo?.id,
+      currentUserEmployeeId
+    )
+
+    if (!targetSubjectUserId) {
+      return getTranslationFromI18nKeyAndLabel('feedback.request.noCurrentUser', 'Unable to identify current user')
+    }
+
+    const { unresolvedSelectedIds } = resolveRequestedFromUserIds({
+      selectedIds,
+      employeeIdUserIdMap: formValues.employeeIdUserIdMap,
+      resolveUserIdByEmployeeId: id => {
+        const resolved =
+          preSelectedEmployee?.id === id
+            ? preSelectedEmployee
+            : (getEmployeeById(id) as { id: string; userId?: string } | undefined)
+        return resolved?.userId
+      }
+    })
+
+    return unresolvedSelectedIds.length > 0 ? t('feedback-request-missing-user-id') : null
+  }, [
+    businessAppContext.additionalData,
+    businessAppContext.userInfo?.employeeDetails?.employeeId,
+    businessAppContext.userInfo?.id,
+    formValues.employeeIdUserIdMap,
+    getEmployeeById,
+    preSelectedEmployee,
+    selectedIds,
+    t
+  ])
+
   const isSubmitDisabled = useMemo(() => {
-    const hasSelection = (formValues.employeeIds && formValues.employeeIds.length > 0) || Boolean(formValues.employeeId)
-    return isLoading || !hasSelection
-  }, [isLoading, formValues.employeeIds, formValues.employeeId])
+    return isLoading || selectedIds.length === 0 || Boolean(feedbackBlockerMessage)
+  }, [feedbackBlockerMessage, isLoading, selectedIds.length])
 
   const selectedEmployeesPreview = useMemo(() => {
     const names = formValues.employeeNames || []
@@ -82,11 +129,8 @@ const FeedbackRequestFormComponent: React.FC = () => {
 
   // Build payload and run any side-effects before submit event is dispatched
   const handlePreSubmit = useCallback(async () => {
-    let selectedIds: string[] = []
-    if (formValues.employeeIds && formValues.employeeIds.length > 0) {
-      selectedIds = formValues.employeeIds
-    } else if (formValues.employeeId) {
-      selectedIds = [formValues.employeeId]
+    if (feedbackBlockerMessage) {
+      throw new Error(feedbackBlockerMessage)
     }
 
     const currentUserEmployeeId = businessAppContext.userInfo?.employeeDetails?.employeeId
@@ -157,16 +201,16 @@ const FeedbackRequestFormComponent: React.FC = () => {
 
     return payload
   }, [
-    formValues.employeeIds,
     formValues.employeeIdUserIdMap,
-    formValues.employeeId,
     formValues.requestMessage,
+    feedbackBlockerMessage,
     businessAppContext.accessToken,
     businessAppContext.additionalData,
     businessAppContext.userInfo?.id,
     businessAppContext.userInfo?.employeeDetails?.employeeId,
     getEmployeeById,
     preSelectedEmployee,
+    selectedIds,
     t
   ])
 
@@ -196,6 +240,12 @@ const FeedbackRequestFormComponent: React.FC = () => {
           {error && (
             <Alert variant="destructive" data-testid={formatDataTestId(prefixDataTestId, 'Error')}>
               {error}
+            </Alert>
+          )}
+
+          {feedbackBlockerMessage && (
+            <Alert variant="destructive" data-testid={formatDataTestId(prefixDataTestId, 'ContextError')}>
+              <AlertDescription>{feedbackBlockerMessage}</AlertDescription>
             </Alert>
           )}
 

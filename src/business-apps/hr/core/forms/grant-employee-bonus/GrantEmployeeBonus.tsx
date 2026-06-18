@@ -19,9 +19,10 @@ import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { extractEmployeeId } from '@/business-apps/hr/core/utils/employeeIdUtils'
 import { useTaskCancellation } from '../../hooks/useTaskCancellation'
 import translations from '../_i18n'
+import { getFormContextErrorMessage } from '@/business-apps/hr/core/utils/getFormContextErrorMessage'
 
-const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ additionalData, userInfo }) => {
-  const { data } = useGrantEmployeeBonus()
+const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ accessToken, additionalData, userInfo }) => {
+  const { data, error } = useGrantEmployeeBonus()
   const { t } = useTranslation(translations)
 
   const employee = useMemo(() => data?.employee?.EmployeeByPk, [data])
@@ -127,6 +128,10 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
     () => extractEmployeeId(additionalData, userInfo, employee),
     [additionalData, userInfo, employee]
   )
+  const contextErrorMessage = useMemo(
+    () => getFormContextErrorMessage({ error, employeeId, accessToken }, t),
+    [accessToken, employeeId, error, t]
+  )
 
   // Extract manager employee ID (logged-in user who initiates the flow)
   const managerEmployeeId = userInfo?.employeeDetails?.employeeId || ''
@@ -150,6 +155,12 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
             : undefined
         }
       />
+
+      {contextErrorMessage && (
+        <Alert variant="destructive" className="gba:mb-4" data-testid="grant-bonus-context-error">
+          <AlertDescription>{contextErrorMessage}</AlertDescription>
+        </Alert>
+      )}
 
       {!hasEmploymentRegion && (
         <Alert variant="default" className="gba:mb-4" data-testid="grant-bonus-no-region-warning">
@@ -175,7 +186,12 @@ const GrantEmployeeBonusContent: React.FC<BusinessAppContextProps> = ({ addition
           cancelEventType="pse_abort"
           cancelButtonText={t('action-cancel')}
           submitButtonText={t('action-submit')}
-          isSubmitDisabled={!form.formState.isValid || isUnchangedNow || data?.hasEmploymentRegion !== true}
+          isSubmitDisabled={
+            Boolean(contextErrorMessage) ||
+            !form.formState.isValid ||
+            isUnchangedNow ||
+            data?.hasEmploymentRegion !== true
+          }
           // Shows cancel button - default cancelEventType="pse_abort" handles process abort
           onCancel={() => {
             markAsCancelled()
