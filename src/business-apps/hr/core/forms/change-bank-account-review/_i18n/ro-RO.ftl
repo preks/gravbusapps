@@ -28,7 +28,7 @@ label-account-number = Număr cont
 label-routing-number = Cod de rutare
 label-address = Adresă
 label-iban = IBAN
-label-swift = Swift
+label-swift = BIC
 
 # Form-Specific Field Values
 value-checkings = Cont curent

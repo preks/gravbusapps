@@ -28,7 +28,7 @@ label-account-number = Account Number
 label-routing-number = Routing Number
 label-address = Address
 label-iban = IBAN
-label-swift = Swift
+label-swift = BIC
 
 # Form-Specific Field Values
 value-checkings = Checkings

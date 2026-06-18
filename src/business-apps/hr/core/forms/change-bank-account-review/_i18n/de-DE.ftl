@@ -28,7 +28,7 @@ label-account-number = Kontonummer
 label-routing-number = Bankleitzahl
 label-address = Adresse
 label-iban = IBAN
-label-swift = Swift
+label-swift = BIC
 
 # Form-Specific Field Values
 value-checkings = Girokonto

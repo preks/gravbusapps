@@ -64,21 +64,13 @@ const NonUsFields: React.FC<NonUsFieldsProps> = ({ form, selectedCountryId }) =>
         name={'swift' as any}
         render={({ field }) => (
           <FormItem>
-            <FormLabel>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:employee_profile.details_layout.bank_account_form.swift_select_label',
-                'Swift'
-              )}
-            </FormLabel>
+            <FormLabel>BIC</FormLabel>
             <FormControl>
               <Input
                 {...field}
                 value={field.value ?? ''}
                 onChange={event => field.onChange(normalizeBankIdentifier(event.target.value))}
-                placeholder={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:employee_profile.details_layout.bank_account_form.swift_select_placeholder',
-                  'Enter Swift'
-                )}
+                placeholder="Enter BIC"
                 data-testid="flw_changeBankAccount_bankName_swift"
               />
             </FormControl>
