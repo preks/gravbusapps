@@ -72,6 +72,19 @@ const pickLatestPreview = (
   return values.length > 0 ? values[values.length - 1] : null
 }
 
+/** When invoice export finishes, both document and pdf previews can be ready — prefer pdf. */
+function preferTerminalDeliverablePreview(
+  picked: ArtifactPreview | null,
+  previewMap: Map<string, ArtifactPreview>
+): ArtifactPreview | null {
+  if (!picked) return null
+  if (picked.artifactType !== 'document') return picked
+  const pdfPreview = [...previewMap.values()].find(
+    p => p.artifactType === 'pdf' && (p.status === 'ready' || p.status === 'draft_ready' || p.status === 'generating')
+  )
+  return pdfPreview ?? picked
+}
+
 /**
  * Derives the latest artifact preview state from SSE events.
  *
@@ -139,7 +152,7 @@ export const useArtifactPreview = (events: AgentStreamEvent[]) => {
       }
     }
 
-    const latest = pickLatestPreview(events, previewMap)
+    const latest = preferTerminalDeliverablePreview(pickLatestPreview(events, previewMap), previewMap)
     // Charts render inline in chat only; exclude from Live Preview rail (Option A).
     const latestPreview = latest?.artifactType === 'chart' ? null : latest
 
@@ -149,18 +162,20 @@ export const useArtifactPreview = (events: AgentStreamEvent[]) => {
     }
   }, [events])
 
-  // An active preview also includes the terminal ``error`` state so the right
-  // rail stays wide enough to render the designed failure card (with a retry
-  // button) instead of squeezing it into the narrow ambient progress rail.
-  // Only slides, documents, and notes need the wide canvas — charts and
-  // dashboards fit comfortably in the narrow rail.
-  const WIDE_PREVIEW_TYPES = new Set(['slides', 'document', 'note', 'html', 'pdf'])
+  // Wide rail follows the preview the user actually sees (latest), not every
+  // artifact_preview still in the turn map — e.g. invoice PDF export leaves a
+  // ready ``document`` preview behind while the rail shows the PDF attachment.
+  // Terminal error states still widen the rail for the retry card. PDFs and
+  // charts use the narrow rail; slides/documents/notes/HTML need canvas width.
+  const WIDE_PREVIEW_TYPES = new Set(['slides', 'document', 'note', 'html'])
 
-  const hasActivePreview = previews.some(
-    p =>
-      WIDE_PREVIEW_TYPES.has(p.artifactType) &&
-      (p.status === 'generating' || p.status === 'draft_ready' || p.status === 'ready' || p.status === 'error')
-  )
+  const hasActivePreview =
+    !!latestPreview &&
+    WIDE_PREVIEW_TYPES.has(latestPreview.artifactType) &&
+    (latestPreview.status === 'generating' ||
+      latestPreview.status === 'draft_ready' ||
+      latestPreview.status === 'ready' ||
+      latestPreview.status === 'error')
 
   return { previews, latestPreview, hasActivePreview }
 }
