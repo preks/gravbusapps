@@ -55,6 +55,7 @@ type EmployeeFormData = z.infer<ReturnType<typeof createEmployeeFormSchema>>
 
 const EMPLOYMENT_TYPE_CATALOG = 'EmploymentType'
 const EMPLOYMENT_TYPE_VERSION = 'v1'
+const LEGAL_WORKING_AGE_YEARS = 18
 
 const getEmploymentTypeParentReferences = (employmentType?: {
   id: string
@@ -83,6 +84,45 @@ function RequiredFormLabel({ children }: { children: React.ReactNode }) {
 
 function hasEmptyRequiredField(value: unknown): boolean {
   return typeof value === 'string' ? value.trim().length === 0 : value == null
+}
+
+function getLegalWorkingAgeDate(birthDateValue?: string): Date | null {
+  if (!birthDateValue) {
+    return null
+  }
+
+  const birthDate = new Date(birthDateValue)
+  if (Number.isNaN(birthDate.getTime())) {
+    return null
+  }
+
+  const legalAgeDate = new Date(birthDate)
+  legalAgeDate.setFullYear(legalAgeDate.getFullYear() + LEGAL_WORKING_AGE_YEARS)
+  return legalAgeDate
+}
+
+function isYoungerThanLegalWorkingAge(birthDateValue?: string): boolean {
+  const legalAgeDate = getLegalWorkingAgeDate(birthDateValue)
+  if (!legalAgeDate) {
+    return false
+  }
+
+  return legalAgeDate > new Date()
+}
+
+function isHireDateBeforeLegalWorkingAge(birthDateValue?: string, hireDateValue?: string): boolean {
+  if (!hireDateValue) {
+    return false
+  }
+
+  const legalAgeDate = getLegalWorkingAgeDate(birthDateValue)
+  const hireDate = new Date(hireDateValue)
+
+  if (!legalAgeDate || Number.isNaN(hireDate.getTime())) {
+    return false
+  }
+
+  return hireDate < legalAgeDate
 }
 
 type EmployeeWizardNavigationForm = {
@@ -187,6 +227,8 @@ const EmployeeForm: React.FC = () => {
   const [isCreateJobPositionModalOpen, setIsCreateJobPositionModalOpen] = useState(false)
   const [isProcessPending, setIsProcessPending] = useState(false)
   const formTitle = isEdit ? t('employee-form-update-employee') : t('employee-form-create-employee')
+  const showLegalAgeWarning = isYoungerThanLegalWorkingAge(formValues.birthDate)
+  const showHireDateBeforeLegalAgeWarning = isHireDateBeforeLegalWorkingAge(formValues.birthDate, formValues.hireDate)
 
   const employeeFormSchema = useMemo(() => createEmployeeFormSchema(t), [t])
 
@@ -725,6 +767,11 @@ const EmployeeForm: React.FC = () => {
                   )}
                 />
               </FormFieldGroup>
+              {showLegalAgeWarning && (
+                <div className="gba:text-sm gba:text-warning" data-testid="employee-form-legal-age-warning">
+                  {t('employee-form-legal-age-warning')}
+                </div>
+              )}
             </FormSection>
           </WizardFormStep>
         )
@@ -756,6 +803,14 @@ const EmployeeForm: React.FC = () => {
                         captionLayout="dropdown"
                       />
                     </FormControl>
+                    {showHireDateBeforeLegalAgeWarning && (
+                      <div
+                        className="gba:text-sm gba:text-warning"
+                        data-testid="employee-form-hire-date-legal-age-warning"
+                      >
+                        {t('employee-form-hire-date-legal-age-warning')}
+                      </div>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}

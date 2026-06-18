@@ -205,6 +205,8 @@ label-last-name = Nachname
 label-email = E-Mail
 label-notes = Notizen
 label-birth-date = Geburtsdatum
+employee-form-legal-age-warning = Der Mitarbeitende ist jünger als das gesetzliche Arbeitsalter. Bitte vor dem Fortfahren prüfen.
+employee-form-hire-date-legal-age-warning = Das Eintrittsdatum liegt vor dem Erreichen des gesetzlichen Arbeitsalters. Bitte vor dem Fortfahren prüfen.
 label-birth-place = Geburtsort
 label-country = Land
 label-city = Stadt
@@ -334,6 +336,7 @@ working-conditions-active-period-overlap = Der aktive Zeitraum der Arbeitsbeding
 working-conditions-employment-end-before-start = Das Beschäftigungsende darf nicht vor dem Beschäftigungsbeginn liegen
 working-conditions-probation-end-before-start = Das Ende der Probezeit muss am Startdatum oder danach liegen.
 working-conditions-probation-exception-warning = Sie haben das Enddatum der Probezeit manuell vom Vertragswert geändert. Bitte überprüfen.
+working-conditions-valid-from-before-hire-date-warning = Die Arbeitsbedingung beginnt vor dem Eintrittsdatum des Mitarbeiters.
 working-conditions-required = Bitte füllen Sie alle Pflichtfelder aus
 working-conditions-unit-day = { $count ->
     [one] Tag

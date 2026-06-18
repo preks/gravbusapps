@@ -19,14 +19,19 @@ export interface EmployeeLite {
   firstName?: string
   lastName?: string
   employeePosition?: {
+    hireDate?: string | null
     jobPosition?: { name?: string }
   }
+  workingCondition?: Array<{
+    hireDate?: string | null
+  }>
 }
 
 export interface ChangeWorkingHoursContextState {
   employee: EmployeeLite | null
   employees: Array<{ id: string; firstName: string; lastName: string }>
   defaults: WorkingHoursFormValues | null
+  employeeHireDate: string
   existingWorkingMeta: { id?: string; version?: number; remoteRef?: string } | null
   workingHoursValidationRecords: WorkingHoursValidationRecord[]
   selectedEmployeeId: string
@@ -100,6 +105,11 @@ const getCurrentWorkingHours = (records: any[], today: string, workingHoursId?: 
   return records.find(isLegacyWorkingHours) || null
 }
 
+const getEmployeeHireDate = (employee?: EmployeeLite | null): string => {
+  const workingConditionHireDate = employee?.workingCondition?.find(condition => condition?.hireDate)?.hireDate
+  return toDateInputValue(workingConditionHireDate || employee?.employeePosition?.hireDate)
+}
+
 export const useChangeWorkingHoursContext = () => {
   const ctx = useContext(ChangeWorkingHoursContext)
   if (!ctx) throw new Error('useChangeWorkingHoursContext must be used within ChangeWorkingHoursProvider')
@@ -126,6 +136,7 @@ export function ChangeWorkingHoursProvider({
   const [error, setError] = useState<string | null>(null)
   const [employee, setEmployee] = useState<EmployeeLite | null>(null)
   const [defaults, setDefaults] = useState<WorkingHoursFormValues | null>(null)
+  const [employeeHireDate, setEmployeeHireDate] = useState('')
   const [existingWorkingMeta, setExistingWorkingMeta] = useState<{
     id?: string
     version?: number
@@ -188,10 +199,12 @@ export function ChangeWorkingHoursProvider({
       const today = `${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`
       const workingHoursCandidates = res?.employee?.[0]?.workingHours || []
       const working = getCurrentWorkingHours(workingHoursCandidates, today, workingHoursId, changeMode)
+      const hireDate = getEmployeeHireDate(emp)
       setEmployee(emp)
+      setEmployeeHireDate(hireDate)
       setWorkingHoursValidationRecords(res?.employee?.[0]?.workingHoursValidationRecords || [])
       const d: WorkingHoursFormValues = {
-        activeFrom: toDateInputValue(working?.activeFrom),
+        activeFrom: toDateInputValue(working?.activeFrom) || hireDate,
         activeTo: toDateInputValue(working?.activeTo),
         mondayHours: (working?.mondayHours ?? 0) as number,
         tuesdayHours: (working?.tuesdayHours ?? 0) as number,
@@ -241,6 +254,7 @@ export function ChangeWorkingHoursProvider({
         sundayHours: 0
       }
       setEmployee(null)
+      setEmployeeHireDate('')
       setExistingWorkingMeta(null)
       setWorkingHoursValidationRecords([])
       setDefaults(zeroDefaults)
@@ -318,6 +332,7 @@ export function ChangeWorkingHoursProvider({
       employee,
       employees,
       defaults,
+      employeeHireDate,
       existingWorkingMeta,
       workingHoursValidationRecords,
       selectedEmployeeId,
@@ -334,6 +349,7 @@ export function ChangeWorkingHoursProvider({
       employee,
       employees,
       defaults,
+      employeeHireDate,
       existingWorkingMeta,
       workingHoursValidationRecords,
       selectedEmployeeId,

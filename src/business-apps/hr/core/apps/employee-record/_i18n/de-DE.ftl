@@ -1048,6 +1048,9 @@ working-hours-customize-by-day-option = Nach Tag anpassen
 working-hours-customize-by-day-description = Geben Sie die Stunden für jeden Tag manuell ein.
 working-hours-distribute-evenly-action = Gleichmäßig verteilen
 working-hours-active-period-overlap = Der aktive Zeitraum der Arbeitszeiten überschneidet sich mit bestehenden Arbeitszeiten.
+working-hours-active-from-before-hire-date-warning = Die Arbeitszeiten beginnen vor dem Eintrittsdatum des Mitarbeiters.
+working-hours-at-least-one-working-day-required = Mindestens ein Tag muss mehr als 0 Arbeitsstunden haben.
+working-hours-submitting-message = Arbeitszeiten werden übermittelt...
 
 # Career Tab
 career-tab-title = Karrierepfad

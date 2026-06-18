@@ -3,9 +3,15 @@ export const EMPLOYEE_DATA_QUERY = `query MyQuery ($employeeId: uuid!) {
     firstName
     lastName
     employeePosition{
+      hireDate
       jobPosition {
         name
       }
+    }
+    workingCondition(where: {isDeleted: {_neq: true}}, orderBy: [{activeFrom: DESC}, {createdAt: DESC}]) {
+      hireDate
+      activeFrom
+      activeTo
     }
     id
     pictureThumbnail

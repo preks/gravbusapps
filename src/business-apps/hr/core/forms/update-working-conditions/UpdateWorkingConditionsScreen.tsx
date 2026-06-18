@@ -346,6 +346,13 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
     return effectiveStart.isValid() && effectiveEnd.isValid() && effectiveEnd.isBefore(effectiveStart, 'day')
   }, [effectiveStartDate, effectiveEndDate])
 
+  const isEffectiveStartBeforeHireDate = useMemo(() => {
+    if (changeMode !== 'INSERT' || !effectiveStartDate || !startDate) return false
+    const effectiveStart = dayjs(effectiveStartDate)
+    const hireDate = dayjs(startDate)
+    return effectiveStart.isValid() && hireDate.isValid() && effectiveStart.isBefore(hireDate, 'day')
+  }, [changeMode, effectiveStartDate, startDate])
+
   const isValid = useMemo(() => {
     return (
       Boolean(
@@ -417,8 +424,10 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
         return false
       }
 
-      const existingIsOpenEnded = getDateTimestamp(existingRecord.activeTo) === null
-      if (changeMode === 'INSERT' && existingIsOpenEnded && submittedFrom > existingFrom) {
+      const isReplacingOpenEndedRecord =
+        changeMode === 'INSERT' && !submittedRecord.activeTo && !existingRecord.activeTo && submittedFrom > existingFrom
+
+      if (isReplacingOpenEndedRecord) {
         return false
       }
 
@@ -695,6 +704,14 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
                 outputFormat="iso"
                 data-testid="flw_updateWorkingConditions_effectiveStartDatePicker"
               />
+              {isEffectiveStartBeforeHireDate && (
+                <div
+                  className="gba:text-sm gba:text-warning"
+                  data-testid="flw_updateWorkingConditions_effectiveStartBeforeHireDateWarning"
+                >
+                  {t('working-conditions-valid-from-before-hire-date-warning')}
+                </div>
+              )}
               {activePeriodOverlapError && !isEffectiveEndBeforeStart && (
                 <div
                   className="gba:text-sm gba:text-destructive"

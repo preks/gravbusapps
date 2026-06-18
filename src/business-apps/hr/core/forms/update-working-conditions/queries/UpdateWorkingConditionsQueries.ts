@@ -244,6 +244,11 @@ export const useWorkingConditionsLookups = (context: BusinessAppContextProps) =>
     }
   }
 
+  const getFirstHireDate = (records: any[]): string | null => {
+    const recordWithHireDate = records.find(record => record?.hireDate)
+    return recordWithHireDate?.hireDate || null
+  }
+
   const load = useCallback(async () => {
     const additionalData = (context as any)?.additionalData
     const externalContextData = additionalData?.externalContextData
@@ -338,7 +343,15 @@ export const useWorkingConditionsLookups = (context: BusinessAppContextProps) =>
       setRegionCatalogIsFull(useFullRegionCatalog)
       setRegions(regionOptions.length > 0 ? regionOptions : toOptions(res?.allEmploymentRegions))
       setCurrent(toWorkingConditionsRecord(wcRaw))
-      setDefaultWorkingCondition(toWorkingConditionsRecord(defaultWorkingConditionRaw))
+      const defaultWorkingCondition = toWorkingConditionsRecord(defaultWorkingConditionRaw)
+      setDefaultWorkingCondition(
+        defaultWorkingCondition
+          ? {
+              ...defaultWorkingCondition,
+              startDate: defaultWorkingCondition.startDate || getFirstHireDate(workingConditionCandidates)
+            }
+          : null
+      )
       const jt = res?.Employee?.[0]?.employeePosition?.jobPosition?.name || ''
       setJobTitle(jt)
       setFirstName(res?.Employee?.[0]?.firstName || '')

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
@@ -31,6 +31,7 @@ import translations from '../../../apps/employee-record/_i18n'
 
 type WorkingHoursMode = 'standard' | 'custom' | null
 type DateInputValue = string | [string | null, string | null] | null
+const PROCESS_PENDING_TIMEOUT_MS = 12000
 
 const standardFullTimeValues: WorkingHoursFormValues = {
   activeFrom: '',
@@ -90,7 +91,8 @@ const hasWorkingHoursDateRange = (record: WorkingHoursValidationRecord): boolean
 
 const hasActivePeriodOverlap = (
   submittedRecord: { id?: string; activeFrom?: string; activeTo?: string },
-  existingRecord: WorkingHoursValidationRecord
+  existingRecord: WorkingHoursValidationRecord,
+  changeMode: 'UPDATE' | 'INSERT'
 ): boolean => {
   if (submittedRecord.id && existingRecord.id === submittedRecord.id) {
     return false
@@ -106,6 +108,17 @@ const hasActivePeriodOverlap = (
   const existingTo = getDateTimestamp(existingRecord.activeTo) ?? Number.POSITIVE_INFINITY
 
   if (submittedFrom === null) {
+    return false
+  }
+
+  const isReplacingOpenEndedRecord =
+    changeMode === 'INSERT' &&
+    !submittedRecord.activeTo &&
+    !existingRecord.activeTo &&
+    existingFrom !== Number.NEGATIVE_INFINITY &&
+    submittedFrom > existingFrom
+
+  if (isReplacingOpenEndedRecord) {
     return false
   }
 
@@ -126,6 +139,7 @@ export const ChangeWorkingHoursForm: React.FC = () => {
     employee,
     employees,
     defaults,
+    employeeHireDate,
     existingWorkingMeta,
     workingHoursValidationRecords,
     selectedEmployeeId,
@@ -140,6 +154,8 @@ export const ChangeWorkingHoursForm: React.FC = () => {
   const [weeklyHoursInput, setWeeklyHoursInput] = useState('0')
   const [workingDaysInput, setWorkingDaysInput] = useState('0')
   const [hasInteractedWithWorkingTime, setHasInteractedWithWorkingTime] = useState(false)
+  const [isProcessPending, setIsProcessPending] = useState(false)
+  const processPendingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const form = useForm<WorkingHoursFormValues>({
     defaultValues: {
@@ -167,6 +183,34 @@ export const ChangeWorkingHoursForm: React.FC = () => {
     }
   }, [defaults, existingWorkingMeta?.id, form])
 
+  useEffect(() => {
+    return () => {
+      if (processPendingTimeoutRef.current) {
+        clearTimeout(processPendingTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  const clearProcessPending = () => {
+    if (processPendingTimeoutRef.current) {
+      clearTimeout(processPendingTimeoutRef.current)
+      processPendingTimeoutRef.current = null
+    }
+    setIsProcessPending(false)
+  }
+
+  const showProcessPending = () => {
+    if (processPendingTimeoutRef.current) {
+      clearTimeout(processPendingTimeoutRef.current)
+    }
+
+    setIsProcessPending(true)
+    processPendingTimeoutRef.current = setTimeout(() => {
+      processPendingTimeoutRef.current = null
+      setIsProcessPending(false)
+    }, PROCESS_PENDING_TIMEOUT_MS)
+  }
+
   const setDailyHours = (values: WorkingHoursFormValues) => {
     for (const { key } of dayOrder) {
       form.setValue(key, values[key], { shouldValidate: true, shouldDirty: true })
@@ -189,6 +233,7 @@ export const ChangeWorkingHoursForm: React.FC = () => {
   const watchedValues = form.watch()
   const isActiveFromMissing = !watchedValues?.activeFrom
   const isActiveToBeforeActiveFrom = isDateBefore(watchedValues?.activeTo, watchedValues?.activeFrom)
+  const isActiveFromBeforeHireDate = isDateBefore(watchedValues?.activeFrom, employeeHireDate)
   const { weeklySum, workingDays, fte, areAllDaysValid } = useMemo(() => {
     const keys: (keyof WorkingHoursFormValues)[] = [
       'mondayHours',
@@ -216,6 +261,7 @@ export const ChangeWorkingHoursForm: React.FC = () => {
 
   const exceedsWeeklyLimit = (weeklySum ?? 0) > 48
   const exceedsWorkingDaysLimit = (workingDays ?? 0) > 6
+  const hasPositiveWorkingDay = (workingDays ?? 0) > 0
   const isEmployeeSelectionMissing = !isFixedEmployeeId && !selectedEmployeeId
   const activePeriodOverlapError = useMemo(() => {
     const submittedRecord = {
@@ -223,13 +269,11 @@ export const ChangeWorkingHoursForm: React.FC = () => {
       activeFrom: watchedValues?.activeFrom,
       activeTo: watchedValues?.activeTo
     }
-    const hasOverlap = workingHoursValidationRecords.some(record => hasActivePeriodOverlap(submittedRecord, record))
+    const hasOverlap = workingHoursValidationRecords.some(record =>
+      hasActivePeriodOverlap(submittedRecord, record, changeMode)
+    )
 
-    if (!hasOverlap) {
-      return ''
-    }
-
-    return t('working-hours-active-period-overlap')
+    return hasOverlap ? t('working-hours-active-period-overlap') : undefined
   }, [
     changeMode,
     existingWorkingMeta?.id,
@@ -324,8 +368,27 @@ export const ChangeWorkingHoursForm: React.FC = () => {
       ]
     }
 
-    if (activePeriodOverlapError) {
-      return [activePeriodOverlapError]
+    const hasAtLeastOneWorkingDay = dayOrder.some(({ key }) => Number(values[key] || 0) > 0)
+    if (!hasAtLeastOneWorkingDay) {
+      return [t('working-hours-at-least-one-working-day-required')]
+    }
+
+    const submittedRecord = {
+      id: changeMode === 'UPDATE' ? existingWorkingMeta?.id : undefined,
+      activeFrom: values.activeFrom,
+      activeTo: values.activeTo
+    }
+    const hasOverlap = workingHoursValidationRecords.some(record =>
+      hasActivePeriodOverlap(submittedRecord, record, changeMode)
+    )
+
+    if (hasOverlap) {
+      return [
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:working_hours_form.active_period_overlap',
+          'Employee working hours active period overlaps with an existing working hours entry.'
+        )
+      ]
     }
 
     return null
@@ -485,6 +548,8 @@ export const ChangeWorkingHoursForm: React.FC = () => {
         !areAllDaysValid ||
         Boolean(firstDayErrorMessage) ||
         !form.formState.isDirty ||
+        isProcessPending ||
+        !hasPositiveWorkingDay ||
         exceedsWeeklyLimit ||
         exceedsWorkingDaysLimit ||
         isActiveFromMissing ||
@@ -493,8 +558,10 @@ export const ChangeWorkingHoursForm: React.FC = () => {
         isEmployeeSelectionMissing
       }
       validateForm={validateWorkingHoursForm}
+      onProcessCompletion={clearProcessPending}
       data-testid="change-working-hours-form"
       onSubmit={async (values: WorkingHoursFormValues) => {
+        showProcessPending()
         const payload = buildSubmitPayload(values, {
           weeklySum: typeof weeklySum === 'number' ? weeklySum : 0,
           workingDays: typeof workingDays === 'number' ? workingDays : 0,
@@ -509,238 +576,267 @@ export const ChangeWorkingHoursForm: React.FC = () => {
         className="gba:flex-1 gba:flex gba:flex-col gba:justify-between"
         data-testid="flw_updateWorkingHours_mainContainer"
       >
-        <div>
-          <div className="gba:flex gba:items-center gba:mb-6">{renderEmployeeHeader()}</div>
-          <div className="gba:border-t gba:mb-6" />
+        {isProcessPending ? (
+          <div
+            className="gba:flex gba:min-h-96 gba:flex-col gba:items-center gba:justify-center gba:gap-3"
+            data-testid="flw_updateWorkingHours_submitLoading"
+          >
+            <Spinner size="lg" srText={t('working-hours-submitting-message')} />
+            <div className="gba:text-sm gba:text-muted-foreground">{t('working-hours-submitting-message')}</div>
+          </div>
+        ) : (
+          <div>
+            <div className="gba:flex gba:items-center gba:mb-6">{renderEmployeeHeader()}</div>
+            <div className="gba:border-t gba:mb-6" />
 
-          <div className="gba:mb-6 gba:space-y-4">
-            <div className="gba:grid gba:grid-cols-1 gba:gap-4 sm:gba:grid-cols-2">
-              <div className="gba:space-y-2 gba:overflow-hidden">
-                <div className="gba:text-sm gba:font-medium">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:working_hours_form.active_from_label', 'Active From')}
-                  <span className="gba:text-destructive"> *</span>
+            <div className="gba:mb-6 gba:space-y-4">
+              <div className="gba:grid gba:grid-cols-1 gba:gap-4 sm:gba:grid-cols-2">
+                <div className="gba:space-y-2 gba:overflow-hidden">
+                  <div className="gba:text-sm gba:font-medium">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:working_hours_form.active_from_label', 'Active From')}
+                    <span className="gba:text-destructive"> *</span>
+                  </div>
+                  <DateInput
+                    type="date"
+                    value={getDateInputValue(watchedValues?.activeFrom)}
+                    onChange={(value: DateInputValue) => {
+                      form.setValue('activeFrom', getSingleDateValue(value), {
+                        shouldValidate: true,
+                        shouldDirty: true
+                      })
+                    }}
+                    outputFormat="iso"
+                    data-testid="flw_updateWorkingHours_activeFromDatePicker"
+                  />
+                  {isActiveFromMissing ? (
+                    <div
+                      className="gba:text-sm gba:text-destructive"
+                      data-testid="flw_updateWorkingHours_activeFromError"
+                    >
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:working_hours_form.active_from_required',
+                        'Active From is required.'
+                      )}
+                    </div>
+                  ) : null}
+                  {isActiveFromBeforeHireDate ? (
+                    <div
+                      className="gba:text-sm gba:text-warning"
+                      data-testid="flw_updateWorkingHours_activeFromHireDateWarning"
+                    >
+                      {t('working-hours-active-from-before-hire-date-warning')}
+                    </div>
+                  ) : null}
                 </div>
-                <DateInput
-                  type="date"
-                  value={getDateInputValue(watchedValues?.activeFrom)}
-                  onChange={(value: DateInputValue) => {
-                    form.setValue('activeFrom', getSingleDateValue(value), {
-                      shouldValidate: true,
-                      shouldDirty: true
-                    })
-                  }}
-                  outputFormat="iso"
-                  data-testid="flw_updateWorkingHours_activeFromDatePicker"
-                />
-                {isActiveFromMissing ? (
-                  <div
-                    className="gba:text-sm gba:text-destructive"
-                    data-testid="flw_updateWorkingHours_activeFromError"
+
+                <div className="gba:space-y-2 gba:overflow-hidden">
+                  <div className="gba:text-sm gba:font-medium">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:working_hours_form.active_to_label', 'Active To')}
+                  </div>
+                  <DateInput
+                    type="date"
+                    value={getDateInputValue(watchedValues?.activeTo)}
+                    onChange={(value: DateInputValue) => {
+                      form.setValue('activeTo', getSingleDateValue(value), {
+                        shouldValidate: true,
+                        shouldDirty: true
+                      })
+                    }}
+                    min={watchedValues?.activeFrom || undefined}
+                    outputFormat="iso"
+                    data-testid="flw_updateWorkingHours_activeToDatePicker"
+                  />
+                  {isActiveToBeforeActiveFrom ? (
+                    <div
+                      className="gba:text-sm gba:text-destructive"
+                      data-testid="flw_updateWorkingHours_activeToError"
+                    >
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:working_hours_form.active_to_before_active_from',
+                        'Active To cannot be before Active From.'
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="gba:flex gba:flex-col gba:gap-3 sm:gba:flex-row">
+                {renderModeButton(
+                  'standard',
+                  t('working-hours-standard-full-time-option'),
+                  t('working-hours-standard-full-time-description'),
+                  applyStandardFullTime
+                )}
+                {renderModeButton(
+                  'custom',
+                  t('working-hours-customize-by-day-option'),
+                  t('working-hours-customize-by-day-description'),
+                  enableCustomByDay
+                )}
+              </div>
+
+              <div className="gba:grid gba:grid-cols-1 gba:gap-4 sm:gba:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:gba:items-end">
+                <div>
+                  <label className="gba:mb-2 gba:block gba:font-semibold" htmlFor="weekly-working-hours-input">
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:working_hours_form.weekly_working_hours_label',
+                      'Weekly Working Hours'
+                    )}
+                  </label>
+                  <input
+                    id="weekly-working-hours-input"
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    max={48}
+                    step="0.01"
+                    className="gba:h-10 gba:w-full gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:text-sm"
+                    value={weeklyHoursInput}
+                    onChange={event => setWeeklyHoursInput(event.target.value)}
+                    data-testid="flw_updateWorkingHours_weeklyWorkingHoursInput"
+                  />
+                </div>
+                <div>
+                  <label className="gba:mb-2 gba:block gba:font-semibold" htmlFor="working-days-week-input">
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:working_hours_form.working_days_week_label',
+                      'Working Days / Week'
+                    )}
+                  </label>
+                  <input
+                    id="working-days-week-input"
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    max={7}
+                    step="1"
+                    className="gba:h-10 gba:w-full gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:text-sm"
+                    value={workingDaysInput}
+                    onChange={event => setWorkingDaysInput(event.target.value)}
+                    data-testid="flw_updateWorkingHours_workingDaysWeekInput"
+                  />
+                </div>
+                {weeklyHoursInput.trim() !== '' && workingDaysInput.trim() !== '' ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="gba:whitespace-nowrap"
+                    disabled={!canDistributeEvenly}
+                    onClick={distributeEvenly}
+                    data-testid="flw_updateWorkingHours_distributeEvenly"
                   >
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:working_hours_form.active_from_required',
-                      'Active From is required.'
-                    )}
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="gba:space-y-2 gba:overflow-hidden">
-                <div className="gba:text-sm gba:font-medium">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:working_hours_form.active_to_label', 'Active To')}
-                </div>
-                <DateInput
-                  type="date"
-                  value={getDateInputValue(watchedValues?.activeTo)}
-                  onChange={(value: DateInputValue) => {
-                    form.setValue('activeTo', getSingleDateValue(value), {
-                      shouldValidate: true,
-                      shouldDirty: true
-                    })
-                  }}
-                  min={watchedValues?.activeFrom || undefined}
-                  outputFormat="iso"
-                  data-testid="flw_updateWorkingHours_activeToDatePicker"
-                />
-                {isActiveToBeforeActiveFrom ? (
-                  <div className="gba:text-sm gba:text-destructive" data-testid="flw_updateWorkingHours_activeToError">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:working_hours_form.active_to_before_active_from',
-                      'Active To cannot be before Active From.'
-                    )}
-                  </div>
+                    {t('working-hours-distribute-evenly-action')}
+                  </Button>
                 ) : null}
               </div>
             </div>
-            {activePeriodOverlapError ? (
+
+            <div
+              className="gba:grid gba:grid-cols-2 gba:sm:grid-cols-3 gba:md:grid-cols-4 gba:lg:grid-cols-7 gba:gap-2"
+              data-testid="flw_updateWorkingHours_columnLayout"
+            >
+              {dayOrder.map(({ key }) => {
+                const label = dayLabel(key)
+                const hasError = Boolean(form.formState.errors[key])
+                return (
+                  <div
+                    key={key}
+                    className="gba:flex gba:min-w-0 gba:flex-col gba:items-center gba:space-y-2"
+                    data-testid={`working-hours-${key}`}
+                  >
+                    <label className="gba:block gba:font-semibold">
+                      {label}
+                      <span className="gba:text-destructive"> *</span>
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      className={`gba:w-full gba:max-w-12 gba:h-12 gba:border ${hasError ? 'gba:border-destructive' : 'gba:border-input'} gba:rounded-md gba:text-center gba:text-base`}
+                      aria-invalid={hasError}
+                      aria-label={label}
+                      disabled={mode !== 'custom'}
+                      value={watchedValues?.[key] ?? ''}
+                      data-testid={dayInputTestIds[key]}
+                      onChange={e => {
+                        setHasInteractedWithWorkingTime(true)
+                        const raw = e.target.value
+                        const numericOrEmpty: number | '' = raw === '' ? '' : Number(raw)
+                        form.setValue(key, numericOrEmpty as any, { shouldValidate: true, shouldDirty: true })
+                        const val = numericOrEmpty
+                        if (
+                          val === '' ||
+                          Number.isNaN(val as any) ||
+                          (val as number) < minHours ||
+                          (val as number) > maxHours
+                        ) {
+                          form.setError(key, { type: 'validate', message: buildErrorMessage(key) })
+                        } else {
+                          form.clearErrors(key)
+                        }
+                      }}
+                      onBlur={e => {
+                        const raw = e.currentTarget.value
+                        const val: number | '' = raw === '' ? '' : Number(raw)
+                        if (
+                          val === '' ||
+                          Number.isNaN(val as any) ||
+                          (val as number) < minHours ||
+                          (val as number) > maxHours
+                        ) {
+                          form.setError(key, { type: 'validate', message: buildErrorMessage(key) })
+                        } else {
+                          form.clearErrors(key)
+                        }
+                      }}
+                    />
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="gba:mt-6 gba:w-full" data-testid="working-hours-summary">
+              <div className="gba:mb-2 gba:block gba:font-semibold">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:working_hours_form.fte_label',
+                  'FTE (Full Time Equivalent)'
+                )}
+              </div>
               <div
-                className="gba:text-sm gba:text-destructive"
-                data-testid="flw_updateWorkingHours_activePeriodOverlapError"
+                className="gba:flex gba:h-10 gba:items-center gba:rounded-md gba:border gba:border-input gba:bg-muted gba:px-3 gba:text-sm"
+                data-testid="flw_updateWorkingHours_fteInput"
               >
-                {activePeriodOverlapError}
+                {areAllDaysValid && typeof fte === 'number' ? fte : '-'}
               </div>
-            ) : null}
-
-            <div className="gba:flex gba:flex-col gba:gap-3 sm:gba:flex-row">
-              {renderModeButton(
-                'standard',
-                t('working-hours-standard-full-time-option'),
-                t('working-hours-standard-full-time-description'),
-                applyStandardFullTime
-              )}
-              {renderModeButton(
-                'custom',
-                t('working-hours-customize-by-day-option'),
-                t('working-hours-customize-by-day-description'),
-                enableCustomByDay
-              )}
             </div>
 
-            <div className="gba:grid gba:grid-cols-1 gba:gap-4 sm:gba:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:gba:items-end">
-              <div>
-                <label className="gba:mb-2 gba:block gba:font-semibold" htmlFor="weekly-working-hours-input">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:working_hours_form.weekly_working_hours_label',
-                    'Weekly Working Hours'
-                  )}
-                </label>
-                <input
-                  id="weekly-working-hours-input"
-                  type="number"
-                  inputMode="decimal"
-                  min={0}
-                  max={48}
-                  step="0.01"
-                  className="gba:h-10 gba:w-full gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:text-sm"
-                  value={weeklyHoursInput}
-                  onChange={event => setWeeklyHoursInput(event.target.value)}
-                  data-testid="flw_updateWorkingHours_weeklyWorkingHoursInput"
-                />
-              </div>
-              <div>
-                <label className="gba:mb-2 gba:block gba:font-semibold" htmlFor="working-days-week-input">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:working_hours_form.working_days_week_label',
-                    'Working Days / Week'
-                  )}
-                </label>
-                <input
-                  id="working-days-week-input"
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  max={7}
-                  step="1"
-                  className="gba:h-10 gba:w-full gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:text-sm"
-                  value={workingDaysInput}
-                  onChange={event => setWorkingDaysInput(event.target.value)}
-                  data-testid="flw_updateWorkingHours_workingDaysWeekInput"
-                />
-              </div>
-              {weeklyHoursInput.trim() !== '' && workingDaysInput.trim() !== '' ? (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="gba:whitespace-nowrap"
-                  disabled={!canDistributeEvenly}
-                  onClick={distributeEvenly}
-                  data-testid="flw_updateWorkingHours_distributeEvenly"
+            <div
+              className={`${firstDayErrorMessage || !hasPositiveWorkingDay || activePeriodOverlapError ? 'gba:mt-2' : ''} gba:flex gba:flex-col gba:gap-2`}
+              data-testid="working-hours-errors"
+            >
+              {activePeriodOverlapError ? (
+                <div className="gba:text-destructive gba:text-sm" data-testid="flw_updateWorkingHours_overlapError">
+                  {activePeriodOverlapError}
+                </div>
+              ) : null}
+              {!hasPositiveWorkingDay ? (
+                <div
+                  className="gba:text-destructive gba:text-sm"
+                  data-testid="flw_updateWorkingHours_atLeastOneDayValidationMessage"
                 >
-                  {t('working-hours-distribute-evenly-action')}
-                </Button>
+                  {t('working-hours-at-least-one-working-day-required')}
+                </div>
+              ) : null}
+              {firstDayErrorMessage ? (
+                <div
+                  className="gba:text-destructive gba:text-sm"
+                  data-testid="flw_updateWorkingHours_dailyHoursValidationMessage"
+                >
+                  {firstDayErrorMessage}
+                </div>
               ) : null}
             </div>
           </div>
-
-          <div
-            className="gba:grid gba:grid-cols-2 gba:sm:grid-cols-3 gba:md:grid-cols-4 gba:lg:grid-cols-7 gba:gap-2"
-            data-testid="flw_updateWorkingHours_columnLayout"
-          >
-            {dayOrder.map(({ key }) => {
-              const label = dayLabel(key)
-              const hasError = Boolean(form.formState.errors[key])
-              return (
-                <div
-                  key={key}
-                  className="gba:flex gba:min-w-0 gba:flex-col gba:items-center gba:space-y-2"
-                  data-testid={`working-hours-${key}`}
-                >
-                  <label className="gba:block gba:font-semibold">
-                    {label}
-                    <span className="gba:text-destructive"> *</span>
-                  </label>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    className={`gba:w-full gba:max-w-12 gba:h-12 gba:border ${hasError ? 'gba:border-destructive' : 'gba:border-input'} gba:rounded-md gba:text-center gba:text-base`}
-                    aria-invalid={hasError}
-                    aria-label={label}
-                    disabled={mode !== 'custom'}
-                    value={watchedValues?.[key] ?? ''}
-                    data-testid={dayInputTestIds[key]}
-                    onChange={e => {
-                      setHasInteractedWithWorkingTime(true)
-                      const raw = e.target.value
-                      const numericOrEmpty: number | '' = raw === '' ? '' : Number(raw)
-                      form.setValue(key, numericOrEmpty as any, { shouldValidate: true, shouldDirty: true })
-                      const val = numericOrEmpty
-                      if (
-                        val === '' ||
-                        Number.isNaN(val as any) ||
-                        (val as number) < minHours ||
-                        (val as number) > maxHours
-                      ) {
-                        form.setError(key, { type: 'validate', message: buildErrorMessage(key) })
-                      } else {
-                        form.clearErrors(key)
-                      }
-                    }}
-                    onBlur={e => {
-                      const raw = e.currentTarget.value
-                      const val: number | '' = raw === '' ? '' : Number(raw)
-                      if (
-                        val === '' ||
-                        Number.isNaN(val as any) ||
-                        (val as number) < minHours ||
-                        (val as number) > maxHours
-                      ) {
-                        form.setError(key, { type: 'validate', message: buildErrorMessage(key) })
-                      } else {
-                        form.clearErrors(key)
-                      }
-                    }}
-                  />
-                </div>
-              )
-            })}
-          </div>
-
-          <div className="gba:mt-6 gba:w-full" data-testid="working-hours-summary">
-            <div className="gba:mb-2 gba:block gba:font-semibold">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:working_hours_form.fte_label', 'FTE (Full Time Equivalent)')}
-            </div>
-            <div
-              className="gba:flex gba:h-10 gba:items-center gba:rounded-md gba:border gba:border-input gba:bg-muted gba:px-3 gba:text-sm"
-              data-testid="flw_updateWorkingHours_fteInput"
-            >
-              {areAllDaysValid && typeof fte === 'number' ? fte : '-'}
-            </div>
-          </div>
-
-          <div
-            className={`${firstDayErrorMessage ? 'gba:mt-2' : ''} gba:flex gba:flex-col gba:gap-2`}
-            data-testid="working-hours-errors"
-          >
-            {firstDayErrorMessage ? (
-              <div
-                className="gba:text-destructive gba:text-sm"
-                data-testid="flw_updateWorkingHours_dailyHoursValidationMessage"
-              >
-                {firstDayErrorMessage}
-              </div>
-            ) : null}
-          </div>
-        </div>
+        )}
       </div>
     </AppActionForm>
   )

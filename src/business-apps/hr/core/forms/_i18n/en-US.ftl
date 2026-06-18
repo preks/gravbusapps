@@ -208,6 +208,8 @@ label-last-name = Last Name
 label-email = Email
 label-notes = Notes
 label-birth-date = Birth Date
+employee-form-legal-age-warning = The employee is younger than the legal working age. Please review before continuing.
+employee-form-hire-date-legal-age-warning = The hire date is before the employee reaches the legal working age. Please review before continuing.
 label-country = Country
 label-city = City
 label-currency = Currency
@@ -336,6 +338,7 @@ working-conditions-active-period-overlap = Employee working condition active per
 working-conditions-employment-end-before-start = Employment end date cannot be before employment start date
 working-conditions-probation-end-before-start = Probation end date must be on or after the start date.
 working-conditions-probation-exception-warning = You've manually changed the probation period end date from the contract value. Please review.
+working-conditions-valid-from-before-hire-date-warning = The working condition starts before the employee hire date.
 working-conditions-required = Please complete required fields
 working-conditions-unit-day = { $count ->
     [one] Day

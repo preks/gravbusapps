@@ -1061,6 +1061,9 @@ working-hours-customize-by-day-option = Customize by day
 working-hours-customize-by-day-description = Enter the hours for each day manually.
 working-hours-distribute-evenly-action = Distribute evenly
 working-hours-active-period-overlap = Employee working hours active period overlaps with an existing working hours entry.
+working-hours-active-from-before-hire-date-warning = Working hours start before the employee hire date.
+working-hours-at-least-one-working-day-required = At least one day must have more than 0 working hours.
+working-hours-submitting-message = Submitting working hours...
 
 # Career Tab
 career-tab-title = Career & Promotion Readiness

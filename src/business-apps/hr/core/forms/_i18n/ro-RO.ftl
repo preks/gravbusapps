@@ -205,6 +205,8 @@ label-last-name = Nume
 label-email = E-mail
 label-notes = Note
 label-birth-date = Data nașterii
+employee-form-legal-age-warning = Angajatul este sub vârsta legală de muncă. Vă rugăm să verificați înainte de a continua.
+employee-form-hire-date-legal-age-warning = Data angajării este înainte ca angajatul să atingă vârsta legală de muncă. Vă rugăm să verificați înainte de a continua.
 label-country = Țară
 label-city = Oraș
 label-currency = Monedă
@@ -333,6 +335,7 @@ working-conditions-active-period-overlap = Perioada activă a condițiilor de mu
 working-conditions-employment-end-before-start = Data de sfârșit a angajării nu poate fi înaintea datei de început
 working-conditions-probation-end-before-start = Data de încheiere a perioadei de probă trebuie să fie la sau după data de începere.
 working-conditions-probation-exception-warning = Ați modificat manual data de încheiere a perioadei de probă față de valoarea din contract. Vă rugăm să verificați.
+working-conditions-valid-from-before-hire-date-warning = Condiția de muncă începe înainte de data angajării.
 working-conditions-required = Vă rugăm să completați câmpurile obligatorii
 working-conditions-unit-day = { $count ->
     [one] Zi

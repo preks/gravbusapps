@@ -246,26 +246,38 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({
     }
   ]
 
+  const hireDate = React.useMemo(() => {
+    const hireDateCandidates = [workingCondition?.hireDate, ...workingConditions.map(condition => condition?.hireDate)]
+
+    return hireDateCandidates.find(candidate => candidate && dayjs(candidate).isValid()) || ''
+  }, [workingCondition?.hireDate, workingConditions])
+
+  const exitWorkingCondition = React.useMemo(() => {
+    const exitDateCandidates = [workingCondition, ...workingConditions]
+
+    return exitDateCandidates.find(condition => condition?.exitDate && dayjs(condition.exitDate).isValid())
+  }, [workingCondition, workingConditions])
+
   const getEmploymentPeriodData = () => {
     const data: Array<{ label: string; value: string }> = [
       {
         label: t('employment-label-hire-date'),
-        value: workingCondition?.hireDate ? formatDate(workingCondition.hireDate, 'date.medium') || '' : ''
+        value: hireDate ? formatDate(hireDate, 'date.medium') || '' : ''
       },
       {
         label: t('employment-label-exit-date'),
-        value: workingCondition?.exitDate ? formatDate(workingCondition.exitDate, 'date.medium') || '' : ''
+        value: exitWorkingCondition?.exitDate ? formatDate(exitWorkingCondition.exitDate, 'date.medium') || '' : ''
       }
     ]
 
-    if (workingCondition?.exitDate) {
+    if (exitWorkingCondition?.exitDate) {
       const categoryLabel =
-        exitReasonCategoryOptions.find(opt => opt.value === workingCondition.exitReasonCategoryRef)?.label ||
-        workingCondition.exitReasonCategoryRef ||
+        exitReasonCategoryOptions.find(opt => opt.value === exitWorkingCondition.exitReasonCategoryRef)?.label ||
+        exitWorkingCondition.exitReasonCategoryRef ||
         ''
       const reasonLabel =
-        exitReasonOptions.find(opt => opt.value === workingCondition.exitReasonRef)?.label ||
-        workingCondition.exitReasonRef ||
+        exitReasonOptions.find(opt => opt.value === exitWorkingCondition.exitReasonRef)?.label ||
+        exitWorkingCondition.exitReasonRef ||
         ''
       data.push(
         {
