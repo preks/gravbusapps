@@ -47372,43 +47372,43 @@
     ]
   },
   "hr/core/forms/change-communication": {
-    "bitbucketBuildNumber": 13733,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13733/",
-    "chunkJsBytes": 275709,
+    "bitbucketBuildNumber": 13795,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13795/",
+    "chunkJsBytes": 298030,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 201244,
-        "gzip": 50743,
+        "rendered": 202248,
+        "gzip": 51027,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/employee-record/_i18n/ro-RO.ftl?raw",
-            "rendered": 55441,
-            "gzip": 14013
+            "rendered": 55445,
+            "gzip": 14021
           },
           {
             "name": "src/business-apps/hr/core/apps/employee-record/_i18n/de-DE.ftl?raw",
-            "rendered": 54424,
-            "gzip": 13792
+            "rendered": 54433,
+            "gzip": 13803
           }
         ]
       },
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
-        "rendered": 55018,
-        "gzip": 18123,
+        "rendered": 88260,
+        "gzip": 27864,
         "leaves": [
+          {
+            "name": "node_modules/@newwork/nw-design-system/dist/components/combobox/Combobox.js",
+            "rendered": 13854,
+            "gzip": 3706
+          },
           {
             "name": "node_modules/@newwork/nw-design-system/dist/components/select/Select.js",
             "rendered": 9138,
             "gzip": 2373
-          },
-          {
-            "name": "node_modules/@newwork/nw-design-system/dist/components/stepper/Stepper.js",
-            "rendered": 5612,
-            "gzip": 1753
           }
         ]
       },
@@ -47482,8 +47482,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/utils",
-        "rendered": 7433,
-        "gzip": 2204,
+        "rendered": 7852,
+        "gzip": 2445,
         "leaves": [
           {
             "name": "src/common/utils/serviceResolver.ts",
@@ -47525,6 +47525,19 @@
             "name": "src/common/env/EnvUtils.ts",
             "rendered": 5857,
             "gzip": 1091
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
+        "name": "(src)/common/components",
+        "rendered": 1896,
+        "gzip": 783,
+        "leaves": [
+          {
+            "name": "src/common/components/phone-prefix-combobox/PhonePrefixCombobox.tsx",
+            "rendered": 1896,
+            "gzip": 783
           }
         ]
       },
@@ -47660,19 +47673,6 @@
             "name": "src/common/types/constants/FeatureHub.ts",
             "rendered": 148,
             "gzip": 113
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/common/runtime",
-        "rendered": 38,
-        "gzip": 58,
-        "leaves": [
-          {
-            "name": "src/common/runtime/globalNetworkInterceptorsBootstrap.ts",
-            "rendered": 38,
-            "gzip": 58
           }
         ]
       }
@@ -49407,15 +49407,15 @@
     ]
   },
   "hr/core/forms/change-relationship": {
-    "bitbucketBuildNumber": 13754,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13754/",
-    "chunkJsBytes": 332630,
+    "bitbucketBuildNumber": 13795,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13795/",
+    "chunkJsBytes": 354901,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 223950,
-        "gzip": 55270,
+        "rendered": 224523,
+        "gzip": 55454,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/employee-record/_i18n/ro-RO.ftl?raw",
@@ -49432,31 +49432,31 @@
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
-        "rendered": 94682,
-        "gzip": 31228,
+        "rendered": 127908,
+        "gzip": 40957,
         "leaves": [
+          {
+            "name": "node_modules/@newwork/nw-design-system/dist/components/combobox/Combobox.js",
+            "rendered": 13836,
+            "gzip": 3697
+          },
           {
             "name": "node_modules/@newwork/nw-design-system/dist/components/select/Select.js",
             "rendered": 9146,
             "gzip": 2381
-          },
-          {
-            "name": "node_modules/@newwork/nw-design-system/dist/components/file-upload/internal/useFileUpload.js",
-            "rendered": 6169,
-            "gzip": 2076
           }
         ]
       },
       {
         "kind": "bucket",
         "name": "(src)/common/network",
-        "rendered": 60310,
-        "gzip": 15891,
+        "rendered": 60413,
+        "gzip": 15906,
         "leaves": [
           {
             "name": "src/common/network/ai/prompt-manager/PromptManagerClient.ts",
-            "rendered": 31433,
-            "gzip": 7571
+            "rendered": 31536,
+            "gzip": 7586
           },
           {
             "name": "src/common/network/auth/installGlobalAuthExpiryInterceptors.ts",
@@ -49469,12 +49469,12 @@
         "kind": "bucket",
         "name": "(src)/common/dev-report",
         "rendered": 42899,
-        "gzip": 10179,
+        "gzip": 10175,
         "leaves": [
           {
             "name": "src/common/dev-report/DevReportDot.tsx",
             "rendered": 28715,
-            "gzip": 5102
+            "gzip": 5098
           },
           {
             "name": "src/common/dev-report/screenshot.ts",
@@ -49517,8 +49517,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/utils",
-        "rendered": 6603,
-        "gzip": 2088,
+        "rendered": 7022,
+        "gzip": 2329,
         "leaves": [
           {
             "name": "src/common/utils/serviceResolver.ts",
@@ -49560,6 +49560,19 @@
             "name": "src/common/env/EnvUtils.ts",
             "rendered": 5857,
             "gzip": 1091
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
+        "name": "(src)/common/components",
+        "rendered": 1896,
+        "gzip": 783,
+        "leaves": [
+          {
+            "name": "src/common/components/phone-prefix-combobox/PhonePrefixCombobox.tsx",
+            "rendered": 1896,
+            "gzip": 783
           }
         ]
       },
@@ -88547,20 +88560,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 13782,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13782/",
-    "chunkJsBytes": 2062388,
+    "bitbucketBuildNumber": 13795,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13795/",
+    "chunkJsBytes": 2062389,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1780187,
-        "gzip": 115005,
+        "gzip": 115031,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1780187,
-            "gzip": 115005
+            "gzip": 115031
           }
         ]
       },
@@ -120451,7 +120464,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-17T18:51:57.136Z",
+    "generatedAt": "2026-06-18T07:52:28.137Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
