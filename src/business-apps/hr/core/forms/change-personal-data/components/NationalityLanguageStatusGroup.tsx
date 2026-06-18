@@ -10,7 +10,8 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
-  Input
+  Input,
+  Combobox
 } from '@newwork/nw-design-system'
 import type { Control } from 'react-hook-form'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -22,6 +23,24 @@ export interface NationalityLanguageStatusGroupProps {
   catalogs: { nationality?: CatalogEntry[]; language?: CatalogEntry[]; maritalStatus?: CatalogEntry[] }
 }
 
+const getCatalogOptionLabel = (entry: CatalogEntry, preferTranslation: boolean): string => {
+  if (preferTranslation) {
+    return entry.translations?.[0]?.value || entry.value || ''
+  }
+
+  return entry.value || entry.translations?.[0]?.value || ''
+}
+
+const getSortedCatalogOptions = (entries: CatalogEntry[] = [], preferTranslation = true) =>
+  [...entries]
+    .sort((a, b) =>
+      getCatalogOptionLabel(a, preferTranslation).localeCompare(getCatalogOptionLabel(b, preferTranslation))
+    )
+    .map(entry => ({
+      value: String(entry.id),
+      label: getCatalogOptionLabel(entry, preferTranslation)
+    }))
+
 const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupProps> = ({ control, catalogs }) => {
   const placeholderSelect = getTranslationFromI18nKeyAndLabel(
     'lowcoder:employee_profile.details_layout.personal_information_container.select_placeholder',
@@ -31,6 +50,16 @@ const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupPro
     'lowcoder:employee_profile.details_layout.personal_information_container.enter_placeholder',
     'Please Enter'
   )
+  const nationalityLabel = getTranslationFromI18nKeyAndLabel(
+    'lowcoder:employee_profile.details_layout.personal_information_container.nationality',
+    'Nationality'
+  )
+  const languageLabel = getTranslationFromI18nKeyAndLabel(
+    'lowcoder:employee_profile.details_layout.personal_information_container.language',
+    'Native Language'
+  )
+  const nationalityOptions = getSortedCatalogOptions(catalogs.nationality, nationalityLabel !== 'Nationality')
+  const languageOptions = getSortedCatalogOptions(catalogs.language, languageLabel !== 'Native Language')
 
   return (
     <div className="gba:space-y-4" data-testid="change-personal-data-nationality-language-status-group">
@@ -40,40 +69,27 @@ const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupPro
         name={'nationalityRef' as any}
         render={({ field }) => (
           <FormItem>
-            <FormLabel data-testid="change-personal-data-nationality-label">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:employee_profile.details_layout.personal_information_container.nationality',
-                'Nationality'
-              )}
-            </FormLabel>
-            <Select
-              value={
-                field.value === null || field.value === undefined || field.value === ''
-                  ? undefined
-                  : String(field.value)
-              }
-              onValueChange={v => field.onChange(v || null)}
-            >
-              <FormControl>
-                <SelectTrigger
-                  className="gba:!w-full gba:min-w-0 gba:!max-w-none"
-                  data-testid="flw_changePersonalData_currentNationality"
-                >
-                  <SelectValue placeholder={placeholderSelect} />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {(catalogs.nationality || []).map(entry => (
-                  <SelectItem
-                    key={entry.id}
-                    value={String(entry.id)}
-                    data-testid={`change-personal-data-nationality-option-${entry.id}`}
-                  >
-                    {entry?.translations?.[0]?.value || entry?.value}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <FormLabel data-testid="change-personal-data-nationality-label">{nationalityLabel}</FormLabel>
+            <FormControl>
+              <Combobox
+                className={`gba:!w-full gba:min-w-0 gba:!max-w-none ${field.value ? '' : 'gba:text-muted-foreground'}`}
+                options={nationalityOptions}
+                value={
+                  field.value === null || field.value === undefined || field.value === '' ? '' : String(field.value)
+                }
+                onValueChange={v => field.onChange(v || null)}
+                placeholder={placeholderSelect}
+                searchPlaceholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:employee_profile.details_layout.personal_information_container.search_nationality',
+                  'Search nationality...'
+                )}
+                emptyText={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:employee_profile.details_layout.personal_information_container.no_nationalities_found',
+                  'No nationalities found'
+                )}
+                data-testid="flw_changePersonalData_currentNationality"
+              />
+            </FormControl>
             <FormMessage />
           </FormItem>
         )}
@@ -85,47 +101,27 @@ const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupPro
         name={'languageRef' as any}
         render={({ field }) => (
           <FormItem>
-            <FormLabel data-testid="change-personal-data-language-label">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:employee_profile.details_layout.personal_information_container.language',
-                'Native Language'
-              )}
-            </FormLabel>
-            <Select
-              value={
-                field.value === null || field.value === undefined || field.value === ''
-                  ? undefined
-                  : String(field.value)
-              }
-              onValueChange={v => field.onChange(v || null)}
-            >
-              <FormControl>
-                <SelectTrigger
-                  className="gba:!w-full gba:min-w-0 gba:!max-w-none"
-                  data-testid="flw_changePersonalData_currentLanguage"
-                >
-                  <SelectValue placeholder={placeholderSelect} />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {(() => {
-                  const sorted = [...(catalogs.language || [])].sort((a: any, b: any) => {
-                    const av = String(a?.translations?.[0]?.value || a?.value || '').toLowerCase()
-                    const bv = String(b?.translations?.[0]?.value || b?.value || '').toLowerCase()
-                    return av.localeCompare(bv)
-                  })
-                  return sorted.map(entry => (
-                    <SelectItem
-                      key={entry.id}
-                      value={String(entry.id)}
-                      data-testid={`change-personal-data-language-option-${entry.id}`}
-                    >
-                      {entry?.translations?.[0]?.value || entry?.value}
-                    </SelectItem>
-                  ))
-                })()}
-              </SelectContent>
-            </Select>
+            <FormLabel data-testid="change-personal-data-language-label">{languageLabel}</FormLabel>
+            <FormControl>
+              <Combobox
+                className={`gba:!w-full gba:min-w-0 gba:!max-w-none ${field.value ? '' : 'gba:text-muted-foreground'}`}
+                options={languageOptions}
+                value={
+                  field.value === null || field.value === undefined || field.value === '' ? '' : String(field.value)
+                }
+                onValueChange={v => field.onChange(v || null)}
+                placeholder={placeholderSelect}
+                searchPlaceholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:employee_profile.details_layout.personal_information_container.search_language',
+                  'Search language...'
+                )}
+                emptyText={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:employee_profile.details_layout.personal_information_container.no_languages_found',
+                  'No languages found'
+                )}
+                data-testid="flw_changePersonalData_currentLanguage"
+              />
+            </FormControl>
             <FormMessage />
           </FormItem>
         )}
