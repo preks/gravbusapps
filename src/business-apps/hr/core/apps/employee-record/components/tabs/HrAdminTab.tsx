@@ -25,7 +25,6 @@ interface HrAdminTabProps extends BusinessAppContextProps {
   employeeId: string
   isSelfView: boolean
   changeLogTabFeatureFlag: boolean
-  documentsTabFeatureFlag: boolean
   hasHrNotesAccess: boolean
   scopePermissionLoading: boolean
   employeeRecordHrBackoffice: ScopePermissionCheckResult
@@ -58,7 +57,6 @@ interface ResolveHrAdminPermissionsOptions {
   readonly employeeRecordHrBackofficeAccess?: boolean
   readonly isSelfView: boolean
   readonly changeLogTabFeatureFlag: boolean
-  readonly documentsTabFeatureFlag: boolean
   readonly hasHrNotesAccess: boolean
   readonly scopePermissionLoading: boolean
 }
@@ -73,7 +71,6 @@ function resolveHrAdminPermissions({
   employeeRecordHrBackofficeAccess,
   isSelfView,
   changeLogTabFeatureFlag,
-  documentsTabFeatureFlag,
   hasHrNotesAccess,
   scopePermissionLoading
 }: ResolveHrAdminPermissionsOptions): HrAdminPermissionState {
@@ -85,7 +82,7 @@ function resolveHrAdminPermissions({
   return {
     details: !hasBasePermissionChecksLoading && hasEmployeeAccess,
     employment: !hasBasePermissionChecksLoading && hasEmployeeAccess,
-    documents: documentsTabFeatureFlag && !hasBasePermissionChecksLoading && hasEmployeeAccess,
+    documents: !hasBasePermissionChecksLoading && hasEmployeeAccess,
     changeLog: !hasBasePermissionChecksLoading && changeLogTabFeatureFlag && hasEmployeeAccess,
     hrNotes: !isSelfView && hasHrNotesAccess && !scopePermissionLoading && hasEmployeeAccess,
     canDeleteDocuments:
@@ -128,7 +125,6 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
   userInfo,
   isSelfView,
   changeLogTabFeatureFlag,
-  documentsTabFeatureFlag,
   hasHrNotesAccess,
   scopePermissionLoading,
   additionalData,
@@ -167,7 +163,6 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
     employeeRecordHrBackofficeAccess: employeeRecordHrBackoffice?.hasPermission,
     isSelfView,
     changeLogTabFeatureFlag,
-    documentsTabFeatureFlag,
     hasHrNotesAccess,
     scopePermissionLoading
   })
@@ -236,7 +231,7 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
     permissionsLoading || employeeGrowthPermission.loading || employeeRecordAllHrBackoffice.loading
   const showDetailsSection = basePermissionsLoading || permissions.details
   const showEmploymentSection = basePermissionsLoading || permissions.employment
-  const showDocumentsSection = documentsTabFeatureFlag && (basePermissionsLoading || permissions.documents)
+  const showDocumentsSection = basePermissionsLoading || permissions.documents
   const showChangeLogSection = changeLogTabFeatureFlag || (!basePermissionsLoading && permissions.changeLog)
 
   return (
