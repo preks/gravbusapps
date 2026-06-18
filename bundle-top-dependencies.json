@@ -80828,9 +80828,9 @@
     ]
   },
   "mdm/apps/job-structure-data": {
-    "bitbucketBuildNumber": 13812,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13812/",
-    "chunkJsBytes": 332595,
+    "bitbucketBuildNumber": 13841,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13841/",
+    "chunkJsBytes": 334977,
     "top": [
       {
         "kind": "bucket",
@@ -80853,13 +80853,13 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/mdm",
-        "rendered": 189710,
-        "gzip": 53015,
+        "rendered": 193426,
+        "gzip": 53756,
         "leaves": [
           {
             "name": "src/business-apps/mdm/forms/job-profile-form/components/SkillsSection.tsx",
-            "rendered": 18324,
-            "gzip": 4432
+            "rendered": 18532,
+            "gzip": 4473
           },
           {
             "name": "src/business-apps/mdm/apps/job-structure-data/components/tabs/JobProfilesTab.tsx",
@@ -80999,6 +80999,24 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/business-apps/hr",
+        "rendered": 4670,
+        "gzip": 1811,
+        "leaves": [
+          {
+            "name": "src/business-apps/hr/core/forms/add-skill/components/SkillLevelRow.tsx",
+            "rendered": 2362,
+            "gzip": 780
+          },
+          {
+            "name": "src/business-apps/hr/core/apps/skill-management/hooks/useSkillCategories.ts",
+            "rendered": 1367,
+            "gzip": 558
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/business-apps/core",
         "rendered": 3429,
         "gzip": 1108,
@@ -81007,24 +81025,6 @@
             "name": "src/business-apps/core/every/apps/every-box/components/ErrorBoundary.tsx",
             "rendered": 3429,
             "gzip": 1108
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/business-apps/hr",
-        "rendered": 2845,
-        "gzip": 1039,
-        "leaves": [
-          {
-            "name": "src/business-apps/hr/core/forms/add-skill/components/SkillLevelRow.tsx",
-            "rendered": 2362,
-            "gzip": 780
-          },
-          {
-            "name": "src/business-apps/hr/core/forms/add-skill/AddSkillQueries.ts",
-            "rendered": 483,
-            "gzip": 259
           }
         ]
       },
@@ -86219,9 +86219,9 @@
     ]
   },
   "mdm/forms/job-profile-form": {
-    "bitbucketBuildNumber": 13801,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13801/",
-    "chunkJsBytes": 196352,
+    "bitbucketBuildNumber": 13841,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13841/",
+    "chunkJsBytes": 198730,
     "top": [
       {
         "kind": "bucket",
@@ -86244,13 +86244,13 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/mdm",
-        "rendered": 65924,
-        "gzip": 18667,
+        "rendered": 69640,
+        "gzip": 19404,
         "leaves": [
           {
             "name": "src/business-apps/mdm/forms/job-profile-form/components/SkillsSection.tsx",
-            "rendered": 18318,
-            "gzip": 4427
+            "rendered": 18526,
+            "gzip": 4469
           },
           {
             "name": "src/business-apps/mdm/forms/job-profile-form/JobProfileForm.tsx",
@@ -86377,6 +86377,24 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/business-apps/hr",
+        "rendered": 4670,
+        "gzip": 1811,
+        "leaves": [
+          {
+            "name": "src/business-apps/hr/core/forms/add-skill/components/SkillLevelRow.tsx",
+            "rendered": 2362,
+            "gzip": 781
+          },
+          {
+            "name": "src/business-apps/hr/core/apps/skill-management/hooks/useSkillCategories.ts",
+            "rendered": 1367,
+            "gzip": 557
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/business-apps/core",
         "rendered": 3429,
         "gzip": 1110,
@@ -86385,24 +86403,6 @@
             "name": "src/business-apps/core/every/apps/every-box/components/ErrorBoundary.tsx",
             "rendered": 3429,
             "gzip": 1110
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/business-apps/hr",
-        "rendered": 2845,
-        "gzip": 1040,
-        "leaves": [
-          {
-            "name": "src/business-apps/hr/core/forms/add-skill/components/SkillLevelRow.tsx",
-            "rendered": 2362,
-            "gzip": 781
-          },
-          {
-            "name": "src/business-apps/hr/core/forms/add-skill/AddSkillQueries.ts",
-            "rendered": 483,
-            "gzip": 259
           }
         ]
       },
@@ -88560,20 +88560,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 13837,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13837/",
-    "chunkJsBytes": 2062664,
+    "bitbucketBuildNumber": 13841,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13841/",
+    "chunkJsBytes": 2062665,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1780479,
-        "gzip": 115443,
+        "gzip": 115512,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1780479,
-            "gzip": 115443
+            "gzip": 115512
           }
         ]
       },
@@ -109097,9 +109097,9 @@
     ]
   },
   "hr/core/apps/hr-admin-cockpit": {
-    "bitbucketBuildNumber": 13812,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13812/",
-    "chunkJsBytes": 905719,
+    "bitbucketBuildNumber": 13841,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13841/",
+    "chunkJsBytes": 908031,
     "top": [
       {
         "kind": "bucket",
@@ -109122,8 +109122,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 222793,
-        "gzip": 57342,
+        "rendered": 224618,
+        "gzip": 58114,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/hr-admin-cockpit/services/dataQualityCompute.ts",
@@ -109140,13 +109140,13 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/mdm",
-        "rendered": 75305,
-        "gzip": 21958,
+        "rendered": 79025,
+        "gzip": 22699,
         "leaves": [
           {
             "name": "src/business-apps/mdm/forms/job-profile-form/components/SkillsSection.tsx",
-            "rendered": 18328,
-            "gzip": 4433
+            "rendered": 18536,
+            "gzip": 4474
           },
           {
             "name": "src/business-apps/mdm/forms/job-profile-form/JobProfileForm.tsx",
@@ -110185,8 +110185,8 @@
     ]
   },
   "hr/core/apps/skill-management": {
-    "bitbucketBuildNumber": 13812,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13812/",
+    "bitbucketBuildNumber": 13841,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13841/",
     "chunkJsBytes": 760735,
     "top": [
       {
@@ -120464,7 +120464,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-18T13:59:49.678Z",
+    "generatedAt": "2026-06-18T14:12:19.156Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
