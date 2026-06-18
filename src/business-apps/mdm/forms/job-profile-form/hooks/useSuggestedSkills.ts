@@ -12,6 +12,11 @@ interface SkillFormValue {
   level: number | null
 }
 
+interface SkillCategoryOption {
+  id: string
+  name: string
+}
+
 interface UseSuggestedSkillsOptions {
   accessToken: string
   replace: (value: SkillFormValue[]) => void
@@ -19,6 +24,7 @@ interface UseSuggestedSkillsOptions {
   selectedSkillIds: Set<string>
   jobDescriptionFile: JobDescriptionFileValue
   jobTitle: string
+  skillCategories: SkillCategoryOption[]
 }
 
 export const useSuggestedSkills = ({
@@ -27,7 +33,8 @@ export const useSuggestedSkills = ({
   append,
   selectedSkillIds,
   jobDescriptionFile,
-  jobTitle
+  jobTitle,
+  skillCategories
 }: UseSuggestedSkillsOptions) => {
   const restClient = useRestClient(env('NEXT_PUBLIC_BASE_URL'))
   const graphqlClient = useGraphQLClient(accessToken)
@@ -36,28 +43,66 @@ export const useSuggestedSkills = ({
   const [selectedSuggestionKeys, setSelectedSuggestionKeys] = useState<Set<string>>(new Set())
   const [creatingSkillKeys, setCreatingSkillKeys] = useState<Set<string>>(new Set())
 
+  const resolveCategory = useCallback(
+    (skill: AgentSkillItem): SkillCategoryOption | null => {
+      const categoryValue = skill.category?.trim()
+      const candidateId = skill.company_skill_category_id ?? categoryValue
+      const byId = candidateId ? skillCategories.find(category => category.id === candidateId) : null
+      if (byId) return byId
+
+      const categoryName = (skill.company_skill_category_name ?? categoryValue)?.trim().toLowerCase()
+      if (!categoryName) return null
+
+      return skillCategories.find(category => category.name.toLowerCase() === categoryName) ?? null
+    },
+    [skillCategories]
+  )
+
   const handleSkillsSuggested = useCallback(
     (skills: AgentSkillItem[]) => {
       replace([])
-      setSuggestedSkills(skills)
+      setSuggestedSkills(
+        skills.map(skill => {
+          const category = resolveCategory(skill)
+          if (!category) return skill
+
+          return {
+            ...skill,
+            company_skill_category_id: category.id,
+            company_skill_category_name: category.name
+          }
+        })
+      )
       setSelectedSuggestionKeys(new Set())
     },
-    [replace]
+    [replace, resolveCategory]
   )
 
-  const handleToggleSelect = useCallback((key: string) => {
-    setSelectedSuggestionKeys(prev => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      return next
-    })
-  }, [])
+  const handleToggleSelect = useCallback(
+    (key: string) => {
+      const skill = suggestedSkills.find(s => s.extracted_name === key)
+      if (!skill?.matched || !skill.company_skill_id) return
+
+      setSelectedSuggestionKeys(prev => {
+        const next = new Set(prev)
+        if (next.has(key)) next.delete(key)
+        else next.add(key)
+        return next
+      })
+    },
+    [suggestedSkills]
+  )
 
   const handleToggleSelectAll = useCallback(() => {
-    setSelectedSuggestionKeys(prev =>
-      prev.size === suggestedSkills.length ? new Set() : new Set(suggestedSkills.map(s => s.extracted_name))
-    )
+    const selectableKeys = suggestedSkills
+      .filter(skill => skill.matched && skill.company_skill_id)
+      .map(skill => skill.extracted_name)
+
+    setSelectedSuggestionKeys(prev => {
+      const allSelectableSelected = selectableKeys.length > 0 && selectableKeys.every(key => prev.has(key))
+      if (allSelectableSelected) return new Set()
+      return new Set(selectableKeys)
+    })
   }, [suggestedSkills])
 
   const handleRemoveSuggestion = useCallback((key: string) => {
@@ -69,6 +114,24 @@ export const useSuggestedSkills = ({
     })
   }, [])
 
+  const handleCategoryChange = useCallback(
+    (key: string, categoryId: string) => {
+      const category = skillCategories.find(item => item.id === categoryId)
+      setSuggestedSkills(prev =>
+        prev.map(skill =>
+          skill.extracted_name === key
+            ? {
+                ...skill,
+                company_skill_category_id: category?.id ?? null,
+                company_skill_category_name: category?.name ?? null
+              }
+            : skill
+        )
+      )
+    },
+    [skillCategories]
+  )
+
   const handleCreateSkill = useCallback(
     async (key: string) => {
       const skill = suggestedSkills.find(s => s.extracted_name === key)
@@ -78,7 +141,13 @@ export const useSuggestedSkills = ({
       try {
         await restClient.post(
           '/processes/employee/saveSkill',
-          { skill: { name: skill.extracted_name }, changeMode: 'INSERT' },
+          {
+            skill: {
+              name: skill.extracted_name,
+              category: skill.company_skill_category_id ? { id: skill.company_skill_category_id } : null
+            },
+            changeMode: 'INSERT'
+          },
           { headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' } }
         )
         const fetchResult = await graphqlClient.request<{ skill: Array<{ id: string; name: string }> }>(
@@ -151,6 +220,7 @@ export const useSuggestedSkills = ({
     handleToggleSelect,
     handleToggleSelectAll,
     handleRemoveSuggestion,
+    handleCategoryChange,
     handleCreateSkill,
     handleAddToProfile,
     handleAnalyze,

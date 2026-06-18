@@ -11,6 +11,11 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   useTranslation
 } from '@newwork/nw-design-system'
 import { ArrowRightIcon } from '@phosphor-icons/react'
@@ -19,11 +24,14 @@ import translations from '../_i18n'
 
 interface SuggestedSkillsTableProps {
   skills: AgentSkillItem[]
+  categories: Array<{ id: string; name: string }>
+  isLoadingCategories: boolean
   selectedKeys: Set<string>
   creatingKeys: Set<string>
   onToggleSelect: (key: string) => void
   onToggleSelectAll: () => void
   onRemove: (key: string) => void
+  onCategoryChange: (key: string, categoryId: string) => void
   onCreate: (key: string) => void
   onAddToProfile: () => void
   dataTestId: string
@@ -31,11 +39,14 @@ interface SuggestedSkillsTableProps {
 
 export const SuggestedSkillsTable: React.FC<SuggestedSkillsTableProps> = ({
   skills,
+  categories,
+  isLoadingCategories,
   selectedKeys,
   creatingKeys,
   onToggleSelect,
   onToggleSelectAll,
   onRemove,
+  onCategoryChange,
   onCreate,
   onAddToProfile,
   dataTestId
@@ -52,17 +63,21 @@ export const SuggestedSkillsTable: React.FC<SuggestedSkillsTableProps> = ({
     [skills]
   )
 
-  const allSelected = skills.length > 0 && selectedKeys.size === skills.length
-  const someSelected = selectedKeys.size > 0 && selectedKeys.size < skills.length
+  const selectableKeys = useMemo(
+    () => skills.filter(skill => skill.matched && Boolean(skill.company_skill_id)).map(skill => skill.extracted_name),
+    [skills]
+  )
+  const selectedSelectableCount = useMemo(
+    () => selectableKeys.filter(key => selectedKeys.has(key)).length,
+    [selectableKeys, selectedKeys]
+  )
+  const allSelected = selectableKeys.length > 0 && selectedSelectableCount === selectableKeys.length
+  const someSelected = selectedSelectableCount > 0 && selectedSelectableCount < selectableKeys.length
   const selectAllState = someSelected ? 'indeterminate' : false
 
   const canAddToProfile = useMemo(() => {
-    if (selectedKeys.size === 0) return false
-    return [...selectedKeys].every(key => {
-      const skill = skills.find(s => s.extracted_name === key)
-      return skill?.matched && Boolean(skill?.company_skill_id)
-    })
-  }, [selectedKeys, skills])
+    return selectedSelectableCount > 0
+  }, [selectedSelectableCount])
 
   const selectedUnmatchedCount = useMemo(() => {
     return [...selectedKeys].filter(key => {
@@ -118,6 +133,7 @@ export const SuggestedSkillsTable: React.FC<SuggestedSkillsTableProps> = ({
               <Checkbox
                 checked={allSelected ? true : selectAllState}
                 onCheckedChange={onToggleSelectAll}
+                disabled={selectableKeys.length === 0}
                 data-testid={`${dataTestId}-select-all-checkbox`}
               />
             </TableHead>
@@ -133,6 +149,7 @@ export const SuggestedSkillsTable: React.FC<SuggestedSkillsTableProps> = ({
             const isSelected = selectedKeys.has(key)
             const isCreating = creatingKeys.has(key)
             const isMatched = skill.matched && Boolean(skill.company_skill_id)
+            const selectedCategoryId = skill.company_skill_category_id ?? ''
 
             return (
               <TableRow
@@ -141,21 +158,44 @@ export const SuggestedSkillsTable: React.FC<SuggestedSkillsTableProps> = ({
                 className={isSelected ? 'gba:bg-muted/50' : undefined}
               >
                 <TableCell>
-                  <Checkbox
-                    checked={isSelected}
-                    onCheckedChange={() => onToggleSelect(key)}
-                    data-testid={`${dataTestId}-select-skill-checkbox`}
-                  />
+                  {isMatched ? (
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={() => onToggleSelect(key)}
+                      data-testid={`${dataTestId}-select-skill-checkbox`}
+                    />
+                  ) : null}
                 </TableCell>
 
                 <TableCell className="gba:max-w-0">
-                  <div className="gba:flex gba:flex-col gba:gap-0.5 gba:min-w-0">
+                  <div className="gba:flex gba:flex-col gba:gap-1.5 gba:min-w-0">
                     <span
                       className="gba:text-sm gba:font-medium gba:truncate"
                       title={skill.company_skill_name || skill.extracted_name}
                     >
                       {skill.company_skill_name || skill.extracted_name}
                     </span>
+                    {!isMatched && (
+                      <Select
+                        value={selectedCategoryId}
+                        onValueChange={value => onCategoryChange(key, value)}
+                        disabled={isCreating || isLoadingCategories || categories.length === 0}
+                        data-testid={`${dataTestId}-suggested-category-select`}
+                      >
+                        <SelectTrigger className="gba:w-full" size="sm">
+                          <SelectValue
+                            placeholder={isLoadingCategories ? 'Loading categories...' : 'Select category'}
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map(category => (
+                            <SelectItem key={category.id} value={category.id}>
+                              {category.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
                 </TableCell>
 
@@ -170,7 +210,7 @@ export const SuggestedSkillsTable: React.FC<SuggestedSkillsTableProps> = ({
                       variant="destructive"
                       size="sm"
                       onClick={() => onRemove(key)}
-                      className="gba:flex-shrink-0"
+                      className="gba:shrink-0"
                       data-testid={`${dataTestId}-remove-suggestion-button`}
                     >
                       {t('remove-button')}
@@ -180,8 +220,8 @@ export const SuggestedSkillsTable: React.FC<SuggestedSkillsTableProps> = ({
                       type="button"
                       variant="default"
                       size="sm"
-                      className="gba:flex-shrink-0"
-                      disabled={isCreating}
+                      className="gba:shrink-0"
+                      disabled={isCreating || !selectedCategoryId}
                       onClick={() => onCreate(key)}
                       data-testid={`${dataTestId}-create-skill-button`}
                     >

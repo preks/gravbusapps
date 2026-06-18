@@ -21,6 +21,7 @@ import { hybridSearchSkills } from '@/common/network/flowbot/hybridSearchSkills'
 import { env } from '@/common/env/EnvUtils'
 import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
+import { useSkillCategories } from '@/business-apps/hr/core/apps/skill-management/hooks/useSkillCategories'
 import { useSuggestedSkills } from '../hooks/useSuggestedSkills'
 import { SuggestedSkillsTable } from './SuggestedSkillsTable'
 import translations from '../_i18n'
@@ -72,6 +73,7 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({
   const graphqlClient = useGraphQLClient(accessToken)
   const restClient = useRestClient(env('NEXT_PUBLIC_BASE_URL'))
   const isDevEnabled = useFeature<boolean>(Feature.Dev.Enabled.Key)
+  const { categories: skillCategories, isLoading: isLoadingSkillCategories } = useSkillCategories(accessToken)
   const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
     name: 'skills'
@@ -283,6 +285,7 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({
     handleToggleSelect,
     handleToggleSelectAll,
     handleRemoveSuggestion,
+    handleCategoryChange,
     handleCreateSkill,
     handleAddToProfile,
     handleAnalyze,
@@ -295,10 +298,9 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({
     append,
     selectedSkillIds,
     jobDescriptionFile,
-    jobTitle
+    jobTitle,
+    skillCategories
   })
-
-  const isAiAssistEnabled = useMemo(() => hasFile && Boolean(isDevEnabled), [isDevEnabled, hasFile])
 
   const showNoResults = !isSearching && filteredResults.length === 0 && searchTerm.trim().length > 0
 
@@ -527,7 +529,7 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({
           />
         )}
 
-        {isAiAssistEnabled && (
+        {hasFile && Boolean(isDevEnabled) && (
           <div className="gba:space-y-2 gba:pt-1">
             <Button
               type="button"
@@ -562,11 +564,14 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({
       {suggestedSkills.length > 0 && (
         <SuggestedSkillsTable
           skills={suggestedSkills}
+          categories={skillCategories}
+          isLoadingCategories={isLoadingSkillCategories}
           selectedKeys={selectedSuggestionKeys}
           creatingKeys={creatingSkillKeys}
           onToggleSelect={handleToggleSelect}
           onToggleSelectAll={handleToggleSelectAll}
           onRemove={handleRemoveSuggestion}
+          onCategoryChange={handleCategoryChange}
           onCreate={handleCreateSkill}
           onAddToProfile={handleAddToProfile}
           dataTestId={dataTestId}

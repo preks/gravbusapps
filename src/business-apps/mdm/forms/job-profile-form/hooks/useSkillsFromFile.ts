@@ -12,6 +12,8 @@ export interface AgentSkillItem {
   company_skill_id: string | null
   matched: boolean
   category: string
+  company_skill_category_id?: string | null
+  company_skill_category_name?: string | null
   confidence: number
   recommended_level: number
   context?: string
