@@ -1,7 +1,8 @@
 import React from 'react'
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Input } from '@newwork/nw-design-system'
+import { Input } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { CountryCode } from 'libphonenumber-js'
+import { PhonePrefixCombobox } from '@/common/components/phone-prefix-combobox/PhonePrefixCombobox'
 
 interface Country {
   code: CountryCode
@@ -43,30 +44,20 @@ export const ValueField: React.FC<ValueFieldProps> = ({
       </div>
       {isPhoneType ? (
         <div className="gba:flex gba:gap-2">
-          <Select
-            key={`country-select-${selectedCountryCode}`}
+          <PhonePrefixCombobox
             value={selectedCountryCode || ''}
+            countries={countries}
             onValueChange={code => {
-              onCountryCodeChange(code as CountryCode)
+              onCountryCodeChange(code)
               onTouched()
             }}
-          >
-            <SelectTrigger className="gba:w-[200px]" data-testid="flw_changePrivateCommunication_countryCode">
-              <SelectValue
-                placeholder={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:employee_profile.details_layout.bank_account_form.country_select_placeholder',
-                  'Select Country'
-                )}
-              />
-            </SelectTrigger>
-            <SelectContent>
-              {countries.map(country => (
-                <SelectItem key={country.code} value={country.code}>
-                  {country.name} (+{country.callingCode})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            placeholder={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:employee_profile.details_layout.bank_account_form.country_select_placeholder',
+              'Select Country'
+            )}
+            className="gba:w-48"
+            data-testid="flw_changePrivateCommunication_countryCode"
+          />
           <Input
             placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:communication_form.enterValue', 'Enter Value')}
             value={phoneNumber}

@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useState, useRef } from 'react'
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Input } from '@newwork/nw-design-system'
+import { Input } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import {
   parsePhoneNumberFromString,
@@ -9,6 +9,7 @@ import {
   type CountryCallingCode
 } from 'libphonenumber-js'
 import { normalizeLocalPhoneNumber } from '@/common/utils/validation/phoneNumberValidation'
+import { PhonePrefixCombobox } from '@/common/components/phone-prefix-combobox/PhonePrefixCombobox'
 
 interface Country {
   code: CountryCode
@@ -22,6 +23,7 @@ interface PhoneInputProps {
   onBlur?: () => void
   error?: string
   touched?: boolean
+  defaultCountryCode?: CountryCode | ''
   'data-testid'?: string
 }
 
@@ -31,6 +33,7 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
   onBlur,
   error,
   touched,
+  defaultCountryCode = '',
   'data-testid': dataTestId
 }) => {
   const [selectedCountryCode, setSelectedCountryCode] = useState<CountryCode | ''>('')
@@ -69,8 +72,10 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
       return
     }
 
+    const defaultCountry = countries.some(country => country.code === defaultCountryCode) ? defaultCountryCode : ''
+
     if (!value) {
-      setSelectedCountryCode('')
+      setSelectedCountryCode(defaultCountry)
       setLocalNumber('')
       return
     }
@@ -107,7 +112,7 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
     }
 
     setLocalNumber(value)
-  }, [value, countries])
+  }, [value, countries, defaultCountryCode])
 
   useEffect(() => {
     if (
@@ -147,23 +152,17 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
   return (
     <div className="gba:space-y-2">
       <div className="gba:flex gba:gap-2">
-        <Select value={selectedCountryCode || ''} onValueChange={code => handleCountryChange(code as CountryCode)}>
-          <SelectTrigger className="gba:w-[200px]" data-testid={`${dataTestId}-countryCode`}>
-            <SelectValue
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:employee_profile.details_layout.bank_account_form.country_select_placeholder',
-                'Select Country'
-              )}
-            />
-          </SelectTrigger>
-          <SelectContent>
-            {countries.map(country => (
-              <SelectItem key={country.code} value={country.code}>
-                {country.name} (+{country.callingCode})
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <PhonePrefixCombobox
+          value={selectedCountryCode || ''}
+          countries={countries}
+          onValueChange={handleCountryChange}
+          placeholder={getTranslationFromI18nKeyAndLabel(
+            'lowcoder:employee_profile.details_layout.bank_account_form.country_select_placeholder',
+            'Select Country'
+          )}
+          className="gba:w-48"
+          data-testid={`${dataTestId}-countryCode`}
+        />
         <Input
           placeholder={getTranslationFromI18nKeyAndLabel(
             'lowcoder:relationship_form.phone_number_placeholder',

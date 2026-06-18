@@ -58,7 +58,8 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
   const {
     options: relationshipTypeOptions,
     relationships,
-    employee
+    employee,
+    addressCountryCode
   } = useRelationshipTypes({
     accessToken,
     userInfo,
@@ -534,6 +535,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
                 onBlur={() => setPhoneTouched(true)}
                 error={isEmergencyContact ? phoneError : undefined}
                 touched={phoneTouched}
+                defaultCountryCode={addressCountryCode}
                 data-testid="flw_changeRelationship_currentPhoneNumber"
               />
             </div>

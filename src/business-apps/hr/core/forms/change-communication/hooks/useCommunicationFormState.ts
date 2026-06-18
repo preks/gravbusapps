@@ -25,6 +25,11 @@ interface UseCommunicationFormStateProps {
   communications: any[]
   loading: boolean
   initialCommunicationId?: string
+  defaultCountryCode?: CountryCode | ''
+}
+
+const normalizeCatalogValue = (value: string | undefined): string => {
+  return (value || '').toString().split(':').pop()?.trim().toLowerCase() || ''
 }
 
 export const useCommunicationFormState = ({
@@ -32,7 +37,8 @@ export const useCommunicationFormState = ({
   types,
   communications,
   loading,
-  initialCommunicationId
+  initialCommunicationId,
+  defaultCountryCode = ''
 }: UseCommunicationFormStateProps) => {
   const [channelType, setChannelType] = useState<string | undefined>(undefined)
   const [valueType, setValueType] = useState<string | undefined>(undefined)
@@ -80,16 +86,20 @@ export const useCommunicationFormState = ({
 
   const normalizedChannelType = useMemo(() => {
     const selected = channels.find(c => c.id === channelType)
-    const raw = (selected?.label || selected?.value || '').toString()
-    return raw.split(':').pop()?.trim() || ''
+    return normalizeCatalogValue(selected?.label || selected?.value)
+  }, [channels, channelType])
+
+  const shouldDefaultPrimaryType = useMemo(() => {
+    const selected = channels.find(c => c.id === channelType)
+    const channelValue = normalizeCatalogValue(selected?.value || selected?.label)
+    return channelValue === 'phone' || channelValue === 'mobile'
   }, [channels, channelType])
 
   const isPhoneType = useMemo(() => {
     if (!channelType || !channels || channels.length === 0) return false
     const selected = channels.find(c => c.id === channelType)
     if (!selected) return false
-    const channelValue = (selected.value || '').toString().toLowerCase()
-    const normalizedValue = channelValue.split(':').pop()?.trim() || channelValue
+    const normalizedValue = normalizeCatalogValue(selected.value || selected.label)
     const phoneTypes = ['phone', 'mobile', 'fax', 'pager', 'tel', 'telephone']
     return phoneTypes.includes(normalizedValue)
   }, [channels, channelType])
@@ -180,12 +190,13 @@ export const useCommunicationFormState = ({
       }
     }
     if (!existing) {
-      setValueType(undefined)
+      const nextTypeId = shouldDefaultPrimaryType ? primaryTypeId : undefined
+      setValueType(nextTypeId)
       setValue('')
       setPurpose('PRIVATE')
       setBaseline({
         channelRef: channelType,
-        typeRefId: undefined,
+        typeRefId: nextTypeId,
         value: '',
         purpose: 'PRIVATE',
         version: undefined,
@@ -200,18 +211,29 @@ export const useCommunicationFormState = ({
       : undefined
     const prefillValue = normalizePhoneNumber(existing.value || '', channelType, channels)
     const prefillPurpose = existing.purpose || 'PRIVATE'
-    setValueType(typeId)
+    const nextTypeId = shouldDefaultPrimaryType && primaryTypeId ? primaryTypeId : typeId
+    setValueType(nextTypeId)
     setValue(prefillValue)
     setPurpose(prefillPurpose)
     setBaseline({
       channelRef: channelType,
-      typeRefId: typeId,
+      typeRefId: nextTypeId,
       value: prefillValue,
       purpose: prefillPurpose,
       version: typeof existing?.version === 'number' ? existing.version : undefined,
       id: existing?.id
     })
-  }, [channelType, channels, types, latestByChannelRef, baseline, communications, pendingInit])
+  }, [
+    channelType,
+    channels,
+    types,
+    latestByChannelRef,
+    baseline,
+    communications,
+    pendingInit,
+    shouldDefaultPrimaryType,
+    primaryTypeId
+  ])
 
   useEffect(() => {
     if (pendingInit) return
@@ -232,7 +254,6 @@ export const useCommunicationFormState = ({
       const prefillPurpose = latest?.purpose || 'PRIVATE'
 
       if (isPhoneType) {
-        setSelectedCountryCode('')
         setPhoneNumber('')
       }
 
@@ -250,7 +271,6 @@ export const useCommunicationFormState = ({
     }
 
     if (isPhoneType) {
-      setSelectedCountryCode('')
       setPhoneNumber('')
     }
 
@@ -343,7 +363,15 @@ export const useCommunicationFormState = ({
       return
     }
 
-    if (!value || countries.length === 0) {
+    const defaultCountry = countries.some(country => country.code === defaultCountryCode) ? defaultCountryCode : ''
+
+    if (!value) {
+      setSelectedCountryCode(selectedCountryCode || defaultCountry)
+      setPhoneNumber('')
+      return
+    }
+
+    if (countries.length === 0) {
       return
     }
 
@@ -383,7 +411,7 @@ export const useCommunicationFormState = ({
       setSelectedCountryCode('')
       setPhoneNumber(normalizeLocalPhoneNumber(value))
     }
-  }, [isPhoneType, value, countries])
+  }, [isPhoneType, value, countries, defaultCountryCode, selectedCountryCode])
 
   useEffect(() => {
     if (

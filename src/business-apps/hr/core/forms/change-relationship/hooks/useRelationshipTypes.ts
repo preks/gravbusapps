@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { countryCodeFromCatalogRef, toCountryCode } from '@/common/utils/countryCode'
+import type { CountryCode } from 'libphonenumber-js'
 
 export interface SelectOption {
   id: string
@@ -77,6 +79,13 @@ export const GET_RELATIONSHIP_TYPES = `
       name
     }
   }
+  employeeAddresses: EmployeeAddress(where: {employeeId: {_eq: $idEmployee}, isDeleted: {_eq: false}}, orderBy: {type: ASC}, limit: 1) {
+    countryRef
+    country {
+      id
+      code
+    }
+  }
   relationships: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "EmployeeRelationships"}}, isDeleted: {_eq: false}}) {
     id
     value
@@ -140,6 +149,7 @@ export const useRelationshipTypes = (context: BusinessAppContextProps) => {
   const [options, setOptions] = useState<SelectOption[]>([])
   const [relationships, setRelationships] = useState<EmployeeRelationship[]>([])
   const [privatePhoneNumber, setPrivatePhoneNumber] = useState<string | null>(null)
+  const [addressCountryCode, setAddressCountryCode] = useState<CountryCode | ''>('')
   const [employee, setEmployee] = useState<{
     firstName?: string
     lastName?: string
@@ -161,6 +171,7 @@ export const useRelationshipTypes = (context: BusinessAppContextProps) => {
         setOptions([])
         setRelationships([])
         setPrivatePhoneNumber(null)
+        setAddressCountryCode('')
         setLoading(false)
         return
       }
@@ -175,6 +186,12 @@ export const useRelationshipTypes = (context: BusinessAppContextProps) => {
       // Extract private phone number from communications
       const communications = res?.EmployeeByPk?.communication || []
       setPrivatePhoneNumber(getPrivatePhoneNumber(communications))
+      const primaryAddress = Array.isArray(res?.employeeAddresses) ? res.employeeAddresses[0] : null
+      setAddressCountryCode(
+        toCountryCode(primaryAddress?.country?.code) ||
+          countryCodeFromCatalogRef(primaryAddress?.country?.id) ||
+          countryCodeFromCatalogRef(primaryAddress?.countryRef)
+      )
 
       const entries = res?.relationships || []
       setOptions(
@@ -207,5 +224,14 @@ export const useRelationshipTypes = (context: BusinessAppContextProps) => {
     if (context.accessToken) fetchOptions()
   }, [context.accessToken, fetchOptions])
 
-  return { options, relationships, employee, privatePhoneNumber, loading, error, refetch: fetchOptions }
+  return {
+    options,
+    relationships,
+    employee,
+    privatePhoneNumber,
+    addressCountryCode,
+    loading,
+    error,
+    refetch: fetchOptions
+  }
 }

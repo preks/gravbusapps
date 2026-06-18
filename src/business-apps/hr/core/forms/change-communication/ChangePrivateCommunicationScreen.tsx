@@ -22,7 +22,7 @@ function getInitialParams(context: BusinessAppContextProps) {
 }
 
 const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = context => {
-  const { channels, types, communications, employee, loading } = useCommunicationLookups(context)
+  const { channels, types, communications, employee, addressCountryCode, loading } = useCommunicationLookups(context)
   const { t } = useTranslation(translations)
   const initialParams = getInitialParams(context)
   const isDeleteMode = initialParams.mode === 'delete'
@@ -32,7 +32,8 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
     types,
     communications,
     loading,
-    initialCommunicationId: initialParams.communicationId
+    initialCommunicationId: initialParams.communicationId,
+    defaultCountryCode: addressCountryCode
   })
 
   const validation = useCommunicationValidation({

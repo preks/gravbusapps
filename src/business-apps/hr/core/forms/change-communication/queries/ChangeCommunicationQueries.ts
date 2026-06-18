@@ -2,6 +2,8 @@ import { useState, useCallback, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { countryCodeFromCatalogRef, toCountryCode } from '@/common/utils/countryCode'
+import type { CountryCode } from 'libphonenumber-js'
 
 export const GET_COMMUNICATION_LOOKUPS = `
   query fetchEmployee($idEmployee: uuid!, $activeUserLocale: String!) {
@@ -24,6 +26,13 @@ export const GET_COMMUNICATION_LOOKUPS = `
       structureId
       jobPosition { name }
       organizationalUnit { id name }
+    }
+    employeeAddresses: EmployeeAddress(where: { employeeId: { _eq: $idEmployee }, isDeleted: { _eq: false } }, orderBy: { type: ASC }, limit: 1) {
+      countryRef
+      country {
+        id
+        code
+      }
     }
     commType: CatalogEntry(where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "CommunicationType" } }, isDeleted: { _eq: false } }) {
       id
@@ -85,7 +94,11 @@ export function mapCatalogEntry(entry: {
 }): CatalogOption & { displayOrder: number } {
   const raw = entry.displayOrder
   const displayOrder =
-    typeof raw === 'number' ? raw : typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : Number.POSITIVE_INFINITY
+    typeof raw === 'number'
+      ? raw
+      : typeof raw === 'string' && raw.trim() !== ''
+        ? Number(raw)
+        : Number.POSITIVE_INFINITY
   return {
     id: entry.id,
     value: entry.value || '',
@@ -101,12 +114,15 @@ export function mapCatalogEntry(entry: {
  * Exported for unit-testing.
  */
 export function mapAndSortCatalogEntries(
-  entries: Array<{
-    id: string
-    value?: string
-    displayOrder?: number | string | null
-    translations?: Array<{ value?: string }>
-  }> | null | undefined
+  entries:
+    | Array<{
+        id: string
+        value?: string
+        displayOrder?: number | string | null
+        translations?: Array<{ value?: string }>
+      }>
+    | null
+    | undefined
 ): CatalogOption[] {
   if (!entries) return []
   return [...entries]
@@ -123,6 +139,7 @@ export const useCommunicationLookups = (context: BusinessAppContextProps) => {
   const [channels, setChannels] = useState<CatalogOption[]>([])
   const [types, setTypes] = useState<CatalogOption[]>([])
   const [communications, setCommunications] = useState<EmployeeCommunicationRecord[]>([])
+  const [addressCountryCode, setAddressCountryCode] = useState<CountryCode | ''>('')
   const [employee, setEmployee] = useState<{
     firstName?: string
     lastName?: string
@@ -152,6 +169,12 @@ export const useCommunicationLookups = (context: BusinessAppContextProps) => {
       setChannels(mapAndSortCatalogEntries(hrChannels))
       setTypes(mapAndSortCatalogEntries(res?.commType))
       setCommunications(Array.isArray(res?.EmployeeByPk?.communication) ? res.EmployeeByPk.communication : [])
+      const primaryAddress = Array.isArray(res?.employeeAddresses) ? res.employeeAddresses[0] : null
+      setAddressCountryCode(
+        toCountryCode(primaryAddress?.country?.code) ||
+          countryCodeFromCatalogRef(primaryAddress?.country?.id) ||
+          countryCodeFromCatalogRef(primaryAddress?.countryRef)
+      )
       setEmployee({
         firstName: res?.EmployeeByPk?.firstName,
         lastName: res?.EmployeeByPk?.lastName,
@@ -174,5 +197,5 @@ export const useCommunicationLookups = (context: BusinessAppContextProps) => {
     load()
   }, [load])
 
-  return { channels, types, communications, employee, loading, error, refetch: load }
+  return { channels, types, communications, employee, addressCountryCode, loading, error, refetch: load }
 }
