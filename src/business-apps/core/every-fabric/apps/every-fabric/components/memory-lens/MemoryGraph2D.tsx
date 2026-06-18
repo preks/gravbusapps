@@ -62,8 +62,21 @@ export const MemoryGraph2D: React.FC<MemoryGraph2DProps> = ({ accessToken }) => 
   })
 
   const selected = useMemo(() => nodes.find(node => node.id === selectedId) ?? null, [nodes, selectedId])
-  const neighborCount = focusIds ? focusIds.size - 1 : 0
+  const neighbors = useMemo(() => {
+    if (!focusIds) return []
+    return nodes.filter(node => node.id !== selectedId && focusIds.has(node.id))
+  }, [nodes, focusIds, selectedId])
   const loadingSelected = selectedId ? loadingIds.has(selectedId) : false
+
+  const handleSelectNode = useCallback(
+    (id: string) => {
+      const target = nodes.find(node => node.id === id)
+      if (!target) return
+      expandNode(target)
+      window.setTimeout(() => focusOn(id, 1.8), 60)
+    },
+    [nodes, expandNode, focusOn]
+  )
 
   const handleSubmit = useCallback(async () => {
     const ids = await searchServer(query)
@@ -113,10 +126,13 @@ export const MemoryGraph2D: React.FC<MemoryGraph2DProps> = ({ accessToken }) => 
           matchCount={matchIds ? matchIds.size : null}
           totals={totals}
           selected={selected}
-          neighborCount={neighborCount}
+          neighbors={neighbors}
+          accessToken={accessToken}
           hubHasMore={selected ? hubHasMore(selected.id) : false}
           loadingSelected={loadingSelected}
           onLoadMore={() => selected && loadMore(selected)}
+          onSelectNode={handleSelectNode}
+          onCloseDetail={() => select(null)}
           onFit={fitView}
           searchInputRef={searchInputRef}
         />

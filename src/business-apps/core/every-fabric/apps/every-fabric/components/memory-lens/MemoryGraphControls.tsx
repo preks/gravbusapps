@@ -1,8 +1,7 @@
 import React from 'react'
-import { Badge, Button, Input } from '@newwork/nw-design-system'
-import { ArrowsOutSimpleIcon, CircleIcon, HashIcon, MagnifyingGlassIcon, UsersIcon, XIcon } from '@phosphor-icons/react'
-import { MEMORY_NAMESPACE_LABELS } from '../settings/agentSettings.types'
-import { cleanMemoryBody, formatMemoryTitle } from './memoryLensModel'
+import { Button, Input } from '@newwork/nw-design-system'
+import { ArrowsOutSimpleIcon, CircleIcon, MagnifyingGlassIcon, XIcon } from '@phosphor-icons/react'
+import { MemoryGraphDetail } from './MemoryGraphDetail'
 import type { GraphNode } from './memoryGraphModel'
 import type { GraphTotals } from './useMemoryGraph'
 
@@ -15,10 +14,13 @@ interface MemoryGraphControlsProps {
   matchCount: number | null
   totals: GraphTotals
   selected: GraphNode | null
-  neighborCount: number
+  neighbors: GraphNode[]
+  accessToken: string
   hubHasMore: boolean
   loadingSelected: boolean
   onLoadMore: () => void
+  onSelectNode: (id: string) => void
+  onCloseDetail: () => void
   onFit: () => void
   searchInputRef: React.RefObject<HTMLInputElement | null>
 }
@@ -30,81 +32,6 @@ const LegendDot: React.FC<{ children: React.ReactNode; swatch: React.ReactNode }
   </div>
 )
 
-const HubDetail: React.FC<{
-  node: GraphNode
-  neighborCount: number
-  hubHasMore: boolean
-  loading: boolean
-  onLoadMore: () => void
-}> = ({ node, neighborCount, hubHasMore, loading, onLoadMore }) => (
-  <>
-    <div className="gba:flex gba:items-center gba:gap-2">
-      {node.kind === 'topic' ? (
-        <HashIcon className="gba:h-4 gba:w-4 gba:text-primary" />
-      ) : (
-        <UsersIcon className="gba:h-4 gba:w-4 gba:text-foreground" />
-      )}
-      <span className="gba:text-sm gba:font-semibold gba:text-foreground gba:truncate">{node.label}</span>
-    </div>
-    <div className="gba:mt-2 gba:flex gba:flex-wrap gba:gap-1.5">
-      <Badge variant="outline">{node.kind === 'topic' ? 'Topic' : 'Person / thing'}</Badge>
-      {typeof node.count === 'number' && <Badge variant="secondary">{node.count} memories</Badge>}
-      <Badge variant="secondary">{neighborCount} loaded</Badge>
-    </div>
-    <p className="gba:mt-3 gba:text-xs gba:text-muted-foreground">
-      Click connected nodes to keep exploring. {hubHasMore ? 'More memories are available for this hub.' : ''}
-    </p>
-    {hubHasMore && (
-      <Button variant="outline" size="sm" className="gba:mt-3 gba:w-full" disabled={loading} onClick={onLoadMore}>
-        {loading ? 'Loading…' : 'Load more memories'}
-      </Button>
-    )}
-  </>
-)
-
-const MemoryDetail: React.FC<{ node: GraphNode; neighborCount: number }> = ({ node, neighborCount }) => {
-  const entry = node.entry
-  const tags = entry?.tags ?? []
-  const entities = entry?.entities ?? []
-  return (
-    <>
-      <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
-        {node.namespace && <Badge variant="secondary">{MEMORY_NAMESPACE_LABELS[node.namespace]}</Badge>}
-        {typeof node.salience === 'number' && <Badge variant="outline">Salience {node.salience}</Badge>}
-      </div>
-      <p className="gba:mt-2 gba:text-sm gba:font-semibold gba:text-foreground">
-        {entry ? formatMemoryTitle(entry) : node.label}
-      </p>
-      {entry && (
-        <p className="gba:mt-1 gba:text-xs gba:text-muted-foreground gba:line-clamp-6">
-          {cleanMemoryBody(entry.value)}
-        </p>
-      )}
-      {(tags.length > 0 || entities.length > 0) && (
-        <div className="gba:mt-2.5 gba:flex gba:flex-wrap gba:gap-1">
-          {tags.slice(0, 10).map(tag => (
-            <span
-              key={`t-${tag}`}
-              className="gba:rounded-full gba:bg-muted/60 gba:px-2 gba:py-0.5 gba:text-[10px] gba:text-muted-foreground"
-            >
-              #{tag}
-            </span>
-          ))}
-          {entities.slice(0, 8).map(item => (
-            <span
-              key={`e-${item}`}
-              className="gba:rounded-full gba:border gba:border-border/60 gba:px-2 gba:py-0.5 gba:text-[10px] gba:text-muted-foreground"
-            >
-              {item}
-            </span>
-          ))}
-        </div>
-      )}
-      <p className="gba:mt-3 gba:text-[11px] gba:text-muted-foreground/70">Connected to {neighborCount} hub(s).</p>
-    </>
-  )
-}
-
 export const MemoryGraphControls: React.FC<MemoryGraphControlsProps> = ({
   query,
   onQueryChange,
@@ -114,10 +41,13 @@ export const MemoryGraphControls: React.FC<MemoryGraphControlsProps> = ({
   matchCount,
   totals,
   selected,
-  neighborCount,
+  neighbors,
+  accessToken,
   hubHasMore,
   loadingSelected,
   onLoadMore,
+  onSelectNode,
+  onCloseDetail,
   onFit,
   searchInputRef
 }) => (
@@ -174,22 +104,16 @@ export const MemoryGraphControls: React.FC<MemoryGraphControlsProps> = ({
     </div>
 
     {selected && (
-      <aside
-        className="gba:pointer-events-auto gba:absolute gba:right-3 gba:top-3 gba:bottom-3 gba:w-72 gba:overflow-y-auto gba:rounded-2xl gba:border gba:border-border/60 gba:bg-card/95 gba:p-4 gba:shadow-lg gba:backdrop-blur"
-        data-testid="memory-graph-detail"
-      >
-        {selected.kind === 'memory' ? (
-          <MemoryDetail node={selected} neighborCount={neighborCount} />
-        ) : (
-          <HubDetail
-            node={selected}
-            neighborCount={neighborCount}
-            hubHasMore={hubHasMore}
-            loading={loadingSelected}
-            onLoadMore={onLoadMore}
-          />
-        )}
-      </aside>
+      <MemoryGraphDetail
+        node={selected}
+        neighbors={neighbors}
+        accessToken={accessToken}
+        hubHasMore={hubHasMore}
+        loading={loadingSelected}
+        onLoadMore={onLoadMore}
+        onSelectNode={onSelectNode}
+        onClose={onCloseDetail}
+      />
     )}
   </div>
 )

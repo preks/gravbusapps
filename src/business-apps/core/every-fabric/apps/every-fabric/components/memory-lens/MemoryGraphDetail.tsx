@@ -1,0 +1,269 @@
+import React, { useMemo } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { Badge, Button } from '@newwork/nw-design-system'
+import { ArrowSquareOutIcon, ChatCircleTextIcon, HashIcon, NotebookIcon, UsersIcon, XIcon } from '@phosphor-icons/react'
+import EntityLink, { markdownUrlTransform } from '@/business-apps/platform/apps/every-ai/components/links/EntityLink'
+import { MEMORY_NAMESPACE_LABELS } from '../settings/agentSettings.types'
+import { formatMemoryTitle, relativeDate } from './memoryLensModel'
+import { extractReferences, sanitizeMemoryBody } from './memoryReferences'
+import type { GraphNode } from './memoryGraphModel'
+
+interface MemoryGraphDetailProps {
+  node: GraphNode
+  neighbors: GraphNode[]
+  accessToken: string
+  hubHasMore: boolean
+  loading: boolean
+  onLoadMore: () => void
+  onSelectNode: (id: string) => void
+  onClose: () => void
+}
+
+const SALIENCE_LABEL = (value: number): string => {
+  if (value >= 9) return 'Critical'
+  if (value >= 7) return 'Important'
+  if (value >= 4) return 'Notable'
+  return 'Routine'
+}
+
+const markdownComponents = (accessToken: string) => ({
+  p: ({ children }: { children?: React.ReactNode }) => (
+    <p className="gba:my-1.5 gba:text-[13px] gba:leading-relaxed gba:text-foreground">{children}</p>
+  ),
+  ul: ({ children }: { children?: React.ReactNode }) => (
+    <ul className="gba:my-1.5 gba:list-disc gba:space-y-1 gba:pl-4 gba:text-[13px] gba:text-foreground">{children}</ul>
+  ),
+  ol: ({ children }: { children?: React.ReactNode }) => (
+    <ol className="gba:my-1.5 gba:list-decimal gba:space-y-1 gba:pl-4 gba:text-[13px] gba:text-foreground">
+      {children}
+    </ol>
+  ),
+  li: ({ children }: { children?: React.ReactNode }) => (
+    <li className="gba:text-[13px] gba:leading-relaxed">{children}</li>
+  ),
+  strong: ({ children }: { children?: React.ReactNode }) => (
+    <strong className="gba:font-semibold gba:text-foreground">{children}</strong>
+  ),
+  em: ({ children }: { children?: React.ReactNode }) => <em className="gba:italic">{children}</em>,
+  code: ({ children }: { children?: React.ReactNode }) => (
+    <code className="gba:rounded gba:bg-muted gba:px-1 gba:py-0.5 gba:font-mono gba:text-[11px] gba:text-foreground">
+      {children}
+    </code>
+  ),
+  a: ({ href, children }: { href?: string; children?: React.ReactNode }) => (
+    <EntityLink href={href} accessToken={accessToken} appearance="inline" openInNewTab>
+      {children}
+    </EntityLink>
+  )
+})
+
+const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <p className="gba:mb-1.5 gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground/70">
+    {children}
+  </p>
+)
+
+const HubChip: React.FC<{ node: GraphNode; onSelect: () => void }> = ({ node, onSelect }) => (
+  <button
+    type="button"
+    onClick={onSelect}
+    className="gba:inline-flex gba:max-w-full gba:items-center gba:gap-1 gba:rounded-full gba:border gba:border-border/60 gba:bg-muted/40 gba:px-2 gba:py-0.5 gba:text-[11px] gba:text-foreground gba:transition-colors gba:hover:border-primary/50 gba:hover:bg-primary/5"
+    data-testid="memory-detail-hub-chip"
+  >
+    {node.kind === 'topic' ? (
+      <HashIcon className="gba:h-3 gba:w-3 gba:text-primary" />
+    ) : (
+      <UsersIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
+    )}
+    <span className="gba:truncate">{node.label}</span>
+  </button>
+)
+
+const MemoryView: React.FC<{
+  node: GraphNode
+  neighbors: GraphNode[]
+  accessToken: string
+  onSelectNode: (id: string) => void
+}> = ({ node, neighbors, accessToken, onSelectNode }) => {
+  const entry = node.entry
+  const references = useMemo(() => extractReferences(entry?.value), [entry?.value])
+  const body = useMemo(() => sanitizeMemoryBody(entry?.value), [entry?.value])
+  const date = relativeDate(node.occurredAt ?? entry?.updatedAt)
+  const topics = neighbors.filter(item => item.kind === 'topic')
+  const people = neighbors.filter(item => item.kind === 'entity')
+
+  return (
+    <>
+      <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-1.5">
+        {node.namespace && (
+          <Badge variant="secondary" className="gba:gap-1">
+            <NotebookIcon className="gba:h-3 gba:w-3" />
+            {MEMORY_NAMESPACE_LABELS[node.namespace]}
+          </Badge>
+        )}
+        {typeof node.salience === 'number' && (
+          <Badge variant="outline">
+            {SALIENCE_LABEL(node.salience)} · {node.salience}/10
+          </Badge>
+        )}
+        {date && <span className="gba:text-[11px] gba:text-muted-foreground">{date}</span>}
+      </div>
+
+      <h3 className="gba:mt-2.5 gba:text-[15px] gba:font-semibold gba:leading-snug gba:text-foreground">
+        {entry ? formatMemoryTitle(entry) : node.label}
+      </h3>
+
+      {body && (
+        <div className="gba:mt-1.5">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            urlTransform={markdownUrlTransform}
+            components={markdownComponents(accessToken)}
+          >
+            {body}
+          </ReactMarkdown>
+        </div>
+      )}
+
+      {references.length > 0 && (
+        <div className="gba:mt-4">
+          <SectionTitle>Open</SectionTitle>
+          <div className="gba:flex gba:flex-col gba:gap-1.5">
+            {references.map(ref => (
+              <EntityLink key={ref.id} href={ref.href} accessToken={accessToken} appearance="chip" openInNewTab>
+                {ref.label}
+              </EntityLink>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {people.length > 0 && (
+        <div className="gba:mt-4">
+          <SectionTitle>People &amp; things</SectionTitle>
+          <div className="gba:flex gba:flex-wrap gba:gap-1.5">
+            {people.map(item => (
+              <HubChip key={item.id} node={item} onSelect={() => onSelectNode(item.id)} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {topics.length > 0 && (
+        <div className="gba:mt-4">
+          <SectionTitle>Topics</SectionTitle>
+          <div className="gba:flex gba:flex-wrap gba:gap-1.5">
+            {topics.map(item => (
+              <HubChip key={item.id} node={item} onSelect={() => onSelectNode(item.id)} />
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+const HubView: React.FC<{
+  node: GraphNode
+  neighbors: GraphNode[]
+  hubHasMore: boolean
+  loading: boolean
+  onLoadMore: () => void
+  onSelectNode: (id: string) => void
+}> = ({ node, neighbors, hubHasMore, loading, onLoadMore, onSelectNode }) => {
+  const memories = neighbors.filter(item => item.kind === 'memory')
+  return (
+    <>
+      <div className="gba:flex gba:items-center gba:gap-2">
+        {node.kind === 'topic' ? (
+          <HashIcon className="gba:h-4 gba:w-4 gba:text-primary" />
+        ) : (
+          <UsersIcon className="gba:h-4 gba:w-4 gba:text-foreground" />
+        )}
+        <h3 className="gba:truncate gba:text-[15px] gba:font-semibold gba:text-foreground">{node.label}</h3>
+      </div>
+      <div className="gba:mt-2 gba:flex gba:flex-wrap gba:gap-1.5">
+        <Badge variant="outline">{node.kind === 'topic' ? 'Topic' : 'Person / thing'}</Badge>
+        {typeof node.count === 'number' && <Badge variant="secondary">{node.count} memories</Badge>}
+      </div>
+
+      {memories.length > 0 && (
+        <div className="gba:mt-4">
+          <SectionTitle>Connected memories</SectionTitle>
+          <div className="gba:flex gba:flex-col gba:gap-1">
+            {memories.map(item => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onSelectNode(item.id)}
+                className="gba:flex gba:w-full gba:items-center gba:gap-2 gba:rounded-lg gba:border gba:border-transparent gba:px-2 gba:py-1.5 gba:text-left gba:text-[12px] gba:text-foreground gba:transition-colors gba:hover:border-border/60 gba:hover:bg-muted/40"
+                data-testid="memory-detail-connected-memory"
+              >
+                <ChatCircleTextIcon className="gba:h-3.5 gba:w-3.5 gba:shrink-0 gba:text-muted-foreground" />
+                <span className="gba:truncate">{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {hubHasMore && (
+        <Button variant="outline" size="sm" className="gba:mt-3 gba:w-full" disabled={loading} onClick={onLoadMore}>
+          {loading ? 'Loading…' : 'Load more memories'}
+        </Button>
+      )}
+      {!hubHasMore && memories.length === 0 && (
+        <p className="gba:mt-3 gba:text-xs gba:text-muted-foreground">
+          Click this hub in the map to load its memories.
+        </p>
+      )}
+    </>
+  )
+}
+
+export const MemoryGraphDetail: React.FC<MemoryGraphDetailProps> = ({
+  node,
+  neighbors,
+  accessToken,
+  hubHasMore,
+  loading,
+  onLoadMore,
+  onSelectNode,
+  onClose
+}) => (
+  <aside
+    className="gba:pointer-events-auto gba:absolute gba:right-3 gba:top-3 gba:bottom-3 gba:w-80 gba:overflow-y-auto gba:rounded-2xl gba:border gba:border-border/60 gba:bg-card/95 gba:p-4 gba:shadow-lg gba:backdrop-blur"
+    data-testid="memory-graph-detail"
+  >
+    <button
+      type="button"
+      onClick={onClose}
+      aria-label="Close details"
+      className="gba:absolute gba:right-2.5 gba:top-2.5 gba:inline-flex gba:h-7 gba:w-7 gba:items-center gba:justify-center gba:rounded-full gba:text-muted-foreground/70 gba:transition-colors gba:hover:bg-muted/60 gba:hover:text-foreground"
+      data-testid="memory-graph-detail-close"
+    >
+      <XIcon className="gba:h-3.5 gba:w-3.5" />
+    </button>
+    <div className="gba:pr-6">
+      {node.kind === 'memory' ? (
+        <MemoryView node={node} neighbors={neighbors} accessToken={accessToken} onSelectNode={onSelectNode} />
+      ) : (
+        <HubView
+          node={node}
+          neighbors={neighbors}
+          hubHasMore={hubHasMore}
+          loading={loading}
+          onLoadMore={onLoadMore}
+          onSelectNode={onSelectNode}
+        />
+      )}
+    </div>
+    {node.kind === 'memory' && (
+      <div className="gba:mt-4 gba:flex gba:items-center gba:gap-1 gba:text-[10px] gba:text-muted-foreground/60">
+        <ArrowSquareOutIcon className="gba:h-3 gba:w-3" />
+        Links open in a new tab
+      </div>
+    )}
+  </aside>
+)
