@@ -35,6 +35,8 @@ import { useAbsenceTypesByGroup } from './hooks/useAbsenceTypesByGroup'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import translations from '../_i18n'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 
 const SICK_LEAVE_USER_TASK_AUTO_COMPLETE_DELAY_MS = 2000
 
@@ -209,6 +211,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
   const formValuesState = form.watch()
   const [isUpdateMode, setIsUpdateMode] = useState(false)
   const [showSickLeaveOptions, setShowSickLeaveOptions] = useState(false)
+  const isDevFlagEnabled = useFeature<boolean>(Feature.Dev.Enabled.Key) === true
 
   const { existingSickLeave, hasExistingSickLeave } = useAbsenceValidation({
     accessToken,
@@ -230,7 +233,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
     formValuesState.selectedType || undefined,
     prevalidateStartDateStr,
     prevalidateEndDateStr,
-    isUpdateMode ? existingSickLeave?.id : undefined
+    isDevFlagEnabled && isUpdateMode ? existingSickLeave?.id : undefined
   )
   const hasPrevalidateError = !!prevalidate.errorCode
   const duplicatedPrevalidateError = useMemo(() => {
