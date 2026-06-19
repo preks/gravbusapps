@@ -1,6 +1,6 @@
 import React from 'react'
-import { Bell, Workflow, Zap } from 'lucide-react'
 import GenericEntityDisplay from './GenericEntityDisplay'
+import { renderEveryAiEntityCardIcon } from './utils/everyAiEntityCardIcons'
 import { Navigation, buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { getEntityUrl } from '../links/EntityLink'
 
@@ -120,7 +120,8 @@ export const WorkflowDisplay: React.FC<WorkflowDisplayProps> = ({
     )
   }
 
-  const IconComponent = isReminder ? Bell : isBlink ? Zap : Workflow
+  const cardIconEntity = isReminder ? 'reminder' : isBlink ? 'blink' : 'service_workflow'
+  const cardIconLabel = isReminder ? 'Reminder' : isBlink ? 'Blink Task' : 'Workflow Template'
 
   return (
     <GenericEntityDisplay
@@ -132,12 +133,11 @@ export const WorkflowDisplay: React.FC<WorkflowDisplayProps> = ({
       textTitle={textTitle || formatWorkflowName(workflowId)}
       link={link}
       variant="decorative"
-      icon={
-        <div className="gba:h-11 gba:w-11 gba:rounded-xl gba:bg-decorative-foreground/15 gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
-          <IconComponent className="gba:w-5 gba:h-5 gba:text-decorative-foreground" strokeWidth={1.5} />
-        </div>
-      }
-      subtitle={isReminder ? 'Reminder' : isBlink ? 'Blink Task' : 'Workflow Template'}
+      icon={renderEveryAiEntityCardIcon(cardIconEntity, {
+        variant: 'decorative',
+        label: cardIconLabel
+      })}
+      subtitle={cardIconLabel}
       onTitleClick={handleTitleClick}
     />
   )

@@ -1,6 +1,7 @@
 import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
-import { Sparkles, CircleCheck } from 'lucide-react'
+import { CircleCheck } from 'lucide-react'
+import { renderEveryAiEntityCardIcon } from './utils/everyAiEntityCardIcons'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import EntityLink, { markdownUrlTransform, getEntityUrl } from '../links/EntityLink'
@@ -17,7 +18,7 @@ export interface GenericEntityDisplayProps {
   /** Normalized entity link URL from backend with optional alternateId fragment */
   link?: string
   variant?: 'default' | 'decorative'
-  /** When set, replaces the default Sparkles / bolt icon */
+  /** When set, replaces the default sparkle / bolt icon */
   icon?: React.ReactNode
   /** When set (decorative variant), replaces the uppercase line above the title */
   subtitle?: string
@@ -35,16 +36,12 @@ const stripEmojis = (text: string): string =>
 const variantStyles = {
   default: {
     card: 'gba:border-2 gba:shadow-lg',
-    icon: 'gba:bg-muted/40',
-    iconStroke: 'gba:text-foreground',
     title: 'gba:text-foreground',
     titleHover: 'hover:gba:text-primary',
     prose: 'gba:text-foreground'
   },
   decorative: {
     card: 'gba:bg-card-decorative gba:border-0',
-    icon: 'gba:bg-decorative-foreground/15',
-    iconStroke: 'gba:text-decorative-foreground',
     title: 'gba:text-decorative-foreground',
     titleHover: 'hover:gba:text-decorative-foreground/80',
     prose: 'gba:text-decorative-foreground/85'
@@ -78,17 +75,12 @@ const GenericEntityDisplay: React.FC<GenericEntityDisplayProps> = ({
   const content = isDecorative ? stripEmojis(rawContent) : rawContent
   const contentWithLineBreaks = content.replace(/\n/g, '  \n')
 
-  const defaultIcon = isDecorative ? (
-    <div className="gba:h-11 gba:w-11 gba:rounded-2xl gba:bg-decorative-foreground/10 gba:ring-1 gba:ring-decorative-foreground/20 gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
-      <Sparkles className="gba:w-5 gba:h-5 gba:text-decorative-foreground" strokeWidth={1.5} />
-    </div>
-  ) : (
-    <div className={`gba:h-12 gba:w-12 gba:rounded-full ${s.icon} gba:flex gba:items-center gba:justify-center`}>
-      <svg className={`gba:h-6 gba:w-6 ${s.iconStroke}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-      </svg>
-    </div>
-  )
+  const entityLabel = entity.replace(/_/g, ' ')
+
+  const defaultIcon = renderEveryAiEntityCardIcon(entity, {
+    variant: isDecorative ? 'decorative' : 'default',
+    label: entityLabel
+  })
 
   const iconElement = customIcon ?? defaultIcon
 
