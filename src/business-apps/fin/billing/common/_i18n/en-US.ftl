@@ -26,8 +26,8 @@ billing-status-cancelled = Cancelled
 billing-status-written-off = Written off
 
 # Payment method labels
-billing-payment-method-bank-transfer = Bank transfer
-billing-payment-method-sepa = SEPA direct debit
+billing-payment-method-bank-transfer = Bank Transfer
+billing-payment-method-sepa = SEPA Direct Debit
 billing-payment-method-card = Card
 billing-payment-method-cash = Cash
 billing-payment-method-other = Other
@@ -41,10 +41,12 @@ billing-event-written-off = Written off
 billing-event-fx = FX difference
 
 # Activity / audit action labels
+billing-audit-created = Created
 billing-audit-issued = Issued
 billing-audit-cancelled = Cancelled
 billing-audit-payment = Payment recorded
 billing-audit-written_off = Written off
+billing-audit-credit_note_created = Credit note created
 
 # Launcher
 billing-launcher-title = Billing & Invoicing
@@ -108,8 +110,21 @@ billing-record-credit-note = Create credit note
 billing-credit-note-title = Create credit note
 billing-credit-note-amount = Credit amount
 billing-credit-note-reason = Reason
+billing-credit-note-original-invoice = Original invoice
+billing-credit-note-max-amount = Maximum credit amount
+billing-credit-note-validation-reason = Enter a reason for the credit note.
+billing-credit-note-validation-amount-positive = Enter a credit amount greater than zero.
+billing-credit-note-validation-amount-max = Credit amount cannot exceed the original gross total.
 billing-credit-note-submit = Create credit note
 billing-credit-note-success = Credit note created
+billing-cancel-invoice-title = Cancel invoice
+billing-cancel-invoice-reason = Cancellation reason
+billing-cancel-invoice-submit = Cancel invoice
+billing-cancel-invoice-payments-warning = This invoice has recorded payments; cancellation will not reverse them.
+billing-writeoff-invoice-title = Write off invoice
+billing-writeoff-invoice-reason = Write-off reason
+billing-writeoff-invoice-submit = Write off invoice
+billing-writeoff-invoice-partial-warning = This invoice is partially paid; only the remaining outstanding amount is being operationally written off. Existing payment records stay as-is.
 billing-record-download-pdf = Download PDF
 billing-record-no-payments = No payments recorded yet.
 billing-record-no-postings = No ledger postings yet.
@@ -129,6 +144,7 @@ billing-payment-amount = Amount
 billing-payment-method = Payment method
 billing-payment-date = Payment date
 billing-payment-reference = Reference
+billing-payment-ledger-transaction-ref = Existing ledger transaction ref
 billing-payment-submit = Record payment
 
 # Invoice form
@@ -142,6 +158,8 @@ billing-form-customer-search = Search customers…
 billing-form-customer-empty = No customers found
 billing-form-currency = Currency
 billing-form-payment-term = Payment term
+billing-form-custom-due-date-option = Custom due date
+billing-form-custom-due-date = Due date
 billing-form-notes = Notes
 billing-form-add-line = Add line
 billing-form-remove-line = Remove
@@ -238,6 +256,8 @@ billing-health-offline = Sample data
 billing-crm-tab-invoices = Invoices
 billing-crm-create-invoice = Create invoice
 billing-crm-no-invoices = No invoices for this customer yet.
+billing-crm-no-invoice-results = No invoices match your search.
+billing-crm-search-invoices = Search invoices by number, status, date, or amount
 billing-crm-view-all = View all invoices
 
 # Ledger Admin

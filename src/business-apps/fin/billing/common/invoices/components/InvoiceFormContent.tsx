@@ -3,6 +3,7 @@ import {
   Card,
   Button,
   Input,
+  DateInput,
   Alert,
   AlertDescription,
   Select,
@@ -27,6 +28,8 @@ import { CustomerSelect } from './CustomerSelect'
 
 type BillingData = ReturnType<typeof useBillingData>
 
+const CUSTOM_DUE_DATE_OPTION = '__custom_due_date__'
+
 interface InvoiceFormContentProps {
   billing: BillingData
   customers: BillingCustomer[]
@@ -45,6 +48,22 @@ function findCustomerIdForAccount(
   return customers.find(customer => customer.crmAccountId === accountId || customer.id === accountId)?.id
 }
 
+function calculateDueDate(issueDate: string | null | undefined, dueDays: number | undefined): string {
+  const date = issueDate ? new Date(issueDate) : new Date()
+  date.setDate(date.getDate() + (dueDays ?? 0))
+  return date.toISOString()
+}
+
+function todayDateInputValue(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+function dateInputToIso(value: string): string {
+  if (!value) return ''
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString()
+}
+
 export const InvoiceFormContent: React.FC<InvoiceFormContentProps> = ({
   billing,
   customers,
@@ -61,6 +80,7 @@ export const InvoiceFormContent: React.FC<InvoiceFormContentProps> = ({
   const [billingCustomerId, setBillingCustomerId] = useState('')
   const [currency, setCurrency] = useState(settings.currencies.enabledCurrencies[0] ?? 'EUR')
   const [paymentTermId, setPaymentTermId] = useState(settings.paymentTerms[0]?.id ?? '')
+  const [customDueDate, setCustomDueDate] = useState(todayDateInputValue())
   const [notes, setNotes] = useState('')
   const [lines, setLines] = useState<EditableLine[]>([
     {
@@ -75,6 +95,17 @@ export const InvoiceFormContent: React.FC<InvoiceFormContentProps> = ({
   const [errors, setErrors] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
   const crmOpportunityId = initialOpportunityId ?? null
+  const usesCustomDueDate = paymentTermId === CUSTOM_DUE_DATE_OPTION
+  const FormShell: React.ElementType = embedded ? 'div' : Card
+  const formShellClass = embedded
+    ? 'gba:flex gba:flex-col gba:gap-5 gba:bg-transparent'
+    : 'gba:p-6 gba:flex gba:flex-col gba:gap-4'
+  const fieldGridClass = embedded
+    ? 'gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-x-4 gba:gap-y-5'
+    : 'gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4'
+  const totalsClass = embedded
+    ? 'gba:flex gba:items-center gba:justify-between gba:flex-wrap gba:gap-4 gba:pt-4 gba:border-t'
+    : 'gba:flex gba:items-center gba:justify-between gba:flex-wrap gba:gap-4 gba:pt-2 gba:border-t'
 
   // Sync defaults once live settings / CRM customers arrive.
   useEffect(() => {
@@ -87,8 +118,20 @@ export const InvoiceFormContent: React.FC<InvoiceFormContentProps> = ({
     }
   }, [settings, customers, legalEntityId, paymentTermId, billingCustomerId, initialAccountId])
 
+  const handlePaymentTermChange = (value: string) => {
+    setPaymentTermId(value)
+    if (value === CUSTOM_DUE_DATE_OPTION) {
+      setCustomDueDate(current => current || todayDateInputValue())
+    } else {
+      setCustomDueDate('')
+    }
+  }
+
   const draft: InvoiceDraftInput = useMemo(() => {
     const selectedCustomer = customers.find(customer => customer.id === billingCustomerId)
+    const selectedPaymentTerm = usesCustomDueDate
+      ? undefined
+      : settings.paymentTerms.find(term => term.id === paymentTermId)
     return {
       legalEntityId,
       billingCustomerId,
@@ -96,7 +139,8 @@ export const InvoiceFormContent: React.FC<InvoiceFormContentProps> = ({
       crmAccountId: selectedCustomer?.crmAccountId ?? null,
       crmOpportunityId,
       currency,
-      paymentTermId,
+      paymentTermId: usesCustomDueDate ? null : paymentTermId,
+      dueDate: usesCustomDueDate ? dateInputToIso(customDueDate) : calculateDueDate(null, selectedPaymentTerm?.dueDays),
       notes: notes || null,
       lines: lines.map(line => ({
         description: line.description,
@@ -106,7 +150,19 @@ export const InvoiceFormContent: React.FC<InvoiceFormContentProps> = ({
         taxCategoryId: line.taxCategoryId
       }))
     }
-  }, [legalEntityId, billingCustomerId, customers, crmOpportunityId, currency, paymentTermId, notes, lines])
+  }, [
+    legalEntityId,
+    billingCustomerId,
+    customers,
+    crmOpportunityId,
+    currency,
+    paymentTermId,
+    usesCustomDueDate,
+    customDueDate,
+    settings.paymentTerms,
+    notes,
+    lines
+  ])
 
   const totals = useMemo(
     () =>
@@ -165,14 +221,8 @@ export const InvoiceFormContent: React.FC<InvoiceFormContentProps> = ({
         </Alert>
       )}
 
-      <Card
-        className={
-          embedded
-            ? 'gba:p-0 gba:border-0 gba:shadow-none gba:flex gba:flex-col gba:gap-4'
-            : 'gba:p-6 gba:flex gba:flex-col gba:gap-4'
-        }
-      >
-        <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
+      <FormShell className={formShellClass}>
+        <div className={fieldGridClass}>
           <div className="gba:space-y-1">
             <label className="gba:text-sm gba:font-medium">{t('billing-form-legal-entity')}</label>
             <Select value={legalEntityId} onValueChange={setLegalEntityId}>
@@ -214,7 +264,7 @@ export const InvoiceFormContent: React.FC<InvoiceFormContentProps> = ({
           </div>
           <div className="gba:space-y-1">
             <label className="gba:text-sm gba:font-medium">{t('billing-form-payment-term')}</label>
-            <Select value={paymentTermId} onValueChange={setPaymentTermId}>
+            <Select value={paymentTermId} onValueChange={handlePaymentTermChange}>
               <SelectTrigger data-testid="form-payment-term">
                 <SelectValue />
               </SelectTrigger>
@@ -224,19 +274,38 @@ export const InvoiceFormContent: React.FC<InvoiceFormContentProps> = ({
                     {term.name}
                   </SelectItem>
                 ))}
+                <SelectItem value={CUSTOM_DUE_DATE_OPTION}>{t('billing-form-custom-due-date-option')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
+          {usesCustomDueDate && (
+            <div className="gba:space-y-1">
+              <label className="gba:text-sm gba:font-medium" htmlFor="form-custom-due-date">
+                {t('billing-form-custom-due-date')}
+              </label>
+              <DateInput
+                id="form-custom-due-date"
+                type="date"
+                mode="single"
+                value={customDueDate}
+                onChange={value => setCustomDueDate(typeof value === 'string' ? value : '')}
+                placeholder={t('billing-form-custom-due-date')}
+                data-testid="form-custom-due-date"
+              />
+            </div>
+          )}
         </div>
 
-        <LineItemsEditor lines={lines} taxCategories={settings.taxCategories} onChange={setLines} />
+        <div className={embedded ? 'gba:pt-1' : undefined}>
+          <LineItemsEditor lines={lines} taxCategories={settings.taxCategories} onChange={setLines} />
+        </div>
 
         <div className="gba:space-y-1">
           <label className="gba:text-sm gba:font-medium">{t('billing-form-notes')}</label>
           <Input value={notes} onChange={event => setNotes(event.target.value)} data-testid="form-notes" />
         </div>
 
-        <div className="gba:flex gba:items-center gba:justify-between gba:flex-wrap gba:gap-4 gba:pt-2 gba:border-t">
+        <div className={totalsClass}>
           <div className="gba:flex gba:flex-col gba:text-sm">
             <span>
               {t('billing-record-net')}: {formatCurrency(totals.netTotal, currency)}
@@ -253,7 +322,7 @@ export const InvoiceFormContent: React.FC<InvoiceFormContentProps> = ({
             {t('billing-form-save-draft')}
           </Button>
         </div>
-      </Card>
+      </FormShell>
     </>
   )
 }

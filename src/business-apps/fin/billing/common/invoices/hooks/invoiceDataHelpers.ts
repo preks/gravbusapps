@@ -29,6 +29,15 @@ export function assertBillingBackend(accessToken: string | undefined): asserts a
   }
 }
 
+function resolveDraftDueDate(draft: InvoiceDraftInput, settings: BillingSettings): string {
+  if (draft.dueDate) return draft.dueDate
+
+  const paymentTerm = settings.paymentTerms.find(term => term.id === draft.paymentTermId)
+  const date = draft.issueDate ? new Date(draft.issueDate) : new Date()
+  date.setDate(date.getDate() + (paymentTerm?.dueDays ?? 0))
+  return date.toISOString()
+}
+
 export function buildDraftInvoice(draft: InvoiceDraftInput, settings: BillingSettings): Invoice {
   const legalEntity = settings.legalEntities.find(entity => entity.id === draft.legalEntityId)
   const { lines, totals } = calculateInvoice(
@@ -49,7 +58,7 @@ export function buildDraftInvoice(draft: InvoiceDraftInput, settings: BillingSet
     accountingCurrency: legalEntity?.accountingCurrency ?? draft.currency,
     fxRate: null,
     issueDate: draft.issueDate ?? null,
-    dueDate: null,
+    dueDate: resolveDraftDueDate(draft, settings),
     paymentTermId: draft.paymentTermId ?? null,
     lines,
     totals,

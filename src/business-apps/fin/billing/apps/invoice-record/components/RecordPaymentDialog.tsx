@@ -1,33 +1,68 @@
 import React, { useState } from 'react'
 import {
+  Combobox,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   Button,
+  DateInput,
   Input,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  type ComboboxOption,
   useTranslation
 } from '@newwork/nw-design-system'
 import billingTranslations from '../../../common/_i18n'
-import { PAYMENT_METHODS, type PaymentAllocation, type PaymentMethod } from '../../../common/invoices/types'
+import { PAYMENT_METHODS, type PaymentMethod, type RecordPaymentInput } from '../../../common/invoices/types'
+import type { LedgerTransaction } from '../../../common/ledger/network/ledgerAdminClient'
+import { displayTransactionStatus, transactionFamily } from '../../../common/ledger/utils/ledgerTransactionStatus'
+import { getPaymentMethodLabel } from '../../../common/utils/billingLabels'
 
 interface RecordPaymentDialogProps {
   open: boolean
   currency: string
   defaultAmount: number
+  transactions: LedgerTransaction[]
+  transactionsLoading?: boolean
   onClose: () => void
-  onSubmit: (input: Omit<PaymentAllocation, 'id' | 'invoiceId' | 'ledgerTransactionRef'>) => Promise<void>
+  onSubmit: (input: RecordPaymentInput) => Promise<void>
+}
+
+function transactionOptionLabel(transaction: LedgerTransaction, t: (key: string) => string): string {
+  const title = transaction.reference || transaction.transactionId
+  const amount = `${transaction.amount} ${transaction.currency}`
+  const status = displayTransactionStatus(transaction, t)
+  return [title, amount, status].filter(Boolean).join(' · ')
+}
+
+function transactionOptions(transactions: LedgerTransaction[], t: (key: string) => string): ComboboxOption[] {
+  const seen = new Set<string>()
+
+  return transactions.flatMap(transaction =>
+    transactionFamily(transaction).flatMap(item => {
+      if (!item.transactionId || seen.has(item.transactionId)) return []
+      seen.add(item.transactionId)
+      const label = transactionOptionLabel(item, t)
+      return [{ value: item.transactionId, label, optionLabel: label }]
+    })
+  )
+}
+
+function dateInputToIso(value: string): string {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString()
 }
 
 export const RecordPaymentDialog: React.FC<RecordPaymentDialogProps> = ({
   open,
   currency,
   defaultAmount,
+  transactions,
+  transactionsLoading = false,
   onClose,
   onSubmit
 }) => {
@@ -36,7 +71,9 @@ export const RecordPaymentDialog: React.FC<RecordPaymentDialogProps> = ({
   const [method, setMethod] = useState<PaymentMethod>('BANK_TRANSFER')
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10))
   const [reference, setReference] = useState('')
+  const [ledgerTransactionRef, setLedgerTransactionRef] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const options = transactionOptions(transactions, t)
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -46,8 +83,9 @@ export const RecordPaymentDialog: React.FC<RecordPaymentDialogProps> = ({
         amount: Number(amount),
         currency,
         method,
-        paymentDate: new Date(paymentDate).toISOString(),
-        externalReference: reference || null
+        paymentDate: dateInputToIso(paymentDate),
+        externalReference: reference || null,
+        ledgerTransactionRef: ledgerTransactionRef || null
       })
       onClose()
     } finally {
@@ -87,7 +125,7 @@ export const RecordPaymentDialog: React.FC<RecordPaymentDialogProps> = ({
               <SelectContent>
                 {PAYMENT_METHODS.map(option => (
                   <SelectItem key={option} value={option}>
-                    {option}
+                    {getPaymentMethodLabel(option, t)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -97,13 +135,14 @@ export const RecordPaymentDialog: React.FC<RecordPaymentDialogProps> = ({
             <label className="gba:text-sm gba:font-medium" htmlFor="payment-date">
               {t('billing-payment-date')}
             </label>
-            <Input
+            <DateInput
               id="payment-date"
               type="date"
+              mode="single"
               value={paymentDate}
-              onChange={event => setPaymentDate(event.target.value)}
+              onChange={value => setPaymentDate(typeof value === 'string' ? value : '')}
+              placeholder={t('billing-payment-date')}
               data-testid="payment-date-input"
-              required
             />
           </div>
           <div className="gba:space-y-1">
@@ -115,6 +154,24 @@ export const RecordPaymentDialog: React.FC<RecordPaymentDialogProps> = ({
               value={reference}
               onChange={event => setReference(event.target.value)}
               data-testid="payment-reference-input"
+            />
+          </div>
+          <div className="gba:space-y-1">
+            <label className="gba:text-sm gba:font-medium" htmlFor="payment-ledger-transaction-ref">
+              {t('billing-payment-ledger-transaction-ref')}
+            </label>
+            <Combobox
+              id="payment-ledger-transaction-ref"
+              options={options}
+              value={ledgerTransactionRef}
+              onValueChange={setLedgerTransactionRef}
+              placeholder={t('billing-payment-ledger-transaction-ref')}
+              searchPlaceholder={t('ledger-admin-search')}
+              loading={transactionsLoading}
+              emptyText={t('ledger-admin-empty-transactions')}
+              allowClear
+              showClearButton
+              data-testid="payment-ledger-transaction-ref-input"
             />
           </div>
           <div className="gba:flex gba:justify-end gba:gap-2 gba:pt-2">

@@ -26,6 +26,9 @@ export function validateInvoiceDraft(draft: InvoiceDraftInput): ValidationResult
   if (draft.currency?.length !== 3) {
     errors.push({ field: 'currency', message: 'A valid 3-letter currency code is required.' })
   }
+  if (!draft.dueDate || Number.isNaN(new Date(draft.dueDate).getTime())) {
+    errors.push({ field: 'dueDate', message: 'A valid due date is required.' })
+  }
   if (!draft.lines || draft.lines.length === 0) {
     errors.push({ field: 'lines', message: 'At least one invoice line is required.' })
   }

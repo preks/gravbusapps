@@ -3,15 +3,16 @@
  *
  * Billing customers ARE CRM Accounts: an invoice is always raised against a
  * company that already exists in customer relations. This hook loads the live
- * CRM `Account` list (name + primary address + country + email) and maps each
- * to a `BillingCustomer`, so the invoice form never invents customers.
+ * CRM customer account list (name + primary address + country + email) and maps
+ * each to a `BillingCustomer`, so the invoice form never invents customers.
  *
  * Backend failures surface as errors with an empty customer list instead of
  * falling back to bundled demo customers.
  */
-import { useCallback, useEffect, useState } from 'react'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { useMemo } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCustomerAccountsList } from '@/common/data/customer/hooks/useCustomerAccounts'
+import type { CustomerAccount } from '@/common/data/customer/types/customerAccountTypes'
 import type { BillingCustomer } from '../types'
 
 interface CrmAddress {
@@ -21,38 +22,6 @@ interface CrmAddress {
   postalCode?: string | null
   country?: { code?: string | null; value?: string | null } | null
 }
-
-interface CrmAccountRow {
-  id: string
-  name?: string | null
-  email?: string | null
-  addresses?: CrmAddress[] | null
-}
-
-const BILLING_CUSTOMERS_QUERY = `
-  query GetBillingCustomers($limit: Int, $offset: Int) {
-    Account(
-      where: { isDeleted: { _eq: false } }
-      orderBy: [{ name: ASC_NULLS_LAST }]
-      limit: $limit
-      offset: $offset
-    ) {
-      id
-      name
-      email
-      addresses {
-        addressType
-        addressLine
-        locality
-        postalCode
-        country {
-          code
-          value
-        }
-      }
-    }
-  }
-`
 
 function parseAddressLines(addressLine: CrmAddress['addressLine']): string[] {
   if (!addressLine) return []
@@ -75,16 +44,16 @@ function pickBillingAddress(addresses?: CrmAddress[] | null): CrmAddress | undef
   return billing ?? addresses[0]
 }
 
-function toBillingCustomer(row: CrmAccountRow): BillingCustomer {
-  const address = pickBillingAddress(row.addresses)
+function toBillingCustomer(account: CustomerAccount): BillingCustomer {
+  const address = pickBillingAddress(account.addresses)
   const lines = parseAddressLines(address?.addressLine)
   const cityLine = [address?.postalCode, address?.locality].filter(Boolean).join(' ').trim()
   const billingAddressLines = [...lines, cityLine].filter(line => line.length > 0)
 
   return {
-    id: row.id,
-    crmAccountId: row.id,
-    name: row.name?.trim() || row.email || row.id,
+    id: account.id ?? '',
+    crmAccountId: account.id ?? '',
+    name: account.name?.trim() || account.id || '',
     billingAddressLines,
     countryCode: address?.country?.code ?? '',
     vatId: null,
@@ -104,42 +73,21 @@ interface UseBillingCustomersResult {
 }
 
 export function useBillingCustomers(context: BusinessAppContextProps): UseBillingCustomersResult {
-  const graphqlClient = useGraphQLClient(context.accessToken)
-  const [customers, setCustomers] = useState<BillingCustomer[]>([])
-  const [loading, setLoading] = useState(Boolean(context.accessToken))
-  const [error, setError] = useState<string | null>(null)
-  const [usingSampleData, setUsingSampleData] = useState(false)
+  const accountsResult = useCustomerAccountsList(context, {
+    limit: 500,
+    prospective: false,
+    orderBy: [{ field: 'name', direction: 'ASC_NULLS_LAST' }]
+  })
 
-  const load = useCallback(async () => {
-    if (!context.accessToken) {
-      setCustomers([])
-      setError('Billing customer lookup requires a valid access token')
-      setUsingSampleData(false)
-      setLoading(false)
-      return
-    }
-    setLoading(true)
-    setError(null)
-    try {
-      const result = await graphqlClient.request<{ Account: CrmAccountRow[] }>(BILLING_CUSTOMERS_QUERY, {
-        limit: 500,
-        offset: 0
-      })
-      const mapped = (result.Account ?? []).map(toBillingCustomer)
-      setCustomers(mapped)
-      setUsingSampleData(false)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load CRM customers')
-      setCustomers([])
-      setUsingSampleData(false)
-    } finally {
-      setLoading(false)
-    }
-  }, [context.accessToken, graphqlClient])
+  const customers = useMemo(
+    () => accountsResult.accounts.filter(account => account.id).map(toBillingCustomer),
+    [accountsResult.accounts]
+  )
 
-  useEffect(() => {
-    load().catch(() => undefined)
-  }, [load])
-
-  return { customers, loading, error, usingSampleData }
+  return {
+    customers,
+    loading: accountsResult.loading,
+    error: context.accessToken ? accountsResult.error : 'Billing customer lookup requires a valid access token',
+    usingSampleData: false
+  }
 }

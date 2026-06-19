@@ -142,7 +142,7 @@ describe('useBillingData lifecycle', () => {
     expect(result.current.error).toBe('no backend')
   })
 
-  it('issues a draft: assigns a number, posts the issued event, sets ISSUED', async () => {
+  it('issues a draft directly without creating a ledger posting', async () => {
     const { result } = await setup()
 
     let assignedNumber = ''
@@ -154,9 +154,9 @@ describe('useBillingData lifecycle', () => {
     const invoice = result.current.invoices.find(item => item.id === 'inv-1004')
     expect(invoice?.status).toBe('ISSUED')
     expect(invoice?.invoiceNumber).toBe(assignedNumber)
-    expect(invoice?.ledgerLinks.some(link => link.eventType === 'INVOICE_ISSUED')).toBe(true)
-    expect(ledgerPost).toHaveBeenCalledTimes(1)
     expect(mockIssueInvoice).toHaveBeenCalledTimes(1)
+    expect(mockIssueInvoice.mock.calls[0]?.[2]).not.toHaveProperty('ledgerTransactionRef')
+    expect(ledgerPost).not.toHaveBeenCalled()
   })
 
   it('records a full payment and derives PAID status', async () => {
@@ -170,7 +170,9 @@ describe('useBillingData lifecycle', () => {
         amount: 3600,
         currency: 'USD',
         method: 'BANK_TRANSFER',
-        paymentDate: '2026-05-10T00:00:00Z'
+        paymentDate: '2026-05-10T00:00:00Z',
+        externalReference: 'BANK-STMT-2026-00045',
+        ledgerTransactionRef: 'txn_existing_123'
       })
     })
 
@@ -178,6 +180,20 @@ describe('useBillingData lifecycle', () => {
     expect(invoice?.paidAmount).toBe(3600)
     expect(invoice?.status).toBe('PAID')
     expect(invoice?.payments).toHaveLength(1)
+    expect(ledgerPost).not.toHaveBeenCalled()
+    expect(mockRecordInvoicePayment).toHaveBeenCalledWith(
+      'token',
+      'inv-1004',
+      expect.objectContaining({
+        idempotencyKey: 'invoice-payment-inv-1004-txn_existing_123',
+        amount: 3600,
+        currency: 'USD',
+        method: 'BANK_TRANSFER',
+        reference: 'BANK-STMT-2026-00045',
+        ledgerTransactionRef: 'txn_existing_123',
+        paidAt: '2026-05-10T00:00:00Z'
+      })
+    )
   })
 
   it('cancels a draft without posting to the ledger', async () => {
@@ -190,18 +206,56 @@ describe('useBillingData lifecycle', () => {
     const invoice = result.current.invoices.find(item => item.id === 'inv-1004')
     expect(invoice?.status).toBe('CANCELLED')
     expect(ledgerPost).not.toHaveBeenCalled()
+    expect(mockCancelInvoice).toHaveBeenCalledWith(
+      'token',
+      'inv-1004',
+      expect.objectContaining({
+        idempotencyKey: 'cancel-inv-1004',
+        reason: 'Customer withdrew'
+      })
+    )
+    expect(mockCancelInvoice.mock.calls[0]?.[2]).not.toHaveProperty('ledgerTransactionRef')
   })
 
-  it('writes off an overdue invoice and posts the write-off', async () => {
+  it('blocks cancelling a partially paid invoice in the frontend', async () => {
+    const { result } = await setup()
+
+    await expect(
+      act(async () => {
+        await result.current.cancelInvoice('inv-1002', 'Customer requested cancellation')
+      })
+    ).rejects.toThrow(/transition/i)
+
+    const invoice = result.current.invoices.find(item => item.id === 'inv-1002')
+    expect(invoice?.status).toBe('PARTIALLY_PAID')
+    expect(invoice?.paidAmount).toBe(1000)
+    expect(ledgerPost).not.toHaveBeenCalled()
+    expect(mockCancelInvoice).not.toHaveBeenCalled()
+  })
+
+  it('writes off an overdue invoice without posting to the ledger', async () => {
     const { result } = await setup()
 
     await act(async () => {
-      await result.current.writeOffInvoice('inv-1002')
+      await result.current.writeOffInvoice('inv-1002', {
+        reason: 'Customer is insolvent; remaining balance approved for write-off',
+        idempotencyKey: 'writeoff-inv-1002-user-123-2026-06-18T10:19:00Z'
+      })
     })
 
     const invoice = result.current.invoices.find(item => item.id === 'inv-1002')
     expect(invoice?.status).toBe('WRITTEN_OFF')
-    expect(ledgerPost).toHaveBeenCalledTimes(1)
+    expect(invoice?.paidAmount).toBe(1000)
+    expect(ledgerPost).not.toHaveBeenCalled()
+    expect(mockWriteOffInvoice).toHaveBeenCalledWith(
+      'token',
+      'inv-1002',
+      expect.objectContaining({
+        idempotencyKey: 'writeoff-inv-1002-user-123-2026-06-18T10:19:00Z',
+        reason: 'Customer is insolvent; remaining balance approved for write-off'
+      })
+    )
+    expect(mockWriteOffInvoice.mock.calls[0]?.[2]).not.toHaveProperty('ledgerTransactionRef')
   })
 
   it('rejects an invalid transition (issuing an already paid invoice)', async () => {

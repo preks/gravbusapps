@@ -26,11 +26,11 @@ billing-status-cancelled = Anulată
 billing-status-written-off = Scoasă din evidență
 
 # Payment method labels
-billing-payment-method-bank-transfer = Transfer bancar
-billing-payment-method-sepa = Debit direct SEPA
+billing-payment-method-bank-transfer = Transfer Bancar
+billing-payment-method-sepa = Debit Direct SEPA
 billing-payment-method-card = Card
 billing-payment-method-cash = Numerar
-billing-payment-method-other = Altă metodă
+billing-payment-method-other = Altă Metodă
 
 # Ledger event labels
 billing-event-issued = Emisă
@@ -41,10 +41,12 @@ billing-event-written-off = Scoasă din evidență
 billing-event-fx = Diferență de curs
 
 # Activity / audit action labels
+billing-audit-created = Creată
 billing-audit-issued = Emisă
 billing-audit-cancelled = Anulată
 billing-audit-payment = Plată înregistrată
 billing-audit-written_off = Scoasă din evidență
+billing-audit-credit_note_created = Notă de credit creată
 
 # Launcher
 billing-launcher-title = Facturare
@@ -108,8 +110,21 @@ billing-record-credit-note = Creează notă de credit
 billing-credit-note-title = Creează notă de credit
 billing-credit-note-amount = Sumă credit
 billing-credit-note-reason = Motiv
+billing-credit-note-original-invoice = Factură originală
+billing-credit-note-max-amount = Suma maximă de credit
+billing-credit-note-validation-reason = Introduceți un motiv pentru nota de credit.
+billing-credit-note-validation-amount-positive = Introduceți o sumă de credit mai mare decât zero.
+billing-credit-note-validation-amount-max = Suma de credit nu poate depăși totalul brut original.
 billing-credit-note-submit = Creează notă de credit
 billing-credit-note-success = Notă de credit creată
+billing-cancel-invoice-title = Anulează factura
+billing-cancel-invoice-reason = Motivul anulării
+billing-cancel-invoice-submit = Anulează factura
+billing-cancel-invoice-payments-warning = Această factură are plăți înregistrate; anularea nu le va reversa.
+billing-writeoff-invoice-title = Scoate factura din evidență
+billing-writeoff-invoice-reason = Motivul scoaterii din evidență
+billing-writeoff-invoice-submit = Scoate factura din evidență
+billing-writeoff-invoice-partial-warning = Această factură este plătită parțial; doar suma restantă este scoasă operațional din evidență. Plățile existente rămân neschimbate.
 billing-record-download-pdf = Descarcă PDF
 billing-record-no-payments = Nicio plată înregistrată încă.
 billing-record-no-postings = Nicio înregistrare contabilă încă.
@@ -129,6 +144,7 @@ billing-payment-amount = Sumă
 billing-payment-method = Metodă de plată
 billing-payment-date = Data plății
 billing-payment-reference = Referință
+billing-payment-ledger-transaction-ref = Referință tranzacție ledger existentă
 billing-payment-submit = Înregistrează plată
 
 # Invoice form
@@ -142,6 +158,8 @@ billing-form-customer-search = Căutați clienți…
 billing-form-customer-empty = Nu s-au găsit clienți
 billing-form-currency = Monedă
 billing-form-payment-term = Termen de plată
+billing-form-custom-due-date-option = Dată scadentă personalizată
+billing-form-custom-due-date = Dată scadentă
 billing-form-notes = Note
 billing-form-add-line = Adaugă linie
 billing-form-remove-line = Elimină
@@ -238,6 +256,8 @@ billing-health-offline = Date exemplu
 billing-crm-tab-invoices = Facturi
 billing-crm-create-invoice = Creează factură
 billing-crm-no-invoices = Nicio factură pentru acest client încă.
+billing-crm-no-invoice-results = Nicio factură nu corespunde căutării.
+billing-crm-search-invoices = Caută facturi după număr, status, dată sau sumă
 billing-crm-view-all = Vezi toate facturile
 
 # Ledger Admin

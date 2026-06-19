@@ -16,8 +16,10 @@ import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { buildPlatformUrl, navigateTo, Navigation } from '@/common/utils/navigationUtils'
 import billingTranslations from '../../common/_i18n'
 import { useBillingData } from '../../common/invoices/hooks/useBillingData'
+import { useBillingCustomers } from '../../common/invoices/hooks/useBillingCustomers'
 import { useBillingPermissions } from '../../common/hooks/useBillingPermissions'
 import { BillingSampleNotice } from '../../common/components/BillingSampleNotice'
+import { InvoiceCreateDialog } from '../../common/invoices/components/InvoiceCreateDialog'
 import { invoiceCustomerName } from '../../common/invoices/utils/customers'
 import { getInvoiceStatusLabel } from '../../common/utils/billingLabels'
 import { getInvoiceDisplayStatus } from '../../common/invoices/utils/invoiceStatus'
@@ -32,9 +34,11 @@ const InvoiceManagement: React.FC<InvoiceManagementProps> = props => {
   const { accessToken, userInfo } = props
   const { t } = useTranslation(billingTranslations)
   const billing = useBillingData(props)
+  const { customers, loading: customersLoading } = useBillingCustomers(props)
   const permissions = useBillingPermissions(props)
   const [statusFilter, setStatusFilter] = useState<InvoiceDisplayStatus | 'ALL'>('ALL')
   const [search, setSearch] = useState('')
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
 
   const isContextReady = Boolean(accessToken && userInfo)
 
@@ -74,7 +78,7 @@ const InvoiceManagement: React.FC<InvoiceManagementProps> = props => {
   }
 
   const handleCreate = () => {
-    navigateTo(Navigation.FIN_BILLING_INVOICE_FORM)
+    setCreateDialogOpen(true)
   }
 
   const handleExport = () => {
@@ -165,6 +169,14 @@ const InvoiceManagement: React.FC<InvoiceManagementProps> = props => {
         emptyMessage={t('billing-invoices-empty')}
         dataTestId="invoice-table"
         tableLayout="auto"
+      />
+
+      <InvoiceCreateDialog
+        open={createDialogOpen}
+        billing={billing}
+        customers={customers}
+        customersLoading={customersLoading}
+        onClose={() => setCreateDialogOpen(false)}
       />
     </PageLayout>
   )

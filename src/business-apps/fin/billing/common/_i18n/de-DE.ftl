@@ -41,10 +41,12 @@ billing-event-written-off = Abgeschrieben
 billing-event-fx = Währungsdifferenz
 
 # Activity / audit action labels
+billing-audit-created = Erstellt
 billing-audit-issued = Ausgestellt
 billing-audit-cancelled = Storniert
 billing-audit-payment = Zahlung erfasst
 billing-audit-written_off = Abgeschrieben
+billing-audit-credit_note_created = Gutschrift erstellt
 
 # Launcher
 billing-launcher-title = Abrechnung & Rechnungen
@@ -108,8 +110,21 @@ billing-record-credit-note = Gutschrift erstellen
 billing-credit-note-title = Gutschrift erstellen
 billing-credit-note-amount = Gutschriftbetrag
 billing-credit-note-reason = Grund
+billing-credit-note-original-invoice = Ursprüngliche Rechnung
+billing-credit-note-max-amount = Maximaler Gutschriftbetrag
+billing-credit-note-validation-reason = Geben Sie einen Grund für die Gutschrift ein.
+billing-credit-note-validation-amount-positive = Geben Sie einen Gutschriftbetrag größer als null ein.
+billing-credit-note-validation-amount-max = Der Gutschriftbetrag darf den ursprünglichen Bruttobetrag nicht überschreiten.
 billing-credit-note-submit = Gutschrift erstellen
 billing-credit-note-success = Gutschrift erstellt
+billing-cancel-invoice-title = Rechnung stornieren
+billing-cancel-invoice-reason = Stornierungsgrund
+billing-cancel-invoice-submit = Rechnung stornieren
+billing-cancel-invoice-payments-warning = Für diese Rechnung sind Zahlungen erfasst; die Stornierung macht sie nicht rückgängig.
+billing-writeoff-invoice-title = Rechnung abschreiben
+billing-writeoff-invoice-reason = Abschreibungsgrund
+billing-writeoff-invoice-submit = Rechnung abschreiben
+billing-writeoff-invoice-partial-warning = Diese Rechnung ist teilweise bezahlt; nur der verbleibende offene Betrag wird operativ abgeschrieben. Bestehende Zahlungsdaten bleiben unverändert.
 billing-record-download-pdf = PDF herunterladen
 billing-record-no-payments = Noch keine Zahlungen erfasst.
 billing-record-no-postings = Noch keine Buchungen.
@@ -129,6 +144,7 @@ billing-payment-amount = Betrag
 billing-payment-method = Zahlungsart
 billing-payment-date = Zahlungsdatum
 billing-payment-reference = Referenz
+billing-payment-ledger-transaction-ref = Vorhandene Ledger-Transaktionsreferenz
 billing-payment-submit = Zahlung erfassen
 
 # Invoice form
@@ -142,6 +158,8 @@ billing-form-customer-search = Kunden suchen…
 billing-form-customer-empty = Keine Kunden gefunden
 billing-form-currency = Währung
 billing-form-payment-term = Zahlungsbedingung
+billing-form-custom-due-date-option = Benutzerdefiniertes Fälligkeitsdatum
+billing-form-custom-due-date = Fälligkeitsdatum
 billing-form-notes = Notizen
 billing-form-add-line = Position hinzufügen
 billing-form-remove-line = Entfernen
@@ -238,6 +256,8 @@ billing-health-offline = Beispieldaten
 billing-crm-tab-invoices = Rechnungen
 billing-crm-create-invoice = Rechnung erstellen
 billing-crm-no-invoices = Noch keine Rechnungen für diesen Kunden.
+billing-crm-no-invoice-results = Keine Rechnungen entsprechen Ihrer Suche.
+billing-crm-search-invoices = Rechnungen nach Nummer, Status, Datum oder Betrag suchen
 billing-crm-view-all = Alle Rechnungen anzeigen
 
 # Ledger Admin

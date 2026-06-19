@@ -7,8 +7,8 @@ import type { Invoice, InvoiceDisplayStatus, InvoiceStatus } from '../types'
 /** Allowed direct transitions per status. */
 const TRANSITIONS: Record<InvoiceStatus, InvoiceStatus[]> = {
   DRAFT: ['ISSUED', 'CANCELLED'],
-  ISSUED: ['SENT', 'PARTIALLY_PAID', 'PAID', 'CANCELLED'],
-  SENT: ['PARTIALLY_PAID', 'PAID', 'CANCELLED'],
+  ISSUED: ['SENT', 'PARTIALLY_PAID', 'PAID', 'CANCELLED', 'WRITTEN_OFF'],
+  SENT: ['PARTIALLY_PAID', 'PAID', 'CANCELLED', 'WRITTEN_OFF'],
   PARTIALLY_PAID: ['PAID', 'WRITTEN_OFF'],
   PAID: [],
   CANCELLED: [],

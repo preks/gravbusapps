@@ -37,11 +37,13 @@ export const InvoiceRecordHeader: React.FC<InvoiceRecordHeaderProps> = ({
   const { t } = useTranslation(billingTranslations)
 
   const canRecordPayment =
-    permissions.canMarkPaid && outstanding > 0 && invoice.status !== 'DRAFT' && invoice.status !== 'CANCELLED'
+    permissions.canMarkPaid && outstanding > 0 && ['ISSUED', 'SENT', 'PARTIALLY_PAID'].includes(invoice.status)
   const canCreateCreditNote =
     permissions.canCreateCreditNote &&
     creditNoteEnabled &&
+    invoice.documentType !== 'CREDIT_NOTE' &&
     ['ISSUED', 'SENT', 'PARTIALLY_PAID', 'PAID'].includes(invoice.status)
+  const canWriteOff = permissions.canCancel && ['ISSUED', 'SENT', 'PARTIALLY_PAID'].includes(invoice.status)
 
   return (
     <Card className="gba:p-6 gba:mb-4">
@@ -69,7 +71,7 @@ export const InvoiceRecordHeader: React.FC<InvoiceRecordHeaderProps> = ({
               {t('billing-record-cancel')}
             </Button>
           )}
-          {permissions.canCancel && canTransition(invoice.status, 'WRITTEN_OFF') && (
+          {canWriteOff && (
             <Button size="sm" variant="outline" onClick={onWriteOff} data-testid="invoice-writeoff-button">
               {t('billing-record-write-off')}
             </Button>

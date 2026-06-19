@@ -7,38 +7,50 @@ import {
   writeOffInvoice as apiWriteOffInvoice
 } from '../network/invoiceClient'
 import { assertTransition, derivePaymentStatus } from '../utils/invoiceStatus'
-import { calculateOutstanding } from '../utils/invoiceCalculations'
-import {
-  buildCancelledPosting,
-  buildIssuedPosting,
-  buildPaidPosting,
-  buildWriteOffPosting
-} from '../../ledger/utils/ledgerPostings'
-import type { BillingSettings, InvoiceDraftInput, LedgerService } from '../../queries/billingCoreApi'
-import type { Invoice, InvoiceNumberSequence, PaymentAllocation } from '../types'
+import { buildEventId } from '../../ledger/utils/ledgerPostings'
+import type { BillingSettings, InvoiceDraftInput } from '../../queries/billingCoreApi'
+import type { Invoice, InvoiceNumberSequence, PaymentAllocation, RecordPaymentInput } from '../types'
 import { assertBillingBackend, buildDraftInvoice, generateId, nowIso } from './invoiceDataHelpers'
 
 interface UseInvoiceLifecycleActionsParams {
   accessToken?: string
+  actorId?: string
   invoices: Invoice[]
   settings: BillingSettings
   sequences: Record<string, InvoiceNumberSequence>
-  ledger: LedgerService
   persistInvoice: (invoice: Invoice) => Promise<void>
   updateInvoice: (id: string, updater: (invoice: Invoice) => Invoice) => void
   addInvoice: (invoice: Invoice) => void
 }
 
+interface CancelInvoiceInput {
+  reason: string
+  idempotencyKey?: string
+  ledgerTransactionRef?: string
+}
+
+interface WriteOffInvoiceInput {
+  reason: string
+  idempotencyKey?: string
+  ledgerTransactionRef?: string
+}
+
 export function useInvoiceLifecycleActions({
   accessToken,
+  actorId,
   invoices,
   settings,
   sequences,
-  ledger,
   persistInvoice,
   updateInvoice,
   addInvoice
 }: UseInvoiceLifecycleActionsParams) {
+  const buildPaymentIdempotencyKey = useCallback((invoiceId: string, payment: RecordPaymentInput): string => {
+    if (payment.ledgerTransactionRef) return `invoice-payment-${invoiceId}-${payment.ledgerTransactionRef}`
+    if (payment.externalReference) return `invoice-payment-${invoiceId}-${payment.externalReference}`
+    return `invoice-payment-${invoiceId}-${payment.paymentDate}-${payment.amount}-${payment.method}`
+  }, [])
+
   const getSequence = useCallback(
     (legalEntityId: string): InvoiceNumberSequence => {
       return (
@@ -63,19 +75,16 @@ export function useInvoiceLifecycleActions({
       assertBillingBackend(accessToken)
 
       const sequence = getSequence(invoice.legalEntityId)
+      const isCreditNote = invoice.documentType === 'CREDIT_NOTE'
       const issueDate = new Date()
-      const posting = buildIssuedPosting(
-        { ...invoice, status: 'ISSUED', issueDate: issueDate.toISOString() },
-        { fxRate: invoice.fxRate?.rate ?? 1 }
-      )
-      const response = await ledger.post(posting)
+      const idempotencyKey = isCreditNote ? `issue-credit-note-${invoice.id}` : buildEventId(invoice.id, 'issued')
 
       let resolvedIssueDate = issueDate.toISOString()
       const updated = await apiIssueInvoice(accessToken, invoiceId, {
-        idempotencyKey: posting.eventId,
-        numberPrefix: sequence.prefix,
-        numberPadding: sequence.padding,
-        ledgerTransactionRef: response.ledgerTransactionRef
+        idempotencyKey,
+        actorId,
+        numberPrefix: isCreditNote ? 'CN' : sequence.prefix,
+        numberPadding: sequence.padding
       })
       if (!updated?.invoiceNumber) {
         throw new Error('The backend did not return an invoice number')
@@ -89,15 +98,7 @@ export function useInvoiceLifecycleActions({
         invoiceNumber,
         issueDate: resolvedIssueDate,
         updatedAt: nowIso(),
-        ledgerLinks: [
-          ...invoice.ledgerLinks,
-          {
-            eventType: 'INVOICE_ISSUED',
-            eventId: posting.eventId,
-            ledgerTransactionRef: response.ledgerTransactionRef,
-            postedAt: response.postedAt
-          }
-        ],
+        ledgerLinks: updated.ledgerLinks ?? invoice.ledgerLinks,
         audit: [
           ...invoice.audit,
           { id: generateId('aud'), action: 'issued', timestamp: nowIso(), details: invoiceNumber }
@@ -107,85 +108,85 @@ export function useInvoiceLifecycleActions({
       await persistInvoice(final)
       return invoiceNumber
     },
-    [invoices, getSequence, ledger, updateInvoice, persistInvoice, accessToken]
+    [invoices, getSequence, updateInvoice, persistInvoice, accessToken, actorId]
   )
 
   const cancelInvoice = useCallback(
-    async (invoiceId: string, reason: string) => {
+    async (invoiceId: string, input: string | CancelInvoiceInput) => {
       const invoice = invoices.find(item => item.id === invoiceId)
       if (!invoice) throw new Error('Invoice not found')
       assertTransition(invoice.status, 'CANCELLED')
       assertBillingBackend(accessToken)
 
-      let ref: string | undefined
-      if (invoice.status !== 'DRAFT') {
-        const posting = buildCancelledPosting(invoice, { fxRate: invoice.fxRate?.rate ?? 1 })
-        const response = await ledger.post(posting)
-        ref = response.ledgerTransactionRef
-      }
-      await apiCancelInvoice(accessToken, invoiceId, {
-        idempotencyKey: `cancel:${invoiceId}`,
-        reason,
-        ledgerTransactionRef: ref
+      const cancellation = typeof input === 'string' ? { reason: input } : input
+      const updated = await apiCancelInvoice(accessToken, invoiceId, {
+        idempotencyKey: cancellation.idempotencyKey ?? `cancel-${invoiceId}`,
+        actorId,
+        reason: cancellation.reason,
+        ...(cancellation.ledgerTransactionRef ? { ledgerTransactionRef: cancellation.ledgerTransactionRef } : {})
       })
+
+      if (updated) {
+        updateInvoice(invoiceId, () => updated)
+        return
+      }
+
       const final: Invoice = {
         ...invoice,
         status: 'CANCELLED',
         updatedAt: nowIso(),
-        ledgerLinks: ref
-          ? [
-              ...invoice.ledgerLinks,
-              {
-                eventType: 'INVOICE_CANCELLED',
-                eventId: `nw-billing:cancelled:${invoiceId}`,
-                ledgerTransactionRef: ref,
-                postedAt: nowIso()
-              }
-            ]
-          : invoice.ledgerLinks,
-        audit: [...invoice.audit, { id: generateId('aud'), action: 'cancelled', timestamp: nowIso(), details: reason }]
+        audit: [
+          ...invoice.audit,
+          { id: generateId('aud'), action: 'cancelled', timestamp: nowIso(), details: cancellation.reason }
+        ]
       }
       updateInvoice(invoiceId, () => final)
       await persistInvoice(final)
     },
-    [invoices, ledger, updateInvoice, persistInvoice, accessToken]
+    [invoices, updateInvoice, persistInvoice, accessToken, actorId]
   )
 
   const recordPayment = useCallback(
-    async (invoiceId: string, input: Omit<PaymentAllocation, 'id' | 'invoiceId' | 'ledgerTransactionRef'>) => {
+    async (invoiceId: string, input: RecordPaymentInput) => {
       const invoice = invoices.find(item => item.id === invoiceId)
       if (!invoice) throw new Error('Invoice not found')
       assertBillingBackend(accessToken)
 
       const payment: PaymentAllocation = { ...input, id: generateId('pay'), invoiceId }
-      const posting = buildPaidPosting(invoice, payment, { fxRate: invoice.fxRate?.rate ?? 1 })
-      const response = await ledger.post(posting)
-      payment.ledgerTransactionRef = response.ledgerTransactionRef
+      const idempotencyKey = buildPaymentIdempotencyKey(invoice.id, input)
 
-      await apiRecordInvoicePayment(accessToken, invoiceId, {
-        idempotencyKey: posting.eventId,
+      const updated = await apiRecordInvoicePayment(accessToken, invoiceId, {
+        idempotencyKey,
+        actorId,
         amount: payment.amount,
         currency: payment.currency,
         method: payment.method,
         reference: payment.externalReference ?? undefined,
-        ledgerTransactionRef: response.ledgerTransactionRef,
+        ledgerTransactionRef: payment.ledgerTransactionRef ?? undefined,
         paidAt: payment.paymentDate
       })
+
+      if (updated) {
+        updateInvoice(invoiceId, () => updated)
+        return payment
+      }
 
       const paidAmount = invoice.paidAmount + payment.amount
       const withPayment: Invoice = {
         ...invoice,
         paidAmount,
         payments: [...invoice.payments, payment],
-        ledgerLinks: [
-          ...invoice.ledgerLinks,
-          {
-            eventType: 'INVOICE_PAID',
-            eventId: posting.eventId,
-            ledgerTransactionRef: response.ledgerTransactionRef,
-            postedAt: response.postedAt
-          }
-        ],
+        ledgerLinks: payment.ledgerTransactionRef
+          ? [
+              ...invoice.ledgerLinks,
+              {
+                eventType: 'INVOICE_PAID',
+                eventId: idempotencyKey,
+                ledgerTransactionRef: payment.ledgerTransactionRef,
+                postedAt: payment.paymentDate
+              }
+            ]
+          : invoice.ledgerLinks,
         audit: [
           ...invoice.audit,
           {
@@ -202,41 +203,41 @@ export function useInvoiceLifecycleActions({
       await persistInvoice(final)
       return payment
     },
-    [invoices, ledger, updateInvoice, persistInvoice, accessToken]
+    [invoices, updateInvoice, persistInvoice, accessToken, actorId, buildPaymentIdempotencyKey]
   )
 
   const writeOffInvoice = useCallback(
-    async (invoiceId: string) => {
+    async (invoiceId: string, input?: WriteOffInvoiceInput) => {
       const invoice = invoices.find(item => item.id === invoiceId)
       if (!invoice) throw new Error('Invoice not found')
       assertTransition(invoice.status, 'WRITTEN_OFF')
       assertBillingBackend(accessToken)
-      const outstanding = calculateOutstanding(invoice.totals.grossTotal, invoice.paidAmount)
-      const posting = buildWriteOffPosting(invoice, outstanding, { fxRate: invoice.fxRate?.rate ?? 1 })
-      const response = await ledger.post(posting)
-      await apiWriteOffInvoice(accessToken, invoiceId, {
-        idempotencyKey: `writeoff:${invoiceId}`,
-        ledgerTransactionRef: response.ledgerTransactionRef
+
+      const updated = await apiWriteOffInvoice(accessToken, invoiceId, {
+        idempotencyKey: input?.idempotencyKey ?? `writeoff-${invoiceId}`,
+        actorId,
+        reason: input?.reason,
+        ...(input?.ledgerTransactionRef ? { ledgerTransactionRef: input.ledgerTransactionRef } : {})
       })
+
+      if (updated) {
+        updateInvoice(invoiceId, () => updated)
+        return
+      }
+
       const final: Invoice = {
         ...invoice,
         status: 'WRITTEN_OFF',
         updatedAt: nowIso(),
-        ledgerLinks: [
-          ...invoice.ledgerLinks,
-          {
-            eventType: 'INVOICE_WRITTEN_OFF',
-            eventId: posting.eventId,
-            ledgerTransactionRef: response.ledgerTransactionRef,
-            postedAt: response.postedAt
-          }
-        ],
-        audit: [...invoice.audit, { id: generateId('aud'), action: 'written_off', timestamp: nowIso() }]
+        audit: [
+          ...invoice.audit,
+          { id: generateId('aud'), action: 'written_off', timestamp: nowIso(), details: input?.reason }
+        ]
       }
       updateInvoice(invoiceId, () => final)
       await persistInvoice(final)
     },
-    [invoices, ledger, updateInvoice, persistInvoice, accessToken]
+    [invoices, updateInvoice, persistInvoice, accessToken, actorId]
   )
 
   const createInvoice = useCallback(

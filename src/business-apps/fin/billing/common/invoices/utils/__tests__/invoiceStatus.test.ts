@@ -35,12 +35,15 @@ describe('transitions', () => {
   it('allows valid transitions', () => {
     expect(canTransition('DRAFT', 'ISSUED')).toBe(true)
     expect(canTransition('ISSUED', 'PAID')).toBe(true)
+    expect(canTransition('ISSUED', 'WRITTEN_OFF')).toBe(true)
+    expect(canTransition('SENT', 'WRITTEN_OFF')).toBe(true)
     expect(canTransition('PARTIALLY_PAID', 'WRITTEN_OFF')).toBe(true)
   })
 
   it('rejects invalid transitions', () => {
     expect(canTransition('PAID', 'DRAFT')).toBe(false)
     expect(canTransition('CANCELLED', 'ISSUED')).toBe(false)
+    expect(canTransition('PARTIALLY_PAID', 'CANCELLED')).toBe(false)
   })
 
   it('throws on assertTransition for invalid moves', () => {

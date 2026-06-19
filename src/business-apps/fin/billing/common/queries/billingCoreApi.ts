@@ -14,7 +14,7 @@ import type {
   InvoiceLine,
   LedgerEventType,
   LegalEntity,
-  PaymentAllocation,
+  RecordPaymentInput as InvoiceRecordPaymentInput,
   PaymentTerm,
   TaxCategory
 } from '../invoices/types'
@@ -59,6 +59,7 @@ export interface InvoiceDraftInput {
   currency: string
   paymentTermId?: string | null
   issueDate?: string | null
+  dueDate?: string | null
   notes?: string | null
   locale?: string | null
   lines: InvoiceLineInput[]
@@ -86,7 +87,7 @@ export interface CancelInvoiceInput {
   reason: string
 }
 
-export interface RecordPaymentInput extends Omit<PaymentAllocation, 'id' | 'invoiceId' | 'ledgerTransactionRef'> {
+export interface RecordPaymentInput extends InvoiceRecordPaymentInput {
   idempotencyKey: string
 }
 

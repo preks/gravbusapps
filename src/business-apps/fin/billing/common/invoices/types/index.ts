@@ -24,6 +24,8 @@ export type InvoiceStatus = (typeof INVOICE_STATUSES)[number]
 /** UI-only status derived from due date and outstanding amount; never persisted to Blnk. */
 export type InvoiceDisplayStatus = InvoiceStatus | 'OVERDUE'
 
+export type InvoiceDocumentType = 'INVOICE' | 'CREDIT_NOTE'
+
 /** How a tax category behaves for calculation and reporting. */
 export const TAX_TREATMENTS = ['STANDARD', 'REDUCED', 'ZERO_RATED', 'EXEMPT', 'REVERSE_CHARGE', 'INTRA_EU'] as const
 export type TaxTreatment = (typeof TAX_TREATMENTS)[number]
@@ -191,9 +193,11 @@ export interface PaymentAllocation {
   paymentDate: string
   /** External bank/PSP reference, used for reconciliation. */
   externalReference?: string | null
-  /** Ledger posting reference produced for this payment. */
+  /** Existing ledger transaction reference linked to this payment, when available. */
   ledgerTransactionRef?: string | null
 }
+
+export type RecordPaymentInput = Omit<PaymentAllocation, 'id' | 'invoiceId'>
 
 export interface LedgerTransactionLink {
   eventType: LedgerEventType
@@ -211,10 +215,13 @@ export interface InvoiceAuditEntry {
   actorName?: string | null
   timestamp: string
   details?: string | null
+  metaData?: Record<string, unknown> | null
 }
 
 export interface Invoice {
   id: string
+  /** Invoice-like document type. Credit notes are separate documents linked to an original invoice. */
+  documentType?: InvoiceDocumentType
   /** Immutable, sequence-controlled number assigned on issue. Null while draft. */
   invoiceNumber?: string | null
   status: InvoiceStatus
@@ -225,6 +232,9 @@ export interface Invoice {
   /** CRM linkage for navigation and context. */
   crmAccountId?: string | null
   crmOpportunityId?: string | null
+  /** Original invoice linkage for CREDIT_NOTE documents. */
+  originalInvoiceId?: string | null
+  originalInvoiceNumber?: string | null
   /** Invoice transaction currency. */
   currency: string
   /** Accounting currency snapshot at issue time. */

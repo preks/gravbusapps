@@ -13,13 +13,11 @@ import { type BillingSettings } from '../../queries/billingCoreApi'
 import { SAMPLE_SETTINGS } from '../../data/sampleBillingData'
 import { billingApiEnabled, listInvoices, updateInvoice as apiUpdateInvoice } from '../network/invoiceClient'
 import { getFinanceSettings } from '../../settings/network/financeSettingsClient'
-import { useLedgerService } from '../../ledger/hooks/useLedgerService'
 import type { Invoice, InvoiceNumberSequence } from '../types'
 import { type BillingState } from './invoiceDataHelpers'
 import { useInvoiceLifecycleActions } from './useInvoiceLifecycleActions'
 
 export function useBillingData(context: BusinessAppContextProps) {
-  const ledger = useLedgerService(context)
   const [state, setState] = useState<BillingState>({
     invoices: [],
     settings: SAMPLE_SETTINGS,
@@ -108,10 +106,10 @@ export function useBillingData(context: BusinessAppContextProps) {
 
   const { createInvoice, issueInvoice, cancelInvoice, recordPayment, writeOffInvoice } = useInvoiceLifecycleActions({
     accessToken: context.accessToken,
+    actorId: context.userInfo?.id,
     invoices: state.invoices,
     settings: state.settings,
     sequences,
-    ledger,
     persistInvoice,
     updateInvoice,
     addInvoice

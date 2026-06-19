@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import {
   LauncherLayout,
   Spinner,
@@ -20,8 +20,10 @@ import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, Navigation } from '@/common/utils/navigationUtils'
 import billingTranslations from '../../common/_i18n'
 import { useBillingData } from '../../common/invoices/hooks/useBillingData'
+import { useBillingCustomers } from '../../common/invoices/hooks/useBillingCustomers'
 import { BillingSampleNotice } from '../../common/components/BillingSampleNotice'
 import { BillingHealthChip } from '../../common/components/BillingHealthChip'
+import { InvoiceCreateDialog } from '../../common/invoices/components/InvoiceCreateDialog'
 import { formatCurrency } from '../../common/utils/currency'
 import { calculateOutstanding } from '../../common/invoices/utils/invoiceCalculations'
 import { isOverdue } from '../../common/invoices/utils/invoiceStatus'
@@ -37,6 +39,8 @@ type BillingKpiData = {
 const BillingLauncher: React.FC<BillingLauncherProps> = props => {
   const { t } = useTranslation(billingTranslations)
   const billing = useBillingData(props)
+  const { customers, loading: customersLoading } = useBillingCustomers(props)
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
 
   const kpis = useMemo((): BillingKpiData[] => {
     const invoices = billing.invoices
@@ -63,7 +67,7 @@ const BillingLauncher: React.FC<BillingLauncherProps> = props => {
         id: 'create-invoice',
         label: t('billing-quick-create-invoice'),
         icon: PlusIcon,
-        onClick: () => navigateTo(Navigation.FIN_BILLING_INVOICE_FORM)
+        onClick: () => setCreateDialogOpen(true)
       },
       {
         id: 'open-invoices',
@@ -210,6 +214,13 @@ const BillingLauncher: React.FC<BillingLauncherProps> = props => {
         quickActionsTitle={t('billing-launcher-quick-actions')}
         quickActionsDescription={t('billing-launcher-quick-actions-desc')}
         variant="decorative"
+      />
+      <InvoiceCreateDialog
+        open={createDialogOpen}
+        billing={billing}
+        customers={customers}
+        customersLoading={customersLoading}
+        onClose={() => setCreateDialogOpen(false)}
       />
     </>
   )

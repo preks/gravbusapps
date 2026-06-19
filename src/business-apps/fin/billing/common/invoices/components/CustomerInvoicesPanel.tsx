@@ -1,14 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import {
-  Card,
-  Button,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  Spinner,
-  useTranslation
-} from '@newwork/nw-design-system'
+import { Card, Button, Input, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { PlusIcon, ReceiptIcon } from '@phosphor-icons/react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { buildPlatformUrl, navigateTo, Navigation } from '@/common/utils/navigationUtils'
@@ -22,7 +13,7 @@ import { BillingSampleNotice } from '../../components/BillingSampleNotice'
 import { formatCurrency } from '../../utils/currency'
 import { calculateOutstanding } from '../utils/invoiceCalculations'
 import type { BillingCustomer, Invoice } from '../types'
-import { InvoiceFormContent } from './InvoiceFormContent'
+import { InvoiceCreateDialog } from './InvoiceCreateDialog'
 
 interface CustomerInvoicesPanelProps extends BusinessAppContextProps {
   /** CRM account id to scope invoices to. */
@@ -66,32 +57,98 @@ function withCurrentAccountCustomer(
   ]
 }
 
+function invoiceSearchText(invoice: Invoice): string {
+  const outstanding = calculateOutstanding(invoice.totals.grossTotal, invoice.paidAmount)
+  return [
+    invoice.invoiceNumber,
+    invoice.status,
+    invoice.issueDate ? formatDate(invoice.issueDate, 'date.medium') : undefined,
+    invoice.dueDate ? formatDate(invoice.dueDate, 'date.medium') : undefined,
+    invoice.currency,
+    formatCurrency(invoice.totals.grossTotal, invoice.currency),
+    formatCurrency(outstanding, invoice.currency)
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+}
+
 function CustomerInvoiceRow({ invoice }: Readonly<{ invoice: Invoice }>) {
+  const outstanding = calculateOutstanding(invoice.totals.grossTotal, invoice.paidAmount)
+
   return (
-    <li>
-      <button
-        type="button"
-        className="gba:flex gba:w-full gba:items-center gba:justify-between gba:gap-3 gba:border-b gba:py-2 gba:text-left gba:text-sm hover:gba:bg-muted"
-        onClick={() => navigateTo(buildPlatformUrl(Navigation.FIN_BILLING_INVOICE_RECORD, { invoiceId: invoice.id }))}
-        data-testid={`customer-invoice-${invoice.id}`}
-      >
-        <span className="gba:font-medium">{invoice.invoiceNumber ?? '—'}</span>
+    <tr className="gba:border-b gba:last:border-b-0 hover:gba:bg-muted/50">
+      <td className="gba:py-3 gba:pl-3 gba:pr-4">
+        <button
+          type="button"
+          className="gba:text-left gba:text-sm gba:font-medium gba:text-foreground hover:gba:underline"
+          onClick={() => navigateTo(buildPlatformUrl(Navigation.FIN_BILLING_INVOICE_RECORD, { invoiceId: invoice.id }))}
+          data-testid={`customer-invoice-${invoice.id}`}
+        >
+          {invoice.invoiceNumber ?? '—'}
+        </button>
+      </td>
+      <td className="gba:py-3 gba:pr-4">
         <BillingStatusBadge status={invoice.status} />
-        <span>{invoice.issueDate ? formatDate(invoice.issueDate, 'date.medium') : '—'}</span>
-        <span>{formatCurrency(invoice.totals.grossTotal, invoice.currency)}</span>
-        <span className="gba:text-muted-foreground">
-          {formatCurrency(calculateOutstanding(invoice.totals.grossTotal, invoice.paidAmount), invoice.currency)}
-        </span>
-      </button>
-    </li>
+      </td>
+      <td className="gba:py-3 gba:pr-4 gba:text-sm gba:text-muted-foreground">
+        {invoice.issueDate ? formatDate(invoice.issueDate, 'date.medium') : '—'}
+      </td>
+      <td className="gba:py-3 gba:pr-4 gba:text-sm gba:text-muted-foreground">
+        {invoice.dueDate ? formatDate(invoice.dueDate, 'date.medium') : '—'}
+      </td>
+      <td className="gba:py-3 gba:pr-4 gba:text-right gba:text-sm gba:font-medium">
+        {formatCurrency(invoice.totals.grossTotal, invoice.currency)}
+      </td>
+      <td className="gba:py-3 gba:text-right gba:text-sm gba:text-muted-foreground">
+        {formatCurrency(outstanding, invoice.currency)}
+      </td>
+    </tr>
+  )
+}
+
+function CustomerInvoicesTable({ invoices, t }: Readonly<{ invoices: Invoice[]; t: (key: string) => string }>) {
+  return (
+    <div className="gba:overflow-x-auto gba:rounded-lg gba:border">
+      <table className="gba:w-full gba:min-w-full gba:border-collapse">
+        <thead className="gba:bg-muted/50">
+          <tr className="gba:border-b gba:text-xs gba:font-medium gba:text-muted-foreground">
+            <th scope="col" className="gba:py-2 gba:pl-3 gba:pr-4 gba:text-left">
+              {t('billing-column-number')}
+            </th>
+            <th scope="col" className="gba:py-2 gba:pr-4 gba:text-left">
+              {t('billing-column-status')}
+            </th>
+            <th scope="col" className="gba:py-2 gba:pr-4 gba:text-left">
+              {t('billing-column-issue-date')}
+            </th>
+            <th scope="col" className="gba:py-2 gba:pr-4 gba:text-left">
+              {t('billing-column-due-date')}
+            </th>
+            <th scope="col" className="gba:py-2 gba:pr-4 gba:text-right">
+              {t('billing-column-gross')}
+            </th>
+            <th scope="col" className="gba:py-2 gba:pr-3 gba:text-right">
+              {t('billing-column-outstanding')}
+            </th>
+          </tr>
+        </thead>
+        <tbody className="gba:bg-card">
+          {invoices.map(invoice => (
+            <CustomerInvoiceRow key={invoice.id} invoice={invoice} />
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }
 
 function CustomerInvoicesList({
   emptyMessage,
   invoices,
-  loading
-}: Readonly<{ emptyMessage: string; invoices: Invoice[]; loading: boolean }>) {
+  loading,
+  t
+}: Readonly<{ emptyMessage: string; invoices: Invoice[]; loading: boolean; t: (key: string) => string }>) {
   if (loading) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:py-6" data-testid="customer-invoices-loading">
@@ -104,13 +161,7 @@ function CustomerInvoicesList({
     return <p className="gba:text-sm gba:text-muted-foreground">{emptyMessage}</p>
   }
 
-  return (
-    <ul className="gba:flex gba:flex-col gba:gap-2">
-      {invoices.map(invoice => (
-        <CustomerInvoiceRow key={invoice.id} invoice={invoice} />
-      ))}
-    </ul>
-  )
+  return <CustomerInvoicesTable invoices={invoices} t={t} />
 }
 
 /**
@@ -124,11 +175,17 @@ export const CustomerInvoicesPanel: React.FC<CustomerInvoicesPanelProps> = props
   const { customers, loading: customersLoading } = useBillingCustomers(props)
   const permissions = useBillingPermissions(props)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [invoiceSearch, setInvoiceSearch] = useState('')
 
   const invoices = useMemo(
     () => billing.invoices.filter(invoice => invoice.crmAccountId === crmAccountId),
     [billing.invoices, crmAccountId]
   )
+  const filteredInvoices = useMemo(() => {
+    const query = invoiceSearch.trim().toLowerCase()
+    if (!query) return invoices
+    return invoices.filter(invoice => invoiceSearchText(invoice).includes(query))
+  }, [invoices, invoiceSearch])
   const invoiceCustomers = useMemo(
     () => withCurrentAccountCustomer(customers, crmAccountId, crmAccountName),
     [customers, crmAccountId, crmAccountName]
@@ -155,7 +212,23 @@ export const CustomerInvoicesPanel: React.FC<CustomerInvoicesPanelProps> = props
         dataTestId="customer-invoices-sample-notice"
       />
 
-      <CustomerInvoicesList emptyMessage={t('billing-crm-no-invoices')} invoices={invoices} loading={billing.loading} />
+      {invoices.length > 0 && (
+        <div className="gba:mb-3">
+          <Input
+            value={invoiceSearch}
+            onChange={event => setInvoiceSearch(event.target.value)}
+            placeholder={t('billing-crm-search-invoices')}
+            data-testid="customer-invoices-search"
+          />
+        </div>
+      )}
+
+      <CustomerInvoicesList
+        emptyMessage={invoices.length === 0 ? t('billing-crm-no-invoices') : t('billing-crm-no-invoice-results')}
+        invoices={filteredInvoices}
+        loading={billing.loading}
+        t={t}
+      />
 
       <div className="gba:mt-3">
         <Button
@@ -168,22 +241,15 @@ export const CustomerInvoicesPanel: React.FC<CustomerInvoicesPanelProps> = props
         </Button>
       </div>
 
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent data-testid="customer-invoices-create-dialog">
-          <DialogHeader>
-            <DialogTitle>{t('billing-form-create-title')}</DialogTitle>
-          </DialogHeader>
-          <InvoiceFormContent
-            billing={billing}
-            customers={invoiceCustomers}
-            customersLoading={customersLoading}
-            initialAccountId={crmAccountId}
-            initialOpportunityId={crmOpportunityId ?? null}
-            onSaved={() => setCreateDialogOpen(false)}
-            embedded
-          />
-        </DialogContent>
-      </Dialog>
+      <InvoiceCreateDialog
+        open={createDialogOpen}
+        billing={billing}
+        customers={invoiceCustomers}
+        customersLoading={customersLoading}
+        initialAccountId={crmAccountId}
+        initialOpportunityId={crmOpportunityId ?? null}
+        onClose={() => setCreateDialogOpen(false)}
+      />
     </Card>
   )
 }
