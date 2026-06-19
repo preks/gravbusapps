@@ -134,6 +134,7 @@ export const BudgetSetupCreatePlanDialog: React.FC<BudgetSetupCreatePlanDialogPr
 
   const [confirmSaveOpen, setConfirmSaveOpen] = useState(false)
   const [pendingSubmitValues, setPendingSubmitValues] = useState<CreatePlanFormValues | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const watchedCompanyId = useWatch({ control: form.control, name: 'companyId' })
   const effectiveCompanyId = isEdit ? editRow?.companyId : watchedCompanyId
   const { company: selectedCompany, loading: loadingSelectedCompany } = useCompany(
@@ -166,6 +167,14 @@ export const BudgetSetupCreatePlanDialog: React.FC<BudgetSetupCreatePlanDialogPr
     ? t('budget-setup-create-plan-company-currency-missing')
     : null
 
+  useEffect(() => {
+    if (open || confirmSaveOpen) {
+      return
+    }
+
+    setIsSubmitting(false)
+  }, [confirmSaveOpen, open])
+
   const selectedCompanyCurrencyCode = useMemo(() => {
     if (selectedCompanyCurrencyOption) {
       return selectedCompanyCurrencyOption.label
@@ -192,20 +201,28 @@ export const BudgetSetupCreatePlanDialog: React.FC<BudgetSetupCreatePlanDialogPr
     if (typeof salaryBudgetAmount !== 'number' || typeof salaryBudgetPercent !== 'number') {
       return
     }
-    const id = await onCreate({
-      companyBudget: {
-        compensationBudgetPlanId: values.compensationBudgetPlanId,
-        companyId: values.companyId,
-        salaryBudgetAmount,
-        salaryBudgetPercent,
-        currentTotalSalaryCost: selectedCompanySalaryCost,
-        currencyRef: values.currencyRef.trim() === '' ? null : values.currencyRef.trim()
+    setIsSubmitting(true)
+    try {
+      const id = await onCreate({
+        companyBudget: {
+          compensationBudgetPlanId: values.compensationBudgetPlanId,
+          companyId: values.companyId,
+          salaryBudgetAmount,
+          salaryBudgetPercent,
+          currentTotalSalaryCost: selectedCompanySalaryCost,
+          currencyRef: values.currencyRef.trim() === '' ? null : values.currencyRef.trim()
+        }
+      })
+      if (id) {
+        setConfirmSaveOpen(false)
+        setPendingSubmitValues(null)
+        onOpenChange(false)
+        return
       }
-    })
-    if (id) {
-      setConfirmSaveOpen(false)
-      setPendingSubmitValues(null)
-      onOpenChange(false)
+
+      setIsSubmitting(false)
+    } catch {
+      setIsSubmitting(false)
     }
   }
 
@@ -226,14 +243,27 @@ export const BudgetSetupCreatePlanDialog: React.FC<BudgetSetupCreatePlanDialogPr
     ? t('budget-setup-create-plan-duplicate-company-cycle')
     : null
 
-  const onSubmit = form.handleSubmit(values => {
+  const isSubmitLocked = creating || isSubmitting
+  const showDuplicateCompanyBudgetMessage =
+    open && !confirmSaveOpen && !isSubmitLocked && duplicateCompanyBudgetMessage != null
+
+  const onSubmit = form.handleSubmit(async values => {
+    if (isSubmitLocked) {
+      return
+    }
+
     if (isEdit && editRow != null && onUpdateRow) {
-      const updatePromise = onUpdateRow(editRow, values)
-      updatePromise.then(ok => {
+      setIsSubmitting(true)
+      try {
+        const ok = await onUpdateRow(editRow, values)
         if (ok) {
           onOpenChange(false)
+          return
         }
-      })
+        setIsSubmitting(false)
+      } catch {
+        setIsSubmitting(false)
+      }
       return
     }
     if (duplicateCompanyBudgetExists) {
@@ -317,7 +347,7 @@ export const BudgetSetupCreatePlanDialog: React.FC<BudgetSetupCreatePlanDialogPr
                   </dl>
                 </div>
               ) : null}
-              {duplicateCompanyBudgetMessage ? (
+              {showDuplicateCompanyBudgetMessage ? (
                 <p className="gba:text-sm gba:text-destructive" data-testid="budget-setup-create-plan-duplicate">
                   {duplicateCompanyBudgetMessage}
                 </p>
@@ -344,6 +374,7 @@ export const BudgetSetupCreatePlanDialog: React.FC<BudgetSetupCreatePlanDialogPr
                   type="button"
                   variant="outline"
                   onClick={() => onOpenChange(false)}
+                  disabled={isSubmitLocked}
                   data-testid="budget-setup-create-plan-cancel"
                 >
                   {t('budget-setup-cancel')}
@@ -351,7 +382,7 @@ export const BudgetSetupCreatePlanDialog: React.FC<BudgetSetupCreatePlanDialogPr
                 <Button
                   type="submit"
                   disabled={
-                    creating ||
+                    isSubmitLocked ||
                     loadingCurrencies ||
                     loadingCompanySalaryCost ||
                     loadingSelectedCompany ||
@@ -380,6 +411,7 @@ export const BudgetSetupCreatePlanDialog: React.FC<BudgetSetupCreatePlanDialogPr
             <Button
               type="button"
               variant="outline"
+              disabled={isSubmitLocked}
               onClick={() => setConfirmSaveOpen(false)}
               data-testid="budget-setup-company-save-confirm-cancel"
             >
@@ -387,11 +419,13 @@ export const BudgetSetupCreatePlanDialog: React.FC<BudgetSetupCreatePlanDialogPr
             </Button>
             <Button
               type="button"
-              disabled={creating}
-              onClick={() => void runCreateCompanyBudget()}
+              disabled={isSubmitLocked}
+              onClick={() => {
+                runCreateCompanyBudget()
+              }}
               data-testid="budget-setup-company-save-confirm-confirm"
             >
-              {creating ? t('budget-setup-create-plan-saving') : t('budget-setup-company-save-confirm-confirm')}
+              {isSubmitLocked ? t('budget-setup-create-plan-saving') : t('budget-setup-company-save-confirm-confirm')}
             </Button>
           </DialogFooter>
         </DialogContent>
