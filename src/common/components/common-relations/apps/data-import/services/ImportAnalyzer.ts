@@ -18,6 +18,8 @@ export interface ImportAnalyzerContext {
   requiredSubtypeKey?: string
   /** Full dotted property paths of dynamic `additionalProperties.*` fields. */
   additionalPropertiesFields?: readonly string[]
+  /** Keys from `objectValue.tileFields[].key` across the InvestmentGroup subtree. */
+  tileFieldKeys?: readonly string[]
 }
 
 export class ImportAnalyzer {
@@ -40,7 +42,8 @@ export class ImportAnalyzer {
       modelKind,
       this.domain,
       context?.requiredSubtypeKey,
-      context?.additionalPropertiesFields
+      context?.additionalPropertiesFields,
+      context?.tileFieldKeys
     )
 
     return {

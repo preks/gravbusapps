@@ -36,7 +36,8 @@ export async function extractWithRetry(
   adapters: TargetFieldAdapters,
   repairCsv: 'auto' | 'hard' = 'auto',
   requiredSubtypeKey?: string | null,
-  additionalPropertiesFields?: readonly string[] | null
+  additionalPropertiesFields?: readonly string[] | null,
+  tileFieldKeys?: readonly string[] | null
 ): Promise<ExtractWithRetryResult> {
   const backendMappings = toBackendMappings(mappings, adapters)
   const backendMappingJson = JSON.stringify({ fieldMappings: backendMappings })
@@ -55,7 +56,8 @@ export async function extractWithRetry(
       5000,
       repairCsv,
       requiredSubtypeKey,
-      additionalPropertiesFields
+      additionalPropertiesFields,
+      tileFieldKeys
     )
     return {
       records: response.records,
@@ -77,7 +79,8 @@ export async function extractWithRetry(
         5000,
         repairCsv,
         requiredSubtypeKey,
-        additionalPropertiesFields
+        additionalPropertiesFields,
+        tileFieldKeys
       )
       return {
         records: response.records,

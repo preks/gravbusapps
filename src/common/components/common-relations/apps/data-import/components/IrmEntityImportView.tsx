@@ -58,7 +58,8 @@ export const IrmEntityImportView: React.FC<IrmEntityImportViewProps> = ({
     )
     return {
       requiredSubtypeKey: aggregated.requiredSubtypeKey,
-      additionalPropertiesFields: aggregated.additionalPropertiesFields
+      additionalPropertiesFields: aggregated.additionalPropertiesFields,
+      tileFieldKeys: aggregated.tileFieldKeys
     }
   }, [config.investmentGroupRef, allInvestmentTypes])
 

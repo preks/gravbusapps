@@ -261,7 +261,8 @@ export function useEntityImport<T = ConvertedEntity>(
           adapters,
           'auto',
           analyzerContext?.requiredSubtypeKey,
-          analyzerContext?.additionalPropertiesFields
+          analyzerContext?.additionalPropertiesFields,
+          analyzerContext?.tileFieldKeys
         )
 
         const responseRecords = usedUiMappings ? records : restoreUiTargetFieldNames(records, adapters)
@@ -328,7 +329,8 @@ export function useEntityImport<T = ConvertedEntity>(
         adapters,
         'hard',
         analyzerContext?.requiredSubtypeKey,
-        analyzerContext?.additionalPropertiesFields
+        analyzerContext?.additionalPropertiesFields,
+        analyzerContext?.tileFieldKeys
       )
 
       const responseRecords = usedUiMappings ? records : restoreUiTargetFieldNames(records, adapters)

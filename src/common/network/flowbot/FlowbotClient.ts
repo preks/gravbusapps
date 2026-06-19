@@ -64,6 +64,11 @@ export interface MapFromFileRequest {
    * `'[]'` when no dynamic properties apply.
    */
   additional_properties_fields?: string
+  /**
+   * JSON-stringified array of tile field keys (`tileFields[].key`)
+   * from the `InvestmentGroup` catalog subtree.
+   */
+  tile_fields?: string
 }
 
 export interface MapFromFileResponse {
@@ -308,6 +313,7 @@ export class FlowbotClient extends RestClient {
     domain?: string,
     requiredSubtypeKey?: string | null,
     additionalPropertiesFields?: readonly string[] | null,
+    tileFieldKeys?: readonly string[] | null,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<MapFromFileResponse> {
     const formData = new FormData()
@@ -321,6 +327,7 @@ export class FlowbotClient extends RestClient {
     if (flowbotDomain === 'irm') {
       formData.append('required_subtype_key', requiredSubtypeKey ?? '')
       formData.append('additional_properties_fields', JSON.stringify(additionalPropertiesFields ?? []))
+      formData.append('tile_fields', JSON.stringify(tileFieldKeys ?? []))
     }
 
     return this.post<MapFromFileResponse>('/flowbot/extraction/data/entities/map-from-file', formData, options)
@@ -338,6 +345,7 @@ export class FlowbotClient extends RestClient {
     repairCsv: 'auto' | 'hard' = 'auto',
     requiredSubtypeKey?: string | null,
     additionalPropertiesFields?: readonly string[] | null,
+    tileFieldKeys?: readonly string[] | null,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<ExtractFromFileResponse> {
     const formData = new FormData()
@@ -357,6 +365,7 @@ export class FlowbotClient extends RestClient {
     }
     if (flowbotDomain === 'irm') {
       formData.append('additional_properties_fields', JSON.stringify(additionalPropertiesFields ?? []))
+      formData.append('tile_fields', JSON.stringify(tileFieldKeys ?? []))
     }
     formData.append('offset', offset.toString())
     formData.append('max_rows', maxRows.toString())

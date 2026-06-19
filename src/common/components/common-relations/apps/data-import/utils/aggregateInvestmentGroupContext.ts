@@ -38,6 +38,11 @@ export interface InvestmentGroupAnalyzerContext {
    * - Insertion-ordered for stable diffs across renders.
    */
   additionalPropertiesFields: string[]
+  /**
+   * Keys of every tile field declared on any `tileFields[*]` entry in the
+   * `InvestmentGroup` catalog subtree (root + transitive descendants).
+   */
+  tileFieldKeys: string[]
 }
 
 const ADDITIONAL_PROPERTIES_MARKER = '.additionalProperties.'
@@ -90,6 +95,27 @@ const collectFieldPropertiesFromFormFields = (parsedObjectValue: Record<string, 
 }
 
 /**
+ * Collect every `tileField.key` string from the `tileFields` array shape
+ * declared by the catalog. Defensive against malformed entries — anything
+ * that doesn't fit the expected `{ key: string }[]` shape is silently skipped.
+ */
+const collectTileFieldKeysFromObjectValue = (parsedObjectValue: Record<string, unknown> | null): string[] => {
+  if (!parsedObjectValue) return []
+  const tileFields = parsedObjectValue.tileFields
+  if (!Array.isArray(tileFields)) return []
+
+  const keys: string[] = []
+  for (const tileField of tileFields) {
+    if (!tileField || typeof tileField !== 'object') continue
+    const key = (tileField as { key?: unknown }).key
+    if (typeof key === 'string' && key.trim().length > 0) {
+      keys.push(key.trim())
+    }
+  }
+  return keys
+}
+
+/**
  * Walk the InvestmentGroup catalog subtree (root + every transitive
  * descendant via `parentEntryId`) and aggregate the LLM context.
  *
@@ -104,7 +130,11 @@ export function aggregateInvestmentGroupContext(
   groupId: string | undefined | null,
   allTypes: readonly CatalogEntry[] | undefined | null
 ): InvestmentGroupAnalyzerContext {
-  const empty: InvestmentGroupAnalyzerContext = { requiredSubtypeKey: '', additionalPropertiesFields: [] }
+  const empty: InvestmentGroupAnalyzerContext = {
+    requiredSubtypeKey: '',
+    additionalPropertiesFields: [],
+    tileFieldKeys: []
+  }
   if (!groupId || !allTypes || allTypes.length === 0) return empty
 
   const root = allTypes.find(entry => entry.id === groupId)
@@ -127,9 +157,11 @@ export function aggregateInvestmentGroupContext(
   }
 
   const dedupedFields = new Set<string>()
+  const dedupedTileKeys = new Set<string>()
   for (const entry of allTypes) {
     if (!subtreeIds.has(entry.id)) continue
     const parsed = parseObjectValue(entry.objectValue)
+
     const properties = collectFieldPropertiesFromFormFields(parsed)
     for (const property of properties) {
       const markerIndex = property.indexOf(ADDITIONAL_PROPERTIES_MARKER)
@@ -140,7 +172,16 @@ export function aggregateInvestmentGroupContext(
         }
       }
     }
+
+    const tileKeys = collectTileFieldKeysFromObjectValue(parsed)
+    for (const tileKey of tileKeys) {
+      dedupedTileKeys.add(tileKey)
+    }
   }
 
-  return { requiredSubtypeKey, additionalPropertiesFields: [...dedupedFields] }
+  return {
+    requiredSubtypeKey,
+    additionalPropertiesFields: [...dedupedFields],
+    tileFieldKeys: [...dedupedTileKeys]
+  }
 }

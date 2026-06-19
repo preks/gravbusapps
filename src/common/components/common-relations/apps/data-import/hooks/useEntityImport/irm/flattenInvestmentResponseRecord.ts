@@ -32,8 +32,21 @@ export function flattenInvestmentResponseRecord(
   }
 
   if (isPlainRecord(flat.additionalProperties)) {
+    const additionalPropertiesObj = flat.additionalProperties as Record<string, unknown>
+
+    if (isPlainRecord(additionalPropertiesObj.tiles)) {
+      const tilesObj = additionalPropertiesObj.tiles as Record<string, unknown>
+      for (const [tileKey, tileValue] of Object.entries(tilesObj)) {
+        const flatKey = `investment.additionalProperties.tiles.${tileKey}`
+        if (!(flatKey in flat)) {
+          flat[flatKey] = tileValue
+        }
+      }
+      delete additionalPropertiesObj.tiles
+    }
+
     const additionalPropertiesPrefix = payloadKey ? `${payloadKey}.additionalProperties` : 'additionalProperties'
-    for (const [key, value] of Object.entries(flat.additionalProperties)) {
+    for (const [key, value] of Object.entries(additionalPropertiesObj)) {
       const alreadyDotted = key.includes('.')
       const flatKey = alreadyDotted ? key : `${additionalPropertiesPrefix}.${key}`
       if (!(flatKey in flat)) {
