@@ -56,6 +56,7 @@ assign-salary-expected-monthly-wage-description = Basierend auf den Arbeitszeite
 assign-salary-start-date = Startdatum
 assign-salary-start-date-required = Startdatum ist erforderlich. Bitte wählen Sie ein Startdatum.
 assign-salary-start-date-month-start = Es kann nur der erste Tag eines Monats ausgewählt werden.
+assign-salary-start-date-hire-date-preselected = Beim ersten Gehaltseintrag ist das Eintrittsdatum vorausgewaehlt und kann nicht bearbeitet werden.
 
 # Adjust Employee Salary Review Form
 adjust-salary-review-title = Gehaltsanpassungsprüfung für { $employeeName }
@@ -383,9 +384,12 @@ entitlements-effective-from-year-placeholder = JJJJ
 entitlements-effective-from-year-invalid = Bitte geben Sie ein gültiges Jahr ein (z. B. 2026).
 entitlements-effective-to = Gültig bis
 entitlements-valid-from-hire-date-error = Das „Gültig ab”-Datum darf nicht vor dem Eintrittsdatum des Mitarbeiters liegen.
+entitlements-valid-from-hire-date-locked-error = Beim ersten Anspruchseintrag dieses Typs muss „Gültig ab“ dem Eintrittsdatum des Mitarbeiters entsprechen.
 entitlements-duplicate-error = Ein Anspruch mit demselben Typ und demselben Gültigkeitsdatum existiert bereits.
 entitlements-in-between-error = Das „Gültig ab”-Datum darf nicht vor dem neuesten vorhandenen Eintrag für diesen Anspruchstyp liegen.
 entitlements-hire-date-hint = Fruehestes erlaubtes Datum
+entitlements-valid-from-hire-date-preselected = Beim ersten Anspruchseintrag dieses Typs ist das Eintrittsdatum vorausgewaehlt und kann nicht bearbeitet werden.
+entitlements-valid-from-select-type-first = Waehlen Sie zuerst eine Abwesenheitsart aus, um das gueltige Datum zu bestimmen.
 
 # ============================================
 # Create Employee Form

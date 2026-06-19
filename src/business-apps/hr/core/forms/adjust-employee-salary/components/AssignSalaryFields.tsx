@@ -24,6 +24,11 @@ const AssignSalaryFields: React.FC<AssignSalaryFieldsProps> = ({ control, hireDa
   const { t } = useTranslation(translations)
   const placeholderSelect = t('action-select-placeholder', { defaultValue: 'Please Select' })
   const placeholderEnter = t('action-enter-placeholder', { defaultValue: 'Please Enter' })
+  const startDateHelperText = hireDate
+    ? t('assign-salary-start-date-hire-date-preselected', {
+        defaultValue: 'For the first salary entry, the hire date is preselected and cannot be edited.'
+      })
+    : undefined
 
   // Watch notes field for character count
   const notes = useWatch({ control, name: 'notes' }) || ''
@@ -41,6 +46,9 @@ const AssignSalaryFields: React.FC<AssignSalaryFieldsProps> = ({ control, hireDa
         labelTestId="assign-employee-salary-start-date-label"
         inputTestId="assign-employee-salary-start-date-input"
         allowedNonMonthStartDate={hireDate}
+        fixedDate={hireDate}
+        min={hireDate}
+        helperText={startDateHelperText}
       />
 
       {/* Notes */}

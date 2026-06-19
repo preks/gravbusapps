@@ -15,6 +15,7 @@ interface EffectiveDateFieldProps {
   min?: string
   helperText?: string
   allowedNonMonthStartDate?: string
+  fixedDate?: string
   extraValidate?: (value: string) => true | string
 }
 
@@ -39,14 +40,21 @@ const EffectiveDateField: React.FC<EffectiveDateFieldProps> = ({
   min,
   helperText,
   allowedNonMonthStartDate,
+  fixedDate,
   extraValidate
 }) => {
-  const { trigger } = useFormContext<AdjustEmployeeSalaryFormValues>()
+  const { setValue, trigger } = useFormContext<AdjustEmployeeSalaryFormValues>()
   const effectiveDate = useWatch({ control, name: 'effectiveDate' }) || ''
   const [effectiveDateDraft, setEffectiveDateDraft] = useState<string>(String(effectiveDate))
+  const isFixedDate = Boolean(fixedDate)
+  const minimumDate = fixedDate || min
   const disabledDates = useMemo(() => {
+    if (fixedDate) {
+      return (date: Date) => toDateInputValue(date) !== fixedDate
+    }
+
     return (date: Date) => date.getDate() !== 1 && toDateInputValue(date) !== allowedNonMonthStartDate
-  }, [allowedNonMonthStartDate])
+  }, [allowedNonMonthStartDate, fixedDate])
 
   const triggerEffectiveDateValidation = () => {
     trigger('effectiveDate').catch(() => undefined)
@@ -62,6 +70,16 @@ const EffectiveDateField: React.FC<EffectiveDateFieldProps> = ({
     }
   }, [effectiveDate])
 
+  useEffect(() => {
+    if (!fixedDate || effectiveDate === fixedDate) {
+      return
+    }
+
+    setValue('effectiveDate', fixedDate, { shouldDirty: false, shouldValidate: true })
+    setEffectiveDateDraft(fixedDate)
+    trigger('effectiveDate').catch(() => undefined)
+  }, [effectiveDate, fixedDate, setValue, trigger])
+
   return (
     <FormField
       control={control}
@@ -70,6 +88,10 @@ const EffectiveDateField: React.FC<EffectiveDateFieldProps> = ({
         required: requiredMessage,
         validate: value => {
           if (!value) return true
+
+          if (fixedDate && value !== fixedDate) {
+            return requiredMessage
+          }
 
           const day = Number(String(value).split('-')[2] || '')
           if (day !== 1 && value !== allowedNonMonthStartDate) {
@@ -96,17 +118,26 @@ const EffectiveDateField: React.FC<EffectiveDateFieldProps> = ({
                 showOutsideDays={false}
                 captionLayout={'dropdown'}
                 value={effectiveDateDraft}
-                min={min}
+                min={minimumDate}
                 placeholder={placeholder}
                 className="gba:w-full"
                 disabledDates={disabledDates}
+                disabled={isFixedDate}
                 onChange={(v: string | [string | null, string | null] | null) => {
+                  if (isFixedDate) {
+                    return
+                  }
+
                   const value = typeof v === 'string' ? v : ''
                   setEffectiveDateDraft(value)
                   field.onChange(value)
                   triggerEffectiveDateValidation()
                 }}
                 onDraftChange={(value: string) => {
+                  if (isFixedDate) {
+                    return
+                  }
+
                   setEffectiveDateDraft(value)
                   if (value === '') {
                     field.onChange('')

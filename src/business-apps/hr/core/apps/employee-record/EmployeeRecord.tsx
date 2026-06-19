@@ -494,7 +494,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     isDirectManagerWithPermission
   })
 
-  const shouldPrefetchHrNotesCount = hrAdminFeatureFlag && hasHrNotesAccess && !!employeeIdToShow
+  const shouldPrefetchHrNotesCount = Boolean(hrAdminFeatureFlag) && hasHrNotesAccess && !!employeeIdToShow
 
   const { count: hrNotesCount, setCount: setHrNotesCount } = useEmployeeNotesCount(
     accessToken,

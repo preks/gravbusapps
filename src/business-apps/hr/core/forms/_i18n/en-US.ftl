@@ -59,6 +59,7 @@ assign-salary-expected-monthly-wage-description = Based on the employee working 
 assign-salary-start-date = Start Date
 assign-salary-start-date-required = Start date is required. Please select a start date.
 assign-salary-start-date-month-start = Only the first day of a month can be selected.
+assign-salary-start-date-hire-date-preselected = For the first salary entry, the hire date is preselected and cannot be edited.
 
 # Adjust Employee Salary Review Form
 adjust-salary-review-title = Employee Salary Adjustment Review for { $employeeName }
@@ -385,9 +386,12 @@ entitlements-effective-from-year-placeholder = YYYY
 entitlements-effective-from-year-invalid = Please enter a valid year (e.g. 2026).
 entitlements-effective-to = Effective To
 entitlements-valid-from-hire-date-error = Effective From cannot be earlier than the employee hire date
+entitlements-valid-from-hire-date-locked-error = Effective From must stay equal to the employee hire date for the first entitlement entry of this type.
 entitlements-duplicate-error = An entitlement with the same type and effective from date already exists.
 entitlements-in-between-error = Effective From cannot be earlier than the latest existing entry for this entitlement type
 entitlements-hire-date-hint = Earliest allowed date
+entitlements-valid-from-hire-date-preselected = For the first entitlement entry of this type, the hire date is preselected and cannot be edited.
+entitlements-valid-from-select-type-first = Select an absence type to determine the effective date.
 
 # ============================================
 # Create Employee Form

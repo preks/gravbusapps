@@ -56,6 +56,7 @@ assign-salary-expected-monthly-wage-description = Bazat pe orele de lucru ale an
 assign-salary-start-date = Dată de început
 assign-salary-start-date-required = Data de început este obligatorie. Vă rugăm să selectați o dată de început.
 assign-salary-start-date-month-start = Se poate selecta doar prima zi a lunii.
+assign-salary-start-date-hire-date-preselected = Pentru prima inregistrare de salariu, data angajarii este preselectata si nu poate fi editata.
 
 # Adjust Employee Salary Review Form
 adjust-salary-review-title = Revizuire ajustare salariu pentru { $employeeName }
@@ -382,9 +383,12 @@ entitlements-effective-from-year-placeholder = AAAA
 entitlements-effective-from-year-invalid = Vă rugăm să introduceți un an valid (de ex. 2026).
 entitlements-effective-to = Efectiv pana la
 entitlements-valid-from-hire-date-error = Efectiv de la nu poate fi mai devreme decat data angajarii angajatului
+entitlements-valid-from-hire-date-locked-error = Pentru prima inregistrare de drept pentru acest tip, Efectiv de la trebuie sa ramana egal cu data angajarii angajatului.
 entitlements-duplicate-error = Exista deja un drept cu acelasi tip si aceeasi data de intrare in vigoare.
 entitlements-in-between-error = Efectiv de la nu poate fi mai devreme decat cea mai recenta intrare existenta pentru acest tip de drept
 entitlements-hire-date-hint = Cea mai devreme data permisa
+entitlements-valid-from-hire-date-preselected = Pentru prima inregistrare de drept pentru acest tip, data angajarii este preselectata si nu poate fi editata.
+entitlements-valid-from-select-type-first = Selectati mai intai un tip de absenta pentru a determina data efectiva.
 
 # ============================================
 # Create Employee Form

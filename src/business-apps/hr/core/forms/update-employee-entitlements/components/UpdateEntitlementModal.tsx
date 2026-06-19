@@ -224,6 +224,7 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
   const cancelButtonRef = useRef<HTMLButtonElement | null>(null)
   const previousCommittedValidFromRef = useRef<string>('')
   const previousAbsenceTypeRef = useRef<string | null>(null)
+  const initializedOpenContextRef = useRef<string>('')
 
   const [touchedType, setTouchedType] = useState(false)
   const [touchedValidFrom, setTouchedValidFrom] = useState(false)
@@ -238,9 +239,29 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
   }, [validFromYear])
   const minimumValidFrom = useMemo(() => toDateInputValue(employeeHireDate), [employeeHireDate])
   const minimumValidFromMonthStart = useMemo(() => toMonthStartDateInputValue(employeeHireDate), [employeeHireDate])
-  const isFirstEntitlementEntry = !selectedLine && existingEntitlements.length === 0
-  const canUseHireDateAsValidFrom = Boolean(isFirstEntitlementEntry && minimumValidFrom)
+  const hasExistingEntitlementForSelectedType = useMemo(() => {
+    if (!absenceTypeRef) {
+      return false
+    }
+
+    return existingEntitlements.some(entitlement => {
+      if (selectedLine?.id && entitlement.id === selectedLine.id) {
+        return false
+      }
+
+      return entitlement.type?.id === absenceTypeRef
+    })
+  }, [absenceTypeRef, existingEntitlements, selectedLine?.id])
+  const isFirstEntitlementForSelectedType =
+    !selectedLine && absenceTypeRef !== '' && !hasExistingEntitlementForSelectedType
+  const isValidFromLockedToHireDate = Boolean(minimumValidFrom && isFirstEntitlementForSelectedType)
+  const isValidFromDisabled = !absenceTypeRef || isValidFromLockedToHireDate
+  const canUseHireDateAsValidFrom = isValidFromLockedToHireDate
   const validFrom = useMemo(() => {
+    if (isValidFromLockedToHireDate) {
+      return minimumValidFrom
+    }
+
     const normalizedDraft = toDateInputValue(validFromDraft)
     if (
       canUseHireDateAsValidFrom &&
@@ -255,7 +276,15 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
     }
 
     return toMonthStartDateInputValueFromParts(validFromYear, validFromMonthId)
-  }, [canUseHireDateAsValidFrom, isValidYear, minimumValidFrom, validFromDraft, validFromMonthId, validFromYear])
+  }, [
+    canUseHireDateAsValidFrom,
+    isValidFromLockedToHireDate,
+    isValidYear,
+    minimumValidFrom,
+    validFromDraft,
+    validFromMonthId,
+    validFromYear
+  ])
   const normalizedValidFrom = useMemo(() => toMonthStartDateInputValue(validFrom), [validFrom])
   const latestExistingValidFromForType = useMemo(() => {
     if (!absenceTypeRef) {
@@ -278,7 +307,7 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
   }, [absenceTypeRef, existingEntitlements, selectedLine?.id])
   const minimumDateForSelectedType = useMemo(() => {
     if (!latestExistingValidFromForType) {
-      if (canUseHireDateAsValidFrom) {
+      if (isValidFromLockedToHireDate) {
         return minimumValidFrom
       }
 
@@ -289,7 +318,7 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
     return minimumValidFromMonthStart
       ? maxDateValue(minimumDateAfterLatestEntry, minimumValidFromMonthStart)
       : minimumDateAfterLatestEntry
-  }, [canUseHireDateAsValidFrom, latestExistingValidFromForType, minimumValidFrom, minimumValidFromMonthStart])
+  }, [isValidFromLockedToHireDate, latestExistingValidFromForType, minimumValidFrom, minimumValidFromMonthStart])
   const hireDateViolation = Boolean(validFrom && minimumDateForSelectedType && validFrom < minimumDateForSelectedType)
   const inBetweenViolation = Boolean(
     normalizedValidFrom && latestExistingValidFromForType && normalizedValidFrom < latestExistingValidFromForType
@@ -339,15 +368,35 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
     return Number(day || '')
   }, [validFrom])
   const isHireDateException = Boolean(canUseHireDateAsValidFrom && validFrom && validFrom === minimumValidFrom)
+  const lockedValidFromViolation = Boolean(isValidFromLockedToHireDate && validFrom !== minimumValidFrom)
   const shouldShowHireDateHint = canUseHireDateAsValidFrom && minimumValidFrom !== minimumValidFromMonthStart
+  const validFromRuleHint = useMemo(() => {
+    if (!absenceTypeRef) {
+      return t('entitlements-valid-from-select-type-first')
+    }
+
+    if (isValidFromLockedToHireDate) {
+      return t('entitlements-valid-from-hire-date-preselected')
+    }
+
+    const hintKey = shouldShowHireDateHint
+      ? 'entitlements-valid-from-month-start-or-hire-date-hint'
+      : 'entitlements-valid-from-month-start-hint'
+
+    return t(hintKey)
+  }, [absenceTypeRef, isValidFromLockedToHireDate, shouldShowHireDateHint, t])
   const isMonthStartDay = validFrom ? validFromDay === 1 || isHireDateException : true
   const missingValidFromError = touchedValidFrom && !validFrom && !dateDayValidationError
   const invalidValidFromDayError = touchedValidFrom && dateDayValidationError
   const disabledDates = useMemo(() => {
     return (date: Date) => {
+      if (isValidFromLockedToHireDate) {
+        return toDateInputValueFromDate(date) !== minimumValidFrom
+      }
+
       return date.getDate() !== 1 && (!canUseHireDateAsValidFrom || toDateInputValueFromDate(date) !== minimumValidFrom)
     }
-  }, [canUseHireDateAsValidFrom, minimumValidFrom])
+  }, [canUseHireDateAsValidFrom, isValidFromLockedToHireDate, minimumValidFrom])
 
   const clearCommittedValidFrom = () => {
     setValidFromYear('')
@@ -356,6 +405,15 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
 
   const commitValidFrom = (nextDate: string) => {
     setTouchedValidFrom(true)
+
+    if (isValidFromLockedToHireDate) {
+      setDateDayValidationError(false)
+      setValidFromDraft(minimumValidFrom)
+      const [nextYear = '', nextMonth = ''] = minimumValidFrom.split('-')
+      setValidFromYear(nextYear)
+      setValidFromMonthId(nextMonth)
+      return
+    }
 
     if (!nextDate) {
       setDateDayValidationError(false)
@@ -377,17 +435,22 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
   }
 
   useEffect(() => {
-    if (!isOpen) return
+    if (!isOpen) {
+      initializedOpenContextRef.current = ''
+      return
+    }
+
+    const openContextKey = `${selectedLine?.id ?? 'new'}:${minimumValidFrom}:${year}`
+    if (initializedOpenContextRef.current === openContextKey) {
+      return
+    }
+
+    initializedOpenContextRef.current = openContextKey
+
     const defaultType = selectedLine?.type?.id || ''
-    const defaultValidFromRaw =
-      toDateInputValue(selectedLine?.validFrom) ||
-      (isFirstEntitlementEntry && minimumValidFrom
-        ? minimumValidFrom
-        : maxDateValue(getTodayDateInputValue(), minimumValidFrom || '')) ||
-      getTodayDateInputValue()
-    const defaultValidFrom = canUseHireDateAsValidFrom
-      ? toDateInputValue(defaultValidFromRaw)
-      : toMonthStartDateInputValue(defaultValidFromRaw)
+    const selectedLineValidFrom = toDateInputValue(selectedLine?.validFrom)
+    const defaultValidFromRaw = selectedLineValidFrom || maxDateValue(getTodayDateInputValue(), minimumValidFrom || '')
+    const defaultValidFrom = selectedLine ? toMonthStartDateInputValue(defaultValidFromRaw) : ''
     const [defaultYear = '', defaultMonth = ''] = (defaultValidFrom || '').split('-')
     setAbsenceTypeRef(defaultType)
     setTotal(Number(selectedLine?.total ?? 0))
@@ -407,7 +470,7 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
       validFrom: defaultValidFrom
     })
     previousCommittedValidFromRef.current = defaultValidFrom
-  }, [canUseHireDateAsValidFrom, isFirstEntitlementEntry, isOpen, minimumValidFrom, selectedLine, year])
+  }, [existingEntitlements.length, isOpen, minimumValidFrom, selectedLine, year])
 
   useEffect(() => {
     if (!isOpen) {
@@ -440,6 +503,15 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
 
     previousAbsenceTypeRef.current = absenceTypeRef
 
+    if (isValidFromLockedToHireDate && minimumValidFrom) {
+      const [nextYear = '', nextMonth = ''] = minimumValidFrom.split('-')
+      setValidFromDraft(minimumValidFrom)
+      setValidFromYear(nextYear)
+      setValidFromMonthId(nextMonth)
+      setDateDayValidationError(false)
+      return
+    }
+
     if (!minimumDateForSelectedType) {
       return
     }
@@ -454,7 +526,7 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
     setValidFromYear(nextYear)
     setValidFromMonthId(nextMonth)
     setDateDayValidationError(false)
-  }, [absenceTypeRef, isOpen, minimumDateForSelectedType, validFrom])
+  }, [absenceTypeRef, isOpen, isValidFromLockedToHireDate, minimumDateForSelectedType, minimumValidFrom, validFrom])
 
   // Manage initial focus when modal opens
   useEffect(() => {
@@ -526,6 +598,7 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
     !isMonthStartDay ||
     dateDayValidationError ||
     hireDateViolation ||
+    lockedValidFromViolation ||
     inBetweenViolation ||
     hasDuplicateEntitlement ||
     !hasChangesComparedToInitial
@@ -608,6 +681,7 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
                 min={minimumDateForSelectedType || minimumValidFromMonthStart || undefined}
                 className="!gba:w-full gba:min-w-0"
                 showOutsideDays={false}
+                disabled={isValidFromDisabled}
                 onDraftChange={(value: string) => {
                   setValidFromDraft(value)
                   setTouchedValidFrom(true)
@@ -660,6 +734,14 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
               {formatDate(minimumValidFrom, 'date.short') || minimumValidFrom}
             </div>
           )}
+          {lockedValidFromViolation && (
+            <div
+              className="gba:text-sm gba:text-destructive"
+              data-testid="flw_updateEntitlementModal_validFromLockedError"
+            >
+              {t('entitlements-valid-from-hire-date-locked-error')}
+            </div>
+          )}
           {hasDuplicateEntitlement && (
             <div className="gba:text-sm gba:text-destructive" data-testid="flw_updateEntitlementModal_duplicateError">
               {t('entitlements-duplicate-error')}
@@ -671,7 +753,7 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
               {formatDate(latestExistingValidFromForType, 'date.short') || latestExistingValidFromForType}
             </div>
           )}
-          {minimumAllowedMonthYearLabel ? (
+          {minimumAllowedMonthYearLabel && absenceTypeRef && !isValidFromLockedToHireDate ? (
             <div
               className="gba:text-sm gba:leading-5 gba:text-muted-foreground"
               data-testid="flw_updateEntitlementModal_validFromHint"
@@ -683,11 +765,7 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
             className="gba:text-sm gba:leading-5 gba:text-muted-foreground"
             data-testid="flw_updateEntitlementModal_monthStartHint"
           >
-            {t(
-              shouldShowHireDateHint
-                ? 'entitlements-valid-from-month-start-or-hire-date-hint'
-                : 'entitlements-valid-from-month-start-hint'
-            )}
+            {validFromRuleHint}
           </div>
         </div>
         {/* Numeric Inputs */}

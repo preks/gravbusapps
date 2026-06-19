@@ -29,8 +29,7 @@ function resolveLegalEntityId(entry: BenefitTypeEntry | undefined, legalEntities
   if (!entry) return ''
   const ov = entry.parsedObjectValue
   if (ov?.legalEntityId) {
-    const match = legalEntities.find(le => le.id === ov.legalEntityId)
-    if (match) return match.id
+    return ov.legalEntityId
   }
   if (entry.parentEntryId) {
     const byRef = legalEntities.find(
@@ -99,9 +98,10 @@ const BenefitTypeDialog: React.FC<BenefitTypeDialogProps> = ({
     }
 
     if (mode === 'edit' && initialData) {
-      const entityId = resolveLegalEntityId(initialData, legalEntities)
+      const resolvedEntityId = resolveLegalEntityId(initialData, legalEntities)
+      const entityId = resolvedEntityId || initialData.parsedObjectValue?.legalEntityId || ''
       const entity = legalEntities.find(le => le.id === entityId)
-      setSelectedEntityId(entityId)
+      setSelectedEntityId(prev => entityId || prev)
       setForm({
         code: initialData.code || '',
         value: initialData.value || '',
@@ -110,7 +110,7 @@ const BenefitTypeDialog: React.FC<BenefitTypeDialogProps> = ({
         displayOrder: initialData.displayOrder ?? 0,
         objectValue: {
           ...(initialData.parsedObjectValue || EMPTY_FORM.objectValue),
-          legalEntityId: entityId || initialData.parsedObjectValue?.legalEntityId,
+          legalEntityId: entityId || initialData.parsedObjectValue?.legalEntityId || '',
           legalEntityName: entity?.name || initialData.parsedObjectValue?.legalEntityName,
           countryRef: entity?.countryRef || initialData.parsedObjectValue?.countryRef || initialData.parentEntryId || ''
         }
@@ -211,6 +211,8 @@ const BenefitTypeDialog: React.FC<BenefitTypeDialogProps> = ({
   }, [form, onSubmit, onOpenChange, selectedEntityId, t])
 
   const title = mode === 'create' ? t('dialog-create-title') : t('dialog-edit-title')
+  const hasSelectedEntityInOptions = legalEntities.some(le => le.id === selectedEntityId)
+  const selectedEntityFallbackLabel = form.objectValue.legalEntityName || selectedEntityId
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -231,6 +233,11 @@ const BenefitTypeDialog: React.FC<BenefitTypeDialogProps> = ({
                   <SelectValue placeholder={t('field-legal-entity-placeholder')} />
                 </SelectTrigger>
                 <SelectContent>
+                  {selectedEntityId && !hasSelectedEntityInOptions ? (
+                    <SelectItem key={selectedEntityId} value={selectedEntityId}>
+                      {selectedEntityFallbackLabel}
+                    </SelectItem>
+                  ) : null}
                   {legalEntities.map(le => (
                     <SelectItem key={le.id} value={le.id}>
                       {le.name}
