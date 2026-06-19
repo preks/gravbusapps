@@ -6,6 +6,7 @@ import { FileIcon, FilesIcon, SparkleIcon, TrayIcon, WarningIcon } from '@phosph
 import React from 'react'
 
 import { RunEmailApprovalSection } from '../../RunEmailApprovalSection'
+import { RunFlowApprovalSection } from '../../RunFlowApprovalSection'
 import { RunMarkdown } from '../../RunMarkdown'
 import { RunStructuredApprovalSection } from '../../RunStructuredApprovalSection'
 import { getComposeEmailPending } from '../../workforceComposeEmail'
@@ -73,6 +74,14 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ run, accessToken, erro
 
       {structuredPending && accessToken && (
         <RunStructuredApprovalSection
+          run={run}
+          accessToken={accessToken}
+          onRefreshAfterSubmit={onRefreshRun ?? (() => Promise.resolve())}
+        />
+      )}
+
+      {accessToken && (
+        <RunFlowApprovalSection
           run={run}
           accessToken={accessToken}
           onRefreshAfterSubmit={onRefreshRun ?? (() => Promise.resolve())}

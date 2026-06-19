@@ -4,10 +4,10 @@
 // activity label and a pulsing indicator so an operator watching the detail
 // screen can see what the agent is doing right now without opening a run.
 
-import { ClockIcon, PulseIcon } from '@phosphor-icons/react'
+import { ClockIcon, HourglassIcon, PulseIcon } from '@phosphor-icons/react'
 import React from 'react'
 import { LiveStatusPill } from './LiveStatusPill'
-import { runStatusVisual } from './runDisplay'
+import { statusVisualForRun } from './runDisplay'
 import type { WorkforceActiveRun } from './workforceTypes'
 
 export interface LiveActivityFeedProps {
@@ -29,6 +29,9 @@ function relativeStart(iso: string | null | undefined): string {
 }
 
 export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({ runs, isConnected = true, onOpenRun }) => {
+  // Count only genuinely active runs as "running"; flow-paused runs are folded
+  // into the list as "Awaiting approval" and must not inflate the running count.
+  const runningCount = runs.filter(run => !run.pending_flow_approval).length
   return (
     <section
       className="gba:rounded-xl gba:border gba:border-border gba:bg-card gba:p-3"
@@ -38,7 +41,7 @@ export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({ runs, isConn
         <h3 className="gba:text-xs gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground">
           Live activity
         </h3>
-        <LiveStatusPill connected={isConnected} label={`${runs.length} running`} />
+        <LiveStatusPill connected={isConnected} label={`${runningCount} running`} />
       </div>
 
       {runs.length === 0 ? (
@@ -48,7 +51,8 @@ export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({ runs, isConn
       ) : (
         <ul className="gba:flex gba:flex-col gba:gap-2">
           {runs.map(run => {
-            const visual = runStatusVisual(run.status)
+            const visual = statusVisualForRun(run)
+            const isAwaitingApproval = Boolean(run.pending_flow_approval)
             return (
               <li key={run.session_id}>
                 <button
@@ -70,8 +74,12 @@ export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({ runs, isConn
                     </span>
                   </div>
                   <p className="gba:flex gba:items-center gba:gap-1.5 gba:text-[11px] gba:font-medium gba:text-foreground">
-                    <PulseIcon className="gba:h-3 gba:w-3 gba:shrink-0 gba:text-emerald-600" weight="bold" />
-                    <span className="gba:line-clamp-2">{run.current_activity}</span>
+                    {isAwaitingApproval ? (
+                      <HourglassIcon className="gba:h-3 gba:w-3 gba:shrink-0 gba:text-amber-600" weight="bold" />
+                    ) : (
+                      <PulseIcon className="gba:h-3 gba:w-3 gba:shrink-0 gba:text-emerald-600" weight="bold" />
+                    )}
+                    <span className="gba:line-clamp-2">{run.pending_human_question || run.current_activity}</span>
                   </p>
                 </button>
               </li>

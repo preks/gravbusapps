@@ -33,6 +33,9 @@ export interface WorkforceFeedItem {
   credits: number | null
   caseRef: WorkforceRunCaseRef | null
   isNew: boolean
+  // True for a completed run whose triggered flow is paused on a human approval;
+  // drives the uniform "Awaiting approval" badge in the feed.
+  pendingFlowApproval: boolean
 }
 
 const FEED_CAP = 30
@@ -61,7 +64,8 @@ function finishedItem(run: WorkforceRecentRun): WorkforceFeedItem {
     durationMs: run.duration_ms ?? null,
     credits: run.credits ?? null,
     caseRef: run.case_ref ?? null,
-    isNew: false
+    isNew: false,
+    pendingFlowApproval: false
   }
 }
 
@@ -80,7 +84,31 @@ function activeItem(run: WorkforceActiveRun, isNew: boolean): WorkforceFeedItem 
     durationMs: null,
     credits: null,
     caseRef: null,
-    isNew
+    isNew,
+    pendingFlowApproval: Boolean(run.pending_flow_approval)
+  }
+}
+
+// A completed run whose triggered flow is paused on a human approval. Rendered
+// as a "finished" card (badge, not pulsing dot) but flagged so the badge reads
+// "Awaiting approval" and the activity line shows the pending question.
+function flowPendingItem(run: WorkforceActiveRun): WorkforceFeedItem {
+  return {
+    key: run.session_id,
+    kind: 'finished',
+    sessionId: run.session_id,
+    agentId: run.agent_id,
+    displayName: run.display_name ?? null,
+    status: run.status,
+    source: run.source ?? null,
+    trigger: run.trigger ?? null,
+    timestamp: run.updated_at ?? run.started_at ?? null,
+    currentActivity: run.pending_human_question ?? null,
+    durationMs: null,
+    credits: null,
+    caseRef: null,
+    isNew: false,
+    pendingFlowApproval: true
   }
 }
 
@@ -95,13 +123,22 @@ export function buildFeed(
 ): WorkforceFeedItem[] {
   if (!overview) return []
   const recent = overview.recent_completed ?? []
-  const finishedIds = new Set(recent.map(run => run.session_id))
+  const seen = new Set(recent.map(run => run.session_id))
   const items: WorkforceFeedItem[] = recent.map(finishedItem)
 
   for (const run of overview.runs ?? []) {
     // A run that already shows up as finished should not double as active.
-    if (finishedIds.has(run.session_id)) continue
+    if (seen.has(run.session_id)) continue
+    seen.add(run.session_id)
     items.push(activeItem(run, newActiveIds.has(run.session_id)))
+  }
+
+  // Completed runs paused on a flow approval: surface them in the feed so the
+  // command center shows the same "Awaiting approval" state as everywhere else.
+  for (const run of overview.flow_pending ?? []) {
+    if (seen.has(run.session_id)) continue
+    seen.add(run.session_id)
+    items.push(flowPendingItem(run))
   }
 
   items.sort((a, b) => tsMs(b.timestamp) - tsMs(a.timestamp))

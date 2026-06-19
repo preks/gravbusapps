@@ -35,6 +35,11 @@ export const RunDetailScreen: React.FC<RunDetailScreenProps> = ({ runId, accessT
   // trace and stopped automatically once the run is terminal.
   const { trace, isStreaming, isConnected } = useWorkforceRunStream(run, accessToken)
 
+  // A terminal run can still be blocking a human on a flow-engine APPROVAL step.
+  // The backend stamps `pending_flow_approval` on the run payload, so the header
+  // reads "Awaiting approval" on first render (no Completed -> Awaiting flash).
+  const awaitingFlowApproval = Boolean(run?.pending_flow_approval)
+
   // Immediate refresh after a human approval (e.g. sending an email draft) so
   // the operator sees the resolved state without waiting for the next poll.
   const refreshRun = useCallback(async () => {
@@ -126,6 +131,7 @@ export const RunDetailScreen: React.FC<RunDetailScreenProps> = ({ runId, accessT
         isStreaming={isStreaming}
         isConnected={isConnected}
         isRefreshing={isLoading}
+        awaitingFlowApproval={awaitingFlowApproval}
         onBack={onBack}
       />
       <RunDetailBody

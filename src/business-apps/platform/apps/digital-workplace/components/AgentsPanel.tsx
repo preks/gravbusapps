@@ -4,7 +4,7 @@ import { RobotIcon } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl, Navigation } from '@/common/utils/navigationUtils'
 import { useWorkforceLiveActivity } from '@/business-apps/core/every-fabric/apps/every-fabric/components/enterprise-workforce/useWorkforceLiveActivity'
 import {
-  runStatusVisual,
+  statusVisualForRun,
   shortenInput
 } from '@/business-apps/core/every-fabric/apps/every-fabric/components/enterprise-workforce/runDisplay'
 import type { WorkforceActiveRun } from '@/business-apps/core/every-fabric/apps/every-fabric/components/enterprise-workforce/workforceTypes'
@@ -14,6 +14,15 @@ import { WorkforceHitlDialog } from './WorkforceHitlDialog'
 import type { WorkplacePanelBaseProps } from '../types'
 
 const TEST_ID = 'digital-workplace-agents'
+
+// Recency used to order the "needs you" lane newest-first, so the most recent
+// run (including a completed run paused on a flow approval) sits on top.
+function runRecencyMs(run: WorkforceActiveRun): number {
+  const iso = run.updated_at || run.started_at
+  if (!iso) return 0
+  const parsed = Date.parse(iso)
+  return Number.isNaN(parsed) ? 0 : parsed
+}
 
 function openRun(run: WorkforceActiveRun): void {
   if (!run.agent_id) {
@@ -37,7 +46,7 @@ interface AgentRowProps {
 }
 
 const AgentRow: React.FC<AgentRowProps> = ({ run, detail, onSelect }) => {
-  const visual = runStatusVisual(run.status)
+  const visual = statusVisualForRun(run)
   return (
     <button
       type="button"
@@ -69,7 +78,17 @@ const AgentsPanel: React.FC<WorkplacePanelBaseProps> = ({ context, onMetric, cla
   const [activeRun, setActiveRun] = useState<WorkforceActiveRun | null>(null)
 
   const runs = useMemo(() => overview?.runs ?? [], [overview])
-  const waiting = useMemo(() => runs.filter(run => run.status === 'waiting_for_human'), [runs])
+  // Completed runs whose triggered flow is paused on a human approval arrive in
+  // a separate list (they are not active agent runs); merge them into the
+  // "needs you" lane alongside genuinely waiting_for_human runs.
+  const flowPending = useMemo(() => overview?.flow_pending ?? [], [overview])
+  const waiting = useMemo(
+    () =>
+      [...runs.filter(run => run.status === 'waiting_for_human'), ...flowPending].sort(
+        (a, b) => runRecencyMs(b) - runRecencyMs(a)
+      ),
+    [runs, flowPending]
+  )
   const working = useMemo(() => runs.filter(run => run.status !== 'waiting_for_human'), [runs])
 
   useEffect(() => {
@@ -84,7 +103,7 @@ const AgentsPanel: React.FC<WorkplacePanelBaseProps> = ({ context, onMetric, cla
   // runs that are merely working have no pending prompt, so jump to the full
   // run detail in the workforce instead.
   const handleSelect = useCallback((run: WorkforceActiveRun) => {
-    if (run.status === 'waiting_for_human') {
+    if (run.status === 'waiting_for_human' || run.pending_flow_approval) {
       setActiveRun(run)
       return
     }
@@ -96,13 +115,13 @@ const AgentsPanel: React.FC<WorkplacePanelBaseProps> = ({ context, onMetric, cla
       <WorkplacePanel
         title={t('agents-title')}
         icon={RobotIcon}
-        count={runs.length}
+        count={runs.length + flowPending.length}
         onTitleClick={() => navigateTo(buildPlatformUrl(Navigation.EVERY_FABRIC, { view: 'enterprise-workforce' }))}
         titleActionLabel={t('agents-open')}
         className={className}
         testId={TEST_ID}
         errorTitle={t('error-title')}
-        isEmpty={runs.length === 0}
+        isEmpty={runs.length === 0 && flowPending.length === 0}
         emptyTitle={t('agents-empty-title')}
         emptyDescription={t('agents-empty-desc')}
       >

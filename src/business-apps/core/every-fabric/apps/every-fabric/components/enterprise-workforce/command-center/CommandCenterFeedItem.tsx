@@ -6,7 +6,7 @@
 
 import { ClockIcon, CoinsIcon, PulseIcon } from '@phosphor-icons/react'
 import React from 'react'
-import { runStatusVisual } from '../runDisplay'
+import { statusVisualForRun } from '../runDisplay'
 import { sourceVisual } from '../workforceSourceDisplay'
 import type { WorkforceFeedItem } from '../workforceFeedModel'
 import { caseRefLabel, elapsedSince, formatDurationMs } from './commandCenterFormat'
@@ -25,7 +25,10 @@ export const CommandCenterFeedItem: React.FC<CommandCenterFeedItemProps> = ({ it
   const source = sourceVisual(item.source)
   const SourceIcon = source.icon
   const isActive = item.kind === 'active'
-  const statusVisual = runStatusVisual(item.status)
+  const statusVisual = statusVisualForRun({
+    status: item.status,
+    pending_flow_approval: item.pendingFlowApproval
+  })
   const caseLabel = caseRefLabel(item.caseRef)
   const duration = formatDurationMs(item.durationMs)
 

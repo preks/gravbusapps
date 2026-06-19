@@ -9,7 +9,7 @@ import { ArrowsClockwiseIcon, EnvelopeIcon, MagnifyingGlassIcon } from '@phospho
 import React, { useMemo, useState } from 'react'
 import { useWorkforceAgentRuns } from '../../useWorkforceAgentRuns'
 import type { WorkforceRun, WorkforceRunListParams } from '../../workforceTypes'
-import { formatTimestamp, runCredits, runStatusVisual, shortenInput } from '../../runDisplay'
+import { formatTimestamp, runCredits, statusVisualForRun, shortenInput } from '../../runDisplay'
 
 export interface AgentInboxTabProps {
   accessToken: string
@@ -118,7 +118,7 @@ export const AgentInboxTab: React.FC<AgentInboxTabProps> = ({ accessToken, agent
           </thead>
           <tbody className="gba:divide-y gba:divide-border/60">
             {runs.map(run => {
-              const visual = runStatusVisual(run.status)
+              const visual = statusVisualForRun(run)
               const from = readTriggerPayloadField(run, 'from') || '—'
               const subject = readTriggerPayloadField(run, 'subject') || shortenInput(run.input, 80) || '—'
               return (

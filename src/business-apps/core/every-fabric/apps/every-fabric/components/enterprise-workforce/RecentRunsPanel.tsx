@@ -7,7 +7,7 @@
 import { ArrowsClockwiseIcon, ClockIcon, CoinsIcon, FlaskIcon, SpinnerGapIcon } from '@phosphor-icons/react'
 import React from 'react'
 import type { WorkforceRun } from './workforceTypes'
-import { formatTimestamp, runCredits, runDurationLabel, runStatusVisual, shortenInput } from './runDisplay'
+import { formatTimestamp, runCredits, runDurationLabel, statusVisualForRun, shortenInput } from './runDisplay'
 
 export interface RecentRunsPanelProps {
   runs: WorkforceRun[]
@@ -93,7 +93,7 @@ export const RecentRunsPanel: React.FC<RecentRunsPanelProps> = ({
       ) : (
         <ul className="gba:divide-y gba:divide-border/60">
           {runs.map(run => {
-            const visual = runStatusVisual(run.status)
+            const visual = statusVisualForRun(run)
             const credits = runCredits(run)
             const duration = runDurationLabel(run)
             return (

@@ -59,6 +59,21 @@ export function runStatusVisual(status: WorkforceRunStatus): RunStatusVisual {
   return STATUS_VISUALS[status] ?? STATUS_VISUALS.pending
 }
 
+// Status pill for a run, accounting for flow-level approvals. A completed run
+// whose triggered flow is paused on a human approval is still actionable, so it
+// reads "Awaiting approval" (amber) rather than its raw "Completed" status. The
+// underlying status is unchanged; this only affects the displayed badge. Use
+// this everywhere a run badge is rendered to keep the state uniform.
+export function statusVisualForRun(run: {
+  status: WorkforceRunStatus
+  pending_flow_approval?: boolean | null
+}): RunStatusVisual {
+  if (run.pending_flow_approval) {
+    return { label: 'Awaiting approval', pillClass: STATUS_VISUALS.waiting_for_human.pillClass }
+  }
+  return runStatusVisual(run.status)
+}
+
 export function readTotalTokens(run: WorkforceRun): number {
   const summary = run.cost_summary
   if (!summary) return 0

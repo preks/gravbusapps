@@ -370,6 +370,11 @@ export interface WorkforceRun {
   case_ref?: WorkforceRunCaseRef | null
   // Persisted matched customer; preferred over case_ref when present.
   customer_ref?: WorkforceRunCustomerRef | null
+  // True when this completed run triggered a flow now paused on a human
+  // approval. Status stays `completed`; this drives the uniform
+  // "Awaiting approval" badge across all run surfaces.
+  pending_flow_approval?: boolean
+  flow_approval?: WorkforceRunFlowApproval | null
 }
 
 export type WorkforceRunSource = 'manual' | 'schedule' | 'webhook' | 'inbound_email'
@@ -401,9 +406,24 @@ export interface WorkforceActiveRun {
   current_activity: string
   workspace_id?: string | null
   pending_human_question?: string | null
+  // True for a completed run whose triggered flow is paused on a human APPROVAL
+  // step. The run status stays terminal; this flag moves it into the "needs
+  // you" lane so the Digital Workplace can prompt for the approval.
+  pending_flow_approval?: boolean
+  flow_approval?: WorkforceRunFlowApproval | null
   started_at?: string | null
   updated_at?: string | null
   last_seq: number
+}
+
+// The flow-engine approval a completed run is waiting on (see
+// ``pending_flow_approval``). Identifiers let the inbox act on the task; the
+// detail UI re-derives the proposed patch from the preceding flow step.
+export interface WorkforceRunFlowApproval {
+  flow_id?: string | null
+  flow_name?: string | null
+  task_id?: string | null
+  step_index?: number | null
 }
 
 // A just-finished run surfaced in the live "command center" feed. Carries the
@@ -436,6 +456,10 @@ export interface WorkforceActiveOverview {
   by_agent: Record<string, number>
   runs: WorkforceActiveRun[]
   recent_completed: WorkforceRecentRun[]
+  // Completed runs whose triggered flow is paused on a human approval. Kept out
+  // of ``runs`` so active-run counts and the live feed stay accurate; the DW
+  // inbox merges these into its "needs you" section.
+  flow_pending?: WorkforceActiveRun[]
   // Server-computed completions for the current UTC day. ``buckets`` are
   // hourly (oldest first, index == hour-of-day UTC) and power the
   // command-center "done today" sparkline.

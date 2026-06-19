@@ -163,21 +163,36 @@ export function useWorkforceLiveActivity(
   }, [accessToken, workspaceId, enabled])
 
   const runsByAgent = useMemo(() => {
+    // Active runs plus completed runs paused on a flow approval, so the per-agent
+    // live sidebar surfaces "Awaiting approval" runs alongside in-flight ones.
     const map = new Map<string, WorkforceActiveRun[]>()
-    for (const run of overview?.runs ?? []) {
-      if (!run.agent_id) continue
+    const append = (run: WorkforceActiveRun): void => {
+      if (!run.agent_id) return
       const list = map.get(run.agent_id)
       if (list) list.push(run)
       else map.set(run.agent_id, [run])
     }
+    for (const run of overview?.runs ?? []) append(run)
+    for (const run of overview?.flow_pending ?? []) append(run)
     return map
   }, [overview])
 
-  const workingAgentIds = useMemo(() => new Set(runsByAgent.keys()), [runsByAgent])
+  // "Working" indicators (sphere, deck, working-now count) must reflect only
+  // genuinely active runs; a flow-paused run needs attention but is not running.
+  const workingAgentIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const run of overview?.runs ?? []) {
+      if (run.agent_id) ids.add(run.agent_id)
+    }
+    return ids
+  }, [overview])
 
   const isAgentWorking = useCallback((agentId: string) => workingAgentIds.has(agentId), [workingAgentIds])
 
-  const activeRunForAgent = useCallback((agentId: string) => runsByAgent.get(agentId)?.[0] ?? null, [runsByAgent])
+  const activeRunForAgent = useCallback(
+    (agentId: string) => (overview?.runs ?? []).find(run => run.agent_id === agentId) ?? null,
+    [overview]
+  )
 
   const recentCompleted = useMemo(() => overview?.recent_completed ?? [], [overview])
 

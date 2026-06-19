@@ -203,13 +203,6 @@ export const WorkforceAgentDetailScreen: React.FC<WorkforceAgentDetailScreenProp
     void refetchRuns()
   }, [refetchRuns])
 
-  const handleOpenTrace = useCallback(
-    (run: WorkforceRun) => {
-      onSelectRun(run.session_id)
-    },
-    [onSelectRun]
-  )
-
   const handleOpenLiveRun = useCallback(
     (sessionId: string) => {
       onSelectRun(sessionId)
@@ -365,12 +358,7 @@ export const WorkforceAgentDetailScreen: React.FC<WorkforceAgentDetailScreenProp
               />
             )}
             {agent && tab === 'runs' && (
-              <AgentRunsTab
-                accessToken={accessToken}
-                agentId={agentId}
-                onOpenRun={handleOpenRun}
-                onOpenTrace={handleOpenTrace}
-              />
+              <AgentRunsTab accessToken={accessToken} agentId={agentId} onOpenRun={handleOpenRun} />
             )}
             {agent && tab === 'inbox' && (
               <AgentInboxTab accessToken={accessToken} agentId={agentId} onOpenRun={handleOpenRun} />

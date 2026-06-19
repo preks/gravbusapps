@@ -7,7 +7,8 @@ import {
   runCredits,
   runDurationLabel,
   runStatusVisual,
-  shortenInput
+  shortenInput,
+  statusVisualForRun
 } from '../runDisplay'
 
 function buildRun(overrides: Partial<WorkforceRun> = {}): WorkforceRun {
@@ -37,6 +38,21 @@ describe('runStatusVisual', () => {
     expect(runStatusVisual('failed').label).toBe('Failed')
     expect(runStatusVisual('budget_paused').label).toBe('Budget paused')
     expect(runStatusVisual('filtered').label).toBe('Filtered')
+  })
+})
+
+describe('statusVisualForRun', () => {
+  it('mirrors runStatusVisual when no flow approval is pending', () => {
+    expect(statusVisualForRun({ status: 'completed' }).label).toBe('Completed')
+    expect(statusVisualForRun({ status: 'running' }).label).toBe('Running')
+    expect(statusVisualForRun({ status: 'completed', pending_flow_approval: false }).label).toBe('Completed')
+  })
+
+  it('overrides a completed run paused on a flow approval to "Awaiting approval"', () => {
+    const visual = statusVisualForRun({ status: 'completed', pending_flow_approval: true })
+    expect(visual.label).toBe('Awaiting approval')
+    // Reuses the amber waiting_for_human styling so the lane reads as actionable.
+    expect(visual.pillClass).toBe(runStatusVisual('waiting_for_human').pillClass)
   })
 })
 

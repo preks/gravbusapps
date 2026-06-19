@@ -6,17 +6,16 @@
 // underlying hook does server-side filtering via WorkforceRunListParams
 // so we never pull the full history into the browser.
 
-import { ArrowsClockwiseIcon, ChatTeardropTextIcon, MagnifyingGlassIcon } from '@phosphor-icons/react'
+import { ArrowsClockwiseIcon, MagnifyingGlassIcon } from '@phosphor-icons/react'
 import React, { useMemo, useState } from 'react'
 import { useWorkforceAgentRuns } from '../../useWorkforceAgentRuns'
 import type { WorkforceRun, WorkforceRunListParams, WorkforceRunSource, WorkforceRunStatus } from '../../workforceTypes'
-import { formatTimestamp, runCredits, runDurationLabel, runStatusVisual, shortenInput } from '../../runDisplay'
+import { formatTimestamp, runCredits, runDurationLabel, statusVisualForRun, shortenInput } from '../../runDisplay'
 
 export interface AgentRunsTabProps {
   accessToken: string
   agentId: string
   onOpenRun: (run: WorkforceRun) => void
-  onOpenTrace: (run: WorkforceRun) => void
 }
 
 const PAGE_SIZE = 25
@@ -57,7 +56,7 @@ function filtersToParams(filters: Filters, page: number): WorkforceRunListParams
   return params
 }
 
-export const AgentRunsTab: React.FC<AgentRunsTabProps> = ({ accessToken, agentId, onOpenRun, onOpenTrace }) => {
+export const AgentRunsTab: React.FC<AgentRunsTabProps> = ({ accessToken, agentId, onOpenRun }) => {
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
   const [page, setPage] = useState(0)
 
@@ -149,46 +148,32 @@ export const AgentRunsTab: React.FC<AgentRunsTabProps> = ({ accessToken, agentId
       ) : (
         <ul className="gba:divide-y gba:divide-border/60">
           {runs.map(run => {
-            const visual = runStatusVisual(run.status)
+            const visual = statusVisualForRun(run)
             const duration = runDurationLabel(run)
             return (
-              <li
-                key={run.session_id}
-                className="gba:flex gba:items-center gba:gap-3 gba:py-2"
-                data-testid="workforce-runs-row"
-              >
-                <span
-                  className={`gba:inline-flex gba:rounded-full gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-medium ${visual.pillClass}`}
-                >
-                  {visual.label}
-                </span>
-                <div className="gba:min-w-0 gba:flex-1">
-                  <p className="gba:truncate gba:text-xs gba:font-medium gba:text-foreground">
-                    {shortenInput(run.input)}
-                  </p>
-                  <p className="gba:text-[11px] gba:text-muted-foreground">
-                    {formatTimestamp(run.created_at)}
-                    {run.source ? ` · ${run.source.replace(/_/g, ' ')}` : ''}
-                    {duration ? ` · ${duration}` : ''}
-                    {` · ${runCredits(run)} credits`}
-                  </p>
-                </div>
+              <li key={run.session_id}>
                 <button
                   type="button"
                   onClick={() => onOpenRun(run)}
-                  className="gba:inline-flex gba:h-7 gba:items-center gba:gap-1 gba:rounded-md gba:border gba:border-border gba:bg-background gba:px-2 gba:text-[11px] gba:text-muted-foreground gba:hover:text-foreground"
-                  data-testid="workforce-runs-open-drawer"
+                  className="gba:flex gba:w-full gba:items-center gba:gap-3 gba:rounded-md gba:px-1 gba:py-2 gba:text-left gba:transition-colors gba:hover:bg-muted/40"
+                  data-testid="workforce-runs-row"
                 >
-                  Drawer
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onOpenTrace(run)}
-                  className="gba:inline-flex gba:h-7 gba:items-center gba:gap-1 gba:rounded-md gba:bg-primary gba:px-2 gba:text-[11px] gba:text-primary-foreground gba:hover:bg-primary/90"
-                  data-testid="workforce-runs-open-trace"
-                >
-                  <ChatTeardropTextIcon className="gba:h-3 gba:w-3" />
-                  Trace
+                  <span
+                    className={`gba:inline-flex gba:shrink-0 gba:rounded-full gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-medium ${visual.pillClass}`}
+                  >
+                    {visual.label}
+                  </span>
+                  <div className="gba:min-w-0 gba:flex-1">
+                    <p className="gba:truncate gba:text-xs gba:font-medium gba:text-foreground">
+                      {shortenInput(run.input)}
+                    </p>
+                    <p className="gba:text-[11px] gba:text-muted-foreground">
+                      {formatTimestamp(run.created_at)}
+                      {run.source ? ` · ${run.source.replace(/_/g, ' ')}` : ''}
+                      {duration ? ` · ${duration}` : ''}
+                      {` · ${runCredits(run)} credits`}
+                    </p>
+                  </div>
                 </button>
               </li>
             )

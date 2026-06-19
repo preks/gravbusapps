@@ -74,6 +74,40 @@ describe('buildFeed', () => {
     expect(feed).toHaveLength(1)
     expect(feed[0].kind).toBe('finished')
   })
+
+  it('surfaces flow-pending runs as finished items flagged pendingFlowApproval', () => {
+    const feed = buildFeed(
+      overview({
+        flow_pending: [
+          activeRun({
+            session_id: 's-flow',
+            status: 'completed',
+            pending_flow_approval: true,
+            pending_human_question: 'Awaiting approval: Human Approval of Proposed Patch',
+            updated_at: '2026-06-01T12:10:00Z'
+          })
+        ]
+      }),
+      new Set()
+    )
+    expect(feed).toHaveLength(1)
+    expect(feed[0].key).toBe('s-flow')
+    expect(feed[0].kind).toBe('finished')
+    expect(feed[0].pendingFlowApproval).toBe(true)
+    expect(feed[0].currentActivity).toBe('Awaiting approval: Human Approval of Proposed Patch')
+  })
+
+  it('does not duplicate a flow-pending run already present as active', () => {
+    const feed = buildFeed(
+      overview({
+        runs: [activeRun({ session_id: 'dup' })],
+        flow_pending: [activeRun({ session_id: 'dup', pending_flow_approval: true })]
+      }),
+      new Set()
+    )
+    expect(feed).toHaveLength(1)
+    expect(feed[0].kind).toBe('active')
+  })
 })
 
 describe('foldThroughput', () => {

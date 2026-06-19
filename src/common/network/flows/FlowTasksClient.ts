@@ -162,6 +162,18 @@ export class FlowTasksClient extends RestClient {
     return await this.post(`/${encodeURIComponent(taskId)}/complete`, body)
   }
 
+  async reject(taskId: string, body: { userId: string; comment?: string; commentVisibility?: string }) {
+    return await this.post(`/${encodeURIComponent(taskId)}/reject`, body)
+  }
+
+  async claim(taskId: string, body: { userId: string }) {
+    return await this.post(`/${encodeURIComponent(taskId)}/claim`, body)
+  }
+
+  async unclaim(taskId: string, body: { userId: string }) {
+    return await this.post(`/${encodeURIComponent(taskId)}/unclaim`, body)
+  }
+
   async reassign(
     taskId: string,
     body: { currentUserId: string; newUserId: string; comment?: string; commentVisibility?: string }

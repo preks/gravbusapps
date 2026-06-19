@@ -14,11 +14,16 @@ import { ArrowSquareOutIcon, CheckCircleIcon, RobotIcon } from '@phosphor-icons/
 import { navigateTo, buildPlatformUrl, Navigation } from '@/common/utils/navigationUtils'
 import { useEnterpriseAgentClient } from '@/business-apps/core/every-fabric/apps/every-fabric/hooks/useEnterpriseAgentClient'
 import { RunEmailApprovalSection } from '@/business-apps/core/every-fabric/apps/every-fabric/components/enterprise-workforce/RunEmailApprovalSection'
+import { RunFlowApprovalView } from '@/business-apps/core/every-fabric/apps/every-fabric/components/enterprise-workforce/RunFlowApprovalSection'
 import { RunStructuredApprovalSection } from '@/business-apps/core/every-fabric/apps/every-fabric/components/enterprise-workforce/RunStructuredApprovalSection'
+import {
+  useRunFlowApprovals,
+  type UseRunFlowApprovalsState
+} from '@/business-apps/core/every-fabric/apps/every-fabric/components/enterprise-workforce/flow-detail/runFlowApprovals'
 import { RunMarkdown } from '@/business-apps/core/every-fabric/apps/every-fabric/components/enterprise-workforce/RunMarkdown'
 import { getComposeEmailPending } from '@/business-apps/core/every-fabric/apps/every-fabric/components/enterprise-workforce/workforceComposeEmail'
 import { getStructuredInputPending } from '@/business-apps/core/every-fabric/apps/every-fabric/components/enterprise-workforce/workforceStructuredInput'
-import { runStatusVisual } from '@/business-apps/core/every-fabric/apps/every-fabric/components/enterprise-workforce/runDisplay'
+import { statusVisualForRun } from '@/business-apps/core/every-fabric/apps/every-fabric/components/enterprise-workforce/runDisplay'
 import {
   extractDraftBody,
   extractDraftSubject
@@ -119,8 +124,13 @@ const FreeTextResponse: React.FC<{
   )
 }
 
-const StatusPill: React.FC<{ run: WorkforceRun }> = ({ run }) => {
-  const visual = runStatusVisual(run.status)
+const StatusPill: React.FC<{ run: WorkforceRun; awaitingFlowApproval?: boolean }> = ({ run, awaitingFlowApproval }) => {
+  // A completed run paused on a flow approval is still actionable, so override
+  // its raw "Completed" status with the amber "Awaiting approval" pill.
+  const visual = statusVisualForRun({
+    status: run.status,
+    pending_flow_approval: awaitingFlowApproval || run.pending_flow_approval
+  })
   return (
     <Badge variant="outline" size="sm" className={`gba:shrink-0 ${visual.pillClass}`}>
       {visual.label}
@@ -132,14 +142,28 @@ const DialogBody: React.FC<{
   run: WorkforceRun
   accessToken: string
   refresh: () => Promise<unknown>
-}> = ({ run, accessToken, refresh }) => {
+  flowApprovalState: UseRunFlowApprovalsState
+}> = ({ run, accessToken, refresh, flowApprovalState }) => {
   const { t } = useWorkplaceTranslation()
   const composePending = getComposeEmailPending(run.pending_structured_input)
   const structuredPending = composePending ? null : getStructuredInputPending(run.pending_structured_input)
   const isWaiting = run.status === 'waiting_for_human'
+  // Flow-engine APPROVAL tasks pause the workflow without flipping the run to
+  // `waiting_for_human` or populating `pending_structured_input`. The detection
+  // is owned by the dialog (so the header pill can reflect it too) and passed in.
+  const {
+    approvals: flowApprovals,
+    isResolving: isResolvingFlowApproval,
+    refresh: refreshFlowApprovals
+  } = flowApprovalState
+  const hasFlowApproval = flowApprovals.length > 0
   const onRefresh = useCallback(async () => {
     await refresh()
   }, [refresh])
+  const onFlowResolved = useCallback(async () => {
+    await refreshFlowApprovals()
+    await refresh()
+  }, [refreshFlowApprovals, refresh])
 
   return (
     <div className="gba:flex gba:flex-col gba:gap-4">
@@ -158,6 +182,14 @@ const DialogBody: React.FC<{
         <RunStructuredApprovalSection run={run} accessToken={accessToken} onRefreshAfterSubmit={onRefresh} />
       ) : isWaiting ? (
         <FreeTextResponse run={run} accessToken={accessToken} onSubmitted={onRefresh} />
+      ) : hasFlowApproval && accessToken ? (
+        <RunFlowApprovalView approvals={flowApprovals} accessToken={accessToken} onResolved={onFlowResolved} />
+      ) : isResolvingFlowApproval ? (
+        // The run triggered a flow but we don't yet know whether it is paused on
+        // an approval — hold a spinner instead of flashing the "done" state.
+        <div className="gba:flex gba:items-center gba:justify-center gba:py-8" data-testid={`${TEST_ID}-flow-loading`}>
+          <Spinner />
+        </div>
       ) : (
         <section
           className="gba:flex gba:flex-col gba:items-center gba:gap-2 gba:rounded-lg gba:border gba:border-border/60 gba:bg-muted/30 gba:px-4 gba:py-6 gba:text-center"
@@ -199,6 +231,10 @@ const WorkforceHitlDialog: React.FC<WorkforceHitlDialogProps> = ({
 }) => {
   const { t } = useWorkplaceTranslation()
   const { run, loading, error, refresh } = useWorkforceRunDetail(accessToken, sessionId, open)
+  // Owned here so both the header pill and the body reflect the same pending
+  // flow-approval state without polling the flow engine twice.
+  const flowApprovalState = useRunFlowApprovals(run, accessToken)
+  const awaitingFlowApproval = flowApprovalState.approvals.length > 0
 
   const openFullRun = useCallback(() => {
     if (!sessionId) return
@@ -220,7 +256,7 @@ const WorkforceHitlDialog: React.FC<WorkforceHitlDialogProps> = ({
           <DialogTitle className="gba:flex gba:items-center gba:gap-2 gba:text-base">
             <RobotIcon className="gba:size-4 gba:text-muted-foreground" />
             <span className="gba:min-w-0 gba:flex-1 gba:truncate">{agentName || t('hitl-title')}</span>
-            {run ? <StatusPill run={run} /> : null}
+            {run ? <StatusPill run={run} awaitingFlowApproval={awaitingFlowApproval} /> : null}
           </DialogTitle>
           <DialogDescription className="gba:sr-only">{t('hitl-title')}</DialogDescription>
         </DialogHeader>
@@ -238,7 +274,7 @@ const WorkforceHitlDialog: React.FC<WorkforceHitlDialogProps> = ({
               {error}
             </div>
           ) : run && accessToken ? (
-            <DialogBody run={run} accessToken={accessToken} refresh={refresh} />
+            <DialogBody run={run} accessToken={accessToken} refresh={refresh} flowApprovalState={flowApprovalState} />
           ) : (
             <div className="gba:py-8 gba:text-center gba:text-sm gba:text-muted-foreground">
               {t('hitl-no-action-desc')}

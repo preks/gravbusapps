@@ -19,7 +19,7 @@ import { Feature } from '@/common/types/constants/FeatureHub'
 import { useAgentSettings } from '../../../hooks/useAgentSettings'
 import { isEveryFabricDevToolsEnabled } from '../../../utils/devToolsGate'
 import { LiveStatusPill } from '../LiveStatusPill'
-import { formatTimestamp, runCredits, runDurationLabel, runStatusVisual } from '../runDisplay'
+import { formatTimestamp, runCredits, runDurationLabel, statusVisualForRun } from '../runDisplay'
 import { sourceVisual } from '../workforceSourceDisplay'
 import type { WorkforceRun, WorkforceRunTraceEvent } from '../workforceTypes'
 import { RunContextLinks } from './RunContextLinks'
@@ -33,6 +33,9 @@ export interface RunDetailHeaderProps {
   isStreaming: boolean
   isConnected: boolean
   isRefreshing: boolean
+  // A completed run whose triggered flow is paused on a human approval; shows an
+  // "Awaiting approval" pill instead of the raw "Completed" status.
+  awaitingFlowApproval?: boolean
   onBack: () => void
 }
 
@@ -88,12 +91,16 @@ export const RunDetailHeader: React.FC<RunDetailHeaderProps> = ({
   isStreaming,
   isConnected,
   isRefreshing,
+  awaitingFlowApproval,
   onBack
 }) => {
   const { devModeEnabled: localDevModeEnabled } = useAgentSettings()
   const devModeEnabled = isEveryFabricDevToolsEnabled(readDevToolsFeatureFlag()) && localDevModeEnabled
 
-  const visual = runStatusVisual(run.status)
+  const visual = statusVisualForRun({
+    status: run.status,
+    pending_flow_approval: awaitingFlowApproval || run.pending_flow_approval
+  })
   const source = resolveSource(run)
   const sourceInfo = sourceVisual(source)
   const SourceIcon = sourceInfo.icon

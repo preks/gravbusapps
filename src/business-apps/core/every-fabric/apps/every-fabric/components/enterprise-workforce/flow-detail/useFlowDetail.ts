@@ -61,6 +61,14 @@ function parseStep(value: unknown, index: number): FlowDetailStep {
     title,
     type: asString(raw.type),
     status: asString(raw.status) ?? 'UNKNOWN',
+    // Task identifiers are only present on waiting human steps; carry them
+    // through so the run UI can act on an APPROVAL task (claim/complete/reject).
+    taskId: asString(raw.taskId),
+    taskBusinessId: asString(raw.taskBusinessId),
+    actionId: asString(raw.actionId),
+    lifecycleId: asString(raw.lifecycleId),
+    assignmentStatus: asString(raw.assignmentStatus),
+    assignedUserId: asString(raw.assignedUserId),
     assignmentMode: asString(raw.assignmentMode),
     assignedTo: asString(raw.assignedTo),
     completedBy: asString(raw.completedBy),
