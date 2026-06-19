@@ -483,7 +483,6 @@ if (globalThis.__APP_BUILD_INFO__) {
         // Generate a module that re-exports all the wrapped components
         let code = `import './common/runtime/globalNetworkInterceptorsBootstrap';
 import { wrapWithUiCatalog } from './common/wrapWithUiCatalog';
-import { wrapWithLocalizationProvider } from './common/wrapWithLocalizationProvider';
 import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
 `
 
@@ -500,7 +499,7 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
             code += `export const ${cleanEntryKey} = ${cleanEntryKey}Original;
 `
           } else {
-            code += `export const ${cleanEntryKey} = wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvider(${cleanEntryKey}Original)));
+            code += `export const ${cleanEntryKey} = wrapWithUiCatalog(wrapWithBlinkProvider(${cleanEntryKey}Original));
 `
           }
         })
@@ -1014,13 +1013,12 @@ export default OriginalComponent;
         wrapperContent = `// Auto-generated wrapper file
 import '@/common/runtime/globalNetworkInterceptorsBootstrap';
 import { wrapWithUiCatalog } from '@/common/wrapWithUiCatalog';
-import { wrapWithLocalizationProvider } from '@/common/wrapWithLocalizationProvider';
 import { wrapWithBlinkProvider } from '@/common/wrapWithBlinkProvider';
 import { wrapWithDevReportDot } from '@/common/dev-report/wrapWithDevReportDot';
 import OriginalComponent from '${relativeEntryPath.startsWith('.') ? relativeEntryPath : './' + relativeEntryPath}';
 
 // Re-export wrapped component
-export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvider(OriginalComponent))));
+export default wrapWithDevReportDot(${JSON.stringify(entryKey)})(wrapWithUiCatalog(wrapWithBlinkProvider(OriginalComponent)));
 `
       }
 
