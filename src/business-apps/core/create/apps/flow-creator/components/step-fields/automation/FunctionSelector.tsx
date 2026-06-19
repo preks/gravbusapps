@@ -11,6 +11,9 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
+  Tabs,
+  TabsList,
+  TabsTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
 import { Check, ChevronsUpDown, Cloud, Code2, ExternalLink, FolderOpen, Loader2 } from 'lucide-react'
