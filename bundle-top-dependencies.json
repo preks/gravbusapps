@@ -46820,9 +46820,9 @@
     ]
   },
   "hr/core/forms/change-bank-account": {
-    "bitbucketBuildNumber": 13891,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13891/",
-    "chunkJsBytes": 310296,
+    "bitbucketBuildNumber": 13892,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13892/",
+    "chunkJsBytes": 310293,
     "top": [
       {
         "kind": "bucket",
@@ -88560,20 +88560,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 13891,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13891/",
-    "chunkJsBytes": 2064312,
+    "bitbucketBuildNumber": 13892,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13892/",
+    "chunkJsBytes": 2064309,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1780573,
-        "gzip": 114755,
+        "gzip": 114818,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1780573,
-            "gzip": 114755
+            "gzip": 114818
           }
         ]
       },
@@ -116443,9 +116443,9 @@
     ]
   },
   "platform/apps/digital-workplace": {
-    "bitbucketBuildNumber": 13879,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13879/",
-    "chunkJsBytes": 3053922,
+    "bitbucketBuildNumber": 13892,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13892/",
+    "chunkJsBytes": 3054374,
     "top": [
       {
         "kind": "bucket",
@@ -116468,8 +116468,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/platform",
-        "rendered": 1522614,
-        "gzip": 381888,
+        "rendered": 1523574,
+        "gzip": 382141,
         "leaves": [
           {
             "name": "src/business-apps/platform/apps/every-ai/components/OutputRenderers.tsx",
@@ -120464,7 +120464,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-19T12:32:35.066Z",
+    "generatedAt": "2026-06-19T12:32:50.290Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
