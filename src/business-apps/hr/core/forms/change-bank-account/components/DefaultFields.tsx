@@ -1,5 +1,6 @@
 import React from 'react'
 import {
+  Combobox,
   FormField,
   FormItem,
   FormLabel,
@@ -23,12 +24,65 @@ interface DefaultFieldsProps {
   isUSAndNoAddress: boolean
 }
 
+interface CatalogComboboxOption {
+  value: string
+  label: string
+  searchText: string
+}
+
+const filterCatalogOptions = (options: CatalogComboboxOption[], searchValue: string): CatalogComboboxOption[] => {
+  const normalizedSearchValue = searchValue.trim().toLowerCase()
+
+  if (!normalizedSearchValue) {
+    return options
+  }
+
+  return options.filter(option => option.searchText.toLowerCase().includes(normalizedSearchValue))
+}
+
 const DefaultFields: React.FC<DefaultFieldsProps> = ({
   form,
   catalogCountries,
   catalogCurrencies,
   isUSAndNoAddress
 }) => {
+  const [countrySearch, setCountrySearch] = React.useState('')
+  const [currencySearch, setCurrencySearch] = React.useState('')
+  const countryOptions = React.useMemo(
+    () =>
+      catalogCountries.map(entry => {
+        const label = getCatalogValue(entry)
+
+        return {
+          value: entry.id,
+          label,
+          searchText: [label, entry.code, entry.value].filter(Boolean).join(' ')
+        }
+      }),
+    [catalogCountries]
+  )
+  const currencyOptions = React.useMemo(
+    () =>
+      catalogCurrencies.map(entry => {
+        const label = entry.code || getCatalogValue(entry)
+
+        return {
+          value: entry.id,
+          label,
+          searchText: [label, entry.code, entry.value, getCatalogValue(entry)].filter(Boolean).join(' ')
+        }
+      }),
+    [catalogCurrencies]
+  )
+  const filteredCountryOptions = React.useMemo(
+    () => filterCatalogOptions(countryOptions, countrySearch),
+    [countryOptions, countrySearch]
+  )
+  const filteredCurrencyOptions = React.useMemo(
+    () => filterCatalogOptions(currencyOptions, currencySearch),
+    [currencyOptions, currencySearch]
+  )
+
   return (
     <>
       <FormField
@@ -49,35 +103,33 @@ const DefaultFields: React.FC<DefaultFieldsProps> = ({
               )}
               <span className="gba:text-destructive"> *</span>
             </FormLabel>
-            <Select
-              value={field.value === null || field.value === undefined || field.value === '' ? '' : String(field.value)}
-              onValueChange={v => field.onChange(v || null)}
-            >
-              <FormControl>
-                <SelectTrigger
-                  className="gba:!w-full gba:min-w-0 gba:!max-w-none"
-                  data-testid="flw_changeBankAccount_country"
-                >
-                  <SelectValue
-                    placeholder={getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:employee_profile.details_layout.bank_account_form.country_select_placeholder',
-                      'Select Country'
-                    )}
-                  />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {catalogCountries.map((entry: any) => (
-                  <SelectItem
-                    key={entry.id}
-                    value={String(entry.id)}
-                    data-testid={`flw_changeBankAccount_countryOption-${entry.id}`}
-                  >
-                    {getCatalogValue(entry)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <FormControl>
+              <Combobox
+                value={
+                  field.value === null || field.value === undefined || field.value === '' ? '' : String(field.value)
+                }
+                onValueChange={v => {
+                  field.onChange(v || null)
+                  setCountrySearch('')
+                }}
+                options={filteredCountryOptions}
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:employee_profile.details_layout.bank_account_form.country_select_placeholder',
+                  'Select Country'
+                )}
+                searchPlaceholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:employee_profile.details_layout.bank_account_form.country_select_search_placeholder',
+                  'Search country...'
+                )}
+                emptyText={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:employee_profile.details_layout.bank_account_form.country_select_empty_text',
+                  'No countries found'
+                )}
+                onSearch={setCountrySearch}
+                className="gba:!w-full gba:min-w-0 gba:!max-w-none"
+                data-testid="flw_changeBankAccount_country"
+              />
+            </FormControl>
             <FormMessage />
             {isUSAndNoAddress ? (
               <Alert
@@ -113,35 +165,33 @@ const DefaultFields: React.FC<DefaultFieldsProps> = ({
               )}
               <span className="gba:text-destructive"> *</span>
             </FormLabel>
-            <Select
-              value={field.value === null || field.value === undefined || field.value === '' ? '' : String(field.value)}
-              onValueChange={v => field.onChange(v || null)}
-            >
-              <FormControl>
-                <SelectTrigger
-                  className="gba:!w-full gba:min-w-0 gba:!max-w-none"
-                  data-testid="flw_changeBankAccount_currency"
-                >
-                  <SelectValue
-                    placeholder={getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:employee_profile.details_layout.bank_account_form.currency_select_placeholder',
-                      'Select Currency'
-                    )}
-                  />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {catalogCurrencies.map((entry: any) => (
-                  <SelectItem
-                    key={entry.id}
-                    value={String(entry.id)}
-                    data-testid={`flw_changeBankAccount_currencyOption-${entry.id}`}
-                  >
-                    {entry.code || getCatalogValue(entry)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <FormControl>
+              <Combobox
+                value={
+                  field.value === null || field.value === undefined || field.value === '' ? '' : String(field.value)
+                }
+                onValueChange={v => {
+                  field.onChange(v || null)
+                  setCurrencySearch('')
+                }}
+                options={filteredCurrencyOptions}
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:employee_profile.details_layout.bank_account_form.currency_select_placeholder',
+                  'Select Currency'
+                )}
+                searchPlaceholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:employee_profile.details_layout.bank_account_form.currency_select_search_placeholder',
+                  'Search currency...'
+                )}
+                emptyText={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:employee_profile.details_layout.bank_account_form.currency_select_empty_text',
+                  'No currencies found'
+                )}
+                onSearch={setCurrencySearch}
+                className="gba:!w-full gba:min-w-0 gba:!max-w-none"
+                data-testid="flw_changeBankAccount_currency"
+              />
+            </FormControl>
             <FormMessage />
           </FormItem>
         )}

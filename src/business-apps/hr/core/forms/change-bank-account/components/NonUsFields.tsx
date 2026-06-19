@@ -1,5 +1,5 @@
 import React from 'react'
-import { Badge, FormField, FormItem, FormLabel, FormControl, FormMessage, Input } from '@newwork/nw-design-system'
+import { FormField, FormItem, FormLabel, FormControl, FormMessage, Input } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { BankAccountForm } from '../types'
 import { formatIbanForDisplay, normalizeBankIdentifier, validateIban } from '../utils'
@@ -10,8 +10,6 @@ interface NonUsFieldsProps {
 }
 
 const NonUsFields: React.FC<NonUsFieldsProps> = ({ form, selectedCountryId }) => {
-  const ibanValidation = validateIban(form.watch('iban'), selectedCountryId)
-
   return (
     <div className="gba:space-y-4">
       <FormField
@@ -50,11 +48,6 @@ const NonUsFields: React.FC<NonUsFieldsProps> = ({ form, selectedCountryId }) =>
               />
             </FormControl>
             <FormMessage />
-            {ibanValidation.isValid && ibanValidation.warning ? (
-              <Badge variant="warning" className="gba:mt-2" data-testid="flw_changeBankAccount_ibanWarning">
-                {ibanValidation.warning}
-              </Badge>
-            ) : null}
           </FormItem>
         )}
       />

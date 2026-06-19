@@ -1,4 +1,4 @@
-import type { BankAccountFormValues } from './types'
+import type { BankAccountFormValues, CatalogEntry } from './types'
 
 const IBAN_LENGTH_BY_COUNTRY: Record<string, number> = {
   AL: 28,
@@ -96,6 +96,17 @@ export const getCountryCodeFromCatalogId = (countryId?: string | null): string |
   return /^[A-Z]{2}$/.test(countryCode) ? countryCode : null
 }
 
+export const filterRoutingNumberTypesByCountry = (
+  routingNumberTypes: CatalogEntry[],
+  selectedCountryId?: string | null
+): CatalogEntry[] => {
+  if (!selectedCountryId) {
+    return []
+  }
+
+  return routingNumberTypes.filter(entry => entry.parentEntryId === selectedCountryId)
+}
+
 const getIbanRemainder = (iban: string): number => {
   const rearranged = `${iban.slice(4)}${iban.slice(0, 4)}`
 
@@ -111,7 +122,6 @@ const getIbanRemainder = (iban: string): number => {
 export interface IbanValidationResult {
   isValid: boolean
   message?: string
-  warning?: string
 }
 
 export const validateIban = (value: unknown, selectedCountryId?: string | null): IbanValidationResult => {
@@ -140,12 +150,14 @@ export const validateIban = (value: unknown, selectedCountryId?: string | null):
   }
 
   const selectedCountryCode = getCountryCodeFromCatalogId(selectedCountryId)
-  const warning =
-    selectedCountryCode && selectedCountryCode !== ibanCountryCode
-      ? `Selected country is ${selectedCountryCode}, but IBAN starts with ${ibanCountryCode}.`
-      : undefined
+  if (selectedCountryCode && selectedCountryCode !== ibanCountryCode) {
+    return {
+      isValid: false,
+      message: `Selected country is ${selectedCountryCode}, but IBAN starts with ${ibanCountryCode}.`
+    }
+  }
 
-  return { isValid: true, warning }
+  return { isValid: true }
 }
 
 export const validateUsRoutingNumber = (value: unknown): boolean => {
@@ -168,7 +180,10 @@ const normalizeBankAccountValues = (values: BankAccountFormValues): BankAccountF
   ...values,
   iban: normalizeBankIdentifier(values.iban),
   swift: normalizeBankIdentifier(values.swift),
-  routingNumber: normalizeDigits(values.routingNumber),
+  routingNumber:
+    values.countryId === 'Country:v1:US'
+      ? normalizeDigits(values.routingNumber)
+      : normalizeBankIdentifier(values.routingNumber),
   accountNumber: normalizeBankIdentifier(values.accountNumber)
 })
 
@@ -250,7 +265,12 @@ export const buildBankAccountPayload = (params: {
       }
 }
 
-export const isUnchangedExistingBankAccount = (form: any, initialFormValues: any | null, isUS: boolean): boolean => {
+export const isUnchangedExistingBankAccount = (
+  form: any,
+  initialFormValues: any | null,
+  usesRoutingNumberFields: boolean,
+  requiresEmployeeAddress: boolean
+): boolean => {
   if (!initialFormValues) return false
   try {
     const v = normalizeBankAccountValues(form.getValues() as BankAccountFormValues)
@@ -263,26 +283,26 @@ export const isUnchangedExistingBankAccount = (form: any, initialFormValues: any
       accountHolder: String(x?.accountHolder || ''),
       comment: String(x?.comment || '')
     })
-    const current = isUS
+    const current = usesRoutingNumberFields
       ? {
           ...normalizeBase(v),
           routingNumberTypeId: v?.routingNumberTypeId || null,
           accountNumber: String(v?.accountNumber || ''),
           routingNumber: String(v?.routingNumber || ''),
-          employeeAddressId: v?.employeeAddressId || null
+          ...(requiresEmployeeAddress ? { employeeAddressId: v?.employeeAddressId || null } : {})
         }
       : {
           ...normalizeBase(v),
           iban: String(v?.iban || ''),
           swift: String(v?.swift || '')
         }
-    const initial = isUS
+    const initial = usesRoutingNumberFields
       ? {
           ...normalizeBase(initialValues),
           routingNumberTypeId: initialValues?.routingNumberTypeId || null,
           accountNumber: String(initialValues?.accountNumber || ''),
           routingNumber: String(initialValues?.routingNumber || ''),
-          employeeAddressId: initialValues?.employeeAddressId || null
+          ...(requiresEmployeeAddress ? { employeeAddressId: initialValues?.employeeAddressId || null } : {})
         }
       : {
           ...normalizeBase(initialValues),

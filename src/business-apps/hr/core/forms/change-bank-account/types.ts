@@ -22,6 +22,7 @@ export interface CatalogEntry {
   id: string
   code?: string
   value?: string
+  parentEntryId?: string | null
   objectValue?: unknown
 }
 

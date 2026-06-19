@@ -85,6 +85,7 @@ export const CATALOG_DATA_QUERY = `query fetchCatalogData($activeUserLocale: Str
   routingNumber: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "BankRoutingNumberType"}}, isDeleted: {_eq: false}}, orderBy: {value: ASC}){
     id
     value
+    parentEntryId
     objectValue
     translations(where: {localeCode: {_eq: $activeUserLocale}}) {
       localeCode

@@ -1,5 +1,6 @@
 import {
   buildBankAccountPayload,
+  filterRoutingNumberTypesByCountry,
   formatIbanForDisplay,
   isUnchangedExistingBankAccount,
   normalizeBankIdentifier,
@@ -20,10 +21,10 @@ describe('change bank account utils', () => {
     expect(validateIban('DE89 3704 0044 0532 0130 00', 'Country:v1:DE')).toEqual({ isValid: true })
   })
 
-  it('returns a warning for selected country mismatches without blocking valid IBANs', () => {
+  it('rejects IBANs that do not match the selected country', () => {
     expect(validateIban('DE89 3704 0044 0532 0130 00', 'Country:v1:RO')).toEqual({
-      isValid: true,
-      warning: 'Selected country is RO, but IBAN starts with DE.'
+      isValid: false,
+      message: 'Selected country is RO, but IBAN starts with DE.'
     })
   })
 
@@ -37,6 +38,37 @@ describe('change bank account utils', () => {
   it('validates US ABA routing numbers', () => {
     expect(validateUsRoutingNumber('021000021')).toBe(true)
     expect(validateUsRoutingNumber('021000022')).toBe(false)
+  })
+
+  it('filters routing number types by selected country parent entry', () => {
+    const routingNumberTypes = [
+      { id: 'BankRoutingNumberType:v1:ABA', value: 'ABA', parentEntryId: 'Country:v1:US' },
+      { id: 'BankRoutingNumberType:v1:BSB', value: 'BSB', parentEntryId: 'Country:v1:AU' },
+      { id: 'BankRoutingNumberType:v1:ACH', value: 'ACH', parentEntryId: 'Country:v1:US' }
+    ]
+
+    expect(filterRoutingNumberTypesByCountry(routingNumberTypes, 'Country:v1:US')).toEqual([
+      routingNumberTypes[0],
+      routingNumberTypes[2]
+    ])
+  })
+
+  it('returns no routing number types when no country is selected', () => {
+    expect(
+      filterRoutingNumberTypesByCountry(
+        [{ id: 'BankRoutingNumberType:v1:ABA', value: 'ABA', parentEntryId: 'Country:v1:US' }],
+        null
+      )
+    ).toEqual([])
+  })
+
+  it('excludes routing number types without a matching country parent entry', () => {
+    const routingNumberTypes = [
+      { id: 'BankRoutingNumberType:v1:ABA', value: 'ABA', parentEntryId: 'Country:v1:US' },
+      { id: 'BankRoutingNumberType:v1:LEGACY', value: 'Legacy' }
+    ]
+
+    expect(filterRoutingNumberTypesByCountry(routingNumberTypes, 'Country:v1:DE')).toEqual([])
   })
 
   it('submits normalized bank account values', () => {
@@ -59,6 +91,26 @@ describe('change bank account utils', () => {
     expect(payload.bankAccount.iban).toBe('DE89370400440532013000')
     expect(payload.bankAccount.swift).toBe('TESTDEFF')
     expect(payload.bankAccount.routingNumber).toBe('021000021')
+    expect(payload.bankAccount.accountNumber).toBe('123456')
+  })
+
+  it('preserves alphanumeric routing numbers for non-US routing countries', () => {
+    const payload = buildBankAccountPayload({
+      values: {
+        countryId: 'Country:v1:IN',
+        currencyId: 'Currency:v1:INR',
+        bankName: 'Test Bank',
+        accountHolder: 'Ada Lovelace',
+        accountType: 'CHECKINGS',
+        routingNumberTypeId: 'BankRoutingNumberType:v1:IFSC',
+        routingNumber: ' hdfc 000 1234 ',
+        accountNumber: ' 123 456 '
+      },
+      existingAccount: null,
+      employeeId: 'employee-1'
+    })
+
+    expect(payload.bankAccount.routingNumber).toBe('HDFC0001234')
     expect(payload.bankAccount.accountNumber).toBe('123456')
   })
 
@@ -89,6 +141,42 @@ describe('change bank account utils', () => {
           iban: 'DE89370400440532013000',
           swift: 'TESTDEFF'
         },
+        false,
+        false
+      )
+    ).toBe(true)
+  })
+
+  it('checks routing fields for non-US countries with routing number types', () => {
+    const form = {
+      getValues: () => ({
+        countryId: 'Country:v1:IN',
+        currencyId: 'Currency:v1:INR',
+        bankName: 'Test Bank',
+        accountHolder: 'Ada Lovelace',
+        accountType: 'CHECKINGS',
+        comment: '',
+        routingNumberTypeId: 'BankRoutingNumberType:v1:IFSC',
+        accountNumber: ' 123 456 ',
+        routingNumber: ' hdfc 000 1234 '
+      })
+    }
+
+    expect(
+      isUnchangedExistingBankAccount(
+        form,
+        {
+          countryId: 'Country:v1:IN',
+          currencyId: 'Currency:v1:INR',
+          bankName: 'Test Bank',
+          accountHolder: 'Ada Lovelace',
+          accountType: 'CHECKINGS',
+          comment: '',
+          routingNumberTypeId: 'BankRoutingNumberType:v1:IFSC',
+          accountNumber: '123456',
+          routingNumber: 'HDFC0001234'
+        },
+        true,
         false
       )
     ).toBe(true)

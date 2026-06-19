@@ -20,7 +20,7 @@ import { ChangeBankAccountProvider, useChangeBankAccount } from './ChangeBankAcc
 import DefaultFields from './components/DefaultFields'
 import UsFields from './components/UsFields'
 import NonUsFields from './components/NonUsFields'
-import { buildBankAccountPayload, isUnchangedExistingBankAccount } from './utils'
+import { buildBankAccountPayload, filterRoutingNumberTypesByCountry, isUnchangedExistingBankAccount } from './utils'
 import type { BankAccountFormValues } from './types'
 import appTranslations from '../../apps/employee-record/_i18n'
 import { getFormContextErrorMessage } from '@/business-apps/hr/core/utils/getFormContextErrorMessage'
@@ -92,6 +92,11 @@ const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ accessTok
   const selectedCountryId = form.watch('countryId')
   const isUSAndNoAddress = selectedCountryId === 'Country:v1:US' && employeeAddresses.length === 0
   const isUS = selectedCountryId === 'Country:v1:US'
+  const filteredRoutingTypes = useMemo(
+    () => filterRoutingNumberTypesByCountry(catalogRoutingTypes, selectedCountryId),
+    [catalogRoutingTypes, selectedCountryId]
+  )
+  const usesRoutingNumberFields = filteredRoutingTypes.length > 0
   const selectedEmployeeAddressId = form.watch('employeeAddressId')
   const selectedEmployeeAddress = employeeAddresses.find((a: any) => String(a.id) === String(selectedEmployeeAddressId))
 
@@ -170,10 +175,27 @@ const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ accessTok
     } catch {}
   }, [selectedCountryId, catalogCountries, form])
 
+  useEffect(() => {
+    if (!selectedCountryId || catalogRoutingTypes.length === 0) return
+
+    const currentRoutingNumberTypeId = form.getValues('routingNumberTypeId')
+    if (!currentRoutingNumberTypeId) return
+
+    const currentRoutingNumberTypeIsValid = filteredRoutingTypes.some(
+      entry => String(entry.id) === String(currentRoutingNumberTypeId)
+    )
+    if (currentRoutingNumberTypeIsValid) return
+
+    form.setValue('routingNumberTypeId', null, { shouldDirty: true, shouldValidate: true } as any)
+  }, [catalogRoutingTypes.length, filteredRoutingTypes, form, selectedCountryId])
+
   const watchedValues = form.watch()
   const isUnchangedExisting = useMemo(
-    () => (existingAccount ? isUnchangedExistingBankAccount(form, initialFormValuesRef.current, isUS) : false),
-    [existingAccount, watchedValues, form, isUS]
+    () =>
+      existingAccount
+        ? isUnchangedExistingBankAccount(form, initialFormValuesRef.current, usesRoutingNumberFields, isUS)
+        : false,
+    [existingAccount, watchedValues, form, usesRoutingNumberFields, isUS]
   )
 
   const hasValidationErrors = Object.keys((form.formState as any)?.errors ?? {}).length > 0
@@ -267,12 +289,14 @@ const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ accessTok
             />
 
             <div data-testid="flw_changeBankAccount_ibanSwiftLayout">
-              {isUS ? (
+              {usesRoutingNumberFields ? (
                 <UsFields
                   form={form}
-                  catalogRoutingTypes={catalogRoutingTypes}
+                  catalogRoutingTypes={filteredRoutingTypes}
                   employeeAddresses={employeeAddresses}
                   selectedEmployeeAddress={selectedEmployeeAddress}
+                  selectedCountryId={selectedCountryId}
+                  requiresEmployeeAddress={isUS}
                 />
               ) : (
                 <NonUsFields form={form} selectedCountryId={selectedCountryId} />
