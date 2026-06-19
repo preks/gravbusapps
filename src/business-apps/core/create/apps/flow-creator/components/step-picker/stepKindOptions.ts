@@ -6,6 +6,7 @@ import {
   ClipboardList,
   Code,
   Code2,
+  Database,
   Info,
   Plug,
   Sparkles,
@@ -139,6 +140,15 @@ export const STEP_KIND_OPTIONS: StepKindOption[] = [
     Icon: Plug,
     advancedOnly: true,
     payload: { nodeType: 'task', stepType: FlowStepType.FUNCTION, functionCategoryHint: 'connectors' }
+  },
+  {
+    id: 'save-to-custom-data',
+    group: 'automation',
+    labelKey: 'task-type-custom_data_mutation',
+    descriptionKey: 'step-kind-desc-save-to-custom-data',
+    Icon: Database,
+    advancedOnly: true,
+    payload: { nodeType: 'task', stepType: FlowStepType.CUSTOM_DATA_MUTATION }
   },
   {
     id: 'parallelize',

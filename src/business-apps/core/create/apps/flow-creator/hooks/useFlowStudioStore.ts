@@ -114,7 +114,12 @@ function applyTaskNodeStepType(
   mode: DesignerMode
 ): void {
   if (node.config.nodeType !== 'task') return
-  const automationTypes = [FlowStepType.FUNCTION, FlowStepType.AI_AGENT, FlowStepType.AI_TASK_EXPERT]
+  const automationTypes = [
+    FlowStepType.FUNCTION,
+    FlowStepType.AI_AGENT,
+    FlowStepType.AI_TASK_EXPERT,
+    FlowStepType.CUSTOM_DATA_MUTATION
+  ]
   const isAutomation = automationTypes.includes(stepType)
   node.config = {
     ...node.config,
@@ -124,6 +129,15 @@ function applyTaskNodeStepType(
     permissionContext:
       stepType === FlowStepType.AI_AGENT
         ? (node.config.permissionContext ?? { contextType: 'USER', permissions: ['read', 'write', 'execute'] })
+        : undefined,
+    customDataConfig:
+      stepType === FlowStepType.CUSTOM_DATA_MUTATION
+        ? (node.config.customDataConfig ?? {
+            target: 'ENTITY',
+            operation: 'create',
+            namespace: 'default',
+            values: {}
+          })
         : undefined,
     simpleAIConfig:
       mode === 'simple' && stepType === FlowStepType.AI_TASK_EXPERT

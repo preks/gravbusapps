@@ -7,7 +7,12 @@ import type { FunctionCategoryHint, StepKindId, StepKindInsertPayload } from './
 import { getStepKindOption } from './stepKindOptions'
 import { userDecisionBranchLabels } from './decisionUserKind'
 
-const AUTOMATION_STEP_TYPES = [FlowStepType.FUNCTION, FlowStepType.AI_AGENT, FlowStepType.AI_TASK_EXPERT]
+const AUTOMATION_STEP_TYPES = [
+  FlowStepType.FUNCTION,
+  FlowStepType.AI_AGENT,
+  FlowStepType.AI_TASK_EXPERT,
+  FlowStepType.CUSTOM_DATA_MUTATION
+]
 
 function isAutomationStepType(stepType: FlowStepType): boolean {
   return AUTOMATION_STEP_TYPES.includes(stepType)
@@ -162,6 +167,8 @@ export function applyStepKindToTaskConfig(
     !isFunctionConnectorKindSwitch(functionCategoryHint, current.functionConfig?.categoryHint)
   const keepTaskExpertConfig =
     stepType === FlowStepType.AI_TASK_EXPERT && current.stepType === FlowStepType.AI_TASK_EXPERT
+  const keepCustomDataConfig =
+    stepType === FlowStepType.CUSTOM_DATA_MUTATION && current.stepType === FlowStepType.CUSTOM_DATA_MUTATION
 
   let nextFunctionConfig: TaskNodeConfig['functionConfig']
   if (stepType === FlowStepType.FUNCTION) {
@@ -203,6 +210,12 @@ export function applyStepKindToTaskConfig(
     reworkConfig: isAutomation ? undefined : current.reworkConfig,
     functionConfig: nextFunctionConfig,
     agentConfig: keepTaskExpertConfig ? current.agentConfig : undefined,
+    customDataConfig:
+      stepType === FlowStepType.CUSTOM_DATA_MUTATION
+        ? (keepCustomDataConfig && current.customDataConfig
+            ? current.customDataConfig
+            : { target: 'ENTITY' as const, operation: 'create' as const, namespace: 'default', values: {} })
+        : undefined,
     permissionContext:
       stepType === FlowStepType.AI_AGENT
         ? (current.permissionContext ?? { contextType: 'USER', permissions: ['read', 'write', 'execute'] })

@@ -354,7 +354,8 @@ export function studioGraphToTemplate(
                 modelSettings: cfg.agentConfig.modelSettings
               }
             : undefined,
-        aiAgentConfig: persistedOutputSchema ? { resultSchema: persistedOutputSchema } : undefined
+        aiAgentConfig: persistedOutputSchema ? { resultSchema: persistedOutputSchema } : undefined,
+        customDataConfig: cfg.stepType === 'CUSTOM_DATA_MUTATION' ? cfg.customDataConfig : undefined
       }
 
       steps.push(step as FlowStep)
@@ -722,7 +723,8 @@ export function templateToStudioGraph(template: FlowTemplate): {
         eventSubscriptions: step.eventSubscriptions,
         reworkConfig: step.reworkConfig,
         permissionContext: step.permissionContext,
-        simpleAIConfig: step.simpleAIConfig
+        simpleAIConfig: step.simpleAIConfig,
+        customDataConfig: step.customDataConfig
       } as any
     }
     nodes.push(node)
