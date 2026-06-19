@@ -15,6 +15,7 @@ import { navigateTo, buildPlatformUrl, Navigation } from '@/common/utils/navigat
 import { useWorkforceLiveActivity } from '@/business-apps/core/every-fabric/apps/every-fabric/components/enterprise-workforce/useWorkforceLiveActivity'
 import {
   runStatusVisual,
+  statusVisualForRun,
   shortenInput
 } from '@/business-apps/core/every-fabric/apps/every-fabric/components/enterprise-workforce/runDisplay'
 import type { WorkforceActiveRun } from '@/business-apps/core/every-fabric/apps/every-fabric/components/enterprise-workforce/workforceTypes'
@@ -66,6 +67,12 @@ function resolveSenderName(employee: EmployeeAvatarData | undefined, task: Unifi
   return meta?.creatorName || meta?.ownerName || meta?.flowInitiatedByName || fallback
 }
 
+function runRecencyMs(run: WorkforceActiveRun): number {
+  const stamp = run.updated_at || run.started_at
+  const ms = stamp ? new Date(stamp).getTime() : NaN
+  return Number.isNaN(ms) ? 0 : ms
+}
+
 function openRun(run: WorkforceActiveRun): void {
   if (!run.agent_id) {
     navigateTo(buildPlatformUrl(Navigation.EVERY_FABRIC, { view: 'enterprise-workforce' }))
@@ -106,11 +113,32 @@ const FocusFeed: React.FC<FocusFeedProps> = ({ context, onMetric, className, rem
   const [activeTask, setActiveTask] = useState<UnifiedTask | null>(null)
 
   const runs = useMemo(() => overview?.runs ?? [], [overview])
-  const waitingAgents = useMemo(() => runs.filter(run => run.status === 'waiting_for_human'), [runs])
-  const sortedAgents = useMemo(
-    () => [...waitingAgents, ...runs.filter(run => run.status !== 'waiting_for_human')],
-    [runs, waitingAgents]
-  )
+  // Completed runs whose triggered flow is paused on a human approval. The
+  // backend surfaces them separately; they still need the user, so they share
+  // the "waiting" lane with deep-agent HITL runs.
+  const flowPending = useMemo(() => overview?.flow_pending ?? [], [overview])
+  const waitingAgents = useMemo(() => {
+    const seen = new Set<string>()
+    const out: WorkforceActiveRun[] = []
+    for (const run of [...runs.filter(run => run.status === 'waiting_for_human'), ...flowPending]) {
+      if (seen.has(run.session_id)) continue
+      seen.add(run.session_id)
+      out.push(run)
+    }
+    // Newest first so the latest item needing the user leads, regardless of
+    // whether it is a deep-agent HITL run or a flow awaiting approval.
+    return out.sort((a, b) => runRecencyMs(b) - runRecencyMs(a))
+  }, [runs, flowPending])
+  const sortedAgents = useMemo(() => {
+    const seen = new Set<string>()
+    const out: WorkforceActiveRun[] = []
+    for (const run of [...waitingAgents, ...runs]) {
+      if (seen.has(run.session_id)) continue
+      seen.add(run.session_id)
+      out.push(run)
+    }
+    return out
+  }, [runs, waitingAgents])
   const overdueTasks = useMemo(() => tasks.filter(task => task.dueMeta?.status === 'overdue'), [tasks])
   const dueSoonTasks = useMemo(() => tasks.filter(task => task.dueMeta?.status === 'dueSoon24h'), [tasks])
   const otherTasks = useMemo(
@@ -143,7 +171,7 @@ const FocusFeed: React.FC<FocusFeedProps> = ({ context, onMetric, className, rem
   }, [refetch])
 
   const handleAgentSelect = useCallback((run: WorkforceActiveRun) => {
-    if (run.status === 'waiting_for_human') setActiveRun(run)
+    if (run.status === 'waiting_for_human' || run.pending_flow_approval) setActiveRun(run)
     else openRun(run)
   }, [])
 
@@ -152,18 +180,25 @@ const FocusFeed: React.FC<FocusFeedProps> = ({ context, onMetric, className, rem
 
   const renderAgentRow = (run: WorkforceActiveRun) => {
     const waiting = run.status === 'waiting_for_human'
+    const awaitingApproval = Boolean(run.pending_flow_approval)
+    const needsYou = waiting || awaitingApproval
+    const badgeLabel = waiting
+      ? t('focus-needs-you')
+      : awaitingApproval
+        ? statusVisualForRun(run).label
+        : runStatusVisual(run.status).label
     return (
       <FocusRow
         key={`agent-${run.session_id}`}
         glyph={RobotIcon}
         title={run.display_name || run.agent_id}
         detail={
-          waiting
-            ? run.pending_human_question || t('agents-waiting-default')
+          needsYou
+            ? run.pending_human_question || run.current_activity || t('agents-waiting-default')
             : run.current_activity || shortenInput(run.input, 80) || t('agents-no-activity')
         }
-        badgeLabel={waiting ? t('focus-needs-you') : runStatusVisual(run.status).label}
-        badgeVariant={waiting ? 'warning' : 'secondary'}
+        badgeLabel={badgeLabel}
+        badgeVariant={needsYou ? 'warning' : 'secondary'}
         onClick={() => handleAgentSelect(run)}
         testId={`${TEST_ID}-agent-${run.session_id}`}
       />
@@ -268,7 +303,7 @@ const FocusFeed: React.FC<FocusFeedProps> = ({ context, onMetric, className, rem
 
   const countByFilter: Record<FocusFilter, number> = {
     all: allCount,
-    agents: runs.length,
+    agents: sortedAgents.length,
     tasks: totalCount,
     reminders: reminderItems.length
   }
