@@ -35,6 +35,7 @@ category-general = General
 category-hr = HR
 category-crm = CRM
 category-expenses = Expenses
+category-finance = Finance
 category-office = Office
 category-service = Service
 category-custom = Custom

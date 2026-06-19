@@ -8,7 +8,16 @@ export type ConnectorKind = 'structured' | 'unstructured'
  * (matches `FUNCTION_CATEGORIES` in the backend). Used to drive the
  * Function Manager tabs and to scope `GET /functions/latest?category=...`.
  */
-export const FUNCTION_CATEGORIES = ['General', 'HR', 'CRM', 'Expenses', 'Office', 'Service', 'Custom'] as const
+export const FUNCTION_CATEGORIES = [
+  'General',
+  'HR',
+  'CRM',
+  'Expenses',
+  'Finance',
+  'Office',
+  'Service',
+  'Custom'
+] as const
 export type FunctionCategory = (typeof FUNCTION_CATEGORIES)[number]
 
 export interface FunctionConnectionBinding {

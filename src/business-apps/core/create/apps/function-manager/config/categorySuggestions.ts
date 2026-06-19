@@ -10,6 +10,7 @@ export const CATEGORY_SUBCATEGORY_SUGGESTIONS: Record<FunctionCategory, string[]
   HR: ['employees', 'time-off', 'calendar', 'reminders', 'recruiting'],
   CRM: ['accounts', 'contacts', 'leads', 'opportunities', 'products'],
   Expenses: ['expenses', 'insights', 'approvals'],
+  Finance: ['invoices', 'payments', 'ledger', 'billing', 'credit-notes', 'cashflow'],
   Office: ['documents', 'spreadsheets', 'slides', 'mail', 'search', 'analytics', 'navigation'],
   Service: ['flows', 'workflows', 'scheduled-tasks'],
   Custom: []
