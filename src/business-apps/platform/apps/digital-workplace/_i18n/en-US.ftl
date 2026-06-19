@@ -60,6 +60,18 @@ dw-open-app = Open
 dw-refresh = Refresh
 dw-error-title = Something went wrong
 dw-view-all = View all
+dw-rail-files = Files
+
+# Focus feed
+dw-focus-title = Needs you today
+dw-focus-empty-title = You're all caught up
+dw-focus-empty-desc = Nothing needs your attention right now.
+dw-focus-needs-you = Needs you
+dw-focus-due-soon = Due soon
+dw-focus-working = Working
+dw-focus-filter-all = All
+dw-focus-filter-agents = Agents
+dw-focus-filter-tasks = EveryBox
 
 # Agents panel
 dw-agents-title = Digital Workforce
@@ -97,6 +109,11 @@ dw-reminders-overdue = Overdue
 dw-reminders-need-title = Please enter a title.
 dw-reminders-datetime-required = Please pick a date and time.
 dw-reminders-create-failed = Could not create the reminder.
+dw-reminders-new = New reminder
+dw-reminders-when = When
+dw-reminders-quick-hour = In 1 hour
+dw-reminders-quick-evening = This evening
+dw-reminders-quick-tomorrow = Tomorrow morning
 
 # Messages panel
 dw-messages-title = EveryOne

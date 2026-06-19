@@ -15,10 +15,12 @@ import { useDeskData, type ContentItem } from '@/business-apps/platform/apps/des
 import { DESK_TYPE_COLOR_MAP } from '@/business-apps/platform/apps/desk/constants/deskColors'
 import { useWorkplaceTranslation } from '../_i18n/useWorkplaceTranslation'
 import WorkplacePanel from './WorkplacePanel'
+import { ViewAllButton } from './ViewAllButton'
 import { relativeFromNow } from '../utils/timeFormat'
 import type { WorkplacePanelBaseProps } from '../types'
 
 const TEST_ID = 'digital-workplace-documents'
+const MAX_ROWS = 5
 
 const TYPE_ICON: Record<ContentItem['type'], Icon> = {
   document: FileTextIcon,
@@ -72,10 +74,16 @@ function openItem(item: ContentItem): void {
   }
 }
 
+export interface DocumentsPanelProps extends WorkplacePanelBaseProps {
+  /** Render without the surface card chrome (for embedding in the rail tabs). */
+  embedded?: boolean
+}
+
 /** Recent Office content with continue-working deep-links and a create action. */
-const DocumentsPanel: React.FC<WorkplacePanelBaseProps> = ({ context, className }) => {
+const DocumentsPanel: React.FC<DocumentsPanelProps> = ({ context, className, embedded }) => {
   const { t } = useWorkplaceTranslation()
   const { recentItems, isLoading } = useDeskData(context.accessToken, context.userInfo?.id || '')
+  const visibleItems = recentItems.slice(0, MAX_ROWS)
 
   return (
     <WorkplacePanel
@@ -85,6 +93,7 @@ const DocumentsPanel: React.FC<WorkplacePanelBaseProps> = ({ context, className 
       onTitleClick={() => navigateTo(Navigation.OFFICE)}
       titleActionLabel={t('documents-open')}
       className={className}
+      variant={embedded ? 'bare' : 'card'}
       testId={TEST_ID}
       loading={isLoading && recentItems.length === 0}
       errorTitle={t('error-title')}
@@ -105,15 +114,15 @@ const DocumentsPanel: React.FC<WorkplacePanelBaseProps> = ({ context, className 
         </div>
       }
     >
-      <div className="gba:flex gba:flex-col gba:gap-2">
-        {recentItems.map(item => {
+      <div className="gba:flex gba:flex-col gba:gap-0.5">
+        {visibleItems.map(item => {
           const { Glyph, color, background, isPdf } = resolveItemVisual(item)
           return (
             <button
               key={`${item.type}-${item.id}`}
               type="button"
               onClick={() => openItem(item)}
-              className="gba:flex gba:w-full gba:items-center gba:gap-3 gba:rounded-lg gba:border gba:border-border gba:p-3 gba:text-left gba:transition-colors gba:hover:bg-accent"
+              className="gba:flex gba:w-full gba:items-center gba:gap-3 gba:rounded-lg gba:px-2 gba:py-2 gba:text-left gba:transition-colors gba:hover:bg-accent"
               data-testid={`${TEST_ID}-item-${item.id}`}
             >
               <span
@@ -138,6 +147,13 @@ const DocumentsPanel: React.FC<WorkplacePanelBaseProps> = ({ context, className 
             </button>
           )
         })}
+        {recentItems.length > MAX_ROWS ? (
+          <ViewAllButton
+            label={t('view-all')}
+            onClick={() => navigateTo(Navigation.OFFICE)}
+            testId={`${TEST_ID}-view-all`}
+          />
+        ) : null}
       </div>
     </WorkplacePanel>
   )

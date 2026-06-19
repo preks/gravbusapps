@@ -33,6 +33,12 @@ export interface WorkplacePanelProps {
   emptyDescription?: string
   testId: string
   className?: string
+  /**
+   * `card` (default) renders the full surface card with its own header. `bare`
+   * drops the card chrome and header so the panel can slot into a host that
+   * already provides framing (e.g. the secondary rail's tabs).
+   */
+  variant?: 'card' | 'bare'
   children?: React.ReactNode
 }
 
@@ -57,6 +63,7 @@ const WorkplacePanel: React.FC<WorkplacePanelProps> = ({
   emptyDescription,
   testId,
   className,
+  variant = 'card',
   children
 }) => {
   const renderBody = () => {
@@ -92,6 +99,21 @@ const WorkplacePanel: React.FC<WorkplacePanelProps> = ({
     return children
   }
 
+  // dw-panel-scroll forces the Radix viewport's inner wrapper to block layout so rows
+  // shrink/truncate to the column width instead of overflowing (Radix defaults it to display:table).
+  if (variant === 'bare') {
+    return (
+      <div
+        className={`gba:flex gba:min-h-0 gba:min-w-0 gba:flex-col gba:overflow-hidden ${className ?? ''}`}
+        data-testid={testId}
+      >
+        <ScrollArea className="dw-panel-scroll gba:h-full">
+          <div className="gba:w-full gba:min-w-0 gba:pb-2">{renderBody()}</div>
+        </ScrollArea>
+      </div>
+    )
+  }
+
   return (
     <Card
       variant="surface"
@@ -125,11 +147,8 @@ const WorkplacePanel: React.FC<WorkplacePanelProps> = ({
         {action ? <div className="gba:shrink-0">{action}</div> : null}
       </CardHeader>
       <CardContent className="gba:min-h-0 gba:flex-1 gba:p-0">
-        {/* dw-panel-scroll forces the Radix viewport's inner wrapper to block layout so rows
-            shrink/truncate to the column width instead of overflowing (Radix defaults it to display:table). */}
         <ScrollArea className="dw-panel-scroll gba:h-full">
-          {/* Extra bottom padding lets the last items scroll clear of the floating composer. */}
-          <div className="gba:w-full gba:min-w-0 gba:px-6 gba:pb-20">{renderBody()}</div>
+          <div className="gba:w-full gba:min-w-0 gba:px-4 gba:pb-3">{renderBody()}</div>
         </ScrollArea>
       </CardContent>
     </Card>

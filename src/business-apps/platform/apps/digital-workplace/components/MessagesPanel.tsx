@@ -15,14 +15,16 @@ import {
 } from '@/business-apps/platform/apps/chat/types'
 import { useWorkplaceTranslation } from '../_i18n/useWorkplaceTranslation'
 import WorkplacePanel from './WorkplacePanel'
+import { ViewAllButton } from './ViewAllButton'
 import { EveryOneMailDialog } from './EveryOneMailDialog'
 import { EveryOneChatDialog } from './EveryOneChatDialog'
 import { relativeFromNow, initialsFromName } from '../utils/timeFormat'
 import type { WorkplacePanelBaseProps } from '../types'
 
 const TEST_ID = 'digital-workplace-messages'
+const MAX_ROWS = 5
 
-type MessagesTab = 'mail' | 'chats'
+export type MessagesTab = 'mail' | 'chats'
 
 interface MessageRowProps {
   testId: string
@@ -46,7 +48,7 @@ const MessageRow: React.FC<MessageRowProps> = ({
   <button
     type="button"
     onClick={onClick}
-    className="gba:flex gba:w-full gba:items-center gba:gap-3 gba:rounded-lg gba:border gba:border-border gba:p-3 gba:text-left gba:transition-colors gba:hover:bg-accent"
+    className="gba:flex gba:w-full gba:items-center gba:gap-3 gba:rounded-lg gba:px-2 gba:py-2 gba:text-left gba:transition-colors gba:hover:bg-accent"
     data-testid={testId}
   >
     <Avatar className="gba:size-8 gba:shrink-0">
@@ -97,11 +99,20 @@ function resolveChatAvatar(conversation: Conversation, currentUserId: string | n
   return other?.user?.avatarUrl || conversation.avatarUrl
 }
 
+export interface MessagesPanelProps extends WorkplacePanelBaseProps {
+  /** Render without the surface card chrome (for embedding in the rail tabs). */
+  embedded?: boolean
+  /** Force a tab and hide the internal Mail/Chats toggle (host controls it). */
+  forcedTab?: MessagesTab
+}
+
 /** Unread email + chat preview with deep-links into Mail and Chats. */
-const MessagesPanel: React.FC<WorkplacePanelBaseProps> = ({ context, onMetric, className }) => {
+const MessagesPanel: React.FC<MessagesPanelProps> = ({ context, onMetric, className, embedded, forcedTab }) => {
   const { t } = useWorkplaceTranslation()
   const { accessToken } = context
-  const [tab, setTab] = useState<MessagesTab>('mail')
+  const [internalTab, setInternalTab] = useState<MessagesTab>('mail')
+  const tab = forcedTab ?? internalTab
+  const setTab = setInternalTab
 
   const { defaultAccount } = useEmailAccounts(accessToken)
   const { inboxFolder, totalUnread } = useEmailFolders(accessToken, defaultAccount?.id)
@@ -184,17 +195,25 @@ const MessagesPanel: React.FC<WorkplacePanelBaseProps> = ({ context, onMetric, c
   const isLoading = isMail ? emailsLoading && messages.length === 0 : chatsLoading && conversations.length === 0
   const isEmpty = isMail ? !emailsLoading && unreadEmails.length === 0 : !chatsLoading && unreadChats.length === 0
 
+  const openMessages = useCallback(
+    () => navigateTo(buildPlatformUrl(Navigation.PLATFORM_TEAM_CHAT, { view: isMail ? 'mail' : 'chat' })),
+    [isMail]
+  )
+
+  const visibleEmails = unreadEmails.slice(0, MAX_ROWS)
+  const visibleChats = unreadChats.slice(0, MAX_ROWS)
+  const hasMore = isMail ? unreadEmails.length > MAX_ROWS : unreadChats.length > MAX_ROWS
+
   return (
     <>
       <WorkplacePanel
         title={t('messages-title')}
         icon={EnvelopeSimpleIcon}
         count={isMail ? unreadEmails.length : unreadChats.length}
-        onTitleClick={() =>
-          navigateTo(buildPlatformUrl(Navigation.PLATFORM_TEAM_CHAT, { view: isMail ? 'mail' : 'chat' }))
-        }
+        onTitleClick={openMessages}
         titleActionLabel={t('messages-open')}
         className={className}
+        variant={embedded ? 'bare' : 'card'}
         testId={TEST_ID}
         loading={isLoading}
         errorTitle={t('error-title')}
@@ -202,31 +221,33 @@ const MessagesPanel: React.FC<WorkplacePanelBaseProps> = ({ context, onMetric, c
         emptyTitle={isMail ? t('messages-empty-mail-title') : t('messages-empty-chats-title')}
         emptyDescription={isMail ? t('messages-empty-mail-desc') : t('messages-empty-chats-desc')}
         action={
-          <div className="gba:flex gba:items-center gba:gap-1">
-            <Button
-              variant={isMail ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => setTab('mail')}
-              data-testid={`${TEST_ID}-tab-mail`}
-            >
-              <EnvelopeSimpleIcon className="gba:size-4" />
-              {t('messages-tab-mail')}
-            </Button>
-            <Button
-              variant={isMail ? 'ghost' : 'secondary'}
-              size="sm"
-              onClick={() => setTab('chats')}
-              data-testid={`${TEST_ID}-tab-chats`}
-            >
-              <ChatCircleIcon className="gba:size-4" />
-              {t('messages-tab-chats')}
-            </Button>
-          </div>
+          forcedTab ? undefined : (
+            <div className="gba:flex gba:items-center gba:gap-1">
+              <Button
+                variant={isMail ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setTab('mail')}
+                data-testid={`${TEST_ID}-tab-mail`}
+              >
+                <EnvelopeSimpleIcon className="gba:size-4" />
+                {t('messages-tab-mail')}
+              </Button>
+              <Button
+                variant={isMail ? 'ghost' : 'secondary'}
+                size="sm"
+                onClick={() => setTab('chats')}
+                data-testid={`${TEST_ID}-tab-chats`}
+              >
+                <ChatCircleIcon className="gba:size-4" />
+                {t('messages-tab-chats')}
+              </Button>
+            </div>
+          )
         }
       >
-        <div className="gba:flex gba:flex-col gba:gap-2">
+        <div className="gba:flex gba:flex-col gba:gap-0.5">
           {isMail
-            ? unreadEmails.map(message => (
+            ? visibleEmails.map(message => (
                 <MessageRow
                   key={message.id}
                   testId={`${TEST_ID}-mail-${message.id}`}
@@ -236,7 +257,7 @@ const MessagesPanel: React.FC<WorkplacePanelBaseProps> = ({ context, onMetric, c
                   onClick={() => setActiveMailId(message.id)}
                 />
               ))
-            : unreadChats.map(conversation => (
+            : visibleChats.map(conversation => (
                 <MessageRow
                   key={conversation.id}
                   testId={`${TEST_ID}-chat-${conversation.id}`}
@@ -247,6 +268,9 @@ const MessagesPanel: React.FC<WorkplacePanelBaseProps> = ({ context, onMetric, c
                   onClick={() => setActiveChat(conversation)}
                 />
               ))}
+          {hasMore ? (
+            <ViewAllButton label={t('view-all')} onClick={openMessages} testId={`${TEST_ID}-view-all`} />
+          ) : null}
         </div>
       </WorkplacePanel>
 

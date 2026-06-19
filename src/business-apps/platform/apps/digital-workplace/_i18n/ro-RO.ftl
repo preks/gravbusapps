@@ -60,6 +60,18 @@ dw-open-app = Deschide
 dw-refresh = Reîmprospătează
 dw-error-title = Ceva nu a mers bine
 dw-view-all = Vezi tot
+dw-rail-files = Fișiere
+
+# Focus feed
+dw-focus-title = Necesită atenția ta astăzi
+dw-focus-empty-title = Ești la zi
+dw-focus-empty-desc = Nimic nu necesită atenția ta acum.
+dw-focus-needs-you = Necesită atenție
+dw-focus-due-soon = Scadent curând
+dw-focus-working = Activ
+dw-focus-filter-all = Toate
+dw-focus-filter-agents = Agenți
+dw-focus-filter-tasks = EveryBox
 
 # Agents panel
 dw-agents-title = Digital Workforce
@@ -97,6 +109,11 @@ dw-reminders-overdue = Întârziat
 dw-reminders-need-title = Introdu un titlu.
 dw-reminders-datetime-required = Alege data și ora.
 dw-reminders-create-failed = Mementoul nu a putut fi creat.
+dw-reminders-new = Memento nou
+dw-reminders-when = Când
+dw-reminders-quick-hour = Într-o oră
+dw-reminders-quick-evening = Diseară
+dw-reminders-quick-tomorrow = Mâine dimineață
 
 # Messages panel
 dw-messages-title = EveryOne

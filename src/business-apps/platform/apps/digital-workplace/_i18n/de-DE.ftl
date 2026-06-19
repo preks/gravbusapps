@@ -60,6 +60,18 @@ dw-open-app = Öffnen
 dw-refresh = Aktualisieren
 dw-error-title = Etwas ist schiefgelaufen
 dw-view-all = Alle ansehen
+dw-rail-files = Dateien
+
+# Focus feed
+dw-focus-title = Braucht dich heute
+dw-focus-empty-title = Alles erledigt
+dw-focus-empty-desc = Aktuell braucht nichts deine Aufmerksamkeit.
+dw-focus-needs-you = Braucht dich
+dw-focus-due-soon = Bald fällig
+dw-focus-working = Aktiv
+dw-focus-filter-all = Alle
+dw-focus-filter-agents = Agenten
+dw-focus-filter-tasks = EveryBox
 
 # Agents panel
 dw-agents-title = Autonome Agenten
@@ -97,6 +109,11 @@ dw-reminders-overdue = Überfällig
 dw-reminders-need-title = Bitte gib einen Titel ein.
 dw-reminders-datetime-required = Bitte wähle Datum und Uhrzeit.
 dw-reminders-create-failed = Erinnerung konnte nicht erstellt werden.
+dw-reminders-new = Neue Erinnerung
+dw-reminders-when = Wann
+dw-reminders-quick-hour = In 1 Stunde
+dw-reminders-quick-evening = Heute Abend
+dw-reminders-quick-tomorrow = Morgen früh
 
 # Messages panel
 dw-messages-title = Kommunikation
