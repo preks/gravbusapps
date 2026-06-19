@@ -6030,9 +6030,9 @@
     ]
   },
   "core/create/apps/flow-creator": {
-    "bitbucketBuildNumber": 13881,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13881/",
-    "chunkJsBytes": 1262709,
+    "bitbucketBuildNumber": 13908,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13908/",
+    "chunkJsBytes": 1262714,
     "top": [
       {
         "kind": "bucket",
@@ -6357,9 +6357,9 @@
     ]
   },
   "core/create/apps/function-manager": {
-    "bitbucketBuildNumber": 13881,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13881/",
-    "chunkJsBytes": 552944,
+    "bitbucketBuildNumber": 13908,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13908/",
+    "chunkJsBytes": 553149,
     "top": [
       {
         "kind": "bucket",
@@ -6382,8 +6382,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 255951,
-        "gzip": 57070,
+        "rendered": 256161,
+        "gzip": 57150,
         "leaves": [
           {
             "name": "src/business-apps/core/create/apps/function-manager/hooks/useFunctionAssistantChat.ts",
@@ -6400,8 +6400,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/network",
-        "rendered": 65774,
-        "gzip": 17164,
+        "rendered": 65803,
+        "gzip": 17173,
         "leaves": [
           {
             "name": "src/common/network/ai/prompt-manager/PromptManagerClient.ts",
@@ -6410,8 +6410,8 @@
           },
           {
             "name": "src/common/network/functions/FunctionsServiceClient.ts",
-            "rendered": 12982,
-            "gzip": 2940
+            "rendered": 13011,
+            "gzip": 2949
           }
         ]
       },
@@ -6937,9 +6937,9 @@
     ]
   },
   "core/create/apps/prompt-manager": {
-    "bitbucketBuildNumber": 13881,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13881/",
-    "chunkJsBytes": 565233,
+    "bitbucketBuildNumber": 13908,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13908/",
+    "chunkJsBytes": 565238,
     "top": [
       {
         "kind": "bucket",
@@ -88560,20 +88560,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 13902,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13902/",
-    "chunkJsBytes": 2064322,
+    "bitbucketBuildNumber": 13908,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13908/",
+    "chunkJsBytes": 2064324,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1780581,
-        "gzip": 114973,
+        "gzip": 115150,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1780581,
-            "gzip": 114973
+            "gzip": 115150
           }
         ]
       },
@@ -100891,15 +100891,15 @@
     ]
   },
   "core/every-fabric/apps/every-fabric": {
-    "bitbucketBuildNumber": 13902,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13902/",
-    "chunkJsBytes": 3112094,
+    "bitbucketBuildNumber": 13908,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13908/",
+    "chunkJsBytes": 3112125,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 2657364,
-        "gzip": 704270,
+        "rendered": 2657399,
+        "gzip": 704282,
         "leaves": [
           {
             "name": "src/business-apps/core/every-fabric/apps/every-fabric/components/workspace/WorkspaceRightPanel.tsx",
@@ -120464,7 +120464,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-19T14:01:29.931Z",
+    "generatedAt": "2026-06-19T15:22:13.151Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
