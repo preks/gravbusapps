@@ -212,7 +212,7 @@ export const AssignProjectDialog: React.FC<AssignProjectDialogProps> = ({
     try {
       const query = `
         query GetEmployeeAssignments($employeeId: uuid!, $structureId: uuid!) {
-          EmployeeMatrixUnit(
+          MatrixUnitEmployee(
             where: {
               employeeId: { _eq: $employeeId }
               structureId: { _eq: $structureId }
@@ -226,14 +226,14 @@ export const AssignProjectDialog: React.FC<AssignProjectDialogProps> = ({
       `
 
       const response = await graphqlClient.request<{
-        EmployeeMatrixUnit: Array<{
+        MatrixUnitEmployee: Array<{
           id: string
           matrixUnitId: string
           percentage: number
         }>
       }>(query, { employeeId: employee.id, structureId })
 
-      setExistingAssignments(response.EmployeeMatrixUnit || [])
+      setExistingAssignments(response.MatrixUnitEmployee || [])
     } catch (error) {
       console.error('Error fetching employee existing assignments:', error)
     }

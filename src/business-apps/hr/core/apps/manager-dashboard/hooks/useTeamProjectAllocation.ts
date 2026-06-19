@@ -14,7 +14,7 @@ type EmployeeAllocation = { id: string; allocationPercent: number }
 
 export interface TeamProjectAllocationResult {
   allocations: TeamAllocationData[]
-  /** Per-employee allocation totals (sum of EmployeeMatrixUnit percentages) */
+  /** Per-employee allocation totals (sum of MatrixUnitEmployee percentages) */
   employeeAllocations: EmployeeAllocation[]
   totalAllocatedPercentage: number
   averageAllocationPercentage: number
@@ -56,7 +56,7 @@ const DIRECT_REPORT_IDS_QUERY = `
 
 const ALLOCATION_QUERY_WITH_STRUCTURE = `
   query GetTeamAllocations($employeeIds: [uuid!]!, $structureId: uuid!) {
-    EmployeeMatrixUnit(
+    MatrixUnitEmployee(
       where: {
         employeeId: { _in: $employeeIds },
         structureId: { _eq: $structureId }
@@ -76,7 +76,7 @@ const ALLOCATION_QUERY_WITH_STRUCTURE = `
 
 const ALLOCATION_QUERY_WITHOUT_STRUCTURE = `
   query GetTeamAllocationsAll($employeeIds: [uuid!]!) {
-    EmployeeMatrixUnit(
+    MatrixUnitEmployee(
       where: {
         employeeId: { _in: $employeeIds }
       }
@@ -168,10 +168,10 @@ const toTeamAllocations = (
     .toSorted((a, b) => b.percentage - a.percentage)
 
 /**
- * Hook to fetch team project allocation data from EmployeeMatrixUnit.
+ * Hook to fetch team project allocation data from MatrixUnitEmployee.
  *
  * When a structureId is available (from window.lowcoder) the query is scoped
- * to that structure. Otherwise it fetches ALL EmployeeMatrixUnit records for
+ * to that structure. Otherwise it fetches ALL MatrixUnitEmployee records for
  * the direct reports so allocation / unallocated data is always available.
  */
 export const useTeamProjectAllocation = ({
@@ -221,7 +221,7 @@ export const useTeamProjectAllocation = ({
       const allocationQuery = structureId ? ALLOCATION_QUERY_WITH_STRUCTURE : ALLOCATION_QUERY_WITHOUT_STRUCTURE
       const variables = structureId ? { employeeIds, structureId } : { employeeIds }
       const allocationResponse = await graphQLClient.request(allocationQuery, variables)
-      const matrixUnits = allocationResponse?.EmployeeMatrixUnit ?? []
+      const matrixUnits = allocationResponse?.MatrixUnitEmployee ?? []
 
       const employeeAllocationMap = baseEmployeeAllocationMap(employeeIds)
       const teamAllocationMap = new Map<string, { teamName: string; totalPercentage: number; employeeCount: number }>()

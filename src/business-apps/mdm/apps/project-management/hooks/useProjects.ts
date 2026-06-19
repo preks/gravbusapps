@@ -154,7 +154,7 @@ export const GET_EMPLOYEES_BY_IDS_QUERY = `
 // GraphQL query for matrix unit member counts (using variables for security)
 export const GET_MATRIX_MEMBER_COUNTS_QUERY = `
   query getMatrixMemberCounts($matrixUnitIds: [uuid!]!) {
-    EmployeeMatrixUnit(where: { matrixUnitId: { _in: $matrixUnitIds } }) {
+    MatrixUnitEmployee(where: { matrixUnitId: { _in: $matrixUnitIds } }) {
       matrixUnitId
     }
   }
@@ -191,7 +191,7 @@ export interface EmployeesGraphQLResponse {
 
 // Matrix unit member assignment
 export interface MatrixMemberCountsResponse {
-  EmployeeMatrixUnit?: Array<{
+  MatrixUnitEmployee?: Array<{
     matrixUnitId: string
   }>
 }
@@ -427,8 +427,8 @@ export const useProjects = (
 
         // Count members per matrix unit
         const countMap = new Map<string, number>()
-        if (result.EmployeeMatrixUnit) {
-          result.EmployeeMatrixUnit.forEach(assignment => {
+        if (result.MatrixUnitEmployee) {
+          result.MatrixUnitEmployee.forEach(assignment => {
             const currentCount = countMap.get(assignment.matrixUnitId) || 0
             countMap.set(assignment.matrixUnitId, currentCount + 1)
           })

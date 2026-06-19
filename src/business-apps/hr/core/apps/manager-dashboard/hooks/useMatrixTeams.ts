@@ -26,6 +26,14 @@ interface UseMatrixTeamsProps {
   structureId?: string
 }
 
+type MatrixTeamEmployee = Employee & {
+  employeePosition?: Array<{
+    jobPosition?: {
+      name?: string
+    }
+  }>
+}
+
 /**
  * Hook to fetch matrix team members for an employee
  * Based on the pattern used in EmployeeDetailsQueries.ts
@@ -47,11 +55,11 @@ export const useMatrixTeams = ({ accessToken, employeeId, structureId }: UseMatr
     setError(null)
 
     try {
-      // Correct approach using EmployeeMatrixUnit entity
+      // Correct approach using MatrixUnitEmployee entity
       const matrixTeamMembersQuery = `
         query GetMatrixTeamMembers($employeeId: uuid!, $structureId: uuid!) {
           # Step 1: Get all matrix units the current employee belongs to
-          currentEmployeeMatrixUnits: EmployeeMatrixUnit(
+          currentMatrixUnitEmployees: MatrixUnitEmployee(
             where: {
               employeeId: { _eq: $employeeId },
               structureId: { _eq: $structureId }
@@ -66,7 +74,7 @@ export const useMatrixTeams = ({ accessToken, employeeId, structureId }: UseMatr
           
           # Step 2: Get all other employees in those same matrix units
           # Note: We'll filter by matrixUnitId in the processing logic since we need the IDs from step 1
-          allMatrixTeamMembers: EmployeeMatrixUnit(
+          allMatrixTeamMembers: MatrixUnitEmployee(
             where: {
               structureId: { _eq: $structureId },
               employeeId: { _neq: $employeeId }
@@ -91,21 +99,21 @@ export const useMatrixTeams = ({ accessToken, employeeId, structureId }: UseMatr
       })
 
       // Check if current employee has any matrix units
-      const currentEmployeeMatrixUnits = response?.currentEmployeeMatrixUnits || []
-      if (currentEmployeeMatrixUnits.length === 0) {
+      const currentMatrixUnitEmployees = response?.currentMatrixUnitEmployees || []
+      if (currentMatrixUnitEmployees.length === 0) {
         setMatrixTeamMembers([])
         return
       }
 
       // Extract matrix unit IDs that the current employee belongs to
-      const currentEmployeeMatrixUnitIds = currentEmployeeMatrixUnits.map(
+      const currentMatrixUnitEmployeeIds = currentMatrixUnitEmployees.map(
         (unit: MatrixUnitMembership) => unit.matrixUnitId
       )
 
       // Filter team members to only include those in the same matrix units
       const allTeamMembers = response?.allMatrixTeamMembers || []
       const teamMembersInSameUnits = allTeamMembers.filter((member: MatrixUnitMembership) =>
-        currentEmployeeMatrixUnitIds.includes(member.matrixUnitId)
+        currentMatrixUnitEmployeeIds.includes(member.matrixUnitId)
       )
 
       if (teamMembersInSameUnits.length === 0) {
@@ -135,7 +143,7 @@ export const useMatrixTeams = ({ accessToken, employeeId, structureId }: UseMatr
       `
 
       const employeeDetailsResponse = await graphQLClient.request(employeeDetailsQuery, { employeeIds })
-      const employees = employeeDetailsResponse?.Employee || []
+      const employees: MatrixTeamEmployee[] = employeeDetailsResponse?.Employee || []
 
       // Create a map for quick lookup of matrix unit assignments
       const matrixUnitMap = new Map<string, any[]>()
@@ -152,7 +160,7 @@ export const useMatrixTeams = ({ accessToken, employeeId, structureId }: UseMatr
       })
 
       // Format the team members using employee details and matrix unit info
-      const formattedMembers: MatrixTeamMember[] = employees.map((employee: Employee) => {
+      const formattedMembers: MatrixTeamMember[] = employees.map((employee: MatrixTeamEmployee) => {
         // Handle picture data - pictureThumbnail might contain actual base64 or be null
         // picture field contains JSON metadata, not the actual image
         let actualPictureThumbnail = employee.pictureThumbnail

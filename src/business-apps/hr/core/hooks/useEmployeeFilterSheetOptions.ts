@@ -38,7 +38,7 @@ const ORG_UNITS_QUERY = `
 
 const MATRIX_TEAMS_QUERY = `
   query EmployeeFilterMatrixTeams($structureId: uuid!, $limit: Int!) {
-    EmployeeMatrixUnit(
+    MatrixUnitEmployee(
       where: { structureId: { _eq: $structureId } }
       distinctOn: [matrixUnitId]
       limit: $limit
@@ -98,7 +98,7 @@ export function useEmployeeFilterSheetOptions(accessToken: string): UseEmployeeF
             limit: 500
           }),
           graphqlClient.request<{
-            EmployeeMatrixUnit: Array<{
+            MatrixUnitEmployee: Array<{
               matrixUnitId: string
               matrixUnit: { id: string; name: string; isDeleted?: boolean | null } | null
             }>
@@ -110,7 +110,7 @@ export function useEmployeeFilterSheetOptions(accessToken: string): UseEmployeeF
           label: ou.name
         }))
 
-        const teamOptions: FilterOption[] = (teamsRes?.EmployeeMatrixUnit ?? [])
+        const teamOptions: FilterOption[] = (teamsRes?.MatrixUnitEmployee ?? [])
           .map(row => row?.matrixUnit)
           .filter((u): u is { id: string; name: string; isDeleted?: boolean | null } => Boolean(u?.id))
           .filter(u => u.isDeleted !== true)

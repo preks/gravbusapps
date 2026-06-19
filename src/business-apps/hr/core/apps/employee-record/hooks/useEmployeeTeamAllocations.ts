@@ -9,8 +9,8 @@ import { setAccessTokenToAuthorizationHeader } from '@/common/network/HeaderUtil
 import { toast } from '@newwork/nw-design-system'
 import { getActiveWorkingHours } from '@/business-apps/hr/core/utils/workingHoursUtils'
 
-interface EmployeeMatrixUnitResponse {
-  EmployeeMatrixUnit: Array<{
+interface MatrixUnitEmployeeResponse {
+  MatrixUnitEmployee: Array<{
     id: string
     employeeId: string
     matrixUnitId: string
@@ -89,7 +89,7 @@ const parseEffectiveTimeToHours = (text?: string): number => {
  */
 const GET_EMPLOYEE_TEAM_ALLOCATIONS = `
   query GetEmployeeTeamAllocations($employeeId: uuid!, $structureId: uuid!) {
-    EmployeeMatrixUnit(
+    MatrixUnitEmployee(
       where: {
         employeeId: {_eq: $employeeId}
         structureId: {_eq: $structureId}
@@ -284,14 +284,14 @@ export const useEmployeeTeamAllocations = ({
       setError(null)
 
       // Fetch team allocations
-      const response = await graphqlClient.request<EmployeeMatrixUnitResponse>(GET_EMPLOYEE_TEAM_ALLOCATIONS, {
+      const response = await graphqlClient.request<MatrixUnitEmployeeResponse>(GET_EMPLOYEE_TEAM_ALLOCATIONS, {
         employeeId,
         structureId
       })
 
-      if (response.EmployeeMatrixUnit && response.EmployeeMatrixUnit.length > 0) {
+      if (response.MatrixUnitEmployee && response.MatrixUnitEmployee.length > 0) {
         // Get all matrix unit IDs
-        const matrixUnitIds = response.EmployeeMatrixUnit.map(item => item.matrixUnitId)
+        const matrixUnitIds = response.MatrixUnitEmployee.map(item => item.matrixUnitId)
 
         // Fetch projects associated with these matrix units
         const projectsResponse = await graphqlClient.request<ProjectsByMatrixUnitResponse>(
@@ -313,7 +313,7 @@ export const useEmployeeTeamAllocations = ({
         }
 
         // Transform allocations with project data
-        const transformedAllocations: TeamAllocation[] = response.EmployeeMatrixUnit.map(item => {
+        const transformedAllocations: TeamAllocation[] = response.MatrixUnitEmployee.map(item => {
           const project = projectsByMatrixUnit.get(item.matrixUnitId)
           return {
             teamId: item.matrixUnitId,
