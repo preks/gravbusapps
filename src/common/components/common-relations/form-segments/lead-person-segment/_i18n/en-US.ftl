@@ -9,4 +9,5 @@ lead-segment-linkedin-url = LinkedIn URL
 
 # Placeholders
 lead-segment-placeholder-enter = Please enter...
+lead-segment-phone-prefix-placeholder = Select Country
 

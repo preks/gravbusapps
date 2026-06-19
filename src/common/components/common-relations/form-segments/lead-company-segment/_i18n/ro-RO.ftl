@@ -19,3 +19,4 @@ lead-segment-address-lines-label = Liniile de adresă
 
 # Placeholders
 lead-segment-placeholder-enter = Vă rugăm să introduceți...
+lead-segment-phone-prefix-placeholder = Selectați țara

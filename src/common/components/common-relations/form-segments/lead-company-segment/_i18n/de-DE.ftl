@@ -19,4 +19,5 @@ lead-segment-address-lines-label = Adresszeilen
 
 # Placeholders
 lead-segment-placeholder-enter = Bitte eingeben...
+lead-segment-phone-prefix-placeholder = Land auswählen
 

@@ -19,4 +19,5 @@ lead-segment-address-lines-label = Address Lines
 
 # Placeholders
 lead-segment-placeholder-enter = Please enter...
+lead-segment-phone-prefix-placeholder = Select Country
 

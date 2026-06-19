@@ -11,6 +11,7 @@ import {
 import { useFormContext } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
 import { LEGAL_FORM, INDUSTRY_CLASS } from '@/common/constants/commonCatalogs'
+import { PhonePrefixNumberInput } from '@/common/components/phone-prefix-combobox/PhonePrefixNumberInput'
 import { getAutoFilledClassName } from '../utils/autoFilledClassName'
 import LeadAddressFields from './LeadAddressFields'
 import translations from './_i18n'
@@ -52,6 +53,7 @@ const LeadCompanySegment: React.FC<LeadCompanySegmentProps> = ({
 }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
+  const countryRef = form.watch('countryRef') as string | null | undefined
 
   return (
     <div className="gba:space-y-6">
@@ -160,23 +162,29 @@ const LeadCompanySegment: React.FC<LeadCompanySegmentProps> = ({
       <FormField
         control={form.control}
         name="companyPhone"
-        render={({ field }) => (
+        render={({ field, fieldState }) => (
           <FormItem>
             <FormLabel>{t('lead-segment-company-phone')}</FormLabel>
             <FormControl>
-              <Input
-                type="tel"
-                placeholder={t('lead-segment-placeholder-enter')}
-                data-testid="lead-segment-company-phone"
-                {...field}
-                onChange={e => {
-                  field.onChange(e)
+              <PhonePrefixNumberInput
+                value={field.value || ''}
+                onChange={value => {
+                  field.onChange(value)
                   if (onFieldChange) onFieldChange('companyPhone')
                 }}
+                onBlur={field.onBlur}
+                defaultCountryRef={countryRef}
+                prefixPlaceholder={t('lead-segment-phone-prefix-placeholder')}
+                numberPlaceholder={t('lead-segment-placeholder-enter')}
+                invalid={fieldState.invalid}
+                describedBy={fieldState.error ? 'lead-segment-company-phone-error' : undefined}
+                fieldName="companyPhone"
+                invalidMessage="Please enter a valid phone number"
+                data-testid="lead-segment-company-phone"
                 className={getAutoFilledClassName('companyPhone', autoFilledFields)}
               />
             </FormControl>
-            <FormMessage />
+            <FormMessage id={fieldState.error ? 'lead-segment-company-phone-error' : undefined} />
           </FormItem>
         )}
       />

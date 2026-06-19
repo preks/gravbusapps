@@ -1,8 +1,15 @@
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { isValidPhoneNumberWithMetadata } from '@/common/utils/validation/phoneNumberValidation'
 
 // Helper to accept null and transform to empty string (for field deletion)
 const nullableString = () => z.preprocess(val => (val === null ? '' : val), z.string().optional())
+
+const optionalPhoneNumber = () =>
+  nullableString().refine(value => {
+    const phoneNumber = (value || '').trim()
+    return !phoneNumber || isValidPhoneNumberWithMetadata(phoneNumber)
+  }, 'Please enter a valid phone number')
 
 export const leadSchema = z.object({
   // BaseEntity fields
@@ -17,8 +24,8 @@ export const leadSchema = z.object({
   leadRatingRef: nullableString(),
   sensitive: z.boolean().optional(),
   email: nullableString(),
-  phoneNumber: nullableString(),
-  secondaryNumber: nullableString(),
+  phoneNumber: optionalPhoneNumber(),
+  secondaryNumber: optionalPhoneNumber(),
   linkedinUrl: nullableString(),
   academicTitleRef: nullableString(),
   jobPosition: nullableString(),
@@ -26,7 +33,7 @@ export const leadSchema = z.object({
   industryClassRef: nullableString(),
   companyWebsite: nullableString(),
   companyEmail: nullableString(),
-  companyPhone: nullableString(),
+  companyPhone: optionalPhoneNumber(),
   companySizeRef: nullableString(),
   accountAnnualRevenueBandRef: nullableString(),
   description: nullableString(),

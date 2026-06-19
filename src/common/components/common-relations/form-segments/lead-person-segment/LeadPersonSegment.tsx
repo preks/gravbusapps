@@ -11,6 +11,7 @@ import {
 import { useFormContext } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
 import { ACADEMIC_TITLE } from '@/common/constants/commonCatalogs'
+import { PhonePrefixNumberInput } from '@/common/components/phone-prefix-combobox/PhonePrefixNumberInput'
 import translations from './_i18n'
 
 interface LeadPersonSegmentProps {
@@ -31,6 +32,7 @@ interface LeadPersonSegmentProps {
 const LeadPersonSegment: React.FC<LeadPersonSegmentProps> = ({ customFields }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
+  const countryRef = form.watch('countryRef') as string | null | undefined
 
   return (
     <div className="gba:space-y-6">
@@ -73,27 +75,30 @@ const LeadPersonSegment: React.FC<LeadPersonSegmentProps> = ({ customFields }) =
         )}
       />
 
-      {/* Phone, Secondary Number - Grid */}
-      <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
+      {/* Phone numbers */}
+      <div className="gba:space-y-6">
         <FormField
           control={form.control}
           name="phoneNumber"
-          render={({ field }) => (
+          render={({ field, fieldState }) => (
             <FormItem>
               <FormLabel>{t('lead-segment-phone')}</FormLabel>
               <FormControl>
-                <Input
-                  type="tel"
-                  placeholder={t('lead-segment-placeholder-enter')}
-                  data-testid="lead-segment-phone"
+                <PhonePrefixNumberInput
                   value={field.value || ''}
-                  onChange={e => field.onChange(e.target.value)}
+                  onChange={field.onChange}
                   onBlur={field.onBlur}
-                  name={field.name}
-                  ref={field.ref}
+                  defaultCountryRef={countryRef}
+                  prefixPlaceholder={t('lead-segment-phone-prefix-placeholder')}
+                  numberPlaceholder={t('lead-segment-placeholder-enter')}
+                  invalid={fieldState.invalid}
+                  describedBy={fieldState.error ? 'lead-segment-phone-error' : undefined}
+                  fieldName="phoneNumber"
+                  invalidMessage="Please enter a valid phone number"
+                  data-testid="lead-segment-phone"
                 />
               </FormControl>
-              <FormMessage />
+              <FormMessage id={fieldState.error ? 'lead-segment-phone-error' : undefined} />
             </FormItem>
           )}
         />
@@ -101,22 +106,25 @@ const LeadPersonSegment: React.FC<LeadPersonSegmentProps> = ({ customFields }) =
         <FormField
           control={form.control}
           name="secondaryNumber"
-          render={({ field }) => (
+          render={({ field, fieldState }) => (
             <FormItem>
               <FormLabel>{t('lead-segment-secondary-number')}</FormLabel>
               <FormControl>
-                <Input
-                  type="tel"
-                  placeholder={t('lead-segment-placeholder-enter')}
-                  data-testid="lead-segment-secondary-number"
+                <PhonePrefixNumberInput
                   value={field.value || ''}
-                  onChange={e => field.onChange(e.target.value)}
+                  onChange={field.onChange}
                   onBlur={field.onBlur}
-                  name={field.name}
-                  ref={field.ref}
+                  defaultCountryRef={countryRef}
+                  prefixPlaceholder={t('lead-segment-phone-prefix-placeholder')}
+                  numberPlaceholder={t('lead-segment-placeholder-enter')}
+                  invalid={fieldState.invalid}
+                  describedBy={fieldState.error ? 'lead-segment-secondary-number-error' : undefined}
+                  fieldName="secondaryNumber"
+                  invalidMessage="Please enter a valid phone number"
+                  data-testid="lead-segment-secondary-number"
                 />
               </FormControl>
-              <FormMessage />
+              <FormMessage id={fieldState.error ? 'lead-segment-secondary-number-error' : undefined} />
             </FormItem>
           )}
         />

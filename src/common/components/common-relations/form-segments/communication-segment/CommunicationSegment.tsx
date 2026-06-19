@@ -19,6 +19,8 @@ import { COMMUNICATION_CHANNEL } from '@/common/constants/commonCatalogs'
 import translations from './_i18n'
 import CommunicationChannelSelect from './CommunicationChannelSelect'
 import { useCommunicationChannelOptions } from './useCommunicationChannelOptions'
+import { PhoneCommunicationValueInput } from './PhoneCommunicationValueInput'
+import { isPhoneOrMobileCommunicationChannel } from './communicationPhoneValidation'
 
 // Default channel codes for different entity types
 export const DEFAULT_ACCOUNT_CHANNELS = [CommunicationChannelCode.EMAIL, CommunicationChannelCode.PHONE]
@@ -49,6 +51,7 @@ interface CommunicationSegmentProps {
   defaultChannelCodes?: string[]
   // Channel rows to render elsewhere (e.g. contact email in ContactInformationSegment)
   hiddenChannelCodes?: string[]
+  enablePhonePrefixInput?: boolean
 }
 
 // Separate component for each communication channel item
@@ -57,13 +60,22 @@ const CommunicationChannelItem: React.FC<{
   businessAppContext?: BusinessAppContextProps
   channelOptions: ReturnType<typeof useCommunicationChannelOptions>['options']
   channelOptionsLoading: boolean
+  enablePhonePrefixInput: boolean
   onRemove: () => void
-}> = ({ channelIndex, businessAppContext, channelOptions, channelOptionsLoading, onRemove }) => {
+}> = ({
+  channelIndex,
+  businessAppContext,
+  channelOptions,
+  channelOptionsLoading,
+  enablePhonePrefixInput,
+  onRemove
+}) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
 
   // Get the selected communication channel ref (reactive)
   const channelRef = form.watch(`communicationChannels.${channelIndex}.communicationChannelRef`)
+  const isPhoneOrMobile = enablePhonePrefixInput && isPhoneOrMobileCommunicationChannel(channelRef)
 
   // Determine input type based on channel code (reactive - recalculates when channelRef changes)
   const inputType = React.useMemo(() => {
@@ -101,61 +113,101 @@ const CommunicationChannelItem: React.FC<{
         render={({ field: channelRefField, fieldState: channelRefFieldState }) => (
           <FormItem>
             <FormControl>
-              <InputGroup>
-                {/* Communication channel selector - Left side */}
-                <InputGroupAddon className="gba:flex-none gba:self-stretch gba:border-r gba:border-input gba:bg-muted/50">
-                  <CommunicationChannelSelect
-                    options={channelOptions}
-                    loading={channelOptionsLoading}
-                    accessToken={businessAppContext?.accessToken}
-                    value={channelRefField.value || ''}
-                    onValueChange={v => {
-                      channelRefField.onChange(v || '')
-                      form.trigger(`communicationChannels.${channelIndex}.communicationChannelRef`)
-                    }}
-                    data-testid={`communication-channel-type-${channelIndex}`}
-                    invalid={channelRefFieldState.invalid}
-                    describedBy={
-                      channelRefFieldState.error ? `communication-channel-ref-error-${channelIndex}` : undefined
+              <div className="gba:space-y-2">
+                <InputGroup>
+                  {/* Communication channel selector - Left side */}
+                  <InputGroupAddon
+                    className={
+                      isPhoneOrMobile
+                        ? 'gba:min-w-0 gba:flex-1 gba:self-stretch gba:border-r gba:border-input gba:bg-muted/50'
+                        : 'gba:flex-none gba:self-stretch gba:border-r gba:border-input gba:bg-muted/50'
                     }
-                  />
-                </InputGroupAddon>
-
-                {/* Value Input - Right side, takes remaining space */}
-                <FormField
-                  control={form.control}
-                  name={`communicationChannels.${channelIndex}.value`}
-                  render={({ field: valueField, fieldState: valueFieldState }) => (
-                    <InputGroupInput
-                      type={inputType}
-                      placeholder={t('communication-channel-value-placeholder')}
-                      data-testid={`communication-channel-value-${channelIndex}`}
-                      value={valueField.value || ''}
-                      onChange={e => valueField.onChange(e.target.value)}
-                      onBlur={valueField.onBlur}
-                      aria-invalid={valueFieldState.invalid}
-                      aria-describedby={
-                        valueFieldState.error ? `communication-channel-value-error-${channelIndex}` : undefined
+                  >
+                    <CommunicationChannelSelect
+                      options={channelOptions}
+                      loading={channelOptionsLoading}
+                      accessToken={businessAppContext?.accessToken}
+                      value={channelRefField.value || ''}
+                      onValueChange={v => {
+                        const nextChannelRef = v || ''
+                        const shouldResetValue =
+                          isPhoneOrMobileCommunicationChannel(channelRefField.value) !==
+                          isPhoneOrMobileCommunicationChannel(nextChannelRef)
+                        channelRefField.onChange(v || '')
+                        if (shouldResetValue) {
+                          form.setValue(`communicationChannels.${channelIndex}.value`, '', {
+                            shouldDirty: true,
+                            shouldValidate: true
+                          })
+                        }
+                        form.clearErrors(`communicationChannels.${channelIndex}.value`)
+                        form.trigger(`communicationChannels.${channelIndex}.communicationChannelRef`)
+                      }}
+                      data-testid={`communication-channel-type-${channelIndex}`}
+                      invalid={channelRefFieldState.invalid}
+                      describedBy={
+                        channelRefFieldState.error ? `communication-channel-ref-error-${channelIndex}` : undefined
                       }
+                      triggerClassName={isPhoneOrMobile ? 'gba:w-full' : undefined}
+                    />
+                  </InputGroupAddon>
+
+                  {!isPhoneOrMobile && (
+                    <FormField
+                      control={form.control}
+                      name={`communicationChannels.${channelIndex}.value`}
+                      render={({ field: valueField, fieldState: valueFieldState }) => (
+                        <InputGroupInput
+                          type={inputType}
+                          placeholder={t('communication-channel-value-placeholder')}
+                          data-testid={`communication-channel-value-${channelIndex}`}
+                          value={valueField.value || ''}
+                          onChange={e => valueField.onChange(e.target.value)}
+                          onBlur={valueField.onBlur}
+                          aria-invalid={valueFieldState.invalid}
+                          aria-describedby={
+                            valueFieldState.error ? `communication-channel-value-error-${channelIndex}` : undefined
+                          }
+                        />
+                      )}
                     />
                   )}
-                />
 
-                {/* Remove Button - Right side */}
-                <InputGroupAddon align="inline-end">
-                  <InputGroupButton
-                    type="button"
-                    variant="ghost"
-                    size="iconXs"
-                    onClick={onRemove}
-                    className="gba:text-destructive hover:gba:bg-destructive-secondary"
-                    data-testid={`communication-channel-remove-${channelIndex}`}
-                    aria-label="Remove channel"
-                  >
-                    <TrashIcon className="gba:w-4 gba:h-4" />
-                  </InputGroupButton>
-                </InputGroupAddon>
-              </InputGroup>
+                  {/* Remove Button - Right side */}
+                  <InputGroupAddon align="inline-end">
+                    <InputGroupButton
+                      type="button"
+                      variant="ghost"
+                      size="iconXs"
+                      onClick={onRemove}
+                      className="gba:text-destructive hover:gba:bg-destructive-secondary"
+                      data-testid={`communication-channel-remove-${channelIndex}`}
+                      aria-label="Remove channel"
+                    >
+                      <TrashIcon className="gba:w-4 gba:h-4" />
+                    </InputGroupButton>
+                  </InputGroupAddon>
+                </InputGroup>
+                {isPhoneOrMobile && (
+                  <FormField
+                    control={form.control}
+                    name={`communicationChannels.${channelIndex}.value`}
+                    render={({ field: valueField, fieldState: valueFieldState }) => (
+                      <PhoneCommunicationValueInput
+                        fieldName={`communicationChannels.${channelIndex}.value`}
+                        value={valueField.value || ''}
+                        onChange={valueField.onChange}
+                        onBlur={valueField.onBlur}
+                        invalid={valueFieldState.invalid}
+                        describedBy={
+                          valueFieldState.error ? `communication-channel-value-error-${channelIndex}` : undefined
+                        }
+                        channelIndex={channelIndex}
+                      />
+                    )}
+                  />
+                )}
+              </div>
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -179,7 +231,8 @@ const CommunicationSegment: React.FC<CommunicationSegmentProps> = ({
   businessAppContext,
   customFields,
   defaultChannelCodes = DEFAULT_CONTACT_CHANNELS,
-  hiddenChannelCodes = []
+  hiddenChannelCodes = [],
+  enablePhonePrefixInput = false
 }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
@@ -234,6 +287,7 @@ const CommunicationSegment: React.FC<CommunicationSegmentProps> = ({
             businessAppContext={businessAppContext}
             channelOptions={channelOptions}
             channelOptionsLoading={channelOptionsLoading}
+            enablePhonePrefixInput={enablePhonePrefixInput}
             onRemove={() => handleRemoveChannel(channelIndex)}
           />
         )

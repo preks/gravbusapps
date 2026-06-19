@@ -127,6 +127,7 @@ const ContactLayout: React.FC<ContactLayoutProps> = ({
           customFields={communicationCustomFields}
           defaultChannelCodes={DEFAULT_CONTACT_CHANNELS}
           hiddenChannelCodes={[CommunicationChannelCode.EMAIL]}
+          enablePhonePrefixInput
         />
       </FormSection>
       {customSegments.map(segment => (

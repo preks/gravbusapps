@@ -13,6 +13,7 @@ interface CommunicationChannelSelectProps {
   disabled?: boolean
   invalid?: boolean
   describedBy?: string
+  triggerClassName?: string
   'data-testid'?: string
 }
 
@@ -48,6 +49,7 @@ const CommunicationChannelSelect: React.FC<CommunicationChannelSelectProps> = ({
   disabled = false,
   invalid = false,
   describedBy,
+  triggerClassName = 'gba:w-44',
   'data-testid': dataTestId
 }) => {
   const selectedOption = React.useMemo(() => options.find(option => option.value === value), [options, value])
@@ -61,7 +63,7 @@ const CommunicationChannelSelect: React.FC<CommunicationChannelSelectProps> = ({
       showClearButton={false}
     >
       <SelectTrigger
-        className="gba:h-full gba:w-44 gba:rounded-none gba:border-0 gba:bg-transparent gba:shadow-none focus:gba:ring-0 focus-visible:gba:ring-0"
+        className={`gba:h-full ${triggerClassName} gba:rounded-none gba:border-0 gba:bg-transparent gba:shadow-none focus:gba:ring-0 focus-visible:gba:ring-0`}
         data-testid={dataTestId}
         aria-invalid={invalid}
         aria-describedby={describedBy}

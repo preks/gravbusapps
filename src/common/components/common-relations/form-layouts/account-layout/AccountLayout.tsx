@@ -151,6 +151,7 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
           businessAppContext={businessAppContext}
           customFields={communicationCustomFields}
           defaultChannelCodes={DEFAULT_ACCOUNT_CHANNELS}
+          enablePhonePrefixInput
         />
       </FormSection>
       {customSegments.map(segment => (
