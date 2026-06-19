@@ -10,6 +10,7 @@ export interface UserMenuPopoverContentProps {
   userInfo?: UserMenuUserInfo
   isProfileLoaded: boolean
   onLogout: () => void
+  onProfileNavigate: () => void
   selectedLanguage: UserMenuSupportedLocale
   onLanguageChange: (locale: UserMenuSupportedLocale) => void
 }
@@ -63,6 +64,7 @@ export const UserMenuPopoverContent: React.FC<UserMenuPopoverContentProps> = ({
   userInfo,
   isProfileLoaded,
   onLogout,
+  onProfileNavigate,
   selectedLanguage,
   onLanguageChange
 }) => {
@@ -73,6 +75,7 @@ export const UserMenuPopoverContent: React.FC<UserMenuPopoverContentProps> = ({
       additionalData={{
         isProfileLoaded,
         onLogout,
+        onProfileNavigate,
         languageOptions: [...IDE_USER_MENU_LANGUAGE_OPTIONS],
         selectedLanguage,
         onLanguageChange

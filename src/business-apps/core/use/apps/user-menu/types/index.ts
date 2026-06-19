@@ -12,6 +12,8 @@ export interface UserMenuLanguageOption {
 export interface UserMenuAdditionalData {
   isProfileLoaded: boolean
   onLogout: () => void
+  /** Host callback fired before navigating to the employee profile. */
+  onProfileNavigate?: () => void
   /** Host-provided locale options; required with selectedLanguage and onLanguageChange to show language UI. */
   languageOptions?: UserMenuLanguageOption[]
   /** Current platform locale from the host (e.g. en-US). */
@@ -68,6 +70,7 @@ export function resolveUserMenuAdditionalData(
   const {
     isProfileLoaded,
     onLogout,
+    onProfileNavigate,
     languageOptions: rawLanguageOptions,
     selectedLanguage,
     onLanguageChange,
@@ -80,6 +83,10 @@ export function resolveUserMenuAdditionalData(
 
   if (typeof onLogout !== 'function') {
     throw new Error('UserMenu requires additionalData.onLogout as function')
+  }
+
+  if (onProfileNavigate !== undefined && typeof onProfileNavigate !== 'function') {
+    throw new Error('UserMenu requires additionalData.onProfileNavigate as function when provided')
   }
 
   if (onLanguageChange !== undefined && typeof onLanguageChange !== 'function') {
@@ -102,6 +109,7 @@ export function resolveUserMenuAdditionalData(
   return {
     isProfileLoaded,
     onLogout,
+    onProfileNavigate: onProfileNavigate as UserMenuAdditionalData['onProfileNavigate'],
     languageOptions,
     selectedLanguage: isUserMenuSupportedLocale(selectedLanguage) ? selectedLanguage : undefined,
     onLanguageChange: onLanguageChange as UserMenuAdditionalData['onLanguageChange'],

@@ -245,8 +245,15 @@ export const UserMenuPanel: React.FC<UserMenuPanelProps> = ({
   'data-testid': dataTestId = 'user-menu'
 }) => {
   const { t } = useTranslation(translations)
-  const { isProfileLoaded, onLogout, dataPrivacyUrl, languageOptions, selectedLanguage, onLanguageChange } =
-    additionalData
+  const {
+    isProfileLoaded,
+    onLogout,
+    onProfileNavigate,
+    dataPrivacyUrl,
+    languageOptions,
+    selectedLanguage,
+    onLanguageChange
+  } = additionalData
   const showLanguageSelect = isProfileLoaded && hasUserMenuLanguageContract(additionalData)
 
   const givenName = userInfo?.givenName ?? ''
@@ -258,8 +265,9 @@ export const UserMenuPanel: React.FC<UserMenuPanelProps> = ({
   const avatarUrl = useUserMenuAvatarUrl({ accessToken, userInfo, isProfileLoaded })
 
   const handleProfileClick = useCallback(() => {
+    onProfileNavigate?.()
     navigateTo(buildPlatformUrl('/platform/employee-record'))
-  }, [])
+  }, [onProfileNavigate])
 
   return (
     <div

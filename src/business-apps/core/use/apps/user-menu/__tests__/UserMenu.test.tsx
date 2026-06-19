@@ -19,6 +19,7 @@ jest.mock('@/business-apps/platform/apps/every-ai/hooks/useCurrentUserPicture', 
   useCurrentUserPicture: () => ({ pictureThumbnail: null, isLoading: false })
 }))
 
+import { navigateTo } from '@/common/utils/navigationUtils'
 import { UserMenu } from '../UserMenu'
 import { resolveUserMenuAdditionalData, type UserMenuUserInfo } from '../types'
 
@@ -56,6 +57,10 @@ const validAdditionalData = {
 }
 
 describe('UserMenu', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
   it('throws when additionalData is missing required fields', () => {
     expect(() => resolveUserMenuAdditionalData({ isProfileLoaded: true })).toThrow(
       'UserMenu requires additionalData.onLogout as function'
@@ -125,5 +130,26 @@ describe('UserMenu', () => {
 
     expect(onLanguageChange).toHaveBeenCalledTimes(1)
     expect(onLanguageChange).toHaveBeenCalledWith('de-DE')
+  })
+
+  it('notifies the host before navigating to the employee profile', async () => {
+    const user = userEvent.setup()
+    const onProfileNavigate = jest.fn()
+
+    render(
+      <UserMenu
+        accessToken="token"
+        userInfo={baseUserInfo}
+        additionalData={{ ...validAdditionalData, onProfileNavigate }}
+      />
+    )
+
+    await user.click(screen.getByTestId('user-menu-my-profile'))
+
+    expect(onProfileNavigate).toHaveBeenCalledTimes(1)
+    expect(navigateTo).toHaveBeenCalledWith('/platform/employee-record')
+    expect(onProfileNavigate.mock.invocationCallOrder[0]).toBeLessThan(
+      (navigateTo as jest.Mock).mock.invocationCallOrder[0]
+    )
   })
 })

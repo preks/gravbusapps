@@ -232,6 +232,7 @@ export const IDEHeader: React.FC<IDEHeaderProps> = ({
               userInfo={menuUserInfo}
               isProfileLoaded={isProfileMenuLoaded}
               onLogout={onLogout}
+              onProfileNavigate={() => setUserMenuPopoverOpen(false)}
               selectedLanguage={selectedLanguage}
               onLanguageChange={onLanguageChange}
             />
