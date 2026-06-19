@@ -44,7 +44,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
   }
   EmployeePosition(where: {employeeId: {_eq: $employeeId}}) {
     id
-    createdAt
+    hireDate
     organizationalUnitId
     supervisorEmployeeId
     organizationalUnit {
@@ -640,7 +640,7 @@ export interface Employee {
 }
 
 export interface EmployeePosition {
-  createdAt?: string | null
+  hireDate?: string | null
   organizationalUnitId: string
   supervisorEmployeeId?: string | null
   organizationalUnit: {

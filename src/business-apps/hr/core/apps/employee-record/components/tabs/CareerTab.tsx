@@ -40,7 +40,7 @@ const CareerTab: React.FC<CareerTabProps> = ({ employee, accessToken }) => {
 
   const jobFunctionId = employee.employeePosition?.jobPosition?.jobFunction?.id
   const currentJobLevelId = employee.employeePosition?.jobPosition?.jobLevel?.id
-  const positionCreatedAt = employee.employeePosition?.createdAt
+  const positionStartDate = employee.employeePosition?.hireDate ?? employee.workingCondition?.[0]?.hireDate
 
   const { ladder, currentStepIndex, currentStep, nextStep, isDataAvailable, loading } = useCareerPath({
     accessToken,
@@ -48,9 +48,9 @@ const CareerTab: React.FC<CareerTabProps> = ({ employee, accessToken }) => {
     currentJobLevelId
   })
 
-  const timeInRole = useMemo(() => calculateMonthsSince(positionCreatedAt), [positionCreatedAt])
-  // V1: uses position creation date; future: derive from promotion/level change history
-  const timeOnLevel = useMemo(() => calculateMonthsSince(positionCreatedAt), [positionCreatedAt])
+  const timeInRole = useMemo(() => calculateMonthsSince(positionStartDate), [positionStartDate])
+  // V1: uses position start date; future: derive from promotion/level change history
+  const timeOnLevel = useMemo(() => calculateMonthsSince(positionStartDate), [positionStartDate])
 
   const currentLevelSkills = useMemo<SkillGapItem[]>(() => {
     if (!currentStep || currentStep.jobProfileSkills.length === 0) return []
