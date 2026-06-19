@@ -1,6 +1,14 @@
 import { MEMORY_NAMESPACES, MEMORY_NAMESPACE_LABELS } from '../settings/agentSettings.types'
 import type { MemoryNamespace } from '../settings/agentSettings.types'
 
+/** Human-facing namespace labels for Memory Lens (less technical than settings copy). */
+export const MEMORY_LENS_NAMESPACE_LABELS: Record<MemoryNamespace, string> = {
+  preferences: 'Preferences',
+  domain: 'Facts',
+  skills: 'Patterns',
+  episodes: 'Diary'
+}
+
 /** A single long-term memory entry, normalized from the GET /memory/search payload. */
 export interface MemoryLensEntry {
   key: string
@@ -44,10 +52,10 @@ export interface MemoryStats {
 
 // Salience is 1 (routine) .. 10 (critical / explicitly asked to remember).
 const SALIENCE_BUCKETS: Array<{ id: string; label: string; min: number; max: number }> = [
-  { id: 'routine', label: 'Routine (1-3)', min: 1, max: 3 },
-  { id: 'notable', label: 'Notable (4-6)', min: 4, max: 6 },
-  { id: 'important', label: 'Important (7-8)', min: 7, max: 8 },
-  { id: 'critical', label: 'Critical (9-10)', min: 9, max: 10 }
+  { id: 'routine', label: 'Everyday', min: 1, max: 3 },
+  { id: 'notable', label: 'Notable', min: 4, max: 6 },
+  { id: 'important', label: 'Important', min: 7, max: 8 },
+  { id: 'critical', label: 'Standout', min: 9, max: 10 }
 ]
 
 const HIGH_SALIENCE_THRESHOLD = 7
