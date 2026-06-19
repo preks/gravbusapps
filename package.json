@@ -63,7 +63,7 @@
     "@newwork/assets": "^0.2.1",
     "@newwork/gravity-ui-catalog": "^7.10.29",
     "@newwork/icons": "^0.0.5",
-    "@newwork/nw-design-system": "^0.127.0-735",
+    "@newwork/nw-design-system": "^0.129.0-743",
     "@newwork/remote-component-loader": "^0.5.11",
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.18.0",
