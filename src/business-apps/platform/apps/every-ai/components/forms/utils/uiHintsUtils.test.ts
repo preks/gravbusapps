@@ -182,6 +182,39 @@ describe('uiHintsUtils', () => {
 
       expect(fields.map(f => f.fieldName)).toEqual(['startDate'])
     })
+
+    it('maps flat allowlist entries onto a nested objectKey slice', () => {
+      const flowSchema = {
+        type: 'object',
+        properties: {
+          startDate: { type: 'string', format: 'date' },
+          endDate: { type: 'string', format: 'date' },
+          employeeAbsence: {
+            type: 'object',
+            properties: {
+              startDate: { type: 'string', format: 'date' },
+              endDate: { type: 'string', format: 'date' },
+              typeRef: { type: 'string' }
+            },
+            required: ['startDate', 'endDate']
+          }
+        }
+      }
+
+      const fields = buildUiHintFields({
+        flowSchema,
+        objectKey: 'employeeAbsence',
+        allowlist: ['startDate', 'endDate', 'typeRef'],
+        overrides: {
+          startDate: { order: 20, widget: 'date' },
+          endDate: { order: 30, widget: 'date' },
+          typeRef: { order: 10 }
+        }
+      })
+
+      expect(fields.map(f => f.fieldName)).toEqual(['typeRef', 'startDate', 'endDate'])
+      expect(fields.every(f => f.nestedFormValue === false)).toBe(true)
+    })
   })
 
   describe('resolveSchemaAndRequiredAtPathBest', () => {

@@ -701,8 +701,6 @@ export type ClarificationQuestionItem = {
   id: string
   label: string
   field?: ClarificationFieldType
-  required?: boolean
-  placeholder?: string | null
   options?: string[] | null
   default?: unknown
 }

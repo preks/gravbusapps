@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label } from '@newwork/nw-design-system'
 import { Question } from '@phosphor-icons/react'
 
@@ -41,13 +41,6 @@ const buildInitialAnswers = (questions: ClarificationQuestionItem[]): AnswersSta
   return initial
 }
 
-const isAnswerEmpty = (value: AnswerValue): boolean => {
-  if (value === null || value === undefined) return true
-  if (typeof value === 'string') return value.trim().length === 0
-  if (Array.isArray(value)) return value.length === 0
-  return false
-}
-
 interface QuestionFieldProps {
   question: ClarificationQuestionItem
   value: AnswerValue
@@ -65,7 +58,6 @@ function QuestionField({ question, value, onChange, disabled }: QuestionFieldPro
         id={controlId}
         className="gba:min-h-24 gba:w-full gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:text-foreground focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-ring disabled:gba:cursor-not-allowed disabled:gba:opacity-50"
         value={typeof value === 'string' ? value : ''}
-        placeholder={question.placeholder ?? ''}
         onChange={event => onChange(event.target.value)}
         disabled={disabled}
       />
@@ -78,7 +70,6 @@ function QuestionField({ question, value, onChange, disabled }: QuestionFieldPro
         id={controlId}
         type="number"
         value={typeof value === 'string' || typeof value === 'number' ? String(value) : ''}
-        placeholder={question.placeholder ?? ''}
         onChange={event => {
           const next = event.target.value
           onChange(next === '' ? '' : Number(next))
@@ -98,7 +89,6 @@ function QuestionField({ question, value, onChange, disabled }: QuestionFieldPro
           onChange={event => onChange(event.target.checked)}
           disabled={disabled}
         />
-        <span className="gba:text-sm gba:text-muted-foreground">{question.placeholder ?? 'Yes'}</span>
       </label>
     )
   }
@@ -126,7 +116,7 @@ function QuestionField({ question, value, onChange, disabled }: QuestionFieldPro
         disabled={disabled}
       >
         <option value="" disabled>
-          {question.placeholder ?? 'Select an option'}
+          Select an option
         </option>
         {options.map(option => (
           <option key={`${controlId}-${option}`} value={option}>
@@ -169,7 +159,6 @@ function QuestionField({ question, value, onChange, disabled }: QuestionFieldPro
     <Input
       id={controlId}
       value={typeof value === 'string' ? value : ''}
-      placeholder={question.placeholder ?? ''}
       onChange={event => onChange(event.target.value)}
       disabled={disabled}
     />
@@ -192,15 +181,8 @@ export const ClarificationFormDisplay: React.FC<ClarificationFormDisplayProps> =
   const [submitted, setSubmitted] = useState(false)
   const [cancelled, setCancelled] = useState(false)
 
-  const missingRequired = useMemo(() => {
-    return data.questions
-      .filter(question => question.required !== false)
-      .filter(question => isAnswerEmpty(answers[question.id]))
-      .map(question => question.id)
-  }, [answers, data.questions])
-
   const handleSubmit = useCallback(() => {
-    if (!sendMessage || submitted || cancelled || missingRequired.length > 0) return
+    if (!sendMessage || submitted || cancelled) return
     const payload = JSON.stringify({
       action: 'clarification_response',
       interrupt_id: data.id,
@@ -208,7 +190,7 @@ export const ClarificationFormDisplay: React.FC<ClarificationFormDisplayProps> =
     })
     setSubmitted(true)
     sendMessage(payload, [])
-  }, [answers, cancelled, data.id, missingRequired.length, sendMessage, submitted])
+  }, [answers, cancelled, data.id, sendMessage, submitted])
 
   const handleCancel = useCallback(() => {
     if (!sendMessage || submitted || cancelled) return
@@ -236,11 +218,6 @@ export const ClarificationFormDisplay: React.FC<ClarificationFormDisplayProps> =
           <div key={question.id} className="gba:flex gba:flex-col gba:gap-1.5">
             <Label htmlFor={`clarify-${question.id}`} className="gba:text-sm gba:font-medium">
               {question.label}
-              {question.required === false ? null : (
-                <span className="gba:ml-1 gba:text-destructive" aria-hidden="true">
-                  *
-                </span>
-              )}
             </Label>
             <QuestionField
               question={question}
@@ -255,11 +232,7 @@ export const ClarificationFormDisplay: React.FC<ClarificationFormDisplayProps> =
           <Button variant="ghost" onClick={handleCancel} disabled={isLocked}>
             Skip
           </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={isLocked || missingRequired.length > 0}
-            data-testid="clarification-form-submit"
-          >
+          <Button onClick={handleSubmit} disabled={isLocked} data-testid="clarification-form-submit">
             {submitted ? 'Sent' : 'Send answers'}
           </Button>
         </div>

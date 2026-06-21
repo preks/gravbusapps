@@ -242,8 +242,6 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
         }
 
         if (schema.format === 'date') {
-          // Check if field should be disabled (endDate, endAssetConditionRef)
-          const isEndField = name === 'endDate' || name === 'endAssetConditionRef'
           // Strip time component if backend returns a full datetime string
           const dateValue = typeof value === 'string' ? value.split('T')[0] : ''
 
@@ -255,7 +253,7 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
                 const dateValue = typeof v === 'string' ? v : ''
                 onChange(dateValue)
               }}
-              disabled={disabled || isEndField}
+              disabled={disabled}
               className="gba:w-full"
             />
           )
