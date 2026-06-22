@@ -896,6 +896,11 @@ export interface ActivityEvent {
   durationMs?: number
   /** When `type === 'subagent_spawn'`, whether the delegated step has finished (from SSE completions). */
   delegationStatus?: ActivityDelegationStatus
+  /**
+   * When `type === 'subagent_spawn'`, the backend `step_id` of the delegation.
+   * Lets the timeline row open the matching `DelegatedAgentDetail` panel.
+   */
+  delegationStepId?: string
   /** When `type === 'tool_result'`, whether the tool succeeded or failed. */
   resultStatus?: 'done' | 'failed'
   /** When `type === 'tool_result'`, the originating `step_started` id so the card can pair rows. */

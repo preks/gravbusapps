@@ -10,13 +10,16 @@ interface SessionTimelineCardProps {
   activityEvents: ActivityEvent[]
   isStreaming?: boolean
   defaultCollapsed?: boolean
+  /** Opens the delegated-agent detail panel for a `subagent_spawn` row. */
+  onOpenDelegatedDetail?: (stepId: string) => void
 }
 
 export const SessionTimelineCard: FC<SessionTimelineCardProps> = ({
   decisions,
   activityEvents,
   isStreaming = false,
-  defaultCollapsed = false
+  defaultCollapsed = false,
+  onOpenDelegatedDetail
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null)
   const entries = useMemo(() => mergeSessionTimelineEntries(decisions, activityEvents), [decisions, activityEvents])
@@ -50,7 +53,11 @@ export const SessionTimelineCard: FC<SessionTimelineCardProps> = ({
         className="gba:max-h-120 gba:min-h-0 gba:overflow-y-auto gba:overscroll-contain"
         data-testid="fabric-session-timeline-scroll"
       >
-        <UnifiedSessionTimeline decisions={decisions} activityEvents={activityEvents} />
+        <UnifiedSessionTimeline
+          decisions={decisions}
+          activityEvents={activityEvents}
+          onOpenDelegatedDetail={onOpenDelegatedDetail}
+        />
       </div>
     </PanelCard>
   )

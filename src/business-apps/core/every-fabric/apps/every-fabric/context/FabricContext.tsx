@@ -30,6 +30,7 @@ import { useSessionUrlState } from '../hooks/useSessionUrlState'
 import { setFabricLogContext, clearFabricLogContext } from '../utils/diagnosticLogger'
 import { resolveSessionTraceEvents } from '../hooks/agent-session/resolveSessionTraceEvents'
 import { deriveActivityFromEvents } from '../utils/messageUtils'
+import { buildDelegatedAgentDetails, type DelegatedAgentDetail } from '../utils/delegatedAgentDetails'
 import { currentTurnTrace } from '../utils/currentTurnTrace'
 
 // ─── Context shape ─────────────────────────────────────────────────────────────
@@ -72,6 +73,10 @@ interface FabricContextValue {
 
   // Activity panel
   activityEvents: ActivityEvent[]
+
+  // Delegated-agent details (expert / sub-agent), keyed by backend `step_id`.
+  // Powers the clickable agent pill + timeline-row detail panel.
+  delegatedAgentDetails: Map<string, DelegatedAgentDetail>
 
   // Decisions panel (discrete agent branch points)
   decisions: DecisionItem[]
@@ -498,6 +503,10 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
   // Activity events for the chronological feed (tools + delegations)
   const activityEvents = useMemo(() => deriveActivityFromEvents(traceEvents), [traceEvents])
 
+  // Normalised delegated-agent details, keyed by backend `step_id`, for the
+  // clickable agent pill + timeline-row detail panel.
+  const delegatedAgentDetails = useMemo(() => buildDelegatedAgentDetails(traceEvents), [traceEvents])
+
   // Decisions panel — discrete agent branch points (skill, reflection, HITL, …)
   const decisions = useFabricDecisions(traceEvents)
 
@@ -763,6 +772,7 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       isWaitingForInput,
       sessionLoadError,
       activityEvents,
+      delegatedAgentDetails,
       decisions,
       activeSkill,
       fabricActiveSkill,
@@ -834,6 +844,7 @@ export const FabricProvider: React.FC<FabricProviderProps> = ({ children, access
       isWaitingForInput,
       sessionLoadError,
       activityEvents,
+      delegatedAgentDetails,
       decisions,
       activeSkill,
       fabricActiveSkill,

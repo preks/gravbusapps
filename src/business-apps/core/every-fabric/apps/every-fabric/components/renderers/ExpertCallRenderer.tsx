@@ -11,6 +11,12 @@ export interface ExpertCallRendererProps {
   output?: string
   outputPreview?: string
   durationMs?: number
+  /**
+   * When provided, the pill becomes an interactive button that opens the
+   * delegated-agent detail panel. Absent for native-agent pills (no
+   * delegation lifecycle to drill into).
+   */
+  onOpenDetail?: () => void
 }
 
 const normalizeText = (value: string) => value.trim().replace(/\s+/g, ' ').toLowerCase()
@@ -71,7 +77,8 @@ export const ExpertCallRenderer = ({
   status,
   output,
   outputPreview,
-  durationMs
+  durationMs,
+  onOpenDetail
 }: ExpertCallRendererProps) => {
   const normalizedAgentId = agentId.trim()
   const normalizedTask = task.trim()
@@ -81,14 +88,20 @@ export const ExpertCallRenderer = ({
     normalizedDescription || !hasSubtitle(displayName, normalizedTask)
       ? firstSentence(normalizedDescription || normalizedTask)
       : ''
-  const title = [displayName, subtitle, outputPreview || output].filter(Boolean).join(' - ')
+  const previewTitle = [displayName, subtitle, outputPreview || output].filter(Boolean).join(' - ')
+  const isInteractive = typeof onOpenDetail === 'function'
+  const title = isInteractive
+    ? `${previewTitle ? `${previewTitle} — ` : ''}Click to see what ${displayName} did`
+    : previewTitle || undefined
 
-  return (
-    <div
-      className="gba:inline-flex gba:max-w-full gba:items-center gba:gap-1.5 gba:rounded-full gba:border gba:border-sky-500/15 gba:bg-sky-50/60 gba:px-2 gba:py-1 gba:text-sky-800 gba:shadow-[0_1px_4px_rgba(14,165,233,0.08)] dark:gba:border-sky-400/15 dark:gba:bg-sky-950/25 dark:gba:text-sky-200"
-      data-testid={`enterprise-agent-expert-${agentId}`}
-      title={title || undefined}
-    >
+  const sharedClassName =
+    'gba:inline-flex gba:max-w-full gba:items-center gba:gap-1.5 gba:rounded-full gba:border gba:border-sky-500/15 gba:bg-sky-50/60 gba:px-2 gba:py-1 gba:text-left gba:text-sky-800 gba:shadow-[0_1px_4px_rgba(14,165,233,0.08)] dark:gba:border-sky-400/15 dark:gba:bg-sky-950/25 dark:gba:text-sky-200'
+  const interactiveClassName = isInteractive
+    ? ' gba:cursor-pointer gba:transition-colors hover:gba:border-sky-500/35 hover:gba:bg-sky-100/70 focus-visible:gba:outline-none focus-visible:gba:ring-2 focus-visible:gba:ring-sky-500/40 dark:hover:gba:bg-sky-900/40'
+    : ''
+
+  const inner = (
+    <>
       <span className="gba:flex gba:h-5 gba:w-5 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-full gba:bg-white/85 gba:text-foreground/70 gba:ring-1 gba:ring-sky-500/10 dark:gba:bg-sky-950/60 dark:gba:text-foreground/70">
         <HeadCircuitIcon className="gba:h-3 gba:w-3" weight="regular" />
       </span>
@@ -109,6 +122,27 @@ export const ExpertCallRenderer = ({
           {subtitle}
         </span>
       ) : null}
+    </>
+  )
+
+  if (isInteractive) {
+    return (
+      <button
+        type="button"
+        onClick={onOpenDetail}
+        className={sharedClassName + interactiveClassName}
+        data-testid={`enterprise-agent-expert-${agentId}`}
+        title={title}
+        aria-label={`Open details for agent ${displayName}`}
+      >
+        {inner}
+      </button>
+    )
+  }
+
+  return (
+    <div className={sharedClassName} data-testid={`enterprise-agent-expert-${agentId}`} title={title}>
+      {inner}
     </div>
   )
 }

@@ -100,7 +100,7 @@ const inferDelegatedAgentName = (taskSummary?: string | null): string | null => 
   return null
 }
 
-const resolveDelegatedAgentName = (
+export const resolveDelegatedAgentName = (
   event: AgentSubagentSpawnedEvent | AgentSubagentCompletedEvent | AgentExpertCalledEvent | AgentExpertCompletedEvent,
   completion?: StepCompletion
 ): string =>
@@ -264,6 +264,13 @@ interface ExpertCallContent {
   status: DelegationStatus
   durationMs?: number
   outputPreview?: string
+  /**
+   * Backend `step_id` of the delegation this pill represents. Lets the pill
+   * open the exact `DelegatedAgentDetail` by stable id instead of matching on
+   * display name. Absent for native-agent pills (which have no delegation
+   * lifecycle / step_id).
+   */
+  delegationStepId?: string
 }
 
 /**
@@ -294,7 +301,8 @@ const mergeExpertCallContent = (existing: ExpertCallContent, incoming: ExpertCal
     description: existing.description ?? incoming.description,
     status: richer.status,
     durationMs: richer.durationMs ?? existing.durationMs ?? incoming.durationMs,
-    outputPreview: richer.outputPreview ?? existing.outputPreview ?? incoming.outputPreview
+    outputPreview: richer.outputPreview ?? existing.outputPreview ?? incoming.outputPreview,
+    delegationStepId: existing.delegationStepId ?? incoming.delegationStepId
   }
 }
 
@@ -602,7 +610,8 @@ export function eventToMessage(
           description: event.agent_description,
           status: toolCallMessageStatus(completed),
           durationMs: completed?.duration_ms,
-          outputPreview: summarizeExpertOutput(completed?.output)
+          outputPreview: summarizeExpertOutput(completed?.output),
+          delegationStepId: event.step_id
         }
       }
     }
@@ -620,7 +629,8 @@ export function eventToMessage(
           description: event.agent_description,
           status: toolCallMessageStatus(completed),
           durationMs: completed?.duration_ms,
-          outputPreview: summarizeExpertOutput(completed?.output)
+          outputPreview: summarizeExpertOutput(completed?.output),
+          delegationStepId: event.step_id
         }
       }
     }
@@ -851,7 +861,8 @@ function delegationActivity(
     agent: agentName,
     summary: e.task_summary ?? agentName,
     durationMs: completed?.duration_ms,
-    delegationStatus: delegationActivityStatus(completed)
+    delegationStatus: delegationActivityStatus(completed),
+    delegationStepId: e.step_id
   }
 }
 

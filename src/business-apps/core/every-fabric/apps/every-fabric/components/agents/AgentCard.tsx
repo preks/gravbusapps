@@ -146,7 +146,6 @@ const AgentCardWorkerDecorations: React.FC = () => (
     <div className="gba:pointer-events-none gba:absolute -gba:right-16 -gba:top-20 gba:h-44 gba:w-44 gba:rotate-45 gba:bg-white/40 gba:blur-2xl" />
     <div className="gba:pointer-events-none gba:absolute gba:inset-x-0 gba:top-0 gba:h-px gba:bg-white/95" />
     <div className="gba:pointer-events-none gba:absolute gba:inset-x-0 gba:bottom-0 gba:h-px gba:bg-slate-700/25" />
-    <div className="gba:pointer-events-none gba:absolute gba:bottom-0 gba:right-0 gba:h-24 gba:w-36 gba:bg-linear-to-tl gba:from-slate-700/18 gba:to-transparent" />
   </>
 )
 

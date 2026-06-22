@@ -16,7 +16,7 @@ import type { AgentRegistryEntry } from '@/business-apps/platform/apps/agent-mes
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { AgentCard } from './AgentCard'
 import { AgentConfigView } from './AgentConfigView'
-import { AgentsCreateButton, AgentsTabToolbar, AGENTS_TAB_SUBTITLE } from './AgentsTabToolbar'
+import { AgentsCreateButton, AgentsHireButton, AgentsTabToolbar, AGENTS_TAB_SUBTITLE } from './AgentsTabToolbar'
 import { CreateAgentScreen } from './CreateAgentScreen'
 import { ConfirmDialog } from './ConfirmDialog'
 import { getAllSourceTypes, getSourceDisplay } from './agentSourceUtils'
@@ -24,6 +24,29 @@ import { evaluateAgentReadiness } from './agentStandard'
 import type { BuiltinSubagent, FabricAgent } from './agentTypes'
 import { agentDisplayLabel, hasWorkforceDeployment } from './agentTypes'
 import type { WorkforceAgent } from '../enterprise-workforce/workforceTypes'
+import { HireOptionsDialog } from '../enterprise-workforce/HireOptionsDialog'
+import {
+  HireWorkforceAgentModal,
+  type HireWorkforceAgentFormState
+} from '../enterprise-workforce/HireWorkforceAgentModal'
+import { AgentMarketplaceModal } from '../enterprise-workforce/marketplace/AgentMarketplaceModal'
+import type { MarketplaceAgentTemplate } from '../enterprise-workforce/marketplace/marketplaceAgents'
+
+// Hire flow steps: closed → chooser → (marketplace) → create. The marketplace
+// path stores the chosen template so the create dialog opens prefilled.
+type HireFlow = 'closed' | 'chooser' | 'marketplace' | 'create'
+
+function templateToFormState(template: MarketplaceAgentTemplate): Partial<HireWorkforceAgentFormState> {
+  const { createInput } = template
+  return {
+    displayName: template.displayName,
+    role: createInput.role ?? template.role,
+    department: createInput.department ?? template.department,
+    description: createInput.description ?? template.tagline,
+    instructions: createInput.instructions ?? '',
+    autonomyLevel: createInput.autonomy_level ?? 'approval_required'
+  }
+}
 
 function mapRegistryEntryToFabricAgent(
   e: AgentRegistryEntry,
@@ -319,8 +342,26 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
   const [confirmBusy, setConfirmBusy] = useState(false)
 
+  const [hireFlow, setHireFlow] = useState<HireFlow>('closed')
+  const [hireTemplate, setHireTemplate] = useState<MarketplaceAgentTemplate | null>(null)
+
   const handleCreateAgent = useCallback(() => {
     setCreating(true)
+  }, [])
+
+  const openHireChooser = useCallback(() => {
+    setHireTemplate(null)
+    setHireFlow('chooser')
+  }, [])
+
+  const closeHireFlow = useCallback(() => {
+    setHireFlow('closed')
+    setHireTemplate(null)
+  }, [])
+
+  const handleHireFromMarketplace = useCallback((template: MarketplaceAgentTemplate) => {
+    setHireTemplate(template)
+    setHireFlow('create')
   }, [])
 
   const loadAgents = useCallback(async () => {
@@ -619,7 +660,12 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid="agents-screen">
       <div className={`gba:shrink-0 gba:px-6 gba:lg:px-10 ${embedded ? 'gba:pt-4' : 'gba:pt-8'} gba:pb-4`}>
         {embedded ? (
-          <AgentsTabToolbar search={search} onSearchChange={setSearch} onCreate={handleCreateAgent} />
+          <AgentsTabToolbar
+            search={search}
+            onSearchChange={setSearch}
+            onCreate={handleCreateAgent}
+            onHire={openHireChooser}
+          />
         ) : (
           <>
             <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
@@ -669,7 +715,10 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({
                   <p className="gba:text-sm gba:text-muted-foreground">{AGENTS_TAB_SUBTITLE}</p>
                 </div>
               </div>
-              <AgentsCreateButton onClick={handleCreateAgent} className="gba:shrink-0" />
+              <div className="gba:flex gba:shrink-0 gba:flex-wrap gba:items-center gba:gap-2">
+                <AgentsHireButton onClick={openHireChooser} />
+                <AgentsCreateButton onClick={handleCreateAgent} />
+              </div>
             </div>
 
             <div className="gba:mt-5">
@@ -1033,6 +1082,46 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({
             handleConfirmAccept()
           }}
           onCancel={handleConfirmCancel}
+        />
+      )}
+
+      <HireOptionsDialog
+        open={hireFlow === 'chooser'}
+        onClose={closeHireFlow}
+        onChooseMarketplace={() => setHireFlow('marketplace')}
+        onChooseCreate={() => {
+          setHireTemplate(null)
+          setHireFlow('create')
+        }}
+        showCreateOption={false}
+      />
+
+      <AgentMarketplaceModal
+        open={hireFlow === 'marketplace'}
+        client={client}
+        onClose={closeHireFlow}
+        onHireLegacy={handleHireFromMarketplace}
+        onInstalled={() => {
+          void loadAgents()
+          closeHireFlow()
+        }}
+      />
+
+      {hireFlow === 'create' && (
+        <HireWorkforceAgentModal
+          open
+          client={client}
+          onClose={closeHireFlow}
+          onCreated={() => {
+            void loadAgents()
+            closeHireFlow()
+          }}
+          initialValues={hireTemplate ? templateToFormState(hireTemplate) : undefined}
+          tags={hireTemplate?.createInput.tags}
+          title={hireTemplate ? `Hire ${hireTemplate.displayName}` : undefined}
+          subtitle={
+            hireTemplate ? 'Review and confirm. You can fine-tune triggers, skills and budget after hiring.' : undefined
+          }
         />
       )}
     </div>
