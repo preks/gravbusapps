@@ -11,6 +11,8 @@ import {
   SpinnerGapIcon,
   WarningIcon
 } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../../_i18n'
 import type { ArtifactPreview } from '../../hooks/useArtifactPreview'
 import { PanelCard } from './PanelCard'
 import { SlideCanvasMiniPreview, SlideThumbnailGrid, useContainerWidth, type SlideData } from './SlideCanvasMiniPreview'
@@ -22,6 +24,28 @@ import { PROMPT_MANAGER_API_URL } from '@/common/utils/serviceResolver'
 import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
 
 const SLIDE_FALLBACK_WIDTH = 400
+
+const ARTIFACT_ERROR_HEADLINE_KEY: Record<ArtifactPreview['artifactType'], string> = {
+  slides: 'workspace-error-slides',
+  document: 'workspace-error-document',
+  note: 'workspace-error-note',
+  chart: 'workspace-error-chart',
+  html: 'workspace-error-html',
+  pdf: 'workspace-error-pdf'
+}
+
+function artifactGeneratingLabel(artifactType: ArtifactPreview['artifactType'], t: (key: string) => string): string {
+  if (artifactType === 'slides') return t('workspace-presentation-type')
+  const keyByType: Record<ArtifactPreview['artifactType'], string> = {
+    slides: 'workspace-presentation-type',
+    document: 'workspace-artifact-type-document',
+    note: 'workspace-artifact-type-note',
+    chart: 'workspace-artifact-type-chart',
+    html: 'workspace-artifact-type-html',
+    pdf: 'workspace-artifact-type-pdf'
+  }
+  return t(keyByType[artifactType])
+}
 
 function normalizeArtifactPath(path: string): string {
   return path.replace(/^\/+/, '')
@@ -38,18 +62,19 @@ const HtmlArtifactLivePreview: React.FC<{
   sessionId: string
   headerExtra?: React.ReactNode
 }> = ({ preview, sessionId, headerExtra }) => {
+  const { t } = useTranslation(translations)
   const rawPath = typeof preview.content?.path === 'string' ? preview.content.path : ''
   const path = normalizeArtifactPath(rawPath)
   if (!path || !sessionId) {
     return (
-      <PanelCard title="Live Preview" defaultOpen extra={headerExtra}>
-        <p className="gba:p-4 gba:text-xs gba:text-muted-foreground">HTML artifact path unavailable.</p>
+      <PanelCard title={t('workspace-live-preview-title')} defaultOpen extra={headerExtra}>
+        <p className="gba:p-4 gba:text-xs gba:text-muted-foreground">{t('workspace-html-path-unavailable')}</p>
       </PanelCard>
     )
   }
   const src = buildHtmlArtifactUrl(sessionId, path)
   return (
-    <PanelCard title="Live Preview" defaultOpen extra={headerExtra}>
+    <PanelCard title={t('workspace-live-preview-title')} defaultOpen extra={headerExtra}>
       <div className="gba:flex gba:flex-col gba:p-2 gba:min-h-[420px]">
         <AutoHeightHtmlIframe
           src={src}
@@ -68,6 +93,7 @@ const PdfPreview: React.FC<{
   accessToken: string
   headerExtra?: React.ReactNode
 }> = ({ preview, sessionId, accessToken, headerExtra }) => {
+  const { t } = useTranslation(translations)
   const client = useEnterpriseAgentClient(accessToken)
   const attachmentId = typeof preview.content?.attachment_id === 'string' ? preview.content.attachment_id : ''
   const fileName = typeof preview.content?.file_name === 'string' ? preview.content.file_name : preview.title
@@ -113,20 +139,20 @@ const PdfPreview: React.FC<{
       />
     )
   } else if (error) {
-    body = <p className="gba:p-4 gba:text-xs gba:text-destructive">PDF preview failed: {error}</p>
+    body = <p className="gba:p-4 gba:text-xs gba:text-destructive">{t('workspace-pdf-preview-failed', { error })}</p>
   } else if (!attachmentId) {
-    body = <p className="gba:p-4 gba:text-xs gba:text-muted-foreground">PDF reference missing.</p>
+    body = <p className="gba:p-4 gba:text-xs gba:text-muted-foreground">{t('workspace-pdf-reference-missing')}</p>
   } else {
-    body = <p className="gba:p-4 gba:text-xs gba:text-muted-foreground">Loading PDF…</p>
+    body = <p className="gba:p-4 gba:text-xs gba:text-muted-foreground">{t('workspace-pdf-loading')}</p>
   }
 
   return (
-    <PanelCard title="Live Preview" defaultOpen extra={headerExtra}>
+    <PanelCard title={t('workspace-live-preview-title')} defaultOpen extra={headerExtra}>
       <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2">
         {body}
         <div className="gba:flex gba:items-center gba:justify-between gba:gap-2 gba:px-1">
           <p className="gba:text-[11px] gba:text-muted-foreground gba:truncate">
-            {fileName} · attached to this session
+            {t('workspace-pdf-attached', { fileName })}
           </p>
           {blobUrl && (
             <a
@@ -135,7 +161,7 @@ const PdfPreview: React.FC<{
               className="gba:inline-flex gba:items-center gba:gap-1 gba:rounded-md gba:border gba:border-border gba:px-2 gba:py-0.5 gba:text-[11px] gba:text-foreground gba:hover:bg-muted/40"
               data-testid="fabric-live-preview-pdf-download"
             >
-              Download PDF
+              {t('workspace-pdf-download')}
             </a>
           )}
         </div>
@@ -149,33 +175,41 @@ interface MaximizeToggleProps {
   onToggle: () => void
 }
 
-const MaximizeToggle: React.FC<MaximizeToggleProps> = ({ isMaximized, onToggle }) => (
-  <button
-    type="button"
-    onClick={onToggle}
-    className="gba:inline-flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:rounded-md gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/50 gba:transition-colors"
-    aria-label={isMaximized ? 'Collapse preview' : 'Expand preview'}
-    title={isMaximized ? 'Collapse preview' : 'Expand preview'}
-    data-testid="fabric-live-preview-maximize-toggle"
-  >
-    {isMaximized ? (
-      <ArrowsInIcon className="gba:h-3.5 gba:w-3.5" weight="bold" />
-    ) : (
-      <ArrowsOutIcon className="gba:h-3.5 gba:w-3.5" weight="bold" />
-    )}
-  </button>
-)
+const MaximizeToggle: React.FC<MaximizeToggleProps> = ({ isMaximized, onToggle }) => {
+  const { t } = useTranslation(translations)
+  const collapseLabel = t('workspace-preview-collapse')
+  const expandLabel = t('workspace-preview-expand')
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="gba:inline-flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:rounded-md gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/50 gba:transition-colors"
+      aria-label={isMaximized ? collapseLabel : expandLabel}
+      title={isMaximized ? collapseLabel : expandLabel}
+      data-testid="fabric-live-preview-maximize-toggle"
+    >
+      {isMaximized ? (
+        <ArrowsInIcon className="gba:h-3.5 gba:w-3.5" weight="bold" />
+      ) : (
+        <ArrowsOutIcon className="gba:h-3.5 gba:w-3.5" weight="bold" />
+      )}
+    </button>
+  )
+}
 
 const GeneratingSpinner: React.FC<{ preview: ArtifactPreview; headerExtra?: React.ReactNode }> = ({
   preview,
   headerExtra
 }) => {
-  const label = preview.artifactType === 'slides' ? 'presentation' : preview.artifactType
+  const { t } = useTranslation(translations)
+  const label = artifactGeneratingLabel(preview.artifactType, t)
   return (
-    <PanelCard title="Live Preview" defaultOpen extra={headerExtra}>
+    <PanelCard title={t('workspace-live-preview-title')} defaultOpen extra={headerExtra}>
       <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-2 gba:p-6">
         <SpinnerGapIcon className="gba:h-5 gba:w-5 gba:text-primary gba:animate-spin" />
-        <p className="gba:text-xs gba:text-muted-foreground gba:text-center">Generating {label}...</p>
+        <p className="gba:text-xs gba:text-muted-foreground gba:text-center">
+          {t('workspace-generating-label', { label })}
+        </p>
         {preview.title && (
           <p className="gba:text-[10px] gba:text-muted-foreground/60 gba:text-center gba:line-clamp-2">
             {preview.title}
@@ -194,6 +228,7 @@ const StreamingSlidesPreview: React.FC<{
   userOverrideRef: React.MutableRefObject<boolean>
   headerExtra?: React.ReactNode
 }> = ({ preview, slides, currentSlide, setCurrentSlide, userOverrideRef, headerExtra }) => {
+  const { t } = useTranslation(translations)
   const [mainRef, measuredWidth] = useContainerWidth<HTMLDivElement>()
   const containerWidth = measuredWidth ?? SLIDE_FALLBACK_WIDTH
 
@@ -218,10 +253,10 @@ const StreamingSlidesPreview: React.FC<{
   const totalSlides = (preview.content?.slideCount as number | undefined) ?? slides.length
   const renderedCount = slides.length
   const phase = (preview.content?.phase as string | undefined) ?? 'generating'
-  const phaseLabel = phase === 'transforming' ? 'Transforming to visual layout...' : 'Generating content...'
+  const phaseLabel = phase === 'transforming' ? t('workspace-transforming-layout') : t('workspace-generating-content')
 
   return (
-    <PanelCard title="Live Preview" defaultOpen extra={headerExtra}>
+    <PanelCard title={t('workspace-live-preview-title')} defaultOpen extra={headerExtra}>
       <div className="gba:flex gba:flex-col" data-testid="fabric-live-preview-slides-streaming">
         <div ref={mainRef} className="gba:flex gba:items-center gba:justify-center gba:p-3">
           <SlideCanvasMiniPreview
@@ -280,6 +315,7 @@ const GeneratingSlidesProgress: React.FC<GeneratingSlidesProgressProps> = ({
   userOverrideRef,
   headerExtra
 }) => {
+  const { t } = useTranslation(translations)
   const slideCount = (preview.content?.slideCount as number | undefined) ?? 0
   const phase = (preview.content?.phase as string | undefined) ?? 'generating'
   const streamedSlides = Array.isArray(preview.content?.slides) ? (preview.content?.slides as SlideData[]) : []
@@ -298,7 +334,7 @@ const GeneratingSlidesProgress: React.FC<GeneratingSlidesProgressProps> = ({
   }
 
   return (
-    <PanelCard title="Live Preview" defaultOpen extra={headerExtra}>
+    <PanelCard title={t('workspace-live-preview-title')} defaultOpen extra={headerExtra}>
       <div
         className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-3 gba:p-6"
         data-testid="fabric-live-preview-slides-progress"
@@ -310,14 +346,16 @@ const GeneratingSlidesProgress: React.FC<GeneratingSlidesProgressProps> = ({
           </p>
           {slideCount > 0 && (
             <p className="gba:text-[10px] gba:text-muted-foreground">
-              {slideCount} slides {phase === 'transforming' ? '- preparing layout...' : '- generating...'}
+              {phase === 'transforming'
+                ? t('workspace-slides-preparing', { count: slideCount })
+                : t('workspace-slides-generating', { count: slideCount })}
             </p>
           )}
         </div>
         <div className="gba:flex gba:items-center gba:gap-2">
           <SpinnerGapIcon className="gba:h-3 gba:w-3 gba:text-primary gba:animate-spin" />
           <span className="gba:text-[10px] gba:text-muted-foreground">
-            {phase === 'transforming' ? 'Transforming to visual layout...' : 'Generating content...'}
+            {phase === 'transforming' ? t('workspace-transforming-layout') : t('workspace-generating-content')}
           </span>
         </div>
       </div>
@@ -331,17 +369,6 @@ const GeneratingSlidesProgress: React.FC<GeneratingSlidesProgressProps> = ({
  * surface raw HTTP body text; at worst the user sees a generic sentence and
  * can still click "Try again".
  */
-const FRIENDLY_FALLBACK_HEADLINE: Record<ArtifactPreview['artifactType'], string> = {
-  slides: "We couldn't finish your slides",
-  document: "We couldn't finish your document",
-  note: "We couldn't finish your note",
-  chart: "We couldn't finish your chart",
-  html: "We couldn't finish your page",
-  pdf: "We couldn't finish your PDF"
-}
-
-const FRIENDLY_FALLBACK_BODY =
-  'Something went wrong while generating this. It might be a temporary hiccup — try again in a moment.'
 
 interface ErrorStateProps {
   preview: ArtifactPreview
@@ -350,10 +377,12 @@ interface ErrorStateProps {
 }
 
 const ErrorState: React.FC<ErrorStateProps> = ({ preview, onRetry, headerExtra }) => {
+  const { t } = useTranslation(translations)
   const [showDetails, setShowDetails] = useState(false)
 
-  const headline = FRIENDLY_FALLBACK_HEADLINE[preview.artifactType] ?? "We couldn't finish this"
-  const body = preview.userMessage?.trim() || FRIENDLY_FALLBACK_BODY
+  const headlineKey = ARTIFACT_ERROR_HEADLINE_KEY[preview.artifactType]
+  const headline = headlineKey ? t(headlineKey) : t('workspace-error-generic')
+  const body = preview.userMessage?.trim() || t('workspace-error-body')
   const canRetry = preview.retryable !== false && !!onRetry
   // Prefer the new ``technicalDetail`` surface; fall back to the legacy
   // ``error`` string only if the backend hasn't been upgraded yet. We still
@@ -361,7 +390,7 @@ const ErrorState: React.FC<ErrorStateProps> = ({ preview, onRetry, headerExtra }
   const detail = preview.technicalDetail?.trim() || preview.error?.trim() || ''
 
   return (
-    <PanelCard title="Live Preview" defaultOpen extra={headerExtra}>
+    <PanelCard title={t('workspace-live-preview-title')} defaultOpen extra={headerExtra}>
       <div
         className="gba:flex gba:flex-col gba:items-stretch gba:gap-3 gba:p-4"
         data-testid="fabric-live-preview-error"
@@ -385,7 +414,7 @@ const ErrorState: React.FC<ErrorStateProps> = ({ preview, onRetry, headerExtra }
               data-testid="fabric-live-preview-error-retry"
             >
               <ArrowClockwiseIcon className="gba:h-3.5 gba:w-3.5" weight="bold" />
-              Try again
+              {t('workspace-try-again')}
             </button>
             {preview.errorCode && (
               <span className="gba:text-[10px] gba:text-muted-foreground/70 gba:font-mono">{preview.errorCode}</span>
@@ -407,7 +436,7 @@ const ErrorState: React.FC<ErrorStateProps> = ({ preview, onRetry, headerExtra }
               ) : (
                 <CaretDownIcon className="gba:h-3 gba:w-3" />
               )}
-              {showDetails ? 'Hide technical details' : 'Show technical details'}
+              {showDetails ? t('workspace-hide-technical') : t('workspace-show-technical')}
             </button>
             {showDetails && (
               <p
@@ -429,6 +458,7 @@ const SlidesPreview: React.FC<{
   slides: SlideData[]
   headerExtra?: React.ReactNode
 }> = ({ slides, headerExtra }) => {
+  const { t } = useTranslation(translations)
   const [currentSlide, setCurrentSlide] = useState(0)
   const [mainRef, measuredWidth] = useContainerWidth<HTMLDivElement>()
   const prev = useCallback(() => setCurrentSlide(i => Math.max(0, i - 1)), [])
@@ -438,7 +468,7 @@ const SlidesPreview: React.FC<{
   const containerWidth = measuredWidth ?? SLIDE_FALLBACK_WIDTH
 
   return (
-    <PanelCard title="Live Preview" defaultOpen extra={headerExtra}>
+    <PanelCard title={t('workspace-live-preview-title')} defaultOpen extra={headerExtra}>
       <div className="gba:flex gba:flex-col" data-testid="fabric-live-preview-slides">
         <div ref={mainRef} className="gba:flex gba:items-center gba:justify-center gba:p-3">
           <SlideCanvasMiniPreview
@@ -475,7 +505,7 @@ const SlidesPreview: React.FC<{
             className="gba:text-[10px] gba:font-medium gba:text-primary gba:hover:underline"
             data-testid="fabric-live-preview-toggle-grid"
           >
-            {showGrid ? 'Hide grid' : 'Show all'}
+            {showGrid ? t('workspace-hide-grid') : t('workspace-show-all')}
           </button>
         </div>
 
@@ -587,6 +617,7 @@ export const LivePreviewCard: React.FC<LivePreviewCardProps> = ({
   isMaximized = false,
   onToggleMaximized
 }) => {
+  const { t } = useTranslation(translations)
   const maximizeToggle = onToggleMaximized ? (
     <MaximizeToggle isMaximized={isMaximized} onToggle={onToggleMaximized} />
   ) : undefined
@@ -618,7 +649,7 @@ export const LivePreviewCard: React.FC<LivePreviewCardProps> = ({
     // header so the user can access Plan / Decisions / Activity while
     // a long document is still streaming.
     return (
-      <PanelCard title="Live Preview" defaultOpen extra={maximizeToggle}>
+      <PanelCard title={t('workspace-live-preview-title')} defaultOpen extra={maximizeToggle}>
         <DocumentCanvasSurface preview={preview} accessToken={accessToken} sessionId={sessionId} />
       </PanelCard>
     )

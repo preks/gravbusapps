@@ -1,5 +1,7 @@
 import { ArrowRightIcon, ChatCircleDotsIcon, LayoutIcon, PauseCircleIcon, XIcon } from '@phosphor-icons/react'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../../_i18n'
 import { useFabric } from '../../context/FabricContext'
 import type { ChatMessage, SessionConfig } from '../../types/enterpriseAgent'
 import type { ArtifactPreview } from '../../hooks/useArtifactPreview'
@@ -62,20 +64,20 @@ function resolveChatOffsetClass(isChatOffset: boolean, hasActivePreview: boolean
   return WORKSPACE_CHAT_RIGHT_OFFSET_OPEN_CLASS
 }
 
-function resolveArtifactLabel(artifactType: ArtifactPreview['artifactType']): string {
+function resolveArtifactLabel(artifactType: ArtifactPreview['artifactType'], t: (key: string) => string): string {
   switch (artifactType) {
     case 'slides':
-      return 'slides'
+      return t('workspace-artifact-type-slides')
     case 'document':
-      return 'document'
+      return t('workspace-artifact-type-document')
     case 'note':
-      return 'note'
+      return t('workspace-artifact-type-note')
     case 'pdf':
-      return 'PDF'
+      return t('workspace-artifact-type-pdf')
     case 'html':
-      return 'HTML dashboard'
+      return t('workspace-artifact-type-html')
     default:
-      return 'chart'
+      return t('workspace-artifact-type-chart')
   }
 }
 
@@ -103,6 +105,7 @@ interface WorkspaceLayoutProps {
 }
 
 export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({ devModeEnabled = false }) => {
+  const { t } = useTranslation(translations)
   const {
     session,
     messages,
@@ -278,13 +281,13 @@ export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({ devModeEnabled
   const handleRetryPreview = useCallback(
     (preview: ArtifactPreview) => {
       const title = preview.title?.trim()
-      const artifactLabel = resolveArtifactLabel(preview.artifactType)
+      const artifactLabel = resolveArtifactLabel(preview.artifactType, t)
       const retryMessage = title
-        ? `The previous attempt to generate the ${artifactLabel} "${title}" failed. Please try again.`
-        : `The previous attempt to generate the ${artifactLabel} failed. Please try again.`
+        ? t('workspace-retry-preview-with-title', { label: artifactLabel, title })
+        : t('workspace-retry-preview', { label: artifactLabel })
       void reply(retryMessage).catch(() => undefined)
     },
-    [reply]
+    [reply, t]
   )
 
   if (!session) return null
@@ -348,7 +351,7 @@ export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({ devModeEnabled
               onClick={() => setIsRightPanelOpen(open => !open)}
               className="gba:inline-flex gba:items-center gba:justify-center gba:h-10 gba:w-10 gba:rounded-full gba:border gba:border-border/55 gba:bg-background/85 gba:backdrop-blur-xl gba:text-foreground gba:shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-12px_rgba(15,23,42,0.18)] gba:hover:bg-background gba:hover:shadow-[0_1px_2px_rgba(15,23,42,0.06),0_14px_32px_-12px_rgba(15,23,42,0.22)] gba:transition-all"
               data-testid="fabric-workspace-panel-toggle"
-              aria-label={isRightPanelOpen ? 'Close workspace panel' : 'Open workspace panel'}
+              aria-label={isRightPanelOpen ? t('workspace-panel-close') : t('workspace-panel-open')}
             >
               {isRightPanelOpen ? (
                 <XIcon className="gba:h-4 gba:w-4 gba:text-foreground" weight="bold" />
@@ -375,13 +378,13 @@ export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({ devModeEnabled
                       <div className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:pt-2 gba:pb-1.5 sm:gba:px-3.5">
                         <ChatCircleDotsIcon className="gba:h-3.5 gba:w-3.5 gba:shrink-0 gba:text-muted-foreground" />
                         <span className="gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-[0.08em] gba:text-muted-foreground">
-                          Suggested follow-ups
+                          {t('workspace-follow-ups-title')}
                         </span>
                         <button
                           type="button"
                           onClick={() => latestFinalAnswer && setDismissedFollowUpMessageId(latestFinalAnswer.id)}
                           className="gba:ml-auto gba:inline-flex gba:items-center gba:justify-center gba:h-7 gba:w-7 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
-                          aria-label="Close suggested follow-ups"
+                          aria-label={t('workspace-follow-ups-dismiss')}
                           data-testid="fabric-follow-ups-dismiss"
                         >
                           <XIcon className="gba:h-3.5 gba:w-3.5" />
@@ -417,9 +420,11 @@ export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({ devModeEnabled
                     >
                       <PauseCircleIcon className="gba:h-4 gba:w-4 gba:text-amber-500 gba:shrink-0" weight="fill" />
                       <span className="gba:flex-1 gba:text-sm gba:font-medium gba:text-amber-900">
-                        Agent is waiting for your input
+                        {t('enterprise-agent-background-waiting')}
                       </span>
-                      <span className="gba:text-xs gba:font-semibold gba:text-amber-700">Show options</span>
+                      <span className="gba:text-xs gba:font-semibold gba:text-amber-700">
+                        {t('workspace-reopen-clarification-show')}
+                      </span>
                     </button>
                   </div>
                 )}

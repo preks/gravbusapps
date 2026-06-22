@@ -58,6 +58,7 @@ sort-created = Creat
 table-owner = Proprietar
 table-trashed = Aruncat la coș pe
 menu-open = Deschide
+action-share = Partajare
 menu-share = Partajare
 menu-manage-sharing = Gestionați partajarea
 menu-copy-link = Copiază link

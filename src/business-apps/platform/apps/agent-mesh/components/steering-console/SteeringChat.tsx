@@ -11,8 +11,10 @@ import {
   SelectTrigger,
   SelectValue,
   Spinner,
-  Textarea
+  Textarea,
+  useTranslation
 } from '@newwork/nw-design-system'
+import translations from '../../../_i18n'
 import { History, Plus, Send, Loader2, Brain, Zap, Sparkles, Network } from 'lucide-react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
@@ -54,6 +56,7 @@ export const SteeringChat = ({
   onOpenHistory,
   onNewSession
 }: SteeringChatProps) => {
+  const { t } = useTranslation(translations)
   const promptClient = usePromptManagerClient(accessToken)
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState('')
@@ -337,7 +340,9 @@ export const SteeringChat = ({
               </div>
             </div>
             <div className="gba:space-y-1.5">
-              <p className="gba:text-base gba:font-bold gba:tracking-tight gba:text-foreground">Agent Mesh Console</p>
+              <p className="gba:text-base gba:font-bold gba:tracking-tight gba:text-foreground">
+                {t('steering-console-title')}
+              </p>
               <p className="gba:text-xs gba:text-muted-foreground gba:max-w-[260px] gba:leading-relaxed">
                 {selectedAgentId
                   ? 'Ask a question and watch your agents collaborate to find the answer.'

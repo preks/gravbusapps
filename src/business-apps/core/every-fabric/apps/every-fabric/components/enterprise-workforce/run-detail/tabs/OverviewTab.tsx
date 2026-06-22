@@ -3,6 +3,7 @@
 // RunDetailBody so behavior is unchanged; only the container is now a tab panel.
 
 import { FileIcon, FilesIcon, SparkleIcon, TrayIcon, WarningIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import React from 'react'
 
 import { RunEmailApprovalSection } from '../../RunEmailApprovalSection'
@@ -14,6 +15,7 @@ import { getStructuredInputPending } from '../../workforceStructuredInput'
 import type { WorkforceRun, WorkforceRunArtifactSummary } from '../../workforceTypes'
 import { extractDraftBody, extractDraftSubject, formatBytes } from '../runDetailFacts'
 import { SectionTitle } from '../RunDetailSection'
+import translations from '../../../../_i18n'
 
 export interface OverviewTabProps {
   run: WorkforceRun
@@ -23,6 +25,7 @@ export interface OverviewTabProps {
 }
 
 export const OverviewTab: React.FC<OverviewTabProps> = ({ run, accessToken, errorMessage, onRefreshRun }) => {
+  const { t } = useTranslation(translations)
   const composePending = getComposeEmailPending(run.pending_structured_input)
   const structuredPending = composePending ? null : getStructuredInputPending(run.pending_structured_input)
   const draftBody = composePending ? null : extractDraftBody(run.pending_structured_input)
@@ -42,13 +45,13 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ run, accessToken, erro
       )}
 
       <section>
-        <SectionTitle icon={TrayIcon}>Task</SectionTitle>
+        <SectionTitle icon={TrayIcon}>{t('run-overview-task')}</SectionTitle>
         <div className="gba:rounded-xl gba:border gba:border-border/60 gba:bg-card gba:p-4 gba:shadow-sm">
           <pre
             className="gba:whitespace-pre-wrap gba:break-words gba:font-sans gba:text-[13px] gba:leading-relaxed gba:text-foreground"
             data-testid="run-detail-task"
           >
-            {run.input || '(empty)'}
+            {run.input || t('run-overview-empty-input')}
           </pre>
         </div>
       </section>
@@ -56,11 +59,9 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ run, accessToken, erro
       {composePending && !accessToken && (
         <section data-testid="run-detail-approval">
           <SectionTitle icon={WarningIcon} tone="warning">
-            Awaiting human approval
+            {t('run-overview-awaiting-approval')}
           </SectionTitle>
-          <p className="gba:text-xs gba:text-muted-foreground">
-            Sign in is required to review and send this email draft.
-          </p>
+          <p className="gba:text-xs gba:text-muted-foreground">{t('run-overview-signin-required')}</p>
         </section>
       )}
 
@@ -91,13 +92,13 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ run, accessToken, erro
       {showGenericApproval && (
         <section data-testid="run-detail-approval">
           <SectionTitle icon={WarningIcon} tone="warning">
-            Awaiting human approval
+            {t('run-overview-awaiting-approval')}
           </SectionTitle>
           <div className="gba:rounded-lg gba:border gba:border-amber-500/40 gba:bg-amber-500/5 gba:px-3 gba:py-3 gba:text-xs gba:text-amber-900 gba:dark:text-amber-100">
             {run.pending_human_question && <p className="gba:mb-2 gba:font-medium">{run.pending_human_question}</p>}
             {draftSubject && (
               <p className="gba:mb-2 gba:text-[11px] gba:text-amber-700 gba:dark:text-amber-200">
-                <span className="gba:font-semibold">Subject:</span> {draftSubject}
+                <span className="gba:font-semibold">{t('run-overview-subject')}</span> {draftSubject}
               </p>
             )}
             {draftBody && (
@@ -110,7 +111,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ run, accessToken, erro
       )}
 
       <section>
-        <SectionTitle icon={SparkleIcon}>Output</SectionTitle>
+        <SectionTitle icon={SparkleIcon}>{t('run-overview-output')}</SectionTitle>
         <div
           className="gba:rounded-xl gba:border gba:border-border/60 gba:bg-card gba:p-5 gba:text-sm gba:leading-relaxed gba:shadow-sm"
           data-testid="run-detail-output"
@@ -118,14 +119,14 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ run, accessToken, erro
           {run.output ? (
             <RunMarkdown content={run.output} />
           ) : (
-            <p className="gba:text-xs gba:italic gba:text-muted-foreground">(no output yet)</p>
+            <p className="gba:text-xs gba:italic gba:text-muted-foreground">{t('run-overview-no-output')}</p>
           )}
         </div>
       </section>
 
       {artifacts.length > 0 && (
         <section>
-          <SectionTitle icon={FilesIcon}>Artifacts</SectionTitle>
+          <SectionTitle icon={FilesIcon}>{t('run-overview-artifacts')}</SectionTitle>
           <ul className="gba:space-y-1.5" data-testid="run-detail-artifacts">
             {artifacts.map(artifact => (
               <li

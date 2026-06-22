@@ -1,12 +1,5 @@
 import React from 'react'
-import { buildPlatformUrl } from '@/common/utils/navigationUtils'
-import {
-  ShareEntityDialog,
-  SLIDE_SHARE_PERMISSIONS,
-  sendShareBlinkNotifications,
-  type ShareNotificationContext,
-  type SharedEntityUser
-} from '@/business-apps/core/office/sharing'
+import { ShareEntityDialog, SLIDE_SHARE_PERMISSIONS, type SharedEntityUser } from '@/business-apps/core/office/sharing'
 import { SlidesApiService } from '../services/SlidesApiService'
 
 type SlidePermission = 'view' | 'edit' | 'comment' | 'admin'
@@ -79,21 +72,6 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
     }
   }, [open, refreshShares])
 
-  const sendNotifications = React.useCallback(
-    (context: ShareNotificationContext) =>
-      sendShareBlinkNotifications({
-        ...context,
-        entityType: 'slide',
-        appTag: 'slide-share',
-        titlePrefix: 'Slide Shared',
-        entityUrl: buildPlatformUrl('/platform/every-office/slides', {
-          slideId,
-          view: 'editor'
-        })
-      }),
-    [slideId]
-  )
-
   return (
     <ShareEntityDialog
       open={open}
@@ -120,7 +98,6 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
       }}
       onUnshare={shareId => SlidesApiService.revokeShareById(slideId, shareId)}
       onRefreshShares={refreshShares}
-      sendNotifications={sendNotifications}
       showShareMessage
       data-testid={testId}
     />

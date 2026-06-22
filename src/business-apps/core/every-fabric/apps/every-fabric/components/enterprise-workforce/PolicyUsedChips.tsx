@@ -5,7 +5,9 @@
 // deep-link back to the policy/knowledge ref when one is resolvable.
 
 import { BookOpenTextIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import React, { useMemo } from 'react'
+import translations from '../../_i18n'
 import { buildPolicyDetailUrl, isPolicyUuid } from './policyLink'
 import type { WorkforceRunTraceEvent } from './workforceTypes'
 
@@ -91,13 +93,14 @@ export function derivePolicies(trace: readonly WorkforceRunTraceEvent[] | undefi
 }
 
 export const PolicyUsedChips: React.FC<PolicyUsedChipsProps> = ({ trace }) => {
+  const { t } = useTranslation(translations)
   const policies = useMemo(() => derivePolicies(trace), [trace])
   if (policies.length === 0) return null
 
   return (
     <section data-testid="workforce-run-detail-policies">
       <h3 className="gba:mb-1.5 gba:text-xs gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground">
-        Policies
+        {t('policies-title')}
       </h3>
       <div className="gba:flex gba:flex-wrap gba:gap-1.5">
         {policies.map(policy => {
@@ -111,7 +114,7 @@ export const PolicyUsedChips: React.FC<PolicyUsedChipsProps> = ({ trace }) => {
                 target="_blank"
                 rel="noreferrer"
                 className={`${chipClass} gba:hover:bg-sky-500/10`}
-                title={`Open policy in a new tab (ID: ${policy.policyId})`}
+                title={t('trace-open-policy-title', { id: policy.policyId })}
                 data-testid="workforce-policy-chip"
               >
                 <BookOpenTextIcon className="gba:h-3.5 gba:w-3.5" />

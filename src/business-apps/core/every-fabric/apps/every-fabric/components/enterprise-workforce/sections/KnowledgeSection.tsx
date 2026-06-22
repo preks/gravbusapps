@@ -1,11 +1,12 @@
 // Knowledge section - typed references to policies, contracts, sources.
 
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { ArrowSquareOutIcon, BookOpenIcon, TrashIcon } from '@phosphor-icons/react'
 import React, { useEffect, useState } from 'react'
 import { buildPolicyDetailUrl, isPolicyUuid } from '../policyLink'
 import type { WorkforceAgent, WorkforceAgentUpdateInput, WorkforceKnowledgeRef } from '../workforceTypes'
 import { SectionShell } from './SectionShell'
+import translations from '../../../_i18n'
 
 interface KnowledgeSectionProps {
   agent: WorkforceAgent
@@ -22,12 +23,12 @@ interface FormState {
   draftTitle: string
 }
 
-const SOURCE_LABELS: Record<KnowledgeSource, string> = {
-  policy: 'Policy',
-  contract: 'Contract',
-  knowledge_source: 'Knowledge source',
-  skill: 'Skill',
-  url: 'URL'
+const SOURCE_LABEL_KEYS: Record<KnowledgeSource, string> = {
+  policy: 'knowledge-source-policy',
+  contract: 'knowledge-source-contract',
+  knowledge_source: 'knowledge-source-knowledge',
+  skill: 'knowledge-source-skill',
+  url: 'knowledge-source-url'
 }
 
 function fromAgent(agent: WorkforceAgent): FormState {
@@ -53,6 +54,7 @@ function refsEqual(a: WorkforceKnowledgeRef[], b: WorkforceKnowledgeRef[]): bool
 }
 
 export const KnowledgeSection: React.FC<KnowledgeSectionProps> = ({ agent, isSaving, onSave }) => {
+  const { t } = useTranslation(translations)
   const baseline = fromAgent(agent)
   const [form, setForm] = useState<FormState>(baseline)
 
@@ -86,9 +88,9 @@ export const KnowledgeSection: React.FC<KnowledgeSectionProps> = ({ agent, isSav
   return (
     <SectionShell
       id="knowledge"
-      title="Knowledge"
+      title={t('knowledge-section-title')}
       icon={BookOpenIcon}
-      description="Policies, contracts, and other references the agent may read while working."
+      description={t('knowledge-section-desc')}
       isDirty={dirty}
       isSaving={isSaving}
       onSave={() => void onSave({ knowledge_refs: form.refs })}
@@ -96,29 +98,29 @@ export const KnowledgeSection: React.FC<KnowledgeSectionProps> = ({ agent, isSav
     >
       <div className="gba:grid gba:grid-cols-1 gba:gap-2 gba:sm:grid-cols-12">
         <select
-          aria-label="Knowledge source type"
+          aria-label={t('knowledge-source-type-aria')}
           value={form.draftSource}
           onChange={e => setForm(prev => ({ ...prev, draftSource: e.target.value as KnowledgeSource }))}
           className="gba:h-9 gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-2 gba:text-xs gba:text-foreground gba:sm:col-span-3"
           data-testid="workforce-knowledge-source"
         >
-          {(Object.keys(SOURCE_LABELS) as KnowledgeSource[]).map(source => (
+          {(Object.keys(SOURCE_LABEL_KEYS) as KnowledgeSource[]).map(source => (
             <option key={source} value={source}>
-              {SOURCE_LABELS[source]}
+              {t(SOURCE_LABEL_KEYS[source])}
             </option>
           ))}
         </select>
         <input
           value={form.draftRefId}
           onChange={e => setForm(prev => ({ ...prev, draftRefId: e.target.value }))}
-          placeholder="Reference ID or URL"
+          placeholder={t('knowledge-ref-id-placeholder')}
           className="gba:h-9 gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:text-sm gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring gba:sm:col-span-4"
           data-testid="workforce-knowledge-ref-id"
         />
         <input
           value={form.draftTitle}
           onChange={e => setForm(prev => ({ ...prev, draftTitle: e.target.value }))}
-          placeholder="Optional title"
+          placeholder={t('knowledge-title-placeholder')}
           className="gba:h-9 gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:text-sm gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring gba:sm:col-span-4"
           data-testid="workforce-knowledge-title"
         />
@@ -129,13 +131,13 @@ export const KnowledgeSection: React.FC<KnowledgeSectionProps> = ({ agent, isSav
           className="gba:sm:col-span-1"
           data-testid="workforce-knowledge-add"
         >
-          Add
+          {t('action-add')}
         </Button>
       </div>
 
       <ul className="gba:mt-3 gba:space-y-1.5" data-testid="workforce-knowledge-list">
         {form.refs.length === 0 ? (
-          <li className="gba:text-[11px] gba:italic gba:text-muted-foreground">No knowledge references yet.</li>
+          <li className="gba:text-[11px] gba:italic gba:text-muted-foreground">{t('knowledge-empty')}</li>
         ) : (
           form.refs.map(ref => (
             <li
@@ -149,7 +151,7 @@ export const KnowledgeSection: React.FC<KnowledgeSectionProps> = ({ agent, isSav
                     target="_blank"
                     rel="noreferrer"
                     className="gba:inline-flex gba:items-center gba:gap-1 gba:truncate gba:text-xs gba:font-medium gba:text-foreground gba:hover:underline"
-                    title={`Open policy in a new tab (ID: ${ref.ref_id})`}
+                    title={t('knowledge-open-policy', { id: ref.ref_id })}
                   >
                     <span className="gba:truncate">{ref.title || ref.ref_id}</span>
                     <ArrowSquareOutIcon className="gba:h-3 gba:w-3 gba:shrink-0 gba:text-muted-foreground" />
@@ -160,13 +162,13 @@ export const KnowledgeSection: React.FC<KnowledgeSectionProps> = ({ agent, isSav
                   </p>
                 )}
                 <p className="gba:truncate gba:text-[10px] gba:text-muted-foreground">
-                  {SOURCE_LABELS[ref.source]} · {ref.ref_id}
+                  {t(SOURCE_LABEL_KEYS[ref.source])} · {ref.ref_id}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => handleRemove(ref)}
-                aria-label={`Remove ${ref.ref_id}`}
+                aria-label={t('action-remove', { value: ref.ref_id })}
                 className="gba:text-muted-foreground gba:hover:text-destructive"
                 data-testid={`workforce-knowledge-remove-${ref.source}-${ref.ref_id}`}
               >

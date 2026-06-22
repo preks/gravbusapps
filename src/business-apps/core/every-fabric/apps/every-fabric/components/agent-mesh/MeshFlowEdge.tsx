@@ -9,6 +9,7 @@ import {
 } from '@phosphor-icons/react'
 import type { MeshEdgeKind } from '../../utils/traceModel'
 import { ReplayClockContext } from './MeshGraph'
+import { useAgentMeshI18n } from './useAgentMeshI18n'
 
 /** Centre + visual radius of a node, in absolute graph coordinates. */
 export interface MeshEdgeEndpoint {
@@ -95,6 +96,7 @@ const FALLBACK_ENDPOINT: MeshEdgeEndpoint = { x: 0, y: 0, radius: 22 }
 const ACTIVE_WINDOW_MS = 500
 
 const MeshFlowEdgeBase = ({ id, data }: EdgeProps<MeshFlowEdgeData>) => {
+  const { t } = useAgentMeshI18n()
   const { positionMs, isLive } = useContext(ReplayClockContext)
 
   const safeData: MeshFlowEdgeData = data ?? {
@@ -192,8 +194,8 @@ const MeshFlowEdgeBase = ({ id, data }: EdgeProps<MeshFlowEdgeData>) => {
             }}
             className="gba:group gba:flex gba:items-center gba:justify-center gba:p-2 gba:cursor-pointer gba:focus:outline-none gba:focus-visible:outline-2 gba:focus-visible:outline-primary/60 gba:focus-visible:rounded-full"
             data-testid={`mesh-edge-bubble-${id}`}
-            aria-label="View message between agents"
-            title="Click to view the full message"
+            aria-label={t('agent-mesh-edge-view-message')}
+            title={t('agent-mesh-edge-view-message-title')}
           >
             <span
               className={`gba:relative gba:flex gba:h-7 gba:w-7 gba:items-center gba:justify-center gba:rounded-full gba:border gba:bg-card gba:shadow-[0_2px_6px_rgba(15,23,42,0.12)] gba:transition-transform gba:duration-150 gba:ease-out gba:group-hover:scale-110 gba:group-active:scale-95 ${

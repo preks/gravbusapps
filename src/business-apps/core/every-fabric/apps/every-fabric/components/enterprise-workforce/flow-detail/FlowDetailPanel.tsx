@@ -5,14 +5,16 @@
 // (status, actor, timings) backfilled with display names from flow history.
 
 import { ArrowSquareOutIcon, ClockIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import React from 'react'
 
 import { labelForStatusCode, variantForStatusCode } from '../../../utils/actionCardTrace'
+import translations from '../../../_i18n'
 import { formatTimestamp } from '../runDisplay'
 import { FlowProgressBar } from './FlowProgressBar'
 import { FlowStepRow } from './FlowStepRow'
 import { Field, StatusBadge } from './flowDetailPrimitives'
-import { NOT_AVAILABLE, historyNameByStep, progressSummary } from './flowStepFormat'
+import { formatProgressSummary, historyNameByStep } from './flowStepFormat'
 import { useFlowDetail } from './useFlowDetail'
 
 export interface FlowDetailPanelProps {
@@ -30,6 +32,7 @@ export const FlowDetailPanel: React.FC<FlowDetailPanelProps> = ({
   accessToken,
   succeeded
 }) => {
+  const { t } = useTranslation(translations)
   const initialCode = succeeded === false ? 'FAILED' : 'RUNNING'
   const { overview, history, status, isLoading, error } = useFlowDetail({
     workflowId,
@@ -45,7 +48,7 @@ export const FlowDetailPanel: React.FC<FlowDetailPanelProps> = ({
   if (!workflowId) {
     return (
       <p className="gba:text-xs gba:italic gba:text-muted-foreground" data-testid="flow-detail-empty">
-        This action did not return a workflow id.
+        {t('flow-detail-empty')}
       </p>
     )
   }
@@ -53,13 +56,15 @@ export const FlowDetailPanel: React.FC<FlowDetailPanelProps> = ({
   const displayName = overview?.name ?? workflowName
   const progress = overview?.progress
   const isComplete = status.variant === 'success'
-  const stepSummary = progressSummary(
+  const stepSummary = formatProgressSummary(
+    t,
     progress?.currentStep,
     progress?.totalSteps,
     progress?.completedSteps,
     progress?.percentage,
     isComplete
   )
+  const notAvailable = t('flow-not-available')
   const flowUrl = `/platform/apps/flow/apps/detail?flowId=${encodeURIComponent(workflowId)}`
   const nameByStep = historyNameByStep(history)
   const steps = overview?.steps ?? []
@@ -81,10 +86,14 @@ export const FlowDetailPanel: React.FC<FlowDetailPanelProps> = ({
           <StatusBadge code={status.code} testId="flow-detail-status" />
         </div>
         <div className="gba:mt-3 gba:grid gba:grid-cols-2 gba:gap-x-4 gba:gap-y-2 sm:gba:grid-cols-4">
-          <Field label="Initiated by" value={overview?.initiatedBy ?? NOT_AVAILABLE} muted={!overview?.initiatedBy} />
-          <Field label="Progress" value={stepSummary ?? NOT_AVAILABLE} muted={!stepSummary} />
-          <Field label="Started" value={formatTimestamp(overview?.createdAt)} />
-          <Field label="Completed" value={formatTimestamp(overview?.completedAt)} />
+          <Field
+            label={t('flow-field-initiated-by')}
+            value={overview?.initiatedBy ?? notAvailable}
+            muted={!overview?.initiatedBy}
+          />
+          <Field label={t('flow-field-progress')} value={stepSummary ?? notAvailable} muted={!stepSummary} />
+          <Field label={t('flow-field-started')} value={formatTimestamp(overview?.createdAt)} />
+          <Field label={t('flow-field-completed')} value={formatTimestamp(overview?.completedAt)} />
         </div>
         <div className="gba:mt-3">
           <FlowProgressBar
@@ -113,7 +122,7 @@ export const FlowDetailPanel: React.FC<FlowDetailPanelProps> = ({
       <div>
         <div className="gba:mb-2 gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground">
           <ClockIcon className="gba:h-3.5 gba:w-3.5" />
-          Steps
+          {t('flow-steps-title')}
         </div>
         {steps.length > 0 ? (
           <ul className="gba:space-y-1.5" data-testid="flow-step-list">
@@ -129,7 +138,7 @@ export const FlowDetailPanel: React.FC<FlowDetailPanelProps> = ({
           </ul>
         ) : (
           <p className="gba:text-xs gba:italic gba:text-muted-foreground" data-testid="flow-detail-steps-empty">
-            {isLoading ? 'Loading steps…' : 'No steps reported yet.'}
+            {isLoading ? t('flow-steps-loading') : t('flow-steps-empty')}
           </p>
         )}
       </div>

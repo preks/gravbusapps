@@ -5,11 +5,12 @@
 // owns the "Active vs Archived" toggle and renders this in place of
 // the regular grid.
 
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowsClockwiseIcon, SpinnerGapIcon } from '@phosphor-icons/react'
 import React from 'react'
 import { formatTimestamp } from './runDisplay'
 import type { WorkforceAgent } from './workforceTypes'
+import translations from '../../_i18n'
 
 export interface ArchivedAgentsPanelProps {
   agents: WorkforceAgent[]
@@ -28,6 +29,8 @@ export const ArchivedAgentsPanel: React.FC<ArchivedAgentsPanelProps> = ({
   onRefresh,
   onRestore
 }) => {
+  const { t } = useTranslation(translations)
+
   return (
     <section
       className="gba:rounded-2xl gba:border gba:border-border/60 gba:bg-card gba:p-5 gba:shadow-sm"
@@ -37,11 +40,9 @@ export const ArchivedAgentsPanel: React.FC<ArchivedAgentsPanelProps> = ({
         <div>
           <h2 className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:font-semibold gba:text-foreground">
             <ArchiveIcon className="gba:h-4 gba:w-4" />
-            Archived agents
+            {t('archived-title')}
           </h2>
-          <p className="gba:mt-0.5 gba:text-xs gba:text-muted-foreground">
-            Soft-deleted workforce agents. Restoring brings them back paused so you can review before re-activating.
-          </p>
+          <p className="gba:mt-0.5 gba:text-xs gba:text-muted-foreground">{t('archived-desc')}</p>
         </div>
         <button
           type="button"
@@ -49,14 +50,14 @@ export const ArchivedAgentsPanel: React.FC<ArchivedAgentsPanelProps> = ({
           disabled={isLoading}
           className="gba:inline-flex gba:h-8 gba:items-center gba:justify-center gba:gap-1.5 gba:rounded-md gba:border gba:border-border gba:bg-background gba:px-2.5 gba:text-xs gba:font-medium gba:text-foreground gba:hover:bg-muted/60 gba:disabled:cursor-not-allowed gba:disabled:opacity-50"
           data-testid="workforce-archived-refresh"
-          aria-label="Refresh archived agents"
+          aria-label={t('archived-refresh-aria')}
         >
           {isLoading ? (
             <SpinnerGapIcon className="gba:h-3.5 gba:w-3.5 gba:animate-spin" />
           ) : (
             <ArrowsClockwiseIcon className="gba:h-3.5 gba:w-3.5" />
           )}
-          Refresh
+          {t('runs-refresh')}
         </button>
       </header>
 
@@ -73,17 +74,15 @@ export const ArchivedAgentsPanel: React.FC<ArchivedAgentsPanelProps> = ({
       {isLoading && agents.length === 0 ? (
         <div className="gba:flex gba:items-center gba:justify-center gba:py-10 gba:text-muted-foreground">
           <SpinnerGapIcon className="gba:mr-2 gba:h-4 gba:w-4 gba:animate-spin" />
-          <span className="gba:text-sm">Loading archived agents…</span>
+          <span className="gba:text-sm">{t('archived-loading')}</span>
         </div>
       ) : agents.length === 0 ? (
         <div
           className="gba:rounded-lg gba:border gba:border-dashed gba:border-border gba:bg-muted/30 gba:px-4 gba:py-8 gba:text-center"
           data-testid="workforce-archived-empty"
         >
-          <p className="gba:text-sm gba:font-medium gba:text-foreground">No archived agents</p>
-          <p className="gba:mt-1 gba:text-xs gba:text-muted-foreground">
-            When you archive an agent it shows up here so you can restore it.
-          </p>
+          <p className="gba:text-sm gba:font-medium gba:text-foreground">{t('archived-empty-title')}</p>
+          <p className="gba:mt-1 gba:text-xs gba:text-muted-foreground">{t('archived-empty-desc')}</p>
         </div>
       ) : (
         <ul className="gba:divide-y gba:divide-border/60">
@@ -91,6 +90,10 @@ export const ArchivedAgentsPanel: React.FC<ArchivedAgentsPanelProps> = ({
             const profile = agent.workforce_profile
             const archivedAt = profile.archived_at ?? agent.updated_at
             const busy = isRestoring === agent.agent_id
+            const archivedMeta = profile.archived_by_user_id
+              ? t('archived-meta-by', { time: formatTimestamp(archivedAt), user: profile.archived_by_user_id })
+              : t('archived-meta', { time: formatTimestamp(archivedAt) })
+
             return (
               <li
                 key={agent.agent_id}
@@ -102,13 +105,10 @@ export const ArchivedAgentsPanel: React.FC<ArchivedAgentsPanelProps> = ({
                     {agent.display_name || agent.name}
                   </p>
                   <p className="gba:mt-0.5 gba:truncate gba:text-xs gba:text-muted-foreground">
-                    {profile.role || 'No role set'}
+                    {profile.role || t('detail-no-role')}
                     {profile.department ? ` · ${profile.department}` : ''}
                   </p>
-                  <p className="gba:mt-1 gba:text-[11px] gba:text-muted-foreground">
-                    Archived {formatTimestamp(archivedAt)}
-                    {profile.archived_by_user_id ? ` by ${profile.archived_by_user_id}` : ''}
-                  </p>
+                  <p className="gba:mt-1 gba:text-[11px] gba:text-muted-foreground">{archivedMeta}</p>
                 </div>
                 <Button
                   variant="outline"
@@ -122,7 +122,7 @@ export const ArchivedAgentsPanel: React.FC<ArchivedAgentsPanelProps> = ({
                   ) : (
                     <ArrowCounterClockwiseIcon className="gba:mr-1 gba:h-3.5 gba:w-3.5" />
                   )}
-                  {busy ? 'Restoring…' : 'Restore'}
+                  {busy ? t('archived-restoring') : t('archived-restore')}
                 </Button>
               </li>
             )

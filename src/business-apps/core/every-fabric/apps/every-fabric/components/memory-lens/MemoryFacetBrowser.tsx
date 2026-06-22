@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Input } from '@newwork/nw-design-system'
+import { Input, useTranslation } from '@newwork/nw-design-system'
 import { HashIcon, MagnifyingGlassIcon } from '@phosphor-icons/react'
 import type { MemoryNamespace } from '../settings/agentSettings.types'
 import type { MemoryLensEntry } from './memoryLensModel'
 import { facetIndex, type FacetKind } from './memoryLensDimensions'
 import { MemoryEntryCard } from './MemoryEntryCard'
+import translations from '../../_i18n'
 
 interface MemoryFacetBrowserProps {
   entries: MemoryLensEntry[]
@@ -12,9 +13,14 @@ interface MemoryFacetBrowserProps {
   onDelete: (key: string, namespace: MemoryNamespace) => void
 }
 
-const COPY: Record<FacetKind, { empty: string; search: string; unit: string }> = {
-  topic: { empty: 'No topics captured yet.', search: 'Search topics…', unit: 'topic' },
-  entity: { empty: 'No people or things captured yet.', search: 'Search people & things…', unit: 'entry' }
+const FACET_EMPTY_KEY: Record<FacetKind, string> = {
+  topic: 'memory-lens-facet-empty-topic',
+  entity: 'memory-lens-facet-empty-entity'
+}
+
+const FACET_SEARCH_KEY: Record<FacetKind, string> = {
+  topic: 'memory-lens-facet-search-topic',
+  entity: 'memory-lens-facet-search-entity'
 }
 
 const initials = (label: string): string => {
@@ -45,6 +51,7 @@ const FacetAvatar: React.FC<{ kind: FacetKind; label: string; large?: boolean }>
 }
 
 export const MemoryFacetBrowser: React.FC<MemoryFacetBrowserProps> = ({ entries, kind, onDelete }) => {
+  const { t } = useTranslation(translations)
   const { items, byValue } = useMemo(() => facetIndex(entries, kind), [entries, kind])
   const [selected, setSelected] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -65,7 +72,7 @@ export const MemoryFacetBrowser: React.FC<MemoryFacetBrowserProps> = ({ entries,
         className="gba:rounded-2xl gba:border gba:border-border/60 gba:bg-card gba:p-8 gba:text-center"
         data-testid={`memory-lens-facet-${kind}`}
       >
-        <p className="gba:text-sm gba:text-muted-foreground">{COPY[kind].empty}</p>
+        <p className="gba:text-sm gba:text-muted-foreground">{t(FACET_EMPTY_KEY[kind])}</p>
       </section>
     )
   }
@@ -81,7 +88,7 @@ export const MemoryFacetBrowser: React.FC<MemoryFacetBrowserProps> = ({ entries,
             <Input
               value={search}
               onChange={event => setSearch(event.target.value)}
-              placeholder={COPY[kind].search}
+              placeholder={t(FACET_SEARCH_KEY[kind])}
               className="gba:h-8 gba:rounded-full gba:border-border/50 gba:bg-muted/30 gba:pl-9 gba:text-sm"
               data-testid={`memory-lens-facet-search-${kind}`}
             />
@@ -89,7 +96,9 @@ export const MemoryFacetBrowser: React.FC<MemoryFacetBrowserProps> = ({ entries,
 
           <div className="gba:max-h-96 gba:space-y-0.5 gba:overflow-y-auto gba:rounded-2xl gba:border gba:border-border/60 gba:bg-card gba:p-1.5">
             {filtered.length === 0 ? (
-              <p className="gba:px-3 gba:py-4 gba:text-center gba:text-xs gba:text-muted-foreground">No matches.</p>
+              <p className="gba:px-3 gba:py-4 gba:text-center gba:text-xs gba:text-muted-foreground">
+                {t('memory-lens-facet-no-match')}
+              </p>
             ) : (
               filtered.map(item => {
                 const isActive = item.label === selected
@@ -132,7 +141,7 @@ export const MemoryFacetBrowser: React.FC<MemoryFacetBrowserProps> = ({ entries,
                   {kind === 'topic' ? `#${selected}` : selected}
                 </h2>
                 <p className="gba:text-[11px] gba:text-muted-foreground">
-                  {selectedEntries.length} {selectedEntries.length === 1 ? 'memory' : 'memories'}
+                  {t('memory-lens-diary-count', { count: selectedEntries.length })}
                 </p>
               </div>
             </div>
@@ -144,7 +153,7 @@ export const MemoryFacetBrowser: React.FC<MemoryFacetBrowserProps> = ({ entries,
           </>
         ) : (
           <div className="gba:flex gba:items-center gba:justify-center gba:rounded-2xl gba:border gba:border-dashed gba:border-border/60 gba:bg-card/40 gba:p-8 gba:text-center">
-            <p className="gba:text-[12px] gba:text-muted-foreground">Select an item to see its memories.</p>
+            <p className="gba:text-[12px] gba:text-muted-foreground">{t('memory-lens-detail-select')}</p>
           </div>
         )}
       </div>

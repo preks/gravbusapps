@@ -8,6 +8,7 @@ import {
   WrenchIcon
 } from '@phosphor-icons/react'
 import type { MeshDecision, MeshSummary, TraceFrame } from '../../utils/traceModel'
+import { useAgentMeshI18n } from './useAgentMeshI18n'
 
 interface DecisionLogPanelProps {
   /** Title of the simulation, typically the session task / first user prompt. */
@@ -79,6 +80,7 @@ export const DecisionLogPanel: React.FC<DecisionLogPanelProps> = ({
   isLive,
   onSeekToDecision
 }) => {
+  const { t } = useAgentMeshI18n()
   const merged = useMemo<LogEntry[]>(() => {
     const decisionEntries: LogEntry[] = decisions.map(d => ({
       key: `decision:${d.id}`,
@@ -108,21 +110,24 @@ export const DecisionLogPanel: React.FC<DecisionLogPanelProps> = ({
   const tokens = summary.costSummary?.tokens_used ?? 0
   const cost = summary.costSummary?.estimated_cost_usd ?? 0
 
-  const stats: string[] = []
-  stats.push(`${formatDurationStat(summary.durationMs)} runtime`)
-  if (tokens > 0) stats.push(`${formatTokens(tokens)} tokens`)
-  if (cost > 0) stats.push(`$${cost.toFixed(2)} cost`)
-  stats.push(`${decisions.length} decisions`)
+  const stats = useMemo(() => {
+    const items: string[] = []
+    items.push(t('agent-mesh-decision-stat-runtime', { duration: formatDurationStat(summary.durationMs) }))
+    if (tokens > 0) items.push(t('agent-mesh-decision-stat-tokens', { tokens: formatTokens(tokens) }))
+    if (cost > 0) items.push(t('agent-mesh-decision-stat-cost', { cost: cost.toFixed(2) }))
+    items.push(t('agent-mesh-decision-stat-count', { count: decisions.length }))
+    return items
+  }, [cost, decisions.length, summary.durationMs, t, tokens])
 
   return (
     <aside
       className="gba:flex gba:h-full gba:w-full gba:flex-col gba:rounded-[1.5rem] gba:border gba:border-border/60 gba:bg-card gba:overflow-hidden"
       data-testid="decision-log-panel"
-      aria-label="Decision simulation"
+      aria-label={t('agent-mesh-decision-aria')}
     >
       <header className="gba:border-b gba:border-border/40 gba:px-5 gba:py-4">
         <p className="gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-[0.12em] gba:text-muted-foreground">
-          Decision simulation
+          {t('agent-mesh-decision-heading')}
         </p>
         <h2
           className="gba:mt-1 gba:text-[15px] gba:font-semibold gba:text-foreground gba:line-clamp-2"
@@ -131,8 +136,10 @@ export const DecisionLogPanel: React.FC<DecisionLogPanelProps> = ({
           {title}
         </h2>
         <p className="gba:mt-1 gba:text-[12px] gba:text-muted-foreground">
-          Replay how the answer was assembled · {summary.subagentCount} agent{summary.subagentCount === 1 ? '' : 's'} ·{' '}
-          {summary.toolCallCount} tool call{summary.toolCallCount === 1 ? '' : 's'}
+          {t('agent-mesh-decision-replay-summary', {
+            agents: summary.subagentCount,
+            tools: summary.toolCallCount
+          })}
         </p>
         <p className="gba:mt-2 gba:text-[12px] gba:font-medium gba:text-foreground/80" data-testid="decision-log-stats">
           {stats.join(' · ')}
@@ -142,7 +149,7 @@ export const DecisionLogPanel: React.FC<DecisionLogPanelProps> = ({
       <div ref={containerRef} className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:overscroll-contain">
         {merged.length === 0 ? (
           <p className="gba:px-5 gba:py-8 gba:text-center gba:text-xs gba:text-muted-foreground">
-            No decisions or events yet.
+            {t('agent-mesh-decision-empty')}
           </p>
         ) : (
           <ol className="gba:py-1">
@@ -185,7 +192,9 @@ export const DecisionLogPanel: React.FC<DecisionLogPanelProps> = ({
                           )}
                           {entry.decision.confidence !== undefined && (
                             <span className="gba:text-[10px] gba:text-muted-foreground/80">
-                              conf {Math.round(entry.decision.confidence * 100)}%
+                              {t('agent-mesh-decision-conf', {
+                                percent: Math.round(entry.decision.confidence * 100)
+                              })}
                             </span>
                           )}
                         </div>

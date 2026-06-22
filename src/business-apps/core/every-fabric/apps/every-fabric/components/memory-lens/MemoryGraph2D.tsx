@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { BrainIcon } from '@phosphor-icons/react'
 import { useMemoryGraph } from './useMemoryGraph'
 import { useGraphTokens } from './useGraphTokens'
 import { useForceGraph } from './useForceGraph'
 import { MemoryGraphControls } from './MemoryGraphControls'
+import translations from '../../_i18n'
 
 interface MemoryGraph2DProps {
   accessToken: string
@@ -12,6 +14,7 @@ interface MemoryGraph2DProps {
 const linkEndId = (end: string | { id: string }): string => (typeof end === 'string' ? end : end.id)
 
 export const MemoryGraph2D: React.FC<MemoryGraph2DProps> = ({ accessToken }) => {
+  const { t } = useTranslation(translations)
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -141,18 +144,15 @@ export const MemoryGraph2D: React.FC<MemoryGraph2DProps> = ({ accessToken }) => 
       {overviewLoading && (
         <div className="gba:absolute gba:inset-0 gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-3 gba:text-muted-foreground">
           <BrainIcon className="gba:h-8 gba:w-8 gba:animate-pulse" />
-          <p className="gba:text-sm">Mapping your memory…</p>
+          <p className="gba:text-sm">{t('memory-lens-graph-loading')}</p>
         </div>
       )}
 
       {!overviewLoading && nodes.length === 0 && (
         <div className="gba:absolute gba:inset-0 gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-2 gba:px-6 gba:text-center">
           <BrainIcon className="gba:h-8 gba:w-8 gba:text-muted-foreground/60" />
-          <p className="gba:text-sm gba:font-medium gba:text-foreground">Nothing to map yet</p>
-          <p className="gba:max-w-sm gba:text-xs gba:text-muted-foreground">
-            As the agent learns topics and people across sessions, they appear here as a connected mind map you can
-            search and explore.
-          </p>
+          <p className="gba:text-sm gba:font-medium gba:text-foreground">{t('memory-lens-graph-empty-title')}</p>
+          <p className="gba:max-w-sm gba:text-xs gba:text-muted-foreground">{t('memory-lens-graph-empty-desc')}</p>
         </div>
       )}
 
@@ -167,7 +167,7 @@ export const MemoryGraph2D: React.FC<MemoryGraph2DProps> = ({ accessToken }) => 
 
       {hoverId && (
         <span className="gba:pointer-events-none gba:absolute gba:right-3 gba:bottom-3 gba:rounded-full gba:bg-card/80 gba:px-2 gba:py-0.5 gba:text-[10px] gba:text-muted-foreground/70 gba:backdrop-blur">
-          click to explore
+          {t('memory-lens-graph-click-explore')}
         </span>
       )}
     </div>

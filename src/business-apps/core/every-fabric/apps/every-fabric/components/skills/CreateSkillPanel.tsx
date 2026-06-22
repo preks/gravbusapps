@@ -1,5 +1,7 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { CaretRight, File as FileIcon, UploadSimple, Wrench, X } from '@phosphor-icons/react'
+import translations from '../../_i18n'
 import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
 import { addToolToSkillDraft } from '../renderers/skillDraftUtils'
 import { AddToolsModal } from './AddToolsModal'
@@ -15,6 +17,7 @@ export interface CreateSkillPanelProps {
 }
 
 export const CreateSkillPanel: React.FC<CreateSkillPanelProps> = ({ accessToken, onClose, onCreated, showToast }) => {
+  const { t } = useTranslation(translations)
   const client = useEnterpriseAgentClient(accessToken)
   const [skillName, setSkillName] = useState('')
   const [description, setDescription] = useState('')
@@ -97,12 +100,12 @@ export const CreateSkillPanel: React.FC<CreateSkillPanelProps> = ({ accessToken,
   return (
     <div className="gba:h-full gba:flex gba:flex-col" data-testid="create-skill-panel">
       <div className="gba:shrink-0 gba:flex gba:items-center gba:justify-between gba:gap-3 gba:px-4 sm:gba:px-6 gba:py-4 gba:border-b gba:border-border/50">
-        <h2 className="gba:text-sm gba:font-semibold gba:text-foreground">Create new skill</h2>
+        <h2 className="gba:text-sm gba:font-semibold gba:text-foreground">{t('skills-create-title')}</h2>
         <button
           type="button"
           className="gba:inline-flex gba:p-1 gba:rounded gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted"
           onClick={onClose}
-          aria-label="Cancel creation"
+          aria-label={t('skills-create-cancel-aria')}
         >
           <X className="gba:h-4 gba:w-4" />
         </button>
@@ -121,18 +124,18 @@ export const CreateSkillPanel: React.FC<CreateSkillPanelProps> = ({ accessToken,
           {tipsExpanded && (
             <div className="gba:px-3 gba:pb-3 gba:text-[11px] gba:text-muted-foreground gba:leading-relaxed gba:space-y-1.5">
               <p>
-                <strong>Skill name</strong> must be kebab-case (lowercase, hyphens only).
+                <strong>{t('skills-create-name')}</strong> must be kebab-case (lowercase, hyphens only).
               </p>
               <p>
-                <strong>Description</strong> should include what it does AND when to use it:
+                <strong>{t('skills-create-description')}</strong> should include what it does AND when to use it:
               </p>
               <p className="gba:pl-2 gba:italic">
                 &quot;Generates weekly status reports. Use when the user asks to summarize progress, write a standup
                 update, or create a weekly recap.&quot;
               </p>
               <p>
-                <strong>Instructions</strong> should include step-by-step guidance, expected output format, and examples
-                in Markdown.
+                <strong>{t('skills-create-instructions')}</strong> should include step-by-step guidance, expected output
+                format, and examples in Markdown.
               </p>
             </div>
           )}
@@ -140,7 +143,7 @@ export const CreateSkillPanel: React.FC<CreateSkillPanelProps> = ({ accessToken,
 
         <div>
           <label htmlFor="create-skill-name" className="gba:block gba:text-xs gba:font-medium gba:mb-1.5">
-            Skill name
+            {t('skills-create-name')}
           </label>
           <input
             id="create-skill-name"
@@ -153,14 +156,14 @@ export const CreateSkillPanel: React.FC<CreateSkillPanelProps> = ({ accessToken,
           />
           {slug && (
             <p className="gba:text-[11px] gba:text-muted-foreground gba:mt-1">
-              Will be saved as: <code className="gba:font-mono gba:text-[11px]">{slug}</code>
+              {t('skills-create-will-save-as')}: <code className="gba:font-mono gba:text-[11px]">{slug}</code>
             </p>
           )}
         </div>
 
         <div>
           <label htmlFor="create-skill-description" className="gba:block gba:text-xs gba:font-medium gba:mb-1.5">
-            Description
+            {t('skills-create-description')}
           </label>
           <textarea
             id="create-skill-description"
@@ -175,7 +178,7 @@ export const CreateSkillPanel: React.FC<CreateSkillPanelProps> = ({ accessToken,
 
         <div>
           <label htmlFor="create-skill-instructions" className="gba:block gba:text-xs gba:font-medium gba:mb-1.5">
-            Instructions
+            {t('skills-create-instructions')}
           </label>
           <textarea
             id="create-skill-instructions"
@@ -190,7 +193,7 @@ export const CreateSkillPanel: React.FC<CreateSkillPanelProps> = ({ accessToken,
 
         <div>
           <label className="gba:block gba:text-xs gba:font-medium gba:mb-1.5">
-            Tools
+            {t('skills-create-tools')}
             {selectedTools.length > 0 && (
               <span className="gba:ml-1.5 gba:text-muted-foreground gba:font-normal">({selectedTools.length})</span>
             )}
@@ -202,7 +205,7 @@ export const CreateSkillPanel: React.FC<CreateSkillPanelProps> = ({ accessToken,
             data-testid="create-skill-add-tool"
           >
             <Wrench className="gba:h-3.5 gba:w-3.5" />
-            Add Tool to Skill
+            {t('skills-create-add-tool')}
             {selectedTools.length > 0 && (
               <span className="gba:rounded-full gba:bg-primary/15 gba:px-1.5 gba:text-[10px] gba:font-semibold gba:text-primary">
                 {selectedTools.length}
@@ -232,7 +235,7 @@ export const CreateSkillPanel: React.FC<CreateSkillPanelProps> = ({ accessToken,
         </div>
 
         <div>
-          <label className="gba:block gba:text-xs gba:font-medium gba:mb-1.5">Attach files to Skill (optional)</label>
+          <label className="gba:block gba:text-xs gba:font-medium gba:mb-1.5">{t('skills-create-attach-files')}</label>
           <input
             ref={fileRef}
             type="file"
@@ -255,7 +258,7 @@ export const CreateSkillPanel: React.FC<CreateSkillPanelProps> = ({ accessToken,
             className="gba:w-full gba:rounded-lg gba:border gba:border-dashed gba:border-border gba:bg-muted/20 gba:px-3 gba:py-3 gba:text-xs gba:text-muted-foreground gba:hover:bg-muted/40 gba:transition-colors gba:flex gba:items-center gba:justify-center gba:gap-2"
           >
             <UploadSimple className="gba:h-3.5 gba:w-3.5" />
-            Add files (scripts, references, assets)
+            {t('skills-create-attach-files')}
           </button>
           {pendingFiles.length > 0 && (
             <div className="gba:mt-2 gba:space-y-1.5">
@@ -305,7 +308,7 @@ export const CreateSkillPanel: React.FC<CreateSkillPanelProps> = ({ accessToken,
           className="gba:px-3 gba:py-1.5 gba:rounded-md gba:border gba:border-border gba:text-xs gba:text-muted-foreground gba:hover:bg-muted gba:transition-colors"
           onClick={onClose}
         >
-          Cancel
+          {t('skills-create-cancel')}
         </button>
         <button
           type="button"
@@ -314,7 +317,7 @@ export const CreateSkillPanel: React.FC<CreateSkillPanelProps> = ({ accessToken,
           onClick={() => void handleSubmit()}
           data-testid="create-skill-submit"
         >
-          {saving ? 'Creating…' : 'Create'}
+          {saving ? t('skills-create-creating') : t('skills-create-submit')}
         </button>
       </div>
 

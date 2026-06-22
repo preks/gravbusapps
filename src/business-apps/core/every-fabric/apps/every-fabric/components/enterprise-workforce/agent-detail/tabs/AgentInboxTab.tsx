@@ -7,9 +7,11 @@
 
 import { ArrowsClockwiseIcon, EnvelopeIcon, MagnifyingGlassIcon } from '@phosphor-icons/react'
 import React, { useMemo, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { useWorkforceAgentRuns } from '../../useWorkforceAgentRuns'
 import type { WorkforceRun, WorkforceRunListParams } from '../../workforceTypes'
 import { formatTimestamp, runCredits, statusVisualForRun, shortenInput } from '../../runDisplay'
+import translations from '../../../../_i18n'
 
 export interface AgentInboxTabProps {
   accessToken: string
@@ -29,6 +31,7 @@ function readTriggerPayloadField(run: WorkforceRun, field: string): string {
 }
 
 export const AgentInboxTab: React.FC<AgentInboxTabProps> = ({ accessToken, agentId, onOpenRun }) => {
+  const { t } = useTranslation(translations)
   const [q, setQ] = useState('')
   const [page, setPage] = useState(0)
 
@@ -66,7 +69,7 @@ export const AgentInboxTab: React.FC<AgentInboxTabProps> = ({ accessToken, agent
                 setPage(0)
                 setQ(event.target.value)
               }}
-              placeholder="Search subject or sender…"
+              placeholder={t('inbox-search-placeholder')}
               className="gba:h-8 gba:w-full gba:rounded-md gba:border gba:border-border gba:bg-background gba:pl-8 gba:pr-3 gba:text-xs gba:text-foreground"
               data-testid="workforce-inbox-search"
             />
@@ -79,7 +82,7 @@ export const AgentInboxTab: React.FC<AgentInboxTabProps> = ({ accessToken, agent
           data-testid="workforce-inbox-refresh"
         >
           <ArrowsClockwiseIcon className="gba:h-3.5 gba:w-3.5" />
-          Refresh
+          {t('runs-refresh')}
         </button>
       </header>
 
@@ -93,27 +96,25 @@ export const AgentInboxTab: React.FC<AgentInboxTabProps> = ({ accessToken, agent
       )}
 
       {isLoading && runs.length === 0 ? (
-        <p className="gba:py-6 gba:text-center gba:text-xs gba:text-muted-foreground">Loading inbox…</p>
+        <p className="gba:py-6 gba:text-center gba:text-xs gba:text-muted-foreground">{t('inbox-loading')}</p>
       ) : runs.length === 0 ? (
         <div
           className="gba:flex gba:flex-col gba:items-center gba:gap-2 gba:py-8 gba:text-center gba:text-xs gba:text-muted-foreground"
           data-testid="workforce-inbox-empty"
         >
           <EnvelopeIcon className="gba:h-5 gba:w-5" />
-          <p>No inbound emails for this agent yet.</p>
-          <p className="gba:max-w-sm">
-            Wire an inbound-email trigger and forward mail to that mailbox to start the queue.
-          </p>
+          <p>{t('inbox-empty-title')}</p>
+          <p className="gba:max-w-sm">{t('inbox-empty-desc')}</p>
         </div>
       ) : (
         <table className="gba:min-w-full gba:text-left gba:text-xs">
           <thead className="gba:text-[10px] gba:font-medium gba:uppercase gba:text-muted-foreground">
             <tr>
-              <th className="gba:px-2 gba:py-2">From</th>
-              <th className="gba:px-2 gba:py-2">Subject</th>
-              <th className="gba:px-2 gba:py-2">Received</th>
-              <th className="gba:px-2 gba:py-2">Status</th>
-              <th className="gba:px-2 gba:py-2">Credits</th>
+              <th className="gba:px-2 gba:py-2">{t('inbox-col-from')}</th>
+              <th className="gba:px-2 gba:py-2">{t('inbox-col-subject')}</th>
+              <th className="gba:px-2 gba:py-2">{t('inbox-col-received')}</th>
+              <th className="gba:px-2 gba:py-2">{t('inbox-col-status')}</th>
+              <th className="gba:px-2 gba:py-2">{t('inbox-col-credits')}</th>
             </tr>
           </thead>
           <tbody className="gba:divide-y gba:divide-border/60">
@@ -133,7 +134,7 @@ export const AgentInboxTab: React.FC<AgentInboxTabProps> = ({ accessToken, agent
                   }}
                   tabIndex={0}
                   role="button"
-                  aria-label={`Open run details for ${subject}`}
+                  aria-label={t('inbox-open-run-aria', { subject })}
                   className="gba:cursor-pointer gba:transition-colors gba:hover:bg-muted/50 gba:focus:bg-muted/50 gba:focus:outline-none"
                   data-testid="workforce-inbox-row"
                 >
@@ -159,9 +160,7 @@ export const AgentInboxTab: React.FC<AgentInboxTabProps> = ({ accessToken, agent
 
       {total > PAGE_SIZE && (
         <footer className="gba:flex gba:items-center gba:justify-between gba:pt-2 gba:text-[11px] gba:text-muted-foreground">
-          <span>
-            Page {page + 1} of {totalPages} · {total} total
-          </span>
+          <span>{t('runs-page', { page: page + 1, totalPages, total })}</span>
           <div className="gba:flex gba:gap-1">
             <button
               type="button"
@@ -170,7 +169,7 @@ export const AgentInboxTab: React.FC<AgentInboxTabProps> = ({ accessToken, agent
               className="gba:rounded-md gba:border gba:border-border gba:bg-background gba:px-2 gba:py-1 gba:disabled:opacity-50"
               data-testid="workforce-inbox-prev-page"
             >
-              Prev
+              {t('runs-prev')}
             </button>
             <button
               type="button"
@@ -179,7 +178,7 @@ export const AgentInboxTab: React.FC<AgentInboxTabProps> = ({ accessToken, agent
               className="gba:rounded-md gba:border gba:border-border gba:bg-background gba:px-2 gba:py-1 gba:disabled:opacity-50"
               data-testid="workforce-inbox-next-page"
             >
-              Next
+              {t('runs-next')}
             </button>
           </div>
         </footer>

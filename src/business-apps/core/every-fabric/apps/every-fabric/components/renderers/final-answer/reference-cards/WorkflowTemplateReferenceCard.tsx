@@ -4,15 +4,8 @@ import { getEntityUrl } from '@/business-apps/platform/apps/every-ai/components/
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { IconTile, tileGlyph } from './IconTile'
 import { useFlowTemplateReference } from './hooks/flowReferenceHooks'
-import {
-  countChip,
-  dataStr,
-  getField,
-  getNum,
-  getStr,
-  relativeOrShortDate,
-  type ReferenceCardProps
-} from './referenceCardUtils'
+import { dataStr, getField, getNum, getStr, type ReferenceCardProps } from './referenceCardUtils'
+import { useReferenceCardI18n } from './useReferenceCardI18n'
 
 const TEMPLATE_GLYPH = tileGlyph('M6 3h9l3 3v15H6V3zm3 7h6M9 14h6M9 18h3')
 
@@ -21,6 +14,7 @@ const TEMPLATE_GLYPH = tileGlyph('M6 3h9l3 3v15H6V3zm3 7h6M9 14h6M9 18h3')
  * step count and version — what you need to decide whether to launch it.
  */
 export const WorkflowTemplateReferenceCard: React.FC<ReferenceCardProps> = ({ reference, accessToken }) => {
+  const { field, countChip, relativeOrShortDate, versionLabel, t } = useReferenceCardI18n()
   const { data, loading } = useFlowTemplateReference(reference.id, accessToken)
 
   const url = getEntityUrl(reference.type, reference.id, reference.href)
@@ -53,15 +47,15 @@ export const WorkflowTemplateReferenceCard: React.FC<ReferenceCardProps> = ({ re
 
   const fields: Array<{ label: string; value: string }> = []
   const stepsLabel = countChip(stepCount, 'step')
-  if (stepsLabel) fields.push({ label: 'Steps', value: stepsLabel })
-  if (version !== undefined) fields.push({ label: 'Version', value: `v${version}` })
-  if (updated) fields.push({ label: 'Updated', value: updated })
+  if (stepsLabel) fields.push({ label: field('steps'), value: stepsLabel })
+  if (version !== undefined) fields.push({ label: field('version'), value: versionLabel(version) })
+  if (updated) fields.push({ label: field('updated'), value: updated })
 
   return (
     <EntityCard
       title={title}
-      subtitle="Workflow template"
-      status={isDraft ? 'Draft' : undefined}
+      subtitle={t('renderer-ref-type-workflow-template')}
+      status={isDraft ? t('renderer-ref-status-draft') : undefined}
       description={description}
       icon={icon}
       fields={fields.length ? fields : undefined}

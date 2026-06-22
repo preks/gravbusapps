@@ -1,5 +1,5 @@
 import React from 'react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import {
   ArrowSquareOutIcon,
   ArticleIcon,
@@ -39,6 +39,7 @@ import {
   SystemPromptConfigPanel
 } from './agentConfigViewParts'
 import { WorkforceTabEmptyState } from './WorkforceTabEmptyState'
+import translations from '../../_i18n'
 
 type AgentConfigTab = 'profile' | 'capabilities' | 'deployment' | 'passport' | 'activation'
 
@@ -106,6 +107,7 @@ export interface AgentConfigActiveTabProps {
 }
 
 export function AgentConfigActiveTab(props: AgentConfigActiveTabProps): React.ReactNode {
+  const { t } = useTranslation(translations)
   const {
     activeTab,
     agent,
@@ -172,11 +174,9 @@ export function AgentConfigActiveTab(props: AgentConfigActiveTabProps): React.Re
           <section data-testid="agent-config-details">
             <h2 className="gba:flex gba:items-center gba:gap-2 gba:text-base gba:font-semibold gba:text-foreground gba:mb-1">
               <TagIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-              Profile
+              {t('agents-config-tab-profile')}
             </h2>
-            <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">
-              Name, description, and specialty are how this agent gets discovered and chosen for a task.
-            </p>
+            <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">{t('agents-description-required')}</p>
 
             <div
               className="gba:mb-4 gba:flex gba:items-center gba:gap-4 gba:rounded-xl gba:border gba:border-border gba:bg-muted/20 gba:p-4"
@@ -188,7 +188,9 @@ export function AgentConfigActiveTab(props: AgentConfigActiveTabProps): React.Re
                 className="gba:h-20 gba:w-20"
               />
               <div className="gba:min-w-0 gba:flex-1">
-                <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">Agent avatar</h3>
+                <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">
+                  {t('agents-avatar-alt', { label: 'Agent' })}
+                </h3>
                 <p className="gba:mt-1 gba:text-xs gba:leading-relaxed gba:text-muted-foreground">
                   Generate a polished ID-style avatar from this agent&apos;s name, role, specialty, and instructions.
                 </p>
@@ -241,7 +243,7 @@ export function AgentConfigActiveTab(props: AgentConfigActiveTabProps): React.Re
                     htmlFor="details-name"
                     className="gba:block gba:text-sm gba:font-medium gba:text-foreground gba:mb-1"
                   >
-                    Name
+                    {t('agents-create-field-name')}
                   </label>
                   <input
                     id="details-name"
@@ -259,11 +261,10 @@ export function AgentConfigActiveTab(props: AgentConfigActiveTabProps): React.Re
                     htmlFor="details-description"
                     className="gba:block gba:text-sm gba:font-medium gba:text-foreground gba:mb-1"
                   >
-                    Description
+                    {t('agents-create-field-description')}
                   </label>
                   <p className="gba:mb-1.5 gba:text-[11px] gba:text-muted-foreground">
-                    The single biggest factor in whether this agent gets picked. Describe what it does using the words
-                    people will actually type.
+                    {t('agents-create-description-helper')}
                   </p>
                   <textarea
                     id="details-description"
@@ -276,7 +277,8 @@ export function AgentConfigActiveTab(props: AgentConfigActiveTabProps): React.Re
                   />
                   <DescriptionSignals signals={descriptionSignals} />
                   <p className="gba:mt-1.5 gba:text-[11px] gba:text-muted-foreground">
-                    Example: <span className="gba:italic">{DESCRIPTION_EXAMPLE}</span>
+                    {t('agents-create-description-example-label')}:{' '}
+                    <span className="gba:italic">{DESCRIPTION_EXAMPLE}</span>
                   </p>
                 </div>
 
@@ -285,7 +287,7 @@ export function AgentConfigActiveTab(props: AgentConfigActiveTabProps): React.Re
                     htmlFor="details-tags"
                     className="gba:block gba:text-sm gba:font-medium gba:text-foreground gba:mb-1"
                   >
-                    Tags
+                    {t('settings-skill-studio-field-tags')}
                   </label>
                   <input
                     id="details-tags"
@@ -293,7 +295,7 @@ export function AgentConfigActiveTab(props: AgentConfigActiveTabProps): React.Re
                     value={detailsTags}
                     onChange={e => setDetailsTags(e.target.value)}
                     className="gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring"
-                    placeholder="Comma-separated, e.g. support, tickets, internal-ops"
+                    placeholder={t('agents-tags-placeholder')}
                     data-testid="details-tags-input"
                   />
                 </div>
@@ -303,7 +305,7 @@ export function AgentConfigActiveTab(props: AgentConfigActiveTabProps): React.Re
                     htmlFor="details-specialty"
                     className="gba:block gba:text-sm gba:font-medium gba:text-foreground gba:mb-1"
                   >
-                    Specialty
+                    {t('agents-create-field-specialty')}
                   </label>
                   <input
                     id="details-specialty"
@@ -327,7 +329,7 @@ export function AgentConfigActiveTab(props: AgentConfigActiveTabProps): React.Re
                     <SaveButtonContent
                       saving={detailsSaving}
                       saved={detailsSaved && !detailsDirty}
-                      label="Save Changes"
+                      label={t('agents-skill-save-changes')}
                     />
                   </Button>
                 </div>
@@ -347,11 +349,10 @@ export function AgentConfigActiveTab(props: AgentConfigActiveTabProps): React.Re
           <section data-testid="agent-config-system-prompt">
             <h2 className="gba:flex gba:items-center gba:gap-2 gba:text-base gba:font-semibold gba:text-foreground gba:mb-1">
               <ArticleIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-              System Prompt
+              {t('agents-create-field-instructions')} {t('agents-create-field-instructions-system')}
             </h2>
             <p className="gba:text-sm gba:text-muted-foreground gba:mb-3">
-              Define the agent&apos;s identity, capabilities, and hard constraints (MUST / NEVER). This is the single
-              biggest driver of how the agent behaves.
+              {t('agents-config-error-system-prompt-short', { min: 0 })}
             </p>
             <SystemPromptConfigPanel
               detailsLoading={detailsLoading}
@@ -374,7 +375,7 @@ export function AgentConfigActiveTab(props: AgentConfigActiveTabProps): React.Re
           <section data-testid="agent-config-skills">
             <h2 className="gba:flex gba:items-center gba:gap-2 gba:text-base gba:font-semibold gba:text-foreground gba:mb-4">
               <LightbulbIcon className="gba:h-4 gba:w-4 gba:text-amber-600" />
-              Skills
+              {t('skills-label')}
             </h2>
 
             {skillsError && <ConfigFormError message={skillsError} />}
@@ -387,7 +388,7 @@ export function AgentConfigActiveTab(props: AgentConfigActiveTabProps): React.Re
               <>
                 {/* Assigned skills */}
                 {assignedSkills.length === 0 ? (
-                  <p className="gba:text-sm gba:text-muted-foreground gba:py-4">No skills assigned.</p>
+                  <p className="gba:text-sm gba:text-muted-foreground gba:py-4">{t('agents-card-no-skills')}</p>
                 ) : (
                   <div className="gba:space-y-2">
                     {assignedSkills.map(skill => (
@@ -426,12 +427,14 @@ export function AgentConfigActiveTab(props: AgentConfigActiveTabProps): React.Re
                     data-testid="config-skill-add-button"
                   >
                     <PlusIcon className="gba:h-4 gba:w-4" />
-                    Add Skill
+                    {t('agents-skill-picker-title')}
                   </button>
                 ) : (
                   <div className="gba:mt-3 gba:rounded-lg gba:border gba:border-border gba:p-3">
                     <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
-                      <span className="gba:text-xs gba:font-medium gba:text-muted-foreground">Available skills</span>
+                      <span className="gba:text-xs gba:font-medium gba:text-muted-foreground">
+                        {t('agents-skill-picker-title')}
+                      </span>
                       <button
                         type="button"
                         onClick={() => {
@@ -441,7 +444,7 @@ export function AgentConfigActiveTab(props: AgentConfigActiveTabProps): React.Re
                         className="gba:text-xs gba:font-medium gba:text-primary gba:hover:text-primary/80"
                         data-testid="config-skill-picker-done"
                       >
-                        Done
+                        {t('agents-confirm-label')}
                       </button>
                     </div>
                     <div className="gba:relative gba:mb-2">
@@ -450,14 +453,16 @@ export function AgentConfigActiveTab(props: AgentConfigActiveTabProps): React.Re
                         type="text"
                         value={skillSearchQuery}
                         onChange={e => setSkillSearchQuery(e.target.value)}
-                        placeholder="Search skills…"
+                        placeholder={t('agents-skill-search-placeholder')}
                         className="gba:w-full gba:rounded-md gba:border gba:border-border gba:bg-background gba:pl-8 gba:pr-2.5 gba:py-1.5 gba:text-sm gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring placeholder:gba:text-muted-foreground/50"
                         data-testid="config-skill-search"
                       />
                     </div>
                     {unassignedSkills.length === 0 ? (
                       <p className="gba:text-xs gba:text-muted-foreground gba:py-2">
-                        {skillSearchQuery.trim() ? 'No matching skills found.' : 'All skills are already assigned.'}
+                        {skillSearchQuery.trim()
+                          ? t('agents-skill-search-empty-query')
+                          : t('agents-skill-search-all-assigned')}
                       </p>
                     ) : (
                       <div className="gba:space-y-1.5">
@@ -507,13 +512,13 @@ export function AgentConfigActiveTab(props: AgentConfigActiveTabProps): React.Re
               group="passport"
               config={workforceConfig}
               data-testid="agent-config-passport"
-              emptyLabel="No Passport configuration available."
+              emptyLabel={t('agents-passport-empty-label')}
             />
           ) : (
             <WorkforceTabEmptyState
               icon={IdentificationCardIcon}
-              title="Not a Worker yet"
-              description="Activate this agent as a Worker to give it a role, an owner, and governance."
+              title={t('agents-passport-empty-title')}
+              description={t('agents-passport-empty-desc')}
               data-testid="agent-config-passport-empty"
               gotoTestId="agent-config-passport-goto-activation"
               onGoToDeployment={() => setActiveTab('deployment')}
@@ -551,17 +556,15 @@ export function AgentConfigActiveTab(props: AgentConfigActiveTabProps): React.Re
                 group="activation"
                 config={workforceConfig}
                 data-testid="agent-config-activation"
-                emptyLabel="No runtime configuration available."
+                emptyLabel={t('agents-activation-empty-label')}
               />
               <div
                 className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:rounded-lg gba:border gba:border-border gba:bg-card gba:p-3"
                 data-testid="agent-config-activity-linkout"
               >
                 <div className="gba:min-w-0">
-                  <p className="gba:text-sm gba:font-medium gba:text-foreground">Live activity</p>
-                  <p className="gba:text-xs gba:text-muted-foreground">
-                    Cases, runs, and traces for this Worker live in Digital Workforce.
-                  </p>
+                  <p className="gba:text-sm gba:font-medium gba:text-foreground">{t('live-activity-title')}</p>
+                  <p className="gba:text-xs gba:text-muted-foreground">{t('agent-config-runs-live-in-workforce')}</p>
                 </div>
                 <Button
                   variant="outline"
@@ -571,7 +574,7 @@ export function AgentConfigActiveTab(props: AgentConfigActiveTabProps): React.Re
                   data-testid="agent-config-view-activity"
                 >
                   <ArrowSquareOutIcon className="gba:mr-1.5 gba:h-3.5 gba:w-3.5" />
-                  View live activity in Digital Workforce
+                  {t('agent-config-view-activity-in-workforce')}
                 </Button>
               </div>
             </>
@@ -579,8 +582,8 @@ export function AgentConfigActiveTab(props: AgentConfigActiveTabProps): React.Re
           {!workforceConfigEnabled && (
             <WorkforceTabEmptyState
               icon={LightningIcon}
-              title="No Worker runtime yet"
-              description="Activate this agent as a Worker in Deployment before configuring autonomy, triggers, and live activity."
+              title={t('agents-activation-empty-title')}
+              description={t('agents-activation-empty-desc')}
               data-testid="agent-config-activation-empty"
               gotoTestId="agent-config-activation-goto-deployment"
               onGoToDeployment={() => setActiveTab('deployment')}

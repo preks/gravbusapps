@@ -18,21 +18,6 @@ interface DriveListItemActionsProps {
   testId: string
 }
 
-function isSpreadsheetDriveItem(item: Pick<DriveItem, 'type' | 'mimeType' | 'name'>): boolean {
-  if (item.type === 'spreadsheet_app') return true
-
-  const mime = (item.mimeType ?? '').toLowerCase()
-  const name = (item.name ?? '').toLowerCase()
-
-  return (
-    mime.includes('spreadsheet') ||
-    mime.includes('excel') ||
-    mime === 'text/csv' ||
-    /\.xlsx?$/i.test(name) ||
-    name.endsWith('.csv')
-  )
-}
-
 export const DriveListItemActions: React.FC<DriveListItemActionsProps> = ({
   item,
   isTrash,
@@ -47,8 +32,6 @@ export const DriveListItemActions: React.FC<DriveListItemActionsProps> = ({
   t,
   testId
 }) => {
-  const isSpreadsheet = isSpreadsheetDriveItem(item)
-
   return (
     <div className="gba:flex gba:items-center gba:gap-1 gba:justify-end gba:w-48">
       {!isTrash && (
@@ -91,19 +74,14 @@ export const DriveListItemActions: React.FC<DriveListItemActionsProps> = ({
       )}
       {!isTrash && onShareItem && (
         <button
-          disabled={isSpreadsheet}
           onClick={e => {
             e.stopPropagation()
-            if (!isSpreadsheet) onShareItem(item)
+            onShareItem(item)
           }}
-          className={`gba:p-1 gba:rounded gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity ${
-            isSpreadsheet ? 'gba:cursor-not-allowed' : 'gba:hover:bg-accent'
-          }`}
+          className="gba:p-1 gba:rounded gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:hover:bg-accent"
           data-testid={`${testId}-share-${item.id}`}
         >
-          <Share2
-            className={`gba:w-4 gba:h-4 ${isSpreadsheet ? 'gba:text-muted-foreground/40' : 'gba:text-muted-foreground'}`}
-          />
+          <Share2 className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
         </button>
       )}
       {isTrash && onRestoreItem && (

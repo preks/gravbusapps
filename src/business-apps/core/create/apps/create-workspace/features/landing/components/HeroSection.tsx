@@ -70,7 +70,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
                     animation: 'gradient-shift 4s ease infinite'
                   }}
                 >
-                  CREATE
+                  {t('hero-logo-title')}
                 </span>
               </h1>
             </div>
@@ -83,7 +83,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
             data-testid={`${testId}-badge`}
           >
             <Sparkles className="gba:h-4 gba:w-4" />
-            <span>AI-Powered Creation Suite</span>
+            <span>{t('hero-badge')}</span>
           </div>
 
           {/* Main headline */}
@@ -92,7 +92,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
             style={{ animation: 'fadeInUp 0.6s ease-out 0.15s both' }}
             data-testid={`${testId}-headline`}
           >
-            Build anything. <span className="gba:text-muted-foreground">Ship everything.</span>
+            {t('hero-headline-primary')}{' '}
+            <span className="gba:text-muted-foreground">{t('hero-headline-secondary')}</span>
           </h2>
 
           {/* Subtitle */}

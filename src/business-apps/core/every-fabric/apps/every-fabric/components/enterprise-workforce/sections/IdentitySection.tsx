@@ -6,10 +6,12 @@
 
 import React, { useEffect, useState } from 'react'
 import { IdentificationCardIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { WorkforceAgent, WorkforceAgentUpdateInput } from '../workforceTypes'
 import { RoleOwnershipFields } from './RoleOwnershipFields'
 import { roleOwnershipDirty, roleOwnershipFromAgent, roleOwnershipToPatch } from './roleOwnershipForm'
 import { SectionShell } from './SectionShell'
+import translations from '../../../_i18n'
 
 interface IdentitySectionProps {
   agent: WorkforceAgent
@@ -42,6 +44,7 @@ function isDirty(form: FormState, baseline: FormState): boolean {
 }
 
 export const IdentitySection: React.FC<IdentitySectionProps> = ({ agent, isSaving, onSave }) => {
+  const { t } = useTranslation(translations)
   const baseline = fromAgent(agent)
   const [form, setForm] = useState<FormState>(baseline)
 
@@ -62,9 +65,9 @@ export const IdentitySection: React.FC<IdentitySectionProps> = ({ agent, isSavin
   return (
     <SectionShell
       id="identity"
-      title="Identity"
+      title={t('identity-section-title')}
       icon={IdentificationCardIcon}
-      description="How this Worker is identified across its deployments."
+      description={t('identity-section-desc')}
       isDirty={dirty}
       isSaving={isSaving}
       onSave={() => void handleSave()}
@@ -76,7 +79,7 @@ export const IdentitySection: React.FC<IdentitySectionProps> = ({ agent, isSavin
             htmlFor="ws-identity-name"
             className="gba:mb-1 gba:block gba:text-xs gba:font-semibold gba:text-muted-foreground"
           >
-            Identifier (read-only)
+            {t('identity-identifier-label')}
           </label>
           <input
             id="ws-identity-name"
@@ -92,7 +95,7 @@ export const IdentitySection: React.FC<IdentitySectionProps> = ({ agent, isSavin
             htmlFor="ws-identity-display"
             className="gba:mb-1 gba:block gba:text-xs gba:font-semibold gba:text-foreground"
           >
-            Display name
+            {t('identity-display-name-label')}
           </label>
           <input
             id="ws-identity-display"
@@ -119,7 +122,7 @@ export const IdentitySection: React.FC<IdentitySectionProps> = ({ agent, isSavin
             htmlFor="ws-identity-description"
             className="gba:mb-1 gba:block gba:text-xs gba:font-semibold gba:text-foreground"
           >
-            Description
+            {t('identity-description-label')}
           </label>
           <textarea
             id="ws-identity-description"

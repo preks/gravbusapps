@@ -5,6 +5,7 @@ import { MeshBreadcrumbs } from './MeshBreadcrumbs'
 import { MeshFullscreenToggle } from './MeshFullscreenToggle'
 import { MeshScopeSwitch } from './MeshScopeSwitch'
 import type { MeshScope } from './meshScopes'
+import { useAgentMeshI18n } from './useAgentMeshI18n'
 
 interface MeshFloatingControlsProps {
   scope: MeshScope
@@ -24,13 +25,6 @@ interface MeshFloatingControlsProps {
  * Floating glass-style control bar shown above the canvas in fullscreen mode.
  * Hosts: back button (when applicable), breadcrumbs, scope switch, fullscreen toggle.
  */
-const SCOPE_LABEL: Record<MeshScope, string> = {
-  company: 'Company',
-  user: 'User',
-  me: 'My Sessions',
-  session: 'Session'
-}
-
 export const MeshFloatingControls: React.FC<MeshFloatingControlsProps> = ({
   scope,
   onScopeChange,
@@ -44,6 +38,7 @@ export const MeshFloatingControls: React.FC<MeshFloatingControlsProps> = ({
   userNameMap,
   sessionTitleMap
 }) => {
+  const { t, scopeLabel } = useAgentMeshI18n()
   const hasBreadcrumbs = breadcrumbs.length > 1
 
   return (
@@ -56,8 +51,8 @@ export const MeshFloatingControls: React.FC<MeshFloatingControlsProps> = ({
           <button
             type="button"
             onClick={onBack}
-            aria-label="Back to previous view"
-            title="Back (Backspace)"
+            aria-label={t('agent-mesh-back-previous-view')}
+            title={t('agent-mesh-back-shortcut')}
             className="gba:inline-flex gba:h-8 gba:w-8 gba:items-center gba:justify-center gba:rounded-lg gba:text-foreground gba:hover:bg-muted/60 gba:transition-colors gba:shrink-0"
             data-testid="mesh-floating-back"
           >
@@ -74,7 +69,7 @@ export const MeshFloatingControls: React.FC<MeshFloatingControlsProps> = ({
             variant="floating"
           />
         ) : (
-          <span className="gba:text-[12px] gba:font-semibold gba:text-foreground gba:px-1.5">{SCOPE_LABEL[scope]}</span>
+          <span className="gba:text-[12px] gba:font-semibold gba:text-foreground gba:px-1.5">{scopeLabel(scope)}</span>
         )}
 
         <div className="gba:h-4 gba:w-px gba:bg-border/60 gba:mx-0.5" />

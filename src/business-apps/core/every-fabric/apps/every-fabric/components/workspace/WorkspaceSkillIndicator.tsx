@@ -1,3 +1,6 @@
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../../_i18n'
+
 export interface ActiveSkillInfo {
   skill_id: string
   name: string
@@ -15,7 +18,18 @@ interface WorkspaceSkillIndicatorProps {
 }
 
 export const WorkspaceSkillIndicator: React.FC<WorkspaceSkillIndicatorProps> = ({ skill }) => {
+  const { t } = useTranslation(translations)
+
   if (!skill) return null
+
+  let versionTitle: string | undefined
+  if (skill.version != null) {
+    if (skill.current_version != null && skill.version !== skill.current_version) {
+      versionTitle = t('workspace-skill-version-draft', { version: skill.version, draft: skill.current_version })
+    } else {
+      versionTitle = t('workspace-skill-version-loaded', { version: skill.version })
+    }
+  }
 
   return (
     <div
@@ -30,11 +44,7 @@ export const WorkspaceSkillIndicator: React.FC<WorkspaceSkillIndicatorProps> = (
           <span
             className="gba:shrink-0 gba:rounded gba:bg-muted/60 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:text-muted-foreground"
             data-testid="fabric-workspace-skill-version"
-            title={
-              skill.current_version != null && skill.version !== skill.current_version
-                ? `Loaded v${skill.version} (draft is v${skill.current_version})`
-                : `Loaded v${skill.version}`
-            }
+            title={versionTitle}
           >
             v{skill.version}
           </span>
@@ -43,9 +53,9 @@ export const WorkspaceSkillIndicator: React.FC<WorkspaceSkillIndicatorProps> = (
       {skill.was_auto_detected && (
         <span
           className="gba:inline-flex gba:items-center gba:gap-0.5 gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-muted/60 gba:text-[10px] gba:text-muted-foreground"
-          title="Automatically detected based on your task"
+          title={t('workspace-skill-auto-tooltip')}
         >
-          auto
+          {t('workspace-skill-auto')}
         </span>
       )}
     </div>

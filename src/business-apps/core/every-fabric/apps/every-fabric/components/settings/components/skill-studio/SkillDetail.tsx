@@ -1,9 +1,10 @@
 import { useCallback } from 'react'
 import { PencilIcon, TrashIcon } from '@phosphor-icons/react'
-import { Button } from '@newwork/nw-design-system'
-import type { AdminSkill } from '../../../types/enterpriseAgent'
+import { Button, useTranslation } from '@newwork/nw-design-system'
+import type { AdminSkill } from '../../../../types/enterpriseAgent'
 import { SkillFiles } from './SkillFiles'
 import { SkillTools } from './SkillTools'
+import translations from '../../../../_i18n'
 
 interface SkillDetailProps {
   skill: AdminSkill
@@ -30,12 +31,13 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({
   onRemoveTool,
   uploading
 }) => {
+  const { t } = useTranslation(translations)
   const handleEdit = useCallback(() => onEdit(skill), [onEdit, skill])
   const handleDelete = useCallback(() => {
-    if (window.confirm(`Delete skill "${skill.name}"?`)) {
+    if (window.confirm(t('settings-skill-studio-delete-confirm', { name: skill.name }))) {
       onDelete(skill.skill_id)
     }
-  }, [onDelete, skill])
+  }, [onDelete, skill, t])
 
   return (
     <div className="gba:space-y-6">
@@ -48,10 +50,14 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({
                 skill.is_active ? 'gba:bg-green-100 gba:text-green-800' : 'gba:bg-gray-100 gba:text-gray-800'
               }`}
             >
-              {skill.is_active ? 'Active' : 'Inactive'}
+              {skill.is_active ? t('settings-skill-studio-active') : t('settings-skill-studio-inactive')}
             </span>
           </div>
-          {skill.category && <p className="gba:text-xs gba:text-muted-foreground">Category: {skill.category}</p>}
+          {skill.category && (
+            <p className="gba:text-xs gba:text-muted-foreground">
+              {t('settings-skill-studio-category-label', { category: skill.category })}
+            </p>
+          )}
         </div>
         {canEdit && (
           <div className="gba:flex gba:gap-2">
@@ -66,7 +72,9 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({
       </div>
 
       <div className="gba:space-y-1">
-        <p className="gba:text-sm gba:font-medium gba:text-foreground">Description</p>
+        <p className="gba:text-sm gba:font-medium gba:text-foreground">
+          {t('settings-skill-studio-label-description')}
+        </p>
         <p className="gba:text-sm gba:text-muted-foreground">{skill.description}</p>
       </div>
 
@@ -85,26 +93,26 @@ export const SkillDetail: React.FC<SkillDetailProps> = ({
 
       <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:text-sm">
         <div>
-          <span className="gba:text-muted-foreground">Version:</span>{' '}
+          <span className="gba:text-muted-foreground">{t('settings-skill-studio-label-version')}</span>{' '}
           <span className="gba:font-medium">{skill.version}</span>
         </div>
         <div>
-          <span className="gba:text-muted-foreground">Status:</span>{' '}
+          <span className="gba:text-muted-foreground">{t('settings-skill-studio-label-status')}</span>{' '}
           <span className="gba:font-medium">{skill.status}</span>
         </div>
         <div>
-          <span className="gba:text-muted-foreground">Created by:</span>{' '}
+          <span className="gba:text-muted-foreground">{t('settings-skill-studio-label-created-by')}</span>{' '}
           <span className="gba:font-medium">{skill.created_by}</span>
         </div>
         <div>
-          <span className="gba:text-muted-foreground">Updated by:</span>{' '}
+          <span className="gba:text-muted-foreground">{t('settings-skill-studio-label-updated-by')}</span>{' '}
           <span className="gba:font-medium">{skill.updated_by}</span>
         </div>
       </div>
 
       {skill.content && (
         <div className="gba:space-y-1">
-          <p className="gba:text-sm gba:font-medium gba:text-foreground">Content</p>
+          <p className="gba:text-sm gba:font-medium gba:text-foreground">{t('settings-skill-studio-label-content')}</p>
           <pre className="gba:max-h-64 gba:overflow-auto gba:rounded-md gba:bg-gray-50 gba:p-3 gba:text-xs">
             {skill.content}
           </pre>

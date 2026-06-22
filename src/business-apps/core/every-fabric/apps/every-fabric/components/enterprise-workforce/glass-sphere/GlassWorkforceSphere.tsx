@@ -6,7 +6,9 @@
 // few seconds for visual life.
 
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { GlassCardScene } from '../../glass-card-sphere/GlassCardScene'
+import translations from '../../../_i18n'
 import { detectWebGL, usePrefersReducedMotion } from '../../glass-card-sphere/glassCardEnv'
 import type { GlassCardModel } from '../../glass-card-sphere/glassCardModel'
 import type { WorkforceAgentSummary } from '../useWorkforceData'
@@ -77,6 +79,7 @@ function useCardJitter(ids: string[], enabled: boolean): Record<string, Workforc
 }
 
 export const GlassWorkforceSphere: React.FC<GlassWorkforceSphereProps> = ({ summaries, isAgentWorking }) => {
+  const { t } = useTranslation(translations)
   const reducedMotion = usePrefersReducedMotion()
   const supportsWebGL = useMemo(() => detectWebGL(), [])
 
@@ -101,22 +104,27 @@ export const GlassWorkforceSphere: React.FC<GlassWorkforceSphereProps> = ({ summ
           subtitle: jittered.subtitle,
           initials: jittered.initials,
           value: String(jittered.basePrice),
-          valueUnit: 'credits / month',
+          valueUnit: t('glass-sphere-credits-unit'),
           status: jittered.status
         }
       }),
-    [baseModels, jitter]
+    [baseModels, jitter, t]
   )
 
   const kpis = useMemo(() => buildValueKpis(summaries), [summaries])
+
+  const headingValue =
+    summaries.length === 1
+      ? t('glass-sphere-value-one', { count: summaries.length })
+      : t('glass-sphere-value-other', { count: summaries.length })
 
   return (
     <GlassCardScene
       cards={cards}
       kpis={kpis}
       heading={{
-        label: 'Active workforce',
-        value: `${summaries.length} agent${summaries.length === 1 ? '' : 's'} online`
+        label: t('glass-sphere-heading'),
+        value: headingValue
       }}
       testId="glass-workforce-sphere"
     />

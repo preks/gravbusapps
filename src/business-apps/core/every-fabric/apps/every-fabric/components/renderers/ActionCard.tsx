@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState, type FC } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import {
   ArrowSquareOutIcon,
   CaretDownIcon,
@@ -18,6 +19,7 @@ import {
   type ActionCardStatusVariant
 } from '../../utils/actionCardTrace'
 import { useLiveFlowStatus } from '../../hooks/useLiveFlowStatus'
+import translations from '../../_i18n'
 
 interface ActionCardProps {
   payload: ActionCardPayload
@@ -74,6 +76,7 @@ const StatusBadge: FC<{ status: ActionCardStatus }> = ({ status }) => (
  * `payload.card.icon` / `entity.type` / `primaryAction.href`.
  */
 export const ActionCard: FC<ActionCardProps> = ({ payload, callId, accessToken }) => {
+  const { t } = useTranslation(translations)
   const isFlow = payload.card.entity?.type === 'service_workflow'
   const status = useLiveFlowStatus({
     workflowId: isFlow ? payload.card.entity?.id : null,
@@ -121,7 +124,7 @@ export const ActionCard: FC<ActionCardProps> = ({ payload, callId, accessToken }
                   onClick={handleOpen}
                   className="gba:inline-flex gba:items-center gba:gap-1 gba:rounded-md gba:border gba:border-border gba:bg-background gba:px-2 gba:py-1 gba:text-[12px] gba:font-medium gba:text-foreground gba:hover:bg-muted/40 gba:transition-colors"
                 >
-                  <span>{card.primaryAction.label || 'Open'}</span>
+                  <span>{card.primaryAction.label || t('renderer-action-open')}</span>
                   <ArrowSquareOutIcon className="gba:h-3.5 gba:w-3.5" />
                 </button>
               )}
@@ -142,14 +145,14 @@ export const ActionCard: FC<ActionCardProps> = ({ payload, callId, accessToken }
                 onClick={() => setRefsOpen(v => !v)}
                 className="gba:inline-flex gba:items-center gba:gap-1 gba:text-[11px] gba:text-muted-foreground gba:hover:text-foreground"
                 aria-expanded={refsOpen}
-                title="Show technical references"
+                title={t('renderer-action-show-tech-refs')}
               >
                 {refsOpen ? (
                   <CaretDownIcon className="gba:h-3 gba:w-3" />
                 ) : (
                   <CaretRightIcon className="gba:h-3 gba:w-3" />
                 )}
-                <span>Details</span>
+                <span>{t('renderer-action-details')}</span>
               </button>
             )}
           </div>

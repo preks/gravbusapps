@@ -1,8 +1,10 @@
 import React, { useCallback, useRef, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { ArrowSquareOutIcon, ImageIcon } from '@phosphor-icons/react'
 import { useEnterpriseAgentClient } from '../../../hooks/useEnterpriseAgentClient'
 import { AutoHeightHtmlIframe } from '../../artifacts/AutoHeightHtmlIframe'
 import { downloadHtmlArtifactPng } from '../../artifacts/htmlArtifactPngCapture'
+import translations from '../../../_i18n'
 import { buildArtifactDownloadUrl } from './artifactUrls'
 import type { FinalAnswerArtifact } from './types'
 
@@ -12,6 +14,7 @@ export const HtmlArtifactPreviewCard: React.FC<{
   accessToken?: string
   onViewArtifact?: (artifactName: string) => void
 }> = ({ artifact, sessionId, accessToken, onViewArtifact }) => {
+  const { t } = useTranslation(translations)
   const artifactPath = artifact.path || artifact.name
   const downloadUrl = buildArtifactDownloadUrl(sessionId, artifactPath)
   const iframeRef = useRef<HTMLIFrameElement>(null)
@@ -64,7 +67,7 @@ export const HtmlArtifactPreviewCard: React.FC<{
             type="button"
             onClick={handleDownloadPng}
             disabled={isCapturingPng}
-            title={isCapturingPng ? 'Saving PNG…' : 'Download as PNG'}
+            title={isCapturingPng ? t('renderer-artifact-saving-png') : t('renderer-artifact-download-png')}
             className="gba:inline-flex gba:items-center gba:justify-center gba:w-7 gba:h-7 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors gba:cursor-pointer gba:border-0 gba:bg-transparent gba:disabled:opacity-50"
           >
             <ImageIcon className="gba:h-3.5 gba:w-3.5" />
@@ -72,7 +75,7 @@ export const HtmlArtifactPreviewCard: React.FC<{
           <button
             type="button"
             onClick={handleOpenNewTab}
-            title="Open in new tab"
+            title={t('renderer-artifact-open-new-tab')}
             className="gba:inline-flex gba:items-center gba:justify-center gba:w-7 gba:h-7 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors gba:cursor-pointer gba:border-0 gba:bg-transparent"
           >
             <ArrowSquareOutIcon className="gba:h-3.5 gba:w-3.5" />
@@ -80,10 +83,10 @@ export const HtmlArtifactPreviewCard: React.FC<{
           <button
             type="button"
             onClick={() => onViewArtifact?.(artifact.path || artifact.name)}
-            title="Open full view"
+            title={t('renderer-artifact-open-full')}
             className="gba:text-xs gba:font-medium gba:text-primary gba:hover:text-primary/80 gba:transition-colors gba:cursor-pointer gba:ml-1 gba:border-0 gba:bg-transparent"
           >
-            Open
+            {t('renderer-artifact-open')}
           </button>
         </div>
       </div>

@@ -1,4 +1,10 @@
-import { formatValueLabel, parseChartConfig, sumSeries, unwrapProviderChartPayload } from '../chartRenderers'
+import {
+  CHART_OTHER_CATEGORY_LABEL,
+  formatValueLabel,
+  parseChartConfig,
+  sumSeries,
+  unwrapProviderChartPayload
+} from '../chartRenderers'
 
 describe('unwrapProviderChartPayload', () => {
   it('unwraps provider team distribution shape', () => {
@@ -50,7 +56,7 @@ describe('parseChartConfig', () => {
       categoryLimit: 10,
       displayData: [
         { name: 'Very long category 20', value: 20 },
-        { name: 'Other', value: 190 }
+        { name: CHART_OTHER_CATEGORY_LABEL, value: 190 }
       ]
     })
 
@@ -62,7 +68,7 @@ describe('parseChartConfig', () => {
     expect(cfg?.categoryLimit).toBe(10)
     expect(cfg?.displayData).toEqual([
       { name: 'Very long category 20', value: 20 },
-      { name: 'Other', value: 190 }
+      { name: CHART_OTHER_CATEGORY_LABEL, value: 190 }
     ])
     expect(cfg?.data).toHaveLength(20)
   })

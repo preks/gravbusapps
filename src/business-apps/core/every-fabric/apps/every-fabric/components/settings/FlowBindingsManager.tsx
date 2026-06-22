@@ -7,13 +7,22 @@
 
 import React, { useCallback, useEffect, useState } from 'react'
 import { CaretRight, ArrowCounterClockwise, Trash, PlusCircle } from '@phosphor-icons/react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import type {
   PromptManagerClient,
   FlowBindingEntry,
   RelatedToolRef
 } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import { ToolCompanions } from '../skills/ToolCompanions'
+import translations from '../../_i18n'
+
+const NECESSITIES: RelatedToolRef['necessity'][] = ['required', 'recommended', 'conditional']
+
+const NECESSITY_LABEL_KEYS: Record<RelatedToolRef['necessity'], string> = {
+  required: 'settings-necessity-required',
+  recommended: 'settings-necessity-recommended',
+  conditional: 'settings-necessity-conditional'
+}
 
 interface FlowBindingsManagerProps {
   client: PromptManagerClient
@@ -21,10 +30,6 @@ interface FlowBindingsManagerProps {
   resolveLabel: (toolRef: string) => string | undefined
 }
 
-const NECESSITIES: RelatedToolRef['necessity'][] = ['required', 'recommended', 'conditional']
-
-// The fixed companion read-tools an override can attach. Catalog vs entity is
-// inferred from the ref so the relation field stays correct.
 const ADDABLE_COMPANIONS = [
   'flowbot.get_possible_values_for_catalog_ref',
   'flowbot.run_internal_search',
@@ -35,6 +40,7 @@ const relationFor = (ref: string): RelatedToolRef['relation'] =>
   ref.includes('catalog') ? 'catalog_lookup' : 'entity_lookup'
 
 export const FlowBindingsManager: React.FC<FlowBindingsManagerProps> = ({ client, onOpenTool, resolveLabel }) => {
+  const { t } = useTranslation(translations)
   const [open, setOpen] = useState(false)
   const [entries, setEntries] = useState<FlowBindingEntry[]>([])
   const [loading, setLoading] = useState(false)
@@ -49,11 +55,11 @@ export const FlowBindingsManager: React.FC<FlowBindingsManagerProps> = ({ client
     try {
       setEntries(await client.getFlowBindings())
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load flow bindings')
+      setError(err instanceof Error ? err.message : t('settings-flow-bindings-error-load'))
     } finally {
       setLoading(false)
     }
-  }, [client])
+  }, [client, t])
 
   useEffect(() => {
     if (open && entries.length === 0) {
@@ -74,7 +80,7 @@ export const FlowBindingsManager: React.FC<FlowBindingsManagerProps> = ({ client
       setEntries(prev => prev.map(e => (e.flow_name === flow ? updated : e)))
       setEditing(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : `Failed to save bindings for ${flow}`)
+      setError(err instanceof Error ? err.message : t('settings-flow-bindings-error-save', { flow }))
     } finally {
       setSaving(false)
     }
@@ -89,20 +95,18 @@ export const FlowBindingsManager: React.FC<FlowBindingsManagerProps> = ({ client
         data-testid="flow-bindings-toggle"
       >
         <CaretRight className={`gba:h-3.5 gba:w-3.5 gba:transition-transform ${open ? 'gba:rotate-90' : ''}`} />
-        Flow companion bindings
+        {t('settings-flow-bindings-title')}
       </button>
 
       {open && (
         <div className="gba:space-y-2">
-          <p className="gba:text-[11px] gba:text-muted-foreground">
-            Which lookup tools each write flow needs first. Edits here override the schema-derived base for everyone.
-          </p>
+          <p className="gba:text-[11px] gba:text-muted-foreground">{t('settings-flow-bindings-desc')}</p>
           {error && (
             <div className="gba:rounded-lg gba:border gba:border-destructive/40 gba:bg-destructive/10 gba:px-3 gba:py-2 gba:text-xs gba:text-destructive">
               {error}
             </div>
           )}
-          {loading && <p className="gba:text-xs gba:text-muted-foreground">Loading…</p>}
+          {loading && <p className="gba:text-xs gba:text-muted-foreground">{t('settings-action-loading')}</p>}
           {!loading &&
             entries.map(entry => (
               <div
@@ -115,11 +119,15 @@ export const FlowBindingsManager: React.FC<FlowBindingsManagerProps> = ({ client
                     <span className="gba:text-sm gba:font-semibold gba:truncate">{entry.flow_name}</span>
                     {entry.source && (
                       <span className="gba:rounded-full gba:bg-primary/10 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-primary">
-                        {entry.source === 'persisted' ? 'edited' : 'code override'}
+                        {entry.source === 'persisted'
+                          ? t('settings-flow-bindings-source-edited')
+                          : t('settings-flow-bindings-source-override')}
                       </span>
                     )}
                     {entry.effective.length === 0 && (
-                      <span className="gba:text-[11px] gba:text-muted-foreground">self-contained</span>
+                      <span className="gba:text-[11px] gba:text-muted-foreground">
+                        {t('settings-flow-bindings-self-contained')}
+                      </span>
                     )}
                   </span>
                   {editing !== entry.flow_name && (
@@ -129,7 +137,7 @@ export const FlowBindingsManager: React.FC<FlowBindingsManagerProps> = ({ client
                       onClick={() => beginEdit(entry)}
                       data-testid={`flow-binding-edit-${entry.flow_name}`}
                     >
-                      Edit
+                      {t('settings-action-edit')}
                     </Button>
                   )}
                 </div>
@@ -190,6 +198,7 @@ const FlowBindingEditor: React.FC<FlowBindingEditorProps> = ({
   onClear,
   resolveLabel
 }) => {
+  const { t } = useTranslation(translations)
   const addable = ADDABLE_COMPANIONS.filter(ref => !draft.some(r => r.tool_ref === ref))
 
   const setNecessity = (ref: string, necessity: RelatedToolRef['necessity']) =>
@@ -209,7 +218,7 @@ const FlowBindingEditor: React.FC<FlowBindingEditorProps> = ({
       data-testid="flow-binding-editor"
     >
       {draft.length === 0 && (
-        <p className="gba:text-[11px] gba:text-muted-foreground">No companions. Add one or save as self-contained.</p>
+        <p className="gba:text-[11px] gba:text-muted-foreground">{t('settings-flow-bindings-no-companions')}</p>
       )}
       {draft.map(row => (
         <div key={row.tool_ref} className="gba:flex gba:items-center gba:gap-2">
@@ -224,7 +233,7 @@ const FlowBindingEditor: React.FC<FlowBindingEditorProps> = ({
           >
             {NECESSITIES.map(n => (
               <option key={n} value={n}>
-                {n}
+                {t(NECESSITY_LABEL_KEYS[n])}
               </option>
             ))}
           </select>
@@ -233,7 +242,7 @@ const FlowBindingEditor: React.FC<FlowBindingEditorProps> = ({
             className="gba:text-muted-foreground gba:hover:text-destructive"
             onClick={() => remove(row.tool_ref)}
             data-testid={`flow-binding-remove-${row.tool_ref}`}
-            title="Remove companion"
+            title={t('settings-flow-bindings-remove-aria')}
           >
             <Trash className="gba:h-3.5 gba:w-3.5" />
           </button>
@@ -259,10 +268,10 @@ const FlowBindingEditor: React.FC<FlowBindingEditorProps> = ({
 
       <div className="gba:flex gba:items-center gba:gap-2 gba:pt-1">
         <Button size="sm" disabled={saving} onClick={onSave} data-testid="flow-binding-save">
-          {saving ? 'Saving…' : 'Save'}
+          {saving ? t('settings-skill-studio-saving') : t('action-save')}
         </Button>
         <Button variant="ghost" size="sm" disabled={saving} onClick={onCancel} data-testid="flow-binding-cancel">
-          Cancel
+          {t('action-cancel')}
         </Button>
         <Button
           variant="ghost"
@@ -272,10 +281,10 @@ const FlowBindingEditor: React.FC<FlowBindingEditorProps> = ({
           data-testid="flow-binding-reset"
         >
           <ArrowCounterClockwise className="gba:h-3.5 gba:w-3.5 gba:mr-1" />
-          Reset to generated
+          {t('settings-flow-bindings-reset')}
         </Button>
         <Button variant="ghost" size="sm" disabled={saving} onClick={onClear} data-testid="flow-binding-clear">
-          Clear all
+          {t('settings-flow-bindings-clear')}
         </Button>
       </div>
     </div>

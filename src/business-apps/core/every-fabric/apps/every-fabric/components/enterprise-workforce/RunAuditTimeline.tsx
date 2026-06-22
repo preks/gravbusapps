@@ -6,8 +6,10 @@
 // interrupts. Collapsed by default to keep the drawer focused on the trace.
 
 import { CaretRightIcon, ShieldCheckIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import React, { useCallback, useEffect, useState } from 'react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
+import translations from '../../_i18n'
 import type { WorkforceAuditEntry } from './workforceTypes'
 import { formatTimestamp } from './runDisplay'
 
@@ -32,6 +34,7 @@ function humanizeEvent(eventType: string): string {
 }
 
 export const RunAuditTimeline: React.FC<RunAuditTimelineProps> = ({ sessionId, accessToken }) => {
+  const { t } = useTranslation(translations)
   const client = usePromptManagerClient(accessToken)
   const [open, setOpen] = useState(false)
   const [entries, setEntries] = useState<WorkforceAuditEntry[] | null>(null)
@@ -47,9 +50,9 @@ export const RunAuditTimeline: React.FC<RunAuditTimelineProps> = ({ sessionId, a
         setEntries(page.data)
         setError(null)
       })
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Failed to load audit trail.'))
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : t('audit-trail-load-fail')))
       .finally(() => setLoading(false))
-  }, [client, sessionId, accessToken])
+  }, [client, sessionId, accessToken, t])
 
   useEffect(() => {
     if (open && entries === null && !loading) load()
@@ -66,15 +69,15 @@ export const RunAuditTimeline: React.FC<RunAuditTimelineProps> = ({ sessionId, a
       >
         <CaretRightIcon className={`gba:h-3.5 gba:w-3.5 gba:transition-transform ${open ? 'gba:rotate-90' : ''}`} />
         <ShieldCheckIcon className="gba:h-3.5 gba:w-3.5" />
-        Audit trail
+        {t('audit-trail-title')}
       </button>
 
       {open && (
         <div className="gba:mt-2">
-          {loading && <p className="gba:text-[11px] gba:text-muted-foreground">Loading audit trail…</p>}
+          {loading && <p className="gba:text-[11px] gba:text-muted-foreground">{t('audit-trail-loading')}</p>}
           {error && <p className="gba:text-[11px] gba:text-destructive">{error}</p>}
           {!loading && !error && entries && entries.length === 0 && (
-            <p className="gba:text-[11px] gba:text-muted-foreground">No audit entries recorded for this run.</p>
+            <p className="gba:text-[11px] gba:text-muted-foreground">{t('audit-trail-empty')}</p>
           )}
           {!loading && entries && entries.length > 0 && (
             <ol className="gba:space-y-1.5" data-testid="workforce-run-audit-list">
@@ -96,7 +99,7 @@ export const RunAuditTimeline: React.FC<RunAuditTimelineProps> = ({ sessionId, a
                     <p className="gba:mt-0.5 gba:text-[11px] gba:text-muted-foreground">{entry.outcome}</p>
                   )}
                   <p className="gba:mt-0.5 gba:text-[10px] gba:text-muted-foreground/80">
-                    by {entry.user_id || 'system'}
+                    {t('audit-trail-by', { actor: entry.user_id || t('audit-trail-system') })}
                   </p>
                 </li>
               ))}

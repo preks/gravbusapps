@@ -1,7 +1,8 @@
-import { Button, Input, Label } from '@newwork/nw-design-system'
+import { Button, Input, Label, useTranslation } from '@newwork/nw-design-system'
 import { CheckCircleIcon, StorefrontIcon, XIcon } from '@phosphor-icons/react'
 import React, { useState } from 'react'
 import type { MarketplacePackageSummary } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import translations from '../../../_i18n'
 import type { PublishAgentOptions } from './useAgentMarketplace'
 
 interface PublishAgentDialogProps {
@@ -23,6 +24,7 @@ export const PublishAgentDialog: React.FC<PublishAgentDialogProps> = ({
   onClose,
   onPublish
 }) => {
+  const { t } = useTranslation(translations)
   const [targetBaseUrl, setTargetBaseUrl] = useState('')
   const [targetToken, setTargetToken] = useState('')
   const [packageId, setPackageId] = useState('')
@@ -71,10 +73,9 @@ export const PublishAgentDialog: React.FC<PublishAgentDialogProps> = ({
               <StorefrontIcon className="gba:h-5 gba:w-5" weight="duotone" />
             </div>
             <div>
-              <h2 className="gba:text-base gba:font-semibold gba:text-foreground">Publish to tenant</h2>
+              <h2 className="gba:text-base gba:font-semibold gba:text-foreground">{t('detail-publish-marketplace')}</h2>
               <p className="gba:text-xs gba:text-muted-foreground">
-                List <span className="gba:font-medium gba:text-foreground">{agentName}</span> in a customer marketplace.
-                They can hire it after you publish.
+                {t('marketplace-publish-agent-description', { agentName })}
               </p>
             </div>
           </div>
@@ -83,7 +84,7 @@ export const PublishAgentDialog: React.FC<PublishAgentDialogProps> = ({
             onClick={handleClose}
             disabled={isBusy}
             className="gba:inline-flex gba:h-8 gba:w-8 gba:items-center gba:justify-center gba:rounded-lg gba:text-muted-foreground gba:hover:bg-muted/60"
-            aria-label="Close"
+            aria-label={t('action-close')}
           >
             <XIcon className="gba:h-4 gba:w-4" />
           </button>
@@ -94,16 +95,22 @@ export const PublishAgentDialog: React.FC<PublishAgentDialogProps> = ({
             <div className="gba:flex gba:items-start gba:gap-2 gba:rounded-xl gba:border gba:border-border gba:p-3">
               <CheckCircleIcon className="gba:mt-0.5 gba:h-4 gba:w-4 gba:text-emerald-600" weight="fill" />
               <div>
-                <p className="gba:text-sm gba:font-medium gba:text-foreground">{successPackage.name} published</p>
+                <p className="gba:text-sm gba:font-medium gba:text-foreground">
+                  {t('marketplace-publish-agent-success', { name: successPackage.name })}
+                </p>
                 <p className="gba:text-xs gba:text-muted-foreground">
-                  Available on {targetLabel} · package id {successPackage.package_id} · {successPackage.skill_count}{' '}
-                  skills · {successPackage.tool_count} tools
+                  {t('marketplace-publish-agent-success-meta', {
+                    target: targetLabel,
+                    packageId: successPackage.package_id,
+                    skillCount: successPackage.skill_count,
+                    toolCount: successPackage.tool_count
+                  })}
                 </p>
               </div>
             </div>
             <div className="gba:flex gba:justify-end">
               <Button onClick={handleClose} data-testid="publish-agent-done">
-                Done
+                {t('marketplace-done')}
               </Button>
             </div>
           </div>
@@ -112,53 +119,53 @@ export const PublishAgentDialog: React.FC<PublishAgentDialogProps> = ({
             <div className="gba:flex gba:flex-col gba:gap-4 gba:px-5 gba:py-4">
               <input type="hidden" value={agentId} data-testid="publish-agent-id" readOnly />
               <div className="gba:flex gba:flex-col gba:gap-1.5">
-                <Label htmlFor="publish-target-base-url">Target tenant URL</Label>
+                <Label htmlFor="publish-target-base-url">{t('marketplace-target-tenant-url')}</Label>
                 <Input
                   id="publish-target-base-url"
                   value={targetBaseUrl}
                   onChange={event => setTargetBaseUrl(event.target.value)}
-                  placeholder="https://customer.example.com/prompt-manager"
+                  placeholder={t('marketplace-target-url-placeholder')}
                   data-testid="publish-agent-target-url"
                 />
               </div>
               <div className="gba:flex gba:flex-col gba:gap-1.5">
-                <Label htmlFor="publish-target-token">Target bearer token</Label>
+                <Label htmlFor="publish-target-token">{t('marketplace-target-bearer-token')}</Label>
                 <Input
                   id="publish-target-token"
                   type="password"
                   value={targetToken}
                   onChange={event => setTargetToken(event.target.value)}
-                  placeholder="Paste tenant access token"
+                  placeholder={t('marketplace-target-token-placeholder')}
                   data-testid="publish-agent-target-token"
                 />
               </div>
               <div className="gba:flex gba:flex-col gba:gap-1.5">
-                <Label htmlFor="publish-package-id">Package id (optional)</Label>
+                <Label htmlFor="publish-package-id">{t('marketplace-package-id-optional')}</Label>
                 <Input
                   id="publish-package-id"
                   value={packageId}
                   onChange={event => setPackageId(event.target.value)}
-                  placeholder="Auto-generated from agent name"
+                  placeholder={t('marketplace-package-id-placeholder')}
                   data-testid="publish-agent-package-id"
                 />
               </div>
               <div className="gba:flex gba:flex-col gba:gap-1.5">
-                <Label htmlFor="publish-category">Category</Label>
+                <Label htmlFor="publish-category">{t('marketplace-category-label')}</Label>
                 <Input
                   id="publish-category"
                   value={category}
                   onChange={event => setCategory(event.target.value)}
-                  placeholder="general"
+                  placeholder={t('marketplace-category-placeholder')}
                   data-testid="publish-agent-category"
                 />
               </div>
               <div className="gba:flex gba:flex-col gba:gap-1.5">
-                <Label htmlFor="publish-publisher">Publisher</Label>
+                <Label htmlFor="publish-publisher">{t('marketplace-publisher-label')}</Label>
                 <Input
                   id="publish-publisher"
                   value={publisher}
                   onChange={event => setPublisher(event.target.value)}
-                  placeholder="newwork"
+                  placeholder={t('marketplace-publisher-placeholder')}
                   data-testid="publish-agent-publisher"
                 />
               </div>
@@ -167,10 +174,10 @@ export const PublishAgentDialog: React.FC<PublishAgentDialogProps> = ({
 
             <div className="gba:flex gba:justify-end gba:gap-2 gba:border-t gba:border-border/60 gba:px-5 gba:py-3">
               <Button variant="outline" onClick={handleClose} disabled={isBusy} data-testid="publish-agent-cancel">
-                Cancel
+                {t('action-cancel')}
               </Button>
               <Button onClick={() => void handlePublish()} disabled={!canSubmit} data-testid="publish-agent-submit">
-                {isBusy ? 'Publishing…' : 'Publish to tenant'}
+                {isBusy ? t('marketplace-publishing') : t('detail-publish-marketplace')}
               </Button>
             </div>
           </>

@@ -38,11 +38,11 @@ policy_counter_flows = Fluxuri conectate: { $count }
 
 policy_action_send_ack = Trimite pentru confirmare
 policy_action_send_approval = Trimite pentru aprobare
-policy_action_create_expert = Creează Expert Task din politică
+policy_action_create_expert = Creează { -platform-ai-agent-product.label } din politică
 policy_action_generate_flow = Generează flux din politică
 policy_action_send_ack_short = Trimite confirmare
 policy_action_send_approval_short = Trimite pentru aprobare
-policy_action_create_expert_short = Creaza Expert Task
+policy_action_create_expert_short = Creare { -platform-ai-agent-product.label }
 policy_action_generate_flow_short = Genereaza flux
 policy_action_ask_everyai = Întreabă EveryAI
 
@@ -158,7 +158,7 @@ policy_experts_empty = Încă nu există experți conectați. Creează unul pent
 
 # Create expert dialog
 cancel = Anulare
-policy_create_expert_dialog_title = Creează expert de sarcini
+policy_create_expert_dialog_title = Creare { -platform-ai-agent-product.label }
 policy_create_expert_name_label = Nume
 policy_create_expert_desc_label = Descriere
 policy_create_expert_instructions_label = Instrucțiuni personalizate (opțional)
@@ -243,7 +243,7 @@ policy_activate_success = Politica activata cu succes
 policy_activate_error = Nu s-a putut activa politica
 
 policy_execution_workflows_section = Aprobari si confirmari
-policy_kpi_expert_executions = Executii experti
+policy_kpi_expert_executions = { -platform-ai-agent-product.label } Rulari
 policy_kpi_flow_executions = Flow Runs
 policy_execution_workflows_desc = Fluxuri de aprobare si confirmare asociate acestei politici.
 policy_workflows_count = { $count } { $count ->

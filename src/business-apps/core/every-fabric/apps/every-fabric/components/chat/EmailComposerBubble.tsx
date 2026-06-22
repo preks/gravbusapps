@@ -11,7 +11,7 @@ import {
   UserCircleIcon,
   XIcon
 } from '@phosphor-icons/react'
-import { Input } from '@newwork/nw-design-system'
+import { Input, useTranslation } from '@newwork/nw-design-system'
 import type {
   ComposeEmailAction,
   ComposeEmailAttachmentRef,
@@ -27,6 +27,7 @@ import {
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 import { BusinessAppContext } from '@/common/BusinessAppContext'
 import type { ComposeEmailOutcomePayload } from '../../utils/composeEmailTrace'
+import translations from '../../_i18n'
 
 interface EmailAccountOption {
   id: string
@@ -82,17 +83,17 @@ const htmlToPlainText = (html: string): string => {
     .trim()
 }
 
-const TRACE_STATUS_LABELS: Record<string, string> = {
-  sent: 'Email sent',
-  drafted: 'Saved as draft',
-  cancelled: 'Cancelled',
-  error: 'Send failed'
+const TRACE_STATUS_KEYS: Record<string, string> = {
+  sent: 'chat-email-status-sent',
+  drafted: 'chat-email-status-drafted',
+  cancelled: 'chat-email-status-cancelled',
+  error: 'chat-email-status-error'
 }
 
-const LOCAL_STATUS_LABELS: Partial<Record<ComposeEmailAction, string>> = {
-  send: 'Email sent',
-  draft: 'Saved as draft',
-  cancel: 'Cancelled'
+const LOCAL_STATUS_KEYS: Partial<Record<ComposeEmailAction, string>> = {
+  send: 'chat-email-status-sent',
+  draft: 'chat-email-status-drafted',
+  cancel: 'chat-email-status-cancelled'
 }
 
 const extractAccountList = (data: unknown): EmailAccountOption[] => {
@@ -123,10 +124,10 @@ const validateSubmission = (
   accountsLength: number
 ): string | null => {
   if (action === 'cancel') return null
-  if (to.length === 0) return 'Add at least one recipient.'
-  if (!subject.trim()) return 'Subject is required.'
-  if (!accountId && accountsLength > 0) return 'Pick an email account to send from.'
-  if (!accountId) return 'No email account is connected.'
+  if (to.length === 0) return 'chat-email-validation-recipients'
+  if (!subject.trim()) return 'chat-email-validation-subject'
+  if (!accountId && accountsLength > 0) return 'chat-email-validation-pick-account'
+  if (!accountId) return 'chat-email-validation-no-account'
   return null
 }
 
@@ -171,6 +172,7 @@ function RecipientChipInput({
   readonly accessToken?: string
   readonly readOnly?: boolean
 }) {
+  const { t } = useTranslation(translations)
   const [query, setQuery] = useState('')
   const [isOpen, setIsOpen] = useState(false)
   const [dropPos, setDropPos] = useState<{ top: number; left: number; width: number } | null>(null)
@@ -279,7 +281,7 @@ function RecipientChipInput({
                 type="button"
                 className="gba:rounded-sm gba:text-muted-foreground gba:hover:bg-muted-foreground/10 gba:p-0.5"
                 onClick={() => removeRecipient(i)}
-                aria-label={`Remove ${r.address}`}
+                aria-label={t('chat-email-remove-recipient', { address: r.address })}
               >
                 <XIcon className="gba:h-3 gba:w-3" />
               </button>
@@ -289,7 +291,7 @@ function RecipientChipInput({
         <input
           type="text"
           className="gba:h-7 gba:min-w-[120px] gba:flex-1 gba:border-0 gba:bg-transparent gba:px-0 gba:text-[13px] gba:outline-none"
-          placeholder={value.length === 0 ? 'Type a name or email…' : ''}
+          placeholder={value.length === 0 ? t('chat-email-recipient-placeholder') : ''}
           value={query}
           onChange={e => {
             setQuery(e.target.value)
@@ -317,10 +319,14 @@ function RecipientChipInput({
             className="gba:fixed gba:z-9999 gba:bg-popover gba:border gba:border-border gba:rounded-lg gba:shadow-xl gba:max-h-[320px] gba:overflow-y-auto"
             style={{ top: dropPos.top, left: dropPos.left, width: dropPos.width }}
           >
-            {loading && <div className="gba:px-4 gba:py-2 gba:text-[12px] gba:text-muted-foreground">Searching…</div>}
+            {loading && (
+              <div className="gba:px-4 gba:py-2 gba:text-[12px] gba:text-muted-foreground">
+                {t('chat-email-searching')}
+              </div>
+            )}
             {!loading && employees.length === 0 && (
               <div className="gba:px-4 gba:py-2 gba:text-[12px] gba:text-muted-foreground">
-                No matching employees. Press Enter to add raw email.
+                {t('chat-email-no-employees-hint')}
               </div>
             )}
             {!loading &&
@@ -367,6 +373,7 @@ function AccountPicker({
   readonly loading: boolean
   readonly readOnly?: boolean
 }) {
+  const { t } = useTranslation(translations)
   const selected = accounts.find(a => a.id === selectedId)
   if (readOnly) {
     return (
@@ -376,14 +383,10 @@ function AccountPicker({
     )
   }
   if (loading) {
-    return <div className="gba:text-[11px] gba:text-muted-foreground">Loading accounts…</div>
+    return <div className="gba:text-[11px] gba:text-muted-foreground">{t('chat-email-loading-accounts')}</div>
   }
   if (accounts.length === 0) {
-    return (
-      <div className="gba:text-[11px] gba:text-destructive">
-        No email accounts connected. Connect one in your email settings to send.
-      </div>
-    )
+    return <div className="gba:text-[11px] gba:text-destructive">{t('chat-email-no-accounts')}</div>
   }
   return (
     <div className="gba:relative">
@@ -394,7 +397,7 @@ function AccountPicker({
       >
         {accounts.map(a => (
           <option key={a.id} value={a.id}>
-            {a.displayName || a.emailAddress} {a.isDefault ? '(default)' : ''}
+            {a.displayName || a.emailAddress} {a.isDefault ? t('chat-email-default-account') : ''}
           </option>
         ))}
       </select>
@@ -410,6 +413,7 @@ export function EmailComposerBubble({
   onSubmit,
   traceOutcome
 }: EmailComposerBubbleProps) {
+  const { t } = useTranslation(translations)
   const businessAppCtx = useContext(BusinessAppContext)
   const userInfo = businessAppCtx?.userInfo
   const [to, setTo] = useState<ComposeEmailRecipient[]>(() => cloneRecipients(draft.to))
@@ -506,7 +510,7 @@ export function EmailComposerBubble({
     (action: ComposeEmailAction) => {
       const validationError = validateSubmission(action, to, subject, accountId, accounts.length)
       if (validationError) {
-        setError(validationError)
+        setError(t(validationError))
         return
       }
       setError(null)
@@ -538,12 +542,14 @@ export function EmailComposerBubble({
     [to, cc, bcc, subject, body, signature, accountId, accounts.length, attachments, onSubmit]
   )
 
-  const traceStatusLabel = traceOutcome ? (TRACE_STATUS_LABELS[traceOutcome.status ?? ''] ?? 'Completed') : null
+  const traceStatusLabel = traceOutcome
+    ? t(TRACE_STATUS_KEYS[traceOutcome.status ?? ''] ?? 'chat-email-status-completed')
+    : null
 
-  const localStatusLabel = doneAction ? (LOCAL_STATUS_LABELS[doneAction] ?? null) : null
+  const localStatusLabel = doneAction ? (LOCAL_STATUS_KEYS[doneAction] ? t(LOCAL_STATUS_KEYS[doneAction]) : null) : null
 
   const headerStatusLabel = traceStatusLabel ?? localStatusLabel
-  const summarySubject = traceOutcome?.subject?.trim() || subject.trim() || 'No subject'
+  const summarySubject = traceOutcome?.subject?.trim() || subject.trim() || t('chat-email-no-subject')
 
   const shellClass = effectiveLocked
     ? 'gba:rounded-2xl gba:border gba:border-border/50 gba:bg-muted/25 gba:opacity-95 gba:shadow-none'
@@ -561,7 +567,7 @@ export function EmailComposerBubble({
         <div
           className={`gba:text-[13px] gba:font-semibold ${effectiveLocked ? 'gba:text-muted-foreground' : 'gba:text-foreground'}`}
         >
-          {headerStatusLabel ?? 'Review and send email'}
+          {headerStatusLabel ?? t('chat-email-review-title')}
         </div>
         {showCompactBar ? (
           <div className="gba:text-[11px] gba:text-muted-foreground gba:truncate">{summarySubject}</div>
@@ -609,9 +615,11 @@ export function EmailComposerBubble({
         {showDetailPanel && (
           <>
             <div className="gba:space-y-2 gba:p-3">
-              <ComposeFieldRow label="From">
+              <ComposeFieldRow label={t('chat-email-field-from')}>
                 {accountsError ? (
-                  <div className="gba:text-[11px] gba:text-destructive">Failed to load accounts: {accountsError}</div>
+                  <div className="gba:text-[11px] gba:text-destructive">
+                    {t('chat-email-accounts-error', { error: accountsError })}
+                  </div>
                 ) : (
                   <AccountPicker
                     accounts={accounts}
@@ -623,9 +631,9 @@ export function EmailComposerBubble({
                 )}
               </ComposeFieldRow>
 
-              <ComposeFieldRow label="To" multiline>
+              <ComposeFieldRow label={t('chat-email-field-to')} multiline>
                 <RecipientChipInput
-                  fieldLabel="To"
+                  fieldLabel={t('chat-email-field-to')}
                   value={to}
                   onChange={setTo}
                   accessToken={accessToken}
@@ -635,18 +643,18 @@ export function EmailComposerBubble({
 
               {showCc ? (
                 <>
-                  <ComposeFieldRow label="Cc" multiline>
+                  <ComposeFieldRow label={t('chat-email-field-cc')} multiline>
                     <RecipientChipInput
-                      fieldLabel="Cc"
+                      fieldLabel={t('chat-email-field-cc')}
                       value={cc}
                       onChange={setCc}
                       accessToken={accessToken}
                       readOnly={readOnly}
                     />
                   </ComposeFieldRow>
-                  <ComposeFieldRow label="Bcc" multiline>
+                  <ComposeFieldRow label={t('chat-email-field-bcc')} multiline>
                     <RecipientChipInput
-                      fieldLabel="Bcc"
+                      fieldLabel={t('chat-email-field-bcc')}
                       value={bcc}
                       onChange={setBcc}
                       accessToken={accessToken}
@@ -661,7 +669,7 @@ export function EmailComposerBubble({
                     onClick={() => setShowCc(true)}
                     className="gba:ml-12 gba:text-[11px] gba:text-muted-foreground gba:underline gba:underline-offset-2 gba:hover:text-foreground"
                   >
-                    Add Cc / Bcc
+                    {t('chat-email-add-cc-bcc')}
                   </button>
                 )
               )}
@@ -670,7 +678,7 @@ export function EmailComposerBubble({
                 <Input
                   value={subject}
                   onChange={e => setSubject(e.target.value)}
-                  placeholder="Subject"
+                  placeholder={t('chat-email-subject-placeholder')}
                   disabled={readOnly}
                   className="gba:text-[14px] gba:font-medium"
                 />
@@ -682,7 +690,7 @@ export function EmailComposerBubble({
                   onChange={e => setBody(e.target.value)}
                   disabled={readOnly}
                   rows={8}
-                  placeholder="Write your message…"
+                  placeholder={t('chat-email-body-placeholder')}
                   className="gba:w-full gba:text-[13px] gba:leading-6 gba:border gba:border-input gba:rounded-lg gba:bg-background gba:px-3 gba:py-2 gba:resize-y gba:min-h-[160px] gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-ring/40 gba:disabled:opacity-90"
                 />
               </div>
@@ -705,7 +713,7 @@ export function EmailComposerBubble({
                           <button
                             type="button"
                             onClick={() => setAttachments(prev => prev.filter(a => a.id !== att.id))}
-                            aria-label={`Remove attachment ${displayName}`}
+                            aria-label={t('chat-email-remove-attachment', { name: displayName })}
                             className="gba:ml-0.5 gba:rounded-sm gba:p-0.5 gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/40"
                           >
                             <XIcon className="gba:h-3 gba:w-3" />
@@ -720,7 +728,7 @@ export function EmailComposerBubble({
               <div className="gba:rounded-lg gba:border gba:border-dashed gba:border-border gba:bg-muted/20 gba:px-3 gba:py-2 gba:space-y-1.5">
                 <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
                   <span className="gba:text-[11px] gba:font-semibold gba:text-muted-foreground gba:uppercase gba:tracking-wide">
-                    Signature
+                    {t('chat-email-signature-label')}
                   </span>
                   {selectedAccount?.signature && !readOnly && (
                     <label className="gba:inline-flex gba:items-center gba:gap-1.5 gba:text-[11px] gba:text-muted-foreground gba:cursor-pointer">
@@ -730,7 +738,7 @@ export function EmailComposerBubble({
                         onChange={e => setUseAccountSignature(e.target.checked)}
                         className="gba:h-3 gba:w-3"
                       />
-                      <span>Use my account signature</span>
+                      <span>{t('chat-email-use-account-signature')}</span>
                     </label>
                   )}
                 </div>
@@ -739,7 +747,7 @@ export function EmailComposerBubble({
                   onChange={e => setSignature(e.target.value)}
                   disabled={readOnly}
                   rows={3}
-                  placeholder="-- \nYour Name"
+                  placeholder={t('chat-email-signature-placeholder')}
                   className="gba:w-full gba:text-[12px] gba:leading-5 gba:border gba:border-input gba:rounded-md gba:bg-background gba:px-2 gba:py-1.5 gba:resize-y gba:min-h-[60px]"
                 />
               </div>
@@ -760,7 +768,7 @@ export function EmailComposerBubble({
                   className="gba:inline-flex gba:items-center gba:gap-1.5 gba:h-8 gba:px-3 gba:rounded-md gba:text-[12px] gba:font-medium gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/40 gba:transition-colors gba:disabled:opacity-50"
                 >
                   <XIcon className="gba:h-3.5 gba:w-3.5" />
-                  Cancel
+                  {t('action-cancel')}
                 </button>
                 <button
                   type="button"
@@ -769,7 +777,7 @@ export function EmailComposerBubble({
                   className="gba:inline-flex gba:items-center gba:gap-1.5 gba:h-8 gba:px-3 gba:rounded-md gba:text-[12px] gba:font-medium gba:border gba:border-input gba:hover:bg-muted/40 gba:transition-colors gba:disabled:opacity-50"
                 >
                   <PencilSimpleIcon className="gba:h-3.5 gba:w-3.5" />
-                  Save draft
+                  {t('chat-email-save-draft')}
                 </button>
                 <button
                   type="button"
@@ -778,7 +786,7 @@ export function EmailComposerBubble({
                   className="gba:inline-flex gba:items-center gba:gap-1.5 gba:h-8 gba:px-3.5 gba:rounded-md gba:text-[12px] gba:font-semibold gba:bg-primary gba:text-primary-foreground gba:hover:bg-primary/90 gba:transition-colors gba:disabled:opacity-50"
                 >
                   <PaperPlaneTiltIcon className="gba:h-3.5 gba:w-3.5" weight="fill" />
-                  {submitting === 'send' ? 'Sending…' : 'Send'}
+                  {submitting === 'send' ? t('chat-email-sending') : t('chat-email-send')}
                 </button>
               </div>
             )}

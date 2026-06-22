@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import { Loader2 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -16,6 +16,7 @@ import { DriveExternalImportSheet } from './components/DriveExternalImportSheet'
 import { DriveDropZoneOverlay } from './components/DriveDropZoneOverlay'
 import { DeleteConfirmDialog } from './components/DeleteConfirmDialog'
 import { DriveBulkActions } from './components/DriveBulkActions'
+import { BulkShareEntitiesDialog, getIntersectedPermissionOptions } from '@/business-apps/core/office/sharing'
 import { useDrive } from './hooks/useDrive'
 import { useDriveSearch } from './hooks/useDriveSearch'
 import { useDriveHubUrlState } from './hooks/useDriveHubUrlState'
@@ -54,6 +55,8 @@ export const DriveAppsHub: React.FC<DriveAppsHubProps> = ({
   const [shareTarget, setShareTarget] = useState<{ entityType: string; entityId: string; entityName: string } | null>(
     null
   )
+  const [bulkShareDialogOpen, setBulkShareDialogOpen] = useState(false)
+  const currentUserId = userInfo?.userId ?? userInfo?.id ?? userInfo?.employeeDetails?.employeeId ?? ''
 
   const drive = useDrive({
     accessToken,
@@ -79,6 +82,55 @@ export const DriveAppsHub: React.FC<DriveAppsHubProps> = ({
   })
 
   const selection = useDriveSelection({ items: drive.items, folders: drive.folders })
+
+  const selectedDriveRefs = useMemo(() => selection.getSelectedRefs(), [selection])
+
+  const bulkShareDriveItems = useMemo(
+    () =>
+      selectedDriveRefs
+        .map(ref => {
+          const item = drive.items.find(candidate => candidate.type === ref.entityType && candidate.id === ref.entityId)
+          const folder = drive.folders.find(
+            candidate => ref.entityType === 'drive_folder' && candidate.id === ref.entityId
+          )
+
+          if (item) {
+            return {
+              entityType: item.type,
+              entityId: item.id,
+              entityTitle: item.name,
+              ownerId: item.ownerId
+            }
+          }
+
+          if (folder) {
+            return {
+              entityType: 'drive_folder',
+              entityId: folder.id,
+              entityTitle: folder.name,
+              ownerId: folder.ownerId
+            }
+          }
+
+          return null
+        })
+        .filter(
+          (entity): entity is { entityType: string; entityId: string; entityTitle: string; ownerId: string } =>
+            entity !== null
+        ),
+    [drive.folders, drive.items, selectedDriveRefs]
+  )
+
+  const driveBulkPermissionOptions = useMemo(
+    () => getIntersectedPermissionOptions(bulkShareDriveItems.map(item => item.entityType)),
+    [bulkShareDriveItems]
+  )
+
+  const canBulkShareDriveItems =
+    selectedDriveRefs.length > 0 &&
+    bulkShareDriveItems.length === selectedDriveRefs.length &&
+    bulkShareDriveItems.every(item => item.ownerId === currentUserId) &&
+    driveBulkPermissionOptions.length > 0
 
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [pendingDeleteRefs, setPendingDeleteRefs] = useState<
@@ -344,6 +396,7 @@ export const DriveAppsHub: React.FC<DriveAppsHubProps> = ({
               <div className="gba:pointer-events-auto gba:shadow-lg gba:rounded-xl">
                 <DriveBulkActions
                   selectedCount={selection.selectedCount}
+                  onShare={canBulkShareDriveItems ? () => setBulkShareDialogOpen(true) : undefined}
                   onTrash={handleBulkTrash}
                   onClearSelection={selection.clearSelection}
                   t={t}
@@ -398,9 +451,29 @@ export const DriveAppsHub: React.FC<DriveAppsHubProps> = ({
           entityId={shareTarget.entityId}
           entityName={shareTarget.entityName}
           accessToken={accessToken ?? ''}
-          currentUserId={userInfo?.userId ?? ''}
+          currentUserId={currentUserId}
           t={t}
           data-testid={`${testId}-share-dialog`}
+        />
+      )}
+
+      {bulkShareDriveItems.length > 0 && (
+        <BulkShareEntitiesDialog
+          open={bulkShareDialogOpen}
+          onOpenChange={setBulkShareDialogOpen}
+          accessToken={accessToken ?? ''}
+          currentUserId={currentUserId}
+          entities={bulkShareDriveItems.map(({ entityType, entityId, entityTitle }) => ({
+            entityType,
+            entityId,
+            entityTitle
+          }))}
+          permissionOptions={driveBulkPermissionOptions}
+          onShareComplete={async () => {
+            selection.clearSelection()
+            await drive.refresh()
+          }}
+          data-testid={`${testId}-bulk-share-dialog`}
         />
       )}
 

@@ -6,8 +6,10 @@
 import { memo, useMemo, useRef } from 'react'
 import { Html } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
+import { useTranslation } from '@newwork/nw-design-system'
 import * as THREE from 'three'
 import type { MeshNodeKind, MeshNodeStatus } from '../../utils/traceModel'
+import translations from '../../_i18n'
 import type { MeshPhysicsHandle } from './useMeshPhysics'
 import type { MeshThemeColors } from './useMeshTheme'
 import { Mesh3DEveryLogo } from './Mesh3DEveryLogo'
@@ -67,6 +69,7 @@ function Mesh3DNodeBase({
   onPointerEnter,
   onPointerLeave
 }: Mesh3DNodeProps) {
+  const { t } = useTranslation(translations)
   const groupRef = useRef<THREE.Group>(null)
 
   // Per-frame: sync the group position with the physics handle so the node
@@ -117,7 +120,7 @@ function Mesh3DNodeBase({
             className="gba:mt-1 gba:rounded-full gba:border gba:border-primary/30 gba:bg-primary/15 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-bold gba:text-primary"
             title={activityLabel}
           >
-            •{liveCount} live
+            {t('agent-mesh-node-live-badge', { count: liveCount })}
           </span>
         )}
         {category && (
@@ -127,7 +130,7 @@ function Mesh3DNodeBase({
         )}
       </div>
     ),
-    [label, category, isSelected, isActive, isUpcoming, isDimmed, liveCount, activityLabel]
+    [label, category, isSelected, isActive, isUpcoming, isDimmed, liveCount, activityLabel, t]
   )
 
   return (

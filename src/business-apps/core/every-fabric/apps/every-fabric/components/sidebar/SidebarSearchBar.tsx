@@ -1,5 +1,7 @@
 import { MagnifyingGlassIcon, XIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import React, { useEffect, useRef } from 'react'
+import translations from '../../_i18n'
 import { SidebarTooltip } from './SidebarTooltip'
 
 interface SidebarSearchBarProps {
@@ -22,7 +24,9 @@ export const SidebarSearchBar: React.FC<SidebarSearchBarProps> = ({
   resultCount,
   focusRequestId = 0
 }) => {
+  const { t } = useTranslation(translations)
   const inputRef = useRef<HTMLInputElement>(null)
+  const searchLabel = t('sidebar-search-label')
 
   useEffect(() => {
     if (!isCollapsed && focusRequestId > 0) {
@@ -33,11 +37,11 @@ export const SidebarSearchBar: React.FC<SidebarSearchBarProps> = ({
   if (isCollapsed) {
     return (
       <div className="gba:flex gba:justify-center gba:px-2 gba:pb-2">
-        <SidebarTooltip label="Search sessions">
+        <SidebarTooltip label={searchLabel}>
           <button
             type="button"
             onClick={onRequestExpand}
-            aria-label="Search sessions"
+            aria-label={searchLabel}
             className="gba:inline-flex gba:items-center gba:justify-center gba:h-9 gba:w-9 gba:rounded-xl gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
             data-testid="sidebar-search-icon"
           >
@@ -55,7 +59,7 @@ export const SidebarSearchBar: React.FC<SidebarSearchBarProps> = ({
       return (
         <span
           className="gba:absolute gba:right-2.5 gba:h-3 gba:w-3 gba:rounded-full gba:border-2 gba:border-muted-foreground/25 gba:border-t-muted-foreground gba:animate-spin"
-          aria-label="Searching sessions"
+          aria-label={t('sidebar-search-loading-aria')}
           data-testid="sidebar-search-loading"
         />
       )
@@ -66,7 +70,7 @@ export const SidebarSearchBar: React.FC<SidebarSearchBarProps> = ({
         <button
           type="button"
           onClick={() => onChange('')}
-          aria-label="Clear search"
+          aria-label={t('sidebar-search-clear-aria')}
           className="gba:absolute gba:right-1.5 gba:inline-flex gba:items-center gba:justify-center gba:h-5 gba:w-5 gba:rounded-full gba:text-muted-foreground/70 gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
           data-testid="sidebar-search-clear"
         >
@@ -87,8 +91,8 @@ export const SidebarSearchBar: React.FC<SidebarSearchBarProps> = ({
           type="text"
           value={query}
           onChange={e => onChange(e.target.value)}
-          placeholder="Search sessions"
-          aria-label="Search sessions"
+          placeholder={searchLabel}
+          aria-label={searchLabel}
           className="gba:h-8 gba:w-full gba:rounded-lg gba:border gba:border-border/60 gba:bg-background/70 gba:pl-8 gba:pr-8 gba:text-[13px] gba:text-foreground gba:placeholder:text-muted-foreground/70 gba:outline-none focus-visible:gba:border-primary/50 focus-visible:gba:bg-background focus-visible:gba:ring-2 focus-visible:gba:ring-primary/10 gba:transition-colors"
           data-testid="sidebar-search-input"
         />
@@ -96,7 +100,9 @@ export const SidebarSearchBar: React.FC<SidebarSearchBarProps> = ({
       </label>
       {showResultCount ? (
         <p className="gba:mt-1 gba:px-1 gba:text-[11px] gba:text-muted-foreground/70" aria-live="polite">
-          {resultCount === 1 ? '1 matching session' : `${resultCount} matching sessions`}
+          {resultCount === 1
+            ? t('sidebar-matching-sessions-one')
+            : t('sidebar-matching-sessions-many', { count: String(resultCount) })}
         </p>
       ) : null}
     </div>

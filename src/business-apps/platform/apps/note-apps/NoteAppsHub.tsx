@@ -33,7 +33,11 @@ import { useNoteAppsHubUrlState } from './hooks/useNoteAppsHubUrlState'
 import { useResizableSidebar } from './hooks/useResizableSidebar'
 import { useNoteTreeDragDrop } from './hooks/useNoteTreeDragDrop'
 import { useNoteAppsHubShareLookup } from './hooks/useNoteAppsHubShareLookup'
-import { getShareCapabilities } from '@/business-apps/core/office/sharing'
+import {
+  BulkShareEntitiesDialog,
+  getShareCapabilities,
+  NOTE_SHARE_PERMISSIONS
+} from '@/business-apps/core/office/sharing'
 import { useHubPagination } from '../shared/hooks/useHubPagination'
 import { HubPaginationFooter } from '../shared/components/HubPaginationFooter'
 import { DeleteConfirmDialog } from '@/business-apps/core/office/apps/drive/components/DeleteConfirmDialog'
@@ -104,6 +108,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
 
   // Share dialog
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
+  const [bulkShareDialogOpen, setBulkShareDialogOpen] = useState(false)
   const [noteToShare, setNoteToShare] = useState<NoteSummary | null>(null)
   const [shareDialogSharedUsers, setShareDialogSharedUsers] = useState<SharedNoteUser[]>([])
   const [manageSharesDialogOpen, setManageSharesDialogOpen] = useState(false)
@@ -611,6 +616,38 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   )
 
   const canBulkDeleteNotes = selectedNotes.size > 0 && selectedNotesForDelete.length === selectedNotes.size
+
+  const selectedNotesForShare = useMemo(
+    () =>
+      Array.from(selectedNotes)
+        .map(id => {
+          const note = notes.find(item => item.id === id)
+          if (!note) {
+            return null
+          }
+
+          const capabilities = getShareCapabilities({
+            permission: note.permission,
+            isOwner: Boolean(note.ownerId === currentUserId || note.permission === 'owner')
+          })
+
+          return capabilities.canManageSharing ? note : null
+        })
+        .filter((note): note is NoteSummary => note !== null),
+    [currentUserId, notes, selectedNotes]
+  )
+
+  const canBulkShareNotes = selectedNotes.size > 0 && selectedNotesForShare.length === selectedNotes.size
+
+  const bulkShareNotes = useMemo(
+    () =>
+      selectedNotesForShare.map(note => ({
+        entityType: 'note',
+        entityId: note.id,
+        entityTitle: note.title || t('title-untitled-note')
+      })),
+    [selectedNotesForShare, t]
+  )
 
   const handleBulkDelete = useCallback(() => {
     if (selectedNotesForDelete.length === 0) return
@@ -1356,6 +1393,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
             onToggleFavorite={toggleFavorite}
             onToggleSelect={toggleSelectNote}
             onSelectAll={selectAllNotes}
+            onBulkShare={canBulkShareNotes ? () => setBulkShareDialogOpen(true) : undefined}
             onBulkDelete={canBulkDeleteNotes ? handleBulkDelete : undefined}
             onBulkPin={handleBulkPin}
             onClearSelection={handleClearSelection}
@@ -1409,6 +1447,21 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
           onUnshare={handleUnshare}
           onRefreshShares={refreshShares}
           onManageAccess={handleOpenManageSharesFromShareDialog}
+        />
+      )}
+      {bulkShareNotes.length > 0 && (
+        <BulkShareEntitiesDialog
+          open={bulkShareDialogOpen}
+          onOpenChange={setBulkShareDialogOpen}
+          accessToken={accessToken}
+          currentUserId={currentUserId}
+          entities={bulkShareNotes}
+          permissionOptions={NOTE_SHARE_PERMISSIONS}
+          onShareComplete={async () => {
+            handleClearSelection()
+            await refreshNotes()
+          }}
+          data-testid={`${testId}-bulk-share-dialog`}
         />
       )}
       {noteToManageShares && (

@@ -182,7 +182,7 @@ task-type-information = Information
 task-type-acknowledge = Acknowledge
 task-type-function = Function
 task-type-ai_agent = EveryAI Agent
-task-type-ai_task_expert = Enterprise Agent
+task-type-ai_task_expert = { platform-ai-agent-product }
 task-type-custom_data_mutation = Save to Custom Data
 task-kind = Step Kind
 task-kind-user = User Step
@@ -288,7 +288,7 @@ decision-policy-optional-placeholder = Optional: select a policy...
 decision-ai-executor-label = AI executor
 decision-ai-executor-everyai = EveryAI
 decision-ai-executor-everyai-desc = Use a decision instruction (with flow context) and let EveryAI pick the best branch.
-decision-ai-executor-taskexpert = Enterprise Agent
+decision-ai-executor-taskexpert = { platform-ai-agent-product }
 decision-ai-executor-taskexpert-desc = Run the agent and route via mapping rules. If no rule matches, a human picks the branch.
 decision-ai-type-label = Decision setup
 decision-ai-type-policy = Policy-guided
@@ -352,14 +352,14 @@ validation-orphan-nodes = Orphan nodes detected
 validation-fork-no-join = Fork node has no matching join
 validation-decision-branches = Decision must have at least 2 branches
 validation-disconnected = Some nodes are not connected
-validation-decision-must-select-agent = Decision "{ $label }" must select an Enterprise Agent prompt
-validation-decision-unmapped-agent-params = Decision "{ $label }" must map all Enterprise Agent prompt parameters before publish: { $params }
+validation-decision-must-select-agent = Decision "{ $label }" must select a { -platform-ai-agent-product.inline } prompt
+validation-decision-unmapped-agent-params = Decision "{ $label }" must map all { -platform-ai-agent-product.inline } prompt parameters before publish: { $params }
 
 # Add step panel
 step-panel-add-step = Add step
 step-panel-change-step = Change step
 step-panel-back-to-config = Back to configuration
-add-step-tip-advanced-mode = Switch to Advanced mode to unlock Function Tasks and Enterprise Agent steps.
+add-step-tip-advanced-mode = Switch to Advanced mode to unlock Function Tasks and { -platform-ai-agent-product.label } steps.
 step-kind-group-user-tasks = User tasks
 step-kind-group-ai-tasks = AI tasks
 step-kind-group-automation = Automation
@@ -375,7 +375,7 @@ step-kind-desc-custom-decision = Custom paths
 step-kind-desc-decision-ai = AI decides
 step-kind-desc-decision-logic = Rules route
 step-kind-desc-ai-agent = AI agent
-step-kind-desc-ai-task-expert = Enterprise agent
+step-kind-desc-ai-task-expert = { -platform-ai-agent-product.label }
 step-kind-desc-function = Run function
 step-kind-desc-connector = Call connector
 step-kind-desc-save-to-custom-data = Write rows or flow data
@@ -391,7 +391,7 @@ step-kind-switch-confirm-cancel = Cancel
 step-kind-switch-confirm-action = Change step type
 
 # Task step type selector descriptions
-task-step-type-ai-task-expert-description = Enterprise Agent prompt step.
+task-step-type-ai-task-expert-description = { -platform-ai-agent-product.label } prompt step.
 
 # Decision Enterprise Agent mapping suggestions
 decision-ai-taskexpert-mapping-suggestion-description = From the selected agent output schema.

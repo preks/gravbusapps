@@ -5,9 +5,10 @@
 // dirty indicator + Save / Reset actions. Encapsulating the shell here
 // keeps each section focused on its fields and behaviour.
 
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { CheckCircleIcon, SpinnerGapIcon, type Icon } from '@phosphor-icons/react'
 import React from 'react'
+import translations from '../../../_i18n'
 
 interface SectionShellProps {
   id: string
@@ -35,6 +36,7 @@ export const SectionShell: React.FC<SectionShellProps> = ({
   onReset,
   children
 }) => {
+  const { t } = useTranslation(translations)
   return (
     <section
       data-testid={`workforce-config-section-${id}`}
@@ -60,10 +62,10 @@ export const SectionShell: React.FC<SectionShellProps> = ({
           data-testid={`workforce-config-section-status-${id}`}
         >
           {isDirty ? (
-            'Unsaved changes'
+            t('section-unsaved')
           ) : (
             <>
-              <CheckCircleIcon className="gba:h-3 gba:w-3" weight="fill" /> Saved
+              <CheckCircleIcon className="gba:h-3 gba:w-3" weight="fill" /> {t('section-saved')}
             </>
           )}
         </span>
@@ -79,7 +81,7 @@ export const SectionShell: React.FC<SectionShellProps> = ({
           onClick={onReset}
           data-testid={`workforce-config-section-reset-${id}`}
         >
-          Reset
+          {t('action-reset')}
         </Button>
         <button
           type="button"
@@ -89,7 +91,7 @@ export const SectionShell: React.FC<SectionShellProps> = ({
           data-testid={`workforce-config-section-save-${id}`}
         >
           {isSaving && <SpinnerGapIcon className="gba:h-3.5 gba:w-3.5 gba:animate-spin" />}
-          {isSaving ? 'Saving…' : 'Save'}
+          {isSaving ? t('section-saving') : t('action-save')}
         </button>
       </footer>
     </section>

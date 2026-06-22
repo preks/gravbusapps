@@ -2,8 +2,10 @@
 
 import React, { useEffect, useState } from 'react'
 import { GaugeIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { WorkforceAgent, WorkforceAgentUpdateInput, WorkforceAutonomyLevel } from '../workforceTypes'
 import { SectionShell } from './SectionShell'
+import translations from '../../../_i18n'
 
 interface AutonomySectionProps {
   agent: WorkforceAgent
@@ -25,34 +27,35 @@ function fromAgent(agent: WorkforceAgent): FormState {
 
 interface AutonomyOption {
   value: WorkforceAutonomyLevel
-  label: string
-  hint: string
+  labelKey: string
+  hintKey: string
 }
 
 const OPTIONS: AutonomyOption[] = [
   {
     value: 'draft_only',
-    label: 'Assistive',
-    hint: 'Searches, summarizes, classifies, and drafts. Makes no system changes.'
+    labelKey: 'autonomy-opt-draft-only-label',
+    hintKey: 'autonomy-opt-draft-only-hint'
   },
   {
     value: 'approval_required',
-    label: 'Approval Required',
-    hint: 'Prepares actions and routes them to a human before execution.'
+    labelKey: 'autonomy-opt-approval-label',
+    hintKey: 'autonomy-opt-approval-hint'
   },
   {
     value: 'auto_low_risk',
-    label: 'Delegated',
-    hint: 'Executes low-risk actions within thresholds and escalates exceptions.'
+    labelKey: 'autonomy-opt-delegated-label',
+    hintKey: 'autonomy-opt-delegated-hint'
   },
   {
     value: 'full_auto',
-    label: 'Autonomous',
-    hint: 'Runs end-to-end inside validated boundaries. Requires at least one escalation channel.'
+    labelKey: 'autonomy-opt-autonomous-label',
+    hintKey: 'autonomy-opt-autonomous-hint'
   }
 ]
 
 export const AutonomySection: React.FC<AutonomySectionProps> = ({ agent, isSaving, onSave }) => {
+  const { t } = useTranslation(translations)
   const baseline = fromAgent(agent)
   const [form, setForm] = useState<FormState>(baseline)
 
@@ -65,9 +68,9 @@ export const AutonomySection: React.FC<AutonomySectionProps> = ({ agent, isSavin
   return (
     <SectionShell
       id="autonomy"
-      title="Autonomy"
+      title={t('autonomy-title')}
       icon={GaugeIcon}
-      description="How much the agent may decide on its own + the custom system instructions it follows."
+      description={t('autonomy-description')}
       isDirty={dirty}
       isSaving={isSaving}
       onSave={() =>
@@ -78,7 +81,7 @@ export const AutonomySection: React.FC<AutonomySectionProps> = ({ agent, isSavin
       }
       onReset={() => setForm(baseline)}
     >
-      <fieldset className="gba:space-y-2" role="radiogroup" aria-label="Autonomy level">
+      <fieldset className="gba:space-y-2" role="radiogroup" aria-label={t('autonomy-aria-level')}>
         {OPTIONS.map(option => {
           const checked = form.autonomyLevel === option.value
           return (
@@ -100,8 +103,8 @@ export const AutonomySection: React.FC<AutonomySectionProps> = ({ agent, isSavin
                 className="gba:mt-0.5 gba:h-3.5 gba:w-3.5 gba:text-primary gba:focus:ring-primary"
               />
               <div className="gba:min-w-0 gba:flex-1">
-                <p className="gba:text-xs gba:font-medium gba:text-foreground">{option.label}</p>
-                <p className="gba:mt-0.5 gba:text-[11px] gba:text-muted-foreground">{option.hint}</p>
+                <p className="gba:text-xs gba:font-medium gba:text-foreground">{t(option.labelKey)}</p>
+                <p className="gba:mt-0.5 gba:text-[11px] gba:text-muted-foreground">{t(option.hintKey)}</p>
               </div>
             </label>
           )
@@ -113,8 +116,10 @@ export const AutonomySection: React.FC<AutonomySectionProps> = ({ agent, isSavin
           htmlFor="ws-autonomy-instructions"
           className="gba:mb-1 gba:block gba:text-xs gba:font-semibold gba:text-foreground"
         >
-          Instructions
-          <span className="gba:ml-1 gba:font-normal gba:text-muted-foreground">(appended to system prompt)</span>
+          {t('autonomy-instructions-label')}
+          <span className="gba:ml-1 gba:font-normal gba:text-muted-foreground">
+            {t('autonomy-instructions-suffix')}
+          </span>
         </label>
         <textarea
           id="ws-autonomy-instructions"

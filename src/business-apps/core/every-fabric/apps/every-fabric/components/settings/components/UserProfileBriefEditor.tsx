@@ -1,21 +1,24 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { ArrowsClockwiseIcon, CheckCircleIcon, SpinnerGapIcon, WarningCircleIcon } from '@phosphor-icons/react'
 import type { useEnterpriseAgentClient, UserProfileBrief } from '../../../hooks/useEnterpriseAgentClient'
+import translations from '../../../_i18n'
 
 interface UserProfileBriefEditorProps {
   client: ReturnType<typeof useEnterpriseAgentClient>
   isOpen: boolean
 }
 
-const statusLabel: Record<UserProfileBrief['status'], string> = {
-  missing: 'Not generated yet',
-  generating: 'Generating from employee data...',
-  ready: 'Generated from employee data',
-  failed: 'Could not generate',
-  edited: 'Edited by you'
+const STATUS_LABEL_KEYS: Record<UserProfileBrief['status'], string> = {
+  missing: 'settings-profile-status-missing',
+  generating: 'settings-profile-status-generating',
+  ready: 'settings-profile-status-ready',
+  failed: 'settings-profile-status-failed',
+  edited: 'settings-profile-status-edited'
 }
 
 export const UserProfileBriefEditor: React.FC<UserProfileBriefEditorProps> = ({ client, isOpen }) => {
+  const { t } = useTranslation(translations)
   const [profile, setProfile] = useState<UserProfileBrief | null>(null)
   const [draft, setDraft] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -49,7 +52,7 @@ export const UserProfileBriefEditor: React.FC<UserProfileBriefEditorProps> = ({ 
       applyProfile(current)
       await ensureIfMissing(current)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not load your profile memory.')
+      setError(err instanceof Error ? err.message : t('settings-profile-error-load'))
     } finally {
       setIsLoading(false)
     }
@@ -88,7 +91,7 @@ export const UserProfileBriefEditor: React.FC<UserProfileBriefEditorProps> = ({ 
       applyProfile(next)
       flagSaved()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save your profile memory.')
+      setError(err instanceof Error ? err.message : t('settings-profile-error-save'))
     } finally {
       setIsSaving(false)
     }
@@ -101,7 +104,7 @@ export const UserProfileBriefEditor: React.FC<UserProfileBriefEditorProps> = ({ 
       const next = await client.regenerateUserProfileBrief()
       applyProfile(next)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not start profile generation.')
+      setError(err instanceof Error ? err.message : t('settings-profile-error-regenerate'))
     } finally {
       setIsRegenerating(false)
     }
@@ -112,7 +115,7 @@ export const UserProfileBriefEditor: React.FC<UserProfileBriefEditorProps> = ({ 
       <div className="gba:rounded-xl gba:border gba:border-border/60 gba:bg-muted/20 gba:p-3">
         <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
           <SpinnerGapIcon className="gba:h-3.5 gba:w-3.5 gba:animate-spin" />
-          Loading your profile memory...
+          {t('settings-profile-loading')}
         </div>
       </div>
     )
@@ -136,20 +139,18 @@ export const UserProfileBriefEditor: React.FC<UserProfileBriefEditorProps> = ({ 
       <div className="gba:flex gba:flex-wrap gba:items-start gba:justify-between gba:gap-2">
         <div>
           <div className="gba:flex gba:items-center gba:gap-1.5">
-            <span className="gba:text-xs gba:font-semibold gba:text-foreground">About you</span>
+            <span className="gba:text-xs gba:font-semibold gba:text-foreground">{t('settings-profile-about')}</span>
             {saved && (
               <span className="gba:inline-flex gba:items-center gba:gap-0.5 gba:text-[10px] gba:text-emerald-600">
                 <CheckCircleIcon className="gba:h-3 gba:w-3" weight="fill" />
-                Saved
+                {t('section-saved')}
               </span>
             )}
             {(isSaving || isGenerating) && (
               <SpinnerGapIcon className="gba:h-3 gba:w-3 gba:animate-spin gba:text-muted-foreground" />
             )}
           </div>
-          <p className="gba:mt-1 gba:text-xs gba:text-muted-foreground">
-            Generated from your employee record so enterprise agents understand your role, team, manager, and skills.
-          </p>
+          <p className="gba:mt-1 gba:text-xs gba:text-muted-foreground">{t('settings-profile-desc')}</p>
         </div>
         <button
           type="button"
@@ -165,14 +166,16 @@ export const UserProfileBriefEditor: React.FC<UserProfileBriefEditorProps> = ({ 
           ) : (
             <ArrowsClockwiseIcon className="gba:h-3 gba:w-3" />
           )}
-          Regenerate
+          {t('settings-profile-regenerate')}
         </button>
       </div>
 
       <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-[11px] gba:text-muted-foreground">
         {statusIcon}
-        <span>{statusLabel[status]}</span>
-        {profile?.updated_at && <span>Updated {new Date(profile.updated_at).toLocaleString()}</span>}
+        <span>{t(STATUS_LABEL_KEYS[status])}</span>
+        {profile?.updated_at && (
+          <span>{t('settings-profile-updated', { date: new Date(profile.updated_at).toLocaleString() })}</span>
+        )}
       </div>
 
       <textarea
@@ -181,7 +184,7 @@ export const UserProfileBriefEditor: React.FC<UserProfileBriefEditorProps> = ({ 
         onBlur={() => {
           save()
         }}
-        placeholder="Your profile memory will appear here after it is generated from employee data."
+        placeholder={t('settings-profile-placeholder')}
         rows={5}
         disabled={isGenerating}
         className="gba:w-full gba:resize-y gba:rounded-lg gba:border gba:border-border/60 gba:bg-background gba:px-2.5 gba:py-2 gba:text-sm gba:leading-relaxed gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring disabled:gba:opacity-70"

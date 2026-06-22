@@ -55,3 +55,24 @@ export interface ShareNotificationContext {
   initiatorName?: string
   message?: string
 }
+
+export interface BulkShareEntity {
+  entityType: string
+  entityId: string
+  entityTitle: string
+}
+
+export interface BulkShareEntityResult {
+  entityType: string
+  entityId: string
+  success: boolean
+  shareCount: number
+  error?: string
+}
+
+export interface BulkShareResult {
+  totalEntities: number
+  successCount: number
+  failureCount: number
+  results: BulkShareEntityResult[]
+}

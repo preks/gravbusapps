@@ -12,6 +12,7 @@ import {
   TimerIcon
 } from '@phosphor-icons/react'
 import type { Icon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import React from 'react'
 import { FeatureHub } from 'featurehub-javascript-client-sdk'
 import { getCurrentUrlWithUpdatedSearchParams } from '@/common/utils/navigationUtils'
@@ -24,6 +25,7 @@ import { sourceVisual } from '../workforceSourceDisplay'
 import type { WorkforceRun, WorkforceRunTraceEvent } from '../workforceTypes'
 import { RunContextLinks } from './RunContextLinks'
 import { resolveSource, resolveTriggerName } from './runDetailFacts'
+import translations from '../../../_i18n'
 
 export interface RunDetailHeaderProps {
   run: WorkforceRun
@@ -94,6 +96,7 @@ export const RunDetailHeader: React.FC<RunDetailHeaderProps> = ({
   awaitingFlowApproval,
   onBack
 }) => {
+  const { t } = useTranslation(translations)
   const { devModeEnabled: localDevModeEnabled } = useAgentSettings()
   const devModeEnabled = isEveryFabricDevToolsEnabled(readDevToolsFeatureFlag()) && localDevModeEnabled
 
@@ -103,9 +106,10 @@ export const RunDetailHeader: React.FC<RunDetailHeaderProps> = ({
   })
   const source = resolveSource(run)
   const sourceInfo = sourceVisual(source)
+  const sourceLabel = t(sourceInfo.labelKey)
   const SourceIcon = sourceInfo.icon
   const triggerName = resolveTriggerName(run)
-  const triggerValue = triggerName ? `${sourceInfo.label} · ${triggerName}` : sourceInfo.label
+  const triggerValue = triggerName ? `${sourceLabel} · ${triggerName}` : sourceLabel
   const duration = runDurationLabel(run)
   const credits = runCredits(run)
 
@@ -116,7 +120,7 @@ export const RunDetailHeader: React.FC<RunDetailHeaderProps> = ({
           <button
             type="button"
             onClick={onBack}
-            aria-label="Back"
+            aria-label={t('run-detail-back')}
             className="gba:inline-flex gba:h-8 gba:w-8 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-md gba:text-muted-foreground gba:hover:bg-muted/60 gba:hover:text-foreground"
             data-testid="run-detail-back"
           >
@@ -138,7 +142,7 @@ export const RunDetailHeader: React.FC<RunDetailHeaderProps> = ({
           {isRefreshing && !isStreaming && (
             <span className="gba:inline-flex gba:items-center gba:gap-1 gba:text-[11px] gba:text-muted-foreground">
               <SpinnerGapIcon className="gba:h-3 gba:w-3 gba:animate-spin" />
-              Refreshing
+              {t('run-detail-refreshing')}
             </span>
           )}
           <span className="gba:ml-auto gba:font-mono gba:text-[11px] gba:text-muted-foreground">
@@ -158,11 +162,15 @@ export const RunDetailHeader: React.FC<RunDetailHeaderProps> = ({
         </div>
 
         <div className="gba:mt-4 gba:grid gba:grid-cols-2 gba:gap-3 gba:sm:grid-cols-3 gba:lg:grid-cols-5">
-          <Fact icon={IdentificationBadgeIcon} label="Agent" value={agentName} />
-          <Fact icon={SourceIcon} label="Trigger" value={triggerValue} />
-          <Fact icon={ClockIcon} label="Started" value={formatTimestamp(run.started_at ?? run.created_at)} />
-          <Fact icon={TimerIcon} label="Duration" value={duration ?? '—'} />
-          <Fact icon={CoinsIcon} label="Credits" value={`${credits}`} />
+          <Fact icon={IdentificationBadgeIcon} label={t('run-detail-fact-agent')} value={agentName} />
+          <Fact icon={SourceIcon} label={t('run-detail-fact-trigger')} value={triggerValue} />
+          <Fact
+            icon={ClockIcon}
+            label={t('run-detail-fact-started')}
+            value={formatTimestamp(run.started_at ?? run.created_at)}
+          />
+          <Fact icon={TimerIcon} label={t('run-detail-fact-duration')} value={duration ?? '—'} />
+          <Fact icon={CoinsIcon} label={t('run-detail-fact-credits')} value={`${credits}`} />
         </div>
 
         <RunContextLinks run={run} accessToken={accessToken} trace={trace} />

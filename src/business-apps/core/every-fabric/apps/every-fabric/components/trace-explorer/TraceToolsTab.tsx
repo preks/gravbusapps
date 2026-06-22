@@ -1,8 +1,10 @@
 // Lists all tool invocations with call counts, durations, and status.
 
 import { useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { CheckCircleIcon, WarningCircleIcon, WrenchIcon } from '@phosphor-icons/react'
 import type { TraceModel } from '../../utils/traceModel'
+import translations from '../../_i18n'
 
 interface TraceToolsTabProps {
   model: TraceModel
@@ -70,20 +72,21 @@ interface StatusBadgeProps {
   hasFailures: boolean
 }
 
-const StatusBadge: React.FC<StatusBadgeProps> = ({ hasFailures }) =>
+const StatusBadge: React.FC<StatusBadgeProps & { t: (key: string) => string }> = ({ hasFailures, t }) =>
   hasFailures ? (
     <span className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-0.5 gba:rounded-full gba:bg-destructive/10 gba:text-destructive gba:text-[11px] gba:font-medium">
       <WarningCircleIcon className="gba:h-3 gba:w-3" weight="fill" />
-      Failed
+      {t('trace-explorer-status-failed')}
     </span>
   ) : (
     <span className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-0.5 gba:rounded-full gba:bg-emerald-500/10 gba:text-emerald-700 dark:gba:text-emerald-400 gba:text-[11px] gba:font-medium">
       <CheckCircleIcon className="gba:h-3 gba:w-3" weight="fill" />
-      OK
+      {t('trace-explorer-status-ok')}
     </span>
   )
 
 export const TraceToolsTab: React.FC<TraceToolsTabProps> = ({ model }) => {
+  const { t } = useTranslation(translations)
   const stats = useMemo(() => buildToolStats(model), [model])
 
   if (stats.length === 0) {
@@ -95,7 +98,7 @@ export const TraceToolsTab: React.FC<TraceToolsTabProps> = ({ model }) => {
         <span className="gba:flex gba:h-12 gba:w-12 gba:items-center gba:justify-center gba:rounded-full gba:bg-muted">
           <WrenchIcon className="gba:h-5 gba:w-5 gba:text-muted-foreground" weight="duotone" />
         </span>
-        <p className="gba:text-sm gba:text-muted-foreground">No tool calls in this session</p>
+        <p className="gba:text-sm gba:text-muted-foreground">{t('trace-explorer-tools-empty')}</p>
       </div>
     )
   }
@@ -107,19 +110,19 @@ export const TraceToolsTab: React.FC<TraceToolsTabProps> = ({ model }) => {
           <thead className="gba:sticky gba:top-0 gba:z-10 gba:bg-muted/40 gba:backdrop-blur">
             <tr>
               <th className="gba:text-left gba:px-4 gba:py-2.5 gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground gba:border-b gba:border-border/50">
-                Tool
+                {t('trace-explorer-col-tool')}
               </th>
               <th className="gba:text-right gba:px-4 gba:py-2.5 gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground gba:border-b gba:border-border/50 gba:w-[100px]">
-                Calls
+                {t('trace-explorer-col-calls')}
               </th>
               <th className="gba:text-right gba:px-4 gba:py-2.5 gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground gba:border-b gba:border-border/50 gba:w-[140px]">
-                Total time
+                {t('trace-explorer-col-total-time')}
               </th>
               <th className="gba:text-right gba:px-4 gba:py-2.5 gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground gba:border-b gba:border-border/50 gba:w-[100px]">
-                Failures
+                {t('trace-explorer-col-failures')}
               </th>
               <th className="gba:text-left gba:px-4 gba:py-2.5 gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground gba:border-b gba:border-border/50 gba:w-[120px]">
-                Status
+                {t('trace-explorer-col-status')}
               </th>
             </tr>
           </thead>
@@ -154,7 +157,7 @@ export const TraceToolsTab: React.FC<TraceToolsTabProps> = ({ model }) => {
                   )}
                 </td>
                 <td className="gba:px-4 gba:py-3 gba:border-b gba:border-border/30">
-                  <StatusBadge hasFailures={stat.failures > 0} />
+                  <StatusBadge hasFailures={stat.failures > 0} t={t} />
                 </td>
               </tr>
             ))}

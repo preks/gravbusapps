@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BrainIcon, LightbulbIcon, MagnifyingGlassIcon, WrenchIcon, XIcon } from '@phosphor-icons/react'
 import type { MeshNode, MeshNodeKind } from '../../utils/traceModel'
+import { useAgentMeshI18n } from './useAgentMeshI18n'
 
 interface MeshSearchProps {
   nodes: readonly MeshNode[]
@@ -29,23 +30,8 @@ function iconForKind(kind: MeshNodeKind) {
   }
 }
 
-function categoryLabelFor(kind: MeshNodeKind): string {
-  switch (kind) {
-    case 'orchestrator':
-      return 'orchestrator'
-    case 'subagent':
-    case 'expert':
-      return 'enterprise agent'
-    case 'skill':
-      return 'skill'
-    case 'tool':
-      return 'tool'
-    default:
-      return ''
-  }
-}
-
 export const MeshSearch: React.FC<MeshSearchProps> = ({ nodes, onSelectNode }) => {
+  const { t, nodeCategoryLabel } = useAgentMeshI18n()
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
@@ -154,9 +140,9 @@ export const MeshSearch: React.FC<MeshSearchProps> = ({ nodes, onSelectNode }) =
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={handleKeyDown}
-          placeholder="Search agents, skills, tools..."
+          placeholder={t('agent-mesh-search-placeholder')}
           className="gba:h-8 gba:w-[240px] gba:rounded-lg gba:border gba:border-border/60 gba:bg-card/95 gba:backdrop-blur gba:pl-8 gba:pr-7 gba:text-[12px] gba:text-foreground gba:placeholder:text-muted-foreground gba:shadow-sm gba:outline-none gba:transition-colors focus:gba:border-primary/60 focus:gba:ring-2 focus:gba:ring-primary/20"
-          aria-label="Search mesh nodes"
+          aria-label={t('agent-mesh-search-aria')}
           data-testid="mesh-search-input"
         />
         {query.length > 0 && (
@@ -167,7 +153,7 @@ export const MeshSearch: React.FC<MeshSearchProps> = ({ nodes, onSelectNode }) =
               inputRef.current?.focus()
             }}
             className="gba:absolute gba:right-1 gba:inline-flex gba:h-6 gba:w-6 gba:items-center gba:justify-center gba:rounded-md gba:text-muted-foreground gba:hover:bg-muted/60 gba:hover:text-foreground"
-            aria-label="Clear search"
+            aria-label={t('agent-mesh-search-clear')}
           >
             <XIcon className="gba:h-3.5 gba:w-3.5" weight="bold" />
           </button>
@@ -182,7 +168,7 @@ export const MeshSearch: React.FC<MeshSearchProps> = ({ nodes, onSelectNode }) =
         >
           {results.length === 0 ? (
             <div className="gba:px-3 gba:py-2 gba:text-[12px] gba:text-muted-foreground">
-              No matches for &ldquo;{query}&rdquo;
+              {t('agent-mesh-search-no-matches', { query })}
             </div>
           ) : (
             <ul className="gba:max-h-[320px] gba:overflow-y-auto gba:py-1">
@@ -205,7 +191,7 @@ export const MeshSearch: React.FC<MeshSearchProps> = ({ nodes, onSelectNode }) =
                       <Icon className="gba:h-3.5 gba:w-3.5 gba:shrink-0 gba:text-muted-foreground" weight="bold" />
                       <span className="gba:flex-1 gba:truncate gba:font-medium">{node.label}</span>
                       <span className="gba:shrink-0 gba:text-[10px] gba:font-medium gba:uppercase gba:tracking-[0.08em] gba:text-muted-foreground">
-                        {categoryLabelFor(node.kind)}
+                        {nodeCategoryLabel(node.kind)}
                       </span>
                     </button>
                   </li>

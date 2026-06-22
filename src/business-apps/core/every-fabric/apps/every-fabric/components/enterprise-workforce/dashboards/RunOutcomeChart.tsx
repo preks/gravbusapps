@@ -9,52 +9,61 @@ import {
   CardTitle,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent
+  ChartTooltipContent,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { CheckCircleIcon } from '@phosphor-icons/react'
 import React, { useMemo } from 'react'
 import { Cell, Pie, PieChart } from 'recharts'
 import type { WorkforceMetricsTotals } from '../workforceTypes'
+import translations from '../../../_i18n'
 
 export interface RunOutcomeChartProps {
   totals: WorkforceMetricsTotals
 }
 
-const chartConfig = {
-  completed: { label: 'Completed', color: 'var(--nw-color-chart-2, var(--primary))' },
-  failed: { label: 'Failed', color: 'var(--destructive)' },
-  cancelled: { label: 'Cancelled', color: 'var(--muted-foreground)' }
-} as const
-
-type OutcomeKey = keyof typeof chartConfig
+type OutcomeKey = 'completed' | 'failed' | 'cancelled'
 
 export const RunOutcomeChart: React.FC<RunOutcomeChartProps> = ({ totals }) => {
+  const { t } = useTranslation(translations)
+  const chartConfig = useMemo(
+    () => ({
+      completed: { label: t('chart-outcome-completed'), color: 'var(--nw-color-chart-2, var(--primary))' },
+      failed: { label: t('chart-outcome-failed'), color: 'var(--destructive)' },
+      cancelled: { label: t('chart-outcome-cancelled'), color: 'var(--muted-foreground)' }
+    }),
+    [t]
+  )
+
   const data = useMemo(() => {
     const rows: Array<{ key: OutcomeKey; name: string; value: number }> = [
-      { key: 'completed', name: 'Completed', value: totals.completed_runs },
-      { key: 'failed', name: 'Failed', value: totals.failed_runs },
-      { key: 'cancelled', name: 'Cancelled', value: totals.cancelled_runs }
+      { key: 'completed', name: t('chart-outcome-completed'), value: totals.completed_runs },
+      { key: 'failed', name: t('chart-outcome-failed'), value: totals.failed_runs },
+      { key: 'cancelled', name: t('chart-outcome-cancelled'), value: totals.cancelled_runs }
     ]
     return rows.filter(row => row.value > 0)
-  }, [totals])
+  }, [t, totals])
 
   const finished = totals.completed_runs + totals.failed_runs
   const successRate = finished > 0 ? Math.round((totals.completed_runs / finished) * 100) : null
+
+  let subtitle = t('chart-outcome-none-finished')
+  if (successRate !== null) {
+    subtitle = t('chart-outcome-success-runs', { rate: successRate, runs: totals.runs })
+  }
 
   return (
     <Card data-testid="workforce-run-outcome-chart">
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-sm">
           <CheckCircleIcon className="gba:h-4 gba:w-4 gba:text-emerald-500" />
-          Run outcomes
+          {t('chart-outcome-title')}
         </CardTitle>
-        <p className="gba:text-xs gba:text-muted-foreground">
-          {successRate === null ? 'No finished runs yet' : `${successRate}% success · ${totals.runs} runs`}
-        </p>
+        <p className="gba:text-xs gba:text-muted-foreground">{subtitle}</p>
       </CardHeader>
       <CardContent>
         {data.length === 0 ? (
-          <p className="gba:py-8 gba:text-center gba:text-xs gba:text-muted-foreground">No runs in this window yet.</p>
+          <p className="gba:py-8 gba:text-center gba:text-xs gba:text-muted-foreground">{t('chart-outcome-empty')}</p>
         ) : (
           <div className="gba:relative">
             <ChartContainer config={chartConfig} className="gba:h-[200px] gba:w-full gba:aspect-auto">
@@ -71,7 +80,7 @@ export const RunOutcomeChart: React.FC<RunOutcomeChartProps> = ({ totals }) => {
               <div className="gba:pointer-events-none gba:absolute gba:inset-0 gba:flex gba:flex-col gba:items-center gba:justify-center">
                 <span className="gba:text-2xl gba:font-semibold gba:text-foreground">{successRate}%</span>
                 <span className="gba:text-[10px] gba:uppercase gba:tracking-wide gba:text-muted-foreground">
-                  success
+                  {t('chart-outcome-success-label')}
                 </span>
               </div>
             )}

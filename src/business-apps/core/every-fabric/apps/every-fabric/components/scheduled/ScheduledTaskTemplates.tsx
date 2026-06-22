@@ -1,3 +1,4 @@
+import { useTranslation } from '@newwork/nw-design-system'
 import {
   CalendarCheckIcon,
   ChartLineIcon,
@@ -11,6 +12,7 @@ import type {
   ScheduledTaskFrequency,
   ScheduledTaskTemplate
 } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import translations from '../../_i18n'
 
 /** Repeat cadence for the create/edit form. `'once'` schedules a single
  *  future run (no recurrence); the other values come from templates. */
@@ -74,6 +76,8 @@ export const ScheduledTaskTemplates: React.FC<ScheduledTaskTemplatesProps> = ({
   onApply,
   onDelete
 }) => {
+  const { t } = useTranslation(translations)
+
   if (!isLoading && templates.length === 0) return null
 
   const applyTemplate = (template: ScheduledTaskTemplate) => {
@@ -90,7 +94,7 @@ export const ScheduledTaskTemplates: React.FC<ScheduledTaskTemplatesProps> = ({
       <div className="gba:flex gba:items-center gba:gap-1.5">
         <SparkleIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
         <p className="gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
-          Quick start
+          {t('scheduled-templates-quick-start')}
         </p>
       </div>
       <div className="gba:grid gba:grid-cols-1 gba:gap-3 gba:sm:grid-cols-2">
@@ -126,7 +130,7 @@ export const ScheduledTaskTemplates: React.FC<ScheduledTaskTemplatesProps> = ({
                 <button
                   type="button"
                   onClick={() => onDelete(template.templateId)}
-                  aria-label="Delete template"
+                  aria-label={t('scheduled-templates-delete-aria')}
                   className="gba:absolute gba:right-2 gba:top-2 gba:hidden gba:h-6 gba:w-6 gba:items-center gba:justify-center gba:rounded-md gba:bg-background/80 gba:text-muted-foreground gba:hover:bg-destructive/10 gba:hover:text-destructive gba:group-hover:flex"
                 >
                   <TrashIcon className="gba:h-3.5 gba:w-3.5" />

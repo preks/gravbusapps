@@ -31,12 +31,15 @@ const startOfDay = (ms: number): number => {
 }
 
 /** Human day heading relative to today ("Today", "Yesterday", "Wed, Jun 11"). */
-export const formatDayHeading = (timestamp: number): string => {
+export const formatDayHeading = (
+  timestamp: number,
+  t: (key: string, args?: Record<string, unknown>) => string
+): string => {
   const today = startOfDay(Date.now())
   const day = startOfDay(timestamp)
   const diffDays = Math.round((today - day) / 86_400_000)
-  if (diffDays === 0) return 'Today'
-  if (diffDays === 1) return 'Yesterday'
+  if (diffDays === 0) return t('sidebar-group-today')
+  if (diffDays === 1) return t('sidebar-group-yesterday')
   const sameYear = new Date(timestamp).getFullYear() === new Date().getFullYear()
   return new Date(timestamp).toLocaleDateString(undefined, {
     weekday: 'short',
@@ -52,7 +55,10 @@ export interface DayGroups {
 }
 
 /** Group entries by calendar day, newest day first; entries with no date go to `undated`. */
-export const groupByDay = (entries: MemoryLensEntry[]): DayGroups => {
+export const groupByDay = (
+  entries: MemoryLensEntry[],
+  t: (key: string, args?: Record<string, unknown>) => string
+): DayGroups => {
   const buckets = new Map<string, DayGroup>()
   const undated: MemoryLensEntry[] = []
 
@@ -67,7 +73,7 @@ export const groupByDay = (entries: MemoryLensEntry[]): DayGroups => {
     if (existing) {
       existing.entries.push(entry)
     } else {
-      buckets.set(key, { key, timestamp: startOfDay(ms), label: formatDayHeading(ms), entries: [entry] })
+      buckets.set(key, { key, timestamp: startOfDay(ms), label: formatDayHeading(ms, t), entries: [entry] })
     }
   }
 

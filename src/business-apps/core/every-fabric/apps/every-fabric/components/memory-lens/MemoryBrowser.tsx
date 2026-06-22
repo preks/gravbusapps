@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from 'react'
-import { Button, Input } from '@newwork/nw-design-system'
+import { Button, Input, useTranslation } from '@newwork/nw-design-system'
 import { MagnifyingGlassIcon, XIcon } from '@phosphor-icons/react'
-import { MEMORY_NAMESPACES, MEMORY_NAMESPACE_EMPTY } from '../settings/agentSettings.types'
-import type { MemoryNamespace } from '../settings/agentSettings.types'
+import { MEMORY_NAMESPACES, type MemoryNamespace } from '../settings/agentSettings.types'
 import { MemoryListSkeleton } from '../settings/components/SkeletonLoader'
 import type { MemoryLensEntry } from './memoryLensModel'
 import { MEMORY_LENS_NAMESPACE_LABELS } from './memoryLensModel'
 import { MemoryEntryCard } from './MemoryEntryCard'
+import { memoryNamespaceEmptyLabel } from './memoryNamespaceI18n'
+import translations from '../../_i18n'
 
 type NamespaceTab = MemoryNamespace | 'all'
 
@@ -52,30 +53,32 @@ export const MemoryBrowser: React.FC<MemoryBrowserProps> = ({
   onLoadMore,
   onDelete
 }) => {
+  const { t } = useTranslation(translations)
   const [activeTab, setActiveTab] = useState<NamespaceTab>('all')
 
   const tabs: Array<{ id: NamespaceTab; label: string; count: number }> = useMemo(
     () => [
-      { id: 'all', label: 'All', count: entries.length },
+      { id: 'all', label: t('memory-lens-browser-all'), count: entries.length },
       ...MEMORY_NAMESPACES.map(namespace => ({
         id: namespace as NamespaceTab,
         label: MEMORY_LENS_NAMESPACE_LABELS[namespace],
         count: entries.filter(entry => entry.namespace === namespace).length
       }))
     ],
-    [entries]
+    [entries, t]
   )
 
   const topics = useMemo(() => topTopics(entries), [entries])
 
   const visibleEntries = useMemo(() => {
-    let list = entries
-    if (activeTab !== 'all') list = list.filter(entry => entry.namespace === activeTab)
-    if (activeTopic) list = list.filter(entry => (entry.tags ?? []).includes(activeTopic))
-    return list
+    let filteredEntries = entries
+    if (activeTab !== 'all') filteredEntries = filteredEntries.filter(entry => entry.namespace === activeTab)
+    if (activeTopic) filteredEntries = filteredEntries.filter(entry => (entry.tags ?? []).includes(activeTopic))
+    return filteredEntries
   }, [entries, activeTab, activeTopic])
 
-  const emptyLabel = activeTab === 'all' ? 'No memories match the current filters.' : MEMORY_NAMESPACE_EMPTY[activeTab]
+  const emptyLabel =
+    activeTab === 'all' ? t('memory-lens-browser-empty-filters') : memoryNamespaceEmptyLabel(activeTab, t)
 
   return (
     <section className="gba:rounded-2xl gba:bg-card" data-testid="memory-lens-browser">
@@ -88,8 +91,8 @@ export const MemoryBrowser: React.FC<MemoryBrowserProps> = ({
           <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 -gba:translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground" />
           <Input
             value={query}
-            onChange={e => onQueryChange(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && onSearch(query)}
+            onChange={event => onQueryChange(event.target.value)}
+            onKeyDown={event => event.key === 'Enter' && onSearch(query)}
             placeholder="Search memories"
             className="gba:h-9 gba:rounded-lg gba:border-transparent gba:bg-background gba:pl-9 gba:text-sm"
             data-testid="memory-lens-search"

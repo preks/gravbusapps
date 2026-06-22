@@ -8,7 +8,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { SpinnerGapIcon, WrenchIcon, LinkIcon, CircleIcon, MagnifyingGlassIcon } from '@phosphor-icons/react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import type { CanonicalProviderToolEntry, ToolODM } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import {
@@ -19,6 +19,7 @@ import {
 } from '../skills/toolCategoryLabels'
 import { ToolCompanions } from '../skills/ToolCompanions'
 import { FlowBindingsManager } from './FlowBindingsManager'
+import translations from '../../_i18n'
 
 /** DOM id for a tool row, used by the "open companion details" jump. */
 const toolRowId = (toolRef: string): string => `tools-tab-row-${toolRef}`
@@ -45,6 +46,7 @@ const readProviderCapabilities = (caps: Record<string, unknown>): ProviderCapabi
 })
 
 export const ToolsTab: React.FC<ToolsTabProps> = ({ accessToken }) => {
+  const { t } = useTranslation(translations)
   const client = usePromptManagerClient(accessToken)
   const [tools, setTools] = useState<ToolODM[]>([])
   const [providerTools, setProviderTools] = useState<CanonicalProviderToolEntry[]>([])
@@ -85,7 +87,7 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({ accessToken }) => {
       setTools(page.data)
       setProviderTools(canonicalTools)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load tools')
+      setError(err instanceof Error ? err.message : t('settings-tools-error-load'))
     } finally {
       setIsLoading(false)
     }
@@ -112,7 +114,11 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({ accessToken }) => {
         )
       } catch (err) {
         setToggleError(
-          err instanceof Error ? err.message : `Failed to ${nextDisabled ? 'disable' : 'enable'} ${tool.canonical_name}`
+          err instanceof Error
+            ? err.message
+            : t(nextDisabled ? 'settings-tools-toggle-error-disable' : 'settings-tools-toggle-error-enable', {
+                name: tool.canonical_name
+              })
         )
       } finally {
         setTogglingName(null)
@@ -191,7 +197,7 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({ accessToken }) => {
     return (
       <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:gap-3">
         <SpinnerGapIcon className="gba:h-8 gba:w-8 gba:animate-spin gba:text-muted-foreground" />
-        <p className="gba:text-sm gba:text-muted-foreground">Loading tools...</p>
+        <p className="gba:text-sm gba:text-muted-foreground">{t('settings-tools-loading')}</p>
       </div>
     )
   }
@@ -201,7 +207,7 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({ accessToken }) => {
       <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:gap-4">
         <p className="gba:text-sm gba:text-destructive">{error}</p>
         <Button variant="secondary" size="sm" onClick={() => void loadTools()}>
-          Retry
+          {t('shell-try-again')}
         </Button>
       </div>
     )
@@ -211,20 +217,15 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({ accessToken }) => {
     return (
       <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:gap-3">
         <WrenchIcon className="gba:h-10 gba:w-10 gba:text-muted-foreground/50" />
-        <p className="gba:text-sm gba:text-muted-foreground">No tools configured yet.</p>
+        <p className="gba:text-sm gba:text-muted-foreground">{t('settings-tools-empty')}</p>
       </div>
     )
   }
 
   return (
     <div className="gba:max-w-5xl gba:mx-auto gba:px-4 sm:gba:px-6 lg:gba:px-8 gba:py-6 sm:gba:py-8">
-      <p className="gba:text-sm gba:text-muted-foreground gba:mb-1">
-        Tools available to enterprise agents, grouped by business domain.
-      </p>
-      <p className="gba:text-xs gba:text-muted-foreground/80 gba:mb-4">
-        The bold name is what the agent sees; the monospace badge is the persisted skill ref. The small grey “via …”
-        hint shows where each tool is sourced from.
-      </p>
+      <p className="gba:text-sm gba:text-muted-foreground gba:mb-1">{t('settings-tools-intro')}</p>
+      <p className="gba:text-xs gba:text-muted-foreground/80 gba:mb-4">{t('settings-tools-hint')}</p>
 
       {providerTools.length > 0 && (
         <div className="gba:mb-4 gba:space-y-2">
@@ -234,7 +235,7 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({ accessToken }) => {
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search tools — name, description, category, tag…"
+              placeholder={t('settings-tools-search-placeholder')}
               className="gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-muted/20 gba:pl-8 gba:pr-3 gba:py-2 gba:text-sm gba:text-foreground placeholder:gba:text-muted-foreground/50 focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-primary/30"
               data-testid="tools-tab-search"
             />
@@ -244,9 +245,11 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({ accessToken }) => {
               className="gba:flex gba:flex-wrap gba:items-center gba:gap-1.5"
               data-testid="tools-tab-category-filter"
             >
-              <span className="gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:mr-0.5">Category</span>
+              <span className="gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:mr-0.5">
+                {t('settings-tools-category')}
+              </span>
               <CategoryPill
-                label={`All (${providerTools.length})`}
+                label={t('settings-tools-category-all', { count: providerTools.length })}
                 active={categoryFilter === ALL_FILTER}
                 onClick={() => setCategoryFilter(ALL_FILTER)}
                 testId="tools-tab-category-pill-all"
@@ -279,7 +282,7 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({ accessToken }) => {
           <section>
             {filteredProviderTools.length === 0 ? (
               <div className="gba:rounded-lg gba:border gba:border-dashed gba:border-border gba:py-6 gba:text-center gba:text-sm gba:text-muted-foreground">
-                No tools match the current filters.
+                {t('settings-tools-no-match')}
               </div>
             ) : (
               groupedByCategory.map(section => (
@@ -293,6 +296,7 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({ accessToken }) => {
                   onToggleDisabled={handleToggleDisabled}
                   onOpenTool={openToolDetail}
                   resolveLabel={labelForRef}
+                  t={t}
                 />
               ))
             )}
@@ -304,7 +308,7 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({ accessToken }) => {
         {tools.length > 0 && (
           <section>
             <h4 className="gba:text-xs gba:font-semibold gba:uppercase gba:text-muted-foreground gba:mb-2 gba:tracking-wide">
-              Configured tool integrations
+              {t('settings-tools-integrations-title')}
             </h4>
             <div className="gba:grid gba:gap-3">
               {tools.map(tool => (
@@ -325,7 +329,7 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({ accessToken }) => {
                       )}
                       {tool.internal && (
                         <span className="gba:text-[11px] gba:font-medium gba:text-blue-700 gba:bg-blue-100 gba:px-1.5 gba:py-0.5 gba:rounded">
-                          Built-in
+                          {t('settings-tools-builtin')}
                         </span>
                       )}
                     </div>
@@ -344,7 +348,7 @@ export const ToolsTab: React.FC<ToolsTabProps> = ({ accessToken }) => {
                           weight="fill"
                           className={`gba:h-2 gba:w-2 ${tool.active !== false ? 'gba:text-green-500' : 'gba:text-muted-foreground/40'}`}
                         />
-                        {tool.active !== false ? 'Active' : 'Inactive'}
+                        {tool.active !== false ? t('settings-tools-active') : t('settings-tools-inactive')}
                       </span>
                     </div>
                   </div>
@@ -367,6 +371,7 @@ interface ToolsTabSectionProps {
   onToggleDisabled: (tool: CanonicalProviderToolEntry) => void
   onOpenTool: (toolRef: string) => void
   resolveLabel: (toolRef: string) => string | undefined
+  t: (key: string, args?: Record<string, unknown>) => string
 }
 
 const ToolsTabSection: React.FC<ToolsTabSectionProps> = ({
@@ -377,7 +382,8 @@ const ToolsTabSection: React.FC<ToolsTabSectionProps> = ({
   highlightRef,
   onToggleDisabled,
   onOpenTool,
-  resolveLabel
+  resolveLabel,
+  t
 }) => (
   <div className="gba:mb-5" data-testid={`tools-tab-section-${sectionId}`}>
     <h4 className="gba:text-xs gba:font-semibold gba:uppercase gba:text-muted-foreground gba:mb-2 gba:tracking-wide">
@@ -416,7 +422,9 @@ const ToolsTabSection: React.FC<ToolsTabSectionProps> = ({
                   {tool.tool_ref}
                 </span>
                 {/* Source is a small dim hint, not the headline. */}
-                <span className="gba:text-[10px] gba:font-medium gba:text-muted-foreground/80">via {sourceLabel}</span>
+                <span className="gba:text-[10px] gba:font-medium gba:text-muted-foreground/80">
+                  {t('settings-tools-via', { source: sourceLabel })}
+                </span>
                 {capabilities.risk_level && (
                   <span className="gba:text-[11px] gba:font-medium gba:text-amber-700 gba:bg-amber-100 gba:px-1.5 gba:py-0.5 gba:rounded">
                     {capabilities.risk_level}
@@ -427,7 +435,7 @@ const ToolsTabSection: React.FC<ToolsTabSectionProps> = ({
                     className="gba:text-[11px] gba:font-medium gba:text-destructive gba:bg-destructive/10 gba:px-1.5 gba:py-0.5 gba:rounded"
                     data-testid={`tools-tab-disabled-badge-${tool.tool_ref}`}
                   >
-                    Disabled
+                    {t('settings-tools-disabled')}
                   </span>
                 )}
               </div>
@@ -435,9 +443,13 @@ const ToolsTabSection: React.FC<ToolsTabSectionProps> = ({
                 <p className="gba:text-xs gba:text-muted-foreground gba:line-clamp-2 gba:mb-2">{tool.description}</p>
               )}
               <div className="gba:flex gba:items-center gba:gap-3 gba:text-[11px] gba:text-muted-foreground">
-                <span>{capabilities.requires_auth === false ? 'No auth required' : 'Auth required'}</span>
-                {capabilities.supports_hitl && <span>HITL</span>}
-                {capabilities.supports_artifacts && <span>Artifacts</span>}
+                <span>
+                  {capabilities.requires_auth === false
+                    ? t('settings-tools-no-auth')
+                    : t('settings-tools-auth-required')}
+                </span>
+                {capabilities.supports_hitl && <span>{t('settings-tools-hitl')}</span>}
+                {capabilities.supports_artifacts && <span>{t('settings-tools-artifacts')}</span>}
               </div>
               {tool.related_tools && tool.related_tools.length > 0 && (
                 <div className="gba:mt-2">
@@ -458,7 +470,7 @@ const ToolsTabSection: React.FC<ToolsTabSectionProps> = ({
               data-testid={`tools-tab-toggle-${tool.tool_ref}`}
               className="gba:shrink-0"
             >
-              {isToggling ? '…' : isDisabled ? 'Enable' : 'Disable'}
+              {isToggling ? '…' : isDisabled ? t('settings-action-enable') : t('settings-action-disable')}
             </Button>
           </div>
         )

@@ -9,6 +9,7 @@ import {
   SortDesc,
   PanelLeft,
   RefreshCw,
+  Share2,
   Trash2,
   Pin,
   X
@@ -32,6 +33,7 @@ export interface NoteContentHeaderProps {
   onBreadcrumbClick: (id: string | null) => void
   onToggleSidebar: () => void
   onRefresh: () => void
+  onBulkShare?: () => void
   onBulkDelete?: () => void
   onBulkPin?: () => void
   onClearSelection: () => void
@@ -53,6 +55,7 @@ export const NoteContentHeader: React.FC<NoteContentHeaderProps> = ({
   onBreadcrumbClick,
   onToggleSidebar,
   onRefresh,
+  onBulkShare,
   onBulkDelete,
   onBulkPin,
   onClearSelection
@@ -102,6 +105,15 @@ export const NoteContentHeader: React.FC<NoteContentHeaderProps> = ({
                 >
                   <Trash2 className="gba:w-4 gba:h-4 gba:mr-1" />
                   {t('menu-delete')}
+                </Button>
+              </>
+            )}
+            {onBulkShare && (
+              <>
+                <div className="gba:w-px gba:h-5 gba:bg-border gba:mx-1" />
+                <Button variant="ghost" size="sm" onClick={onBulkShare} data-testid="content-bulk-share">
+                  <Share2 className="gba:w-4 gba:h-4 gba:mr-1" />
+                  {t('menu-share')}
                 </Button>
               </>
             )}

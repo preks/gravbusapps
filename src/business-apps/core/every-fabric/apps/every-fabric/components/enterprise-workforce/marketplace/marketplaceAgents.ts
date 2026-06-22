@@ -32,16 +32,32 @@ export type MarketplaceValuePack = 'hr' | 'crm' | 'service' | 'finance' | 'erp'
 
 export interface MarketplaceValuePackMeta {
   id: MarketplaceValuePack
-  label: string
+  labelKey: string
   description: string
 }
 
 export const VALUE_PACKS: MarketplaceValuePackMeta[] = [
-  { id: 'hr', label: 'Human Resources', description: 'Recruiting, onboarding, talent and employee services.' },
-  { id: 'crm', label: 'Customer Relationship', description: 'Customer 360, leads, opportunities and sales ops.' },
-  { id: 'service', label: 'Customer Service', description: 'Omnichannel service, incidents, tickets and knowledge.' },
-  { id: 'finance', label: 'Finance', description: 'AP/AR, invoicing, payments, dunning and forecasting.' },
-  { id: 'erp', label: 'ERP & Procurement', description: 'Purchasing, suppliers, inventory and supply chain.' }
+  { id: 'hr', labelKey: 'marketplace-pack-hr', description: 'Recruiting, onboarding, talent and employee services.' },
+  {
+    id: 'crm',
+    labelKey: 'marketplace-pack-crm',
+    description: 'Customer 360, leads, opportunities and sales ops.'
+  },
+  {
+    id: 'service',
+    labelKey: 'marketplace-pack-service',
+    description: 'Omnichannel service, incidents, tickets and knowledge.'
+  },
+  {
+    id: 'finance',
+    labelKey: 'marketplace-pack-finance',
+    description: 'AP/AR, invoicing, payments, dunning and forecasting.'
+  },
+  {
+    id: 'erp',
+    labelKey: 'marketplace-pack-erp',
+    description: 'Purchasing, suppliers, inventory and supply chain.'
+  }
 ]
 
 export interface MarketplaceAgentPricing {
@@ -95,8 +111,8 @@ function autonomyLabel(level: WorkforceAutonomyLevel): string {
   }
 }
 
-export function valuePackLabel(pack: MarketplaceValuePack): string {
-  return VALUE_PACKS.find(p => p.id === pack)?.label ?? pack
+export function valuePackLabelKey(pack: MarketplaceValuePack): string {
+  return VALUE_PACKS.find(p => p.id === pack)?.labelKey ?? 'marketplace-pack-general'
 }
 
 export function formatMonthlyFee(pricing: MarketplaceAgentPricing): string {

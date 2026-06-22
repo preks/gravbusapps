@@ -1,7 +1,38 @@
 import React from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { LocalizationProvider } from '@newwork/nw-design-system'
 import { UserProfileBriefEditor } from '../components/UserProfileBriefEditor'
 import type { UserProfileBrief } from '../../../hooks/useEnterpriseAgentClient'
+
+jest.mock('@newwork/nw-design-system', () => {
+  const actual = jest.requireActual('@newwork/nw-design-system')
+  const labels: Record<string, string> = {
+    'settings-profile-about': 'About you',
+    'settings-profile-desc': 'Generated from your employee record',
+    'settings-profile-regenerate': 'Regenerate',
+    'settings-profile-status-generating': 'Generating from employee data...',
+    'settings-profile-status-ready': 'Generated from employee data',
+    'settings-profile-placeholder': 'Your profile memory will appear here',
+    'settings-profile-loading': 'Loading your profile memory...',
+    'settings-profile-updated': 'Updated { $date }',
+    'section-saved': 'Saved'
+  }
+  return {
+    ...actual,
+    useTranslation: () => ({
+      t: (key: string, args?: Record<string, string>) => {
+        let value = labels[key] ?? key
+        if (args) {
+          for (const [argKey, argValue] of Object.entries(args)) {
+            value = value.replace(`{ $${argKey} }`, argValue)
+          }
+        }
+        return value
+      },
+      locale: 'en-US'
+    })
+  }
+})
 
 const baseProfile: UserProfileBrief = {
   user_id: 'user-1',
@@ -33,7 +64,11 @@ describe('UserProfileBriefEditor', () => {
     })
     const client = makeClient({ updateUserProfileBrief })
 
-    render(<UserProfileBriefEditor client={client} isOpen />)
+    render(
+      <LocalizationProvider locale="en-US">
+        <UserProfileBriefEditor client={client} isOpen />
+      </LocalizationProvider>
+    )
 
     const textarea = await screen.findByTestId('pref-user-profile-brief')
     expect(textarea).toHaveValue(baseProfile.brief_text)
@@ -62,7 +97,11 @@ describe('UserProfileBriefEditor', () => {
       ensureUserProfileBrief
     })
 
-    render(<UserProfileBriefEditor client={client} isOpen />)
+    render(
+      <LocalizationProvider locale="en-US">
+        <UserProfileBriefEditor client={client} isOpen />
+      </LocalizationProvider>
+    )
 
     await waitFor(() => expect(ensureUserProfileBrief).toHaveBeenCalledTimes(1))
     expect(await screen.findByText('Generating from employee data...')).toBeInTheDocument()

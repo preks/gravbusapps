@@ -58,6 +58,7 @@ sort-created = Erstellt
 table-owner = Besitzer
 table-trashed = Im Papierkorb seit
 menu-open = Öffnen
+action-share = Teilen
 menu-share = Teilen
 menu-manage-sharing = Freigabe verwalten
 menu-copy-link = Link kopieren

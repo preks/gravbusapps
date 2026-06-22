@@ -14,7 +14,7 @@
 // WorkforceAgentConfigView; clicking Configure on a tile navigates into
 // it and back via the Workforce header.
 
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { ArchiveIcon, ArrowLeftIcon, SparkleIcon, SpinnerGapIcon, UsersThreeIcon } from '@phosphor-icons/react'
 import React, { useCallback, useMemo, useState } from 'react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
@@ -43,6 +43,7 @@ import { WorkforceDeck, type DeckMatchInfo } from './deck/WorkforceDeck'
 import { TestWebhookModal } from './TestWebhookModal'
 import { notifyWebhookDispatchResult } from './workforceWebhookDispatch'
 import type { WorkforceAgent } from './workforceTypes'
+import translations from '../../_i18n'
 
 type WorkforceView = 'active' | 'archived'
 
@@ -91,6 +92,7 @@ export const EnterpriseWorkforceScreen: React.FC<EnterpriseWorkforceScreenProps>
   onBack,
   devModeEnabled = false
 }) => {
+  const { t } = useTranslation(translations)
   const client = usePromptManagerClient(accessToken)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<WorkforceFilter>('all')
@@ -317,7 +319,7 @@ export const EnterpriseWorkforceScreen: React.FC<EnterpriseWorkforceScreenProps>
           >
             <ArrowLeftIcon className="gba:h-5 gba:w-5" />
           </button>
-          <span className="gba:text-sm gba:font-medium gba:text-muted-foreground">Digital Workforce</span>
+          <span className="gba:text-sm gba:font-medium gba:text-muted-foreground">{t('workforce-label')}</span>
           <div className="gba:ml-auto gba:inline-flex gba:rounded-md gba:border gba:border-border gba:bg-background gba:p-0.5">
             <button
               type="button"

@@ -182,7 +182,7 @@ task-type-information = Information
 task-type-acknowledge = Bestätigung
 task-type-function = Funktion
 task-type-ai_agent = EveryAI-Agent
-task-type-ai_task_expert = KI-Aufgabenexperte
+task-type-ai_task_expert = { platform-ai-agent-product }
 task-type-custom_data_mutation = In Custom Data speichern
 task-kind = Schrittart
 task-kind-user = Benutzerschritt
@@ -288,7 +288,7 @@ decision-policy-optional-placeholder = Optional: Richtlinie auswählen...
 decision-ai-executor-label = KI-Ausführung
 decision-ai-executor-everyai = EveryAI
 decision-ai-executor-everyai-desc = Verwenden Sie Entscheidungsanweisungen (mit Flow-Kontext), damit EveryAI den besten Zweig auswählt.
-decision-ai-executor-taskexpert = Enterprise Agent
+decision-ai-executor-taskexpert = { platform-ai-agent-product }
 decision-ai-executor-taskexpert-desc = Führen Sie den Agenten aus und routen Sie über Mapping-Regeln. Wenn keine Regel passt, wählt ein Mensch den Zweig.
 decision-ai-type-label = Entscheidungseinrichtung
 decision-ai-type-policy = Richtliniengeführt
@@ -352,14 +352,14 @@ validation-orphan-nodes = Verwaiste Knoten erkannt
 validation-fork-no-join = Parallelknoten hat keinen passenden Zusammenführungsknoten
 validation-decision-branches = Entscheidung muss mindestens 2 Zweige haben
 validation-disconnected = Einige Knoten sind nicht verbunden
-validation-decision-must-select-agent = Entscheidung "{ $label }" muss einen Enterprise Agent auswählen
-validation-decision-unmapped-agent-params = Entscheidung "{ $label }" muss alle Agent-Parameter vor der Veröffentlichung zuordnen: { $params }
+validation-decision-must-select-agent = Entscheidung "{ $label }" muss einen { -platform-ai-agent-product.inline } auswählen
+validation-decision-unmapped-agent-params = Entscheidung "{ $label }" muss alle { -platform-ai-agent-product.inline } Prompt-Parameter vor der Veröffentlichung zuordnen: { $params }
 
 # Add step panel
 step-panel-add-step = Schritt hinzufügen
 step-panel-change-step = Schritt ändern
 step-panel-back-to-config = Zurück zur Konfiguration
-add-step-tip-advanced-mode = Wechseln Sie in den Erweitert-Modus, um Function Tasks und Enterprise Agent-Schritte freizuschalten.
+add-step-tip-advanced-mode = Wechseln Sie in den Erweitert-Modus, um Function Tasks und { -platform-ai-agent-product.label }-Schritte freizuschalten.
 step-kind-group-user-tasks = Benutzeraufgaben
 step-kind-group-ai-tasks = KI-Aufgaben
 step-kind-group-automation = Automatisierung
@@ -375,7 +375,7 @@ step-kind-desc-custom-decision = Eigene Pfade
 step-kind-desc-decision-ai = KI entscheidet
 step-kind-desc-decision-logic = Regeln routen
 step-kind-desc-ai-agent = KI-Agent
-step-kind-desc-ai-task-expert = Enterprise Agent
+step-kind-desc-ai-task-expert = { -platform-ai-agent-product.label }
 step-kind-desc-function = Funktion ausführen
 step-kind-desc-connector = Connector aufrufen
 step-kind-desc-save-to-custom-data = Zeilen oder Flow-Daten schreiben
@@ -391,7 +391,7 @@ step-kind-switch-confirm-cancel = Abbrechen
 step-kind-switch-confirm-action = Schritttyp ändern
 
 # Task step type selector descriptions
-task-step-type-ai-task-expert-description = Enterprise Agent Prompt-Schritt.
+task-step-type-ai-task-expert-description = { -platform-ai-agent-product.label } Prompt-Schritt.
 
 # Decision Enterprise Agent mapping suggestions
 decision-ai-taskexpert-mapping-suggestion-description = Aus dem Ausgabe-Schema des ausgewählten Agenten.

@@ -5,7 +5,7 @@
 // paused agents, active triggers (work the agents react to), and
 // credits consumed in the last seven days.
 
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import {
   LightningIcon,
   PauseIcon,
@@ -17,6 +17,7 @@ import {
 import type { Icon } from '@phosphor-icons/react'
 import React from 'react'
 import type { WorkforceCounts } from './useWorkforceData'
+import translations from '../../_i18n'
 
 interface WorkforceHeroProps {
   counts: WorkforceCounts
@@ -56,12 +57,15 @@ export const WorkforceHero: React.FC<WorkforceHeroProps> = ({
   canTestWebhook = false,
   workingNow = 0
 }) => {
+  const { t } = useTranslation(translations)
   return (
     <div className="gba:flex gba:flex-col gba:gap-5">
       <div className="gba:flex gba:flex-col gba:items-start gba:justify-between gba:gap-3 gba:sm:flex-row gba:sm:items-center">
         <div>
           <div className="gba:flex gba:items-center gba:gap-2.5">
-            <h1 className="gba:text-2xl gba:font-semibold gba:tracking-tight gba:text-foreground">Digital Workforce</h1>
+            <h1 className="gba:text-2xl gba:font-semibold gba:tracking-tight gba:text-foreground">
+              {t('workforce-hero-title')}
+            </h1>
             {workingNow > 0 && (
               <span
                 className="gba:inline-flex gba:items-center gba:gap-1.5 gba:rounded-full gba:bg-emerald-50 gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-semibold gba:text-emerald-700"
@@ -71,14 +75,11 @@ export const WorkforceHero: React.FC<WorkforceHeroProps> = ({
                   <span className="gba:absolute gba:inline-flex gba:h-full gba:w-full gba:animate-ping gba:rounded-full gba:bg-emerald-400" />
                   <span className="gba:relative gba:inline-flex gba:h-2 gba:w-2 gba:rounded-full gba:bg-emerald-500" />
                 </span>
-                {workingNow} working now
+                {t('workforce-hero-working-now', { count: workingNow })}
               </span>
             )}
           </div>
-          <p className="gba:mt-1 gba:text-sm gba:text-muted-foreground">
-            Your governed Workers. They react to triggers, follow policies, use skills, and escalate to humans when
-            needed.
-          </p>
+          <p className="gba:mt-1 gba:text-sm gba:text-muted-foreground">{t('workforce-hero-subtitle')}</p>
         </div>
         <div className="gba:flex gba:items-center gba:gap-2">
           {onTestWebhook && (
@@ -88,34 +89,44 @@ export const WorkforceHero: React.FC<WorkforceHeroProps> = ({
               disabled={!canTestWebhook}
               title={
                 canTestWebhook
-                  ? 'Fire a webhook trigger with custom message content'
-                  : 'No agents have an enabled webhook trigger'
+                  ? t('workforce-hero-test-webhook-enabled-tooltip')
+                  : t('workforce-hero-test-webhook-disabled-tooltip')
               }
               data-testid="workforce-test-webhook-button"
             >
               <WebhooksLogoIcon className="gba:mr-1.5 gba:h-4 gba:w-4" />
-              Test webhook
+              {t('workforce-hero-test-webhook')}
             </Button>
           )}
           <Button onClick={onHireAgent} data-testid="workforce-hire-button">
             <PlusIcon className="gba:mr-1.5 gba:h-4 gba:w-4" />
-            Hire
+            {t('workforce-hero-hire')}
           </Button>
         </div>
       </div>
 
       <div className="gba:grid gba:grid-cols-2 gba:gap-2.5 gba:sm:grid-cols-4">
-        <KpiTile icon={UsersThreeIcon} label="Active agents" value={counts.active} testId="workforce-kpi-active" />
-        <KpiTile icon={PauseIcon} label="Paused" value={counts.paused} testId="workforce-kpi-paused" />
+        <KpiTile
+          icon={UsersThreeIcon}
+          label={t('workforce-kpi-active')}
+          value={counts.active}
+          testId="workforce-kpi-active"
+        />
+        <KpiTile
+          icon={PauseIcon}
+          label={t('workforce-kpi-paused')}
+          value={counts.paused}
+          testId="workforce-kpi-paused"
+        />
         <KpiTile
           icon={LightningIcon}
-          label="Active triggers"
+          label={t('workforce-kpi-triggers')}
           value={counts.activeTriggers}
           testId="workforce-kpi-triggers"
         />
         <KpiTile
           icon={SparkleIcon}
-          label="Credits / 7d"
+          label={t('workforce-kpi-credits')}
           value={counts.creditsThisWeek}
           testId="workforce-kpi-credits"
         />

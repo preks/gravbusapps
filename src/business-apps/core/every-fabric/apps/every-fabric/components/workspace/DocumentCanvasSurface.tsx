@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import DOMPurify from 'dompurify'
-import { Badge } from '@newwork/nw-design-system'
+import { Badge, useTranslation } from '@newwork/nw-design-system'
 import {
   ArrowSquareOutIcon,
   CheckCircleIcon,
@@ -15,6 +15,7 @@ import { InlineEditableMarkdownBlock } from '@/common/components/editing/InlineE
 import { InlineEditableTitle } from '@/common/components/editing/InlineEditableTitle'
 import { EditableHtmlBlock } from '@/common/components/editing/EditableHtmlBlock'
 import type { ArtifactPreview } from '../../hooks/useArtifactPreview'
+import translations from '../../_i18n'
 import { useFabric } from '../../context/FabricContext'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { confirmDraft, extractEntityId } from '../../utils/confirmDraftApi'
@@ -94,85 +95,88 @@ const CanvasToolbar: React.FC<CanvasToolbarProps> = ({
   onCopy,
   onSave,
   onOpenInDocuments
-}) => (
-  <div
-    className="gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-2 gba:border-b gba:border-border gba:bg-card/80"
-    data-testid="fabric-canvas-toolbar"
-  >
-    <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0">
-      <div className="gba:h-6 gba:w-6 gba:rounded-md gba:bg-primary/10 gba:flex gba:items-center gba:justify-center gba:shrink-0">
-        <FileTextIcon className="gba:h-3 gba:w-3 gba:text-primary" />
+}) => {
+  const { t } = useTranslation(translations)
+  return (
+    <div
+      className="gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-2 gba:border-b gba:border-border gba:bg-card/80"
+      data-testid="fabric-canvas-toolbar"
+    >
+      <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0">
+        <div className="gba:h-6 gba:w-6 gba:rounded-md gba:bg-primary/10 gba:flex gba:items-center gba:justify-center gba:shrink-0">
+          <FileTextIcon className="gba:h-3 gba:w-3 gba:text-primary" />
+        </div>
+        <span className="gba:text-xs gba:font-semibold gba:truncate gba:text-foreground">{title}</span>
+        <Badge variant={isStreaming ? 'outline' : 'secondary'} className="gba:text-[9px] gba:shrink-0">
+          {isStreaming ? (
+            <span className="gba:flex gba:items-center gba:gap-1">
+              <SpinnerGapIcon className="gba:h-2.5 gba:w-2.5 gba:animate-spin" />
+              {t('workspace-document-generating')}
+            </span>
+          ) : isPersisted ? (
+            t('workspace-document-saved-badge')
+          ) : (
+            t('workspace-document-badge')
+          )}
+        </Badge>
       </div>
-      <span className="gba:text-xs gba:font-semibold gba:truncate gba:text-foreground">{title}</span>
-      <Badge variant={isStreaming ? 'outline' : 'secondary'} className="gba:text-[9px] gba:shrink-0">
-        {isStreaming ? (
-          <span className="gba:flex gba:items-center gba:gap-1">
-            <SpinnerGapIcon className="gba:h-2.5 gba:w-2.5 gba:animate-spin" />
-            Generating
-          </span>
-        ) : isPersisted ? (
-          'Saved to Documents'
-        ) : (
-          'Document'
-        )}
-      </Badge>
-    </div>
 
-    {(canEdit || isPersisted) && (
-      <div className="gba:flex gba:items-center gba:gap-1">
-        <button
-          onClick={onCopy}
-          className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:rounded-md gba:text-[10px] gba:font-medium gba:text-muted-foreground gba:hover:bg-muted/40 gba:transition-colors"
-          data-testid="fabric-canvas-copy"
-        >
-          <CopyIcon className="gba:h-3 gba:w-3" />
-          Copy
-        </button>
+      {(canEdit || isPersisted) && (
+        <div className="gba:flex gba:items-center gba:gap-1">
+          <button
+            onClick={onCopy}
+            className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:rounded-md gba:text-[10px] gba:font-medium gba:text-muted-foreground gba:hover:bg-muted/40 gba:transition-colors"
+            data-testid="fabric-canvas-copy"
+          >
+            <CopyIcon className="gba:h-3 gba:w-3" />
+            {t('workspace-canvas-copy')}
+          </button>
 
-        {/* After first successful save the canvas becomes a read-only preview.
+          {/* After first successful save the canvas becomes a read-only preview.
             Further edits must go through the full Documents app, which owns the
             collaborative editor, versioning and granular autosave. */}
-        {isPersisted ? (
-          <button
-            onClick={onOpenInDocuments}
-            disabled={!canOpenInDocuments}
-            className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2.5 gba:py-1 gba:rounded-md gba:text-[10px] gba:font-medium gba:bg-primary gba:text-primary-foreground gba:hover:bg-primary/90 gba:disabled:opacity-50 gba:transition-colors"
-            data-testid="fabric-canvas-open-in-documents"
-            title="Edits after the first save must be made in the Documents app"
-          >
-            <ArrowSquareOutIcon className="gba:h-3 gba:w-3" />
-            Open in Documents
-          </button>
-        ) : (
-          <button
-            onClick={onSave}
-            disabled={saveState === 'saving' || !canEdit}
-            className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2.5 gba:py-1 gba:rounded-md gba:text-[10px] gba:font-medium gba:bg-primary gba:text-primary-foreground gba:hover:bg-primary/90 gba:disabled:opacity-50 gba:transition-colors"
-            data-testid="fabric-canvas-save"
-          >
-            {saveState === 'saving' ? (
-              <SpinnerGapIcon className="gba:h-3 gba:w-3 gba:animate-spin" />
-            ) : saveState === 'saved' ? (
-              <CheckCircleIcon className="gba:h-3 gba:w-3" />
-            ) : (
-              <FloppyDiskIcon className="gba:h-3 gba:w-3" />
-            )}
-            {saveState === 'saved' ? 'Saved' : 'Save'}
-          </button>
-        )}
+          {isPersisted ? (
+            <button
+              onClick={onOpenInDocuments}
+              disabled={!canOpenInDocuments}
+              className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2.5 gba:py-1 gba:rounded-md gba:text-[10px] gba:font-medium gba:bg-primary gba:text-primary-foreground gba:hover:bg-primary/90 gba:disabled:opacity-50 gba:transition-colors"
+              data-testid="fabric-canvas-open-in-documents"
+              title={t('workspace-canvas-open-tooltip')}
+            >
+              <ArrowSquareOutIcon className="gba:h-3 gba:w-3" />
+              {t('workspace-canvas-open-documents')}
+            </button>
+          ) : (
+            <button
+              onClick={onSave}
+              disabled={saveState === 'saving' || !canEdit}
+              className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2.5 gba:py-1 gba:rounded-md gba:text-[10px] gba:font-medium gba:bg-primary gba:text-primary-foreground gba:hover:bg-primary/90 gba:disabled:opacity-50 gba:transition-colors"
+              data-testid="fabric-canvas-save"
+            >
+              {saveState === 'saving' ? (
+                <SpinnerGapIcon className="gba:h-3 gba:w-3 gba:animate-spin" />
+              ) : saveState === 'saved' ? (
+                <CheckCircleIcon className="gba:h-3 gba:w-3" />
+              ) : (
+                <FloppyDiskIcon className="gba:h-3 gba:w-3" />
+              )}
+              {saveState === 'saved' ? t('workspace-canvas-saved') : t('action-save')}
+            </button>
+          )}
 
-        {saveState === 'error' && (
-          <span
-            className="gba:text-[9px] gba:text-destructive gba:font-medium gba:max-w-[10rem] gba:truncate"
-            title={saveError ?? 'Save failed'}
-          >
-            {saveError ?? 'Failed'}
-          </span>
-        )}
-      </div>
-    )}
-  </div>
-)
+          {saveState === 'error' && (
+            <span
+              className="gba:text-[9px] gba:text-destructive gba:font-medium gba:max-w-[10rem] gba:truncate"
+              title={saveError ?? t('workspace-draft-save-failed')}
+            >
+              {saveError ?? t('workspace-canvas-save-failed')}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 interface DocumentCanvasSurfaceProps {
   preview: ArtifactPreview
@@ -181,6 +185,7 @@ interface DocumentCanvasSurfaceProps {
 }
 
 export const DocumentCanvasSurface: React.FC<DocumentCanvasSurfaceProps> = ({ preview, accessToken, sessionId }) => {
+  const { t } = useTranslation(translations)
   const { refreshArtifacts } = useFabric()
 
   const isStreaming = preview.status === 'generating'
@@ -346,9 +351,7 @@ export const DocumentCanvasSurface: React.FC<DocumentCanvasSurfaceProps> = ({ pr
           data-testid="fabric-canvas-persisted-banner"
         >
           <CheckCircleIcon className="gba:h-3 gba:w-3 gba:text-success gba:shrink-0" />
-          <span className="gba:truncate">
-            Saved to Documents. Open the document to keep editing with real-time collaboration and version history.
-          </span>
+          <span className="gba:truncate">{t('workspace-canvas-persisted-banner')}</span>
         </div>
       )}
 
@@ -400,7 +403,9 @@ export const DocumentCanvasSurface: React.FC<DocumentCanvasSurfaceProps> = ({ pr
                   ) : (
                     <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-40 gba:gap-2">
                       <SpinnerGapIcon className="gba:h-5 gba:w-5 gba:text-primary gba:animate-spin" />
-                      <span className="gba:text-xs gba:text-muted-foreground">Generating document...</span>
+                      <span className="gba:text-xs gba:text-muted-foreground">
+                        {t('workspace-canvas-generating-doc')}
+                      </span>
                     </div>
                   )}
                 </article>
@@ -408,21 +413,21 @@ export const DocumentCanvasSurface: React.FC<DocumentCanvasSurfaceProps> = ({ pr
             ) : (
               <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-40 gba:gap-2">
                 <FileTextIcon className="gba:h-6 gba:w-6 gba:text-primary/40" />
-                <span className="gba:text-xs gba:text-muted-foreground">No content</span>
+                <span className="gba:text-xs gba:text-muted-foreground">{t('workspace-canvas-no-content')}</span>
               </div>
             )}
 
             {isStreaming && text && (
               <div className="gba:mt-6 gba:flex gba:items-center gba:gap-2 gba:text-muted-foreground gba:border-t gba:border-border/30 gba:pt-3">
                 <SpinnerGapIcon className="gba:h-3 gba:w-3 gba:animate-spin gba:text-primary" />
-                <span className="gba:text-[10px] gba:font-medium">Writing...</span>
+                <span className="gba:text-[10px] gba:font-medium">{t('workspace-canvas-writing')}</span>
               </div>
             )}
 
             {canEdit && !isStreaming && (
               <div className="gba:mt-4 gba:flex gba:items-center gba:gap-1 gba:text-muted-foreground/50">
                 <PencilSimpleIcon className="gba:h-3 gba:w-3" />
-                <span className="gba:text-[9px]">Click content to edit</span>
+                <span className="gba:text-[9px]">{t('workspace-canvas-edit-hint')}</span>
               </div>
             )}
           </div>

@@ -4,6 +4,11 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { PromptManagerClient } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import { ManageCatalogPanel } from '../ManageCatalogPanel'
 
+jest.mock('@newwork/nw-design-system', () => ({
+  Button: ({ children, ...props }: React.ComponentProps<'button'>) => <button {...props}>{children}</button>,
+  useTranslation: () => ({ t: (key: string) => key })
+}))
+
 function createMockClient(): PromptManagerClient {
   return {
     listMarketplacePackages: jest.fn().mockResolvedValue({
@@ -32,6 +37,7 @@ describe('ManageCatalogPanel', () => {
     render(<ManageCatalogPanel client={client} />)
 
     expect(await screen.findByTestId('manage-catalog-row-customer-360-analyst')).toBeInTheDocument()
+    expect(screen.getByText('marketplace-manage-unpublish')).toBeInTheDocument()
 
     fireEvent.click(screen.getByTestId('manage-catalog-unpublish-customer-360-analyst'))
 

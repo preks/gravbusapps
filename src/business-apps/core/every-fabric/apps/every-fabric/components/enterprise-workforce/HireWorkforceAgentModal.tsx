@@ -10,11 +10,12 @@
 // land in the dedicated configuration page (Phase 3). Until then
 // the agent is created paused so a human reviews it before activation.
 
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { SparkleIcon, SpinnerGapIcon, XIcon } from '@phosphor-icons/react'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import type { PromptManagerClient } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import type { WorkforceAgent, WorkforceAutonomyLevel } from './workforceTypes'
+import translations from '../../_i18n'
 
 export interface HireWorkforceAgentFormState {
   displayName: string
@@ -56,30 +57,30 @@ function buildInitialState(initialValues?: Partial<FormState>): FormState {
 
 interface AutonomyOption {
   value: WorkforceAutonomyLevel
-  label: string
-  hint: string
+  labelKey: string
+  hintKey: string
 }
 
 const AUTONOMY_OPTIONS: AutonomyOption[] = [
   {
     value: 'draft_only',
-    label: 'Assistive',
-    hint: 'Searches, summarizes, classifies, and drafts. Makes no system changes.'
+    labelKey: 'autonomy-opt-draft-only-label',
+    hintKey: 'autonomy-opt-draft-only-hint'
   },
   {
     value: 'approval_required',
-    label: 'Approval Required',
-    hint: 'Prepares actions and routes them to a human before execution.'
+    labelKey: 'autonomy-opt-approval-label',
+    hintKey: 'autonomy-opt-approval-hint'
   },
   {
     value: 'auto_low_risk',
-    label: 'Delegated',
-    hint: 'Executes low-risk actions within thresholds and escalates exceptions.'
+    labelKey: 'autonomy-opt-delegated-label',
+    hintKey: 'autonomy-opt-delegated-hint'
   },
   {
     value: 'full_auto',
-    label: 'Autonomous',
-    hint: 'Runs end-to-end inside validated boundaries. Requires an escalation channel.'
+    labelKey: 'autonomy-opt-autonomous-label',
+    hintKey: 'autonomy-opt-autonomous-hint'
   }
 ]
 
@@ -105,6 +106,7 @@ export const HireWorkforceAgentModal: React.FC<HireWorkforceAgentModalProps> = (
   title,
   subtitle
 }) => {
+  const { t } = useTranslation(translations)
   const [form, setForm] = useState<FormState>(() => buildInitialState(initialValues))
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -143,7 +145,7 @@ export const HireWorkforceAgentModal: React.FC<HireWorkforceAgentModalProps> = (
       onCreated(created)
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to hire workforce agent.')
+      setError(err instanceof Error ? err.message : t('hire-error'))
     } finally {
       setCreating(false)
     }
@@ -163,18 +165,17 @@ export const HireWorkforceAgentModal: React.FC<HireWorkforceAgentModalProps> = (
               <SparkleIcon className="gba:h-5 gba:w-5" weight="duotone" />
             </div>
             <div>
-              <h2 className="gba:text-base gba:font-semibold gba:text-foreground">{title ?? 'Activate a Worker'}</h2>
-              <p className="gba:text-xs gba:text-muted-foreground">
-                {subtitle ??
-                  'Activate a proactive Worker. You can wire up triggers, skills, escalation and budget in the next step.'}
-              </p>
+              <h2 className="gba:text-base gba:font-semibold gba:text-foreground">
+                {title ?? t('hire-title-default')}
+              </h2>
+              <p className="gba:text-xs gba:text-muted-foreground">{subtitle ?? t('hire-subtitle-default')}</p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="gba:inline-flex gba:h-8 gba:w-8 gba:items-center gba:justify-center gba:rounded-lg gba:text-muted-foreground gba:hover:bg-muted/60 gba:hover:text-foreground"
-            aria-label="Close"
+            aria-label={t('action-close')}
             data-testid="hire-workforce-close"
           >
             <XIcon className="gba:h-4 gba:w-4" />
@@ -198,23 +199,24 @@ export const HireWorkforceAgentModal: React.FC<HireWorkforceAgentModalProps> = (
                 htmlFor="hire-workforce-name"
                 className="gba:mb-1 gba:block gba:text-xs gba:font-semibold gba:text-foreground"
               >
-                Display name
+                {t('hire-display-name')}
               </label>
               <input
                 id="hire-workforce-name"
                 value={form.displayName}
                 onChange={e => setForm(prev => ({ ...prev, displayName: e.target.value }))}
-                placeholder="e.g. Claims Triage Specialist"
+                placeholder={t('hire-name-placeholder')}
                 className="gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring"
                 data-testid="hire-workforce-name"
               />
               <p className="gba:mt-1 gba:text-[11px] gba:text-muted-foreground">
                 {slug ? (
                   <>
-                    Stored as <code className="gba:rounded gba:bg-muted gba:px-1 gba:py-0.5 gba:font-mono">{slug}</code>
+                    {t('hire-stored-as')}{' '}
+                    <code className="gba:rounded gba:bg-muted gba:px-1 gba:py-0.5 gba:font-mono">{slug}</code>
                   </>
                 ) : (
-                  'Letters, digits and spaces are fine — we will convert this to an identifier.'
+                  t('hire-name-hint')
                 )}
               </p>
             </div>
@@ -225,13 +227,13 @@ export const HireWorkforceAgentModal: React.FC<HireWorkforceAgentModalProps> = (
                   htmlFor="hire-workforce-role"
                   className="gba:mb-1 gba:block gba:text-xs gba:font-semibold gba:text-foreground"
                 >
-                  Role
+                  {t('hire-role')}
                 </label>
                 <input
                   id="hire-workforce-role"
                   value={form.role}
                   onChange={e => setForm(prev => ({ ...prev, role: e.target.value }))}
-                  placeholder="e.g. Claims agent"
+                  placeholder={t('hire-role-placeholder')}
                   className="gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring"
                   data-testid="hire-workforce-role"
                 />
@@ -241,13 +243,13 @@ export const HireWorkforceAgentModal: React.FC<HireWorkforceAgentModalProps> = (
                   htmlFor="hire-workforce-department"
                   className="gba:mb-1 gba:block gba:text-xs gba:font-semibold gba:text-foreground"
                 >
-                  Department
+                  {t('hire-department')}
                 </label>
                 <input
                   id="hire-workforce-department"
                   value={form.department}
                   onChange={e => setForm(prev => ({ ...prev, department: e.target.value }))}
-                  placeholder="e.g. Insurance Ops"
+                  placeholder={t('hire-department-placeholder')}
                   className="gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring"
                   data-testid="hire-workforce-department"
                 />
@@ -259,13 +261,13 @@ export const HireWorkforceAgentModal: React.FC<HireWorkforceAgentModalProps> = (
                 htmlFor="hire-workforce-description"
                 className="gba:mb-1 gba:block gba:text-xs gba:font-semibold gba:text-foreground"
               >
-                Short description
+                {t('hire-short-description')}
               </label>
               <input
                 id="hire-workforce-description"
                 value={form.description}
                 onChange={e => setForm(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="One sentence the team will see on the workforce card"
+                placeholder={t('hire-description-placeholder')}
                 className="gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring"
                 data-testid="hire-workforce-description"
               />
@@ -276,14 +278,16 @@ export const HireWorkforceAgentModal: React.FC<HireWorkforceAgentModalProps> = (
                 htmlFor="hire-workforce-instructions"
                 className="gba:mb-1 gba:block gba:text-xs gba:font-semibold gba:text-foreground"
               >
-                Instructions
-                <span className="gba:ml-1 gba:font-normal gba:text-muted-foreground">(optional)</span>
+                {t('hire-instructions')}
+                <span className="gba:ml-1 gba:font-normal gba:text-muted-foreground">
+                  {t('hire-instructions-optional')}
+                </span>
               </label>
               <textarea
                 id="hire-workforce-instructions"
                 value={form.instructions}
                 onChange={e => setForm(prev => ({ ...prev, instructions: e.target.value }))}
-                placeholder="How should this agent behave? E.g. Always check the policy library before replying. Escalate to a human if confidence < 0.7."
+                placeholder={t('hire-instructions-placeholder')}
                 rows={4}
                 className="gba:min-h-24 gba:w-full gba:resize-y gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:leading-relaxed gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring"
                 data-testid="hire-workforce-instructions"
@@ -291,8 +295,10 @@ export const HireWorkforceAgentModal: React.FC<HireWorkforceAgentModalProps> = (
             </div>
 
             <fieldset>
-              <legend className="gba:mb-2 gba:text-xs gba:font-semibold gba:text-foreground">Autonomy</legend>
-              <div className="gba:space-y-2" role="radiogroup" aria-label="Autonomy level">
+              <legend className="gba:mb-2 gba:text-xs gba:font-semibold gba:text-foreground">
+                {t('hire-autonomy')}
+              </legend>
+              <div className="gba:space-y-2" role="radiogroup" aria-label={t('hire-autonomy-aria')}>
                 {AUTONOMY_OPTIONS.map(option => {
                   const checked = form.autonomyLevel === option.value
                   return (
@@ -314,8 +320,8 @@ export const HireWorkforceAgentModal: React.FC<HireWorkforceAgentModalProps> = (
                         className="gba:mt-0.5 gba:h-3.5 gba:w-3.5 gba:text-primary gba:focus:ring-primary"
                       />
                       <div className="gba:min-w-0 gba:flex-1">
-                        <p className="gba:text-xs gba:font-medium gba:text-foreground">{option.label}</p>
-                        <p className="gba:mt-0.5 gba:text-[11px] gba:text-muted-foreground">{option.hint}</p>
+                        <p className="gba:text-xs gba:font-medium gba:text-foreground">{t(option.labelKey)}</p>
+                        <p className="gba:mt-0.5 gba:text-[11px] gba:text-muted-foreground">{t(option.hintKey)}</p>
                       </div>
                     </label>
                   )
@@ -327,7 +333,7 @@ export const HireWorkforceAgentModal: React.FC<HireWorkforceAgentModalProps> = (
 
         <div className="gba:flex gba:items-center gba:justify-end gba:gap-2 gba:border-t gba:border-border/60 gba:bg-muted/20 gba:px-5 gba:py-3">
           <Button variant="ghost" size="sm" onClick={onClose}>
-            Cancel
+            {t('action-cancel')}
           </Button>
           <button
             type="button"
@@ -337,7 +343,7 @@ export const HireWorkforceAgentModal: React.FC<HireWorkforceAgentModalProps> = (
             data-testid="hire-workforce-submit"
           >
             {creating && <SpinnerGapIcon className="gba:h-3.5 gba:w-3.5 gba:animate-spin" />}
-            {creating ? 'Hiring…' : 'Hire agent'}
+            {creating ? t('hire-creating') : t('hire-submit')}
           </button>
         </div>
       </div>

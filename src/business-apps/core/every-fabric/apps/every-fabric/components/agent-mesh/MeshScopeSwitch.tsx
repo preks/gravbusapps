@@ -1,5 +1,6 @@
 import React from 'react'
-import { type MeshScope, MESH_SCOPES } from './meshScopes'
+import { type MeshScope } from './meshScopes'
+import { useAgentMeshI18n } from './useAgentMeshI18n'
 
 interface MeshScopeSwitchProps {
   activeScope: MeshScope
@@ -8,14 +9,15 @@ interface MeshScopeSwitchProps {
 }
 
 export const MeshScopeSwitch: React.FC<MeshScopeSwitchProps> = ({ activeScope, onChange, disabledScopes = [] }) => {
+  const { t, meshScopes } = useAgentMeshI18n()
   return (
     <div
       className="gba:inline-flex gba:items-center gba:rounded-lg gba:border gba:border-border/60 gba:bg-muted/30 gba:p-0.5"
       role="tablist"
-      aria-label="Mesh scope"
+      aria-label={t('agent-mesh-scope-aria')}
       data-testid="mesh-scope-switch"
     >
-      {MESH_SCOPES.map(scope => {
+      {meshScopes.map(scope => {
         const isActive = scope.key === activeScope
         const isDisabled = disabledScopes.includes(scope.key)
         return (
@@ -36,7 +38,7 @@ export const MeshScopeSwitch: React.FC<MeshScopeSwitchProps> = ({ activeScope, o
             }`}
             data-testid={`mesh-scope-${scope.key}`}
           >
-            {scope.label}
+            {t(scope.labelKey)}
           </button>
         )
       })}

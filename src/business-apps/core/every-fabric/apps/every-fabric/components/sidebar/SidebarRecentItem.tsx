@@ -1,7 +1,9 @@
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { TrashIcon } from '@phosphor-icons/react'
 import type { FabricSessionSummary } from '../../types/fabric'
 import { formatRelativeTime } from '../../utils/renderUtils'
+import translations from '../../_i18n'
 
 interface SidebarRecentItemProps {
   session: FabricSessionSummary
@@ -15,15 +17,17 @@ function truncate(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  completed: 'Done',
-  failed: 'Failed',
-  cancelled: 'Cancelled'
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  completed: 'sidebar-status-done',
+  failed: 'sidebar-status-failed',
+  cancelled: 'sidebar-status-cancelled'
 }
 
 const SidebarRecentItemBase: React.FC<SidebarRecentItemProps> = ({ session, isSelected, onSelect, onDelete }) => {
-  const title = truncate(session.input || 'Untitled session', 54)
-  const meta = STATUS_LABELS[session.status] ?? ''
+  const { t } = useTranslation(translations)
+  const title = truncate(session.input || t('sidebar-untitled-session'), 54)
+  const metaKey = STATUS_LABEL_KEYS[session.status]
+  const meta = metaKey ? t(metaKey) : ''
 
   return (
     <div
@@ -56,7 +60,7 @@ const SidebarRecentItemBase: React.FC<SidebarRecentItemProps> = ({ session, isSe
           e.stopPropagation()
           onDelete(session.session_id)
         }}
-        aria-label="Delete session"
+        aria-label={t('sidebar-delete-session')}
         className="gba:opacity-0 gba:group-hover:opacity-100 focus-visible:gba:opacity-100 gba:inline-flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:rounded-md gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-all"
         data-testid={`sidebar-recent-delete-${session.session_id}`}
       >

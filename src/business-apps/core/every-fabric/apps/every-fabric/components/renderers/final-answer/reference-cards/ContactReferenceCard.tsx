@@ -4,20 +4,15 @@ import { AvatarWithInitials } from '@/business-apps/platform/apps/every-ai/compo
 import { useCustomerContact } from '@/common/data/customer/hooks/useCustomerContact'
 import { getEntityUrl } from '@/business-apps/platform/apps/every-ai/components/links/EntityLink'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import {
-  commChannelValue,
-  getField,
-  getStr,
-  intentLabel,
-  personName,
-  type ReferenceCardProps
-} from './referenceCardUtils'
+import { commChannelValue, getField, getStr, personName, type ReferenceCardProps } from './referenceCardUtils'
+import { useReferenceCardI18n } from './useReferenceCardI18n'
 
 /**
  * Rich contact card: avatar, name, job title, account, email — fetched by id
  * via the shared `useCustomerContact` hook.
  */
 export const ContactReferenceCard: React.FC<ReferenceCardProps> = ({ reference, accessToken }) => {
+  const { field, intentLabel } = useReferenceCardI18n()
   const { contact, loading } = useCustomerContact(accessToken, reference.id)
 
   const url = getEntityUrl(reference.type, reference.id, reference.href)
@@ -59,11 +54,11 @@ export const ContactReferenceCard: React.FC<ReferenceCardProps> = ({ reference, 
   const opportunityName = getStr(getField(firstOpportunity, 'opportunity'), 'name')
 
   const candidates: Array<{ label: string; value: string }> = []
-  if (accountName) candidates.push({ label: 'Account', value: accountName })
-  if (email) candidates.push({ label: 'Email', value: email })
-  if (phone) candidates.push({ label: 'Phone', value: phone })
-  if (opportunityName) candidates.push({ label: 'Opportunity', value: opportunityName })
-  if (owner) candidates.push({ label: 'Owner', value: owner })
+  if (accountName) candidates.push({ label: field('account'), value: accountName })
+  if (email) candidates.push({ label: field('email'), value: email })
+  if (phone) candidates.push({ label: field('phone'), value: phone })
+  if (opportunityName) candidates.push({ label: field('opportunity'), value: opportunityName })
+  if (owner) candidates.push({ label: field('owner'), value: owner })
   const fields = candidates.slice(0, 4)
 
   const subtitleParts = [context, jobTitle].filter(Boolean)

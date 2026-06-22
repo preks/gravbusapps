@@ -7,24 +7,36 @@ interface TraceColorEntry {
   bar: string
   /** Text colour for the legend label. */
   text: string
-  /** Human label rendered in the legend strip. */
-  label: string
+  /** FTL key for the legend label. */
+  labelKey: string
 }
 
 const TRACE_COLORS: Record<string, TraceColorEntry> = {
-  tool: { bar: 'gba:bg-sky-500', text: 'gba:text-white', label: 'Tool call' },
-  subagent: { bar: 'gba:bg-emerald-500', text: 'gba:text-white', label: 'Delegation' },
-  expert: { bar: 'gba:bg-violet-500', text: 'gba:text-white', label: 'Expert' },
-  decision: { bar: 'gba:bg-amber-500', text: 'gba:text-white', label: 'Decision' },
-  skill: { bar: 'gba:bg-teal-500', text: 'gba:text-white', label: 'Skill' },
-  step: { bar: 'gba:bg-muted-foreground/40', text: 'gba:text-muted-foreground', label: 'Step' },
-  hitl: { bar: 'gba:bg-rose-500', text: 'gba:text-white', label: 'Human input' },
-  terminal: { bar: 'gba:bg-emerald-700', text: 'gba:text-white', label: 'Terminal' },
-  capability_missing: { bar: 'gba:bg-destructive', text: 'gba:text-destructive-foreground', label: 'Missing' },
-  artifact: { bar: 'gba:bg-cyan-500', text: 'gba:text-white', label: 'Artifact' }
+  tool: { bar: 'gba:bg-sky-500', text: 'gba:text-white', labelKey: 'trace-explorer-legend-tool' },
+  subagent: { bar: 'gba:bg-emerald-500', text: 'gba:text-white', labelKey: 'trace-explorer-legend-subagent' },
+  expert: { bar: 'gba:bg-violet-500', text: 'gba:text-white', labelKey: 'trace-explorer-legend-expert' },
+  decision: { bar: 'gba:bg-amber-500', text: 'gba:text-white', labelKey: 'trace-explorer-legend-decision' },
+  skill: { bar: 'gba:bg-teal-500', text: 'gba:text-white', labelKey: 'trace-explorer-legend-skill' },
+  step: {
+    bar: 'gba:bg-muted-foreground/40',
+    text: 'gba:text-muted-foreground',
+    labelKey: 'trace-explorer-legend-step'
+  },
+  hitl: { bar: 'gba:bg-rose-500', text: 'gba:text-white', labelKey: 'trace-explorer-legend-hitl' },
+  terminal: { bar: 'gba:bg-emerald-700', text: 'gba:text-white', labelKey: 'trace-explorer-legend-terminal' },
+  capability_missing: {
+    bar: 'gba:bg-destructive',
+    text: 'gba:text-destructive-foreground',
+    labelKey: 'trace-explorer-legend-capability-missing'
+  },
+  artifact: { bar: 'gba:bg-cyan-500', text: 'gba:text-white', labelKey: 'trace-explorer-legend-artifact' }
 }
 
-const FALLBACK: TraceColorEntry = { bar: 'gba:bg-muted', text: 'gba:text-muted-foreground', label: 'Other' }
+const FALLBACK: TraceColorEntry = {
+  bar: 'gba:bg-muted',
+  text: 'gba:text-muted-foreground',
+  labelKey: 'trace-explorer-legend-other'
+}
 
 export function traceColor(kind: FrameKind | string): TraceColorEntry {
   return TRACE_COLORS[kind] ?? FALLBACK

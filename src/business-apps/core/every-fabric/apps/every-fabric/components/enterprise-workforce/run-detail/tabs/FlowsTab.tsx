@@ -6,6 +6,7 @@
 // specific flow via `onOpenFlow`.
 
 import { ChartBarHorizontalIcon, FlowArrowIcon, ListBulletsIcon, TreeStructureIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import React, { useState } from 'react'
 
 import { FlowGanttChart } from '@/business-apps/common/apps/case-management/components/FlowGanttChart'
@@ -20,6 +21,7 @@ import { useFlowGanttData, type FlowEntry } from '../../flow-detail/useFlowGantt
 import type { WorkforceRun, WorkforceRunDomainAction, WorkforceRunTraceEvent } from '../../workforceTypes'
 import { resolveDomainActions } from '../runDetailFacts'
 import { SectionTitle } from '../RunDetailSection'
+import translations from '../../../../_i18n'
 
 export interface FlowsTabProps {
   run: WorkforceRun
@@ -114,6 +116,7 @@ const ViewToggle: React.FC<{ value: FlowsViewMode; onChange: (mode: FlowsViewMod
   value,
   onChange
 }) => {
+  const { t } = useTranslation(translations)
   const buttonClass = (active: boolean): string =>
     `gba:inline-flex gba:h-7 gba:items-center gba:gap-1 gba:rounded gba:px-2 gba:text-xs gba:font-medium gba:transition-colors ${
       active ? 'gba:bg-card gba:text-foreground gba:shadow-sm' : 'gba:text-muted-foreground gba:hover:text-foreground'
@@ -131,7 +134,7 @@ const ViewToggle: React.FC<{ value: FlowsViewMode; onChange: (mode: FlowsViewMod
         data-testid="flows-view-map"
       >
         <TreeStructureIcon className="gba:h-3.5 gba:w-3.5" weight="bold" />
-        Map
+        {t('run-flows-view-map')}
       </button>
       <button
         type="button"
@@ -141,7 +144,7 @@ const ViewToggle: React.FC<{ value: FlowsViewMode; onChange: (mode: FlowsViewMod
         data-testid="flows-view-list"
       >
         <ListBulletsIcon className="gba:h-3.5 gba:w-3.5" weight="bold" />
-        List
+        {t('run-flows-view-list')}
       </button>
       <button
         type="button"
@@ -151,13 +154,14 @@ const ViewToggle: React.FC<{ value: FlowsViewMode; onChange: (mode: FlowsViewMod
         data-testid="flows-view-timeline"
       >
         <ChartBarHorizontalIcon className="gba:h-3.5 gba:w-3.5" weight="bold" />
-        Timeline
+        {t('run-flows-view-timeline')}
       </button>
     </div>
   )
 }
 
 export const FlowsTab: React.FC<FlowsTabProps> = ({ run, accessToken, trace, selectedFlowId, onSelectFlow }) => {
+  const { t } = useTranslation(translations)
   const flows = toFlowEntries(resolveDomainActions(run, trace))
   const [viewMode, setViewMode] = useState<FlowsViewMode>('map')
   const ganttFlows = useFlowGanttData(flows, accessToken, viewMode === 'timeline')
@@ -166,9 +170,9 @@ export const FlowsTab: React.FC<FlowsTabProps> = ({ run, accessToken, trace, sel
     return (
       <div className="gba:space-y-6">
         <section>
-          <SectionTitle icon={FlowArrowIcon}>Flows</SectionTitle>
+          <SectionTitle icon={FlowArrowIcon}>{t('run-tab-flows')}</SectionTitle>
           <p className="gba:text-xs gba:italic gba:text-muted-foreground" data-testid="flows-tab-empty">
-            This run did not trigger any workflows.
+            {t('run-flows-empty')}
           </p>
         </section>
       </div>
@@ -192,7 +196,7 @@ export const FlowsTab: React.FC<FlowsTabProps> = ({ run, accessToken, trace, sel
   return (
     <div className="gba:space-y-3">
       <div className="gba:flex gba:items-center gba:justify-between">
-        <SectionTitle icon={FlowArrowIcon}>Flows</SectionTitle>
+        <SectionTitle icon={FlowArrowIcon}>{t('run-tab-flows')}</SectionTitle>
         <ViewToggle value={viewMode} onChange={setViewMode} />
       </div>
       {viewMode === 'timeline' ? (

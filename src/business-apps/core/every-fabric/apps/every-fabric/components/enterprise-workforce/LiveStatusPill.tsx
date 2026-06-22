@@ -1,7 +1,9 @@
 // Small "LIVE" indicator with a pulsing dot, shown while a run is streaming.
 
 import { BroadcastIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import React from 'react'
+import translations from '../../_i18n'
 
 export interface LiveStatusPillProps {
   /** Optional short label for what is happening right now. */
@@ -10,6 +12,7 @@ export interface LiveStatusPillProps {
 }
 
 export const LiveStatusPill: React.FC<LiveStatusPillProps> = ({ label, connected = true }) => {
+  const { t } = useTranslation(translations)
   return (
     <span
       className="gba:inline-flex gba:items-center gba:gap-1.5 gba:rounded-full gba:bg-primary/10 gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-wide gba:text-primary"
@@ -22,7 +25,7 @@ export const LiveStatusPill: React.FC<LiveStatusPillProps> = ({ label, connected
         <span className="gba:relative gba:inline-flex gba:h-2 gba:w-2 gba:rounded-full gba:bg-primary" />
       </span>
       <BroadcastIcon className="gba:h-3 gba:w-3" weight="bold" />
-      {label || 'Live'}
+      {label || t('workforce-live-pill-default')}
     </span>
   )
 }

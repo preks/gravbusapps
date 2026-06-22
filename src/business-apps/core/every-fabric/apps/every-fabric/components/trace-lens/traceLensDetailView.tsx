@@ -188,15 +188,15 @@ export function detailWithoutLlmMeta(detail: Record<string, unknown> | undefined
   return Object.keys(copy).length > 0 ? copy : undefined
 }
 
-function BooleanPill({ value }: Readonly<{ value: boolean }>) {
+function BooleanPill({ value, t }: Readonly<{ value: boolean; t: (key: string) => string }>) {
   return (
     <Badge variant={value ? 'default' : 'outline'} className="gba:text-[11px]">
-      {value ? 'Yes' : 'No'}
+      {value ? t('trace-lens-detail-yes') : t('trace-lens-detail-no')}
     </Badge>
   )
 }
 
-function FieldValue({ field }: Readonly<{ field: DisplayField }>) {
+function FieldValue({ field, t }: Readonly<{ field: DisplayField; t: (key: string) => string }>) {
   switch (field.variant) {
     case 'prose':
       return (
@@ -211,11 +211,11 @@ function FieldValue({ field }: Readonly<{ field: DisplayField }>) {
         </Badge>
       )
     case 'boolean':
-      return <BooleanPill value={Boolean(field.value)} />
+      return <BooleanPill value={Boolean(field.value)} t={t} />
     case 'tags': {
       const tags = field.value as string[]
       if (tags.length === 0) {
-        return <span className="gba:text-[12px] gba:text-muted-foreground">None</span>
+        return <span className="gba:text-[12px] gba:text-muted-foreground">{t('trace-lens-detail-none')}</span>
       }
       return (
         <div className="gba:flex gba:flex-wrap gba:gap-1.5">
@@ -237,7 +237,7 @@ function FieldValue({ field }: Readonly<{ field: DisplayField }>) {
       return (
         <div className="gba:flex gba:flex-col gba:gap-2 gba:rounded-md gba:border gba:border-border/30 gba:bg-background/60 gba:p-2.5">
           {(field.children ?? []).map(child => (
-            <DisplayFieldRow key={child.key} field={child} compact />
+            <DisplayFieldRow key={child.key} field={child} compact t={t} />
           ))}
         </div>
       )
@@ -251,25 +251,29 @@ function FieldValue({ field }: Readonly<{ field: DisplayField }>) {
   }
 }
 
-function DisplayFieldRow({ field, compact = false }: Readonly<{ field: DisplayField; compact?: boolean }>) {
+function DisplayFieldRow({
+  field,
+  compact = false,
+  t
+}: Readonly<{ field: DisplayField; compact?: boolean; t: (key: string) => string }>) {
   return (
     <div className={`gba:flex gba:flex-col ${compact ? 'gba:gap-1' : 'gba:gap-1.5'}`}>
       <span className="gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground">
         {field.label}
       </span>
-      <FieldValue field={field} />
+      <FieldValue field={field} t={t} />
     </div>
   )
 }
 
-export function StructuredValueView({ value }: Readonly<{ value: unknown }>) {
+export function StructuredValueView({ value, t }: Readonly<{ value: unknown; t: (key: string) => string }>) {
   const fields = buildDisplayFields(value)
   if (fields.length === 0) return null
 
   return (
     <div className="gba:flex gba:flex-col gba:gap-3 gba:rounded-md gba:border gba:border-border/40 gba:bg-muted/30 gba:p-3">
       {fields.map(field => (
-        <DisplayFieldRow key={field.key} field={field} />
+        <DisplayFieldRow key={field.key} field={field} t={t} />
       ))}
     </div>
   )

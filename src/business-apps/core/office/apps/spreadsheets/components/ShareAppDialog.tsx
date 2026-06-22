@@ -1,10 +1,7 @@
 import React from 'react'
-import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import {
   ShareEntityDialog,
   SPREADSHEET_SHARE_PERMISSIONS,
-  sendShareBlinkNotifications,
-  type ShareNotificationContext,
   type SharedEntityUser
 } from '@/business-apps/core/office/sharing'
 import type { SharePermission } from '../types'
@@ -14,7 +11,6 @@ export interface ShareAppDialogProps {
   onOpenChange: (open: boolean) => void
   appId: string
   appName: string
-  appFilePath: string
   accessToken: string
   currentUserId: string
   currentUserName?: string
@@ -57,7 +53,6 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
   onOpenChange,
   appId,
   appName,
-  appFilePath,
   accessToken,
   currentUserId,
   currentUserName,
@@ -71,22 +66,6 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
   onManageAccess,
   'data-testid': testId = 'share-app-dialog'
 }) => {
-  const sendNotifications = React.useCallback(
-    (context: ShareNotificationContext) =>
-      sendShareBlinkNotifications({
-        ...context,
-        entityType: 'spreadsheet_app',
-        appTag: 'spreadsheet-share',
-        titlePrefix: 'Spreadsheet Shared',
-        entityUrl: buildPlatformUrl('/platform/every-office/spreadsheets', {
-          appId,
-          view: 'viewer',
-          filePath: appFilePath
-        })
-      }),
-    [appFilePath, appId]
-  )
-
   return (
     <ShareEntityDialog
       open={open}
@@ -112,7 +91,6 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
       }
       onUnshare={onUnshare}
       onRefreshShares={onRefreshShares}
-      sendNotifications={sendNotifications}
       onManageAccess={onManageAccess}
       data-testid={testId}
     />

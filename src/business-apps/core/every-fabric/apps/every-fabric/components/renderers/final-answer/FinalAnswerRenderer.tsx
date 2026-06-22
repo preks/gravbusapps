@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { CaretDownIcon, CaretRightIcon, DownloadSimpleIcon } from '@phosphor-icons/react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
 import { formatDuration } from '../../../utils/renderUtils'
+import translations from '../../../_i18n'
 import { ActionsTakenPanel } from './ActionsTakenPanel'
 import { ArtifactsList } from './ArtifactsList'
 import { ChartArtifactPreviewCard } from './ChartArtifactPreviewCard'
@@ -30,6 +31,7 @@ export const FinalAnswerRenderer = ({
   presentationMode = 'default',
   devModeEnabled = false
 }: FinalAnswerRendererProps) => {
+  const { t } = useTranslation(translations)
   const markdownVariant = presentationMode === 'enterprise_agents' ? 'enterprise' : 'default'
   const markdownTopSpacingClass = presentationMode === 'enterprise_agents' ? 'gba:pt-6' : 'gba:pt-5'
   const workspaceDocs = workspaceDocuments ?? []
@@ -67,7 +69,7 @@ export const FinalAnswerRenderer = ({
   )
   const hasVisualDeliverable = chartArtifacts.length > 0 || htmlArtifacts.length > 0
   const showChartPreviews = htmlArtifacts.length === 0
-  const displayOutput = compactOutputForChartDeliverable(output, hasVisualDeliverable)
+  const displayOutput = compactOutputForChartDeliverable(output, hasVisualDeliverable, t)
   const [fullOutputVisible, setFullOutputVisible] = useState(true)
   const [actionsExpanded, setActionsExpanded] = useState(false)
   const todoCount = todos?.length ?? 0
@@ -97,7 +99,7 @@ export const FinalAnswerRenderer = ({
     >
       <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
         <span className="gba:text-[12px] gba:font-bold gba:tracking-[0.01em] gba:text-foreground">
-          NEWWORK Enterprise Agents
+          {t('brand-attribution')}
         </span>
         <StatusIndicator isInstant={isInstant} />
       </div>
@@ -109,7 +111,7 @@ export const FinalAnswerRenderer = ({
           {hasWorkspaceDocs && (
             <div className="gba:pt-4">
               <p className="gba:text-sm gba:text-foreground gba:leading-relaxed">
-                {buildCompactSummary(workspaceDocs)}
+                {buildCompactSummary(workspaceDocs, t)}
               </p>
             </div>
           )}
@@ -126,7 +128,7 @@ export const FinalAnswerRenderer = ({
                 ) : (
                   <CaretRightIcon className="gba:h-3 gba:w-3" />
                 )}
-                {fullOutputVisible ? 'Hide full response' : 'Show full response'}
+                {fullOutputVisible ? t('renderer-final-hide-full-response') : t('renderer-final-show-full-response')}
               </button>
               {fullOutputVisible && (
                 <div className="gba:pt-2 gba:overflow-hidden">
@@ -196,12 +198,12 @@ export const FinalAnswerRenderer = ({
         <div className="gba:flex gba:items-center gba:gap-4 gba:pt-3 gba:border-t gba:border-border/70">
           {durationMs !== undefined && !isInstant && (
             <span className="gba:text-xs gba:text-muted-foreground">
-              Duration: <strong>{formatDuration(durationMs)}</strong>
+              {t('renderer-final-duration')} <strong>{formatDuration(durationMs)}</strong>
             </span>
           )}
           {todoCount > 0 && (
             <span className="gba:text-xs gba:text-muted-foreground">
-              Tasks: <strong>{todoCount}</strong>
+              {t('renderer-final-tasks')} <strong>{todoCount}</strong>
             </span>
           )}
           {!isInstant && devModeEnabled && (
@@ -213,7 +215,7 @@ export const FinalAnswerRenderer = ({
               data-testid="enterprise-agent-final-export"
             >
               <DownloadSimpleIcon className="gba:h-3.5 gba:w-3.5" />
-              Export
+              {t('renderer-final-export')}
             </Button>
           )}
         </div>

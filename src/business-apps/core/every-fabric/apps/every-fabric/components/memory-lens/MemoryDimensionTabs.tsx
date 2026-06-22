@@ -3,18 +3,18 @@ import { GraphIcon, HashIcon, NotebookIcon, SquaresFourIcon, UsersIcon, type Ico
 
 export type MemoryLensView = 'overview' | 'diary' | 'topics' | 'people' | 'graph'
 
-const VIEWS: Array<{ id: MemoryLensView; label: string; icon: Icon }> = [
-  { id: 'overview', label: 'Overview', icon: SquaresFourIcon },
-  { id: 'diary', label: 'Diary', icon: NotebookIcon },
-  { id: 'topics', label: 'Topics', icon: HashIcon },
-  { id: 'people', label: 'People & things', icon: UsersIcon },
-  { id: 'graph', label: 'Mind map', icon: GraphIcon }
-]
-
 interface MemoryDimensionTabsProps {
   active: MemoryLensView
   onChange: (view: MemoryLensView) => void
 }
+
+const VIEWS: Array<{ id: MemoryLensView; label: string; icon: Icon }> = [
+  { id: 'overview', label: 'Overview', icon: SquaresFourIcon },
+  { id: 'diary', label: 'Diary', icon: NotebookIcon },
+  { id: 'topics', label: 'Topics', icon: HashIcon },
+  { id: 'people', label: 'People', icon: UsersIcon },
+  { id: 'graph', label: 'Graph', icon: GraphIcon }
+]
 
 export const MemoryDimensionTabs: React.FC<MemoryDimensionTabsProps> = ({ active, onChange }) => (
   <div

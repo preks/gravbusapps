@@ -109,7 +109,7 @@ describe('RunDetailBody', () => {
   it('prompts for sign-in when a compose_email draft is pending without a token', () => {
     render(<RunDetailBody run={buildComposeEmailRun()} accessToken="" trace={TRACE} />)
     expect(screen.queryByTestId('workforce-run-detail-email-composer')).toBeNull()
-    expect(screen.getByTestId('run-detail-approval')).toHaveTextContent('Sign in is required')
+    expect(screen.getByTestId('run-detail-approval')).toHaveTextContent('run-overview-signin-required')
   })
 
   it('renders task and output on the Overview tab', () => {
@@ -121,7 +121,7 @@ describe('RunDetailBody', () => {
   it('renders credits and a readable trace on the Diagnostics tab', () => {
     renderBody(buildRun())
     fireEvent.click(screen.getByTestId('run-detail-tab-diagnostics'))
-    expect(screen.getByText('3 Newwork credits')).toBeInTheDocument()
+    expect(screen.getByText('run-diag-credits')).toBeInTheDocument()
     expect(screen.getByTestId('run-detail-trace')).toHaveTextContent('Run started')
     expect(screen.getByTestId('run-detail-trace')).toHaveTextContent('Called lookup_policy(id="P-42")')
   })

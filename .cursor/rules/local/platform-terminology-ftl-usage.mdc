@@ -1,0 +1,34 @@
+---
+description: Use platform terminology terms correctly in FTL files
+globs: **/*.ftl
+alwaysApply: false
+---
+
+# Platform Terminology In FTL
+
+- Use canonical platform terms in FTL for category/platform/domain wording instead of hardcoded UI copy.
+- Prefer term references like `{ -platform-domain-create.label }`, `{ -platform-domain-business.label-plural }`, `{ -platform-domain-workplace.inline }`, and `{ -platform-ai-agent-product.label }`.
+- Keep product names hardcoded when they are actual product names, for example `EveryAI`, `EveryBox`, `Enterprise Agent Studio`, `Screen Builder`, and `Flow Designer`.
+- Do not invent new near-duplicate wording when an existing platform term already matches the intent.
+- When a message needs app code access through `t('...')`, add a normal message key that references the term instead of duplicating the label text.
+
+## Preferred Terms
+
+- Create / AI Builder category: `-platform-domain-create`
+- Business Domains / Business Suite category: `-platform-domain-business`
+- EVERY workplace category: `-platform-domain-workplace`
+- Enterprise agent worker wording: `-platform-ai-agent-product`
+
+## Examples
+
+```ftl
+# ✅ GOOD
+hero-title = { -platform-domain-business.label-plural }
+tool-category = { -platform-domain-workplace.label }
+task-step-type-ai-task-expert-description = { -platform-ai-agent-product.label } prompt step.
+
+# ❌ BAD
+hero-title = BUSINESS DOMAINS
+tool-category = EVERY
+task-step-type-ai-task-expert-description = Enterprise Agent prompt step.
+```

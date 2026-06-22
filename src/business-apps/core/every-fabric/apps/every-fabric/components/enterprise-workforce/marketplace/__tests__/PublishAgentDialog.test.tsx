@@ -3,6 +3,13 @@ import React from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { PublishAgentDialog } from '../PublishAgentDialog'
 
+jest.mock('@newwork/nw-design-system', () => ({
+  Button: ({ children, ...props }: React.ComponentProps<'button'>) => <button {...props}>{children}</button>,
+  Input: (props: React.ComponentProps<'input'>) => <input {...props} />,
+  Label: ({ children, ...props }: React.ComponentProps<'label'>) => <label {...props}>{children}</label>,
+  useTranslation: () => ({ t: (key: string) => key })
+}))
+
 describe('PublishAgentDialog', () => {
   it('submits publish options with target tenant credentials', async () => {
     const onPublish = jest.fn().mockResolvedValue({
@@ -22,6 +29,9 @@ describe('PublishAgentDialog', () => {
         onPublish={onPublish}
       />
     )
+
+    expect(screen.getAllByText('detail-publish-marketplace').length).toBeGreaterThan(0)
+    expect(screen.getByText('marketplace-target-tenant-url')).toBeInTheDocument()
 
     fireEvent.change(screen.getByTestId('publish-agent-target-url'), {
       target: { value: 'https://customer.example.com/prompt-manager' }
@@ -43,5 +53,6 @@ describe('PublishAgentDialog', () => {
     })
 
     expect(await screen.findByTestId('publish-agent-done')).toBeInTheDocument()
+    expect(screen.getByText('marketplace-done')).toBeInTheDocument()
   })
 })

@@ -154,17 +154,17 @@ export function bundleToDetails(bundle: AgentPackageV1): MarketplaceBundleDetail
 export function valuePackLabel(pack: MarketplaceValuePack | 'general'): string {
   switch (pack) {
     case 'hr':
-      return 'Human Resources'
+      return 'marketplace-pack-hr'
     case 'crm':
-      return 'Customer Relationship'
+      return 'marketplace-pack-crm'
     case 'service':
-      return 'Customer Service'
+      return 'marketplace-pack-service'
     case 'finance':
-      return 'Finance'
+      return 'marketplace-pack-finance'
     case 'erp':
-      return 'ERP & Procurement'
+      return 'marketplace-pack-erp'
     default:
-      return 'General'
+      return 'marketplace-pack-general'
   }
 }
 

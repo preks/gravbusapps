@@ -4,10 +4,11 @@
 // require browser-side HMAC. Distinct from TestRunModal, which starts a
 // manual run and does not exercise the webhook dispatch path.
 
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { PaperPlaneRightIcon, SpinnerGapIcon, WebhooksLogoIcon, XIcon } from '@phosphor-icons/react'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import type { WorkforceInboundDispatchResponse } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import translations from '../../_i18n'
 
 export interface WebhookTestOption {
   agentId: string
@@ -26,9 +27,8 @@ export interface TestWebhookModalProps {
   onSubmit: (triggerId: string, payload: { subject: string; body: string }) => Promise<WorkforceInboundDispatchResponse>
 }
 
-const DEFAULT_SUBJECT = 'Test webhook'
-const MESSAGE_PLACEHOLDER =
-  'e.g. "Customer John Doe reports claim #12345 was denied incorrectly. Please review and respond."'
+const DEFAULT_SUBJECT_KEY = 'testwebhook-default-subject'
+const MESSAGE_PLACEHOLDER_KEY = 'testwebhook-message-placeholder'
 
 function triggersForAgent(options: WebhookTestOption[], agentId: string): WebhookTestOption[] {
   return options.filter(option => option.agentId === agentId)
@@ -54,9 +54,11 @@ export const TestWebhookModal: React.FC<TestWebhookModalProps> = ({
   onClose,
   onSubmit
 }) => {
+  const { t } = useTranslation(translations)
+  const defaultSubject = t(DEFAULT_SUBJECT_KEY)
   const [selectedAgentId, setSelectedAgentId] = useState('')
   const [selectedTriggerId, setSelectedTriggerId] = useState('')
-  const [subject, setSubject] = useState(DEFAULT_SUBJECT)
+  const [subject, setSubject] = useState(defaultSubject)
   const [message, setMessage] = useState('')
 
   const agentIds = useMemo(() => agentIdsFromOptions(options), [options])
@@ -73,7 +75,7 @@ export const TestWebhookModal: React.FC<TestWebhookModalProps> = ({
     if (!open) {
       setSelectedAgentId('')
       setSelectedTriggerId('')
-      setSubject(DEFAULT_SUBJECT)
+      setSubject(defaultSubject)
       setMessage('')
       return
     }
@@ -88,7 +90,7 @@ export const TestWebhookModal: React.FC<TestWebhookModalProps> = ({
     setSelectedAgentId(firstAgentId)
     const firstTrigger = triggersForAgent(options, firstAgentId)[0]
     setSelectedTriggerId(firstTrigger?.triggerId ?? '')
-  }, [open, preselected, agentIds, options])
+  }, [open, preselected, agentIds, options, defaultSubject])
 
   useEffect(() => {
     if (!open || preselected) return
@@ -110,14 +112,14 @@ export const TestWebhookModal: React.FC<TestWebhookModalProps> = ({
     if (!canSubmit) return
     try {
       await onSubmit(selectedTriggerId, {
-        subject: subject.trim() || DEFAULT_SUBJECT,
+        subject: subject.trim() || defaultSubject,
         body: message.trim()
       })
       onClose()
     } catch {
       // Parent captures the error; keep the modal open for retry.
     }
-  }, [canSubmit, message, onClose, onSubmit, selectedTriggerId, subject])
+  }, [canSubmit, defaultSubject, message, onClose, onSubmit, selectedTriggerId, subject])
 
   if (!open) return null
 
@@ -134,18 +136,15 @@ export const TestWebhookModal: React.FC<TestWebhookModalProps> = ({
           <div>
             <h2 className="gba:flex gba:items-center gba:gap-2 gba:text-base gba:font-semibold gba:text-foreground">
               <WebhooksLogoIcon className="gba:h-4 gba:w-4" />
-              Test webhook
+              {t('testwebhook-title')}
             </h2>
-            <p className="gba:text-xs gba:text-muted-foreground">
-              Fires through the webhook trigger path (not a manual run). The agent receives your message as webhook
-              payload content.
-            </p>
+            <p className="gba:text-xs gba:text-muted-foreground">{t('testwebhook-desc')}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="gba:inline-flex gba:h-8 gba:w-8 gba:items-center gba:justify-center gba:rounded-lg gba:text-muted-foreground gba:hover:bg-muted/60 gba:hover:text-foreground"
-            aria-label="Close"
+            aria-label={t('testwebhook-close-aria')}
             data-testid="workforce-test-webhook-close"
           >
             <XIcon className="gba:h-4 gba:w-4" />
@@ -165,7 +164,7 @@ export const TestWebhookModal: React.FC<TestWebhookModalProps> = ({
 
           {options.length === 0 ? (
             <p className="gba:text-sm gba:text-muted-foreground" data-testid="workforce-test-webhook-empty">
-              No agents have an enabled webhook trigger. Add one in Config → Triggers.
+              {t('testwebhook-empty')}
             </p>
           ) : (
             <div className="gba:space-y-4">
@@ -182,7 +181,7 @@ export const TestWebhookModal: React.FC<TestWebhookModalProps> = ({
                     htmlFor="workforce-test-webhook-agent"
                     className="gba:mb-1 gba:block gba:text-xs gba:font-semibold gba:text-foreground"
                   >
-                    Agent
+                    {t('testwebhook-agent-label')}
                   </label>
                   <select
                     id="workforce-test-webhook-agent"
@@ -209,7 +208,7 @@ export const TestWebhookModal: React.FC<TestWebhookModalProps> = ({
                     htmlFor="workforce-test-webhook-trigger"
                     className="gba:mb-1 gba:block gba:text-xs gba:font-semibold gba:text-foreground"
                   >
-                    Webhook trigger
+                    {t('testwebhook-trigger-label')}
                   </label>
                   <select
                     id="workforce-test-webhook-trigger"
@@ -232,7 +231,7 @@ export const TestWebhookModal: React.FC<TestWebhookModalProps> = ({
                   htmlFor="workforce-test-webhook-subject"
                   className="gba:mb-1 gba:block gba:text-xs gba:font-semibold gba:text-foreground"
                 >
-                  Subject
+                  {t('testwebhook-subject-label')}
                 </label>
                 <input
                   id="workforce-test-webhook-subject"
@@ -249,20 +248,18 @@ export const TestWebhookModal: React.FC<TestWebhookModalProps> = ({
                   htmlFor="workforce-test-webhook-message"
                   className="gba:mb-1 gba:block gba:text-xs gba:font-semibold gba:text-foreground"
                 >
-                  Message
+                  {t('testwebhook-message-label')}
                 </label>
                 <textarea
                   id="workforce-test-webhook-message"
                   value={message}
                   onChange={e => setMessage(e.target.value)}
-                  placeholder={MESSAGE_PLACEHOLDER}
+                  placeholder={t(MESSAGE_PLACEHOLDER_KEY)}
                   rows={6}
                   className="gba:w-full gba:resize-y gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:font-mono gba:text-sm gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring"
                   data-testid="workforce-test-webhook-message"
                 />
-                <p className="gba:mt-1 gba:text-[11px] gba:text-muted-foreground">
-                  Sent as the webhook body. The agent sees subject and message in its task string.
-                </p>
+                <p className="gba:mt-1 gba:text-[11px] gba:text-muted-foreground">{t('testwebhook-message-hint')}</p>
               </div>
             </div>
           )}
@@ -270,7 +267,7 @@ export const TestWebhookModal: React.FC<TestWebhookModalProps> = ({
 
         <div className="gba:flex gba:items-center gba:justify-end gba:gap-2 gba:border-t gba:border-border/60 gba:bg-muted/20 gba:px-5 gba:py-3">
           <Button variant="ghost" size="sm" onClick={onClose}>
-            Cancel
+            {t('action-cancel')}
           </Button>
           <button
             type="button"
@@ -284,7 +281,7 @@ export const TestWebhookModal: React.FC<TestWebhookModalProps> = ({
             ) : (
               <PaperPlaneRightIcon className="gba:h-3.5 gba:w-3.5" />
             )}
-            {isDispatching ? 'Sending…' : 'Send webhook'}
+            {isDispatching ? t('testwebhook-sending') : t('testwebhook-submit')}
           </button>
         </div>
       </div>

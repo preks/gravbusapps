@@ -3,7 +3,9 @@
 // metrics endpoint and draws inline SVG bars — no new chart deps.
 
 import { SpinnerGapIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import React, { useMemo } from 'react'
+import translations from '../../_i18n'
 import { useWorkforceAgentMetrics } from './useWorkforceMetrics'
 import { formatDateOnly } from './runDisplay'
 import type { WorkforceMetricsBucket } from './workforceTypes'
@@ -37,6 +39,7 @@ function buildBars(buckets: WorkforceMetricsBucket[]) {
 }
 
 export const WorkforceCreditSparkline: React.FC<WorkforceCreditSparklineProps> = ({ accessToken, agentId, testId }) => {
+  const { t } = useTranslation(translations)
   const { metrics, totals, isLoading, error } = useWorkforceAgentMetrics({
     accessToken,
     agentId,
@@ -52,9 +55,9 @@ export const WorkforceCreditSparkline: React.FC<WorkforceCreditSparklineProps> =
     >
       <header className="gba:flex gba:items-baseline gba:justify-between">
         <div>
-          <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">Credits used (7d)</h3>
+          <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">{t('sparkline-title')}</h3>
           <p className="gba:text-xs gba:text-muted-foreground">
-            {totals.total_credits} credits · {totals.runs} runs
+            {t('sparkline-summary', { credits: totals.total_credits, runs: totals.runs })}
           </p>
         </div>
         {isLoading && <SpinnerGapIcon className="gba:h-3.5 gba:w-3.5 gba:animate-spin gba:text-muted-foreground" />}
@@ -70,7 +73,7 @@ export const WorkforceCreditSparkline: React.FC<WorkforceCreditSparklineProps> =
           width={SPARKLINE_WIDTH}
           height={SPARKLINE_HEIGHT}
           role="img"
-          aria-label="Credit usage by day"
+          aria-label={t('sparkline-aria-label')}
         >
           {bars.map(bar => (
             <rect
@@ -83,7 +86,7 @@ export const WorkforceCreditSparkline: React.FC<WorkforceCreditSparklineProps> =
               className="gba:fill-primary"
             >
               <title>
-                {formatDateOnly(bar.bucket.date)}: {bar.bucket.credits} credits
+                {t('sparkline-bar-title', { date: formatDateOnly(bar.bucket.date), credits: bar.bucket.credits })}
               </title>
             </rect>
           ))}

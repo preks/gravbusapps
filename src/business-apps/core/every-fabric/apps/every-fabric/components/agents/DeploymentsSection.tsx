@@ -8,12 +8,13 @@
 // This section lets an operator activate an existing agent as a Worker without
 // creating a second record (calls POST /workforce/agents/{id}/deploy).
 
-import React, { useState } from 'react'
-import { Button } from '@newwork/nw-design-system'
+import React, { useMemo, useState } from 'react'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { BriefcaseIcon, ChatCircleIcon, CheckCircleIcon, SpinnerGapIcon } from '@phosphor-icons/react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import type { AgentDeployments } from './agentTypes'
 import type { WorkforceAutonomyLevel } from '../enterprise-workforce/workforceTypes'
+import translations from '../../_i18n'
 
 interface DeploymentsSectionProps {
   agentId: string
@@ -28,11 +29,11 @@ interface DeploymentsSectionProps {
   hideHeading?: boolean
 }
 
-const AUTONOMY_OPTIONS: Array<{ value: WorkforceAutonomyLevel; label: string }> = [
-  { value: 'draft_only', label: 'Assistive — drafts and recommends, makes no system changes' },
-  { value: 'approval_required', label: 'Approval Required — prepares actions, routes to a human first' },
-  { value: 'auto_low_risk', label: 'Delegated — acts on low-risk steps, escalates exceptions' },
-  { value: 'full_auto', label: 'Autonomous — runs end-to-end within validated boundaries' }
+const AUTONOMY_KEYS: Array<{ value: WorkforceAutonomyLevel; labelKey: string }> = [
+  { value: 'draft_only', labelKey: 'agents-autonomy-draft-only' },
+  { value: 'approval_required', labelKey: 'agents-autonomy-approval-required' },
+  { value: 'auto_low_risk', labelKey: 'agents-autonomy-auto-low-risk' },
+  { value: 'full_auto', labelKey: 'agents-autonomy-full-auto' }
 ]
 
 export const DeploymentsSection: React.FC<DeploymentsSectionProps> = ({
@@ -43,7 +44,9 @@ export const DeploymentsSection: React.FC<DeploymentsSectionProps> = ({
   onWorkforceDeployed,
   hideHeading = false
 }) => {
+  const { t } = useTranslation(translations)
   const client = usePromptManagerClient(accessToken)
+  const autonomyOptions = useMemo(() => AUTONOMY_KEYS.map(opt => ({ value: opt.value, label: t(opt.labelKey) })), [t])
 
   const [formOpen, setFormOpen] = useState(false)
   const [role, setRole] = useState('')
@@ -60,7 +63,7 @@ export const DeploymentsSection: React.FC<DeploymentsSectionProps> = ({
 
   const handleDeploy = async () => {
     if (!role.trim()) {
-      setError('Role is required to activate this agent as a Worker.')
+      setError(t('agents-deploy-error-role-required'))
       return
     }
     setDeploying(true)
@@ -76,7 +79,7 @@ export const DeploymentsSection: React.FC<DeploymentsSectionProps> = ({
       setFormOpen(false)
       onWorkforceDeployed?.()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to activate this agent as a Worker.')
+      setError(err instanceof Error ? err.message : t('agents-deploy-error-failed'))
     } finally {
       setDeploying(false)
     }
@@ -84,11 +87,14 @@ export const DeploymentsSection: React.FC<DeploymentsSectionProps> = ({
 
   return (
     <section data-testid="agent-config-deployments">
-      {!hideHeading && <h2 className="gba:text-base gba:font-semibold gba:text-foreground gba:mb-1">Deployments</h2>}
-      <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">
-        Where this agent works. It is one agent — activating it as a Worker layers governed execution on the same
-        skills, policies, and system prompt.
-      </p>
+      {!hideHeading && (
+        <>
+          <h2 className="gba:text-base gba:font-semibold gba:text-foreground gba:mb-1">
+            {t('agents-deployments-title')}
+          </h2>
+          <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">{t('agents-deployments-description')}</p>
+        </>
+      )}
 
       <div className="gba:space-y-3">
         {/* Enterprise deployment (always present) */}
@@ -98,11 +104,11 @@ export const DeploymentsSection: React.FC<DeploymentsSectionProps> = ({
         >
           <ChatCircleIcon className="gba:h-5 gba:w-5 gba:shrink-0 gba:text-sky-600" weight="duotone" />
           <div className="gba:flex-1 gba:min-w-0">
-            <p className="gba:text-sm gba:font-medium gba:text-foreground">Assistant</p>
+            <p className="gba:text-sm gba:font-medium gba:text-foreground">{t('agents-deploy-assistant-title')}</p>
             <p className="gba:text-xs gba:text-muted-foreground">Available for people to ask questions and get help.</p>
           </div>
           <span className="gba:shrink-0 gba:rounded-full gba:bg-sky-100 gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium gba:text-sky-700">
-            {enterpriseEnabled ? 'Available' : 'Off'}
+            {enterpriseEnabled ? t('agents-deploy-assistant-status') : t('agents-deploy-worker-status-off')}
           </span>
         </div>
 
@@ -114,7 +120,7 @@ export const DeploymentsSection: React.FC<DeploymentsSectionProps> = ({
           <div className="gba:flex gba:items-center gba:gap-3">
             <BriefcaseIcon className="gba:h-5 gba:w-5 gba:shrink-0 gba:text-indigo-600" weight="duotone" />
             <div className="gba:flex-1 gba:min-w-0">
-              <p className="gba:text-sm gba:font-medium gba:text-foreground">Worker</p>
+              <p className="gba:text-sm gba:font-medium gba:text-foreground">{t('agents-deploy-worker-title')}</p>
               <p className="gba:text-xs gba:text-muted-foreground">
                 Runs as a governed Worker with a role, autonomy level, triggers, and budget.
               </p>
@@ -128,7 +134,9 @@ export const DeploymentsSection: React.FC<DeploymentsSectionProps> = ({
                 }`}
                 data-testid="deployment-workforce-status"
               >
-                {workforceStatus === 'paused' ? 'Paused' : 'Active'}
+                {workforceStatus === 'paused'
+                  ? t('agents-deploy-worker-status-paused')
+                  : t('agents-deploy-worker-status-active')}
               </span>
             ) : (
               !formOpen && (
@@ -138,7 +146,7 @@ export const DeploymentsSection: React.FC<DeploymentsSectionProps> = ({
                   onClick={() => setFormOpen(true)}
                   data-testid="add-workforce-deployment"
                 >
-                  Activate as Worker
+                  {t('agents-deploy-activate-button')}
                 </Button>
               )
             )}
@@ -156,7 +164,7 @@ export const DeploymentsSection: React.FC<DeploymentsSectionProps> = ({
               data-testid="deployment-workforce-deployed"
             >
               <CheckCircleIcon className="gba:h-3.5 gba:w-3.5" weight="fill" />
-              Worker activated (paused). Configure its Passport below.
+              {t('agents-deploy-success-note')}
             </p>
           )}
 
@@ -212,7 +220,7 @@ export const DeploymentsSection: React.FC<DeploymentsSectionProps> = ({
                   className="gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring"
                   data-testid="wf-autonomy-select"
                 >
-                  {AUTONOMY_OPTIONS.map(opt => (
+                  {autonomyOptions.map(opt => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
                     </option>
@@ -250,7 +258,7 @@ export const DeploymentsSection: React.FC<DeploymentsSectionProps> = ({
                   disabled={deploying}
                   data-testid="wf-deploy-cancel"
                 >
-                  Cancel
+                  {t('agents-cancel-label')}
                 </Button>
                 <Button
                   size="sm"
@@ -261,10 +269,10 @@ export const DeploymentsSection: React.FC<DeploymentsSectionProps> = ({
                   {deploying ? (
                     <>
                       <SpinnerGapIcon className="gba:mr-1.5 gba:h-3.5 gba:w-3.5 gba:animate-spin" />
-                      Activating…
+                      {t('agents-deploy-activating')}
                     </>
                   ) : (
-                    'Activate as Worker'
+                    t('agents-deploy-activate-button')
                   )}
                 </Button>
               </div>

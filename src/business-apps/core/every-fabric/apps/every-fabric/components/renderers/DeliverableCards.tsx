@@ -1,8 +1,9 @@
 import React, { useCallback, useState } from 'react'
-import { Badge, toast } from '@newwork/nw-design-system'
+import { Badge, toast, useTranslation } from '@newwork/nw-design-system'
 import { DownloadSimpleIcon, FileTextIcon, PresentationIcon } from '@phosphor-icons/react'
 import { resolveEntityLink } from '@/business-apps/platform/apps/every-ai/components/links/EntityLink'
 import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
+import translations from '../../_i18n'
 
 /** ui.kind sentinel emitted by tools that opt into deliverable_card rendering. */
 export const DELIVERABLE_CARD_UI_KIND = 'deliverable_card' as const
@@ -70,18 +71,19 @@ const DOC_TYPE_ICON: Record<string, React.FC<{ className?: string }>> = {
   note: FileTextIcon
 }
 
-const DOC_TYPE_LABEL: Record<string, string> = {
-  document: 'Document',
-  slides: 'Presentation',
-  note: 'Note'
+const DOC_TYPE_KEY: Record<string, string> = {
+  document: 'renderer-doc-type-document',
+  slides: 'renderer-doc-type-slides',
+  note: 'renderer-doc-type-note'
 }
 
 export const WorkspaceDocumentCard: React.FC<{
   doc: WorkspaceDocumentDeliverable
   accessToken?: string
 }> = ({ doc }) => {
+  const { t } = useTranslation(translations)
   const Icon = DOC_TYPE_ICON[doc.type ?? 'document'] ?? FileTextIcon
-  const label = DOC_TYPE_LABEL[doc.type ?? 'document'] ?? 'Document'
+  const typeLabel = t(DOC_TYPE_KEY[doc.type ?? 'document'] ?? 'renderer-doc-type-document')
   const href = doc.primaryAction.href
   const body = (
     <>
@@ -90,12 +92,12 @@ export const WorkspaceDocumentCard: React.FC<{
       </div>
       <div className="gba:text-left gba:min-w-0 gba:flex-1">
         <span className="gba:text-xs gba:font-semibold gba:text-foreground gba:block gba:truncate">
-          {label} created
+          {t('renderer-doc-created', { type: typeLabel })}
         </span>
         <span className="gba:text-[10px] gba:text-muted-foreground gba:block gba:truncate">{doc.title}</span>
       </div>
       <Badge variant="secondary" className="gba:ml-auto gba:text-[10px] gba:shrink-0">
-        {doc.primaryAction.label || 'Open'}
+        {doc.primaryAction.label || t('renderer-action-open')}
       </Badge>
     </>
   )
@@ -119,13 +121,14 @@ export const SessionAttachmentDownloadCard: React.FC<{
   sessionId?: string
   accessToken?: string
 }> = ({ item, sessionId, accessToken }) => {
+  const { t } = useTranslation(translations)
   const client = useEnterpriseAgentClient(accessToken ?? '')
   const [downloading, setDownloading] = useState(false)
   const fileName = item.name || 'export.pdf'
 
   const handleDownload = useCallback(async () => {
     if (!sessionId || !item.id) {
-      toast.error('File unavailable — missing session or attachment id.')
+      toast.error(t('renderer-file-unavailable'))
       return
     }
     setDownloading(true)
@@ -139,11 +142,11 @@ export const SessionAttachmentDownloadCard: React.FC<{
       URL.revokeObjectURL(url)
     } catch (err) {
       const detail = err instanceof Error ? err.message : 'unknown error'
-      toast.error(`Could not download file: ${detail}`)
+      toast.error(t('renderer-file-download-error', { detail }))
     } finally {
       setDownloading(false)
     }
-  }, [client, fileName, item.id, sessionId])
+  }, [client, fileName, item.id, sessionId, t])
 
   return (
     <button
@@ -157,7 +160,9 @@ export const SessionAttachmentDownloadCard: React.FC<{
         <FileTextIcon className="gba:h-4 gba:w-4 gba:text-primary" />
       </div>
       <div className="gba:min-w-0 gba:flex-1">
-        <span className="gba:text-xs gba:font-semibold gba:text-foreground gba:block gba:truncate">File ready</span>
+        <span className="gba:text-xs gba:font-semibold gba:text-foreground gba:block gba:truncate">
+          {t('renderer-file-ready')}
+        </span>
         <span className="gba:text-[10px] gba:text-muted-foreground gba:block gba:truncate">{fileName}</span>
       </div>
       <Badge
@@ -165,7 +170,7 @@ export const SessionAttachmentDownloadCard: React.FC<{
         className="gba:ml-auto gba:text-[10px] gba:shrink-0 gba:inline-flex gba:items-center gba:gap-1"
       >
         <DownloadSimpleIcon className="gba:h-3 gba:w-3" />
-        {downloading ? '…' : item.primaryAction.label || 'Download'}
+        {downloading ? t('renderer-download-ellipsis') : item.primaryAction.label || t('renderer-download')}
       </Badge>
     </button>
   )

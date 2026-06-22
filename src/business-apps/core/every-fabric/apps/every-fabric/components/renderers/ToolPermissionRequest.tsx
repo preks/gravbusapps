@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { CaretDownIcon, CheckCircleIcon, PencilSimpleIcon, ShieldWarningIcon, XCircleIcon } from '@phosphor-icons/react'
 import type { StructuredInputRequestEvent } from '../../types/enterpriseAgent'
 import {
@@ -10,6 +10,7 @@ import {
   type PresentedPermissionField
 } from './toolPermissionPresenter'
 import { applyCatalogLabels, useCatalogRefLabels } from './useCatalogRefLabels'
+import translations from '../../_i18n'
 
 interface ToolPermissionRequestProps {
   request: StructuredInputRequestEvent
@@ -20,10 +21,13 @@ interface ToolPermissionRequestProps {
 
 const actionKey = (action: PresentedPermissionAction): string => `${action.toolName}:${action.summary}`
 
-const formatTechnicalFieldsToggleLabel = (count: number, expanded: boolean): string => {
-  if (expanded) return 'Hide additional fields'
-  const noun = count === 1 ? 'field' : 'fields'
-  return `Show ${count} more ${noun}`
+const formatTechnicalFieldsToggleLabel = (
+  count: number,
+  expanded: boolean,
+  t: (key: string, vars?: Record<string, unknown>) => string
+): string => {
+  if (expanded) return t('renderer-permission-hide-fields')
+  return t('renderer-permission-show-fields', { count })
 }
 
 interface PermissionFieldEditorProps {
@@ -97,11 +101,15 @@ interface ClickablePermissionFieldProps {
   onEdit: () => void
 }
 
-const ClickablePermissionField = ({ field, onEdit }: ClickablePermissionFieldProps) => (
+const ClickablePermissionField = ({
+  field,
+  onEdit,
+  t
+}: ClickablePermissionFieldProps & { t: (key: string) => string }) => (
   <button
     type="button"
     onClick={onEdit}
-    title={field.options?.length ? 'Click to choose another option' : 'Click to edit'}
+    title={field.options?.length ? t('renderer-permission-click-choose') : t('renderer-permission-click-edit')}
     className="gba:group gba:-mx-2 gba:flex gba:w-full gba:cursor-pointer gba:items-center gba:justify-between gba:gap-2 gba:rounded-md gba:border gba:border-transparent gba:px-2 gba:py-1 gba:text-left gba:transition-colors gba:hover:border-border gba:hover:bg-muted/40"
   >
     <span className="gba:min-w-0">
@@ -143,8 +151,9 @@ const PermissionFieldRow = ({
   editorKey,
   editedValues,
   onUpdateValue,
-  onEnterEdit
-}: PermissionFieldRowProps) => {
+  onEnterEdit,
+  t
+}: PermissionFieldRowProps & { t: (key: string) => string }) => {
   const currentValue = editedValues[actionIndex]?.[field.id] ?? formatPermissionValue(field.value)
   const showEditor = editing && field.editable && !locked
   const clickToEdit = action.canEdit && field.editable && !editing && !locked
@@ -161,7 +170,7 @@ const PermissionFieldRow = ({
       />
     )
   } else if (clickToEdit) {
-    valueContent = <ClickablePermissionField field={field} onEdit={() => onEnterEdit(editorKey)} />
+    valueContent = <ClickablePermissionField field={field} onEdit={() => onEnterEdit(editorKey)} t={t} />
   } else {
     valueContent = <PermissionValueDisplay field={field} />
   }
@@ -175,10 +184,10 @@ const PermissionFieldRow = ({
         </span>
         {field.suggested && !field.required && (
           <span
-            title="Pre-filled by the assistant — review and adjust if needed. Not required."
+            title={t('renderer-permission-suggested-title')}
             className="gba:rounded-full gba:bg-muted gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-muted-foreground"
           >
-            Suggested
+            {t('renderer-permission-suggested')}
           </span>
         )}
       </div>
@@ -218,8 +227,9 @@ const PermissionActionBody = ({
   editedValues,
   onUpdateValue,
   onEnterEdit,
-  onToggleTechnical
-}: PermissionActionBodyProps) => {
+  onToggleTechnical,
+  t
+}: PermissionActionBodyProps & { t: (key: string, vars?: Record<string, unknown>) => string }) => {
   const hasRequired = action.visibleFields.some(field => field.required)
   const hasSuggested = action.visibleFields.some(field => field.suggested)
   return (
@@ -238,6 +248,7 @@ const PermissionActionBody = ({
             editedValues={editedValues}
             onUpdateValue={onUpdateValue}
             onEnterEdit={onEnterEdit}
+            t={t}
           />
         ))}
       </div>
@@ -246,13 +257,15 @@ const PermissionActionBody = ({
         <div className="gba:mt-2 gba:flex gba:flex-wrap gba:gap-x-4 gba:gap-y-1 gba:text-[11px] gba:text-muted-foreground">
           {hasRequired && (
             <span>
-              <span className="gba:text-destructive">*</span> Required
+              <span className="gba:text-destructive">*</span> {t('renderer-permission-required')}
             </span>
           )}
           {hasSuggested && (
             <span>
-              <span className="gba:rounded-full gba:bg-muted gba:px-1.5 gba:py-0.5 gba:font-medium">Suggested</span>{' '}
-              Pre-filled by the assistant
+              <span className="gba:rounded-full gba:bg-muted gba:px-1.5 gba:py-0.5 gba:font-medium">
+                {t('renderer-permission-suggested')}
+              </span>{' '}
+              {t('renderer-permission-suggested-hint')}
             </span>
           )}
         </div>
@@ -269,7 +282,7 @@ const PermissionActionBody = ({
               className={`gba:h-3 gba:w-3 gba:transition-transform ${showTechnical ? 'gba:rotate-180' : ''}`}
               weight="bold"
             />
-            {formatTechnicalFieldsToggleLabel(action.technicalFields.length, showTechnical)}
+            {formatTechnicalFieldsToggleLabel(action.technicalFields.length, showTechnical, t)}
           </button>
           {showTechnical && (
             <div className="gba:mt-2 gba:space-y-1 gba:rounded-lg gba:bg-muted/40 gba:p-3">
@@ -295,8 +308,11 @@ export const ToolPermissionRequest = ({
   accessToken,
   onSubmit
 }: ToolPermissionRequestProps) => {
+  const { t } = useTranslation(translations)
   const [submitted, setSubmitted] = useState(false)
-  const [decisionLabel, setDecisionLabel] = useState<string | null>(alreadySubmitted ? 'Decision submitted' : null)
+  const [decisionLabel, setDecisionLabel] = useState<string | null>(
+    alreadySubmitted ? t('renderer-permission-decision-submitted') : null
+  )
   const [editing, setEditing] = useState(false)
   const [focusKey, setFocusKey] = useState<string | null>(null)
   const [showTechnical, setShowTechnical] = useState<Record<number, boolean>>({})
@@ -328,7 +344,7 @@ export const ToolPermissionRequest = ({
   const submitReject = () => {
     if (locked) return
     setSubmitted(true)
-    setDecisionLabel('Rejected')
+    setDecisionLabel(t('renderer-permission-rejected'))
     onSubmit({
       form_id: request.form_id,
       decision: 'reject',
@@ -343,7 +359,7 @@ export const ToolPermissionRequest = ({
     if (locked) return
     setSubmitted(true)
     const hasEdits = editing && Object.values(editedValues).some(values => Object.keys(values).length > 0)
-    setDecisionLabel(editing ? 'Changes submitted' : 'Approved')
+    setDecisionLabel(editing ? t('renderer-permission-changes-submitted') : t('renderer-permission-approved'))
     const decisions = presentedActions.map((action, index) => {
       const edits = editedValues[index] ?? {}
       if (!editing || Object.keys(edits).length === 0) return { type: 'approve' }
@@ -382,22 +398,22 @@ export const ToolPermissionRequest = ({
           ) : (
             <>
               <p className="gba:text-sm gba:font-semibold gba:text-foreground">
-                {request.title || `Approve ${presentedActions.length} actions`}
+                {request.title || t('renderer-permission-approve-multi', { count: presentedActions.length })}
               </p>
               <p className="gba:mt-1 gba:text-sm gba:leading-6 gba:text-muted-foreground">
-                Review each action below. They run only after you approve.
+                {t('renderer-permission-review-multi')}
               </p>
             </>
           )}
           {editing && !locked && (
             <span className="gba:mt-2 gba:inline-flex gba:rounded-full gba:bg-warning/10 gba:px-2.5 gba:py-1 gba:text-[11px] gba:font-medium gba:text-warning">
-              Editing
+              {t('renderer-permission-editing')}
             </span>
           )}
           {canEditAny && !editing && !locked && (
             <p className="gba:mt-1.5 gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
               <PencilSimpleIcon className="gba:h-3 gba:w-3" weight="bold" />
-              Click any field to adjust it before approving.
+              {t('renderer-permission-click-adjust')}
             </p>
           )}
         </div>
@@ -417,6 +433,7 @@ export const ToolPermissionRequest = ({
               onUpdateValue={updateEditedValue}
               onEnterEdit={onEnterEdit}
               onToggleTechnical={() => setShowTechnical(prev => ({ ...prev, 0: !prev[0] }))}
+              t={t}
             />
           ) : (
             <div className="gba:space-y-3">
@@ -443,6 +460,7 @@ export const ToolPermissionRequest = ({
                       onToggleTechnical={() =>
                         setShowTechnical(prev => ({ ...prev, [actionIndex]: !prev[actionIndex] }))
                       }
+                      t={t}
                     />
                   </div>
                 </div>
@@ -455,17 +473,17 @@ export const ToolPermissionRequest = ({
       <div className="gba:mt-4 gba:flex gba:flex-wrap gba:items-center gba:gap-2">
         <Button type="button" onClick={submitApprove} disabled={locked} data-testid="tool-permission-approve">
           <CheckCircleIcon className="gba:mr-1.5 gba:h-4 gba:w-4" weight="bold" />
-          {editing ? 'Save changes and run' : 'Approve and run'}
+          {editing ? t('renderer-permission-save-run') : t('renderer-permission-approve-run')}
         </Button>
         {canEditAny && !editing && !locked && (
           <Button type="button" variant="outline" onClick={() => setEditing(true)} data-testid="tool-permission-edit">
             <PencilSimpleIcon className="gba:mr-1.5 gba:h-4 gba:w-4" weight="bold" />
-            Modify
+            {t('renderer-permission-modify')}
           </Button>
         )}
         {editing && !locked && (
           <Button type="button" variant="outline" onClick={() => setEditing(false)}>
-            Cancel changes
+            {t('renderer-permission-cancel-changes')}
           </Button>
         )}
         <Button
@@ -476,12 +494,14 @@ export const ToolPermissionRequest = ({
           data-testid="tool-permission-reject"
         >
           <XCircleIcon className="gba:mr-1.5 gba:h-4 gba:w-4" weight="bold" />
-          Reject
+          {t('renderer-permission-reject')}
         </Button>
         {decisionLabel ? (
           <span className="gba:text-xs gba:text-muted-foreground">{decisionLabel}</span>
         ) : (
-          !locked && <span className="gba:text-xs gba:text-muted-foreground">Runs only after you approve.</span>
+          !locked && (
+            <span className="gba:text-xs gba:text-muted-foreground">{t('renderer-permission-runs-after')}</span>
+          )
         )}
       </div>
     </div>

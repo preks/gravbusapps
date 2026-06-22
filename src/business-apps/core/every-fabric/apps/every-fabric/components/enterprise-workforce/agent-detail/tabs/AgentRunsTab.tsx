@@ -8,9 +8,11 @@
 
 import { ArrowsClockwiseIcon, MagnifyingGlassIcon } from '@phosphor-icons/react'
 import React, { useMemo, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { useWorkforceAgentRuns } from '../../useWorkforceAgentRuns'
 import type { WorkforceRun, WorkforceRunListParams, WorkforceRunSource, WorkforceRunStatus } from '../../workforceTypes'
 import { formatTimestamp, runCredits, runDurationLabel, statusVisualForRun, shortenInput } from '../../runDisplay'
+import translations from '../../../../_i18n'
 
 export interface AgentRunsTabProps {
   accessToken: string
@@ -20,21 +22,21 @@ export interface AgentRunsTabProps {
 
 const PAGE_SIZE = 25
 
-const STATUS_OPTIONS: ReadonlyArray<{ value: WorkforceRunStatus | ''; label: string }> = [
-  { value: '', label: 'All statuses' },
-  { value: 'running', label: 'Running' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'failed', label: 'Failed' },
-  { value: 'cancelled', label: 'Cancelled' },
-  { value: 'waiting_for_human', label: 'Waiting for human' }
+const STATUS_OPTIONS: ReadonlyArray<{ value: WorkforceRunStatus | ''; labelKey: string }> = [
+  { value: '', labelKey: 'runs-filter-all-statuses' },
+  { value: 'running', labelKey: 'runs-filter-running' },
+  { value: 'completed', labelKey: 'runs-filter-completed' },
+  { value: 'failed', labelKey: 'runs-filter-failed' },
+  { value: 'cancelled', labelKey: 'runs-filter-cancelled' },
+  { value: 'waiting_for_human', labelKey: 'runs-filter-waiting-human' }
 ]
 
-const SOURCE_OPTIONS: ReadonlyArray<{ value: WorkforceRunSource | ''; label: string }> = [
-  { value: '', label: 'All sources' },
-  { value: 'manual', label: 'Manual' },
-  { value: 'schedule', label: 'Scheduled' },
-  { value: 'webhook', label: 'Webhook' },
-  { value: 'inbound_email', label: 'Inbound email' }
+const SOURCE_OPTIONS: ReadonlyArray<{ value: WorkforceRunSource | ''; labelKey: string }> = [
+  { value: '', labelKey: 'runs-filter-all-sources' },
+  { value: 'manual', labelKey: 'runs-filter-manual' },
+  { value: 'schedule', labelKey: 'runs-filter-schedule' },
+  { value: 'webhook', labelKey: 'runs-filter-webhook' },
+  { value: 'inbound_email', labelKey: 'runs-filter-inbound-email' }
 ]
 
 interface Filters {
@@ -57,6 +59,7 @@ function filtersToParams(filters: Filters, page: number): WorkforceRunListParams
 }
 
 export const AgentRunsTab: React.FC<AgentRunsTabProps> = ({ accessToken, agentId, onOpenRun }) => {
+  const { t } = useTranslation(translations)
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS)
   const [page, setPage] = useState(0)
 
@@ -86,7 +89,7 @@ export const AgentRunsTab: React.FC<AgentRunsTabProps> = ({ accessToken, agentId
               type="search"
               value={filters.q}
               onChange={event => updateFilter('q', event.target.value)}
-              placeholder="Search subject or sender…"
+              placeholder={t('runs-search-placeholder')}
               className="gba:h-8 gba:w-full gba:rounded-md gba:border gba:border-border gba:bg-background gba:pl-8 gba:pr-3 gba:text-xs gba:text-foreground"
               data-testid="workforce-runs-search"
             />
@@ -99,7 +102,7 @@ export const AgentRunsTab: React.FC<AgentRunsTabProps> = ({ accessToken, agentId
           >
             {STATUS_OPTIONS.map(opt => (
               <option key={opt.value || 'all'} value={opt.value}>
-                {opt.label}
+                {t(opt.labelKey)}
               </option>
             ))}
           </select>
@@ -111,7 +114,7 @@ export const AgentRunsTab: React.FC<AgentRunsTabProps> = ({ accessToken, agentId
           >
             {SOURCE_OPTIONS.map(opt => (
               <option key={opt.value || 'all'} value={opt.value}>
-                {opt.label}
+                {t(opt.labelKey)}
               </option>
             ))}
           </select>
@@ -123,7 +126,7 @@ export const AgentRunsTab: React.FC<AgentRunsTabProps> = ({ accessToken, agentId
           data-testid="workforce-runs-refresh"
         >
           <ArrowsClockwiseIcon className="gba:h-3.5 gba:w-3.5" />
-          Refresh
+          {t('runs-refresh')}
         </button>
       </header>
 
@@ -137,13 +140,13 @@ export const AgentRunsTab: React.FC<AgentRunsTabProps> = ({ accessToken, agentId
       )}
 
       {isLoading && runs.length === 0 ? (
-        <p className="gba:py-6 gba:text-center gba:text-xs gba:text-muted-foreground">Loading runs…</p>
+        <p className="gba:py-6 gba:text-center gba:text-xs gba:text-muted-foreground">{t('runs-loading')}</p>
       ) : runs.length === 0 ? (
         <p
           className="gba:py-8 gba:text-center gba:text-xs gba:text-muted-foreground"
           data-testid="workforce-runs-empty"
         >
-          No runs match these filters yet.
+          {t('runs-empty')}
         </p>
       ) : (
         <ul className="gba:divide-y gba:divide-border/60">
@@ -171,7 +174,7 @@ export const AgentRunsTab: React.FC<AgentRunsTabProps> = ({ accessToken, agentId
                       {formatTimestamp(run.created_at)}
                       {run.source ? ` · ${run.source.replace(/_/g, ' ')}` : ''}
                       {duration ? ` · ${duration}` : ''}
-                      {` · ${runCredits(run)} credits`}
+                      {` · ${t('runs-row-credits', { credits: runCredits(run) })}`}
                     </p>
                   </div>
                 </button>
@@ -183,9 +186,7 @@ export const AgentRunsTab: React.FC<AgentRunsTabProps> = ({ accessToken, agentId
 
       {total > PAGE_SIZE && (
         <footer className="gba:flex gba:items-center gba:justify-between gba:pt-2 gba:text-[11px] gba:text-muted-foreground">
-          <span>
-            Page {page + 1} of {totalPages} · {total} total
-          </span>
+          <span>{t('runs-page', { page: page + 1, totalPages, total })}</span>
           <div className="gba:flex gba:gap-1">
             <button
               type="button"
@@ -194,7 +195,7 @@ export const AgentRunsTab: React.FC<AgentRunsTabProps> = ({ accessToken, agentId
               className="gba:rounded-md gba:border gba:border-border gba:bg-background gba:px-2 gba:py-1 gba:disabled:opacity-50"
               data-testid="workforce-runs-prev-page"
             >
-              Prev
+              {t('runs-prev')}
             </button>
             <button
               type="button"
@@ -203,7 +204,7 @@ export const AgentRunsTab: React.FC<AgentRunsTabProps> = ({ accessToken, agentId
               className="gba:rounded-md gba:border gba:border-border gba:bg-background gba:px-2 gba:py-1 gba:disabled:opacity-50"
               data-testid="workforce-runs-next-page"
             >
-              Next
+              {t('runs-next')}
             </button>
           </div>
         </footer>

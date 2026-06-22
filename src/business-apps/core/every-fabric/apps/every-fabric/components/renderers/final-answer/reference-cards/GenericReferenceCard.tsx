@@ -7,7 +7,8 @@ import {
 } from '@/business-apps/platform/apps/every-ai/components/entities/utils/entityIcons'
 import { ENTITY_CONFIG } from '@/business-apps/platform/apps/every-ai/components/links/constants'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import { intentLabel, resolveEffectiveType, type ReferenceCardProps } from './referenceCardUtils'
+import { resolveEffectiveType, type ReferenceCardProps } from './referenceCardUtils'
+import { useReferenceCardI18n } from './useReferenceCardI18n'
 
 const humanizeType = (type: string): string =>
   type
@@ -31,6 +32,7 @@ const wrapGlyph = (glyph: React.ReactNode): React.ReactNode => (
  * record via the shared protocol -> URL resolver, so it is never a dead chip.
  */
 export const GenericReferenceCard: React.FC<ReferenceCardProps> = ({ reference }) => {
+  const { intentLabel } = useReferenceCardI18n()
   const effectiveType = resolveEffectiveType(reference.type)
   const richIcon = getEntityIcon(effectiveType)?.icon
   const glyph = ENTITY_CONFIG[effectiveType]?.icon

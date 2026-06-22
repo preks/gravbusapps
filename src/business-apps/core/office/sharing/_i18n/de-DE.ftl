@@ -25,6 +25,13 @@ share-add-above = Fügen Sie oben Personen hinzu, um dieses { $entityLabel } zu 
 share-success-title = Erfolgreich geteilt
 share-success-single = { $name } wurde benachrichtigt und kann jetzt auf dieses { $entityLabel } zugreifen.
 share-success-multi = { $count } Personen wurden benachrichtigt und können jetzt auf dieses { $entityLabel } zugreifen.
+share-bulk-title = { $count } ausgewählte Elemente teilen
+share-bulk-description = Alle ausgewählten Elemente mit denselben Personen und derselben Berechtigung teilen.
+share-bulk-selected-items = Ausgewählte Elemente
+share-bulk-success-all = { $items } Elemente mit { $people } Personen geteilt.
+share-bulk-success-partial = { $successCount } Elemente geteilt. { $failureCount } Elemente konnten nicht geteilt werden.
+share-bulk-error-all = Die ausgewählten Elemente konnten nicht geteilt werden. Bitte erneut versuchen.
+share-bulk-error-partial = Einige Elemente konnten nicht geteilt werden: { $titles }
 share-submit = Mit { $count } { $count ->
   [one] Person teilen
  *[other] Personen teilen

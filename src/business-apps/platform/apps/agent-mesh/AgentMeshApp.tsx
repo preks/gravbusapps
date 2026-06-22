@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { Button, Spinner } from '@newwork/nw-design-system'
+import { Button, Spinner, useTranslation } from '@newwork/nw-design-system'
+import translations from './_i18n'
 import { Network, Edit, Eye, Plus, LayoutGrid } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { CreateHeroHeader } from '@/business-apps/core/create/components/CreateHeroHeader'
@@ -23,6 +24,7 @@ export const AgentMeshApp: React.FC<AgentMeshAppProps> = ({
   userInfo,
   'data-testid': testId = 'agent-mesh'
 }) => {
+  const { t } = useTranslation(translations)
   const [activeView, setActiveView] = useState<MeshView>('dashboard')
   const [, setViewParams] = useState<Record<string, string>>({})
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null)
@@ -63,8 +65,8 @@ export const AgentMeshApp: React.FC<AgentMeshAppProps> = ({
       {/* Shared hero */}
       <CreateHeroHeader
         icon={Network}
-        appLabel="Agent Mesh"
-        title="Agent Mesh"
+        appLabel={t('app-label')}
+        title={t('app-title')}
         description="Monitor, orchestrate and manage your AI agent network"
         data-testid="agent-mesh-hero"
         actions={

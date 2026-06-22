@@ -8,7 +8,7 @@ page-description = Creati agenți din prompturi si testati integrarile.
 section-label = Agenți
 
 # Actions
-new-task-expert = Enterprise Agent nou
+new-task-expert = { -platform-ai-agent-product.label } nou
 view = Vizualizare
 edit = Editare
 test = Testare
@@ -65,10 +65,11 @@ agent-type-decision = Decizie
 badge-public = Public
 
 # Empty State
-empty-message = Nu s-au gasit agenți. Faceti clic pe 'Enterprise Agent nou' pentru a crea unul.
+empty-message = Nu s-au gasit agenți. Faceti clic pe '{ -platform-ai-agent-product.label } nou' pentru a crea unul.
 
 # Editor
-create-task-expert = Creare Enterprise Agent
+create-task-expert = Creare { -platform-ai-agent-product.label }
+agent-type-everyai-description = Asistent AI pentru chat & { -platform-ai-agent-network.label }
 edit-task-expert = Editare Agent
 view-task-expert = Agent
 

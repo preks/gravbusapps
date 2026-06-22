@@ -35,7 +35,7 @@ function response(): StepDataResponse {
 describe('FlowStepResult', () => {
   it('shows a loading state', () => {
     render(<FlowStepResult data={null} isLoading error={null} />)
-    expect(screen.getByTestId('flow-step-result-loading')).toBeInTheDocument()
+    expect(screen.getByTestId('flow-step-result-loading')).toHaveTextContent('flow-step-results-loading')
   })
 
   it('shows an error state', () => {
@@ -45,7 +45,7 @@ describe('FlowStepResult', () => {
 
   it('shows an empty state when there are no rows', () => {
     render(<FlowStepResult data={{ ...response(), data: [], totalCount: 0 }} isLoading={false} error={null} />)
-    expect(screen.getByTestId('flow-step-result-empty')).toBeInTheDocument()
+    expect(screen.getByTestId('flow-step-result-empty')).toHaveTextContent('flow-step-result-empty')
   })
 
   it('renders the row actor and form data', () => {

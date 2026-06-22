@@ -1,10 +1,7 @@
 import React from 'react'
-import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import {
   DOCUMENT_SHARE_PERMISSIONS,
   ShareEntityDialog,
-  sendShareBlinkNotifications,
-  type ShareNotificationContext,
   type SharedEntityUser
 } from '@/business-apps/core/office/sharing'
 import type { DocumentSharedUser } from '../hooks/useDocumentShareEnrichment'
@@ -58,21 +55,6 @@ export const ShareDocumentDialog: React.FC<ShareDocumentDialogProps> = ({
   onManageAccess,
   'data-testid': testId = 'share-document-dialog'
 }) => {
-  const sendNotifications = React.useCallback(
-    (context: ShareNotificationContext) =>
-      sendShareBlinkNotifications({
-        ...context,
-        entityType: 'document',
-        appTag: 'document-share',
-        titlePrefix: 'Document Shared',
-        entityUrl: buildPlatformUrl('/platform/every-office/documents', {
-          docId: documentId,
-          view: 'editor'
-        })
-      }),
-    [documentId]
-  )
-
   return (
     <ShareEntityDialog
       open={open}
@@ -98,7 +80,6 @@ export const ShareDocumentDialog: React.FC<ShareDocumentDialogProps> = ({
       }
       onUnshare={onUnshare}
       onRefreshShares={onRefreshShares}
-      sendNotifications={sendNotifications}
       onManageAccess={onManageAccess}
       data-testid={testId}
     />

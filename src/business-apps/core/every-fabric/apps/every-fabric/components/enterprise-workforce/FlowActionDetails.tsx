@@ -6,8 +6,10 @@
 // alongside the deep link into the Flow Detail page.
 
 import { ArrowSquareOutIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import React from 'react'
 
+import translations from '../../_i18n'
 import { labelForStatusCode, variantForStatusCode, STATUS_BADGE_CLASS } from '../../utils/actionCardTrace'
 import { useLiveFlowProgress } from '../../hooks/useLiveFlowProgress'
 import { FlowLiveBadge } from './flow-detail/FlowLiveBadge'
@@ -31,6 +33,7 @@ interface StepSummaryInput {
   totalSteps: number | undefined
   percentage: number | undefined
   isComplete: boolean
+  t: (key: string, args?: Record<string, unknown>) => string
 }
 
 function buildStepSummary({
@@ -38,17 +41,18 @@ function buildStepSummary({
   completedSteps,
   totalSteps,
   percentage,
-  isComplete
+  isComplete,
+  t
 }: StepSummaryInput): string | null {
   if (!totalSteps || totalSteps <= 0) return null
   if (isComplete) {
-    return `${totalSteps} of ${totalSteps} steps`
+    return t('flow-steps-complete', { total: totalSteps })
   }
   // Prefer the engine's 1-based current-step index; otherwise infer it
   // from the completed count (the step after the last completed one).
   const inferred = (completedSteps ?? 0) + 1
   const current = Math.min(currentStep ?? inferred, totalSteps)
-  const base = `Step ${current} of ${totalSteps}`
+  const base = t('flow-step-progress', { current, total: totalSteps })
   return typeof percentage === 'number' ? `${base} · ${Math.round(percentage)}%` : base
 }
 
@@ -60,6 +64,7 @@ export const FlowActionDetails: React.FC<FlowActionDetailsProps> = ({
   succeeded,
   onOpenFlow
 }) => {
+  const { t } = useTranslation(translations)
   const initialCode = succeeded ? 'RUNNING' : 'FAILED'
   const live = useLiveFlowProgress({
     workflowId,
@@ -80,7 +85,8 @@ export const FlowActionDetails: React.FC<FlowActionDetailsProps> = ({
     completedSteps: live.completedSteps,
     totalSteps: live.totalSteps,
     percentage: live.percentage,
-    isComplete
+    isComplete,
+    t
   })
   const flowUrl = workflowId ? `/platform/apps/flow/apps/detail?flowId=${encodeURIComponent(workflowId)}` : null
   const canOpenInApp = Boolean(onOpenFlow && workflowId)
@@ -123,7 +129,7 @@ export const FlowActionDetails: React.FC<FlowActionDetailsProps> = ({
         </span>
         {templateId && (
           <span className="gba:inline-flex gba:items-center gba:rounded-md gba:border gba:border-border/60 gba:bg-muted/40 gba:px-2 gba:py-0.5 gba:font-mono gba:text-[11px] gba:text-muted-foreground">
-            template_id: {templateId}
+            {t('flow-template-id-chip', { id: templateId })}
           </span>
         )}
       </div>

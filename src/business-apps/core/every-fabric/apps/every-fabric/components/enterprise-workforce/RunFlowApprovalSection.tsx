@@ -5,11 +5,12 @@
 // data (read-only) and the decision is submitted via the task complete/reject
 // API, auto-claiming first when the task is in CLAIM mode.
 
-import { Button, Textarea } from '@newwork/nw-design-system'
+import { Button, Textarea, useTranslation } from '@newwork/nw-design-system'
 import { CheckCircleIcon, XCircleIcon } from '@phosphor-icons/react'
 import React, { useCallback, useEffect, useState } from 'react'
 
 import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
+import translations from '../../_i18n'
 import { FlowStepResult } from './flow-detail/FlowStepResult'
 import { useFlowStepResult } from './flow-detail/useFlowStepResult'
 import { useFlowTaskApproval } from './flow-detail/useFlowTaskApproval'
@@ -29,6 +30,7 @@ interface FlowApprovalCardProps {
 }
 
 const FlowApprovalCard: React.FC<FlowApprovalCardProps> = ({ approval, accessToken, onResolved }) => {
+  const { t } = useTranslation(translations)
   const { step, flowId, flowName, prevStepReference } = approval
   const taskId = step.taskId ?? step.taskBusinessId ?? ''
 
@@ -63,11 +65,11 @@ const FlowApprovalCard: React.FC<FlowApprovalCardProps> = ({ approval, accessTok
   const submit = useCallback(
     async (decision: 'approve' | 'reject') => {
       if (!taskId) {
-        setError('This approval task is missing its id and cannot be actioned here.')
+        setError(t('approval-flow-missing-task-id'))
         return
       }
       if (!userId) {
-        setError('Could not resolve your user to record the decision.')
+        setError(t('approval-flow-missing-user'))
         return
       }
       setError(null)
@@ -88,12 +90,12 @@ const FlowApprovalCard: React.FC<FlowApprovalCardProps> = ({ approval, accessTok
         }
         await onResolved()
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to submit your decision.')
+        setError(err instanceof Error ? err.message : t('approval-flow-submit-fail'))
       } finally {
         setIsSubmitting(false)
       }
     },
-    [approve, reject, comment, onResolved, step, taskId, userId]
+    [approve, reject, comment, onResolved, step, t, taskId, userId]
   )
 
   const actionsDisabled = isSubmitting || !userId
@@ -115,7 +117,7 @@ const FlowApprovalCard: React.FC<FlowApprovalCardProps> = ({ approval, accessTok
             isLoading={stepResult.isLoading}
             error={stepResult.error}
             accessToken={accessToken}
-            emptyLabel="No proposed changes captured for review."
+            emptyLabel={t('approval-flow-empty-proposal')}
           />
         </div>
       )}
@@ -123,7 +125,7 @@ const FlowApprovalCard: React.FC<FlowApprovalCardProps> = ({ approval, accessTok
       <Textarea
         value={comment}
         onChange={event => setComment(event.target.value)}
-        placeholder="Add a comment (optional)"
+        placeholder={t('approval-comment-placeholder')}
         rows={2}
         data-testid="flow-approval-comment"
       />
@@ -131,7 +133,7 @@ const FlowApprovalCard: React.FC<FlowApprovalCardProps> = ({ approval, accessTok
       <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
         <Button onClick={() => void submit('approve')} disabled={actionsDisabled} data-testid="flow-approval-approve">
           <CheckCircleIcon className="gba:size-4" />
-          Approve
+          {t('approval-approve')}
         </Button>
         <Button
           variant="destructive"
@@ -140,11 +142,11 @@ const FlowApprovalCard: React.FC<FlowApprovalCardProps> = ({ approval, accessTok
           data-testid="flow-approval-reject"
         >
           <XCircleIcon className="gba:size-4" />
-          Reject
+          {t('approval-reject')}
         </Button>
         {isSubmitting && (
           <span className="gba:text-[11px] gba:text-muted-foreground" data-testid="flow-approval-submitting">
-            Submitting…
+            {t('approval-submitting')}
           </span>
         )}
       </div>
@@ -174,12 +176,14 @@ export interface RunFlowApprovalViewProps {
  * "done" state) can render the same UI without a second poller.
  */
 export const RunFlowApprovalView: React.FC<RunFlowApprovalViewProps> = ({ approvals, accessToken, onResolved }) => {
+  const { t } = useTranslation(translations)
+
   if (approvals.length === 0) return null
 
   return (
     <section data-testid="workforce-run-detail-flow-approval">
       <h3 className="gba:mb-1.5 gba:text-xs gba:font-semibold gba:uppercase gba:tracking-wide gba:text-amber-600 gba:dark:text-amber-400">
-        Awaiting human approval
+        {t('approval-awaiting-title')}
       </h3>
       <div className="gba:space-y-3">
         {approvals.map(approval => (

@@ -1,4 +1,5 @@
 import { useCallback, type FC } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import {
   ArrowSquareOutIcon,
   CheckCircleIcon,
@@ -10,18 +11,11 @@ import {
 import type { PreviewBlock, PreviewItem, PreviewItemStatus } from '../../types/enterpriseAgent'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
 import { normalizePreviewMarkdown } from './normalizePreviewMarkdown'
+import translations from '../../_i18n'
 
 interface PreviewBlockRendererProps {
   preview: PreviewBlock
   className?: string
-}
-
-const STATUS_LABEL: Record<PreviewItemStatus, string> = {
-  pending: 'Pending',
-  in_progress: 'In progress',
-  done: 'Done',
-  failed: 'Failed',
-  skipped: 'Skipped'
 }
 
 const STATUS_CHIP_CLASS: Record<PreviewItemStatus, string> = {
@@ -50,12 +44,15 @@ const StatusIcon: FC<{ status?: PreviewItemStatus }> = ({ status }) => {
 }
 
 const StatusChip: FC<{ status?: PreviewItemStatus }> = ({ status }) => {
+  const { t } = useTranslation(translations)
   if (!status) return null
+
+  const statusKey = `renderer-preview-status-${status.replace('_', '-')}` as const
   return (
     <span
       className={`gba:inline-flex gba:items-center gba:rounded-full gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-medium gba:tracking-wide ${STATUS_CHIP_CLASS[status]}`}
     >
-      {STATUS_LABEL[status]}
+      {t(statusKey)}
     </span>
   )
 }
@@ -219,6 +216,7 @@ export const PreviewBlockRenderer: FC<PreviewBlockRendererProps> = ({ preview, c
  * historical bubble snapshot.
  */
 const CasePanelDeepLink: FC<{ caseId: string }> = ({ caseId }) => {
+  const { t } = useTranslation(translations)
   const handleClick = useCallback(() => {
     const target = document.querySelector(`[data-case-id="${caseId}"][id^="case-panel-"]`)
     if (!target) return
@@ -233,9 +231,9 @@ const CasePanelDeepLink: FC<{ caseId: string }> = ({ caseId }) => {
       type="button"
       onClick={handleClick}
       className="gba:inline-flex gba:items-center gba:gap-1 gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:hover:text-foreground gba:transition-colors"
-      title="Open the live Case Panel in the side bar"
+      title={t('renderer-preview-view-live-title')}
     >
-      <span>View live in side panel</span>
+      <span>{t('renderer-preview-view-live')}</span>
       <ArrowSquareOutIcon className="gba:h-3 gba:w-3" />
     </button>
   )

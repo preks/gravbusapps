@@ -18,6 +18,7 @@ import {
   WebhooksLogoIcon
 } from '@phosphor-icons/react'
 import React, { useCallback, useMemo, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type {
   SubjectFilter,
   SubjectFilterMode,
@@ -28,6 +29,9 @@ import type {
 } from '../workforceTypes'
 import { formatTimestamp } from '../runDisplay'
 import { InboundMailboxPicker } from './InboundMailboxPicker'
+import translations from '../../../_i18n'
+
+type TFn = (key: string, vars?: Record<string, unknown>) => string
 
 interface TriggersSectionProps {
   triggers: WorkforceTrigger[]
@@ -41,17 +45,21 @@ interface TriggersSectionProps {
   accessToken?: string
 }
 
-const TYPE_META: Record<WorkforceTriggerType, { label: string; hint: string; Icon: typeof CalendarIcon }> = {
-  manual: { label: 'Manual', hint: 'Operator starts the agent from the UI.', Icon: LightningIcon },
-  schedule: { label: 'Schedule', hint: 'Runs on a cron schedule or fixed interval.', Icon: CalendarIcon },
-  webhook: { label: 'Webhook', hint: 'External system POSTs to start a run.', Icon: WebhooksLogoIcon },
-  inbound_email: { label: 'Inbound email', hint: 'New emails to a mailbox start a run.', Icon: EnvelopeIcon }
+const TYPE_META: Record<WorkforceTriggerType, { labelKey: string; hintKey: string; Icon: typeof CalendarIcon }> = {
+  manual: { labelKey: 'trigger-type-manual', hintKey: 'trigger-type-manual-hint', Icon: LightningIcon },
+  schedule: { labelKey: 'trigger-type-schedule', hintKey: 'trigger-type-schedule-hint', Icon: CalendarIcon },
+  webhook: { labelKey: 'trigger-type-webhook', hintKey: 'trigger-type-webhook-hint', Icon: WebhooksLogoIcon },
+  inbound_email: {
+    labelKey: 'trigger-type-inbound-email',
+    hintKey: 'trigger-type-inbound-email-hint',
+    Icon: EnvelopeIcon
+  }
 }
 
-const SUBJECT_FILTER_MODE_LABELS: Record<SubjectFilterMode, string> = {
-  contains: 'contains',
-  prefix: 'starts with',
-  regex: 'matches'
+const SUBJECT_FILTER_MODE_KEYS: Record<SubjectFilterMode, string> = {
+  contains: 'trigger-mode-contains',
+  prefix: 'trigger-mode-prefix',
+  regex: 'trigger-mode-regex'
 }
 
 // Reads a validated SubjectFilter from a trigger config, or null when absent
@@ -68,23 +76,24 @@ function readSubjectFilter(config: Record<string, unknown>): SubjectFilter | nul
   return { patterns, mode, case_sensitive: candidate.case_sensitive === true }
 }
 
-function describeSubjectFilter(filter: SubjectFilter | null): string {
-  if (!filter) return 'forwards all'
-  const mode = SUBJECT_FILTER_MODE_LABELS[filter.mode ?? 'contains']
-  return `filter: ${mode} ${filter.patterns.map(p => `"${p}"`).join(', ')}`
+function describeSubjectFilter(filter: SubjectFilter | null, t: TFn): string {
+  if (!filter) return t('trigger-forwards-all')
+  const mode = t(SUBJECT_FILTER_MODE_KEYS[filter.mode ?? 'contains'])
+  const patterns = filter.patterns.map(p => `"${p}"`).join(', ')
+  return t('trigger-filter-summary', { mode, patterns })
 }
 
-function describeConfig(trigger: WorkforceTrigger): string {
+function describeConfig(trigger: WorkforceTrigger, t: TFn): string {
   const cfg = trigger.config || {}
   switch (trigger.type) {
     case 'schedule':
-      if (typeof cfg.cron === 'string') return `cron: ${cfg.cron}`
-      if (typeof cfg.interval_minutes === 'number') return `every ${cfg.interval_minutes} min`
-      return 'not configured'
+      if (typeof cfg.cron === 'string') return t('trigger-cfg-cron', { cron: cfg.cron })
+      if (typeof cfg.interval_minutes === 'number') return t('trigger-cfg-interval', { minutes: cfg.interval_minutes })
+      return t('trigger-cfg-not-configured')
     case 'inbound_email':
-      return typeof cfg.mailbox === 'string' ? cfg.mailbox : 'no mailbox'
+      return typeof cfg.mailbox === 'string' ? cfg.mailbox : t('trigger-cfg-no-mailbox')
     case 'webhook':
-      return typeof cfg.secret === 'string' ? 'secret set' : 'no secret'
+      return typeof cfg.secret === 'string' ? t('trigger-cfg-secret-set') : t('trigger-cfg-no-secret')
     default:
       return ''
   }
@@ -129,7 +138,7 @@ function parseSubjectFilterPatterns(raw: string): string[] {
     .filter(p => p.length > 0)
 }
 
-function buildCreateInput(form: CreateFormState): WorkforceTriggerCreateInput | { error: string } {
+function buildCreateInput(form: CreateFormState, t: TFn): WorkforceTriggerCreateInput | { error: string } {
   const base: WorkforceTriggerCreateInput = {
     type: form.type,
     name: form.name.trim(),
@@ -141,13 +150,13 @@ function buildCreateInput(form: CreateFormState): WorkforceTriggerCreateInput | 
       const cron = form.cron.trim()
       const interval = form.intervalMinutes.trim()
       if (!cron && !interval) {
-        return { error: "Schedule triggers need either 'cron' or 'interval_minutes'." }
+        return { error: t('trigger-err-schedule') }
       }
       if (cron) base.config!.cron = cron
       if (interval) {
         const parsed = Number(interval)
         if (!Number.isFinite(parsed) || parsed <= 0 || Math.floor(parsed) !== parsed) {
-          return { error: "'interval_minutes' must be a positive integer." }
+          return { error: t('trigger-err-interval') }
         }
         base.config!.interval_minutes = parsed
       }
@@ -157,7 +166,7 @@ function buildCreateInput(form: CreateFormState): WorkforceTriggerCreateInput | 
       const mailbox = form.mailbox.trim()
       const emailAccountId = form.emailAccountId.trim()
       if (!mailbox || !emailAccountId) {
-        return { error: 'Select a connected mailbox for inbound email triggers.' }
+        return { error: t('trigger-err-mailbox') }
       }
       base.config!.mailbox = mailbox
       base.config!.email_account_id = emailAccountId
@@ -192,13 +201,14 @@ export const TriggersSection: React.FC<TriggersSectionProps> = ({
   onTestWebhook,
   accessToken = ''
 }) => {
+  const { t } = useTranslation(translations)
   const [isAdding, setIsAdding] = useState(false)
   const [form, setForm] = useState<CreateFormState>(EMPTY_FORM)
   const [formError, setFormError] = useState<string | null>(null)
   const isCreating = pendingTriggerId === '__create__'
 
   const handleSubmit = async () => {
-    const result = buildCreateInput(form)
+    const result = buildCreateInput(form, t)
     if ('error' in result) {
       setFormError(result.error)
       return
@@ -209,7 +219,7 @@ export const TriggersSection: React.FC<TriggersSectionProps> = ({
       setForm(EMPTY_FORM)
       setIsAdding(false)
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Failed to create trigger.')
+      setFormError(err instanceof Error ? err.message : t('trigger-create-error'))
     }
   }
 
@@ -230,10 +240,8 @@ export const TriggersSection: React.FC<TriggersSectionProps> = ({
             weight="duotone"
           />
           <div>
-            <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">Triggers</h3>
-            <p className="gba:mt-0.5 gba:text-xs gba:text-muted-foreground">
-              What makes this agent start working without a chat.
-            </p>
+            <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">{t('trigger-section-title')}</h3>
+            <p className="gba:mt-0.5 gba:text-xs gba:text-muted-foreground">{t('trigger-section-desc')}</p>
           </div>
         </div>
         <Button
@@ -246,7 +254,7 @@ export const TriggersSection: React.FC<TriggersSectionProps> = ({
           data-testid="workforce-trigger-toggle-add"
         >
           <PlusIcon className="gba:mr-1 gba:h-3.5 gba:w-3.5" />
-          {isAdding ? 'Cancel' : 'New trigger'}
+          {isAdding ? t('action-cancel') : t('trigger-new')}
         </Button>
       </header>
 
@@ -258,7 +266,7 @@ export const TriggersSection: React.FC<TriggersSectionProps> = ({
           >
             <div className="gba:grid gba:grid-cols-1 gba:gap-2 gba:sm:grid-cols-2">
               <select
-                aria-label="Trigger type"
+                aria-label={t('trigger-type-aria')}
                 value={form.type}
                 onChange={e => setForm(prev => ({ ...prev, type: e.target.value as WorkforceTriggerType }))}
                 className="gba:h-9 gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-2 gba:text-xs gba:text-foreground"
@@ -266,14 +274,14 @@ export const TriggersSection: React.FC<TriggersSectionProps> = ({
               >
                 {(Object.keys(TYPE_META) as WorkforceTriggerType[]).map(type => (
                   <option key={type} value={type}>
-                    {TYPE_META[type].label}
+                    {t(TYPE_META[type].labelKey)}
                   </option>
                 ))}
               </select>
               <input
                 value={form.name}
                 onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="Optional name"
+                placeholder={t('trigger-name-placeholder')}
                 className="gba:h-9 gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:text-sm gba:text-foreground"
                 data-testid="workforce-trigger-create-name"
               />
@@ -284,7 +292,7 @@ export const TriggersSection: React.FC<TriggersSectionProps> = ({
                 <input
                   value={form.cron}
                   onChange={e => setForm(prev => ({ ...prev, cron: e.target.value }))}
-                  placeholder="cron e.g. 0 8 * * MON"
+                  placeholder={t('trigger-cron-placeholder')}
                   className="gba:h-9 gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:text-sm"
                   data-testid="workforce-trigger-create-cron"
                 />
@@ -293,7 +301,7 @@ export const TriggersSection: React.FC<TriggersSectionProps> = ({
                   min={1}
                   value={form.intervalMinutes}
                   onChange={e => setForm(prev => ({ ...prev, intervalMinutes: e.target.value }))}
-                  placeholder="or interval (minutes)"
+                  placeholder={t('trigger-interval-placeholder')}
                   className="gba:h-9 gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:text-sm"
                   data-testid="workforce-trigger-create-interval"
                 />
@@ -317,13 +325,15 @@ export const TriggersSection: React.FC<TriggersSectionProps> = ({
                   className="gba:mt-2 gba:rounded-lg gba:border gba:border-border gba:bg-background gba:p-3"
                   data-testid="workforce-trigger-subject-filter"
                 >
-                  <p className="gba:text-[11px] gba:font-medium gba:text-foreground">Subject filter (optional)</p>
+                  <p className="gba:text-[11px] gba:font-medium gba:text-foreground">
+                    {t('trigger-subject-filter-title')}
+                  </p>
                   <p className="gba:mt-0.5 gba:text-[11px] gba:text-muted-foreground">
-                    Only forward emails whose subject matches. Leave empty to forward all.
+                    {t('trigger-subject-filter-desc')}
                   </p>
                   <div className="gba:mt-2 gba:grid gba:grid-cols-1 gba:gap-2 gba:sm:grid-cols-2">
                     <select
-                      aria-label="Subject filter mode"
+                      aria-label={t('trigger-subject-filter-mode-aria')}
                       value={form.subjectFilterMode}
                       onChange={e =>
                         setForm(prev => ({ ...prev, subjectFilterMode: e.target.value as SubjectFilterMode }))
@@ -331,9 +341,9 @@ export const TriggersSection: React.FC<TriggersSectionProps> = ({
                       className="gba:h-9 gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-2 gba:text-xs gba:text-foreground"
                       data-testid="workforce-trigger-subject-filter-mode"
                     >
-                      <option value="contains">Contains</option>
-                      <option value="prefix">Starts with</option>
-                      <option value="regex">Regex</option>
+                      <option value="contains">{t('trigger-subject-mode-contains')}</option>
+                      <option value="prefix">{t('trigger-subject-mode-prefix')}</option>
+                      <option value="regex">{t('trigger-subject-mode-regex')}</option>
                     </select>
                     <label className="gba:inline-flex gba:items-center gba:gap-2 gba:text-xs gba:text-foreground">
                       <input
@@ -342,13 +352,13 @@ export const TriggersSection: React.FC<TriggersSectionProps> = ({
                         onChange={e => setForm(prev => ({ ...prev, subjectFilterCaseSensitive: e.target.checked }))}
                         data-testid="workforce-trigger-subject-filter-case"
                       />
-                      Case sensitive
+                      {t('trigger-case-sensitive')}
                     </label>
                   </div>
                   <textarea
                     value={form.subjectFilterPatterns}
                     onChange={e => setForm(prev => ({ ...prev, subjectFilterPatterns: e.target.value }))}
-                    placeholder={'One pattern per line, e.g.\nticket\n[support]'}
+                    placeholder={t('trigger-subject-patterns-placeholder')}
                     rows={3}
                     className="gba:mt-2 gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:text-foreground"
                     data-testid="workforce-trigger-subject-filter-patterns"
@@ -361,13 +371,13 @@ export const TriggersSection: React.FC<TriggersSectionProps> = ({
               <input
                 value={form.webhookSecret}
                 onChange={e => setForm(prev => ({ ...prev, webhookSecret: e.target.value }))}
-                placeholder="Optional shared secret"
+                placeholder={t('trigger-secret-placeholder')}
                 className="gba:mt-2 gba:h-9 gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:text-sm"
                 data-testid="workforce-trigger-create-secret"
               />
             )}
 
-            <p className="gba:mt-2 gba:text-[11px] gba:text-muted-foreground">{TYPE_META[form.type].hint}</p>
+            <p className="gba:mt-2 gba:text-[11px] gba:text-muted-foreground">{t(TYPE_META[form.type].hintKey)}</p>
 
             {formError && (
               <p className="gba:mt-2 gba:text-[11px] gba:text-destructive" data-testid="workforce-trigger-create-error">
@@ -385,7 +395,7 @@ export const TriggersSection: React.FC<TriggersSectionProps> = ({
                   setFormError(null)
                 }}
               >
-                Cancel
+                {t('action-cancel')}
               </Button>
               <button
                 type="button"
@@ -394,7 +404,7 @@ export const TriggersSection: React.FC<TriggersSectionProps> = ({
                 className="gba:inline-flex gba:h-8 gba:items-center gba:rounded-md gba:bg-primary gba:px-3 gba:text-xs gba:font-medium gba:text-primary-foreground gba:hover:bg-primary/90 gba:disabled:opacity-50"
                 data-testid="workforce-trigger-create-submit"
               >
-                {isCreating ? 'Creating…' : 'Create trigger'}
+                {isCreating ? t('trigger-creating') : t('trigger-create-submit')}
               </button>
             </div>
           </div>
@@ -402,7 +412,7 @@ export const TriggersSection: React.FC<TriggersSectionProps> = ({
 
         {sortedTriggers.length === 0 ? (
           <p className="gba:text-xs gba:italic gba:text-muted-foreground" data-testid="workforce-trigger-empty">
-            No triggers yet — add a schedule, inbound mailbox, or webhook to make this agent proactive.
+            {t('trigger-empty')}
           </p>
         ) : (
           <ul className="gba:space-y-2" data-testid="workforce-trigger-list">
@@ -429,10 +439,10 @@ export const TriggersSection: React.FC<TriggersSectionProps> = ({
                       </span>
                       <div className="gba:min-w-0">
                         <p className="gba:truncate gba:text-xs gba:font-medium gba:text-foreground">
-                          {trigger.name || meta.label}
+                          {trigger.name || t(meta.labelKey)}
                         </p>
                         <p className="gba:truncate gba:text-[11px] gba:text-muted-foreground">
-                          {meta.label} · {describeConfig(trigger)}
+                          {t(meta.labelKey)} · {describeConfig(trigger, t)}
                         </p>
                       </div>
                     </div>
@@ -444,13 +454,13 @@ export const TriggersSection: React.FC<TriggersSectionProps> = ({
                         onClick={() => void onUpdate(trigger.trigger_id, { enabled: !trigger.enabled })}
                         data-testid={`workforce-trigger-toggle-${trigger.trigger_id}`}
                       >
-                        {trigger.enabled ? 'Disable' : 'Enable'}
+                        {trigger.enabled ? t('trigger-disable') : t('trigger-enable')}
                       </Button>
                       <button
                         type="button"
                         onClick={() => void onDelete(trigger.trigger_id)}
                         disabled={isPending}
-                        aria-label={`Delete trigger ${trigger.name || trigger.type}`}
+                        aria-label={t('trigger-delete-aria', { name: trigger.name || trigger.type })}
                         className="gba:inline-flex gba:h-7 gba:w-7 gba:items-center gba:justify-center gba:rounded-md gba:text-muted-foreground gba:hover:bg-destructive/10 gba:hover:text-destructive gba:disabled:opacity-50"
                         data-testid={`workforce-trigger-delete-${trigger.trigger_id}`}
                       >
@@ -515,6 +525,7 @@ interface DetailsProps {
 }
 
 const WebhookDetails: React.FC<DetailsProps> = ({ trigger, onTestWebhook }) => {
+  const { t } = useTranslation(translations)
   const absoluteUrl = useMemo(() => resolveAbsoluteWebhookUrl(trigger.webhook_url), [trigger.webhook_url])
   const hasSecret = typeof trigger.config?.secret === 'string' && (trigger.config.secret as string).length > 0
 
@@ -524,14 +535,14 @@ const WebhookDetails: React.FC<DetailsProps> = ({ trigger, onTestWebhook }) => {
         className="gba:text-[11px] gba:italic gba:text-muted-foreground"
         data-testid={`workforce-trigger-webhook-url-missing-${trigger.trigger_id}`}
       >
-        Webhook URL not provided by the backend. Re-fetch the trigger to populate it.
+        {t('trigger-webhook-url-missing')}
       </p>
     )
   }
 
   return (
     <div className="gba:flex gba:flex-col gba:gap-1">
-      <p className="gba:text-[11px] gba:font-medium gba:text-foreground">Webhook URL</p>
+      <p className="gba:text-[11px] gba:font-medium gba:text-foreground">{t('trigger-webhook-url-label')}</p>
       <div className="gba:flex gba:items-center gba:gap-2">
         <code
           className="gba:flex-1 gba:overflow-hidden gba:rounded gba:border gba:border-border gba:bg-background gba:px-2 gba:py-1 gba:text-[11px] gba:text-foreground"
@@ -548,28 +559,27 @@ const WebhookDetails: React.FC<DetailsProps> = ({ trigger, onTestWebhook }) => {
             onClick={() => onTestWebhook(trigger.trigger_id)}
             data-testid={`workforce-trigger-webhook-test-${trigger.trigger_id}`}
           >
-            Test
+            {t('trigger-test')}
           </Button>
         )}
       </div>
       <p className="gba:text-[11px] gba:text-muted-foreground">
-        {hasSecret
-          ? 'POST a JSON body with header X-Workforce-Signature: sha256=<HMAC-SHA256 of the body using your secret>.'
-          : 'POST a JSON body. Optional: configure a secret to require an X-Workforce-Signature header.'}
+        {hasSecret ? t('trigger-webhook-post-secret') : t('trigger-webhook-post-nosecret')}
       </p>
     </div>
   )
 }
 
 const InboundEmailDetails: React.FC<DetailsProps> = ({ trigger }) => {
+  const { t } = useTranslation(translations)
   const mailbox = typeof trigger.config?.mailbox === 'string' ? (trigger.config.mailbox as string) : ''
   const subjectFilter = readSubjectFilter(trigger.config || {})
   if (!mailbox) {
-    return <p className="gba:text-[11px] gba:italic gba:text-muted-foreground">No mailbox configured.</p>
+    return <p className="gba:text-[11px] gba:italic gba:text-muted-foreground">{t('trigger-no-mailbox-configured')}</p>
   }
   return (
     <div className="gba:flex gba:flex-col gba:gap-1">
-      <p className="gba:text-[11px] gba:font-medium gba:text-foreground">Inbound mailbox</p>
+      <p className="gba:text-[11px] gba:font-medium gba:text-foreground">{t('trigger-inbound-mailbox-label')}</p>
       <div className="gba:flex gba:items-center gba:gap-2">
         <code
           className="gba:flex-1 gba:overflow-hidden gba:rounded gba:border gba:border-border gba:bg-background gba:px-2 gba:py-1 gba:text-[11px] gba:text-foreground"
@@ -583,16 +593,15 @@ const InboundEmailDetails: React.FC<DetailsProps> = ({ trigger }) => {
         className="gba:text-[11px] gba:text-muted-foreground"
         data-testid={`workforce-trigger-subject-filter-summary-${trigger.trigger_id}`}
       >
-        {describeSubjectFilter(subjectFilter)}
+        {describeSubjectFilter(subjectFilter, t)}
       </p>
-      <p className="gba:text-[11px] gba:text-muted-foreground">
-        Forward messages here from your email provider. The router fires the agent once per matched recipient.
-      </p>
+      <p className="gba:text-[11px] gba:text-muted-foreground">{t('trigger-inbound-forward-hint')}</p>
     </div>
   )
 }
 
 const LastFiredHint: React.FC<DetailsProps> = ({ trigger }) => {
+  const { t } = useTranslation(translations)
   const lastFired = formatLastFired(trigger.last_fired_at)
   if (!lastFired) return null
   return (
@@ -600,7 +609,7 @@ const LastFiredHint: React.FC<DetailsProps> = ({ trigger }) => {
       className="gba:text-[11px] gba:text-muted-foreground"
       data-testid={`workforce-trigger-last-fired-${trigger.trigger_id}`}
     >
-      Last fired {lastFired}
+      {t('trigger-last-fired', { time: lastFired })}
     </p>
   )
 }
@@ -611,6 +620,7 @@ interface CopyButtonProps {
 }
 
 const CopyButton: React.FC<CopyButtonProps> = ({ value, testId }) => {
+  const { t } = useTranslation(translations)
   const [copied, setCopied] = useState(false)
 
   const handleCopy = useCallback(async () => {
@@ -632,7 +642,7 @@ const CopyButton: React.FC<CopyButtonProps> = ({ value, testId }) => {
       onClick={() => void handleCopy()}
       className="gba:inline-flex gba:h-7 gba:w-7 gba:items-center gba:justify-center gba:rounded-md gba:border gba:border-border gba:bg-background gba:text-muted-foreground gba:hover:bg-muted/60 gba:hover:text-foreground"
       data-testid={testId}
-      aria-label="Copy to clipboard"
+      aria-label={t('trigger-copy-aria')}
     >
       {copied ? (
         <CheckIcon className="gba:h-3.5 gba:w-3.5 gba:text-emerald-600" />

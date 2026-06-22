@@ -1,5 +1,7 @@
 import { useCallback, useMemo, useState, useRef, useEffect } from 'react'
 import { BrainIcon, CaretDownIcon, CaretUpIcon, CheckIcon, CopyIcon, WarningCircleIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../../_i18n'
 import type {
   ChatMessage,
   StructuredInputRequestEvent,
@@ -83,14 +85,17 @@ const formatMessageTimestamp = (timestamp: string) => {
 
 const USER_PROMPT_COLLAPSE_CHARS = 260
 
-const AssistantLockup = ({ trailing }: { trailing?: React.ReactNode }) => (
-  <div className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:mb-3">
-    <span className="gba:text-[12px] gba:font-bold gba:tracking-[0.01em] gba:text-foreground">
-      NEWWORK Enterprise Agents
-    </span>
-    {trailing}
-  </div>
-)
+const AssistantLockup = ({ trailing }: { trailing?: React.ReactNode }) => {
+  const { t } = useTranslation(translations)
+  return (
+    <div className="gba:flex gba:items-center gba:justify-between gba:gap-3 gba:mb-3">
+      <span className="gba:text-[12px] gba:font-bold gba:tracking-[0.01em] gba:text-foreground">
+        {t('brand-attribution')}
+      </span>
+      {trailing}
+    </div>
+  )
+}
 
 /** Strip the [Attached document(s): …]\n\n prefix injected by FabricContext
  *  before the user's actual task text. The chips already show the files. */

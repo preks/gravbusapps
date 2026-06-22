@@ -1,5 +1,14 @@
 import React from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
+
+jest.mock('@newwork/nw-design-system', () => {
+  const actual = jest.requireActual('@newwork/nw-design-system')
+  return {
+    ...actual,
+    useTranslation: () => ({ t: (key: string) => key })
+  }
+})
+
 import { ExpertCallRenderer } from '../ExpertCallRenderer'
 
 describe('ExpertCallRenderer', () => {
@@ -16,7 +25,7 @@ describe('ExpertCallRenderer', () => {
     )
 
     expect(screen.getByText('HR_General_Agent')).toBeInTheDocument()
-    expect(screen.getByText('Completed')).toBeInTheDocument()
+    expect(screen.getByText('renderer-expert-status-completed')).toBeInTheDocument()
     expect(screen.queryByText(/Status envelope/)).not.toBeInTheDocument()
   })
 

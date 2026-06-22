@@ -1,8 +1,10 @@
 // Grid card for a single marketplace catalog agent.
 
+import { useTranslation } from '@newwork/nw-design-system'
 import { CheckIcon, StarIcon } from '@phosphor-icons/react'
 import React from 'react'
-import { type MarketplaceCatalogItem, valuePackLabel } from './marketplaceCatalogTypes'
+import translations from '../../../_i18n'
+import { type MarketplaceCatalogItem, valuePackLabelKey } from './marketplaceCatalogTypes'
 
 interface MarketplaceAgentCardProps {
   agent: MarketplaceCatalogItem
@@ -19,6 +21,7 @@ export const MarketplaceAgentCard: React.FC<MarketplaceAgentCardProps> = ({
   onSelect,
   onToggleSelect
 }) => {
+  const { t } = useTranslation(translations)
   const Icon = agent.icon
 
   const handleClick = () => {
@@ -28,6 +31,12 @@ export const MarketplaceAgentCard: React.FC<MarketplaceAgentCardProps> = ({
     }
     onSelect(agent)
   }
+
+  const footerActionLabel = selectionMode
+    ? selected
+      ? t('marketplace-card-selected')
+      : t('marketplace-card-select')
+    : t('marketplace-card-view-profile')
 
   return (
     <button
@@ -78,7 +87,7 @@ export const MarketplaceAgentCard: React.FC<MarketplaceAgentCardProps> = ({
 
       <div className="gba:flex gba:flex-wrap gba:gap-1.5">
         <span className="gba:inline-flex gba:items-center gba:rounded-full gba:bg-muted gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-muted-foreground">
-          {valuePackLabel(agent.valuePack)}
+          {t(valuePackLabelKey(agent.valuePack))}
         </span>
         {agent.isLegacyTemplate ? (
           agent.skills.slice(0, 2).map(skill => (
@@ -92,10 +101,10 @@ export const MarketplaceAgentCard: React.FC<MarketplaceAgentCardProps> = ({
         ) : (
           <>
             <span className="gba:inline-flex gba:items-center gba:rounded-full gba:border gba:border-border gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-foreground">
-              {agent.skillCount} skills
+              {t('marketplace-card-skills-count', { count: agent.skillCount })}
             </span>
             <span className="gba:inline-flex gba:items-center gba:rounded-full gba:border gba:border-border gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-foreground">
-              {agent.toolCount} tools
+              {t('marketplace-card-tools-count', { count: agent.toolCount })}
             </span>
           </>
         )}
@@ -103,10 +112,10 @@ export const MarketplaceAgentCard: React.FC<MarketplaceAgentCardProps> = ({
 
       <div className="gba:mt-auto gba:flex gba:items-center gba:justify-between gba:border-t gba:border-border/60 gba:pt-2.5">
         <span className="gba:text-[11px] gba:text-muted-foreground">
-          {agent.installCount.toLocaleString('en-US')} installs
+          {t('marketplace-card-installs-count', { installs: agent.installCount.toLocaleString() })}
         </span>
         <span className="gba:text-[11px] gba:font-medium gba:text-primary gba:group-hover:underline">
-          {selectionMode ? (selected ? 'Selected' : 'Select') : 'View profile'}
+          {footerActionLabel}
         </span>
       </div>
     </button>

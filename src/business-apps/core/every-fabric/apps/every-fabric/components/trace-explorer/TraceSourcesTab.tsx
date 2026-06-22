@@ -2,6 +2,7 @@
 // with their invocation counts and combined duration.
 
 import { useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import {
   BrainIcon,
   CompassIcon,
@@ -12,13 +13,14 @@ import {
   WrenchIcon
 } from '@phosphor-icons/react'
 import type { MeshNode, MeshNodeKind, TraceModel } from '../../utils/traceModel'
+import translations from '../../_i18n'
 
 interface TraceSourcesTabProps {
   model: TraceModel
 }
 
 interface KindStyle {
-  label: string
+  labelKey: string
   icon: Icon
   iconBg: string
   iconColor: string
@@ -28,7 +30,7 @@ interface KindStyle {
 
 const KIND_STYLE: Record<MeshNodeKind, KindStyle> = {
   orchestrator: {
-    label: 'Every',
+    labelKey: 'trace-explorer-kind-orchestrator',
     icon: CompassIcon,
     iconBg: 'gba:bg-primary/10',
     iconColor: 'gba:text-primary',
@@ -36,7 +38,7 @@ const KIND_STYLE: Record<MeshNodeKind, KindStyle> = {
     badgeText: 'gba:text-primary'
   },
   subagent: {
-    label: 'Sub-agent',
+    labelKey: 'trace-explorer-kind-subagent',
     icon: RobotIcon,
     iconBg: 'gba:bg-emerald-500/10',
     iconColor: 'gba:text-emerald-600 dark:gba:text-emerald-400',
@@ -44,7 +46,7 @@ const KIND_STYLE: Record<MeshNodeKind, KindStyle> = {
     badgeText: 'gba:text-emerald-700 dark:gba:text-emerald-400'
   },
   expert: {
-    label: 'Expert',
+    labelKey: 'trace-explorer-kind-expert',
     icon: BrainIcon,
     iconBg: 'gba:bg-violet-500/10',
     iconColor: 'gba:text-violet-600 dark:gba:text-violet-400',
@@ -52,7 +54,7 @@ const KIND_STYLE: Record<MeshNodeKind, KindStyle> = {
     badgeText: 'gba:text-violet-700 dark:gba:text-violet-400'
   },
   skill: {
-    label: 'Skill',
+    labelKey: 'trace-explorer-kind-skill',
     icon: LightbulbIcon,
     iconBg: 'gba:bg-teal-500/10',
     iconColor: 'gba:text-teal-600 dark:gba:text-teal-400',
@@ -60,7 +62,7 @@ const KIND_STYLE: Record<MeshNodeKind, KindStyle> = {
     badgeText: 'gba:text-teal-700 dark:gba:text-teal-400'
   },
   tool: {
-    label: 'Tool',
+    labelKey: 'trace-explorer-kind-tool',
     icon: WrenchIcon,
     iconBg: 'gba:bg-sky-500/10',
     iconColor: 'gba:text-sky-600 dark:gba:text-sky-400',
@@ -84,12 +86,20 @@ interface StatusDotProps {
   status: MeshNode['status']
 }
 
-const StatusDot: React.FC<StatusDotProps> = ({ status }) => {
+const StatusDot: React.FC<StatusDotProps & { t: (key: string) => string }> = ({ status, t }) => {
   const cfg = {
-    done: { bg: 'gba:bg-emerald-500/10', text: 'gba:text-emerald-700 dark:gba:text-emerald-400', label: 'Done' },
-    failed: { bg: 'gba:bg-destructive/10', text: 'gba:text-destructive', label: 'Failed' },
-    running: { bg: 'gba:bg-amber-500/10', text: 'gba:text-amber-700 dark:gba:text-amber-400', label: 'Running' },
-    idle: { bg: 'gba:bg-muted', text: 'gba:text-muted-foreground', label: 'Idle' }
+    done: {
+      bg: 'gba:bg-emerald-500/10',
+      text: 'gba:text-emerald-700 dark:gba:text-emerald-400',
+      labelKey: 'trace-explorer-status-done'
+    },
+    failed: { bg: 'gba:bg-destructive/10', text: 'gba:text-destructive', labelKey: 'trace-explorer-status-failed' },
+    running: {
+      bg: 'gba:bg-amber-500/10',
+      text: 'gba:text-amber-700 dark:gba:text-amber-400',
+      labelKey: 'trace-explorer-status-running'
+    },
+    idle: { bg: 'gba:bg-muted', text: 'gba:text-muted-foreground', labelKey: 'trace-explorer-status-idle' }
   }[status]
   return (
     <span
@@ -111,12 +121,13 @@ const StatusDot: React.FC<StatusDotProps> = ({ status }) => {
           }`}
         />
       </span>
-      {cfg.label}
+      {t(cfg.labelKey)}
     </span>
   )
 }
 
 export const TraceSourcesTab: React.FC<TraceSourcesTabProps> = ({ model }) => {
+  const { t } = useTranslation(translations)
   const sorted = useMemo(() => {
     const visible = model.nodes.filter(n => n.invocationCount > 0 || n.kind === 'orchestrator')
     return [...visible].sort((a, b) => {
@@ -136,7 +147,7 @@ export const TraceSourcesTab: React.FC<TraceSourcesTabProps> = ({ model }) => {
         <span className="gba:flex gba:h-12 gba:w-12 gba:items-center gba:justify-center gba:rounded-full gba:bg-muted">
           <UsersThreeIcon className="gba:h-5 gba:w-5 gba:text-muted-foreground" weight="duotone" />
         </span>
-        <p className="gba:text-sm gba:text-muted-foreground">No participants detected</p>
+        <p className="gba:text-sm gba:text-muted-foreground">{t('trace-explorer-sources-empty')}</p>
       </div>
     )
   }
@@ -148,19 +159,19 @@ export const TraceSourcesTab: React.FC<TraceSourcesTabProps> = ({ model }) => {
           <thead className="gba:sticky gba:top-0 gba:z-10 gba:bg-muted/40 gba:backdrop-blur">
             <tr>
               <th className="gba:text-left gba:px-4 gba:py-2.5 gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground gba:border-b gba:border-border/50">
-                Participant
+                {t('trace-explorer-col-participant')}
               </th>
               <th className="gba:text-left gba:px-4 gba:py-2.5 gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground gba:border-b gba:border-border/50 gba:w-[140px]">
-                Kind
+                {t('trace-explorer-col-kind')}
               </th>
               <th className="gba:text-right gba:px-4 gba:py-2.5 gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground gba:border-b gba:border-border/50 gba:w-[120px]">
-                Invocations
+                {t('trace-explorer-col-invocations')}
               </th>
               <th className="gba:text-right gba:px-4 gba:py-2.5 gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground gba:border-b gba:border-border/50 gba:w-[120px]">
-                Duration
+                {t('trace-explorer-col-duration')}
               </th>
               <th className="gba:text-left gba:px-4 gba:py-2.5 gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground gba:border-b gba:border-border/50 gba:w-[120px]">
-                Status
+                {t('trace-explorer-col-status')}
               </th>
             </tr>
           </thead>
@@ -193,7 +204,7 @@ export const TraceSourcesTab: React.FC<TraceSourcesTabProps> = ({ model }) => {
                     <span
                       className={`gba:inline-flex gba:items-center gba:px-2 gba:py-0.5 gba:rounded-full gba:text-[11px] gba:font-medium ${style.badgeBg} ${style.badgeText}`}
                     >
-                      {style.label}
+                      {t(style.labelKey)}
                     </span>
                   </td>
                   <td className="gba:px-4 gba:py-3 gba:text-right gba:tabular-nums gba:font-medium gba:text-foreground gba:border-b gba:border-border/30">
@@ -203,7 +214,7 @@ export const TraceSourcesTab: React.FC<TraceSourcesTabProps> = ({ model }) => {
                     {formatDuration(node.totalDurationMs)}
                   </td>
                   <td className="gba:px-4 gba:py-3 gba:border-b gba:border-border/30">
-                    <StatusDot status={node.status} />
+                    <StatusDot status={node.status} t={t} />
                   </td>
                 </tr>
               )

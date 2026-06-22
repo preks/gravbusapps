@@ -3,14 +3,17 @@
 // from start to the current step.
 
 import { ArrowCounterClockwiseIcon, CaretLeftIcon, CaretRightIcon, PauseIcon, PlayIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import React from 'react'
 
+import translations from '../../../_i18n'
 import { REPLAY_SPEEDS, type FlowReplayController, type ReplaySpeed } from './useFlowReplay'
 
 const iconButtonClass =
   'gba:inline-flex gba:h-8 gba:w-8 gba:items-center gba:justify-center gba:rounded-md gba:border gba:border-border gba:bg-card gba:text-foreground gba:transition-colors gba:hover:bg-muted disabled:gba:cursor-not-allowed disabled:gba:opacity-40'
 
 export const FlowMapReplayControls: React.FC<{ replay: FlowReplayController }> = ({ replay }) => {
+  const { t } = useTranslation(translations)
   const { frameIndex, frameCount, isPlaying, speed, toggle, restart, stepBack, stepForward, seek, setSpeed } = replay
   const lastIndex = Math.max(frameCount - 1, 0)
 
@@ -20,7 +23,7 @@ export const FlowMapReplayControls: React.FC<{ replay: FlowReplayController }> =
         type="button"
         className={iconButtonClass}
         onClick={restart}
-        aria-label="Restart replay"
+        aria-label={t('flow-replay-restart-aria')}
         data-testid="flow-map-replay-restart"
       >
         <ArrowCounterClockwiseIcon className="gba:h-4 gba:w-4" />
@@ -30,7 +33,7 @@ export const FlowMapReplayControls: React.FC<{ replay: FlowReplayController }> =
         className={iconButtonClass}
         onClick={stepBack}
         disabled={frameIndex <= 0}
-        aria-label="Previous step"
+        aria-label={t('flow-replay-prev-aria')}
         data-testid="flow-map-replay-back"
       >
         <CaretLeftIcon className="gba:h-4 gba:w-4" />
@@ -39,7 +42,7 @@ export const FlowMapReplayControls: React.FC<{ replay: FlowReplayController }> =
         type="button"
         className={iconButtonClass}
         onClick={toggle}
-        aria-label={isPlaying ? 'Pause replay' : 'Play replay'}
+        aria-label={isPlaying ? t('flow-replay-toggle-pause') : t('flow-replay-toggle-play')}
         aria-pressed={isPlaying}
         data-testid="flow-map-replay-toggle"
       >
@@ -54,7 +57,7 @@ export const FlowMapReplayControls: React.FC<{ replay: FlowReplayController }> =
         className={iconButtonClass}
         onClick={stepForward}
         disabled={frameIndex >= lastIndex}
-        aria-label="Next step"
+        aria-label={t('flow-replay-next-aria')}
         data-testid="flow-map-replay-forward"
       >
         <CaretRightIcon className="gba:h-4 gba:w-4" />
@@ -67,7 +70,7 @@ export const FlowMapReplayControls: React.FC<{ replay: FlowReplayController }> =
         value={frameIndex}
         onChange={event => seek(Number(event.target.value))}
         className="gba:h-1.5 gba:w-32 gba:cursor-pointer gba:accent-info"
-        aria-label="Replay position"
+        aria-label={t('flow-replay-position-aria')}
         data-testid="flow-map-replay-seek"
       />
       <span className="gba:text-xs gba:tabular-nums gba:text-muted-foreground" data-testid="flow-map-replay-position">

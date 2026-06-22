@@ -11,8 +11,10 @@ import {
   Card,
   CardHeader,
   CardTitle,
-  CardContent
+  CardContent,
+  useTranslation
 } from '@newwork/nw-design-system'
+import translations from '../../../_i18n'
 import { Bot, Network, Sparkles, Workflow, Plus, GitBranch } from 'lucide-react'
 import type { TabProps } from './types'
 import type { AgentType } from '@/common/network/ai/prompt-manager/PromptManagerClient'
@@ -25,7 +27,7 @@ const AGENT_TYPE_INFO: Record<AgentType, { label: string; description: string; i
   },
   everyai: {
     label: 'EveryAI Expert',
-    description: 'AI assistant for chat & Agent Mesh',
+    description: '',
     icon: <Sparkles className="gba:w-5 gba:h-5" />
   },
   general: {
@@ -41,6 +43,7 @@ const AGENT_TYPE_INFO: Record<AgentType, { label: string; description: string; i
 }
 
 export const OverviewTab: React.FC<TabProps> = ({ state, actions, catalogs, mode }) => {
+  const { t } = useTranslation(translations)
   const [showNewWs, setShowNewWs] = useState(false)
   const [newWsName, setNewWsName] = useState('')
   const [creatingWs, setCreatingWs] = useState(false)
@@ -99,7 +102,7 @@ export const OverviewTab: React.FC<TabProps> = ({ state, actions, catalogs, mode
                   <span
                     className={`gba:text-xs gba:mt-1 ${isSelected ? 'gba:text-decorative-foreground/70' : 'gba:text-muted-foreground'}`}
                   >
-                    {AGENT_TYPE_INFO[type].description}
+                    {type === 'everyai' ? t('agent-type-everyai-description') : AGENT_TYPE_INFO[type].description}
                   </span>
                   {type === 'everyai' && (
                     <span className="gba:absolute gba:top-2 gba:right-2 gba:inline-flex gba:items-center gba:gap-1 gba:px-1.5 gba:py-0.5 gba:rounded-md gba:text-[10px] gba:font-semibold gba:bg-desk-badge-golden gba:text-desk-badge-golden-foreground">

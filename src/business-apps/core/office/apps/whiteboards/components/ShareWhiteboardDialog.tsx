@@ -1,10 +1,7 @@
 import React from 'react'
-import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import {
   ShareEntityDialog,
   WHITEBOARD_SHARE_PERMISSIONS,
-  sendShareBlinkNotifications,
-  type ShareNotificationContext,
   type SharedEntityUser
 } from '@/business-apps/core/office/sharing'
 import { WhiteboardApiService } from '../services/WhiteboardApiService'
@@ -73,20 +70,6 @@ export const ShareWhiteboardDialog: React.FC<ShareWhiteboardDialogProps> = ({
     }
   }, [open, refreshShares])
 
-  const sendNotifications = React.useCallback(
-    (context: ShareNotificationContext) =>
-      sendShareBlinkNotifications({
-        ...context,
-        entityType: 'whiteboard',
-        appTag: 'whiteboard-share',
-        titlePrefix: 'Whiteboard Shared',
-        entityUrl: buildPlatformUrl('/platform/every-office/whiteboards', {
-          whiteboardId
-        })
-      }),
-    [whiteboardId]
-  )
-
   return (
     <ShareEntityDialog
       open={open}
@@ -128,7 +111,6 @@ export const ShareWhiteboardDialog: React.FC<ShareWhiteboardDialogProps> = ({
         accessToken ? WhiteboardApiService.revokeShareById(accessToken, shareId) : Promise.resolve(false)
       }
       onRefreshShares={refreshShares}
-      sendNotifications={sendNotifications}
       showShareMessage
       onManageAccess={onManageAccess}
       data-testid={testId}

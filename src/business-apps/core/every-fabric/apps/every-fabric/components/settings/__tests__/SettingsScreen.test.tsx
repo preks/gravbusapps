@@ -1,6 +1,33 @@
 import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
+import { LocalizationProvider } from '@newwork/nw-design-system'
 import { SettingsScreen } from '../SettingsScreen'
+
+jest.mock('@newwork/nw-design-system', () => {
+  const actual = jest.requireActual('@newwork/nw-design-system')
+  const labels: Record<string, string> = {
+    'settings-title': 'Settings',
+    'settings-tab-agents': 'Agents',
+    'settings-tab-skills': 'Skills',
+    'settings-tab-tools': 'Tools',
+    'settings-page-agent-studio': 'Agent Studio',
+    'settings-reflection-mode-label': 'Reflection Mode',
+    'settings-section-configuration': 'Configuration',
+    'settings-section-memory': 'Memory',
+    'settings-section-metrics': 'Usage & Metrics'
+  }
+  return {
+    ...actual,
+    useTranslation: () => ({
+      t: (key: string) => labels[key] ?? key,
+      locale: 'en-US'
+    })
+  }
+})
+
+function renderSettings(ui: React.ReactElement) {
+  return render(<LocalizationProvider locale="en-US">{ui}</LocalizationProvider>)
+}
 
 function setUrl(search: string) {
   globalThis.history.replaceState({}, '', `/platform/every-fabric${search}`)
@@ -56,7 +83,7 @@ describe('SettingsScreen layout', () => {
   })
 
   it('shows sidebar layout only on the settings tab', () => {
-    render(<SettingsScreen accessToken="token" devToolsEnabled onBack={jest.fn()} />)
+    renderSettings(<SettingsScreen accessToken="token" devToolsEnabled onBack={jest.fn()} />)
 
     expect(screen.getByTestId('settings-panel-layout')).toBeInTheDocument()
     expect(screen.getByTestId('settings-sidebar-aside')).toBeInTheDocument()
@@ -66,7 +93,7 @@ describe('SettingsScreen layout', () => {
 
   it('hides the settings sidebar on the agents tab', () => {
     setUrl('?view=settings&tab=agents')
-    render(<SettingsScreen accessToken="token" devToolsEnabled onBack={jest.fn()} />)
+    renderSettings(<SettingsScreen accessToken="token" devToolsEnabled onBack={jest.fn()} />)
 
     expect(screen.queryByTestId('settings-panel-layout')).not.toBeInTheDocument()
     expect(screen.queryByTestId('settings-sidebar-aside')).not.toBeInTheDocument()
@@ -90,7 +117,7 @@ describe('SettingsScreen devtools gate', () => {
   })
 
   it('hides devtools settings when the tenant flag is off', () => {
-    render(<SettingsScreen accessToken="token" devToolsEnabled={false} onBack={jest.fn()} />)
+    renderSettings(<SettingsScreen accessToken="token" devToolsEnabled={false} onBack={jest.fn()} />)
 
     expect(screen.queryByTestId('settings-dev-mode-toggle')).not.toBeInTheDocument()
     expect(screen.queryByText('Reflection Mode')).not.toBeInTheDocument()
@@ -103,7 +130,7 @@ describe('SettingsScreen devtools gate', () => {
   })
 
   it('shows devtools settings when the tenant flag is on', () => {
-    render(<SettingsScreen accessToken="token" devToolsEnabled onBack={jest.fn()} />)
+    renderSettings(<SettingsScreen accessToken="token" devToolsEnabled onBack={jest.fn()} />)
 
     expect(screen.getByTestId('settings-dev-mode-toggle')).toBeInTheDocument()
     expect(screen.getByText('Reflection Mode')).toBeInTheDocument()
@@ -129,7 +156,7 @@ describe('SettingsScreen URL state', () => {
 
   it('defaults to configuration section when no URL param', () => {
     setUrl('?view=settings')
-    render(<SettingsScreen accessToken="token" devToolsEnabled onBack={jest.fn()} />)
+    renderSettings(<SettingsScreen accessToken="token" devToolsEnabled onBack={jest.fn()} />)
 
     expect(screen.getByTestId('settings-section-content-configuration')).toBeInTheDocument()
     expect(screen.queryByTestId('settings-memory-section')).not.toBeInTheDocument()
@@ -138,7 +165,7 @@ describe('SettingsScreen URL state', () => {
 
   it('shows memory section when URL has section=memory', () => {
     setUrl('?view=settings&section=memory')
-    render(<SettingsScreen accessToken="token" devToolsEnabled onBack={jest.fn()} />)
+    renderSettings(<SettingsScreen accessToken="token" devToolsEnabled onBack={jest.fn()} />)
 
     expect(screen.getByTestId('settings-memory-section')).toBeInTheDocument()
     expect(screen.queryByTestId('settings-dev-mode-toggle')).not.toBeInTheDocument()
@@ -146,7 +173,7 @@ describe('SettingsScreen URL state', () => {
 
   it('shows agents tab when URL has tab=agents', () => {
     setUrl('?view=settings&tab=agents')
-    render(<SettingsScreen accessToken="token" devToolsEnabled onBack={jest.fn()} />)
+    renderSettings(<SettingsScreen accessToken="token" devToolsEnabled onBack={jest.fn()} />)
 
     expect(screen.getByTestId('settings-agents-screen')).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 1, name: 'Agent Studio' })).toBeInTheDocument()
@@ -155,7 +182,7 @@ describe('SettingsScreen URL state', () => {
 
   it('shows skills tab when URL has tab=skills', () => {
     setUrl('?view=settings&tab=skills')
-    render(<SettingsScreen accessToken="token" devToolsEnabled onBack={jest.fn()} />)
+    renderSettings(<SettingsScreen accessToken="token" devToolsEnabled onBack={jest.fn()} />)
 
     expect(screen.getByTestId('settings-skills-screen')).toBeInTheDocument()
     expect(screen.queryByTestId('settings-memory-section')).not.toBeInTheDocument()
@@ -163,7 +190,7 @@ describe('SettingsScreen URL state', () => {
 
   it('shows tools tab when URL has tab=tools and devtools enabled', () => {
     setUrl('?view=settings&tab=tools')
-    render(<SettingsScreen accessToken="token" devToolsEnabled onBack={jest.fn()} />)
+    renderSettings(<SettingsScreen accessToken="token" devToolsEnabled onBack={jest.fn()} />)
 
     expect(screen.getByTestId('settings-tools-tab')).toBeInTheDocument()
     expect(screen.queryByTestId('settings-memory-section')).not.toBeInTheDocument()
@@ -171,7 +198,7 @@ describe('SettingsScreen URL state', () => {
 
   it('updates URL when clicking top tab buttons', () => {
     setUrl('?view=settings')
-    render(<SettingsScreen accessToken="token" devToolsEnabled onBack={jest.fn()} />)
+    renderSettings(<SettingsScreen accessToken="token" devToolsEnabled onBack={jest.fn()} />)
 
     fireEvent.click(screen.getByTestId('settings-tab-agents'))
 
@@ -180,7 +207,7 @@ describe('SettingsScreen URL state', () => {
 
   it('updates URL when clicking section nav items', () => {
     setUrl('?view=settings')
-    render(<SettingsScreen accessToken="token" devToolsEnabled onBack={jest.fn()} />)
+    renderSettings(<SettingsScreen accessToken="token" devToolsEnabled onBack={jest.fn()} />)
 
     fireEvent.click(screen.getByTestId('settings-section-nav-memory'))
 

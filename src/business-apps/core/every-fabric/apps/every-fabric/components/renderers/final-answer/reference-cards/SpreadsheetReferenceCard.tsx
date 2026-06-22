@@ -4,20 +4,14 @@ import { getEntityUrl } from '@/business-apps/platform/apps/every-ai/components/
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { IconTile, tileGlyph } from './IconTile'
 import { useSpreadsheetReference } from './hooks/officeReferenceHooks'
-import {
-  countChip,
-  dataStr,
-  getField,
-  getStr,
-  humanizeToken,
-  relativeOrShortDate,
-  type ReferenceCardProps
-} from './referenceCardUtils'
+import { dataStr, getField, getStr, type ReferenceCardProps } from './referenceCardUtils'
+import { useReferenceCardI18n } from './useReferenceCardI18n'
 
 const SHEET_GLYPH = tileGlyph('M4 4h16v16H4V4zm0 5h16M4 14h16M10 9v11')
 
 /** Spreadsheet card: leads with app name, sheet/row counts and last-updated. */
 export const SpreadsheetReferenceCard: React.FC<ReferenceCardProps> = ({ reference, accessToken }) => {
+  const { field, countChip, humanizeToken, relativeOrShortDate, t } = useReferenceCardI18n()
   const { data: app, loading } = useSpreadsheetReference(reference.id, accessToken)
 
   const url = getEntityUrl(reference.type, reference.id, reference.href)
@@ -51,15 +45,15 @@ export const SpreadsheetReferenceCard: React.FC<ReferenceCardProps> = ({ referen
 
   const fields: Array<{ label: string; value: string }> = []
   const sheetsLabel = countChip(sheetCount, 'sheet')
-  if (sheetsLabel) fields.push({ label: 'Sheets', value: sheetsLabel })
+  if (sheetsLabel) fields.push({ label: field('sheets'), value: sheetsLabel })
   const rowsLabel = countChip(rowCount, 'row')
-  if (rowsLabel) fields.push({ label: 'Rows', value: rowsLabel })
-  if (updated) fields.push({ label: 'Updated', value: updated })
+  if (rowsLabel) fields.push({ label: field('rows'), value: rowsLabel })
+  if (updated) fields.push({ label: field('updated'), value: updated })
 
   return (
     <EntityCard
       title={title}
-      subtitle="Spreadsheet"
+      subtitle={t('renderer-ref-type-spreadsheet')}
       status={status}
       icon={icon}
       fields={fields.length ? fields : undefined}

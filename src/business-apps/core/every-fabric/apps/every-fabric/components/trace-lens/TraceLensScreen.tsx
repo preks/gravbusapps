@@ -17,13 +17,14 @@ import {
   MagnifyingGlassIcon,
   SpinnerGapIcon
 } from '@phosphor-icons/react'
-import { Badge, Button } from '@newwork/nw-design-system'
+import { Badge, Button, useTranslation } from '@newwork/nw-design-system'
 import { formatMs, type TraceSpan } from './traceLensModel'
 import { formatRunForCursor } from './traceLensExport'
 import { useTraceLens } from './useTraceLens'
 import { TraceLensRunList } from './TraceLensRunList'
 import { TraceLensWaterfall } from './TraceLensWaterfall'
 import { TraceLensSpanDetail } from './TraceLensSpanDetail'
+import translations from '../../_i18n'
 
 interface TraceLensScreenProps {
   accessToken: string
@@ -45,6 +46,7 @@ const SummaryStat: React.FC<{ label: string; value: string }> = ({ label, value 
 )
 
 export const TraceLensScreen: React.FC<TraceLensScreenProps> = ({ accessToken, onBack, initialSessionId }) => {
+  const { t } = useTranslation(translations)
   const {
     runs,
     loadingSessions,
@@ -96,7 +98,7 @@ export const TraceLensScreen: React.FC<TraceLensScreenProps> = ({ accessToken, o
         <button
           type="button"
           onClick={onBack}
-          aria-label="Back to workspace"
+          aria-label={t('trace-lens-back-aria')}
           className="gba:inline-flex gba:items-center gba:justify-center gba:h-9 gba:w-9 gba:shrink-0 gba:rounded-full gba:border gba:border-border/60 gba:bg-background gba:text-foreground gba:hover:bg-muted/60 gba:transition-colors gba:mt-1"
           data-testid="trace-lens-back"
         >
@@ -104,22 +106,28 @@ export const TraceLensScreen: React.FC<TraceLensScreenProps> = ({ accessToken, o
         </button>
         <div className="gba:min-w-0 gba:flex-1">
           <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
-            <h1 className="gba:text-[22px] gba:font-semibold gba:leading-tight gba:text-foreground">Trace Lens</h1>
+            <h1 className="gba:text-[22px] gba:font-semibold gba:leading-tight gba:text-foreground">
+              {t('trace-lens-title')}
+            </h1>
             {summary && <Badge variant={statusBadgeVariant(summary.status)}>{summary.status}</Badge>}
             {summary?.origin === 'workforce' && (
-              <Badge variant="outline">{summary.source ? `Workforce · ${summary.source}` : 'Workforce'}</Badge>
+              <Badge variant="outline">
+                {summary.source
+                  ? t('trace-lens-workforce-source', { source: summary.source })
+                  : t('trace-lens-workforce')}
+              </Badge>
             )}
             {summary?.agentName && <Badge variant="outline">{summary.agentName}</Badge>}
             {summary?.route && <Badge variant="outline">{summary.route}</Badge>}
           </div>
           <p className="gba:mt-0.5 gba:text-[13px] gba:text-muted-foreground gba:truncate">
-            LangSmith-style debugger — tools, sub-agents, experts, skills and decisions in execution order.
+            {t('trace-lens-subtitle')}
           </p>
         </div>
         <div className="gba:flex gba:items-center gba:gap-2 gba:shrink-0">
           <Button variant="outline" size="sm" onClick={refreshSessions} data-testid="trace-lens-refresh">
             <ArrowsClockwiseIcon className="gba:h-3.5 gba:w-3.5 gba:mr-1.5" />
-            Refresh
+            {t('trace-lens-refresh')}
           </Button>
           <Button size="sm" onClick={handleCopyForCursor} disabled={!model} data-testid="trace-lens-copy-cursor">
             {copied ? (
@@ -127,7 +135,7 @@ export const TraceLensScreen: React.FC<TraceLensScreenProps> = ({ accessToken, o
             ) : (
               <ClipboardTextIcon className="gba:h-3.5 gba:w-3.5 gba:mr-1.5" />
             )}
-            {copied ? 'Copied' : 'Copy for Cursor'}
+            {copied ? t('trace-lens-copied') : t('trace-lens-copy-cursor')}
           </Button>
         </div>
       </header>
@@ -144,24 +152,33 @@ export const TraceLensScreen: React.FC<TraceLensScreenProps> = ({ accessToken, o
         <div className="gba:flex gba:flex-col gba:flex-1 gba:min-w-0 gba:gap-3">
           {summary && (
             <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-x-6 gba:gap-y-2 gba:rounded-lg gba:border gba:border-border/40 gba:bg-card gba:px-4 gba:py-2.5">
-              <SummaryStat label="TTFT" value={formatMs(summary.ttftMs)} />
-              <SummaryStat label="Duration" value={formatMs(summary.durationMs ?? summary.totalDurationMs)} />
-              <SummaryStat label="Tools" value={String(summary.toolCount)} />
-              <SummaryStat label="Sub-agents" value={String(summary.subagentCount)} />
-              <SummaryStat label="Experts" value={String(summary.expertCount)} />
-              <SummaryStat label="Skills" value={String(summary.skillCount)} />
-              <SummaryStat label="Decisions" value={String(summary.decisionCount)} />
-              {summary.llmCallCount > 0 && <SummaryStat label="LLM calls" value={String(summary.llmCallCount)} />}
+              <SummaryStat label={t('trace-lens-stat-ttft')} value={formatMs(summary.ttftMs)} />
+              <SummaryStat
+                label={t('trace-lens-stat-duration')}
+                value={formatMs(summary.durationMs ?? summary.totalDurationMs)}
+              />
+              <SummaryStat label={t('trace-lens-stat-tools')} value={String(summary.toolCount)} />
+              <SummaryStat label={t('trace-lens-stat-subagents')} value={String(summary.subagentCount)} />
+              <SummaryStat label={t('trace-lens-stat-experts')} value={String(summary.expertCount)} />
+              <SummaryStat label={t('trace-lens-stat-skills')} value={String(summary.skillCount)} />
+              <SummaryStat label={t('trace-lens-stat-decisions')} value={String(summary.decisionCount)} />
+              {summary.llmCallCount > 0 && (
+                <SummaryStat label={t('trace-lens-stat-llm-calls')} value={String(summary.llmCallCount)} />
+              )}
               {summary.llmAvgLatencyMs !== undefined && (
-                <SummaryStat label="Avg LLM" value={formatMs(summary.llmAvgLatencyMs)} />
+                <SummaryStat label={t('trace-lens-stat-avg-llm')} value={formatMs(summary.llmAvgLatencyMs)} />
               )}
               {summary.hitlWaitMs !== undefined && (
-                <SummaryStat label="Human wait" value={formatMs(summary.hitlWaitMs)} />
+                <SummaryStat label={t('trace-lens-stat-human-wait')} value={formatMs(summary.hitlWaitMs)} />
               )}
-              {summary.failedToolCount > 0 && <SummaryStat label="Failed" value={String(summary.failedToolCount)} />}
-              {summary.tokensUsed !== undefined && <SummaryStat label="Tokens" value={String(summary.tokensUsed)} />}
+              {summary.failedToolCount > 0 && (
+                <SummaryStat label={t('trace-lens-stat-failed')} value={String(summary.failedToolCount)} />
+              )}
+              {summary.tokensUsed !== undefined && (
+                <SummaryStat label={t('trace-lens-stat-tokens')} value={String(summary.tokensUsed)} />
+              )}
               {summary.estimatedCostUsd !== undefined && (
-                <SummaryStat label="Cost" value={`$${summary.estimatedCostUsd.toFixed(4)}`} />
+                <SummaryStat label={t('trace-lens-stat-cost')} value={`$${summary.estimatedCostUsd.toFixed(4)}`} />
               )}
             </div>
           )}
@@ -185,35 +202,35 @@ export const TraceLensScreen: React.FC<TraceLensScreenProps> = ({ accessToken, o
                   <input
                     value={filterText}
                     onChange={e => setFilterText(e.target.value)}
-                    placeholder="Filter steps…"
+                    placeholder={t('trace-lens-filter-placeholder')}
                     className="gba:w-full gba:rounded-md gba:border gba:border-border/60 gba:bg-background gba:py-1 gba:pl-7 gba:pr-2 gba:text-[12px] gba:text-foreground gba:outline-none focus:gba:border-primary"
                   />
                 </div>
                 <label className="gba:flex gba:items-center gba:gap-1.5 gba:text-[12px] gba:text-muted-foreground gba:cursor-pointer">
                   <input type="checkbox" checked={showMarkers} onChange={e => setShowMarkers(e.target.checked)} />
-                  Show events
+                  {t('trace-lens-show-events')}
                 </label>
                 <span className="gba:ml-auto gba:text-[11px] gba:text-muted-foreground gba:tabular-nums">
-                  {filteredSpans.length} steps
+                  {t('trace-lens-steps-count', { count: filteredSpans.length })}
                 </span>
               </div>
               <div className="gba:flex-1 gba:overflow-auto">
                 {!selectedId && (
                   <p className="gba:px-4 gba:py-8 gba:text-center gba:text-sm gba:text-muted-foreground">
-                    Select a run to inspect its trace.
+                    {t('trace-lens-select-run')}
                   </p>
                 )}
                 {selectedId && loadingModel && (
                   <div className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:py-10 gba:text-sm gba:text-muted-foreground">
                     <SpinnerGapIcon className="gba:h-4 gba:w-4 gba:animate-spin" />
-                    Loading trace…
+                    {t('trace-lens-loading')}
                   </div>
                 )}
                 {selectedId && modelError && (
                   <div className="gba:flex gba:flex-col gba:items-center gba:gap-3 gba:py-10 gba:text-center">
                     <p className="gba:text-sm gba:text-rose-600">{modelError}</p>
                     <Button variant="secondary" size="sm" onClick={refreshModel}>
-                      Retry
+                      {t('trace-lens-retry')}
                     </Button>
                   </div>
                 )}

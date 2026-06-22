@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type Ref } from 'react'
 import { ArrowCounterClockwiseIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { ArtifactFile } from '../../../types/fabric'
+import translations from '../../../_i18n'
 import { AutoHeightHtmlIframe, shouldUseAutoHeightHtmlViewer } from '../AutoHeightHtmlIframe'
 import CodeArtifact from './CodeArtifact'
 
@@ -15,6 +17,7 @@ const NATIVE_W = 1920
 const NATIVE_H = 1080
 
 const HtmlArtifact: React.FC<HtmlArtifactProps> = ({ file, content, viewMode, iframeRef: externalIframeRef }) => {
+  const { t } = useTranslation(translations)
   const internalIframeRef = useRef<HTMLIFrameElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
@@ -95,11 +98,11 @@ const HtmlArtifact: React.FC<HtmlArtifactProps> = ({ file, content, viewMode, if
           type="button"
           onClick={handleReplay}
           className="gba:flex gba:items-center gba:gap-1.5 gba:px-3 gba:py-2 gba:rounded-lg gba:bg-background/90 gba:backdrop-blur-sm gba:border gba:border-border/60 gba:shadow-sm gba:text-xs gba:font-medium gba:text-foreground gba:hover:bg-background gba:transition-colors"
-          aria-label="Replay animation"
+          aria-label={t('artifact-replay-animation')}
           data-testid="fabric-html-replay"
         >
           <ArrowCounterClockwiseIcon className="gba:h-3.5 gba:w-3.5" />
-          Replay
+          {t('artifact-replay-label')}
         </button>
       </div>
     </div>

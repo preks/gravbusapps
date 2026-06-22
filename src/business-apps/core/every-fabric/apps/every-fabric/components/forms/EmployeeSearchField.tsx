@@ -1,8 +1,9 @@
 import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useEmployeeSearch, type EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
-import { Input } from '@newwork/nw-design-system'
+import { Input, useTranslation } from '@newwork/nw-design-system'
 import { MagnifyingGlassIcon, CaretDownIcon, CheckCircleIcon } from '@phosphor-icons/react'
+import translations from '../../_i18n'
 
 interface EmployeeSearchFieldProps {
   readonly value?: string
@@ -21,11 +22,13 @@ interface EmployeeSearchFieldProps {
 export function EmployeeSearchField({
   value,
   onChange,
-  placeholder = 'Search and select employee...',
+  placeholder,
   required,
   accessToken,
   readOnly = false
 }: EmployeeSearchFieldProps) {
+  const { t } = useTranslation(translations)
+  const resolvedPlaceholder = placeholder ?? t('forms-employee-search-placeholder')
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeLiteOption | null>(null)
@@ -154,7 +157,7 @@ export function EmployeeSearchField({
               </div>
             )}
           </div>
-          {!readOnly && <span className="gba:text-xs gba:text-muted-foreground">Change</span>}
+          {!readOnly && <span className="gba:text-xs gba:text-muted-foreground">{t('forms-employee-change')}</span>}
         </button>
       ) : (
         <div className="gba:relative">
@@ -168,7 +171,7 @@ export function EmployeeSearchField({
               if (readOnly) return
               setIsOpen(true)
             }}
-            placeholder={placeholder}
+            placeholder={resolvedPlaceholder}
             required={required}
             disabled={readOnly}
             className="gba:pr-8"
@@ -193,22 +196,26 @@ export function EmployeeSearchField({
           >
             {!accessToken && (
               <div className="gba:px-4 gba:py-3 gba:text-sm gba:text-destructive">
-                Authentication required to search employees
+                {t('forms-employee-auth-required')}
               </div>
             )}
 
-            {error && <div className="gba:px-4 gba:py-3 gba:text-sm gba:text-destructive">Error: {error}</div>}
+            {error && (
+              <div className="gba:px-4 gba:py-3 gba:text-sm gba:text-destructive">
+                {t('forms-employee-error', { error })}
+              </div>
+            )}
 
             {loading && !error && (
               <div className="gba:px-4 gba:py-3 gba:text-sm gba:text-muted-foreground gba:flex gba:items-center gba:gap-2">
                 <MagnifyingGlassIcon className="gba:h-4 gba:w-4 gba:animate-pulse" />
-                Searching employees...
+                {t('forms-employee-searching')}
               </div>
             )}
 
             {!loading && !error && employees.length === 0 && (
               <div className="gba:px-4 gba:py-3 gba:text-sm gba:text-muted-foreground">
-                {searchQuery ? 'No employees found matching your search' : 'Start typing to search employees'}
+                {searchQuery ? t('forms-employee-no-match') : t('forms-employee-start-typing')}
               </div>
             )}
 

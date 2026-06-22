@@ -12,10 +12,12 @@
 
 import { SparkleIcon } from '@phosphor-icons/react'
 import React, { useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { WorkforceAgentSummary } from '../useWorkforceData'
 import type { WorkforceAgent } from '../workforceTypes'
 import { WorkforceDeckCard } from './WorkforceDeckCard'
 import { computeDeckTransform } from './deckLayout'
+import translations from '../../../_i18n'
 
 export interface DeckMatchInfo {
   rank: number
@@ -52,6 +54,7 @@ export const WorkforceDeck: React.FC<WorkforceDeckProps> = ({
   onArchive,
   onConfigure
 }) => {
+  const { t } = useTranslation(translations)
   const [hovered, setHovered] = useState<number | null>(null)
   const isAiMode = Boolean(matchById)
 
@@ -61,7 +64,7 @@ export const WorkforceDeck: React.FC<WorkforceDeckProps> = ({
         <div className="gba:mb-2 gba:flex gba:items-center gba:justify-center gba:gap-1.5">
           <SparkleIcon className="gba:h-3.5 gba:w-3.5 gba:text-foreground" weight="fill" />
           <p className="gba:text-xs gba:text-muted-foreground">
-            Best matches for <span className="gba:font-medium gba:text-foreground">“{aiQuery}”</span>
+            {t('deck-best-matches-for', { query: aiQuery ?? '' })}
           </p>
         </div>
       )}

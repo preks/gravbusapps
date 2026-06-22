@@ -1,8 +1,9 @@
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { PlugIcon, XIcon } from '@phosphor-icons/react'
 import type { ExternalConnection } from '../../hooks/useFabricConnectors'
 import { buildPlatformUrl, Navigation, navigateTo } from '@/common/utils/navigationUtils'
 import { ConnectorPickerLaneList } from './ConnectorPickerLaneList'
+import translations from '../../_i18n'
 
 export interface ConnectorPickerSheetProps {
   isOpen: boolean
@@ -21,6 +22,8 @@ export const ConnectorPickerSheet: React.FC<ConnectorPickerSheetProps> = ({
   onToggle,
   isLoading
 }) => {
+  const { t } = useTranslation(translations)
+
   return (
     <div
       className={`gba:fixed gba:bottom-20 sm:gba:bottom-24 gba:left-18 sm:gba:left-20 gba:z-40 gba:w-[18rem] gba:transition-all gba:duration-200 ${
@@ -34,7 +37,7 @@ export const ConnectorPickerSheet: React.FC<ConnectorPickerSheetProps> = ({
         <div className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-3 gba:border-b gba:border-border/60">
           <div className="gba:flex gba:items-center gba:gap-2">
             <PlugIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-            <span className="gba:text-sm gba:font-semibold gba:text-foreground">Connectors</span>
+            <span className="gba:text-sm gba:font-semibold gba:text-foreground">{t('connectors-picker-title')}</span>
           </div>
           <Button
             variant="ghost"
@@ -42,6 +45,7 @@ export const ConnectorPickerSheet: React.FC<ConnectorPickerSheetProps> = ({
             className="gba:h-8 gba:w-8 gba:rounded-full"
             onClick={onClose}
             data-testid="connector-picker-close"
+            aria-label={t('connectors-picker-close-aria')}
           >
             <XIcon className="gba:h-4 gba:w-4" />
           </Button>
@@ -50,12 +54,12 @@ export const ConnectorPickerSheet: React.FC<ConnectorPickerSheetProps> = ({
         <div className="gba:max-h-[min(28rem,60vh)] gba:overflow-y-auto gba:p-3">
           {isLoading && (
             <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:px-4 gba:py-8 gba:text-center">
-              <p className="gba:text-sm gba:text-muted-foreground">Loading connectors...</p>
+              <p className="gba:text-sm gba:text-muted-foreground">{t('connectors-picker-loading')}</p>
             </div>
           )}
           {!isLoading && connectors.length === 0 && (
             <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:px-4 gba:py-8 gba:text-center">
-              <p className="gba:text-sm gba:text-muted-foreground">No connectors available.</p>
+              <p className="gba:text-sm gba:text-muted-foreground">{t('connectors-picker-empty')}</p>
             </div>
           )}
           {!isLoading && connectors.length > 0 && (
@@ -78,7 +82,7 @@ export const ConnectorPickerSheet: React.FC<ConnectorPickerSheetProps> = ({
             className="gba:text-xs gba:text-muted-foreground gba:hover:text-foreground gba:transition-colors gba:underline"
             data-testid="connector-manage-link"
           >
-            Manage connections
+            {t('landing-composer-manage-connections')}
           </button>
         </div>
       </div>

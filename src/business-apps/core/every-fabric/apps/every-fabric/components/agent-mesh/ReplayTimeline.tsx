@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { ArrowCounterClockwiseIcon, BroadcastIcon, PauseIcon, PlayIcon } from '@phosphor-icons/react'
 import type { TraceFrame } from '../../utils/traceModel'
 import { REPLAY_SPEEDS, type ReplayClockApi } from '../../hooks/useReplayClock'
+import { useAgentMeshI18n } from './useAgentMeshI18n'
 
 interface ReplayTimelineProps {
   clock: ReplayClockApi
@@ -75,6 +76,7 @@ function bucketTicks(
 }
 
 export const ReplayTimeline: React.FC<ReplayTimelineProps> = ({ clock, frames }) => {
+  const { t } = useAgentMeshI18n()
   const ticks = useMemo(() => bucketTicks(frames, clock.durationMs), [frames, clock.durationMs])
 
   const handleSeek = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -90,13 +92,13 @@ export const ReplayTimeline: React.FC<ReplayTimelineProps> = ({ clock, frames })
     <section
       className="gba:flex gba:items-center gba:gap-4 gba:rounded-[1.5rem] gba:border gba:border-border/60 gba:bg-card gba:px-5 gba:py-3.5"
       data-testid="mesh-replay-timeline"
-      aria-label="Replay timeline"
+      aria-label={t('agent-mesh-replay-aria')}
     >
       <button
         type="button"
         onClick={clock.toggle}
         disabled={disableTransport}
-        aria-label={clock.isPlaying ? 'Pause replay' : 'Play replay'}
+        aria-label={clock.isPlaying ? t('agent-mesh-replay-pause') : t('agent-mesh-replay-play')}
         className="gba:inline-flex gba:items-center gba:justify-center gba:h-11 gba:w-11 gba:rounded-full gba:bg-foreground gba:text-background gba:hover:bg-foreground/90 gba:disabled:cursor-not-allowed gba:disabled:opacity-40 gba:transition-colors gba:shadow-[0_2px_6px_rgba(15,23,42,0.18)]"
         data-testid="mesh-replay-toggle"
       >
@@ -111,7 +113,7 @@ export const ReplayTimeline: React.FC<ReplayTimelineProps> = ({ clock, frames })
         type="button"
         onClick={() => clock.seek(0)}
         disabled={disableTransport}
-        aria-label="Restart replay"
+        aria-label={t('agent-mesh-replay-restart')}
         className="gba:inline-flex gba:items-center gba:justify-center gba:h-9 gba:w-9 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:disabled:cursor-not-allowed gba:disabled:opacity-40 gba:transition-colors"
         data-testid="mesh-replay-restart"
       >
@@ -127,7 +129,7 @@ export const ReplayTimeline: React.FC<ReplayTimelineProps> = ({ clock, frames })
           {ticks.map(tick => (
             <span
               key={`${tick.left}-${tick.kind}`}
-              title={`${tick.count} event${tick.count === 1 ? '' : 's'}`}
+              title={t('agent-mesh-replay-events', { count: tick.count })}
               className={`gba:absolute gba:top-1/2 gba:-translate-y-1/2 gba:-translate-x-1/2 gba:h-1.5 gba:w-1.5 gba:rounded-full ${FRAME_KIND_COLOR[tick.kind]}`}
               style={{ left: `${tick.left}%` }}
               aria-hidden
@@ -148,7 +150,7 @@ export const ReplayTimeline: React.FC<ReplayTimelineProps> = ({ clock, frames })
           onChange={handleSeek}
           disabled={disableTransport}
           className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:cursor-pointer gba:opacity-0"
-          aria-label="Seek replay timeline"
+          aria-label={t('agent-mesh-replay-seek')}
           data-testid="mesh-replay-seek"
         />
       </div>
@@ -190,7 +192,7 @@ export const ReplayTimeline: React.FC<ReplayTimelineProps> = ({ clock, frames })
         data-testid="mesh-replay-live"
       >
         <BroadcastIcon className="gba:h-3 gba:w-3" weight={isLive ? 'fill' : 'regular'} />
-        Live
+        {t('agent-mesh-replay-live')}
       </button>
     </section>
   )

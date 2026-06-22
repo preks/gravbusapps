@@ -178,7 +178,7 @@ task-type-information = Informație
 task-type-acknowledge = Confirmare
 task-type-function = Funcție
 task-type-ai_agent = Agent EveryAI
-task-type-ai_task_expert = Expert sarcină AI
+task-type-ai_task_expert = { platform-ai-agent-product }
 task-type-custom_data_mutation = Salvează în Custom Data
 task-kind = Tip pas
 task-kind-user = Pas utilizator
@@ -284,7 +284,7 @@ decision-policy-optional-placeholder = Opțional: selectează o politică...
 decision-ai-executor-label = Executor IA
 decision-ai-executor-everyai = EveryAI
 decision-ai-executor-everyai-desc = Folosește instrucțiuni de decizie (cu context de flux) și lasă EveryAI să aleagă ramura potrivită.
-decision-ai-executor-taskexpert = Enterprise Agent
+decision-ai-executor-taskexpert = { platform-ai-agent-product }
 decision-ai-executor-taskexpert-desc = Rulează agentul și rutează prin reguli de mapare. Dacă nicio regulă nu se potrivește, un om alege ramura.
 decision-ai-type-label = Configurare decizie
 decision-ai-type-policy = Ghidat de politică
@@ -348,14 +348,14 @@ validation-orphan-nodes = Noduri orfane detectate
 validation-fork-no-join = Nodul de împărțire nu are un nod de unificare corespunzător
 validation-decision-branches = Decizia trebuie să aibă cel puțin 2 ramuri
 validation-disconnected = Unele noduri nu sunt conectate
-validation-decision-must-select-agent = Decizia "{ $label }" trebuie să selecteze un Enterprise Agent
-validation-decision-unmapped-agent-params = Decizia "{ $label }" trebuie să mapeze toți parametrii agentului înainte de publicare: { $params }
+validation-decision-must-select-agent = Decizia "{ $label }" trebuie să selecteze un { -platform-ai-agent-product.inline }
+validation-decision-unmapped-agent-params = Decizia "{ $label }" trebuie să mapeze toți parametrii { -platform-ai-agent-product.inline } înainte de publicare: { $params }
 
 # Add step panel
 step-panel-add-step = Adaugă pas
 step-panel-change-step = Schimbă pasul
 step-panel-back-to-config = Înapoi la configurare
-add-step-tip-advanced-mode = Comutați la modul Avansat pentru a debloca pașii Function Tasks și Enterprise Agent.
+add-step-tip-advanced-mode = Comutați la modul Avansat pentru a debloca pașii Function Tasks și { -platform-ai-agent-product.label }.
 step-kind-group-user-tasks = Sarcini utilizator
 step-kind-group-ai-tasks = Sarcini AI
 step-kind-group-automation = Automatizare
@@ -371,7 +371,7 @@ step-kind-desc-custom-decision = Căi personalizate
 step-kind-desc-decision-ai = AI decide
 step-kind-desc-decision-logic = Rutare reguli
 step-kind-desc-ai-agent = Agent AI
-step-kind-desc-ai-task-expert = Agent enterprise
+step-kind-desc-ai-task-expert = { -platform-ai-agent-product.label }
 step-kind-desc-function = Rulează funcție
 step-kind-desc-connector = Apelează conector
 step-kind-desc-save-to-custom-data = Scrie rânduri sau date din flow
@@ -387,7 +387,7 @@ step-kind-switch-confirm-cancel = Anulare
 step-kind-switch-confirm-action = Schimbă tipul pasului
 
 # Task step type selector descriptions
-task-step-type-ai-task-expert-description = Pas prompt Enterprise Agent.
+task-step-type-ai-task-expert-description = Pas prompt { -platform-ai-agent-product.label }.
 
 # Decision Enterprise Agent mapping suggestions
 decision-ai-taskexpert-mapping-suggestion-description = Din schema de ieșire a agentului selectat.

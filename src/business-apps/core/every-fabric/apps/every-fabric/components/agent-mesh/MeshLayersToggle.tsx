@@ -1,5 +1,6 @@
 import { Checkbox } from '@newwork/nw-design-system'
-import { MESH_LAYERS, type MeshLayerKey } from './meshLayers'
+import type { MeshLayerKey } from './meshLayers'
+import { useAgentMeshI18n } from './useAgentMeshI18n'
 
 interface MeshLayersToggleProps {
   activeLayers: ReadonlySet<MeshLayerKey>
@@ -43,22 +44,23 @@ export const MeshLayersToggle: React.FC<MeshLayersToggleProps> = ({
   onToggleLayer,
   onToggleLabels
 }) => {
+  const { t, meshLayers } = useAgentMeshI18n()
   return (
     <div
       className="gba:w-[180px] gba:rounded-[1rem] gba:border gba:border-border/60 gba:bg-card/95 gba:backdrop-blur gba:px-2.5 gba:py-2.5 gba:shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-14px_rgba(15,23,42,0.18)]"
       data-testid="mesh-layers-toggle"
       role="group"
-      aria-label="Mesh layers"
+      aria-label={t('agent-mesh-layers-aria')}
     >
       <p className="gba:px-1.5 gba:pb-1 gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-[0.1em] gba:text-muted-foreground">
-        Layers
+        {t('agent-mesh-layers-title')}
       </p>
       <div className="gba:flex gba:flex-col gba:gap-0.5">
-        {MESH_LAYERS.map(layer => (
+        {meshLayers.map(layer => (
           <LayerRow
             key={layer.key}
             id={`mesh-layer-${layer.key}`}
-            label={layer.label}
+            label={t(layer.labelKey)}
             count={countsByLayer[layer.key] ?? 0}
             checked={activeLayers.has(layer.key)}
             testId={`mesh-layers-toggle-${layer.key}`}
@@ -68,7 +70,7 @@ export const MeshLayersToggle: React.FC<MeshLayersToggleProps> = ({
         <div className="gba:my-1 gba:h-px gba:bg-border/50" aria-hidden />
         <LayerRow
           id="mesh-layer-labels"
-          label="Edge labels"
+          label={t('agent-mesh-layers-edge-labels')}
           checked={showLabels}
           testId="mesh-layers-toggle-labels"
           onChange={onToggleLabels}

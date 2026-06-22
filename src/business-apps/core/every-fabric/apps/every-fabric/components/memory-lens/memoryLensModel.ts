@@ -232,14 +232,17 @@ export const fullDateTime = (iso?: string): string => {
 }
 
 /** Compact relative date label ("Today", "3 days ago", "Mar 4"). */
-export const relativeDate = (iso?: string): string => {
+export const relativeDate = (
+  iso: string | undefined,
+  t: (key: string, args?: Record<string, unknown>) => string
+): string => {
   if (!iso) return ''
   const then = new Date(iso).getTime()
   if (Number.isNaN(then)) return ''
   const days = Math.floor((Date.now() - then) / 86_400_000)
-  if (days <= 0) return 'Today'
-  if (days === 1) return 'Yesterday'
-  if (days < 7) return `${days} days ago`
-  if (days < 30) return `${Math.floor(days / 7)}w ago`
+  if (days <= 0) return t('settings-memory-relative-today')
+  if (days === 1) return t('settings-memory-relative-yesterday')
+  if (days < 7) return t('settings-memory-relative-days', { days })
+  if (days < 30) return t('settings-memory-relative-weeks', { weeks: Math.floor(days / 7) })
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }

@@ -1,5 +1,7 @@
 import { useCallback, useState } from 'react'
 import { ArrowLeftIcon, ArrowRightIcon, CheckCircleIcon, SpinnerGapIcon, TrashIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../../_i18n'
 import type { ArtifactPreview } from '../../hooks/useArtifactPreview'
 import { confirmDraft as confirmDraftApi, confirmDraftFromPreview, extractEntityId } from '../../utils/confirmDraftApi'
 import { PanelCard } from './PanelCard'
@@ -27,13 +29,14 @@ export const DraftActionBar: React.FC<DraftActionBarProps> = ({
   onConfirmed,
   onDiscarded
 }) => {
+  const { t } = useTranslation(translations)
   const [state, setState] = useState<'idle' | 'confirming' | 'discarding' | 'done' | 'error'>('idle')
 
   // Discard becomes destructive (DELETE) when the AI already persisted the
   // artifact. Surface that to the user via the button tooltip so nobody is
   // surprised when their draft disappears from the workspace list.
   const entityId = extractEntityId(preview)
-  const discardLabel = entityId ? 'Delete draft from Documents' : 'Dismiss preview'
+  const discardLabel = entityId ? t('workspace-draft-discard-delete') : t('workspace-draft-discard-dismiss')
 
   const handleConfirm = useCallback(async () => {
     setState('confirming')
@@ -60,7 +63,7 @@ export const DraftActionBar: React.FC<DraftActionBarProps> = ({
   if (state === 'done') {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:px-3 gba:py-2 gba:border-t gba:border-border">
-        <span className="gba:text-[10px] gba:text-success gba:font-medium">Done</span>
+        <span className="gba:text-[10px] gba:text-success gba:font-medium">{t('workspace-draft-done')}</span>
       </div>
     )
   }
@@ -68,13 +71,13 @@ export const DraftActionBar: React.FC<DraftActionBarProps> = ({
   if (state === 'error') {
     return (
       <div className="gba:flex gba:items-center gba:justify-between gba:px-3 gba:py-2 gba:border-t gba:border-border gba:bg-destructive/5">
-        <span className="gba:text-[10px] gba:text-destructive gba:font-medium">Save failed</span>
+        <span className="gba:text-[10px] gba:text-destructive gba:font-medium">{t('workspace-draft-save-failed')}</span>
         <button
           onClick={() => setState('idle')}
           className="gba:text-[10px] gba:font-medium gba:text-primary gba:hover:underline"
           data-testid="fabric-draft-retry"
         >
-          Retry
+          {t('workspace-draft-retry')}
         </button>
       </div>
     )
@@ -82,7 +85,7 @@ export const DraftActionBar: React.FC<DraftActionBarProps> = ({
 
   return (
     <div className="gba:flex gba:items-center gba:justify-between gba:px-3 gba:py-2 gba:border-t gba:border-border gba:bg-muted/10">
-      <span className="gba:text-[10px] gba:text-warning gba:font-medium">Draft - Review before saving</span>
+      <span className="gba:text-[10px] gba:text-warning gba:font-medium">{t('workspace-draft-review')}</span>
       <div className="gba:flex gba:items-center gba:gap-1.5">
         <button
           onClick={handleDiscard}
@@ -96,7 +99,7 @@ export const DraftActionBar: React.FC<DraftActionBarProps> = ({
           ) : (
             <TrashIcon className="gba:h-3 gba:w-3" />
           )}
-          {entityId ? 'Delete' : 'Discard'}
+          {entityId ? t('workspace-draft-delete') : t('workspace-draft-discard')}
         </button>
         <button
           onClick={handleConfirm}
@@ -109,7 +112,7 @@ export const DraftActionBar: React.FC<DraftActionBarProps> = ({
           ) : (
             <CheckCircleIcon className="gba:h-3 gba:w-3" />
           )}
-          Save
+          {t('action-save')}
         </button>
       </div>
     </div>
@@ -131,6 +134,7 @@ export const DraftSlidesPreview: React.FC<{
   currentSlide?: number
   setCurrentSlide?: (updater: (i: number) => number) => void
 }> = ({ preview, slides, accessToken, sessionId, currentSlide: externalIndex, setCurrentSlide: externalSetter }) => {
+  const { t } = useTranslation(translations)
   const [internalIndex, setInternalIndex] = useState(0)
   const currentSlide = externalIndex ?? internalIndex
   const setCurrentSlide =
@@ -153,7 +157,7 @@ export const DraftSlidesPreview: React.FC<{
   )
 
   return (
-    <PanelCard title="Live Preview" defaultOpen>
+    <PanelCard title={t('workspace-live-preview-title')} defaultOpen>
       <div className="gba:flex gba:flex-col" data-testid="fabric-live-preview-draft-slides">
         <div ref={mainRef} className="gba:flex gba:items-center gba:justify-center gba:p-3">
           <SlideCanvasMiniPreview
@@ -167,7 +171,7 @@ export const DraftSlidesPreview: React.FC<{
             disabled={clampedIndex === 0}
             className="gba:inline-flex gba:items-center gba:justify-center gba:w-6 gba:h-6 gba:rounded-md gba:border gba:border-border gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/40 gba:disabled:opacity-30 gba:disabled:cursor-not-allowed gba:transition-colors"
             data-testid="fabric-live-preview-draft-prev"
-            aria-label="Previous slide"
+            aria-label={t('workspace-prev-slide')}
           >
             <ArrowLeftIcon className="gba:h-3 gba:w-3" />
           </button>
@@ -179,7 +183,7 @@ export const DraftSlidesPreview: React.FC<{
             disabled={clampedIndex >= slides.length - 1}
             className="gba:inline-flex gba:items-center gba:justify-center gba:w-6 gba:h-6 gba:rounded-md gba:border gba:border-border gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/40 gba:disabled:opacity-30 gba:disabled:cursor-not-allowed gba:transition-colors"
             data-testid="fabric-live-preview-draft-next"
-            aria-label="Next slide"
+            aria-label={t('workspace-next-slide')}
           >
             <ArrowRightIcon className="gba:h-3 gba:w-3" />
           </button>

@@ -68,7 +68,7 @@ describe('useSpreadsheetAppsHubUrlState', () => {
     expect(setActiveSection).toHaveBeenCalledWith('tasks')
   })
 
-  it('falls back to my-files when URL restores shared while the tab is hidden', () => {
+  it('restores the shared section from the URL', () => {
     const setActiveSection = jest.fn()
     window.history.pushState({}, '', '/platform/apps/spreadsheet-apps?section=shared')
 
@@ -81,15 +81,14 @@ describe('useSpreadsheetAppsHubUrlState', () => {
         setSelectedAppId: () => undefined,
         setCurrentView: () => undefined,
         activeSection: 'recent',
-        setActiveSection,
-        showSharedSection: false
+        setActiveSection
       })
     )
 
-    expect(setActiveSection).toHaveBeenCalledWith('my-files')
+    expect(setActiveSection).toHaveBeenCalledWith('shared')
   })
 
-  it('does not persist shared section in URL when the tab is hidden', () => {
+  it('persists the shared section in the URL', () => {
     const { result } = renderHook(() =>
       useSpreadsheetAppsHubUrlState({
         currentView: 'list',
@@ -99,8 +98,7 @@ describe('useSpreadsheetAppsHubUrlState', () => {
         setSelectedAppId: () => undefined,
         setCurrentView: () => undefined,
         activeSection: 'shared',
-        setActiveSection: () => undefined,
-        showSharedSection: false
+        setActiveSection: () => undefined
       })
     )
 
@@ -108,7 +106,7 @@ describe('useSpreadsheetAppsHubUrlState', () => {
       result.current.updateUrl(null)
     })
 
-    expect(window.location.search).toBe('')
+    expect(window.location.search).toContain('section=shared')
   })
 
   it('does not restore the previous URL section after the user switches tabs', () => {

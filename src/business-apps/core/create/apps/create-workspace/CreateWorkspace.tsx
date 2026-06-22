@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Navigation, buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import {
@@ -51,101 +51,101 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': tes
   const isDevEnabled = useFeature<boolean>(Feature.Dev.Enabled.Key)
 
   // Tool definitions
-  const tools: Array<Omit<ToolCardProps, 'data-testid'> & { id: string }> = [
-    {
-      id: 'ai-builder',
-      title: 'Screen Builder',
-      description:
-        'Design and build UI screens with Screen Builder. Create forms, dashboards, lists, and custom layouts.',
-      icon: Monitor,
-      href: buildPlatformUrl('/platform/create/screen-builder'),
-      badge: 'AI-Powered',
-      badgeVariant: 'info',
-      accentColor: 'ai'
-    },
-    {
-      id: 'ai-builder-metrics',
-      title: 'AI Builder Metrics',
-      description: 'Track LLM token usage, model distribution, and session-level consumption for AI Builder.',
-      icon: BarChart3,
-      href: buildPlatformUrl('/platform/create/ai-builder-metrics'),
-      badge: 'Ops',
-      badgeVariant: 'warning',
-      accentColor: 'info'
-    },
-    {
-      id: 'ai-builder-admin',
-      title: 'AI Builder Admin',
-      description: 'Visualize AI Builder orchestration states and inspect jobs by lifecycle state.',
-      icon: GitBranch,
-      href: buildPlatformUrl('/platform/create/ai-builder-admin'),
-      badge: 'Admin',
-      badgeVariant: 'warning',
-      accentColor: 'warning'
-    },
-    {
-      id: 'flow',
-      title: 'Flow',
-      description:
-        'Design automated workflows and business processes. Connect steps, define logic, and orchestrate tasks.',
-      icon: Workflow,
-      href: `${buildPlatformUrl(Navigation.CREATE_FLOW_CREATOR)}#create`,
-      badge: 'Popular',
-      badgeVariant: 'success',
-      accentColor: 'success'
-    },
-    {
-      id: 'task-experts',
-      title: t('card-enterprise-agents-title'),
-      description: t('card-enterprise-agents-description'),
-      icon: Bot,
-      href: buildPlatformUrl('/platform/create/prompt-manager'),
-      badge: 'AI-Powered',
-      badgeVariant: 'info',
-      accentColor: 'ai'
-    },
-    {
-      id: 'connect',
-      title: 'NEWWORK CONNECT',
-      description:
-        'Manage AnyPoint, DataBridge, and MCP connections in one product surface and reuse them across experts, tools, functions, and imports.',
-      icon: Cable,
-      href: buildPlatformUrl('/platform/create/connect'),
-      badge: 'Unified',
-      badgeVariant: 'info',
-      accentColor: 'primary'
-    },
-    {
-      id: 'functions',
-      title: 'Functions',
-      description: 'Build serverless functions and custom logic. Extend platform capabilities with your own code.',
-      icon: Code2,
-      href: buildPlatformUrl('/platform/create/function-manager'),
-      badge: 'New',
-      badgeVariant: 'success',
-      accentColor: 'warning'
-    },
-    {
-      id: 'data-models',
-      title: 'Data Models',
-      description: 'Define and manage data structures. Create entities, relationships, and validation rules.',
-      icon: Database,
-      href: buildPlatformUrl(Navigation.CREATE_CUSTOM_DATA_MANAGER),
-      isComingSoon: true,
-      badge: 'Coming Soon',
-      accentColor: 'info'
-    },
-    {
-      id: 'templates',
-      title: 'Templates',
-      description: 'Start from pre-built templates. Accelerate development with proven patterns and best practices.',
-      icon: LayoutTemplate,
-      href: buildPlatformUrl('/platform/create/templates'),
-      isComingSoon: true,
-      badge: 'Coming Soon',
-      accentColor: 'primary'
-    }
-  ]
+  const tools: Array<Omit<ToolCardProps, 'data-testid'> & { id: string }> = useMemo(
+    () => [
+      {
+        id: 'ai-builder',
+        title: t('tool-screen-builder-title'),
+        description: t('tool-screen-builder-description'),
+        icon: Monitor,
+        href: buildPlatformUrl('/platform/create/screen-builder'),
+        badge: t('tool-badge-ai-powered'),
+        badgeVariant: 'info',
+        accentColor: 'ai'
+      },
+      {
+        id: 'ai-builder-metrics',
+        title: t('tool-ai-builder-metrics-title'),
+        description: t('tool-ai-builder-metrics-description'),
+        icon: BarChart3,
+        href: buildPlatformUrl('/platform/create/ai-builder-metrics'),
+        badge: t('tool-badge-ops'),
+        badgeVariant: 'warning',
+        accentColor: 'info'
+      },
+      {
+        id: 'ai-builder-admin',
+        title: t('tool-ai-builder-admin-title'),
+        description: t('tool-ai-builder-admin-description'),
+        icon: GitBranch,
+        href: buildPlatformUrl('/platform/create/ai-builder-admin'),
+        badge: t('tool-badge-admin'),
+        badgeVariant: 'warning',
+        accentColor: 'warning'
+      },
+      {
+        id: 'flow',
+        title: t('tool-flow-title'),
+        description: t('tool-flow-description'),
+        icon: Workflow,
+        href: `${buildPlatformUrl(Navigation.CREATE_FLOW_CREATOR)}#create`,
+        badge: t('tool-badge-popular'),
+        badgeVariant: 'success',
+        accentColor: 'success'
+      },
+      {
+        id: 'task-experts',
+        title: t('card-enterprise-agents-title'),
+        description: t('card-enterprise-agents-description'),
+        icon: Bot,
+        href: buildPlatformUrl('/platform/create/prompt-manager'),
+        badge: t('tool-badge-ai-powered'),
+        badgeVariant: 'info',
+        accentColor: 'ai'
+      },
+      {
+        id: 'connect',
+        title: t('tool-connect-title'),
+        description: t('tool-connect-description'),
+        icon: Cable,
+        href: buildPlatformUrl('/platform/create/connect'),
+        badge: t('tool-badge-unified'),
+        badgeVariant: 'info',
+        accentColor: 'primary'
+      },
+      {
+        id: 'functions',
+        title: t('tool-functions-title'),
+        description: t('tool-functions-description'),
+        icon: Code2,
+        href: buildPlatformUrl('/platform/create/function-manager'),
+        badge: t('tool-badge-new'),
+        badgeVariant: 'success',
+        accentColor: 'warning'
+      },
+      {
+        id: 'data-models',
+        title: t('tool-data-models-title'),
+        description: t('tool-data-models-description'),
+        icon: Database,
+        href: buildPlatformUrl(Navigation.CREATE_CUSTOM_DATA_MANAGER),
+        isComingSoon: true,
+        badge: t('tool-badge-coming-soon'),
+        accentColor: 'info'
+      },
+      {
+        id: 'templates',
+        title: t('tool-templates-title'),
+        description: t('tool-templates-description'),
+        icon: LayoutTemplate,
+        href: buildPlatformUrl('/platform/create/templates'),
+        isComingSoon: true,
+        badge: t('tool-badge-coming-soon'),
+        accentColor: 'primary'
+      }
+    ],
+    [t]
+  )
 
   // Handle AI quick start submission - open AI Orchestrator app with prompt
   const handleAIQuickStart = useCallback((prompt: string) => {
@@ -180,7 +180,7 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': tes
         {/* Disabled when dev.enabled feature flag is false */}
         <div
           className={cn(!isDevEnabled && 'gba:opacity-50 gba:pointer-events-none gba:select-none')}
-          title={!isDevEnabled ? 'AI features are not enabled in this environment' : undefined}
+          title={!isDevEnabled ? t('feature-disabled-title') : undefined}
         >
           <AIQuickStart onSubmit={handleAIQuickStart} data-testid={`${testId}-ai-quickstart`} />
 
@@ -194,7 +194,7 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': tes
               data-testid={`${testId}-orchestrator-button`}
             >
               <Sparkles className="gba:w-4 gba:h-4" />
-              Open AI Orchestrator
+              {t('orchestrator-button')}
             </Button>
           </div>
         </div>
@@ -208,11 +208,9 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': tes
             {/* Section header */}
             <div className="gba:text-center gba:mb-6">
               <h2 className="gba:text-2xl gba:sm:text-3xl gba:font-bold gba:text-foreground gba:mb-2">
-                Or choose a specific tool
+                {t('tools-section-title')}
               </h2>
-              <p className="gba:text-muted-foreground gba:max-w-xl gba:mx-auto">
-                Build individual components directly with our specialized creation tools
-              </p>
+              <p className="gba:text-muted-foreground gba:max-w-xl gba:mx-auto">{t('tools-section-description')}</p>
             </div>
 
             {/* Tool cards grid */}
@@ -237,10 +235,7 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': tes
         <section className="gba:py-6 gba:px-6 gba:border-t gba:border-border gba:relative">
           <div className="gba:absolute gba:inset-0 gba:bg-background" />
           <div className="gba:relative gba:max-w-4xl gba:mx-auto gba:text-center">
-            <p className="gba:text-muted-foreground">
-              Part of the <span className="gba:font-semibold gba:text-foreground">NEWWORK</span> platform. Build faster,
-              ship smarter.
-            </p>
+            <p className="gba:text-muted-foreground">{t('footer-tagline')}</p>
           </div>
         </section>
       </div>

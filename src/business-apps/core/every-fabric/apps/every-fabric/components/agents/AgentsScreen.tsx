@@ -1,6 +1,13 @@
 // Agents screen — browsable catalog of available AI agents.
 
-import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@newwork/nw-design-system'
+import {
+  Button,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+  useTranslation
+} from '@newwork/nw-design-system'
 import {
   ArrowLeftIcon,
   CaretDownIcon,
@@ -31,6 +38,7 @@ import {
 } from '../enterprise-workforce/HireWorkforceAgentModal'
 import { AgentMarketplaceModal } from '../enterprise-workforce/marketplace/AgentMarketplaceModal'
 import type { MarketplaceAgentTemplate } from '../enterprise-workforce/marketplace/marketplaceAgents'
+import translations from '../../_i18n'
 
 // Hire flow steps: closed → chooser → (marketplace) → create. The marketplace
 // path stores the chosen template so the create dialog opens prefilled.
@@ -288,6 +296,7 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({
   agentId: agentIdProp,
   onAgentChange
 }) => {
+  const { t } = useTranslation(translations)
   const client = usePromptManagerClient(accessToken)
   const [agents, setAgents] = useState<FabricAgent[]>([])
   const [builtins, setBuiltins] = useState<BuiltinSubagent[]>([])
@@ -870,7 +879,7 @@ export const AgentsScreen: FC<AgentsScreenProps> = ({
               onToggle={() => setBuiltinsExpanded(prev => !prev)}
               title="Built-in Sub-agents"
               count={builtins.length}
-              description="Task-matched specialists that the Enterprise Agent activates automatically based on your request. They cannot be configured or run directly."
+              description={t('agents-specialist-description')}
             >
               {builtins.map(b => {
                 const sd = getSourceDisplay(b.source)

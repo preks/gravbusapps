@@ -8,11 +8,13 @@
 // idle state when there is genuinely no activity.
 
 import { LightningIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import React from 'react'
 import type { WorkforceActiveOverview } from '../workforceTypes'
 import type { WorkforceFeedItem } from '../workforceFeedModel'
 import { CommandCenterFeed } from './CommandCenterFeed'
 import { CommandCenterRibbon } from './CommandCenterRibbon'
+import translations from '../../../_i18n'
 
 export interface LiveCommandCenterProps {
   feed: readonly WorkforceFeedItem[]
@@ -36,6 +38,7 @@ export const LiveCommandCenter: React.FC<LiveCommandCenterProps> = ({
   onOpenRun,
   variant = 'card'
 }) => {
+  const { t } = useTranslation(translations)
   const counts = overview?.status_counts ?? { running: 0, pending: 0, waiting_for_human: 0 }
   const shellClassName =
     variant === 'sidebar'
@@ -46,7 +49,7 @@ export const LiveCommandCenter: React.FC<LiveCommandCenterProps> = ({
     <section className={shellClassName} data-testid="workforce-command-center">
       <header className="gba:flex gba:items-center gba:gap-2">
         <LightningIcon className="gba:h-4 gba:w-4 gba:text-primary" weight="fill" />
-        <h2 className="gba:text-sm gba:font-semibold gba:text-foreground">Command center</h2>
+        <h2 className="gba:text-sm gba:font-semibold gba:text-foreground">{t('command-center-title')}</h2>
       </header>
 
       <CommandCenterRibbon

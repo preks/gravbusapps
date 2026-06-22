@@ -28,7 +28,7 @@ describe('SidebarSearchBar', () => {
       />
     )
 
-    expect(screen.getByText('2 matching sessions')).toBeInTheDocument()
+    expect(screen.getByText('sidebar-matching-sessions-many')).toBeInTheDocument()
     fireEvent.click(screen.getByTestId('sidebar-search-clear'))
     expect(onChange).toHaveBeenCalledWith('')
   })

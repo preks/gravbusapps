@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { FC } from 'react'
 import { buildAgentActivityTimelineSteps } from '../../hooks/agent-session/agentActivityTimeline'
 import type { ActivityTimelineStep } from '../../hooks/agent-session/agentActivityTimeline'
+import translations from '../../_i18n'
 
 export interface AgentActivityTimelineProps {
   activityLines?: readonly string[] | null
@@ -71,6 +73,7 @@ export const AgentActivityTimeline: FC<AgentActivityTimelineProps> = ({
   variant = 'default',
   steps: stepsOverride
 }) => {
+  const { t } = useTranslation(translations)
   const builtSteps = useMemo(
     () => stepsOverride ?? buildAgentActivityTimelineSteps(activityLines ?? [], currentStatus ?? null, isStreaming),
     [stepsOverride, activityLines, currentStatus, isStreaming]
@@ -115,7 +118,7 @@ export const AgentActivityTimeline: FC<AgentActivityTimelineProps> = ({
       className={`gba:relative gba:overflow-hidden ${containerSpacing}`}
       role="status"
       aria-live="polite"
-      aria-label="Agent progress"
+      aria-label={t('chat-activity-aria')}
       style={{
         opacity: isLeaving ? 0 : 1,
         transform: isLeaving ? 'translateY(-4px)' : 'translateY(0)',

@@ -884,6 +884,7 @@ details-relationships = Beziehungen
 details-relationships-no-entries = Keine Beziehungen registriert
 details-relationships-emergency = Notfallkontakt
 details-label-relationship-type = Typ
+details-label-relationship-birth-date = Geburtsdatum
 details-label-relationship-email = E-Mail
 delete-relationship-confirm-title = Beziehung löschen
 delete-relationship-confirm-description = Möchten Sie diese Beziehung wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.

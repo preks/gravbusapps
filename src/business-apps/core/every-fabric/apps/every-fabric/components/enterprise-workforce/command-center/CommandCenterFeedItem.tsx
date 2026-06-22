@@ -5,11 +5,13 @@
 // trigger source icon answers "what caused it". Clicking opens that run.
 
 import { ClockIcon, CoinsIcon, PulseIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import React from 'react'
 import { statusVisualForRun } from '../runDisplay'
 import { sourceVisual } from '../workforceSourceDisplay'
 import type { WorkforceFeedItem } from '../workforceFeedModel'
 import { caseRefLabel, elapsedSince, formatDurationMs } from './commandCenterFormat'
+import translations from '../../../_i18n'
 
 export interface CommandCenterFeedItemProps {
   item: WorkforceFeedItem
@@ -22,7 +24,9 @@ function agentLabel(item: WorkforceFeedItem, nameById: Record<string, string>): 
 }
 
 export const CommandCenterFeedItem: React.FC<CommandCenterFeedItemProps> = ({ item, nameById, onOpenRun }) => {
+  const { t } = useTranslation(translations)
   const source = sourceVisual(item.source)
+  const sourceLabel = t(source.labelKey)
   const SourceIcon = source.icon
   const isActive = item.kind === 'active'
   const statusVisual = statusVisualForRun({
@@ -71,14 +75,14 @@ export const CommandCenterFeedItem: React.FC<CommandCenterFeedItemProps> = ({ it
           <SourceIcon className="gba:h-3 gba:w-3 gba:shrink-0" weight="bold" />
         )}
         <span className="gba:truncate">
-          {isActive ? item.currentActivity || 'Working…' : caseLabel || source.label}
+          {isActive ? item.currentActivity || t('action-working') : caseLabel || sourceLabel}
         </span>
       </p>
 
       <div className="gba:flex gba:items-center gba:gap-2 gba:text-[10px] gba:text-muted-foreground">
         <span className="gba:inline-flex gba:items-center gba:gap-1">
           <SourceIcon className="gba:h-3 gba:w-3" />
-          {source.label}
+          {sourceLabel}
         </span>
         {item.trigger?.name && <span className="gba:truncate">· {item.trigger.name}</span>}
         {!isActive && item.credits !== null && (

@@ -1,3 +1,4 @@
+import { useTranslation } from '@newwork/nw-design-system'
 import { useCallback, useEffect, useState } from 'react'
 import type { SessionConfig, SpecialistAgent } from '../../types/enterpriseAgent'
 import { useFabricConnectors } from '../../hooks/useFabricConnectors'
@@ -5,6 +6,7 @@ import { useFabricAgents } from '../../hooks/useFabricAgents'
 import { useFabric } from '../../context/FabricContext'
 import { resolveUserFirstName } from '../../utils/userUtils'
 import { SETTINGS_KEY } from '../settings/agentSettings.types'
+import translations from '../../_i18n'
 import { FabricInput } from './FabricInput'
 
 interface LandingScreenProps {
@@ -45,6 +47,7 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
   onStartSession,
   devModeEnabled = false
 }) => {
+  const { t } = useTranslation(translations)
   const {
     userInfo,
     sessionAttachments,
@@ -104,11 +107,11 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
             <div className="gba:flex-[0.84] gba:flex gba:flex-col gba:items-center gba:justify-end gba:pb-6">
               <div className="gba:mt-10 gba:text-center gba:space-y-2">
                 <h1 className="gba:text-[3rem] sm:gba:text-[3.5rem] gba:font-semibold gba:tracking-[-0.04em] gba:text-foreground gba:leading-[0.98]">
-                  {userFirstName ? `Hi ${userFirstName}, what` : 'What'} would you like to do?
+                  {userFirstName
+                    ? `${t('landing-greeting-with-name', { name: userFirstName })} ${t('landing-heading-suffix')}`
+                    : `${t('landing-greeting')} ${t('landing-heading-suffix')}`}
                 </h1>
-                <p className="gba:text-base gba:text-muted-foreground/78">
-                  Assign a task, ask anything, or continue a workflow.
-                </p>
+                <p className="gba:text-base gba:text-muted-foreground/78">{t('landing-subtitle')}</p>
               </div>
             </div>
 

@@ -1,6 +1,8 @@
 import type { FC } from 'react'
 import { CheckCircleIcon, ShareNetworkIcon, SpinnerGapIcon, XCircleIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { FabricSubAgent, FabricTaskNode, FabricTaskStatus } from '../../types/fabric'
+import translations from '../../_i18n'
 
 export const STEP_STATUS_CLASSES: Record<FabricTaskStatus, string> = {
   done: 'gba:bg-transparent gba:text-green-600 dark:gba:text-green-400',
@@ -10,16 +12,16 @@ export const STEP_STATUS_CLASSES: Record<FabricTaskStatus, string> = {
   pending: 'gba:bg-muted gba:text-muted-foreground/60'
 }
 
-export const progressStatusCaption = (status: FabricTaskStatus): string | null => {
+export const progressStatusCaption = (status: FabricTaskStatus, t: (key: string) => string): string | null => {
   switch (status) {
     case 'active':
-      return 'In progress'
+      return t('sidebar-status-running')
     case 'pending':
-      return 'Pending'
+      return t('sidebar-status-pending')
     case 'failed':
-      return 'Failed'
+      return t('sidebar-status-failed')
     case 'skipped':
-      return 'Skipped'
+      return t('workspace-status-skipped')
     default:
       return null
   }
@@ -73,11 +75,12 @@ export const FabricProgressTaskRow: FC<FabricProgressTaskRowProps> = ({
   compact,
   testIdPrefix = 'fabric-task'
 }) => {
+  const { t } = useTranslation(translations)
   const isActive = node.status === 'active'
   const isDone = node.status === 'done'
   const stepNumber = index + 1
-  const caption = progressStatusCaption(node.status)
-  const statusWord = isDone ? 'Done' : (caption ?? '')
+  const caption = progressStatusCaption(node.status, t)
+  const statusWord = isDone ? t('trace-explorer-status-done') : (caption ?? '')
   const labelClass = progressLabelClass(node.status)
   const py = compact ? 'gba:py-1.5' : 'gba:py-2'
   const px = compact ? 'gba:px-3' : 'gba:px-4'
@@ -88,7 +91,7 @@ export const FabricProgressTaskRow: FC<FabricProgressTaskRowProps> = ({
         isActive ? 'gba:bg-primary/5' : ''
       }`}
       data-testid={`${testIdPrefix}-${node.id}`}
-      aria-label={`Step ${stepNumber}: ${node.label}. ${statusWord}`}
+      aria-label={t('workspace-step-aria', { number: stepNumber, label: node.label, status: statusWord })}
     >
       <div
         className={`gba:shrink-0 gba:flex gba:items-center gba:justify-center gba:h-6 gba:min-w-6 gba:rounded-full gba:text-[10px] gba:font-semibold gba:mt-0.5 gba:transition-all gba:px-0.5 ${

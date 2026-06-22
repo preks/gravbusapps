@@ -3,8 +3,10 @@
 // panel so the workforce flow views read the same. Color follows the flow
 // status variant (green = done, red = failed, primary = running).
 
+import { useTranslation } from '@newwork/nw-design-system'
 import React from 'react'
 
+import translations from '../../../_i18n'
 import type { ActionCardStatusVariant } from '../../../utils/actionCardTrace'
 
 export interface FlowProgressBarProps {
@@ -39,6 +41,8 @@ export const FlowProgressBar: React.FC<FlowProgressBarProps> = ({
   variant,
   isComplete = false
 }) => {
+  const { t } = useTranslation(translations)
+
   if (!totalSteps || totalSteps <= 0) return null
   const pct = isComplete ? 100 : resolvePercentage(completedSteps, totalSteps, percentage)
   const clamped = Math.min(Math.max(pct, 0), 100)
@@ -47,7 +51,7 @@ export const FlowProgressBar: React.FC<FlowProgressBarProps> = ({
     <div className="gba:space-y-1" data-testid="flow-progress-bar">
       <div className="gba:flex gba:items-center gba:justify-between gba:text-[11px]">
         <span className="gba:text-muted-foreground">
-          {displayedCompleted}/{totalSteps} steps
+          {t('flow-progress-steps', { completed: displayedCompleted, total: totalSteps })}
         </span>
         <span className="gba:font-medium gba:text-foreground">{Math.round(pct)}%</span>
       </div>

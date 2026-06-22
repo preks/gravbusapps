@@ -45,7 +45,7 @@ describe('WorkforceFlowMapStepDetail', () => {
     render(
       <WorkforceFlowMapStepDetail nodeId="end" steps={steps} workflowId="wf" accessToken="t" onClose={jest.fn()} />
     )
-    expect(screen.getByTestId('flow-map-step-detail-empty')).toBeInTheDocument()
+    expect(screen.getByTestId('flow-map-step-detail-empty')).toHaveTextContent('flow-map-step-detail-empty')
     expect(mockUseFlowStepResult).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }))
   })
 

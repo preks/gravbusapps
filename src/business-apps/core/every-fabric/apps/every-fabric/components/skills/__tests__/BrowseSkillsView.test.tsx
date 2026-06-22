@@ -2,6 +2,24 @@ import React from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { BrowseSkillsView } from '../BrowseSkillsView'
 
+jest.mock('@newwork/nw-design-system', () => {
+  const actual = jest.requireActual('@newwork/nw-design-system')
+  return {
+    ...actual,
+    useTranslation: () => ({
+      t: (key: string, vars?: Record<string, unknown>) => {
+        if (key === 'skills-browse-pub-version' && vars?.version != null) {
+          return `pub v${vars.version}`
+        }
+        if (key === 'skills-browse-draft-version' && vars?.version != null) {
+          return `draft v${vars.version}`
+        }
+        return key
+      }
+    })
+  }
+})
+
 const mockGetSkillsManifest = jest.fn()
 const mockArchiveSkill = jest.fn()
 const mockListSkillFiles = jest.fn()
@@ -48,8 +66,19 @@ describe('BrowseSkillsView', () => {
 
     render(<BrowseSkillsView accessToken="token" />)
     await waitFor(() => expect(screen.getByTestId('browse-skills-version-skl_a')).toBeInTheDocument())
-    expect(screen.getByTestId('browse-skills-version-skl_a')).toHaveTextContent('pub v2')
-    expect(screen.getByTestId('browse-skills-version-skl_a')).toHaveTextContent('draft v3')
+    const versionBadge = screen.getByTestId('browse-skills-version-skl_a')
+    expect(versionBadge).toHaveTextContent('pub v2')
+    expect(versionBadge).toHaveTextContent('draft v3')
+  })
+
+  it('renders browse action labels as FTL keys', async () => {
+    mockGetSkillsManifest.mockResolvedValue({ skills: [] })
+
+    render(<BrowseSkillsView accessToken="token" />)
+    await waitFor(() => expect(screen.getByTestId('upload-skill-button')).toBeInTheDocument())
+
+    expect(screen.getByTestId('upload-skill-button')).toHaveTextContent('skills-browse-upload')
+    expect(screen.getByTestId('create-skill-button')).toHaveTextContent('skills-browse-create')
   })
 
   it('fetches the manifest on mount and renders every saved skill', async () => {

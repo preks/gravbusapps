@@ -1,5 +1,7 @@
+import { useTranslation } from '@newwork/nw-design-system'
 import { HeadCircuitIcon, XIcon } from '@phosphor-icons/react'
 import type { SpecialistAgent } from '../../types/enterpriseAgent'
+import translations from '../../_i18n'
 
 export interface SelectedAgentChipProps {
   agent: SpecialistAgent
@@ -17,6 +19,7 @@ export interface SelectedAgentChipProps {
  * assignment is fixed for that session's lifetime).
  */
 export const SelectedAgentChip: React.FC<SelectedAgentChipProps> = ({ agent, onClear, size = 'landing' }) => {
+  const { t } = useTranslation(translations)
   const padding = size === 'workspace' ? 'gba:px-2 gba:py-0.5' : 'gba:px-2 gba:py-1'
   const base = `gba:inline-flex gba:max-w-full gba:shrink-0 gba:items-center gba:gap-1.5 gba:rounded-full gba:border gba:border-sky-500/15 gba:bg-sky-50/60 ${padding} gba:text-sky-800 gba:shadow-[0_1px_4px_rgba(14,165,233,0.08)] dark:gba:border-sky-400/15 dark:gba:bg-sky-950/25 dark:gba:text-sky-200`
 
@@ -26,7 +29,7 @@ export const SelectedAgentChip: React.FC<SelectedAgentChipProps> = ({ agent, onC
         <HeadCircuitIcon className="gba:h-3 gba:w-3" weight="regular" />
       </span>
       <span className="gba:min-w-0 gba:truncate gba:text-[11px] gba:font-semibold gba:leading-none">
-        <span className="gba:text-muted-foreground/80">Agent</span>
+        <span className="gba:text-muted-foreground/80">{t('landing-agent-chip-label')}</span>
         <span className="gba:mx-1 gba:text-sky-500/70">/</span>
         <span>{agent.display_name}</span>
       </span>
@@ -44,7 +47,7 @@ export const SelectedAgentChip: React.FC<SelectedAgentChipProps> = ({ agent, onC
         type="button"
         onClick={onClear}
         className={`${base} gba:transition-colors gba:hover:bg-sky-100/70 dark:gba:hover:bg-sky-900/40`}
-        title={`Working with ${agent.display_name}`}
+        title={t('landing-agent-chip-title', { name: agent.display_name })}
         data-testid="composer-selected-agent"
       >
         {inner}
@@ -55,7 +58,7 @@ export const SelectedAgentChip: React.FC<SelectedAgentChipProps> = ({ agent, onC
   return (
     <span
       className={`${base} gba:select-none`}
-      title={`Working with ${agent.display_name}`}
+      title={t('landing-agent-chip-title', { name: agent.display_name })}
       data-testid="composer-selected-agent"
     >
       {inner}

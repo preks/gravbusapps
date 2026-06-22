@@ -11,6 +11,7 @@
 
 import { ArrowSquareOutIcon, CoinsIcon, SpinnerGapIcon } from '@phosphor-icons/react'
 import React, { useEffect, useRef } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { useWorkforceAgentSummary } from '../../useWorkforceAgentSummary'
 import { hasInFlightRun } from '../../useWorkforceRuns'
 import { CreditTrendChart } from '../../dashboards/CreditTrendChart'
@@ -18,6 +19,7 @@ import { RunOutcomeChart } from '../../dashboards/RunOutcomeChart'
 import { SourceBreakdownChart } from '../../dashboards/SourceBreakdownChart'
 import { RecentRunsPanel } from '../../RecentRunsPanel'
 import { emptyMetricsTotals, type WorkforceMetricsTotals, type WorkforceRun } from '../../workforceTypes'
+import translations from '../../../../_i18n'
 
 export interface AgentOverviewRecentRuns {
   runs: WorkforceRun[]
@@ -70,30 +72,33 @@ const KpiStrip: React.FC<KpiStripProps> = ({
   monthCredits,
   monthRuns,
   isLoading
-}) => (
-  <section className="gba:grid gba:grid-cols-1 gba:gap-3 gba:sm:grid-cols-3" data-testid="workforce-overview-kpis">
-    {[
-      { label: 'Today', credits: todayCredits, runs: todayRuns, testId: 'today' },
-      { label: 'This week', credits: weekCredits, runs: weekRuns, testId: 'week' },
-      { label: 'This month', credits: monthCredits, runs: monthRuns, testId: 'month' }
-    ].map(card => (
-      <div key={card.testId} className={KPI_CARD_CLASS} data-testid={`workforce-overview-kpi-${card.testId}`}>
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <span className="gba:text-xs gba:font-medium gba:text-muted-foreground">{card.label}</span>
-          {isLoading && <SpinnerGapIcon className="gba:h-3 gba:w-3 gba:animate-spin gba:text-muted-foreground" />}
+}) => {
+  const { t } = useTranslation(translations)
+  const cards = [
+    { labelKey: 'overview-kpi-today', credits: todayCredits, runs: todayRuns, testId: 'today' },
+    { labelKey: 'overview-kpi-week', credits: weekCredits, runs: weekRuns, testId: 'week' },
+    { labelKey: 'overview-kpi-month', credits: monthCredits, runs: monthRuns, testId: 'month' }
+  ] as const
+
+  return (
+    <section className="gba:grid gba:grid-cols-1 gba:gap-3 gba:sm:grid-cols-3" data-testid="workforce-overview-kpis">
+      {cards.map(card => (
+        <div key={card.testId} className={KPI_CARD_CLASS} data-testid={`workforce-overview-kpi-${card.testId}`}>
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <span className="gba:text-xs gba:font-medium gba:text-muted-foreground">{t(card.labelKey)}</span>
+            {isLoading && <SpinnerGapIcon className="gba:h-3 gba:w-3 gba:animate-spin gba:text-muted-foreground" />}
+          </div>
+          <div className="gba:flex gba:items-baseline gba:gap-1.5">
+            <CoinsIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+            <span className="gba:text-xl gba:font-semibold gba:text-foreground">{formatNumber(card.credits)}</span>
+            <span className="gba:text-[11px] gba:text-muted-foreground">{t('overview-kpi-credits')}</span>
+          </div>
+          <p className="gba:text-[11px] gba:text-muted-foreground">{t('overview-kpi-runs', { count: card.runs })}</p>
         </div>
-        <div className="gba:flex gba:items-baseline gba:gap-1.5">
-          <CoinsIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-          <span className="gba:text-xl gba:font-semibold gba:text-foreground">{formatNumber(card.credits)}</span>
-          <span className="gba:text-[11px] gba:text-muted-foreground">credits</span>
-        </div>
-        <p className="gba:text-[11px] gba:text-muted-foreground">
-          {formatNumber(card.runs)} {card.runs === 1 ? 'run' : 'runs'}
-        </p>
-      </div>
-    ))}
-  </section>
-)
+      ))}
+    </section>
+  )
+}
 
 export const AgentOverviewTab: React.FC<AgentOverviewTabProps> = ({
   accessToken,
@@ -103,6 +108,7 @@ export const AgentOverviewTab: React.FC<AgentOverviewTabProps> = ({
   onTestRun,
   onViewAllRuns
 }) => {
+  const { t } = useTranslation(translations)
   const {
     summary,
     isLoading: summaryLoading,
@@ -164,14 +170,14 @@ export const AgentOverviewTab: React.FC<AgentOverviewTabProps> = ({
       </div>
 
       <div className="gba:flex gba:items-center gba:justify-between">
-        <h2 className="gba:text-sm gba:font-semibold gba:text-foreground">Recent runs</h2>
+        <h2 className="gba:text-sm gba:font-semibold gba:text-foreground">{t('recent-runs-title')}</h2>
         <button
           type="button"
           onClick={onViewAllRuns}
           className="gba:inline-flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground gba:hover:text-foreground"
           data-testid="workforce-overview-view-all-runs"
         >
-          View all runs
+          {t('overview-view-all-runs')}
           <ArrowSquareOutIcon className="gba:h-3 gba:w-3" />
         </button>
       </div>

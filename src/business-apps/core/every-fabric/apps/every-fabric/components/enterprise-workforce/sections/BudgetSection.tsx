@@ -2,8 +2,10 @@
 
 import React, { useEffect, useState } from 'react'
 import { CoinsIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { WorkforceAgent, WorkforceAgentUpdateInput, WorkforceBudget } from '../workforceTypes'
 import { SectionShell } from './SectionShell'
+import translations from '../../../_i18n'
 
 interface BudgetSectionProps {
   agent: WorkforceAgent
@@ -38,13 +40,14 @@ function parseLimit(raw: string): number | null {
   return Math.floor(parsed)
 }
 
-const OPTIONS: { value: OnExceeded; label: string; hint: string }[] = [
-  { value: 'pause', label: 'Pause', hint: 'Block new runs once the budget is exhausted.' },
-  { value: 'escalate', label: 'Escalate', hint: 'Route the next run to the human owner instead.' },
-  { value: 'warn', label: 'Warn only', hint: 'Log a warning but keep running.' }
+const OPTIONS: { value: OnExceeded; labelKey: string; hintKey: string }[] = [
+  { value: 'pause', labelKey: 'budget-opt-pause-label', hintKey: 'budget-opt-pause-hint' },
+  { value: 'escalate', labelKey: 'budget-opt-escalate-label', hintKey: 'budget-opt-escalate-hint' },
+  { value: 'warn', labelKey: 'budget-opt-warn-label', hintKey: 'budget-opt-warn-hint' }
 ]
 
 export const BudgetSection: React.FC<BudgetSectionProps> = ({ agent, isSaving, onSave }) => {
+  const { t } = useTranslation(translations)
   const baseline = fromAgent(agent)
   const [form, setForm] = useState<FormState>(baseline)
 
@@ -71,9 +74,9 @@ export const BudgetSection: React.FC<BudgetSectionProps> = ({ agent, isSaving, o
   return (
     <SectionShell
       id="budget"
-      title="Budget"
+      title={t('budget-title')}
       icon={CoinsIcon}
-      description="Soft credit limits enforced at run time. 1 credit = 1,000 total tokens."
+      description={t('budget-description')}
       isDirty={dirty}
       isSaving={isSaving}
       onSave={() => void handleSave()}
@@ -81,12 +84,13 @@ export const BudgetSection: React.FC<BudgetSectionProps> = ({ agent, isSaving, o
     >
       <div className="gba:grid gba:grid-cols-1 gba:gap-3 gba:sm:grid-cols-3">
         {(['dailyCreditLimit', 'weeklyCreditLimit', 'monthlyCreditLimit'] as const).map(field => {
-          const label =
+          const labelKey =
             field === 'dailyCreditLimit'
-              ? 'Daily credits'
+              ? 'budget-daily'
               : field === 'weeklyCreditLimit'
-                ? 'Weekly credits'
-                : 'Monthly credits'
+                ? 'budget-weekly'
+                : 'budget-monthly'
+          const label = t(labelKey)
           const dt = field.replace('CreditLimit', '')
           return (
             <div key={field}>
@@ -102,7 +106,7 @@ export const BudgetSection: React.FC<BudgetSectionProps> = ({ agent, isSaving, o
                 min={0}
                 value={form[field]}
                 onChange={e => setForm(prev => ({ ...prev, [field]: e.target.value }))}
-                placeholder="No limit"
+                placeholder={t('budget-no-limit')}
                 className="gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring"
                 data-testid={`workforce-budget-${dt}`}
               />
@@ -111,8 +115,10 @@ export const BudgetSection: React.FC<BudgetSectionProps> = ({ agent, isSaving, o
         })}
       </div>
 
-      <fieldset className="gba:mt-4 gba:space-y-2" role="radiogroup" aria-label="Behaviour when budget exceeded">
-        <legend className="gba:mb-1 gba:text-xs gba:font-semibold gba:text-foreground">When exceeded</legend>
+      <fieldset className="gba:mt-4 gba:space-y-2" role="radiogroup" aria-label={t('budget-aria-exceeded')}>
+        <legend className="gba:mb-1 gba:text-xs gba:font-semibold gba:text-foreground">
+          {t('budget-when-exceeded')}
+        </legend>
         {OPTIONS.map(opt => {
           const checked = form.onExceeded === opt.value
           return (
@@ -132,8 +138,8 @@ export const BudgetSection: React.FC<BudgetSectionProps> = ({ agent, isSaving, o
                 className="gba:mt-0.5 gba:h-3.5 gba:w-3.5"
               />
               <div>
-                <p className="gba:text-xs gba:font-medium gba:text-foreground">{opt.label}</p>
-                <p className="gba:mt-0.5 gba:text-[11px] gba:text-muted-foreground">{opt.hint}</p>
+                <p className="gba:text-xs gba:font-medium gba:text-foreground">{t(opt.labelKey)}</p>
+                <p className="gba:mt-0.5 gba:text-[11px] gba:text-muted-foreground">{t(opt.hintKey)}</p>
               </div>
             </label>
           )

@@ -1,7 +1,7 @@
-import React from 'react'
+import React, { useCallback } from 'react'
 import { CaretRightIcon } from '@phosphor-icons/react'
 import type { MeshNavSnapshot } from '../../utils/meshNavigationStack'
-import type { MeshScope } from './meshScopes'
+import { useAgentMeshI18n } from './useAgentMeshI18n'
 
 interface MeshBreadcrumbsProps {
   breadcrumbs: MeshNavSnapshot[]
@@ -13,29 +13,7 @@ interface MeshBreadcrumbsProps {
   variant?: 'header' | 'floating'
 }
 
-const SCOPE_LABEL: Record<MeshScope, string> = {
-  company: 'Company',
-  user: 'User',
-  me: 'My Sessions',
-  session: 'Session'
-}
-
 const MAX_VISIBLE = 4
-
-function labelFor(
-  snap: MeshNavSnapshot,
-  userNameMap?: Map<string, string>,
-  sessionTitleMap?: Map<string, string>
-): string {
-  if (snap.label) return snap.label
-  if (snap.scope === 'user' && snap.userId) {
-    return userNameMap?.get(snap.userId) ?? `User ${snap.userId.slice(0, 6)}…`
-  }
-  if (snap.scope === 'session' && snap.sessionId) {
-    return sessionTitleMap?.get(snap.sessionId) ?? `Session ${snap.sessionId.slice(0, 6)}…`
-  }
-  return SCOPE_LABEL[snap.scope]
-}
 
 export const MeshBreadcrumbs: React.FC<MeshBreadcrumbsProps> = ({
   breadcrumbs,
@@ -43,6 +21,27 @@ export const MeshBreadcrumbs: React.FC<MeshBreadcrumbsProps> = ({
   userNameMap,
   sessionTitleMap
 }) => {
+  const { t, scopeLabel } = useAgentMeshI18n()
+
+  const labelFor = useCallback(
+    (snap: MeshNavSnapshot): string => {
+      if (snap.label) return snap.label
+      if (snap.scope === 'user' && snap.userId) {
+        return (
+          userNameMap?.get(snap.userId) ?? t('agent-mesh-breadcrumb-user-fallback', { id: snap.userId.slice(0, 6) })
+        )
+      }
+      if (snap.scope === 'session' && snap.sessionId) {
+        return (
+          sessionTitleMap?.get(snap.sessionId) ??
+          t('agent-mesh-breadcrumb-session-fallback', { id: snap.sessionId.slice(0, 6) })
+        )
+      }
+      return scopeLabel(snap.scope)
+    },
+    [scopeLabel, sessionTitleMap, t, userNameMap]
+  )
+
   if (breadcrumbs.length <= 1) return null
 
   // Collapse middle when very deep. Always keep first + last few.
@@ -61,12 +60,12 @@ export const MeshBreadcrumbs: React.FC<MeshBreadcrumbsProps> = ({
   const lastIndex = visible.length - 1
 
   return (
-    <nav aria-label="Mesh navigation" className={containerClass} data-testid="mesh-breadcrumbs">
+    <nav aria-label={t('agent-mesh-breadcrumb-nav-aria')} className={containerClass} data-testid="mesh-breadcrumbs">
       <ol className="gba:flex gba:items-center gba:gap-0.5 gba:min-w-0">
         {visible.map((entry, i) => {
           const isLast = i === lastIndex
           const isEllipsis = entry.isEllipsis
-          const label = isEllipsis ? '…' : labelFor(entry.snap, userNameMap, sessionTitleMap)
+          const label = isEllipsis ? '…' : labelFor(entry.snap)
           return (
             <li key={`${entry.index}-${entry.snap.scope}`} className="gba:flex gba:items-center gba:min-w-0">
               {i > 0 && (

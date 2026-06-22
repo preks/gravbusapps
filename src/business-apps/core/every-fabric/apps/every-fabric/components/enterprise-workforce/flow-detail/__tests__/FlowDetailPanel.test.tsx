@@ -9,7 +9,7 @@ import { FlowDetailPanel } from '../FlowDetailPanel'
 describe('FlowDetailPanel', () => {
   it('renders an empty message when no workflow id is provided', () => {
     render(<FlowDetailPanel workflowName="Workflow" />)
-    expect(screen.getByTestId('flow-detail-empty')).toBeInTheDocument()
+    expect(screen.getByTestId('flow-detail-empty')).toHaveTextContent('flow-detail-empty')
   })
 
   it('renders the flow name, an in-progress status, and the template chip', () => {
@@ -35,6 +35,6 @@ describe('FlowDetailPanel', () => {
 
   it('shows a no-steps placeholder when the overview is unavailable', () => {
     render(<FlowDetailPanel workflowId="wf-1" workflowName="Workflow" />)
-    expect(screen.getByTestId('flow-detail-steps-empty')).toBeInTheDocument()
+    expect(screen.getByTestId('flow-detail-steps-empty')).toHaveTextContent('flow-steps-empty')
   })
 })

@@ -27,11 +27,11 @@ describe('SkillsScreen', () => {
     capturedEditorSkillId = undefined
   })
 
-  it('renders the page title "Enterprise Agent" as an h1', () => {
+  it('renders the page title as an h1', () => {
     render(<SkillsScreen accessToken="token" onBack={jest.fn()} />)
 
     const heading = screen.getByRole('heading', { level: 1 })
-    expect(heading).toHaveTextContent(/^Enterprise Agent$/)
+    expect(heading).toHaveTextContent(/^skills-screen-title$/)
   })
 
   it('renders a Back button that calls onBack', () => {

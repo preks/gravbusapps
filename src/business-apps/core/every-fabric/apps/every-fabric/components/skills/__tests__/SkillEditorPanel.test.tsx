@@ -6,6 +6,14 @@ import { SkillEditorPanel } from '../SkillEditorPanel'
 // @/common/utils/serviceResolver (references `import.meta.env`). Stub the
 // whole client so we can deterministically control what functions the
 // modal renders.
+jest.mock('@newwork/nw-design-system', () => {
+  const actual = jest.requireActual('@newwork/nw-design-system')
+  return {
+    ...actual,
+    useTranslation: () => ({ t: (key: string) => key })
+  }
+})
+
 const mockListLatest = jest.fn()
 // Preview pane hydrates one tool's schema on demand via this call; the list is
 // loaded lite (no schema). Defaults to an empty schema in beforeEach.
@@ -253,7 +261,7 @@ describe('SkillEditorPanel', () => {
 
     it('renders the "Add Tool to Skill" affordance when a skill is loaded', async () => {
       await loadSkill(withFrontmatter('# Alpha\n\nBody.'))
-      expect(screen.getByTestId('skill-editor-add-tool')).toHaveTextContent(/Add Tool to Skill/i)
+      expect(screen.getByTestId('skill-editor-add-tool')).toHaveTextContent('skills-editor-add-tool')
     })
 
     it('pre-renders chips for tools already declared in the SKILL.md frontmatter', async () => {
@@ -332,10 +340,12 @@ describe('SkillEditorPanel', () => {
       expect(screen.getByTestId('add-tools-modal-category-filter')).toBeInTheDocument()
       expect(screen.queryByTestId('add-tools-modal-source-filter')).not.toBeInTheDocument()
       // Category pills use friendly labels sourced from toolCategoryLabels.ts.
-      expect(screen.getByTestId('add-tools-modal-category-pill-hr')).toHaveTextContent(/HR & Employees/)
-      expect(screen.getByTestId('add-tools-modal-category-pill-web')).toHaveTextContent(/Web/)
+      expect(screen.getByTestId('add-tools-modal-category-pill-hr')).toHaveTextContent(
+        /skills-category-hr|HR & Employees/
+      )
+      expect(screen.getByTestId('add-tools-modal-category-pill-web')).toHaveTextContent(/skills-category-web|Web/)
       // The grouped section shows the same friendly label as a header.
-      expect(screen.getByTestId('add-tools-modal-section-hr')).toHaveTextContent(/HR & Employees/)
+      expect(screen.getByTestId('add-tools-modal-section-hr')).toHaveTextContent(/skills-category-hr|HR & Employees/)
     })
 
     it('shows display_name as the primary label and keeps tool_ref as the technical badge', async () => {
@@ -368,7 +378,7 @@ describe('SkillEditorPanel', () => {
       expect(row).toHaveTextContent('prompt_manager.newwork_request_employee_absence')
       // Real policy metadata surfaces (write + HITL), not the old read/no-auth.
       expect(row).toHaveTextContent(/write/)
-      expect(row).toHaveTextContent(/HITL/)
+      expect(row).toHaveTextContent('skills-add-tools-hitl')
     })
 
     it('opens the preview by default and renders schema params + description readably', async () => {
@@ -414,7 +424,7 @@ describe('SkillEditorPanel', () => {
       // Schema is fetched on demand and rendered as a readable param row.
       expect(await screen.findByText('employee_id')).toBeInTheDocument()
       expect(preview).toHaveTextContent('The employee UUID')
-      expect(preview).toHaveTextContent('required')
+      expect(preview).toHaveTextContent(/skills-tool-companions-required|required/)
       // The lite list must request the detail for the previewed tool.
       expect(mockGetProviderToolDetail).toHaveBeenCalledWith('prompt_manager.newwork_get_employee_profile')
     })

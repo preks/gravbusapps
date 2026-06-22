@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { Bot, Users, Inbox, FileText, StickyNote, Clock, Globe, LucideIcon } from 'lucide-react'
 import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
+import translations from '../_i18n'
 
 interface ToolNode {
   id: string
@@ -132,6 +134,7 @@ export const ConnectionsVisualization: React.FC<ConnectionsVisualizationProps> =
   userInitials = 'U',
   'data-testid': testId = 'newwork-every-connections'
 }) => {
+  const { t } = useTranslation(translations)
   const [hoveredTool, setHoveredTool] = useState<string | null>(null)
   // Calculate positions in a circle around center
   const centerX = 200
@@ -190,11 +193,9 @@ export const ConnectionsVisualization: React.FC<ConnectionsVisualizationProps> =
         {/* Section header */}
         <div className="gba:text-center gba:mb-6" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
           <h2 className="gba:text-2xl gba:sm:text-3xl gba:font-bold gba:text-foreground gba:mb-3">
-            Your personal productivity orbit
+            {t('connections-section-title')}
           </h2>
-          <p className="gba:text-muted-foreground gba:max-w-xl gba:mx-auto">
-            Everything works together seamlessly. EveryAI at the center, connecting all your tools.
-          </p>
+          <p className="gba:text-muted-foreground gba:max-w-xl gba:mx-auto">{t('connections-section-subtitle')}</p>
         </div>
 
         {/* Visualization */}

@@ -6,9 +6,10 @@
 // pass in title / description / button label and the action callback,
 // and the caller owns the "in flight" + "error" state.
 
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { SpinnerGapIcon, WarningIcon, XIcon } from '@phosphor-icons/react'
 import React, { useCallback } from 'react'
+import translations from '../../_i18n'
 
 export type ConfirmActionTone = 'destructive' | 'primary'
 
@@ -39,7 +40,7 @@ export const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
   title,
   description,
   confirmLabel,
-  cancelLabel = 'Cancel',
+  cancelLabel,
   tone = 'destructive',
   isBusy = false,
   errorMessage = null,
@@ -47,6 +48,8 @@ export const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
   onConfirm,
   testIdPrefix = 'workforce-confirm'
 }) => {
+  const { t } = useTranslation(translations)
+  const resolvedCancelLabel = cancelLabel ?? t('action-cancel')
   const handleConfirm = useCallback(() => {
     if (isBusy) return
     void onConfirm()
@@ -79,7 +82,7 @@ export const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
             onClick={onCancel}
             disabled={isBusy}
             className="gba:inline-flex gba:h-8 gba:w-8 gba:items-center gba:justify-center gba:rounded-lg gba:text-muted-foreground gba:hover:bg-muted/60 gba:hover:text-foreground gba:disabled:opacity-50"
-            aria-label={cancelLabel}
+            aria-label={resolvedCancelLabel}
             data-testid={`${testIdPrefix}-close`}
           >
             <XIcon className="gba:h-4 gba:w-4" />
@@ -98,7 +101,7 @@ export const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
 
         <div className="gba:flex gba:items-center gba:justify-end gba:gap-2 gba:bg-muted/20 gba:px-5 gba:py-3">
           <Button variant="ghost" size="sm" onClick={onCancel} disabled={isBusy} data-testid={`${testIdPrefix}-cancel`}>
-            {cancelLabel}
+            {resolvedCancelLabel}
           </Button>
           <button
             type="button"
@@ -108,7 +111,7 @@ export const ConfirmActionModal: React.FC<ConfirmActionModalProps> = ({
             data-testid={`${testIdPrefix}-confirm`}
           >
             {isBusy && <SpinnerGapIcon className="gba:h-3.5 gba:w-3.5 gba:animate-spin" />}
-            {isBusy ? 'Working…' : confirmLabel}
+            {isBusy ? t('action-working') : confirmLabel}
           </button>
         </div>
       </div>

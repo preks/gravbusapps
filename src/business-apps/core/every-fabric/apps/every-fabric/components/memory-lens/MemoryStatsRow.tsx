@@ -1,5 +1,8 @@
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { relativeDate, type MemoryStats } from './memoryLensModel'
+import { memoryNamespaceLabel } from './memoryNamespaceI18n'
+import translations from '../../_i18n'
 
 interface MemoryStatsRowProps {
   stats: MemoryStats
@@ -12,13 +15,14 @@ interface Metric {
 }
 
 export const MemoryStatsRow: React.FC<MemoryStatsRowProps> = ({ stats }) => {
-  const lastUpdatedLabel = relativeDate(stats.lastUpdated)
+  const { t } = useTranslation(translations)
+  const lastUpdatedLabel = relativeDate(stats.lastUpdated, t)
 
   const metrics: Metric[] = [
     { id: 'total', label: 'Total', value: stats.total },
     ...stats.perNamespace.map(entry => ({
       id: entry.namespace,
-      label: entry.label === 'Domain facts' ? 'Facts' : entry.label,
+      label: entry.label === 'Domain facts' ? 'Facts' : memoryNamespaceLabel(entry.namespace, t),
       value: entry.count
     }))
   ]

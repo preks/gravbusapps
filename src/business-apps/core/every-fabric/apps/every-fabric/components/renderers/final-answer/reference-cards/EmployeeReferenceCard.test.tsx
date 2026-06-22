@@ -7,6 +7,14 @@
 import React from 'react'
 import { render, screen } from '@testing-library/react'
 
+jest.mock('@newwork/nw-design-system', () => {
+  const actual = jest.requireActual('@newwork/nw-design-system')
+  return {
+    ...actual,
+    useTranslation: () => ({ t: (key: string) => key })
+  }
+})
+
 const mockUseEmployeeDetails = jest.fn()
 
 jest.mock('@/business-apps/platform/apps/every-ai/queries/employeeQueries', () => ({
@@ -77,12 +85,12 @@ describe('EmployeeReferenceCard', () => {
     expect(screen.getByTestId('title')).toHaveTextContent('Anna Müller')
     expect(screen.getByTestId('subtitle')).toHaveTextContent('Engineer')
     const fields = screen.getByTestId('fields')
-    expect(fields).toHaveTextContent('Department=Platform')
-    expect(fields).toHaveTextContent('Location=Hamburg')
-    expect(fields).toHaveTextContent('Company=NEW WORK SE')
-    expect(fields).toHaveTextContent('Joined=2021')
+    expect(fields).toHaveTextContent('renderer-ref-field-department=Platform')
+    expect(fields).toHaveTextContent('renderer-ref-field-location=Hamburg')
+    expect(fields).toHaveTextContent('renderer-ref-field-company=NEW WORK SE')
+    expect(fields).toHaveTextContent('renderer-ref-field-joined=2021')
     const footer = screen.getByTestId('footer')
-    expect(footer).toHaveTextContent('Reports to')
+    expect(footer).toHaveTextContent('renderer-ref-reports-to')
     expect(footer).toHaveTextContent('Bob Stone')
     expect(footer).toHaveTextContent('Lead')
   })
@@ -97,7 +105,7 @@ describe('EmployeeReferenceCard', () => {
     })
 
     render(<EmployeeReferenceCard reference={ref({ intent: 'manager' })} accessToken="tok" />)
-    expect(screen.getByTestId('subtitle')).toHaveTextContent('Manager · Engineer')
+    expect(screen.getByTestId('subtitle')).toHaveTextContent('renderer-ref-intent-manager · Engineer')
   })
 
   it('shows a loading card while the fetch is in flight', () => {
@@ -116,12 +124,12 @@ describe('EmployeeReferenceCard', () => {
     )
     expect(screen.getByTestId('title')).toHaveTextContent('Anna Müller')
     expect(screen.getByTestId('subtitle')).toHaveTextContent('Designer')
-    expect(screen.getByTestId('fields')).toHaveTextContent('Department=Brand')
+    expect(screen.getByTestId('fields')).toHaveTextContent('renderer-ref-field-department=Brand')
   })
 
   it('shows the work email as a fallback field when no org-chart data exists', () => {
     mockUseEmployeeDetails.mockReturnValue({ state: { state: 'error', message: 'boom' } })
     render(<EmployeeReferenceCard reference={ref({ data: { work_email: 'a@x.com' } })} accessToken="tok" />)
-    expect(screen.getByTestId('fields')).toHaveTextContent('Email=a@x.com')
+    expect(screen.getByTestId('fields')).toHaveTextContent('renderer-ref-field-email=a@x.com')
   })
 })

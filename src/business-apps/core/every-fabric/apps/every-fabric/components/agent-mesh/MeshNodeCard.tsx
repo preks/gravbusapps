@@ -4,6 +4,7 @@ import { BrainIcon, CompassIcon, LightbulbIcon, WrenchIcon } from '@phosphor-ico
 import { EveryIcon } from '@newwork/icons'
 import type { MeshNodeKind, MeshNodeStatus } from '../../utils/traceModel'
 import { NODE_SIZE } from './meshLayout'
+import { useAgentMeshI18n } from './useAgentMeshI18n'
 
 export const MESH_SKILL_DOT_COLORS = [
   'gba:bg-teal-500',
@@ -130,6 +131,7 @@ export function MeshNodeCardContent({
   ringSurface = 'flow',
   reducedMotion = false
 }: Readonly<MeshNodeCardContentProps>) {
+  const { t } = useAgentMeshI18n()
   const isTool = kind === 'tool'
   const showInitialsOnly = isTool && size <= 44
   const isAgent = kind === 'orchestrator' || kind === 'subagent' || kind === 'expert'
@@ -163,7 +165,7 @@ export function MeshNodeCardContent({
         {liveBadge && (
           <span
             className="gba:absolute gba:-right-1 gba:-top-1 gba:flex gba:min-w-5 gba:h-5 gba:items-center gba:justify-center gba:rounded-full gba:border gba:border-primary/30 gba:bg-primary gba:px-1 gba:text-[10px] gba:font-bold gba:text-primary-foreground gba:shadow-sm"
-            title={`${liveCount} live sessions`}
+            title={t('agent-mesh-node-live-sessions', { count: liveCount })}
           >
             {liveBadge}
           </span>
@@ -183,7 +185,7 @@ export function MeshNodeCardContent({
       {showSkillDots && (
         <span
           className="gba:mt-1.5 gba:flex gba:items-center gba:gap-1"
-          aria-label={`${skillNames.length} skill${skillNames.length === 1 ? '' : 's'}`}
+          aria-label={t('agent-mesh-node-skills-aria', { count: skillNames.length })}
         >
           {skillNames.slice(0, MESH_MAX_VISIBLE_SKILL_DOTS).map((name, i) => (
             <span

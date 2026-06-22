@@ -1,6 +1,8 @@
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { ChatTeardropDotsIcon, SpinnerGapIcon, StopCircleIcon, UserIcon } from '@phosphor-icons/react'
 import type { ActiveSessionSnapshot } from '../../types/activeSession'
+import translations from '../../_i18n'
 
 interface SidebarActiveItemProps {
   session: ActiveSessionSnapshot
@@ -28,7 +30,7 @@ function statusIconOf(session: ActiveSessionSnapshot): React.ReactNode {
 }
 
 /** Small status pill on the right. Subtly pulsing for waiting, static for pending, hidden for running. */
-function statusChipOf(session: ActiveSessionSnapshot): React.ReactNode {
+function statusChipOf(session: ActiveSessionSnapshot, t: (key: string) => string): React.ReactNode {
   if (session.status === 'waiting_for_human') {
     return (
       <span className="gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:border gba:border-blue-200 gba:bg-blue-50 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-semibold gba:text-blue-700 dark:gba:border-blue-900/50 dark:gba:bg-blue-950/60 dark:gba:text-blue-200">
@@ -36,28 +38,28 @@ function statusChipOf(session: ActiveSessionSnapshot): React.ReactNode {
           <span className="gba:absolute gba:inline-flex gba:h-full gba:w-full gba:rounded-full gba:bg-blue-400 gba:opacity-75 gba:animate-ping" />
           <span className="gba:relative gba:inline-flex gba:h-1.5 gba:w-1.5 gba:rounded-full gba:bg-blue-500" />
         </span>
-        {'Waiting'}
+        {t('sidebar-status-waiting')}
       </span>
     )
   }
   if (session.status === 'pending') {
     return (
       <span className="gba:inline-flex gba:items-center gba:rounded-full gba:border gba:border-border/50 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-muted-foreground">
-        Pending
+        {t('sidebar-status-pending')}
       </span>
     )
   }
-  // running — compact "Running" pill, no pulse (the left spinner already carries motion).
   return (
     <span className="gba:inline-flex gba:items-center gba:rounded-full gba:border gba:border-border/50 gba:bg-background gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-muted-foreground">
-      Running
+      {t('sidebar-status-running')}
     </span>
   )
 }
 
 const SidebarActiveItemBase: React.FC<SidebarActiveItemProps> = ({ session, isSelected, onSelect, onStop }) => {
-  const activityLabel = session.current_activity?.label?.trim() || 'Working…'
-  const title = truncate(session.input || 'Untitled task', 48)
+  const { t } = useTranslation(translations)
+  const activityLabel = session.current_activity?.label?.trim() || t('action-working')
+  const title = truncate(session.input || t('sidebar-untitled-task'), 48)
   const isWaiting = session.status === 'waiting_for_human'
   const iconWrapClass = isWaiting
     ? 'gba:border-blue-200 gba:bg-blue-50/60 dark:gba:border-blue-900/60 dark:gba:bg-blue-950/40'
@@ -102,15 +104,15 @@ const SidebarActiveItemBase: React.FC<SidebarActiveItemProps> = ({ session, isSe
       </button>
 
       <span className="gba:ml-1 gba:flex gba:shrink-0 gba:items-center gba:gap-1 gba:self-start">
-        <span className="gba:group-hover:hidden">{statusChipOf(session)}</span>
+        <span className="gba:group-hover:hidden">{statusChipOf(session, t)}</span>
         <button
           type="button"
           onClick={e => {
             e.stopPropagation()
             onStop(session.session_id)
           }}
-          aria-label="Stop session"
-          title="Stop session"
+          aria-label={t('sidebar-stop-session')}
+          title={t('sidebar-stop-session')}
           className="gba:opacity-0 gba:group-hover:opacity-100 focus-visible:gba:opacity-100 gba:inline-flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:rounded-md gba:text-muted-foreground gba:hover:text-red-600 gba:hover:bg-muted/60 gba:transition-all"
           data-testid={`sidebar-active-stop-${session.session_id}`}
         >

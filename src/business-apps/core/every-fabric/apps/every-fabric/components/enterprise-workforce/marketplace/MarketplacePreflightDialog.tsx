@@ -1,7 +1,8 @@
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { WarningCircleIcon, XIcon } from '@phosphor-icons/react'
 import React from 'react'
 import type { MarketplacePreflightReport } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import translations from '../../../_i18n'
 
 interface MarketplacePreflightDialogProps {
   open: boolean
@@ -18,10 +19,19 @@ export const MarketplacePreflightDialog: React.FC<MarketplacePreflightDialogProp
   onClose,
   onConfirmInstall
 }) => {
+  const { t } = useTranslation(translations)
+
   if (!open || reports.length === 0) return null
 
   const allReady = reports.every(report => report.ready)
   const issueCount = reports.reduce((count, report) => count + report.issues.length, 0)
+
+  let confirmLabel = t('marketplace-preflight-install-anyway')
+  if (isBusy) {
+    confirmLabel = t('marketplace-installing')
+  } else if (allReady) {
+    confirmLabel = t('marketplace-preflight-install-now')
+  }
 
   return (
     <div
@@ -32,12 +42,12 @@ export const MarketplacePreflightDialog: React.FC<MarketplacePreflightDialogProp
         <div className="gba:flex gba:items-start gba:justify-between gba:border-b gba:border-border/60 gba:px-5 gba:py-4">
           <div>
             <h2 className="gba:text-base gba:font-semibold gba:text-foreground">
-              {allReady ? 'Ready to hire' : 'Compatibility check'}
+              {allReady ? t('marketplace-preflight-title-ready') : t('marketplace-preflight-title-check')}
             </h2>
             <p className="gba:text-xs gba:text-muted-foreground">
               {allReady
-                ? 'All selected packages passed preflight checks.'
-                : `${issueCount} issue${issueCount === 1 ? '' : 's'} found before install.`}
+                ? t('marketplace-preflight-all-ready')
+                : t('marketplace-preflight-issues-found', { count: issueCount })}
             </p>
           </div>
           <button
@@ -45,7 +55,7 @@ export const MarketplacePreflightDialog: React.FC<MarketplacePreflightDialogProp
             onClick={onClose}
             disabled={isBusy}
             className="gba:inline-flex gba:h-8 gba:w-8 gba:items-center gba:justify-center gba:rounded-lg gba:text-muted-foreground gba:hover:bg-muted/60"
-            aria-label="Close"
+            aria-label={t('action-close')}
           >
             <XIcon className="gba:h-4 gba:w-4" />
           </button>
@@ -67,17 +77,19 @@ export const MarketplacePreflightDialog: React.FC<MarketplacePreflightDialogProp
                     <p className="gba:text-sm gba:font-medium gba:text-foreground">{report.package_name}</p>
                     {report.missing_tools.length > 0 ? (
                       <p className="gba:mt-1 gba:text-xs gba:text-muted-foreground">
-                        Missing tools: {report.missing_tools.join(', ')}
+                        {t('marketplace-preflight-missing-tools', { tools: report.missing_tools.join(', ') })}
                       </p>
                     ) : null}
                     {report.missing_functions.length > 0 ? (
                       <p className="gba:mt-1 gba:text-xs gba:text-muted-foreground">
-                        Missing functions: {report.missing_functions.join(', ')}
+                        {t('marketplace-preflight-missing-functions', {
+                          functions: report.missing_functions.join(', ')
+                        })}
                       </p>
                     ) : null}
                     {report.needs_configuration.length > 0 ? (
                       <p className="gba:mt-1 gba:text-xs gba:text-muted-foreground">
-                        Needs configuration: {report.needs_configuration.join(', ')}
+                        {t('marketplace-needs-configuration', { items: report.needs_configuration.join(', ') })}
                       </p>
                     ) : null}
                     {report.issues.length > 0 ? (
@@ -96,10 +108,10 @@ export const MarketplacePreflightDialog: React.FC<MarketplacePreflightDialogProp
 
         <div className="gba:flex gba:justify-end gba:gap-2 gba:border-t gba:border-border/60 gba:px-5 gba:py-3">
           <Button variant="outline" onClick={onClose} disabled={isBusy} data-testid="marketplace-preflight-cancel">
-            Cancel
+            {t('action-cancel')}
           </Button>
           <Button onClick={onConfirmInstall} disabled={isBusy} data-testid="marketplace-preflight-confirm">
-            {isBusy ? 'Installing…' : allReady ? 'Install now' : 'Install anyway'}
+            {confirmLabel}
           </Button>
         </div>
       </div>

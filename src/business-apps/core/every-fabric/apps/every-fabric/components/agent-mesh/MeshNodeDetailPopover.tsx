@@ -1,6 +1,7 @@
 import { ArrowRightIcon, LightbulbIcon, UserIcon, ClockIcon, XIcon } from '@phosphor-icons/react'
 import type { MeshEdge, MeshNode } from '../../utils/traceModel'
 import type { AggregateNodeProvenance, AggregateSessionRef } from '../../utils/meshAggregateModel'
+import { useAgentMeshI18n } from './useAgentMeshI18n'
 
 interface SkillInfo {
   nodeId: string
@@ -59,6 +60,7 @@ export const MeshNodeDetailPopover: React.FC<MeshNodeDetailPopoverProps> = ({
   onDrillToUser,
   onDrillToSession
 }) => {
+  const { t, nodeCategoryLabel, edgeKindLabel } = useAgentMeshI18n()
   const duration = formatDuration(node.totalDurationMs)
 
   const users: AggregateNodeProvenance[] = (node as { users?: AggregateNodeProvenance[] }).users ?? []
@@ -70,19 +72,19 @@ export const MeshNodeDetailPopover: React.FC<MeshNodeDetailPopoverProps> = ({
       className="gba:w-[300px] gba:max-h-[420px] gba:overflow-y-auto gba:max-w-[calc(100vw-2rem)] gba:rounded-[1.25rem] gba:border gba:border-border/60 gba:bg-card gba:shadow-[0_1px_2px_rgba(15,23,42,0.04),0_16px_36px_-16px_rgba(15,23,42,0.18)]"
       data-testid="mesh-node-detail-popover"
       role="dialog"
-      aria-label={`Node detail: ${node.label}`}
+      aria-label={t('agent-mesh-node-detail-aria', { label: node.label })}
     >
       <div className="gba:flex gba:items-start gba:justify-between gba:gap-2 gba:px-4 gba:pt-3 gba:pb-2">
         <div className="gba:min-w-0 gba:flex-1">
           <p className="gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-[0.1em] gba:text-muted-foreground">
-            {node.kind}
+            {nodeCategoryLabel(node.kind)}
           </p>
           <h3 className="gba:mt-0.5 gba:truncate gba:text-sm gba:font-semibold gba:text-foreground">{node.label}</h3>
         </div>
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close detail"
+          aria-label={t('agent-mesh-node-detail-close')}
           className="gba:inline-flex gba:items-center gba:justify-center gba:h-7 gba:w-7 gba:rounded-lg gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
           data-testid="mesh-node-detail-close"
         >
@@ -98,22 +100,22 @@ export const MeshNodeDetailPopover: React.FC<MeshNodeDetailPopoverProps> = ({
 
       <dl className="gba:grid gba:grid-cols-2 gba:gap-x-3 gba:gap-y-2 gba:border-t gba:border-border/40 gba:px-4 gba:py-3 gba:text-[11px]">
         <div>
-          <dt className="gba:text-muted-foreground/80">Status</dt>
+          <dt className="gba:text-muted-foreground/80">{t('agent-mesh-node-detail-status')}</dt>
           <dd className="gba:font-medium gba:text-foreground">{node.status}</dd>
         </div>
         <div>
-          <dt className="gba:text-muted-foreground/80">Invocations</dt>
+          <dt className="gba:text-muted-foreground/80">{t('agent-mesh-node-detail-invocations')}</dt>
           <dd className="gba:font-medium gba:text-foreground">{node.invocationCount}</dd>
         </div>
         {duration && (
           <div>
-            <dt className="gba:text-muted-foreground/80">Duration</dt>
+            <dt className="gba:text-muted-foreground/80">{t('agent-mesh-node-detail-duration')}</dt>
             <dd className="gba:font-medium gba:text-foreground">{duration}</dd>
           </div>
         )}
         {node.firstSeenAt && (
           <div>
-            <dt className="gba:text-muted-foreground/80">First seen</dt>
+            <dt className="gba:text-muted-foreground/80">{t('agent-mesh-node-detail-first-seen')}</dt>
             <dd className="gba:font-medium gba:text-foreground">{formatTime(node.firstSeenAt)}</dd>
           </div>
         )}
@@ -124,7 +126,7 @@ export const MeshNodeDetailPopover: React.FC<MeshNodeDetailPopoverProps> = ({
           {users.length > 0 && onDrillToUser && (
             <div className="gba:mb-2">
               <p className="gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-[0.1em] gba:text-muted-foreground gba:mb-1.5">
-                Used by {users.length} {users.length === 1 ? 'user' : 'users'}
+                {t('agent-mesh-node-detail-used-by', { count: users.length })}
               </p>
               <ul className="gba:space-y-1">
                 {users.slice(0, 5).map(user => (
@@ -152,7 +154,7 @@ export const MeshNodeDetailPopover: React.FC<MeshNodeDetailPopoverProps> = ({
           {sessions.length > 0 && onDrillToSession && (
             <div>
               <p className="gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-[0.1em] gba:text-muted-foreground gba:mb-1.5">
-                {sessions.length} {sessions.length === 1 ? 'session' : 'sessions'}
+                {t('agent-mesh-node-detail-sessions', { count: sessions.length })}
               </p>
               <ul className="gba:space-y-1">
                 {sessions.slice(0, 5).map(session => (
@@ -185,12 +187,12 @@ export const MeshNodeDetailPopover: React.FC<MeshNodeDetailPopoverProps> = ({
           {inboundEdges.length > 0 && (
             <div className="gba:mb-2">
               <p className="gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-[0.1em] gba:text-muted-foreground gba:mb-1">
-                Inbound ({inboundEdges.length})
+                {t('agent-mesh-node-detail-inbound', { count: inboundEdges.length })}
               </p>
               <ul className="gba:space-y-1">
                 {inboundEdges.slice(0, 4).map(edge => (
                   <li key={edge.id} className="gba:truncate gba:text-foreground/80">
-                    ← {edge.label ?? edge.kind}
+                    ← {edge.label ?? edgeKindLabel(edge.kind)}
                   </li>
                 ))}
               </ul>
@@ -199,12 +201,12 @@ export const MeshNodeDetailPopover: React.FC<MeshNodeDetailPopoverProps> = ({
           {outboundEdges.length > 0 && (
             <div>
               <p className="gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-[0.1em] gba:text-muted-foreground gba:mb-1">
-                Outbound ({outboundEdges.length})
+                {t('agent-mesh-node-detail-outbound', { count: outboundEdges.length })}
               </p>
               <ul className="gba:space-y-1">
                 {outboundEdges.slice(0, 4).map(edge => (
                   <li key={edge.id} className="gba:truncate gba:text-foreground/80">
-                    → {edge.label ?? edge.kind}
+                    → {edge.label ?? edgeKindLabel(edge.kind)}
                   </li>
                 ))}
               </ul>
@@ -216,7 +218,7 @@ export const MeshNodeDetailPopover: React.FC<MeshNodeDetailPopoverProps> = ({
       {skills.length > 0 && (
         <div className="gba:border-t gba:border-border/40 gba:px-4 gba:py-3 gba:text-[11px]">
           <p className="gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-[0.1em] gba:text-muted-foreground gba:mb-2">
-            Skills ({skills.length})
+            {t('agent-mesh-node-detail-skills', { count: skills.length })}
           </p>
           <ul className="gba:space-y-2">
             {skills.map(skill => (
@@ -246,7 +248,7 @@ export const MeshNodeDetailPopover: React.FC<MeshNodeDetailPopoverProps> = ({
                     )}
                     {skill.wasAutoDetected && (
                       <span className="gba:inline-flex gba:items-center gba:mt-1 gba:px-1.5 gba:py-0.5 gba:rounded-full gba:bg-emerald-500/10 gba:text-[9px] gba:font-medium gba:text-emerald-600 dark:gba:text-emerald-400">
-                        Auto-detected
+                        {t('agent-mesh-node-detail-auto-detected')}
                       </span>
                     )}
                   </div>

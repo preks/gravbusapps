@@ -25,6 +25,13 @@ share-add-above = Add people above to share this { $entityLabel }
 share-success-title = Shared successfully
 share-success-single = { $name } has been notified and can now access this { $entityLabel }.
 share-success-multi = { $count } people have been notified and can now access this { $entityLabel }.
+share-bulk-title = Share { $count } selected items
+share-bulk-description = Share all selected items with the same people and permission.
+share-bulk-selected-items = Selected items
+share-bulk-success-all = Shared { $items } items with { $people } people.
+share-bulk-success-partial = Shared { $successCount } items. { $failureCount } items could not be shared.
+share-bulk-error-all = Failed to share the selected items. Please try again.
+share-bulk-error-partial = Some items could not be shared: { $titles }
 share-submit = Share with { $count } { $count ->
   [one] person
  *[other] people

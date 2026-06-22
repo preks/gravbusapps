@@ -68,10 +68,10 @@ describe('WorkforceAgentTile', () => {
 
     expect(screen.getByText('Claims Triage')).toBeInTheDocument()
     expect(screen.getByText(/Claims agent · Insurance Ops/)).toBeInTheDocument()
-    expect(screen.getByTestId('workforce-agent-status-a-1')).toHaveTextContent('Active')
-    expect(screen.getByTestId('workforce-agent-triggers-a-1')).toHaveTextContent('2/3 triggers')
-    expect(screen.getByTestId('workforce-agent-credits-a-1')).toHaveTextContent('42 credits / 7d')
-    expect(screen.getByTestId('workforce-agent-lastrun-a-1')).toHaveTextContent('No runs yet')
+    expect(screen.getByTestId('workforce-agent-status-a-1')).toHaveTextContent('tile-status-active')
+    expect(screen.getByTestId('workforce-agent-triggers-a-1')).toHaveTextContent('tile-triggers-stat')
+    expect(screen.getByTestId('workforce-agent-credits-a-1')).toHaveTextContent('tile-credits-stat')
+    expect(screen.getByTestId('workforce-agent-lastrun-a-1')).toHaveTextContent('tile-last-run-stat')
   })
 
   it('shows the Pause action for active agents and Activate for paused ones', () => {
@@ -125,7 +125,7 @@ describe('WorkforceAgentTile', () => {
     const nowMs = Date.parse('2026-06-01T14:00:00.000Z')
     jest.spyOn(Date, 'now').mockReturnValue(nowMs)
     render(<WorkforceAgentTile summary={buildSummary({}, { lastCompletedAt: '2026-06-01T12:00:00.000Z' })} />)
-    expect(screen.getByTestId('workforce-agent-lastrun-a-1')).toHaveTextContent('Last run 2h ago')
+    expect(screen.getByTestId('workforce-agent-lastrun-a-1')).toHaveTextContent('tile-last-run-stat')
     jest.restoreAllMocks()
   })
 })

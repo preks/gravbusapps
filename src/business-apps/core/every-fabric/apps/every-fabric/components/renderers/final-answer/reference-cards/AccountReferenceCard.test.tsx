@@ -6,6 +6,14 @@
 import React from 'react'
 import { render, screen } from '@testing-library/react'
 
+jest.mock('@newwork/nw-design-system', () => {
+  const actual = jest.requireActual('@newwork/nw-design-system')
+  return {
+    ...actual,
+    useTranslation: () => ({ t: (key: string) => key })
+  }
+})
+
 const mockUseCustomerAccount = jest.fn()
 
 jest.mock('@/common/data/customer/hooks/useCustomerAccount', () => ({
@@ -65,8 +73,8 @@ describe('AccountReferenceCard', () => {
     expect(screen.getByTestId('title')).toHaveTextContent('Acme Corp')
     expect(screen.getByTestId('subtitle')).toHaveTextContent('Manufacturing')
     expect(screen.getByTestId('status')).toHaveTextContent('High')
-    expect(screen.getByTestId('fields')).toHaveTextContent('Owner=Dana Lee')
-    expect(screen.getByTestId('fields')).toHaveTextContent('Website=acme.com')
+    expect(screen.getByTestId('fields')).toHaveTextContent('renderer-ref-field-owner=Dana Lee')
+    expect(screen.getByTestId('fields')).toHaveTextContent('renderer-ref-field-website=acme.com')
   })
 
   it('falls back to the reference label before data loads', () => {

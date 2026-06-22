@@ -1,5 +1,7 @@
 import { CheckCircleIcon, CircleIcon, MinusCircleIcon, ShareNetworkIcon, XCircleIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { FabricTaskNode, FabricTaskStatus } from '../../types/fabric'
+import translations from '../../_i18n'
 import { subAgentDelegationChipClass } from './fabricProgressShared'
 
 // ─── Status icon ──────────────────────────────────────────────────────────────
@@ -41,10 +43,10 @@ function taskTreeLabelClass(isDone: boolean, isActive: boolean): string {
   return 'gba:text-foreground'
 }
 
-const ProgressBar: React.FC<ProgressBarProps> = ({ completed, total, percent }) => (
+const ProgressBar: React.FC<ProgressBarProps & { t: (key: string) => string }> = ({ completed, total, percent, t }) => (
   <div className="gba:px-4 gba:py-3 gba:border-b gba:border-border gba:shrink-0">
     <div className="gba:flex gba:items-center gba:justify-between gba:mb-1.5">
-      <span className="gba:text-xs gba:font-medium gba:text-foreground">Plan</span>
+      <span className="gba:text-xs gba:font-medium gba:text-foreground">{t('enterprise-agent-plan-title')}</span>
       <span className="gba:text-xs gba:text-muted-foreground">
         {completed} / {total}
       </span>
@@ -121,18 +123,20 @@ interface TaskTreeProps {
 }
 
 export const TaskTree: React.FC<TaskTreeProps> = ({ nodes, completedCount, totalCount, progressPercent }) => {
+  const { t } = useTranslation(translations)
+
   if (nodes.length === 0) {
     return (
       <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:gap-1.5 gba:py-12">
-        <p className="gba:text-xs gba:text-muted-foreground">No plan yet</p>
-        <p className="gba:text-[11px] gba:text-muted-foreground/50">Steps will appear once the agent starts</p>
+        <p className="gba:text-xs gba:text-muted-foreground">{t('workspace-task-no-plan')}</p>
+        <p className="gba:text-[11px] gba:text-muted-foreground/50">{t('workspace-task-steps-pending')}</p>
       </div>
     )
   }
 
   return (
     <div className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0" data-testid="fabric-task-tree">
-      <ProgressBar completed={completedCount} total={totalCount} percent={progressPercent} />
+      <ProgressBar completed={completedCount} total={totalCount} percent={progressPercent} t={t} />
       <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:py-1">
         {nodes.map((node, i) => (
           <TaskRow key={node.id} node={node} index={i} />

@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { File as FileIcon, Plus, Trash, Wrench, X } from '@phosphor-icons/react'
+import translations from '../../_i18n'
 import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
 import { AddToolsModal } from './AddToolsModal'
 import {
@@ -36,6 +38,7 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
   onClose,
   showToast
 }) => {
+  const { t } = useTranslation(translations)
   const client = useEnterpriseAgentClient(accessToken)
 
   const [content, setContent] = useState('')
@@ -235,10 +238,8 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
         data-testid="skill-editor-empty"
       >
         <div className="gba:max-w-sm gba:text-center gba:space-y-1">
-          <p className="gba:text-sm gba:font-medium gba:text-foreground">Select a skill to edit</p>
-          <p className="gba:text-xs gba:text-muted-foreground">
-            Pick a skill from the list to view and edit its <code className="gba:font-mono">SKILL.md</code>.
-          </p>
+          <p className="gba:text-sm gba:font-medium gba:text-foreground">{t('skills-editor-select-skill')}</p>
+          <p className="gba:text-xs gba:text-muted-foreground">{t('skills-editor-pick-skill')}</p>
         </div>
       </div>
     )
@@ -251,15 +252,17 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
       <div className="gba:shrink-0 gba:flex gba:items-center gba:justify-between gba:gap-3 gba:px-4 sm:gba:px-6 gba:py-4 gba:border-b gba:border-border/50">
         <div className="gba:flex gba:min-w-0 gba:items-center gba:gap-2">
           <h2 className="gba:text-sm gba:font-semibold gba:text-foreground gba:truncate">
-            Edit <code className="gba:font-mono gba:text-sm">{skillId}</code>
+            {t('skills-editor-edit-title', { id: skillId })}
           </h2>
           {skillHead && (
             <span
               className="gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:border gba:border-border gba:bg-muted/40 gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-muted-foreground"
               data-testid="skill-editor-version-badge"
             >
-              draft v{skillHead.version}
-              {skillHead.published_version != null ? ` · pub v${skillHead.published_version}` : ' · unpublished'}
+              {t('skills-version-draft', { version: skillHead.version })}
+              {skillHead.published_version != null
+                ? ` · ${t('skills-browse-pub-version', { version: skillHead.published_version })}`
+                : ` · ${t('skills-browse-unpublished')}`}
             </span>
           )}
           {isDirty && (
@@ -267,7 +270,7 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
               className="gba:inline-flex gba:items-center gba:rounded-full gba:border gba:border-primary/30 gba:bg-primary/10 gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-primary"
               data-testid="skill-editor-dirty"
             >
-              Unsaved
+              {t('skills-editor-unsaved')}
             </span>
           )}
         </div>
@@ -276,7 +279,7 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
             type="button"
             className="gba:inline-flex gba:p-1 gba:rounded gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted"
             onClick={onClose}
-            aria-label="Clear selection"
+            aria-label={t('skills-editor-clear-selection-aria')}
             data-testid="skill-editor-clear"
           >
             <X className="gba:h-4 gba:w-4" />
@@ -286,12 +289,12 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
 
       <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:px-4 sm:gba:px-6 gba:py-4 gba:space-y-4">
         {loading ? (
-          <p className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-8">Loading…</p>
+          <p className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-8">{t('skills-browse-loading')}</p>
         ) : (
           <>
             <div>
               <label className="gba:block gba:text-xs gba:font-medium gba:mb-1.5" htmlFor="skill-editor-content">
-                SKILL.md
+                {t('skills-editor-skill-md')}
               </label>
               <textarea
                 id="skill-editor-content"
@@ -305,7 +308,7 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
 
             <div>
               <label className="gba:block gba:text-xs gba:font-medium gba:mb-1.5">
-                Tools
+                {t('skills-editor-tools')}
                 {attachedTools.length > 0 && (
                   <span className="gba:ml-1.5 gba:text-muted-foreground gba:font-normal">({attachedTools.length})</span>
                 )}
@@ -323,7 +326,7 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
                 data-testid="skill-editor-add-tool"
               >
                 <Wrench className="gba:h-3.5 gba:w-3.5" />
-                Add Tool to Skill
+                {t('skills-editor-add-tool')}
                 {attachedTools.length > 0 && (
                   <span className="gba:rounded-full gba:bg-primary/15 gba:px-1.5 gba:text-[10px] gba:font-semibold gba:text-primary">
                     {attachedTools.length}
@@ -392,7 +395,7 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
 
             <div>
               <label className="gba:block gba:text-xs gba:font-medium gba:mb-1.5">
-                Attach files to Skill (optional)
+                {t('skills-editor-attach-files')}
                 {files.length > 0 && (
                   <span className="gba:ml-1.5 gba:text-muted-foreground gba:font-normal">({files.length})</span>
                 )}
@@ -410,7 +413,7 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
                 className="gba:w-full gba:rounded-lg gba:border gba:border-dashed gba:border-border gba:bg-muted/20 gba:px-3 gba:py-3 gba:text-xs gba:text-muted-foreground gba:hover:bg-muted/40 gba:transition-colors gba:flex gba:items-center gba:justify-center gba:gap-2"
               >
                 <Plus className="gba:h-3.5 gba:w-3.5" />
-                Add files (scripts, references, assets)
+                {t('skills-editor-attach-files')}
               </button>
               {files.length > 0 && (
                 <div className="gba:mt-2 gba:space-y-1 gba:max-h-32 gba:overflow-y-auto">
@@ -502,7 +505,7 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
           disabled={!isDirty || saving || loading}
           data-testid="skill-editor-revert"
         >
-          Revert
+          {t('skills-editor-revert')}
         </button>
         {skillHead && (
           <button
@@ -513,7 +516,7 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
             onClick={() => void handlePublishCurrent()}
             data-testid="skill-editor-publish"
           >
-            Publish v{skillHead.version}
+            {t('skills-editor-publish', { version: skillHead.version })}
           </button>
         )}
         <button
@@ -523,7 +526,7 @@ export const SkillEditorPanel: React.FC<SkillEditorPanelProps> = ({
           onClick={() => void handleSave()}
           data-testid="skill-editor-save"
         >
-          {saving ? 'Saving…' : 'Save draft'}
+          {saving ? t('skills-editor-saving') : t('skills-editor-save-draft')}
         </button>
       </div>
 

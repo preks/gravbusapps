@@ -1,11 +1,12 @@
 // Skill assignment picker — multi-select approved skills with optional version pinning.
 
 import React, { useCallback, useEffect, useState } from 'react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { CheckIcon, LightbulbIcon, SpinnerGapIcon, XIcon } from '@phosphor-icons/react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import type { SkillBinding } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import type { FabricAgent } from './agentTypes'
+import translations from '../../_i18n'
 
 interface SkillOption {
   skill_id: string
@@ -49,6 +50,7 @@ export const SkillAssignmentPicker: React.FC<SkillAssignmentPickerProps> = ({
   onClose,
   onSaved
 }) => {
+  const { t } = useTranslation(translations)
   const client = usePromptManagerClient(accessToken)
   const [availableSkills, setAvailableSkills] = useState<SkillOption[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -128,7 +130,7 @@ export const SkillAssignmentPicker: React.FC<SkillAssignmentPickerProps> = ({
       setBindings(nextBindings)
       setSelectedIds(new Set(rows.map(row => row.skill_id)))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load skill data')
+      setError(err instanceof Error ? err.message : t('agents-skill-picker-error-load'))
     } finally {
       setIsLoading(false)
     }
@@ -181,9 +183,7 @@ export const SkillAssignmentPicker: React.FC<SkillAssignmentPickerProps> = ({
         const skill = availableSkills.find(row => row.skill_id === skillId)
         const publishedVersions = skill ? versionOptions(skill) : []
         if (!state.follow_latest && (state.version == null || !publishedVersions.includes(state.version))) {
-          throw new Error(
-            `Pinned version for ${skillId} is not published. Choose Latest published or a published version.`
-          )
+          throw new Error(t('agents-skill-picker-error-pin', { skillId }))
         }
         return {
           skill_id: skillId,
@@ -195,7 +195,7 @@ export const SkillAssignmentPicker: React.FC<SkillAssignmentPickerProps> = ({
       await client.setAgentSkills(agent.id, payload)
       onSaved(Array.from(selectedIds))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save skill assignments')
+      setError(err instanceof Error ? err.message : t('agents-skill-picker-error-save'))
     } finally {
       setIsSaving(false)
     }
@@ -211,7 +211,7 @@ export const SkillAssignmentPicker: React.FC<SkillAssignmentPickerProps> = ({
       <div className="gba:w-full gba:max-w-lg gba:max-h-[80vh] gba:flex gba:flex-col gba:rounded-xl gba:border gba:border-border gba:bg-card gba:shadow-2xl">
         <div className="gba:flex gba:items-center gba:justify-between gba:px-5 gba:py-4 gba:border-b gba:border-border">
           <div>
-            <h2 className="gba:text-base gba:font-semibold gba:text-foreground">Assign Skills</h2>
+            <h2 className="gba:text-base gba:font-semibold gba:text-foreground">{t('agents-skill-picker-title')}</h2>
             <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">{formatAgentName(agent.name)}</p>
           </div>
           <button
@@ -239,7 +239,7 @@ export const SkillAssignmentPicker: React.FC<SkillAssignmentPickerProps> = ({
 
           {!isLoading && availableSkills.length === 0 && (
             <p className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-8">
-              No enabled skills available. Create a skill and enable it first.
+              {t('agents-skill-picker-empty')}
             </p>
           )}
 
@@ -288,12 +288,12 @@ export const SkillAssignmentPicker: React.FC<SkillAssignmentPickerProps> = ({
                           </span>
                           {skill.published_version != null && (
                             <span className="gba:text-[10px] gba:text-muted-foreground">
-                              pub v{skill.published_version}
+                              {t('agents-skill-picker-pub-version', { version: skill.published_version })}
                             </span>
                           )}
                           {skill.status === 'built_in' && (
                             <span className="gba:shrink-0 gba:rounded gba:bg-blue-100 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-blue-800">
-                              Built-in
+                              {t('agents-skill-picker-builtin')}
                             </span>
                           )}
                         </div>
@@ -313,7 +313,7 @@ export const SkillAssignmentPicker: React.FC<SkillAssignmentPickerProps> = ({
                           htmlFor={`skill-version-${skill.skill_id}`}
                           className="gba:text-[11px] gba:text-muted-foreground gba:shrink-0"
                         >
-                          Runtime version
+                          {t('agents-skill-picker-runtime-version')}
                         </label>
                         <select
                           id={`skill-version-${skill.skill_id}`}
@@ -326,17 +326,17 @@ export const SkillAssignmentPicker: React.FC<SkillAssignmentPickerProps> = ({
                           }}
                         >
                           <option value="latest">
-                            Latest published
+                            {t('agents-skill-picker-latest-published')}
                             {skill.published_version != null ? ` (v${skill.published_version})` : ''}
                           </option>
-                          {pinnedVersionUnavailable && (
+                          {pinnedVersionUnavailable && binding.version != null && (
                             <option value="unavailable" disabled>
-                              Pin v{binding.version} unavailable
+                              {t('agents-skill-picker-pin-unavailable', { version: binding.version })}
                             </option>
                           )}
                           {pinOptions.map(v => (
                             <option key={v} value={String(v)}>
-                              Pin v{v}
+                              {t('agents-skill-picker-pin', { version: v })}
                             </option>
                           ))}
                         </select>
@@ -351,15 +351,15 @@ export const SkillAssignmentPicker: React.FC<SkillAssignmentPickerProps> = ({
 
         <div className="gba:flex gba:items-center gba:justify-between gba:px-5 gba:py-4 gba:border-t gba:border-border">
           <p className="gba:text-xs gba:text-muted-foreground">
-            {selectedIds.size} skill{selectedIds.size !== 1 ? 's' : ''} selected
+            {t('agents-skill-picker-selected-count', { count: selectedIds.size })}
           </p>
           <div className="gba:flex gba:items-center gba:gap-2">
             <Button variant="outline" size="sm" onClick={onClose}>
-              Cancel
+              {t('agents-cancel-label')}
             </Button>
             <Button size="sm" onClick={() => void handleSave()} disabled={isSaving}>
               {isSaving ? <SpinnerGapIcon className="gba:mr-1.5 gba:h-3.5 gba:w-3.5 gba:animate-spin" /> : null}
-              Save
+              {t('agents-skill-picker-save')}
             </Button>
           </div>
         </div>

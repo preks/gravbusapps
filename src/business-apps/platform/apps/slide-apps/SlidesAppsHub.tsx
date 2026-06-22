@@ -58,7 +58,11 @@ import {
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { sanitizeSameOriginReturnUrl } from '@/common/utils/safeUrlUtils'
-import { getShareCapabilities } from '@/business-apps/core/office/sharing'
+import {
+  BulkShareEntitiesDialog,
+  getShareCapabilities,
+  SLIDE_SHARE_PERMISSIONS
+} from '@/business-apps/core/office/sharing'
 import { DeleteConfirmDialog } from '@/business-apps/core/office/apps/drive/components/DeleteConfirmDialog'
 import { DriveApiService } from '@/business-apps/core/office/apps/drive/services/DriveApiService'
 import {
@@ -212,6 +216,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   // Data state
   const [selectedSlideId, setSelectedSlideId] = useState<string | null>(null)
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
+  const [bulkShareDialogOpen, setBulkShareDialogOpen] = useState(false)
   const [slideForShare, setSlideForShare] = useState<string | null>(null)
   const [manageSharesDialogOpen, setManageSharesDialogOpen] = useState(false)
   const [slideForManageShares, setSlideForManageShares] = useState<string | null>(null)
@@ -373,6 +378,34 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   )
 
   const canBulkDeleteSlides = selectedSlides.size > 0 && selectedSlidesForDelete.length === selectedSlides.size
+
+  const selectedSlidesForShare = useMemo(
+    () =>
+      Array.from(selectedSlides)
+        .map(id => {
+          const slide = slides.find(item => item.id === id)
+
+          if (!slide || !getSlideCapabilities(slide, currentUserId).canManageSharing) {
+            return null
+          }
+
+          return slide
+        })
+        .filter((slide): slide is SlideSummary => slide !== null),
+    [currentUserId, selectedSlides, slides]
+  )
+
+  const canBulkShareSlides = selectedSlides.size > 0 && selectedSlidesForShare.length === selectedSlides.size
+
+  const bulkShareSlides = useMemo(
+    () =>
+      selectedSlidesForShare.map(slide => ({
+        entityType: 'slide',
+        entityId: slide.id,
+        entityTitle: slide.title || t('title-untitled-slide')
+      })),
+    [selectedSlidesForShare, t]
+  )
 
   // Track if initial URL load has been processed
   const [initialUrlProcessed, setInitialUrlProcessed] = useState(false)
@@ -1141,6 +1174,12 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                       {selectedSlides.size} selected
                     </Button>
                     <div className="gba:w-px gba:h-5 gba:bg-border gba:mx-1" />
+                    {canBulkShareSlides && (
+                      <Button variant="ghost" size="sm" onClick={() => setBulkShareDialogOpen(true)}>
+                        <Share2 className="gba:w-4 gba:h-4 gba:mr-1" />
+                        {t('menu-share')}
+                      </Button>
+                    )}
                     {canBulkDeleteSlides && (
                       <Button
                         variant="ghost"
@@ -1610,6 +1649,22 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
             await refreshSharedUsersForSlide(slideForShare)
           }}
           data-testid={`${testId}-share-dialog`}
+        />
+      )}
+
+      {bulkShareSlides.length > 0 && (
+        <BulkShareEntitiesDialog
+          open={bulkShareDialogOpen}
+          onOpenChange={setBulkShareDialogOpen}
+          accessToken={accessToken || ''}
+          currentUserId={currentUserId}
+          entities={bulkShareSlides}
+          permissionOptions={SLIDE_SHARE_PERMISSIONS}
+          onShareComplete={async () => {
+            setSelectedSlides(new Set())
+            refreshSlides()
+          }}
+          data-testid={`${testId}-bulk-share-dialog`}
         />
       )}
 

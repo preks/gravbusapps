@@ -77,7 +77,11 @@ import { PromoteToDatabaseModal } from './components/PromoteToDatabaseModal'
 import { SpreadsheetAppViewer } from './SpreadsheetAppViewer'
 import { SpreadsheetAppEditor } from './SpreadsheetAppEditor'
 import { ShareAppDialog } from './components/ShareAppDialog'
-import { getShareCapabilities } from '@/business-apps/core/office/sharing'
+import {
+  BulkShareEntitiesDialog,
+  getShareCapabilities,
+  SPREADSHEET_SHARE_PERMISSIONS
+} from '@/business-apps/core/office/sharing'
 import { ManageSharesDialog } from './components/ManageSharesDialog'
 import { SpreadsheetAutomationsSection } from './components/automations/SpreadsheetAutomationsSection'
 import { TrashedSpreadsheetReadonlyDialog } from './components/TrashedSpreadsheetReadonlyDialog'
@@ -103,8 +107,6 @@ import { HubPaginationFooter } from '@/business-apps/platform/apps/shared/compon
 import { navigateTo, Navigation } from '@/common/utils/navigationUtils'
 import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
 import { sanitizeSameOriginReturnUrl } from '@/common/utils/safeUrlUtils'
-import { useFeature } from '@/common/hooks/useFeature'
-import { Feature } from '@/common/types/constants/FeatureHub'
 import { openEveryAI } from '@/common/utils/openEveryAI'
 import { buildSpreadsheetCreatePrompt } from '@/common/utils/buildSpreadsheetCreatePrompt'
 
@@ -577,8 +579,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   // Get current user ID
   const currentUserId = resolveCurrentUserId(userInfo)
   const flowTaskUserId = userInfo?.id || currentUserId
-  const previewFeature = useFeature<boolean>(Feature.Preview.Enabled.Key)
-  const previewEnabled = previewFeature === true
 
   // Ensure SpreadsheetApiService can authenticate in published screens (token might not be in localStorage)
   useEffect(() => {
@@ -589,6 +589,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
   // Share dialog state
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
+  const [bulkShareDialogOpen, setBulkShareDialogOpen] = useState(false)
   const [selectedAppForShare, setSelectedAppForShare] = useState<SpreadsheetAppSummary | null>(null)
   const [sharedUsers, setSharedUsers] = useState<
     Array<{
@@ -737,17 +738,10 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     setCurrentView,
     activeSection,
     setActiveSection,
-    showSharedSection: previewEnabled,
     onLoadFailed: () => {
       toast.error(t('toast-spreadsheet-not-found'))
     }
   })
-
-  useEffect(() => {
-    if (!previewEnabled && activeSection === 'shared') {
-      setActiveSection('my-files')
-    }
-  }, [activeSection, previewEnabled])
 
   // Update URL whenever activeSection changes (when user clicks sidebar)
   useEffect(() => {
@@ -900,6 +894,34 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   )
 
   const canBulkDeleteApps = selectedApps.size > 0 && selectedAppsForDelete.length === selectedApps.size
+
+  const selectedAppsForShare = useMemo(
+    () =>
+      Array.from(selectedApps)
+        .map(id => {
+          const app = apps.find(item => item.id === id)
+
+          if (!app || !getSpreadsheetCapabilities(app, currentUserId).canManageSharing) {
+            return null
+          }
+
+          return app
+        })
+        .filter((app): app is SpreadsheetAppSummary => app !== null),
+    [apps, currentUserId, selectedApps]
+  )
+
+  const canBulkShareApps = selectedApps.size > 0 && selectedAppsForShare.length === selectedApps.size
+
+  const bulkShareApps = useMemo(
+    () =>
+      selectedAppsForShare.map(app => ({
+        entityType: 'spreadsheet_app',
+        entityId: app.id,
+        entityTitle: app.name
+      })),
+    [selectedAppsForShare]
+  )
 
   // Handlers
   const resolveAppSummaryForSharing = useCallback(
@@ -1653,7 +1675,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
               onOpenChange={handleShareDialogOpenChange}
               appId={selectedAppForShare.id}
               appName={selectedAppForShare.name}
-              appFilePath={selectedAppForShare.filePath || ''}
               accessToken={accessToken || ''}
               currentUserId={currentUserId}
               currentUserName={currentUserName}
@@ -1818,7 +1839,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
               onSectionChange={s => setActiveSection(s as SidebarSection)}
               tabBadges={heroTabBadges}
               newButton={heroNewButton}
-              showSharedTab={previewEnabled}
               t={t}
               data-testid={`${testId}-hero`}
             />
@@ -2004,7 +2024,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
           onSectionChange={s => setActiveSection(s)}
           tabBadges={heroTabBadges}
           newButton={heroNewButton}
-          showSharedTab={previewEnabled}
           t={t}
           data-testid={`${testId}-hero`}
         />
@@ -2101,6 +2120,18 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                             <Download className="gba:w-3.5 gba:h-3.5 gba:mr-1" />
                             {t('action-download')}
                           </Button>
+                          {canBulkShareApps && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="gba:h-7 gba:text-xs"
+                              onClick={() => setBulkShareDialogOpen(true)}
+                              data-testid="spreadsheet-apps-hub-bulk-share-button"
+                            >
+                              <Share2 className="gba:w-3.5 gba:h-3.5 gba:mr-1" />
+                              {t('action-share')}
+                            </Button>
+                          )}
                           {canBulkDeleteApps && (
                             <Button
                               variant="ghost"
@@ -2495,7 +2526,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                         <Play className="gba:w-4 gba:h-4 gba:mr-2" />
                                         {t('action-open')}
                                       </DropdownMenuItem>
-                                      {previewEnabled && isOwner && (
+                                      {isOwner && (
                                         <DropdownMenuItem
                                           onClick={() => handleShareApp(app.id)}
                                           data-testid={`${testId}-row-share-${app.id}`}
@@ -2646,7 +2677,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                 <Button size="sm" variant="secondary" onClick={() => handleOpenApp(app.id)}>
                                   {t('action-open')}
                                 </Button>
-                                {previewEnabled && isOwner && (
+                                {isOwner && (
                                   <Button size="sm" variant="ghost" onClick={() => handleShareApp(app.id)}>
                                     <Share2 className="gba:w-4 gba:h-4" />
                                   </Button>
@@ -2726,7 +2757,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             onOpenChange={handleShareDialogOpenChange}
             appId={selectedAppForShare.id}
             appName={selectedAppForShare.name}
-            appFilePath={selectedAppForShare.filePath || ''}
             accessToken={accessToken || ''}
             currentUserId={currentUserId}
             currentUserName={currentUserName}
@@ -2741,6 +2771,22 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
               setSelectedAppForManageShares(selectedAppForShare)
               setManageSharesDialogOpen(true)
             }}
+          />
+        )}
+
+        {bulkShareApps.length > 0 && (
+          <BulkShareEntitiesDialog
+            open={bulkShareDialogOpen}
+            onOpenChange={setBulkShareDialogOpen}
+            accessToken={accessToken || ''}
+            currentUserId={currentUserId}
+            entities={bulkShareApps}
+            permissionOptions={SPREADSHEET_SHARE_PERMISSIONS}
+            onShareComplete={async () => {
+              setSelectedApps(new Set())
+              await refreshApps()
+            }}
+            data-testid={`${testId}-bulk-share-dialog`}
           />
         )}
 

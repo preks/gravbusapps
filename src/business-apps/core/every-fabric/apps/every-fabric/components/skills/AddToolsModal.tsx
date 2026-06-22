@@ -1,15 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { MagnifyingGlass, X, ArrowClockwise } from '@phosphor-icons/react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import type { CanonicalProviderToolEntry, RelatedToolRef } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import {
   compareToolCategories,
-  formatCategoryLabel,
+  formatCategoryLabelI18n,
   formatToolDisplayName,
-  formatToolSourceLabel
+  formatToolSourceLabelI18n
 } from './toolCategoryLabels'
 import { ToolCompanions } from './ToolCompanions'
+import translations from '../../_i18n'
+
+type AddToolsTranslate = (key: string, vars?: Record<string, unknown>) => string
 
 export interface AddToolsModalProps {
   open: boolean
@@ -30,6 +33,7 @@ interface ToolOption {
   displayName: string
   description?: string
   source: CanonicalProviderToolEntry['source']
+  executionBackend?: string
   sourceLabel: string
   /** Raw category id from the backend — used for filter equality and grouping. */
   categoryId: string
@@ -118,6 +122,12 @@ const extractSchemaParams = (schema: Record<string, unknown> | undefined): Schem
   })
 }
 
+const localizeToolOption = (tool: ToolOption, t: AddToolsTranslate): ToolOption => ({
+  ...tool,
+  categoryLabel: formatCategoryLabelI18n(tool.categoryId === UNCATEGORIZED ? null : tool.categoryId, t),
+  sourceLabel: tool.executionBackend ?? formatToolSourceLabelI18n(tool.source, t)
+})
+
 const canonicalToToolOption = (entry: CanonicalProviderToolEntry): ToolOption => {
   const categoryId = entry.category ?? UNCATEGORIZED
   return {
@@ -127,9 +137,10 @@ const canonicalToToolOption = (entry: CanonicalProviderToolEntry): ToolOption =>
     displayName: formatToolDisplayName(entry.display_name, entry.canonical_name),
     description: entry.description,
     source: entry.source,
-    sourceLabel: entry.execution_backend || formatToolSourceLabel(entry.source),
+    executionBackend: entry.execution_backend || undefined,
+    sourceLabel: '',
     categoryId,
-    categoryLabel: formatCategoryLabel(entry.category),
+    categoryLabel: '',
     tags: Array.isArray(entry.tags) ? entry.tags : [],
     riskLevel: readCapabilityString(entry.capabilities, 'risk_level'),
     requiresAuth: readCapabilityBool(entry.capabilities, 'requires_auth'),
@@ -143,6 +154,7 @@ const canonicalToToolOption = (entry: CanonicalProviderToolEntry): ToolOption =>
 }
 
 export const AddToolsModal: React.FC<AddToolsModalProps> = ({ open, onClose, accessToken, alreadySelected, onAdd }) => {
+  const { t } = useTranslation(translations)
   const promptManagerClient = usePromptManagerClient(accessToken ?? '')
   const [tools, setTools] = useState<ToolOption[]>([])
   const [loading, setLoading] = useState(false)
@@ -168,11 +180,13 @@ export const AddToolsModal: React.FC<AddToolsModalProps> = ({ open, onClose, acc
       const canonicalTools = await promptManagerClient.getCanonicalProviderTools({ includeSchema: false })
       setTools(canonicalTools.map(canonicalToToolOption))
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load tools')
+      setError(err instanceof Error ? err.message : t('settings-tools-error-load'))
     } finally {
       setLoading(false)
     }
-  }, [promptManagerClient])
+  }, [promptManagerClient, t])
+
+  const displayTools = useMemo(() => tools.map(tool => localizeToolOption(tool, t)), [tools, t])
 
   // Hydrate the previewed tool's schema lazily. Results are cached both in this
   // component (schemaByRef) and in the client (per-ref memo), so re-previewing
@@ -223,17 +237,21 @@ export const AddToolsModal: React.FC<AddToolsModalProps> = ({ open, onClose, acc
   // domains first and ``uncategorized`` last.
   const categories = useMemo(() => {
     const counts = new Map<string, number>()
-    for (const tool of tools) {
+    for (const tool of displayTools) {
       counts.set(tool.categoryId, (counts.get(tool.categoryId) ?? 0) + 1)
     }
     return Array.from(counts.entries())
-      .map(([id, count]) => ({ id, label: formatCategoryLabel(id === UNCATEGORIZED ? null : id), count }))
+      .map(([id, count]) => ({
+        id,
+        label: formatCategoryLabelI18n(id === UNCATEGORIZED ? null : id, t),
+        count
+      }))
       .sort((a, b) => compareToolCategories(a.id, b.id))
-  }, [tools])
+  }, [displayTools, t])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    return tools.filter(tool => {
+    return displayTools.filter(tool => {
       if (categoryFilter !== ALL_FILTER && tool.categoryId !== categoryFilter) return false
       if (!q) return true
       if (tool.ref.toLowerCase().includes(q)) return true
@@ -245,7 +263,7 @@ export const AddToolsModal: React.FC<AddToolsModalProps> = ({ open, onClose, acc
       if (tool.tags.some(tag => tag.toLowerCase().includes(q))) return true
       return false
     })
-  }, [tools, search, categoryFilter])
+  }, [displayTools, search, categoryFilter])
 
   // Group filtered entries by category so the user always sees a
   // domain-led layout. Inside a single-category filter view there's
@@ -262,10 +280,10 @@ export const AddToolsModal: React.FC<AddToolsModalProps> = ({ open, onClose, acc
       .sort(([a], [b]) => compareToolCategories(a, b))
       .map(([id, items]) => ({
         id,
-        label: formatCategoryLabel(id === UNCATEGORIZED ? null : id),
+        label: formatCategoryLabelI18n(id === UNCATEGORIZED ? null : id, t),
         items: items.sort((a, b) => a.displayName.localeCompare(b.displayName))
       }))
-  }, [filtered])
+  }, [filtered, t])
 
   // Preview pane is open by default: keep it pointed at a valid, currently
   // visible tool. When the filter changes (or the list first loads), default
@@ -310,13 +328,16 @@ export const AddToolsModal: React.FC<AddToolsModalProps> = ({ open, onClose, acc
 
   const previewByRef = useCallback(
     (toolRef: string) => {
-      const match = tools.find(t => t.ref === toolRef)
+      const match = displayTools.find(tool => tool.ref === toolRef)
       if (match) setPreviewTool(match)
     },
-    [tools]
+    [displayTools]
   )
 
-  const labelForRef = useCallback((toolRef: string) => tools.find(t => t.ref === toolRef)?.displayName, [tools])
+  const labelForRef = useCallback(
+    (toolRef: string) => displayTools.find(tool => tool.ref === toolRef)?.displayName,
+    [displayTools]
+  )
 
   // Merge the lazily-fetched schema into the previewed tool so the preview pane
   // renders parameters without the list ever carrying schemas.
@@ -353,17 +374,14 @@ export const AddToolsModal: React.FC<AddToolsModalProps> = ({ open, onClose, acc
           if (e.key === 'Escape') handleClose()
         }}
         tabIndex={-1}
-        aria-label="Close dialog"
+        aria-label={t('agents-policies-modal-close-aria')}
       />
       <div className="gba:relative gba:w-full gba:max-w-4xl gba:max-h-[80vh] gba:overflow-hidden gba:flex gba:rounded-xl gba:border gba:border-border gba:bg-background gba:shadow-xl">
         <div className="gba:flex gba:min-w-0 gba:flex-1 gba:flex-col">
           {/* Header */}
           <div className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-3 gba:border-b gba:border-border">
             <div>
-              <h3 className="gba:text-sm gba:font-semibold">Add Tool to Skill</h3>
-              <p className="gba:text-[11px] gba:text-muted-foreground">
-                Pick by what the tool does. Source is shown for transparency only.
-              </p>
+              <h3 className="gba:text-sm gba:font-semibold">{t('skills-add-tools-title')}</h3>
             </div>
             <button
               type="button"
@@ -383,7 +401,7 @@ export const AddToolsModal: React.FC<AddToolsModalProps> = ({ open, onClose, acc
                 type="text"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder="Search tools — name, description, category, tag…"
+                placeholder={t('skills-add-tools-search')}
                 className="gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-muted/20 gba:pl-8 gba:pr-3 gba:py-2 gba:text-sm gba:text-foreground placeholder:gba:text-muted-foreground/50 focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-primary/30"
                 data-testid="add-tools-modal-search"
               />
@@ -396,9 +414,11 @@ export const AddToolsModal: React.FC<AddToolsModalProps> = ({ open, onClose, acc
               className="gba:px-4 gba:pb-2 gba:flex gba:flex-wrap gba:items-center gba:gap-1.5"
               data-testid="add-tools-modal-category-filter"
             >
-              <span className="gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:mr-0.5">Category</span>
+              <span className="gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:mr-0.5">
+                {t('skills-add-tools-category')}
+              </span>
               <FilterPill
-                label={`All (${tools.length})`}
+                label={t('skills-add-tools-all', { count: displayTools.length })}
                 active={categoryFilter === ALL_FILTER}
                 onClick={() => setCategoryFilter(ALL_FILTER)}
                 testId="add-tools-modal-category-pill-all"
@@ -419,7 +439,7 @@ export const AddToolsModal: React.FC<AddToolsModalProps> = ({ open, onClose, acc
           <div className="gba:flex-1 gba:overflow-y-auto gba:px-4 gba:pb-2">
             {loading && (
               <div className="gba:flex gba:items-center gba:justify-center gba:py-10 gba:text-sm gba:text-muted-foreground">
-                Loading tools…
+                {t('skills-add-tools-loading')}
               </div>
             )}
 
@@ -428,16 +448,14 @@ export const AddToolsModal: React.FC<AddToolsModalProps> = ({ open, onClose, acc
                 <p className="gba:text-sm gba:text-destructive">{error}</p>
                 <Button variant="ghost" size="sm" onClick={() => void fetchTools()}>
                   <ArrowClockwise className="gba:h-3.5 gba:w-3.5 gba:mr-1.5" />
-                  Retry
+                  {t('skills-add-tools-retry')}
                 </Button>
               </div>
             )}
 
             {!loading && !error && grouped.length === 0 && (
               <div className="gba:flex gba:items-center gba:justify-center gba:py-10 gba:text-sm gba:text-muted-foreground">
-                {search.trim() || categoryFilter !== ALL_FILTER
-                  ? 'No tools match the current filters.'
-                  : 'No tools found.'}
+                {t('settings-skill-studio-no-tools')}
               </div>
             )}
 
@@ -446,6 +464,7 @@ export const AddToolsModal: React.FC<AddToolsModalProps> = ({ open, onClose, acc
                 {grouped.map(section => (
                   <ToolPickerSection
                     key={section.id}
+                    t={t}
                     sectionId={section.id}
                     label={section.label}
                     items={section.items}
@@ -462,20 +481,22 @@ export const AddToolsModal: React.FC<AddToolsModalProps> = ({ open, onClose, acc
           {/* Action row */}
           <div className="gba:flex gba:items-center gba:justify-between gba:gap-2 gba:px-4 gba:py-3 gba:border-t gba:border-border">
             <span className="gba:text-[11px] gba:text-muted-foreground">
-              {filtered.length} tool{filtered.length === 1 ? '' : 's'} · {localSelected.size} selected
+              {t('marketplace-card-tools-count', { count: filtered.length })} ·{' '}
+              {t('marketplace-selected-count', { count: localSelected.size })}
             </span>
             <div className="gba:flex gba:gap-2">
               <Button variant="ghost" size="sm" onClick={handleClose} data-testid="add-tools-modal-cancel">
-                Cancel
+                {t('skills-add-tools-cancel')}
               </Button>
               <Button size="sm" disabled={loading} onClick={handleAdd} data-testid="add-tools-modal-add">
-                Add
+                {t('skills-add-tools-add')}
               </Button>
             </div>
           </div>
         </div>
         <aside className="gba:w-80 gba:shrink-0 gba:border-l gba:border-border gba:bg-muted/15 gba:p-4 gba:overflow-y-auto">
           <ToolPreviewPane
+            t={t}
             tool={enrichedPreviewTool}
             schemaLoading={schemaLoading}
             isSelected={ref => localSelected.has(ref)}
@@ -491,6 +512,7 @@ export const AddToolsModal: React.FC<AddToolsModalProps> = ({ open, onClose, acc
 }
 
 interface ToolPickerSectionProps {
+  t: AddToolsTranslate
   sectionId: string
   label: string
   items: ToolOption[]
@@ -501,6 +523,7 @@ interface ToolPickerSectionProps {
 }
 
 const ToolPickerSection: React.FC<ToolPickerSectionProps> = ({
+  t,
   sectionId,
   label,
   items,
@@ -532,7 +555,7 @@ const ToolPickerSection: React.FC<ToolPickerSectionProps> = ({
             }}
             data-testid={`add-tools-modal-section-select-all-${sectionId}`}
           >
-            {allSelected ? 'Deselect all' : 'Select all'}
+            {allSelected ? t('skills-add-tools-deselect-all') : t('skills-add-tools-select-all')}
           </button>
         )}
       </div>
@@ -540,6 +563,7 @@ const ToolPickerSection: React.FC<ToolPickerSectionProps> = ({
         {items.map(tool => (
           <ToolPickerRow
             key={tool.id}
+            t={t}
             tool={tool}
             checked={selected.has(tool.ref)}
             onToggle={onToggle}
@@ -552,13 +576,14 @@ const ToolPickerSection: React.FC<ToolPickerSectionProps> = ({
 }
 
 interface ToolPickerRowProps {
+  t: AddToolsTranslate
   tool: ToolOption
   checked: boolean
   onToggle: (toolRef: string) => void
   onPreview: (tool: ToolOption) => void
 }
 
-const ToolPickerRow: React.FC<ToolPickerRowProps> = ({ tool, checked, onToggle, onPreview }) => (
+const ToolPickerRow: React.FC<ToolPickerRowProps> = ({ t, tool, checked, onToggle, onPreview }) => (
   <li>
     <div
       role="button"
@@ -609,7 +634,9 @@ const ToolPickerRow: React.FC<ToolPickerRowProps> = ({ tool, checked, onToggle, 
             {tool.ref}
           </span>
           {/* Source is a small dim hint, not a primary navigation. */}
-          <span className="gba:text-[10px] gba:font-medium gba:text-muted-foreground/80">via {tool.sourceLabel}</span>
+          <span className="gba:text-[10px] gba:font-medium gba:text-muted-foreground/80">
+            {t('skills-add-tools-via', { source: tool.sourceLabel })}
+          </span>
           {tool.riskLevel && (
             <span className="gba:rounded-full gba:bg-primary/10 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-primary">
               {tool.riskLevel}
@@ -617,12 +644,12 @@ const ToolPickerRow: React.FC<ToolPickerRowProps> = ({ tool, checked, onToggle, 
           )}
           {tool.supportsHitl && (
             <span className="gba:rounded-full gba:bg-amber-100 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-amber-800">
-              HITL
+              {t('skills-add-tools-hitl')}
             </span>
           )}
           {tool.supportsArtifacts && (
             <span className="gba:rounded-full gba:bg-blue-100 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-blue-800">
-              Artifacts
+              {t('skills-add-tools-artifacts')}
             </span>
           )}
           {tool.disabled && (
@@ -630,7 +657,7 @@ const ToolPickerRow: React.FC<ToolPickerRowProps> = ({ tool, checked, onToggle, 
               className="gba:rounded-full gba:bg-destructive/10 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-destructive"
               data-testid={`add-tools-disabled-badge-${tool.ref}`}
             >
-              Disabled
+              {t('skills-add-tools-disabled')}
             </span>
           )}
         </div>
@@ -646,7 +673,7 @@ const ToolPickerRow: React.FC<ToolPickerRowProps> = ({ tool, checked, onToggle, 
               onPreview(tool)
             }}
           >
-            Preview schema
+            {t('skills-add-tools-preview-schema')}
           </button>
         )}
       </div>
@@ -678,6 +705,7 @@ const FilterPill: React.FC<FilterPillProps> = ({ label, active, onClick, testId 
 )
 
 interface ToolPreviewPaneProps {
+  t: AddToolsTranslate
   tool: ToolOption | null
   /** True while the previewed tool's schema is being fetched on demand. */
   schemaLoading: boolean
@@ -689,6 +717,7 @@ interface ToolPreviewPaneProps {
 }
 
 const ToolPreviewPane: React.FC<ToolPreviewPaneProps> = ({
+  t,
   tool,
   schemaLoading,
   isSelected,
@@ -702,7 +731,7 @@ const ToolPreviewPane: React.FC<ToolPreviewPaneProps> = ({
   if (!tool) {
     return (
       <div className="gba:flex gba:h-full gba:items-center gba:justify-center gba:text-center gba:text-xs gba:text-muted-foreground">
-        Select a tool on the left to inspect what it does, its parameters, and its safety metadata.
+        {t('skills-add-tools-preview-select')}
       </div>
     )
   }
@@ -719,7 +748,7 @@ const ToolPreviewPane: React.FC<ToolPreviewPaneProps> = ({
         <p className="gba:text-sm gba:font-semibold gba:text-foreground">{tool.displayName}</p>
         <p className="gba:text-[11px] gba:font-mono gba:text-muted-foreground gba:break-all">{tool.ref}</p>
         <p className="gba:text-[11px] gba:text-muted-foreground gba:mt-1">
-          {tool.categoryLabel} · via {tool.sourceLabel}
+          {tool.categoryLabel} · {t('skills-add-tools-via', { source: tool.sourceLabel })}
         </p>
         <div className="gba:mt-1.5 gba:flex gba:flex-wrap gba:items-center gba:gap-1.5">
           {tool.riskLevel && (
@@ -728,35 +757,31 @@ const ToolPreviewPane: React.FC<ToolPreviewPaneProps> = ({
             </span>
           )}
           <span className="gba:rounded-full gba:bg-muted gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-muted-foreground">
-            {tool.requiresAuth === false ? 'No auth' : 'Auth required'}
+            {tool.requiresAuth === false ? t('skills-add-tools-no-auth') : t('skills-add-tools-auth-required')}
           </span>
           {tool.supportsHitl && (
             <span className="gba:rounded-full gba:bg-amber-100 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-amber-800">
-              HITL
+              {t('skills-add-tools-hitl')}
             </span>
           )}
           {tool.supportsArtifacts && (
             <span className="gba:rounded-full gba:bg-blue-100 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-blue-800">
-              Artifacts
+              {t('skills-add-tools-artifacts')}
             </span>
           )}
           {tool.disabled && (
             <span className="gba:rounded-full gba:bg-destructive/10 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-destructive">
-              Disabled
+              {t('skills-add-tools-disabled')}
             </span>
           )}
         </div>
-        {tool.disabled && (
-          <p className="gba:mt-1.5 gba:text-[11px] gba:text-destructive">
-            Globally disabled — it can still be attached, but the agent will not be able to call it until re-enabled on
-            the Tools page.
-          </p>
-        )}
       </div>
 
       {tool.description && (
         <div>
-          <p className="gba:mb-1 gba:text-[11px] gba:font-semibold gba:text-muted-foreground">What it does</p>
+          <p className="gba:mb-1 gba:text-[11px] gba:font-semibold gba:text-muted-foreground">
+            {t('skills-add-tools-what-it-does')}
+          </p>
           <p className="gba:text-xs gba:text-foreground gba:leading-relaxed gba:whitespace-pre-line">
             {tool.description}
           </p>
@@ -774,7 +799,9 @@ const ToolPreviewPane: React.FC<ToolPreviewPaneProps> = ({
 
       <div>
         <div className="gba:mb-1 gba:flex gba:items-center gba:justify-between">
-          <p className="gba:text-[11px] gba:font-semibold gba:text-muted-foreground">Parameters</p>
+          <p className="gba:text-[11px] gba:font-semibold gba:text-muted-foreground">
+            {t('skills-add-tools-parameters')}
+          </p>
           {hasSchema && (
             <button
               type="button"
@@ -782,14 +809,14 @@ const ToolPreviewPane: React.FC<ToolPreviewPaneProps> = ({
               onClick={() => setShowRaw(prev => !prev)}
               data-testid="add-tools-preview-toggle-raw"
             >
-              {showRaw ? 'Show readable' : 'Show raw JSON'}
+              {showRaw ? t('skills-add-tools-show-readable') : t('skills-add-tools-show-raw')}
             </button>
           )}
         </div>
 
         {schemaLoading && !hasSchema ? (
           <p className="gba:text-xs gba:text-muted-foreground" data-testid="add-tools-preview-schema-loading">
-            Loading parameters…
+            {t('skills-add-tools-loading-params')}
           </p>
         ) : showRaw ? (
           <div className="gba:space-y-2">
@@ -798,7 +825,9 @@ const ToolPreviewPane: React.FC<ToolPreviewPaneProps> = ({
             </pre>
             {tool.outputSchema && Object.keys(tool.outputSchema).length > 0 && (
               <>
-                <p className="gba:text-[11px] gba:font-semibold gba:text-muted-foreground">Output</p>
+                <p className="gba:text-[11px] gba:font-semibold gba:text-muted-foreground">
+                  {t('run-overview-output')}
+                </p>
                 <pre className="gba:max-h-40 gba:overflow-auto gba:rounded-lg gba:bg-background gba:p-2 gba:text-[11px]">
                   {JSON.stringify(tool.outputSchema, null, 2)}
                 </pre>
@@ -806,7 +835,7 @@ const ToolPreviewPane: React.FC<ToolPreviewPaneProps> = ({
             )}
           </div>
         ) : params.length === 0 ? (
-          <p className="gba:text-xs gba:text-muted-foreground">No input parameters.</p>
+          <p className="gba:text-xs gba:text-muted-foreground">{t('skills-add-tools-no-params')}</p>
         ) : (
           <ul className="gba:space-y-1.5">
             {params.map(param => (
@@ -817,7 +846,9 @@ const ToolPreviewPane: React.FC<ToolPreviewPaneProps> = ({
                   </span>
                   <span className="gba:text-[10px] gba:text-muted-foreground">{param.type}</span>
                   {param.required && (
-                    <span className="gba:text-[10px] gba:font-medium gba:text-destructive">required</span>
+                    <span className="gba:text-[10px] gba:font-medium gba:text-destructive">
+                      {t('skills-tool-companions-required')}
+                    </span>
                   )}
                 </div>
                 {param.description && (

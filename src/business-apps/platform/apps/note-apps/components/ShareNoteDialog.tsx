@@ -1,12 +1,5 @@
 import React from 'react'
-import { buildPlatformUrl } from '@/common/utils/navigationUtils'
-import {
-  NOTE_SHARE_PERMISSIONS,
-  ShareEntityDialog,
-  sendShareBlinkNotifications,
-  type SharedEntityUser,
-  type ShareNotificationContext
-} from '@/business-apps/core/office/sharing'
+import { NOTE_SHARE_PERMISSIONS, ShareEntityDialog, type SharedEntityUser } from '@/business-apps/core/office/sharing'
 import type { NotePermission } from '../types'
 
 export interface SharedNoteUser {
@@ -68,21 +61,6 @@ export const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
   onManageAccess,
   'data-testid': testId = 'share-note-dialog'
 }) => {
-  const sendNotifications = React.useCallback(
-    (context: ShareNotificationContext) =>
-      sendShareBlinkNotifications({
-        ...context,
-        entityType: 'note',
-        appTag: 'note-share',
-        titlePrefix: 'Note Shared',
-        entityUrl: buildPlatformUrl('/platform/every-office/notes', {
-          noteId,
-          view: 'editor'
-        })
-      }),
-    [noteId]
-  )
-
   return (
     <ShareEntityDialog
       open={open}
@@ -106,7 +84,6 @@ export const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
       }
       onUnshare={shareId => onUnshare('', shareId)}
       onRefreshShares={onRefreshShares}
-      sendNotifications={sendNotifications}
       onManageAccess={onManageAccess}
       data-testid={testId}
     />

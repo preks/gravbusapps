@@ -10,6 +10,7 @@ import {
   XIcon
 } from '@phosphor-icons/react'
 import type { MeshEdge, MeshEdgeKind, MeshNode } from '../../utils/traceModel'
+import { useAgentMeshI18n } from './useAgentMeshI18n'
 
 interface MeshEdgeDetailModalProps {
   edge: MeshEdge
@@ -22,14 +23,6 @@ interface MeshEdgeDetailModalProps {
   sessionTitleMap?: Map<string, string>
   onClose: () => void
   onDrillToSession?: (sessionId: string) => void
-}
-
-const KIND_LABEL: Record<MeshEdgeKind, string> = {
-  delegation: 'Delegation',
-  tool_call: 'Tool call',
-  expert_call: 'Expert call',
-  skill_load: 'Skill load',
-  completion: 'Completion'
 }
 
 function KindIcon({ kind }: { kind: MeshEdgeKind }) {
@@ -71,6 +64,8 @@ export const MeshEdgeDetailModal: React.FC<MeshEdgeDetailModalProps> = ({
   onClose,
   onDrillToSession
 }) => {
+  const { t, edgeKindLabel } = useAgentMeshI18n()
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose()
@@ -79,21 +74,22 @@ export const MeshEdgeDetailModal: React.FC<MeshEdgeDetailModalProps> = ({
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [onClose])
 
-  const sourceName = source?.label ?? 'Unknown source'
-  const targetName = target?.label ?? 'Unknown target'
+  const sourceName = source?.label ?? t('agent-mesh-edge-unknown-source')
+  const targetName = target?.label ?? t('agent-mesh-edge-unknown-target')
+  const kindLabel = edgeKindLabel(edge.kind)
 
   return (
     <div
       className="gba:w-[340px] gba:max-w-[calc(100vw-2rem)] gba:max-h-[50vh] gba:flex gba:flex-col gba:overflow-hidden gba:rounded-[1.25rem] gba:border gba:border-border/60 gba:bg-card gba:shadow-[0_1px_2px_rgba(15,23,42,0.04),0_16px_36px_-16px_rgba(15,23,42,0.18)]"
       data-testid="mesh-edge-detail-panel"
       role="dialog"
-      aria-label={`${KIND_LABEL[edge.kind]} message`}
+      aria-label={t('agent-mesh-edge-message-aria', { kind: kindLabel })}
     >
       <header className="gba:flex gba:items-start gba:justify-between gba:gap-2 gba:px-4 gba:pt-3 gba:pb-2">
         <div className="gba:min-w-0 gba:flex-1">
           <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-[0.12em] gba:text-primary">
             <KindIcon kind={edge.kind} />
-            {KIND_LABEL[edge.kind]}
+            {kindLabel}
             {callTotal && callTotal > 1 && callIndex && (
               <span className="gba:ml-1 gba:rounded-full gba:bg-primary/10 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-semibold gba:text-primary gba:tracking-normal">
                 {callIndex}/{callTotal}
@@ -117,7 +113,7 @@ export const MeshEdgeDetailModal: React.FC<MeshEdgeDetailModalProps> = ({
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close message detail"
+          aria-label={t('agent-mesh-edge-close')}
           className="gba:inline-flex gba:h-7 gba:w-7 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-lg gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
           data-testid="mesh-edge-detail-close"
         >
@@ -130,12 +126,14 @@ export const MeshEdgeDetailModal: React.FC<MeshEdgeDetailModalProps> = ({
           className="gba:max-h-[30vh] gba:overflow-auto gba:whitespace-pre-wrap gba:break-words gba:rounded-xl gba:border gba:border-border/40 gba:bg-muted/20 gba:p-3 gba:font-mono gba:text-[11px] gba:leading-relaxed gba:text-foreground"
           data-testid="mesh-edge-detail-body"
         >
-          {edge.label?.trim() || '(No message body recorded.)'}
+          {edge.label?.trim() || t('agent-mesh-edge-no-body')}
         </pre>
 
         {edge.status && (
           <div className="gba:flex gba:items-center gba:gap-2 gba:text-[11px] gba:text-muted-foreground gba:pt-1">
-            <span className="gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-[0.1em]">Status</span>
+            <span className="gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-[0.1em]">
+              {t('agent-mesh-edge-status')}
+            </span>
             <span
               className={`gba:rounded-full gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-semibold gba:uppercase ${
                 edge.status === 'failed'
@@ -151,7 +149,7 @@ export const MeshEdgeDetailModal: React.FC<MeshEdgeDetailModalProps> = ({
         {onDrillToSession && hasSessionIds(edge) && (
           <div className="gba:border-t gba:border-border/40 gba:pt-2 gba:mt-1">
             <p className="gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-[0.1em] gba:text-muted-foreground gba:mb-1.5">
-              Sessions ({(edge as EdgeWithSessions).sampleSessionIds.length})
+              {t('agent-mesh-edge-sessions', { count: (edge as EdgeWithSessions).sampleSessionIds.length })}
             </p>
             <ul className="gba:space-y-1">
               {(edge as EdgeWithSessions).sampleSessionIds.slice(0, 5).map(sessionId => (

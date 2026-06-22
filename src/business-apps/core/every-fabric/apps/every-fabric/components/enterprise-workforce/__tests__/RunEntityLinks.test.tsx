@@ -25,7 +25,7 @@ describe('RunEntityLinks — flow actions', () => {
     render(<RunEntityLinks actions={[buildFlowAction()]} />)
 
     const row = screen.getByTestId('entity-action-row')
-    expect(row).toHaveTextContent('Flow')
+    expect(row).toHaveTextContent('entity-action-flow-label')
     expect(row).toHaveTextContent('newwork_trigger_flow')
   })
 
@@ -40,7 +40,7 @@ describe('RunEntityLinks — flow actions', () => {
   it('falls back to a generic Workflow label when no name is provided', () => {
     render(<RunEntityLinks actions={[buildFlowAction({ record_labels: {} })]} />)
 
-    expect(screen.getByTestId('entity-link-workflow')).toHaveTextContent('Workflow')
+    expect(screen.getByTestId('entity-link-workflow')).toHaveTextContent('entity-workflow-fallback')
   })
 
   it('shows an in-progress status badge for a succeeded trigger (no live poll without a token)', () => {
@@ -61,7 +61,7 @@ describe('RunEntityLinks — flow actions', () => {
 
   it('renders the template id chip when present', () => {
     render(<RunEntityLinks actions={[buildFlowAction()]} />)
-    expect(screen.getByText(/template_id: flow_abc/)).toBeInTheDocument()
+    expect(screen.getByText('flow-template-id-chip')).toBeInTheDocument()
   })
 
   it('opens the flow in-app via onOpenFlow without showing a separate external link', () => {
@@ -93,7 +93,7 @@ describe('RunEntityLinks — flow actions', () => {
     render(<RunEntityLinks actions={[crmAction]} />)
 
     const link = screen.getByTestId('entity-link-contact')
-    expect(link).toHaveTextContent('Contact: Maria Schmidt')
+    expect(link).toHaveTextContent('entity-record-id-label')
     expect(link).not.toHaveTextContent('f3236e6c-d72c-4730-b60f-74990a6b413e')
     expect(link).toHaveAttribute('href', expect.stringContaining('f3236e6c-d72c-4730-b60f-74990a6b413e'))
   })
@@ -113,7 +113,7 @@ describe('RunEntityLinks — flow actions', () => {
 
     render(<RunEntityLinks actions={[crmAction]} />)
 
-    expect(screen.getByTestId('entity-link-contact')).toHaveTextContent('Contact: f3236e6c-d72c-4730-b60f-74990a6b413e')
+    expect(screen.getByTestId('entity-link-contact')).toHaveTextContent('entity-record-id-label')
   })
 
   it('reuses a contact name resolved by one action for another action with the same id', () => {
@@ -146,7 +146,7 @@ describe('RunEntityLinks — flow actions', () => {
 
     const contactLinks = screen.getAllByTestId('entity-link-contact')
     expect(contactLinks).toHaveLength(2)
-    contactLinks.forEach(link => expect(link).toHaveTextContent('Contact: Jonas Weber'))
+    contactLinks.forEach(link => expect(link).toHaveTextContent('entity-record-id-label'))
   })
 
   it('renders flow and CRM rows together in the same section', () => {
@@ -166,7 +166,7 @@ describe('RunEntityLinks — flow actions', () => {
 
     const rows = screen.getAllByTestId('entity-action-row')
     expect(rows).toHaveLength(2)
-    expect(rows[0]).toHaveTextContent('Flow')
-    expect(rows[1]).toHaveTextContent('Create')
+    expect(rows[0]).toHaveTextContent('entity-action-flow-label')
+    expect(rows[1]).toHaveTextContent('entity-action-create-label')
   })
 })

@@ -1,6 +1,7 @@
 import React, { type ReactNode } from 'react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { SpinnerGapIcon } from '@phosphor-icons/react'
+import translations from './_i18n'
 import { AgentMeshScreen } from './components/agent-mesh/AgentMeshScreen'
 import { EnterpriseWorkforceScreen } from './components/enterprise-workforce/EnterpriseWorkforceScreen'
 import { TraceExplorerScreen } from './components/trace-explorer/TraceExplorerScreen'
@@ -59,15 +60,17 @@ function SessionLoadGate({
   onBackToLanding,
   children
 }: Readonly<SessionLoadGateProps>) {
+  const { t } = useTranslation(translations)
+
   if (isLoadingSession && sessionLoadError) {
     return (
       <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:gap-4">
-        <p className="gba:text-sm gba:text-foreground">Couldn&apos;t load this session</p>
+        <p className="gba:text-sm gba:text-foreground">{t('shell-session-load-error')}</p>
         <div className="gba:flex gba:items-center gba:gap-3">
           <Button variant="secondary" onClick={onRetry}>
-            Try again
+            {t('shell-try-again')}
           </Button>
-          <Button onClick={onBackToLanding}>Back to landing</Button>
+          <Button onClick={onBackToLanding}>{t('shell-back-to-landing')}</Button>
         </div>
       </div>
     )
@@ -77,7 +80,7 @@ function SessionLoadGate({
     return (
       <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:gap-3">
         <SpinnerGapIcon className="gba:h-5 gba:w-5 gba:animate-spin gba:text-muted-foreground" />
-        <p className="gba:text-sm gba:text-muted-foreground">Opening session...</p>
+        <p className="gba:text-sm gba:text-muted-foreground">{t('shell-opening-session')}</p>
       </div>
     )
   }
@@ -85,8 +88,8 @@ function SessionLoadGate({
   if (sessionNotFound) {
     return (
       <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:gap-4">
-        <p className="gba:text-sm gba:text-foreground">Session not found</p>
-        <Button onClick={onBackToLanding}>Back to landing</Button>
+        <p className="gba:text-sm gba:text-foreground">{t('shell-session-not-found')}</p>
+        <Button onClick={onBackToLanding}>{t('shell-back-to-landing')}</Button>
       </div>
     )
   }

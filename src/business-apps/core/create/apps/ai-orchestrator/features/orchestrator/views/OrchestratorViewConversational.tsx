@@ -6,6 +6,7 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { useOrchestratorClient } from '../hooks/useOrchestratorClient'
 import { useBuildProgress } from '../hooks/useBuildProgress'
 import { useOrchestratorState } from '../hooks/useOrchestratorState'
@@ -42,6 +43,7 @@ import { ImportFolderNewAppDialog } from '@/common/components/ai-builder/import-
 import type { BuildPlan } from '../types/build'
 import type { OrchestratorFixComposerScope } from '../types/chat'
 import { isCompletedBuildStatus } from '../types'
+import translations from '../../../../_i18n'
 
 export interface OrchestratorViewConversationalProps {
   accessToken: string
@@ -64,6 +66,7 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
   onComplete,
   'data-testid': testId = 'orchestrator-conversational'
 }) => {
+  const { t } = useTranslation(translations)
   const state = useOrchestratorState({ initialPrompt })
   const orchestratorClient = useOrchestratorClient({ accessToken })
   const builderClient = useBuilderClient(accessToken)
@@ -1312,7 +1315,7 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
         setImportNewAppDialogOpen(open)
       }}
       title="Import Folder as New App"
-      description="Create a new AI Builder app from a local folder and open it in complete preview mode."
+      description={t('import-folder-new-app-description')}
       targetPath={importTargetPath}
       onTargetPathChange={setImportTargetPath}
       resourceUrl={importResourceUrl}

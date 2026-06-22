@@ -1,10 +1,12 @@
 import * as React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { StreamingMarkdown } from '@/common/components/markdown/StreamingMarkdown'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
 import type { EnterprisePresentationMode } from '../../types/enterpriseAgent'
 import { AgentThinkingStream } from './AgentThinkingStream'
 import { AgentActivityTimeline } from './AgentActivityTimeline'
 import { useAnimatedGreeting } from './useAnimatedGreeting'
+import translations from '../../_i18n'
 
 interface StreamingAnswerBubbleProps {
   greetingContent: string
@@ -115,6 +117,7 @@ export const StreamingAnswerBubble: React.FC<StreamingAnswerBubbleProps> = ({
   presentationMode = 'default'
 }) => {
   const { animatedGreetingContent, isGreetingAnimating } = useAnimatedGreeting(greetingContent)
+  const { t } = useTranslation(translations)
 
   if (!greetingContent && !responseContent && !isStreaming) return null
 
@@ -137,7 +140,7 @@ export const StreamingAnswerBubble: React.FC<StreamingAnswerBubbleProps> = ({
 
       <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
         <span className="gba:text-[12px] gba:font-bold gba:tracking-[0.01em] gba:text-foreground">
-          NEWWORK Enterprise Agents
+          {t('brand-attribution')}
         </span>
         <span className="gba:inline-flex gba:items-center gba:gap-1.5 gba:text-[11px] gba:text-muted-foreground">
           <span className="gba:relative gba:flex gba:h-2 gba:w-2">

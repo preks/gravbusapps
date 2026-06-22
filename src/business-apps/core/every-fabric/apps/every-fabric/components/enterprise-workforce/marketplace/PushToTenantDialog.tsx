@@ -1,6 +1,7 @@
-import { Button, Input, Label } from '@newwork/nw-design-system'
+import { Button, Input, Label, useTranslation } from '@newwork/nw-design-system'
 import { CheckCircleIcon, PaperPlaneTiltIcon, XIcon } from '@phosphor-icons/react'
 import React, { useState } from 'react'
+import translations from '../../../_i18n'
 import type { PublishToTenantResult } from './useAgentMarketplace'
 
 interface PushToTenantDialogProps {
@@ -22,6 +23,7 @@ export const PushToTenantDialog: React.FC<PushToTenantDialogProps> = ({
   onClose,
   onPublish
 }) => {
+  const { t } = useTranslation(translations)
   const [baseUrl, setBaseUrl] = useState('')
   const [token, setToken] = useState('')
 
@@ -43,9 +45,9 @@ export const PushToTenantDialog: React.FC<PushToTenantDialogProps> = ({
       <div className="gba:w-full gba:max-w-lg gba:rounded-2xl gba:border gba:border-border gba:bg-background gba:shadow-2xl">
         <div className="gba:flex gba:items-start gba:justify-between gba:border-b gba:border-border/60 gba:px-5 gba:py-4">
           <div>
-            <h2 className="gba:text-base gba:font-semibold gba:text-foreground">Publish to tenant</h2>
+            <h2 className="gba:text-base gba:font-semibold gba:text-foreground">{t('detail-publish-marketplace')}</h2>
             <p className="gba:text-xs gba:text-muted-foreground">
-              List {selectedCount} selected agent{selectedCount === 1 ? '' : 's'} in a customer marketplace.
+              {t('marketplace-push-description', { count: selectedCount })}
             </p>
           </div>
           <button
@@ -53,7 +55,7 @@ export const PushToTenantDialog: React.FC<PushToTenantDialogProps> = ({
             onClick={handleClose}
             disabled={isBusy}
             className="gba:inline-flex gba:h-8 gba:w-8 gba:items-center gba:justify-center gba:rounded-lg gba:text-muted-foreground gba:hover:bg-muted/60"
-            aria-label="Close"
+            aria-label={t('action-close')}
           >
             <XIcon className="gba:h-4 gba:w-4" />
           </button>
@@ -66,7 +68,7 @@ export const PushToTenantDialog: React.FC<PushToTenantDialogProps> = ({
                 <CheckCircleIcon className="gba:mt-0.5 gba:h-4 gba:w-4 gba:text-emerald-600" weight="fill" />
                 <div>
                   <p className="gba:text-sm gba:font-medium gba:text-foreground">
-                    Published {succeeded.length} package{succeeded.length === 1 ? '' : 's'}
+                    {t('marketplace-push-success', { count: succeeded.length })}
                   </p>
                   <ul className="gba:mt-1 gba:list-inside gba:list-disc gba:text-xs gba:text-muted-foreground">
                     {succeeded.map(result => (
@@ -79,12 +81,12 @@ export const PushToTenantDialog: React.FC<PushToTenantDialogProps> = ({
             {failed.length > 0 ? (
               <div className="gba:rounded-xl gba:border gba:border-destructive/40 gba:bg-destructive/5 gba:p-3">
                 <p className="gba:text-xs gba:font-medium gba:text-destructive">
-                  {failed.length} package{failed.length === 1 ? '' : 's'} failed
+                  {t('marketplace-push-failed', { count: failed.length })}
                 </p>
                 <ul className="gba:mt-1 gba:list-inside gba:list-disc gba:text-xs gba:text-destructive">
                   {failed.map(result => (
                     <li key={result.packageId}>
-                      {result.name}: {result.error}
+                      {t('marketplace-push-failed-item', { name: result.name, error: result.error ?? '' })}
                     </li>
                   ))}
                 </ul>
@@ -92,7 +94,7 @@ export const PushToTenantDialog: React.FC<PushToTenantDialogProps> = ({
             ) : null}
             <div className="gba:flex gba:justify-end">
               <Button onClick={handleClose} data-testid="marketplace-push-done">
-                Done
+                {t('marketplace-done')}
               </Button>
             </div>
           </div>
@@ -100,23 +102,23 @@ export const PushToTenantDialog: React.FC<PushToTenantDialogProps> = ({
           <>
             <div className="gba:flex gba:flex-col gba:gap-4 gba:px-5 gba:py-4">
               <div className="gba:flex gba:flex-col gba:gap-1.5">
-                <Label htmlFor="push-target-base-url">Target tenant URL</Label>
+                <Label htmlFor="push-target-base-url">{t('marketplace-target-tenant-url')}</Label>
                 <Input
                   id="push-target-base-url"
                   value={baseUrl}
                   onChange={event => setBaseUrl(event.target.value)}
-                  placeholder="https://customer.example.com/prompt-manager"
+                  placeholder={t('marketplace-target-url-placeholder')}
                   data-testid="marketplace-push-base-url"
                 />
               </div>
               <div className="gba:flex gba:flex-col gba:gap-1.5">
-                <Label htmlFor="push-target-token">Target bearer token</Label>
+                <Label htmlFor="push-target-token">{t('marketplace-target-bearer-token')}</Label>
                 <Input
                   id="push-target-token"
                   type="password"
                   value={token}
                   onChange={event => setToken(event.target.value)}
-                  placeholder="Paste tenant access token"
+                  placeholder={t('marketplace-target-token-placeholder')}
                   data-testid="marketplace-push-token"
                 />
               </div>
@@ -125,7 +127,7 @@ export const PushToTenantDialog: React.FC<PushToTenantDialogProps> = ({
 
             <div className="gba:flex gba:justify-end gba:gap-2 gba:border-t gba:border-border/60 gba:px-5 gba:py-3">
               <Button variant="outline" onClick={handleClose} disabled={isBusy} data-testid="marketplace-push-cancel">
-                Cancel
+                {t('action-cancel')}
               </Button>
               <Button
                 onClick={() =>
@@ -138,7 +140,7 @@ export const PushToTenantDialog: React.FC<PushToTenantDialogProps> = ({
                 data-testid="marketplace-push-submit"
               >
                 <PaperPlaneTiltIcon className="gba:mr-1.5 gba:h-4 gba:w-4" />
-                {isBusy ? 'Publishing…' : 'Publish to tenant'}
+                {isBusy ? t('marketplace-publishing') : t('detail-publish-marketplace')}
               </Button>
             </div>
           </>

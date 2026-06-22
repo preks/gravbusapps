@@ -5,9 +5,11 @@
 // CRM record pages; other domains fall back to plain id chips.
 
 import { ArrowSquareOutIcon, BriefcaseIcon, CheckCircleIcon, WarningCircleIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import React from 'react'
 
 import { buildEntityNavigationUrl } from '@/business-apps/platform/apps/every-ai/components/entities/utils/entityNavigation'
+import translations from '../../_i18n'
 import type { WorkforceRunCaseRef, WorkforceRunDomainAction } from './workforceTypes'
 import { formatTimestamp } from './runDisplay'
 import { FlowActionDetails } from './FlowActionDetails'
@@ -23,23 +25,27 @@ export interface RunEntityLinksProps {
   onOpenFlow?: (workflowId: string) => void
 }
 
-const ACTION_LABELS: Record<string, { label: string; description: string }> = {
-  search: { label: 'Search', description: 'Looked up an existing record' },
-  create: { label: 'Create', description: 'Created a new record' },
-  update: { label: 'Update', description: 'Updated an existing record' },
-  timeline: { label: 'Timeline', description: 'Read record history' },
-  note: { label: 'Note', description: 'Added a note' },
-  task: { label: 'Task', description: 'Logged a follow-up task' },
-  flow: { label: 'Flow', description: 'Started a workflow' }
+type TranslateFn = (key: string, args?: Record<string, unknown>) => string
+
+const ACTION_LABEL_KEYS: Record<string, { label: string; description: string }> = {
+  search: { label: 'entity-action-search-label', description: 'entity-action-search-desc' },
+  create: { label: 'entity-action-create-label', description: 'entity-action-create-desc' },
+  update: { label: 'entity-action-update-label', description: 'entity-action-update-desc' },
+  timeline: { label: 'entity-action-timeline-label', description: 'entity-action-timeline-desc' },
+  note: { label: 'entity-action-note-label', description: 'entity-action-note-desc' },
+  task: { label: 'entity-action-task-label', description: 'entity-action-task-desc' },
+  flow: { label: 'entity-action-flow-label', description: 'entity-action-flow-desc' }
 }
 
-const CRM_LINK_FIELDS: Array<{ key: string; entityType: 'account' | 'contact'; label: string }> = [
-  { key: 'account_id', entityType: 'account', label: 'Account' },
-  { key: 'contact_id', entityType: 'contact', label: 'Contact' }
+const CRM_LINK_FIELDS: Array<{ key: string; entityType: 'account' | 'contact'; labelKey: string }> = [
+  { key: 'account_id', entityType: 'account', labelKey: 'entity-label-account' },
+  { key: 'contact_id', entityType: 'contact', labelKey: 'entity-label-contact' }
 ]
 
-function describeAction(action: string): { label: string; description: string } {
-  return ACTION_LABELS[action] ?? { label: action, description: 'Tool call' }
+function describeAction(action: string, t: TranslateFn): { label: string; description: string } {
+  const keys = ACTION_LABEL_KEYS[action]
+  if (!keys) return { label: action, description: t('entity-action-fallback-desc') }
+  return { label: t(keys.label), description: t(keys.description) }
 }
 
 function actionKey(entry: WorkforceRunDomainAction, index: number): string {
@@ -51,11 +57,12 @@ function actionKey(entry: WorkforceRunDomainAction, index: number): string {
 const CrmRecordLink: React.FC<{
   entityType: 'account' | 'contact'
   entityId: string
-  label: string
+  labelKey: string
   displayName?: string
-}> = ({ entityType, entityId, label, displayName }) => {
+  t: TranslateFn
+}> = ({ entityType, entityId, labelKey, displayName, t }) => {
   const url = buildEntityNavigationUrl(entityType, entityId, 'workforce-run')
-  const idLabel = `${label}: ${displayName?.trim() || entityId}`
+  const idLabel = t('entity-record-id-label', { label: t(labelKey), value: displayName?.trim() || entityId })
   if (!url) {
     return (
       <span
@@ -90,7 +97,8 @@ const RecordIds: React.FC<{
   domain: string
   recordIds: Record<string, string>
   recordLabels?: Record<string, string>
-}> = ({ domain, recordIds, recordLabels }) => {
+  t: TranslateFn
+}> = ({ domain, recordIds, recordLabels, t }) => {
   const isCrm = domain === 'crm'
   const linkable = isCrm ? CRM_LINK_FIELDS.filter(field => Boolean(recordIds[field.key])) : []
   const linkedKeys = new Set(linkable.map(field => field.key))
@@ -103,8 +111,9 @@ const RecordIds: React.FC<{
           key={field.key}
           entityType={field.entityType}
           entityId={recordIds[field.key]}
-          label={field.label}
+          labelKey={field.labelKey}
           displayName={recordLabels?.[recordIds[field.key]]}
+          t={t}
         />
       ))}
       {extraIds.map(([key, value]) => (
@@ -114,10 +123,11 @@ const RecordIds: React.FC<{
   )
 }
 
-const CaseBanner: React.FC<{ caseRef: WorkforceRunCaseRef; fallbackLabels?: Record<string, string> }> = ({
-  caseRef,
-  fallbackLabels
-}) => {
+const CaseBanner: React.FC<{
+  caseRef: WorkforceRunCaseRef
+  fallbackLabels?: Record<string, string>
+  t: TranslateFn
+}> = ({ caseRef, fallbackLabels, t }) => {
   const displayName = (caseRef.record_labels?.[caseRef.record_id] || fallbackLabels?.[caseRef.record_id])?.trim()
   const subject = displayName || caseRef.record_id
   const label = caseRef.entity_type ? `${caseRef.entity_type} · ${subject}` : subject
@@ -129,7 +139,7 @@ const CaseBanner: React.FC<{ caseRef: WorkforceRunCaseRef; fallbackLabels?: Reco
       <BriefcaseIcon className="gba:h-4 gba:w-4 gba:text-primary" />
       <div className="gba:min-w-0">
         <p className="gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground">
-          Case assigned
+          {t('entity-case-assigned')}
         </p>
         <p className="gba:truncate gba:text-xs gba:font-medium gba:text-foreground">{label}</p>
       </div>
@@ -158,6 +168,8 @@ function buildRunLabelMap(
 }
 
 export const RunEntityLinks: React.FC<RunEntityLinksProps> = ({ actions, caseRef, accessToken, onOpenFlow }) => {
+  const { t } = useTranslation(translations)
+
   if ((!actions || actions.length === 0) && !caseRef) return null
 
   const runLabels = buildRunLabelMap(actions, caseRef)
@@ -165,13 +177,13 @@ export const RunEntityLinks: React.FC<RunEntityLinksProps> = ({ actions, caseRef
   return (
     <section data-testid="workforce-run-detail-entity-links">
       <h3 className="gba:mb-1.5 gba:text-xs gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground">
-        Records & actions
+        {t('entity-records-actions-title')}
       </h3>
-      {caseRef && <CaseBanner caseRef={caseRef} fallbackLabels={runLabels} />}
+      {caseRef && <CaseBanner caseRef={caseRef} fallbackLabels={runLabels} t={t} />}
       {actions && actions.length > 0 && (
         <ul className="gba:space-y-1.5">
           {actions.map((entry, index) => {
-            const meta = describeAction(entry.action)
+            const meta = describeAction(entry.action, t)
             const recordIds = entry.record_ids ?? {}
             const isFlow = (entry.domain ?? 'crm') === 'flow'
             const workflowId = recordIds.workflow_id
@@ -208,7 +220,7 @@ export const RunEntityLinks: React.FC<RunEntityLinksProps> = ({ actions, caseRef
                   <FlowActionDetails
                     workflowId={workflowId}
                     templateId={recordIds.template_id}
-                    workflowName={(workflowId && entry.record_labels?.[workflowId]) || 'Workflow'}
+                    workflowName={(workflowId && entry.record_labels?.[workflowId]) || t('entity-workflow-fallback')}
                     accessToken={accessToken}
                     succeeded={entry.succeeded}
                     onOpenFlow={onOpenFlow}
@@ -218,6 +230,7 @@ export const RunEntityLinks: React.FC<RunEntityLinksProps> = ({ actions, caseRef
                     domain={entry.domain ?? 'crm'}
                     recordIds={recordIds}
                     recordLabels={{ ...runLabels, ...entry.record_labels }}
+                    t={t}
                   />
                 )}
               </li>

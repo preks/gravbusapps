@@ -1,18 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { ChartBarIcon } from '@phosphor-icons/react'
 import type { DeepAgentSession } from '../../../types/enterpriseAgent'
 import { useEnterpriseAgentClient } from '../../../hooks/useEnterpriseAgentClient'
 import { parseIsoTimestampMs } from '../../../utils/renderUtils'
 import { SectionHeader, MetricCard } from './SettingsShared'
 import { MetricsGridSkeleton } from './SkeletonLoader'
+import translations from '../../../_i18n'
 
 type MetricsRange = '7d' | '30d' | 'all'
 const MILLISECONDS_PER_DAY = 86_400_000
 
-const RANGE_LABELS: Record<MetricsRange, string> = {
-  '7d': '7 days',
-  '30d': '30 days',
-  all: 'All time'
+const RANGE_LABEL_KEYS: Record<MetricsRange, string> = {
+  '7d': 'settings-metrics-range-7d',
+  '30d': 'settings-metrics-range-30d',
+  all: 'settings-metrics-range-all'
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -27,6 +29,7 @@ interface MetricsSectionProps {
 }
 
 export const MetricsSection: React.FC<MetricsSectionProps> = ({ client, isOpen }) => {
+  const { t } = useTranslation(translations)
   const [range, setRange] = useState<MetricsRange>('30d')
   const [sessions, setSessions] = useState<DeepAgentSession[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -75,7 +78,7 @@ export const MetricsSection: React.FC<MetricsSectionProps> = ({ client, isOpen }
     <>
       <SectionHeader
         icon={<ChartBarIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground/60" />}
-        title="Usage & Metrics"
+        title={t('settings-metrics-title')}
       />
       <div className="gba:px-3 sm:gba:px-4 gba:pb-4 sm:gba:pb-5">
         <div className="gba:flex gba:gap-1 gba:mb-2.5 sm:gba:mb-3">
@@ -89,7 +92,7 @@ export const MetricsSection: React.FC<MetricsSectionProps> = ({ client, isOpen }
                   : 'gba:text-muted-foreground gba:hover:bg-muted/40'
               }`}
             >
-              {RANGE_LABELS[r]}
+              {t(RANGE_LABEL_KEYS[r])}
             </button>
           ))}
         </div>
@@ -99,21 +102,26 @@ export const MetricsSection: React.FC<MetricsSectionProps> = ({ client, isOpen }
         ) : (
           <>
             <div className="gba:grid gba:grid-cols-2 gba:gap-2 gba:mb-2.5 sm:gba:mb-3">
-              <MetricCard label="Total Sessions" value={metrics.totalSessions} />
+              <MetricCard label={t('settings-metrics-total-sessions')} value={metrics.totalSessions} />
               <MetricCard
-                label="Tokens Used"
+                label={t('settings-metrics-tokens')}
                 value={metrics.tokensUsed > 0 ? metrics.tokensUsed.toLocaleString() : '—'}
               />
               <MetricCard
-                label="Est. Cost"
+                label={t('settings-metrics-cost')}
                 value={metrics.estimatedCost > 0 ? `$${metrics.estimatedCost.toFixed(2)}` : '—'}
               />
-              <MetricCard label="Avg. Duration" value={metrics.avgDuration > 0 ? `${metrics.avgDuration}s` : '—'} />
+              <MetricCard
+                label={t('settings-metrics-duration')}
+                value={metrics.avgDuration > 0 ? `${metrics.avgDuration}s` : '—'}
+              />
             </div>
 
             {Object.keys(metrics.byStatus).length > 0 && (
               <div className="gba:rounded-xl gba:border gba:border-border/60 gba:bg-muted/20 gba:p-3">
-                <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">By Status</p>
+                <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">
+                  {t('settings-metrics-by-status')}
+                </p>
                 <div className="gba:flex gba:flex-wrap gba:gap-2">
                   {Object.entries(metrics.byStatus).map(([status, count]) => (
                     <span

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { OrchestratorClient } from '@/common/network/ai/orchestrator/OrchestratorClient'
 import { FlowCanvas, FlowCanvasProvider, type FlowGraphDefinition } from '@/common/components/flow'
@@ -25,6 +26,7 @@ import type {
   JobsByStateResponse,
   JobsPageResponse
 } from '@/business-apps/core/create/apps/ai-orchestrator/features/orchestrator/types/api'
+import translations from './_i18n'
 
 type AiBuilderAdminProps = BusinessAppContextProps & {
   'data-testid'?: string
@@ -67,6 +69,7 @@ export const AiBuilderAdmin: React.FC<AiBuilderAdminProps> = ({
   accessToken,
   'data-testid': testId = 'ai-builder-admin'
 }) => {
+  const { t } = useTranslation(translations)
   const client = useMemo(() => new OrchestratorClient(accessToken || ''), [accessToken])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -89,7 +92,7 @@ export const AiBuilderAdmin: React.FC<AiBuilderAdminProps> = ({
 
   const loadData = useCallback(async () => {
     if (!accessToken) {
-      setError('Access token is required to view AI Builder admin data.')
+      setError(t('error-missing-token'))
       return
     }
     setIsLoading(true)
@@ -107,11 +110,11 @@ export const AiBuilderAdmin: React.FC<AiBuilderAdminProps> = ({
         setSelectedState(stateMachineData.states[0].id)
       }
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Failed to load AI Builder state machine data')
+      setError(loadError instanceof Error ? loadError.message : t('error-load-failed'))
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, client, currentPage, selectedState])
+  }, [accessToken, client, currentPage, selectedState, t])
 
   useEffect(() => {
     void loadData()
@@ -143,7 +146,10 @@ export const AiBuilderAdmin: React.FC<AiBuilderAdminProps> = ({
   )
 
   const rightPanel = (
-    <Card className="gba:w-[420px] gba:max-h-[70vh] gba:overflow-auto gba:shadow-lg" data-testid={`${testId}-state-sidebar`}>
+    <Card
+      className="gba:w-[420px] gba:max-h-[70vh] gba:overflow-auto gba:shadow-lg"
+      data-testid={`${testId}-state-sidebar`}
+    >
       <CardHeader className="gba:pb-3">
         <CardTitle className="gba:text-base">State Details</CardTitle>
         <div className="gba:flex gba:items-center gba:gap-2">
@@ -154,7 +160,10 @@ export const AiBuilderAdmin: React.FC<AiBuilderAdminProps> = ({
       <CardContent className="gba:space-y-2">
         {selectedBucket?.jobs.length ? (
           selectedBucket.jobs.map(job => (
-            <div key={job.jobId} className="gba:border gba:border-border gba:rounded-md gba:p-2 gba:text-xs gba:space-y-1">
+            <div
+              key={job.jobId}
+              className="gba:border gba:border-border gba:rounded-md gba:p-2 gba:text-xs gba:space-y-1"
+            >
               <div className="gba:font-medium">{job.jobId}</div>
               <div className="gba:text-muted-foreground gba:line-clamp-2">{job.originalPrompt}</div>
               <div className="gba:flex gba:flex-wrap gba:gap-2">
@@ -174,7 +183,7 @@ export const AiBuilderAdmin: React.FC<AiBuilderAdminProps> = ({
     <div className="gba:w-full gba:flex gba:flex-col gba:gap-4 gba:p-4 gba:overflow-y-auto" data-testid={testId}>
       <div className="gba:flex gba:items-center gba:justify-between">
         <div>
-          <CardTitle className="gba:text-xl">AI Builder State Machine</CardTitle>
+          <CardTitle className="gba:text-xl">{t('page-title')}</CardTitle>
           <CardDescription>Live backend view of orchestration states, transitions, and job placement.</CardDescription>
         </div>
         <Button variant="outline" onClick={() => void loadData()} disabled={isLoading}>
@@ -244,10 +253,10 @@ export const AiBuilderAdmin: React.FC<AiBuilderAdminProps> = ({
                       <TableCell>
                         <Badge variant="outline">{stateLabelById.get(job.state) ?? job.state}</Badge>
                       </TableCell>
+                      <TableCell className="gba:text-xs gba:text-muted-foreground">{job.currentPhase || '-'}</TableCell>
                       <TableCell className="gba:text-xs gba:text-muted-foreground">
-                        {job.currentPhase || '-'}
+                        {formatDate(job.createdAt)}
                       </TableCell>
-                      <TableCell className="gba:text-xs gba:text-muted-foreground">{formatDate(job.createdAt)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

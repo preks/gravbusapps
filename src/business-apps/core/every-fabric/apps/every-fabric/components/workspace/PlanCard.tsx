@@ -1,19 +1,24 @@
 import type { FC } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { FabricTaskNode } from '../../types/fabric'
+import translations from '../../_i18n'
 import { FabricProgressTaskRow } from './fabricProgressShared'
 import { PanelCard } from './PanelCard'
 
-function rightPanelPlanLabel(params: {
-  totalCount: number
-  isStreaming: boolean
-  hasActiveWork: boolean
-  completedCount: number
-}): string {
+function rightPanelPlanLabel(
+  params: {
+    totalCount: number
+    isStreaming: boolean
+    hasActiveWork: boolean
+    completedCount: number
+  },
+  t: (key: string, vars?: Record<string, unknown>) => string
+): string {
   const { totalCount, isStreaming, hasActiveWork, completedCount } = params
-  if (totalCount === 0) return 'Waiting to start'
-  if (isStreaming && hasActiveWork) return `${completedCount} of ${totalCount} done`
-  if (isStreaming && completedCount >= totalCount) return 'Finalizing response…'
-  return `${completedCount} of ${totalCount} done`
+  if (totalCount === 0) return t('workspace-plan-waiting')
+  if (isStreaming && hasActiveWork) return t('workspace-plan-progress', { done: completedCount, total: totalCount })
+  if (isStreaming && completedCount >= totalCount) return t('workspace-plan-finalizing')
+  return t('workspace-plan-progress', { done: completedCount, total: totalCount })
 }
 
 interface PlanCardProps {
@@ -43,14 +48,15 @@ export const PlanCard: FC<PlanCardProps> = ({
   isStreaming,
   defaultCollapsed = false
 }) => {
+  const { t } = useTranslation(translations)
   const hasActiveWork = nodes.some(node => node.status === 'active' || node.status === 'pending')
   const displayPercent = isStreaming && totalCount > 0 && completedCount >= totalCount ? 96 : progressPercent
-  const planLabel = rightPanelPlanLabel({ totalCount, isStreaming, hasActiveWork, completedCount })
+  const planLabel = rightPanelPlanLabel({ totalCount, isStreaming, hasActiveWork, completedCount }, t)
 
   return (
     <PanelCard
-      title="Plan"
-      summary={totalCount > 0 ? `${planLabel} · ${displayPercent}%` : 'Waiting to start'}
+      title={t('enterprise-agent-plan-title')}
+      summary={totalCount > 0 ? `${planLabel} · ${displayPercent}%` : t('workspace-plan-waiting')}
       defaultOpen={!defaultCollapsed}
     >
       <div className="gba:max-h-120 gba:min-h-0 gba:overflow-y-auto gba:overscroll-contain">

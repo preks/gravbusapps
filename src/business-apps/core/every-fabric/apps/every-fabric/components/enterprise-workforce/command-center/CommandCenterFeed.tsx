@@ -1,9 +1,11 @@
 // Scrollable list of command-center feed cards (active + just-finished runs),
 // newest first. Empty state keeps the panel calm when nothing is happening.
 
+import { useTranslation } from '@newwork/nw-design-system'
 import React from 'react'
 import type { WorkforceFeedItem } from '../workforceFeedModel'
 import { CommandCenterFeedItem } from './CommandCenterFeedItem'
+import translations from '../../../_i18n'
 
 export interface CommandCenterFeedProps {
   items: readonly WorkforceFeedItem[]
@@ -19,13 +21,14 @@ export const CommandCenterFeed: React.FC<CommandCenterFeedProps> = ({
   onOpenRun,
   variant = 'card'
 }) => {
+  const { t } = useTranslation(translations)
   if (items.length === 0) {
     return (
       <p
         className="gba:py-6 gba:text-center gba:text-[11px] gba:text-muted-foreground"
         data-testid="command-center-feed-empty"
       >
-        Nothing in flight right now. New runs will appear here as they start and finish.
+        {t('command-center-empty')}
       </p>
     )
   }

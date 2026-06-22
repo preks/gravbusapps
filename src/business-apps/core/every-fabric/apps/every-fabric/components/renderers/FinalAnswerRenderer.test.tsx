@@ -14,6 +14,14 @@ import { render, screen } from '@testing-library/react'
 
 const mockMarkdownWithChipsRenderer = jest.fn()
 
+jest.mock('@newwork/nw-design-system', () => {
+  const actual = jest.requireActual('@newwork/nw-design-system')
+  return {
+    ...actual,
+    useTranslation: () => ({ t: (key: string) => key })
+  }
+})
+
 jest.mock('@/common/components/markdown/MarkdownWithChipsRenderer', () => ({
   __esModule: true,
   MarkdownWithChipsRenderer: (props: any) => {
@@ -76,5 +84,6 @@ describe('FinalAnswerRenderer presentation mode wiring', () => {
 
     rerender(<FinalAnswerRenderer {...props} devModeEnabled />)
     expect(screen.getByTestId('enterprise-agent-final-export')).toBeInTheDocument()
+    expect(screen.getByText('renderer-final-export')).toBeInTheDocument()
   })
 })

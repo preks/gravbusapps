@@ -1,4 +1,4 @@
-import translations from '../../../_i18n'
+import translations from '@/business-apps/_i18n'
 
 import enUS from './en-US.ftl?raw'
 import deDE from './de-DE.ftl?raw'

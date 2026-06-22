@@ -1,25 +1,22 @@
 import React, { useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import EntityLink, { SUPPORTED_PROTOCOLS } from '@/business-apps/platform/apps/every-ai/components/links/EntityLink'
 import type { EntityReference } from '../../../types/enterpriseAgent'
+import translations from '../../../_i18n'
 import { EntityReferenceCard } from './reference-cards'
 import { isEmphasized } from './reference-cards/referenceCardUtils'
 
-/**
- * Display titles for the backend reference categories. Falls back to the raw
- * category string (title-cased) when a new category appears so the rail never
- * silently drops a group.
- */
-const CATEGORY_LABELS: Record<string, string> = {
-  person: 'People',
-  hr: 'HR & Org',
-  crm: 'CRM',
-  finance: 'Finance',
-  investment: 'Investments',
-  document: 'Documents',
-  content: 'Content',
-  workflow: 'Workflows',
-  platform_page: 'Pages',
-  other: 'Other'
+const CATEGORY_KEYS: Record<string, string> = {
+  person: 'renderer-ref-category-person',
+  hr: 'renderer-ref-category-hr',
+  crm: 'renderer-ref-category-crm',
+  finance: 'renderer-ref-category-finance',
+  investment: 'renderer-ref-category-investment',
+  document: 'renderer-ref-category-document',
+  content: 'renderer-ref-category-content',
+  workflow: 'renderer-ref-category-workflow',
+  platform_page: 'renderer-ref-category-platform-page',
+  other: 'renderer-ref-category-other'
 }
 
 // Stable category ordering for the rail; unknown categories sort last.
@@ -82,6 +79,11 @@ const MAX_CARDS_PER_GROUP = 12
  * mentions are untouched.
  */
 export const ReferencesRail: React.FC<ReferencesRailProps> = ({ references, accessToken = '' }) => {
+  const { t } = useTranslation(translations)
+  const categoryLabel = (category: string) => {
+    const key = CATEGORY_KEYS[category]
+    return key ? t(key) : titleCase(category)
+  }
   // Renderable references, ordered so emphasized (answer-focus) entries come
   // first, then by category, with original order as a stable tiebreak, then
   // grouped by category preserving that order.
@@ -119,7 +121,7 @@ export const ReferencesRail: React.FC<ReferencesRailProps> = ({ references, acce
   return (
     <div className="gba:pt-4 gba:mt-3 gba:border-t gba:border-border/70" data-testid="enterprise-agent-references-rail">
       <p className="gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground gba:mb-3">
-        References
+        {t('renderer-references-title')}
       </p>
       <div className="gba:space-y-4">
         {groups.map(([category, refs]) => {
@@ -127,7 +129,7 @@ export const ReferencesRail: React.FC<ReferencesRailProps> = ({ references, acce
           return (
             <div key={category}>
               <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">
-                {CATEGORY_LABELS[category] ?? titleCase(category)}
+                {categoryLabel(category)}
               </p>
               {asChips ? (
                 <div className="gba:flex gba:flex-wrap gba:gap-2" data-testid="references-chip-group">

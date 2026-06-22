@@ -15,7 +15,9 @@ dist-ssr
 changed-tsx.txt
 
 # Generated Cursor rules (synced from @newwork/cursor-rules)
-.cursor/rules/
+.cursor/rules/*
+!.cursor/rules/local/
+!.cursor/rules/local/**
 .cursor/commands/
 
 # Editor directories and files

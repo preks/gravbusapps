@@ -5,6 +5,7 @@
 // (`FieldValueDisplay`) so files, markdown and primitives display identically.
 // Shared by the workforce list view and map detail panel.
 
+import { useTranslation } from '@newwork/nw-design-system'
 import React from 'react'
 
 import {
@@ -12,6 +13,8 @@ import {
   generateFieldLabel,
   isFileLikeValue
 } from '@/common/components/flow/flow-detail/tabs/stepDataRendering'
+
+import translations from '../../../_i18n'
 
 const MAX_DEPTH = 8
 
@@ -96,11 +99,12 @@ export interface StepResultDataProps {
 }
 
 export const StepResultData: React.FC<StepResultDataProps> = ({ formData, accessToken }) => {
+  const { t } = useTranslation(translations)
   const rows: LeafRow[] = []
   flatten(formData ?? {}, '', 0, rows)
 
   if (rows.length === 0) {
-    return <p className="gba:text-xs gba:text-muted-foreground">No data captured.</p>
+    return <p className="gba:text-xs gba:text-muted-foreground">{t('flow-step-data-empty')}</p>
   }
 
   return (

@@ -17,10 +17,12 @@
  * `AssigneeChip` uses 24px.
  */
 import { useCallback, useEffect, useState, type FC } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 import { SubjectAvatarImage } from './SubjectAvatarImage'
+import translations from '../../_i18n'
 
 import type { CaseSubject } from '../../utils/casePanelTrace'
 
@@ -79,14 +81,15 @@ interface ResolvedSubjectEmployee {
   pictureThumbnail: string | null
 }
 
-function toResolved(e: RawSubjectEmployee): ResolvedSubjectEmployee {
-  const displayName = e.displayName || [e.firstName, e.lastName].filter(Boolean).join(' ').trim() || 'Unknown'
+function toResolved(e: RawSubjectEmployee, unknownLabel: string): ResolvedSubjectEmployee {
+  const displayName = e.displayName || [e.firstName, e.lastName].filter(Boolean).join(' ').trim() || unknownLabel
   return { displayName, pictureThumbnail: e.pictureThumbnail ?? null }
 }
 
 function useResolvedSubjectEmployee(
   accessToken: string | undefined,
-  subjectId: string | undefined
+  subjectId: string | undefined,
+  unknownLabel: string
 ): ResolvedSubjectEmployee | undefined {
   const [resolved, setResolved] = useState<ResolvedSubjectEmployee | undefined>(undefined)
   const graphqlClient = useGraphQLClient(accessToken ?? '')
@@ -103,11 +106,11 @@ function useResolvedSubjectEmployee(
         idUuid
       })
       const row = result.Employee?.[0]
-      setResolved(row ? toResolved(row) : undefined)
+      setResolved(row ? toResolved(row, unknownLabel) : undefined)
     } catch {
       setResolved(undefined)
     }
-  }, [accessToken, subjectId, graphqlClient])
+  }, [accessToken, subjectId, graphqlClient, unknownLabel])
 
   useEffect(() => {
     fetch().catch(() => {
@@ -126,14 +129,19 @@ function getInitials(label: string): string {
 }
 
 export const SubjectAvatar: FC<SubjectAvatarProps> = ({ subject, accessToken, size = 32 }) => {
+  const { t } = useTranslation(translations)
   const isEmployee = subject?.kind === 'employee' && Boolean(subject?.id)
-  const resolved = useResolvedSubjectEmployee(accessToken, isEmployee ? subject?.id : undefined)
+  const resolved = useResolvedSubjectEmployee(
+    accessToken,
+    isEmployee ? subject?.id : undefined,
+    t('workspace-avatar-unknown')
+  )
 
   if (!isEmployee || !subject) return null
 
   const labelForInitials = resolved?.displayName ?? subject.label ?? ''
   const initials = getInitials(labelForInitials)
-  const altText = resolved?.displayName ?? subject.label ?? 'Employee avatar'
+  const altText = resolved?.displayName ?? subject.label ?? t('workspace-avatar-employee')
 
   const dimensionStyle = { width: `${size}px`, height: `${size}px` }
   const fontSizePx = Math.max(9, Math.round(size * 0.32))

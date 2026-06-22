@@ -5,7 +5,7 @@
 // Uses the design-system `TabNav`/`TabNavLink` (underline navigation) so the
 // tabs read as a single bar under the header instead of a separated pill group.
 
-import { TabNav, TabNavLink } from '@newwork/nw-design-system'
+import { TabNav, TabNavLink, useTranslation } from '@newwork/nw-design-system'
 import React, { useCallback, useState } from 'react'
 
 import type { WorkforceRun, WorkforceRunTraceEvent } from '../workforceTypes'
@@ -13,6 +13,7 @@ import { ActionsRecordsTab } from './tabs/ActionsRecordsTab'
 import { DiagnosticsTab } from './tabs/DiagnosticsTab'
 import { FlowsTab } from './tabs/FlowsTab'
 import { OverviewTab } from './tabs/OverviewTab'
+import translations from '../../../_i18n'
 
 export interface RunDetailTabsProps {
   run: WorkforceRun
@@ -24,11 +25,11 @@ export interface RunDetailTabsProps {
 
 type RunDetailTabValue = 'overview' | 'actions' | 'flows' | 'diagnostics'
 
-const TAB_DEFS: ReadonlyArray<{ value: RunDetailTabValue; label: string }> = [
-  { value: 'overview', label: 'Overview' },
-  { value: 'actions', label: 'Actions & Records' },
-  { value: 'flows', label: 'Flows' },
-  { value: 'diagnostics', label: 'Diagnostics' }
+const TAB_DEFS: ReadonlyArray<{ value: RunDetailTabValue; labelKey: string }> = [
+  { value: 'overview', labelKey: 'run-tab-overview' },
+  { value: 'actions', labelKey: 'run-tab-actions' },
+  { value: 'flows', labelKey: 'run-tab-flows' },
+  { value: 'diagnostics', labelKey: 'run-tab-diagnostics' }
 ]
 
 export const RunDetailTabs: React.FC<RunDetailTabsProps> = ({
@@ -38,6 +39,7 @@ export const RunDetailTabs: React.FC<RunDetailTabsProps> = ({
   errorMessage,
   onRefreshRun
 }) => {
+  const { t } = useTranslation(translations)
   const [activeTab, setActiveTab] = useState<RunDetailTabValue>('overview')
   const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null)
 
@@ -81,7 +83,7 @@ export const RunDetailTabs: React.FC<RunDetailTabsProps> = ({
             }}
             data-testid={`run-detail-tab-${tab.value}`}
           >
-            {tab.label}
+            {t(tab.labelKey)}
           </TabNavLink>
         ))}
       </TabNav>

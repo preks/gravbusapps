@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { Button, Textarea } from '@newwork/nw-design-system'
+import { Button, Textarea, useTranslation } from '@newwork/nw-design-system'
 import { ArrowRightIcon, PauseCircleIcon, PencilSimpleIcon, XIcon } from '@phosphor-icons/react'
+import translations from '../../_i18n'
 import {
   WORKSPACE_CHAT_GUTTER_CLASS,
   WORKSPACE_CHAT_OFFSET_TRANSITION_CLASS,
@@ -88,7 +89,6 @@ function isOpenEndedQuestion(question: string): boolean {
 }
 
 // Quick-answers shown when the question has no embedded options and is not open-ended
-const FALLBACK_OPTIONS = ['Yes', 'No']
 
 // ─── Keyboard trap ────────────────────────────────────────────────────────────
 
@@ -145,18 +145,20 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({
   onAnswer,
   onDismiss
 }) => {
+  const { t } = useTranslation(translations)
   const [freeText, setFreeText] = useState('')
   const [isCustomOpen, setIsCustomOpen] = useState(false)
   const panelRef = useRef<HTMLDialogElement>(null)
   const { headline, options } = parseQuestion(question)
   const isOpenEnded = options.length === 0 && isOpenEndedQuestion(question)
+  const fallbackOptions = [t('workspace-fallback-yes'), t('workspace-fallback-no')]
   let displayOptions: string[]
   if (options.length > 0) {
     displayOptions = options
   } else if (isOpenEnded) {
     displayOptions = []
   } else {
-    displayOptions = FALLBACK_OPTIONS
+    displayOptions = fallbackOptions
   }
 
   useFocusTrap(panelRef, isOpen)
@@ -198,7 +200,7 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({
         ref={panelRef}
         open={isOpen}
         aria-modal="true"
-        aria-label="Agent clarification"
+        aria-label={t('workspace-clarification-aria')}
         data-testid="fabric-clarification-prompt"
         className={`gba:absolute gba:inset-x-0 gba:top-auto gba:bottom-[9.625rem] sm:gba:bottom-[10.875rem] lg:gba:bottom-[11.625rem] gba:z-[60] gba:m-0 gba:pointer-events-none gba:max-h-none gba:w-full gba:max-w-none gba:border-0 gba:bg-transparent gba:p-0 gba:shadow-none gba:backdrop:bg-transparent gba:transition-all gba:duration-300 gba:ease-out ${chatOffsetClass} ${WORKSPACE_CHAT_OFFSET_TRANSITION_CLASS} ${
           isOpen ? 'gba:translate-y-0 gba:opacity-100' : 'gba:translate-y-4 gba:opacity-0 gba:pointer-events-none'
@@ -211,14 +213,14 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({
               <div className="gba:flex gba:items-center gba:gap-2.5 gba:px-4 sm:gba:px-5 gba:pt-4 gba:pb-3">
                 <PauseCircleIcon className="gba:h-4 gba:w-4 gba:text-amber-500 gba:shrink-0" weight="fill" />
                 <span className="gba:text-sm gba:font-semibold gba:text-foreground gba:flex-1">
-                  Agent needs your input
+                  {t('enterprise-agent-interrupt-title')}
                 </span>
                 {onDismiss && (
                   <button
                     onClick={dismiss}
                     className="gba:inline-flex gba:items-center gba:justify-center gba:h-8 gba:w-8 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
                     data-testid="fabric-clarification-dismiss"
-                    aria-label="Dismiss"
+                    aria-label={t('workspace-clarification-dismiss')}
                   >
                     <XIcon className="gba:h-4 gba:w-4" />
                   </button>
@@ -258,15 +260,17 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({
                     data-testid="fabric-clarification-open-custom"
                   >
                     <PencilSimpleIcon className="gba:h-4 gba:w-4 gba:shrink-0" />
-                    <span className="gba:flex-1 gba:text-sm">Write your own answer</span>
-                    <span className="gba:text-[11px] gba:uppercase gba:tracking-wide">Enter to send</span>
+                    <span className="gba:flex-1 gba:text-sm">{t('workspace-clarification-custom')}</span>
+                    <span className="gba:text-[11px] gba:uppercase gba:tracking-wide">
+                      {t('workspace-clarification-enter-hint')}
+                    </span>
                   </button>
                 ) : (
                   <div className="gba:space-y-2">
                     <Textarea
                       value={freeText}
                       onChange={e => setFreeText(e.target.value)}
-                      placeholder="Type your answer and press Enter…"
+                      placeholder={t('workspace-clarification-placeholder')}
                       rows={2}
                       className="gba:resize-none gba:text-sm gba:rounded-[1.05rem]"
                       data-testid="fabric-clarification-input"
@@ -280,7 +284,7 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({
                     />
                     <div className="gba:flex gba:items-center gba:justify-between gba:px-1">
                       <span className="gba:text-[11px] gba:text-muted-foreground">
-                        Press Enter to send, Shift+Enter for newline
+                        {t('workspace-clarification-keyboard-hint')}
                       </span>
                       <Button
                         variant="ghost"
@@ -290,7 +294,7 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({
                         onClick={() => submit(freeText)}
                         data-testid="fabric-clarification-submit"
                       >
-                        Send
+                        {t('workspace-clarification-send')}
                       </Button>
                     </div>
                   </div>

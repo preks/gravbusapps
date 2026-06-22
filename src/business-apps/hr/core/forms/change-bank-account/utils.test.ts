@@ -28,6 +28,13 @@ describe('change bank account utils', () => {
     })
   })
 
+  it('prioritizes country mismatch before length and checksum validation', () => {
+    expect(validateIban('DE55 5555', 'Country:v1:RO')).toEqual({
+      isValid: false,
+      message: 'Selected country is RO, but IBAN starts with DE.'
+    })
+  })
+
   it('rejects invalid IBAN lengths before checksum validation', () => {
     expect(validateIban('DE55555555556661166', 'Country:v1:DE')).toEqual({
       isValid: false,

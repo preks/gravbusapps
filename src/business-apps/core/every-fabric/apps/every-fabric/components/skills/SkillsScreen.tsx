@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { ArrowLeftIcon, XIcon } from '@phosphor-icons/react'
 import { BrowseSkillsView } from './BrowseSkillsView'
 import { CreateSkillPanel } from './CreateSkillPanel'
 import { SkillEditorPanel } from './SkillEditorPanel'
 import { SkillToast } from './SkillToast'
 import { useSkillToast } from './useSkillToast'
+import translations from '../../_i18n'
 
 interface SkillsScreenProps {
   accessToken: string
@@ -33,6 +34,7 @@ export const SkillsScreen: React.FC<SkillsScreenProps> = ({
   skillId: skillIdProp,
   onSkillChange
 }) => {
+  const { t } = useTranslation(translations)
   const { toast, showToast, dismissToast } = useSkillToast()
 
   // Initialize from prop if provided (for URL-driven state), otherwise use local state
@@ -98,7 +100,9 @@ export const SkillsScreen: React.FC<SkillsScreenProps> = ({
               >
                 <ArrowLeftIcon className="gba:h-5 gba:w-5" />
               </Button>
-              <h1 className="gba:text-xl sm:gba:text-2xl gba:font-semibold gba:text-foreground">Enterprise Agent</h1>
+              <h1 className="gba:text-xl sm:gba:text-2xl gba:font-semibold gba:text-foreground">
+                {t('skills-screen-title')}
+              </h1>
             </div>
 
             <Button

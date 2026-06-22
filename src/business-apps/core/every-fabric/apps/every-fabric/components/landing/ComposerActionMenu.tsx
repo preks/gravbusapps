@@ -12,6 +12,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslation } from '@newwork/nw-design-system'
 import {
   CaretRightIcon,
   CheckIcon,
@@ -28,6 +29,7 @@ import type { ExternalConnection } from '../../hooks/useFabricConnectors'
 import type { SpecialistAgent } from '../../types/enterpriseAgent'
 import { ConnectorPickerLaneList } from '../connectors/ConnectorPickerLaneList'
 import { useFloatingPanel } from './useFloatingPanel'
+import translations from '../../_i18n'
 
 // ── Positioning ───────────────────────────────────────────────────────────────
 
@@ -142,6 +144,7 @@ export const ComposerActionMenu: React.FC<ComposerActionMenuProps> = ({
   isLoadingAgents = false,
   onOpenAgents
 }) => {
+  const { t } = useTranslation(translations)
   const [isOpen, setIsOpen] = useState(false)
   const [connectorsExpanded, setConnectorsExpanded] = useState(false)
   const [agentSearch, setAgentSearch] = useState('')
@@ -215,9 +218,9 @@ export const ComposerActionMenu: React.FC<ComposerActionMenuProps> = ({
         >
           {/* Header */}
           <div className="gba:shrink-0 gba:border-b gba:border-foreground/8 gba:bg-linear-to-br gba:from-foreground/3 gba:via-white gba:to-white gba:px-4 gba:pb-3 gba:pt-3">
-            <h2 className="gba:text-[13px] gba:font-bold gba:text-foreground">Add to this session</h2>
+            <h2 className="gba:text-[13px] gba:font-bold gba:text-foreground">{t('landing-composer-panel-title')}</h2>
             <p className="gba:mt-0.5 gba:text-[11px] gba:font-medium gba:text-foreground/58">
-              Choose an agent, attach files, or connect data.
+              {t('landing-composer-panel-subtitle')}
             </p>
           </div>
 
@@ -229,7 +232,7 @@ export const ComposerActionMenu: React.FC<ComposerActionMenuProps> = ({
             {agentsEnabled && (
               <section data-testid="composer-section-agents">
                 <div className="gba:mb-2 gba:flex gba:items-center gba:justify-between gba:gap-2">
-                  <SectionLabel>Work with an agent</SectionLabel>
+                  <SectionLabel>{t('landing-composer-section-agents')}</SectionLabel>
                   {selectedAgent && (
                     <button
                       type="button"
@@ -238,7 +241,7 @@ export const ComposerActionMenu: React.FC<ComposerActionMenuProps> = ({
                       data-testid="composer-agent-clear"
                     >
                       <XIcon className="gba:h-3 gba:w-3" weight="bold" />
-                      Clear
+                      {t('landing-composer-clear')}
                     </button>
                   )}
                 </div>
@@ -252,7 +255,7 @@ export const ComposerActionMenu: React.FC<ComposerActionMenuProps> = ({
                     type="text"
                     value={agentSearch}
                     onChange={event => setAgentSearch(event.target.value)}
-                    placeholder="Search agents…"
+                    placeholder={t('landing-composer-agent-search')}
                     className="gba:w-full gba:bg-transparent gba:text-[12px] gba:font-medium gba:text-foreground gba:placeholder:text-foreground/42 gba:outline-none"
                     data-testid="composer-agent-search"
                   />
@@ -266,7 +269,9 @@ export const ComposerActionMenu: React.FC<ComposerActionMenuProps> = ({
 
                 {!isLoadingAgents && filteredAgents.length === 0 && (
                   <p className="gba:rounded-xl gba:border gba:border-dashed gba:border-foreground/12 gba:px-3 gba:py-6 gba:text-center gba:text-[12px] gba:text-muted-foreground">
-                    {(availableAgents?.length ?? 0) === 0 ? 'No agents available.' : 'No agents match your search.'}
+                    {(availableAgents?.length ?? 0) === 0
+                      ? t('landing-composer-agents-empty')
+                      : t('landing-composer-agents-no-match')}
                   </p>
                 )}
 
@@ -291,7 +296,7 @@ export const ComposerActionMenu: React.FC<ComposerActionMenuProps> = ({
             {/* Section 2 — Files & images */}
             <section data-testid="composer-section-files">
               <div className="gba:mb-2">
-                <SectionLabel>Files &amp; images</SectionLabel>
+                <SectionLabel>{t('landing-composer-section-files')}</SectionLabel>
               </div>
               <button
                 type="button"
@@ -307,9 +312,11 @@ export const ComposerActionMenu: React.FC<ComposerActionMenuProps> = ({
                 </span>
                 <span className="gba:min-w-0 gba:flex-1">
                   <span className="gba:block gba:text-[12.5px] gba:font-medium gba:text-foreground">
-                    Add photos &amp; files
+                    {t('landing-composer-upload-title')}
                   </span>
-                  <span className="gba:block gba:text-[11px] gba:text-foreground/55">PDFs, images, and documents</span>
+                  <span className="gba:block gba:text-[11px] gba:text-foreground/55">
+                    {t('landing-composer-upload-desc')}
+                  </span>
                 </span>
               </button>
             </section>
@@ -318,7 +325,7 @@ export const ComposerActionMenu: React.FC<ComposerActionMenuProps> = ({
             {hasConnectors && (
               <section data-testid="composer-section-connectors">
                 <div className="gba:mb-2">
-                  <SectionLabel>Connectors</SectionLabel>
+                  <SectionLabel>{t('landing-composer-section-connectors')}</SectionLabel>
                 </div>
                 <button
                   type="button"
@@ -335,10 +342,12 @@ export const ComposerActionMenu: React.FC<ComposerActionMenuProps> = ({
                   </span>
                   <span className="gba:min-w-0 gba:flex-1">
                     <span className="gba:block gba:text-[12.5px] gba:font-semibold gba:text-foreground">
-                      Connectors
+                      {t('landing-composer-section-connectors')}
                     </span>
                     <span className="gba:block gba:text-[11px] gba:text-foreground/55">
-                      {activeCount > 0 ? `${activeCount} active` : 'Connect external data sources'}
+                      {activeCount > 0
+                        ? t('landing-composer-connectors-active', { count: String(activeCount) })
+                        : t('landing-composer-connectors-empty-hint')}
                     </span>
                   </span>
                   {activeCount > 0 && (
@@ -365,7 +374,7 @@ export const ComposerActionMenu: React.FC<ComposerActionMenuProps> = ({
 
                       {!isLoadingConnectors && availableConnectors.length === 0 && (
                         <p className="gba:px-2 gba:py-4 gba:text-center gba:text-xs gba:text-muted-foreground">
-                          No connectors available.
+                          {t('landing-composer-connectors-none')}
                         </p>
                       )}
 
@@ -390,7 +399,7 @@ export const ComposerActionMenu: React.FC<ComposerActionMenuProps> = ({
                         className="gba:text-xs gba:text-muted-foreground gba:underline gba:transition-colors gba:hover:text-foreground"
                         data-testid="composer-connector-manage"
                       >
-                        Manage connections
+                        {t('landing-composer-manage-connections')}
                       </button>
                     </div>
                   </div>
@@ -418,7 +427,7 @@ export const ComposerActionMenu: React.FC<ComposerActionMenuProps> = ({
         className={`gba:flex gba:items-center gba:justify-center ${
           isSmall ? 'gba:h-7 gba:w-7' : 'gba:h-8 gba:w-8'
         } gba:rounded-md gba:bg-white gba:text-foreground gba:hover:bg-white gba:transition-colors gba:shrink-0`}
-        title="Add"
+        title={t('landing-composer-add-title')}
         data-testid="fabric-input-add"
       >
         <PlusIcon className={isSmall ? 'gba:h-3.5 gba:w-3.5' : 'gba:h-4 gba:w-4'} weight="bold" />

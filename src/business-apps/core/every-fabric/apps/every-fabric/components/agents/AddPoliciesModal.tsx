@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { MagnifyingGlass, X, ArrowClockwise, ShieldCheck, ArrowSquareOut } from '@phosphor-icons/react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
 import { ContentGroup, ContentRole } from '@/common/data/content/constants/contentConstants'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
+import translations from '../../_i18n'
 
 /**
  * URL of the intranet detail view for a policy ContentEntry. Mirrors the
@@ -111,6 +112,7 @@ export const AddPoliciesModal: React.FC<AddPoliciesModalProps> = ({
   excludedPolicyIds,
   onAdd
 }) => {
+  const { t } = useTranslation(translations)
   // Two-stage search: `searchInput` follows the keyboard immediately so the
   // input feels responsive; `search` lags by SEARCH_DEBOUNCE_MS and is what
   // drives the GraphQL query. Mirrors `ContentEntryPicker`'s 250 ms debounce.
@@ -240,21 +242,21 @@ export const AddPoliciesModal: React.FC<AddPoliciesModalProps> = ({
           if (e.key === 'Escape') onClose()
         }}
         tabIndex={-1}
-        aria-label="Close dialog"
+        aria-label={t('agents-policies-modal-close-aria')}
       />
       <div className="gba:relative gba:w-full gba:max-w-2xl gba:max-h-[80vh] gba:overflow-hidden gba:flex gba:flex-col gba:rounded-xl gba:border gba:border-border gba:bg-background gba:shadow-xl">
         {/* Header */}
         <div className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-3 gba:border-b gba:border-border">
           <div className="gba:flex gba:items-center gba:gap-2">
             <ShieldCheck className="gba:h-4 gba:w-4 gba:text-primary" />
-            <h3 className="gba:text-sm gba:font-semibold">Attach Intranet Policy to Agent</h3>
+            <h3 className="gba:text-sm gba:font-semibold">{t('agents-policies-modal-title')}</h3>
           </div>
           <button
             type="button"
             className="gba:p-1 gba:rounded gba:hover:bg-muted"
             onClick={onClose}
             data-testid="add-policies-modal-close"
-            aria-label="Close"
+            aria-label={t('agents-policies-modal-close-aria')}
           >
             <X className="gba:h-4 gba:w-4" />
           </button>
@@ -268,7 +270,7 @@ export const AddPoliciesModal: React.FC<AddPoliciesModalProps> = ({
               type="text"
               value={searchInput}
               onChange={e => setSearchInput(e.target.value)}
-              placeholder="Search policies by title…"
+              placeholder={t('agents-policies-modal-search')}
               className="gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-muted/20 gba:pl-8 gba:pr-3 gba:py-2 gba:text-sm gba:text-foreground placeholder:gba:text-muted-foreground/50 focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-primary/30"
               data-testid="add-policies-modal-search"
             />
@@ -279,18 +281,16 @@ export const AddPoliciesModal: React.FC<AddPoliciesModalProps> = ({
         <div className="gba:flex-1 gba:overflow-y-auto gba:px-4 gba:pb-2">
           {isLoading && (
             <div className="gba:flex gba:items-center gba:justify-center gba:py-10 gba:text-sm gba:text-muted-foreground">
-              Loading policies…
+              {t('agents-policies-modal-loading')}
             </div>
           )}
 
           {!isLoading && error && (
             <div className="gba:flex gba:flex-col gba:items-center gba:gap-3 gba:py-10">
-              <p className="gba:text-sm gba:text-destructive">
-                Failed to load policies. The intranet may be unreachable.
-              </p>
+              <p className="gba:text-sm gba:text-destructive">{t('agents-policies-modal-error')}</p>
               <Button variant="ghost" size="sm" onClick={() => void refetch()}>
                 <ArrowClockwise className="gba:h-3.5 gba:w-3.5 gba:mr-1.5" />
-                Retry
+                {t('agents-policies-modal-retry')}
               </Button>
             </div>
           )}
@@ -298,12 +298,9 @@ export const AddPoliciesModal: React.FC<AddPoliciesModalProps> = ({
           {!isLoading && !error && options.length === 0 && (
             <div className="gba:flex gba:flex-col gba:items-center gba:gap-1 gba:py-10 gba:text-center">
               <p className="gba:text-sm gba:text-muted-foreground">
-                {search.trim() ? 'No policies match your search.' : 'No policies found.'}
+                {search.trim() ? t('agents-policies-modal-empty-search') : t('agents-policies-modal-empty')}
               </p>
-              <p className="gba:text-xs gba:text-muted-foreground/70">
-                Publish a policy under <code className="gba:font-mono">/platform/content/intranet?tab=policies</code>{' '}
-                first.
-              </p>
+              <p className="gba:text-xs gba:text-muted-foreground/70">{t('agents-policies-modal-publish-hint')}</p>
             </div>
           )}
 
@@ -365,7 +362,7 @@ export const AddPoliciesModal: React.FC<AddPoliciesModalProps> = ({
                               className="gba:flex-shrink-0 gba:rounded-full gba:bg-primary/10 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-primary"
                               title="Inherited from Workspace Defaults. Remove from the agent's policy list to exclude it."
                             >
-                              Workspace Default
+                              {t('agents-policies-workspace-default')}
                             </span>
                           )}
                           {isDefaultExcluded && (
@@ -379,7 +376,7 @@ export const AddPoliciesModal: React.FC<AddPoliciesModalProps> = ({
                         </div>
                         {policy.updatedAt && (
                           <p className="gba:text-[11px] gba:text-muted-foreground gba:mt-0.5">
-                            Updated {formatDate(policy.updatedAt)}
+                            {t('agents-policies-modal-updated', { date: formatDate(policy.updatedAt) })}
                           </p>
                         )}
                       </div>
@@ -390,7 +387,7 @@ export const AddPoliciesModal: React.FC<AddPoliciesModalProps> = ({
                         onClick={event => event.stopPropagation()}
                         onKeyDown={event => event.stopPropagation()}
                         className="gba:flex-shrink-0 gba:inline-flex gba:items-center gba:justify-center gba:h-7 gba:w-7 gba:rounded gba:text-muted-foreground gba:hover:text-primary gba:hover:bg-primary/5"
-                        title={`Open policy in a new tab (ID: ${policy.id})`}
+                        title={t('agents-policies-modal-open-title')}
                         data-testid={`add-policies-item-open-${policy.id}`}
                       >
                         <ArrowSquareOut className="gba:h-4 gba:w-4" />
@@ -407,7 +404,7 @@ export const AddPoliciesModal: React.FC<AddPoliciesModalProps> = ({
         {!isLoading && !error && (hasPrev || hasNext) && (
           <div className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-2 gba:border-t gba:border-border/60">
             <span className="gba:text-xs gba:text-muted-foreground">
-              Page {currentPage} of {totalPages} ({totalCount} total)
+              {t('agents-policies-modal-page', { page: currentPage, total: totalPages, count: totalCount })}
             </span>
             <div className="gba:flex gba:gap-1.5">
               <Button
@@ -418,7 +415,7 @@ export const AddPoliciesModal: React.FC<AddPoliciesModalProps> = ({
                 onClick={() => setOffset(prev => Math.max(0, prev - PAGE_SIZE))}
                 data-testid="add-policies-modal-prev"
               >
-                Previous
+                {t('agents-policies-modal-previous')}
               </Button>
               <Button
                 variant="outline"
@@ -428,7 +425,7 @@ export const AddPoliciesModal: React.FC<AddPoliciesModalProps> = ({
                 onClick={() => setOffset(prev => prev + PAGE_SIZE)}
                 data-testid="add-policies-modal-next"
               >
-                Next
+                {t('agents-policies-modal-next')}
               </Button>
             </div>
           </div>
@@ -436,13 +433,15 @@ export const AddPoliciesModal: React.FC<AddPoliciesModalProps> = ({
 
         {/* Action row */}
         <div className="gba:flex gba:items-center gba:justify-between gba:gap-2 gba:px-4 gba:py-3 gba:border-t gba:border-border">
-          <span className="gba:text-xs gba:text-muted-foreground">{localSelected.size} selected</span>
+          <span className="gba:text-xs gba:text-muted-foreground">
+            {t('agents-policies-modal-selected', { count: localSelected.size })}
+          </span>
           <div className="gba:flex gba:gap-2">
             <Button variant="ghost" size="sm" onClick={onClose} data-testid="add-policies-modal-cancel">
-              Cancel
+              {t('agents-cancel-label')}
             </Button>
             <Button size="sm" disabled={isLoading} onClick={handleAdd} data-testid="add-policies-modal-add">
-              Apply
+              {t('agents-policies-modal-apply')}
             </Button>
           </div>
         </div>

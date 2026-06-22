@@ -16,7 +16,7 @@ import {
   XIcon
 } from '@phosphor-icons/react'
 import type { Icon as PhosphorIcon } from '@phosphor-icons/react'
-import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from '@newwork/nw-design-system'
+import { Button, Dialog, DialogContent, DialogHeader, DialogTitle, useTranslation } from '@newwork/nw-design-system'
 import { useEffect, useMemo, useState } from 'react'
 import type {
   MessageAttachmentRef,
@@ -26,6 +26,7 @@ import type {
 } from '../../types/enterpriseAgent'
 import { PROMPT_MANAGER_API_URL } from '@/common/utils/serviceResolver'
 import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
+import translations from '../../_i18n'
 
 /**
  * Visual states a chip can be in, derived from either a live session
@@ -35,6 +36,8 @@ import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
  * chip looks the same to the user (spinner + icon overlay), so we collapse
  * the two into a single visual state at this layer.
  */
+type TranslateFn = (key: string, args?: Record<string, string>) => string
+
 type ChipState = 'pending' | 'ready' | 'failed'
 
 interface ChipDescriptor {
@@ -111,16 +114,16 @@ const extensionFromName = (name: string): string => {
   return match?.[1] ?? ''
 }
 
-const getAttachmentTooltip = (name: string, state: ChipState, readyPrefix?: string): string => {
+const getAttachmentTooltip = (t: TranslateFn, name: string, state: ChipState, readyPrefix?: string): string => {
   if (state === 'ready') {
     return readyPrefix ? `${readyPrefix}: ${name}` : name
   }
 
   if (state === 'failed') {
-    return `Failed to index: ${name}`
+    return t('chat-attachment-index-failed', { name })
   }
 
-  return `Indexing: ${name}`
+  return t('chat-attachment-indexing', { name })
 }
 
 const getPendingChipState = (attachment: PendingComposerAttachment): ChipState => {
@@ -129,23 +132,24 @@ const getPendingChipState = (attachment: PendingComposerAttachment): ChipState =
   return 'pending'
 }
 
-const getPendingTooltip = (attachment: PendingComposerAttachment, state: ChipState): string => {
+const getPendingTooltip = (t: TranslateFn, attachment: PendingComposerAttachment, state: ChipState): string => {
   if (state === 'failed') {
-    return attachment.error || `Failed to upload ${attachment.name}`
+    return attachment.error || t('chat-attachment-upload-failed', { name: attachment.name })
   }
 
   if (state === 'ready') {
-    return `Ready: ${attachment.name} (will upload when you send)`
+    return t('chat-attachment-ready-pending', { name: attachment.name })
   }
 
   if (attachment.state === 'uploading') {
-    return `Uploading ${attachment.name}...`
+    return t('chat-attachment-uploading', { name: attachment.name })
   }
 
-  return `Indexing ${attachment.name}...`
+  return t('chat-attachment-indexing-pending', { name: attachment.name })
 }
 
 const addMessageAttachmentChips = (
+  t: TranslateFn,
   messageAttachments: MessageAttachmentRef[] | undefined,
   pushUnique: (chip: ChipDescriptor) => void
 ): void => {
@@ -160,7 +164,7 @@ const addMessageAttachmentChips = (
       mimeType: ref.mime_type,
       size: ref.size,
       state,
-      tooltip: getAttachmentTooltip(ref.name, state),
+      tooltip: getAttachmentTooltip(t, ref.name, state),
       removable: false,
       previewUrl: ref.preview_url
     })
@@ -168,6 +172,7 @@ const addMessageAttachmentChips = (
 }
 
 const addSessionAttachmentChips = (
+  t: TranslateFn,
   attachments: SessionAttachment[] | undefined,
   readOnly: boolean | undefined,
   pushUnique: (chip: ChipDescriptor) => void
@@ -183,7 +188,7 @@ const addSessionAttachmentChips = (
       mimeType: attachment.mime_type,
       size: attachment.size,
       state,
-      tooltip: getAttachmentTooltip(attachment.name, state, 'Ready'),
+      tooltip: getAttachmentTooltip(t, attachment.name, state, t('chat-attachment-ready-prefix')),
       removable: !readOnly,
       previewUrl: attachment.preview_url
     })
@@ -191,6 +196,7 @@ const addSessionAttachmentChips = (
 }
 
 const addPendingAttachmentChips = (
+  t: TranslateFn,
   pendingAttachments: PendingComposerAttachment[] | undefined,
   readOnly: boolean | undefined,
   seenIds: Set<string>,
@@ -209,7 +215,7 @@ const addPendingAttachmentChips = (
       mimeType: entry.mime_type,
       size: entry.size,
       state,
-      tooltip: getPendingTooltip(entry, state),
+      tooltip: getPendingTooltip(t, entry, state),
       removable: !readOnly,
       previewUrl: entry.preview_url
     })
@@ -322,6 +328,7 @@ const ImagePreviewDialog: React.FC<{
   preview: ImagePreviewSelection | null
   onClose: () => void
 }> = ({ preview, onClose }) => {
+  const { t } = useTranslation(translations)
   const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null)
 
   useEffect(() => {
@@ -395,13 +402,13 @@ const ImagePreviewDialog: React.FC<{
           <Button variant="outline" size="sm" asChild>
             <a href={preview.src} target="_blank" rel="noopener noreferrer" data-testid="attachment-image-preview-open">
               <ArrowSquareOutIcon className="gba:mr-1.5 gba:h-3.5 gba:w-3.5" weight="bold" />
-              Open
+              {t('chat-attachment-preview-open')}
             </a>
           </Button>
           <Button variant="default" size="sm" asChild>
             <a href={preview.src} download={preview.name} data-testid="attachment-image-preview-download">
               <DownloadSimpleIcon className="gba:mr-1.5 gba:h-3.5 gba:w-3.5" weight="bold" />
-              Download
+              {t('chat-attachment-preview-download')}
             </a>
           </Button>
         </div>
@@ -419,6 +426,7 @@ const ImageBlock: React.FC<{
   onRemove?: (chip: ChipDescriptor) => void
   onPreviewOpen?: (preview: ImagePreviewSelection) => void
 }> = ({ chip, sessionId, accessToken, testIdPrefix, onRemove, onPreviewOpen }) => {
+  const { t } = useTranslation(translations)
   const { fetchAttachmentContent } = useEnterpriseAgentClient(accessToken ?? '')
   const [resolvedUrl, setResolvedUrl] = useState<string | undefined>(() => sanitizeImagePreviewSrc(chip.previewUrl))
 
@@ -459,7 +467,7 @@ const ImageBlock: React.FC<{
 
   const displaySrc = sanitizeImagePreviewSrc(resolvedUrl)
   const canPreview = !!displaySrc
-  const previewLabel = canPreview ? `Open larger preview for ${chip.name}` : undefined
+  const previewLabel = canPreview ? t('chat-attachment-preview-aria', { name: chip.name }) : undefined
   const previewBody = (
     <>
       {displaySrc ? (
@@ -526,7 +534,7 @@ const ImageBlock: React.FC<{
             event.stopPropagation()
             onRemove(chip)
           }}
-          aria-label={`Remove ${chip.name}`}
+          aria-label={t('chat-attachment-remove', { name: chip.name })}
           data-testid={`${testIdPrefix}-img-remove-${chip.id}`}
         >
           <XIcon className="gba:h-3 gba:w-3" weight="bold" />
@@ -536,7 +544,7 @@ const ImageBlock: React.FC<{
   )
 }
 
-const collectChips = (props: AttachmentChipListProps): ChipDescriptor[] => {
+const collectChips = (t: TranslateFn, props: AttachmentChipListProps): ChipDescriptor[] => {
   const { attachments, pendingAttachments, messageAttachments, readOnly } = props
   const chips: ChipDescriptor[] = []
   const seenIds = new Set<string>()
@@ -547,9 +555,9 @@ const collectChips = (props: AttachmentChipListProps): ChipDescriptor[] => {
     chips.push(chip)
   }
 
-  addMessageAttachmentChips(messageAttachments, pushUnique)
-  addSessionAttachmentChips(attachments, readOnly, pushUnique)
-  addPendingAttachmentChips(pendingAttachments, readOnly, seenIds, pushUnique)
+  addMessageAttachmentChips(t, messageAttachments, pushUnique)
+  addSessionAttachmentChips(t, attachments, readOnly, pushUnique)
+  addPendingAttachmentChips(t, pendingAttachments, readOnly, seenIds, pushUnique)
 
   return chips
 }
@@ -566,9 +574,10 @@ export const AttachmentChipList: React.FC<AttachmentChipListProps> = props => {
     sessionId,
     accessToken
   } = props
+  const { t } = useTranslation(translations)
   const [selectedPreview, setSelectedPreview] = useState<ImagePreviewSelection | null>(null)
 
-  const chips = collectChips(props)
+  const chips = collectChips(t, props)
   const chipsWithType = useMemo(
     () =>
       chips.map(chip => ({
@@ -699,7 +708,7 @@ export const AttachmentChipList: React.FC<AttachmentChipListProps> = props => {
                       event.stopPropagation()
                       handleRemove(chip)
                     }}
-                    aria-label={`Remove ${chip.name}`}
+                    aria-label={t('chat-attachment-remove', { name: chip.name })}
                     data-testid={`${testIdPrefix}-chip-remove-${chip.id}`}
                   >
                     <XIcon className="gba:h-3 gba:w-3" weight="bold" />

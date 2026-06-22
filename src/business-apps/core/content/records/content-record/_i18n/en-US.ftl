@@ -38,11 +38,11 @@ policy_counter_flows = Linked Flows: { $count }
 
 policy_action_send_ack = Send for acknowledgement
 policy_action_send_approval = Send for approval
-policy_action_create_expert = Create Enterprise Agent from policy
+policy_action_create_expert = Create { -platform-ai-agent-product.label } from policy
 policy_action_generate_flow = Generate Flow from policy
 policy_action_send_ack_short = Send acknowledgement
 policy_action_send_approval_short = Send for approval
-policy_action_create_expert_short = Create Enterprise Agent
+policy_action_create_expert_short = Create { -platform-ai-agent-product.label }
 policy_action_generate_flow_short = Generate Flow
 policy_action_ask_everyai = Ask EveryAI
 
@@ -158,7 +158,7 @@ policy_experts_empty = No linked Experts yet. Create one to operationalize this 
 
 # Create expert dialog
 cancel = Cancel
-policy_create_expert_dialog_title = Create Enterprise Agent
+policy_create_expert_dialog_title = Create { -platform-ai-agent-product.label }
 policy_create_expert_name_label = Name
 policy_create_expert_desc_label = Description
 policy_create_expert_instructions_label = Custom instructions (optional)
@@ -243,7 +243,7 @@ policy_activate_success = Policy activated successfully
 policy_activate_error = Failed to activate policy
 
 policy_execution_workflows_section = Approvals & Acknowledgements
-policy_kpi_expert_executions = Enterprise Agent Runs
+policy_kpi_expert_executions = { -platform-ai-agent-product.label } Runs
 policy_kpi_flow_executions = Flow Runs
 policy_execution_workflows_desc = Approval and acknowledgement workflows linked to this policy.
 policy_workflows_count = { $count } { $count ->

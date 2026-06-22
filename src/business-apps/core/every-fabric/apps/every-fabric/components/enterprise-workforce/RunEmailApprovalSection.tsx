@@ -1,9 +1,11 @@
 // Interactive compose_email approval for a Workforce run (same UX as chat).
 
+import { useTranslation } from '@newwork/nw-design-system'
 import React, { useCallback, useState } from 'react'
 import { EmailComposerBubble } from '../chat/EmailComposerBubble'
 import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
 import type { ComposeEmailSubmission } from '../../types/enterpriseAgent'
+import translations from '../../_i18n'
 import { findComposeEmailOutcomeInTrace } from '../../utils/composeEmailTrace'
 import { getComposeEmailPending } from './workforceComposeEmail'
 import type { WorkforceRun } from './workforceTypes'
@@ -19,6 +21,7 @@ export const RunEmailApprovalSection: React.FC<RunEmailApprovalSectionProps> = (
   accessToken,
   onRefreshAfterSubmit
 }) => {
+  const { t } = useTranslation(translations)
   const composePending = getComposeEmailPending(run.pending_structured_input)
   const { replyToInterrupt } = useEnterpriseAgentClient(accessToken)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -29,7 +32,7 @@ export const RunEmailApprovalSection: React.FC<RunEmailApprovalSectionProps> = (
   const handleSubmit = useCallback(
     async (submission: ComposeEmailSubmission) => {
       if (!accessToken) {
-        setSubmitError('Sign in required to send email.')
+        setSubmitError(t('approval-email-signin'))
         return
       }
       setSubmitError(null)
@@ -38,12 +41,12 @@ export const RunEmailApprovalSection: React.FC<RunEmailApprovalSectionProps> = (
         await replyToInterrupt(run.session_id, undefined, submission as Record<string, unknown>)
         await onRefreshAfterSubmit()
       } catch (err) {
-        setSubmitError(err instanceof Error ? err.message : 'Failed to submit email.')
+        setSubmitError(err instanceof Error ? err.message : t('approval-email-submit-fail'))
       } finally {
         setIsSubmitting(false)
       }
     },
-    [accessToken, onRefreshAfterSubmit, replyToInterrupt, run]
+    [accessToken, onRefreshAfterSubmit, replyToInterrupt, run, t]
   )
 
   if (!composePending) return null
@@ -51,7 +54,7 @@ export const RunEmailApprovalSection: React.FC<RunEmailApprovalSectionProps> = (
   return (
     <section data-testid="workforce-run-detail-approval">
       <h3 className="gba:mb-1.5 gba:text-xs gba:font-semibold gba:uppercase gba:tracking-wide gba:text-amber-600 gba:dark:text-amber-400">
-        Awaiting human approval
+        {t('approval-awaiting-title')}
       </h3>
       <div className="gba:space-y-3 gba:rounded-lg gba:border gba:border-amber-500/40 gba:bg-amber-500/5 gba:px-3 gba:py-3">
         {run.pending_human_question && (
@@ -72,7 +75,7 @@ export const RunEmailApprovalSection: React.FC<RunEmailApprovalSectionProps> = (
         </div>
         {isSubmitting && (
           <p className="gba:text-[11px] gba:text-muted-foreground" data-testid="workforce-run-email-submitting">
-            Submitting…
+            {t('approval-submitting')}
           </p>
         )}
         {submitError && (

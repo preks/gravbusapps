@@ -1,8 +1,9 @@
-import { Avatar, AvatarFallback, AvatarImage } from '@newwork/nw-design-system'
+import { Avatar, AvatarFallback, AvatarImage, useTranslation } from '@newwork/nw-design-system'
 import { CalendarCheckIcon, GearIcon } from '@phosphor-icons/react'
 import type { UserInfoProps } from '@/common/BusinessAppContext'
 import { useCurrentUserPicture } from '@/business-apps/platform/apps/every-ai/hooks/useCurrentUserPicture'
 import { resolveUserAvatarUrl, resolveUserFirstName, resolveUserFullName } from '../../utils/userUtils'
+import translations from '../../_i18n'
 import { SidebarTooltip } from './SidebarTooltip'
 
 interface SidebarFooterProps {
@@ -29,7 +30,10 @@ export const SidebarFooter: React.FC<SidebarFooterProps> = ({
   onOpenSettings,
   onOpenScheduled
 }) => {
-  const fullName = resolveUserFullName(userInfo) ?? 'Signed in'
+  const { t } = useTranslation(translations)
+  const fullName = resolveUserFullName(userInfo) ?? t('sidebar-signed-in')
+  const scheduledLabel = t('sidebar-scheduled-tasks')
+  const settingsLabel = t('sidebar-settings')
   const initials = resolveInitials(userInfo)
   const contextPicture = resolveUserAvatarUrl(userInfo)
   const employeeId = userInfo?.employeeDetails?.employeeId?.trim() || undefined
@@ -71,11 +75,11 @@ export const SidebarFooter: React.FC<SidebarFooterProps> = ({
         </div>
       </SidebarTooltip>
 
-      <SidebarTooltip disabled={!isCollapsed} label="Scheduled Tasks">
+      <SidebarTooltip disabled={!isCollapsed} label={scheduledLabel}>
         <button
           type="button"
           onClick={onOpenScheduled}
-          aria-label="Scheduled Tasks"
+          aria-label={scheduledLabel}
           className="gba:inline-flex gba:items-center gba:justify-center gba:h-8 gba:w-8 gba:rounded-lg gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
           data-testid="sidebar-scheduled-button"
         >
@@ -83,11 +87,11 @@ export const SidebarFooter: React.FC<SidebarFooterProps> = ({
         </button>
       </SidebarTooltip>
 
-      <SidebarTooltip disabled={!isCollapsed} label="Settings">
+      <SidebarTooltip disabled={!isCollapsed} label={settingsLabel}>
         <button
           type="button"
           onClick={onOpenSettings}
-          aria-label="Settings"
+          aria-label={settingsLabel}
           className="gba:inline-flex gba:items-center gba:justify-center gba:h-8 gba:w-8 gba:rounded-lg gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
           data-testid="sidebar-settings-button"
         >

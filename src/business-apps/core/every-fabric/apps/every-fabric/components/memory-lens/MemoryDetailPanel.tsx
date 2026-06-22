@@ -1,9 +1,11 @@
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { TrashIcon } from '@phosphor-icons/react'
-import { MEMORY_NAMESPACE_LABELS } from '../settings/agentSettings.types'
 import type { MemoryNamespace } from '../settings/agentSettings.types'
 import { formatMemoryTitle, fullDateTime, type MemoryLensEntry } from './memoryLensModel'
 import { MemoryMarkdownBody } from './MemoryMarkdownBody'
+import { memoryNamespaceLabel } from './memoryNamespaceI18n'
+import translations from '../../_i18n'
 
 interface MemoryDetailPanelProps {
   entry: MemoryLensEntry | null
@@ -12,17 +14,20 @@ interface MemoryDetailPanelProps {
 }
 
 export const MemoryDetailPanel: React.FC<MemoryDetailPanelProps> = ({ entry, accessToken, onDelete }) => {
+  const { t } = useTranslation(translations)
+
   if (!entry) {
     return (
       <div
         className="gba:flex gba:items-center gba:justify-center gba:rounded-2xl gba:border gba:border-dashed gba:border-border/60 gba:bg-card/40 gba:p-6 gba:text-center"
         data-testid="memory-lens-detail-empty"
       >
-        <p className="gba:text-[12px] gba:text-muted-foreground">Select an entry to read the full memory.</p>
+        <p className="gba:text-[12px] gba:text-muted-foreground">{t('memory-lens-detail-select')}</p>
       </div>
     )
   }
 
+  const title = formatMemoryTitle(entry)
   const when = fullDateTime(entry.occurredAt || entry.updatedAt)
   const tags = entry.tags ?? []
   const entities = entry.entities ?? []
@@ -35,13 +40,13 @@ export const MemoryDetailPanel: React.FC<MemoryDetailPanelProps> = ({ entry, acc
     >
       <div className="gba:flex gba:items-start gba:justify-between gba:gap-2">
         <div className="gba:min-w-0 gba:flex-1">
-          <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">{formatMemoryTitle(entry)}</h3>
+          <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">{title}</h3>
           <div className="gba:mt-1 gba:flex gba:flex-wrap gba:items-center gba:gap-2 gba:text-[10px] gba:text-muted-foreground">
             <span className="gba:rounded-full gba:bg-muted/60 gba:px-2 gba:py-0.5">
-              {MEMORY_NAMESPACE_LABELS[entry.namespace]}
+              {memoryNamespaceLabel(entry.namespace, t)}
             </span>
             {when && <span>{when}</span>}
-            {salience !== null && <span>Salience {salience}</span>}
+            {salience !== null && <span>{t('memory-lens-entry-salience', { score: salience })}</span>}
           </div>
         </div>
         <button
@@ -49,7 +54,7 @@ export const MemoryDetailPanel: React.FC<MemoryDetailPanelProps> = ({ entry, acc
           onClick={() => onDelete(entry.key, entry.namespace)}
           className="gba:flex gba:h-7 gba:w-7 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-full gba:text-muted-foreground gba:hover:bg-muted/60 gba:hover:text-foreground gba:transition-colors"
           data-testid="memory-lens-detail-delete"
-          aria-label={`Delete memory: ${formatMemoryTitle(entry)}`}
+          aria-label={t('memory-lens-detail-delete-aria')}
         >
           <TrashIcon className="gba:h-3.5 gba:w-3.5" />
         </button>

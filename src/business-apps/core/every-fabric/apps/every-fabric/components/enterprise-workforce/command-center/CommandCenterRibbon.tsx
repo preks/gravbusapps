@@ -3,8 +3,10 @@
 
 import { HourglassMediumIcon, PulseIcon, SpinnerGapIcon } from '@phosphor-icons/react'
 import type { Icon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import React from 'react'
 import { LiveStatusPill } from '../LiveStatusPill'
+import translations from '../../../_i18n'
 
 export interface CommandCenterRibbonProps {
   running: number
@@ -18,6 +20,8 @@ export interface CommandCenterRibbonProps {
 interface CountStatProps {
   icon: Icon
   label: string
+  // Stable identifier for the test id, decoupled from the translated label.
+  testKey: string
   value: number
   tone: 'primary' | 'warning' | 'muted'
 }
@@ -28,8 +32,8 @@ const TONE_CLASS: Record<CountStatProps['tone'], string> = {
   muted: 'gba:text-muted-foreground'
 }
 
-const CountStat: React.FC<CountStatProps> = ({ icon: IconComponent, label, value, tone }) => (
-  <span className="gba:inline-flex gba:items-center gba:gap-1.5" data-testid={`command-center-stat-${label}`}>
+const CountStat: React.FC<CountStatProps> = ({ icon: IconComponent, label, testKey, value, tone }) => (
+  <span className="gba:inline-flex gba:items-center gba:gap-1.5" data-testid={`command-center-stat-${testKey}`}>
     <IconComponent className={`gba:h-3.5 gba:w-3.5 ${TONE_CLASS[tone]}`} weight="bold" />
     <span className={`gba:text-sm gba:font-semibold ${TONE_CLASS[tone]}`}>{value}</span>
     <span className="gba:text-[11px] gba:text-muted-foreground">{label}</span>
@@ -84,19 +88,39 @@ export const CommandCenterRibbon: React.FC<CommandCenterRibbonProps> = ({
   throughputBuckets,
   isConnected
 }) => {
+  const { t } = useTranslation(translations)
   return (
     <div
       className="gba:flex gba:flex-wrap gba:items-center gba:gap-x-4 gba:gap-y-2"
       data-testid="command-center-ribbon"
     >
-      <CountStat icon={SpinnerGapIcon} label="running" value={running} tone="primary" />
-      <CountStat icon={HourglassMediumIcon} label="waiting" value={waitingForHuman} tone="warning" />
-      <CountStat icon={PulseIcon} label="pending" value={pending} tone="muted" />
+      <CountStat
+        icon={SpinnerGapIcon}
+        label={t('command-center-stat-running')}
+        testKey="running"
+        value={running}
+        tone="primary"
+      />
+      <CountStat
+        icon={HourglassMediumIcon}
+        label={t('command-center-stat-waiting')}
+        testKey="waiting"
+        value={waitingForHuman}
+        tone="warning"
+      />
+      <CountStat
+        icon={PulseIcon}
+        label={t('command-center-stat-pending')}
+        testKey="pending"
+        value={pending}
+        tone="muted"
+      />
 
       <div className="gba:ml-auto gba:flex gba:items-center gba:gap-2">
         <Sparkline buckets={throughputBuckets} />
         <span className="gba:whitespace-nowrap gba:text-[11px] gba:text-muted-foreground">
-          <span className="gba:font-semibold gba:text-foreground">{completedToday}</span> done today
+          <span className="gba:font-semibold gba:text-foreground">{completedToday}</span>{' '}
+          {t('command-center-done-today')}
         </span>
         <LiveStatusPill connected={isConnected} />
       </div>
