@@ -209,9 +209,9 @@ export const ClarificationPrompt: React.FC<ClarificationPromptProps> = ({
       >
         <div className={WORKSPACE_CHAT_GUTTER_CLASS}>
           <div className={`${WORKSPACE_CHAT_RAIL_CLASS} gba:mx-auto gba:pointer-events-auto`}>
-            <div className="gba:rounded-[1.6rem] gba:border gba:border-border/85 gba:bg-card/98 gba:backdrop-blur-xl gba:shadow-[0_20px_60px_rgba(15,23,42,0.14)] gba:overflow-hidden">
+            <div className="gba:rounded-2xl gba:border gba:border-border/80 gba:bg-card/98 gba:backdrop-blur-xl gba:shadow-lg gba:overflow-hidden">
               <div className="gba:flex gba:items-center gba:gap-2.5 gba:px-4 sm:gba:px-5 gba:pt-4 gba:pb-3">
-                <PauseCircleIcon className="gba:h-4 gba:w-4 gba:text-amber-500 gba:shrink-0" weight="fill" />
+                <PauseCircleIcon className="gba:h-4 gba:w-4 gba:text-primary gba:shrink-0" weight="fill" />
                 <span className="gba:text-sm gba:font-semibold gba:text-foreground gba:flex-1">
                   {t('enterprise-agent-interrupt-title')}
                 </span>

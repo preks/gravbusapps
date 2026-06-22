@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, type FC } from 'react'
 import {
   Button,
+  DateInput,
   Input,
   Textarea,
   Select,
@@ -16,6 +17,7 @@ import {
   CheckCircleIcon,
   CheckIcon,
   MagicWandIcon,
+  PauseCircleIcon,
   SparkleIcon,
   WarningIcon
 } from '@phosphor-icons/react'
@@ -55,6 +57,13 @@ interface FieldState {
   touched: boolean
   aiDelegated: boolean
   error?: string
+}
+
+/** Map our backend field_type to the design-system DateInput `type`. */
+const DATE_INPUT_TYPE: Record<'date' | 'datetime' | 'time', 'date' | 'datetime-local' | 'time'> = {
+  date: 'date',
+  datetime: 'datetime-local',
+  time: 'time'
 }
 
 /**
@@ -318,6 +327,19 @@ export const StructuredInputForm = ({
               />
             )}
 
+            {(field.field_type === 'date' || field.field_type === 'datetime' || field.field_type === 'time') && (
+              <DateInput
+                type={DATE_INPUT_TYPE[field.field_type]}
+                value={typeof state.value === 'string' ? state.value : ''}
+                onChange={v => updateField(field.field_id, typeof v === 'string' ? v : '')}
+                placeholder={field.placeholder}
+                disabled={readOnly}
+                readOnly={readOnly}
+                aria-invalid={state.error ? true : undefined}
+                className={state.error ? 'gba:border-destructive' : ''}
+              />
+            )}
+
             {field.field_type === 'select' && (
               <Select value={state.value || ''} onValueChange={v => updateField(field.field_id, v)} disabled={readOnly}>
                 <SelectTrigger className={state.error ? 'gba:border-destructive' : ''}>
@@ -428,6 +450,9 @@ export const StructuredInputForm = ({
     <div className={shellClass} data-testid={`structured-input-form-${formId}`}>
       {/* Header */}
       <div className="gba:px-5 gba:pt-3 gba:pb-3 gba:border-b gba:border-border/60 gba:flex gba:items-start gba:gap-3">
+        {!isLocked && (
+          <PauseCircleIcon className="gba:h-4 gba:w-4 gba:text-primary gba:shrink-0 gba:mt-1" weight="fill" />
+        )}
         <div className="gba:flex-1 gba:min-w-0">
           <h3
             className={`gba:text-base gba:font-bold gba:mb-1 ${

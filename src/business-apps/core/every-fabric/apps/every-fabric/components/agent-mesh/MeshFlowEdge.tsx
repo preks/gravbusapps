@@ -146,9 +146,9 @@ const MeshFlowEdgeBase = ({ id, data }: EdgeProps<MeshFlowEdgeData>) => {
   // instead of stacking. For N=1 this reduces to the midpoint; for N=k the
   // bubbles land at t = 1/(k+1), 2/(k+1), …, k/(k+1).
   const total = Math.max(safeData.bubbleTotal, 1)
-  const t = (safeData.bubbleIndex + 1) / (total + 1)
-  const labelX = sx + (tx - sx) * t
-  const labelY = sy + (ty - sy) * t
+  const bubbleT = (safeData.bubbleIndex + 1) / (total + 1)
+  const labelX = sx + (tx - sx) * bubbleT
+  const labelY = sy + (ty - sy) * bubbleT
 
   const showMovingDot = (!safeData.isResolved || safeData.liveCount > 0) && !safeData.isFailed && !isUpcoming
   const movingDotCount = showMovingDot ? Math.min(3, Math.max(1, safeData.liveCount)) : 0

@@ -14,7 +14,7 @@ import {
   CardContent,
   useTranslation
 } from '@newwork/nw-design-system'
-import translations from '../../../_i18n'
+import translations from '../../_i18n'
 import { Bot, Network, Sparkles, Workflow, Plus, GitBranch } from 'lucide-react'
 import type { TabProps } from './types'
 import type { AgentType } from '@/common/network/ai/prompt-manager/PromptManagerClient'

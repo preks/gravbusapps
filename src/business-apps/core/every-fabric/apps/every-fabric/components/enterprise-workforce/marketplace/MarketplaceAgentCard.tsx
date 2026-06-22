@@ -4,7 +4,7 @@ import { useTranslation } from '@newwork/nw-design-system'
 import { CheckIcon, StarIcon } from '@phosphor-icons/react'
 import React from 'react'
 import translations from '../../../_i18n'
-import { type MarketplaceCatalogItem, valuePackLabelKey } from './marketplaceCatalogTypes'
+import { type MarketplaceCatalogItem, valuePackLabel } from './marketplaceCatalogTypes'
 
 interface MarketplaceAgentCardProps {
   agent: MarketplaceCatalogItem
@@ -87,7 +87,7 @@ export const MarketplaceAgentCard: React.FC<MarketplaceAgentCardProps> = ({
 
       <div className="gba:flex gba:flex-wrap gba:gap-1.5">
         <span className="gba:inline-flex gba:items-center gba:rounded-full gba:bg-muted gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-muted-foreground">
-          {t(valuePackLabelKey(agent.valuePack))}
+          {t(valuePackLabel(agent.valuePack))}
         </span>
         {agent.isLegacyTemplate ? (
           agent.skills.slice(0, 2).map(skill => (
