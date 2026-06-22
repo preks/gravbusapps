@@ -51,6 +51,111 @@ export interface DelegatedAgentDetail {
 type DelegationStartEvent = AgentExpertCalledEvent | AgentSubagentSpawnedEvent
 type DelegationCompletionEvent = AgentExpertCompletedEvent | AgentSubagentCompletedEvent
 
+const ENVELOPE_MARKER_PREFIX = '<!--__envelope__:'
+
+/**
+ * Drop the `<!--__envelope__:...-->` metadata comment that
+ * `ToolResultEnvelope.to_tool_output()` prepends to delegation results so the
+ * remaining payload can be parsed/rendered cleanly.
+ */
+function stripEnvelopeMarker(raw: string): string {
+  const trimmed = raw.trimStart()
+  if (trimmed.startsWith(ENVELOPE_MARKER_PREFIX)) {
+    const end = trimmed.indexOf('-->')
+    if (end !== -1) return trimmed.slice(end + 3).trimStart()
+  }
+  return raw
+}
+
+/**
+ * Keys, in priority order, that carry the human-facing prose an expert or
+ * sub-agent produced. Failure envelopes expose `reason` /
+ * `expert_response_unverified_draft`; success/needs-input envelopes expose
+ * `response` / `expert_response`; sub-agent tool results often nest the text
+ * under `result`/`content`/`messages`.
+ */
+const READABLE_TEXT_KEYS = [
+  'expert_response',
+  'response',
+  'answer',
+  'final_answer',
+  'summary',
+  'message',
+  'text',
+  'markdown',
+  'content',
+  'reason',
+  'question',
+  'expert_response_unverified_draft'
+] as const
+
+const NESTED_CONTAINER_KEYS = ['result', 'data', 'payload'] as const
+
+function extractReadableText(value: unknown, depth = 0): string | null {
+  if (typeof value === 'string') {
+    const text = value.trim()
+    return text.length > 0 ? text : null
+  }
+  if (depth > 4 || value === null || typeof value !== 'object') return null
+
+  if (Array.isArray(value)) {
+    for (let i = value.length - 1; i >= 0; i -= 1) {
+      const found = extractReadableText(value[i], depth + 1)
+      if (found) return found
+    }
+    return null
+  }
+
+  const record = value as Record<string, unknown>
+  for (const key of READABLE_TEXT_KEYS) {
+    if (key in record) {
+      const found = extractReadableText(record[key], depth + 1)
+      if (found) return found
+    }
+  }
+  if (Array.isArray(record.messages)) {
+    for (let i = record.messages.length - 1; i >= 0; i -= 1) {
+      const entry = record.messages[i] as Record<string, unknown> | null
+      const found = extractReadableText(entry?.content, depth + 1)
+      if (found) return found
+    }
+  }
+  for (const key of NESTED_CONTAINER_KEYS) {
+    if (key in record) {
+      const found = extractReadableText(record[key], depth + 1)
+      if (found) return found
+    }
+  }
+  return null
+}
+
+const looksLikeJson = (text: string): boolean =>
+  (text.startsWith('{') && text.endsWith('}')) || (text.startsWith('[') && text.endsWith(']'))
+
+/**
+ * Turn a raw delegation result into something readable for the detail panel.
+ *
+ * Strips the envelope marker, then renders plain prose as-is. When the payload
+ * is a structured envelope (common for failures and tool-style sub-agents), it
+ * surfaces the most human-relevant field; if none exists it falls back to a
+ * pretty-printed JSON code block so the panel never shows a collapsed one-line
+ * blob. Returns `null` when there is nothing meaningful to show.
+ */
+export function humanizeDelegatedOutput(raw?: string): string | null {
+  if (typeof raw !== 'string') return null
+  const cleaned = stripEnvelopeMarker(raw).trim()
+  if (!cleaned) return null
+  if (!looksLikeJson(cleaned)) return cleaned
+  try {
+    const parsed: unknown = JSON.parse(cleaned)
+    const readable = extractReadableText(parsed)
+    if (readable) return readable
+    return `\`\`\`json\n${JSON.stringify(parsed, null, 2)}\n\`\`\``
+  } catch {
+    return cleaned
+  }
+}
+
 const isDelegationStart = (event: AgentStreamEvent): event is DelegationStartEvent =>
   event.type === 'expert_called' || event.type === 'subagent_spawned'
 

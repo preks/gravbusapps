@@ -1,5 +1,5 @@
 import type { AgentStreamEvent } from '../../types/enterpriseAgent'
-import { buildDelegatedAgentDetails } from '../delegatedAgentDetails'
+import { buildDelegatedAgentDetails, humanizeDelegatedOutput } from '../delegatedAgentDetails'
 
 let seqCounter = 0
 const nextSeq = () => (seqCounter += 1)
@@ -143,5 +143,55 @@ describe('buildDelegatedAgentDetails', () => {
     expect(tools[0].name).toBe('function_search_crm_entity')
     expect(tools[0].status).toBe('done')
     expect(tools[0].durationMs).toBe(900)
+  })
+})
+
+describe('humanizeDelegatedOutput', () => {
+  it('returns null for missing or empty output', () => {
+    expect(humanizeDelegatedOutput(undefined)).toBeNull()
+    expect(humanizeDelegatedOutput('')).toBeNull()
+    expect(humanizeDelegatedOutput('   ')).toBeNull()
+  })
+
+  it('passes plain prose through unchanged', () => {
+    const text = 'Account is healthy; renewal risk is low.'
+    expect(humanizeDelegatedOutput(text)).toBe(text)
+  })
+
+  it('strips the envelope marker before rendering prose', () => {
+    const raw = '<!--__envelope__:{"semantic_status":"success"}-->\nHere is the summary.'
+    expect(humanizeDelegatedOutput(raw)).toBe('Here is the summary.')
+  })
+
+  it('extracts the readable field from a success envelope JSON payload', () => {
+    const raw = JSON.stringify({ status: 'success', expert: 'HR Expert', response: 'Vacation booked for July 1-3.' })
+    expect(humanizeDelegatedOutput(raw)).toBe('Vacation booked for July 1-3.')
+  })
+
+  it('surfaces the reason from a failure envelope instead of raw JSON', () => {
+    const raw = JSON.stringify({
+      status: 'capability_gap',
+      expert: 'HR Expert',
+      reason: 'No access to the HRIS system.',
+      verified_actions: []
+    })
+    expect(humanizeDelegatedOutput(raw)).toBe('No access to the HRIS system.')
+  })
+
+  it('digs into nested result and message arrays', () => {
+    const raw = JSON.stringify({ result: { messages: [{ role: 'assistant', content: 'Final sub-agent answer.' }] } })
+    expect(humanizeDelegatedOutput(raw)).toBe('Final sub-agent answer.')
+  })
+
+  it('falls back to a fenced JSON block when no readable text exists', () => {
+    const raw = JSON.stringify({ verified_actions: [], counts: { created: 2 } })
+    const result = humanizeDelegatedOutput(raw)
+    expect(result).toContain('```json')
+    expect(result).toContain('"created": 2')
+  })
+
+  it('returns the original string when JSON-looking text fails to parse', () => {
+    const raw = '{ not valid json'
+    expect(humanizeDelegatedOutput(raw)).toBe('{ not valid json')
   })
 })

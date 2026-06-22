@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { Badge } from '@newwork/nw-design-system'
 import {
   CheckCircleIcon,
@@ -9,7 +10,16 @@ import {
   XIcon
 } from '@phosphor-icons/react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
-import type { DelegatedAgentDetail, DelegatedAgentStatus } from '../../utils/delegatedAgentDetails'
+import {
+  humanizeDelegatedOutput,
+  type DelegatedAgentDetail,
+  type DelegatedAgentStatus
+} from '../../utils/delegatedAgentDetails'
+
+// Sits above the platform chrome (header/nav) so the panel is never clipped,
+// matching the artifact viewer overlay convention.
+const BACKDROP_Z_INDEX = 9990
+const PANEL_Z_INDEX = 9991
 
 interface DelegatedAgentDetailPanelProps {
   detail: DelegatedAgentDetail | null
@@ -68,21 +78,23 @@ export const DelegatedAgentDetailPanel: React.FC<DelegatedAgentDetailPanelProps>
   const status = STATUS_BADGE[detail.status]
   const duration = formatDuration(detail.durationMs)
   const sourceLabel = detail.source === 'expert' ? 'Expert' : 'Sub-agent'
-  const hasOutput = typeof detail.output === 'string' && detail.output.trim().length > 0
+  const readableOutput = humanizeDelegatedOutput(detail.output)
 
-  return (
-    <div className="gba:fixed gba:inset-0 gba:z-[60] gba:flex gba:justify-end" data-testid="delegated-agent-detail">
+  const overlay = (
+    <div data-testid="delegated-agent-detail">
       <button
         type="button"
         aria-label="Close agent detail"
         onClick={onClose}
-        className="gba:absolute gba:inset-0 gba:bg-foreground/20 gba:backdrop-blur-[1px] gba:animate-in gba:fade-in gba:duration-150"
+        className="gba:fixed gba:inset-0 gba:bg-foreground/20 gba:backdrop-blur-[1px] gba:animate-in gba:fade-in gba:duration-150"
+        style={{ zIndex: BACKDROP_Z_INDEX }}
         data-testid="delegated-agent-detail-backdrop"
       />
       <aside
         role="dialog"
         aria-label={`${detail.agentName} delegation detail`}
-        className="gba:relative gba:flex gba:h-full gba:w-[420px] gba:max-w-[calc(100vw-2rem)] gba:flex-col gba:overflow-hidden gba:border-l gba:border-border/60 gba:bg-card gba:shadow-[0_16px_48px_-16px_rgba(15,23,42,0.35)] gba:animate-in gba:slide-in-from-right gba:duration-200"
+        className="gba:fixed gba:right-0 gba:top-14 gba:bottom-0 gba:flex gba:w-[420px] gba:max-w-[calc(100vw-2rem)] gba:flex-col gba:overflow-hidden gba:border-l gba:border-border/60 gba:bg-card gba:shadow-[0_16px_48px_-16px_rgba(15,23,42,0.35)] gba:animate-in gba:slide-in-from-right gba:duration-200"
+        style={{ zIndex: PANEL_Z_INDEX }}
       >
         <header className="gba:flex gba:items-start gba:justify-between gba:gap-3 gba:border-b gba:border-border/50 gba:px-5 gba:py-4">
           <div className="gba:flex gba:min-w-0 gba:items-start gba:gap-3">
@@ -132,9 +144,9 @@ export const DelegatedAgentDetailPanel: React.FC<DelegatedAgentDetailPanelProps>
           ) : null}
 
           <Section title="What it did">
-            {hasOutput ? (
+            {readableOutput ? (
               <div className="gba:rounded-xl gba:border gba:border-border/40 gba:bg-muted/20 gba:px-3.5 gba:py-3 gba:text-[13px] gba:leading-6">
-                <MarkdownWithChipsRenderer content={detail.output as string} variant="enterprise" />
+                <MarkdownWithChipsRenderer content={readableOutput} variant="enterprise" />
               </div>
             ) : (
               <p className="gba:text-[13px] gba:italic gba:text-muted-foreground">
@@ -177,4 +189,7 @@ export const DelegatedAgentDetailPanel: React.FC<DelegatedAgentDetailPanelProps>
       </aside>
     </div>
   )
+
+  if (typeof document === 'undefined') return overlay
+  return createPortal(overlay, document.body)
 }
