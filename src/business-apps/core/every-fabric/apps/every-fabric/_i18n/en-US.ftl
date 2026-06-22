@@ -67,6 +67,11 @@ workforce-hero-title = { -platform-ai-agent-fleet.label }
 workforce-label = { -platform-ai-agent-fleet.label }
 skills-screen-title = { -platform-ai-agent-product.label }
 trace-explorer-agent-mesh = { -platform-ai-agent-network.label }
+# Sidebar-only labels — override generic terminology in the left island.
+sidebar-brand-product = EveryFabric
+sidebar-nav-agent-os = { -platform-ai-agent-network.label }
+sidebar-nav-memory = Memory
+workspace-open-agent-os-aria = Open { -platform-ai-agent-network.label }
 agents-specialist-description = Task-matched specialists that the { -platform-ai-agent-product.label } activates automatically based on your request. They cannot be configured or run directly.
 agent-config-runs-live-in-workforce = Cases, runs, and traces for this Worker live in { -platform-ai-agent-fleet.label }.
 agent-config-view-activity-in-workforce = View live activity in { -platform-ai-agent-fleet.label }

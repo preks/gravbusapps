@@ -3,7 +3,6 @@ import { useTranslation } from '@newwork/nw-design-system'
 import {
   BrainIcon,
   BuildingsIcon,
-  GraphIcon,
   ListMagnifyingGlassIcon,
   TreeStructureIcon,
   UsersThreeIcon
@@ -86,10 +85,10 @@ export interface SidebarProps {
 
   /**
    * Session-scoped destinations under the "Active session" header. These
-   * only appear when an active session is selected.
+   * only appear when an active session is selected. The Agent Operating
+   * System (session mesh) is now reached via a subtle control inside the
+   * workspace itself, so it is no longer listed here.
    */
-  onOpenSessionMesh: () => void
-  isSessionMeshActive?: boolean
   onOpenTraceExplorer: () => void
   isTraceExplorerActive?: boolean
   /** When false, hides Trace Explorer nav item. */
@@ -137,8 +136,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isTraceLensActive = false,
   onOpenMemoryLens,
   isMemoryLensActive = false,
-  onOpenSessionMesh,
-  isSessionMeshActive = false,
   onOpenTraceExplorer,
   isTraceExplorerActive = false,
   devModeEnabled = false
@@ -167,6 +164,79 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onExpand()
   }
 
+  /**
+   * Company-wide + session-scoped destinations. Rendered below the sessions
+   * list (expanded) or directly under the header (collapsed) so the session
+   * history always gets the prime, growing region of the island.
+   */
+  const navSection = (
+    <>
+      {/* WORKSPACE — always visible, never bound to a session. */}
+      <SidebarSectionLabel
+        label={t('sidebar-section-workspace')}
+        isCollapsed={isCollapsed}
+        testId="sidebar-section-workspace"
+      />
+      <SidebarNavItem
+        icon={UsersThreeIcon}
+        label={t('nav-digital-workforce')}
+        badge={t('sidebar-badge-new')}
+        isActive={isEnterpriseWorkforceActive}
+        isCollapsed={isCollapsed}
+        onClick={onOpenEnterpriseWorkforce}
+        testId="sidebar-nav-enterprise-workforce"
+      />
+      <SidebarNavItem
+        icon={BuildingsIcon}
+        label={t('sidebar-nav-agent-os')}
+        isActive={isCompanyMeshActive}
+        isCollapsed={isCollapsed}
+        onClick={onOpenCompanyMesh}
+        testId="sidebar-nav-company-mesh"
+      />
+      {devModeEnabled && (
+        <SidebarNavItem
+          icon={TreeStructureIcon}
+          label={t('trace-lens-title')}
+          isActive={isTraceLensActive}
+          isCollapsed={isCollapsed}
+          onClick={onOpenTraceLens}
+          testId="sidebar-nav-trace-lens"
+        />
+      )}
+      {devModeEnabled && (
+        <SidebarNavItem
+          icon={BrainIcon}
+          label={t('sidebar-nav-memory')}
+          isActive={isMemoryLensActive}
+          isCollapsed={isCollapsed}
+          onClick={onOpenMemoryLens}
+          testId="sidebar-nav-memory-lens"
+        />
+      )}
+
+      {/* ACTIVE SESSION — only the dev-only Trace Explorer remains here; the
+          Agent Operating System now lives as a control inside the workspace. */}
+      {hasActiveSession && devModeEnabled && (
+        <>
+          <SidebarSectionLabel
+            label={t('sidebar-section-active-session')}
+            isCollapsed={isCollapsed}
+            testId="sidebar-section-active-session"
+          />
+          <SidebarNavItem
+            icon={ListMagnifyingGlassIcon}
+            label={t('agent-mesh-trace-explorer')}
+            isActive={isTraceExplorerActive}
+            isCollapsed={isCollapsed}
+            onClick={onOpenTraceExplorer}
+            testId="sidebar-nav-trace-explorer"
+          />
+        </>
+      )}
+    </>
+  )
+
   return (
     <aside
       aria-label={t('sidebar-nav-aria')}
@@ -180,118 +250,53 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <SidebarHeader isCollapsed={isCollapsed} onToggleCollapsed={onToggleCollapsed} />
         {showNewSessionCta && <SidebarNewChatButton isCollapsed={isCollapsed} onClick={onNewSession} />}
 
-        {/* WORKSPACE — always visible, never bound to a session. */}
-        <SidebarSectionLabel
-          label={t('sidebar-section-workspace')}
-          isCollapsed={isCollapsed}
-          testId="sidebar-section-workspace"
-        />
-        <SidebarNavItem
-          icon={UsersThreeIcon}
-          label={t('nav-digital-workforce')}
-          badge={t('sidebar-badge-new')}
-          isActive={isEnterpriseWorkforceActive}
-          isCollapsed={isCollapsed}
-          onClick={onOpenEnterpriseWorkforce}
-          testId="sidebar-nav-enterprise-workforce"
-        />
-        <SidebarNavItem
-          icon={BuildingsIcon}
-          label={t('agent-mesh-scope-title-company')}
-          isActive={isCompanyMeshActive}
-          isCollapsed={isCollapsed}
-          onClick={onOpenCompanyMesh}
-          testId="sidebar-nav-company-mesh"
-        />
-        {devModeEnabled && (
-          <SidebarNavItem
-            icon={TreeStructureIcon}
-            label={t('trace-lens-title')}
-            isActive={isTraceLensActive}
-            isCollapsed={isCollapsed}
-            onClick={onOpenTraceLens}
-            testId="sidebar-nav-trace-lens"
-          />
-        )}
-        {devModeEnabled && (
-          <SidebarNavItem
-            icon={BrainIcon}
-            label={t('memory-lens-title')}
-            isActive={isMemoryLensActive}
-            isCollapsed={isCollapsed}
-            onClick={onOpenMemoryLens}
-            testId="sidebar-nav-memory-lens"
-          />
-        )}
-
-        {/* ACTIVE SESSION — only when a session is selected. */}
-        {hasActiveSession && (
+        {isCollapsed ? (
           <>
-            <SidebarSectionLabel
-              label={t('sidebar-section-active-session')}
+            {navSection}
+            <div className="gba:flex-1 gba:min-h-0" />
+          </>
+        ) : (
+          <>
+            {/* SESSIONS — given the prime, growing region so the history list
+                is visible first instead of buried below the navigation. */}
+            <SidebarSearchBar
               isCollapsed={isCollapsed}
-              testId="sidebar-section-active-session"
+              query={historySearchQuery}
+              onChange={onHistorySearchQueryChange}
+              onRequestExpand={handleSearchRequestExpand}
+              isSearching={historySessionsSearching}
+              resultCount={hasActiveHistorySearch ? filteredActive.length + filteredRecents.length : undefined}
+              focusRequestId={searchFocusRequest}
             />
-            <SidebarNavItem
-              icon={GraphIcon}
-              label={t('trace-explorer-agent-mesh')}
-              isActive={isSessionMeshActive}
-              isCollapsed={isCollapsed}
-              onClick={onOpenSessionMesh}
-              testId="sidebar-nav-agent-mesh"
-            />
-            {devModeEnabled && (
-              <SidebarNavItem
-                icon={ListMagnifyingGlassIcon}
-                label={t('agent-mesh-trace-explorer')}
-                isActive={isTraceExplorerActive}
-                isCollapsed={isCollapsed}
-                onClick={onOpenTraceExplorer}
-                testId="sidebar-nav-trace-explorer"
+            <SidebarFilterBar activeFilters={statusFilter} onChange={setStatusFilter} />
+
+            <div className={SIDEBAR_SESSIONS_SCROLL_REGION_CLASS}>
+              <SidebarActiveSection
+                sessions={filteredActive}
+                activeSessionId={activeSessionId}
+                onSelect={onSelectSession}
+                onStop={onStopSession}
+                forceExpanded={forceSessionsExpanded}
               />
-            )}
+              <SidebarRecentsSection
+                sessions={filteredRecents}
+                activeSessionId={activeSessionId}
+                onSelect={onSelectSession}
+                onDelete={onDeleteSession}
+                emptyHint={hasActiveHistorySearch || statusFilter ? t('sidebar-recents-empty-search') : undefined}
+                forceExpanded={forceSessionsExpanded}
+                isLoading={historySessionsLoading}
+                isLoadingMore={historySessionsLoadingMore}
+                hasMore={hasMoreHistorySessions}
+                onLoadMore={onLoadMoreHistorySessions}
+                searchActive={hasActiveHistorySearch}
+              />
+            </div>
+
+            <div className="gba:mx-3 gba:my-1.5 gba:border-t gba:border-border/40" />
+            {navSection}
           </>
         )}
-
-        <div className="gba:mx-3 gba:my-1.5 gba:border-t gba:border-border/40" />
-
-        <SidebarSearchBar
-          isCollapsed={isCollapsed}
-          query={historySearchQuery}
-          onChange={onHistorySearchQueryChange}
-          onRequestExpand={handleSearchRequestExpand}
-          isSearching={historySessionsSearching}
-          resultCount={hasActiveHistorySearch ? filteredActive.length + filteredRecents.length : undefined}
-          focusRequestId={searchFocusRequest}
-        />
-        {!isCollapsed && <SidebarFilterBar activeFilters={statusFilter} onChange={setStatusFilter} />}
-
-        {!isCollapsed && (
-          <div className={SIDEBAR_SESSIONS_SCROLL_REGION_CLASS}>
-            <SidebarActiveSection
-              sessions={filteredActive}
-              activeSessionId={activeSessionId}
-              onSelect={onSelectSession}
-              onStop={onStopSession}
-              forceExpanded={forceSessionsExpanded}
-            />
-            <SidebarRecentsSection
-              sessions={filteredRecents}
-              activeSessionId={activeSessionId}
-              onSelect={onSelectSession}
-              onDelete={onDeleteSession}
-              emptyHint={hasActiveHistorySearch || statusFilter ? t('sidebar-recents-empty-search') : undefined}
-              forceExpanded={forceSessionsExpanded}
-              isLoading={historySessionsLoading}
-              isLoadingMore={historySessionsLoadingMore}
-              hasMore={hasMoreHistorySessions}
-              onLoadMore={onLoadMoreHistorySessions}
-              searchActive={hasActiveHistorySearch}
-            />
-          </div>
-        )}
-
-        {isCollapsed && <div className="gba:flex-1 gba:min-h-0" />}
 
         <SidebarFooter
           isCollapsed={isCollapsed}

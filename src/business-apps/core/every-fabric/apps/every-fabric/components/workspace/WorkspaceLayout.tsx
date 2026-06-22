@@ -1,4 +1,11 @@
-import { ArrowRightIcon, ChatCircleDotsIcon, LayoutIcon, PauseCircleIcon, XIcon } from '@phosphor-icons/react'
+import {
+  ArrowRightIcon,
+  ChatCircleDotsIcon,
+  GraphIcon,
+  LayoutIcon,
+  PauseCircleIcon,
+  XIcon
+} from '@phosphor-icons/react'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../../_i18n'
@@ -102,9 +109,11 @@ const parseFollowUps = (message: ChatMessage | undefined): string[] => {
 
 interface WorkspaceLayoutProps {
   devModeEnabled?: boolean
+  /** Opens the session-scoped Agent Operating System (mesh) for this session. */
+  onOpenSessionMesh?: () => void
 }
 
-export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({ devModeEnabled = false }) => {
+export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({ devModeEnabled = false, onOpenSessionMesh }) => {
   const { t } = useTranslation(translations)
   const {
     session,
@@ -347,6 +356,18 @@ export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({ devModeEnabled
           <div
             className={`gba:absolute gba:right-3 sm:gba:right-6 lg:gba:right-8 ${WORKSPACE_TOP_CONTROLS_OFFSET_CLASS} gba:z-50 gba:flex gba:max-w-[calc(100%-1.5rem)] gba:flex-wrap gba:justify-end gba:gap-2 gba:pointer-events-auto`}
           >
+            {onOpenSessionMesh && (
+              <button
+                type="button"
+                onClick={onOpenSessionMesh}
+                className="gba:inline-flex gba:items-center gba:justify-center gba:h-10 gba:w-10 gba:rounded-full gba:border gba:border-border/45 gba:bg-background/70 gba:backdrop-blur-xl gba:text-muted-foreground gba:shadow-[0_1px_2px_rgba(15,23,42,0.03)] gba:hover:text-foreground gba:hover:bg-background gba:hover:shadow-[0_1px_2px_rgba(15,23,42,0.06),0_14px_32px_-12px_rgba(15,23,42,0.22)] gba:transition-all"
+                data-testid="fabric-workspace-open-agent-os"
+                aria-label={t('workspace-open-agent-os-aria')}
+                title={t('workspace-open-agent-os-aria')}
+              >
+                <GraphIcon className="gba:h-4 gba:w-4" weight="bold" />
+              </button>
+            )}
             <button
               onClick={() => setIsRightPanelOpen(open => !open)}
               className="gba:inline-flex gba:items-center gba:justify-center gba:h-10 gba:w-10 gba:rounded-full gba:border gba:border-border/55 gba:bg-background/85 gba:backdrop-blur-xl gba:text-foreground gba:shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-12px_rgba(15,23,42,0.18)] gba:hover:bg-background gba:hover:shadow-[0_1px_2px_rgba(15,23,42,0.06),0_14px_32px_-12px_rgba(15,23,42,0.22)] gba:transition-all"

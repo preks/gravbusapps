@@ -67,6 +67,11 @@ workforce-hero-title = { -platform-ai-agent-fleet.label }
 workforce-label = { -platform-ai-agent-fleet.label }
 skills-screen-title = { -platform-ai-agent-product.label }
 trace-explorer-agent-mesh = { -platform-ai-agent-network.label }
+# Sidebar-only labels — override generic terminology in the left island.
+sidebar-brand-product = EveryFabric
+sidebar-nav-agent-os = { -platform-ai-agent-network.label }
+sidebar-nav-memory = Memorie
+workspace-open-agent-os-aria = Deschide { -platform-ai-agent-network.label }
 agents-specialist-description = Specialiști potriviți cu sarcina pe care { -platform-ai-agent-product.label } îi activează automat în funcție de cererea ta. Nu pot fi configurați sau rulați direct.
 agent-config-runs-live-in-workforce = Cazurile, rulările și trace-urile pentru acest Worker se află în { -platform-ai-agent-fleet.label }.
 agent-config-view-activity-in-workforce = Vezi activitatea live în { -platform-ai-agent-fleet.label }

@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Button, useTranslation } from '@newwork/nw-design-system'
-import { CaretDownIcon, CheckCircleIcon, PencilSimpleIcon, ShieldWarningIcon, XCircleIcon } from '@phosphor-icons/react'
+import { CaretDownIcon, CheckCircleIcon, PencilSimpleIcon, ShieldCheckIcon, XCircleIcon } from '@phosphor-icons/react'
 import type { StructuredInputRequestEvent } from '../../types/enterpriseAgent'
 import {
   formatPermissionDisplayValue,
@@ -380,10 +380,10 @@ export const ToolPermissionRequest = ({
   }
 
   return (
-    <div className="gba:rounded-2xl gba:border gba:border-warning/40 gba:bg-warning/5 gba:p-4 gba:shadow-sm">
+    <div className="gba:rounded-2xl gba:border gba:border-border/80 gba:bg-card/98 gba:backdrop-blur-xl gba:p-4 gba:shadow-lg">
       <div className="gba:flex gba:items-start gba:gap-3">
-        <div className="gba:flex gba:h-9 gba:w-9 gba:items-center gba:justify-center gba:rounded-full gba:bg-warning/15 gba:text-warning gba:shrink-0">
-          <ShieldWarningIcon className="gba:h-5 gba:w-5" weight="duotone" />
+        <div className="gba:flex gba:h-9 gba:w-9 gba:items-center gba:justify-center gba:rounded-full gba:bg-primary/10 gba:text-primary gba:shrink-0">
+          <ShieldCheckIcon className="gba:h-5 gba:w-5" weight="duotone" />
         </div>
         <div className="gba:min-w-0 gba:flex-1">
           {single ? (
@@ -406,7 +406,7 @@ export const ToolPermissionRequest = ({
             </>
           )}
           {editing && !locked && (
-            <span className="gba:mt-2 gba:inline-flex gba:rounded-full gba:bg-warning/10 gba:px-2.5 gba:py-1 gba:text-[11px] gba:font-medium gba:text-warning">
+            <span className="gba:mt-2 gba:inline-flex gba:rounded-full gba:bg-primary/10 gba:px-2.5 gba:py-1 gba:text-[11px] gba:font-medium gba:text-primary">
               {t('renderer-permission-editing')}
             </span>
           )}

@@ -14,7 +14,7 @@ import {
   Textarea,
   useTranslation
 } from '@newwork/nw-design-system'
-import translations from '../../../_i18n'
+import translations from '../../_i18n'
 import { History, Plus, Send, Loader2, Brain, Zap, Sparkles, Network } from 'lucide-react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
