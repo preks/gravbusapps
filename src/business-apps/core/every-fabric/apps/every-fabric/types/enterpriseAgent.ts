@@ -443,7 +443,16 @@ export interface ComposeEmailSubmission {
 export interface InputFieldSchema {
   field_id: string
   label: string
-  field_type: 'text' | 'textarea' | 'select' | 'multiselect' | 'number' | 'employee_search'
+  field_type:
+    | 'text'
+    | 'textarea'
+    | 'select'
+    | 'multiselect'
+    | 'number'
+    | 'employee_search'
+    | 'date'
+    | 'datetime'
+    | 'time'
   description?: string
   required: boolean
   default_value?: any
