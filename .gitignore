@@ -18,6 +18,8 @@ changed-tsx.txt
 .cursor/rules/*
 !.cursor/rules/local/
 !.cursor/rules/local/**
+# Keep this local-only rule out of version control
+.cursor/rules/local/pencil-integration.mdc
 .cursor/commands/
 
 # Editor directories and files
