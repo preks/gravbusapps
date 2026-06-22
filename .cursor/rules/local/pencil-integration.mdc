@@ -1,0 +1,89 @@
+---
+description: Pencil design tool integration with gravity-business-apps — nw-design-system ONLY
+alwaysApply: true
+---
+
+# Pencil Design Integration
+
+[CRITICAL] All Pencil designs MUST use ONLY `@newwork/nw-design-system` tokens, components, and patterns. No other design kit or library is permitted.
+
+## Design System Source
+
+- **Package**: `@newwork/nw-design-system`
+- **Source**: `/Users/denisprekrat/Documents/APPS/NEWWORK Apps/nw-design-system`
+- **Rules (required read order)**:
+  - `nw-design-system/docs/rules/design-prompt/latest/DESIGN_PROMPT.md`
+  - `nw-design-system/docs/rules/design-prompt/latest/UI_RULES.md`
+  - `nw-design-system/docs/rules/design-prompt/latest/DESIGN_SYSTEM_SPEC.md`
+- **Field states contract**: `nw-design-system/src/styles/docs/FIELD_STATES.md`
+- **Tokens**: `nw-design-system/src/styles/tokens/` (color.css, typography.css, spacing.css, radius.css, shadow.css, motion.css)
+
+## Repo-side parity ledger (must stay green)
+
+- **Parity extractor output**: `designs/nw-design-system-parity.json` (generated)
+- **Coverage manifest**: `designs/nw-design-system-coverage.json` (per-export mapping)
+- **Extractor script**: `scripts/nwds-pencil-parity/extract.mjs`
+- **Coverage upgrader**: `scripts/nwds-pencil-parity/upgrade-coverage.mjs`
+
+## Forbidden
+
+- [CRITICAL] NEVER use Lunaris, LUNARIS, or any design kit other than nw-design-system
+- NEVER hardcode colors — always use `$--` variable references in Pencil
+- NEVER create ad-hoc visual components when an `nw/*` Pencil reusable already exists
+- NEVER leave legacy/demo content mixed into the canonical kit (quarantine it under `NW_99_Legacy_DoNotUse`)
+
+## Canonical Kit Policy
+
+All `nw/*` reusable components are maintained in `pencil-welcome.pen`. This is the canonical master kit for this repo.
+
+Before designing:
+
+1. **Consult coverage**: use `designs/nw-design-system-coverage.json` (it tracks **every exported symbol** and links to Pencil component IDs).
+2. **Use instances**: prefer `{type: "ref", ref: "<pencilComponentId>"}` over duplicating internals.
+3. **Only tokens**: use `$--` variables for fills/strokes/text, never raw hex.
+4. **States**: every Storybook story/state must exist as a static visual variant in the kit.
+
+## Session bootstrap (required)
+
+At the beginning of any Pencil design task:
+
+1. Run `get_editor_state`.
+2. If the active editor is not `pencil-welcome.pen`, call `open_document` for `pencil-welcome.pen`.
+3. Build/reuse components from this master kit first, then design screens.
+
+Do not start from `pencil-new.pen` or any blank template unless explicitly requested by the user.
+
+## Copied-over DS rules (verbatim excerpts)
+
+From `DESIGN_PROMPT.md` (design system rules use `nw:` Tailwind prefix; **gravity code uses `gba:` instead**):
+
+- **LAW-G01 — DS inventory gate**: Before edits, search DS `src/components` to confirm proper APIs/defaults. **Never guess props.**
+- **LAW-M01 — Mandatory building blocks**: Pages must use DS wrappers; page header must use `PageHeader`; complex tables must use `DataDisplay`.
+- **LAW-C01 — No "fake DS"**: If DS component exists, raw markup + custom styling is a violation.
+- **LAW-C02 — DS components own visuals**: `className` only for layout tweaks; no visual overrides.
+- **LAW-P01 — Prefix discipline**: DS docs show `nw:`; in gravity-business-apps translate to `gba:` (prefix before variants, e.g. `gba:hover:bg-accent`).
+- **LAW-T01 — Tokens only**: no Tailwind palette colors; only DS semantic tokens.
+- **LAW-T02 — Decorative effects via DS**: no custom gradients; use DS `/effects` utilities sparingly.
+
+From `DESIGN_SYSTEM_SPEC.md`:
+
+- Decorative backgrounds must be rare: **max 1x `bg-decorative` + 1x `bg-card-decorative` per page**.
+
+## Field-state matrix (must be modeled in Pencil)
+
+If `FIELD_STATES.md` applies to a control family (Input/Textarea/Select/Combobox/DateInput/InputOtp/InputGroup/etc), the kit must include explicit static variants for:
+
+- enabled: rest / hover / focus
+- invalid: rest / hover / focus
+- readOnly: rest / focus
+- disabled: rest
+- plus `open` for trigger-like controls (styled like focus)
+
+## Maintenance workflow (future-proof)
+
+When `nw-design-system` changes:
+
+1. Run `node scripts/nwds-pencil-parity/extract.mjs` → updates `designs/nw-design-system-parity.json`
+2. Run `node scripts/nwds-pencil-parity/upgrade-coverage.mjs` (idempotent structure upgrade)
+3. Implement missing exports/states in `pencil-welcome.pen` as `nw/*` reusable components
+4. Update `designs/nw-design-system-coverage.json` mappings until **0 missing**
