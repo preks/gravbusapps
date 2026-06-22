@@ -1,5 +1,6 @@
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { FormLocalizationProvider } from '@/common/components/form-localization-provider'
 import { EVERY_FABRIC_PROMPT_PARAM } from '@/common/utils/openEveryFabric'
 import { getCurrentUrlWithUpdatedSearchParams } from '@/common/utils/navigationUtils'
 import { useFeature } from '@/common/hooks/useFeature'
@@ -256,14 +257,16 @@ export interface EveryFabricAppProps extends BusinessAppContextProps {
 export const EveryFabricApp: React.FC<EveryFabricAppProps> = props => {
   return (
     <EveryFabricErrorBoundary>
-      <FabricProvider {...props}>
-        <div
-          className="gba:h-full gba:min-h-full gba:relative gba:bg-background gba:overflow-hidden"
-          data-testid={props.prefixDataTestId ?? 'every-fabric'}
-        >
-          <EveryFabricInner />
-        </div>
-      </FabricProvider>
+      <FormLocalizationProvider>
+        <FabricProvider {...props}>
+          <div
+            className="gba:h-full gba:min-h-full gba:relative gba:bg-background gba:overflow-hidden"
+            data-testid={props.prefixDataTestId ?? 'every-fabric'}
+          >
+            <EveryFabricInner />
+          </div>
+        </FabricProvider>
+      </FormLocalizationProvider>
     </EveryFabricErrorBoundary>
   )
 }
