@@ -18,7 +18,7 @@ interface MemoryDimensionTabsProps {
 
 export const MemoryDimensionTabs: React.FC<MemoryDimensionTabsProps> = ({ active, onChange }) => (
   <div
-    className="gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:border gba:border-border/60 gba:bg-muted/30 gba:p-1"
+    className="gba:flex gba:items-center gba:gap-1 gba:overflow-x-auto gba:border-b gba:border-border/60"
     role="tablist"
     data-testid="memory-lens-dimension-tabs"
   >
@@ -32,14 +32,14 @@ export const MemoryDimensionTabs: React.FC<MemoryDimensionTabsProps> = ({ active
           role="tab"
           aria-selected={isActive}
           onClick={() => onChange(view.id)}
-          className={`gba:inline-flex gba:items-center gba:gap-1.5 gba:rounded-full gba:px-3 gba:py-1.5 gba:text-[13px] gba:font-medium gba:whitespace-nowrap gba:transition-colors ${
+          className={`gba:relative gba:inline-flex gba:items-center gba:gap-1.5 gba:whitespace-nowrap gba:px-3 gba:pb-2.5 gba:pt-1 gba:text-sm gba:font-medium gba:transition-colors gba:after:absolute gba:after:inset-x-2 gba:after:-bottom-px gba:after:h-0.5 gba:after:rounded-full ${
             isActive
-              ? 'gba:bg-background gba:text-foreground gba:shadow-sm'
-              : 'gba:text-muted-foreground gba:hover:text-foreground'
+              ? 'gba:text-foreground gba:after:bg-foreground'
+              : 'gba:text-muted-foreground gba:hover:text-foreground gba:after:bg-transparent'
           }`}
           data-testid={`memory-lens-view-${view.id}`}
         >
-          <ViewIcon className="gba:h-3.5 gba:w-3.5" />
+          <ViewIcon className="gba:h-4 gba:w-4" />
           {view.label}
         </button>
       )

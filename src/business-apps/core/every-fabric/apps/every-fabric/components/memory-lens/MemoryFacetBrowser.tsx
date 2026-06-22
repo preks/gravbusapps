@@ -136,7 +136,7 @@ export const MemoryFacetBrowser: React.FC<MemoryFacetBrowserProps> = ({ entries,
                 </p>
               </div>
             </div>
-            <div className="gba:space-y-2">
+            <div className="gba:overflow-hidden gba:rounded-2xl gba:bg-card gba:divide-y gba:divide-border/50">
               {selectedEntries.map(entry => (
                 <MemoryEntryCard key={`${entry.namespace}-${entry.key}`} entry={entry} onDelete={onDelete} />
               ))}

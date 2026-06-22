@@ -5,48 +5,42 @@ interface MemoryStatsRowProps {
   stats: MemoryStats
 }
 
-interface Tile {
+interface Metric {
   id: string
   label: string
-  value: string
-  hint?: string
+  value: number
 }
 
-const StatTile: React.FC<{ tile: Tile }> = ({ tile }) => (
-  <div
-    className="gba:rounded-xl gba:border gba:border-border/60 gba:bg-card gba:px-3.5 gba:py-3"
-    data-testid={`memory-lens-stat-${tile.id}`}
-  >
-    <p className="gba:text-[11px] gba:font-medium gba:uppercase gba:tracking-wide gba:text-muted-foreground/70">
-      {tile.label}
-    </p>
-    <p className="gba:mt-1 gba:text-2xl gba:font-semibold gba:leading-none gba:text-foreground">{tile.value}</p>
-    {tile.hint && <p className="gba:mt-1 gba:text-[11px] gba:text-muted-foreground/70">{tile.hint}</p>}
-  </div>
-)
-
 export const MemoryStatsRow: React.FC<MemoryStatsRowProps> = ({ stats }) => {
-  const lastUpdatedLabel = relativeDate(stats.lastUpdated) || 'No activity'
+  const lastUpdatedLabel = relativeDate(stats.lastUpdated)
 
-  const tiles: Tile[] = [
-    { id: 'total', label: 'Total memories', value: String(stats.total), hint: 'Across all namespaces' },
+  const metrics: Metric[] = [
+    { id: 'total', label: 'Total', value: stats.total },
     ...stats.perNamespace.map(entry => ({
       id: entry.namespace,
-      label: entry.label,
-      value: String(entry.count)
-    })),
-    { id: 'high-salience', label: 'High salience', value: String(stats.highSalienceCount), hint: 'Importance 7+' },
-    { id: 'recency', label: 'Last updated', value: lastUpdatedLabel }
+      label: entry.label === 'Domain facts' ? 'Facts' : entry.label,
+      value: entry.count
+    }))
   ]
 
   return (
-    <div
-      className="gba:grid gba:grid-cols-2 gba:gap-2.5 sm:gba:grid-cols-3 lg:gba:grid-cols-4 xl:gba:grid-cols-7"
-      data-testid="memory-lens-stats"
-    >
-      {tiles.map(tile => (
-        <StatTile key={tile.id} tile={tile} />
-      ))}
-    </div>
+    <section className="gba:rounded-2xl gba:bg-card gba:px-6 gba:py-5 sm:gba:px-8" data-testid="memory-lens-stats">
+      <div className="gba:flex gba:flex-wrap gba:items-end gba:gap-x-10 gba:gap-y-5">
+        {metrics.map(metric => (
+          <div key={metric.id} className="gba:min-w-0" data-testid={`memory-lens-stat-${metric.id}`}>
+            <p className="gba:text-2xl gba:font-semibold gba:leading-none gba:text-foreground gba:tabular-nums">
+              {metric.value}
+            </p>
+            <p className="gba:mt-1.5 gba:text-xs gba:text-muted-foreground">{metric.label}</p>
+          </div>
+        ))}
+
+        {lastUpdatedLabel && (
+          <p className="gba:ml-auto gba:self-end gba:text-xs gba:text-muted-foreground">
+            Last updated {lastUpdatedLabel}
+          </p>
+        )}
+      </div>
+    </section>
   )
 }

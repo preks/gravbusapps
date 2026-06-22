@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   createTargetPromptManagerClient,
+  type AgentPackageV1,
   type MarketplaceBatchInstallReport,
   type MarketplacePackageSummary,
   type MarketplacePreflightReport,
@@ -62,6 +63,14 @@ export function useAgentMarketplace({ client, enabled = true }: UseAgentMarketpl
     if (!enabled) return
     void loadCatalog()
   }, [enabled, loadCatalog])
+
+  const getPackageBundle = useCallback(
+    async (packageId: string, version?: string): Promise<AgentPackageV1> => {
+      const { bundle } = await client.getMarketplacePackageBundle(packageId, version)
+      return bundle
+    },
+    [client]
+  )
 
   const preflightPackages = useCallback(
     async (packageIds: string[], catalogUrl?: string): Promise<MarketplacePreflightReport[]> => {
@@ -159,6 +168,7 @@ export function useAgentMarketplace({ client, enabled = true }: UseAgentMarketpl
     isLoading,
     error,
     reload: loadCatalog,
+    getPackageBundle,
     preflightPackages,
     installPackages,
     publishPackagesToTenant,

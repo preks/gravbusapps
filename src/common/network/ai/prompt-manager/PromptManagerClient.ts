@@ -2225,6 +2225,9 @@ export interface AgentPackageV1 {
   requirements: {
     flowbot_tool_refs?: string[]
     builtin_tool_refs?: string[]
+    prompt_manager_tool_refs?: string[]
+    mcp_tool_refs?: string[]
+    platform_native_functions?: string[]
     custom_functions?: string[]
     required_credentials?: string[]
     required_connection_bindings?: string[]
