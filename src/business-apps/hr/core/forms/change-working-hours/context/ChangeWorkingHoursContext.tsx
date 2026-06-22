@@ -18,10 +18,15 @@ export interface EmployeeLite {
   pictureThumbnail?: string
   firstName?: string
   lastName?: string
-  employeePosition?: {
-    hireDate?: string | null
-    jobPosition?: { name?: string }
-  }
+  employeePosition?:
+    | {
+        hireDate?: string | null
+        jobPosition?: { name?: string }
+      }
+    | Array<{
+        hireDate?: string | null
+        jobPosition?: { name?: string }
+      }>
   workingCondition?: Array<{
     hireDate?: string | null
   }>
@@ -107,7 +112,10 @@ const getCurrentWorkingHours = (records: any[], today: string, workingHoursId?: 
 
 const getEmployeeHireDate = (employee?: EmployeeLite | null): string => {
   const workingConditionHireDate = employee?.workingCondition?.find(condition => condition?.hireDate)?.hireDate
-  return toDateInputValue(workingConditionHireDate || employee?.employeePosition?.hireDate)
+  const employeePosition = Array.isArray(employee?.employeePosition)
+    ? employee?.employeePosition.find(position => position?.hireDate)
+    : employee?.employeePosition
+  return toDateInputValue(workingConditionHireDate || employeePosition?.hireDate)
 }
 
 export const useChangeWorkingHoursContext = () => {

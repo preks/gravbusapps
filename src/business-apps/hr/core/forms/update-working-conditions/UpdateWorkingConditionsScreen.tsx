@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react'
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import dayjs from 'dayjs'
 import {
   Button,
@@ -27,6 +27,7 @@ import translations from '../_i18n'
 
 const prefixDataTestId = 'UpdateWorkingConditionsScreen'
 type ChangeMode = 'UPDATE' | 'INSERT'
+const PROCESS_PENDING_TIMEOUT_MS = 12000
 
 const getDateInputValue = (value: string): string | undefined => (value ? value : undefined)
 const toInstantDate = (value: string): string | undefined => {
@@ -45,6 +46,29 @@ const toDateInputValue = (value?: string | null): string => {
 
   const date = dayjs(value)
   return date.isValid() ? date.format('YYYY-MM-DD') : value.substring(0, timestampIndex)
+}
+
+const formatDateAsDateInputValue = (date: Date): string => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
+const normalizeDateInputValue = (value: string): string | null => {
+  const dateValue = toDateInputValue(value).trim()
+
+  if (!dateValue) {
+    return ''
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+    return getDateTimestamp(dateValue) === null ? null : dateValue
+  }
+
+  const timestamp = getDateTimestamp(dateValue)
+  return timestamp === null ? null : formatDateAsDateInputValue(new Date(timestamp))
 }
 
 const getWorkingConditionChangeMode = (context: BusinessAppContextProps): ChangeMode => {
@@ -140,17 +164,51 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
   const [remote, setRemote] = useState<string>('')
   const [region, setRegion] = useState<string>('')
   const [effectiveStartDate, setEffectiveStartDate] = useState<string>('')
+  const [effectiveStartDraft, setEffectiveStartDraft] = useState<string>('')
   const [effectiveEndDate, setEffectiveEndDate] = useState<string>('')
   const [startDate, setStartDate] = useState<string>('')
   const [probationEndDate, setProbationEndDate] = useState<string>('')
   const [validationError, setValidationError] = useState<string | null>(null)
+  const [isProcessPending, setIsProcessPending] = useState(false)
+  const processPendingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (processPendingTimeoutRef.current) {
+        clearTimeout(processPendingTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  const clearProcessPending = useCallback(() => {
+    if (processPendingTimeoutRef.current) {
+      clearTimeout(processPendingTimeoutRef.current)
+      processPendingTimeoutRef.current = null
+    }
+    setIsProcessPending(false)
+  }, [])
+
+  const showProcessPending = useCallback(() => {
+    if (processPendingTimeoutRef.current) {
+      clearTimeout(processPendingTimeoutRef.current)
+    }
+
+    setIsProcessPending(true)
+    processPendingTimeoutRef.current = setTimeout(() => {
+      processPendingTimeoutRef.current = null
+      setIsProcessPending(false)
+    }, PROCESS_PENDING_TIMEOUT_MS)
+  }, [])
+
   useEffect(() => {
     if (!current) {
       return
     }
 
     setStartDate(toDateInputValue(current.startDate))
-    setEffectiveStartDate(toDateInputValue(current.activeFrom))
+    const currentEffectiveStartDate = toDateInputValue(current.activeFrom)
+    setEffectiveStartDate(currentEffectiveStartDate)
+    setEffectiveStartDraft(currentEffectiveStartDate)
     setEffectiveEndDate(toDateInputValue(current.activeTo))
     setProbationEndDate(toDateInputValue(current.probationEndDate))
   }, [current])
@@ -160,7 +218,10 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
       return
     }
 
-    setStartDate(previousValue => previousValue || toDateInputValue(defaultWorkingCondition.startDate))
+    const hireDate = toDateInputValue(defaultWorkingCondition.startDate)
+    setStartDate(previousValue => previousValue || hireDate)
+    setEffectiveStartDate(previousValue => previousValue || hireDate)
+    setEffectiveStartDraft(previousValue => previousValue || hireDate)
     setProbationEndDate(previousValue => previousValue || toDateInputValue(defaultWorkingCondition.probationEndDate))
   }, [changeMode, defaultWorkingCondition])
 
@@ -176,7 +237,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
   const selectedRegion = region || current?.regionRef || ''
   const currentStartDate = current?.startDate ? current.startDate.split('T')[0] : ''
   const currentContractTypeRef = current?.contractTypeRef || ''
-  const minimumEffectiveStartDate = changeMode === 'UPDATE' ? startDate || undefined : undefined
+  const minimumEffectiveStartDate = startDate || undefined
   const effectiveEndMinDate = effectiveStartDate || minimumEffectiveStartDate
 
   useEffect(() => {
@@ -347,11 +408,11 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
   }, [effectiveStartDate, effectiveEndDate])
 
   const isEffectiveStartBeforeHireDate = useMemo(() => {
-    if (changeMode !== 'INSERT' || !effectiveStartDate || !startDate) return false
-    const effectiveStart = dayjs(effectiveStartDate)
-    const hireDate = dayjs(startDate)
-    return effectiveStart.isValid() && hireDate.isValid() && effectiveStart.isBefore(hireDate, 'day')
-  }, [changeMode, effectiveStartDate, startDate])
+    const effectiveStartTimestamp = getDateTimestamp(effectiveStartDraft || effectiveStartDate)
+    const hireDateTimestamp = getDateTimestamp(startDate)
+
+    return effectiveStartTimestamp !== null && hireDateTimestamp !== null && effectiveStartTimestamp < hireDateTimestamp
+  }, [effectiveStartDate, effectiveStartDraft, startDate])
 
   const isValid = useMemo(() => {
     return (
@@ -359,7 +420,8 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
         effectiveStartDate && selectedEmploymentType && selectedContractType && selectedRemote && selectedRegion
       ) &&
       !isEffectiveEndBeforeStart &&
-      !isProbationEndBeforeStart
+      !isProbationEndBeforeStart &&
+      !isEffectiveStartBeforeHireDate
     )
   }, [
     effectiveStartDate,
@@ -368,7 +430,8 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
     selectedRemote,
     selectedRegion,
     isEffectiveEndBeforeStart,
-    isProbationEndBeforeStart
+    isProbationEndBeforeStart,
+    isEffectiveStartBeforeHireDate
   ])
 
   const title = useMemo(() => t('working-conditions-title'), [t])
@@ -515,6 +578,9 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
     if (isProbationEndBeforeStart) {
       return [t('working-conditions-probation-end-before-start')]
     }
+    if (isEffectiveStartBeforeHireDate) {
+      return [t('working-conditions-valid-from-before-hire-date-warning')]
+    }
     if (!effectiveStartDate || !selectedEmploymentType || !selectedContractType || !selectedRemote || !selectedRegion) {
       return [t('working-conditions-required')]
     }
@@ -581,9 +647,14 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
   ])
 
   const handleSubmitClick = useCallback(() => {
+    if (isProcessPending) {
+      return
+    }
+
     const errors = validateForm()
     if (errors && errors.length > 0) {
       setValidationError(errors.join(', '))
+      clearProcessPending()
       return
     }
 
@@ -594,11 +665,22 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
       : getActivePeriodOverlapErrors(payload, changeMode)
     if (overlapErrors && overlapErrors.length > 0) {
       setValidationError(overlapErrors.join(', '))
+      clearProcessPending()
       return
     }
 
+    showProcessPending()
     dispatchProcessContinueEvent('pse_submit', payload)
-  }, [activePeriodOverlapError, buildSubmitPayload, changeMode, getActivePeriodOverlapErrors, validateForm])
+  }, [
+    activePeriodOverlapError,
+    buildSubmitPayload,
+    changeMode,
+    clearProcessPending,
+    getActivePeriodOverlapErrors,
+    isProcessPending,
+    showProcessPending,
+    validateForm
+  ])
 
   const handleCancelClick = useCallback(() => {
     dispatchProcessContinueEvent('pse_abort', {})
@@ -664,6 +746,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
                 type="button"
                 variant="outline"
                 onClick={handleCancelClick}
+                disabled={isProcessPending}
                 data-testid="flw_updateWorkingConditions_cancelBtn"
               >
                 {t('action-cancel')}
@@ -671,7 +754,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               <Button
                 type="button"
                 onClick={handleSubmitClick}
-                disabled={!isValid || !hasChanges || Boolean(activePeriodOverlapError)}
+                disabled={isProcessPending || !isValid || !hasChanges || Boolean(activePeriodOverlapError)}
                 data-testid="flw_updateWorkingConditions_submitBtn"
               >
                 {t('action-submit')}
@@ -680,194 +763,214 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
           }
           data-testid={formatDataTestId(prefixDataTestId, 'Container')}
         >
-          <div className="gba:py-6 gba:space-y-4">
-            {validationError && (
-              <div
-                className="gba:text-sm gba:text-destructive"
-                data-testid="flw_updateWorkingConditions_validationError"
-              >
-                {validationError}
-              </div>
-            )}
-
-            <div className="gba:space-y-2 gba:overflow-hidden">
-              <div className="gba:text-sm gba:font-medium">{t('working-conditions-employment-start-date')}*</div>
-              <DateInput
-                type="date"
-                value={getDateInputValue(effectiveStartDate)}
-                onChange={(value: string | [string | null, string | null] | null) => {
-                  const stringValue = typeof value === 'string' ? value : ''
-                  setEffectiveStartDate(stringValue)
-                  clearDateRelatedValidationError()
-                }}
-                min={minimumEffectiveStartDate}
-                outputFormat="iso"
-                data-testid="flw_updateWorkingConditions_effectiveStartDatePicker"
-              />
-              {isEffectiveStartBeforeHireDate && (
-                <div
-                  className="gba:text-sm gba:text-warning"
-                  data-testid="flw_updateWorkingConditions_effectiveStartBeforeHireDateWarning"
-                >
-                  {t('working-conditions-valid-from-before-hire-date-warning')}
-                </div>
-              )}
-              {activePeriodOverlapError && !isEffectiveEndBeforeStart && (
+          {isProcessPending ? (
+            <div
+              className="gba:flex gba:min-h-96 gba:flex-col gba:items-center gba:justify-center gba:gap-3"
+              data-testid="flw_updateWorkingConditions_submitLoading"
+            >
+              <Spinner size="lg" srText="Submitting working conditions..." />
+              <div className="gba:text-sm gba:text-muted-foreground">Submitting working conditions...</div>
+            </div>
+          ) : (
+            <div className="gba:py-6 gba:space-y-4">
+              {validationError && (
                 <div
                   className="gba:text-sm gba:text-destructive"
-                  data-testid="flw_updateWorkingConditions_activePeriodOverlapError"
+                  data-testid="flw_updateWorkingConditions_validationError"
                 >
-                  {activePeriodOverlapError}
-                </div>
-              )}
-            </div>
-
-            <div className="gba:space-y-2 gba:overflow-hidden">
-              <div className="gba:text-sm gba:font-medium">{t('working-conditions-employment-end-date')}</div>
-              <DateInput
-                type="date"
-                value={getDateInputValue(effectiveEndDate)}
-                onChange={(value: string | [string | null, string | null] | null) => {
-                  const stringValue = typeof value === 'string' ? value : ''
-                  setEffectiveEndDate(stringValue)
-                  clearDateRelatedValidationError()
-                }}
-                min={effectiveEndMinDate}
-                outputFormat="iso"
-                data-testid="flw_updateWorkingConditions_effectiveEndDatePicker"
-              />
-              {isEffectiveEndBeforeStart && (
-                <div
-                  className="gba:text-sm gba:text-destructive"
-                  data-testid="flw_updateWorkingConditions_effectiveEndBeforeStartError"
-                >
-                  {t('working-conditions-employment-end-before-start')}
-                </div>
-              )}
-            </div>
-
-            <div className="gba:space-y-2">
-              <div className="gba:text-sm gba:font-medium">{t('working-conditions-employment-type')}*</div>
-              <Select value={selectedEmploymentType} onValueChange={setEmploymentType} disabled={loading}>
-                <SelectTrigger
-                  className="gba:w-full gba:truncate"
-                  data-testid="flw_updateWorkingConditions_employmentTypeSelect"
-                >
-                  <SelectValue placeholder={t('placeholder-select')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {employmentTypes.map(o => (
-                    <SelectItem key={o.id} value={o.id}>
-                      {truncateText(o.label)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="gba:space-y-2">
-              <div className="gba:text-sm gba:font-medium">{t('working-conditions-contract-type')}*</div>
-              <Select value={selectedContractType} onValueChange={setContractType} disabled={loading}>
-                <SelectTrigger
-                  className="gba:w-full gba:truncate"
-                  data-testid="flw_updateWorkingConditions_contractTypeSelect"
-                >
-                  <SelectValue placeholder={t('placeholder-select')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {contractTypes.map(o => (
-                    <SelectItem key={o.id} value={o.id}>
-                      {truncateText(o.label)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="gba:space-y-2">
-              <div className="gba:text-sm gba:font-medium">{t('working-conditions-remote')}*</div>
-              <Select value={selectedRemote} onValueChange={setRemote} disabled={loading}>
-                <SelectTrigger
-                  className="gba:w-full gba:truncate"
-                  data-testid="flw_updateWorkingConditions_remoteSelect"
-                >
-                  <SelectValue placeholder={t('working-conditions-select-remote')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {remoteOptions.map(o => (
-                    <SelectItem key={o.id} value={o.id}>
-                      {truncateText(o.label)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="gba:space-y-2">
-              <div className="gba:text-sm gba:font-medium">{t('working-conditions-region')}*</div>
-              <Select value={selectedRegion} onValueChange={setRegion}>
-                <SelectTrigger
-                  className="gba:w-full gba:truncate"
-                  data-testid="flw_updateWorkingConditions_regionSelect"
-                >
-                  <SelectValue placeholder={t('working-conditions-select-region')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {regions.map(o => (
-                    <SelectItem key={o.id} value={o.id}>
-                      {truncateText(o.label)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="gba:flex gba:flex-col gba:gap-4">
-              {probationPeriodText && (
-                <div className="gba:space-y-2">
-                  <div className="gba:text-sm gba:font-medium">{t('working-conditions-probation-period')}</div>
-                  <Input
-                    value={probationPeriodText}
-                    disabled
-                    readOnly
-                    data-testid="flw_updateWorkingConditions_probationPeriod"
-                  />
+                  {validationError}
                 </div>
               )}
 
               <div className="gba:space-y-2 gba:overflow-hidden">
-                <div className="gba:text-sm gba:font-medium">{t('working-conditions-probation-end-date')}</div>
+                <div className="gba:text-sm gba:font-medium">{t('working-conditions-employment-start-date')}*</div>
                 <DateInput
                   type="date"
-                  value={getDateInputValue(probationEndDate)}
+                  value={getDateInputValue(effectiveStartDraft || effectiveStartDate)}
+                  onDraftChange={(value: string) => {
+                    setEffectiveStartDraft(value)
+                    const normalizedValue = normalizeDateInputValue(value)
+
+                    if (normalizedValue !== null) {
+                      setEffectiveStartDate(normalizedValue)
+                      clearDateRelatedValidationError()
+                    }
+                  }}
                   onChange={(value: string | [string | null, string | null] | null) => {
                     const stringValue = typeof value === 'string' ? value : ''
-                    setProbationEndDate(stringValue)
+                    setEffectiveStartDraft(stringValue)
+                    setEffectiveStartDate(stringValue)
+                    clearDateRelatedValidationError()
                   }}
-                  disabled={!startDate || loading}
-                  min={startDate || undefined}
+                  min={minimumEffectiveStartDate}
                   outputFormat="iso"
-                  data-testid="flw_updateWorkingConditions_probationEndDatePicker"
+                  data-testid="flw_updateWorkingConditions_effectiveStartDatePicker"
                 />
-                {isProbationEndBeforeStart && (
+                {isEffectiveStartBeforeHireDate && (
                   <div
                     className="gba:text-sm gba:text-destructive"
-                    data-testid="flw_updateWorkingConditions_probationEndBeforeStartError"
+                    data-testid="flw_updateWorkingConditions_effectiveStartBeforeHireDateWarning"
                   >
-                    {t('working-conditions-probation-end-before-start')}
+                    {t('working-conditions-valid-from-before-hire-date-warning')}
                   </div>
                 )}
-                {isProbationException && (
+                {activePeriodOverlapError && !isEffectiveEndBeforeStart && (
                   <div
-                    className="gba:text-sm gba:text-warning"
-                    data-testid="flw_updateWorkingConditions_probationWarning"
+                    className="gba:text-sm gba:text-destructive"
+                    data-testid="flw_updateWorkingConditions_activePeriodOverlapError"
                   >
-                    {t('working-conditions-probation-exception-warning')}
+                    {activePeriodOverlapError}
                   </div>
                 )}
               </div>
+
+              <div className="gba:space-y-2 gba:overflow-hidden">
+                <div className="gba:text-sm gba:font-medium">{t('working-conditions-employment-end-date')}</div>
+                <DateInput
+                  type="date"
+                  value={getDateInputValue(effectiveEndDate)}
+                  onChange={(value: string | [string | null, string | null] | null) => {
+                    const stringValue = typeof value === 'string' ? value : ''
+                    setEffectiveEndDate(stringValue)
+                    clearDateRelatedValidationError()
+                  }}
+                  min={effectiveEndMinDate}
+                  outputFormat="iso"
+                  data-testid="flw_updateWorkingConditions_effectiveEndDatePicker"
+                />
+                {isEffectiveEndBeforeStart && (
+                  <div
+                    className="gba:text-sm gba:text-destructive"
+                    data-testid="flw_updateWorkingConditions_effectiveEndBeforeStartError"
+                  >
+                    {t('working-conditions-employment-end-before-start')}
+                  </div>
+                )}
+              </div>
+
+              <div className="gba:space-y-2">
+                <div className="gba:text-sm gba:font-medium">{t('working-conditions-employment-type')}*</div>
+                <Select value={selectedEmploymentType} onValueChange={setEmploymentType} disabled={loading}>
+                  <SelectTrigger
+                    className="gba:w-full gba:truncate"
+                    data-testid="flw_updateWorkingConditions_employmentTypeSelect"
+                  >
+                    <SelectValue placeholder={t('placeholder-select')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {employmentTypes.map(o => (
+                      <SelectItem key={o.id} value={o.id}>
+                        {truncateText(o.label)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="gba:space-y-2">
+                <div className="gba:text-sm gba:font-medium">{t('working-conditions-contract-type')}*</div>
+                <Select value={selectedContractType} onValueChange={setContractType} disabled={loading}>
+                  <SelectTrigger
+                    className="gba:w-full gba:truncate"
+                    data-testid="flw_updateWorkingConditions_contractTypeSelect"
+                  >
+                    <SelectValue placeholder={t('placeholder-select')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {contractTypes.map(o => (
+                      <SelectItem key={o.id} value={o.id}>
+                        {truncateText(o.label)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="gba:space-y-2">
+                <div className="gba:text-sm gba:font-medium">{t('working-conditions-remote')}*</div>
+                <Select value={selectedRemote} onValueChange={setRemote} disabled={loading}>
+                  <SelectTrigger
+                    className="gba:w-full gba:truncate"
+                    data-testid="flw_updateWorkingConditions_remoteSelect"
+                  >
+                    <SelectValue placeholder={t('working-conditions-select-remote')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {remoteOptions.map(o => (
+                      <SelectItem key={o.id} value={o.id}>
+                        {truncateText(o.label)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="gba:space-y-2">
+                <div className="gba:text-sm gba:font-medium">{t('working-conditions-region')}*</div>
+                <Select value={selectedRegion} onValueChange={setRegion}>
+                  <SelectTrigger
+                    className="gba:w-full gba:truncate"
+                    data-testid="flw_updateWorkingConditions_regionSelect"
+                  >
+                    <SelectValue placeholder={t('working-conditions-select-region')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {regions.map(o => (
+                      <SelectItem key={o.id} value={o.id}>
+                        {truncateText(o.label)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="gba:flex gba:flex-col gba:gap-4">
+                {probationPeriodText && (
+                  <div className="gba:space-y-2">
+                    <div className="gba:text-sm gba:font-medium">{t('working-conditions-probation-period')}</div>
+                    <Input
+                      value={probationPeriodText}
+                      disabled
+                      readOnly
+                      data-testid="flw_updateWorkingConditions_probationPeriod"
+                    />
+                  </div>
+                )}
+
+                <div className="gba:space-y-2 gba:overflow-hidden">
+                  <div className="gba:text-sm gba:font-medium">{t('working-conditions-probation-end-date')}</div>
+                  <DateInput
+                    type="date"
+                    value={getDateInputValue(probationEndDate)}
+                    onChange={(value: string | [string | null, string | null] | null) => {
+                      const stringValue = typeof value === 'string' ? value : ''
+                      setProbationEndDate(stringValue)
+                    }}
+                    disabled={!startDate || loading}
+                    min={startDate || undefined}
+                    outputFormat="iso"
+                    data-testid="flw_updateWorkingConditions_probationEndDatePicker"
+                  />
+                  {isProbationEndBeforeStart && (
+                    <div
+                      className="gba:text-sm gba:text-destructive"
+                      data-testid="flw_updateWorkingConditions_probationEndBeforeStartError"
+                    >
+                      {t('working-conditions-probation-end-before-start')}
+                    </div>
+                  )}
+                  {isProbationException && (
+                    <div
+                      className="gba:text-sm gba:text-warning"
+                      data-testid="flw_updateWorkingConditions_probationWarning"
+                    >
+                      {t('working-conditions-probation-exception-warning')}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </AppActionForm>
       </div>
     </div>
