@@ -1028,6 +1028,8 @@ service-requests-status-canceled = Anulat
 
 # Change Personal Data - Pending state (aligns with notification-personal-data-updated-success)
 change-personal-data-pending-message = Departamentul HR examinează în prezent actualizările recente. Veți putea efectua modificări suplimentare imediat ce cererea va fi aprobată.
+change-personal-data-stale-pending-message = Acest angajat este marcat ca în așteptare, dar nu a fost găsită nicio solicitare activă de aprobare a datelor personale. Contactați departamentul HR sau un administrator pentru a verifica statusul angajatului.
+change-personal-data-pending-status = În așteptare
 change-personal-data-pending-ok = OK
 
 # Change Address - Loading
