@@ -4,6 +4,7 @@ import { AiButton, Spinner, toast } from '@newwork/nw-design-system'
 import { Sparkles } from 'lucide-react'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { toISOFormat } from '@/common/utils/dateFormatter'
+import AiEnrichInfoTooltip from '../ai-enrich-info-tooltip/AiEnrichInfoTooltip'
 import { useContactAiEnrich, type ContactAiEnrichResponse } from './useContactAiEnrich'
 
 const PREFIX = 'ContactAiEnrich'
@@ -195,7 +196,10 @@ const ContactAiEnrichButton: React.FC<ContactAiEnrichButtonProps> = ({
       data-testid={formatDataTestId(PREFIX, 'Container')}
     >
       <div className="gba:flex gba:flex-col gba:min-w-0">
-        <span className="gba:text-sm gba:font-semibold">AI fill from web</span>
+        <div className="gba:flex gba:items-center gba:gap-1.5">
+          <span className="gba:text-sm gba:font-semibold">AI fill from web</span>
+          <AiEnrichInfoTooltip testIdPrefix={PREFIX} />
+        </div>
         <span className="gba:text-xs gba:text-muted-foreground">
           {canEnrich
             ? `Research "${subjectLabel}" online and pre-fill empty fields.`

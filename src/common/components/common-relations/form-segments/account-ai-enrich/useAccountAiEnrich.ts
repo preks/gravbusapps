@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 const FLOWBOT_BASE_URL = resolveFlowbotBaseUrl()
 
@@ -59,11 +60,15 @@ export const useAccountAiEnrich = (accessToken: string | undefined) => {
       try {
         const url = `${FLOWBOT_BASE_URL}/flowbot/crm/enrich_account`
 
+        // Forward the active in-app language as a fallback signal. Flowbot
+        // prefers the internal persisted locale and only uses this header
+        // when the internal locale is missing.
         const res = await fetch(url, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'X-User-Locale': getCurrentActiveUserLocale()
           },
           body: JSON.stringify({
             company_name: companyName,
