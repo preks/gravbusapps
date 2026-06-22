@@ -136,6 +136,14 @@ export const validateIban = (value: unknown, selectedCountryId?: string | null):
   }
 
   const ibanCountryCode = iban.slice(0, 2)
+  const selectedCountryCode = getCountryCodeFromCatalogId(selectedCountryId)
+  if (selectedCountryCode && selectedCountryCode !== ibanCountryCode) {
+    return {
+      isValid: false,
+      message: `Selected country is ${selectedCountryCode}, but IBAN starts with ${ibanCountryCode}.`
+    }
+  }
+
   const expectedLength = IBAN_LENGTH_BY_COUNTRY[ibanCountryCode]
 
   if (expectedLength && iban.length !== expectedLength) {
@@ -147,14 +155,6 @@ export const validateIban = (value: unknown, selectedCountryId?: string | null):
 
   if (getIbanRemainder(iban) !== 1) {
     return { isValid: false, message: 'IBAN checksum failed.' }
-  }
-
-  const selectedCountryCode = getCountryCodeFromCatalogId(selectedCountryId)
-  if (selectedCountryCode && selectedCountryCode !== ibanCountryCode) {
-    return {
-      isValid: false,
-      message: `Selected country is ${selectedCountryCode}, but IBAN starts with ${ibanCountryCode}.`
-    }
   }
 
   return { isValid: true }
