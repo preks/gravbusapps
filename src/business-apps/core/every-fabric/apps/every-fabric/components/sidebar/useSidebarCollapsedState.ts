@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { readLayoutViewportWidth, subscribeResponsiveLayoutViewport } from '../../utils/viewportLayout'
 import { SIDEBAR_AUTO_COLLAPSE_BREAKPOINT_PX, SIDEBAR_COLLAPSED_STORAGE_KEY } from './sidebarLayout.constants'
 
 function readStoredPreference(): boolean | null {
@@ -25,8 +26,7 @@ function writeStoredPreference(value: boolean): void {
 function resolveInitialCollapsed(): boolean {
   const stored = readStoredPreference()
   if (stored !== null) return stored
-  if (typeof globalThis.innerWidth !== 'number') return false
-  return globalThis.innerWidth < SIDEBAR_AUTO_COLLAPSE_BREAKPOINT_PX
+  return readLayoutViewportWidth() < SIDEBAR_AUTO_COLLAPSE_BREAKPOINT_PX
 }
 
 export interface UseSidebarCollapsedStateResult {
@@ -49,14 +49,10 @@ export const useSidebarCollapsedState = (): UseSidebarCollapsedStateResult => {
 
   useEffect(() => {
     if (hasUserPreference) return undefined
-    if (typeof globalThis.addEventListener !== 'function') return undefined
 
-    const sync = () => {
-      if (typeof globalThis.innerWidth !== 'number') return
-      setIsCollapsed(globalThis.innerWidth < SIDEBAR_AUTO_COLLAPSE_BREAKPOINT_PX)
-    }
-    globalThis.addEventListener('resize', sync)
-    return () => globalThis.removeEventListener('resize', sync)
+    return subscribeResponsiveLayoutViewport(width => {
+      setIsCollapsed(width < SIDEBAR_AUTO_COLLAPSE_BREAKPOINT_PX)
+    })
   }, [hasUserPreference])
 
   const setCollapsed = useCallback((next: boolean) => {
