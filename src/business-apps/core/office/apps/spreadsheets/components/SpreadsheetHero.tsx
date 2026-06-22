@@ -4,7 +4,7 @@
  * and section tabs styled as glass-morphism pills.
  */
 
-import React, { useCallback, useMemo } from 'react'
+import React, { useCallback } from 'react'
 import { FileSpreadsheet, ChevronRight, Layers } from 'lucide-react'
 import { PremiumHeroBackground } from '@/common/components/premium-hero-background/PremiumHeroBackground'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -39,7 +39,6 @@ export interface SpreadsheetHeroProps {
   onSectionChange: (section: SpreadsheetSection) => void
   tabBadges?: Partial<Record<SpreadsheetSection, { count: number; highlight?: boolean }>>
   newButton?: React.ReactNode
-  showSharedTab?: boolean
   t: (key: string) => string
   'data-testid'?: string
 }
@@ -49,17 +48,12 @@ export const SpreadsheetHero: React.FC<SpreadsheetHeroProps> = ({
   onSectionChange,
   tabBadges,
   newButton,
-  showSharedTab = true,
   t,
   'data-testid': testId = 'spreadsheet-hero'
 }) => {
   const goToEveryOffice = useCallback(() => {
     navigateTo(buildPlatformUrl('/platform/every-office', { from: 'spreadsheets' }))
   }, [])
-  const visibleSectionTabs = useMemo(
-    () => SECTION_TABS.filter(tab => showSharedTab || tab.id !== 'shared'),
-    [showSharedTab]
-  )
 
   return (
     <header className="gba:relative gba:overflow-hidden gba:flex-shrink-0" data-testid={testId}>
@@ -107,7 +101,7 @@ export const SpreadsheetHero: React.FC<SpreadsheetHeroProps> = ({
           aria-label={t('sh-tabs-aria-label')}
           data-testid={`${testId}-tabs`}
         >
-          {visibleSectionTabs.map(tab => {
+          {SECTION_TABS.map(tab => {
             const isActive = activeSection === tab.id
             const badge = tabBadges?.[tab.id]
             const hasBadge = typeof badge?.count === 'number' && badge.count > 0

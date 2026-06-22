@@ -60,3 +60,22 @@ export const NOTE_SHARE_PERMISSIONS = OFFICE_CONTENT_SHARE_PERMISSIONS
 export const SLIDE_SHARE_PERMISSIONS = OFFICE_CONTENT_SHARE_PERMISSIONS
 export const DOCUMENT_SHARE_PERMISSIONS = OFFICE_CONTENT_SHARE_PERMISSIONS
 export const WHITEBOARD_SHARE_PERMISSIONS = OFFICE_CONTENT_SHARE_PERMISSIONS
+
+export function getPermissionOptionsForEntityType(entityType: string): PermissionOption[] {
+  if (entityType === 'spreadsheet_app') {
+    return SPREADSHEET_SHARE_PERMISSIONS
+  }
+
+  return OFFICE_CONTENT_SHARE_PERMISSIONS
+}
+
+export function getIntersectedPermissionOptions(entityTypes: string[]): PermissionOption[] {
+  if (entityTypes.length === 0) {
+    return OFFICE_CONTENT_SHARE_PERMISSIONS
+  }
+
+  const allOptions = entityTypes.map(entityType => getPermissionOptionsForEntityType(entityType))
+  const first = allOptions[0] ?? OFFICE_CONTENT_SHARE_PERMISSIONS
+
+  return first.filter(option => allOptions.every(options => options.some(candidate => candidate.id === option.id)))
+}

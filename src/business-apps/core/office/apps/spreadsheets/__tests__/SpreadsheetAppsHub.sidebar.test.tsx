@@ -1,7 +1,6 @@
 import React from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { SpreadsheetAppsHub } from '../SpreadsheetAppsHub'
-import { useFeature } from '@/common/hooks/useFeature'
 import type { UserInfoProps } from '@/common/BusinessAppContext'
 
 jest.mock('@newwork/nw-design-system', () => {
@@ -82,10 +81,6 @@ jest.mock('@newwork/nw-design-system', () => {
 
 jest.mock('@/common/utils/navigationUtils', () => ({
   navigateTo: jest.fn()
-}))
-
-jest.mock('@/common/hooks/useFeature', () => ({
-  useFeature: jest.fn()
 }))
 
 jest.mock('@/common/utils/serviceResolver', () => ({
@@ -218,12 +213,9 @@ jest.mock('../utils/exportUtils', () => ({
   exportAppToExcel: jest.fn()
 }))
 
-const mockUseFeature = useFeature as jest.MockedFunction<typeof useFeature>
-
 describe('SpreadsheetAppsHub sidebar sections', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    mockUseFeature.mockReturnValue(false)
   })
 
   it('renders and switches to Automations and Tasks sections', () => {
@@ -249,15 +241,7 @@ describe('SpreadsheetAppsHub sidebar sections', () => {
     expect(screen.getByText('No trashed spreadsheets')).toBeInTheDocument()
   })
 
-  it('does not render Share in the spreadsheet row overflow menu when preview is disabled', () => {
-    render(<SpreadsheetAppsHub accessToken="token" />)
-
-    expect(screen.queryByTestId('spreadsheet-apps-hub-row-share-app-1')).not.toBeInTheDocument()
-  })
-
-  it('renders Share in the row overflow menu when preview is enabled and the user owns the app', () => {
-    mockUseFeature.mockReturnValue(true)
-
+  it('renders Share in the row overflow menu when the user owns the app', () => {
     const userInfo = { id: 'u-1' } as UserInfoProps
 
     render(<SpreadsheetAppsHub accessToken="token" userInfo={userInfo} />)
@@ -285,27 +269,9 @@ describe('SpreadsheetAppsHub sidebar sections', () => {
     expect(screen.queryByText('table-rows')).not.toBeInTheDocument()
   })
 
-  it('shows the Shared with me tab when preview is enabled', () => {
-    mockUseFeature.mockReturnValue(true)
-
+  it('shows the Shared with me tab by default', () => {
     render(<SpreadsheetAppsHub accessToken="token" />)
 
     expect(screen.getByTestId('spreadsheet-apps-hub-hero-tab-shared')).toBeInTheDocument()
-  })
-
-  it('hides the Shared with me tab when preview is disabled', () => {
-    mockUseFeature.mockReturnValue(false)
-
-    render(<SpreadsheetAppsHub accessToken="token" />)
-
-    expect(screen.queryByTestId('spreadsheet-apps-hub-hero-tab-shared')).not.toBeInTheDocument()
-  })
-
-  it('hides the Shared with me tab when preview is unset', () => {
-    mockUseFeature.mockReturnValue(undefined)
-
-    render(<SpreadsheetAppsHub accessToken="token" />)
-
-    expect(screen.queryByTestId('spreadsheet-apps-hub-hero-tab-shared')).not.toBeInTheDocument()
   })
 })

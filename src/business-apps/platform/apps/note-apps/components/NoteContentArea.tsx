@@ -74,6 +74,7 @@ export interface NoteContentAreaProps {
   onToggleFavorite: (id: string, e?: React.MouseEvent) => void
   onToggleSelect: (id: string, e?: React.MouseEvent) => void
   onSelectAll: () => void
+  onBulkShare?: () => void
   onBulkDelete?: () => void
   onBulkPin?: () => void
   onClearSelection?: () => void
@@ -141,6 +142,7 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
   onToggleFavorite,
   onToggleSelect,
   onSelectAll,
+  onBulkShare,
   onBulkDelete,
   onBulkPin,
   onClearSelection,
@@ -201,6 +203,7 @@ export const NoteContentArea: React.FC<NoteContentAreaProps> = ({
         onBreadcrumbClick={onBreadcrumbClick}
         onToggleSidebar={onToggleSidebar}
         onRefresh={onRefresh}
+        onBulkShare={onBulkShare}
         onBulkDelete={onBulkDelete}
         onBulkPin={onBulkPin}
         onClearSelection={onClearSelection || (() => {})}

@@ -2,24 +2,15 @@ import React from 'react'
 import { render, screen } from '@testing-library/react'
 import { ShareDocumentDialog } from './ShareDocumentDialog'
 
-const mockBuildPlatformUrl = jest.fn(() => '/platform/every-office/documents?docId=doc-1&view=editor')
-const mockSendShareBlinkNotifications = jest.fn().mockResolvedValue({ success: true })
 const mockShareEntityDialog = jest.fn(() => <div data-testid="share-entity-dialog" />)
-
-jest.mock('@/common/utils/navigationUtils', () => ({
-  buildPlatformUrl: (...args: unknown[]) => mockBuildPlatformUrl(...args)
-}))
 
 jest.mock('@/business-apps/core/office/sharing', () => ({
   DOCUMENT_SHARE_PERMISSIONS: [{ id: 'view' }, { id: 'comment' }, { id: 'edit' }],
-  ShareEntityDialog: (props: unknown) => mockShareEntityDialog(props),
-  sendShareBlinkNotifications: (...args: unknown[]) => mockSendShareBlinkNotifications(...args)
+  ShareEntityDialog: (props: unknown) => mockShareEntityDialog(props)
 }))
 
 describe('ShareDocumentDialog', () => {
   beforeEach(() => {
-    mockBuildPlatformUrl.mockClear()
-    mockSendShareBlinkNotifications.mockClear()
     mockShareEntityDialog.mockClear()
   })
 
@@ -79,46 +70,6 @@ describe('ShareDocumentDialog', () => {
       }
     ])
     expect(shareDialogProps.onManageAccess).toBe(onManageAccess)
-  })
-
-  it('sends document blink notifications with the shared helper', async () => {
-    render(
-      <ShareDocumentDialog
-        open={true}
-        onOpenChange={jest.fn()}
-        documentId="doc-1"
-        documentTitle="Quarterly Plan"
-        accessToken="token"
-        currentUserId="user-1"
-        isOwner={true}
-        sharedUsers={[]}
-        onShare={jest.fn().mockResolvedValue(true)}
-        onUnshare={jest.fn().mockResolvedValue(true)}
-        onRefreshShares={jest.fn().mockResolvedValue(undefined)}
-      />
-    )
-
-    const shareDialogProps = mockShareEntityDialog.mock.calls[0][0]
-
-    await shareDialogProps.sendNotifications({
-      accessToken: 'token',
-      entityId: 'doc-1',
-      entityTitle: 'Quarterly Plan',
-      initiatorId: 'user-1',
-      recipients: [{ userId: 'user-2', permission: 'view' }]
-    })
-
-    expect(mockBuildPlatformUrl).toHaveBeenCalledWith('/platform/every-office/documents', {
-      docId: 'doc-1',
-      view: 'editor'
-    })
-    expect(mockSendShareBlinkNotifications).toHaveBeenCalledWith(
-      expect.objectContaining({
-        entityType: 'document',
-        appTag: 'document-share',
-        titlePrefix: 'Document Shared',
-        entityUrl: '/platform/every-office/documents?docId=doc-1&view=editor'
-      })
-    )
+    expect(shareDialogProps.sendNotifications).toBeUndefined()
   })
 })

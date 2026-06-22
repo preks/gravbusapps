@@ -42,7 +42,7 @@ function renderActions(item: DriveItem, onShareItem = jest.fn()) {
 }
 
 describe('DriveListItemActions', () => {
-  it('disables sharing for spreadsheet app items', () => {
+  it('keeps sharing enabled for spreadsheet app items', () => {
     const { onShareItem } = renderActions(
       createItem({
         type: 'spreadsheet_app',
@@ -52,14 +52,14 @@ describe('DriveListItemActions', () => {
     )
 
     const shareButton = screen.getByTestId('drive-actions-share-item-1')
-    expect(shareButton).toBeDisabled()
+    expect(shareButton).not.toBeDisabled()
 
     fireEvent.click(shareButton)
-    expect(onShareItem).not.toHaveBeenCalled()
+    expect(onShareItem).toHaveBeenCalledTimes(1)
   })
 
-  it('disables sharing for spreadsheet-like uploaded files', () => {
-    renderActions(
+  it('keeps sharing enabled for spreadsheet-like uploaded files', () => {
+    const { onShareItem } = renderActions(
       createItem({
         type: 'drive_file',
         name: 'budget.xlsx',
@@ -67,7 +67,11 @@ describe('DriveListItemActions', () => {
       })
     )
 
-    expect(screen.getByTestId('drive-actions-share-item-1')).toBeDisabled()
+    const shareButton = screen.getByTestId('drive-actions-share-item-1')
+    expect(shareButton).not.toBeDisabled()
+
+    fireEvent.click(shareButton)
+    expect(onShareItem).toHaveBeenCalledTimes(1)
   })
 
   it('keeps sharing enabled for non-spreadsheet files', () => {

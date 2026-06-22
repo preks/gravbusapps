@@ -13,7 +13,6 @@ export interface UseSpreadsheetAppsHubUrlStateParams {
   setCurrentView: (view: HubView) => void
   activeSection: SidebarSection
   setActiveSection: (section: SidebarSection) => void
-  showSharedSection?: boolean
   /** Called when loading app from URL fails (app not found or access denied) */
   onLoadFailed?: (appId: string) => void
 }
@@ -38,17 +37,6 @@ function getUrlParams(): {
   }
 }
 
-function normalizeSection(
-  section: SidebarSection | null | undefined,
-  showSharedSection: boolean
-): SidebarSection | null | undefined {
-  if (section === 'shared' && !showSharedSection) {
-    return 'my-files'
-  }
-
-  return section
-}
-
 export function useSpreadsheetAppsHubUrlState(
   params: UseSpreadsheetAppsHubUrlStateParams
 ): UseSpreadsheetAppsHubUrlStateReturn {
@@ -61,18 +49,18 @@ export function useSpreadsheetAppsHubUrlState(
     setCurrentView,
     activeSection,
     setActiveSection,
-    showSharedSection = true,
     onLoadFailed
   } = params
 
   const loadAttemptedRef = useRef<string | null>(null)
   const initialAppIdRef = useRef(getUrlParams().appId)
   const initialViewRef = useRef(getUrlParams().view)
+  const restoredInitialSectionRef = useRef(false)
 
   const updateUrl = useCallback(
     (appId: string | null, view?: HubView, filePath?: string | null, section?: SidebarSection) => {
       const urlParams = new URLSearchParams(globalThis.location.search)
-      const nextSection = normalizeSection(section ?? activeSection, showSharedSection)
+      const nextSection = section ?? activeSection
       if (appId) {
         urlParams.set('appId', appId)
         if (view) urlParams.set('view', view)
@@ -96,7 +84,7 @@ export function useSpreadsheetAppsHubUrlState(
         : globalThis.location.pathname
       globalThis.history.pushState({ appId, view, filePath, section: nextSection }, '', newUrl)
     },
-    [activeSection, showSharedSection]
+    [activeSection]
   )
 
   const resetLoadAttempt = useCallback(() => {
@@ -105,12 +93,13 @@ export function useSpreadsheetAppsHubUrlState(
 
   // Restore section from URL on mount
   useEffect(() => {
+    if (restoredInitialSectionRef.current) return
+    restoredInitialSectionRef.current = true
     const { section } = getUrlParams()
-    const nextSection = normalizeSection(section, showSharedSection)
-    if (nextSection && nextSection !== activeSection) {
-      setActiveSection(nextSection)
+    if (section && section !== activeSection) {
+      setActiveSection(section)
     }
-  }, [setActiveSection, showSharedSection])
+  }, [activeSection, setActiveSection])
 
   // Load app from URL on mount.
   // Uses initialAppIdRef as fallback since parent effects may clear URL params.
@@ -198,9 +187,8 @@ export function useSpreadsheetAppsHubUrlState(
       }
 
       // Restore section if present
-      const nextSection = normalizeSection(state?.section, showSharedSection)
-      if (nextSection) {
-        setActiveSection(nextSection)
+      if (state?.section) {
+        setActiveSection(state.section)
       }
 
       if (state?.appId) {
@@ -233,7 +221,7 @@ export function useSpreadsheetAppsHubUrlState(
 
     globalThis.addEventListener('popstate', handlePopState)
     return () => globalThis.removeEventListener('popstate', handlePopState)
-  }, [currentView, loadAppById, setCurrentView, setSelectedAppId, setActiveSection, showSharedSection, onLoadFailed])
+  }, [currentView, loadAppById, setCurrentView, setSelectedAppId, setActiveSection, onLoadFailed])
 
   return { updateUrl, resetLoadAttempt }
 }

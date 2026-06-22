@@ -57,6 +57,7 @@ sort-created = Created
 table-owner = Owner
 table-trashed = Trashed on
 menu-open = Open
+action-share = Share
 menu-share = Share
 menu-manage-sharing = Manage sharing
 menu-copy-link = Copy link

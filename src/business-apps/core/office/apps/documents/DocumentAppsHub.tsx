@@ -71,7 +71,11 @@ import { CreateTemplateDialog } from './components/CreateTemplateDialog'
 import { SendForApprovalDialog } from './components/SendForApprovalDialog'
 import { ShareDocumentDialog } from './components/ShareDocumentDialog'
 import { ManageSharesDialog } from './components/ManageSharesDialog'
-import { getShareCapabilities } from '@/business-apps/core/office/sharing'
+import {
+  BulkShareEntitiesDialog,
+  DOCUMENT_SHARE_PERMISSIONS,
+  getShareCapabilities
+} from '@/business-apps/core/office/sharing'
 import type { PagedDocumentEditorRef } from './components/PagedDocumentEditor'
 import { DocumentAppsHubEditorView } from './components/DocumentAppsHubEditorView'
 
@@ -222,6 +226,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false)
   const [documentForApproval, setDocumentForApproval] = useState<string | null>(null)
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
+  const [bulkShareDialogOpen, setBulkShareDialogOpen] = useState(false)
   const [documentForShare, setDocumentForShare] = useState<string | null>(null)
   const [sharedUsers, setSharedUsers] = useState<DocumentSharedUser[]>([])
   const [manageSharesDialogOpen, setManageSharesDialogOpen] = useState(false)
@@ -709,6 +714,33 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
       return getDocumentCapabilities(document, currentUserId).canDelete
     })
   }, [currentUserId, documents, selectedDocuments])
+
+  const selectedDocumentsForShare = useMemo(
+    () =>
+      Array.from(selectedDocuments)
+        .map(id => documents.find(document => document.id === id) ?? null)
+        .filter((document): document is DocumentSummary => {
+          if (!document) {
+            return false
+          }
+
+          return getDocumentCapabilities(document, currentUserId).canManageSharing
+        }),
+    [currentUserId, documents, selectedDocuments]
+  )
+
+  const canBulkShareDocuments =
+    selectedDocuments.size > 0 && selectedDocumentsForShare.length === selectedDocuments.size
+
+  const bulkShareDocuments = useMemo(
+    () =>
+      selectedDocumentsForShare.map(document => ({
+        entityType: 'document',
+        entityId: document.id,
+        entityTitle: document.title || t('title-untitled-document')
+      })),
+    [selectedDocumentsForShare, t]
+  )
 
   const confirmMoveToTrash = useCallback(async () => {
     if (pendingTrashDocuments.length === 0) return
@@ -1210,6 +1242,22 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
         />
       )}
 
+      {bulkShareDocuments.length > 0 && (
+        <BulkShareEntitiesDialog
+          open={bulkShareDialogOpen}
+          onOpenChange={setBulkShareDialogOpen}
+          accessToken={accessToken}
+          currentUserId={currentUserId}
+          entities={bulkShareDocuments}
+          permissionOptions={DOCUMENT_SHARE_PERMISSIONS}
+          onShareComplete={async () => {
+            setSelectedDocuments(new Set())
+            await refreshCurrentList()
+          }}
+          data-testid={`${testId}-bulk-share-dialog`}
+        />
+      )}
+
       {/* Manage Shares Dialog */}
       {documentForManageShares && (
         <ManageSharesDialog
@@ -1689,6 +1737,17 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                           >
                             <Trash2 className="gba:w-4 gba:h-4 gba:mr-1" />
                             {t('menu-delete')}
+                          </Button>
+                        )}
+                        {canBulkShareDocuments && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setBulkShareDialogOpen(true)}
+                            data-testid={`${testId}-bulk-share`}
+                          >
+                            <Share2 className="gba:w-4 gba:h-4 gba:mr-1" />
+                            {t('action-share')}
                           </Button>
                         )}
                       </>

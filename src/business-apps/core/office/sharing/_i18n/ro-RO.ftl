@@ -25,6 +25,13 @@ share-add-above = Adăugați persoane mai sus pentru a partaja acest { $entityLa
 share-success-title = Partajat cu succes
 share-success-single = { $name } a fost notificat și acum poate accesa acest { $entityLabel }.
 share-success-multi = { $count } persoane au fost notificate și acum pot accesa acest { $entityLabel }.
+share-bulk-title = Partajează { $count } elemente selectate
+share-bulk-description = Partajează toate elementele selectate cu aceleași persoane și aceleași permisiuni.
+share-bulk-selected-items = Elemente selectate
+share-bulk-success-all = Au fost partajate { $items } elemente cu { $people } persoane.
+share-bulk-success-partial = Au fost partajate { $successCount } elemente. { $failureCount } elemente nu au putut fi partajate.
+share-bulk-error-all = Nu s-au putut partaja elementele selectate. Încercați din nou.
+share-bulk-error-partial = Unele elemente nu au putut fi partajate: { $titles }
 share-submit = Partajați cu { $count } { $count ->
   [one] persoană
  *[other] persoane

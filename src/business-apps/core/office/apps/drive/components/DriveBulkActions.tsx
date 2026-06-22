@@ -4,6 +4,7 @@ import { Trash2, X, Download } from 'lucide-react'
 
 export interface DriveBulkActionsProps {
   selectedCount: number
+  onShare?: () => void
   onTrash: () => void
   onDownload?: () => void
   onClearSelection: () => void
@@ -13,6 +14,7 @@ export interface DriveBulkActionsProps {
 
 export const DriveBulkActions: React.FC<DriveBulkActionsProps> = ({
   selectedCount,
+  onShare,
   onTrash,
   onDownload,
   onClearSelection,
@@ -41,6 +43,11 @@ export const DriveBulkActions: React.FC<DriveBulkActionsProps> = ({
           >
             <Download className="gba:w-4 gba:h-4" />
             {t('bulk-actions-download')}
+          </Button>
+        )}
+        {onShare && (
+          <Button variant="ghost" size="sm" onClick={onShare} className="gba:gap-1.5" data-testid={`${testId}-share`}>
+            {t('share-dialog-title')}
           </Button>
         )}
         <Button

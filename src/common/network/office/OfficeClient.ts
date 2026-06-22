@@ -104,6 +104,9 @@ export class OfficeClient extends RestClient {
   createShare<T = any>(body: any, options?: RequestOptions) {
     return this.post<T>('/sharing', body, options)
   }
+  createShareBatch<T = any>(body: any, options?: RequestOptions) {
+    return this.post<T>('/sharing/batch', body, options)
+  }
   getSharingForEntity<T = any>(entityType: string, entityId: string, options?: RequestOptions) {
     return this.get<T>(`/sharing/${entityType}/${entityId}`, options)
   }
