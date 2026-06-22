@@ -49,6 +49,23 @@ const CountryFlag: React.FC<{ countryCode: CountryCode }> = ({ countryCode }) =>
   return <FlagIcon className="gba:h-3 gba:w-4 gba:shrink-0 gba:rounded-[1px]" aria-hidden="true" />
 }
 
+const ChevronDownIcon: React.FC<{ isOpen: boolean }> = ({ isOpen }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={`gba:pointer-events-none gba:absolute gba:right-2 gba:top-1/2 gba:size-4 gba:-translate-y-1/2 gba:shrink-0 gba:text-muted-foreground gba:transition-transform gba:duration-200 ${
+      isOpen ? 'gba:rotate-180' : ''
+    }`}
+    aria-hidden="true"
+  >
+    <path d="m6 9 6 6 6-6" />
+  </svg>
+)
+
 const getCallingCodeLabel = (country: PhonePrefixCountry): string => `+${country.callingCode}`
 
 const matchesCountryQuery = (country: PhonePrefixCountry, query: string): boolean => {
@@ -185,7 +202,7 @@ export const PhonePrefixCombobox: React.FC<PhonePrefixComboboxProps> = ({
       <button
         ref={triggerRef}
         type="button"
-        className="gba:flex gba:h-10 gba:w-full gba:items-center gba:justify-between gba:gap-2 gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:ring-offset-background gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-ring gba:focus:ring-offset-2"
+        className="gba:relative gba:flex gba:h-9 gba:w-full gba:min-w-0 gba:items-center gba:gap-2 gba:rounded-md gba:border gba:border-input gba:bg-surface/50 gba:py-2 gba:pl-2.5 gba:pr-8 gba:text-sm gba:whitespace-nowrap gba:outline-none gba:transition-colors gba:duration-200 gba:hover:border-ring/90 gba:focus-visible:border-decorative-ring gba:focus-visible:ring-2 gba:focus-visible:ring-decorative-ring/25"
         aria-expanded={isOpen}
         onClick={() => setIsOpen(currentIsOpen => !currentIsOpen)}
       >
@@ -196,9 +213,7 @@ export const PhonePrefixCombobox: React.FC<PhonePrefixComboboxProps> = ({
             <span className="gba:text-muted-foreground">{placeholder}</span>
           )}
         </span>
-        <span className="gba:shrink-0 gba:text-muted-foreground" aria-hidden="true">
-          {isOpen ? '^' : 'v'}
-        </span>
+        <ChevronDownIcon isOpen={isOpen} />
       </button>
 
       {isOpen &&
