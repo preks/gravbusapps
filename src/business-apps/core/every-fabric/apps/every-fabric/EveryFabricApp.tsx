@@ -254,8 +254,14 @@ export interface EveryFabricAppProps extends BusinessAppContextProps {
 
 export const EveryFabricApp: React.FC<EveryFabricAppProps> = props => {
   return (
-    <EveryFabricErrorBoundary>
-      <FormLocalizationProvider>
+    // LocalizationProvider must wrap the error boundary: the boundary's fallback
+    // UI calls the design-system `useTranslation`, which throws
+    // "useLocalizationContext must be used within LocalizationProvider" if it
+    // renders outside the provider. Keeping the provider outermost ensures a
+    // caught render error surfaces the real fallback instead of crashing the
+    // whole remote with a misleading localization error.
+    <FormLocalizationProvider>
+      <EveryFabricErrorBoundary>
         <FabricProvider {...props}>
           <div
             className="gba:h-full gba:min-h-full gba:relative gba:bg-background gba:overflow-hidden"
@@ -264,8 +270,8 @@ export const EveryFabricApp: React.FC<EveryFabricAppProps> = props => {
             <EveryFabricInner />
           </div>
         </FabricProvider>
-      </FormLocalizationProvider>
-    </EveryFabricErrorBoundary>
+      </EveryFabricErrorBoundary>
+    </FormLocalizationProvider>
   )
 }
 
