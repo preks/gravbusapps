@@ -128,7 +128,7 @@ function DecisionRow({ decision, t }: Readonly<{ decision: DecisionItem; t: (key
   )
 }
 
-function ActivityRow({
+function ActivityRowBody({
   event,
   t
 }: Readonly<{ event: ActivityEvent; t: (key: string, vars?: Record<string, unknown>) => string }>) {
@@ -145,7 +145,7 @@ function ActivityRow({
   if (isSkillLoad) ring = 'gba:border-amber-500'
 
   return (
-    <div className="gba:flex gba:gap-4 gba:pb-5 gba:last:pb-2" data-testid={`fabric-activity-${event.id}`}>
+    <>
       <div className="gba:flex gba:w-6 gba:shrink-0 gba:justify-center gba:pt-1.5">
         <TimelineDot ringClass={ring} />
       </div>
@@ -188,26 +188,70 @@ function ActivityRow({
           </p>
         )}
       </div>
+    </>
+  )
+}
+
+function ActivityRow({
+  event,
+  onOpenDelegatedDetail,
+  t
+}: Readonly<{
+  event: ActivityEvent
+  onOpenDelegatedDetail?: (stepId: string) => void
+  t: (key: string, vars?: Record<string, unknown>) => string
+}>) {
+  const stepId = event.type === 'subagent_spawn' ? event.delegationStepId : undefined
+  const isClickable = !!stepId && !!onOpenDelegatedDetail
+
+  if (isClickable) {
+    return (
+      <button
+        type="button"
+        onClick={() => onOpenDelegatedDetail(stepId)}
+        className="gba:flex gba:w-full gba:gap-4 gba:pb-5 gba:text-left gba:transition-colors gba:rounded-lg gba:last:pb-2 hover:gba:bg-sky-50/60 focus-visible:gba:outline-none focus-visible:gba:ring-2 focus-visible:gba:ring-sky-500/40 dark:hover:gba:bg-sky-950/20"
+        data-testid={`fabric-activity-${event.id}`}
+        title={`Open details for ${event.agent ?? 'agent'}`}
+      >
+        <ActivityRowBody event={event} t={t} />
+      </button>
+    )
+  }
+
+  return (
+    <div className="gba:flex gba:gap-4 gba:pb-5 gba:last:pb-2" data-testid={`fabric-activity-${event.id}`}>
+      <ActivityRowBody event={event} t={t} />
     </div>
   )
 }
 
 function TimelineEntryRow({
   entry,
+  onOpenDelegatedDetail,
   t
-}: Readonly<{ entry: SessionTimelineEntry; t: (key: string, vars?: Record<string, unknown>) => string }>) {
+}: Readonly<{
+  entry: SessionTimelineEntry
+  onOpenDelegatedDetail?: (stepId: string) => void
+  t: (key: string, vars?: Record<string, unknown>) => string
+}>) {
   if (entry.kind === 'decision') {
     return <DecisionRow decision={entry.decision} t={t} />
   }
-  return <ActivityRow event={entry.activity} t={t} />
+  return <ActivityRow event={entry.activity} onOpenDelegatedDetail={onOpenDelegatedDetail} t={t} />
 }
 
 interface UnifiedSessionTimelineProps {
   decisions: DecisionItem[]
   activityEvents: ActivityEvent[]
+  /** Opens the delegated-agent detail panel for a `subagent_spawn` row. */
+  onOpenDelegatedDetail?: (stepId: string) => void
 }
 
-export const UnifiedSessionTimeline: FC<UnifiedSessionTimelineProps> = ({ decisions, activityEvents }) => {
+export const UnifiedSessionTimeline: FC<UnifiedSessionTimelineProps> = ({
+  decisions,
+  activityEvents,
+  onOpenDelegatedDetail
+}) => {
   const { t } = useTranslation(translations)
   const entries = useMemo(() => mergeSessionTimelineEntries(decisions, activityEvents), [decisions, activityEvents])
 
@@ -227,7 +271,7 @@ export const UnifiedSessionTimeline: FC<UnifiedSessionTimelineProps> = ({ decisi
           aria-hidden
         />
         {entries.map(entry => (
-          <TimelineEntryRow key={entry.id} entry={entry} t={t} />
+          <TimelineEntryRow key={entry.id} entry={entry} onOpenDelegatedDetail={onOpenDelegatedDetail} t={t} />
         ))}
       </div>
     </div>

@@ -1207,6 +1207,8 @@ interface WorkspaceRightPanelProps {
   isPreviewMaximized?: boolean
   /** Toggle handler wired to the expand/collapse button on the preview header. */
   onTogglePreviewMaximized?: () => void
+  /** Opens the delegated-agent detail panel for a `subagent_spawn` timeline row. */
+  onOpenDelegatedDetail?: (stepId: string) => void
 }
 
 export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
@@ -1227,7 +1229,8 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
   sessionId = '',
   onRetryPreview,
   isPreviewMaximized = false,
-  onTogglePreviewMaximized
+  onTogglePreviewMaximized,
+  onOpenDelegatedDetail
 }) => {
   const showTimeline = decisions.length > 0 || activityEvents.length > 0
   const showPreview =
@@ -1287,6 +1290,7 @@ export const WorkspaceRightPanel: React.FC<WorkspaceRightPanelProps> = ({
           activityEvents={activityEvents}
           isStreaming={isStreaming}
           defaultCollapsed={collapseSecondaryPanels}
+          onOpenDelegatedDetail={onOpenDelegatedDetail}
         />
       )}
 

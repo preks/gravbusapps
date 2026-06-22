@@ -9,6 +9,7 @@ import { ArtifactViewer } from './ArtifactViewer'
 import { ClarificationPrompt } from './ClarificationPrompt'
 import { ConversationPanel } from './ConversationPanel'
 import { WorkspaceRightPanel } from './WorkspaceRightPanel'
+import { DelegatedAgentDetailPanel } from '../agents/DelegatedAgentDetailPanel'
 import { WorkspaceSkillIndicator } from './WorkspaceSkillIndicator'
 import { WorkspaceConnectorIndicator } from './WorkspaceConnectorIndicator'
 import { FabricInput } from '../landing/FabricInput'
@@ -123,6 +124,7 @@ export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({ devModeEnabled
     totalCount,
     progressPercent,
     activityEvents,
+    delegatedAgentDetails,
     decisions,
     activeSkill,
     fabricActiveSkill,
@@ -161,6 +163,13 @@ export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({ devModeEnabled
   const [isPreviewMaximized, setIsPreviewMaximized] = useState(false)
   const [dismissedClarificationQuestion, setDismissedClarificationQuestion] = useState<string | null>(null)
   const [dismissedFollowUpMessageId, setDismissedFollowUpMessageId] = useState<string | null>(null)
+  const [selectedDelegatedStepId, setSelectedDelegatedStepId] = useState<string | null>(null)
+
+  const openDelegatedDetail = useCallback((stepId: string) => setSelectedDelegatedStepId(stepId), [])
+  const closeDelegatedDetail = useCallback(() => setSelectedDelegatedStepId(null), [])
+  const selectedDelegatedDetail = selectedDelegatedStepId
+    ? (delegatedAgentDetails.get(selectedDelegatedStepId) ?? null)
+    : null
 
   // Drop the maximized state when there's no longer an active preview so the
   // panel doesn't ghost-stay wide once a session ends.
@@ -476,6 +485,7 @@ export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({ devModeEnabled
               onRetryPreview={handleRetryPreview}
               isPreviewMaximized={isPreviewMaximized}
               onTogglePreviewMaximized={() => setIsPreviewMaximized(value => !value)}
+              onOpenDelegatedDetail={openDelegatedDetail}
             />
           </div>
         </div>
@@ -494,6 +504,7 @@ export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({ devModeEnabled
           chatOffsetClass={chatOffsetClass}
           onReply={reply}
           onViewArtifact={setActiveArtifactId}
+          onOpenDelegatedDetail={openDelegatedDetail}
           accessToken={accessToken}
           presentationMode={session.presentation_mode}
           devModeEnabled={devModeEnabled}
@@ -512,6 +523,8 @@ export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({ devModeEnabled
         {activeArtifact && (
           <ArtifactViewer file={activeArtifact} accessToken={accessToken} onClose={() => setActiveArtifactId(null)} />
         )}
+
+        <DelegatedAgentDetailPanel detail={selectedDelegatedDetail} onClose={closeDelegatedDetail} />
       </div>
     </div>
   )

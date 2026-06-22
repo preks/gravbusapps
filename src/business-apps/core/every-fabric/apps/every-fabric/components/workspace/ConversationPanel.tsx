@@ -37,6 +37,8 @@ interface ConversationPanelProps {
   chatOffsetClass?: string
   onReply: (message?: string, structuredInput?: Record<string, any>) => void | Promise<unknown>
   onViewArtifact?: (artifactName: string) => void
+  /** Opens the delegated-agent detail panel for a given backend `step_id`. */
+  onOpenDelegatedDetail?: (stepId: string) => void
   composer?: React.ReactNode
   accessToken?: string
   presentationMode?: EnterprisePresentationMode
@@ -146,6 +148,7 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
   chatOffsetClass = '',
   onReply,
   onViewArtifact,
+  onOpenDelegatedDetail,
   composer,
   accessToken,
   presentationMode = 'default',
@@ -232,6 +235,7 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
               allMessages={messages}
               onReply={onReply}
               onViewArtifact={onViewArtifact}
+              onOpenDelegatedDetail={onOpenDelegatedDetail}
               accessToken={accessToken}
               presentationMode={msg.presentationMode ?? presentationMode}
               devModeEnabled={devModeEnabled}
@@ -258,6 +262,7 @@ export const ConversationPanel: React.FC<ConversationPanelProps> = ({
               allMessages={messages}
               onReply={onReply}
               onViewArtifact={onViewArtifact}
+              onOpenDelegatedDetail={onOpenDelegatedDetail}
               accessToken={accessToken}
               presentationMode={msg.presentationMode ?? presentationMode}
               devModeEnabled={devModeEnabled}

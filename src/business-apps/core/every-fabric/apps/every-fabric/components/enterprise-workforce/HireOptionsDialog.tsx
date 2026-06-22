@@ -14,6 +14,8 @@ interface HireOptionsDialogProps {
   onClose: () => void
   onChooseMarketplace: () => void
   onChooseCreate: () => void
+  /** When false, the "Create from scratch" option is hidden. Defaults to true. */
+  showCreateOption?: boolean
 }
 
 interface OptionCardProps {
@@ -46,7 +48,8 @@ export const HireOptionsDialog: React.FC<HireOptionsDialogProps> = ({
   open,
   onClose,
   onChooseMarketplace,
-  onChooseCreate
+  onChooseCreate,
+  showCreateOption = true
 }) => {
   const { t } = useTranslation(translations)
   if (!open) return null
@@ -81,13 +84,15 @@ export const HireOptionsDialog: React.FC<HireOptionsDialogProps> = ({
             onClick={onChooseMarketplace}
             testId="hire-options-marketplace"
           />
-          <OptionCard
-            icon={PlusCircleIcon}
-            title={t('hire-options-create-title')}
-            description={t('hire-options-create-description')}
-            onClick={onChooseCreate}
-            testId="hire-options-create"
-          />
+          {showCreateOption ? (
+            <OptionCard
+              icon={PlusCircleIcon}
+              title={t('hire-options-create-title')}
+              description={t('hire-options-create-description')}
+              onClick={onChooseCreate}
+              testId="hire-options-create"
+            />
+          ) : null}
         </div>
       </div>
     </div>

@@ -1,54 +1,14 @@
-import { useCallback, useMemo, useState } from 'react'
-import { GraphIcon, SpinnerGapIcon, SquaresFourIcon } from '@phosphor-icons/react'
+import { useCallback, useMemo } from 'react'
+import { GraphIcon, SpinnerGapIcon } from '@phosphor-icons/react'
 import type { MeshScope } from './meshScopes'
 import { useAgentMeshI18n } from './useAgentMeshI18n'
 import { useAgentMeshAggregateData } from '../../hooks/useAgentMeshAggregateData'
 import { useAgentMeshScope } from '../../hooks/useAgentMeshScope'
 import { useMeshTelemetry } from '../../hooks/useMeshTelemetry'
 import { AgentMeshCanvas } from './AgentMeshCanvas'
-import { AgentMeshGlassSphere } from './AgentMeshGlassSphere'
 import { AggregateOverviewPanel } from './AggregateOverviewPanel'
 import type { ActiveSessionSnapshot } from '../../types/activeSession'
 import { buildLiveMeshActivity, buildModelLiveActivity } from './liveMeshActivity'
-
-type CompanyView = 'graph' | 'cards'
-
-function CompanyViewToggle({ view, onChange }: { view: CompanyView; onChange: (view: CompanyView) => void }) {
-  const { t } = useAgentMeshI18n()
-  const buttonClass = (active: boolean) =>
-    `gba:inline-flex gba:items-center gba:gap-1.5 gba:rounded-md gba:px-2.5 gba:py-1.5 gba:text-xs gba:font-medium gba:transition-colors ${
-      active
-        ? 'gba:bg-background gba:text-foreground gba:shadow-sm'
-        : 'gba:text-muted-foreground gba:hover:text-foreground'
-    }`
-  return (
-    <div
-      className="gba:inline-flex gba:items-center gba:gap-1 gba:rounded-lg gba:border gba:border-border/60 gba:bg-muted/40 gba:p-1 gba:backdrop-blur"
-      data-testid="company-view-toggle"
-    >
-      <button
-        type="button"
-        onClick={() => onChange('graph')}
-        className={buttonClass(view === 'graph')}
-        aria-pressed={view === 'graph'}
-        data-testid="company-view-graph"
-      >
-        <GraphIcon className="gba:h-3.5 gba:w-3.5" weight="duotone" />
-        {t('agent-mesh-view-graph')}
-      </button>
-      <button
-        type="button"
-        onClick={() => onChange('cards')}
-        className={buttonClass(view === 'cards')}
-        aria-pressed={view === 'cards'}
-        data-testid="company-view-cards"
-      >
-        <SquaresFourIcon className="gba:h-3.5 gba:w-3.5" weight="duotone" />
-        {t('agent-mesh-view-cards')}
-      </button>
-    </div>
-  )
-}
 
 interface AgentMeshAggregateViewProps {
   scope: Exclude<MeshScope, 'session'>
@@ -64,7 +24,6 @@ export const AgentMeshAggregateView: React.FC<AgentMeshAggregateViewProps> = ({ 
   )
   const { pushSnapshot, isFullscreen } = useAgentMeshScope()
   const { emit, hashIdentifier } = useMeshTelemetry()
-  const [companyView, setCompanyView] = useState<CompanyView>('graph')
   const liveActivity = useMemo(() => {
     const activeFeedActivity = buildLiveMeshActivity(activeSessions)
     // If an active-session feed was provided, trust it. An empty or stale feed
@@ -176,31 +135,20 @@ export const AgentMeshAggregateView: React.FC<AgentMeshAggregateViewProps> = ({ 
     )
   }
 
-  const showGlassCards = scope === 'company' && companyView === 'cards'
-
   return (
     <div className="gba:flex gba:flex-1 gba:min-h-0 gba:gap-4">
       <div className="gba:grid gba:flex-1 gba:min-h-0 gba:grid-cols-1 gba:md:grid-cols-[minmax(0,1fr)_320px] gba:xl:grid-cols-[minmax(0,1fr)_380px] gba:gap-4">
         <div className="gba:relative gba:grid gba:min-h-0">
-          {scope === 'company' && (
-            <div className="gba:absolute gba:right-3 gba:top-3 gba:z-20">
-              <CompanyViewToggle view={companyView} onChange={setCompanyView} />
-            </div>
-          )}
-          {showGlassCards ? (
-            <AgentMeshGlassSphere stats={stats} liveActivity={liveActivity} />
-          ) : (
-            <AgentMeshCanvas
-              model={model}
-              positionMs={0}
-              durationMs={0}
-              isLive={true}
-              liveActivity={liveActivity}
-              showLiveHud
-              onDrillToUser={scope === 'company' ? handleCanvasDrillUser : undefined}
-              onDrillToSession={handleCanvasDrillSession}
-            />
-          )}
+          <AgentMeshCanvas
+            model={model}
+            positionMs={0}
+            durationMs={0}
+            isLive={true}
+            liveActivity={liveActivity}
+            showLiveHud
+            onDrillToUser={scope === 'company' ? handleCanvasDrillUser : undefined}
+            onDrillToSession={handleCanvasDrillSession}
+          />
         </div>
         <AggregateOverviewPanel
           scope={scope}

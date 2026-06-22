@@ -21,6 +21,7 @@ import type {
 import { resolveRendererType } from '../types/fabric'
 import { extractLatestTodosFromEvents, isTodoListToolName } from './fabricTodoStream'
 import { humanizeSkillId } from './skillUtils'
+import { looksLikeDashboardJson, looksLikeInternalErrorLeak } from '../hooks/agent-session/streamPayloadGuards'
 
 export const FABRIC_LIVE_PLAN_MESSAGE_ID = 'fabric-live-plan'
 
@@ -100,7 +101,7 @@ const inferDelegatedAgentName = (taskSummary?: string | null): string | null => 
   return null
 }
 
-const resolveDelegatedAgentName = (
+export const resolveDelegatedAgentName = (
   event: AgentSubagentSpawnedEvent | AgentSubagentCompletedEvent | AgentExpertCalledEvent | AgentExpertCompletedEvent,
   completion?: StepCompletion
 ): string =>
@@ -264,6 +265,13 @@ interface ExpertCallContent {
   status: DelegationStatus
   durationMs?: number
   outputPreview?: string
+  /**
+   * Backend `step_id` of the delegation this pill represents. Lets the pill
+   * open the exact `DelegatedAgentDetail` by stable id instead of matching on
+   * display name. Absent for native-agent pills (which have no delegation
+   * lifecycle / step_id).
+   */
+  delegationStepId?: string
 }
 
 /**
@@ -294,7 +302,8 @@ const mergeExpertCallContent = (existing: ExpertCallContent, incoming: ExpertCal
     description: existing.description ?? incoming.description,
     status: richer.status,
     durationMs: richer.durationMs ?? existing.durationMs ?? incoming.durationMs,
-    outputPreview: richer.outputPreview ?? existing.outputPreview ?? incoming.outputPreview
+    outputPreview: richer.outputPreview ?? existing.outputPreview ?? incoming.outputPreview,
+    delegationStepId: existing.delegationStepId ?? incoming.delegationStepId
   }
 }
 
@@ -325,6 +334,62 @@ const finalizeRunningMessagesOnTerminal = (events: AgentStreamEvent[], messages:
       ...msg,
       content: { ...(msg.content as object), status: resolved }
     }
+  }
+}
+
+const responseStreamSnapshotText = (event: AgentStreamEvent): string | null => {
+  if (event.type !== 'agent_chunk' || event.role !== 'ai' || event.chunk_kind !== 'response_stream') {
+    return null
+  }
+  const text = typeof event.content === 'string' ? event.content.trim() : ''
+  if (!text) return null
+  // Final answers are expected to be long-form prose, so we deliberately skip
+  // the length-based raw-payload guard here; only block obvious chart JSON or
+  // internal error blobs that must never be promoted into a final answer.
+  if (looksLikeInternalErrorLeak(text) || looksLikeDashboardJson(text)) return null
+  return text
+}
+
+/**
+ * Backfill a completed turn's final-answer bubble from streamed
+ * `response_stream` text when its terminal event carried no output.
+ *
+ * The model sometimes ends a turn by streaming the answer as cumulative
+ * `response_stream` chunks and closing with a `terminal` event whose `output`
+ * is empty (it never emits the closing `final` chunk). Because
+ * `response_stream` is transient (`eventToMessage` drops it), the answer types
+ * out live and then disappears on completion, leaving an empty final-answer
+ * card. Here we recover the last streamed snapshot for that turn and commit it
+ * as the answer. This is a no-op once the terminal carries output (e.g. on
+ * session reload, where `output` is rehydrated from the persisted session).
+ */
+function backfillEmptyFinalAnswersFromStream(sortedEvents: AgentStreamEvent[], messages: ChatMessage[]): void {
+  const seqOf = (e: AgentStreamEvent): number =>
+    'seq' in e && typeof e.seq === 'number' ? e.seq : Number.MAX_SAFE_INTEGER
+
+  const completedTerminals = sortedEvents.filter(
+    (e): e is AgentTerminalEvent | AgentTurnSnapshotEvent =>
+      (e.type === 'terminal' || e.type === 'turn_snapshot') && e.status === 'completed'
+  )
+
+  for (let ti = 0; ti < completedTerminals.length; ti += 1) {
+    const terminal = completedTerminals[ti]
+    const idx = messages.findIndex(m => m.type === 'final_answer' && m.id === terminal.event_id)
+    if (idx === -1) continue
+    const content = messages[idx].content as { output?: string }
+    if (content?.output && content.output.trim().length > 0) continue
+
+    const upperSeq = seqOf(terminal)
+    const lowerSeq = ti > 0 ? seqOf(completedTerminals[ti - 1]) : -1
+    let snapshot: string | null = null
+    for (const event of sortedEvents) {
+      const s = seqOf(event)
+      if (s <= lowerSeq || s > upperSeq) continue
+      const text = responseStreamSnapshotText(event)
+      if (text) snapshot = text
+    }
+    if (!snapshot) continue
+    messages[idx] = { ...messages[idx], content: { ...(content as object), output: snapshot } }
   }
 }
 
@@ -602,7 +667,8 @@ export function eventToMessage(
           description: event.agent_description,
           status: toolCallMessageStatus(completed),
           durationMs: completed?.duration_ms,
-          outputPreview: summarizeExpertOutput(completed?.output)
+          outputPreview: summarizeExpertOutput(completed?.output),
+          delegationStepId: event.step_id
         }
       }
     }
@@ -620,7 +686,8 @@ export function eventToMessage(
           description: event.agent_description,
           status: toolCallMessageStatus(completed),
           durationMs: completed?.duration_ms,
-          outputPreview: summarizeExpertOutput(completed?.output)
+          outputPreview: summarizeExpertOutput(completed?.output),
+          delegationStepId: event.step_id
         }
       }
     }
@@ -745,6 +812,7 @@ export function deriveMessagesFromEvents(events: AgentStreamEvent[]): ChatMessag
   }
 
   finalizeRunningMessagesOnTerminal(sortedEvents, messages)
+  backfillEmptyFinalAnswersFromStream(sortedEvents, messages)
   appendLivePlanIfNeeded(sortedEvents, messages, seenIds)
 
   return messages
@@ -851,7 +919,8 @@ function delegationActivity(
     agent: agentName,
     summary: e.task_summary ?? agentName,
     durationMs: completed?.duration_ms,
-    delegationStatus: delegationActivityStatus(completed)
+    delegationStatus: delegationActivityStatus(completed),
+    delegationStepId: e.step_id
   }
 }
 

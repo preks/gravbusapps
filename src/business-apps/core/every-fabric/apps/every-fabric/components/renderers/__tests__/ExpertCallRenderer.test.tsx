@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 
 jest.mock('@newwork/nw-design-system', () => {
   const actual = jest.requireActual('@newwork/nw-design-system')
@@ -27,5 +27,35 @@ describe('ExpertCallRenderer', () => {
     expect(screen.getByText('HR_General_Agent')).toBeInTheDocument()
     expect(screen.getByText('renderer-expert-status-completed')).toBeInTheDocument()
     expect(screen.queryByText(/Status envelope/)).not.toBeInTheDocument()
+  })
+
+  it('renders a non-interactive pill (no button) when no onOpenDetail is given', () => {
+    render(
+      React.createElement(ExpertCallRenderer, {
+        agentId: 'HR_General_Agent',
+        task: 'Assess HR health.',
+        status: 'done'
+      })
+    )
+
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.getByTestId('enterprise-agent-expert-HR_General_Agent')).toBeInTheDocument()
+  })
+
+  it('becomes a clickable button that opens the detail panel when onOpenDetail is provided', () => {
+    const onOpenDetail = jest.fn()
+    render(
+      React.createElement(ExpertCallRenderer, {
+        agentId: 'Customer 360 Analyst',
+        task: 'Summarise account health.',
+        status: 'done',
+        durationMs: 4200,
+        onOpenDetail
+      })
+    )
+
+    const pill = screen.getByRole('button', { name: /Open details for agent/i })
+    fireEvent.click(pill)
+    expect(onOpenDetail).toHaveBeenCalledTimes(1)
   })
 })

@@ -103,7 +103,7 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({
 
       <div className="gba:flex-1 gba:min-h-0 gba:overflow-auto">
         <div className="gba:min-h-full gba:px-6 gba:py-12">
-          <div className="gba:mx-auto gba:flex gba:min-h-[calc(100vh-6rem)] gba:w-full gba:max-w-232 gba:flex-col gba:items-center">
+          <div className="gba:mx-auto gba:flex gba:min-h-full gba:w-full gba:max-w-232 gba:flex-col gba:items-center">
             <div className="gba:flex-[0.84] gba:flex gba:flex-col gba:items-center gba:justify-end gba:pb-6">
               <div className="gba:mt-10 gba:text-center gba:space-y-2">
                 <h1 className="gba:text-[3rem] sm:gba:text-[3.5rem] gba:font-semibold gba:tracking-[-0.04em] gba:text-foreground gba:leading-[0.98]">

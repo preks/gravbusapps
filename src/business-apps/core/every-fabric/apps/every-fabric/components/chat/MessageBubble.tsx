@@ -12,7 +12,7 @@ import { PlanRenderer } from '../renderers/PlanRenderer'
 import { ToolCallRenderer } from '../renderers/ToolCallRenderer'
 import { ToolResultRenderer } from '../renderers/ToolResultRenderer'
 import { ReflectionRenderer } from '../renderers/ReflectionRenderer'
-import { ExpertCallRenderer } from '../renderers/ExpertCallRenderer'
+import { ExpertCallRenderer, type ExpertCallRendererProps } from '../renderers/ExpertCallRenderer'
 import { StructuredInputForm } from '../renderers/StructuredInputForm'
 import { ToolPermissionRequest } from '../renderers/ToolPermissionRequest'
 import { AttachmentChipList } from './AttachmentChipList'
@@ -199,6 +199,8 @@ interface MessageBubbleProps {
   allMessages?: ChatMessage[]
   onReply?: (answer?: string, structuredInput?: Record<string, any>) => void
   onViewArtifact?: (artifactName: string) => void
+  /** Opens the delegated-agent detail panel for a given backend `step_id`. */
+  onOpenDelegatedDetail?: (stepId: string) => void
   accessToken?: string
   presentationMode?: EnterprisePresentationMode
   devModeEnabled?: boolean
@@ -362,6 +364,7 @@ const renderMessageBubbleContent = ({
   allMessages,
   onReply,
   onViewArtifact,
+  onOpenDelegatedDetail,
   accessToken,
   presentationMode = 'default',
   devModeEnabled = false
@@ -426,14 +429,17 @@ const renderMessageBubbleContent = ({
     }
 
     case 'expert_call': {
-      const content = message.content as Parameters<typeof ExpertCallRenderer>[0]
+      const content = message.content as ExpertCallRendererProps & { delegationStepId?: string }
+      const { delegationStepId, ...rendererProps } = content
+      const onOpenDetail =
+        delegationStepId && onOpenDelegatedDetail ? () => onOpenDelegatedDetail(delegationStepId) : undefined
       return (
         <AnimatedMessageWrapper
           messageId={message.id}
           className="gba:flex gba:justify-start gba:py-1"
           data-testid={`msg-${message.id}`}
         >
-          <ExpertCallRenderer {...content} />
+          <ExpertCallRenderer {...rendererProps} onOpenDetail={onOpenDetail} />
         </AnimatedMessageWrapper>
       )
     }
@@ -497,6 +503,7 @@ export const MessageBubble = ({
   allMessages,
   onReply,
   onViewArtifact,
+  onOpenDelegatedDetail,
   accessToken,
   presentationMode = 'default',
   devModeEnabled = false
@@ -507,6 +514,7 @@ export const MessageBubble = ({
     allMessages,
     onReply,
     onViewArtifact,
+    onOpenDelegatedDetail,
     accessToken,
     presentationMode,
     devModeEnabled
