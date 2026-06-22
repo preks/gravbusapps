@@ -35,6 +35,7 @@ category-general = General
 category-hr = HR
 category-crm = CRM
 category-expenses = Cheltuieli
+category-finance = Finanțe
 category-office = Office
 category-service = Service
 category-custom = Personalizat

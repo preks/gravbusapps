@@ -2,7 +2,7 @@ import React, { useMemo } from 'react'
 import { AppActionForm } from '@/components/app-action-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useCommunicationLookups } from './queries/ChangeCommunicationQueries'
 import { FormHeader } from './components/FormHeader'
 import { ChannelTypeField } from './components/ChannelTypeField'
@@ -11,7 +11,7 @@ import { ValueField } from './components/ValueField'
 import { useCommunicationFormState } from './hooks/useCommunicationFormState'
 import { useCommunicationValidation } from './hooks/useCommunicationValidation'
 import { buildPhoneNumberWithCountryCode } from '@/common/utils/validation/phoneNumberValidation'
-import { Alert, AlertDescription, useTranslation } from '@newwork/nw-design-system'
+import { Alert, AlertDescription, LocalizationProvider, useTranslation } from '@newwork/nw-design-system'
 import translations from '../../apps/employee-record/_i18n'
 import { DeleteLayout } from '@/components/delete-layout/DeleteLayout'
 
@@ -21,7 +21,7 @@ function getInitialParams(context: BusinessAppContextProps) {
   return (context as any)?.additionalData?.psi_taskPayload?.psi_initialParameters ?? {}
 }
 
-const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = context => {
+const ChangePrivateCommunicationScreenContent: React.FC<BusinessAppContextProps> = context => {
   const { channels, types, communications, employee, addressCountryCode, loading } = useCommunicationLookups(context)
   const { t } = useTranslation(translations)
   const initialParams = getInitialParams(context)
@@ -243,6 +243,15 @@ const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = cont
         </div>
       </div>
     </AppActionForm>
+  )
+}
+
+const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = context => {
+  const locale = useMemo(() => getCurrentActiveUserLocale(), [])
+  return (
+    <LocalizationProvider locale={locale as any}>
+      <ChangePrivateCommunicationScreenContent {...context} />
+    </LocalizationProvider>
   )
 }
 

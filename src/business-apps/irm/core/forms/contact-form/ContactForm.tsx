@@ -23,6 +23,7 @@ import { ErrorAlert } from '@/components/error-alert'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { ContactAiEnrichButton } from '@/common/components/common-relations/form-segments/contact-ai-enrich'
 import { PlatformUserField } from './components'
+import { FormLocalizationProvider } from '@/common/components/form-localization-provider'
 
 export const investmentContactSchema = contactSchema.extend({
   userId: z.string().nullable().optional()
@@ -30,7 +31,7 @@ export const investmentContactSchema = contactSchema.extend({
 
 type ContactFormProps = BusinessAppContextProps
 
-export const ContactForm: React.FC<ContactFormProps> = ({ accessToken, userInfo, additionalData }) => {
+const ContactFormContent: React.FC<ContactFormProps> = ({ accessToken, userInfo, additionalData }) => {
   const contactId = additionalData?.contactId || additionalData?.psi_taskPayload?.psi_initialParameters?.contactId
 
   const { contact, loading, error } = useInvestmentContact(accessToken || '', contactId)
@@ -160,5 +161,11 @@ export const ContactForm: React.FC<ContactFormProps> = ({ accessToken, userInfo,
     </CatalogSelect.Provider>
   )
 }
+
+export const ContactForm: React.FC<ContactFormProps> = props => (
+  <FormLocalizationProvider>
+    <ContactFormContent {...props} />
+  </FormLocalizationProvider>
+)
 
 export default ContactForm

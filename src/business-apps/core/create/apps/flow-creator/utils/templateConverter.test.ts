@@ -659,4 +659,87 @@ describe('templateConverter', () => {
       secretRef: 'fncred:11111111-1111-4111-8111-111111111111:WEBHOOK_SECRET'
     })
   })
+
+  it('roundtrips a CUSTOM_DATA_MUTATION step (entity write) config', () => {
+    const customDataConfig = {
+      target: 'ENTITY' as const,
+      operation: 'create' as const,
+      namespace: 'crm',
+      entityName: 'lead',
+      values: {
+        name: '{{$steps.step_0.output.formData.name}}',
+        amount: '{{$steps.step_0.output.formData.amount}}'
+      }
+    }
+    const nodes: StudioNode[] = [
+      makeStartNode(),
+      {
+        ...makeTaskNode('cd1', 'Save Lead'),
+        config: {
+          nodeType: 'task',
+          stepType: FlowStepType.CUSTOM_DATA_MUTATION,
+          kind: 'SYSTEM',
+          title: 'Save Lead',
+          message: '',
+          form: [],
+          assignment: { targets: null, assignmentMode: AssignmentMode.CLAIM },
+          customDataConfig
+        } as any
+      },
+      makeEndNode()
+    ]
+    const edges: FlowGraphEdge[] = [
+      { id: 'e-start-cd', source: START_ID, target: 'cd1', direction: 'forward' } as any,
+      { id: 'e-cd-end', source: 'cd1', target: END_ID, direction: 'forward' } as any
+    ]
+
+    const template = studioGraphToTemplate(nodes, edges, 'Custom Data Flow') as any
+    expect(template.steps[0].type).toBe(FlowStepType.CUSTOM_DATA_MUTATION)
+    expect(template.steps[0].customDataConfig).toEqual(customDataConfig)
+
+    const rebuilt = templateToStudioGraph(template)
+    const rebuiltNode = rebuilt.nodes.find(n => n.id === 'cd1') as any
+    expect(rebuiltNode.config.stepType).toBe(FlowStepType.CUSTOM_DATA_MUTATION)
+    expect(rebuiltNode.config.kind).toBe('SYSTEM')
+    expect(rebuiltNode.config.customDataConfig).toEqual(customDataConfig)
+  })
+
+  it('roundtrips a CUSTOM_DATA_MUTATION step targeting the Flow Data store', () => {
+    const customDataConfig = {
+      target: 'FLOW_DATA' as const,
+      operation: 'append' as const,
+      recordKey: 'invoice',
+      values: {
+        total: '{{$steps.step_1.output.resultData.total}}'
+      }
+    }
+    const nodes: StudioNode[] = [
+      makeStartNode(),
+      {
+        ...makeTaskNode('cd2', 'Append Flow Data'),
+        config: {
+          nodeType: 'task',
+          stepType: FlowStepType.CUSTOM_DATA_MUTATION,
+          kind: 'SYSTEM',
+          title: 'Append Flow Data',
+          message: '',
+          form: [],
+          assignment: { targets: null, assignmentMode: AssignmentMode.CLAIM },
+          customDataConfig
+        } as any
+      },
+      makeEndNode()
+    ]
+    const edges: FlowGraphEdge[] = [
+      { id: 'e-start-cd2', source: START_ID, target: 'cd2', direction: 'forward' } as any,
+      { id: 'e-cd2-end', source: 'cd2', target: END_ID, direction: 'forward' } as any
+    ]
+
+    const template = studioGraphToTemplate(nodes, edges, 'Flow Data Flow') as any
+    expect(template.steps[0].customDataConfig).toEqual(customDataConfig)
+
+    const rebuilt = templateToStudioGraph(template)
+    const rebuiltNode = rebuilt.nodes.find(n => n.id === 'cd2') as any
+    expect(rebuiltNode.config.customDataConfig).toEqual(customDataConfig)
+  })
 })

@@ -1028,6 +1028,8 @@ service-requests-status-canceled = Abgebrochen
 
 # Change Personal Data - Pending state (aligns with notification-personal-data-updated-success)
 change-personal-data-pending-message = Ihre Personalabteilung prüft derzeit Ihre letzten Änderungen. Sobald die Freigabe erfolgt ist, können Sie weitere Anpassungen vornehmen.
+change-personal-data-stale-pending-message = Dieser Mitarbeiter ist als ausstehend markiert, aber es wurde keine aktive Anfrage zur Genehmigung persönlicher Daten gefunden. Bitte wenden Sie sich an HR oder einen Administrator, um den Mitarbeiterstatus zu prüfen.
+change-personal-data-pending-status = Ausstehend
 change-personal-data-pending-ok = OK
 
 # Change Address - Loading

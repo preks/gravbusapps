@@ -20,6 +20,8 @@ interface Country {
 interface PhoneInputProps {
   value: string
   onChange: (fullNumber: string) => void
+  onValidationValueChange?: (localNumber: string, countryCode: CountryCode | '') => void
+  onTouched?: () => void
   onBlur?: () => void
   error?: string
   touched?: boolean
@@ -30,6 +32,8 @@ interface PhoneInputProps {
 export const PhoneInput: React.FC<PhoneInputProps> = ({
   value,
   onChange,
+  onValidationValueChange,
+  onTouched,
   onBlur,
   error,
   touched,
@@ -128,14 +132,20 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
     isManualCountryChangeRef.current = false
   }, [selectedCountryCode])
 
+  useEffect(() => {
+    onValidationValueChange?.(localNumber, selectedCountryCode)
+  }, [localNumber, selectedCountryCode, onValidationValueChange])
+
   const handleCountryChange = (countryCode: CountryCode) => {
     isManualCountryChangeRef.current = true
     setSelectedCountryCode(countryCode)
+    onTouched?.()
   }
 
   const handleLocalNumberChange = (number: string) => {
     const cleanNumber = normalizeLocalPhoneNumber(number)
     setLocalNumber(cleanNumber)
+    onTouched?.()
 
     skipNextParseRef.current = true
 
@@ -150,30 +160,32 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
   }
 
   return (
-    <div className="gba:space-y-2">
-      <div className="gba:flex gba:gap-2">
-        <PhonePrefixCombobox
-          value={selectedCountryCode || ''}
-          countries={countries}
-          onValueChange={handleCountryChange}
-          placeholder={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:employee_profile.details_layout.bank_account_form.country_select_placeholder',
-            'Select Country'
-          )}
-          className="gba:w-48"
-          data-testid={`${dataTestId}-countryCode`}
-        />
-        <Input
-          placeholder={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:relationship_form.phone_number_placeholder',
-            'Enter Phone Number'
-          )}
-          value={localNumber}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleLocalNumberChange(e.target.value)}
-          onBlur={onBlur}
-          data-testid={dataTestId}
-          className="gba:flex-1"
-        />
+    <div className="gba:w-full gba:space-y-2">
+      <div className="gba:grid gba:min-w-0 gba:w-full gba:grid-cols-5 gba:items-center gba:gap-2">
+        <div className="gba:col-span-2 gba:min-w-0 gba:w-full">
+          <PhonePrefixCombobox
+            value={selectedCountryCode || ''}
+            countries={countries}
+            onValueChange={handleCountryChange}
+            placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:communication_form.prefix', 'Prefix')}
+            selectedLabelVariant="code"
+            className="gba:w-full"
+            data-testid={`${dataTestId}-countryCode`}
+          />
+        </div>
+        <div className="gba:col-span-3 gba:min-w-0">
+          <Input
+            placeholder={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:relationship_form.phone_number_placeholder',
+              'Enter Phone Number'
+            )}
+            value={localNumber}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleLocalNumberChange(e.target.value)}
+            onBlur={onBlur}
+            data-testid={dataTestId}
+            className="gba:w-full"
+          />
+        </div>
       </div>
       {touched && error && (
         <div className="gba:mt-1 gba:text-destructive" data-testid={`${dataTestId}-error`}>

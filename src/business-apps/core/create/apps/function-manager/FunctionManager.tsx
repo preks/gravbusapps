@@ -177,6 +177,7 @@ export const FunctionManager: React.FC<FunctionManagerProps> = ({ className, ...
       HR: t('category-hr'),
       CRM: t('category-crm'),
       Expenses: t('category-expenses'),
+      Finance: t('category-finance'),
       Office: t('category-office'),
       Service: t('category-service'),
       Custom: t('category-custom')

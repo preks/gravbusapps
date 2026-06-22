@@ -12,7 +12,11 @@ import {
   dayInputTestIds,
   buildDayMissingValueError
 } from '../constants/changeWorkingHoursConstants'
-import { useChangeWorkingHoursContext, type WorkingHoursValidationRecord } from '../context/ChangeWorkingHoursContext'
+import {
+  useChangeWorkingHoursContext,
+  type EmployeeLite,
+  type WorkingHoursValidationRecord
+} from '../context/ChangeWorkingHoursContext'
 import {
   Avatar,
   AvatarFallback,
@@ -65,6 +69,29 @@ const toDateInputValue = (value: string): string => {
 }
 
 const getSingleDateValue = (value: DateInputValue): string => (typeof value === 'string' ? toDateInputValue(value) : '')
+
+const formatDateAsDateInputValue = (date: Date): string => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
+const normalizeDateInputValue = (value: string): string | null => {
+  const dateValue = toDateInputValue(value).trim()
+
+  if (!dateValue) {
+    return ''
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+    return Number.isNaN(Date.parse(dateValue)) ? null : dateValue
+  }
+
+  const timestamp = Date.parse(dateValue)
+  return Number.isNaN(timestamp) ? null : formatDateAsDateInputValue(new Date(timestamp))
+}
 
 const isDateBefore = (dateValue?: string, comparisonValue?: string): boolean => {
   if (!dateValue || !comparisonValue) {
@@ -133,6 +160,14 @@ function deriveWeeklySummary(values: WorkingHoursFormValues): { weeklyHours: num
   }
 }
 
+const getEmployeeJobPositionName = (employee?: EmployeeLite | null): string | undefined => {
+  const employeePosition = Array.isArray(employee?.employeePosition)
+    ? employee?.employeePosition[0]
+    : employee?.employeePosition
+
+  return employeePosition?.jobPosition?.name
+}
+
 export const ChangeWorkingHoursForm: React.FC = () => {
   const { t } = useTranslation(translations)
   const {
@@ -155,6 +190,7 @@ export const ChangeWorkingHoursForm: React.FC = () => {
   const [workingDaysInput, setWorkingDaysInput] = useState('0')
   const [hasInteractedWithWorkingTime, setHasInteractedWithWorkingTime] = useState(false)
   const [isProcessPending, setIsProcessPending] = useState(false)
+  const [activeFromDraft, setActiveFromDraft] = useState('')
   const processPendingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const form = useForm<WorkingHoursFormValues>({
@@ -180,6 +216,7 @@ export const ChangeWorkingHoursForm: React.FC = () => {
       setWeeklyHoursInput(formatHoursInputValue(summary.weeklyHours))
       setWorkingDaysInput(formatHoursInputValue(summary.workingDays))
       setHasInteractedWithWorkingTime(false)
+      setActiveFromDraft(defaults.activeFrom || '')
     }
   }, [defaults, existingWorkingMeta?.id, form])
 
@@ -233,7 +270,8 @@ export const ChangeWorkingHoursForm: React.FC = () => {
   const watchedValues = form.watch()
   const isActiveFromMissing = !watchedValues?.activeFrom
   const isActiveToBeforeActiveFrom = isDateBefore(watchedValues?.activeTo, watchedValues?.activeFrom)
-  const isActiveFromBeforeHireDate = isDateBefore(watchedValues?.activeFrom, employeeHireDate)
+  const isActiveFromBeforeHireDate = isDateBefore(activeFromDraft || watchedValues?.activeFrom, employeeHireDate)
+  const activeFromBeforeHireDateMessage = t('working-hours-active-from-before-hire-date-warning')
   const { weeklySum, workingDays, fte, areAllDaysValid } = useMemo(() => {
     const keys: (keyof WorkingHoursFormValues)[] = [
       'mondayHours',
@@ -359,6 +397,10 @@ export const ChangeWorkingHoursForm: React.FC = () => {
       ]
     }
 
+    if (isDateBefore(values.activeFrom, employeeHireDate)) {
+      return [activeFromBeforeHireDateMessage]
+    }
+
     if (isDateBefore(values.activeTo, values.activeFrom)) {
       return [
         getTranslationFromI18nKeyAndLabel(
@@ -453,7 +495,7 @@ export const ChangeWorkingHoursForm: React.FC = () => {
                   data-testid="flw_updateWorkingHours_employeeName"
                 >{`${employee.firstName || ''} ${employee.lastName || ''}`}</div>
                 <div data-testid="flw_updateWorkingHours_employeeJobPosition">
-                  {employee.employeePosition?.jobPosition?.name}
+                  {getEmployeeJobPositionName(employee)}
                 </div>
               </div>
             </div>
@@ -521,9 +563,7 @@ export const ChangeWorkingHoursForm: React.FC = () => {
             className="gba:font-semibold"
             data-testid="flw_updateWorkingHours_employeeName"
           >{`${employee.firstName || ''} ${employee.lastName || ''}`}</div>
-          <div data-testid="flw_updateWorkingHours_employeeJobPosition">
-            {employee.employeePosition?.jobPosition?.name}
-          </div>
+          <div data-testid="flw_updateWorkingHours_employeeJobPosition">{getEmployeeJobPositionName(employee)}</div>
         </div>
       </div>
     )
@@ -553,6 +593,7 @@ export const ChangeWorkingHoursForm: React.FC = () => {
         exceedsWeeklyLimit ||
         exceedsWorkingDaysLimit ||
         isActiveFromMissing ||
+        isActiveFromBeforeHireDate ||
         isActiveToBeforeActiveFrom ||
         Boolean(activePeriodOverlapError) ||
         isEmployeeSelectionMissing
@@ -598,13 +639,27 @@ export const ChangeWorkingHoursForm: React.FC = () => {
                   </div>
                   <DateInput
                     type="date"
-                    value={getDateInputValue(watchedValues?.activeFrom)}
+                    value={getDateInputValue(activeFromDraft || watchedValues?.activeFrom)}
+                    onDraftChange={(value: string) => {
+                      setActiveFromDraft(value)
+                      const normalizedValue = normalizeDateInputValue(value)
+
+                      if (normalizedValue !== null) {
+                        form.setValue('activeFrom', normalizedValue, {
+                          shouldValidate: true,
+                          shouldDirty: true
+                        })
+                      }
+                    }}
                     onChange={(value: DateInputValue) => {
-                      form.setValue('activeFrom', getSingleDateValue(value), {
+                      const singleDateValue = getSingleDateValue(value)
+                      setActiveFromDraft(singleDateValue)
+                      form.setValue('activeFrom', singleDateValue, {
                         shouldValidate: true,
                         shouldDirty: true
                       })
                     }}
+                    min={employeeHireDate || undefined}
                     outputFormat="iso"
                     data-testid="flw_updateWorkingHours_activeFromDatePicker"
                   />
@@ -621,10 +676,10 @@ export const ChangeWorkingHoursForm: React.FC = () => {
                   ) : null}
                   {isActiveFromBeforeHireDate ? (
                     <div
-                      className="gba:text-sm gba:text-warning"
+                      className="gba:text-sm gba:text-destructive"
                       data-testid="flw_updateWorkingHours_activeFromHireDateWarning"
                     >
-                      {t('working-hours-active-from-before-hire-date-warning')}
+                      {activeFromBeforeHireDateMessage}
                     </div>
                   ) : null}
                 </div>

@@ -32,6 +32,7 @@ import { JobHistoryArrayField } from './components/JobHistoryArrayField'
 import { HobbiesArrayField } from './components/HobbiesArrayField'
 import { fileClient } from '@/common/network/files/FileClient'
 import { CommunicationSegment } from '@/common/components/common-relations/form-segments/communication-segment'
+import { FormLocalizationProvider } from '@/common/components/form-localization-provider'
 import { AddressSegment } from '@/common/components/common-relations/form-segments/address-segment'
 
 const jobCandidateSchema = z.object({
@@ -141,7 +142,7 @@ const jobCandidateSchema = z.object({
 
 type JobCandidateFormProps = BusinessAppContextProps
 
-const JobCandidateForm: React.FC<JobCandidateFormProps> = ({ accessToken, userInfo, additionalData }) => {
+const JobCandidateFormContent: React.FC<JobCandidateFormProps> = ({ accessToken, userInfo, additionalData }) => {
   const jobCandidateId =
     additionalData?.jobCandidateId ||
     additionalData?.psi_taskPayload?.psi_initialParameters?.jobCandidateId ||
@@ -867,5 +868,11 @@ const JobCandidateForm: React.FC<JobCandidateFormProps> = ({ accessToken, userIn
     </CatalogSelect.Provider>
   )
 }
+
+const JobCandidateForm: React.FC<JobCandidateFormProps> = props => (
+  <FormLocalizationProvider>
+    <JobCandidateFormContent {...props} />
+  </FormLocalizationProvider>
+)
 
 export default JobCandidateForm

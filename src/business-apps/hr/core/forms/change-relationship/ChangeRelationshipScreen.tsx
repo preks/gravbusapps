@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Input,
   Label,
@@ -8,10 +8,11 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
+  DateInput,
   useTranslation
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatDateToISO, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import flowSmall from '@/assets/icons/flowSmall.svg'
 import FormHeader from '../components/FormHeader'
@@ -24,9 +25,37 @@ import { PhoneInput } from './components/PhoneInput'
 import { useEmployeeDocumentSync } from '../document-sync/useEmployeeDocumentSync'
 import { EmployeeDocumentUploadField } from '../document-sync/EmployeeDocumentUploadField'
 import { useRelationshipCongratulationsMessage } from './hooks/useRelationshipCongratulationsMessage'
-import { isValidPhoneNumberWithMetadata, normalizePhoneNumber } from '@/common/utils/validation/phoneNumberValidation'
+import {
+  isValidPhoneNumberForCountry,
+  normalizeLocalPhoneNumber,
+  normalizePhoneNumber
+} from '@/common/utils/validation/phoneNumberValidation'
+import { FormLocalizationProvider } from '@/common/components/form-localization-provider'
+import type { CountryCode } from 'libphonenumber-js'
 
 const prefixDataTestId = 'ChangeRelationshipScreen'
+
+const toDateInputValue = (value?: string | null): string => {
+  if (!value) {
+    return ''
+  }
+
+  return value.slice(0, 10)
+}
+
+const isChildRelationshipType = (
+  relationshipTypeId: string,
+  relationshipTypeLabelById: Record<string, string>,
+  relationshipTypeCodeById: Record<string, string>
+): boolean => {
+  const normalizedCode = (relationshipTypeCodeById[relationshipTypeId] || '').trim().toLowerCase()
+
+  if (normalizedCode === 'child' || normalizedCode.endsWith(':child')) {
+    return true
+  }
+
+  return (relationshipTypeLabelById[relationshipTypeId] || '').trim().toLowerCase() === 'child'
+}
 
 function toValidEmployeeDocumentId(value: unknown): string {
   if (typeof value !== 'string') {
@@ -42,15 +71,23 @@ function toValidEmployeeDocumentId(value: unknown): string {
   return uuidPattern.test(trimmed) ? trimmed : ''
 }
 
-const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additionalData, userInfo, accessToken }) => {
+const ChangeRelationshipScreenContent: React.FC<BusinessAppContextProps> = ({
+  additionalData,
+  userInfo,
+  accessToken
+}) => {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [relationshipTypeId, setRelationshipTypeId] = useState<string>('')
+  const [birthDate, setBirthDate] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
+  const [phoneLocalNumber, setPhoneLocalNumber] = useState('')
+  const [phoneCountryCode, setPhoneCountryCode] = useState<CountryCode | ''>('')
   const [isEmergencyContact, setIsEmergencyContact] = useState(false)
   const [selectedRelationshipId, setSelectedRelationshipId] = useState<string>('new')
   const [firstNameTouched, setFirstNameTouched] = useState(false)
   const [lastNameTouched, setLastNameTouched] = useState(false)
+  const [birthDateTouched, setBirthDateTouched] = useState(false)
   const [phoneTouched, setPhoneTouched] = useState(false)
   const [relationshipTypeTouched, setRelationshipTypeTouched] = useState(false)
   const { t } = useTranslation(translations)
@@ -79,12 +116,6 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
   const pendingPayloadRef = useRef<any>(null)
   const relationshipCongratulationsMessage = useRelationshipCongratulationsMessage(accessToken)
 
-  const isValid = useMemo(() => {
-    const requiredOk = relationshipTypeId && firstName.trim() && lastName.trim()
-    const phoneOk = !isEmergencyContact || phoneNumber.trim().length > 0
-    return Boolean(requiredOk && phoneOk)
-  }, [relationshipTypeId, firstName, lastName, isEmergencyContact, phoneNumber])
-
   const relationshipTypeLabelById = useMemo(() => {
     const map: Record<string, string> = {}
     for (const opt of relationshipTypeOptions) map[opt.id] = opt.label
@@ -96,6 +127,16 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
     for (const opt of relationshipTypeOptions) map[opt.id] = opt.code
     return map
   }, [relationshipTypeOptions])
+  const isChildType = useMemo(
+    () => isChildRelationshipType(relationshipTypeId, relationshipTypeLabelById, relationshipTypeCodeById),
+    [relationshipTypeId, relationshipTypeLabelById, relationshipTypeCodeById]
+  )
+  const isValid = useMemo(() => {
+    const requiredOk = relationshipTypeId && firstName.trim() && lastName.trim()
+    const birthDateOk = !isChildType || birthDate.trim().length > 0
+    const phoneOk = !isEmergencyContact || phoneNumber.trim().length > 0
+    return Boolean(requiredOk && birthDateOk && phoneOk)
+  }, [relationshipTypeId, firstName, lastName, birthDate, isChildType, isEmergencyContact, phoneNumber])
 
   // Currently selected existing relationship (if any)
   const selectedExisting = useMemo(
@@ -127,6 +168,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
     return (
       (firstName || '') === (selectedExisting.firstName || '') &&
       (lastName || '') === (selectedExisting.lastName || '') &&
+      (birthDate || '') === toDateInputValue(selectedExisting.birthDate) &&
       (phoneNumber || '') === (selectedExisting.phoneNumber || '') &&
       Boolean(isEmergencyContact) === Boolean(selectedExisting.isEmergencyContact) &&
       (relationshipTypeId || '') === (selectedExisting.typeRef || '') &&
@@ -137,6 +179,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
     selectedExisting,
     firstName,
     lastName,
+    birthDate,
     phoneNumber,
     isEmergencyContact,
     relationshipTypeId,
@@ -155,20 +198,30 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
     return (relationships || []).some((rel: any) => rel?.isEmergencyContact === true)
   }, [relationships])
 
+  const handlePhoneValidationValueChange = useCallback((localNumber: string, countryCode: CountryCode | '') => {
+    setPhoneLocalNumber(localNumber)
+    setPhoneCountryCode(countryCode)
+  }, [])
+
   // Field validations
-  const validatePhoneForEmergency = (receivedValue: string): string => {
-    if (!isEmergencyContact) return ''
-    const trimmed = (receivedValue || '').trim()
-    if (trimmed.length === 0) {
+  const validatePhoneNumber = (): string => {
+    const localNumber = normalizeLocalPhoneNumber(phoneLocalNumber)
+
+    if (localNumber.length === 0) {
+      if (!isEmergencyContact) {
+        return ''
+      }
+
       return getTranslationFromI18nKeyAndLabel(
         'lowcoder:change_relationship.container_relationship.phone_required_error',
         'The Phone Number field is required. Please enter a phone number.'
       )
     }
-    if (!isValidPhoneNumberWithMetadata(trimmed)) {
+
+    if (!isValidPhoneNumberForCountry(localNumber, phoneCountryCode)) {
       return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:change_relationship.container_relationship.phone_only_numbers_error',
-        'The Phone Number field is invalid. Please enter a valid phone number.'
+        'lowcoder:create_expense_request.add_request_trip_details.valid_number',
+        'Please enter a valid number'
       )
     }
     return ''
@@ -216,7 +269,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
 
   const firstNameError = validateNameFunction(firstName, 'first')
   const lastNameError = validateNameFunction(lastName, 'last')
-  const phoneError = validatePhoneForEmergency(phoneNumber)
+  const phoneError = validatePhoneNumber()
   const relationshipTypeError = !relationshipTypeId
     ? getTranslationFromI18nKeyAndLabel(
         'lowcoder:change_relationship.container_relationship.relationship_type_error',
@@ -229,6 +282,13 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
         'The Relationship field is required. Please select the relationship type.'
       )
     : ''
+  const birthDateError =
+    isChildType && !birthDate
+      ? getTranslationFromI18nKeyAndLabel(
+          'lowcoder:relationship_form.birth_date_required_error',
+          'The Date of Birth field is required for child relationships.'
+        )
+      : ''
 
   // Initialize selection and fields if flow provided an existing relationship.
   // Waits for `relationships` to load so the form can resolve the full record
@@ -243,6 +303,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       setFirstName(loaded.firstName || '')
       setLastName(loaded.lastName || '')
       setRelationshipTypeId(loaded.typeRef || '')
+      setBirthDate(toDateInputValue(loaded.birthDate))
       setPhoneNumber(loaded.phoneNumber || '')
       setIsEmergencyContact(Boolean(loaded.isEmergencyContact))
     } else {
@@ -250,6 +311,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       setFirstName(relPayload.firstName || '')
       setLastName(relPayload.lastName || '')
       setRelationshipTypeId(relPayload.typeRef || '')
+      setBirthDate(toDateInputValue(relPayload.birthDate))
       setPhoneNumber(relPayload.phoneNumber || '')
       setIsEmergencyContact(Boolean(relPayload.isEmergencyContact))
     }
@@ -263,6 +325,8 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       setFirstName('')
       setLastName('')
       setRelationshipTypeId('')
+      setBirthDate('')
+      setBirthDateTouched(false)
       setPhoneNumber('')
       setIsEmergencyContact(false)
       return
@@ -272,6 +336,8 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       setFirstName(selected.firstName || '')
       setLastName(selected.lastName || '')
       setRelationshipTypeId(selected.typeRef || '')
+      setBirthDate(toDateInputValue(selected.birthDate))
+      setBirthDateTouched(false)
       setPhoneNumber(selected.phoneNumber || '')
       setIsEmergencyContact(Boolean(selected.isEmergencyContact))
     }
@@ -283,6 +349,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
     if (relationshipTypeError) errors.push(relationshipTypeError)
     if (firstNameError) errors.push(firstNameError)
     if (lastNameError) errors.push(lastNameError)
+    if (birthDateError) errors.push(birthDateError)
     if (phoneError) errors.push(phoneError)
     return errors.length ? errors : null
   }
@@ -311,6 +378,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
       employeeId,
       firstName: firstName.trim() || undefined,
       lastName: lastName.trim() || undefined,
+      birthDate: isChildType && birthDate ? formatDateToISO(new Date(birthDate)) : null,
       phoneNumber: normalizePhoneNumber(phoneNumber) || undefined,
       typeRef: relationshipTypeId || undefined,
       emergencyContact: isEmergencyContact,
@@ -329,6 +397,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
             employeeId,
             firstName: selectedExisting.firstName || '',
             lastName: selectedExisting.lastName || '',
+            birthDate: selectedExisting.birthDate ? formatDateToISO(new Date(selectedExisting.birthDate)) : null,
             phoneNumber: selectedExisting.phoneNumber || '',
             typeRef: selectedExisting.typeRef || '',
             emergencyContact: Boolean(selectedExisting.isEmergencyContact),
@@ -452,6 +521,11 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
                 onValueChange={v => {
                   setRelationshipTypeTouched(true)
                   setRelationshipTypeId(v)
+                  setBirthDateTouched(false)
+
+                  if (!isChildRelationshipType(v, relationshipTypeLabelById, relationshipTypeCodeById)) {
+                    setBirthDate('')
+                  }
                 }}
               >
                 <SelectTrigger data-testid="flw_changeRelationship_currentRelationshipType">
@@ -522,6 +596,33 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
             )}
           </div>
 
+          {isChildType && (
+            <div>
+              <Label>
+                {getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.birth_date', 'Date of Birth')}*
+              </Label>
+              <div className="gba:mt-2">
+                <DateInput
+                  type="date"
+                  value={birthDate}
+                  onChange={value => setBirthDate(typeof value === 'string' ? value : '')}
+                  onBlur={() => setBirthDateTouched(true)}
+                  placeholder={getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:relationship_form.birth_date_placeholder',
+                    'Select Date of Birth'
+                  )}
+                  className="gba:w-full"
+                  data-testid="flw_changeRelationship_currentBirthDate"
+                />
+              </div>
+              {birthDateTouched && birthDateError && (
+                <div className="gba:mt-1 gba:text-destructive" data-testid="flw_changeRelationship_birthDateError">
+                  {birthDateError}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Phone Number */}
           <div>
             <Label>
@@ -532,8 +633,10 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
               <PhoneInput
                 value={phoneNumber}
                 onChange={setPhoneNumber}
+                onValidationValueChange={handlePhoneValidationValueChange}
+                onTouched={() => setPhoneTouched(true)}
                 onBlur={() => setPhoneTouched(true)}
-                error={isEmergencyContact ? phoneError : undefined}
+                error={phoneError}
                 touched={phoneTouched}
                 defaultCountryCode={addressCountryCode}
                 data-testid="flw_changeRelationship_currentPhoneNumber"
@@ -604,5 +707,11 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
     </AppActionForm>
   )
 }
+
+const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = props => (
+  <FormLocalizationProvider>
+    <ChangeRelationshipScreenContent {...props} />
+  </FormLocalizationProvider>
+)
 
 export default ChangeRelationshipScreen

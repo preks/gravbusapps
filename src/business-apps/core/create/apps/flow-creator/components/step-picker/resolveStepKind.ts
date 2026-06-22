@@ -37,6 +37,8 @@ export function resolveStepKind(node: StudioNode, options?: { connectorEnabled?:
       return 'ai-agent'
     case FlowStepType.AI_TASK_EXPERT:
       return 'ai-task-expert'
+    case FlowStepType.CUSTOM_DATA_MUTATION:
+      return 'save-to-custom-data'
     default:
       return 'user-task'
   }

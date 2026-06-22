@@ -59,6 +59,8 @@ const ALLOWED_STEP_TYPES = new Set([
   'CUSTOM_DATA_MUTATION'
 ])
 
+const ALLOWED_CUSTOM_DATA_OPERATIONS = new Set(['create', 'update', 'delete', 'append'])
+
 function hasSpecificAssignmentTargetValues(targets: unknown): boolean {
   if (targets == null || typeof targets !== 'object') return false
   const targetObject = targets as Record<string, unknown>
@@ -227,6 +229,46 @@ export function validateAiTemplateContract(template: unknown): AiTemplateValidat
               errors.push(`steps[${i}].logicConfig.conditions.${conditionIndex}.branchId must be a string`)
             }
           }
+        }
+      }
+    }
+
+    if (type === 'CUSTOM_DATA_MUTATION') {
+      const customDataConfig = step.customDataConfig as Record<string, unknown> | undefined
+      if (customDataConfig == null || typeof customDataConfig !== 'object' || Array.isArray(customDataConfig)) {
+        errors.push(`steps[${i}] (CUSTOM_DATA_MUTATION): customDataConfig must be an object`)
+      } else if (customDataConfig.useAiAgent === true) {
+        // AI mode: an agent resolves the operation/values at runtime. Only a typed
+        // entity target (namespace + entityName) is required.
+        if (!safeIsString(customDataConfig.namespace) || !customDataConfig.namespace.trim()) {
+          errors.push(`steps[${i}].customDataConfig.namespace is required when useAiAgent is true`)
+        }
+        if (!safeIsString(customDataConfig.entityName) || !customDataConfig.entityName.trim()) {
+          errors.push(`steps[${i}].customDataConfig.entityName is required when useAiAgent is true`)
+        }
+      } else {
+        const operation = String(customDataConfig.operation ?? '')
+          .trim()
+          .toLowerCase()
+        if (!ALLOWED_CUSTOM_DATA_OPERATIONS.has(operation)) {
+          errors.push(
+            `steps[${i}].customDataConfig.operation must be one of ${Array.from(ALLOWED_CUSTOM_DATA_OPERATIONS).join(', ')}`
+          )
+        }
+        const target =
+          customDataConfig.target === undefined ? 'ENTITY' : String(customDataConfig.target).trim().toUpperCase()
+        if (target !== 'ENTITY' && target !== 'FLOW_DATA') {
+          errors.push(`steps[${i}].customDataConfig.target must be ENTITY or FLOW_DATA`)
+        }
+        if (
+          target === 'ENTITY' &&
+          (!safeIsString(customDataConfig.entityName) || !customDataConfig.entityName.trim())
+        ) {
+          errors.push(`steps[${i}].customDataConfig.entityName is required for the ENTITY target`)
+        }
+        const values = customDataConfig.values
+        if (values !== undefined && (typeof values !== 'object' || values === null || Array.isArray(values))) {
+          errors.push(`steps[${i}].customDataConfig.values must be an object map of field to expression`)
         }
       }
     }

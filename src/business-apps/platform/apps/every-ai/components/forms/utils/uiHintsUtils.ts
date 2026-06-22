@@ -184,6 +184,21 @@ export function buildUiHintFields(opts: {
             _idx: idx
           }
         }
+        // Flat allowlist entries (e.g. `startDate`) still map to the nested entity slice.
+        if (!normalizedPath.includes('.')) {
+          const nestedPath = `${prefix.slice(0, -1)}${normalizedPath}`
+          const fieldName = normalizedPath
+          const resolved = resolveSchemaAndRequiredAtPathBest(flowSchema, nestedPath)
+          return {
+            fullPath: nestedPath,
+            fieldName,
+            nestedFormValue: false,
+            schema: resolved.schema,
+            required: resolved.required,
+            override,
+            _idx: idx
+          }
+        }
         return null
       }
 

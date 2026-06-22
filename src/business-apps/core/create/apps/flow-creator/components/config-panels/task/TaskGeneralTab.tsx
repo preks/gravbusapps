@@ -13,6 +13,7 @@ import { StepTitleField } from '../../step-fields/title-message/StepTitleField'
 import { StepMessageField } from '../../step-fields/title-message/StepMessageField'
 import { StepDueTimeField } from '../../step-fields/timing/StepDueTimeField'
 import { useFlowContextDataSources } from '../../step-fields/useFlowContextDataSources'
+import { CustomDataMutationSection } from './CustomDataMutationSection'
 
 interface TaskGeneralTabProps {
   nodeId: string
@@ -40,8 +41,16 @@ export const TaskGeneralTab: React.FC<TaskGeneralTabProps> = ({
   const expressionSuggestions = useStudioExpressionSuggestions()
   const dataSources = useFlowContextDataSources(studioData)
 
-  const showLinksSection = ![FlowStepType.AI_TASK_EXPERT, FlowStepType.FUNCTION].includes(config.stepType)
-  const showMessageField = ![FlowStepType.AI_TASK_EXPERT, FlowStepType.FUNCTION].includes(config.stepType)
+  const showLinksSection = ![
+    FlowStepType.AI_TASK_EXPERT,
+    FlowStepType.FUNCTION,
+    FlowStepType.CUSTOM_DATA_MUTATION
+  ].includes(config.stepType)
+  const showMessageField = ![
+    FlowStepType.AI_TASK_EXPERT,
+    FlowStepType.FUNCTION,
+    FlowStepType.CUSTOM_DATA_MUTATION
+  ].includes(config.stepType)
   const messageVariant = config.stepType === FlowStepType.AI_AGENT ? 'instruction' : 'default'
 
   const isAutomationStepType = [FlowStepType.FUNCTION, FlowStepType.AI_AGENT, FlowStepType.AI_TASK_EXPERT].includes(
@@ -126,6 +135,17 @@ export const TaskGeneralTab: React.FC<TaskGeneralTabProps> = ({
           title={t('task-output-schema-title')}
           description={t('task-output-schema-desc')}
           testId={testId}
+        />
+      )}
+
+      {config.stepType === FlowStepType.CUSTOM_DATA_MUTATION && (
+        <CustomDataMutationSection
+          config={config}
+          update={update}
+          accessToken={accessToken}
+          suggestions={expressionSuggestions}
+          dataSources={dataSources}
+          testId={`${testId}-custom-data`}
         />
       )}
 

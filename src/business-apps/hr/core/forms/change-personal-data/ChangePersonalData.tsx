@@ -31,6 +31,7 @@ import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import translations from '../../apps/employee-record/_i18n'
 import { useEmployeeDocumentSync } from '../document-sync/useEmployeeDocumentSync'
 import { EmployeeDocumentUploadField } from '../document-sync/EmployeeDocumentUploadField'
+import { EMPLOYEE_PROCESS_CONFIGS, usePendingProcessCheck } from '@/common/hooks/usePendingProcessCheck'
 import { getFormContextErrorMessage } from '@/business-apps/hr/core/utils/getFormContextErrorMessage'
 import { extractEmployeeId } from '@/business-apps/hr/core/utils/employeeIdUtils'
 
@@ -233,10 +234,14 @@ interface ChangePersonalDataPendingViewProps {
   }
   employeePosition: { jobPosition?: { name?: string } } | undefined
   t: (key: string) => string
+  state?: 'active' | 'stale'
 }
 
 function ChangePersonalDataPendingView(props: Readonly<ChangePersonalDataPendingViewProps>) {
-  const { title, employee, employeePosition, t } = props
+  const { title, employee, employeePosition, t, state = 'active' } = props
+  const messageKey =
+    state === 'stale' ? 'change-personal-data-stale-pending-message' : 'change-personal-data-pending-message'
+
   return (
     <div
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]"
@@ -257,7 +262,7 @@ function ChangePersonalDataPendingView(props: Readonly<ChangePersonalDataPending
         }
       />
       <div className="gba:flex gba:flex-col gba:gap-4 gba:pt-4" data-testid="change-personal-data-pending-message">
-        <p className="gba:text-muted-foreground gba:text-sm">{t('change-personal-data-pending-message')}</p>
+        <p className="gba:text-muted-foreground gba:text-sm">{t(messageKey)}</p>
         <div className="gba:flex gba:justify-end gba:pt-4">
           <Button
             data-testid="change-personal-data-pending-ok"
@@ -275,7 +280,7 @@ function ChangePersonalDataPendingView(props: Readonly<ChangePersonalDataPending
 }
 
 const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessToken, additionalData, userInfo }) => {
-  const { data, isLoading, error } = useChangePersonalData()
+  const { data, isLoading, error, refetch } = useChangePersonalData()
   const { t } = useTranslation(translations)
   const employeeId = useMemo(() => extractEmployeeId(additionalData, userInfo), [additionalData, userInfo])
   const contextErrorMessage = useMemo(
@@ -315,15 +320,22 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
       accessToken={accessToken}
       additionalData={additionalData}
       data={data}
+      onDataChanged={refetch}
     />
   )
 }
 
 interface ChangePersonalDataFormProps extends BusinessAppContextProps {
   data: any
+  onDataChanged: () => Promise<void>
 }
 
-const ChangePersonalDataForm: React.FC<ChangePersonalDataFormProps> = ({ accessToken, additionalData, data }) => {
+const ChangePersonalDataForm: React.FC<ChangePersonalDataFormProps> = ({
+  accessToken,
+  additionalData,
+  data,
+  onDataChanged
+}) => {
   const { t } = useTranslation(translations)
 
   const getCatalogValue = useCallback((entry: CatalogEntry): string => {
@@ -448,8 +460,30 @@ const ChangePersonalDataForm: React.FC<ChangePersonalDataFormProps> = ({ accessT
     return state === 'PENDING'
   }, [employee?.status])
 
+  const pendingPersonalDataProcess = usePendingProcessCheck({
+    ...EMPLOYEE_PROCESS_CONFIGS.CHANGE_PERSONAL_DATA,
+    employeeId: employee?.id || '',
+    accessToken: accessToken || '',
+    enabled: Boolean(isEmployeePending && employee?.id && accessToken),
+    displayConfig: {
+      processType: t('change-personal-data-process-title'),
+      statusMessage: t('change-personal-data-pending-status')
+    }
+  })
+
   if (isEmployeePending) {
-    return <ChangePersonalDataPendingView title={title} employee={employee} employeePosition={employeePosition} t={t} />
+    const pendingState =
+      !pendingPersonalDataProcess.isLoading && !pendingPersonalDataProcess.hasPendingProcess ? 'stale' : 'active'
+
+    return (
+      <ChangePersonalDataPendingView
+        title={title}
+        employee={employee}
+        employeePosition={employeePosition}
+        t={t}
+        state={pendingState}
+      />
+    )
   }
 
   return (
@@ -490,7 +524,9 @@ const ChangePersonalDataForm: React.FC<ChangePersonalDataFormProps> = ({ accessT
           isSubmitDisabled={!form.formState.isValid || isUnchangedNow || isDocumentInfoMissing}
           onSuccess={() => {
             hasUserInteractedRef.current = false
+            void onDataChanged()
           }}
+          processTimeoutBehavior="error"
           handlePreSubmit={async values => {
             const syncResult = await documentSync.syncDocuments({
               documentGroup: values.documentGroupId || null,

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo, useState } from 'react'
 import {
   FormField,
   FormItem,
@@ -31,17 +31,43 @@ const getCatalogOptionLabel = (entry: CatalogEntry, preferTranslation: boolean):
   return entry.value || entry.translations?.[0]?.value || ''
 }
 
-const getSortedCatalogOptions = (entries: CatalogEntry[] = [], preferTranslation = true) =>
+const getCatalogSearchText = (entry: CatalogEntry, label: string): string => {
+  const translationValues = entry.translations?.map(translation => translation.value).filter(Boolean) || []
+
+  return [label, entry.value, ...translationValues].filter(Boolean).join(' ')
+}
+
+const matchesCatalogQuery = (entry: CatalogEntry, label: string, query: string): boolean => {
+  const normalizedQuery = query.trim().toLowerCase()
+
+  if (!normalizedQuery) {
+    return true
+  }
+
+  return getCatalogSearchText(entry, label).toLowerCase().includes(normalizedQuery)
+}
+
+const getSortedCatalogOptions = (entries: CatalogEntry[] = [], preferTranslation = true, query = '') =>
   [...entries]
     .sort((a, b) =>
       getCatalogOptionLabel(a, preferTranslation).localeCompare(getCatalogOptionLabel(b, preferTranslation))
     )
-    .map(entry => ({
-      value: String(entry.id),
-      label: getCatalogOptionLabel(entry, preferTranslation)
-    }))
+    .flatMap(entry => {
+      const label = getCatalogOptionLabel(entry, preferTranslation)
+
+      if (!matchesCatalogQuery(entry, label, query)) {
+        return []
+      }
+
+      return {
+        value: String(entry.id),
+        label
+      }
+    })
 
 const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupProps> = ({ control, catalogs }) => {
+  const [nationalityQuery, setNationalityQuery] = useState('')
+  const [languageQuery, setLanguageQuery] = useState('')
   const placeholderSelect = getTranslationFromI18nKeyAndLabel(
     'lowcoder:employee_profile.details_layout.personal_information_container.select_placeholder',
     'Please Select'
@@ -58,8 +84,14 @@ const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupPro
     'lowcoder:employee_profile.details_layout.personal_information_container.language',
     'Native Language'
   )
-  const nationalityOptions = getSortedCatalogOptions(catalogs.nationality, nationalityLabel !== 'Nationality')
-  const languageOptions = getSortedCatalogOptions(catalogs.language, languageLabel !== 'Native Language')
+  const nationalityOptions = useMemo(
+    () => getSortedCatalogOptions(catalogs.nationality, nationalityLabel !== 'Nationality', nationalityQuery),
+    [catalogs.nationality, nationalityLabel, nationalityQuery]
+  )
+  const languageOptions = useMemo(
+    () => getSortedCatalogOptions(catalogs.language, languageLabel !== 'Native Language', languageQuery),
+    [catalogs.language, languageLabel, languageQuery]
+  )
 
   return (
     <div className="gba:space-y-4" data-testid="change-personal-data-nationality-language-status-group">
@@ -78,6 +110,8 @@ const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupPro
                   field.value === null || field.value === undefined || field.value === '' ? '' : String(field.value)
                 }
                 onValueChange={v => field.onChange(v || null)}
+                onSearch={setNationalityQuery}
+                searchDebounce={0}
                 placeholder={placeholderSelect}
                 searchPlaceholder={getTranslationFromI18nKeyAndLabel(
                   'lowcoder:employee_profile.details_layout.personal_information_container.search_nationality',
@@ -110,6 +144,8 @@ const NationalityLanguageStatusGroup: React.FC<NationalityLanguageStatusGroupPro
                   field.value === null || field.value === undefined || field.value === '' ? '' : String(field.value)
                 }
                 onValueChange={v => field.onChange(v || null)}
+                onSearch={setLanguageQuery}
+                searchDebounce={0}
                 placeholder={placeholderSelect}
                 searchPlaceholder={getTranslationFromI18nKeyAndLabel(
                   'lowcoder:employee_profile.details_layout.personal_information_container.search_language',

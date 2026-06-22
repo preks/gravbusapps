@@ -10,6 +10,7 @@ export type StepKindId =
   | 'ai-task-expert'
   | 'function'
   | 'connector'
+  | 'save-to-custom-data'
   | 'decision-user'
   | 'decision-ai'
   | 'decision-logic'

@@ -92,7 +92,6 @@ export const HintAwareSchemaField: React.FC<HintAwareSchemaFieldProps> = ({
 
     // `format: date` or no format: match SchemaField `format === 'date'` (calendar day, YYYY-MM-DD).
     const dateInputValue = typeof value === 'string' ? value.split('T')[0] : ''
-    const isEndField = fieldName === 'endDate' || fieldName === 'endAssetConditionRef'
 
     return (
       <div className="gba:mb-4">
@@ -107,7 +106,7 @@ export const HintAwareSchemaField: React.FC<HintAwareSchemaFieldProps> = ({
             const next = typeof v === 'string' ? v : ''
             onChange(next)
           }}
-          disabled={disabled || isEndField}
+          disabled={disabled}
           className="gba:w-full"
         />
       </div>

@@ -11,7 +11,42 @@ export enum FlowStepType {
   ACKNOWLEDGE = 'ACKNOWLEDGE',
   FUNCTION = 'FUNCTION',
   AI_AGENT = 'AI_AGENT',
-  AI_TASK_EXPERT = 'AI_TASK_EXPERT'
+  AI_TASK_EXPERT = 'AI_TASK_EXPERT',
+  /** System step that writes to Custom Data (entity rows or the generic Flow Data store). */
+  CUSTOM_DATA_MUTATION = 'CUSTOM_DATA_MUTATION'
+}
+
+/** Where a CUSTOM_DATA_MUTATION step writes: a typed custom entity, or the generic append-only Flow Data store. */
+export type CustomDataTarget = 'ENTITY' | 'FLOW_DATA'
+
+/** Operations supported by a CUSTOM_DATA_MUTATION step. */
+export type CustomDataOperation = 'create' | 'update' | 'delete' | 'append'
+
+/**
+ * Configuration for a CUSTOM_DATA_MUTATION step. Values are expression strings
+ * (e.g. {{$steps.step_0.output.formData.amount}}) resolved at execution time.
+ */
+export interface CustomDataStepConfig {
+  /** ENTITY (typed custom-data entity) or FLOW_DATA (generic append-only store). Defaults to ENTITY. */
+  target?: CustomDataTarget
+  operation?: CustomDataOperation
+  namespace?: string
+  /** Public entity name (ENTITY target only). */
+  entityName?: string
+  /** Row id expression for update/delete (ENTITY target only). */
+  rowId?: string
+  /** field/key -> expression map written into the row or the Flow Data blob. */
+  values?: Record<string, string>
+  /** Optional logical grouping key for FLOW_DATA appends. */
+  recordKey?: string
+  /**
+   * When true (ENTITY target only), the step is executed by a restricted AI agent
+   * (flowbot) that only has the custom-data tools and decides create/update/delete
+   * itself from the instructions. Operation/values/rowId are not used in this mode.
+   */
+  useAiAgent?: boolean
+  /** Free-form instructions for the AI agent when useAiAgent is true. */
+  instructions?: string
 }
 
 export enum InputType {
@@ -131,6 +166,9 @@ export interface FlowStep {
     outputExpressionMap?: Record<string, string> // Output mapping (key -> expression destination)
     modelSettings?: Record<string, any> // Optional model settings override
   }
+
+  // Custom Data step configuration (used when type === CUSTOM_DATA_MUTATION)
+  customDataConfig?: CustomDataStepConfig
 
   // Event subscriptions for reactive automation on this step
   eventSubscriptions?: EventSubscription[]

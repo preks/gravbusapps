@@ -11,7 +11,8 @@ import type {
   SummaryField,
   EventSubscription,
   TaskPriority,
-  Link
+  Link,
+  CustomDataStepConfig
 } from '@/common/data/flow/types/flowTemplate'
 import type { FlowTags } from '@/business-apps/flow/types'
 import type { StepKindId } from '../components/step-picker/stepKindTypes'
@@ -115,6 +116,8 @@ export interface TaskNodeConfig {
   }
   eventSubscriptions?: EventSubscription[]
   reworkConfig?: ReworkConfig
+  /** Configuration for CUSTOM_DATA_MUTATION steps (target, operation, values map). */
+  customDataConfig?: CustomDataStepConfig
   simpleAIConfig?: {
     instruction: string
   }

@@ -1041,6 +1041,8 @@ service-requests-status-canceled = Canceled
 
 # Change Personal Data - Pending state (aligns with notification-personal-data-updated-success)
 change-personal-data-pending-message = HR is currently reviewing your recent updates. You’ll be able to make further changes as soon as they have approved the request.
+change-personal-data-stale-pending-message = This employee is marked as pending, but no active personal data approval request was found. Please contact HR or an administrator to review the employee status.
+change-personal-data-pending-status = Pending
 change-personal-data-pending-ok = OK
 
 # Change Address - Loading

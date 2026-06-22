@@ -22,6 +22,8 @@ export interface ProcessMessage {
   message: string
 }
 
+type ProcessTimeoutBehavior = 'resolve' | 'error'
+
 export interface AppActionFormProps {
   children: React.ReactNode
   processType: 'create' | 'update' | 'delete' | 'custom'
@@ -59,6 +61,11 @@ export interface AppActionFormProps {
   // Optional completion callback and success navigation
   onProcessCompletion?: (detail: { resolution?: 'success' | 'failure' } | null) => void
   /**
+   * Defaults to the legacy behavior for existing forms. Use "error" for flows that must not report success
+   * without a confirmed process completion event.
+   */
+  processTimeoutBehavior?: ProcessTimeoutBehavior
+  /**
    * Optional payload for the cancel event. When provided, form validation is run before cancel;
    * cancel is only dispatched if validation passes. Use for flows where comments are required for both approve and reject.
    */
@@ -86,19 +93,61 @@ const getSuccessMessage = (processType: string, t: (key: string, args?: Record<s
   }
 }
 
+const getPathValue = (source: Record<string, any> | null | undefined, path: string[]): unknown => {
+  return path.reduce<unknown>((current, segment) => {
+    if (!current || typeof current !== 'object') {
+      return undefined
+    }
+    return (current as Record<string, unknown>)[segment]
+  }, source)
+}
+
+const getFirstStringAtPaths = (source: Record<string, any> | null | undefined, paths: string[][]): string | null => {
+  for (const path of paths) {
+    const value = getPathValue(source, path)
+    if (typeof value === 'string' && value.trim() !== '') {
+      return value.trim()
+    }
+  }
+
+  return null
+}
+
 const getProcessFailureMessage = (
   detail: Record<string, any> | null | undefined,
   t: (key: string, args?: Record<string, any>) => string
 ): string => {
-  const candidates = [
-    detail?.response?.detail?.message,
-    detail?.response?.detail?.error,
-    detail?.response?.message,
-    detail?.message,
-    detail?.error
-  ]
+  const errorCode = getFirstStringAtPaths(detail, [
+    ['response', 'detail', 'code'],
+    ['response', 'detail', 'errorCode'],
+    ['response', 'detail', 'validationErrorCode'],
+    ['response', 'data', 'code'],
+    ['response', 'data', 'errorCode'],
+    ['response', 'data', 'validationErrorCode'],
+    ['detail', 'code'],
+    ['detail', 'errorCode'],
+    ['detail', 'validationErrorCode'],
+    ['code'],
+    ['errorCode'],
+    ['validationErrorCode']
+  ])
 
-  const firstMessage = candidates.find(candidate => typeof candidate === 'string' && candidate.trim() !== '')
+  if (errorCode === 'NO_APPROVER_ASSIGNED' || errorCode === 'NO_HR_MANAGER_ASSIGNED') {
+    return t('process-error-no-approver-assigned')
+  }
+
+  const firstMessage = getFirstStringAtPaths(detail, [
+    ['response', 'detail', 'message'],
+    ['response', 'detail', 'error'],
+    ['response', 'data', 'message'],
+    ['response', 'data', 'error'],
+    ['response', 'message'],
+    ['detail', 'message'],
+    ['detail', 'error'],
+    ['message'],
+    ['error']
+  ])
+
   return firstMessage || t('process-error-generic')
 }
 
@@ -248,6 +297,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
   handlePreSubmit,
   isSubmitDisabled = false,
   onProcessCompletion,
+  processTimeoutBehavior = 'resolve',
   getCancelPayload,
   onBeforeCancel
 }) => {
@@ -298,11 +348,15 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
           console.log('[AppActionForm] Payload:', result)
         }
 
-        // Create a promise that resolves when process completes OR after timeout
+        // Create a promise that resolves when process completes OR follows the configured timeout behavior.
         const waitForProcessCompletion = new Promise<void>((resolve, reject) => {
           const TIMEOUT = 10000
           const timeoutId = setTimeout(() => {
             cleanup()
+            if (processTimeoutBehavior === 'error') {
+              reject(new Error(t('process-error-timeout')))
+              return
+            }
             resolve()
           }, TIMEOUT)
 
@@ -358,7 +412,17 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
         isSubmittingRef.current = false
       }
     },
-    [submitEventType, onSubmit, validateForm, onSuccess, formData, handlePreSubmit, onProcessCompletion, t]
+    [
+      submitEventType,
+      onSubmit,
+      validateForm,
+      onSuccess,
+      formData,
+      handlePreSubmit,
+      onProcessCompletion,
+      processTimeoutBehavior,
+      t
+    ]
   )
 
   const handleCancel = useCallback(async () => {

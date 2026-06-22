@@ -14,6 +14,7 @@ import {
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { AppActionForm } from '@/components/app-action-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { FormLocalizationProvider } from '@/common/components/form-localization-provider'
 import {
   leadConvertSchema,
   type LeadConvertSchema
@@ -145,7 +146,7 @@ interface ConvertLeadFormProps extends BusinessAppContextProps {
   onSuccess?: () => void
 }
 
-export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSuccess }: ConvertLeadFormProps) => {
+const LeadConvertFormContent = ({ accessToken, userInfo, additionalData, onSuccess }: ConvertLeadFormProps) => {
   // Extract leadId from additionalData
   const actualLeadId = additionalData?.leadId || additionalData?.psi_taskPayload?.psi_initialParameters?.leadId || ''
 
@@ -704,5 +705,11 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
     </AppActionForm>
   )
 }
+
+export const LeadConvertForm = (props: ConvertLeadFormProps) => (
+  <FormLocalizationProvider>
+    <LeadConvertFormContent {...props} />
+  </FormLocalizationProvider>
+)
 
 export default LeadConvertForm
