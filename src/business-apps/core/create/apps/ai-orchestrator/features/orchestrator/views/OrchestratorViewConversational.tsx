@@ -43,7 +43,7 @@ import { ImportFolderNewAppDialog } from '@/common/components/ai-builder/import-
 import type { BuildPlan } from '../types/build'
 import type { OrchestratorFixComposerScope } from '../types/chat'
 import { isCompletedBuildStatus } from '../types'
-import translations from '../../../../_i18n'
+import translations from '../../../_i18n'
 
 export interface OrchestratorViewConversationalProps {
   accessToken: string

@@ -126,6 +126,7 @@ export interface EveryFabricMainViewProps {
   onCloseEnterpriseWorkforce: () => void
   onSelectSession: (id: string) => void
   onOpenTraceExplorer: (positionMs?: number) => void
+  onOpenSessionMesh: () => void
   onOpenAgentMeshFromTrace: (positionMs?: number) => void
   onStartSession: FabricContext['startSession']
 }
@@ -159,6 +160,7 @@ export function EveryFabricMainView({
   onCloseEnterpriseWorkforce,
   onSelectSession,
   onOpenTraceExplorer,
+  onOpenSessionMesh,
   onOpenAgentMeshFromTrace,
   onStartSession
 }: Readonly<EveryFabricMainViewProps>) {
@@ -242,7 +244,7 @@ export function EveryFabricMainView({
           }}
         >
           {session ? (
-            <WorkspaceLayout devModeEnabled={devModeEnabled} />
+            <WorkspaceLayout devModeEnabled={devModeEnabled} onOpenSessionMesh={onOpenSessionMesh} />
           ) : (
             <LandingScreen accessToken={accessToken} onStartSession={onStartSession} devModeEnabled={devModeEnabled} />
           )}

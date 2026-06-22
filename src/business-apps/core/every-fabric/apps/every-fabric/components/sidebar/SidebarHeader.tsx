@@ -24,7 +24,7 @@ export const SidebarHeader: React.FC<SidebarHeaderProps> = ({ isCollapsed, onTog
       {!isCollapsed && (
         <span className="gba:inline-flex gba:items-center gba:pl-2 gba:text-[13px] gba:font-extrabold gba:tracking-[0.01em] gba:text-foreground">
           NEWWORK{' '}
-          <span className="gba:ml-1 gba:font-semibold gba:text-muted-foreground">{t('brand-product-plural')}</span>
+          <span className="gba:ml-1 gba:font-semibold gba:text-muted-foreground">{t('sidebar-brand-product')}</span>
         </span>
       )}
 

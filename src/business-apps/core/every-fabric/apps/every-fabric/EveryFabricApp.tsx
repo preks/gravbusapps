@@ -164,7 +164,6 @@ const EveryFabricInner: React.FC = () => {
   const meshScopeParam =
     typeof globalThis.location !== 'undefined' ? new URLSearchParams(globalThis.location.search).get('meshScope') : null
   const isCompanyMeshActive = showAgentMesh && meshScopeParam === 'company'
-  const isSessionMeshActive = showAgentMesh && meshScopeParam !== 'company'
   const isAnyOverlayShown =
     showSettings ||
     showScheduled ||
@@ -202,8 +201,6 @@ const EveryFabricInner: React.FC = () => {
         isEnterpriseWorkforceActive={showEnterpriseWorkforce}
         onOpenCompanyMesh={handleOpenCompanyMesh}
         isCompanyMeshActive={isCompanyMeshActive}
-        onOpenSessionMesh={handleOpenSessionMesh}
-        isSessionMeshActive={isSessionMeshActive}
         onOpenTraceExplorer={handleOpenTraceExplorer}
         isTraceExplorerActive={showTraceExplorer}
         onOpenTraceLens={handleOpenTraceLens}
@@ -242,6 +239,7 @@ const EveryFabricInner: React.FC = () => {
           onCloseEnterpriseWorkforce={handleCloseEnterpriseWorkforce}
           onSelectSession={handleSelectSession}
           onOpenTraceExplorer={handleOpenTraceExplorer}
+          onOpenSessionMesh={handleOpenSessionMesh}
           onOpenAgentMeshFromTrace={handleOpenAgentMeshFromTrace}
           onStartSession={startSession}
         />
