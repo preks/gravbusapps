@@ -17,7 +17,8 @@ import {
   Check,
   User,
   Robot,
-  FilePdf
+  FilePdf,
+  Copy
 } from '@phosphor-icons/react'
 import { useUserPreferencesContext } from '../context/UserPreferencesContext'
 import type { BehaviorNote, UserSelectableLlmModel, UserSelectableLlmProvider } from '../hooks/useUserPreferences'
@@ -37,6 +38,7 @@ import { isDevTenant } from '../utils/tenantEnv'
  * UI-only sentinel that maps to `null` on the wire (= "use server default").
  */
 type LlmProviderChoice = 'default' | UserSelectableLlmProvider
+const LLM_MODEL_DEFAULT_CHOICE = '__flowbot_default__'
 
 const LLM_PROVIDER_OPTIONS: ReadonlyArray<SegmentedControlOption<LlmProviderChoice>> = [
   { value: 'default', label: 'Default' },
@@ -53,9 +55,9 @@ const LLM_PROVIDER_OPTIONS: ReadonlyArray<SegmentedControlOption<LlmProviderChoi
  * small badge next to each model so devs know *why* a particular model
  * would normally be chosen.
  *
- * Note: when the user pins a specific model from this picker, `model_kind`
- * is deliberately ignored -- the pin wins unconditionally. The tags are
- * purely informational.
+ * Note: when the user chooses the UI's "Default" model option, we send
+ * `llm_model: null` so Flowbot resolves the provider default from its own
+ * config. These tags are only informational for specific model pins.
  */
 type ModelKind = 'default' | 'smart' | 'fast' | 'cheap'
 
@@ -73,13 +75,13 @@ const MODEL_KIND_LABEL: Record<ModelKind, string> = {
  */
 const MODEL_KINDS_BY_PROVIDER: Record<UserSelectableLlmProvider, Record<ModelKind, string>> = {
   azure: {
-    default: 'gpt-4.1',
+    default: 'gpt-5.4',
     smart: 'gpt-5',
     fast: 'gpt-4.1-mini',
     cheap: 'gpt-4o-mini'
   },
   stackit: {
-    default: 'openai/gpt-oss-120b',
+    default: 'Qwen/Qwen3-VL-235B-A22B-Instruct-FP8',
     smart: 'openai/gpt-oss-120b',
     fast: 'openai/gpt-oss-120b',
     cheap: 'openai/gpt-oss-20b'
@@ -91,7 +93,7 @@ const MODEL_KINDS_BY_PROVIDER: Record<UserSelectableLlmProvider, Record<ModelKin
     cheap: 'openai/gpt-oss-20b'
   },
   anthropic: {
-    default: 'claude-sonnet-4-20250514',
+    default: 'claude-sonnet-4-6',
     smart: 'claude-opus-4-1-20250805',
     fast: 'claude-sonnet-4-5-20250929',
     cheap: 'claude-haiku-4-5-20251001'
@@ -120,13 +122,25 @@ function formatModelLabel(provider: UserSelectableLlmProvider, model: string): s
  * Adding a model here without adding it there will make the backend silently
  * fall back to the provider's default (it rejects unknown pairings).
  *
- * Labels deliberately use the full canonical model id -- no friendly
- * renaming -- so the value the backend receives is unambiguous from the
- * label a developer sees. A kind badge (Default/Smart/Fast/Cheap) is
- * appended when the model is the provider's pick for that kind.
+ * Labels for specific model pins deliberately use the full canonical model
+ * id -- no friendly renaming -- so the value the backend receives is
+ * unambiguous from the label a developer sees. A kind badge
+ * (Default/Smart/Fast/Cheap) is appended when the model is the provider's
+ * current pick for that kind. The leading "Default" option is different:
+ * it sends `llm_model: null` and lets Flowbot resolve its own default.
  */
 const PROVIDER_MODEL_IDS: Record<UserSelectableLlmProvider, ReadonlyArray<UserSelectableLlmModel>> = {
-  azure: ['gpt-4.1', 'gpt-4.1-mini', 'gpt-4o', 'gpt-4o-mini', 'o4-mini', 'gpt-5', 'gpt-5.3-chat', 'Mistral-Large-3'],
+  azure: [
+    'gpt-4.1',
+    'gpt-4.1-mini',
+    'gpt-4o',
+    'gpt-4o-mini',
+    'o4-mini',
+    'gpt-5',
+    'gpt-5.3-chat',
+    'gpt-5.4',
+    'Mistral-Large-3'
+  ],
   stackit: [
     'openai/gpt-oss-120b',
     'openai/gpt-oss-20b',
@@ -136,41 +150,31 @@ const PROVIDER_MODEL_IDS: Record<UserSelectableLlmProvider, ReadonlyArray<UserSe
     'neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8',
     'google/gemma-3-27b-it'
   ],
-  groq: ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'llama-3.3-70b-versatile'],
+  groq: ['llama-3.3-70b-versatile', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b'],
   anthropic: [
-    'claude-sonnet-4-20250514',
-    'claude-opus-4-1-20250805',
     'claude-sonnet-4-5-20250929',
+    'claude-sonnet-4-6',
     'claude-3-7-sonnet-latest',
-    'claude-haiku-4-5-20251001'
+    'claude-haiku-4-5-20251001',
+    'claude-opus-4-1-20250805'
   ]
 }
 
-const MODELS_BY_PROVIDER: Record<UserSelectableLlmProvider, ReadonlyArray<SelectOption<UserSelectableLlmModel>>> = (
+const MODELS_BY_PROVIDER: Record<UserSelectableLlmProvider, ReadonlyArray<SelectOption<string>>> = (
   Object.keys(PROVIDER_MODEL_IDS) as UserSelectableLlmProvider[]
 ).reduce(
   (acc, provider) => {
-    acc[provider] = PROVIDER_MODEL_IDS[provider].map(model => ({
-      value: model,
-      label: formatModelLabel(provider, model)
-    }))
+    acc[provider] = [
+      { value: LLM_MODEL_DEFAULT_CHOICE, label: 'Default - use Flowbot config' },
+      ...PROVIDER_MODEL_IDS[provider].map(model => ({
+        value: model,
+        label: formatModelLabel(provider, model)
+      }))
+    ]
     return acc
   },
-  {} as Record<UserSelectableLlmProvider, ReadonlyArray<SelectOption<UserSelectableLlmModel>>>
+  {} as Record<UserSelectableLlmProvider, ReadonlyArray<SelectOption<string>>>
 )
-
-/**
- * Canonical default model per provider, mirroring the backend's
- * ``PROVIDER_DEFAULT_MODEL``. Used when the user switches providers to
- * reset the pinned model to something guaranteed-valid for the new
- * provider.
- */
-const DEFAULT_MODEL_BY_PROVIDER: Record<UserSelectableLlmProvider, UserSelectableLlmModel> = {
-  azure: 'gpt-4.1',
-  stackit: 'openai/gpt-oss-120b',
-  groq: 'openai/gpt-oss-120b',
-  anthropic: 'claude-sonnet-4-20250514'
-}
 
 interface UserPreferencesProps {
   darkMode?: boolean
@@ -182,9 +186,21 @@ interface UserPreferencesProps {
   onPrintSession?: () => void
   /** Disable the print-session button (e.g. when the conversation is empty). */
   canPrintSession?: boolean
+  /**
+   * Current chat session id. Surfaced as a copyable pill in the modal
+   * header so anyone (not just dev tenants) can paste it into Grafana to
+   * pull up the matching backend session logs without having to first
+   * search for one of their own messages.
+   */
+  sessionId?: string | null
 }
 
-export function UserPreferences({ darkMode = false, onPrintSession, canPrintSession = true }: UserPreferencesProps) {
+export function UserPreferences({
+  darkMode = false,
+  onPrintSession,
+  canPrintSession = true,
+  sessionId
+}: UserPreferencesProps) {
   const {
     preferences,
     isLoading,
@@ -204,6 +220,18 @@ export function UserPreferences({ darkMode = false, onPrintSession, canPrintSess
   const [isSaving, setIsSaving] = useState(false)
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [editingText, setEditingText] = useState('')
+  const [sessionIdCopied, setSessionIdCopied] = useState(false)
+
+  const handleCopySessionId = useCallback(async () => {
+    if (!sessionId) return
+    try {
+      await navigator.clipboard.writeText(sessionId)
+      setSessionIdCopied(true)
+      setTimeout(() => setSessionIdCopied(false), 1500)
+    } catch (err) {
+      console.error('Failed to copy session id:', err)
+    }
+  }, [sessionId])
 
   // Handle Escape key to close modal (accessibility)
   useEffect(() => {
@@ -309,14 +337,12 @@ export function UserPreferences({ darkMode = false, onPrintSession, canPrintSess
   const pinnedProvider: UserSelectableLlmProvider | null = llmProviderChoice === 'default' ? null : llmProviderChoice
   const modelOptions = pinnedProvider ? MODELS_BY_PROVIDER[pinnedProvider] : []
   const pinnedModel: UserSelectableLlmModel | null = settings.llm_model ?? null
-  // Fall back to the provider's canonical default in the UI when the stored
-  // model isn't valid for the current provider -- this mirrors what the
-  // backend does when resolving the pin, so the displayed choice always
-  // matches the actual model used.
-  const effectiveModel: UserSelectableLlmModel = pinnedProvider
-    ? pinnedModel && modelOptions.some(opt => opt.value === pinnedModel)
+  // Missing or stale model pins render as "Default", which sends
+  // `llm_model: null` and lets Flowbot use its own current provider default.
+  const effectiveModel = pinnedProvider
+    ? pinnedModel && PROVIDER_MODEL_IDS[pinnedProvider].includes(pinnedModel)
       ? pinnedModel
-      : DEFAULT_MODEL_BY_PROVIDER[pinnedProvider]
+      : LLM_MODEL_DEFAULT_CHOICE
     : ''
 
   const handleToggleChatCache = useCallback(
@@ -350,10 +376,9 @@ export function UserPreferences({ darkMode = false, onPrintSession, canPrintSess
       // dangling pinned model -- the model is meaningless without a
       // provider and could be invalid for whatever the server picks next).
       const wireProvider: UserSelectableLlmProvider | null = next === 'default' ? null : next
-      const wireModel: UserSelectableLlmModel | null = wireProvider ? DEFAULT_MODEL_BY_PROVIDER[wireProvider] : null
       setIsSaving(true)
       const success = await updatePreferences({
-        settings: { llm_provider: wireProvider, llm_model: wireModel }
+        settings: { llm_provider: wireProvider, llm_model: null }
       })
       setIsSaving(false)
       if (success) refresh()
@@ -362,10 +387,11 @@ export function UserPreferences({ darkMode = false, onPrintSession, canPrintSess
   )
 
   const handleSelectLlmModel = useCallback(
-    async (next: UserSelectableLlmModel) => {
+    async (next: string) => {
+      const wireModel: UserSelectableLlmModel | null = next === LLM_MODEL_DEFAULT_CHOICE ? null : next
       setIsSaving(true)
       const success = await updatePreferences({
-        settings: { llm_model: next }
+        settings: { llm_model: wireModel }
       })
       setIsSaving(false)
       if (success) refresh()
@@ -422,6 +448,36 @@ export function UserPreferences({ darkMode = false, onPrintSession, canPrintSess
           <p className="gba:text-sm gba:mt-1" style={{ color: darkMode ? 'rgba(255,255,255,0.6)' : '#666' }}>
             Preferences learned from your previous sessions
           </p>
+          {sessionId && (
+            <div className="gba:flex gba:items-center gba:gap-2 gba:mt-3 gba:text-xs">
+              <span style={{ color: darkMode ? 'rgba(255,255,255,0.5)' : '#888' }}>Session ID</span>
+              <code
+                className="gba:font-mono gba:px-2 gba:py-0.5 gba:rounded gba:truncate gba:min-w-0 gba:flex-1"
+                style={{
+                  background: darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+                  color: darkMode ? 'rgba(255,255,255,0.85)' : '#444',
+                  fontSize: '11px'
+                }}
+                title={sessionId}
+              >
+                {sessionId}
+              </code>
+              <button
+                type="button"
+                onClick={handleCopySessionId}
+                aria-label={sessionIdCopied ? 'Session ID copied' : 'Copy session ID'}
+                title={sessionIdCopied ? 'Copied!' : 'Copy session ID'}
+                className="gba:p-1 gba:rounded gba:transition-colors hover:gba:bg-black/10 gba:flex-shrink-0"
+                style={{ color: sessionIdCopied ? `rgb(${goldRgb})` : darkMode ? 'rgba(255,255,255,0.6)' : '#888' }}
+              >
+                {sessionIdCopied ? (
+                  <Check className="gba:h-3.5 gba:w-3.5" weight="bold" />
+                ) : (
+                  <Copy className="gba:h-3.5 gba:w-3.5" />
+                )}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Content */}
@@ -810,7 +866,7 @@ export function UserPreferences({ darkMode = false, onPrintSession, canPrintSess
                     label="LLM model"
                     description="Pick a specific model within the chosen provider's family. Only applies when a provider is pinned."
                     control={
-                      <SettingSelect<UserSelectableLlmModel>
+                      <SettingSelect<string>
                         darkMode={darkMode}
                         value={effectiveModel}
                         options={modelOptions}

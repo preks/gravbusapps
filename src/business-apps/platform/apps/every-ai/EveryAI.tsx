@@ -1120,6 +1120,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
         darkMode={isEmptyState}
         onPrintSession={handlePrintSession}
         canPrintSession={conversation.length > 0}
+        sessionId={sessionId}
       />
     </div>
   )
