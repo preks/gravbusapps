@@ -1,4 +1,12 @@
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../../_i18n'
 import { RECENTS_STATUS_OPTIONS, type RecentsStatusFilter } from './sessionGrouping'
+
+const FILTER_LABEL_KEYS: Record<RecentsStatusFilter, string> = {
+  completed: 'sidebar-status-done',
+  failed: 'sidebar-status-failed',
+  cancelled: 'sidebar-status-cancelled'
+}
 
 interface SidebarFilterBarProps {
   activeFilters: Set<RecentsStatusFilter> | null
@@ -10,6 +18,7 @@ interface SidebarFilterBarProps {
  * "All" is selected when `activeFilters` is null (no filtering).
  */
 export const SidebarFilterBar: React.FC<SidebarFilterBarProps> = ({ activeFilters, onChange }) => {
+  const { t } = useTranslation(translations)
   const isAll = !activeFilters || activeFilters.size === 0
 
   const toggleStatus = (status: RecentsStatusFilter) => {
@@ -38,7 +47,7 @@ export const SidebarFilterBar: React.FC<SidebarFilterBarProps> = ({ activeFilter
         }`}
         data-testid="sidebar-filter-all"
       >
-        All
+        {t('workforce-filter-all')}
       </button>
       {RECENTS_STATUS_OPTIONS.map(opt => {
         const isActive = activeFilters?.has(opt.value) ?? false
@@ -54,7 +63,7 @@ export const SidebarFilterBar: React.FC<SidebarFilterBarProps> = ({ activeFilter
             }`}
             data-testid={`sidebar-filter-${opt.value}`}
           >
-            {opt.label}
+            {t(FILTER_LABEL_KEYS[opt.value])}
           </button>
         )
       })}

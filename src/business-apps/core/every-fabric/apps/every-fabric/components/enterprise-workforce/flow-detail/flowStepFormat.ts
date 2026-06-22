@@ -54,7 +54,10 @@ export function resolveStepActor(step: FlowDetailStep, nameByStep: Map<number, s
 }
 
 // "Step X of Y · NN%" from the flow progress block, when available.
-export function progressSummary(
+export type FlowTranslateFn = (key: string, vars?: Record<string, string | number>) => string
+
+export function formatProgressSummary(
+  t: FlowTranslateFn,
   currentStep: number | undefined,
   totalSteps: number | undefined,
   completedSteps: number | undefined,
@@ -62,9 +65,15 @@ export function progressSummary(
   isComplete: boolean
 ): string | null {
   if (!totalSteps || totalSteps <= 0) return null
-  if (isComplete) return `${totalSteps} of ${totalSteps} steps`
+  if (isComplete) return t('flow-progress-summary-complete', { total: totalSteps })
   const inferred = (completedSteps ?? 0) + 1
   const current = Math.min(currentStep ?? inferred, totalSteps)
-  const base = `Step ${current} of ${totalSteps}`
-  return typeof percentage === 'number' ? `${base} · ${Math.round(percentage)}%` : base
+  if (typeof percentage === 'number') {
+    return t('flow-progress-summary-pct', {
+      current,
+      total: totalSteps,
+      percent: Math.round(percentage)
+    })
+  }
+  return t('flow-progress-summary', { current, total: totalSteps })
 }

@@ -7,6 +7,14 @@
 import React from 'react'
 import { render, screen } from '@testing-library/react'
 
+jest.mock('@newwork/nw-design-system', () => {
+  const actual = jest.requireActual('@newwork/nw-design-system')
+  return {
+    ...actual,
+    useTranslation: () => ({ t: (key: string) => key })
+  }
+})
+
 jest.mock('@/business-apps/platform/apps/every-ai/components/links/EntityLink', () => ({
   __esModule: true,
   // Chip fallback used for large groups.
@@ -113,8 +121,9 @@ describe('ReferencesRail', () => {
         accessToken="tok"
       />
     )
-    expect(screen.getByText('People')).toBeInTheDocument()
-    expect(screen.getByText('CRM')).toBeInTheDocument()
+    expect(screen.getByText('renderer-references-title')).toBeInTheDocument()
+    expect(screen.getByText('renderer-ref-category-person')).toBeInTheDocument()
+    expect(screen.getByText('renderer-ref-category-crm')).toBeInTheDocument()
     expect(screen.getByText('Anna')).toBeInTheDocument()
     expect(screen.getByText('Acme')).toBeInTheDocument()
   })

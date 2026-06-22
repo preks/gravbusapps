@@ -1,7 +1,7 @@
 // Page shell for the Trace Explorer — header, tabs, and replay timeline.
 
 import { ArrowLeftIcon, ArrowSquareOutIcon, ListMagnifyingGlassIcon, SpinnerGapIcon } from '@phosphor-icons/react'
-import { Badge, Button } from '@newwork/nw-design-system'
+import { Badge, Button, useTranslation } from '@newwork/nw-design-system'
 import { useEffect, useRef } from 'react'
 import { useFabric } from '../../context/FabricContext'
 import { useReplayClock } from '../../hooks/useReplayClock'
@@ -9,6 +9,7 @@ import { useTraceModel } from '../../hooks/useTraceModel'
 import { useTraceUrlParams } from '../../hooks/useTraceUrlParams'
 import { ReplayTimeline } from '../agent-mesh/ReplayTimeline'
 import { TraceTabs } from './TraceTabs'
+import translations from '../../_i18n'
 
 interface TraceExplorerScreenProps {
   onBack: () => void
@@ -29,6 +30,7 @@ function statusLabel(status: string | undefined): string {
 }
 
 export const TraceExplorerScreen: React.FC<TraceExplorerScreenProps> = ({ onBack, onOpenAgentMesh }) => {
+  const { t } = useTranslation(translations)
   const { session, events, isStreaming, activeSessionId } = useFabric()
 
   const { model, source } = useTraceModel({ liveEvents: events, session, isStreaming })
@@ -136,7 +138,7 @@ export const TraceExplorerScreen: React.FC<TraceExplorerScreenProps> = ({ onBack
               data-testid="trace-open-agent-mesh"
             >
               <ArrowSquareOutIcon className="gba:h-3.5 gba:w-3.5 gba:mr-1.5" />
-              Agent Mesh
+              {t('trace-explorer-agent-mesh')}
             </Button>
           )}
         </div>

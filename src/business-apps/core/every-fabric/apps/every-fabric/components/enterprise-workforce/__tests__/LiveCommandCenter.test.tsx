@@ -59,7 +59,7 @@ describe('LiveCommandCenter', () => {
     )
 
     expect(screen.getByTestId('workforce-command-center')).toBeInTheDocument()
-    expect(screen.getByTestId('command-center-ribbon')).toHaveTextContent('done today')
+    expect(screen.getByTestId('command-center-ribbon')).toHaveTextContent('command-center-done-today')
     expect(screen.getByTestId('command-center-item-s-active')).toHaveTextContent('Searching CRM')
     expect(screen.getByTestId('command-center-item-s-done')).toHaveTextContent('Account ACC-9')
   })

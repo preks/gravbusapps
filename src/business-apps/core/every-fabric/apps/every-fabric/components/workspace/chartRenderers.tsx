@@ -1,4 +1,6 @@
-import React, { useId } from 'react'
+import React, { useCallback, useId } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../../_i18n'
 import {
   AreaChart,
   Area,
@@ -91,6 +93,9 @@ const HORIZONTAL_BAR_MIN_HEIGHT = 220
 const HORIZONTAL_BAR_MAX_HEIGHT = 520
 const CLEAN_BAR_FILL = 'var(--primary)'
 
+/** Internal bucket label for aggregated categories — translate at display time via workspace-chart-other. */
+export const CHART_OTHER_CATEGORY_LABEL = 'Other'
+
 const compactLongTail = (data: ChartDataPoint[], valueKey: string, labelKey: string): ChartDataPoint[] => {
   if (data.length <= MAX_PART_TO_WHOLE_ITEMS) return data
 
@@ -99,8 +104,8 @@ const compactLongTail = (data: ChartDataPoint[], valueKey: string, labelKey: str
     const value = row[valueKey] ?? row.value
     return sum + (typeof value === 'number' ? value : 0)
   }, 0)
-  const other: ChartDataPoint = { name: 'Other', value: otherValue }
-  other[labelKey] = 'Other'
+  const other: ChartDataPoint = { name: CHART_OTHER_CATEGORY_LABEL, value: otherValue }
+  other[labelKey] = CHART_OTHER_CATEGORY_LABEL
   other[valueKey] = otherValue
   return [...top, other]
 }
@@ -140,6 +145,25 @@ const truncateAxisLabel = (value: unknown, maxLength = 24): string => {
   return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text
 }
 
+function useChartCategoryLabel() {
+  const { t } = useTranslation(translations)
+  return useCallback(
+    (value: unknown, maxLength = 24) => {
+      if (value === CHART_OTHER_CATEGORY_LABEL) return t('workspace-chart-other')
+      return truncateAxisLabel(value, maxLength)
+    },
+    [t]
+  )
+}
+
+function useChartDisplayName() {
+  const { t } = useTranslation(translations)
+  return useCallback(
+    (name?: string) => (name === CHART_OTHER_CATEGORY_LABEL ? t('workspace-chart-other') : (name ?? '')),
+    [t]
+  )
+}
+
 const numericValueForKeys = (row: ChartDataPoint, keys: string[]): number =>
   keys.reduce((sum, key) => {
     const value = row[key]
@@ -158,8 +182,8 @@ const summarizeCategoryData = (
   const sorted = [...data].sort((a, b) => numericValueForKeys(b, dataKeys) - numericValueForKeys(a, dataKeys))
   const top = sorted.slice(0, safeLimit - 1)
   const rest = sorted.slice(safeLimit - 1)
-  const other: ChartDataPoint = { name: 'Other', value: 0 }
-  other[labelKey] = 'Other'
+  const other: ChartDataPoint = { name: CHART_OTHER_CATEGORY_LABEL, value: 0 }
+  other[labelKey] = CHART_OTHER_CATEGORY_LABEL
 
   for (const key of dataKeys) {
     other[key] = rest.reduce((sum, row) => {
@@ -403,7 +427,9 @@ const ChartTooltip: React.FC<{
   label?: string | number
   unit?: string
 }> = ({ active, payload, label, unit }) => {
+  const formatName = useChartDisplayName()
   if (!active || !payload || payload.length === 0) return null
+  const displayLabel = label === CHART_OTHER_CATEGORY_LABEL ? formatName(String(label)) : label
   return (
     <div
       style={{
@@ -415,8 +441,8 @@ const ChartTooltip: React.FC<{
         fontSize: 11
       }}
     >
-      {label != null && (
-        <div style={{ fontWeight: 600, marginBottom: 4, color: 'var(--foreground, #0a0a0a)' }}>{label}</div>
+      {displayLabel != null && (
+        <div style={{ fontWeight: 600, marginBottom: 4, color: 'var(--foreground, #0a0a0a)' }}>{displayLabel}</div>
       )}
       {payload.map((entry, idx) => (
         <div
@@ -428,7 +454,7 @@ const ChartTooltip: React.FC<{
               style={{ width: 8, height: 8, borderRadius: 9999, background: entry.color, display: 'inline-block' }}
             />
           )}
-          <span>{entry.name}</span>
+          <span>{formatName(entry.name)}</span>
           <span style={{ marginLeft: 'auto', fontWeight: 600, color: 'var(--foreground, #0a0a0a)' }}>
             {formatValueLabel(entry.value, unit)}
           </span>
@@ -490,6 +516,7 @@ export const AreaChartRenderer: React.FC<{ config: SingleChartConfig }> = ({ con
 }
 
 export const BarChartRenderer: React.FC<{ config: SingleChartConfig }> = ({ config }) => {
+  const formatCategoryLabel = useChartCategoryLabel()
   const singleSeries = (config.dataKeys?.length ?? 1) <= 1
   const colors = config.colors ?? DEFAULT_COLORS
   const renderData = chartDataForRender(config)
@@ -519,7 +546,7 @@ export const BarChartRenderer: React.FC<{ config: SingleChartConfig }> = ({ conf
             tick={{ fontSize: 11 }}
             tickLine={false}
             axisLine={false}
-            tickFormatter={v => truncateAxisLabel(v, 22)}
+            tickFormatter={v => formatCategoryLabel(v, 22)}
           />
           <Tooltip cursor={{ fill: 'var(--muted)', opacity: 0.3 }} content={<ChartTooltip unit={config.yAxisUnit} />} />
           {!singleSeries && <Legend wrapperStyle={{ fontSize: 11 }} iconType="circle" />}
@@ -616,6 +643,8 @@ export const LineChartRenderer: React.FC<{ config: SingleChartConfig }> = ({ con
 }
 
 export const PieChartRenderer: React.FC<{ config: SingleChartConfig }> = ({ config }) => {
+  const { t } = useTranslation(translations)
+  const formatDisplayName = useChartDisplayName()
   const valueKey = config.yAxisKey ?? 'value'
   const total = sumSeries(config.data, valueKey)
   return (
@@ -631,8 +660,9 @@ export const PieChartRenderer: React.FC<{ config: SingleChartConfig }> = ({ conf
           innerRadius={52}
           paddingAngle={2}
           label={({ name, percent }: { name?: string; percent?: number }) => {
+            const displayName = formatDisplayName(name)
             const pct = ((percent ?? 0) * 100).toFixed(0)
-            const txt = `${name ?? ''} ${pct}%`
+            const txt = `${displayName} ${pct}%`
             if (txt.length > 12) return `${pct}%`
             return txt
           }}
@@ -667,7 +697,7 @@ export const PieChartRenderer: React.FC<{ config: SingleChartConfig }> = ({ conf
           fill="var(--muted-foreground)"
           style={{ fontSize: 10 }}
         >
-          Total
+          {t('workspace-chart-total')}
         </text>
         <Tooltip content={<ChartTooltip unit={config.yAxisUnit} />} />
         <Legend wrapperStyle={{ fontSize: 11 }} iconType="circle" />

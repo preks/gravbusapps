@@ -1,5 +1,6 @@
 // Displays cost summary from the terminal event's cost_summary field.
 
+import { useTranslation } from '@newwork/nw-design-system'
 import {
   ChartLineIcon,
   ClockIcon,
@@ -13,6 +14,7 @@ import {
   WrenchIcon
 } from '@phosphor-icons/react'
 import type { TraceModel } from '../../utils/traceModel'
+import translations from '../../_i18n'
 
 interface TraceCostTabProps {
   model: TraceModel
@@ -74,41 +76,57 @@ const SectionTitle: React.FC<SectionTitleProps> = ({ children }) => (
 )
 
 export const TraceCostTab: React.FC<TraceCostTabProps> = ({ model }) => {
+  const { t } = useTranslation(translations)
   const { summary } = model
   const cost = summary.costSummary
 
   return (
     <div className="gba:p-5 gba:space-y-6 gba:overflow-y-auto gba:flex-1" data-testid="trace-cost-tab">
       <section>
-        <SectionTitle>Execution overview</SectionTitle>
+        <SectionTitle>{t('trace-explorer-section-execution')}</SectionTitle>
         <div className="gba:grid gba:grid-cols-2 gba:lg:grid-cols-4 gba:gap-3">
           <StatCard
-            label="Total runtime"
+            label={t('trace-explorer-stat-runtime')}
             value={formatDuration(summary.durationMs)}
             icon={ClockIcon}
             accent="primary"
           />
-          <StatCard label="Events processed" value={summary.eventCount} icon={ChartLineIcon} accent="sky" />
-          <StatCard label="Tool calls" value={summary.toolCallCount} icon={WrenchIcon} accent="emerald" />
-          <StatCard label="Decisions" value={summary.decisionCount} icon={ListChecksIcon} accent="amber" />
+          <StatCard
+            label={t('trace-explorer-stat-events')}
+            value={summary.eventCount}
+            icon={ChartLineIcon}
+            accent="sky"
+          />
+          <StatCard
+            label={t('trace-explorer-stat-tool-calls')}
+            value={summary.toolCallCount}
+            icon={WrenchIcon}
+            accent="emerald"
+          />
+          <StatCard
+            label={t('trace-explorer-stat-decisions')}
+            value={summary.decisionCount}
+            icon={ListChecksIcon}
+            accent="amber"
+          />
         </div>
       </section>
 
       <section>
-        <SectionTitle>LLM cost</SectionTitle>
+        <SectionTitle>{t('trace-explorer-section-llm-cost')}</SectionTitle>
         {cost ? (
           <div className="gba:space-y-3">
             <div className="gba:grid gba:grid-cols-2 gba:gap-3">
               <StatCard
-                label="Tokens used"
+                label={t('trace-explorer-stat-tokens')}
                 value={cost.tokens_used.toLocaleString()}
                 icon={CoinsIcon}
                 accent="violet"
               />
               <StatCard
-                label="Estimated cost"
+                label={t('trace-explorer-stat-estimated-cost')}
                 value={`$${cost.estimated_cost_usd.toFixed(4)}`}
-                sublabel={`${cost.budget_pct.toFixed(1)}% of budget`}
+                sublabel={t('trace-explorer-budget-pct', { pct: cost.budget_pct.toFixed(1) })}
                 icon={CurrencyDollarIcon}
                 accent="emerald"
               />
@@ -116,7 +134,7 @@ export const TraceCostTab: React.FC<TraceCostTabProps> = ({ model }) => {
             <div className="gba:rounded-lg gba:border gba:border-border/40 gba:bg-card gba:p-4">
               <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
                 <span className="gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
-                  Budget consumed
+                  {t('trace-explorer-budget-consumed')}
                 </span>
                 <span
                   className={`gba:text-xs gba:font-medium gba:tabular-nums ${
@@ -147,17 +165,32 @@ export const TraceCostTab: React.FC<TraceCostTabProps> = ({ model }) => {
         ) : (
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8 gba:gap-2 gba:rounded-lg gba:border gba:border-dashed gba:border-border/50 gba:bg-muted/10">
             <CurrencyDollarIcon className="gba:h-6 gba:w-6 gba:text-muted-foreground" weight="duotone" />
-            <p className="gba:text-sm gba:text-muted-foreground">Cost data will appear once the session completes</p>
+            <p className="gba:text-sm gba:text-muted-foreground">{t('trace-explorer-cost-pending')}</p>
           </div>
         )}
       </section>
 
       <section>
-        <SectionTitle>Participants</SectionTitle>
+        <SectionTitle>{t('trace-explorer-section-participants')}</SectionTitle>
         <div className="gba:grid gba:grid-cols-3 gba:gap-3">
-          <StatCard label="Sub-agents" value={summary.subagentCount} icon={RobotIcon} accent="emerald" />
-          <StatCard label="Experts" value={summary.expertCount} icon={CompassIcon} accent="violet" />
-          <StatCard label="Skills" value={summary.skillLoadCount} icon={LightbulbIcon} accent="teal" />
+          <StatCard
+            label={t('trace-explorer-stat-subagents')}
+            value={summary.subagentCount}
+            icon={RobotIcon}
+            accent="emerald"
+          />
+          <StatCard
+            label={t('trace-explorer-stat-experts')}
+            value={summary.expertCount}
+            icon={CompassIcon}
+            accent="violet"
+          />
+          <StatCard
+            label={t('trace-explorer-stat-skills')}
+            value={summary.skillLoadCount}
+            icon={LightbulbIcon}
+            accent="teal"
+          />
         </div>
       </section>
     </div>

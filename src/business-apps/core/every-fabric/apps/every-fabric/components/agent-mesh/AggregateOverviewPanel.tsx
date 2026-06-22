@@ -1,5 +1,6 @@
 import { UsersIcon, ClockIcon, LightningIcon, BrainIcon, ArrowRightIcon } from '@phosphor-icons/react'
 import type { MeshScope } from './meshScopes'
+import { useAgentMeshI18n } from './useAgentMeshI18n'
 import type { AggregateStats } from '../../utils/meshAggregateModel'
 
 interface AggregateOverviewPanelProps {
@@ -15,50 +16,63 @@ export const AggregateOverviewPanel: React.FC<AggregateOverviewPanelProps> = ({
   onSelectUser,
   onSelectSession
 }) => {
+  const { t } = useAgentMeshI18n()
   return (
     <div
       className="gba:flex gba:flex-col gba:gap-4 gba:overflow-y-auto gba:rounded-2xl gba:border gba:border-border/60 gba:bg-background gba:p-4"
       data-testid="aggregate-overview-panel"
     >
       <h2 className="gba:text-[13px] gba:font-semibold gba:uppercase gba:tracking-[0.08em] gba:text-muted-foreground">
-        Overview
+        {t('agent-mesh-overview-title')}
       </h2>
 
       <div className="gba:grid gba:grid-cols-2 gba:gap-3">
         <StatCard
           icon={<BrainIcon className="gba:h-4 gba:w-4" weight="duotone" />}
-          label="Agents"
+          label={t('agent-mesh-overview-agents')}
           value={stats.agentCount}
         />
         <StatCard
           icon={<LightningIcon className="gba:h-4 gba:w-4" weight="duotone" />}
-          label="Tools"
+          label={t('agent-mesh-overview-tools')}
           value={stats.toolCount}
         />
         <StatCard
           icon={<ClockIcon className="gba:h-4 gba:w-4" weight="duotone" />}
-          label="Sessions"
+          label={t('agent-mesh-overview-sessions')}
           value={stats.sessionCount}
         />
         {(scope === 'company' || scope === 'user') && (
           <StatCard
             icon={<UsersIcon className="gba:h-4 gba:w-4" weight="duotone" />}
-            label="Users"
+            label={t('agent-mesh-overview-users')}
             value={stats.userCount}
           />
         )}
       </div>
 
-      <RankedList title="Top Agents" items={stats.topAgents} emptyLabel="No agents recorded" />
+      <RankedList
+        title={t('agent-mesh-overview-top-agents')}
+        items={stats.topAgents}
+        emptyLabel={t('agent-mesh-overview-no-agents')}
+      />
 
-      <RankedList title="Top Skills" items={stats.topSkills} emptyLabel="No skills recorded" />
+      <RankedList
+        title={t('agent-mesh-overview-top-skills')}
+        items={stats.topSkills}
+        emptyLabel={t('agent-mesh-overview-no-skills')}
+      />
 
-      <RankedList title="Top Tools" items={stats.topTools} emptyLabel="No tools recorded" />
+      <RankedList
+        title={t('agent-mesh-overview-top-tools')}
+        items={stats.topTools}
+        emptyLabel={t('agent-mesh-overview-no-tools')}
+      />
 
       {stats.recentUsers && stats.recentUsers.length > 0 && onSelectUser && (
         <section className="gba:mt-2">
           <h3 className="gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-[0.1em] gba:text-muted-foreground gba:mb-2">
-            Active Users
+            {t('agent-mesh-overview-active-users')}
           </h3>
           <ul className="gba:space-y-1">
             {stats.recentUsers.map(user => (
@@ -73,7 +87,7 @@ export const AggregateOverviewPanel: React.FC<AggregateOverviewPanelProps> = ({
                     {user.displayName || user.userId.slice(0, 8) + '…'}
                   </span>
                   <span className="gba:flex gba:items-center gba:gap-1 gba:text-muted-foreground">
-                    {user.sessionCount} sessions
+                    {t('agent-mesh-overview-user-sessions', { count: user.sessionCount })}
                     <ArrowRightIcon className="gba:h-3 gba:w-3" />
                   </span>
                 </button>
@@ -86,7 +100,7 @@ export const AggregateOverviewPanel: React.FC<AggregateOverviewPanelProps> = ({
       {stats.recentSessions && stats.recentSessions.length > 0 && onSelectSession && (
         <section className="gba:mt-2">
           <h3 className="gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-[0.1em] gba:text-muted-foreground gba:mb-2">
-            Recent Sessions
+            {t('agent-mesh-overview-recent-sessions')}
           </h3>
           <ul className="gba:space-y-1">
             {stats.recentSessions.map(session => (

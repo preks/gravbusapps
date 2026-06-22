@@ -12,6 +12,7 @@ import { Canvas } from '@react-three/fiber'
 import { Bloom, EffectComposer } from '@react-three/postprocessing'
 import { GlassCardCluster } from './GlassCardCluster'
 import { cardStatusStyle, type GlassCardModel } from './glassCardModel'
+import { useGlassCardI18n } from './useGlassCardI18n'
 import { detectWebGL, usePrefersReducedMotion } from './glassCardEnv'
 import { DARK_GLASS_THEME, type GlassCardTheme } from './glassCardTheme'
 import type { ValueKpiTile } from './kpiModel'
@@ -51,38 +52,42 @@ class SceneErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryStat
   }
 }
 
-const FallbackGrid: React.FC<{ cards: GlassCardModel[] }> = ({ cards }) => (
-  <div
-    className="gba:grid gba:grid-cols-1 gba:gap-3 gba:p-4 sm:gba:grid-cols-2 lg:gba:grid-cols-3"
-    data-testid="glass-card-scene-fallback"
-  >
-    {cards.map(card => {
-      const style = cardStatusStyle(card.status)
-      return (
-        <div
-          key={card.id}
-          className="gba:flex gba:flex-col gba:gap-2 gba:rounded-2xl gba:border gba:border-border/60 gba:bg-card/60 gba:p-4 gba:backdrop-blur"
-        >
-          <div className="gba:flex gba:items-start gba:justify-between gba:gap-2">
-            <div className="gba:min-w-0">
-              <h4 className="gba:truncate gba:text-sm gba:font-semibold gba:text-foreground">{card.title}</h4>
-              <p className="gba:truncate gba:text-xs gba:text-muted-foreground">{card.subtitle}</p>
+const FallbackGrid: React.FC<{ cards: GlassCardModel[] }> = ({ cards }) => {
+  const { statusLabel } = useGlassCardI18n()
+
+  return (
+    <div
+      className="gba:grid gba:grid-cols-1 gba:gap-3 gba:p-4 sm:gba:grid-cols-2 lg:gba:grid-cols-3"
+      data-testid="glass-card-scene-fallback"
+    >
+      {cards.map(card => {
+        const style = cardStatusStyle(card.status)
+        return (
+          <div
+            key={card.id}
+            className="gba:flex gba:flex-col gba:gap-2 gba:rounded-2xl gba:border gba:border-border/60 gba:bg-card/60 gba:p-4 gba:backdrop-blur"
+          >
+            <div className="gba:flex gba:items-start gba:justify-between gba:gap-2">
+              <div className="gba:min-w-0">
+                <h4 className="gba:truncate gba:text-sm gba:font-semibold gba:text-foreground">{card.title}</h4>
+                <p className="gba:truncate gba:text-xs gba:text-muted-foreground">{card.subtitle}</p>
+              </div>
+              <span
+                className={`gba:shrink-0 gba:rounded-full gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-medium ${style.fallbackClass}`}
+              >
+                {statusLabel(card.status)}
+              </span>
             </div>
-            <span
-              className={`gba:shrink-0 gba:rounded-full gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-medium ${style.fallbackClass}`}
-            >
-              {style.label}
-            </span>
+            <div className="gba:mt-auto">
+              <span className="gba:text-xl gba:font-semibold gba:text-foreground">{card.value}</span>
+              <span className="gba:ml-1 gba:text-xs gba:text-muted-foreground">{card.valueUnit}</span>
+            </div>
           </div>
-          <div className="gba:mt-auto">
-            <span className="gba:text-xl gba:font-semibold gba:text-foreground">{card.value}</span>
-            <span className="gba:ml-1 gba:text-xs gba:text-muted-foreground">{card.valueUnit}</span>
-          </div>
-        </div>
-      )
-    })}
-  </div>
-)
+        )
+      })}
+    </div>
+  )
+}
 
 export const GlassCardScene: React.FC<GlassCardSceneProps> = ({
   cards,

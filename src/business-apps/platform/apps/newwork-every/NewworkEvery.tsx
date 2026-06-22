@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { Bot, FileText, StickyNote, PenTool, Clock, Globe, Inbox, MessageCircle } from 'lucide-react'
@@ -11,6 +12,7 @@ import {
   ConnectionsVisualization,
   ToolCardProps
 } from './components'
+import translations from './_i18n'
 
 export interface NewworkEveryProps extends BusinessAppContextProps {
   'data-testid'?: string
@@ -32,6 +34,7 @@ export const NewworkEvery: React.FC<NewworkEveryProps> = ({
   userInfo,
   'data-testid': testId = 'newwork-every'
 }) => {
+  const { t } = useTranslation(translations)
   const employeeId = userInfo?.employeeDetails?.employeeId
   const { pictureThumbnail } = useCurrentUserPicture(employeeId, accessToken)
 
@@ -233,11 +236,9 @@ export const NewworkEvery: React.FC<NewworkEveryProps> = ({
             {/* Section header */}
             <div className="gba:text-center gba:mb-6">
               <h2 className="gba:text-2xl gba:sm:text-3xl gba:font-bold gba:text-foreground gba:mb-2">
-                Your productivity toolkit
+                {t('tools-section-title')}
               </h2>
-              <p className="gba:text-muted-foreground gba:max-w-xl gba:mx-auto">
-                Everything you need for a productive workday, powered by AI and designed for you
-              </p>
+              <p className="gba:text-muted-foreground gba:max-w-xl gba:mx-auto">{t('tools-section-subtitle')}</p>
             </div>
 
             {/* All 7 tools in one row */}
@@ -267,8 +268,8 @@ export const NewworkEvery: React.FC<NewworkEveryProps> = ({
           <div className="gba:absolute gba:inset-0 gba:bg-background" />
           <div className="gba:relative gba:max-w-4xl gba:mx-auto gba:text-center">
             <p className="gba:text-muted-foreground">
-              Part of the <span className="gba:font-semibold gba:text-foreground">NEWWORK</span> platform. Your
-              productivity, amplified.
+              {t('footer-tagline-part1')} <span className="gba:font-semibold gba:text-foreground">NEWWORK</span>{' '}
+              {t('footer-tagline-part2')}
             </p>
           </div>
         </section>

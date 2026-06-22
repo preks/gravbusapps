@@ -9,15 +9,12 @@ import {
   TargetIcon,
   WrenchIcon
 } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { DecisionCategory, ActivityEvent } from '../../types/enterpriseAgent'
 import type { DecisionItem } from '../../hooks/useFabricDecisions'
 import { toolCategoryColor } from '../../utils/renderUtils'
-import {
-  DECISION_CATEGORY_LABEL,
-  formatTimelineClockTime,
-  mergeSessionTimelineEntries,
-  type SessionTimelineEntry
-} from './sessionTimelineMerge'
+import { formatTimelineClockTime, mergeSessionTimelineEntries, type SessionTimelineEntry } from './sessionTimelineMerge'
+import translations from '../../_i18n'
 
 const DECISION_ICON: Record<DecisionCategory, ReactNode> = {
   skill: <SparkleIcon className="gba:h-3 gba:w-3 gba:text-amber-600" weight="duotone" />,
@@ -25,6 +22,14 @@ const DECISION_ICON: Record<DecisionCategory, ReactNode> = {
   reflection: <BrainIcon className="gba:h-3 gba:w-3 gba:text-violet-600" weight="duotone" />,
   hitl: <HandIcon className="gba:h-3 gba:w-3 gba:text-orange-600" weight="duotone" />,
   plan: <ListChecksIcon className="gba:h-3 gba:w-3 gba:text-emerald-600" weight="duotone" />
+}
+
+const DECISION_LABEL_KEY: Record<DecisionCategory, string> = {
+  skill: 'workspace-decision-skill',
+  tool_routing: 'workspace-decision-routing',
+  reflection: 'workspace-decision-reflection',
+  hitl: 'workspace-decision-human-input',
+  plan: 'workspace-decision-plan'
 }
 
 const DOT_RING: Record<DecisionCategory, string> = {
@@ -54,17 +59,17 @@ const isLikelyTaskText = (value?: string) => {
   return compact.length > 42 || compact.split(/\s+/).length > 5
 }
 
-function getActivitySummary(event: ActivityEvent): string {
+function getActivitySummary(event: ActivityEvent, t: (key: string, vars?: Record<string, unknown>) => string): string {
   if (event.type !== 'subagent_spawn') {
     return event.summary
   }
 
   const compactSummary = event.summary.trim()
   if (!compactSummary || normalizeActivityText(compactSummary) === normalizeActivityText(event.agent)) {
-    return event.agent ? `Delegated to ${event.agent}` : 'Delegated to sub-agent'
+    return event.agent ? t('workspace-delegated-to', { agent: event.agent }) : t('workspace-delegated-subagent')
   }
 
-  return isLikelyTaskText(compactSummary) ? 'Working on a delegated task' : compactSummary
+  return isLikelyTaskText(compactSummary) ? t('workspace-delegated-task') : compactSummary
 }
 
 function TimelineDot({ ringClass }: Readonly<{ ringClass: string }>) {
@@ -76,11 +81,12 @@ function TimelineDot({ ringClass }: Readonly<{ ringClass: string }>) {
   )
 }
 
-function DecisionRow({ decision }: Readonly<{ decision: DecisionItem }>) {
+function DecisionRow({ decision, t }: Readonly<{ decision: DecisionItem; t: (key: string) => string }>) {
   const icon = DECISION_ICON[decision.category] ?? (
     <TargetIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground" weight="duotone" />
   )
-  const label = DECISION_CATEGORY_LABEL[decision.category] ?? decision.category
+  const labelKey = DECISION_LABEL_KEY[decision.category]
+  const label = labelKey ? t(labelKey) : decision.category
   const ring = DOT_RING[decision.category] ?? 'gba:border-primary'
 
   return (
@@ -122,10 +128,13 @@ function DecisionRow({ decision }: Readonly<{ decision: DecisionItem }>) {
   )
 }
 
-function ActivityRow({ event }: Readonly<{ event: ActivityEvent }>) {
+function ActivityRow({
+  event,
+  t
+}: Readonly<{ event: ActivityEvent; t: (key: string, vars?: Record<string, unknown>) => string }>) {
   const isSubagent = event.type === 'subagent_spawn'
   const isSkillLoad = isSkillLoadActivity(event)
-  const summary = getActivitySummary(event)
+  const summary = getActivitySummary(event, t)
   const showAgentBadge =
     isSubagent &&
     !!event.agent &&
@@ -151,7 +160,7 @@ function ActivityRow({ event }: Readonly<{ event: ActivityEvent }>) {
           {isSkillLoad ? (
             <span className="gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:border gba:border-amber-500/20 gba:bg-amber-500/10 gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-semibold gba:text-amber-700 dark:gba:text-amber-300">
               <SparkleIcon className="gba:h-3 gba:w-3" weight="duotone" />
-              Tool
+              {t('workspace-timeline-tool')}
             </span>
           ) : (
             event.toolName && (
@@ -183,11 +192,14 @@ function ActivityRow({ event }: Readonly<{ event: ActivityEvent }>) {
   )
 }
 
-function TimelineEntryRow({ entry }: Readonly<{ entry: SessionTimelineEntry }>) {
+function TimelineEntryRow({
+  entry,
+  t
+}: Readonly<{ entry: SessionTimelineEntry; t: (key: string, vars?: Record<string, unknown>) => string }>) {
   if (entry.kind === 'decision') {
-    return <DecisionRow decision={entry.decision} />
+    return <DecisionRow decision={entry.decision} t={t} />
   }
-  return <ActivityRow event={entry.activity} />
+  return <ActivityRow event={entry.activity} t={t} />
 }
 
 interface UnifiedSessionTimelineProps {
@@ -196,12 +208,13 @@ interface UnifiedSessionTimelineProps {
 }
 
 export const UnifiedSessionTimeline: FC<UnifiedSessionTimelineProps> = ({ decisions, activityEvents }) => {
+  const { t } = useTranslation(translations)
   const entries = useMemo(() => mergeSessionTimelineEntries(decisions, activityEvents), [decisions, activityEvents])
 
   if (entries.length === 0) {
     return (
       <div className="gba:px-4 gba:py-4">
-        <p className="gba:text-xs gba:text-muted-foreground/60 gba:italic">Session events will appear here…</p>
+        <p className="gba:text-xs gba:text-muted-foreground/60 gba:italic">{t('workspace-timeline-empty')}</p>
       </div>
     )
   }
@@ -214,7 +227,7 @@ export const UnifiedSessionTimeline: FC<UnifiedSessionTimelineProps> = ({ decisi
           aria-hidden
         />
         {entries.map(entry => (
-          <TimelineEntryRow key={entry.id} entry={entry} />
+          <TimelineEntryRow key={entry.id} entry={entry} t={t} />
         ))}
       </div>
     </div>

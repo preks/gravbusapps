@@ -56,7 +56,7 @@ describe('ArchivedAgentsPanel', () => {
 
   it('renders the loading state on first fetch', () => {
     render(<ArchivedAgentsPanel agents={[]} isLoading isRestoring={null} onRefresh={() => {}} onRestore={() => {}} />)
-    expect(screen.getByText(/Loading archived agents/i)).toBeInTheDocument()
+    expect(screen.getByText('archived-loading')).toBeInTheDocument()
   })
 
   it('lists archived agents with role and archived-by metadata', () => {
@@ -71,7 +71,7 @@ describe('ArchivedAgentsPanel', () => {
     )
     expect(screen.getByText('Helper')).toBeInTheDocument()
     expect(screen.getByText(/Specialist · Ops/)).toBeInTheDocument()
-    expect(screen.getByText(/by alice/)).toBeInTheDocument()
+    expect(screen.getByText('archived-meta-by')).toBeInTheDocument()
   })
 
   it('fires onRestore with the agent when the restore button is clicked', () => {

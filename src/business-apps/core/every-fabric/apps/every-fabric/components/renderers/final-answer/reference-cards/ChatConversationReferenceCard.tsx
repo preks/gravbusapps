@@ -14,6 +14,7 @@ import {
   plainTextPreview,
   type ReferenceCardProps
 } from './referenceCardUtils'
+import { useReferenceCardI18n } from './useReferenceCardI18n'
 
 const CHAT_GLYPH = tileGlyph(
   'M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z'
@@ -40,6 +41,7 @@ function toParticipant(raw: unknown): ParticipantView | undefined {
  * last-message snippet, with an unread badge when there are unread messages.
  */
 export const ChatConversationReferenceCard: React.FC<ReferenceCardProps> = ({ reference, accessToken }) => {
+  const { participantSummary, unreadStatus, t } = useReferenceCardI18n()
   const { data: conversation, loading } = useConversationReference(reference.id, accessToken)
 
   const url = getEntityUrl(reference.type, reference.id, reference.href)
@@ -58,7 +60,11 @@ export const ChatConversationReferenceCard: React.FC<ReferenceCardProps> = ({ re
     )
   }
 
-  const title = getStr(conversation, 'name') ?? reference.label ?? dataStr(reference.data, 'title') ?? 'Conversation'
+  const title =
+    getStr(conversation, 'name') ??
+    reference.label ??
+    dataStr(reference.data, 'title') ??
+    t('renderer-ref-type-conversation')
   const unread = getNum(conversation, 'unreadCount')
   const lastMessage = plainTextPreview(getStr(getField(conversation, 'lastMessage'), 'content'), 120)
 
@@ -83,18 +89,15 @@ export const ChatConversationReferenceCard: React.FC<ReferenceCardProps> = ({ re
           </span>
         ))}
       </div>
-      <span className="gba:text-xs gba:text-muted-foreground">
-        {participants.length} participant{participants.length === 1 ? '' : 's'}
-        {extra > 0 ? ` · +${extra}` : ''}
-      </span>
+      <span className="gba:text-xs gba:text-muted-foreground">{participantSummary(participants.length, extra)}</span>
     </div>
   ) : undefined
 
   return (
     <EntityCard
       title={title}
-      subtitle="Conversation"
-      status={unread && unread > 0 ? `${unread} unread` : undefined}
+      subtitle={t('renderer-ref-type-conversation')}
+      status={unread && unread > 0 ? unreadStatus(unread) : undefined}
       statusVariant={unread && unread > 0 ? 'warning' : 'default'}
       description={lastMessage}
       icon={<IconTile glyph={CHAT_GLYPH} accent="sky" />}

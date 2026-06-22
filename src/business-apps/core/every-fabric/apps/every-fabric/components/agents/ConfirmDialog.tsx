@@ -12,9 +12,11 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  Button
+  Button,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { SpinnerGapIcon } from '@phosphor-icons/react'
+import translations from '../../_i18n'
 
 export interface ConfirmDialogProps {
   open: boolean
@@ -34,13 +36,17 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   open,
   title,
   description,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
+  confirmLabel,
+  cancelLabel,
   destructive = false,
   busy = false,
   onConfirm,
   onCancel
 }) => {
+  const { t } = useTranslation(translations)
+  const resolvedConfirmLabel = confirmLabel ?? t('agents-confirm-label')
+  const resolvedCancelLabel = cancelLabel ?? t('agents-cancel-label')
+
   return (
     <AlertDialog
       open={open}
@@ -56,7 +62,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         <AlertDialogFooter>
           <AlertDialogCancel asChild>
             <Button variant="outline" disabled={busy} onClick={onCancel} data-testid="confirm-dialog-cancel">
-              {cancelLabel}
+              {resolvedCancelLabel}
             </Button>
           </AlertDialogCancel>
           <AlertDialogAction asChild>
@@ -72,7 +78,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
               data-testid="confirm-dialog-confirm"
             >
               {busy && <SpinnerGapIcon className="gba:mr-1.5 gba:h-3.5 gba:w-3.5 gba:animate-spin" />}
-              {confirmLabel}
+              {resolvedConfirmLabel}
             </Button>
           </AlertDialogAction>
         </AlertDialogFooter>

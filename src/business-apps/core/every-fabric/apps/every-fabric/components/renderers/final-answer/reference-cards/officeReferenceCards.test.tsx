@@ -7,6 +7,14 @@
 import React from 'react'
 import { render, screen } from '@testing-library/react'
 
+jest.mock('@newwork/nw-design-system', () => {
+  const actual = jest.requireActual('@newwork/nw-design-system')
+  return {
+    ...actual,
+    useTranslation: () => ({ t: (key: string) => key })
+  }
+})
+
 const mockUseDocumentReference = jest.fn()
 const mockUseSlideReference = jest.fn()
 const mockUseNoteReference = jest.fn()
@@ -84,7 +92,7 @@ describe('DocumentReferenceCard', () => {
     expect(screen.getByTestId('title')).toHaveTextContent('Q3 Plan')
     expect(screen.getByTestId('status')).toHaveTextContent('Pending Approval')
     expect(screen.getByTestId('description')).toHaveTextContent('Hello world')
-    expect(screen.getByTestId('fields')).toHaveTextContent('Pages=12 pages')
+    expect(screen.getByTestId('fields')).toHaveTextContent('renderer-ref-field-pages=renderer-ref-count-page')
   })
 
   it('shows a loading card and then falls back to the label', () => {
@@ -106,7 +114,7 @@ describe('SlideReferenceCard', () => {
     })
     render(<SlideReferenceCard reference={ref('slide')} accessToken="tok" />)
     expect(screen.getByTestId('title')).toHaveTextContent('Pitch')
-    expect(screen.getByTestId('fields')).toHaveTextContent('Slides=3 slides')
+    expect(screen.getByTestId('fields')).toHaveTextContent('renderer-ref-field-slides=renderer-ref-count-slide')
   })
 })
 
@@ -118,7 +126,7 @@ describe('NoteReferenceCard', () => {
     })
     render(<NoteReferenceCard reference={ref('note')} accessToken="tok" />)
     expect(screen.getByTestId('title')).toHaveTextContent('Ideas')
-    expect(screen.getByTestId('status')).toHaveTextContent('Pinned')
+    expect(screen.getByTestId('status')).toHaveTextContent('renderer-ref-status-pinned')
     expect(screen.getByTestId('description')).toHaveTextContent('Some note body')
   })
 })
@@ -135,7 +143,7 @@ describe('SpreadsheetReferenceCard', () => {
     })
     render(<SpreadsheetReferenceCard reference={ref('spreadsheet')} accessToken="tok" />)
     expect(screen.getByTestId('title')).toHaveTextContent('Budget')
-    expect(screen.getByTestId('fields')).toHaveTextContent('Sheets=2 sheets')
-    expect(screen.getByTestId('fields')).toHaveTextContent('Rows=3 rows')
+    expect(screen.getByTestId('fields')).toHaveTextContent('renderer-ref-field-sheets=renderer-ref-count-sheet')
+    expect(screen.getByTestId('fields')).toHaveTextContent('renderer-ref-field-rows=renderer-ref-count-row')
   })
 })

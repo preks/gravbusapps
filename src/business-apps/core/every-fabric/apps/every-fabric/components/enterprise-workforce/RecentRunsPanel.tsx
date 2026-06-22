@@ -6,8 +6,10 @@
 
 import { ArrowsClockwiseIcon, ClockIcon, CoinsIcon, FlaskIcon, SpinnerGapIcon } from '@phosphor-icons/react'
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { WorkforceRun } from './workforceTypes'
 import { formatTimestamp, runCredits, runDurationLabel, statusVisualForRun, shortenInput } from './runDisplay'
+import translations from '../../_i18n'
 
 export interface RecentRunsPanelProps {
   runs: WorkforceRun[]
@@ -28,6 +30,7 @@ export const RecentRunsPanel: React.FC<RecentRunsPanelProps> = ({
   onTestRun,
   onOpenRun
 }) => {
+  const { t } = useTranslation(translations)
   return (
     <section
       className="gba:rounded-2xl gba:border gba:border-border/60 gba:bg-card gba:p-5 gba:shadow-sm"
@@ -35,10 +38,8 @@ export const RecentRunsPanel: React.FC<RecentRunsPanelProps> = ({
     >
       <header className="gba:mb-4 gba:flex gba:items-start gba:justify-between gba:gap-3">
         <div>
-          <h2 className="gba:text-sm gba:font-semibold gba:text-foreground">Recent runs</h2>
-          <p className="gba:mt-0.5 gba:text-xs gba:text-muted-foreground">
-            Latest deep-agent sessions attributed to this workforce agent. Click a run for the full trace.
-          </p>
+          <h2 className="gba:text-sm gba:font-semibold gba:text-foreground">{t('recent-runs-title')}</h2>
+          <p className="gba:mt-0.5 gba:text-xs gba:text-muted-foreground">{t('recent-runs-desc')}</p>
         </div>
         <div className="gba:flex gba:items-center gba:gap-1.5">
           <button
@@ -47,14 +48,14 @@ export const RecentRunsPanel: React.FC<RecentRunsPanelProps> = ({
             disabled={isLoading}
             className="gba:inline-flex gba:h-8 gba:items-center gba:justify-center gba:gap-1.5 gba:rounded-md gba:border gba:border-border gba:bg-background gba:px-2.5 gba:text-xs gba:font-medium gba:text-foreground gba:hover:bg-muted/60 gba:disabled:cursor-not-allowed gba:disabled:opacity-50"
             data-testid="workforce-recent-runs-refresh"
-            aria-label="Refresh runs"
+            aria-label={t('recent-runs-refresh-aria')}
           >
             {isLoading || isPolling ? (
               <SpinnerGapIcon className="gba:h-3.5 gba:w-3.5 gba:animate-spin" />
             ) : (
               <ArrowsClockwiseIcon className="gba:h-3.5 gba:w-3.5" />
             )}
-            Refresh
+            {t('recent-runs-refresh')}
           </button>
           <button
             type="button"
@@ -63,7 +64,7 @@ export const RecentRunsPanel: React.FC<RecentRunsPanelProps> = ({
             data-testid="workforce-recent-runs-test"
           >
             <FlaskIcon className="gba:h-3.5 gba:w-3.5" />
-            Test run
+            {t('detail-test-run')}
           </button>
         </div>
       </header>
@@ -81,14 +82,12 @@ export const RecentRunsPanel: React.FC<RecentRunsPanelProps> = ({
       {isLoading && runs.length === 0 ? (
         <div className="gba:flex gba:items-center gba:justify-center gba:py-8 gba:text-muted-foreground">
           <SpinnerGapIcon className="gba:mr-2 gba:h-4 gba:w-4 gba:animate-spin" />
-          <span className="gba:text-sm">Loading runs…</span>
+          <span className="gba:text-sm">{t('recent-runs-loading')}</span>
         </div>
       ) : runs.length === 0 ? (
         <div className="gba:rounded-lg gba:border gba:border-dashed gba:border-border gba:bg-muted/30 gba:px-4 gba:py-6 gba:text-center">
-          <p className="gba:text-sm gba:font-medium gba:text-foreground">No runs yet</p>
-          <p className="gba:mt-1 gba:text-xs gba:text-muted-foreground">
-            Fire a manual test run or wait for a trigger to schedule one.
-          </p>
+          <p className="gba:text-sm gba:font-medium gba:text-foreground">{t('recent-runs-empty-title')}</p>
+          <p className="gba:mt-1 gba:text-xs gba:text-muted-foreground">{t('recent-runs-empty-desc')}</p>
         </div>
       ) : (
         <ul className="gba:divide-y gba:divide-border/60">
@@ -116,7 +115,7 @@ export const RecentRunsPanel: React.FC<RecentRunsPanelProps> = ({
                       </span>
                     </div>
                     <p className="gba:mt-1 gba:truncate gba:text-sm gba:text-foreground">
-                      {shortenInput(run.input) || '(empty input)'}
+                      {shortenInput(run.input) || t('recent-runs-empty-input')}
                     </p>
                   </div>
                   <div className="gba:flex gba:shrink-0 gba:flex-col gba:items-end gba:gap-1 gba:text-[11px] gba:text-muted-foreground">
@@ -128,7 +127,7 @@ export const RecentRunsPanel: React.FC<RecentRunsPanelProps> = ({
                     )}
                     <span className="gba:inline-flex gba:items-center gba:gap-1">
                       <CoinsIcon className="gba:h-3 gba:w-3" />
-                      {credits} credits
+                      {t('recent-runs-credits', { credits })}
                     </span>
                   </div>
                 </button>

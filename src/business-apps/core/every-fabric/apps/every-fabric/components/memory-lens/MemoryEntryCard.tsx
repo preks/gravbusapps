@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { TrashIcon } from '@phosphor-icons/react'
 import type { MemoryNamespace } from '../settings/agentSettings.types'
 import {
@@ -8,6 +9,7 @@ import {
   MEMORY_LENS_NAMESPACE_LABELS,
   type MemoryLensEntry
 } from './memoryLensModel'
+import translations from '../../_i18n'
 
 interface MemoryEntryCardProps {
   entry: MemoryLensEntry
@@ -15,7 +17,8 @@ interface MemoryEntryCardProps {
 }
 
 export const MemoryEntryCard: React.FC<MemoryEntryCardProps> = ({ entry, onDelete }) => {
-  const when = relativeDate(entry.occurredAt || entry.updatedAt)
+  const { t } = useTranslation(translations)
+  const when = relativeDate(entry.occurredAt || entry.updatedAt, t)
   const tags = entry.tags ?? []
   const entities = entry.entities ?? []
   const chips = [...tags.slice(0, 6), ...entities.slice(0, 4)]

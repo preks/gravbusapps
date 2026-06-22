@@ -13,6 +13,7 @@ import { RoundedBox, Text } from '@react-three/drei'
 import * as THREE from 'three'
 import { CARD_DEPTH, CARD_HEIGHT, CARD_WIDTH, type CardPlacement } from './glassCardLayout'
 import { cardStatusStyle, type GlassCardModel } from './glassCardModel'
+import { useGlassCardI18n } from './useGlassCardI18n'
 import type { GlassCardTheme } from './glassCardTheme'
 
 interface GlassCardProps {
@@ -62,6 +63,7 @@ function truncate(text: string, max: number): string {
 }
 
 function GlassCardBase({ model, placement, reducedMotion, theme }: GlassCardProps) {
+  const { statusLabel } = useGlassCardI18n()
   const groupRef = useRef<THREE.Group>(null)
   const bodyMatRef = useRef<THREE.MeshPhysicalMaterial>(null)
   const surface = theme.card
@@ -236,7 +238,7 @@ function GlassCardBase({ model, placement, reducedMotion, theme }: GlassCardProp
         anchorX="right"
         anchorY="middle"
       >
-        {statusStyle.label}
+        {statusLabel(model.status)}
       </Text>
     </group>
   )

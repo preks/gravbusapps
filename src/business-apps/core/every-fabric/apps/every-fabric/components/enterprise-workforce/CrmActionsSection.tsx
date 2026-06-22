@@ -9,8 +9,10 @@
 // — those live in CRM and reviewers click through.
 
 import { ArrowSquareOutIcon, CheckCircleIcon, WarningCircleIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import React from 'react'
 
+import translations from '../../_i18n'
 import type { WorkforceRunCrmActionEntry } from './workforceTypes'
 import { formatTimestamp } from './runDisplay'
 import { resolveCrmRecordUrl } from './crmRecordLinks'
@@ -19,18 +21,15 @@ export interface CrmActionsSectionProps {
   actions: readonly WorkforceRunCrmActionEntry[]
 }
 
-interface ActionLabelMeta {
-  label: string
-  description: string
-}
+type TranslateFn = (key: string, args?: Record<string, unknown>) => string
 
-const ACTION_LABELS: Record<string, ActionLabelMeta> = {
-  search: { label: 'Search', description: 'Looked up existing CRM record' },
-  create: { label: 'Create', description: 'Created a new CRM record' },
-  update: { label: 'Update', description: 'Updated an existing CRM record' },
-  timeline: { label: 'Timeline', description: 'Read CRM history' },
-  note: { label: 'Note', description: 'Added a CRM note' },
-  task: { label: 'Task', description: 'Logged a CRM follow-up task' }
+const ACTION_LABEL_KEYS: Record<string, { label: string; description: string }> = {
+  search: { label: 'crm-action-search-label', description: 'crm-action-search-desc' },
+  create: { label: 'crm-action-create-label', description: 'crm-action-create-desc' },
+  update: { label: 'crm-action-update-label', description: 'crm-action-update-desc' },
+  timeline: { label: 'crm-action-timeline-label', description: 'crm-action-timeline-desc' },
+  note: { label: 'crm-action-note-label', description: 'crm-action-note-desc' },
+  task: { label: 'crm-action-task-label', description: 'crm-action-task-desc' }
 }
 
 const RECORD_LINK_FIELDS: Array<{
@@ -43,13 +42,10 @@ const RECORD_LINK_FIELDS: Array<{
   { key: 'task_id', testId: 'task' }
 ]
 
-function describeAction(action: string): ActionLabelMeta {
-  return (
-    ACTION_LABELS[action] ?? {
-      label: action,
-      description: 'CRM tool call'
-    }
-  )
+function describeAction(action: string, t: TranslateFn): { label: string; description: string } {
+  const keys = ACTION_LABEL_KEYS[action]
+  if (!keys) return { label: action, description: t('crm-action-fallback-desc') }
+  return { label: t(keys.label), description: t(keys.description) }
 }
 
 function actionKey(entry: WorkforceRunCrmActionEntry, index: number): string {
@@ -58,13 +54,18 @@ function actionKey(entry: WorkforceRunCrmActionEntry, index: number): string {
   return `${entry.tool_ref}:${index}`
 }
 
-function recordDisplayLabel(entry: WorkforceRunCrmActionEntry, fieldKey: string, entityId: string): string {
+function recordDisplayLabel(
+  entry: WorkforceRunCrmActionEntry,
+  fieldKey: string,
+  entityId: string,
+  t: TranslateFn
+): string {
   const fromServer = entry.record_labels?.[entityId]
   if (fromServer) return fromServer
-  if (fieldKey === 'note_id') return 'CRM note'
-  if (fieldKey === 'task_id') return 'CRM task'
-  if (fieldKey === 'account_id') return 'Account'
-  if (fieldKey === 'contact_id') return 'Contact'
+  if (fieldKey === 'note_id') return t('crm-record-note')
+  if (fieldKey === 'task_id') return t('crm-record-task')
+  if (fieldKey === 'account_id') return t('crm-record-account')
+  if (fieldKey === 'contact_id') return t('crm-record-contact')
   return entityId
 }
 
@@ -73,11 +74,12 @@ interface RecordLinkProps {
   fieldKey: string
   entityId: string
   testId: string
+  t: TranslateFn
 }
 
-const RecordLink: React.FC<RecordLinkProps> = ({ entry, fieldKey, entityId, testId }) => {
+const RecordLink: React.FC<RecordLinkProps> = ({ entry, fieldKey, entityId, testId, t }) => {
   const url = resolveCrmRecordUrl(fieldKey, entityId, entry.entity_type)
-  const label = recordDisplayLabel(entry, fieldKey, entityId)
+  const label = recordDisplayLabel(entry, fieldKey, entityId, t)
   if (!url) {
     return (
       <span
@@ -103,16 +105,18 @@ const RecordLink: React.FC<RecordLinkProps> = ({ entry, fieldKey, entityId, test
 }
 
 export const CrmActionsSection: React.FC<CrmActionsSectionProps> = ({ actions }) => {
+  const { t } = useTranslation(translations)
+
   if (!actions || actions.length === 0) return null
 
   return (
     <section data-testid="workforce-run-detail-crm-actions">
       <h3 className="gba:mb-1.5 gba:text-xs gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground">
-        CRM actions
+        {t('crm-actions-title')}
       </h3>
       <ul className="gba:space-y-1.5">
         {actions.map((entry, index) => {
-          const meta = describeAction(entry.action)
+          const meta = describeAction(entry.action, t)
           const recordIds = entry.record_ids ?? {}
           const linkable = RECORD_LINK_FIELDS.filter(field => Boolean(recordIds[field.key]))
           const extraIds = Object.entries(recordIds).filter(
@@ -156,10 +160,11 @@ export const CrmActionsSection: React.FC<CrmActionsSectionProps> = ({ actions })
                       fieldKey={field.key}
                       entityId={recordIds[field.key]}
                       testId={field.testId}
+                      t={t}
                     />
                   ))}
                   {extraIds.map(([key, value]) => (
-                    <RecordLink key={key} entry={entry} fieldKey={key} entityId={value} testId={key} />
+                    <RecordLink key={key} entry={entry} fieldKey={key} entityId={value} testId={key} t={t} />
                   ))}
                 </div>
               )}

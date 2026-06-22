@@ -1,4 +1,6 @@
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../../_i18n'
 import {
   chartRenderers,
   normalizeChartPayloadForRender,
@@ -26,14 +28,18 @@ interface DashboardSection {
 }
 
 /** Shown when chart JSON is missing, empty, or not yet loaded. */
-export const ChartEmptyState: React.FC<{ message?: string }> = ({ message = 'No chart data available' }) => (
-  <div
-    className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-2 gba:p-6 gba:rounded-xl gba:border gba:border-dashed gba:border-border gba:bg-muted/20"
-    data-testid="chart-empty-state"
-  >
-    <p className="gba:text-sm gba:text-muted-foreground gba:text-center">{message}</p>
-  </div>
-)
+export const ChartEmptyState: React.FC<{ message?: string }> = ({ message }) => {
+  const { t } = useTranslation(translations)
+  const displayMessage = message ?? t('workspace-chart-empty')
+  return (
+    <div
+      className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-2 gba:p-6 gba:rounded-xl gba:border gba:border-dashed gba:border-border gba:bg-muted/20"
+      data-testid="chart-empty-state"
+    >
+      <p className="gba:text-sm gba:text-muted-foreground gba:text-center">{displayMessage}</p>
+    </div>
+  )
+}
 
 /** Direction of a KPI trend, inferred from the explicit flag or the value sign. */
 export function statTrendDirection(trend: NonNullable<StatItem['trend']>): 'up' | 'down' | 'flat' {
@@ -139,18 +145,19 @@ export const ChartInlineBody: React.FC<{
   data: Record<string, unknown>
   compact?: boolean
 }> = ({ data, compact }) => {
+  const { t } = useTranslation(translations)
   const normalized = normalizeChartPayloadForRender(data)
   const single = parseChartConfig(normalized)
   if (single) {
     if (!single.data?.length) {
-      return <ChartEmptyState message="No data points to display for this chart." />
+      return <ChartEmptyState message={t('workspace-chart-no-data-points')} />
     }
     return <SingleChart config={single} compact={compact} />
   }
 
   const sections = normalized.sections as DashboardSection[] | undefined
   if (!Array.isArray(sections) || sections.length === 0) {
-    return <ChartEmptyState message="Unsupported or empty chart preview." />
+    return <ChartEmptyState message={t('workspace-chart-unsupported-preview')} />
   }
 
   const title = data.title as string | undefined

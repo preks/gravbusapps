@@ -8,12 +8,14 @@
 
 import { PulseIcon } from '@phosphor-icons/react'
 import React, { useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { AgentMeshCanvas } from '../../../agent-mesh/AgentMeshCanvas'
 import { LiveStatusPill } from '../../LiveStatusPill'
 import { workforceTraceToModel } from '../../workforceTraceToModel'
 import { formatTimeOnly } from '../../runDisplay'
 import type { TraceFrame } from '../../../../utils/traceModel'
 import type { WorkforceRunTraceEvent } from '../../workforceTypes'
+import translations from '../../../../_i18n'
 
 export interface WorkforceRunMeshProps {
   trace: readonly WorkforceRunTraceEvent[] | undefined
@@ -34,6 +36,7 @@ const ActivitySidebar: React.FC<{ frames: TraceFrame[]; isStreaming: boolean; is
   isStreaming,
   isConnected
 }) => {
+  const { t } = useTranslation(translations)
   const recent = useMemo(() => frames.slice(-FEED_LIMIT).reverse(), [frames])
   return (
     <aside
@@ -42,7 +45,7 @@ const ActivitySidebar: React.FC<{ frames: TraceFrame[]; isStreaming: boolean; is
     >
       <header className="gba:flex gba:items-center gba:gap-2 gba:border-b gba:border-border/60 gba:px-3 gba:py-2">
         <PulseIcon className="gba:h-4 gba:w-4 gba:text-primary" weight="bold" />
-        <h3 className="gba:text-xs gba:font-semibold gba:text-foreground">Live activity</h3>
+        <h3 className="gba:text-xs gba:font-semibold gba:text-foreground">{t('mesh-live-activity')}</h3>
         {isStreaming && (
           <span className="gba:ml-auto">
             <LiveStatusPill connected={isConnected} />
@@ -52,7 +55,7 @@ const ActivitySidebar: React.FC<{ frames: TraceFrame[]; isStreaming: boolean; is
       <div className="gba:max-h-[420px] gba:flex-1 gba:overflow-y-auto gba:p-2">
         {recent.length === 0 ? (
           <p className="gba:px-1 gba:py-4 gba:text-center gba:text-[11px] gba:text-muted-foreground">
-            No activity recorded yet.
+            {t('mesh-no-activity')}
           </p>
         ) : (
           <ol className="gba:space-y-1.5">

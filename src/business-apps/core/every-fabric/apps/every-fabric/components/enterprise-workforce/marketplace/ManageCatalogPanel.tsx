@@ -1,10 +1,11 @@
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { CircleNotchIcon, TrashIcon } from '@phosphor-icons/react'
 import React, { useCallback, useEffect, useState } from 'react'
 import type {
   MarketplacePackageSummary,
   PromptManagerClient
 } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import translations from '../../../_i18n'
 
 interface ManageCatalogPanelProps {
   client: PromptManagerClient
@@ -12,6 +13,7 @@ interface ManageCatalogPanelProps {
 }
 
 export const ManageCatalogPanel: React.FC<ManageCatalogPanelProps> = ({ client, onReloadCatalog }) => {
+  const { t } = useTranslation(translations)
   const [packages, setPackages] = useState<MarketplacePackageSummary[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -24,7 +26,7 @@ export const ManageCatalogPanel: React.FC<ManageCatalogPanelProps> = ({ client, 
       const page = await client.listMarketplacePackages({ limit: 200, isActive: true })
       setPackages(page.data ?? [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load catalog')
+      setError(err instanceof Error ? err.message : t('marketplace-manage-error-load'))
     } finally {
       setIsLoading(false)
     }
@@ -42,7 +44,7 @@ export const ManageCatalogPanel: React.FC<ManageCatalogPanelProps> = ({ client, 
       await loadPackages()
       onReloadCatalog?.()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unpublish failed')
+      setError(err instanceof Error ? err.message : t('marketplace-manage-error-unpublish'))
     } finally {
       setBusyId(null)
     }
@@ -52,7 +54,7 @@ export const ManageCatalogPanel: React.FC<ManageCatalogPanelProps> = ({ client, 
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:py-16 gba:text-sm gba:text-muted-foreground">
         <CircleNotchIcon className="gba:h-4 gba:w-4 gba:animate-spin" />
-        Loading catalog…
+        {t('marketplace-manage-loading')}
       </div>
     )
   }
@@ -60,15 +62,15 @@ export const ManageCatalogPanel: React.FC<ManageCatalogPanelProps> = ({ client, 
   return (
     <div className="gba:flex gba:flex-1 gba:flex-col gba:overflow-hidden" data-testid="manage-catalog-panel">
       <div className="gba:border-b gba:border-border/60 gba:px-5 gba:py-3">
-        <p className="gba:text-xs gba:text-muted-foreground">
-          Published packages visible in the hire marketplace on this tenant. Unpublish removes a listing.
-        </p>
+        <p className="gba:text-xs gba:text-muted-foreground">{t('marketplace-manage-description')}</p>
         {error ? <p className="gba:mt-2 gba:text-xs gba:text-destructive">{error}</p> : null}
       </div>
 
       <div className="gba:flex-1 gba:overflow-y-auto gba:px-5 gba:py-4">
         {packages.length === 0 ? (
-          <p className="gba:py-12 gba:text-center gba:text-sm gba:text-muted-foreground">No published packages yet.</p>
+          <p className="gba:py-12 gba:text-center gba:text-sm gba:text-muted-foreground">
+            {t('marketplace-manage-empty')}
+          </p>
         ) : (
           <ul className="gba:flex gba:flex-col gba:gap-2">
             {packages.map(entry => (
@@ -80,8 +82,13 @@ export const ManageCatalogPanel: React.FC<ManageCatalogPanelProps> = ({ client, 
                 <div className="gba:min-w-0">
                   <p className="gba:text-sm gba:font-medium gba:text-foreground">{entry.name}</p>
                   <p className="gba:text-xs gba:text-muted-foreground">
-                    {entry.package_id} · {entry.category} · {entry.skill_count} skills · {entry.tool_count} tools ·{' '}
-                    {entry.install_count} installs
+                    {t('marketplace-manage-package-meta', {
+                      packageId: entry.package_id,
+                      category: entry.category,
+                      skillCount: entry.skill_count,
+                      toolCount: entry.tool_count,
+                      installCount: entry.install_count
+                    })}
                   </p>
                   {entry.description ? (
                     <p className="gba:mt-1 gba:line-clamp-2 gba:text-xs gba:text-muted-foreground">
@@ -97,7 +104,7 @@ export const ManageCatalogPanel: React.FC<ManageCatalogPanelProps> = ({ client, 
                   data-testid={`manage-catalog-unpublish-${entry.package_id}`}
                 >
                   <TrashIcon className="gba:mr-1 gba:h-3.5 gba:w-3.5" />
-                  Unpublish
+                  {t('marketplace-manage-unpublish')}
                 </Button>
               </li>
             ))}

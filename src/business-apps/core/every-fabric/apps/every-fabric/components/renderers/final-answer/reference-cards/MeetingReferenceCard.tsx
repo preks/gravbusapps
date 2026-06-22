@@ -5,16 +5,15 @@ import { navigateTo } from '@/common/utils/navigationUtils'
 import { IconTile, tileGlyph } from './IconTile'
 import { useMeetingReference } from './hooks/commsReferenceHooks'
 import {
-  countChip,
   dataStr,
   formatClock,
   formatDateTime,
   getField,
   getStr,
-  humanizeToken,
   personName,
   type ReferenceCardProps
 } from './referenceCardUtils'
+import { useReferenceCardI18n } from './useReferenceCardI18n'
 
 const MEETING_GLYPH = tileGlyph(
   'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'
@@ -25,6 +24,7 @@ const MEETING_GLYPH = tileGlyph(
  * and participant count — the calendar essentials at a glance.
  */
 export const MeetingReferenceCard: React.FC<ReferenceCardProps> = ({ reference, accessToken }) => {
+  const { field, countChip, humanizeToken, t } = useReferenceCardI18n()
   const { data: meeting, loading } = useMeetingReference(reference.id, accessToken)
 
   const url = getEntityUrl(reference.type, reference.id, reference.href)
@@ -64,14 +64,14 @@ export const MeetingReferenceCard: React.FC<ReferenceCardProps> = ({ reference, 
   const participantCount = Array.isArray(participantsRaw) ? participantsRaw.length : undefined
 
   const fields: Array<{ label: string; value: string }> = []
-  if (organizer) fields.push({ label: 'Organizer', value: organizer })
+  if (organizer) fields.push({ label: field('organizer'), value: organizer })
   const participantsLabel = countChip(participantCount, 'attendee')
-  if (participantsLabel) fields.push({ label: 'Attendees', value: participantsLabel })
+  if (participantsLabel) fields.push({ label: field('attendees'), value: participantsLabel })
 
   return (
     <EntityCard
       title={title}
-      subtitle={timeRange ?? 'Meeting'}
+      subtitle={timeRange ?? t('renderer-ref-type-meeting')}
       status={status}
       icon={icon}
       fields={fields.length ? fields : undefined}

@@ -9,11 +9,13 @@ import {
   CardTitle,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent
+  ChartTooltipContent,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { UsersThreeIcon } from '@phosphor-icons/react'
 import React, { useMemo } from 'react'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
+import translations from '../../../_i18n'
 import type { WorkforceWorkspaceAgentBreakdown } from '../workforceTypes'
 
 export interface PerAgentCreditsChartProps {
@@ -22,15 +24,19 @@ export interface PerAgentCreditsChartProps {
   maxAgents?: number
 }
 
-const chartConfig = {
-  credits: { label: 'Credits', color: 'var(--nw-color-chart-3, var(--primary))' }
-} as const
-
 function shortId(id: string): string {
   return id.length > 8 ? `${id.slice(0, 8)}…` : id
 }
 
 export const PerAgentCreditsChart: React.FC<PerAgentCreditsChartProps> = ({ breakdown, nameById, maxAgents = 8 }) => {
+  const { t } = useTranslation(translations)
+  const chartConfig = useMemo(
+    () => ({
+      credits: { label: t('chart-credits-label'), color: 'var(--nw-color-chart-3, var(--primary))' }
+    }),
+    [t]
+  )
+
   const data = useMemo(() => {
     return breakdown
       .map(row => ({
@@ -48,13 +54,13 @@ export const PerAgentCreditsChart: React.FC<PerAgentCreditsChartProps> = ({ brea
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-sm">
           <UsersThreeIcon className="gba:h-4 gba:w-4 gba:text-primary" />
-          Credits by agent
+          {t('per-agent-chart-title')}
         </CardTitle>
-        <p className="gba:text-xs gba:text-muted-foreground">Top consumers this week.</p>
+        <p className="gba:text-xs gba:text-muted-foreground">{t('per-agent-chart-subtitle')}</p>
       </CardHeader>
       <CardContent>
         {data.length === 0 ? (
-          <p className="gba:py-8 gba:text-center gba:text-xs gba:text-muted-foreground">No agent usage yet.</p>
+          <p className="gba:py-8 gba:text-center gba:text-xs gba:text-muted-foreground">{t('per-agent-chart-empty')}</p>
         ) : (
           <ChartContainer config={chartConfig} className="gba:h-[240px] gba:w-full gba:aspect-auto">
             <BarChart data={data} layout="vertical" margin={{ top: 4, right: 12, left: 8, bottom: 0 }}>

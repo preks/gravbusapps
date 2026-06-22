@@ -33,20 +33,24 @@ export const NewworkMain: React.FC<NewworkMainProps> = ({ 'data-testid': testId 
   const pillars: Array<Omit<PillarCardProps, 'data-testid' | 'onClick'> & { id: string; href: string }> = [
     {
       id: 'create',
-      title: 'CREATE',
-      subtitle: 'Build anything',
+      title: t('pillar-create-title'),
+      subtitle: t('pillar-create-subtitle'),
       description: t('pillar-create-description'),
       icon: PenTool,
       href: '/platform/apps/create',
-      features: ['AI Builder', 'Flow Designer', t('pillar-create-feature-enterprise-agents'), 'Functions'],
+      features: [
+        t('pillar-create-feature-ai-development-platform'),
+        'Flow Designer',
+        t('pillar-create-feature-enterprise-agents'),
+        'Functions'
+      ],
       accentColor: 'ai'
     },
     {
       id: 'every',
-      title: 'EVERY',
-      subtitle: 'Your productivity',
-      description:
-        'Your personal AI assistant, documents, time tracking, and unified inbox. Everything you need for a productive workday, powered by AI.',
+      title: t('pillar-workplace-title'),
+      subtitle: t('pillar-workplace-subtitle'),
+      description: t('pillar-workplace-description'),
       icon: Orbit,
       href: '/platform/every',
       features: ['EveryAI Assistant', 'MyDocuments', 'Time Tracking', 'EveryBox Inbox'],
@@ -54,10 +58,9 @@ export const NewworkMain: React.FC<NewworkMainProps> = ({ 'data-testid': testId 
     },
     {
       id: 'business',
-      title: 'BUSINESS DOMAINS',
-      subtitle: 'Run your business',
-      description:
-        'Professional business applications for every department. HR, CRM, finance, services, and more — all integrated and AI-enhanced.',
+      title: t('pillar-business-title'),
+      subtitle: t('pillar-business-subtitle'),
+      description: t('pillar-business-description'),
       icon: Briefcase,
       href: '/platform/business-apps',
       features: ['Human Resources', 'CRM & Sales', 'Finance & Expenses', 'Service Desk'],
@@ -146,9 +149,7 @@ export const NewworkMain: React.FC<NewworkMainProps> = ({ 'data-testid': testId 
             <h2 className="gba:text-2xl gba:sm:text-3xl gba:font-bold gba:text-foreground gba:mb-2">
               Three pillars. One platform.
             </h2>
-            <p className="gba:text-muted-foreground gba:max-w-xl gba:mx-auto">
-              Creation, productivity, and business operations — unified by AI
-            </p>
+            <p className="gba:text-muted-foreground gba:max-w-xl gba:mx-auto">{t('pillars-section-tagline')}</p>
           </div>
 
           {/* Pillar cards grid */}
@@ -173,8 +174,8 @@ export const NewworkMain: React.FC<NewworkMainProps> = ({ 'data-testid': testId 
       <section className="gba:py-8 gba:px-6 gba:border-t gba:border-border gba:bg-background">
         <div className="gba:max-w-4xl gba:mx-auto gba:text-center">
           <p className="gba:text-muted-foreground">
-            <span className="gba:font-bold gba:text-foreground">NEWWORK</span> — The Enterprise AI platform.
-            <span className="gba:block gba:mt-1 gba:text-sm">Secure. Scalable. Intelligent.</span>
+            {t('footer-platform-line')}
+            <span className="gba:block gba:mt-1 gba:text-sm">{t('footer-platform-tagline')}</span>
           </p>
         </div>
       </section>

@@ -3,13 +3,15 @@
 // that lazily loads the step's captured output from the engine.
 
 import { CaretDownIcon, CaretRightIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import React, { useState } from 'react'
 
+import translations from '../../../_i18n'
 import { formatTimestamp } from '../runDisplay'
 import { FlowStepResult } from './FlowStepResult'
 import type { FlowDetailStep } from './flowDetailTypes'
 import { Field, StatusBadge } from './flowDetailPrimitives'
-import { NOT_AVAILABLE, formatMinutes, resolveStepActor } from './flowStepFormat'
+import { formatMinutes, NOT_AVAILABLE, resolveStepActor } from './flowStepFormat'
 import { useFlowStepResult } from './useFlowStepResult'
 
 const RESULT_STATUSES = new Set(['COMPLETED', 'IN_PROGRESS', 'CLAIMED', 'ACTIVE', 'RUNNING'])
@@ -26,10 +28,13 @@ export interface FlowStepRowProps {
 }
 
 export const FlowStepRow: React.FC<FlowStepRowProps> = ({ step, nameByStep, workflowId, accessToken }) => {
+  const { t } = useTranslation(translations)
   const [expanded, setExpanded] = useState(false)
   const actor = resolveStepActor(step, nameByStep)
   const duration = formatMinutes(step.completionTimeMinutes)
   const resultsAvailable = canHaveResults(step.status) && Boolean(workflowId)
+  const notAvailable = t('flow-not-available')
+  const actorLabel = actor.label === NOT_AVAILABLE ? notAvailable : actor.label
 
   const stepResult = useFlowStepResult({
     workflowId,
@@ -55,14 +60,14 @@ export const FlowStepRow: React.FC<FlowStepRowProps> = ({ step, nameByStep, work
         <StatusBadge code={step.status} testId="flow-step-status" />
       </div>
       <div className="gba:mt-2 gba:grid gba:grid-cols-2 gba:gap-x-4 gba:gap-y-2 sm:gba:grid-cols-3">
-        <Field label="Who" value={actor.label} muted={actor.isPlaceholder} testId="flow-step-actor" />
-        <Field label="Started" value={formatTimestamp(step.startedAt)} />
-        <Field label="Completed" value={formatTimestamp(step.completedAt)} />
-        <Field label="Claimed" value={formatTimestamp(step.claimedAt)} />
-        <Field label="Duration" value={duration ?? NOT_AVAILABLE} muted={!duration} />
+        <Field label={t('flow-field-who')} value={actorLabel} muted={actor.isPlaceholder} testId="flow-step-actor" />
+        <Field label={t('flow-field-started')} value={formatTimestamp(step.startedAt)} />
+        <Field label={t('flow-field-completed')} value={formatTimestamp(step.completedAt)} />
+        <Field label={t('flow-field-claimed')} value={formatTimestamp(step.claimedAt)} />
+        <Field label={t('flow-field-duration')} value={duration ?? notAvailable} muted={!duration} />
         <Field
-          label="Due / SLA"
-          value={step.dueDate ? formatTimestamp(step.dueDate) : NOT_AVAILABLE}
+          label={t('flow-field-due-sla')}
+          value={step.dueDate ? formatTimestamp(step.dueDate) : notAvailable}
           muted={!step.dueDate}
         />
       </div>
@@ -77,7 +82,7 @@ export const FlowStepRow: React.FC<FlowStepRowProps> = ({ step, nameByStep, work
             data-testid="flow-step-results-toggle"
           >
             {expanded ? <CaretDownIcon className="gba:h-3 gba:w-3" /> : <CaretRightIcon className="gba:h-3 gba:w-3" />}
-            Results
+            {t('flow-step-results')}
           </button>
           {expanded && (
             <div className="gba:mt-2">

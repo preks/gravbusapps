@@ -12,21 +12,23 @@
  */
 import { useCallback, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslation } from '@newwork/nw-design-system'
 import { CaretDownIcon, CaretRightIcon, SpinnerGapIcon } from '@phosphor-icons/react'
 import type { ModelOption, ReasoningEffort } from '../../types/enterpriseAgent'
 import { useFloatingPanel } from './useFloatingPanel'
+import translations from '../../_i18n'
 
 // ── Effort labels ─────────────────────────────────────────────────────────────
 
-const EFFORT_LABELS: Record<ReasoningEffort, string> = {
-  none: 'None',
-  low: 'Low',
-  medium: 'Medium',
-  high: 'High'
+const EFFORT_LABEL_KEYS: Record<ReasoningEffort, string> = {
+  none: 'landing-effort-none',
+  low: 'landing-effort-low',
+  medium: 'landing-effort-medium',
+  high: 'landing-effort-high'
 }
 
 function isReasoningEffort(value: string): value is ReasoningEffort {
-  return value in EFFORT_LABELS
+  return value in EFFORT_LABEL_KEYS
 }
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -73,6 +75,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   onChange,
   disabled = false
 }) => {
+  const { t } = useTranslation(translations)
   const [isOpen, setIsOpen] = useState(false)
   const [hoverModelId, setHoverModelId] = useState<string | null>(null)
   const [coords, setCoords] = useState<PanelCoords>({ top: 0, left: 0, minWidth: 0 })
@@ -120,10 +123,12 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
 
   const activeHoverModel = models.find(m => m.id === hoverModelId)
 
-  const triggerLabel = selectedModel?.label ?? 'Model'
+  const triggerLabel = selectedModel?.label ?? t('landing-model-fallback')
   const effortLabel =
-    selectedModel?.supports_reasoning_effort && selectedEffort !== 'none' ? EFFORT_LABELS[selectedEffort] : null
-  const triggerAriaLabel = effortLabel ? `Model: ${triggerLabel}, ${effortLabel}` : `Model: ${triggerLabel}`
+    selectedModel?.supports_reasoning_effort && selectedEffort !== 'none' ? t(EFFORT_LABEL_KEYS[selectedEffort]) : null
+  const triggerAriaLabel = effortLabel
+    ? t('landing-model-aria-with-effort', { model: triggerLabel, effort: effortLabel })
+    : t('landing-model-aria', { model: triggerLabel })
   const activeHoverEfforts = (activeHoverModel?.allowed_reasoning_efforts ?? []).filter(isReasoningEffort)
 
   const textSize = isSmall ? 'gba:text-[11px]' : 'gba:text-[11.5px]'
@@ -140,10 +145,10 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
             className="gba:fixed gba:z-9999 gba:flex gba:flex-row gba:rounded-2xl gba:border gba:border-foreground/12 gba:bg-white gba:shadow-[0_8px_32px_rgba(15,23,42,0.14),0_2px_8px_rgba(15,23,42,0.07)] gba:overflow-hidden"
           >
             {/* Model list column */}
-            <div className="gba:min-w-[172px] gba:py-1.5" aria-label="Select model">
+            <div className="gba:min-w-[172px] gba:py-1.5" aria-label={t('landing-model-label')}>
               <div className="gba:px-3 gba:pb-1 gba:pt-1">
                 <span className="gba:text-[9.5px] gba:font-semibold gba:uppercase gba:tracking-[0.07em] gba:text-muted-foreground/50">
-                  Model
+                  {t('landing-model-label')}
                 </span>
               </div>
 
@@ -151,7 +156,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                 const isSelected = model.id === selectedModelId
                 const isHovered = model.id === hoverModelId
                 const activeEffortForThisModel =
-                  isSelected && model.supports_reasoning_effort ? EFFORT_LABELS[selectedEffort] : null
+                  isSelected && model.supports_reasoning_effort ? t(EFFORT_LABEL_KEYS[selectedEffort]) : null
 
                 return (
                   <button
@@ -180,7 +185,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                     {model.supports_reasoning_effort && (
                       <span className="gba:flex gba:items-center gba:gap-1 gba:shrink-0">
                         <span className="gba:text-[11px] gba:text-muted-foreground/50 gba:font-normal">
-                          {activeEffortForThisModel ?? EFFORT_LABELS['none']}
+                          {activeEffortForThisModel ?? t(EFFORT_LABEL_KEYS.none)}
                         </span>
                         <CaretRightIcon
                           className={`gba:h-2.5 gba:w-2.5 gba:transition-opacity ${isHovered ? 'gba:opacity-70' : 'gba:opacity-35'}`}
@@ -197,11 +202,11 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
             {activeHoverModel?.supports_reasoning_effort && (
               <div
                 className="gba:min-w-[110px] gba:py-1.5 gba:border-l gba:border-foreground/10"
-                aria-label="Reasoning effort"
+                aria-label={t('landing-reasoning-label')}
               >
                 <div className="gba:px-3 gba:pb-1 gba:pt-1">
                   <span className="gba:text-[9.5px] gba:font-semibold gba:uppercase gba:tracking-[0.07em] gba:text-muted-foreground/50">
-                    Reasoning
+                    {t('landing-reasoning-label')}
                   </span>
                 </div>
 
@@ -220,7 +225,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
                       }`}
                       data-testid={`effort-option-${effort}`}
                     >
-                      <span className="gba:font-medium">{EFFORT_LABELS[effort]}</span>
+                      <span className="gba:font-medium">{t(EFFORT_LABEL_KEYS[effort])}</span>
                       {isEffortSelected && (
                         <span className="gba:h-1.5 gba:w-1.5 gba:rounded-full gba:bg-foreground/50 gba:shrink-0" />
                       )}

@@ -1,4 +1,6 @@
+import { useTranslation } from '@newwork/nw-design-system'
 import type { ActiveSessionSnapshot } from '../../types/activeSession'
+import translations from '../../_i18n'
 import { SidebarActiveItem } from './SidebarActiveItem'
 import { SidebarSectionHeader } from './SidebarSectionHeader'
 import { useSidebarSectionCollapsedState } from './useSidebarSectionCollapsedState'
@@ -22,6 +24,7 @@ export const SidebarActiveSection: React.FC<SidebarActiveSectionProps> = ({
   onStop,
   forceExpanded = false
 }) => {
+  const { t } = useTranslation(translations)
   const { isCollapsed, toggleCollapsed } = useSidebarSectionCollapsedState(SECTION_ID, false)
   const showList = forceExpanded || !isCollapsed
 
@@ -33,7 +36,7 @@ export const SidebarActiveSection: React.FC<SidebarActiveSectionProps> = ({
         <span className="gba:absolute gba:inline-flex gba:h-full gba:w-full gba:rounded-full gba:bg-emerald-400 gba:opacity-75 gba:animate-ping" />
         <span className="gba:relative gba:inline-flex gba:h-2 gba:w-2 gba:rounded-full gba:bg-emerald-500 gba:shadow-[0_0_0_2px_rgba(16,185,129,0.15)]" />
       </span>
-      <span>Live</span>
+      <span>{t('sidebar-live-label')}</span>
     </span>
   )
 

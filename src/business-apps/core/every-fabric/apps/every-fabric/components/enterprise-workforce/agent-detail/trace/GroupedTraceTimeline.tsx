@@ -14,9 +14,11 @@
 // `traceTimelineModel.ts` and the row renderer in `TraceTimelineRow.tsx`.
 
 import React, { useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { TraceTimelineRow } from './TraceTimelineRow'
 import { buildRows, classifyEvent, diffMs, formatDuration } from './traceTimelineModel'
 import type { WorkforceRunTraceEvent } from '../../workforceTypes'
+import translations from '../../../../_i18n'
 
 export interface GroupedTraceTimelineProps {
   trace: readonly WorkforceRunTraceEvent[] | undefined
@@ -25,6 +27,7 @@ export interface GroupedTraceTimelineProps {
 }
 
 export const GroupedTraceTimeline: React.FC<GroupedTraceTimelineProps> = ({ trace, focusEventId }) => {
+  const { t } = useTranslation(translations)
   const rows = useMemo(() => buildRows(trace), [trace])
 
   if (rows.length === 0) {
@@ -33,7 +36,7 @@ export const GroupedTraceTimeline: React.FC<GroupedTraceTimelineProps> = ({ trac
         className="gba:rounded-lg gba:border gba:border-dashed gba:border-border/60 gba:bg-card/50 gba:p-6 gba:text-center gba:text-xs gba:text-muted-foreground"
         data-testid="workforce-trace-empty"
       >
-        No trace events recorded for this run yet.
+        {t('trace-empty-events')}
       </div>
     )
   }

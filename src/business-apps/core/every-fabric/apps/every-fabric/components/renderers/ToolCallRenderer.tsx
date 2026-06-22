@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { CaretDownIcon, CaretRightIcon, CheckIcon, LightningIcon, SpinnerGapIcon, XIcon } from '@phosphor-icons/react'
 import { toolCategoryColor } from '../../utils/renderUtils'
+import translations from '../../_i18n'
 
 export interface ToolCallRendererProps {
   toolName: string
@@ -27,6 +29,7 @@ export const ToolCallRenderer = ({
   durationMs,
   resultPreview
 }: ToolCallRendererProps) => {
+  const { t } = useTranslation(translations)
   const [expanded, setExpanded] = useState(false)
 
   return (
@@ -46,7 +49,11 @@ export const ToolCallRenderer = ({
           {toolName}
         </span>
 
-        {status === 'cached' && <span className="gba:text-xs gba:text-muted-foreground gba:font-medium">cached</span>}
+        {status === 'cached' && (
+          <span className="gba:text-xs gba:text-muted-foreground gba:font-medium">
+            {t('renderer-tool-call-cached')}
+          </span>
+        )}
         {durationMs !== undefined && (
           <span className="gba:text-xs gba:text-muted-foreground/60">{(durationMs / 1000).toFixed(2)}s</span>
         )}
@@ -64,7 +71,7 @@ export const ToolCallRenderer = ({
         <div className="gba:border-t gba:border-border gba:px-3 gba:py-2.5 gba:space-y-2">
           <div>
             <p className="gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-1">
-              Input
+              {t('renderer-tool-call-input')}
             </p>
             <pre className="gba:text-xs gba:font-mono gba:bg-muted gba:rounded gba:p-2 gba:overflow-x-auto gba:whitespace-pre-wrap gba:break-all">
               {JSON.stringify(input, null, 2)}
@@ -73,7 +80,7 @@ export const ToolCallRenderer = ({
           {resultPreview && (
             <div>
               <p className="gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-1">
-                Result preview
+                {t('renderer-tool-call-result-preview')}
               </p>
               <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{resultPreview}</p>
             </div>

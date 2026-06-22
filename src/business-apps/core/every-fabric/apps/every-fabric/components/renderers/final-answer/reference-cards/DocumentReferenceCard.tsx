@@ -4,17 +4,8 @@ import { getEntityUrl } from '@/business-apps/platform/apps/every-ai/components/
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { IconTile, tileGlyph } from './IconTile'
 import { useDocumentReference } from './hooks/officeReferenceHooks'
-import {
-  countChip,
-  dataStr,
-  getField,
-  getNum,
-  getStr,
-  humanizeToken,
-  plainTextPreview,
-  relativeOrShortDate,
-  type ReferenceCardProps
-} from './referenceCardUtils'
+import { dataStr, getField, getNum, getStr, plainTextPreview, type ReferenceCardProps } from './referenceCardUtils'
+import { useReferenceCardI18n } from './useReferenceCardI18n'
 
 const DOCUMENT_GLYPH = tileGlyph('M9 12h6m-6 4h4m4 5H7a2 2 0 01-2-2V5a2 2 0 012-2h6l6 6v10a2 2 0 01-2 2z')
 
@@ -23,6 +14,7 @@ const DOCUMENT_GLYPH = tileGlyph('M9 12h6m-6 4h4m4 5H7a2 2 0 01-2-2V5a2 2 0 012-
  * badge, last-updated recency and a page count when the doc is a PDF import.
  */
 export const DocumentReferenceCard: React.FC<ReferenceCardProps> = ({ reference, accessToken }) => {
+  const { field, countChip, humanizeToken, relativeOrShortDate, t } = useReferenceCardI18n()
   const { data: doc, loading } = useDocumentReference(reference.id, accessToken)
 
   const url = getEntityUrl(reference.type, reference.id, reference.href)
@@ -49,14 +41,14 @@ export const DocumentReferenceCard: React.FC<ReferenceCardProps> = ({ reference,
   const pageCount = getNum(getField(doc, 'sourceFile'), 'pageCount')
 
   const fields: Array<{ label: string; value: string }> = []
-  if (updated) fields.push({ label: 'Updated', value: updated })
+  if (updated) fields.push({ label: field('updated'), value: updated })
   const pages = countChip(pageCount, 'page')
-  if (pages) fields.push({ label: 'Pages', value: pages })
+  if (pages) fields.push({ label: field('pages'), value: pages })
 
   return (
     <EntityCard
       title={title}
-      subtitle="Document"
+      subtitle={t('renderer-ref-type-document')}
       status={status}
       description={description}
       icon={icon}

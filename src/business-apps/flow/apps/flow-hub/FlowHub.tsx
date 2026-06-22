@@ -9,8 +9,10 @@ import {
   Alert,
   AlertTitle,
   AlertDescription,
-  Button
+  Button,
+  useTranslation
 } from '@newwork/nw-design-system'
+import translations from './_i18n'
 import { quickActions } from './utils/flowAreas'
 import { FlowArea, FlowQuickAction } from './types'
 import { useFlowDashboardStats } from './hooks/useFlowDashboardStats'
@@ -36,6 +38,7 @@ const FLOW_STUDIO_CREATE_URL = `${buildPlatformUrl(Navigation.CREATE_FLOW_CREATO
 const FLOW_STUDIO_FLOWS_URL = `${buildPlatformUrl(Navigation.CREATE_FLOW_CREATOR)}#flows`
 
 const FlowHub: React.FC<FlowHubProps> = context => {
+  const { t } = useTranslation(translations)
   const { stats, isLoading, error, refetch } = useFlowDashboardStats(context)
   const {
     loading: permissionsLoading,
@@ -293,7 +296,7 @@ const FlowHub: React.FC<FlowHubProps> = context => {
 
       areas.push({
         id: 'flow-value-packs',
-        title: 'Flow Value Packs',
+        title: t('flow-value-packs-title'),
         description: 'Prebuilt value packs for flows',
         icon: GearIcon,
         category: 'core',
@@ -302,7 +305,7 @@ const FlowHub: React.FC<FlowHubProps> = context => {
           { label: 'Employee Lifecycle', action: 'solution-employee-lifecycle' },
           { label: 'Survey', action: 'value-pack-survey' }
         ],
-        buttonLabel: 'Browse Value Packs',
+        buttonLabel: t('flow-value-packs-button'),
         buttonAction: 'navigate-value-pack-compliance'
       })
 
@@ -406,7 +409,7 @@ const FlowHub: React.FC<FlowHubProps> = context => {
           case 'flow-value-packs':
             return {
               value: formatNumber(links?.length ?? 0),
-              label: 'Value Packs'
+              label: t('flow-value-packs-kpi')
             }
           case 'flow-creator':
           case 'flow-launcher':
@@ -526,7 +529,8 @@ const FlowHub: React.FC<FlowHubProps> = context => {
     canManageWorkflows,
     canAdministerFlows,
     isFeatureVisible,
-    stats
+    stats,
+    t
   ])
 
   const handleNavigationClick = (area: FlowArea) => {

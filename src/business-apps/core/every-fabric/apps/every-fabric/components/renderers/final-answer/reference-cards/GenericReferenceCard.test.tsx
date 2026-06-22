@@ -8,6 +8,14 @@ import { render, screen, fireEvent } from '@testing-library/react'
 
 const mockNavigateTo = jest.fn()
 
+jest.mock('@newwork/nw-design-system', () => {
+  const actual = jest.requireActual('@newwork/nw-design-system')
+  return {
+    ...actual,
+    useTranslation: () => ({ t: (key: string) => key })
+  }
+})
+
 jest.mock('@/business-apps/platform/apps/every-ai/components/links/EntityLink', () => ({
   __esModule: true,
   getEntityUrl: (type: string, id: string) => `/open/${type}/${id}`
@@ -52,5 +60,10 @@ describe('GenericReferenceCard', () => {
     render(<GenericReferenceCard reference={ref()} accessToken="tok" />)
     fireEvent.click(screen.getByTestId('entity-card'))
     expect(mockNavigateTo).toHaveBeenCalledWith('/open/document/doc-1')
+  })
+
+  it('prepends the intent context label to the subtitle', () => {
+    render(<GenericReferenceCard reference={ref({ intent: 'owner' })} accessToken="tok" />)
+    expect(screen.getByTestId('subtitle')).toHaveTextContent('renderer-ref-intent-owner · Document')
   })
 })

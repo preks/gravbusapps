@@ -38,16 +38,16 @@ export function avatarAccent(seed: string): string {
   return AVATAR_ACCENTS[Math.abs(hash) % AVATAR_ACCENTS.length]
 }
 
-export function statusPill(status: WorkforceTileStatus): { label: string; className: string } {
+export function statusPill(status: WorkforceTileStatus): { labelKey: string; className: string } {
   switch (status) {
     case 'active':
       return {
-        label: 'Active',
+        labelKey: 'tile-status-active',
         className: 'gba:bg-emerald-50 gba:text-emerald-700'
       }
     case 'paused':
       return {
-        label: 'Paused',
+        labelKey: 'tile-status-paused',
         className: 'gba:bg-amber-50 gba:text-amber-700'
       }
   }

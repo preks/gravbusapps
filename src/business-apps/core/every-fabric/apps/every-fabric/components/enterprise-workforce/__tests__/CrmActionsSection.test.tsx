@@ -42,9 +42,9 @@ describe('CrmActionsSection', () => {
 
     const rows = screen.getAllByTestId('crm-action-row')
     expect(rows).toHaveLength(2)
-    expect(rows[0]).toHaveTextContent('Search')
+    expect(rows[0]).toHaveTextContent('crm-action-search-label')
     expect(rows[0]).toHaveTextContent('functions.search_crm_entity')
-    expect(rows[1]).toHaveTextContent('Create')
+    expect(rows[1]).toHaveTextContent('crm-action-create-label')
     expect(rows[1]).toHaveTextContent('functions.create_crm_entity')
   })
 

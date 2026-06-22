@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { ClockCounterClockwise, UploadSimple } from '@phosphor-icons/react'
 import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
 import type { AdminSkill, SkillVersionSummary } from '../../types/enterpriseAgent'
+import translations from '../../_i18n'
 
 export interface SkillVersionHistoryProps {
   accessToken: string
@@ -28,6 +30,7 @@ export const SkillVersionHistory: React.FC<SkillVersionHistoryProps> = ({
   publishDisabledReason,
   showToast
 }) => {
+  const { t } = useTranslation(translations)
   const client = useEnterpriseAgentClient(accessToken)
   const [versions, setVersions] = useState<SkillVersionSummary[]>([])
   const [loading, setLoading] = useState(false)
@@ -121,20 +124,22 @@ export const SkillVersionHistory: React.FC<SkillVersionHistoryProps> = ({
       <div className="gba:flex gba:items-center gba:justify-between gba:gap-2 gba:mb-2">
         <div className="gba:flex gba:items-center gba:gap-1.5">
           <ClockCounterClockwise className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
-          <p className="gba:text-xs gba:font-semibold gba:text-foreground">Version history</p>
+          <p className="gba:text-xs gba:font-semibold gba:text-foreground">{t('skills-version-history-title')}</p>
         </div>
         {head && (
           <p className="gba:text-[10px] gba:text-muted-foreground">
-            Draft v{head.version}
-            {head.published_version != null ? ` · Published v${head.published_version}` : ' · Unpublished'}
-            {head.is_active ? ' · Live' : ''}
+            {t('skills-version-draft', { version: head.version })}
+            {head.published_version != null
+              ? ` · ${t('skills-version-published', { version: head.published_version })}`
+              : ` · ${t('skills-version-unpublished')}`}
+            {head.is_active ? ` · ${t('skills-version-live')}` : ''}
           </p>
         )}
       </div>
       {loading ? (
-        <p className="gba:text-xs gba:text-muted-foreground">Loading versions…</p>
+        <p className="gba:text-xs gba:text-muted-foreground">{t('skills-version-loading')}</p>
       ) : versions.length === 0 ? (
-        <p className="gba:text-xs gba:text-muted-foreground">No versions yet.</p>
+        <p className="gba:text-xs gba:text-muted-foreground">{t('skills-version-empty')}</p>
       ) : (
         <ul className="gba:space-y-1.5 gba:max-h-40 gba:overflow-y-auto">
           {versions.map(row => (
@@ -151,9 +156,15 @@ export const SkillVersionHistory: React.FC<SkillVersionHistoryProps> = ({
                 <span className="gba:text-xs gba:font-medium">
                   v{row.version}
                   {row.is_published_pointer && (
-                    <span className="gba:ml-1 gba:text-[10px] gba:text-primary">published</span>
+                    <span className="gba:ml-1 gba:text-[10px] gba:text-primary">
+                      {t('agents-skill-picker-latest-published')}
+                    </span>
                   )}
-                  {row.is_current && <span className="gba:ml-1 gba:text-[10px] gba:text-muted-foreground">draft</span>}
+                  {row.is_current && (
+                    <span className="gba:ml-1 gba:text-[10px] gba:text-muted-foreground">
+                      {t('skills-browse-status-draft')}
+                    </span>
+                  )}
                 </span>
                 {row.note && (
                   <span className="gba:block gba:text-[10px] gba:text-muted-foreground gba:truncate">{row.note}</span>
@@ -167,7 +178,7 @@ export const SkillVersionHistory: React.FC<SkillVersionHistoryProps> = ({
                   onClick={() => void handleRestore(row.version)}
                   data-testid={`skill-version-restore-${row.version}`}
                 >
-                  Restore
+                  {t('skills-version-restore')}
                 </button>
                 <button
                   type="button"
@@ -178,7 +189,7 @@ export const SkillVersionHistory: React.FC<SkillVersionHistoryProps> = ({
                   data-testid={`skill-version-publish-${row.version}`}
                 >
                   <UploadSimple className="gba:h-3 gba:w-3" />
-                  Publish
+                  {t('skills-version-publish')}
                 </button>
               </div>
             </li>

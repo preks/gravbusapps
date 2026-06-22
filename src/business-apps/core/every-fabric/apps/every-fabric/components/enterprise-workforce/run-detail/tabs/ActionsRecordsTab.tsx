@@ -3,12 +3,14 @@
 // Flows tab with that workflow selected.
 
 import { ListChecksIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import React from 'react'
 
 import { RunEntityLinks } from '../../RunEntityLinks'
 import type { WorkforceRun, WorkforceRunTraceEvent } from '../../workforceTypes'
 import { resolveDomainActions } from '../runDetailFacts'
 import { SectionTitle } from '../RunDetailSection'
+import translations from '../../../../_i18n'
 
 export interface ActionsRecordsTabProps {
   run: WorkforceRun
@@ -18,6 +20,7 @@ export interface ActionsRecordsTabProps {
 }
 
 export const ActionsRecordsTab: React.FC<ActionsRecordsTabProps> = ({ run, accessToken, trace, onOpenFlow }) => {
+  const { t } = useTranslation(translations)
   const domainActions = resolveDomainActions(run, trace)
   const hasContent = domainActions.length > 0 || Boolean(run.case_ref)
 
@@ -32,9 +35,9 @@ export const ActionsRecordsTab: React.FC<ActionsRecordsTabProps> = ({ run, acces
         />
       ) : (
         <section>
-          <SectionTitle icon={ListChecksIcon}>Records & actions</SectionTitle>
+          <SectionTitle icon={ListChecksIcon}>{t('run-actions-title')}</SectionTitle>
           <p className="gba:text-xs gba:italic gba:text-muted-foreground" data-testid="actions-records-empty">
-            This run did not touch any records.
+            {t('run-actions-empty')}
           </p>
         </section>
       )}

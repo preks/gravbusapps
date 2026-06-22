@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import {
   ArrowLeftIcon,
   CheckCircleIcon,
@@ -17,6 +17,7 @@ import { agentDisplayLabel, deriveDeploymentBadges } from './agentTypes'
 import { useWorkforceAgentConfig } from '../enterprise-workforce/useWorkforceAgentConfig'
 import { AgentConfigActiveTab } from './AgentConfigActiveTab'
 import { AgentAvatarPreview } from './agentConfigViewParts'
+import translations from '../../_i18n'
 
 interface SkillOption {
   skill_id: string
@@ -56,12 +57,20 @@ interface AgentConfigViewProps {
 
 type AgentConfigTab = 'profile' | 'capabilities' | 'deployment' | 'passport' | 'activation'
 
-const TAB_DEFS: ReadonlyArray<{ value: AgentConfigTab; label: string; icon: PhosphorIcon }> = [
-  { value: 'profile', label: 'Profile', icon: TagIcon },
-  { value: 'capabilities', label: 'Capabilities', icon: LightbulbIcon },
-  { value: 'deployment', label: 'Deployment', icon: LightningIcon },
-  { value: 'passport', label: 'Passport', icon: IdentificationCardIcon },
-  { value: 'activation', label: 'Activation', icon: CheckCircleIcon }
+const CONFIG_TAB_I18N: Record<AgentConfigTab, string> = {
+  profile: 'agents-config-tab-profile',
+  capabilities: 'agents-config-tab-capabilities',
+  deployment: 'agents-config-tab-deployment',
+  passport: 'agents-config-tab-passport',
+  activation: 'agents-config-tab-activation'
+}
+
+const TAB_DEFS: ReadonlyArray<{ value: AgentConfigTab; icon: PhosphorIcon }> = [
+  { value: 'profile', icon: TagIcon },
+  { value: 'capabilities', icon: LightbulbIcon },
+  { value: 'deployment', icon: LightningIcon },
+  { value: 'passport', icon: IdentificationCardIcon },
+  { value: 'activation', icon: CheckCircleIcon }
 ]
 
 const HEADER_BADGE_CLASS: Record<DeploymentBadgeTone, string> = {
@@ -167,6 +176,7 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
   onViewActivity,
   onAgentUpdated
 }) => {
+  const { t } = useTranslation(translations)
   const client = usePromptManagerClient(accessToken)
 
   const [activeTab, setActiveTab] = useState<AgentConfigTab>('profile')
@@ -373,17 +383,15 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
     setSkillsError(null)
     const ids = Array.from(next)
     onSkillsSaved(agent.id, ids)
-    client.setAgentSkills(agent.id, ids).catch(err => {
-      setSkillsError(err instanceof Error ? err.message : 'Failed to persist skills')
+    client.setAgentSkills(agent.id, ids).catch(() => {
+      setSkillsError(t('agents-config-error-persist-skills'))
     })
   }
 
   const handleSaveSystemPrompt = async () => {
     const next = (systemPrompt ?? '').trim()
     if (next.length < SYSTEM_PROMPT_MIN_LENGTH) {
-      setSystemPromptError(
-        `System prompt is too short — add at least ${SYSTEM_PROMPT_MIN_LENGTH} characters describing the agent's identity, capabilities, and constraints.`
-      )
+      setSystemPromptError(t('agents-config-error-system-prompt-short', { min: SYSTEM_PROMPT_MIN_LENGTH }))
       return
     }
     setSystemPromptSaving(true)
@@ -393,8 +401,8 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
       setSystemPrompt(next)
       setSavedSystemPrompt(next)
       setSystemPromptSaved(true)
-    } catch (err) {
-      setSystemPromptError(err instanceof Error ? err.message : 'Failed to save system prompt')
+    } catch {
+      setSystemPromptError(t('agents-config-error-save-system-prompt'))
     } finally {
       setSystemPromptSaving(false)
     }
@@ -402,9 +410,7 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
 
   const handleSaveDetails = async () => {
     if (!descriptionSignals.isValid) {
-      setDetailsError(
-        `Description is too thin — add at least ${DESCRIPTION_MIN_LENGTH} characters describing what the agent does. It is how the agent gets discovered and chosen.`
-      )
+      setDetailsError(t('agents-config-error-description-thin', { min: DESCRIPTION_MIN_LENGTH }))
       return
     }
     setDetailsSaving(true)
@@ -435,8 +441,8 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
         tags,
         specialty
       })
-    } catch (err) {
-      setDetailsError(err instanceof Error ? err.message : 'Failed to save details')
+    } catch {
+      setDetailsError(t('agents-config-error-save-details'))
     } finally {
       setDetailsSaving(false)
     }
@@ -449,8 +455,8 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
       const response = await client.generateAgentAvatar(agent.id)
       setAvatarPreview(response.avatar)
       onAgentUpdated?.(agent.id, { avatar: response.avatar })
-    } catch (err) {
-      setAvatarError(err instanceof Error ? err.message : 'Failed to generate avatar')
+    } catch {
+      setAvatarError(t('agents-config-error-generate-avatar'))
     } finally {
       setAvatarGenerating(false)
     }
@@ -463,8 +469,8 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
       await client.clearAgentAvatar(agent.id)
       setAvatarPreview(null)
       onAgentUpdated?.(agent.id, { avatar: null })
-    } catch (err) {
-      setAvatarError(err instanceof Error ? err.message : 'Failed to remove avatar')
+    } catch {
+      setAvatarError(t('agents-config-error-remove-avatar'))
     } finally {
       setAvatarClearing(false)
     }
@@ -514,10 +520,10 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
               data-testid="agent-config-progress"
             >
               <p className="gba:text-xs gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground">
-                Studio setup
+                {t('agents-config-studio-setup')}
               </p>
               <p className="gba:mt-1 gba:text-sm gba:font-medium gba:text-foreground">
-                {setupSteps.completed} of {setupSteps.total} steps complete
+                {t('agents-config-progress', { completed: setupSteps.completed, total: setupSteps.total })}
               </p>
               <Button
                 variant="outline"
@@ -526,7 +532,7 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
                 onClick={() => setActiveTab(setupSteps.nextStep.value)}
                 data-testid="agent-config-next-step"
               >
-                Continue: {setupSteps.nextStep.label}
+                {t('agents-config-continue', { step: t(CONFIG_TAB_I18N[setupSteps.nextStep.value]) })}
               </Button>
             </div>
 
@@ -559,7 +565,7 @@ export const AgentConfigView: React.FC<AgentConfigViewProps> = ({
                     <span className="gba:min-w-0 gba:flex-1">
                       <span className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:font-semibold">
                         <TabIcon className="gba:h-4 gba:w-4" />
-                        {tab.label}
+                        {t(CONFIG_TAB_I18N[tab.value])}
                       </span>
                     </span>
                   </button>

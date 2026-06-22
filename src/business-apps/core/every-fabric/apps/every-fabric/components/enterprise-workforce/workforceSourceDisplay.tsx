@@ -8,17 +8,18 @@ import type { WorkforceRunSource } from './workforceTypes'
 
 export interface SourceVisual {
   icon: Icon
-  label: string
+  /** FTL message key for the human label; translate at the call site with `t()`. */
+  labelKey: string
 }
 
 const SOURCE_VISUALS: Record<WorkforceRunSource, SourceVisual> = {
-  manual: { icon: CursorClickIcon, label: 'Manual run' },
-  schedule: { icon: ClockIcon, label: 'Scheduled' },
-  webhook: { icon: LightningIcon, label: 'Webhook' },
-  inbound_email: { icon: EnvelopeIcon, label: 'Inbound email' }
+  manual: { icon: CursorClickIcon, labelKey: 'source-manual' },
+  schedule: { icon: ClockIcon, labelKey: 'source-schedule' },
+  webhook: { icon: LightningIcon, labelKey: 'source-webhook' },
+  inbound_email: { icon: EnvelopeIcon, labelKey: 'source-inbound-email' }
 }
 
 export function sourceVisual(source: WorkforceRunSource | null | undefined): SourceVisual {
   if (source && source in SOURCE_VISUALS) return SOURCE_VISUALS[source]
-  return { icon: QuestionIcon, label: 'Unknown source' }
+  return { icon: QuestionIcon, labelKey: 'source-unknown' }
 }

@@ -4,11 +4,12 @@
 // set to "escalate". The UI shows that contract inline so users don't
 // hit a surprise 400 on save.
 
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { BellIcon, TrashIcon } from '@phosphor-icons/react'
 import React, { useEffect, useState } from 'react'
 import type { WorkforceAgent, WorkforceAgentUpdateInput } from '../workforceTypes'
 import { SectionShell } from './SectionShell'
+import translations from '../../../_i18n'
 
 interface EscalationSectionProps {
   agent: WorkforceAgent
@@ -65,6 +66,7 @@ function isDirty(form: FormState, baseline: FormState): boolean {
 }
 
 export const EscalationSection: React.FC<EscalationSectionProps> = ({ agent, isSaving, onSave }) => {
+  const { t } = useTranslation(translations)
   const baseline = fromAgent(agent)
   const [form, setForm] = useState<FormState>(baseline)
 
@@ -97,9 +99,9 @@ export const EscalationSection: React.FC<EscalationSectionProps> = ({ agent, isS
   return (
     <SectionShell
       id="escalation"
-      title="Escalation"
+      title={t('escalation-title')}
       icon={BellIcon}
-      description="How the agent hands work back to humans. Full-auto agents and 'escalate' budgets need at least one channel."
+      description={t('escalation-description')}
       isDirty={dirty}
       isSaving={isSaving}
       onSave={() => void onSave({ escalation: asPatchPolicy(form) })}
@@ -111,7 +113,7 @@ export const EscalationSection: React.FC<EscalationSectionProps> = ({ agent, isS
             htmlFor="ws-esc-owner"
             className="gba:mb-1 gba:block gba:text-xs gba:font-semibold gba:text-foreground"
           >
-            Owner user ID
+            {t('escalation-owner-label')}
           </label>
           <input
             id="ws-esc-owner"
@@ -126,13 +128,13 @@ export const EscalationSection: React.FC<EscalationSectionProps> = ({ agent, isS
             htmlFor="ws-esc-queue"
             className="gba:mb-1 gba:block gba:text-xs gba:font-semibold gba:text-foreground"
           >
-            Ticket queue
+            {t('escalation-queue-label')}
           </label>
           <input
             id="ws-esc-queue"
             value={form.ticketQueue}
             onChange={e => setForm(prev => ({ ...prev, ticketQueue: e.target.value }))}
-            placeholder="e.g. ops-tier-1"
+            placeholder={t('escalation-queue-placeholder')}
             className="gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring"
             data-testid="workforce-escalation-queue"
           />
@@ -140,7 +142,9 @@ export const EscalationSection: React.FC<EscalationSectionProps> = ({ agent, isS
       </div>
 
       <div className="gba:mt-4">
-        <label className="gba:mb-1 gba:block gba:text-xs gba:font-semibold gba:text-foreground">Notify emails</label>
+        <label className="gba:mb-1 gba:block gba:text-xs gba:font-semibold gba:text-foreground">
+          {t('escalation-notify-label')}
+        </label>
         <div className="gba:flex gba:gap-2">
           <input
             type="email"
@@ -152,12 +156,12 @@ export const EscalationSection: React.FC<EscalationSectionProps> = ({ agent, isS
                 addEmail()
               }
             }}
-            placeholder="ops@acme.com"
+            placeholder={t('escalation-email-placeholder')}
             className="gba:h-9 gba:flex-1 gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:text-sm gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring"
             data-testid="workforce-escalation-email-input"
           />
           <Button size="sm" variant="outline" onClick={addEmail} data-testid="workforce-escalation-email-add">
-            Add
+            {t('action-add')}
           </Button>
         </div>
         <ul className="gba:mt-2 gba:flex gba:flex-wrap gba:gap-1.5" data-testid="workforce-escalation-email-list">
@@ -170,7 +174,7 @@ export const EscalationSection: React.FC<EscalationSectionProps> = ({ agent, isS
               <button
                 type="button"
                 onClick={() => removeEmail(email)}
-                aria-label={`Remove ${email}`}
+                aria-label={t('escalation-remove', { value: email })}
                 className="gba:text-muted-foreground gba:hover:text-destructive"
                 data-testid={`workforce-escalation-email-remove-${email}`}
               >
@@ -186,7 +190,7 @@ export const EscalationSection: React.FC<EscalationSectionProps> = ({ agent, isS
           htmlFor="ws-esc-confidence"
           className="gba:mb-1 gba:block gba:text-xs gba:font-semibold gba:text-foreground"
         >
-          Confidence threshold ({form.confidenceThreshold.toFixed(2)})
+          {t('escalation-confidence-label', { value: form.confidenceThreshold.toFixed(2) })}
         </label>
         <input
           id="ws-esc-confidence"
@@ -199,13 +203,13 @@ export const EscalationSection: React.FC<EscalationSectionProps> = ({ agent, isS
           className="gba:w-full"
           data-testid="workforce-escalation-confidence"
         />
-        <p className="gba:mt-1 gba:text-[11px] gba:text-muted-foreground">
-          The agent escalates if its self-assessed confidence on the next action falls below this.
-        </p>
+        <p className="gba:mt-1 gba:text-[11px] gba:text-muted-foreground">{t('escalation-confidence-hint')}</p>
       </div>
 
       <div className="gba:mt-4">
-        <label className="gba:mb-1 gba:block gba:text-xs gba:font-semibold gba:text-foreground">Blocked intents</label>
+        <label className="gba:mb-1 gba:block gba:text-xs gba:font-semibold gba:text-foreground">
+          {t('escalation-blocked-label')}
+        </label>
         <div className="gba:flex gba:gap-2">
           <input
             value={form.intentDraft}
@@ -216,12 +220,12 @@ export const EscalationSection: React.FC<EscalationSectionProps> = ({ agent, isS
                 addIntent()
               }
             }}
-            placeholder="e.g. cancel_contract"
+            placeholder={t('escalation-intent-placeholder')}
             className="gba:h-9 gba:flex-1 gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:text-sm gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring"
             data-testid="workforce-escalation-intent-input"
           />
           <Button size="sm" variant="outline" onClick={addIntent} data-testid="workforce-escalation-intent-add">
-            Add
+            {t('action-add')}
           </Button>
         </div>
         <ul className="gba:mt-2 gba:flex gba:flex-wrap gba:gap-1.5" data-testid="workforce-escalation-intent-list">
@@ -234,7 +238,7 @@ export const EscalationSection: React.FC<EscalationSectionProps> = ({ agent, isS
               <button
                 type="button"
                 onClick={() => removeIntent(intent)}
-                aria-label={`Remove ${intent}`}
+                aria-label={t('escalation-remove', { value: intent })}
                 className="gba:hover:text-destructive/70"
                 data-testid={`workforce-escalation-intent-remove-${intent}`}
               >

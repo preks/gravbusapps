@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import {
   BrainIcon,
   BuildingsIcon,
@@ -34,6 +35,7 @@ import {
   splitSessions,
   type RecentsStatusFilter
 } from './sessionGrouping'
+import translations from '../../_i18n'
 
 export interface SidebarProps {
   isCollapsed: boolean
@@ -141,6 +143,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isTraceExplorerActive = false,
   devModeEnabled = false
 }) => {
+  const { t } = useTranslation(translations)
   const [statusFilter, setStatusFilter] = useState<Set<RecentsStatusFilter> | null>(null)
   const [searchFocusRequest, setSearchFocusRequest] = useState(0)
 
@@ -166,7 +169,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside
-      aria-label="Enterprise agents navigation"
+      aria-label={t('sidebar-nav-aria')}
       className={`gba:relative gba:z-20 gba:flex gba:flex-col gba:shrink-0 ${widthClass} ${SIDEBAR_WIDTH_TRANSITION_CLASS}`}
       data-testid="sidebar"
       data-sidebar-collapsed={isCollapsed ? 'true' : 'false'}
@@ -178,11 +181,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {showNewSessionCta && <SidebarNewChatButton isCollapsed={isCollapsed} onClick={onNewSession} />}
 
         {/* WORKSPACE — always visible, never bound to a session. */}
-        <SidebarSectionLabel label="Workspace" isCollapsed={isCollapsed} testId="sidebar-section-workspace" />
+        <SidebarSectionLabel
+          label={t('sidebar-section-workspace')}
+          isCollapsed={isCollapsed}
+          testId="sidebar-section-workspace"
+        />
         <SidebarNavItem
           icon={UsersThreeIcon}
-          label="Digital Workforce"
-          badge="NEW"
+          label={t('nav-digital-workforce')}
+          badge={t('sidebar-badge-new')}
           isActive={isEnterpriseWorkforceActive}
           isCollapsed={isCollapsed}
           onClick={onOpenEnterpriseWorkforce}
@@ -190,7 +197,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         />
         <SidebarNavItem
           icon={BuildingsIcon}
-          label="Company Mesh"
+          label={t('agent-mesh-scope-title-company')}
           isActive={isCompanyMeshActive}
           isCollapsed={isCollapsed}
           onClick={onOpenCompanyMesh}
@@ -199,7 +206,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {devModeEnabled && (
           <SidebarNavItem
             icon={TreeStructureIcon}
-            label="Trace Lens"
+            label={t('trace-lens-title')}
             isActive={isTraceLensActive}
             isCollapsed={isCollapsed}
             onClick={onOpenTraceLens}
@@ -209,7 +216,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {devModeEnabled && (
           <SidebarNavItem
             icon={BrainIcon}
-            label="Memory Lens"
+            label={t('memory-lens-title')}
             isActive={isMemoryLensActive}
             isCollapsed={isCollapsed}
             onClick={onOpenMemoryLens}
@@ -221,13 +228,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {hasActiveSession && (
           <>
             <SidebarSectionLabel
-              label="Active session"
+              label={t('sidebar-section-active-session')}
               isCollapsed={isCollapsed}
               testId="sidebar-section-active-session"
             />
             <SidebarNavItem
               icon={GraphIcon}
-              label="Session Mesh"
+              label={t('trace-explorer-agent-mesh')}
               isActive={isSessionMeshActive}
               isCollapsed={isCollapsed}
               onClick={onOpenSessionMesh}
@@ -236,7 +243,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {devModeEnabled && (
               <SidebarNavItem
                 icon={ListMagnifyingGlassIcon}
-                label="Trace Explorer"
+                label={t('agent-mesh-trace-explorer')}
                 isActive={isTraceExplorerActive}
                 isCollapsed={isCollapsed}
                 onClick={onOpenTraceExplorer}
@@ -273,9 +280,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               activeSessionId={activeSessionId}
               onSelect={onSelectSession}
               onDelete={onDeleteSession}
-              emptyHint={
-                hasActiveHistorySearch || statusFilter ? 'No sessions match your search or filters.' : undefined
-              }
+              emptyHint={hasActiveHistorySearch || statusFilter ? t('sidebar-recents-empty-search') : undefined}
               forceExpanded={forceSessionsExpanded}
               isLoading={historySessionsLoading}
               isLoadingMore={historySessionsLoadingMore}

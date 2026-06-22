@@ -11,6 +11,14 @@ const mockClient = {
   deployWorkforce: (...a: unknown[]) => mockDeployWorkforce(...a)
 }
 
+jest.mock('@newwork/nw-design-system', () => {
+  const actual = jest.requireActual('@newwork/nw-design-system')
+  return {
+    ...actual,
+    useTranslation: () => ({ t: (key: string) => key })
+  }
+})
+
 jest.mock('@/common/network/ai/prompt-manager/usePromptManagerClient', () => ({
   usePromptManagerClient: () => mockClient
 }))
@@ -39,7 +47,7 @@ describe('DeploymentsSection', () => {
         }}
       />
     )
-    expect(screen.getByTestId('deployment-workforce-status')).toHaveTextContent('Paused')
+    expect(screen.getByTestId('deployment-workforce-status')).toHaveTextContent('agents-deploy-worker-status-paused')
     expect(screen.queryByTestId('add-workforce-deployment')).toBeNull()
   })
 
@@ -48,7 +56,7 @@ describe('DeploymentsSection', () => {
     await userEvent.click(screen.getByTestId('add-workforce-deployment'))
     await userEvent.click(screen.getByTestId('wf-deploy-submit'))
     expect(mockDeployWorkforce).not.toHaveBeenCalled()
-    expect(screen.getByText(/Role is required/i)).toBeInTheDocument()
+    expect(screen.getByText('agents-deploy-error-role-required')).toBeInTheDocument()
   })
 
   it('deploys with the entered profile and notifies the parent', async () => {

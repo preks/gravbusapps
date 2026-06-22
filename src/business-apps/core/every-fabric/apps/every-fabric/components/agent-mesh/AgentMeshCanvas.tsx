@@ -10,6 +10,7 @@ import { MeshLayersToggle } from './MeshLayersToggle'
 import { MeshNodeDetailPopover } from './MeshNodeDetailPopover'
 import { MeshSearch } from './MeshSearch'
 import type { MeshLiveActivityState } from './liveMeshActivity'
+import { useAgentMeshI18n } from './useAgentMeshI18n'
 
 // Direct import (not React.lazy) — the remote-component-loader used to mount
 // screens does not resolve split chunks, see `components/artifacts/renderers/index.ts`.
@@ -51,6 +52,7 @@ export const AgentMeshCanvas: React.FC<AgentMeshCanvasProps> = ({
   onDrillToUser,
   onDrillToSession
 }) => {
+  const { t } = useAgentMeshI18n()
   const [activeLayers, setActiveLayers] = useState<Set<MeshLayerKey>>(() => new Set(ALL_LAYERS))
   const [showEdgeLabels, setShowEdgeLabels] = useState<boolean>(true)
   const [showLayersPanel, setShowLayersPanel] = useState<boolean>(false)
@@ -215,27 +217,31 @@ export const AgentMeshCanvas: React.FC<AgentMeshCanvasProps> = ({
           {showLiveHud && liveActivity && liveActivity.summary.liveSessions > 0 && (
             <div
               className="gba:inline-flex gba:h-8 gba:items-center gba:gap-2 gba:rounded-lg gba:border gba:border-primary/30 gba:bg-primary/10 gba:px-2.5 gba:text-[12px] gba:font-medium gba:text-primary gba:shadow-sm gba:backdrop-blur"
-              title="Live activity currently visible in this mesh"
+              title={t('agent-mesh-live-hud-title')}
               data-testid="mesh-live-hud"
             >
               <span className="gba:relative gba:flex gba:h-2 gba:w-2">
                 <span className="gba:absolute gba:inline-flex gba:h-full gba:w-full gba:animate-ping gba:rounded-full gba:bg-primary gba:opacity-60" />
                 <span className="gba:relative gba:inline-flex gba:h-2 gba:w-2 gba:rounded-full gba:bg-primary" />
               </span>
-              <span>{liveActivity.summary.liveSessions} live</span>
+              <span>{t('agent-mesh-live-hud-sessions', { count: liveActivity.summary.liveSessions })}</span>
               <span className="gba:text-primary/60">·</span>
-              <span>{liveActivity.summary.activeAgents} agents</span>
+              <span>{t('agent-mesh-live-hud-agents', { count: liveActivity.summary.activeAgents })}</span>
               <span className="gba:text-primary/60">·</span>
-              <span>{liveActivity.summary.activeTools + liveActivity.summary.activeSkills} tools</span>
+              <span>
+                {t('agent-mesh-live-hud-tools', {
+                  count: liveActivity.summary.activeTools + liveActivity.summary.activeSkills
+                })}
+              </span>
             </div>
           )}
           <MeshSearch nodes={model.nodes} onSelectNode={setSelectedNodeId} />
           <button
             type="button"
             onClick={toggleViewMode}
-            aria-label={viewMode === '3d' ? 'Switch to 2D view' : 'Switch to 3D view'}
+            aria-label={viewMode === '3d' ? t('agent-mesh-view-2d') : t('agent-mesh-view-3d')}
             aria-pressed={viewMode === '3d'}
-            title={viewMode === '3d' ? 'Switch to 2D view' : 'Switch to 3D view'}
+            title={viewMode === '3d' ? t('agent-mesh-view-2d') : t('agent-mesh-view-3d')}
             className={`gba:inline-flex gba:h-8 gba:w-8 gba:items-center gba:justify-center gba:rounded-lg gba:border gba:border-border/60 gba:shadow-sm gba:transition-colors ${
               viewMode === '3d'
                 ? 'gba:bg-primary gba:text-primary-foreground'
@@ -252,7 +258,7 @@ export const AgentMeshCanvas: React.FC<AgentMeshCanvasProps> = ({
           <button
             type="button"
             onClick={() => setShowLayersPanel(prev => !prev)}
-            aria-label="Toggle layers panel"
+            aria-label={t('agent-mesh-toggle-layers')}
             className={`gba:inline-flex gba:h-8 gba:w-8 gba:items-center gba:justify-center gba:rounded-lg gba:border gba:border-border/60 gba:shadow-sm gba:transition-colors ${
               showLayersPanel
                 ? 'gba:bg-primary gba:text-primary-foreground'

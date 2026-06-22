@@ -10,40 +10,46 @@ import {
   CardTitle,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent
+  ChartTooltipContent,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { TreeStructureIcon } from '@phosphor-icons/react'
 import React, { useMemo } from 'react'
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 import type { WorkforceSourceBreakdownEntry } from '../workforceTypes'
+import translations from '../../../_i18n'
 
 export interface SourceBreakdownChartProps {
   entries: readonly WorkforceSourceBreakdownEntry[]
 }
 
-const SOURCE_LABELS: Record<string, string> = {
-  manual: 'Manual',
-  schedule: 'Scheduled',
-  webhook: 'Webhook',
-  inbound_email: 'Inbound email'
+const SOURCE_LABEL_KEYS: Record<string, string> = {
+  manual: 'runs-filter-manual',
+  schedule: 'runs-filter-schedule',
+  webhook: 'runs-filter-webhook',
+  inbound_email: 'runs-filter-inbound-email'
 }
 
-const chartConfig = {
-  runs: { label: 'Runs', color: 'var(--nw-color-chart-2, var(--primary))' }
-} as const
-
 export const SourceBreakdownChart: React.FC<SourceBreakdownChartProps> = ({ entries }) => {
+  const { t } = useTranslation(translations)
+  const chartConfig = useMemo(
+    () => ({
+      runs: { label: t('chart-source-runs-label'), color: 'var(--nw-color-chart-2, var(--primary))' }
+    }),
+    [t]
+  )
+
   const data = useMemo(
     () =>
       entries
         .filter(entry => entry.runs > 0)
         .map(entry => ({
           source: entry.source,
-          label: SOURCE_LABELS[entry.source] ?? entry.source,
+          label: SOURCE_LABEL_KEYS[entry.source] ? t(SOURCE_LABEL_KEYS[entry.source]) : entry.source,
           runs: entry.runs,
           credits: entry.credits
         })),
-    [entries]
+    [entries, t]
   )
 
   return (
@@ -51,9 +57,9 @@ export const SourceBreakdownChart: React.FC<SourceBreakdownChartProps> = ({ entr
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-sm">
           <TreeStructureIcon className="gba:h-4 gba:w-4 gba:text-primary" />
-          Where work comes from
+          {t('chart-source-title')}
         </CardTitle>
-        <p className="gba:text-xs gba:text-muted-foreground">Last 30 days, grouped by trigger source.</p>
+        <p className="gba:text-xs gba:text-muted-foreground">{t('chart-source-desc')}</p>
       </CardHeader>
       <CardContent>
         {data.length === 0 ? (
@@ -61,7 +67,7 @@ export const SourceBreakdownChart: React.FC<SourceBreakdownChartProps> = ({ entr
             className="gba:py-8 gba:text-center gba:text-xs gba:text-muted-foreground"
             data-testid="workforce-source-breakdown-empty"
           >
-            No runs in the last 30 days yet.
+            {t('chart-source-empty')}
           </p>
         ) : (
           <ChartContainer config={chartConfig} className="gba:h-[200px] gba:w-full gba:aspect-auto">

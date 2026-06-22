@@ -4,6 +4,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { UsersThreeIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import {
   CUSTOMER_360_INBOUND_TAG,
   hasCustomer360InboundTag,
@@ -12,6 +13,7 @@ import {
   type WorkforceAgentUpdateInput
 } from '../workforceTypes'
 import { SectionShell } from './SectionShell'
+import translations from '../../../_i18n'
 
 interface Customer360SurfaceSectionProps {
   agent: WorkforceAgent
@@ -20,6 +22,7 @@ interface Customer360SurfaceSectionProps {
 }
 
 export const Customer360SurfaceSection: React.FC<Customer360SurfaceSectionProps> = ({ agent, isSaving, onSave }) => {
+  const { t } = useTranslation(translations)
   const baseline = hasCustomer360InboundTag(agent)
   const [enabled, setEnabled] = useState(baseline)
 
@@ -32,9 +35,9 @@ export const Customer360SurfaceSection: React.FC<Customer360SurfaceSectionProps>
   return (
     <SectionShell
       id="customer-360-surface"
-      title="Customer 360"
+      title={t('customer360-section-title')}
       icon={UsersThreeIcon}
-      description="Surface this agent's inbound-email runs in the CRM Customer 360 Inbound tab, matched to the customer who wrote in."
+      description={t('customer360-section-desc')}
       isDirty={dirty}
       isSaving={isSaving}
       onSave={() => void onSave({ tags: toggleAgentTag(agent.tags, CUSTOMER_360_INBOUND_TAG, enabled) })}
@@ -51,11 +54,8 @@ export const Customer360SurfaceSection: React.FC<Customer360SurfaceSectionProps>
           className="gba:mt-0.5 gba:h-3.5 gba:w-3.5 gba:text-primary gba:focus:ring-primary"
         />
         <div className="gba:min-w-0 gba:flex-1">
-          <p className="gba:text-xs gba:font-medium gba:text-foreground">Show inbound runs in Customer 360</p>
-          <p className="gba:mt-0.5 gba:text-[11px] gba:text-muted-foreground">
-            Inbound emails this agent handles appear in the Customer 360 Inbound stream. Leave off for agents whose mail
-            should not show up in CRM.
-          </p>
+          <p className="gba:text-xs gba:font-medium gba:text-foreground">{t('customer360-toggle-title')}</p>
+          <p className="gba:mt-0.5 gba:text-[11px] gba:text-muted-foreground">{t('customer360-toggle-desc')}</p>
         </div>
       </label>
     </SectionShell>

@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { CaretDownIcon, CaretUpIcon, DownloadSimpleIcon, PackageIcon, StarIcon } from '@phosphor-icons/react'
 import type { EnterpriseSkill } from '../../../types/enterpriseAgent'
 import { useEnterpriseAgentClient } from '../../../hooks/useEnterpriseAgentClient'
 import { SectionHeader } from './SettingsShared'
 import { SkillsListSkeleton } from './SkeletonLoader'
+import translations from '../../../_i18n'
 
 interface SkillsSectionProps {
   client: ReturnType<typeof useEnterpriseAgentClient>
@@ -32,6 +34,7 @@ function getOnboardingStepItems(skillId: string, steps: string[]) {
 }
 
 export const SkillsSection: React.FC<SkillsSectionProps> = ({ client, isOpen, defaultSkillId, onSetDefaultSkill }) => {
+  const { t } = useTranslation(translations)
   const [skills, setSkills] = useState<EnterpriseSkill[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [expandedSkillId, setExpandedSkillId] = useState<string | null>(null)
@@ -76,7 +79,9 @@ export const SkillsSection: React.FC<SkillsSectionProps> = ({ client, isOpen, de
     }
 
     if (filteredSkills.length === 0) {
-      return <p className="gba:text-xs gba:text-muted-foreground gba:text-center gba:py-4">No skills available</p>
+      return (
+        <p className="gba:text-xs gba:text-muted-foreground gba:text-center gba:py-4">{t('settings-skills-empty')}</p>
+      )
     }
 
     return filteredSkills.map(skill => {
@@ -99,7 +104,7 @@ export const SkillsSection: React.FC<SkillsSectionProps> = ({ client, isOpen, de
                 {isDefault && (
                   <span className="gba:inline-flex gba:items-center gba:gap-0.5 gba:px-1.5 gba:py-0.5 gba:rounded-full gba:bg-primary/10 gba:text-primary gba:text-[10px] gba:font-semibold gba:shrink-0">
                     <StarIcon className="gba:h-2.5 gba:w-2.5" weight="fill" />
-                    Fallback
+                    {t('settings-skills-fallback')}
                   </span>
                 )}
               </div>
@@ -109,7 +114,9 @@ export const SkillsSection: React.FC<SkillsSectionProps> = ({ client, isOpen, de
                   {skill.category}
                 </span>
                 {skill.install_count > 0 && (
-                  <span className="gba:text-[10px] gba:text-muted-foreground/50">{skill.install_count} installs</span>
+                  <span className="gba:text-[10px] gba:text-muted-foreground/50">
+                    {t('settings-skills-installs', { count: skill.install_count })}
+                  </span>
                 )}
               </div>
             </div>
@@ -122,7 +129,7 @@ export const SkillsSection: React.FC<SkillsSectionProps> = ({ client, isOpen, de
                     ? 'gba:text-primary gba:bg-primary/10'
                     : 'gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60'
                 }`}
-                title={isDefault ? 'Remove as fallback' : 'Set as fallback'}
+                title={isDefault ? t('settings-skills-remove-fallback') : t('settings-skills-set-fallback')}
                 data-testid={`settings-skill-default-${skill.skill_id}`}
               >
                 <StarIcon className="gba:h-3.5 gba:w-3.5" weight={isDefault ? 'fill' : 'regular'} />
@@ -130,7 +137,7 @@ export const SkillsSection: React.FC<SkillsSectionProps> = ({ client, isOpen, de
               <button
                 onClick={() => handleInstallSkill(skill.skill_id)}
                 className="gba:flex gba:items-center gba:justify-center gba:h-7 gba:w-7 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
-                title="Install skill"
+                title={t('settings-skills-install')}
                 data-testid={`settings-skill-install-${skill.skill_id}`}
               >
                 <DownloadSimpleIcon className="gba:h-3.5 gba:w-3.5" />
@@ -138,7 +145,7 @@ export const SkillsSection: React.FC<SkillsSectionProps> = ({ client, isOpen, de
               <button
                 onClick={() => setExpandedSkillId(isExpanded ? null : skill.skill_id)}
                 className="gba:flex gba:items-center gba:justify-center gba:h-7 gba:w-7 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
-                title={isExpanded ? 'Collapse' : 'Details'}
+                title={isExpanded ? t('settings-skills-collapse') : t('settings-skills-details')}
               >
                 {isExpanded ? (
                   <CaretUpIcon className="gba:h-3.5 gba:w-3.5" />
@@ -154,12 +161,14 @@ export const SkillsSection: React.FC<SkillsSectionProps> = ({ client, isOpen, de
               <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs gba:text-muted-foreground">
                 <span>v{skill.version}</span>
                 <span>{skill.publisher}</span>
-                {skill.estimated_setup_time && <span>{skill.estimated_setup_time} setup</span>}
+                {skill.estimated_setup_time && (
+                  <span>{t('settings-skills-setup', { time: skill.estimated_setup_time })}</span>
+                )}
               </div>
               {onboardingStepItems.length > 0 && (
                 <div>
                   <p className="gba:text-[10px] gba:uppercase gba:tracking-widest gba:font-semibold gba:text-muted-foreground/60 gba:mb-1">
-                    Setup steps
+                    {t('settings-skills-setup-steps')}
                   </p>
                   <ol className="gba:space-y-0.5">
                     {onboardingStepItems.map(step => (
@@ -182,13 +191,10 @@ export const SkillsSection: React.FC<SkillsSectionProps> = ({ client, isOpen, de
     <>
       <SectionHeader
         icon={<PackageIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground/60" />}
-        title="Enterprise Skills"
+        title={t('settings-skills-title')}
       />
       <div className="gba:px-4 gba:pb-3">
-        <p className="gba:text-xs gba:text-muted-foreground gba:mb-3">
-          Skills are automatically detected based on your task. Set a fallback skill to use when auto-detection doesn't
-          find a confident match.
-        </p>
+        <p className="gba:text-xs gba:text-muted-foreground gba:mb-3">{t('settings-skills-intro')}</p>
         {categories.length > 0 && (
           <div className="gba:flex gba:gap-1 gba:mb-3 gba:flex-wrap">
             <button
@@ -199,7 +205,7 @@ export const SkillsSection: React.FC<SkillsSectionProps> = ({ client, isOpen, de
                   : 'gba:text-muted-foreground gba:hover:bg-muted/40'
               }`}
             >
-              All
+              {t('settings-skills-all')}
             </button>
             {categories.map(cat => (
               <button

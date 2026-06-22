@@ -19,10 +19,10 @@ export const AIQuickStart: React.FC<AIQuickStartProps> = ({
   const { t } = useTranslation(translations)
   const EXAMPLE_PROMPTS = useMemo(
     () => [
-      'Create a lead management screen with filters and charts',
-      'Build a flow for expense approval with 3 levels',
+      t('quickstart-example-screen'),
+      t('quickstart-example-flow'),
       t('quickstart-example-agent'),
-      'Create a serverless function for data validation'
+      t('quickstart-example-function')
     ],
     [t]
   )
@@ -60,12 +60,14 @@ export const AIQuickStart: React.FC<AIQuickStartProps> = ({
         <div className="gba:text-center gba:mb-4">
           <div className="gba:inline-flex gba:items-center gba:gap-2 gba:text-ai gba:mb-3">
             <Sparkles className="gba:h-5 gba:w-5" />
-            <span className="gba:text-sm gba:font-medium gba:uppercase gba:tracking-wider">AI Quick Start</span>
+            <span className="gba:text-sm gba:font-medium gba:uppercase gba:tracking-wider">
+              {t('quickstart-eyebrow')}
+            </span>
           </div>
           <h2 className="gba:text-2xl gba:sm:text-3xl gba:font-bold gba:text-foreground gba:mb-3">
-            Describe what you want to create
+            {t('quickstart-title')}
           </h2>
-          <p className="gba:text-muted-foreground">Tell us in plain language and we will guide you to the right tool</p>
+          <p className="gba:text-muted-foreground">{t('quickstart-description')}</p>
         </div>
 
         {/* Input area */}
@@ -87,15 +89,15 @@ export const AIQuickStart: React.FC<AIQuickStartProps> = ({
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
               onKeyDown={handleKeyDown}
-              placeholder="e.g., Create a dashboard for tracking sales performance with charts and KPIs..."
+              placeholder={t('quickstart-placeholder')}
               className="gba:min-h-[120px] gba:border-0 gba:bg-transparent gba:resize-none gba:text-base focus:gba:ring-0 focus:gba:outline-none"
               data-testid={`${testId}-input`}
             />
 
             <div className="gba:flex gba:items-center gba:justify-between gba:pt-3 gba:border-t gba:border-border">
-              <div className="gba:text-xs gba:text-muted-foreground">Press Enter to submit</div>
+              <div className="gba:text-xs gba:text-muted-foreground">{t('quickstart-submit-hint')}</div>
               <AiButton onClick={handleSubmit} disabled={!prompt.trim()} data-testid={`${testId}-submit`}>
-                <span>Create with AI</span>
+                <span>{t('quickstart-submit-button')}</span>
                 <ArrowRight className="gba:h-4 gba:w-4 gba:ml-2" />
               </AiButton>
             </div>
@@ -106,7 +108,7 @@ export const AIQuickStart: React.FC<AIQuickStartProps> = ({
         <div className="gba:mt-4">
           <div className="gba:flex gba:items-center gba:gap-2 gba:text-muted-foreground gba:mb-3">
             <Lightbulb className="gba:h-4 gba:w-4" />
-            <span className="gba:text-sm">Try one of these examples:</span>
+            <span className="gba:text-sm">{t('quickstart-examples-label')}</span>
           </div>
           <div className="gba:flex gba:flex-wrap gba:gap-2">
             {EXAMPLE_PROMPTS.map((example, index) => {

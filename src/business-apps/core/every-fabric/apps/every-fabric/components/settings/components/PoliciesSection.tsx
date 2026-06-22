@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { ArrowSquareOutIcon, PlusIcon, ShieldCheckIcon, SpinnerGapIcon, TrashIcon } from '@phosphor-icons/react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { AddPoliciesModal, buildPolicyDetailUrl, type PickedPolicy } from '../../agents/AddPoliciesModal'
 import { SectionHeader } from './SettingsShared'
+import translations from '../../../_i18n'
 
 interface PoliciesSectionProps {
   accessToken: string
@@ -25,19 +26,8 @@ function formatDate(iso?: string): string {
   }
 }
 
-/**
- * Workspace-level "Default Policies" section.
- *
- * These are the always-on intranet policy ContentEntries that every
- * deep agent in the workspace can list and load through ``policy_list``
- * / ``policy_load`` — independent of which expert (if any) the router
- * selects for a given turn. Per-expert ``policy_refs`` extend this set
- * for that specific expert.
- *
- * Titles and updatedAt are stored at write time so this component never
- * needs a GraphQL call for display.
- */
 export const PoliciesSection: React.FC<PoliciesSectionProps> = ({ accessToken, isOpen }) => {
+  const { t } = useTranslation(translations)
   const client = usePromptManagerClient(accessToken)
   const [policies, setPolicies] = useState<AttachedPolicy[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -58,11 +48,10 @@ export const PoliciesSection: React.FC<PoliciesSectionProps> = ({ accessToken, i
       })
       .catch(err => {
         if (cancelled) return
-        // 404 means no workspace exists yet — treat as empty state, not an error.
         const is404 =
           err instanceof Error && (err.message.includes('404') || err.message.toLowerCase().includes('not found'))
         if (!is404) {
-          setError(err instanceof Error ? err.message : 'Failed to load default policies')
+          setError(err instanceof Error ? err.message : t('settings-policies-error-load'))
         }
       })
       .finally(() => {
@@ -74,9 +63,6 @@ export const PoliciesSection: React.FC<PoliciesSectionProps> = ({ accessToken, i
     }
   }, [isOpen, client])
 
-  // Persist the canonical set (full list, not a delta). Titles and
-  // updatedAt are sent to the backend so GET never needs GraphQL to
-  // display friendly names.
   const persist = useCallback(
     async (next: AttachedPolicy[], previous: AttachedPolicy[]) => {
       setPolicies(next)
@@ -88,12 +74,12 @@ export const PoliciesSection: React.FC<PoliciesSectionProps> = ({ accessToken, i
         )
       } catch (err) {
         setPolicies(previous)
-        setError(err instanceof Error ? err.message : 'Failed to save default policies')
+        setError(err instanceof Error ? err.message : t('settings-policies-error-save'))
       } finally {
         setBusy(false)
       }
     },
-    [client]
+    [client, t]
   )
 
   const handleAdd = useCallback(
@@ -127,12 +113,7 @@ export const PoliciesSection: React.FC<PoliciesSectionProps> = ({ accessToken, i
       )
     }
     if (policies.length === 0) {
-      return (
-        <p className="gba:text-sm gba:text-muted-foreground gba:py-2">
-          No default policies attached yet. Click <span className="gba:font-medium">Add Policy</span> to attach intranet
-          policies that every agent in this workspace can read.
-        </p>
-      )
+      return <p className="gba:text-sm gba:text-muted-foreground gba:py-2">{t('settings-policies-empty')}</p>
     }
     return (
       <div className="gba:space-y-1.5">
@@ -152,12 +133,16 @@ export const PoliciesSection: React.FC<PoliciesSectionProps> = ({ accessToken, i
                     target="_blank"
                     rel="noreferrer"
                     className="gba:text-sm gba:font-medium gba:text-foreground gba:hover:underline gba:inline-flex gba:items-center gba:gap-1 gba:truncate"
-                    title={`Open in a new tab (ID: ${policy.policy_id})`}
+                    title={t('settings-policies-open-title', { id: policy.policy_id })}
                   >
                     <span className="gba:truncate">{policy.title}</span>
                     <ArrowSquareOutIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
                   </a>
-                  {dateStr && <p className="gba:text-[11px] gba:text-muted-foreground gba:mt-0.5">Updated {dateStr}</p>}
+                  {dateStr && (
+                    <p className="gba:text-[11px] gba:text-muted-foreground gba:mt-0.5">
+                      {t('settings-policies-updated', { date: dateStr })}
+                    </p>
+                  )}
                 </div>
               </div>
               <button
@@ -166,7 +151,7 @@ export const PoliciesSection: React.FC<PoliciesSectionProps> = ({ accessToken, i
                 disabled={busy}
                 className="gba:flex gba:items-center gba:justify-center gba:h-7 gba:w-7 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors gba:shrink-0 gba:disabled:opacity-50"
                 data-testid={`settings-policy-remove-${policy.policy_id}`}
-                aria-label={`Remove policy ${policy.title}`}
+                aria-label={t('settings-policies-remove-aria', { title: policy.title })}
               >
                 <TrashIcon className="gba:h-3 gba:w-3" />
               </button>
@@ -181,13 +166,10 @@ export const PoliciesSection: React.FC<PoliciesSectionProps> = ({ accessToken, i
     <>
       <SectionHeader
         icon={<ShieldCheckIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground/60" />}
-        title="Default Policies"
+        title={t('settings-policies-title')}
       />
       <div className="gba:px-3 sm:gba:px-4 gba:pb-2.5 sm:gba:pb-3">
-        <p className="gba:text-xs gba:text-muted-foreground gba:mb-2.5">
-          Always-on intranet policies. Every agent in this workspace can list and read them at any point in a
-          conversation — no per-agent configuration required.
-        </p>
+        <p className="gba:text-xs gba:text-muted-foreground gba:mb-2.5">{t('settings-policies-intro')}</p>
 
         {error && (
           <div
@@ -209,7 +191,7 @@ export const PoliciesSection: React.FC<PoliciesSectionProps> = ({ accessToken, i
             data-testid="settings-policies-add-button"
           >
             <PlusIcon className="gba:mr-1.5 gba:h-3.5 gba:w-3.5" />
-            Add Policy
+            {t('settings-policies-add')}
           </Button>
         </div>
       </div>

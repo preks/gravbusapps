@@ -4,18 +4,20 @@
 // path taken, and offers a replay of that path plus a fullscreen mode.
 
 import { ArrowsInIcon, ArrowsOutIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import { ReadonlyTemplateFlowCanvas } from '@/common/components/flow/ReadonlyTemplateFlowCanvas'
 
 import { labelForStatusCode, STATUS_BADGE_CLASS, variantForStatusCode } from '../../../utils/actionCardTrace'
+import translations from '../../../_i18n'
 import { FlowLiveBadge } from './FlowLiveBadge'
 import { FlowMapLegend } from './FlowMapLegend'
 import { FlowMapReplayControls } from './FlowMapReplayControls'
 import { FlowProgressBar } from './FlowProgressBar'
 import { WorkforceFlowMapStepDetail } from './WorkforceFlowMapStepDetail'
-import { progressSummary } from './flowStepFormat'
+import { formatProgressSummary } from './flowStepFormat'
 import { useFlowExecutionState } from './useFlowExecutionState'
 import { useFlowReplay } from './useFlowReplay'
 
@@ -50,6 +52,7 @@ export const WorkforceFlowMap: React.FC<WorkforceFlowMapProps> = ({
   accessToken,
   succeeded
 }) => {
+  const { t } = useTranslation(translations)
   const initialCode = succeeded === false ? 'FAILED' : 'RUNNING'
   const { overview, status, executionState } = useFlowExecutionState({
     workflowId,
@@ -93,23 +96,29 @@ export const WorkforceFlowMap: React.FC<WorkforceFlowMapProps> = ({
   const progress = overview?.progress
   const stepLabel = useMemo(() => {
     if (isReplayingActive) {
-      const suffix = replay.currentStepTitle ? ` \u00b7 ${replay.currentStepTitle}` : ''
-      return `Step ${replay.frameIndex + 1} of ${replay.frameCount}${suffix}`
+      const current = replay.frameIndex + 1
+      const total = replay.frameCount
+      if (replay.currentStepTitle) {
+        return t('flow-map-step-of-titled', { current, total, title: replay.currentStepTitle })
+      }
+      return t('flow-map-step-of', { current, total })
     }
-    return progressSummary(
+    return formatProgressSummary(
+      t,
       progress?.currentStep,
       progress?.totalSteps,
       progress?.completedSteps,
       progress?.percentage,
       isComplete
     )
-  }, [isReplayingActive, replay.currentStepTitle, replay.frameIndex, replay.frameCount, progress, isComplete])
+  }, [isReplayingActive, replay.currentStepTitle, replay.frameIndex, replay.frameCount, progress, isComplete, t])
 
-  const description = isReplayingActive
-    ? 'Replaying the path this flow took'
-    : isComplete
-      ? 'Completed execution path'
-      : 'Live execution path'
+  let description = t('flow-map-live-path')
+  if (isReplayingActive) {
+    description = t('flow-map-replaying-path')
+  } else if (isComplete) {
+    description = t('flow-map-completed-path')
+  }
 
   const summaryCard = (
     <div
@@ -141,7 +150,7 @@ export const WorkforceFlowMap: React.FC<WorkforceFlowMapProps> = ({
   const toolbar = (
     <>
       <div className="gba:pointer-events-auto gba:flex gba:min-w-0 gba:flex-wrap gba:items-center gba:gap-2">
-        {isLive && <FlowLiveBadge label="Updating" />}
+        {isLive && <FlowLiveBadge label={t('flow-live-updating')} />}
         <StatusPill code={status.code} />
         {stepLabel && (
           <span className="gba:truncate gba:text-xs gba:text-muted-foreground" data-testid="flow-map-step-label">
@@ -155,7 +164,7 @@ export const WorkforceFlowMap: React.FC<WorkforceFlowMapProps> = ({
           type="button"
           onClick={toggleFullscreen}
           className="gba:inline-flex gba:h-8 gba:w-8 gba:items-center gba:justify-center gba:rounded-md gba:border gba:border-border gba:bg-card gba:text-foreground gba:transition-colors gba:hover:bg-muted"
-          aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          aria-label={isFullscreen ? t('flow-map-fullscreen-exit') : t('flow-map-fullscreen-enter')}
           aria-pressed={isFullscreen}
           data-testid="flow-map-fullscreen-toggle"
         >
@@ -170,8 +179,8 @@ export const WorkforceFlowMap: React.FC<WorkforceFlowMapProps> = ({
     templateId: templateId ?? null,
     title: workflowName,
     description,
-    emptyTitle: 'Flow map unavailable',
-    emptyDescription: 'This workflow has no template reference, so its diagram cannot be shown.',
+    emptyTitle: t('flow-map-unavailable-title'),
+    emptyDescription: t('flow-map-unavailable-desc'),
     executionState: activeExecutionState,
     selectedNodeId,
     onNodeSelect: setSelectedNodeId,

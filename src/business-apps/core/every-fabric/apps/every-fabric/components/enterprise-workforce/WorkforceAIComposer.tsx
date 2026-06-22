@@ -5,8 +5,11 @@
 // surface with sample chips. Submitting (or selecting a sample) hands
 // the query up to the screen, which switches into match mode.
 
+import { useTranslation } from '@newwork/nw-design-system'
 import { ArrowRightIcon, SparkleIcon, XIcon } from '@phosphor-icons/react'
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+
+import translations from '../../_i18n'
 
 interface WorkforceAIComposerProps {
   activeQuery: string | null
@@ -14,14 +17,16 @@ interface WorkforceAIComposerProps {
   onClear: () => void
 }
 
-const SAMPLE_PROMPTS = [
-  'Answer inbound insurance claim emails',
-  'Triage support tickets against our policies',
-  'Qualify new leads with our ICP rules',
-  'Reconcile expense reports for finance'
-]
+const SAMPLE_PROMPT_KEYS = [
+  'composer-sample-claims',
+  'composer-sample-triage',
+  'composer-sample-leads',
+  'composer-sample-expenses'
+] as const
 
 export const WorkforceAIComposer: React.FC<WorkforceAIComposerProps> = ({ activeQuery, onSubmit, onClear }) => {
+  const { t } = useTranslation(translations)
+  const samplePrompts = useMemo(() => SAMPLE_PROMPT_KEYS.map(key => ({ key, label: t(key) })), [t])
   const [isExpanded, setIsExpanded] = useState<boolean>(activeQuery !== null)
   const [value, setValue] = useState(activeQuery ?? '')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -61,11 +66,9 @@ export const WorkforceAIComposer: React.FC<WorkforceAIComposerProps> = ({ active
         data-testid="workforce-ai-trigger"
       >
         <SparkleIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:group-hover:text-foreground" />
-        <span className="gba:flex-1 gba:text-sm gba:text-muted-foreground">
-          Find the right workforce agent for the job
-        </span>
+        <span className="gba:flex-1 gba:text-sm gba:text-muted-foreground">{t('composer-trigger-label')}</span>
         <span className="gba:hidden gba:rounded-md gba:border gba:border-border gba:bg-background gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-muted-foreground gba:sm:inline">
-          AI
+          {t('composer-ai-badge')}
         </span>
       </button>
     )
@@ -79,12 +82,12 @@ export const WorkforceAIComposer: React.FC<WorkforceAIComposerProps> = ({ active
       <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
         <div className="gba:flex gba:items-center gba:gap-2">
           <SparkleIcon className="gba:h-4 gba:w-4 gba:text-foreground" weight="fill" />
-          <p className="gba:text-sm gba:font-medium gba:text-foreground">Find the right workforce agent for the job</p>
+          <p className="gba:text-sm gba:font-medium gba:text-foreground">{t('composer-trigger-label')}</p>
         </div>
         <button
           type="button"
           onClick={handleCollapse}
-          aria-label="Collapse"
+          aria-label={t('composer-collapse-aria')}
           className="gba:inline-flex gba:h-7 gba:w-7 gba:items-center gba:justify-center gba:rounded-md gba:text-muted-foreground gba:hover:bg-muted gba:hover:text-foreground"
           data-testid="workforce-ai-collapse"
         >
@@ -107,7 +110,7 @@ export const WorkforceAIComposer: React.FC<WorkforceAIComposerProps> = ({ active
           onKeyDown={e => {
             if (e.key === 'Escape') handleCollapse()
           }}
-          placeholder="Describe the work… e.g. answer inbound claim emails"
+          placeholder={t('composer-input-placeholder')}
           className="gba:h-10 gba:w-full gba:flex-1 gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:text-sm gba:text-foreground gba:placeholder-muted-foreground gba:outline-none gba:focus:border-foreground/30"
           data-testid="workforce-ai-input"
         />
@@ -117,25 +120,25 @@ export const WorkforceAIComposer: React.FC<WorkforceAIComposerProps> = ({ active
           className="gba:inline-flex gba:h-10 gba:items-center gba:gap-1.5 gba:rounded-lg gba:bg-foreground gba:px-3.5 gba:text-sm gba:font-medium gba:text-background gba:transition-opacity gba:hover:opacity-90 gba:disabled:cursor-not-allowed gba:disabled:opacity-30"
           data-testid="workforce-ai-submit"
         >
-          <span className="gba:hidden gba:sm:inline">Find</span>
+          <span className="gba:hidden gba:sm:inline">{t('composer-find')}</span>
           <ArrowRightIcon className="gba:h-4 gba:w-4" weight="bold" />
         </button>
       </form>
 
       {!activeQuery && (
         <div className="gba:mt-3 gba:flex gba:flex-wrap gba:gap-1.5">
-          {SAMPLE_PROMPTS.map(prompt => (
+          {samplePrompts.map(prompt => (
             <button
-              key={prompt}
+              key={prompt.key}
               type="button"
               onClick={() => {
-                setValue(prompt)
-                handleSubmit(prompt)
+                setValue(prompt.label)
+                handleSubmit(prompt.label)
               }}
               className="gba:inline-flex gba:items-center gba:rounded-full gba:border gba:border-border gba:bg-background gba:px-2.5 gba:py-1 gba:text-xs gba:text-muted-foreground gba:transition-colors gba:hover:border-foreground/20 gba:hover:bg-muted/40 gba:hover:text-foreground"
-              data-testid={`workforce-ai-sample-${prompt.slice(0, 16).replace(/\s+/g, '-').toLowerCase()}`}
+              data-testid={`workforce-ai-sample-${prompt.key}`}
             >
-              {prompt}
+              {prompt.label}
             </button>
           ))}
         </div>

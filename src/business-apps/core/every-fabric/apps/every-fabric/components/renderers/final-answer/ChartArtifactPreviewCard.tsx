@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { ChartEmptyState, ChartInlineBody, isChartPreviewRenderable } from '../../workspace/chartInlineBody'
 import { normalizeChartPayloadForRender } from '../../workspace/chartRenderers'
 import { useEnterpriseAgentClient } from '../../../hooks/useEnterpriseAgentClient'
+import translations from '../../../_i18n'
 import type { FinalAnswerArtifact } from './types'
 
 export const ChartArtifactPreviewCard: React.FC<{
@@ -10,6 +12,7 @@ export const ChartArtifactPreviewCard: React.FC<{
   accessToken?: string
   onViewArtifact?: (artifactName: string) => void
 }> = ({ artifact, sessionId, accessToken, onViewArtifact }) => {
+  const { t } = useTranslation(translations)
   const [chartData, setChartData] = useState<Record<string, unknown> | null>(null)
   const client = useEnterpriseAgentClient(accessToken ?? '')
   const artifactPath = artifact.path || artifact.name
@@ -47,7 +50,7 @@ export const ChartArtifactPreviewCard: React.FC<{
         {chartData ? (
           <ChartInlineBody data={chartData} />
         ) : (
-          <ChartEmptyState message="Chart data could not be loaded." />
+          <ChartEmptyState message={t('renderer-chart-load-error')} />
         )}
         <div className="gba:flex gba:justify-end gba:pt-3 gba:mt-3 gba:border-t gba:border-border/50">
           <button
@@ -55,7 +58,7 @@ export const ChartArtifactPreviewCard: React.FC<{
             onClick={() => onViewArtifact?.(artifactPath)}
             className="gba:text-xs gba:font-medium gba:text-primary gba:hover:text-primary/80 gba:transition-colors gba:cursor-pointer gba:border-0 gba:bg-transparent"
           >
-            Open full view
+            {t('renderer-artifact-open-full')}
           </button>
         </div>
       </div>

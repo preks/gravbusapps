@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { CaretDownIcon, FilesIcon, MagnifyingGlassIcon, PlusIcon, TagIcon, WrenchIcon } from '@phosphor-icons/react'
-import type { AdminSkill } from '../../../../../types/enterpriseAgent'
+import type { AdminSkill } from '../../../../types/enterpriseAgent'
+import translations from '../../../../_i18n'
 
 interface SkillListProps {
   skills: AdminSkill[]
@@ -29,6 +31,7 @@ export const SkillList: React.FC<SkillListProps> = ({
   error,
   onClearError
 }) => {
+  const { t } = useTranslation(translations)
   const categories = useMemo(() => {
     const cats = new Set(skills.map(s => s.category).filter(Boolean))
     return Array.from(cats).sort(sortCategories)
@@ -41,7 +44,7 @@ export const SkillList: React.FC<SkillListProps> = ({
           <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search skills..."
+            placeholder={t('settings-skill-studio-search-placeholder')}
             value={searchQuery}
             onChange={e => onSearch(e.target.value)}
             className="gba:w-full gba:pl-9 gba:pr-3 gba:py-2 gba:rounded-lg gba:border gba:border-border/60 gba:bg-background gba:text-sm gba:text-foreground gba:placeholder:text-muted-foreground gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-primary/20"
@@ -54,7 +57,7 @@ export const SkillList: React.FC<SkillListProps> = ({
           data-testid="skill-studio-create-button"
         >
           <PlusIcon className="gba:h-4 gba:w-4" />
-          New Skill
+          {t('settings-skill-studio-new')}
         </button>
       </div>
 
@@ -62,7 +65,7 @@ export const SkillList: React.FC<SkillListProps> = ({
         <div className="gba:rounded-lg gba:border gba:border-destructive/30 gba:bg-destructive/5 gba:px-4 gba:py-3 gba:text-sm gba:text-destructive gba:flex gba:items-center gba:gap-2">
           <span>{error}</span>
           <button onClick={onClearError} className="gba:ml-auto gba:text-xs gba:underline gba:hover:no-underline">
-            Dismiss
+            {t('settings-skill-studio-dismiss')}
           </button>
         </div>
       )}
@@ -71,7 +74,7 @@ export const SkillList: React.FC<SkillListProps> = ({
         <div className="gba:space-y-2 gba:py-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <div
-              key={i}
+              key={`skill-skeleton-${i}`}
               className="gba:h-16 gba:rounded-lg gba:bg-muted/30 gba:animate-pulse"
               data-testid="skill-list-skeleton"
             />
@@ -81,10 +84,10 @@ export const SkillList: React.FC<SkillListProps> = ({
 
       {!isLoading && skills.length === 0 && (
         <div className="gba:text-center gba:py-12 gba:space-y-2">
-          <p className="gba:text-sm gba:text-muted-foreground">No skills found</p>
+          <p className="gba:text-sm gba:text-muted-foreground">{t('settings-skill-studio-empty')}</p>
           {searchQuery && (
             <button onClick={() => onSearch('')} className="gba:text-xs gba:text-primary gba:underline">
-              Clear search
+              {t('settings-skill-studio-clear-search')}
             </button>
           )}
         </div>
@@ -116,7 +119,7 @@ export const SkillList: React.FC<SkillListProps> = ({
 
       {total > 0 && (
         <p className="gba:text-xs gba:text-muted-foreground gba:text-center">
-          {skills.length} of {total} skills
+          {t('settings-skill-studio-count', { shown: skills.length, total })}
         </p>
       )}
     </div>
@@ -129,6 +132,8 @@ interface SkillCardProps {
 }
 
 const SkillCard: React.FC<SkillCardProps> = ({ skill, onView }) => {
+  const { t } = useTranslation(translations)
+
   return (
     <div
       className="gba:rounded-xl gba:border gba:border-border/60 gba:bg-muted/20 gba:overflow-hidden gba:transition-colors gba:hover:bg-muted/35 gba:cursor-pointer"
@@ -150,7 +155,7 @@ const SkillCard: React.FC<SkillCardProps> = ({ skill, onView }) => {
                   : 'gba:bg-muted/60 gba:text-muted-foreground'
               }`}
             >
-              {skill.is_active ? 'Active' : 'Inactive'}
+              {skill.is_active ? t('settings-skill-studio-active') : t('settings-skill-studio-inactive')}
             </span>
           </div>
           <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5 gba:line-clamp-2">{skill.description}</p>
@@ -160,13 +165,13 @@ const SkillCard: React.FC<SkillCardProps> = ({ skill, onView }) => {
             {skill.files.length > 0 && (
               <span className="gba:flex gba:items-center gba:gap-0.5">
                 <FilesIcon className="gba:h-3 gba:w-3" />
-                {skill.files.length} files
+                {t('settings-skill-studio-files-count', { count: skill.files.length })}
               </span>
             )}
             {skill.tools.length > 0 && (
               <span className="gba:flex gba:items-center gba:gap-0.5">
                 <WrenchIcon className="gba:h-3 gba:w-3" />
-                {skill.tools.length} tools
+                {t('settings-skill-studio-tools-count', { count: skill.tools.length })}
               </span>
             )}
           </div>

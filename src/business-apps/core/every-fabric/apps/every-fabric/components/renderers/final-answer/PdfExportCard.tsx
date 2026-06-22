@@ -1,21 +1,23 @@
 import React, { useCallback, useState } from 'react'
-import { Badge, toast } from '@newwork/nw-design-system'
+import { Badge, toast, useTranslation } from '@newwork/nw-design-system'
 import { DownloadSimpleIcon, FileTextIcon } from '@phosphor-icons/react'
 import type { MessageAttachmentRef, SessionAttachment } from '../../../types/enterpriseAgent'
 import { useEnterpriseAgentClient } from '../../../hooks/useEnterpriseAgentClient'
+import translations from '../../../_i18n'
 
 export const PdfExportCard: React.FC<{
   attachment: SessionAttachment | MessageAttachmentRef
   sessionId?: string
   accessToken?: string
 }> = ({ attachment, sessionId, accessToken }) => {
+  const { t } = useTranslation(translations)
   const client = useEnterpriseAgentClient(accessToken ?? '')
   const [downloading, setDownloading] = useState(false)
   const fileName = attachment.name || 'export.pdf'
 
   const handleDownload = useCallback(async () => {
     if (!sessionId || !attachment.id) {
-      toast.error('PDF unavailable — missing session or attachment id.')
+      toast.error(t('renderer-pdf-unavailable'))
       return
     }
     setDownloading(true)
@@ -29,11 +31,11 @@ export const PdfExportCard: React.FC<{
       URL.revokeObjectURL(url)
     } catch (err) {
       const detail = err instanceof Error ? err.message : 'unknown error'
-      toast.error(`Could not download PDF: ${detail}`)
+      toast.error(t('renderer-pdf-download-error', { detail }))
     } finally {
       setDownloading(false)
     }
-  }, [attachment.id, client, fileName, sessionId])
+  }, [attachment.id, client, fileName, sessionId, t])
 
   const onDownloadClick = useCallback(() => {
     handleDownload().catch(() => {
@@ -53,7 +55,9 @@ export const PdfExportCard: React.FC<{
         <FileTextIcon className="gba:h-4 gba:w-4 gba:text-primary" />
       </div>
       <div className="gba:min-w-0 gba:flex-1">
-        <span className="gba:text-xs gba:font-semibold gba:text-foreground gba:block gba:truncate">PDF ready</span>
+        <span className="gba:text-xs gba:font-semibold gba:text-foreground gba:block gba:truncate">
+          {t('renderer-pdf-ready')}
+        </span>
         <span className="gba:text-[10px] gba:text-muted-foreground gba:block gba:truncate">{fileName}</span>
       </div>
       <Badge
@@ -61,7 +65,7 @@ export const PdfExportCard: React.FC<{
         className="gba:ml-auto gba:text-[10px] gba:shrink-0 gba:inline-flex gba:items-center gba:gap-1"
       >
         <DownloadSimpleIcon className="gba:h-3 gba:w-3" />
-        {downloading ? '…' : 'Download'}
+        {downloading ? t('renderer-download-ellipsis') : t('renderer-download')}
       </Badge>
     </button>
   )

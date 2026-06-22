@@ -9,13 +9,14 @@
 // directly on the agent config screen, mirroring the Enterprise Agent
 // Studio skill-detail view.
 
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { LightbulbIcon, SpinnerGapIcon, TrashIcon, WrenchIcon } from '@phosphor-icons/react'
 import React, { useEffect, useMemo, useState } from 'react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { AgentPoliciesEditor } from '../../agents/AgentPoliciesEditor'
 import type { WorkforceAgent, WorkforceAgentUpdateInput } from '../workforceTypes'
 import { SectionShell } from './SectionShell'
+import translations from '../../../_i18n'
 
 interface SkillsAndPoliciesSectionProps {
   agent: WorkforceAgent
@@ -59,6 +60,7 @@ interface ChipListProps {
 }
 
 const ChipList: React.FC<ChipListProps> = ({ testId, values, draft, placeholder, onDraftChange, onAdd, onRemove }) => {
+  const { t } = useTranslation(translations)
   return (
     <div>
       <div className="gba:flex gba:gap-2">
@@ -76,7 +78,7 @@ const ChipList: React.FC<ChipListProps> = ({ testId, values, draft, placeholder,
           data-testid={`${testId}-input`}
         />
         <Button size="sm" variant="outline" onClick={onAdd} data-testid={`${testId}-add`}>
-          Add
+          {t('action-add')}
         </Button>
       </div>
       <ul className="gba:mt-2 gba:flex gba:flex-wrap gba:gap-1.5" data-testid={`${testId}-list`}>
@@ -89,7 +91,7 @@ const ChipList: React.FC<ChipListProps> = ({ testId, values, draft, placeholder,
             <button
               type="button"
               onClick={() => onRemove(value)}
-              aria-label={`Remove ${value}`}
+              aria-label={t('action-remove', { value })}
               className="gba:text-muted-foreground gba:hover:text-destructive"
               data-testid={`${testId}-remove-${value}`}
             >
@@ -109,13 +111,14 @@ interface AssignedSkillsDetailProps {
 }
 
 const AssignedSkillsDetail: React.FC<AssignedSkillsDetailProps> = ({ skillIds, resolved, isLoading }) => {
+  const { t } = useTranslation(translations)
   if (skillIds.length === 0) return null
   return (
     <div className="gba:mt-3 gba:space-y-2" data-testid="workforce-skill-details">
       {isLoading && (
         <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-[11px] gba:text-muted-foreground">
           <SpinnerGapIcon className="gba:h-3 gba:w-3 gba:animate-spin" />
-          <span>Resolving skill details…</span>
+          <span>{t('skills-resolving')}</span>
         </div>
       )}
       {skillIds.map(skillId => {
@@ -144,7 +147,7 @@ const AssignedSkillsDetail: React.FC<AssignedSkillsDetailProps> = ({ skillIds, r
                   <div className="gba:mt-1.5">
                     <div className="gba:mb-1 gba:flex gba:items-center gba:gap-1 gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground">
                       <WrenchIcon className="gba:h-3 gba:w-3" />
-                      <span>Attached tools</span>
+                      <span>{t('skills-attached-tools')}</span>
                     </div>
                     <ul className="gba:flex gba:flex-wrap gba:gap-1" data-testid={`workforce-skill-tools-${skillId}`}>
                       {detail.tool_refs.map(ref => (
@@ -159,9 +162,7 @@ const AssignedSkillsDetail: React.FC<AssignedSkillsDetailProps> = ({ skillIds, r
                   </div>
                 ) : (
                   !isLoading && (
-                    <p className="gba:mt-1 gba:text-[10px] gba:text-muted-foreground">
-                      No tools attached by this skill.
-                    </p>
+                    <p className="gba:mt-1 gba:text-[10px] gba:text-muted-foreground">{t('skills-no-tools')}</p>
                   )
                 )}
               </div>
@@ -179,6 +180,7 @@ export const SkillsAndPoliciesSection: React.FC<SkillsAndPoliciesSectionProps> =
   isSaving,
   onSave
 }) => {
+  const { t } = useTranslation(translations)
   const baseline = fromAgent(agent)
   const [form, setForm] = useState<FormState>(baseline)
   const [resolvedSkills, setResolvedSkills] = useState<Map<string, ResolvedSkill>>(new Map())
@@ -251,9 +253,9 @@ export const SkillsAndPoliciesSection: React.FC<SkillsAndPoliciesSectionProps> =
   return (
     <SectionShell
       id="skills-policies"
-      title="Skills & policies"
+      title={t('skills-section-title')}
       icon={LightbulbIcon}
-      description="Skills and intranet policies attached to this agent."
+      description={t('skills-section-desc')}
       isDirty={dirty}
       isSaving={isSaving}
       onSave={() =>
@@ -265,12 +267,12 @@ export const SkillsAndPoliciesSection: React.FC<SkillsAndPoliciesSectionProps> =
     >
       <div className="gba:space-y-4">
         <div>
-          <p className="gba:mb-1 gba:text-xs gba:font-semibold gba:text-foreground">Skills</p>
+          <p className="gba:mb-1 gba:text-xs gba:font-semibold gba:text-foreground">{t('skills-label')}</p>
           <ChipList
             testId="workforce-skills"
             values={form.skillIds}
             draft={form.skillDraft}
-            placeholder="Skill ID"
+            placeholder={t('skills-skill-id-placeholder')}
             onDraftChange={next => setForm(prev => ({ ...prev, skillDraft: next }))}
             onAdd={addSkill}
             onRemove={removeSkill}
@@ -283,7 +285,7 @@ export const SkillsAndPoliciesSection: React.FC<SkillsAndPoliciesSectionProps> =
         <AgentPoliciesEditor
           agentId={agent.agent_id}
           accessToken={accessToken}
-          description="Attach intranet policies the agent can read at run time. Workspace defaults are inherited automatically; remove any that are not relevant for this agent."
+          description={t('skills-policies-desc')}
           testId="workforce-policies-editor"
           chipTestIdPrefix="workforce-policy"
           addButtonTestId="workforce-policy-add-button"

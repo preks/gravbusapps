@@ -7,6 +7,14 @@
 import React from 'react'
 import { render, screen } from '@testing-library/react'
 
+jest.mock('@newwork/nw-design-system', () => {
+  const actual = jest.requireActual('@newwork/nw-design-system')
+  return {
+    ...actual,
+    useTranslation: () => ({ t: (key: string) => key })
+  }
+})
+
 const mockUseFlowReference = jest.fn()
 const mockUseFlowTemplateReference = jest.fn()
 const mockUseConversationReference = jest.fn()
@@ -88,7 +96,7 @@ describe('ServiceWorkflowReferenceCard', () => {
     render(<ServiceWorkflowReferenceCard reference={ref('service_workflow')} accessToken="tok" />)
     expect(screen.getByTestId('title')).toHaveTextContent('Onboarding')
     expect(screen.getByTestId('status')).toHaveTextContent('In Progress')
-    expect(screen.getByTestId('footer')).toHaveTextContent('2 of 5 steps')
+    expect(screen.getByTestId('footer')).toHaveTextContent('renderer-ref-progress-steps')
   })
 })
 
@@ -103,9 +111,9 @@ describe('WorkflowTemplateReferenceCard', () => {
     })
     render(<WorkflowTemplateReferenceCard reference={ref('workflow_template')} accessToken="tok" />)
     expect(screen.getByTestId('title')).toHaveTextContent('Approval flow')
-    expect(screen.getByTestId('status')).toHaveTextContent('Draft')
-    expect(screen.getByTestId('fields')).toHaveTextContent('Steps=2 steps')
-    expect(screen.getByTestId('fields')).toHaveTextContent('Version=v3')
+    expect(screen.getByTestId('status')).toHaveTextContent('renderer-ref-status-draft')
+    expect(screen.getByTestId('fields')).toHaveTextContent('renderer-ref-field-steps=renderer-ref-count-step')
+    expect(screen.getByTestId('fields')).toHaveTextContent('renderer-ref-field-version=renderer-ref-version')
   })
 })
 
@@ -122,9 +130,9 @@ describe('ChatConversationReferenceCard', () => {
     })
     render(<ChatConversationReferenceCard reference={ref('chat_conversation')} accessToken="tok" />)
     expect(screen.getByTestId('title')).toHaveTextContent('Project chat')
-    expect(screen.getByTestId('status')).toHaveTextContent('4 unread')
+    expect(screen.getByTestId('status')).toHaveTextContent('renderer-ref-unread-count')
     expect(screen.getAllByTestId('avatar').length).toBe(2)
-    expect(screen.getByTestId('footer')).toHaveTextContent('2 participants')
+    expect(screen.getByTestId('footer')).toHaveTextContent('renderer-ref-participant-count')
   })
 })
 
@@ -145,7 +153,7 @@ describe('MeetingReferenceCard', () => {
     expect(screen.getByTestId('title')).toHaveTextContent('Sprint review')
     expect(screen.getByTestId('status')).toHaveTextContent('Scheduled')
     expect(screen.getByTestId('subtitle')).toHaveTextContent('–')
-    expect(screen.getByTestId('fields')).toHaveTextContent('Organizer=Sam Vee')
-    expect(screen.getByTestId('fields')).toHaveTextContent('Attendees=3 attendees')
+    expect(screen.getByTestId('fields')).toHaveTextContent('renderer-ref-field-organizer=Sam Vee')
+    expect(screen.getByTestId('fields')).toHaveTextContent('renderer-ref-field-attendees=renderer-ref-count-attendee')
   })
 })

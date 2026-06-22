@@ -14,10 +14,10 @@ import {
   getField,
   getNum,
   getStr,
-  intentLabel,
   personName,
   type ReferenceCardProps
 } from './referenceCardUtils'
+import { useReferenceCardI18n } from './useReferenceCardI18n'
 
 /**
  * Rich opportunity card: name, amount, pipeline stage, close date, win chance,
@@ -25,6 +25,7 @@ import {
  * hook.
  */
 export const OpportunityReferenceCard: React.FC<ReferenceCardProps> = ({ reference, accessToken }) => {
+  const { field, intentLabel } = useReferenceCardI18n()
   const { opportunity, loading } = useCustomerOpportunity(accessToken, reference.id)
 
   const url = getEntityUrl(reference.type, reference.id, reference.href)
@@ -62,15 +63,15 @@ export const OpportunityReferenceCard: React.FC<ReferenceCardProps> = ({ referen
     getStr(getField(firstAccount, 'account'), 'name') ?? getStr(getField(opportunity, 'account'), 'name')
 
   const candidates: Array<{ label: string; value: string }> = []
-  if (accountName) candidates.push({ label: 'Account', value: accountName })
-  if (amount) candidates.push({ label: 'Amount', value: amount })
-  if (closeDate) candidates.push({ label: 'Close', value: closeDate })
-  if (winChance !== undefined) candidates.push({ label: 'Win', value: `${winChance}%` })
-  if (owner) candidates.push({ label: 'Owner', value: owner })
-  if (forecast) candidates.push({ label: 'Forecast', value: forecast })
+  if (accountName) candidates.push({ label: field('account'), value: accountName })
+  if (amount) candidates.push({ label: field('amount'), value: amount })
+  if (closeDate) candidates.push({ label: field('close'), value: closeDate })
+  if (winChance !== undefined) candidates.push({ label: field('win'), value: `${winChance}%` })
+  if (owner) candidates.push({ label: field('owner'), value: owner })
+  if (forecast) candidates.push({ label: field('forecast'), value: forecast })
   if (aiGrade || aiScore !== undefined) {
     const value = [aiGrade, aiScore !== undefined ? `${aiScore}` : undefined].filter(Boolean).join(' · ')
-    candidates.push({ label: 'AI grade', value })
+    candidates.push({ label: field('ai-grade'), value })
   }
   const fields = candidates.slice(0, 4)
 

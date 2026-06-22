@@ -9,7 +9,7 @@
 // component only reports hover/focus and renders content. Action testids match
 // the original tile for stable tests.
 
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { ArchiveIcon, LightningIcon, PauseIcon, PlayIcon, PulseIcon, SparkleIcon } from '@phosphor-icons/react'
 import type { Icon } from '@phosphor-icons/react'
 import React from 'react'
@@ -23,6 +23,7 @@ import {
   statusPill,
   type WorkforceTileStatus
 } from '../workforceAgentDisplay'
+import translations from '../../../_i18n'
 
 interface WorkforceDeckCardProps {
   summary: WorkforceAgentSummary
@@ -75,13 +76,14 @@ export const WorkforceDeckCard: React.FC<WorkforceDeckCardProps> = ({
   matchConfidence,
   matchRank
 }) => {
+  const { t } = useTranslation(translations)
   const { agent } = summary
   const profile = agent.workforce_profile
   const displayName = formatAgentName(agent.display_name || agent.name)
   const accentClass = avatarAccent(agent.agent_id)
   const status: WorkforceTileStatus = agent.status === 'paused' ? 'paused' : 'active'
   const pill = statusPill(status)
-  const roleLabel = profile.role || agent.domain || 'Workforce specialist'
+  const roleLabel = profile.role || agent.domain || t('tile-specialist-fallback')
   const departmentLabel = profile.department ?? null
   const isTopMatch = matchRank === 1
   const isClickable = Boolean(onConfigure)
@@ -100,7 +102,7 @@ export const WorkforceDeckCard: React.FC<WorkforceDeckCardProps> = ({
     <div
       data-testid={`workforce-agent-card-${agent.agent_id}`}
       role={isClickable ? 'button' : 'group'}
-      aria-label={isClickable ? `Open ${displayName}` : displayName}
+      aria-label={isClickable ? t('tile-open-agent', { name: displayName }) : displayName}
       tabIndex={0}
       onMouseEnter={onHover}
       onFocus={onHover}
@@ -153,14 +155,14 @@ export const WorkforceDeckCard: React.FC<WorkforceDeckCardProps> = ({
                   <span className="gba:absolute gba:inline-flex gba:h-full gba:w-full gba:animate-ping gba:rounded-full gba:bg-emerald-400" />
                   <span className="gba:relative gba:inline-flex gba:h-1.5 gba:w-1.5 gba:rounded-full gba:bg-emerald-500" />
                 </span>
-                Working
+                {t('tile-working')}
               </span>
             ) : (
               <span
                 className={`gba:shrink-0 gba:rounded-full gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium ${pill.className}`}
                 data-testid={`workforce-agent-status-${agent.agent_id}`}
               >
-                {pill.label}
+                {t(pill.labelKey)}
               </span>
             )}
           </div>
@@ -173,7 +175,7 @@ export const WorkforceDeckCard: React.FC<WorkforceDeckCardProps> = ({
 
       {/* Description */}
       <p className="gba:mt-3 gba:line-clamp-2 gba:text-sm gba:leading-relaxed gba:text-muted-foreground">
-        {agent.description || 'No description provided yet.'}
+        {agent.description || t('tile-no-description')}
       </p>
 
       {isWorking && currentActivity && (
@@ -191,17 +193,20 @@ export const WorkforceDeckCard: React.FC<WorkforceDeckCardProps> = ({
       <div className="gba:mt-3 gba:flex gba:flex-col gba:gap-1" data-testid={`workforce-agent-stats-${agent.agent_id}`}>
         <DeckStat
           icon={LightningIcon}
-          label={`${summary.activeTriggerCount}/${summary.triggerCount} triggers`}
+          label={t('tile-triggers-stat', {
+            active: summary.activeTriggerCount,
+            total: summary.triggerCount
+          })}
           testId={`workforce-agent-triggers-${agent.agent_id}`}
         />
         <DeckStat
           icon={PulseIcon}
-          label={`Last run ${formatRelative(summary.lastCompletedAt)}`}
+          label={t('tile-last-run-stat', { time: formatRelative(summary.lastCompletedAt) })}
           testId={`workforce-agent-lastrun-${agent.agent_id}`}
         />
         <DeckStat
           icon={SparkleIcon}
-          label={`${summary.creditsThisWeek} credits / 7d`}
+          label={t('tile-credits-stat', { credits: summary.creditsThisWeek })}
           testId={`workforce-agent-credits-${agent.agent_id}`}
         />
       </div>
@@ -221,7 +226,7 @@ export const WorkforceDeckCard: React.FC<WorkforceDeckCardProps> = ({
             data-testid={`workforce-agent-pause-${agent.agent_id}`}
           >
             <PauseIcon className="gba:mr-1 gba:h-3.5 gba:w-3.5" />
-            {isPausing ? 'Pausing…' : 'Pause'}
+            {isPausing ? t('tile-pausing') : t('tile-pause')}
           </Button>
         ) : (
           <Button
@@ -235,7 +240,7 @@ export const WorkforceDeckCard: React.FC<WorkforceDeckCardProps> = ({
             data-testid={`workforce-agent-activate-${agent.agent_id}`}
           >
             <PlayIcon className="gba:mr-1 gba:h-3.5 gba:w-3.5" />
-            {isActivating ? 'Activating…' : 'Activate'}
+            {isActivating ? t('tile-activating') : t('tile-activate')}
           </Button>
         )}
 
@@ -249,7 +254,7 @@ export const WorkforceDeckCard: React.FC<WorkforceDeckCardProps> = ({
               onArchive(agent)
             }}
             data-testid={`workforce-agent-archive-${agent.agent_id}`}
-            aria-label="Remove from workforce"
+            aria-label={t('tile-archive-aria')}
           >
             <ArchiveIcon className="gba:h-3.5 gba:w-3.5" />
           </Button>

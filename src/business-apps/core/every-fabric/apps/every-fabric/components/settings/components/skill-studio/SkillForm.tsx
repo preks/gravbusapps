@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
-import { Button, Input, Textarea } from '@newwork/nw-design-system'
-import type { AdminSkill, CreateSkillPayload, UpdateSkillPayload } from '../../../types/enterpriseAgent'
+import { Button, Input, Textarea, useTranslation } from '@newwork/nw-design-system'
+import type { AdminSkill, CreateSkillPayload, UpdateSkillPayload } from '../../../../types/enterpriseAgent'
+import translations from '../../../../_i18n'
 
 interface SkillFormProps {
   skill?: AdminSkill | null
@@ -10,6 +11,7 @@ interface SkillFormProps {
 }
 
 export const SkillForm: React.FC<SkillFormProps> = ({ skill, onSave, onCancel, isSaving }) => {
+  const { t } = useTranslation(translations)
   const isEdit = Boolean(skill)
 
   const [name, setName] = useState(skill?.name ?? '')
@@ -29,7 +31,7 @@ export const SkillForm: React.FC<SkillFormProps> = ({ skill, onSave, onCancel, i
       category: category.trim() || undefined,
       tags: tags
         .split(',')
-        .map(t => t.trim())
+        .map(tag => tag.trim())
         .filter(Boolean),
       compatibility: compatibility.trim() || undefined
     }
@@ -39,54 +41,56 @@ export const SkillForm: React.FC<SkillFormProps> = ({ skill, onSave, onCancel, i
   return (
     <div className="gba:space-y-4">
       <div className="gba:flex gba:items-center gba:justify-between">
-        <h3 className="gba:text-lg gba:font-medium gba:text-foreground">{isEdit ? 'Edit Skill' : 'New Skill'}</h3>
+        <h3 className="gba:text-lg gba:font-medium gba:text-foreground">
+          {isEdit ? t('settings-skill-studio-edit-title') : t('settings-skill-studio-new-title')}
+        </h3>
         <Button variant="ghost" onClick={onCancel} data-testid="cancel-skill-form">
-          Cancel
+          {t('action-cancel')}
         </Button>
       </div>
 
       <div className="gba:space-y-3">
         <Input
-          label="Name"
+          label={t('settings-skill-studio-field-name')}
           value={name}
           onChange={e => setName(e.target.value)}
-          placeholder="Skill name"
+          placeholder={t('settings-skill-studio-field-name-placeholder')}
           data-testid="skill-name-input"
         />
         <Input
-          label="Category"
+          label={t('settings-skill-studio-field-category')}
           value={category}
           onChange={e => setCategory(e.target.value)}
-          placeholder="e.g. crm, finance, general"
+          placeholder={t('settings-skill-studio-field-category-placeholder')}
           data-testid="skill-category-input"
         />
         <Textarea
-          label="Description"
+          label={t('settings-skill-studio-field-description')}
           value={description}
           onChange={e => setDescription(e.target.value)}
-          placeholder="Short description"
+          placeholder={t('settings-skill-studio-field-description-placeholder')}
           rows={3}
           data-testid="skill-description-input"
         />
         <Input
-          label="Tags (comma-separated)"
+          label={t('settings-skill-studio-field-tags')}
           value={tags}
           onChange={e => setTags(e.target.value)}
-          placeholder="crm, sales, automation"
+          placeholder={t('settings-skill-studio-field-tags-placeholder')}
           data-testid="skill-tags-input"
         />
         <Input
-          label="Compatibility"
+          label={t('settings-skill-studio-field-compatibility')}
           value={compatibility}
           onChange={e => setCompatibility(e.target.value)}
-          placeholder="e.g. prompt-manager>=0.9.0"
+          placeholder={t('settings-skill-studio-field-compatibility-placeholder')}
           data-testid="skill-compatibility-input"
         />
         <Textarea
-          label="Content (Markdown)"
+          label={t('settings-skill-studio-field-content')}
           value={body}
           onChange={e => setBody(e.target.value)}
-          placeholder="# Skill instructions..."
+          placeholder={t('settings-skill-studio-field-content-placeholder')}
           rows={10}
           data-testid="skill-content-input"
         />
@@ -94,10 +98,14 @@ export const SkillForm: React.FC<SkillFormProps> = ({ skill, onSave, onCancel, i
 
       <div className="gba:flex gba:justify-end gba:gap-2">
         <Button variant="secondary" onClick={onCancel} data-testid="cancel-skill-btn">
-          Cancel
+          {t('action-cancel')}
         </Button>
         <Button onClick={handleSave} disabled={!canSubmit || isSaving} data-testid="save-skill-btn">
-          {isSaving ? 'Saving…' : isEdit ? 'Save Changes' : 'Create Skill'}
+          {isSaving
+            ? t('settings-skill-studio-saving')
+            : isEdit
+              ? t('settings-skill-studio-save-changes')
+              : t('settings-skill-studio-create')}
         </Button>
       </div>
     </div>

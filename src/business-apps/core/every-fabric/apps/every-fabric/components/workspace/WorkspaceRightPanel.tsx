@@ -13,6 +13,8 @@ import {
   SpinnerGapIcon,
   XCircleIcon
 } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../../_i18n'
 import type { ArtifactPreview } from '../../hooks/useArtifactPreview'
 import type { CaseState } from '../../hooks/useFabricCases'
 import type { DecisionItem } from '../../hooks/useFabricDecisions'
@@ -81,84 +83,90 @@ const workspaceDocPanelIcon = (type: WorkspaceDocument['type']) => {
 const WorkspaceDocumentsCard: React.FC<{ docs: WorkspaceDocument[]; defaultCollapsed?: boolean }> = ({
   docs,
   defaultCollapsed = false
-}) => (
-  <PanelCard
-    title="Workspace Documents"
-    badge={docs.length}
-    summary={docs[0]?.title ? `Latest: ${docs[0].title}` : undefined}
-    defaultOpen={!defaultCollapsed}
-  >
-    <div className="gba:py-1">
-      {docs.map(doc => (
-        <a
-          key={doc.id}
-          href={resolveDocHref(doc.url)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-2.5 gba:hover:bg-muted/30 gba:transition-colors gba:no-underline"
-          data-testid={`fabric-workspace-doc-${doc.id}`}
-        >
-          {workspaceDocPanelIcon(doc.type)}
-          <div className="gba:flex-1 gba:min-w-0">
-            <p className="gba:text-xs gba:font-medium gba:text-foreground gba:truncate">{doc.title}</p>
-            <p className="gba:text-[11px] gba:text-muted-foreground/50 gba:capitalize">{doc.type}</p>
-          </div>
-        </a>
-      ))}
-    </div>
-  </PanelCard>
-)
+}) => {
+  const { t } = useTranslation(translations)
+  return (
+    <PanelCard
+      title={t('workspace-documents-title')}
+      badge={docs.length}
+      summary={docs[0]?.title ? t('workspace-latest-summary', { name: docs[0].title }) : undefined}
+      defaultOpen={!defaultCollapsed}
+    >
+      <div className="gba:py-1">
+        {docs.map(doc => (
+          <a
+            key={doc.id}
+            href={resolveDocHref(doc.url)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-2.5 gba:hover:bg-muted/30 gba:transition-colors gba:no-underline"
+            data-testid={`fabric-workspace-doc-${doc.id}`}
+          >
+            {workspaceDocPanelIcon(doc.type)}
+            <div className="gba:flex-1 gba:min-w-0">
+              <p className="gba:text-xs gba:font-medium gba:text-foreground gba:truncate">{doc.title}</p>
+              <p className="gba:text-[11px] gba:text-muted-foreground/50 gba:capitalize">{doc.type}</p>
+            </div>
+          </a>
+        ))}
+      </div>
+    </PanelCard>
+  )
+}
 
 const ArtifactsCard: React.FC<{ artifacts: ArtifactFile[]; defaultCollapsed?: boolean }> = ({
   artifacts,
   defaultCollapsed = false
-}) => (
-  <PanelCard
-    title="Artifacts"
-    badge={artifacts.length}
-    summary={artifacts[0]?.name ? `Latest: ${artifacts[0].name}` : undefined}
-    defaultOpen={!defaultCollapsed}
-  >
-    <div className="gba:py-1">
-      {artifacts.map(file => (
-        <div
-          key={file.artifactKey}
-          className="gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-2.5 gba:hover:bg-muted/30 gba:transition-colors gba:group"
-          data-testid={`fabric-artifact-${file.name}`}
-        >
-          {getArtifactIcon(file)}
-          <div className="gba:flex-1 gba:min-w-0">
-            <p className="gba:text-xs gba:font-medium gba:text-foreground gba:truncate">{file.name}</p>
-            <p className="gba:text-[11px] gba:text-muted-foreground/50">
-              {file.rendererType} · {formatFileSize(file.size)}
-            </p>
+}) => {
+  const { t } = useTranslation(translations)
+  return (
+    <PanelCard
+      title={t('workspace-artifacts-title')}
+      badge={artifacts.length}
+      summary={artifacts[0]?.name ? t('workspace-latest-summary', { name: artifacts[0].name }) : undefined}
+      defaultOpen={!defaultCollapsed}
+    >
+      <div className="gba:py-1">
+        {artifacts.map(file => (
+          <div
+            key={file.artifactKey}
+            className="gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-2.5 gba:hover:bg-muted/30 gba:transition-colors gba:group"
+            data-testid={`fabric-artifact-${file.name}`}
+          >
+            {getArtifactIcon(file)}
+            <div className="gba:flex-1 gba:min-w-0">
+              <p className="gba:text-xs gba:font-medium gba:text-foreground gba:truncate">{file.name}</p>
+              <p className="gba:text-[11px] gba:text-muted-foreground/50">
+                {file.rendererType} · {formatFileSize(file.size)}
+              </p>
+            </div>
+            <div className="gba:flex gba:items-center gba:gap-1 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity">
+              <a
+                href={file.downloadUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="gba:px-2 gba:py-1 gba:rounded-lg gba:text-[11px] gba:font-medium gba:text-primary gba:hover:bg-primary/10 gba:transition-colors"
+                data-testid={`fabric-artifact-view-${file.name}`}
+              >
+                {t('workspace-artifact-view')}
+              </a>
+              <a
+                href={file.downloadUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                download={file.name}
+                className="gba:flex gba:items-center gba:justify-center gba:w-6 gba:h-6 gba:rounded-lg gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
+                title={t('workspace-artifact-download')}
+              >
+                <DownloadSimpleIcon className="gba:h-3.5 gba:w-3.5" />
+              </a>
+            </div>
           </div>
-          <div className="gba:flex gba:items-center gba:gap-1 gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity">
-            <a
-              href={file.downloadUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="gba:px-2 gba:py-1 gba:rounded-lg gba:text-[11px] gba:font-medium gba:text-primary gba:hover:bg-primary/10 gba:transition-colors"
-              data-testid={`fabric-artifact-view-${file.name}`}
-            >
-              View
-            </a>
-            <a
-              href={file.downloadUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              download={file.name}
-              className="gba:flex gba:items-center gba:justify-center gba:w-6 gba:h-6 gba:rounded-lg gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
-              title="Download"
-            >
-              <DownloadSimpleIcon className="gba:h-3.5 gba:w-3.5" />
-            </a>
-          </div>
-        </div>
-      ))}
-    </div>
-  </PanelCard>
-)
+        ))}
+      </div>
+    </PanelCard>
+  )
+}
 
 const ENTERPRISE_EXPERT_ACCENT = {
   badge: 'gba:bg-sky-100 gba:text-sky-700 dark:gba:bg-sky-950/40 dark:gba:text-sky-300',
@@ -167,10 +175,10 @@ const ENTERPRISE_EXPERT_ACCENT = {
   failed: 'gba:text-destructive'
 }
 
-function enterpriseExpertStatusText(status: FabricSubAgent['status']): string {
-  if (status === 'running') return 'Running'
-  if (status === 'failed') return 'Failed'
-  return 'Done'
+function enterpriseExpertStatusText(status: FabricSubAgent['status'], t: (key: string) => string): string {
+  if (status === 'running') return t('trace-explorer-status-running')
+  if (status === 'failed') return t('trace-explorer-status-failed')
+  return t('trace-explorer-status-done')
 }
 
 const EnterpriseExpertTrailingIcon: React.FC<{ status: FabricSubAgent['status'] }> = ({ status }) => {
@@ -184,18 +192,22 @@ const EnterpriseExpertTrailingIcon: React.FC<{ status: FabricSubAgent['status'] 
 }
 
 const normalizeExpertName = (value: string) => value.trim().replace(/\s+/g, ' ')
-const inferExpertLabelFromSummary = (summary?: string) => {
+const inferExpertLabelFromSummary = (summary: string | undefined, t: (key: string) => string) => {
   const normalized = (summary ?? '').trim().toLowerCase()
-  if (!normalized) return 'Enterprise expert'
-  if (/\b(market|competitor|industry|research|trend)\b/.test(normalized)) return 'Market research'
-  if (/\b(hr|human resources|manager|employee|role|permission|admin)\b/.test(normalized)) return 'HR operations'
-  if (/\b(salary|bonus|stock|compensation|budget|pay|allocation)\b/.test(normalized)) return 'Compensation'
-  if (/\b(expense|spend|cost|finance|financial|pricing|revenue)\b/.test(normalized)) return 'Finance'
-  if (/\b(workflow|approval|process|submission|orchestrat)\b/.test(normalized)) return 'Workflow design'
-  if (/\b(report|write|summary|brief|document)\b/.test(normalized)) return 'Writing'
-  if (/\b(chart|diagram|visual|analysis|analytics|data)\b/.test(normalized)) return 'Data analysis'
-  if (/\b(vpn|access|security|infrastructure|diagnos|troubleshoot|it\b)\b/.test(normalized)) return 'IT support'
-  return 'Enterprise expert'
+  if (!normalized) return t('workspace-expert-default')
+  if (/\b(market|competitor|industry|research|trend)\b/.test(normalized)) return t('workspace-expert-market')
+  if (/\b(hr|human resources|manager|employee|role|permission|admin)\b/.test(normalized))
+    return t('workspace-expert-hr')
+  if (/\b(salary|bonus|stock|compensation|budget|pay|allocation)\b/.test(normalized))
+    return t('workspace-expert-compensation')
+  if (/\b(expense|spend|cost|finance|financial|pricing|revenue)\b/.test(normalized))
+    return t('workspace-expert-finance')
+  if (/\b(workflow|approval|process|submission|orchestrat)\b/.test(normalized)) return t('workspace-expert-workflow')
+  if (/\b(report|write|summary|brief|document)\b/.test(normalized)) return t('workspace-expert-writing')
+  if (/\b(chart|diagram|visual|analysis|analytics|data)\b/.test(normalized)) return t('workspace-expert-data')
+  if (/\b(vpn|access|security|infrastructure|diagnos|troubleshoot|it\b)\b/.test(normalized))
+    return t('workspace-expert-it')
+  return t('workspace-expert-default')
 }
 
 const isMeaningfulExpertLabel = (value?: string) => {
@@ -214,9 +226,13 @@ const pickRicherDelegationStatus = (
   b: FabricSubAgent['status']
 ): FabricSubAgent['status'] => (DELEGATION_STATUS_RANK[a] >= DELEGATION_STATUS_RANK[b] ? a : b)
 
-function resolveExpertDisplayName(name: string | undefined, summary: string | undefined): string {
+function resolveExpertDisplayName(
+  name: string | undefined,
+  summary: string | undefined,
+  t: (key: string) => string
+): string {
   if (isMeaningfulExpertLabel(name)) return normalizeExpertName(name ?? '')
-  return inferExpertLabelFromSummary(summary)
+  return inferExpertLabelFromSummary(summary, t)
 }
 
 function mergeSeenExpert(seen: Map<string, FabricSubAgent>, key: string, incoming: FabricSubAgent): void {
@@ -231,10 +247,14 @@ function mergeSeenExpert(seen: Map<string, FabricSubAgent>, key: string, incomin
   seen.set(key, { ...chosen, name: incoming.name, status: mergedStatus })
 }
 
-function collectExpertsFromNodes(nodes: FabricTaskNode[], seen: Map<string, FabricSubAgent>): void {
+function collectExpertsFromNodes(
+  nodes: FabricTaskNode[],
+  seen: Map<string, FabricSubAgent>,
+  t: (key: string) => string
+): void {
   for (const node of nodes) {
     for (const expert of node.subAgents) {
-      const displayName = resolveExpertDisplayName(expert.name, expert.summary)
+      const displayName = resolveExpertDisplayName(expert.name, expert.summary, t)
       const key = `${displayName.toLowerCase()}::${(expert.summary ?? '').trim().toLowerCase()}`
       mergeSeenExpert(seen, key, { ...expert, name: displayName })
     }
@@ -244,11 +264,12 @@ function collectExpertsFromNodes(nodes: FabricTaskNode[], seen: Map<string, Fabr
 function collectExpertsFromEvents(
   events: ActivityEvent[],
   isStreaming: boolean,
-  seen: Map<string, FabricSubAgent>
+  seen: Map<string, FabricSubAgent>,
+  t: (key: string) => string
 ): void {
   for (const event of events) {
     if (event.type !== 'subagent_spawn') continue
-    const displayName = resolveExpertDisplayName(event.agent, event.summary)
+    const displayName = resolveExpertDisplayName(event.agent, event.summary, t)
     const key = `${displayName.toLowerCase()}::${(event.summary ?? '').trim().toLowerCase()}`
     const incoming: FabricSubAgent = {
       id: event.id,
@@ -276,13 +297,14 @@ const EnterpriseExpertsCard: React.FC<{
   isStreaming: boolean
   defaultCollapsed?: boolean
 }> = ({ nodes, events, isStreaming, defaultCollapsed = false }) => {
+  const { t } = useTranslation(translations)
   const experts = useMemo(() => {
     const seen = new Map<string, FabricSubAgent>()
-    collectExpertsFromNodes(nodes, seen)
-    collectExpertsFromEvents(events, isStreaming, seen)
+    collectExpertsFromNodes(nodes, seen, t)
+    collectExpertsFromEvents(events, isStreaming, seen, t)
 
     return [...seen.values()]
-  }, [nodes, events, isStreaming])
+  }, [nodes, events, isStreaming, t])
 
   if (experts.length === 0) return null
 
@@ -290,14 +312,18 @@ const EnterpriseExpertsCard: React.FC<{
     const running = experts.filter(e => e.status === 'running').length
     const done = experts.filter(e => e.status === 'done').length
     const failed = experts.filter(e => e.status === 'failed').length
-    if (running) return `${running} running · ${done} done${failed ? ` · ${failed} failed` : ''}`
-    if (failed) return `${done} done · ${failed} failed`
-    return `${done} done`
+    if (running) {
+      return failed
+        ? t('workspace-experts-summary-running-failed', { running, done, failed })
+        : t('workspace-experts-summary-running', { running, done })
+    }
+    if (failed) return t('workspace-experts-summary-done-failed', { done, failed })
+    return t('workspace-experts-summary-done', { done })
   })()
 
   return (
     <PanelCard
-      title="Enterprise experts"
+      title={t('workspace-experts-title')}
       badge={experts.length}
       summary={expertSummary}
       defaultOpen={!defaultCollapsed}
@@ -320,7 +346,7 @@ const EnterpriseExpertsCard: React.FC<{
                 <p className="gba:text-[11px] gba:text-muted-foreground/70 gba:line-clamp-2">{expert.summary}</p>
               )}
               <p className="gba:text-[11px] gba:text-muted-foreground/50 gba:mt-0.5">
-                {enterpriseExpertStatusText(expert.status)}
+                {enterpriseExpertStatusText(expert.status, t)}
               </p>
             </div>
             <EnterpriseExpertTrailingIcon status={expert.status} />
@@ -442,56 +468,57 @@ const AnalyzerCard: React.FC<{
   fromCache: boolean
   onRerun: (e: React.MouseEvent) => void
 }> = ({ analysis, fromCache, onRerun }) => {
+  const { t } = useTranslation(translations)
   return (
     <div className="gba:rounded-md gba:border gba:border-blue-200 gba:bg-blue-50/40 gba:p-2 gba:space-y-1.5 gba:text-[11px]">
       <div className="gba:flex gba:items-center gba:justify-between">
-        <span className="gba:font-semibold gba:text-blue-900">AI analysis</span>
+        <span className="gba:font-semibold gba:text-blue-900">{t('workspace-debug-ai-analysis')}</span>
         <span className="gba:flex gba:items-center gba:gap-2 gba:text-[10px] gba:text-muted-foreground">
           {fromCache && analysis.cached_at ? (
-            <span>cached {new Date(analysis.cached_at).toLocaleTimeString()}</span>
+            <span>{t('workspace-debug-cached-at', { time: new Date(analysis.cached_at).toLocaleTimeString() })}</span>
           ) : null}
           <button
             type="button"
             onClick={onRerun}
             className="gba:rounded gba:border gba:border-border gba:px-1.5 gba:py-0.5 gba:text-[10px] hover:gba:bg-muted"
           >
-            Re-run
+            {t('workspace-debug-rerun')}
           </button>
         </span>
       </div>
       {analysis.root_cause ? (
         <div>
-          <p className="gba:font-semibold gba:text-foreground">Root cause</p>
+          <p className="gba:font-semibold gba:text-foreground">{t('workspace-debug-root-cause')}</p>
           <p className="gba:text-foreground">{coerceAnalyzerDisplayItem(analysis.root_cause)}</p>
         </div>
       ) : null}
       {analysis.affected_layer ? (
         <div>
-          <p className="gba:font-semibold gba:text-foreground">Affected layer</p>
+          <p className="gba:font-semibold gba:text-foreground">{t('workspace-debug-affected-layer')}</p>
           <p className="gba:font-mono gba:text-foreground">{coerceAnalyzerDisplayItem(analysis.affected_layer)}</p>
         </div>
       ) : null}
       {analysis.evidence ? (
         <div>
-          <p className="gba:font-semibold gba:text-foreground">Evidence</p>
+          <p className="gba:font-semibold gba:text-foreground">{t('workspace-debug-evidence')}</p>
           <AnalyzerEvidenceList value={analysis.evidence} />
         </div>
       ) : null}
       {analysis.code_locations ? (
         <div>
-          <p className="gba:font-semibold gba:text-foreground">Code locations</p>
+          <p className="gba:font-semibold gba:text-foreground">{t('workspace-debug-code-locations')}</p>
           <AnalyzerEvidenceList value={analysis.code_locations} />
         </div>
       ) : null}
       {analysis.suggested_fix ? (
         <div>
-          <p className="gba:font-semibold gba:text-foreground">Suggested fix</p>
+          <p className="gba:font-semibold gba:text-foreground">{t('workspace-debug-suggested-fix')}</p>
           <p className="gba:text-foreground">{coerceAnalyzerDisplayItem(analysis.suggested_fix)}</p>
         </div>
       ) : null}
       {analysis.test_command ? (
         <div>
-          <p className="gba:font-semibold gba:text-foreground">Test command</p>
+          <p className="gba:font-semibold gba:text-foreground">{t('workspace-debug-test-command')}</p>
           <pre className="gba:mt-0.5 gba:overflow-x-auto gba:rounded gba:bg-muted gba:p-1.5 gba:font-mono gba:text-[10px] gba:text-foreground">
             {coerceAnalyzerDisplayItem(analysis.test_command)}
           </pre>
@@ -542,13 +569,13 @@ function analyzeButtonTone(analyze: AnalyzeState): string {
   return 'gba:border-border gba:text-foreground hover:gba:bg-muted'
 }
 
-function analyzeButtonLabel(analyze: AnalyzeState): string {
-  if (analyze.kind === 'loading') return 'Analyzing...'
+function analyzeButtonLabel(analyze: AnalyzeState, t: (key: string) => string): string {
+  if (analyze.kind === 'loading') return t('workspace-debug-analyzing')
   if (analyze.kind === 'result') {
-    return analyze.fromCache ? 'Explanation (cached)' : 'Explanation ready'
+    return analyze.fromCache ? t('workspace-debug-explanation-cached') : t('workspace-debug-explanation-ready')
   }
-  if (analyze.kind === 'error') return 'Analyze failed'
-  return 'Explain this session'
+  if (analyze.kind === 'error') return t('workspace-debug-analyze-failed')
+  return t('workspace-debug-explain-session')
 }
 
 function copyButtonTone(copyState: 'idle' | 'copied' | 'error'): string {
@@ -557,10 +584,10 @@ function copyButtonTone(copyState: 'idle' | 'copied' | 'error'): string {
   return 'gba:border-border gba:text-foreground hover:gba:bg-muted'
 }
 
-function copyButtonLabel(copyState: 'idle' | 'copied' | 'error'): string {
-  if (copyState === 'copied') return 'Copied!'
-  if (copyState === 'error') return 'Copy failed'
-  return 'Copy debug context'
+function copyButtonLabel(copyState: 'idle' | 'copied' | 'error', t: (key: string) => string): string {
+  if (copyState === 'copied') return t('workspace-debug-copied')
+  if (copyState === 'error') return t('workspace-debug-copy-failed')
+  return t('workspace-debug-copy-context')
 }
 
 function analyzeStateFromResponse(body: AnalyzeResponse): AnalyzeState {
@@ -683,6 +710,7 @@ const DiagnosticsSummary: React.FC<{
   /** Re-fetch diagnostics from the server (e.g. before copy) so stale in-flight snapshots are not shared. */
   refreshDiagnostics?: () => Promise<DiagnosticsBundle | null>
 }> = ({ sessionId, diagnostics, accessToken, refreshDiagnostics }) => {
+  const { t } = useTranslation(translations)
   const session = diagnostics.session || {}
   const summary = diagnostics.summary || {}
   const slowPhases = diagnostics.slow_phases || []
@@ -736,7 +764,7 @@ const DiagnosticsSummary: React.FC<{
     <div className="gba:rounded-lg gba:border gba:border-border/60 gba:bg-muted/30 gba:p-2 gba:space-y-2">
       <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-1.5 gba:text-[11px]">
         <span className={`gba:rounded-full gba:px-2 gba:py-0.5 gba:font-semibold ${statusTone}`}>
-          {session.status || 'unknown'}
+          {session.status || t('workspace-debug-status-unknown')}
         </span>
         {session.route && (
           <span className="gba:rounded-full gba:bg-blue-100 gba:px-2 gba:py-0.5 gba:text-blue-800">
@@ -766,7 +794,7 @@ const DiagnosticsSummary: React.FC<{
           disabled={analyze.kind === 'loading'}
           className={`gba:ml-auto gba:rounded-full gba:border gba:px-2 gba:py-0.5 gba:text-[11px] gba:transition-colors ${analyzeButtonTone(analyze)}`}
         >
-          {analyzeButtonLabel(analyze)}
+          {analyzeButtonLabel(analyze, t)}
         </button>
         <button
           type="button"
@@ -774,21 +802,20 @@ const DiagnosticsSummary: React.FC<{
           aria-live="polite"
           className={`gba:rounded-full gba:border gba:px-2 gba:py-0.5 gba:text-[11px] gba:transition-colors ${copyButtonTone(copyState)}`}
         >
-          {copyButtonLabel(copyState)}
+          {copyButtonLabel(copyState, t)}
         </button>
       </div>
 
       {analyze.kind === 'disabled' && (
         <p className="gba:rounded-md gba:bg-muted gba:px-2 gba:py-1.5 gba:text-[11px] gba:text-muted-foreground">
-          AI analyzer disabled. Set <code className="gba:font-mono">DEEP_AGENT_AI_ANALYZER_ENABLED=true</code> on
-          prompt-manager to enable.
+          {t('workspace-debug-analyzer-disabled')}
           {analyze.reason ? <span className="gba:ml-1">({analyze.reason})</span> : null}
         </p>
       )}
 
       {analyze.kind === 'error' && (
         <p className="gba:rounded-md gba:bg-red-50 gba:px-2 gba:py-1.5 gba:text-[11px] gba:text-red-800">
-          Analyzer error: {analyze.message}
+          {t('workspace-debug-analyzer-error', { message: analyze.message })}
         </p>
       )}
 
@@ -802,7 +829,7 @@ const DiagnosticsSummary: React.FC<{
 
       {slowPhases.length > 0 && (
         <div className="gba:text-[11px]">
-          <p className="gba:font-semibold gba:text-foreground">Slow phases</p>
+          <p className="gba:font-semibold gba:text-foreground">{t('workspace-debug-slow-phases')}</p>
           <ul className="gba:mt-0.5 gba:space-y-0.5">
             {slowPhases.slice(0, 6).map(phase => (
               <li key={phase.name} className="gba:font-mono gba:text-muted-foreground">
@@ -815,7 +842,7 @@ const DiagnosticsSummary: React.FC<{
 
       {failedTools.length > 0 && (
         <div className="gba:text-[11px]">
-          <p className="gba:font-semibold gba:text-red-800">Failed tools</p>
+          <p className="gba:font-semibold gba:text-red-800">{t('workspace-debug-failed-tools')}</p>
           <ul className="gba:mt-0.5 gba:space-y-0.5">
             {failedTools.slice(0, 4).map((ft, idx) => (
               <li key={`${ft.tool}-${idx}`} className="gba:text-red-700">
@@ -830,7 +857,7 @@ const DiagnosticsSummary: React.FC<{
 
       {repeatedTools.length > 0 && (
         <div className="gba:text-[11px]">
-          <p className="gba:font-semibold gba:text-orange-800">Repeated tool calls</p>
+          <p className="gba:font-semibold gba:text-orange-800">{t('workspace-debug-repeated-tools')}</p>
           <ul className="gba:mt-0.5 gba:space-y-0.5">
             {repeatedTools.slice(0, 4).map(rt => (
               <li key={rt.tool} className="gba:text-orange-700">
@@ -852,9 +879,9 @@ const DiagnosticsSummary: React.FC<{
 
       {langsmith.enabled && langsmith.console_url && (
         <p className="gba:text-[11px] gba:text-muted-foreground">
-          LangSmith project{' '}
+          {t('workspace-debug-langsmith-project')}{' '}
           <a href={langsmith.console_url} target="_blank" rel="noreferrer" className="gba:underline">
-            {langsmith.project || 'open'}
+            {langsmith.project || t('workspace-debug-langsmith-open')}
           </a>
           {langsmith.filter && (
             <code className="gba:ml-2 gba:rounded gba:bg-muted gba:px-1 gba:py-0.5 gba:font-mono gba:text-[10px]">
@@ -872,6 +899,7 @@ const DebugTraceCard: React.FC<{
   accessToken: string
   isStreaming: boolean
 }> = ({ sessionId, accessToken, isStreaming }) => {
+  const { t } = useTranslation(translations)
   const [trace, setTrace] = useState<Record<string, any> | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -975,14 +1003,18 @@ const DebugTraceCard: React.FC<{
   }
 
   const debugSummary = (() => {
-    if (!trace) return error ? 'Failed to load trace' : 'Loading trace…'
-    if (interesting.length === 0) return 'No traced steps yet'
-    return `${interesting.length} traced step${interesting.length === 1 ? '' : 's'}`
+    if (!trace) return error ? t('workspace-debug-trace-failed-load') : t('workspace-debug-trace-loading')
+    if (interesting.length === 0) return t('workspace-debug-trace-no-steps')
+    return interesting.length === 1
+      ? t('workspace-debug-trace-step-singular', { count: interesting.length })
+      : t('workspace-debug-trace-step-plural', { count: interesting.length })
   })()
+
+  const filterOptions = ['all', 'decisions', 'tools', 'hitl', 'errors', 'artifacts'] as const
 
   return (
     <PanelCard
-      title="Debug Trace (dev only)"
+      title={t('workspace-debug-trace-title')}
       badge={interesting.length}
       summary={debugSummary}
       defaultOpen={false}
@@ -990,10 +1022,12 @@ const DebugTraceCard: React.FC<{
     >
       <div className="gba:max-h-96 gba:overflow-y-auto gba:px-4 gba:py-3 gba:space-y-2">
         {error && <p className="gba:text-xs gba:text-destructive">{error}</p>}
-        {!trace && !error && <p className="gba:text-xs gba:text-muted-foreground">Loading debug trace...</p>}
+        {!trace && !error && (
+          <p className="gba:text-xs gba:text-muted-foreground">{t('workspace-debug-trace-loading-detail')}</p>
+        )}
         {trace && (
           <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-1.5">
-            {(['all', 'decisions', 'tools', 'hitl', 'errors', 'artifacts'] as const).map(value => (
+            {filterOptions.map(value => (
               <button
                 key={value}
                 type="button"
@@ -1002,7 +1036,7 @@ const DebugTraceCard: React.FC<{
                   filter === value ? 'gba:bg-foreground gba:text-background' : 'gba:bg-muted gba:text-muted-foreground'
                 }`}
               >
-                {value}
+                {t(`workspace-debug-filter-${value}`)}
               </button>
             ))}
             <button
@@ -1011,14 +1045,14 @@ const DebugTraceCard: React.FC<{
               disabled={isRefreshing}
               className="gba:rounded-full gba:border gba:border-border gba:px-2 gba:py-0.5 gba:text-[11px] gba:text-foreground gba:disabled:opacity-50"
             >
-              {isRefreshing ? 'Refreshing…' : 'Refresh'}
+              {isRefreshing ? t('workspace-debug-refreshing') : t('workspace-debug-refresh')}
             </button>
             <button
               type="button"
               onClick={exportTrace}
               className="gba:ml-auto gba:rounded-full gba:border gba:border-border gba:px-2 gba:py-0.5 gba:text-[11px] gba:text-foreground"
             >
-              Export
+              {t('workspace-debug-export')}
             </button>
           </div>
         )}
@@ -1060,7 +1094,7 @@ const DebugTraceCard: React.FC<{
                 {step.mode && <span className="gba:font-mono">mode:{String(step.mode)}</span>}
                 {step.parallelizable && (
                   <span className="gba:rounded-full gba:bg-blue-100 gba:px-1.5 gba:text-[10px] gba:text-blue-800">
-                    parallel
+                    {t('workspace-debug-parallel')}
                   </span>
                 )}
                 {typeof step.used_llm === 'boolean' && (
@@ -1111,7 +1145,9 @@ const DebugTraceCard: React.FC<{
               )}
               {isRouting && shortlist.length > 0 && (
                 <details className="gba:mt-1 gba:text-[11px] gba:text-muted-foreground">
-                  <summary className="gba:cursor-pointer">Shortlist ({shortlist.length})</summary>
+                  <summary className="gba:cursor-pointer">
+                    {t('workspace-debug-shortlist', { count: shortlist.length })}
+                  </summary>
                   <ul className="gba:mt-1 gba:space-y-0.5">
                     {shortlist.slice(0, 8).map((item, itemIdx) => (
                       <li key={`${item.name}-${itemIdx}`} className="gba:font-mono">

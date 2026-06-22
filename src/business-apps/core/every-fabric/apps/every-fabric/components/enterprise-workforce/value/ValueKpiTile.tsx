@@ -5,7 +5,9 @@
 // module. Styling stays on design-system semantic tokens (no raw hex).
 
 import type { Icon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import React from 'react'
+import translations from '../../../_i18n'
 
 export type ValueTone = 'default' | 'positive' | 'warning'
 
@@ -40,6 +42,7 @@ export const ValueKpiTile: React.FC<ValueKpiTileProps> = ({
   tone = 'default',
   testId
 }) => {
+  const { t } = useTranslation(translations)
   return (
     <div
       className="gba:flex gba:flex-col gba:gap-2 gba:rounded-xl gba:border gba:border-border/60 gba:bg-card gba:p-4"
@@ -55,10 +58,10 @@ export const ValueKpiTile: React.FC<ValueKpiTileProps> = ({
         {estimated && (
           <span
             className="gba:ml-auto gba:rounded-full gba:bg-muted gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-muted-foreground"
-            title="Derived from workspace value assumptions"
+            title={t('value-kpi-estimated-tooltip')}
             data-testid={testId ? `${testId}-estimated` : undefined}
           >
-            Estimated
+            {t('value-kpi-estimated')}
           </span>
         )}
       </div>

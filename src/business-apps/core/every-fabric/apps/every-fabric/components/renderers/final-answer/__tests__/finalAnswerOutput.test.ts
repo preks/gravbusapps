@@ -11,15 +11,17 @@ describe('extractSummarySection', () => {
   })
 })
 
+const identityT = (key: string) => key
+
 describe('compactOutputForChartDeliverable', () => {
   it('returns full output when no visual artifacts', () => {
     const output = 'Chart rendered successfully.\n\n### Summary\n\nDone.'
-    expect(compactOutputForChartDeliverable(output, false)).toBe(output)
+    expect(compactOutputForChartDeliverable(output, false, identityT)).toBe(output)
   })
 
   it('compacts chart deliverable boilerplate to summary section', () => {
     const output = 'Chart rendered successfully.\n\n### Summary\n\nKey insight.\n\nOpen the dashboard artifact.'
-    const compact = compactOutputForChartDeliverable(output, true)
+    const compact = compactOutputForChartDeliverable(output, true, identityT)
     expect(compact).toBe('### Summary\n\nKey insight.\n\nOpen the dashboard artifact.')
   })
 })

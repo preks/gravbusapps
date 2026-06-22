@@ -1,6 +1,6 @@
 // Agent marketplace modal — browse catalog, multi-select hire, publish-to-tenant (provider).
 
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import {
   GearSixIcon,
   MagnifyingGlassIcon,
@@ -15,6 +15,7 @@ import type {
   MarketplacePreflightReport,
   PromptManagerClient
 } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import translations from '../../../_i18n'
 import { VALUE_PACKS, type MarketplaceAgentTemplate, type MarketplaceValuePack } from './marketplaceAgents'
 import { MarketplaceAgentCard } from './MarketplaceAgentCard'
 import { MarketplaceAgentDetail } from './MarketplaceAgentDetail'
@@ -39,12 +40,12 @@ type ModalView = 'browse' | 'manage'
 
 interface FilterChip {
   id: PackFilter | 'all'
-  label: string
+  labelKey: string
 }
 
 const FILTER_CHIPS: FilterChip[] = [
-  { id: 'all', label: 'All' },
-  ...VALUE_PACKS.map(p => ({ id: p.id, label: p.label }))
+  { id: 'all', labelKey: 'workforce-filter-all' },
+  ...VALUE_PACKS.map(p => ({ id: p.id, labelKey: p.labelKey }))
 ]
 
 export const AgentMarketplaceModal: React.FC<AgentMarketplaceModalProps> = ({
@@ -55,6 +56,7 @@ export const AgentMarketplaceModal: React.FC<AgentMarketplaceModalProps> = ({
   onHireLegacy,
   onInstalled
 }) => {
+  const { t } = useTranslation(translations)
   const {
     items,
     isLoading,
@@ -117,7 +119,7 @@ export const AgentMarketplaceModal: React.FC<AgentMarketplaceModalProps> = ({
       setPreflightOpen(false)
       setPendingInstallIds([])
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Install failed')
+      setActionError(err instanceof Error ? err.message : t('marketplace-error-install-failed'))
     } finally {
       setIsBusy(false)
     }
@@ -139,7 +141,7 @@ export const AgentMarketplaceModal: React.FC<AgentMarketplaceModalProps> = ({
       setPendingInstallIds(packageIds)
       setPreflightOpen(true)
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Preflight failed')
+      setActionError(err instanceof Error ? err.message : t('marketplace-error-preflight-failed'))
     } finally {
       setIsBusy(false)
     }
@@ -182,7 +184,7 @@ export const AgentMarketplaceModal: React.FC<AgentMarketplaceModalProps> = ({
 
   const handlePublishToTenant = async (target: { baseUrl: string; token: string }) => {
     if (apiBackedPackageIds.length === 0) {
-      setActionError('Select catalog packages that exist on this deployment (offline demo agents cannot be published).')
+      setActionError(t('marketplace-error-offline-cannot-publish'))
       return
     }
 
@@ -196,7 +198,7 @@ export const AgentMarketplaceModal: React.FC<AgentMarketplaceModalProps> = ({
         setSelectionMode(false)
       }
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Publish failed')
+      setActionError(err instanceof Error ? err.message : t('detail-publish-fail'))
     } finally {
       setIsBusy(false)
     }
@@ -223,10 +225,8 @@ export const AgentMarketplaceModal: React.FC<AgentMarketplaceModalProps> = ({
                 <StorefrontIcon className="gba:h-5 gba:w-5" weight="duotone" />
               </div>
               <div>
-                <h2 className="gba:text-base gba:font-semibold gba:text-foreground">Agent marketplace</h2>
-                <p className="gba:text-xs gba:text-muted-foreground">
-                  Hire ready-made agents with skills, tools and governance included.
-                </p>
+                <h2 className="gba:text-base gba:font-semibold gba:text-foreground">{t('marketplace-modal-title')}</h2>
+                <p className="gba:text-xs gba:text-muted-foreground">{t('marketplace-modal-subtitle')}</p>
               </div>
             </div>
             <div className="gba:flex gba:items-center gba:gap-2">
@@ -242,7 +242,7 @@ export const AgentMarketplaceModal: React.FC<AgentMarketplaceModalProps> = ({
                     data-testid="agent-marketplace-manage"
                   >
                     <GearSixIcon className="gba:mr-1 gba:h-4 gba:w-4" />
-                    Manage catalog
+                    {t('marketplace-manage-catalog')}
                   </Button>
                   <Button
                     variant="outline"
@@ -255,7 +255,7 @@ export const AgentMarketplaceModal: React.FC<AgentMarketplaceModalProps> = ({
                     data-testid="agent-marketplace-publish-tenant"
                   >
                     <PaperPlaneTiltIcon className="gba:mr-1 gba:h-4 gba:w-4" />
-                    Publish to tenant
+                    {t('detail-publish-marketplace')}
                   </Button>
                 </>
               ) : null}
@@ -266,14 +266,14 @@ export const AgentMarketplaceModal: React.FC<AgentMarketplaceModalProps> = ({
                   onClick={() => setSelectionMode(current => !current)}
                   data-testid="agent-marketplace-select-mode"
                 >
-                  {selectionMode ? 'Done selecting' : 'Select multiple'}
+                  {selectionMode ? t('marketplace-done-selecting') : t('marketplace-select-multiple')}
                 </Button>
               ) : null}
               <button
                 type="button"
                 onClick={onClose}
                 className="gba:inline-flex gba:h-8 gba:w-8 gba:items-center gba:justify-center gba:rounded-lg gba:text-muted-foreground gba:hover:bg-muted/60 gba:hover:text-foreground"
-                aria-label="Close"
+                aria-label={t('marketplace-close-aria')}
                 data-testid="agent-marketplace-close"
               >
                 <XIcon className="gba:h-4 gba:w-4" />
@@ -298,7 +298,7 @@ export const AgentMarketplaceModal: React.FC<AgentMarketplaceModalProps> = ({
                   <input
                     value={search}
                     onChange={event => setSearch(event.target.value)}
-                    placeholder="Search by role, skill or tool…"
+                    placeholder={t('marketplace-search-placeholder')}
                     className="gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-background gba:py-2 gba:pl-9 gba:pr-3 gba:text-sm gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring"
                     data-testid="agent-marketplace-search"
                   />
@@ -318,18 +318,22 @@ export const AgentMarketplaceModal: React.FC<AgentMarketplaceModalProps> = ({
                         }`}
                         data-testid={`agent-marketplace-filter-${chip.id}`}
                       >
-                        {chip.label}
+                        {t(chip.labelKey)}
                       </button>
                     )
                   })}
                 </div>
-                {error ? <p className="gba:text-xs gba:text-muted-foreground">Using offline catalog: {error}</p> : null}
+                {error ? (
+                  <p className="gba:text-xs gba:text-muted-foreground">{t('marketplace-offline-catalog', { error })}</p>
+                ) : null}
                 {actionError ? <p className="gba:text-xs gba:text-destructive">{actionError}</p> : null}
               </div>
 
               <div className="gba:flex-1 gba:overflow-y-auto gba:px-5 gba:py-4">
                 {isLoading ? (
-                  <p className="gba:py-16 gba:text-center gba:text-sm gba:text-muted-foreground">Loading catalog…</p>
+                  <p className="gba:py-16 gba:text-center gba:text-sm gba:text-muted-foreground">
+                    {t('marketplace-loading-catalog')}
+                  </p>
                 ) : results.length === 0 ? (
                   <div
                     className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-3 gba:py-16 gba:text-center"
@@ -338,7 +342,7 @@ export const AgentMarketplaceModal: React.FC<AgentMarketplaceModalProps> = ({
                     <div className="gba:flex gba:h-10 gba:w-10 gba:items-center gba:justify-center gba:rounded-lg gba:bg-muted/40">
                       <UsersThreeIcon className="gba:h-5 gba:w-5 gba:text-muted-foreground" />
                     </div>
-                    <p className="gba:text-sm gba:font-medium gba:text-foreground">No agents match your search</p>
+                    <p className="gba:text-sm gba:font-medium gba:text-foreground">{t('marketplace-empty-search')}</p>
                   </div>
                 ) : (
                   <div
@@ -361,13 +365,17 @@ export const AgentMarketplaceModal: React.FC<AgentMarketplaceModalProps> = ({
 
               {selectionMode && selectedPackageIds.length > 0 ? (
                 <div className="gba:flex gba:items-center gba:justify-between gba:gap-2 gba:border-t gba:border-border/60 gba:bg-muted/20 gba:px-5 gba:py-3">
-                  <span className="gba:text-xs gba:text-muted-foreground">{selectedPackageIds.length} selected</span>
+                  <span className="gba:text-xs gba:text-muted-foreground">
+                    {t('marketplace-selected-count', { count: selectedPackageIds.length })}
+                  </span>
                   <Button
                     onClick={() => void handleInstallSelected()}
                     disabled={isBusy}
                     data-testid="marketplace-install-selected"
                   >
-                    {isBusy ? 'Installing…' : `Install selected (${selectedPackageIds.length})`}
+                    {isBusy
+                      ? t('marketplace-installing')
+                      : t('marketplace-install-selected', { count: selectedPackageIds.length })}
                   </Button>
                 </div>
               ) : null}

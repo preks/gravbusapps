@@ -154,9 +154,7 @@ describe('OrgchartRegistrationSection', () => {
 
     fireEvent.click(screen.getByTestId('workforce-orgchart-register'))
 
-    expect(await screen.findByTestId('workforce-orgchart-error')).toHaveTextContent(
-      'Keycloak user creation is disabled'
-    )
+    expect(await screen.findByTestId('workforce-orgchart-error')).toHaveTextContent('orgchart-err-503')
     expect(onSave).not.toHaveBeenCalled()
   })
 

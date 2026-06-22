@@ -1,8 +1,10 @@
 import React, { useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import EntityLink, { markdownUrlTransform } from '@/business-apps/platform/apps/every-ai/components/links/EntityLink'
 import { extractReferences, sanitizeMemoryBody } from './memoryReferences'
+import translations from '../../_i18n'
 
 /**
  * Shared react-markdown renderers for memory bodies. Object links
@@ -51,6 +53,7 @@ interface MemoryMarkdownBodyProps {
 }
 
 export const MemoryMarkdownBody: React.FC<MemoryMarkdownBodyProps> = ({ body, accessToken, showReferences = true }) => {
+  const { t } = useTranslation(translations)
   const clean = useMemo(() => sanitizeMemoryBody(body), [body])
   const references = useMemo(() => extractReferences(body), [body])
 
@@ -69,7 +72,7 @@ export const MemoryMarkdownBody: React.FC<MemoryMarkdownBodyProps> = ({ body, ac
       {showReferences && references.length > 0 && (
         <div className="gba:mt-3">
           <p className="gba:mb-1.5 gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground/70">
-            Open
+            {t('memory-lens-references-open')}
           </p>
           <div className="gba:flex gba:flex-col gba:gap-1.5">
             {references.map(ref => (

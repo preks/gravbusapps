@@ -1,4 +1,6 @@
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../_i18n'
 
 interface HeroSectionProps {
   'data-testid'?: string
@@ -22,6 +24,8 @@ const keyframesStyles = `
 `
 
 export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId = 'newwork-every-hero' }) => {
+  const { t } = useTranslation(translations)
+
   return (
     <>
       <style>{keyframesStyles}</style>
@@ -77,8 +81,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
             style={{ animation: 'fadeInUp 0.6s ease-out 0.2s both' }}
             data-testid={`${testId}-tagline`}
           >
-            Your intelligent workplace. The personal productivity universe with AI assistant, documents, time tracking,
-            and everything you need to work smarter, not harder.
+            {t('hero-tagline')}
           </p>
 
           {/* Floating productivity icons hint */}

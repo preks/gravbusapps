@@ -5,8 +5,10 @@
 // grid is the focal point.
 
 import { MagnifyingGlassIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import React from 'react'
 import type { WorkforceFilter, WorkforceCounts } from './useWorkforceData'
+import translations from '../../_i18n'
 
 interface WorkforceFiltersProps {
   search: string
@@ -29,10 +31,11 @@ export const WorkforceFilters: React.FC<WorkforceFiltersProps> = ({
   onFilterChange,
   counts
 }) => {
+  const { t } = useTranslation(translations)
   const options: FilterOption[] = [
-    { key: 'all', label: 'All', count: counts.total },
-    { key: 'active', label: 'Active', count: counts.active },
-    { key: 'paused', label: 'Paused', count: counts.paused }
+    { key: 'all', label: t('workforce-filter-all'), count: counts.total },
+    { key: 'active', label: t('workforce-filter-active'), count: counts.active },
+    { key: 'paused', label: t('workforce-filter-paused'), count: counts.paused }
   ]
 
   return (
@@ -41,7 +44,7 @@ export const WorkforceFilters: React.FC<WorkforceFiltersProps> = ({
         <MagnifyingGlassIcon className="gba:absolute gba:left-2.5 gba:top-1/2 gba:-translate-y-1/2 gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
         <input
           type="text"
-          placeholder="Search by name, role, department…"
+          placeholder={t('workforce-filters-search-placeholder')}
           value={search}
           onChange={e => onSearchChange(e.target.value)}
           className="gba:h-9 gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-card gba:pl-8 gba:pr-3 gba:text-sm gba:text-foreground gba:placeholder-muted-foreground gba:outline-none gba:focus:border-foreground/30"
@@ -51,7 +54,7 @@ export const WorkforceFilters: React.FC<WorkforceFiltersProps> = ({
 
       <div
         role="tablist"
-        aria-label="Filter workforce agents"
+        aria-label={t('workforce-filters-aria-label')}
         className="gba:inline-flex gba:items-center gba:gap-0.5 gba:rounded-lg gba:border gba:border-border gba:bg-card gba:p-0.5"
       >
         {options.map(option => {

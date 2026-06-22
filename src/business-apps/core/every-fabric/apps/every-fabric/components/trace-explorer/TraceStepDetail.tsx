@@ -1,5 +1,7 @@
+import { useTranslation } from '@newwork/nw-design-system'
 import { ClockIcon, HardDrivesIcon, HashIcon, TagIcon } from '@phosphor-icons/react'
 import type { TraceFrame } from '../../utils/traceModel'
+import translations from '../../_i18n'
 import { traceColor } from './traceColors'
 
 interface TraceStepDetailProps {
@@ -13,6 +15,7 @@ function formatMs(ms: number): string {
 }
 
 export const TraceStepDetail: React.FC<TraceStepDetailProps> = ({ frame, onClose }) => {
+  const { t } = useTranslation(translations)
   const color = traceColor(frame.kind)
 
   return (
@@ -28,7 +31,7 @@ export const TraceStepDetail: React.FC<TraceStepDetailProps> = ({ frame, onClose
           className="gba:text-muted-foreground gba:hover:text-foreground gba:text-xs gba:shrink-0 gba:ml-2"
           data-testid="trace-step-detail-close"
         >
-          Close
+          {t('action-close')}
         </button>
       </div>
 
@@ -38,7 +41,7 @@ export const TraceStepDetail: React.FC<TraceStepDetailProps> = ({ frame, onClose
             className={`gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-0.5 gba:rounded-full ${color.bar} ${color.text}`}
           >
             <TagIcon className="gba:h-3 gba:w-3" />
-            {color.label}
+            {t(color.labelKey)}
           </span>
 
           {frame.status && (
@@ -60,13 +63,13 @@ export const TraceStepDetail: React.FC<TraceStepDetailProps> = ({ frame, onClose
         <dl className="gba:grid gba:grid-cols-2 gba:gap-x-4 gba:gap-y-2 gba:text-xs">
           <div className="gba:flex gba:items-center gba:gap-1 gba:text-muted-foreground">
             <HashIcon className="gba:h-3 gba:w-3" />
-            Seq
+            {t('trace-explorer-detail-seq')}
           </div>
           <dd className="gba:text-foreground">{frame.seq}</dd>
 
           <div className="gba:flex gba:items-center gba:gap-1 gba:text-muted-foreground">
             <ClockIcon className="gba:h-3 gba:w-3" />
-            Offset
+            {t('trace-explorer-detail-offset')}
           </div>
           <dd className="gba:text-foreground">{formatMs(frame.offsetMs)}</dd>
 
@@ -74,7 +77,7 @@ export const TraceStepDetail: React.FC<TraceStepDetailProps> = ({ frame, onClose
             <>
               <div className="gba:flex gba:items-center gba:gap-1 gba:text-muted-foreground">
                 <ClockIcon className="gba:h-3 gba:w-3" />
-                Duration
+                {t('trace-explorer-detail-duration')}
               </div>
               <dd className="gba:text-foreground">{formatMs(frame.durationMs)}</dd>
             </>
@@ -83,7 +86,9 @@ export const TraceStepDetail: React.FC<TraceStepDetailProps> = ({ frame, onClose
 
         {frame.summary && (
           <div className="gba:space-y-1">
-            <h4 className="gba:text-xs gba:font-medium gba:text-muted-foreground">Summary</h4>
+            <h4 className="gba:text-xs gba:font-medium gba:text-muted-foreground">
+              {t('trace-explorer-detail-summary')}
+            </h4>
             <p className="gba:text-xs gba:text-foreground gba:whitespace-pre-wrap gba:leading-relaxed">
               {frame.summary}
             </p>

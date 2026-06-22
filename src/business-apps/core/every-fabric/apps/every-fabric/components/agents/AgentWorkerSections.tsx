@@ -7,9 +7,11 @@
 
 import React from 'react'
 import { SpinnerGapIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { WorkforceConfigSectionStack } from '../enterprise-workforce/WorkforceConfigSectionStack'
 import type { WorkforceConfigGroup } from '../enterprise-workforce/WorkforceConfigSectionStack'
 import type { WorkforceAgentConfigState } from '../enterprise-workforce/useWorkforceAgentConfig'
+import translations from '../../_i18n'
 
 interface AgentWorkerSectionsProps {
   accessToken: string
@@ -27,8 +29,10 @@ export const AgentWorkerSections: React.FC<AgentWorkerSectionsProps> = ({
   group,
   config,
   'data-testid': dataTestId,
-  emptyLabel = 'No configuration available.'
+  emptyLabel: emptyLabelProp
 }) => {
+  const { t } = useTranslation(translations)
+  const emptyLabel = emptyLabelProp ?? t('agents-worker-empty')
   const {
     agent,
     triggers,

@@ -2,6 +2,7 @@
 // backtrace, and the run cost. Moved verbatim from the original RunDetailBody.
 
 import { CoinsIcon, TreeStructureIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import React from 'react'
 
 import { GroupedTraceTimeline } from '../../agent-detail/trace/GroupedTraceTimeline'
@@ -10,6 +11,7 @@ import { RunAuditTimeline } from '../../RunAuditTimeline'
 import { readTotalTokens, runCredits } from '../../runDisplay'
 import type { WorkforceRun, WorkforceRunTraceEvent } from '../../workforceTypes'
 import { SectionTitle } from '../RunDetailSection'
+import translations from '../../../../_i18n'
 
 export interface DiagnosticsTabProps {
   run: WorkforceRun
@@ -18,6 +20,7 @@ export interface DiagnosticsTabProps {
 }
 
 export const DiagnosticsTab: React.FC<DiagnosticsTabProps> = ({ run, accessToken, trace }) => {
+  const { t } = useTranslation(translations)
   const totalTokens = readTotalTokens(run)
   const credits = runCredits(run)
 
@@ -26,19 +29,21 @@ export const DiagnosticsTab: React.FC<DiagnosticsTabProps> = ({ run, accessToken
       <PolicyUsedChips trace={trace} />
 
       <section data-testid="run-detail-trace">
-        <SectionTitle icon={TreeStructureIcon}>Trace</SectionTitle>
+        <SectionTitle icon={TreeStructureIcon}>{t('run-diag-trace')}</SectionTitle>
         <GroupedTraceTimeline trace={trace} />
       </section>
 
       {accessToken && <RunAuditTimeline sessionId={run.session_id} accessToken={accessToken} />}
 
       <section>
-        <SectionTitle icon={CoinsIcon}>Cost</SectionTitle>
+        <SectionTitle icon={CoinsIcon}>{t('run-diag-cost')}</SectionTitle>
         <div className="gba:flex gba:items-center gba:gap-3 gba:rounded-lg gba:border gba:border-border/60 gba:bg-card gba:p-3 gba:text-xs gba:text-foreground">
           <CoinsIcon className="gba:h-4 gba:w-4 gba:text-primary" />
           <div>
-            <div className="gba:font-semibold">{credits} Newwork credits</div>
-            <div className="gba:text-[11px] gba:text-muted-foreground">{totalTokens.toLocaleString()} total tokens</div>
+            <div className="gba:font-semibold">{t('run-diag-credits', { credits })}</div>
+            <div className="gba:text-[11px] gba:text-muted-foreground">
+              {t('run-diag-total-tokens', { tokens: totalTokens.toLocaleString() })}
+            </div>
           </div>
         </div>
       </section>

@@ -12,6 +12,7 @@
 
 import { ArrowLeftIcon, CircleNotchIcon, FlaskIcon, StorefrontIcon, WarningIcon } from '@phosphor-icons/react'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { PublishAgentDialog } from './marketplace/PublishAgentDialog'
 import { useAgentMarketplace } from './marketplace/useAgentMarketplace'
@@ -29,6 +30,7 @@ import { AgentRunsTab } from './agent-detail/tabs/AgentRunsTab'
 import { AgentTraceTab } from './agent-detail/tabs/AgentTraceTab'
 import type { WorkforceDetailTab } from './useWorkforceUrlState'
 import type { WorkforceRun } from './workforceTypes'
+import translations from '../../_i18n'
 
 export interface WorkforceAgentDetailScreenProps {
   accessToken: string
@@ -44,16 +46,16 @@ export interface WorkforceAgentDetailScreenProps {
 
 interface TabDefinition {
   id: WorkforceDetailTab
-  label: string
+  labelKey: string
   testId: string
 }
 
 const TABS: ReadonlyArray<TabDefinition> = [
-  { id: 'overview', label: 'Overview', testId: 'workforce-detail-tab-overview' },
-  { id: 'runs', label: 'Runs', testId: 'workforce-detail-tab-runs' },
-  { id: 'inbox', label: 'Inbox', testId: 'workforce-detail-tab-inbox' },
-  { id: 'trace', label: 'Trace', testId: 'workforce-detail-tab-trace' },
-  { id: 'config', label: 'Config', testId: 'workforce-detail-tab-config' }
+  { id: 'overview', labelKey: 'detail-tab-overview', testId: 'workforce-detail-tab-overview' },
+  { id: 'runs', labelKey: 'detail-tab-runs', testId: 'workforce-detail-tab-runs' },
+  { id: 'inbox', labelKey: 'detail-tab-inbox', testId: 'workforce-detail-tab-inbox' },
+  { id: 'trace', labelKey: 'detail-tab-trace', testId: 'workforce-detail-tab-trace' },
+  { id: 'config', labelKey: 'detail-tab-config', testId: 'workforce-detail-tab-config' }
 ]
 
 export const WorkforceAgentDetailScreen: React.FC<WorkforceAgentDetailScreenProps> = ({
@@ -66,6 +68,7 @@ export const WorkforceAgentDetailScreen: React.FC<WorkforceAgentDetailScreenProp
   onChangeTab,
   onSelectRun
 }) => {
+  const { t } = useTranslation(translations)
   const {
     agent,
     triggers,
@@ -171,7 +174,7 @@ export const WorkforceAgentDetailScreen: React.FC<WorkforceAgentDetailScreenProp
         void refetchRuns()
         return result
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to send webhook.'
+        const message = err instanceof Error ? err.message : t('detail-webhook-fail')
         setWebhookError(message)
         throw err
       } finally {
@@ -217,7 +220,7 @@ export const WorkforceAgentDetailScreen: React.FC<WorkforceAgentDetailScreenProp
           <button
             type="button"
             onClick={onBack}
-            aria-label="Back to workforce"
+            aria-label={t('detail-back-aria')}
             className="gba:inline-flex gba:h-8 gba:w-8 gba:items-center gba:justify-center gba:rounded-md gba:text-muted-foreground gba:hover:bg-muted/60 gba:hover:text-foreground"
             data-testid="workforce-detail-back"
           >
@@ -228,11 +231,11 @@ export const WorkforceAgentDetailScreen: React.FC<WorkforceAgentDetailScreenProp
               className="gba:truncate gba:text-sm gba:font-semibold gba:text-foreground"
               data-testid="workforce-detail-title"
             >
-              {agent ? agent.display_name : 'Loading agent…'}
+              {agent ? agent.display_name : t('detail-loading-title')}
             </h2>
             {agent && (
               <p className="gba:truncate gba:text-[11px] gba:text-muted-foreground">
-                {agent.workforce_profile.role || 'No role set'}
+                {agent.workforce_profile.role || t('detail-no-role')}
                 {agent.workforce_profile.department ? ` · ${agent.workforce_profile.department}` : ''}
               </p>
             )}
@@ -262,7 +265,7 @@ export const WorkforceAgentDetailScreen: React.FC<WorkforceAgentDetailScreenProp
                   data-testid="workforce-detail-publish-marketplace"
                 >
                   <StorefrontIcon className="gba:h-3.5 gba:w-3.5" />
-                  Publish to tenant
+                  {t('detail-publish-marketplace')}
                 </button>
               ) : null}
               <button
@@ -272,7 +275,7 @@ export const WorkforceAgentDetailScreen: React.FC<WorkforceAgentDetailScreenProp
                 data-testid="workforce-detail-test-run"
               >
                 <FlaskIcon className="gba:h-3.5 gba:w-3.5" />
-                Test run
+                {t('detail-test-run')}
               </button>
             </>
           )}
@@ -298,7 +301,7 @@ export const WorkforceAgentDetailScreen: React.FC<WorkforceAgentDetailScreenProp
               }`}
               data-testid={tabDef.testId}
             >
-              {tabDef.label}
+              {t(tabDef.labelKey)}
               {isActive && (
                 <span
                   className="gba:absolute gba:inset-x-2 gba:-bottom-px gba:h-0.5 gba:rounded-full gba:bg-primary"
@@ -326,7 +329,7 @@ export const WorkforceAgentDetailScreen: React.FC<WorkforceAgentDetailScreenProp
                   className="gba:text-destructive gba:hover:underline"
                   data-testid="workforce-detail-error-dismiss"
                 >
-                  Dismiss
+                  {t('detail-dismiss')}
                 </button>
               </div>
             )}
@@ -337,7 +340,7 @@ export const WorkforceAgentDetailScreen: React.FC<WorkforceAgentDetailScreenProp
                 data-testid="workforce-detail-loading"
               >
                 <CircleNotchIcon className="gba:h-4 gba:w-4 gba:animate-spin" />
-                Loading workforce agent…
+                {t('detail-loading-agent')}
               </div>
             )}
 
@@ -434,7 +437,7 @@ export const WorkforceAgentDetailScreen: React.FC<WorkforceAgentDetailScreenProp
             try {
               return await publishAgentToTenant(agent.agent_id, options)
             } catch (err) {
-              setPublishError(err instanceof Error ? err.message : 'Publish failed')
+              setPublishError(err instanceof Error ? err.message : t('detail-publish-fail'))
               return null
             } finally {
               setIsPublishing(false)

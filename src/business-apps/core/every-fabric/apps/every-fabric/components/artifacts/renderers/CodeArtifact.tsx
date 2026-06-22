@@ -1,6 +1,8 @@
 import { useCallback, useState } from 'react'
 import { CheckIcon, CopyIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { ArtifactFile } from '../../../types/fabric'
+import translations from '../../../_i18n'
 
 // ─── Minimal token-based syntax highlighter ──────────────────────────────────
 // Handles: keywords, strings, comments, numbers, booleans/null, operators
@@ -236,6 +238,7 @@ function resolveArtifactDisplayName(file: ArtifactFile): string {
 }
 
 const CodeArtifact: React.FC<CodeArtifactProps> = ({ file, content, viewMode, language }) => {
+  const { t } = useTranslation(translations)
   const [copied, setCopied] = useState(false)
   const safeContent = typeof content === 'string' ? content : ''
   const safeName = resolveArtifactDisplayName(file)
@@ -270,12 +273,12 @@ const CodeArtifact: React.FC<CodeArtifactProps> = ({ file, content, viewMode, la
           {copied ? (
             <>
               <CheckIcon className="gba:h-3.5 gba:w-3.5 gba:text-green-400" weight="bold" />
-              <span className="gba:text-green-400">Copied!</span>
+              <span className="gba:text-green-400">{t('artifact-copied')}</span>
             </>
           ) : (
             <>
               <CopyIcon className="gba:h-3.5 gba:w-3.5" />
-              Copy
+              {t('artifact-copy')}
             </>
           )}
         </button>

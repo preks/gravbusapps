@@ -1,5 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { PenTool, Orbit, Briefcase, Shield, Database, Cpu, LucideIcon } from 'lucide-react'
+import translations from '../_i18n'
 
 interface PlatformVisualizationProps {
   'data-testid'?: string
@@ -240,6 +242,35 @@ const NeuralBackgroundCanvas: React.FC<{ width: number; height: number }> = ({ w
 export const PlatformVisualization: React.FC<PlatformVisualizationProps> = ({
   'data-testid': testId = 'platform-visualization'
 }) => {
+  const { t } = useTranslation(translations)
+  const pillars = useMemo(
+    () =>
+      PILLARS.map(pillar => {
+        if (pillar.id === 'create') {
+          return {
+            ...pillar,
+            label: t('visualization-pillar-create-label'),
+            description: t('visualization-pillar-create-description')
+          }
+        }
+        if (pillar.id === 'every') {
+          return {
+            ...pillar,
+            label: t('visualization-pillar-workplace-label'),
+            description: t('visualization-pillar-workplace-description')
+          }
+        }
+        if (pillar.id === 'business') {
+          return {
+            ...pillar,
+            label: t('visualization-pillar-business-label'),
+            description: t('visualization-pillar-business-description')
+          }
+        }
+        return pillar
+      }),
+    [t]
+  )
   const [hoveredPillar, setHoveredPillar] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [dimensions, setDimensions] = useState({ width: 800, height: 450 })
@@ -264,7 +295,7 @@ export const PlatformVisualization: React.FC<PlatformVisualizationProps> = ({
   const centerY = height / 2 - 20
 
   // Pillar positions (top arc)
-  const pillarPositions = PILLARS.map((_, index) => {
+  const pillarPositions = pillars.map((_, index) => {
     const angle = -Math.PI / 2 + ((index - 1) * Math.PI) / 4
     return {
       x: centerX + Math.cos(angle) * 180,
@@ -406,7 +437,7 @@ export const PlatformVisualization: React.FC<PlatformVisualizationProps> = ({
               {/* Connection lines from pillars to AI Core - Enhanced */}
               {pillarPositions.map((pos, index) => {
                 const gradientId = ['createToCore', 'everyToCore', 'businessToCore'][index]
-                const isHovered = hoveredPillar === PILLARS[index].id
+                const isHovered = hoveredPillar === pillars[index].id
                 return (
                   <g key={`pillar-connection-${index}`}>
                     {/* Glow line */}
@@ -460,7 +491,7 @@ export const PlatformVisualization: React.FC<PlatformVisualizationProps> = ({
               ))}
 
               {/* Pillar nodes - Enhanced */}
-              {PILLARS.map((pillar, index) => {
+              {pillars.map((pillar, index) => {
                 const pos = pillarPositions[index]
                 const isHovered = hoveredPillar === pillar.id
                 const Icon = pillar.icon
@@ -663,15 +694,17 @@ export const PlatformVisualization: React.FC<PlatformVisualizationProps> = ({
           <div className="gba:mt-6 gba:flex gba:justify-center gba:gap-8 gba:flex-wrap">
             <div className="gba:flex gba:items-center gba:gap-2">
               <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-destructive" />
-              <span className="gba:text-sm gba:text-muted-foreground">Create</span>
+              <span className="gba:text-sm gba:text-muted-foreground">{t('visualization-legend-create')}</span>
             </div>
             <div className="gba:flex gba:items-center gba:gap-2">
               <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-success" />
-              <span className="gba:text-sm gba:text-muted-foreground">Every</span>
+              <span className="gba:text-sm gba:text-muted-foreground">{t('visualization-legend-workplace')}</span>
             </div>
             <div className="gba:flex gba:items-center gba:gap-2">
               <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-info" />
-              <span className="gba:text-sm gba:text-muted-foreground">Business Domains</span>
+              <span className="gba:text-sm gba:text-muted-foreground">
+                {t('visualization-legend-business-domains')}
+              </span>
             </div>
             <div className="gba:flex gba:items-center gba:gap-2">
               <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-ai" />

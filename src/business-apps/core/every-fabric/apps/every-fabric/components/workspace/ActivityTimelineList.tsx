@@ -7,7 +7,9 @@ import {
   SparkleIcon,
   WrenchIcon
 } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { ActivityEvent } from '../../types/enterpriseAgent'
+import translations from '../../_i18n'
 import { parseIsoTimestamp, toolCategoryColor } from '../../utils/renderUtils'
 
 function activityTimestampSortValue(timestamp: string): number {
@@ -70,6 +72,7 @@ interface ActivityTimelineListProps {
 }
 
 export const ActivityTimelineList: FC<ActivityTimelineListProps> = ({ events }) => {
+  const { t } = useTranslation(translations)
   const sortedEvents = useMemo(
     () => [...events].sort((a, b) => activityTimestampSortValue(a.timestamp) - activityTimestampSortValue(b.timestamp)),
     [events]
@@ -78,7 +81,7 @@ export const ActivityTimelineList: FC<ActivityTimelineListProps> = ({ events }) 
   if (sortedEvents.length === 0) {
     return (
       <div className="gba:px-4 gba:py-3">
-        <p className="gba:text-xs gba:text-muted-foreground/60 gba:italic">Tool activity will appear here…</p>
+        <p className="gba:text-xs gba:text-muted-foreground/60 gba:italic">{t('workspace-activity-empty')}</p>
       </div>
     )
   }
@@ -108,7 +111,7 @@ export const ActivityTimelineList: FC<ActivityTimelineListProps> = ({ events }) 
               {isSkillLoad ? (
                 <span className="gba:mb-0.5 gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:border gba:border-amber-500/20 gba:bg-amber-500/10 gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-semibold gba:text-amber-700 dark:gba:text-amber-300">
                   <SparkleIcon className="gba:h-3 gba:w-3" weight="duotone" />
-                  Skill: {event.skillName ?? event.skillId}
+                  {t('workspace-skill-badge', { name: event.skillName ?? event.skillId ?? '' })}
                 </span>
               ) : (
                 event.toolName && (

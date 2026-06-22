@@ -216,7 +216,7 @@ describe('TestRunModal', () => {
     expect(task.value).toContain('From: maria.schmidt@example.com')
     expect(task.value).toContain('To: claims@insurance-demo.local')
     expect(task.value).toContain('Maria Schmidt')
-    expect(screen.getByTestId('workforce-test-run-demo-email-hint')).toHaveTextContent('Draft reply for human approval')
+    expect(screen.getByTestId('workforce-test-run-demo-email-hint')).toHaveTextContent('testrun-expected')
     expect(screen.getByTestId('workforce-test-run-submit')).not.toBeDisabled()
   })
 

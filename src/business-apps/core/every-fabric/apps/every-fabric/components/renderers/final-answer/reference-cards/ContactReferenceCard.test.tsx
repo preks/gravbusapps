@@ -6,6 +6,14 @@
 import React from 'react'
 import { render, screen } from '@testing-library/react'
 
+jest.mock('@newwork/nw-design-system', () => {
+  const actual = jest.requireActual('@newwork/nw-design-system')
+  return {
+    ...actual,
+    useTranslation: () => ({ t: (key: string) => key })
+  }
+})
+
 const mockUseCustomerContact = jest.fn()
 
 jest.mock('@/common/data/customer/hooks/useCustomerContact', () => ({
@@ -73,10 +81,10 @@ describe('ContactReferenceCard', () => {
     const fields = screen.getByTestId('fields')
     expect(screen.getByTestId('title')).toHaveTextContent('Jane Roe')
     expect(screen.getByTestId('subtitle')).toHaveTextContent('CTO')
-    expect(fields).toHaveTextContent('Account=Acme Corp')
-    expect(fields).toHaveTextContent('Email=jane@acme.com')
-    expect(fields).toHaveTextContent('Phone=+49 170 1234567')
-    expect(fields).toHaveTextContent('Opportunity=Acme renewal')
+    expect(fields).toHaveTextContent('renderer-ref-field-account=Acme Corp')
+    expect(fields).toHaveTextContent('renderer-ref-field-email=jane@acme.com')
+    expect(fields).toHaveTextContent('renderer-ref-field-phone=+49 170 1234567')
+    expect(fields).toHaveTextContent('renderer-ref-field-opportunity=Acme renewal')
     expect(fields).not.toHaveTextContent('should-not-show@old.com')
   })
 

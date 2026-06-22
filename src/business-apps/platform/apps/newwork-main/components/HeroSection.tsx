@@ -4,7 +4,9 @@
  */
 
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { Hexagon } from 'lucide-react'
+import translations from '../_i18n'
 
 // Keyframes for premium animations
 const keyframesStyles = `
@@ -35,9 +37,9 @@ interface HeroSectionProps {
   'data-testid'?: string
 }
 
-export const HeroSection: React.FC<HeroSectionProps> = ({
-  'data-testid': testId = 'newwork-main-hero'
-}) => {
+export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId = 'newwork-main-hero' }) => {
+  const { t } = useTranslation(translations)
+
   return (
     <>
       <style>{keyframesStyles}</style>
@@ -88,7 +90,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                   animation: 'gradient-shift-enterprise 6s ease infinite'
                 }}
               >
-                THE ENTERPRISE AI
+                {t('hero-title')}
               </span>
             </h1>
           </div>
@@ -138,8 +140,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             style={{ animation: 'fadeInUp 0.8s ease-out 0.4s both' }}
             data-testid={`${testId}-description`}
           >
-            Powering creation, productivity, and business operations. One unified platform with AI at
-            its core, designed to transform how enterprises work.
+            {t('hero-three-pillars-line')}
           </p>
         </div>
       </section>

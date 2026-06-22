@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { ArrowLeftIcon, GearSixIcon, UsersThreeIcon, LightbulbIcon, WrenchIcon } from '@phosphor-icons/react'
 import type { Icon } from '@phosphor-icons/react'
 import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
@@ -11,16 +11,17 @@ import { SettingsSectionsPanel } from './components/SettingsSectionsPanel'
 import { getVisibleSettingsSections, normaliseSettingsSection } from './settingsSections.constants'
 import { ToolsTab } from './ToolsTab'
 import { useSettingsUrlState, type SettingsTab } from './useSettingsUrlState'
+import translations from '../../_i18n'
 
-const TABS: { key: SettingsTab; label: string; icon: Icon }[] = [
-  { key: 'settings', label: 'Settings', icon: GearSixIcon },
-  { key: 'agents', label: 'Agents', icon: UsersThreeIcon },
-  { key: 'skills', label: 'Skills', icon: LightbulbIcon },
-  { key: 'tools', label: 'Tools', icon: WrenchIcon }
+const TAB_CONFIG: { key: SettingsTab; labelKey: string; icon: Icon }[] = [
+  { key: 'settings', labelKey: 'settings-title', icon: GearSixIcon },
+  { key: 'agents', labelKey: 'settings-tab-agents', icon: UsersThreeIcon },
+  { key: 'skills', labelKey: 'settings-tab-skills', icon: LightbulbIcon },
+  { key: 'tools', labelKey: 'settings-tab-tools', icon: WrenchIcon }
 ]
 
-const PAGE_TITLES: Partial<Record<SettingsTab, string>> = {
-  agents: 'Agent Studio'
+const PAGE_TITLE_KEYS: Partial<Record<SettingsTab, string>> = {
+  agents: 'settings-page-agent-studio'
 }
 
 interface SettingsScreenProps {
@@ -30,14 +31,17 @@ interface SettingsScreenProps {
 }
 
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({ accessToken, devToolsEnabled, onBack }) => {
+  const { t } = useTranslation(translations)
   const client = useEnterpriseAgentClient(accessToken)
   const { settings, updateSetting } = useAgentSettings()
   const { tab, section, agentId, skillId, setTab, setSection, setAgent, setSkill } = useSettingsUrlState()
-  const visibleTabs = devToolsEnabled ? TABS : TABS.filter(item => item.key !== 'tools')
+  const visibleTabs = devToolsEnabled ? TAB_CONFIG : TAB_CONFIG.filter(item => item.key !== 'tools')
   const activeTab = devToolsEnabled || tab !== 'tools' ? tab : 'settings'
   const activeSection = normaliseSettingsSection(section, devToolsEnabled)
   const visibleSections = useMemo(() => getVisibleSettingsSections(devToolsEnabled), [devToolsEnabled])
-  const pageTitle = PAGE_TITLES[activeTab] ?? TABS.find(item => item.key === activeTab)?.label ?? 'Settings'
+  const pageTitleKey =
+    PAGE_TITLE_KEYS[activeTab] ?? TAB_CONFIG.find(item => item.key === activeTab)?.labelKey ?? 'settings-title'
+  const pageTitle = t(pageTitleKey)
 
   return (
     <div className="gba:flex gba:h-full gba:flex-col gba:bg-background" data-testid="fabric-settings-screen">
@@ -71,7 +75,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ accessToken, dev
                 data-testid={`settings-tab-${item.key}`}
               >
                 <TabIcon className="gba:h-4 gba:w-4" />
-                {item.label}
+                {t(item.labelKey)}
               </button>
             )
           })}

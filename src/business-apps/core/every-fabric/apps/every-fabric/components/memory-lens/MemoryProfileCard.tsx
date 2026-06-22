@@ -1,8 +1,9 @@
 import React from 'react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { ArrowsClockwiseIcon } from '@phosphor-icons/react'
 import type { UserProfileBrief } from '../../hooks/useEnterpriseAgentClient'
 import { relativeDate } from './memoryLensModel'
+import translations from '../../_i18n'
 
 interface MemoryProfileCardProps {
   profile: UserProfileBrief | null
@@ -27,8 +28,9 @@ const STATUS_LABEL: Record<UserProfileBrief['status'], string> = {
 }
 
 export const MemoryProfileCard: React.FC<MemoryProfileCardProps> = ({ profile, regenerating, onRegenerate }) => {
+  const { t } = useTranslation(translations)
   const briefText = profile?.brief_text?.trim() || profile?.generated_brief_text?.trim() || ''
-  const generatedWhen = relativeDate(profile?.generated_at ?? profile?.updated_at ?? undefined)
+  const generatedWhen = relativeDate(profile?.generated_at ?? profile?.updated_at ?? undefined, t)
 
   return (
     <section className="gba:rounded-2xl gba:bg-card gba:p-6 sm:gba:p-8" data-testid="memory-lens-profile">
@@ -39,10 +41,7 @@ export const MemoryProfileCard: React.FC<MemoryProfileCardProps> = ({ profile, r
           </span>
           {profile && (
             <span className="gba:inline-flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-muted-foreground">
-              <span
-                className={`gba:h-1.5 gba:w-1.5 gba:rounded-full ${STATUS_DOT[profile.status]}`}
-                aria-hidden="true"
-              />
+              <span className={`gba:h-1.5 gba:w-1.5 gba:rounded-full ${STATUS_DOT[profile.status]}`} aria-hidden="true" />
               {STATUS_LABEL[profile.status]}
             </span>
           )}
@@ -66,7 +65,7 @@ export const MemoryProfileCard: React.FC<MemoryProfileCardProps> = ({ profile, r
           </p>
         ) : (
           <p className="gba:text-[15px] gba:leading-7 gba:text-muted-foreground">
-            Every hasn&apos;t written a brief yet. It builds one from your sessions and saved facts — select Regenerate
+            Every hasn&apos;t written a brief yet. It builds one from your sessions and saved facts. Select Regenerate
             to create it.
           </p>
         )}

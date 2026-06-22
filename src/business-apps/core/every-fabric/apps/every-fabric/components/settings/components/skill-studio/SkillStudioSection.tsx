@@ -1,16 +1,19 @@
 import { GearIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { SectionHeader } from '../SettingsShared'
 import { useSkillAdmin } from './useSkillAdmin'
 import { SkillList } from './SkillList'
 import { SkillForm } from './SkillForm'
 import { SkillDetail } from './SkillDetail'
 import { useAdminSkillClient } from '../../../../hooks/useAdminSkillClient'
+import translations from '../../../../_i18n'
 
 interface SkillStudioSectionProps {
   accessToken: string
 }
 
 export const SkillStudioSection: React.FC<SkillStudioSectionProps> = ({ accessToken }) => {
+  const { t } = useTranslation(translations)
   const client = useAdminSkillClient(accessToken)
   const admin = useSkillAdmin(client)
 
@@ -18,7 +21,7 @@ export const SkillStudioSection: React.FC<SkillStudioSectionProps> = ({ accessTo
     <div className="gba:space-y-4" data-testid="skill-studio-section">
       <SectionHeader
         icon={<GearIcon className="gba:h-4 gba:w-4 gba:text-primary gba:shrink-0" />}
-        title="Skill Studio"
+        title={t('settings-skill-studio-title')}
       />
 
       {admin.view === 'list' && (

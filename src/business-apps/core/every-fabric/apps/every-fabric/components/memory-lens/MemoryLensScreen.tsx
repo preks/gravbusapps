@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Badge, Button } from '@newwork/nw-design-system'
+import { Badge, Button, useTranslation } from '@newwork/nw-design-system'
 import { ArrowLeftIcon, ArrowsClockwiseIcon } from '@phosphor-icons/react'
 import { useMemoryLens } from './useMemoryLens'
 import { MemoryProfileCard } from './MemoryProfileCard'
@@ -11,6 +11,7 @@ import { MemoryFacetBrowser } from './MemoryFacetBrowser'
 import { MemoryListSkeleton } from '../settings/components/SkeletonLoader'
 import { MemoryGraph2D } from './MemoryGraph2D'
 import type { MemoryNamespace } from '../settings/agentSettings.types'
+import translations from '../../_i18n'
 
 interface MemoryLensScreenProps {
   accessToken: string
@@ -18,6 +19,7 @@ interface MemoryLensScreenProps {
 }
 
 export const MemoryLensScreen: React.FC<MemoryLensScreenProps> = ({ accessToken, onBack }) => {
+  const { t } = useTranslation(translations)
   const {
     entries,
     stats,
@@ -62,7 +64,7 @@ export const MemoryLensScreen: React.FC<MemoryLensScreenProps> = ({ accessToken,
             <h1 className="gba:text-2xl gba:font-semibold gba:tracking-tight gba:text-foreground">
               Every&apos;s memory
             </h1>
-            <Badge variant="outline">dev</Badge>
+            <Badge variant="outline">{t('memory-lens-dev-badge')}</Badge>
           </div>
           <p className="gba:mt-1 gba:text-sm gba:text-muted-foreground">
             What Every has learned from working with you.

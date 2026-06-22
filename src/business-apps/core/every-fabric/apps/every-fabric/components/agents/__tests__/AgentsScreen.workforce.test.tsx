@@ -5,6 +5,14 @@ import React from 'react'
 
 import { AgentsScreen } from '../AgentsScreen'
 
+jest.mock('@newwork/nw-design-system', () => {
+  const actual = jest.requireActual('@newwork/nw-design-system')
+  return {
+    ...actual,
+    useTranslation: () => ({ t: (key: string) => key })
+  }
+})
+
 const mockGetAgentRegistry = jest.fn()
 const mockGetBuiltinSubagents = jest.fn()
 const mockListWorkforceAgents = jest.fn()
@@ -22,6 +30,14 @@ const mockClient = {
     data: [{ _id: 'model-1' }]
   })
 }
+
+jest.mock('@newwork/nw-design-system', () => {
+  const actual = jest.requireActual('@newwork/nw-design-system')
+  return {
+    ...actual,
+    useTranslation: () => ({ t: (key: string) => key })
+  }
+})
 
 jest.mock('@/common/network/ai/prompt-manager/usePromptManagerClient', () => ({
   usePromptManagerClient: () => mockClient
@@ -178,7 +194,7 @@ describe('AgentsScreen workforce merge', () => {
     render(<AgentsScreen accessToken="tok" onBack={() => {}} embedded />)
 
     const createButton = await screen.findByTestId('agents-hire-button')
-    expect(createButton).toHaveTextContent('Create agent or worker')
+    expect(createButton).toHaveTextContent('agents-create-button')
     expect(createButton).not.toHaveTextContent('+')
   })
 

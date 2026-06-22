@@ -4,15 +4,8 @@ import { getEntityUrl } from '@/business-apps/platform/apps/every-ai/components/
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { IconTile, tileGlyph } from './IconTile'
 import { useFlowReference } from './hooks/flowReferenceHooks'
-import {
-  dataStr,
-  getField,
-  getNum,
-  getStr,
-  humanizeToken,
-  relativeOrShortDate,
-  type ReferenceCardProps
-} from './referenceCardUtils'
+import { dataStr, getField, getNum, getStr, type ReferenceCardProps } from './referenceCardUtils'
+import { useReferenceCardI18n } from './useReferenceCardI18n'
 
 const WORKFLOW_GLYPH = tileGlyph(
   'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4'
@@ -24,6 +17,7 @@ const WORKFLOW_GLYPH = tileGlyph(
  * signal for an in-flight process.
  */
 export const ServiceWorkflowReferenceCard: React.FC<ReferenceCardProps> = ({ reference, accessToken }) => {
+  const { field, humanizeToken, relativeOrShortDate, progressSteps, t } = useReferenceCardI18n()
   const { data: flow, loading } = useFlowReference(reference.id, accessToken)
 
   const url = getEntityUrl(reference.type, reference.id, reference.href)
@@ -55,17 +49,17 @@ export const ServiceWorkflowReferenceCard: React.FC<ReferenceCardProps> = ({ ref
     (completedSteps !== undefined && totalSteps ? Math.round((completedSteps / totalSteps) * 100) : undefined)
 
   const fields: Array<{ label: string; value: string }> = []
-  if (created) fields.push({ label: 'Started', value: created })
+  if (created) fields.push({ label: field('started'), value: created })
 
   const footer =
     completedSteps !== undefined && totalSteps ? (
       <div className="gba:space-y-1.5">
         <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
           <span className="gba:text-[10px] gba:font-medium gba:uppercase gba:tracking-wide gba:text-muted-foreground">
-            Progress
+            {field('progress')}
           </span>
           <span className="gba:text-xs gba:font-semibold gba:text-foreground">
-            {completedSteps} of {totalSteps} steps
+            {progressSteps(completedSteps, totalSteps)}
           </span>
         </div>
         <div className="gba:h-1.5 gba:w-full gba:rounded-full gba:bg-violet-100 gba:overflow-hidden">
@@ -80,7 +74,7 @@ export const ServiceWorkflowReferenceCard: React.FC<ReferenceCardProps> = ({ ref
   return (
     <EntityCard
       title={title}
-      subtitle="Workflow"
+      subtitle={t('renderer-ref-type-workflow')}
       status={status}
       icon={icon}
       fields={fields.length ? fields : undefined}

@@ -1,4 +1,6 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../_i18n'
 import {
   Users,
   TrendingUp,
@@ -215,7 +217,22 @@ const animationStyles = `
 export const BusinessAppsVisualization: React.FC<BusinessAppsVisualizationProps> = ({
   'data-testid': testId = 'business-domains-visualization'
 }) => {
+  const { t } = useTranslation(translations)
   const [hoveredNode, setHoveredNode] = useState<string | null>(null)
+
+  const businessDomains = useMemo(
+    () =>
+      BUSINESS_DOMAINS.map(node =>
+        node.id === 'value-packs'
+          ? {
+              ...node,
+              label: t('visualization-value-packs-label'),
+              description: t('visualization-value-packages-description')
+            }
+          : node
+      ),
+    [t]
+  )
 
   // SVG dimensions - wider for better horizontal spread
   const width = 950
@@ -261,7 +278,7 @@ export const BusinessAppsVisualization: React.FC<BusinessAppsVisualizationProps>
     y: height - 60
   }
 
-  const businessPositions = BUSINESS_DOMAINS.map((node, i) => ({
+  const businessPositions = businessDomains.map((node, i) => ({
     ...node,
     ...getBusinessPosition(i)
   }))
@@ -424,8 +441,7 @@ export const BusinessAppsVisualization: React.FC<BusinessAppsVisualizationProps>
             Connected to your entire ecosystem
           </h2>
           <p className="gba:text-muted-foreground gba:max-w-xl gba:mx-auto">
-            Business Domains integrate with NW Create for building, NW Every for collaboration — all powered by the
-            NEWWORK Platform
+            {t('visualization-ecosystem-description')}
           </p>
         </div>
 
@@ -519,7 +535,7 @@ export const BusinessAppsVisualization: React.FC<BusinessAppsVisualizationProps>
                 textAnchor="middle"
                 className="gba:text-xs gba:fill-primary gba:font-bold"
               >
-                BUSINESS DOMAINS
+                {t('visualization-hub-label')}
               </text>
             </g>
 
@@ -552,7 +568,7 @@ export const BusinessAppsVisualization: React.FC<BusinessAppsVisualizationProps>
         >
           <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
             <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-primary" />
-            <span>Business Domains</span>
+            <span>{t('visualization-business-domains-label')}</span>
           </div>
           <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
             <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-destructive" />

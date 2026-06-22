@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Button, Textarea } from '@newwork/nw-design-system'
+import { Button, Textarea, useTranslation } from '@newwork/nw-design-system'
 import { ArrowUpIcon, PlugsIcon, SpinnerGapIcon, StopIcon } from '@phosphor-icons/react'
 import type {
   ModelOption,
@@ -15,6 +15,7 @@ import { ModelSelector } from './ModelSelector'
 import { ComposerActionMenu } from './ComposerActionMenu'
 import { SelectedAgentChip } from './SelectedAgentChip'
 import { SETTINGS_KEY } from '../settings/agentSettings.types'
+import translations from '../../_i18n'
 
 export interface FabricInputProps {
   /** 'landing' = full centered card; 'workspace' = compact bottom bar */
@@ -113,6 +114,7 @@ function buildSessionConfig(
 }
 
 function resolveFabricInputPlaceholder(
+  t: (key: string, args?: Record<string, string>) => string,
   placeholder: string | undefined,
   isReplyMode: boolean,
   activeInterrupt: string | undefined,
@@ -122,20 +124,26 @@ function resolveFabricInputPlaceholder(
   if (placeholder !== undefined) return placeholder
   if (isReplyMode) {
     const tail = (activeInterrupt?.length ?? 0) > 60 ? '…' : ''
-    return `Your answer to: "${activeInterrupt?.slice(0, 60)}${tail}"`
+    const text = `${activeInterrupt?.slice(0, 60)}${tail}`
+    return t('landing-input-reply-prefix', { text })
   }
-  if (isRunning) return 'Agent is working…'
-  if (isLanding) return 'Describe a task, research topic, or ask anything…'
-  return 'Reply or give feedback…'
+  if (isRunning) return t('landing-input-working')
+  if (isLanding) return t('landing-input-placeholder')
+  return t('landing-input-reply')
 }
 
-const getAttachmentBusyHint = (hasUploadingAttachments: boolean, hasIndexingAttachments: boolean): string | null => {
-  if (hasUploadingAttachments) return 'Uploading attachment…'
-  if (hasIndexingAttachments) return 'Indexing attachment, almost ready…'
+const getAttachmentBusyHint = (
+  t: (key: string) => string,
+  hasUploadingAttachments: boolean,
+  hasIndexingAttachments: boolean
+): string | null => {
+  if (hasUploadingAttachments) return t('landing-input-uploading')
+  if (hasIndexingAttachments) return t('landing-input-indexing')
   return null
 }
 
 function deriveAttachmentState(
+  t: (key: string) => string,
   isLanding: boolean,
   pendingAttachments: PendingComposerAttachment[],
   attachments: SessionAttachment[]
@@ -151,7 +159,7 @@ function deriveAttachmentState(
     hasIndexingAttachments,
     isAttachmentBusy,
     attachmentHintText:
-      getAttachmentBusyHint(hasUploadingAttachments, hasIndexingAttachments) ?? 'Enter to send, Shift+Enter for newline'
+      getAttachmentBusyHint(t, hasUploadingAttachments, hasIndexingAttachments) ?? t('landing-input-hint')
   }
 }
 
@@ -473,7 +481,10 @@ const renderSelectedAgentNode = (
   )
 }
 
-const renderConnectorSummaryNode = (activeConnectors: ExternalConnection[]) => {
+const renderConnectorSummaryNode = (
+  t: (key: string, args?: Record<string, string>) => string,
+  activeConnectors: ExternalConnection[]
+) => {
   if (activeConnectors.length === 0) return null
 
   return (
@@ -482,7 +493,11 @@ const renderConnectorSummaryNode = (activeConnectors: ExternalConnection[]) => {
       data-testid="fabric-input-connector-summary"
     >
       <PlugsIcon className="gba:h-3 gba:w-3" weight="bold" />
-      <span>{activeConnectors.length === 1 ? activeConnectors[0].name : `${activeConnectors.length} connectors`}</span>
+      <span>
+        {activeConnectors.length === 1
+          ? activeConnectors[0].name
+          : t('landing-connectors-count', { count: String(activeConnectors.length) })}
+      </span>
     </span>
   )
 }
@@ -518,6 +533,7 @@ interface WorkspaceInputLayoutProps extends BaseInputLayoutProps {
   isRunning: boolean
   isReplyMode: boolean
   onStop?: () => void
+  stopAriaLabel: string
 }
 
 const HiddenFileInput = ({
@@ -625,6 +641,7 @@ const WorkspaceFabricInput = ({
   isRunning,
   isReplyMode,
   onStop,
+  stopAriaLabel,
   composerActionMenuNode,
   selectedAgentNode,
   connectorSummaryNode,
@@ -669,7 +686,7 @@ const WorkspaceFabricInput = ({
             onClick={onStop}
             className="gba:flex gba:items-center gba:justify-center gba:h-8 gba:w-8 gba:rounded-full gba:ml-1 gba:shrink-0 gba:bg-foreground gba:text-background gba:hover:opacity-90 gba:transition-opacity"
             data-testid="fabric-input-stop"
-            aria-label="Stop"
+            aria-label={stopAriaLabel}
           >
             <StopIcon className="gba:h-3.5 gba:w-3.5" weight="fill" />
           </button>
@@ -722,6 +739,7 @@ export const FabricInput: React.FC<FabricInputProps> = ({
   isLoadingModels = false,
   devModeEnabled = false
 }) => {
+  const { t } = useTranslation(translations)
   const [value, setValue] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -732,6 +750,7 @@ export const FabricInput: React.FC<FabricInputProps> = ({
   const isLanding = variant === 'landing'
 
   const resolvedPlaceholder = resolveFabricInputPlaceholder(
+    t,
     placeholder,
     isReplyMode,
     activeInterrupt,
@@ -770,7 +789,7 @@ export const FabricInput: React.FC<FabricInputProps> = ({
   // BEFORE any session exists. These should NOT block sending — they're
   // waiting for the user to send the first message to create a session,
   // which triggers the flush. Only block for actively uploading files.
-  const { isAttachmentBusy, attachmentHintText } = deriveAttachmentState(isLanding, pendingAttachments, attachments)
+  const { isAttachmentBusy, attachmentHintText } = deriveAttachmentState(t, isLanding, pendingAttachments, attachments)
   const canSend = resolveCanSend({
     value,
     isDisabled,
@@ -779,7 +798,7 @@ export const FabricInput: React.FC<FabricInputProps> = ({
     isReplyMode,
     isAttachmentBusy
   })
-  const landingHintText = isSubmitting ? 'Starting session...' : attachmentHintText
+  const landingHintText = isSubmitting ? t('landing-input-starting') : attachmentHintText
   const attachmentChips = renderAttachmentChips({
     attachments,
     pendingAttachments,
@@ -814,7 +833,7 @@ export const FabricInput: React.FC<FabricInputProps> = ({
   })
   const selectedAgentNode = renderSelectedAgentNode(selectedAgent, isLanding, onClearAgent)
   const activeConnectors = availableConnectors.filter(c => activeConnectorIds.has(c.connection_id))
-  const connectorSummaryNode = renderConnectorSummaryNode(activeConnectors)
+  const connectorSummaryNode = renderConnectorSummaryNode(t, activeConnectors)
 
   if (isLanding) {
     return (
@@ -857,6 +876,7 @@ export const FabricInput: React.FC<FabricInputProps> = ({
       isRunning={isRunning}
       isReplyMode={isReplyMode}
       onStop={onStop}
+      stopAriaLabel={t('landing-stop-aria')}
       composerActionMenuNode={composerActionMenuNode}
       selectedAgentNode={selectedAgentNode}
       connectorSummaryNode={connectorSummaryNode}

@@ -1,11 +1,14 @@
+import { useTranslation } from '@newwork/nw-design-system'
 import { SealCheckIcon, WarningIcon } from '@phosphor-icons/react'
 import type { ReflectionResult } from '../../types/enterpriseAgent'
+import translations from '../../_i18n'
 
 interface ReflectionRendererProps {
   result: ReflectionResult
 }
 
 export const ReflectionRenderer = ({ result }: ReflectionRendererProps) => {
+  const { t } = useTranslation(translations)
   const isPassing = result.complete && result.recommendation === 'return'
 
   return (
@@ -22,7 +25,7 @@ export const ReflectionRenderer = ({ result }: ReflectionRendererProps) => {
       )}
       <div className="gba:min-w-0">
         <p className="gba:text-sm gba:font-medium gba:text-foreground">
-          {isPassing ? 'Quality check passed' : 'Agent found gaps and is continuing…'}
+          {isPassing ? t('renderer-reflection-passed') : t('renderer-reflection-gaps')}
         </p>
         {!isPassing && result.missing_steps.length > 0 && (
           <ul className="gba:mt-1.5 gba:space-y-0.5">

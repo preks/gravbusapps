@@ -10,6 +10,7 @@ import { LIGHT_GLASS_THEME } from '../glass-card-sphere/glassCardTheme'
 import type { AggregateStats } from '../../utils/meshAggregateModel'
 import type { MeshLiveActivityState } from './liveMeshActivity'
 import { buildMeshAgentCards, buildMeshKpis } from './meshGlassCardModel'
+import { useAgentMeshI18n } from './useAgentMeshI18n'
 
 interface AgentMeshGlassSphereProps {
   stats: AggregateStats
@@ -17,6 +18,7 @@ interface AgentMeshGlassSphereProps {
 }
 
 export const AgentMeshGlassSphere: React.FC<AgentMeshGlassSphereProps> = ({ stats, liveActivity }) => {
+  const { t } = useAgentMeshI18n()
   const cards = useMemo(() => buildMeshAgentCards(stats, liveActivity), [stats, liveActivity])
   const kpis = useMemo(() => buildMeshKpis(stats), [stats])
 
@@ -26,8 +28,8 @@ export const AgentMeshGlassSphere: React.FC<AgentMeshGlassSphereProps> = ({ stat
       kpis={kpis}
       theme={LIGHT_GLASS_THEME}
       heading={{
-        label: 'Company agents',
-        value: `${stats.agentCount} agent${stats.agentCount === 1 ? '' : 's'}`
+        label: t('agent-mesh-glass-heading'),
+        value: t('agent-mesh-glass-value', { count: stats.agentCount })
       }}
       testId="agent-mesh-glass-sphere"
     />

@@ -1,11 +1,13 @@
 // Gantt-style timeline view showing frames as bars in horizontal lanes per node.
 
 import { memo, useCallback, useMemo, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { TraceModel, TraceFrame } from '../../utils/traceModel'
 import type { ReplayClockApi } from '../../hooks/useReplayClock'
 import { TraceLane } from './TraceLane'
 import { TraceStepDetail } from './TraceStepDetail'
 import { LEGEND_KINDS, traceColor } from './traceColors'
+import translations from '../../_i18n'
 
 interface TraceTimelineViewProps {
   model: TraceModel
@@ -39,6 +41,7 @@ function formatTick(ms: number): string {
 }
 
 export const TraceTimelineView: React.FC<TraceTimelineViewProps> = memo(({ model, clock, isLive }) => {
+  const { t } = useTranslation(translations)
   const [selectedFrameId, setSelectedFrameId] = useState<string | null>(null)
 
   const visibleFrames = useMemo(() => {
@@ -85,7 +88,7 @@ export const TraceTimelineView: React.FC<TraceTimelineViewProps> = memo(({ model
         className="gba:flex gba:items-center gba:justify-center gba:flex-1 gba:text-muted-foreground gba:text-sm"
         data-testid="trace-timeline-view"
       >
-        No timeline data available yet
+        {t('trace-explorer-timeline-empty')}
       </div>
     )
   }
@@ -171,13 +174,16 @@ export const TraceTimelineView: React.FC<TraceTimelineViewProps> = memo(({ model
             return (
               <div key={kind} className="gba:flex gba:items-center gba:gap-1.5 gba:text-[11px]">
                 <span className={`gba:inline-block gba:w-3 gba:h-3 gba:rounded-sm ${color.bar}`} />
-                <span className="gba:text-muted-foreground">{color.label}</span>
+                <span className="gba:text-muted-foreground">{t(color.labelKey)}</span>
               </div>
             )
           })}
           {isTruncated && (
             <span className="gba:ml-auto gba:text-[11px] gba:text-warning-foreground">
-              Showing {MAX_VISIBLE_FRAMES} of {model.frames.length} frames
+              {t('trace-explorer-timeline-truncated', {
+                shown: MAX_VISIBLE_FRAMES,
+                total: model.frames.length
+              })}
             </span>
           )}
         </div>

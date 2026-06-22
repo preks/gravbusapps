@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { CaretDownIcon, CaretRightIcon, CheckIcon, ClockIcon, SpinnerGapIcon, XIcon } from '@phosphor-icons/react'
 import type { TodoItem } from '../../types/enterpriseAgent'
+import translations from '../../_i18n'
 
 interface PlanRendererProps {
   todos: TodoItem[]
@@ -26,18 +28,18 @@ function planTodoTextClass(status: TodoItem['status']): string {
 }
 
 export const PlanRenderer = ({ todos, isLive }: PlanRendererProps) => {
+  const { t } = useTranslation(translations)
   const [expanded, setExpanded] = useState(false)
-  const doneCount = todos.filter(t => t.status === 'done').length
+  const doneCount = todos.filter(item => item.status === 'done').length
   const totalCount = todos.length
   const progress = totalCount > 0 ? (doneCount / totalCount) * 100 : 0
-  const current = todos.find(t => t.status === 'in_progress')
+  const current = todos.find(item => item.status === 'in_progress')
 
   return (
     <div
       className="gba:rounded-xl gba:border gba:border-border gba:bg-card gba:overflow-hidden gba:max-w-3xl"
       data-testid="enterprise-agent-plan"
     >
-      {/* Header */}
       <button
         className="gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-3 gba:hover:bg-muted/30 gba:transition-colors"
         onClick={() => setExpanded(v => !v)}
@@ -46,14 +48,13 @@ export const PlanRenderer = ({ todos, isLive }: PlanRendererProps) => {
         <div className="gba:flex-1 gba:min-w-0 gba:text-left">
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1.5">
             <span className="gba:text-xs gba:font-semibold gba:text-foreground gba:uppercase gba:tracking-wide">
-              Plan
+              {t('renderer-plan-title')}
             </span>
             <span className="gba:text-xs gba:text-muted-foreground">
-              {doneCount} / {totalCount} steps
+              {t('renderer-plan-steps', { done: doneCount, total: totalCount })}
             </span>
             {isLive && current && <span className="gba:text-xs gba:text-primary gba:truncate">· {current.text}</span>}
           </div>
-          {/* Progress bar */}
           <div className="gba:h-1 gba:bg-muted gba:rounded-full gba:overflow-hidden">
             <div
               className="gba:h-full gba:bg-primary gba:rounded-full gba:transition-all gba:duration-500"
@@ -68,7 +69,6 @@ export const PlanRenderer = ({ todos, isLive }: PlanRendererProps) => {
         )}
       </button>
 
-      {/* Expanded list */}
       {expanded && (
         <div className="gba:border-t gba:border-border gba:divide-y gba:divide-border/50">
           {todos.map(todo => (

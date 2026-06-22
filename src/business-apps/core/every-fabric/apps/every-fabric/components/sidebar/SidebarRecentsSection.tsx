@@ -1,8 +1,10 @@
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { FabricSessionSummary } from '../../types/fabric'
+import translations from '../../_i18n'
 import { SidebarRecentItem } from './SidebarRecentItem'
 import { SidebarSectionHeader } from './SidebarSectionHeader'
-import { groupRecentsByDay } from './sessionGrouping'
+import { groupRecentsByDay, type RecentsGroup } from './sessionGrouping'
 import { useSidebarSectionCollapsedState } from './useSidebarSectionCollapsedState'
 
 interface SidebarRecentsSectionProps {
@@ -24,6 +26,12 @@ interface SidebarRecentsSectionProps {
 const SECTION_ID = 'recents'
 const PANEL_ID = 'sidebar-section-recents'
 
+const GROUP_LABEL_KEYS: Record<RecentsGroup['label'], string> = {
+  Today: 'sidebar-group-today',
+  Yesterday: 'sidebar-group-yesterday',
+  Earlier: 'sidebar-group-earlier'
+}
+
 export const SidebarRecentsSection: React.FC<SidebarRecentsSectionProps> = ({
   sessions,
   activeSessionId,
@@ -37,6 +45,7 @@ export const SidebarRecentsSection: React.FC<SidebarRecentsSectionProps> = ({
   onLoadMore,
   searchActive = false
 }) => {
+  const { t } = useTranslation(translations)
   // Recents default open so history search and older-session paging are discoverable.
   const { isCollapsed, toggleCollapsed } = useSidebarSectionCollapsedState(SECTION_ID, false)
   const showList = forceExpanded || !isCollapsed
@@ -45,9 +54,9 @@ export const SidebarRecentsSection: React.FC<SidebarRecentsSectionProps> = ({
   const badge = sessions.length > 0 ? sessions.length : undefined
 
   const getLoadMoreLabel = () => {
-    if (isLoadingMore) return 'Loading older sessions...'
-    if (searchActive) return 'Load more matches'
-    return 'Load older sessions'
+    if (isLoadingMore) return t('sidebar-recents-load-more-loading')
+    if (searchActive) return t('sidebar-recents-load-more-search')
+    return t('sidebar-recents-load-more')
   }
 
   const handleLoadMoreClick = () => {
@@ -73,14 +82,16 @@ export const SidebarRecentsSection: React.FC<SidebarRecentsSectionProps> = ({
 
   const renderRecentsContent = () => {
     if (isLoading) {
-      return <p className="gba:px-3 gba:py-3 gba:text-[12px] gba:text-muted-foreground/70">Loading sessions...</p>
+      return (
+        <p className="gba:px-3 gba:py-3 gba:text-[12px] gba:text-muted-foreground/70">{t('sidebar-recents-loading')}</p>
+      )
     }
 
     if (groups.length === 0) {
       return (
         <>
           <p className="gba:px-3 gba:py-3 gba:text-[12px] gba:text-muted-foreground/70">
-            {emptyHint ?? 'No sessions yet. Start one from the composer.'}
+            {emptyHint ?? t('sidebar-recents-empty')}
           </p>
           {loadMoreButton}
         </>
@@ -92,7 +103,7 @@ export const SidebarRecentsSection: React.FC<SidebarRecentsSectionProps> = ({
         {groups.map(group => (
           <div key={group.label} className="gba:pb-1">
             <p className="gba:px-3 gba:pt-2 gba:pb-1 gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-[0.08em] gba:text-muted-foreground/70">
-              {group.label}
+              {t(GROUP_LABEL_KEYS[group.label])}
             </p>
             <ul className="gba:px-1.5 gba:space-y-0.5">
               {group.sessions.map(session => (
@@ -116,7 +127,7 @@ export const SidebarRecentsSection: React.FC<SidebarRecentsSectionProps> = ({
   return (
     <div data-testid="sidebar-recents-section">
       <SidebarSectionHeader
-        label="Recents"
+        label={t('sidebar-recents-label')}
         badge={badge}
         collapsible={{ isCollapsed, onToggle: toggleCollapsed, controlsId: PANEL_ID }}
       />

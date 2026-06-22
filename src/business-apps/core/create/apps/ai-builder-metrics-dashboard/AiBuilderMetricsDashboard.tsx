@@ -23,7 +23,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  type ChartConfig
+  type ChartConfig,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, AreaChart, Area } from 'recharts'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -36,6 +37,7 @@ import type {
   SessionUsageMetric,
   LlmPricingConfigEntry
 } from '@/common/network/ai/builder/BuilderClient'
+import translations from './_i18n'
 
 type AiBuilderMetricsDashboardProps = BusinessAppContextProps & {
   'data-testid'?: string
@@ -144,6 +146,7 @@ export const AiBuilderMetricsDashboard: React.FC<AiBuilderMetricsDashboardProps>
   accessToken,
   'data-testid': testId = 'ai-builder-metrics-dashboard'
 }) => {
+  const { t } = useTranslation(translations)
   const builderClient = useBuilderClient(accessToken)
   const [timeframe, setTimeframe] = useState<BuilderMetricsTimeframe>('last7d')
   const [serviceMetrics, setServiceMetrics] = useState<BuilderServiceMetricsResponse | null>(null)
@@ -165,7 +168,7 @@ export const AiBuilderMetricsDashboard: React.FC<AiBuilderMetricsDashboardProps>
       setServiceMetrics(null)
       setSessionMetrics([])
       setTimeseries([])
-      setError('Access token is missing. Open settings and set a valid token to query AI Builder metrics.')
+      setError(t('error-missing-token'))
       return
     }
 
@@ -183,7 +186,7 @@ export const AiBuilderMetricsDashboard: React.FC<AiBuilderMetricsDashboardProps>
       setTimeseries(Array.isArray(chartData.points) ? chartData.points : [])
       setLastUpdatedAt(new Date())
     } catch (metricsError) {
-      const message = metricsError instanceof Error ? metricsError.message : 'Failed to load AI Builder metrics'
+      const message = metricsError instanceof Error ? metricsError.message : t('error-load-failed')
       setError(message)
       setServiceMetrics(null)
       setSessionMetrics([])
@@ -191,7 +194,7 @@ export const AiBuilderMetricsDashboard: React.FC<AiBuilderMetricsDashboardProps>
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, builderClient, timeframe])
+  }, [accessToken, builderClient, timeframe, t])
 
   const loadPricing = useCallback(async () => {
     if (!accessToken) {
@@ -365,7 +368,7 @@ export const AiBuilderMetricsDashboard: React.FC<AiBuilderMetricsDashboardProps>
       <main className="layout-content gap-md gba:py-2">
         <header className="gba:w-full gba:mb-6 gba:py-2 gba:flex gba:flex-wrap gba:items-start gba:justify-between gba:gap-3">
           <div className="gba:space-y-1">
-            <h1 className="gba:text-2xl gba:font-semibold">AI Builder Metrics Dashboard</h1>
+            <h1 className="gba:text-2xl gba:font-semibold">{t('page-title')}</h1>
             <p className="gba:text-sm gba:text-muted-foreground">
               Token usage and USD costs based on configurable provider pricing.
             </p>

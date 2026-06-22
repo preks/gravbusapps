@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import {
   CaretDownIcon,
   CaretRightIcon,
@@ -14,6 +15,7 @@ import { parseComposeEmailToolResult, type ComposeEmailOutcomePayload } from '..
 import { parseActionCardToolResult } from '../../utils/actionCardTrace'
 import { ActionCard } from './ActionCard'
 import { DeliverableCardsList, parseDeliverableCardPayload } from './DeliverableCards'
+import translations from '../../_i18n'
 
 export interface ToolResultRendererProps {
   callId: string
@@ -34,41 +36,50 @@ const formatTableCellValue = (value: unknown): string => {
   return JSON.stringify(value)
 }
 
-function getComposeEmailVisuals(payload: ComposeEmailOutcomePayload): { icon: JSX.Element; title: string } {
+function getComposeEmailVisuals(
+  payload: ComposeEmailOutcomePayload,
+  t: (key: string) => string
+): { icon: JSX.Element; title: string } {
   const status = payload.status ?? 'unknown'
   const isError = status === 'error' || !!payload.error
   if (isError) {
     return {
       icon: <WarningCircleIcon className="gba:h-4 gba:w-4 gba:text-destructive" weight="fill" />,
-      title: 'Email failed'
+      title: t('renderer-tool-email-failed')
     }
   }
   if (status === 'cancelled') {
     return {
       icon: <XIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />,
-      title: 'Email cancelled'
+      title: t('renderer-tool-email-cancelled')
     }
   }
   if (status === 'drafted') {
     return {
       icon: <PencilSimpleIcon className="gba:h-4 gba:w-4 gba:text-primary" />,
-      title: 'Email saved as draft'
+      title: t('renderer-tool-email-drafted')
     }
   }
   if (status === 'sent') {
     return {
       icon: <PaperPlaneTiltIcon className="gba:h-4 gba:w-4 gba:text-primary" weight="fill" />,
-      title: 'Email sent'
+      title: t('renderer-tool-email-sent')
     }
   }
   return {
     icon: <EnvelopeSimpleIcon className="gba:h-4 gba:w-4 gba:text-primary" />,
-    title: 'Email composed'
+    title: t('renderer-tool-email-composed')
   }
 }
 
-function ComposeEmailResultCard({ payload }: { readonly payload: ComposeEmailOutcomePayload }) {
-  const { icon, title } = getComposeEmailVisuals(payload)
+function ComposeEmailResultCard({
+  payload,
+  t
+}: {
+  readonly payload: ComposeEmailOutcomePayload
+  t: (key: string) => string
+}) {
+  const { icon, title } = getComposeEmailVisuals(payload, t)
 
   const recipients =
     (payload.to ?? [])
@@ -83,12 +94,13 @@ function ComposeEmailResultCard({ payload }: { readonly payload: ComposeEmailOut
         <div className="gba:text-[13px] gba:font-semibold gba:text-foreground">{title}</div>
         {payload.subject && (
           <div className="gba:text-[12px] gba:text-muted-foreground gba:truncate">
-            <span className="gba:font-medium gba:text-foreground/80">Subject:</span> {payload.subject}
+            <span className="gba:font-medium gba:text-foreground/80">{t('renderer-tool-result-subject')}</span>{' '}
+            {payload.subject}
           </div>
         )}
         {recipients && (
           <div className="gba:text-[12px] gba:text-muted-foreground gba:truncate">
-            <span className="gba:font-medium gba:text-foreground/80">To:</span> {recipients}
+            <span className="gba:font-medium gba:text-foreground/80">{t('renderer-tool-result-to')}</span> {recipients}
           </div>
         )}
         {payload.error && <div className="gba:text-[12px] gba:text-destructive gba:truncate">{payload.error}</div>}
@@ -106,6 +118,7 @@ export const ToolResultRenderer = ({
   sessionId,
   accessToken
 }: ToolResultRendererProps) => {
+  const { t } = useTranslation(translations)
   const [expanded, setExpanded] = useState(false)
   const rendererType = detectRendererType(result)
 
@@ -144,7 +157,7 @@ export const ToolResultRenderer = ({
           className="gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:max-w-3xl"
           data-testid={`enterprise-agent-tool-result-${callId}`}
         >
-          <ComposeEmailResultCard payload={payload} />
+          <ComposeEmailResultCard payload={payload} t={t} />
         </div>
       )
     }
@@ -159,9 +172,9 @@ export const ToolResultRenderer = ({
         className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-1.5 gba:hover:bg-muted/30 gba:transition-colors gba:text-left"
         onClick={() => setExpanded(v => !v)}
       >
-        <span className="gba:text-xs gba:text-muted-foreground gba:font-medium">Result</span>
+        <span className="gba:text-xs gba:text-muted-foreground gba:font-medium">{t('renderer-tool-result-label')}</span>
         <span className="gba:text-xs gba:text-muted-foreground/70">· {rendererType}</span>
-        {cached && <span className="gba:text-xs gba:text-muted-foreground">cached</span>}
+        {cached && <span className="gba:text-xs gba:text-muted-foreground">{t('renderer-tool-call-cached')}</span>}
         <span className="gba:text-xs gba:text-muted-foreground/60 gba:ml-auto">{(durationMs / 1000).toFixed(2)}s</span>
         <div className="gba:shrink-0">
           {expanded ? (
@@ -174,7 +187,7 @@ export const ToolResultRenderer = ({
 
       {expanded && (
         <div className="gba:border-t gba:border-border gba:p-3">
-          <ResultContent toolName={toolName} result={result} rendererType={rendererType} />
+          <ResultContent toolName={toolName} result={result} rendererType={rendererType} t={t} />
         </div>
       )}
     </div>
@@ -184,11 +197,13 @@ export const ToolResultRenderer = ({
 function ResultContent({
   toolName,
   result,
-  rendererType
+  rendererType,
+  t
 }: Readonly<{
   toolName?: string
   result: unknown
   rendererType: ReturnType<typeof detectRendererType>
+  t: (key: string, vars?: Record<string, unknown>) => string
 }>) {
   if (
     toolName === 'web_search' &&
@@ -206,7 +221,7 @@ function ResultContent({
       <div className="gba:space-y-3">
         <div className="gba:flex gba:items-center gba:justify-between">
           <p className="gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase gba:tracking-wide">
-            Sources
+            {t('renderer-tool-result-sources')}
           </p>
           {parsed.source && <span className="gba:text-[11px] gba:text-muted-foreground/70">{parsed.source}</span>}
         </div>
@@ -275,7 +290,9 @@ function ResultContent({
           </tbody>
         </table>
         {rows.length > 10 && (
-          <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">Showing 10 of {rows.length} rows</p>
+          <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+            {t('renderer-tool-result-showing-rows', { total: rows.length })}
+          </p>
         )}
       </div>
     )

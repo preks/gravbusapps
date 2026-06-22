@@ -7,6 +7,7 @@
 // output, artifacts, policies, touched records, trace, audit, and cost.
 
 import { ArrowLeftIcon, CircleNotchIcon, WarningIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import React, { useCallback, useEffect, useState } from 'react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { isTerminalRunStatus } from '../useWorkforceRuns'
@@ -15,6 +16,7 @@ import type { WorkforceRun } from '../workforceTypes'
 import { RunDetailBody } from './RunDetailBody'
 import { RunDetailHeader } from './RunDetailHeader'
 import { resolveAgentName } from './runDetailFacts'
+import translations from '../../../_i18n'
 
 export interface RunDetailScreenProps {
   runId: string
@@ -26,6 +28,7 @@ export interface RunDetailScreenProps {
 const RUN_DETAIL_POLL_INTERVAL_MS = 2000
 
 export const RunDetailScreen: React.FC<RunDetailScreenProps> = ({ runId, accessToken, nameById, onBack }) => {
+  const { t } = useTranslation(translations)
   const client = usePromptManagerClient(accessToken)
   const [run, setRun] = useState<WorkforceRun | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -71,7 +74,7 @@ export const RunDetailScreen: React.FC<RunDetailScreenProps> = ({ runId, accessT
           }
         })
         .catch((err: unknown) => {
-          if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load run detail.')
+          if (!cancelled) setError(err instanceof Error ? err.message : t('run-detail-load-error'))
         })
         .finally(() => {
           if (!cancelled) setIsLoading(false)
@@ -84,7 +87,7 @@ export const RunDetailScreen: React.FC<RunDetailScreenProps> = ({ runId, accessT
       cancelled = true
       if (timer) clearTimeout(timer)
     }
-  }, [client, runId])
+  }, [client, runId, t])
 
   if (!run) {
     return (
@@ -95,12 +98,12 @@ export const RunDetailScreen: React.FC<RunDetailScreenProps> = ({ runId, accessT
         {isLoading ? (
           <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
             <CircleNotchIcon className="gba:h-4 gba:w-4 gba:animate-spin" />
-            Loading run…
+            {t('run-detail-loading')}
           </div>
         ) : (
           <div className="gba:flex gba:flex-col gba:items-center gba:gap-3 gba:text-center">
             <WarningIcon className="gba:h-6 gba:w-6 gba:text-destructive" />
-            <p className="gba:text-sm gba:text-foreground">{error ?? 'Run not found.'}</p>
+            <p className="gba:text-sm gba:text-foreground">{error ?? t('run-detail-not-found')}</p>
             <button
               type="button"
               onClick={onBack}
@@ -108,7 +111,7 @@ export const RunDetailScreen: React.FC<RunDetailScreenProps> = ({ runId, accessT
               data-testid="run-detail-back"
             >
               <ArrowLeftIcon className="gba:h-3.5 gba:w-3.5" />
-              Back
+              {t('run-detail-back')}
             </button>
           </div>
         )}

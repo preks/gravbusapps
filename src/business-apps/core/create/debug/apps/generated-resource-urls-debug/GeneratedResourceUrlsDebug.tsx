@@ -15,13 +15,15 @@ import {
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
+  useTranslation
 } from '@newwork/nw-design-system'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useBuilderClient } from '@/common/network/ai/builder/useBuilderClient'
 import type { LatestPublishedResourceVersion, SessionUsageMetric } from '@/common/network/ai/builder/BuilderClient'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { HubPaginationFooter } from '@/business-apps/platform/apps/shared/components/HubPaginationFooter'
+import translations from './_i18n'
 
 const GENERATED_PREFIX = '/platform/generated'
 const PAGE_SIZE = 20
@@ -34,6 +36,7 @@ export const GeneratedResourceUrlsDebug: React.FC<GeneratedResourceUrlsDebugProp
   accessToken,
   'data-testid': testId = 'generated-resource-urls-debug'
 }) => {
+  const { t } = useTranslation(translations)
   const builderClient = useBuilderClient(accessToken)
   const [generatedUrls, setGeneratedUrls] = useState<LatestPublishedResourceVersion[]>([])
   const [totalCount, setTotalCount] = useState(0)
@@ -60,7 +63,7 @@ export const GeneratedResourceUrlsDebug: React.FC<GeneratedResourceUrlsDebugProp
     if (!accessToken) {
       setGeneratedUrls([])
       setTotalCount(0)
-      setError('Access token is missing. Open settings and set a valid token to query AI Builder Service.')
+      setError(t('error-missing-token'))
       return
     }
 
@@ -87,7 +90,7 @@ export const GeneratedResourceUrlsDebug: React.FC<GeneratedResourceUrlsDebugProp
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, builderClient, currentPage, debouncedSearchTerm])
+  }, [accessToken, builderClient, currentPage, debouncedSearchTerm, t])
 
   useEffect(() => {
     void fetchGeneratedUrls()
@@ -169,11 +172,9 @@ export const GeneratedResourceUrlsDebug: React.FC<GeneratedResourceUrlsDebugProp
         <div className="gba:space-y-1">
           <h1 className="gba:text-2xl gba:font-semibold">Generated Screen URLs</h1>
           <p className="gba:text-sm gba:text-muted-foreground">
-            Data comes from AI Builder latest published versions with prefix <code>{GENERATED_PREFIX}</code>.
+            {t('data-source-description')} <code>{GENERATED_PREFIX}</code>.
           </p>
-          <p className="gba:text-xs gba:text-muted-foreground">
-            Token usage is sourced from AI Builder session metrics.
-          </p>
+          <p className="gba:text-xs gba:text-muted-foreground">{t('token-usage-description')}</p>
         </div>
         <div className="gba:flex gba:items-center gba:gap-2">
           <Button

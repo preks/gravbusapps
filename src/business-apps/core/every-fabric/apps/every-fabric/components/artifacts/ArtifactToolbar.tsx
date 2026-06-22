@@ -1,10 +1,11 @@
 import { useCallback, useState } from 'react'
 import { ArrowsOutIcon, CheckIcon, CopyIcon, DownloadSimpleIcon, ImageIcon, XIcon } from '@phosphor-icons/react'
-import type { ArtifactFile, ArtifactRendererType } from '../../types/fabric'
+import type { ArtifactFile } from '../../types/fabric'
+import { useArtifactI18n } from './useArtifactI18n'
 
 // ─── Type metadata ────────────────────────────────────────────────────────────
 
-const TYPE_ICON: Record<ArtifactRendererType, string> = {
+const TYPE_ICON: Record<ArtifactFile['rendererType'], string> = {
   html: '🌐',
   document: '📄',
   markdown: '📝',
@@ -17,40 +18,29 @@ const TYPE_ICON: Record<ArtifactRendererType, string> = {
   unknown: '📁'
 }
 
-const TYPE_LABEL: Record<ArtifactRendererType, string> = {
-  html: 'HTML',
-  document: 'Document',
-  markdown: 'Markdown',
-  slide: 'Slides',
-  chart: 'Chart',
-  table: 'Table',
-  diagram: 'Diagram',
-  'app-preview': 'App Preview',
-  code: 'Code',
-  unknown: 'File'
-}
-
 // ─── View mode toggle ─────────────────────────────────────────────────────────
 
 const ViewToggle: React.FC<{
   viewMode: 'preview' | 'code'
   onChange: (m: 'preview' | 'code') => void
   disabled?: boolean
-}> = ({ viewMode, onChange, disabled }) => (
+  previewLabel: string
+  codeLabel: string
+}> = ({ viewMode, onChange, disabled, previewLabel, codeLabel }) => (
   <div className="gba:inline-flex gba:items-center gba:rounded-lg gba:border gba:border-border gba:bg-muted/30 gba:p-0.5">
-    {(['preview', 'code'] as const).map(m => (
+    {(['preview', 'code'] as const).map(mode => (
       <button
-        key={m}
-        onClick={() => onChange(m)}
+        key={mode}
+        onClick={() => onChange(mode)}
         disabled={disabled}
         className={`gba:px-2.5 gba:py-1 gba:rounded-md gba:text-xs gba:font-medium gba:transition-colors gba:capitalize ${
-          viewMode === m
+          viewMode === mode
             ? 'gba:bg-background gba:text-foreground gba:shadow-sm'
             : 'gba:text-muted-foreground gba:hover:text-foreground'
         } gba:disabled:opacity-40`}
-        data-testid={`fabric-toolbar-view-${m}`}
+        data-testid={`fabric-toolbar-view-${mode}`}
       >
-        {m}
+        {mode === 'preview' ? previewLabel : codeLabel}
       </button>
     ))}
   </div>
@@ -75,6 +65,7 @@ export const ArtifactToolbar: React.FC<ArtifactToolbarProps> = ({
   onClose,
   onDownloadPng
 }) => {
+  const { t, typeLabel } = useArtifactI18n()
   const [copied, setCopied] = useState(false)
 
   const handleCopy = useCallback(() => {
@@ -97,19 +88,26 @@ export const ArtifactToolbar: React.FC<ArtifactToolbarProps> = ({
       <div className="gba:flex-1 gba:min-w-0 gba:flex gba:items-center gba:gap-2">
         <span className="gba:text-sm gba:font-semibold gba:text-foreground gba:truncate">{file.name}</span>
         <span className="gba:shrink-0 gba:inline-flex gba:items-center gba:px-1.5 gba:py-0.5 gba:rounded-full gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-wide gba:bg-muted gba:text-muted-foreground">
-          {TYPE_LABEL[file.rendererType]}
+          {typeLabel(file.rendererType)}
         </span>
       </div>
 
       {/* View mode toggle */}
-      {canToggle && <ViewToggle viewMode={viewMode} onChange={onViewModeChange} />}
+      {canToggle && (
+        <ViewToggle
+          viewMode={viewMode}
+          onChange={onViewModeChange}
+          previewLabel={t('artifact-view-preview')}
+          codeLabel={t('artifact-view-code')}
+        />
+      )}
 
       {/* Action buttons */}
       <div className="gba:flex gba:items-center gba:gap-1 gba:shrink-0">
         <button
           onClick={handleCopy}
           disabled={!content}
-          title="Copy content"
+          title={t('artifact-copy-content')}
           className="gba:inline-flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors gba:disabled:opacity-30"
           data-testid="fabric-toolbar-copy"
         >
@@ -123,7 +121,7 @@ export const ArtifactToolbar: React.FC<ArtifactToolbarProps> = ({
         <a
           href={file.downloadUrl}
           download={file.name}
-          title="Download"
+          title={t('artifact-download')}
           className="gba:inline-flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
           data-testid="fabric-toolbar-download"
         >
@@ -133,7 +131,7 @@ export const ArtifactToolbar: React.FC<ArtifactToolbarProps> = ({
         {onDownloadPng && (
           <button
             onClick={onDownloadPng}
-            title="Download as PNG"
+            title={t('artifact-download-png')}
             className="gba:inline-flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
             data-testid="fabric-toolbar-download-png"
           >
@@ -145,7 +143,7 @@ export const ArtifactToolbar: React.FC<ArtifactToolbarProps> = ({
           href={file.downloadUrl}
           target="_blank"
           rel="noopener noreferrer"
-          title="Open in new tab"
+          title={t('artifact-open-tab')}
           className="gba:inline-flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
           data-testid="fabric-toolbar-open"
         >
@@ -154,7 +152,7 @@ export const ArtifactToolbar: React.FC<ArtifactToolbarProps> = ({
 
         <button
           onClick={onClose}
-          title="Close viewer"
+          title={t('artifact-close-viewer')}
           className="gba:inline-flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
           data-testid="fabric-toolbar-close"
         >

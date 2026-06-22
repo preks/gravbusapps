@@ -7,6 +7,7 @@
 // tagged "Estimated" so the numbers stay honest.
 
 import { BriefcaseIcon, CoinsIcon, GaugeIcon, HandshakeIcon, ShieldCheckIcon, TimerIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import React from 'react'
 import { useWorkforceWorkspaceMetrics } from '../useWorkforceMetrics'
 import { emptyBusinessMetrics, emptyMetricsTotals } from '../workforceTypes'
@@ -19,21 +20,27 @@ import {
   type WorkforceValueAssumptions
 } from '../workforceValueAssumptions'
 import { ValueKpiTile } from './ValueKpiTile'
+import translations from '../../../_i18n'
 
 export interface ValueScoreboardProps {
   accessToken: string
   assumptions?: WorkforceValueAssumptions
 }
 
-function slaTargetLabel(slaTargetMs: number): string {
+type TranslateFn = (key: string, args?: Record<string, unknown>) => string
+
+function slaTargetLabel(slaTargetMs: number, t: TranslateFn): string {
   const minutes = Math.round(slaTargetMs / 60000)
-  return minutes >= 1 ? `${minutes}m target` : `${Math.round(slaTargetMs / 1000)}s target`
+  return minutes >= 1
+    ? t('value-sla-target-minutes', { minutes })
+    : t('value-sla-target-seconds', { seconds: Math.round(slaTargetMs / 1000) })
 }
 
 export const ValueScoreboard: React.FC<ValueScoreboardProps> = ({
   accessToken,
   assumptions = DEFAULT_VALUE_ASSUMPTIONS
 }) => {
+  const { t } = useTranslation(translations)
   const { metrics } = useWorkforceWorkspaceMetrics({
     accessToken,
     window: 'week',
@@ -53,10 +60,10 @@ export const ValueScoreboard: React.FC<ValueScoreboardProps> = ({
       data-testid="workforce-value-scoreboard"
     >
       <header className="gba:mb-3 gba:flex gba:items-center gba:gap-2">
-        <h2 className="gba:text-sm gba:font-semibold gba:text-foreground">Business value</h2>
-        <span className="gba:text-[11px] gba:text-muted-foreground">this week</span>
+        <h2 className="gba:text-sm gba:font-semibold gba:text-foreground">{t('value-scoreboard-title')}</h2>
+        <span className="gba:text-[11px] gba:text-muted-foreground">{t('value-scoreboard-window')}</span>
         <span className="gba:ml-auto gba:text-[10px] gba:text-muted-foreground">
-          “Estimated” uses workspace value assumptions
+          {t('value-scoreboard-estimated-note')}
         </span>
       </header>
 
@@ -66,51 +73,59 @@ export const ValueScoreboard: React.FC<ValueScoreboardProps> = ({
       >
         <ValueKpiTile
           icon={BriefcaseIcon}
-          label="Cases handled"
+          label={t('value-kpi-cases')}
           value={String(figures.casesHandled)}
-          hint={`${totals.runs} runs total`}
+          hint={t('value-hint-runs-total', { runs: totals.runs })}
           tone="default"
           testId="value-kpi-cases"
         />
         <ValueKpiTile
           icon={TimerIcon}
-          label="Time saved"
+          label={t('value-kpi-time-saved')}
           value={formatMinutesSaved(figures.minutesSaved)}
-          hint={`~${assumptions.baselineMinutesPerCase}m/case baseline`}
+          hint={t('value-hint-baseline', { minutes: assumptions.baselineMinutesPerCase })}
           estimated
           tone="positive"
           testId="value-kpi-time-saved"
         />
         <ValueKpiTile
           icon={GaugeIcon}
-          label="SLA attainment"
+          label={t('value-kpi-sla')}
           value={formatPercent(figures.slaAttainment)}
-          hint={`${business.under_sla_runs}/${business.measured_runs} · ${slaTargetLabel(assumptions.slaTargetMs)}`}
+          hint={t('value-hint-sla', {
+            under: business.under_sla_runs,
+            measured: business.measured_runs,
+            target: slaTargetLabel(assumptions.slaTargetMs, t)
+          })}
           tone={figures.slaAttainment >= 0.9 ? 'positive' : 'warning'}
           testId="value-kpi-sla"
         />
         <ValueKpiTile
           icon={HandshakeIcon}
-          label="Deflection rate"
+          label={t('value-kpi-deflection')}
           value={formatPercent(figures.deflectionRate)}
-          hint={`${business.autonomous_runs} autonomous / ${figures.casesHandled} cases`}
+          hint={t('value-hint-deflection', { autonomous: business.autonomous_runs, cases: figures.casesHandled })}
           tone={figures.deflectionRate >= 0.8 ? 'positive' : 'default'}
           testId="value-kpi-deflection"
         />
         <ValueKpiTile
           icon={CoinsIcon}
-          label="Cost per case"
+          label={t('value-kpi-cost')}
           value={formatUsd(figures.costPerCaseUsd)}
-          hint={`${formatUsd(totals.estimated_cost_usd)} spent`}
+          hint={t('value-hint-cost', { cost: formatUsd(totals.estimated_cost_usd) })}
           estimated
           tone="default"
           testId="value-kpi-cost"
         />
         <ValueKpiTile
           icon={ShieldCheckIcon}
-          label="Governance coverage"
+          label={t('value-kpi-governance')}
           value={formatPercent(figures.governanceCoverage)}
-          hint={`${business.audited_runs}/${totals.runs} audited · ${figures.guardrailStops} guardrail stops`}
+          hint={t('value-hint-governance', {
+            audited: business.audited_runs,
+            runs: totals.runs,
+            stops: figures.guardrailStops
+          })}
           tone={figures.guardrailStops > 0 ? 'warning' : 'positive'}
           testId="value-kpi-governance"
         />

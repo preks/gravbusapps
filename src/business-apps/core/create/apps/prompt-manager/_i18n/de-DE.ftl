@@ -8,7 +8,7 @@ page-description = Erstellen Sie Agenten aus Prompts und testen Sie Integratione
 section-label = Agenten
 
 # Actions
-new-task-expert = Neuer Enterprise Agent
+new-task-expert = Neuer { -platform-ai-agent-product.label }
 view = Anzeigen
 edit = Bearbeiten
 test = Testen
@@ -65,10 +65,11 @@ agent-type-decision = Entscheidung
 badge-public = Oeffentlich
 
 # Empty State
-empty-message = Keine Agenten gefunden. Klicken Sie auf 'Neuer Enterprise Agent', um einen zu erstellen.
+empty-message = Keine Agenten gefunden. Klicken Sie auf 'Neuer { -platform-ai-agent-product.label }', um einen zu erstellen.
 
 # Editor
-create-task-expert = Enterprise Agent erstellen
+create-task-expert = { -platform-ai-agent-product.label } erstellen
+agent-type-everyai-description = KI-Assistent für Chat & { -platform-ai-agent-network.label }
 edit-task-expert = Agent bearbeiten
 view-task-expert = Agent
 

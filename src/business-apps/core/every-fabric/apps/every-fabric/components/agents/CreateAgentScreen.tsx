@@ -23,7 +23,7 @@ import {
   WarningCircleIcon,
   type Icon as PhosphorIcon
 } from '@phosphor-icons/react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import type {
   AIModelODM,
   PromptManagerClient,
@@ -40,10 +40,9 @@ import {
   evaluateSystemPrompt,
   DESCRIPTION_EXAMPLE,
   DESCRIPTION_MIN_LENGTH,
-  NAME_HINT,
-  SPECIALTY_HINT,
   SYSTEM_PROMPT_MIN_LENGTH
 } from './agentStandard'
+import translations from '../../_i18n'
 
 const STUDIO_URL = '/platform/create/prompt-manager'
 
@@ -84,26 +83,33 @@ const initialState: FormState = {
   visibility: 'workspace'
 }
 
-const WORKFORCE_AUTONOMY_OPTIONS: Array<{ value: WorkforceAutonomyLevel; label: string }> = [
-  { value: 'draft_only', label: 'Assistive — drafts and recommends, makes no system changes' },
-  { value: 'approval_required', label: 'Approval Required — prepares actions, routes to a human first' },
-  { value: 'auto_low_risk', label: 'Delegated — acts on low-risk steps, escalates exceptions' },
-  { value: 'full_auto', label: 'Autonomous — runs end-to-end within validated boundaries' }
+const WORKFORCE_AUTONOMY_KEYS: Array<{ value: WorkforceAutonomyLevel; key: string }> = [
+  { value: 'draft_only', key: 'agents-autonomy-draft-only' },
+  { value: 'approval_required', key: 'agents-autonomy-approval-required' },
+  { value: 'auto_low_risk', key: 'agents-autonomy-auto-low-risk' },
+  { value: 'full_auto', key: 'agents-autonomy-full-auto' }
 ]
 
 type CreateAgentStep = 'profile' | 'capabilities' | 'deployment' | 'passport' | 'activation'
 
+const CREATE_STEP_I18N: Record<CreateAgentStep, string> = {
+  profile: 'agents-create-step-profile',
+  capabilities: 'agents-create-step-capabilities',
+  deployment: 'agents-create-step-deployment',
+  passport: 'agents-create-step-passport',
+  activation: 'agents-create-step-activation'
+}
+
 const CREATE_STEP_DEFS: ReadonlyArray<{
   value: CreateAgentStep
-  label: string
   icon: PhosphorIcon
   optional?: boolean
 }> = [
-  { value: 'profile', label: 'Profile', icon: TagIcon },
-  { value: 'capabilities', label: 'Capabilities', icon: LightbulbIcon },
-  { value: 'deployment', label: 'Deployment', icon: LightningIcon },
-  { value: 'passport', label: 'Passport', icon: IdentificationCardIcon, optional: true },
-  { value: 'activation', label: 'Activation', icon: CheckCircleIcon, optional: true }
+  { value: 'profile', icon: TagIcon },
+  { value: 'capabilities', icon: LightbulbIcon },
+  { value: 'deployment', icon: LightningIcon },
+  { value: 'passport', icon: IdentificationCardIcon, optional: true },
+  { value: 'activation', icon: CheckCircleIcon, optional: true }
 ]
 
 /**
@@ -202,6 +208,7 @@ const CreateStepSection: React.FC<CreateStepSectionProps> = ({
 )
 
 export const CreateAgentScreen: React.FC<CreateAgentScreenProps> = ({ client, accessToken, onBack, onCreated }) => {
+  const { t } = useTranslation(translations)
   const [form, setForm] = useState<FormState>(initialState)
   const [policySearch, setPolicySearch] = useState('')
   const [selectedPolicyIds, setSelectedPolicyIds] = useState<Set<string>>(new Set())
@@ -357,31 +364,23 @@ export const CreateAgentScreen: React.FC<CreateAgentScreenProps> = ({ client, ac
 
   const hasValidDefaults = Boolean(workspace?._id && model?._id)
 
-  let submitLabel = 'Create agent'
-  if (creating) submitLabel = 'Creating…'
-  else if (isLoadingDefaults) submitLabel = 'Loading setup…'
-  else if (deployWorkforce) submitLabel = 'Create agent or worker'
+  let submitLabel = t('agents-create-submit')
+  if (creating) submitLabel = t('agents-create-submitting')
+  else if (isLoadingDefaults) submitLabel = t('agents-create-loading-setup')
+  else if (deployWorkforce) submitLabel = t('agents-create-submit-worker')
 
   let defaultsHint: ReactNode
   if (isLoadingDefaults) {
     defaultsHint = (
       <span className="gba:inline-flex gba:items-center gba:gap-1.5">
         <SpinnerGapIcon className="gba:h-3.5 gba:w-3.5 gba:animate-spin" />
-        Loading workspace and model defaults…
+        {t('agents-create-loading-defaults')}
       </span>
     )
   } else if (hasValidDefaults) {
-    defaultsHint = (
-      <span>
-        Creating in <strong className="gba:text-foreground">{workspace?.name}</strong>.
-      </span>
-    )
+    defaultsHint = <span>{t('agents-create-creating-in', { workspace: workspace?.name ?? '' })}</span>
   } else {
-    defaultsHint = (
-      <span className="gba:text-destructive">
-        Could not find a valid workspace/model. Open Enterprise Agent Studio to configure defaults.
-      </span>
-    )
+    defaultsHint = <span className="gba:text-destructive">{t('agents-create-no-defaults')}</span>
   }
 
   const profileComplete = slug.length >= 1 && descriptionSignals.isValid
@@ -414,8 +413,8 @@ export const CreateAgentScreen: React.FC<CreateAgentScreenProps> = ({ client, ac
             <ArrowLeftIcon className="gba:h-5 gba:w-5" />
           </button>
           <div>
-            <h1 className="gba:text-2xl gba:font-semibold gba:text-foreground">Create agent</h1>
-            <p className="gba:text-base gba:text-muted-foreground">Define the agent once, then choose where it runs.</p>
+            <h1 className="gba:text-2xl gba:font-semibold gba:text-foreground">{t('agents-create-title')}</h1>
+            <p className="gba:text-base gba:text-muted-foreground">{t('agents-create-subtitle')}</p>
           </div>
         </div>
       </div>
@@ -430,10 +429,10 @@ export const CreateAgentScreen: React.FC<CreateAgentScreenProps> = ({ client, ac
             >
               <div>
                 <p className="gba:text-xs gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground">
-                  Create setup
+                  {t('agents-create-setup-title')}
                 </p>
                 <p className="gba:mt-1 gba:text-sm gba:text-foreground">
-                  {completedSteps} of {CREATE_STEP_DEFS.length} steps ready
+                  {t('agents-create-steps-ready', { completed: completedSteps, total: CREATE_STEP_DEFS.length })}
                 </p>
               </div>
               <Button
@@ -443,7 +442,7 @@ export const CreateAgentScreen: React.FC<CreateAgentScreenProps> = ({ client, ac
                 onClick={() => setActiveStep(nextStep.value)}
                 data-testid="create-agent-next-step"
               >
-                Continue: {nextStep.label}
+                {t('agents-create-continue', { step: t(CREATE_STEP_I18N[nextStep.value]) })}
               </Button>
             </div>
 
@@ -474,11 +473,11 @@ export const CreateAgentScreen: React.FC<CreateAgentScreenProps> = ({ client, ac
                     <span className="gba:min-w-0 gba:flex-1">
                       <span className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:font-semibold">
                         <StepIcon className="gba:h-4 gba:w-4" />
-                        {step.label}
+                        {t(CREATE_STEP_I18N[step.value])}
                       </span>
                       {step.optional && (
                         <span className="gba:mt-0.5 gba:block gba:text-[10px] gba:text-muted-foreground">
-                          Optional until Worker deployment is selected
+                          {t('agents-create-optional-worker')}
                         </span>
                       )}
                     </span>
@@ -506,17 +505,15 @@ export const CreateAgentScreen: React.FC<CreateAgentScreenProps> = ({ client, ac
               className="gba:mb-4 gba:rounded-lg gba:border gba:border-amber-500/30 gba:bg-amber-500/5 gba:px-3 gba:py-2 gba:text-xs gba:text-amber-700"
               data-testid="create-agent-tool-vs-agent-hint"
             >
-              Is this really an agent? If it&apos;s a single action like creating a chart, asset, or visualization,
-              build a <strong>tool</strong>, not an agent. Agents own a domain and make judgments (e.g. &quot;HR
-              Expert&quot;).
+              {t('agents-create-tool-hint')}
             </div>
 
             <div className="gba:mx-auto gba:max-w-3xl">
               {activeStep === 'profile' && (
                 <CreateStepSection
                   step={1}
-                  title="Profile"
-                  description="Name the agent, describe its domain, and decide who can use it."
+                  title={t('agents-create-step-profile')}
+                  description={t('agents-create-profile-desc')}
                   complete={profileComplete}
                 >
                   <div>
@@ -524,7 +521,7 @@ export const CreateAgentScreen: React.FC<CreateAgentScreenProps> = ({ client, ac
                       htmlFor="agent-display-name"
                       className="gba:mb-1 gba:block gba:text-base gba:font-medium gba:text-foreground"
                     >
-                      Agent name
+                      {t('agents-create-field-name')}
                     </label>
                     <input
                       id="agent-display-name"
@@ -534,16 +531,16 @@ export const CreateAgentScreen: React.FC<CreateAgentScreenProps> = ({ client, ac
                       className="gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3.5 gba:py-2.5 gba:text-base gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring"
                       data-testid="create-agent-name"
                     />
-                    <p className="gba:mt-1 gba:text-[11px] gba:text-muted-foreground">{NAME_HINT}</p>
+                    <p className="gba:mt-1 gba:text-[11px] gba:text-muted-foreground">{t('agents-create-name-hint')}</p>
                     <p className="gba:mt-0.5 gba:text-[11px] gba:text-muted-foreground">
                       {slug ? (
                         <>
-                          Stored as{' '}
-                          <code className="gba:rounded gba:bg-muted gba:px-1 gba:py-0.5 gba:font-mono">{slug}</code> —
-                          letters, digits and underscores only.
+                          {t('agents-create-stored-as')}{' '}
+                          <code className="gba:rounded gba:bg-muted gba:px-1 gba:py-0.5 gba:font-mono">{slug}</code> —{' '}
+                          {t('agents-create-identifier-hint')}
                         </>
                       ) : (
-                        'Letters, digits, and spaces are fine — we automatically convert it to an identifier.'
+                        t('agents-create-identifier-auto')
                       )}
                     </p>
                   </div>
@@ -553,7 +550,7 @@ export const CreateAgentScreen: React.FC<CreateAgentScreenProps> = ({ client, ac
                       htmlFor="agent-specialty"
                       className="gba:mb-1 gba:block gba:text-base gba:font-medium gba:text-foreground"
                     >
-                      Specialty
+                      {t('agents-create-field-specialty')}
                     </label>
                     <input
                       id="agent-specialty"
@@ -563,7 +560,9 @@ export const CreateAgentScreen: React.FC<CreateAgentScreenProps> = ({ client, ac
                       className="gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3.5 gba:py-2.5 gba:text-base gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring"
                       data-testid="create-agent-specialty"
                     />
-                    <p className="gba:mt-1 gba:text-[11px] gba:text-muted-foreground">{SPECIALTY_HINT}</p>
+                    <p className="gba:mt-1 gba:text-[11px] gba:text-muted-foreground">
+                      {t('agents-create-specialty-hint')}
+                    </p>
                   </div>
 
                   <div>
@@ -571,11 +570,10 @@ export const CreateAgentScreen: React.FC<CreateAgentScreenProps> = ({ client, ac
                       htmlFor="agent-description"
                       className="gba:mb-1 gba:block gba:text-base gba:font-medium gba:text-foreground"
                     >
-                      Description
+                      {t('agents-create-field-description')}
                     </label>
                     <p className="gba:mb-1.5 gba:text-xs gba:text-muted-foreground">
-                      This is the single biggest factor in whether your agent gets picked for a task. Describe what it
-                      does using the words people will actually type.
+                      {t('agents-create-description-helper')}
                     </p>
                     <textarea
                       id="agent-description"
@@ -588,7 +586,8 @@ export const CreateAgentScreen: React.FC<CreateAgentScreenProps> = ({ client, ac
                     />
                     <DescriptionChecklist signals={descriptionSignals} />
                     <p className="gba:mt-1.5 gba:text-[11px] gba:text-muted-foreground">
-                      Example: <span className="gba:italic">{DESCRIPTION_EXAMPLE}</span>
+                      {t('agents-create-description-example-label')}{' '}
+                      <span className="gba:italic">{DESCRIPTION_EXAMPLE}</span>
                     </p>
                   </div>
 
@@ -597,7 +596,7 @@ export const CreateAgentScreen: React.FC<CreateAgentScreenProps> = ({ client, ac
                       htmlFor="create-agent-visibility"
                       className="gba:mb-1 gba:block gba:text-base gba:font-medium gba:text-foreground"
                     >
-                      Visibility
+                      {t('agents-create-field-visibility')}
                     </label>
                     <select
                       id="create-agent-visibility"
@@ -608,8 +607,8 @@ export const CreateAgentScreen: React.FC<CreateAgentScreenProps> = ({ client, ac
                       className="gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3.5 gba:py-2.5 gba:text-base gba:text-foreground"
                       data-testid="create-agent-visibility"
                     >
-                      <option value="workspace">Workspace — anyone in this workspace</option>
-                      <option value="private">Private — only me</option>
+                      <option value="workspace">{t('agents-create-visibility-workspace')}</option>
+                      <option value="private">{t('agents-create-visibility-private')}</option>
                     </select>
                   </div>
                 </CreateStepSection>
@@ -618,14 +617,17 @@ export const CreateAgentScreen: React.FC<CreateAgentScreenProps> = ({ client, ac
               {activeStep === 'capabilities' && (
                 <CreateStepSection
                   step={2}
-                  title="Capabilities"
-                  description="Give the agent instructions and optional policies. Skills can be refined later in Studio."
+                  title={t('agents-create-step-capabilities')}
+                  description={t('agents-create-capabilities-desc')}
                   complete={capabilitiesComplete}
                 >
                   <div>
                     <div className="gba:mb-1 gba:flex gba:items-baseline gba:justify-between">
                       <label htmlFor="agent-instructions" className="gba:text-base gba:font-medium gba:text-foreground">
-                        Instructions <span className="gba:font-normal gba:text-muted-foreground">(system prompt)</span>
+                        {t('agents-create-field-instructions')}{' '}
+                        <span className="gba:font-normal gba:text-muted-foreground">
+                          {t('agents-create-field-instructions-system')}
+                        </span>
                       </label>
                       <button
                         type="button"
@@ -638,7 +640,7 @@ export const CreateAgentScreen: React.FC<CreateAgentScreenProps> = ({ client, ac
                         className="gba:text-[11px] gba:font-medium gba:text-primary gba:hover:text-primary/80"
                         data-testid="create-agent-instructions-template"
                       >
-                        Use template
+                        {t('agents-create-use-template')}
                       </button>
                     </div>
                     <textarea
@@ -668,8 +670,8 @@ export const CreateAgentScreen: React.FC<CreateAgentScreenProps> = ({ client, ac
               {activeStep === 'deployment' && (
                 <CreateStepSection
                   step={3}
-                  title="Deployment"
-                  description="Every agent can be configured in Studio. Add Worker deployment only when it needs governed runtime."
+                  title={t('agents-create-step-deployment')}
+                  description={t('agents-create-deployment-desc')}
                   complete={deploymentComplete}
                 >
                   <div data-testid="create-agent-deployments">
@@ -691,11 +693,10 @@ export const CreateAgentScreen: React.FC<CreateAgentScreenProps> = ({ client, ac
                           className="gba:flex gba:items-center gba:gap-1.5 gba:text-sm gba:font-medium gba:text-foreground"
                         >
                           <BriefcaseIcon className="gba:h-4 gba:w-4 gba:text-indigo-600" weight="duotone" />
-                          Activate as a Worker
+                          {t('agents-create-workforce-toggle')}
                         </p>
                         <p className="gba:text-[11px] gba:text-muted-foreground">
-                          Creates the same agent with a paused Worker deployment so Passport and Activation can be
-                          completed before it runs.
+                          {t('agents-create-workforce-toggle-desc')}
                         </p>
                       </div>
                     </label>
@@ -706,8 +707,8 @@ export const CreateAgentScreen: React.FC<CreateAgentScreenProps> = ({ client, ac
               {activeStep === 'passport' && (
                 <CreateStepSection
                   step={4}
-                  title="Passport"
-                  description="Only needed when this agent should run as a governed Worker."
+                  title={t('agents-create-step-passport')}
+                  description={t('agents-create-passport-desc')}
                   complete={passportComplete}
                   optional
                 >
@@ -718,7 +719,7 @@ export const CreateAgentScreen: React.FC<CreateAgentScreenProps> = ({ client, ac
                           htmlFor="create-agent-workforce-role"
                           className="gba:mb-1 gba:block gba:text-xs gba:font-medium gba:text-foreground"
                         >
-                          Role <span className="gba:text-destructive">*</span>
+                          {t('agents-create-field-role')} <span className="gba:text-destructive">*</span>
                         </label>
                         <input
                           id="create-agent-workforce-role"
@@ -734,7 +735,7 @@ export const CreateAgentScreen: React.FC<CreateAgentScreenProps> = ({ client, ac
                           htmlFor="create-agent-workforce-department"
                           className="gba:mb-1 gba:block gba:text-xs gba:font-medium gba:text-foreground"
                         >
-                          Department
+                          {t('agents-create-field-department')}
                         </label>
                         <input
                           id="create-agent-workforce-department"
@@ -748,8 +749,7 @@ export const CreateAgentScreen: React.FC<CreateAgentScreenProps> = ({ client, ac
                     </div>
                   ) : (
                     <div className="gba:rounded-lg gba:border gba:border-dashed gba:border-border gba:bg-muted/20 gba:px-3 gba:py-3 gba:text-xs gba:text-muted-foreground">
-                      Skip this step unless the agent needs Worker identity, ownership, governance, and runtime
-                      controls.
+                      {t('agents-create-passport-skip')}
                     </div>
                   )}
                 </CreateStepSection>
@@ -758,8 +758,8 @@ export const CreateAgentScreen: React.FC<CreateAgentScreenProps> = ({ client, ac
               {activeStep === 'activation' && (
                 <CreateStepSection
                   step={5}
-                  title="Activation"
-                  description="Choose the Worker runtime posture. New Workers start paused for review."
+                  title={t('agents-create-step-activation')}
+                  description={t('agents-create-activation-desc')}
                   complete={activationComplete}
                   optional
                 >
@@ -770,7 +770,7 @@ export const CreateAgentScreen: React.FC<CreateAgentScreenProps> = ({ client, ac
                           htmlFor="create-agent-workforce-autonomy"
                           className="gba:mb-1 gba:block gba:text-xs gba:font-medium gba:text-foreground"
                         >
-                          Autonomy
+                          {t('agents-create-field-autonomy')}
                         </label>
                         <select
                           id="create-agent-workforce-autonomy"
@@ -779,21 +779,20 @@ export const CreateAgentScreen: React.FC<CreateAgentScreenProps> = ({ client, ac
                           className="gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring"
                           data-testid="create-agent-workforce-autonomy"
                         >
-                          {WORKFORCE_AUTONOMY_OPTIONS.map(opt => (
+                          {WORKFORCE_AUTONOMY_KEYS.map(opt => (
                             <option key={opt.value} value={opt.value}>
-                              {opt.label}
+                              {t(opt.key)}
                             </option>
                           ))}
                         </select>
                       </div>
                       <div className="gba:rounded-lg gba:border gba:border-amber-500/30 gba:bg-amber-500/5 gba:px-3 gba:py-3 gba:text-xs gba:text-amber-700">
-                        The Worker deployment is created paused. Finish Passport and Activation in Studio before it
-                        runs.
+                        {t('agents-create-activation-paused')}
                       </div>
                     </div>
                   ) : (
                     <div className="gba:rounded-lg gba:border gba:border-dashed gba:border-border gba:bg-muted/20 gba:px-3 gba:py-3 gba:text-xs gba:text-muted-foreground">
-                      No Worker runtime will be created. You can activate this agent as a Worker later from Studio.
+                      {t('agents-create-activation-no-worker')}
                     </div>
                   )}
                 </CreateStepSection>
@@ -811,12 +810,12 @@ export const CreateAgentScreen: React.FC<CreateAgentScreenProps> = ({ client, ac
           className="gba:inline-flex gba:items-center gba:gap-1.5 gba:text-xs gba:font-medium gba:text-muted-foreground gba:hover:text-foreground"
           data-testid="create-agent-open-studio"
         >
-          Need more configuration? Open Enterprise Agent Studio
+          {t('agents-create-open-studio')}
           <ArrowSquareOutIcon className="gba:h-3.5 gba:w-3.5" />
         </button>
         <div className="gba:flex gba:items-center gba:gap-2">
           <Button variant="ghost" size="sm" onClick={onBack} data-testid="create-agent-cancel">
-            Cancel
+            {t('agents-cancel-label')}
           </Button>
           <Button
             type="button"
@@ -836,17 +835,18 @@ export const CreateAgentScreen: React.FC<CreateAgentScreenProps> = ({ client, ac
 }
 
 const DescriptionChecklist: React.FC<{ signals: ReturnType<typeof evaluateDescription> }> = ({ signals }) => {
+  const { t } = useTranslation(translations)
   const items: Array<{ ok: boolean; label: string }> = [
-    { ok: signals.meetsMinimum, label: `At least ${DESCRIPTION_MIN_LENGTH} characters` },
-    { ok: signals.notJustName, label: 'More than just the name' },
-    { ok: signals.isSpecific, label: 'Specific (uses real domain words)' }
+    { ok: signals.meetsMinimum, label: t('agents-create-description-check-min', { min: DESCRIPTION_MIN_LENGTH }) },
+    { ok: signals.notJustName, label: t('agents-create-description-check-not-name') },
+    { ok: signals.isSpecific, label: t('agents-create-description-check-specific') }
   ]
   return (
     <div className="gba:mt-2 gba:space-y-1.5" data-testid="create-agent-description-checklist">
       {!signals.isValid && (
         <p className="gba:flex gba:items-center gba:gap-1.5 gba:text-[11px] gba:font-medium gba:text-destructive">
-          <WarningCircleIcon className="gba:h-3.5 gba:w-3.5" />A real description is required — it&apos;s how this agent
-          gets discovered and chosen.
+          <WarningCircleIcon className="gba:h-3.5 gba:w-3.5" />
+          {t('agents-create-description-required')}
         </p>
       )}
       <ul className="gba:grid gba:grid-cols-1 gba:gap-1 sm:gba:grid-cols-3">
@@ -871,11 +871,12 @@ const DescriptionChecklist: React.FC<{ signals: ReturnType<typeof evaluateDescri
 }
 
 const SystemPromptChecklist: React.FC<{ signals: ReturnType<typeof evaluateSystemPrompt> }> = ({ signals }) => {
+  const { t } = useTranslation(translations)
   const items: Array<{ ok: boolean; label: string }> = [
-    { ok: signals.hasIdentity, label: 'Declares identity ("You are …")' },
-    { ok: signals.hasConstraints, label: 'States hard rules (MUST / NEVER / Refuse)' },
-    { ok: signals.hasStructure, label: 'Has structure (capabilities, constraints, output)' },
-    { ok: signals.isSubstantial, label: 'Substantial enough (not a one-liner)' }
+    { ok: signals.hasIdentity, label: t('agents-create-prompt-check-identity') },
+    { ok: signals.hasConstraints, label: t('agents-create-prompt-check-constraints') },
+    { ok: signals.hasStructure, label: t('agents-create-prompt-check-structure') },
+    { ok: signals.isSubstantial, label: t('agents-create-prompt-check-substantial') }
   ]
   const tooShort = !signals.meetsMinimum
 
@@ -883,8 +884,8 @@ const SystemPromptChecklist: React.FC<{ signals: ReturnType<typeof evaluateSyste
     <div className="gba:mt-2 gba:space-y-1.5" data-testid="create-agent-prompt-checklist">
       {tooShort && (
         <p className="gba:flex gba:items-center gba:gap-1.5 gba:text-[11px] gba:font-medium gba:text-destructive">
-          <WarningCircleIcon className="gba:h-3.5 gba:w-3.5" />A real system prompt is required (at least{' '}
-          {SYSTEM_PROMPT_MIN_LENGTH} characters). Use the template to start.
+          <WarningCircleIcon className="gba:h-3.5 gba:w-3.5" />
+          {t('agents-create-prompt-required', { min: SYSTEM_PROMPT_MIN_LENGTH })}
         </p>
       )}
       <ul className="gba:grid gba:grid-cols-1 gba:gap-1 sm:gba:grid-cols-2">
@@ -927,15 +928,18 @@ const PolicySelector: React.FC<PolicySelectorProps> = ({
   selectedIds,
   onToggle
 }) => {
+  const { t } = useTranslation(translations)
   return (
     <div>
       <div className="gba:mb-1 gba:flex gba:items-baseline gba:justify-between">
         <label className="gba:flex gba:items-center gba:gap-1.5 gba:text-base gba:font-medium gba:text-foreground">
           <ShieldCheckIcon className="gba:h-4 gba:w-4 gba:text-primary" weight="duotone" />
-          Company policies
+          {t('agents-create-policies-title')}
         </label>
         <span className="gba:text-[11px] gba:text-muted-foreground">
-          {selectedIds.size > 0 ? `${selectedIds.size} selected` : 'Optional'}
+          {selectedIds.size > 0
+            ? t('agents-create-policies-selected', { count: selectedIds.size })
+            : t('agents-create-policies-optional')}
         </span>
       </div>
       <div className="gba:overflow-hidden gba:rounded-lg gba:border gba:border-border gba:bg-background">
@@ -945,7 +949,7 @@ const PolicySelector: React.FC<PolicySelectorProps> = ({
             type="text"
             value={search}
             onChange={e => onSearchChange(e.target.value)}
-            placeholder="Search EveryPages policies…"
+            placeholder={t('agents-create-policies-search')}
             className="gba:w-full gba:bg-transparent gba:py-2 gba:pl-9 gba:pr-3 gba:text-xs gba:text-foreground gba:outline-none"
             data-testid="create-agent-policy-search"
           />
@@ -954,17 +958,17 @@ const PolicySelector: React.FC<PolicySelectorProps> = ({
           {isLoading && (
             <div className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-3 gba:text-xs gba:text-muted-foreground">
               <SpinnerGapIcon className="gba:h-3.5 gba:w-3.5 gba:animate-spin" />
-              Loading policies…
+              {t('agents-create-policies-loading')}
             </div>
           )}
           {!isLoading && loadError && (
             <p className="gba:px-3 gba:py-3 gba:text-xs gba:text-destructive">
-              Couldn&apos;t load policies. You can still create the agent and attach them later.
+              {t('agents-create-policies-load-error')}
             </p>
           )}
           {!isLoading && !loadError && choices.length === 0 && (
             <p className="gba:px-3 gba:py-3 gba:text-xs gba:text-muted-foreground">
-              {search ? 'No policies match your search.' : 'No company policies published yet.'}
+              {search ? t('agents-create-policies-empty-search') : t('agents-create-policies-empty')}
             </p>
           )}
           {!isLoading &&

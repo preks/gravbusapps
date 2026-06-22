@@ -9,6 +9,7 @@
 
 import { ArrowsClockwiseIcon, EnvelopeIcon, GraphIcon, ListBulletsIcon, SpinnerGapIcon } from '@phosphor-icons/react'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { GroupedTraceTimeline } from '../trace/GroupedTraceTimeline'
 import { WorkforceRunMesh } from '../mesh/WorkforceRunMesh'
@@ -17,6 +18,7 @@ import { useWorkforceAgentRuns } from '../../useWorkforceAgentRuns'
 import { useWorkforceRunStream } from '../../useWorkforceRunStream'
 import type { WorkforceRun } from '../../workforceTypes'
 import { formatTimestamp, runCredits, runStatusVisual, shortenInput } from '../../runDisplay'
+import translations from '../../../../_i18n'
 
 type TraceView = 'timeline' | 'mesh'
 
@@ -47,6 +49,7 @@ function readPayloadField(run: WorkforceRun, field: string): string {
 }
 
 const TriggerPayloadHeader: React.FC<TriggerPayloadHeaderProps> = ({ run }) => {
+  const { t } = useTranslation(translations)
   if (run.source !== 'inbound_email' || !run.trigger_payload) return null
   const from = readPayloadField(run, 'from')
   const subject = readPayloadField(run, 'subject')
@@ -58,12 +61,12 @@ const TriggerPayloadHeader: React.FC<TriggerPayloadHeaderProps> = ({ run }) => {
     >
       <header className="gba:mb-2 gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
         <EnvelopeIcon className="gba:h-3.5 gba:w-3.5" />
-        Inbound email · {formatTimestamp(run.created_at)}
+        {t('trace-inbound-email-header', { time: formatTimestamp(run.created_at) })}
       </header>
       <p className="gba:text-xs gba:text-muted-foreground">
-        From <span className="gba:text-foreground">{from || '—'}</span>
+        {t('trace-from')} <span className="gba:text-foreground">{from || '—'}</span>
       </p>
-      <p className="gba:mt-0.5 gba:text-sm gba:font-semibold gba:text-foreground">{subject || '(no subject)'}</p>
+      <p className="gba:mt-0.5 gba:text-sm gba:font-semibold gba:text-foreground">{subject || t('trace-no-subject')}</p>
       {body && (
         <pre className="gba:mt-2 gba:max-h-48 gba:overflow-auto gba:whitespace-pre-wrap gba:rounded gba:bg-muted/40 gba:p-2 gba:text-[11px] gba:text-foreground/85">
           {body}
@@ -80,6 +83,7 @@ interface RunPickerProps {
 }
 
 const RunPicker: React.FC<RunPickerProps> = ({ accessToken, agentId, onSelectRun }) => {
+  const { t } = useTranslation(translations)
   const { runs, isLoading } = useWorkforceAgentRuns({
     accessToken,
     agentId,
@@ -90,17 +94,13 @@ const RunPicker: React.FC<RunPickerProps> = ({ accessToken, agentId, onSelectRun
     return (
       <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
         <SpinnerGapIcon className="gba:h-4 gba:w-4 gba:animate-spin" />
-        Loading runs…
+        {t('trace-loading-runs')}
       </div>
     )
   }
 
   if (runs.length === 0) {
-    return (
-      <p className="gba:text-xs gba:text-muted-foreground">
-        No runs available yet. Fire a Test run from the header to see a trace.
-      </p>
-    )
+    return <p className="gba:text-xs gba:text-muted-foreground">{t('trace-no-runs-hint')}</p>
   }
 
   return (
@@ -124,7 +124,7 @@ const RunPicker: React.FC<RunPickerProps> = ({ accessToken, agentId, onSelectRun
                 {shortenInput(run.input)}
               </span>
               <span className="gba:text-[10px] gba:text-muted-foreground">
-                {formatTimestamp(run.created_at)} · {runCredits(run)} credits
+                {formatTimestamp(run.created_at)} · {t('trace-picker-credits', { credits: runCredits(run) })}
               </span>
             </button>
           </li>
@@ -137,12 +137,13 @@ const RunPicker: React.FC<RunPickerProps> = ({ accessToken, agentId, onSelectRun
 // Streams the selected run's trace live (a run is a deep-agent session, so we
 // reuse the shared SSE registry). When the run finishes streaming we reload the
 // authoritative REST run once to pull final output / cost / crm actions.
-const VIEW_TABS: Array<{ key: TraceView; label: string; icon: typeof ListBulletsIcon; testId: string }> = [
-  { key: 'timeline', label: 'Timeline', icon: ListBulletsIcon, testId: 'workforce-trace-view-timeline' },
-  { key: 'mesh', label: 'Mesh', icon: GraphIcon, testId: 'workforce-trace-view-mesh' }
+const VIEW_TABS: Array<{ key: TraceView; labelKey: string; icon: typeof ListBulletsIcon; testId: string }> = [
+  { key: 'timeline', labelKey: 'trace-view-timeline', icon: ListBulletsIcon, testId: 'workforce-trace-view-timeline' },
+  { key: 'mesh', labelKey: 'trace-view-mesh', icon: GraphIcon, testId: 'workforce-trace-view-mesh' }
 ]
 
 const AgentTraceTabContent: React.FC<AgentTraceTabContentProps> = ({ accessToken, run, onReload }) => {
+  const { t } = useTranslation(translations)
   const { trace, isStreaming, isConnected } = useWorkforceRunStream(run, accessToken)
   const wasStreamingRef = useRef(isStreaming)
   const [view, setView] = useState<TraceView>('timeline')
@@ -172,14 +173,14 @@ const AgentTraceTabContent: React.FC<AgentTraceTabContentProps> = ({ accessToken
               aria-pressed={view === tab.key}
             >
               <tab.icon className="gba:h-3.5 gba:w-3.5" />
-              {tab.label}
+              {t(tab.labelKey)}
             </button>
           ))}
         </div>
         {isStreaming && (
           <div className="gba:flex gba:items-center gba:gap-2" data-testid="workforce-trace-live">
             <LiveStatusPill connected={isConnected} />
-            <span className="gba:text-[11px] gba:text-muted-foreground">Streaming live activity…</span>
+            <span className="gba:text-[11px] gba:text-muted-foreground">{t('trace-streaming-live')}</span>
           </div>
         )}
       </div>
@@ -193,6 +194,7 @@ const AgentTraceTabContent: React.FC<AgentTraceTabContentProps> = ({ accessToken
 }
 
 export const AgentTraceTab: React.FC<AgentTraceTabProps> = ({ accessToken, agentId, runId, onSelectRun }) => {
+  const { t } = useTranslation(translations)
   const client = usePromptManagerClient(accessToken)
   const [run, setRun] = useState<WorkforceRun | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -213,7 +215,7 @@ export const AgentTraceTab: React.FC<AgentTraceTabProps> = ({ accessToken, agent
         if (!cancelled) setRun(fresh)
       })
       .catch((err: unknown) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load run.')
+        if (!cancelled) setError(err instanceof Error ? err.message : t('trace-load-fail'))
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false)
@@ -221,7 +223,7 @@ export const AgentTraceTab: React.FC<AgentTraceTabProps> = ({ accessToken, agent
     return () => {
       cancelled = true
     }
-  }, [client, runId])
+  }, [client, runId, t])
 
   const reload = useMemo(
     () => () => {
@@ -229,9 +231,9 @@ export const AgentTraceTab: React.FC<AgentTraceTabProps> = ({ accessToken, agent
       client
         .getWorkforceRun(runId)
         .then(fresh => setRun(fresh))
-        .catch(err => setError(err instanceof Error ? err.message : 'Failed to load run.'))
+        .catch(err => setError(err instanceof Error ? err.message : t('trace-load-fail')))
     },
-    [client, runId]
+    [client, runId, t]
   )
 
   if (!runId) {
@@ -241,11 +243,8 @@ export const AgentTraceTab: React.FC<AgentTraceTabProps> = ({ accessToken, agent
         data-testid="workforce-trace-tab-empty"
       >
         <header>
-          <h2 className="gba:text-sm gba:font-semibold gba:text-foreground">Run trace</h2>
-          <p className="gba:mt-0.5 gba:text-xs gba:text-muted-foreground">
-            Pick a run to see every decision the agent made — tool calls, sub-agent invocations, approvals, and HITL
-            pauses.
-          </p>
+          <h2 className="gba:text-sm gba:font-semibold gba:text-foreground">{t('trace-title')}</h2>
+          <p className="gba:mt-0.5 gba:text-xs gba:text-muted-foreground">{t('trace-desc')}</p>
         </header>
         <RunPicker accessToken={accessToken} agentId={agentId} onSelectRun={onSelectRun} />
       </section>
@@ -262,7 +261,7 @@ export const AgentTraceTab: React.FC<AgentTraceTabProps> = ({ accessToken, agent
             className="gba:underline-offset-2 gba:hover:underline"
             data-testid="workforce-trace-clear-run"
           >
-            ← Back to run list
+            {t('trace-back-to-list')}
           </button>
           {run && <span>·</span>}
           {run && <span>{run.session_id}</span>}
@@ -274,14 +273,14 @@ export const AgentTraceTab: React.FC<AgentTraceTabProps> = ({ accessToken, agent
           data-testid="workforce-trace-reload"
         >
           <ArrowsClockwiseIcon className="gba:h-3.5 gba:w-3.5" />
-          Reload
+          {t('trace-reload')}
         </button>
       </div>
 
       {isLoading && !run && (
         <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
           <SpinnerGapIcon className="gba:h-4 gba:w-4 gba:animate-spin" />
-          Loading run…
+          {t('trace-loading-run')}
         </div>
       )}
 

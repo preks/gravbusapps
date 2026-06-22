@@ -4,9 +4,11 @@
 // `tool_permission_request` cards, so MEDIUM-risk proposals can be reviewed and
 // approved/edited/rejected directly in the run detail and the digital workplace.
 
+import { useTranslation } from '@newwork/nw-design-system'
 import React, { useCallback, useState } from 'react'
 
 import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
+import translations from '../../_i18n'
 import { StructuredInputForm } from '../renderers/StructuredInputForm'
 import { ToolPermissionRequest } from '../renderers/ToolPermissionRequest'
 import { getStructuredInputPending } from './workforceStructuredInput'
@@ -23,6 +25,7 @@ export const RunStructuredApprovalSection: React.FC<RunStructuredApprovalSection
   accessToken,
   onRefreshAfterSubmit
 }) => {
+  const { t } = useTranslation(translations)
   const pending = getStructuredInputPending(run.pending_structured_input)
   const { replyToInterrupt } = useEnterpriseAgentClient(accessToken)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -31,7 +34,7 @@ export const RunStructuredApprovalSection: React.FC<RunStructuredApprovalSection
   const submitPayload = useCallback(
     async (payload: Record<string, unknown>) => {
       if (!accessToken) {
-        setSubmitError('Sign in required to respond.')
+        setSubmitError(t('approval-structured-signin'))
         return
       }
       setSubmitError(null)
@@ -40,12 +43,12 @@ export const RunStructuredApprovalSection: React.FC<RunStructuredApprovalSection
         await replyToInterrupt(run.session_id, undefined, payload)
         await onRefreshAfterSubmit()
       } catch (err) {
-        setSubmitError(err instanceof Error ? err.message : 'Failed to submit your response.')
+        setSubmitError(err instanceof Error ? err.message : t('approval-structured-submit-fail'))
       } finally {
         setIsSubmitting(false)
       }
     },
-    [accessToken, onRefreshAfterSubmit, replyToInterrupt, run.session_id]
+    [accessToken, onRefreshAfterSubmit, replyToInterrupt, run.session_id, t]
   )
 
   if (!pending) return null
@@ -55,7 +58,7 @@ export const RunStructuredApprovalSection: React.FC<RunStructuredApprovalSection
   return (
     <section data-testid="workforce-run-detail-structured-approval">
       <h3 className="gba:mb-1.5 gba:text-xs gba:font-semibold gba:uppercase gba:tracking-wide gba:text-amber-600 gba:dark:text-amber-400">
-        Awaiting human approval
+        {t('approval-awaiting-title')}
       </h3>
       <div className="gba:space-y-3">
         {isToolPermission ? (
@@ -84,7 +87,7 @@ export const RunStructuredApprovalSection: React.FC<RunStructuredApprovalSection
         )}
         {isSubmitting && (
           <p className="gba:text-[11px] gba:text-muted-foreground" data-testid="workforce-run-structured-submitting">
-            Submitting…
+            {t('approval-submitting')}
           </p>
         )}
         {submitError && (

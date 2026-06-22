@@ -1,4 +1,6 @@
+import { useTranslation } from '@newwork/nw-design-system'
 import type { RendererProps } from './index'
+import translations from '../../../_i18n'
 
 function parseRows(content: string | null): Record<string, unknown>[] {
   if (!content) return []
@@ -17,10 +19,12 @@ function parseRows(content: string | null): Record<string, unknown>[] {
 }
 
 const TableArtifact: React.FC<RendererProps> = ({ content, viewMode }) => {
+  const { t } = useTranslation(translations)
+
   if (viewMode === 'code') {
     return (
       <pre className="gba:h-full gba:overflow-auto gba:bg-muted/30 gba:p-4 gba:text-xs gba:font-mono">
-        {content ?? 'No table content available.'}
+        {content ?? t('artifact-table-empty')}
       </pre>
     )
   }
@@ -29,7 +33,7 @@ const TableArtifact: React.FC<RendererProps> = ({ content, viewMode }) => {
   const columns = Array.from(new Set(rows.flatMap(row => Object.keys(row)))).slice(0, 24)
 
   if (rows.length === 0 || columns.length === 0) {
-    return <div className="gba:p-6 gba:text-sm gba:text-muted-foreground">No table rows available.</div>
+    return <div className="gba:p-6 gba:text-sm gba:text-muted-foreground">{t('artifact-table-no-rows')}</div>
   }
 
   return (

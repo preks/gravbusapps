@@ -3,10 +3,12 @@
 // step's captured result, reusing the shared FlowStepResult renderer.
 
 import { XIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import React from 'react'
 
 import { flowNodeIdToStepIndex } from '@/common/data/flow/templateToFlowGraph'
 
+import translations from '../../../_i18n'
 import { FlowStepResult } from './FlowStepResult'
 import type { FlowDetailStep } from './flowDetailTypes'
 import { StatusBadge } from './flowDetailPrimitives'
@@ -26,22 +28,26 @@ interface ResolvedNode {
   status?: string
 }
 
-function resolveNode(nodeId: string, steps: readonly FlowDetailStep[]): ResolvedNode {
+function resolveNode(
+  nodeId: string,
+  steps: readonly FlowDetailStep[],
+  t: (key: string, vars?: Record<string, string | number>) => string
+): ResolvedNode {
   if (nodeId === 'start') {
-    return { title: 'Start', stepReference: 'start' }
+    return { title: t('flow-node-start'), stepReference: 'start' }
   }
   if (nodeId === 'end') {
-    return { title: 'End', stepReference: null }
+    return { title: t('flow-node-end'), stepReference: null }
   }
 
   const stepIndex = flowNodeIdToStepIndex(nodeId)
   if (stepIndex === null) {
-    return { title: 'Step', stepReference: null }
+    return { title: t('flow-node-step'), stepReference: null }
   }
 
   const step = steps.find(candidate => candidate.stepIndex === stepIndex)
   return {
-    title: step ? `${step.stepIndex + 1}. ${step.title}` : `Step ${stepIndex + 1}`,
+    title: step ? `${step.stepIndex + 1}. ${step.title}` : `${t('flow-node-step')} ${stepIndex + 1}`,
     stepReference: `step_${stepIndex}`,
     status: step?.status
   }
@@ -54,7 +60,8 @@ export const WorkforceFlowMapStepDetail: React.FC<WorkforceFlowMapStepDetailProp
   accessToken,
   onClose
 }) => {
-  const resolved = resolveNode(nodeId, steps)
+  const { t } = useTranslation(translations)
+  const resolved = resolveNode(nodeId, steps, t)
   const stepResult = useFlowStepResult({
     workflowId,
     stepReference: resolved.stepReference,
@@ -80,7 +87,7 @@ export const WorkforceFlowMapStepDetail: React.FC<WorkforceFlowMapStepDetailProp
           type="button"
           onClick={onClose}
           className="gba:inline-flex gba:h-7 gba:w-7 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-md gba:text-muted-foreground gba:transition-colors gba:hover:bg-muted gba:hover:text-foreground"
-          aria-label="Close step details"
+          aria-label={t('flow-map-step-detail-close')}
           data-testid="flow-map-step-detail-close"
         >
           <XIcon className="gba:h-4 gba:w-4" />
@@ -88,10 +95,10 @@ export const WorkforceFlowMapStepDetail: React.FC<WorkforceFlowMapStepDetailProp
       </div>
       <div className="gba:flex-1 gba:overflow-auto gba:p-3">
         {resolved.stepReference ? (
-          <FlowStepResult {...stepResult} accessToken={accessToken} />
+          <FlowStepResult {...stepResult} accessToken={accessToken} emptyLabel={t('flow-step-result-empty-review')} />
         ) : (
           <p className="gba:text-xs gba:text-muted-foreground" data-testid="flow-map-step-detail-empty">
-            No step result is captured for this node.
+            {t('flow-map-step-detail-empty')}
           </p>
         )}
       </div>

@@ -38,7 +38,11 @@ export const CanvasTabHeader: React.FC<CanvasTabHeaderProps> = ({
 }) => {
   const { t } = useTranslation(translations)
   const baseTabs = tabs ?? CANVAS_TABS
-  const tabsToRender = baseTabs.map(tab => (tab.id === 'task-expert' ? { ...tab, label: t('canvas-tab-agent') } : tab))
+  const tabsToRender = baseTabs.map(tab => {
+    if (tab.id === 'task-expert') return { ...tab, label: t('canvas-tab-agent') }
+    if (tab.id === 'agent-mesh') return { ...tab, label: t('canvas-tab-agent-mesh') }
+    return tab
+  })
   return (
     <div
       className="gba:flex gba:items-center gba:gap-1 gba:px-4 gba:py-2 gba:border-b gba:border-border gba:bg-background gba:shrink-0"

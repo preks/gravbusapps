@@ -4,11 +4,12 @@
 // without a deep link still shows as a non-clickable chip.
 
 import { ArrowSquareOutIcon, BookOpenTextIcon } from '@phosphor-icons/react'
-import { Avatar, AvatarFallback, AvatarImage } from '@newwork/nw-design-system'
+import { Avatar, AvatarFallback, AvatarImage, useTranslation } from '@newwork/nw-design-system'
 import React, { useMemo } from 'react'
 import type { WorkforceRun, WorkforceRunTraceEvent } from '../workforceTypes'
 import { caseEntityLinks, policyRunLinks, type RunLink } from './runDetailLinks'
 import { useRunEntityAvatar } from './useRunEntityAvatar'
+import translations from '../../../_i18n'
 
 export interface RunContextLinksProps {
   run: WorkforceRun
@@ -33,6 +34,7 @@ const POLICY_CHIP_CLASS =
   'gba:inline-flex gba:items-center gba:gap-1.5 gba:rounded-full gba:border gba:border-sky-500/30 gba:bg-sky-500/5 gba:px-2.5 gba:py-1 gba:text-xs gba:font-medium gba:text-sky-700 gba:dark:text-sky-300'
 
 const EntityChip: React.FC<{ link: RunLink; accessToken: string }> = ({ link, accessToken }) => {
+  const { t } = useTranslation(translations)
   const display = link.name ?? link.label
   const avatarSrc = useRunEntityAvatar(link.entityType, link.value, accessToken)
   const inner = (
@@ -57,7 +59,7 @@ const EntityChip: React.FC<{ link: RunLink; accessToken: string }> = ({ link, ac
         target="_blank"
         rel="noopener noreferrer"
         className={ENTITY_LINK_CLASS}
-        title={`Open ${link.label}: ${display}`}
+        title={t('run-context-open', { label: link.label, display })}
         data-testid="run-context-entity"
       >
         {inner}
@@ -119,6 +121,7 @@ const LinkGroup: React.FC<{ label: string; links: RunLink[]; accessToken: string
 }
 
 export const RunContextLinks: React.FC<RunContextLinksProps> = ({ run, accessToken, trace }) => {
+  const { t } = useTranslation(translations)
   const entityLinks = useMemo<RunLink[]>(() => caseEntityLinks(run.case_ref), [run.case_ref])
   const policyLinks = useMemo<RunLink[]>(() => policyRunLinks(trace), [trace])
   if (entityLinks.length === 0 && policyLinks.length === 0) return null
@@ -128,8 +131,8 @@ export const RunContextLinks: React.FC<RunContextLinksProps> = ({ run, accessTok
       className="gba:mt-4 gba:flex gba:flex-wrap gba:items-center gba:gap-x-4 gba:gap-y-2 gba:border-t gba:border-border/60 gba:pt-3"
       data-testid="run-context-links"
     >
-      <LinkGroup label="Records" links={entityLinks} accessToken={accessToken} />
-      <LinkGroup label="Policies" links={policyLinks} accessToken={accessToken} />
+      <LinkGroup label={t('run-context-records')} links={entityLinks} accessToken={accessToken} />
+      <LinkGroup label={t('run-context-policies')} links={policyLinks} accessToken={accessToken} />
     </div>
   )
 }

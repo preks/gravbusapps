@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ArrowLeftIcon, ArrowRightIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { ArtifactFile } from '../../../types/fabric'
 import CodeArtifact from './CodeArtifact'
+import translations from '../../../_i18n'
 
 interface Slide {
   title?: string
@@ -39,6 +41,7 @@ export interface SlideArtifactProps {
 }
 
 const SlideArtifact: React.FC<SlideArtifactProps> = ({ file, content, viewMode }) => {
+  const { t } = useTranslation(translations)
   const [currentIndex, setCurrentIndex] = useState(0)
 
   const slides = content ? parseSlides(content) : []
@@ -58,7 +61,7 @@ const SlideArtifact: React.FC<SlideArtifactProps> = ({ file, content, viewMode }
   if (content === null) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:text-sm gba:text-muted-foreground">
-        Loading slides…
+        {t('artifact-loading-slides')}
       </div>
     )
   }
@@ -70,7 +73,7 @@ const SlideArtifact: React.FC<SlideArtifactProps> = ({ file, content, viewMode }
   if (slides.length === 0) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:text-sm gba:text-muted-foreground">
-        No slides found.
+        {t('artifact-slides-empty')}
       </div>
     )
   }
@@ -123,7 +126,9 @@ const SlideArtifact: React.FC<SlideArtifactProps> = ({ file, content, viewMode }
       {/* Speaker notes (if any) */}
       {slide.notes && (
         <div className="gba:px-6 gba:py-3 gba:border-t gba:border-border gba:bg-muted gba:shrink-0">
-          <p className="gba:text-[11px] gba:text-slate-500 gba:uppercase gba:tracking-widest gba:mb-1">Notes</p>
+          <p className="gba:text-[11px] gba:text-slate-500 gba:uppercase gba:tracking-widest gba:mb-1">
+            {t('artifact-slide-notes')}
+          </p>
           <p className="gba:text-xs gba:text-slate-400 gba:leading-relaxed">{slide.notes}</p>
         </div>
       )}

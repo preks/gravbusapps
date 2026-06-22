@@ -6,11 +6,12 @@
 // closes on success; errors are kept inline so the operator can adjust
 // and retry without losing the typed task.
 
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { PaperPlaneRightIcon, SpinnerGapIcon, XIcon } from '@phosphor-icons/react'
 import React, { useCallback, useEffect, useState } from 'react'
 import { findDemoInboundEmail, formatDemoInboundEmailAsTask, INSURANCE_DEMO_INBOUND_EMAILS } from './demoInboundEmails'
 import type { WorkforceAgent, WorkforceRun, WorkforceRunCreateInput, WorkforceTrigger } from './workforceTypes'
+import translations from '../../_i18n'
 
 export interface TestRunModalProps {
   open: boolean
@@ -22,7 +23,7 @@ export interface TestRunModalProps {
   onSubmit: (input: WorkforceRunCreateInput) => Promise<WorkforceRun>
 }
 
-const PLACEHOLDER = 'e.g. "Triage the latest unassigned policy questions in the support queue and draft a response."'
+const PLACEHOLDER_KEY = 'testrun-task-placeholder'
 
 export const TestRunModal: React.FC<TestRunModalProps> = ({
   open,
@@ -33,6 +34,7 @@ export const TestRunModal: React.FC<TestRunModalProps> = ({
   onClose,
   onSubmit
 }) => {
+  const { t } = useTranslation(translations)
   const [task, setTask] = useState('')
   const [selectedTriggerId, setSelectedTriggerId] = useState<string>('')
   const [selectedDemoEmailId, setSelectedDemoEmailId] = useState<string>('')
@@ -84,18 +86,15 @@ export const TestRunModal: React.FC<TestRunModalProps> = ({
         <div className="gba:flex gba:items-start gba:justify-between gba:gap-3 gba:border-b gba:border-border/60 gba:px-5 gba:py-4">
           <div>
             <h2 className="gba:text-base gba:font-semibold gba:text-foreground">
-              Test run for {agent.display_name || agent.name}
+              {t('testrun-title', { name: agent.display_name || agent.name })}
             </h2>
-            <p className="gba:text-xs gba:text-muted-foreground">
-              Fires a manual run using the agent's current configuration. Useful for rehearsing a scheduled job or
-              verifying instructions before going live.
-            </p>
+            <p className="gba:text-xs gba:text-muted-foreground">{t('testrun-desc')}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="gba:inline-flex gba:h-8 gba:w-8 gba:items-center gba:justify-center gba:rounded-lg gba:text-muted-foreground gba:hover:bg-muted/60 gba:hover:text-foreground"
-            aria-label="Close"
+            aria-label={t('action-close')}
             data-testid="workforce-test-run-close"
           >
             <XIcon className="gba:h-4 gba:w-4" />
@@ -119,7 +118,7 @@ export const TestRunModal: React.FC<TestRunModalProps> = ({
                 htmlFor="workforce-test-run-demo-email"
                 className="gba:mb-1 gba:block gba:text-xs gba:font-semibold gba:text-foreground"
               >
-                Sample inbound email
+                {t('testrun-demo-email')}
               </label>
               <select
                 id="workforce-test-run-demo-email"
@@ -128,7 +127,7 @@ export const TestRunModal: React.FC<TestRunModalProps> = ({
                 className="gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring"
                 data-testid="workforce-test-run-demo-email"
               >
-                <option value="">Custom task (type below)</option>
+                <option value="">{t('testrun-custom-task')}</option>
                 {INSURANCE_DEMO_INBOUND_EMAILS.map(email => (
                   <option key={email.id} value={email.id}>
                     {email.scenario}
@@ -140,13 +139,11 @@ export const TestRunModal: React.FC<TestRunModalProps> = ({
                   className="gba:mt-1 gba:text-[11px] gba:text-muted-foreground"
                   data-testid="workforce-test-run-demo-email-hint"
                 >
-                  Expected: {selectedDemoEmail.expected_path}
+                  {t('testrun-expected', { path: selectedDemoEmail.expected_path })}
                 </p>
               )}
               {!selectedDemoEmail && (
-                <p className="gba:mt-1 gba:text-[11px] gba:text-muted-foreground">
-                  Pick one of the insurance demo scenarios to pre-fill the task with Subject, From, To, and body.
-                </p>
+                <p className="gba:mt-1 gba:text-[11px] gba:text-muted-foreground">{t('testrun-demo-hint')}</p>
               )}
             </div>
 
@@ -155,20 +152,18 @@ export const TestRunModal: React.FC<TestRunModalProps> = ({
                 htmlFor="workforce-test-run-task"
                 className="gba:mb-1 gba:block gba:text-xs gba:font-semibold gba:text-foreground"
               >
-                Task
+                {t('testrun-task')}
               </label>
               <textarea
                 id="workforce-test-run-task"
                 value={task}
                 onChange={e => setTask(e.target.value)}
-                placeholder={PLACEHOLDER}
+                placeholder={t(PLACEHOLDER_KEY)}
                 rows={6}
                 className="gba:w-full gba:resize-y gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:font-mono gba:text-sm gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring"
                 data-testid="workforce-test-run-task"
               />
-              <p className="gba:mt-1 gba:text-[11px] gba:text-muted-foreground">
-                What should the agent do right now? It will use its standing instructions, skills and policies.
-              </p>
+              <p className="gba:mt-1 gba:text-[11px] gba:text-muted-foreground">{t('testrun-task-hint')}</p>
             </div>
 
             {triggers.length > 0 && (
@@ -177,7 +172,7 @@ export const TestRunModal: React.FC<TestRunModalProps> = ({
                   htmlFor="workforce-test-run-trigger"
                   className="gba:mb-1 gba:block gba:text-xs gba:font-semibold gba:text-foreground"
                 >
-                  Attribute to trigger (optional)
+                  {t('testrun-trigger-label')}
                 </label>
                 <select
                   id="workforce-test-run-trigger"
@@ -186,16 +181,14 @@ export const TestRunModal: React.FC<TestRunModalProps> = ({
                   className="gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:text-foreground gba:outline-none gba:focus:ring-2 gba:focus:ring-ring"
                   data-testid="workforce-test-run-trigger"
                 >
-                  <option value="">Ad-hoc test (no trigger)</option>
+                  <option value="">{t('testrun-trigger-none')}</option>
                   {triggers.map(trigger => (
                     <option key={trigger.trigger_id} value={trigger.trigger_id}>
                       {trigger.name || trigger.type} · {trigger.type}
                     </option>
                   ))}
                 </select>
-                <p className="gba:mt-1 gba:text-[11px] gba:text-muted-foreground">
-                  Attribute this run to a real trigger so it shows up in that trigger's run history.
-                </p>
+                <p className="gba:mt-1 gba:text-[11px] gba:text-muted-foreground">{t('testrun-trigger-hint')}</p>
               </div>
             )}
           </div>
@@ -203,7 +196,7 @@ export const TestRunModal: React.FC<TestRunModalProps> = ({
 
         <div className="gba:flex gba:items-center gba:justify-end gba:gap-2 gba:border-t gba:border-border/60 gba:bg-muted/20 gba:px-5 gba:py-3">
           <Button variant="ghost" size="sm" onClick={onClose}>
-            Cancel
+            {t('action-cancel')}
           </Button>
           <button
             type="button"
@@ -217,7 +210,7 @@ export const TestRunModal: React.FC<TestRunModalProps> = ({
             ) : (
               <PaperPlaneRightIcon className="gba:h-3.5 gba:w-3.5" />
             )}
-            {isStarting ? 'Starting…' : 'Run now'}
+            {isStarting ? t('testrun-starting') : t('testrun-submit')}
           </button>
         </div>
       </div>

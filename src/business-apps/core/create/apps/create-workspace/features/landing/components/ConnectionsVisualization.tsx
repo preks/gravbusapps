@@ -6,6 +6,7 @@ import translations from '../../../_i18n'
 interface ToolNode {
   id: string
   label: string
+  ariaLabel: string
   icon: LucideIcon
   color: string
   description: string
@@ -19,50 +20,56 @@ interface ConnectionsVisualizationProps {
 const TOOLS_STATIC: ToolNode[] = [
   {
     id: 'ai-builder',
-    label: 'Screen Builder',
+    label: 'connections-tool-screen-builder-label',
+    ariaLabel: 'connections-tool-screen-builder-label',
     icon: Monitor,
     color: 'ai',
-    description: 'Build UI screens',
+    description: 'connections-tool-screen-builder-description',
     connections: ['flow', 'experts', 'functions', 'data', 'templates']
   },
   {
     id: 'flow',
-    label: 'Flow',
+    label: 'connections-tool-flow-label',
+    ariaLabel: 'connections-tool-flow-label',
     icon: Workflow,
     color: 'success',
-    description: 'Automate processes',
+    description: 'connections-tool-flow-description',
     connections: ['ai-builder', 'experts', 'functions', 'data', 'templates']
   },
   {
     id: 'experts',
-    label: 'Enterprise Agents',
+    label: 'connections-label-enterprise-agents',
+    ariaLabel: 'connections-label-enterprise-agents',
     icon: Bot,
     color: 'ai',
-    description: 'AI assistants',
+    description: 'connections-tool-enterprise-agents-description',
     connections: ['ai-builder', 'flow', 'functions', 'data', 'templates']
   },
   {
     id: 'functions',
-    label: 'Functions',
+    label: 'connections-tool-functions-label',
+    ariaLabel: 'connections-tool-functions-label',
     icon: Code2,
     color: 'warning',
-    description: 'Custom logic',
+    description: 'connections-tool-functions-description',
     connections: ['ai-builder', 'flow', 'experts', 'data', 'templates']
   },
   {
     id: 'data',
-    label: 'Data Models',
+    label: 'connections-tool-data-models-label',
+    ariaLabel: 'connections-tool-data-models-label',
     icon: Database,
     color: 'info',
-    description: 'Define structures',
+    description: 'connections-tool-data-models-description',
     connections: ['ai-builder', 'flow', 'experts', 'functions', 'templates']
   },
   {
     id: 'templates',
-    label: 'Templates',
+    label: 'connections-tool-templates-label',
+    ariaLabel: 'connections-tool-templates-label',
     icon: LayoutTemplate,
     color: 'primary',
-    description: 'Quick starts',
+    description: 'connections-tool-templates-description',
     connections: ['ai-builder', 'flow', 'experts', 'functions', 'data']
   }
 ]
@@ -86,9 +93,12 @@ export const ConnectionsVisualization: React.FC<ConnectionsVisualizationProps> =
   const { t } = useTranslation(translations)
   const TOOLS = useMemo(
     () =>
-      TOOLS_STATIC.map(tool =>
-        tool.id === 'experts' ? { ...tool, label: t('connections-label-enterprise-agents') } : tool
-      ),
+      TOOLS_STATIC.map(tool => ({
+        ...tool,
+        label: t(tool.label),
+        ariaLabel: t(tool.ariaLabel),
+        description: t(tool.description)
+      })),
     [t]
   )
   const [hoveredNode, setHoveredNode] = useState<string | null>(null)
@@ -139,12 +149,9 @@ export const ConnectionsVisualization: React.FC<ConnectionsVisualizationProps> =
         {/* Section header */}
         <div className="gba:text-center gba:mb-6" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
           <h2 className="gba:text-2xl gba:sm:text-3xl gba:font-bold gba:text-foreground gba:mb-3">
-            Everything connected. Infinitely powerful.
+            {t('connections-section-title')}
           </h2>
-          <p className="gba:text-muted-foreground gba:max-w-xl gba:mx-auto">
-            Each tool in NEWWORK CREATE works seamlessly with others. Build complete solutions by combining Screen
-            Builder, Flow, {t('connections-label-enterprise-agents')}, and more.
-          </p>
+          <p className="gba:text-muted-foreground gba:max-w-xl gba:mx-auto">{t('connections-section-description')}</p>
         </div>
 
         {/* Visualization */}
@@ -311,7 +318,7 @@ export const ConnectionsVisualization: React.FC<ConnectionsVisualizationProps> =
                   onMouseLeave={() => handleNodeHover(null)}
                   onFocus={() => handleNodeHover(tool.id)}
                   onBlur={() => handleNodeHover(null)}
-                  aria-label={`${tool.name} tool`}
+                  aria-label={t('connections-node-aria-label', { tool: tool.ariaLabel })}
                   data-testid={`${testId}-node-${tool.id}`}
                 >
                   {/* Node background with glow */}
@@ -347,7 +354,7 @@ export const ConnectionsVisualization: React.FC<ConnectionsVisualizationProps> =
                     >
                       <p className="gba:text-xs gba:font-medium gba:text-popover-foreground">{tool.description}</p>
                       <p className="gba:text-[10px] gba:text-muted-foreground gba:mt-0.5">
-                        Connects to {tool.connections.length} tools
+                        {t('connections-tooltip-connects', { count: tool.connections.length })}
                       </p>
                     </div>
                   )}
@@ -362,7 +369,7 @@ export const ConnectionsVisualization: React.FC<ConnectionsVisualizationProps> =
           className="gba:text-center gba:text-sm gba:text-muted-foreground gba:mt-4"
           style={{ animation: 'fadeInUp 0.6s ease-out 0.4s both' }}
         >
-          Data flows seamlessly between all tools
+          {t('connections-bottom-hint')}
         </p>
       </div>
     </section>

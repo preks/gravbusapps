@@ -1,5 +1,7 @@
+import { useTranslation } from '@newwork/nw-design-system'
 import type { ArtifactFile } from '../../../types/fabric'
 import CodeArtifact from './CodeArtifact'
+import translations from '../../../_i18n'
 
 export interface DiagramArtifactProps {
   file: ArtifactFile
@@ -9,10 +11,12 @@ export interface DiagramArtifactProps {
 
 /** Diagram source only (no graph renderer); uses the same highlighter as code artifacts. */
 function DiagramArtifact({ file, content, viewMode }: Readonly<DiagramArtifactProps>) {
+  const { t } = useTranslation(translations)
+
   if (content === null) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:text-sm gba:text-muted-foreground">
-        Loading diagram…
+        {t('artifact-loading-diagram')}
       </div>
     )
   }

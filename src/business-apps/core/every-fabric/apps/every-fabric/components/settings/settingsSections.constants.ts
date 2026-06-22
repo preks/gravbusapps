@@ -6,7 +6,6 @@ export const DEFAULT_SETTINGS_SECTION: SettingsSectionId = 'configuration'
 
 export interface SettingsSectionDefinition {
   id: SettingsSectionId
-  label: string
   icon: Icon
   testId: string
   devToolsOnly?: boolean
@@ -15,25 +14,21 @@ export interface SettingsSectionDefinition {
 export const SETTINGS_SECTIONS: ReadonlyArray<SettingsSectionDefinition> = [
   {
     id: 'configuration',
-    label: 'Configuration',
     icon: GearIcon,
     testId: 'settings-section-nav-configuration'
   },
   {
     id: 'memory',
-    label: 'Memory',
     icon: BrainIcon,
     testId: 'settings-section-nav-memory'
   },
   {
     id: 'policies',
-    label: 'Default Policies',
     icon: ShieldCheckIcon,
     testId: 'settings-section-nav-policies'
   },
   {
     id: 'metrics',
-    label: 'Usage & Metrics',
     icon: ChartBarIcon,
     testId: 'settings-section-nav-metrics',
     devToolsOnly: true

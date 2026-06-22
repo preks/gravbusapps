@@ -86,7 +86,7 @@ describe('TestWebhookModal', () => {
     fireEvent.click(screen.getByTestId('workforce-test-webhook-submit'))
     await waitFor(() => {
       expect(onSubmit).toHaveBeenCalledWith('trig-1', {
-        subject: 'Test webhook',
+        subject: 'testwebhook-default-subject',
         body: 'Please triage this webhook event.'
       })
     })

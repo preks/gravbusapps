@@ -4,7 +4,8 @@ import { AvatarWithInitials } from '@/business-apps/platform/apps/every-ai/compo
 import { useEmployeeDetails } from '@/business-apps/platform/apps/every-ai/queries/employeeQueries'
 import { getEntityUrl } from '@/business-apps/platform/apps/every-ai/components/links/EntityLink'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import { dataStr, intentLabel, type ReferenceCardProps } from './referenceCardUtils'
+import { dataStr, type ReferenceCardProps } from './referenceCardUtils'
+import { useReferenceCardI18n } from './useReferenceCardI18n'
 
 /**
  * Rich employee card for the references rail: avatar, name, job title, org
@@ -17,6 +18,7 @@ import { dataStr, intentLabel, type ReferenceCardProps } from './referenceCardUt
  * so the card is never empty.
  */
 export const EmployeeReferenceCard: React.FC<ReferenceCardProps> = ({ reference, accessToken }) => {
+  const { field, intentLabel, t } = useReferenceCardI18n()
   const { state } = useEmployeeDetails(reference.id, accessToken)
 
   const fallbackUrl = `/platform/employee-record?tab=assets&employeeId=${reference.id}`
@@ -58,11 +60,11 @@ export const EmployeeReferenceCard: React.FC<ReferenceCardProps> = ({ reference,
   // Highest-signal facts inline; the manager relationship renders as its own
   // person-row footer rather than a flat label/value field.
   const fields: Array<{ label: string; value: string }> = []
-  if (department) fields.push({ label: 'Department', value: department })
-  if (location) fields.push({ label: 'Location', value: location })
-  if (company) fields.push({ label: 'Company', value: company })
-  if (hireYear && Number.isFinite(hireYear)) fields.push({ label: 'Joined', value: String(hireYear) })
-  if (!fields.length && email) fields.push({ label: 'Email', value: email })
+  if (department) fields.push({ label: field('department'), value: department })
+  if (location) fields.push({ label: field('location'), value: location })
+  if (company) fields.push({ label: field('company'), value: company })
+  if (hireYear && Number.isFinite(hireYear)) fields.push({ label: field('joined'), value: String(hireYear) })
+  if (!fields.length && email) fields.push({ label: field('email'), value: email })
 
   const subtitleParts = [context, role].filter(Boolean)
 
@@ -93,7 +95,7 @@ export const EmployeeReferenceCard: React.FC<ReferenceCardProps> = ({ reference,
         />
         <div className="gba:min-w-0 gba:flex gba:items-baseline gba:gap-1.5 gba:flex-wrap">
           <span className="gba:text-[10px] gba:font-medium gba:uppercase gba:tracking-wide gba:text-muted-foreground">
-            Reports to
+            {t('renderer-ref-reports-to')}
           </span>
           <span className="gba:text-xs gba:font-semibold gba:text-foreground gba:truncate">{managerName}</span>
           {manager.jobPositionName && (

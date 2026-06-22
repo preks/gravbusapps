@@ -4,15 +4,15 @@ export type MeshLayerKey = 'agents' | 'skills' | 'tools'
 
 export interface MeshLayerDescriptor {
   key: MeshLayerKey
-  label: string
+  labelKey: string
   /** Node kinds toggled by this layer. Orchestrator is always visible. */
   kinds: MeshNodeKind[]
 }
 
 export const MESH_LAYERS: MeshLayerDescriptor[] = [
-  { key: 'agents', label: 'Enterprise Agents', kinds: ['subagent', 'expert'] },
-  { key: 'skills', label: 'Skills', kinds: ['skill'] },
-  { key: 'tools', label: 'Tools & connectors', kinds: ['tool'] }
+  { key: 'agents', labelKey: 'agent-mesh-layer-agents', kinds: ['subagent', 'expert'] },
+  { key: 'skills', labelKey: 'agent-mesh-layer-skills', kinds: ['skill'] },
+  { key: 'tools', labelKey: 'agent-mesh-layer-tools', kinds: ['tool'] }
 ]
 
 export const ALL_LAYERS: ReadonlySet<MeshLayerKey> = new Set(MESH_LAYERS.map(l => l.key))

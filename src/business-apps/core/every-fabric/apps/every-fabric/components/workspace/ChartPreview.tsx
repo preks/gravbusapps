@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../../_i18n'
 import type { ArtifactPreview } from '../../hooks/useArtifactPreview'
 import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
 import { PanelCard } from './PanelCard'
@@ -9,6 +11,7 @@ export const ChartPreview: React.FC<{
   sessionId?: string
   accessToken?: string
 }> = ({ preview, sessionId, accessToken }) => {
+  const { t } = useTranslation(translations)
   const client = useEnterpriseAgentClient(accessToken ?? '')
   const [fetchedContent, setFetchedContent] = useState<Record<string, unknown> | null>(null)
 
@@ -42,16 +45,16 @@ export const ChartPreview: React.FC<{
 
   if (!resolvedContent) {
     return (
-      <PanelCard title="Live Preview" defaultOpen>
+      <PanelCard title={t('workspace-live-preview-title')} defaultOpen>
         <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-2 gba:p-6">
-          <p className="gba:text-xs gba:text-muted-foreground">Chart data not available</p>
+          <p className="gba:text-xs gba:text-muted-foreground">{t('workspace-chart-unavailable')}</p>
         </div>
       </PanelCard>
     )
   }
 
   return (
-    <PanelCard title="Live Preview" defaultOpen>
+    <PanelCard title={t('workspace-live-preview-title')} defaultOpen>
       <div className="gba:p-3 gba:max-w-full gba:overflow-hidden" data-testid="fabric-live-preview-chart">
         <ChartInlineBody data={resolvedContent} />
       </div>

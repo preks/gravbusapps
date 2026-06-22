@@ -1,6 +1,12 @@
 import React from 'react'
 import { render, screen } from '@testing-library/react'
-import { ChartInlineBody, statTrendDirection } from '../chartInlineBody'
+import { ChartEmptyState, ChartInlineBody, statTrendDirection } from '../chartInlineBody'
+import * as chartRenderers from '../chartRenderers'
+
+jest.mock('@newwork/nw-design-system', () => ({
+  ...jest.requireActual('@newwork/nw-design-system'),
+  useTranslation: () => ({ t: (key: string) => key })
+}))
 
 describe('statTrendDirection', () => {
   it('uses the explicit positive flag when present', () => {
@@ -62,5 +68,27 @@ describe('ChartInlineBody — KPI stat cards', () => {
   it('renders the dashboard title', () => {
     render(<ChartInlineBody data={dashboard} />)
     expect(screen.getByText('Leads by Status Dashboard')).toBeInTheDocument()
+  })
+
+  it('shows FTL key when single chart has no data points', () => {
+    jest.spyOn(chartRenderers, 'parseChartConfig').mockReturnValue({
+      chartType: 'bar',
+      data: [],
+      dataKeys: ['value'],
+      colors: chartRenderers.DEFAULT_COLORS
+    })
+    render(<ChartInlineBody data={{ chartType: 'bar', data: [{ name: 'A', value: 1 }] }} />)
+    expect(screen.getByText('workspace-chart-no-data-points')).toBeInTheDocument()
+    jest.restoreAllMocks()
+  })
+
+  it('shows default FTL key on chart empty state', () => {
+    render(<ChartEmptyState />)
+    expect(screen.getByText('workspace-chart-empty')).toBeInTheDocument()
+  })
+
+  it('shows FTL key for unsupported or empty chart preview', () => {
+    render(<ChartInlineBody data={{ title: 'Empty dashboard' }} />)
+    expect(screen.getByText('workspace-chart-unsupported-preview')).toBeInTheDocument()
   })
 })

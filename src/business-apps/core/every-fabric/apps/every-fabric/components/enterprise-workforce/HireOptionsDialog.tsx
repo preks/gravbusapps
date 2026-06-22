@@ -5,7 +5,9 @@
 
 import { CaretRightIcon, PlusCircleIcon, StorefrontIcon, XIcon } from '@phosphor-icons/react'
 import type { Icon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import React from 'react'
+import translations from '../../_i18n'
 
 interface HireOptionsDialogProps {
   open: boolean
@@ -46,6 +48,7 @@ export const HireOptionsDialog: React.FC<HireOptionsDialogProps> = ({
   onChooseMarketplace,
   onChooseCreate
 }) => {
+  const { t } = useTranslation(translations)
   if (!open) return null
 
   return (
@@ -56,14 +59,14 @@ export const HireOptionsDialog: React.FC<HireOptionsDialogProps> = ({
       <div className="gba:flex gba:w-full gba:max-w-md gba:flex-col gba:overflow-hidden gba:rounded-2xl gba:border gba:border-border gba:bg-background gba:shadow-2xl">
         <div className="gba:flex gba:items-start gba:justify-between gba:gap-3 gba:border-b gba:border-border/60 gba:px-5 gba:py-4">
           <div>
-            <h2 className="gba:text-base gba:font-semibold gba:text-foreground">Hire a workforce agent</h2>
-            <p className="gba:text-xs gba:text-muted-foreground">Start from a ready-made agent or build your own.</p>
+            <h2 className="gba:text-base gba:font-semibold gba:text-foreground">{t('hire-options-title')}</h2>
+            <p className="gba:text-xs gba:text-muted-foreground">{t('hire-options-subtitle')}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="gba:inline-flex gba:h-8 gba:w-8 gba:items-center gba:justify-center gba:rounded-lg gba:text-muted-foreground gba:hover:bg-muted/60 gba:hover:text-foreground"
-            aria-label="Close"
+            aria-label={t('action-close')}
             data-testid="hire-options-close"
           >
             <XIcon className="gba:h-4 gba:w-4" />
@@ -73,15 +76,15 @@ export const HireOptionsDialog: React.FC<HireOptionsDialogProps> = ({
         <div className="gba:flex gba:flex-col gba:gap-3 gba:px-5 gba:py-4">
           <OptionCard
             icon={StorefrontIcon}
-            title="Hire from marketplace"
-            description="Browse ready-made agents with skills, tools and governance built in."
+            title={t('hire-options-marketplace-title')}
+            description={t('hire-options-marketplace-description')}
             onClick={onChooseMarketplace}
             testId="hire-options-marketplace"
           />
           <OptionCard
             icon={PlusCircleIcon}
-            title="Create from scratch"
-            description="Define a brand-new agent with your own role, instructions and autonomy."
+            title={t('hire-options-create-title')}
+            description={t('hire-options-create-description')}
             onClick={onChooseCreate}
             testId="hire-options-create"
           />

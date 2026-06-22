@@ -63,6 +63,6 @@ describe('StepResultData', () => {
 
   it('shows a placeholder when there is no data', () => {
     render(<StepResultData formData={{}} />)
-    expect(screen.getByText('No data captured.')).toBeInTheDocument()
+    expect(screen.getByText('flow-step-data-empty')).toBeInTheDocument()
   })
 })

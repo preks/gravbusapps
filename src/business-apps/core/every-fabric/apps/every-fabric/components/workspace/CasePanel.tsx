@@ -1,5 +1,7 @@
 import { useMemo, type FC, type ReactNode } from 'react'
 import { ArrowSquareOutIcon, CheckCircleIcon, CircleIcon, ProhibitIcon, WarningCircleIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../../_i18n'
 
 import { STATUS_BADGE_CLASS, type ActionCardStatus, type ActionCardStatusVariant } from '../../utils/actionCardTrace'
 import type { CaseItemState, CaseState } from '../../hooks/useFabricCases'
@@ -35,19 +37,19 @@ function variantForRow(status: CaseItemState['status']): ActionCardStatusVariant
   }
 }
 
-function labelForRow(status: CaseItemState['status']): string {
+function labelForRow(status: CaseItemState['status'], t: (key: string) => string): string {
   switch (status) {
     case 'in_progress':
-      return 'In progress'
+      return t('sidebar-status-running')
     case 'done':
-      return 'Done'
+      return t('sidebar-status-done')
     case 'failed':
-      return 'Failed'
+      return t('sidebar-status-failed')
     case 'skipped':
-      return 'Skipped'
+      return t('workspace-status-skipped')
     case 'pending':
     default:
-      return 'Pending'
+      return t('sidebar-status-pending')
   }
 }
 
@@ -105,6 +107,7 @@ interface CaseRowProps {
 }
 
 const CaseRow: FC<CaseRowProps> = ({ item, isLast, accessToken }) => {
+  const { t } = useTranslation(translations)
   // Workflow rows: once the row reaches a non-terminal state and we
   // know a workflow id, ask Flow Engine for the live status. The hook
   // is a no-op for rows without a workflow id, so non-flow steps stay
@@ -113,7 +116,7 @@ const CaseRow: FC<CaseRowProps> = ({ item, isLast, accessToken }) => {
   const isTerminal = item.status === 'done' || item.status === 'failed' || item.status === 'skipped'
   const initialStatus: ActionCardStatus = {
     code: item.status,
-    label: labelForRow(item.status),
+    label: labelForRow(item.status, t),
     variant: variantForRow(item.status)
   }
   const liveStatus = useLiveFlowStatus({
@@ -127,7 +130,7 @@ const CaseRow: FC<CaseRowProps> = ({ item, isLast, accessToken }) => {
   // agent-reported one as soon as the first poll lands. For non-flow
   // rows, fall back to the local mapping.
   const variant: ActionCardStatusVariant = isWorkflowRow ? liveStatus.variant : variantForRow(item.status)
-  const label = isWorkflowRow ? liveStatus.label : labelForRow(item.status)
+  const label = isWorkflowRow ? liveStatus.label : labelForRow(item.status, t)
 
   const handleOpenFlow = () => {
     if (!item.workflowId) return
@@ -164,8 +167,8 @@ const CaseRow: FC<CaseRowProps> = ({ item, isLast, accessToken }) => {
         </div>
         {(item.owner || item.due) && (
           <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-1">
-            {item.owner && <Chip label="Owner" value={item.owner} />}
-            {item.due && <Chip label="Due" value={item.due} />}
+            {item.owner && <Chip label={t('workspace-case-owner')} value={item.owner} />}
+            {item.due && <Chip label={t('workspace-case-due')} value={item.due} />}
           </div>
         )}
         {item.workflowId && (
@@ -174,7 +177,7 @@ const CaseRow: FC<CaseRowProps> = ({ item, isLast, accessToken }) => {
             onClick={handleOpenFlow}
             className="gba:inline-flex gba:items-center gba:gap-1 gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:hover:text-foreground gba:transition-colors"
           >
-            <span>Open workflow</span>
+            <span>{t('workspace-case-open-workflow')}</span>
             <ArrowSquareOutIcon className="gba:h-3 gba:w-3" />
           </button>
         )}
@@ -194,9 +197,9 @@ const CLOSED_VARIANT_BY_STATUS: Record<string, ActionCardStatusVariant> = {
 }
 
 const CLOSED_LABEL_BY_STATUS: Record<string, string> = {
-  completed: 'Completed',
-  failed: 'Failed',
-  cancelled: 'Cancelled'
+  completed: 'enterprise-agent-status-completed',
+  failed: 'sidebar-status-failed',
+  cancelled: 'sidebar-status-cancelled'
 }
 
 const PROGRESS_BAR_BY_VARIANT: Record<ActionCardStatusVariant, string> = {
@@ -220,13 +223,17 @@ function resolveBadgeLabel(
   isClosed: boolean,
   caseStatus: CaseState['status'],
   completed: number,
-  total: number
+  total: number,
+  t: (key: string, vars?: Record<string, unknown>) => string
 ): string {
-  if (!isClosed) return `${completed} of ${total}`
-  return CLOSED_LABEL_BY_STATUS[caseStatus] ?? 'Partial'
+  if (!isClosed) return t('workspace-plan-progress', { done: completed, total })
+  const closedKey = CLOSED_LABEL_BY_STATUS[caseStatus]
+  if (closedKey) return t(closedKey)
+  return t('workspace-case-partial')
 }
 
 const SingleCase: FC<SingleCaseProps> = ({ caseState, accessToken }) => {
+  const { t } = useTranslation(translations)
   const { items } = caseState
   const completed = useMemo(() => items.filter(i => i.status === 'done' || i.status === 'skipped').length, [items])
   const total = items.length
@@ -234,7 +241,7 @@ const SingleCase: FC<SingleCaseProps> = ({ caseState, accessToken }) => {
   const failed = items.some(i => i.status === 'failed')
   const isClosed = caseState.status !== 'open'
   const accentVariant = resolveAccentVariant(isClosed, caseState.status, failed)
-  const badgeLabel = resolveBadgeLabel(isClosed, caseState.status, completed, total)
+  const badgeLabel = resolveBadgeLabel(isClosed, caseState.status, completed, total, t)
   const progressBarClass = PROGRESS_BAR_BY_VARIANT[accentVariant]
 
   return (
@@ -289,6 +296,7 @@ const SingleCase: FC<SingleCaseProps> = ({ caseState, accessToken }) => {
  * Hidden entirely when no case is active (`cases.length === 0`).
  */
 export const CasePanel: FC<CasePanelProps> = ({ cases, accessToken, defaultCollapsed = false }) => {
+  const { t } = useTranslation(translations)
   if (cases.length === 0) return null
   const total = cases.reduce((acc, c) => acc + c.items.length, 0)
   const completed = cases.reduce(
@@ -296,10 +304,10 @@ export const CasePanel: FC<CasePanelProps> = ({ cases, accessToken, defaultColla
     0
   )
   const openCount = cases.filter(c => c.status === 'open').length
-  const summary = openCount > 0 ? `${completed}/${total} steps` : 'All cases closed'
+  const summary = openCount > 0 ? t('workspace-case-steps', { completed, total }) : t('workspace-case-all-closed')
 
   return (
-    <PanelCard title="Case" badge={openCount} summary={summary} defaultOpen={!defaultCollapsed}>
+    <PanelCard title={t('workspace-case-title')} badge={openCount} summary={summary} defaultOpen={!defaultCollapsed}>
       <div className="gba:flex gba:flex-col gba:divide-y gba:divide-border/40">
         {cases.map(caseState => (
           <div

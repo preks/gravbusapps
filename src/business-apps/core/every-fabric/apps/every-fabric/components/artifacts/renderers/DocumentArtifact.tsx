@@ -1,6 +1,8 @@
+import { useTranslation } from '@newwork/nw-design-system'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
 import type { ArtifactFile } from '../../../types/fabric'
 import CodeArtifact from './CodeArtifact'
+import translations from '../../../_i18n'
 
 export interface DocumentArtifactProps {
   file: ArtifactFile
@@ -9,10 +11,12 @@ export interface DocumentArtifactProps {
 }
 
 const DocumentArtifact: React.FC<DocumentArtifactProps> = ({ file, content, viewMode }) => {
+  const { t } = useTranslation(translations)
+
   if (content === null) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:text-sm gba:text-muted-foreground">
-        Loading document…
+        {t('artifact-loading-document')}
       </div>
     )
   }

@@ -5,13 +5,15 @@
 // to open the companion's detail — never a pop-up.
 
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { ArrowSquareOut, PlusCircle, CheckCircle } from '@phosphor-icons/react'
 import type { RelatedToolRef } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import translations from '../../_i18n'
 
-const NECESSITY_STYLE: Record<RelatedToolRef['necessity'], { label: string; className: string }> = {
-  required: { label: 'Required', className: 'gba:bg-amber-100 gba:text-amber-800' },
-  recommended: { label: 'Recommended', className: 'gba:bg-primary/10 gba:text-primary' },
-  conditional: { label: 'If needed', className: 'gba:bg-muted gba:text-muted-foreground' }
+const NECESSITY_STYLE: Record<RelatedToolRef['necessity'], { labelKey: string; className: string }> = {
+  required: { labelKey: 'skills-tool-companions-required', className: 'gba:bg-amber-100 gba:text-amber-800' },
+  recommended: { labelKey: 'skills-tool-companions-recommended', className: 'gba:bg-primary/10 gba:text-primary' },
+  conditional: { labelKey: 'skills-tool-companions-if-needed', className: 'gba:bg-muted gba:text-muted-foreground' }
 }
 
 const refLabel = (ref: string): string => (ref.includes('.') ? ref.split('.').slice(1).join('.') : ref)
@@ -41,6 +43,7 @@ export const ToolCompanions: React.FC<ToolCompanionsProps> = ({
   onAddAll,
   compact = false
 }) => {
+  const { t } = useTranslation(translations)
   if (!relatedTools || relatedTools.length === 0) return null
 
   const missing = onAdd && isSelected ? relatedTools.filter(r => !isSelected(r.tool_ref)) : []
@@ -51,7 +54,7 @@ export const ToolCompanions: React.FC<ToolCompanionsProps> = ({
       data-testid="tool-companions"
     >
       <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
-        <p className="gba:text-[11px] gba:font-semibold gba:text-foreground">Works with</p>
+        <p className="gba:text-[11px] gba:font-semibold gba:text-foreground">{t('skills-tool-companions-title')}</p>
         {onAddAll && missing.length > 1 && (
           <button
             type="button"
@@ -59,15 +62,10 @@ export const ToolCompanions: React.FC<ToolCompanionsProps> = ({
             onClick={() => onAddAll(missing.map(r => r.tool_ref))}
             data-testid="tool-companions-add-all"
           >
-            Add all ({missing.length})
+            {t('skills-tool-companions-add-all', { count: missing.length })}
           </button>
         )}
       </div>
-      {!compact && (
-        <p className="gba:mt-0.5 gba:text-[11px] gba:text-muted-foreground">
-          Add these so the agent can resolve ids/values before this action runs.
-        </p>
-      )}
       <ul className="gba:mt-1.5 gba:space-y-1.5">
         {relatedTools.map(row => {
           const selected = isSelected?.(row.tool_ref) ?? false
@@ -85,7 +83,7 @@ export const ToolCompanions: React.FC<ToolCompanionsProps> = ({
                   <span
                     className={`gba:rounded-full gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium ${style.className}`}
                   >
-                    {style.label}
+                    {t(style.labelKey)}
                   </span>
                 </span>
                 {!compact && <span className="gba:block gba:text-[11px] gba:text-muted-foreground">{row.reason}</span>}
@@ -97,7 +95,7 @@ export const ToolCompanions: React.FC<ToolCompanionsProps> = ({
                     className="gba:inline-flex gba:items-center gba:gap-0.5 gba:text-[11px] gba:font-medium gba:text-muted-foreground gba:hover:text-foreground"
                     onClick={() => onOpen(row.tool_ref)}
                     data-testid={`tool-companion-open-${row.tool_ref}`}
-                    title="Open tool details"
+                    title={t('skills-tool-companions-open-details')}
                   >
                     <ArrowSquareOut className="gba:h-3.5 gba:w-3.5" />
                   </button>
@@ -106,7 +104,7 @@ export const ToolCompanions: React.FC<ToolCompanionsProps> = ({
                   (selected ? (
                     <span className="gba:inline-flex gba:items-center gba:gap-0.5 gba:text-[11px] gba:font-medium gba:text-green-700">
                       <CheckCircle className="gba:h-3.5 gba:w-3.5" weight="fill" />
-                      Added
+                      {t('skills-tool-companions-added')}
                     </span>
                   ) : (
                     <button
@@ -116,7 +114,7 @@ export const ToolCompanions: React.FC<ToolCompanionsProps> = ({
                       data-testid={`tool-companion-add-${row.tool_ref}`}
                     >
                       <PlusCircle className="gba:h-3.5 gba:w-3.5" />
-                      Add
+                      {t('skills-tool-companions-add')}
                     </button>
                   ))}
               </span>

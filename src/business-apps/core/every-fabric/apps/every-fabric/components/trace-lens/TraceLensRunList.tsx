@@ -1,13 +1,10 @@
 // Trace Lens — runs list (left rail).
-//
-// Renders the merged chat + workforce run rows with origin filter chips
-// (All / Chat / Workforce), per-row status, source and agent badges, and a
-// failed-status accent so broken runs stand out at a glance.
 
 import { useMemo, useState } from 'react'
 import { SpinnerGapIcon } from '@phosphor-icons/react'
-import { Badge } from '@newwork/nw-design-system'
+import { Badge, useTranslation } from '@newwork/nw-design-system'
 import type { TraceLensRunOrigin, TraceLensRunRow } from './traceLensRuns'
+import translations from '../../_i18n'
 
 interface TraceLensRunListProps {
   runs: TraceLensRunRow[]
@@ -19,17 +16,11 @@ interface TraceLensRunListProps {
 
 type OriginFilter = 'all' | TraceLensRunOrigin
 
-const ORIGIN_FILTERS: Array<{ id: OriginFilter; label: string }> = [
-  { id: 'all', label: 'All' },
-  { id: 'chat', label: 'Chat' },
-  { id: 'workforce', label: 'Workforce' }
-]
-
-const SOURCE_LABEL: Record<string, string> = {
-  manual: 'Manual',
-  schedule: 'Schedule',
-  webhook: 'Webhook',
-  inbound_email: 'Email'
+const SOURCE_KEY: Record<string, string> = {
+  manual: 'trace-lens-runs-source-manual',
+  schedule: 'trace-lens-runs-source-schedule',
+  webhook: 'trace-lens-runs-source-webhook',
+  inbound_email: 'trace-lens-runs-source-email'
 }
 
 function statusBadgeVariant(status: string | undefined): 'default' | 'destructive' | 'outline' {
@@ -38,26 +29,30 @@ function statusBadgeVariant(status: string | undefined): 'default' | 'destructiv
   return 'outline'
 }
 
-function relativeTime(iso?: string): string {
+function relativeTime(iso: string | undefined, t: (key: string, vars?: Record<string, unknown>) => string): string {
   if (!iso) return ''
   const ms = Date.parse(iso)
   if (Number.isNaN(ms)) return ''
   const diff = Date.now() - ms
   const min = Math.floor(diff / 60_000)
-  if (min < 1) return 'just now'
-  if (min < 60) return `${min}m ago`
+  if (min < 1) return t('trace-lens-runs-time-just-now')
+  if (min < 60) return t('trace-lens-runs-time-minutes', { count: min })
   const hr = Math.floor(min / 60)
-  if (hr < 24) return `${hr}h ago`
-  return `${Math.floor(hr / 24)}d ago`
+  if (hr < 24) return t('trace-lens-runs-time-hours', { count: hr })
+  return t('trace-lens-runs-time-days', { count: Math.floor(hr / 24) })
 }
 
 const RunRow: React.FC<{
   run: TraceLensRunRow
   isSelected: boolean
   onSelect: (id: string) => void
-}> = ({ run, isSelected, onSelect }) => {
+  t: (key: string, vars?: Record<string, unknown>) => string
+}> = ({ run, isSelected, onSelect, t }) => {
   const failed = run.status === 'failed' || run.status === 'cancelled'
   const selectionClass = isSelected ? 'gba:bg-primary/10' : 'gba:hover:bg-muted/50'
+  const sourceKey = run.source ? SOURCE_KEY[run.source] : undefined
+  const sourceLabel = sourceKey ? t(sourceKey) : t('trace-lens-workforce')
+
   return (
     <button
       type="button"
@@ -67,11 +62,13 @@ const RunRow: React.FC<{
       }`}
       data-testid="trace-lens-run-item"
     >
-      <span className="gba:text-[13px] gba:text-foreground gba:line-clamp-2">{run.input || '(no input)'}</span>
+      <span className="gba:text-[13px] gba:text-foreground gba:line-clamp-2">
+        {run.input || t('trace-lens-runs-no-input')}
+      </span>
       <span className="gba:flex gba:items-center gba:gap-1.5 gba:flex-wrap gba:text-[11px] gba:text-muted-foreground">
         <Badge variant={statusBadgeVariant(run.status)}>{run.status}</Badge>
-        {run.origin === 'workforce' && <Badge variant="outline">{SOURCE_LABEL[run.source ?? ''] ?? 'Workforce'}</Badge>}
-        <span>{relativeTime(run.createdAt)}</span>
+        {run.origin === 'workforce' && <Badge variant="outline">{sourceLabel}</Badge>}
+        <span>{relativeTime(run.createdAt, t)}</span>
       </span>
       {run.agentName && (
         <span className="gba:text-[11px] gba:text-muted-foreground gba:truncate" title={run.agentName}>
@@ -83,7 +80,17 @@ const RunRow: React.FC<{
 }
 
 export const TraceLensRunList: React.FC<TraceLensRunListProps> = ({ runs, loading, error, selectedId, onSelect }) => {
+  const { t } = useTranslation(translations)
   const [originFilter, setOriginFilter] = useState<OriginFilter>('all')
+
+  const originFilters = useMemo(
+    (): Array<{ id: OriginFilter; label: string }> => [
+      { id: 'all', label: t('trace-lens-runs-filter-all') },
+      { id: 'chat', label: t('trace-lens-runs-filter-chat') },
+      { id: 'workforce', label: t('trace-lens-runs-filter-workforce') }
+    ],
+    [t]
+  )
 
   const visibleRuns = useMemo(
     () => (originFilter === 'all' ? runs : runs.filter(run => run.origin === originFilter)),
@@ -93,10 +100,10 @@ export const TraceLensRunList: React.FC<TraceLensRunListProps> = ({ runs, loadin
   return (
     <div className="gba:flex gba:flex-col gba:w-64 gba:shrink-0 gba:border gba:border-border/40 gba:rounded-lg gba:bg-card gba:overflow-hidden">
       <div className="gba:px-3 gba:py-2 gba:border-b gba:border-border/40 gba:text-[12px] gba:font-semibold gba:text-muted-foreground gba:uppercase gba:tracking-wide">
-        Runs
+        {t('trace-lens-runs-title')}
       </div>
       <div className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1.5 gba:border-b gba:border-border/40">
-        {ORIGIN_FILTERS.map(filter => (
+        {originFilters.map(filter => (
           <button
             key={filter.id}
             type="button"
@@ -120,10 +127,10 @@ export const TraceLensRunList: React.FC<TraceLensRunListProps> = ({ runs, loadin
         )}
         {error && <p className="gba:px-3 gba:py-3 gba:text-[12px] gba:text-rose-600">{error}</p>}
         {!loading && !error && visibleRuns.length === 0 && (
-          <p className="gba:px-3 gba:py-3 gba:text-[12px] gba:text-muted-foreground">No runs found.</p>
+          <p className="gba:px-3 gba:py-3 gba:text-[12px] gba:text-muted-foreground">{t('trace-lens-runs-empty')}</p>
         )}
         {visibleRuns.map(run => (
-          <RunRow key={run.sessionId} run={run} isSelected={run.sessionId === selectedId} onSelect={onSelect} />
+          <RunRow key={run.sessionId} run={run} isSelected={run.sessionId === selectedId} onSelect={onSelect} t={t} />
         ))}
       </div>
     </div>

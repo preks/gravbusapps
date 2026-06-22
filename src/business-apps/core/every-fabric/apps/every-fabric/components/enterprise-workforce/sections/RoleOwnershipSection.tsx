@@ -2,8 +2,10 @@
 
 import React, { useEffect, useState } from 'react'
 import { IdentificationBadgeIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { WorkforceAgent, WorkforceAgentUpdateInput } from '../workforceTypes'
 import { RoleOwnershipFields } from './RoleOwnershipFields'
+import translations from '../../../_i18n'
 import {
   roleOwnershipDirty,
   roleOwnershipFromAgent,
@@ -19,6 +21,7 @@ interface RoleOwnershipSectionProps {
 }
 
 export const RoleOwnershipSection: React.FC<RoleOwnershipSectionProps> = ({ agent, isSaving, onSave }) => {
+  const { t } = useTranslation(translations)
   const baseline = roleOwnershipFromAgent(agent)
   const [form, setForm] = useState<RoleOwnershipValues>(baseline)
 
@@ -35,9 +38,9 @@ export const RoleOwnershipSection: React.FC<RoleOwnershipSectionProps> = ({ agen
   return (
     <SectionShell
       id="role-ownership"
-      title="Role & ownership"
+      title={t('roleown-section-title')}
       icon={IdentificationBadgeIcon}
-      description="The Worker's role, department, and the person accountable for it."
+      description={t('roleown-section-desc')}
       isDirty={dirty}
       isSaving={isSaving}
       onSave={() => void handleSave()}

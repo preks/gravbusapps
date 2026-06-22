@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, type FC } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { DecisionItem } from '../../hooks/useFabricDecisions'
 import type { ActivityEvent } from '../../types/enterpriseAgent'
+import translations from '../../_i18n'
 import { PanelCard } from './PanelCard'
 import { formatTimelineClockTime, mergeSessionTimelineEntries } from './sessionTimelineMerge'
 import { UnifiedSessionTimeline } from './UnifiedSessionTimeline'
@@ -18,6 +20,7 @@ export const SessionTimelineCard: FC<SessionTimelineCardProps> = ({
   isStreaming = false,
   defaultCollapsed = false
 }) => {
+  const { t } = useTranslation(translations)
   const scrollRef = useRef<HTMLDivElement>(null)
   const entries = useMemo(() => mergeSessionTimelineEntries(decisions, activityEvents), [decisions, activityEvents])
   const latestEntryId = entries.length > 0 ? entries[entries.length - 1]?.id : null
@@ -35,12 +38,14 @@ export const SessionTimelineCard: FC<SessionTimelineCardProps> = ({
     if (entries.length === 0) return undefined
     const latest = entries[entries.length - 1]
     const time = formatTimelineClockTime(latest.timestamp)
-    return time ? `Latest ${time}` : `${entries.length} events`
+    return time
+      ? t('workspace-session-timeline-latest', { time })
+      : t('workspace-session-timeline-event-count', { count: entries.length })
   })()
 
   return (
     <PanelCard
-      title="Session timeline"
+      title={t('workspace-session-timeline-title')}
       badge={entries.length > 0 ? entries.length : undefined}
       summary={summary}
       defaultOpen={!defaultCollapsed}

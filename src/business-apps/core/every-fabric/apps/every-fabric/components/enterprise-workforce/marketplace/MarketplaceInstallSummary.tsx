@@ -1,7 +1,8 @@
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { CheckCircleIcon, WarningCircleIcon, XIcon } from '@phosphor-icons/react'
 import React from 'react'
 import type { MarketplaceBatchInstallReport } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import translations from '../../../_i18n'
 
 interface MarketplaceInstallSummaryProps {
   open: boolean
@@ -10,6 +11,8 @@ interface MarketplaceInstallSummaryProps {
 }
 
 export const MarketplaceInstallSummary: React.FC<MarketplaceInstallSummaryProps> = ({ open, report, onClose }) => {
+  const { t } = useTranslation(translations)
+
   if (!open || !report) return null
 
   return (
@@ -20,16 +23,22 @@ export const MarketplaceInstallSummary: React.FC<MarketplaceInstallSummaryProps>
       <div className="gba:flex gba:max-h-[85vh] gba:w-full gba:max-w-lg gba:flex-col gba:overflow-hidden gba:rounded-2xl gba:border gba:border-border gba:bg-background gba:shadow-2xl">
         <div className="gba:flex gba:items-start gba:justify-between gba:border-b gba:border-border/60 gba:px-5 gba:py-4">
           <div>
-            <h2 className="gba:text-base gba:font-semibold gba:text-foreground">Install summary</h2>
+            <h2 className="gba:text-base gba:font-semibold gba:text-foreground">
+              {t('marketplace-install-summary-title')}
+            </h2>
             <p className="gba:text-xs gba:text-muted-foreground">
-              {report.succeeded} succeeded · {report.failed} failed · {report.total} total
+              {t('marketplace-install-summary-stats', {
+                succeeded: report.succeeded,
+                failed: report.failed,
+                total: report.total
+              })}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="gba:inline-flex gba:h-8 gba:w-8 gba:items-center gba:justify-center gba:rounded-lg gba:text-muted-foreground gba:hover:bg-muted/60"
-            aria-label="Close"
+            aria-label={t('action-close')}
           >
             <XIcon className="gba:h-4 gba:w-4" />
           </button>
@@ -52,14 +61,16 @@ export const MarketplaceInstallSummary: React.FC<MarketplaceInstallSummaryProps>
                   <div className="gba:min-w-0 gba:flex-1">
                     <p className="gba:text-sm gba:font-medium gba:text-foreground">{entry.package_name}</p>
                     {entry.agent_id ? (
-                      <p className="gba:text-xs gba:text-muted-foreground">Agent id: {entry.agent_id}</p>
+                      <p className="gba:text-xs gba:text-muted-foreground">
+                        {t('marketplace-install-summary-agent-id', { agentId: entry.agent_id })}
+                      </p>
                     ) : null}
                     {entry.errors.length > 0 ? (
                       <p className="gba:mt-1 gba:text-xs gba:text-destructive">{entry.errors.join('; ')}</p>
                     ) : null}
                     {entry.needs_configuration.length > 0 ? (
                       <p className="gba:mt-1 gba:text-xs gba:text-muted-foreground">
-                        Needs configuration: {entry.needs_configuration.join(', ')}
+                        {t('marketplace-needs-configuration', { items: entry.needs_configuration.join(', ') })}
                       </p>
                     ) : null}
                   </div>
@@ -71,7 +82,7 @@ export const MarketplaceInstallSummary: React.FC<MarketplaceInstallSummaryProps>
 
         <div className="gba:flex gba:justify-end gba:border-t gba:border-border/60 gba:px-5 gba:py-3">
           <Button onClick={onClose} data-testid="marketplace-install-summary-close">
-            Done
+            {t('marketplace-done')}
           </Button>
         </div>
       </div>

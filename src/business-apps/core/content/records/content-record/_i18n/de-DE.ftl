@@ -38,11 +38,11 @@ policy_counter_flows = Verknüpfte Flows: { $count }
 
 policy_action_send_ack = Zur Bestätigung senden
 policy_action_send_approval = Zur Genehmigung senden
-policy_action_create_expert = Enterprise Agent aus Richtlinie erstellen
+policy_action_create_expert = { -platform-ai-agent-product.label } aus Richtlinie erstellen
 policy_action_generate_flow = Flow aus Richtlinie generieren
 policy_action_send_ack_short = Bestaetigung senden
 policy_action_send_approval_short = Zur Genehmigung senden
-policy_action_create_expert_short = Enterprise Agent erstellen
+policy_action_create_expert_short = { -platform-ai-agent-product.label } erstellen
 policy_action_generate_flow_short = Flow generieren
 policy_action_ask_everyai = EveryAI fragen
 
@@ -158,7 +158,7 @@ policy_experts_empty = Noch keine verknüpften Experten. Erstellen Sie einen, um
 
 # Create expert dialog
 cancel = Abbrechen
-policy_create_expert_dialog_title = Enterprise Agent erstellen
+policy_create_expert_dialog_title = { -platform-ai-agent-product.label } erstellen
 policy_create_expert_name_label = Name
 policy_create_expert_desc_label = Beschreibung
 policy_create_expert_instructions_label = Eigene Anweisungen (optional)
@@ -243,7 +243,7 @@ policy_activate_success = Richtlinie erfolgreich aktiviert
 policy_activate_error = Richtlinie konnte nicht aktiviert werden
 
 policy_execution_workflows_section = Genehmigungen & Bestaetigungen
-policy_kpi_expert_executions = Enterprise-Agent-Läufe
+policy_kpi_expert_executions = { -platform-ai-agent-product.label } Läufe
 policy_kpi_flow_executions = Flow-Laeufe
 policy_execution_workflows_desc = Genehmigungs- und Bestaetigungs-Workflows zu dieser Richtlinie.
 policy_workflows_count = { $count } { $count ->

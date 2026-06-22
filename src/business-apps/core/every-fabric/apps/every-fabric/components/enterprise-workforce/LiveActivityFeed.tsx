@@ -6,9 +6,11 @@
 
 import { ClockIcon, HourglassIcon, PulseIcon } from '@phosphor-icons/react'
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { LiveStatusPill } from './LiveStatusPill'
 import { statusVisualForRun } from './runDisplay'
 import type { WorkforceActiveRun } from './workforceTypes'
+import translations from '../../_i18n'
 
 export interface LiveActivityFeedProps {
   runs: readonly WorkforceActiveRun[]
@@ -29,6 +31,7 @@ function relativeStart(iso: string | null | undefined): string {
 }
 
 export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({ runs, isConnected = true, onOpenRun }) => {
+  const { t } = useTranslation(translations)
   // Count only genuinely active runs as "running"; flow-paused runs are folded
   // into the list as "Awaiting approval" and must not inflate the running count.
   const runningCount = runs.filter(run => !run.pending_flow_approval).length
@@ -39,15 +42,13 @@ export const LiveActivityFeed: React.FC<LiveActivityFeedProps> = ({ runs, isConn
     >
       <div className="gba:mb-2 gba:flex gba:items-center gba:justify-between">
         <h3 className="gba:text-xs gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground">
-          Live activity
+          {t('live-activity-title')}
         </h3>
-        <LiveStatusPill connected={isConnected} label={`${runningCount} running`} />
+        <LiveStatusPill connected={isConnected} label={t('live-activity-running-count', { count: runningCount })} />
       </div>
 
       {runs.length === 0 ? (
-        <p className="gba:py-4 gba:text-center gba:text-[11px] gba:text-muted-foreground">
-          No runs in flight right now.
-        </p>
+        <p className="gba:py-4 gba:text-center gba:text-[11px] gba:text-muted-foreground">{t('live-activity-empty')}</p>
       ) : (
         <ul className="gba:flex gba:flex-col gba:gap-2">
           {runs.map(run => {

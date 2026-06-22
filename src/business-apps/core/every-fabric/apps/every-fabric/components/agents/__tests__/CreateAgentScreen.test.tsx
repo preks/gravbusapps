@@ -5,6 +5,24 @@ import React from 'react'
 
 import { CreateAgentScreen } from '../CreateAgentScreen'
 
+jest.mock('@newwork/nw-design-system', () => {
+  const actual = jest.requireActual('@newwork/nw-design-system')
+  return {
+    ...actual,
+    useTranslation: () => ({
+      t: (key: string, vars?: Record<string, unknown>) => {
+        if (key === 'agents-create-steps-ready' && vars) {
+          return `${vars.completed} of ${vars.total} steps ready`
+        }
+        if (key === 'agents-create-creating-in' && vars) {
+          return `Creating in ${vars.workspace}.`
+        }
+        return key
+      }
+    })
+  }
+})
+
 jest.mock('@/common/data/content/hooks/useContentEntries', () => ({
   useContentEntries: () => ({ entries: [], isLoading: false, error: null })
 }))
@@ -34,14 +52,14 @@ describe('CreateAgentScreen', () => {
     render(<CreateAgentScreen client={client as never} accessToken="tok" onBack={() => {}} onCreated={() => {}} />)
 
     expect(await screen.findByText(/Creating in/i)).toBeInTheDocument()
-    expect(screen.getByTestId('create-agent-setup-progress')).toHaveTextContent('Create setup')
+    expect(screen.getByTestId('create-agent-setup-progress')).toHaveTextContent('agents-create-setup-title')
     expect(screen.getByTestId('create-agent-setup-progress')).toHaveTextContent('0 of 5 steps ready')
-    expect(screen.getByTestId('create-agent-step-1')).toHaveTextContent('Profile')
-    expect(screen.getByTestId('create-agent-step-2')).toHaveTextContent('Capabilities')
-    expect(screen.getByTestId('create-agent-step-3')).toHaveTextContent('Deployment')
-    expect(screen.getByTestId('create-agent-step-4')).toHaveTextContent('Passport')
-    expect(screen.getByTestId('create-agent-step-5')).toHaveTextContent('Activation')
-    expect(screen.getByTestId('create-agent-step-panel-1')).toHaveTextContent('Profile')
+    expect(screen.getByTestId('create-agent-step-1')).toHaveTextContent('agents-create-step-profile')
+    expect(screen.getByTestId('create-agent-step-2')).toHaveTextContent('agents-create-step-capabilities')
+    expect(screen.getByTestId('create-agent-step-3')).toHaveTextContent('agents-create-step-deployment')
+    expect(screen.getByTestId('create-agent-step-4')).toHaveTextContent('agents-create-step-passport')
+    expect(screen.getByTestId('create-agent-step-5')).toHaveTextContent('agents-create-step-activation')
+    expect(screen.getByTestId('create-agent-step-panel-1')).toHaveTextContent('agents-create-step-profile')
     expect(screen.queryByTestId('create-agent-workforce-role')).toBeNull()
 
     await act(async () => {
@@ -74,6 +92,6 @@ describe('CreateAgentScreen', () => {
       await user.click(await screen.findByTestId('create-agent-workforce-checkbox'))
     })
 
-    expect(screen.getByTestId('create-agent-submit')).toHaveTextContent('Create agent or worker')
+    expect(screen.getByTestId('create-agent-submit')).toHaveTextContent('agents-create-submit-worker')
   })
 })

@@ -1,5 +1,7 @@
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { ChartInlineBody } from '../../workspace/chartInlineBody'
+import translations from '../../../_i18n'
 import type { RendererProps } from './index'
 
 function parseJson(content: string | null): Record<string, unknown> | null {
@@ -13,17 +15,20 @@ function parseJson(content: string | null): Record<string, unknown> | null {
 }
 
 const ChartArtifact: React.FC<RendererProps> = ({ content, viewMode }) => {
+  const { t } = useTranslation(translations)
+  const emptyLabel = t('artifact-chart-empty')
+
   if (viewMode === 'code') {
     return (
       <pre className="gba:h-full gba:overflow-auto gba:bg-muted/30 gba:p-4 gba:text-xs gba:font-mono">
-        {content ?? 'No chart content available.'}
+        {content ?? emptyLabel}
       </pre>
     )
   }
 
   const parsed = parseJson(content)
   if (!parsed) {
-    return <div className="gba:p-6 gba:text-sm gba:text-muted-foreground">No chart content available.</div>
+    return <div className="gba:p-6 gba:text-sm gba:text-muted-foreground">{emptyLabel}</div>
   }
 
   return (

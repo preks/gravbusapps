@@ -6,6 +6,11 @@ import {
   WORKSPACE_CHAT_RIGHT_OFFSET_PREVIEW_OPEN_CLASS
 } from '../workspaceLayout.constants'
 
+jest.mock('@newwork/nw-design-system', () => ({
+  ...jest.requireActual('@newwork/nw-design-system'),
+  useTranslation: () => ({ t: (key: string) => key })
+}))
+
 const mockUseFabric = jest.fn()
 const mockUseFabricConnectors = jest.fn()
 
@@ -147,7 +152,7 @@ describe('WorkspaceLayout right panel', () => {
 
     render(<WorkspaceLayout />)
 
-    expect(screen.getByTestId('fabric-workspace-panel-toggle')).toHaveAttribute('aria-label', 'Close workspace panel')
+    expect(screen.getByTestId('fabric-workspace-panel-toggle')).toHaveAttribute('aria-label', 'workspace-panel-close')
   })
 
   it('starts with the panel closed on narrow viewports', () => {
@@ -155,7 +160,7 @@ describe('WorkspaceLayout right panel', () => {
 
     render(<WorkspaceLayout />)
 
-    expect(screen.getByTestId('fabric-workspace-panel-toggle')).toHaveAttribute('aria-label', 'Open workspace panel')
+    expect(screen.getByTestId('fabric-workspace-panel-toggle')).toHaveAttribute('aria-label', 'workspace-panel-open')
   })
 
   it('never renders a full-viewport overlay backdrop', () => {
@@ -178,13 +183,13 @@ describe('WorkspaceLayout right panel', () => {
     render(<WorkspaceLayout />)
 
     const toggle = screen.getByTestId('fabric-workspace-panel-toggle')
-    expect(toggle).toHaveAttribute('aria-label', 'Open workspace panel')
+    expect(toggle).toHaveAttribute('aria-label', 'workspace-panel-open')
 
     fireEvent.click(toggle)
-    expect(toggle).toHaveAttribute('aria-label', 'Close workspace panel')
+    expect(toggle).toHaveAttribute('aria-label', 'workspace-panel-close')
 
     fireEvent.click(toggle)
-    expect(toggle).toHaveAttribute('aria-label', 'Open workspace panel')
+    expect(toggle).toHaveAttribute('aria-label', 'workspace-panel-open')
   })
 
   it('offsets the chat rail whenever the panel is open, regardless of viewport width', () => {

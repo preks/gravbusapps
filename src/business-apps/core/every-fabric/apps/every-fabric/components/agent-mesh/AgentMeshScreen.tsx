@@ -12,7 +12,7 @@ import { AgentMeshShell } from './AgentMeshShell'
 import { DecisionLogPanel } from './DecisionLogPanel'
 import { ReplayTimeline } from './ReplayTimeline'
 import type { MeshScope } from './meshScopes'
-import { getScopeSubtitle, getScopeTitle } from './meshScopes'
+import { useAgentMeshI18n } from './useAgentMeshI18n'
 import { AgentMeshScopeProvider, useAgentMeshScope } from '../../hooks/useAgentMeshScope'
 import { AgentMeshAggregateView } from './AgentMeshAggregateView'
 import type { ActiveSessionSnapshot } from '../../types/activeSession'
@@ -39,6 +39,7 @@ const AgentMeshScreenInner: React.FC<AgentMeshScreenProps> = ({ activeSessions, 
     toggleFullscreen,
     updateTopLabel
   } = useAgentMeshScope()
+  const { t, getScopeTitle, getScopeSubtitle } = useAgentMeshI18n()
   const { emit } = useMeshTelemetry()
 
   const { model, source } = useTraceModel({ liveEvents: events, session, isStreaming })
@@ -138,7 +139,7 @@ const AgentMeshScreenInner: React.FC<AgentMeshScreenProps> = ({ activeSessions, 
   const isEmpty = scope === 'session' && !activeSessionId && !session
   const isLoading = scope === 'session' && !!activeSessionId && !session
   const sessionTask = session?.input?.trim() ?? ''
-  const decisionTitle = sessionTask || 'Session decision simulation'
+  const decisionTitle = sessionTask || t('agent-mesh-decision-default-title')
 
   const showStatus = scope === 'session' && !isEmpty && !isLoading && !isFullscreen
 
@@ -150,13 +151,10 @@ const AgentMeshScreenInner: React.FC<AgentMeshScreenProps> = ({ activeSessions, 
       <span className="gba:flex gba:h-14 gba:w-14 gba:items-center gba:justify-center gba:rounded-full gba:bg-muted gba:mb-4">
         <GraphIcon className="gba:h-6 gba:w-6 gba:text-muted-foreground" weight="duotone" />
       </span>
-      <h2 className="gba:text-base gba:font-semibold gba:text-foreground gba:mb-1">No session selected</h2>
-      <p className="gba:max-w-md gba:text-sm gba:text-muted-foreground gba:mb-5">
-        Open or start an Every Fabric session to see the live agent mesh — enterprise agents, skills and tools connected
-        by the messages flowing between them.
-      </p>
+      <h2 className="gba:text-base gba:font-semibold gba:text-foreground gba:mb-1">{t('agent-mesh-empty-title')}</h2>
+      <p className="gba:max-w-md gba:text-sm gba:text-muted-foreground gba:mb-5">{t('agent-mesh-empty-desc')}</p>
       <Button onClick={onBack} variant="secondary">
-        Back to landing
+        {t('agent-mesh-back-landing')}
       </Button>
     </div>
   )
@@ -167,7 +165,7 @@ const AgentMeshScreenInner: React.FC<AgentMeshScreenProps> = ({ activeSessions, 
       data-testid="agent-mesh-loading"
     >
       <SpinnerGapIcon className="gba:h-5 gba:w-5 gba:animate-spin gba:text-muted-foreground" />
-      <p className="gba:text-sm gba:text-muted-foreground">Loading session trace…</p>
+      <p className="gba:text-sm gba:text-muted-foreground">{t('agent-mesh-loading-trace')}</p>
     </div>
   )
 

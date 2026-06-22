@@ -1,6 +1,8 @@
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { CaretLeftIcon, CaretRightIcon } from '@phosphor-icons/react'
 import { monthLabel, type CalendarCell } from './memoryLensDimensions'
+import translations from '../../_i18n'
 
 interface MemoryMiniCalendarProps {
   year: number
@@ -43,66 +45,74 @@ export const MemoryMiniCalendar: React.FC<MemoryMiniCalendarProps> = ({
   onPrev,
   onNext,
   onSelectDay
-}) => (
-  <div
-    className="gba:rounded-2xl gba:border gba:border-border/60 gba:bg-card gba:p-3"
-    data-testid="memory-lens-mini-calendar"
-  >
-    <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
-      <span className="gba:text-[13px] gba:font-semibold gba:text-foreground">{monthLabel(year, month)}</span>
-      <div className="gba:flex gba:items-center gba:gap-0.5">
-        <button
-          type="button"
-          onClick={onPrev}
-          className={navButtonClass}
-          aria-label="Previous month"
-          data-testid="memory-lens-calendar-prev"
-        >
-          <CaretLeftIcon className="gba:h-3.5 gba:w-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={onNext}
-          className={navButtonClass}
-          aria-label="Next month"
-          data-testid="memory-lens-calendar-next"
-        >
-          <CaretRightIcon className="gba:h-3.5 gba:w-3.5" />
-        </button>
-      </div>
-    </div>
+}) => {
+  const { t } = useTranslation(translations)
 
-    <div className="gba:mt-2 gba:grid gba:grid-cols-7 gba:gap-0.5">
-      {WEEKDAYS.map(weekday => (
-        <div
-          key={weekday.key}
-          className="gba:py-1 gba:text-center gba:text-[9px] gba:font-medium gba:text-muted-foreground/50"
-        >
-          {weekday.label}
-        </div>
-      ))}
-      {weeks.flat().map(cell => {
-        const selected = cell.key === selectedDay
-        const clickable = cell.count > 0
-        return (
+  return (
+    <div
+      className="gba:rounded-2xl gba:border gba:border-border/60 gba:bg-card gba:p-3"
+      data-testid="memory-lens-mini-calendar"
+    >
+      <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
+        <span className="gba:text-[13px] gba:font-semibold gba:text-foreground">{monthLabel(year, month)}</span>
+        <div className="gba:flex gba:items-center gba:gap-0.5">
           <button
-            key={cell.key}
             type="button"
-            disabled={!clickable}
-            onClick={() => onSelectDay(selected ? null : cell.key)}
-            className={`gba:relative gba:flex gba:aspect-square gba:items-center gba:justify-center gba:rounded-md gba:text-[11px] gba:transition-colors ${
-              clickable ? 'gba:cursor-pointer' : 'gba:cursor-default'
-            } ${cellClass(cell, selected)} ${
-              cell.isToday && !selected ? 'gba:ring-1 gba:ring-inset gba:ring-border' : ''
-            }`}
-            data-testid={`memory-lens-calendar-day-${cell.key}`}
+            onClick={onPrev}
+            className={navButtonClass}
+            aria-label={t('memory-lens-calendar-prev-aria')}
+            data-testid="memory-lens-calendar-prev"
           >
-            {cell.date.getDate()}
+            <CaretLeftIcon className="gba:h-3.5 gba:w-3.5" />
           </button>
-        )
-      })}
-    </div>
+          <button
+            type="button"
+            onClick={onNext}
+            className={navButtonClass}
+            aria-label={t('memory-lens-calendar-next-aria')}
+            data-testid="memory-lens-calendar-next"
+          >
+            <CaretRightIcon className="gba:h-3.5 gba:w-3.5" />
+          </button>
+        </div>
+      </div>
 
-    {loading && <p className="gba:mt-2 gba:text-center gba:text-[10px] gba:text-muted-foreground">Loading…</p>}
-  </div>
-)
+      <div className="gba:mt-2 gba:grid gba:grid-cols-7 gba:gap-0.5">
+        {WEEKDAYS.map(weekday => (
+          <div
+            key={weekday.key}
+            className="gba:py-1 gba:text-center gba:text-[9px] gba:font-medium gba:text-muted-foreground/50"
+          >
+            {weekday.label}
+          </div>
+        ))}
+        {weeks.flat().map(cell => {
+          const selected = cell.key === selectedDay
+          const clickable = cell.count > 0
+          return (
+            <button
+              key={cell.key}
+              type="button"
+              disabled={!clickable}
+              onClick={() => onSelectDay(selected ? null : cell.key)}
+              className={`gba:relative gba:flex gba:aspect-square gba:items-center gba:justify-center gba:rounded-md gba:text-[11px] gba:transition-colors ${
+                clickable ? 'gba:cursor-pointer' : 'gba:cursor-default'
+              } ${cellClass(cell, selected)} ${
+                cell.isToday && !selected ? 'gba:ring-1 gba:ring-inset gba:ring-border' : ''
+              }`}
+              data-testid={`memory-lens-calendar-day-${cell.key}`}
+            >
+              {cell.date.getDate()}
+            </button>
+          )
+        })}
+      </div>
+
+      {loading && (
+        <p className="gba:mt-2 gba:text-center gba:text-[10px] gba:text-muted-foreground">
+          {t('memory-lens-graph-detail-loading')}
+        </p>
+      )}
+    </div>
+  )
+}

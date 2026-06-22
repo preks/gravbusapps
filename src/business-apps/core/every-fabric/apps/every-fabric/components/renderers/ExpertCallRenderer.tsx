@@ -1,5 +1,7 @@
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { CheckIcon, HeadCircuitIcon, SpinnerGapIcon, XIcon } from '@phosphor-icons/react'
+import translations from '../../_i18n'
 
 type ExpertCallStatus = 'running' | 'done' | 'failed'
 
@@ -34,14 +36,14 @@ const isCompactRoleLabel = (value: string) => {
   return compact.length <= 42 && compact.split(/\s+/).length <= 6
 }
 
-function resolveExpertDisplayName(normalizedAgentId: string, normalizedTask: string): string {
+function resolveExpertDisplayName(normalizedAgentId: string, normalizedTask: string, subagentFallback: string): string {
   const hasDistinctName =
     !!normalizedAgentId &&
     !isLikelyTaskText(normalizedAgentId) &&
     normalizeText(normalizedAgentId) !== normalizeText(normalizedTask)
   if (hasDistinctName) return normalizedAgentId
   if (isCompactRoleLabel(normalizedTask)) return normalizedTask
-  return 'Sub-agent'
+  return subagentFallback
 }
 
 function hasSubtitle(displayName: string, normalizedTask: string): boolean {
@@ -58,12 +60,6 @@ const ExpertCallStatusIcon: React.FC<{ status: ExpertCallStatus }> = ({ status }
   return <XIcon className="gba:h-3 gba:w-3 gba:text-destructive" />
 }
 
-const statusLabel = (status: ExpertCallStatus) => {
-  if (status === 'running') return 'Working'
-  if (status === 'failed') return 'Failed'
-  return 'Completed'
-}
-
 export const ExpertCallRenderer = ({
   agentId,
   task,
@@ -73,10 +69,22 @@ export const ExpertCallRenderer = ({
   outputPreview,
   durationMs
 }: ExpertCallRendererProps) => {
+  const { t } = useTranslation(translations)
   const normalizedAgentId = agentId.trim()
   const normalizedTask = task.trim()
   const normalizedDescription = (description ?? '').trim()
-  const displayName = resolveExpertDisplayName(normalizedAgentId, normalizedTask)
+  const displayName = resolveExpertDisplayName(
+    normalizedAgentId,
+    normalizedTask,
+    t('renderer-expert-subagent-fallback')
+  )
+  let statusLabel = t('renderer-expert-status-completed')
+  if (status === 'running') {
+    statusLabel = t('renderer-expert-status-working')
+  }
+  if (status === 'failed') {
+    statusLabel = t('renderer-expert-status-failed')
+  }
   const subtitle =
     normalizedDescription || !hasSubtitle(displayName, normalizedTask)
       ? firstSentence(normalizedDescription || normalizedTask)
@@ -93,13 +101,13 @@ export const ExpertCallRenderer = ({
         <HeadCircuitIcon className="gba:h-3 gba:w-3" weight="regular" />
       </span>
       <span className="gba:min-w-0 gba:truncate gba:text-[11px] gba:font-semibold gba:leading-none">
-        <span className="gba:text-muted-foreground/80">Agent</span>
+        <span className="gba:text-muted-foreground/80">{t('renderer-expert-agent-label')}</span>
         <span className="gba:mx-1 gba:text-sky-500/70">/</span>
         <span>{displayName}</span>
       </span>
       <span className="gba:flex gba:shrink-0 gba:items-center gba:gap-1 gba:rounded-full gba:bg-white/70 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:leading-none gba:text-muted-foreground gba:ring-1 gba:ring-border/40 dark:gba:bg-background/40">
         <ExpertCallStatusIcon status={status} />
-        <span>{statusLabel(status)}</span>
+        <span>{statusLabel}</span>
         {durationMs !== undefined && (
           <span className="gba:text-muted-foreground/55">{(durationMs / 1000).toFixed(1)}s</span>
         )}

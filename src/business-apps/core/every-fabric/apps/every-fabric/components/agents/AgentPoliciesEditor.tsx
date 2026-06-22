@@ -8,10 +8,11 @@
 // handled by useAgentPolicies (registry PUT, UUID-validated).
 
 import React, { useState } from 'react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { ArrowSquareOutIcon, PlusIcon, ShieldCheckIcon, SpinnerGapIcon, XIcon } from '@phosphor-icons/react'
 import { AddPoliciesModal, buildPolicyDetailUrl, isPolicyUuid } from './AddPoliciesModal'
 import { useAgentPolicies } from './useAgentPolicies'
+import translations from '../../_i18n'
 
 interface AgentPoliciesEditorProps {
   agentId: string
@@ -23,18 +24,20 @@ interface AgentPoliciesEditorProps {
   addButtonTestId?: string
 }
 
-const DEFAULT_DESCRIPTION =
-  'Workspace default policies are inherited automatically. You can remove them for this specific agent if they are not relevant.'
+const DEFAULT_DESCRIPTION = 'agents-policies-description'
 
 export const AgentPoliciesEditor: React.FC<AgentPoliciesEditorProps> = ({
   agentId,
   accessToken,
-  title = 'Policies',
-  description = DEFAULT_DESCRIPTION,
+  title: titleProp,
+  description: descriptionProp,
   testId = 'agent-config-policies',
   chipTestIdPrefix = 'config-policy',
   addButtonTestId = 'config-policy-add-button'
 }) => {
+  const { t } = useTranslation(translations)
+  const title = titleProp ?? t('agents-policies-title')
+  const description = descriptionProp ?? t(DEFAULT_DESCRIPTION)
   const {
     supported,
     isLoading,
@@ -73,7 +76,7 @@ export const AgentPoliciesEditor: React.FC<AgentPoliciesEditorProps> = ({
       ) : (
         <div className="gba:space-y-3">
           {effectivePolicies.length === 0 ? (
-            <p className="gba:text-sm gba:text-muted-foreground gba:py-2">No policies attached.</p>
+            <p className="gba:text-sm gba:text-muted-foreground gba:py-2">{t('agents-policies-empty')}</p>
           ) : (
             <div className="gba:space-y-2">
               {effectivePolicies.map(policy => (
@@ -103,9 +106,9 @@ export const AgentPoliciesEditor: React.FC<AgentPoliciesEditorProps> = ({
                     {policy.isDefault && (
                       <span
                         className="gba:flex-shrink-0 gba:rounded-full gba:bg-primary/10 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-primary"
-                        title="Inherited from Workspace Defaults"
+                        title={t('agents-policies-workspace-default')}
                       >
-                        Workspace Default
+                        {t('agents-policies-workspace-default')}
                       </span>
                     )}
                   </div>
@@ -114,7 +117,7 @@ export const AgentPoliciesEditor: React.FC<AgentPoliciesEditorProps> = ({
                     onClick={() => removePolicy(policy.policy_id, policy.isDefault)}
                     className="gba:inline-flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:rounded gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors gba:shrink-0"
                     data-testid={`${chipTestIdPrefix}-remove-${policy.policy_id}`}
-                    aria-label={policy.isDefault ? 'Exclude default policy' : 'Remove policy'}
+                    aria-label={policy.isDefault ? t('agents-policies-exclude-aria') : t('agents-policies-remove-aria')}
                   >
                     <XIcon className="gba:h-3.5 gba:w-3.5" />
                   </button>
@@ -125,7 +128,7 @@ export const AgentPoliciesEditor: React.FC<AgentPoliciesEditorProps> = ({
 
           <Button size="sm" variant="outline" onClick={() => setModalOpen(true)} data-testid={addButtonTestId}>
             <PlusIcon className="gba:mr-1.5 gba:h-3.5 gba:w-3.5" />
-            Add Policy
+            {t('agents-policies-add')}
           </Button>
         </div>
       )}

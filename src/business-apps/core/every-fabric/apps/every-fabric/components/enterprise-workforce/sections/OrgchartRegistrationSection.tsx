@@ -7,12 +7,15 @@
 //      workforce profile so headless runs authenticate AS the agent
 //      (token exchange in prompt-manager) instead of the shared service account.
 
-import { Badge, Button, Combobox, Input, Label, type ComboboxOption } from '@newwork/nw-design-system'
+import { Badge, Button, Combobox, Input, Label, useTranslation, type ComboboxOption } from '@newwork/nw-design-system'
 import { SpinnerGapIcon, TreeStructureIcon, UserCirclePlusIcon } from '@phosphor-icons/react'
 import React, { useMemo, useState } from 'react'
 import { flowbotClient } from '@/common/network/flowbot'
 import type { WorkforceAgent, WorkforceAgentUpdateInput } from '../workforceTypes'
 import { useOrgchartUnitName, useOrgchartUnits, type OrgchartUnit } from './useOrgchartUnits'
+import translations from '../../../_i18n'
+
+type TFn = (key: string, vars?: Record<string, unknown>) => string
 
 interface OrgchartRegistrationSectionProps {
   agent: WorkforceAgent
@@ -39,23 +42,23 @@ export function splitDisplayName(displayName: string, fallback: string): { first
   return { firstName: parts.slice(0, -1).join(' '), lastName: parts[parts.length - 1] }
 }
 
-function describeRegistrationError(err: unknown): string {
+function describeRegistrationError(err: unknown, t: TFn): string {
   const message = err instanceof Error ? err.message : String(err)
   if (message.includes('503')) {
-    return 'Keycloak user creation is disabled on this tenant (KEYCLOAK_USER_CREATION_ENABLED). Create the user manually and paste its ID below.'
+    return t('orgchart-err-503')
   }
   if (message.includes('409')) {
-    return 'A Keycloak user or employee with this identity already exists. Paste the existing Keycloak user ID below to link it instead.'
+    return t('orgchart-err-409')
   }
   return message
 }
 
 /** Secondary line for a unit option (type · company · member count). */
-function describeUnit(unit: OrgchartUnit): string {
+function describeUnit(unit: OrgchartUnit, t: TFn): string {
   const parts: string[] = []
   if (unit.type) parts.push(unit.type.toLowerCase())
   if (unit.companyName) parts.push(unit.companyName)
-  parts.push(`${unit.memberCount} ${unit.memberCount === 1 ? 'member' : 'members'}`)
+  parts.push(t('orgchart-unit-members-count', { count: unit.memberCount }))
   return parts.join(' · ')
 }
 
@@ -65,6 +68,7 @@ export const OrgchartRegistrationSection: React.FC<OrgchartRegistrationSectionPr
   isSaving,
   onSave
 }) => {
+  const { t } = useTranslation(translations)
   const identity = agent.workforce_profile?.orgchart ?? null
   const registered = Boolean(identity?.keycloak_user_id)
 
@@ -97,7 +101,7 @@ export const OrgchartRegistrationSection: React.FC<OrgchartRegistrationSectionPr
       optionLabel: (
         <span className="gba:flex gba:flex-col">
           <span className="gba:text-sm gba:text-foreground">{unit.name}</span>
-          <span className="gba:text-xs gba:text-muted-foreground">{describeUnit(unit)}</span>
+          <span className="gba:text-xs gba:text-muted-foreground">{describeUnit(unit, t)}</span>
         </span>
       )
     }))
@@ -105,7 +109,7 @@ export const OrgchartRegistrationSection: React.FC<OrgchartRegistrationSectionPr
       opts.unshift({ value: orgUnitId, label: orgUnitLabel || orgUnitId })
     }
     return opts
-  }, [units, orgUnitId, orgUnitLabel])
+  }, [units, orgUnitId, orgUnitLabel, t])
 
   const register = async () => {
     setBusy(true)
@@ -142,7 +146,7 @@ export const OrgchartRegistrationSection: React.FC<OrgchartRegistrationSectionPr
         }
       })
     } catch (err) {
-      setError(describeRegistrationError(err))
+      setError(describeRegistrationError(err, t))
     } finally {
       setBusy(false)
     }
@@ -154,7 +158,7 @@ export const OrgchartRegistrationSection: React.FC<OrgchartRegistrationSectionPr
     try {
       await onSave({ orgchart: null })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to unlink orgchart identity')
+      setError(err instanceof Error ? err.message : t('orgchart-unlink-error'))
     } finally {
       setBusy(false)
     }
@@ -171,11 +175,8 @@ export const OrgchartRegistrationSection: React.FC<OrgchartRegistrationSectionPr
           weight="duotone"
         />
         <div>
-          <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">Orgchart identity</h3>
-          <p className="gba:mt-0.5 gba:text-xs gba:text-muted-foreground">
-            Attach this Worker to the orgchart. Registered Workers run inbound and scheduled work under their own
-            identity instead of the shared service account.
-          </p>
+          <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">{t('orgchart-section-title')}</h3>
+          <p className="gba:mt-0.5 gba:text-xs gba:text-muted-foreground">{t('orgchart-section-desc')}</p>
         </div>
       </header>
 
@@ -186,24 +187,24 @@ export const OrgchartRegistrationSection: React.FC<OrgchartRegistrationSectionPr
             data-testid="workforce-orgchart-registered"
           >
             <Badge variant="success" size="sm">
-              Registered in orgchart
+              {t('orgchart-registered-badge')}
             </Badge>
             <dl className="gba:mt-2 gba:space-y-0.5 gba:text-[11px] gba:text-muted-foreground">
               <div className="gba:flex gba:gap-1.5">
-                <dt className="gba:font-medium gba:text-foreground">Org unit:</dt>
+                <dt className="gba:font-medium gba:text-foreground">{t('orgchart-org-unit-label')}</dt>
                 <dd>{registeredUnitName ?? <span className="gba:font-mono">{identity?.org_unit_id ?? '—'}</span>}</dd>
               </div>
               <div className="gba:flex gba:gap-1.5">
-                <dt className="gba:font-medium gba:text-foreground">Employee:</dt>
+                <dt className="gba:font-medium gba:text-foreground">{t('orgchart-employee-label')}</dt>
                 <dd className="gba:font-mono">{identity?.employee_id ?? '—'}</dd>
               </div>
               <div className="gba:flex gba:gap-1.5">
-                <dt className="gba:font-medium gba:text-foreground">Keycloak user:</dt>
+                <dt className="gba:font-medium gba:text-foreground">{t('orgchart-keycloak-label')}</dt>
                 <dd className="gba:font-mono">{identity?.keycloak_user_id}</dd>
               </div>
               {identity?.registered_at && (
                 <div className="gba:flex gba:gap-1.5">
-                  <dt className="gba:font-medium gba:text-foreground">Since:</dt>
+                  <dt className="gba:font-medium gba:text-foreground">{t('orgchart-since-label')}</dt>
                   <dd>{new Date(identity.registered_at).toLocaleString()}</dd>
                 </div>
               )}
@@ -214,7 +215,7 @@ export const OrgchartRegistrationSection: React.FC<OrgchartRegistrationSectionPr
             <div className="gba:grid gba:grid-cols-2 gba:gap-3">
               <div className="gba:space-y-1">
                 <Label htmlFor="workforce-orgchart-first-name" className="gba:text-[11px] gba:text-muted-foreground">
-                  First name
+                  {t('orgchart-first-name')}
                 </Label>
                 <Input
                   id="workforce-orgchart-first-name"
@@ -225,7 +226,7 @@ export const OrgchartRegistrationSection: React.FC<OrgchartRegistrationSectionPr
               </div>
               <div className="gba:space-y-1">
                 <Label htmlFor="workforce-orgchart-last-name" className="gba:text-[11px] gba:text-muted-foreground">
-                  Last name
+                  {t('orgchart-last-name')}
                 </Label>
                 <Input
                   id="workforce-orgchart-last-name"
@@ -238,26 +239,26 @@ export const OrgchartRegistrationSection: React.FC<OrgchartRegistrationSectionPr
 
             <div className="gba:space-y-1">
               <Label htmlFor="workforce-orgchart-job-position" className="gba:text-[11px] gba:text-muted-foreground">
-                Job position
+                {t('orgchart-job-position')}
               </Label>
               <Input
                 id="workforce-orgchart-job-position"
                 value={jobPosition}
                 onChange={event => setJobPosition(event.target.value)}
-                placeholder="e.g. Customer Service Agent"
+                placeholder={t('orgchart-job-position-placeholder')}
                 data-testid="workforce-orgchart-job-position"
               />
             </div>
 
             <div className="gba:space-y-1">
-              <Label className="gba:text-[11px] gba:text-muted-foreground">Organizational unit</Label>
+              <Label className="gba:text-[11px] gba:text-muted-foreground">{t('orgchart-org-unit')}</Label>
               <Combobox
                 mode="single"
                 value={orgUnitId}
                 options={unitOptions}
-                placeholder="Default: Virtual Assistants team"
-                searchPlaceholder="Search organizational units…"
-                emptyText={unitsError ?? 'No organizational units found'}
+                placeholder={t('orgchart-org-unit-placeholder')}
+                searchPlaceholder={t('orgchart-org-unit-search')}
+                emptyText={unitsError ?? t('orgchart-org-unit-empty')}
                 loading={unitsLoading}
                 error={Boolean(unitsError)}
                 errorText={unitsError ?? undefined}
@@ -272,9 +273,7 @@ export const OrgchartRegistrationSection: React.FC<OrgchartRegistrationSectionPr
                 }}
                 data-testid="workforce-orgchart-org-unit"
               />
-              <p className="gba:text-[11px] gba:text-muted-foreground">
-                Where the agent appears in the org chart. Leave empty to use the default “Virtual Assistants” team.
-              </p>
+              <p className="gba:text-[11px] gba:text-muted-foreground">{t('orgchart-org-unit-hint')}</p>
             </div>
 
             <div className="gba:space-y-1">
@@ -282,13 +281,13 @@ export const OrgchartRegistrationSection: React.FC<OrgchartRegistrationSectionPr
                 htmlFor="workforce-orgchart-existing-user-id"
                 className="gba:text-[11px] gba:text-muted-foreground"
               >
-                Existing Keycloak user ID (optional)
+                {t('orgchart-existing-user-id')}
               </Label>
               <Input
                 id="workforce-orgchart-existing-user-id"
                 value={existingUserId}
                 onChange={event => setExistingUserId(event.target.value)}
-                placeholder="Leave empty to create a new user automatically"
+                placeholder={t('orgchart-existing-user-id-placeholder')}
                 data-testid="workforce-orgchart-existing-user-id"
               />
             </div>
@@ -311,7 +310,7 @@ export const OrgchartRegistrationSection: React.FC<OrgchartRegistrationSectionPr
             onClick={() => void unlink()}
             data-testid="workforce-orgchart-unlink"
           >
-            Unlink identity
+            {t('orgchart-unlink')}
           </Button>
         ) : (
           <Button
@@ -326,7 +325,7 @@ export const OrgchartRegistrationSection: React.FC<OrgchartRegistrationSectionPr
             ) : (
               <UserCirclePlusIcon className="gba:h-3.5 gba:w-3.5" />
             )}
-            {busy || isSaving ? 'Registering…' : 'Register in orgchart'}
+            {busy || isSaving ? t('orgchart-registering') : t('orgchart-register')}
           </Button>
         )}
       </footer>

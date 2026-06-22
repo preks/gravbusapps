@@ -5,9 +5,10 @@
 // the platform leaf renderer for files and markdown. Shared by the workforce
 // list view (row expansion) and map view (node detail panel).
 
-import { Spinner } from '@newwork/nw-design-system'
+import { Spinner, useTranslation } from '@newwork/nw-design-system'
 import React from 'react'
 
+import translations from '../../../_i18n'
 import { formatTimestamp } from '../runDisplay'
 import { StepResultData } from './StepResultData'
 import type { FlowStepResultState } from './useFlowStepResult'
@@ -17,13 +18,10 @@ export interface FlowStepResultProps extends FlowStepResultState {
   emptyLabel?: string
 }
 
-export const FlowStepResult: React.FC<FlowStepResultProps> = ({
-  data,
-  isLoading,
-  error,
-  accessToken,
-  emptyLabel = 'No results captured for this step yet.'
-}) => {
+export const FlowStepResult: React.FC<FlowStepResultProps> = ({ data, isLoading, error, accessToken, emptyLabel }) => {
+  const { t } = useTranslation(translations)
+  const resolvedEmptyLabel = emptyLabel ?? t('flow-step-result-empty')
+
   if (isLoading) {
     return (
       <div
@@ -31,7 +29,7 @@ export const FlowStepResult: React.FC<FlowStepResultProps> = ({
         data-testid="flow-step-result-loading"
       >
         <Spinner className="gba:h-4 gba:w-4" />
-        Loading results…
+        {t('flow-step-results-loading')}
       </div>
     )
   }
@@ -51,7 +49,7 @@ export const FlowStepResult: React.FC<FlowStepResultProps> = ({
         className="gba:rounded-md gba:border gba:border-dashed gba:border-border/60 gba:bg-muted/10 gba:px-3 gba:py-4 gba:text-xs gba:text-muted-foreground"
         data-testid="flow-step-result-empty"
       >
-        {emptyLabel}
+        {resolvedEmptyLabel}
       </p>
     )
   }
@@ -60,7 +58,7 @@ export const FlowStepResult: React.FC<FlowStepResultProps> = ({
 
   return (
     <div className="gba:space-y-3" data-testid="flow-step-result">
-      <h4 className="gba:text-sm gba:font-semibold gba:text-foreground">Captured data</h4>
+      <h4 className="gba:text-sm gba:font-semibold gba:text-foreground">{t('flow-step-captured-data')}</h4>
       {rows.map(row => (
         <div key={`${row.taskId}:${row.userId}`} className="gba:space-y-2">
           {(showActor(row.userName) || row.timestamp) && (

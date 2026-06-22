@@ -134,7 +134,7 @@ export const AgentMeshPreview: React.FC<AgentMeshPreviewProps> = ({
           <CardHeader>
             <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-base">
               <Network className="gba:w-4 gba:h-4" />
-              Agent Mesh
+              {t('mesh-preview-title')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -155,7 +155,7 @@ export const AgentMeshPreview: React.FC<AgentMeshPreviewProps> = ({
               </Button>
               <Button variant="default" size="sm" onClick={openInAgentMesh}>
                 <ExternalLink className="gba:w-3.5 gba:h-3.5 gba:mr-1.5" />
-                Open Agent Mesh
+                {t('mesh-preview-open')}
               </Button>
             </div>
             <AddAgentToMeshModal
@@ -188,7 +188,7 @@ export const AgentMeshPreview: React.FC<AgentMeshPreviewProps> = ({
             <CardHeader className="gba:py-3 gba:px-4">
               <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-base">
                 <Network className="gba:w-4 gba:h-4" />
-                Agent Mesh
+                {t('mesh-preview-title')}
               </CardTitle>
               <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
                 {agents.length} agent{agents.length !== 1 ? 's' : ''} from this build. Open the full app for Steering
@@ -217,7 +217,7 @@ export const AgentMeshPreview: React.FC<AgentMeshPreviewProps> = ({
           </Button>
           <Button variant="default" size="sm" onClick={openInAgentMesh}>
             <ExternalLink className="gba:w-3.5 gba:h-3.5 gba:mr-1.5" />
-            Open in Agent Mesh
+            {t('mesh-preview-open-in')}
           </Button>
         </div>
         <AddAgentToMeshModal
@@ -239,7 +239,7 @@ export const AgentMeshPreview: React.FC<AgentMeshPreviewProps> = ({
       </Alert>
       <Button variant="outline" size="sm" className="gba:mt-4" onClick={openInAgentMesh}>
         <ExternalLink className="gba:w-3.5 gba:h-3.5 gba:mr-1.5" />
-        Open Agent Mesh
+        {t('mesh-preview-open')}
       </Button>
     </div>
   )

@@ -4,20 +4,14 @@ import { getEntityUrl } from '@/business-apps/platform/apps/every-ai/components/
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { IconTile, tileGlyph } from './IconTile'
 import { useSlideReference } from './hooks/officeReferenceHooks'
-import {
-  countChip,
-  dataStr,
-  getField,
-  getStr,
-  humanizeToken,
-  relativeOrShortDate,
-  type ReferenceCardProps
-} from './referenceCardUtils'
+import { dataStr, getField, getStr, type ReferenceCardProps } from './referenceCardUtils'
+import { useReferenceCardI18n } from './useReferenceCardI18n'
 
 const SLIDE_GLYPH = tileGlyph('M3 4h18v12a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm9 13v3m-3 0h6')
 
 /** Slide deck card: leads with deck title, slide count and last-updated. */
 export const SlideReferenceCard: React.FC<ReferenceCardProps> = ({ reference, accessToken }) => {
+  const { field, countChip, humanizeToken, relativeOrShortDate, t } = useReferenceCardI18n()
   const { data: slide, loading } = useSlideReference(reference.id, accessToken)
 
   const url = getEntityUrl(reference.type, reference.id, reference.href)
@@ -46,13 +40,13 @@ export const SlideReferenceCard: React.FC<ReferenceCardProps> = ({ reference, ac
 
   const fields: Array<{ label: string; value: string }> = []
   const slidesLabel = countChip(slideCount, 'slide')
-  if (slidesLabel) fields.push({ label: 'Slides', value: slidesLabel })
-  if (updated) fields.push({ label: 'Updated', value: updated })
+  if (slidesLabel) fields.push({ label: field('slides'), value: slidesLabel })
+  if (updated) fields.push({ label: field('updated'), value: updated })
 
   return (
     <EntityCard
       title={title}
-      subtitle="Presentation"
+      subtitle={t('renderer-ref-type-presentation')}
       status={status}
       icon={icon}
       fields={fields.length ? fields : undefined}

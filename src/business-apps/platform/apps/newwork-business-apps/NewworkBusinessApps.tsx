@@ -1,4 +1,5 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import {
@@ -20,6 +21,7 @@ import {
   BusinessAppsVisualization,
   DomainCardProps
 } from './components'
+import translations from './_i18n'
 
 export interface NewworkBusinessAppsProps extends BusinessAppContextProps {
   'data-testid'?: string
@@ -42,101 +44,105 @@ export interface NewworkBusinessAppsProps extends BusinessAppContextProps {
 export const NewworkBusinessApps: React.FC<NewworkBusinessAppsProps> = ({
   'data-testid': testId = 'newwork-business-domains'
 }) => {
-  // Business domain definitions
-  const domains: Array<Omit<DomainCardProps, 'data-testid'> & { id: string }> = [
-    {
-      id: 'hr-plus',
-      title: 'HR+',
-      description: 'Employee management, time tracking, absences, and organizational structure.',
-      icon: Users,
-      href: '/platform/hr/hr-launcher',
-      badge: 'Popular',
-      badgeVariant: 'success',
-      accentColor: 'info'
-    },
-    {
-      id: 'sales-plus',
-      title: 'Sales+',
-      description: 'Manage leads, contacts, accounts, and opportunities. Track your sales pipeline.',
-      icon: TrendingUp,
-      href: '/platform/crm/customer-relations',
-      badge: 'Essential',
-      badgeVariant: 'info',
-      accentColor: 'primary'
-    },
-    {
-      id: 'service-plus',
-      title: 'Service+',
-      description: 'Service desk and support ticketing. Manage customer and internal requests.',
-      icon: Headphones,
-      href: '/platform/sales-demo/service-desk',
-      badge: 'Support',
-      badgeVariant: 'warning',
-      accentColor: 'warning'
-    },
-    {
-      id: 'finance-plus',
-      title: 'Finance+',
-      description: 'Financial management, budgets, invoices, and financial approvals.',
-      icon: DollarSign,
-      href: '/platform/fin/expenses/personal-expenses',
-      badge: 'Finance',
-      badgeVariant: 'success',
-      accentColor: 'success'
-    },
-    {
-      id: 'erp',
-      title: 'ERP',
-      description: 'Enterprise resource planning. Integrated business processes and operations.',
-      icon: Package,
-      href: '/platform/apps/launcher-manager',
-      badge: 'Enterprise',
-      badgeVariant: 'info',
-      accentColor: 'ai',
-      isComingSoon: true
-    },
-    {
-      id: 'board-room',
-      title: 'Board Room',
-      description: 'Executive Hub, Board Room View, and strategic business intelligence.',
-      icon: Presentation,
-      href: '/platform/apps/launcher-manager',
-      badge: 'Executive',
-      badgeVariant: 'info',
-      accentColor: 'primary',
-      isComingSoon: true
-    },
-    {
-      id: 'masterdata',
-      title: 'Masterdata',
-      description: 'Manage catalogs, reference data, and enterprise master data.',
-      icon: Database,
-      href: '/platform/mdm/pipeline-data',
-      badge: 'Data',
-      badgeVariant: 'default',
-      accentColor: 'info'
-    },
-    {
-      id: 'value-packs',
-      title: 'Value Packs',
-      description: 'Expenses, Investment Relationship, and additional business solutions.',
-      icon: Gift,
-      href: '/platform/fin/expenses/personal-expenses',
-      badge: 'Packages',
-      badgeVariant: 'success',
-      accentColor: 'success'
-    },
-    {
-      id: 'system-management',
-      title: 'System Management',
-      description: 'Settings, Live Monitors, and platform configuration.',
-      icon: Settings,
-      href: '/platform/apps/launcher-manager',
-      badge: 'System',
-      badgeVariant: 'offline',
-      accentColor: 'offline'
-    }
-  ]
+  const { t } = useTranslation(translations)
+
+  const domains: Array<Omit<DomainCardProps, 'data-testid'> & { id: string }> = useMemo(
+    () => [
+      {
+        id: 'hr-plus',
+        title: 'HR+',
+        description: 'Employee management, time tracking, absences, and organizational structure.',
+        icon: Users,
+        href: '/platform/hr/hr-launcher',
+        badge: 'Popular',
+        badgeVariant: 'success',
+        accentColor: 'info'
+      },
+      {
+        id: 'sales-plus',
+        title: 'Sales+',
+        description: 'Manage leads, contacts, accounts, and opportunities. Track your sales pipeline.',
+        icon: TrendingUp,
+        href: '/platform/crm/customer-relations',
+        badge: 'Essential',
+        badgeVariant: 'info',
+        accentColor: 'primary'
+      },
+      {
+        id: 'service-plus',
+        title: 'Service+',
+        description: 'Service desk and support ticketing. Manage customer and internal requests.',
+        icon: Headphones,
+        href: '/platform/sales-demo/service-desk',
+        badge: 'Support',
+        badgeVariant: 'warning',
+        accentColor: 'warning'
+      },
+      {
+        id: 'finance-plus',
+        title: 'Finance+',
+        description: 'Financial management, budgets, invoices, and financial approvals.',
+        icon: DollarSign,
+        href: '/platform/fin/expenses/personal-expenses',
+        badge: 'Finance',
+        badgeVariant: 'success',
+        accentColor: 'success'
+      },
+      {
+        id: 'erp',
+        title: 'ERP',
+        description: 'Enterprise resource planning. Integrated business processes and operations.',
+        icon: Package,
+        href: '/platform/apps/launcher-manager',
+        badge: 'Enterprise',
+        badgeVariant: 'info',
+        accentColor: 'ai',
+        isComingSoon: true
+      },
+      {
+        id: 'board-room',
+        title: 'Board Room',
+        description: 'Executive Hub, Board Room View, and strategic business intelligence.',
+        icon: Presentation,
+        href: '/platform/apps/launcher-manager',
+        badge: 'Executive',
+        badgeVariant: 'info',
+        accentColor: 'primary',
+        isComingSoon: true
+      },
+      {
+        id: 'masterdata',
+        title: 'Masterdata',
+        description: 'Manage catalogs, reference data, and enterprise master data.',
+        icon: Database,
+        href: '/platform/mdm/pipeline-data',
+        badge: 'Data',
+        badgeVariant: 'default',
+        accentColor: 'info'
+      },
+      {
+        id: 'value-packs',
+        title: t('domain-value-packs-title'),
+        description: 'Expenses, Investment Relationship, and additional business solutions.',
+        icon: Gift,
+        href: '/platform/fin/expenses/personal-expenses',
+        badge: 'Packages',
+        badgeVariant: 'success',
+        accentColor: 'success'
+      },
+      {
+        id: 'system-management',
+        title: 'System Management',
+        description: 'Settings, Live Monitors, and platform configuration.',
+        icon: Settings,
+        href: '/platform/apps/launcher-manager',
+        badge: 'System',
+        badgeVariant: 'offline',
+        accentColor: 'offline'
+      }
+    ],
+    [t]
+  )
 
   // Handle search submission
   const handleSearch = useCallback((query: string) => {
@@ -240,11 +246,9 @@ export const NewworkBusinessApps: React.FC<NewworkBusinessAppsProps> = ({
             {/* Section header */}
             <div className="gba:text-center gba:mb-6">
               <h2 className="gba:text-2xl gba:sm:text-3xl gba:font-bold gba:text-foreground gba:mb-2">
-                Business domains
+                {t('domains-section-title')}
               </h2>
-              <p className="gba:text-muted-foreground gba:max-w-xl gba:mx-auto">
-                Professional applications for every department, all integrated and AI-enhanced
-              </p>
+              <p className="gba:text-muted-foreground gba:max-w-xl gba:mx-auto">{t('domains-section-subtitle')}</p>
             </div>
 
             {/* All 9 domains in grid */}

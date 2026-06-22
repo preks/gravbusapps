@@ -9,6 +9,7 @@ import { MeshFullscreenToggle } from './MeshFullscreenToggle'
 import { MeshStatusPill } from './MeshStatusPill'
 import { MeshScopeSwitch } from './MeshScopeSwitch'
 import type { MeshScope } from './meshScopes'
+import { useAgentMeshI18n } from './useAgentMeshI18n'
 
 interface AgentMeshShellProps {
   scope: MeshScope
@@ -61,6 +62,7 @@ export const AgentMeshShell: React.FC<AgentMeshShellProps> = ({
   sessionTitleMap,
   children
 }) => {
+  const { t } = useAgentMeshI18n()
   const previousScopeRef = useRef<MeshScope>(scope)
   const liveRegionRef = useRef<HTMLDivElement | null>(null)
 
@@ -68,8 +70,8 @@ export const AgentMeshShell: React.FC<AgentMeshShellProps> = ({
   useEffect(() => {
     if (previousScopeRef.current === scope) return
     previousScopeRef.current = scope
-    if (liveRegionRef.current) liveRegionRef.current.textContent = `View changed to ${title}`
-  }, [scope, title])
+    if (liveRegionRef.current) liveRegionRef.current.textContent = t('agent-mesh-view-changed', { title })
+  }, [scope, title, t])
 
   // Lock body scroll while the fullscreen overlay is mounted so background
   // content can't scroll behind it.
@@ -149,8 +151,8 @@ export const AgentMeshShell: React.FC<AgentMeshShellProps> = ({
         <button
           type="button"
           onClick={canGoBack ? onMeshBack : onBack}
-          aria-label={canGoBack ? 'Back to previous mesh view' : 'Back to workspace'}
-          title={canGoBack ? 'Back (Backspace)' : 'Back to workspace'}
+          aria-label={canGoBack ? t('agent-mesh-back-previous') : t('agent-mesh-back-workspace')}
+          title={canGoBack ? t('agent-mesh-back-shortcut') : t('agent-mesh-back-workspace')}
           className="gba:inline-flex gba:items-center gba:justify-center gba:h-9 gba:w-9 gba:shrink-0 gba:rounded-full gba:border gba:border-border/60 gba:bg-background gba:text-foreground gba:hover:bg-muted/60 gba:transition-colors gba:mt-1"
           data-testid={canGoBack ? 'agent-mesh-mesh-back' : 'agent-mesh-back'}
         >
@@ -180,7 +182,7 @@ export const AgentMeshShell: React.FC<AgentMeshShellProps> = ({
               data-testid="mesh-open-trace-explorer"
             >
               <ArrowSquareOutIcon className="gba:h-3.5 gba:w-3.5 gba:mr-1.5" />
-              Trace Explorer
+              {t('agent-mesh-trace-explorer')}
             </Button>
           )}
           <MeshFullscreenToggle isFullscreen={isFullscreen} onToggle={onToggleFullscreen} />

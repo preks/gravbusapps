@@ -8,7 +8,7 @@ page-description = Create agents from prompts and test integrations.
 section-label = Agents
 
 # Actions
-new-task-expert = New Enterprise Agent
+new-task-expert = New { -platform-ai-agent-product.label }
 view = View
 edit = Edit
 test = Test
@@ -65,10 +65,11 @@ agent-type-decision = Decision
 badge-public = Public
 
 # Empty State
-empty-message = No agents found. Click 'New Enterprise Agent' to create one.
+empty-message = No agents found. Click 'New { -platform-ai-agent-product.label }' to create one.
 
 # Editor
-create-task-expert = Create Enterprise Agent
+create-task-expert = Create { -platform-ai-agent-product.label }
+agent-type-everyai-description = AI assistant for chat & { -platform-ai-agent-network.label }
 edit-task-expert = Edit Agent
 view-task-expert = Agent
 

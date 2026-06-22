@@ -40,7 +40,7 @@ describe('SidebarRecentsSection', () => {
       <SidebarRecentsSection sessions={[]} activeSessionId={null} onSelect={jest.fn()} onDelete={jest.fn()} isLoading />
     )
 
-    expect(screen.getByText('Loading sessions...')).toBeInTheDocument()
+    expect(screen.getByText('sidebar-recents-loading')).toBeInTheDocument()
 
     rerender(
       <SidebarRecentsSection

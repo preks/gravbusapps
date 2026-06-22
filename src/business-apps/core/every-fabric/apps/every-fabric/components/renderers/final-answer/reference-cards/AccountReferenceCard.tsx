@@ -9,16 +9,17 @@ import {
   commChannelValue,
   getField,
   getStr,
-  intentLabel,
   personName,
   type ReferenceCardProps
 } from './referenceCardUtils'
+import { useReferenceCardI18n } from './useReferenceCardI18n'
 
 /**
  * Rich account/company card: logo, name, industry, owner, priority — fetched
  * by id via the shared `useCustomerAccount` hook (also used by Customer-360).
  */
 export const AccountReferenceCard: React.FC<ReferenceCardProps> = ({ reference, accessToken }) => {
+  const { field, intentLabel } = useReferenceCardI18n()
   const { account, loading } = useCustomerAccount(accessToken, reference.id)
 
   const url = getEntityUrl(reference.type, reference.id, reference.href)
@@ -61,12 +62,12 @@ export const AccountReferenceCard: React.FC<ReferenceCardProps> = ({ reference, 
 
   // Keep the card compact: surface the four most useful facts.
   const candidates: Array<{ label: string; value: string }> = []
-  if (owner) candidates.push({ label: 'Owner', value: owner })
-  if (location) candidates.push({ label: 'Location', value: location })
-  if (size) candidates.push({ label: 'Size', value: size })
-  if (revenue) candidates.push({ label: 'Revenue', value: revenue })
-  if (phone) candidates.push({ label: 'Phone', value: phone })
-  if (website) candidates.push({ label: 'Website', value: website })
+  if (owner) candidates.push({ label: field('owner'), value: owner })
+  if (location) candidates.push({ label: field('location'), value: location })
+  if (size) candidates.push({ label: field('size'), value: size })
+  if (revenue) candidates.push({ label: field('revenue'), value: revenue })
+  if (phone) candidates.push({ label: field('phone'), value: phone })
+  if (website) candidates.push({ label: field('website'), value: website })
   const fields = candidates.slice(0, 4)
 
   const subtitleParts = [context, industry].filter(Boolean)

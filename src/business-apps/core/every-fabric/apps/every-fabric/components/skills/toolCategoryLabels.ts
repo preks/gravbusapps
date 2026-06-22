@@ -150,3 +150,32 @@ export const formatToolSourceLabel = (source: string): string => {
   if (source === 'builtin') return 'Built-in'
   return source.charAt(0).toUpperCase() + source.slice(1)
 }
+
+const CATEGORY_I18N_PREFIX = 'skills-category-'
+
+/** Category label via FTL, falling back to the static English map. */
+export const formatCategoryLabelI18n = (category: string | null | undefined, t: (key: string) => string): string => {
+  const id = category ?? 'uncategorized'
+  const key = `${CATEGORY_I18N_PREFIX}${id.replace(/_/g, '-')}`
+  const translated = t(key)
+  if (translated !== key) return translated
+  return formatCategoryLabel(category)
+}
+
+const SOURCE_I18N_KEYS: Record<string, string> = {
+  functions: 'skills-source-functions',
+  prompt_manager: 'skills-source-native',
+  flowbot: 'skills-source-flowbot',
+  mcp: 'skills-source-mcp',
+  builtin: 'skills-source-builtin'
+}
+
+/** Source label via FTL, falling back to the static English map. */
+export const formatToolSourceLabelI18n = (source: string, t: (key: string) => string): string => {
+  const key = SOURCE_I18N_KEYS[source]
+  if (key) {
+    const translated = t(key)
+    if (translated !== key) return translated
+  }
+  return formatToolSourceLabel(source)
+}

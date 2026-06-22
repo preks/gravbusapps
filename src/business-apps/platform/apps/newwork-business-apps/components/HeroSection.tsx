@@ -1,5 +1,7 @@
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { Briefcase, Users, Building2, Receipt, Headphones, TrendingUp } from 'lucide-react'
+import translations from '../_i18n'
 
 interface HeroSectionProps {
   'data-testid'?: string
@@ -29,6 +31,8 @@ const keyframesStyles = `
 export const HeroSection: React.FC<HeroSectionProps> = ({
   'data-testid': testId = 'newwork-business-domains-hero'
 }) => {
+  const { t } = useTranslation(translations)
+
   return (
     <>
       <style>{keyframesStyles}</style>
@@ -73,7 +77,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                     animation: 'gradient-shift-business 4s ease infinite'
                   }}
                 >
-                  BUSINESS DOMAINS
+                  {t('hero-title')}
                 </span>
               </h1>
             </div>
@@ -86,7 +90,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             data-testid={`${testId}-badge`}
           >
             <Briefcase className="gba:h-4 gba:w-4" />
-            <span>Enterprise Business Solutions</span>
+            <span>{t('hero-badge')}</span>
           </div>
 
           {/* Main headline */}
@@ -95,8 +99,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             style={{ animation: 'fadeInUp 0.6s ease-out 0.15s both' }}
             data-testid={`${testId}-headline`}
           >
-            Run your business.
-            <span className="gba:text-muted-foreground"> Grow your success.</span>
+            {t('hero-headline')}
+            <span className="gba:text-muted-foreground"> {t('hero-headline-muted')}</span>
           </h2>
 
           {/* Subtitle */}
@@ -105,8 +109,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             style={{ animation: 'fadeInUp 0.6s ease-out 0.2s both' }}
             data-testid={`${testId}-subtitle`}
           >
-            HR, CRM, Finance, Services, Investments — professional applications for every department, all connected and
-            AI-powered.
+            {t('hero-subtitle')}
           </p>
 
           {/* Floating business icons */}

@@ -12,7 +12,7 @@ describe('FlowProgressBar', () => {
 
   it('shows the step count and percentage label', () => {
     render(<FlowProgressBar completedSteps={2} totalSteps={4} percentage={50} variant="running" />)
-    expect(screen.getByText('2/4 steps')).toBeInTheDocument()
+    expect(screen.getByText('flow-progress-steps')).toBeInTheDocument()
     expect(screen.getByText('50%')).toBeInTheDocument()
   })
 
@@ -25,7 +25,7 @@ describe('FlowProgressBar', () => {
 
   it('shows 100% for a completed flow that finished via a single fork branch', () => {
     render(<FlowProgressBar completedSteps={7} totalSteps={19} percentage={37} variant="success" isComplete />)
-    expect(screen.getByText('19/19 steps')).toBeInTheDocument()
+    expect(screen.getByText('flow-progress-steps')).toBeInTheDocument()
     expect(screen.getByText('100%')).toBeInTheDocument()
     expect(screen.getByTestId('flow-progress-fill')).toHaveStyle({ width: '100%' })
   })

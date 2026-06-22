@@ -1,6 +1,9 @@
 // Trace Lens — waterfall + nested span tree.
 
-import { formatMs, SPAN_KIND_ACCENT, SPAN_KIND_LABEL, type TraceSpan } from './traceLensModel'
+import { useTranslation } from '@newwork/nw-design-system'
+import { formatMs, SPAN_KIND_ACCENT, type TraceSpan } from './traceLensModel'
+import { spanKindLabel } from './traceLensSpanKind'
+import translations from '../../_i18n'
 
 interface TraceLensWaterfallProps {
   spans: TraceSpan[]
@@ -16,6 +19,7 @@ function statusDotClass(span: TraceSpan): string {
 }
 
 export const TraceLensWaterfall: React.FC<TraceLensWaterfallProps> = ({ spans, totalMs, selectedSeq, onSelect }) => {
+  const { t } = useTranslation(translations)
   const safeTotal = totalMs > 0 ? totalMs : 1
 
   return (
@@ -38,7 +42,6 @@ export const TraceLensWaterfall: React.FC<TraceLensWaterfallProps> = ({ spans, t
             }`}
             data-testid="trace-lens-span-row"
           >
-            {/* Name + kind, indented by tree depth */}
             <div
               className="gba:flex gba:items-center gba:gap-2 gba:min-w-0 gba:shrink-0"
               style={{ width: '46%', paddingLeft: `${span.depth * 14}px` }}
@@ -50,11 +53,10 @@ export const TraceLensWaterfall: React.FC<TraceLensWaterfallProps> = ({ spans, t
               <span
                 className={`gba:shrink-0 gba:rounded gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium ${accent.text} ${accent.bg}`}
               >
-                {SPAN_KIND_LABEL[span.kind]}
+                {spanKindLabel(span.kind, t)}
               </span>
             </div>
 
-            {/* Waterfall bar */}
             <div className="gba:relative gba:flex-1 gba:h-4 gba:min-w-0">
               <div className="gba:absolute gba:inset-y-0 gba:left-0 gba:right-0 gba:my-auto gba:h-px gba:bg-border/40" />
               {span.marker ? (
@@ -72,7 +74,6 @@ export const TraceLensWaterfall: React.FC<TraceLensWaterfallProps> = ({ spans, t
               )}
             </div>
 
-            {/* Duration / offset */}
             <span className="gba:shrink-0 gba:w-16 gba:text-right gba:tabular-nums gba:text-[11px] gba:text-muted-foreground">
               {span.marker ? `@${formatMs(span.startMs)}` : formatMs(span.durationMs)}
             </span>

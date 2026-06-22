@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { TrashIcon, FileIcon } from '@phosphor-icons/react'
-import { Button } from '@newwork/nw-design-system'
-import type { SkillFile } from '../../../types/enterpriseAgent'
+import { Button, useTranslation } from '@newwork/nw-design-system'
+import type { SkillFile } from '../../../../types/enterpriseAgent'
+import translations from '../../../../_i18n'
 
 interface SkillFilesProps {
   files: SkillFile[]
@@ -24,6 +25,7 @@ export const SkillFiles: React.FC<SkillFilesProps> = ({
   onFetchBinary,
   uploading
 }) => {
+  const { t } = useTranslation(translations)
   const [imageBlobs, setImageBlobs] = useState<Record<string, string>>({})
 
   useEffect(() => {
@@ -45,7 +47,6 @@ export const SkillFiles: React.FC<SkillFilesProps> = ({
       }
       if (!cancelled) {
         setImageBlobs(prev => {
-          // revoke old blob URLs not in new set
           Object.entries(prev).forEach(([path, url]) => {
             if (!newBlobs[path]) URL.revokeObjectURL(url)
           })
@@ -74,7 +75,7 @@ export const SkillFiles: React.FC<SkillFilesProps> = ({
   return (
     <div className="gba:space-y-3">
       <div className="gba:flex gba:items-center gba:justify-between">
-        <h4 className="gba:text-sm gba:font-semibold gba:text-foreground">Attached Files</h4>
+        <h4 className="gba:text-sm gba:font-semibold gba:text-foreground">{t('settings-skill-studio-files-title')}</h4>
         {canEdit && (
           <div className="gba:relative">
             <input
@@ -85,14 +86,14 @@ export const SkillFiles: React.FC<SkillFilesProps> = ({
               data-testid="skill-file-upload"
             />
             <Button size="sm" variant="secondary" disabled={uploading}>
-              {uploading ? 'Uploading…' : 'Upload File'}
+              {uploading ? t('settings-skill-studio-uploading') : t('settings-skill-studio-upload')}
             </Button>
           </div>
         )}
       </div>
 
       {files.length === 0 ? (
-        <p className="gba:text-sm gba:text-muted-foreground">No files attached.</p>
+        <p className="gba:text-sm gba:text-muted-foreground">{t('settings-skill-studio-no-files')}</p>
       ) : (
         <ul className="gba:divide-y gba:divide-border gba:border gba:border-border gba:rounded-md">
           {files.map(f => (

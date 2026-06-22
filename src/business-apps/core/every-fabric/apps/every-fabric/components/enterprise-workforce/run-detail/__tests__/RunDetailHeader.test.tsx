@@ -35,7 +35,7 @@ describe('RunDetailHeader', () => {
     )
     expect(screen.getByTestId('run-detail-title')).toHaveTextContent('Claims Bot')
     expect(screen.getByTestId('run-detail-status')).toHaveTextContent('Running')
-    expect(screen.getByText('Inbound email · Support inbox')).toBeInTheDocument()
+    expect(screen.getByText('source-inbound-email · Support inbox')).toBeInTheDocument()
   })
 
   it('surfaces linked context: the case entity (by name) and applied policies', () => {

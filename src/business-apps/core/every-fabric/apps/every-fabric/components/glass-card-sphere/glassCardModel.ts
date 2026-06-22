@@ -11,7 +11,7 @@
 export type GlassCardStatus = 'running' | 'active' | 'paused' | 'renewing' | 'trial'
 
 export interface GlassCardStatusStyle {
-  label: string
+  labelKey: string
   // Neon accent used for the card border glow and icon (great on dark glass).
   accent: string
   // Darker, saturated accent for status text on light backgrounds (readable).
@@ -22,31 +22,31 @@ export interface GlassCardStatusStyle {
 
 const STATUS_STYLES: Record<GlassCardStatus, GlassCardStatusStyle> = {
   running: {
-    label: 'Running',
+    labelKey: 'glass-card-status-running',
     accent: '#34d399',
     accentStrong: '#059669',
     fallbackClass: 'gba:bg-emerald-50 gba:text-emerald-700'
   },
   active: {
-    label: 'Active',
+    labelKey: 'glass-card-status-active',
     accent: '#22c55e',
     accentStrong: '#16a34a',
     fallbackClass: 'gba:bg-emerald-50 gba:text-emerald-700'
   },
   renewing: {
-    label: 'Renewing',
+    labelKey: 'glass-card-status-renewing',
     accent: '#a78bfa',
     accentStrong: '#7c3aed',
     fallbackClass: 'gba:bg-violet-50 gba:text-violet-700'
   },
   trial: {
-    label: 'Trial',
+    labelKey: 'glass-card-status-trial',
     accent: '#22d3ee',
     accentStrong: '#0891b2',
     fallbackClass: 'gba:bg-cyan-50 gba:text-cyan-700'
   },
   paused: {
-    label: 'Paused',
+    labelKey: 'glass-card-status-paused',
     accent: '#f59e0b',
     accentStrong: '#d97706',
     fallbackClass: 'gba:bg-amber-50 gba:text-amber-700'

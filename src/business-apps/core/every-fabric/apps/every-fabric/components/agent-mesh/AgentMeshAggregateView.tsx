@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { GraphIcon, SpinnerGapIcon, SquaresFourIcon } from '@phosphor-icons/react'
 import type { MeshScope } from './meshScopes'
+import { useAgentMeshI18n } from './useAgentMeshI18n'
 import { useAgentMeshAggregateData } from '../../hooks/useAgentMeshAggregateData'
 import { useAgentMeshScope } from '../../hooks/useAgentMeshScope'
 import { useMeshTelemetry } from '../../hooks/useMeshTelemetry'
@@ -13,6 +14,7 @@ import { buildLiveMeshActivity, buildModelLiveActivity } from './liveMeshActivit
 type CompanyView = 'graph' | 'cards'
 
 function CompanyViewToggle({ view, onChange }: { view: CompanyView; onChange: (view: CompanyView) => void }) {
+  const { t } = useAgentMeshI18n()
   const buttonClass = (active: boolean) =>
     `gba:inline-flex gba:items-center gba:gap-1.5 gba:rounded-md gba:px-2.5 gba:py-1.5 gba:text-xs gba:font-medium gba:transition-colors ${
       active
@@ -32,7 +34,7 @@ function CompanyViewToggle({ view, onChange }: { view: CompanyView; onChange: (v
         data-testid="company-view-graph"
       >
         <GraphIcon className="gba:h-3.5 gba:w-3.5" weight="duotone" />
-        Graph
+        {t('agent-mesh-view-graph')}
       </button>
       <button
         type="button"
@@ -42,7 +44,7 @@ function CompanyViewToggle({ view, onChange }: { view: CompanyView; onChange: (v
         data-testid="company-view-cards"
       >
         <SquaresFourIcon className="gba:h-3.5 gba:w-3.5" weight="duotone" />
-        Cards
+        {t('agent-mesh-view-cards')}
       </button>
     </div>
   )
@@ -55,6 +57,7 @@ interface AgentMeshAggregateViewProps {
 }
 
 export const AgentMeshAggregateView: React.FC<AgentMeshAggregateViewProps> = ({ scope, userId, activeSessions }) => {
+  const { t } = useAgentMeshI18n()
   const { model, isLoading, error, stats, sessions, userNameMap, sessionTitleMap } = useAgentMeshAggregateData(
     scope,
     userId
@@ -121,7 +124,7 @@ export const AgentMeshAggregateView: React.FC<AgentMeshAggregateViewProps> = ({ 
         data-testid="mesh-aggregate-loading"
       >
         <SpinnerGapIcon className="gba:h-5 gba:w-5 gba:animate-spin gba:text-muted-foreground" />
-        <p className="gba:text-sm gba:text-muted-foreground">Loading mesh data…</p>
+        <p className="gba:text-sm gba:text-muted-foreground">{t('agent-mesh-loading-data')}</p>
       </div>
     )
   }
@@ -132,7 +135,7 @@ export const AgentMeshAggregateView: React.FC<AgentMeshAggregateViewProps> = ({ 
         className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:flex-1 gba:gap-3"
         data-testid="mesh-aggregate-error"
       >
-        <p className="gba:text-sm gba:text-destructive">Failed to load mesh data</p>
+        <p className="gba:text-sm gba:text-destructive">{t('agent-mesh-error-load')}</p>
         <p className="gba:text-xs gba:text-muted-foreground">{error}</p>
       </div>
     )
@@ -147,11 +150,11 @@ export const AgentMeshAggregateView: React.FC<AgentMeshAggregateViewProps> = ({ 
         <span className="gba:flex gba:h-14 gba:w-14 gba:items-center gba:justify-center gba:rounded-full gba:bg-muted gba:mb-4">
           <GraphIcon className="gba:h-6 gba:w-6 gba:text-muted-foreground" weight="duotone" />
         </span>
-        <h2 className="gba:text-base gba:font-semibold gba:text-foreground gba:mb-1">No activity yet</h2>
+        <h2 className="gba:text-base gba:font-semibold gba:text-foreground gba:mb-1">
+          {t('agent-mesh-empty-activity-title')}
+        </h2>
         <p className="gba:max-w-md gba:text-sm gba:text-muted-foreground">
-          {scope === 'company'
-            ? 'No sessions have been recorded across the workspace.'
-            : 'No sessions found for this scope.'}
+          {scope === 'company' ? t('agent-mesh-empty-activity-company') : t('agent-mesh-empty-activity-scope')}
         </p>
       </div>
     )

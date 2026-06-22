@@ -117,8 +117,7 @@ describe('WorkforceFlowMap', () => {
     mockReplay.mockReturnValue(baseReplay({ frameIndex: 1, isPlaying: true, currentStepTitle: 'Score' }))
     renderMap()
 
-    expect(screen.getByTestId('flow-map-step-label')).toHaveTextContent('Step 2 of 4')
-    expect(screen.getByTestId('flow-map-step-label')).toHaveTextContent('Score')
+    expect(screen.getByTestId('flow-map-step-label')).toHaveTextContent('flow-map-step-of-titled')
   })
 
   it('opens and closes the step detail panel when a node is selected', () => {

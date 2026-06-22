@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { CheckIcon, PlusIcon, TrashIcon, WrenchIcon, XIcon } from '@phosphor-icons/react'
-import type { SkillTool } from '../../../types/enterpriseAgent'
+import type { SkillTool } from '../../../../types/enterpriseAgent'
+import translations from '../../../../_i18n'
 
 interface SkillToolsProps {
   assignedTools: SkillTool[]
@@ -18,11 +19,12 @@ export const SkillTools: React.FC<SkillToolsProps> = ({
   onAssign,
   onRemove
 }) => {
+  const { t } = useTranslation(translations)
   const [showPicker, setShowPicker] = useState(false)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
 
-  const assignedIds = new Set(assignedTools.map(t => t.id))
-  const assignable = availableTools.filter(t => !assignedIds.has(t.id))
+  const assignedIds = new Set(assignedTools.map(tool => tool.id))
+  const assignable = availableTools.filter(tool => !assignedIds.has(tool.id))
 
   const handleAdd = useCallback(() => {
     if (selectedIds.length > 0 && onAssign) {
@@ -36,7 +38,7 @@ export const SkillTools: React.FC<SkillToolsProps> = ({
     <div className="gba:space-y-3">
       <div className="gba:flex gba:items-center gba:gap-2">
         <WrenchIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
-        <h4 className="gba:text-sm gba:font-semibold gba:text-foreground">Tools</h4>
+        <h4 className="gba:text-sm gba:font-semibold gba:text-foreground">{t('settings-skill-studio-tools-title')}</h4>
         <span className="gba:text-xs gba:text-muted-foreground">{assignedTools.length}</span>
       </div>
 
@@ -69,14 +71,14 @@ export const SkillTools: React.FC<SkillToolsProps> = ({
       {canEdit && !showPicker && assignable.length > 0 && (
         <Button size="sm" variant="secondary" onClick={() => setShowPicker(true)} data-testid="assign-tools-button">
           <PlusIcon className="gba:h-4 gba:w-4" />
-          Assign Tools
+          {t('settings-skill-studio-assign-tools')}
         </Button>
       )}
 
       {showPicker && assignable.length > 0 && (
         <div className="gba:rounded-lg gba:border gba:border-border gba:bg-muted/20 gba:p-3 gba:space-y-2">
           <div className="gba:flex gba:items-center gba:justify-between">
-            <span className="gba:text-sm gba:font-medium">Select tools</span>
+            <span className="gba:text-sm gba:font-medium">{t('settings-skill-studio-select-tools')}</span>
             <Button
               size="sm"
               variant="ghost"
@@ -115,17 +117,17 @@ export const SkillTools: React.FC<SkillToolsProps> = ({
               data-testid="confirm-assign-tools"
             >
               <CheckIcon className="gba:h-4 gba:w-4" />
-              Assign
+              {t('settings-skill-studio-assign')}
             </Button>
             <Button size="sm" variant="secondary" onClick={() => setShowPicker(false)}>
-              Cancel
+              {t('action-cancel')}
             </Button>
           </div>
         </div>
       )}
 
       {assignable.length === 0 && assignedTools.length === 0 && (
-        <p className="gba:text-sm gba:text-muted-foreground">No tools available.</p>
+        <p className="gba:text-sm gba:text-muted-foreground">{t('settings-skill-studio-no-tools')}</p>
       )}
     </div>
   )

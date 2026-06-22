@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import {
   Archive,
   ArrowCounterClockwise,
@@ -14,21 +15,24 @@ import {
   UploadSimple,
   Wrench
 } from '@phosphor-icons/react'
-
-const STATUS_STYLES: Record<string, { label: string; className: string }> = {
-  draft: { label: 'Draft', className: 'gba:bg-yellow-100 gba:text-yellow-800' },
-  pending_review: { label: 'Draft', className: 'gba:bg-yellow-100 gba:text-yellow-800' },
-  approved: { label: 'Draft', className: 'gba:bg-yellow-100 gba:text-yellow-800' },
-  built_in: { label: 'Built-in', className: 'gba:bg-blue-100 gba:text-blue-800' },
-  archived: { label: 'Archived', className: 'gba:bg-gray-100 gba:text-gray-600' }
-}
-
-function getStatusStyle(status?: string) {
-  if (!status) return null
-  return STATUS_STYLES[status] ?? { label: status, className: 'gba:bg-muted gba:text-muted-foreground' }
-}
 import { useEnterpriseAgentClient } from '../../hooks/useEnterpriseAgentClient'
 import { inferTargetDir, formatFileSize } from './skillFileUtils'
+import translations from '../../_i18n'
+
+const STATUS_STYLE_CLASSES: Record<string, { key: string; className: string }> = {
+  draft: { key: 'skills-browse-status-draft', className: 'gba:bg-yellow-100 gba:text-yellow-800' },
+  pending_review: { key: 'skills-browse-status-draft', className: 'gba:bg-yellow-100 gba:text-yellow-800' },
+  approved: { key: 'skills-browse-status-draft', className: 'gba:bg-yellow-100 gba:text-yellow-800' },
+  built_in: { key: 'skills-browse-status-builtin', className: 'gba:bg-blue-100 gba:text-blue-800' },
+  archived: { key: 'skills-browse-status-archived', className: 'gba:bg-gray-100 gba:text-gray-600' }
+}
+
+function getStatusStyle(status: string | undefined, t: (key: string) => string) {
+  if (!status) return null
+  const style = STATUS_STYLE_CLASSES[status]
+  if (style) return { label: t(style.key), className: style.className }
+  return { label: status, className: 'gba:bg-muted gba:text-muted-foreground' }
+}
 
 export type BrowseSkillManifestEntry = {
   skill_id: string
@@ -81,6 +85,7 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
   selectedSkillId,
   manifestVersion
 }) => {
+  const { t } = useTranslation(translations)
   const client = useEnterpriseAgentClient(accessToken)
   const [manifest, setManifest] = useState<BrowseSkillManifestEntry[]>([])
   const [loading, setLoading] = useState(false)
@@ -352,7 +357,7 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
           data-testid="upload-skill-button"
         >
           <UploadSimple className="gba:h-4 gba:w-4" />
-          Upload Skill
+          {t('skills-browse-upload')}
         </button>
         <button
           type="button"
@@ -361,7 +366,7 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
           data-testid="create-skill-button"
         >
           <NotePencil className="gba:h-4 gba:w-4" />
-          Create Skill
+          {t('skills-browse-create')}
         </button>
         <input
           ref={uploadSkillRef}
@@ -378,17 +383,17 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
           type="text"
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
-          placeholder="Search skills…"
+          placeholder={t('skills-browse-search')}
           className="gba:w-full gba:rounded-lg gba:border gba:border-border gba:bg-muted/20 gba:pl-10 gba:pr-3 gba:py-2.5 gba:text-sm gba:text-foreground placeholder:gba:text-muted-foreground/50 focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-primary/30"
           data-testid="browse-skills-search"
         />
       </div>
 
       {loading ? (
-        <p className="gba:text-sm gba:text-muted-foreground gba:py-8 gba:text-center">Loading…</p>
+        <p className="gba:text-sm gba:text-muted-foreground gba:py-8 gba:text-center">{t('skills-browse-loading')}</p>
       ) : filteredManifest.length === 0 ? (
         <p className="gba:text-sm gba:text-muted-foreground gba:py-8 gba:text-center">
-          {searchQuery.trim() ? 'No matching skills found.' : 'No skills found.'}
+          {searchQuery.trim() ? t('skills-browse-no-match') : t('skills-browse-empty')}
         </p>
       ) : (
         <div className="gba:flex gba:flex-col gba:gap-2" data-testid="browse-skills-list">
@@ -413,18 +418,22 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
                       className="gba:shrink-0 gba:rounded gba:bg-muted gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-muted-foreground"
                       data-testid={`browse-skills-version-${s.skill_id}`}
                     >
-                      {s.published_version != null ? `pub v${s.published_version}` : 'unpublished'}
+                      {s.published_version != null
+                        ? t('skills-browse-pub-version', { version: s.published_version })
+                        : t('skills-browse-unpublished')}
                       {(s.current_version ?? s.version) != null &&
                       (s.current_version ?? s.version) !== s.published_version
-                        ? ` · draft v${s.current_version ?? s.version}`
+                        ? ` · ${t('skills-browse-draft-version', { version: s.current_version ?? s.version })}`
                         : ''}
                     </span>
                   )}
                   {s.skill_id === 'skill-creator' && (
-                    <span className="gba:text-xs gba:text-muted-foreground gba:italic">(default)</span>
+                    <span className="gba:text-xs gba:text-muted-foreground gba:italic">
+                      {t('skills-browse-default-badge')}
+                    </span>
                   )}
                   {(() => {
-                    const style = getStatusStyle(s.status)
+                    const style = getStatusStyle(s.status, t)
                     if (!style) return null
                     return (
                       <span
@@ -436,11 +445,11 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
                   })()}
                   {s.is_active === false ? (
                     <span className="gba:text-[10px] gba:font-medium gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-red-100 gba:text-red-700">
-                      Inactive
+                      {t('skills-browse-status-inactive')}
                     </span>
                   ) : (
                     <span className="gba:text-[10px] gba:font-medium gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-green-100 gba:text-green-800">
-                      Enabled
+                      {t('skills-browse-status-enabled')}
                     </span>
                   )}
                 </div>
@@ -455,7 +464,7 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
                 {s.tools && s.tools.length > 0 && (
                   <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-1 gba:mt-1">
                     <span className="gba:text-[10px] gba:font-medium gba:text-muted-foreground gba:mr-1">
-                      Tools in Skill:
+                      {t('skills-browse-tools-in-skill')}
                     </span>
                     {s.tools.map(tool => (
                       <span
@@ -510,7 +519,7 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
                         onClick={() => handleToggleFiles(s.skill_id)}
                       >
                         <Folder className="gba:h-3 gba:w-3" />
-                        {expandedSkillId === s.skill_id ? 'Hide files' : 'Files'}
+                        {expandedSkillId === s.skill_id ? t('skills-browse-hide-files') : t('skills-browse-files')}
                         {s.has_files && s.file_count != null && s.file_count > 0 && (
                           <span
                             className="gba:ml-1 gba:text-[10px] gba:px-1.5 gba:py-0.5 gba:rounded-full gba:border gba:border-primary/30 gba:bg-primary/10 gba:text-primary gba:font-medium"
@@ -529,11 +538,13 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
                         onClick={() => void handleExportSkill(s)}
                       >
                         <UploadSimple className="gba:h-3 gba:w-3 gba:rotate-180" />
-                        Export
+                        {t('skills-browse-export')}
                       </button>
                     )}
                     {isRuntimeOnly && (
-                      <span className="gba:px-2 gba:py-1 gba:text-[11px] gba:text-muted-foreground">Runtime skill</span>
+                      <span className="gba:px-2 gba:py-1 gba:text-[11px] gba:text-muted-foreground">
+                        {t('skills-browse-runtime-skill')}
+                      </span>
                     )}
                   </div>
 
@@ -547,7 +558,7 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
                           onClick={() => void handleTransition(s.skill_id, 'enable')}
                         >
                           <CheckCircle className="gba:h-3 gba:w-3" />
-                          Enable
+                          {t('skills-browse-enable')}
                         </button>
                       ) : (
                         <button
@@ -556,7 +567,7 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
                           disabled={transitioningId === s.skill_id}
                           onClick={() => void handleTransition(s.skill_id, 'disable')}
                         >
-                          Disable
+                          {t('skills-browse-disable')}
                         </button>
                       )}
                       <button
@@ -567,7 +578,7 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
                         data-testid={`browse-skills-archive-${s.skill_id}`}
                       >
                         <Archive className="gba:h-3 gba:w-3" />
-                        Archive
+                        {t('skills-browse-archive')}
                       </button>
                     </div>
                   )}
@@ -576,9 +587,9 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
                 {expandedSkillId === s.skill_id && (
                   <div className="gba:border-t gba:border-border gba:bg-muted/20 gba:px-3 gba:py-2.5 gba:space-y-2">
                     {skillFilesLoading ? (
-                      <p className="gba:text-[11px] gba:text-muted-foreground">Loading files…</p>
+                      <p className="gba:text-[11px] gba:text-muted-foreground">{t('skills-browse-loading')}</p>
                     ) : skillFiles.length === 0 ? (
-                      <p className="gba:text-[11px] gba:text-muted-foreground">No auxiliary files yet.</p>
+                      <p className="gba:text-[11px] gba:text-muted-foreground">{t('skills-browse-empty')}</p>
                     ) : (
                       <div className="gba:space-y-1">
                         {skillFiles.map(f => (
@@ -616,7 +627,7 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
                       onClick={() => browseAddFilesRef.current?.click()}
                     >
                       <Plus className="gba:h-3 gba:w-3" />
-                      Add files
+                      {t('skills-browse-add-files')}
                     </button>
                   </div>
                 )}
@@ -638,7 +649,7 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
           data-testid="archived-skills-toggle"
         >
           {archivedExpanded ? <CaretDown className="gba:h-4 gba:w-4" /> : <CaretRight className="gba:h-4 gba:w-4" />}
-          Archived Skills
+          {t('skills-browse-archived-title')}
           {archivedSkills.length > 0 && (
             <span className="gba:text-xs gba:font-normal gba:text-muted-foreground">({archivedSkills.length})</span>
           )}
@@ -646,9 +657,13 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
         {archivedExpanded && (
           <div className="gba:mt-3 gba:flex gba:flex-col gba:gap-2">
             {archivedLoading ? (
-              <p className="gba:text-sm gba:text-muted-foreground gba:py-4 gba:text-center">Loading archived skills…</p>
+              <p className="gba:text-sm gba:text-muted-foreground gba:py-4 gba:text-center">
+                {t('skills-browse-archived-loading')}
+              </p>
             ) : archivedSkills.length === 0 ? (
-              <p className="gba:text-sm gba:text-muted-foreground gba:py-4 gba:text-center">No archived skills.</p>
+              <p className="gba:text-sm gba:text-muted-foreground gba:py-4 gba:text-center">
+                {t('skills-browse-archived-empty')}
+              </p>
             ) : (
               archivedSkills.map(s => (
                 <div
@@ -662,7 +677,7 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
                         {s.name || s.skill_id}
                       </p>
                       <span className="gba:text-[10px] gba:font-medium gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-gray-100 gba:text-gray-600">
-                        Archived
+                        {t('skills-browse-status-archived')}
                       </span>
                     </div>
                     <p className="gba:text-xs gba:text-muted-foreground/70 gba:mt-0.5 gba:line-clamp-2">
@@ -677,7 +692,7 @@ export const BrowseSkillsView: React.FC<BrowseSkillsViewProps> = ({
                     data-testid={`restore-skill-${s.skill_id}`}
                   >
                     <ArrowCounterClockwise className="gba:h-3 gba:w-3" />
-                    Restore
+                    {t('skills-browse-restore')}
                   </button>
                 </div>
               ))

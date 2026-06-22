@@ -39,11 +39,5 @@ export const DOC_TYPE_ICON: Record<WorkspaceDocument['type'], React.FC<{ classNa
   note: FileTextIcon
 }
 
-export const DOC_TYPE_LABEL: Record<WorkspaceDocument['type'], string> = {
-  document: 'Document',
-  slides: 'Presentation',
-  note: 'Note'
-}
-
 export const workspaceDocCardClassName =
   'gba:flex gba:items-center gba:gap-2.5 gba:px-3.5 gba:py-2.5 gba:rounded-xl gba:border gba:border-border gba:bg-card gba:hover:bg-accent/50 gba:transition-all gba:duration-200 gba:cursor-pointer gba:w-full gba:no-underline gba:group'

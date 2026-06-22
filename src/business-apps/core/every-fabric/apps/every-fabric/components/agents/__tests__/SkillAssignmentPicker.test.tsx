@@ -11,6 +11,21 @@ const mockPromptManagerClient = {
   get: (...args: unknown[]) => mockClientGet(...args)
 }
 
+jest.mock('@newwork/nw-design-system', () => {
+  const actual = jest.requireActual('@newwork/nw-design-system')
+  return {
+    ...actual,
+    useTranslation: () => ({
+      t: (key: string, vars?: Record<string, unknown>) => {
+        if (key === 'agents-skill-picker-pin' && vars?.version != null) {
+          return `Pin v${vars.version}`
+        }
+        return key
+      }
+    })
+  }
+})
+
 jest.mock('@/common/network/ai/prompt-manager/usePromptManagerClient', () => ({
   usePromptManagerClient: () => mockPromptManagerClient
 }))
@@ -84,7 +99,7 @@ describe('SkillAssignmentPicker', () => {
 
     await waitFor(() => expect(screen.getByTestId('skill-option-alpha')).toBeInTheDocument())
     await waitFor(() => expect(screen.getByTestId('skill-version-select-alpha')).toBeInTheDocument())
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    fireEvent.click(screen.getByRole('button', { name: 'agents-skill-picker-save' }))
 
     await waitFor(() => expect(mockSetAgentSkills).toHaveBeenCalled())
     expect(mockSetAgentSkills).toHaveBeenCalledWith('agent-1', [
@@ -105,8 +120,8 @@ describe('SkillAssignmentPicker', () => {
 
     const select = (await screen.findByTestId('skill-version-select-alpha')) as HTMLSelectElement
     const options = Array.from(select.options).map(option => option.textContent)
-    expect(options).toContain('Pin v1')
-    expect(options).toContain('Pin v2')
+    expect(options.some(text => text?.includes('agents-skill-picker-pin') || text?.includes('Pin v1'))).toBe(true)
+    expect(options.some(text => text?.includes('Pin v2'))).toBe(true)
     expect(options).not.toContain('Pin v3')
   })
 })

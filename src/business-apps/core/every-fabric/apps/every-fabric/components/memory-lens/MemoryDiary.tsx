@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { XIcon } from '@phosphor-icons/react'
 import type { MemoryNamespace } from '../settings/agentSettings.types'
 import type { MemoryLensEntry } from './memoryLensModel'
@@ -6,6 +7,7 @@ import { buildMonthGrid, countByDay, dayKey, entryTime, groupByDay, monthRangeIs
 import { MemoryMiniCalendar } from './MemoryMiniCalendar'
 import { MemoryDiaryRow } from './MemoryDiaryRow'
 import { MemoryDetailPanel } from './MemoryDetailPanel'
+import translations from '../../_i18n'
 
 interface MemoryDiaryProps {
   fetchRange: (dateFrom: string, dateTo: string) => Promise<MemoryLensEntry[]>
@@ -23,6 +25,7 @@ const DayHeading: React.FC<{ label: string; count: number }> = ({ label, count }
 )
 
 export const MemoryDiary: React.FC<MemoryDiaryProps> = ({ fetchRange, accessToken, onDelete }) => {
+  const { t } = useTranslation(translations)
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
@@ -66,7 +69,7 @@ export const MemoryDiary: React.FC<MemoryDiaryProps> = ({ fetchRange, accessToke
         : monthEntries,
     [monthEntries, selectedDay]
   )
-  const { dated, undated } = useMemo(() => groupByDay(visible), [visible])
+  const { dated, undated } = useMemo(() => groupByDay(visible, t), [visible, t])
   const selectedEntry = useMemo(
     () => monthEntries.find(entry => entryId(entry) === selectedId) ?? null,
     [monthEntries, selectedId]
@@ -109,10 +112,10 @@ export const MemoryDiary: React.FC<MemoryDiaryProps> = ({ fetchRange, accessToke
       <div className="gba:order-2 gba:min-w-0 gba:flex-1 gba:md:order-1">
         <div className="gba:mb-2 gba:flex gba:items-center gba:gap-2">
           <h2 className="gba:text-[13px] gba:font-semibold gba:text-foreground">
-            {selectedDayLabel ?? 'All of this month'}
+            {selectedDayLabel ?? t('memory-lens-diary-all-month')}
           </h2>
           <span className="gba:text-[11px] gba:text-muted-foreground/60">
-            {visible.length} {visible.length === 1 ? 'memory' : 'memories'}
+            {t('memory-lens-diary-count', { count: visible.length })}
           </span>
           {selectedDay && (
             <button
@@ -121,7 +124,7 @@ export const MemoryDiary: React.FC<MemoryDiaryProps> = ({ fetchRange, accessToke
               className="gba:ml-auto gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:px-2 gba:py-0.5 gba:text-[11px] gba:text-muted-foreground gba:hover:bg-muted/60 gba:hover:text-foreground gba:transition-colors"
               data-testid="memory-lens-diary-clear-day"
             >
-              <XIcon className="gba:h-3 gba:w-3" /> Clear
+              <XIcon className="gba:h-3 gba:w-3" /> {t('memory-lens-diary-clear')}
             </button>
           )}
         </div>
@@ -134,9 +137,7 @@ export const MemoryDiary: React.FC<MemoryDiaryProps> = ({ fetchRange, accessToke
           </div>
         ) : isEmpty ? (
           <div className="gba:rounded-2xl gba:border gba:border-border/60 gba:bg-card gba:p-8 gba:text-center">
-            <p className="gba:text-sm gba:text-muted-foreground">
-              No memories recorded {selectedDay ? 'on this day' : 'this month'}.
-            </p>
+            <p className="gba:text-sm gba:text-muted-foreground">{t('memory-lens-diary-empty')}</p>
           </div>
         ) : (
           <div className="gba:space-y-3">
@@ -155,7 +156,7 @@ export const MemoryDiary: React.FC<MemoryDiaryProps> = ({ fetchRange, accessToke
             ))}
             {undated.length > 0 && (
               <div className="gba:space-y-0.5">
-                <DayHeading label="No date" count={undated.length} />
+                <DayHeading label={t('memory-lens-diary-no-date')} count={undated.length} />
                 {undated.map(entry => (
                   <MemoryDiaryRow
                     key={entryId(entry)}

@@ -1,12 +1,20 @@
 // Agent card for the Every Fabric agents screen.
 
 import React from 'react'
-import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@newwork/nw-design-system'
+import {
+  Button,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { IdentificationCardIcon, LightbulbIcon, WarningCircleIcon, WrenchIcon } from '@phosphor-icons/react'
 import { evaluateAgentReadiness } from './agentStandard'
 import type { FabricAgent } from './agentTypes'
 import { agentDisplayLabel, hasWorkforceDeployment } from './agentTypes'
 import { isImageAvatar, resolveAgentInitial } from './agentAvatarUtils'
+import translations from '../../_i18n'
 
 interface AgentCardProps {
   agent: FabricAgent
@@ -25,11 +33,11 @@ function workerToneClass(isWorker: boolean, workerClass: string, standardClass: 
 
 const AgentCardSelectCheckbox: React.FC<{
   agent: FabricAgent
-  displayName: string
   selected: boolean
   isWorker: boolean
   onToggleSelect?: (agent: FabricAgent) => void
-}> = ({ agent, displayName, selected, isWorker, onToggleSelect }) => (
+  selectAriaLabel: string
+}> = ({ agent, selected, isWorker, onToggleSelect, selectAriaLabel }) => (
   <input
     type="checkbox"
     checked={selected}
@@ -39,7 +47,7 @@ const AgentCardSelectCheckbox: React.FC<{
         ? 'gba:h-4 gba:w-4 gba:shrink-0 gba:rounded gba:border-slate-400 gba:bg-white/70 gba:text-slate-700 gba:focus:ring-slate-400'
         : 'gba:h-4 gba:w-4 gba:shrink-0 gba:rounded gba:border-border gba:text-primary gba:focus:ring-primary'
     }
-    aria-label={`Select ${displayName}`}
+    aria-label={selectAriaLabel}
     data-testid={`agent-select-${agent.id}`}
   />
 )
@@ -48,12 +56,15 @@ const AgentCardSkillsStats: React.FC<{
   skillsCount: number
   toolsInSkillsCount: number
   className: string
-}> = ({ skillsCount, toolsInSkillsCount, className }) => (
-  <div className={className}>
-    <span>{skillsCount} skills</span>
-    <span>{toolsInSkillsCount} tools in skills</span>
-  </div>
-)
+}> = ({ skillsCount, toolsInSkillsCount, className }) => {
+  const { t } = useTranslation(translations)
+  return (
+    <div className={className}>
+      <span>{t('agents-card-skills-count', { count: skillsCount })}</span>
+      <span>{t('agents-card-tools-count', { count: toolsInSkillsCount })}</span>
+    </div>
+  )
+}
 
 const AgentCardTooltipLines: React.FC<{
   lines: string[]
@@ -78,9 +89,9 @@ function resolveCardClass(isWorker: boolean, ready: boolean): string {
   return 'gba:border-red-200 gba:bg-gradient-to-br gba:from-red-50/40 gba:via-card gba:to-card'
 }
 
-function resolvePrimaryActionLabel(ready: boolean): string {
-  if (ready) return 'Configure'
-  return 'Continue setup'
+function resolvePrimaryActionLabel(ready: boolean, t: (key: string) => string): string {
+  if (ready) return t('agents-card-action-configure')
+  return t('agents-card-action-continue-setup')
 }
 
 function resolveConfigureButtonClass(isWorker: boolean, ready: boolean): string {
@@ -162,6 +173,7 @@ const AgentCardWorkerHeader: React.FC<{
   selectable: boolean
   selected: boolean
   onToggleSelect?: (agent: FabricAgent) => void
+  selectAriaLabel: string
 }> = ({
   agent,
   displayName,
@@ -173,58 +185,62 @@ const AgentCardWorkerHeader: React.FC<{
   ready,
   selectable,
   selected,
-  onToggleSelect
-}) => (
-  <div className="gba:relative gba:overflow-hidden gba:p-4 gba:pb-3">
-    <div className="gba:pointer-events-none gba:absolute gba:left-16 gba:top-2 gba:h-14 gba:w-40 gba:rotate-[-18deg] gba:rounded-full gba:bg-white/34 gba:blur-xl" />
-    <div className="gba:pointer-events-none gba:absolute gba:bottom-0 gba:right-0 gba:h-px gba:w-44 gba:bg-linear-to-l gba:from-slate-500/80 gba:to-transparent" />
-    <div className="gba:relative gba:flex gba:items-start gba:gap-3">
-      <AvatarFrame
-        avatar={agent.avatar}
-        displayName={displayName}
-        className="gba:flex gba:h-24 gba:w-24 gba:shrink-0 gba:items-center gba:justify-center gba:overflow-hidden gba:rounded-2xl gba:border gba:border-white/80 gba:bg-white/65 gba:text-lg gba:font-bold gba:text-slate-700 gba:shadow-[inset_0_1px_0_rgba(255,255,255,0.9),inset_0_-1px_0_rgba(15,23,42,0.18),0_12px_26px_-16px_rgba(15,23,42,0.85)] gba:ring-1 gba:ring-slate-500/25"
-        imageClassName="gba:h-full gba:w-full gba:object-cover"
-      />
-      <div className="gba:min-w-0 gba:flex-1">
-        <div className="gba:flex gba:items-start gba:gap-2">
-          <div className="gba:min-w-0 gba:flex-1">
-            <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-1.5">
-              <span
-                className="gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:border gba:border-slate-400/70 gba:bg-white/58 gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-wide gba:text-slate-800 gba:shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
-                data-testid={`agent-worker-label-${agent.id}`}
-              >
-                <IdentificationCardIcon className="gba:h-3 gba:w-3" weight="duotone" />
-                Worker ID
-              </span>
-              <span className="gba:rounded-full gba:border gba:border-slate-400/60 gba:bg-slate-300/70 gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-slate-700">
-                #{workerPassId}
-              </span>
-            </div>
-            <h3 className="gba:mt-2 gba:truncate gba:text-sm gba:font-semibold gba:text-slate-950">{displayName}</h3>
-            <p className="gba:mt-0.5 gba:truncate gba:text-[11px] gba:font-medium gba:text-slate-600">
-              {cardDescriptor}
-            </p>
-          </div>
-          {!ready && <AgentNotReadyBadge agentId={agent.id} setupLabel={setupLabel} reasons={readinessReasons} />}
-        </div>
-        <AgentCardSkillsStats
-          skillsCount={agent.skills_count ?? 0}
-          toolsInSkillsCount={toolsInSkillsCount}
-          className="gba:mt-2 gba:flex gba:flex-wrap gba:items-center gba:gap-x-3 gba:gap-y-1 gba:text-[11px] gba:font-medium gba:text-slate-600"
-        />
-      </div>
-      {selectable ? (
-        <AgentCardSelectCheckbox
-          agent={agent}
+  onToggleSelect,
+  selectAriaLabel
+}) => {
+  const { t } = useTranslation(translations)
+  return (
+    <div className="gba:relative gba:overflow-hidden gba:p-4 gba:pb-3">
+      <div className="gba:pointer-events-none gba:absolute gba:left-16 gba:top-2 gba:h-14 gba:w-40 gba:rotate-[-18deg] gba:rounded-full gba:bg-white/34 gba:blur-xl" />
+      <div className="gba:pointer-events-none gba:absolute gba:bottom-0 gba:right-0 gba:h-px gba:w-44 gba:bg-linear-to-l gba:from-slate-500/80 gba:to-transparent" />
+      <div className="gba:relative gba:flex gba:items-start gba:gap-3">
+        <AvatarFrame
+          avatar={agent.avatar}
           displayName={displayName}
-          selected={selected}
-          isWorker
-          onToggleSelect={onToggleSelect}
+          className="gba:flex gba:h-24 gba:w-24 gba:shrink-0 gba:items-center gba:justify-center gba:overflow-hidden gba:rounded-2xl gba:border gba:border-white/80 gba:bg-white/65 gba:text-lg gba:font-bold gba:text-slate-700 gba:shadow-[inset_0_1px_0_rgba(255,255,255,0.9),inset_0_-1px_0_rgba(15,23,42,0.18),0_12px_26px_-16px_rgba(15,23,42,0.85)] gba:ring-1 gba:ring-slate-500/25"
+          imageClassName="gba:h-full gba:w-full gba:object-cover"
         />
-      ) : null}
+        <div className="gba:min-w-0 gba:flex-1">
+          <div className="gba:flex gba:items-start gba:gap-2">
+            <div className="gba:min-w-0 gba:flex-1">
+              <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-1.5">
+                <span
+                  className="gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:border gba:border-slate-400/70 gba:bg-white/58 gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-wide gba:text-slate-800 gba:shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
+                  data-testid={`agent-worker-label-${agent.id}`}
+                >
+                  <IdentificationCardIcon className="gba:h-3 gba:w-3" weight="duotone" />
+                  {t('agents-card-worker-id')}
+                </span>
+                <span className="gba:rounded-full gba:border gba:border-slate-400/60 gba:bg-slate-300/70 gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-slate-700">
+                  #{workerPassId}
+                </span>
+              </div>
+              <h3 className="gba:mt-2 gba:truncate gba:text-sm gba:font-semibold gba:text-slate-950">{displayName}</h3>
+              <p className="gba:mt-0.5 gba:truncate gba:text-[11px] gba:font-medium gba:text-slate-600">
+                {cardDescriptor}
+              </p>
+            </div>
+            {!ready && <AgentNotReadyBadge agentId={agent.id} setupLabel={setupLabel} reasons={readinessReasons} />}
+          </div>
+          <AgentCardSkillsStats
+            skillsCount={agent.skills_count ?? 0}
+            toolsInSkillsCount={toolsInSkillsCount}
+            className="gba:mt-2 gba:flex gba:flex-wrap gba:items-center gba:gap-x-3 gba:gap-y-1 gba:text-[11px] gba:font-medium gba:text-slate-600"
+          />
+        </div>
+        {selectable ? (
+          <AgentCardSelectCheckbox
+            agent={agent}
+            selected={selected}
+            isWorker
+            onToggleSelect={onToggleSelect}
+            selectAriaLabel={selectAriaLabel}
+          />
+        ) : null}
+      </div>
     </div>
-  </div>
-)
+  )
+}
 
 const AgentCardStandardHeader: React.FC<{
   agent: FabricAgent
@@ -237,6 +253,7 @@ const AgentCardStandardHeader: React.FC<{
   selectable: boolean
   selected: boolean
   onToggleSelect?: (agent: FabricAgent) => void
+  selectAriaLabel: string
 }> = ({
   agent,
   displayName,
@@ -247,43 +264,47 @@ const AgentCardStandardHeader: React.FC<{
   ready,
   selectable,
   selected,
-  onToggleSelect
-}) => (
-  <div className="gba:p-3">
-    <div className="gba:flex gba:items-start gba:gap-2.5">
-      <div className="gba:min-w-0 gba:flex-1">
-        <div className="gba:flex gba:items-start gba:gap-2">
-          <div className="gba:min-w-0 gba:flex-1">
-            <h3 className="gba:truncate gba:text-sm gba:font-semibold gba:text-foreground">{displayName}</h3>
-            <p className="gba:mt-0.5 gba:truncate gba:text-[11px] gba:font-medium gba:text-muted-foreground">
-              {cardDescriptor}
-            </p>
+  onToggleSelect,
+  selectAriaLabel
+}) => {
+  const { t } = useTranslation(translations)
+  return (
+    <div className="gba:p-3">
+      <div className="gba:flex gba:items-start gba:gap-2.5">
+        <div className="gba:min-w-0 gba:flex-1">
+          <div className="gba:flex gba:items-start gba:gap-2">
+            <div className="gba:min-w-0 gba:flex-1">
+              <h3 className="gba:truncate gba:text-sm gba:font-semibold gba:text-foreground">{displayName}</h3>
+              <p className="gba:mt-0.5 gba:truncate gba:text-[11px] gba:font-medium gba:text-muted-foreground">
+                {cardDescriptor}
+              </p>
+            </div>
+            <div className="gba:flex gba:shrink-0 gba:flex-wrap gba:items-center gba:justify-end gba:gap-1">
+              {!ready && <AgentNotReadyBadge agentId={agent.id} setupLabel={setupLabel} reasons={readinessReasons} />}
+            </div>
           </div>
-          <div className="gba:flex gba:shrink-0 gba:flex-wrap gba:items-center gba:justify-end gba:gap-1">
-            {!ready && <AgentNotReadyBadge agentId={agent.id} setupLabel={setupLabel} reasons={readinessReasons} />}
-          </div>
+          <p className="gba:mt-1.5 gba:line-clamp-1 gba:text-xs gba:leading-relaxed gba:text-muted-foreground">
+            {agent.description || t('agents-card-no-description')}
+          </p>
+          <AgentCardSkillsStats
+            skillsCount={agent.skills_count ?? 0}
+            toolsInSkillsCount={toolsInSkillsCount}
+            className="gba:mt-2 gba:flex gba:flex-wrap gba:items-center gba:gap-x-3 gba:gap-y-1 gba:text-[11px] gba:font-medium gba:text-muted-foreground"
+          />
         </div>
-        <p className="gba:mt-1.5 gba:line-clamp-1 gba:text-xs gba:leading-relaxed gba:text-muted-foreground">
-          {agent.description || 'No description available.'}
-        </p>
-        <AgentCardSkillsStats
-          skillsCount={agent.skills_count ?? 0}
-          toolsInSkillsCount={toolsInSkillsCount}
-          className="gba:mt-2 gba:flex gba:flex-wrap gba:items-center gba:gap-x-3 gba:gap-y-1 gba:text-[11px] gba:font-medium gba:text-muted-foreground"
-        />
+        {selectable ? (
+          <AgentCardSelectCheckbox
+            agent={agent}
+            selected={selected}
+            isWorker={false}
+            onToggleSelect={onToggleSelect}
+            selectAriaLabel={selectAriaLabel}
+          />
+        ) : null}
       </div>
-      {selectable ? (
-        <AgentCardSelectCheckbox
-          agent={agent}
-          displayName={displayName}
-          selected={selected}
-          isWorker={false}
-          onToggleSelect={onToggleSelect}
-        />
-      ) : null}
     </div>
-  </div>
-)
+  )
+}
 
 const AgentCardSkillChip: React.FC<{ skillId: string; tools: string[]; isWorker: boolean }> = ({
   skillId,
@@ -349,6 +370,7 @@ const AgentCardSkillsSection: React.FC<{
   visibleSkillIds: string[]
   hiddenSkillCount: number
 }> = ({ agent, isWorker, skillIds, visibleSkillIds, hiddenSkillCount }) => {
+  const { t } = useTranslation(translations)
   const paddingClass = workerToneClass(isWorker, 'gba:px-4', 'gba:px-3')
   const emptyChipClass = workerToneClass(
     isWorker,
@@ -368,7 +390,7 @@ const AgentCardSkillsSection: React.FC<{
           className={`gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:px-2.5 gba:py-0.5 gba:text-[11px] gba:font-medium ${emptyChipClass}`}
         >
           <LightbulbIcon className="gba:h-3 gba:w-3" />
-          No skills assigned
+          {t('agents-card-no-skills')}
         </span>
       </div>
     )
@@ -389,7 +411,7 @@ const AgentCardSkillsSection: React.FC<{
           <span
             className={`gba:inline-flex gba:items-center gba:rounded-full gba:px-2.5 gba:py-0.5 gba:text-[11px] gba:font-medium ${moreChipClass}`}
           >
-            +{hiddenSkillCount} more
+            {t('agents-card-more-skills', { count: hiddenSkillCount })}
           </span>
         )}
       </div>
@@ -406,6 +428,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({
   selected = false,
   onToggleSelect
 }) => {
+  const { t } = useTranslation(translations)
   const displayName = agentDisplayLabel(agent)
   const canArchive = agent.source === 'prompt_odm' || agent.source === 'autonomous_agent'
   const isWorker = hasWorkforceDeployment(agent)
@@ -418,10 +441,14 @@ export const AgentCard: React.FC<AgentCardProps> = ({
   const skillIds = agent.skill_ids ?? []
   const visibleSkillIds = skillIds.slice(0, 2)
   const hiddenSkillCount = Math.max(0, skillIds.length - visibleSkillIds.length)
-  const cardDescriptor = agent.specialty || agent.domain || (isWorker ? 'Governed worker' : 'Configurable agent')
+  const cardDescriptor =
+    agent.specialty ||
+    agent.domain ||
+    (isWorker ? t('agents-card-descriptor-worker') : t('agents-card-descriptor-agent'))
   const workerPassId = agent.id.slice(0, 8).toUpperCase()
-  const setupLabel = readiness.reasons[0] ?? 'Needs setup'
-  const primaryActionLabel = resolvePrimaryActionLabel(readiness.ready)
+  const setupLabel = readiness.reasons[0] ?? t('agents-readiness-needs-setup')
+  const primaryActionLabel = resolvePrimaryActionLabel(readiness.ready, t)
+  const selectAriaLabel = t('agents-card-select-aria', { name: displayName })
   const cardClass = resolveCardClass(isWorker, readiness.ready)
   const configureButtonClass = resolveConfigureButtonClass(isWorker, readiness.ready)
 
@@ -444,6 +471,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({
           selectable={selectable}
           selected={selected}
           onToggleSelect={onToggleSelect}
+          selectAriaLabel={selectAriaLabel}
         />
       ) : (
         <AgentCardStandardHeader
@@ -457,6 +485,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({
           selectable={selectable}
           selected={selected}
           onToggleSelect={onToggleSelect}
+          selectAriaLabel={selectAriaLabel}
         />
       )}
 
@@ -493,7 +522,7 @@ export const AgentCard: React.FC<AgentCardProps> = ({
             onClick={() => onArchive?.(agent)}
             data-testid={`agent-archive-${agent.id}`}
           >
-            {isArchiving ? 'Archiving...' : 'Archive'}
+            {isArchiving ? t('agents-card-archiving') : t('agents-card-archive')}
           </Button>
         </div>
       </div>

@@ -1,7 +1,9 @@
 import React, { type FC, type ReactNode } from 'react'
 import { BrainIcon, CompassIcon, HandIcon, ListChecksIcon, SparkleIcon, TargetIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { DecisionCategory } from '../../types/enterpriseAgent'
 import type { DecisionItem } from '../../hooks/useFabricDecisions'
+import translations from '../../_i18n'
 import { parseIsoTimestamp } from '../../utils/renderUtils'
 
 const CATEGORY_ICON: Record<DecisionCategory, ReactNode> = {
@@ -14,12 +16,12 @@ const CATEGORY_ICON: Record<DecisionCategory, ReactNode> = {
 
 const FALLBACK_ICON = <TargetIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" weight="duotone" />
 
-const CATEGORY_LABEL: Record<DecisionCategory, string> = {
-  skill: 'Skill',
-  tool_routing: 'Tool routing',
-  reflection: 'Reflection',
-  hitl: 'Human in the loop',
-  plan: 'Plan'
+const CATEGORY_LABEL_KEY: Record<DecisionCategory, string> = {
+  skill: 'workspace-decision-skill',
+  tool_routing: 'workspace-decision-tool-routing',
+  reflection: 'workspace-decision-reflection',
+  hitl: 'workspace-decision-hitl',
+  plan: 'workspace-decision-plan'
 }
 
 function formatDecisionTimestamp(timestamp: string): string {
@@ -37,8 +39,9 @@ function categoryIcon(category: DecisionCategory): ReactNode {
   return CATEGORY_ICON[category] ?? FALLBACK_ICON
 }
 
-function categoryLabel(category: DecisionCategory): string {
-  return CATEGORY_LABEL[category] ?? category
+function categoryLabel(category: DecisionCategory, t: (key: string) => string): string {
+  const key = CATEGORY_LABEL_KEY[category]
+  return key ? t(key) : category
 }
 
 interface DecisionsTimelineListProps {
@@ -46,14 +49,13 @@ interface DecisionsTimelineListProps {
 }
 
 export const DecisionsTimelineList: FC<DecisionsTimelineListProps> = ({ decisions }) => {
+  const { t } = useTranslation(translations)
   const ordered = [...decisions].sort((a, b) => a.seq - b.seq)
 
   if (ordered.length === 0) {
     return (
       <div className="gba:px-4 gba:py-3">
-        <p className="gba:text-xs gba:text-muted-foreground/60 gba:italic">
-          Agent decisions will appear here as the session progresses…
-        </p>
+        <p className="gba:text-xs gba:text-muted-foreground/60 gba:italic">{t('workspace-decisions-empty')}</p>
       </div>
     )
   }
@@ -72,7 +74,7 @@ export const DecisionsTimelineList: FC<DecisionsTimelineListProps> = ({ decision
             <div className="gba:flex-1 gba:min-w-0">
               <div className="gba:flex gba:flex-wrap gba:items-baseline gba:gap-x-2 gba:gap-y-0.5">
                 <span className="gba:inline-flex gba:items-center gba:rounded gba:bg-muted gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-wide gba:text-muted-foreground/80">
-                  {categoryLabel(decision.category)}
+                  {categoryLabel(decision.category, t)}
                 </span>
                 {typeof decision.confidence === 'number' && (
                   <span className="gba:text-[10px] gba:text-muted-foreground/60">

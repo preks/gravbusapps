@@ -12,7 +12,7 @@
 //
 // Designed to read like a row in an HR directory - the agent IS an employee.
 
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { ArchiveIcon, LightningIcon, PauseIcon, PlayIcon, PulseIcon, SparkleIcon } from '@phosphor-icons/react'
 import React from 'react'
 import type { WorkforceAgentSummary } from './useWorkforceData'
@@ -25,6 +25,7 @@ import {
   type WorkforceTileStatus
 } from './workforceAgentDisplay'
 import type { WorkforceAgent } from './workforceTypes'
+import translations from '../../_i18n'
 
 export type { WorkforceTileStatus }
 
@@ -53,11 +54,12 @@ interface MatchBadgeProps {
 }
 
 const MatchBadge: React.FC<MatchBadgeProps> = ({ confidence, rank }) => {
+  const { t } = useTranslation(translations)
   if (rank === 1) {
     return (
       <span className="gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:bg-foreground gba:px-2 gba:py-0.5 gba:text-[10px] gba:font-semibold gba:uppercase gba:tracking-wider gba:text-background">
         <SparkleIcon className="gba:h-3 gba:w-3" weight="fill" />
-        Best match
+        {t('tile-best-match')}
       </span>
     )
   }
@@ -99,6 +101,7 @@ export const WorkforceAgentTile: React.FC<WorkforceAgentTileProps> = ({
   isWorking = false,
   currentActivity
 }) => {
+  const { t } = useTranslation(translations)
   const { agent } = summary
   const profile = agent.workforce_profile
   const displayName = formatAgentName(agent.display_name || agent.name)
@@ -108,7 +111,7 @@ export const WorkforceAgentTile: React.FC<WorkforceAgentTileProps> = ({
   const status: WorkforceTileStatus = agent.status === 'paused' ? 'paused' : 'active'
   const pill = statusPill(status)
   const isTopMatch = matchRank === 1
-  const roleLabel = profile.role || agent.domain || 'Workforce specialist'
+  const roleLabel = profile.role || agent.domain || t('tile-specialist-fallback')
   const departmentLabel = profile.department ?? null
   const canOpen = Boolean(onConfigure)
   const handleOpen = () => onConfigure?.(agent)
@@ -132,7 +135,7 @@ export const WorkforceAgentTile: React.FC<WorkforceAgentTileProps> = ({
       data-testid={`workforce-agent-tile-${agent.agent_id}`}
       role={canOpen ? 'button' : undefined}
       tabIndex={canOpen ? 0 : undefined}
-      aria-label={canOpen ? `Open ${displayName}` : undefined}
+      aria-label={canOpen ? t('tile-open-agent', { name: displayName }) : undefined}
       onClick={canOpen ? handleOpen : undefined}
       onKeyDown={canOpen ? handleCardKeyDown : undefined}
     >
@@ -169,14 +172,14 @@ export const WorkforceAgentTile: React.FC<WorkforceAgentTileProps> = ({
                     <span className="gba:absolute gba:inline-flex gba:h-full gba:w-full gba:animate-ping gba:rounded-full gba:bg-emerald-400" />
                     <span className="gba:relative gba:inline-flex gba:h-1.5 gba:w-1.5 gba:rounded-full gba:bg-emerald-500" />
                   </span>
-                  Working
+                  {t('tile-working')}
                 </span>
               ) : (
                 <span
                   className={`gba:shrink-0 gba:rounded-full gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium ${pill.className}`}
                   data-testid={`workforce-agent-status-${agent.agent_id}`}
                 >
-                  {pill.label}
+                  {t(pill.labelKey)}
                 </span>
               )}
             </div>
@@ -189,7 +192,7 @@ export const WorkforceAgentTile: React.FC<WorkforceAgentTileProps> = ({
 
         {/* Description */}
         <p className="gba:mt-3 gba:line-clamp-2 gba:min-h-[2.5rem] gba:text-sm gba:leading-relaxed gba:text-muted-foreground">
-          {agent.description || 'No description provided yet.'}
+          {agent.description || t('tile-no-description')}
         </p>
 
         {isWorking && currentActivity && (
@@ -210,17 +213,20 @@ export const WorkforceAgentTile: React.FC<WorkforceAgentTileProps> = ({
         >
           <StatChip
             icon={LightningIcon}
-            label={`${summary.activeTriggerCount}/${summary.triggerCount} triggers`}
+            label={t('tile-triggers-stat', {
+              active: summary.activeTriggerCount,
+              total: summary.triggerCount
+            })}
             testId={`workforce-agent-triggers-${agent.agent_id}`}
           />
           <StatChip
             icon={PulseIcon}
-            label={`Last run ${formatLastRunLabel(summary.lastCompletedAt)}`}
+            label={t('tile-last-run-stat', { time: formatLastRunLabel(summary.lastCompletedAt) })}
             testId={`workforce-agent-lastrun-${agent.agent_id}`}
           />
           <StatChip
             icon={SparkleIcon}
-            label={`${summary.creditsThisWeek} credits / 7d`}
+            label={t('tile-credits-stat', { credits: summary.creditsThisWeek })}
             testId={`workforce-agent-credits-${agent.agent_id}`}
           />
         </div>
@@ -243,7 +249,7 @@ export const WorkforceAgentTile: React.FC<WorkforceAgentTileProps> = ({
               data-testid={`workforce-agent-pause-${agent.agent_id}`}
             >
               <PauseIcon className="gba:mr-1 gba:h-3.5 gba:w-3.5" />
-              {isPausing ? 'Pausing…' : 'Pause'}
+              {isPausing ? t('tile-pausing') : t('tile-pause')}
             </Button>
           ) : (
             <Button
@@ -254,7 +260,7 @@ export const WorkforceAgentTile: React.FC<WorkforceAgentTileProps> = ({
               data-testid={`workforce-agent-activate-${agent.agent_id}`}
             >
               <PlayIcon className="gba:mr-1 gba:h-3.5 gba:w-3.5" />
-              {isActivating ? 'Activating…' : 'Activate'}
+              {isActivating ? t('tile-activating') : t('tile-activate')}
             </Button>
           )}
 
@@ -265,7 +271,7 @@ export const WorkforceAgentTile: React.FC<WorkforceAgentTileProps> = ({
               disabled={isArchiving}
               onClick={() => onArchive(agent)}
               data-testid={`workforce-agent-archive-${agent.agent_id}`}
-              aria-label="Remove from workforce"
+              aria-label={t('tile-archive-aria')}
             >
               <ArchiveIcon className="gba:h-3.5 gba:w-3.5" />
             </Button>

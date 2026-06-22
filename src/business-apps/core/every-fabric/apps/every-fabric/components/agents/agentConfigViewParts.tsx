@@ -1,5 +1,5 @@
 import React from 'react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { CheckCircleIcon, SpinnerGapIcon, WarningCircleIcon, WrenchIcon, XCircleIcon } from '@phosphor-icons/react'
 import {
   evaluateAgentCompliance,
@@ -10,6 +10,7 @@ import {
   type ComplianceLevel
 } from './agentStandard'
 import { isImageAvatar, resolveAgentInitial } from './agentAvatarUtils'
+import translations from '../../_i18n'
 
 const ComplianceSignalChip: React.FC<{ ok: boolean; label: string }> = ({ ok, label }) => (
   <span
@@ -30,28 +31,32 @@ export const AgentAvatarPreview: React.FC<{
   avatar: string | null | undefined
   label: string
   className?: string
-}> = ({ avatar, label, className = '' }) => (
-  <div
-    className={`gba:flex gba:shrink-0 gba:items-center gba:justify-center gba:overflow-hidden gba:rounded-2xl gba:border gba:border-border gba:bg-muted gba:text-sm gba:font-semibold gba:text-muted-foreground ${className}`}
-  >
-    {isImageAvatar(avatar) ? (
-      <img src={avatar} alt={`${label} avatar`} className="gba:h-full gba:w-full gba:object-cover" />
-    ) : (
-      resolveAgentInitial(label)
-    )}
-  </div>
-)
+}> = ({ avatar, label, className = '' }) => {
+  const { t } = useTranslation(translations)
+  return (
+    <div
+      className={`gba:flex gba:shrink-0 gba:items-center gba:justify-center gba:overflow-hidden gba:rounded-2xl gba:border gba:border-border gba:bg-muted gba:text-sm gba:font-semibold gba:text-muted-foreground ${className}`}
+    >
+      {isImageAvatar(avatar) ? (
+        <img src={avatar} alt={t('agents-avatar-alt', { label })} className="gba:h-full gba:w-full gba:object-cover" />
+      ) : (
+        resolveAgentInitial(label)
+      )}
+    </div>
+  )
+}
 
 export const SaveButtonContent: React.FC<{ saving: boolean; saved: boolean; label: string }> = ({
   saving,
   saved,
   label
 }) => {
+  const { t } = useTranslation(translations)
   if (saving) {
     return (
       <>
         <SpinnerGapIcon className="gba:mr-1.5 gba:h-3.5 gba:w-3.5 gba:animate-spin" />
-        Saving…
+        {t('agents-save-saving')}
       </>
     )
   }
@@ -59,7 +64,7 @@ export const SaveButtonContent: React.FC<{ saving: boolean; saved: boolean; labe
     return (
       <>
         <CheckCircleIcon className="gba:mr-1.5 gba:h-3.5 gba:w-3.5" weight="fill" />
-        Saved
+        {t('agents-save-saved')}
       </>
     )
   }
@@ -70,65 +75,56 @@ export const AvatarGenerateButtonContent: React.FC<{ avatarGenerating: boolean; 
   avatarGenerating,
   hasAvatar
 }) => {
+  const { t } = useTranslation(translations)
   if (avatarGenerating) {
     return (
       <>
         <SpinnerGapIcon className="gba:mr-1.5 gba:h-3.5 gba:w-3.5 gba:animate-spin" />
-        Generating…
+        {t('agents-avatar-generating')}
       </>
     )
   }
-  if (hasAvatar) return <>Regenerate</>
-  return <>Generate avatar</>
+  if (hasAvatar) return <>{t('agents-avatar-regenerate')}</>
+  return <>{t('agents-avatar-generate')}</>
 }
 
 export const AvatarClearButtonContent: React.FC<{ avatarClearing: boolean }> = ({ avatarClearing }) => {
+  const { t } = useTranslation(translations)
   if (avatarClearing) {
     return (
       <>
         <SpinnerGapIcon className="gba:mr-1.5 gba:h-3.5 gba:w-3.5 gba:animate-spin" />
-        Removing…
+        {t('agents-avatar-removing')}
       </>
     )
   }
-  return <>Remove avatar</>
+  return <>{t('agents-avatar-remove')}</>
 }
 
-const LEVEL_STYLES: Record<ComplianceLevel, { wrap: string; title: string; text: string }> = {
-  pass: {
-    wrap: 'gba:border-emerald-500/30 gba:bg-emerald-500/5',
-    title: 'Meets the Agent Authoring Standard',
-    text: 'gba:text-emerald-700'
-  },
-  warn: {
-    wrap: 'gba:border-amber-500/30 gba:bg-amber-500/5',
-    title: 'Almost there — a few improvements recommended',
-    text: 'gba:text-amber-700'
-  },
-  fail: {
-    wrap: 'gba:border-destructive/30 gba:bg-destructive/5',
-    title: 'This agent is incomplete and may not work',
-    text: 'gba:text-destructive'
-  }
+const complianceTitleKey = (level: ComplianceLevel): string => {
+  if (level === 'pass') return 'agents-compliance-title-pass'
+  if (level === 'warn') return 'agents-compliance-title-warn'
+  return 'agents-compliance-title-fail'
 }
 
 export const DescriptionSignals: React.FC<{ signals: ReturnType<typeof evaluateDescription> }> = ({ signals }) => {
+  const { t } = useTranslation(translations)
   const chips: Array<{ ok: boolean; label: string }> = [
-    { ok: signals.meetsMinimum, label: `At least ${DESCRIPTION_MIN_LENGTH} chars` },
-    { ok: signals.notJustName, label: 'More than the name' },
-    { ok: signals.isSpecific, label: 'Specific' }
+    { ok: signals.meetsMinimum, label: t('agents-description-chip-min-chars', { min: DESCRIPTION_MIN_LENGTH }) },
+    { ok: signals.notJustName, label: t('agents-description-chip-not-just-name') },
+    { ok: signals.isSpecific, label: t('agents-description-chip-specific') }
   ]
   return (
     <div className="gba:mt-2 gba:space-y-1.5" data-testid="description-signals">
       {!signals.isValid && (
         <p className="gba:flex gba:items-center gba:gap-1.5 gba:text-[11px] gba:font-medium gba:text-destructive">
-          <WarningCircleIcon className="gba:h-3.5 gba:w-3.5" />A real description is required — it&apos;s how this agent
-          gets discovered and chosen.
+          <WarningCircleIcon className="gba:h-3.5 gba:w-3.5" />
+          {t('agents-description-required')}
         </p>
       )}
       <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2">
         <span className={`gba:text-xs ${signals.meetsMinimum ? 'gba:text-muted-foreground' : 'gba:text-amber-700'}`}>
-          {signals.length} chars{signals.meetsMinimum ? '' : ` (min ${DESCRIPTION_MIN_LENGTH})`}
+          {t('agents-char-count-min', { count: signals.length, min: DESCRIPTION_MIN_LENGTH })}
         </span>
         {chips.map(chip => (
           <ComplianceSignalChip key={chip.label} ok={chip.ok} label={chip.label} />
@@ -139,17 +135,18 @@ export const DescriptionSignals: React.FC<{ signals: ReturnType<typeof evaluateD
 }
 
 export const SystemPromptSignals: React.FC<{ value: string }> = ({ value }) => {
+  const { t } = useTranslation(translations)
   const signals = evaluateSystemPrompt(value)
   const belowMin = signals.length < SYSTEM_PROMPT_MIN_LENGTH
   const chips: Array<{ ok: boolean; label: string }> = [
-    { ok: signals.hasIdentity, label: 'Identity ("You are …")' },
-    { ok: signals.hasConstraints, label: 'Constraints (MUST / NEVER)' },
-    { ok: signals.isSubstantial, label: 'Enough detail' }
+    { ok: signals.hasIdentity, label: t('agents-system-prompt-chip-identity') },
+    { ok: signals.hasConstraints, label: t('agents-system-prompt-chip-constraints') },
+    { ok: signals.isSubstantial, label: t('agents-system-prompt-chip-substantial') }
   ]
   return (
     <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2" data-testid="system-prompt-signals">
       <span className={`gba:text-xs ${belowMin ? 'gba:text-amber-700' : 'gba:text-muted-foreground'}`}>
-        {signals.length} chars{belowMin ? ` (min ${SYSTEM_PROMPT_MIN_LENGTH})` : ''}
+        {t('agents-char-count-min', { count: signals.length, min: SYSTEM_PROMPT_MIN_LENGTH })}
       </span>
       {chips.map(chip => (
         <ComplianceSignalChip key={chip.label} ok={chip.ok} label={chip.label} />
@@ -181,6 +178,7 @@ export const SystemPromptConfigPanel: React.FC<{
   onResetSystemPrompt,
   onSaveSystemPrompt
 }) => {
+  const { t } = useTranslation(translations)
   if (detailsLoading) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
@@ -225,7 +223,7 @@ export const SystemPromptConfigPanel: React.FC<{
               className="gba:text-sm gba:text-muted-foreground gba:hover:text-foreground gba:disabled:opacity-50"
               data-testid="system-prompt-reset"
             >
-              Reset
+              {t('agents-system-prompt-reset')}
             </button>
           )}
           <Button
@@ -237,7 +235,7 @@ export const SystemPromptConfigPanel: React.FC<{
             <SaveButtonContent
               saving={systemPromptSaving}
               saved={systemPromptSaved && !systemPromptDirty}
-              label="Save System Prompt"
+              label={t('agents-system-prompt-save')}
             />
           </Button>
         </div>
@@ -250,8 +248,7 @@ export const SystemPromptConfigPanel: React.FC<{
       className="gba:rounded-lg gba:border gba:border-border gba:bg-muted/30 gba:p-3 gba:text-sm gba:text-muted-foreground"
       data-testid="agent-config-system-prompt-unavailable"
     >
-      This agent&apos;s system prompt isn&apos;t editable here. Its core instructions are managed by the runtime;
-      Worker-specific operating rules live under Activation → Autonomy.
+      {t('agents-system-prompt-unavailable')}
     </p>
   )
 }
@@ -266,17 +263,26 @@ const CheckIcon: React.FC<{ level: ComplianceLevel }> = ({ level }) => {
 export const ComplianceBanner: React.FC<{ compliance: ReturnType<typeof evaluateAgentCompliance> }> = ({
   compliance
 }) => {
-  const style = LEVEL_STYLES[compliance.level]
+  const { t } = useTranslation(translations)
+  const level = compliance.level
+  const wrap =
+    level === 'pass'
+      ? 'gba:border-emerald-500/30 gba:bg-emerald-500/5'
+      : level === 'warn'
+        ? 'gba:border-amber-500/30 gba:bg-amber-500/5'
+        : 'gba:border-destructive/30 gba:bg-destructive/5'
+  const text =
+    level === 'pass' ? 'gba:text-emerald-700' : level === 'warn' ? 'gba:text-amber-700' : 'gba:text-destructive'
   return (
     <section
-      className={`gba:rounded-xl gba:border gba:p-4 ${style.wrap}`}
+      className={`gba:rounded-xl gba:border gba:p-4 ${wrap}`}
       data-testid="agent-config-compliance"
       data-level={compliance.level}
     >
       <div className="gba:mb-3 gba:flex gba:items-center gba:justify-between">
-        <h2 className={`gba:text-sm gba:font-semibold ${style.text}`}>{style.title}</h2>
+        <h2 className={`gba:text-sm gba:font-semibold ${text}`}>{t(complianceTitleKey(level))}</h2>
         <span className="gba:text-xs gba:text-muted-foreground">
-          {compliance.passed}/{compliance.total} checks
+          {t('agents-compliance-checks-count', { done: compliance.passed, total: compliance.total })}
         </span>
       </div>
       <ul className="gba:space-y-2">
@@ -306,11 +312,14 @@ export const ConfigFormError: React.FC<{ message: string; 'data-testid'?: string
   </div>
 )
 
-export const ConfigSkillBuiltInBadge: React.FC = () => (
-  <span className="gba:shrink-0 gba:rounded gba:bg-blue-100 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-blue-800">
-    Built-in
-  </span>
-)
+export const ConfigSkillBuiltInBadge: React.FC = () => {
+  const { t } = useTranslation(translations)
+  return (
+    <span className="gba:shrink-0 gba:rounded gba:bg-blue-100 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:text-blue-800">
+      {t('agents-skill-builtin-badge')}
+    </span>
+  )
+}
 
 export const ConfigSkillToolRefs: React.FC<{ toolRefs?: string[] }> = ({ toolRefs }) => {
   if (!toolRefs || toolRefs.length === 0) return null

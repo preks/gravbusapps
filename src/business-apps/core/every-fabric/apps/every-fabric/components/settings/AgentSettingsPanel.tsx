@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { GearIcon, XIcon } from '@phosphor-icons/react'
 import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
@@ -10,6 +10,7 @@ import { loadSettings, persistSettings } from './agentSettings.utils'
 import { ConfigurationSection } from './components/ConfigurationSection'
 import { MemorySection } from './components/MemorySection'
 import { MetricsSection } from './components/MetricsSection'
+import translations from '../../_i18n'
 
 interface AgentSettingsPanelProps {
   isOpen: boolean
@@ -18,6 +19,7 @@ interface AgentSettingsPanelProps {
 }
 
 export const AgentSettingsPanel: React.FC<AgentSettingsPanelProps> = ({ isOpen, onClose, accessToken }) => {
+  const { t } = useTranslation(translations)
   const client = useEnterpriseAgentClient(accessToken)
   const devToolsFeature = useFeature<boolean>(Feature.EveryFabric.DevTools.Key)
   const devToolsEnabled = isEveryFabricDevToolsEnabled(devToolsFeature)
@@ -44,7 +46,7 @@ export const AgentSettingsPanel: React.FC<AgentSettingsPanelProps> = ({ isOpen, 
         <div className="gba:flex gba:items-center gba:justify-between gba:px-4 sm:gba:px-5 gba:py-3 sm:gba:py-4 gba:border-b gba:border-border/60">
           <div className="gba:flex gba:items-center gba:gap-2.5">
             <GearIcon className="gba:h-[18px] gba:w-[18px] gba:text-foreground" />
-            <span className="gba:text-[15px] gba:font-semibold gba:text-foreground">Settings</span>
+            <span className="gba:text-[15px] gba:font-semibold gba:text-foreground">{t('settings-title')}</span>
           </div>
           <Button
             variant="ghost"

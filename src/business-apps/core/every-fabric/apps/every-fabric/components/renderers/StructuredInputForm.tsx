@@ -7,7 +7,8 @@ import {
   SelectTrigger,
   SelectValue,
   SelectContent,
-  SelectItem
+  SelectItem,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   CaretDownIcon,
@@ -21,6 +22,7 @@ import {
 import type { InputFieldSchema, PreviewBlock } from '../../types/enterpriseAgent'
 import { EmployeeSearchField } from '../forms/EmployeeSearchField'
 import { PreviewBlockRenderer } from './PreviewBlockRenderer'
+import translations from '../../_i18n'
 
 interface StructuredInputFormProps {
   formId: string
@@ -124,6 +126,7 @@ export const StructuredInputForm = ({
   alreadySubmitted = false,
   preview
 }: StructuredInputFormProps) => {
+  const { t } = useTranslation(translations)
   // Initialize field state
   const [fieldStates, setFieldStates] = useState<Record<string, FieldState>>(() => {
     const initial: Record<string, FieldState> = {}
@@ -185,7 +188,7 @@ export const StructuredInputForm = ({
 
       // Required field check
       if (field.required && !state.value) {
-        errors[field.field_id] = 'This field is required'
+        errors[field.field_id] = t('renderer-form-field-required')
         isValid = false
         continue
       }
@@ -197,7 +200,7 @@ export const StructuredInputForm = ({
         state.value &&
         !new RegExp(field.validation_pattern).test(state.value)
       ) {
-        errors[field.field_id] = 'Invalid format'
+        errors[field.field_id] = t('renderer-form-field-invalid')
         isValid = false
       }
     }
@@ -212,7 +215,7 @@ export const StructuredInputForm = ({
     })
 
     return isValid
-  }, [fields, fieldStates, allowPartialSubmit])
+  }, [fields, fieldStates, allowPartialSubmit, t])
 
   const handleSubmit = useCallback(() => {
     if (!validate()) {
@@ -269,12 +272,12 @@ export const StructuredInputForm = ({
               {state.aiDelegated ? (
                 <>
                   <CheckCircleIcon className="gba:h-3.5 gba:w-3.5" weight="fill" />
-                  <span className="gba:text-xs">AI will generate</span>
+                  <span className="gba:text-xs">{t('renderer-form-ai-will-generate')}</span>
                 </>
               ) : (
                 <>
                   <SparkleIcon className="gba:h-3.5 gba:w-3.5" />
-                  <span className="gba:text-xs">Let AI generate</span>
+                  <span className="gba:text-xs">{t('renderer-form-let-ai-generate')}</span>
                 </>
               )}
             </Button>
@@ -318,7 +321,7 @@ export const StructuredInputForm = ({
             {field.field_type === 'select' && (
               <Select value={state.value || ''} onValueChange={v => updateField(field.field_id, v)} disabled={readOnly}>
                 <SelectTrigger className={state.error ? 'gba:border-destructive' : ''}>
-                  <SelectValue placeholder="Select..." />
+                  <SelectValue placeholder={t('renderer-form-select-placeholder')} />
                 </SelectTrigger>
                 <SelectContent>
                   {field.options
@@ -376,7 +379,7 @@ export const StructuredInputForm = ({
         {state.aiDelegated && (
           <div className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2.5 gba:rounded-lg gba:bg-primary/10 gba:border gba:border-primary/20">
             <MagicWandIcon className="gba:h-4 gba:w-4 gba:text-primary" weight="fill" />
-            <span className="gba:text-xs gba:text-foreground/90">AI will generate this field</span>
+            <span className="gba:text-xs gba:text-foreground/90">{t('renderer-form-ai-generate-field')}</span>
           </div>
         )}
       </div>
@@ -388,7 +391,7 @@ export const StructuredInputForm = ({
   const showCompactBar = isLocked && compactCollapsed
   const showDetailBody = !isLocked || !compactCollapsed
 
-  const summaryLine = buildSummaryLine(fields, fieldStates)
+  const summaryLine = buildSummaryLine(fields, fieldStates, t)
 
   const shellClass = isLocked
     ? 'gba:rounded-2xl gba:border gba:border-border/50 gba:bg-muted/25 gba:max-w-3xl gba:shadow-none'
@@ -452,7 +455,7 @@ export const StructuredInputForm = ({
             type="button"
             onClick={() => setCompactCollapsed(true)}
             className="gba:shrink-0 gba:inline-flex gba:items-center gba:justify-center gba:h-7 gba:w-7 gba:rounded-full gba:text-muted-foreground gba:hover:bg-muted/40 gba:transition-colors"
-            aria-label="Collapse submitted form"
+            aria-label={t('renderer-form-collapse-aria')}
             data-testid={`structured-input-form-${formId}-collapse`}
           >
             <CaretDownIcon className="gba:h-4 gba:w-4" />
@@ -482,7 +485,9 @@ export const StructuredInputForm = ({
                   <p className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1.5">
                     <SparkleIcon className="gba:h-3.5 gba:w-3.5 gba:text-primary" weight="fill" />
                     <span>
-                      AI will generate {Object.values(fieldStates).filter(s => s.aiDelegated).length} field(s)
+                      {t('renderer-form-ai-generate-count', {
+                        count: Object.values(fieldStates).filter(s => s.aiDelegated).length
+                      })}
                     </span>
                   </p>
                 )}
@@ -490,17 +495,17 @@ export const StructuredInputForm = ({
               <div className="gba:flex gba:items-center gba:gap-2">
                 {onCancel && (
                   <Button variant="ghost" onClick={onCancel} disabled={isSubmitting}>
-                    Cancel
+                    {t('action-cancel')}
                   </Button>
                 )}
                 <Button onClick={handleSubmit} disabled={isSubmitting} className="gba:gap-2">
                   {hasAiDelegatedFields && allowPartialSubmit ? (
                     <>
                       <MagicWandIcon className="gba:h-4 gba:w-4" weight="fill" />
-                      <span>Continue with AI</span>
+                      <span>{t('renderer-form-continue-ai')}</span>
                     </>
                   ) : (
-                    <span>Submit</span>
+                    <span>{t('renderer-form-submit')}</span>
                   )}
                 </Button>
               </div>
@@ -517,12 +522,16 @@ export const StructuredInputForm = ({
  * header — picks the first non-empty field value. Employee IDs are opaque
  * so we just show the field label as a fallback breadcrumb.
  */
-function buildSummaryLine(fields: InputFieldSchema[], fieldStates: Record<string, FieldState>): string | null {
+function buildSummaryLine(
+  fields: InputFieldSchema[],
+  fieldStates: Record<string, FieldState>,
+  t: (key: string, vars?: Record<string, unknown>) => string
+): string | null {
   for (const field of fields) {
     const state = fieldStates[field.field_id]
     if (!state) continue
     if (state.aiDelegated) {
-      return `${field.label}: AI-generated`
+      return t('renderer-form-summary-ai', { label: field.label })
     }
     const value = state.value
     if (value === undefined || value === null || value === '') continue

@@ -1,12 +1,27 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Input } from '@newwork/nw-design-system'
+import { Input, useTranslation } from '@newwork/nw-design-system'
 import { BrainIcon, MagnifyingGlassIcon, TrashIcon } from '@phosphor-icons/react'
 import type { MemoryEntry, MemoryNamespace } from '../agentSettings.types'
-import { MEMORY_NAMESPACES, MEMORY_NAMESPACE_EMPTY, MEMORY_NAMESPACE_LABELS } from '../agentSettings.types'
+import { MEMORY_NAMESPACES } from '../agentSettings.types'
 import { useEnterpriseAgentClient } from '../../../hooks/useEnterpriseAgentClient'
 import { SectionHeader } from './SettingsShared'
 import { MemoryListSkeleton } from './SkeletonLoader'
 import { PreferencesEditor } from './PreferencesEditor'
+import translations from '../../../_i18n'
+
+const MEMORY_NAMESPACE_LABEL_KEYS: Record<MemoryNamespace, string> = {
+  preferences: 'settings-memory-namespace-preferences',
+  domain: 'settings-memory-namespace-domain',
+  skills: 'settings-memory-namespace-skills',
+  episodes: 'settings-memory-namespace-episodes'
+}
+
+const MEMORY_NAMESPACE_EMPTY_KEYS: Record<MemoryNamespace, string> = {
+  preferences: 'settings-memory-empty-preferences',
+  domain: 'settings-memory-empty-domain',
+  skills: 'settings-memory-empty-skills',
+  episodes: 'settings-memory-empty-episodes'
+}
 
 interface MemorySectionProps {
   client: ReturnType<typeof useEnterpriseAgentClient>
@@ -135,19 +150,20 @@ const cleanMemoryBody = (value: string): string =>
     )
   )
 
-const relativeDate = (iso?: string): string => {
+const relativeDate = (iso: string | undefined, t: (key: string, args?: Record<string, unknown>) => string): string => {
   if (!iso) return ''
   const then = new Date(iso).getTime()
   if (Number.isNaN(then)) return ''
   const days = Math.floor((Date.now() - then) / 86_400_000)
-  if (days <= 0) return 'Today'
-  if (days === 1) return 'Yesterday'
-  if (days < 7) return `${days} days ago`
-  if (days < 30) return `${Math.floor(days / 7)}w ago`
+  if (days <= 0) return t('settings-memory-relative-today')
+  if (days === 1) return t('settings-memory-relative-yesterday')
+  if (days < 7) return t('settings-memory-relative-days', { days })
+  if (days < 30) return t('settings-memory-relative-weeks', { weeks: Math.floor(days / 7) })
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
 export const MemorySection: React.FC<MemorySectionProps> = ({ client, isOpen }) => {
+  const { t } = useTranslation(translations)
   const [memories, setMemories] = useState<MemoryEntry[]>([])
   const [memoryQuery, setMemoryQuery] = useState('')
   const [activeNamespace, setActiveNamespace] = useState<MemoryNamespace>('preferences')
@@ -238,13 +254,13 @@ export const MemorySection: React.FC<MemorySectionProps> = ({ client, isOpen }) 
     if (filteredMemories.length === 0) {
       return (
         <p className="gba:text-xs gba:text-muted-foreground gba:text-center gba:py-4">
-          {MEMORY_NAMESPACE_EMPTY[activeNamespace]}
+          {t(MEMORY_NAMESPACE_EMPTY_KEYS[activeNamespace])}
         </p>
       )
     }
 
     return filteredMemories.map(entry => {
-      const when = relativeDate(entry.occurredAt || entry.updatedAt)
+      const when = relativeDate(entry.occurredAt || entry.updatedAt, t)
       const tags = entry.tags ?? []
       return (
         <div
@@ -279,7 +295,7 @@ export const MemorySection: React.FC<MemorySectionProps> = ({ client, isOpen }) 
               onClick={() => handleDeleteMemory(entry.key, entry.namespace)}
               className="gba:flex gba:items-center gba:justify-center gba:h-7 gba:w-7 gba:rounded-full gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors gba:shrink-0"
               data-testid={`settings-memory-delete-${entry.key}`}
-              aria-label={`Delete memory: ${formatMemoryTitle(entry)}`}
+              aria-label={t('settings-memory-delete-aria', { title: formatMemoryTitle(entry) })}
             >
               <TrashIcon className="gba:h-3 gba:w-3" />
             </button>
@@ -291,7 +307,10 @@ export const MemorySection: React.FC<MemorySectionProps> = ({ client, isOpen }) 
 
   return (
     <>
-      <SectionHeader icon={<BrainIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground/60" />} title="Memory" />
+      <SectionHeader
+        icon={<BrainIcon className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground/60" />}
+        title={t('settings-memory-title')}
+      />
       <div className="gba:pb-2.5 sm:gba:pb-3">
         {MEMORY_NAMESPACES.length > 1 && (
           <div className="gba:px-3 sm:gba:px-4 gba:mb-5">
@@ -307,7 +326,7 @@ export const MemorySection: React.FC<MemorySectionProps> = ({ client, isOpen }) 
                       : 'gba:border-transparent gba:text-muted-foreground gba:hover:text-foreground'
                   }`}
                 >
-                  {MEMORY_NAMESPACE_LABELS[ns]}
+                  {t(MEMORY_NAMESPACE_LABEL_KEYS[ns])}
                 </button>
               ))}
             </div>
@@ -324,7 +343,9 @@ export const MemorySection: React.FC<MemorySectionProps> = ({ client, isOpen }) 
                 value={memoryQuery}
                 onChange={e => setMemoryQuery(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSearchMemory()}
-                placeholder={`Search ${MEMORY_NAMESPACE_LABELS[activeNamespace].toLowerCase()}...`}
+                placeholder={t('settings-memory-search-placeholder', {
+                  namespace: t(MEMORY_NAMESPACE_LABEL_KEYS[activeNamespace]).toLowerCase()
+                })}
                 className="gba:h-8 gba:pl-9 gba:text-sm gba:rounded-full gba:bg-muted/30 gba:border-border/50"
                 data-testid="settings-memory-search"
               />
@@ -340,7 +361,7 @@ export const MemorySection: React.FC<MemorySectionProps> = ({ client, isOpen }) 
                       : 'gba:bg-muted/50 gba:text-muted-foreground gba:hover:bg-muted/70'
                   }`}
                 >
-                  All topics
+                  {t('settings-memory-all-topics')}
                 </button>
                 {availableTopics.slice(0, 12).map(topic => (
                   <button
@@ -360,10 +381,10 @@ export const MemorySection: React.FC<MemorySectionProps> = ({ client, isOpen }) 
             )}
             {!isLoading && filteredMemories.length > 0 && (
               <p className="gba:mb-2 gba:px-1 gba:text-[11px] gba:text-muted-foreground/70">
-                {filteredMemories.length} {filteredMemories.length === 1 ? 'entry' : 'entries'}
+                {t('settings-memory-entry-count', { count: filteredMemories.length })}
                 {activeNamespace === 'episodes'
-                  ? ' · diary of past sessions'
-                  : ' · learned automatically after sessions'}
+                  ? ` ${t('settings-memory-entries-episodes-suffix')}`
+                  : ` ${t('settings-memory-entries-auto-suffix')}`}
               </p>
             )}
             <div className="gba:space-y-1.5 gba:max-h-80 gba:overflow-y-auto gba:pr-0.5">{renderMemoryList()}</div>

@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { ListBulletsIcon, TreeStructureIcon } from '@phosphor-icons/react'
+import { useTranslation } from '@newwork/nw-design-system'
 import type { DelegationNode, DelegationStats } from '../../../types/delegation'
+import translations from '../../../_i18n'
 import { PanelCard } from '../PanelCard'
 import { DelegationTimeline } from './DelegationTimeline'
 import { DelegationTreeView } from './DelegationTreeView'
@@ -13,15 +15,16 @@ interface CollaborationPanelProps {
   defaultCollapsed?: boolean
 }
 
-function buildSummary(stats: DelegationStats): string {
+function buildSummary(stats: DelegationStats, t: (key: string, vars?: Record<string, unknown>) => string): string {
   const parts: string[] = []
-  if (stats.done > 0) parts.push(`${stats.done} done`)
-  if (stats.running > 0) parts.push(`${stats.running} running`)
-  if (stats.failed > 0) parts.push(`${stats.failed} failed`)
+  if (stats.done > 0) parts.push(t('workspace-collaboration-done', { count: stats.done }))
+  if (stats.running > 0) parts.push(t('workspace-collaboration-running', { count: stats.running }))
+  if (stats.failed > 0) parts.push(t('workspace-collaboration-failed', { count: stats.failed }))
   return parts.join(' · ')
 }
 
 export const CollaborationPanel: React.FC<CollaborationPanelProps> = ({ root, stats, defaultCollapsed = false }) => {
+  const { t } = useTranslation(translations)
   const [viewMode, setViewMode] = useState<ViewMode>('tree')
 
   const viewToggle = (
@@ -34,7 +37,7 @@ export const CollaborationPanel: React.FC<CollaborationPanelProps> = ({ root, st
             ? 'gba:bg-foreground/10 gba:text-foreground'
             : 'gba:text-muted-foreground/60 gba:hover:text-foreground gba:hover:bg-muted/40'
         }`}
-        aria-label="Tree view"
+        aria-label={t('workspace-collaboration-tree-view')}
         data-testid="collaboration-view-tree"
       >
         <TreeStructureIcon className="gba:h-3.5 gba:w-3.5" />
@@ -47,7 +50,7 @@ export const CollaborationPanel: React.FC<CollaborationPanelProps> = ({ root, st
             ? 'gba:bg-foreground/10 gba:text-foreground'
             : 'gba:text-muted-foreground/60 gba:hover:text-foreground gba:hover:bg-muted/40'
         }`}
-        aria-label="Timeline view"
+        aria-label={t('workspace-collaboration-timeline-view')}
         data-testid="collaboration-view-timeline"
       >
         <ListBulletsIcon className="gba:h-3.5 gba:w-3.5" />
@@ -57,9 +60,9 @@ export const CollaborationPanel: React.FC<CollaborationPanelProps> = ({ root, st
 
   return (
     <PanelCard
-      title="Agent collaboration"
+      title={t('workspace-collaboration-title')}
       badge={stats.total}
-      summary={buildSummary(stats)}
+      summary={buildSummary(stats, t)}
       extra={viewToggle}
       defaultOpen={!defaultCollapsed}
     >

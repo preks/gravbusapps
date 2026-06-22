@@ -4,6 +4,11 @@ import type { DecisionItem } from '../../../hooks/useFabricDecisions'
 import type { ActivityEvent } from '../../../types/enterpriseAgent'
 import { SessionTimelineCard } from '../SessionTimelineCard'
 
+jest.mock('@newwork/nw-design-system', () => ({
+  ...jest.requireActual('@newwork/nw-design-system'),
+  useTranslation: () => ({ t: (key: string) => key })
+}))
+
 const decision: DecisionItem = {
   id: 'd-1',
   seq: 1,
@@ -80,7 +85,7 @@ describe('SessionTimelineCard', () => {
 
   it('shows empty state when no events', () => {
     render(<SessionTimelineCard decisions={[]} activityEvents={[]} />)
-    expect(screen.getByText(/Session events will appear here/)).toBeInTheDocument()
+    expect(screen.getByText('workspace-timeline-empty')).toBeInTheDocument()
   })
 
   it('keeps long sub-agent task prompts concise in the timeline', () => {
@@ -103,7 +108,7 @@ describe('SessionTimelineCard', () => {
     )
 
     expect(screen.getByText('HR_General_Agent')).toBeInTheDocument()
-    expect(screen.getByText('Working on a delegated task')).toBeInTheDocument()
+    expect(screen.getByText('workspace-delegated-task')).toBeInTheDocument()
     expect(screen.queryByText(longTask)).not.toBeInTheDocument()
   })
 })
