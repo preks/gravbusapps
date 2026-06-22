@@ -301,66 +301,63 @@ export const ErrorDisplay: React.FC<ErrorDisplayProps> = ({ item, accessToken, s
   }
 
   return (
-    <Card
-      className="gba:bg-gradient-to-br gba:from-destructive-secondary gba:to-destructive-secondary/50 gba:border-2 gba:border-destructive/30 gba:shadow-lg"
-      data-testid="error-display"
-    >
-      <CardContent className="gba:p-5">
-        <div className="gba:flex gba:items-start gba:gap-4">
-          <div className="gba:h-10 gba:w-10 gba:rounded-full gba:bg-destructive/20 gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
-            <svg className="gba:h-5 gba:w-5 gba:text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2.5}
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          </div>
-          <div className="gba:flex-1">
-            <p className="gba:text-sm gba:font-semibold gba:text-destructive gba:mb-1">Unable to Process</p>
-            <p className="gba:text-sm gba:text-foreground">{text}</p>
-            {isFeedbackOpen && (
-              <textarea
-                className="gba:mt-3 gba:w-full gba:min-h-20 gba:rounded-md gba:border gba:border-border gba:bg-background gba:p-2 gba:text-sm gba:text-foreground"
-                data-testid="flowbot-error-feedback-input"
-                placeholder="What were you trying to do?"
-                value={userDescription}
-                onChange={event => setUserDescription(event.target.value)}
-              />
-            )}
-            <div className="gba:mt-4 gba:flex gba:flex-wrap gba:items-center gba:gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsFeedbackOpen(prev => !prev)}
-                disabled={reportStatus === 'sending' || reportStatus === 'success'}
-                data-testid="flowbot-error-add-feedback-button"
-              >
-                {isFeedbackOpen ? 'Hide feedback' : 'Add feedback'}
-              </Button>
-              <Button
-                variant="default"
-                size="sm"
-                onClick={handleReportBug}
-                disabled={reportStatus === 'sending' || reportStatus === 'success'}
-                data-testid="flowbot-error-report-button"
-              >
-                {reportStatus === 'sending' ? 'Reporting...' : 'Report bug'}
-              </Button>
-            </div>
-            {reportStatus === 'success' && (
-              <p className="gba:mt-3 gba:text-sm gba:text-muted-foreground">
-                Thanks, this issue was reported.{reportId ? ` Reference: ${reportId}` : ''}
-              </p>
-            )}
-            {reportStatus === 'error' && (
-              <p className="gba:mt-3 gba:text-sm gba:text-destructive">Could not send report. Please try again.</p>
-            )}
-          </div>
+    <div className="gba:flex gba:items-start gba:gap-3" data-testid="error-display">
+      <div className="gba:flex gba:items-center gba:justify-center gba:flex-shrink-0 gba:mt-0.5">
+        <svg
+          className="gba:h-4 gba:w-4 gba:text-muted-foreground"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+      </div>
+      <div className="gba:flex-1">
+        <p className="gba:text-sm gba:text-foreground">{text}</p>
+        {isFeedbackOpen && (
+          <textarea
+            className="gba:mt-3 gba:w-full gba:min-h-20 gba:rounded-md gba:border gba:border-border gba:bg-background gba:p-2 gba:text-sm gba:text-foreground"
+            data-testid="flowbot-error-feedback-input"
+            placeholder="What were you trying to do?"
+            value={userDescription}
+            onChange={event => setUserDescription(event.target.value)}
+          />
+        )}
+        <div className="gba:mt-2 gba:flex gba:flex-wrap gba:items-center gba:gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsFeedbackOpen(prev => !prev)}
+            disabled={reportStatus === 'sending' || reportStatus === 'success'}
+            data-testid="flowbot-error-add-feedback-button"
+          >
+            {isFeedbackOpen ? 'Hide feedback' : 'Add feedback'}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleReportBug}
+            disabled={reportStatus === 'sending' || reportStatus === 'success'}
+            data-testid="flowbot-error-report-button"
+          >
+            {reportStatus === 'sending' ? 'Reporting...' : 'Report bug'}
+          </Button>
         </div>
-      </CardContent>
-    </Card>
+        {reportStatus === 'success' && (
+          <p className="gba:mt-2 gba:text-sm gba:text-muted-foreground">
+            Thanks, this issue was reported.{reportId ? ` Reference: ${reportId}` : ''}
+          </p>
+        )}
+        {reportStatus === 'error' && (
+          <p className="gba:mt-2 gba:text-sm gba:text-muted-foreground">Could not send report. Please try again.</p>
+        )}
+      </div>
+    </div>
   )
 }
 
