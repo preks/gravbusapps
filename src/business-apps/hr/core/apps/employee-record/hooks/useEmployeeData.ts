@@ -218,9 +218,11 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         id
         version
         isEmergencyContact
+        birthDate
         typeRef
         type {
           id
+          code
           value
           translations(where: {localeCode: {_eq: $activeUserLocale}}) {
             value
@@ -729,6 +731,7 @@ export interface EmployeePosition {
 
 interface CodeValue {
   id: string
+  code?: string
   value: string
   translations?: {
     localeCode: string
@@ -753,6 +756,7 @@ interface Relationship {
   id: string
   version: number
   isEmergencyContact: boolean
+  birthDate?: string | null
   typeRef: string
   type: CodeValue
   firstName: string

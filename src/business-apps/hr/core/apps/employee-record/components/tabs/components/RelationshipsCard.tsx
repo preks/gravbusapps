@@ -17,6 +17,7 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { TrashIcon } from '@phosphor-icons/react'
+import dayjs from 'dayjs'
 import { Employee } from '../../../hooks/useEmployeeData'
 import { formatPhoneNumberWithCountryCode } from '../../../utils/formatters'
 import translations from '../../../_i18n'
@@ -36,6 +37,19 @@ interface RelationshipsCardProps {
 
 function shouldMask(isSelfView: boolean, hasBackofficePermission: boolean): boolean {
   return !isSelfView && !hasBackofficePermission
+}
+
+function isChildRelationship(rel: Employee['relationship'][number]): boolean {
+  const normalizedCode = (rel.type?.code || '').trim().toLowerCase()
+
+  if (normalizedCode === 'child' || normalizedCode.endsWith(':child')) {
+    return true
+  }
+
+  const translatedType = rel.type?.translations?.[0]?.value
+  const relationshipType = translatedType || rel.type?.value || ''
+
+  return relationshipType.trim().toLowerCase() === 'child'
 }
 
 const RelationshipsCard: React.FC<RelationshipsCardProps> = ({
@@ -66,6 +80,7 @@ const RelationshipsCard: React.FC<RelationshipsCardProps> = ({
       firstName: rel.firstName,
       lastName: rel.lastName,
       typeRef: rel.typeRef,
+      birthDate: rel.birthDate,
       phoneNumber: rel.phoneNumber,
       isEmergencyContact: rel.isEmergencyContact
     }
@@ -155,6 +170,12 @@ const RelationshipsCard: React.FC<RelationshipsCardProps> = ({
                       <span className="gba:text-xs gba:text-muted-foreground">
                         {t('details-label-phone-number')}:{' '}
                         {masked ? MASK_PLACEHOLDER : formatPhoneNumberWithCountryCode(rel.phoneNumber)}
+                      </span>
+                    ) : null}
+                    {isChildRelationship(rel) && rel.birthDate ? (
+                      <span className="gba:text-xs gba:text-muted-foreground">
+                        {t('details-label-relationship-birth-date')}:{' '}
+                        {masked ? MASK_PLACEHOLDER : dayjs(rel.birthDate).format('MMM D, YYYY')}
                       </span>
                     ) : null}
                     {rel.email ? (
