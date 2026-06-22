@@ -66,6 +66,37 @@ const DATE_INPUT_TYPE: Record<'date' | 'datetime' | 'time', 'date' | 'datetime-l
   time: 'time'
 }
 
+const CONFIRM_INTENT_WORDS = ['confirm', 'submit', 'approve', 'proceed', 'agree', 'acknowledge', 'consent']
+const YES_NO_OPTION_VALUES = new Set(['yes', 'no', 'true', 'false'])
+const AFFIRMATIVE_OPTION_VALUES = new Set(['yes', 'true'])
+
+const optionValue = (raw: string | { label: string; value: string }): string =>
+  typeof raw === 'string' ? raw : raw.value
+
+/**
+ * A select that merely asks "do you want to submit?" (Yes/No) is redundant
+ * once the form already has a Submit button — the footer action *is* the
+ * confirmation. Detect these so we can hide them from the rendered form and
+ * answer them affirmatively on submit, mirroring the backend's
+ * `_reads_as_yes_no_confirm` heuristic.
+ */
+const isYesNoConfirmField = (field: InputFieldSchema): boolean => {
+  if (field.field_type !== 'select') return false
+  const values = (field.options ?? []).map(opt => optionValue(opt).toLowerCase())
+  if (values.length === 0 || values.length > 2) return false
+  if (!values.every(value => YES_NO_OPTION_VALUES.has(value))) return false
+  const haystack = `${field.field_id} ${field.label}`.toLowerCase()
+  return CONFIRM_INTENT_WORDS.some(word => haystack.includes(word))
+}
+
+/** The affirmative ("Yes") option value for an implicit confirm field. */
+const affirmativeOptionValue = (field: InputFieldSchema): string => {
+  const options = field.options ?? []
+  const yes = options.find(opt => AFFIRMATIVE_OPTION_VALUES.has(optionValue(opt).toLowerCase()))
+  if (yes) return optionValue(yes)
+  return options[0] ? optionValue(options[0]) : 'Yes'
+}
+
 /**
  * Coerce the polymorphic options shape coming from the backend
  * (string | {label, value}) into a stable {label, value} pair so the
@@ -150,6 +181,25 @@ export const StructuredInputForm = ({
     return initial
   })
 
+  // Yes/No confirm selects ("Submit this request?") are redundant when the
+  // form already has other fields + a Submit button. Hide them and answer
+  // them affirmatively on submit. Keep them when they are the ONLY field
+  // (then the dropdown is the actual decision the agent is asking for).
+  const implicitConfirmFieldIds = useMemo(() => {
+    const ids = new Set<string>()
+    const hasNonConfirmField = fields.some(field => !isYesNoConfirmField(field))
+    if (!hasNonConfirmField) return ids
+    for (const field of fields) {
+      if (isYesNoConfirmField(field)) ids.add(field.field_id)
+    }
+    return ids
+  }, [fields])
+
+  const visibleFields = useMemo(
+    () => fields.filter(field => !implicitConfirmFieldIds.has(field.field_id)),
+    [fields, implicitConfirmFieldIds]
+  )
+
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [hasSubmittedLocally, setHasSubmittedLocally] = useState(false)
   /** Form is locked (read-only, compact) once submitted locally or when the transcript shows a later event. */
@@ -190,6 +240,11 @@ export const StructuredInputForm = ({
     for (const field of fields) {
       const state = fieldStates[field.field_id]
 
+      // Hidden confirm selects are answered automatically on submit.
+      if (implicitConfirmFieldIds.has(field.field_id)) {
+        continue
+      }
+
       // Skip validation if AI will fill it
       if (state.aiDelegated && allowPartialSubmit) {
         continue
@@ -224,7 +279,7 @@ export const StructuredInputForm = ({
     })
 
     return isValid
-  }, [fields, fieldStates, allowPartialSubmit, t])
+  }, [fields, fieldStates, allowPartialSubmit, implicitConfirmFieldIds, t])
 
   const handleSubmit = useCallback(() => {
     if (!validate()) {
@@ -239,7 +294,10 @@ export const StructuredInputForm = ({
 
     for (const field of fields) {
       const state = fieldStates[field.field_id]
-      if (state.aiDelegated && allowPartialSubmit) {
+      if (implicitConfirmFieldIds.has(field.field_id)) {
+        // The footer Submit button is the confirmation — answer "Yes".
+        values[field.field_id] = affirmativeOptionValue(field)
+      } else if (state.aiDelegated && allowPartialSubmit) {
         aiDelegated.push(field.field_id)
       } else {
         values[field.field_id] = state.value
@@ -247,7 +305,7 @@ export const StructuredInputForm = ({
     }
 
     onSubmit(values, aiDelegated)
-  }, [fields, fieldStates, allowPartialSubmit, validate, onSubmit])
+  }, [fields, fieldStates, allowPartialSubmit, implicitConfirmFieldIds, validate, onSubmit])
 
   const readOnly = isSubmitting || isLocked
 
@@ -413,7 +471,7 @@ export const StructuredInputForm = ({
   const showCompactBar = isLocked && compactCollapsed
   const showDetailBody = !isLocked || !compactCollapsed
 
-  const summaryLine = buildSummaryLine(fields, fieldStates, t)
+  const summaryLine = buildSummaryLine(visibleFields, fieldStates, t)
 
   const shellClass = isLocked
     ? 'gba:rounded-2xl gba:border gba:border-border/50 gba:bg-muted/25 gba:max-w-3xl gba:shadow-none'
@@ -499,7 +557,7 @@ export const StructuredInputForm = ({
 
           {/* Form fields */}
           <div className="gba:px-5 gba:py-4 gba:space-y-5 gba:max-h-[70vh] gba:overflow-y-auto">
-            {fields.map(renderField)}
+            {visibleFields.map(renderField)}
           </div>
 
           {/* Footer with actions (hidden once locked; locked forms are read-only review) */}
