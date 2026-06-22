@@ -11,8 +11,13 @@ import {
   UserPlusIcon,
   UsersThreeIcon
 } from '@phosphor-icons/react'
-import type { MarketplacePackageSummary } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import type { AgentPackageV1, MarketplacePackageSummary } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import type { MarketplaceAgentTemplate, MarketplaceValuePack } from './marketplaceAgents'
+
+export interface MarketplaceBundleDetails {
+  skills: string[]
+  tools: string[]
+}
 
 export interface MarketplaceCatalogItem {
   id: string
@@ -103,6 +108,47 @@ export function legacyTemplateToCatalogItem(template: MarketplaceAgentTemplate):
     isLegacyTemplate: true,
     legacyTemplate: template
   }
+}
+
+function toStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0)
+}
+
+/**
+ * Derive human-readable skill names and the provider tool refs they wire from a
+ * fetched Agent Package v1 bundle. Used to replace `Skill 1` / `Tool 1`
+ * placeholders in the marketplace detail view with the package's real contents.
+ */
+export function bundleToDetails(bundle: AgentPackageV1): MarketplaceBundleDetails {
+  const skills: string[] = []
+  const tools = new Set<string>()
+
+  for (const skill of bundle.skills ?? []) {
+    const name = typeof skill.name === 'string' && skill.name.trim() ? skill.name.trim() : null
+    const skillId = typeof skill.skill_id === 'string' ? skill.skill_id : null
+    const label = name ?? skillId
+    if (label) skills.push(label)
+    for (const ref of toStringArray(skill.tool_refs)) {
+      tools.add(ref)
+    }
+  }
+
+  const requirements = bundle.requirements ?? {}
+  const requirementBuckets = [
+    requirements.flowbot_tool_refs,
+    requirements.builtin_tool_refs,
+    requirements.prompt_manager_tool_refs,
+    requirements.mcp_tool_refs,
+    requirements.platform_native_functions
+  ]
+  for (const bucket of requirementBuckets) {
+    for (const ref of toStringArray(bucket)) {
+      tools.add(ref)
+    }
+  }
+
+  return { skills, tools: Array.from(tools).sort((a, b) => a.localeCompare(b)) }
 }
 
 export function valuePackLabel(pack: MarketplaceValuePack | 'general'): string {

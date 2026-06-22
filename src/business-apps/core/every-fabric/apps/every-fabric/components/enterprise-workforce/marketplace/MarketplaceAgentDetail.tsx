@@ -10,15 +10,24 @@ import {
   SparkleIcon,
   StarIcon
 } from '@phosphor-icons/react'
-import React from 'react'
+import React, { useEffect, useState } from 'react'
+import type { AgentPackageV1 } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import { formatMonthlyFee } from './marketplaceAgents'
-import { type MarketplaceCatalogItem, valuePackLabel } from './marketplaceCatalogTypes'
+import {
+  bundleToDetails,
+  type MarketplaceBundleDetails,
+  type MarketplaceCatalogItem,
+  valuePackLabel
+} from './marketplaceCatalogTypes'
 
 interface MarketplaceAgentDetailProps {
   agent: MarketplaceCatalogItem
   onBack: () => void
   onHire: (agent: MarketplaceCatalogItem) => void
+  onLoadBundle?: (packageId: string, version?: string) => Promise<AgentPackageV1>
 }
+
+type BundleState = { status: 'idle' | 'loading' | 'error' } | { status: 'ready'; details: MarketplaceBundleDetails }
 
 interface SectionProps {
   title: string
@@ -49,9 +58,40 @@ const Chips: React.FC<{ items: string[]; testId: string }> = ({ items, testId })
   </div>
 )
 
-export const MarketplaceAgentDetail: React.FC<MarketplaceAgentDetailProps> = ({ agent, onBack, onHire }) => {
+export const MarketplaceAgentDetail: React.FC<MarketplaceAgentDetailProps> = ({
+  agent,
+  onBack,
+  onHire,
+  onLoadBundle
+}) => {
   const Icon = agent.icon
   const legacy = agent.legacyTemplate
+  const [bundleState, setBundleState] = useState<BundleState>({ status: 'idle' })
+
+  useEffect(() => {
+    if (agent.isLegacyTemplate || !onLoadBundle) {
+      setBundleState({ status: 'idle' })
+      return
+    }
+
+    let cancelled = false
+    setBundleState({ status: 'loading' })
+    onLoadBundle(agent.packageId, agent.version)
+      .then(bundle => {
+        if (cancelled) return
+        setBundleState({ status: 'ready', details: bundleToDetails(bundle) })
+      })
+      .catch(() => {
+        if (cancelled) return
+        setBundleState({ status: 'error' })
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [agent.isLegacyTemplate, agent.packageId, agent.version, onLoadBundle])
+
+  const bundleDetails = bundleState.status === 'ready' ? bundleState.details : null
 
   return (
     <div className="gba:flex gba:h-full gba:flex-col" data-testid={`marketplace-detail-${agent.id}`}>
@@ -98,16 +138,28 @@ export const MarketplaceAgentDetail: React.FC<MarketplaceAgentDetailProps> = ({ 
           <Section title="Skills" icon={<SparkleIcon className="gba:h-3.5 gba:w-3.5" />}>
             {agent.isLegacyTemplate ? (
               <Chips items={agent.skills} testId="marketplace-detail-skills" />
+            ) : bundleDetails && bundleDetails.skills.length > 0 ? (
+              <Chips items={bundleDetails.skills} testId="marketplace-detail-skills" />
             ) : (
-              <p className="gba:text-xs gba:text-muted-foreground">{agent.skillCount} bundled skills included</p>
+              <p className="gba:text-xs gba:text-muted-foreground" data-testid="marketplace-detail-skills-summary">
+                {bundleState.status === 'loading'
+                  ? 'Loading bundled skills…'
+                  : `${agent.skillCount} bundled skills included`}
+              </p>
             )}
           </Section>
 
           <Section title="Tools & integrations" icon={<PlugsConnectedIcon className="gba:h-3.5 gba:w-3.5" />}>
             {agent.isLegacyTemplate ? (
               <Chips items={agent.tools} testId="marketplace-detail-tools" />
+            ) : bundleDetails && bundleDetails.tools.length > 0 ? (
+              <Chips items={bundleDetails.tools} testId="marketplace-detail-tools" />
             ) : (
-              <p className="gba:text-xs gba:text-muted-foreground">{agent.toolCount} tools wired via skills</p>
+              <p className="gba:text-xs gba:text-muted-foreground" data-testid="marketplace-detail-tools-summary">
+                {bundleState.status === 'loading'
+                  ? 'Loading wired tools…'
+                  : `${agent.toolCount} tools wired via skills`}
+              </p>
             )}
           </Section>
 

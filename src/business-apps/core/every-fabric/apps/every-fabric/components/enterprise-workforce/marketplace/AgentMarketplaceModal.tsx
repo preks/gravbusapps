@@ -55,11 +55,19 @@ export const AgentMarketplaceModal: React.FC<AgentMarketplaceModalProps> = ({
   onHireLegacy,
   onInstalled
 }) => {
-  const { items, isLoading, error, reload, preflightPackages, installPackages, publishPackagesToTenant } =
-    useAgentMarketplace({
-      client,
-      enabled: open
-    })
+  const {
+    items,
+    isLoading,
+    error,
+    reload,
+    getPackageBundle,
+    preflightPackages,
+    installPackages,
+    publishPackagesToTenant
+  } = useAgentMarketplace({
+    client,
+    enabled: open
+  })
 
   const [view, setView] = useState<ModalView>('browse')
   const [search, setSearch] = useState('')
@@ -280,6 +288,7 @@ export const AgentMarketplaceModal: React.FC<AgentMarketplaceModalProps> = ({
               agent={selected}
               onBack={() => setSelected(null)}
               onHire={agent => void handleHireOne(agent)}
+              onLoadBundle={getPackageBundle}
             />
           ) : (
             <>
