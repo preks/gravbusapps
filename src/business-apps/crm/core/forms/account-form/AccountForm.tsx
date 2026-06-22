@@ -23,6 +23,7 @@ import { CatalogSelect } from '@/components/catalog-select'
 import { AppActionForm } from '@/components/app-action-form'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { AccountAiEnrichButton } from '@/common/components/common-relations/form-segments/account-ai-enrich'
+import { FormLocalizationProvider } from '@/common/components/form-localization-provider'
 
 export const customerAccountSchema = accountSchema.extend({
   salesCampaignId: z.string().nullable().optional()
@@ -30,7 +31,7 @@ export const customerAccountSchema = accountSchema.extend({
 
 type AccountFormProps = BusinessAppContextProps
 
-const AccountForm: React.FC<AccountFormProps> = ({ accessToken, userInfo, additionalData }) => {
+const AccountFormContent: React.FC<AccountFormProps> = ({ accessToken, userInfo, additionalData }) => {
   const accountId = additionalData?.accountId || additionalData?.psi_taskPayload?.psi_initialParameters?.accountId
 
   const { account, loading, error } = useCustomerAccount(accessToken || '', accountId)
@@ -176,5 +177,11 @@ const AccountForm: React.FC<AccountFormProps> = ({ accessToken, userInfo, additi
     </CatalogSelect.Provider>
   )
 }
+
+const AccountForm: React.FC<AccountFormProps> = props => (
+  <FormLocalizationProvider>
+    <AccountFormContent {...props} />
+  </FormLocalizationProvider>
+)
 
 export default AccountForm

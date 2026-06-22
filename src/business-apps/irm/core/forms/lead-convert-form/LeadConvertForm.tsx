@@ -6,6 +6,7 @@ import { type WizardStep } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { AppActionForm } from '@/components/app-action-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { FormLocalizationProvider } from '@/common/components/form-localization-provider'
 import {
   leadConvertSchema,
   type LeadConvertSchema
@@ -92,7 +93,7 @@ interface ConvertInvestmentLeadFormProps extends BusinessAppContextProps {
   onSuccess?: () => void
 }
 
-export const ConvertInvestmentLeadForm = ({
+const ConvertInvestmentLeadFormContent = ({
   accessToken,
   userInfo,
   additionalData,
@@ -888,6 +889,12 @@ export const ConvertInvestmentLeadForm = ({
     </AppActionForm>
   )
 }
+
+export const ConvertInvestmentLeadForm = (props: ConvertInvestmentLeadFormProps) => (
+  <FormLocalizationProvider>
+    <ConvertInvestmentLeadFormContent {...props} />
+  </FormLocalizationProvider>
+)
 
 export default ConvertInvestmentLeadForm
 

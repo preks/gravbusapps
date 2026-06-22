@@ -150,16 +150,16 @@ export const PhonePrefixNumberInput: React.FC<PhonePrefixNumberInputProps> = ({
   }
 
   return (
-    <div className={`gba:grid gba:min-w-0 gba:w-full gba:grid-cols-3 gba:items-center gba:gap-2 ${className || ''}`}>
+    <div className={`gba:grid gba:min-w-0 gba:w-full gba:grid-cols-5 gba:items-center gba:gap-2 ${className || ''}`}>
       <PhonePrefixCombobox
         value={selectedCountryCode}
         countries={countries}
         onValueChange={handleCountryChange}
         placeholder={prefixPlaceholder}
-        className="gba:col-span-1 gba:min-w-0 gba:w-full"
+        className="gba:col-span-2 gba:min-w-0 gba:w-full"
         data-testid={dataTestId ? `${dataTestId}-prefix` : undefined}
       />
-      <div className="gba:col-span-2 gba:min-w-0">
+      <div className="gba:col-span-3 gba:min-w-0">
         <Input
           type="tel"
           placeholder={numberPlaceholder}

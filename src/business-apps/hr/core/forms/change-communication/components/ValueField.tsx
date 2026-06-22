@@ -38,37 +38,39 @@ export const ValueField: React.FC<ValueFieldProps> = ({
   touched
 }) => {
   return (
-    <div className="gba:space-y-2">
+    <div className="gba:w-full gba:space-y-2">
       <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">
         {getTranslationFromI18nKeyAndLabel('lowcoder:communication_form.value', 'Value')}*
       </div>
       {isPhoneType ? (
-        <div className="gba:flex gba:gap-2">
-          <PhonePrefixCombobox
-            value={selectedCountryCode || ''}
-            countries={countries}
-            onValueChange={code => {
-              onCountryCodeChange(code)
-              onTouched()
-            }}
-            placeholder={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:employee_profile.details_layout.bank_account_form.country_select_placeholder',
-              'Select Country'
-            )}
-            className="gba:w-48"
-            data-testid="flw_changePrivateCommunication_countryCode"
-          />
-          <Input
-            placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:communication_form.enterValue', 'Enter Value')}
-            value={phoneNumber}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-              onPhoneNumberChange(e.target.value)
-              onTouched()
-            }}
-            onBlur={onTouched}
-            data-testid="flw_changePrivateCommunication_currentValue"
-            className="gba:flex-1"
-          />
+        <div className="gba:grid gba:min-w-0 gba:w-full gba:grid-cols-5 gba:items-center gba:gap-2">
+          <div className="gba:col-span-2 gba:min-w-0 gba:w-full">
+            <PhonePrefixCombobox
+              value={selectedCountryCode || ''}
+              countries={countries}
+              onValueChange={code => {
+                onCountryCodeChange(code)
+                onTouched()
+              }}
+              placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:communication_form.prefix', 'Prefix')}
+              selectedLabelVariant="code"
+              className="gba:w-full"
+              data-testid="flw_changePrivateCommunication_countryCode"
+            />
+          </div>
+          <div className="gba:col-span-3 gba:min-w-0">
+            <Input
+              placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:communication_form.enterValue', 'Enter Value')}
+              value={phoneNumber}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                onPhoneNumberChange(e.target.value)
+                onTouched()
+              }}
+              onBlur={onTouched}
+              data-testid="flw_changePrivateCommunication_currentValue"
+              className="gba:w-full"
+            />
+          </div>
         </div>
       ) : (
         <Input

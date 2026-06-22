@@ -24,6 +24,7 @@ import {
 import { ErrorAlert } from '@/components/error-alert'
 import { useCustomerAccounts } from '@/common/data/customer/hooks/useCustomerAccounts'
 import { LeadAiEnrichButton } from '@/common/components/common-relations/form-segments/lead-ai-enrich'
+import { FormLocalizationProvider } from '@/common/components/form-localization-provider'
 
 // CRM-specific schema extension (adds salesCampaignId)
 export const customerLeadSchema = leadSchema.extend({
@@ -32,7 +33,7 @@ export const customerLeadSchema = leadSchema.extend({
 
 type LeadFormProps = BusinessAppContextProps
 
-const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalData }) => {
+const LeadFormContent: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalData }) => {
   // Extract leadId from additionalData
   const leadId = additionalData?.leadId || additionalData?.psi_taskPayload?.psi_initialParameters?.leadId || undefined
 
@@ -195,5 +196,11 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
     </CatalogSelect.Provider>
   )
 }
+
+const LeadForm: React.FC<LeadFormProps> = props => (
+  <FormLocalizationProvider>
+    <LeadFormContent {...props} />
+  </FormLocalizationProvider>
+)
 
 export default LeadForm

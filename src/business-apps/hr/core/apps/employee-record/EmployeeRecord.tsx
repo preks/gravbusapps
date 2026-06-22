@@ -47,6 +47,7 @@ import TimeTrackingTab from './components/tabs/TimeTrackingTab'
 import { Feature } from '@/common/types/constants/FeatureHub'
 import PersonalAbsences from '@/business-apps/hr/absences/apps/personal-absences'
 import { useEmployeeNotesCount } from './hooks/useEmployeeNotesCount'
+import { FormLocalizationProvider } from '@/common/components/form-localization-provider'
 
 const EMPLOYEE_RECORD_RESOURCE_URL = '/platform/employee-record'
 const DEFAULT_ICON_SIZE = 20
@@ -210,13 +211,15 @@ export const EmployeeRecord: React.FC<BusinessAppContextProps> = props => {
   const initialActiveTab = getInitialTab()
 
   return (
-    <EmployeeRecordContent
-      {...props}
-      urlEmployeeId={urlEmployeeId}
-      currentUserEmployeeId={currentUserEmployeeId}
-      employeeIdToShow={employeeIdToShow}
-      initialActiveTab={initialActiveTab}
-    />
+    <FormLocalizationProvider>
+      <EmployeeRecordContent
+        {...props}
+        urlEmployeeId={urlEmployeeId}
+        currentUserEmployeeId={currentUserEmployeeId}
+        employeeIdToShow={employeeIdToShow}
+        initialActiveTab={initialActiveTab}
+      />
+    </FormLocalizationProvider>
   )
 }
 

@@ -35,6 +35,7 @@ import { ErrorAlert } from '@/components/error-alert'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useGetInvestmentAccounts } from '@/common/data/investment/hooks/useInvestmentAccounts'
 import { LeadAiEnrichButton } from '@/common/components/common-relations/form-segments/lead-ai-enrich'
+import { FormLocalizationProvider } from '@/common/components/form-localization-provider'
 
 type LeadFormProps = BusinessAppContextProps
 
@@ -47,7 +48,7 @@ const baseInvestmentLeadSchema = leadSchema.extend({
 // Create investment lead schema with investmentTypeId
 export const investmentLeadSchema = createInvestmentLeadSchema(baseInvestmentLeadSchema)
 
-const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalData }) => {
+const LeadFormContent: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalData }) => {
   // Extract leadId from additionalData
   const leadId = additionalData?.leadId || additionalData?.psi_taskPayload?.psi_initialParameters?.leadId || undefined
 
@@ -402,5 +403,11 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
     </CatalogSelect.Provider>
   )
 }
+
+const LeadForm: React.FC<LeadFormProps> = props => (
+  <FormLocalizationProvider>
+    <LeadFormContent {...props} />
+  </FormLocalizationProvider>
+)
 
 export default LeadForm
