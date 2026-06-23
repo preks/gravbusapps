@@ -64608,9 +64608,9 @@
     ]
   },
   "irm/core/apps/data-import": {
-    "bitbucketBuildNumber": 13967,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13967/",
-    "chunkJsBytes": 717166,
+    "bitbucketBuildNumber": 13991,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13991/",
+    "chunkJsBytes": 724642,
     "top": [
       {
         "kind": "bucket",
@@ -64651,8 +64651,8 @@
       {
         "kind": "bucket",
         "name": "(src)/common/components",
-        "rendered": 136321,
-        "gzip": 41945,
+        "rendered": 142114,
+        "gzip": 43322,
         "leaves": [
           {
             "name": "src/common/components/common-relations/apps/data-import/components/ConversionResultStep.tsx",
@@ -64687,8 +64687,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/irm",
-        "rendered": 63332,
-        "gzip": 20728,
+        "rendered": 69935,
+        "gzip": 23322,
         "leaves": [
           {
             "name": "src/business-apps/irm/core/apps/data-import/config/commonInvestmentReportFields.ts",
@@ -85972,20 +85972,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 13987,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13987/",
+    "bitbucketBuildNumber": 13991,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13991/",
     "chunkJsBytes": 2012853,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1727145,
-        "gzip": 114377,
+        "gzip": 114380,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1727145,
-            "gzip": 114377
+            "gzip": 114380
           }
         ]
       },
@@ -116860,7 +116860,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-23T09:01:43.917Z",
+    "generatedAt": "2026-06-23T10:09:54.420Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
