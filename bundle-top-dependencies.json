@@ -47184,15 +47184,15 @@
     ]
   },
   "hr/core/forms/change-personal-data": {
-    "bitbucketBuildNumber": 13967,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13967/",
-    "chunkJsBytes": 400897,
+    "bitbucketBuildNumber": 13983,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13983/",
+    "chunkJsBytes": 400980,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 258331,
-        "gzip": 61269,
+        "rendered": 258556,
+        "gzip": 61338,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/employee-record/_i18n/ro-RO.ftl?raw",
@@ -47426,13 +47426,13 @@
       {
         "kind": "bucket",
         "name": "(src)/common/types",
-        "rendered": 148,
-        "gzip": 113,
+        "rendered": 225,
+        "gzip": 133,
         "leaves": [
           {
             "name": "src/common/types/constants/FeatureHub.ts",
-            "rendered": 148,
-            "gzip": 113
+            "rendered": 225,
+            "gzip": 133
           }
         ]
       },
@@ -85972,20 +85972,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 13980,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13980/",
-    "chunkJsBytes": 2012853,
+    "bitbucketBuildNumber": 13983,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13983/",
+    "chunkJsBytes": 2012854,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1727145,
-        "gzip": 114344,
+        "gzip": 114363,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1727145,
-            "gzip": 114344
+            "gzip": 114363
           }
         ]
       },
@@ -116860,7 +116860,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-23T08:11:35.303Z",
+    "generatedAt": "2026-06-23T08:25:10.412Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
