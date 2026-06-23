@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react'
 import { PageLayout } from '@newwork/nw-design-system'
 import { GaugeIcon, ClockIcon, LightbulbIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { FormLocalizationProvider } from '@/common/components/form-localization-provider'
 import { DashboardTab } from './components/tabs/DashboardTab'
 import { AttendanceTab } from './components/tabs/AttendanceTab'
 import { InsightsTab } from './components/tabs/InsightsTab'
@@ -76,28 +77,30 @@ const MyTeamTime: React.FC<BusinessAppContextProps> = props => {
   }
 
   return (
-    <div data-testid="my-team-time-container">
-      <PageLayout
-        headerIcon={ClockIcon}
-        headerTitle={getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.title', 'My Team Time')}
-        headerDescription={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:my_team_time.description',
-          'Monitor team availability, manage capacity, and ensure compliance'
-        )}
-        headerSubViews={{
-          value: activeTab,
-          onValueChange: handleTabChange,
-          items: viewOptions.map(option => ({
-            value: option.key,
-            label: option.label,
-            icon: option.icon
-          }))
-        }}
-        className="gba:min-h-screen"
-      >
-        <div className="gba:h-full gba:overflow-auto gba:p-6">{renderTabContent()}</div>
-      </PageLayout>
-    </div>
+    <FormLocalizationProvider>
+      <div data-testid="my-team-time-container">
+        <PageLayout
+          headerIcon={ClockIcon}
+          headerTitle={getTranslationFromI18nKeyAndLabel('lowcoder:my_team_time.title', 'My Team Time')}
+          headerDescription={getTranslationFromI18nKeyAndLabel(
+            'lowcoder:my_team_time.description',
+            'Monitor team availability, manage capacity, and ensure compliance'
+          )}
+          headerSubViews={{
+            value: activeTab,
+            onValueChange: handleTabChange,
+            items: viewOptions.map(option => ({
+              value: option.key,
+              label: option.label,
+              icon: option.icon
+            }))
+          }}
+          className="gba:min-h-screen"
+        >
+          <div className="gba:h-full gba:overflow-auto gba:p-6">{renderTabContent()}</div>
+        </PageLayout>
+      </div>
+    </FormLocalizationProvider>
   )
 }
 

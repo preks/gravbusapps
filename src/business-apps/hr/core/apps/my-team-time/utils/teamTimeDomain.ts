@@ -1,7 +1,15 @@
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { employmentRegionHolidaysQuery } from '@/business-apps/hr/core/apps/employee-record/queries/attendanceQueries'
 import { GET_TEAM_ABSENCE_DETAILS_FOR_RANGE, GET_TEAM_MEMBER_REGIONS } from '../queries/queries'
-import type { AbsenceNetEntry, TeamAbsenceToday } from '../types/types'
+import type {
+  AbsenceNetEntry,
+  MonthOvertimeRow,
+  PeriodSummary,
+  TeamAbsenceToday,
+  TeamAttendanceEntry,
+  TeamMember
+} from '../types/types'
+import { getPlannedMinutesForDate, parseDurationToMinutes, toLocalDateKey } from './timeUtils'
 
 export const WORK_ABSENCE_GROUP = 'AbsenceGroup:v1:WORK'
 export const HEALTH_ABSENCE_GROUP = 'AbsenceGroup:v1:HEALTH'
@@ -381,3 +389,96 @@ export const fetchTeamHolidayData = async (
 
   return { datesByEmployeeId, namesByEmployeeId }
 }
+
+export const buildAbsenceNetByEmployeeAndDay = (absenceNet: AbsenceNetEntry[]): Map<string, Map<string, number>> => {
+  const map = new Map<string, Map<string, number>>()
+  for (const row of absenceNet) {
+    const value = Number(row.netSignedEps ?? row.netConsumed) || 0
+    if (value <= 0) continue
+    if (!map.has(row.employeeId)) map.set(row.employeeId, new Map())
+    const dayMap = map.get(row.employeeId)!
+    dayMap.set(row.dayDate, (dayMap.get(row.dayDate) ?? 0) + value)
+  }
+  return map
+}
+
+export interface ComputeMemberPeriodSummariesParams {
+  members: TeamMember[]
+  from: Date
+  to: Date
+  attendance: TeamAttendanceEntry[]
+  absences: TeamAbsenceToday[]
+  netByEmployeeAndDay: Map<string, Map<string, number>>
+  holidayDatesByEmployeeId: Map<string, Set<string>>
+}
+
+export const computeMemberPeriodSummaries = ({
+  members,
+  from,
+  to,
+  attendance,
+  absences,
+  netByEmployeeAndDay,
+  holidayDatesByEmployeeId
+}: ComputeMemberPeriodSummariesParams): Record<string, PeriodSummary> => {
+  const result: Record<string, PeriodSummary> = {}
+
+  for (const member of members) {
+    const memberAttendance = attendance.filter(a => a.employeeId === member.id)
+    const memberNetByDay = netByEmployeeAndDay.get(member.id) ?? new Map<string, number>()
+    const holidayDates = holidayDatesByEmployeeId.get(member.id) ?? new Set<string>()
+
+    let targetMinutes = 0
+    let daysOff = 0
+    const d = new Date(from)
+    while (d <= to) {
+      const dateKey = toLocalDateKey(d)
+      const planned = getPlannedMinutesForDate(dateKey, member.workingHours)
+      if (planned > 0) {
+        if (holidayDates.has(dateKey)) {
+          d.setDate(d.getDate() + 1)
+          continue
+        }
+
+        const dayAbsences = absences.filter(
+          absence => absence.employeeId === member.id && absence.dayDate === dateKey && absence.status === 'APPROVED'
+        )
+        const hasNonWorkAbsence = dayAbsences.some(absence => !isWorkAbsence(absence))
+
+        if (hasNonWorkAbsence) {
+          const netFraction = Math.min(memberNetByDay.get(dateKey) ?? 1, 1)
+          daysOff += netFraction
+          targetMinutes += planned * (1 - netFraction)
+        } else {
+          targetMinutes += planned
+        }
+      }
+      d.setDate(d.getDate() + 1)
+    }
+
+    const actualMinutes = memberAttendance.reduce((sum, e) => sum + parseDurationToMinutes(e.effectiveTime), 0)
+    const diffMinutes = actualMinutes - targetMinutes
+
+    result[member.id] = {
+      targetMinutes: Math.round(targetMinutes),
+      actualMinutes,
+      daysOff: Math.round(daysOff * 10) / 10,
+      diffMinutes: Math.round(diffMinutes)
+    }
+  }
+
+  return result
+}
+
+export const buildMonthOvertimeRows = (
+  members: TeamMember[],
+  periodSummaries: Record<string, PeriodSummary>
+): MonthOvertimeRow[] =>
+  members
+    .map(member => {
+      const summary = periodSummaries[member.id]
+      const overtimeMinutes = summary && summary.diffMinutes > 0 ? summary.diffMinutes : 0
+      return overtimeMinutes > 0 ? { employee: member, overtimeMinutes } : null
+    })
+    .filter((row): row is MonthOvertimeRow => row !== null)
+    .sort((left, right) => right.overtimeMinutes - left.overtimeMinutes)

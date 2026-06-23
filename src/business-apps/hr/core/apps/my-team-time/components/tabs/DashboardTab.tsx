@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -29,30 +29,13 @@ import { useTeamMembers } from '../../hooks/useTeamMembers'
 import { useTeamOperationalStatus } from '../../hooks/useTeamOperationalStatus'
 import { useTeamPendingActions } from '../../hooks/useTeamPendingActions'
 import { useTeamCapacity } from '../../hooks/useTeamCapacity'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { TeamMember, TeamAbsenceToday, CapacityRow, AbsenceNetEntry, Anomaly } from '../../types/types'
-import {
-  formatMinutes,
-  toDateString,
-  toLocalDateKey,
-  toComparableDateKey,
-  isWorkingDay,
-  getPlannedMinutesForDate
-} from '../../utils/timeUtils'
+import { useDashboardForecast } from '../../hooks/useDashboardForecast'
+import { TeamMember, TeamAbsenceToday, CapacityRow, Anomaly, MonthOvertimeRow } from '../../types/types'
+import { formatMinutes, toLocalDateKey, isWorkingDay, getPlannedMinutesForDate } from '../../utils/timeUtils'
 import { toAvatarSrc, goToProfile } from '../../utils/employeeUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { GET_TEAM_ABSENCE_NET_FOR_RANGE } from '../../queries/queries'
 import { DetailsSheet } from '../DetailsSheet'
-import {
-  buildApprovedNonWorkTimeOffByEmployeeDate,
-  expandDetailedAbsencesToCalendarDays,
-  fetchTeamDetailedAbsences,
-  fetchTeamHolidayData,
-  getActiveLocale,
-  getTimeOffFractionForEmployeeDate,
-  isSickAbsence,
-  isWorkAbsence
-} from '../../utils/teamTimeDomain'
+import { getTimeOffFractionForEmployeeDate, isSickAbsence, isWorkAbsence } from '../../utils/teamTimeDomain'
 
 type PanelType =
   | 'team-size'
@@ -120,10 +103,17 @@ const formatAnomalyPreview = (anomalies: Anomaly[], severeCount: number): string
   return formatNamePreview(anomalies.map(a => ({ firstName: a.employeeName.split(' ')[0] })))
 }
 
-const formatPendingPreview = (total: number, absenceCount: number): string => {
-  if (total === 0) return t('all_caught_up', 'All caught up')
-  if (absenceCount > 0) return `${absenceCount} ${t('approvals_due', 'approvals due')}`
-  return t('corrections_pending', 'corrections pending')
+const formatPendingPreview = (absenceCount: number, correctionCount: number): string => {
+  if (absenceCount === 0 && correctionCount === 0) return t('all_caught_up', 'All caught up')
+
+  const parts: string[] = []
+  if (absenceCount > 0) {
+    parts.push(`${absenceCount} ${t('approvals_due', 'approvals due')}`)
+  }
+  if (correctionCount > 0) {
+    parts.push(`${correctionCount} ${t('corrections_due', 'corrections pending')}`)
+  }
+  return parts.join(' · ')
 }
 
 const formatActionDescription = (action: any): string => {
@@ -154,18 +144,6 @@ const formatAbsencePeriod = (absence: Pick<TeamAbsenceToday, 'startDate' | 'endD
 const splitEmployeeName = (employeeName?: string): { firstName?: string; lastName?: string } => {
   const [firstName, ...rest] = String(employeeName || '').split(' ')
   return { firstName, lastName: rest.join(' ') }
-}
-
-const filterMembersByHireDateOnOrBefore = (list: TeamMember[], referenceDate: Date): TeamMember[] => {
-  const referenceKey = toLocalDateKey(referenceDate)
-  return list.filter(member => {
-    const hireDateKey = toComparableDateKey(member.hireDate)
-    if (!hireDateKey) {
-      return true
-    }
-
-    return hireDateKey <= referenceKey
-  })
 }
 
 interface AbsenceMemberListProps {
@@ -261,7 +239,8 @@ interface DashboardPanelContentProps {
   leaveAbsences: TeamAbsenceToday[]
   workAbsences: TeamAbsenceToday[]
   sickAbsences: TeamAbsenceToday[]
-  overtimeRows: CapacityRow[]
+  overtimeRows: MonthOvertimeRow[]
+  overtimeLoading: boolean
   pendingLoading: boolean
   pendingActions: Array<any>
   selectedForecastDay: string | null
@@ -280,6 +259,7 @@ const DashboardPanelContent: React.FC<DashboardPanelContentProps> = ({
   workAbsences,
   sickAbsences,
   overtimeRows,
+  overtimeLoading,
   pendingLoading,
   pendingActions,
   selectedForecastDay,
@@ -332,7 +312,7 @@ const DashboardPanelContent: React.FC<DashboardPanelContentProps> = ({
         />
       )
     case 'overtime-mtd':
-      return <OvertimePanel overtimeRows={overtimeRows} />
+      return <OvertimePanel overtimeRows={overtimeRows} isLoading={overtimeLoading} />
     case 'anomalies':
       return <AnomaliesPanel anomalies={status.anomalies} />
     case 'pending':
@@ -441,7 +421,17 @@ const NotClockedInPanel: React.FC<{
   )
 }
 
-const OvertimePanel: React.FC<{ overtimeRows: CapacityRow[] }> = ({ overtimeRows }) => {
+const OvertimePanel: React.FC<{ overtimeRows: MonthOvertimeRow[]; isLoading?: boolean }> = ({
+  overtimeRows,
+  isLoading = false
+}) => {
+  if (isLoading) {
+    return (
+      <div className="gba:text-center gba:py-6 gba:text-muted-foreground gba:text-sm">
+        {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')}
+      </div>
+    )
+  }
   if (overtimeRows.length === 0) {
     return (
       <div className="gba:text-center gba:py-6 gba:text-muted-foreground gba:text-sm">
@@ -813,18 +803,6 @@ const buildSickWorkAwayEntries = (
   return entries
 }
 
-const getCalendarRange = (month: Date): { from: string; to: string } => {
-  const monthStart = new Date(month.getFullYear(), month.getMonth(), 1)
-  const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0)
-  const dow = monthStart.getDay()
-  const calStart = new Date(monthStart)
-  calStart.setDate(monthStart.getDate() - ((dow + 6) % 7))
-  const calEnd = new Date(monthEnd)
-  const endDow = monthEnd.getDay()
-  if (endDow !== 0) calEnd.setDate(monthEnd.getDate() + (7 - endDow))
-  return { from: toDateString(calStart), to: toDateString(calEnd) }
-}
-
 const getSortValue = (row: CapacityRow, key: SortKey): number | string => {
   switch (key) {
     case 'name':
@@ -1006,6 +984,7 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
     todayAttendance,
     todayAbsences,
     monthAttendance,
+    monthOvertimeRows,
     isLoading: statusLoading
   } = useTeamOperationalStatus(props.accessToken, members, memberIds)
   const { pendingActions, isLoading: pendingLoading } = useTeamPendingActions(props, members)
@@ -1018,91 +997,26 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
     nextMonth,
     isLoading: capacityLoading,
     error: capacityError
-  } = useTeamCapacity(
-    props.accessToken,
-    capacityExpanded ? members : [],
-    capacityExpanded ? memberIds : [],
-    capacityExpanded ? monthAttendance : undefined,
-    capacityExpanded ? allMembers : undefined
-  )
+  } = useTeamCapacity(props.accessToken, members, memberIds, monthAttendance, allMembers, capacityExpanded)
 
   const [sortKey, setSortKey] = useState<SortKey>('name')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
 
-  const graphqlClient = useGraphQLClient(props.accessToken)
-  const [forecastAbsences, setForecastAbsences] = useState<TeamAbsenceToday[]>([])
-  const [forecastHolidayDatesByEmployeeId, setForecastHolidayDatesByEmployeeId] = useState<Map<string, Set<string>>>(
-    new Map()
-  )
-  const [forecastHolidayNamesByEmployeeId, setForecastHolidayNamesByEmployeeId] = useState<
-    Map<string, Record<string, string>>
-  >(new Map())
-  const [forecastTimeOffByEmployeeDate, setForecastTimeOffByEmployeeDate] = useState<Map<string, number>>(new Map())
-  const [forecastLoading, setForecastLoading] = useState(false)
+  const {
+    forecastAbsences,
+    forecastHolidayDatesByEmployeeId,
+    forecastHolidayNamesByEmployeeId,
+    forecastTimeOffByEmployeeDate,
+    forecastLoading,
+    forecastMonth,
+    forecastMonthLabel,
+    forecastMembers,
+    prevForecastMonth,
+    nextForecastMonth
+  } = useDashboardForecast(props.accessToken, allMembers)
+
   const [activePanel, setActivePanel] = useState<PanelType>(null)
   const [selectedForecastDay, setSelectedForecastDay] = useState<string | null>(null)
-
-  const [forecastMonth, setForecastMonth] = useState(() => {
-    const d = new Date()
-    return new Date(d.getFullYear(), d.getMonth(), 1)
-  })
-  const forecastMonthEnd = useMemo(
-    () => new Date(forecastMonth.getFullYear(), forecastMonth.getMonth() + 1, 0),
-    [forecastMonth]
-  )
-  const forecastMembers = useMemo(
-    () => filterMembersByHireDateOnOrBefore(allMembers, forecastMonthEnd),
-    [allMembers, forecastMonthEnd]
-  )
-  const forecastMemberIds = useMemo(() => forecastMembers.map(member => member.id), [forecastMembers])
-
-  const forecastMonthLabel = forecastMonth.toLocaleDateString(undefined, { year: 'numeric', month: 'long' })
-  const prevForecastMonth = useCallback(() => {
-    setForecastMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))
-  }, [])
-  const nextForecastMonth = useCallback(() => {
-    setForecastMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))
-  }, [])
-
-  const fetchForecast = useCallback(async () => {
-    if (!graphqlClient || forecastMemberIds.length === 0) {
-      setForecastAbsences([])
-      setForecastHolidayDatesByEmployeeId(new Map())
-      setForecastHolidayNamesByEmployeeId(new Map())
-      setForecastTimeOffByEmployeeDate(new Map())
-      return
-    }
-    setForecastLoading(true)
-    const { from, to } = getCalendarRange(forecastMonth)
-    const locale = getActiveLocale()
-    try {
-      const [detailedAbsences, holidayData, absenceNetResult] = await Promise.all([
-        fetchTeamDetailedAbsences(graphqlClient, forecastMemberIds, from, to, locale),
-        fetchTeamHolidayData(graphqlClient, forecastMemberIds, from, to, locale),
-        graphqlClient.request<any>(GET_TEAM_ABSENCE_NET_FOR_RANGE, {
-          employeeIds: forecastMemberIds,
-          from,
-          to
-        })
-      ])
-
-      const expandedForecastAbsences = expandDetailedAbsencesToCalendarDays(detailedAbsences, from, to)
-      setForecastAbsences(expandedForecastAbsences)
-      setForecastHolidayDatesByEmployeeId(holidayData.datesByEmployeeId)
-      setForecastHolidayNamesByEmployeeId(holidayData.namesByEmployeeId)
-      const absenceNetRows: AbsenceNetEntry[] = absenceNetResult?.DailyAbsenceNetView ?? []
-      const dailyTimeOffFraction = buildApprovedNonWorkTimeOffByEmployeeDate(expandedForecastAbsences, absenceNetRows)
-      setForecastTimeOffByEmployeeDate(dailyTimeOffFraction)
-    } catch {
-      setForecastTimeOffByEmployeeDate(new Map())
-    } finally {
-      setForecastLoading(false)
-    }
-  }, [graphqlClient, forecastMemberIds, forecastMonth])
-
-  useEffect(() => {
-    if (props.accessToken) fetchForecast()
-  }, [props.accessToken, forecastMemberIds, fetchForecast])
 
   const isLoading = membersLoading || statusLoading
 
@@ -1150,13 +1064,8 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
     () => getUniqueAbsencesByEmployee(todayAbsences.filter(absence => isSickAbsence(absence))),
     [todayAbsences]
   )
-  const overtimeRows = useMemo(
-    () =>
-      [...capacityRows]
-        .filter(row => row.overtimeMinutes > 0)
-        .sort((left, right) => right.overtimeMinutes - left.overtimeMinutes),
-    [capacityRows]
-  )
+  const overtimeRows = monthOvertimeRows
+  const teamOvertimeMinutesMTD = overtimeRows.reduce((sum, row) => sum + row.overtimeMinutes, 0)
 
   const oofMembers = useMemo(
     () =>
@@ -1284,6 +1193,7 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
     workAbsences,
     sickAbsences,
     overtimeRows,
+    overtimeLoading: statusLoading,
     pendingLoading,
     pendingActions,
     selectedForecastDay,
@@ -1312,6 +1222,7 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
 
   const severeAnomalyCount = status.anomalies.filter(a => a.type === 'no_clock_out').length
   const pendingAbsenceCount = pendingActions.filter(a => a.kind === 'absence').length
+  const pendingCorrectionCount = pendingActions.filter(a => a.kind === 'time-correction').length
   const overtimeEmployeeCount = overtimeRows.length
 
   return (
@@ -1413,7 +1324,7 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
                       {pendingLoading ? '…' : pendingActionCount}
                     </div>
                     <div className="gba:text-xs gba:text-muted-foreground gba:mt-0.5 gba:truncate">
-                      {formatPendingPreview(pendingActionCount, pendingAbsenceCount)}
+                      {formatPendingPreview(pendingAbsenceCount, pendingCorrectionCount)}
                     </div>
                   </div>
                   <CaretRightIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:flex-shrink-0 gba:mt-3" />
@@ -1421,7 +1332,7 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
               </CardContent>
             </Card>
 
-            {/* Overtime missing */}
+            {/* Overtime MTD */}
             <Card
               className={`gba:cursor-pointer gba:border gba:transition-colors hover:gba:bg-muted/20 ${
                 activePanel === 'overtime-mtd' ? 'gba:ring-2 gba:ring-primary gba:border-primary' : 'gba:border-border'
@@ -1435,13 +1346,11 @@ export const DashboardTab: React.FC<BusinessAppContextProps> = props => {
                     <TimerIcon size={20} />
                   </div>
                   <div className="gba:flex-1 gba:min-w-0">
-                    <div className="gba:text-xs gba:text-muted-foreground">
-                      {t('overtime_missing', 'Overtime missing')}
-                    </div>
+                    <div className="gba:text-xs gba:text-muted-foreground">{t('overtime_mtd', 'Overtime MTD')}</div>
                     <div
-                      className={`gba:text-2xl gba:font-bold gba:leading-tight ${status.overtimeMinutesMTD > 0 ? 'gba:text-info' : 'gba:text-foreground'}`}
+                      className={`gba:text-2xl gba:font-bold gba:leading-tight ${teamOvertimeMinutesMTD > 0 ? 'gba:text-info' : 'gba:text-foreground'}`}
                     >
-                      {formatMinutes(status.overtimeMinutesMTD)}
+                      {formatMinutes(teamOvertimeMinutesMTD)}
                     </div>
                     <div className="gba:text-xs gba:text-muted-foreground gba:mt-0.5 gba:truncate">
                       {overtimeEmployeeCount > 0
