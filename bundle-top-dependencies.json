@@ -39979,9 +39979,9 @@
     ]
   },
   "hr/core/apps/employee-record": {
-    "bitbucketBuildNumber": 13967,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13967/",
-    "chunkJsBytes": 1625506,
+    "bitbucketBuildNumber": 14007,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14007/",
+    "chunkJsBytes": 1625507,
     "top": [
       {
         "kind": "bucket",
@@ -41705,15 +41705,15 @@
     ]
   },
   "hr/core/apps/my-team-time": {
-    "bitbucketBuildNumber": 13919,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13919/",
-    "chunkJsBytes": 570332,
+    "bitbucketBuildNumber": 14007,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14007/",
+    "chunkJsBytes": 574180,
     "top": [
       {
         "kind": "bucket",
         "name": "@newwork/nw-design-system",
-        "rendered": 402429,
-        "gzip": 206004,
+        "rendered": 406818,
+        "gzip": 207465,
         "leaves": [
           {
             "name": "node_modules/@newwork/nw-design-system/dist/assets/images/branded-bg/fallback/decorative-dark.jpg.js",
@@ -41730,13 +41730,13 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 293289,
-        "gzip": 65673,
+        "rendered": 296564,
+        "gzip": 66654,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/my-team-time/components/tabs/DashboardTab.tsx",
-            "rendered": 68772,
-            "gzip": 11433
+            "rendered": 65389,
+            "gzip": 10616
           },
           {
             "name": "src/business-apps/hr/core/apps/my-team-time/components/tabs/InsightsTab.tsx",
@@ -41892,6 +41892,19 @@
             "name": "src/common/wrapWithUiCatalog.tsx",
             "rendered": 393,
             "gzip": 222
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
+        "name": "(src)/common/components",
+        "rendered": 191,
+        "gzip": 172,
+        "leaves": [
+          {
+            "name": "src/common/components/form-localization-provider/FormLocalizationProvider.tsx",
+            "rendered": 191,
+            "gzip": 172
           }
         ]
       },
@@ -85972,20 +85985,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 13991,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13991/",
-    "chunkJsBytes": 2012853,
+    "bitbucketBuildNumber": 14007,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14007/",
+    "chunkJsBytes": 2012854,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1727145,
-        "gzip": 114380,
+        "gzip": 114390,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1727145,
-            "gzip": 114380
+            "gzip": 114390
           }
         ]
       },
@@ -101557,9 +101570,9 @@
     ]
   },
   "hr/absences/apps/time-absence-hub": {
-    "bitbucketBuildNumber": 13919,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/13919/",
-    "chunkJsBytes": 1021128,
+    "bitbucketBuildNumber": 14007,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14007/",
+    "chunkJsBytes": 1023150,
     "top": [
       {
         "kind": "bucket",
@@ -101583,7 +101596,7 @@
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
         "rendered": 608415,
-        "gzip": 146626,
+        "gzip": 146624,
         "leaves": [
           {
             "name": "src/business-apps/hr/absences/apps/time-absence-hub/components/pages/AbsenceDetails/AbsenceDetails.tsx",
@@ -101666,6 +101679,24 @@
       },
       {
         "kind": "bucket",
+        "name": "(src)/components/app-action-form",
+        "rendered": 16350,
+        "gzip": 4447,
+        "leaves": [
+          {
+            "name": "src/components/app-action-form/AppActionForm.tsx",
+            "rendered": 13345,
+            "gzip": 3078
+          },
+          {
+            "name": "src/components/app-action-form/_i18n/de-DE.ftl?raw",
+            "rendered": 1033,
+            "gzip": 458
+          }
+        ]
+      },
+      {
+        "kind": "bucket",
         "name": "(src)/common/hooks",
         "rendered": 16335,
         "gzip": 4915,
@@ -101710,24 +101741,6 @@
             "name": "src/components/share-entity/ShareEntityDialog.tsx",
             "rendered": 15769,
             "gzip": 3741
-          }
-        ]
-      },
-      {
-        "kind": "bucket",
-        "name": "(src)/components/app-action-form",
-        "rendered": 13768,
-        "gzip": 3740,
-        "leaves": [
-          {
-            "name": "src/components/app-action-form/AppActionForm.tsx",
-            "rendered": 11981,
-            "gzip": 2782
-          },
-          {
-            "name": "src/components/app-action-form/_i18n/de-DE.ftl?raw",
-            "rendered": 587,
-            "gzip": 305
           }
         ]
       },
@@ -116860,7 +116873,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-23T10:09:54.420Z",
+    "generatedAt": "2026-06-23T11:11:08.600Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
