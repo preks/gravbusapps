@@ -33,3 +33,8 @@ card-investments-description = Investitionen aus einer Tabelle hinzufügen. Wir 
 # Multi-entry investment reports card
 card-investment-reports-title = Investitionsberichte importieren
 card-investment-reports-description = Investitionsberichte aus einer Tabelle hinzufügen. Wir schlagen passende Spaltenzuordnungen vor.
+
+# Single-entity equity investment rounds card
+card-equity-rounds-title = Eigenkapital-Investitionsrunden importieren
+card-equity-rounds-description = Eigenkapital-Investitionsrunden aus einer Tabelle hinzufügen – mit Rundenname, Jahr, Bewertung und Anteilsdetails. Jede Zeile wird per Name der passenden Eigenkapital-Investition zugeordnet.
+card-equity-rounds-button = Runden-Import starten

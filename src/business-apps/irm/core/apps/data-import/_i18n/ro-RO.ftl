@@ -33,3 +33,8 @@ card-investments-description = Adăugați investiții dintr-un fișier tabelar. 
 # Multi-entry investment reports card
 card-investment-reports-title = Importă rapoarte de investiții
 card-investment-reports-description = Adăugați rapoarte de investiții dintr-un fișier tabelar. Vă sugerăm cum se potrivesc coloanele.
+
+# Single-entity equity investment rounds card
+card-equity-rounds-title = Importă runde de investiții acționariat
+card-equity-rounds-description = Adăugați runde de investiții de tip acționariat dintr-un fișier tabelar — nume rundă, an, evaluare și detalii despre cotă. Vom potrivi fiecare rând cu o investiție acționariat existentă pe baza numelui.
+card-equity-rounds-button = Pornește importul de runde

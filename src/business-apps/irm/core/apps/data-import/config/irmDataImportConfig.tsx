@@ -4,7 +4,8 @@ import {
   BuildingsIcon,
   TrendUpIcon,
   ChartLineIcon,
-  FileTextIcon
+  FileTextIcon,
+  CoinsIcon
 } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DataImportConfig } from '@/common/components/common-relations/apps/data-import/types/configTypes'
@@ -18,12 +19,13 @@ import { AccountImportView } from '../views/account-import-view'
 import { OpportunityImportView } from '../views/opportunity-import-view'
 import { GenericInvestmentImportView } from '../views/generic-investment-import-view'
 import { GenericInvestmentReportImportView } from '../views/generic-investment-report-import-view'
+import { EquityInvestmentRoundImportView } from '../views/equity-investment-round-import-view'
 import { InvestmentImportGroupDescriptor } from '../types/commonInvestmentImportTypes'
 import { getGroupImportConfiguration } from './groupImportConfigurations'
 import { getGroupReportImportConfiguration, toInvestmentReportEntryLabel } from './groupReportImportConfigurations'
 import { toInvestmentEntryLabel } from './investmentGroupImportUtils'
 
-const STATIC_ENTITY_TYPES = ['lead', 'contact', 'account', 'opportunity'] as const
+const STATIC_ENTITY_TYPES = ['lead', 'contact', 'account', 'opportunity', 'equity-investment-round'] as const
 
 export interface IrmDataImportCardLabels {
   title: string
@@ -47,6 +49,7 @@ export interface IrmDataImportLabels {
     title: string
     description: string
   }
+  equityRoundsCard: IrmDataImportCardLabels
 }
 
 export const createIrmDataImportConfig = (
@@ -137,6 +140,13 @@ export const createIrmDataImportConfig = (
         labels.investmentReportsCard.description,
         FileTextIcon,
         investmentReportEntries
+      ),
+      createEntityCard(
+        labels.equityRoundsCard.title,
+        labels.equityRoundsCard.description,
+        CoinsIcon,
+        labels.equityRoundsCard.buttonLabel,
+        'equity-investment-round'
       )
     ],
 
@@ -145,6 +155,7 @@ export const createIrmDataImportConfig = (
       contact: ContactImportView,
       account: AccountImportView,
       opportunity: OpportunityImportView,
+      'equity-investment-round': EquityInvestmentRoundImportView,
       ...dynamicViews,
       ...dynamicReportViews
     }

@@ -33,3 +33,8 @@ card-investments-description = Add investments from a spreadsheet. We'll suggest
 # Multi-entry investment reports card
 card-investment-reports-title = Import Investment Reports
 card-investment-reports-description = Add investment reports from a spreadsheet. We'll suggest how your columns match up.
+
+# Single-entity equity investment rounds card
+card-equity-rounds-title = Import Equity Investment Rounds
+card-equity-rounds-description = Add equity investment rounds from a spreadsheet—round name, year, valuation, and share details. We'll match each row to an existing equity investment by name.
+card-equity-rounds-button = Start Round Import

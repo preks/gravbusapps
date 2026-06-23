@@ -40,6 +40,7 @@ import {
   shouldFallbackToSingularInvestmentContactEndpoint,
   submitInvestmentContactsWithFallback
 } from './submitInvestmentContactsWithFallback'
+import { toEquityInvestmentRoundBatchPayload } from './toEquityInvestmentRoundBatchPayload'
 import { toInvestmentBatchPayload } from './toInvestmentBatchPayload'
 import { toInvestmentContactPayload } from './toInvestmentContactPayload'
 import { toInvestmentOpportunityPayload } from './toInvestmentOpportunityPayload'
@@ -111,6 +112,12 @@ function normalizeIrmImportError(error: unknown, entityType: string): string | u
   if (/createinvestmentreportsmodelinput\.investmentreportrequests/i.test(base)) {
     return 'Import failed: Java endpoint expects `investmentReportRequests` payload root.'
   }
+  if (/createequityinvestmentroundsmodelinput\.equityinvestmentroundrequests/i.test(base)) {
+    return 'Import failed: Java endpoint expects `equityInvestmentRoundRequests` payload root.'
+  }
+  if (/no static resource createequityinvestmentrounds/i.test(base)) {
+    return 'Import failed: Java process endpoint `createEquityInvestmentRounds` is missing.'
+  }
   if (/error while marshalling process instance/i.test(base) && entityType === 'contact') {
     return 'Import failed: Java marshalling error for Investment Contact payload shape.'
   }
@@ -143,6 +150,25 @@ function processInvestmentReportResponse(response: any): ImportResult {
   }
 }
 
+function processEquityInvestmentRoundResponse(response: any): ImportResult {
+  const hasErrors = response.validationResponse?.errors?.length > 0
+  const createdRounds = response.equityInvestmentRounds || response.equityInvestmentRoundRequests || []
+
+  return {
+    success: !hasErrors && createdRounds.length > 0,
+    successCount: createdRounds.length,
+    errorCount: hasErrors ? response.validationResponse.errors.length : 0,
+    errors: hasErrors
+      ? response.validationResponse.errors.map((err: any, idx: number) => ({
+          rowIndex: idx,
+          entityData: {},
+          error: `${err.code || 'ERROR'}: ${err.detail || err.title || 'Unknown error'}`
+        }))
+      : [],
+    createdIds: createdRounds.map((round: any) => round.equityInvestmentRound?.id || round.id).filter(Boolean)
+  }
+}
+
 export function createIrmImportStrategy(config: ImportConfig): ImportSubmissionStrategy {
   const investmentGroupRefCache = new Map<string, string>()
 
@@ -153,6 +179,8 @@ export function createIrmImportStrategy(config: ImportConfig): ImportSubmissionS
   const isInvestmentBatchImport = Boolean(investmentPayloadKey)
   const isInvestmentReportBatchImport =
     Boolean(config.investmentReportPayloadKey) || /investmentreport$/i.test(config.flowbotEntityType ?? '')
+  const isEquityInvestmentRoundBatchImport =
+    Boolean(config.equityInvestmentRoundPayloadKey) || /equityinvestmentround$/i.test(config.flowbotEntityType ?? '')
 
   async function submit(entities: Record<string, any>[], ctx: ImportSubmissionContext): Promise<ImportResult> {
     const { restClient, graphQLClient, accessToken, ownerEmployeeId } = ctx
@@ -190,6 +218,15 @@ export function createIrmImportStrategy(config: ImportConfig): ImportSubmissionS
       })
 
       return processInvestmentReportResponse(response)
+    }
+
+    if (isEquityInvestmentRoundBatchImport) {
+      const payload = toEquityInvestmentRoundBatchPayload(entities, config)
+      const response = await restClient.post('/investment-relations/createEquityInvestmentRounds', payload, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      })
+
+      return processEquityInvestmentRoundResponse(response)
     }
 
     if (!isSupportedStandardEntityType(config.entityType)) {

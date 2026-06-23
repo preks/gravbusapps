@@ -109,6 +109,14 @@ export interface ImportConfig {
   investmentPayloadKey?: string
   investmentReportPayloadKey?: 'equityInvestmentReport' | 'realEstateInvestmentReport' | 'liquidFundInvestmentReport'
   /**
+   * Marks the config as an Equity Investment Round batch import. When set,
+   * `submitIrmImport` routes the payload through `toEquityInvestmentRoundBatchPayload`
+   * and posts to `/investment-relations/createEquityInvestmentRounds`.
+   * Currently only one valid value, but kept as a string union so future
+   * round subtypes can be added the same way the report key was extended.
+   */
+  equityInvestmentRoundPayloadKey?: 'equityInvestmentRound'
+  /**
    * Fallback `InvestmentGroup` code (e.g. 'EQUITY') used by
    * `submitIrmImport` only when `investmentGroupRef` is not pre-resolved.
    * The standard registry path always sets `investmentGroupRef`, so this
