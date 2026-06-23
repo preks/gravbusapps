@@ -8,7 +8,13 @@ import {
   resolveFlowTemplateText
 } from '@/common/network/flows/resolveFlowTemplateText'
 import type { FlowStep, StepAssignmentInfo } from '../types'
-import { FieldValueDisplay, buildStepDataTableRows, generateFieldLabel, isFileLikeValue } from './stepDataRendering'
+import {
+  FieldValueDisplay,
+  buildStepDataTableRows,
+  generateFieldLabel,
+  isFileLikeValue,
+  isHiddenTransportField
+} from './stepDataRendering'
 
 function hasVisibleFormValue(value: unknown): boolean {
   if (value === null || value === undefined) return false
@@ -40,7 +46,7 @@ export function getCapturedDataRows(args: {
 }) {
   return buildStepDataTableRows(args).filter(row => {
     if (row.hasSubmission === false) return false
-    const entries = Object.entries(row.formData || {})
+    const entries = Object.entries(row.formData || {}).filter(([key]) => !isHiddenTransportField(key))
     if (entries.length === 0) return false
     return entries.some(([, value]) => hasVisibleFormValue(value))
   })
@@ -52,7 +58,9 @@ interface KeyValueFormDataProps {
 }
 
 export const KeyValueFormData: React.FC<KeyValueFormDataProps> = ({ formData, accessToken }) => {
-  const entries = Object.entries(formData).filter(([, value]) => hasVisibleFormValue(value))
+  const entries = Object.entries(formData).filter(
+    ([key, value]) => !isHiddenTransportField(key) && hasVisibleFormValue(value)
+  )
 
   if (entries.length === 0) {
     return (

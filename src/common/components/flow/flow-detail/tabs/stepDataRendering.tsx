@@ -57,6 +57,36 @@ export function generateFieldLabel(fieldName: string): string {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1)
 }
 
+// HTTP envelope metadata can leak into captured data from connector/function
+// responses. These fields are transport details, not business output.
+const TRANSPORT_FIELD_KEYS = new Set([
+  'date',
+  'server',
+  'connection',
+  'keepalive',
+  'transferencoding',
+  'contenttype',
+  'contentlength',
+  'contentencoding',
+  'contentdisposition',
+  'cachecontrol',
+  'statuscode',
+  'reasonphrase',
+  'httpversion',
+  'headers',
+  'xpoweredby',
+  'etag',
+  'vary'
+])
+
+export function normalizeFieldKey(fieldKey: string): string {
+  return fieldKey.replace(/[^a-z0-9]/gi, '').toLowerCase()
+}
+
+export function isHiddenTransportField(fieldKey: string): boolean {
+  return TRANSPORT_FIELD_KEYS.has(normalizeFieldKey(fieldKey))
+}
+
 function formatFieldValue(key: string, value: unknown): string {
   if (value === null || value === undefined) return '-'
   if (Array.isArray(value)) {
@@ -560,12 +590,13 @@ interface SingleFormDataProps {
 }
 
 export const SingleFormData: React.FC<SingleFormDataProps> = ({ formData, accessToken }) => {
-  const hasFormData = formData && Object.keys(formData).length > 0
+  const entries = Object.entries(formData ?? {}).filter(([key]) => !isHiddenTransportField(key))
+  const hasFormData = entries.length > 0
   return (
     <div className="gba:mt-3">
       {hasFormData ? (
         <div className="gba:grid gba:grid-cols-2 md:gba:grid-cols-3 lg:gba:grid-cols-4 xl:gba:grid-cols-5 gba:gap-4">
-          {Object.entries(formData).map(([key, value]) => (
+          {entries.map(([key, value]) => (
             <div key={key} className="gba:space-y-1">
               <label className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
                 {isFileLikeValue(value) ? 'Document' : generateFieldLabel(key)}
@@ -605,7 +636,10 @@ export const MultiRowDataTable: React.FC<MultiRowDataTableProps> = ({ data, tota
   const submittedCount = data.filter(row => row.hasSubmission !== false).length
   for (const dataRow of data) {
     if (dataRow.formData) {
-      for (const key of Object.keys(dataRow.formData)) allFields.add(key)
+      for (const key of Object.keys(dataRow.formData)) {
+        if (isHiddenTransportField(key)) continue
+        allFields.add(key)
+      }
     }
   }
   const fieldKeys = Array.from(allFields)

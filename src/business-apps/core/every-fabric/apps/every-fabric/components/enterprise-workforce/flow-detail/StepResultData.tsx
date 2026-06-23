@@ -11,6 +11,7 @@ import React from 'react'
 import {
   FieldValueDisplay,
   generateFieldLabel,
+  isHiddenTransportField,
   isFileLikeValue
 } from '@/common/components/flow/flow-detail/tabs/stepDataRendering'
 
@@ -69,6 +70,7 @@ function flattenArray(key: string, path: string, items: unknown[], depth: number
 function flatten(data: Record<string, unknown>, parentPath: string, depth: number, rows: LeafRow[]): void {
   for (const [key, rawValue] of Object.entries(data)) {
     if (!hasVisibleValue(rawValue)) continue
+    if (isHiddenTransportField(key)) continue
 
     const path = parentPath ? `${parentPath}.${key}` : key
 
