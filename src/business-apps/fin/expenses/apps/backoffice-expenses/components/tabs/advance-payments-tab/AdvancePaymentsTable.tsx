@@ -16,7 +16,7 @@ import { getActiveStructureDepartmentOptions } from '../../../utils/departmentOp
 import type { AdvancePaymentItem } from '../../../types'
 import type { OrderByClause, FetchPaymentsOptions } from '../../../hooks/useAdvancePayment'
 import { useAdvancePaymentCurrency } from './hooks/useAdvancePaymentCurrency'
-import { useAdvancePaymentsFilterState } from './hooks/useAdvancePaymentsFilterState.ts'
+import { useAdvancePaymentsFilterState } from './hooks/useAdvancePaymentsFilterState'
 import { buildAdvancePaymentFetchOptions } from './hooks/advancePaymentQueryBuilder'
 import {
   createBackofficeAdvancePaymentAllDataColumns,
@@ -29,12 +29,9 @@ import {
   type AdvancePaymentVisibleColumnId
 } from './hooks/advancePaymentTableSort'
 import { useAdvancePaymentsTableUrlSearch } from './hooks/useAdvancePaymentsTableUrlSearch'
-import AdvancePaymentsDataBody from './components/AdvancePaymentsDataBody'
+import { useBackofficeAdvancePaymentsTableDisplayModel } from './hooks/useBackofficeAdvancePaymentsTableDisplayModel'
+import { BackofficeAdvancePaymentsTableDisplay } from './table/BackofficeAdvancePaymentsTableDisplay'
 import AdvancePaymentsDetailsSheet from './components/AdvancePaymentsDetailsSheet'
-import { BackofficeDataDisplay } from '../../../common/components/BackofficeDataDisplay'
-import { BackofficeFilterSheet } from '../../../common/components/BackofficeFilterSheet'
-import { ADVANCE_PAYMENT_REPORTER_FILTER_GROUP_ID } from './constants/advancePaymentReporterFilter'
-import { AdvancePaymentReporterFilter } from './components/AdvancePaymentReporterFilter'
 import { AdvancePaymentsRowActions } from './components/AdvancePaymentsRowActions'
 import { createBackofficeAdvancePaymentDataColumns } from './table/backofficeAdvancePaymentColumns'
 
@@ -48,7 +45,7 @@ interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   error: unknown
   fetchPayments: (options?: FetchPaymentsOptions) => Promise<void>
   setOrderBy: (orderBy: OrderByClause) => void
-  searchReporters: (searchTerm: string) => Promise<string[]>
+  searchReporters: (searchTerm: string, options?: FetchPaymentsOptions) => Promise<string[]>
   searchStatuses: () => Promise<string[]>
 }
 
@@ -98,26 +95,16 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     searchFromParent: search,
     onSearchChange
   })
-  const {
-    queryFilterState,
-    filterConfiguration,
-    filtersObject,
-    handleFilterChangeFromDisplay,
-    hasActiveFilters,
-    reporterSearchText,
-    setReporterSearchText,
-    showReporterDropdown,
-    setShowReporterDropdown,
-    reporterSearchResults,
-    reporterSearchLoading
-  } = useAdvancePaymentsFilterState({
-    t,
-    searchStatuses,
-    searchReporters,
-    departmentOptions,
-    currencyRef: selectedCurrencyRef,
-    setCurrentPage
-  })
+  const { queryFilterState, filterConfiguration, filtersObject, handleFilterChangeFromDisplay, hasActiveFilters } =
+    useAdvancePaymentsFilterState({
+      t,
+      searchStatuses,
+      searchReporters,
+      departmentOptions,
+      currencyRef: selectedCurrencyRef,
+      searchTerm: debouncedSearchText,
+      setCurrentPage
+    })
 
   useEffect(() => {
     const fetchOptions = buildAdvancePaymentFetchOptions({
@@ -206,75 +193,39 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     setVisibleColumns(nextVisibleColumns as AdvancePaymentVisibleColumnId[])
   }, [])
 
+  const displayProps = useBackofficeAdvancePaymentsTableDisplayModel({
+    totalCount,
+    isLoading,
+    searchText,
+    searchPlaceholder: t('advance-payment-search'),
+    onSearchChange: handleSearchChangeWithReset,
+    filtersObject,
+    filterConfiguration,
+    onFilterChange: handleFilterChangeFromDisplay,
+    listSectionLabel: t('tab-advance-payments'),
+    sortingState,
+    onSortingChange: handleSortingChange,
+    sortableColumns,
+    availableColumns,
+    visibleColumns: columnsFilteredByVisibility,
+    onVisibleColumnsChange: handleVisibleColumnsChange,
+    secondaryActions: currencySecondaryAction,
+    filterSheetTitle: t('advance-payment-filter-sheet-title'),
+    filterSheetDescription: t('advance-payment-filter-sheet-description'),
+    payments,
+    error,
+    columns,
+    pagination,
+    onPaginationChange: handlePaginationChange,
+    emptyMessage: listEmptyMessage,
+    onRowClick: handleRowClick,
+    renderRowActions
+  })
+
   return (
     <div className="gba:h-full gba:flex gba:flex-col" data-testid="advance-payments-tab-container">
-      <div className="gba:relative gba:w-full gba:h-full gba:-mx-6" data-testid="advance-payments-table-wrapper">
-        <BackofficeDataDisplay
-          titleSections={[
-            {
-              id: 'list',
-              label: t('tab-advance-payments'),
-              metadata: { count: totalCount, isLoading }
-            }
-          ]}
-          currentSection="list"
-          searchValue={searchText}
-          searchPlaceholder={t('advance-payment-search')}
-          onSearchChange={handleSearchChangeWithReset}
-          filters={filtersObject}
-          filterConfiguration={filterConfiguration}
-          onFilterChange={handleFilterChangeFromDisplay}
-          sorting={sortingState}
-          sortableColumns={sortableColumns}
-          onSortingChange={handleSortingChange}
-          availableColumns={availableColumns}
-          visibleColumns={columnsFilteredByVisibility}
-          onVisibleColumnsChange={handleVisibleColumnsChange}
-          secondaryActions={currencySecondaryAction}
-          renderFilterSheet={(open, onOpenChange) => (
-            <BackofficeFilterSheet
-              open={open}
-              onOpenChange={onOpenChange}
-              configuration={filterConfiguration}
-              values={filtersObject}
-              onApply={handleFilterChangeFromDisplay}
-              onChange={handleFilterChangeFromDisplay}
-              title={t('advance-payment-filter-sheet-title')}
-              description={t('advance-payment-filter-sheet-description')}
-              customGroup={{
-                groupId: ADVANCE_PAYMENT_REPORTER_FILTER_GROUP_ID,
-                valueKey: 'reporterIds',
-                render: renderProps => (
-                  <AdvancePaymentReporterFilter
-                    {...renderProps}
-                    reporterSearchText={reporterSearchText}
-                    setReporterSearchText={setReporterSearchText}
-                    showReporterDropdown={showReporterDropdown}
-                    setShowReporterDropdown={setShowReporterDropdown}
-                    reporterSearchResults={reporterSearchResults}
-                    reporterSearchLoading={reporterSearchLoading}
-                    t={t}
-                  />
-                )
-              }}
-            />
-          )}
-        >
-          <AdvancePaymentsDataBody
-            payments={payments}
-            isLoading={isLoading}
-            error={error}
-            totalCount={totalCount}
-            columns={columns}
-            sorting={sortingState}
-            onSortingChange={handleSortingChange}
-            pagination={pagination}
-            onPaginationChange={handlePaginationChange}
-            emptyMessage={listEmptyMessage}
-            onRowClick={handleRowClick}
-            actions={renderRowActions}
-          />
-        </BackofficeDataDisplay>
+      <div className="gba:relative gba:w-full gba:h-full gba:min-w-0" data-testid="advance-payments-table-wrapper">
+        <BackofficeAdvancePaymentsTableDisplay {...displayProps} />
         <AdvancePaymentsDetailsSheet
           selectedItem={selectedItem}
           accessToken={props.accessToken}

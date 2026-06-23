@@ -7,7 +7,6 @@ import type { TranslateFn } from '../../../../utils/utils'
 import { useExpenseRequestQueryBuilder } from '../data/expenseRequestQueryBuilder'
 import { useExpenseRequestsTableUrlSearch } from './useExpenseRequestsTableUrlSearch'
 import { useExpenseRequestFilters } from './useExpenseRequestFilters'
-import { useExpenseRequestEmployeeFilterState } from './useExpenseRequestEmployeeFilterState'
 import { useExpenseRequestDisplayFilters } from './useExpenseRequestDisplayFilters'
 import { useExpenseRequestTableState } from './useExpenseRequestTableState'
 
@@ -111,18 +110,9 @@ export function useExpenseRequestTabState({
   })
 
   const {
-    employeeSheetSearchQuery,
-    setEmployeeSheetSearchQuery,
-    setShowEmployeeDropdown,
-    showEmployeeDropdown,
-    employeeListSearchQuery
-  } = useExpenseRequestEmployeeFilterState()
-
-  const {
     employeeFilter,
     setEmployeeFilter,
     employeeSearchResults,
-    employeeSearchLoading,
     selectedEmployees,
     setSelectedEmployees,
     statusFilter,
@@ -133,8 +123,7 @@ export function useExpenseRequestTabState({
     handleStatusFilter,
     handleAmountFilter,
     amountMinFilter,
-    amountMaxFilter,
-    employeeListSearchQuery
+    amountMaxFilter
   })
 
   const {
@@ -170,8 +159,6 @@ export function useExpenseRequestTabState({
     setRequestDateRangeFilter,
     setCurrentPage,
     departmentOptionsForConfig,
-    setEmployeeSheetSearchQuery,
-    setShowEmployeeDropdown,
     selectedEmployees,
     setSelectedEmployees,
     employeeSearchResults
@@ -210,25 +197,6 @@ export function useExpenseRequestTabState({
     searchText: debouncedSearchText
   })
 
-  const employeeSearchFilterProps = useMemo(
-    () => ({
-      employeeSearchText: employeeSheetSearchQuery,
-      setEmployeeSearchText: setEmployeeSheetSearchQuery,
-      showEmployeeDropdown,
-      setShowEmployeeDropdown,
-      employeeSearchResults,
-      employeeSearchLoading,
-      debouncedSearchEmployees: () => undefined
-    }),
-    [
-      employeeSheetSearchQuery,
-      showEmployeeDropdown,
-      setShowEmployeeDropdown,
-      employeeSearchResults,
-      employeeSearchLoading
-    ]
-  )
-
   return {
     expenses,
     totalItems,
@@ -255,7 +223,6 @@ export function useExpenseRequestTabState({
     buildQueryConditions,
     availableCurrencyCodes,
     selectedCurrencyCode,
-    handleCurrencyChange,
-    employeeSearchFilterProps
+    handleCurrencyChange
   }
 }

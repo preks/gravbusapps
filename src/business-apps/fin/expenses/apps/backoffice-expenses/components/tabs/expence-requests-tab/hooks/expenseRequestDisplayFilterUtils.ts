@@ -115,7 +115,7 @@ export function buildExpenseRequestFilterConfiguration(params: {
         type: 'multi-select',
         config: {
           options: employeeMultiSelectOptions,
-          showSearch: false,
+          showSearch: true,
           showSelectAll: false
         }
       }
@@ -246,8 +246,6 @@ interface ApplyExpenseRequestDisplayFiltersParams {
   employeeFilter: string
   setEmployeeFilter: (value: string) => void
   handleEmployeeFilter: (value: string) => void
-  setEmployeeSheetSearchQuery: (value: string) => void
-  setShowEmployeeDropdown: (value: boolean) => void
   setEffectiveDateRange: (value: DateRange) => void
   setRequestDateRange: (value: DateRange) => void
   setEffectiveDateRangeFilter: (value: { from?: string; to?: string } | null) => void
@@ -264,8 +262,6 @@ function resetAllExpenseRequestDisplayFilters(p: ApplyExpenseRequestDisplayFilte
   p.handleDepartmentFilter('')
   p.handleAmountFilter('', '')
   p.handleRemainingAmountFilter('', '')
-  p.setEmployeeSheetSearchQuery('')
-  p.setShowEmployeeDropdown(false)
   p.setSelectedEmployees([])
   p.setEmployeeFilter('')
   p.handleEmployeeFilter('')
@@ -349,8 +345,6 @@ function syncEmployeesFromDisplayFilters(p: ApplyExpenseRequestDisplayFiltersPar
     p.setSelectedEmployees([])
     p.setEmployeeFilter('')
     p.handleEmployeeFilter('')
-    p.setEmployeeSheetSearchQuery('')
-    p.setShowEmployeeDropdown(false)
   }
 }
 

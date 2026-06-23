@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useDebounce } from '@/common/hooks/useDebounce'
-import { useBackofficeAsyncSearch } from '../../../../hooks/useBackofficeAsyncSearch'
 
 interface Employee {
   id: string
@@ -14,8 +13,18 @@ interface UseExpenseRequestFiltersProps {
   handleAmountFilter: (min: string, max: string) => void
   amountMinFilter: string
   amountMaxFilter: string
-  /** Debounced query from the filter sheet employee search field (any non-empty text triggers API search). */
-  employeeListSearchQuery: string
+}
+
+function mergeEmployeeOptions(...employeeGroups: Employee[][]): Employee[] {
+  const employeeById = new Map<string, Employee>()
+
+  for (const employeeGroup of employeeGroups) {
+    for (const employee of employeeGroup) {
+      employeeById.set(employee.id, employee)
+    }
+  }
+
+  return Array.from(employeeById.values()).sort((a, b) => a.name.localeCompare(b.name))
 }
 
 export const useExpenseRequestFilters = ({
@@ -24,12 +33,12 @@ export const useExpenseRequestFilters = ({
   handleStatusFilter,
   handleAmountFilter,
   amountMinFilter,
-  amountMaxFilter,
-  employeeListSearchQuery
+  amountMaxFilter
 }: UseExpenseRequestFiltersProps) => {
   // Employee filter state
   const [employeeFilter, setEmployeeFilter] = useState('')
   const [selectedEmployees, setSelectedEmployees] = useState<Employee[]>([])
+  const [availableEmployees, setAvailableEmployees] = useState<Employee[]>([])
 
   // Status filter state
   const [statusFilter, setStatusFilter] = useState<string[]>(['BOOKED'])
@@ -42,11 +51,27 @@ export const useExpenseRequestFilters = ({
   const debouncedAmountMin = useDebounce(localAmountMin, 500)
   const debouncedAmountMax = useDebounce(localAmountMax, 500)
 
-  const { results: employeeSearchResults, loading: employeeSearchLoading } = useBackofficeAsyncSearch<Employee>({
-    query: employeeListSearchQuery,
-    searchFn: searchEmployees,
-    logContext: 'Error searching employees:'
-  })
+  useEffect(() => {
+    let isCancelled = false
+
+    const loadAvailableEmployees = async () => {
+      const employees = await searchEmployees('')
+      if (!isCancelled) {
+        setAvailableEmployees(employees)
+      }
+    }
+
+    void loadAvailableEmployees()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [searchEmployees])
+
+  const employeeFilterOptions = useMemo(
+    () => mergeEmployeeOptions(availableEmployees, selectedEmployees),
+    [availableEmployees, selectedEmployees]
+  )
 
   // Handle debounced amount filter
   useEffect(() => {
@@ -87,8 +112,7 @@ export const useExpenseRequestFilters = ({
     // Employee filter
     employeeFilter,
     setEmployeeFilter,
-    employeeSearchResults,
-    employeeSearchLoading,
+    employeeSearchResults: employeeFilterOptions,
     selectedEmployees,
     setSelectedEmployees,
 

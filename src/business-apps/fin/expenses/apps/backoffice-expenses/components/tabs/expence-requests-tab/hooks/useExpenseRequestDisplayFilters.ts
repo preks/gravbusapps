@@ -32,8 +32,6 @@ interface UseExpenseRequestDisplayFiltersParams {
   setRequestDateRangeFilter: (value: { from?: string; to?: string } | null) => void
   setCurrentPage: (page: number) => void
   departmentOptionsForConfig: Array<{ id: string; label: string }>
-  setEmployeeSheetSearchQuery: (value: string) => void
-  setShowEmployeeDropdown: (value: boolean) => void
   selectedEmployees: EmployeeOption[]
   setSelectedEmployees: (value: EmployeeOption[]) => void
   employeeSearchResults: EmployeeOption[]
@@ -62,8 +60,6 @@ export function useExpenseRequestDisplayFilters({
   setRequestDateRangeFilter,
   setCurrentPage,
   departmentOptionsForConfig,
-  setEmployeeSheetSearchQuery,
-  setShowEmployeeDropdown,
   selectedEmployees,
   setSelectedEmployees,
   employeeSearchResults
@@ -185,8 +181,6 @@ export function useExpenseRequestDisplayFilters({
         employeeFilter,
         setEmployeeFilter,
         handleEmployeeFilter,
-        setEmployeeSheetSearchQuery,
-        setShowEmployeeDropdown,
         setEffectiveDateRange,
         setRequestDateRange,
         setEffectiveDateRangeFilter,
@@ -211,11 +205,9 @@ export function useExpenseRequestDisplayFilters({
       setCurrentPage,
       setEffectiveDateRangeFilter,
       setEmployeeFilter,
-      setEmployeeSheetSearchQuery,
       setRequestDateRangeFilter,
       setRequestTypeFilter,
       setSelectedEmployees,
-      setShowEmployeeDropdown,
       setStatusFilter
     ]
   )

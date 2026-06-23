@@ -17,17 +17,15 @@ import {
   useExpenseRequestSelection,
   useExpenseRequestTabState
 } from './hooks'
+import { useBackofficeExpenseRequestsTableDisplayModel } from './hooks/useBackofficeExpenseRequestsTableDisplayModel'
 import { useTableSetup } from '../../../../../common/hooks/useTableSetup'
 import {
   createBackofficeExpenseRequestColumns,
   type BackofficeExpenseRequestTableChrome
 } from './table/backofficeExpenseRequestColumns'
-import ExpenseRequestsTable from './table/ExpenseRequestsTable'
 import ExpenseRequestTableActions from './components/ExpenseRequestTableActions'
-import { ExpenseRequestPdfModal, EmployeeSearchFilter, ExpenseRequestSecondaryActions } from './components'
-import { BackofficeDataDisplay } from '../../../common/components/BackofficeDataDisplay'
-import { BackofficeFilterSheet, type CustomGroupRenderProps } from '../../../common/components/BackofficeFilterSheet'
-import { EXPENSE_REQUEST_EMPLOYEE_FILTER_GROUP_ID } from './constants/expenseRequestEmployeeFilter'
+import { ExpenseRequestPdfModal, ExpenseRequestSecondaryActions } from './components'
+import { BackofficeExpenseRequestsTableDisplay } from './table/BackofficeExpenseRequestsTableDisplay'
 import BackofficeExpenseRequestDetailsSheet from './components/BackofficeExpenseRequestDetailsSheet'
 
 type ExpenseRequestTabProps = BackofficeTabProps
@@ -76,8 +74,7 @@ function ExpenseRequestTab(props: Readonly<ExpenseRequestTabProps>) {
     buildQueryConditions,
     availableCurrencyCodes,
     selectedCurrencyCode,
-    handleCurrencyChange,
-    employeeSearchFilterProps
+    handleCurrencyChange
   } = useExpenseRequestTabState({
     accessToken: accessToken ?? '',
     t,
@@ -115,17 +112,6 @@ function ExpenseRequestTab(props: Readonly<ExpenseRequestTabProps>) {
     selectedCurrencyCode,
     handleCurrencyChange,
     'backoffice-expense-requests'
-  )
-
-  const renderEmployeeFilter = useCallback(
-    ({ selectedIds, onSelectedIdsChange }: CustomGroupRenderProps) => (
-      <EmployeeSearchFilter
-        {...employeeSearchFilterProps}
-        selectedEmployeeIds={selectedIds}
-        onSelectedEmployeeIdsChange={onSelectedIdsChange}
-      />
-    ),
-    [employeeSearchFilterProps]
   )
 
   const handleBulkTransfer = useCallback(() => {
@@ -250,65 +236,39 @@ function ExpenseRequestTab(props: Readonly<ExpenseRequestTabProps>) {
     setPageSize
   )
 
+  const displayProps = useBackofficeExpenseRequestsTableDisplayModel({
+    totalItems,
+    loading,
+    searchText,
+    searchPlaceholder: t('common-search-expense-requests'),
+    onSearchChange: handleSearchChange,
+    filtersObject,
+    filterConfiguration,
+    onFilterChange: handleFilterChangeFromDisplay,
+    listSectionLabel: t('tab-expense-requests'),
+    sortingState,
+    onSortingChange: handleSortingChange,
+    sortableColumns,
+    availableColumns: allDataColumns,
+    visibleColumns: columnsFilteredByVisibility,
+    onVisibleColumnsChange: setVisibleColumns,
+    secondaryActions,
+    filterSheetTitle: t('expense-request-filter-sheet-title'),
+    filterSheetDescription: t('expense-request-filter-sheet-description'),
+    expenses: expenses ?? [],
+    error,
+    tableColumns: expenseRequestTableColumns,
+    pagination,
+    onPaginationChange: handlePaginationChange,
+    emptyMessage: listEmptyMessage,
+    onRowClick: handleRowClick,
+    renderRowActions
+  })
+
   return (
     <div className="gba:h-full gba:flex gba:flex-col" data-testid="expense-requests-tab-container">
-      <div className="gba:relative gba:w-full gba:h-full gba:-mx-6" data-testid="expense-requests-table-wrapper">
-        <BackofficeDataDisplay
-          titleSections={[
-            {
-              id: 'list',
-              label: t('tab-expense-requests'),
-              metadata: { count: totalItems, isLoading: loading }
-            }
-          ]}
-          currentSection="list"
-          searchValue={searchText}
-          searchPlaceholder={t('common-search-expense-requests')}
-          onSearchChange={handleSearchChange}
-          filters={filtersObject}
-          filterConfiguration={filterConfiguration}
-          onFilterChange={handleFilterChangeFromDisplay}
-          sorting={sortingState}
-          sortableColumns={sortableColumns}
-          onSortingChange={handleSortingChange}
-          availableColumns={allDataColumns}
-          visibleColumns={columnsFilteredByVisibility}
-          onVisibleColumnsChange={setVisibleColumns}
-          toolbarDensity="default"
-          secondaryActions={secondaryActions}
-          renderFilterSheet={(open, onOpenChange) => (
-            <BackofficeFilterSheet
-              open={open}
-              onOpenChange={onOpenChange}
-              configuration={filterConfiguration}
-              values={filtersObject}
-              onApply={handleFilterChangeFromDisplay}
-              onChange={handleFilterChangeFromDisplay}
-              title={t('expense-request-filter-sheet-title')}
-              description={t('expense-request-filter-sheet-description')}
-              customGroup={{
-                groupId: EXPENSE_REQUEST_EMPLOYEE_FILTER_GROUP_ID,
-                valueKey: 'employeeIds',
-                render: renderEmployeeFilter
-              }}
-            />
-          )}
-        >
-          <ExpenseRequestsTable
-            expenses={expenses ?? []}
-            loading={loading}
-            error={error}
-            totalItems={totalItems}
-            columns={expenseRequestTableColumns}
-            sorting={sortingState}
-            onSortingChange={handleSortingChange}
-            pagination={pagination}
-            onPaginationChange={handlePaginationChange}
-            emptyMessage={listEmptyMessage}
-            onRowClick={handleRowClick}
-            actions={renderRowActions}
-          />
-        </BackofficeDataDisplay>
+      <div className="gba:relative gba:w-full gba:h-full gba:min-w-0" data-testid="expense-requests-table-wrapper">
+        <BackofficeExpenseRequestsTableDisplay {...displayProps} />
 
         <BackofficeExpenseRequestDetailsSheet
           open={!!selectedExpense}

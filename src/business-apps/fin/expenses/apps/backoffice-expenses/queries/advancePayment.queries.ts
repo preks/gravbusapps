@@ -117,31 +117,17 @@ export const GET_ADVANCE_PAYMENT_STATUSES = `
 // ⚡ OPTIMIZED: Lightweight query to get unique reporters without fetching full payment data
 // Note: distinct_on is not supported by this GraphQL schema, so deduplication is done client-side
 export const GET_ADVANCE_PAYMENT_REPORTERS = `
-  query GetAdvancePaymentReporters($searchTerm: String!) {
+  query GetAdvancePaymentReporters($where: AdvancePaymentBoolExp) {
     AdvancePayment(
-      where: {
-        _and: [
-          { isDeleted: { _eq: false } },
-          {
-            status: {
-              _nin: ["CREATED", "RETURNED", "REJECTED", "DISCARDED"]
-            }
-          },
-          {
-            _or: [
-              { expensePlan: { employee: { firstName: { _ilike: $searchTerm } } } },
-              { expensePlan: { employee: { lastName: { _ilike: $searchTerm } } } }
-            ]
-          }
-        ]
-      },
-      limit: 100
+      where: $where,
+      limit: 1000
     ) {
       expensePlan {
         employee {
           id
           firstName
           lastName
+          fullName
           displayName
         }
       }
