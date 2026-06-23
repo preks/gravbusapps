@@ -1250,6 +1250,7 @@ renderer-permission-decision-submitted = Decision submitted
 renderer-permission-rejected = Rejected
 renderer-permission-changes-submitted = Changes submitted
 renderer-permission-approved = Approved
+renderer-permission-collapse = Collapse approved action
 
 # Renderers ? structured input form
 renderer-form-field-required = This field is required

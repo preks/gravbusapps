@@ -1250,6 +1250,7 @@ renderer-permission-decision-submitted = Entscheidung übermittelt
 renderer-permission-rejected = Abgelehnt
 renderer-permission-changes-submitted = Änderungen übermittelt
 renderer-permission-approved = Genehmigt
+renderer-permission-collapse = Genehmigte Aktion einklappen
 
 # Renderers — structured input form
 renderer-form-field-required = Dieses Feld ist erforderlich

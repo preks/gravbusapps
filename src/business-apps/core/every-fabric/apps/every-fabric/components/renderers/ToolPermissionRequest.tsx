@@ -1,6 +1,13 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Button, useTranslation } from '@newwork/nw-design-system'
-import { CaretDownIcon, CheckCircleIcon, PencilSimpleIcon, ShieldCheckIcon, XCircleIcon } from '@phosphor-icons/react'
+import {
+  CaretDownIcon,
+  CaretRightIcon,
+  CheckCircleIcon,
+  PencilSimpleIcon,
+  ShieldCheckIcon,
+  XCircleIcon
+} from '@phosphor-icons/react'
 import type { StructuredInputRequestEvent } from '../../types/enterpriseAgent'
 import {
   formatPermissionDisplayValue,
@@ -204,6 +211,25 @@ const actionHeading = (action: PresentedPermissionAction): string => {
   return action.title
 }
 
+// One-line recap shown in the collapsed (post-decision) state: the first
+// few field values so the user can still read what was approved without
+// expanding the whole form.
+const buildCompactSummary = (actions: PresentedPermissionAction[]): string => {
+  if (actions.length > 1) {
+    return actions.map(actionHeading).join(' · ')
+  }
+  const action = actions[0]
+  if (!action) return ''
+  const parts = action.visibleFields
+    .slice(0, 3)
+    .map(field => {
+      const text = field.displayValue ?? formatPermissionDisplayValue(field.value)
+      return text ? `${field.label}: ${text}` : ''
+    })
+    .filter(Boolean)
+  return parts.join(' · ')
+}
+
 interface PermissionActionBodyProps {
   action: PresentedPermissionAction
   actionIndex: number
@@ -317,7 +343,15 @@ export const ToolPermissionRequest = ({
   const [focusKey, setFocusKey] = useState<string | null>(null)
   const [showTechnical, setShowTechnical] = useState<Record<number, boolean>>({})
   const [editedValues, setEditedValues] = useState<Record<number, Record<string, string>>>({})
+  // Once a decision is in (locally submitted or reconstructed from history),
+  // collapse the form into a one-line confirmed bar — consistent with
+  // StructuredInputForm — so completed approvals don't leave a stale form open.
+  const [compactCollapsed, setCompactCollapsed] = useState(() => alreadySubmitted)
   const locked = submitted || alreadySubmitted
+
+  useEffect(() => {
+    if (submitted) setCompactCollapsed(true)
+  }, [submitted])
   const actions = request.action_requests ?? []
   const basePresentedActions = useMemo(
     () => actions.map(action => presentToolPermissionAction(action, request.review_configs ?? [])),
@@ -379,8 +413,44 @@ export const ToolPermissionRequest = ({
     setFocusKey(key)
   }
 
+  const heading = single
+    ? actionHeading(presentedActions[0])
+    : request.title || t('renderer-permission-approve-multi', { count: presentedActions.length })
+  const showCompactBar = locked && compactCollapsed
+  const shellClass = locked
+    ? 'gba:rounded-2xl gba:border gba:border-border/50 gba:bg-muted/25'
+    : 'gba:rounded-2xl gba:border gba:border-border/80 gba:bg-card/98 gba:backdrop-blur-xl gba:shadow-lg'
+
+  if (showCompactBar) {
+    const compactSummary = buildCompactSummary(presentedActions)
+    return (
+      <div className={shellClass} data-testid="tool-permission-compact">
+        <button
+          type="button"
+          onClick={() => setCompactCollapsed(false)}
+          aria-expanded={false}
+          className="gba:w-full gba:flex gba:items-center gba:gap-2.5 gba:px-4 gba:py-2.5 gba:text-left gba:rounded-2xl gba:transition-colors gba:hover:bg-muted/35"
+        >
+          <CheckCircleIcon className="gba:h-4 gba:w-4 gba:shrink-0 gba:text-muted-foreground" weight="fill" />
+          <div className="gba:flex-1 gba:min-w-0">
+            <div className="gba:text-[13px] gba:font-semibold gba:text-muted-foreground gba:truncate">{heading}</div>
+            {compactSummary && (
+              <div className="gba:text-[11px] gba:text-muted-foreground gba:truncate">{compactSummary}</div>
+            )}
+          </div>
+          {decisionLabel && (
+            <span className="gba:shrink-0 gba:rounded-full gba:bg-muted gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium gba:text-muted-foreground">
+              {decisionLabel}
+            </span>
+          )}
+          <CaretRightIcon className="gba:h-4 gba:w-4 gba:shrink-0 gba:text-muted-foreground" />
+        </button>
+      </div>
+    )
+  }
+
   return (
-    <div className="gba:rounded-2xl gba:border gba:border-border/80 gba:bg-card/98 gba:backdrop-blur-xl gba:p-4 gba:shadow-lg">
+    <div className={`${shellClass} gba:p-4`}>
       <div className="gba:flex gba:items-start gba:gap-3">
         <div className="gba:flex gba:h-9 gba:w-9 gba:items-center gba:justify-center gba:rounded-full gba:bg-primary/10 gba:text-primary gba:shrink-0">
           <ShieldCheckIcon className="gba:h-5 gba:w-5" weight="duotone" />
@@ -417,6 +487,17 @@ export const ToolPermissionRequest = ({
             </p>
           )}
         </div>
+        {locked && (
+          <button
+            type="button"
+            onClick={() => setCompactCollapsed(true)}
+            aria-label={t('renderer-permission-collapse')}
+            data-testid="tool-permission-collapse"
+            className="gba:shrink-0 gba:inline-flex gba:h-7 gba:w-7 gba:items-center gba:justify-center gba:rounded-full gba:text-muted-foreground gba:transition-colors gba:hover:bg-muted/40"
+          >
+            <CaretDownIcon className="gba:h-4 gba:w-4" />
+          </button>
+        )}
       </div>
 
       {presentedActions.length > 0 && (
