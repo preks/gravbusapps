@@ -3,7 +3,8 @@ import { format, startOfMonth, endOfMonth } from 'date-fns'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_ACTIVE_BENEFITS_FOR_MONTH } from '../queries/compensationChangesQueries'
 import type { BenefitChangeRecord, ActiveBenefitRow } from '../types/compensationChanges.types'
-import { humanizeStatus } from '../utils/formatUtils'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getCatalogDisplayValue, humanizeStatus } from '../utils/formatUtils'
 
 interface ActiveBenefitsData {
   rows: ActiveBenefitRow[]
@@ -24,9 +25,9 @@ function toRow(record: BenefitChangeRecord): ActiveBenefitRow {
     employeeId: record.employeeId,
     employeeName: record.employee?.displayName ?? record.employee?.fullName ?? '-',
     employeePicture: record.employee?.pictureThumbnail,
-    benefitType: record.benefitType?.value ?? '-',
-    provider: record.benefitProvider?.value ?? '-',
-    status: statusLabel === '-' ? 'Active' : statusLabel,
+    benefitType: getCatalogDisplayValue(record.benefitType),
+    provider: getCatalogDisplayValue(record.benefitProvider),
+    status: statusLabel === '-' ? 'active' : statusLabel,
     monthlyAmount: record.monthlyAmount,
     yearlyAmount: record.yearlyAmount,
     employeeContribution: record.employeeMonthlyContribution,
@@ -50,6 +51,7 @@ export function useActiveBenefits(
 
   const monthStart = useMemo(() => format(startOfMonth(selectedDate), 'yyyy-MM-dd'), [selectedDate])
   const monthEnd = useMemo(() => format(endOfMonth(selectedDate), 'yyyy-MM-dd'), [selectedDate])
+  const activeUserLocale = useMemo(() => getCurrentActiveUserLocale(), [])
 
   const fetchData = useCallback(async () => {
     const requestId = (requestIdRef.current += 1)
@@ -59,7 +61,7 @@ export function useActiveBenefits(
     try {
       const data = await graphqlClient.request<{ ActiveBenefits: BenefitChangeRecord[] }>(
         GET_ACTIVE_BENEFITS_FOR_MONTH,
-        { monthStart, monthEnd }
+        { monthStart, monthEnd, activeUserLocale }
       )
       if (requestId !== requestIdRef.current) {
         return
@@ -76,7 +78,7 @@ export function useActiveBenefits(
         setLoading(false)
       }
     }
-  }, [graphqlClient, monthStart, monthEnd])
+  }, [activeUserLocale, graphqlClient, monthStart, monthEnd])
 
   useEffect(() => {
     fetchData()

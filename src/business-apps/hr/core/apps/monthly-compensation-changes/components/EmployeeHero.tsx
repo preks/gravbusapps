@@ -53,9 +53,12 @@ export function EmployeeHero({ name, picture, subtitle, employeeId, t }: Employe
         <button
           type="button"
           onClick={openEmployeeRecord}
-          className="gba:mt-2 gba:flex gba:max-w-full gba:items-center gba:justify-center gba:gap-1 gba:text-center"
+          className="gba:mt-2 gba:flex gba:min-w-0 gba:max-w-full gba:items-center gba:justify-center gba:gap-1 gba:text-center"
         >
-          <span className="gba:truncate gba:text-2xl gba:font-black gba:text-foreground gba:hover:underline">
+          <span
+            className="gba:block gba:min-w-0 gba:max-w-80 gba:truncate gba:text-2xl gba:font-black gba:text-foreground gba:hover:underline"
+            title={name}
+          >
             {name}
           </span>
           <CaretRightIcon size={20} className="gba:shrink-0 gba:text-foreground" />

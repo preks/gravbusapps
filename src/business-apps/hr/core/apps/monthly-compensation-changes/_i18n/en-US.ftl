@@ -15,7 +15,7 @@ filter-changes-title = Filter Compensation Changes
 filter-benefits-title = Filter Active Benefits
 filter-changes-description = Configure filters for compensation changes data
 filter-benefits-description = Configure filters for active benefits data
-filter-group-legal-entity = Legal Entity
+filter-group-legal-entity = Company
 filter-group-status = Status
 filter-group-provider = Provider
 
@@ -83,13 +83,23 @@ sheet-change-details = Change Details
 sheet-benefit-details = Benefit Details
 
 section-salary = Salary
+section-previous-salary = Previous Salary
+section-resulting-salary = Resulting Salary
 field-monthly-gross = Monthly Gross
 field-annual-gross = Annual Gross
 field-hourly-gross = Hourly Gross
 
 section-adjustment = Adjustment
-field-increase-percent = Increase %
-field-increase-amount = Increase Amount
+field-change = Change
+field-change-details = Change details
+field-change-per-hour = Change per hour
+field-change-per-month = Change per month
+field-change-per-year = Change per year
+field-increase-percent = Change %
+field-increase-amount = Change Amount
+field-calculated-change-percent = Calculated Change %
+field-calculated-change-amount = Calculated Change Amount
+field-calculated-monthly-change-amount = Calculated Monthly Change Amount
 
 section-details = Details
 field-effective-from = Effective from

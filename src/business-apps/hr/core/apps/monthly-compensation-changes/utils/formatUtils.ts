@@ -1,6 +1,13 @@
 import { formatNumberFunction, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 const STATUS_MAP: Record<string, string> = {
+  active: 'active',
+  inactive: 'inactive',
+  approved: 'approved',
+  pending: 'pending',
+  rejected: 'rejected',
+  cancelled: 'cancelled',
+  unknown: 'unknown',
   APPROVED_SALARY_ADJUSTMENT: 'Approved',
   PENDING_SALARY_ADJUSTMENT: 'Pending',
   REJECTED_SALARY_ADJUSTMENT: 'Rejected',
@@ -51,6 +58,15 @@ export function humanizeCatalogRef(ref: string | null | undefined): string {
     .replace(/_/g, ' ')
     .toLowerCase()
     .replace(/\b\w/g, c => c.toUpperCase())
+}
+
+export function getCatalogDisplayValue(
+  entry: { value?: string | null; translations?: Array<{ localeCode: string; value: string }> } | null | undefined
+): string {
+  if (!entry) return '-'
+  const locale = getCurrentActiveUserLocale()
+  const translatedValue = entry.translations?.find(translation => translation.localeCode === locale)?.value?.trim()
+  return translatedValue || entry.value || '-'
 }
 
 export function statusBadgeVariant(label: string): 'success' | 'warning' | 'destructive' | 'default' {

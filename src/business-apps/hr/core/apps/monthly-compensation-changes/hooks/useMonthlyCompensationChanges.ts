@@ -4,7 +4,8 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import {
   GET_MONTHLY_SALARY_CHANGES,
   GET_MONTHLY_BONUSES,
-  GET_MONTHLY_BENEFIT_CHANGES
+  GET_MONTHLY_BENEFIT_CHANGES,
+  GET_SALARY_ADJUST_REASON_CATALOG
 } from '../queries/compensationChangesQueries'
 import type {
   SalaryChangeRecord,
@@ -12,7 +13,8 @@ import type {
   BenefitChangeRecord,
   CompensationChangeRow
 } from '../types/compensationChanges.types'
-import { humanizeStatus, humanizeCatalogRef, formatCurrencyValue } from '../utils/formatUtils'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { humanizeStatus, humanizeCatalogRef, formatCurrencyValue, getCatalogDisplayValue } from '../utils/formatUtils'
 
 interface MonthlyCompensationData {
   rows: CompensationChangeRow[]
@@ -28,6 +30,7 @@ function salaryToRow(record: SalaryChangeRecord): CompensationChangeRow {
   const curr = record.currency?.code ?? record.currency?.value ?? ''
   const hasRequestedPercent = record.requestedPercent !== null && record.requestedPercent !== undefined
   const pctStr = hasRequestedPercent ? ` (${record.requestedPercent}%)` : ''
+  const amount = getSalaryChangeAmount(record, curr)
 
   return {
     id: record.id,
@@ -36,12 +39,36 @@ function salaryToRow(record: SalaryChangeRecord): CompensationChangeRow {
     employeeName: record.employee?.displayName ?? record.employee?.fullName ?? '-',
     employeePicture: record.employee?.pictureThumbnail,
     date: record.startDate ?? record.createdAt,
-    description: 'Salary adjustment' + pctStr,
-    detail: record.salaryAdjustReasonRef ? humanizeCatalogRef(record.salaryAdjustReasonRef) : (record.notes ?? '-'),
-    amount: formatCurrencyValue(record.monthlyGrossSalary, curr) + '/mo',
+    description: 'description-salary-adjustment' + pctStr,
+    detail: getSalaryReasonDisplay(record),
+    amount,
     status: humanizeStatus(record.requestStatus),
     raw: record
   }
+}
+
+function getSalaryReasonDisplay(record: SalaryChangeRecord): string {
+  if (record.salaryAdjustReason) {
+    return getCatalogDisplayValue(record.salaryAdjustReason)
+  }
+
+  if (record.salaryAdjustReasonRef) {
+    return humanizeCatalogRef(record.salaryAdjustReasonRef)
+  }
+
+  return record.notes ?? '-'
+}
+
+function getSalaryChangeAmount(record: SalaryChangeRecord, currencyCode: string): string {
+  if (record.requestedAmount !== null && record.requestedAmount !== undefined) {
+    return formatCurrencyValue(record.requestedAmount, currencyCode)
+  }
+
+  if (record.requestedPercent !== null && record.requestedPercent !== undefined) {
+    return `${record.requestedPercent}%`
+  }
+
+  return `${formatCurrencyValue(record.monthlyGrossSalary, currencyCode)}__PER_MONTH__`
 }
 
 function bonusToRow(record: BonusRecord): CompensationChangeRow {
@@ -54,7 +81,7 @@ function bonusToRow(record: BonusRecord): CompensationChangeRow {
     employeeName: record.employee?.displayName ?? record.employee?.fullName ?? '-',
     employeePicture: record.employee?.pictureThumbnail,
     date: record.paymentDate ?? record.createdAt,
-    description: record.employeeBonusType?.value ?? 'Bonus',
+    description: record.employeeBonusType ? getCatalogDisplayValue(record.employeeBonusType) : 'category-bonus',
     detail: record.description ?? record.notes ?? '-',
     amount: formatCurrencyValue(record.amount, curr),
     status: humanizeStatus(record.status),
@@ -65,7 +92,7 @@ function bonusToRow(record: BonusRecord): CompensationChangeRow {
 function benefitToRow(record: BenefitChangeRecord, isDeactivation: boolean): CompensationChangeRow {
   const curr = record.currency?.code ?? record.currency?.value ?? ''
   const action = isDeactivation ? 'Deactivation' : 'Activation'
-  const typeName = record.benefitType?.value ?? 'Benefit'
+  const typeName = record.benefitType ? getCatalogDisplayValue(record.benefitType) : 'category-benefit'
   const benefitStatus = humanizeStatus(record.benefitStatus)
   const recordStatus = humanizeStatus(record.status)
   let rawStatus = action
@@ -85,9 +112,9 @@ function benefitToRow(record: BenefitChangeRecord, isDeactivation: boolean): Com
     date: isDeactivation
       ? (record.endDate ?? record.updatedAt ?? record.createdAt)
       : (record.startDate ?? record.createdAt),
-    description: `${typeName} — ${action}`,
-    detail: record.benefitProvider?.value ?? record.notes ?? '-',
-    amount: formatCurrencyValue(record.monthlyAmount, curr) + '/mo',
+    description: typeName,
+    detail: record.benefitProvider ? getCatalogDisplayValue(record.benefitProvider) : (record.notes ?? '-'),
+    amount: `${formatCurrencyValue(record.monthlyAmount, curr)}__PER_MONTH__`,
     status: rawStatus,
     raw: record
   }
@@ -109,6 +136,7 @@ export function useMonthlyCompensationChanges(
 
   const monthStart = useMemo(() => format(startOfMonth(selectedDate), 'yyyy-MM-dd'), [selectedDate])
   const monthEnd = useMemo(() => format(endOfMonth(selectedDate), 'yyyy-MM-dd'), [selectedDate])
+  const activeUserLocale = useMemo(() => getCurrentActiveUserLocale(), [])
 
   const fetchData = useCallback(async () => {
     const requestId = (requestIdRef.current += 1)
@@ -117,20 +145,33 @@ export function useMonthlyCompensationChanges(
 
     try {
       const variables = { monthStart, monthEnd }
-      const [salaryData, bonusData, benefitData] = await Promise.all([
+      const localizedVariables = { ...variables, activeUserLocale }
+      const [salaryData, bonusData, benefitData, salaryReasonData] = await Promise.all([
         graphqlClient.request<{ EmployeeSalary: SalaryChangeRecord[] }>(GET_MONTHLY_SALARY_CHANGES, variables),
-        graphqlClient.request<{ EmployeeBonus: BonusRecord[] }>(GET_MONTHLY_BONUSES, variables),
+        graphqlClient.request<{ EmployeeBonus: BonusRecord[] }>(GET_MONTHLY_BONUSES, localizedVariables),
         graphqlClient.request<{
           BenefitActivations: BenefitChangeRecord[]
           BenefitDeactivations: BenefitChangeRecord[]
-        }>(GET_MONTHLY_BENEFIT_CHANGES, variables)
+        }>(GET_MONTHLY_BENEFIT_CHANGES, localizedVariables),
+        graphqlClient.request<{ CatalogEntry: NonNullable<SalaryChangeRecord['salaryAdjustReason']>[] }>(
+          GET_SALARY_ADJUST_REASON_CATALOG,
+          { activeUserLocale }
+        )
       ])
       if (requestId !== requestIdRef.current) {
         return
       }
 
+      const salaryReasonById = new Map((salaryReasonData.CatalogEntry ?? []).map(entry => [entry.id, entry]))
+      const enrichedSalaryChanges = (salaryData.EmployeeSalary ?? []).map(record => ({
+        ...record,
+        salaryAdjustReason: record.salaryAdjustReasonRef
+          ? (salaryReasonById.get(record.salaryAdjustReasonRef) ?? null)
+          : null
+      }))
+
       // Store raw month data; company filtering is applied client-side via `allowedEmployeeIds`.
-      setSalaryChanges(salaryData.EmployeeSalary ?? [])
+      setSalaryChanges(enrichedSalaryChanges)
       setBonuses(bonusData.EmployeeBonus ?? [])
       setBenefitActivations(benefitData.BenefitActivations ?? [])
       setBenefitDeactivations(benefitData.BenefitDeactivations ?? [])
@@ -143,7 +184,7 @@ export function useMonthlyCompensationChanges(
         setLoading(false)
       }
     }
-  }, [graphqlClient, monthStart, monthEnd])
+  }, [activeUserLocale, graphqlClient, monthStart, monthEnd])
 
   useEffect(() => {
     fetchData()

@@ -39,19 +39,15 @@ function statusGroup(t: TranslationFn, options: FilterOption[]) {
   }
 }
 
-export function buildChangesFilterConfig(t: TranslationFn, companyOptions: FilterOption[]) {
+export function buildChangesFilterConfig(
+  t: TranslationFn,
+  companyOptions: FilterOption[],
+  statusOptions: FilterOption[]
+) {
   return {
     id: 'changes-filters',
     name: t('filter-changes-title'),
-    groups: [
-      legalEntityGroup(t, companyOptions),
-      statusGroup(t, [
-        { id: 'Approved', label: t('status-approved') },
-        { id: 'Pending', label: t('status-pending') },
-        { id: 'Activation', label: t('status-activation') },
-        { id: 'Deactivation', label: t('status-deactivation') }
-      ])
-    ]
+    groups: [legalEntityGroup(t, companyOptions), statusGroup(t, statusOptions)]
   }
 }
 
@@ -80,10 +76,10 @@ export function buildBenefitsFilterConfig(
         ]
       },
       statusGroup(t, [
-        { id: 'Active', label: t('status-active') },
-        { id: 'Inactive', label: t('status-inactive') },
-        { id: 'Pending', label: t('status-pending') },
-        { id: 'Cancelled', label: t('status-cancelled') }
+        { id: 'active', label: t('status-active') },
+        { id: 'inactive', label: t('status-inactive') },
+        { id: 'pending', label: t('status-pending') },
+        { id: 'cancelled', label: t('status-cancelled') }
       ])
     ]
   }

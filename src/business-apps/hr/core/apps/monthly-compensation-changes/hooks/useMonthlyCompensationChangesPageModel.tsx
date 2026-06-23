@@ -13,7 +13,7 @@ import type {
   CompensationChangeRow,
   SalaryChangeRecord
 } from '../types/compensationChanges.types'
-import { formatDateShort, formatMonthYear } from '../utils/formatUtils'
+import { formatDateShort, formatMonthYear, translateStatusLabel } from '../utils/formatUtils'
 import { buildBenefitsFilterConfig, buildChangesFilterConfig } from './buildFilterConfigs'
 import { useActiveBenefits } from './useActiveBenefits'
 import { useEmployeeIdsByCompany } from './useEmployeeIdsByCompany'
@@ -130,11 +130,6 @@ export function useMonthlyCompensationChangesPageModel(accessToken: string, t: T
     [companies]
   )
 
-  const changesFilterConfig = useMemo(
-    () => buildChangesFilterConfig(t, companyFilterOptions),
-    [companyFilterOptions, t]
-  )
-
   const benefitProviderOptions = useMemo(() => {
     const providers = new Set(benefitRows.map(row => row.provider).filter(provider => provider && provider !== '-'))
     return Array.from(providers)
@@ -159,26 +154,22 @@ export function useMonthlyCompensationChangesPageModel(accessToken: string, t: T
 
   const localizedChangeRows = useMemo(() => {
     const perMonthSuffix = t('amount-per-month-suffix')
-    const activationLabel = t('status-activation')
-    const deactivationLabel = t('status-deactivation')
     const salaryAdjustmentLabel = t('description-salary-adjustment')
     const bonusLabel = t('category-bonus')
     const benefitLabel = t('category-benefit')
     return changeRows.map(row => {
-      const localizedAmount = row.amount.endsWith('/mo') ? `${row.amount.slice(0, -3)}${perMonthSuffix}` : row.amount
+      const localizedAmount = row.amount.endsWith('__PER_MONTH__')
+        ? `${row.amount.slice(0, -13)}${perMonthSuffix}`
+        : row.amount
 
       let localizedDescription = row.description
-      if (localizedDescription.startsWith('Salary adjustment')) {
-        localizedDescription = localizedDescription.replace('Salary adjustment', salaryAdjustmentLabel)
-      } else if (localizedDescription === 'Bonus') {
+      if (localizedDescription.startsWith('description-salary-adjustment')) {
+        localizedDescription = localizedDescription.replace('description-salary-adjustment', salaryAdjustmentLabel)
+      } else if (localizedDescription === 'category-bonus') {
         localizedDescription = bonusLabel
-      } else if (localizedDescription === 'Benefit') {
+      } else if (localizedDescription === 'category-benefit') {
         localizedDescription = benefitLabel
       }
-
-      localizedDescription = localizedDescription
-        .replace(' — Activation', ` — ${activationLabel}`)
-        .replace(' — Deactivation', ` — ${deactivationLabel}`)
 
       return {
         ...row,
@@ -187,6 +178,19 @@ export function useMonthlyCompensationChangesPageModel(accessToken: string, t: T
       }
     })
   }, [changeRows, t])
+
+  const changeStatusFilterOptions = useMemo(() => {
+    const statuses = new Set(localizedChangeRows.map(row => row.status).filter(status => status && status !== '-'))
+
+    return Array.from(statuses)
+      .sort((a, b) => translateStatusLabel(a, t).localeCompare(translateStatusLabel(b, t)))
+      .map(status => ({ id: status, label: translateStatusLabel(status, t) }))
+  }, [localizedChangeRows, t])
+
+  const changesFilterConfig = useMemo(
+    () => buildChangesFilterConfig(t, companyFilterOptions, changeStatusFilterOptions),
+    [changeStatusFilterOptions, companyFilterOptions, t]
+  )
 
   const filteredChangeRows = useMemo(() => {
     let rows = localizedChangeRows
