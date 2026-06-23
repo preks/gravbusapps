@@ -34,6 +34,8 @@ import { EmployeeDocumentUploadField } from '../document-sync/EmployeeDocumentUp
 import { EMPLOYEE_PROCESS_CONFIGS, usePendingProcessCheck } from '@/common/hooks/usePendingProcessCheck'
 import { getFormContextErrorMessage } from '@/business-apps/hr/core/utils/getFormContextErrorMessage'
 import { extractEmployeeId } from '@/business-apps/hr/core/utils/employeeIdUtils'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 
 function toValidEmployeeDocumentId(value: unknown): string {
   if (typeof value !== 'string') {
@@ -337,6 +339,8 @@ const ChangePersonalDataForm: React.FC<ChangePersonalDataFormProps> = ({
   onDataChanged
 }) => {
   const { t } = useTranslation(translations)
+  const isDevEnabled = useFeature<boolean>(Feature.Dev.Enabled.Key)
+  const isNewBackendContractEnabled = isDevEnabled === true
 
   const getCatalogValue = useCallback((entry: CatalogEntry): string => {
     return entry?.translations?.[0]?.value || entry?.value || ''
@@ -464,7 +468,7 @@ const ChangePersonalDataForm: React.FC<ChangePersonalDataFormProps> = ({
     ...EMPLOYEE_PROCESS_CONFIGS.CHANGE_PERSONAL_DATA,
     employeeId: employee?.id || '',
     accessToken: accessToken || '',
-    enabled: Boolean(isEmployeePending && employee?.id && accessToken),
+    enabled: Boolean(isNewBackendContractEnabled && isEmployeePending && employee?.id && accessToken),
     displayConfig: {
       processType: t('change-personal-data-process-title'),
       statusMessage: t('change-personal-data-pending-status')
@@ -473,7 +477,11 @@ const ChangePersonalDataForm: React.FC<ChangePersonalDataFormProps> = ({
 
   if (isEmployeePending) {
     const pendingState =
-      !pendingPersonalDataProcess.isLoading && !pendingPersonalDataProcess.hasPendingProcess ? 'stale' : 'active'
+      isNewBackendContractEnabled &&
+      !pendingPersonalDataProcess.isLoading &&
+      !pendingPersonalDataProcess.hasPendingProcess
+        ? 'stale'
+        : 'active'
 
     return (
       <ChangePersonalDataPendingView
@@ -526,7 +534,7 @@ const ChangePersonalDataForm: React.FC<ChangePersonalDataFormProps> = ({
             hasUserInteractedRef.current = false
             void onDataChanged()
           }}
-          processTimeoutBehavior="error"
+          processTimeoutBehavior={isNewBackendContractEnabled ? 'error' : 'resolve'}
           handlePreSubmit={async values => {
             const syncResult = await documentSync.syncDocuments({
               documentGroup: values.documentGroupId || null,
