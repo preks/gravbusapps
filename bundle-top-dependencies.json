@@ -86021,20 +86021,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 14019,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14019/",
-    "chunkJsBytes": 2013042,
+    "bitbucketBuildNumber": 14023,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14023/",
+    "chunkJsBytes": 2020895,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
-        "rendered": 1727349,
-        "gzip": 114425,
+        "rendered": 1735943,
+        "gzip": 114075,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
-            "rendered": 1727349,
-            "gzip": 114425
+            "rendered": 1735943,
+            "gzip": 114075
           }
         ]
       },
@@ -106285,9 +106285,9 @@
     ]
   },
   "hr/core/apps/monthly-compensation-changes": {
-    "bitbucketBuildNumber": 14019,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14019/",
-    "chunkJsBytes": 694880,
+    "bitbucketBuildNumber": 14023,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14023/",
+    "chunkJsBytes": 702973,
     "top": [
       {
         "kind": "bucket",
@@ -106310,18 +106310,18 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 81927,
-        "gzip": 22170,
+        "rendered": 98810,
+        "gzip": 25148,
         "leaves": [
           {
-            "name": "src/business-apps/hr/core/apps/monthly-compensation-changes/hooks/useMonthlyCompensationChangesPageModel.tsx",
-            "rendered": 15162,
-            "gzip": 3184
+            "name": "src/business-apps/hr/core/apps/monthly-compensation-changes/components/ChangeDetailPanels.tsx",
+            "rendered": 19525,
+            "gzip": 2911
           },
           {
-            "name": "src/business-apps/hr/core/apps/monthly-compensation-changes/components/ChangeDetailPanels.tsx",
-            "rendered": 7834,
-            "gzip": 1075
+            "name": "src/business-apps/hr/core/apps/monthly-compensation-changes/hooks/useMonthlyCompensationChangesPageModel.tsx",
+            "rendered": 15399,
+            "gzip": 3215
           }
         ]
       },
@@ -108570,9 +108570,9 @@
     ]
   },
   "hr/core/apps/benefits-maintenance": {
-    "bitbucketBuildNumber": 14019,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14019/",
-    "chunkJsBytes": 783835,
+    "bitbucketBuildNumber": 14023,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14023/",
+    "chunkJsBytes": 784469,
     "top": [
       {
         "kind": "bucket",
@@ -108595,8 +108595,8 @@
       {
         "kind": "bucket",
         "name": "(src)/business-apps/hr",
-        "rendered": 206266,
-        "gzip": 53566,
+        "rendered": 207327,
+        "gzip": 53843,
         "leaves": [
           {
             "name": "src/business-apps/hr/core/apps/benefits-maintenance/components/BenefitTypesView.tsx",
@@ -117471,7 +117471,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-23T13:24:01.482Z",
+    "generatedAt": "2026-06-23T13:34:09.183Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
