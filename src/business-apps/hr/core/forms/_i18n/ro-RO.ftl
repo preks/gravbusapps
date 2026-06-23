@@ -197,6 +197,10 @@ value-na = N/A
 action-acknowledge = Confirmă
 action-retry = Reîncearcă
 
+# Common Review Labels
+review-previous-values = Valori anterioare
+review-new-values = Valori noi
+
 # Common States
 loading = Se încarcă...
 
@@ -318,7 +322,23 @@ grant-bonus-pending-status = În așteptare
 adjust-salary-process-title = Ajustare salariu
 adjust-salary-pending-status = În așteptare
 
+# Change Working Hours Review Form
+working-hours-review-title = Revizuire modificări program de lucru
+working-hours-active-from = Valabil de la
+working-hours-active-to = Valabil până la
+working-hours-weekly-hours = Ore de lucru săptămânale
+working-hours-working-days = Zile lucrătoare / săptămână
+working-hours-fte = FTE (echivalent normă întreagă)
+weekday-monday = Luni
+weekday-tuesday = Marți
+weekday-wednesday = Miercuri
+weekday-thursday = Joi
+weekday-friday = Vineri
+weekday-saturday = Sâmbătă
+weekday-sunday = Duminică
+
 # Update Working Conditions Form
+working-conditions-review-title = Revizuire modificări condiții de muncă
 working-conditions-title = Actualizare condiții de muncă
 working-conditions-employment-start-date = Valabil de la
 working-conditions-employment-end-date = Valabil până la
