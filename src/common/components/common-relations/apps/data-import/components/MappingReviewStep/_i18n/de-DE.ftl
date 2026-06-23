@@ -16,6 +16,12 @@ unmapped-fields-warning = { $count } Spalten benötigen noch eine Zuordnung
 # Section Titles
 mapped-fields-title = Zugeordnete Spalten
 unmapped-fields-title = Nicht zugeordnete Spalten ({ $count })
+relationship-columns-title = Beziehungsspalten
+relationship-hint-company-columns = Fügen Sie eine Spalte mit dem Unternehmensnamen sowie „Owned By“- und/oder „Owns“-Spalten hinzu. Trennen Sie mehrere Unternehmensnamen mit Semikolons.
+relationship-hint-percentages = Prozentangaben wie „Beta Holdings (50%)“ werden in Eigentumsspalten unterstützt.
+relationship-hint-executives = „Executives“ enthält Personennamen (mehrere mit Semikolons trennen). Jeder Name wird zuerst gegen Mitarbeiter, dann gegen Investment Contacts abgeglichen; nicht gefundene Namen werden übersprungen.
+relationship-hint-executive-type = „Executive Type“ gilt für alle Führungskräfte in einer Zeile (z. B. CEO, CFO) und muss einem Eintrag im Katalog `LegalEntityExecutiveType` entsprechen.
+relationship-hint-stakeholders = „Stakeholders“ erwartet Einträge der Form `Name, Typ`, getrennt durch Semikolons (z. B. `Mike, Audit; Anna, Legal`). Jeder Name wird zuerst gegen Investment Contacts, dann gegen Investment Accounts abgeglichen; ohne Treffer wird der Eintrag als externer Stakeholder übernommen.
 
 # Field Labels
 source-field-label = Ihre Spalte

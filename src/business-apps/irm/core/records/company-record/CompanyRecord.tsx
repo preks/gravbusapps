@@ -191,6 +191,21 @@ export const CompanyRecordContent: React.FC<CompanyRecordContentProps> = ({
             icon: IdentificationCardIcon
           },
           {
+            label: t('tax-identification-number-label'),
+            value: investmentCompany?.taxIdentificationNumber || t('not-set'),
+            icon: IdentificationCardIcon
+          },
+          {
+            label: t('tax-number-label'),
+            value: investmentCompany?.taxNumber || t('not-set'),
+            icon: IdentificationCardIcon
+          },
+          {
+            label: t('vat-number-label'),
+            value: investmentCompany?.valueAddedTaxNumber || t('not-set'),
+            icon: IdentificationCardIcon
+          },
+          {
             label: t('owner-label'),
             value: getOwnerName(investmentCompany?.ownerEmployee) || t('not-set'),
             icon: UserIcon
@@ -204,6 +219,9 @@ export const CompanyRecordContent: React.FC<CompanyRecordContentProps> = ({
       investmentCompany?.currency,
       investmentCompany?.currencyRef,
       investmentCompany?.ownerEmployee,
+      investmentCompany?.taxIdentificationNumber,
+      investmentCompany?.taxNumber,
+      investmentCompany?.valueAddedTaxNumber,
       t
     ]
   )

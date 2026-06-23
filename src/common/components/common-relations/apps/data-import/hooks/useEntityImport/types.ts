@@ -7,7 +7,13 @@
 
 import type { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type { useRestClient } from '@/common/network/rest/useRestClient'
-import type { ImportConfig, ImportResult } from '@/common/components/common-relations/apps/data-import/types'
+import type {
+  ImportConfig,
+  ImportResult,
+  InvestmentCompanyOwnershipUpdate,
+  InvestmentCompanyExecutiveUpdate,
+  InvestmentCompanyStakeholderUpdate
+} from '../../types/importTypes'
 
 export interface ImportSubmissionContext {
   restClient: ReturnType<typeof useRestClient>
@@ -15,6 +21,15 @@ export interface ImportSubmissionContext {
   accessToken: string | undefined
   ownerEmployeeId: string | undefined
   config: ImportConfig
+  ownershipUpdates?: InvestmentCompanyOwnershipUpdate[]
+  executiveUpdates?: InvestmentCompanyExecutiveUpdate[]
+  stakeholderUpdates?: InvestmentCompanyStakeholderUpdate[]
+  /** When true, company submit skips ownership relationship POST. */
+  deferOwnershipSubmission?: boolean
+  /** Companies created in Step 3, used as ID fallback during Step 4 ownership submit. */
+  createdCompaniesForOwnership?: Record<string, any>[]
+  /** Source entities from Step 3, paired with created companies for name lookup. */
+  sourceEntitiesForOwnership?: Record<string, any>[]
 }
 
 export interface ImportSubmissionStrategy {
@@ -43,4 +58,13 @@ export interface ImportSubmissionStrategy {
    * `undefined` to let the shared `extractErrorMessage` fallback apply.
    */
   normalizeError?: (error: unknown) => string | undefined
+
+  /**
+   * Optional Step 4 ownership-only submission for company imports that
+   * defer ownership relationships to a separate wizard step.
+   */
+  submitOwnership?: (
+    ownershipUpdates: InvestmentCompanyOwnershipUpdate[],
+    ctx: ImportSubmissionContext
+  ) => Promise<ImportResult>
 }

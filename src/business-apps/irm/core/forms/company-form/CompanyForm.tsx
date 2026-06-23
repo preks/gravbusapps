@@ -10,6 +10,7 @@ import { FormSection, useTranslation } from '@newwork/nw-design-system'
 import { CompanyCoreFields } from './CompanyCoreFields'
 import { CompanyExecutivesSection } from './CompanyExecutivesSection'
 import { CompanyOwnershipsSection } from './CompanyOwnershipsSection'
+import { CompanyStakeholdersSection } from './CompanyStakeholdersSection'
 import { buildCompanySubmitPayload } from './companyFormPayload'
 import {
   createCompanyResolver,
@@ -50,6 +51,7 @@ type CompanyFormViewProps = Readonly<{
   coreProps: Omit<React.ComponentProps<typeof CompanyCoreFields>, 'form' | 't'>
   executivesProps: Omit<React.ComponentProps<typeof CompanyExecutivesSection>, 'form' | 't' | 'dataTestId'>
   ownershipsProps: Omit<React.ComponentProps<typeof CompanyOwnershipsSection>, 't'>
+  stakeholdersProps: Omit<React.ComponentProps<typeof CompanyStakeholdersSection>, 'form' | 't' | 'dataTestId'>
   addressBusinessAppContext: React.ComponentProps<typeof AddressSegment>['businessAppContext']
 }>
 
@@ -70,6 +72,7 @@ const CompanyFormView = React.memo<CompanyFormViewProps>(
     coreProps,
     executivesProps,
     ownershipsProps,
+    stakeholdersProps,
     addressBusinessAppContext
   }) => (
     <CatalogSelect.Provider accessToken={accessToken} userInfo={userInfo} additionalData={additionalData} form={form}>
@@ -88,6 +91,7 @@ const CompanyFormView = React.memo<CompanyFormViewProps>(
         <CompanyCoreFields form={form} t={t} {...coreProps} />
         <CompanyExecutivesSection form={form} t={t} dataTestId={dataTestId} {...executivesProps} />
         <CompanyOwnershipsSection t={t} {...ownershipsProps} />
+        <CompanyStakeholdersSection form={form} t={t} dataTestId={dataTestId} {...stakeholdersProps} />
         <FormSection title={t('address-section')} value="company-addresses">
           <AddressSegment businessAppContext={addressBusinessAppContext} />
         </FormSection>
@@ -172,9 +176,11 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
   const {
     employees,
     contacts,
+    accounts,
     groups,
     ownerCompanies,
     contactOptions,
+    accountOptions,
     groupOptions,
     ownerCompanyOptions,
     setGroupSearch,
@@ -304,9 +310,11 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
       contacts: contactOptions,
       contactsLoading: contacts.loading,
       contactsError: contacts.error,
+      contactsHasMore: contacts.hasMore,
       searchEmployees: employees.search,
       loadMore: employees.loadMore,
-      searchContacts: contacts.search
+      searchContacts: contacts.search,
+      loadMoreContacts: contacts.loadMore
     }),
     [
       employees.employees,
@@ -317,7 +325,9 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
       contactOptions,
       contacts.loading,
       contacts.error,
-      contacts.search
+      contacts.hasMore,
+      contacts.search,
+      contacts.loadMore
     ]
   )
 
@@ -330,10 +340,42 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
     [ownerCompanyOptions, ownerCompanies.loading, setOwnerCompanySearch]
   )
 
+  const stakeholdersProps = useMemo(
+    () => ({
+      contacts: contactOptions,
+      contactsLoading: contacts.loading,
+      contactsError: contacts.error,
+      contactsHasMore: contacts.hasMore,
+      searchContacts: contacts.search,
+      loadMoreContacts: contacts.loadMore,
+      accounts: accountOptions,
+      accountsLoading: accounts.loading,
+      accountsError: accounts.error,
+      accountsHasMore: accounts.hasMore,
+      searchAccounts: accounts.search,
+      loadMoreAccounts: accounts.loadMore
+    }),
+    [
+      contactOptions,
+      contacts.loading,
+      contacts.error,
+      contacts.hasMore,
+      contacts.search,
+      contacts.loadMore,
+      accountOptions,
+      accounts.loading,
+      accounts.error,
+      accounts.hasMore,
+      accounts.search,
+      accounts.loadMore
+    ]
+  )
+
   const errors: Array<{ error?: string | Error; type?: 'accessToken'; context?: string }> = []
   if (!accessToken) errors.push({ type: 'accessToken' })
   if (investmentCompanyError) errors.push({ error: investmentCompanyError, context: t('error-load-company') })
   if (contacts.error) errors.push({ error: contacts.error, context: t('error-load-investment-contacts') })
+  if (accounts.error) errors.push({ error: accounts.error, context: t('error-load-investment-accounts') })
   if (groups.error) errors.push({ error: groups.error, context: t('error-load-company-groups') })
   if (ownerCompanies.error) errors.push({ error: ownerCompanies.error, context: t('error-load-owner-companies') })
   if (errors.length > 0) {
@@ -357,6 +399,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
       coreProps={coreProps}
       executivesProps={executivesProps}
       ownershipsProps={ownershipsProps}
+      stakeholdersProps={stakeholdersProps}
       addressBusinessAppContext={addressBusinessAppContext}
     />
   )

@@ -14,6 +14,13 @@ file-loaded-text = Fișier încărcat: { $fileName } ({ $fileSize } KB)
 # Campaign
 campaign-id-label = Campanie (Opțional)
 
+# Investment company group (IRM company import)
+investment-company-group-label = Grup de companii de investiții (Opțional)
+investment-company-group-placeholder = Selectați un grup de companii (opțional)
+investment-company-group-search-placeholder = Căutați grupuri...
+investment-company-group-empty = Nu s-au găsit grupuri de companii
+investment-company-group-load-error = Grupurile de companii nu au putut fi încărcate
+
 # Shared
 enforced-required-hint = Completați toate câmpurile obligatorii înainte de a continua.
 
@@ -25,6 +32,7 @@ lead-rating-label = Evaluare implicită lead
 # Investment Defaults
 investment-group-label = Grup de investiții
 investment-type-label = Tip investiție (Opțional)
+investment-company-group-label = Grup companie de investiții
 
 # Liquid Fund Defaults
 liquid-fund-type-label = Tip fond lichid (Opțional)

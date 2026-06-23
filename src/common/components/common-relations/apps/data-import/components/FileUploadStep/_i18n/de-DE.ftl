@@ -14,6 +14,13 @@ file-loaded-text = Datei geladen: { $fileName } ({ $fileSize } KB)
 # Campaign
 campaign-id-label = Kampagne (Optional)
 
+# Investment company group (IRM company import)
+investment-company-group-label = Investment-Unternehmensgruppe (Optional)
+investment-company-group-placeholder = Unternehmensgruppe auswählen (optional)
+investment-company-group-search-placeholder = Gruppen suchen...
+investment-company-group-empty = Keine Unternehmensgruppen gefunden
+investment-company-group-load-error = Unternehmensgruppen konnten nicht geladen werden
+
 # Shared
 enforced-required-hint = Bitte füllen Sie alle Pflichtfelder aus, bevor Sie fortfahren.
 
@@ -25,6 +32,7 @@ lead-rating-label = Standard-Lead-Bewertung
 # Investment Defaults
 investment-group-label = Investmentgruppe
 investment-type-label = Investmenttyp (Optional)
+investment-company-group-label = Investment-Unternehmensgruppe
 
 # Liquid Fund Defaults
 liquid-fund-type-label = Fondstyp (Optional)

@@ -5,7 +5,8 @@ import { filterAddressLines, filterAddresses } from '@/common/data/common/utils/
 import type {
   InvestmentCompanyExecutive,
   InvestmentCompanyGroupAssociation,
-  InvestmentCompanyOwnership
+  InvestmentCompanyOwnership,
+  InvestmentCompanyStakeholder
 } from './investmentCompanyAssociationTypes'
 import type { EmployeeRef } from '@/common/data/employee/types/employeeBaseTypes'
 import type { InvestmentAddress } from './investmentAddressTypes'
@@ -33,6 +34,7 @@ export interface InvestmentCompany extends BaseEntity {
   executives?: InvestmentCompanyExecutive[]
   ownerships?: InvestmentCompanyOwnership[]
   groupAssociations?: InvestmentCompanyGroupAssociation[]
+  stakeholders?: InvestmentCompanyStakeholder[]
 }
 
 export const InvestmentCompanyFields = {
@@ -56,7 +58,8 @@ export const InvestmentCompanyFields = {
   documents: 'investmentDocument',
   executives: 'investmentCompanyExecutives',
   ownerships: 'investmentCompanyOwnership',
-  groupAssociations: 'investmentCompanyGroupAssociation'
+  groupAssociations: 'investmentCompanyGroupAssociation',
+  stakeholders: 'investmentCompanyStakeholder'
 } as const
 
 export const investmentCompanyFormFields = {
@@ -180,6 +183,33 @@ export const INVESTMENT_COMPANY_DESCRIPTORS: Descriptor[] = [
     kind: 'inIds'
   },
   {
+    key: 'stakeholderAccountIds',
+    path: `${InvestmentCompanyFields.stakeholders}.investmentAccountId`,
+    filterLabel: 'Stakeholder Investment Account',
+    kind: 'inIds'
+  },
+  {
+    key: 'stakeholderContactIds',
+    path: `${InvestmentCompanyFields.stakeholders}.investmentContactId`,
+    filterLabel: 'Stakeholder Investment Contact',
+    kind: 'inIds'
+  },
+  {
+    key: 'stakeholderTypeIds',
+    path: `${InvestmentCompanyFields.stakeholders}.investmentCompanyStakeholderTypeRef`,
+    filterLabel: 'Stakeholder Type',
+    optionSelectPaths: [
+      `${InvestmentCompanyFields.stakeholders}.investmentCompanyStakeholderType.id`,
+      `${InvestmentCompanyFields.stakeholders}.investmentCompanyStakeholderType.value`
+    ],
+    optionSearchPaths: [
+      `${InvestmentCompanyFields.stakeholders}.investmentCompanyStakeholderType.value`,
+      `${InvestmentCompanyFields.stakeholders}.investmentCompanyStakeholderType.code`
+    ],
+    optionDistinctOn: [`${InvestmentCompanyFields.stakeholders}.investmentCompanyStakeholderTypeRef`],
+    kind: 'inIds'
+  },
+  {
     key: 'ownerInvestmentCompanyIds',
     path: `${InvestmentCompanyFields.ownerships}.ownerInvestmentCompanyId`,
     filterLabel: 'Owner Company',
@@ -223,6 +253,7 @@ export function toInvestmentCompany(raw: any): InvestmentCompany {
     investmentCompanyExecutives,
     investmentCompanyOwnership,
     investmentCompanyGroupAssociation,
+    investmentCompanyStakeholder,
     ...rest
   } = raw
 
@@ -232,6 +263,7 @@ export function toInvestmentCompany(raw: any): InvestmentCompany {
     documents: raw.documents ?? investmentDocument ?? [],
     executives: raw.executives ?? investmentCompanyExecutives ?? [],
     ownerships: raw.ownerships ?? investmentCompanyOwnership ?? [],
-    groupAssociations: raw.groupAssociations ?? investmentCompanyGroupAssociation ?? []
+    groupAssociations: raw.groupAssociations ?? investmentCompanyGroupAssociation ?? [],
+    stakeholders: raw.stakeholders ?? investmentCompanyStakeholder ?? []
   } as InvestmentCompany
 }

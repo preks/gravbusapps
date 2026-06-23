@@ -4,7 +4,19 @@
  */
 
 import React, { useMemo } from 'react'
-import { Card, CardHeader, CardTitle, CardContent, Button, Spinner, useTranslation } from '@newwork/nw-design-system'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Button,
+  Spinner,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+  useTranslation
+} from '@newwork/nw-design-system'
 import {
   CheckCircleIcon,
   DownloadIcon,
@@ -20,13 +32,20 @@ import {
   TargetFieldDefinition,
   ImportResult,
   CsvQuality,
-  ImportConfig
+  ImportConfig,
+  InvestmentCompanyOwnershipUpdate,
+  InvestmentCompanyExecutiveUpdate,
+  InvestmentCompanyStakeholderUpdate
 } from '@/common/components/common-relations/apps/data-import/types'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
 import type { Investment } from '@/common/data/investment/types/investmentTypes'
 import { useCatalogEntries } from '@/common/data/catalog/hooks/useCatalogEntries'
 import type { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
+import {
+  formatOwnershipCompanyNames,
+  summarizeOwnershipUpdates
+} from '@/common/components/common-relations/apps/data-import/utils/ownershipSummaryUtils'
 import { calculateDataQuality } from '@/common/components/common-relations/apps/data-import/utils/dataQualityCalculator'
 import { buildEntityPreviewCardData } from '@/common/components/common-relations/apps/data-import/utils/entityPreviewData'
 import { pluralize } from '@/common/utils/pluralize'
@@ -113,7 +132,10 @@ export interface ConversionResultStepProps<T = ConvertedEntity> {
   targetFieldsConfig: TargetFieldDefinition[]
   config: ImportConfig
   businessAppContext: BusinessAppContextProps
+  /** Singular entity label, e.g. "investment company" */
   entityType: string
+  /** Plural entity label from i18n; falls back to `pluralize(entityType)` when omitted */
+  entityTypePlural?: string
   isLoading: boolean
   importResult: ImportResult | null
   /** Name of the campaign to associate with the import (CRM only) */
@@ -122,11 +144,17 @@ export interface ConversionResultStepProps<T = ConvertedEntity> {
   csvQuality?: CsvQuality | null
   /** Warnings from the backend extraction (e.g. unresolved investment names) */
   extractionWarnings?: string[]
+  ownershipUpdates?: InvestmentCompanyOwnershipUpdate[]
+  executiveUpdates?: InvestmentCompanyExecutiveUpdate[]
+  stakeholderUpdates?: InvestmentCompanyStakeholderUpdate[]
   /** Re-extract the file with hard repair mode */
   onHardRepair?: () => Promise<void>
   onDownloadJSON: () => void
   onImportToBackend: () => Promise<void>
   onReset: () => void
+  deferOwnershipSubmission?: boolean
+  onContinueToOwnership?: () => void
+  onSkipOwnership?: () => void
   'data-testid'?: string
 }
 
@@ -136,14 +164,21 @@ export const ConversionResultStep = <T extends ConvertedEntity = ConvertedEntity
   config,
   businessAppContext,
   entityType,
+  entityTypePlural,
   isLoading,
   campaignName,
   extractionWarnings,
+  ownershipUpdates = [],
+  executiveUpdates = [],
+  stakeholderUpdates = [],
   csvQuality,
   onHardRepair,
   onDownloadJSON,
   onImportToBackend,
   onReset,
+  deferOwnershipSubmission = false,
+  onContinueToOwnership,
+  onSkipOwnership,
   'data-testid': testId = 'conversion-result-step'
 }: ConversionResultStepProps<T>) => {
   const { t } = useTranslation(translations)
@@ -191,10 +226,43 @@ export const ConversionResultStep = <T extends ConvertedEntity = ConvertedEntity
   const [catalogValueByRef, setCatalogValueByRef] = React.useState<Map<string, string>>(() => new Map())
   const [isLoadingInvestmentPreviewDetails, setIsLoadingInvestmentPreviewDetails] = React.useState(false)
   const [isLoadingCatalogValues, setIsLoadingCatalogValues] = React.useState(false)
-  const entityLabel = pluralize(entityType)
   const entityLabelSingular = entityType.charAt(0).toUpperCase() + entityType.slice(1)
+  const entityLabelPlural = entityTypePlural ?? pluralize(entityType)
   const isInvestmentReportPreview =
     Boolean(config.investmentReportPayloadKey) || /investmentreport$/i.test(config.flowbotEntityType ?? '')
+  const ownershipSummary = useMemo(() => summarizeOwnershipUpdates(ownershipUpdates), [ownershipUpdates])
+  const executiveSummary = useMemo(() => {
+    const executiveCount = executiveUpdates.reduce((count, update) => count + update.executiveNames.length, 0)
+    const resolvedCount = executiveUpdates.reduce((count, update) => {
+      return (
+        count +
+        update.executiveSourceTypes.filter(
+          sourceType => sourceType === 'employee' || sourceType === 'investmentContact'
+        ).length
+      )
+    }, 0)
+    const unresolvedCount = executiveCount - resolvedCount
+    return {
+      executiveCount,
+      resolvedCount,
+      unresolvedCount
+    }
+  }, [executiveUpdates])
+  const stakeholderSummary = useMemo(() => {
+    let total = 0
+    let contactCount = 0
+    let accountCount = 0
+    let externalCount = 0
+    stakeholderUpdates.forEach(update => {
+      total += update.stakeholderNames.length
+      update.stakeholderSourceTypes.forEach(sourceType => {
+        if (sourceType === 'investmentContact') contactCount += 1
+        else if (sourceType === 'investmentAccount') accountCount += 1
+        else externalCount += 1
+      })
+    })
+    return { total, contactCount, accountCount, externalCount }
+  }, [stakeholderUpdates])
   const previewCatalogEntryIds = useMemo(
     () => [
       ...new Set(
@@ -326,7 +394,8 @@ export const ConversionResultStep = <T extends ConvertedEntity = ConvertedEntity
                       <p className="gba:text-base gba:text-foreground gba:max-w-md">
                         {t('import-success-message', {
                           count: convertedEntities.length,
-                          entityType: convertedEntities.length === 1 ? entityLabelSingular.toLowerCase() : entityLabel
+                          entityType:
+                            convertedEntities.length === 1 ? entityLabelSingular.toLowerCase() : entityLabelPlural
                         })}
                       </p>
                     </div>
@@ -335,18 +404,40 @@ export const ConversionResultStep = <T extends ConvertedEntity = ConvertedEntity
                       <span>{t('import-success-email-hint')}</span>
                     </div>
                     <div className="gba:flex gba:gap-3 gba:w-full gba:max-w-md gba:mt-2">
-                      <Button
-                        variant="outline"
-                        onClick={onReset}
-                        className="gba:flex-1"
-                        data-testid={`${testId}-import-more-button`}
-                      >
-                        <ArrowCounterClockwiseIcon className="gba:w-4 gba:h-4 gba:mr-2" />
-                        {t('import-more-button')}
-                      </Button>
-                      <Button onClick={onReset} className="gba:flex-1" data-testid={`${testId}-done-button`}>
-                        {t('done-button')}
-                      </Button>
+                      {deferOwnershipSubmission ? (
+                        <>
+                          <Button
+                            variant="outline"
+                            onClick={onSkipOwnership ?? onReset}
+                            className="gba:flex-1"
+                            data-testid={`${testId}-skip-ownership-button`}
+                          >
+                            {t('skip-ownership-button')}
+                          </Button>
+                          <Button
+                            onClick={onContinueToOwnership}
+                            className="gba:flex-1"
+                            data-testid={`${testId}-continue-ownership-button`}
+                          >
+                            {t('continue-ownership-button')}
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            variant="outline"
+                            onClick={onReset}
+                            className="gba:flex-1"
+                            data-testid={`${testId}-import-more-button`}
+                          >
+                            <ArrowCounterClockwiseIcon className="gba:w-4 gba:h-4 gba:mr-2" />
+                            {t('import-more-button')}
+                          </Button>
+                          <Button onClick={onReset} className="gba:flex-1" data-testid={`${testId}-done-button`}>
+                            {t('done-button')}
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -357,7 +448,7 @@ export const ConversionResultStep = <T extends ConvertedEntity = ConvertedEntity
             {!importStarted && (
               <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-success">
                 <CheckCircleIcon className="gba:w-5 gba:h-5 gba:text-success" weight="fill" />
-                {t('conversion-success-message', { count: convertedEntities.length, entityType: entityLabel })}
+                {t('conversion-success-message', { count: convertedEntities.length, entityType: entityLabelPlural })}
               </div>
             )}
 
@@ -389,7 +480,7 @@ export const ConversionResultStep = <T extends ConvertedEntity = ConvertedEntity
                 {/* Entity Preview Cards */}
                 <div className="gba:space-y-2">
                   <h3 className="gba:text-sm gba:font-medium">
-                    {t('preview-title', { count: previewEntities.length, entityType: entityLabel })}
+                    {t('preview-title', { count: previewEntities.length, entityType: entityLabelPlural })}
                   </h3>
                   {isLoadingInvestmentPreviewDetails || isLoadingCatalogValues ? (
                     <Card variant="surface">
@@ -416,10 +507,216 @@ export const ConversionResultStep = <T extends ConvertedEntity = ConvertedEntity
                   )}
                   {convertedEntities.length > 3 && (
                     <div className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-2">
-                      {t('preview-more-text', { count: convertedEntities.length - 3, entityType: entityLabel })}
+                      {t('preview-more-text', { count: convertedEntities.length - 3, entityType: entityLabelPlural })}
                     </div>
                   )}
                 </div>
+
+                {/* Backend Extraction Warnings */}
+                {ownershipUpdates.length > 0 && !deferOwnershipSubmission && (
+                  <Card data-testid={`${testId}-ownership-summary`}>
+                    <CardHeader>
+                      <CardTitle className="gba:text-base">{t('ownership-summary-title')}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="gba:space-y-3">
+                        <div className="gba:text-sm gba:text-muted-foreground">
+                          {t('ownership-summary-description', {
+                            count: ownershipSummary.relationshipCount,
+                            unresolvedCount: ownershipSummary.unresolvedCount
+                          })}
+                        </div>
+                        <div className="gba:space-y-2">
+                          {ownershipUpdates.slice(0, 5).map(update => (
+                            <div
+                              key={`${update.rowIndex}-${update.companyName ?? 'company'}`}
+                              className="gba:rounded-md gba:border gba:p-3 gba:text-sm"
+                            >
+                              <div className="gba:font-medium">
+                                {update.companyName || t('ownership-summary-unknown-company')}
+                              </div>
+                              {update.ownerCompanyNames.length > 0 && (
+                                <div className="gba:mt-1 gba:text-muted-foreground">
+                                  {t('ownership-summary-owned-by', {
+                                    names: formatOwnershipCompanyNames(
+                                      update.ownerCompanyNames,
+                                      update.ownerCompanyIds,
+                                      update.ownerCompanyPercentages,
+                                      t('ownership-company-unresolved-suffix')
+                                    )
+                                  })}
+                                </div>
+                              )}
+                              {update.ownedCompanyNames.length > 0 && (
+                                <div className="gba:mt-1 gba:text-muted-foreground">
+                                  {t('ownership-summary-owns', {
+                                    names: formatOwnershipCompanyNames(
+                                      update.ownedCompanyNames,
+                                      update.ownedCompanyIds,
+                                      update.ownedCompanyPercentages,
+                                      t('ownership-company-unresolved-suffix')
+                                    )
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        {ownershipUpdates.length > 5 && (
+                          <div className="gba:text-sm gba:text-muted-foreground gba:text-center">
+                            {t('ownership-summary-more', { count: ownershipUpdates.length - 5 })}
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {executiveUpdates.length > 0 && (
+                  <Card data-testid={`${testId}-executive-summary`}>
+                    <CardHeader>
+                      <CardTitle className="gba:text-base">{t('executive-summary-title')}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="gba:space-y-3">
+                        <div className="gba:text-sm gba:text-muted-foreground">
+                          {t('executive-summary-description', {
+                            count: executiveSummary.executiveCount,
+                            resolvedCount: executiveSummary.resolvedCount,
+                            unresolvedCount: executiveSummary.unresolvedCount
+                          })}
+                        </div>
+                        <div className="gba:space-y-2">
+                          {executiveUpdates.slice(0, 5).map(update => (
+                            <div
+                              key={`${update.rowIndex}-${update.companyName ?? 'company'}-executives`}
+                              className="gba:rounded-md gba:border gba:p-3 gba:text-sm"
+                            >
+                              <div className="gba:font-medium">
+                                {update.companyName || t('executive-summary-unknown-company')}
+                              </div>
+                              {update.executiveNames.length > 0 && (
+                                <div className="gba:mt-1 gba:text-muted-foreground">
+                                  <span>{t('executive-summary-executives-label')} </span>
+                                  {update.executiveNames.map((name, idx) => {
+                                    const sourceType = update.executiveSourceTypes[idx]
+                                    const isResolved = sourceType === 'employee' || sourceType === 'investmentContact'
+                                    const suffix =
+                                      sourceType === 'employee'
+                                        ? t('executive-source-employee-suffix')
+                                        : sourceType === 'investmentContact'
+                                          ? t('executive-source-contact-suffix')
+                                          : t('executive-source-unresolved-suffix')
+                                    const chip = (
+                                      <span
+                                        className={
+                                          isResolved
+                                            ? undefined
+                                            : 'gba:text-warning-foreground gba:underline gba:decoration-dotted gba:underline-offset-2 gba:cursor-help'
+                                        }
+                                        data-testid={
+                                          isResolved
+                                            ? undefined
+                                            : `${testId}-executive-unresolved-${update.rowIndex}-${idx}`
+                                        }
+                                      >
+                                        {`${name} ${suffix}`}
+                                      </span>
+                                    )
+                                    return (
+                                      <React.Fragment key={`${update.rowIndex}-exec-${idx}-${name}`}>
+                                        {idx > 0 && ', '}
+                                        {isResolved ? (
+                                          chip
+                                        ) : (
+                                          <TooltipProvider>
+                                            <Tooltip>
+                                              <TooltipTrigger asChild>{chip}</TooltipTrigger>
+                                              <TooltipContent>
+                                                {t('executive-source-unresolved-tooltip')}
+                                              </TooltipContent>
+                                            </Tooltip>
+                                          </TooltipProvider>
+                                        )}
+                                      </React.Fragment>
+                                    )
+                                  })}
+                                </div>
+                              )}
+                              {update.executiveTypeRef && (
+                                <div className="gba:mt-1 gba:text-muted-foreground gba:text-xs">
+                                  {t('executive-summary-type', { type: update.executiveTypeRef })}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        {executiveUpdates.length > 5 && (
+                          <div className="gba:text-sm gba:text-muted-foreground gba:text-center">
+                            {t('executive-summary-more', { count: executiveUpdates.length - 5 })}
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {stakeholderUpdates.length > 0 && (
+                  <Card data-testid={`${testId}-stakeholder-summary`}>
+                    <CardHeader>
+                      <CardTitle className="gba:text-base">{t('stakeholder-summary-title')}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="gba:space-y-3">
+                        <div className="gba:text-sm gba:text-muted-foreground">
+                          {t('stakeholder-summary-description', {
+                            count: stakeholderSummary.total,
+                            contactCount: stakeholderSummary.contactCount,
+                            accountCount: stakeholderSummary.accountCount,
+                            externalCount: stakeholderSummary.externalCount
+                          })}
+                        </div>
+                        <div className="gba:space-y-2">
+                          {stakeholderUpdates.slice(0, 5).map(update => (
+                            <div
+                              key={`${update.rowIndex}-${update.companyName ?? 'company'}-stakeholders`}
+                              className="gba:rounded-md gba:border gba:p-3 gba:text-sm"
+                            >
+                              <div className="gba:font-medium">
+                                {update.companyName || t('stakeholder-summary-unknown-company')}
+                              </div>
+                              {update.stakeholderNames.length > 0 && (
+                                <div className="gba:mt-1 gba:text-muted-foreground">
+                                  {t('stakeholder-summary-stakeholders', {
+                                    names: update.stakeholderNames
+                                      .map((name, idx) => {
+                                        const sourceType = update.stakeholderSourceTypes[idx]
+                                        const typeLabel = update.stakeholderTypeLabels[idx]
+                                        const labelSuffix = typeLabel ? ` (${typeLabel})` : ''
+                                        if (sourceType === 'investmentContact') {
+                                          return `${name}${labelSuffix} ${t('stakeholder-source-contact-suffix')}`
+                                        }
+                                        if (sourceType === 'investmentAccount') {
+                                          return `${name}${labelSuffix} ${t('stakeholder-source-account-suffix')}`
+                                        }
+                                        return `${name}${labelSuffix} ${t('stakeholder-source-external-suffix')}`
+                                      })
+                                      .join(', ')
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        {stakeholderUpdates.length > 5 && (
+                          <div className="gba:text-sm gba:text-muted-foreground gba:text-center">
+                            {t('stakeholder-summary-more', { count: stakeholderUpdates.length - 5 })}
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
 
                 {/* Backend Extraction Warnings */}
                 {extractionWarnings && extractionWarnings.length > 0 && (
@@ -511,7 +808,7 @@ export const ConversionResultStep = <T extends ConvertedEntity = ConvertedEntity
                   ) : (
                     <>
                       <UploadIcon className="gba:w-4 gba:h-4 gba:mr-2" />
-                      {t('import-button', { count: convertedEntities.length, entityType: `${entityLabelSingular}s` })}
+                      {t('import-button', { count: convertedEntities.length, entityType: entityLabelPlural })}
                     </>
                   )}
                 </Button>

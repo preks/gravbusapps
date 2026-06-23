@@ -31,6 +31,20 @@ import {
   type CompanyFormData
 } from './companyFormTypes'
 
+type ExecutiveContact = NonNullable<NonNullable<CompanyFormData['executives']>[number]['investmentContact']>
+
+const toContactOption = (contact: ExecutiveContact): ContactSelectOption => {
+  const displayName = contact.fullName || `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || contact.id
+  return {
+    id: contact.id,
+    value: contact.id,
+    label: displayName,
+    name: displayName,
+    pictureThumbnail: contact.pictureThumbnail || undefined,
+    extraInfo: { jobPosition: contact.jobPosition, department: contact.department }
+  }
+}
+
 type CompanyExecutivesSectionProps = Readonly<{
   form: UseFormReturn<CompanyFormData>
   t: (key: string) => string
@@ -41,9 +55,11 @@ type CompanyExecutivesSectionProps = Readonly<{
   contacts: ContactSelectOption[]
   contactsLoading: boolean
   contactsError: string | null
+  contactsHasMore: boolean
   searchEmployees: (value: string) => void
   loadMore: () => void
   searchContacts: (value: string) => void
+  loadMoreContacts: () => void
 }>
 
 export function CompanyExecutivesSection({
@@ -56,9 +72,11 @@ export function CompanyExecutivesSection({
   contacts,
   contactsLoading,
   contactsError,
+  contactsHasMore,
   searchEmployees,
   loadMore,
-  searchContacts
+  searchContacts,
+  loadMoreContacts
 }: CompanyExecutivesSectionProps) {
   // Field-array subscription lives here (not in the parent CompanyForm) so the heavy
   // top-level form component does not re-render on RHF array/state subject pings, mirroring
@@ -84,10 +102,12 @@ export function CompanyExecutivesSection({
             contacts={contacts}
             contactsLoading={contactsLoading}
             contactsError={contactsError}
+            contactsHasMore={contactsHasMore}
             remove={remove}
             searchEmployees={searchEmployees}
             loadMore={loadMore}
             searchContacts={searchContacts}
+            loadMoreContacts={loadMoreContacts}
           />
         ))}
 
@@ -111,10 +131,12 @@ type ExecutiveRowProps = Readonly<{
   contacts: ContactSelectOption[]
   contactsLoading: boolean
   contactsError: string | null
+  contactsHasMore: boolean
   remove: (index: number) => void
   searchEmployees: (value: string) => void
   loadMore: () => void
   searchContacts: (value: string) => void
+  loadMoreContacts: () => void
 }>
 
 function ExecutiveRow({
@@ -128,16 +150,19 @@ function ExecutiveRow({
   contacts,
   contactsLoading,
   contactsError,
+  contactsHasMore,
   remove,
   searchEmployees,
   loadMore,
-  searchContacts
+  searchContacts,
+  loadMoreContacts
 }: ExecutiveRowProps) {
   // Scoped subscriptions (useWatch) instead of form.watch() in render. Calling the
   // form.watch() instance method inside a useFieldArray map is a known RHF footgun that
   // can cause excessive re-renders.
   const sourceType = useWatch({ control: form.control, name: `executives.${index}.sourceType` })
   const executiveType = useWatch({ control: form.control, name: `executives.${index}.executiveTypeRef` })
+  const initialContact = useWatch({ control: form.control, name: `executives.${index}.investmentContact` })
   const isSourceTypeRequired = Boolean(executiveType)
   const isPersonRequired = Boolean(sourceType)
 
@@ -164,6 +189,7 @@ function ExecutiveRow({
                     field.onChange(value)
                     if (value === 'employee') {
                       form.setValue(`executives.${index}.investmentContactId`, undefined)
+                      form.setValue(`executives.${index}.investmentContact`, undefined)
                     } else {
                       form.setValue(`executives.${index}.employeeId`, undefined)
                     }
@@ -251,10 +277,19 @@ function ExecutiveRow({
                 <ContactSelect
                   value={field.value || null}
                   onChange={value => field.onChange(getSelectedContactId(value) || undefined)}
-                  contacts={contacts}
+                  contacts={
+                    initialContact?.id
+                      ? [
+                          toContactOption(initialContact),
+                          ...contacts.filter(contact => contact.id !== initialContact.id)
+                        ]
+                      : contacts
+                  }
                   contactsLoading={contactsLoading}
                   contactsError={contactsError}
                   searchContacts={searchContacts}
+                  hasMore={contactsHasMore}
+                  onLoadMore={loadMoreContacts}
                   showContactType={false}
                   dataTestId={formatDataTestId(dataTestId, `executive-contact-${index}`)}
                 />

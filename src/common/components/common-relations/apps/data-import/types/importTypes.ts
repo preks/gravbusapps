@@ -34,6 +34,43 @@ export interface ConvertedEntity {
   communicationChannels?: CommunicationChannel[]
 }
 
+export interface InvestmentCompanyOwnershipUpdate {
+  rowIndex: number
+  companyName?: string | null
+  companyId?: string | null
+  ownerCompanyNames: string[]
+  ownerCompanyIds: string[]
+  ownerCompanyPercentages?: (number | null)[]
+  ownedCompanyNames: string[]
+  ownedCompanyIds: string[]
+  ownedCompanyPercentages?: (number | null)[]
+}
+
+export interface InvestmentCompanyExecutiveUpdate {
+  rowIndex: number
+  companyName?: string | null
+  companyId?: string | null
+  executiveNames: string[]
+  executiveEmployeeIds: string[]
+  executiveContactIds: string[]
+  executiveSourceTypes: string[]
+  executiveTypeRef?: string | null
+}
+
+export type InvestmentCompanyStakeholderSourceType = 'investmentContact' | 'investmentAccount' | 'external'
+
+export interface InvestmentCompanyStakeholderUpdate {
+  rowIndex: number
+  companyName?: string | null
+  companyId?: string | null
+  stakeholderNames: string[]
+  stakeholderContactIds: string[]
+  stakeholderAccountIds: string[]
+  stakeholderSourceTypes: string[]
+  stakeholderTypeRefs: (string | null)[]
+  stakeholderTypeLabels: (string | null)[]
+}
+
 /**
  * Declarative description of a catalog-backed select whose value is
  * enforced across every imported row. Rendered through `CatalogSelect`
@@ -132,6 +169,8 @@ export interface ImportConfig {
   investmentGroupRef?: string
   /** Optional list of catalog selects enforced across every imported row. */
   enforcedSelects?: EnforcedSelectConfig[]
+  /** Import-specific relationship-column guidance shown in the mapping step. */
+  relationshipColumnHints?: string[]
   /** Declarative preview-card layout for the converted entity. */
   preview?: EntityPreviewConfig
   /**
@@ -139,6 +178,15 @@ export interface ImportConfig {
    * `toInvestmentBatchPayload` (investment-domain only).
    */
   payloadExtensions?: InvestmentPayloadExtension[]
+  /**
+   * When true, company import submits only companies and executives in Step 3.
+   * Ownership links are deferred to the optional Step 4 ownership flow.
+   */
+  deferOwnershipSubmission?: boolean
+  /** Configuration for the optional Step 4 ownership association flow. */
+  ownershipStep?: {
+    relationshipColumnHints?: string[]
+  }
 }
 
 // Target field definition
@@ -219,6 +267,10 @@ export interface ImportResult {
   errorCount: number
   errors?: ImportError[]
   createdIds?: string[]
+  relationshipSuccessCount?: number
+  relationshipErrorCount?: number
+  /** Full created entity records when the backend returns them (e.g. companies). */
+  createdEntities?: Record<string, any>[]
 }
 
 // Import error details
@@ -229,4 +281,4 @@ export interface ImportError {
 }
 
 // Import step types
-export type ImportStep = 'upload' | 'mapping' | 'result'
+export type ImportStep = 'upload' | 'mapping' | 'result' | 'ownership'

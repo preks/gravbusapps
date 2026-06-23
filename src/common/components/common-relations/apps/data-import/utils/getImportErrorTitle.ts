@@ -1,12 +1,13 @@
 import type { ImportStep } from '../types/importTypes'
 
-/** User-visible title for the error card, depending on which import step failed. */
-export function getImportErrorTitle(step: ImportStep): string {
-  if (step === 'mapping') {
-    return 'Conversion Failed'
-  }
-  if (step === 'result') {
-    return 'Import Failed'
-  }
-  return 'Analysis Failed'
+const IMPORT_ERROR_TITLE_KEYS: Record<ImportStep, string> = {
+  upload: 'import-error-analysis-title',
+  mapping: 'import-error-mapping-title',
+  result: 'import-error-result-title',
+  ownership: 'import-error-ownership-title'
+}
+
+/** Translation keys for import error card titles, depending on which import step failed. */
+export function getImportErrorTitleKey(step: ImportStep): string {
+  return IMPORT_ERROR_TITLE_KEYS[step]
 }

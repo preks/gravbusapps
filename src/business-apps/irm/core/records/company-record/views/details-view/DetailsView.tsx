@@ -1,15 +1,9 @@
 import React, { useEffect, useState } from 'react'
-import { Badge, Card, CardContent, CardHeader, CardTitle, useTranslation } from '@newwork/nw-design-system'
-import {
-  ArticleIcon,
-  CaretLeftIcon,
-  CaretRightIcon,
-  IdentificationCardIcon,
-  MapPinIcon,
-  UsersIcon
-} from '@phosphor-icons/react'
+import { Card, CardContent, CardHeader, CardTitle, useTranslation } from '@newwork/nw-design-system'
+import { ArticleIcon, CaretLeftIcon, CaretRightIcon, MapPinIcon, UsersIcon } from '@phosphor-icons/react'
 import type { DetailsViewProps } from '../../types'
 import { ExecutiveDetailsRow } from './ExecutiveDetailsRow'
+import { StakeholderDetailsSection } from './StakeholderDetailsSection'
 import translations from '../../_i18n'
 
 const EMPTY_VALUE = '-'
@@ -17,12 +11,6 @@ const EMPTY_VALUE = '-'
 const formatCatalogValue = (value?: { value?: string; code?: string } | null): string => {
   return value?.value || value?.code || EMPTY_VALUE
 }
-
-const formatOwnerName = (ownerEmployee: DetailsViewProps['investmentCompany']['ownerEmployee']): string =>
-  ownerEmployee?.displayName ||
-  ownerEmployee?.fullName ||
-  `${ownerEmployee?.firstName || ''} ${ownerEmployee?.lastName || ''}`.trim() ||
-  EMPTY_VALUE
 
 const formatAddressPart = (value: unknown): string | undefined => {
   if (typeof value === 'string') return value
@@ -98,47 +86,6 @@ export const DetailsView: React.FC<DetailsViewProps> = ({ investmentCompany, acc
   return (
     <>
       <div className="gba:col-span-12 gba:grid gba:grid-cols-12 gba:gap-4">
-        <Card className="gba:col-span-4" data-testid="investment-company-registration-card">
-          <CardHeader>
-            <CardTitle className="gba:flex gba:items-center gba:gap-2">
-              <IdentificationCardIcon className="gba:h-5 gba:w-5" />
-              {t('registration-tax-title')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="gba:grid gba:grid-cols-1 gba:gap-4">
-            <DetailItem
-              label={t('commercial-registration-number-label')}
-              value={investmentCompany.commercialRegistrationNumber}
-              dataTestId="investment-company-commercial-registration-number"
-            />
-            <DetailItem
-              label={t('tax-identification-number-label')}
-              value={investmentCompany.taxIdentificationNumber}
-              dataTestId="investment-company-tax-identification-number"
-            />
-            <DetailItem
-              label={t('tax-number-label')}
-              value={investmentCompany.taxNumber}
-              dataTestId="investment-company-tax-number"
-            />
-            <DetailItem
-              label={t('vat-number-label')}
-              value={investmentCompany.valueAddedTaxNumber}
-              dataTestId="investment-company-vat-number"
-            />
-            <DetailItem
-              label={t('owner-label')}
-              value={formatOwnerName(investmentCompany.ownerEmployee)}
-              dataTestId="investment-company-owner"
-            />
-            {investmentCompany.ownsProperty && (
-              <div className="gba:flex" data-testid="investment-company-owns-property">
-                <Badge variant="success">{t('owns-property-label')}</Badge>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
         <Card className="gba:col-span-4" data-testid="investment-company-addresses-card">
           <CardHeader>
             <CardTitle className="gba:flex gba:items-center gba:gap-2">
@@ -194,6 +141,8 @@ export const DetailsView: React.FC<DetailsViewProps> = ({ investmentCompany, acc
           </CardContent>
         </Card>
 
+        <StakeholderDetailsSection investmentCompany={investmentCompany} />
+
         <Card className="gba:col-span-4 gba:flex gba:flex-col" data-testid="investment-company-executives-card">
           <CardHeader>
             <CardTitle className="gba:flex gba:items-center gba:gap-2">
@@ -211,7 +160,13 @@ export const DetailsView: React.FC<DetailsViewProps> = ({ investmentCompany, acc
                 )}
               </div>
             ) : (
-              <p className="gba:text-sm gba:text-muted-foreground">{t('no-executives')}</p>
+              <div
+                className="gba:rounded-lg gba:border gba:border-dashed gba:border-border gba:bg-muted/30 gba:p-4"
+                data-testid="investment-company-executives-empty"
+              >
+                <p className="gba:text-sm gba:font-medium">{t('no-executives-title')}</p>
+                <p className="gba:mt-1 gba:text-sm gba:text-muted-foreground">{t('no-executives-description')}</p>
+              </div>
             )}
             {hasExecutiveCarousel && (
               <div className="gba:absolute gba:bottom-2 gba:right-2 gba:z-10">

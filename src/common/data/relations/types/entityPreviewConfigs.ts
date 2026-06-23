@@ -91,6 +91,25 @@ export const accountPreviewConfig: EntityPreviewConfig = {
   ]
 }
 
+export const investmentCompanyPreviewConfig: EntityPreviewConfig = {
+  title: { fields: ['name'], fallbackFields: ['code'] },
+  badges: [{ field: 'code' }, { field: 'currencyRef' }],
+  rows: [
+    {
+      label: 'Registration',
+      icon: 'building',
+      field: 'commercialRegistrationNumber'
+    },
+    {
+      label: 'Location',
+      icon: 'location',
+      fields: ['addresses.locality'],
+      badges: [{ field: 'addresses.countryRef' }, { field: 'addresses.regionRef' }]
+    }
+  ],
+  footerItems: [{ field: 'description' }]
+}
+
 export const opportunityPreviewConfig: EntityPreviewConfig = {
   title: { fields: ['name'] },
   badges: [

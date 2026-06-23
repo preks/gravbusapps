@@ -26,6 +26,10 @@ card-opportunity-title = Import Opportunities
 card-opportunity-description = Add opportunities from a spreadsheet—pipeline stage, forecast, and opportunity details. We'll suggest how your columns match up.
 card-opportunity-button = Start Opportunity Import
 
+card-company-title = Import Investment Companies
+card-company-description = Import legal entities from CSV or Excel with company details, addresses, executives, and ownership. Optionally assign a company group on upload; AI maps your columns to the investment company schema.
+card-company-button = Start Company Import
+
 # Multi-entry investments card
 card-investments-title = Import Investments
 card-investments-description = Add investments from a spreadsheet. We'll suggest how your columns match up.

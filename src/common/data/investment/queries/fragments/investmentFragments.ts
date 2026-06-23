@@ -72,6 +72,32 @@ export const INVESTMENT_COMPANY_GROUP_ASSOCIATION = `
   }
 `
 
+export const INVESTMENT_COMPANY_STAKEHOLDER = `
+  id
+  ${AUDIT_FIELDS}
+  name
+  investmentCompanyId
+  investmentAccountId
+  investmentContactId
+  investmentCompanyStakeholderTypeRef
+  investmentCompanyStakeholderType {
+    ${CATALOG_ENTRY}
+  }
+  investmentCompany {
+    ${INVESTMENT_COMPANY_REF}
+  }
+  investmentAccount {
+    ${INVESTMENT_ACCOUNT_REF}
+    picture
+    pictureThumbnail
+  }
+  investmentContact {
+    ${INVESTMENT_CONTACT_REF}
+    picture
+    pictureThumbnail
+  }
+`
+
 export const INVESTMENT_COMPANY = `
   ${INVESTMENT_COMPANY_REF}
   investmentCompanyExecutives(where: { isDeleted: { _eq: false } }) {
@@ -82,6 +108,9 @@ export const INVESTMENT_COMPANY = `
   }
   investmentCompanyGroupAssociation(where: { isDeleted: { _eq: false } }) {
     ${INVESTMENT_COMPANY_GROUP_ASSOCIATION}
+  }
+  investmentCompanyStakeholder(where: { isDeleted: { _eq: false } }) {
+    ${INVESTMENT_COMPANY_STAKEHOLDER}
   }
 `
 

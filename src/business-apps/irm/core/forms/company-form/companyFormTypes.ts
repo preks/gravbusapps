@@ -3,12 +3,16 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import type { Resolver, ResolverResult } from 'react-hook-form'
 import { AddressType } from '@/common/data/relations/types/relationEnums'
 import type { InvestmentCompany } from '@/common/data/investment/types/investmentCompanyTypes'
+import type { InvestmentAccount } from '@/common/data/investment/types/investmentAccountTypes'
+import type { InvestmentContact } from '@/common/data/investment/types/investmentContactTypes'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export const DATA_TEST_ID_PREFIX = 'investment-company-form'
 export const LEGAL_ENTITY_EXECUTIVE_TYPE_CATALOG = 'LegalEntityExecutiveType'
 export const CURRENCY_CATALOG = 'Currency:v1'
 export const OWNERSHIP_TOTAL_LIMIT = 100
+
+const stakeholderSourceTypes = ['investmentContact', 'investmentAccount', 'external'] as const
 
 const addressSchema = z.object({
   id: z.string().optional(),
@@ -32,6 +36,7 @@ export const createCompanySchema = (t: (key: string) => string) => {
     sourceType: z.enum(['employee', 'investmentContact']).optional(),
     employeeId: z.string().optional(),
     investmentContactId: z.string().optional(),
+    investmentContact: z.custom<InvestmentContact>().optional(),
     executiveTypeRef: z.string().optional()
   })
 
@@ -44,6 +49,18 @@ export const createCompanySchema = (t: (key: string) => string) => {
       .min(0, t('validation-ownership-percentage-min'))
       .max(OWNERSHIP_TOTAL_LIMIT, t('validation-ownership-percentage-max'))
       .optional()
+  })
+
+  const stakeholderSchema = z.object({
+    id: z.string().optional(),
+    version: z.number().optional(),
+    sourceType: z.enum(stakeholderSourceTypes).optional(),
+    investmentContactId: z.string().optional(),
+    investmentContact: z.custom<InvestmentContact>().optional(),
+    investmentAccountId: z.string().optional(),
+    investmentAccount: z.custom<InvestmentAccount>().optional(),
+    name: z.string().optional(),
+    investmentCompanyStakeholderTypeRef: z.string().optional()
   })
 
   return z.object({
@@ -65,6 +82,7 @@ export const createCompanySchema = (t: (key: string) => string) => {
     addresses: z.array(addressSchema).optional(),
     executives: z.array(executiveSchema).optional(),
     ownerships: z.array(ownershipSchema).optional(),
+    stakeholders: z.array(stakeholderSchema).optional(),
     pictureModified: z.boolean().optional()
   })
 }
@@ -143,6 +161,49 @@ const validateOwnershipRow = (
   return issues
 }
 
+const validateStakeholderRow = (
+  stakeholder: StakeholderFormRow,
+  index: number,
+  t: (key: string) => string
+): CompanyCrossFieldError[] => {
+  const issues: CompanyCrossFieldError[] = []
+  const hasSourceType = Boolean(stakeholder.sourceType)
+  const hasMeaningfulData =
+    Boolean(stakeholder.investmentContactId) ||
+    Boolean(stakeholder.investmentAccountId) ||
+    Boolean(stakeholder.name?.trim()) ||
+    Boolean(stakeholder.investmentCompanyStakeholderTypeRef) ||
+    hasSourceType ||
+    Boolean(stakeholder.id)
+
+  if (!hasMeaningfulData) {
+    return issues
+  }
+
+  if (!hasSourceType) {
+    issues.push({ path: `stakeholders.${index}.sourceType`, message: t('validation-source-type-required') })
+    return issues
+  }
+
+  if (stakeholder.sourceType === 'investmentContact' && !stakeholder.investmentContactId) {
+    issues.push({
+      path: `stakeholders.${index}.investmentContactId`,
+      message: t('validation-investment-contact-required')
+    })
+  }
+  if (stakeholder.sourceType === 'investmentAccount' && !stakeholder.investmentAccountId) {
+    issues.push({
+      path: `stakeholders.${index}.investmentAccountId`,
+      message: t('validation-investment-account-required')
+    })
+  }
+  if (stakeholder.sourceType === 'external' && !stakeholder.name?.trim()) {
+    issues.push({ path: `stakeholders.${index}.name`, message: t('validation-stakeholder-name-required') })
+  }
+
+  return issues
+}
+
 // Conditional / cross-row validation kept out of the Zod schema (see the note on
 // `createCompanySchema`). Returns inline field errors that the resolver merges into the result on
 // full-form validation only.
@@ -157,6 +218,9 @@ export const validateCompanyCrossFields = (
   })
   ;(data.ownerships || []).forEach((ownership, index) => {
     issues.push(...validateOwnershipRow(ownership, index, t))
+  })
+  ;(data.stakeholders || []).forEach((stakeholder, index) => {
+    issues.push(...validateStakeholderRow(stakeholder, index, t))
   })
 
   const ownershipTotal = (data.ownerships || []).reduce((sum, ownership) => sum + (ownership.percentage || 0), 0)
@@ -223,6 +287,7 @@ export type CompanyFormData = z.infer<ReturnType<typeof createCompanySchema>>
 export type AddressFormRow = NonNullable<CompanyFormData['addresses']>[number]
 export type ExecutiveFormRow = NonNullable<CompanyFormData['executives']>[number]
 export type OwnershipFormRow = NonNullable<CompanyFormData['ownerships']>[number]
+export type StakeholderFormRow = NonNullable<CompanyFormData['stakeholders']>[number]
 
 type ExecutiveFormSource = {
   id?: string
@@ -230,7 +295,7 @@ type ExecutiveFormSource = {
   employeeId?: string
   employee?: { id?: string }
   investmentContactId?: string
-  investmentContact?: { id?: string }
+  investmentContact?: InvestmentContact
   executiveTypeRef?: string
 }
 
@@ -249,10 +314,22 @@ type OwnershipFormSource = {
   percentage?: number
 }
 
+type StakeholderFormSource = {
+  id?: string
+  version?: number
+  name?: string
+  investmentContactId?: string
+  investmentContact?: InvestmentContact
+  investmentAccountId?: string
+  investmentAccount?: InvestmentAccount
+  investmentCompanyStakeholderTypeRef?: string
+}
+
 export type InvestmentCompanyFormSource = Partial<InvestmentCompany> & {
   investmentCompanyExecutives?: ExecutiveFormSource[]
   investmentCompanyGroupAssociation?: GroupAssociationFormSource[]
   investmentCompanyOwnership?: OwnershipFormSource[]
+  investmentCompanyStakeholder?: StakeholderFormSource[]
   picture?: { additionalProp1?: string } | string
 }
 
@@ -298,6 +375,9 @@ const getCompanyGroupAssociations = (company?: InvestmentCompanyFormSource): Gro
 const getCompanyOwnerships = (company?: InvestmentCompanyFormSource): OwnershipFormSource[] =>
   company?.ownerships || company?.investmentCompanyOwnership || []
 
+const getCompanyStakeholders = (company?: InvestmentCompanyFormSource): StakeholderFormSource[] =>
+  company?.stakeholders || company?.investmentCompanyStakeholder || []
+
 export const getPictureAdditionalProp = (picture: unknown): string | undefined => {
   if (!picture || typeof picture !== 'object' || !('additionalProp1' in picture)) return undefined
   const value = picture.additionalProp1
@@ -310,6 +390,7 @@ const toExecutiveFormRow = (executive: ExecutiveFormSource): ExecutiveFormRow =>
   sourceType: executive?.investmentContactId ? 'investmentContact' : 'employee',
   employeeId: executive?.employeeId || executive?.employee?.id,
   investmentContactId: executive?.investmentContactId || executive?.investmentContact?.id,
+  investmentContact: executive?.investmentContact,
   executiveTypeRef: executive?.executiveTypeRef
 })
 
@@ -319,6 +400,29 @@ const toOwnershipFormRow = (ownership: OwnershipFormSource): OwnershipFormRow =>
   ownerInvestmentCompanyId: ownership?.ownerInvestmentCompanyId || ownership?.ownerInvestmentCompany?.id || '',
   percentage: ownership?.percentage ?? 0
 })
+
+const toStakeholderFormRow = (stakeholder: StakeholderFormSource): StakeholderFormRow => {
+  const investmentContactId = stakeholder?.investmentContactId || stakeholder?.investmentContact?.id
+  const investmentAccountId = stakeholder?.investmentAccountId || stakeholder?.investmentAccount?.id
+  let sourceType: StakeholderFormRow['sourceType'] = 'external'
+  if (investmentContactId) {
+    sourceType = 'investmentContact'
+  } else if (investmentAccountId) {
+    sourceType = 'investmentAccount'
+  }
+
+  return {
+    id: stakeholder?.id,
+    version: stakeholder?.version,
+    sourceType,
+    investmentContactId,
+    investmentContact: stakeholder?.investmentContact,
+    investmentAccountId,
+    investmentAccount: stakeholder?.investmentAccount,
+    name: stakeholder?.name,
+    investmentCompanyStakeholderTypeRef: stakeholder?.investmentCompanyStakeholderTypeRef
+  }
+}
 
 export const createEmptyAddress = (): AddressFormRow => ({
   addressType: AddressType.PRIMARY_ADDRESS,
@@ -339,6 +443,16 @@ export const createEmptyExecutive = (): ExecutiveFormRow => ({
 export const createEmptyOwnership = (): OwnershipFormRow => ({
   ownerInvestmentCompanyId: '',
   percentage: undefined
+})
+
+export const createEmptyStakeholder = (): StakeholderFormRow => ({
+  sourceType: undefined,
+  investmentContactId: undefined,
+  investmentContact: undefined,
+  investmentAccountId: undefined,
+  investmentAccount: undefined,
+  name: undefined,
+  investmentCompanyStakeholderTypeRef: undefined
 })
 
 export const getSelectedContactId = (
@@ -370,6 +484,7 @@ export const getCompanyDefaultValues = (company?: InvestmentCompanyFormSource): 
   const groupAssociation = getCompanyGroupAssociations(company)[0]
   const executives = getCompanyExecutives(company).map(toExecutiveFormRow)
   const ownerships = getCompanyOwnerships(company).map(toOwnershipFormRow)
+  const stakeholders = getCompanyStakeholders(company).map(toStakeholderFormRow)
   const addresses = (company?.addresses || []).map(address => ({
     id: address.id,
     investmentCompanyId: address.investmentCompanyId,
@@ -401,6 +516,7 @@ export const getCompanyDefaultValues = (company?: InvestmentCompanyFormSource): 
     addresses: addresses.length > 0 ? addresses : [createEmptyAddress()],
     executives: executives.length > 0 ? executives : [createEmptyExecutive()],
     ownerships: ownerships.length > 0 ? ownerships : [createEmptyOwnership()],
+    stakeholders: stakeholders.length > 0 ? stakeholders : [createEmptyStakeholder()],
     pictureModified: false
   }
 }

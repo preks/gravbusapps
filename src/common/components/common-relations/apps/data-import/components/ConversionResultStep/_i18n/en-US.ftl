@@ -8,6 +8,8 @@ download-json-button = Download data file
 start-over-button = Start over
 import-more-button = Import more
 done-button = Done
+continue-ownership-button = Continue to ownership
+skip-ownership-button = Skip ownership
 
 # Success Messages
 import-success-title = Import in progress
@@ -28,6 +30,38 @@ size-badge = Size
 
 # Extraction Warnings Section
 extraction-warnings-title = Import warnings
+
+# Ownership Summary Section
+ownership-summary-title = Ownership relationships
+ownership-summary-description = { $count } ownership relationship(s) detected. { $unresolvedCount } relationship(s) still need a resolved company id.
+ownership-summary-unknown-company = Unknown company
+ownership-summary-owned-by = Owned by: { $names }
+ownership-summary-owns = Owns: { $names }
+ownership-summary-more = ... and { $count } more company row(s) with ownership relationships
+ownership-company-unresolved-suffix =  (Unresolved)
+
+# Executive Summary Section
+executive-summary-title = Company executives
+executive-summary-description = { $count } executive(s) detected. { $resolvedCount } resolved, { $unresolvedCount } unresolved.
+executive-summary-unknown-company = Unknown company
+executive-summary-executives = Executives: { $names }
+executive-summary-executives-label = Executives:
+executive-summary-type = Type: { $type }
+executive-summary-more = ... and { $count } more company row(s) with executives
+executive-source-employee-suffix = (Employee)
+executive-source-contact-suffix = (Contact)
+executive-source-unresolved-suffix = (Unresolved)
+executive-source-unresolved-tooltip = No matching Employee or Investment Contact was found in the system, so this executive will not be imported.
+
+# Stakeholder Summary Section
+stakeholder-summary-title = Company stakeholders
+stakeholder-summary-description = { $count } stakeholder(s) detected. { $contactCount } as Investment Contact, { $accountCount } as Investment Account, { $externalCount } external.
+stakeholder-summary-unknown-company = Unknown company
+stakeholder-summary-stakeholders = Stakeholders: { $names }
+stakeholder-summary-more = ... and { $count } more company row(s) with stakeholders
+stakeholder-source-contact-suffix = (Investment Contact)
+stakeholder-source-account-suffix = (Investment Account)
+stakeholder-source-external-suffix = (External)
 
 # Data Quality Section
 data-quality-warnings-title = Data quality warnings

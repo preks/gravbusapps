@@ -4,10 +4,12 @@ import {
   INVESTMENT_COMPANY,
   INVESTMENT_COMPANY_EXECUTIVE,
   INVESTMENT_COMPANY_GROUP_ASSOCIATION,
-  INVESTMENT_COMPANY_OWNERSHIP
+  INVESTMENT_COMPANY_OWNERSHIP,
+  INVESTMENT_COMPANY_STAKEHOLDER
 } from './fragments/investmentFragments'
 import { INVESTMENT_COMPANY_REF } from './fragments/investmentReferenceFragments'
 import { INVESTMENT_COMPANY_DESCRIPTORS } from '../types/investmentCompanyTypes'
+import { INVESTMENT_COMPANY_STAKEHOLDER_DESCRIPTORS } from '../types/investmentCompanyAssociationTypes'
 import { INVESTMENT_ADDRESS_FRAGMENT } from '../types/investmentAddressTypes'
 
 export interface InvestmentCompanyQueryVariables extends BaseQueryVariables {
@@ -17,10 +19,22 @@ export interface InvestmentCompanyQueryVariables extends BaseQueryVariables {
   groupIds?: string[]
   investmentContactIds?: string[]
   ownerInvestmentCompanyIds?: string[]
+  stakeholderAccountIds?: string[]
+  stakeholderContactIds?: string[]
+  stakeholderTypeIds?: string[]
   /** Descriptor keys (visible column ids) the free-text search is scoped to; undefined searches all. */
   searchDescriptorKeys?: string[]
   ownerEmployeeIds?: string[]
   ownsProperty?: boolean
+}
+
+export interface InvestmentCompanyStakeholderQueryVariables extends BaseQueryVariables {
+  investmentCompanyIds?: string[]
+  investmentAccountIds?: string[]
+  investmentContactIds?: string[]
+  stakeholderTypeIds?: string[]
+  /** Descriptor keys (visible column ids) the free-text search is scoped to; undefined searches all. */
+  searchDescriptorKeys?: string[]
 }
 
 export const buildInvestmentCompanyQuery = (): string => `
@@ -117,6 +131,17 @@ export const buildInvestmentCompanyGroupAssociationsByCompanyIdQuery = (): strin
   }
 `
 
+export const buildInvestmentCompanyStakeholdersByCompanyIdQuery = (): string => `
+  query GetInvestmentCompanyStakeholdersByCompanyId(
+    $where: InvestmentCompanyStakeholderBoolExp
+    $orderBy: [InvestmentCompanyStakeholderOrderBy!]
+  ) {
+    InvestmentCompanyStakeholder(where: $where orderBy: $orderBy) {
+      ${INVESTMENT_COMPANY_STAKEHOLDER}
+    }
+  }
+`
+
 export const buildInvestmentCompanyWhereCondition = (
   variables: InvestmentCompanyQueryVariables = {},
   additionalDescriptors: Descriptor[] = [],
@@ -135,3 +160,22 @@ export const buildInvestmentCompanyOrderBy = (
   orderBy: InvestmentCompanyQueryVariables['orderBy'] = [],
   additionalDescriptors: Descriptor[] = []
 ): any[] => buildOrderBy(orderBy, [...INVESTMENT_COMPANY_DESCRIPTORS, ...additionalDescriptors])
+
+export const buildInvestmentCompanyStakeholderWhereCondition = (
+  variables: InvestmentCompanyStakeholderQueryVariables = {},
+  additionalDescriptors: Descriptor[] = [],
+  customConditions: Record<string, any>[] = []
+): Record<string, any> =>
+  buildWhere({
+    variables,
+    descriptors: [...INVESTMENT_COMPANY_STAKEHOLDER_DESCRIPTORS, ...additionalDescriptors],
+    ids: variables.ids,
+    isDeleted: true,
+    customConditions,
+    searchDescriptorKeys: variables.searchDescriptorKeys
+  })
+
+export const buildInvestmentCompanyStakeholderOrderBy = (
+  orderBy: InvestmentCompanyStakeholderQueryVariables['orderBy'] = [],
+  additionalDescriptors: Descriptor[] = []
+): any[] => buildOrderBy(orderBy, [...INVESTMENT_COMPANY_STAKEHOLDER_DESCRIPTORS, ...additionalDescriptors])

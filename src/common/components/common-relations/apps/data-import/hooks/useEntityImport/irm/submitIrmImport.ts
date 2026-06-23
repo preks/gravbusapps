@@ -6,7 +6,8 @@
  *         `liquid-fund-investment`
  *      2. Investment report batch (`createInvestmentReports`) for report
  *         imports scoped by `InvestmentGroup`
- *      3. Standard entity endpoints under `investment-relations`
+ *      3. Investment company bulk (`createInvestmentCompanies`)
+ *      4. Standard entity endpoints under `investment-relations`
  *         (`createInvestmentLeads`, `createInvestmentContacts`,
  *         `createInvestmentAccounts`, `createInvestmentOpportunities`) with a
  *         singular fallback for contacts
@@ -20,7 +21,7 @@
  * concerns.
  */
 
-import type { ImportConfig, ImportResult } from '@/common/components/common-relations/apps/data-import/types'
+import type { ImportConfig, ImportResult, InvestmentCompanyOwnershipUpdate } from '../../../types/importTypes'
 import {
   extractErrorMessage,
   getStandardEntityCollectionKey,
@@ -42,9 +43,11 @@ import {
 } from './submitInvestmentContactsWithFallback'
 import { toEquityInvestmentRoundBatchPayload } from './toEquityInvestmentRoundBatchPayload'
 import { toInvestmentBatchPayload } from './toInvestmentBatchPayload'
+import { groupOwnershipPayloadsByCompany, toInvestmentCompanyOwnershipPayloads } from './toInvestmentCompanyPayload'
 import { toInvestmentContactPayload } from './toInvestmentContactPayload'
 import { toInvestmentOpportunityPayload } from './toInvestmentOpportunityPayload'
 import { toInvestmentReportBatchPayload } from './toInvestmentReportBatchPayload'
+import { toInvestmentCompanyImportPayload } from './toInvestmentCompanyImportPayload'
 
 const STANDARD_ENTITY_ENDPOINTS = {
   lead: 'Leads',
@@ -127,6 +130,18 @@ function normalizeIrmImportError(error: unknown, entityType: string): string | u
   if (/no static resource createinvestmentopportunities/i.test(base)) {
     return 'Import failed: Java process endpoint `createInvestmentOpportunities` is missing.'
   }
+  if (/createinvestmentcompaniesmodelinput\.investmentcompanies/i.test(base)) {
+    return 'Import failed: Java endpoint expects `investmentCompanies` as a non-empty array.'
+  }
+  if (/no static resource createinvestmentcompanies/i.test(base)) {
+    return 'Import failed: Java process endpoint `createInvestmentCompanies` is missing.'
+  }
+  if (/updateinvestmentcompaniesmodelinput\.investmentcompanies/i.test(base)) {
+    return 'Import failed: Java endpoint expects `investmentCompanies` as a non-empty array.'
+  }
+  if (/no static resource updateinvestmentcompanies/i.test(base)) {
+    return 'Import failed: Java process endpoint `updateInvestmentCompanies` is missing.'
+  }
 
   return matchCommunicationChannelError(base, entityType)
 }
@@ -169,6 +184,119 @@ function processEquityInvestmentRoundResponse(response: any): ImportResult {
   }
 }
 
+function processInvestmentCompanyResponse(
+  response: any,
+  relationshipSuccessCount = 0,
+  relationshipErrorCount = 0
+): ImportResult {
+  const hasErrors = response.validationResponse?.errors?.length > 0
+  const createdCompanies = response.investmentCompanies || []
+
+  return {
+    success: !hasErrors && createdCompanies.length > 0,
+    successCount: createdCompanies.length,
+    errorCount: hasErrors ? response.validationResponse.errors.length : 0,
+    errors: hasErrors
+      ? response.validationResponse.errors.map((err: any, idx: number) => ({
+          rowIndex: idx,
+          entityData: {},
+          error: `${err.code || 'ERROR'}: ${err.detail || err.title || 'Unknown error'}`
+        }))
+      : [],
+    createdIds: createdCompanies.map((company: any) => company.id).filter(Boolean),
+    createdEntities: createdCompanies,
+    relationshipSuccessCount,
+    relationshipErrorCount
+  }
+}
+
+function shouldDeferOwnershipSubmission(ctx: ImportSubmissionContext): boolean {
+  return Boolean(ctx.deferOwnershipSubmission ?? ctx.config.deferOwnershipSubmission)
+}
+
+async function submitInvestmentCompanyOwnershipBatch(
+  ownershipPayloads: Record<string, any>[],
+  createdCompanies: Record<string, any>[],
+  restClient: ImportSubmissionContext['restClient'],
+  accessToken: string | undefined
+): Promise<{ relationshipSuccessCount: number; relationshipErrorCount: number }> {
+  const investmentCompanies = groupOwnershipPayloadsByCompany(ownershipPayloads, createdCompanies)
+
+  if (investmentCompanies.length === 0) {
+    return { relationshipSuccessCount: 0, relationshipErrorCount: 0 }
+  }
+
+  if (!accessToken) {
+    return {
+      relationshipSuccessCount: 0,
+      relationshipErrorCount: ownershipPayloads.length
+    }
+  }
+
+  try {
+    const response = await restClient.post(
+      '/investment-relations/updateInvestmentCompanies',
+      { investmentCompanies },
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    )
+    const ownershipErrors = response.validationResponse?.errors?.length ?? 0
+
+    if (ownershipErrors > 0) {
+      return {
+        relationshipSuccessCount: 0,
+        relationshipErrorCount: ownershipPayloads.length
+      }
+    }
+
+    return {
+      relationshipSuccessCount: ownershipPayloads.length,
+      relationshipErrorCount: 0
+    }
+  } catch {
+    return {
+      relationshipSuccessCount: 0,
+      relationshipErrorCount: ownershipPayloads.length
+    }
+  }
+}
+
+export async function submitInvestmentCompanyOwnershipOnly(
+  ownershipUpdates: InvestmentCompanyOwnershipUpdate[],
+  ctx: ImportSubmissionContext
+): Promise<ImportResult> {
+  const { restClient, accessToken, createdCompaniesForOwnership = [], sourceEntitiesForOwnership = [] } = ctx
+  const ownershipPayloads = toInvestmentCompanyOwnershipPayloads(
+    ownershipUpdates,
+    createdCompaniesForOwnership,
+    sourceEntitiesForOwnership
+  )
+
+  if (ownershipPayloads.length === 0) {
+    return {
+      success: true,
+      successCount: 0,
+      errorCount: 0,
+      relationshipSuccessCount: 0,
+      relationshipErrorCount: 0
+    }
+  }
+
+  const { relationshipSuccessCount, relationshipErrorCount } = await submitInvestmentCompanyOwnershipBatch(
+    ownershipPayloads,
+    createdCompaniesForOwnership,
+    restClient,
+    accessToken
+  )
+
+  return {
+    success: relationshipErrorCount === 0 && relationshipSuccessCount > 0,
+    successCount: relationshipSuccessCount,
+    errorCount: relationshipErrorCount,
+    relationshipSuccessCount,
+    relationshipErrorCount
+  }
+}
+
 export function createIrmImportStrategy(config: ImportConfig): ImportSubmissionStrategy {
   const investmentGroupRefCache = new Map<string, string>()
 
@@ -181,9 +309,10 @@ export function createIrmImportStrategy(config: ImportConfig): ImportSubmissionS
     Boolean(config.investmentReportPayloadKey) || /investmentreport$/i.test(config.flowbotEntityType ?? '')
   const isEquityInvestmentRoundBatchImport =
     Boolean(config.equityInvestmentRoundPayloadKey) || /equityinvestmentround$/i.test(config.flowbotEntityType ?? '')
+  const isInvestmentCompanyImport = config.entityType === 'investmentCompany' || config.entityType === 'company'
 
   async function submit(entities: Record<string, any>[], ctx: ImportSubmissionContext): Promise<ImportResult> {
-    const { restClient, graphQLClient, accessToken, ownerEmployeeId } = ctx
+    const { restClient, graphQLClient, accessToken, ownerEmployeeId, ownershipUpdates } = ctx
 
     if (isInvestmentBatchImport && investmentPayloadKey) {
       const defaultInvestmentGroupRef = await resolveDefaultInvestmentGroupRef(
@@ -229,6 +358,41 @@ export function createIrmImportStrategy(config: ImportConfig): ImportSubmissionS
       return processEquityInvestmentRoundResponse(response)
     }
 
+    if (isInvestmentCompanyImport) {
+      const investmentCompanies = entities.map(entity => {
+        const groupId =
+          typeof entity.investmentCompanyGroupId === 'string' ? entity.investmentCompanyGroupId : undefined
+        return toInvestmentCompanyImportPayload(entity, groupId)
+      })
+
+      const companyResponse = await restClient.post(
+        '/investment-relations/createInvestmentCompanies',
+        { investmentCompanies, changeMode: 'INSERT' },
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      )
+
+      const createdCompanies = companyResponse.investmentCompanies || []
+
+      if (shouldDeferOwnershipSubmission(ctx)) {
+        return processInvestmentCompanyResponse(companyResponse)
+      }
+
+      const ownershipPayloads = toInvestmentCompanyOwnershipPayloads(ownershipUpdates ?? [], createdCompanies, entities)
+
+      if (ownershipPayloads.length === 0) {
+        return processInvestmentCompanyResponse(companyResponse)
+      }
+
+      const { relationshipSuccessCount, relationshipErrorCount } = await submitInvestmentCompanyOwnershipBatch(
+        ownershipPayloads,
+        createdCompanies,
+        restClient,
+        accessToken
+      )
+
+      return processInvestmentCompanyResponse(companyResponse, relationshipSuccessCount, relationshipErrorCount)
+    }
+
     if (!isSupportedStandardEntityType(config.entityType)) {
       throw new Error(`Unsupported IRM entity type: ${config.entityType}`)
     }
@@ -254,8 +418,11 @@ export function createIrmImportStrategy(config: ImportConfig): ImportSubmissionS
   }
 
   return {
-    postProcessExtractedRecords: records => records.map(record => flattenInvestmentResponseRecord(record, config)),
+    postProcessExtractedRecords: isInvestmentCompanyImport
+      ? records => records
+      : records => records.map(record => flattenInvestmentResponseRecord(record, config)),
     submit,
+    submitOwnership: (ownershipUpdates, ctx) => submitInvestmentCompanyOwnershipOnly(ownershipUpdates, ctx),
     normalizeError: error => normalizeIrmImportError(error, config.entityType)
   }
 }
