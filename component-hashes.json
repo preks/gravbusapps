@@ -121,7 +121,7 @@
   "fin/billing/apps/ledger-transactions": "b92f4939740a8e827c0a942457e58e9d",
   "fin/billing/apps/reconciliation": "97452c1858dbd3b9006ac33dba8a2d9b",
   "fin/billing/forms/invoice-form": "5e247ec6500d6d64c63078ff8f659d57",
-  "fin/expenses/apps/backoffice-expenses": "a6627b9fa0b3b27d91b2662b771af898",
+  "fin/expenses/apps/backoffice-expenses": "30dc75a7ee6009f4966c82e51457e4da",
   "fin/expenses/apps/calculation-debugger": "28d8b94bfc73fb9c97b37e89ac060a0f",
   "fin/expenses/apps/expense-calculation-rules": "849a98643602253f1cc7bec2b7839d8c",
   "fin/expenses/apps/expense-plan-record": "b564022a55c53d89465c3c1df36c8601",
