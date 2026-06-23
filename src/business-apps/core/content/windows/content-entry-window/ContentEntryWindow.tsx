@@ -11,12 +11,62 @@ import { buildContentEntryPayload } from '@/common/data/content/payloads/content
 import { mapContentEntryToFormData } from '@/common/data/content/mappers/contentEntryMappers'
 import { useContentEntry } from '@/common/data/content/hooks/useContentEntry'
 import { buildFileUrl } from '@/common/utils/fileUtils'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import ArticleSegment from './segments/ArticleSegment'
 import QuestionSegment from './segments/QuestionSegment'
 import DocumentSegment from './segments/DocumentSegment'
 import GlossarySegment from './segments/GlossarySegment'
 import PolicySegment from './segments/PolicySegment'
 import translations from './_i18n'
+
+const EMPLOYEE_BY_USER_ID_QUERY = `
+  query GetEmployeeByUserId($userId: String!) {
+    Employee(where: { userId: { _eq: $userId } }, limit: 1) {
+      id
+    }
+  }
+`
+
+/**
+ * Resolves an employee record ID from a Keycloak user ID.
+ * Returns the employee ID once found, or null while loading / not found.
+ * Only fires the query when the direct employeeDetails.employeeId is absent.
+ */
+function useResolvedEmployeeId(
+  directEmployeeId: string | undefined,
+  userId: string | undefined,
+  accessToken: string
+): string | null {
+  const [resolvedId, setResolvedId] = useState<string | null>(directEmployeeId ?? null)
+  const graphqlClient = useGraphQLClient(accessToken)
+
+  useEffect(() => {
+    if (directEmployeeId) {
+      setResolvedId(directEmployeeId)
+      return
+    }
+    if (!userId) return
+
+    let cancelled = false
+    graphqlClient
+      .request<{ Employee: { id: string }[] }>(EMPLOYEE_BY_USER_ID_QUERY, { userId })
+      .then(result => {
+        if (!cancelled) {
+          setResolvedId(result?.Employee?.[0]?.id ?? null)
+        }
+      })
+      .catch(() => {
+        // GraphQL lookup failed — leave resolvedId null so the submit error still surfaces
+      })
+
+    return () => {
+      cancelled = true
+    }
+    // graphqlClient is intentionally omitted — its reference is stable per accessToken and including it causes loops
+  }, [directEmployeeId, userId])
+
+  return resolvedId
+}
 
 export interface ContentEntryWindowProps extends BusinessAppContextProps {
   contentId?: string
@@ -51,6 +101,12 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
   const { t } = useTranslation(translations)
   const fileClient = useFileClient(context)
   const { contentId } = context
+
+  const employeeId = useResolvedEmployeeId(
+    context.userInfo?.employeeDetails?.employeeId,
+    context.userInfo?.id,
+    context.accessToken
+  )
 
   const contentEntryId =
     contentId ||
@@ -485,7 +541,6 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
 
   const handleSubmit = async (data: ContentEntryFormValues) => {
     const isUpdate = Boolean(extractedContentId)
-    const employeeId = context.userInfo?.employeeDetails?.employeeId
 
     if (!employeeId) throw new Error('Employee ID is required')
 
