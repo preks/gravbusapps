@@ -1250,6 +1250,7 @@ renderer-permission-decision-submitted = Decizie trimisă
 renderer-permission-rejected = Respins
 renderer-permission-changes-submitted = Modificări trimise
 renderer-permission-approved = Aprobat
+renderer-permission-collapse = Restrânge acțiunea aprobată
 
 # Renderers — structured input form
 renderer-form-field-required = Acest câmp este obligatoriu
