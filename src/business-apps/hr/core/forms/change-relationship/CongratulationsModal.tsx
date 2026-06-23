@@ -32,11 +32,9 @@ export const CongratulationsModal: React.FC<CongratulationsModalProps> = ({
     <Dialog open={open}>
       <DialogContent data-testid={dataTestId} showCloseButton={false}>
         <DialogHeader>
+          <DialogTitle>{t('relationship-form-success-title')}</DialogTitle>
           {generatedMessage ? (
-            <>
-              <DialogTitle>{t('relationship-form-success-title')}</DialogTitle>
-              <DialogDescription>{generatedMessage}</DialogDescription>
-            </>
+            <DialogDescription>{generatedMessage}</DialogDescription>
           ) : (
             <DialogDescription className="gba:flex gba:items-center gba:gap-2">
               <SparkleIcon size={16} className="gba:animate-pulse" />
