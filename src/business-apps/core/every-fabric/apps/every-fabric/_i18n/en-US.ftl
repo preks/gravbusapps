@@ -383,6 +383,14 @@ knowledge-title-placeholder = Optional title
 knowledge-empty = No knowledge references yet.
 knowledge-open-policy = Open policy in a new tab (ID: { $id })
 
+# Connections section
+connections-section-title = Connections
+connections-section-desc = External connections this { -platform-ai-agent-product.inline } activates on every run. Binding a connection (e.g. Salesforce) enables its connector tools.
+connections-empty = No connections available to bind.
+connections-none-selected = No connections bound — runs use no connector tools.
+connections-loading = Loading connections…
+connections-load-error = Could not load connections.
+
 # Skills & policies section
 skills-section-title = Skills & policies
 skills-section-desc = Skills and intranet policies attached to this { -platform-ai-agent-product.inline }.

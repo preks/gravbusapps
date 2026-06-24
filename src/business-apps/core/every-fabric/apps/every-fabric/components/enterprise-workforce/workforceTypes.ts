@@ -100,6 +100,11 @@ export interface WorkforceProfile {
   budget: WorkforceBudget
   knowledge_refs: WorkforceKnowledgeRef[]
   instructions: string
+  // External connection IDs (e.g. a Salesforce structured connection) bound
+  // to the agent. Headless runs activate these so the deep-agent builds the
+  // matching connector tools. Optional for tolerant reads of older payloads;
+  // the backend always populates it and `defaultWorkforceProfile()` seeds [].
+  connection_ids?: string[]
   // Orgchart/Keycloak identity for per-agent token exchange. Null/absent
   // means headless runs use the shared service account.
   orgchart?: WorkforceOrgchartIdentity | null
@@ -148,6 +153,7 @@ export interface WorkforceAgentCreateInput {
   escalation?: WorkforceEscalationPolicy
   budget?: WorkforceBudget
   tags?: string[]
+  connection_ids?: string[]
 }
 
 export type WorkforceAgentUpdateInput = Partial<Omit<WorkforceAgentCreateInput, 'name'>> & {
@@ -537,6 +543,7 @@ export function defaultWorkforceProfile(): WorkforceProfile {
     },
     knowledge_refs: [],
     instructions: '',
+    connection_ids: [],
     archived_at: null,
     archived_by_user_id: null
   }
