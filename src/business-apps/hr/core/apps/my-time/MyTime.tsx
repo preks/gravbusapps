@@ -5,12 +5,13 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { MODULE_COLORS } from '@/common/constants/ui'
 import TimeTracking from './components/TimeTracking'
-import { useMyTimeEmployeeData, type MyTimeEmployee } from './hooks/useMyTimeEmployeeData'
+import { useMyTimeEmployeeData } from './hooks/useMyTimeEmployeeData'
 import timeTrackingTranslations from './_i18n'
 import TimeHistory from './components/TimeHistory'
 import SmartBooking from '../employee-record/components/tabs/components/SmartBooking'
 import { InterventionsTable } from '../employee-record/components/tabs/components/InterventionsTable'
 import { getActiveWorkingHours } from '@/business-apps/hr/core/utils/workingHoursUtils'
+import { isContractTimeRelevant } from '@/business-apps/hr/core/utils/timeRelevantUtils'
 
 type WeeklyWorkingHours = {
   activeFrom?: string | null
@@ -32,25 +33,6 @@ enum MyTimeTabEnum {
 }
 
 const TIME_TRACKING_TABS = new Set([MyTimeTabEnum.TimeTracking, MyTimeTabEnum.History, MyTimeTabEnum.EveryAIAssistant])
-
-function isContractTimeRelevant(employee: MyTimeEmployee | null): boolean {
-  if (!employee?.workingCondition?.length) return true
-
-  const today = new Date().toISOString()
-  const activeCondition = employee.workingCondition.find(wc => {
-    const from = wc.activeFrom
-    const to = wc.activeTo
-    if (from && from > today) return false
-    if (to && to < today) return false
-    return true
-  })
-
-  const condition = activeCondition ?? employee.workingCondition[employee.workingCondition.length - 1]
-  const objectValue = condition?.contractType?.objectValue
-  if (!objectValue || typeof objectValue !== 'object') return true
-
-  return objectValue.time_relevant !== false
-}
 
 export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
   const employeeId = userInfo?.employeeDetails?.employeeId || ''

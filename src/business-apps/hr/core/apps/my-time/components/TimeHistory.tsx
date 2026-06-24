@@ -30,6 +30,7 @@ interface TimeHistoryProps {
   employeeFirstName?: string
   employeeLastName?: string
   workingHours?: WorkingHoursSchedule | WorkingHoursSchedule[]
+  viewOnly?: boolean
 }
 
 type WorkingHoursSchedule = {
@@ -52,7 +53,8 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
   employeeCode,
   employeeFirstName,
   employeeLastName,
-  workingHours
+  workingHours,
+  viewOnly = false
 }) => {
   const locale = getCurrentActiveUserLocale()
   const employeeHireDate = employee?.workingCondition?.[0]?.hireDate
@@ -102,7 +104,9 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
 
       if (effectiveMin > 0 || e.startTimeISO || e.endTimeISO) daysWorked += 1
       if (e.dayType === 'holiday') bankHolidays += 1
-      if (e.absenceLabel && /\b(vacation|urlaub|concediu)\b/i.test(e.absenceLabel)) vacationDays += 1
+      const hasVacationAbsence = Boolean(e.absenceLabel && /\b(vacation|urlaub|concediu)\b/i.test(e.absenceLabel))
+      const isCalendarNonWorkingDay = e.dayType === 'weekend' || e.dayType === 'holiday'
+      if (hasVacationAbsence && !isCalendarNonWorkingDay) vacationDays += 1
     }
 
     const fmt = (mins: number) => {
@@ -266,20 +270,22 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
             <Button onClick={handleGenerateReport} data-testid="my-time-history-generate-report-button">
               {t('generate_report')}
             </Button>
-            <AppAction
-              variant="update-primary"
-              data-testid="my-time-history-request-correction-button"
-              contexts={[
-                {
-                  context: FlowContextName.employeeAttendanceCorrectionRequest,
-                  contextData: { employeeId }
-                }
-              ]}
-              prefixDataTestId="my-time-history-request-correction"
-              accessToken={accessToken}
-            >
-              {t('manual_entry')}
-            </AppAction>
+            {!viewOnly && (
+              <AppAction
+                variant="update-primary"
+                data-testid="my-time-history-request-correction-button"
+                contexts={[
+                  {
+                    context: FlowContextName.employeeAttendanceCorrectionRequest,
+                    contextData: { employeeId }
+                  }
+                ]}
+                prefixDataTestId="my-time-history-request-correction"
+                accessToken={accessToken}
+              >
+                {t('manual_entry')}
+              </AppAction>
+            )}
           </div>
         </div>
         <DailyLog employee={employee} employeeId={employeeId} accessToken={accessToken} hideSummaryCards />
@@ -320,20 +326,22 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
         <Button onClick={handleGenerateReport} data-testid="my-time-history-generate-report-button">
           {t('generate_report')}
         </Button>
-        <AppAction
-          variant="update-primary"
-          data-testid="my-time-history-request-correction-button"
-          contexts={[
-            {
-              context: FlowContextName.employeeAttendanceCorrectionRequest,
-              contextData: { employeeId }
-            }
-          ]}
-          prefixDataTestId="my-time-history-request-correction"
-          accessToken={accessToken}
-        >
-          {t('manual_entry')}
-        </AppAction>
+        {!viewOnly && (
+          <AppAction
+            variant="update-primary"
+            data-testid="my-time-history-request-correction-button"
+            contexts={[
+              {
+                context: FlowContextName.employeeAttendanceCorrectionRequest,
+                contextData: { employeeId }
+              }
+            ]}
+            prefixDataTestId="my-time-history-request-correction"
+            accessToken={accessToken}
+          >
+            {t('manual_entry')}
+          </AppAction>
+        )}
       </div>
 
       {error && (
@@ -369,6 +377,7 @@ const TimeHistory: React.FC<TimeHistoryProps> = ({
           sortKey={sortKey}
           sortDir={sortDir}
           onSort={setSort}
+          showActions={!viewOnly}
         />
       </Card>
     </div>

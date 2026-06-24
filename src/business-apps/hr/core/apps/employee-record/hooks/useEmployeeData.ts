@@ -268,6 +268,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         contractType {
           value
           id
+          objectValue
           translations(where: {localeCode: {_eq: $activeUserLocale}}) {
             localeCode
             value
@@ -733,6 +734,7 @@ interface CodeValue {
   id: string
   code?: string
   value: string
+  objectValue?: Record<string, unknown> | null
   translations?: {
     localeCode: string
     value: string
