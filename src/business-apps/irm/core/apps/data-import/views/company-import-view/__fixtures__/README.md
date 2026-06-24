@@ -5,17 +5,18 @@
 
 ## Columns
 
-| Column                           | Required | Maps to (frontend target)                         | Notes                                                                                                                                             |
-| -------------------------------- | -------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Name`                           | yes      | `investmentCompany.name`                          |                                                                                                                                                   |
-| `Description`                    | no       | `investmentCompany.description`                   |                                                                                                                                                   |
-| `Commercial Registration Number` | no       | `investmentCompany.commercialRegistrationNumber`  |                                                                                                                                                   |
-| `Currency`                       | no       | `investmentCompany.currencyRef`                   | Catalog ref against `Currency`.                                                                                                                   |
-| `Owned By`                       | no       | `investmentCompanyOwnership` (ownerCompanyIds)    | `Name (pct%)` entries; multi-value via `;` / `\n`.                                                                                                |
-| `Owns`                           | no       | `investmentCompanyOwnership` (ownedCompanyIds)    | Same format as `Owned By`.                                                                                                                        |
-| `Executives`                     | no       | `investmentCompany.investmentCompanyExecutives`   | Multi-value via `;`. Each entry is a person name resolved as `Employee` -> `InvestmentContact`; no match drops the entry.                         |
-| `Executive Type`                 | no       | `investmentCompanyExecutive.executiveTypeRef`     | Applies to every executive in the row; resolved against `LegalEntityExecutiveType`.                                                               |
-| `Stakeholders`                   | no       | `investmentCompany.investmentCompanyStakeholders` | Multi-value via `;`. Per entry: `Name, StakeholderTypeLabel`. Name resolves as `InvestmentContact` -> `InvestmentAccount` -> `external` (string). |
+| Column                           | Required | Maps to (frontend target)                         | Notes                                                                                                                                                                                                                                         |
+| -------------------------------- | -------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Name`                           | yes      | `investmentCompany.name`                          |                                                                                                                                                                                                                                               |
+| `Description`                    | no       | `investmentCompany.description`                   |                                                                                                                                                                                                                                               |
+| `Commercial Registration Number` | no       | `investmentCompany.commercialRegistrationNumber`  |                                                                                                                                                                                                                                               |
+| `Currency`                       | no       | `investmentCompany.currencyRef`                   | Catalog ref against `Currency`.                                                                                                                                                                                                               |
+| `Owner`                          | no       | `investmentCompany.ownerEmployeeId`               | **Person name** of the Employee at our firm responsible for this company. Resolved against `Employee.displayName`. If no match, falls back to the current importer's employee id. **Do not put company names here** — use `Owned By` instead. |
+| `Owned By`                       | no       | `investmentCompanyOwnership` (ownerCompanyIds)    | **Parent company** name. `Name (pct%)` entries; multi-value via `;` / `\n`. Resolved against `InvestmentCompany.name`.                                                                                                                        |
+| `Owns`                           | no       | `investmentCompanyOwnership` (ownedCompanyIds)    | Same format as `Owned By`.                                                                                                                                                                                                                    |
+| `Executives`                     | no       | `investmentCompany.investmentCompanyExecutives`   | Multi-value via `;`. Each entry is a person name resolved as `Employee` -> `InvestmentContact`; no match drops the entry from the payload but it still appears in the conversion summary with a "will not be imported" tooltip.               |
+| `Executive Type`                 | no       | `investmentCompanyExecutive.executiveTypeRef`     | Applies to every executive in the row; resolved against `LegalEntityExecutiveType`.                                                                                                                                                           |
+| `Stakeholders`                   | no       | `investmentCompany.investmentCompanyStakeholders` | Multi-value via `;`. Per entry: `Name, StakeholderTypeLabel`. Name resolves as `InvestmentContact` -> `InvestmentAccount` -> `external` (string).                                                                                             |
 
 ## How to use locally
 
@@ -24,7 +25,8 @@
    - One or two `InvestmentCompany` rows (e.g. `Northwind Capital`, `Acme Ventures`)
      so the `Owned By` / `Owns` lookups resolve.
    - At least one `Employee` whose `displayName` matches an executive name
-     (e.g. `John Smith`).
+     (e.g. `John Smith`) **and** at least one whose `displayName` matches the
+     `Owner` column value (e.g. `Maria Prangishvili`).
    - At least one `InvestmentContact` (e.g. `Jane Doe`, `Alice Contact`) so the
      contact-side executive and stakeholder paths resolve.
    - One `InvestmentAccount` (e.g. `Acme Bank`) so the account-side stakeholder

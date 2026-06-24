@@ -15,7 +15,12 @@ const companyCoreFields: TargetFieldDefinition[] = [
   { value: 'taxIdentificationNumber', label: 'Tax Identification Number', type: 'direct' },
   { value: 'taxNumber', label: 'Tax Number', type: 'direct' },
   { value: 'valueAddedTaxNumber', label: 'VAT Number', type: 'direct' },
-  { value: 'currencyRef', label: 'Currency (Catalog)', type: 'catalog', catalog: 'Currency' }
+  { value: 'currencyRef', label: 'Currency (Catalog)', type: 'catalog', catalog: 'Currency' },
+  // Owner — name of an Employee responsible for this company at our firm.
+  // Distinct from `Owned By` (parent company ownership). Flowbot resolves
+  // the column via `_IRM_OWNER_HEADER_ALIASES` and the import-template
+  // builder renames the header to "Owner" via `TEMPLATE_LABEL_BY_FIELD_NAME`.
+  { value: 'ownerEmployeeId', label: 'Owner Employee ID', type: 'direct' }
 ]
 
 const companyAddressFields: TargetFieldDefinition[] = [

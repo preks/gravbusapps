@@ -362,7 +362,7 @@ export function createIrmImportStrategy(config: ImportConfig): ImportSubmissionS
       const investmentCompanies = entities.map(entity => {
         const groupId =
           typeof entity.investmentCompanyGroupId === 'string' ? entity.investmentCompanyGroupId : undefined
-        return toInvestmentCompanyImportPayload(entity, groupId)
+        return toInvestmentCompanyImportPayload(entity, groupId, ownerEmployeeId)
       })
 
       const companyResponse = await restClient.post(

@@ -438,7 +438,12 @@ export function useEntityImport<T = ConvertedEntity>(
         const normalized = normalizeEntityForImport(entity)
         const withOwnerAndCampaign = {
           ...normalized,
-          ownerEmployee: ownerEmployeeId || entity.ownerEmployee || entity.ownerEmployeeId,
+          // Prefer a per-row owner already resolved by Flowbot (e.g. from an
+          // "Owned By" column) over the current importer's employee id; the
+          // importer is only used as a fallback when the row didn't specify
+          // one. `resolveOwnerEmployeeId` enforces the same precedence
+          // downstream in each IRM payload builder.
+          ownerEmployee: entity.ownerEmployee || entity.ownerEmployeeId || ownerEmployeeId,
           ...(campaignId ? { salesCampaign: campaignId } : {}),
           ...(investmentCompanyGroupId ? { investmentCompanyGroupId } : {})
         }

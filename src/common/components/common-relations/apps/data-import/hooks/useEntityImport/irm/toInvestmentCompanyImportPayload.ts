@@ -13,7 +13,7 @@ import {
   investmentCompanyStakeholderFormFields
 } from '@/common/data/investment/types/investmentCompanyAssociationTypes'
 import { isPlainRecord, nestFlatDottedKeys } from '../shared/dottedKeys'
-import { normalizeEntityForImport, stripEmptyValues } from '../shared'
+import { normalizeEntityForImport, resolveOwnerEmployeeId, stripEmptyValues } from '../shared'
 
 const OWNERSHIP_TOTAL_LIMIT = 100
 
@@ -145,10 +145,13 @@ function buildOwnershipPayload(rows: OwnershipSource[]): Record<string, unknown>
 
 export function toInvestmentCompanyImportPayload(
   entity: Record<string, any>,
-  investmentCompanyGroupId?: string
+  investmentCompanyGroupId?: string,
+  ownerEmployeeId?: string
 ): Record<string, unknown> {
   const nested = nestFlatDottedKeys(normalizeEntityForImport(entity) as Record<string, unknown>)
   const addresses = Array.isArray(nested.addresses) ? nested.addresses : undefined
+
+  const resolvedOwnerEmployeeId = resolveOwnerEmployeeId(nested, ownerEmployeeId)
 
   const investmentCompany = buildInvestmentCompanyPayload({
     name: typeof nested.name === 'string' ? nested.name : undefined,
@@ -161,6 +164,7 @@ export function toInvestmentCompanyImportPayload(
     taxNumber: typeof nested.taxNumber === 'string' ? nested.taxNumber : undefined,
     valueAddedTaxNumber: typeof nested.valueAddedTaxNumber === 'string' ? nested.valueAddedTaxNumber : undefined,
     currencyRef: typeof nested.currencyRef === 'string' ? nested.currencyRef : undefined,
+    ownerEmployeeId: resolvedOwnerEmployeeId,
     addresses
   }).investmentCompany as Record<string, unknown>
 

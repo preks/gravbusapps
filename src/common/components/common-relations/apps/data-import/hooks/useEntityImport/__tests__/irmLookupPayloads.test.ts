@@ -56,11 +56,22 @@ describe('toInvestmentContactPayload — lookup arrays from Flowbot', () => {
     expect(payload.accountContacts).toBeUndefined()
   })
 
-  it('prefers the logged-in employee id over the per-row owner (existing behaviour)', () => {
+  it('prefers a per-row owner resolved from the file over the logged-in employee id', () => {
     const payload = toInvestmentContactPayload(
       {
         firstName: 'Anna',
         ownerEmployee: 'employee-from-row'
+      },
+      'employee-logged-in'
+    )
+
+    expect(payload.ownerEmployee).toBe('employee-from-row')
+  })
+
+  it('falls back to the logged-in employee id when the row has no resolved owner', () => {
+    const payload = toInvestmentContactPayload(
+      {
+        firstName: 'Anna'
       },
       'employee-logged-in'
     )
@@ -607,6 +618,59 @@ describe('toInvestmentCompanyImportPayload — stakeholders', () => {
     })
 
     expect(payload.investmentCompanyStakeholder).toBeUndefined()
+  })
+})
+
+describe('toInvestmentCompanyImportPayload — ownerEmployee', () => {
+  it('forwards a resolved ownerEmployee onto the create payload as ownerEmployeeId', () => {
+    const payload = toInvestmentCompanyImportPayload({
+      name: 'Alpha Holdings GmbH',
+      ownerEmployee: 'employee-maria-id'
+    })
+
+    expect(payload.ownerEmployeeId).toBe('employee-maria-id')
+  })
+
+  it('also honours an `ownerEmployeeId` value already present on the entity', () => {
+    const payload = toInvestmentCompanyImportPayload({
+      name: 'Alpha Holdings GmbH',
+      ownerEmployeeId: 'employee-maria-id'
+    })
+
+    expect(payload.ownerEmployeeId).toBe('employee-maria-id')
+  })
+
+  it('prefers the per-row resolved owner over the logged-in importer', () => {
+    const payload = toInvestmentCompanyImportPayload(
+      {
+        name: 'Alpha Holdings GmbH',
+        ownerEmployee: 'employee-maria-id'
+      },
+      undefined,
+      'employee-logged-in'
+    )
+
+    expect(payload.ownerEmployeeId).toBe('employee-maria-id')
+  })
+
+  it('falls back to the logged-in importer when no per-row owner is present', () => {
+    const payload = toInvestmentCompanyImportPayload(
+      {
+        name: 'Alpha Holdings GmbH'
+      },
+      undefined,
+      'employee-logged-in'
+    )
+
+    expect(payload.ownerEmployeeId).toBe('employee-logged-in')
+  })
+
+  it('omits ownerEmployeeId when neither the row nor the importer supplies one', () => {
+    const payload = toInvestmentCompanyImportPayload({
+      name: 'Alpha Holdings GmbH'
+    })
+
+    expect(payload.ownerEmployeeId).toBeUndefined()
   })
 })
 

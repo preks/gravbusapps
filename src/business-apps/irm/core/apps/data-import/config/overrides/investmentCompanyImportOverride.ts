@@ -21,11 +21,16 @@ export const investmentCompanyImportOverride: Partial<ImportConfig> = {
   relationshipColumnHints: [
     'relationship-hint-company-columns',
     'relationship-hint-percentages',
+    'relationship-hint-owner-vs-owned-by',
     'relationship-hint-executives',
     'relationship-hint-executive-type',
     'relationship-hint-stakeholders'
   ],
   ownershipStep: {
-    relationshipColumnHints: ['relationship-hint-company-columns', 'relationship-hint-percentages']
+    relationshipColumnHints: [
+      'relationship-hint-company-columns',
+      'relationship-hint-percentages',
+      'relationship-hint-owner-vs-owned-by'
+    ]
   }
 }
