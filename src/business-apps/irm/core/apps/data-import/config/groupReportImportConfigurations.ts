@@ -115,6 +115,15 @@ const createDefaultReportImportConfig = (group: InvestmentImportGroupDescriptor)
     targetFields: groupConfig?.targetFields ?? COMMON_INVESTMENT_REPORT_FIELDS,
     investmentReportPayloadKey: groupConfig?.investmentReportPayloadKey,
     investmentGroupRef: group.id,
+    enforcedDirectFields: [
+      {
+        id: 'reportDate',
+        targetField: 'date',
+        inputType: 'date',
+        labelKey: 'investment-report-date-label',
+        hintKey: 'investment-report-date-hint'
+      }
+    ],
     preview: investmentReportPreviewConfig
   }
 }

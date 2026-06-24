@@ -32,6 +32,8 @@ lead-rating-label = Evaluare implicită lead
 # Investment Defaults
 investment-group-label = Grup de investiții
 investment-type-label = Tip investiție (Opțional)
+investment-report-date-label = Data raportului (Opțional)
+investment-report-date-hint = Setați o dată de raport pentru toate rapoartele de investiții importate. Lăsați necompletat pentru a folosi data din fișier.
 investment-company-group-label = Grup companie de investiții
 
 # Liquid Fund Defaults

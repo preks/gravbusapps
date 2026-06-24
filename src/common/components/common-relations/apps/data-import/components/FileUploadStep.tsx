@@ -44,7 +44,10 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import CampaignSelect from '@/common/components/customer/selects/campaign-select/CampaignSelect'
 import { CatalogSelect } from '@/components/catalog-select'
 import { InvestmentCompanyGroupSelect } from './InvestmentCompanyGroupSelect'
-import type { EnforcedSelectConfig } from '@/common/components/common-relations/apps/data-import/types'
+import type {
+  EnforcedDirectFieldConfig,
+  EnforcedSelectConfig
+} from '@/common/components/common-relations/apps/data-import/types'
 import translations from './FileUploadStep/_i18n'
 
 export interface FileUploadStepProps {
@@ -61,6 +64,7 @@ export interface FileUploadStepProps {
   onInvestmentCompanyGroupChange?: (group: { id: string; name: string } | null) => void
   businessAppContext?: BusinessAppContextProps
   enforcedSelectConfigs?: EnforcedSelectConfig[]
+  enforcedDirectFieldConfigs?: EnforcedDirectFieldConfig[]
   allRequiredEnforcedSatisfied?: boolean
   /** Slot for custom select components (e.g. GraphQL entity selects) */
   customSelectsSlot?: React.ReactNode
@@ -103,6 +107,43 @@ const EnforcedCatalogField: React.FC<EnforcedCatalogFieldProps> = ({ config, tes
   )
 }
 
+interface EnforcedDirectFieldProps {
+  config: EnforcedDirectFieldConfig
+  testId: string
+}
+
+const EnforcedDirectField: React.FC<EnforcedDirectFieldProps> = ({ config, testId }) => {
+  const { t } = useTranslation(translations)
+  const form = useFormContext()
+  return (
+    <FormField
+      control={form.control}
+      name={config.id}
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>
+            {t(config.labelKey)}
+            {config.required && <span className="gba:text-destructive gba:ml-1">*</span>}
+          </FormLabel>
+          <FormControl>
+            <Input
+              type={config.inputType}
+              value={field.value || ''}
+              onChange={field.onChange}
+              data-testid={`${testId}-enforced-${config.id}-input`}
+            />
+          </FormControl>
+          {config.hintKey && (
+            <p className="gba:text-xs gba:text-muted-foreground" data-testid={`${testId}-enforced-${config.id}-hint`}>
+              {t(config.hintKey)}
+            </p>
+          )}
+        </FormItem>
+      )}
+    />
+  )
+}
+
 // Accepted import formats. Backend (Flowbot) handles parsing; the FE only
 // gates the picker + surfaces an inline error when the user selects an
 // unsupported file. Keep the extension list and `ACCEPTED_FILE_TYPES` in
@@ -137,6 +178,7 @@ export const FileUploadStep: React.FC<FileUploadStepProps> = ({
   onInvestmentCompanyGroupChange,
   businessAppContext,
   enforcedSelectConfigs,
+  enforcedDirectFieldConfigs,
   allRequiredEnforcedSatisfied = true,
   customSelectsSlot,
   'data-testid': testId = 'file-upload-step'
@@ -167,6 +209,7 @@ export const FileUploadStep: React.FC<FileUploadStepProps> = ({
 
   const canAnalyze = !!file && !isLoading && allRequiredEnforcedSatisfied
   const visibleEnforcedConfigs = enforcedSelectConfigs?.filter(cfg => !cfg.hidden) ?? []
+  const visibleEnforcedDirectFieldConfigs = enforcedDirectFieldConfigs ?? []
 
   return (
     <Card data-testid={testId}>
@@ -288,6 +331,10 @@ export const FileUploadStep: React.FC<FileUploadStepProps> = ({
 
           {visibleEnforcedConfigs.map(cfg => (
             <EnforcedCatalogField key={cfg.id} config={cfg} testId={testId} />
+          ))}
+
+          {visibleEnforcedDirectFieldConfigs.map(cfg => (
+            <EnforcedDirectField key={cfg.id} config={cfg} testId={testId} />
           ))}
 
           {customSelectsSlot}

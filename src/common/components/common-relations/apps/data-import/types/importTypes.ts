@@ -120,6 +120,21 @@ export interface EnforcedSelectConfig {
   labelKey: string
 }
 
+export interface EnforcedDirectFieldConfig {
+  /** Stable id; doubles as the react-hook-form field name for this input. */
+  id: string
+  /** Dotted UI target field that Flowbot injects into every extracted row. */
+  targetField: string
+  /** Native input type rendered on the upload step. */
+  inputType: 'date'
+  /** When true, the Analyze button is disabled until the user enters a value. */
+  required?: boolean
+  /** i18n key for the label. */
+  labelKey: string
+  /** Optional i18n key for helper text below the input. */
+  hintKey?: string
+}
+
 /**
  * Hook that runs against a single investment request inside
  * `toInvestmentBatchPayload`, after flat keys have been re-nested but before
@@ -169,6 +184,8 @@ export interface ImportConfig {
   investmentGroupRef?: string
   /** Optional list of catalog selects enforced across every imported row. */
   enforcedSelects?: EnforcedSelectConfig[]
+  /** Optional list of direct field values enforced across every imported row. */
+  enforcedDirectFields?: EnforcedDirectFieldConfig[]
   /** Import-specific relationship-column guidance shown in the mapping step. */
   relationshipColumnHints?: string[]
   /** Declarative preview-card layout for the converted entity. */

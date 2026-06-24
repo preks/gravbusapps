@@ -39,9 +39,13 @@ import {
 import { extractErrorMessage } from '@/common/components/common-relations/apps/data-import/hooks/useEntityImport/shared/errorHandling'
 import {
   allEnforcedRequiredSatisfied,
+  allEnforcedDirectFieldsRequiredSatisfied,
+  buildEnforcedDirectFieldDefaults,
+  buildEnforcedDirectFieldMap,
   buildEnforcedSelectDefaults,
   buildEnforcedSelectMap,
   downloadImportTemplate,
+  type EnforcedDirectFieldValues,
   type EnforcedSelectValues
 } from '@/common/components/common-relations/apps/data-import/utils'
 import { FileUploadStep } from './FileUploadStep'
@@ -166,15 +170,23 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
   )
 
   const enforcedSelectConfigs = config.enforcedSelects
+  const enforcedDirectFieldConfigs = config.enforcedDirectFields
   const enforcedFormDefaults = React.useMemo(
-    () => buildEnforcedSelectDefaults(enforcedSelectConfigs),
-    [enforcedSelectConfigs]
+    () => ({
+      ...buildEnforcedSelectDefaults(enforcedSelectConfigs),
+      ...buildEnforcedDirectFieldDefaults(enforcedDirectFieldConfigs)
+    }),
+    [enforcedSelectConfigs, enforcedDirectFieldConfigs]
   )
-  const enforcedForm = useForm<EnforcedSelectValues>({ defaultValues: enforcedFormDefaults })
+  const enforcedForm = useForm<EnforcedSelectValues & EnforcedDirectFieldValues>({
+    defaultValues: enforcedFormDefaults
+  })
   const enforcedValues = enforcedForm.watch()
   const allRequiredEnforcedSatisfied = React.useMemo(
-    () => allEnforcedRequiredSatisfied(enforcedSelectConfigs, enforcedValues),
-    [enforcedSelectConfigs, enforcedValues]
+    () =>
+      allEnforcedRequiredSatisfied(enforcedSelectConfigs, enforcedValues) &&
+      allEnforcedDirectFieldsRequiredSatisfied(enforcedDirectFieldConfigs, enforcedValues),
+    [enforcedSelectConfigs, enforcedDirectFieldConfigs, enforcedValues]
   )
 
   const canProceedFromUpload = allRequiredEnforcedSatisfied
@@ -187,12 +199,18 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
   }, [agentResponse, setMappings, setUnmappedSourceFields])
 
   const handleConvert = React.useCallback(async () => {
-    const catalogEnforced = buildEnforcedSelectMap(enforcedSelectConfigs, enforcedForm.getValues())
-    const mergedEnforced = { ...catalogEnforced, ...additionalEnforcedFields }
+    const values = enforcedForm.getValues()
+    const catalogEnforced = buildEnforcedSelectMap(enforcedSelectConfigs, values)
+    const enforcedDirectFields = buildEnforcedDirectFieldMap(enforcedDirectFieldConfigs, values)
+    const mergedEnforced = {
+      ...catalogEnforced,
+      ...enforcedDirectFields,
+      ...additionalEnforcedFields
+    }
     const hasEnforcedFields = Object.keys(mergedEnforced).length > 0
     const enforcedFieldsJson = hasEnforcedFields ? JSON.stringify(mergedEnforced) : undefined
     await convertData(mappings, enforcedFieldsJson)
-  }, [convertData, mappings, enforcedSelectConfigs, enforcedForm, additionalEnforcedFields])
+  }, [convertData, mappings, enforcedSelectConfigs, enforcedDirectFieldConfigs, enforcedForm, additionalEnforcedFields])
 
   const [isDownloadingTemplate, setIsDownloadingTemplate] = React.useState(false)
   const [downloadTemplateError, setDownloadTemplateError] = React.useState<string | null>(null)
@@ -244,6 +262,7 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
                 businessAppContext: context
               })}
               enforcedSelectConfigs={enforcedSelectConfigs}
+              enforcedDirectFieldConfigs={enforcedDirectFieldConfigs}
               allRequiredEnforcedSatisfied={canProceedFromUpload}
               customSelectsSlot={customSelectsSlot}
               data-testid={`${testId}-upload-step`}

@@ -32,6 +32,8 @@ lead-rating-label = Default Lead Rating
 # Investment Defaults
 investment-group-label = Investment Group
 investment-type-label = Investment Type (Optional)
+investment-report-date-label = Report Date (Optional)
+investment-report-date-hint = Set a report date for all imported investment reports. Leave empty to use the date from your file.
 investment-company-group-label = Investment Company Group
 
 # Liquid Fund Defaults
