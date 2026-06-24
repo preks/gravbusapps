@@ -146,6 +146,12 @@ export const createCompanyColumns = (t: (key: string) => string): Array<ColumnDe
     cell: ({ row }) => row.original.taxIdentificationNumber || '-'
   },
   {
+    id: 'accountingArea',
+    header: t('accounting-area-column'),
+    accessorKey: 'accountingArea',
+    cell: ({ row }) => row.original.accountingArea || '-'
+  },
+  {
     id: 'ownerEmployee',
     header: t('owner-column'),
     accessorKey: 'ownerEmployee.displayName',

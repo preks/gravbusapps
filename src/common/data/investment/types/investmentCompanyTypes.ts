@@ -21,6 +21,7 @@ export interface InvestmentCompany extends BaseEntity {
   taxIdentificationNumber?: string
   taxNumber?: string
   valueAddedTaxNumber?: string
+  accountingArea?: string
   picture?: unknown
   pictureThumbnail?: string
   currencyRef?: string
@@ -46,6 +47,7 @@ export const InvestmentCompanyFields = {
   taxIdentificationNumber: 'taxIdentificationNumber',
   taxNumber: 'taxNumber',
   valueAddedTaxNumber: 'valueAddedTaxNumber',
+  accountingArea: 'accountingArea',
   picture: 'picture',
   pictureThumbnail: 'pictureThumbnail',
   currencyRef: 'currencyRef',
@@ -72,10 +74,11 @@ export const investmentCompanyFormFields = {
   taxIdentificationNumber: 'taxIdentificationNumber',
   taxNumber: 'taxNumber',
   valueAddedTaxNumber: 'valueAddedTaxNumber',
+  accountingArea: 'accountingArea',
   picture: 'picture',
   pictureThumbnail: 'pictureThumbnail',
   currencyRef: 'currencyRef',
-  ownerEmployeeId: 'ownerEmployeeId',
+  ownerEmployeeId: 'ownerEmployee',
   ownsProperty: 'ownsProperty',
   addresses: 'addresses'
 } as const
@@ -112,6 +115,12 @@ export const INVESTMENT_COMPANY_DESCRIPTORS: Descriptor[] = [
     key: 'valueAddedTaxNumber',
     searchPaths: [InvestmentCompanyFields.valueAddedTaxNumber],
     sortPath: InvestmentCompanyFields.valueAddedTaxNumber,
+    type: 'text'
+  },
+  {
+    key: 'accountingArea',
+    searchPaths: [InvestmentCompanyFields.accountingArea],
+    sortPath: InvestmentCompanyFields.accountingArea,
     type: 'text'
   },
   {

@@ -33,6 +33,7 @@ currency-label = Currency
 tax-identification-number-label = Tax ID Nr.
 tax-number-label = Tax Number
 vat-number-label = VAT Number
+accounting-area-label = Accounting Area
 logo-label = Company Logo
 logo-alt = Company logo
 remove-logo-button = Remove

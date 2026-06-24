@@ -165,13 +165,8 @@ function StakeholderRow({
   remove
 }: StakeholderRowProps) {
   const sourceType = useWatch({ control: form.control, name: `stakeholders.${index}.sourceType` })
-  const stakeholderType = useWatch({
-    control: form.control,
-    name: `stakeholders.${index}.investmentCompanyStakeholderTypeRef`
-  })
   const initialContact = useWatch({ control: form.control, name: `stakeholders.${index}.investmentContact` })
   const initialAccount = useWatch({ control: form.control, name: `stakeholders.${index}.investmentAccount` })
-  const isSourceTypeRequired = Boolean(stakeholderType)
   const isStakeholderRequired = Boolean(sourceType)
 
   return (
@@ -182,10 +177,7 @@ function StakeholderRow({
           name={`stakeholders.${index}.sourceType`}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>
-                {t('source-type-label')}
-                <RequiredMarker visible={isSourceTypeRequired} />
-              </FormLabel>
+              <FormLabel>{t('source-type-label')}</FormLabel>
               <FormControl>
                 <Select
                   value={field.value}

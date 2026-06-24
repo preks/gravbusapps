@@ -35,6 +35,7 @@ export const buildCompanySubmitPayload = async (
     taxIdentificationNumber: data.taxIdentificationNumber?.trim() || undefined,
     taxNumber: data.taxNumber?.trim() || undefined,
     valueAddedTaxNumber: data.valueAddedTaxNumber?.trim() || undefined,
+    accountingArea: data.accountingArea?.trim() || undefined,
     currencyRef: data.currencyRef || undefined,
     ownerEmployeeId: data.ownerEmployeeId || undefined,
     ownsProperty: data.ownsProperty,

@@ -4,6 +4,7 @@ no-code = No code
 investment-company-column = Investment Company
 registration-number-column = Registration No.
 tax-id-column = Tax ID
+accounting-area-column = Accounting Area
 owner-column = Owner
 owns-property-column = Owns Property
 currency-column = Currency

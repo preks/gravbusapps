@@ -33,6 +33,7 @@ currency-label = Waehrung
 tax-identification-number-label = Steuer-ID-Nr.
 tax-number-label = Steuernummer
 vat-number-label = USt-IdNr.
+accounting-area-label = Buchungskreis
 logo-label = Gesellschaftslogo
 logo-alt = Gesellschaftslogo
 remove-logo-button = Entfernen

@@ -33,6 +33,7 @@ currency-label = Moneda
 tax-identification-number-label = Nr. ID fiscal
 tax-number-label = Numar fiscal
 vat-number-label = Numar TVA
+accounting-area-label = Zona contabila
 logo-label = Logo companie
 logo-alt = Logo companie
 remove-logo-button = Eliminati

@@ -206,6 +206,11 @@ export const CompanyRecordContent: React.FC<CompanyRecordContentProps> = ({
             icon: IdentificationCardIcon
           },
           {
+            label: t('accounting-area-label'),
+            value: investmentCompany?.accountingArea || t('not-set'),
+            icon: FileTextIcon
+          },
+          {
             label: t('owner-label'),
             value: getOwnerName(investmentCompany?.ownerEmployee) || t('not-set'),
             icon: UserIcon
@@ -214,6 +219,7 @@ export const CompanyRecordContent: React.FC<CompanyRecordContentProps> = ({
       }
     ],
     [
+      investmentCompany?.accountingArea,
       investmentCompany?.code,
       investmentCompany?.commercialRegistrationNumber,
       investmentCompany?.currency,

@@ -22,13 +22,22 @@ interface StakeholderDetailsSectionProps {
 
 const EMPTY_VALUE = '-'
 
-const getStakeholderName = (stakeholder: InvestmentCompanyStakeholder): string =>
-  stakeholder.investmentContact?.fullName ||
-  stakeholder.investmentAccount?.name ||
-  stakeholder.name ||
-  stakeholder.investmentContactId ||
-  stakeholder.investmentAccountId ||
-  EMPTY_VALUE
+const getStakeholderName = (
+  stakeholder: InvestmentCompanyStakeholder,
+  entityType: 'contact' | 'account' | 'external',
+  t: (key: string) => string
+): string => {
+  const contact = stakeholder.investmentContact
+  const composedContactName = contact ? `${contact.firstName || ''} ${contact.lastName || ''}`.trim() : ''
+  const resolvedName =
+    contact?.fullName || composedContactName || stakeholder.investmentAccount?.name || stakeholder.name
+
+  // Never expose the raw entity UUID as a display name; fall back to a readable "Unnamed" label.
+  if (resolvedName) return resolvedName
+  if (entityType === 'account') return t('stakeholder-unnamed-account')
+  if (entityType === 'external') return t('stakeholder-unnamed-external')
+  return t('stakeholder-unnamed-contact')
+}
 
 const getInitials = (name: string): string =>
   name
@@ -143,8 +152,8 @@ export const StakeholderDetailsSection: React.FC<StakeholderDetailsSectionProps>
           <div className="gba:space-y-3">
             {stakeholders.map(stakeholder => {
               const recordTarget = getStakeholderRecordTarget(stakeholder)
-              const stakeholderName = getStakeholderName(stakeholder)
               const entityType = getStakeholderEntityType(stakeholder)
+              const stakeholderName = getStakeholderName(stakeholder, entityType, t)
 
               return (
                 <div

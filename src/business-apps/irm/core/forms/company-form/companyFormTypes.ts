@@ -73,6 +73,7 @@ export const createCompanySchema = (t: (key: string) => string) => {
     taxIdentificationNumber: z.string().optional(),
     taxNumber: z.string().optional(),
     valueAddedTaxNumber: z.string().optional(),
+    accountingArea: z.string().optional(),
     currencyRef: z.string().optional(),
     ownerEmployeeId: z.string().optional(),
     ownsProperty: z.boolean(),
@@ -168,11 +169,12 @@ const validateStakeholderRow = (
 ): CompanyCrossFieldError[] => {
   const issues: CompanyCrossFieldError[] = []
   const hasSourceType = Boolean(stakeholder.sourceType)
+  // Stakeholder type is an optional classification and must NOT, on its own, engage the row or make
+  // other fields (source type / person) required.
   const hasMeaningfulData =
     Boolean(stakeholder.investmentContactId) ||
     Boolean(stakeholder.investmentAccountId) ||
     Boolean(stakeholder.name?.trim()) ||
-    Boolean(stakeholder.investmentCompanyStakeholderTypeRef) ||
     hasSourceType ||
     Boolean(stakeholder.id)
 
@@ -419,8 +421,10 @@ const toStakeholderFormRow = (stakeholder: StakeholderFormSource): StakeholderFo
     investmentContact: stakeholder?.investmentContact,
     investmentAccountId,
     investmentAccount: stakeholder?.investmentAccount,
-    name: stakeholder?.name,
-    investmentCompanyStakeholderTypeRef: stakeholder?.investmentCompanyStakeholderTypeRef
+    // Normalize backend `null` to `undefined`: the form schema fields are `z.string().optional()`
+    // (string | undefined), so a loaded `null` would fail Zod with "Invalid input" on update.
+    name: stakeholder?.name ?? undefined,
+    investmentCompanyStakeholderTypeRef: stakeholder?.investmentCompanyStakeholderTypeRef ?? undefined
   }
 }
 
@@ -506,6 +510,7 @@ export const getCompanyDefaultValues = (company?: InvestmentCompanyFormSource): 
     taxIdentificationNumber: company?.taxIdentificationNumber || '',
     taxNumber: company?.taxNumber || '',
     valueAddedTaxNumber: company?.valueAddedTaxNumber || '',
+    accountingArea: company?.accountingArea || '',
     currencyRef: company?.currencyRef || '',
     ownerEmployeeId: company?.ownerEmployeeId || company?.ownerEmployee?.id || '',
     ownsProperty: company?.ownsProperty ?? false,
