@@ -158,6 +158,21 @@ describe('useAgentSession polling while SSE is live', () => {
     await waitFor(() => expect(mockGetSession).toHaveBeenCalledTimes(2))
     expect(mockGetSession).toHaveBeenLastCalledWith('poll-session', { bypassCache: true })
   })
+
+  it('clears a stranded running flag when REST is already terminal', async () => {
+    const completedSession: DeepAgentSession = {
+      ...runningSession,
+      status: 'completed',
+      output: 'done',
+      completed_at: new Date().toISOString()
+    }
+    mockGetSession.mockResolvedValue(completedSession)
+
+    const { result } = renderHook(() => useAgentSession('poll-session', 'token'))
+
+    await waitFor(() => expect(mockGetSession).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(result.current.isStreaming).toBe(false))
+  })
 })
 
 describe('useAgentSession registry append filtering during a follow-up', () => {
