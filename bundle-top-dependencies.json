@@ -86039,20 +86039,20 @@
     ]
   },
   "platform/apps/bundle-dashboard": {
-    "bitbucketBuildNumber": 14109,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14109/",
+    "bitbucketBuildNumber": 14112,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14112/",
     "chunkJsBytes": 2021106,
     "top": [
       {
         "kind": "bucket",
         "name": "(other)/platform",
         "rendered": 1736184,
-        "gzip": 114622,
+        "gzip": 114623,
         "leaves": [
           {
             "name": "platform/apps/bundle-dashboard/index.js/bundle-top-dependencies.json",
             "rendered": 1736184,
-            "gzip": 114622
+            "gzip": 114623
           }
         ]
       },
@@ -97989,15 +97989,15 @@
     ]
   },
   "core/every-fabric/apps/every-fabric": {
-    "bitbucketBuildNumber": 14109,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14109/",
-    "chunkJsBytes": 3404242,
+    "bitbucketBuildNumber": 14112,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14112/",
+    "chunkJsBytes": 3403153,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 3092953,
-        "gzip": 809268,
+        "rendered": 3090937,
+        "gzip": 808546,
         "leaves": [
           {
             "name": "src/business-apps/core/every-fabric/apps/every-fabric/_i18n/de-DE.ftl?raw",
@@ -113085,15 +113085,15 @@
     ]
   },
   "platform/apps/digital-workplace": {
-    "bitbucketBuildNumber": 14109,
-    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14109/",
-    "chunkJsBytes": 3449564,
+    "bitbucketBuildNumber": 14112,
+    "pipelineUrl": "https://bitbucket.org/new-work-team/gravity-business-apps/pipelines/results/14112/",
+    "chunkJsBytes": 3449538,
     "top": [
       {
         "kind": "bucket",
         "name": "(src)/business-apps/core",
-        "rendered": 2311389,
-        "gzip": 541048,
+        "rendered": 2311349,
+        "gzip": 541022,
         "leaves": [
           {
             "name": "src/business-apps/core/every-fabric/apps/every-fabric/_i18n/de-DE.ftl?raw",
@@ -117489,7 +117489,7 @@
   },
   "_meta": {
     "schemaVersion": 1,
-    "generatedAt": "2026-06-25T10:14:26.014Z",
+    "generatedAt": "2026-06-25T10:45:49.654Z",
     "maintainerNote": "Updated by CI after screen publishes; hand-edit only for schema fixes or emergencies."
   }
 }
