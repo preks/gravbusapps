@@ -946,6 +946,8 @@ employment-label-exit-reason = Austrittsgrund
 employment-working-conditions-previous = Zurück
 employment-working-conditions-next = Weiter
 employment-working-conditions-period-not-continuous = Dieser Arbeitsbedingungszeitraum schließt nicht direkt an den vorherigen Zeitraum an oder geht nicht direkt in den nächsten Zeitraum über.
+employment-working-hours-period-not-continuous = Dieser Arbeitszeitenzeitraum schließt nicht direkt an den vorherigen Zeitraum an oder geht nicht direkt in den nächsten Zeitraum über.
+employment-working-hours-missing-required-input = Dieser Arbeitszeiteintrag muss aktualisiert werden, da erforderliche Angaben fehlen.
 common-loading = Wird geladen...
 common-yes = Ja
 common-no = Nein
@@ -1055,6 +1057,10 @@ working-hours-active-from-before-hire-date-warning = Die Arbeitszeiten beginnen 
 working-hours-active-from-hire-date-preselected = Für den ersten Arbeitszeiteintrag ist das Eintrittsdatum vorausgewählt und kann nicht bearbeitet werden.
 working-hours-at-least-one-working-day-required = Mindestens ein Tag muss mehr als 0 Arbeitsstunden haben.
 working-hours-submitting-message = Arbeitszeiten werden übermittelt...
+working-hours-salary-adjustment-prompt-title = Gehalt ebenfalls anpassen?
+working-hours-salary-adjustment-prompt-description = Erfordern diese Änderungen der Arbeitszeiten eine Gehaltsanpassung?
+working-hours-salary-adjustment-prompt-no = Nein
+working-hours-salary-adjustment-prompt-yes = Ja
 
 # Career Tab
 career-tab-title = Karrierepfad
