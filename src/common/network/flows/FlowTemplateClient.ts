@@ -135,6 +135,11 @@ export type StepKind = 'USER' | 'SYSTEM'
 
 export type DecisionMode = 'USER' | 'AI' | 'LOGIC'
 
+export interface StepResultDisplay {
+  mode?: 'include' | 'exclude'
+  fields: string[]
+}
+
 export interface DecisionBranch {
   id: string
   label: string
@@ -165,6 +170,8 @@ export interface FlowStep {
    */
   assignment?: TaskAssignment
   eventSubscriptions?: EventSubscription[] // Event subscriptions for reactive automation
+  /** Optional allow/deny list for captured-result fields shown in result views. */
+  resultDisplay?: StepResultDisplay
   /**
    * Optional ordered list of custom states for this user task step.
    * Used for kanban-style boards and user-driven state transitions.

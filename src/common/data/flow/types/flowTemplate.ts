@@ -137,6 +137,11 @@ export type TaskAssignment = {
 
 export type StepKind = 'USER' | 'SYSTEM'
 
+export interface StepResultDisplay {
+  mode?: 'include' | 'exclude'
+  fields: string[]
+}
+
 export interface FlowStep {
   id?: string
   title: string
@@ -172,6 +177,9 @@ export interface FlowStep {
 
   // Event subscriptions for reactive automation on this step
   eventSubscriptions?: EventSubscription[]
+
+  // Captured-data display configuration for flow detail/result views
+  resultDisplay?: StepResultDisplay
 }
 
 // Simplified init step for self-service flows
